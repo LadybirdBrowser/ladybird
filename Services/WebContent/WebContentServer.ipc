@@ -45,6 +45,7 @@ endpoint WebContentServer
     get_source(u64 page_id) =|
     inspect_dom_tree(u64 page_id) =|
     inspect_dom_node(u64 page_id, Web::UniqueNodeID node_id, Optional<Web::CSS::Selector::PseudoElement::Type> pseudo_element) =|
+    highlight_dom_node(u64 page_id, Web::UniqueNodeID node_id, Optional<Web::CSS::Selector::PseudoElement::Type> pseudo_element) =|
     inspect_accessibility_tree(u64 page_id) =|
     get_hovered_node_id(u64 page_id) =|
     js_console_input(u64 page_id, ByteString js_source) =|

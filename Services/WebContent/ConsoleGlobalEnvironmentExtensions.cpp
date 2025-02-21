@@ -53,7 +53,7 @@ JS_DEFINE_NATIVE_FUNCTION(ConsoleGlobalEnvironmentExtensions::$0_getter)
 {
     auto* console_global_object = TRY(get_console(vm));
     auto& window = *console_global_object->m_window_object;
-    auto* inspected_node = window.associated_document().inspected_node();
+    auto inspected_node = window.associated_document().inspected_node();
     if (!inspected_node)
         return JS::js_undefined();
 

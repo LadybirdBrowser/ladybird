@@ -103,10 +103,14 @@ public:
     void get_source();
 
     void inspect_dom_tree();
-    void inspect_dom_node(Web::UniqueNodeID node_id, Optional<Web::CSS::Selector::PseudoElement::Type> pseudo_element);
     void inspect_accessibility_tree();
-    void clear_inspected_dom_node();
     void get_hovered_node_id();
+
+    void inspect_dom_node(Web::UniqueNodeID node_id, Optional<Web::CSS::Selector::PseudoElement::Type> pseudo_element);
+    void clear_inspected_dom_node();
+
+    void highlight_dom_node(Web::UniqueNodeID node_id, Optional<Web::CSS::Selector::PseudoElement::Type> pseudo_element);
+    void clear_highlighted_dom_node();
 
     void set_dom_node_text(Web::UniqueNodeID node_id, String text);
     void set_dom_node_tag(Web::UniqueNodeID node_id, String name);
