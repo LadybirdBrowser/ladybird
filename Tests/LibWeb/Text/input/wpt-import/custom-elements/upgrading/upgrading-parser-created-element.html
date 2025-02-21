@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Custom Elements: Upgrading unresolved elements</title>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<meta name="assert" content="HTML parser must add an unresolved custom element to the upgrade candidates map">
+<link rel="help" href="https://html.spec.whatwg.org/#upgrades">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+</head>
+<body>
+<div id="log"></div>
+<my-custom-element></my-custom-element>
+<instantiates-itself-after-super></instantiates-itself-after-super>
+<instantiates-itself-before-super></instantiates-itself-before-super>
+<my-other-element id="instance"></my-other-element>
+<my-other-element id="otherInstance"></my-other-element>
+<not-an-element></not-an-element>
+<not-an-html-element></not-an-html-element>
+<script>
+
+setup({allow_uncaught_exception:true});
+
+test(function () {
+    class MyCustomElement extends HTMLElement { }
+
+    var instance = document.querySelector('my-custom-element');
+    assert_true(instance instanceof HTMLElement);
+    assert_false(instance instanceof HTMLUnknownElement,
+        'an unresolved custom element should not be an instance of HTMLUnknownElement');
+    assert_false(instance instanceof MyCustomElement);
+
+    customElements.define('my-custom-element', MyCustomElement);
+
+    assert_true(instance instanceof HTMLElement);
+    assert_true(instance instanceof MyCustomElement,
+        'Calling customElements.define must upgrade existing custom elements');
+
+}, 'Element.prototype.createElement must add an unresolved custom element to the upgrade candidates map');
+
+test(function () {
+    class InstantiatesItselfAfterSuper extends HTMLElement {
+        constructor(doNotCreateItself) {
+            super();
+            if (!doNotCreateItself)
+                new InstantiatesItselfAfterSuper(true);
+        }
+    }
+
+    var uncaughtError;
+    window.onerror = function (message, url, lineNumber, columnNumber, error) { uncaughtError = error; return true; }
+    customElements.define('instantiates-itself-after-super', InstantiatesItselfAfterSuper);
+    assert_equals(uncaughtError.name, 'TypeError');
+}, 'HTMLElement constructor must throw an TypeError when the top of the construction stack is marked AlreadyConstructed'
+    + ' due to a custom element constructor constructing itself after super() call');
+
+test(function () {
+    class InstantiatesItselfBeforeSuper extends HTMLElement {
+        constructor(doNotCreateItself) {
+            if (!doNotCreateItself)
+                new InstantiatesItselfBeforeSuper(true);
+            super();
+        }
+    }
+
+    var uncaughtError;
+    window.onerror = function (message, url, lineNumber, columnNumber, error) { uncaughtError = error; return true; }
+    customElements.define('instantiates-itself-before-super', InstantiatesItselfBeforeSuper);
+    assert_equals(uncaughtError.name, 'TypeError');
+}, 'HTMLElement constructor must throw an TypeError when the top of the construction stack is marked AlreadyConstructed'
+    + ' due to a custom element constructor constructing itself before super() call');
+
+test(function () {
+    class MyOtherElement extends HTMLElement {
+        constructor() {
+            super();
+            if (this == instance)
+                return otherInstance;
+        }
+    }
+    var instance = document.getElementById('instance');
+    var otherInstance = document.getElementById('otherInstance');
+
+    assert_false(instance instanceof MyOtherElement);
+    assert_false(otherInstance instanceof MyOtherElement);
+
+    var uncaughtError;
+    window.onerror = function (message, url, lineNumber, columnNumber, error) { uncaughtError = error; return true; }
+    customElements.define('my-other-element', MyOtherElement);
+    assert_equals(uncaughtError.name, 'TypeError');
+
+    assert_true(document.createElement('my-other-element') instanceof MyOtherElement,
+        'Upgrading of custom elements must happen after the definition was added to the registry.');
+
+}, 'Upgrading a custom element must throw an TypeError when the returned element is not SameValue as the upgraded element');
+
+test(() => {
+  class NotAnElement extends HTMLElement {
+    constructor() {
+      return new Text();
+    }
+  }
+
+  let uncaughtError;
+  window.onerror = function (message, url, lineNumber, columnNumber, error) { uncaughtError = error; return true; }
+  customElements.define("not-an-element", NotAnElement);
+  assert_equals(uncaughtError.name, "TypeError");
+}, "Upgrading a custom element whose constructor returns a Text node must throw");
+
+test(() => {
+  class NotAnHTMLElement extends HTMLElement {
+    constructor() {
+      return document.createElementNS("", "test");
+    }
+  }
+
+  let uncaughtError;
+  window.onerror = function (message, url, lineNumber, columnNumber, error) { uncaughtError = error; return true; }
+  customElements.define("not-an-html-element", NotAnHTMLElement);
+  assert_equals(uncaughtError.name, "TypeError");
+}, "Upgrading a custom element whose constructor returns an Element must throw");
+
+</script>
+</body>
+</html>
