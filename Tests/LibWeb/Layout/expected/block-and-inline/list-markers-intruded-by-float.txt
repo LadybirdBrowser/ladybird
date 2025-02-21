@@ -1,5 +1,5 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x128 [BFC] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x136 [BFC] children: not-inline
     BlockContainer <body> at (8,16) content-size 784x102 children: not-inline
       BlockContainer <div.box> at (18,26) content-size 200x100 floating [BFC] children: not-inline
       BlockContainer <ul> at (48,16) content-size 744x102 children: not-inline
@@ -35,7 +35,7 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
           ListItemMarkerBox <(anonymous)> at (304,101) content-size 12x17 children: not-inline
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x128] overflow: [0,0 800x136]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x136]
     PaintableWithLines (BlockContainer<BODY>) [8,16 784x102] overflow: [8,16 784x120]
       PaintableWithLines (BlockContainer<DIV>.box) [8,16 220x120]
       PaintableWithLines (BlockContainer<UL>) [8,16 784x102]

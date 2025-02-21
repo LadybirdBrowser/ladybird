@@ -362,6 +362,10 @@ CSSPixels FormattingContext::compute_auto_height_for_block_formatting_context_ro
         // If it has block-level children, the height is the distance between
         // the top margin-edge of the topmost block-level child box
         // and the bottom margin-edge of the bottommost block-level child box.
+
+        // NOTE: The top margin edge of the topmost block-level child box is the same as the top content edge of the root box.
+        top = 0;
+
         root.for_each_child_of_type<Box>([&](Layout::Box& child_box) {
             // Absolutely positioned children are ignored,
             // and relatively positioned boxes are considered without their offset.
@@ -375,11 +379,7 @@ CSSPixels FormattingContext::compute_auto_height_for_block_formatting_context_ro
 
             auto const& child_box_state = m_state.get(child_box);
 
-            CSSPixels child_box_top = child_box_state.offset.y() - child_box_state.margin_box_top();
             CSSPixels child_box_bottom = child_box_state.offset.y() + child_box_state.content_height() + child_box_state.margin_box_bottom();
-
-            if (!top.has_value() || child_box_top < top.value())
-                top = child_box_top;
 
             if (!bottom.has_value() || child_box_bottom > bottom.value())
                 bottom = child_box_bottom;
