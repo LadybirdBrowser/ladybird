@@ -25,7 +25,7 @@
 //     - In most cases, Chrome interprets "<number> Month" as "Month 01, Year".
 //     - Chrome parses "7 Feb" as "Feb 7, 2001".
 //     - We always parse as "Month 01, <Year>".
-// - Support Chrome's [more permissive] punctuation.
+// - Support Firefox's less permissive punctuation but more permissive punctuation syntax..
 
 // Parse DateTime regex patterns
 class DateRegex : public RegexPattern {
