@@ -223,16 +223,17 @@ this point that the server fetches the DOM tree from the WebContent process. The
 for the application to asynchronously provide this information. The inspector actor's message queue is blocked until we
 receive the DOM tree (or encounter an error). The server will reply with information about the document element.
 
-Next, the client asks for a page style actor and a highlighter actor. The page style actor is currently stubbed to reply
-with some fields expected by the client. The highlighter actor is also currently stubbed, but this actor seems like what
-will be used to paint an overlay onto the inspected node.
+Next, the client asks for a page style actor and a highlighter actor. The page style actor is what will provide layout
+and style information about a particular node. The highlighter actor's responsibility varies depending on the type of
+highlighter that is requested. Here, the client asks for a viewport resize highlighter, which we currently do not
+support.
 
 ```jsonc
 >> {"type":"getWalker","options":{"showAllAnonymousContent":false},"to":"server0-inspector7"}
 >> {"type":"getPageStyle","to":"server0-inspector7"}
 >> {"type":"getHighlighterByType","typeName":"ViewportSizeOnResizeHighlighter","to":"server0-inspector7"}
 
-<< {"from":"server0-inspector7","walker":{"actor":"server0-walker14","root":{"actor":"server0-walker14-node0","attrs":[],"baseURI":"https://ladybird.org/","causesOverflow":false,"containerType":null,"displayName":"#document","displayType":"block","host":null,"isAfterPseudoElement":false,"isAnonymous":false,"isBeforePseudoElement":false,"isDirectShadowHostChild":null,"isDisplayed":false,"isInHTMLDocument":true,"isMarkerPseudoElement":false,"isNativeAnonymous":false,"isScrollable":false,"isShadowHost":false,"isShadowRoot":false,"isTopLevelDocument":true,"nodeName":"#document","nodeType":9,"nodeValue":null,"numChildren":1,"shadowRootMode":null,"traits":{}}}}
+<< {"from":"server0-inspector7","walker":{"actor":"server0-walker14","root":{"actor":"server0-node15","attrs":[],"baseURI":"https://ladybird.org/","causesOverflow":false,"containerType":null,"displayName":"#document","displayType":"block","host":null,"isAfterPseudoElement":false,"isAnonymous":false,"isBeforePseudoElement":false,"isDirectShadowHostChild":null,"isDisplayed":false,"isInHTMLDocument":true,"isMarkerPseudoElement":false,"isNativeAnonymous":false,"isScrollable":false,"isShadowHost":false,"isShadowRoot":false,"isTopLevelDocument":true,"nodeName":"#document","nodeType":9,"nodeValue":null,"numChildren":1,"shadowRootMode":null,"traits":{}}}}
 << {"from":"server0-inspector7","pageStyle":{"actor":"server0-page-style12","traits":{"fontStyleLevel4":true,"fontWeightLevel4":true,"fontStretchLevel4":true,"fontVariations":true}}}
 << {"from":"server0-inspector7","highlighter":{"actor":"server0-highlighter13"}}
 ```
@@ -245,12 +246,12 @@ context as the frame itself:
 << {"from":"server0-watcher5","browsingContextID":1}
 ```
 
-The client then instructs the highlighter actor to "show" the inspector actor, to which the server currently replies
-with an ack:
+The client then instructs the viewport resize highlighter actor to "show" the inspector actor, to which the server
+currently replies with a nack:
 
 ```jsonc
 >> {"type":"show","node":"server0-inspector7","to":"server0-highlighter13"}
-<< {"from":"server0-highlighter13","value":true}
+<< {"from":"server0-highlighter13","value":false}
 ```
 
 Then client then starts to ask for DOM node information. It begins by issuing a query selector request for the `<body>`
@@ -262,16 +263,16 @@ parent is not the parent from which the search started. Each serialized DOM node
 display name, tag name, attributes, etc.
 
 ```jsonc
->> {"type":"querySelector","node":"server0-walker14-node0","selector":"body","to":"server0-walker14"}
-<< {"from":"server0-walker14","node":{"actor":"server0-walker14-node17","attrs":[],"baseURI":"https://ladybird.org/","causesOverflow":false,"containerType":null,"displayName":"body","displayType":"block","host":null,"isAfterPseudoElement":false,"isAnonymous":false,"isBeforePseudoElement":false,"isDirectShadowHostChild":null,"isDisplayed":true,"isInHTMLDocument":true,"isMarkerPseudoElement":false,"isNativeAnonymous":false,"isScrollable":false,"isShadowHost":false,"isShadowRoot":false,"isTopLevelDocument":false,"nodeName":"BODY","nodeType":1,"nodeValue":null,"numChildren":10,"shadowRootMode":null,"traits":{},"parent":"server0-walker14-node1"},"newParents":[{"actor":"server0-walker14-node1","attrs":[{"name":"lang","value":"en"}],"baseURI":"https://ladybird.org/","causesOverflow":false,"containerType":null,"displayName":"html","displayType":"block","host":null,"isAfterPseudoElement":false,"isAnonymous":false,"isBeforePseudoElement":false,"isDirectShadowHostChild":null,"isDisplayed":true,"isInHTMLDocument":true,"isMarkerPseudoElement":false,"isNativeAnonymous":false,"isScrollable":false,"isShadowHost":false,"isShadowRoot":false,"isTopLevelDocument":false,"nodeName":"HTML","nodeType":1,"nodeValue":null,"numChildren":2,"shadowRootMode":null,"traits":{},"parent":"server0-walker14-node0"}]}
+>> {"type":"querySelector","node":"server0-node15","selector":"body","to":"server0-walker14"}
+<< {"from":"server0-walker14","node":{"actor":"server0-node32","attrs":[],"baseURI":"https://ladybird.org/","causesOverflow":false,"containerType":null,"displayName":"body","displayType":"block","host":null,"isAfterPseudoElement":false,"isAnonymous":false,"isBeforePseudoElement":false,"isDirectShadowHostChild":null,"isDisplayed":true,"isInHTMLDocument":true,"isMarkerPseudoElement":false,"isNativeAnonymous":false,"isScrollable":false,"isShadowHost":false,"isShadowRoot":false,"isTopLevelDocument":false,"nodeName":"BODY","nodeType":1,"nodeValue":null,"numChildren":10,"shadowRootMode":null,"traits":{},"parent":"server0-node16"},"newParents":[{"actor":"server0-node16","attrs":[{"name":"lang","value":"en"}],"baseURI":"https://ladybird.org/","causesOverflow":false,"containerType":null,"displayName":"html","displayType":"block","host":null,"isAfterPseudoElement":false,"isAnonymous":false,"isBeforePseudoElement":false,"isDirectShadowHostChild":null,"isDisplayed":true,"isInHTMLDocument":true,"isMarkerPseudoElement":false,"isNativeAnonymous":false,"isScrollable":false,"isShadowHost":false,"isShadowRoot":false,"isTopLevelDocument":false,"nodeName":"HTML","nodeType":1,"nodeValue":null,"numChildren":2,"shadowRootMode":null,"traits":{},"parent":"server0-node15"}]}
 
->> {"type":"children","node":"server0-walker14-node1","maxNodes":100,"center":"server0-walker14-node17","to":"server0-walker14"}
->> {"type":"children","node":"server0-walker14-node0","maxNodes":100,"center":"server0-walker14-node1","to":"server0-walker14"}
->> {"type":"children","node":"server0-walker14-node17","maxNodes":100,"to":"server0-walker14"}
+>> {"type":"children","node":"server0-node16","maxNodes":100,"center":"server0-node32","to":"server0-walker14"}
+>> {"type":"children","node":"server0-node15","maxNodes":100,"center":"server0-node16","to":"server0-walker14"}
+>> {"type":"children","node":"server0-node32","maxNodes":100,"to":"server0-walker14"}
 
-<< {"from":"server0-walker14","hasFirst":true,"hasLast":true,"nodes":[{"actor":"server0-walker14-node2","attrs":[],"baseURI":"https://ladybird.org/","causesOverflow":false,"containerType":null,"displayName":"head","displayType":"block","host":null,"isAfterPseudoElement":false,"isAnonymous":false,"isBeforePseudoElement":false,"isDirectShadowHostChild":null,"isDisplayed":false,"isInHTMLDocument":true,"isMarkerPseudoElement":false,"isNativeAnonymous":false,"isScrollable":false,"isShadowHost":false,"isShadowRoot":false,"isTopLevelDocument":false,"nodeName":"HEAD","nodeType":1,"nodeValue":null,"numChildren":13,"shadowRootMode":null,"traits":{},"parent":"server0-walker14-node1"},{"actor":"server0-walker14-node17","attrs":[],"baseURI":"https://ladybird.org/","causesOverflow":false,"containerType":null,"displayName":"body","displayType":"block","host":null,"isAfterPseudoElement":false,"isAnonymous":false,"isBeforePseudoElement":false,"isDirectShadowHostChild":null,"isDisplayed":true,"isInHTMLDocument":true,"isMarkerPseudoElement":false,"isNativeAnonymous":false,"isScrollable":false,"isShadowHost":false,"isShadowRoot":false,"isTopLevelDocument":false,"nodeName":"BODY","nodeType":1,"nodeValue":null,"numChildren":10,"shadowRootMode":null,"traits":{},"parent":"server0-walker14-node1"}]}
-<< {"from":"server0-walker14","hasFirst":true,"hasLast":true,"nodes":[{"actor":"server0-walker14-node1","attrs":[{"name":"lang","value":"en"}],"baseURI":"https://ladybird.org/","causesOverflow":false,"containerType":null,"displayName":"html","displayType":"block","host":null,"isAfterPseudoElement":false,"isAnonymous":false,"isBeforePseudoElement":false,"isDirectShadowHostChild":null,"isDisplayed":true,"isInHTMLDocument":true,"isMarkerPseudoElement":false,"isNativeAnonymous":false,"isScrollable":false,"isShadowHost":false,"isShadowRoot":false,"isTopLevelDocument":false,"nodeName":"HTML","nodeType":1,"nodeValue":null,"numChildren":2,"shadowRootMode":null,"traits":{},"parent":"server0-walker14-node0"}]}
-<< {"from":"server0-walker14","hasFirst":true,"hasLast":true,"nodes":[{"actor":"server0-walker14-node18","attrs":[{"name":"class","value":"p-[20px] bg-[#000] relative"}],"baseURI":"https://ladybird.org/","causesOverflow":false,"containerType":null,"displayName":"header","displayType":"block","host":null,"isAfterPseudoElement":false,"isAnonymous":false,"isBeforePseudoElement":false,"isDirectShadowHostChild":null,"isDisplayed":true,"isInHTMLDocument":true,"isMarkerPseudoElement":false,"isNativeAnonymous":false,"isScrollable":false,"isShadowHost":false,"isShadowRoot":false,"isTopLevelDocument":false,"nodeName":"HEADER","nodeType":1,"nodeValue":null,"numChildren":2,"shadowRootMode":null,"traits":{},"parent":"server0-walker14-node17"},{"actor":"server0-walker14-node38","attrs":[{"name":"class","value":"bg-[#000] relative flex flex-col items-center pt-[80px] px-5 pb-0 lg:flex-row lg:pt-0 lg:min-h-[892px]"}],"baseURI":"https://ladybird.org/","causesOverflow":false,"containerType":null,"displayName":"section","displayType":"block","host":null,"isAfterPseudoElement":false,"isAnonymous":false,"isBeforePseudoElement":false,"isDirectShadowHostChild":null,"isDisplayed":true,"isInHTMLDocument":true,"isMarkerPseudoElement":false,"isNativeAnonymous":false,"isScrollable":false,"isShadowHost":false,"isShadowRoot":false,"isTopLevelDocument":false,"nodeName":"SECTION","nodeType":1,"nodeValue":null,"numChildren":2,"shadowRootMode":null,"traits":{},"parent":"server0-walker14-node17"},{"actor":"server0-walker14-node55","attrs":[{"name":"id","value":"about"},{"name":"class","value":"text-[#fff] bg-[#000] pt-12 lg:pt-0 px-4"}],"baseURI":"https://ladybird.org/","causesOverflow":false,"containerType":null,"displayName":"section","displayType":"block","host":null,"isAfterPseudoElement":false,"isAnonymous":false,"isBeforePseudoElement":false,"isDirectShadowHostChild":null,"isDisplayed":true,"isInHTMLDocument":true,"isMarkerPseudoElement":false,"isNativeAnonymous":false,"isScrollable":false,"isShadowHost":false,"isShadowRoot":false,"isTopLevelDocument":false,"nodeName":"SECTION","nodeType":1,"nodeValue":null,"numChildren":1,"shadowRootMode":null,"traits":{},"parent":"server0-walker14-node17"},{"actor":"server0-walker14-node71","attrs":[{"name":"class","value":"why"}],"baseURI":"https://ladybird.org/","causesOverflow":false,"containerType":null,"displayName":"section","displayType":"block","host":null,"isAfterPseudoElement":false,"isAnonymous":false,"isBeforePseudoElement":false,"isDirectShadowHostChild":null,"isDisplayed":true,"isInHTMLDocument":true,"isMarkerPseudoElement":false,"isNativeAnonymous":false,"isScrollable":false,"isShadowHost":false,"isShadowRoot":false,"isTopLevelDocument":false,"nodeName":"SECTION","nodeType":1,"nodeValue":null,"numChildren":2,"shadowRootMode":null,"traits":{},"parent":"server0-walker14-node17"},{"actor":"server0-walker14-node112","attrs":[{"name":"class","value":"news"},{"name":"id","value":"news"}],"baseURI":"https://ladybird.org/","causesOverflow":false,"containerType":null,"displayName":"section","displayType":"block","host":null,"isAfterPseudoElement":false,"isAnonymous":false,"isBeforePseudoElement":false,"isDirectShadowHostChild":null,"isDisplayed":true,"isInHTMLDocument":true,"isMarkerPseudoElement":false,"isNativeAnonymous":false,"isScrollable":false,"isShadowHost":false,"isShadowRoot":false,"isTopLevelDocument":false,"nodeName":"SECTION","nodeType":1,"nodeValue":null,"numChildren":2,"shadowRootMode":null,"traits":{},"parent":"server0-walker14-node17"},{"actor":"server0-walker14-node174","attrs":[{"name":"id","value":"gi"},{"name":"class","value":"gi"}],"baseURI":"https://ladybird.org/","causesOverflow":false,"containerType":null,"displayName":"section","displayType":"block","host":null,"isAfterPseudoElement":false,"isAnonymous":false,"isBeforePseudoElement":false,"isDirectShadowHostChild":null,"isDisplayed":true,"isInHTMLDocument":true,"isMarkerPseudoElement":false,"isNativeAnonymous":false,"isScrollable":false,"isShadowHost":false,"isShadowRoot":false,"isTopLevelDocument":false,"nodeName":"SECTION","nodeType":1,"nodeValue":null,"numChildren":2,"shadowRootMode":null,"traits":{},"parent":"server0-walker14-node17"},{"actor":"server0-walker14-node197","attrs":[{"name":"class","value":"relative mb-24 px-5 lg:mb-28"},{"name":"id","value":"sponsors"}],"baseURI":"https://ladybird.org/","causesOverflow":false,"containerType":null,"displayName":"section","displayType":"block","host":null,"isAfterPseudoElement":false,"isAnonymous":false,"isBeforePseudoElement":false,"isDirectShadowHostChild":null,"isDisplayed":true,"isInHTMLDocument":true,"isMarkerPseudoElement":false,"isNativeAnonymous":false,"isScrollable":false,"isShadowHost":false,"isShadowRoot":false,"isTopLevelDocument":false,"nodeName":"SECTION","nodeType":1,"nodeValue":null,"numChildren":3,"shadowRootMode":null,"traits":{},"parent":"server0-walker14-node17"},{"actor":"server0-walker14-node322","attrs":[{"name":"class","value":"relative z-10 -top-4 text-[#fff] bg-[url('/assets/img/blurp.webp')] bg-center bg-cover mb-12 flex justify-center"}],"baseURI":"https://ladybird.org/","causesOverflow":false,"containerType":null,"displayName":"section","displayType":"block","host":null,"isAfterPseudoElement":false,"isAnonymous":false,"isBeforePseudoElement":false,"isDirectShadowHostChild":null,"isDisplayed":true,"isInHTMLDocument":true,"isMarkerPseudoElement":false,"isNativeAnonymous":false,"isScrollable":false,"isShadowHost":false,"isShadowRoot":false,"isTopLevelDocument":false,"nodeName":"SECTION","nodeType":1,"nodeValue":null,"numChildren":1,"shadowRootMode":null,"traits":{},"parent":"server0-walker14-node17"},{"actor":"server0-walker14-node341","attrs":[{"name":"id","value":"faq"},{"name":"class","value":"faq"}],"baseURI":"https://ladybird.org/","causesOverflow":false,"containerType":null,"displayName":"section","displayType":"block","host":null,"isAfterPseudoElement":false,"isAnonymous":false,"isBeforePseudoElement":false,"isDirectShadowHostChild":null,"isDisplayed":true,"isInHTMLDocument":true,"isMarkerPseudoElement":false,"isNativeAnonymous":false,"isScrollable":false,"isShadowHost":false,"isShadowRoot":false,"isTopLevelDocument":false,"nodeName":"SECTION","nodeType":1,"nodeValue":null,"numChildren":1,"shadowRootMode":null,"traits":{},"parent":"server0-walker14-node17"},{"actor":"server0-walker14-node495","attrs":[{"name":"class","value":"bg-[#000] py-0 md:px-20"}],"baseURI":"https://ladybird.org/","causesOverflow":false,"containerType":null,"displayName":"footer","displayType":"block","host":null,"isAfterPseudoElement":false,"isAnonymous":false,"isBeforePseudoElement":false,"isDirectShadowHostChild":null,"isDisplayed":true,"isInHTMLDocument":true,"isMarkerPseudoElement":false,"isNativeAnonymous":false,"isScrollable":false,"isShadowHost":false,"isShadowRoot":false,"isTopLevelDocument":false,"nodeName":"FOOTER","nodeType":1,"nodeValue":null,"numChildren":1,"shadowRootMode":null,"traits":{},"parent":"server0-walker14-node17"}]}
+<< {"from":"server0-walker14","hasFirst":true,"hasLast":true,"nodes":[{"actor":"server0-node17","attrs":[],"baseURI":"https://ladybird.org/","causesOverflow":false,"containerType":null,"displayName":"head","displayType":"block","host":null,"isAfterPseudoElement":false,"isAnonymous":false,"isBeforePseudoElement":false,"isDirectShadowHostChild":null,"isDisplayed":false,"isInHTMLDocument":true,"isMarkerPseudoElement":false,"isNativeAnonymous":false,"isScrollable":false,"isShadowHost":false,"isShadowRoot":false,"isTopLevelDocument":false,"nodeName":"HEAD","nodeType":1,"nodeValue":null,"numChildren":13,"shadowRootMode":null,"traits":{},"parent":"server0-node16"},{"actor":"server0-node32","attrs":[],"baseURI":"https://ladybird.org/","causesOverflow":false,"containerType":null,"displayName":"body","displayType":"block","host":null,"isAfterPseudoElement":false,"isAnonymous":false,"isBeforePseudoElement":false,"isDirectShadowHostChild":null,"isDisplayed":true,"isInHTMLDocument":true,"isMarkerPseudoElement":false,"isNativeAnonymous":false,"isScrollable":false,"isShadowHost":false,"isShadowRoot":false,"isTopLevelDocument":false,"nodeName":"BODY","nodeType":1,"nodeValue":null,"numChildren":10,"shadowRootMode":null,"traits":{},"parent":"server0-node16"}]}
+<< {"from":"server0-walker14","hasFirst":true,"hasLast":true,"nodes":[{"actor":"server0-node16","attrs":[{"name":"lang","value":"en"}],"baseURI":"https://ladybird.org/","causesOverflow":false,"containerType":null,"displayName":"html","displayType":"block","host":null,"isAfterPseudoElement":false,"isAnonymous":false,"isBeforePseudoElement":false,"isDirectShadowHostChild":null,"isDisplayed":true,"isInHTMLDocument":true,"isMarkerPseudoElement":false,"isNativeAnonymous":false,"isScrollable":false,"isShadowHost":false,"isShadowRoot":false,"isTopLevelDocument":false,"nodeName":"HTML","nodeType":1,"nodeValue":null,"numChildren":2,"shadowRootMode":null,"traits":{},"parent":"server0-node15"}]}
+<< {"from":"server0-walker14","hasFirst":true,"hasLast":true,"nodes":[{"actor":"server0-node33","attrs":[{"name":"class","value":"p-[20px] bg-[#000] relative"}],"baseURI":"https://ladybird.org/","causesOverflow":false,"containerType":null,"displayName":"header","displayType":"block","host":null,"isAfterPseudoElement":false,"isAnonymous":false,"isBeforePseudoElement":false,"isDirectShadowHostChild":null,"isDisplayed":true,"isInHTMLDocument":true,"isMarkerPseudoElement":false,"isNativeAnonymous":false,"isScrollable":false,"isShadowHost":false,"isShadowRoot":false,"isTopLevelDocument":false,"nodeName":"HEADER","nodeType":1,"nodeValue":null,"numChildren":2,"shadowRootMode":null,"traits":{},"parent":"server0-node32"},{"actor":"server0-node53","attrs":[{"name":"class","value":"bg-[#000] relative flex flex-col items-center pt-[80px] px-5 pb-0 lg:flex-row lg:pt-0 lg:min-h-[892px]"}],"baseURI":"https://ladybird.org/","causesOverflow":false,"containerType":null,"displayName":"section","displayType":"block","host":null,"isAfterPseudoElement":false,"isAnonymous":false,"isBeforePseudoElement":false,"isDirectShadowHostChild":null,"isDisplayed":true,"isInHTMLDocument":true,"isMarkerPseudoElement":false,"isNativeAnonymous":false,"isScrollable":false,"isShadowHost":false,"isShadowRoot":false,"isTopLevelDocument":false,"nodeName":"SECTION","nodeType":1,"nodeValue":null,"numChildren":2,"shadowRootMode":null,"traits":{},"parent":"server0-node32"},{"actor":"server0-node70","attrs":[{"name":"id","value":"about"},{"name":"class","value":"text-[#fff] bg-[#000] pt-12 lg:pt-0 px-4"}],"baseURI":"https://ladybird.org/","causesOverflow":false,"containerType":null,"displayName":"section","displayType":"block","host":null,"isAfterPseudoElement":false,"isAnonymous":false,"isBeforePseudoElement":false,"isDirectShadowHostChild":null,"isDisplayed":true,"isInHTMLDocument":true,"isMarkerPseudoElement":false,"isNativeAnonymous":false,"isScrollable":false,"isShadowHost":false,"isShadowRoot":false,"isTopLevelDocument":false,"nodeName":"SECTION","nodeType":1,"nodeValue":null,"numChildren":1,"shadowRootMode":null,"traits":{},"parent":"server0-node32"},{"actor":"server0-node86","attrs":[{"name":"class","value":"why"}],"baseURI":"https://ladybird.org/","causesOverflow":false,"containerType":null,"displayName":"section","displayType":"block","host":null,"isAfterPseudoElement":false,"isAnonymous":false,"isBeforePseudoElement":false,"isDirectShadowHostChild":null,"isDisplayed":true,"isInHTMLDocument":true,"isMarkerPseudoElement":false,"isNativeAnonymous":false,"isScrollable":false,"isShadowHost":false,"isShadowRoot":false,"isTopLevelDocument":false,"nodeName":"SECTION","nodeType":1,"nodeValue":null,"numChildren":2,"shadowRootMode":null,"traits":{},"parent":"server0-node32"},{"actor":"server0-node127","attrs":[{"name":"class","value":"news"},{"name":"id","value":"news"}],"baseURI":"https://ladybird.org/","causesOverflow":false,"containerType":null,"displayName":"section","displayType":"block","host":null,"isAfterPseudoElement":false,"isAnonymous":false,"isBeforePseudoElement":false,"isDirectShadowHostChild":null,"isDisplayed":true,"isInHTMLDocument":true,"isMarkerPseudoElement":false,"isNativeAnonymous":false,"isScrollable":false,"isShadowHost":false,"isShadowRoot":false,"isTopLevelDocument":false,"nodeName":"SECTION","nodeType":1,"nodeValue":null,"numChildren":2,"shadowRootMode":null,"traits":{},"parent":"server0-node32"},{"actor":"server0-node189","attrs":[{"name":"id","value":"gi"},{"name":"class","value":"gi"}],"baseURI":"https://ladybird.org/","causesOverflow":false,"containerType":null,"displayName":"section","displayType":"block","host":null,"isAfterPseudoElement":false,"isAnonymous":false,"isBeforePseudoElement":false,"isDirectShadowHostChild":null,"isDisplayed":true,"isInHTMLDocument":true,"isMarkerPseudoElement":false,"isNativeAnonymous":false,"isScrollable":false,"isShadowHost":false,"isShadowRoot":false,"isTopLevelDocument":false,"nodeName":"SECTION","nodeType":1,"nodeValue":null,"numChildren":2,"shadowRootMode":null,"traits":{},"parent":"server0-node32"},{"actor":"server0-node212","attrs":[{"name":"class","value":"relative mb-24 px-5 lg:mb-28"},{"name":"id","value":"sponsors"}],"baseURI":"https://ladybird.org/","causesOverflow":false,"containerType":null,"displayName":"section","displayType":"block","host":null,"isAfterPseudoElement":false,"isAnonymous":false,"isBeforePseudoElement":false,"isDirectShadowHostChild":null,"isDisplayed":true,"isInHTMLDocument":true,"isMarkerPseudoElement":false,"isNativeAnonymous":false,"isScrollable":false,"isShadowHost":false,"isShadowRoot":false,"isTopLevelDocument":false,"nodeName":"SECTION","nodeType":1,"nodeValue":null,"numChildren":3,"shadowRootMode":null,"traits":{},"parent":"server0-node32"},{"actor":"server0-node337","attrs":[{"name":"class","value":"relative z-10 -top-4 text-[#fff] bg-[url('/assets/img/blurp.webp')] bg-center bg-cover mb-12 flex justify-center"}],"baseURI":"https://ladybird.org/","causesOverflow":false,"containerType":null,"displayName":"section","displayType":"block","host":null,"isAfterPseudoElement":false,"isAnonymous":false,"isBeforePseudoElement":false,"isDirectShadowHostChild":null,"isDisplayed":true,"isInHTMLDocument":true,"isMarkerPseudoElement":false,"isNativeAnonymous":false,"isScrollable":false,"isShadowHost":false,"isShadowRoot":false,"isTopLevelDocument":false,"nodeName":"SECTION","nodeType":1,"nodeValue":null,"numChildren":1,"shadowRootMode":null,"traits":{},"parent":"server0-node32"},{"actor":"server0-node356","attrs":[{"name":"id","value":"faq"},{"name":"class","value":"faq"}],"baseURI":"https://ladybird.org/","causesOverflow":false,"containerType":null,"displayName":"section","displayType":"block","host":null,"isAfterPseudoElement":false,"isAnonymous":false,"isBeforePseudoElement":false,"isDirectShadowHostChild":null,"isDisplayed":true,"isInHTMLDocument":true,"isMarkerPseudoElement":false,"isNativeAnonymous":false,"isScrollable":false,"isShadowHost":false,"isShadowRoot":false,"isTopLevelDocument":false,"nodeName":"SECTION","nodeType":1,"nodeValue":null,"numChildren":1,"shadowRootMode":null,"traits":{},"parent":"server0-node32"},{"actor":"server0-node510","attrs":[{"name":"class","value":"bg-[#000] py-0 md:px-20"}],"baseURI":"https://ladybird.org/","causesOverflow":false,"containerType":null,"displayName":"footer","displayType":"block","host":null,"isAfterPseudoElement":false,"isAnonymous":false,"isBeforePseudoElement":false,"isDirectShadowHostChild":null,"isDisplayed":true,"isInHTMLDocument":true,"isMarkerPseudoElement":false,"isNativeAnonymous":false,"isScrollable":false,"isShadowHost":false,"isShadowRoot":false,"isTopLevelDocument":false,"nodeName":"FOOTER","nodeType":1,"nodeValue":null,"numChildren":1,"shadowRootMode":null,"traits":{},"parent":"server0-node32"}]}
 ```
 
 The client then instructs the server to watch the root node. The server replies with information about the document
@@ -279,13 +280,134 @@ element again, followed by an empty message. We do not currently do anything mor
 
 ```jsonc
 >> {"type":"watchRootNode","to":"server0-walker14"}
-<< {"from":"server0-walker14","type":"root-available","node":{"actor":"server0-walker14-node0","attrs":[],"baseURI":"https://ladybird.org/","causesOverflow":false,"containerType":null,"displayName":"#document","displayType":"block","host":null,"isAfterPseudoElement":false,"isAnonymous":false,"isBeforePseudoElement":false,"isDirectShadowHostChild":null,"isDisplayed":false,"isInHTMLDocument":true,"isMarkerPseudoElement":false,"isNativeAnonymous":false,"isScrollable":false,"isShadowHost":false,"isShadowRoot":false,"isTopLevelDocument":true,"nodeName":"#document","nodeType":9,"nodeValue":null,"numChildren":1,"shadowRootMode":null,"traits":{}}}
+<< {"from":"server0-walker14","type":"root-available","node":{"actor":"server0-node15","attrs":[],"baseURI":"https://ladybird.org/","causesOverflow":false,"containerType":null,"displayName":"#document","displayType":"block","host":null,"isAfterPseudoElement":false,"isAnonymous":false,"isBeforePseudoElement":false,"isDirectShadowHostChild":null,"isDisplayed":false,"isInHTMLDocument":true,"isMarkerPseudoElement":false,"isNativeAnonymous":false,"isScrollable":false,"isShadowHost":false,"isShadowRoot":false,"isTopLevelDocument":true,"nodeName":"#document","nodeType":9,"nodeValue":null,"numChildren":1,"shadowRootMode":null,"traits":{}}}
 << {"from":"server0-walker14"}
 ```
 
 At this point, the DOM tree in the DevTools client is interactable. As the user interacts with the client, the client
 will send similar requests as the above to retrieve more DOM node information. The server will log an error for features
 we do not yet support.
+
+### Inspecting a DOM node
+
+After the DOM tree becomes interactable, the client will inspect a default node on the page (typically the `<body>`
+element). The client will immediately ask for the layout of the inspected node and for a layout inspector. The layout
+consists of the box model metrics for the node. The layout inspector is an actor that provides e.g. grid and flexbox
+information, but we currently just sub this out.
+
+```jsonc
+>> {"type":"getLayout","node":"server0-node31","autoMargins":true,"to":"server0-page-style12"}
+>> {"type":"getLayoutInspector","to":"server0-walker14"}
+
+<< {"from":"server0-page-style12","autoMargins":{},"width":1514,"height":10236.8125,"border-top-width":"0px","border-right-width":"0px","border-bottom-width":"0px","border-left-width":"0px","margin-top":"0px","margin-right":"0px","margin-bottom":"0px","margin-left":"0px","padding-top":"0px","padding-right":"0px","padding-bottom":"0px","padding-left":"0px","box-sizing":"border-box","display":"block","float":"none","line-height":"1.5","position":"static","z-index":"auto"}
+<< {"from":"server0-walker14","actor":{"actor":"server0-layout-inspector568"}}
+```
+
+The client then asks for a selector for the inspected node. The server replies with the display name of the node:
+
+```jsonc
+>> {"type":"getUniqueSelector","to":"server0-node32"}
+<< {"from":"server0-node32","value":"body"}
+```
+
+The client then asks for the applied style for the inspected node. This would be for the pane in the inspector tab which
+allows the user to toggle and edit styles on a live DOM node. We do not yet have support for this in LibWeb, so the
+server replies with an empty list:
+
+```jsonc
+>> {"type":"getApplied","node":"server0-node32","inherited":true,"matchedSelectors":true,"to":"server0-page-style12"}
+<< {"from":"server0-page-style12","entries":[]}
+```
+
+The client then asks the layout inspector for the inspect node's flexbox and grid information. As noted above, we have
+just stubbed this for now. The server replies with empty values:
+
+```jsonc
+>> {"type":"getCurrentFlexbox","node":"server0-node32","onlyLookAtParents":false,"to":"server0-layout-inspector568"}
+>> {"type":"getGrids","rootNode":"server0-node15","to":"server0-layout-inspector568"}
+
+<< {"from":"server0-layout-inspector568","flexbox":null}
+<< {"from":"server0-layout-inspector568","grids":[]}
+```
+
+The client then asks if the inspected node's box model metrics are editable, and for the node's "offset parent". We
+currently don't support such edits, and have stubbed the offset parent. The server again replies with empty values:
+
+```jsonc
+>> {"type":"isPositionEditable","node":"server0-node32","to":"server0-page-style12"}
+<< {"from":"server0-page-style12","value":false}
+
+>> {"type":"getOffsetParent","node":"server0-node32","to":"server0-walker14"}
+<< {"from":"server0-walker14","node":null}
+```
+
+If the user switches the inspector to the "Computed" pane, then the client will ask for the inspected node's computed
+style. The server collects the computed style from the WebContent process, and replies with that style:
+
+(For brevity, only the `color` property is included here, as the list of all styles is very large.)
+
+```jsonc
+>> {"type":"getComputed","node":"server0-node32","markMatched":true,"onlyMatched":true,"filter":"user","to":"server0-page-style12"}
+<< {"from":"server0-page-style12","computed":{"color":{"matched":true,"value":"canvastext"}}}
+```
+
+The user may select any other DOM node to inspect. As the mouse hovers over other DOM nodes, the client will ask (once)
+if the server supports highlighting DOM nodes. We do support this, and the server will reply:
+
+```jsonc
+>> {"type":"supportsHighlighters","to":"server0-inspector7"}
+<< {"from":"server0-inspector7","value":true}
+```
+
+The client will then asks for box model highlighter. This highlighter indicates when the WebContent process should
+render an overlay over a particular node, with information about that node's box model. The server will create this
+highlighter type, and reply:
+
+```jsonc
+>> {"type":"getHighlighterByType","typeName":"BoxModelHighlighter","to":"server0-inspector7"}
+<< {"from":"server0-inspector7","highlighter":{"actor":"server0-highlighter569"}}
+```
+
+When the user's mouse enters a DOM node, the client will instruct the server to show the box model overlay for that node:
+```jsonc
+>> {"type":"show","node":"server0-node16","to":"server0-highlighter569"}
+<< {"from":"server0-highlighter569","value":true}
+```
+
+When the user's mouse leaves a DOM node, the client will instruct the server to stop showing the box model overlay for
+that node:
+
+```jsonc
+>> {"type":"hide","to":"server0-highlighter569"}
+<< {"from":"server0-highlighter569"}
+```
+
+The above highlighter requests are repeated as the user's mouse is moved between nodes. When the user clicks on a DOM
+node, that node then becomes the inspected node, and the client will ask for the box model / computed style for that
+node.
+
+### Session termination
+
+When the user disconnects from the DevTools server, the client will send a few cleanup messages. We currently do not
+implement the first few that are sent:
+
+```jsonc
+>> {"type":"unwatchTargets","targetType":"frame","options":{},"to":"server0-watcher10"}
+<< {"from":"server0-watcher10","error":"unrecognizedPacketType","message":"Unrecognized packet type: 'unwatchTargets'"}
+
+>> {"type":"finalize","to":"server0-highlighter18"}
+>> {"type":"finalize","to":"server0-highlighter573"}
+<< {"from":"server0-highlighter18","error":"unrecognizedPacketType","message":"Unrecognized packet type: 'finalize'"}
+<< {"from":"server0-highlighter573","error":"unrecognizedPacketType","message":"Unrecognized packet type: 'finalize'"}
+```
+
+We do implement the request to detach the frame, at which point we clear any inspected DOM node information from the
+WebContent process:
+
+```jsonc
+>> {"type":"detach","to":"server0-frame14"}
+<< {"from":"server0-frame14"}
+```
 
 ## Known issues
 
