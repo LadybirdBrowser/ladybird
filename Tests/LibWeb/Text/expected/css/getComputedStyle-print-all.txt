@@ -146,9 +146,9 @@ justify-content: normal
 justify-items: legacy
 justify-self: auto
 left: auto
-margin-block-end: 8px
+margin-block-end: 16px
 margin-block-start: 8px
-margin-bottom: 8px
+margin-bottom: 16px
 margin-inline-end: 8px
 margin-inline-start: 8px
 margin-left: 8px
