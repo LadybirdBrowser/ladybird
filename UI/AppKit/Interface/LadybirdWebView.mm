@@ -450,90 +450,91 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
         if (self == nil) {
             return;
         }
-        if (!cursor.template has<Gfx::StandardCursor>()) {
-            // FIXME: Implement image cursors in AppKit.
-            [[NSCursor arrowCursor] set];
-            return;
-        }
+        cursor.template visit(
+            [](Gfx::ImageCursor const& image_cursor) {
+                auto* cursor_image = Ladybird::gfx_bitmap_to_ns_image(*image_cursor.bitmap.bitmap());
+                auto hotspot = Ladybird::gfx_point_to_ns_point(image_cursor.hotspot);
 
-        auto standard_cursor = cursor.template get<Gfx::StandardCursor>();
+                [[[NSCursor alloc] initWithImage:cursor_image hotSpot:hotspot] set];
+            },
+            [&self](Gfx::StandardCursor standard_cursor) {
+                if (standard_cursor == Gfx::StandardCursor::Hidden) {
+                    if (!m_hidden_cursor.has_value()) {
+                        m_hidden_cursor.emplace();
+                    }
 
-        if (standard_cursor == Gfx::StandardCursor::Hidden) {
-            if (!m_hidden_cursor.has_value()) {
-                m_hidden_cursor.emplace();
-            }
+                    return;
+                }
 
-            return;
-        }
+                m_hidden_cursor.clear();
 
-        m_hidden_cursor.clear();
-
-        switch (standard_cursor) {
-        case Gfx::StandardCursor::Arrow:
-            [[NSCursor arrowCursor] set];
-            break;
-        case Gfx::StandardCursor::Crosshair:
-            [[NSCursor crosshairCursor] set];
-            break;
-        case Gfx::StandardCursor::IBeam:
-            [[NSCursor IBeamCursor] set];
-            break;
-        case Gfx::StandardCursor::ResizeHorizontal:
-            [[NSCursor resizeLeftRightCursor] set];
-            break;
-        case Gfx::StandardCursor::ResizeVertical:
-            [[NSCursor resizeUpDownCursor] set];
-            break;
-        case Gfx::StandardCursor::ResizeDiagonalTLBR:
-            // FIXME: AppKit does not have a corresponding cursor, so we should make one.
-            [[NSCursor arrowCursor] set];
-            break;
-        case Gfx::StandardCursor::ResizeDiagonalBLTR:
-            // FIXME: AppKit does not have a corresponding cursor, so we should make one.
-            [[NSCursor arrowCursor] set];
-            break;
-        case Gfx::StandardCursor::ResizeColumn:
-            [[NSCursor resizeLeftRightCursor] set];
-            break;
-        case Gfx::StandardCursor::ResizeRow:
-            [[NSCursor resizeUpDownCursor] set];
-            break;
-        case Gfx::StandardCursor::Hand:
-            [[NSCursor pointingHandCursor] set];
-            break;
-        case Gfx::StandardCursor::Help:
-            // FIXME: AppKit does not have a corresponding cursor, so we should make one.
-            [[NSCursor arrowCursor] set];
-            break;
-        case Gfx::StandardCursor::Drag:
-            [[NSCursor closedHandCursor] set];
-            break;
-        case Gfx::StandardCursor::DragCopy:
-            [[NSCursor dragCopyCursor] set];
-            break;
-        case Gfx::StandardCursor::Move:
-            // FIXME: AppKit does not have a corresponding cursor, so we should make one.
-            [[NSCursor dragCopyCursor] set];
-            break;
-        case Gfx::StandardCursor::Wait:
-            // FIXME: AppKit does not have a corresponding cursor, so we should make one.
-            [[NSCursor arrowCursor] set];
-            break;
-        case Gfx::StandardCursor::Disallowed:
-            // FIXME: AppKit does not have a corresponding cursor, so we should make one.
-            [[NSCursor arrowCursor] set];
-            break;
-        case Gfx::StandardCursor::Eyedropper:
-            // FIXME: AppKit does not have a corresponding cursor, so we should make one.
-            [[NSCursor arrowCursor] set];
-            break;
-        case Gfx::StandardCursor::Zoom:
-            // FIXME: AppKit does not have a corresponding cursor, so we should make one.
-            [[NSCursor arrowCursor] set];
-            break;
-        default:
-            break;
-        }
+                switch (standard_cursor) {
+                case Gfx::StandardCursor::Arrow:
+                    [[NSCursor arrowCursor] set];
+                    break;
+                case Gfx::StandardCursor::Crosshair:
+                    [[NSCursor crosshairCursor] set];
+                    break;
+                case Gfx::StandardCursor::IBeam:
+                    [[NSCursor IBeamCursor] set];
+                    break;
+                case Gfx::StandardCursor::ResizeHorizontal:
+                    [[NSCursor resizeLeftRightCursor] set];
+                    break;
+                case Gfx::StandardCursor::ResizeVertical:
+                    [[NSCursor resizeUpDownCursor] set];
+                    break;
+                case Gfx::StandardCursor::ResizeDiagonalTLBR:
+                    // FIXME: AppKit does not have a corresponding cursor, so we should make one.
+                    [[NSCursor arrowCursor] set];
+                    break;
+                case Gfx::StandardCursor::ResizeDiagonalBLTR:
+                    // FIXME: AppKit does not have a corresponding cursor, so we should make one.
+                    [[NSCursor arrowCursor] set];
+                    break;
+                case Gfx::StandardCursor::ResizeColumn:
+                    [[NSCursor resizeLeftRightCursor] set];
+                    break;
+                case Gfx::StandardCursor::ResizeRow:
+                    [[NSCursor resizeUpDownCursor] set];
+                    break;
+                case Gfx::StandardCursor::Hand:
+                    [[NSCursor pointingHandCursor] set];
+                    break;
+                case Gfx::StandardCursor::Help:
+                    // FIXME: AppKit does not have a corresponding cursor, so we should make one.
+                    [[NSCursor arrowCursor] set];
+                    break;
+                case Gfx::StandardCursor::Drag:
+                    [[NSCursor closedHandCursor] set];
+                    break;
+                case Gfx::StandardCursor::DragCopy:
+                    [[NSCursor dragCopyCursor] set];
+                    break;
+                case Gfx::StandardCursor::Move:
+                    // FIXME: AppKit does not have a corresponding cursor, so we should make one.
+                    [[NSCursor dragCopyCursor] set];
+                    break;
+                case Gfx::StandardCursor::Wait:
+                    // FIXME: AppKit does not have a corresponding cursor, so we should make one.
+                    [[NSCursor arrowCursor] set];
+                    break;
+                case Gfx::StandardCursor::Disallowed:
+                    // FIXME: AppKit does not have a corresponding cursor, so we should make one.
+                    [[NSCursor arrowCursor] set];
+                    break;
+                case Gfx::StandardCursor::Eyedropper:
+                    // FIXME: AppKit does not have a corresponding cursor, so we should make one.
+                    [[NSCursor arrowCursor] set];
+                    break;
+                case Gfx::StandardCursor::Zoom:
+                    // FIXME: AppKit does not have a corresponding cursor, so we should make one.
+                    [[NSCursor arrowCursor] set];
+                    break;
+                default:
+                    break;
+                }
+            });
     };
 
     m_web_view_bridge->on_zoom_level_changed = [weak_self]() {
