@@ -264,11 +264,39 @@ void WebContentClient::did_get_source(u64 page_id, URL::URL const& url, URL::URL
     }
 }
 
+template<typename JsonType = JsonObject>
+static JsonType parse_json(StringView json, StringView name)
+{
+    auto parsed_tree = JsonValue::from_string(json);
+    if (parsed_tree.is_error()) {
+        dbgln("Unable to parse {}: {}", name, parsed_tree.error());
+        return {};
+    }
+
+    if constexpr (IsSame<JsonType, JsonObject>) {
+        if (!parsed_tree.value().is_object()) {
+            dbgln("Expected {} to be an object: {}", name, parsed_tree.value());
+            return {};
+        }
+
+        return move(parsed_tree.release_value().as_object());
+    } else if constexpr (IsSame<JsonType, JsonArray>) {
+        if (!parsed_tree.value().is_array()) {
+            dbgln("Expected {} to be an array: {}", name, parsed_tree.value());
+            return {};
+        }
+
+        return move(parsed_tree.release_value().as_array());
+    } else {
+        static_assert(DependentFalse<JsonType>);
+    }
+}
+
 void WebContentClient::did_inspect_dom_tree(u64 page_id, String const& dom_tree)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_received_dom_tree)
-            view->on_received_dom_tree(dom_tree);
+            view->on_received_dom_tree(parse_json(dom_tree, "DOM tree"sv));
     }
 }
 
@@ -278,16 +306,16 @@ void WebContentClient::did_inspect_dom_node(u64 page_id, bool has_style, String 
     if (!view.has_value() || !view->on_received_dom_node_properties)
         return;
 
-    Optional<ViewImplementation::DOMNodeProperties> properties;
+    ViewImplementation::DOMNodeProperties properties;
 
     if (has_style) {
         properties = ViewImplementation::DOMNodeProperties {
-            .computed_style_json = computed_style,
-            .resolved_style_json = resolved_style,
-            .custom_properties_json = custom_properties,
-            .node_box_sizing_json = node_box_sizing,
-            .aria_properties_state_json = aria_properties_state,
-            .fonts_json = fonts,
+            .computed_style = parse_json(computed_style, "computed style"sv),
+            .resolved_style = parse_json(resolved_style, "resolved style"sv),
+            .custom_properties = parse_json(custom_properties, "custom properties"sv),
+            .node_box_sizing = parse_json(node_box_sizing, "node box sizing"sv),
+            .aria_properties_state = parse_json(aria_properties_state, "aria properties state"sv),
+            .fonts = parse_json<JsonArray>(fonts, "fonts"sv),
         };
     }
 
@@ -298,7 +326,7 @@ void WebContentClient::did_inspect_accessibility_tree(u64 page_id, String const&
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_received_accessibility_tree)
-            view->on_received_accessibility_tree(accessibility_tree);
+            view->on_received_accessibility_tree(parse_json(accessibility_tree, "accessibility tree"sv));
     }
 }
 

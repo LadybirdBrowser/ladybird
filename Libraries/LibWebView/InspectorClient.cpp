@@ -28,15 +28,6 @@ static constexpr auto INSPECTOR_HTML = "resource://ladybird/inspector.html"sv;
 static constexpr auto INSPECTOR_CSS = "resource://ladybird/inspector.css"sv;
 static constexpr auto INSPECTOR_JS = "resource://ladybird/inspector.js"sv;
 
-static ErrorOr<JsonValue> parse_json_tree(StringView json)
-{
-    auto parsed_tree = TRY(JsonValue::from_string(json));
-    if (!parsed_tree.is_object())
-        return Error::from_string_literal("Expected tree to be a JSON object");
-
-    return parsed_tree;
-}
-
 static String style_sheet_identifier_to_json(Web::CSS::StyleSheetIdentifier const& identifier)
 {
     return MUST(String::formatted("{{ type: '{}', domNodeId: {}, url: '{}' }}"sv,
@@ -50,13 +41,7 @@ InspectorClient::InspectorClient(ViewImplementation& content_web_view, ViewImple
     , m_inspector_web_view(inspector_web_view)
 {
     m_content_web_view.on_received_dom_tree = [this](auto const& dom_tree) {
-        auto result = parse_json_tree(dom_tree);
-        if (result.is_error()) {
-            dbgln("Failed to load DOM tree: {}", result.error());
-            return;
-        }
-
-        auto dom_tree_html = generate_dom_tree(result.value().as_object());
+        auto dom_tree_html = generate_dom_tree(dom_tree);
         auto dom_tree_base64 = MUST(encode_base64(dom_tree_html.bytes()));
 
         auto script = MUST(String::formatted("inspector.loadDOMTree(\"{}\");", dom_tree_base64));
@@ -70,44 +55,27 @@ InspectorClient::InspectorClient(ViewImplementation& content_web_view, ViewImple
             select_default_node();
     };
 
-    m_content_web_view.on_received_dom_node_properties = [this](auto const& inspected_node_properties) {
+    m_content_web_view.on_received_dom_node_properties = [this](auto const& properties) {
         StringBuilder builder;
 
         // FIXME: Support box model metrics and ARIA properties.
-        auto generate_property_script = [&](auto const& computed_style, auto const& resolved_style, auto const& custom_properties, auto const& fonts) {
-            builder.append("inspector.createPropertyTables(\""sv);
-            builder.append_escaped_for_json(computed_style);
-            builder.append("\", \""sv);
-            builder.append_escaped_for_json(resolved_style);
-            builder.append("\", \""sv);
-            builder.append_escaped_for_json(custom_properties);
-            builder.append("\");"sv);
-            builder.append("inspector.createFontList(\""sv);
-            builder.append_escaped_for_json(fonts);
-            builder.append("\");"sv);
-        };
+        builder.append("inspector.createPropertyTables(\""sv);
+        builder.append_escaped_for_json(properties.computed_style.serialized());
+        builder.append("\", \""sv);
+        builder.append_escaped_for_json(properties.resolved_style.serialized());
+        builder.append("\", \""sv);
+        builder.append_escaped_for_json(properties.custom_properties.serialized());
+        builder.append("\");"sv);
 
-        if (inspected_node_properties.has_value()) {
-            generate_property_script(
-                inspected_node_properties->computed_style_json,
-                inspected_node_properties->resolved_style_json,
-                inspected_node_properties->custom_properties_json,
-                inspected_node_properties->fonts_json);
-        } else {
-            generate_property_script("{}"sv, "{}"sv, "{}"sv, "{}"sv);
-        }
+        builder.append("inspector.createFontList(\""sv);
+        builder.append_escaped_for_json(properties.fonts.serialized());
+        builder.append("\");"sv);
 
         m_inspector_web_view.run_javascript(builder.string_view());
     };
 
     m_content_web_view.on_received_accessibility_tree = [this](auto const& accessibility_tree) {
-        auto result = parse_json_tree(accessibility_tree);
-        if (result.is_error()) {
-            dbgln("Failed to load accessibility tree: {}", result.error());
-            return;
-        }
-
-        auto accessibility_tree_html = generate_accessibility_tree(result.value().as_object());
+        auto accessibility_tree_html = generate_accessibility_tree(accessibility_tree);
         auto accessibility_tree_base64 = MUST(encode_base64(accessibility_tree_html.bytes()));
 
         auto script = MUST(String::formatted("inspector.loadAccessibilityTree(\"{}\");", accessibility_tree_base64));

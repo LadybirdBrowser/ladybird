@@ -9,6 +9,8 @@
 
 #include <AK/Forward.h>
 #include <AK/Function.h>
+#include <AK/JsonArray.h>
+#include <AK/JsonObject.h>
 #include <AK/LexicalPath.h>
 #include <AK/Queue.h>
 #include <AK/String.h>
@@ -35,12 +37,12 @@ public:
     virtual ~ViewImplementation();
 
     struct DOMNodeProperties {
-        String computed_style_json;
-        String resolved_style_json;
-        String custom_properties_json;
-        String node_box_sizing_json;
-        String aria_properties_state_json;
-        String fonts_json;
+        JsonObject computed_style;
+        JsonObject resolved_style;
+        JsonObject custom_properties;
+        JsonObject node_box_sizing;
+        JsonObject aria_properties_state;
+        JsonArray fonts;
     };
 
     static void for_each_view(Function<IterationDecision(ViewImplementation&)>);
@@ -200,9 +202,9 @@ public:
     Function<void()> on_request_accept_dialog;
     Function<void()> on_request_dismiss_dialog;
     Function<void(URL::URL const&, URL::URL const&, String const&)> on_received_source;
-    Function<void(String const&)> on_received_dom_tree;
-    Function<void(Optional<DOMNodeProperties>)> on_received_dom_node_properties;
-    Function<void(String const&)> on_received_accessibility_tree;
+    Function<void(JsonObject)> on_received_dom_tree;
+    Function<void(DOMNodeProperties)> on_received_dom_node_properties;
+    Function<void(JsonObject)> on_received_accessibility_tree;
     Function<void(Vector<Web::CSS::StyleSheetIdentifier>)> on_received_style_sheet_list;
     Function<void(Web::CSS::StyleSheetIdentifier const&)> on_inspector_requested_style_sheet_source;
     Function<void(Web::CSS::StyleSheetIdentifier const&, URL::URL const&, String const&)> on_received_style_sheet_source;
