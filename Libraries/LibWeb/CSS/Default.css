@@ -892,3 +892,57 @@ input[type=checkbox][switch]:checked {
 button, meter, progress, select {
     user-select: none;
 }
+
+/* https://drafts.csswg.org/css-view-transitions-1/#ua-styles */
+:root {
+  view-transition-name: root;
+}
+
+:root::view-transition {
+  position: fixed;
+  inset: 0;
+}
+
+:root::view-transition-group(*) {
+  position: absolute;
+  top: 0;
+  left: 0;
+
+  animation-duration: 0.25s;
+  animation-fill-mode: both;
+}
+
+:root::view-transition-image-pair(*) {
+  position: absolute;
+  inset: 0;
+
+  animation-duration: inherit;
+  animation-fill-mode: inherit;
+  animation-delay: inherit;
+}
+
+:root::view-transition-old(*),
+:root::view-transition-new(*) {
+  position: absolute;
+  inset-block-start: 0;
+  inline-size: 100%;
+  block-size: auto;
+
+  animation-duration: inherit;
+  animation-fill-mode: inherit;
+  animation-delay: inherit;
+}
+
+/* Default cross-fade transition */
+@keyframes -ua-view-transition-fade-out {
+  to { opacity: 0; }
+}
+@keyframes -ua-view-transition-fade-in {
+  from { opacity: 0; }
+}
+
+/* Keyframes for blending when there are 2 images */
+@keyframes -ua-mix-blend-mode-plus-lighter {
+  from { mix-blend-mode: plus-lighter }
+  to { mix-blend-mode: plus-lighter }
+}
