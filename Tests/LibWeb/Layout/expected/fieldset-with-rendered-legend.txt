@@ -1,18 +1,18 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
   BlockContainer <html> at (0,0) content-size 800x600 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x36.59375 children: not-inline
-      FieldSetBox <fieldset> at (24,15.59375) content-size 752x17 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x22.5 children: not-inline
+      FieldSetBox <fieldset> at (24,15.59375) content-size 752x2.90625 [BFC] children: not-inline
         LegendBox <legend> at (26,1.5) content-size 36.328125x17 children: inline
           frag 0 from TextNode start: 0, length: 5, rect: [26,1.5 36.328125x17] baseline: 13.296875
               "login"
           TextNode <#text>
-      BlockContainer <(anonymous)> at (8,44.59375) content-size 784x0 children: inline
+      BlockContainer <(anonymous)> at (8,30.5) content-size 784x0 children: inline
         TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x600]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x36.59375] overflow: [8,1.5 784x51.09375]
-      FieldSetPaintable (FieldSetBox<FIELDSET>) [10,8 780x36.59375] overflow: [12,1.5 776x51.09375]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x22.5] overflow: [8,1.5 784x37]
+      FieldSetPaintable (FieldSetBox<FIELDSET>) [10,8 780x22.5] overflow: [12,1.5 776x37]
         PaintableWithLines (LegendBox<LEGEND>) [24,1.5 40.328125x17]
           TextPaintable (TextNode<#text>)
-      PaintableWithLines (BlockContainer(anonymous)) [8,44.59375 784x0]
+      PaintableWithLines (BlockContainer(anonymous)) [8,30.5 784x0]
