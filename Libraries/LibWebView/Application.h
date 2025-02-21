@@ -91,7 +91,11 @@ private:
 
     virtual Vector<DevTools::TabDescription> tab_list() const override;
     virtual Vector<DevTools::CSSProperty> css_property_list() const override;
-    virtual void inspect_tab(DevTools::TabDescription const&, DevTools::DevToolsDelegate::OnTabInspectionComplete) const override;
+    virtual void inspect_tab(DevTools::TabDescription const&, OnTabInspectionComplete) const override;
+    virtual void inspect_dom_node(DevTools::TabDescription const&, Web::UniqueNodeID, Optional<Web::CSS::Selector::PseudoElement::Type>, OnDOMNodeInspectionComplete) const override;
+    virtual void clear_inspected_dom_node(DevTools::TabDescription const&) const override;
+    virtual void highlight_dom_node(DevTools::TabDescription const&, Web::UniqueNodeID, Optional<Web::CSS::Selector::PseudoElement::Type>) const override;
+    virtual void clear_highlighted_dom_node(DevTools::TabDescription const&) const override;
 
     static Application* s_the;
 
