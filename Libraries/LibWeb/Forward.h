@@ -804,6 +804,7 @@ class SVGDefsElement;
 class SVGDescElement;
 class SVGElement;
 class SVGEllipseElement;
+class SVGFilterElement;
 class SVGForeignObjectElement;
 class SVGGeometryElement;
 class SVGGraphicsElement;

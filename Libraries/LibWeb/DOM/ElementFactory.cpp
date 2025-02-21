@@ -91,6 +91,7 @@
 #include <LibWeb/SVG/SVGDefsElement.h>
 #include <LibWeb/SVG/SVGDescElement.h>
 #include <LibWeb/SVG/SVGEllipseElement.h>
+#include <LibWeb/SVG/SVGFilterElement.h>
 #include <LibWeb/SVG/SVGForeignObjectElement.h>
 #include <LibWeb/SVG/SVGGElement.h>
 #include <LibWeb/SVG/SVGImageElement.h>
@@ -460,6 +461,8 @@ static GC::Ref<SVG::SVGElement> create_svg_element(JS::Realm& realm, Document& d
         return realm.create<SVG::SVGDescElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::ellipse)
         return realm.create<SVG::SVGEllipseElement>(document, move(qualified_name));
+    if (local_name == SVG::TagNames::filter)
+        return realm.create<SVG::SVGFilterElement>(document, move(qualified_name));
     if (local_name.equals_ignoring_ascii_case(SVG::TagNames::foreignObject))
         return realm.create<SVG::SVGForeignObjectElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::line)
