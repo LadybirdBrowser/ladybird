@@ -615,3 +615,27 @@ TEST_CASE(json_value_as_integer)
     EXPECT(!very_large_value.is_integer<i32>());
     EXPECT(very_large_value.is_integer<i64>());
 }
+
+TEST_CASE(json_object_move_from_value)
+{
+    JsonArray array;
+    array.must_append(false);
+    array.must_append("string"sv);
+
+    JsonObject object;
+    object.set("foo"sv, "bar"sv);
+    object.set("baz"sv, move(array));
+
+    JsonValue value { move(object) };
+    object = move(value.as_object());
+
+    EXPECT(value.is_object());
+    EXPECT(value.as_object().is_empty());
+
+    EXPECT_EQ(object.size(), 2uz);
+    EXPECT_EQ(object.get_string("foo"sv), "bar"sv);
+
+    auto array2 = object.get_array("baz"sv);
+    EXPECT_EQ(array2->at(0).as_bool(), false);
+    EXPECT_EQ(array2->at(1).as_string(), "string"sv);
+}
