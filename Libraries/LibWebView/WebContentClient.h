@@ -71,9 +71,9 @@ private:
     virtual void did_request_image_context_menu(u64 page_id, Gfx::IntPoint, URL::URL const&, ByteString const&, unsigned, Optional<Gfx::ShareableBitmap> const&) override;
     virtual void did_request_media_context_menu(u64 page_id, Gfx::IntPoint, ByteString const&, unsigned, Web::Page::MediaContextMenu const&) override;
     virtual void did_get_source(u64 page_id, URL::URL const&, URL::URL const&, String const&) override;
-    virtual void did_inspect_dom_tree(u64 page_id, ByteString const&) override;
-    virtual void did_inspect_dom_node(u64 page_id, bool has_style, ByteString const& computed_style, ByteString const& resolved_style, ByteString const& custom_properties, ByteString const& node_box_sizing, ByteString const& aria_properties_state, ByteString const& fonts) override;
-    virtual void did_inspect_accessibility_tree(u64 page_id, ByteString const&) override;
+    virtual void did_inspect_dom_tree(u64 page_id, String const&) override;
+    virtual void did_inspect_dom_node(u64 page_id, bool has_style, String const& computed_style, String const& resolved_style, String const& custom_properties, String const& node_box_sizing, String const& aria_properties_state, String const& fonts) override;
+    virtual void did_inspect_accessibility_tree(u64 page_id, String const&) override;
     virtual void did_get_hovered_node_id(u64 page_id, Web::UniqueNodeID const& node_id) override;
     virtual void did_finish_editing_dom_node(u64 page_id, Optional<Web::UniqueNodeID> const& node_id) override;
     virtual void did_get_dom_node_html(u64 page_id, String const& html) override;

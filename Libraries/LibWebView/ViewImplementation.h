@@ -200,9 +200,9 @@ public:
     Function<void()> on_request_accept_dialog;
     Function<void()> on_request_dismiss_dialog;
     Function<void(URL::URL const&, URL::URL const&, String const&)> on_received_source;
-    Function<void(ByteString const&)> on_received_dom_tree;
+    Function<void(String const&)> on_received_dom_tree;
     Function<void(Optional<DOMNodeProperties>)> on_received_dom_node_properties;
-    Function<void(ByteString const&)> on_received_accessibility_tree;
+    Function<void(String const&)> on_received_accessibility_tree;
     Function<void(Vector<Web::CSS::StyleSheetIdentifier>)> on_received_style_sheet_list;
     Function<void(Web::CSS::StyleSheetIdentifier const&)> on_inspector_requested_style_sheet_source;
     Function<void(Web::CSS::StyleSheetIdentifier const&, URL::URL const&, String const&)> on_received_style_sheet_source;

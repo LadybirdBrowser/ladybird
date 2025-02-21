@@ -430,7 +430,7 @@ void ConnectionFromClient::inspect_dom_tree(u64 page_id)
 {
     if (auto page = this->page(page_id); page.has_value()) {
         if (auto* doc = page->page().top_level_browsing_context().active_document())
-            async_did_inspect_dom_tree(page_id, doc->dump_dom_tree_as_json().to_byte_string());
+            async_did_inspect_dom_tree(page_id, doc->dump_dom_tree_as_json());
     }
 }
 
@@ -462,7 +462,7 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, Web::UniqueNodeID const
             return;
         }
 
-        auto serialize_json = [](Web::CSS::ComputedProperties const& properties) -> ByteString {
+        auto serialize_json = [](Web::CSS::ComputedProperties const& properties) {
             StringBuilder builder;
 
             auto serializer = MUST(JsonObjectSerializer<>::try_create(builder));
@@ -471,10 +471,10 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, Web::UniqueNodeID const
             });
             MUST(serializer.finish());
 
-            return builder.to_byte_string();
+            return MUST(builder.to_string());
         };
 
-        auto serialize_custom_properties_json = [](Web::DOM::Element const& element, Optional<Web::CSS::Selector::PseudoElement::Type> pseudo_element) -> ByteString {
+        auto serialize_custom_properties_json = [](Web::DOM::Element const& element, Optional<Web::CSS::Selector::PseudoElement::Type> pseudo_element) {
             StringBuilder builder;
             auto serializer = MUST(JsonObjectSerializer<>::try_create(builder));
             HashTable<FlyString> seen_properties;
@@ -498,11 +498,11 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, Web::UniqueNodeID const
 
             MUST(serializer.finish());
 
-            return builder.to_byte_string();
+            return MUST(builder.to_string());
         };
-        auto serialize_node_box_sizing_json = [](Web::Layout::Node const* layout_node) -> ByteString {
+        auto serialize_node_box_sizing_json = [](Web::Layout::Node const* layout_node) {
             if (!layout_node || !layout_node->is_box() || !layout_node->first_paintable() || !layout_node->first_paintable()->is_paintable_box()) {
-                return "{}";
+                return "{}"_string;
             }
             auto const& paintable_box = as<Web::Painting::PaintableBox>(*layout_node->first_paintable());
             auto const& box_model = paintable_box.box_model();
@@ -524,13 +524,13 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, Web::UniqueNodeID const
             MUST(serializer.add("content_height"sv, paintable_box.content_height().to_double()));
 
             MUST(serializer.finish());
-            return builder.to_byte_string();
+            return MUST(builder.to_string());
         };
 
-        auto serialize_aria_properties_state_json = [](Web::DOM::Element const& element) -> ByteString {
+        auto serialize_aria_properties_state_json = [](Web::DOM::Element const& element) {
             auto role_name = element.role_or_default();
             if (!role_name.has_value()) {
-                return "";
+                return "{}"_string;
             }
             auto aria_data = MUST(Web::ARIA::AriaData::build_data(element));
             auto role = MUST(Web::ARIA::RoleType::build_role_object(role_name.value(), element.is_focusable(), *aria_data));
@@ -539,10 +539,10 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, Web::UniqueNodeID const
             auto serializer = MUST(JsonObjectSerializer<>::try_create(builder));
             MUST(role->serialize_as_json(serializer));
             MUST(serializer.finish());
-            return builder.to_byte_string();
+            return MUST(builder.to_string());
         };
 
-        auto serialize_fonts_json = [](Web::CSS::ComputedProperties const& properties) -> ByteString {
+        auto serialize_fonts_json = [](Web::CSS::ComputedProperties const& properties) {
             StringBuilder builder;
             auto serializer = MUST(JsonArraySerializer<>::try_create(builder));
 
@@ -556,7 +556,7 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, Web::UniqueNodeID const
                 MUST(font_json_object.finish());
             });
             MUST(serializer.finish());
-            return builder.to_byte_string();
+            return MUST(builder.to_string());
         };
 
         if (pseudo_element.has_value()) {
@@ -568,9 +568,9 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, Web::UniqueNodeID const
 
             auto pseudo_element_style = element.pseudo_element_computed_properties(pseudo_element.value());
 
-            ByteString computed_values;
-            ByteString fonts_json;
-            ByteString resolved_values;
+            String computed_values;
+            String fonts_json;
+            String resolved_values;
             if (pseudo_element_style) {
                 computed_values = serialize_json(*pseudo_element_style);
                 fonts_json = serialize_fonts_json(*pseudo_element_style);
@@ -579,18 +579,18 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, Web::UniqueNodeID const
                 dbgln("Inspected pseudo-element has no computed style.");
             }
 
-            ByteString custom_properties_json = serialize_custom_properties_json(element, pseudo_element);
-            ByteString node_box_sizing_json = serialize_node_box_sizing_json(pseudo_element_node.ptr());
-            async_did_inspect_dom_node(page_id, true, move(computed_values), move(resolved_values), move(custom_properties_json), move(node_box_sizing_json), {}, move(fonts_json));
+            auto custom_properties_json = serialize_custom_properties_json(element, pseudo_element);
+            auto node_box_sizing_json = serialize_node_box_sizing_json(pseudo_element_node.ptr());
+            async_did_inspect_dom_node(page_id, true, move(computed_values), move(resolved_values), move(custom_properties_json), move(node_box_sizing_json), "{}"_string, move(fonts_json));
             return;
         }
 
-        ByteString computed_values = serialize_json(*element.computed_properties());
-        ByteString resolved_values = serialize_json(element.resolved_css_values());
-        ByteString custom_properties_json = serialize_custom_properties_json(element, {});
-        ByteString node_box_sizing_json = serialize_node_box_sizing_json(element.layout_node());
-        ByteString aria_properties_state_json = serialize_aria_properties_state_json(element);
-        ByteString fonts_json = serialize_fonts_json(*element.computed_properties());
+        auto computed_values = serialize_json(*element.computed_properties());
+        auto resolved_values = serialize_json(element.resolved_css_values());
+        auto custom_properties_json = serialize_custom_properties_json(element, {});
+        auto node_box_sizing_json = serialize_node_box_sizing_json(element.layout_node());
+        auto aria_properties_state_json = serialize_aria_properties_state_json(element);
+        auto fonts_json = serialize_fonts_json(*element.computed_properties());
 
         async_did_inspect_dom_node(page_id, true, move(computed_values), move(resolved_values), move(custom_properties_json), move(node_box_sizing_json), move(aria_properties_state_json), move(fonts_json));
         return;
@@ -603,7 +603,7 @@ void ConnectionFromClient::inspect_accessibility_tree(u64 page_id)
 {
     if (auto page = this->page(page_id); page.has_value()) {
         if (auto* doc = page->page().top_level_browsing_context().active_document())
-            async_did_inspect_accessibility_tree(page_id, doc->dump_accessibility_tree_as_json().to_byte_string());
+            async_did_inspect_accessibility_tree(page_id, doc->dump_accessibility_tree_as_json());
     }
 }
 
