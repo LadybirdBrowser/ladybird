@@ -105,15 +105,15 @@ endif()
 # Third-party
 find_package(PkgConfig)
 
-pkg_check_modules(WOFF2 REQUIRED IMPORTED_TARGET libwoff2dec)
 find_package(JPEG REQUIRED)
 find_package(PNG REQUIRED)
 find_package(LIBAVIF REQUIRED)
 find_package(WebP REQUIRED)
 find_package(harfbuzz REQUIRED)
+find_package(WOFF2 REQUIRED)
 
-target_link_libraries(LibGfx PRIVATE PkgConfig::WOFF2 JPEG::JPEG PNG::PNG avif WebP::webp WebP::webpdecoder
-            WebP::webpdemux WebP::libwebpmux skia harfbuzz)
+target_link_libraries(LibGfx PRIVATE JPEG::JPEG PNG::PNG avif WebP::webp WebP::webpdecoder
+            WebP::webpdemux WebP::libwebpmux skia harfbuzz WOFF2::WOFF2)
 
 if (NOT ANDROID)
     pkg_check_modules(Jxl REQUIRED IMPORTED_TARGET libjxl)
