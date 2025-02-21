@@ -6,6 +6,7 @@
 
 #include <AK/JsonArray.h>
 #include <AK/StringUtils.h>
+#include <LibDevTools/Actors/LayoutInspectorActor.h>
 #include <LibDevTools/Actors/NodeActor.h>
 #include <LibDevTools/Actors/TabActor.h>
 #include <LibDevTools/Actors/WalkerActor.h>
@@ -55,6 +56,18 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
         response.set("hasFirst"sv, !nodes.is_empty());
         response.set("hasLast"sv, !nodes.is_empty());
         response.set("nodes"sv, move(nodes));
+        send_message(move(response));
+        return;
+    }
+
+    if (type == "getLayoutInspector"sv) {
+        if (!m_layout_inspector)
+            m_layout_inspector = devtools().register_actor<LayoutInspectorActor>();
+
+        JsonObject actor;
+        actor.set("actor"sv, m_layout_inspector->name());
+
+        response.set("actor"sv, move(actor));
         send_message(move(response));
         return;
     }
