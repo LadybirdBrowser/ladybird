@@ -47,6 +47,7 @@ bool HTMLTableCellElement::is_presentational_hint(FlyString const& name) const
         HTML::AttributeNames::background,
         HTML::AttributeNames::bgcolor,
         HTML::AttributeNames::height,
+        HTML::AttributeNames::nowrap,
         HTML::AttributeNames::valign,
         HTML::AttributeNames::width);
 }
@@ -91,6 +92,9 @@ void HTMLTableCellElement::apply_presentational_hints(GC::Ref<CSS::CascadedPrope
             // https://html.spec.whatwg.org/multipage/rendering.html#tables-2:encoding-parsing-and-serializing-a-url
             if (auto parsed_value = document().encoding_parse_url(value); parsed_value.has_value())
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BackgroundImage, CSS::ImageStyleValue::create(*parsed_value));
+            return;
+        } else if (name == HTML::AttributeNames::nowrap) {
+            cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::WhiteSpace, CSS::CSSKeywordValue::create(CSS::Keyword::Nowrap));
             return;
         }
     });
