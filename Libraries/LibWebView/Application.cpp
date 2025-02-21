@@ -371,7 +371,7 @@ void Application::inspect_tab(DevTools::TabDescription const& description, DevTo
         return;
     }
 
-    view->on_received_dom_tree = [&view = *view, on_complete = move(on_complete)](ByteString const& dom_tree) {
+    view->on_received_dom_tree = [&view = *view, on_complete = move(on_complete)](String const& dom_tree) {
         view.on_received_dom_tree = nullptr;
 
         if (auto parsed_tree = JsonValue::from_string(dom_tree); parsed_tree.is_error()) {

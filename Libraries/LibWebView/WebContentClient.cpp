@@ -264,7 +264,7 @@ void WebContentClient::did_get_source(u64 page_id, URL::URL const& url, URL::URL
     }
 }
 
-void WebContentClient::did_inspect_dom_tree(u64 page_id, ByteString const& dom_tree)
+void WebContentClient::did_inspect_dom_tree(u64 page_id, String const& dom_tree)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_received_dom_tree)
@@ -272,7 +272,7 @@ void WebContentClient::did_inspect_dom_tree(u64 page_id, ByteString const& dom_t
     }
 }
 
-void WebContentClient::did_inspect_dom_node(u64 page_id, bool has_style, ByteString const& computed_style, ByteString const& resolved_style, ByteString const& custom_properties, ByteString const& node_box_sizing, ByteString const& aria_properties_state, ByteString const& fonts)
+void WebContentClient::did_inspect_dom_node(u64 page_id, bool has_style, String const& computed_style, String const& resolved_style, String const& custom_properties, String const& node_box_sizing, String const& aria_properties_state, String const& fonts)
 {
     auto view = view_for_page_id(page_id);
     if (!view.has_value() || !view->on_received_dom_node_properties)
@@ -282,19 +282,19 @@ void WebContentClient::did_inspect_dom_node(u64 page_id, bool has_style, ByteStr
 
     if (has_style) {
         properties = ViewImplementation::DOMNodeProperties {
-            .computed_style_json = MUST(String::from_byte_string(computed_style)),
-            .resolved_style_json = MUST(String::from_byte_string(resolved_style)),
-            .custom_properties_json = MUST(String::from_byte_string(custom_properties)),
-            .node_box_sizing_json = MUST(String::from_byte_string(node_box_sizing)),
-            .aria_properties_state_json = MUST(String::from_byte_string(aria_properties_state)),
-            .fonts_json = MUST(String::from_byte_string(fonts))
+            .computed_style_json = computed_style,
+            .resolved_style_json = resolved_style,
+            .custom_properties_json = custom_properties,
+            .node_box_sizing_json = node_box_sizing,
+            .aria_properties_state_json = aria_properties_state,
+            .fonts_json = fonts,
         };
     }
 
     view->on_received_dom_node_properties(move(properties));
 }
 
-void WebContentClient::did_inspect_accessibility_tree(u64 page_id, ByteString const& accessibility_tree)
+void WebContentClient::did_inspect_accessibility_tree(u64 page_id, String const& accessibility_tree)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_received_accessibility_tree)

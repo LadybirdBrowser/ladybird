@@ -47,9 +47,9 @@ endpoint WebContentClient
     did_request_dismiss_dialog(u64 page_id) =|
     did_get_source(u64 page_id, URL::URL url, URL::URL base_url, String source) =|
 
-    did_inspect_dom_tree(u64 page_id, ByteString dom_tree) =|
-    did_inspect_dom_node(u64 page_id, bool has_style, ByteString computed_style,  ByteString resolved_style,  ByteString custom_properties, ByteString node_box_sizing, ByteString aria_properties_state, ByteString fonts) =|
-    did_inspect_accessibility_tree(u64 page_id, ByteString accessibility_tree) =|
+    did_inspect_dom_tree(u64 page_id, String dom_tree) =|
+    did_inspect_dom_node(u64 page_id, bool has_style, String computed_style,  String resolved_style,  String custom_properties, String node_box_sizing, String aria_properties_state, String fonts) =|
+    did_inspect_accessibility_tree(u64 page_id, String accessibility_tree) =|
     did_get_hovered_node_id(u64 page_id, Web::UniqueNodeID node_id) =|
     did_finish_editing_dom_node(u64 page_id, Optional<Web::UniqueNodeID> node_id) =|
     did_get_dom_node_html(u64 page_id, String html) =|
