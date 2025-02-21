@@ -1586,9 +1586,10 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
 )~~~");
             } else {
                 if (!optional_default_value.has_value()) {
+                    union_generator.set("nullish_or_undefined", union_type.is_nullable() ? "nullish" : "undefined");
                     union_generator.append(R"~~~(
     Optional<@union_type@> @cpp_name@;
-    if (!@js_name@@js_suffix@.is_undefined())
+    if (!@js_name@@js_suffix@.is_@nullish_or_undefined@())
         @cpp_name@ = TRY(@js_name@@js_suffix@_to_variant(@js_name@@js_suffix@));
 )~~~");
                 } else {
