@@ -32,16 +32,16 @@ public:
     ActorType& register_actor(Args&&... args)
     {
         String name;
+        auto id = m_actor_count++;
 
         if constexpr (IsSame<ActorType, RootActor>) {
             name = String::from_utf8_without_validation(ActorType::base_name.bytes());
         } else {
-            name = MUST(String::formatted("server{}-{}{}", m_server_id, ActorType::base_name, m_actor_count));
+            name = MUST(String::formatted("server{}-{}{}", m_server_id, ActorType::base_name, id));
         }
 
         auto actor = ActorType::create(*this, name, forward<Args>(args)...);
         m_actor_registry.set(name, actor);
-        ++m_actor_count;
 
         return actor;
     }

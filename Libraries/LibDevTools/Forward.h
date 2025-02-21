@@ -17,6 +17,7 @@ class DevToolsServer;
 class FrameActor;
 class HighlighterActor;
 class InspectorActor;
+class NodeActor;
 class PageStyleActor;
 class PreferenceActor;
 class ProcessActor;

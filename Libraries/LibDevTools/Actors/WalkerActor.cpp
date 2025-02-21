@@ -6,8 +6,10 @@
 
 #include <AK/JsonArray.h>
 #include <AK/StringUtils.h>
+#include <LibDevTools/Actors/NodeActor.h>
 #include <LibDevTools/Actors/TabActor.h>
 #include <LibDevTools/Actors/WalkerActor.h>
+#include <LibDevTools/DevToolsServer.h>
 #include <LibWeb/DOM/NodeType.h>
 
 namespace DevTools {
@@ -276,11 +278,12 @@ Optional<JsonObject const&> WalkerActor::find_node_by_selector(JsonObject const&
 
 void WalkerActor::populate_dom_tree_cache(JsonObject& node, JsonObject const* parent)
 {
+    auto& node_actor = devtools().register_actor<NodeActor>(*this);
+
     m_dom_node_to_parent_map.set(&node, parent);
 
-    auto actor = MUST(String::formatted("{}-node{}", name(), m_dom_node_count++));
-    m_actor_to_dom_node_map.set(actor, &node);
-    node.set("actor"sv, actor);
+    m_actor_to_dom_node_map.set(node_actor.name(), &node);
+    node.set("actor"sv, node_actor.name());
 
     auto children = node.get_array("children"sv);
     if (!children.has_value())
