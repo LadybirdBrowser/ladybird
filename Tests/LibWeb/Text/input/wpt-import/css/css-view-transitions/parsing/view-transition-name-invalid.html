@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS View Transitions Test: view-transition-name with invalid values</title>
+<link rel="author" title="Tim Nguyen" href="https://github.com/nt1m">
+<link rel="help" href="https://drafts.csswg.org/css-view-transitions-1/">
+<meta name="assert" content="view-transition-name does not support invalid values">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("view-transition-name", "default"); // `default` isn't allowed by the `<custom-ident>` syntax.
+test_invalid_value("view-transition-name", "none none");
+test_invalid_value("view-transition-name", `"none"`);
+test_invalid_value("view-transition-name", `"foo"`);
+test_invalid_value("view-transition-name", "foo foo");
+test_invalid_value("view-transition-name", "bar bar");
+test_invalid_value("view-transition-name", "baz baz");
+test_invalid_value("view-transition-name", "#fff");
+test_invalid_value("view-transition-name", "12px");
+test_invalid_value("view-transition-name", "12em");
+test_invalid_value("view-transition-name", "12%");
+</script>
+</body>
+</html>
