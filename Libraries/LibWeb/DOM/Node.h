@@ -302,6 +302,7 @@ public:
     void invalidate_style(StyleInvalidationReason, Vector<CSS::InvalidationSet::Property> const&, StyleInvalidationOptions);
 
     void set_document(Badge<Document>, Document&);
+    void set_document(Badge<NamedNodeMap>, Document&);
 
     virtual EventTarget* get_parent(Event const&) override;
 

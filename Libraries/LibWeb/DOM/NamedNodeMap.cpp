@@ -237,17 +237,23 @@ void NamedNodeMap::replace_attribute(Attr& old_attribute, Attr& new_attribute, s
 {
     VERIFY(old_attribute.owner_element());
 
-    // 1. Replace oldAttr by newAttr in oldAttr’s element’s attribute list.
+    // 1. Let element be oldAttribute’s element.
+    auto* element = old_attribute.owner_element();
+
+    // 2. Replace oldAttribute by newAttribute in element’s attribute list.
     m_attributes.remove(old_attribute_index);
     m_attributes.insert(old_attribute_index, new_attribute);
 
-    // 2. Set newAttr’s element to oldAttr’s element.
-    new_attribute.set_owner_element(old_attribute.owner_element());
+    // 3. Set newAttribute’s element to element.
+    new_attribute.set_owner_element(element);
 
-    // 3. Set oldAttr’s element to null.
+    // 4. Set newAttribute’s node document to element’s node document.
+    new_attribute.set_document(Badge<NamedNodeMap> {}, element->document());
+
+    // 5. Set oldAttribute’s element to null.
     old_attribute.set_owner_element(nullptr);
 
-    // 4. Handle attribute changes for oldAttr with newAttr’s element, oldAttr’s value, and newAttr’s value.
+    // 6. Handle attribute changes for oldAttribute with element, oldAttribute’s value, and newAttribute’s value.
     old_attribute.handle_attribute_changes(*new_attribute.owner_element(), old_attribute.value(), new_attribute.value());
 }
 
@@ -260,7 +266,10 @@ void NamedNodeMap::append_attribute(Attr& attribute)
     // 2. Set attribute’s element to element.
     attribute.set_owner_element(&associated_element());
 
-    // 3. Handle attribute changes for attribute with element, null, and attribute’s value.
+    // 3. Set attribute’s node document to element’s node document.
+    attribute.set_document(Badge<NamedNodeMap> {}, associated_element().document());
+
+    // 4. Handle attribute changes for attribute with element, null, and attribute’s value.
     attribute.handle_attribute_changes(associated_element(), {}, attribute.value());
 }
 
