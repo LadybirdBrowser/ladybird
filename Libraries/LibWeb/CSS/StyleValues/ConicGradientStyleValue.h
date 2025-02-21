@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, Tobias Christiansen <tobyase@serenityos.org>
- * Copyright (c) 2021-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2022-2023, MacDue <macdue@dueutil.tech>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -60,11 +60,17 @@ private:
         bool operator==(Properties const&) const = default;
     } m_properties;
 
+    struct ResolvedDataCacheKey {
+        Length::ResolutionContext length_resolution_context;
+        CSSPixelSize size;
+        bool operator==(ResolvedDataCacheKey const&) const = default;
+    };
+    mutable Optional<ResolvedDataCacheKey> m_resolved_data_cache_key;
+
     struct ResolvedData {
         Painting::ConicGradientData data;
         CSSPixelPoint position;
     };
-
     mutable Optional<ResolvedData> m_resolved;
 };
 

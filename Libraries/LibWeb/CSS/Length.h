@@ -79,6 +79,8 @@ public:
         CSSPixels cap_height;
         CSSPixels zero_advance;
         CSSPixels line_height;
+
+        bool operator==(FontMetrics const&) const = default;
     };
 
     static Optional<Type> unit_from_name(StringView);
@@ -159,12 +161,14 @@ public:
     StringView unit_name() const;
 
     struct ResolutionContext {
-        [[nodiscard]] static Length::ResolutionContext for_window(HTML::Window const&);
-        [[nodiscard]] static Length::ResolutionContext for_layout_node(Layout::Node const&);
+        [[nodiscard]] static ResolutionContext for_window(HTML::Window const&);
+        [[nodiscard]] static ResolutionContext for_layout_node(Layout::Node const&);
 
         CSSPixelRect viewport_rect;
         FontMetrics font_metrics;
         FontMetrics root_font_metrics;
+
+        bool operator==(ResolutionContext const&) const = default;
     };
 
     [[nodiscard]] CSSPixels to_px(ResolutionContext const&) const;

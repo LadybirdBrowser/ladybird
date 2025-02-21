@@ -1,13 +1,14 @@
 /*
  * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, Tobias Christiansen <tobyase@serenityos.org>
- * Copyright (c) 2021-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2022-2023, MacDue <macdue@dueutil.tech>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include "LinearGradientStyleValue.h"
+#include <LibWeb/Layout/Node.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 
 namespace Web::CSS {
@@ -105,15 +106,20 @@ float LinearGradientStyleValue::angle_degrees(CSSPixelSize gradient_size) const
 
 void LinearGradientStyleValue::resolve_for_size(Layout::NodeWithStyleAndBoxModelMetrics const& node, CSSPixelSize size) const
 {
-    if (m_resolved.has_value() && m_resolved->size == size)
-        return;
-    m_resolved = ResolvedData { Painting::resolve_linear_gradient_data(node, size, *this), size };
+    ResolvedDataCacheKey cache_key {
+        .length_resolution_context = Length::ResolutionContext::for_layout_node(node),
+        .size = size,
+    };
+    if (m_resolved_data_cache_key != cache_key) {
+        m_resolved_data_cache_key = move(cache_key);
+        m_resolved = Painting::resolve_linear_gradient_data(node, size, *this);
+    }
 }
 
 void LinearGradientStyleValue::paint(PaintContext& context, DevicePixelRect const& dest_rect, CSS::ImageRendering) const
 {
     VERIFY(m_resolved.has_value());
-    context.display_list_recorder().fill_rect_with_linear_gradient(dest_rect.to_type<int>(), m_resolved->data);
+    context.display_list_recorder().fill_rect_with_linear_gradient(dest_rect.to_type<int>(), m_resolved.value());
 }
 
 }
