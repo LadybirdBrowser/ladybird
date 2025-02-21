@@ -186,11 +186,13 @@ public:
     Node* hovered_node() { return m_hovered_node.ptr(); }
     Node const* hovered_node() const { return m_hovered_node.ptr(); }
 
-    void set_inspected_node(Node*, Optional<CSS::Selector::PseudoElement::Type>);
-    Node* inspected_node() { return m_inspected_node.ptr(); }
-    Node const* inspected_node() const { return m_inspected_node.ptr(); }
-    Layout::Node* inspected_layout_node();
-    Layout::Node const* inspected_layout_node() const { return const_cast<Document*>(this)->inspected_layout_node(); }
+    void set_inspected_node(GC::Ptr<Node>);
+    GC::Ptr<Node const> inspected_node() const { return m_inspected_node; }
+
+    void set_highlighted_node(GC::Ptr<Node>, Optional<CSS::Selector::PseudoElement::Type>);
+    GC::Ptr<Node const> highlighted_node() const { return m_highlighted_node; }
+    GC::Ptr<Layout::Node> highlighted_layout_node();
+    GC::Ptr<Layout::Node const> highlighted_layout_node() const { return const_cast<Document*>(this)->highlighted_layout_node(); }
 
     Element* document_element();
     Element const* document_element() const;
@@ -866,9 +868,6 @@ private:
     GC::Ref<Page> m_page;
     OwnPtr<CSS::StyleComputer> m_style_computer;
     GC::Ptr<CSS::StyleSheetList> m_style_sheets;
-    GC::Ptr<Node> m_hovered_node;
-    GC::Ptr<Node> m_inspected_node;
-    Optional<CSS::Selector::PseudoElement::Type> m_inspected_pseudo_element;
     GC::Ptr<Node> m_active_favicon;
     WeakPtr<HTML::BrowsingContext> m_browsing_context;
     URL::URL m_url;
@@ -876,6 +875,11 @@ private:
     GC::Ptr<HTML::Window> m_window;
 
     GC::Ptr<Layout::Viewport> m_layout_root;
+
+    GC::Ptr<Node> m_hovered_node;
+    GC::Ptr<Node> m_inspected_node;
+    GC::Ptr<Node> m_highlighted_node;
+    Optional<CSS::Selector::PseudoElement::Type> m_highlighted_pseudo_element;
 
     Optional<Color> m_normal_link_color;
     Optional<Color> m_active_link_color;

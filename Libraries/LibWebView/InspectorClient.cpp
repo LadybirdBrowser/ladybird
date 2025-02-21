@@ -161,6 +161,7 @@ InspectorClient::InspectorClient(ViewImplementation& content_web_view, ViewImple
     };
 
     m_inspector_web_view.on_inspector_selected_dom_node = [this](auto node_id, auto const& pseudo_element) {
+        m_content_web_view.highlight_dom_node(node_id, pseudo_element);
         m_content_web_view.inspect_dom_node(node_id, pseudo_element);
     };
 
@@ -306,6 +307,7 @@ void InspectorClient::select_default_node()
 
 void InspectorClient::clear_selection()
 {
+    m_content_web_view.clear_highlighted_dom_node();
     m_content_web_view.clear_inspected_dom_node();
 
     static constexpr auto script = "inspector.clearInspectedDOMNode();"sv;

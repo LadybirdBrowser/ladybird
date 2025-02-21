@@ -519,6 +519,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_style_sheets);
     visitor.visit(m_hovered_node);
     visitor.visit(m_inspected_node);
+    visitor.visit(m_highlighted_node);
     visitor.visit(m_active_favicon);
     visitor.visit(m_focused_element);
     visitor.visit(m_active_element);
@@ -1638,29 +1639,36 @@ Layout::Viewport* Document::layout_node()
     return static_cast<Layout::Viewport*>(Node::layout_node());
 }
 
-void Document::set_inspected_node(Node* node, Optional<CSS::Selector::PseudoElement::Type> pseudo_element)
+void Document::set_inspected_node(GC::Ptr<Node> node)
 {
-    if (m_inspected_node.ptr() == node && m_inspected_pseudo_element == pseudo_element)
+    m_inspected_node = node;
+}
+
+void Document::set_highlighted_node(GC::Ptr<Node> node, Optional<CSS::Selector::PseudoElement::Type> pseudo_element)
+{
+    if (m_highlighted_node == node && m_highlighted_pseudo_element == pseudo_element)
         return;
 
-    if (auto layout_node = inspected_layout_node(); layout_node && layout_node->first_paintable())
+    if (auto layout_node = highlighted_layout_node(); layout_node && layout_node->first_paintable())
         layout_node->first_paintable()->set_needs_display();
 
-    m_inspected_node = node;
-    m_inspected_pseudo_element = pseudo_element;
+    m_highlighted_node = node;
+    m_highlighted_pseudo_element = pseudo_element;
 
-    if (auto layout_node = inspected_layout_node(); layout_node && layout_node->first_paintable())
+    if (auto layout_node = highlighted_layout_node(); layout_node && layout_node->first_paintable())
         layout_node->first_paintable()->set_needs_display();
 }
 
-Layout::Node* Document::inspected_layout_node()
+GC::Ptr<Layout::Node> Document::highlighted_layout_node()
 {
-    if (!m_inspected_node)
+    if (!m_highlighted_node)
         return nullptr;
-    if (!m_inspected_pseudo_element.has_value() || !m_inspected_node->is_element())
-        return m_inspected_node->layout_node();
-    auto& element = static_cast<Element&>(*m_inspected_node);
-    return element.get_pseudo_element_node(m_inspected_pseudo_element.value());
+
+    if (!m_highlighted_pseudo_element.has_value() || !m_highlighted_node->is_element())
+        return m_highlighted_node->layout_node();
+
+    auto const& element = static_cast<Element const&>(*m_highlighted_node);
+    return element.get_pseudo_element_node(m_highlighted_pseudo_element.value());
 }
 
 static Node* find_common_ancestor(Node* a, Node* b)

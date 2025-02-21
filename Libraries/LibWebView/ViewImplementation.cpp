@@ -303,14 +303,19 @@ void ViewImplementation::inspect_dom_tree()
     client().async_inspect_dom_tree(page_id());
 }
 
-void ViewImplementation::inspect_dom_node(Web::UniqueNodeID node_id, Optional<Web::CSS::Selector::PseudoElement::Type> pseudo_element)
-{
-    client().async_inspect_dom_node(page_id(), node_id, move(pseudo_element));
-}
-
 void ViewImplementation::inspect_accessibility_tree()
 {
     client().async_inspect_accessibility_tree(page_id());
+}
+
+void ViewImplementation::get_hovered_node_id()
+{
+    client().async_get_hovered_node_id(page_id());
+}
+
+void ViewImplementation::inspect_dom_node(Web::UniqueNodeID node_id, Optional<Web::CSS::Selector::PseudoElement::Type> pseudo_element)
+{
+    client().async_inspect_dom_node(page_id(), node_id, move(pseudo_element));
 }
 
 void ViewImplementation::clear_inspected_dom_node()
@@ -318,9 +323,14 @@ void ViewImplementation::clear_inspected_dom_node()
     inspect_dom_node(0, {});
 }
 
-void ViewImplementation::get_hovered_node_id()
+void ViewImplementation::highlight_dom_node(Web::UniqueNodeID node_id, Optional<Web::CSS::Selector::PseudoElement::Type> pseudo_element)
 {
-    client().async_get_hovered_node_id(page_id());
+    client().async_highlight_dom_node(page_id(), node_id, move(pseudo_element));
+}
+
+void ViewImplementation::clear_highlighted_dom_node()
+{
+    highlight_dom_node(0, {});
 }
 
 void ViewImplementation::set_dom_node_text(Web::UniqueNodeID node_id, String text)

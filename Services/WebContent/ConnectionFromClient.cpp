@@ -442,7 +442,7 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, Web::UniqueNodeID const
 
     for (auto& navigable : Web::HTML::all_navigables()) {
         if (navigable->active_document() != nullptr) {
-            navigable->active_document()->set_inspected_node(nullptr, {});
+            navigable->active_document()->set_inspected_node(nullptr);
         }
     }
 
@@ -453,7 +453,7 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, Web::UniqueNodeID const
         return;
     }
 
-    node->document().set_inspected_node(node, pseudo_element);
+    node->document().set_inspected_node(node);
 
     if (node->is_element()) {
         auto& element = as<Web::DOM::Element>(*node);
@@ -597,6 +597,25 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, Web::UniqueNodeID const
     }
 
     async_did_inspect_dom_node(page_id, false, {}, {}, {}, {}, {}, {});
+}
+
+void ConnectionFromClient::highlight_dom_node(u64 page_id, Web::UniqueNodeID const& node_id, Optional<Web::CSS::Selector::PseudoElement::Type> const& pseudo_element)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value())
+        return;
+
+    for (auto& navigable : Web::HTML::all_navigables()) {
+        if (navigable->active_document() != nullptr) {
+            navigable->active_document()->set_highlighted_node(nullptr, {});
+        }
+    }
+
+    auto* node = Web::DOM::Node::from_unique_id(node_id);
+    if (!node || !node->layout_node())
+        return;
+
+    node->document().set_highlighted_node(node, pseudo_element);
 }
 
 void ConnectionFromClient::inspect_accessibility_tree(u64 page_id)

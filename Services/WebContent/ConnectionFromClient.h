@@ -76,6 +76,7 @@ private:
     virtual void get_source(u64 page_id) override;
     virtual void inspect_dom_tree(u64 page_id) override;
     virtual void inspect_dom_node(u64 page_id, Web::UniqueNodeID const& node_id, Optional<Web::CSS::Selector::PseudoElement::Type> const& pseudo_element) override;
+    virtual void highlight_dom_node(u64 page_id, Web::UniqueNodeID const& node_id, Optional<Web::CSS::Selector::PseudoElement::Type> const& pseudo_element) override;
     virtual void inspect_accessibility_tree(u64 page_id) override;
     virtual void get_hovered_node_id(u64 page_id) override;
 
