@@ -76,6 +76,7 @@ JsonObject TabActor::serialize_description() const
 void TabActor::reset_selected_node()
 {
     devtools().delegate().clear_highlighted_dom_node(description());
+    devtools().delegate().clear_inspected_dom_node(description());
 }
 
 }

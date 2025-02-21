@@ -36,7 +36,7 @@ void InspectorActor::handle_message(StringView type, JsonObject const& message)
 
     if (type == "getPageStyle"sv) {
         if (!m_page_style)
-            m_page_style = devtools().register_actor<PageStyleActor>();
+            m_page_style = devtools().register_actor<PageStyleActor>(*this);
 
         response.set("pageStyle"sv, m_page_style->serialize_style());
         send_message(move(response));

@@ -72,6 +72,12 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
         return;
     }
 
+    if (type == "getOffsetParent"sv) {
+        response.set("node"sv, JsonValue {});
+        send_message(move(response));
+        return;
+    }
+
     if (type == "querySelector"sv) {
         auto node = message.get_string("node"sv);
         if (!node.has_value()) {
