@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2018-2025, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2021, Tobias Christiansen <tobyase@serenityos.org>
  * Copyright (c) 2022-2023, MacDue <macdue@dueutil.tech>
  *
@@ -25,6 +25,7 @@
 #include <LibWeb/CSS/StyleValues/ContentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterDefinitionsStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CursorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/EasingStyleValue.h>
@@ -144,6 +145,12 @@ CounterDefinitionsStyleValue const& CSSStyleValue::as_counter_definitions() cons
 {
     VERIFY(is_counter_definitions());
     return static_cast<CounterDefinitionsStyleValue const&>(*this);
+}
+
+CursorStyleValue const& CSSStyleValue::as_cursor() const
+{
+    VERIFY(is_cursor());
+    return static_cast<CursorStyleValue const&>(*this);
 }
 
 CustomIdentStyleValue const& CSSStyleValue::as_custom_ident() const
