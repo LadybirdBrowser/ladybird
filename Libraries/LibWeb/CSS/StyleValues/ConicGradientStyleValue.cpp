@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, Tobias Christiansen <tobyase@serenityos.org>
- * Copyright (c) 2021-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2022-2023, MacDue <macdue@dueutil.tech>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -38,8 +38,14 @@ String ConicGradientStyleValue::to_string(SerializationMode mode) const
 
 void ConicGradientStyleValue::resolve_for_size(Layout::NodeWithStyleAndBoxModelMetrics const& node, CSSPixelSize size) const
 {
-    if (!m_resolved.has_value())
+    ResolvedDataCacheKey cache_key {
+        .length_resolution_context = Length::ResolutionContext::for_layout_node(node),
+        .size = size,
+    };
+    if (m_resolved_data_cache_key != cache_key) {
+        m_resolved_data_cache_key = move(cache_key);
         m_resolved = ResolvedData { Painting::resolve_conic_gradient_data(node, *this), {} };
+    }
     m_resolved->position = m_properties.position->resolved(node, CSSPixelRect { { 0, 0 }, size });
 }
 
