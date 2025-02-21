@@ -1281,6 +1281,11 @@ void Node::set_document(Badge<Document>, Document& document)
     set_document(document);
 }
 
+void Node::set_document(Badge<NamedNodeMap>, Document& document)
+{
+    set_document(document);
+}
+
 void Node::set_document(Document& document)
 {
     if (m_document.ptr() == &document)

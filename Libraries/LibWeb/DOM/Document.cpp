@@ -2276,7 +2276,7 @@ void Document::adopt_node(Node& node)
         // 1. For each inclusiveDescendant in node’s shadow-including inclusive descendants:
         node.for_each_shadow_including_inclusive_descendant([&](DOM::Node& inclusive_descendant) {
             // 1. Set inclusiveDescendant’s node document to document.
-            inclusive_descendant.set_document({}, *this);
+            inclusive_descendant.set_document(Badge<Document> {}, *this);
 
             // FIXME: 2. If inclusiveDescendant is an element, then set the node document of each attribute in inclusiveDescendant’s
             //           attribute list to document.
