@@ -96,12 +96,12 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
     full_data.append(after_data.data(), after_data.length_in_code_units());
     Utf16View full_view { full_data };
 
-    // OPTIMIZATION: Skip subsequent steps if the data didn't change.
-    if (utf16_view == full_view) {
-        return {};
-    }
+    bool characters_are_the_same = utf16_view == full_view;
 
-    m_data = MUST(full_view.to_utf8(Utf16View::AllowInvalidCodeUnits::Yes));
+    // OPTIMIZATION: Skip UTF-8 encoding if the characters are the same.
+    if (!characters_are_the_same) {
+        m_data = MUST(full_view.to_utf8(Utf16View::AllowInvalidCodeUnits::Yes));
+    }
 
     // 8. For each live range whose start node is node and start offset is greater than offset but less than or equal to offset plus count, set its start offset to offset.
     for (auto& range : Range::live_ranges()) {
@@ -133,6 +133,10 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
     // 12. If node’s parent is non-null, then run the children changed steps for node’s parent.
     if (parent())
         parent()->children_changed(nullptr);
+
+    // OPTIMIZATION: If the characters are the same, we can skip the remainder of this function.
+    if (characters_are_the_same)
+        return {};
 
     // NOTE: Since the text node's data has changed, we need to invalidate the text for rendering.
     //       This ensures that the new text is reflected in layout, even if we don't end up
