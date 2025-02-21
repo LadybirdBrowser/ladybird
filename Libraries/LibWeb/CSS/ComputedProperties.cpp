@@ -17,6 +17,7 @@
 #include <LibWeb/CSS/StyleValues/ContentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterDefinitionsStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridAutoFlowStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTemplateAreaStyleValue.h>
@@ -1596,6 +1597,18 @@ MixBlendMode ComputedProperties::mix_blend_mode() const
 {
     auto const& value = property(PropertyID::MixBlendMode);
     return keyword_to_mix_blend_mode(value.to_keyword()).release_value();
+}
+
+Optional<FlyString> ComputedProperties::view_transition_name() const
+{
+    auto const& value = property(PropertyID::ViewTransitionName);
+    if (value.is_custom_ident()) {
+        auto ident = value.as_custom_ident().custom_ident();
+        if (ident == "none"_fly_string)
+            return {};
+        return ident;
+    }
+    return {};
 }
 
 MaskType ComputedProperties::mask_type() const
