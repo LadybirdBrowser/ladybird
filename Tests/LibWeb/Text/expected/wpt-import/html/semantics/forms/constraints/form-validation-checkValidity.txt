@@ -1,0 +1,136 @@
+Harness status: OK
+
+Found 130 tests
+
+75 Pass
+55 Fail
+Pass	[INPUT in TEXT status] no constraint
+Pass	[INPUT in TEXT status] no constraint (in a form)
+Pass	[INPUT in TEXT status] not suffering from being too long
+Pass	[INPUT in TEXT status] not suffering from being too long (in a form)
+Fail	[INPUT in TEXT status] suffering from a pattern mismatch
+Fail	[INPUT in TEXT status] suffering from a pattern mismatch (in a form)
+Pass	[INPUT in TEXT status] suffering from being missing
+Pass	[INPUT in TEXT status] suffering from being missing (in a form)
+Pass	[INPUT in SEARCH status] no constraint
+Pass	[INPUT in SEARCH status] no constraint (in a form)
+Pass	[INPUT in SEARCH status] not suffering from being too long
+Pass	[INPUT in SEARCH status] not suffering from being too long (in a form)
+Fail	[INPUT in SEARCH status] suffering from a pattern mismatch
+Fail	[INPUT in SEARCH status] suffering from a pattern mismatch (in a form)
+Pass	[INPUT in SEARCH status] suffering from being missing
+Pass	[INPUT in SEARCH status] suffering from being missing (in a form)
+Pass	[INPUT in TEL status] no constraint
+Pass	[INPUT in TEL status] no constraint (in a form)
+Pass	[INPUT in TEL status] not suffering from being too long
+Pass	[INPUT in TEL status] not suffering from being too long (in a form)
+Fail	[INPUT in TEL status] suffering from a pattern mismatch
+Fail	[INPUT in TEL status] suffering from a pattern mismatch (in a form)
+Pass	[INPUT in TEL status] suffering from being missing
+Pass	[INPUT in TEL status] suffering from being missing (in a form)
+Pass	[INPUT in PASSWORD status] no constraint
+Pass	[INPUT in PASSWORD status] no constraint (in a form)
+Pass	[INPUT in PASSWORD status] not suffering from being too long
+Pass	[INPUT in PASSWORD status] not suffering from being too long (in a form)
+Fail	[INPUT in PASSWORD status] suffering from a pattern mismatch
+Fail	[INPUT in PASSWORD status] suffering from a pattern mismatch (in a form)
+Pass	[INPUT in PASSWORD status] suffering from being missing
+Pass	[INPUT in PASSWORD status] suffering from being missing (in a form)
+Pass	[INPUT in URL status] no constraint
+Pass	[INPUT in URL status] no constraint (in a form)
+Pass	[INPUT in URL status] suffering from being too long
+Pass	[INPUT in URL status] suffering from being too long (in a form)
+Fail	[INPUT in URL status] suffering from a pattern mismatch
+Fail	[INPUT in URL status] suffering from a pattern mismatch (in a form)
+Fail	[INPUT in URL status] suffering from a type mismatch
+Fail	[INPUT in URL status] suffering from a type mismatch (in a form)
+Pass	[INPUT in URL status] suffering from being missing
+Pass	[INPUT in URL status] suffering from being missing (in a form)
+Pass	[INPUT in EMAIL status] no constraint
+Pass	[INPUT in EMAIL status] no constraint (in a form)
+Pass	[INPUT in EMAIL status] not suffering from being too long
+Pass	[INPUT in EMAIL status] not suffering from being too long (in a form)
+Fail	[INPUT in EMAIL status] suffering from a pattern mismatch
+Fail	[INPUT in EMAIL status] suffering from a pattern mismatch (in a form)
+Fail	[INPUT in EMAIL status] suffering from a type mismatch
+Fail	[INPUT in EMAIL status] suffering from a type mismatch (in a form)
+Pass	[INPUT in EMAIL status] suffering from being missing
+Pass	[INPUT in EMAIL status] suffering from being missing (in a form)
+Pass	[INPUT in DATETIME-LOCAL status] no constraint
+Pass	[INPUT in DATETIME-LOCAL status] no constraint (in a form)
+Fail	[INPUT in DATETIME-LOCAL status] suffering from an overflow
+Fail	[INPUT in DATETIME-LOCAL status] suffering from an overflow (in a form)
+Fail	[INPUT in DATETIME-LOCAL status] suffering from an underflow
+Fail	[INPUT in DATETIME-LOCAL status] suffering from an underflow (in a form)
+Fail	[INPUT in DATETIME-LOCAL status] suffering from a step mismatch
+Fail	[INPUT in DATETIME-LOCAL status] suffering from a step mismatch (in a form)
+Pass	[INPUT in DATETIME-LOCAL status] suffering from being missing
+Pass	[INPUT in DATETIME-LOCAL status] suffering from being missing (in a form)
+Pass	[INPUT in DATE status] no constraint
+Pass	[INPUT in DATE status] no constraint (in a form)
+Fail	[INPUT in DATE status] suffering from an overflow
+Fail	[INPUT in DATE status] suffering from an overflow (in a form)
+Fail	[INPUT in DATE status] suffering from an underflow
+Fail	[INPUT in DATE status] suffering from an underflow (in a form)
+Fail	[INPUT in DATE status] suffering from a step mismatch
+Fail	[INPUT in DATE status] suffering from a step mismatch (in a form)
+Pass	[INPUT in DATE status] suffering from being missing
+Pass	[INPUT in DATE status] suffering from being missing (in a form)
+Pass	[INPUT in MONTH status] no constraint
+Pass	[INPUT in MONTH status] no constraint (in a form)
+Fail	[INPUT in MONTH status] suffering from an overflow
+Fail	[INPUT in MONTH status] suffering from an overflow (in a form)
+Fail	[INPUT in MONTH status] suffering from an underflow
+Fail	[INPUT in MONTH status] suffering from an underflow (in a form)
+Fail	[INPUT in MONTH status] suffering from a step mismatch
+Fail	[INPUT in MONTH status] suffering from a step mismatch (in a form)
+Pass	[INPUT in MONTH status] suffering from being missing
+Pass	[INPUT in MONTH status] suffering from being missing (in a form)
+Pass	[INPUT in WEEK status] no constraint
+Pass	[INPUT in WEEK status] no constraint (in a form)
+Fail	[INPUT in WEEK status] suffering from an overflow
+Fail	[INPUT in WEEK status] suffering from an overflow (in a form)
+Fail	[INPUT in WEEK status] suffering from an underflow
+Fail	[INPUT in WEEK status] suffering from an underflow (in a form)
+Fail	[INPUT in WEEK status] suffering from a step mismatch
+Fail	[INPUT in WEEK status] suffering from a step mismatch (in a form)
+Pass	[INPUT in WEEK status] suffering from being missing
+Pass	[INPUT in WEEK status] suffering from being missing (in a form)
+Pass	[INPUT in TIME status] no constraint
+Pass	[INPUT in TIME status] no constraint (in a form)
+Fail	[INPUT in TIME status] suffering from an overflow
+Fail	[INPUT in TIME status] suffering from an overflow (in a form)
+Fail	[INPUT in TIME status] suffering from an underflow
+Fail	[INPUT in TIME status] suffering from an underflow (in a form)
+Fail	[INPUT in TIME status] suffering from a step mismatch
+Fail	[INPUT in TIME status] suffering from a step mismatch (in a form)
+Pass	[INPUT in TIME status] suffering from being missing
+Pass	[INPUT in TIME status] suffering from being missing (in a form)
+Fail	[INPUT in NUMBER status] suffering from an overflow
+Fail	[INPUT in NUMBER status] suffering from an overflow (in a form)
+Fail	[INPUT in NUMBER status] suffering from an underflow
+Fail	[INPUT in NUMBER status] suffering from an underflow (in a form)
+Fail	[INPUT in NUMBER status] suffering from a step mismatch
+Fail	[INPUT in NUMBER status] suffering from a step mismatch (in a form)
+Pass	[INPUT in NUMBER status] suffering from being missing
+Pass	[INPUT in NUMBER status] suffering from being missing (in a form)
+Pass	[INPUT in CHECKBOX status] no constraint
+Pass	[INPUT in CHECKBOX status] no constraint (in a form)
+Pass	[INPUT in CHECKBOX status] suffering from being missing
+Pass	[INPUT in CHECKBOX status] suffering from being missing (in a form)
+Pass	[INPUT in RADIO status] no constraint
+Pass	[INPUT in RADIO status] no constraint (in a form)
+Pass	[INPUT in RADIO status] suffering from being missing
+Pass	[INPUT in RADIO status] suffering from being missing (in a form)
+Pass	[INPUT in FILE status] no constraint
+Pass	[INPUT in FILE status] no constraint (in a form)
+Pass	[INPUT in FILE status] suffering from being missing
+Pass	[INPUT in FILE status] suffering from being missing (in a form)
+Fail	[select]  no constraint
+Pass	[select]  no constraint (in a form)
+Fail	[select]  suffering from being missing
+Pass	[select]  suffering from being missing (in a form)
+Pass	[textarea]  no constraint
+Pass	[textarea]  no constraint (in a form)
+Fail	[textarea]  suffering from being missing
+Pass	[textarea]  suffering from being missing (in a form)
