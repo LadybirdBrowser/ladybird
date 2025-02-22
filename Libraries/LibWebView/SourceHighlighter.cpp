@@ -147,7 +147,7 @@ void SourceHighlighterClient::highlighter_did_set_folding_regions(Vector<Syntax:
     document().set_folding_regions(move(folding_regions));
 }
 
-String highlight_source(URL::URL const& url, URL::URL const& base_url, String const& source, Syntax::Language language, HighlightOutputMode mode)
+String highlight_source(Optional<URL::URL> const& url, URL::URL const& base_url, String const& source, Syntax::Language language, HighlightOutputMode mode)
 {
     SourceHighlighterClient highlighter_client { source, language };
     return highlighter_client.to_html_string(url, base_url, mode);
@@ -268,7 +268,7 @@ StringView SourceHighlighterClient::class_for_token(u64 token_type) const
     }
 }
 
-String SourceHighlighterClient::to_html_string(URL::URL const& url, URL::URL const& base_url, HighlightOutputMode mode) const
+String SourceHighlighterClient::to_html_string(Optional<URL::URL> const& url, URL::URL const& base_url, HighlightOutputMode mode) const
 {
     StringBuilder builder;
 
@@ -302,7 +302,11 @@ String SourceHighlighterClient::to_html_string(URL::URL const& url, URL::URL con
 <head>
     <meta name="color-scheme" content="dark light">)~~~"sv);
 
-        builder.appendff("<title>View Source - {}</title>", escape_html_entities(url.serialize_for_display()));
+        if (url.has_value())
+            builder.appendff("<title>View Source - {}</title>", escape_html_entities(url->serialize_for_display()));
+        else
+            builder.append("<title>View Source</title>"sv);
+
         builder.appendff("<style type=\"text/css\">{}</style>", HTML_HIGHLIGHTER_STYLE);
         builder.append(R"~~~(
 </head>

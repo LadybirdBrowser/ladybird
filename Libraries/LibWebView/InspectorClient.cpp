@@ -15,6 +15,7 @@
 #include <LibCore/File.h>
 #include <LibCore/Resource.h>
 #include <LibJS/MarkupGenerator.h>
+#include <LibURL/Parser.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Namespace.h>
 #include <LibWebView/Application.h>
@@ -97,8 +98,8 @@ InspectorClient::InspectorClient(ViewImplementation& content_web_view, ViewImple
         m_inspector_web_view.run_javascript(MUST(builder.to_string()));
     };
 
-    m_content_web_view.on_received_style_sheet_source = [this](Web::CSS::StyleSheetIdentifier const& identifier, auto const& base_url, String const& source) {
-        auto html = highlight_source(identifier.url.value_or({}), base_url, source, Syntax::Language::CSS, HighlightOutputMode::SourceOnly);
+    m_content_web_view.on_received_style_sheet_source = [this](Web::CSS::StyleSheetIdentifier const& identifier, URL::URL const& base_url, String const& source) {
+        auto html = highlight_source(URL::Parser::basic_parse(identifier.url.value_or({})), base_url, source, Syntax::Language::CSS, HighlightOutputMode::SourceOnly);
         auto script = MUST(String::formatted("inspector.setStyleSheetSource({}, \"{}\");",
             style_sheet_identifier_to_json(identifier),
             MUST(encode_base64(html.bytes()))));

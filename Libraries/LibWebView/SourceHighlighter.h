@@ -52,7 +52,7 @@ public:
     SourceHighlighterClient(String const& source, Syntax::Language);
     virtual ~SourceHighlighterClient() = default;
 
-    String to_html_string(URL::URL const& url, URL::URL const& base_url, HighlightOutputMode) const;
+    String to_html_string(Optional<URL::URL> const&, URL::URL const& base_url, HighlightOutputMode) const;
 
 private:
     // ^ Syntax::HighlighterClient
@@ -75,7 +75,7 @@ private:
     OwnPtr<Syntax::Highlighter> m_highlighter;
 };
 
-String highlight_source(URL::URL const& url, URL::URL const& base_url, String const& source, Syntax::Language, HighlightOutputMode);
+String highlight_source(Optional<URL::URL> const&, URL::URL const& base_url, String const& source, Syntax::Language, HighlightOutputMode);
 
 constexpr inline StringView HTML_HIGHLIGHTER_STYLE = R"~~~(
     @media (prefers-color-scheme: dark) {
