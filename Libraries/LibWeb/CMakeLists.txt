@@ -284,6 +284,7 @@ set(SOURCES
     FileAPI/File.cpp
     FileAPI/FileList.cpp
     FileAPI/FileReader.cpp
+    FileAPI/FileReaderSync.cpp
     Geometry/DOMMatrix.cpp
     Geometry/DOMMatrixReadOnly.cpp
     Geometry/DOMPoint.cpp

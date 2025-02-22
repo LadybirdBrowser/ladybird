@@ -81,6 +81,14 @@ public:
     void set_onloadend(WebIDL::CallbackType*);
     WebIDL::CallbackType* onloadend();
 
+    enum class Type {
+        ArrayBuffer,
+        BinaryString,
+        Text,
+        DataURL,
+    };
+    static WebIDL::ExceptionOr<Result> blob_package_data(JS::Realm& realm, ByteBuffer, FileReader::Type type, Optional<String> const&, Optional<String> const& encoding_name = {});
+
 protected:
     FileReader(JS::Realm&, ByteBuffer);
 
@@ -91,16 +99,7 @@ protected:
 private:
     explicit FileReader(JS::Realm&);
 
-    enum class Type {
-        ArrayBuffer,
-        BinaryString,
-        Text,
-        DataURL,
-    };
-
     WebIDL::ExceptionOr<void> read_operation(Blob&, Type, Optional<String> const& encoding_name = {});
-
-    static WebIDL::ExceptionOr<Result> blob_package_data(JS::Realm& realm, ByteBuffer, FileReader::Type type, Optional<String> const&, Optional<String> const& encoding_name);
 
     void queue_a_task(GC::Ref<GC::Function<void()>>);
 
