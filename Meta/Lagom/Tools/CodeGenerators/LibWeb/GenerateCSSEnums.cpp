@@ -111,7 +111,7 @@ ErrorOr<void> generate_implementation_file(JsonObject& enums_data, Core::File& f
 namespace Web::CSS {
 )~~~");
 
-    enums_data.for_each_member([&](auto& name, auto& value) -> void {
+    enums_data.for_each_member([&](String const& name, JsonValue const& value) {
         VERIFY(value.is_array());
         auto& members = value.as_array();
 
