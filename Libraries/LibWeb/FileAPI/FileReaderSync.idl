@@ -1,0 +1,13 @@
+#import <FileAPI/Blob.idl>
+
+// https://w3c.github.io/FileAPI/#FileReaderSync
+[Exposed=(DedicatedWorker,SharedWorker)]
+interface FileReaderSync {
+    constructor();
+    // Synchronously return strings
+
+    ArrayBuffer readAsArrayBuffer(Blob blob);
+    DOMString readAsText(Blob blob, optional DOMString encoding);
+    DOMString readAsBinaryString(Blob blob);
+    DOMString readAsDataURL(Blob blob);
+};
