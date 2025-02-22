@@ -561,11 +561,48 @@ unsigned HTMLFormElement::length() const
     return elements()->length();
 }
 
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#statically-validate-the-constraints
+HTMLFormElement::StaticValidationResult HTMLFormElement::statically_validate_constraints()
+{
+    // 1. Let controls be a list of all the submittable elements whose form owner is form, in tree order.
+    auto controls = get_submittable_elements();
+    // 2. Let invalid controls be an initially empty list of elements.
+    GC::RootVector<GC::Ref<DOM::Element>> invalid_controls(realm().heap());
+    // 3. For each element field in controls, in tree order:
+    for (auto& element : controls) {
+        auto& field = as<FormAssociatedElement>(*element);
+        // 1. If field is not a candidate for constraint validation, then move on to the next element.
+        if (!field.is_candidate_for_constraint_validation())
+            continue;
+        // 2. Otherwise, if field satisfies its constraints, then move on to the next element.
+        if (field.satisfies_its_constraints())
+            continue;
+        // 3. Otherwise, add field to invalid controls.
+        invalid_controls.append(field.form_associated_element_to_html_element());
+    }
+    // 4. If invalid controls is empty, then return a positive result.
+    if (invalid_controls.is_empty())
+        return { true, invalid_controls };
+    // 5. Let unhandled invalid controls be an initially empty list of elements.
+    GC::RootVector<GC::Ref<DOM::Element>> unhandled_invalid_controls(realm().heap());
+    // 6. For each element field in invalid controls, if any, in tree order:
+    for (auto& field : invalid_controls) {
+        // 1. Let notCanceled be the result of firing an event named invalid at field, with the cancelable attribute
+        // initialized to true.
+        auto not_canceled = field->dispatch_event(DOM::Event::create(this->realm(),
+            EventNames::invalid, { .cancelable = true }));
+        // 2. If notCanceled is true, then add field to unhandled invalid controls.
+        if (not_canceled)
+            unhandled_invalid_controls.append(field);
+    }
+    // 7. Return a negative result with the list of elements in the unhandled invalid controls list.
+    return { false, unhandled_invalid_controls };
+}
+
 // https://html.spec.whatwg.org/multipage/forms.html#dom-form-checkvalidity
 WebIDL::ExceptionOr<bool> HTMLFormElement::check_validity()
 {
-    dbgln("(STUBBED) HTMLFormElement::check_validity(). Called on: {}", debug_description());
-    return true;
+    return statically_validate_constraints().result;
 }
 
 // https://html.spec.whatwg.org/multipage/forms.html#dom-form-reportvalidity
