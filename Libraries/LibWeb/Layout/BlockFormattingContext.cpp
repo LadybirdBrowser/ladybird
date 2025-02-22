@@ -264,7 +264,6 @@ void BlockFormattingContext::compute_width(Box const& box, AvailableSpace const&
                         width = CSS::Length::make_px(underflow_px);
                     } else {
                         width = zero_value;
-                        margin_right = CSS::Length::make_px(margin_right.to_px(box) + underflow_px);
                     }
                 }
             } else {
