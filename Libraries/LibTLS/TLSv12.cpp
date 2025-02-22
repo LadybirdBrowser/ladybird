@@ -154,6 +154,23 @@ TLSv12::TLSv12(NonnullOwnPtr<Core::TCPSocket> socket, SSL_CTX* ssl_ctx, SSL* ssl
     , m_socket(move(socket))
 {
     m_socket->on_ready_to_read = [this] {
+        // There is something to read on the underlying TCP connection. This doesn't mean there is actual data to read from the SSL connection.
+        // For example, we might have received an alert or a connection reset.
+
+        char buffer[1];
+        auto ret = SSL_peek(m_ssl, buffer, 1);
+        if (ret <= 0) {
+            switch (SSL_get_error(m_ssl, ret)) {
+            case SSL_ERROR_SSL:
+            case SSL_ERROR_SYSCALL:
+                handle_fatal_error();
+                break;
+            default:
+                break;
+            }
+        }
+
+        // Now that we handled possible fatal errors, we can notify the user that there is data to read.
         if (on_ready_to_read)
             on_ready_to_read();
     };
