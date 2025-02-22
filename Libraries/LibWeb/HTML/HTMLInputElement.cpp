@@ -2526,8 +2526,7 @@ WebIDL::ExceptionOr<void> HTMLInputElement::step_up_or_down(bool is_down, WebIDL
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-checkvalidity
 WebIDL::ExceptionOr<bool> HTMLInputElement::check_validity()
 {
-    dbgln("(STUBBED) HTMLInputElement::check_validity(). Called on: {}", debug_description());
-    return true;
+    return check_validity_steps();
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-reportvalidity
@@ -2874,6 +2873,8 @@ bool HTMLInputElement::is_focusable() const
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#suffering-from-being-missing
 bool HTMLInputElement::suffering_from_being_missing() const
 {
+    bool has_checkedness_false_for_all_elements_in_group = true;
+    bool has_required_element_in_group = false;
     switch (type_state()) {
     case TypeAttributeState::Checkbox:
         // https://html.spec.whatwg.org/multipage/input.html#checkbox-state-(type%3Dcheckbox)%3Asuffering-from-being-missing
@@ -2883,14 +2884,25 @@ bool HTMLInputElement::suffering_from_being_missing() const
         break;
     case TypeAttributeState::RadioButton:
         // https://html.spec.whatwg.org/multipage/input.html#radio-button-state-(type%3Dradio)%3Asuffering-from-being-missing
-        // If an element in the radio button group is required, and all of the input elements in the radio button group have a checkedness that is false, then the element
-        // is suffering from being missing.
-        // FIXME: Implement this.
+        // If an element in the radio button group is required, and all of the input elements in the radio button group
+        // have a checkedness that is false, then the element is suffering from being missing.
+        root().for_each_in_inclusive_subtree_of_type<HTML::HTMLInputElement>([&](auto& element) {
+            if (is_in_same_radio_button_group(*this, element)) {
+                if (element.checked())
+                    has_checkedness_false_for_all_elements_in_group = false;
+                if (has_attribute(HTML::AttributeNames::required))
+                    has_required_element_in_group = true;
+            }
+            return TraversalDecision::Continue;
+        });
+        if (has_checkedness_false_for_all_elements_in_group && has_required_element_in_group)
+            return true;
         break;
     case TypeAttributeState::FileUpload:
         // https://html.spec.whatwg.org/multipage/input.html#file-upload-state-(type%3Dfile)%3Asuffering-from-being-missing
         // If the element is required and the list of selected files is empty, then the element is suffering from being missing.
-        // FIXME: Implement this.
+        if (has_attribute(HTML::AttributeNames::required) && const_cast<HTMLInputElement&>(*this).files()->length() == 0)
+            return true;
         break;
     default:
         break;

@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 78 tests
 
-44 Pass
-34 Fail
+46 Pass
+32 Fail
 Pass	[INPUT in TEXT status] The required attribute is not set
 Pass	[INPUT in TEXT status] The value is not empty and required is true
 Fail	[INPUT in TEXT status] The value is empty and required is true
@@ -71,10 +71,10 @@ Pass	[INPUT in CHECKBOX status] The checked attribute is true
 Pass	[INPUT in CHECKBOX status] The checked attribute is false
 Pass	[INPUT in RADIO status] The required attribute is not set
 Pass	[INPUT in RADIO status] The checked attribute is true
-Fail	[INPUT in RADIO status] The checked attribute is false
+Pass	[INPUT in RADIO status] The checked attribute is false
 Pass	[INPUT in RADIO status] The checked attribute is false and the name attribute is empty
 Pass	[INPUT in FILE status] The required attribute is not set
-Fail	[INPUT in FILE status] The Files attribute is null
+Pass	[INPUT in FILE status] The Files attribute is null
 Pass	[select]  The required attribute is not set
 Pass	[select]  Selected the option with value equals to 1
 Pass	[select]  Selected the option with value equals to empty
