@@ -18,13 +18,13 @@ namespace TLS {
 ErrorOr<NonnullOwnPtr<TLSv12>> TLSv12::connect(ByteString const& host, u16 port, Options options)
 {
     auto tcp_socket = TRY(Core::TCPSocket::connect(host, port));
-    return connect_internal(move(tcp_socket), host, options);
+    return connect_internal(move(tcp_socket), host, move(options));
 }
 
-ErrorOr<NonnullOwnPtr<TLSv12>> TLSv12::connect(Core::SocketAddress address, ByteString const& host, Options options)
+ErrorOr<NonnullOwnPtr<TLSv12>> TLSv12::connect(Core::SocketAddress const& address, ByteString const& host, Options options)
 {
     auto tcp_socket = TRY(Core::TCPSocket::connect(address));
-    return connect_internal(move(tcp_socket), host, options);
+    return connect_internal(move(tcp_socket), host, move(options));
 }
 
 static void wait_for_activity(int sock, bool read)

@@ -59,7 +59,7 @@ public:
     virtual ErrorOr<void> set_blocking(bool block) override;
     virtual ErrorOr<void> set_close_on_exec(bool enabled) override;
 
-    static ErrorOr<NonnullOwnPtr<TLSv12>> connect(Core::SocketAddress, ByteString const& host, Options = {});
+    static ErrorOr<NonnullOwnPtr<TLSv12>> connect(Core::SocketAddress const&, ByteString const& host, Options = {});
     static ErrorOr<NonnullOwnPtr<TLSv12>> connect(ByteString const& host, u16 port, Options = {});
 
     ~TLSv12() override;
