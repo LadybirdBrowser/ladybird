@@ -103,6 +103,12 @@ bool FormattingContext::creates_block_formatting_context(Box const& box)
             return true;
     }
 
+    // https://drafts.csswg.org/css-conditional-5/#propdef-container-type
+    if (box.computed_values().container_type() == CSS::ContainerType::Size)
+        return true;
+    if (box.computed_values().container_type() == CSS::ContainerType::InlineSize)
+        return true;
+
     if (box.parent()) {
         auto parent_display = box.parent()->display();
 

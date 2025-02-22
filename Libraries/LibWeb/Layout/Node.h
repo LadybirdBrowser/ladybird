@@ -188,6 +188,9 @@ public:
         return false;
     }
 
+    NodeWithStyle const* nearest_horizontal_size_query_container_ancestor() const;
+    NodeWithStyle const* nearest_vertical_size_query_container_ancestor() const;
+
     // https://drafts.csswg.org/css-ui/#propdef-user-select
     CSS::UserSelect user_select_used_value() const;
 

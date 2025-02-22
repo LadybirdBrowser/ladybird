@@ -933,6 +933,9 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     computed_values.set_isolation(computed_style.isolation());
     computed_values.set_mix_blend_mode(computed_style.mix_blend_mode());
 
+    if (auto container_type = computed_style.container_type(); container_type.has_value())
+        computed_values.set_container_type(container_type.value());
+
     propagate_style_to_anonymous_wrappers();
 
     if (auto* box_node = as_if<NodeWithStyleAndBoxModelMetrics>(*this))
@@ -1160,6 +1163,25 @@ DOM::Document& Node::document()
 DOM::Document const& Node::document() const
 {
     return m_dom_node->document();
+}
+
+NodeWithStyle const* Node::nearest_horizontal_size_query_container_ancestor() const
+{
+    auto ancestor = parent();
+    // TODO: Handle CSS::ContainerType::InlineSize as well
+    while (ancestor && ancestor->computed_values().container_type() != CSS::ContainerType::Size) {
+        ancestor = ancestor->parent();
+    }
+    return ancestor;
+}
+NodeWithStyle const* Node::nearest_vertical_size_query_container_ancestor() const
+{
+    auto ancestor = parent();
+    // TODO: Handle CSS::ContainerType::InlineSize as well
+    while (ancestor && ancestor->computed_values().container_type() != CSS::ContainerType::Size) {
+        ancestor = ancestor->parent();
+    }
+    return ancestor;
 }
 
 // https://drafts.csswg.org/css-ui/#propdef-user-select

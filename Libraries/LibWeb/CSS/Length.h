@@ -58,6 +58,14 @@ public:
         Lvmax,
         Dvmax,
 
+        // Container-relative
+        Cqw,
+        Cqh,
+        Cqi,
+        Cqb,
+        Cqmin,
+        Cqmax,
+
         // Absolute
         Cm,
         Mm,
@@ -149,9 +157,19 @@ public:
             || m_type == Type::Dvmax;
     }
 
+    bool is_container_relative() const
+    {
+        return m_type == Type::Cqw
+            || m_type == Type::Cqh
+            || m_type == Type::Cqi
+            || m_type == Type::Cqb
+            || m_type == Type::Cqmin
+            || m_type == Type::Cqmax;
+    }
+
     bool is_relative() const
     {
-        return is_font_relative() || is_viewport_relative();
+        return is_font_relative() || is_viewport_relative() || is_container_relative();
     }
 
     Type type() const { return m_type; }
@@ -165,6 +183,7 @@ public:
         CSSPixelRect viewport_rect;
         FontMetrics font_metrics;
         FontMetrics root_font_metrics;
+        RawPtr<Layout::Node const> layout_node;
     };
 
     [[nodiscard]] CSSPixels to_px(ResolutionContext const&) const;
@@ -176,7 +195,7 @@ public:
         return to_px_slow_case(node);
     }
 
-    ALWAYS_INLINE CSSPixels to_px(CSSPixelRect const& viewport_rect, FontMetrics const& font_metrics, FontMetrics const& root_font_metrics) const
+    ALWAYS_INLINE CSSPixels to_px(Layout::Node const* layout_node, CSSPixelRect const& viewport_rect, FontMetrics const& font_metrics, FontMetrics const& root_font_metrics) const
     {
         if (is_auto())
             return 0;
@@ -186,6 +205,8 @@ public:
             return font_relative_length_to_px(font_metrics, root_font_metrics);
         if (is_viewport_relative())
             return viewport_relative_length_to_px(viewport_rect);
+        if (is_container_relative())
+            return container_relative_length_to_px(layout_node, viewport_rect);
 
         VERIFY_NOT_REACHED();
     }
@@ -223,10 +244,11 @@ public:
 
     CSSPixels font_relative_length_to_px(FontMetrics const& font_metrics, FontMetrics const& root_font_metrics) const;
     CSSPixels viewport_relative_length_to_px(CSSPixelRect const& viewport_rect) const;
+    CSSPixels container_relative_length_to_px(Layout::Node const* layout_node, CSSPixelRect const& viewport_rect) const;
 
     // Returns empty optional if it's already absolute.
-    Optional<Length> absolutize(CSSPixelRect const& viewport_rect, FontMetrics const& font_metrics, FontMetrics const& root_font_metrics) const;
-    Length absolutized(CSSPixelRect const& viewport_rect, FontMetrics const& font_metrics, FontMetrics const& root_font_metrics) const;
+    Optional<Length> absolutize(Layout::Node const& layout_node, CSSPixelRect const& viewport_rect, FontMetrics const& font_metrics, FontMetrics const& root_font_metrics) const;
+    Length absolutized(Layout::Node const& layout_node, CSSPixelRect const& viewport_rect, FontMetrics const& font_metrics, FontMetrics const& root_font_metrics) const;
 
     static Length resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const&, Layout::Node const&, Length const& reference_value);
     static Length resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const&, Layout::Node const&, CSSPixels reference_value);
