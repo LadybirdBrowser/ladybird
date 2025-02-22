@@ -35,9 +35,16 @@ void InlineLevelIterator::enter_node_with_box_model_metrics(Layout::NodeWithStyl
     auto& used_values = m_layout_state.get_mutable(node);
     auto const& computed_values = node.computed_values();
 
+    used_values.margin_top = computed_values.margin().top().to_px(node, m_containing_block_used_values.content_width());
+    used_values.margin_bottom = computed_values.margin().bottom().to_px(node, m_containing_block_used_values.content_width());
+
     used_values.margin_left = computed_values.margin().left().to_px(node, m_containing_block_used_values.content_width());
     used_values.border_left = computed_values.border_left().width;
     used_values.padding_left = computed_values.padding().left().to_px(node, m_containing_block_used_values.content_width());
+
+    used_values.margin_right = computed_values.margin().right().to_px(node, m_containing_block_used_values.content_width());
+    used_values.border_right = computed_values.border_right().width;
+    used_values.padding_right = computed_values.padding().right().to_px(node, m_containing_block_used_values.content_width());
 
     used_values.border_top = computed_values.border_top().width;
     used_values.border_bottom = computed_values.border_bottom().width;
@@ -61,11 +68,6 @@ void InlineLevelIterator::exit_node_with_box_model_metrics()
 
     auto& node = m_box_model_node_stack.last();
     auto& used_values = m_layout_state.get_mutable(node);
-    auto const& computed_values = node->computed_values();
-
-    used_values.margin_right = computed_values.margin().right().to_px(node, m_containing_block_used_values.content_width());
-    used_values.border_right = computed_values.border_right().width;
-    used_values.padding_right = computed_values.padding().right().to_px(node, m_containing_block_used_values.content_width());
 
     m_extra_trailing_metrics->margin += used_values.margin_right;
     m_extra_trailing_metrics->border += used_values.border_right;
