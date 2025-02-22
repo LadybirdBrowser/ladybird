@@ -39,8 +39,8 @@ public:
     State state() const;
     void set_state(State);
 
-    URL::URL const& current_url() const;
-    void set_current_url(JS::Realm&, URL::URL);
+    String const& current_url() const { return m_current_url; }
+    void set_current_url(JS::Realm&, String);
 
     [[nodiscard]] GC::Ptr<DecodedImageData> image_data() const;
     void set_image_data(GC::Ptr<DecodedImageData>);
@@ -72,7 +72,7 @@ private:
 
     // https://html.spec.whatwg.org/multipage/images.html#img-req-url
     // An image request's current URL is initially the empty string.
-    URL::URL m_current_url;
+    String m_current_url;
 
     // https://html.spec.whatwg.org/multipage/images.html#img-req-data
     GC::Ptr<DecodedImageData> m_image_data;
