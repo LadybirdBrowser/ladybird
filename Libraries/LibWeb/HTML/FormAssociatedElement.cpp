@@ -226,6 +226,20 @@ WebIDL::ExceptionOr<void> FormAssociatedElement::set_form_action(String const& v
     return html_element.set_attribute(HTML::AttributeNames::formaction, value);
 }
 
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#check-validity-steps
+bool FormAssociatedElement::check_validity_steps()
+{
+    // 1. If element is a candidate for constraint validation and does not satisfy its constraints
+    if (is_candidate_for_constraint_validation() && !satisfies_its_constraints()) {
+        auto& element = form_associated_element_to_html_element();
+        // 1. Fire an event named invalid at element, with the cancelable attribute initialized to true
+        element.dispatch_event(DOM::Event::create(element.realm(), EventNames::invalid, { .cancelable = true }));
+        // 2. Return false.
+        return false;
+    }
+    return true;
+}
+
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#candidate-for-constraint-validation
 bool FormAssociatedElement::is_candidate_for_constraint_validation() const
 {

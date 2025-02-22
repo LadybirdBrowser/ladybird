@@ -91,6 +91,9 @@ public:
     // https://html.spec.whatwg.org/multipage/forms.html#concept-submit-button
     virtual bool is_submit_button() const { return false; }
 
+    // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#check-validity-steps
+    bool check_validity_steps();
+
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#candidate-for-constraint-validation
     bool is_candidate_for_constraint_validation() const;
 
