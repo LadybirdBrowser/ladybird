@@ -499,6 +499,14 @@ public:
     Optional<String> lookup_prefix(Optional<String> namespace_) const;
     bool is_default_namespace(Optional<String> namespace_) const;
 
+    // https://html.spec.whatwg.org/multipage/dom.html#inter-element-whitespace
+    bool is_inter_element_whitespace() const;
+    // https://html.spec.whatwg.org/multipage/rendering.html#margin-collapsing-quirks
+    bool is_substantial() const;
+    bool is_blank() const;
+    bool has_substantial_previous_siblings() const;
+    bool has_substantial_following_siblings() const;
+
     bool is_inert() const;
 
 protected:

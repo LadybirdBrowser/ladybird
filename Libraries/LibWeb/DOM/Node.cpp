@@ -2857,6 +2857,58 @@ void Node::add_registered_observer(RegisteredObserver& registered_observer)
     m_registered_observer_list->append(registered_observer);
 }
 
+// https://html.spec.whatwg.org/multipage/dom.html#inter-element-whitespace
+bool Node::is_inter_element_whitespace() const
+{
+    // ASCII whitespace is always allowed between elements. User agents represent these characters between elements in the source markup as Text nodes in the DOM. Empty Text
+    // nodes and Text nodes consisting of just sequences of those characters are considered inter-element whitespace.
+    if (auto const& this_text = as_if<Text>(this)) {
+        return MUST(this_text->data().trim_ascii_whitespace()).is_empty();
+    }
+    return false;
+}
+
+// https://html.spec.whatwg.org/multipage/rendering.html#concept-rendering-substantial
+bool Node::is_substantial() const
+{
+    // A node is substantial if it is a text node that is not inter-element whitespace, or if it is an element node.
+    return (is_text() && !is_inter_element_whitespace()) || is_element();
+}
+
+// https://html.spec.whatwg.org/multipage/rendering.html#concept-rendering-blank
+bool Node::is_blank() const
+{
+    // A node is blank if it is an element that contains no substantial nodes.
+    if (!is_element())
+        return false;
+
+    // Note: We only need to check the direct children since a non-substantial node will never have substantial children.
+    for (auto& child : children_as_vector()) {
+        if (child->is_substantial())
+            return false;
+    }
+
+    return true;
+}
+
+bool Node::has_substantial_previous_siblings() const
+{
+    auto const* substantial_previous_sibling = previous_sibling();
+    while (substantial_previous_sibling && !substantial_previous_sibling->is_substantial()) {
+        substantial_previous_sibling = substantial_previous_sibling->previous_sibling();
+    }
+    return substantial_previous_sibling != nullptr;
+}
+
+bool Node::has_substantial_following_siblings() const
+{
+    auto const* substantial_following_sibling = next_sibling();
+    while (substantial_following_sibling && !substantial_following_sibling->is_substantial()) {
+        substantial_following_sibling = substantial_following_sibling->next_sibling();
+    }
+    return substantial_following_sibling != nullptr;
+}
+
 }
 
 namespace IPC {
