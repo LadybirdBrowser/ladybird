@@ -62,7 +62,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSStyleSheet>> CSSStyleSheet::construct_impl(JS::Re
     // 6. Set sheet’s owner CSS rule to null.
     sheet->set_owner_css_rule(nullptr);
 
-    // 7. Set sheet’s title to the the empty string.
+    // 7. Set sheet’s title to the empty string.
     sheet->set_title(String {});
 
     // 8. Unset sheet’s alternate flag.

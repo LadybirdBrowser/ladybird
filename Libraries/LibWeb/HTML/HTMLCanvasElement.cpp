@@ -316,7 +316,7 @@ static ErrorOr<SerializeBitmapResult> serialize_bitmap(Gfx::Bitmap const& bitmap
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-canvas-todataurl
 String HTMLCanvasElement::to_data_url(StringView type, JS::Value quality)
 {
-    // It is possible the the canvas doesn't have a associated bitmap so create one
+    // It is possible the canvas doesn't have a associated bitmap so create one
     allocate_painting_surface_if_needed();
     auto surface = this->surface();
     auto size = bitmap_size_for_canvas();
@@ -356,7 +356,7 @@ String HTMLCanvasElement::to_data_url(StringView type, JS::Value quality)
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-canvas-toblob
 WebIDL::ExceptionOr<void> HTMLCanvasElement::to_blob(GC::Ref<WebIDL::CallbackType> callback, StringView type, JS::Value quality)
 {
-    // It is possible the the canvas doesn't have a associated bitmap so create one
+    // It is possible the canvas doesn't have a associated bitmap so create one
     allocate_painting_surface_if_needed();
     auto surface = this->surface();
     auto size = bitmap_size_for_canvas();

@@ -104,7 +104,7 @@ function testAudioNodeOptions(should, context, nodeName, expectedNodeOptions) {
             .throw(DOMException,
                    expectedNodeOptions.channelCountMode.exceptionType);
       } else {
-        // Test that explicitly setting the the fixed value is allowed.
+        // Test that explicitly setting the fixed value is allowed.
         should(
             () => {
               node = new window[nodeName](
