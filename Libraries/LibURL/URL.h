@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, Max Wipfli <mail@maxwipfli.ch>
- * Copyright (c) 2023-2024, Shannon Booth <shannon@serenityos.org>
+ * Copyright (c) 2023-2025, Shannon Booth <shannon@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -77,15 +77,6 @@ class URL {
 
 public:
     URL() = default;
-    URL(StringView);
-    URL(ByteString const& string)
-        : URL(string.view())
-    {
-    }
-    URL(String const& string)
-        : URL(string.bytes_as_string_view())
-    {
-    }
 
     bool is_valid() const { return m_data->valid; }
 
