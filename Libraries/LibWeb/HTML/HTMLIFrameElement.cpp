@@ -65,6 +65,13 @@ void HTMLIFrameElement::attribute_changed(FlyString const& name, Optional<String
         // FIXME: This should only invalidate the layout, not the style.
         invalidate_style(DOM::StyleInvalidationReason::HTMLIFrameElementGeometryChange);
     }
+
+    if (name == HTML::AttributeNames::marginwidth || name == HTML::AttributeNames::marginheight) {
+        if (auto* document = this->content_document_without_origin_check()) {
+            if (auto* body_element = document->body())
+                const_cast<HTMLElement*>(body_element)->set_needs_style_update(true);
+        }
+    }
 }
 
 // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#the-iframe-element:html-element-post-connection-steps
