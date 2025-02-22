@@ -875,7 +875,7 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
                 }
                 // 6. Otherwise, if url is special, base is non-null, and base’s scheme is url’s scheme:
                 else if (url->is_special() && base_url.has_value() && base_url->scheme() == url->m_data->scheme) {
-                    // 1. Assert: base is is special (and therefore does not have an opaque path).
+                    // 1. Assert: base is special (and therefore does not have an opaque path).
                     VERIFY(base_url->is_special());
 
                     // 2. Set state to special relative or authority state.
