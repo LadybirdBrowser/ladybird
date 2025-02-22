@@ -596,7 +596,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     auto* about_action = new QAction("&About Ladybird", this);
     help_menu->addAction(about_action);
     QObject::connect(about_action, &QAction::triggered, this, [this] {
-        new_tab_from_url("about:version"sv, Web::HTML::ActivateTab::Yes);
+        new_tab_from_url(URL::about_version(), Web::HTML::ActivateTab::Yes);
     });
 
     m_hamburger_menu->addSeparator();
@@ -609,7 +609,9 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     QObject::connect(quit_action, &QAction::triggered, this, &QMainWindow::close);
 
     QObject::connect(m_new_tab_action, &QAction::triggered, this, [this] {
-        auto& tab = new_tab_from_url(ak_url_from_qstring(Settings::the()->new_tab_page()), Web::HTML::ActivateTab::Yes);
+        auto url = ak_url_from_qstring(Settings::the()->new_tab_page());
+        VERIFY(url.has_value());
+        auto& tab = new_tab_from_url(url.release_value(), Web::HTML::ActivateTab::Yes);
         tab.set_url_is_hidden(true);
         tab.focus_location_editor();
     });
