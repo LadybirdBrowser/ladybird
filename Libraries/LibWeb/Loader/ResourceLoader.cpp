@@ -10,9 +10,11 @@
 #include <LibCore/Directory.h>
 #include <LibCore/MimeData.h>
 #include <LibCore/Resource.h>
+#include <LibGC/Function.h>
 #include <LibHTTP/HttpResponse.h>
 #include <LibRequests/Request.h>
 #include <LibRequests/RequestClient.h>
+#include <LibURL/Parser.h>
 #include <LibWeb/Cookie/Cookie.h>
 #include <LibWeb/Cookie/ParsedCookie.h>
 #include <LibWeb/Fetch/Infrastructure/URL.h>
@@ -320,7 +322,9 @@ void ResourceLoader::load(LoadRequest& request, GC::Root<SuccessCallback> succes
 
         // When resource URI is a directory use file directory loader to generate response
         if (resource.value()->is_directory()) {
-            respond_directory_page(request, resource.value()->file_url(), success_callback, error_callback);
+            auto url = URL::Parser::basic_parse(resource.value()->file_url());
+            VERIFY(url.has_value());
+            respond_directory_page(request, url.release_value(), success_callback, error_callback);
             return;
         }
 
