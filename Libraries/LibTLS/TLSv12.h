@@ -69,6 +69,8 @@ private:
 
     static ErrorOr<NonnullOwnPtr<TLSv12>> connect_internal(NonnullOwnPtr<Core::TCPSocket>, ByteString const&, Options);
 
+    void handle_fatal_error();
+
     SSL_CTX* m_ssl_ctx { nullptr };
     SSL* m_ssl { nullptr };
     BIO* m_bio { nullptr };
