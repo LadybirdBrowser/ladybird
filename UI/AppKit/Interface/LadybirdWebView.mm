@@ -9,6 +9,7 @@
 #include <Interface/LadybirdWebViewBridge.h>
 #include <LibGfx/ImageFormats/PNGWriter.h>
 #include <LibGfx/ShareableBitmap.h>
+#include <LibURL/Parser.h>
 #include <LibURL/URL.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWebView/Application.h>
@@ -1138,8 +1139,10 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
 {
     auto* delegate = (ApplicationDelegate*)[NSApp delegate];
 
-    auto url = MUST(String::formatted([delegate searchEngine].query_url, URL::percent_encode(*m_context_menu_search_text)));
-    [self.observer onCreateNewTab:url activateTab:Web::HTML::ActivateTab::Yes];
+    auto url_string = MUST(String::formatted([delegate searchEngine].query_url, URL::percent_encode(*m_context_menu_search_text)));
+    auto url = URL::Parser::basic_parse(url_string);
+    VERIFY(url.has_value());
+    [self.observer onCreateNewTab:url.release_value() activateTab:Web::HTML::ActivateTab::Yes];
 }
 
 - (void)takeVisibleScreenshot:(id)sender
