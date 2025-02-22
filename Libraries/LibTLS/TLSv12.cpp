@@ -39,19 +39,38 @@ static void wait_for_activity(int sock, bool read)
         select(sock + 1, nullptr, &fds, nullptr, nullptr);
 }
 
+void TLSv12::handle_fatal_error()
+{
+    // If this error occurs then no further I/O operations should be performed
+    // on the connection and SSL_shutdown() must not be called.
+    SSL_free(m_ssl);
+    m_ssl = nullptr;
+
+    m_socket->close();
+}
+
 ErrorOr<Bytes> TLSv12::read_some(Bytes bytes)
 {
+    if (!m_ssl)
+        return Error::from_string_literal("SSL connection is closed");
+
     auto ret = SSL_read(m_ssl, bytes.data(), bytes.size());
     if (ret <= 0) {
-        auto err = SSL_get_error(m_ssl, ret);
-        switch (err) {
+        switch (SSL_get_error(m_ssl, ret)) {
         case SSL_ERROR_ZERO_RETURN:
             return Bytes { bytes.data(), 0 };
         case SSL_ERROR_WANT_READ:
         case SSL_ERROR_WANT_WRITE:
             return Error::from_errno(EAGAIN);
+        case SSL_ERROR_SSL:
+            handle_fatal_error();
+            ERR_print_errors_cb(openssl_print_errors, nullptr);
+            return Error::from_string_literal("Fatal SSL error reading from SSL connection");
+        case SSL_ERROR_SYSCALL:
+            handle_fatal_error();
+            return Error::from_errno(errno);
         default:
-            return AK::Error::from_string_literal("Failed reading from SSL connection");
+            return Error::from_string_literal("Failed reading from SSL connection");
         }
     }
 
@@ -60,15 +79,24 @@ ErrorOr<Bytes> TLSv12::read_some(Bytes bytes)
 
 ErrorOr<size_t> TLSv12::write_some(ReadonlyBytes bytes)
 {
+    if (!m_ssl)
+        return Error::from_string_literal("SSL connection is closed");
+
     auto ret = SSL_write(m_ssl, bytes.data(), bytes.size());
     if (ret <= 0) {
-        auto err = SSL_get_error(m_ssl, ret);
-        switch (err) {
+        switch (SSL_get_error(m_ssl, ret)) {
         case SSL_ERROR_WANT_READ:
         case SSL_ERROR_WANT_WRITE:
             return Error::from_errno(EAGAIN);
+        case SSL_ERROR_SSL:
+            handle_fatal_error();
+            ERR_print_errors_cb(openssl_print_errors, nullptr);
+            return Error::from_string_literal("Fatal SSL error writing to SSL connection");
+        case SSL_ERROR_SYSCALL:
+            handle_fatal_error();
+            return Error::from_errno(errno);
         default:
-            return AK::Error::from_string_literal("Failed writing to SSL connection");
+            return Error::from_string_literal("Failed writing to SSL connection");
         }
     }
 
@@ -77,26 +105,35 @@ ErrorOr<size_t> TLSv12::write_some(ReadonlyBytes bytes)
 
 bool TLSv12::is_eof() const
 {
-    return BIO_eof(m_bio) == 1;
+    return m_socket->is_eof();
 }
 
 bool TLSv12::is_open() const
 {
-    return !BIO_get_close(m_bio);
+    return m_socket->is_open();
 }
 
 void TLSv12::close()
 {
-    SSL_shutdown(m_ssl);
+    if (m_ssl)
+        SSL_shutdown(m_ssl);
+
+    m_socket->close();
 }
 
 ErrorOr<size_t> TLSv12::pending_bytes() const
 {
+    if (!m_ssl)
+        return Error::from_string_literal("SSL connection is closed");
+
     return SSL_pending(m_ssl);
 }
 
 ErrorOr<bool> TLSv12::can_read_without_blocking(int timeout) const
 {
+    if (!m_ssl)
+        return Error::from_string_literal("SSL connection is closed");
+
     return m_socket->can_read_without_blocking(timeout);
 }
 
