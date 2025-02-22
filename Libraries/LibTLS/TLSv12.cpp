@@ -43,48 +43,38 @@ void TLSv12::wait_for_activity(bool read)
 
 ErrorOr<Bytes> TLSv12::read_some(Bytes bytes)
 {
-    while (true) {
-        auto ret = SSL_read(m_ssl, bytes.data(), bytes.size());
-        if (ret <= 0) {
-            auto err = SSL_get_error(m_ssl, ret);
-            switch (err) {
-            case SSL_ERROR_ZERO_RETURN:
-                return Bytes { bytes.data(), 0 };
-            case SSL_ERROR_WANT_READ:
-                wait_for_activity(true);
-                continue;
-            case SSL_ERROR_WANT_WRITE:
-                wait_for_activity(false);
-                continue;
-            default:
-                return AK::Error::from_string_literal("Failed reading from SSL connection");
-            }
+    auto ret = SSL_read(m_ssl, bytes.data(), bytes.size());
+    if (ret <= 0) {
+        auto err = SSL_get_error(m_ssl, ret);
+        switch (err) {
+        case SSL_ERROR_ZERO_RETURN:
+            return Bytes { bytes.data(), 0 };
+        case SSL_ERROR_WANT_READ:
+        case SSL_ERROR_WANT_WRITE:
+            return Error::from_errno(EAGAIN);
+        default:
+            return AK::Error::from_string_literal("Failed reading from SSL connection");
         }
-
-        return Bytes { bytes.data(), static_cast<unsigned long>(ret) };
     }
+
+    return Bytes { bytes.data(), static_cast<unsigned long>(ret) };
 }
 
 ErrorOr<size_t> TLSv12::write_some(ReadonlyBytes bytes)
 {
-    while (true) {
-        auto ret = SSL_write(m_ssl, bytes.data(), bytes.size());
-        if (ret <= 0) {
-            auto err = SSL_get_error(m_ssl, ret);
-            switch (err) {
-            case SSL_ERROR_WANT_READ:
-                wait_for_activity(true);
-                continue;
-            case SSL_ERROR_WANT_WRITE:
-                wait_for_activity(false);
-                continue;
-            default:
-                return AK::Error::from_string_literal("Failed writing to SSL connection");
-            }
+    auto ret = SSL_write(m_ssl, bytes.data(), bytes.size());
+    if (ret <= 0) {
+        auto err = SSL_get_error(m_ssl, ret);
+        switch (err) {
+        case SSL_ERROR_WANT_READ:
+        case SSL_ERROR_WANT_WRITE:
+            return Error::from_errno(EAGAIN);
+        default:
+            return AK::Error::from_string_literal("Failed writing to SSL connection");
         }
-
-        return ret;
     }
+
+    return ret;
 }
 
 bool TLSv12::is_eof() const
