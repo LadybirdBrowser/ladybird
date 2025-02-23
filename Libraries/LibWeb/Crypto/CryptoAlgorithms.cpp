@@ -2397,22 +2397,16 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesCbc::encrypt(AlgorithmParams co
         return WebIDL::OperationError::create(m_realm, "IV to AES-CBC must be exactly 16 bytes"_string);
 
     // 2. Let paddedPlaintext be the result of adding padding octets to the contents of plaintext according to the procedure defined in Section 10.3 of [RFC2315], step 2, with a value of k of 16.
-    // Note: This is identical to RFC 5652 Cryptographic Message Syntax (CMS).
-    // We do this during encryption, which avoid reallocating a potentially-large buffer.
-    auto mode = ::Crypto::Cipher::PaddingMode::CMS;
-
     // 3. Let ciphertext be the result of performing the CBC Encryption operation described in Section 6.2 of [NIST-SP800-38A] using AES as the block cipher, the contents of the iv member of normalizedAlgorithm as the IV input parameter and paddedPlaintext as the input plaintext.
     auto key_bytes = key->handle().get<ByteBuffer>();
-    auto key_bits = key_bytes.size() * 8;
-    ::Crypto::Cipher::AESCipher::CBCMode cipher(key_bytes, key_bits, ::Crypto::Cipher::Intent::Encryption, mode);
-    auto iv = normalized_algorithm.iv;
-    auto ciphertext = TRY_OR_THROW_OOM(m_realm->vm(), cipher.create_aligned_buffer(plaintext.size() + 1));
-    auto ciphertext_view = ciphertext.bytes();
-    cipher.encrypt(plaintext, ciphertext_view, iv);
-    ciphertext.trim(ciphertext_view.size(), false);
+
+    ::Crypto::Cipher::AESCBCCipher cipher(key_bytes);
+    auto maybe_ciphertext = cipher.encrypt(plaintext, normalized_algorithm.iv);
+    if (maybe_ciphertext.is_error())
+        return WebIDL::OperationError::create(m_realm, "Failed to encrypt"_string);
 
     // 4. Return the result of creating an ArrayBuffer containing ciphertext.
-    return JS::ArrayBuffer::create(m_realm, move(ciphertext));
+    return JS::ArrayBuffer::create(m_realm, maybe_ciphertext.release_value());
 }
 
 WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesCbc::decrypt(AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& ciphertext)
@@ -2429,29 +2423,16 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesCbc::decrypt(AlgorithmParams co
         return WebIDL::OperationError::create(m_realm, "Ciphertext length must be a multiple of 16 bytes"_string);
 
     // 2. Let paddedPlaintext be the result of performing the CBC Decryption operation described in Section 6.2 of [NIST-SP800-38A] using AES as the block cipher, the contents of the iv member of normalizedAlgorithm as the IV input parameter and the contents of ciphertext as the input ciphertext.
-    auto mode = ::Crypto::Cipher::PaddingMode::CMS;
-    auto key_bytes = key->handle().get<ByteBuffer>();
-    auto key_bits = key_bytes.size() * 8;
-    ::Crypto::Cipher::AESCipher::CBCMode cipher(key_bytes, key_bits, ::Crypto::Cipher::Intent::Decryption, mode);
-    auto iv = normalized_algorithm.iv;
-    auto plaintext = TRY_OR_THROW_OOM(m_realm->vm(), cipher.create_aligned_buffer(ciphertext.size()));
-    auto plaintext_view = plaintext.bytes();
-    cipher.decrypt(ciphertext, plaintext_view, iv);
-    plaintext.trim(plaintext_view.size(), false);
-
     // 3. Let p be the value of the last octet of paddedPlaintext.
     // 4. If p is zero or greater than 16, or if any of the last p octets of paddedPlaintext have a value which is not p, then throw an OperationError.
     // 5. Let plaintext be the result of removing p octets from the end of paddedPlaintext.
-    // Note that LibCrypto already does the padding removal for us.
-    // In the case that any issues arise (e.g. inconsistent padding), the padding is instead not trimmed.
-    // This is *ONLY* meaningful for the specific case of PaddingMode::CMS, as this is the only padding mode that always appends a block.
-    if (plaintext.size() == ciphertext.size()) {
-        // Padding was not removed for an unknown reason. Apply Step 4:
-        return WebIDL::OperationError::create(m_realm, "Inconsistent padding"_string);
-    }
+    ::Crypto::Cipher::AESCBCCipher cipher(key->handle().get<ByteBuffer>());
+    auto maybe_plaintext = cipher.decrypt(ciphertext, normalized_algorithm.iv);
+    if (maybe_plaintext.is_error())
+        return WebIDL::OperationError::create(m_realm, "Failed to decrypt"_string);
 
     // 6. Return the result of creating an ArrayBuffer containing plaintext.
-    return JS::ArrayBuffer::create(m_realm, move(plaintext));
+    return JS::ArrayBuffer::create(m_realm, maybe_plaintext.release_value());
 }
 
 // https://w3c.github.io/webcrypto/#aes-cbc-operations
@@ -2959,17 +2940,13 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesCtr::encrypt(AlgorithmParams co
     //    the contents of the counter member of normalizedAlgorithm as the initial value of the counter block,
     //    the length member of normalizedAlgorithm as the input parameter m to the standard counter block incrementing function defined in Appendix B.1 of [NIST-SP800-38A]
     //    and the contents of plaintext as the input plaintext.
-    auto& aes_algorithm = static_cast<AesKeyAlgorithm const&>(*key->algorithm());
-    auto key_length = aes_algorithm.length();
-    auto key_bytes = key->handle().get<ByteBuffer>();
-
-    ::Crypto::Cipher::AESCipher::CTRMode cipher(key_bytes, key_length, ::Crypto::Cipher::Intent::Encryption);
-    ByteBuffer ciphertext = TRY_OR_THROW_OOM(m_realm->vm(), ByteBuffer::create_zeroed(plaintext.size()));
-    Bytes ciphertext_span = ciphertext.bytes();
-    cipher.encrypt(plaintext, ciphertext_span, counter);
+    ::Crypto::Cipher::AESCTRCipher cipher(key->handle().get<ByteBuffer>());
+    auto maybe_ciphertext = cipher.encrypt(plaintext, counter);
+    if (maybe_ciphertext.is_error())
+        return WebIDL::OperationError::create(m_realm, "Encryption failed"_string);
 
     // 4. Return the result of creating an ArrayBuffer containing plaintext.
-    return JS::ArrayBuffer::create(m_realm, ciphertext);
+    return JS::ArrayBuffer::create(m_realm, maybe_ciphertext.release_value());
 }
 
 WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesCtr::decrypt(AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& ciphertext)
@@ -2990,17 +2967,13 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesCtr::decrypt(AlgorithmParams co
     //    the contents of the counter member of normalizedAlgorithm as the initial value of the counter block,
     //    the length member of normalizedAlgorithm as the input parameter m to the standard counter block incrementing function defined in Appendix B.1 of [NIST-SP800-38A]
     //    and the contents of ciphertext as the input ciphertext.
-    auto& aes_algorithm = static_cast<AesKeyAlgorithm const&>(*key->algorithm());
-    auto key_length = aes_algorithm.length();
-    auto key_bytes = key->handle().get<ByteBuffer>();
-
-    ::Crypto::Cipher::AESCipher::CTRMode cipher(key_bytes, key_length, ::Crypto::Cipher::Intent::Decryption);
-    ByteBuffer plaintext = TRY_OR_THROW_OOM(m_realm->vm(), ByteBuffer::create_zeroed(ciphertext.size()));
-    Bytes plaintext_span = plaintext.bytes();
-    cipher.decrypt(ciphertext, plaintext_span, counter);
+    ::Crypto::Cipher::AESCTRCipher cipher(key->handle().get<ByteBuffer>());
+    auto maybe_plaintext = cipher.decrypt(ciphertext, counter);
+    if (maybe_plaintext.is_error())
+        return WebIDL::OperationError::create(m_realm, "Decryption failed"_string);
 
     // 4. Return the result of creating an ArrayBuffer containing plaintext.
-    return JS::ArrayBuffer::create(m_realm, plaintext);
+    return JS::ArrayBuffer::create(m_realm, maybe_plaintext.release_value());
 }
 
 WebIDL::ExceptionOr<JS::Value> AesGcm::get_key_length(AlgorithmParams const& params)
@@ -3238,15 +3211,13 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesGcm::encrypt(AlgorithmParams co
     //    the contents of additionalData as the A input parameter,
     //    tagLength as the t pre-requisite
     //    and the contents of plaintext as the input plaintext.
-    auto& aes_algorithm = static_cast<AesKeyAlgorithm const&>(*key->algorithm());
-    auto key_length = aes_algorithm.length();
-    auto key_bytes = key->handle().get<ByteBuffer>();
+    ::Crypto::Cipher::AESGCMCipher cipher(key->handle().get<ByteBuffer>());
+    auto maybe_encrypted = cipher.encrypt(plaintext, normalized_algorithm.iv, additional_data, tag_length / 8);
+    if (maybe_encrypted.is_error()) {
+        return WebIDL::OperationError::create(m_realm, "Encryption failed"_string);
+    }
 
-    ::Crypto::Cipher::AESCipher::GCMMode cipher(key_bytes, key_length, ::Crypto::Cipher::Intent::Encryption);
-    auto ciphertext = TRY_OR_THROW_OOM(m_realm->vm(), ByteBuffer::create_zeroed(plaintext.size()));
-    auto tag = TRY_OR_THROW_OOM(m_realm->vm(), ByteBuffer::create_zeroed(tag_length / 8));
-
-    cipher.encrypt(plaintext, ciphertext.bytes(), normalized_algorithm.iv, additional_data, tag.bytes());
+    auto [ciphertext, tag] = maybe_encrypted.release_value();
 
     // 7. Let ciphertext be equal to C | T, where '|' denotes concatenation.
     TRY_OR_THROW_OOM(m_realm->vm(), ciphertext.try_append(tag));
@@ -3300,23 +3271,17 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesGcm::decrypt(AlgorithmParams co
     //    tagLength as the t pre-requisite,
     //    the contents of actualCiphertext as the input ciphertext, C
     //    and the contents of tag as the authentication tag, T.
-    auto& aes_algorithm = static_cast<AesKeyAlgorithm const&>(*key->algorithm());
-    auto key_length = aes_algorithm.length();
-    auto key_bytes = key->handle().get<ByteBuffer>();
-
-    ::Crypto::Cipher::AESCipher::GCMMode cipher(key_bytes, key_length, ::Crypto::Cipher::Intent::Decryption);
-    auto plaintext = TRY_OR_THROW_OOM(m_realm->vm(), ByteBuffer::create_zeroed(actual_ciphertext.size()));
-
-    auto result = cipher.decrypt(actual_ciphertext.bytes(), plaintext.bytes(), normalized_algorithm.iv, additional_data, tag.bytes());
-
     // If the result of the algorithm is the indication of inauthenticity, "FAIL": throw an OperationError
-    if (result == ::Crypto::VerificationConsistency::Inconsistent)
+    ::Crypto::Cipher::AESGCMCipher cipher(key->handle().get<ByteBuffer>());
+    auto maybe_plaintext = cipher.decrypt(actual_ciphertext.bytes(), normalized_algorithm.iv, additional_data, tag);
+    if (maybe_plaintext.is_error()) {
+        dbgln("FAILED: {}", maybe_plaintext.error());
         return WebIDL::OperationError::create(m_realm, "Decryption failed"_string);
+    }
 
     // Otherwise: Let plaintext be the output P of the Authenticated Decryption Function.
-
     // 9. Return the result of creating an ArrayBuffer containing plaintext.
-    return JS::ArrayBuffer::create(m_realm, plaintext);
+    return JS::ArrayBuffer::create(m_realm, maybe_plaintext.release_value());
 }
 
 WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> AesGcm::generate_key(AlgorithmParams const& params, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
@@ -3624,19 +3589,13 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesKw::wrap_key(AlgorithmParams co
 
     // 2. Let ciphertext be the result of performing the Key Wrap operation described in Section 2.2.1 of [RFC3394]
     //    with plaintext as the plaintext to be wrapped and using the default Initial Value defined in Section 2.2.3.1 of the same document.
-    ::Crypto::Cipher::AESCipher::KWMode cipher {
-        key->handle().get<ByteBuffer>(),
-        key->handle().get<ByteBuffer>().size() * 8,
-        ::Crypto::Cipher::Intent::Encryption,
-        ::Crypto::Cipher::PaddingMode::Null,
-    };
-
-    auto ciphertext = TRY_OR_THROW_OOM(m_realm->vm(), ByteBuffer::create_uninitialized(plaintext.size() + 8));
-    auto ciphertext_bytes = ciphertext.bytes();
-    cipher.wrap(plaintext.bytes(), ciphertext_bytes);
+    ::Crypto::Cipher::AESKWCipher cipher(key->handle().get<ByteBuffer>());
+    auto maybe_ciphertext = cipher.wrap(plaintext.bytes());
+    if (maybe_ciphertext.is_error())
+        return WebIDL::OperationError::create(m_realm, "Key wrap failed"_string);
 
     // 3. Return ciphertext.
-    return JS::ArrayBuffer::create(m_realm, ciphertext);
+    return JS::ArrayBuffer::create(m_realm, maybe_ciphertext.release_value());
 }
 
 // https://w3c.github.io/webcrypto/#aes-kw-registration
@@ -3648,21 +3607,14 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesKw::unwrap_key(AlgorithmParams 
 
     // 1. Let plaintext be the result of performing the Key Unwrap operation described in Section 2.2.2 of [RFC3394]
     //     with ciphertext as the input ciphertext and using the default Initial Value defined in Section 2.2.3.1 of the same document
-    ::Crypto::Cipher::AESCipher::KWMode cipher {
-        key->handle().get<ByteBuffer>(),
-        key->handle().get<ByteBuffer>().size() * 8,
-        ::Crypto::Cipher::Intent::Decryption,
-        ::Crypto::Cipher::PaddingMode::Null,
-    };
-
     // 2. If the Key Unwrap operation returns an error, then throw an OperationError.
-    auto out = TRY_OR_THROW_OOM(m_realm->vm(), ByteBuffer::create_uninitialized(ciphertext.size() - 8));
-    auto out_bytes = out.bytes();
-    if (cipher.unwrap(ciphertext, out_bytes) != ::Crypto::VerificationConsistency::Consistent)
+    ::Crypto::Cipher::AESKWCipher cipher(key->handle().get<ByteBuffer>());
+    auto maybe_plaintext = cipher.unwrap(ciphertext.bytes());
+    if (maybe_plaintext.is_error())
         return WebIDL::OperationError::create(m_realm, "Key unwrap failed"_string);
 
     // 3. Return plaintext.
-    return JS::ArrayBuffer::create(m_realm, out);
+    return JS::ArrayBuffer::create(m_realm, maybe_plaintext.release_value());
 }
 
 // https://w3c.github.io/webcrypto/#hkdf-operations
