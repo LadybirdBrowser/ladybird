@@ -796,7 +796,7 @@ String CanvasRenderingContext2D::global_composite_operation() const
 #undef __ENUMERATE
 #define __ENUMERATE(operation, compositing_and_blending_operator)                \
     case Gfx::CompositingAndBlendingOperator::compositing_and_blending_operator: \
-        return #operation##_string;
+        return operation##_string;
         ENUMERATE_COMPOSITE_OPERATIONS(__ENUMERATE)
 #undef __ENUMERATE
     default:
