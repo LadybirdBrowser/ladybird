@@ -7781,21 +7781,21 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X448::import_key(
 
 static WebIDL::ExceptionOr<ByteBuffer> hmac_calculate_message_digest(JS::Realm& realm, GC::Ptr<KeyAlgorithm> hash, ReadonlyBytes key, ReadonlyBytes message)
 {
-    auto calculate_digest = [&]<typename T>() -> ByteBuffer {
-        ::Crypto::Authentication::HMAC<T> hmac(key);
-        auto digest = hmac.process(message);
-        return MUST(ByteBuffer::copy(digest.bytes()));
-    };
     auto hash_name = hash->name();
-    if (hash_name == "SHA-1")
-        return calculate_digest.operator()<::Crypto::Hash::SHA1>();
-    if (hash_name == "SHA-256")
-        return calculate_digest.operator()<::Crypto::Hash::SHA256>();
-    if (hash_name == "SHA-384")
-        return calculate_digest.operator()<::Crypto::Hash::SHA384>();
-    if (hash_name == "SHA-512")
-        return calculate_digest.operator()<::Crypto::Hash::SHA512>();
-    return WebIDL::NotSupportedError::create(realm, "Invalid algorithm"_string);
+    auto hash_kind = TRY([&] -> WebIDL::ExceptionOr<::Crypto::Hash::HashKind> {
+        if (hash_name == "SHA-1")
+            return ::Crypto::Hash::HashKind::SHA1;
+        if (hash_name == "SHA-256")
+            return ::Crypto::Hash::HashKind::SHA256;
+        if (hash_name == "SHA-384")
+            return ::Crypto::Hash::HashKind::SHA384;
+        if (hash_name == "SHA-512")
+            return ::Crypto::Hash::HashKind::SHA512;
+        return WebIDL::NotSupportedError::create(realm, MUST(String::formatted("Invalid hash function '{}'", hash_name)));
+    }());
+
+    ::Crypto::Authentication::HMAC hmac(hash_kind, key);
+    return hmac.process(message);
 }
 
 static WebIDL::ExceptionOr<WebIDL::UnsignedLong> hmac_hash_block_size(JS::Realm& realm, HashAlgorithmIdentifier hash)
