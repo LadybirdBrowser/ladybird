@@ -1881,8 +1881,7 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
             }
         }
         return font_size_in_px;
-    };
-    Length::FontMetrics font_metrics { parent_font_size(), font_pixel_metrics };
+    }();
 
     if (font_size.is_keyword()) {
         auto const keyword = font_size.to_keyword();
@@ -1926,7 +1925,7 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
                     return scale;
                 return 1.0 / scale;
             };
-            font_size_in_px = parent_font_size().scale_by(math_scaling_factor());
+            font_size_in_px = parent_font_size.scale_by(math_scaling_factor());
         } else {
             // https://w3c.github.io/csswg-drafts/css-fonts/#valdef-font-size-relative-size
             // TODO: If the parent element has a keyword font size in the absolute size keyword mapping table,
@@ -1942,20 +1941,20 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
     } else {
         Length::ResolutionContext const length_resolution_context {
             .viewport_rect = viewport_rect(),
-            .font_metrics = font_metrics,
+            .font_metrics = Length::FontMetrics { parent_font_size, font_pixel_metrics },
             .root_font_metrics = m_root_element_font_metrics,
         };
 
         Optional<Length> maybe_length;
         if (font_size.is_percentage()) {
             // Percentages refer to parent element's font size
-            maybe_length = Length::make_px(CSSPixels::nearest_value_for(font_size.as_percentage().percentage().as_fraction() * parent_font_size().to_double()));
+            maybe_length = Length::make_px(CSSPixels::nearest_value_for(font_size.as_percentage().percentage().as_fraction() * parent_font_size.to_double()));
 
         } else if (font_size.is_length()) {
             maybe_length = font_size.as_length().length();
         } else if (font_size.is_calculated()) {
             maybe_length = font_size.as_calculated().resolve_length({
-                .percentage_basis = Length::make_px(parent_font_size()),
+                .percentage_basis = Length::make_px(parent_font_size),
                 .length_resolution_context = length_resolution_context,
             });
         }
