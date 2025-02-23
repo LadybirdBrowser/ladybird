@@ -111,6 +111,13 @@ class OpenSSL_KDF_CTX {
     OPENSSL_WRAPPER_CLASS(OpenSSL_KDF_CTX, EVP_KDF_CTX, EVP_KDF_CTX);
 };
 
+class OpenSSL_CIPHER_CTX {
+    OPENSSL_WRAPPER_CLASS(OpenSSL_CIPHER_CTX, EVP_CIPHER_CTX, EVP_CIPHER_CTX);
+
+public:
+    static ErrorOr<OpenSSL_CIPHER_CTX> create();
+};
+
 #undef OPENSSL_WRAPPER_CLASS
 
 ErrorOr<OpenSSL_BN> unsigned_big_integer_to_openssl_bignum(UnsignedBigInteger const& integer);

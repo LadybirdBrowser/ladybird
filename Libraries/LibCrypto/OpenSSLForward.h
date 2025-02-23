@@ -17,6 +17,8 @@ typedef struct evp_kdf_st EVP_KDF;
 typedef struct evp_kdf_ctx_st EVP_KDF_CTX;
 typedef struct evp_mac_st EVP_MAC;
 typedef struct evp_mac_ctx_st EVP_MAC_CTX;
+typedef struct evp_cipher_st EVP_CIPHER;
+typedef struct evp_cipher_ctx_st EVP_CIPHER_CTX;
 
 void ERR_print_errors_cb(int (*cb)(char const* str, size_t len, void* u), void* u);
 
@@ -27,6 +29,7 @@ int EVP_DigestInit_ex(EVP_MD_CTX*, const EVP_MD*, ENGINE*);
 int EVP_DigestFinal_ex(EVP_MD_CTX*, unsigned char*, unsigned int*);
 int EVP_MD_CTX_copy_ex(EVP_MD_CTX*, EVP_MD_CTX const*);
 
+void EVP_CIPHER_CTX_free(EVP_CIPHER_CTX*);
 void EVP_PKEY_CTX_free(EVP_PKEY_CTX*);
 void EVP_PKEY_free(EVP_PKEY*);
 void EVP_KDF_CTX_free(EVP_KDF_CTX* ctx);
