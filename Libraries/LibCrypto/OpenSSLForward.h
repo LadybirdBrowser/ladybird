@@ -15,6 +15,8 @@ typedef struct evp_pkey_st EVP_PKEY;
 typedef struct evp_pkey_ctx_st EVP_PKEY_CTX;
 typedef struct evp_kdf_st EVP_KDF;
 typedef struct evp_kdf_ctx_st EVP_KDF_CTX;
+typedef struct evp_mac_st EVP_MAC;
+typedef struct evp_mac_ctx_st EVP_MAC_CTX;
 
 void ERR_print_errors_cb(int (*cb)(char const* str, size_t len, void* u), void* u);
 

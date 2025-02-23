@@ -47,6 +47,8 @@ ErrorOr<UnsignedBigInteger> openssl_bignum_to_unsigned_big_integer(OpenSSL_BN co
 ErrorOr<StringView> hash_kind_to_openssl_digest_name(Hash::HashKind hash)
 {
     switch (hash) {
+    case Hash::HashKind::MD5:
+        return "MD5"sv;
     case Hash::HashKind::SHA1:
         return "SHA1"sv;
     case Hash::HashKind::SHA256:
