@@ -11,6 +11,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibCore/DateTime.h>
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibWeb/Bindings/HTMLInputElementPrototype.h>
@@ -2094,6 +2095,22 @@ static Optional<double> convert_week_string_to_number(StringView input)
     return UnixDateTime::from_iso8601_week(parsed_week->week_year, parsed_week->week).milliseconds_since_epoch();
 }
 
+// https://html.spec.whatwg.org/multipage/input.html#date-state-(type=date):concept-input-value-number-string
+static Optional<double> convert_date_string_to_number(StringView input)
+{
+    // The algorithm to convert a string to a number, given a string input, is as follows: If parsing a date
+    // from input results in an error, then return an error; otherwise, return the number of milliseconds
+    // elapsed from midnight UTC on the morning of 1970-01-01 (the time represented by the value
+    // "1970-01-01T00:00:00.0Z") to midnight UTC on the morning of the parsed date, ignoring leap seconds.
+    auto maybe_date = parse_a_date_string(input);
+    if (!maybe_date.has_value())
+        return {};
+    auto date = maybe_date.value();
+
+    auto date_time = UnixDateTime::from_unix_time_parts(date.year, date.month, date.day, 0, 0, 0, 0);
+    return date_time.milliseconds_since_epoch();
+}
+
 // https://html.spec.whatwg.org/multipage/input.html#concept-input-value-string-number
 Optional<double> HTMLInputElement::convert_string_to_number(StringView input) const
 {
@@ -2110,6 +2127,9 @@ Optional<double> HTMLInputElement::convert_string_to_number(StringView input) co
 
     if (type_state() == TypeAttributeState::Week)
         return convert_week_string_to_number(input);
+
+    if (type_state() == TypeAttributeState::Date)
+        return convert_date_string_to_number(input);
 
     dbgln("HTMLInputElement::convert_string_to_number() not implemented for input type {}", type());
     return {};
@@ -2156,6 +2176,16 @@ static String convert_number_to_week_string(double input)
     return MUST(String::formatted("{:04d}-W{:02d}", year, week));
 }
 
+// https://html.spec.whatwg.org/multipage/input.html#date-state-(type=date):concept-input-value-number-string
+static String convert_number_to_date_string(double input)
+{
+    // The algorithm to convert a number to a string, given a number input, is as follows: Return a valid
+    // date string that represents the date that, in UTC, is current input milliseconds after midnight UTC
+    // on the morning of 1970-01-01 (the time represented by the value "1970-01-01T00:00:00.0Z").
+    auto date = Core::DateTime::from_timestamp(input / 1000.);
+    return MUST(date.to_string("%Y-%m-%d"sv, Core::DateTime::LocalTime::No));
+}
+
 // https://html.spec.whatwg.org/multipage/input.html#concept-input-value-string-number
 String HTMLInputElement::convert_number_to_string(double input) const
 {
@@ -2173,6 +2203,9 @@ String HTMLInputElement::convert_number_to_string(double input) const
     if (type_state() == TypeAttributeState::Week)
         return convert_number_to_week_string(input);
 
+    if (type_state() == TypeAttributeState::Date)
+        return convert_number_to_date_string(input);
+
     dbgln("HTMLInputElement::convert_number_to_string() not implemented for input type {}", type());
     return {};
 }
@@ -2183,12 +2216,13 @@ WebIDL::ExceptionOr<GC::Ptr<JS::Date>> HTMLInputElement::convert_string_to_date(
     // https://html.spec.whatwg.org/multipage/input.html#date-state-(type=date):concept-input-value-string-date
     if (type_state() == TypeAttributeState::Date) {
         // If parsing a date from input results in an error, then return an error;
-        auto maybe_date = parse_date_string(realm(), input);
-        if (maybe_date.is_exception())
-            return maybe_date.exception();
+        auto maybe_date = parse_a_date_string(input);
+        if (!maybe_date.has_value())
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Can't parse date string"sv };
+        auto date = maybe_date.value();
 
         // otherwise, return a new Date object representing midnight UTC on the morning of the parsed date.
-        return maybe_date.value();
+        return JS::Date::create(realm(), JS::make_date(JS::make_day(date.year, date.month - 1, date.day), 0));
     }
 
     // https://html.spec.whatwg.org/multipage/input.html#time-state-(type=time):concept-input-value-string-date

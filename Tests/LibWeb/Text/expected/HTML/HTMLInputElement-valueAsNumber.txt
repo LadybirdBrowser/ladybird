@@ -31,7 +31,7 @@ tel threw exception: InvalidStateError: valueAsNumber: Invalid input type used
 url threw exception: InvalidStateError: valueAsNumber: Invalid input type used
 email threw exception: InvalidStateError: valueAsNumber: Invalid input type used
 password threw exception: InvalidStateError: valueAsNumber: Invalid input type used
-date did not throw: NaN
+date did not throw: 0
 month did not throw: 100
 week did not throw: 345600000
 time did not throw: NaN
