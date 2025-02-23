@@ -129,22 +129,6 @@ bool is_valid_date_string(StringView value)
     return day >= 1 && day <= AK::days_in_month(year, month);
 }
 
-// https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#parse-a-date-string
-WebIDL::ExceptionOr<GC::Ref<JS::Date>> parse_date_string(JS::Realm& realm, StringView value)
-{
-    // FIXME: Implement spec compliant date string parsing
-    auto parts = value.split_view('-', SplitBehavior::KeepEmpty);
-    if (parts.size() >= 3) {
-        if (auto year = parts.at(0).to_number<u32>(); year.has_value()) {
-            if (auto month = parts.at(1).to_number<u32>(); month.has_value()) {
-                if (auto day_of_month = parts.at(2).to_number<u32>(); day_of_month.has_value())
-                    return JS::Date::create(realm, JS::make_date(JS::make_day(*year, *month - 1, *day_of_month), 0));
-            }
-        }
-    }
-    return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Can't parse date string"sv };
-}
-
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#valid-local-date-and-time-string
 bool is_valid_local_date_and_time_string(StringView value)
 {
@@ -361,6 +345,60 @@ Optional<WeekYearAndWeek> parse_a_week_string(StringView input_view)
 
     // 11. Return the week-year number year and the week number week.
     return WeekYearAndWeek { year, week };
+}
+
+// https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#parse-a-date-component
+static Optional<YearMonthDay> parse_a_date_component(GenericLexer& input)
+{
+    // 1. Parse a month component to obtain year and month. If this returns nothing, then fail.
+    auto maybe_month_component = parse_a_month_component(input);
+    if (!maybe_month_component.has_value())
+        return {};
+    auto month_component = maybe_month_component.value();
+
+    // 2. Let maxday be the number of days in month month of year year.
+    u32 maxday = AK::days_in_month(month_component.year, month_component.month);
+
+    // 3. If position is beyond the end of input or if the character at position is not a U+002D HYPHEN-MINUS character, then fail.
+    //    Otherwise, move position forwards one character.
+    if (!input.consume_specific('-'))
+        return {};
+
+    // 4. Collect a sequence of code points that are ASCII digits from input given position. If the collected sequence is not
+    //    exactly two characters long, then fail. Otherwise, interpret the resulting sequence as a base-ten integer. Let that
+    //    number be the day.
+    auto day_string = input.consume_while(is_ascii_digit);
+    if (day_string.length() != 2)
+        return {};
+    auto day = day_string.to_number<u32>().value();
+
+    // 5. If day is not a number in the range 1 ≤ day ≤ maxday, then fail.
+    if (day < 1 || day > maxday)
+        return {};
+
+    // 6. Return year, month, and day.
+    return YearMonthDay { month_component.year, month_component.month, day };
+}
+
+// https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#parse-a-date-string
+Optional<YearMonthDay> parse_a_date_string(StringView input_view)
+{
+    // 1. Let input be the string being parsed.
+    // 2. Let position be a pointer into input, initially pointing at the start of the string.
+    GenericLexer input { input_view };
+
+    // 3. Parse a date component to obtain year, month, and day. If this returns nothing, then fail.
+    auto year_month_day = parse_a_date_component(input);
+    if (!year_month_day.has_value())
+        return {};
+
+    // 4. If position is not beyond the end of input, then fail.
+    if (!input.is_eof())
+        return {};
+
+    // 5. Let date be the date with year year, month month, and day day.
+    // 6. Return date.
+    return year_month_day.release_value();
 }
 
 }
