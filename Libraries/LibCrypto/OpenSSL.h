@@ -14,7 +14,7 @@
 
 inline int openssl_print_errors(char const* str, size_t len, [[maybe_unused]] void* u)
 {
-    dbgln("{}", StringView { str, len });
+    dbgln("{}", StringView { str, len - 1 });
     return 1;
 }
 
