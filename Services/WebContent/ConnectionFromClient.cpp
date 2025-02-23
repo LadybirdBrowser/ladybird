@@ -1150,7 +1150,7 @@ void ConnectionFromClient::set_system_visibility_state(u64 page_id, Web::HTML::V
         page->page().top_level_traversable()->set_system_visibility_state(visibility_state);
 }
 
-void ConnectionFromClient::js_console_input(u64 page_id, ByteString const& js_source)
+void ConnectionFromClient::js_console_input(u64 page_id, String const& js_source)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -1159,7 +1159,7 @@ void ConnectionFromClient::js_console_input(u64 page_id, ByteString const& js_so
     page->js_console_input(js_source);
 }
 
-void ConnectionFromClient::run_javascript(u64 page_id, ByteString const& js_source)
+void ConnectionFromClient::run_javascript(u64 page_id, String const& js_source)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->run_javascript(js_source);

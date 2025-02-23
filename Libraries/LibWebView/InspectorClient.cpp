@@ -71,7 +71,7 @@ InspectorClient::InspectorClient(ViewImplementation& content_web_view, ViewImple
         builder.append_escaped_for_json(properties.fonts.serialized());
         builder.append("\");"sv);
 
-        m_inspector_web_view.run_javascript(builder.string_view());
+        m_inspector_web_view.run_javascript(MUST(builder.to_string()));
     };
 
     m_content_web_view.on_received_accessibility_tree = [this](auto const& accessibility_tree) {
@@ -94,7 +94,7 @@ InspectorClient::InspectorClient(ViewImplementation& content_web_view, ViewImple
         }
         builder.append("]);"sv);
 
-        m_inspector_web_view.run_javascript(builder.string_view());
+        m_inspector_web_view.run_javascript(MUST(builder.to_string()));
     };
 
     m_content_web_view.on_received_style_sheet_source = [this](Web::CSS::StyleSheetIdentifier const& identifier, auto const& base_url, String const& source) {
@@ -199,7 +199,7 @@ InspectorClient::InspectorClient(ViewImplementation& content_web_view, ViewImple
     m_inspector_web_view.on_inspector_executed_console_script = [this](auto const& script) {
         append_console_source(script);
 
-        m_content_web_view.js_console_input(script.to_byte_string());
+        m_content_web_view.js_console_input(script);
     };
 
     m_inspector_web_view.on_inspector_exported_inspector_html = [this](String const& html) {
@@ -280,7 +280,7 @@ void InspectorClient::inspect()
 
 void InspectorClient::reset()
 {
-    static constexpr auto script = "inspector.reset();"sv;
+    static auto script = "inspector.reset();"_string;
     m_inspector_web_view.run_javascript(script);
 
     m_body_or_frameset_node_id.clear();
@@ -310,7 +310,7 @@ void InspectorClient::clear_selection()
     m_content_web_view.clear_highlighted_dom_node();
     m_content_web_view.clear_inspected_dom_node();
 
-    static constexpr auto script = "inspector.clearInspectedDOMNode();"sv;
+    static auto script = "inspector.clearInspectedDOMNode();"_string;
     m_inspector_web_view.run_javascript(script);
 }
 
@@ -350,7 +350,7 @@ void InspectorClient::load_cookies()
     json_cookies.serialize(builder);
     builder.append(");"sv);
 
-    m_inspector_web_view.run_javascript(builder.string_view());
+    m_inspector_web_view.run_javascript(MUST(builder.to_string()));
 }
 
 void InspectorClient::context_menu_edit_dom_node()
@@ -717,7 +717,7 @@ void InspectorClient::handle_console_message(i32 message_index)
         request_console_messages();
 }
 
-void InspectorClient::handle_console_messages(i32 start_index, ReadonlySpan<ByteString> message_types, ReadonlySpan<ByteString> messages)
+void InspectorClient::handle_console_messages(i32 start_index, ReadonlySpan<String> message_types, ReadonlySpan<String> messages)
 {
     auto end_index = start_index + static_cast<i32>(message_types.size()) - 1;
     if (end_index <= m_highest_received_message_index) {
@@ -787,7 +787,7 @@ void InspectorClient::append_console_output(StringView html)
 
 void InspectorClient::clear_console_output()
 {
-    static constexpr auto script = "inspector.clearConsoleOutput();"sv;
+    static auto script = "inspector.clearConsoleOutput();"_string;
     m_inspector_web_view.run_javascript(script);
 }
 
@@ -801,7 +801,7 @@ void InspectorClient::begin_console_group(StringView label, bool start_expanded)
 
 void InspectorClient::end_console_group()
 {
-    static constexpr auto script = "inspector.endConsoleGroup();"sv;
+    static auto script = "inspector.endConsoleGroup();"_string;
     m_inspector_web_view.run_javascript(script);
 }
 

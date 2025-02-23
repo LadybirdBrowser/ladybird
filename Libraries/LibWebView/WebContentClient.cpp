@@ -374,7 +374,7 @@ void WebContentClient::did_output_js_console_message(u64 page_id, i32 message_in
     }
 }
 
-void WebContentClient::did_get_js_console_messages(u64 page_id, i32 start_index, Vector<ByteString> const& message_types, Vector<ByteString> const& messages)
+void WebContentClient::did_get_js_console_messages(u64 page_id, i32 start_index, Vector<String> const& message_types, Vector<String> const& messages)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_received_console_messages)

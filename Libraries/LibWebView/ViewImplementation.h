@@ -127,8 +127,8 @@ public:
 
     void debug_request(ByteString const& request, ByteString const& argument = {});
 
-    void run_javascript(StringView);
-    void js_console_input(ByteString const& js_source);
+    void run_javascript(String);
+    void js_console_input(String);
     void js_console_request_messages(i32 start_index);
 
     void alert_closed();
@@ -216,7 +216,7 @@ public:
     Function<void(Optional<Web::UniqueNodeID> const& node_id)> on_finshed_editing_dom_node;
     Function<void(String const&)> on_received_dom_node_html;
     Function<void(i32 message_id)> on_received_console_message;
-    Function<void(i32 start_index, Vector<ByteString> const& message_types, Vector<ByteString> const& messages)> on_received_console_messages;
+    Function<void(i32 start_index, Vector<String> const& message_types, Vector<String> const& messages)> on_received_console_messages;
     Function<void(i32 count_waiting)> on_resource_status_change;
     Function<void()> on_restore_window;
     Function<void(Gfx::IntPoint)> on_reposition_window;

@@ -82,12 +82,12 @@ public:
     void ready_to_paint();
 
     void initialize_js_console(Web::DOM::Document& document);
-    void js_console_input(ByteString const& js_source);
-    void run_javascript(ByteString const& js_source);
+    void js_console_input(StringView js_source);
+    void run_javascript(StringView js_source);
     void js_console_request_messages(i32 start_index);
     void did_output_js_console_message(i32 message_index);
     void console_peer_did_misbehave(char const* reason);
-    void did_get_js_console_messages(i32 start_index, Vector<ByteString> message_types, Vector<ByteString> messages);
+    void did_get_js_console_messages(i32 start_index, Vector<String> message_types, Vector<String> messages);
 
     Vector<Web::CSS::StyleSheetIdentifier> list_style_sheets() const;
 
