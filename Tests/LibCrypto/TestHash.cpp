@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibCrypto/Authentication/GHash.h>
 #include <LibCrypto/Authentication/HMAC.h>
 #include <LibCrypto/Hash/BLAKE2b.h>
 #include <LibCrypto/Hash/MD5.h>
@@ -298,30 +297,4 @@ TEST_CASE(test_SHA512_hash_empty_string)
     };
     auto digest = Crypto::Hash::SHA512::hash(""sv);
     EXPECT(memcmp(result, digest.data, Crypto::Hash::SHA512::digest_size()) == 0);
-}
-
-TEST_CASE(test_ghash_test_name)
-{
-    Crypto::Authentication::GHash ghash("WellHelloFriends");
-    EXPECT_EQ(ghash.class_name(), "GHash");
-}
-
-TEST_CASE(test_ghash_galois_field_multiply)
-{
-    u32 x[4] { 0x42831ec2, 0x21777424, 0x4b7221b7, 0x84d0d49c },
-        y[4] { 0xb83b5337, 0x08bf535d, 0x0aa6e529, 0x80d53b78 }, z[4] { 0, 0, 0, 0 };
-    static constexpr u32 result[4] { 0x59ed3f2b, 0xb1a0aaa0, 0x7c9f56c6, 0xa504647b };
-
-    Crypto::Authentication::galois_multiply(z, x, y);
-    EXPECT(memcmp(result, z, 4 * sizeof(u32)) == 0);
-}
-
-TEST_CASE(test_ghash_galois_field_multiply2)
-{
-    u32 x[4] { 59300558, 1622582162, 4079534777, 1907555960 },
-        y[4] { 1726565332, 4018809915, 2286746201, 3392416558 }, z[4];
-    constexpr static u32 result[4] { 1580123974, 2440061576, 746958952, 1398005431 };
-
-    Crypto::Authentication::galois_multiply(z, x, y);
-    EXPECT(memcmp(result, z, 4 * sizeof(u32)) == 0);
 }
