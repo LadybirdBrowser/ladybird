@@ -431,7 +431,7 @@ WebIDL::ExceptionOr<GC::Ptr<ImageData>> CanvasRenderingContext2D::get_image_data
     ASSERT(image_data->bitmap().alpha_type() == Gfx::AlphaType::Unpremultiplied);
 
     auto painter = Gfx::Painter::create(image_data->bitmap());
-    painter->draw_bitmap(image_data->bitmap().rect().to_type<float>(), *snapshot, source_rect_intersected, Gfx::ScalingMode::NearestNeighbor, {}, drawing_state().global_alpha, Gfx::CompositingAndBlendingOperator::SourceOver);
+    painter->draw_bitmap(image_data->bitmap().rect().to_type<float>(), *snapshot, source_rect_intersected, Gfx::ScalingMode::NearestNeighbor, {}, 1, Gfx::CompositingAndBlendingOperator::SourceOver);
 
     // 7. Set the pixels values of imageData for areas of the source rectangle that are outside of the output bitmap to transparent black.
     // NOTE: No-op, already done during creation.
