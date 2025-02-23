@@ -80,7 +80,7 @@ private:
     virtual void did_take_screenshot(u64 page_id, Gfx::ShareableBitmap const& screenshot) override;
     virtual void did_get_internal_page_info(u64 page_id, PageInfoType, String const&) override;
     virtual void did_output_js_console_message(u64 page_id, i32 message_index) override;
-    virtual void did_get_js_console_messages(u64 page_id, i32 start_index, Vector<ByteString> const& message_types, Vector<ByteString> const& messages) override;
+    virtual void did_get_js_console_messages(u64 page_id, i32 start_index, Vector<String> const& message_types, Vector<String> const& messages) override;
     virtual void did_change_favicon(u64 page_id, Gfx::ShareableBitmap const&) override;
     virtual void did_request_alert(u64 page_id, String const&) override;
     virtual void did_request_confirm(u64 page_id, String const&) override;

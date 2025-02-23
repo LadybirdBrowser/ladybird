@@ -48,8 +48,11 @@ endpoint WebContentServer
     highlight_dom_node(u64 page_id, Web::UniqueNodeID node_id, Optional<Web::CSS::Selector::PseudoElement::Type> pseudo_element) =|
     inspect_accessibility_tree(u64 page_id) =|
     get_hovered_node_id(u64 page_id) =|
-    js_console_input(u64 page_id, ByteString js_source) =|
+
+    js_console_input(u64 page_id, String js_source) =|
     js_console_request_messages(u64 page_id, i32 start_index) =|
+    run_javascript(u64 page_id, String js_source) =|
+
     list_style_sheets(u64 page_id) =|
     request_style_sheet_source(u64 page_id, Web::CSS::StyleSheetIdentifier identifier) =|
 
@@ -67,8 +70,6 @@ endpoint WebContentServer
     take_dom_node_screenshot(u64 page_id, Web::UniqueNodeID node_id) =|
 
     request_internal_page_info(u64 page_id, WebView::PageInfoType type) =|
-
-    run_javascript(u64 page_id, ByteString js_source) =|
 
     get_selected_text(u64 page_id) => (ByteString selection)
     select_all(u64 page_id) =|

@@ -393,14 +393,14 @@ void ViewImplementation::debug_request(ByteString const& request, ByteString con
     client().async_debug_request(page_id(), request, argument);
 }
 
-void ViewImplementation::run_javascript(StringView js_source)
+void ViewImplementation::run_javascript(String js_source)
 {
-    client().async_run_javascript(page_id(), js_source);
+    client().async_run_javascript(page_id(), move(js_source));
 }
 
-void ViewImplementation::js_console_input(ByteString const& js_source)
+void ViewImplementation::js_console_input(String js_source)
 {
-    client().async_js_console_input(page_id(), js_source);
+    client().async_js_console_input(page_id(), move(js_source));
 }
 
 void ViewImplementation::js_console_request_messages(i32 start_index)

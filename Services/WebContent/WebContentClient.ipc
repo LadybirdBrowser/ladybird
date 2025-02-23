@@ -92,7 +92,7 @@ endpoint WebContentClient
     did_change_audio_play_state(u64 page_id, Web::HTML::AudioPlayState play_state) =|
 
     did_output_js_console_message(u64 page_id, i32 message_index) =|
-    did_get_js_console_messages(u64 page_id, i32 start_index, Vector<ByteString> message_types, Vector<ByteString> messages) =|
+    did_get_js_console_messages(u64 page_id, i32 start_index, Vector<String> message_types, Vector<String> messages) =|
 
     did_finish_text_test(u64 page_id, String text) =|
     did_set_test_timeout(u64 page_id, double milliseconds) =|

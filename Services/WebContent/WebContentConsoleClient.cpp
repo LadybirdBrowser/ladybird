@@ -43,7 +43,7 @@ void WebContentConsoleClient::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_console_global_environment_extensions);
 }
 
-void WebContentConsoleClient::handle_input(ByteString const& js_source)
+void WebContentConsoleClient::handle_input(StringView js_source)
 {
     if (!m_console_global_environment_extensions)
         return;
@@ -58,16 +58,16 @@ void WebContentConsoleClient::handle_input(ByteString const& js_source)
 
     if (result.value().has_value()) {
         m_console_global_environment_extensions->set_most_recent_result(result.value().value());
-        print_html(JS::MarkupGenerator::html_from_value(*result.value()).release_value_but_fixme_should_propagate_errors().to_byte_string());
+        print_html(JS::MarkupGenerator::html_from_value(*result.value()).release_value_but_fixme_should_propagate_errors());
     }
 }
 
 void WebContentConsoleClient::report_exception(JS::Error const& exception, bool in_promise)
 {
-    print_html(JS::MarkupGenerator::html_from_error(exception, in_promise).release_value_but_fixme_should_propagate_errors().to_byte_string());
+    print_html(JS::MarkupGenerator::html_from_error(exception, in_promise).release_value_but_fixme_should_propagate_errors());
 }
 
-void WebContentConsoleClient::print_html(ByteString const& line)
+void WebContentConsoleClient::print_html(String const& line)
 {
     m_message_log.append({ .type = ConsoleOutput::Type::HTML, .data = line });
     m_client->did_output_js_console_message(m_message_log.size() - 1);
@@ -75,11 +75,11 @@ void WebContentConsoleClient::print_html(ByteString const& line)
 
 void WebContentConsoleClient::clear_output()
 {
-    m_message_log.append({ .type = ConsoleOutput::Type::Clear, .data = "" });
+    m_message_log.append({ .type = ConsoleOutput::Type::Clear, .data = String {} });
     m_client->did_output_js_console_message(m_message_log.size() - 1);
 }
 
-void WebContentConsoleClient::begin_group(ByteString const& label, bool start_expanded)
+void WebContentConsoleClient::begin_group(String const& label, bool start_expanded)
 {
     m_message_log.append({ .type = start_expanded ? ConsoleOutput::Type::BeginGroup : ConsoleOutput::Type::BeginGroupCollapsed, .data = label });
     m_client->did_output_js_console_message(m_message_log.size() - 1);
@@ -87,7 +87,7 @@ void WebContentConsoleClient::begin_group(ByteString const& label, bool start_ex
 
 void WebContentConsoleClient::end_group()
 {
-    m_message_log.append({ .type = ConsoleOutput::Type::EndGroup, .data = "" });
+    m_message_log.append({ .type = ConsoleOutput::Type::EndGroup, .data = String {} });
     m_client->did_output_js_console_message(m_message_log.size() - 1);
 }
 
@@ -105,8 +105,8 @@ void WebContentConsoleClient::send_messages(i32 start_index)
     }
 
     // FIXME: Replace with a single Vector of message structs
-    Vector<ByteString> message_types;
-    Vector<ByteString> messages;
+    Vector<String> message_types;
+    Vector<String> messages;
     message_types.ensure_capacity(messages_to_send);
     messages.ensure_capacity(messages_to_send);
 
@@ -114,26 +114,26 @@ void WebContentConsoleClient::send_messages(i32 start_index)
         auto& message = m_message_log[i];
         switch (message.type) {
         case ConsoleOutput::Type::HTML:
-            message_types.append("html"sv);
+            message_types.append("html"_string);
             break;
         case ConsoleOutput::Type::Clear:
-            message_types.append("clear"sv);
+            message_types.append("clear"_string);
             break;
         case ConsoleOutput::Type::BeginGroup:
-            message_types.append("group"sv);
+            message_types.append("group"_string);
             break;
         case ConsoleOutput::Type::BeginGroupCollapsed:
-            message_types.append("groupCollapsed"sv);
+            message_types.append("groupCollapsed"_string);
             break;
         case ConsoleOutput::Type::EndGroup:
-            message_types.append("groupEnd"sv);
+            message_types.append("groupEnd"_string);
             break;
         }
 
         messages.append(message.data);
     }
 
-    m_client->did_get_js_console_messages(start_index, message_types, messages);
+    m_client->did_get_js_console_messages(start_index, move(message_types), move(messages));
 }
 
 void WebContentConsoleClient::clear()
@@ -215,7 +215,7 @@ JS::ThrowCompletionOr<JS::Value> WebContentConsoleClient::printer(JS::Console::L
         html.appendff("</tbody>");
         html.appendff("</table>");
         html.appendff("</div>");
-        print_html(html.string_view());
+        print_html(MUST(html.to_string()));
 
         auto output = TRY(generically_format_values(table_args));
         m_console->output_debug_message(log_level, output);
@@ -234,13 +234,13 @@ JS::ThrowCompletionOr<JS::Value> WebContentConsoleClient::printer(JS::Console::L
             html.appendff("-> {}<br>", escape_html_entities(function_name));
         html.append("</span>"sv);
 
-        print_html(html.string_view());
+        print_html(MUST(html.to_string()));
         return JS::js_undefined();
     }
 
     if (log_level == JS::Console::LogLevel::Group || log_level == JS::Console::LogLevel::GroupCollapsed) {
         auto group = arguments.get<JS::Console::Group>();
-        begin_group(ByteString::formatted("<span style='{}'>{}</span>", styling, escape_html_entities(group.label)), log_level == JS::Console::LogLevel::Group);
+        begin_group(MUST(String::formatted("<span style='{}'>{}</span>", styling, escape_html_entities(group.label))), log_level == JS::Console::LogLevel::Group);
         return JS::js_undefined();
     }
 
@@ -272,7 +272,7 @@ JS::ThrowCompletionOr<JS::Value> WebContentConsoleClient::printer(JS::Console::L
 
     html.append(escape_html_entities(output));
     html.append("</span>"sv);
-    print_html(html.string_view());
+    print_html(MUST(html.to_string()));
 
     return JS::js_undefined();
 }

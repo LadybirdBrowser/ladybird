@@ -738,13 +738,13 @@ void PageClient::initialize_js_console(Web::DOM::Document& document)
     document.set_console_client(console_client);
 }
 
-void PageClient::js_console_input(ByteString const& js_source)
+void PageClient::js_console_input(StringView js_source)
 {
     if (m_top_level_document_console_client)
         m_top_level_document_console_client->handle_input(js_source);
 }
 
-void PageClient::run_javascript(ByteString const& js_source)
+void PageClient::run_javascript(StringView js_source)
 {
     auto* active_document = page().top_level_browsing_context().active_document();
 
@@ -787,7 +787,7 @@ void PageClient::console_peer_did_misbehave(char const* reason)
     client().did_misbehave(reason);
 }
 
-void PageClient::did_get_js_console_messages(i32 start_index, Vector<ByteString> message_types, Vector<ByteString> messages)
+void PageClient::did_get_js_console_messages(i32 start_index, Vector<String> message_types, Vector<String> messages)
 {
     client().async_did_get_js_console_messages(m_id, start_index, move(message_types), move(messages));
 }
