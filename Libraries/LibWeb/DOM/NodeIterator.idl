@@ -8,7 +8,9 @@ interface NodeIterator {
     readonly attribute Node referenceNode;
     readonly attribute boolean pointerBeforeReferenceNode;
     readonly attribute unsigned long whatToShow;
-    readonly attribute NodeFilter? filter;
+
+    // FIXME: `object?` should be `NodeFilter?`, but we don't yet properly support callback interfaces.
+    readonly attribute object? filter;
 
     Node? nextNode();
     Node? previousNode();
