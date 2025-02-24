@@ -247,7 +247,7 @@
     "initial": "none",
     "valid-types": [
       "string",
-      "custom-ident"
+      "custom-ident ![none]"
     ],
     "valid-identifiers": [
       "none"
@@ -880,7 +880,15 @@
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": true,
-    "initial": "normal"
+    "initial": "normal",
+    "valid-types": [
+      "custom-ident ![normal,light,dark,only]"
+    ],
+    "valid-identifiers": [
+      "normal",
+      "light",
+      "dark"
+    ]
   },
   "column-count": {
     "animation-type": "by-computed-value",
@@ -975,7 +983,7 @@
     "inherited": false,
     "initial": "none",
     "valid-types": [
-      "custom-ident",
+      "custom-ident ![none]",
       "integer [-∞,∞]"
     ],
     "valid-identifiers": [
@@ -987,7 +995,7 @@
     "inherited": false,
     "initial": "none",
     "valid-types": [
-      "custom-ident",
+      "custom-ident ![none]",
       "integer [-∞,∞]"
     ],
     "valid-identifiers": [
@@ -999,7 +1007,7 @@
     "inherited": false,
     "initial": "none",
     "valid-types": [
-      "custom-ident",
+      "custom-ident ![none]",
       "integer [-∞,∞]"
     ],
     "valid-identifiers": [
@@ -2841,7 +2849,7 @@
     "initial": "all",
     "valid-types": [
       "string",
-      "custom-ident"
+      "custom-ident ![all,none]"
     ],
     "valid-identifiers": [
       "all",
@@ -2902,7 +2910,7 @@
     "inherited": false,
     "initial": "none",
     "valid-types": [
-      "custom-ident"
+      "custom-ident ![auto,none]"
     ],
     "valid-identifiers": [
       "none"

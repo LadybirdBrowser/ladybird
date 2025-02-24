@@ -72,6 +72,7 @@ The `valid-types` array lists the names of CSS value types, as defined in the la
 [CSS Values and Units spec](https://www.w3.org/TR/css-values/), without the `<>` around them.
 For numeric types, we use the [bracketed range notation](https://www.w3.org/TR/css-values-4/#css-bracketed-range-notation),
 for example `width` can take any non-negative length, so it has `"length [0,∞]"` in its `valid-types` array.
+For `<custom-ident>`s, the excluded identifiers are placed within `![]`, for example `"custom-ident ![all,none]"`.
 
 ## Keywords.json
 
