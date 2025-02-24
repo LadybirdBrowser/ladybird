@@ -591,6 +591,7 @@ private:
 
         Core::deferred_invoke([this, lookup, name, records_with_rrsigs = move(records_with_rrsigs), result = move(result)] mutable {
             dbgln_if(DNS_DEBUG, "DNS: Resolving DNSKEY for {}", name.to_string());
+            result->set_dnssec_validated(false); // Will be set to true if we successfully validate the RRSIGs.
             this->lookup(lookup.name, Messages::Class::IN, { Messages::ResourceType::DNSKEY }, { .validate_dnssec_locally = false })
                 ->when_resolved([=, this, records_with_rrsigs = move(records_with_rrsigs)](NonnullRefPtr<LookupResult const>& dnskey_lookup_result) mutable {
                     dbgln_if(DNS_DEBUG, "DNSKEY for {}:", name.to_string());
