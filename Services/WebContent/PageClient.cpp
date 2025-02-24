@@ -7,6 +7,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/JsonValue.h>
 #include <LibGfx/ShareableBitmap.h>
 #include <LibJS/Console.h>
 #include <LibJS/Runtime/ConsoleObject.h>
@@ -748,6 +749,11 @@ void PageClient::initialize_js_console(Web::DOM::Document& document)
         console_client = InspectorConsoleClient::create(document.realm(), console_object->console(), *this);
 
     document.set_console_client(console_client);
+}
+
+void PageClient::did_execute_js_console_input(JsonValue result)
+{
+    client().async_did_execute_js_console_input(m_id, move(result));
 }
 
 void PageClient::js_console_input(StringView js_source)

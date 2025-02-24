@@ -417,4 +417,20 @@ void Application::clear_highlighted_dom_node(DevTools::TabDescription const& des
         view->clear_highlighted_dom_node();
 }
 
+void Application::evaluate_javascript(DevTools::TabDescription const& description, String script, OnScriptEvaluationComplete on_complete) const
+{
+    auto view = ViewImplementation::find_view_by_id(description.id);
+    if (!view.has_value()) {
+        on_complete(Error::from_string_literal("Unable to locate tab"));
+        return;
+    }
+
+    view->on_received_js_console_result = [&view = *view, on_complete = move(on_complete)](JsonValue result) {
+        view.on_received_js_console_result = nullptr;
+        on_complete(move(result));
+    };
+
+    view->js_console_input(move(script));
+}
+
 }
