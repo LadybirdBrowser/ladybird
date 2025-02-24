@@ -1,1 +1,4 @@
-PASS: UTF-8
+Encoding: utf-16be mapped to characterSet: UTF-8
+Encoding: utf-16le mapped to characterSet: UTF-8
+Encoding: utf-8 mapped to characterSet: UTF-8
+Encoding: x-user-defined mapped to characterSet: windows-1252
