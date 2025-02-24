@@ -716,6 +716,7 @@ TEST_CASE(ECMA262_match)
             ""sv,
             false, }, // See above, also ladybird#2931.
         { "[^]*[^]"sv, "i"sv, true }, // Optimizer bug, ignoring an enabled trailing 'invert' when comparing blocks, ladybird#3421.
+        { "xx|...|...."sv, "cd"sv, false },
     };
     // clang-format on
 

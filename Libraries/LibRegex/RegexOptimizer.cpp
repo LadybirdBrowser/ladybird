@@ -6,11 +6,11 @@
 
 #include <AK/Debug.h>
 #include <AK/Function.h>
-#include <AK/Queue.h>
 #include <AK/QuickSort.h>
 #include <AK/RedBlackTree.h>
 #include <AK/Stack.h>
 #include <AK/Trie.h>
+#include <AK/Vector.h>
 #include <LibRegex/Regex.h>
 #include <LibRegex/RegexBytecodeStreamOptimizer.h>
 #include <LibUnicode/CharacterTypes.h>
@@ -1176,8 +1176,8 @@ void Optimizer::append_alternation(ByteCode& target, Span<ByteCode> alternatives
             patch_locations.append({ node_ip, target_ip });
         };
 
-        Queue<Tree*> nodes_to_visit;
-        nodes_to_visit.enqueue(&trie);
+        Vector<Tree*> nodes_to_visit;
+        nodes_to_visit.append(&trie);
 
         HashMap<size_t, NonnullOwnPtr<RedBlackTree<u64, u64>>> instruction_positions;
         if (has_any_backwards_jump)
@@ -1195,7 +1195,7 @@ void Optimizer::append_alternation(ByteCode& target, Span<ByteCode> alternatives
         //   forkjump child2
         //   ...
         while (!nodes_to_visit.is_empty()) {
-            auto const* node = nodes_to_visit.dequeue();
+            auto const* node = nodes_to_visit.take_last();
             for (auto& patch : patch_locations) {
                 if (!patch.done && node_is(node, patch.source_ip)) {
                     auto value = static_cast<ByteCodeValueType>(target.size() - patch.target_ip - 1);
@@ -1291,7 +1291,7 @@ void Optimizer::append_alternation(ByteCode& target, Span<ByteCode> alternatives
                 target.append(static_cast<ByteCodeValueType>(OpCodeId::ForkJump));
                 add_patch_point(child_node, target.size());
                 target.append(static_cast<ByteCodeValueType>(0));
-                nodes_to_visit.enqueue(child_node);
+                nodes_to_visit.append(child_node);
             }
         }
 
