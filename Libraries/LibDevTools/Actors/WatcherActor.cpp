@@ -4,9 +4,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Debug.h>
 #include <AK/JsonObject.h>
 #include <LibCore/EventLoop.h>
 #include <LibDevTools/Actors/CSSPropertiesActor.h>
+#include <LibDevTools/Actors/ConsoleActor.h>
 #include <LibDevTools/Actors/FrameActor.h>
 #include <LibDevTools/Actors/InspectorActor.h>
 #include <LibDevTools/Actors/TabActor.h>
@@ -66,6 +68,26 @@ void WatcherActor::handle_message(StringView type, JsonObject const& message)
         return;
     }
 
+    if (type == "watchResources"sv) {
+        auto resource_types = message.get_array("resourceTypes"sv);
+        if (!resource_types.has_value()) {
+            send_missing_parameter_error("resourceTypes"sv);
+            return;
+        }
+
+        if constexpr (DEVTOOLS_DEBUG) {
+            for (auto const& resource_type : resource_types->values()) {
+                if (!resource_type.is_string())
+                    continue;
+                if (resource_type.as_string() != "console-message"sv)
+                    dbgln("Unrecognized `watchResources` resource type: '{}'", resource_type.as_string());
+            }
+        }
+
+        send_message(move(response));
+        return;
+    }
+
     if (type == "watchTargets"sv) {
         auto target_type = message.get_string("targetType"sv);
         if (!target_type.has_value()) {
@@ -75,10 +97,11 @@ void WatcherActor::handle_message(StringView type, JsonObject const& message)
 
         if (target_type == "frame"sv) {
             auto& css_properties = devtools().register_actor<CSSPropertiesActor>();
+            auto& console = devtools().register_actor<ConsoleActor>(m_tab);
             auto& inspector = devtools().register_actor<InspectorActor>(m_tab);
             auto& thread = devtools().register_actor<ThreadActor>();
 
-            auto& target = devtools().register_actor<FrameActor>(m_tab, css_properties, inspector, thread);
+            auto& target = devtools().register_actor<FrameActor>(m_tab, css_properties, console, inspector, thread);
             m_target = target;
 
             response.set("type"sv, "target-available-form"sv);
@@ -102,7 +125,7 @@ JsonObject WatcherActor::serialize_description() const
 {
     JsonObject resources;
     resources.set("Cache"sv, false);
-    resources.set("console-message"sv, false);
+    resources.set("console-message"sv, true);
     resources.set("cookies"sv, false);
     resources.set("css-change"sv, false);
     resources.set("css-message"sv, false);

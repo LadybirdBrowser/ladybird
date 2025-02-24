@@ -10,6 +10,7 @@ namespace DevTools {
 
 class Actor;
 class Connection;
+class ConsoleActor;
 class CSSPropertiesActor;
 class DeviceActor;
 class DevToolsDelegate;

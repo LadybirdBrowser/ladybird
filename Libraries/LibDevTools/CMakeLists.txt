@@ -1,5 +1,6 @@
 set(SOURCES
     Actor.cpp
+    Actors/ConsoleActor.cpp
     Actors/CSSPropertiesActor.cpp
     Actors/DeviceActor.cpp
     Actors/FrameActor.cpp
