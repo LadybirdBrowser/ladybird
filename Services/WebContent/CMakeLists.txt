@@ -1,9 +1,11 @@
 include(audio)
 
 set(SOURCES
+    BackingStoreManager.cpp
     ConnectionFromClient.cpp
     ConsoleGlobalEnvironmentExtensions.cpp
-    BackingStoreManager.cpp
+    DevToolsConsoleClient.cpp
+    InspectorConsoleClient.cpp
     PageClient.cpp
     PageHost.cpp
     WebContentConsoleClient.cpp

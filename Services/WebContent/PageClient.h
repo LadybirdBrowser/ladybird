@@ -37,6 +37,8 @@ public:
     virtual bool is_headless() const override;
     static void set_is_headless(bool);
 
+    static void set_devtools_enabled(bool);
+
     virtual bool is_ready_to_paint() const override;
 
     virtual Web::Page& page() override { return *m_page; }
