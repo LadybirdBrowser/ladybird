@@ -250,6 +250,7 @@ enum class ValueType {
 bool property_accepts_type(PropertyID, ValueType);
 bool property_accepts_keyword(PropertyID, Keyword);
 Optional<ValueType> property_resolves_percentages_relative_to(PropertyID);
+Vector<StringView> property_custom_ident_blacklist(PropertyID);
 
 // These perform range-checking, but are also safe to call with properties that don't accept that type. (They'll just return false.)
 bool property_accepts_angle(PropertyID, Angle const&);
@@ -929,6 +930,53 @@ Optional<ValueType> property_resolves_percentages_relative_to(PropertyID propert
     case PropertyID::@name:titlecase@:
         return ValueType::@resolved_type:titlecase@;
 )~~~");
+        }
+    });
+
+    generator.append(R"~~~(
+    default:
+        return {};
+    }
+}
+
+Vector<StringView> property_custom_ident_blacklist(PropertyID property_id)
+{
+    switch (property_id) {
+)~~~");
+
+    properties.for_each_member([&](auto& name, auto& value) {
+        VERIFY(value.is_object());
+        auto& object = value.as_object();
+        if (is_legacy_alias(object))
+            return;
+
+        // We only have a custom-ident blacklist if we accept custom idents!
+        if (auto maybe_valid_types = object.get_array("valid-types"sv); maybe_valid_types.has_value() && !maybe_valid_types->is_empty()) {
+            auto& valid_types = maybe_valid_types.value();
+            for (auto const& valid_type : valid_types.values()) {
+                auto type_and_parameters = MUST(valid_type.as_string().split(' '));
+                if (type_and_parameters.first() != "custom-ident"sv || type_and_parameters.size() == 1)
+                    continue;
+                VERIFY(type_and_parameters.size() == 2);
+
+                auto parameters_string = type_and_parameters[1].bytes_as_string_view();
+                VERIFY(parameters_string.starts_with("!["sv) && parameters_string.ends_with(']'));
+                auto blacklisted_keywords = parameters_string.substring_view(2, parameters_string.length() - 3).split_view(',');
+
+                auto property_generator = generator.fork();
+                property_generator.set("property_name:titlecase", title_casify(name));
+                property_generator.append(R"~~~(
+    case PropertyID::@property_name:titlecase@:
+        return Vector { )~~~");
+                for (auto const& keyword : blacklisted_keywords) {
+                    auto value_generator = property_generator.fork();
+                    value_generator.set("keyword", keyword);
+
+                    value_generator.append("\"@keyword@\"sv, ");
+                }
+
+                property_generator.appendln("};");
+            }
         }
     });
 
