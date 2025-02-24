@@ -366,6 +366,14 @@ void WebContentClient::did_get_internal_page_info(u64 page_id, WebView::PageInfo
         view->did_receive_internal_page_info({}, type, info);
 }
 
+void WebContentClient::did_execute_js_console_input(u64 page_id, JsonValue const& result)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
+        if (view->on_received_js_console_result)
+            view->on_received_js_console_result(move(const_cast<JsonValue&>(result)));
+    }
+}
+
 void WebContentClient::did_output_js_console_message(u64 page_id, i32 message_index)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {

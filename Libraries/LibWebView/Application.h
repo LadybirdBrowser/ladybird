@@ -96,6 +96,7 @@ private:
     virtual void clear_inspected_dom_node(DevTools::TabDescription const&) const override;
     virtual void highlight_dom_node(DevTools::TabDescription const&, Web::UniqueNodeID, Optional<Web::CSS::Selector::PseudoElement::Type>) const override;
     virtual void clear_highlighted_dom_node(DevTools::TabDescription const&) const override;
+    virtual void evaluate_javascript(DevTools::TabDescription const&, String, OnScriptEvaluationComplete) const override;
 
     static Application* s_the;
 
