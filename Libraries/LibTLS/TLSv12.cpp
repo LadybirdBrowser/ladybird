@@ -134,7 +134,13 @@ ErrorOr<bool> TLSv12::can_read_without_blocking(int timeout) const
     if (!m_ssl)
         return Error::from_string_literal("SSL connection is closed");
 
-    return m_socket->can_read_without_blocking(timeout);
+    if (SSL_has_pending(m_ssl))
+        return true;
+
+    if (timeout > 0)
+        return TRY(m_socket->can_read_without_blocking(timeout)) && SSL_has_pending(m_ssl);
+
+    return false;
 }
 
 ErrorOr<void> TLSv12::set_blocking(bool)
