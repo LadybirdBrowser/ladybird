@@ -148,7 +148,7 @@ jobs:
         run: ./libjs-test262/per_file_result_diff.py -o old-libjs-data/wasm/per-file-master.json -n libjs-data/wasm/per-file-master.json
 
       - name: Deploy to GitHub
-        uses: JamesIves/github-pages-deploy-action@v4.7.2
+        uses: JamesIves/github-pages-deploy-action@v4.7.3
         with:
           git-config-name: LadybirdBot
           git-config-email: ladybirdbot@ladybird.org
