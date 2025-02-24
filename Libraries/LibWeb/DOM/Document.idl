@@ -53,7 +53,9 @@ interface Document : Node {
     [CEReactions] Document open(optional DOMString unused1, optional DOMString unused2);
     WindowProxy? open(USVString url, DOMString name, DOMString features);
     [CEReactions] undefined close();
+    // FIXME: [CEReactions] undefined write((TrustedHTML or DOMString)... text);
     [CEReactions] undefined write(DOMString... text);
+    // FIXME: [CEReactions] undefined writeln((TrustedHTML or DOMString)... text);
     [CEReactions] undefined writeln(DOMString... text);
 
     // FIXME: static Document parseHTMLUnsafe((TrustedHTML or DOMString) html);
