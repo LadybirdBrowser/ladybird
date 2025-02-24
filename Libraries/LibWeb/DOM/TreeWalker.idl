@@ -6,7 +6,10 @@
 interface TreeWalker {
     [SameObject] readonly attribute Node root;
     readonly attribute unsigned long whatToShow;
-    readonly attribute NodeFilter? filter;
+
+    // FIXME: `object?` should be `NodeFilter?`, but we don't yet properly support callback interfaces.
+    readonly attribute object? filter;
+
     attribute Node currentNode;
 
     Node? parentNode();
