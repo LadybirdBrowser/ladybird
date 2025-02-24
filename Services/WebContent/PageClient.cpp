@@ -24,6 +24,8 @@
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWebView/Attribute.h>
 #include <WebContent/ConnectionFromClient.h>
+#include <WebContent/DevToolsConsoleClient.h>
+#include <WebContent/InspectorConsoleClient.h>
 #include <WebContent/PageClient.h>
 #include <WebContent/PageHost.h>
 #include <WebContent/WebContentClientEndpoint.h>
@@ -33,6 +35,7 @@ namespace WebContent {
 
 static PageClient::UseSkiaPainter s_use_skia_painter = PageClient::UseSkiaPainter::GPUBackendIfAvailable;
 static bool s_is_headless { false };
+static bool s_devtools_enabled { false };
 
 GC_DEFINE_ALLOCATOR(PageClient);
 
@@ -49,6 +52,11 @@ bool PageClient::is_headless() const
 void PageClient::set_is_headless(bool is_headless)
 {
     s_is_headless = is_headless;
+}
+
+void PageClient::set_devtools_enabled(bool devtools_enabled)
+{
+    s_devtools_enabled = devtools_enabled;
 }
 
 GC::Ref<PageClient> PageClient::create(JS::VM& vm, PageHost& page_host, u64 id)
@@ -731,9 +739,13 @@ void PageClient::initialize_js_console(Web::DOM::Document& document)
         return;
 
     auto& realm = document.realm();
-
     auto console_object = realm.intrinsics().console_object();
-    auto console_client = heap().allocate<WebContentConsoleClient>(console_object->console(), document.realm(), *this);
+
+    GC::Ptr<JS::ConsoleClient> console_client;
+    if (s_devtools_enabled)
+        console_client = DevToolsConsoleClient::create(document.realm(), console_object->console(), *this);
+    else
+        console_client = InspectorConsoleClient::create(document.realm(), console_object->console(), *this);
 
     document.set_console_client(console_client);
 }
