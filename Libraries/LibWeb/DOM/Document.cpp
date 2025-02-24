@@ -603,40 +603,59 @@ GC::Ptr<Selection::Selection> Document::get_selection() const
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-document-write
-WebIDL::ExceptionOr<void> Document::write(Vector<String> const& strings)
+WebIDL::ExceptionOr<void> Document::write(Vector<String> const& text)
 {
-    StringBuilder builder;
-    builder.join(""sv, strings);
-
-    return run_the_document_write_steps(builder.string_view());
+    // The document.write(...text) method steps are to run the document write steps with this, text, false, and "Document write".
+    return run_the_document_write_steps(text, AddLineFeed::No, TrustedTypes::InjectionSink::DocumentWrite);
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-document-writeln
-WebIDL::ExceptionOr<void> Document::writeln(Vector<String> const& strings)
+WebIDL::ExceptionOr<void> Document::writeln(Vector<String> const& text)
 {
-    StringBuilder builder;
-    builder.join(""sv, strings);
-    builder.append("\n"sv);
-
-    return run_the_document_write_steps(builder.string_view());
+    // The document.writeln(...text) method steps are to run the document write steps with this, text, true, and "Document writeln".
+    return run_the_document_write_steps(text, AddLineFeed::Yes, TrustedTypes::InjectionSink::DocumentWriteln);
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#document-write-steps
-WebIDL::ExceptionOr<void> Document::run_the_document_write_steps(StringView input)
+WebIDL::ExceptionOr<void> Document::run_the_document_write_steps(Vector<String> const& text, AddLineFeed line_feed, TrustedTypes::InjectionSink sink)
 {
-    // 1. If document is an XML document, then throw an "InvalidStateError" DOMException.
+    // 1. Let string be the empty string.
+    StringBuilder string;
+
+    // 2. Let isTrusted be false if text contains a string; otherwise true.
+    // FIXME: We currently only accept strings. Revisit this once we support the TrustedHTML type.
+    auto is_trusted = true;
+
+    // 3. For each value of text:
+    for (auto const& value : text) {
+        // FIXME: 1. If value is a TrustedHTML object, then append value's associated data to string.
+
+        // 2. Otherwise, append value to string.
+        string.append(value);
+    }
+
+    // FIXME: 4. If isTrusted is false, set string to the result of invoking the Get Trusted Type compliant string algorithm
+    //    with TrustedHTML, this's relevant global object, string, sink, and "script".
+    (void)is_trusted;
+    (void)sink;
+
+    // 5. If lineFeed is true, append U+000A LINE FEED to string.
+    if (line_feed == AddLineFeed::Yes)
+        string.append('\n');
+
+    // 6. If document is an XML document, then throw an "InvalidStateError" DOMException.
     if (m_type == Type::XML)
         return WebIDL::InvalidStateError::create(realm(), "write() called on XML document."_string);
 
-    // 2. If document's throw-on-dynamic-markup-insertion counter is greater than 0, then throw an "InvalidStateError" DOMException.
+    // 7. If document's throw-on-dynamic-markup-insertion counter is greater than 0, then throw an "InvalidStateError" DOMException.
     if (m_throw_on_dynamic_markup_insertion_counter > 0)
         return WebIDL::InvalidStateError::create(realm(), "throw-on-dynamic-markup-insertion-counter greater than zero."_string);
 
-    // 3. If document's active parser was aborted is true, then return.
+    // 8. If document's active parser was aborted is true, then return.
     if (m_active_parser_was_aborted)
         return {};
 
-    // 4. If the insertion point is undefined, then:
+    // 9. If the insertion point is undefined, then:
     if (!(m_parser && m_parser->tokenizer().is_insertion_point_defined())) {
         // 1. If document's unload counter is greater than 0 or document's ignore-destructive-writes counter is greater than 0, then return.
         if (m_unload_counter > 0 || m_ignore_destructive_writes_counter > 0)
@@ -646,13 +665,13 @@ WebIDL::ExceptionOr<void> Document::run_the_document_write_steps(StringView inpu
         TRY(open());
     }
 
-    // 5. Insert input into the input stream just before the insertion point.
-    m_parser->tokenizer().insert_input_at_insertion_point(input);
+    // 10. Insert string into the input stream just before the insertion point.
+    m_parser->tokenizer().insert_input_at_insertion_point(string.string_view());
 
-    // 6. If there is no pending parsing-blocking script, have the HTML parser process input, one code point at a time,
-    //    processing resulting tokens as they are emitted, and stopping when the tokenizer reaches the insertion point
-    //    or when the processing of the tokenizer is aborted by the tree construction stage (this can happen if a script
-    //    end tag token is emitted by the tokenizer).
+    // 11. If document's pending parsing-blocking script is null, then have the HTML parser process string, one code
+    //     point at a time, processing resulting tokens as they are emitted, and stopping when the tokenizer reaches
+    //     the insertion point or when the processing of the tokenizer is aborted by the tree construction stage (this
+    //     can happen if a script end tag token is emitted by the tokenizer).
     if (!pending_parsing_blocking_script())
         m_parser->run(HTML::HTMLTokenizer::StopAtInsertionPoint::Yes);
 

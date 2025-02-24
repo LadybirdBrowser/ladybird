@@ -38,6 +38,7 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/VisibilityState.h>
 #include <LibWeb/InvalidateDisplayList.h>
+#include <LibWeb/TrustedTypes/InjectionSink.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/ObservableArray.h>
 
@@ -840,7 +841,11 @@ private:
 
     void evaluate_media_rules();
 
-    WebIDL::ExceptionOr<void> run_the_document_write_steps(StringView);
+    enum class AddLineFeed {
+        Yes,
+        No,
+    };
+    WebIDL::ExceptionOr<void> run_the_document_write_steps(Vector<String> const& text, AddLineFeed line_feed, TrustedTypes::InjectionSink sink);
 
     void queue_intersection_observer_task();
     void queue_an_intersection_observer_entry(IntersectionObserver::IntersectionObserver&, HighResolutionTime::DOMHighResTimeStamp time, GC::Ref<Geometry::DOMRectReadOnly> root_bounds, GC::Ref<Geometry::DOMRectReadOnly> bounding_client_rect, GC::Ref<Geometry::DOMRectReadOnly> intersection_rect, bool is_intersecting, double intersection_ratio, GC::Ref<Element> target);
