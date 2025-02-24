@@ -7,6 +7,7 @@
 #include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
 #include <LibDevTools/Actors/CSSPropertiesActor.h>
+#include <LibDevTools/Actors/ConsoleActor.h>
 #include <LibDevTools/Actors/FrameActor.h>
 #include <LibDevTools/Actors/InspectorActor.h>
 #include <LibDevTools/Actors/TabActor.h>
@@ -14,15 +15,16 @@
 
 namespace DevTools {
 
-NonnullRefPtr<FrameActor> FrameActor::create(DevToolsServer& devtools, String name, WeakPtr<TabActor> tab, WeakPtr<CSSPropertiesActor> css_properties, WeakPtr<InspectorActor> inspector, WeakPtr<ThreadActor> thread)
+NonnullRefPtr<FrameActor> FrameActor::create(DevToolsServer& devtools, String name, WeakPtr<TabActor> tab, WeakPtr<CSSPropertiesActor> css_properties, WeakPtr<ConsoleActor> console, WeakPtr<InspectorActor> inspector, WeakPtr<ThreadActor> thread)
 {
-    return adopt_ref(*new FrameActor(devtools, move(name), move(tab), move(css_properties), move(inspector), move(thread)));
+    return adopt_ref(*new FrameActor(devtools, move(name), move(tab), move(css_properties), move(console), move(inspector), move(thread)));
 }
 
-FrameActor::FrameActor(DevToolsServer& devtools, String name, WeakPtr<TabActor> tab, WeakPtr<CSSPropertiesActor> css_properties, WeakPtr<InspectorActor> inspector, WeakPtr<ThreadActor> thread)
+FrameActor::FrameActor(DevToolsServer& devtools, String name, WeakPtr<TabActor> tab, WeakPtr<CSSPropertiesActor> css_properties, WeakPtr<ConsoleActor> console, WeakPtr<InspectorActor> inspector, WeakPtr<ThreadActor> thread)
     : Actor(devtools, move(name))
     , m_tab(move(tab))
     , m_css_properties(move(css_properties))
+    , m_console(move(console))
     , m_inspector(move(inspector))
     , m_thread(move(thread))
 {
@@ -95,6 +97,8 @@ JsonObject FrameActor::serialize_target() const
 
     if (auto css_properties = m_css_properties.strong_ref())
         target.set("cssPropertiesActor"sv, css_properties->name());
+    if (auto console = m_console.strong_ref())
+        target.set("consoleActor"sv, console->name());
     if (auto inspector = m_inspector.strong_ref())
         target.set("inspectorActor"sv, inspector->name());
     if (auto thread = m_thread.strong_ref())
