@@ -167,13 +167,15 @@ support of frame inspection:
 
 The client then asks the server to watch the inspected tab's frame. The server must reply with multiple messages here.
 The first message contains information about the inspected tab, as well as a list of other actors associated with the
-watcher. We are required to have an inspector actor, a CSS properties actor, and a thread actor (described below when
-they are requested by the client). The second message contains a small set of information about the tab again. The third
-message is just an empty message, which seems to indicate and end-of-transmission status:
+watcher. We are required to have an inspector actor, a CSS properties actor, and a thread actor. We also have the optional
+console actor. These actors are described below when they are requested by the client.
+
+The second message contains a small set of information about the tab again. The third message is just an empty message,
+which seems to indicate and end-of-transmission status:
 
 ```jsonc
 >> {"type":"watchTargets","targetType":"frame","to":"server0-watcher5"}
-<< {"from":"server0-watcher5","type":"target-available-form","target":{"actor":"server0-frame9","title":"Ladybird","url":"https://ladybird.org/","browsingContextID":1,"outerWindowID":1,"isTopLevelTarget":true,"traits":{"frames":true,"isBrowsingContext":true,"logInPage":false,"navigation":true,"supportsTopLevelTargetFlag":true,"watchpoints":true},"cssPropertiesActor":"server0-css-properties6","inspectorActor":"server0-inspector7","threadActor":"server0-thread8"}}
+<< {"from":"server0-watcher5","type":"target-available-form","target":{"actor":"server0-frame10","title":"xkcd: Scream Cipher","url":"https://xkcd.com/","browsingContextID":1,"outerWindowID":1,"isTopLevelTarget":true,"traits":{"frames":true,"isBrowsingContext":true,"logInPage":false,"navigation":true,"supportsTopLevelTargetFlag":true,"watchpoints":true},"cssPropertiesActor":"server0-css-properties6","consoleActor":"server0-console8","inspectorActor":"server0-inspector7","threadActor":"server0-thread9"}}
 << {"from":"server0-frame9","type":"frameUpdate","frames":[{"id":1,"title":"Ladybird","url":"https://ladybird.org/"}]}
 << {"from":"server0-watcher5"}
 ```
@@ -385,6 +387,43 @@ that node:
 The above highlighter requests are repeated as the user's mouse is moved between nodes. When the user clicks on a DOM
 node, that node then becomes the inspected node, and the client will ask for the box model / computed style for that
 node.
+
+### JavaScript console
+
+During the initialization of the watcher actor, the server advertises to the client that it supports the console. The
+client will then ask the server to begin some console-related listeners, which we do not yet support:
+
+```jsonc
+>> {"type":"startListeners","listeners":["DocumentEvents"],"to":"server0-console8"}
+<< {"from":"server0-console8","error":"unrecognizedPacketType","message":"Unrecognized packet type: 'startListeners'"}
+
+>> {"type":"startListeners","listeners":["PageError"],"to":"server0-console8"}
+<< {"from":"server0-console8","error":"unrecognizedPacketType","message":"Unrecognized packet type: 'startListeners'"}
+```
+
+When the user enters text into the console, the client will ask the server for autocompletions and eager evaluation of
+the input text. We do not yet support either of these features, so the server replies with some stubbed information:
+
+```jsonc
+>> {"type":"autocomplete","text":"1+","frameActor":null,"authorizedEvaluations":[],"expressionVars":[],"to":"server0-console8"}
+>> {"type":"evaluateJSAsync","text":"1+","eager":true,"to":"server0-console8"}
+
+<< {"from":"server0-console8","matches":[],"matchProp":""}
+<< {"from":"server0-console8","resultID":"server0-console8-1"}
+```
+
+When the script is finally executed by the user, the client will ask for a non-eager evaluation of the script. At this
+point, the server will send the script to the WebContent process for evaluation. Its result is serialized to a JSON
+value, which is called a [grip](https://firefox-source-docs.mozilla.org/devtools/backend/protocol.html#grips). We
+currently only support serialization of plain types; objects are serialized to a string for now. Since the request is
+async, the server replies immediately with a pending result ID for the script. The actual result associated with that
+ID is then sent once the script is complete:
+
+```jsonc
+>> {"type":"evaluateJSAsync","text":"1+1","disableBreaks":false,"to":"server0-console8"}
+<< {"from":"server0-console8","resultID":"server0-console8-3"}
+<< {"from":"server0-console8","type":"evaluationResult","timestamp":1740417141889,"resultID":"server0-console8-3","input":"1+1","result":2,"exception":null,"exceptionMessage":null,"helperResult":null}
+```
 
 ### Session termination
 
