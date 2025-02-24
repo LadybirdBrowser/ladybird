@@ -26,7 +26,7 @@ public:
     bool pointer_before_reference_node() const { return m_reference.is_before_node; }
     unsigned what_to_show() const { return m_what_to_show; }
 
-    NodeFilter* filter() { return m_filter.ptr(); }
+    JS::Object* filter() const;
 
     JS::ThrowCompletionOr<GC::Ptr<Node>> next_node();
     JS::ThrowCompletionOr<GC::Ptr<Node>> previous_node();
