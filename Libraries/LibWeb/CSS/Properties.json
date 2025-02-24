@@ -2848,7 +2848,6 @@
     "inherited": false,
     "initial": "all",
     "valid-types": [
-      "string",
       "custom-ident ![all,none]"
     ],
     "valid-identifiers": [
