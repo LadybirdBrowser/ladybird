@@ -33,7 +33,7 @@ public:
 
     GC::Ref<Node> root() { return m_root; }
 
-    NodeFilter* filter() { return m_filter.ptr(); }
+    JS::Object* filter() const;
 
     unsigned what_to_show() const { return m_what_to_show; }
 
