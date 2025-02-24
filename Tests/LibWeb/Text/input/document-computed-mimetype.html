@@ -2,23 +2,37 @@
 <script src="include.js"></script>
 <script>
     asyncTest(async (done) => {
-        const httpServer = httpTestServer();
-        const url = await httpServer.createEcho("GET", "/document-computed-mimetype-test", {
-            status: 200,
-            headers: {
-                "Access-Control-Allow-Origin": "*",
-            },
-            body: `<!doctype html><meta charset="UTF-8"><script>parent.postMessage(document.characterSet, "*")<\/script>`,
-        });
+        const encodings = ['utf-8', 'utf-16be', 'utf-16le', 'x-user-defined'];
 
-        const frame = document.createElement('iframe');
-        frame.src = url;
+        let receivedMessages = [];
+        const dumpMessages = () => {
+            receivedMessages.sort((a, b) => a.encoding.localeCompare(b.encoding));
+            for (const receivedMessage of receivedMessages) {
+                println(`Encoding: ${receivedMessage.encoding} mapped to characterSet: ${receivedMessage.characterSet}`);
+            }
+        };
 
         addEventListener("message", (event) => {
-            println("PASS: " + event.data);
-            done();
+            receivedMessages.push(event.data);
+            if (receivedMessages.length == encodings.length) {
+                dumpMessages();
+                done();
+            }
         }, false);
 
-        document.body.appendChild(frame);
+        const httpServer = httpTestServer();
+        for (let encoding of encodings) {
+            const url = await httpServer.createEcho("GET", `/document-computed-mimetype-test-${encoding}`, {
+                status: 200,
+                headers: {
+                    "Access-Control-Allow-Origin": "*",
+                },
+                body: `<!doctype html><meta charset="${encoding}"><script>parent.postMessage({"encoding": "${encoding}", "characterSet": document.characterSet}, "*")<\/script>`,
+            });
+
+            const frame = document.createElement("iframe");
+            frame.src = url;
+            document.body.appendChild(frame);
+        }
     });
 </script>

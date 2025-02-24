@@ -311,7 +311,8 @@ Optional<ByteString> run_prescan_byte_stream_algorithm(DOM::Document& document, 
 
             if (!need_pragma.has_value() || (need_pragma.value() && !got_pragma) || !charset.has_value())
                 continue;
-            if (charset.value() == "UTF-16BE/LE")
+            // https://encoding.spec.whatwg.org/#common-infrastructure-for-utf-16be-and-utf-16le
+            if (charset.value() == "UTF-16BE" || charset.value() == "UTF-16LE")
                 return "UTF-8";
             else if (charset.value() == "x-user-defined")
                 return "windows-1252";
