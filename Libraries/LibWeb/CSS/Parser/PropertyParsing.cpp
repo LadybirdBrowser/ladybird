@@ -839,7 +839,7 @@ RefPtr<CSSStyleValue> Parser::parse_color_scheme_value(TokenStream<ComponentValu
 
         // The 'normal', 'light', 'dark', and 'only' keywords are not valid <custom-ident>s in this property.
         // Note: only 'normal' is blacklisted here because 'light' and 'dark' aren't parsed differently and 'only' is checked for afterwards
-        auto ident = parse_custom_ident_value(tokens, { "normal"sv });
+        auto ident = parse_custom_ident_value(tokens, { { "normal"sv } });
         if (!ident)
             return {};
 
@@ -4452,7 +4452,7 @@ RefPtr<CSSStyleValue> Parser::parse_view_transition_name_value(TokenStream<Compo
 
         // The values 'none' and 'auto' are excluded from <custom-ident> here.
         // Note: Only auto is excluded here since none isn't parsed differently.
-        auto ident = parse_custom_ident_value(tokens, { "auto"sv });
+        auto ident = parse_custom_ident_value(tokens, { { "auto"sv } });
         if (!ident)
             return {};
 
