@@ -2437,14 +2437,105 @@ GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::Element& elem
     return computed_properties;
 }
 
+static bool is_monospace(CSSStyleValue const& value)
+{
+    if (value.to_keyword() == Keyword::Monospace)
+        return true;
+    if (value.is_value_list()) {
+        auto const& values = value.as_value_list().values();
+        if (values.size() == 1 && values[0]->to_keyword() == Keyword::Monospace)
+            return true;
+    }
+    return false;
+}
+
+// HACK: This function implements time-travelling inheritance for the font-size property
+//       in situations where the cascade ended up with `font-family: monospace`.
+//       In such cases, other browsers will magically change the meaning of keyword font sizes
+//       *even in earlier stages of the cascade!!* to be relative to the default monospace font size (13px)
+//       instead of the default font size (16px).
+//       See this blog post for a lot more details about this weirdness:
+//       https://manishearth.github.io/blog/2017/08/10/font-size-an-unexpectedly-complex-css-property/
+RefPtr<CSSStyleValue> StyleComputer::recascade_font_size_if_needed(
+    DOM::Element& element,
+    Optional<CSS::Selector::PseudoElement::Type> pseudo_element,
+    CascadedProperties& cascaded_properties) const
+{
+    // Check for `font-family: monospace`. Note that `font-family: monospace, AnythingElse` does not trigger this path.
+    // Some CSS frameworks use `font-family: monospace, monospace` to work around this behavior.
+    auto font_family_value = cascaded_properties.property(CSS::PropertyID::FontFamily);
+    if (!font_family_value || !is_monospace(*font_family_value))
+        return nullptr;
+
+    // FIXME: This should be configurable.
+    constexpr CSSPixels default_monospace_font_size_in_px = 13;
+    static auto monospace_font_family_name = Platform::FontPlugin::the().generic_font_name(Platform::GenericFont::Monospace);
+    static auto monospace_font = Gfx::FontDatabase::the().get(monospace_font_family_name, default_monospace_font_size_in_px * 0.75f, 400, Gfx::FontWidth::Normal, 0);
+
+    // Reconstruct the line of ancestor elements we need to inherit style from, and then do the cascade again
+    // but only for the font-size property.
+    Vector<DOM::Element&> ancestors;
+    if (pseudo_element.has_value())
+        ancestors.append(element);
+    for (auto* ancestor = element.parent_element(); ancestor; ancestor = ancestor->parent_element())
+        ancestors.append(*ancestor);
+
+    NonnullRefPtr<CSSStyleValue> new_font_size = CSS::LengthStyleValue::create(CSS::Length::make_px(default_monospace_font_size_in_px));
+    CSSPixels current_size_in_px = default_monospace_font_size_in_px;
+
+    for (auto& ancestor : ancestors.in_reverse()) {
+        auto& ancestor_cascaded_properties = *ancestor.cascaded_properties({});
+        auto font_size_value = ancestor_cascaded_properties.property(CSS::PropertyID::FontSize);
+
+        if (!font_size_value)
+            continue;
+        if (font_size_value->is_initial() || font_size_value->is_unset()) {
+            current_size_in_px = default_monospace_font_size_in_px;
+            continue;
+        }
+        if (font_size_value->is_inherit()) {
+            // Do nothing.
+            continue;
+        }
+
+        if (font_size_value->is_keyword()) {
+            current_size_in_px = default_monospace_font_size_in_px * absolute_size_mapping(font_size_value->to_keyword());
+            continue;
+        }
+
+        if (font_size_value->is_percentage()) {
+            current_size_in_px = CSSPixels::nearest_value_for(font_size_value->as_percentage().percentage().as_fraction() * current_size_in_px);
+            continue;
+        }
+
+        if (font_size_value->is_calculated()) {
+            dbgln("FIXME: Support calc() when time-traveling for monospace font-size");
+            continue;
+        }
+
+        VERIFY(font_size_value->is_length());
+        current_size_in_px = font_size_value->as_length().length().to_px(viewport_rect(), Length::FontMetrics { current_size_in_px, monospace_font->with_size(current_size_in_px * 0.75f)->pixel_metrics() }, m_root_element_font_metrics);
+    };
+
+    return CSS::LengthStyleValue::create(CSS::Length::make_px(current_size_in_px));
+}
+
 GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::Element& element, Optional<Selector::PseudoElement::Type> pseudo_element, CascadedProperties& cascaded_properties) const
 {
     auto computed_style = document().heap().allocate<CSS::ComputedProperties>();
+
+    auto new_font_size = recascade_font_size_if_needed(element, pseudo_element, cascaded_properties);
+    if (new_font_size)
+        computed_style->set_property(PropertyID::FontSize, *new_font_size, ComputedProperties::Inherited::No, Important::No);
 
     for (auto i = to_underlying(first_longhand_property_id); i <= to_underlying(last_longhand_property_id); ++i) {
         auto property_id = static_cast<CSS::PropertyID>(i);
         auto value = cascaded_properties.property(property_id);
         auto inherited = ComputedProperties::Inherited::No;
+
+        // NOTE: We've already handled font-size above.
+        if (property_id == PropertyID::FontSize && !value && new_font_size)
+            continue;
 
         if ((!value && is_inherited_property(property_id))
             || (value && value->is_inherit())) {

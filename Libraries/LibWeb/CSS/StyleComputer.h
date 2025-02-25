@@ -183,6 +183,8 @@ public:
     static CSSPixelFraction absolute_size_mapping(Keyword);
     RefPtr<Gfx::FontCascadeList const> compute_font_for_style_values(DOM::Element const* element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, CSSStyleValue const& font_family, CSSStyleValue const& font_size, CSSStyleValue const& font_style, CSSStyleValue const& font_weight, CSSStyleValue const& font_stretch, int math_depth = 0) const;
 
+    [[nodiscard]] RefPtr<CSSStyleValue> recascade_font_size_if_needed(DOM::Element&, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, CascadedProperties&) const;
+
     void set_viewport_rect(Badge<DOM::Document>, CSSPixelRect const& viewport_rect) { m_viewport_rect = viewport_rect; }
 
     enum class AnimationRefresh {

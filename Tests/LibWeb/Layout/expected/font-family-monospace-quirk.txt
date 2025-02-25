@@ -1,0 +1,35 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x235 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x219 children: not-inline
+      BlockContainer <(anonymous)> at (8,8) content-size 784x35 children: inline
+        frag 0 from TextNode start: 0, length: 3, rect: [8,8 55.40625x35] baseline: 27.09375
+            "abc"
+        TextNode <#text>
+      BlockContainer <main> at (8,43) content-size 784x184 children: not-inline
+        BlockContainer <(anonymous)> at (8,43) content-size 784x70 children: inline
+          frag 0 from TextNode start: 0, length: 3, rect: [8,43 92.0625x70] baseline: 54.1875
+              "def"
+          TextNode <#text>
+        BlockContainer <article> at (8,113) content-size 784x114 children: not-inline
+          BlockContainer <(anonymous)> at (8,113) content-size 784x57 children: inline
+            frag 0 from TextNode start: 0, length: 3, rect: [8,113 69.625x57] baseline: 44.09375
+                "ghi"
+            TextNode <#text>
+          BlockContainer <div> at (8,170) content-size 784x57 children: inline
+            frag 0 from TextNode start: 0, length: 3, rect: [8,170 59.828125x57] baseline: 44.09375
+                "jkl"
+            TextNode <#text>
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x235]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x219]
+      PaintableWithLines (BlockContainer(anonymous)) [8,8 784x35]
+        TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer<MAIN>) [8,43 784x184]
+        PaintableWithLines (BlockContainer(anonymous)) [8,43 784x70]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer<ARTICLE>) [8,113 784x114]
+          PaintableWithLines (BlockContainer(anonymous)) [8,113 784x57]
+            TextPaintable (TextNode<#text>)
+          PaintableWithLines (BlockContainer<DIV>) [8,170 784x57]
+            TextPaintable (TextNode<#text>)

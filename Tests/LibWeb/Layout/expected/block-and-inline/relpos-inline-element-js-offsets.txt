@@ -1,6 +1,6 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
   BlockContainer <html> at (0,0) content-size 800x600 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x152 children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x140 children: not-inline
       BlockContainer <(anonymous)> at (8,8) content-size 784x17 children: inline
         InlineNode <span>
           frag 0 from TextNode start: 0, length: 5, rect: [8,8 36.40625x17] baseline: 13.296875
@@ -15,27 +15,27 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
                   "friends"
               TextNode <#text>
         TextNode <#text>
-      BlockContainer <div> at (8,25) content-size 784x135 children: not-inline
+      BlockContainer <div> at (8,25) content-size 784x123 children: not-inline
         BlockContainer <(anonymous)> at (8,25) content-size 784x68 children: inline
           BreakNode <br>
           BreakNode <br>
           BreakNode <br>
           BreakNode <br>
-        BlockContainer <pre#out> at (8,109) content-size 784x51 children: inline
-          frag 0 from TextNode start: 0, length: 10, rect: [8,109 72.203125x17] baseline: 13.296875
+        BlockContainer <pre#out> at (8,106) content-size 784x42 children: inline
+          frag 0 from TextNode start: 0, length: 10, rect: [8,106 58.640625x14] baseline: 10.890625
               "well: 8, 8"
-          frag 1 from TextNode start: 11, length: 13, rect: [8,126 95.359375x17] baseline: 13.296875
+          frag 1 from TextNode start: 11, length: 13, rect: [8,120 77.46875x14] baseline: 10.890625
               "hello: 44, 33"
-          frag 2 from TextNode start: 25, length: 15, rect: [8,143 112.953125x17] baseline: 13.296875
+          frag 2 from TextNode start: 25, length: 15, rect: [8,134 91.78125x14] baseline: 10.890625
               "friends: 44, 25"
           TextNode <#text>
-      BlockContainer <(anonymous)> at (8,176) content-size 784x0 children: inline
+      BlockContainer <(anonymous)> at (8,161) content-size 784x0 children: inline
         TextNode <#text>
         TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x600]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x152]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x140]
       PaintableWithLines (BlockContainer(anonymous)) [8,8 784x17]
         PaintableWithLines (InlineNode<SPAN>)
           TextPaintable (TextNode<#text>)
@@ -43,8 +43,8 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
             TextPaintable (TextNode<#text>)
             PaintableWithLines (InlineNode<I>)
               TextPaintable (TextNode<#text>)
-      PaintableWithLines (BlockContainer<DIV>) [8,25 784x135]
+      PaintableWithLines (BlockContainer<DIV>) [8,25 784x123]
         PaintableWithLines (BlockContainer(anonymous)) [8,25 784x68]
-        PaintableWithLines (BlockContainer<PRE>#out) [8,109 784x51]
+        PaintableWithLines (BlockContainer<PRE>#out) [8,106 784x42]
           TextPaintable (TextNode<#text>)
-      PaintableWithLines (BlockContainer(anonymous)) [8,176 784x0]
+      PaintableWithLines (BlockContainer(anonymous)) [8,161 784x0]
