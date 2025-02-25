@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:h="http://www.w3.org/1999/xhtml"
+     xmlns:pickle="http://ns.example.org/pickle"
+     version="1.1"
+     width="100%" height="100%" viewBox="0 0 400 400">
+<title>firstElementChild with namespaces</title>
+<h:script src="../../resources/testharness.js"/>
+<h:script src="../../resources/testharnessreport.js"/>
+
+<text x="200" y="40" font-size="25" fill="black" text-anchor="middle">Test of firstElementChild with namespaces</text>
+<g id="parentEl">
+  <pickle:dill id="first_element_child"/>
+</g>
+
+<h:script><![CDATA[
+test(function() {
+  var parentEl = document.getElementById("parentEl");
+  var fec = parentEl.firstElementChild;
+  assert_true(!!fec)
+  assert_equals(fec.nodeType, 1)
+  assert_equals(fec.getAttribute("id"), "first_element_child")
+  assert_equals(fec.localName, "dill")
+})
+]]></h:script>
+</svg>
