@@ -5,10 +5,11 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
         TableWrapper <(anonymous)> at (235.265625,8) content-size 329.46875x17 [BFC] children: not-inline
           Box <div.box> at (235.265625,8) content-size 329.46875x17 table-box [TFC] children: not-inline
             Box <(anonymous)> at (235.265625,8) content-size 329.46875x17 table-row children: not-inline
-              BlockContainer <div.cell> at (235.265625,8) content-size 329.46875x17 table-cell [BFC] children: inline
-                frag 0 from TextNode start: 0, length: 34, rect: [235.265625,8 329.46875x17] baseline: 13.296875
-                    "DaTa DisplaYiNg CSS WeBpaGE ScReEn"
-                TextNode <#text>
+              BlockContainer <div.cell> at (235.265625,8) content-size 329.46875x17 table-cell [BFC] children: not-inline
+                BlockContainer <(anonymous)> at (235.265625,8) content-size 329.46875x17 children: inline
+                  frag 0 from TextNode start: 0, length: 34, rect: [235.265625,8 329.46875x17] baseline: 13.296875
+                      "DaTa DisplaYiNg CSS WeBpaGE ScReEn"
+                  TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x600]
@@ -18,4 +19,5 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
           PaintableBox (Box<DIV>.box) [235.265625,8 329.46875x17]
             PaintableBox (Box(anonymous)) [235.265625,8 329.46875x17]
               PaintableWithLines (BlockContainer<DIV>.cell) [235.265625,8 329.46875x17]
-                TextPaintable (TextNode<#text>)
+                PaintableWithLines (BlockContainer(anonymous)) [235.265625,8 329.46875x17]
+                  TextPaintable (TextNode<#text>)

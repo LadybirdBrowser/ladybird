@@ -9,20 +9,21 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
             Box <tr> at (11,11) content-size 778x104 table-row children: not-inline
               BlockContainer <td.mbox-image> at (12,38) content-size 50x50 table-cell [BFC] children: not-inline
                 BlockContainer <div.mbox-image-div> at (12,38) content-size 50x50 children: not-inline
-              BlockContainer <td.mbox-text> at (66,12) content-size 722x102 table-cell [BFC] children: inline
-                frag 0 from TextNode start: 1, length: 84, rect: [66,12 689.640625x17] baseline: 13.296875
-                    "In a scene set in a lawyer's office, the lawyer sits alone and bounces a rubber ball"
-                frag 1 from TextNode start: 86, length: 84, rect: [66,29 695.5625x17] baseline: 13.296875
-                    "against the wall. They receive a call from their assistant who expresses frustration"
-                frag 2 from TextNode start: 171, length: 85, rect: [66,46 703.125x17] baseline: 13.296875
-                    "over a packed waiting room and the lawyer's lack of clients. The lawyer then looks at"
-                frag 3 from TextNode start: 257, length: 81, rect: [66,63 695.90625x17] baseline: 13.296875
-                    "some papers from a large envelope, which turn out to be divorce papers from their"
-                frag 4 from TextNode start: 339, length: 84, rect: [66,80 670.515625x17] baseline: 13.296875
-                    "significant other. Finally, the lawyer instructs their assistant to send in the next"
-                frag 5 from TextNode start: 424, length: 7, rect: [66,97 47.21875x17] baseline: 13.296875
-                    "client."
-                TextNode <#text>
+              BlockContainer <td.mbox-text> at (66,12) content-size 722x102 table-cell [BFC] children: not-inline
+                BlockContainer <(anonymous)> at (66,12) content-size 722x102 children: inline
+                  frag 0 from TextNode start: 1, length: 84, rect: [66,12 689.640625x17] baseline: 13.296875
+                      "In a scene set in a lawyer's office, the lawyer sits alone and bounces a rubber ball"
+                  frag 1 from TextNode start: 86, length: 84, rect: [66,29 695.5625x17] baseline: 13.296875
+                      "against the wall. They receive a call from their assistant who expresses frustration"
+                  frag 2 from TextNode start: 171, length: 85, rect: [66,46 703.125x17] baseline: 13.296875
+                      "over a packed waiting room and the lawyer's lack of clients. The lawyer then looks at"
+                  frag 3 from TextNode start: 257, length: 81, rect: [66,63 695.90625x17] baseline: 13.296875
+                      "some papers from a large envelope, which turn out to be divorce papers from their"
+                  frag 4 from TextNode start: 339, length: 84, rect: [66,80 670.515625x17] baseline: 13.296875
+                      "significant other. Finally, the lawyer instructs their assistant to send in the next"
+                  frag 5 from TextNode start: 424, length: 7, rect: [66,97 47.21875x17] baseline: 13.296875
+                      "client."
+                  TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x600]
@@ -34,4 +35,5 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
               PaintableWithLines (BlockContainer<TD>.mbox-image) [11,11 52x104]
                 PaintableWithLines (BlockContainer<DIV>.mbox-image-div) [12,38 50x50]
               PaintableWithLines (BlockContainer<TD>.mbox-text) [65,11 724x104]
-                TextPaintable (TextNode<#text>)
+                PaintableWithLines (BlockContainer(anonymous)) [66,12 722x102]
+                  TextPaintable (TextNode<#text>)
