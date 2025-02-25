@@ -286,10 +286,6 @@ void LineBuilder::update_last_line()
 
             auto alphabetic_baseline = m_current_block_offset + line_box_baseline - fragment.baseline() + effective_box_top_offset;
 
-            // NOTE: Plain inline text content is always on the alphabetic baseline.
-            if (!fragment.is_atomic_inline())
-                return alphabetic_baseline;
-
             switch (vertical_align) {
             case CSS::VerticalAlign::Baseline:
                 return alphabetic_baseline;
