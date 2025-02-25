@@ -38,15 +38,21 @@ private:
     virtual void comment(StringView data) override;
     virtual void document_end() override;
 
+    Optional<FlyString> namespace_for_element(XML::Name const& element_name);
+
     GC::Ref<DOM::Document> m_document;
     GC::Ptr<DOM::Node> m_current_node;
     XMLScriptingSupport m_scripting_support { XMLScriptingSupport::Enabled };
     bool m_has_error { false };
     StringBuilder text_builder;
-    Optional<FlyString> m_namespace;
+
+    struct NamespaceAndPrefix {
+        FlyString ns;
+        Optional<ByteString> prefix;
+    };
 
     struct NamespaceStackEntry {
-        Optional<FlyString> ns;
+        Vector<NamespaceAndPrefix, 2> namespaces;
         size_t depth;
     };
     Vector<NamespaceStackEntry, 2> m_namespace_stack;
