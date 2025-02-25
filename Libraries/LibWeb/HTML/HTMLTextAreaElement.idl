@@ -26,7 +26,7 @@ interface HTMLTextAreaElement : HTMLElement {
     [LegacyNullToEmptyString] attribute DOMString value;
     readonly attribute unsigned long textLength;
 
-    [FIXME] readonly attribute boolean willValidate;
+    readonly attribute boolean willValidate;
     readonly attribute ValidityState validity;
     [FIXME] readonly attribute DOMString validationMessage;
     boolean checkValidity();

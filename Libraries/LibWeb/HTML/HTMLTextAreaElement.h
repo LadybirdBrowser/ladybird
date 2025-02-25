@@ -95,6 +95,7 @@ public:
 
     u32 text_length() const;
 
+    bool will_validate();
     bool check_validity();
     bool report_validity();
 

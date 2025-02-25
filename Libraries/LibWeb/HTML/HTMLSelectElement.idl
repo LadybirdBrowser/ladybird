@@ -31,7 +31,7 @@ interface HTMLSelectElement : HTMLElement {
     attribute long selectedIndex;
     attribute DOMString value;
 
-    [FIXME] readonly attribute boolean willValidate;
+    readonly attribute boolean willValidate;
     readonly attribute ValidityState validity;
     [FIXME] readonly attribute DOMString validationMessage;
     [FIXME] boolean checkValidity();

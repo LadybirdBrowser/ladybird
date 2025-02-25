@@ -44,6 +44,8 @@ public:
 
     virtual void form_associated_element_attribute_changed(FlyString const& name, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
 
+    bool will_validate();
+
     // ^EventTarget
     // https://html.spec.whatwg.org/multipage/interaction.html#the-tabindex-attribute:the-button-element
     // https://html.spec.whatwg.org/multipage/interaction.html#focusable-area

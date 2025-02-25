@@ -14,7 +14,7 @@ interface HTMLFieldSetElement : HTMLElement {
 
     [SameObject] readonly attribute HTMLCollection elements;
 
-    [FIXME] readonly attribute boolean willValidate;
+    readonly attribute boolean willValidate;
     [FIXME, SameObject] readonly attribute ValidityState validity;
     [FIXME] readonly attribute DOMString validationMessage;
     [FIXME] boolean checkValidity();

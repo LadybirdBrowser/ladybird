@@ -18,7 +18,7 @@ interface HTMLObjectElement : HTMLElement {
     readonly attribute WindowProxy? contentWindow;
     Document? getSVGDocument();
 
-    [FIXME] readonly attribute boolean willValidate;
+    readonly attribute boolean willValidate;
     readonly attribute ValidityState validity;
     [FIXME] readonly attribute DOMString validationMessage;
     [FIXME] boolean checkValidity();

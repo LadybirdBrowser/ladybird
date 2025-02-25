@@ -79,6 +79,17 @@ void HTMLObjectElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_document_observer);
 }
 
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-willvalidate
+bool HTMLObjectElement::will_validate()
+{
+    // The willValidate attribute's getter must return true, if this element is a candidate for constraint validation,
+    // and false otherwise (i.e., false if any conditions are barring it from constraint validation).
+    // A submittable element is a candidate for constraint validation
+    // https://html.spec.whatwg.org/multipage/forms.html#category-submit
+    // Submittable elements: button, input, select, textarea, form-associated custom elements [but not object]
+    return false;
+}
+
 void HTMLObjectElement::form_associated_element_attribute_changed(FlyString const& name, Optional<String> const&, Optional<FlyString> const&)
 {
     // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#the-object-element

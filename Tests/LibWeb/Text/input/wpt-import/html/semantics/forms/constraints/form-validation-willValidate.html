@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>The constraint validation API Test: element.willValidate</title>
+<link rel="author" title="Intel" href="http://www.intel.com/">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/#dom-cva-willvalidate">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/#the-constraint-validation-api">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="support/validator.js"></script>
+<div id="log"></div>
+<script>
+  var testElements = [
+    //input in hidden, button and reset status must be barred from the constraint validation
+    {
+      tag: "input",
+      types: ["hidden", "button", "reset"],
+      testData: [{conditions: {}, expected: false, name: "[target] Must be barred from the constraint validation"}]
+    },
+    //button in button and reset status must be barred from the constraint validation
+    {
+      tag: "button",
+      types: ["button", "reset"],
+      testData: [{conditions: {}, expected: false, name: "[target] Must be barred from the constraint validation"}]
+    },
+    // FIELDSET and OUTPUT elements are not "submittable elements" and therefore never validate.
+    {
+      tag: "fieldset",
+      types: [],
+      testData: [{conditions: {}, expected: false, name: "[target] The willValidate attribute must be false since FIELDSET is not a submittable element"}]
+    },
+    {
+      tag: "output",
+      types: [],
+      testData: [{conditions: {}, expected: false, name: "[target] The willValidate attribute must be false since OUTPUT is not a submittable element"}]
+    },
+    //OBJECT, KEYGEN, elements must be barred from the constraint validation
+    {
+      tag: "object",
+      types: [],
+      testData: [{conditions: {}, expected: false, name: "[target] Must be barred from the constraint validation"}]
+    },
+    //If an element is disabled, it is barred from constraint validation.
+    //The willValidate attribute must be true if an element is mutable
+    //If the readonly attribute is specified on an INPUT element, the element is barred from constraint validation.
+    {
+      tag: "input",
+      types: ["text", "search", "tel", "url", "email", "password", "datetime-local", "date", "month", "week", "time"],
+      testData: [
+        {conditions: {disabled: true}, expected: false, name: "[target] Must be barred from the constraint validation if it is disabled"},
+        {conditions: {disabled: false, readOnly: false}, expected: true, name: "[target] The willValidate attribute must be true if an element is mutable"},
+        {conditions: {readOnly: true}, expected: false, name: "[target] Must be barred from the constraint validation if it is readonly"},
+        {conditions: {disabled: false, readOnly: false}, expected: false, name: "[target] The willValidate attribute must be false if it has a datalist ancestor", ancestor: "datalist"},
+      ]
+    },
+    //In the following cases, the readonly attribute does not apply, however we should still bar the element from constraint validation.
+    {
+      tag: "input",
+      types: ["color", "file", "submit"],
+      testData: [
+        {conditions: {disabled: true}, expected: false, name: "[target] Must be barred from the constraint validation if it is disabled"},
+        {conditions: {disabled: false, readOnly: false}, expected: true, name: "[target] The willValidate attribute must be true if an element is mutable"},
+        {conditions: {readOnly: true}, expected: false, name: "[target] Must be barred from the constraint validation if it is readonly"},
+        {conditions: {disabled: false, readOnly: false}, expected: false, name: "[target] The willValidate attribute must be false if it has a datalist ancestor", ancestor: "datalist"},
+      ]
+    },
+    {
+      tag: "button",
+      types: ["submit"],
+      testData: [
+        {conditions: {disabled: true}, expected: false, name: "[target] Must be barred from the constraint validation"},
+        {conditions: {disabled: false}, expected: true, name: "[target] The willValidate attribute must be true if an element is mutable"},
+        {conditions: {disabled: false}, expected: false, name: "[target] The willValidate attribute must be false if it has a datalist ancestor", ancestor: "datalist"}
+      ]
+    },
+    {
+      tag: "select",
+      types: [],
+      testData: [
+        {conditions: {disabled: true}, expected: false, name: "[target] Must be barred from the constraint validation"},
+        {conditions: {disabled: false}, expected: true, name: "[target] The willValidate attribute must be true if an element is mutable"},
+        {conditions: {disabled: false}, expected: false, name: "[target] The willValidate attribute must be false if it has a datalist ancestor", ancestor: "datalist"}
+      ]
+    },
+    {
+      tag: "textarea",
+      types: [],
+      testData: [,
+        {conditions: {disabled: true}, expected: false, name: "[target] Must be barred from the constraint validation"},
+        {conditions: {disabled: false}, expected: true, name: "[target] The willValidate attribute must be true if an element is mutable"},
+        {conditions: {disabled: false}, expected: false, name: "[target] The willValidate attribute must be false if it has a datalist ancestor", ancestor: "datalist"}
+      ]
+    }
+  ];
+
+  validator.run_test(testElements, "willValidate");
+</script>

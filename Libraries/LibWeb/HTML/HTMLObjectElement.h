@@ -47,6 +47,8 @@ public:
 
     virtual void visit_edges(Cell::Visitor&) override;
 
+    static bool will_validate();
+
 private:
     HTMLObjectElement(DOM::Document&, DOM::QualifiedName);
 

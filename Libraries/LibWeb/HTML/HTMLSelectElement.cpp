@@ -695,6 +695,13 @@ void HTMLSelectElement::update_selectedness()
     update_inner_text_element();
 }
 
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-willvalidate
+bool HTMLSelectElement::will_validate()
+{
+    // The willValidate attribute's getter must return true, if this element is a candidate for constraint validation
+    return is_candidate_for_constraint_validation();
+}
+
 bool HTMLSelectElement::is_focusable() const
 {
     return enabled();
