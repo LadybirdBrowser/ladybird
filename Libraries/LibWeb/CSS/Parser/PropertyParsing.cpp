@@ -158,7 +158,7 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
         // Custom idents
         if (auto property = any_property_accepts_type(property_ids, ValueType::CustomIdent); property.has_value()) {
             auto context_guard = push_temporary_value_parsing_context(*property);
-            if (auto custom_ident = parse_custom_ident_value(tokens, {}))
+            if (auto custom_ident = parse_custom_ident_value(tokens, property_custom_ident_blacklist(*property)))
                 return PropertyAndValue { *property, custom_ident };
         }
     }
@@ -712,10 +712,6 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue>> Parser::parse_css_value(Prope
         return ParseError::SyntaxError;
     case PropertyID::Scale:
         if (auto parsed_value = parse_scale_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
-    case PropertyID::ViewTransitionName:
-        if (auto parsed_value = parse_view_transition_name_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
     default:
@@ -4441,31 +4437,6 @@ RefPtr<CSSStyleValue> Parser::parse_filter_value_list_value(TokenStream<Componen
 
     transaction.commit();
     return FilterValueListStyleValue::create(move(filter_value_list));
-}
-
-RefPtr<CSSStyleValue> Parser::parse_view_transition_name_value(TokenStream<ComponentValue>& tokens)
-{
-    // none | <custom-ident>
-    tokens.discard_whitespace();
-    {
-        auto transaction = tokens.begin_transaction();
-
-        // The values 'none' and 'auto' are excluded from <custom-ident> here.
-        // Note: Only auto is excluded here since none isn't parsed differently.
-        auto ident = parse_custom_ident_value(tokens, { { "auto"sv } });
-        if (!ident)
-            return {};
-
-        tokens.discard_whitespace();
-        transaction.commit();
-
-        if (Infra::is_ascii_case_insensitive_match(ident->custom_ident().to_string(), "none"sv)) {
-            return CustomIdentStyleValue::create("none"_fly_string);
-        } else {
-            return ident;
-        }
-    }
-    return {};
 }
 
 }
