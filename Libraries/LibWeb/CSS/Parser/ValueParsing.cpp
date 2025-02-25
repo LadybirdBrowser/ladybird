@@ -1796,7 +1796,7 @@ RefPtr<CSSStyleValue> Parser::parse_counter_value(TokenStream<ComponentValue>& t
         auto transaction = tokens.begin_transaction();
         tokens.discard_whitespace();
 
-        auto counter_name = parse_custom_ident_value(tokens, { "none"sv });
+        auto counter_name = parse_custom_ident_value(tokens, { { "none"sv } });
         if (!counter_name)
             return {};
 
@@ -1817,7 +1817,7 @@ RefPtr<CSSStyleValue> Parser::parse_counter_value(TokenStream<ComponentValue>& t
         auto transaction = tokens.begin_transaction();
         tokens.discard_whitespace();
 
-        auto counter_style_name = parse_custom_ident_value(tokens, { "none"sv });
+        auto counter_style_name = parse_custom_ident_value(tokens, { { "none"sv } });
         if (!counter_style_name)
             return {};
 
@@ -2812,7 +2812,7 @@ RefPtr<CSSStyleValue> Parser::parse_builtin_value(TokenStream<ComponentValue>& t
 }
 
 // https://www.w3.org/TR/css-values-4/#custom-idents
-RefPtr<CustomIdentStyleValue> Parser::parse_custom_ident_value(TokenStream<ComponentValue>& tokens, std::initializer_list<StringView> blacklist)
+RefPtr<CustomIdentStyleValue> Parser::parse_custom_ident_value(TokenStream<ComponentValue>& tokens, ReadonlySpan<StringView> blacklist)
 {
     auto transaction = tokens.begin_transaction();
     tokens.discard_whitespace();
@@ -3096,7 +3096,7 @@ RefPtr<GridTrackPlacementStyleValue> Parser::parse_grid_track_placement(TokenStr
     };
     auto parse_custom_ident = [this](auto& tokens) {
         // The <custom-ident> additionally excludes the keywords span and auto.
-        return parse_custom_ident_value(tokens, { "span"sv, "auto"sv });
+        return parse_custom_ident_value(tokens, { { "span"sv, "auto"sv } });
     };
 
     auto transaction = tokens.begin_transaction();
