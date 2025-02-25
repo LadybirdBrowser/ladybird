@@ -35,6 +35,22 @@ class Filedescriptor;
 String MIME_Type();
 ```
 
+When implementing spec algorithms and other constructs that a spec explicitly names, prefer closely matching the same names the spec uses, whenever possible.
+
+Given the construct at https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#suffering-from-being-missing which has the literal name _“Suffering from being missing”_ in the spec, for example:
+
+###### Right:
+
+```c++
+bool HTMLInputElement::suffering_from_being_missing(); // exactly matches the spec naming
+```
+
+###### Wrong:
+
+```c++
+bool HTMLInputElement::has_missing_constraint(); // arbitrarily differs from spec naming
+```
+
 Use full words, except in the rare case where an abbreviation would be more canonical and easier to understand.
 
 ###### Right:
