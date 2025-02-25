@@ -39,6 +39,13 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     return 0;
 }
 
+static String keyword_name(String const& dashy_name)
+{
+    if (dashy_name == "-infinity"sv)
+        return "NegativeInfinity"_string;
+    return title_casify(dashy_name);
+}
+
 ErrorOr<void> generate_header_file(JsonArray& keyword_data, Core::File& file)
 {
     StringBuilder builder;
@@ -57,7 +64,7 @@ enum class Keyword {
 
     keyword_data.for_each([&](auto& name) {
         auto member_generator = generator.fork();
-        member_generator.set("name:titlecase", title_casify(name.as_string()));
+        member_generator.set("name:titlecase", keyword_name(name.as_string()));
 
         member_generator.append(R"~~~(
     @name:titlecase@,
@@ -107,7 +114,7 @@ HashMap<StringView, Keyword, AK::CaseInsensitiveASCIIStringViewTraits> g_stringv
     keyword_data.for_each([&](auto& name) {
         auto member_generator = generator.fork();
         member_generator.set("name", name.as_string());
-        member_generator.set("name:titlecase", title_casify(name.as_string()));
+        member_generator.set("name:titlecase", keyword_name(name.as_string()));
         member_generator.append(R"~~~(
     {"@name@"sv, Keyword::@name:titlecase@},
 )~~~");
@@ -128,7 +135,7 @@ StringView string_from_keyword(Keyword keyword) {
     keyword_data.for_each([&](auto& name) {
         auto member_generator = generator.fork();
         member_generator.set("name", name.as_string());
-        member_generator.set("name:titlecase", title_casify(name.as_string()));
+        member_generator.set("name:titlecase", keyword_name(name.as_string()));
         member_generator.append(R"~~~(
     case Keyword::@name:titlecase@:
         return "@name@"sv;

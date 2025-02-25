@@ -251,7 +251,7 @@ RefPtr<CalculationNode> Parser::parse_math_function(Function const& function, Ca
                     // NOTE: We have exactly one default value in the data right now, and it's a `<calc-constant>`,
                     //       so that's all we handle.
                     if (auto default_value = parameter.get_string("default"sv); default_value.has_value()) {
-                        parameter_generator.set("parameter_default", MUST(String::formatted(" = ConstantCalculationNode::create(CalculationNode::constant_type_from_string(\"{}\"sv).value())", default_value.value())));
+                        parameter_generator.set("parameter_default", MUST(String::formatted(" = NumericCalculationNode::from_keyword(Keyword::{}, context)", title_casify(default_value.value()))));
                     } else {
                         parameter_generator.set("parameter_default", ""_string);
                     }

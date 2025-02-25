@@ -129,26 +129,6 @@ static NonnullRefPtr<CalculationNode> simplify_2_children(T const& original, Non
     return original;
 }
 
-Optional<CalculationNode::ConstantType> CalculationNode::constant_type_from_string(StringView string)
-{
-    if (string.equals_ignoring_ascii_case("e"sv))
-        return CalculationNode::ConstantType::E;
-
-    if (string.equals_ignoring_ascii_case("pi"sv))
-        return CalculationNode::ConstantType::Pi;
-
-    if (string.equals_ignoring_ascii_case("infinity"sv))
-        return CalculationNode::ConstantType::Infinity;
-
-    if (string.equals_ignoring_ascii_case("-infinity"sv))
-        return CalculationNode::ConstantType::MinusInfinity;
-
-    if (string.equals_ignoring_ascii_case("NaN"sv))
-        return CalculationNode::ConstantType::NaN;
-
-    return {};
-}
-
 CalculationNode::CalculationNode(Type type, Optional<CSSNumericType> numeric_type)
     : m_type(type)
     , m_numeric_type(move(numeric_type))
@@ -226,6 +206,29 @@ NonnullRefPtr<NumericCalculationNode> NumericCalculationNode::create(NumericValu
 {
     auto numeric_type = numeric_type_from_calculated_style_value(value, context);
     return adopt_ref(*new (nothrow) NumericCalculationNode(move(value), numeric_type));
+}
+
+RefPtr<NumericCalculationNode> NumericCalculationNode::from_keyword(Keyword keyword, CalculationContext const& context)
+{
+    switch (keyword) {
+    case Keyword::E:
+        // https://drafts.csswg.org/css-values-4/#valdef-calc-e
+        return create(Number { Number::Type::Number, AK::E<double> }, context);
+    case Keyword::Pi:
+        // https://drafts.csswg.org/css-values-4/#valdef-calc-pi
+        return create(Number { Number::Type::Number, AK::Pi<double> }, context);
+    case Keyword::Infinity:
+        // https://drafts.csswg.org/css-values-4/#valdef-calc-infinity
+        return create(Number { Number::Type::Number, AK::Infinity<double> }, context);
+    case Keyword::NegativeInfinity:
+        // https://drafts.csswg.org/css-values-4/#valdef-calc--infinity
+        return create(Number { Number::Type::Number, -AK::Infinity<double> }, context);
+    case Keyword::Nan:
+        // https://drafts.csswg.org/css-values-4/#valdef-calc-nan
+        return create(Number { Number::Type::Number, AK::NaN<double> }, context);
+    default:
+        return nullptr;
+    }
 }
 
 NumericCalculationNode::NumericCalculationNode(NumericValue value, CSSNumericType numeric_type)
@@ -1112,73 +1115,6 @@ bool SignCalculationNode::equals(CalculationNode const& other) const
     if (type() != other.type())
         return false;
     return m_value->equals(*static_cast<SignCalculationNode const&>(other).m_value);
-}
-
-NonnullRefPtr<ConstantCalculationNode> ConstantCalculationNode::create(ConstantType constant)
-{
-    return adopt_ref(*new (nothrow) ConstantCalculationNode(constant));
-}
-
-ConstantCalculationNode::ConstantCalculationNode(ConstantType constant)
-    // https://www.w3.org/TR/css-values-4/#determine-the-type-of-a-calculation
-    // Anything else is a terminal value, whose type is determined based on its CSS type:
-    // -> <calc-constant>
-    //    the type is «[ ]» (empty map)
-    : CalculationNode(Type::Constant, CSSNumericType {})
-    , m_constant(constant)
-{
-}
-
-ConstantCalculationNode::~ConstantCalculationNode() = default;
-
-String ConstantCalculationNode::to_string() const
-{
-    switch (m_constant) {
-    case CalculationNode::ConstantType::E:
-        return "e"_string;
-    case CalculationNode::ConstantType::Pi:
-        return "pi"_string;
-    case CalculationNode::ConstantType::Infinity:
-        return "infinity"_string;
-    case CalculationNode::ConstantType::MinusInfinity:
-        return "-infinity"_string;
-    case CalculationNode::ConstantType::NaN:
-        return "NaN"_string;
-    }
-
-    VERIFY_NOT_REACHED();
-}
-
-CalculatedStyleValue::CalculationResult ConstantCalculationNode::resolve(CalculationResolutionContext const&) const
-{
-    switch (m_constant) {
-    case ConstantType::E:
-        return { AK::E<double>, CSSNumericType {} };
-    case ConstantType::Pi:
-        return { AK::Pi<double>, CSSNumericType {} };
-    case ConstantType::Infinity:
-        return { AK::Infinity<double>, CSSNumericType {} };
-    case ConstantType::MinusInfinity:
-        return { -AK::Infinity<double>, CSSNumericType {} };
-    case ConstantType::NaN:
-        return { AK::NaN<double>, CSSNumericType {} };
-    }
-
-    VERIFY_NOT_REACHED();
-}
-
-void ConstantCalculationNode::dump(StringBuilder& builder, int indent) const
-{
-    builder.appendff("{: >{}}CONSTANT: {}\n", "", indent, to_string());
-}
-
-bool ConstantCalculationNode::equals(CalculationNode const& other) const
-{
-    if (this == &other)
-        return true;
-    if (type() != other.type())
-        return false;
-    return m_constant == static_cast<ConstantCalculationNode const&>(other).m_constant;
 }
 
 NonnullRefPtr<SinCalculationNode> SinCalculationNode::create(NonnullRefPtr<CalculationNode> value)
@@ -2795,22 +2731,11 @@ NonnullRefPtr<CalculationNode> simplify_a_calculation_tree(CalculationNode const
         }
 
         // 3. If root is a <calc-keyword> that can be resolved, return what it resolves to, simplified.
-        // NOTE: This is handled below.
+        // NOTE: We already resolve our `<calc-keyword>`s at parse-time.
+        // FIXME: Revisit this once we support any keywords that need resolving later.
 
         // 4. Otherwise, return root.
         return root;
-    }
-
-    // AD-HOC: Step 1.3 is done here as we have a separate node type for them.
-    if (root->type() == CalculationNode::Type::Constant) {
-        auto const& root_constant = as<ConstantCalculationNode>(*root);
-
-        // 3. If root is a <calc-keyword> that can be resolved, return what it resolves to, simplified.
-        // FIXME: At the moment these are all constant numbers. Revisit this once that's not the case.
-        //        (Notably, relative-color syntax allows some other keywords that are relative to the color.)
-        auto resolved = root_constant.resolve(resolution_context);
-        VERIFY(resolved.type()->matches_number({}));
-        return NumericCalculationNode::create(Number { Number::Type::Number, resolved.value() }, context);
     }
 
     // 2. If root is any other leaf node (not an operator node):
