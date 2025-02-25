@@ -5,10 +5,11 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
         Box <table> at (109,101) content-size 87.34375x202 table-box [TFC] children: not-inline
           Box <tbody> at (111,103) content-size 83.34375x198 table-row-group children: not-inline
             Box <tr> at (111,103) content-size 83.34375x198 table-row children: not-inline
-              BlockContainer <td> at (112,193.5) content-size 81.34375x17 table-cell [BFC] children: inline
-                frag 0 from TextNode start: 0, length: 10, rect: [112,193.5 81.34375x17] baseline: 13.296875
-                    "off-center"
-                TextNode <#text>
+              BlockContainer <td> at (112,193.5) content-size 81.34375x17 table-cell [BFC] children: not-inline
+                BlockContainer <(anonymous)> at (112,193.5) content-size 81.34375x17 children: inline
+                  frag 0 from TextNode start: 0, length: 10, rect: [112,193.5 81.34375x17] baseline: 13.296875
+                      "off-center"
+                  TextNode <#text>
               BlockContainer <(anonymous)> (not painted) children: inline
                 TextNode <#text>
 
@@ -20,4 +21,5 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
           PaintableBox (Box<TBODY>) [111,103 83.34375x198]
             PaintableBox (Box<TR>) [111,103 83.34375x198]
               PaintableWithLines (BlockContainer<TD>) [111,103 83.34375x198]
-                TextPaintable (TextNode<#text>)
+                PaintableWithLines (BlockContainer(anonymous)) [112,193.5 81.34375x17]
+                  TextPaintable (TextNode<#text>)
