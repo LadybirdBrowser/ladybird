@@ -49,12 +49,22 @@ ColorSpace::ColorSpace(NonnullOwnPtr<Details::ColorSpaceImpl>&& color_space)
 
 ErrorOr<ColorSpace> ColorSpace::from_cicp(Media::CodingIndependentCodePoints cicp)
 {
-    // FIXME: Bail on invalid input
+    if (cicp.matrix_coefficients() != Media::MatrixCoefficients::Identity)
+        return Error::from_string_literal("Unsupported matrix coefficients for CICP");
+
+    if (cicp.video_full_range_flag() != Media::VideoFullRangeFlag::Full)
+        return Error::from_string_literal("Unsupported matrix coefficients for CICP");
 
     skcms_Matrix3x3 gamut = SkNamedGamut::kSRGB;
     switch (cicp.color_primaries()) {
     case Media::ColorPrimaries::BT709:
         gamut = SkNamedGamut::kSRGB;
+        break;
+    case Media::ColorPrimaries::BT2020:
+        gamut = SkNamedGamut::kRec2020;
+        break;
+    case Media::ColorPrimaries::XYZ:
+        gamut = SkNamedGamut::kXYZ;
         break;
     case Media::ColorPrimaries::SMPTE432:
         gamut = SkNamedGamut::kDisplayP3;
@@ -65,8 +75,17 @@ ErrorOr<ColorSpace> ColorSpace::from_cicp(Media::CodingIndependentCodePoints cic
 
     skcms_TransferFunction transfer_function = SkNamedTransferFn::kSRGB;
     switch (cicp.transfer_characteristics()) {
+    case Media::TransferCharacteristics::Linear:
+        transfer_function = SkNamedTransferFn::kLinear;
+        break;
     case Media::TransferCharacteristics::SRGB:
         transfer_function = SkNamedTransferFn::kSRGB;
+        break;
+    case Media::TransferCharacteristics::SMPTE2084:
+        transfer_function = SkNamedTransferFn::kPQ;
+        break;
+    case Media::TransferCharacteristics::HLG:
+        transfer_function = SkNamedTransferFn::kHLG;
         break;
     default:
         return Error::from_string_literal("FIXME: Unsupported transfer function");
