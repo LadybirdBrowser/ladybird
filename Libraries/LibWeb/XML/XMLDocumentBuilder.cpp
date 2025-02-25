@@ -54,7 +54,7 @@ XMLDocumentBuilder::XMLDocumentBuilder(DOM::Document& document, XMLScriptingSupp
     , m_current_node(m_document)
     , m_scripting_support(scripting_support)
 {
-    m_namespace_stack.append({ m_namespace, 1 });
+    m_namespace_stack.append({ {}, 1 });
 }
 
 void XMLDocumentBuilder::set_source(ByteString source)
@@ -92,14 +92,33 @@ void XMLDocumentBuilder::element_start(const XML::Name& name, HashMap<XML::Name,
     if (m_has_error)
         return;
 
-    if (auto it = attributes.find("xmlns"); it != attributes.end()) {
-        m_namespace_stack.append({ m_namespace, 1 });
-        m_namespace = MUST(FlyString::from_deprecated_fly_string(it->value));
+    Vector<NamespaceAndPrefix, 2> namespaces;
+    for (auto const& [name, value] : attributes) {
+        if (name == "xmlns"sv || name.starts_with("xmlns:"sv)) {
+            auto parts = name.split_limit(':', 2);
+            Optional<ByteString> prefix;
+            auto namespace_ = value;
+            if (parts.size() == 2) {
+                namespace_ = value;
+                prefix = parts[1];
+            }
+
+            if (namespaces.find_if([&](auto const& namespace_and_prefix) { return namespace_and_prefix.prefix == prefix; }) != namespaces.end())
+                continue;
+
+            namespaces.append({ MUST(FlyString::from_deprecated_fly_string(namespace_)), prefix });
+        }
+    }
+
+    if (!namespaces.is_empty()) {
+        m_namespace_stack.append({ move(namespaces), 1 });
     } else {
         m_namespace_stack.last().depth += 1;
     }
 
-    auto qualified_name_or_error = DOM::validate_and_extract(m_document->realm(), m_namespace, MUST(FlyString::from_deprecated_fly_string(name)));
+    auto namespace_ = namespace_for_element(name);
+
+    auto qualified_name_or_error = DOM::validate_and_extract(m_document->realm(), namespace_, MUST(FlyString::from_deprecated_fly_string(name)));
 
     if (qualified_name_or_error.is_error()) {
         m_has_error = true;
@@ -159,7 +178,7 @@ void XMLDocumentBuilder::element_end(const XML::Name& name)
         return;
 
     if (--m_namespace_stack.last().depth == 0) {
-        m_namespace = m_namespace_stack.take_last().ns;
+        m_namespace_stack.take_last();
     }
 
     VERIFY(m_current_node->node_name().equals_ignoring_ascii_case(name));
@@ -338,6 +357,25 @@ void XMLDocumentBuilder::document_end()
     // The Document is now ready for post-load tasks.
     m_document->set_ready_for_post_load_tasks(true);
 }
+
+Optional<FlyString> XMLDocumentBuilder::namespace_for_element(XML::Name const& element_name)
+{
+    Optional<ByteString> prefix;
+    if (auto parts = element_name.split_limit(':', 2); parts.size() == 2) {
+        prefix = parts[0];
+    }
+
+    for (auto const& stack_entry : m_namespace_stack.in_reverse()) {
+        for (auto const& namespace_and_prefix : stack_entry.namespaces) {
+            if (namespace_and_prefix.prefix == prefix) {
+                return namespace_and_prefix.ns;
+            }
+        }
+    }
+
+    return {};
+}
+
 }
 
 inline namespace {
