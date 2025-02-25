@@ -115,6 +115,8 @@ static ErrorOr<ConnectionFromClient::DecodeResult> decode_image_to_details(Core:
 
     if (auto maybe_icc_data = decoder->color_space(); !maybe_icc_data.is_error())
         result.color_profile = maybe_icc_data.value();
+    else
+        dbgln("Invalid color profile: {}", maybe_icc_data.error());
 
     Vector<Optional<NonnullRefPtr<Gfx::Bitmap>>> bitmaps;
 
