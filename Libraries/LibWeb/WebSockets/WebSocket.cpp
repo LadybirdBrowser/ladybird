@@ -121,6 +121,9 @@ void WebSocket::initialize(JS::Realm& realm)
 {
     Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(WebSocket);
+
+    auto& relevant_global = as<HTML::WindowOrWorkerGlobalScopeMixin>(HTML::relevant_global_object(*this));
+    relevant_global.register_web_socket({}, *this);
 }
 
 // https://html.spec.whatwg.org/multipage/server-sent-events.html#garbage-collection
@@ -134,6 +137,9 @@ void WebSocket::finalize()
         // FIXME: LibProtocol does not yet support sending empty Close messages, so we use default values for now
         m_websocket->close(1000);
     }
+
+    auto& relevant_global = as<HTML::WindowOrWorkerGlobalScopeMixin>(HTML::relevant_global_object(*this));
+    relevant_global.unregister_web_socket({}, *this);
 }
 
 // https://html.spec.whatwg.org/multipage/server-sent-events.html#garbage-collection
@@ -393,6 +399,19 @@ void WebSocket::on_message(ByteBuffer message, bool is_text)
         dbgln("Unsupported WebSocket message type {}", m_binary_type);
         TODO();
     }));
+}
+
+// https://websockets.spec.whatwg.org/#make-disappear
+void WebSocket::make_disappear()
+{
+    // -> If the WebSocket connection is not yet established [WSP]
+    //    - Fail the WebSocket connection. [WSP]
+    // -> If the WebSocket closing handshake has not yet been started [WSP]
+    //    - Start the WebSocket closing handshake, with the status code to use in the WebSocket Close message being 1001. [WSP]
+    // -> Otherwise
+    //    - Do nothing.
+    // NOTE: All of these are handled by the WebSocket Protocol when calling close()
+    m_websocket->close(1001);
 }
 
 #undef __ENUMERATE

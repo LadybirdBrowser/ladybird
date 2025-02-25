@@ -3905,8 +3905,11 @@ void Document::run_unloading_cleanup_steps()
     // 1. Let window be document's relevant global object.
     auto& window = as<HTML::WindowOrWorkerGlobalScopeMixin>(HTML::relevant_global_object(*this));
 
-    // FIXME: 2. For each WebSocket object webSocket whose relevant global object is window, make disappear webSocket.
-    //            If this affected any WebSocket objects, then set document's salvageable state to false.
+    // 2. For each WebSocket object webSocket whose relevant global object is window, make disappear webSocket.
+    //    If this affected any WebSocket objects, then set document's salvageable state to false.
+    auto affected_any_web_sockets = window.make_disappear_all_web_sockets();
+    if (affected_any_web_sockets == HTML::WindowOrWorkerGlobalScopeMixin::AffectedAnyWebSockets::Yes)
+        m_salvageable = false;
 
     // FIXME: 3. For each WebTransport object transport whose relevant global object is window, run the context cleanup steps given transport.
 
