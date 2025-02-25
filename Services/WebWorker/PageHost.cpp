@@ -77,7 +77,7 @@ Web::CSS::PreferredMotion PageHost::preferred_motion() const
     return Web::CSS::PreferredMotion::Auto;
 }
 
-void PageHost::paint(Web::DevicePixelRect const&, Web::Painting::BackingStore&, Web::PaintOptions)
+void PageHost::start_display_list_rendering(Web::DevicePixelRect const&, Web::Painting::BackingStore&, Web::PaintOptions, Function<void()>&&)
 {
 }
 
