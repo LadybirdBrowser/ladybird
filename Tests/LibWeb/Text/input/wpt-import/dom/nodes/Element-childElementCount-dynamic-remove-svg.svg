@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:h="http://www.w3.org/1999/xhtml"
+     version="1.1"
+     width="100%" height="100%" viewBox="0 0 400 400">
+<title>Dynamic Removal of Elements</title>
+<h:script src="../../resources/testharness.js"/>
+<h:script src="../../resources/testharnessreport.js"/>
+
+<text x="200" y="40" font-size="25" fill="black" text-anchor="middle">Test of Dynamic Removal of Elements</text>
+<text id="parentEl" x="200" y="70" font-size="20" fill="black" text-anchor="middle">The result of this test is
+<tspan id="first_element_child" font-weight="bold">unknown.</tspan><tspan id="last_element_child"> </tspan></text>
+
+<h:script><![CDATA[
+test(function() {
+  var parentEl = document.getElementById("parentEl");
+  var lec = parentEl.lastElementChild;
+  parentEl.removeChild(lec);
+  assert_equals(parentEl.childElementCount, 1)
+})
+]]></h:script>
+</svg>
