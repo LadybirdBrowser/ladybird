@@ -64,6 +64,8 @@ private:
     WebSocket(JS::Realm&);
 
     virtual void initialize(JS::Realm&) override;
+    virtual void finalize() override;
+    virtual bool must_survive_garbage_collection() const override;
 
     ErrorOr<void> establish_web_socket_connection(URL::URL const& url_record, Vector<String> const& protocols, HTML::EnvironmentSettingsObject& client);
 
