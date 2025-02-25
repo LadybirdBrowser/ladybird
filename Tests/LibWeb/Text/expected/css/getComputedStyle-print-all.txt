@@ -135,7 +135,7 @@ grid-row-start: auto
 grid-template-areas: none
 grid-template-columns: auto
 grid-template-rows: auto
-height: 2329px
+height: 1918px
 inline-size: auto
 inset-block-end: auto
 inset-block-start: auto
@@ -146,9 +146,9 @@ justify-content: normal
 justify-items: legacy
 justify-self: auto
 left: auto
-margin-block-end: 16px
+margin-block-end: 13px
 margin-block-start: 8px
-margin-bottom: 16px
+margin-bottom: 13px
 margin-inline-end: 8px
 margin-inline-start: 8px
 margin-left: 8px
