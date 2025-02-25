@@ -1,0 +1,31 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x129 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x113 children: not-inline
+      BlockContainer <main> at (8,8) content-size 784x113 children: not-inline
+        TableWrapper <(anonymous)> at (8,8) content-size 346.5x113 [BFC] children: not-inline
+          Box <table> at (8,8) content-size 346.5x113 table-box [TFC] children: not-inline
+            Box <tbody> at (10,10) content-size 342.5x109 table-row-group children: not-inline
+              Box <tr> at (10,10) content-size 342.5x109 table-row children: not-inline
+                BlockContainer <td> at (10,10) content-size 342.5x109 table-cell [BFC] children: not-inline
+                  BlockContainer <(anonymous)> at (10,10) content-size 342.5x109 children: inline
+                    frag 0 from TextNode start: 0, length: 3, rect: [10,10 169.734375x109] baseline: 84.484375
+                        "foo"
+                    TextNode <#text>
+                    InlineNode <span>
+                      frag 0 from TextNode start: 0, length: 3, rect: [179.734375,10 172.765625x109] baseline: 84.484375
+                          "bar"
+                      TextNode <#text>
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x129]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x113]
+      PaintableWithLines (BlockContainer<MAIN>) [8,8 784x113]
+        PaintableWithLines (TableWrapper(anonymous)) [8,8 346.5x113]
+          PaintableBox (Box<TABLE>) [8,8 346.5x113]
+            PaintableBox (Box<TBODY>) [10,10 342.5x109]
+              PaintableBox (Box<TR>) [10,10 342.5x109]
+                PaintableWithLines (BlockContainer<TD>) [10,10 342.5x109]
+                  PaintableWithLines (BlockContainer(anonymous)) [10,10 342.5x109]
+                    TextPaintable (TextNode<#text>)
+                    PaintableWithLines (InlineNode<SPAN>)
+                      TextPaintable (TextNode<#text>)
