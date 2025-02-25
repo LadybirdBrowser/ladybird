@@ -112,6 +112,7 @@ WebIDL::ExceptionOr<GC::Ref<WebSocket>> WebSocket::construct_impl(JS::Realm& rea
 WebSocket::WebSocket(JS::Realm& realm)
     : EventTarget(realm)
 {
+    set_overrides_must_survive_garbage_collection(true);
 }
 
 WebSocket::~WebSocket() = default;
@@ -120,6 +121,63 @@ void WebSocket::initialize(JS::Realm& realm)
 {
     Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(WebSocket);
+}
+
+// https://html.spec.whatwg.org/multipage/server-sent-events.html#garbage-collection
+void WebSocket::finalize()
+{
+    auto ready_state = this->ready_state();
+
+    // If a WebSocket object is garbage collected while its connection is still open, the user agent must start the
+    // WebSocket closing handshake, with no status code for the Close message. [WSP]
+    if (ready_state != Requests::WebSocket::ReadyState::Closing && ready_state != Requests::WebSocket::ReadyState::Closed) {
+        // FIXME: LibProtocol does not yet support sending empty Close messages, so we use default values for now
+        m_websocket->close(1000);
+    }
+}
+
+// https://html.spec.whatwg.org/multipage/server-sent-events.html#garbage-collection
+bool WebSocket::must_survive_garbage_collection() const
+{
+    auto ready_state = this->ready_state();
+
+    // FIXME: "as of the last time the event loop reached step 1"
+
+    // A WebSocket object whose ready state was set to CONNECTING (0) as of the last time the event loop reached step 1
+    // must not be garbage collected if there are any event listeners registered for open events, message events, error
+    // events, or close events.
+    if (ready_state == Requests::WebSocket::ReadyState::Connecting) {
+        if (has_event_listener(HTML::EventNames::open))
+            return true;
+        if (has_event_listener(HTML::EventNames::message))
+            return true;
+        if (has_event_listener(HTML::EventNames::error))
+            return true;
+        if (has_event_listener(HTML::EventNames::close))
+            return true;
+    }
+
+    // A WebSocket object whose ready state was set to OPEN (1) as of the last time the event loop reached step 1 must
+    // not be garbage collected if there are any event listeners registered for message events, error, or close events.
+    if (ready_state == Requests::WebSocket::ReadyState::Open) {
+        if (has_event_listener(HTML::EventNames::message))
+            return true;
+        if (has_event_listener(HTML::EventNames::error))
+            return true;
+        if (has_event_listener(HTML::EventNames::close))
+            return true;
+    }
+
+    // A WebSocket object whose ready state was set to CLOSING (2) as of the last time the event loop reached step 1
+    // must not be garbage collected if there are any event listeners registered for error or close events.
+    if (ready_state == Requests::WebSocket::ReadyState::Closing) {
+        if (has_event_listener(HTML::EventNames::error))
+            return true;
+        if (has_event_listener(HTML::EventNames::close))
+            return true;
+    }
+
+    return false;
 }
 
 ErrorOr<void> WebSocket::establish_web_socket_connection(URL::URL const& url_record, Vector<String> const& protocols, HTML::EnvironmentSettingsObject& client)
