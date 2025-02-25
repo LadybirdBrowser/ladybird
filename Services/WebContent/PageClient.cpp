@@ -206,14 +206,16 @@ void PageClient::process_screenshot_requests()
             auto rect = page().enclosing_device_rect(dom_node->paintable_box()->absolute_border_box_rect());
             auto bitmap = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, rect.size().to_type<int>()).release_value_but_fixme_should_propagate_errors();
             auto backing_store = Web::Painting::BitmapBackingStore(*bitmap);
-            paint(rect, backing_store, { .paint_overlay = Web::PaintOptions::PaintOverlay::No });
-            client().async_did_take_screenshot(m_id, bitmap->to_shareable_bitmap());
+            start_display_list_rendering(rect, backing_store, { .paint_overlay = Web::PaintOptions::PaintOverlay::No }, [this, bitmap] {
+                client().async_did_take_screenshot(m_id, bitmap->to_shareable_bitmap());
+            });
         } else {
             Web::DevicePixelRect rect { { 0, 0 }, content_size() };
             auto bitmap = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, rect.size().to_type<int>()).release_value_but_fixme_should_propagate_errors();
             auto backing_store = Web::Painting::BitmapBackingStore(*bitmap);
-            paint(rect, backing_store);
-            client().async_did_take_screenshot(m_id, bitmap->to_shareable_bitmap());
+            start_display_list_rendering(rect, backing_store, {}, [this, bitmap] {
+                client().async_did_take_screenshot(m_id, bitmap->to_shareable_bitmap());
+            });
         }
     }
 }
@@ -224,20 +226,23 @@ void PageClient::paint_next_frame()
     if (!back_store)
         return;
 
-    auto viewport_rect = page().css_to_device_rect(page().top_level_traversable()->viewport_rect());
-    paint(viewport_rect, *back_store);
-
-    m_backing_store_manager.swap_back_and_front();
-
     m_paint_state = PaintState::WaitingForClient;
-    client().async_did_paint(m_id, viewport_rect.to_type<int>(), m_backing_store_manager.front_id());
+
+    auto viewport_rect = page().css_to_device_rect(page().top_level_traversable()->viewport_rect());
+    start_display_list_rendering(viewport_rect, *back_store, {}, [this, viewport_rect]() {
+        m_backing_store_manager.swap_back_and_front();
+        client().async_did_paint(m_id, viewport_rect.to_type<int>(), m_backing_store_manager.front_id());
+    });
 }
 
-void PageClient::paint(Web::DevicePixelRect const& content_rect, Web::Painting::BackingStore& target, Web::PaintOptions paint_options)
+void PageClient::start_display_list_rendering(Web::DevicePixelRect const& content_rect, Web::Painting::BackingStore& target, Web::PaintOptions paint_options, Function<void()>&& callback)
 {
     paint_options.should_show_line_box_borders = m_should_show_line_box_borders;
     paint_options.has_focus = m_has_focus;
-    page().top_level_traversable()->paint(content_rect, target, paint_options);
+    auto& traversable = *page().top_level_traversable();
+    auto display_list = traversable.record_display_list(content_rect, paint_options);
+    auto painting_surface = traversable.painting_surface_for_backing_store(target);
+    traversable.start_display_list_rendering(display_list, painting_surface, move(callback));
 }
 
 Queue<Web::QueuedInputEvent>& PageClient::input_event_queue()

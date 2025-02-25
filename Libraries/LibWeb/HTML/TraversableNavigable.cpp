@@ -53,12 +53,16 @@ TraversableNavigable::TraversableNavigable(GC::Ref<Page> page)
     , m_session_history_traversal_queue(vm().heap().allocate<SessionHistoryTraversalQueue>())
 {
     auto display_list_player_type = page->client().display_list_player_type();
+    OwnPtr<Painting::DisplayListPlayerSkia> skia_player;
     if (display_list_player_type == DisplayListPlayerType::SkiaGPUIfAvailable) {
         m_skia_backend_context = get_skia_backend_context();
-        m_skia_player = make<Painting::DisplayListPlayerSkia>(m_skia_backend_context);
+        skia_player = make<Painting::DisplayListPlayerSkia>(m_skia_backend_context);
     } else {
-        m_skia_player = make<Painting::DisplayListPlayerSkia>();
+        skia_player = make<Painting::DisplayListPlayerSkia>();
     }
+
+    m_rendering_thread.set_skia_player(move(skia_player));
+    m_rendering_thread.start();
 }
 
 TraversableNavigable::~TraversableNavigable() = default;
@@ -1429,13 +1433,13 @@ NonnullRefPtr<Gfx::PaintingSurface> TraversableNavigable::painting_surface_for_b
     return *new_surface;
 }
 
-void TraversableNavigable::paint(DevicePixelRect const& content_rect, Painting::BackingStore& target, PaintOptions paint_options)
+RefPtr<Painting::DisplayList> TraversableNavigable::record_display_list(DevicePixelRect const& content_rect, PaintOptions paint_options)
 {
     m_needs_repaint = false;
 
     auto document = active_document();
     if (!document)
-        return;
+        return {};
 
     for (auto& navigable : all_navigables()) {
         if (auto active_document = navigable->active_document(); active_document && active_document->paintable())
@@ -1447,13 +1451,12 @@ void TraversableNavigable::paint(DevicePixelRect const& content_rect, Painting::
     paint_config.should_show_line_box_borders = paint_options.should_show_line_box_borders;
     paint_config.has_focus = paint_options.has_focus;
     paint_config.canvas_fill_rect = Gfx::IntRect { {}, content_rect.size() };
-    auto display_list = document->record_display_list(paint_config);
-    if (!display_list)
-        return;
+    return document->record_display_list(paint_config);
+}
 
-    auto painting_surface = painting_surface_for_backing_store(target);
-    m_skia_player->set_surface(painting_surface);
-    m_skia_player->execute(*display_list);
+void TraversableNavigable::start_display_list_rendering(RefPtr<Painting::DisplayList> display_list, NonnullRefPtr<Gfx::PaintingSurface> painting_surface, Function<void()>&& callback)
+{
+    m_rendering_thread.enqueue_rendering_task(move(display_list), move(painting_surface), move(callback));
 }
 
 }
