@@ -237,6 +237,13 @@ u32 HTMLTextAreaElement::text_length() const
     return AK::utf16_code_unit_length_from_utf8(api_value());
 }
 
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-willvalidate
+bool HTMLTextAreaElement::will_validate()
+{
+    // The willValidate attribute's getter must return true, if this element is a candidate for constraint validation
+    return is_candidate_for_constraint_validation();
+}
+
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-checkvalidity
 bool HTMLTextAreaElement::check_validity()
 {

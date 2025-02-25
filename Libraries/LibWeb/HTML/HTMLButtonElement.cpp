@@ -156,6 +156,13 @@ void HTMLButtonElement::activation_behavior(DOM::Event const& event)
         PopoverInvokerElement::popover_target_activation_behaviour(*this, as<DOM::Node>(*event.target()));
 }
 
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-willvalidate
+bool HTMLButtonElement::will_validate()
+{
+    // The willValidate attribute's getter must return true, if this element is a candidate for constraint validation
+    return is_candidate_for_constraint_validation();
+}
+
 bool HTMLButtonElement::is_focusable() const
 {
     return enabled();

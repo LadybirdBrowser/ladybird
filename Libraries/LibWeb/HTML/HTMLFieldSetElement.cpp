@@ -88,4 +88,15 @@ GC::Ptr<Layout::Node> HTMLFieldSetElement::create_layout_node(GC::Ref<CSS::Compu
     return heap().allocate<Layout::FieldSetBox>(document(), *this, style);
 }
 
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-willvalidate
+bool HTMLFieldSetElement::will_validate()
+{
+    // The willValidate attribute's getter must return true, if this element is a candidate for constraint validation,
+    // and false otherwise (i.e., false if any conditions are barring it from constraint validation).
+    // A submittable element is a candidate for constraint validation
+    // https://html.spec.whatwg.org/multipage/forms.html#category-submit
+    // Submittable elements: button, input, select, textarea, form-associated custom elements [but not fieldset]
+    return false;
+}
+
 }

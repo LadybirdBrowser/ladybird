@@ -57,6 +57,8 @@ public:
     // https://www.w3.org/TR/html-aria/#el-output
     virtual Optional<ARIA::Role> default_role() const override { return ARIA::Role::status; }
 
+    static bool will_validate();
+
 private:
     HTMLOutputElement(DOM::Document&, DOM::QualifiedName);
 

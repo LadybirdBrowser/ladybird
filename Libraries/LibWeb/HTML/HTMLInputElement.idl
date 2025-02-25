@@ -51,7 +51,7 @@ interface HTMLInputElement : HTMLElement {
     undefined stepUp(optional long n = 1);
     undefined stepDown(optional long n = 1);
 
-    [FIXME] readonly attribute boolean willValidate;
+    readonly attribute boolean willValidate;
     readonly attribute ValidityState validity;
     [FIXME] readonly attribute DOMString validationMessage;
     boolean checkValidity();

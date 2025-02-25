@@ -42,6 +42,8 @@ public:
 
     virtual Optional<ARIA::Role> default_role() const override { return ARIA::Role::group; }
 
+    static bool will_validate();
+
     virtual GC::Ptr<Layout::Node> create_layout_node(GC::Ref<CSS::ComputedProperties>) override;
     Layout::FieldSetBox* layout_node();
     Layout::FieldSetBox const* layout_node() const;

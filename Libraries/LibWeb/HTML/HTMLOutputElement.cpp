@@ -110,4 +110,15 @@ void HTMLOutputElement::clear_algorithm()
     string_replace_all({});
 }
 
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-willvalidate
+bool HTMLOutputElement::will_validate()
+{
+    // The willValidate attribute's getter must return true, if this element is a candidate for constraint validation,
+    // and false otherwise (i.e., false if any conditions are barring it from constraint validation).
+    // A submittable element is a candidate for constraint validation
+    // https://html.spec.whatwg.org/multipage/forms.html#category-submit
+    // Submittable elements: button, input, select, textarea, form-associated custom elements [but not output]
+    return false;
+}
+
 }

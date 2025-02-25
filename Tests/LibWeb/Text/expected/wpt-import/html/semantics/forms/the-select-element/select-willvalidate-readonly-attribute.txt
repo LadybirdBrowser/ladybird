@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Select element with "readonly" attribute shouldn't be barred from constraint validation
+1 Pass
+Pass	Select element with "readonly" attribute shouldn't be barred from constraint validation

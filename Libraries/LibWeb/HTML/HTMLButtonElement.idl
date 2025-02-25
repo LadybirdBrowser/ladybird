@@ -26,7 +26,7 @@ interface HTMLButtonElement : HTMLElement {
     [CEReactions, ImplementedAs=type_for_bindings, Enumerated=ButtonTypeState] attribute DOMString type;
     [CEReactions, Reflect] attribute DOMString value;
 
-    [FIXME] readonly attribute boolean willValidate;
+    readonly attribute boolean willValidate;
     readonly attribute ValidityState validity;
     [FIXME] readonly attribute DOMString validationMessage;
     [FIXME] boolean checkValidity();
