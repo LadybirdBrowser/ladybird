@@ -3340,10 +3340,10 @@ RefPtr<CalculationNode> Parser::convert_to_calculation_node(CalcParsing::Node co
             // AD-HOC: We also need to convert tokens into their numeric types.
 
             if (component_value->is(Token::Type::Ident)) {
-                auto maybe_constant = CalculationNode::constant_type_from_string(component_value->token().ident());
-                if (!maybe_constant.has_value())
+                auto maybe_keyword = keyword_from_string(component_value->token().ident());
+                if (!maybe_keyword.has_value())
                     return nullptr;
-                return ConstantCalculationNode::create(*maybe_constant);
+                return NumericCalculationNode::from_keyword(*maybe_keyword, context);
             }
 
             if (component_value->is(Token::Type::Number))

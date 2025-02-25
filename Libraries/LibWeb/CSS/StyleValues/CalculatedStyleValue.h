@@ -128,17 +128,6 @@ private:
 // https://www.w3.org/TR/css-values-4/#calculation-tree
 class CalculationNode : public RefCounted<CalculationNode> {
 public:
-    // https://drafts.csswg.org/css-values-4/#calc-constants
-    // https://drafts.csswg.org/css-values-4/#calc-error-constants
-    enum class ConstantType {
-        E,
-        Pi,
-        NaN,
-        Infinity,
-        MinusInfinity,
-    };
-    static Optional<ConstantType> constant_type_from_string(StringView);
-
     enum class Type {
         Numeric,
         // NOTE: Currently, any value with a `var()` or `attr()` function in it is always an
@@ -161,10 +150,6 @@ public:
         // https://drafts.csswg.org/css-values-4/#sign-funcs
         Abs,
         Sign,
-
-        // Constant Nodes
-        // https://drafts.csswg.org/css-values-4/#calc-constants
-        Constant,
 
         // Trigonometric functions, a sub-type of operator node
         // https://drafts.csswg.org/css-values-4/#trig-funcs
@@ -260,6 +245,7 @@ private:
 class NumericCalculationNode final : public CalculationNode {
 public:
     static NonnullRefPtr<NumericCalculationNode> create(NumericValue, CalculationContext const&);
+    static RefPtr<NumericCalculationNode> from_keyword(Keyword, CalculationContext const&);
     ~NumericCalculationNode();
 
     virtual String to_string() const override;
@@ -459,24 +445,6 @@ public:
 private:
     SignCalculationNode(NonnullRefPtr<CalculationNode>);
     NonnullRefPtr<CalculationNode> m_value;
-};
-
-class ConstantCalculationNode final : public CalculationNode {
-public:
-    static NonnullRefPtr<ConstantCalculationNode> create(CalculationNode::ConstantType);
-    ~ConstantCalculationNode();
-
-    virtual String to_string() const override;
-    virtual bool contains_percentage() const override { return false; }
-    virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
-    virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override { return *this; }
-
-    virtual void dump(StringBuilder&, int indent) const override;
-    virtual bool equals(CalculationNode const&) const override;
-
-private:
-    ConstantCalculationNode(ConstantType);
-    CalculationNode::ConstantType m_constant;
 };
 
 class SinCalculationNode final : public CalculationNode {
