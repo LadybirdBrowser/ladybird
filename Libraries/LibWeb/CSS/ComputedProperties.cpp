@@ -1602,12 +1602,8 @@ MixBlendMode ComputedProperties::mix_blend_mode() const
 Optional<FlyString> ComputedProperties::view_transition_name() const
 {
     auto const& value = property(PropertyID::ViewTransitionName);
-    if (value.is_custom_ident()) {
-        auto ident = value.as_custom_ident().custom_ident();
-        if (ident == "none"_fly_string)
-            return {};
-        return ident;
-    }
+    if (value.is_custom_ident())
+        return value.as_custom_ident().custom_ident();
     return {};
 }
 
