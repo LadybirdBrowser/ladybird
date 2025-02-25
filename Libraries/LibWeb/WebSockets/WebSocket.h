@@ -15,7 +15,6 @@
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/HTML/Window.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 #define ENUMERATE_WEBSOCKET_EVENT_HANDLERS(E) \
@@ -55,6 +54,8 @@ public:
     WebIDL::ExceptionOr<void> close(Optional<u16> code, Optional<String> reason);
     WebIDL::ExceptionOr<void> send(Variant<GC::Root<WebIDL::BufferSource>, GC::Root<FileAPI::Blob>, String> const& data);
 
+    void make_disappear();
+
 private:
     void on_open();
     void on_message(ByteBuffer message, bool is_text);
@@ -72,6 +73,11 @@ private:
     URL::URL m_url;
     String m_binary_type { "blob"_string };
     RefPtr<Requests::WebSocket> m_websocket;
+
+    IntrusiveListNode<WebSocket> m_list_node;
+
+public:
+    using List = IntrusiveList<&WebSocket::m_list_node>;
 };
 
 }
