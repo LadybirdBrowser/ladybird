@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<link rel=author href="mailto:jarhar@chromium.org">
+<link rel=author href="mailto:lwarlow@igalia.com">
+<link rel=help href="https://issues.chromium.org/issues/329118508">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+
+<div id=mypopover popover=auto>popover</div>
+
+<iframe name=foo></iframe>
+<form id="form" target=foo action="about:blank">
+  <button id=reset-in-form type=reset popovertarget=mypopover>reset</button>
+  <button id=submit-in-form type=submit popovertarget=mypopover>submit</button>
+  <button id=button-in-form type=button popovertarget=mypopover>type=button</button>
+  <button id=invalid-in-form type=invalid popovertarget=mypopover>invalid</button>
+  <button id=missing-in-form popovertarget=mypopover>missing</button>
+</form>
+
+<button id=reset-attr-form type=reset popovertarget=mypopover form=form>reset</button>
+<button id=submit-attr-form type=submit popovertarget=mypopover form=form>submit</button>
+<button id=button-attr-form type=button popovertarget=mypopover form=form>type=button</button>
+<button id=invalid-attr-form type=invalid popovertarget=mypopover form=form>invalid</button>
+<button id=missing-attr-form popovertarget=mypopover form=form>missing</button>
+
+<button id=reset-outside-form type=reset popovertarget=mypopover>reset</button>
+<button id=submit-outside-form type=submit popovertarget=mypopover>submit</button>
+<button id=button-outside-form type=button popovertarget=mypopover>type=button</button>
+<button id=invalid-outside-form type=invalid popovertarget=mypopover>invalid</button>
+<button id=missing-outside-form popovertarget=mypopover>missing</button>
+
+<script>
+test((t) => {
+  let formReset = false;
+  function onReset(e) {
+    e.preventDefault();
+    formReset = true;
+  }
+  form.addEventListener('reset', onReset);
+  t.add_cleanup(() => {
+    mypopover.hidePopover();
+    form.removeEventListener('reset', onReset);
+  });
+  document.getElementById('reset-in-form').click();
+  assert_true(formReset, 'type=reset should trigger form reset event');
+  assert_false(mypopover.matches(':popover-open'), 'type=reset should not toggle the popover');
+}, 'Button type=reset in form should trigger form reset and not toggle popover');
+
+test((t) => {
+  let formSubmit = false;
+  function onSubmit(e) {
+    e.preventDefault();
+    formSubmit = true;
+  }
+  form.addEventListener('submit', onSubmit);
+  t.add_cleanup(() => {
+    mypopover.hidePopover();
+    form.removeEventListener('submit', onSubmit);
+  });
+  document.getElementById('submit-in-form').click();
+  assert_true(formSubmit, 'type=submit should trigger form submit event');
+  assert_false(mypopover.matches(':popover-open'), 'type=submit should not toggle the popover');
+}, 'Button type=submit in form should trigger form submit and not toggle popover');
+
+test((t) => {
+  t.add_cleanup(() => {
+    mypopover.hidePopover();
+  });
+  document.getElementById('button-in-form').click();
+  assert_true(mypopover.matches(':popover-open'), 'type=button should toggle the popover');
+}, 'Button type=button in form should toggle popover');
+
+test((t) => {
+  let formSubmit = false;
+  function onSubmit(e) {
+    e.preventDefault();
+    formSubmit = true;
+  }
+  form.addEventListener('submit', onSubmit);
+  t.add_cleanup(() => {
+    mypopover.hidePopover();
+    form.removeEventListener('submit', onSubmit);
+  });
+  document.getElementById('invalid-in-form').click();
+  assert_true(formSubmit, 'type=invalid should trigger form submit event');
+  assert_false(mypopover.matches(':popover-open'), 'type=invalid should not toggle the popover');
+}, 'Button type=invalid in form should trigger form submit and not toggle popover');
+
+test((t) => {
+  let formSubmit = false;
+  function onSubmit(e) {
+    e.preventDefault();
+    formSubmit = true;
+  }
+  form.addEventListener('submit', onSubmit);
+  t.add_cleanup(() => {
+    mypopover.hidePopover();
+    form.removeEventListener('submit', onSubmit);
+  });
+  document.getElementById('missing-in-form').click();
+  assert_true(formSubmit, 'missing type should trigger form submit event');
+  assert_false(mypopover.matches(':popover-open'), 'type=invalid should not toggle the popover');
+}, 'Button missing type in form should trigger form submit and not toggle popover');
+
+test((t) => {
+  let formReset = false;
+  function onReset(e) {
+    e.preventDefault();
+    formReset = true;
+  }
+  form.addEventListener('reset', onReset);
+  t.add_cleanup(() => {
+    mypopover.hidePopover();
+    form.removeEventListener('reset', onReset);
+  });
+  document.getElementById('reset-attr-form').click();
+  assert_true(formReset, 'type=reset should trigger form reset event');
+  assert_false(mypopover.matches(':popover-open'), 'type=reset should not toggle the popover');
+}, 'Button type=reset with form attr should trigger form reset and not toggle popover');
+
+test((t) => {
+  let formSubmit = false;
+  function onSubmit(e) {
+    e.preventDefault();
+    formSubmit = true;
+  }
+  form.addEventListener('submit', onSubmit);
+  t.add_cleanup(() => {
+    mypopover.hidePopover();
+    form.removeEventListener('submit', onSubmit);
+  });
+  document.getElementById('submit-attr-form').click();
+  assert_true(formSubmit, 'type=submit should trigger form submit event');
+  assert_false(mypopover.matches(':popover-open'), 'type=submit should not toggle the popover');
+}, 'Button type=submit with form attr should trigger form submit and not toggle popover');
+
+test((t) => {
+  t.add_cleanup(() => {
+    mypopover.hidePopover();
+  });
+  document.getElementById('button-attr-form').click();
+  assert_true(mypopover.matches(':popover-open'), 'type=button should toggle the popover');
+}, 'Button type=button with form attr should toggle popover');
+
+test((t) => {
+  let formSubmit = false;
+  function onSubmit(e) {
+    e.preventDefault();
+    formSubmit = true;
+  }
+  form.addEventListener('submit', onSubmit);
+  t.add_cleanup(() => {
+    mypopover.hidePopover();
+    form.removeEventListener('submit', onSubmit);
+  });
+  document.getElementById('invalid-attr-form').click();
+  assert_true(formSubmit, 'type=invalid should trigger form submit event');
+  assert_false(mypopover.matches(':popover-open'), 'type=invalid should not toggle the popover');
+}, 'Button type=invalid with form attr should trigger form submit and not toggle popover');
+
+test((t) => {
+  let formSubmit = false;
+  function onSubmit(e) {
+    e.preventDefault();
+    formSubmit = true;
+  }
+  form.addEventListener('submit', onSubmit);
+  t.add_cleanup(() => {
+    mypopover.hidePopover();
+    form.removeEventListener('submit', onSubmit);
+  });
+  document.getElementById('missing-attr-form').click();
+  assert_true(formSubmit, 'missing type should trigger form submit event');
+  assert_false(mypopover.matches(':popover-open'), 'type=invalid should not toggle the popover');
+}, 'Button missing type with form attr should trigger form submit and not toggle popover');
+
+test((t) => {
+  t.add_cleanup(() => {
+    mypopover.hidePopover();
+  });
+  document.getElementById('reset-outside-form').click();
+  assert_true(mypopover.matches(':popover-open'), 'type=reset should toggle the popover');
+}, 'Button type=reset outside form should toggle popover');
+
+test((t) => {
+  t.add_cleanup(() => {
+    mypopover.hidePopover();
+  });
+  document.getElementById('submit-outside-form').click();
+  assert_true(mypopover.matches(':popover-open'), 'type=submit should toggle the popover');
+}, 'Button type=submit outside form should toggle popover');
+
+test((t) => {
+  t.add_cleanup(() => {
+    mypopover.hidePopover();
+  });
+  document.getElementById('button-outside-form').click();
+  assert_true(mypopover.matches(':popover-open'), 'type=button should toggle the popover');
+}, 'Button type=button outside form should toggle popover');
+
+test((t) => {
+  t.add_cleanup(() => {
+    mypopover.hidePopover();
+  });
+  document.getElementById('invalid-outside-form').click();
+  assert_true(mypopover.matches(':popover-open'), 'type=invalid should toggle the popover');
+}, 'Button type=invalid outside form should toggle popover');
+
+test((t) => {
+  t.add_cleanup(() => {
+    mypopover.hidePopover();
+  });
+  document.getElementById('missing-outside-form').click();
+  assert_true(mypopover.matches(':popover-open'), 'missing type should toggle the popover');
+}, 'Button missing type outside form should toggle popover');
+</script>

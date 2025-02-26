@@ -1,0 +1,20 @@
+Harness status: OK
+
+Found 15 tests
+
+15 Pass
+Pass	Button type=reset in form should trigger form reset and not toggle popover
+Pass	Button type=submit in form should trigger form submit and not toggle popover
+Pass	Button type=button in form should toggle popover
+Pass	Button type=invalid in form should trigger form submit and not toggle popover
+Pass	Button missing type in form should trigger form submit and not toggle popover
+Pass	Button type=reset with form attr should trigger form reset and not toggle popover
+Pass	Button type=submit with form attr should trigger form submit and not toggle popover
+Pass	Button type=button with form attr should toggle popover
+Pass	Button type=invalid with form attr should trigger form submit and not toggle popover
+Pass	Button missing type with form attr should trigger form submit and not toggle popover
+Pass	Button type=reset outside form should toggle popover
+Pass	Button type=submit outside form should toggle popover
+Pass	Button type=button outside form should toggle popover
+Pass	Button type=invalid outside form should toggle popover
+Pass	Button missing type outside form should toggle popover
