@@ -435,23 +435,43 @@ void WindowOrWorkerGlobalScopeMixin::queue_performance_entry(GC::Ref<Performance
         observer->append_to_observer_buffer({}, new_entry);
     }
 
-    // 6. Let tuple be the relevant performance entry tuple of entryType and relevantGlobal.
-    auto& tuple = relevant_performance_entry_tuple(entry_type);
-
-    // 7. Let isBufferFull be the return value of the determine if a performance entry buffer is full algorithm with tuple
-    //    as input.
-    bool is_buffer_full = tuple.is_full();
-
-    // 8. Let shouldAdd be the result of should add entry with newEntry as input.
-    auto should_add = new_entry->should_add_entry();
-
-    // 9. If isBufferFull is false and shouldAdd is true, append newEntry to tuple's performance entry buffer.
-    if (!is_buffer_full && should_add == PerformanceTimeline::ShouldAddEntry::Yes)
-        tuple.performance_entry_buffer.append(new_entry);
+    // AD-HOC: Steps 6-9 are not here because other engines do not add to the performance entry buffer when queuing
+    //         the performance observer task. The users of the Performance Timeline specification also do not expect
+    //         this function to add to the entry buffer, instead queuing the observer task, then adding to the entry
+    //         buffer separately.
 
     // 10. Queue the PerformanceObserver task with relevantGlobal as input.
     queue_the_performance_observer_task();
 }
+
+// https://www.w3.org/TR/performance-timeline/#dfn-queue-a-performanceentry
+// AD-HOC: This is a separate function because the users of this specification queues PerformanceObserver tasks and add
+//         to the entry buffer separately.
+void WindowOrWorkerGlobalScopeMixin::add_performance_entry(GC::Ref<PerformanceTimeline::PerformanceEntry> new_entry, CheckIfPerformanceBufferIsFull check_if_performance_buffer_is_full)
+{
+    // 6. Let tuple be the relevant performance entry tuple of entryType and relevantGlobal.
+    auto& tuple = relevant_performance_entry_tuple(new_entry->entry_type());
+
+    // AD-HOC: We have a custom flag to always append to the buffer by default, as other performance specs do this by default
+    //         (either they don't have a limit, or they check the limit themselves). This flag allows compatibility for specs
+    //         that rely do and don't rely on this.
+    bool is_buffer_full = false;
+    auto should_add = PerformanceTimeline::ShouldAddEntry::Yes;
+
+    if (check_if_performance_buffer_is_full == CheckIfPerformanceBufferIsFull::Yes) {
+        // 7. Let isBufferFull be the return value of the determine if a performance entry buffer is full algorithm with tuple
+        //    as input.
+        is_buffer_full = tuple.is_full();
+
+        // 8. Let shouldAdd be the result of should add entry with newEntry as input.
+        should_add = new_entry->should_add_entry();
+    }
+
+    // 9. If isBufferFull is false and shouldAdd is true, append newEntry to tuple's performance entry buffer.
+    if (!is_buffer_full && should_add == PerformanceTimeline::ShouldAddEntry::Yes)
+        tuple.performance_entry_buffer.append(new_entry);
+}
+
 
 void WindowOrWorkerGlobalScopeMixin::clear_performance_entry_buffer(Badge<HighResolutionTime::Performance>, FlyString const& entry_type)
 {

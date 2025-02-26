@@ -47,8 +47,14 @@ public:
     void clear_interval(i32);
     void clear_map_of_active_timers();
 
+    enum class CheckIfPerformanceBufferIsFull {
+        No,
+        Yes,
+    };
+
     PerformanceTimeline::PerformanceEntryTuple& relevant_performance_entry_tuple(FlyString const& entry_type);
     void queue_performance_entry(GC::Ref<PerformanceTimeline::PerformanceEntry> new_entry);
+    void add_performance_entry(GC::Ref<PerformanceTimeline::PerformanceEntry> new_entry, CheckIfPerformanceBufferIsFull check_if_performance_buffer_is_full = CheckIfPerformanceBufferIsFull::No);
     void clear_performance_entry_buffer(Badge<HighResolutionTime::Performance>, FlyString const& entry_type);
     void remove_entries_from_performance_entry_buffer(Badge<HighResolutionTime::Performance>, FlyString const& entry_type, String entry_name);
 
