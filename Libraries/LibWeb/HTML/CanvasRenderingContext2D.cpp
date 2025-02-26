@@ -478,7 +478,14 @@ void CanvasRenderingContext2D::put_image_data(ImageData const& image_data, float
     //        https://html.spec.whatwg.org/multipage/canvas.html#dom-context2d-putimagedata-common
     if (auto* painter = this->painter()) {
         auto dst_rect = Gfx::FloatRect(x, y, image_data.width(), image_data.height());
-        painter->draw_bitmap(dst_rect, Gfx::ImmutableBitmap::create(image_data.bitmap()), image_data.bitmap().rect(), Gfx::ScalingMode::NearestNeighbor, drawing_state().filters, 1.0f, Gfx::CompositingAndBlendingOperator::SourceOver);
+        painter->draw_bitmap(
+            dst_rect,
+            Gfx::ImmutableBitmap::create(image_data.bitmap(), Gfx::AlphaType::Unpremultiplied),
+            image_data.bitmap().rect(),
+            Gfx::ScalingMode::NearestNeighbor,
+            drawing_state().filters,
+            1.0f,
+            Gfx::CompositingAndBlendingOperator::SourceOver);
         did_draw(dst_rect);
     }
 }

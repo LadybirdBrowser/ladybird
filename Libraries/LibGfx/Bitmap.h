@@ -145,6 +145,7 @@ public:
     [[nodiscard]] bool visually_equals(Bitmap const&) const;
 
     [[nodiscard]] AlphaType alpha_type() const { return m_alpha_type; }
+    void set_alpha_type_destructive(AlphaType);
 
 private:
     Bitmap(BitmapFormat, AlphaType, IntSize, BackingStore const&);

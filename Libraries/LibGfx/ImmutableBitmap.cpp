@@ -87,6 +87,19 @@ NonnullRefPtr<ImmutableBitmap> ImmutableBitmap::create(NonnullRefPtr<Bitmap> bit
     return adopt_ref(*new ImmutableBitmap(make<ImmutableBitmapImpl>(impl)));
 }
 
+NonnullRefPtr<ImmutableBitmap> ImmutableBitmap::create(NonnullRefPtr<Bitmap> bitmap, AlphaType alpha_type, ColorSpace color_space)
+{
+    // Convert the source bitmap to the right alpha type on a mismatch. We want to do this when converting from a
+    // Bitmap to an ImmutableBitmap, since at that point we usually know the right alpha type to use in context.
+    auto source_bitmap = bitmap;
+    if (source_bitmap->alpha_type() != alpha_type) {
+        source_bitmap = MUST(bitmap->clone());
+        source_bitmap->set_alpha_type_destructive(alpha_type);
+    }
+
+    return create(source_bitmap, move(color_space));
+}
+
 NonnullRefPtr<ImmutableBitmap> ImmutableBitmap::create_snapshot_from_painting_surface(NonnullRefPtr<PaintingSurface> painting_surface)
 {
     ImmutableBitmapImpl impl;

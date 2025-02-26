@@ -245,4 +245,26 @@ bool Bitmap::visually_equals(Bitmap const& other) const
     return true;
 }
 
+void Bitmap::set_alpha_type_destructive(AlphaType alpha_type)
+{
+    if (alpha_type == m_alpha_type)
+        return;
+
+    if (m_alpha_type == AlphaType::Unpremultiplied) {
+        for (auto y = 0; y < height(); ++y) {
+            for (auto x = 0; x < width(); ++x)
+                set_pixel(x, y, get_pixel(x, y).to_premultiplied());
+        }
+    } else if (m_alpha_type == AlphaType::Premultiplied) {
+        for (auto y = 0; y < height(); ++y) {
+            for (auto x = 0; x < width(); ++x)
+                set_pixel(x, y, get_pixel(x, y).to_unpremultiplied());
+        }
+    } else {
+        VERIFY_NOT_REACHED();
+    }
+
+    m_alpha_type = alpha_type;
+}
+
 }
