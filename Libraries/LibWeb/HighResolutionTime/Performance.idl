@@ -23,6 +23,12 @@ interface Performance : EventTarget {
     PerformanceMeasure measure(DOMString measureName, optional (DOMString or PerformanceMeasureOptions) startOrMeasureOptions = {}, optional DOMString endMark);
     undefined clearMeasures(optional DOMString measureName);
 
+    // https://w3c.github.io/resource-timing/#sec-extensions-performance-interface
+    // "Resource Timing" extensions to the Performance interface
+    undefined clearResourceTimings();
+    undefined setResourceTimingBufferSize(unsigned long maxSize);
+    attribute EventHandler onresourcetimingbufferfull;
+
     // https://www.w3.org/TR/performance-timeline/#extensions-to-the-performance-interface
     // "Performance Timeline" extensions to the Performance interface
     PerformanceEntryList getEntries();

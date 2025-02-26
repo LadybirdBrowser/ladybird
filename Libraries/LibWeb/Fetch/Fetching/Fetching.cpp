@@ -53,6 +53,7 @@
 #include <LibWeb/MixedContent/AbstractOperations.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/ReferrerPolicy/AbstractOperations.h>
+#include <LibWeb/ResourceTiming/PerformanceResourceTiming.h>
 #include <LibWeb/SRI/SRI.h>
 #include <LibWeb/SecureContexts/AbstractOperations.h>
 #include <LibWeb/Streams/TransformStream.h>
@@ -687,13 +688,11 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
                     body_info.content_type = MimeSniff::minimise_a_supported_mime_type(mime_type.value());
             }
 
-            // FIXME: 8. If fetchParams’s request’s initiator type is not null, then mark resource timing given timingInfo,
-            //           request’s URL, request’s initiator type, global, cacheState, bodyInfo, and responseStatus.
-            (void)timing_info;
-            (void)global;
-            (void)cache_state;
-            (void)body_info;
-            (void)response_status;
+            // 8. If fetchParams’s request’s initiator type is not null, then mark resource timing given timingInfo,
+            //    request’s URL, request’s initiator type, global, cacheState, bodyInfo, and responseStatus.
+            if (fetch_params.request()->initiator_type().has_value()) {
+                ResourceTiming::PerformanceResourceTiming::mark_resource_timing(timing_info, fetch_params.request()->url().to_string(), Infrastructure::initiator_type_to_string(fetch_params.request()->initiator_type().value()), global, cache_state, body_info, response_status);
+            }
         });
 
         // 4. Let processResponseEndOfBodyTask be the following steps:

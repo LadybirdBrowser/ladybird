@@ -66,6 +66,9 @@ public:
 
     void queue_the_performance_observer_task();
 
+    void set_resource_timing_buffer_size_limit(Badge<HighResolutionTime::Performance>, u32 value) { m_resource_timing_buffer_size_limit = value; }
+    void add_resource_timing_entry(Badge<ResourceTiming::PerformanceResourceTiming>, GC::Ref<ResourceTiming::PerformanceResourceTiming> entry);
+
     void register_event_source(Badge<EventSource>, GC::Ref<EventSource>);
     void unregister_event_source(Badge<EventSource>, GC::Ref<EventSource>);
     void forcibly_close_all_event_sources();
@@ -112,6 +115,11 @@ private:
 
     GC::Ref<WebIDL::Promise> create_image_bitmap_impl(ImageBitmapSource& image, Optional<WebIDL::Long> sx, Optional<WebIDL::Long> sy, Optional<WebIDL::Long> sw, Optional<WebIDL::Long> sh, Optional<ImageBitmapOptions>& options) const;
 
+    size_t resource_timing_buffer_current_size();
+    bool can_add_resource_timing_entry();
+    void fire_resource_timing_buffer_full_event();
+    void copy_resource_timing_secondary_buffer();
+
     IDAllocator m_timer_id_allocator;
     HashMap<int, GC::Ref<Timer>> m_timers;
 
@@ -141,6 +149,24 @@ private:
     bool m_error_reporting_mode { false };
 
     WebSockets::WebSocket::List m_registered_web_sockets;
+
+    // https://w3c.github.io/resource-timing/#sec-extensions-performance-interface
+    // Each ECMAScript global environment has:
+    // https://w3c.github.io/resource-timing/#dfn-resource-timing-buffer-size-limit
+    // A resource timing buffer size limit which should initially be 250 or greater.
+    // The recommended minimum number of PerformanceResourceTiming objects is 250, though this may be changed by the
+    // user agent. setResourceTimingBufferSize can be called to request a change to this limit.
+    u32 m_resource_timing_buffer_size_limit { 250 };
+
+    // https://w3c.github.io/resource-timing/#dfn-resource-timing-buffer-full-event-pending-flag
+    // A resource timing buffer full event pending flag which is initially false.
+    bool m_resource_timing_buffer_full_event_pending { false };
+
+    // https://w3c.github.io/resource-timing/#dfn-resource-timing-secondary-buffer-current-size
+    // A resource timing secondary buffer current size which is initially 0.
+    // https://w3c.github.io/resource-timing/#dfn-resource-timing-secondary-buffer
+    // A resource timing secondary buffer to store PerformanceResourceTiming objects that is initially empty.
+    Vector<GC::Ref<ResourceTiming::PerformanceResourceTiming>> m_resource_timing_secondary_buffer;
 };
 
 }

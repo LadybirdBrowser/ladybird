@@ -531,6 +531,7 @@ private:
 
 StringView request_destination_to_string(Request::Destination);
 StringView request_mode_to_string(Request::Mode);
+FlyString initiator_type_to_string(Request::InitiatorType);
 
 Optional<Request::Priority> request_priority_from_string(StringView);
 
