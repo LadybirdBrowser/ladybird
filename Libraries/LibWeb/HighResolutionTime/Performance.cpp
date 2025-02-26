@@ -17,6 +17,7 @@
 #include <LibWeb/NavigationTiming/PerformanceNavigation.h>
 #include <LibWeb/NavigationTiming/PerformanceTiming.h>
 #include <LibWeb/PerformanceTimeline/EntryTypes.h>
+#include <LibWeb/PerformanceTimeline/EventNames.h>
 
 namespace Web::HighResolutionTime {
 
@@ -328,6 +329,35 @@ void Performance::clear_measures(Optional<String> measure_name)
     window_or_worker().remove_entries_from_performance_entry_buffer({}, PerformanceTimeline::EntryTypes::measure, measure_name.value());
 
     // 3. Return undefined.
+}
+
+// https://w3c.github.io/resource-timing/#dom-performance-clearresourcetimings
+void Performance::clear_resource_timings()
+{
+    // 1. Remove all PerformanceResourceTiming objects in the performance entry buffer.
+    // 2. Set resource timing buffer current size to 0.
+    window_or_worker().clear_performance_entry_buffer({}, PerformanceTimeline::EntryTypes::resource);
+}
+
+// https://w3c.github.io/resource-timing/#dom-performance-setresourcetimingbuffersize
+void Performance::set_resource_timing_buffer_size(u32 max_size)
+{
+    // 1. Set resource timing buffer size limit to the maxSize parameter. If the maxSize parameter is less than
+    //    resource timing buffer current size, no PerformanceResourceTiming objects are to be removed from the
+    //    performance entry buffer.
+    window_or_worker().set_resource_timing_buffer_size_limit({}, max_size);
+}
+
+// https://w3c.github.io/resource-timing/#dom-performance-onresourcetimingbufferfull
+void Performance::set_onresourcetimingbufferfull(WebIDL::CallbackType* event_handler)
+{
+    set_event_handler_attribute(PerformanceTimeline::EventNames::resourcetimingbufferfull, event_handler);
+}
+
+// https://w3c.github.io/resource-timing/#dom-performance-onresourcetimingbufferfull
+WebIDL::CallbackType* Performance::onresourcetimingbufferfull()
+{
+    return event_handler_attribute(PerformanceTimeline::EventNames::resourcetimingbufferfull);
 }
 
 // https://www.w3.org/TR/performance-timeline/#getentries-method

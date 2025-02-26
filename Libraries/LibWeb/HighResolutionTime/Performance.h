@@ -30,6 +30,11 @@ public:
     WebIDL::ExceptionOr<GC::Ref<UserTiming::PerformanceMeasure>> measure(String const& measure_name, Variant<String, UserTiming::PerformanceMeasureOptions> const& start_or_measure_options, Optional<String> end_mark);
     void clear_measures(Optional<String> measure_name);
 
+    void clear_resource_timings();
+    void set_resource_timing_buffer_size(u32 max_size);
+    void set_onresourcetimingbufferfull(WebIDL::CallbackType*);
+    WebIDL::CallbackType* onresourcetimingbufferfull();
+
     WebIDL::ExceptionOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> get_entries() const;
     WebIDL::ExceptionOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> get_entries_by_type(String const& type) const;
     WebIDL::ExceptionOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> get_entries_by_name(String const& name, Optional<String> type) const;
