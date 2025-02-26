@@ -89,7 +89,7 @@ WebIDL::ExceptionOr<GC::Ref<UserTiming::PerformanceMark>> Performance::mark(Stri
     window_or_worker().queue_performance_entry(entry);
 
     // 3. Add entry to the performance entry buffer.
-    // FIXME: This seems to be a holdover from moving to the `queue` structure for PerformanceObserver, as this would cause a double append.
+    window_or_worker().add_performance_entry(entry);
 
     // 4. Return entry.
     return entry;
@@ -309,7 +309,7 @@ WebIDL::ExceptionOr<GC::Ref<UserTiming::PerformanceMeasure>> Performance::measur
     window_or_worker().queue_performance_entry(entry);
 
     // 11. Add entry to the performance entry buffer.
-    // FIXME: This seems to be a holdover from moving to the `queue` structure for PerformanceObserver, as this would cause a double append.
+    window_or_worker().add_performance_entry(entry);
 
     // 12. Return entry.
     return entry;
