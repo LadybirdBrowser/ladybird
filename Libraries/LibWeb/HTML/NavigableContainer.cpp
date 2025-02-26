@@ -202,6 +202,10 @@ Optional<URL::URL> NavigableContainer::shared_attribute_processing_steps_for_ifr
     if (!m_content_navigable)
         return {};
 
+    if (initial_insertion && m_content_navigable->has_pending_navigations()) {
+        return {};
+    }
+
     // 1. Let url be the URL record about:blank.
     auto url = URL::about_blank();
 
@@ -310,7 +314,7 @@ void NavigableContainer::destroy_the_child_navigable()
 // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#potentially-delays-the-load-event
 bool NavigableContainer::currently_delays_the_load_event() const
 {
-    if (!m_content_navigable_initialized)
+    if (!content_navigable_has_session_history_entry_and_ready_for_navigation())
         return true;
 
     if (!m_potentially_delays_the_load_event)

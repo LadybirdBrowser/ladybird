@@ -92,7 +92,8 @@ void HTMLIFrameElement::post_connection()
 
         // 3. Process the iframe attributes for insertedNode, with initialInsertion set to true.
         process_the_iframe_attributes(true);
-        set_content_navigable_initialized();
+
+        set_content_navigable_has_session_history_entry_and_ready_for_navigation();
     })));
 }
 

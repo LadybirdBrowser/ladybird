@@ -135,25 +135,24 @@ public:
         GC::Ptr<GC::Function<void()>> completion_steps = {});
 
     struct NavigateParams {
-        URL::URL const& url;
+        URL::URL url;
         GC::Ref<DOM::Document> source_document;
         Variant<Empty, String, POSTResource> document_resource = Empty {};
         GC::Ptr<Fetch::Infrastructure::Response> response = nullptr;
         bool exceptions_enabled = false;
         Bindings::NavigationHistoryBehavior history_handling = Bindings::NavigationHistoryBehavior::Auto;
         Optional<SerializationRecord> navigation_api_state = {};
-        Optional<Vector<XHR::FormDataEntry>&> form_data_entry_list = {};
+        Optional<Vector<XHR::FormDataEntry>> form_data_entry_list = {};
         ReferrerPolicy::ReferrerPolicy referrer_policy = ReferrerPolicy::ReferrerPolicy::EmptyString;
         UserNavigationInvolvement user_involvement = UserNavigationInvolvement::None;
         GC::Ptr<DOM::Element> source_element = nullptr;
+
+        void visit_edges(Cell::Visitor& visitor);
     };
 
     WebIDL::ExceptionOr<void> navigate(NavigateParams);
 
-    WebIDL::ExceptionOr<void> navigate_to_a_fragment(URL::URL const&, HistoryHandlingBehavior, UserNavigationInvolvement, GC::Ptr<DOM::Element> source_element, Optional<SerializationRecord> navigation_api_state, String navigation_id);
-
     GC::Ptr<DOM::Document> evaluate_javascript_url(URL::URL const&, URL::Origin const& new_document_origin, UserNavigationInvolvement, String navigation_id);
-    void navigate_to_a_javascript_url(URL::URL const&, HistoryHandlingBehavior, GC::Ref<SourceSnapshotParams>, URL::Origin const& initiator_origin, UserNavigationInvolvement, CSPNavigationType csp_navigation_type, String navigation_id);
 
     bool allowed_by_sandboxing_to_navigate(Navigable const& target, SourceSnapshotParams const&);
 
@@ -188,6 +187,11 @@ public:
     Web::EventHandler& event_handler() { return m_event_handler; }
     Web::EventHandler const& event_handler() const { return m_event_handler; }
 
+    bool has_session_history_entry_and_ready_for_navigation() const { return m_has_session_history_entry_and_ready_for_navigation; }
+    void set_has_session_history_entry_and_ready_for_navigation();
+
+    bool has_pending_navigations() const { return !m_pending_navigations.is_empty(); }
+
 protected:
     explicit Navigable(GC::Ref<Page>);
 
@@ -198,6 +202,10 @@ protected:
     Variant<Empty, Traversal, String> m_ongoing_navigation;
 
 private:
+    void begin_navigation(NavigateParams);
+    void navigate_to_a_fragment(URL::URL const&, HistoryHandlingBehavior, UserNavigationInvolvement, GC::Ptr<DOM::Element> source_element, Optional<SerializationRecord> navigation_api_state, String navigation_id);
+    void navigate_to_a_javascript_url(URL::URL const&, HistoryHandlingBehavior, GC::Ref<SourceSnapshotParams>, URL::Origin const& initiator_origin, UserNavigationInvolvement, CSPNavigationType csp_navigation_type, String navigation_id);
+
     void reset_cursor_blink_cycle();
 
     void scroll_offset_did_change();
@@ -235,6 +243,10 @@ private:
     CSSPixelPoint m_viewport_scroll_offset;
 
     Web::EventHandler m_event_handler;
+
+    bool m_has_session_history_entry_and_ready_for_navigation { false };
+
+    Vector<NavigateParams> m_pending_navigations;
 };
 
 HashTable<GC::RawRef<Navigable>>& all_navigables();

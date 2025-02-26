@@ -137,6 +137,7 @@ WebIDL::ExceptionOr<GC::Ref<TraversableNavigable>> TraversableNavigable::create_
 
     // 9. Append initialHistoryEntry to traversable's session history entries.
     traversable->m_session_history_entries.append(*initial_history_entry);
+    traversable->set_has_session_history_entry_and_ready_for_navigation();
 
     // FIXME: 10. If opener is non-null, then legacy-clone a traversable storage shed given opener's top-level traversable and traversable. [STORAGE]
 

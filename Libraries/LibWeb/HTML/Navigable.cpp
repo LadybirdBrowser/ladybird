@@ -134,6 +134,17 @@ void Navigable::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_container);
     visitor.visit(m_navigation_observers);
     m_event_handler.visit_edges(visitor);
+
+    for (auto& navigation_params : m_pending_navigations) {
+        navigation_params.visit_edges(visitor);
+    }
+}
+
+void Navigable::NavigateParams::visit_edges(Cell::Visitor& visitor)
+{
+    visitor.visit(response);
+    visitor.visit(source_document);
+    visitor.visit(source_element);
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#script-closable
@@ -1329,40 +1340,12 @@ WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
     return {};
 }
 
-// To navigate a navigable navigable to a URL url using a Document sourceDocument,
-// with an optional POST resource, string, or null documentResource (default null),
-// an optional response-or-null response (default null), an optional boolean exceptionsEnabled (default false),
-// an optional NavigationHistoryBehavior historyHandling (default "auto"),
-// an optional serialized state-or-null navigationAPIState (default null),
-// an optional entry list or null formDataEntryList (default null),
-// an optional referrer policy referrerPolicy (default the empty string),
-// an optional user navigation involvement userInvolvement (default "none"),
-// and an optional Element sourceElement (default null):
-
-// https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate
 WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
 {
-    // AD-HOC: Not in the spec but subsequent steps will fail if the navigable doesn't have an active window.
-    if (!active_window())
-        return {};
-
-    auto const& url = params.url;
     auto source_document = params.source_document;
-    auto const& document_resource = params.document_resource;
-    auto response = params.response;
     auto exceptions_enabled = params.exceptions_enabled;
-    auto history_handling = params.history_handling;
-    auto const& navigation_api_state = params.navigation_api_state;
-    auto const& form_data_entry_list = params.form_data_entry_list;
-    auto referrer_policy = params.referrer_policy;
-    auto user_involvement = params.user_involvement;
-    auto source_element = params.source_element;
     auto& active_document = *this->active_document();
     auto& realm = active_document.realm();
-    auto& vm = this->vm();
-
-    // 1. Let cspNavigationType be "form-submission" if formDataEntryList is non-null; otherwise "other".
-    auto csp_navigation_type = form_data_entry_list.has_value() ? CSPNavigationType::FormSubmission : CSPNavigationType::Other;
 
     // 2. Let sourceSnapshotParams be the result of snapshotting source snapshot params given sourceDocument.
     auto source_snapshot_params = source_document->snapshot_source_snapshot_params();
@@ -1384,8 +1367,67 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
         return {};
     }
 
+    if (m_pending_navigations.size() == 0 && params.url.equals(URL::about_blank())) {
+        begin_navigation(move(params));
+        return {};
+    }
+
+    if (!m_has_session_history_entry_and_ready_for_navigation) {
+        m_pending_navigations.append(move(params));
+        return {};
+    }
+
+    begin_navigation(move(params));
+    return {};
+}
+
+// To navigate a navigable navigable to a URL url using a Document sourceDocument,
+// with an optional POST resource, string, or null documentResource (default null),
+// an optional response-or-null response (default null), an optional boolean exceptionsEnabled (default false),
+// an optional NavigationHistoryBehavior historyHandling (default "auto"),
+// an optional serialized state-or-null navigationAPIState (default null),
+// an optional entry list or null formDataEntryList (default null),
+// an optional referrer policy referrerPolicy (default the empty string),
+// an optional user navigation involvement userInvolvement (default "none"),
+// and an optional Element sourceElement (default null):
+
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate
+void Navigable::begin_navigation(NavigateParams params)
+{
+    // AD-HOC: Not in the spec but subsequent steps will fail if the navigable doesn't have an active window.
+    if (!active_window())
+        return;
+
+    auto const& url = params.url;
+    auto source_document = params.source_document;
+    auto const& document_resource = params.document_resource;
+    auto response = params.response;
+    auto history_handling = params.history_handling;
+    auto const& navigation_api_state = params.navigation_api_state;
+    auto const& form_data_entry_list = params.form_data_entry_list;
+    auto referrer_policy = params.referrer_policy;
+    auto user_involvement = params.user_involvement;
+    auto source_element = params.source_element;
+    auto& active_document = *this->active_document();
+    auto& vm = this->vm();
+
+    // 1. Let cspNavigationType be "form-submission" if formDataEntryList is non-null; otherwise "other".
+    auto csp_navigation_type = form_data_entry_list.has_value() ? CSPNavigationType::FormSubmission : CSPNavigationType::Other;
+
+    // 2. Let sourceSnapshotParams be the result of snapshotting source snapshot params given sourceDocument.
+    auto source_snapshot_params = source_document->snapshot_source_snapshot_params();
+
+    // 3. Let initiatorOriginSnapshot be sourceDocument's origin.
+    auto initiator_origin_snapshot = source_document->origin();
+
+    // 4. Let initiatorBaseURLSnapshot be sourceDocument's document base URL.
+    auto initiator_base_url_snapshot = source_document->base_url();
+
+    // 5. If sourceDocument's node navigable is not allowed by sandboxing to navigate navigable given sourceSnapshotParams, then:
+    // NOTE: This step is handled in Navigable::navigate()
+
     // 6. Let navigationId be the result of generating a random UUID.
-    String navigation_id = TRY_OR_THROW_OOM(vm, Crypto::generate_random_uuid());
+    String navigation_id = MUST(Crypto::generate_random_uuid());
 
     // FIXME: 7. If the surrounding agent is equal to navigable's active document's relevant agent, then continue these steps.
     //           Otherwise, queue a global task on the navigation and traversal task source given navigable's active window to continue these steps.
@@ -1396,7 +1438,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
     if (active_document.unload_counter() > 0) {
         // FIXME: invoke WebDriver BiDi navigation failed with navigable and a WebDriver BiDi navigation status whose id
         //        is navigationId, status is "canceled", and url is url
-        return {};
+        return;
     }
 
     // 9. Let container be navigable's container.
@@ -1441,10 +1483,10 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
         && url.equals(active_session_history_entry()->url(), URL::ExcludeFragment::Yes)
         && url.fragment().has_value()) {
         // 1. Navigate to a fragment given navigable, url, historyHandling, userInvolvement, sourceElement, navigationAPIState, and navigationId.
-        TRY(navigate_to_a_fragment(url, to_history_handling_behavior(history_handling), user_involvement, source_element, navigation_api_state, navigation_id));
+        navigate_to_a_fragment(url, to_history_handling_behavior(history_handling), user_involvement, source_element, navigation_api_state, navigation_id);
 
         // 2. Return.
-        return {};
+        return;
     }
 
     // 14. If navigable's parent is non-null, then set navigable's is delaying load events to true.
@@ -1461,7 +1503,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
         // FIXME: 1. Invoke WebDriver BiDi navigation failed with navigable and a new WebDriver BiDi navigation status whose id is navigationId, status is "canceled", and url is url.
 
         // 2. Return.
-        return {};
+        return;
     }
 
     // 18. Set the ongoing navigation for navigable to navigationId.
@@ -1476,7 +1518,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
         }));
 
         // 2. Return.
-        return {};
+        return;
     }
 
     // 20. If all of the following are true:
@@ -1491,7 +1533,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
         auto navigation = active_window()->navigation();
 
         // 2. Let entryListForFiring be formDataEntryList if documentResource is a POST resource; otherwise, null.
-        auto entry_list_for_firing = [&]() -> Optional<Vector<XHR::FormDataEntry>&> {
+        auto entry_list_for_firing = [&]() -> Optional<Vector<XHR::FormDataEntry>> {
             if (document_resource.has<POSTResource>())
                 return form_data_entry_list;
             return {};
@@ -1520,7 +1562,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
 
         // 5. If continue is false, then return.
         if (!continue_)
-            return {};
+            return;
     }
 
     // AD-HOC: Tell the UI that we started loading.
@@ -1619,14 +1661,12 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
         })).release_value_but_fixme_should_propagate_errors();
     }));
 
-    return {};
+    return;
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate-fragid
-WebIDL::ExceptionOr<void> Navigable::navigate_to_a_fragment(URL::URL const& url, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, GC::Ptr<DOM::Element> source_element, Optional<SerializationRecord> navigation_api_state, String navigation_id)
+void Navigable::navigate_to_a_fragment(URL::URL const& url, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, GC::Ptr<DOM::Element> source_element, Optional<SerializationRecord> navigation_api_state, String navigation_id)
 {
-    (void)navigation_id;
-
     // 1. Let navigation be navigable's active window's navigation API.
     VERIFY(active_window());
     auto navigation = active_window()->navigation();
@@ -1643,7 +1683,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate_to_a_fragment(URL::URL const& url,
 
     // 5. If continue is false, then return.
     if (!continue_)
-        return {};
+        return;
 
     // 6. Let historyEntry be a new session history entry, with
     //      URL: url
@@ -1707,8 +1747,6 @@ WebIDL::ExceptionOr<void> Navigable::navigate_to_a_fragment(URL::URL const& url,
         //            navigation status whose id is navigationId, url is url, and status is "complete".
         (void)navigation_id;
     }));
-
-    return {};
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#evaluate-a-javascript:-url
@@ -2364,6 +2402,15 @@ void Navigable::stop_loading()
 
     // 3. Abort a document and its descendants given document.
     document->abort_a_document_and_its_descendants();
+}
+
+void Navigable::set_has_session_history_entry_and_ready_for_navigation()
+{
+    m_has_session_history_entry_and_ready_for_navigation = true;
+    while (!m_pending_navigations.is_empty()) {
+        auto navigation_params = m_pending_navigations.take_first();
+        begin_navigation(navigation_params);
+    }
 }
 
 }

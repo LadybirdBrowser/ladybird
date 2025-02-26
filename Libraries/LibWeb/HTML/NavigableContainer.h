@@ -38,7 +38,12 @@ public:
     // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#potentially-delays-the-load-event
     bool currently_delays_the_load_event() const;
 
-    bool content_navigable_initialized() const { return m_content_navigable_initialized; }
+    bool content_navigable_has_session_history_entry_and_ready_for_navigation() const
+    {
+        if (!content_navigable())
+            return false;
+        return m_content_navigable->has_session_history_entry_and_ready_for_navigation();
+    }
 
 protected:
     NavigableContainer(DOM::Document&, DOM::QualifiedName);
@@ -58,12 +63,16 @@ protected:
 
     void set_potentially_delays_the_load_event(bool value) { m_potentially_delays_the_load_event = value; }
 
-    void set_content_navigable_initialized() { m_content_navigable_initialized = true; }
+    void set_content_navigable_has_session_history_entry_and_ready_for_navigation()
+    {
+        if (!content_navigable())
+            return;
+        content_navigable()->set_has_session_history_entry_and_ready_for_navigation();
+    }
 
 private:
     virtual bool is_navigable_container() const override { return true; }
     bool m_potentially_delays_the_load_event { true };
-    bool m_content_navigable_initialized { false };
 };
 
 }
