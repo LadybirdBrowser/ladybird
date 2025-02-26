@@ -137,14 +137,19 @@ void HTMLButtonElement::activation_behavior(DOM::Event const& event)
 
     // 3. If element has a form owner:
     if (form() != nullptr) {
-        // 1. If element is a submit button, then submit element's form owner from element with userInvolvement set to event's user navigation involvement.
+        // 1. If element is a submit button, then submit element's form owner from element with userInvolvement set to event's user navigation involvement, and return.
         if (is_submit_button()) {
             form()->submit_form(*this, { .user_involvement = user_navigation_involvement(event) }).release_value_but_fixme_should_propagate_errors();
+            return;
         }
-        // 2. If element's type attribute is in the Reset Button state, then reset element's form owner.
+        // 2. If element's type attribute is in the Reset Button state, then reset element's form owner, and return.
         if (type_state() == TypeAttributeState::Reset) {
             form()->reset_form();
+            return;
         }
+        // 3. If element's type attribute is in the Auto state, then return.
+        if (type_state() == TypeAttributeState::Auto)
+            return;
     }
 
     // FIXME: 4. Let target be the result of running element's get the commandfor associated element.

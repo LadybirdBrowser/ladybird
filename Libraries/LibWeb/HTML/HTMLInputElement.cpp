@@ -2696,7 +2696,11 @@ void HTMLInputElement::activation_behavior(DOM::Event const& event)
     // 2. Run this element's input activation behavior, if any, and do nothing otherwise.
     run_input_activation_behavior(event).release_value_but_fixme_should_propagate_errors();
 
-    // 3. Run the popover target attribute activation behavior given element and event's target.
+    // 3. If element has a form owner and element's type attribute is not in the Button state, then return.
+    if (form() != nullptr && type_state() != TypeAttributeState::Button)
+        return;
+
+    // 4. Run the popover target attribute activation behavior given element and event's target.
     if (event.target() && event.target()->is_dom_node())
         PopoverInvokerElement::popover_target_activation_behaviour(*this, as<DOM::Node>(*event.target()));
 }
