@@ -11,11 +11,11 @@
 #include <AK/JsonValue.h>
 #include <AK/Vector.h>
 #include <LibDevTools/Actors/CSSPropertiesActor.h>
+#include <LibDevTools/Actors/PageStyleActor.h>
 #include <LibDevTools/Actors/TabActor.h>
 #include <LibDevTools/Forward.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/Forward.h>
-#include <LibWebView/ViewImplementation.h>
 
 namespace DevTools {
 
@@ -29,7 +29,7 @@ public:
     using OnTabInspectionComplete = Function<void(ErrorOr<JsonValue>)>;
     virtual void inspect_tab(TabDescription const&, OnTabInspectionComplete) const { }
 
-    using OnDOMNodeInspectionComplete = Function<void(ErrorOr<WebView::ViewImplementation::DOMNodeProperties>)>;
+    using OnDOMNodeInspectionComplete = Function<void(ErrorOr<DOMNodeProperties>)>;
     virtual void inspect_dom_node(TabDescription const&, Web::UniqueNodeID, Optional<Web::CSS::Selector::PseudoElement::Type>, OnDOMNodeInspectionComplete) const { }
     virtual void clear_inspected_dom_node(TabDescription const&) const { }
 

@@ -108,7 +108,7 @@ void PageStyleActor::inspect_dom_node(StringView node_actor, Callback&& callback
 
     devtools().delegate().inspect_dom_node(
         tab->description(), dom_node->id, dom_node->pseudo_element,
-        [weak_self = make_weak_ptr<PageStyleActor>(), block_token = move(block_token), callback = forward<Callback>(callback)](ErrorOr<WebView::ViewImplementation::DOMNodeProperties> properties) mutable {
+        [weak_self = make_weak_ptr<PageStyleActor>(), block_token = move(block_token), callback = forward<Callback>(callback)](ErrorOr<DOMNodeProperties> properties) mutable {
             if (properties.is_error()) {
                 dbgln_if(DEVTOOLS_DEBUG, "Unable to inspect DOM node: {}", properties.error());
                 return;
