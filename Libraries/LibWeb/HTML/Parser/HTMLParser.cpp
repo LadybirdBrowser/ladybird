@@ -4308,6 +4308,7 @@ void HTMLParser::process_using_the_rules_for_foreign_content(HTMLToken& token)
 
         // If the active speculative HTML parser is null and the user agent supports SVG, then Process the SVG script element according to the SVG rules. [SVG]
         // FIXME: If the active speculative HTML parser is null
+        script_element.set_parser_inserted({});
         script_element.process_the_script_element();
 
         // Decrement the parser's script nesting level by one.

@@ -2,10 +2,10 @@ Harness status: OK
 
 Found 5 tests
 
-4 Pass
-1 Fail
+3 Pass
+2 Fail
 Pass	SVG scripts with end tag should run
 Fail	SVG scripts without end tag should not run
 Pass	SVG scripts with bogus end tag inside should run
-Pass	SVG scripts ended by HTML breakout should not run
+Fail	SVG scripts ended by HTML breakout should not run
 Pass	SVG scripts with self-closing start tag should run

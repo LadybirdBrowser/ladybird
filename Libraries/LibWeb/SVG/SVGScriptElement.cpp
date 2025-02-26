@@ -35,6 +35,24 @@ void SVGScriptElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_script);
 }
 
+void SVGScriptElement::inserted()
+{
+    Base::inserted();
+    if (m_parser_inserted)
+        return;
+
+    process_the_script_element();
+}
+
+void SVGScriptElement::children_changed(ChildrenChangedMetadata const* metadata)
+{
+    Base::children_changed(metadata);
+    if (m_parser_inserted)
+        return;
+
+    process_the_script_element();
+}
+
 // https://www.w3.org/TR/SVGMobile12/script.html#ScriptContentProcessing
 void SVGScriptElement::process_the_script_element()
 {
@@ -114,6 +132,8 @@ void SVGScriptElement::process_the_script_element()
     } else {
         // Inline script content
         script_content = child_text_content();
+        if (script_content.is_empty())
+            return;
     }
 
     // 3. The 'script' element's "already processed" flag is set to true.

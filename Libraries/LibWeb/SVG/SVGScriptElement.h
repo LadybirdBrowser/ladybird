@@ -21,7 +21,11 @@ class SVGScriptElement
 public:
     void process_the_script_element();
 
+    void set_parser_inserted(Badge<HTML::HTMLParser>) { m_parser_inserted = true; }
     void set_source_line_number(Badge<HTML::HTMLParser>, size_t source_line_number) { m_source_line_number = source_line_number; }
+
+    virtual void inserted() override;
+    virtual void children_changed(ChildrenChangedMetadata const*) override;
 
 protected:
     SVGScriptElement(DOM::Document&, DOM::QualifiedName);
@@ -34,6 +38,7 @@ private:
     virtual void visit_edges(Cell::Visitor&) override;
 
     bool m_already_processed { false };
+    bool m_parser_inserted { false };
 
     GC::Ptr<HTML::ClassicScript> m_script;
 
