@@ -129,6 +129,238 @@ static NonnullRefPtr<CalculationNode> simplify_2_children(T const& original, Non
     return original;
 }
 
+static String serialize_a_calculation_tree(CalculationNode const&, CalculationContext const&, CSSStyleValue::SerializationMode);
+
+// https://drafts.csswg.org/css-values-4/#serialize-a-math-function
+static String serialize_a_math_function(CalculationNode const& fn, CalculationContext const& context, CSSStyleValue::SerializationMode serialization_mode)
+{
+    // To serialize a math function fn:
+
+    // 1. If the root of the calculation tree fn represents is a numeric value (number, percentage, or dimension), and
+    //    the serialization being produced is of a computed value or later, then clamp the value to the range allowed
+    //    for its context (if necessary), then serialize the value as normal and return the result.
+    if (fn.type() == CalculationNode::Type::Numeric && serialization_mode == CSSStyleValue::SerializationMode::ResolvedValue) {
+        // FIXME: Clamp the value. Note that we might have an infinite/nan value here.
+        return fn.to_string();
+    }
+
+    // 2. If fn represents an infinite or NaN value:
+    if (fn.type() == CalculationNode::Type::Numeric) {
+        auto& numeric_node = static_cast<NumericCalculationNode const&>(fn);
+        if (auto infinite_or_nan = numeric_node.infinite_or_nan_value(); infinite_or_nan.has_value()) {
+            // 1. Let s be the string "calc(".
+            StringBuilder builder;
+            builder.append("calc("sv);
+
+            // 2. Serialize the keyword infinity, -infinity, or NaN, as appropriate to represent the value, and append it to s.
+            switch (infinite_or_nan.value()) {
+            case NonFiniteValue::Infinity:
+                builder.append("infinity"sv);
+                break;
+            case NonFiniteValue::NegativeInfinity:
+                builder.append("-infinity"sv);
+                break;
+            case NonFiniteValue::NaN:
+                builder.append("NaN"sv);
+                break;
+            default:
+                VERIFY_NOT_REACHED();
+            }
+
+            // 3. If fn’s type is anything other than «[ ]» (empty, representing a <number>), append " * " to s.
+            //    Create a numeric value in the canonical unit for fn’s type (such as px for <length>), with a value of 1.
+            //    Serialize this numeric value and append it to s.
+            if (!numeric_node.value().has<Number>()) {
+                numeric_node.value().visit(
+                    [&builder](Angle const&) { builder.append(" * 1deg"sv); },
+                    [&builder](Flex const&) { builder.append(" * 1fr"sv); },
+                    [&builder](Frequency const&) { builder.append(" * 1hz"sv); },
+                    [&builder](Length const&) { builder.append(" * 1px"sv); },
+                    [](Number const&) { VERIFY_NOT_REACHED(); },
+                    [&builder](Percentage const&) { builder.append(" * 1%"sv); },
+                    [&builder](Resolution const&) { builder.append(" * 1dppx"sv); },
+                    [&builder](Time const&) { builder.append(" * 1s"sv); });
+            }
+
+            // 4. Append ")" to s, then return it.
+            builder.append(')');
+            return builder.to_string_without_validation();
+        }
+    }
+
+    // 3. If the calculation tree’s root node is a numeric value, or a calc-operator node, let s be a string initially
+    //    containing "calc(".
+    //    Otherwise, let s be a string initially containing the name of the root node, lowercased (such as "sin" or
+    //    "max"), followed by a "(" (open parenthesis).
+    StringBuilder builder;
+    if (fn.type() == CalculationNode::Type::Numeric || fn.is_calc_operator_node()) {
+        builder.append("calc("sv);
+    } else {
+        builder.appendff("{}(", fn.name());
+    }
+
+    // 4. For each child of the root node, serialize the calculation tree.
+    //    If a result of this serialization starts with a "(" (open parenthesis) and ends with a ")" (close parenthesis),
+    //    remove those characters from the result.
+    //    Concatenate all of the results using ", " (comma followed by space), then append the result to s.
+
+    auto serialized_tree_without_parentheses = [&](CalculationNode const& tree) {
+        auto tree_serialized = serialize_a_calculation_tree(tree, context, serialization_mode);
+        if (tree_serialized.starts_with('(') && tree_serialized.ends_with(')')) {
+            tree_serialized = MUST(tree_serialized.substring_from_byte_offset_with_shared_superstring(1, tree_serialized.byte_count() - 2));
+        }
+        return tree_serialized;
+    };
+
+    // Spec issue: https://github.com/w3c/csswg-drafts/issues/11783
+    //             The three AD-HOCs in this step are mentioned there.
+    // AD-HOC: Numeric nodes have no children and should serialize directly.
+    // AD-HOC: calc-operator nodes should also serialize directly, instead of separating their children by commas.#
+    if (fn.type() == CalculationNode::Type::Numeric || fn.is_calc_operator_node()) {
+        builder.append(serialized_tree_without_parentheses(fn));
+    } else {
+        Vector<String> serialized_children;
+        // AD-HOC: For `clamp()`, the first child is a <rounding-strategy>, which is incompatible with "serialize a calculation tree".
+        //         So, we serialize it directly first, and hope for the best.
+        if (fn.type() == CalculationNode::Type::Round) {
+            auto rounding_strategy = static_cast<RoundCalculationNode const&>(fn).rounding_strategy();
+            serialized_children.append(MUST(String::from_utf8(CSS::to_string(rounding_strategy))));
+        }
+        for (auto const& child : fn.children()) {
+            serialized_children.append(serialized_tree_without_parentheses(child));
+        }
+        builder.join(", "sv, serialized_children);
+    }
+
+    // 5. Append ")" (close parenthesis) to s.
+    builder.append(')');
+
+    // 6. Return s.
+    return builder.to_string_without_validation();
+}
+
+// https://drafts.csswg.org/css-values-4/#serialize-a-calculation-tree
+static String serialize_a_calculation_tree(CalculationNode const& root, CalculationContext const& context, CSSStyleValue::SerializationMode serialization_mode)
+{
+    // 1. Let root be the root node of the calculation tree.
+    // NOTE: Already the case.
+
+    // 2. If root is a numeric value, or a non-math function, serialize root per the normal rules for it and return the result.
+    // FIXME: Support non-math functions in calculation trees.
+    if (root.type() == CalculationNode::Type::Numeric)
+        return root.to_string();
+
+    // 3. If root is anything but a Sum, Negate, Product, or Invert node, serialize a math function for the function
+    //    corresponding to the node type, treating the node’s children as the function’s comma-separated calculation
+    //    arguments, and return the result.
+    if (!first_is_one_of(root.type(), CalculationNode::Type::Sum, CalculationNode::Type::Product, CalculationNode::Type::Negate, CalculationNode::Type::Invert)) {
+        return serialize_a_math_function(root, context, serialization_mode);
+    }
+
+    // 4. If root is a Negate node, let s be a string initially containing "(-1 * ".
+    if (root.type() == CalculationNode::Type::Negate) {
+        StringBuilder builder;
+        builder.append("(-1 * "sv);
+
+        // Serialize root’s child, and append it to s.
+        builder.append(serialize_a_calculation_tree(root.children().first(), context, serialization_mode));
+
+        // Append ")" to s, then return it.
+        builder.append(')');
+        return builder.to_string_without_validation();
+    }
+
+    // 5. If root is an Invert node, let s be a string initially containing "(1 / ".
+    if (root.type() == CalculationNode::Type::Invert) {
+        StringBuilder builder;
+        builder.append("(1 / "sv);
+
+        // Serialize root’s child, and append it to s.
+        builder.append(serialize_a_calculation_tree(root.children().first(), context, serialization_mode));
+
+        // Append ")" to s, then return it.
+        builder.append(')');
+        return builder.to_string_without_validation();
+    }
+
+    // 6. If root is a Sum node, let s be a string initially containing "(".
+    if (root.type() == CalculationNode::Type::Sum) {
+        StringBuilder builder;
+        builder.append('(');
+
+        // FIXME: Sort root’s children.
+        auto sorted_children = root.children();
+
+        // Serialize root’s first child, and append it to s.
+        builder.append(serialize_a_calculation_tree(sorted_children.first(), context, serialization_mode));
+
+        // For each child of root beyond the first:
+        for (auto i = 1u; i < sorted_children.size(); ++i) {
+            auto& child = *sorted_children[i];
+
+            // 1. If child is a Negate node, append " - " to s, then serialize the Negate’s child and append the
+            //    result to s.
+            if (child.type() == CalculationNode::Type::Negate) {
+                builder.append(" - "sv);
+                builder.append(serialize_a_calculation_tree(static_cast<NegateCalculationNode const&>(child).child(), context, serialization_mode));
+            }
+
+            // 2. If child is a negative numeric value, append " - " to s, then serialize the negation of child as
+            //    normal and append the result to s.
+            else if (child.type() == CalculationNode::Type::Numeric && static_cast<NumericCalculationNode const&>(child).is_negative()) {
+                auto const& numeric_node = static_cast<NumericCalculationNode const&>(child);
+                builder.append(" - "sv);
+                builder.append(serialize_a_calculation_tree(numeric_node.negated(context), context, serialization_mode));
+            }
+
+            // 3. Otherwise, append " + " to s, then serialize child and append the result to s.
+            else {
+                builder.append(" + "sv);
+                builder.append(serialize_a_calculation_tree(child, context, serialization_mode));
+            }
+        }
+
+        // Finally, append ")" to s and return it.
+        builder.append(')');
+        return builder.to_string_without_validation();
+    }
+
+    // 7. If root is a Product node, let s be a string initially containing "(".
+    if (root.type() == CalculationNode::Type::Product) {
+        StringBuilder builder;
+        builder.append('(');
+
+        // FIXME: Sort root’s children.
+        auto sorted_children = root.children();
+
+        // Serialize root’s first child, and append it to s.
+        builder.append(serialize_a_calculation_tree(sorted_children.first(), context, serialization_mode));
+
+        // For each child of root beyond the first:
+        for (auto i = 1u; i < sorted_children.size(); ++i) {
+            auto& child = *sorted_children[i];
+
+            // 1. If child is an Invert node, append " / " to s, then serialize the Invert’s child and append the result to s.
+            if (child.type() == CalculationNode::Type::Invert) {
+                builder.append(" / "sv);
+                builder.append(serialize_a_calculation_tree(static_cast<InvertCalculationNode const&>(child).child(), context, serialization_mode));
+            }
+
+            // 2. Otherwise, append " * " to s, then serialize child and append the result to s.
+            else {
+                builder.append(" * "sv);
+                builder.append(serialize_a_calculation_tree(child, context, serialization_mode));
+            }
+        }
+
+        // Finally, append ")" to s and return it.
+        builder.append(')');
+        return builder.to_string_without_validation();
+    }
+
+    VERIFY_NOT_REACHED();
+}
+
 CalculationNode::CalculationNode(Type type, Optional<CSSNumericType> numeric_type)
     : m_type(type)
     , m_numeric_type(move(numeric_type))
@@ -136,6 +368,59 @@ CalculationNode::CalculationNode(Type type, Optional<CSSNumericType> numeric_typ
 }
 
 CalculationNode::~CalculationNode() = default;
+
+StringView CalculationNode::name() const
+{
+    switch (m_type) {
+    case Type::Min:
+        return "min"sv;
+    case Type::Max:
+        return "max"sv;
+    case Type::Clamp:
+        return "clamp"sv;
+    case Type::Abs:
+        return "abs"sv;
+    case Type::Sign:
+        return "sign"sv;
+    case Type::Sin:
+        return "sin"sv;
+    case Type::Cos:
+        return "cos"sv;
+    case Type::Tan:
+        return "tan"sv;
+    case Type::Asin:
+        return "asin"sv;
+    case Type::Acos:
+        return "acos"sv;
+    case Type::Atan:
+        return "atan"sv;
+    case Type::Atan2:
+        return "atan2"sv;
+    case Type::Pow:
+        return "pow"sv;
+    case Type::Sqrt:
+        return "sqrt"sv;
+    case Type::Hypot:
+        return "hypot"sv;
+    case Type::Log:
+        return "log"sv;
+    case Type::Exp:
+        return "exp"sv;
+    case Type::Round:
+        return "round"sv;
+    case Type::Mod:
+        return "mod"sv;
+    case Type::Rem:
+        return "rem"sv;
+    case Type::Numeric:
+    case Type::Sum:
+    case Type::Product:
+    case Type::Negate:
+    case Type::Invert:
+        return "calc"sv;
+    }
+    VERIFY_NOT_REACHED();
+}
 
 static CSSNumericType numeric_type_from_calculated_style_value(CalculatedStyleValue::CalculationResult::Value const& value, CalculationContext const& context)
 {
@@ -332,6 +617,46 @@ RefPtr<CSSStyleValue> NumericCalculationNode::to_style_value(CalculationContext 
         [](Percentage const& percentage) -> RefPtr<CSSStyleValue> { return PercentageStyleValue::create(percentage); },
         [](Resolution const& resolution) -> RefPtr<CSSStyleValue> { return ResolutionStyleValue::create(resolution); },
         [](Time const& time) -> RefPtr<CSSStyleValue> { return TimeStyleValue::create(time); });
+}
+
+Optional<NonFiniteValue> NumericCalculationNode::infinite_or_nan_value() const
+{
+    auto raw_value = m_value.visit(
+        [](Number const& number) { return number.value(); },
+        [](Percentage const& percentage) { return percentage.as_fraction(); },
+        [](auto const& dimension) { return dimension.raw_value(); });
+
+    if (isnan(raw_value))
+        return NonFiniteValue::NaN;
+    if (!isfinite(raw_value)) {
+        if (raw_value < 0)
+            return NonFiniteValue::NegativeInfinity;
+        return NonFiniteValue::Infinity;
+    }
+
+    return {};
+}
+
+bool NumericCalculationNode::is_negative() const
+{
+    return m_value.visit(
+        [&](Number const& number) { return number.value() < 0; },
+        [](Percentage const& percentage) { return percentage.value() < 0; },
+        [](auto const& dimension) { return dimension.raw_value() < 0; });
+}
+
+NonnullRefPtr<NumericCalculationNode> NumericCalculationNode::negated(CalculationContext const& context) const
+{
+    return value().visit(
+        [&](Percentage const& percentage) {
+            return create(Percentage(-percentage.value()), context);
+        },
+        [&](Number const& number) {
+            return create(Number(number.type(), -number.value()), context);
+        },
+        [&]<typename T>(T const& value) {
+            return create(T(-value.raw_value(), value.type()), context);
+        });
 }
 
 void NumericCalculationNode::dump(StringBuilder& builder, int indent) const
@@ -2474,10 +2799,9 @@ void CalculatedStyleValue::CalculationResult::invert()
         m_type = m_type->inverted();
 }
 
-String CalculatedStyleValue::to_string(SerializationMode) const
+String CalculatedStyleValue::to_string(SerializationMode serialization_mode) const
 {
-    // FIXME: Implement this according to https://www.w3.org/TR/css-values-4/#calc-serialize once that stabilizes.
-    return MUST(String::formatted("calc({})", m_calculation->to_string()));
+    return serialize_a_math_function(m_calculation, m_context, serialization_mode);
 }
 
 bool CalculatedStyleValue::equals(CSSStyleValue const& other) const
@@ -2821,19 +3145,8 @@ NonnullRefPtr<CalculationNode> simplify_a_calculation_tree(CalculationNode const
         auto const& root_negate = as<NegateCalculationNode>(*root);
         auto const& child = root_negate.child();
         // 1. If root’s child is a numeric value, return an equivalent numeric value, but with the value negated (0 - value).
-        if (child.type() == CalculationNode::Type::Numeric) {
-            auto const& numeric_child = as<NumericCalculationNode>(child);
-            return numeric_child.value().visit(
-                [&](Percentage const& percentage) {
-                    return NumericCalculationNode::create(Percentage(-percentage.value()), context);
-                },
-                [&](Number const& number) {
-                    return NumericCalculationNode::create(Number(number.type(), -number.value()), context);
-                },
-                [&]<typename T>(T const& value) {
-                    return NumericCalculationNode::create(T(-value.raw_value(), value.type()), context);
-                });
-        }
+        if (child.type() == CalculationNode::Type::Numeric)
+            return as<NumericCalculationNode>(child).negated(context);
 
         // 2. If root’s child is a Negate node, return the child’s child.
         if (child.type() == CalculationNode::Type::Negate)

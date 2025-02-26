@@ -223,6 +223,9 @@ public:
         return first_is_one_of(m_type, Type::Sum, Type::Product, Type::Negate, Type::Invert);
     }
 
+    StringView name() const;
+    virtual Vector<NonnullRefPtr<CalculationNode>> children() const = 0;
+
     virtual String to_string() const = 0;
     Optional<CSSNumericType> const& numeric_type() const { return m_numeric_type; }
     virtual bool contains_percentage() const = 0;
@@ -242,6 +245,12 @@ private:
     Optional<CSSNumericType> m_numeric_type;
 };
 
+enum class NonFiniteValue {
+    Infinity,
+    NegativeInfinity,
+    NaN,
+};
+
 class NumericCalculationNode final : public CalculationNode {
 public:
     static NonnullRefPtr<NumericCalculationNode> create(NumericValue, CalculationContext const&);
@@ -256,7 +265,12 @@ public:
 
     RefPtr<CSSStyleValue> to_style_value(CalculationContext const&) const;
 
+    virtual Vector<NonnullRefPtr<CalculationNode>> children() const override { return {}; }
     NumericValue const& value() const { return m_value; }
+
+    Optional<NonFiniteValue> infinite_or_nan_value() const;
+    bool is_negative() const;
+    NonnullRefPtr<NumericCalculationNode> negated(CalculationContext const&) const;
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
@@ -276,7 +290,7 @@ public:
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
     virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
 
-    Vector<NonnullRefPtr<CalculationNode>> const& children() const { return m_values; }
+    virtual Vector<NonnullRefPtr<CalculationNode>> children() const override { return m_values; }
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
@@ -296,7 +310,7 @@ public:
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
     virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
 
-    Vector<NonnullRefPtr<CalculationNode>> const& children() const { return m_values; }
+    virtual Vector<NonnullRefPtr<CalculationNode>> children() const override { return m_values; }
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
@@ -316,6 +330,7 @@ public:
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
     virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
 
+    virtual Vector<NonnullRefPtr<CalculationNode>> children() const override { return { { m_value } }; }
     CalculationNode const& child() const { return m_value; }
 
     virtual void dump(StringBuilder&, int indent) const override;
@@ -336,6 +351,7 @@ public:
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
     virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
 
+    virtual Vector<NonnullRefPtr<CalculationNode>> children() const override { return { { m_value } }; }
     CalculationNode const& child() const { return m_value; }
 
     virtual void dump(StringBuilder&, int indent) const override;
@@ -357,7 +373,7 @@ public:
     virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
     virtual Optional<CalculatedStyleValue::CalculationResult> run_operation_if_possible(CalculationContext const&, CalculationResolutionContext const&) const override;
 
-    Vector<NonnullRefPtr<CalculationNode>> const& children() const { return m_values; }
+    virtual Vector<NonnullRefPtr<CalculationNode>> children() const override { return m_values; }
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
@@ -378,7 +394,7 @@ public:
     virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
     virtual Optional<CalculatedStyleValue::CalculationResult> run_operation_if_possible(CalculationContext const&, CalculationResolutionContext const&) const override;
 
-    Vector<NonnullRefPtr<CalculationNode>> const& children() const { return m_values; }
+    virtual Vector<NonnullRefPtr<CalculationNode>> children() const override { return m_values; }
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
@@ -398,6 +414,8 @@ public:
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
     virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
     virtual Optional<CalculatedStyleValue::CalculationResult> run_operation_if_possible(CalculationContext const&, CalculationResolutionContext const&) const override;
+
+    virtual Vector<NonnullRefPtr<CalculationNode>> children() const override { return { { m_min_value, m_center_value, m_max_value } }; }
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
@@ -420,6 +438,8 @@ public:
     virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
     virtual Optional<CalculatedStyleValue::CalculationResult> run_operation_if_possible(CalculationContext const&, CalculationResolutionContext const&) const override;
 
+    virtual Vector<NonnullRefPtr<CalculationNode>> children() const override { return { { m_value } }; }
+
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
 
@@ -438,6 +458,8 @@ public:
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
     virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
     virtual Optional<CalculatedStyleValue::CalculationResult> run_operation_if_possible(CalculationContext const&, CalculationResolutionContext const&) const override;
+
+    virtual Vector<NonnullRefPtr<CalculationNode>> children() const override { return { { m_value } }; }
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
@@ -458,6 +480,8 @@ public:
     virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
     virtual Optional<CalculatedStyleValue::CalculationResult> run_operation_if_possible(CalculationContext const&, CalculationResolutionContext const&) const override;
 
+    virtual Vector<NonnullRefPtr<CalculationNode>> children() const override { return { { m_value } }; }
+
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
 
@@ -476,6 +500,8 @@ public:
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
     virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
     virtual Optional<CalculatedStyleValue::CalculationResult> run_operation_if_possible(CalculationContext const&, CalculationResolutionContext const&) const override;
+
+    virtual Vector<NonnullRefPtr<CalculationNode>> children() const override { return { { m_value } }; }
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
@@ -496,6 +522,8 @@ public:
     virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
     virtual Optional<CalculatedStyleValue::CalculationResult> run_operation_if_possible(CalculationContext const&, CalculationResolutionContext const&) const override;
 
+    virtual Vector<NonnullRefPtr<CalculationNode>> children() const override { return { { m_value } }; }
+
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
 
@@ -514,6 +542,8 @@ public:
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
     virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
     virtual Optional<CalculatedStyleValue::CalculationResult> run_operation_if_possible(CalculationContext const&, CalculationResolutionContext const&) const override;
+
+    virtual Vector<NonnullRefPtr<CalculationNode>> children() const override { return { { m_value } }; }
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
@@ -534,6 +564,8 @@ public:
     virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
     virtual Optional<CalculatedStyleValue::CalculationResult> run_operation_if_possible(CalculationContext const&, CalculationResolutionContext const&) const override;
 
+    virtual Vector<NonnullRefPtr<CalculationNode>> children() const override { return { { m_value } }; }
+
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
 
@@ -553,6 +585,8 @@ public:
     virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
     virtual Optional<CalculatedStyleValue::CalculationResult> run_operation_if_possible(CalculationContext const&, CalculationResolutionContext const&) const override;
 
+    virtual Vector<NonnullRefPtr<CalculationNode>> children() const override { return { { m_value } }; }
+
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
 
@@ -571,6 +605,8 @@ public:
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
     virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
     virtual Optional<CalculatedStyleValue::CalculationResult> run_operation_if_possible(CalculationContext const&, CalculationResolutionContext const&) const override;
+
+    virtual Vector<NonnullRefPtr<CalculationNode>> children() const override { return { { m_y, m_x } }; }
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
@@ -592,6 +628,8 @@ public:
     virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
     virtual Optional<CalculatedStyleValue::CalculationResult> run_operation_if_possible(CalculationContext const&, CalculationResolutionContext const&) const override;
 
+    virtual Vector<NonnullRefPtr<CalculationNode>> children() const override { return { { m_x, m_y } }; }
+
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
 
@@ -612,6 +650,8 @@ public:
     virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
     virtual Optional<CalculatedStyleValue::CalculationResult> run_operation_if_possible(CalculationContext const&, CalculationResolutionContext const&) const override;
 
+    virtual Vector<NonnullRefPtr<CalculationNode>> children() const override { return { { m_value } }; }
+
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
 
@@ -631,7 +671,7 @@ public:
     virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
     virtual Optional<CalculatedStyleValue::CalculationResult> run_operation_if_possible(CalculationContext const&, CalculationResolutionContext const&) const override;
 
-    Vector<NonnullRefPtr<CalculationNode>> const& children() const { return m_values; }
+    virtual Vector<NonnullRefPtr<CalculationNode>> children() const override { return m_values; }
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
@@ -651,6 +691,8 @@ public:
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
     virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
     virtual Optional<CalculatedStyleValue::CalculationResult> run_operation_if_possible(CalculationContext const&, CalculationResolutionContext const&) const override;
+
+    virtual Vector<NonnullRefPtr<CalculationNode>> children() const override { return { { m_x, m_y } }; }
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
@@ -672,6 +714,8 @@ public:
     virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
     virtual Optional<CalculatedStyleValue::CalculationResult> run_operation_if_possible(CalculationContext const&, CalculationResolutionContext const&) const override;
 
+    virtual Vector<NonnullRefPtr<CalculationNode>> children() const override { return { { m_value } }; }
+
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
 
@@ -690,6 +734,10 @@ public:
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
     virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
     virtual Optional<CalculatedStyleValue::CalculationResult> run_operation_if_possible(CalculationContext const&, CalculationResolutionContext const&) const override;
+
+    // NOTE: This excludes the rounding strategy!
+    RoundingStrategy rounding_strategy() const { return m_strategy; }
+    virtual Vector<NonnullRefPtr<CalculationNode>> children() const override { return { { m_x, m_y } }; }
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
@@ -712,6 +760,8 @@ public:
     virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
     virtual Optional<CalculatedStyleValue::CalculationResult> run_operation_if_possible(CalculationContext const&, CalculationResolutionContext const&) const override;
 
+    virtual Vector<NonnullRefPtr<CalculationNode>> children() const override { return { { m_x, m_y } }; }
+
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
 
@@ -731,6 +781,8 @@ public:
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
     virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
     virtual Optional<CalculatedStyleValue::CalculationResult> run_operation_if_possible(CalculationContext const&, CalculationResolutionContext const&) const override;
+
+    virtual Vector<NonnullRefPtr<CalculationNode>> children() const override { return { { m_x, m_y } }; }
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
