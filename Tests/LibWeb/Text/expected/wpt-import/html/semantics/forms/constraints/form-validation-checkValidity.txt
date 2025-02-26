@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 130 tests
 
-76 Pass
-54 Fail
+78 Pass
+52 Fail
 Pass	[INPUT in TEXT status] no constraint
 Pass	[INPUT in TEXT status] no constraint (in a form)
 Pass	[INPUT in TEXT status] not suffering from being too long
@@ -126,9 +126,9 @@ Pass	[INPUT in FILE status] no constraint
 Pass	[INPUT in FILE status] no constraint (in a form)
 Pass	[INPUT in FILE status] suffering from being missing
 Pass	[INPUT in FILE status] suffering from being missing (in a form)
-Fail	[select]  no constraint
+Pass	[select]  no constraint
 Pass	[select]  no constraint (in a form)
-Fail	[select]  suffering from being missing
+Pass	[select]  suffering from being missing
 Pass	[select]  suffering from being missing (in a form)
 Pass	[textarea]  no constraint
 Pass	[textarea]  no constraint (in a form)

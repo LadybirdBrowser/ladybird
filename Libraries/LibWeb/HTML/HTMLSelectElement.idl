@@ -34,7 +34,7 @@ interface HTMLSelectElement : HTMLElement {
     readonly attribute boolean willValidate;
     readonly attribute ValidityState validity;
     [FIXME] readonly attribute DOMString validationMessage;
-    [FIXME] boolean checkValidity();
+    boolean checkValidity();
     [FIXME] boolean reportValidity();
     undefined setCustomValidity(DOMString error);
 

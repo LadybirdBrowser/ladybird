@@ -702,6 +702,12 @@ bool HTMLSelectElement::will_validate()
     return is_candidate_for_constraint_validation();
 }
 
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-checkvalidity
+bool HTMLSelectElement::check_validity()
+{
+    return check_validity_steps();
+}
+
 bool HTMLSelectElement::is_focusable() const
 {
     return enabled();
