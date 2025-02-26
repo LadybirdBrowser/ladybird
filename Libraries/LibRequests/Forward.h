@@ -11,5 +11,6 @@ namespace Requests {
 class Request;
 class RequestClient;
 class WebSocket;
+struct RequestTimingInfo;
 
 }

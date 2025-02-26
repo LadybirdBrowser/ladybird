@@ -12,6 +12,7 @@
 #include <AK/Debug.h>
 #include <AK/ScopeGuard.h>
 #include <LibJS/Runtime/Completion.h>
+#include <LibRequests/RequestTimingInfo.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/Cookie/Cookie.h>
@@ -2399,7 +2400,7 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> nonstandard_resource_loader_file_o
             }
         });
 
-        auto on_complete = GC::create_function(vm.heap(), [&vm, &realm, pending_response, stream](bool success, Optional<StringView> error_message) {
+        auto on_complete = GC::create_function(vm.heap(), [&vm, &realm, pending_response, stream](bool success, Requests::RequestTimingInfo const&, Optional<StringView> error_message) {
             HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
             // 16.1.1.2. Otherwise, if the bytes transmission for response’s message body is done normally and stream is readable,
@@ -2422,7 +2423,7 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> nonstandard_resource_loader_file_o
 
         ResourceLoader::the().load_unbuffered(load_request, on_headers_received, on_data_received, on_complete);
     } else {
-        auto on_load_success = GC::create_function(vm.heap(), [&realm, &vm, request, pending_response](ReadonlyBytes data, HTTP::HeaderMap const& response_headers, Optional<u32> status_code, Optional<String> const& reason_phrase) {
+        auto on_load_success = GC::create_function(vm.heap(), [&realm, &vm, request, pending_response](ReadonlyBytes data, Requests::RequestTimingInfo const&, HTTP::HeaderMap const& response_headers, Optional<u32> status_code, Optional<String> const& reason_phrase) {
             (void)request;
             dbgln_if(WEB_FETCH_DEBUG, "Fetch: ResourceLoader load for '{}' complete", request->url());
             if constexpr (WEB_FETCH_DEBUG)
@@ -2442,7 +2443,7 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> nonstandard_resource_loader_file_o
             pending_response->resolve(response);
         });
 
-        auto on_load_error = GC::create_function(vm.heap(), [&realm, &vm, request, pending_response](ByteString const& error, Optional<u32> status_code, Optional<String> const& reason_phrase, ReadonlyBytes data, HTTP::HeaderMap const& response_headers) {
+        auto on_load_error = GC::create_function(vm.heap(), [&realm, &vm, request, pending_response](ByteString const& error, Requests::RequestTimingInfo const&, Optional<u32> status_code, Optional<String> const& reason_phrase, ReadonlyBytes data, HTTP::HeaderMap const& response_headers) {
             (void)request;
             dbgln_if(WEB_FETCH_DEBUG, "Fetch: ResourceLoader load for '{}' failed: {} (status {})", request->url(), error, status_code.value_or(0));
             if constexpr (WEB_FETCH_DEBUG)
