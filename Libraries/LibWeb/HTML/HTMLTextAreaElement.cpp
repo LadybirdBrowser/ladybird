@@ -247,8 +247,7 @@ bool HTMLTextAreaElement::will_validate()
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-checkvalidity
 bool HTMLTextAreaElement::check_validity()
 {
-    dbgln("(STUBBED) HTMLTextAreaElement::check_validity(). Called on: {}", debug_description());
-    return true;
+    return check_validity_steps();
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-reportvalidity
