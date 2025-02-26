@@ -446,7 +446,7 @@ void HTMLObjectElement::run_object_representation_handler_steps(Fetch::Infrastru
         // If the object element's content navigable is null, then create a new child navigable for the element.
         if (!m_content_navigable && in_a_document_tree()) {
             MUST(create_new_child_navigable());
-            set_content_navigable_initialized();
+            set_content_navigable_has_session_history_entry_and_ready_for_navigation();
         }
 
         // NOTE: Creating a new nested browsing context can fail if the document is not attached to a browsing context

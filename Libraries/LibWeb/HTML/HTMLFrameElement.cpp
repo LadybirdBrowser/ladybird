@@ -52,7 +52,7 @@ void HTMLFrameElement::inserted()
     MUST(create_new_child_navigable(GC::create_function(realm().heap(), [this] {
         // 4. Process the frame attributes for insertedNode, with initialInsertion set to true.
         process_the_frame_attributes(true);
-        set_content_navigable_initialized();
+        set_content_navigable_has_session_history_entry_and_ready_for_navigation();
     })));
 }
 
