@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/ByteReader.h>
 #include <AK/CountingStream.h>
 #include <AK/MemoryStream.h>
 #include <AK/Stream.h>
@@ -1076,7 +1077,23 @@ ErrorOr<Records::DNSKEY> Records::DNSKEY::from_raw(ParseContext& ctx)
         key_tag += (i & 1) ? static_cast<u16>(public_key[i]) : static_cast<u16>(public_key[i]) << 8;
     }
     key_tag += (key_tag >> 16) & 0xffff;
+
+    if (public_key.is_empty())
+        return Error::from_string_literal("Empty public key in DNSKEY record");
+
     return Records::DNSKEY { flags, protocol, algorithm, move(public_key), static_cast<u16>(key_tag & 0xffff) };
+}
+
+ErrorOr<void> Records::DNSKEY::to_raw(ByteBuffer& buffer) const
+{
+    auto const output_size = 2 + 1 + 1 + public_key.size();
+    FixedMemoryStream stream { TRY(buffer.get_bytes_for_writing(output_size)) };
+
+    TRY(stream.write_value(static_cast<u16>(bit_cast<NetworkOrdered<u16>>(flags))));
+    TRY(stream.write_value(protocol));
+    TRY(stream.write_value(to_underlying(algorithm)));
+    TRY(stream.write_until_depleted(public_key.bytes()));
+    return {};
 }
 
 ErrorOr<Records::DS> Records::DS::from_raw(ParseContext& ctx)

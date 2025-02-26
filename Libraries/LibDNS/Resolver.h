@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/AtomicRefCounted.h>
+#include <AK/CountingStream.h>
 #include <AK/HashTable.h>
 #include <AK/MaybeOwned.h>
 #include <AK/MemoryStream.h>
@@ -114,12 +115,18 @@ public:
     bool is_done() const { return m_request_done; }
     void set_dnssec_validated(bool validated) { m_dnssec_validated = validated; }
     bool is_dnssec_validated() const { return m_dnssec_validated; }
+    void set_being_dnssec_validated(bool validated) { m_being_dnssec_validated = validated; }
+    bool is_being_dnssec_validated() const { return m_being_dnssec_validated; }
     Messages::DomainName const& name() const { return m_name; }
+
+    Vector<Messages::Records::DNSKEY> const& used_dnskeys() const { return m_used_dnskeys; }
+    void add_dnskey(Messages::Records::DNSKEY key) { m_used_dnskeys.append(move(key)); }
 
 private:
     bool m_valid { false };
     bool m_request_done { false };
     bool m_dnssec_validated { false };
+    bool m_being_dnssec_validated { false };
     Messages::DomainName m_name;
 
     struct RecordWithExpiration {
@@ -129,6 +136,7 @@ private:
 
     Vector<RecordWithExpiration> m_cached_records;
     HashTable<Messages::ResourceType> m_desired_types;
+    Vector<Messages::Records::DNSKEY> m_used_dnskeys {};
     u16 m_id { 0 };
 };
 
@@ -136,6 +144,7 @@ class Resolver {
     struct PendingLookup {
         u16 id { 0 };
         ByteString name;
+        Messages::DomainName parsed_name;
         WeakPtr<LookupResult> result;
         NonnullRefPtr<Core::Promise<NonnullRefPtr<LookupResult const>>> promise;
         NonnullRefPtr<Core::Timer> repeat_timer;
@@ -246,6 +255,7 @@ public:
         flush_cache();
 
         if (options.repeating_lookup && options.repeating_lookup->times_repeated >= 5) {
+            dbgln_if(DNS_DEBUG, "DNS: Repeating lookup for {} timed out", name);
             auto promise = options.repeating_lookup->promise;
             promise->reject(Error::from_string_literal("DNS lookup timed out"));
             m_pending_lookups.with_write_locked([&](auto& lookups) {
@@ -259,6 +269,7 @@ public:
             : Core::Promise<NonnullRefPtr<LookupResult const>>::construct();
 
         if (auto maybe_ipv4 = IPv4Address::from_string(name); maybe_ipv4.has_value()) {
+            dbgln_if(DNS_DEBUG, "DNS: Resolving {} as IPv4", name);
             if (desired_types.contains_slow(Messages::ResourceType::A)) {
                 auto result = make_ref_counted<LookupResult>(Messages::DomainName {});
                 result->add_record({ .name = {}, .type = Messages::ResourceType::A, .class_ = Messages::Class::IN, .ttl = 0, .record = Messages::Records::A { maybe_ipv4.release_value() }, .raw = {} });
@@ -269,6 +280,7 @@ public:
         }
 
         if (auto maybe_ipv6 = IPv6Address::from_string(name); maybe_ipv6.has_value()) {
+            dbgln_if(DNS_DEBUG, "DNS: Resolving {} as IPv6", name);
             if (desired_types.contains_slow(Messages::ResourceType::AAAA)) {
                 auto result = make_ref_counted<LookupResult>(Messages::DomainName {});
                 result->add_record({ .name = {}, .type = Messages::ResourceType::AAAA, .class_ = Messages::Class::IN, .ttl = 0, .record = Messages::Records::AAAA { maybe_ipv6.release_value() }, .raw = {} });
@@ -279,10 +291,13 @@ public:
         }
 
         if (auto result = lookup_in_cache(name, class_, desired_types)) {
+            dbgln_if(DNS_DEBUG, "DNS: Resolving {} from cache...", name);
             if (!options.validate_dnssec_locally || result->is_dnssec_validated()) {
+                dbgln_if(DNS_DEBUG, "DNS: Resolved {} from cache", name);
                 promise->resolve(result.release_nonnull());
                 return promise;
             }
+            dbgln_if(DNS_DEBUG, "DNS: Cache entry for {} is not DNSSEC validated (and we expect that), re-resolving", name);
         }
 
         auto domain_name = Messages::DomainName::from_string(name);
@@ -320,26 +335,35 @@ public:
 
         auto already_in_cache = false;
         auto result = m_cache.with_write_locked([&](auto& cache) -> NonnullRefPtr<LookupResult> {
+            dbgln_if(DNS_DEBUG, "DNS: Resolving {}...", name);
             auto existing = [&] -> RefPtr<LookupResult> {
                 if (cache.contains(name)) {
+                    dbgln_if(DNS_DEBUG, "DNS: Resolving {} from cache...", name);
                     auto ptr = *cache.get(name);
 
-                    already_in_cache = !options.validate_dnssec_locally || ptr->is_dnssec_validated();
+                    already_in_cache = (!options.validate_dnssec_locally && !ptr->is_being_dnssec_validated()) || ptr->is_dnssec_validated();
                     for (auto const& type : desired_types) {
-                        if (!ptr->has_record_of_type(type, true)) {
+                        if (!ptr->has_record_of_type(type, !options.validate_dnssec_locally && !ptr->is_being_dnssec_validated())) {
                             already_in_cache = false;
                             break;
                         }
                     }
 
+                    dbgln_if(DNS_DEBUG, "DNS: Found {} in cache, already_in_cache={}", name, already_in_cache);
+                    dbgln_if(DNS_DEBUG, "DNS: That entry is {} DNSSEC validated", ptr->is_dnssec_validated() ? "already" : "not");
+                    for (auto const& entry : ptr->records())
+                        dbgln_if(DNS_DEBUG, "DNS: Found record of type {}", Messages::to_string(entry.type));
                     return ptr;
                 }
                 return nullptr;
             }();
 
-            if (existing)
+            if (existing) {
+                dbgln_if(DNS_DEBUG, "DNS: Resolved {} from cache", name);
                 return *existing;
+            }
 
+            dbgln_if(DNS_DEBUG, "DNS: Adding {} to cache", name);
             auto ptr = make_ref_counted<LookupResult>(domain_name);
             ptr->set_dnssec_validated(options.validate_dnssec_locally);
             for (auto const& type : desired_types)
@@ -432,7 +456,7 @@ public:
                           return lookup;
                   }
 
-                  pending_lookups->insert(query.header.id, { query.header.id, name, result->make_weak_ptr(), promise, Core::Timer::create(), 0 });
+                  pending_lookups->insert(query.header.id, { query.header.id, name, domain_name, result->make_weak_ptr(), promise, Core::Timer::create(), 0 });
                   auto p = pending_lookups->find(query.header.id);
                   p->repeat_timer->set_single_shot(true);
                   p->repeat_timer->set_interval(1000);
@@ -576,7 +600,7 @@ private:
             } else {
                 auto type = record.type;
                 if (auto found = records_with_rrsigs.get(record.type); found.has_value())
-                    found->records.append( move(record));
+                    found->records.append(move(record));
                 else
                     records_with_rrsigs.set(type, { { move(record) }, {} });
             }
@@ -592,87 +616,140 @@ private:
         Core::deferred_invoke([this, lookup, name, records_with_rrsigs = move(records_with_rrsigs), result = move(result)] mutable {
             dbgln_if(DNS_DEBUG, "DNS: Resolving DNSKEY for {}", name.to_string());
             result->set_dnssec_validated(false); // Will be set to true if we successfully validate the RRSIGs.
+            result->set_being_dnssec_validated(true);
+
+            Vector<Messages::Records::DNSKEY> parent_zone_keys;
+            auto is_root_zone = lookup.parsed_name.labels.size() == 1;
+
+            if (!is_root_zone) {
+                auto parent_result = this->lookup(lookup.parsed_name.parent().to_string().to_byte_string(), Messages::Class::IN, { Messages::ResourceType::DNSKEY }, { .validate_dnssec_locally = true })
+                                         ->await();
+                if (parent_result.is_error()) {
+                    lookup.promise->reject(parent_result.release_error());
+                    return;
+                }
+
+                if (!parent_result.value()->is_dnssec_validated()) {
+                    lookup.promise->reject(Error::from_string_literal("Parent zone is not DNSSEC validated"));
+                    return;
+                }
+
+                parent_zone_keys = parent_result.release_value()->used_dnskeys();
+            }
+
+            auto resolve_using_keys = [=, this, records_with_rrsigs = move(records_with_rrsigs)](Vector<Messages::Records::DNSKEY> keys) mutable {
+                dbgln_if(DNS_DEBUG, "DNS: Validating {} RRSIGs for {}; starting with {} keys", records_with_rrsigs.size(), name.to_string(), keys.size());
+                for (auto& key : keys)
+                    dbgln_if(DNS_DEBUG, "- DNSKEY: {}", key.to_string());
+                Vector<NonnullRefPtr<Core::Promise<Empty>>> promises;
+
+                for (auto& record_and_rrsig : records_with_rrsigs) {
+                    auto& records = record_and_rrsig.value.records;
+                    if (record_and_rrsig.key == Messages::ResourceType::DNSKEY) {
+                        for (auto& record : records)
+                            keys.append(record.record.get<Messages::Records::DNSKEY>());
+                    }
+                }
+
+                dbgln_if(DNS_DEBUG, "DNS: Found {} keys total", keys.size());
+
+                // (owner | type | class) -> (RRSet, RRSIG, DNSKey*)
+                HashMap<String, CanonicalizedRRSetWithRRSIG> rrsets_with_rrsigs;
+
+                for (auto& [type, pair] : records_with_rrsigs) {
+                    auto& records = pair.records;
+                    auto& rrsig = pair.rrsig;
+
+                    for (auto& record : records) {
+                        auto canonicalized_name = record.name.to_canonical_string();
+                        auto key = MUST(String::formatted("{}|{}|{}", canonicalized_name, to_underlying(record.type), to_underlying(record.class_)));
+
+                        if (!rrsets_with_rrsigs.contains(key)) {
+                            auto dnskeys = [&] -> Vector<Messages::Records::DNSKEY> {
+                                Vector<Messages::Records::DNSKEY> relevant_keys;
+                                for (auto& key : keys) {
+                                    if (key.algorithm == rrsig.algorithm)
+                                        relevant_keys.append(key);
+                                }
+                                return relevant_keys;
+                            }();
+                            dbgln_if(DNS_DEBUG, "DNS: Found {} relevant DNSKEYs for key {}", dnskeys.size(), key);
+                            rrsets_with_rrsigs.set(key, CanonicalizedRRSetWithRRSIG { {}, move(rrsig), move(dnskeys) });
+                        }
+                        auto& rrset_with_rrsig = *rrsets_with_rrsigs.get(key);
+                        rrset_with_rrsig.rrset.append(move(record));
+                    }
+                }
+
+                for (auto& entry : rrsets_with_rrsigs) {
+                    auto& rrset_with_rrsig = entry.value;
+
+                    if (rrset_with_rrsig.dnskeys.is_empty()) {
+                        dbgln_if(DNS_DEBUG, "DNS: No DNSKEY found for validation of {} RRs", rrset_with_rrsig.rrset.size());
+                        continue;
+                    }
+
+                    promises.append(validate_rrset_with_rrsig(move(rrset_with_rrsig), result));
+                }
+
+                auto promise = Core::Promise<Empty>::after(move(promises))
+                                   ->when_resolved([result, lookup](Empty) {
+                                       result->set_dnssec_validated(true);
+                                       result->set_being_dnssec_validated(false);
+                                       result->finished_request();
+                                       lookup.promise->resolve(result);
+                                   })
+                                   .when_rejected([result, lookup](Error& error) {
+                                       result->finished_request();
+                                       result->set_being_dnssec_validated(false);
+                                       lookup.promise->reject(move(error));
+                                   })
+                                   .map<NonnullRefPtr<LookupResult const>>([result](Empty&) { return result; });
+
+                lookup.promise = move(promise);
+            };
+            if (is_root_zone)
+                return resolve_using_keys(move(parent_zone_keys));
+
+            dbgln_if(DNS_DEBUG, "DNS: Starting DNSKEY lookup for {}", lookup.name);
             this->lookup(lookup.name, Messages::Class::IN, { Messages::ResourceType::DNSKEY }, { .validate_dnssec_locally = false })
-                ->when_resolved([=, this, records_with_rrsigs = move(records_with_rrsigs)](NonnullRefPtr<LookupResult const>& dnskey_lookup_result) mutable {
+                ->when_resolved([=](NonnullRefPtr<LookupResult const>& dnskey_lookup_result) mutable {
                     dbgln_if(DNS_DEBUG, "DNSKEY for {}:", name.to_string());
                     for (auto& record : dnskey_lookup_result->records())
                         dbgln_if(DNS_DEBUG, "- DNSKEY: {}", record.to_string());
-
-                    dbgln_if(DNS_DEBUG, "DNS: Validating {} RRSIGs for {}", records_with_rrsigs.size(), name.to_string());
-                    Vector<NonnullRefPtr<Core::Promise<Empty>>> promises;
-
-                    // (owner | type | class) -> (RRSet, RRSIG, DNSKey*)
-                    HashMap<String, CanonicalizedRRSetWithRRSIG> rrsets_with_rrsigs;
-
-                    for (auto& [type, pair] : records_with_rrsigs) {
-                        auto& records = pair.records;
-                        auto& rrsig = pair.rrsig;
-
-                        for (auto& record : records) {
-                            auto canonicalized_name = record.name.to_canonical_string();
-                            auto key = MUST(String::formatted("{}|{}|{}", canonicalized_name, to_underlying(record.type), to_underlying(record.class_)));
-
-                            if (!rrsets_with_rrsigs.contains(key)) {
-                                auto dnskeys = [&] -> Vector<Messages::Records::DNSKEY> {
-                                    Vector<Messages::Records::DNSKEY> keys;
-                                    for (auto& dnskey_record : dnskey_lookup_result->records()) {
-                                        if (auto r = dnskey_record.record.get_pointer<Messages::Records::DNSKEY>(); r && r->algorithm == rrsig.algorithm)
-                                            keys.append(*r);
-                                    }
-                                    return keys;
-                                }();
-                                rrsets_with_rrsigs.set(key, CanonicalizedRRSetWithRRSIG { {}, move(rrsig), move(dnskeys) });
-                            }
-                            auto& rrset_with_rrsig = *rrsets_with_rrsigs.get(key);
-                            rrset_with_rrsig.rrset.append(move(record));
-                        }
+                    Vector<Messages::Records::DNSKEY> keys;
+                    keys.ensure_capacity(parent_zone_keys.size() + dnskey_lookup_result->records().size());
+                    for (auto& record : parent_zone_keys)
+                        keys.append(record);
+                    for (auto& record : dnskey_lookup_result->records()) {
+                        if (auto k = record.record.get_pointer<Messages::Records::DNSKEY>())
+                            keys.append(move(*k));
                     }
-
-                    for (auto& entry : rrsets_with_rrsigs) {
-                        auto& rrset_with_rrsig = entry.value;
-
-                        if (rrset_with_rrsig.dnskeys.is_empty()) {
-                            dbgln_if(DNS_DEBUG, "DNS: No DNSKEY found for validation of {} RRs", rrset_with_rrsig.rrset.size());
-                            continue;
-                        }
-
-                        promises.append(validate_rrset_with_rrsig(move(rrset_with_rrsig), result));
-                    }
-
-                    auto promise = Core::Promise<Empty>::after(move(promises))
-                                       ->when_resolved([result, lookup](Empty) {
-                                           result->set_dnssec_validated(true);
-                                           result->finished_request();
-                                           lookup.promise->resolve(result);
-                                       })
-                                       .when_rejected([result, lookup](Error& error) {
-                                           result->finished_request();
-                                           lookup.promise->reject(move(error));
-                                       })
-                                       .map<NonnullRefPtr<LookupResult const>>([result](Empty&) { return result; });
-
-                    lookup.promise = move(promise);
+                    resolve_using_keys(move(keys));
                 })
-                .when_rejected([=](auto& error) {
-                    dbgln_if(DNS_DEBUG, "Failed to resolve DNSKEY for {}: {}", name.to_string(), error);
-                    lookup.promise->reject(move(error));
+                .when_rejected([=](auto& error) mutable {
+                    if (parent_zone_keys.is_empty()) {
+                        dbgln_if(DNS_DEBUG, "Failed to resolve DNSKEY for {}: {}", name.to_string(), error);
+                        lookup.promise->reject(move(error));
+                    }
+                    resolve_using_keys(move(parent_zone_keys));
                 });
         });
 
         return {};
     }
 
-    Messages::Records::DNSKEY const& find_dnskey(CanonicalizedRRSetWithRRSIG const& rrset_with_rrsig)
+    Messages::Records::DNSKEY const* find_dnskey(CanonicalizedRRSetWithRRSIG const& rrset_with_rrsig)
     {
         for (auto& key : rrset_with_rrsig.dnskeys) {
             if (key.calculated_key_tag == rrset_with_rrsig.rrsig.key_tag)
-                return key;
+                return &key;
             dbgln_if(DNS_DEBUG, "DNS: DNSKEY with tag {} does not match RRSIG with tag {}", key.calculated_key_tag, rrset_with_rrsig.rrsig.key_tag);
         }
-        VERIFY_NOT_REACHED();
+        return nullptr;
     }
 
-#define TRY_OR_REJECT_PROMISE(promise, expr)                  \
+#define TRY_OR_REJECT_PROMISE(promise, expr)          \
     ({                                                \
         auto _result = (expr);                        \
         if (_result.is_error()) {                     \
@@ -682,7 +759,7 @@ private:
         _result.release_value();                      \
     })
 
-    NonnullRefPtr<Core::Promise<Empty>> validate_rrset_with_rrsig( CanonicalizedRRSetWithRRSIG rrset_with_rrsig, NonnullRefPtr<LookupResult> result)
+    NonnullRefPtr<Core::Promise<Empty>> validate_rrset_with_rrsig(CanonicalizedRRSetWithRRSIG rrset_with_rrsig, NonnullRefPtr<LookupResult> result)
     {
         auto promise = Core::Promise<Empty>::construct();
         auto& rrsig = rrset_with_rrsig.rrsig;
@@ -705,11 +782,27 @@ private:
         for (auto& rr : canon_encoded_rrs)
             canon_encoded.append(rr);
 
-        auto& dnskey = find_dnskey(rrset_with_rrsig);
+        if (result->name().labels.size() == 1) {
+            dbgln_if(DNS_DEBUG, "Root zone, implicitly trusting DNSKEY for {}", result->name().to_string());
+            promise->resolve({});
+            return promise;
+        }
+
+        auto& dnskey = *find_dnskey(rrset_with_rrsig);
 
         dbgln_if(DNS_DEBUG, "Validating RRSet with RRSIG for {}", result->name().to_string());
         for (auto& rr : rrset_with_rrsig.rrset)
             dbgln_if(DNS_DEBUG, "- RR {}", rr.to_string());
+        for (auto& canon : canon_encoded_rrs) {
+            FixedMemoryStream stream { canon.bytes() };
+            CountingStream rr_counting_stream { MaybeOwned<Stream>(stream) };
+            DNS::Messages::ParseContext rr_ctx { rr_counting_stream, make<RedBlackTree<u16, Messages::DomainName>>() };
+            auto maybe_decoded = Messages::ResourceRecord::from_raw(rr_ctx);
+            if (maybe_decoded.is_error())
+                dbgln("-- Failed to decode RR: {}", maybe_decoded.error());
+            else
+                dbgln("-- Canon encoded (decoded): {}", maybe_decoded.value().to_string());
+        }
         dbgln_if(DNS_DEBUG, "- DNSKEY {}", dnskey.to_string());
         dbgln_if(DNS_DEBUG, "- RRSIG {}", rrsig.to_string());
 
@@ -754,6 +847,14 @@ private:
         TRY_OR_REJECT_PROMISE(promise, to_be_signed.try_append(canon_encoded.data(), canon_encoded.size()));
 
         dbgln("To be signed: {:hex-dump}", to_be_signed.bytes());
+
+        constexpr auto rsa_prefix_for = [](Crypto::Hash::HashKind kind) -> ReadonlyBytes {
+            if (kind == Crypto::Hash::HashKind::SHA256)
+                return "\x30\x31\x30\x0d\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x01\x05\x00\x04\x20"sv.bytes();
+            if (kind == Crypto::Hash::HashKind::SHA512)
+                return "\x30\x51\x30\x0d\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x03\x05\x00\x04\x40"sv.bytes();
+            VERIFY_NOT_REACHED();
+        };
 
         switch (dnskey.algorithm) {
         case Messages::DNSSEC::Algorithm::RSAMD5: {
@@ -800,31 +901,38 @@ private:
             break;
         }
         case Messages::DNSSEC::Algorithm::RSASHA512: {
-            auto sha512 = Crypto::Hash::SHA512::hash(to_be_signed);
-            auto public_key = TRY_OR_REJECT_PROMISE(promise, Crypto::PK::RSA::parse_rsa_key(dnskey.public_key, false, {}));
-            Crypto::PK::RSA_PKCS1_EME rsa { public_key };
-            if (auto ok = TRY_OR_REJECT_PROMISE(promise, rsa.verify(sha512.bytes(), rrsig.signature)); !ok) {
+            auto n = Crypto::UnsignedBigInteger::import_data(dnskey.public_key_rsa_modulus());
+            auto e = Crypto::UnsignedBigInteger::import_data(dnskey.public_key_rsa_exponent());
+            Crypto::PK::RSA_PKCS1_EMSA rsa { Crypto::Hash::HashKind::SHA512, Crypto::PK::RSAPublicKey { move(n), move(e) } };
+            if (auto ok = TRY_OR_REJECT_PROMISE(promise, rsa.verify(to_be_signed, rrsig.signature)); !ok) {
                 promise->reject(Error::from_string_literal("RSA/SHA512 signature validation failed"));
                 return promise;
             }
             break;
         }
         case Messages::DNSSEC::Algorithm::RSASHA1: {
-            auto sha1 = Crypto::Hash::SHA1::hash(to_be_signed);
-            auto public_key = TRY_OR_REJECT_PROMISE(promise, Crypto::PK::RSA::parse_rsa_key(dnskey.public_key, false, {}));
-            Crypto::PK::RSA_PKCS1_EME rsa { public_key };
-            if (auto ok = TRY_OR_REJECT_PROMISE(promise, rsa.verify(sha1.bytes(), rrsig.signature)); !ok) {
+            auto n = Crypto::UnsignedBigInteger::import_data(dnskey.public_key_rsa_modulus());
+            auto e = Crypto::UnsignedBigInteger::import_data(dnskey.public_key_rsa_exponent());
+            Crypto::PK::RSA_PKCS1_EMSA rsa { Crypto::Hash::HashKind::SHA1, Crypto::PK::RSAPublicKey { move(n), move(e) } };
+            if (auto ok = TRY_OR_REJECT_PROMISE(promise, rsa.verify(to_be_signed, rrsig.signature)); !ok) {
                 promise->reject(Error::from_string_literal("RSA/SHA1 signature validation failed"));
                 return promise;
             }
             break;
         }
         case Messages::DNSSEC::Algorithm::RSASHA256: {
-            auto sha256 = Crypto::Hash::SHA256::hash(to_be_signed);
-            auto public_key = TRY_OR_REJECT_PROMISE(promise, Crypto::PK::RSA::parse_rsa_key(dnskey.public_key, false, {}));
-            Crypto::PK::RSA_PKCS1_EME rsa { public_key };
-            if (auto ok = TRY_OR_REJECT_PROMISE(promise, rsa.verify(sha256.bytes(), rrsig.signature)); !ok) {
-                promise->reject(Error::from_string_literal("RSA/SHA1 signature validation failed"));
+            auto const prefix = rsa_prefix_for(Crypto::Hash::HashKind::SHA256);
+            auto n = Crypto::UnsignedBigInteger::import_data(dnskey.public_key_rsa_modulus());
+            auto e = Crypto::UnsignedBigInteger::import_data(dnskey.public_key_rsa_exponent());
+            Crypto::PK::RSA_PKCS1_EMSA rsa { Crypto::Hash::HashKind::SHA256, Crypto::PK::RSAPublicKey { move(n), move(e) } };
+            auto digest = Crypto::Hash::SHA256::hash(to_be_signed);
+            ByteBuffer prefixed_digest;
+            TRY_OR_REJECT_PROMISE(promise, prefixed_digest.try_ensure_capacity(prefix.size() + digest.data_length()));
+            prefixed_digest.append(prefix);
+            prefixed_digest.append(digest.bytes());
+
+            if (auto ok = TRY_OR_REJECT_PROMISE(promise, rsa.verify(prefixed_digest.bytes(), rrsig.signature)); !ok) {
+                promise->reject(Error::from_string_literal("RSA/SHA256 signature validation failed"));
                 return promise;
             }
             break;
