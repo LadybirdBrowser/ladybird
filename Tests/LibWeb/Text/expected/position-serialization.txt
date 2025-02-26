@@ -11,8 +11,8 @@ computed: 10px 20%
 inline:   10px top
 computed: 10px 0%
 inline:   right 10px bottom 20%
-computed: calc(100% + (0 - 10px)) 80%
+computed: calc(100% - 10px) 80%
 inline:   center center, left bottom
 computed: 50% 50%, 0% 100%
 inline:   left 10px bottom 20%, right 10px top 20%
-computed: 10px 80%, calc(100% + (0 - 10px)) 20%
+computed: 10px 80%, calc(100% - 10px) 20%

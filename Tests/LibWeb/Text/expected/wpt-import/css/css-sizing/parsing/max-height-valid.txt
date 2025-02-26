@@ -2,15 +2,14 @@ Harness status: OK
 
 Found 10 tests
 
-8 Pass
-2 Fail
+10 Pass
 Pass	e.style['max-height'] = "none" should set the property value
 Pass	e.style['max-height'] = "min-content" should set the property value
 Pass	e.style['max-height'] = "max-content" should set the property value
 Pass	e.style['max-height'] = "0" should set the property value
 Pass	e.style['max-height'] = "10%" should set the property value
 Pass	e.style['max-height'] = "0.5em" should set the property value
-Fail	e.style['max-height'] = "calc(10% - 0.5em)" should set the property value
+Pass	e.style['max-height'] = "calc(10% - 0.5em)" should set the property value
 Pass	e.style['max-height'] = "fit-content(10%)" should set the property value
 Pass	e.style['max-height'] = "fit-content(0.5em)" should set the property value
-Fail	e.style['max-height'] = "fit-content(calc(10% - 0.5em))" should set the property value
+Pass	e.style['max-height'] = "fit-content(calc(10% - 0.5em))" should set the property value

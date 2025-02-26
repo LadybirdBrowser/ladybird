@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 24 tests
 
-6 Pass
-18 Fail
+8 Pass
+16 Fail
 Fail	testing calc(1vh + 2px + 3%)
 Pass	testing calc(4px + 1vh)
 Fail	testing calc(5px + 6em + 1vh)
@@ -22,9 +22,9 @@ Fail	testing calc(1vh - 7px)
 Fail	testing calc(5ex - 9ex)
 Fail	testing calc(-80px + 25.4mm)
 Pass	testing calc(2 * (10px + 1rem))
-Fail	testing calc(2 * (10px - 1rem))
+Pass	testing calc(2 * (10px - 1rem))
 Pass	testing calc((10px + 1rem) / 2)
-Fail	testing calc(2 * (min(10px, 20%) + max(1rem, 2%)))
+Pass	testing calc(2 * (min(10px, 20%) + max(1rem, 2%)))
 Fail	testing calc((min(10px, 20%) + max(1rem, 2%)) * 2)
 Fail	testing calc(1vmin - 14%)
 Fail	testing calc(4 * 3px + 4pc / 8)
