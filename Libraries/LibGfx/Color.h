@@ -253,6 +253,15 @@ public:
         return color_with_alpha;
     }
 
+    constexpr Color to_premultiplied() const
+    {
+        return Color(
+            red() * alpha() / 255,
+            green() * alpha() / 255,
+            blue() * alpha() / 255,
+            alpha());
+    }
+
     constexpr Color to_unpremultiplied() const
     {
         if (alpha() == 0 || alpha() == 255)
