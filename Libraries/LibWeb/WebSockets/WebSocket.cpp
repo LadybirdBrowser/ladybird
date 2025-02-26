@@ -411,6 +411,10 @@ void WebSocket::make_disappear()
     // -> Otherwise
     //    - Do nothing.
     // NOTE: All of these are handled by the WebSocket Protocol when calling close()
+    auto ready_state = this->ready_state();
+    if (ready_state == Requests::WebSocket::ReadyState::Closing || ready_state == Requests::WebSocket::ReadyState::Closed)
+        return;
+
     m_websocket->close(1001);
 }
 
