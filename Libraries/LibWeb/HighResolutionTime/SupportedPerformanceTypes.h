@@ -9,8 +9,9 @@
 namespace Web::HighResolutionTime {
 
 // Please keep these in alphabetical order based on the entry type :^)
-#define ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES                                                                   \
-    __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES(PerformanceTimeline::EntryTypes::mark, UserTiming::PerformanceMark) \
-    __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES(PerformanceTimeline::EntryTypes::measure, UserTiming::PerformanceMeasure)
+#define ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES                                                                         \
+    __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES(PerformanceTimeline::EntryTypes::mark, UserTiming::PerformanceMark)       \
+    __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES(PerformanceTimeline::EntryTypes::measure, UserTiming::PerformanceMeasure) \
+    __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES(PerformanceTimeline::EntryTypes::resource, ResourceTiming::PerformanceResourceTiming)
 
 }

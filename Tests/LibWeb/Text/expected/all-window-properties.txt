@@ -282,6 +282,7 @@ PerformanceMeasure
 PerformanceNavigation
 PerformanceObserver
 PerformanceObserverEntryList
+PerformanceResourceTiming
 PerformanceTiming
 PeriodicWave
 Plugin
