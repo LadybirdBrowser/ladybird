@@ -106,6 +106,7 @@ public:
         Easing,
         Edge,
         FilterValueList,
+        FitContent,
         Flex,
         FontVariant,
         Frequency,
@@ -215,6 +216,10 @@ public:
     bool is_filter_value_list() const { return type() == Type::FilterValueList; }
     FilterValueListStyleValue const& as_filter_value_list() const;
     FilterValueListStyleValue& as_filter_value_list() { return const_cast<FilterValueListStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_filter_value_list()); }
+
+    [[nodiscard]] bool is_fit_content() const { return type() == Type::FitContent; }
+    [[nodiscard]] FitContentStyleValue const& as_fit_content() const;
+    [[nodiscard]] FitContentStyleValue& as_fit_content() { return const_cast<FitContentStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_fit_content()); }
 
     bool is_flex() const { return type() == Type::Flex; }
     FlexStyleValue const& as_flex() const;

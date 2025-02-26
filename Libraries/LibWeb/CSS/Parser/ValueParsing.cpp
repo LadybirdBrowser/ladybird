@@ -35,6 +35,7 @@
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/EasingStyleValue.h>
 #include <LibWeb/CSS/StyleValues/EdgeStyleValue.h>
+#include <LibWeb/CSS/StyleValues/FitContentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FlexStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FrequencyStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTrackPlacementStyleValue.h>
@@ -2538,6 +2539,38 @@ Optional<ShapeRadius> Parser::parse_shape_radius(TokenStream<ComponentValue>& to
     return {};
 }
 
+RefPtr<FitContentStyleValue> Parser::parse_fit_content_value(TokenStream<ComponentValue>& tokens)
+{
+    auto transaction = tokens.begin_transaction();
+    auto& component_value = tokens.consume_a_token();
+
+    if (component_value.is_ident("fit-content"sv)) {
+        transaction.commit();
+        return FitContentStyleValue::create();
+        return nullptr;
+    }
+
+    if (!component_value.is_function())
+        return nullptr;
+
+    auto const& function = component_value.function();
+    if (function.name != "fit-content"sv)
+        return nullptr;
+    if (function.value.size() != 1)
+        return nullptr;
+    TokenStream argument_tokens { function.value };
+    argument_tokens.discard_whitespace();
+    auto maybe_length = parse_length_percentage(argument_tokens);
+    if (!maybe_length.has_value())
+        return nullptr;
+    argument_tokens.discard_whitespace();
+    if (argument_tokens.has_next_token())
+        return nullptr;
+
+    transaction.commit();
+    return FitContentStyleValue::create(maybe_length.release_value());
+}
+
 RefPtr<CSSStyleValue> Parser::parse_basic_shape_value(TokenStream<ComponentValue>& tokens)
 {
     auto transaction = tokens.begin_transaction();
@@ -2875,7 +2908,7 @@ Optional<CSS::GridSize> Parser::parse_grid_size(ComponentValue const& component_
     return {};
 }
 
-Optional<CSS::GridFitContent> Parser::parse_fit_content(Vector<ComponentValue> const& component_values)
+Optional<CSS::GridFitContent> Parser::parse_grid_fit_content(Vector<ComponentValue> const& component_values)
 {
     // https://www.w3.org/TR/css-grid-2/#valdef-grid-template-columns-fit-content
     // 'fit-content( <length-percentage> )'
@@ -3050,7 +3083,7 @@ Optional<CSS::ExplicitGridTrack> Parser::parse_track_sizing_function(ComponentVa
             else
                 return {};
         } else if (function_token.name.equals_ignoring_ascii_case("fit-content"sv)) {
-            auto maybe_fit_content_value = parse_fit_content(function_token.value);
+            auto maybe_fit_content_value = parse_grid_fit_content(function_token.value);
             if (maybe_fit_content_value.has_value())
                 return CSS::ExplicitGridTrack(maybe_fit_content_value.value());
             return {};

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2021-2025, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, Tobias Christiansen <tobyase@serenityos.org>
  * Copyright (c) 2022-2025, Sam Atkins <sam@ladybird.org>
  *
@@ -16,6 +16,7 @@
 #include <LibWeb/CSS/StyleValues/BackgroundSizeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CSSColorValue.h>
 #include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
+#include <LibWeb/CSS/StyleValues/FitContentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
@@ -96,9 +97,8 @@ static NonnullRefPtr<CSSStyleValue const> style_value_for_size(Size const& size)
         return CSSKeywordValue::create(Keyword::MinContent);
     if (size.is_max_content())
         return CSSKeywordValue::create(Keyword::MaxContent);
-    // FIXME: Support fit-content(<length>)
     if (size.is_fit_content())
-        return CSSKeywordValue::create(Keyword::FitContent);
+        return FitContentStyleValue::create(size.fit_content_available_space());
     TODO();
 }
 

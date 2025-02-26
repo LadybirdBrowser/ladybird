@@ -54,7 +54,7 @@ Size Size::make_max_content()
     return Size { Type::MaxContent, Length::make_auto() };
 }
 
-Size Size::make_fit_content(Length available_space)
+Size Size::make_fit_content(LengthPercentage available_space)
 {
     return Size { Type::FitContent, move(available_space) };
 }
@@ -77,6 +77,10 @@ bool Size::contains_percentage() const
     case Type::MinContent:
     case Type::MaxContent:
     case Type::None:
+        return false;
+    case Type::FitContent:
+        // FIXME: This should return m_length_percentage.contains_percentage()
+        //        but we have to update a lot of code to handle this.
         return false;
     default:
         return m_length_percentage.contains_percentage();

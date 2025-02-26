@@ -30,6 +30,7 @@ static bool type_name_is_enum(StringView type_name)
         "custom-ident"sv,
         "easing-function"sv,
         "flex"sv,
+        "fit-content"sv,
         "frequency"sv,
         "image"sv,
         "integer"sv,
@@ -230,6 +231,7 @@ enum class ValueType {
     CustomIdent,
     EasingFunction,
     FilterValueList,
+    FitContent,
     Flex,
     Frequency,
     Image,
@@ -801,6 +803,8 @@ bool property_accepts_type(PropertyID property_id, ValueType value_type)
                     property_generator.appendln("        case ValueType::CustomIdent:");
                 } else if (type_name == "easing-function") {
                     property_generator.appendln("        case ValueType::EasingFunction:");
+                } else if (type_name == "fit-content") {
+                    property_generator.appendln("        case ValueType::FitContent:");
                 } else if (type_name == "flex") {
                     property_generator.appendln("        case ValueType::Flex:");
                 } else if (type_name == "frequency") {
