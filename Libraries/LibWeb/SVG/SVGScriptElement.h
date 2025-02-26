@@ -26,6 +26,7 @@ public:
 
     virtual void inserted() override;
     virtual void children_changed(ChildrenChangedMetadata const*) override;
+    virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
 
 protected:
     SVGScriptElement(DOM::Document&, DOM::QualifiedName);
