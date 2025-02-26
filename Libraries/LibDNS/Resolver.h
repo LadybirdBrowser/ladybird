@@ -20,10 +20,9 @@
 #include <LibCore/Socket.h>
 #include <LibCore/Timer.h>
 #include <LibCrypto/Certificate/Certificate.h>
-#include <LibCrypto/Curves/Ed25519.h>
+#include <LibCrypto/Curves/EdwardsCurve.h>
 #include <LibCrypto/PK/RSA.h>
 #include <LibDNS/Message.h>
-#include <LibThreading/MutexProtected.h>
 #include <LibThreading/RWLockProtected.h>
 
 #undef DNS_DEBUG
@@ -619,7 +618,7 @@ private:
             result->set_being_dnssec_validated(true);
 
             Vector<Messages::Records::DNSKEY> parent_zone_keys;
-            auto is_root_zone = lookup.parsed_name.labels.size() == 1;
+            auto is_root_zone = lookup.parsed_name.labels.size() == 0;
 
             if (!is_root_zone) {
                 auto parent_result = this->lookup(lookup.parsed_name.parent().to_string().to_byte_string(), Messages::Class::IN, { Messages::ResourceType::DNSKEY }, { .validate_dnssec_locally = true })
@@ -924,7 +923,7 @@ private:
             auto const prefix = rsa_prefix_for(Crypto::Hash::HashKind::SHA256);
             auto n = Crypto::UnsignedBigInteger::import_data(dnskey.public_key_rsa_modulus());
             auto e = Crypto::UnsignedBigInteger::import_data(dnskey.public_key_rsa_exponent());
-            Crypto::PK::RSA_PKCS1_EMSA rsa { Crypto::Hash::HashKind::SHA256, Crypto::PK::RSAPublicKey { move(n), move(e) } };
+            Crypto::PK::RSA_PSS_EMSA rsa { Crypto::Hash::HashKind::SHA256, Crypto::PK::RSAPublicKey { move(n), move(e) } };
             auto digest = Crypto::Hash::SHA256::hash(to_be_signed);
             ByteBuffer prefixed_digest;
             TRY_OR_REJECT_PROMISE(promise, prefixed_digest.try_ensure_capacity(prefix.size() + digest.data_length()));
@@ -939,7 +938,7 @@ private:
         }
         case Messages::DNSSEC::Algorithm::ED25519: {
             Crypto::Curves::Ed25519 ed25519;
-            if (!ed25519.verify(dnskey.public_key.bytes(), rrsig.signature.bytes(), to_be_signed.bytes())) {
+            if (!TRY_OR_REJECT_PROMISE(promise, ed25519.verify(dnskey.public_key.bytes(), rrsig.signature.bytes(), to_be_signed.bytes()))) {
                 promise->reject(Error::from_string_literal("ED25519 signature validation failed"));
                 return promise;
             }

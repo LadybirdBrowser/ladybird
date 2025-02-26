@@ -703,6 +703,9 @@ ErrorOr<void> DomainName::to_raw(ByteBuffer& out) const
 
 String DomainName::to_string() const
 {
+    if (labels.is_empty())
+        return "."_string;
+
     StringBuilder builder;
     for (size_t i = 0; i < labels.size(); ++i) {
         builder.append(labels[i]);
@@ -714,6 +717,9 @@ String DomainName::to_string() const
 
 String DomainName::to_canonical_string() const
 {
+    if (labels.is_empty())
+        return "."_string;
+
     StringBuilder builder;
     for (size_t i = 0; i < labels.size(); ++i) {
         auto& label = labels[i];
