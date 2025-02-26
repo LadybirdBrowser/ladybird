@@ -82,6 +82,7 @@ namespace Web::SVG::AttributeNames {
     __ENUMERATE_SVG_ATTRIBUTE(targetX, "targetX")                         \
     __ENUMERATE_SVG_ATTRIBUTE(targetY, "targetY")                         \
     __ENUMERATE_SVG_ATTRIBUTE(textLength, "textLength")                   \
+    __ENUMERATE_SVG_ATTRIBUTE(type, "type")                               \
     __ENUMERATE_SVG_ATTRIBUTE(version, "version")                         \
     __ENUMERATE_SVG_ATTRIBUTE(viewBox, "viewBox")                         \
     __ENUMERATE_SVG_ATTRIBUTE(viewTarget, "viewTarget")                   \

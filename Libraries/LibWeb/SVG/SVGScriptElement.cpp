@@ -38,7 +38,7 @@ void SVGScriptElement::visit_edges(Cell::Visitor& visitor)
 void SVGScriptElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
-    if (name == SVG::AttributeNames::href) {
+    if (name == SVG::AttributeNames::href || name == SVG::AttributeNames::type) {
         process_the_script_element();
     }
 }
@@ -68,6 +68,19 @@ void SVGScriptElement::process_the_script_element()
     //    document tree, then no action is performed and these steps are ended.
     if (m_already_processed || !in_a_document_tree())
         return;
+
+    // https://svgwg.org/svg2-draft/interact.html#ScriptElement
+    // Before attempting to execute the ‘script’ element the resolved media type value for ‘type’ must be inspected.
+    // If the SVG user agent does not support the scripting language then the ‘script’ element must not be executed.
+    // FIXME: Support type="module" scripts
+    auto maybe_script_type = attribute(SVG::AttributeNames::type);
+    if (maybe_script_type.has_value() && !maybe_script_type->is_empty()) {
+        auto script_type = MUST(maybe_script_type->to_ascii_lowercase().trim_ascii_whitespace());
+        if (!MimeSniff::is_javascript_mime_type_essence_match(script_type)) {
+            dbgln("SVGScriptElement: Unsupported script type: {}", *maybe_script_type);
+            return;
+        }
+    }
 
     IGNORE_USE_IN_ESCAPING_LAMBDA String script_content;
     auto script_url = m_document->url();
