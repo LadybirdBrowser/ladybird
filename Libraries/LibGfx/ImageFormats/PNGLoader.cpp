@@ -257,6 +257,12 @@ ErrorOr<size_t> PNGLoadingContext::read_frames(png_structp png_ptr, png_infop in
             row_pointers[i] = frame_bitmap->scanline_u8(i);
 
         png_read_image(png_ptr, row_pointers.data());
+
+        // Convert the frame to premultiplied alpha. Apart from the fact that it's theoretically a bit faster to blend
+        // premultiplied pixels, Skia eventually runs into issues when trying to blend unpremultiplied pixels when
+        // scaling up and using linear interpolation.
+        frame_bitmap->set_alpha_type_destructive(AlphaType::Premultiplied);
+
         return frame_bitmap;
     };
 
