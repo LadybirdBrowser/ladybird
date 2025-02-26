@@ -1,0 +1,37 @@
+<?xml version="1.0" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:h="http://www.w3.org/1999/xhtml">
+<metadata>
+  <h:link rel="help" href="https://html.spec.whatwg.org/multipage/#scriptingLanguages" />
+  <h:link rel="help" href="https://html.spec.whatwg.org/multipage/#prepare-a-script" />
+</metadata>
+<h:script src="../../../../resources/testharness.js"/>
+<h:script src="../../../../resources/testharnessreport.js"/>
+<h:div id="script-placeholder"/>
+<h:script src="resources/script-type-and-language-js.js"/>
+<script>window.ran = false;</script>
+<script type="javascript">window.ran = true;</script>
+<script>testParserInsertedDidNotRun('type=javascript');</script>
+<script type="javascript1.0">window.ran = true;</script>
+<script>testParserInsertedDidNotRun('type=javascript1.0');</script>
+<script type="javascript1.1">window.ran = true;</script>
+<script>testParserInsertedDidNotRun('type=javascript1.1');</script>
+<script type="javascript1.2">window.ran = true;</script>
+<script>testParserInsertedDidNotRun('type=javascript1.2');</script>
+<script type="javascript1.3">window.ran = true;</script>
+<script>testParserInsertedDidNotRun('type=javascript1.3');</script>
+<script type="javascript1.4">window.ran = true;</script>
+<script>testParserInsertedDidNotRun('type=javascript1.4');</script>
+<script type="javascript1.5">window.ran = true;</script>
+<script>testParserInsertedDidNotRun('type=javascript1.5');</script>
+<script type="javascript1.6">window.ran = true;</script>
+<script>testParserInsertedDidNotRun('type=javascript1.6');</script>
+<script type="javascript1.7">window.ran = true;</script>
+<script>testParserInsertedDidNotRun('type=javascript1.7');</script>
+<script type="livescript">window.ran = true;</script>
+<script>testParserInsertedDidNotRun('type=livescript');</script>
+<script type="ecmascript">window.ran = true;</script>
+<script>testParserInsertedDidNotRun('type=ecmascript');</script>
+<script type="jscript">window.ran = true;</script>
+<script>testParserInsertedDidNotRun('type=jscript');</script>
+</svg>
