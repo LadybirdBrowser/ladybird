@@ -14,6 +14,7 @@
 #include <LibCore/Proxy.h>
 #include <LibCore/Socket.h>
 #include <LibRequests/NetworkErrorEnum.h>
+#include <LibRequests/RequestTimingInfo.h>
 #include <LibRequests/WebSocket.h>
 #include <LibTLS/TLSv12.h>
 #include <LibTextCodec/Decoder.h>
@@ -382,12 +383,14 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString const& metho
     m_resolver->dns.lookup(host, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA })
         ->when_rejected([this, request_id](auto const& error) {
             dbgln("StartRequest: DNS lookup failed: {}", error);
-            async_request_finished(request_id, 0, Requests::NetworkError::UnableToResolveHost);
+            // FIXME: Implement timing info for DNS lookup failure.
+            async_request_finished(request_id, 0, {}, Requests::NetworkError::UnableToResolveHost);
         })
         .when_resolved([this, request_id, host, url, method, request_body, request_headers, proxy_data](auto const& dns_result) {
             if (dns_result->records().is_empty() || dns_result->cached_addresses().is_empty()) {
                 dbgln("StartRequest: DNS lookup failed for '{}'", host);
-                async_request_finished(request_id, 0, Requests::NetworkError::UnableToResolveHost);
+                // FIXME: Implement timing info for DNS lookup failure.
+                async_request_finished(request_id, 0, {}, Requests::NetworkError::UnableToResolveHost);
                 return;
             }
 
@@ -522,6 +525,75 @@ static Requests::NetworkError map_curl_code_to_network_error(CURLcode const& cod
     }
 }
 
+static Requests::RequestTimingInfo get_timing_info_from_curl_easy_handle(CURL* easy_handle)
+{
+    /*
+     *   curl_easy_perform()
+     *       |
+     *       |--QUEUE
+     *       |--|--NAMELOOKUP
+     *       |--|--|--CONNECT
+     *       |--|--|--|--APPCONNECT
+     *       |--|--|--|--|--PRETRANSFER
+     *       |--|--|--|--|--|--POSTTRANSFER
+     *       |--|--|--|--|--|--|--STARTTRANSFER
+     *       |--|--|--|--|--|--|--|--TOTAL
+     *       |--|--|--|--|--|--|--|--REDIRECT
+     */
+
+    auto get_timing_info = [easy_handle](auto option) {
+        curl_off_t time_value = 0;
+        auto result = curl_easy_getinfo(easy_handle, option, &time_value);
+        VERIFY(result == CURLE_OK);
+        return time_value;
+    };
+
+    auto queue_time = get_timing_info(CURLINFO_QUEUE_TIME_T);
+    auto domain_lookup_time = get_timing_info(CURLINFO_NAMELOOKUP_TIME_T);
+    auto connect_time = get_timing_info(CURLINFO_CONNECT_TIME_T);
+    auto secure_connect_time = get_timing_info(CURLINFO_APPCONNECT_TIME_T);
+    auto request_start_time = get_timing_info(CURLINFO_PRETRANSFER_TIME_T);
+    auto response_start_time = get_timing_info(CURLINFO_STARTTRANSFER_TIME_T);
+    auto response_end_time = get_timing_info(CURLINFO_TOTAL_TIME_T);
+    auto encoded_body_size = get_timing_info(CURLINFO_SIZE_DOWNLOAD_T);
+
+    long http_version = 0;
+    auto get_version_result = curl_easy_getinfo(easy_handle, CURLINFO_HTTP_VERSION, &http_version);
+    VERIFY(get_version_result == CURLE_OK);
+
+    auto http_version_alpn = Requests::ALPNHttpVersion::None;
+    switch (http_version) {
+    case CURL_HTTP_VERSION_1_0:
+        http_version_alpn = Requests::ALPNHttpVersion::Http1_0;
+        break;
+    case CURL_HTTP_VERSION_1_1:
+        http_version_alpn = Requests::ALPNHttpVersion::Http1_1;
+        break;
+    case CURL_HTTP_VERSION_2_0:
+        http_version_alpn = Requests::ALPNHttpVersion::Http2_TLS;
+        break;
+    case CURL_HTTP_VERSION_3:
+        http_version_alpn = Requests::ALPNHttpVersion::Http3;
+        break;
+    default:
+        http_version_alpn = Requests::ALPNHttpVersion::None;
+        break;
+    }
+
+    return Requests::RequestTimingInfo {
+        .domain_lookup_start_microseconds = queue_time,
+        .domain_lookup_end_microseconds = queue_time + domain_lookup_time,
+        .connect_start_microseconds = queue_time + domain_lookup_time,
+        .connect_end_microseconds = queue_time + domain_lookup_time + connect_time + secure_connect_time,
+        .secure_connect_start_microseconds = queue_time + domain_lookup_time + connect_time,
+        .request_start_microseconds = queue_time + domain_lookup_time + connect_time + secure_connect_time + request_start_time,
+        .response_start_microseconds = queue_time + domain_lookup_time + connect_time + secure_connect_time + response_start_time,
+        .response_end_microseconds = queue_time + domain_lookup_time + connect_time + secure_connect_time + response_end_time,
+        .encoded_body_size = encoded_body_size,
+        .http_version_alpn_identifier = http_version_alpn,
+    };
+}
+
 void ConnectionFromClient::check_active_requests()
 {
     int msgs_in_queue = 0;
@@ -547,6 +619,7 @@ void ConnectionFromClient::check_active_requests()
         auto* request = static_cast<ActiveRequest*>(application_private);
 
         if (!request->is_connect_only) {
+            auto timing_info = get_timing_info_from_curl_easy_handle(msg->easy_handle);
             request->flush_headers_if_needed();
 
             auto result_code = msg->data.result;
@@ -562,7 +635,7 @@ void ConnectionFromClient::check_active_requests()
                 }
             }
 
-            async_request_finished(request->request_id, request->downloaded_so_far, network_error);
+            async_request_finished(request->request_id, request->downloaded_so_far, timing_info, network_error);
         }
 
         m_active_requests.remove(request->request_id);
