@@ -389,7 +389,11 @@ void Application::inspect_dom_node(DevTools::TabDescription const& description, 
 
     view->on_received_dom_node_properties = [&view = *view, on_complete = move(on_complete)](ViewImplementation::DOMNodeProperties properties) {
         view.on_received_dom_node_properties = nullptr;
-        on_complete(move(properties));
+
+        on_complete(DevTools::DOMNodeProperties {
+            .computed_style = move(properties.computed_style),
+            .node_box_sizing = move(properties.node_box_sizing),
+        });
     };
 
     view->inspect_dom_node(node_id, pseudo_element);

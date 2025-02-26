@@ -6,10 +6,16 @@
 
 #pragma once
 
+#include <AK/JsonObject.h>
 #include <AK/NonnullRefPtr.h>
 #include <LibDevTools/Actor.h>
 
 namespace DevTools {
+
+struct DOMNodeProperties {
+    JsonObject computed_style;
+    JsonObject node_box_sizing;
+};
 
 class PageStyleActor final : public Actor {
 public:
