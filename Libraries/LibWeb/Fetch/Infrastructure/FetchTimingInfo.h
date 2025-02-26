@@ -8,10 +8,13 @@
 
 #include <AK/String.h>
 #include <AK/Vector.h>
+#include <LibGC/CellAllocator.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/Cell.h>
+#include <LibRequests/Forward.h>
 #include <LibWeb/Fetch/Infrastructure/ConnectionTimingInfo.h>
+#include <LibWeb/HTML/Scripting/SerializedEnvironmentSettingsObject.h>
 #include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::Fetch::Infrastructure {
@@ -45,6 +48,9 @@ public:
     [[nodiscard]] HighResolutionTime::DOMHighResTimeStamp final_network_response_start_time() const { return m_final_network_response_start_time; }
     void set_final_network_response_start_time(HighResolutionTime::DOMHighResTimeStamp final_network_response_start_time) { m_final_network_response_start_time = final_network_response_start_time; }
 
+    [[nodiscard]] HighResolutionTime::DOMHighResTimeStamp first_interim_network_response_start_time() const { return m_first_interim_network_response_start_time; }
+    void set_first_interim_network_response_start_time(HighResolutionTime::DOMHighResTimeStamp first_interim_network_response_start_time) { m_first_interim_network_response_start_time = first_interim_network_response_start_time; }
+
     [[nodiscard]] HighResolutionTime::DOMHighResTimeStamp end_time() const { return m_end_time; }
     void set_end_time(HighResolutionTime::DOMHighResTimeStamp end_time) { m_end_time = end_time; }
 
@@ -57,6 +63,8 @@ public:
 
     [[nodiscard]] bool render_blocking() const { return m_render_blocking; }
     void set_render_blocking(bool render_blocking) { m_render_blocking = render_blocking; }
+
+    void update_final_timings(Requests::RequestTimingInfo const& final_timings, HTML::CanUseCrossOriginIsolatedAPIs cross_origin_isolated_capability);
 
 private:
     FetchTimingInfo();
@@ -92,6 +100,11 @@ private:
     // final network-request start time (default 0)
     //     A DOMHighResTimeStamp.
     HighResolutionTime::DOMHighResTimeStamp m_final_network_request_start_time { 0 };
+
+    // https://fetch.spec.whatwg.org/#fetch-timing-info-first-interim-network-response-start-time
+    // first interim network-response start time (default 0)
+    //     A DOMHighResTimeStamp.
+    HighResolutionTime::DOMHighResTimeStamp m_first_interim_network_response_start_time { 0 };
 
     // https://fetch.spec.whatwg.org/#fetch-timing-info-final-network-response-start-time
     // final network-response start time (default 0)
