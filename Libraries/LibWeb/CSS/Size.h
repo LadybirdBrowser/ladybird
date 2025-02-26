@@ -32,7 +32,7 @@ public:
     static Size make_calculated(NonnullRefPtr<CalculatedStyleValue>);
     static Size make_min_content();
     static Size make_max_content();
-    static Size make_fit_content(Length available_space);
+    static Size make_fit_content(LengthPercentage available_space);
     static Size make_fit_content();
     static Size make_none();
 
@@ -67,10 +67,10 @@ public:
         return m_length_percentage.percentage();
     }
 
-    CSS::Length const& fit_content_available_space() const
+    CSS::LengthPercentage const& fit_content_available_space() const
     {
         VERIFY(is_fit_content());
-        return m_length_percentage.length();
+        return m_length_percentage;
     }
 
     String to_string() const;

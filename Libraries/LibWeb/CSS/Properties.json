@@ -1131,13 +1131,13 @@
     "inherited": false,
     "initial": "auto",
     "valid-types": [
+      "fit-content",
       "length [0,∞]",
       "percentage [0,∞]"
     ],
     "valid-identifiers": [
       "auto",
       "content",
-      "fit-content",
       "max-content",
       "min-content"
     ],
@@ -1614,12 +1614,12 @@
     "inherited": false,
     "initial": "auto",
     "valid-types": [
+      "fit-content",
       "length [0,∞]",
       "percentage [0,∞]"
     ],
     "valid-identifiers": [
       "auto",
-      "fit-content",
       "max-content",
       "min-content"
     ],
@@ -2032,11 +2032,11 @@
     "inherited": false,
     "initial": "none",
     "valid-types": [
+      "fit-content",
       "length [0,∞]",
       "percentage [0,∞]"
     ],
     "valid-identifiers": [
-      "fit-content",
       "max-content",
       "min-content",
       "none"
@@ -2058,11 +2058,11 @@
     "inherited": false,
     "initial": "none",
     "valid-types": [
+      "fit-content",
       "length [0,∞]",
       "percentage [0,∞]"
     ],
     "valid-identifiers": [
-      "fit-content",
       "max-content",
       "min-content",
       "none"
@@ -2084,12 +2084,12 @@
     "inherited": false,
     "initial": "auto",
     "valid-types": [
+      "fit-content",
       "length [0,∞]",
       "percentage [0,∞]"
     ],
     "valid-identifiers": [
       "auto",
-      "fit-content",
       "max-content",
       "min-content"
     ],
@@ -2110,12 +2110,12 @@
     "inherited": false,
     "initial": "auto",
     "valid-types": [
+      "fit-content",
       "length [0,∞]",
       "percentage [0,∞]"
     ],
     "valid-identifiers": [
       "auto",
-      "fit-content",
       "max-content",
       "min-content"
     ],
@@ -2936,12 +2936,12 @@
     "inherited": false,
     "initial": "auto",
     "valid-types": [
+      "fit-content",
       "length [0,∞]",
       "percentage [0,∞]"
     ],
     "valid-identifiers": [
       "auto",
-      "fit-content",
       "max-content",
       "min-content"
     ],

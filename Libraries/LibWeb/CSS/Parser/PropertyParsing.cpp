@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2024, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2018-2025, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2020-2021, the SerenityOS developers.
  * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2021, Tobias Christiansen <tobyase@serenityos.org>
@@ -31,6 +31,7 @@
 #include <LibWeb/CSS/StyleValues/EasingStyleValue.h>
 #include <LibWeb/CSS/StyleValues/EdgeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FilterValueListStyleValue.h>
+#include <LibWeb/CSS/StyleValues/FitContentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FlexStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FrequencyStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridAutoFlowStyleValue.h>
@@ -299,6 +300,12 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
             if (value->is_frequency() && property_accepts_frequency(*property, value->as_frequency().frequency()))
                 return PropertyAndValue { *property, value };
         }
+    }
+
+    if (auto property = any_property_accepts_type(property_ids, ValueType::FitContent); property.has_value()) {
+        auto context_guard = push_temporary_value_parsing_context(*property);
+        if (auto value = parse_fit_content_value(tokens))
+            return PropertyAndValue { *property, value };
     }
 
     if (auto property = any_property_accepts_type(property_ids, ValueType::Length); property.has_value()) {

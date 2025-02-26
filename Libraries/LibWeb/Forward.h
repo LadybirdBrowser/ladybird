@@ -176,6 +176,7 @@ class EdgeStyleValue;
 class ElementInlineCSSStyleDeclaration;
 class ExplicitGridTrack;
 class FilterValueListStyleValue;
+class FitContentStyleValue;
 class Flex;
 class FlexOrCalculated;
 class FlexStyleValue;

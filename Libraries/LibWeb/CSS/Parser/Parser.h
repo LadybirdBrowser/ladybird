@@ -264,7 +264,7 @@ private:
     Optional<Gfx::UnicodeRange> parse_unicode_range(StringView);
     Vector<Gfx::UnicodeRange> parse_unicode_ranges(TokenStream<ComponentValue>&);
     Optional<GridSize> parse_grid_size(ComponentValue const&);
-    Optional<GridFitContent> parse_fit_content(Vector<ComponentValue> const&);
+    Optional<GridFitContent> parse_grid_fit_content(Vector<ComponentValue> const&);
     Optional<GridMinMax> parse_min_max(Vector<ComponentValue> const&);
     Optional<GridRepeat> parse_repeat(Vector<ComponentValue> const&);
     Optional<ExplicitGridTrack> parse_track_sizing_function(ComponentValue const&);
@@ -274,6 +274,8 @@ private:
 
     Optional<ShapeRadius> parse_shape_radius(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_basic_shape_value(TokenStream<ComponentValue>&);
+
+    RefPtr<FitContentStyleValue> parse_fit_content_value(TokenStream<ComponentValue>&);
 
     template<typename TElement>
     Optional<Vector<TElement>> parse_color_stop_list(TokenStream<ComponentValue>& tokens, auto parse_position);

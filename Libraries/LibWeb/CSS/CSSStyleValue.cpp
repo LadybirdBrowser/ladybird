@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2024, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2018-2025, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2021, Tobias Christiansen <tobyase@serenityos.org>
  * Copyright (c) 2022-2023, MacDue <macdue@dueutil.tech>
@@ -30,6 +30,7 @@
 #include <LibWeb/CSS/StyleValues/EasingStyleValue.h>
 #include <LibWeb/CSS/StyleValues/EdgeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FilterValueListStyleValue.h>
+#include <LibWeb/CSS/StyleValues/FitContentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FlexStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FrequencyStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridAutoFlowStyleValue.h>
@@ -173,6 +174,12 @@ FilterValueListStyleValue const& CSSStyleValue::as_filter_value_list() const
 {
     VERIFY(is_filter_value_list());
     return static_cast<FilterValueListStyleValue const&>(*this);
+}
+
+FitContentStyleValue const& CSSStyleValue::as_fit_content() const
+{
+    VERIFY(is_fit_content());
+    return static_cast<FitContentStyleValue const&>(*this);
 }
 
 FlexStyleValue const& CSSStyleValue::as_flex() const
