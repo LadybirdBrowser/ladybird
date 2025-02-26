@@ -75,15 +75,18 @@ TableGrid TableGrid::calculate_row_column_grid(Box const& box, Vector<Cell>& cel
         process_col_group(column_group_box);
     });
 
-    for_each_child_box_matching(box, is_table_row_group, [&](auto& row_group_box) {
-        for_each_child_box_matching(row_group_box, is_table_row, [&](auto& row_box) {
+    auto process_row_group = [&](auto& row_group) {
+        for_each_child_box_matching(row_group, is_table_row, [&](auto& row_box) {
             process_row(row_box);
             return IterationDecision::Continue;
         });
-    });
+    };
 
-    for_each_child_box_matching(box, is_table_row, [&](auto& row_box) {
-        process_row(row_box);
+    box.for_each_child_of_type<Box>([&](auto& child) {
+        if (is_table_row_group(child))
+            process_row_group(child);
+        else if (is_table_row(child))
+            process_row(child);
         return IterationDecision::Continue;
     });
 
