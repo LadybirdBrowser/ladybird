@@ -15,6 +15,8 @@ class InputEventsTarget {
 public:
     virtual ~InputEventsTarget() = default;
 
+    virtual GC::Ref<JS::Cell> as_cell() = 0;
+
     virtual void handle_insert(String const&) = 0;
     virtual void handle_return_key() = 0;
 

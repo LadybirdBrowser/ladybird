@@ -160,7 +160,8 @@ enum class SelectionSource {
     DOM,
 };
 
-class FormAssociatedTextControlElement : public FormAssociatedElement
+class FormAssociatedTextControlElement
+    : public FormAssociatedElement
     , public InputEventsTarget {
 public:
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-relevant-value
@@ -231,6 +232,8 @@ protected:
     void relevant_value_was_changed();
 
 private:
+    virtual GC::Ref<JS::Cell> as_cell() override;
+
     void collapse_selection_to_offset(size_t);
     void selection_was_changed();
 

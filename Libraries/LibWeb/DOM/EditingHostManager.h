@@ -14,7 +14,8 @@
 
 namespace Web::DOM {
 
-class EditingHostManager : public JS::Cell
+class EditingHostManager
+    : public JS::Cell
     , public InputEventsTarget {
     GC_CELL(EditingHostManager, JS::Cell);
     GC_DECLARE_ALLOCATOR(EditingHostManager);
@@ -44,6 +45,8 @@ public:
 
 private:
     EditingHostManager(GC::Ref<Document>);
+
+    virtual GC::Ref<JS::Cell> as_cell() override { return *this; }
 
     GC::Ref<Document> m_document;
     GC::Ptr<DOM::Node> m_active_contenteditable_element;

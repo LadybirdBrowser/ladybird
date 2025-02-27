@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<iframe id="iframe"></iframe>
+<script src="../include.js"></script>
+<script>
+    const runTest = () => {
+        return new Promise(resolve => {
+            let iframe = document.getElementById("iframe");
+
+            iframe.onload = () => {
+                internals.movePointerTo(20, 40);
+                internals.mouseDown(20, 40);
+                internals.movePointerTo(60, 40);
+
+                iframe.onload = () => {
+                    setTimeout(() => {
+                        internals.movePointerTo(20, 40);
+                        resolve();
+                    });
+                };
+
+                iframe.src = "data:text/html,<p contenteditable>Text 2</p>";
+            };
+
+            iframe.src = "data:text/html,<p contenteditable>Text 1</p>";
+        });
+    };
+
+    asyncTest(async done => {
+        for (let i = 0; i < 10; ++i) {
+            await runTest();
+            internals.gc();
+        }
+
+        println("PASS (didn't crash)");
+        done();
+    });
+</script>
