@@ -2,46 +2,46 @@ Harness status: OK
 
 Found 130 tests
 
-78 Pass
-52 Fail
+90 Pass
+40 Fail
 Pass	[INPUT in TEXT status] no constraint
 Pass	[INPUT in TEXT status] no constraint (in a form)
 Pass	[INPUT in TEXT status] not suffering from being too long
 Pass	[INPUT in TEXT status] not suffering from being too long (in a form)
-Fail	[INPUT in TEXT status] suffering from a pattern mismatch
-Fail	[INPUT in TEXT status] suffering from a pattern mismatch (in a form)
+Pass	[INPUT in TEXT status] suffering from a pattern mismatch
+Pass	[INPUT in TEXT status] suffering from a pattern mismatch (in a form)
 Pass	[INPUT in TEXT status] suffering from being missing
 Pass	[INPUT in TEXT status] suffering from being missing (in a form)
 Pass	[INPUT in SEARCH status] no constraint
 Pass	[INPUT in SEARCH status] no constraint (in a form)
 Pass	[INPUT in SEARCH status] not suffering from being too long
 Pass	[INPUT in SEARCH status] not suffering from being too long (in a form)
-Fail	[INPUT in SEARCH status] suffering from a pattern mismatch
-Fail	[INPUT in SEARCH status] suffering from a pattern mismatch (in a form)
+Pass	[INPUT in SEARCH status] suffering from a pattern mismatch
+Pass	[INPUT in SEARCH status] suffering from a pattern mismatch (in a form)
 Pass	[INPUT in SEARCH status] suffering from being missing
 Pass	[INPUT in SEARCH status] suffering from being missing (in a form)
 Pass	[INPUT in TEL status] no constraint
 Pass	[INPUT in TEL status] no constraint (in a form)
 Pass	[INPUT in TEL status] not suffering from being too long
 Pass	[INPUT in TEL status] not suffering from being too long (in a form)
-Fail	[INPUT in TEL status] suffering from a pattern mismatch
-Fail	[INPUT in TEL status] suffering from a pattern mismatch (in a form)
+Pass	[INPUT in TEL status] suffering from a pattern mismatch
+Pass	[INPUT in TEL status] suffering from a pattern mismatch (in a form)
 Pass	[INPUT in TEL status] suffering from being missing
 Pass	[INPUT in TEL status] suffering from being missing (in a form)
 Pass	[INPUT in PASSWORD status] no constraint
 Pass	[INPUT in PASSWORD status] no constraint (in a form)
 Pass	[INPUT in PASSWORD status] not suffering from being too long
 Pass	[INPUT in PASSWORD status] not suffering from being too long (in a form)
-Fail	[INPUT in PASSWORD status] suffering from a pattern mismatch
-Fail	[INPUT in PASSWORD status] suffering from a pattern mismatch (in a form)
+Pass	[INPUT in PASSWORD status] suffering from a pattern mismatch
+Pass	[INPUT in PASSWORD status] suffering from a pattern mismatch (in a form)
 Pass	[INPUT in PASSWORD status] suffering from being missing
 Pass	[INPUT in PASSWORD status] suffering from being missing (in a form)
 Pass	[INPUT in URL status] no constraint
 Pass	[INPUT in URL status] no constraint (in a form)
 Pass	[INPUT in URL status] suffering from being too long
 Pass	[INPUT in URL status] suffering from being too long (in a form)
-Fail	[INPUT in URL status] suffering from a pattern mismatch
-Fail	[INPUT in URL status] suffering from a pattern mismatch (in a form)
+Pass	[INPUT in URL status] suffering from a pattern mismatch
+Pass	[INPUT in URL status] suffering from a pattern mismatch (in a form)
 Fail	[INPUT in URL status] suffering from a type mismatch
 Fail	[INPUT in URL status] suffering from a type mismatch (in a form)
 Pass	[INPUT in URL status] suffering from being missing
@@ -50,8 +50,8 @@ Pass	[INPUT in EMAIL status] no constraint
 Pass	[INPUT in EMAIL status] no constraint (in a form)
 Pass	[INPUT in EMAIL status] not suffering from being too long
 Pass	[INPUT in EMAIL status] not suffering from being too long (in a form)
-Fail	[INPUT in EMAIL status] suffering from a pattern mismatch
-Fail	[INPUT in EMAIL status] suffering from a pattern mismatch (in a form)
+Pass	[INPUT in EMAIL status] suffering from a pattern mismatch
+Pass	[INPUT in EMAIL status] suffering from a pattern mismatch (in a form)
 Fail	[INPUT in EMAIL status] suffering from a type mismatch
 Fail	[INPUT in EMAIL status] suffering from a type mismatch (in a form)
 Pass	[INPUT in EMAIL status] suffering from being missing

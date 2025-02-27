@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>The constraint validation API Test: element.validity.patternMismatch</title>
+<link rel="author" title="Intel" href="http://www.intel.com/">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/#dom-validitystate-patternmismatch">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/#the-constraint-validation-api">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="support/validator.js"></script>
+<div id="log"></div>
+<script>
+  var testElements = [
+    {
+      tag: "input",
+      types: ["text", "search", "tel", "url", "email", "password"],
+      testData: [
+        {conditions: {pattern: null, value: "abc"}, expected: false, name: "[target] The pattern attribute is not set"},
+        {conditions: {pattern: "[A-Z]+", value: ""}, expected: false, name: "[target] The value attibute is empty string"},
+        {conditions: {pattern: "[A-Z]{1}", value: "A"}, expected: false, name: "[target] The value attribute matches the pattern attribute"},
+        {conditions: {pattern: "[A-Z]+", value: "\x41\x42\x43"}, expected: false, name: "[target] The value(ABC) in unicode attribute matches the pattern attribute"},
+        {conditions: {pattern: "[a-z]{3,}", value: "ABCD"}, expected: true, name: "[target] The value attribute mismatches the pattern attribute"},
+        {conditions: {pattern: "[A-Z]+", value: "ABC123"}, expected: true, name: "[target] The value attribute mismatches the pattern attribute even when a subset matches"},
+        {conditions: {pattern: "(abc", value: "de"}, expected: false, name: "[target] Invalid regular expression gets ignored"},
+        {conditions: {pattern: "[(]", value: "x"}, expected: false, name: "[target] Invalid `v` regular expression gets ignored"},
+        {conditions: {pattern: "a)(b", value: "de"}, expected: false, name: "[target] The pattern attribute tries to escape a group"},
+        {conditions: {pattern: "a\\u{10FFFF}", value: "a\u{10FFFF}"}, expected: false, name: "[target] The pattern attribute uses Unicode features"},
+        {conditions: {pattern: "\\u1234\\cx[5-\\[]{2}", value: "\u1234\x18[6"}, expected: false, name: "[target] The value attribute matches JavaScript-specific regular expression"},
+        {conditions: {pattern: "\\u1234\\cx[5-\\[]{2}", value: "\u1234\x18[4"}, expected: true, name: "[target] The value attribute mismatches JavaScript-specific regular expression"},
+      ]
+    },
+    {
+      tag: "input",
+      types: ["email"],
+      testData: [
+        {conditions: {multiple: true, pattern: null, value: "abc,abc"}, expected: false, name: "[target] The pattern attribute is not set, if multiple is present"},
+        {conditions: {multiple: true, pattern: "[A-Z]+", value: ""}, expected: false, name: "[target] The value attibute is empty string, if multiple is present"},
+        {conditions: {multiple: true, pattern: "[A-Z]{1}", value: "A,A"}, expected: false, name: "[target] The value attribute matches the pattern attribute, if multiple is present"},
+        {conditions: {multiple: true, pattern: "[A-Z]+", value: "\x41\x42\x43,\x41\x42\x43"}, expected: false, name: "[target] The value(ABC) in unicode attribute matches the pattern attribute, if multiple is present"},
+        {conditions: {multiple: true, pattern: "[a-z]{3,}", value: "abcd,ABCD"}, expected: true, name: "[target] The value attribute mismatches the pattern attribute, if multiple is present"},
+        {conditions: {multiple: true, pattern: "[A-Z]+", value: "ABCD,ABC123"}, expected: true, name: "[target] The value attribute mismatches the pattern attribute even when a subset matches, if multiple is present"},
+        {conditions: {multiple: true, pattern: "(abc", value: "de,de"}, expected: false, name: "[target] Invalid regular expression gets ignored, if multiple is present"},
+        {conditions: {multiple: true, pattern: "[(]", value: "x"}, expected: false, name: "[target] Invalid `v` regular expression gets ignored, if multiple is present"},
+        {conditions: {multiple: true, pattern: "a)(b", value: "de,de"}, expected: false, name: "[target] The pattern attribute tries to escape a group, if multiple is present"},
+        {conditions: {multiple: true, pattern: "a\\u{10FFFF}", value: "a\u{10FFFF},a\u{10FFFF}"}, expected: false, name: "[target] The pattern attribute uses Unicode features, if multiple is present"},
+        {conditions: {multiple: true, pattern: "\\u1234\\cx[5-\\[]{2}", value: "\u1234\x18[6,\u1234\x18[Z"}, expected: false, name: "[target] The value attribute matches JavaScript-specific regular expression, if multiple is present"},
+        {conditions: {multiple: true, pattern: "\\u1234\\cx[5-\\[]{2}", value: "\u1234\x18[4,\u1234\x18[6"}, expected: true, name: "[target] The value attribute mismatches JavaScript-specific regular expression, if multiple is present"},
+        {conditions: {multiple: true, pattern: "a,", value: "a,"}, expected: true, name: "[target] Commas should be stripped from regex input, if multiple is present"},
+      ]
+    }
+  ];
+
+  validator.run_test (testElements, "patternMismatch");
+</script>

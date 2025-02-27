@@ -14,6 +14,7 @@
 #include <LibCore/DateTime.h>
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/NativeFunction.h>
+#include <LibJS/Runtime/RegExpObject.h>
 #include <LibWeb/Bindings/HTMLInputElementPrototype.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/CSS/ComputedProperties.h>
@@ -186,6 +187,31 @@ void HTMLInputElement::set_indeterminate(bool value)
 {
     // On setting, it must be set to the new value. It has no effect except for changing the appearance of checkbox controls.
     m_indeterminate = value;
+}
+
+// https://html.spec.whatwg.org/multipage/input.html#compiled-pattern-regular-expression
+Optional<Regex<ECMA262>> HTMLInputElement::compiled_pattern_regular_expression() const
+{
+    // 1. If the element does not have a pattern attribute specified, then return nothing. The element has no compiled pattern regular expression.
+    auto maybe_pattern = get_attribute(HTML::AttributeNames::pattern);
+    if (!maybe_pattern.has_value())
+        return {};
+
+    // 2. Let pattern be the value of the pattern attribute of the element.
+    auto pattern = maybe_pattern.release_value().to_byte_string();
+
+    // 3. Let regexpCompletion be RegExpCreate(pattern, "v").
+    Regex<ECMA262> regexp_completion(pattern, JS::RegExpObject::default_flags | ECMAScriptFlags::UnicodeSets);
+
+    // 4. If regexpCompletion is an abrupt completion, then return nothing. The element has no compiled pattern regular expression.
+    if (regexp_completion.parser_result.error != regex::Error::NoError)
+        return {};
+
+    // 5. Let anchoredPattern be the string "^(?:", followed by pattern, followed by ")$".
+    auto anchored_pattern = ByteString::formatted("^(?:{})$", pattern);
+
+    // 6. Return ! RegExpCreate(anchoredPattern, "v").
+    return Regex<ECMA262>(anchored_pattern, JS::RegExpObject::default_flags | ECMAScriptFlags::UnicodeSets);
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#dom-input-files
@@ -2760,6 +2786,34 @@ bool HTMLInputElement::selection_direction_applies() const
     }
 }
 
+// https://html.spec.whatwg.org/multipage/input.html#do-not-apply
+bool HTMLInputElement::pattern_applies() const
+{
+    switch (type_state()) {
+    case TypeAttributeState::Text:
+    case TypeAttributeState::Search:
+    case TypeAttributeState::Telephone:
+    case TypeAttributeState::URL:
+    case TypeAttributeState::Email:
+    case TypeAttributeState::Password:
+        return true;
+    default:
+        return false;
+    }
+}
+
+// https://html.spec.whatwg.org/multipage/input.html#do-not-apply
+bool HTMLInputElement::multiple_applies() const
+{
+    switch (type_state()) {
+    case TypeAttributeState::Email:
+    case TypeAttributeState::FileUpload:
+        return true;
+    default:
+        return false;
+    }
+}
+
 bool HTMLInputElement::has_selectable_text() const
 {
     // Potential FIXME: Date, Month, Week, Time and LocalDateAndTime are rendered as a basic text input for now,
@@ -2988,8 +3042,26 @@ bool HTMLInputElement::suffering_from_a_pattern_mismatch() const
     // If the element's value is not the empty string, and either the element's multiple attribute is not specified or it does not apply to the input element given its
     // type attribute's current state, and the element has a compiled pattern regular expression but that regular expression does not match the element's value, then the element is
     // suffering from a pattern mismatch.
-    // FIXME: Implement this.
-    return false;
+
+    // FIXME: If the element's value is not the empty string, and the element's multiple attribute is specified and applies to the input element,
+    //        and the element has a compiled pattern regular expression but that regular expression does not match each of the element's values,
+    //        then the element is suffering from a pattern mismatch.
+
+    if (!pattern_applies())
+        return false;
+
+    auto value = this->value();
+    if (value.is_empty())
+        return false;
+
+    if (has_attribute(HTML::AttributeNames::multiple) && multiple_applies())
+        return false;
+
+    auto regexp_object = compiled_pattern_regular_expression();
+    if (!regexp_object.has_value())
+        return false;
+
+    return !regexp_object->match(value).success;
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#suffering-from-an-underflow

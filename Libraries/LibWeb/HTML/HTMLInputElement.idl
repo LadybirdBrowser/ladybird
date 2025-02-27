@@ -32,7 +32,7 @@ interface HTMLInputElement : HTMLElement {
     [CEReactions] attribute long minLength;
     [CEReactions, Reflect] attribute boolean multiple;
     [CEReactions, Reflect] attribute DOMString name;
-    [FIXME, CEReactions] attribute DOMString pattern;
+    [CEReactions, Reflect] attribute DOMString pattern;
     [CEReactions, Reflect] attribute DOMString placeholder;
     [CEReactions, Reflect=readonly] attribute boolean readOnly;
     [CEReactions, Reflect] attribute boolean required;

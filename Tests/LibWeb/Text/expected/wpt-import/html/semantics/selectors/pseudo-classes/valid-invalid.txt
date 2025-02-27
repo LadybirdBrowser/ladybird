@@ -2,22 +2,22 @@ Harness status: OK
 
 Found 30 tests
 
-18 Pass
-12 Fail
+22 Pass
+8 Fail
 Pass	':valid' matches elements that satisfy their constraints
 Pass	':valid' matches form elements that are not the form owner of any elements that themselves are candidates for constraint validation but do not satisfy their constraints
 Pass	':valid' matches fieldset elements that have no descendant elements that themselves are candidates for constraint validation but do not satisfy their constraints
-Fail	':valid' matches elements that satisfy their pattern constraints
+Pass	':valid' matches elements that satisfy their pattern constraints
 Fail	':valid' matches elements that satisfy their number constraints
 Pass	':invalid' matches elements that do not satisfy their simple text  constraints
 Pass	':invalid' matches form elements that are the form owner of one or more elements that themselves are candidates for constraint validation but do not satisfy their constraints
 Pass	':invalid' matches fieldset elements that have of one or more descendant elements that themselves are candidates for constraint validation but do not satisfy their constraints
-Fail	':invalid' matches elements that do not satisfy their pattern constraints
+Pass	':invalid' matches elements that do not satisfy their pattern constraints
 Fail	':invalid' matches elements that do not satisfy their number constraints
 Pass	':valid' matches new elements that satisfy their constraints
 Pass	':invalid' doesn't match new elements that satisfy their constraints
-Fail	':valid' doesn't match new elements that do not satisfy their constraints
-Fail	':invalid' matches new elements that do not satisfy their constraints
+Pass	':valid' doesn't match new elements that do not satisfy their constraints
+Pass	':invalid' matches new elements that do not satisfy their constraints
 Pass	:valid/:invalid styling for <form>
 Pass	empty form correctly styled on page-load
 Pass	valid form correctly styled on page-load
