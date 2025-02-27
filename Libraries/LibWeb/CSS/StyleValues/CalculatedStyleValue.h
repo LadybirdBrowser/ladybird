@@ -226,7 +226,6 @@ public:
     StringView name() const;
     virtual Vector<NonnullRefPtr<CalculationNode>> children() const = 0;
 
-    virtual String to_string() const = 0;
     Optional<CSSNumericType> const& numeric_type() const { return m_numeric_type; }
     virtual bool contains_percentage() const = 0;
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const = 0;
@@ -257,7 +256,6 @@ public:
     static RefPtr<NumericCalculationNode> from_keyword(Keyword, CalculationContext const&);
     ~NumericCalculationNode();
 
-    virtual String to_string() const override;
     virtual bool contains_percentage() const override;
     bool is_in_canonical_unit() const;
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
@@ -267,6 +265,7 @@ public:
 
     virtual Vector<NonnullRefPtr<CalculationNode>> children() const override { return {}; }
     NumericValue const& value() const { return m_value; }
+    String value_to_string() const;
 
     Optional<NonFiniteValue> infinite_or_nan_value() const;
     bool is_negative() const;
@@ -285,7 +284,6 @@ public:
     static NonnullRefPtr<SumCalculationNode> create(Vector<NonnullRefPtr<CalculationNode>>);
     ~SumCalculationNode();
 
-    virtual String to_string() const override;
     virtual bool contains_percentage() const override;
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
     virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
@@ -305,7 +303,6 @@ public:
     static NonnullRefPtr<ProductCalculationNode> create(Vector<NonnullRefPtr<CalculationNode>>);
     ~ProductCalculationNode();
 
-    virtual String to_string() const override;
     virtual bool contains_percentage() const override;
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
     virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
@@ -325,7 +322,6 @@ public:
     static NonnullRefPtr<NegateCalculationNode> create(NonnullRefPtr<CalculationNode>);
     ~NegateCalculationNode();
 
-    virtual String to_string() const override;
     virtual bool contains_percentage() const override;
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
     virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
@@ -346,7 +342,6 @@ public:
     static NonnullRefPtr<InvertCalculationNode> create(NonnullRefPtr<CalculationNode>);
     ~InvertCalculationNode();
 
-    virtual String to_string() const override;
     virtual bool contains_percentage() const override;
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
     virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
@@ -367,7 +362,6 @@ public:
     static NonnullRefPtr<MinCalculationNode> create(Vector<NonnullRefPtr<CalculationNode>>);
     ~MinCalculationNode();
 
-    virtual String to_string() const override;
     virtual bool contains_percentage() const override;
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
     virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
@@ -388,7 +382,6 @@ public:
     static NonnullRefPtr<MaxCalculationNode> create(Vector<NonnullRefPtr<CalculationNode>>);
     ~MaxCalculationNode();
 
-    virtual String to_string() const override;
     virtual bool contains_percentage() const override;
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
     virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
@@ -409,7 +402,6 @@ public:
     static NonnullRefPtr<ClampCalculationNode> create(NonnullRefPtr<CalculationNode>, NonnullRefPtr<CalculationNode>, NonnullRefPtr<CalculationNode>);
     ~ClampCalculationNode();
 
-    virtual String to_string() const override;
     virtual bool contains_percentage() const override;
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
     virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
@@ -432,7 +424,6 @@ public:
     static NonnullRefPtr<AbsCalculationNode> create(NonnullRefPtr<CalculationNode>);
     ~AbsCalculationNode();
 
-    virtual String to_string() const override;
     virtual bool contains_percentage() const override;
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
     virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
@@ -453,7 +444,6 @@ public:
     static NonnullRefPtr<SignCalculationNode> create(NonnullRefPtr<CalculationNode>);
     ~SignCalculationNode();
 
-    virtual String to_string() const override;
     virtual bool contains_percentage() const override;
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
     virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
@@ -474,7 +464,6 @@ public:
     static NonnullRefPtr<SinCalculationNode> create(NonnullRefPtr<CalculationNode>);
     ~SinCalculationNode();
 
-    virtual String to_string() const override;
     virtual bool contains_percentage() const override;
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
     virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
@@ -495,7 +484,6 @@ public:
     static NonnullRefPtr<CosCalculationNode> create(NonnullRefPtr<CalculationNode>);
     ~CosCalculationNode();
 
-    virtual String to_string() const override;
     virtual bool contains_percentage() const override;
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
     virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
@@ -516,7 +504,6 @@ public:
     static NonnullRefPtr<TanCalculationNode> create(NonnullRefPtr<CalculationNode>);
     ~TanCalculationNode();
 
-    virtual String to_string() const override;
     virtual bool contains_percentage() const override;
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
     virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
@@ -537,7 +524,6 @@ public:
     static NonnullRefPtr<AsinCalculationNode> create(NonnullRefPtr<CalculationNode>);
     ~AsinCalculationNode();
 
-    virtual String to_string() const override;
     virtual bool contains_percentage() const override;
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
     virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
@@ -558,7 +544,6 @@ public:
     static NonnullRefPtr<AcosCalculationNode> create(NonnullRefPtr<CalculationNode>);
     ~AcosCalculationNode();
 
-    virtual String to_string() const override;
     virtual bool contains_percentage() const override;
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
     virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
@@ -579,7 +564,6 @@ public:
     static NonnullRefPtr<AtanCalculationNode> create(NonnullRefPtr<CalculationNode>);
     ~AtanCalculationNode();
 
-    virtual String to_string() const override;
     virtual bool contains_percentage() const override;
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
     virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
@@ -600,7 +584,6 @@ public:
     static NonnullRefPtr<Atan2CalculationNode> create(NonnullRefPtr<CalculationNode>, NonnullRefPtr<CalculationNode>);
     ~Atan2CalculationNode();
 
-    virtual String to_string() const override;
     virtual bool contains_percentage() const override;
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
     virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
@@ -622,7 +605,6 @@ public:
     static NonnullRefPtr<PowCalculationNode> create(NonnullRefPtr<CalculationNode>, NonnullRefPtr<CalculationNode>);
     ~PowCalculationNode();
 
-    virtual String to_string() const override;
     virtual bool contains_percentage() const override { return false; }
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
     virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
@@ -644,7 +626,6 @@ public:
     static NonnullRefPtr<SqrtCalculationNode> create(NonnullRefPtr<CalculationNode>);
     ~SqrtCalculationNode();
 
-    virtual String to_string() const override;
     virtual bool contains_percentage() const override { return false; }
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
     virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
@@ -665,7 +646,6 @@ public:
     static NonnullRefPtr<HypotCalculationNode> create(Vector<NonnullRefPtr<CalculationNode>>);
     ~HypotCalculationNode();
 
-    virtual String to_string() const override;
     virtual bool contains_percentage() const override;
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
     virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
@@ -686,7 +666,6 @@ public:
     static NonnullRefPtr<LogCalculationNode> create(NonnullRefPtr<CalculationNode>, NonnullRefPtr<CalculationNode>);
     ~LogCalculationNode();
 
-    virtual String to_string() const override;
     virtual bool contains_percentage() const override { return false; }
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
     virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
@@ -708,7 +687,6 @@ public:
     static NonnullRefPtr<ExpCalculationNode> create(NonnullRefPtr<CalculationNode>);
     ~ExpCalculationNode();
 
-    virtual String to_string() const override;
     virtual bool contains_percentage() const override { return false; }
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
     virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
@@ -729,7 +707,6 @@ public:
     static NonnullRefPtr<RoundCalculationNode> create(RoundingStrategy, NonnullRefPtr<CalculationNode>, NonnullRefPtr<CalculationNode>);
     ~RoundCalculationNode();
 
-    virtual String to_string() const override;
     virtual bool contains_percentage() const override;
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
     virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
@@ -754,7 +731,6 @@ public:
     static NonnullRefPtr<ModCalculationNode> create(NonnullRefPtr<CalculationNode>, NonnullRefPtr<CalculationNode>);
     ~ModCalculationNode();
 
-    virtual String to_string() const override;
     virtual bool contains_percentage() const override;
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
     virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
@@ -776,7 +752,6 @@ public:
     static NonnullRefPtr<RemCalculationNode> create(NonnullRefPtr<CalculationNode>, NonnullRefPtr<CalculationNode>);
     ~RemCalculationNode();
 
-    virtual String to_string() const override;
     virtual bool contains_percentage() const override;
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
     virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;

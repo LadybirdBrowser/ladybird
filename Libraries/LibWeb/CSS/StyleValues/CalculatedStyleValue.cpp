@@ -142,7 +142,7 @@ static String serialize_a_math_function(CalculationNode const& fn, CalculationCo
     //    for its context (if necessary), then serialize the value as normal and return the result.
     if (fn.type() == CalculationNode::Type::Numeric && serialization_mode == CSSStyleValue::SerializationMode::ResolvedValue) {
         // FIXME: Clamp the value. Note that we might have an infinite/nan value here.
-        return fn.to_string();
+        return static_cast<NumericCalculationNode const&>(fn).value_to_string();
     }
 
     // 2. If fn represents an infinite or NaN value:
@@ -319,7 +319,7 @@ static String serialize_a_calculation_tree(CalculationNode const& root, Calculat
     // 2. If root is a numeric value, or a non-math function, serialize root per the normal rules for it and return the result.
     // FIXME: Support non-math functions in calculation trees.
     if (root.type() == CalculationNode::Type::Numeric)
-        return root.to_string();
+        return static_cast<NumericCalculationNode const&>(root).value_to_string();
 
     // 3. If root is anything but a Sum, Negate, Product, or Invert node, serialize a math function for the function
     //    corresponding to the node type, treating the node’s children as the function’s comma-separated calculation
@@ -593,7 +593,7 @@ NumericCalculationNode::NumericCalculationNode(NumericValue value, CSSNumericTyp
 
 NumericCalculationNode::~NumericCalculationNode() = default;
 
-String NumericCalculationNode::to_string() const
+String NumericCalculationNode::value_to_string() const
 {
     return m_value.visit([](auto& value) { return value.to_string(); });
 }
@@ -761,19 +761,6 @@ SumCalculationNode::SumCalculationNode(Vector<NonnullRefPtr<CalculationNode>> va
 
 SumCalculationNode::~SumCalculationNode() = default;
 
-String SumCalculationNode::to_string() const
-{
-    bool first = true;
-    StringBuilder builder;
-    for (auto& value : m_values) {
-        if (!first)
-            builder.append(" + "sv);
-        builder.append(value->to_string());
-        first = false;
-    }
-    return MUST(builder.to_string());
-}
-
 bool SumCalculationNode::contains_percentage() const
 {
     for (auto const& value : m_values) {
@@ -844,19 +831,6 @@ ProductCalculationNode::ProductCalculationNode(Vector<NonnullRefPtr<CalculationN
 
 ProductCalculationNode::~ProductCalculationNode() = default;
 
-String ProductCalculationNode::to_string() const
-{
-    bool first = true;
-    StringBuilder builder;
-    for (auto& value : m_values) {
-        if (!first)
-            builder.append(" * "sv);
-        builder.append(value->to_string());
-        first = false;
-    }
-    return MUST(builder.to_string());
-}
-
 bool ProductCalculationNode::contains_percentage() const
 {
     for (auto const& value : m_values) {
@@ -923,11 +897,6 @@ NegateCalculationNode::NegateCalculationNode(NonnullRefPtr<CalculationNode> valu
 
 NegateCalculationNode::~NegateCalculationNode() = default;
 
-String NegateCalculationNode::to_string() const
-{
-    return MUST(String::formatted("(0 - {})", m_value->to_string()));
-}
-
 bool NegateCalculationNode::contains_percentage() const
 {
     return m_value->contains_percentage();
@@ -980,11 +949,6 @@ InvertCalculationNode::InvertCalculationNode(NonnullRefPtr<CalculationNode> valu
 
 InvertCalculationNode::~InvertCalculationNode() = default;
 
-String InvertCalculationNode::to_string() const
-{
-    return MUST(String::formatted("(1 / {})", m_value->to_string()));
-}
-
 bool InvertCalculationNode::contains_percentage() const
 {
     return m_value->contains_percentage();
@@ -1032,19 +996,6 @@ MinCalculationNode::MinCalculationNode(Vector<NonnullRefPtr<CalculationNode>> va
 }
 
 MinCalculationNode::~MinCalculationNode() = default;
-
-String MinCalculationNode::to_string() const
-{
-    StringBuilder builder;
-    builder.append("min("sv);
-    for (size_t i = 0; i < m_values.size(); ++i) {
-        if (i != 0)
-            builder.append(", "sv);
-        builder.append(m_values[i]->to_string());
-    }
-    builder.append(")"sv);
-    return MUST(builder.to_string());
-}
 
 bool MinCalculationNode::contains_percentage() const
 {
@@ -1163,19 +1114,6 @@ MaxCalculationNode::MaxCalculationNode(Vector<NonnullRefPtr<CalculationNode>> va
 
 MaxCalculationNode::~MaxCalculationNode() = default;
 
-String MaxCalculationNode::to_string() const
-{
-    StringBuilder builder;
-    builder.append("max("sv);
-    for (size_t i = 0; i < m_values.size(); ++i) {
-        if (i != 0)
-            builder.append(", "sv);
-        builder.append(m_values[i]->to_string());
-    }
-    builder.append(")"sv);
-    return MUST(builder.to_string());
-}
-
 bool MaxCalculationNode::contains_percentage() const
 {
     for (auto const& value : m_values) {
@@ -1254,19 +1192,6 @@ ClampCalculationNode::ClampCalculationNode(NonnullRefPtr<CalculationNode> min, N
 }
 
 ClampCalculationNode::~ClampCalculationNode() = default;
-
-String ClampCalculationNode::to_string() const
-{
-    StringBuilder builder;
-    builder.append("clamp("sv);
-    builder.append(m_min_value->to_string());
-    builder.append(", "sv);
-    builder.append(m_center_value->to_string());
-    builder.append(", "sv);
-    builder.append(m_max_value->to_string());
-    builder.append(")"sv);
-    return MUST(builder.to_string());
-}
 
 bool ClampCalculationNode::contains_percentage() const
 {
@@ -1374,15 +1299,6 @@ AbsCalculationNode::AbsCalculationNode(NonnullRefPtr<CalculationNode> value)
 
 AbsCalculationNode::~AbsCalculationNode() = default;
 
-String AbsCalculationNode::to_string() const
-{
-    StringBuilder builder;
-    builder.append("abs("sv);
-    builder.append(m_value->to_string());
-    builder.append(")"sv);
-    return MUST(builder.to_string());
-}
-
 bool AbsCalculationNode::contains_percentage() const
 {
     return m_value->contains_percentage();
@@ -1414,7 +1330,8 @@ Optional<CalculatedStyleValue::CalculationResult> AbsCalculationNode::run_operat
 
 void AbsCalculationNode::dump(StringBuilder& builder, int indent) const
 {
-    builder.appendff("{: >{}}ABS: {}\n", "", indent, to_string());
+    builder.appendff("{: >{}}ABS:\n", "", indent);
+    m_value->dump(builder, indent + 2);
 }
 
 bool AbsCalculationNode::equals(CalculationNode const& other) const
@@ -1440,15 +1357,6 @@ SignCalculationNode::SignCalculationNode(NonnullRefPtr<CalculationNode> value)
 }
 
 SignCalculationNode::~SignCalculationNode() = default;
-
-String SignCalculationNode::to_string() const
-{
-    StringBuilder builder;
-    builder.append("sign("sv);
-    builder.append(m_value->to_string());
-    builder.append(")"sv);
-    return MUST(builder.to_string());
-}
 
 bool SignCalculationNode::contains_percentage() const
 {
@@ -1499,7 +1407,8 @@ Optional<CalculatedStyleValue::CalculationResult> SignCalculationNode::run_opera
 
 void SignCalculationNode::dump(StringBuilder& builder, int indent) const
 {
-    builder.appendff("{: >{}}SIGN: {}\n", "", indent, to_string());
+    builder.appendff("{: >{}}SIGN:\n", "", indent);
+    m_value->dump(builder, indent + 2);
 }
 
 bool SignCalculationNode::equals(CalculationNode const& other) const
@@ -1524,15 +1433,6 @@ SinCalculationNode::SinCalculationNode(NonnullRefPtr<CalculationNode> value)
 }
 
 SinCalculationNode::~SinCalculationNode() = default;
-
-String SinCalculationNode::to_string() const
-{
-    StringBuilder builder;
-    builder.append("sin("sv);
-    builder.append(m_value->to_string());
-    builder.append(")"sv);
-    return MUST(builder.to_string());
-}
 
 bool SinCalculationNode::contains_percentage() const
 {
@@ -1600,7 +1500,8 @@ Optional<CalculatedStyleValue::CalculationResult> SinCalculationNode::run_operat
 
 void SinCalculationNode::dump(StringBuilder& builder, int indent) const
 {
-    builder.appendff("{: >{}}SIN: {}\n", "", indent, to_string());
+    builder.appendff("{: >{}}SIN:\n", "", indent);
+    m_value->dump(builder, indent + 2);
 }
 
 bool SinCalculationNode::equals(CalculationNode const& other) const
@@ -1626,15 +1527,6 @@ CosCalculationNode::CosCalculationNode(NonnullRefPtr<CalculationNode> value)
 }
 
 CosCalculationNode::~CosCalculationNode() = default;
-
-String CosCalculationNode::to_string() const
-{
-    StringBuilder builder;
-    builder.append("cos("sv);
-    builder.append(m_value->to_string());
-    builder.append(")"sv);
-    return MUST(builder.to_string());
-}
 
 bool CosCalculationNode::contains_percentage() const
 {
@@ -1663,7 +1555,8 @@ Optional<CalculatedStyleValue::CalculationResult> CosCalculationNode::run_operat
 
 void CosCalculationNode::dump(StringBuilder& builder, int indent) const
 {
-    builder.appendff("{: >{}}COS: {}\n", "", indent, to_string());
+    builder.appendff("{: >{}}COS:\n", "", indent);
+    m_value->dump(builder, indent + 2);
 }
 
 bool CosCalculationNode::equals(CalculationNode const& other) const
@@ -1689,15 +1582,6 @@ TanCalculationNode::TanCalculationNode(NonnullRefPtr<CalculationNode> value)
 }
 
 TanCalculationNode::~TanCalculationNode() = default;
-
-String TanCalculationNode::to_string() const
-{
-    StringBuilder builder;
-    builder.append("tan("sv);
-    builder.append(m_value->to_string());
-    builder.append(")"sv);
-    return MUST(builder.to_string());
-}
 
 bool TanCalculationNode::contains_percentage() const
 {
@@ -1726,7 +1610,8 @@ Optional<CalculatedStyleValue::CalculationResult> TanCalculationNode::run_operat
 
 void TanCalculationNode::dump(StringBuilder& builder, int indent) const
 {
-    builder.appendff("{: >{}}TAN: {}\n", "", indent, to_string());
+    builder.appendff("{: >{}}TAN:\n", "", indent);
+    m_value->dump(builder, indent + 2);
 }
 
 bool TanCalculationNode::equals(CalculationNode const& other) const
@@ -1752,15 +1637,6 @@ AsinCalculationNode::AsinCalculationNode(NonnullRefPtr<CalculationNode> value)
 }
 
 AsinCalculationNode::~AsinCalculationNode() = default;
-
-String AsinCalculationNode::to_string() const
-{
-    StringBuilder builder;
-    builder.append("asin("sv);
-    builder.append(m_value->to_string());
-    builder.append(")"sv);
-    return MUST(builder.to_string());
-}
 
 bool AsinCalculationNode::contains_percentage() const
 {
@@ -1831,7 +1707,8 @@ Optional<CalculatedStyleValue::CalculationResult> AsinCalculationNode::run_opera
 
 void AsinCalculationNode::dump(StringBuilder& builder, int indent) const
 {
-    builder.appendff("{: >{}}ASIN: {}\n", "", indent, to_string());
+    builder.appendff("{: >{}}ASIN:\n", "", indent);
+    m_value->dump(builder, indent + 2);
 }
 
 bool AsinCalculationNode::equals(CalculationNode const& other) const
@@ -1858,15 +1735,6 @@ AcosCalculationNode::AcosCalculationNode(NonnullRefPtr<CalculationNode> value)
 
 AcosCalculationNode::~AcosCalculationNode() = default;
 
-String AcosCalculationNode::to_string() const
-{
-    StringBuilder builder;
-    builder.append("acos("sv);
-    builder.append(m_value->to_string());
-    builder.append(")"sv);
-    return MUST(builder.to_string());
-}
-
 bool AcosCalculationNode::contains_percentage() const
 {
     return m_value->contains_percentage();
@@ -1892,7 +1760,8 @@ Optional<CalculatedStyleValue::CalculationResult> AcosCalculationNode::run_opera
 
 void AcosCalculationNode::dump(StringBuilder& builder, int indent) const
 {
-    builder.appendff("{: >{}}ACOS: {}\n", "", indent, to_string());
+    builder.appendff("{: >{}}ACOS:\n", "", indent);
+    m_value->dump(builder, indent + 2);
 }
 
 bool AcosCalculationNode::equals(CalculationNode const& other) const
@@ -1919,15 +1788,6 @@ AtanCalculationNode::AtanCalculationNode(NonnullRefPtr<CalculationNode> value)
 
 AtanCalculationNode::~AtanCalculationNode() = default;
 
-String AtanCalculationNode::to_string() const
-{
-    StringBuilder builder;
-    builder.append("atan("sv);
-    builder.append(m_value->to_string());
-    builder.append(")"sv);
-    return MUST(builder.to_string());
-}
-
 bool AtanCalculationNode::contains_percentage() const
 {
     return m_value->contains_percentage();
@@ -1953,7 +1813,8 @@ Optional<CalculatedStyleValue::CalculationResult> AtanCalculationNode::run_opera
 
 void AtanCalculationNode::dump(StringBuilder& builder, int indent) const
 {
-    builder.appendff("{: >{}}ATAN: {}\n", "", indent, to_string());
+    builder.appendff("{: >{}}ATAN:\n", "", indent);
+    m_value->dump(builder, indent + 2);
 }
 
 bool AtanCalculationNode::equals(CalculationNode const& other) const
@@ -1980,17 +1841,6 @@ Atan2CalculationNode::Atan2CalculationNode(NonnullRefPtr<CalculationNode> y, Non
 }
 
 Atan2CalculationNode::~Atan2CalculationNode() = default;
-
-String Atan2CalculationNode::to_string() const
-{
-    StringBuilder builder;
-    builder.append("atan2("sv);
-    builder.append(m_y->to_string());
-    builder.append(", "sv);
-    builder.append(m_x->to_string());
-    builder.append(")"sv);
-    return MUST(builder.to_string());
-}
 
 bool Atan2CalculationNode::contains_percentage() const
 {
@@ -2040,7 +1890,9 @@ Optional<CalculatedStyleValue::CalculationResult> Atan2CalculationNode::run_oper
 
 void Atan2CalculationNode::dump(StringBuilder& builder, int indent) const
 {
-    builder.appendff("{: >{}}ATAN2: {}\n", "", indent, to_string());
+    builder.appendff("{: >{}}ATAN2:\n", "", indent);
+    m_x->dump(builder, indent + 2);
+    m_y->dump(builder, indent + 2);
 }
 
 bool Atan2CalculationNode::equals(CalculationNode const& other) const
@@ -2068,17 +1920,6 @@ PowCalculationNode::PowCalculationNode(NonnullRefPtr<CalculationNode> x, Nonnull
 }
 
 PowCalculationNode::~PowCalculationNode() = default;
-
-String PowCalculationNode::to_string() const
-{
-    StringBuilder builder;
-    builder.append("pow("sv);
-    builder.append(m_x->to_string());
-    builder.append(", "sv);
-    builder.append(m_y->to_string());
-    builder.append(")"sv);
-    return MUST(builder.to_string());
-}
 
 CalculatedStyleValue::CalculationResult PowCalculationNode::resolve(CalculationResolutionContext const& context) const
 {
@@ -2113,7 +1954,9 @@ Optional<CalculatedStyleValue::CalculationResult> PowCalculationNode::run_operat
 
 void PowCalculationNode::dump(StringBuilder& builder, int indent) const
 {
-    builder.appendff("{: >{}}POW: {}\n", "", indent, to_string());
+    builder.appendff("{: >{}}POW:\n", "", indent);
+    m_x->dump(builder, indent + 2);
+    m_y->dump(builder, indent + 2);
 }
 
 bool PowCalculationNode::equals(CalculationNode const& other) const
@@ -2140,15 +1983,6 @@ SqrtCalculationNode::SqrtCalculationNode(NonnullRefPtr<CalculationNode> value)
 }
 
 SqrtCalculationNode::~SqrtCalculationNode() = default;
-
-String SqrtCalculationNode::to_string() const
-{
-    StringBuilder builder;
-    builder.append("sqrt("sv);
-    builder.append(m_value->to_string());
-    builder.append(")"sv);
-    return MUST(builder.to_string());
-}
 
 CalculatedStyleValue::CalculationResult SqrtCalculationNode::resolve(CalculationResolutionContext const& context) const
 {
@@ -2182,7 +2016,8 @@ Optional<CalculatedStyleValue::CalculationResult> SqrtCalculationNode::run_opera
 
 void SqrtCalculationNode::dump(StringBuilder& builder, int indent) const
 {
-    builder.appendff("{: >{}}SQRT: {}\n", "", indent, to_string());
+    builder.appendff("{: >{}}SQRT:\n", "", indent);
+    m_value->dump(builder, indent + 2);
 }
 
 bool SqrtCalculationNode::equals(CalculationNode const& other) const
@@ -2209,19 +2044,6 @@ HypotCalculationNode::HypotCalculationNode(Vector<NonnullRefPtr<CalculationNode>
 }
 
 HypotCalculationNode::~HypotCalculationNode() = default;
-
-String HypotCalculationNode::to_string() const
-{
-    StringBuilder builder;
-    builder.append("hypot("sv);
-    for (size_t i = 0; i < m_values.size(); ++i) {
-        if (i != 0)
-            builder.append(", "sv);
-        builder.append(m_values[i]->to_string());
-    }
-    builder.append(")"sv);
-    return MUST(builder.to_string());
-}
 
 bool HypotCalculationNode::contains_percentage() const
 {
@@ -2323,17 +2145,6 @@ LogCalculationNode::LogCalculationNode(NonnullRefPtr<CalculationNode> x, Nonnull
 
 LogCalculationNode::~LogCalculationNode() = default;
 
-String LogCalculationNode::to_string() const
-{
-    StringBuilder builder;
-    builder.append("log("sv);
-    builder.append(m_x->to_string());
-    builder.append(", "sv);
-    builder.append(m_y->to_string());
-    builder.append(")"sv);
-    return MUST(builder.to_string());
-}
-
 CalculatedStyleValue::CalculationResult LogCalculationNode::resolve(CalculationResolutionContext const& context) const
 {
     auto node_a = m_x->resolve(context);
@@ -2368,7 +2179,9 @@ Optional<CalculatedStyleValue::CalculationResult> LogCalculationNode::run_operat
 
 void LogCalculationNode::dump(StringBuilder& builder, int indent) const
 {
-    builder.appendff("{: >{}}LOG: {}\n", "", indent, to_string());
+    builder.appendff("{: >{}}LOG:\n", "", indent);
+    m_x->dump(builder, indent + 2);
+    m_y->dump(builder, indent + 2);
 }
 
 bool LogCalculationNode::equals(CalculationNode const& other) const
@@ -2395,15 +2208,6 @@ ExpCalculationNode::ExpCalculationNode(NonnullRefPtr<CalculationNode> value)
 }
 
 ExpCalculationNode::~ExpCalculationNode() = default;
-
-String ExpCalculationNode::to_string() const
-{
-    StringBuilder builder;
-    builder.append("exp("sv);
-    builder.append(m_value->to_string());
-    builder.append(")"sv);
-    return MUST(builder.to_string());
-}
 
 CalculatedStyleValue::CalculationResult ExpCalculationNode::resolve(CalculationResolutionContext const& context) const
 {
@@ -2436,7 +2240,8 @@ Optional<CalculatedStyleValue::CalculationResult> ExpCalculationNode::run_operat
 
 void ExpCalculationNode::dump(StringBuilder& builder, int indent) const
 {
-    builder.appendff("{: >{}}EXP: {}\n", "", indent, to_string());
+    builder.appendff("{: >{}}EXP:\n", "", indent);
+    m_value->dump(builder, indent + 2);
 }
 
 bool ExpCalculationNode::equals(CalculationNode const& other) const
@@ -2465,19 +2270,6 @@ RoundCalculationNode::RoundCalculationNode(RoundingStrategy mode, NonnullRefPtr<
 }
 
 RoundCalculationNode::~RoundCalculationNode() = default;
-
-String RoundCalculationNode::to_string() const
-{
-    StringBuilder builder;
-    builder.append("round("sv);
-    builder.append(CSS::to_string(m_strategy));
-    builder.append(", "sv);
-    builder.append(m_x->to_string());
-    builder.append(", "sv);
-    builder.append(m_y->to_string());
-    builder.append(")"sv);
-    return MUST(builder.to_string());
-}
 
 bool RoundCalculationNode::contains_percentage() const
 {
@@ -2606,7 +2398,9 @@ Optional<CalculatedStyleValue::CalculationResult> RoundCalculationNode::run_oper
 
 void RoundCalculationNode::dump(StringBuilder& builder, int indent) const
 {
-    builder.appendff("{: >{}}ROUND: {}\n", "", indent, to_string());
+    builder.appendff("{: >{}}ROUND: {}\n", "", indent, CSS::to_string(m_strategy));
+    m_x->dump(builder, indent + 2);
+    m_y->dump(builder, indent + 2);
 }
 
 bool RoundCalculationNode::equals(CalculationNode const& other) const
@@ -2636,17 +2430,6 @@ ModCalculationNode::ModCalculationNode(NonnullRefPtr<CalculationNode> x, Nonnull
 }
 
 ModCalculationNode::~ModCalculationNode() = default;
-
-String ModCalculationNode::to_string() const
-{
-    StringBuilder builder;
-    builder.append("mod("sv);
-    builder.append(m_x->to_string());
-    builder.append(", "sv);
-    builder.append(m_y->to_string());
-    builder.append(")"sv);
-    return MUST(builder.to_string());
-}
 
 bool ModCalculationNode::contains_percentage() const
 {
@@ -2719,7 +2502,9 @@ Optional<CalculatedStyleValue::CalculationResult> ModCalculationNode::run_operat
 
 void ModCalculationNode::dump(StringBuilder& builder, int indent) const
 {
-    builder.appendff("{: >{}}MOD: {}\n", "", indent, to_string());
+    builder.appendff("{: >{}}MOD:\n", "", indent);
+    m_x->dump(builder, indent + 2);
+    m_y->dump(builder, indent + 2);
 }
 
 bool ModCalculationNode::equals(CalculationNode const& other) const
@@ -2749,17 +2534,6 @@ RemCalculationNode::RemCalculationNode(NonnullRefPtr<CalculationNode> x, Nonnull
 
 RemCalculationNode::~RemCalculationNode() = default;
 
-String RemCalculationNode::to_string() const
-{
-    StringBuilder builder;
-    builder.append("rem("sv);
-    builder.append(m_x->to_string());
-    builder.append(", "sv);
-    builder.append(m_y->to_string());
-    builder.append(")"sv);
-    return MUST(builder.to_string());
-}
-
 bool RemCalculationNode::contains_percentage() const
 {
     return m_x->contains_percentage() || m_y->contains_percentage();
@@ -2786,7 +2560,9 @@ Optional<CalculatedStyleValue::CalculationResult> RemCalculationNode::run_operat
 
 void RemCalculationNode::dump(StringBuilder& builder, int indent) const
 {
-    builder.appendff("{: >{}}REM: {}\n", "", indent, to_string());
+    builder.appendff("{: >{}}REM:\n", "", indent);
+    m_x->dump(builder, indent + 2);
+    m_y->dump(builder, indent + 2);
 }
 
 bool RemCalculationNode::equals(CalculationNode const& other) const
