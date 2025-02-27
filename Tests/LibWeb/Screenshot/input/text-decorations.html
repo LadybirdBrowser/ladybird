@@ -3,37 +3,19 @@
 <head>
 <link rel="match" href="../expected/text-decorations-ref.html" />
 <style>
-    .underline {
-        text-decoration: underline;
-        text-decoration-thickness: 2px;
-    }
-
-    .overline {
-        text-decoration: overline;
-        text-decoration-thickness: 2px;
-    }
-
-    .line-through {
-        text-decoration: line-through;
-        text-decoration-thickness: 2px;
-    }
-
-    .underline-overline {
-        text-decoration: underline overline;
-        text-decoration-thickness: 2px;
-    }
-
-    .underline-line-through {
-        text-decoration: underline line-through;
-        text-decoration-thickness: 2px;
-    }
+    .overline { text-decoration: wavy blue overline 2px; }
+    .underline { text-decoration: red underline double; }
+    .strikethrough { text-decoration: line-through dotted green 5px; }
+    .current-color { color: #8B4513; text-decoration: underline; }
+    .overboard { text-decoration: double overline underline line-through magenta; }
 </style>
 </head>
 <body>
-<p class="underline">Hello</p>
-<p class="overline">Hello</p>
-<p class="line-through">Hello</p>
-<p class="underline-overline">Hello</p>
-<p class="underline-line-through">Hello</p>
+<p class="overline">Overline</p>
+	<p class="underline">Underline</p>
+	<p class="strikethrough">Wombling</p>
+	<p class="blink">FREE!</p>
+	<p class="current-color">This underline should match the text color</p>
+	<p class="overboard">This should have an underline, overline and line-through, all in glorious magenta.</p>
 </body>
 </html>
