@@ -312,10 +312,10 @@ void EventLoop::process_input_events() const
 // https://html.spec.whatwg.org/multipage/webappapis.html#update-the-rendering
 void EventLoop::update_the_rendering()
 {
-    VERIFY(!m_is_running_rendering_task);
-    m_is_running_rendering_task = true;
+    VERIFY(!m_running_rendering_task);
+    m_running_rendering_task = true;
     ScopeGuard const guard = [this] {
-        m_is_running_rendering_task = false;
+        m_running_rendering_task = false;
     };
 
     process_input_events();
@@ -729,7 +729,7 @@ EventLoop::PauseHandle EventLoop::pause()
     auto time_before_pause = HighResolutionTime::current_high_resolution_time(global);
 
     // 3. If necessary, update the rendering or user interface of any Document or navigable to reflect the current state.
-    if (!m_is_running_rendering_task)
+    if (!m_running_rendering_task)
         update_the_rendering();
 
     // 4. Wait until the condition goal is met. While a user agent has a paused task, the corresponding event loop must
