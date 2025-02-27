@@ -2,15 +2,14 @@ Harness status: OK
 
 Found 18 tests
 
-17 Pass
-1 Fail
+18 Pass
 Pass	Default column-gap is 'normal'
 Pass	column-gap accepts pixels
 Pass	column-gap accepts em
 Pass	column-gap accepts vw
 Pass	column-gap accepts percentage
 Pass	column-gap accepts calc()
-Fail	column-gap accepts calc() mixing fixed and percentage values
+Pass	column-gap accepts calc() mixing fixed and percentage values
 Pass	Initial column-gap is 'normal'
 Pass	Initial column-gap is 'normal' 2
 Pass	Initial inherited column-gap is 'normal'

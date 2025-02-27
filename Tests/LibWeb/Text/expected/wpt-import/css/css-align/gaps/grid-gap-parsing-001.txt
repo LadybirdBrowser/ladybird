@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 26 tests
 
-24 Pass
-2 Fail
+25 Pass
+1 Fail
 Pass	Default grid-gap is 'normal'
 Pass	grid-gap accepts pixels
 Pass	grid-gap accepts pixels 2
@@ -15,7 +15,7 @@ Pass	grid-gap accepts vw and vh
 Pass	grid-gap accepts percentage
 Pass	grid-gap accepts percentage 2
 Pass	grid-gap accepts calc()
-Fail	grid-gap accepts calc() mixing fixed and percentage values
+Pass	grid-gap accepts calc() mixing fixed and percentage values
 Pass	grid-gap accepts calc() 2
 Pass	Initial grid-gap is 'normal'
 Pass	Initial grid-gap is 'normal' 2
