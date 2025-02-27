@@ -73,6 +73,7 @@ struct LayoutState {
 
     struct UsedValues {
         NodeWithStyle const& node() const { return *m_node; }
+        NodeWithStyle& node() { return const_cast<NodeWithStyle&>(*m_node); }
         void set_node(NodeWithStyle&, UsedValues const* containing_block_used_values);
 
         UsedValues const* containing_block_used_values() const { return m_containing_block_used_values; }
