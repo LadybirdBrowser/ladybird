@@ -816,8 +816,77 @@ void DisplayListPlayerSkia::paint_conic_gradient(PaintConicGradient const& comma
     surface().canvas().drawRect(to_skia_rect(rect), paint);
 }
 
-void DisplayListPlayerSkia::draw_triangle_wave(DrawTriangleWave const&)
+void DisplayListPlayerSkia::draw_triangle_wave(DrawTriangleWave const& command)
 {
+    // Skia treats zero thickness as a special case and will draw a hairline, while we want to draw nothing.
+    if (!command.thickness)
+        return;
+
+    // FIXME: Support more than horizontal waves
+    if (command.p1.y() != command.p2.y()) {
+        dbgln("FIXME: Support more than horizontal waves");
+        return;
+    }
+
+    auto& canvas = surface().canvas();
+    auto from = to_skia_point(command.p1);
+    auto to = to_skia_point(command.p2);
+
+    SkPaint paint;
+    paint.setAntiAlias(true);
+    paint.setStyle(SkPaint::kStroke_Style);
+    paint.setStrokeWidth(command.thickness);
+    paint.setStrokeJoin(SkPaint::kRound_Join);
+    paint.setStrokeCap(SkPaint::kRound_Cap);
+    paint.setColor(to_skia_color(command.color));
+
+    SkPath path;
+    path.moveTo(from);
+
+    float const wavelength = command.amplitude * 2.0f;
+    float const half_wavelength = command.amplitude;
+    float const quarter_wavelength = command.amplitude / 2.0f;
+
+    auto position = from;
+    auto remaining = abs(to.x() - position.x());
+    while (remaining > wavelength) {
+        // Draw a whole wave
+        path.lineTo(position.x() + quarter_wavelength, position.y() - quarter_wavelength);
+        path.lineTo(position.x() + quarter_wavelength + half_wavelength, position.y() + quarter_wavelength);
+        path.lineTo(position.x() + wavelength, position.y());
+        position.offset(wavelength, 0);
+        remaining = abs(to.x() - position.x());
+    }
+
+    // Up
+    if (remaining > quarter_wavelength) {
+        path.lineTo(position.x() + quarter_wavelength, position.y() - quarter_wavelength);
+        position.offset(quarter_wavelength, 0);
+        remaining = abs(to.x() - position.x());
+    } else if (remaining >= 1) {
+        auto fraction = remaining / quarter_wavelength;
+        path.lineTo(position.x() + (fraction * quarter_wavelength), position.y() - (fraction * quarter_wavelength));
+        remaining = 0;
+    }
+
+    // Down
+    if (remaining > half_wavelength) {
+        path.lineTo(position.x() + half_wavelength, position.y() + quarter_wavelength);
+        position.offset(half_wavelength, 0);
+        remaining = abs(to.x() - position.x());
+    } else if (remaining >= 1) {
+        auto fraction = remaining / half_wavelength;
+        path.lineTo(position.x() + (fraction * half_wavelength), position.y() - quarter_wavelength + (fraction * half_wavelength));
+        remaining = 0;
+    }
+
+    // Back to middle
+    if (remaining >= 1) {
+        auto fraction = remaining / quarter_wavelength;
+        path.lineTo(position.x() + (fraction * quarter_wavelength), position.y() + ((1 - fraction) * quarter_wavelength));
+    }
+
+    canvas.drawPath(path, paint);
 }
 
 void DisplayListPlayerSkia::add_rounded_rect_clip(AddRoundedRectClip const& command)
