@@ -1375,6 +1375,9 @@ void EventHandler::visit_edges(JS::Cell::Visitor& visitor) const
 {
     m_drag_and_drop_event_handler->visit_edges(visitor);
     visitor.visit(m_mouse_event_tracking_paintable);
+
+    if (m_mouse_selection_target)
+        visitor.visit(m_mouse_selection_target->as_cell());
 }
 
 Unicode::Segmenter& EventHandler::word_segmenter()

@@ -969,4 +969,9 @@ GC::Ptr<DOM::Position> FormAssociatedTextControlElement::cursor_position() const
     return nullptr;
 }
 
+GC::Ref<JS::Cell> FormAssociatedTextControlElement::as_cell()
+{
+    return form_associated_element_to_html_element();
+}
+
 }
