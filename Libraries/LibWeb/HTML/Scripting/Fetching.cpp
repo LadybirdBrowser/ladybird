@@ -317,7 +317,7 @@ ScriptFetchOptions get_descendant_script_fetch_options(ScriptFetchOptions const&
 String resolve_a_module_integrity_metadata(const URL::URL& url, EnvironmentSettingsObject& settings_object)
 {
     // 1. Let map be settingsObject's global object's import map.
-    auto map = as<Window>(settings_object.global_object()).import_map();
+    auto map = as<UniversalGlobalScopeMixin>(settings_object.global_object()).import_map();
 
     // 2. If map's integrity[url] does not exist, then return the empty string.
     // 3. Return map's integrity[url].
