@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include <LibRegex/Regex.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/FileAPI/FileList.h>
@@ -215,6 +216,8 @@ public:
     bool select_applies() const;
     bool selection_or_range_applies() const;
     bool selection_direction_applies() const;
+    bool pattern_applies() const;
+    bool multiple_applies() const;
     bool has_selectable_text() const;
 
     bool supports_a_picker() const;
@@ -344,6 +347,8 @@ private:
     GC::Ptr<DecodedImageData> image_data() const;
     GC::Ptr<SharedResourceRequest> m_resource_request;
     SelectedCoordinate m_selected_coordinate;
+
+    Optional<Regex<ECMA262>> compiled_pattern_regular_expression() const;
 
     Optional<DOM::DocumentLoadEventDelayer> m_load_event_delayer;
 
