@@ -90,6 +90,8 @@ public:
     void unpause(Badge<PauseHandle>, JS::Object const& global, HighResolutionTime::DOMHighResTimeStamp);
     bool execution_paused() const { return m_execution_paused; }
 
+    bool running_rendering_task() const { return m_running_rendering_task; }
+
 private:
     explicit EventLoop(Type);
 
@@ -133,7 +135,7 @@ private:
 
     bool m_skip_event_loop_processing_steps { false };
 
-    bool m_is_running_rendering_task { false };
+    bool m_running_rendering_task { false };
 
     GC::Ptr<GC::Function<void()>> m_rendering_task_function;
 };
