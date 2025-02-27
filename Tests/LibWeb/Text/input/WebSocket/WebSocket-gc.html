@@ -1,0 +1,21 @@
+<script src="../include.js"></script>
+<script>
+    asyncTest((done) => {
+        {
+            const ws = new WebSocket('wss://echo.websocket.org');
+
+            ws.onopen = () => {
+            };
+            ws.onmessage = () => {
+            };
+            ws.onerror = () => {
+            };
+        }
+
+        setTimeout(() => {
+            internals.gc();
+            println("PASS! (Didn't crash)");
+            done();
+        }, 0);
+    });
+</script>
