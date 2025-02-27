@@ -445,38 +445,42 @@ void LayoutState::commit(Box& root)
 
     for (auto& it : used_values_per_layout_node) {
         auto& used_values = *it.value;
-        if (!used_values.node().is_box())
-            continue;
-        auto const& box = static_cast<Layout::Box const&>(used_values.node());
+        auto& node = used_values.node();
+        for (auto& paintable : node.paintables()) {
+            Painting::PaintableBox* paintable_box = nullptr;
+            if (is<Painting::PaintableBox>(paintable))
+                paintable_box = &static_cast<Painting::PaintableBox&>(paintable);
 
-        auto& paintable_box = const_cast<Painting::PaintableBox&>(*box.paintable_box());
+            if (!paintable_box)
+                continue;
 
-        if (box.is_sticky_position()) {
-            // https://drafts.csswg.org/css-position/#insets
-            // For sticky positioned boxes, the inset is instead relative to the relevant scrollport’s size. Negative values are allowed.
+            if (node.is_sticky_position()) {
+                // https://drafts.csswg.org/css-position/#insets
+                // For sticky positioned boxes, the inset is instead relative to the relevant scrollport’s size. Negative values are allowed.
 
-            auto sticky_insets = make<Painting::PaintableBox::StickyInsets>();
-            auto const& inset = box.computed_values().inset();
+                auto sticky_insets = make<Painting::PaintableBox::StickyInsets>();
+                auto const& inset = node.computed_values().inset();
 
-            auto const* nearest_scrollable_ancestor = paintable_box.nearest_scrollable_ancestor();
-            CSSPixelSize scrollport_size;
-            if (nearest_scrollable_ancestor) {
-                scrollport_size = nearest_scrollable_ancestor->absolute_rect().size();
-            }
+                auto const* nearest_scrollable_ancestor = paintable_box->nearest_scrollable_ancestor();
+                CSSPixelSize scrollport_size;
+                if (nearest_scrollable_ancestor) {
+                    scrollport_size = nearest_scrollable_ancestor->absolute_rect().size();
+                }
 
-            if (!inset.top().is_auto()) {
-                sticky_insets->top = inset.top().to_px(box, scrollport_size.height());
+                if (!inset.top().is_auto()) {
+                    sticky_insets->top = inset.top().to_px(node, scrollport_size.height());
+                }
+                if (!inset.right().is_auto()) {
+                    sticky_insets->right = inset.right().to_px(node, scrollport_size.width());
+                }
+                if (!inset.bottom().is_auto()) {
+                    sticky_insets->bottom = inset.bottom().to_px(node, scrollport_size.height());
+                }
+                if (!inset.left().is_auto()) {
+                    sticky_insets->left = inset.left().to_px(node, scrollport_size.width());
+                }
+                paintable_box->set_sticky_insets(move(sticky_insets));
             }
-            if (!inset.right().is_auto()) {
-                sticky_insets->right = inset.right().to_px(box, scrollport_size.width());
-            }
-            if (!inset.bottom().is_auto()) {
-                sticky_insets->bottom = inset.bottom().to_px(box, scrollport_size.height());
-            }
-            if (!inset.left().is_auto()) {
-                sticky_insets->left = inset.left().to_px(box, scrollport_size.width());
-            }
-            paintable_box.set_sticky_insets(move(sticky_insets));
         }
     }
 }
