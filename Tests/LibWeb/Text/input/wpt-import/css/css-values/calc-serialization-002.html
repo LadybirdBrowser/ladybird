@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+
+  <meta charset="UTF-8">
+
+  <title>CSS Values and Units: serialization of calc() specified values: 19 arithmetical operations (complex)</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/">
+  <link rel="help" href="https://www.w3.org/TR/css-values-4/#calc-serialize">
+
+  <meta content="" name="flags">
+  <meta content="This test verifies how 19 arithmetical operations of mixed length units in calc() specified values are serialized. Absolute length units (cm, in, mm, pc, pt, q, px), font-relative length units (ex, em, rem), viewport-percentage length units (vh, vmax, vmin, vw) and percentage units are tested. 12 additions, 6 substractions and 1 division are tested." name="assert">
+
+  <!--
+
+  Issue 1050968: CSS calc and other math function serialization doesn't follow the spec
+  https://bugs.chromium.org/p/chromium/issues/detail?id=1050968
+
+  -->
+
+  <script src="../../resources/testharness.js"></script>
+
+  <script src="../../resources/testharnessreport.js"></script>
+
+  <div id="target"></div>
+
+  <script>
+  function startTesting()
+  {
+
+  var targetElement = document.getElementById("target");
+
+    function verifySerialization(specified_value, serialization_expected, description)
+    {
+
+    test(function()
+      {
+
+      targetElement.style.height = specified_value;
+
+      assert_equals(targetElement.style.height, serialization_expected);
+
+      }, description);
+    }
+
+  /*
+
+  "
+
+  If nodes contains a number, remove it from nodes and append it to ret.
+
+  If nodes contains a percentage, remove it from nodes and append it to ret.
+
+  If nodes contains any dimensions, remove them from nodes, sort them by their units, ordered ASCII case-insensitively, and append them to ret.
+
+  If nodes still contains any items, append them to ret in the same order.
+
+  "
+  https://www.w3.org/TR/css-values-4/#calc-serialize
+
+  */
+
+  /* 12 Additions */
+
+    verifySerialization("calc(1vh + 2px + 3%)", "calc(3% + 2px + 1vh)", "testing calc(1vh + 2px + 3%)");
+
+    verifySerialization("calc(4px + 1vh)", "calc(4px + 1vh)", "testing calc(4px + 1vh)");
+
+    verifySerialization("calc(5px + 6em + 1vh)", "calc(6em + 5px + 1vh)", "testing calc(5px + 6em + 1vh)");
+
+    verifySerialization("calc(-8px + 9em + 1vh)", "calc(9em - 8px + 1vh)", "testing calc(-8px + 9em + 1vh)");
+
+    verifySerialization("calc(1pc + 1in + 1vh + 10%)", "calc(10% + 112px + 1vh)", "testing calc(1pc + 1in + 1vh + 10%)");
+
+    verifySerialization("calc(25.4q + 1vh + 12%)", "calc(12% + 24px + 1vh)", "testing calc(25.4q + 1vh + 12%)");
+
+    verifySerialization("calc(1em + 1.27cm + 13% + 3em)", "calc(13% + 4em + 48px)", "testing calc(1em + 1.27cm + 13% + 3em)");
+
+ /* verifySerialization(specified_value, serialization_expected, description)  */
+
+    verifySerialization("calc(15vw + 16vmin - 17vh)", "calc(-17vh + 16vmin + 15vw)", "testing calc(15vw + 16vmin - 17vh)");
+
+    verifySerialization("calc(9pt + calc(9rem + 10px))", "calc(22px + 9rem)", "testing calc(9pt + calc(9rem + 10px))");
+
+    verifySerialization("calc(5pt + 5em + 4pt + 3em)", "calc(8em + 12px)", "testing calc(5pt + 5em + 4pt + 3em)");
+
+    verifySerialization("calc(4vmin + 0pt + 3pc)", "calc(48px + 4vmin)", "testing calc(4vmin + 0pt + 3pc)");
+
+    verifySerialization("calc(4vmin + 0pt)", "calc(0px + 4vmin)", "testing calc(4vmin + 0pt)");
+
+  /*
+
+  More info on the calc(4vmin + 0pt) sub-test:
+  https://github.com/web-platform-tests/wpt/pull/38245#issuecomment-1464215777
+  Date: March 10th 2023
+
+  */
+
+  /* 6 Substractions */
+
+
+    verifySerialization("calc(100% - 100% + 1em)", "calc(0% + 1em)", "testing calc(100% - 100% + 1em)");
+
+    verifySerialization("calc(100% + 1em - 100%)", "calc(0% + 1em)", "testing calc(100% + 1em - 100%)");
+
+    verifySerialization("calc(1vh - 7px)", "calc(-7px + 1vh)", "testing calc(1vh - 7px)");
+
+    verifySerialization("calc(5ex - 9ex)", "calc(-4ex)", "testing calc(5ex - 9ex)");
+
+    /*
+
+    An out-of-range value inside calc() is not syntactically invalid.
+    Inside a calc() function, the resulting summation value can be
+    out of range and can be serialized.
+
+    */
+
+    verifySerialization("calc(-80px + 25.4mm)", "calc(16px)", "testing calc(-80px + 25.4mm)");
+
+ /* verifySerialization(specified_value, serialization_expected, description)  */
+
+    /*
+
+    Check distributing multiplication over sums and subs simplification.
+    NOTE: If root contains only two children, one of which is a number
+    (not a percentage or dimension) and the other of which is a Sum
+    whose children are all numeric values, multiply all of the Sum’s
+    children by the number, then return the Sum. So, num * (fn + fn)
+    should not be simplified.
+
+    */
+
+    verifySerialization("calc(2 * (10px + 1rem))", "calc(20px + 2rem)", "testing calc(2 * (10px + 1rem))");
+    verifySerialization("calc(2 * (10px - 1rem))", "calc(20px - 2rem)", "testing calc(2 * (10px - 1rem))");
+    verifySerialization("calc((10px + 1rem) / 2)", "calc(5px + 0.5rem)", "testing calc((10px + 1rem) / 2)");
+    verifySerialization(
+      "calc(2 * (min(10px, 20%) + max(1rem, 2%)))",
+      "calc(2 * (min(10px, 20%) + max(1rem, 2%)))",
+      "testing calc(2 * (min(10px, 20%) + max(1rem, 2%)))"
+    );
+    verifySerialization(
+      "calc((min(10px, 20%) + max(1rem, 2%)) * 2)",
+      "calc(2 * (min(10px, 20%) + max(1rem, 2%)))",
+      "testing calc((min(10px, 20%) + max(1rem, 2%)) * 2)"
+    );
+
+    verifySerialization("calc(1vmin - 14%)", "calc(-14% + 1vmin)", "testing calc(1vmin - 14%)");
+
+
+  /* 1 Multiplication and division */
+
+
+    verifySerialization("calc(4 * 3px + 4pc / 8)", "calc(20px)", "testing calc(4 * 3px + 4pc / 8)");
+
+    /*
+    This calc(4 * 3px + 4pc / 8) test is on purpose last. We want the
+    div#target to occupy 20px and to not cause document box height
+    to be unneedlessly tall.
+    */
+
+  }
+
+  startTesting();
+
+  </script>
