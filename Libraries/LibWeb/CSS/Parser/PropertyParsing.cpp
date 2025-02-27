@@ -3510,6 +3510,8 @@ RefPtr<CSSStyleValue> Parser::parse_text_decoration_line_value(TokenStream<Compo
 {
     StyleValueVector style_values;
 
+    bool includes_spelling_or_grammar_error_value = false;
+
     while (tokens.has_next_token()) {
         auto maybe_value = parse_css_value_for_property(PropertyID::TextDecorationLine, tokens);
         if (!maybe_value)
@@ -3522,6 +3524,9 @@ RefPtr<CSSStyleValue> Parser::parse_text_decoration_line_value(TokenStream<Compo
                     break;
                 return value;
             }
+            if (first_is_one_of(*maybe_line, TextDecorationLine::SpellingError, TextDecorationLine::GrammarError)) {
+                includes_spelling_or_grammar_error_value = true;
+            }
             if (style_values.contains_slow(value))
                 break;
             style_values.append(move(value));
@@ -3533,6 +3538,13 @@ RefPtr<CSSStyleValue> Parser::parse_text_decoration_line_value(TokenStream<Compo
 
     if (style_values.is_empty())
         return nullptr;
+
+    // These can only appear on their own.
+    if (style_values.size() > 1 && includes_spelling_or_grammar_error_value)
+        return nullptr;
+
+    if (style_values.size() == 1)
+        return *style_values.first();
 
     quick_sort(style_values, [](auto& left, auto& right) {
         return *keyword_to_text_decoration_line(left->to_keyword()) < *keyword_to_text_decoration_line(right->to_keyword());

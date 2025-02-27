@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 67 tests
 
-65 Pass
-2 Fail
+67 Pass
 Pass	e.style['text-decoration-line'] = "none" should set the property value
 Pass	e.style['text-decoration-line'] = "underline" should set the property value
 Pass	e.style['text-decoration-line'] = "overline" should set the property value
@@ -69,5 +68,5 @@ Pass	e.style['text-decoration-line'] = "blink overline underline line-through" s
 Pass	e.style['text-decoration-line'] = "blink overline line-through underline" should set the property value
 Pass	e.style['text-decoration-line'] = "blink line-through underline overline" should set the property value
 Pass	e.style['text-decoration-line'] = "blink line-through overline underline" should set the property value
-Fail	e.style['text-decoration-line'] = "spelling-error" should set the property value
-Fail	e.style['text-decoration-line'] = "grammar-error" should set the property value
+Pass	e.style['text-decoration-line'] = "spelling-error" should set the property value
+Pass	e.style['text-decoration-line'] = "grammar-error" should set the property value

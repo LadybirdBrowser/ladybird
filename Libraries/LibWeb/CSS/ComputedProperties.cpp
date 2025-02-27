@@ -1008,8 +1008,11 @@ Vector<TextDecorationLine> ComputedProperties::text_decoration_line() const
         return lines;
     }
 
-    if (value.is_keyword() && value.to_keyword() == Keyword::None)
-        return {};
+    if (value.is_keyword()) {
+        if (value.to_keyword() == Keyword::None)
+            return {};
+        return { keyword_to_text_decoration_line(value.to_keyword()).release_value() };
+    }
 
     dbgln("FIXME: Unsupported value for text-decoration-line: {}", value.to_string(CSSStyleValue::SerializationMode::Normal));
     return {};

@@ -682,6 +682,7 @@ void paint_text_decoration(PaintContext& context, TextPaintable const& paintable
     auto baseline = fragment.baseline();
 
     auto line_color = paintable.computed_values().text_decoration_color();
+    auto line_style = paintable.computed_values().text_decoration_style();
     auto const& text_paintable = static_cast<TextPaintable const&>(fragment.paintable());
     auto device_line_thickness = context.rounded_device_pixels(text_paintable.text_decoration_thickness());
 
@@ -689,6 +690,24 @@ void paint_text_decoration(PaintContext& context, TextPaintable const& paintable
     for (auto line : text_decoration_lines) {
         DevicePixelPoint line_start_point {};
         DevicePixelPoint line_end_point {};
+
+        if (line == CSS::TextDecorationLine::SpellingError) {
+            // https://drafts.csswg.org/css-text-decor-4/#valdef-text-decoration-line-spelling-error
+            // This value indicates the type of text decoration used by the user agent to highlight spelling mistakes.
+            // Its appearance is UA-defined, and may be platform-dependent. It is often rendered as a red wavy underline.
+            line_color = Color::Red;
+            device_line_thickness = context.rounded_device_pixels(1);
+            line_style = CSS::TextDecorationStyle::Wavy;
+            line = CSS::TextDecorationLine::Underline;
+        } else if (line == CSS::TextDecorationLine::GrammarError) {
+            // https://drafts.csswg.org/css-text-decor-4/#valdef-text-decoration-line-grammar-error
+            // This value indicates the type of text decoration used by the user agent to highlight grammar mistakes.
+            // Its appearance is UA defined, and may be platform-dependent. It is often rendered as a green wavy underline.
+            line_color = Color::DarkGreen;
+            device_line_thickness = context.rounded_device_pixels(1);
+            line_style = CSS::TextDecorationStyle::Wavy;
+            line = CSS::TextDecorationLine::Underline;
+        }
 
         switch (line) {
         case CSS::TextDecorationLine::None:
@@ -710,9 +729,13 @@ void paint_text_decoration(PaintContext& context, TextPaintable const& paintable
         case CSS::TextDecorationLine::Blink:
             // Conforming user agents may simply not blink the text
             return;
+        case CSS::TextDecorationLine::SpellingError:
+        case CSS::TextDecorationLine::GrammarError:
+            // Handled above.
+            VERIFY_NOT_REACHED();
         }
 
-        switch (paintable.computed_values().text_decoration_style()) {
+        switch (line_style) {
         case CSS::TextDecorationStyle::Solid:
             painter.draw_line(line_start_point.to_type<int>(), line_end_point.to_type<int>(), line_color, device_line_thickness.value(), Gfx::LineStyle::Solid);
             break;
@@ -742,7 +765,24 @@ void paint_text_decoration(PaintContext& context, TextPaintable const& paintable
             painter.draw_line(line_start_point.to_type<int>(), line_end_point.to_type<int>(), line_color, device_line_thickness.value(), Gfx::LineStyle::Dotted);
             break;
         case CSS::TextDecorationStyle::Wavy:
-            painter.draw_triangle_wave(line_start_point.to_type<int>(), line_end_point.to_type<int>(), line_color, device_line_thickness.value() + 1, device_line_thickness.value());
+            auto amplitude = device_line_thickness.value() * 3;
+            switch (line) {
+            case CSS::TextDecorationLine::Underline:
+                line_start_point.translate_by(0, device_line_thickness + context.rounded_device_pixels(1));
+                line_end_point.translate_by(0, device_line_thickness + context.rounded_device_pixels(1));
+                break;
+            case CSS::TextDecorationLine::Overline:
+                line_start_point.translate_by(0, -device_line_thickness - context.rounded_device_pixels(1));
+                line_end_point.translate_by(0, -device_line_thickness - context.rounded_device_pixels(1));
+                break;
+            case CSS::TextDecorationLine::LineThrough:
+                line_start_point.translate_by(0, -device_line_thickness / 2);
+                line_end_point.translate_by(0, -device_line_thickness / 2);
+                break;
+            default:
+                VERIFY_NOT_REACHED();
+            }
+            painter.draw_triangle_wave(line_start_point.to_type<int>(), line_end_point.to_type<int>(), line_color, amplitude, device_line_thickness.value());
             break;
         }
     }
