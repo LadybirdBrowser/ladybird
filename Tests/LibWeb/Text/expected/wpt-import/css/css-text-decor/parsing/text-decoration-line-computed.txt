@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 18 tests
 
-16 Pass
-2 Fail
+18 Pass
 Pass	Property text-decoration-line value 'none'
 Pass	Property text-decoration-line value 'underline'
 Pass	Property text-decoration-line value 'overline'
@@ -20,5 +19,5 @@ Pass	Property text-decoration-line value 'underline overline blink'
 Pass	Property text-decoration-line value 'underline line-through blink'
 Pass	Property text-decoration-line value 'overline line-through blink'
 Pass	Property text-decoration-line value 'underline overline line-through blink'
-Fail	Property text-decoration-line value 'spelling-error'
-Fail	Property text-decoration-line value 'grammar-error'
+Pass	Property text-decoration-line value 'spelling-error'
+Pass	Property text-decoration-line value 'grammar-error'

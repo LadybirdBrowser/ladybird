@@ -545,7 +545,9 @@
     "underline",
     "overline",
     "line-through",
-    "blink"
+    "blink",
+    "spelling-error",
+    "grammar-error"
   ],
   "text-decoration-style": [
     "dashed",
