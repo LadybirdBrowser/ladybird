@@ -114,10 +114,6 @@ public:
 
     GC::Ptr<Navigable> navigable() const;
 
-    ImportMap& import_map() { return m_import_map; }
-    ImportMap const& import_map() const { return m_import_map; }
-    void set_import_map(ImportMap const& import_map) { m_import_map = import_map; }
-
     void append_resolved_module(SpecifierResolution resolution) { m_resolved_module_set.append(move(resolution)); }
     Vector<SpecifierResolution> const& resolved_module_set() const { return m_resolved_module_set; }
 
@@ -287,10 +283,6 @@ private:
     GC::Ptr<DOM::Document> m_associated_document;
 
     GC::Ptr<DOM::Event> m_current_event;
-
-    // https://html.spec.whatwg.org/multipage/webappapis.html#concept-global-import-map
-    // A global object has an import map, initially an empty import map.
-    ImportMap m_import_map;
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#resolved-module-set
     // A global object has a resolved module set, a set of specifier resolution records, initially empty.

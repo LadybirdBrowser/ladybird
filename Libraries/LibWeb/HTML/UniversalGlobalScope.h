@@ -45,6 +45,10 @@ public:
 
     void notify_about_rejected_promises(Badge<EventLoop>);
 
+    ImportMap& import_map() { return m_import_map; }
+    ImportMap const& import_map() const { return m_import_map; }
+    void set_import_map(ImportMap const& import_map) { m_import_map = import_map; }
+
 protected:
     void visit_edges(GC::Cell::Visitor&);
 
@@ -61,6 +65,10 @@ private:
     // https://html.spec.whatwg.org/multipage/webappapis.html#outstanding-rejected-promises-weak-set
     // The outstanding rejected promises weak set must not create strong references to any of its members, and implementations are free to limit its size, e.g. by removing old entries from it when new ones are added.
     Vector<GC::Ptr<JS::Promise>> m_outstanding_rejected_promises_weak_set;
+
+    // https://html.spec.whatwg.org/multipage/webappapis.html#concept-global-import-map
+    // A global object has an import map, initially an empty import map.
+    ImportMap m_import_map;
 };
 
 }
