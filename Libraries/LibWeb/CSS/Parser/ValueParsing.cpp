@@ -2556,8 +2556,6 @@ RefPtr<FitContentStyleValue> Parser::parse_fit_content_value(TokenStream<Compone
     auto const& function = component_value.function();
     if (function.name != "fit-content"sv)
         return nullptr;
-    if (function.value.size() != 1)
-        return nullptr;
     TokenStream argument_tokens { function.value };
     argument_tokens.discard_whitespace();
     auto maybe_length = parse_length_percentage(argument_tokens);
