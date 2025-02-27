@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 26 tests
 
-24 Pass
-2 Fail
+25 Pass
+1 Fail
 Pass	Default gap is 'normal'
 Pass	gap accepts pixels
 Pass	gap accepts pixels 2
@@ -15,7 +15,7 @@ Pass	gap accepts vw and vh
 Pass	gap accepts percentage
 Pass	gap accepts percentage 2
 Pass	gap accepts calc()
-Fail	gap accepts calc() mixing fixed and percentage values
+Pass	gap accepts calc() mixing fixed and percentage values
 Pass	gap accepts calc() 2
 Pass	Initial gap is 'normal'
 Pass	Initial gap is 'normal' 2

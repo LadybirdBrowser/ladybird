@@ -8,6 +8,7 @@
  */
 
 #include "CalculatedStyleValue.h"
+#include <AK/QuickSort.h>
 #include <AK/TypeCasts.h>
 #include <LibWeb/CSS/Percentage.h>
 #include <LibWeb/CSS/PropertyID.h>
@@ -239,6 +240,76 @@ static String serialize_a_math_function(CalculationNode const& fn, CalculationCo
     return builder.to_string_without_validation();
 }
 
+// https://drafts.csswg.org/css-values-4/#sort-a-calculations-children
+static Vector<NonnullRefPtr<CalculationNode>> sort_a_calculations_children(Vector<NonnullRefPtr<CalculationNode>> nodes)
+{
+    // 1. Let ret be an empty list.
+    Vector<NonnullRefPtr<CalculationNode>> ret;
+
+    // 2. If nodes contains a number, remove it from nodes and append it to ret.
+    auto index_of_number = nodes.find_first_index_if([](NonnullRefPtr<CalculationNode> const& node) {
+        if (node->type() != CalculationNode::Type::Numeric)
+            return false;
+        return static_cast<NumericCalculationNode const&>(*node).value().has<Number>();
+    });
+    if (index_of_number.has_value()) {
+        ret.append(nodes.take(*index_of_number));
+    }
+
+    // 3. If nodes contains a percentage, remove it from nodes and append it to ret.
+    auto index_of_percentage = nodes.find_first_index_if([](NonnullRefPtr<CalculationNode> const& node) {
+        if (node->type() != CalculationNode::Type::Numeric)
+            return false;
+        return static_cast<NumericCalculationNode const&>(*node).value().has<Percentage>();
+    });
+    if (index_of_percentage.has_value()) {
+        ret.append(nodes.take(*index_of_percentage));
+    }
+
+    // 4. If nodes contains any dimensions, remove them from nodes, sort them by their units, ordered ASCII
+    //    case-insensitively, and append them to ret.
+    Vector<NonnullRefPtr<CalculationNode>> dimensions;
+    dimensions.ensure_capacity(nodes.size());
+
+    auto next_dimension_index = [&nodes]() {
+        return nodes.find_first_index_if([](NonnullRefPtr<CalculationNode> const& node) {
+            if (node->type() != CalculationNode::Type::Numeric)
+                return false;
+            return static_cast<NumericCalculationNode const&>(*node).value().visit(
+                [](Number const&) { return false; },
+                [](Percentage const&) { return false; },
+                [](auto const&) { return true; });
+        });
+    };
+
+    for (auto index_of_dimension = next_dimension_index(); index_of_dimension.has_value(); index_of_dimension = next_dimension_index()) {
+        dimensions.append(nodes.take(*index_of_dimension));
+    }
+
+    quick_sort(dimensions, [](NonnullRefPtr<CalculationNode> const& a, NonnullRefPtr<CalculationNode> const& b) {
+        auto get_unit = [](NonnullRefPtr<CalculationNode> const& node) -> StringView {
+            auto const& numeric_node = static_cast<NumericCalculationNode const&>(*node);
+            return numeric_node.value().visit(
+                [](Number const&) -> StringView { VERIFY_NOT_REACHED(); },
+                [](Percentage const&) -> StringView { VERIFY_NOT_REACHED(); },
+                [](auto const& dimension) -> StringView { return dimension.unit_name(); });
+        };
+
+        auto a_unit = get_unit(a);
+        auto b_unit = get_unit(b);
+        // NOTE: Our unit name strings are always lowercase, so we don't have to do anything special for a case-insensitive match.
+        return a_unit < b_unit;
+    });
+    ret.extend(dimensions);
+
+    // 5. If nodes still contains any items, append them to ret in the same order.
+    if (!nodes.is_empty())
+        ret.extend(nodes);
+
+    // 6. Return ret.
+    return ret;
+}
+
 // https://drafts.csswg.org/css-values-4/#serialize-a-calculation-tree
 static String serialize_a_calculation_tree(CalculationNode const& root, CalculationContext const& context, CSSStyleValue::SerializationMode serialization_mode)
 {
@@ -288,8 +359,7 @@ static String serialize_a_calculation_tree(CalculationNode const& root, Calculat
         StringBuilder builder;
         builder.append('(');
 
-        // FIXME: Sort root’s children.
-        auto sorted_children = root.children();
+        auto sorted_children = sort_a_calculations_children(root.children());
 
         // Serialize root’s first child, and append it to s.
         builder.append(serialize_a_calculation_tree(sorted_children.first(), context, serialization_mode));
@@ -330,8 +400,7 @@ static String serialize_a_calculation_tree(CalculationNode const& root, Calculat
         StringBuilder builder;
         builder.append('(');
 
-        // FIXME: Sort root’s children.
-        auto sorted_children = root.children();
+        auto sorted_children = sort_a_calculations_children(root.children());
 
         // Serialize root’s first child, and append it to s.
         builder.append(serialize_a_calculation_tree(sorted_children.first(), context, serialization_mode));
