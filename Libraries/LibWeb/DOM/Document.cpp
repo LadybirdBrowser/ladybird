@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2024, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2018-2025, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021-2023, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2021-2025, Luke Wilde <luke@ladybird.org>
  * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
@@ -6043,12 +6043,26 @@ bool Document::allow_declarative_shadow_roots() const
     return m_allow_declarative_shadow_roots;
 }
 
+bool Document::is_render_blocking_element(GC::Ref<Element> element) const
+{
+    return m_render_blocking_elements.contains(element);
+}
+
 // https://html.spec.whatwg.org/multipage/dom.html#render-blocked
 bool Document::is_render_blocked() const
 {
     // A Document document is render-blocked if both of the following are true:
     // - document's render-blocking element set is non-empty, or document allows adding render-blocking elements.
-    // - FIXME: The current high resolution time given document's relevant global object has not exceeded an implementation-defined timeout value.
+    // - The current high resolution time given document's relevant global object has not exceeded an implementation-defined timeout value.
+
+    // NOTE: This timeout is implementation-defined.
+    //       Other browsers are willing to wait longer, but let's start with 30 seconds.
+    static constexpr auto max_time_to_block_rendering_in_ms = 30000.0;
+
+    auto now = HighResolutionTime::current_high_resolution_time(relevant_global_object(*this));
+    if (now > max_time_to_block_rendering_in_ms)
+        return false;
+
     return !m_render_blocking_elements.is_empty() || allows_adding_render_blocking_elements();
 }
 

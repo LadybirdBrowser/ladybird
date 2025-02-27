@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2023, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2018-2025, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021-2023, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2023-2024, Shannon Booth <shannon@serenityos.org>
  * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
@@ -812,6 +812,8 @@ public:
     [[nodiscard]] bool is_render_blocked() const;
     // https://html.spec.whatwg.org/multipage/dom.html#allows-adding-render-blocking-elements
     [[nodiscard]] bool allows_adding_render_blocking_elements() const;
+
+    [[nodiscard]] bool is_render_blocking_element(GC::Ref<Element>) const;
 
     void add_render_blocking_element(GC::Ref<Element>);
     void remove_render_blocking_element(GC::Ref<Element>);
