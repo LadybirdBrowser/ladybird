@@ -430,6 +430,14 @@ void Heap::mark_live_cells(HashMap<Cell*, HeapRoot> const& roots)
     for (auto& inverse_root : m_uprooted_cells)
         inverse_root->set_marked(false);
 
+    for_each_block([&](auto& block) {
+        block.template for_each_cell_in_state<Cell::State::Live>([&](Cell* cell) {
+            if (!cell->is_marked() && cell_must_survive_garbage_collection(*cell))
+                cell->visit_edges(visitor);
+        });
+        return IterationDecision::Continue;
+    });
+
     m_uprooted_cells.clear();
 }
 
@@ -444,7 +452,7 @@ void Heap::finalize_unmarked_cells()
 {
     for_each_block([&](auto& block) {
         block.template for_each_cell_in_state<Cell::State::Live>([](Cell* cell) {
-            if (!cell->is_marked() && !cell_must_survive_garbage_collection(*cell))
+            if (!cell->is_marked())
                 cell->finalize();
         });
         return IterationDecision::Continue;
@@ -466,7 +474,7 @@ void Heap::sweep_dead_cells(bool print_report, Core::ElapsedTimer const& measure
         bool block_has_live_cells = false;
         bool block_was_full = block.is_full();
         block.template for_each_cell_in_state<Cell::State::Live>([&](Cell* cell) {
-            if (!cell->is_marked() && !cell_must_survive_garbage_collection(*cell)) {
+            if (!cell->is_marked()) {
                 dbgln_if(HEAP_DEBUG, "  ~ {}", cell);
                 block.deallocate(cell);
                 ++collected_cells;
