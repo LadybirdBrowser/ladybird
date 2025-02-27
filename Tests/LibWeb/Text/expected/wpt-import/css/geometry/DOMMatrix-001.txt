@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 126 tests
 
-124 Pass
-2 Fail
+122 Pass
+4 Fail
 Pass	new DOMMatrix()
 Pass	new DOMMatrix(undefined)
 Pass	new DOMMatrix(new DOMMatrix())
@@ -23,7 +23,7 @@ Pass	new DOMMatrix(sequence) 6 elements
 Pass	new DOMMatrix("scale(2) translateX(5px) translateY(5px)")
 Pass	new DOMMatrix("scale(2, 2) translateX(5px) translateY(5px)")
 Pass	new DOMMatrix("scale(2)translateX(5px)translateY(5px)")
-Pass	new DOMMatrix("scale(2) translateX(calc(2 * 2.5px)) translateY(5px)")
+Fail	new DOMMatrix("scale(2) translateX(calc(2 * 2.5px)) translateY(5px)")
 Pass	new DOMMatrix("scale(2) translateX(5px) translateY(5px) rotate(5deg) rotate(-5deg)")
 Pass	new DOMMatrix("translateX    (5px)")
 Pass	new DOMMatrix("scale(2 2) translateX(5) translateY(5)")
@@ -86,7 +86,7 @@ Pass	new DOMMatrixReadOnly(sequence) 6 elements
 Pass	new DOMMatrixReadOnly("scale(2) translateX(5px) translateY(5px)")
 Pass	new DOMMatrixReadOnly("scale(2, 2) translateX(5px) translateY(5px)")
 Pass	new DOMMatrixReadOnly("scale(2)translateX(5px)translateY(5px)")
-Pass	new DOMMatrixReadOnly("scale(2) translateX(calc(2 * 2.5px)) translateY(5px)")
+Fail	new DOMMatrixReadOnly("scale(2) translateX(calc(2 * 2.5px)) translateY(5px)")
 Pass	new DOMMatrixReadOnly("scale(2) translateX(5px) translateY(5px) rotate(5deg) rotate(-5deg)")
 Pass	new DOMMatrixReadOnly("translateX    (5px)")
 Pass	new DOMMatrixReadOnly("scale(2 2) translateX(5) translateY(5)")
