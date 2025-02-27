@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2023, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2018-2025, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, the SerenityOS developers.
  * Copyright (c) 2021, Sam Atkins <atkinssj@serenityos.org>
  * Copyright (c) 2023, Srikavin Ramkumar <me@srikavin.me>
@@ -497,6 +497,8 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
     //     FIXME: 2. Decrement el's node document's script-blocking style sheet counter by 1.
 
     // 7. Unblock rendering on el.
+    unblock_rendering();
+
     m_document_load_event_delayer.clear();
 }
 
@@ -526,14 +528,28 @@ bool HTMLLinkElement::stylesheet_linked_resource_fetch_setup_steps(Fetch::Infras
 
     // 3. If el's media attribute's value matches the environment and el is potentially render-blocking, then block rendering on el.
     // FIXME: Check media attribute value.
+    if (is_potentially_render_blocking())
+        block_rendering();
+
     m_document_load_event_delayer.emplace(document());
 
     // 4. If el is currently render-blocking, then set request's render-blocking to true.
-    // FIXME: Check if el is currently render-blocking.
-    request.set_render_blocking(true);
+    if (document().is_render_blocking_element(*this))
+        request.set_render_blocking(true);
 
     // 5. Return true.
     return true;
+}
+
+void HTMLLinkElement::set_parser_document(Badge<HTMLParser>, GC::Ref<DOM::Document> document)
+{
+    m_parser_document = document->make_weak_ptr<DOM::Document>();
+}
+
+bool HTMLLinkElement::is_implicitly_potentially_render_blocking() const
+{
+    // A link element of this type is implicitly potentially render-blocking if the element was created by its node document's parser.
+    return &document() == m_parser_document;
 }
 
 void HTMLLinkElement::resource_did_load_favicon()
