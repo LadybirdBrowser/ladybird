@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<script src="../include.js"></script>
+
+<body>
+    <script>
+        asyncTest(done => {
+            window.addEventListener("message", (e) => {
+                println(e.data);
+                done();
+            });
+
+            const iframe = document.createElement("iframe");
+            document.body.appendChild(iframe);
+
+            const iframe2 = document.createElement("iframe");
+            iframe2.onload = () => {
+                iframe.contentWindow.location.href = "../../data/test-iframe-content.html";
+            };
+            document.body.appendChild(iframe2);
+        });
+    </script>
+</body>
+
+</html>

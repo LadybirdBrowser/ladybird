@@ -16,6 +16,7 @@
 #include <LibWeb/HTML/HTMLIFrameElement.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
+#include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/Layout/NavigableContainerViewport.h>
 
 namespace Web::HTML {
@@ -93,7 +94,12 @@ void HTMLIFrameElement::post_connection()
         // 3. Process the iframe attributes for insertedNode, with initialInsertion set to true.
         process_the_iframe_attributes(true);
 
-        set_content_navigable_has_session_history_entry_and_ready_for_navigation();
+        if (auto navigable = content_navigable()) {
+            auto traversable = navigable->traversable_navigable();
+            traversable->append_session_history_traversal_steps(GC::create_function(heap(), [this] {
+                set_content_navigable_has_session_history_entry_and_ready_for_navigation();
+            }));
+        }
     })));
 }
 
