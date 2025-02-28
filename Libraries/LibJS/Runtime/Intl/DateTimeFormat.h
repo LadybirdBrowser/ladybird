@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2021-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -165,7 +165,7 @@ ThrowCompletionOr<void> for_each_calendar_field(VM& vm, Unicode::CalendarPattern
     constexpr auto two_digit_numeric_narrow_short_long = AK::Array { "2-digit"sv, "numeric"sv, "narrow"sv, "short"sv, "long"sv };
     constexpr auto time_zone = AK::Array { "short"sv, "long"sv, "shortOffset"sv, "longOffset"sv, "shortGeneric"sv, "longGeneric"sv };
 
-    // Table 6: Components of date and time formats, https://tc39.es/ecma402/#table-datetimeformat-components
+    // Table 16: Components of date and time formats, https://tc39.es/ecma402/#table-datetimeformat-components
     TRY(callback(pattern.weekday, vm.names.weekday, narrow_short_long));
     TRY(callback(pattern.era, vm.names.era, narrow_short_long));
     TRY(callback(pattern.year, vm.names.year, two_digit_numeric));

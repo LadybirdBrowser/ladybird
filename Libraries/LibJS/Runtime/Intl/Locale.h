@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -27,7 +27,7 @@ public:
 
     static constexpr auto relevant_extension_keys()
     {
-        // 14.2.2 Internal slots, https://tc39.es/ecma402/#sec-intl.locale-internal-slots
+        // 15.2.2 Internal slots, https://tc39.es/ecma402/#sec-intl.locale-internal-slots
         // 1.3.2 Internal slots, https://tc39.es/proposal-intl-locale-info/#sec-intl.locale-internal-slots
         // The value of the [[RelevantExtensionKeys]] internal slot is « "ca", "co", "fw", "hc", "kf", "kn", "nu" ».
         // If %Collator%.[[RelevantExtensionKeys]] does not contain "kf", then remove "kf" from %Locale%.[[RelevantExtensionKeys]].

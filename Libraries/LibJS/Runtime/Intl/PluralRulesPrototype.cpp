@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2022-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -15,7 +15,7 @@ namespace JS::Intl {
 
 GC_DEFINE_ALLOCATOR(PluralRulesPrototype);
 
-// 16.3 Properties of the Intl.PluralRules Prototype Object, https://tc39.es/ecma402/#sec-properties-of-intl-pluralrules-prototype-object
+// 17.3 Properties of the Intl.PluralRules Prototype Object, https://tc39.es/ecma402/#sec-properties-of-intl-pluralrules-prototype-object
 PluralRulesPrototype::PluralRulesPrototype(Realm& realm)
     : PrototypeObject(realm.intrinsics().object_prototype())
 {
@@ -27,7 +27,7 @@ void PluralRulesPrototype::initialize(Realm& realm)
 
     auto& vm = this->vm();
 
-    // 16.3.2 Intl.PluralRules.prototype [ @@toStringTag ], https://tc39.es/ecma402/#sec-intl.pluralrules.prototype-tostringtag
+    // 17.3.2 Intl.PluralRules.prototype [ @@toStringTag ], https://tc39.es/ecma402/#sec-intl.pluralrules.prototype-tostringtag
     define_direct_property(vm.well_known_symbol_to_string_tag(), PrimitiveString::create(vm, "Intl.PluralRules"_string), Attribute::Configurable);
 
     u8 attr = Attribute::Writable | Attribute::Configurable;
@@ -36,7 +36,7 @@ void PluralRulesPrototype::initialize(Realm& realm)
     define_native_function(realm, vm.names.resolvedOptions, resolved_options, 0, attr);
 }
 
-// 16.3.3 Intl.PluralRules.prototype.select ( value ), https://tc39.es/ecma402/#sec-intl.pluralrules.prototype.select
+// 17.3.3 Intl.PluralRules.prototype.select ( value ), https://tc39.es/ecma402/#sec-intl.pluralrules.prototype.select
 JS_DEFINE_NATIVE_FUNCTION(PluralRulesPrototype::select)
 {
     // 1. Let pr be the this value.
@@ -51,7 +51,7 @@ JS_DEFINE_NATIVE_FUNCTION(PluralRulesPrototype::select)
     return PrimitiveString::create(vm, Unicode::plural_category_to_string(plurality));
 }
 
-// 16.3.4 Intl.PluralRules.prototype.selectRange ( start, end ), https://tc39.es/ecma402/#sec-intl.pluralrules.prototype.selectrange
+// 17.3.4 Intl.PluralRules.prototype.selectRange ( start, end ), https://tc39.es/ecma402/#sec-intl.pluralrules.prototype.selectrange
 JS_DEFINE_NATIVE_FUNCTION(PluralRulesPrototype::select_range)
 {
     auto start = vm.argument(0);
@@ -78,7 +78,7 @@ JS_DEFINE_NATIVE_FUNCTION(PluralRulesPrototype::select_range)
     return PrimitiveString::create(vm, Unicode::plural_category_to_string(plurality));
 }
 
-// 16.3.5 Intl.PluralRules.prototype.resolvedOptions ( ), https://tc39.es/ecma402/#sec-intl.pluralrules.prototype.resolvedoptions
+// 17.3.5 Intl.PluralRules.prototype.resolvedOptions ( ), https://tc39.es/ecma402/#sec-intl.pluralrules.prototype.resolvedoptions
 JS_DEFINE_NATIVE_FUNCTION(PluralRulesPrototype::resolved_options)
 {
     auto& realm = *vm.current_realm();
@@ -98,7 +98,7 @@ JS_DEFINE_NATIVE_FUNCTION(PluralRulesPrototype::resolved_options)
         return PrimitiveString::create(vm, Unicode::plural_category_to_string(category));
     });
 
-    // 5. For each row of Table 16, except the header row, in table order, do
+    // 5. For each row of Table 29, except the header row, in table order, do
     //     a. Let p be the Property value of the current row.
     //     b. If p is "pluralCategories", then
     //         i. Let v be CreateArrayFromList(pluralCategories).

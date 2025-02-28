@@ -1607,7 +1607,7 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayPrototype::splice)
 }
 
 // 23.1.3.32 Array.prototype.toLocaleString ( [ reserved1 [ , reserved2 ] ] ), https://tc39.es/ecma262/#sec-array.prototype.tolocalestring
-// 19.5.1 Array.prototype.toLocaleString ( [ locales [ , options ] ] ), https://tc39.es/ecma402/#sup-array.prototype.tolocalestring
+// 20.5.1 Array.prototype.toLocaleString ( [ locales [ , options ] ] ), https://tc39.es/ecma402/#sup-array.prototype.tolocalestring
 JS_DEFINE_NATIVE_FUNCTION(ArrayPrototype::to_locale_string)
 {
     auto locales = vm.argument(0);

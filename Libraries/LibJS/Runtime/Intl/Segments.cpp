@@ -12,7 +12,7 @@ namespace JS::Intl {
 
 GC_DEFINE_ALLOCATOR(Segments);
 
-// 18.5.1 CreateSegmentsObject ( segmenter, string ), https://tc39.es/ecma402/#sec-createsegmentsobject
+// 19.5.1 CreateSegmentsObject ( segmenter, string ), https://tc39.es/ecma402/#sec-createsegmentsobject
 GC::Ref<Segments> Segments::create(Realm& realm, Unicode::Segmenter const& segmenter, Utf16String string)
 {
     // 1. Let internalSlotsList be « [[SegmentsSegmenter]], [[SegmentsString]] ».
@@ -23,7 +23,7 @@ GC::Ref<Segments> Segments::create(Realm& realm, Unicode::Segmenter const& segme
     return realm.create<Segments>(realm, segmenter, move(string));
 }
 
-// 18.5 Segments Objects, https://tc39.es/ecma402/#sec-segments-objects
+// 19.5 Segments Objects, https://tc39.es/ecma402/#sec-segments-objects
 Segments::Segments(Realm& realm, Unicode::Segmenter const& segmenter, Utf16String string)
     : Object(ConstructWithPrototypeTag::Tag, realm.intrinsics().intl_segments_prototype())
     , m_segments_segmenter(segmenter.clone())

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2022-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -13,7 +13,7 @@ namespace JS::Intl {
 
 GC_DEFINE_ALLOCATOR(RelativeTimeFormatPrototype);
 
-// 17.3 Properties of the Intl.RelativeTimeFormat Prototype Object, https://tc39.es/ecma402/#sec-properties-of-intl-relativetimeformat-prototype-object
+// 18.3 Properties of the Intl.RelativeTimeFormat Prototype Object, https://tc39.es/ecma402/#sec-properties-of-intl-relativetimeformat-prototype-object
 RelativeTimeFormatPrototype::RelativeTimeFormatPrototype(Realm& realm)
     : PrototypeObject(realm.intrinsics().object_prototype())
 {
@@ -25,7 +25,7 @@ void RelativeTimeFormatPrototype::initialize(Realm& realm)
 
     auto& vm = this->vm();
 
-    // 17.3.2 Intl.RelativeTimeFormat.prototype[ @@toStringTag ], https://tc39.es/ecma402/#sec-Intl.RelativeTimeFormat.prototype-toStringTag
+    // 18.3.2 Intl.RelativeTimeFormat.prototype[ @@toStringTag ], https://tc39.es/ecma402/#sec-Intl.RelativeTimeFormat.prototype-toStringTag
     define_direct_property(vm.well_known_symbol_to_string_tag(), PrimitiveString::create(vm, "Intl.RelativeTimeFormat"_string), Attribute::Configurable);
 
     u8 attr = Attribute::Writable | Attribute::Configurable;
@@ -34,7 +34,7 @@ void RelativeTimeFormatPrototype::initialize(Realm& realm)
     define_native_function(realm, vm.names.resolvedOptions, resolved_options, 0, attr);
 }
 
-// 17.3.3 Intl.RelativeTimeFormat.prototype.format ( value, unit ), https://tc39.es/ecma402/#sec-Intl.RelativeTimeFormat.prototype.format
+// 18.3.3 Intl.RelativeTimeFormat.prototype.format ( value, unit ), https://tc39.es/ecma402/#sec-Intl.RelativeTimeFormat.prototype.format
 JS_DEFINE_NATIVE_FUNCTION(RelativeTimeFormatPrototype::format)
 {
     // 1. Let relativeTimeFormat be the this value.
@@ -52,7 +52,7 @@ JS_DEFINE_NATIVE_FUNCTION(RelativeTimeFormatPrototype::format)
     return PrimitiveString::create(vm, move(formatted));
 }
 
-// 17.3.4 Intl.RelativeTimeFormat.prototype.formatToParts ( value, unit ), https://tc39.es/ecma402/#sec-Intl.RelativeTimeFormat.prototype.formatToParts
+// 18.3.4 Intl.RelativeTimeFormat.prototype.formatToParts ( value, unit ), https://tc39.es/ecma402/#sec-Intl.RelativeTimeFormat.prototype.formatToParts
 JS_DEFINE_NATIVE_FUNCTION(RelativeTimeFormatPrototype::format_to_parts)
 {
     // 1. Let relativeTimeFormat be the this value.
@@ -69,7 +69,7 @@ JS_DEFINE_NATIVE_FUNCTION(RelativeTimeFormatPrototype::format_to_parts)
     return TRY(format_relative_time_to_parts(vm, relative_time_format, value.as_double(), unit.bytes_as_string_view()));
 }
 
-// 17.3.5 Intl.RelativeTimeFormat.prototype.resolvedOptions ( ), https://tc39.es/ecma402/#sec-intl.relativetimeformat.prototype.resolvedoptions
+// 18.3.5 Intl.RelativeTimeFormat.prototype.resolvedOptions ( ), https://tc39.es/ecma402/#sec-intl.relativetimeformat.prototype.resolvedoptions
 JS_DEFINE_NATIVE_FUNCTION(RelativeTimeFormatPrototype::resolved_options)
 {
     auto& realm = *vm.current_realm();
@@ -81,7 +81,7 @@ JS_DEFINE_NATIVE_FUNCTION(RelativeTimeFormatPrototype::resolved_options)
     // 3. Let options be OrdinaryObjectCreate(%Object.prototype%).
     auto options = Object::create(realm, realm.intrinsics().object_prototype());
 
-    // 4. For each row of Table 15, except the header row, in table order, do
+    // 4. For each row of Table 30, except the header row, in table order, do
     //     a. Let p be the Property value of the current row.
     //     b. Let v be the value of relativeTimeFormat's internal slot whose name is the Internal Slot value of the current row.
     //     c. Assert: v is not undefined.

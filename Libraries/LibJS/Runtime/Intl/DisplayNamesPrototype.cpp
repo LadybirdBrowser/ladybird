@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -101,7 +101,7 @@ JS_DEFINE_NATIVE_FUNCTION(DisplayNamesPrototype::resolved_options)
     // 3. Let options be OrdinaryObjectCreate(%Object.prototype%).
     auto options = Object::create(realm, realm.intrinsics().object_prototype());
 
-    // 4. For each row of Table 8, except the header row, in table order, do
+    // 4. For each row of Table 18, except the header row, in table order, do
     //     a. Let p be the Property value of the current row.
     //     b. Let v be the value of displayNames's internal slot whose name is the Internal Slot value of the current row.
     //     c. Assert: v is not undefined.

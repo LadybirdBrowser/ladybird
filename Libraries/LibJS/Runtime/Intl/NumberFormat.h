@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -104,7 +104,7 @@ class NumberFormat final : public NumberFormatBase {
 public:
     static constexpr auto relevant_extension_keys()
     {
-        // 15.2.3 Internal slots, https://tc39.es/ecma402/#sec-intl.numberformat-internal-slots
+        // 16.2.3 Internal slots, https://tc39.es/ecma402/#sec-intl.numberformat-internal-slots
         // The value of the [[RelevantExtensionKeys]] internal slot is « "nu" ».
         return AK::Array { "nu"sv };
     }

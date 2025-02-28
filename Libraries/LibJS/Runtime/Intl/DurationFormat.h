@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2022, Idan Horowitz <idan.horowitz@serenityos.org>
- * Copyright (c) 2022-2024, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2022-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -67,7 +67,7 @@ public:
 
     static constexpr auto relevant_extension_keys()
     {
-        // 1.3.3 Internal slots, https://tc39.es/proposal-intl-duration-format/#sec-Intl.DurationFormat-internal-slots
+        // 13.3.3 Internal slots, https://tc39.es/ecma402/#sec-Intl.DurationFormat-internal-slots
         // The value of the [[RelevantExtensionKeys]] internal slot is « "nu" ».
         return AK::Array { "nu"sv };
     }
@@ -206,7 +206,7 @@ private:
     Optional<u8> m_fractional_digits;                     // [[FractionalDigits]]
 };
 
-// 1.1.1 Duration Records, https://tc39.es/proposal-intl-duration-format/#sec-duration-records
+// 13.1.1 Duration Records, https://tc39.es/ecma402/#sec-duration-records
 struct DurationRecord {
     double years { 0 };
     double months { 0 };
@@ -231,8 +231,8 @@ struct DurationInstanceComponent {
     DurationFormat::ValueStyle digital_default;
 };
 
-// Table 2: DurationFormat instance internal slots and properties relevant to PartitionDurationFormatPattern, https://tc39.es/proposal-intl-duration-format/#table-partition-duration-format-pattern
-// Table 3: Internal slots and property names of DurationFormat instances relevant to Intl.DurationFormat constructor, https://tc39.es/proposal-intl-duration-format/#table-durationformat
+// Table 21: DurationFormat instance internal slots and properties relevant to PartitionDurationFormatPattern, https://tc39.es/ecma402/#table-partition-duration-format-pattern
+// Table 22: Internal slots and property names of DurationFormat instances relevant to Intl.DurationFormat constructor, https://tc39.es/ecma402/#table-durationformat
 static constexpr auto date_values = AK::Array { "long"sv, "short"sv, "narrow"sv };
 static constexpr auto time_values = AK::Array { "long"sv, "short"sv, "narrow"sv, "numeric"sv, "2-digit"sv };
 static constexpr auto sub_second_values = AK::Array { "long"sv, "short"sv, "narrow"sv, "numeric"sv };

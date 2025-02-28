@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2022-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -18,13 +18,13 @@ namespace JS::Intl {
 
 GC_DEFINE_ALLOCATOR(RelativeTimeFormat);
 
-// 17 RelativeTimeFormat Objects, https://tc39.es/ecma402/#relativetimeformat-objects
+// 18 RelativeTimeFormat Objects, https://tc39.es/ecma402/#relativetimeformat-objects
 RelativeTimeFormat::RelativeTimeFormat(Object& prototype)
     : Object(ConstructWithPrototypeTag::Tag, prototype)
 {
 }
 
-// 17.5.1 SingularRelativeTimeUnit ( unit ), https://tc39.es/ecma402/#sec-singularrelativetimeunit
+// 18.5.1 SingularRelativeTimeUnit ( unit ), https://tc39.es/ecma402/#sec-singularrelativetimeunit
 ThrowCompletionOr<Unicode::TimeUnit> singular_relative_time_unit(VM& vm, StringView unit)
 {
     // 1. If unit is "seconds", return "second".
@@ -59,7 +59,7 @@ ThrowCompletionOr<Unicode::TimeUnit> singular_relative_time_unit(VM& vm, StringV
     return vm.throw_completion<RangeError>(ErrorType::IntlInvalidUnit, unit);
 }
 
-// 17.5.2 PartitionRelativeTimePattern ( relativeTimeFormat, value, unit ), https://tc39.es/ecma402/#sec-PartitionRelativeTimePattern
+// 18.5.2 PartitionRelativeTimePattern ( relativeTimeFormat, value, unit ), https://tc39.es/ecma402/#sec-PartitionRelativeTimePattern
 ThrowCompletionOr<Vector<Unicode::RelativeTimeFormat::Partition>> partition_relative_time_pattern(VM& vm, RelativeTimeFormat& relative_time_format, double value, StringView unit)
 {
     // 1. If value is NaN, +∞𝔽, or -∞𝔽, throw a RangeError exception.
@@ -72,7 +72,7 @@ ThrowCompletionOr<Vector<Unicode::RelativeTimeFormat::Partition>> partition_rela
     return relative_time_format.formatter().format_to_parts(value, time_unit, relative_time_format.numeric());
 }
 
-// 17.5.4 FormatRelativeTime ( relativeTimeFormat, value, unit ), https://tc39.es/ecma402/#sec-FormatRelativeTime
+// 18.5.4 FormatRelativeTime ( relativeTimeFormat, value, unit ), https://tc39.es/ecma402/#sec-FormatRelativeTime
 ThrowCompletionOr<String> format_relative_time(VM& vm, RelativeTimeFormat& relative_time_format, double value, StringView unit)
 {
     // 1. Let parts be ? PartitionRelativeTimePattern(relativeTimeFormat, value, unit).
@@ -95,7 +95,7 @@ ThrowCompletionOr<String> format_relative_time(VM& vm, RelativeTimeFormat& relat
     return relative_time_format.formatter().format(value, time_unit, relative_time_format.numeric());
 }
 
-// 17.5.5 FormatRelativeTimeToParts ( relativeTimeFormat, value, unit ), https://tc39.es/ecma402/#sec-FormatRelativeTimeToParts
+// 18.5.5 FormatRelativeTimeToParts ( relativeTimeFormat, value, unit ), https://tc39.es/ecma402/#sec-FormatRelativeTimeToParts
 ThrowCompletionOr<GC::Ref<Array>> format_relative_time_to_parts(VM& vm, RelativeTimeFormat& relative_time_format, double value, StringView unit)
 {
     auto& realm = *vm.current_realm();

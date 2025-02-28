@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -15,7 +15,7 @@ namespace JS::Intl {
 
 GC_DEFINE_ALLOCATOR(LocalePrototype);
 
-// 14.3 Properties of the Intl.Locale Prototype Object, https://tc39.es/ecma402/#sec-properties-of-intl-locale-prototype-object
+// 15.3 Properties of the Intl.Locale Prototype Object, https://tc39.es/ecma402/#sec-properties-of-intl-locale-prototype-object
 LocalePrototype::LocalePrototype(Realm& realm)
     : PrototypeObject(realm.intrinsics().object_prototype())
 {
@@ -39,7 +39,7 @@ void LocalePrototype::initialize(Realm& realm)
     define_native_function(realm, vm.names.getTextInfo, get_text_info, 0, attr);
     define_native_function(realm, vm.names.getWeekInfo, get_week_info, 0, attr);
 
-    // 14.3.2 Intl.Locale.prototype[ @@toStringTag ], https://tc39.es/ecma402/#sec-Intl.Locale.prototype-@@tostringtag
+    // 15.3.2 Intl.Locale.prototype[ @@toStringTag ], https://tc39.es/ecma402/#sec-Intl.Locale.prototype-@@tostringtag
     define_direct_property(vm.well_known_symbol_to_string_tag(), PrimitiveString::create(vm, "Intl.Locale"_string), Attribute::Configurable);
 
     define_native_accessor(realm, vm.names.baseName, base_name, {}, Attribute::Configurable);
@@ -55,7 +55,7 @@ void LocalePrototype::initialize(Realm& realm)
     define_native_accessor(realm, vm.names.region, region, {}, Attribute::Configurable);
 }
 
-// 14.3.3 Intl.Locale.prototype.maximize ( ), https://tc39.es/ecma402/#sec-Intl.Locale.prototype.maximize
+// 15.3.3 Intl.Locale.prototype.maximize ( ), https://tc39.es/ecma402/#sec-Intl.Locale.prototype.maximize
 JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::maximize)
 {
     auto& realm = *vm.current_realm();
@@ -71,7 +71,7 @@ JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::maximize)
     return Locale::create(realm, locale_object, move(maximal));
 }
 
-// 14.3.4 Intl.Locale.prototype.minimize ( ), https://tc39.es/ecma402/#sec-Intl.Locale.prototype.minimize
+// 15.3.4 Intl.Locale.prototype.minimize ( ), https://tc39.es/ecma402/#sec-Intl.Locale.prototype.minimize
 JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::minimize)
 {
     auto& realm = *vm.current_realm();
@@ -87,7 +87,7 @@ JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::minimize)
     return Locale::create(realm, locale_object, move(minimal));
 }
 
-// 14.3.5 Intl.Locale.prototype.toString ( ), https://tc39.es/ecma402/#sec-Intl.Locale.prototype.toString
+// 15.3.5 Intl.Locale.prototype.toString ( ), https://tc39.es/ecma402/#sec-Intl.Locale.prototype.toString
 JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::to_string)
 {
     // 1. Let loc be the this value.
@@ -98,7 +98,7 @@ JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::to_string)
     return PrimitiveString::create(vm, locale_object->locale());
 }
 
-// 14.3.6 get Intl.Locale.prototype.baseName, https://tc39.es/ecma402/#sec-Intl.Locale.prototype.baseName
+// 15.3.6 get Intl.Locale.prototype.baseName, https://tc39.es/ecma402/#sec-Intl.Locale.prototype.baseName
 JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::base_name)
 {
     // 1. Let loc be the this value.
@@ -121,12 +121,12 @@ JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::base_name)
     __JS_ENUMERATE(hour_cycle)                 \
     __JS_ENUMERATE(numbering_system)
 
-// 14.3.7 get Intl.Locale.prototype.calendar, https://tc39.es/ecma402/#sec-Intl.Locale.prototype.calendar
-// 14.3.8 get Intl.Locale.prototype.caseFirst, https://tc39.es/ecma402/#sec-Intl.Locale.prototype.caseFirst
-// 14.3.9 get Intl.Locale.prototype.collation, https://tc39.es/ecma402/#sec-Intl.Locale.prototype.collation
+// 15.3.7 get Intl.Locale.prototype.calendar, https://tc39.es/ecma402/#sec-Intl.Locale.prototype.calendar
+// 15.3.8 get Intl.Locale.prototype.caseFirst, https://tc39.es/ecma402/#sec-Intl.Locale.prototype.caseFirst
+// 15.3.9 get Intl.Locale.prototype.collation, https://tc39.es/ecma402/#sec-Intl.Locale.prototype.collation
 // 1.4.10 get Intl.Locale.prototype.firstDayOfWeek, https://tc39.es/proposal-intl-locale-info/#sec-Intl.Locale.prototype.firstDayOfWeek
-// 14.3.10 get Intl.Locale.prototype.hourCycle, https://tc39.es/ecma402/#sec-Intl.Locale.prototype.hourCycle
-// 14.3.12 get Intl.Locale.prototype.numberingSystem, https://tc39.es/ecma402/#sec-Intl.Locale.prototype.numberingSystem
+// 15.3.10 get Intl.Locale.prototype.hourCycle, https://tc39.es/ecma402/#sec-Intl.Locale.prototype.hourCycle
+// 15.3.12 get Intl.Locale.prototype.numberingSystem, https://tc39.es/ecma402/#sec-Intl.Locale.prototype.numberingSystem
 #define __JS_ENUMERATE(keyword)                                       \
     JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::keyword)               \
     {                                                                 \
@@ -138,7 +138,7 @@ JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::base_name)
 JS_ENUMERATE_LOCALE_KEYWORD_PROPERTIES
 #undef __JS_ENUMERATE
 
-// 14.3.11 get Intl.Locale.prototype.numeric, https://tc39.es/ecma402/#sec-Intl.Locale.prototype.numeric
+// 15.3.11 get Intl.Locale.prototype.numeric, https://tc39.es/ecma402/#sec-Intl.Locale.prototype.numeric
 JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::numeric)
 {
     // 1. Let loc be the this value.
@@ -149,7 +149,7 @@ JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::numeric)
     return Value(locale_object->numeric());
 }
 
-// 14.3.13 get Intl.Locale.prototype.language, https://tc39.es/ecma402/#sec-Intl.Locale.prototype.language
+// 15.3.13 get Intl.Locale.prototype.language, https://tc39.es/ecma402/#sec-Intl.Locale.prototype.language
 JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::language)
 {
     // 1. Let loc be the this value.
@@ -166,7 +166,7 @@ JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::language)
     return PrimitiveString::create(vm, locale->language_id.language.release_value());
 }
 
-// 14.3.14 get Intl.Locale.prototype.script, https://tc39.es/ecma402/#sec-Intl.Locale.prototype.script
+// 15.3.14 get Intl.Locale.prototype.script, https://tc39.es/ecma402/#sec-Intl.Locale.prototype.script
 JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::script)
 {
     // 1. Let loc be the this value.
@@ -187,7 +187,7 @@ JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::script)
     return PrimitiveString::create(vm, locale->language_id.script.release_value());
 }
 
-// 14.3.15 get Intl.Locale.prototype.region, https://tc39.es/ecma402/#sec-Intl.Locale.prototype.region
+// 15.3.15 get Intl.Locale.prototype.region, https://tc39.es/ecma402/#sec-Intl.Locale.prototype.region
 JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::region)
 {
     // 1. Let loc be the this value.

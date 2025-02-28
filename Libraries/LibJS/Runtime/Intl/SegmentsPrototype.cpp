@@ -13,7 +13,7 @@ namespace JS::Intl {
 
 GC_DEFINE_ALLOCATOR(SegmentsPrototype);
 
-// 18.5.2 The %SegmentsPrototype% Object, https://tc39.es/ecma402/#sec-%segmentsprototype%-object
+// 19.5.2 The %SegmentsPrototype% Object, https://tc39.es/ecma402/#sec-%segmentsprototype%-object
 SegmentsPrototype::SegmentsPrototype(Realm& realm)
     : PrototypeObject(realm.intrinsics().object_prototype())
 {
@@ -30,7 +30,7 @@ void SegmentsPrototype::initialize(Realm& realm)
     define_native_function(realm, vm.names.containing, containing, 1, attr);
 }
 
-// 18.5.2.1 %SegmentsPrototype%.containing ( index ), https://tc39.es/ecma402/#sec-%segmentsprototype%.containing
+// 19.5.2.1 %SegmentsPrototype%.containing ( index ), https://tc39.es/ecma402/#sec-%segmentsprototype%.containing
 JS_DEFINE_NATIVE_FUNCTION(SegmentsPrototype::containing)
 {
     // 1. Let segments be the this value.
@@ -63,7 +63,7 @@ JS_DEFINE_NATIVE_FUNCTION(SegmentsPrototype::containing)
     return TRY(create_segment_data_object(vm, segmenter, string, start_index, end_index));
 }
 
-// 18.5.2.2 %SegmentsPrototype% [ @@iterator ] ( ), https://tc39.es/ecma402/#sec-%segmentsprototype%-@@iterator
+// 19.5.2.2 %SegmentsPrototype% [ @@iterator ] ( ), https://tc39.es/ecma402/#sec-%segmentsprototype%-@@iterator
 JS_DEFINE_NATIVE_FUNCTION(SegmentsPrototype::symbol_iterator)
 {
     auto& realm = *vm.current_realm();

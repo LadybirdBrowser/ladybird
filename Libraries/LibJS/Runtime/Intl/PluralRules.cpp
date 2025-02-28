@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2022-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -10,13 +10,13 @@ namespace JS::Intl {
 
 GC_DEFINE_ALLOCATOR(PluralRules);
 
-// 16 PluralRules Objects, https://tc39.es/ecma402/#pluralrules-objects
+// 17 PluralRules Objects, https://tc39.es/ecma402/#pluralrules-objects
 PluralRules::PluralRules(Object& prototype)
     : NumberFormatBase(prototype)
 {
 }
 
-// 16.5.2 ResolvePlural ( pluralRules, n ), https://tc39.es/ecma402/#sec-resolveplural
+// 17.5.2 ResolvePlural ( pluralRules, n ), https://tc39.es/ecma402/#sec-resolveplural
 Unicode::PluralCategory resolve_plural(PluralRules const& plural_rules, Value number)
 {
     // 1. If n is not a finite Number, then
@@ -35,7 +35,7 @@ Unicode::PluralCategory resolve_plural(PluralRules const& plural_rules, Value nu
     return plural_rules.formatter().select_plural(number.as_double());
 }
 
-// 16.5.4 ResolvePluralRange ( pluralRules, x, y ), https://tc39.es/ecma402/#sec-resolveplural
+// 17.5.4 ResolvePluralRange ( pluralRules, x, y ), https://tc39.es/ecma402/#sec-resolveplural
 ThrowCompletionOr<Unicode::PluralCategory> resolve_plural_range(VM& vm, PluralRules const& plural_rules, Value start, Value end)
 {
     // 1. If x is NaN or y is NaN, throw a RangeError exception.

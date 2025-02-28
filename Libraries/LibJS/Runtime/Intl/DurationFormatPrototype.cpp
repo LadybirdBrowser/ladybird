@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2022, Idan Horowitz <idan.horowitz@serenityos.org>
- * Copyright (c) 2022-2024, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2022-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -15,7 +15,7 @@ namespace JS::Intl {
 
 GC_DEFINE_ALLOCATOR(DurationFormatPrototype);
 
-// 1.4 Properties of the Intl.DurationFormat Prototype Object, https://tc39.es/proposal-intl-duration-format/#sec-properties-of-intl-durationformat-prototype-object
+// 13.4 Properties of the Intl.DurationFormat Prototype Object, https://tc39.es/ecma402/#sec-properties-of-intl-durationformat-prototype-object
 DurationFormatPrototype::DurationFormatPrototype(Realm& realm)
     : PrototypeObject(realm.intrinsics().object_prototype())
 {
@@ -27,7 +27,7 @@ void DurationFormatPrototype::initialize(Realm& realm)
 
     auto& vm = this->vm();
 
-    // 1.4.2 Intl.DurationFormat.prototype [ @@toStringTag ], https://tc39.es/proposal-intl-duration-format/#sec-Intl.DurationFormat.prototype-@@tostringtag
+    // 13.4.2 Intl.DurationFormat.prototype [ @@toStringTag ], https://tc39.es/ecma402/#sec-Intl.DurationFormat.prototype-@@tostringtag
     define_direct_property(vm.well_known_symbol_to_string_tag(), PrimitiveString::create(vm, "Intl.DurationFormat"_string), Attribute::Configurable);
 
     u8 attr = Attribute::Writable | Attribute::Configurable;
@@ -36,7 +36,7 @@ void DurationFormatPrototype::initialize(Realm& realm)
     define_native_function(realm, vm.names.resolvedOptions, resolved_options, 0, attr);
 }
 
-// 1.4.3 Intl.DurationFormat.prototype.format ( duration ), https://tc39.es/proposal-intl-duration-format/#sec-Intl.DurationFormat.prototype.format
+// 13.4.3 Intl.DurationFormat.prototype.format ( duration ), https://tc39.es/ecma402/#sec-Intl.DurationFormat.prototype.format
 JS_DEFINE_NATIVE_FUNCTION(DurationFormatPrototype::format)
 {
     // 1. Let df be this value.
@@ -62,7 +62,7 @@ JS_DEFINE_NATIVE_FUNCTION(DurationFormatPrototype::format)
     return PrimitiveString::create(vm, MUST(result.to_string()));
 }
 
-// 1.4.4 Intl.DurationFormat.prototype.formatToParts ( duration ), https://tc39.es/proposal-intl-duration-format/#sec-Intl.DurationFormat.prototype.formatToParts
+// 13.4.4 Intl.DurationFormat.prototype.formatToParts ( duration ), https://tc39.es/ecma402/#sec-Intl.DurationFormat.prototype.formatToParts
 JS_DEFINE_NATIVE_FUNCTION(DurationFormatPrototype::format_to_parts)
 {
     auto& realm = *vm.current_realm();
@@ -106,7 +106,7 @@ JS_DEFINE_NATIVE_FUNCTION(DurationFormatPrototype::format_to_parts)
     return result;
 }
 
-// 1.4.5 Intl.DurationFormat.prototype.resolvedOptions ( ), https://tc39.es/proposal-intl-duration-format/#sec-Intl.DurationFormat.prototype.resolvedOptions
+// 13.4.5 Intl.DurationFormat.prototype.resolvedOptions ( ), https://tc39.es/ecma402/#sec-Intl.DurationFormat.prototype.resolvedOptions
 JS_DEFINE_NATIVE_FUNCTION(DurationFormatPrototype::resolved_options)
 {
     auto& realm = *vm.current_realm();
@@ -118,7 +118,7 @@ JS_DEFINE_NATIVE_FUNCTION(DurationFormatPrototype::resolved_options)
     // 3. Let options be OrdinaryObjectCreate(%Object.prototype%).
     auto options = Object::create(realm, realm.intrinsics().object_prototype());
 
-    // 4. For each row of Table 4, except the header row, in table order, do
+    // 4. For each row of Table 23, except the header row, in table order, do
     auto create_option = [&](PropertyKey const& property, StringView value) {
         // a. Let p be the Property value of the current row.
         // b. Let v be the value of df's internal slot whose name is the Internal Slot value of the current row.

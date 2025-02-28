@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -42,7 +42,7 @@ static ThrowCompletionOr<Optional<String>> get_string_option(VM& vm, Object cons
     return option.as_string().utf8_string();
 }
 
-// 14.1.2 ApplyOptionsToTag ( tag, options ), https://tc39.es/ecma402/#sec-apply-options-to-tag
+// 15.1.2 ApplyOptionsToTag ( tag, options ), https://tc39.es/ecma402/#sec-apply-options-to-tag
 static ThrowCompletionOr<String> apply_options_to_tag(VM& vm, StringView tag, Object const& options)
 {
     // 1. Assert: Type(tag) is String.
@@ -108,7 +108,7 @@ static ThrowCompletionOr<String> apply_options_to_tag(VM& vm, StringView tag, Ob
     return JS::Intl::canonicalize_unicode_locale_id(canonicalized_tag);
 }
 
-// 14.1.3 ApplyUnicodeExtensionToTag ( tag, options, relevantExtensionKeys ), https://tc39.es/ecma402/#sec-apply-unicode-extension-to-tag
+// 15.1.3 ApplyUnicodeExtensionToTag ( tag, options, relevantExtensionKeys ), https://tc39.es/ecma402/#sec-apply-unicode-extension-to-tag
 static LocaleAndKeys apply_unicode_extension_to_tag(StringView tag, LocaleAndKeys options, ReadonlySpan<StringView> relevant_extension_keys)
 {
     auto locale_id = Unicode::parse_unicode_locale_id(tag);
@@ -218,7 +218,7 @@ static LocaleAndKeys apply_unicode_extension_to_tag(StringView tag, LocaleAndKey
     return result;
 }
 
-// 14.1 The Intl.Locale Constructor, https://tc39.es/ecma402/#sec-intl-locale-constructor
+// 15.1 The Intl.Locale Constructor, https://tc39.es/ecma402/#sec-intl-locale-constructor
 LocaleConstructor::LocaleConstructor(Realm& realm)
     : NativeFunction(realm.vm().names.Locale.as_string(), realm.intrinsics().function_prototype())
 {
@@ -235,14 +235,14 @@ void LocaleConstructor::initialize(Realm& realm)
     define_direct_property(vm.names.length, Value(1), Attribute::Configurable);
 }
 
-// 14.1.1 Intl.Locale ( tag [ , options ] ), https://tc39.es/ecma402/#sec-Intl.Locale
+// 15.1.1 Intl.Locale ( tag [ , options ] ), https://tc39.es/ecma402/#sec-Intl.Locale
 ThrowCompletionOr<Value> LocaleConstructor::call()
 {
     // 1. If NewTarget is undefined, throw a TypeError exception.
     return vm().throw_completion<TypeError>(ErrorType::ConstructorWithoutNew, "Intl.Locale");
 }
 
-// 14.1.1 Intl.Locale ( tag [ , options ] ), https://tc39.es/ecma402/#sec-Intl.Locale
+// 15.1.1 Intl.Locale ( tag [ , options ] ), https://tc39.es/ecma402/#sec-Intl.Locale
 // 1.2.3 Intl.Locale ( tag [ , options ] ), https://tc39.es/proposal-intl-locale-info/#sec-Intl.Locale
 ThrowCompletionOr<GC::Ref<Object>> LocaleConstructor::construct(FunctionObject& new_target)
 {
