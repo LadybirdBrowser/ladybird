@@ -26,7 +26,8 @@ public:
     virtual ~PolicyContainer() = default;
 
     // https://html.spec.whatwg.org/multipage/origin.html#policy-container-csp-list
-    // FIXME: A CSP list, which is a CSP list. It is initially empty.
+    // A CSP list, which is a CSP list. It is initially empty.
+    GC::Ref<ContentSecurityPolicy::PolicyList> csp_list;
 
     // https://html.spec.whatwg.org/multipage/origin.html#policy-container-embedder-policy
     // An embedder policy, which is an embedder policy. It is initially a new embedder policy.
@@ -38,6 +39,9 @@ public:
 
     [[nodiscard]] GC::Ref<PolicyContainer> clone(JS::Realm&) const;
     [[nodiscard]] SerializedPolicyContainer serialize() const;
+
+protected:
+    virtual void visit_edges(Cell::Visitor&) override;
 
 private:
     PolicyContainer(JS::Realm&);

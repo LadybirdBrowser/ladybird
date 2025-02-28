@@ -98,6 +98,17 @@ class CompressionStream;
 class DecompressionStream;
 }
 
+namespace Web::ContentSecurityPolicy {
+class Policy;
+class PolicyList;
+struct SerializedPolicy;
+}
+
+namespace Web::ContentSecurityPolicy::Directives {
+class Directive;
+struct SerializedDirective;
+}
+
 namespace Web::Cookie {
 struct Cookie;
 struct ParsedCookie;
