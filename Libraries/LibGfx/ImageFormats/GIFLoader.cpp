@@ -127,8 +127,12 @@ static void clear_rect(Bitmap& bitmap, IntRect const& rect, Color color)
     ARGB32* dst = bitmap.scanline(intersection_rect.top()) + intersection_rect.left();
     size_t const dst_skip = bitmap.pitch() / sizeof(ARGB32);
 
+    auto const value = color.value();
+    auto const width = intersection_rect.width();
     for (int i = intersection_rect.height() - 1; i >= 0; --i) {
-        fast_u32_fill(dst, color.value(), intersection_rect.width());
+        for (ARGB32* p = dst; p < (dst + width); ++p) {
+            *p = value;
+        }
         dst += dst_skip;
     }
 }
