@@ -209,7 +209,7 @@ ThrowCompletionOr<DurationRecord> to_duration_record(VM& vm, Value input)
         auto value = TRY(input_object.get(name));
 
         if (!value.is_undefined()) {
-            value_slot = TRY(Temporal::to_integer_if_integral(vm, value, ErrorType::TemporalInvalidDurationPropertyValueNonIntegral, name, value));
+            value_slot = TRY(to_integer_if_integral(vm, value, ErrorType::TemporalInvalidDurationPropertyValueNonIntegral, name, value));
             any_defined = true;
         }
 

@@ -325,6 +325,21 @@ struct YearWeek {
     Optional<i32> year;
 };
 
+// 14.5.1.1 ToIntegerIfIntegral ( argument ), https://tc39.es/proposal-temporal/#sec-tointegerifintegral
+template<typename... Args>
+ThrowCompletionOr<double> to_integer_if_integral(VM& vm, Value argument, ErrorType error_type, Args&&... args)
+{
+    // 1. Let number be ? ToNumber(argument).
+    auto number = TRY(argument.to_number(vm));
+
+    // 2. If number is not an integral Number, throw a RangeError exception.
+    if (!number.is_integral_number())
+        return vm.throw_completion<RangeError>(error_type, forward<Args>(args)...);
+
+    // 3. Return ℝ(number).
+    return number.as_double();
+}
+
 enum class OptionType {
     Boolean,
     String,
