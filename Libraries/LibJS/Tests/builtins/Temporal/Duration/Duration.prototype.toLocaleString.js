@@ -5,7 +5,7 @@ describe("correct behavior", () => {
 
     test("basic functionality", () => {
         expect(new Temporal.Duration(1, 2, 3, 4, 5, 6, 7, 8, 9, 10).toLocaleString()).toBe(
-            "P1Y2M3W4DT5H6M7.00800901S"
+            "1 yr, 2 mths, 3 wks, 4 days, 5 hr, 6 min, 7 sec, 8 ms, 9 μs, 10 ns"
         );
     });
 });

@@ -5,6 +5,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/Runtime/AbstractOperations.h>
+#include <LibJS/Runtime/Intl/DurationFormat.h>
+#include <LibJS/Runtime/Intl/DurationFormatConstructor.h>
 #include <LibJS/Runtime/Temporal/Calendar.h>
 #include <LibJS/Runtime/Temporal/Duration.h>
 #include <LibJS/Runtime/Temporal/DurationPrototype.h>
@@ -625,15 +628,35 @@ JS_DEFINE_NATIVE_FUNCTION(DurationPrototype::to_json)
 }
 
 // 7.3.24 Temporal.Duration.prototype.toLocaleString ( [ locales [ , options ] ] ), https://tc39.es/proposal-temporal/#sec-temporal.duration.prototype.tolocalestring
-// NOTE: This is the minimum toLocaleString implementation for engines without ECMA-402.
+// 15.11.1.1 Temporal.Duration.prototype.toLocaleString ( [ locales [ , options ] ] ), https://tc39.es/proposal-temporal/#sup-temporal.duration.prototype.tolocalestring
 JS_DEFINE_NATIVE_FUNCTION(DurationPrototype::to_locale_string)
 {
+    auto& realm = *vm.current_realm();
+
+    auto locales = vm.argument(0);
+    auto options = vm.argument(1);
+
     // 1. Let duration be the this value.
     // 2. Perform ? RequireInternalSlot(duration, [[InitializedTemporalDuration]]).
     auto duration = TRY(typed_this_object(vm));
 
-    // 3. Return TemporalDurationToString(duration, AUTO).
-    return PrimitiveString::create(vm, temporal_duration_to_string(duration, Auto {}));
+    // 3. Let formatter be ? Construct(%Intl.DurationFormat%, « locales, options »).
+    auto& formatter = static_cast<Intl::DurationFormat&>(*TRY(construct(vm, realm.intrinsics().intl_duration_format_constructor(), locales, options)));
+
+    // 4. Let parts be PartitionDurationFormatPattern(formatter, duration).
+    auto parts = partition_duration_format_pattern(vm, formatter, duration);
+
+    // 5. Let result be the empty String.
+    StringBuilder result;
+
+    // 6. For each Record { [[Type]], [[Value]], [[Unit]] } part in parts, do
+    for (auto const& part : parts) {
+        // a. Set result to the string-concatenation of result and part.[[Value]].
+        result.append(part.value);
+    }
+
+    // 7. Return result.
+    return PrimitiveString::create(vm, MUST(result.to_string()));
 }
 
 // 7.3.25 Temporal.Duration.prototype.valueOf ( ), https://tc39.es/proposal-temporal/#sec-temporal.duration.prototype.valueof
