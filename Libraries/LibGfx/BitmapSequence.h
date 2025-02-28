@@ -14,7 +14,7 @@
 namespace Gfx {
 
 struct BitmapSequence {
-    Vector<Optional<NonnullRefPtr<Gfx::Bitmap>>> bitmaps;
+    Vector<RefPtr<Gfx::Bitmap>> bitmaps;
 };
 
 // a struct to temporarily store bitmap fields before the buffer data is decoded
