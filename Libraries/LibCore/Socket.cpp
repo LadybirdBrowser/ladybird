@@ -51,7 +51,7 @@ ErrorOr<int> Socket::create_fd(SocketDomain domain, SocketType type)
 #endif
 }
 
-ErrorOr<Variant<IPv4Address, IPv6Address>> Socket::resolve_host(ByteString const& host, SocketType type)
+ErrorOr<Vector<Variant<IPv4Address, IPv6Address>>> Socket::resolve_host(ByteString const& host, SocketType type)
 {
     int socket_type;
     switch (type) {
@@ -73,22 +73,26 @@ ErrorOr<Variant<IPv4Address, IPv6Address>> Socket::resolve_host(ByteString const
 
     auto const results = TRY(Core::System::getaddrinfo(host.characters(), nullptr, hints));
 
+    Vector<Variant<IPv4Address, IPv6Address>> addresses;
+
     for (auto const& result : results.addresses()) {
         if (result.ai_family == AF_INET6) {
             auto* socket_address = bit_cast<struct sockaddr_in6*>(result.ai_addr);
             auto address = IPv6Address { socket_address->sin6_addr.s6_addr };
-
-            return address;
+            addresses.append(address);
         }
 
         if (result.ai_family == AF_INET) {
             auto* socket_address = bit_cast<struct sockaddr_in*>(result.ai_addr);
             NetworkOrdered<u32> const network_ordered_address { socket_address->sin_addr.s_addr };
-            return IPv4Address { network_ordered_address };
+            addresses.append(IPv4Address { network_ordered_address });
         }
     }
 
-    return Error::from_string_literal("Could not resolve to IPv4 or IPv6 address");
+    if (addresses.is_empty())
+        return Error::from_string_literal("Could not resolve to IPv4 or IPv6 address");
+
+    return addresses;
 }
 
 ErrorOr<void> Socket::connect_local(int fd, ByteString const& path)
@@ -214,9 +218,13 @@ void PosixSocketHelper::setup_notifier()
 
 ErrorOr<NonnullOwnPtr<TCPSocket>> TCPSocket::connect(ByteString const& host, u16 port)
 {
-    auto ip_address = TRY(resolve_host(host, SocketType::Stream));
+    auto ip_addresses = TRY(resolve_host(host, SocketType::Stream));
 
-    return ip_address.visit([port](auto address) { return connect(SocketAddress { address, port }); });
+    // It should return an error instead of an empty vector.
+    VERIFY(!ip_addresses.is_empty());
+
+    // FIXME: Support trying to connect to multiple IP addresses (e.g. if one of them doesn't seem to be working, try another one)
+    return ip_addresses.first().visit([port](auto address) { return connect(SocketAddress { address, port }); });
 }
 
 ErrorOr<NonnullOwnPtr<TCPSocket>> TCPSocket::connect(SocketAddress const& address)
@@ -261,9 +269,13 @@ ErrorOr<size_t> PosixSocketHelper::pending_bytes() const
 
 ErrorOr<NonnullOwnPtr<UDPSocket>> UDPSocket::connect(ByteString const& host, u16 port, Optional<AK::Duration> timeout)
 {
-    auto ip_address = TRY(resolve_host(host, SocketType::Datagram));
+    auto ip_addresses = TRY(resolve_host(host, SocketType::Datagram));
 
-    return ip_address.visit([port, timeout](auto address) { return connect(SocketAddress { address, port }, timeout); });
+    // It should return an error instead of an empty vector.
+    VERIFY(!ip_addresses.is_empty());
+
+    // FIXME: Support trying to connect to multiple IP addresses (e.g. if one of them doesn't seem to be working, try another one)
+    return ip_addresses.first().visit([port, timeout](auto address) { return connect(SocketAddress { address, port }, timeout); });
 }
 
 ErrorOr<NonnullOwnPtr<UDPSocket>> UDPSocket::connect(SocketAddress const& address, Optional<AK::Duration> timeout)
