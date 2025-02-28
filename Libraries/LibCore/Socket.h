@@ -58,7 +58,7 @@ public:
 
     // FIXME: This will need to be updated when IPv6 socket arrives. Perhaps a
     //        base class for all address types is appropriate.
-    static ErrorOr<Variant<IPv4Address, IPv6Address>> resolve_host(ByteString const&, SocketType);
+    static ErrorOr<Vector<Variant<IPv4Address, IPv6Address>>> resolve_host(ByteString const&, SocketType);
 
     Function<void()> on_ready_to_read;
 
