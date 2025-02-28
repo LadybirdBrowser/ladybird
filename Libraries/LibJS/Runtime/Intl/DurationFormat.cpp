@@ -17,7 +17,6 @@
 #include <LibJS/Runtime/Intl/PluralRules.h>
 #include <LibJS/Runtime/Intl/PluralRulesConstructor.h>
 #include <LibJS/Runtime/Intl/RelativeTimeFormat.h>
-#include <LibJS/Runtime/Temporal/Duration.h>
 #include <LibJS/Runtime/ValueInlines.h>
 
 namespace JS::Intl {
@@ -186,108 +185,6 @@ static GC::Ref<ListFormat> construct_list_format(VM& vm, DurationFormat const& d
     return static_cast<ListFormat&>(*list_format);
 }
 
-// 13.1.3 ToDurationRecord ( input ), https://tc39.es/ecma402/#sec-todurationrecord
-ThrowCompletionOr<DurationRecord> to_duration_record(VM& vm, Value input)
-{
-    // 1. If input is not an Object, then
-    if (!input.is_object()) {
-        // a. If input is a String, throw a RangeError exception.
-        if (input.is_string())
-            return vm.throw_completion<RangeError>(ErrorType::NotAnObject, input);
-
-        // b. Throw a TypeError exception.
-        return vm.throw_completion<TypeError>(ErrorType::NotAnObject, input);
-    }
-
-    auto& input_object = input.as_object();
-
-    // 2. Let result be a new Duration Record with each field set to 0.
-    DurationRecord result {};
-    bool any_defined = false;
-
-    auto set_duration_record_value = [&](auto const& name, auto& value_slot) -> ThrowCompletionOr<void> {
-        auto value = TRY(input_object.get(name));
-
-        if (!value.is_undefined()) {
-            value_slot = TRY(to_integer_if_integral(vm, value, ErrorType::TemporalInvalidDurationPropertyValueNonIntegral, name, value));
-            any_defined = true;
-        }
-
-        return {};
-    };
-
-    // 3. Let days be ? Get(input, "days").
-    // 4. If days is not undefined, set result.[[Days]] to ? ToIntegerIfIntegral(days).
-    TRY(set_duration_record_value(vm.names.days, result.days));
-
-    // 5. Let hours be ? Get(input, "hours").
-    // 6. If hours is not undefined, set result.[[Hours]] to ? ToIntegerIfIntegral(hours).
-    TRY(set_duration_record_value(vm.names.hours, result.hours));
-
-    // 7. Let microseconds be ? Get(input, "microseconds").
-    // 8. If microseconds is not undefined, set result.[[Microseconds]] to ? ToIntegerIfIntegral(microseconds).
-    TRY(set_duration_record_value(vm.names.microseconds, result.microseconds));
-
-    // 9. Let milliseconds be ? Get(input, "milliseconds").
-    // 10. If milliseconds is not undefined, set result.[[Milliseconds]] to ? ToIntegerIfIntegral(milliseconds).
-    TRY(set_duration_record_value(vm.names.milliseconds, result.milliseconds));
-
-    // 11. Let minutes be ? Get(input, "minutes").
-    // 12. If minutes is not undefined, set result.[[Minutes]] to ? ToIntegerIfIntegral(minutes).
-    TRY(set_duration_record_value(vm.names.minutes, result.minutes));
-
-    // 13. Let months be ? Get(input, "months").
-    // 14. If months is not undefined, set result.[[Months]] to ? ToIntegerIfIntegral(months).
-    TRY(set_duration_record_value(vm.names.months, result.months));
-
-    // 15. Let nanoseconds be ? Get(input, "nanoseconds").
-    // 16. If nanoseconds is not undefined, set result.[[Nanoseconds]] to ? ToIntegerIfIntegral(nanoseconds).
-    TRY(set_duration_record_value(vm.names.nanoseconds, result.nanoseconds));
-
-    // 17. Let seconds be ? Get(input, "seconds").
-    // 18. If seconds is not undefined, set result.[[Seconds]] to ? ToIntegerIfIntegral(seconds).
-    TRY(set_duration_record_value(vm.names.seconds, result.seconds));
-
-    // 19. Let weeks be ? Get(input, "weeks").
-    // 20. If weeks is not undefined, set result.[[Weeks]] to ? ToIntegerIfIntegral(weeks).
-    TRY(set_duration_record_value(vm.names.weeks, result.weeks));
-
-    // 21. Let years be ? Get(input, "years").
-    // 22. If years is not undefined, set result.[[Years]] to ? ToIntegerIfIntegral(years).
-    TRY(set_duration_record_value(vm.names.years, result.years));
-
-    // 23. If years, months, weeks, days, hours, minutes, seconds, milliseconds, microseconds, and nanoseconds are all undefined, throw a TypeError exception.
-    if (!any_defined)
-        return vm.throw_completion<TypeError>(ErrorType::TemporalInvalidDurationLikeObject);
-
-    // 24. If IsValidDuration( result.[[Years]], result.[[Months]], result.[[Weeks]], result.[[Days]], result.[[Hours]], result.[[Minutes]], result.[[Seconds]], result.[[Milliseconds]], result.[[Microseconds]], result.[[Nanoseconds]]) is false, then
-    if (!Temporal::is_valid_duration(result.years, result.months, result.weeks, result.days, result.hours, result.minutes, result.seconds, result.milliseconds, result.microseconds, result.nanoseconds)) {
-        // a. Throw a RangeError exception.
-        return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidDurationLikeObject);
-    }
-
-    // 25. Return result.
-    return result;
-}
-
-// 13.1.4 DurationSign ( duration ), https://tc39.es/ecma402/#sec-durationsign
-i8 duration_sign(DurationRecord const& duration)
-{
-    // 1. For each value v of « duration.[[Years]], duration.[[Months]], duration.[[Weeks]], duration.[[Days]], duration.[[Hours]], duration.[[Minutes]], duration.[[Seconds]], duration.[[Milliseconds]], duration.[[Microseconds]], duration.[[Nanoseconds]] », do
-    for (auto value : { duration.years, duration.months, duration.weeks, duration.days, duration.hours, duration.minutes, duration.seconds, duration.milliseconds, duration.microseconds, duration.nanoseconds }) {
-        // a. If v < 0, return -1.
-        if (value < 0)
-            return -1;
-
-        // b. If v > 0, return 1.
-        if (value > 0)
-            return 1;
-    }
-
-    // 2. Return 0.
-    return 0;
-}
-
 // 13.1.6 GetDurationUnitOptions ( unit, options, baseStyle, stylesList, digitalBase, prevStyle, twoDigitHours ), https://tc39.es/ecma402/#sec-getdurationunitoptions
 ThrowCompletionOr<DurationUnitOptions> get_duration_unit_options(VM& vm, DurationFormat::Unit unit, Object const& options, DurationFormat::Style base_style, ReadonlySpan<StringView> styles_list, DurationFormat::ValueStyle digital_base, Optional<DurationFormat::ValueStyle> previous_style, bool two_digit_hours)
 {
@@ -399,7 +296,8 @@ ThrowCompletionOr<DurationUnitOptions> get_duration_unit_options(VM& vm, Duratio
 }
 
 // 13.1.7 ComputeFractionalDigits ( durationFormat, duration ), https://tc39.es/ecma402/#sec-computefractionaldigits
-Crypto::BigFraction compute_fractional_digits(DurationFormat const& duration_format, DurationRecord const& duration)
+// 15.9.6 ComputeFractionalDigits ( durationFormat, duration ), https://tc39.es/proposal-temporal/#sec-computefractionaldigits
+Crypto::BigFraction compute_fractional_digits(DurationFormat const& duration_format, Temporal::Duration const& duration)
 {
     // 1. Let result be 0.
     Crypto::BigFraction result;
@@ -420,7 +318,7 @@ Crypto::BigFraction compute_fractional_digits(DurationFormat const& duration_for
             // ii. Let value be the value of duration's field whose name is the Value Field value of the current row.
             // iii. Set value to value / 10**exponent.
             Crypto::BigFraction value {
-                Crypto::SignedBigInteger { duration.*duration_instances_component.value_slot },
+                Crypto::SignedBigInteger { (duration.*duration_instances_component.value_slot)() },
                 Crypto::UnsignedBigInteger { pow(10, exponent) }
             };
 
@@ -674,7 +572,8 @@ Vector<DurationFormatPart> format_numeric_seconds(VM& vm, DurationFormat const& 
 }
 
 // 13.1.12 FormatNumericUnits ( durationFormat, duration, firstNumericUnit, signDisplayed ), https://tc39.es/ecma402/#sec-formatnumericunits
-Vector<DurationFormatPart> format_numeric_units(VM& vm, DurationFormat const& duration_format, DurationRecord const& duration, DurationFormat::Unit first_numeric_unit, bool sign_displayed)
+// 15.9.7 FormatNumericUnits ( durationFormat, duration, firstNumericUnit, signDisplayed ), https://tc39.es/proposal-temporal/#sec-formatnumericunits
+Vector<DurationFormatPart> format_numeric_units(VM& vm, DurationFormat const& duration_format, Temporal::Duration const& duration, DurationFormat::Unit first_numeric_unit, bool sign_displayed)
 {
     // 1. Assert: firstNumericUnit is "hours", "minutes", or "seconds".
     VERIFY(first_is_one_of(first_numeric_unit, DurationFormat::Unit::Hours, DurationFormat::Unit::Minutes, DurationFormat::Unit::Seconds));
@@ -683,22 +582,22 @@ Vector<DurationFormatPart> format_numeric_units(VM& vm, DurationFormat const& du
     Vector<DurationFormatPart> numeric_parts_list;
 
     // 3. Let hoursValue be duration.[[Hours]].
-    auto hours_value = duration.hours;
+    auto hours_value = duration.hours();
 
     // 4. Let hoursDisplay be durationFormat.[[HoursDisplay]].
     auto hours_display = duration_format.hours_display();
 
     // 5. Let minutesValue be duration.[[Minutes]].
-    auto minutes_value = duration.minutes;
+    auto minutes_value = duration.minutes();
 
     // 6. Let minutesDisplay be durationFormat.[[MinutesDisplay]].
     auto minutes_display = duration_format.minutes_display();
 
     // 7. Let secondsValue be duration.[[Seconds]].
-    Crypto::BigFraction seconds_value { duration.seconds };
+    Crypto::BigFraction seconds_value { duration.seconds() };
 
     // 8. If duration.[[Milliseconds]] is not 0 or duration.[[Microseconds]] is not 0 or duration.[[Nanoseconds]] is not 0, then
-    if (duration.milliseconds != 0 || duration.microseconds != 0 || duration.nanoseconds != 0) {
+    if (duration.milliseconds() != 0 || duration.microseconds() != 0 || duration.nanoseconds() != 0) {
         // a. Set secondsValue to secondsValue + ComputeFractionalDigits(durationFormat, duration).
         seconds_value = seconds_value + compute_fractional_digits(duration_format, duration);
     }
@@ -892,7 +791,8 @@ Vector<DurationFormatPart> list_format_parts(VM& vm, DurationFormat const& durat
 }
 
 // 13.1.14 PartitionDurationFormatPattern ( durationFormat, duration ), https://tc39.es/ecma402/#sec-partitiondurationformatpattern
-Vector<DurationFormatPart> partition_duration_format_pattern(VM& vm, DurationFormat const& duration_format, DurationRecord const& duration)
+// 15.9.8 PartitionDurationFormatPattern ( durationFormat, duration ), https://tc39.es/proposal-temporal/#sec-formatnumericunits
+Vector<DurationFormatPart> partition_duration_format_pattern(VM& vm, DurationFormat const& duration_format, Temporal::Duration const& duration)
 {
     auto& realm = *vm.current_realm();
 
@@ -910,7 +810,7 @@ Vector<DurationFormatPart> partition_duration_format_pattern(VM& vm, DurationFor
         auto const& duration_instances_component = duration_instances_components[i];
 
         // a. Let value be the value of duration's field whose name is the Value Field value of the current row.
-        Crypto::BigFraction value { duration.*duration_instances_component.value_slot };
+        Crypto::BigFraction value { (duration.*duration_instances_component.value_slot)() };
 
         // b. Let style be the value of durationFormat's internal slot whose name is the Style Slot value of the current row.
         auto style = (duration_format.*duration_instances_component.get_style_slot)();

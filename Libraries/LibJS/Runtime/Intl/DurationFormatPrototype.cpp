@@ -10,6 +10,7 @@
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Intl/DurationFormatPrototype.h>
+#include <LibJS/Runtime/Temporal/Duration.h>
 
 namespace JS::Intl {
 
@@ -37,17 +38,18 @@ void DurationFormatPrototype::initialize(Realm& realm)
 }
 
 // 13.4.3 Intl.DurationFormat.prototype.format ( duration ), https://tc39.es/ecma402/#sec-Intl.DurationFormat.prototype.format
+// 15.10.1 Intl.DurationFormat.prototype.format ( durationLike ), https://tc39.es/proposal-temporal/#sec-Intl.DurationFormat.prototype.format
 JS_DEFINE_NATIVE_FUNCTION(DurationFormatPrototype::format)
 {
     // 1. Let df be this value.
     // 2. Perform ? RequireInternalSlot(df, [[InitializedDurationFormat]]).
     auto duration_format = TRY(typed_this_object(vm));
 
-    // 3. Let record be ? ToDurationRecord(duration).
-    auto record = TRY(to_duration_record(vm, vm.argument(0)));
+    // 3. Let duration be ? ToTemporalDuration(durationLike).
+    auto duration = TRY(Temporal::to_temporal_duration(vm, vm.argument(0)));
 
-    // 4. Let parts be PartitionDurationFormatPattern(df, record).
-    auto parts = partition_duration_format_pattern(vm, duration_format, record);
+    // 4. Let parts be PartitionDurationFormatPattern(df, duration).
+    auto parts = partition_duration_format_pattern(vm, duration_format, duration);
 
     // 5. Let result be a new empty String.
     StringBuilder result;
@@ -63,6 +65,7 @@ JS_DEFINE_NATIVE_FUNCTION(DurationFormatPrototype::format)
 }
 
 // 13.4.4 Intl.DurationFormat.prototype.formatToParts ( duration ), https://tc39.es/ecma402/#sec-Intl.DurationFormat.prototype.formatToParts
+// 15.10.2 Intl.DurationFormat.prototype.formatToParts ( durationLike ), https://tc39.es/proposal-temporal/#sec-Intl.DurationFormat.prototype.formatToParts
 JS_DEFINE_NATIVE_FUNCTION(DurationFormatPrototype::format_to_parts)
 {
     auto& realm = *vm.current_realm();
@@ -71,11 +74,11 @@ JS_DEFINE_NATIVE_FUNCTION(DurationFormatPrototype::format_to_parts)
     // 2. Perform ? RequireInternalSlot(df, [[InitializedDurationFormat]]).
     auto duration_format = TRY(typed_this_object(vm));
 
-    // 3. Let record be ? ToDurationRecord(duration).
-    auto record = TRY(to_duration_record(vm, vm.argument(0)));
+    // 3. Let duration be ? ToTemporalDuration(durationLike).
+    auto duration = TRY(Temporal::to_temporal_duration(vm, vm.argument(0)));
 
-    // 4. Let parts be PartitionDurationFormatPattern(df, record).
-    auto parts = partition_duration_format_pattern(vm, duration_format, record);
+    // 4. Let parts be PartitionDurationFormatPattern(df, duration).
+    auto parts = partition_duration_format_pattern(vm, duration_format, duration);
 
     // 5. Let result be ! ArrayCreate(0).
     auto result = MUST(Array::create(realm, 0));
