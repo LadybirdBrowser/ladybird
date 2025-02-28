@@ -295,7 +295,6 @@ ThrowCompletionOr<Value> get_option(VM& vm, Object const& options, PropertyKey c
 
 ThrowCompletionOr<RoundingMode> get_rounding_mode_option(VM&, Object const& options, RoundingMode fallback);
 ThrowCompletionOr<u64> get_rounding_increment_option(VM&, Object const& options);
-Crypto::SignedBigInteger get_utc_epoch_nanoseconds(ISODateTime const&);
 
 Crypto::SignedBigInteger big_floor(Crypto::SignedBigInteger const& numerator, Crypto::UnsignedBigInteger const& denominator);
 

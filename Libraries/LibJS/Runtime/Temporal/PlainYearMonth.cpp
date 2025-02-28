@@ -6,6 +6,7 @@
  */
 
 #include <LibJS/Runtime/AbstractOperations.h>
+#include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/Intrinsics.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/Temporal/Calendar.h>

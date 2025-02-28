@@ -32,6 +32,7 @@ private:
     String m_calendar;           // [[Calendar]]
 };
 
+ISODateTime time_value_to_iso_date_time_record(double time_value);
 ISODateTime combine_iso_date_and_time_record(ISODate, Time const&);
 bool iso_date_time_within_limits(ISODateTime const&);
 ThrowCompletionOr<ISODateTime> interpret_temporal_date_time_fields(VM&, StringView calendar, CalendarFields&, Overflow);

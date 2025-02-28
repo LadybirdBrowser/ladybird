@@ -1907,21 +1907,6 @@ ThrowCompletionOr<u64> get_rounding_increment_option(VM& vm, Object const& optio
     return static_cast<u64>(integer_increment);
 }
 
-// 14.5.1 GetUTCEpochNanoseconds ( isoDateTime ), https://tc39.es/proposal-temporal/#sec-getutcepochnanoseconds
-Crypto::SignedBigInteger get_utc_epoch_nanoseconds(ISODateTime const& iso_date_time)
-{
-    return JS::get_utc_epoch_nanoseconds(
-        iso_date_time.iso_date.year,
-        iso_date_time.iso_date.month,
-        iso_date_time.iso_date.day,
-        iso_date_time.time.hour,
-        iso_date_time.time.minute,
-        iso_date_time.time.second,
-        iso_date_time.time.millisecond,
-        iso_date_time.time.microsecond,
-        iso_date_time.time.nanosecond);
-}
-
 // AD-HOC
 // FIXME: We should add a generic floor() method to our BigInt classes. But for now, since we know we are only dividing
 //        by powers of 10, we can implement a very situationally specific method to compute the floor of a division.

@@ -7,6 +7,7 @@
  */
 
 #include <LibJS/Runtime/AbstractOperations.h>
+#include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/Temporal/Calendar.h>
 #include <LibJS/Runtime/Temporal/Duration.h>
 #include <LibJS/Runtime/Temporal/Instant.h>
@@ -26,6 +27,19 @@ PlainDateTime::PlainDateTime(ISODateTime const& iso_date_time, String calendar, 
     , m_iso_date_time(iso_date_time)
     , m_calendar(move(calendar))
 {
+}
+
+// 5.5.2 TimeValueToISODateTimeRecord ( t ), https://tc39.es/proposal-temporal/#sec-temporal-timevaluetoisodatetimerecord
+ISODateTime time_value_to_iso_date_time_record(double time_value)
+{
+    // 1. Let isoDate be CreateISODateRecord(ℝ(YearFromTime(t)), ℝ(MonthFromTime(t)) + 1, ℝ(DateFromTime(t))).
+    auto iso_date = create_iso_date_record(year_from_time(time_value), month_from_time(time_value) + 1, date_from_time(time_value));
+
+    // 2. Let time be CreateTimeRecord(ℝ(HourFromTime(t)), ℝ(MinFromTime(t)), ℝ(SecFromTime(t)), ℝ(msFromTime(t)), 0, 0).
+    auto time = create_time_record(hour_from_time(time_value), min_from_time(time_value), sec_from_time(time_value), ms_from_time(time_value), 0, 0);
+
+    // 3. Return ISO Date-Time Record { [[ISODate]]: isoDate, [[Time]]: time }.
+    return { .iso_date = iso_date, .time = time };
 }
 
 // 5.5.3 CombineISODateAndTimeRecord ( isoDate, time ), https://tc39.es/proposal-temporal/#sec-temporal-combineisodateandtimerecord
