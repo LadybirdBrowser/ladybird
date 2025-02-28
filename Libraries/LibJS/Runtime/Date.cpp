@@ -13,18 +13,14 @@
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Intl/AbstractOperations.h>
 #include <LibJS/Runtime/Temporal/ISO8601.h>
+#include <LibJS/Runtime/Temporal/Instant.h>
+#include <LibJS/Runtime/Temporal/PlainDateTime.h>
 #include <LibJS/Runtime/Temporal/TimeZone.h>
 #include <time.h>
 
 namespace JS {
 
 GC_DEFINE_ALLOCATOR(Date);
-
-static Crypto::SignedBigInteger const s_one_billion_bigint { 1'000'000'000 };
-static Crypto::SignedBigInteger const s_one_million_bigint { 1'000'000 };
-static Crypto::SignedBigInteger const s_one_thousand_bigint { 1'000 };
-
-Crypto::SignedBigInteger const ns_per_day_bigint { static_cast<i64>(ns_per_day) };
 
 GC::Ref<Date> Date::create(Realm& realm, double date_value)
 {
@@ -345,13 +341,14 @@ u16 ms_from_time(double t)
 }
 
 // 21.4.1.18 GetUTCEpochNanoseconds ( year, month, day, hour, minute, second, millisecond, microsecond, nanosecond ), https://tc39.es/ecma262/#sec-getutcepochnanoseconds
-Crypto::SignedBigInteger get_utc_epoch_nanoseconds(i32 year, u8 month, u8 day, u8 hour, u8 minute, u8 second, u16 millisecond, u16 microsecond, u16 nanosecond)
+// 14.5.1 GetUTCEpochNanoseconds ( isoDateTime ), https://tc39.es/proposal-temporal/#sec-getutcepochnanoseconds
+Crypto::SignedBigInteger get_utc_epoch_nanoseconds(Temporal::ISODateTime const& iso_date_time)
 {
-    // 1. Let date be MakeDay(𝔽(year), 𝔽(month - 1), 𝔽(day)).
-    auto date = make_day(year, month - 1, day);
+    // 1. Let date be MakeDay(𝔽(isoDateTime.[[ISODate]].[[Year]]), 𝔽(isoDateTime.[[ISODate]].[[Month]] - 1), 𝔽(isoDateTime.[[ISODate]].[[Day]])).
+    auto date = make_day(iso_date_time.iso_date.year, iso_date_time.iso_date.month - 1, iso_date_time.iso_date.day);
 
-    // 2. Let time be MakeTime(𝔽(hour), 𝔽(minute), 𝔽(second), 𝔽(millisecond)).
-    auto time = make_time(hour, minute, second, millisecond);
+    // 2. Let time be MakeTime(𝔽(isoDateTime.[[Time]].[[Hour]]), 𝔽(isoDateTime.[[Time]].[[Minute]]), 𝔽(isoDateTime.[[Time]].[[Second]]), 𝔽(isoDateTime.[[Time]].[[Millisecond]])).
+    auto time = make_time(iso_date_time.time.hour, iso_date_time.time.minute, iso_date_time.time.second, iso_date_time.time.millisecond);
 
     // 3. Let ms be MakeDate(date, time).
     auto ms = make_date(date, time);
@@ -359,10 +356,10 @@ Crypto::SignedBigInteger get_utc_epoch_nanoseconds(i32 year, u8 month, u8 day, u
     // 4. Assert: ms is an integral Number.
     VERIFY(ms == trunc(ms));
 
-    // 5. Return ℤ(ℝ(ms) × 10^6 + microsecond × 10^3 + nanosecond).
-    auto result = Crypto::SignedBigInteger { ms }.multiplied_by(s_one_million_bigint);
-    result = result.plus(Crypto::SignedBigInteger { static_cast<i32>(microsecond) }.multiplied_by(s_one_thousand_bigint));
-    result = result.plus(Crypto::SignedBigInteger { static_cast<i32>(nanosecond) });
+    // 5. Return ℤ(ℝ(ms) × 10**6 + isoDateTime.[[Time]].[[Microsecond]] × 10**3 + isoDateTime.[[Time]].[[Nanosecond]]).
+    auto result = Crypto::SignedBigInteger { ms }.multiplied_by(Temporal::NANOSECONDS_PER_MILLISECOND);
+    result = result.plus(Crypto::SignedBigInteger { static_cast<i32>(iso_date_time.time.microsecond) }.multiplied_by(Temporal::NANOSECONDS_PER_MICROSECOND));
+    result = result.plus(Crypto::SignedBigInteger { static_cast<i32>(iso_date_time.time.nanosecond) });
     return result;
 }
 
@@ -400,9 +397,10 @@ static i64 clip_double_to_sane_time(double value)
 }
 
 // 21.4.1.20 GetNamedTimeZoneEpochNanoseconds ( timeZoneIdentifier, year, month, day, hour, minute, second, millisecond, microsecond, nanosecond ), https://tc39.es/ecma262/#sec-getnamedtimezoneepochnanoseconds
-Vector<Crypto::SignedBigInteger> get_named_time_zone_epoch_nanoseconds(StringView time_zone_identifier, i32 year, u8 month, u8 day, u8 hour, u8 minute, u8 second, u16 millisecond, u16 microsecond, u16 nanosecond)
+// 14.6.3 GetNamedTimeZoneEpochNanoseconds ( timeZoneIdentifier, isoDateTime ), https://tc39.es/proposal-temporal/#sec-getnamedtimezoneepochnanoseconds
+Vector<Crypto::SignedBigInteger> get_named_time_zone_epoch_nanoseconds(StringView time_zone_identifier, Temporal::ISODateTime const& iso_date_time)
 {
-    auto local_nanoseconds = get_utc_epoch_nanoseconds(year, month, day, hour, minute, second, millisecond, microsecond, nanosecond);
+    auto local_nanoseconds = get_utc_epoch_nanoseconds(iso_date_time);
     auto local_time = UnixDateTime::from_nanoseconds_since_epoch(clip_bigint_to_sane_time(local_nanoseconds));
 
     // FIXME: LibUnicode does not behave exactly as the spec expects. It does not consider repeated or skipped time points.
@@ -419,7 +417,7 @@ Unicode::TimeZoneOffset get_named_time_zone_offset_nanoseconds(StringView time_z
 {
     // Since UnixDateTime::from_seconds_since_epoch() and UnixDateTime::from_nanoseconds_since_epoch() both take an i64, converting to
     // seconds first gives us a greater range. The TZDB doesn't have sub-second offsets.
-    auto seconds = epoch_nanoseconds.divided_by(s_one_billion_bigint).quotient;
+    auto seconds = epoch_nanoseconds.divided_by(Temporal::NANOSECONDS_PER_SECOND).quotient;
     auto time = UnixDateTime::from_seconds_since_epoch(clip_bigint_to_sane_time(seconds));
 
     auto offset = Unicode::time_zone_offset(time_zone_identifier, time);
@@ -506,8 +504,7 @@ double local_time(double time)
 }
 
 // 21.4.1.26 UTC ( t ), https://tc39.es/ecma262/#sec-utc-t
-// 14.5.7 UTC ( t ), https://tc39.es/proposal-temporal/#sec-localtime
-// FIXME: Update the rest of this AO for Temporal once we have the required Temporal objects.
+// 14.5.7 UTC ( t ), https://tc39.es/proposal-temporal/#sec-utc-t
 double utc_time(double time)
 {
     // 1. Let systemTimeZoneIdentifier be SystemTimeZoneIdentifier().
@@ -525,21 +522,24 @@ double utc_time(double time)
     }
     // 4. Else,
     else {
-        // a. Let possibleInstants be GetNamedTimeZoneEpochNanoseconds(systemTimeZoneIdentifier, ℝ(YearFromTime(t)), ℝ(MonthFromTime(t)) + 1, ℝ(DateFromTime(t)), ℝ(HourFromTime(t)), ℝ(MinFromTime(t)), ℝ(SecFromTime(t)), ℝ(msFromTime(t)), 0, 0).
-        auto possible_instants = get_named_time_zone_epoch_nanoseconds(system_time_zone_identifier, year_from_time(time), month_from_time(time) + 1, date_from_time(time), hour_from_time(time), min_from_time(time), sec_from_time(time), ms_from_time(time), 0, 0);
+        // a. Let isoDateTime be TimeValueToISODateTimeRecord(t).
+        auto iso_date_time = Temporal::time_value_to_iso_date_time_record(time);
 
-        // b. NOTE: The following steps ensure that when t represents local time repeating multiple times at a negative time zone transition (e.g. when the daylight saving time ends or the time zone offset is decreased due to a time zone rule change) or skipped local time at a positive time zone transition (e.g. when the daylight saving time starts or the time zone offset is increased due to a time zone rule change), t is interpreted using the time zone offset before the transition.
+        // b. Let possibleInstants be GetNamedTimeZoneEpochNanoseconds(systemTimeZoneIdentifier, isoDateTime).
+        auto possible_instants = get_named_time_zone_epoch_nanoseconds(system_time_zone_identifier, iso_date_time);
+
+        // c. NOTE: The following steps ensure that when t represents local time repeating multiple times at a negative time zone transition (e.g. when the daylight saving time ends or the time zone offset is decreased due to a time zone rule change) or skipped local time at a positive time zone transition (e.g. when the daylight saving time starts or the time zone offset is increased due to a time zone rule change), t is interpreted using the time zone offset before the transition.
         Crypto::SignedBigInteger disambiguated_instant;
 
-        // c. If possibleInstants is not empty, then
+        // d. If possibleInstants is not empty, then
         if (!possible_instants.is_empty()) {
             // i. Let disambiguatedInstant be possibleInstants[0].
             disambiguated_instant = move(possible_instants.first());
         }
-        // d. Else,
+        // e. Else,
         else {
             // i. NOTE: t represents a local time skipped at a positive time zone transition (e.g. due to daylight saving time starting or a time zone rule change increasing the UTC offset).
-            // ii. Let possibleInstantsBefore be GetNamedTimeZoneEpochNanoseconds(systemTimeZoneIdentifier, ℝ(YearFromTime(tBefore)), ℝ(MonthFromTime(tBefore)) + 1, ℝ(DateFromTime(tBefore)), ℝ(HourFromTime(tBefore)), ℝ(MinFromTime(tBefore)), ℝ(SecFromTime(tBefore)), ℝ(msFromTime(tBefore)), 0, 0), where tBefore is the largest integral Number < t for which possibleInstantsBefore is not empty (i.e., tBefore represents the last local time before the transition).
+            // ii. Let possibleInstantsBefore be GetNamedTimeZoneEpochNanoseconds(systemTimeZoneIdentifier, TimeValueToISODateTimeRecord(tBefore)), where tBefore is the largest integral Number < t for which possibleInstantsBefore is not empty (i.e., tBefore represents the last local time before the transition).
             // iii. Let disambiguatedInstant be the last element of possibleInstantsBefore.
 
             // FIXME: This branch currently cannot be reached with our implementation, because LibUnicode does not handle skipped time points.
@@ -547,7 +547,7 @@ double utc_time(double time)
             VERIFY_NOT_REACHED();
         }
 
-        // e. Let offsetNs be GetNamedTimeZoneOffsetNanoseconds(systemTimeZoneIdentifier, disambiguatedInstant).
+        // f. Let offsetNs be GetNamedTimeZoneOffsetNanoseconds(systemTimeZoneIdentifier, disambiguatedInstant).
         auto offset = get_named_time_zone_offset_nanoseconds(system_time_zone_identifier, disambiguated_instant);
         offset_nanoseconds = static_cast<double>(offset.offset.to_nanoseconds());
     }

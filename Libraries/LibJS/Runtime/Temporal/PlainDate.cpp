@@ -10,6 +10,7 @@
 #include <AK/Checked.h>
 #include <AK/NumericLimits.h>
 #include <LibJS/Runtime/AbstractOperations.h>
+#include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/Temporal/Calendar.h>
 #include <LibJS/Runtime/Temporal/DateEquations.h>
 #include <LibJS/Runtime/Temporal/Duration.h>

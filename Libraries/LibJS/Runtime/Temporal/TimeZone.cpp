@@ -332,17 +332,7 @@ ThrowCompletionOr<Vector<Crypto::SignedBigInteger>> get_possible_epoch_nanosecon
         TRY(check_iso_days_range(vm, iso_date_time.iso_date));
 
         // b. Let possibleEpochNanoseconds be GetNamedTimeZoneEpochNanoseconds(parseResult.[[Name]], isoDateTime).
-        possible_epoch_nanoseconds = get_named_time_zone_epoch_nanoseconds(
-            *parse_result.name,
-            iso_date_time.iso_date.year,
-            iso_date_time.iso_date.month,
-            iso_date_time.iso_date.day,
-            iso_date_time.time.hour,
-            iso_date_time.time.minute,
-            iso_date_time.time.second,
-            iso_date_time.time.millisecond,
-            iso_date_time.time.microsecond,
-            iso_date_time.time.nanosecond);
+        possible_epoch_nanoseconds = get_named_time_zone_epoch_nanoseconds(*parse_result.name, iso_date_time);
     }
 
     // 4. For each value epochNanoseconds in possibleEpochNanoseconds, do
