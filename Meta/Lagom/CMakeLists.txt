@@ -557,6 +557,7 @@ if (BUILD_TESTING)
     # RegexLibC test POSIX <regex.h> and contains many Serenity extensions
     # It is therefore not reasonable to run it on Lagom, and we only run the Regex test
     lagom_test(../../Tests/LibRegex/Regex.cpp LIBS LibRegex WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/LibRegex)
+    lagom_test(../../Tests/LibRegex/RegexPattern.cpp LIBS LibRegex WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/LibRegex)
 
     # JavaScriptTestRunner + LibTest tests
     # test-js
@@ -573,6 +574,7 @@ if (BUILD_TESTING)
     # Extra tests from Tests/LibJS
     lagom_test(../../Tests/LibJS/test-invalid-unicode-js.cpp LIBS LibJS)
     lagom_test(../../Tests/LibJS/test-value-js.cpp LIBS LibJS)
+    lagom_test(../../Tests/LibJS/test-date-regex.cpp LIBS LibJS LibRegex)
 
     # test-wasm
     add_executable(test-wasm

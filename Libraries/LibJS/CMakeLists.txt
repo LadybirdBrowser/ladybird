@@ -70,6 +70,7 @@ set(SOURCES
     Runtime/DataViewConstructor.cpp
     Runtime/DataViewPrototype.cpp
     Runtime/Date.cpp
+    Runtime/DateRegex.cpp
     Runtime/DateConstructor.cpp
     Runtime/DatePrototype.cpp
     Runtime/DeclarativeEnvironment.cpp
