@@ -414,7 +414,7 @@ ThrowCompletionOr<GC::Ref<Duration>> to_temporal_duration(VM& vm, Value item)
     return TRY(create_temporal_duration(vm, *result.years, *result.months, *result.weeks, *result.days, *result.hours, *result.minutes, *result.seconds, *result.milliseconds, *result.microseconds, *result.nanoseconds));
 }
 
-// 7.5.13 DurationSign ( duration ), https://tc39.es/proposal-temporal/#sec-temporal-durationsign
+// 7.5.13 DurationSign ( duration ), https://tc39.es/proposal-temporal/#sec-durationsign
 i8 duration_sign(Duration const& duration)
 {
     // 1. For each value v of « duration.[[Years]], duration.[[Months]], duration.[[Weeks]], duration.[[Days]], duration.[[Hours]], duration.[[Minutes]], duration.[[Seconds]], duration.[[Milliseconds]], duration.[[Microseconds]], duration.[[Nanoseconds]] », do

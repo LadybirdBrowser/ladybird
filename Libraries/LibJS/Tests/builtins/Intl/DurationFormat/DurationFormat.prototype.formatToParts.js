@@ -477,23 +477,23 @@ describe("errors", () => {
     test("non-object duration records", () => {
         expect(() => {
             new Intl.DurationFormat().formatToParts("hello");
-        }).toThrowWithMessage(RangeError, "is not an object");
+        }).toThrowWithMessage(RangeError, "Invalid duration string 'hello");
 
         [-100, Infinity, NaN, 152n, Symbol("foo"), true, null, undefined].forEach(value => {
             expect(() => {
                 new Intl.DurationFormat().formatToParts(value);
-            }).toThrowWithMessage(TypeError, "is not an object");
+            }).toThrowWithMessage(TypeError, "is not a string");
         });
     });
 
     test("empty duration record", () => {
         expect(() => {
             new Intl.DurationFormat().formatToParts({});
-        }).toThrowWithMessage(TypeError, "Invalid duration-like object");
+        }).toThrowWithMessage(TypeError, "Invalid duration");
 
         expect(() => {
             new Intl.DurationFormat().formatToParts({ foo: 123 });
-        }).toThrowWithMessage(TypeError, "Invalid duration-like object");
+        }).toThrowWithMessage(TypeError, "Invalid duration");
     });
 
     test("non-integral duration fields", () => {
@@ -528,6 +528,6 @@ describe("errors", () => {
     test("inconsistent field signs", () => {
         expect(() => {
             new Intl.DurationFormat().formatToParts({ years: 1, months: -1 });
-        }).toThrowWithMessage(RangeError, "Invalid duration-like object");
+        }).toThrowWithMessage(RangeError, "Invalid duration");
     });
 });
