@@ -464,7 +464,7 @@ i8 internal_duration_sign(InternalDuration const& internal_duration)
     return time_duration_sign(internal_duration.time);
 }
 
-// 7.5.16 IsValidDuration ( years, months, weeks, days, hours, minutes, seconds, milliseconds, microseconds, nanoseconds ), https://tc39.es/proposal-temporal/#sec-temporal-isvalidduration
+// 7.5.16 IsValidDuration ( years, months, weeks, days, hours, minutes, seconds, milliseconds, microseconds, nanoseconds ), https://tc39.es/proposal-temporal/#sec-isvalidduration
 bool is_valid_duration(double years, double months, double weeks, double days, double hours, double minutes, double seconds, double milliseconds, double microseconds, double nanoseconds)
 {
     // 1. Let sign be 0.
@@ -508,22 +508,22 @@ bool is_valid_duration(double years, double months, double weeks, double days, d
     if (AK::fabs(weeks) > NumericLimits<u32>::max())
         return false;
 
-    // 6. Let totalFractionalSeconds be days × 86,400 + hours × 3600 + minutes × 60 + seconds + ℝ(𝔽(milliseconds)) × 10**-3 + ℝ(𝔽(microseconds)) × 10**-6 + ℝ(𝔽(nanoseconds)) × 10**-9.
+    // 6. Let normalizedSeconds be days × 86,400 + hours × 3600 + minutes × 60 + seconds + ℝ(𝔽(milliseconds)) × 10**-3 + ℝ(𝔽(microseconds)) × 10**-6 + ℝ(𝔽(nanoseconds)) × 10**-9.
     // 7. NOTE: The above step cannot be implemented directly using floating-point arithmetic. Multiplying by 10**-3,
     //          10**-6, and 10**-9 respectively may be imprecise when milliseconds, microseconds, or nanoseconds is an
     //          unsafe integer. This multiplication can be implemented in C++ with an implementation of std::remquo()
     //          with sufficient bits in the quotient. String manipulation will also give an exact result, since the
     //          multiplication is by a power of 10.
-    auto total_fractional_seconds = TimeDuration { days }.multiplied_by(NANOSECONDS_PER_DAY);
-    total_fractional_seconds = total_fractional_seconds.plus(TimeDuration { hours }.multiplied_by(NANOSECONDS_PER_HOUR));
-    total_fractional_seconds = total_fractional_seconds.plus(TimeDuration { minutes }.multiplied_by(NANOSECONDS_PER_MINUTE));
-    total_fractional_seconds = total_fractional_seconds.plus(TimeDuration { seconds }.multiplied_by(NANOSECONDS_PER_SECOND));
-    total_fractional_seconds = total_fractional_seconds.plus(TimeDuration { milliseconds }.multiplied_by(NANOSECONDS_PER_MILLISECOND));
-    total_fractional_seconds = total_fractional_seconds.plus(TimeDuration { microseconds }.multiplied_by(NANOSECONDS_PER_MICROSECOND));
-    total_fractional_seconds = total_fractional_seconds.plus(TimeDuration { nanoseconds });
+    auto normalized_seconds = TimeDuration { days }.multiplied_by(NANOSECONDS_PER_DAY);
+    normalized_seconds = normalized_seconds.plus(TimeDuration { hours }.multiplied_by(NANOSECONDS_PER_HOUR));
+    normalized_seconds = normalized_seconds.plus(TimeDuration { minutes }.multiplied_by(NANOSECONDS_PER_MINUTE));
+    normalized_seconds = normalized_seconds.plus(TimeDuration { seconds }.multiplied_by(NANOSECONDS_PER_SECOND));
+    normalized_seconds = normalized_seconds.plus(TimeDuration { milliseconds }.multiplied_by(NANOSECONDS_PER_MILLISECOND));
+    normalized_seconds = normalized_seconds.plus(TimeDuration { microseconds }.multiplied_by(NANOSECONDS_PER_MICROSECOND));
+    normalized_seconds = normalized_seconds.plus(TimeDuration { nanoseconds });
 
-    // 8. If abs(totalFractionalSeconds) ≥ 2**53, return false.
-    if (total_fractional_seconds.unsigned_value() > MAX_TIME_DURATION.unsigned_value())
+    // 8. If abs(normalizedSeconds) ≥ 2**53, return false.
+    if (normalized_seconds.unsigned_value() > MAX_TIME_DURATION.unsigned_value())
         return false;
 
     // 9. Return true.
