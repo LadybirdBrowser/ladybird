@@ -47,6 +47,9 @@ private:
 
 ErrorOr<void> HttpEchoServerFixture::setup(WebView::WebContentOptions& web_content_options)
 {
+#ifdef AK_OS_WINDOWS
+    VERIFY(0 && "Ladybird::HttpEchoServerFixture::setup is not implemented");
+#else
     auto const script_path = LexicalPath::join(s_fixtures_path, m_script_path);
     auto const arguments = Vector { script_path.string(), "--directory", Ladybird::Application::the().test_root_path };
 
@@ -81,10 +84,14 @@ ErrorOr<void> HttpEchoServerFixture::setup(WebView::WebContentOptions& web_conte
         warnln("Failed to read echo server port from buffer: '{}'", raw_output);
 
     return {};
+#endif
 }
 
 void HttpEchoServerFixture::teardown_impl()
 {
+#ifdef AK_OS_WINDOWS
+    VERIFY(0 && "Ladybird::HttpEchoServerFixture::teardown_impl is not implemented");
+#else
     VERIFY(m_process.has_value());
 
     auto script_path = LexicalPath::join(s_fixtures_path, m_script_path);
@@ -98,6 +105,7 @@ void HttpEchoServerFixture::teardown_impl()
     }
 
     m_process = {};
+#endif
 }
 
 void Fixture::initialize_fixtures()
