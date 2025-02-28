@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -15,7 +15,7 @@ namespace JS::Intl {
 
 GC_DEFINE_ALLOCATOR(NumberFormatPrototype);
 
-// 15.3 Properties of the Intl.NumberFormat Prototype Object, https://tc39.es/ecma402/#sec-properties-of-intl-numberformat-prototype-object
+// 16.3 Properties of the Intl.NumberFormat Prototype Object, https://tc39.es/ecma402/#sec-properties-of-intl-numberformat-prototype-object
 NumberFormatPrototype::NumberFormatPrototype(Realm& realm)
     : PrototypeObject(realm.intrinsics().object_prototype())
 {
@@ -27,7 +27,7 @@ void NumberFormatPrototype::initialize(Realm& realm)
 
     auto& vm = this->vm();
 
-    // 15.3.2 Intl.NumberFormat.prototype [ @@toStringTag ], https://tc39.es/ecma402/#sec-intl.numberformat.prototype-@@tostringtag
+    // 16.3.2 Intl.NumberFormat.prototype [ @@toStringTag ], https://tc39.es/ecma402/#sec-intl.numberformat.prototype-@@tostringtag
     define_direct_property(vm.well_known_symbol_to_string_tag(), PrimitiveString::create(vm, "Intl.NumberFormat"_string), Attribute::Configurable);
 
     define_native_accessor(realm, vm.names.format, format, nullptr, Attribute::Configurable);
@@ -39,7 +39,7 @@ void NumberFormatPrototype::initialize(Realm& realm)
     define_native_function(realm, vm.names.resolvedOptions, resolved_options, 0, attr);
 }
 
-// 15.3.3 get Intl.NumberFormat.prototype.format, https://tc39.es/ecma402/#sec-intl.numberformat.prototype.format
+// 16.3.3 get Intl.NumberFormat.prototype.format, https://tc39.es/ecma402/#sec-intl.numberformat.prototype.format
 JS_DEFINE_NATIVE_FUNCTION(NumberFormatPrototype::format)
 {
     auto& realm = *vm.current_realm();
@@ -52,7 +52,7 @@ JS_DEFINE_NATIVE_FUNCTION(NumberFormatPrototype::format)
 
     // 4. If nf.[[BoundFormat]] is undefined, then
     if (!number_format->bound_format()) {
-        // a. Let F be a new built-in function object as defined in Number Format Functions (15.1.4).
+        // a. Let F be a new built-in function object as defined in Number Format Functions (16.1.4).
         // b. Set F.[[NumberFormat]] to nf.
         auto bound_format = NumberFormatFunction::create(realm, number_format);
 
@@ -64,7 +64,7 @@ JS_DEFINE_NATIVE_FUNCTION(NumberFormatPrototype::format)
     return number_format->bound_format();
 }
 
-// 15.3.4 Intl.NumberFormat.prototype.formatToParts ( value ), https://tc39.es/ecma402/#sec-intl.numberformat.prototype.formattoparts
+// 16.3.4 Intl.NumberFormat.prototype.formatToParts ( value ), https://tc39.es/ecma402/#sec-intl.numberformat.prototype.formattoparts
 JS_DEFINE_NATIVE_FUNCTION(NumberFormatPrototype::format_to_parts)
 {
     auto value = vm.argument(0);
@@ -80,7 +80,7 @@ JS_DEFINE_NATIVE_FUNCTION(NumberFormatPrototype::format_to_parts)
     return format_numeric_to_parts(vm, number_format, move(mathematical_value));
 }
 
-// 15.3.5 Intl.NumberFormat.prototype.formatRange ( start, end ), https://tc39.es/ecma402/#sec-intl.numberformat.prototype.formatrange
+// 16.3.5 Intl.NumberFormat.prototype.formatRange ( start, end ), https://tc39.es/ecma402/#sec-intl.numberformat.prototype.formatrange
 JS_DEFINE_NATIVE_FUNCTION(NumberFormatPrototype::format_range)
 {
     auto start = vm.argument(0);
@@ -107,7 +107,7 @@ JS_DEFINE_NATIVE_FUNCTION(NumberFormatPrototype::format_range)
     return PrimitiveString::create(vm, move(formatted));
 }
 
-// 15.3.6 Intl.NumberFormat.prototype.formatRangeToParts ( start, end ), https://tc39.es/ecma402/#sec-intl.numberformat.prototype.formatrangetoparts
+// 16.3.6 Intl.NumberFormat.prototype.formatRangeToParts ( start, end ), https://tc39.es/ecma402/#sec-intl.numberformat.prototype.formatrangetoparts
 JS_DEFINE_NATIVE_FUNCTION(NumberFormatPrototype::format_range_to_parts)
 {
     auto start = vm.argument(0);
@@ -133,7 +133,7 @@ JS_DEFINE_NATIVE_FUNCTION(NumberFormatPrototype::format_range_to_parts)
     return TRY(format_numeric_range_to_parts(vm, number_format, move(x), move(y)));
 }
 
-// 15.3.7 Intl.NumberFormat.prototype.resolvedOptions ( ), https://tc39.es/ecma402/#sec-intl.numberformat.prototype.resolvedoptions
+// 16.3.7 Intl.NumberFormat.prototype.resolvedOptions ( ), https://tc39.es/ecma402/#sec-intl.numberformat.prototype.resolvedoptions
 JS_DEFINE_NATIVE_FUNCTION(NumberFormatPrototype::resolved_options)
 {
     auto& realm = *vm.current_realm();
@@ -147,7 +147,7 @@ JS_DEFINE_NATIVE_FUNCTION(NumberFormatPrototype::resolved_options)
     // 4. Let options be OrdinaryObjectCreate(%Object.prototype%).
     auto options = Object::create(realm, realm.intrinsics().object_prototype());
 
-    // 5. For each row of Table 11, except the header row, in table order, do
+    // 5. For each row of Table 25, except the header row, in table order, do
     //     a. Let p be the Property value of the current row.
     //     b. Let v be the value of nf's internal slot whose name is the Internal Slot value of the current row.
     //     c. If v is not undefined, then

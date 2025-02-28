@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2022, Idan Horowitz <idan.horowitz@serenityos.org>
- * Copyright (c) 2022-2024, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2022-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -18,7 +18,7 @@ namespace JS::Intl {
 
 GC_DEFINE_ALLOCATOR(DurationFormatConstructor);
 
-// 1.2 The Intl.DurationFormat Constructor, https://tc39.es/proposal-intl-duration-format/#sec-intl-durationformat-constructor
+// 13.2 The Intl.DurationFormat Constructor, https://tc39.es/ecma402/#sec-intl-durationformat-constructor
 DurationFormatConstructor::DurationFormatConstructor(Realm& realm)
     : NativeFunction(realm.vm().names.DurationFormat.as_string(), realm.intrinsics().function_prototype())
 {
@@ -30,7 +30,7 @@ void DurationFormatConstructor::initialize(Realm& realm)
 
     auto& vm = this->vm();
 
-    // 1.3.1 Intl.DurationFormat.prototype, https://tc39.es/proposal-intl-duration-format/#sec-Intl.DurationFormat.prototype
+    // 1.3.1 Intl.DurationFormat.prototype, https://tc39.es/ecma402/#sec-Intl.DurationFormat.prototype
     define_direct_property(vm.names.prototype, realm.intrinsics().intl_duration_format_prototype(), 0);
     define_direct_property(vm.names.length, Value(0), Attribute::Configurable);
 
@@ -38,14 +38,14 @@ void DurationFormatConstructor::initialize(Realm& realm)
     define_native_function(realm, vm.names.supportedLocalesOf, supported_locales_of, 1, attr);
 }
 
-// 1.2.1 Intl.DurationFormat ( [ locales [ , options ] ] ), https://tc39.es/proposal-intl-duration-format/#sec-Intl.DurationFormat
+// 13.2.1 Intl.DurationFormat ( [ locales [ , options ] ] ), https://tc39.es/ecma402/#sec-Intl.DurationFormat
 ThrowCompletionOr<Value> DurationFormatConstructor::call()
 {
     // 1. If NewTarget is undefined, throw a TypeError exception.
     return vm().throw_completion<TypeError>(ErrorType::ConstructorWithoutNew, "Intl.DurationFormat");
 }
 
-// 1.2.1 Intl.DurationFormat ( [ locales [ , options ] ] ), https://tc39.es/proposal-intl-duration-format/#sec-Intl.DurationFormat
+// 13.2.1 Intl.DurationFormat ( [ locales [ , options ] ] ), https://tc39.es/ecma402/#sec-Intl.DurationFormat
 ThrowCompletionOr<GC::Ref<Object>> DurationFormatConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
@@ -53,7 +53,7 @@ ThrowCompletionOr<GC::Ref<Object>> DurationFormatConstructor::construct(Function
     auto locales = vm.argument(0);
     auto options_value = vm.argument(1);
 
-    // 2. Let durationFormat be ? OrdinaryCreateFromConstructor(NewTarget, "%Intl.DurationFormatPrototype%", « [[InitializedDurationFormat]], [[Locale]], [[DataLocale]], [[NumberingSystem]], [[Style]], [[YearsStyle]], [[YearsDisplay]], [[MonthsStyle]], [[MonthsDisplay]], [[WeeksStyle]], [[WeeksDisplay]], [[DaysStyle]], [[DaysDisplay]], [[HoursStyle]], [[HoursDisplay]], [[MinutesStyle]], [[MinutesDisplay]], [[SecondsStyle]], [[SecondsDisplay]], [[MillisecondsStyle]], [[MillisecondsDisplay]], [[MicrosecondsStyle]], [[MicrosecondsDisplay]], [[NanosecondsStyle]], [[NanosecondsDisplay]], [[HourMinuteSeparator]], [[MinuteSecondSeparator]], [[FractionalDigits]] »).
+    // 2. Let durationFormat be ? OrdinaryCreateFromConstructor(NewTarget, "%Intl.DurationFormatPrototype%", « [[InitializedDurationFormat]], [[Locale]], [[NumberingSystem]], [[Style]], [[YearsStyle]], [[YearsDisplay]], [[MonthsStyle]], [[MonthsDisplay]], [[WeeksStyle]], [[WeeksDisplay]], [[DaysStyle]], [[DaysDisplay]], [[HoursStyle]], [[HoursDisplay]], [[MinutesStyle]], [[MinutesDisplay]], [[SecondsStyle]], [[SecondsDisplay]], [[MillisecondsStyle]], [[MillisecondsDisplay]], [[MicrosecondsStyle]], [[MicrosecondsDisplay]], [[NanosecondsStyle]], [[NanosecondsDisplay]], [[HourMinuteSeparator]], [[MinuteSecondSeparator]], [[FractionalDigits]] »).
     auto duration_format = TRY(ordinary_create_from_constructor<DurationFormat>(vm, new_target, &Intrinsics::intl_duration_format_prototype));
 
     // 3. Let requestedLocales be ? CanonicalizeLocaleList(locales).
@@ -83,46 +83,34 @@ ThrowCompletionOr<GC::Ref<Object>> DurationFormatConstructor::construct(Function
     // 9. Let r be ResolveLocale(%Intl.DurationFormat%.[[AvailableLocales]], requestedLocales, opt, %Intl.DurationFormat%.[[RelevantExtensionKeys]], %Intl.DurationFormat%.[[LocaleData]]).
     auto result = resolve_locale(requested_locales, opt, DurationFormat::relevant_extension_keys());
 
-    // 10. Let locale be r.[[locale]].
-    auto locale = move(result.locale);
+    // 10. Set durationFormat.[[Locale]] to r.[[Locale]].
+    duration_format->set_locale(move(result.locale));
 
-    // 11. Set durationFormat.[[Locale]] to locale.
-    duration_format->set_locale(move(locale));
+    // 11. Let resolvedLocaleData be r.[[LocaleData]].
 
-    // 12. Set durationFormat.[[DataLocale]] to r.[[dataLocale]].
-    // FIXME: Spec issue: The [[dataLocale]] internal slot no longer exists. See:
-    //        https://github.com/tc39/proposal-intl-duration-format/issues/189
-
-    // 13. Let dataLocale be durationFormat.[[DataLocale]].
-    // 14. Let dataLocaleData be durationFormat.[[LocaleData]].[[<dataLocale>]].
-    // 15. Let digitalFormat be dataLocaleData.[[DigitalFormat]].
+    // 12. Let digitalFormat be resolvedLocaleData.[[DigitalFormat]].
     auto digital_format = Unicode::digital_format(duration_format->locale());
 
-    // 16. Let twoDigitHours be digitalFormat.[[TwoDigitHours]].
-    auto two_digit_hours = digital_format.uses_two_digit_hours;
-
-    // 17. Let hourMinuteSeparator be digitalFormat.[[HourMinuteSeparator]].
-    // 18. Set durationFormat.[[HourMinuteSeparator]] to hourMinuteSeparator.
+    // 13. Set durationFormat.[[HourMinuteSeparator]] to digitalFormat.[[HourMinuteSeparator]].
     duration_format->set_hour_minute_separator(move(digital_format.hours_minutes_separator));
 
-    // 19. Let minuteSecondSeparator be digitalFormat.[[MinuteSecondSeparator]].
-    // 20. Set durationFormat.[[MinuteSecondSeparator]] to minuteSecondSeparator.
+    // 14. Set durationFormat.[[MinuteSecondSeparator]] to digitalFormat.[[MinuteSecondSeparator]].
     duration_format->set_minute_second_separator(move(digital_format.minutes_seconds_separator));
 
-    // 21. Set durationFormat.[[NumberingSystem]] to r.[[nu]].
+    // 15. Set durationFormat.[[NumberingSystem]] to r.[[nu]].
     if (auto* resolved_numbering_system = result.nu.get_pointer<String>())
         duration_format->set_numbering_system(move(*resolved_numbering_system));
 
-    // 22. Let style be ? GetOption(options, "style", STRING, « "long", "short", "narrow", "digital" », "short").
+    // 16. Let style be ? GetOption(options, "style", STRING, « "long", "short", "narrow", "digital" », "short").
     auto style = TRY(get_option(vm, *options, vm.names.style, OptionType::String, { "long"sv, "short"sv, "narrow"sv, "digital"sv }, "short"sv));
 
-    // 23. Set durationFormat.[[Style]] to style.
+    // 17. Set durationFormat.[[Style]] to style.
     duration_format->set_style(style.as_string().utf8_string_view());
 
-    // 24. Let prevStyle be the empty String.
+    // 18. Let prevStyle be the empty String.
     Optional<DurationFormat::ValueStyle> previous_style;
 
-    // 25. For each row of Table 3, except the header row, in table order, do
+    // 19. For each row of Table 22, except the header row, in table order, do
     for (auto const& duration_instances_component : duration_instances_components) {
         // a. Let styleSlot be the Style Slot value of the current row.
         auto style_slot = duration_instances_component.set_style_slot;
@@ -139,8 +127,8 @@ ThrowCompletionOr<GC::Ref<Object>> DurationFormatConstructor::construct(Function
         // e. Let digitalBase be the Digital Default value of the current row.
         auto digital_base = duration_instances_component.digital_default;
 
-        // f. Let unitOptions be ? GetDurationUnitOptions(unit, options, style, valueList, digitalBase, prevStyle, twoDigitHours).
-        auto unit_options = TRY(get_duration_unit_options(vm, unit, *options, duration_format->style(), value_list, digital_base, previous_style, two_digit_hours));
+        // f. Let unitOptions be ? GetDurationUnitOptions(unit, options, style, valueList, digitalBase, prevStyle, digitalFormat.[[TwoDigitHours]]).
+        auto unit_options = TRY(get_duration_unit_options(vm, unit, *options, duration_format->style(), value_list, digital_base, previous_style, digital_format.uses_two_digit_hours));
 
         // g. Set the value of the styleSlot slot of durationFormat to unitOptions.[[Style]].
         (duration_format->*style_slot)(unit_options.style);
@@ -155,14 +143,14 @@ ThrowCompletionOr<GC::Ref<Object>> DurationFormatConstructor::construct(Function
         }
     }
 
-    // 26. Set durationFormat.[[FractionalDigits]] to ? GetNumberOption(options, "fractionalDigits", 0, 9, undefined).
+    // 20. Set durationFormat.[[FractionalDigits]] to ? GetNumberOption(options, "fractionalDigits", 0, 9, undefined).
     duration_format->set_fractional_digits(Optional<u8>(TRY(get_number_option(vm, *options, vm.names.fractionalDigits, 0, 9, {}))));
 
-    // 27. Return durationFormat.
+    // 21. Return durationFormat.
     return duration_format;
 }
 
-// 1.3.2 Intl.DurationFormat.supportedLocalesOf ( locales [ , options ] ), https://tc39.es/proposal-intl-duration-format/#sec-Intl.DurationFormat.supportedLocalesOf
+// 13.3.2 Intl.DurationFormat.supportedLocalesOf ( locales [ , options ] ), https://tc39.es/ecma402/#sec-Intl.DurationFormat.supportedLocalesOf
 JS_DEFINE_NATIVE_FUNCTION(DurationFormatConstructor::supported_locales_of)
 {
     auto locales = vm.argument(0);

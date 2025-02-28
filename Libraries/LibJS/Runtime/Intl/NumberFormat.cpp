@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -31,7 +31,7 @@ NumberFormatBase::NumberFormatBase(Object& prototype)
 {
 }
 
-// 15 NumberFormat Objects, https://tc39.es/ecma402/#numberformat-objects
+// 16 NumberFormat Objects, https://tc39.es/ecma402/#numberformat-objects
 NumberFormat::NumberFormat(Object& prototype)
     : NumberFormatBase(prototype)
 {
@@ -115,7 +115,7 @@ Unicode::DisplayOptions NumberFormat::display_options() const
     };
 }
 
-// 15.5.1 CurrencyDigits ( currency ), https://tc39.es/ecma402/#sec-currencydigits
+// 16.5.1 CurrencyDigits ( currency ), https://tc39.es/ecma402/#sec-currencydigits
 int currency_digits(StringView currency)
 {
     // 1. If the ISO 4217 currency and funds code list contains currency as an alphabetic code, return the minor
@@ -125,19 +125,19 @@ int currency_digits(StringView currency)
     return 2;
 }
 
-// 15.5.3 FormatNumericToString ( intlObject, x ), https://tc39.es/ecma402/#sec-formatnumberstring
+// 16.5.3 FormatNumericToString ( intlObject, x ), https://tc39.es/ecma402/#sec-formatnumberstring
 String format_numeric_to_string(NumberFormatBase const& intl_object, MathematicalValue const& number)
 {
     return intl_object.formatter().format_to_decimal(number.to_value());
 }
 
-// 15.5.4 PartitionNumberPattern ( numberFormat, x ), https://tc39.es/ecma402/#sec-partitionnumberpattern
+// 16.5.4 PartitionNumberPattern ( numberFormat, x ), https://tc39.es/ecma402/#sec-partitionnumberpattern
 Vector<Unicode::NumberFormat::Partition> partition_number_pattern(NumberFormat const& number_format, MathematicalValue const& number)
 {
     return number_format.formatter().format_to_parts(number.to_value());
 }
 
-// 15.5.6 FormatNumeric ( numberFormat, x ), https://tc39.es/ecma402/#sec-formatnumber
+// 16.5.6 FormatNumeric ( numberFormat, x ), https://tc39.es/ecma402/#sec-formatnumber
 String format_numeric(NumberFormat const& number_format, MathematicalValue const& number)
 {
     // 1. Let parts be ? PartitionNumberPattern(numberFormat, x).
@@ -148,7 +148,7 @@ String format_numeric(NumberFormat const& number_format, MathematicalValue const
     return number_format.formatter().format(number.to_value());
 }
 
-// 15.5.7 FormatNumericToParts ( numberFormat, x ), https://tc39.es/ecma402/#sec-formatnumbertoparts
+// 16.5.7 FormatNumericToParts ( numberFormat, x ), https://tc39.es/ecma402/#sec-formatnumbertoparts
 GC::Ref<Array> format_numeric_to_parts(VM& vm, NumberFormat const& number_format, MathematicalValue const& number)
 {
     auto& realm = *vm.current_realm();
@@ -184,7 +184,7 @@ GC::Ref<Array> format_numeric_to_parts(VM& vm, NumberFormat const& number_format
     return result;
 }
 
-// 15.5.16 ToIntlMathematicalValue ( value ), https://tc39.es/ecma402/#sec-tointlmathematicalvalue
+// 16.5.16 ToIntlMathematicalValue ( value ), https://tc39.es/ecma402/#sec-tointlmathematicalvalue
 ThrowCompletionOr<MathematicalValue> to_intl_mathematical_value(VM& vm, Value value)
 {
     // 1. Let primValue be ? ToPrimitive(value, number).
@@ -231,7 +231,7 @@ ThrowCompletionOr<MathematicalValue> to_intl_mathematical_value(VM& vm, Value va
     return string;
 }
 
-// 15.5.19 PartitionNumberRangePattern ( numberFormat, x, y ), https://tc39.es/ecma402/#sec-partitionnumberrangepattern
+// 16.5.19 PartitionNumberRangePattern ( numberFormat, x, y ), https://tc39.es/ecma402/#sec-partitionnumberrangepattern
 ThrowCompletionOr<Vector<Unicode::NumberFormat::Partition>> partition_number_range_pattern(VM& vm, NumberFormat const& number_format, MathematicalValue const& start, MathematicalValue const& end)
 {
     // 1. If x is NaN or y is NaN, throw a RangeError exception.
@@ -243,7 +243,7 @@ ThrowCompletionOr<Vector<Unicode::NumberFormat::Partition>> partition_number_ran
     return number_format.formatter().format_range_to_parts(start.to_value(), end.to_value());
 }
 
-// 15.5.22 FormatNumericRange ( numberFormat, x, y ), https://tc39.es/ecma402/#sec-formatnumericrange
+// 16.5.22 FormatNumericRange ( numberFormat, x, y ), https://tc39.es/ecma402/#sec-formatnumericrange
 ThrowCompletionOr<String> format_numeric_range(VM& vm, NumberFormat const& number_format, MathematicalValue const& start, MathematicalValue const& end)
 {
     // 1. Let parts be ? PartitionNumberRangePattern(numberFormat, x, y).
@@ -265,7 +265,7 @@ ThrowCompletionOr<String> format_numeric_range(VM& vm, NumberFormat const& numbe
     return number_format.formatter().format_range(start.to_value(), end.to_value());
 }
 
-// 15.5.23 FormatNumericRangeToParts ( numberFormat, x, y ), https://tc39.es/ecma402/#sec-formatnumericrangetoparts
+// 16.5.23 FormatNumericRangeToParts ( numberFormat, x, y ), https://tc39.es/ecma402/#sec-formatnumericrangetoparts
 ThrowCompletionOr<GC::Ref<Array>> format_numeric_range_to_parts(VM& vm, NumberFormat const& number_format, MathematicalValue const& start, MathematicalValue const& end)
 {
     auto& realm = *vm.current_realm();

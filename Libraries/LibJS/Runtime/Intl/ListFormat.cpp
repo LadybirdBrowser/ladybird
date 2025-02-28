@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -15,19 +15,19 @@ namespace JS::Intl {
 
 GC_DEFINE_ALLOCATOR(ListFormat);
 
-// 13 ListFormat Objects, https://tc39.es/ecma402/#listformat-objects
+// 14 ListFormat Objects, https://tc39.es/ecma402/#listformat-objects
 ListFormat::ListFormat(Object& prototype)
     : Object(ConstructWithPrototypeTag::Tag, prototype)
 {
 }
 
-// 13.5.2 CreatePartsFromList ( listFormat, list ), https://tc39.es/ecma402/#sec-createpartsfromlist
+// 14.5.2 CreatePartsFromList ( listFormat, list ), https://tc39.es/ecma402/#sec-createpartsfromlist
 Vector<Unicode::ListFormat::Partition> create_parts_from_list(ListFormat const& list_format, ReadonlySpan<String> list)
 {
     return list_format.formatter().format_to_parts(list);
 }
 
-// 13.5.3 FormatList ( listFormat, list ), https://tc39.es/ecma402/#sec-formatlist
+// 14.5.3 FormatList ( listFormat, list ), https://tc39.es/ecma402/#sec-formatlist
 String format_list(ListFormat const& list_format, ReadonlySpan<String> list)
 {
     // 1. Let parts be ! CreatePartsFromList(listFormat, list).
@@ -38,7 +38,7 @@ String format_list(ListFormat const& list_format, ReadonlySpan<String> list)
     return list_format.formatter().format(list);
 }
 
-// 13.5.4 FormatListToParts ( listFormat, list ), https://tc39.es/ecma402/#sec-formatlisttoparts
+// 14.5.4 FormatListToParts ( listFormat, list ), https://tc39.es/ecma402/#sec-formatlisttoparts
 GC::Ref<Array> format_list_to_parts(VM& vm, ListFormat const& list_format, ReadonlySpan<String> list)
 {
     auto& realm = *vm.current_realm();
@@ -74,7 +74,7 @@ GC::Ref<Array> format_list_to_parts(VM& vm, ListFormat const& list_format, Reado
     return result;
 }
 
-// 13.5.5 StringListFromIterable ( iterable ), https://tc39.es/ecma402/#sec-createstringlistfromiterable
+// 14.5.5 StringListFromIterable ( iterable ), https://tc39.es/ecma402/#sec-createstringlistfromiterable
 ThrowCompletionOr<Vector<String>> string_list_from_iterable(VM& vm, Value iterable)
 {
     // 1. If iterable is undefined, then

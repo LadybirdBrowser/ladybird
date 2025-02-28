@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2022-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -25,7 +25,7 @@ class RelativeTimeFormat final : public Object {
 public:
     static constexpr auto relevant_extension_keys()
     {
-        // 17.2.3 Internal slots, https://tc39.es/ecma402/#sec-Intl.RelativeTimeFormat-internal-slots
+        // 18.2.3 Internal slots, https://tc39.es/ecma402/#sec-Intl.RelativeTimeFormat-internal-slots
         // The value of the [[RelevantExtensionKeys]] internal slot is « "nu" ».
         return AK::Array { "nu"sv };
     }

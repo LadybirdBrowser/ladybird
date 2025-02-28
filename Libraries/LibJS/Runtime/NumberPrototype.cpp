@@ -260,7 +260,7 @@ JS_DEFINE_NATIVE_FUNCTION(NumberPrototype::to_fixed)
     return PrimitiveString::create(vm, ByteString::formatted(number_format_string, s, number));
 }
 
-// 19.2.1 Number.prototype.toLocaleString ( [ locales [ , options ] ] ), https://tc39.es/ecma402/#sup-number.prototype.tolocalestring
+// 20.2.1 Number.prototype.toLocaleString ( [ locales [ , options ] ] ), https://tc39.es/ecma402/#sup-number.prototype.tolocalestring
 JS_DEFINE_NATIVE_FUNCTION(NumberPrototype::to_locale_string)
 {
     auto& realm = *vm.current_realm();

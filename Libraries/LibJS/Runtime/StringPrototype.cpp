@@ -529,7 +529,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::last_index_of)
 }
 
 // 22.1.3.12 String.prototype.localeCompare ( that [ , reserved1 [ , reserved2 ] ] ), https://tc39.es/ecma262/#sec-string.prototype.localecompare
-// 19.1.1 String.prototype.localeCompare ( that [ , locales [ , options ] ] ), https://tc39.es/ecma402/#sup-String.prototype.localeCompare
+// 20.1.1 String.prototype.localeCompare ( that [ , locales [ , options ] ] ), https://tc39.es/ecma402/#sup-String.prototype.localeCompare
 JS_DEFINE_NATIVE_FUNCTION(StringPrototype::locale_compare)
 {
     auto& realm = *vm.current_realm();
@@ -1244,7 +1244,7 @@ enum class TargetCase {
     Upper,
 };
 
-// 19.1.2.1 TransformCase ( S, locales, targetCase ), https://tc39.es/ecma402/#sec-transform-case
+// 20.1.2.1 TransformCase ( S, locales, targetCase ), https://tc39.es/ecma402/#sec-transform-case
 static ThrowCompletionOr<String> transform_case(VM& vm, String const& string, Value locales, TargetCase target_case)
 {
     // 1. Let requestedLocales be ? CanonicalizeLocaleList(locales).
@@ -1295,7 +1295,7 @@ static ThrowCompletionOr<String> transform_case(VM& vm, String const& string, Va
 }
 
 // 22.1.3.26 String.prototype.toLocaleLowerCase ( [ reserved1 [ , reserved2 ] ] ), https://tc39.es/ecma262/#sec-string.prototype.tolocalelowercase
-// 19.1.2 String.prototype.toLocaleLowerCase ( [ locales ] ), https://tc39.es/ecma402/#sup-string.prototype.tolocalelowercase
+// 20.1.2 String.prototype.toLocaleLowerCase ( [ locales ] ), https://tc39.es/ecma402/#sup-string.prototype.tolocalelowercase
 JS_DEFINE_NATIVE_FUNCTION(StringPrototype::to_locale_lowercase)
 {
     auto locales = vm.argument(0);
@@ -1309,7 +1309,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::to_locale_lowercase)
 }
 
 // 22.1.3.27 String.prototype.toLocaleUpperCase ( [ reserved1 [ , reserved2 ] ] ), https://tc39.es/ecma262/#sec-string.prototype.tolocaleuppercase
-// 19.1.3 String.prototype.toLocaleUpperCase ( [ locales ] ), https://tc39.es/ecma402/#sup-string.prototype.tolocaleuppercase
+// 20.1.3 String.prototype.toLocaleUpperCase ( [ locales ] ), https://tc39.es/ecma402/#sup-string.prototype.tolocaleuppercase
 JS_DEFINE_NATIVE_FUNCTION(StringPrototype::to_locale_uppercase)
 {
     auto locales = vm.argument(0);

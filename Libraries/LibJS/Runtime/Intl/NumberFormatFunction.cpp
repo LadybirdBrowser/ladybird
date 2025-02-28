@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -12,7 +12,7 @@ namespace JS::Intl {
 
 GC_DEFINE_ALLOCATOR(NumberFormatFunction);
 
-// 15.5.2 Number Format Functions, https://tc39.es/ecma402/#sec-number-format-functions
+// 16.5.2 Number Format Functions, https://tc39.es/ecma402/#sec-number-format-functions
 GC::Ref<NumberFormatFunction> NumberFormatFunction::create(Realm& realm, NumberFormat& number_format)
 {
     return realm.create<NumberFormatFunction>(number_format, realm.intrinsics().function_prototype());

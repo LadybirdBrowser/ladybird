@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2022, Idan Horowitz <idan.horowitz@serenityos.org>
- * Copyright (c) 2022-2024, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2022-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -24,7 +24,7 @@ namespace JS::Intl {
 
 GC_DEFINE_ALLOCATOR(DurationFormat);
 
-// 1 DurationFormat Objects, https://tc39.es/proposal-intl-duration-format/#durationformat-objects
+// 13 DurationFormat Objects, https://tc39.es/ecma402/#durationformat-objects
 DurationFormat::DurationFormat(Object& prototype)
     : Object(ConstructWithPrototypeTag::Tag, prototype)
 {
@@ -186,7 +186,7 @@ static GC::Ref<ListFormat> construct_list_format(VM& vm, DurationFormat const& d
     return static_cast<ListFormat&>(*list_format);
 }
 
-// 1.1.3 ToDurationRecord ( input ), https://tc39.es/proposal-intl-duration-format/#sec-todurationrecord
+// 13.1.3 ToDurationRecord ( input ), https://tc39.es/ecma402/#sec-todurationrecord
 ThrowCompletionOr<DurationRecord> to_duration_record(VM& vm, Value input)
 {
     // 1. If input is not an Object, then
@@ -270,7 +270,7 @@ ThrowCompletionOr<DurationRecord> to_duration_record(VM& vm, Value input)
     return result;
 }
 
-// 1.1.4 DurationSign ( duration ), https://tc39.es/proposal-intl-duration-format/#sec-durationsign
+// 13.1.4 DurationSign ( duration ), https://tc39.es/ecma402/#sec-durationsign
 i8 duration_sign(DurationRecord const& duration)
 {
     // 1. For each value v of « duration.[[Years]], duration.[[Months]], duration.[[Weeks]], duration.[[Days]], duration.[[Hours]], duration.[[Minutes]], duration.[[Seconds]], duration.[[Milliseconds]], duration.[[Microseconds]], duration.[[Nanoseconds]] », do
@@ -288,7 +288,7 @@ i8 duration_sign(DurationRecord const& duration)
     return 0;
 }
 
-// 1.1.6 GetDurationUnitOptions ( unit, options, baseStyle, stylesList, digitalBase, prevStyle, twoDigitHours ), https://tc39.es/proposal-intl-duration-format/#sec-getdurationunitoptions
+// 13.1.6 GetDurationUnitOptions ( unit, options, baseStyle, stylesList, digitalBase, prevStyle, twoDigitHours ), https://tc39.es/ecma402/#sec-getdurationunitoptions
 ThrowCompletionOr<DurationUnitOptions> get_duration_unit_options(VM& vm, DurationFormat::Unit unit, Object const& options, DurationFormat::Style base_style, ReadonlySpan<StringView> styles_list, DurationFormat::ValueStyle digital_base, Optional<DurationFormat::ValueStyle> previous_style, bool two_digit_hours)
 {
     auto const& unit_property_key = unit_to_property_key(vm, unit);
@@ -398,7 +398,7 @@ ThrowCompletionOr<DurationUnitOptions> get_duration_unit_options(VM& vm, Duratio
     return DurationUnitOptions { .style = style, .display = display };
 }
 
-// 1.1.7 ComputeFractionalDigits ( durationFormat, duration ), https://tc39.es/proposal-intl-duration-format/#sec-computefractionaldigits
+// 13.1.7 ComputeFractionalDigits ( durationFormat, duration ), https://tc39.es/ecma402/#sec-computefractionaldigits
 Crypto::BigFraction compute_fractional_digits(DurationFormat const& duration_format, DurationRecord const& duration)
 {
     // 1. Let result be 0.
@@ -407,7 +407,7 @@ Crypto::BigFraction compute_fractional_digits(DurationFormat const& duration_for
     // 2. Let exponent be 3.
     double exponent = 3;
 
-    // 3. For each row of Table 2, except the header row, in table order, do
+    // 3. For each row of Table 21, except the header row, in table order, do
     for (auto const& duration_instances_component : duration_instances_components) {
         // a. Let style be the value of durationFormat's internal slot whose name is the Style Slot value of the current row.
         auto style = (duration_format.*duration_instances_component.get_style_slot)();
@@ -436,7 +436,7 @@ Crypto::BigFraction compute_fractional_digits(DurationFormat const& duration_for
     return result;
 }
 
-// 1.1.8 NextUnitFractional ( durationFormat, unit ), https://tc39.es/proposal-intl-duration-format/#sec-nextunitfractional
+// 13.1.8 NextUnitFractional ( durationFormat, unit ), https://tc39.es/ecma402/#sec-nextunitfractional
 bool next_unit_fractional(DurationFormat const& duration_format, DurationFormat::Unit unit)
 {
     // 1. Assert: unit is "seconds", "milliseconds", or "microseconds".
@@ -458,7 +458,7 @@ bool next_unit_fractional(DurationFormat const& duration_format, DurationFormat:
     return false;
 }
 
-// 1.1.9 FormatNumericHours ( durationFormat, hoursValue, signDisplayed ), https://tc39.es/proposal-intl-duration-format/#sec-formatnumerichours
+// 13.1.9 FormatNumericHours ( durationFormat, hoursValue, signDisplayed ), https://tc39.es/ecma402/#sec-formatnumerichours
 Vector<DurationFormatPart> format_numeric_hours(VM& vm, DurationFormat const& duration_format, MathematicalValue const& hours_value, bool sign_displayed)
 {
     auto& realm = *vm.current_realm();
@@ -514,7 +514,7 @@ Vector<DurationFormatPart> format_numeric_hours(VM& vm, DurationFormat const& du
     return result;
 }
 
-// 1.1.10 FormatNumericMinutes ( durationFormat, minutesValue, hoursDisplayed, signDisplayed ), https://tc39.es/proposal-intl-duration-format/#sec-formatnumericminutes
+// 13.1.10 FormatNumericMinutes ( durationFormat, minutesValue, hoursDisplayed, signDisplayed ), https://tc39.es/ecma402/#sec-formatnumericminutes
 Vector<DurationFormatPart> format_numeric_minutes(VM& vm, DurationFormat const& duration_format, MathematicalValue const& minutes_value, bool hours_displayed, bool sign_displayed)
 {
     auto& realm = *vm.current_realm();
@@ -579,7 +579,7 @@ Vector<DurationFormatPart> format_numeric_minutes(VM& vm, DurationFormat const& 
     return result;
 }
 
-// 1.1.11 FormatNumericSeconds ( durationFormat, secondsValue, minutesDisplayed, signDisplayed ), https://tc39.es/proposal-intl-duration-format/#sec-formatnumericseconds
+// 13.1.11 FormatNumericSeconds ( durationFormat, secondsValue, minutesDisplayed, signDisplayed ), https://tc39.es/ecma402/#sec-formatnumericseconds
 Vector<DurationFormatPart> format_numeric_seconds(VM& vm, DurationFormat const& duration_format, MathematicalValue const& seconds_value, bool minutes_displayed, bool sign_displayed)
 {
     auto& realm = *vm.current_realm();
@@ -673,7 +673,7 @@ Vector<DurationFormatPart> format_numeric_seconds(VM& vm, DurationFormat const& 
     return result;
 }
 
-// 1.1.12 FormatNumericUnits ( durationFormat, duration, firstNumericUnit, signDisplayed ), https://tc39.es/proposal-intl-duration-format/#sec-formatnumericunits
+// 13.1.12 FormatNumericUnits ( durationFormat, duration, firstNumericUnit, signDisplayed ), https://tc39.es/ecma402/#sec-formatnumericunits
 Vector<DurationFormatPart> format_numeric_units(VM& vm, DurationFormat const& duration_format, DurationRecord const& duration, DurationFormat::Unit first_numeric_unit, bool sign_displayed)
 {
     // 1. Assert: firstNumericUnit is "hours", "minutes", or "seconds".
@@ -800,7 +800,7 @@ Vector<DurationFormatPart> format_numeric_units(VM& vm, DurationFormat const& du
     return numeric_parts_list;
 }
 
-// 1.1.13 ListFormatParts ( durationFormat, partitionedPartsList ), https://tc39.es/proposal-intl-duration-format/#sec-listformatparts
+// 13.1.13 ListFormatParts ( durationFormat, partitionedPartsList ), https://tc39.es/ecma402/#sec-listformatparts
 Vector<DurationFormatPart> list_format_parts(VM& vm, DurationFormat const& duration_format, Vector<Vector<DurationFormatPart>>& partitioned_parts_list)
 {
     auto& realm = *vm.current_realm();
@@ -891,7 +891,7 @@ Vector<DurationFormatPart> list_format_parts(VM& vm, DurationFormat const& durat
     return flattened_parts_list;
 }
 
-// 1.1.7 PartitionDurationFormatPattern ( durationFormat, duration ), https://tc39.es/proposal-intl-duration-format/#sec-partitiondurationformatpattern
+// 13.1.14 PartitionDurationFormatPattern ( durationFormat, duration ), https://tc39.es/ecma402/#sec-partitiondurationformatpattern
 Vector<DurationFormatPart> partition_duration_format_pattern(VM& vm, DurationFormat const& duration_format, DurationRecord const& duration)
 {
     auto& realm = *vm.current_realm();
@@ -905,7 +905,7 @@ Vector<DurationFormatPart> partition_duration_format_pattern(VM& vm, DurationFor
     // 3. Let numericUnitFound be false.
     auto numeric_unit_found = false;
 
-    // 4. While numericUnitFound is false, repeat for each row in Table 2 in table order, except the header row:
+    // 4. While numericUnitFound is false, repeat for each row in Table 21 in table order, except the header row:
     for (size_t i = 0; !numeric_unit_found && i < duration_instances_components.size(); ++i) {
         auto const& duration_instances_component = duration_instances_components[i];
 

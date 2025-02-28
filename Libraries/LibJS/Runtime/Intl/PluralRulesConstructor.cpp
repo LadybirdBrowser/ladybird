@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2022-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -17,7 +17,7 @@ namespace JS::Intl {
 
 GC_DEFINE_ALLOCATOR(PluralRulesConstructor);
 
-// 16.1 The Intl.PluralRules Constructor, https://tc39.es/ecma402/#sec-intl-pluralrules-constructor
+// 17.1 The Intl.PluralRules Constructor, https://tc39.es/ecma402/#sec-intl-pluralrules-constructor
 PluralRulesConstructor::PluralRulesConstructor(Realm& realm)
     : NativeFunction(realm.vm().names.PluralRules.as_string(), realm.intrinsics().function_prototype())
 {
@@ -29,7 +29,7 @@ void PluralRulesConstructor::initialize(Realm& realm)
 
     auto& vm = this->vm();
 
-    // 16.2.1 Intl.PluralRules.prototype, https://tc39.es/ecma402/#sec-intl.pluralrules.prototype
+    // 17.2.1 Intl.PluralRules.prototype, https://tc39.es/ecma402/#sec-intl.pluralrules.prototype
     define_direct_property(vm.names.prototype, realm.intrinsics().intl_plural_rules_prototype(), 0);
     define_direct_property(vm.names.length, Value(0), Attribute::Configurable);
 
@@ -37,14 +37,14 @@ void PluralRulesConstructor::initialize(Realm& realm)
     define_native_function(realm, vm.names.supportedLocalesOf, supported_locales_of, 1, attr);
 }
 
-// 16.1.1 Intl.PluralRules ( [ locales [ , options ] ] ), https://tc39.es/ecma402/#sec-intl.pluralrules
+// 17.1.1 Intl.PluralRules ( [ locales [ , options ] ] ), https://tc39.es/ecma402/#sec-intl.pluralrules
 ThrowCompletionOr<Value> PluralRulesConstructor::call()
 {
     // 1. If NewTarget is undefined, throw a TypeError exception.
     return vm().throw_completion<TypeError>(ErrorType::ConstructorWithoutNew, "Intl.PluralRules");
 }
 
-// 16.1.1 Intl.PluralRules ( [ locales [ , options ] ] ), https://tc39.es/ecma402/#sec-intl.pluralrules
+// 17.1.1 Intl.PluralRules ( [ locales [ , options ] ] ), https://tc39.es/ecma402/#sec-intl.pluralrules
 ThrowCompletionOr<GC::Ref<Object>> PluralRulesConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
@@ -99,7 +99,7 @@ ThrowCompletionOr<GC::Ref<Object>> PluralRulesConstructor::construct(FunctionObj
     return plural_rules;
 }
 
-// 16.2.2 Intl.PluralRules.supportedLocalesOf ( locales [ , options ] ), https://tc39.es/ecma402/#sec-intl.pluralrules.supportedlocalesof
+// 17.2.2 Intl.PluralRules.supportedLocalesOf ( locales [ , options ] ), https://tc39.es/ecma402/#sec-intl.pluralrules.supportedlocalesof
 JS_DEFINE_NATIVE_FUNCTION(PluralRulesConstructor::supported_locales_of)
 {
     auto locales = vm.argument(0);

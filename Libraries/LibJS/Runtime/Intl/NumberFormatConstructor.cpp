@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -15,7 +15,7 @@ namespace JS::Intl {
 
 GC_DEFINE_ALLOCATOR(NumberFormatConstructor);
 
-// 15.1 The Intl.NumberFormat Constructor, https://tc39.es/ecma402/#sec-intl-numberformat-constructor
+// 16.1 The Intl.NumberFormat Constructor, https://tc39.es/ecma402/#sec-intl-numberformat-constructor
 NumberFormatConstructor::NumberFormatConstructor(Realm& realm)
     : NativeFunction(realm.vm().names.NumberFormat.as_string(), realm.intrinsics().function_prototype())
 {
@@ -27,7 +27,7 @@ void NumberFormatConstructor::initialize(Realm& realm)
 
     auto& vm = this->vm();
 
-    // 15.2.1 Intl.NumberFormat.prototype, https://tc39.es/ecma402/#sec-intl.numberformat.prototype
+    // 16.2.1 Intl.NumberFormat.prototype, https://tc39.es/ecma402/#sec-intl.numberformat.prototype
     define_direct_property(vm.names.prototype, realm.intrinsics().intl_number_format_prototype(), 0);
 
     u8 attr = Attribute::Writable | Attribute::Configurable;
@@ -36,14 +36,14 @@ void NumberFormatConstructor::initialize(Realm& realm)
     define_direct_property(vm.names.length, Value(0), Attribute::Configurable);
 }
 
-// 15.1.1 Intl.NumberFormat ( [ locales [ , options ] ] ), https://tc39.es/ecma402/#sec-intl.numberformat
+// 16.1.1 Intl.NumberFormat ( [ locales [ , options ] ] ), https://tc39.es/ecma402/#sec-intl.numberformat
 ThrowCompletionOr<Value> NumberFormatConstructor::call()
 {
     // 1. If NewTarget is undefined, let newTarget be the active function object, else let newTarget be NewTarget.
     return TRY(construct(*this));
 }
 
-// 15.1.1 Intl.NumberFormat ( [ locales [ , options ] ] ), https://tc39.es/ecma402/#sec-intl.numberformat
+// 16.1.1 Intl.NumberFormat ( [ locales [ , options ] ] ), https://tc39.es/ecma402/#sec-intl.numberformat
 ThrowCompletionOr<GC::Ref<Object>> NumberFormatConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
@@ -194,7 +194,7 @@ ThrowCompletionOr<GC::Ref<Object>> NumberFormatConstructor::construct(FunctionOb
     return number_format;
 }
 
-// 15.1.2 SetNumberFormatDigitOptions ( intlObj, options, mnfdDefault, mxfdDefault, notation ), https://tc39.es/ecma402/#sec-setnfdigitoptions
+// 16.1.2 SetNumberFormatDigitOptions ( intlObj, options, mnfdDefault, mxfdDefault, notation ), https://tc39.es/ecma402/#sec-setnfdigitoptions
 ThrowCompletionOr<void> set_number_format_digit_options(VM& vm, NumberFormatBase& intl_object, Object const& options, int default_min_fraction_digits, int default_max_fraction_digits, Unicode::Notation notation)
 {
     // 1. Let mnid be ? GetNumberOption(options, "minimumIntegerDigits,", 1, 21, 1).
@@ -399,7 +399,7 @@ ThrowCompletionOr<void> set_number_format_digit_options(VM& vm, NumberFormatBase
     return {};
 }
 
-// 15.1.3 SetNumberFormatUnitOptions ( intlObj, options ), https://tc39.es/ecma402/#sec-setnumberformatunitoptions
+// 16.1.3 SetNumberFormatUnitOptions ( intlObj, options ), https://tc39.es/ecma402/#sec-setnumberformatunitoptions
 ThrowCompletionOr<void> set_number_format_unit_options(VM& vm, NumberFormat& intl_object, Object const& options)
 {
     // 1. Let style be ? GetOption(options, "style", string, « "decimal", "percent", "currency", "unit" », "decimal").
@@ -472,7 +472,7 @@ ThrowCompletionOr<void> set_number_format_unit_options(VM& vm, NumberFormat& int
     return {};
 }
 
-// 15.2.2 Intl.NumberFormat.supportedLocalesOf ( locales [ , options ] ), https://tc39.es/ecma402/#sec-intl.numberformat.supportedlocalesof
+// 16.2.2 Intl.NumberFormat.supportedLocalesOf ( locales [ , options ] ), https://tc39.es/ecma402/#sec-intl.numberformat.supportedlocalesof
 JS_DEFINE_NATIVE_FUNCTION(NumberFormatConstructor::supported_locales_of)
 {
     auto locales = vm.argument(0);

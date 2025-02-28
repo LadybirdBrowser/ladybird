@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -32,7 +32,7 @@ GC::Ref<Locale> Locale::create(Realm& realm, GC::Ref<Locale> source_locale, Stri
     return locale;
 }
 
-// 14 Locale Objects, https://tc39.es/ecma402/#locale-objects
+// 15 Locale Objects, https://tc39.es/ecma402/#locale-objects
 Locale::Locale(Object& prototype)
     : Object(ConstructWithPrototypeTag::Tag, prototype)
 {

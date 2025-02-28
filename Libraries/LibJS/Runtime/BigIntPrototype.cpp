@@ -78,7 +78,7 @@ JS_DEFINE_NATIVE_FUNCTION(BigIntPrototype::to_string)
 }
 
 // 21.2.3.2 BigInt.prototype.toLocaleString ( [ reserved1 [ , reserved2 ] ] ), https://tc39.es/ecma262/#sec-bigint.prototype.tolocalestring
-// 19.3.1 BigInt.prototype.toLocaleString ( [ locales [ , options ] ] ), https://tc39.es/ecma402/#sup-bigint.prototype.tolocalestring
+// 20.3.1 BigInt.prototype.toLocaleString ( [ locales [ , options ] ] ), https://tc39.es/ecma402/#sup-bigint.prototype.tolocalestring
 JS_DEFINE_NATIVE_FUNCTION(BigIntPrototype::to_locale_string)
 {
     auto& realm = *vm.current_realm();

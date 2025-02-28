@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2022-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -16,7 +16,7 @@ namespace JS::Intl {
 
 GC_DEFINE_ALLOCATOR(RelativeTimeFormatConstructor);
 
-// 17.1 The Intl.RelativeTimeFormat Constructor, https://tc39.es/ecma402/#sec-intl-relativetimeformat-constructor
+// 18.1 The Intl.RelativeTimeFormat Constructor, https://tc39.es/ecma402/#sec-intl-relativetimeformat-constructor
 RelativeTimeFormatConstructor::RelativeTimeFormatConstructor(Realm& realm)
     : NativeFunction(realm.vm().names.RelativeTimeFormat.as_string(), realm.intrinsics().function_prototype())
 {
@@ -28,7 +28,7 @@ void RelativeTimeFormatConstructor::initialize(Realm& realm)
 
     auto& vm = this->vm();
 
-    // 17.2.1 Intl.RelativeTimeFormat.prototype, https://tc39.es/ecma402/#sec-Intl.RelativeTimeFormat.prototype
+    // 18.2.1 Intl.RelativeTimeFormat.prototype, https://tc39.es/ecma402/#sec-Intl.RelativeTimeFormat.prototype
     define_direct_property(vm.names.prototype, realm.intrinsics().intl_relative_time_format_prototype(), 0);
     define_direct_property(vm.names.length, Value(0), Attribute::Configurable);
 
@@ -36,14 +36,14 @@ void RelativeTimeFormatConstructor::initialize(Realm& realm)
     define_native_function(realm, vm.names.supportedLocalesOf, supported_locales_of, 1, attr);
 }
 
-// 17.1.1 Intl.RelativeTimeFormat ( [ locales [ , options ] ] ), https://tc39.es/ecma402/#sec-Intl.RelativeTimeFormat
+// 18.1.1 Intl.RelativeTimeFormat ( [ locales [ , options ] ] ), https://tc39.es/ecma402/#sec-Intl.RelativeTimeFormat
 ThrowCompletionOr<Value> RelativeTimeFormatConstructor::call()
 {
     // 1. If NewTarget is undefined, throw a TypeError exception.
     return vm().throw_completion<TypeError>(ErrorType::ConstructorWithoutNew, "Intl.RelativeTimeFormat");
 }
 
-// 17.1.1 Intl.RelativeTimeFormat ( [ locales [ , options ] ] ), https://tc39.es/ecma402/#sec-Intl.RelativeTimeFormat
+// 18.1.1 Intl.RelativeTimeFormat ( [ locales [ , options ] ] ), https://tc39.es/ecma402/#sec-Intl.RelativeTimeFormat
 ThrowCompletionOr<GC::Ref<Object>> RelativeTimeFormatConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
@@ -120,7 +120,7 @@ ThrowCompletionOr<GC::Ref<Object>> RelativeTimeFormatConstructor::construct(Func
     return relative_time_format;
 }
 
-// 17.2.2 Intl.RelativeTimeFormat.supportedLocalesOf ( locales [ , options ] ), https://tc39.es/ecma402/#sec-Intl.RelativeTimeFormat.supportedLocalesOf
+// 18.2.2 Intl.RelativeTimeFormat.supportedLocalesOf ( locales [ , options ] ), https://tc39.es/ecma402/#sec-Intl.RelativeTimeFormat.supportedLocalesOf
 JS_DEFINE_NATIVE_FUNCTION(RelativeTimeFormatConstructor::supported_locales_of)
 {
     auto locales = vm.argument(0);

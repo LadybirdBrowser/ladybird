@@ -13,7 +13,7 @@ namespace JS::Intl {
 
 GC_DEFINE_ALLOCATOR(SegmenterPrototype);
 
-// 18.3 Properties of the Intl.Segmenter Prototype Object, https://tc39.es/ecma402/#sec-properties-of-intl-segmenter-prototype-object
+// 19.3 Properties of the Intl.Segmenter Prototype Object, https://tc39.es/ecma402/#sec-properties-of-intl-segmenter-prototype-object
 SegmenterPrototype::SegmenterPrototype(Realm& realm)
     : PrototypeObject(realm.intrinsics().object_prototype())
 {
@@ -25,7 +25,7 @@ void SegmenterPrototype::initialize(Realm& realm)
 
     auto& vm = this->vm();
 
-    // 18.3.2 Intl.Segmenter.prototype [ @@toStringTag ], https://tc39.es/ecma402/#sec-intl.segmenter.prototype-@@tostringtag
+    // 19.3.2 Intl.Segmenter.prototype [ @@toStringTag ], https://tc39.es/ecma402/#sec-intl.segmenter.prototype-@@tostringtag
     define_direct_property(vm.well_known_symbol_to_string_tag(), PrimitiveString::create(vm, "Intl.Segmenter"_string), Attribute::Configurable);
 
     u8 attr = Attribute::Writable | Attribute::Configurable;
@@ -33,7 +33,7 @@ void SegmenterPrototype::initialize(Realm& realm)
     define_native_function(realm, vm.names.segment, segment, 1, attr);
 }
 
-// 18.3.4 Intl.Segmenter.prototype.resolvedOptions ( ), https://tc39.es/ecma402/#sec-intl.segmenter.prototype.resolvedoptions
+// 19.3.4 Intl.Segmenter.prototype.resolvedOptions ( ), https://tc39.es/ecma402/#sec-intl.segmenter.prototype.resolvedoptions
 JS_DEFINE_NATIVE_FUNCTION(SegmenterPrototype::resolved_options)
 {
     auto& realm = *vm.current_realm();
@@ -45,7 +45,7 @@ JS_DEFINE_NATIVE_FUNCTION(SegmenterPrototype::resolved_options)
     // 3. Let options be OrdinaryObjectCreate(%Object.prototype%).
     auto options = Object::create(realm, realm.intrinsics().object_prototype());
 
-    // 4. For each row of Table 16, except the header row, in table order, do
+    // 4. For each row of Table 31, except the header row, in table order, do
     //     a. Let p be the Property value of the current row.
     //     b. Let v be the value of segmenter's internal slot whose name is the Internal Slot value of the current row.
     //     c. Assert: v is not undefined.
@@ -57,7 +57,7 @@ JS_DEFINE_NATIVE_FUNCTION(SegmenterPrototype::resolved_options)
     return options;
 }
 
-// 18.3.3 Intl.Segmenter.prototype.segment ( string ), https://tc39.es/ecma402/#sec-intl.segmenter.prototype.segment
+// 19.3.3 Intl.Segmenter.prototype.segment ( string ), https://tc39.es/ecma402/#sec-intl.segmenter.prototype.segment
 JS_DEFINE_NATIVE_FUNCTION(SegmenterPrototype::segment)
 {
     auto& realm = *vm.current_realm();
