@@ -1342,6 +1342,10 @@ WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
 
 WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
 {
+    // AD-HOC: Not in the spec but subsequent steps will fail if the navigable doesn't have an active window.
+    if (!active_window())
+        return {};
+
     auto source_document = params.source_document;
     auto exceptions_enabled = params.exceptions_enabled;
     auto& active_document = *this->active_document();
