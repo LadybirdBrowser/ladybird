@@ -7,6 +7,7 @@ set(SOURCES
     Site.cpp
     URL.cpp
     ${PUBLIC_SUFFIX_SOURCES}
+    Pattern/Canonicalization.cpp
     Pattern/Pattern.cpp
     Pattern/Tokenizer.cpp
 )
