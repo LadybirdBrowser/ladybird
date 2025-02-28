@@ -163,35 +163,6 @@ ThrowCompletionOr<GC::Ref<T>> ordinary_create_from_constructor(VM& vm, FunctionO
     return realm.create<T>(forward<Args>(args)..., *prototype);
 }
 
-// 14.1 MergeLists ( a, b ), https://tc39.es/proposal-temporal/#sec-temporal-mergelists
-template<typename T>
-Vector<T> merge_lists(Vector<T> const& a, Vector<T> const& b)
-{
-    // 1. Let merged be a new empty List.
-    Vector<T> merged;
-
-    // 2. For each element element of a, do
-    for (auto const& element : a) {
-        // a. If merged does not contain element, then
-        if (!merged.contains_slow(element)) {
-            // i. Append element to merged.
-            merged.append(element);
-        }
-    }
-
-    // 3. For each element element of b, do
-    for (auto const& element : b) {
-        // a. If merged does not contain element, then
-        if (!merged.contains_slow(element)) {
-            // i. Append element to merged.
-            merged.append(element);
-        }
-    }
-
-    // 4. Return merged.
-    return merged;
-}
-
 // 7.3.35 AddValueToKeyedGroup ( groups, key, value ), https://tc39.es/ecma262/#sec-add-value-to-keyed-group
 template<typename GroupsType, typename KeyType>
 void add_value_to_keyed_group(VM& vm, GroupsType& groups, KeyType key, Value value)
@@ -347,5 +318,46 @@ auto remainder(Crypto::BigInteger auto const& x, Crypto::BigInteger auto const& 
     VERIFY(!y.is_zero());
     return x.divided_by(y).remainder;
 }
+
+// 14.3 The Year-Week Record Specification Type, https://tc39.es/proposal-temporal/#sec-year-week-record-specification-type
+struct YearWeek {
+    Optional<u8> week;
+    Optional<i32> year;
+};
+
+enum class OptionType {
+    Boolean,
+    String,
+};
+
+struct Required { };
+using OptionDefault = Variant<Required, Empty, bool, StringView, double>;
+
+ThrowCompletionOr<GC::Ref<Object>> get_options_object(VM&, Value options);
+ThrowCompletionOr<Value> get_option(VM&, Object const& options, PropertyKey const& property, OptionType type, ReadonlySpan<StringView> values, OptionDefault const&);
+
+template<size_t Size>
+ThrowCompletionOr<Value> get_option(VM& vm, Object const& options, PropertyKey const& property, OptionType type, StringView const (&values)[Size], OptionDefault const& default_)
+{
+    return get_option(vm, options, property, type, ReadonlySpan<StringView> { values }, default_);
+}
+
+// https://tc39.es/proposal-temporal/#table-temporal-rounding-modes
+enum class RoundingMode {
+    Ceil,
+    Floor,
+    Expand,
+    Trunc,
+    HalfCeil,
+    HalfFloor,
+    HalfExpand,
+    HalfTrunc,
+    HalfEven,
+};
+
+ThrowCompletionOr<RoundingMode> get_rounding_mode_option(VM&, Object const& options, RoundingMode fallback);
+ThrowCompletionOr<u64> get_rounding_increment_option(VM&, Object const& options);
+
+Crypto::SignedBigInteger big_floor(Crypto::SignedBigInteger const& numerator, Crypto::UnsignedBigInteger const& denominator);
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -13,7 +13,6 @@
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/Date.h>
-#include <LibJS/Runtime/Temporal/AbstractOperations.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibUnicode/Locale.h>
 
@@ -71,10 +70,5 @@ ThrowCompletionOr<StringOrBoolean> get_boolean_or_string_number_format_option(VM
 {
     return get_boolean_or_string_number_format_option(vm, options, property, ReadonlySpan<StringView> { string_values }, move(fallback));
 }
-
-// NOTE: ECMA-402's GetOption is being removed in favor of a shared ECMA-262 GetOption in the Temporal proposal.
-// Until Temporal is merged into ECMA-262, our implementation lives in the Temporal-specific AO file & namespace.
-using Temporal::get_option;
-using Temporal::OptionType;
 
 }

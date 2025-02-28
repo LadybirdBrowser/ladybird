@@ -11,7 +11,6 @@
 #include <LibJS/Runtime/Intl/AbstractOperations.h>
 #include <LibJS/Runtime/Intl/Segmenter.h>
 #include <LibJS/Runtime/Intl/SegmenterConstructor.h>
-#include <LibJS/Runtime/Temporal/AbstractOperations.h>
 
 namespace JS::Intl {
 
@@ -60,7 +59,7 @@ ThrowCompletionOr<GC::Ref<Object>> SegmenterConstructor::construct(FunctionObjec
     auto requested_locales = TRY(canonicalize_locale_list(vm, locales));
 
     // 5. Set options to ? GetOptionsObject(options).
-    auto options = TRY(Temporal::get_options_object(vm, options_value));
+    auto options = TRY(get_options_object(vm, options_value));
 
     // 6. Let opt be a new Record.
     LocaleOptions opt {};

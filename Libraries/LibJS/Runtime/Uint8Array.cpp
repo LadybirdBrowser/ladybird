@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2024-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -7,7 +7,7 @@
 #include <AK/Base64.h>
 #include <AK/StringBuilder.h>
 #include <AK/StringUtils.h>
-#include <LibJS/Runtime/Temporal/AbstractOperations.h>
+#include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/Uint8Array.h>
 #include <LibJS/Runtime/VM.h>
@@ -87,7 +87,7 @@ JS_DEFINE_NATIVE_FUNCTION(Uint8ArrayPrototypeHelpers::to_base64)
     auto typed_array = TRY(validate_uint8_array(vm));
 
     // 3. Let opts be ? GetOptionsObject(options).
-    auto options = TRY(Temporal::get_options_object(vm, options_value));
+    auto options = TRY(get_options_object(vm, options_value));
 
     // 4. Let alphabet be ? Get(opts, "alphabet").
     // 5. If alphabet is undefined, set alphabet to "base64".
@@ -159,7 +159,7 @@ JS_DEFINE_NATIVE_FUNCTION(Uint8ArrayConstructorHelpers::from_base64)
         return vm.throw_completion<TypeError>(ErrorType::NotAString, string_value);
 
     // 2. Let opts be ? GetOptionsObject(options).
-    auto options = TRY(Temporal::get_options_object(vm, options_value));
+    auto options = TRY(get_options_object(vm, options_value));
 
     // 3. Let alphabet be ? Get(opts, "alphabet").
     // 4. If alphabet is undefined, set alphabet to "base64".
@@ -214,7 +214,7 @@ JS_DEFINE_NATIVE_FUNCTION(Uint8ArrayPrototypeHelpers::set_from_base64)
         return vm.throw_completion<TypeError>(ErrorType::NotAString, string_value);
 
     // 4. Let opts be ? GetOptionsObject(options).
-    auto options = TRY(Temporal::get_options_object(vm, options_value));
+    auto options = TRY(get_options_object(vm, options_value));
 
     // 5. Let alphabet be ? Get(opts, "alphabet").
     // 6. If alphabet is undefined, set alphabet to "base64".

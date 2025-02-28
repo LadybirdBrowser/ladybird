@@ -60,7 +60,7 @@ ThrowCompletionOr<GC::Ref<Object>> DurationFormatConstructor::construct(Function
     auto requested_locales = TRY(canonicalize_locale_list(vm, locales));
 
     // 4. Let options be ? GetOptionsObject(options).
-    auto options = TRY(Temporal::get_options_object(vm, options_value));
+    auto options = TRY(get_options_object(vm, options_value));
 
     // 5. Let matcher be ? GetOption(options, "localeMatcher", STRING, « "lookup", "best fit" », "best fit").
     auto matcher = TRY(get_option(vm, *options, vm.names.localeMatcher, OptionType::String, { "lookup"sv, "best fit"sv }, "best fit"sv));
