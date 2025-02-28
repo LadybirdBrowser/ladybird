@@ -88,33 +88,34 @@ ThrowCompletionOr<GC::Ref<PlainMonthDay>> to_temporal_month_day(VM& vm, Value it
     // 9. Perform ? GetTemporalOverflowOption(resolvedOptions).
     TRY(get_temporal_overflow_option(vm, resolved_options));
 
-    // 10. If result.[[Year]] is empty, then
-    if (!parse_result.year.has_value()) {
-        // a. Assert: calendar is "iso8601".
-        VERIFY(calendar == "iso8601"sv);
-
-        // b. Let referenceISOYear be 1972 (the first ISO 8601 leap year after the epoch).
+    // 10. If calendar is "iso8601", then
+    if (calendar == "iso8601"sv) {
+        // a. Let referenceISOYear be 1972 (the first ISO 8601 leap year after the epoch).
         static constexpr i32 reference_iso_year = 1972;
 
-        // c. Let isoDate be CreateISODateRecord(referenceISOYear, result.[[Month]], result.[[Day]]).
+        // b. Let isoDate be CreateISODateRecord(referenceISOYear, result.[[Month]], result.[[Day]]).
         auto iso_date = create_iso_date_record(reference_iso_year, parse_result.month, parse_result.day);
 
-        // d. Return ! CreateTemporalMonthDay(isoDate, calendar).
+        // c. Return ! CreateTemporalMonthDay(isoDate, calendar).
         return MUST(create_temporal_month_day(vm, iso_date, move(calendar)));
     }
 
     // 11. Let isoDate be CreateISODateRecord(result.[[Year]], result.[[Month]], result.[[Day]]).
     auto iso_date = create_iso_date_record(*parse_result.year, parse_result.month, parse_result.day);
 
-    // 12. Set result to ISODateToFields(calendar, isoDate, MONTH-DAY).
+    // 12. If ISODateWithinLimits(isoDate) is false, throw a RangeError exception.
+    if (!iso_date_within_limits(iso_date))
+        return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidPlainMonthDay);
+
+    // 13. Set result to ISODateToFields(calendar, isoDate, MONTH-DAY).
     auto result = iso_date_to_fields(calendar, iso_date, DateType::MonthDay);
 
-    // 13. NOTE: The following operation is called with CONSTRAIN regardless of the value of overflow, in order for the
+    // 14. NOTE: The following operation is called with CONSTRAIN regardless of the value of overflow, in order for the
     //     calendar to store a canonical value in the [[Year]] field of the [[ISODate]] internal slot of the result.
-    // 14. Set isoDate to ? CalendarMonthDayFromFields(calendar, result, CONSTRAIN).
+    // 15. Set isoDate to ? CalendarMonthDayFromFields(calendar, result, CONSTRAIN).
     iso_date = TRY(calendar_month_day_from_fields(vm, calendar, result, Overflow::Constrain));
 
-    // 15. Return ! CreateTemporalMonthDay(isoDate, calendar).
+    // 16. Return ! CreateTemporalMonthDay(isoDate, calendar).
     return MUST(create_temporal_month_day(vm, iso_date, move(calendar)));
 }
 
