@@ -39,13 +39,18 @@ public:
     JS::Uint8ClampedArray* data();
     const JS::Uint8ClampedArray* data() const;
 
+    Bindings::PredefinedColorSpace color_space() const { return m_color_space; }
+
 private:
-    ImageData(JS::Realm&, NonnullRefPtr<Gfx::Bitmap>, GC::Ref<JS::Uint8ClampedArray>);
+    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<ImageData>> initialize(JS::Realm&, u32 rows, u32 pixels_per_row, Optional<ImageDataSettings> const&, GC::Ptr<JS::Uint8ClampedArray> = {}, Optional<Bindings::PredefinedColorSpace> = {});
+
+    ImageData(JS::Realm&, NonnullRefPtr<Gfx::Bitmap>, GC::Ref<JS::Uint8ClampedArray>, Bindings::PredefinedColorSpace);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     NonnullRefPtr<Gfx::Bitmap> m_bitmap;
+    Bindings::PredefinedColorSpace m_color_space;
     GC::Ref<JS::Uint8ClampedArray> m_data;
 };
 
