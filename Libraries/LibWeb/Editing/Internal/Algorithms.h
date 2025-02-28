@@ -138,6 +138,6 @@ Optional<CSS::Display> resolved_display(GC::Ref<DOM::Node>);
 Optional<CSS::Keyword> resolved_keyword(GC::Ref<DOM::Node>, CSS::PropertyID);
 Optional<NonnullRefPtr<CSS::CSSStyleValue const>> resolved_value(GC::Ref<DOM::Node>, CSS::PropertyID);
 void take_the_action_for_command(DOM::Document&, FlyString const&, String const&);
-bool value_list_contains_keyword(CSS::StyleValueList const&, CSS::Keyword);
+bool value_contains_keyword(CSS::CSSStyleValue const&, CSS::Keyword);
 
 }
