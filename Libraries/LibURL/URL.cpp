@@ -2,6 +2,7 @@
  * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, Max Wipfli <mail@maxwipfli.ch>
  * Copyright (c) 2024, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2023-2025, Shannon Booth <shannon@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -20,18 +21,6 @@
 #endif
 
 namespace URL {
-
-// FIXME: It could make sense to force users of URL to use URL::Parser::basic_parse() explicitly instead of using a constructor.
-URL::URL(StringView string)
-    : URL(Parser::basic_parse(string).value_or(URL {}))
-{
-    if constexpr (URL_PARSER_DEBUG) {
-        if (m_data->valid)
-            dbgln("URL constructor: Parsed URL to be '{}'.", serialize());
-        else
-            dbgln("URL constructor: Parsed URL to be invalid.");
-    }
-}
 
 Optional<URL> URL::complete_url(StringView relative_url) const
 {

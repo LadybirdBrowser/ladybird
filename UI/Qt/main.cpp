@@ -73,7 +73,9 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
     Core::EventLoopManager::install(*new WebView::EventLoopManagerQt);
 
-    auto app = Ladybird::Application::create(arguments, ak_url_from_qstring(Ladybird::Settings::the()->new_tab_page()));
+    auto url = ak_url_from_qstring(Ladybird::Settings::the()->new_tab_page());
+    VERIFY(url.has_value());
+    auto app = Ladybird::Application::create(arguments, url.release_value());
 
     static_cast<WebView::EventLoopImplementationQt&>(Core::EventLoop::current().impl()).set_main_loop();
     TRY(handle_attached_debugger());

@@ -8,6 +8,7 @@
 
 #include <AK/TemporaryChange.h>
 #include <LibGfx/ImageFormats/BMPWriter.h>
+#include <LibURL/Parser.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWebView/SearchEngine.h>
 #include <LibWebView/SourceHighlighter.h>
@@ -466,8 +467,10 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     auto* search_selected_text_action = new QAction("&Search for <query>", this);
     search_selected_text_action->setIcon(load_icon_from_uri("resource://icons/16x16/find.png"sv));
     QObject::connect(search_selected_text_action, &QAction::triggered, this, [this]() {
-        auto url = MUST(String::formatted(Settings::the()->search_engine().query_url, URL::percent_encode(*m_page_context_menu_search_text)));
-        m_window->new_tab_from_url(URL::URL(url), Web::HTML::ActivateTab::Yes);
+        auto url_string = MUST(String::formatted(Settings::the()->search_engine().query_url, URL::percent_encode(*m_page_context_menu_search_text)));
+        auto url = URL::Parser::basic_parse(url_string);
+        VERIFY(url.has_value());
+        m_window->new_tab_from_url(url.release_value(), Web::HTML::ActivateTab::Yes);
     });
 
     auto take_screenshot = [this](auto type) {
