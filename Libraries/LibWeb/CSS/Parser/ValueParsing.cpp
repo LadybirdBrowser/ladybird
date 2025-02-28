@@ -3248,12 +3248,6 @@ RefPtr<CSSStyleValue> Parser::parse_calculated_value(ComponentValue const& compo
     if (!function_node)
         return nullptr;
 
-    // If the calculation got simplified down to a single value, return that instead.
-    if (function_node->type() == CalculationNode::Type::Numeric) {
-        if (auto number_value = as<NumericCalculationNode>(*function_node).to_style_value(context))
-            return number_value.release_nonnull();
-    }
-
     auto function_type = function_node->numeric_type();
     if (!function_type.has_value())
         return nullptr;
