@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 11 tests
 
-7 Pass
-4 Fail
+8 Pass
+3 Fail
 Pass	[INPUT in EMAIL status] The value is empty
 Pass	[INPUT in EMAIL status] The value is a valid email address
 Pass	[INPUT in EMAIL status] The value is a valid email address with some white spaces.
@@ -14,4 +14,4 @@ Fail	[INPUT in EMAIL status] The value contains invalid separator
 Pass	[INPUT in URL status] The value is empty
 Pass	[INPUT in URL status] The value is a valid url
 Pass	[INPUT in URL status] The value is a valid url with some white spaces.
-Fail	[INPUT in URL status] The value is not an url
+Pass	[INPUT in URL status] The value is not an url
