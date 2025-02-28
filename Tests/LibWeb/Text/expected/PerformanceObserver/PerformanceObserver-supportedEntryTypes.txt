@@ -1,4 +1,4 @@
-PerformanceObserver.supportedEntryTypes: mark,measure
+PerformanceObserver.supportedEntryTypes: mark,measure,resource
 PerformanceObserver.supportedEntryTypes instanceof Array: true
 Object.isFrozen(PerformanceObserver.supportedEntryTypes): true
 PerformanceObserver.supportedEntryTypes === PerformanceObserver.supportedEntryTypes: true

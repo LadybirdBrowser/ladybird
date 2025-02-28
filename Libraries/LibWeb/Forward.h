@@ -74,6 +74,7 @@ enum class MediaEncodingType;
 enum class MediaKeysRequirement;
 enum class ReadableStreamReaderMode;
 enum class ReferrerPolicy;
+enum class RenderBlockingStatusType;
 enum class RequestCache;
 enum class RequestCredentials;
 enum class RequestDestination;
@@ -746,6 +747,10 @@ class IdleDeadline;
 
 namespace Web::ResizeObserver {
 class ResizeObserver;
+}
+
+namespace Web::ResourceTiming {
+class PerformanceResourceTiming;
 }
 
 namespace Web::Selection {

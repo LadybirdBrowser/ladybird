@@ -34,10 +34,12 @@
 #include <LibWeb/IndexedDB/IDBFactory.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/PerformanceTimeline/EntryTypes.h>
+#include <LibWeb/PerformanceTimeline/EventNames.h>
 #include <LibWeb/PerformanceTimeline/PerformanceObserver.h>
 #include <LibWeb/PerformanceTimeline/PerformanceObserverEntryList.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/ImageCodecPlugin.h>
+#include <LibWeb/ResourceTiming/PerformanceResourceTiming.h>
 #include <LibWeb/UserTiming/PerformanceMark.h>
 #include <LibWeb/UserTiming/PerformanceMeasure.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
@@ -75,6 +77,7 @@ void WindowOrWorkerGlobalScopeMixin::visit_edges(JS::Cell::Visitor& visitor)
         entry.value.visit_edges(visitor);
     visitor.visit(m_registered_event_sources);
     visitor.visit(m_crypto);
+    visitor.visit(m_resource_timing_secondary_buffer);
 }
 
 void WindowOrWorkerGlobalScopeMixin::finalize()
@@ -435,22 +438,41 @@ void WindowOrWorkerGlobalScopeMixin::queue_performance_entry(GC::Ref<Performance
         observer->append_to_observer_buffer({}, new_entry);
     }
 
+    // AD-HOC: Steps 6-9 are not here because other engines do not add to the performance entry buffer when queuing
+    //         the performance observer task. The users of the Performance Timeline specification also do not expect
+    //         this function to add to the entry buffer, instead queuing the observer task, then adding to the entry
+    //         buffer separately.
+
+    // 10. Queue the PerformanceObserver task with relevantGlobal as input.
+    queue_the_performance_observer_task();
+}
+
+// https://www.w3.org/TR/performance-timeline/#dfn-queue-a-performanceentry
+// AD-HOC: This is a separate function because the users of this specification queues PerformanceObserver tasks and add
+//         to the entry buffer separately.
+void WindowOrWorkerGlobalScopeMixin::add_performance_entry(GC::Ref<PerformanceTimeline::PerformanceEntry> new_entry, CheckIfPerformanceBufferIsFull check_if_performance_buffer_is_full)
+{
     // 6. Let tuple be the relevant performance entry tuple of entryType and relevantGlobal.
-    auto& tuple = relevant_performance_entry_tuple(entry_type);
+    auto& tuple = relevant_performance_entry_tuple(new_entry->entry_type());
 
-    // 7. Let isBufferFull be the return value of the determine if a performance entry buffer is full algorithm with tuple
-    //    as input.
-    bool is_buffer_full = tuple.is_full();
+    // AD-HOC: We have a custom flag to always append to the buffer by default, as other performance specs do this by default
+    //         (either they don't have a limit, or they check the limit themselves). This flag allows compatibility for specs
+    //         that rely do and don't rely on this.
+    bool is_buffer_full = false;
+    auto should_add = PerformanceTimeline::ShouldAddEntry::Yes;
 
-    // 8. Let shouldAdd be the result of should add entry with newEntry as input.
-    auto should_add = new_entry->should_add_entry();
+    if (check_if_performance_buffer_is_full == CheckIfPerformanceBufferIsFull::Yes) {
+        // 7. Let isBufferFull be the return value of the determine if a performance entry buffer is full algorithm with tuple
+        //    as input.
+        is_buffer_full = tuple.is_full();
+
+        // 8. Let shouldAdd be the result of should add entry with newEntry as input.
+        should_add = new_entry->should_add_entry();
+    }
 
     // 9. If isBufferFull is false and shouldAdd is true, append newEntry to tuple's performance entry buffer.
     if (!is_buffer_full && should_add == PerformanceTimeline::ShouldAddEntry::Yes)
         tuple.performance_entry_buffer.append(new_entry);
-
-    // 10. Queue the PerformanceObserver task with relevantGlobal as input.
-    queue_the_performance_observer_task();
 }
 
 void WindowOrWorkerGlobalScopeMixin::clear_performance_entry_buffer(Badge<HighResolutionTime::Performance>, FlyString const& entry_type)
@@ -621,6 +643,102 @@ void WindowOrWorkerGlobalScopeMixin::queue_the_performance_observer_task()
                 HTML::report_exception(completion, realm);
         }
     }));
+}
+
+// https://w3c.github.io/resource-timing/#dfn-add-a-performanceresourcetiming-entry
+void WindowOrWorkerGlobalScopeMixin::add_resource_timing_entry(Badge<ResourceTiming::PerformanceResourceTiming>, GC::Ref<ResourceTiming::PerformanceResourceTiming> entry)
+{
+    // 1. If can add resource timing entry returns true and resource timing buffer full event pending flag is false,
+    //    run the following substeps:
+    if (can_add_resource_timing_entry() && !m_resource_timing_buffer_full_event_pending) {
+        // a. Add new entry to the performance entry buffer.
+        // b. Increase resource timing buffer current size by 1.
+        add_performance_entry(entry);
+
+        // c. Return.
+        return;
+    }
+
+    // 2. If resource timing buffer full event pending flag is false, run the following substeps:
+    if (!m_resource_timing_buffer_full_event_pending) {
+        // a. Set resource timing buffer full event pending flag to true.
+        m_resource_timing_buffer_full_event_pending = true;
+
+        // b. Queue a task on the performance timeline task source to run fire a buffer full event.
+        HTML::queue_a_task(HTML::Task::Source::PerformanceTimeline, nullptr, nullptr, GC::create_function(this_impl().heap(), [this] {
+            fire_resource_timing_buffer_full_event();
+        }));
+    }
+
+    // 3. Add new entry to the resource timing secondary buffer.
+    // 4. Increase resource timing secondary buffer current size by 1.
+    m_resource_timing_secondary_buffer.append(entry);
+}
+
+// https://w3c.github.io/resource-timing/#dfn-can-add-resource-timing-entry
+bool WindowOrWorkerGlobalScopeMixin::can_add_resource_timing_entry()
+{
+    // 1. If resource timing buffer current size is smaller than resource timing buffer size limit, return true.
+    // 2. Return false.
+    return resource_timing_buffer_current_size() < m_resource_timing_buffer_size_limit;
+}
+
+// https://w3c.github.io/resource-timing/#dfn-resource-timing-buffer-current-size
+size_t WindowOrWorkerGlobalScopeMixin::resource_timing_buffer_current_size()
+{
+    // A resource timing buffer current size which is initially 0.
+    auto resource_timing_tuple = relevant_performance_entry_tuple(PerformanceTimeline::EntryTypes::resource);
+    return resource_timing_tuple.performance_entry_buffer.size();
+}
+
+// https://w3c.github.io/resource-timing/#dfn-fire-a-buffer-full-event
+void WindowOrWorkerGlobalScopeMixin::fire_resource_timing_buffer_full_event()
+{
+    // 1. While resource timing secondary buffer is not empty, run the following substeps:
+    while (!m_resource_timing_secondary_buffer.is_empty()) {
+        // 1. Let number of excess entries before be resource timing secondary buffer current size.
+        auto number_of_excess_entries_before = m_resource_timing_secondary_buffer.size();
+
+        // 2. If can add resource timing entry returns false, then fire an event named resourcetimingbufferfull at the Performance object.
+        if (!can_add_resource_timing_entry()) {
+            auto full_event = DOM::Event::create(this_impl().realm(), PerformanceTimeline::EventNames::resourcetimingbufferfull);
+            performance()->dispatch_event(full_event);
+        }
+
+        // 3. Run copy secondary buffer.
+        copy_resource_timing_secondary_buffer();
+
+        // 4. Let number of excess entries after be resource timing secondary buffer current size.
+        auto number_of_excess_entries_after = m_resource_timing_secondary_buffer.size();
+
+        // 5. If number of excess entries before is lower than or equals number of excess entries after, then remove
+        //    all entries from resource timing secondary buffer, set resource timing secondary buffer current size to
+        //    0, and abort these steps.
+        if (number_of_excess_entries_before <= number_of_excess_entries_after) {
+            m_resource_timing_secondary_buffer.clear();
+            break;
+        }
+    }
+
+    // 2. Set resource timing buffer full event pending flag to false.
+    m_resource_timing_buffer_full_event_pending = false;
+}
+
+// https://w3c.github.io/resource-timing/#dfn-copy-secondary-buffer
+void WindowOrWorkerGlobalScopeMixin::copy_resource_timing_secondary_buffer()
+{
+    // 1. While resource timing secondary buffer is not empty and can add resource timing entry returns true,
+    //    run the following substeps:
+    while (!m_resource_timing_secondary_buffer.is_empty() && can_add_resource_timing_entry()) {
+        // 1. Let entry be the oldest PerformanceResourceTiming in resource timing secondary buffer.
+        // 2. Add entry to the end of performance entry buffer.
+        // 3. Increment resource timing buffer current size by 1.
+        // 4. Remove entry from resource timing secondary buffer.
+        // 5. Decrement resource timing secondary buffer current size by 1.
+        auto entry = m_resource_timing_secondary_buffer.take_first();
+        auto& resource_tuple = relevant_performance_entry_tuple(PerformanceTimeline::EntryTypes::resource);
+        resource_tuple.performance_entry_buffer.append(entry);
+    }
 }
 
 void WindowOrWorkerGlobalScopeMixin::register_event_source(Badge<EventSource>, GC::Ref<EventSource> event_source)

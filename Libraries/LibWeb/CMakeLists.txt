@@ -674,6 +674,7 @@ set(SOURCES
     Painting/VideoPaintable.cpp
     Painting/ViewportPaintable.cpp
     PerformanceTimeline/EntryTypes.cpp
+    PerformanceTimeline/EventNames.cpp
     PerformanceTimeline/PerformanceEntry.cpp
     PerformanceTimeline/PerformanceObserver.cpp
     PerformanceTimeline/PerformanceObserverEntryList.cpp
@@ -694,6 +695,7 @@ set(SOURCES
     ResizeObserver/ResizeObserver.cpp
     ResizeObserver/ResizeObserverEntry.cpp
     ResizeObserver/ResizeObserverSize.cpp
+    ResourceTiming/PerformanceResourceTiming.cpp
     SecureContexts/AbstractOperations.cpp
     ServiceWorker/Job.cpp
     ServiceWorker/Registration.cpp

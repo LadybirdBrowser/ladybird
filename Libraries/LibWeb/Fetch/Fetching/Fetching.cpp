@@ -12,6 +12,7 @@
 #include <AK/Debug.h>
 #include <AK/ScopeGuard.h>
 #include <LibJS/Runtime/Completion.h>
+#include <LibRequests/RequestTimingInfo.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/Cookie/Cookie.h>
@@ -52,6 +53,7 @@
 #include <LibWeb/MixedContent/AbstractOperations.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/ReferrerPolicy/AbstractOperations.h>
+#include <LibWeb/ResourceTiming/PerformanceResourceTiming.h>
 #include <LibWeb/SRI/SRI.h>
 #include <LibWeb/SecureContexts/AbstractOperations.h>
 #include <LibWeb/Streams/TransformStream.h>
@@ -643,13 +645,16 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
             fetch_params.controller()->set_full_timing_info(fetch_params.timing_info());
 
         // 3. Set fetchParams’s controller’s report timing steps to the following steps given a global object global:
-        fetch_params.controller()->set_report_timing_steps([&vm, &response, &fetch_params, timing_info, unsafe_end_time](JS::Object const& global) mutable {
+        fetch_params.controller()->set_report_timing_steps([&vm, &response, &fetch_params, timing_info, unsafe_end_time](JS::Object& global) mutable {
             // 1. If fetchParams’s request’s URL’s scheme is not an HTTP(S) scheme, then return.
             if (!Infrastructure::is_http_or_https_scheme(fetch_params.request()->url().scheme()))
                 return;
 
             // 2. Set timingInfo’s end time to the relative high resolution time given unsafeEndTime and global.
-            timing_info->set_end_time(HighResolutionTime::relative_high_resolution_time(unsafe_end_time, global));
+            // Spec Issue: Using relative time here is incorrect, as end time is converted to relative time by Resource Timing,
+            //             causing it to take a relative time of an already relative time, effectively make it always a negative
+            //             value approximately the value of the time origin.
+            timing_info->set_end_time(unsafe_end_time);
 
             // 3. Let cacheState be response’s cache state.
             auto cache_state = response.cache_state();
@@ -683,13 +688,11 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
                     body_info.content_type = MimeSniff::minimise_a_supported_mime_type(mime_type.value());
             }
 
-            // FIXME: 8. If fetchParams’s request’s initiator type is not null, then mark resource timing given timingInfo,
-            //           request’s URL, request’s initiator type, global, cacheState, bodyInfo, and responseStatus.
-            (void)timing_info;
-            (void)global;
-            (void)cache_state;
-            (void)body_info;
-            (void)response_status;
+            // 8. If fetchParams’s request’s initiator type is not null, then mark resource timing given timingInfo,
+            //    request’s URL, request’s initiator type, global, cacheState, bodyInfo, and responseStatus.
+            if (fetch_params.request()->initiator_type().has_value()) {
+                ResourceTiming::PerformanceResourceTiming::mark_resource_timing(timing_info, fetch_params.request()->url().to_string(), Infrastructure::initiator_type_to_string(fetch_params.request()->initiator_type().value()), global, cache_state, body_info, response_status);
+            }
         });
 
         // 4. Let processResponseEndOfBodyTask be the following steps:
@@ -2269,6 +2272,9 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> nonstandard_resource_loader_file_o
 {
     dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'non-standard HTTP-network fetch' with: fetch_params @ {}", &fetch_params);
 
+    auto fetch_timing_info = fetch_params.timing_info();
+    auto cross_origin_isolated_capability = fetch_params.cross_origin_isolated_capability();
+
     auto& vm = realm.vm();
 
     (void)include_credentials;
@@ -2399,7 +2405,8 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> nonstandard_resource_loader_file_o
             }
         });
 
-        auto on_complete = GC::create_function(vm.heap(), [&vm, &realm, pending_response, stream](bool success, Optional<StringView> error_message) {
+        auto on_complete = GC::create_function(vm.heap(), [&vm, &realm, pending_response, stream](bool success, Requests::RequestTimingInfo const&, Optional<StringView> error_message) {
+            dbgln("FIXME: Implement on_complete timing info for unbuffered requests");
             HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
             // 16.1.1.2. Otherwise, if the bytes transmission for response’s message body is done normally and stream is readable,
@@ -2422,7 +2429,7 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> nonstandard_resource_loader_file_o
 
         ResourceLoader::the().load_unbuffered(load_request, on_headers_received, on_data_received, on_complete);
     } else {
-        auto on_load_success = GC::create_function(vm.heap(), [&realm, &vm, request, pending_response](ReadonlyBytes data, HTTP::HeaderMap const& response_headers, Optional<u32> status_code, Optional<String> const& reason_phrase) {
+        auto on_load_success = GC::create_function(vm.heap(), [&realm, &vm, request, pending_response, fetch_timing_info, cross_origin_isolated_capability](ReadonlyBytes data, Requests::RequestTimingInfo const& timing_info, HTTP::HeaderMap const& response_headers, Optional<u32> status_code, Optional<String> const& reason_phrase) {
             (void)request;
             dbgln_if(WEB_FETCH_DEBUG, "Fetch: ResourceLoader load for '{}' complete", request->url());
             if constexpr (WEB_FETCH_DEBUG)
@@ -2431,6 +2438,10 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> nonstandard_resource_loader_file_o
             auto response = Infrastructure::Response::create(vm);
             response->set_status(status_code.value_or(200));
             response->set_body(move(body));
+            auto body_info = response->body_info();
+            body_info.encoded_size = timing_info.encoded_body_size;
+            body_info.decoded_size = data.size();
+            response->set_body_info(body_info);
             for (auto const& [name, value] : response_headers.headers()) {
                 auto header = Infrastructure::Header::from_latin1_pair(name, value);
                 response->header_list()->append(move(header));
@@ -2439,10 +2450,12 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> nonstandard_resource_loader_file_o
             if (reason_phrase.has_value())
                 response->set_status_message(MUST(ByteBuffer::copy(reason_phrase.value().bytes())));
 
+            fetch_timing_info->update_final_timings(timing_info, cross_origin_isolated_capability);
+
             pending_response->resolve(response);
         });
 
-        auto on_load_error = GC::create_function(vm.heap(), [&realm, &vm, request, pending_response](ByteString const& error, Optional<u32> status_code, Optional<String> const& reason_phrase, ReadonlyBytes data, HTTP::HeaderMap const& response_headers) {
+        auto on_load_error = GC::create_function(vm.heap(), [&realm, &vm, request, pending_response, fetch_timing_info, cross_origin_isolated_capability](ByteString const& error, Requests::RequestTimingInfo const& timing_info, Optional<u32> status_code, Optional<String> const& reason_phrase, ReadonlyBytes data, HTTP::HeaderMap const& response_headers) {
             (void)request;
             dbgln_if(WEB_FETCH_DEBUG, "Fetch: ResourceLoader load for '{}' failed: {} (status {})", request->url(), error, status_code.value_or(0));
             if constexpr (WEB_FETCH_DEBUG)
@@ -2456,6 +2469,10 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> nonstandard_resource_loader_file_o
                 response->set_status(status_code.value_or(400));
                 auto [body, _] = TRY_OR_IGNORE(extract_body(realm, data));
                 response->set_body(move(body));
+                auto body_info = response->body_info();
+                body_info.encoded_size = timing_info.encoded_body_size;
+                body_info.decoded_size = data.size();
+                response->set_body_info(body_info);
                 for (auto const& [name, value] : response_headers.headers()) {
                     auto header = Infrastructure::Header::from_latin1_pair(name, value);
                     response->header_list()->append(move(header));
@@ -2464,6 +2481,9 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> nonstandard_resource_loader_file_o
                 if (reason_phrase.has_value())
                     response->set_status_message(MUST(ByteBuffer::copy(reason_phrase.value().bytes())));
             }
+
+            fetch_timing_info->update_final_timings(timing_info, cross_origin_isolated_capability);
+
             pending_response->resolve(response);
         });
 
