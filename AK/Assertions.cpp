@@ -8,19 +8,23 @@
 #include <AK/Backtrace.h>
 #include <AK/Format.h>
 #include <AK/Platform.h>
-#include <AK/StringBuilder.h>
-#include <AK/StringView.h>
 
 #if defined(AK_OS_ANDROID) && (__ANDROID_API__ >= 33)
 #    include <android/log.h>
 #    define EXECINFO_BACKTRACE
 #    define PRINT_ERROR(s) __android_log_write(ANDROID_LOG_WARN, "AK", (s))
 #else
-#    define PRINT_ERROR(s) (void)fputs((s), stderr)
+#    include <cstdio>
+#    define PRINT_ERROR(s) (void)std::fputs((s), stderr)
 #endif
 
 #if defined(AK_HAS_BACKTRACE_HEADER)
+#    include <AK/StringBuilder.h>
+#    include <AK/StringView.h>
 #    include <cxxabi.h>
+#elif defined(AK_HAS_STD_STACKTRACE)
+#    include <stacktrace>
+#    include <string>
 #endif
 
 #if defined(AK_OS_SERENITY)
@@ -77,6 +81,15 @@ ALWAYS_INLINE void dump_backtrace()
     free(syms);
 }
 }
+#elif defined(AK_HAS_STD_STACKTRACE)
+namespace {
+ALWAYS_INLINE void dump_backtrace()
+{
+    // We assume the stacktrace implementation demangles symbols, as does microsoft/STL
+    PRINT_ERROR(std::to_string(std::stacktrace::current()).c_str());
+    PRINT_ERROR("\n");
+}
+}
 #endif
 
 extern "C" {
@@ -94,7 +107,7 @@ bool ak_colorize_output(void)
 
 void ak_trap(void)
 {
-#if defined(AK_HAS_BACKTRACE_HEADER)
+#if defined(AK_HAS_BACKTRACE_HEADER) || defined(AK_HAS_STD_STACKTRACE)
     dump_backtrace();
 #endif
     __builtin_trap();

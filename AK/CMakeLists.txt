@@ -52,7 +52,24 @@ serenity_install_sources(AK)
 find_package(Backtrace)
 configure_file(Backtrace.h.in Backtrace.h @ONLY)
 
-if (Backtrace_FOUND)
+option(AK_USE_STACKTRACE "Use std::stacktrace instead of libbacktrace. If it is not supported no stacktrace will be available")
+include(CheckCXXSourceCompiles)
+
+function(ak_check_stacktrace link_lib out_var)
+    set(CMAKE_REQUIRED_LIBRARIES ${link_lib})
+    check_cxx_source_compiles("
+        #include <version>
+        #include <stacktrace>
+        #if !defined(__cpp_lib_stacktrace) || (__cpp_lib_stacktrace < 202011L)
+        #    error \"No std::stacktrace available\"
+        #endif
+        int main() {}"
+        HAVE_STD_STACKTRACE
+    )
+    return (PROPAGATE ${out_var})
+endfunction()
+
+if (Backtrace_FOUND AND NOT AK_USE_STACKTRACE)
     if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.30)
         target_link_libraries(AK PRIVATE Backtrace::Backtrace)
     else()
@@ -60,7 +77,32 @@ if (Backtrace_FOUND)
         target_link_libraries(AK PRIVATE ${Backtrace_LIBRARIES})
     endif()
 else()
-    message(WARNING "Backtrace not found, stack traces will be unavailable")
+    ak_check_stacktrace("" HAS_STACKTRACE)
+    if (HAS_STACKTRACE)
+        target_compile_definitions(AK PRIVATE AK_HAS_STD_STACKTRACE)
+    elseif(CMAKE_CXX_SIMULATE_ID STREQUAL GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 12.1)
+        #NOTE: Checking simulate ID to include clang on libstdc++ in the check
+        #NOTE: On godbolt it works since clang 19 with the same flags as gcc
+        if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 14.1) 
+            ak_check_stacktrace("stdc++exp" HAS_STACKTRACE)
+            if (HAS_STACKTRACE)
+                target_link_libraries(AK PRIVATE "stdc++exp")
+                target_compile_definitions(AK PRIVATE AK_HAS_STD_STACKTRACE)
+            else()
+                message(WARNING "Backtrace and <stacktrace> not found, stack traces will be unavailable")
+            endif()
+        else()
+            ak_check_stacktrace("stdc++_libbacktrace" HAS_STACKTRACE)
+            if (HAS_STACKTRACE)
+                target_link_libraries(AK PRIVATE "stdc++_libbacktrace")
+                target_compile_definitions(AK PRIVATE AK_HAS_STD_STACKTRACE)
+            else()
+                message(WARNING "Backtrace and <stacktrace> not found, stack traces will be unavailable")
+            endif()
+        endif()
+    else()
+        message(WARNING "Backtrace and <stacktrace> not found, stack traces will be unavailable")
+    endif() 
 endif()
 
 find_package(simdutf REQUIRED)
