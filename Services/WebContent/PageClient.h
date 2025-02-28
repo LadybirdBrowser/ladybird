@@ -48,7 +48,7 @@ public:
 
     virtual void paint_next_frame() override;
     virtual void process_screenshot_requests() override;
-    virtual void paint(Web::DevicePixelRect const& content_rect, Web::Painting::BackingStore&, Web::PaintOptions = {}) override;
+    virtual void start_display_list_rendering(Web::DevicePixelRect const& content_rect, Web::Painting::BackingStore&, Web::PaintOptions, Function<void()>&& callback) override;
 
     virtual Queue<Web::QueuedInputEvent>& input_event_queue() override;
     virtual void report_finished_handling_input_event(u64 page_id, Web::EventResult event_was_handled) override;
