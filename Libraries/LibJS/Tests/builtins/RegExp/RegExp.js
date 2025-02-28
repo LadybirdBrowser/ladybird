@@ -72,3 +72,8 @@ test("regexp that always matches stops matching if it's past the end of the stri
     expect("whf".match(re)).toEqual(["", "", "", ""]);
     expect(re.lastIndex).toBe(0);
 });
+
+test("v flag should enable unicode mode", () => {
+    const re = new RegExp("a\\u{10FFFF}", "v");
+    expect(re.test("a\u{10FFFF}")).toBe(true);
+});

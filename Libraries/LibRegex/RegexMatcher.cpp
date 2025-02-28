@@ -160,7 +160,7 @@ RegexResult Matcher<Parser>::match(Vector<RegexStringView> const& views, Optiona
     input.start_offset = m_pattern->start_offset;
     size_t lines_to_skip = 0;
 
-    bool unicode = input.regex_options.has_flag_set(AllFlags::Unicode);
+    bool unicode = input.regex_options.has_flag_set(AllFlags::Unicode) || input.regex_options.has_flag_set(AllFlags::UnicodeSets);
     for (auto const& view : views)
         const_cast<RegexStringView&>(view).set_unicode(unicode);
 

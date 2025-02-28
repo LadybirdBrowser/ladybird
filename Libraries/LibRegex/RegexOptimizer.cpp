@@ -627,7 +627,7 @@ bool Regex<Parser>::attempt_rewrite_entire_match_as_substring_search(BasicBlockL
 
     auto& bytecode = parser_result.bytecode;
 
-    auto is_unicode = parser_result.options.has_flag_set(AllFlags::Unicode);
+    auto is_unicode = parser_result.options.has_flag_set(AllFlags::Unicode) || parser_result.options.has_flag_set(AllFlags::UnicodeSets);
 
     // We have a single basic block, let's see if it's a series of character or string compares.
     StringBuilder final_string;
