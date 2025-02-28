@@ -1234,8 +1234,7 @@ Optional<String> effective_command_value(GC::Ptr<DOM::Node> node, FlyString cons
         auto inclusive_ancestor = node;
         do {
             auto text_decoration_line = resolved_value(*node, CSS::PropertyID::TextDecorationLine);
-            if (text_decoration_line.has_value() && text_decoration_line.value()->is_value_list()
-                && value_list_contains_keyword(text_decoration_line.value()->as_value_list(), CSS::Keyword::LineThrough))
+            if (text_decoration_line.has_value() && value_contains_keyword(text_decoration_line.value(), CSS::Keyword::LineThrough))
                 return "line-through"_string;
             inclusive_ancestor = inclusive_ancestor->parent();
         } while (inclusive_ancestor);
@@ -1249,8 +1248,7 @@ Optional<String> effective_command_value(GC::Ptr<DOM::Node> node, FlyString cons
         auto inclusive_ancestor = node;
         do {
             auto text_decoration_line = resolved_value(*node, CSS::PropertyID::TextDecorationLine);
-            if (text_decoration_line.has_value() && text_decoration_line.value()->is_value_list()
-                && value_list_contains_keyword(text_decoration_line.value()->as_value_list(), CSS::Keyword::Underline))
+            if (text_decoration_line.has_value() && value_contains_keyword(text_decoration_line.value(), CSS::Keyword::Underline))
                 return "underline"_string;
             inclusive_ancestor = inclusive_ancestor->parent();
         } while (inclusive_ancestor);
@@ -3892,8 +3890,7 @@ Optional<String> specified_command_value(GC::Ref<DOM::Element> element, FlyStrin
         if (text_decoration_style.has_value()) {
             // 1. If element's style attribute sets "text-decoration" to a value containing "line-through", return
             //    "line-through".
-            if (text_decoration_style.value()->is_value_list()
-                && value_list_contains_keyword(text_decoration_style.value()->as_value_list(), CSS::Keyword::LineThrough))
+            if (value_contains_keyword(text_decoration_style.value(), CSS::Keyword::LineThrough))
                 return "line-through"_string;
 
             // 2. Return null.
@@ -3910,8 +3907,7 @@ Optional<String> specified_command_value(GC::Ref<DOM::Element> element, FlyStrin
         auto text_decoration_style = property_in_style_attribute(element, CSS::PropertyID::TextDecoration);
         if (text_decoration_style.has_value()) {
             // 1. If element's style attribute sets "text-decoration" to a value containing "underline", return "underline".
-            if (text_decoration_style.value()->is_value_list()
-                && value_list_contains_keyword(text_decoration_style.value()->as_value_list(), CSS::Keyword::Underline))
+            if (value_contains_keyword(text_decoration_style.value(), CSS::Keyword::Underline))
                 return "underline"_string;
 
             // 2. Return null.
@@ -4776,13 +4772,15 @@ void take_the_action_for_command(DOM::Document& document, FlyString const& comma
         command_definition->action(document, value);
 }
 
-bool value_list_contains_keyword(CSS::StyleValueList const& value_list, CSS::Keyword keyword)
+bool value_contains_keyword(CSS::CSSStyleValue const& value, CSS::Keyword keyword)
 {
-    for (auto& css_style_value : value_list.values()) {
-        if (css_style_value->is_keyword() && css_style_value->as_keyword().keyword() == keyword)
-            return true;
+    if (value.is_value_list()) {
+        for (auto& css_style_value : value.as_value_list().values()) {
+            if (css_style_value->is_keyword() && css_style_value->as_keyword().keyword() == keyword)
+                return true;
+        }
     }
-    return false;
+    return value.to_keyword() == keyword;
 }
 
 }
