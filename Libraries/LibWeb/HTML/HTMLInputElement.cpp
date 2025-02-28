@@ -15,6 +15,7 @@
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/RegExpObject.h>
+#include <LibURL/Parser.h>
 #include <LibWeb/Bindings/HTMLInputElementPrototype.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/CSS/ComputedProperties.h>
@@ -3023,8 +3024,10 @@ bool HTMLInputElement::suffering_from_a_type_mismatch() const
     case TypeAttributeState::URL:
         // https://html.spec.whatwg.org/multipage/input.html#url-state-(type%3Durl)%3Asuffering-from-a-type-mismatch
         // While the value of the element is neither the empty string nor a valid absolute URL, the element is suffering from a type mismatch.
-        // FIXME: Implement this.
-        break;
+        // AD-HOC: https://github.com/whatwg/html/issues/11083 and https://github.com/web-platform-tests/wpt/pull/51011
+        //         We intentionally don't check if the value is a "valid absolute URL", because that's not what other
+        //         engines actually do. So we instead just implement what matches the behavior in existing engines.
+        return !value().is_empty() && !URL::Parser::basic_parse(value()).has_value();
     case TypeAttributeState::Email:
         // https://html.spec.whatwg.org/multipage/input.html#email-state-(type%3Demail)%3Asuffering-from-a-type-mismatch
         // While the value of the element is neither the empty string nor a single valid email address, the element is suffering from a type mismatch.
