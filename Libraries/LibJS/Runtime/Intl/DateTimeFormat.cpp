@@ -485,7 +485,7 @@ bool same_temporal_type(FormattableDateTime const& x, FormattableDateTime const&
 
 static double to_epoch_milliseconds(Crypto::SignedBigInteger const& epoch_nanoseconds)
 {
-    return Temporal::big_floor(epoch_nanoseconds, Temporal::NANOSECONDS_PER_MILLISECOND).to_double();
+    return big_floor(epoch_nanoseconds, Temporal::NANOSECONDS_PER_MILLISECOND).to_double();
 }
 
 // 15.9.15 HandleDateTimeTemporalDate ( dateTimeFormat, temporalDate ), https://tc39.es/proposal-temporal/#sec-temporal-handledatetimetemporaldate

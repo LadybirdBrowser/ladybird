@@ -2,13 +2,12 @@
  * Copyright (c) 2021-2022, Idan Horowitz <idan.horowitz@serenityos.org>
  * Copyright (c) 2021-2023, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2021, Luke Wilde <lukew@serenityos.org>
- * Copyright (c) 2024, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2024-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <LibCrypto/BigFraction/BigFraction.h>
-#include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/PropertyKey.h>
 #include <LibJS/Runtime/Temporal/AbstractOperations.h>
@@ -1797,129 +1796,6 @@ ThrowCompletionOr<DifferenceSettings> get_difference_settings(VM& vm, DurationOp
 
     // 14. Return the Record { [[SmallestUnit]]: smallestUnit, [[LargestUnit]]: largestUnit, [[RoundingMode]]: roundingMode, [[RoundingIncrement]]: roundingIncrement,  }.
     return DifferenceSettings { .smallest_unit = smallest_unit_value, .largest_unit = largest_unit_value, .rounding_mode = rounding_mode, .rounding_increment = rounding_increment };
-}
-
-// 14.4.1.1 GetOptionsObject ( options ), https://tc39.es/proposal-temporal/#sec-getoptionsobject
-ThrowCompletionOr<GC::Ref<Object>> get_options_object(VM& vm, Value options)
-{
-    auto& realm = *vm.current_realm();
-
-    // 1. If options is undefined, then
-    if (options.is_undefined()) {
-        // a. Return OrdinaryObjectCreate(null).
-        return Object::create(realm, nullptr);
-    }
-
-    // 2. If options is an Object, then
-    if (options.is_object()) {
-        // a. Return options.
-        return options.as_object();
-    }
-
-    // 3. Throw a TypeError exception.
-    return vm.throw_completion<TypeError>(ErrorType::NotAnObject, "Options");
-}
-
-// 14.4.1.2 GetOption ( options, property, type, values, default ), https://tc39.es/proposal-temporal/#sec-getoption
-ThrowCompletionOr<Value> get_option(VM& vm, Object const& options, PropertyKey const& property, OptionType type, ReadonlySpan<StringView> values, OptionDefault const& default_)
-{
-    VERIFY(property.is_string());
-
-    // 1. Let value be ? Get(options, property).
-    auto value = TRY(options.get(property));
-
-    // 2. If value is undefined, then
-    if (value.is_undefined()) {
-        // a. If default is REQUIRED, throw a RangeError exception.
-        if (default_.has<Required>())
-            return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, "undefined"sv, property.as_string());
-
-        // b. Return default.
-        return default_.visit(
-            [](Required) -> Value { VERIFY_NOT_REACHED(); },
-            [](Empty) -> Value { return js_undefined(); },
-            [](bool default_) -> Value { return Value { default_ }; },
-            [](double default_) -> Value { return Value { default_ }; },
-            [&](StringView default_) -> Value { return PrimitiveString::create(vm, default_); });
-    }
-
-    // 3. If type is BOOLEAN, then
-    if (type == OptionType::Boolean) {
-        // a. Set value to ToBoolean(value).
-        value = Value { value.to_boolean() };
-    }
-    // 4. Else,
-    else {
-        // a. Assert: type is STRING.
-        VERIFY(type == OptionType::String);
-
-        // b. Set value to ? ToString(value).
-        value = TRY(value.to_primitive_string(vm));
-    }
-
-    // 5. If values is not EMPTY and values does not contain value, throw a RangeError exception.
-    if (!values.is_empty()) {
-        // NOTE: Every location in the spec that invokes GetOption with type=boolean also has values=undefined.
-        VERIFY(value.is_string());
-
-        if (auto value_string = value.as_string().utf8_string(); !values.contains_slow(value_string))
-            return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, value_string, property.as_string());
-    }
-
-    // 6. Return value.
-    return value;
-}
-
-// 14.4.1.3 GetRoundingModeOption ( options, fallback ), https://tc39.es/proposal-temporal/#sec-temporal-getroundingmodeoption
-ThrowCompletionOr<RoundingMode> get_rounding_mode_option(VM& vm, Object const& options, RoundingMode fallback)
-{
-    // 1. Let allowedStrings be the List of Strings from the "String Identifier" column of Table 26.
-    static constexpr auto allowed_strings = to_array({ "ceil"sv, "floor"sv, "expand"sv, "trunc"sv, "halfCeil"sv, "halfFloor"sv, "halfExpand"sv, "halfTrunc"sv, "halfEven"sv });
-
-    // 2. Let stringFallback be the value from the "String Identifier" column of the row with fallback in its "Rounding Mode" column.
-    auto string_fallback = allowed_strings[to_underlying(fallback)];
-
-    // 3. Let stringValue be ? GetOption(options, "roundingMode", STRING, allowedStrings, stringFallback).
-    auto string_value = TRY(get_option(vm, options, vm.names.roundingMode, OptionType::String, allowed_strings, string_fallback));
-
-    // 4. Return the value from the "Rounding Mode" column of the row with stringValue in its "String Identifier" column.
-    return static_cast<RoundingMode>(allowed_strings.first_index_of(string_value.as_string().utf8_string_view()).value());
-}
-
-// 14.4.1.4 GetRoundingIncrementOption ( options ), https://tc39.es/proposal-temporal/#sec-temporal-getroundingincrementoption
-ThrowCompletionOr<u64> get_rounding_increment_option(VM& vm, Object const& options)
-{
-    // 1. Let value be ? Get(options, "roundingIncrement").
-    auto value = TRY(options.get(vm.names.roundingIncrement));
-
-    // 2. If value is undefined, return 1𝔽.
-    if (value.is_undefined())
-        return 1;
-
-    // 3. Let integerIncrement be ? ToIntegerWithTruncation(value).
-    auto integer_increment = TRY(to_integer_with_truncation(vm, value, ErrorType::OptionIsNotValidValue, value, "roundingIncrement"sv));
-
-    // 4. If integerIncrement < 1 or integerIncrement > 10**9, throw a RangeError exception.
-    if (integer_increment < 1 || integer_increment > 1'000'000'000u)
-        return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, value, "roundingIncrement");
-
-    // 5. Return integerIncrement.
-    return static_cast<u64>(integer_increment);
-}
-
-// AD-HOC
-// FIXME: We should add a generic floor() method to our BigInt classes. But for now, since we know we are only dividing
-//        by powers of 10, we can implement a very situationally specific method to compute the floor of a division.
-Crypto::SignedBigInteger big_floor(Crypto::SignedBigInteger const& numerator, Crypto::UnsignedBigInteger const& denominator)
-{
-    auto result = numerator.divided_by(denominator);
-
-    if (result.remainder.is_zero())
-        return result.quotient;
-    if (!result.quotient.is_negative() && result.remainder.is_positive())
-        return result.quotient;
-
-    return result.quotient.minus(Crypto::SignedBigInteger { 1 });
 }
 
 }

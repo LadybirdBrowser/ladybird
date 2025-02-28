@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -10,7 +10,6 @@
 #include <LibJS/Runtime/Intl/AbstractOperations.h>
 #include <LibJS/Runtime/Intl/DisplayNames.h>
 #include <LibJS/Runtime/Intl/DisplayNamesConstructor.h>
-#include <LibJS/Runtime/Temporal/AbstractOperations.h>
 #include <LibUnicode/Locale.h>
 
 namespace JS::Intl {
@@ -64,7 +63,7 @@ ThrowCompletionOr<GC::Ref<Object>> DisplayNamesConstructor::construct(FunctionOb
         return vm.throw_completion<TypeError>(ErrorType::IsUndefined, "options"sv);
 
     // 5. Set options to ? GetOptionsObject(options).
-    auto options = TRY(Temporal::get_options_object(vm, options_value));
+    auto options = TRY(get_options_object(vm, options_value));
 
     // 6. Let opt be a new Record.
     LocaleOptions opt {};

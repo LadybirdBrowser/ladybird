@@ -5,6 +5,7 @@
  */
 
 #include <LibJS/Runtime/Intl/PluralRules.h>
+#include <LibJS/Runtime/VM.h>
 
 namespace JS::Intl {
 

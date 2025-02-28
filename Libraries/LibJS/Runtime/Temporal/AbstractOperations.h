@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2021, Idan Horowitz <idan.horowitz@serenityos.org>
  * Copyright (c) 2021-2023, Linus Groh <linusg@serenityos.org>
- * Copyright (c) 2024, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2024-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -13,6 +13,7 @@
 #include <LibCrypto/BigInt/UnsignedBigInteger.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
+#include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/Temporal/ISO8601.h>
 #include <LibJS/Runtime/Temporal/ISORecords.h>
@@ -114,19 +115,6 @@ enum class UnitGroup {
 };
 
 // https://tc39.es/proposal-temporal/#table-unsigned-rounding-modes
-enum class RoundingMode {
-    Ceil,
-    Floor,
-    Expand,
-    Trunc,
-    HalfCeil,
-    HalfFloor,
-    HalfExpand,
-    HalfTrunc,
-    HalfEven,
-};
-
-// https://tc39.es/proposal-temporal/#table-unsigned-rounding-modes
 enum class UnsignedRoundingMode {
     HalfEven,
     HalfInfinity,
@@ -142,7 +130,6 @@ enum class Sign {
 };
 
 struct Auto { };
-struct Required { };
 struct Unset { };
 using Precision = Variant<Auto, u8>;
 using RoundingIncrement = Variant<Unset, u64>;
@@ -270,32 +257,5 @@ ThrowCompletionOr<double> to_integer_if_integral(VM& vm, Value argument, ErrorTy
     // 3. Return ℝ(number).
     return number.as_double();
 }
-
-// 14.2 The Year-Week Record Specification Type, https://tc39.es/proposal-temporal/#sec-year-week-record-specification-type
-struct YearWeek {
-    Optional<u8> week;
-    Optional<i32> year;
-};
-
-enum class OptionType {
-    Boolean,
-    String,
-};
-
-using OptionDefault = Variant<Required, Empty, bool, StringView, double>;
-
-ThrowCompletionOr<GC::Ref<Object>> get_options_object(VM&, Value options);
-ThrowCompletionOr<Value> get_option(VM&, Object const& options, PropertyKey const& property, OptionType type, ReadonlySpan<StringView> values, OptionDefault const&);
-
-template<size_t Size>
-ThrowCompletionOr<Value> get_option(VM& vm, Object const& options, PropertyKey const& property, OptionType type, StringView const (&values)[Size], OptionDefault const& default_)
-{
-    return get_option(vm, options, property, type, ReadonlySpan<StringView> { values }, default_);
-}
-
-ThrowCompletionOr<RoundingMode> get_rounding_mode_option(VM&, Object const& options, RoundingMode fallback);
-ThrowCompletionOr<u64> get_rounding_increment_option(VM&, Object const& options);
-
-Crypto::SignedBigInteger big_floor(Crypto::SignedBigInteger const& numerator, Crypto::UnsignedBigInteger const& denominator);
 
 }
