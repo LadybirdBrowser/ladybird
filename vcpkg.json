@@ -10,7 +10,7 @@
       "features": [
         "brotli",
         "http2",
-        "ssl",
+        "openssl",
         "websockets"
       ]
     },
