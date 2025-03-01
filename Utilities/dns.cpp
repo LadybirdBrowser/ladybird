@@ -159,4 +159,3 @@
  
      return loop.exec();
  }
- 
