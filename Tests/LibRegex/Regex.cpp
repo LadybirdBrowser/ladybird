@@ -598,6 +598,7 @@ TEST_CASE(ECMA262_parse)
         { "(?<a>a)(?<a>b)"sv, regex::Error::DuplicateNamedCapture },
         { "(?<a>a)(?<b>b)(?<a>c)"sv, regex::Error::DuplicateNamedCapture },
         { "(?<a>(?<a>a))"sv, regex::Error::DuplicateNamedCapture },
+        { "(?:(?<x>a)|(?<y>a)(?<x>b))(?:(?<z>c)|(?<z>d))"sv }, // Duplicate named capturing groups in separate alternatives should parse correctly
         { "(?<1a>a)"sv, regex::Error::InvalidNameForCaptureGroup },
         { "(?<\\a>a)"sv, regex::Error::InvalidNameForCaptureGroup },
         { "(?<\ta>a)"sv, regex::Error::InvalidNameForCaptureGroup },

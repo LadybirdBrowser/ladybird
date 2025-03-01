@@ -981,10 +981,24 @@ bool ECMA262Parser::parse_pattern(ByteCode& stack, size_t& match_length_minimum,
     return parse_disjunction(stack, match_length_minimum, flags);
 }
 
+bool ECMA262Parser::has_duplicate_in_current_alternative(DeprecatedFlyString const& name)
+{
+    auto it = m_parser_state.named_capture_groups.find(name);
+    if (it == m_parser_state.named_capture_groups.end())
+        return false;
+
+    return any_of(it->value.begin(), it->value.end(), [&](auto& group) {
+        return group.alternative_id == m_current_alternative_id;
+    });
+}
+
 bool ECMA262Parser::parse_disjunction(ByteCode& stack, size_t& match_length_minimum, ParseFlags flags)
 {
     size_t total_match_length_minimum = NumericLimits<size_t>::max();
     Vector<ByteCode> alternatives;
+
+    TemporaryChange<size_t> alternative_id_change { m_current_alternative_id, 1 };
+
     while (true) {
         ByteCode alternative_stack;
         size_t alternative_minimum_length = 0;
@@ -998,10 +1012,13 @@ bool ECMA262Parser::parse_disjunction(ByteCode& stack, size_t& match_length_mini
         if (!match(TokenType::Pipe))
             break;
         consume();
+
+        m_current_alternative_id += 1;
     }
 
     Optimizer::append_alternation(stack, alternatives.span());
     match_length_minimum = total_match_length_minimum;
+
     return true;
 }
 
@@ -1622,19 +1639,26 @@ bool ECMA262Parser::parse_atom_escape(ByteCode& stack, size_t& match_length_mini
             set_error(Error::InvalidNameForCaptureGroup);
             return false;
         }
-        auto maybe_capture_group = m_parser_state.named_capture_groups.get(name);
-        if (!maybe_capture_group.has_value()) {
+
+        auto it = m_parser_state.named_capture_groups.find(name);
+        if (it == m_parser_state.named_capture_groups.end()) {
             set_error(Error::InvalidNameForCaptureGroup);
             return false;
         }
-        auto maybe_length = m_parser_state.capture_group_minimum_lengths.get(maybe_capture_group.value());
+
+        // Use the first occurrence of the named group for the backreference
+        // This follows ECMAScript behavior where \k<name> refers to the first
+        // group with that name in left-to-right order, regardless of alternative
+        auto group_index = it->value.first().group_index;
+
+        auto maybe_length = m_parser_state.capture_group_minimum_lengths.get(group_index);
         if (!maybe_length.has_value()) {
             set_error(Error::InvalidNameForCaptureGroup);
             return false;
         }
-        match_length_minimum += maybe_length.value();
 
-        stack.insert_bytecode_compare_values({ { CharacterCompareType::Reference, (ByteCodeValueType)maybe_capture_group.value() } });
+        match_length_minimum += maybe_length.value();
+        stack.insert_bytecode_compare_values({ { CharacterCompareType::Reference, (ByteCodeValueType)group_index } });
         return true;
     }
 
@@ -2674,12 +2698,12 @@ bool ECMA262Parser::parse_capture_group(ByteCode& stack, size_t& match_length_mi
                 return false;
             }
 
-            if (m_parser_state.named_capture_groups.contains(name)) {
+            if (has_duplicate_in_current_alternative(name)) {
                 set_error(Error::DuplicateNamedCapture);
                 return false;
             }
 
-            m_parser_state.named_capture_groups.set(name, group_index);
+            m_parser_state.named_capture_groups.ensure(name).append({ group_index, m_current_alternative_id });
 
             ByteCode capture_group_bytecode;
             size_t length = 0;

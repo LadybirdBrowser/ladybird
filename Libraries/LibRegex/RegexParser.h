@@ -44,6 +44,11 @@ template<>
 struct ParserTraits<ECMA262Parser> : public GenericParserTraits<ECMAScriptOptions> {
 };
 
+struct NamedCaptureGroup {
+    size_t group_index;
+    size_t alternative_id;
+};
+
 class Parser {
 public:
     struct Result {
@@ -111,7 +116,7 @@ protected:
         size_t repetition_mark_count { 0 };
         AllOptions regex_options;
         HashMap<size_t, size_t> capture_group_minimum_lengths;
-        HashMap<DeprecatedFlyString, size_t> named_capture_groups;
+        HashMap<DeprecatedFlyString, Vector<NamedCaptureGroup>> named_capture_groups;
 
         explicit ParserState(Lexer& lexer)
             : lexer(lexer)
@@ -276,6 +281,8 @@ private:
     bool parse_invalid_braced_quantifier(); // Note: This function either parses and *fails*, or doesn't parse anything and returns false.
     Optional<u8> parse_legacy_octal_escape();
 
+    bool has_duplicate_in_current_alternative(DeprecatedFlyString const& name);
+
     size_t ensure_total_number_of_capturing_parenthesis();
 
     void enter_capture_group_scope() { m_capture_groups_in_scope.empend(); }
@@ -297,6 +304,9 @@ private:
     // parse it twice, so we'll just do so when it's actually needed.
     // Most patterns should have no need to ever populate this field.
     Optional<size_t> m_total_number_of_capturing_parenthesis;
+
+    // We need to keep track of the current alternative's named capture groups, so we can check for duplicates.
+    size_t m_current_alternative_id { 0 };
 
     // Keep the Annex B. behavior behind a flag, the users can enable it by passing the `ECMAScriptFlags::BrowserExtended` flag.
     bool m_should_use_browser_extended_grammar { false };
