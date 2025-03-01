@@ -52,7 +52,7 @@ public:
 
     struct Entry {
         EntryType type;
-        GC::Ptr<JavaScriptModuleScript> module_script;
+        GC::Ptr<ModuleScript> module_script;
     };
 
     using CallbackFunction = GC::Ref<GC::Function<void(Entry)>>;

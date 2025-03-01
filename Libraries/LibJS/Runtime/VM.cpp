@@ -722,7 +722,7 @@ void VM::load_imported_module(ImportedModuleReferrer referrer, ModuleRequest con
         // must either be the Completion Record returned by an invocation of ParseJSONModule or a throw completion.
         if (module_type == "json"sv) {
             dbgln_if(JS_MODULE_DEBUG, "[JS MODULE] reading and parsing JSON module {}", filename);
-            return parse_json_module(*current_realm(), content_view, filename);
+            return TRY(parse_json_module(*current_realm(), content_view, filename));
         }
 
         dbgln_if(JS_MODULE_DEBUG, "[JS MODULE] reading and parsing as SourceTextModule module {}", filename);

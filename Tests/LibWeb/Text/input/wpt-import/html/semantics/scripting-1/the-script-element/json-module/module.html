@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>JSON modules</title>
+<script src="../../../../../resources/testharness.js"></script>
+<script src="../../../../../resources/testharnessreport.js"></script>
+<div id=log></div>
+<script>
+const t = async_test();
+</script>
+<script type="module" onerror="t.step(() => assert_unreached(event))">
+import v from "./module.json" with { type: "json" };
+t.step(() => {
+  assert_equals(typeof v, "object");
+  assert_array_equals(Object.keys(v), ["test"]);
+  assert_equals(v.test, true);
+  t.done();
+});
+</script>

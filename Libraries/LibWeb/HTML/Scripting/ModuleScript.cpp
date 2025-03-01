@@ -5,19 +5,22 @@
  */
 
 #include <LibJS/Runtime/ModuleRequest.h>
+#include <LibJS/SyntheticModule.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/Fetching.h>
 #include <LibWeb/HTML/Scripting/ModuleScript.h>
+#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(JavaScriptModuleScript);
+GC_DEFINE_ALLOCATOR(JSONModuleScript);
 
 ModuleScript::~ModuleScript() = default;
 
-ModuleScript::ModuleScript(URL::URL base_url, ByteString filename, JS::Realm& realm)
+ModuleScript::ModuleScript(Optional<URL::URL> base_url, ByteString filename, JS::Realm& realm)
     : Script(move(base_url), move(filename), realm)
 {
 }
@@ -137,6 +140,51 @@ JS::Promise* JavaScriptModuleScript::run(PreventErrorReporting)
 }
 
 void JavaScriptModuleScript::visit_edges(Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_record);
+}
+
+JSONModuleScript::~JSONModuleScript() = default;
+
+JSONModuleScript::JSONModuleScript(ByteString filename, JS::Realm& realm)
+    : ModuleScript(Optional<URL::URL> {}, move(filename), realm)
+{
+}
+
+// https://html.spec.whatwg.org/multipage/webappapis.html#creating-a-json-module-script
+// https://whatpr.org/html/9893/webappapis.html#creating-a-json-module-script
+WebIDL::ExceptionOr<GC::Ptr<JSONModuleScript>> JSONModuleScript::create(ByteString const& filename, StringView source, JS::Realm& realm)
+{
+    // AD-HOC: An execution context is required for JS::parse_json_module
+    HTML::TemporaryExecutionContext execution_context { realm };
+
+    // 1. Let script be a new module script that this algorithm will subsequently initialize.
+    // 2. Set script's realm to realm.
+    // 3. Set script's base URL and fetch options to null.
+    auto script = realm.create<JSONModuleScript>(filename, realm);
+
+    // 4. Set script's parse error and error to rethrow to null.
+    script->set_parse_error(JS::js_null());
+    script->set_error_to_rethrow(JS::js_null());
+
+    // 5. Let result be ParseJSONModule(source).
+    //    If this throws an exception, catch it, and set script's parse error to that exception, and return script.
+    auto result = JS::parse_json_module(realm, source, filename.view());
+    if (result.is_error()) {
+        script->set_parse_error(result.error_value());
+
+        return script;
+    }
+
+    // 6. Set script's record to result.
+    script->m_record = result.release_value();
+
+    // 7. Return script.
+    return script;
+}
+
+void JSONModuleScript::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_record);

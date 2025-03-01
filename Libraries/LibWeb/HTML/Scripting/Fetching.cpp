@@ -583,7 +583,7 @@ WebIDL::ExceptionOr<void> fetch_worklet_module_worker_script_graph(URL::URL cons
         }
 
         // 2. Fetch the descendants of and link result given fetchClient, destination, and onComplete. If performFetch was given, pass it along as well.
-        fetch_descendants_of_and_link_a_module_script(realm, as<JavaScriptModuleScript>(*result), fetch_client, destination, move(perform_fetch), on_complete);
+        fetch_descendants_of_and_link_a_module_script(realm, as<ModuleScript>(*result), fetch_client, destination, move(perform_fetch), on_complete);
     });
 
     // 2. Fetch a single module script given url, fetchClient, destination, options, settingsObject's realm, "client", true,
@@ -705,7 +705,7 @@ void fetch_single_module_script(JS::Realm& realm,
         auto mime_type = response->header_list()->extract_mime_type();
 
         // 4. Let moduleScript be null.
-        GC::Ptr<JavaScriptModuleScript> module_script;
+        GC::Ptr<ModuleScript> module_script;
 
         // FIXME: 5. Let referrerPolicy be the result of parsing the `Referrer-Policy` header given response. [REFERRERPOLICY]
         // FIXME: 6. If referrerPolicy is not the empty string, set options's referrer policy to referrerPolicy.
@@ -716,7 +716,9 @@ void fetch_single_module_script(JS::Realm& realm,
             module_script = JavaScriptModuleScript::create(url.to_byte_string(), source_text, module_map_realm, response->url().value_or({})).release_value_but_fixme_should_propagate_errors();
 
         // FIXME: 8. If the MIME type essence of mimeType is "text/css" and moduleType is "css", then set moduleScript to the result of creating a CSS module script given sourceText and settingsObject.
-        // FIXME: 9. If mimeType is a JSON MIME type and moduleType is "json", then set moduleScript to the result of creating a JSON module script given sourceText and settingsObject.
+        // 9. If mimeType is a JSON MIME type and moduleType is "json", then set moduleScript to the result of creating a JSON module script given sourceText and settingsObject.
+        if (mime_type->is_json() && module_type == "json")
+            module_script = JSONModuleScript::create(url.basename(), source_text, module_map_realm).release_value_but_fixme_should_propagate_errors();
 
         // 10. Set moduleMap[(url, moduleType)] to moduleScript, and run onComplete given moduleScript.
         module_map.set(url, module_type.to_byte_string(), { ModuleMap::EntryType::ModuleScript, module_script });
@@ -744,7 +746,7 @@ void fetch_external_module_script_graph(JS::Realm& realm, URL::URL const& url, E
         }
 
         // 2. Fetch the descendants of and link result given settingsObject, "script", and onComplete.
-        auto& module_script = as<JavaScriptModuleScript>(*result);
+        auto& module_script = as<ModuleScript>(*result);
         fetch_descendants_of_and_link_a_module_script(realm, module_script, settings_object, Fetch::Infrastructure::Request::Destination::Script, nullptr, on_complete);
     });
 
@@ -796,7 +798,7 @@ void fetch_single_imported_module_script(JS::Realm& realm,
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#fetch-the-descendants-of-and-link-a-module-script
 void fetch_descendants_of_and_link_a_module_script(JS::Realm& realm,
-    JavaScriptModuleScript& module_script,
+    ModuleScript& module_script,
     EnvironmentSettingsObject& fetch_client,
     Fetch::Infrastructure::Request::Destination destination,
     PerformTheFetchHook perform_fetch,
