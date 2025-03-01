@@ -7,7 +7,9 @@
             let stream = new Blob([text]).stream();
 
             let compressor = stream.pipeThrough(new CompressionStream(format));
-            let reader = compressor.getReader();
+            let decompressor = compressor.pipeThrough(new DecompressionStream(format))
+
+            let reader = decompressor.getReader();
 
             let buffer = new ArrayBuffer(256);
             let offset = 0;
@@ -22,7 +24,7 @@
                 offset += result.value.byteLength;
             }
 
-            let result = new Uint8Array(buffer, 0, offset).toBase64();
+            let result = new TextDecoder().decode(new Uint8Array(buffer, 0, offset));
             println(`format=${format}: ${result}`);
         }
 
