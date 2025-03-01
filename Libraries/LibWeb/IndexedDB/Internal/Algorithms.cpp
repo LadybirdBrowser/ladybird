@@ -22,6 +22,7 @@
 #include <LibWeb/IndexedDB/Internal/Database.h>
 #include <LibWeb/StorageAPI/StorageKey.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
+#include <LibWeb/WebIDL/Buffers.h>
 
 namespace Web::IndexedDB {
 
@@ -213,10 +214,14 @@ ErrorOr<GC::Ref<Key>> convert_a_value_to_a_key(JS::Realm& realm, JS::Value input
     // - If input is a buffer source type
     if (input.is_object() && (is<JS::TypedArrayBase>(input.as_object()) || is<JS::ArrayBuffer>(input.as_object()) || is<JS::DataView>(input.as_object()))) {
 
-        // 1. Let bytes be the result of getting a copy of the bytes held by the buffer source input. Rethrow any exceptions.
+        // 1. If input is [detached] then return invalid.
+        if (WebIDL::is_buffer_source_detached(input))
+            return Error::from_string_literal("Detached buffer is not supported as key");
+
+        // 2. Let bytes be the result of getting a copy of the bytes held by the buffer source input.
         auto data_buffer = TRY(WebIDL::get_buffer_source_copy(input.as_object()));
 
-        // 2. Return a new key with type binary and value bytes.
+        // 3. Return a new key with type binary and value bytes.
         return Key::create_binary(realm, data_buffer);
     }
 

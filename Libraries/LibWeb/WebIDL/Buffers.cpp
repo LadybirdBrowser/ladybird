@@ -127,4 +127,30 @@ void ArrayBufferView::write(ReadonlyBytes bytes, u32 starting_offset)
 
 BufferSource::~BufferSource() = default;
 
+// https://webidl.spec.whatwg.org/#buffersource-detached
+bool is_buffer_source_detached(JS::Value const& buffer_source)
+{
+    // A buffer source type instance bufferSource is detached if the following steps return true:
+
+    // 1. Let jsArrayBuffer be the result of converting bufferSource to a JavaScript value.
+    // 2. If jsArrayBuffer has a [[ViewedArrayBuffer]] internal slot, then set jsArrayBuffer to jsArrayBuffer.[[ViewedArrayBuffer]].
+    if (!buffer_source.is_object())
+        return false;
+
+    JS::ArrayBuffer const* js_array_buffer = nullptr;
+    auto const& array_buffer_object = buffer_source.as_object();
+    if (auto const* array_buffer = as_if<JS::ArrayBuffer>(array_buffer_object)) {
+        js_array_buffer = array_buffer;
+    } else if (auto const* typed_array_base = as_if<JS::TypedArrayBase>(array_buffer_object)) {
+        js_array_buffer = typed_array_base->viewed_array_buffer();
+    } else if (auto const* data_view = as_if<JS::DataView>(array_buffer_object)) {
+        js_array_buffer = data_view->viewed_array_buffer();
+    } else {
+        return false;
+    }
+
+    // 3. Return IsDetachedBuffer(jsArrayBuffer).
+    return js_array_buffer->is_detached();
+}
+
 }
