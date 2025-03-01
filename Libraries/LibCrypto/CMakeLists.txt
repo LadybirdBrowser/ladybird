@@ -18,7 +18,6 @@ set(SOURCES
     BigInt/UnsignedBigInteger.cpp
     Certificate/Certificate.cpp
     Checksum/cksum.cpp
-    Checksum/CRC32.cpp
     Cipher/AES.cpp
     Cipher/Cipher.cpp
     Curves/EdwardsCurve.cpp
