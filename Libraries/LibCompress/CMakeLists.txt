@@ -1,8 +1,9 @@
 set(SOURCES
     Deflate.cpp
+    GenericZlib.cpp
+    Gzip.cpp
     PackBitsDecoder.cpp
     Zlib.cpp
-    Gzip.cpp
 )
 
 serenity_lib(LibCompress compress)
