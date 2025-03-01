@@ -954,7 +954,8 @@ Paintable::DispatchEventOfSameName PaintableBox::handle_mousemove(Badge<EventHan
 
 bool PaintableBox::handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, unsigned, unsigned, int wheel_delta_x, int wheel_delta_y)
 {
-    if (!could_be_scrolled_by_wheel_event()) {
+    // if none of the axes we scrolled with can be accepted by this element, don't handle scroll.
+    if ((!wheel_delta_x || !could_be_scrolled_by_wheel_event(ScrollDirection::Horizontal)) && (!wheel_delta_y || !could_be_scrolled_by_wheel_event(ScrollDirection::Vertical))) {
         return false;
     }
 
