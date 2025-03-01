@@ -49,7 +49,7 @@ waiting for a reply, to which the actor must then reply in order. Any requests t
 (such as fetching the serialized DOM tree from the WebContent process) must block the actor from sending replies for
 subsequent requests.
 
-To log communcation between the DevTools server and client, enable the `DEVTOOLS_DEBUG` flag:
+To log communication between the DevTools server and client, enable the `DEVTOOLS_DEBUG` flag:
 
 ```bash
 cmake -B Build/release -D DEVTOOLS_DEBUG=ON
