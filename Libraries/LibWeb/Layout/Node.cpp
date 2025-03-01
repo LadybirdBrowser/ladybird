@@ -827,16 +827,16 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     else if (stroke_width.is_percentage())
         computed_values.set_stroke_width(CSS::LengthPercentage { stroke_width.as_percentage().percentage() });
 
-    if (auto const& mask_image = computed_style.property(CSS::PropertyID::MaskImage); mask_image.is_abstract_image()) {
+    auto const& mask_image = computed_style.property(CSS::PropertyID::MaskImage);
+    if (mask_image.is_url()) {
+        computed_values.set_mask(mask_image.as_url().url());
+    } else if (mask_image.is_abstract_image()) {
         auto const& abstract_image = mask_image.as_abstract_image();
         computed_values.set_mask_image(abstract_image);
         const_cast<CSS::AbstractImageStyleValue&>(abstract_image).load_any_resources(document());
     }
 
     computed_values.set_mask_type(computed_style.mask_type());
-
-    if (auto const& mask = computed_style.property(CSS::PropertyID::Mask); mask.is_url())
-        computed_values.set_mask(mask.as_url().url());
 
     auto const& clip_path = computed_style.property(CSS::PropertyID::ClipPath);
     if (clip_path.is_url())

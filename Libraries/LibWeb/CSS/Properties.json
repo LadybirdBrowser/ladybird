@@ -1958,25 +1958,21 @@
     ]
   },
   "mask": {
-    "animation-type": "none",
-    "affects-layout": false,
-    "affects-stacking-context": true,
     "inherited": false,
-    "valid-identifiers": [
-      "none"
-    ],
-    "__comment": "FIXME: This should be a <mask-reference> and/or <mask-layer>#",
-    "valid-types": [
-      "url"
-    ],
-    "initial": "none"
+    "__comment": "FIXME: add longhands mask-clip, mask-composite, mask-mode, mask-origin, mask-position, mask-repeat, mask-size; also reset mask-border",
+    "initial": "none",
+    "longhands": [
+        "mask-image"
+    ]
   },
   "mask-image": {
     "animation-type": "discrete",
     "inherited": false,
     "affects-layout": false,
+    "affects-stacking-context": true,
     "valid-types": [
-      "image"
+      "image",
+      "url"
     ],
     "valid-identifiers": [
       "none"
