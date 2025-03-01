@@ -3,6 +3,7 @@ set(SOURCES
     PackBitsDecoder.cpp
     Zlib.cpp
     Gzip.cpp
+    GenericZlib.cpp
 )
 
 serenity_lib(LibCompress compress)
