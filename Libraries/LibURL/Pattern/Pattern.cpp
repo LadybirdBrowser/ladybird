@@ -91,6 +91,13 @@ PatternErrorOr<Pattern> Pattern::create(Input const& input, Optional<String> con
     return url_pattern;
 }
 
+// https://urlpattern.spec.whatwg.org/#url-pattern-match
+PatternErrorOr<Optional<Result>> Pattern::match(Input const&, Optional<String> const&) const
+{
+    dbgln("FIXME: Implement URL::Pattern::match");
+    return OptionalNone {};
+}
+
 // https://urlpattern.spec.whatwg.org/#url-pattern-has-regexp-groups
 bool Pattern::has_regexp_groups() const
 {
