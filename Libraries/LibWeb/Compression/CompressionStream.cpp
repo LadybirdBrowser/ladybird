@@ -115,9 +115,8 @@ WebIDL::ExceptionOr<void> CompressionStream::compress_and_enqueue_chunk(JS::Valu
 
     // 2. Let buffer be the result of compressing chunk with cs's format and context.
     auto maybe_buffer = [&]() -> ErrorOr<ByteBuffer> {
-        if (auto buffer = WebIDL::underlying_buffer_source(chunk.as_object()))
-            return compress(buffer->buffer(), Finish::No);
-        return ByteBuffer {};
+        auto chunk_buffer = TRY(WebIDL::get_buffer_source_copy(chunk.as_object()));
+        return compress(move(chunk_buffer), Finish::No);
     }();
     if (maybe_buffer.is_error())
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Unable to compress chunk: {}", maybe_buffer.error())) };
