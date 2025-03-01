@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2024, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2025, Altomani Gianluca <altomanigianluca@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -113,21 +114,22 @@ WebIDL::ExceptionOr<void> CompressionStream::compress_and_enqueue_chunk(JS::Valu
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Chunk is not a BufferSource type"sv };
 
     // 2. Let buffer be the result of compressing chunk with cs's format and context.
-    auto buffer = [&]() -> ErrorOr<ByteBuffer> {
+    auto maybe_buffer = [&]() -> ErrorOr<ByteBuffer> {
         if (auto buffer = WebIDL::underlying_buffer_source(chunk.as_object()))
             return compress(buffer->buffer(), Finish::No);
         return ByteBuffer {};
     }();
+    if (maybe_buffer.is_error())
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Unable to compress chunk: {}", maybe_buffer.error())) };
 
-    if (buffer.is_error())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Unable to compress chunk: {}", buffer.error())) };
+    auto buffer = maybe_buffer.release_value();
 
     // 3. If buffer is empty, return.
-    if (buffer.value().is_empty())
+    if (buffer.is_empty())
         return {};
 
     // 4. Split buffer into one or more non-empty pieces and convert them into Uint8Arrays.
-    auto array_buffer = JS::ArrayBuffer::create(realm, buffer.release_value());
+    auto array_buffer = JS::ArrayBuffer::create(realm, move(buffer));
     auto array = JS::Uint8Array::create(realm, array_buffer->byte_length(), *array_buffer);
 
     // 5. For each Uint8Array array, enqueue array in cs's transform.
@@ -141,17 +143,18 @@ WebIDL::ExceptionOr<void> CompressionStream::compress_flush_and_enqueue()
     auto& realm = this->realm();
 
     // 1. Let buffer be the result of compressing an empty input with cs's format and context, with the finish flag.
-    auto buffer = compress({}, Finish::Yes);
+    auto maybe_buffer = compress({}, Finish::Yes);
+    if (maybe_buffer.is_error())
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Unable to compress flush: {}", maybe_buffer.error())) };
 
-    if (buffer.is_error())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Unable to compress flush: {}", buffer.error())) };
+    auto buffer = maybe_buffer.release_value();
 
     // 2. If buffer is empty, return.
-    if (buffer.value().is_empty())
+    if (buffer.is_empty())
         return {};
 
     // 3. Split buffer into one or more non-empty pieces and convert them into Uint8Arrays.
-    auto array_buffer = JS::ArrayBuffer::create(realm, buffer.release_value());
+    auto array_buffer = JS::ArrayBuffer::create(realm, move(buffer));
     auto array = JS::Uint8Array::create(realm, array_buffer->byte_length(), *array_buffer);
 
     // 4. For each Uint8Array array, enqueue array in cs's transform.
