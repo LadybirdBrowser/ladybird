@@ -1,0 +1,27 @@
+Harness status: Error
+
+Found 21 tests
+
+15 Pass
+6 Fail
+Pass	chunk of type undefined should error the stream for gzip
+Pass	chunk of type undefined should error the stream for deflate
+Pass	chunk of type undefined should error the stream for deflate-raw
+Pass	chunk of type null should error the stream for gzip
+Pass	chunk of type null should error the stream for deflate
+Pass	chunk of type null should error the stream for deflate-raw
+Pass	chunk of type numeric should error the stream for gzip
+Pass	chunk of type numeric should error the stream for deflate
+Pass	chunk of type numeric should error the stream for deflate-raw
+Pass	chunk of type object, not BufferSource should error the stream for gzip
+Pass	chunk of type object, not BufferSource should error the stream for deflate
+Pass	chunk of type object, not BufferSource should error the stream for deflate-raw
+Pass	chunk of type array should error the stream for gzip
+Pass	chunk of type array should error the stream for deflate
+Pass	chunk of type array should error the stream for deflate-raw
+Fail	chunk of type SharedArrayBuffer should error the stream for gzip
+Fail	chunk of type SharedArrayBuffer should error the stream for deflate
+Fail	chunk of type SharedArrayBuffer should error the stream for deflate-raw
+Fail	chunk of type shared Uint8Array should error the stream for gzip
+Fail	chunk of type shared Uint8Array should error the stream for deflate
+Fail	chunk of type shared Uint8Array should error the stream for deflate-raw

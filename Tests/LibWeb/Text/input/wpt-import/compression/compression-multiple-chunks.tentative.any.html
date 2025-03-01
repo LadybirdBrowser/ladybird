@@ -1,0 +1,15 @@
+<!doctype html>
+<meta charset=utf-8>
+<meta name="timeout" content="long">
+<script>
+self.GLOBAL = {
+  isWindow: function() { return true; },
+  isWorker: function() { return false; },
+  isShadowRealm: function() { return false; },
+};
+</script>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="third_party/pako/pako_inflate.min.js"></script>
+<div id=log></div>
+<script src="../compression/compression-multiple-chunks.tentative.any.js"></script>
