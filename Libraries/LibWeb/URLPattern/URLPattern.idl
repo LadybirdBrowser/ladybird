@@ -6,7 +6,7 @@ interface URLPattern {
     constructor(URLPatternInput input, USVString baseURL, optional URLPatternOptions options = {});
     constructor(optional URLPatternInput input = {}, optional URLPatternOptions options = {});
 
-    [FIXME] boolean test(optional URLPatternInput input = {}, optional USVString baseURL);
+    boolean test(optional URLPatternInput input = {}, optional USVString baseURL);
 
     URLPatternResult? exec(optional URLPatternInput input = {}, optional USVString baseURL);
 

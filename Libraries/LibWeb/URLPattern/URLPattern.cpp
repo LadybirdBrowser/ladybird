@@ -51,11 +51,31 @@ WebIDL::ExceptionOr<GC::Ref<URLPattern>> URLPattern::create(JS::Realm& realm, UR
     return realm.create<URLPattern>(realm, pattern_or_error.release_value());
 }
 
-// https://urlpattern.spec.whatwg.org/#dom-urlpattern-exec
-Optional<URLPatternResult> URLPattern::exec(URLPatternInput const&, Optional<String> const&) const
+// https://urlpattern.spec.whatwg.org/#dom-urlpattern-test
+WebIDL::ExceptionOr<bool> URLPattern::test(URLPatternInput const& input, Optional<String> const& base_url) const
 {
-    dbgln("FIXME: Implement URLPattern::match");
-    return {};
+    // 1. Let result be the result of match given this's associated URL pattern, input, and baseURL if given.
+    auto result_or_error = m_url_pattern.match(input, base_url);
+    if (result_or_error.is_error())
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, result_or_error.error().message };
+    auto result = result_or_error.release_value();
+
+    // 2. If result is null, return false.
+    if (!result.has_value())
+        return false;
+
+    // 3. Return true.
+    return true;
+}
+
+// https://urlpattern.spec.whatwg.org/#dom-urlpattern-exec
+WebIDL::ExceptionOr<Optional<URLPatternResult>> URLPattern::exec(URLPatternInput const& input, Optional<String> const& base_url) const
+{
+    // 1. Return the result of match given this's associated URL pattern, input, and baseURL if given.
+    auto result_or_error = m_url_pattern.match(input, base_url);
+    if (result_or_error.is_error())
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, result_or_error.error().message };
+    return result_or_error.release_value();
 }
 
 // https://urlpattern.spec.whatwg.org/#dom-urlpattern-protocol
