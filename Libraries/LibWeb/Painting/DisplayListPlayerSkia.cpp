@@ -671,9 +671,13 @@ void DisplayListPlayerSkia::draw_line(DrawLine const& command)
         break;
     case Gfx::LineStyle::Dotted: {
         auto length = command.to.distance_from(command.from);
-        auto dot_count = floor(length / (static_cast<float>(command.thickness) * 2));
+        auto dot_spacing = static_cast<float>(command.thickness) * 2.0f;
+        auto dot_count = floor(length / dot_spacing) + 1;
+
         auto interval = length / dot_count;
-        SkScalar intervals[] = { 0, interval };
+        auto dash_length = 1.0f;
+        SkScalar intervals[] = { static_cast<SkScalar>(dash_length),
+            static_cast<SkScalar>(interval - dash_length) };
         paint.setPathEffect(SkDashPathEffect::Make(intervals, 2, 0));
         paint.setStrokeCap(SkPaint::Cap::kRound_Cap);
 
