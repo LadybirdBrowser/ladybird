@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<title>Setting HTMLTrackElement.src to the empty string fires 'error' and sets readyState to ERROR</title>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/media.html#sourcing-out-of-band-text-tracks">
+<script src="../../../../../../resources/testharness.js"></script>
+<script src="../../../../../../resources/testharnessreport.js"></script>
+<video></video>
+<script>
+async_test(t => {
+  let track = document.createElement("track");
+  track.src = '';
+  track.default = true;
+  track.onerror = t.step_func_done(() => {
+    assert_equals(track.readyState, HTMLTrackElement.ERROR);
+  });
+  track.onload = t.unreached_func('fired load');
+
+  assert_equals(track.readyState, HTMLTrackElement.NONE);
+
+  document.querySelector('video').appendChild(track);
+});
+</script>
