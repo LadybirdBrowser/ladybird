@@ -8,6 +8,7 @@
 
 #include <AK/BitStream.h>
 #include <AK/Debug.h>
+#include <AK/HashMap.h>
 #include <AK/HashTable.h>
 #include <AK/MemoryStream.h>
 #include <AK/QuickSort.h>

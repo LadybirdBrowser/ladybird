@@ -33,7 +33,7 @@ WebIDL::ExceptionOr<GC::Ref<CompressionStream>> CompressionStream::construct_imp
         case Bindings::CompressionFormat::Deflate:
             return TRY(Compress::ZlibCompressor::create(move(input_stream)));
         case Bindings::CompressionFormat::DeflateRaw:
-            return TRY(Compress::DeflateCompressor::construct(make<LittleEndianInputBitStream>(move(input_stream))));
+            return TRY(Compress::DeflateCompressor::create(move(input_stream)));
         case Bindings::CompressionFormat::Gzip:
             return TRY(Compress::GzipCompressor::create(move(input_stream)));
         }
@@ -166,16 +166,9 @@ ErrorOr<ByteBuffer> CompressionStream::compress(ReadonlyBytes bytes, Finish fini
     }));
 
     if (finish == Finish::Yes) {
-        TRY(m_compressor.visit(
-            [&](NonnullOwnPtr<Compress::ZlibCompressor> const& compressor) {
-                return compressor->finish();
-            },
-            [&](NonnullOwnPtr<Compress::DeflateCompressor> const& compressor) {
-                return compressor->final_flush();
-            },
-            [&](NonnullOwnPtr<Compress::GzipCompressor> const& compressor) {
-                return compressor->finish();
-            }));
+        TRY(m_compressor.visit([](auto const& compressor) {
+            return compressor->finish();
+        }));
     }
 
     auto buffer = TRY(ByteBuffer::create_uninitialized(m_output_stream->used_buffer_size()));
