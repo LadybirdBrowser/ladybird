@@ -24,6 +24,7 @@ class URLPattern : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(URLPattern);
 
 public:
+    static WebIDL::ExceptionOr<GC::Ref<URLPattern>> create(JS::Realm&, URLPatternInput const&, Optional<String> const& base_url, URLPatternOptions const& = {});
     static WebIDL::ExceptionOr<GC::Ref<URLPattern>> construct_impl(JS::Realm&, URLPatternInput const&, String const& base_url, URLPatternOptions const& = {});
     static WebIDL::ExceptionOr<GC::Ref<URLPattern>> construct_impl(JS::Realm&, URLPatternInput const&, URLPatternOptions const& = {});
 
@@ -45,7 +46,7 @@ public:
 protected:
     virtual void initialize(JS::Realm&) override;
 
-    explicit URLPattern(JS::Realm&);
+    explicit URLPattern(JS::Realm&, URL::Pattern::Pattern);
 
 private:
     // https://urlpattern.spec.whatwg.org/#ref-for-url-pattern%E2%91%A0
