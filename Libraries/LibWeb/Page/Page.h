@@ -75,6 +75,7 @@ public:
     HTML::Navigable const& focused_navigable() const { return const_cast<Page*>(this)->focused_navigable(); }
 
     void set_focused_navigable(Badge<EventHandler>, HTML::Navigable&);
+    void navigable_document_destroyed(Badge<DOM::Document>, HTML::Navigable&);
 
     void load(URL::URL const&);
 

@@ -3971,8 +3971,13 @@ void Document::destroy()
     }
 
     // 9. Set document's node navigable's active session history entry's document state's document to null.
-    if (auto navigable = this->navigable())
+    if (auto navigable = this->navigable()) {
         navigable->active_session_history_entry()->document_state()->set_document(nullptr);
+
+        // AD-HOC: We set the page's focused navigable during mouse-down events. If that navigable is this document's
+        //         navigable, we must be sure to reset the page's focused navigable.
+        page().navigable_document_destroyed({}, *navigable);
+    }
 
     // FIXME: 10. Remove document from the owner set of each WorkerGlobalScope object whose set contains document.
     // FIXME: 11. For each workletGlobalScope in document's worklet global scopes, terminate workletGlobalScope.
