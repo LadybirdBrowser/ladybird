@@ -450,7 +450,7 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
         if (self == nil) {
             return;
         }
-        cursor.template visit(
+        cursor.visit(
             [](Gfx::ImageCursor const& image_cursor) {
                 auto* cursor_image = Ladybird::gfx_bitmap_to_ns_image(*image_cursor.bitmap.bitmap());
                 auto hotspot = Ladybird::gfx_point_to_ns_point(image_cursor.hotspot);
