@@ -17,7 +17,6 @@ set(SOURCES
     BigInt/SignedBigInteger.cpp
     BigInt/UnsignedBigInteger.cpp
     Certificate/Certificate.cpp
-    Checksum/cksum.cpp
     Cipher/AES.cpp
     Curves/EdwardsCurve.cpp
     Curves/SECPxxxr1.cpp
