@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2024, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2025, Altomani Gianluca <altomanigianluca@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -115,21 +116,30 @@ WebIDL::ExceptionOr<void> DecompressionStream::decompress_and_enqueue_chunk(JS::
 
     // 2. Let buffer be the result of decompressing chunk with ds's format and context. If this results in an error,
     //    then throw a TypeError.
-    auto buffer = [&]() -> ErrorOr<ByteBuffer> {
-        if (auto buffer = WebIDL::underlying_buffer_source(chunk.as_object()))
-            return decompress(buffer->buffer());
-        return ByteBuffer {};
-    }();
+    auto maybe_buffer = [&]() -> ErrorOr<ByteBuffer> {
+        auto chunk_buffer = WebIDL::underlying_buffer_source(chunk.as_object());
+        if (!chunk_buffer)
+            return ByteBuffer {};
 
-    if (buffer.is_error())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Unable to decompress chunk: {}", buffer.error())) };
+        TRY(m_input_stream->write_until_depleted(chunk_buffer->buffer()));
+
+        auto decompressed = TRY(ByteBuffer::create_uninitialized(4096));
+        auto size = TRY(m_decompressor.visit([&](auto const& decompressor) -> ErrorOr<size_t> {
+            return TRY(decompressor->read_some(decompressed.bytes())).size();
+        }));
+        return decompressed.slice(0, size);
+    }();
+    if (maybe_buffer.is_error())
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Unable to decompress chunk: {}", maybe_buffer.error())) };
+
+    auto buffer = maybe_buffer.release_value();
 
     // 3. If buffer is empty, return.
-    if (buffer.value().is_empty())
+    if (buffer.is_empty())
         return {};
 
     // 4. Split buffer into one or more non-empty pieces and convert them into Uint8Arrays.
-    auto array_buffer = JS::ArrayBuffer::create(realm, buffer.release_value());
+    auto array_buffer = JS::ArrayBuffer::create(realm, move(buffer));
     auto array = JS::Uint8Array::create(realm, array_buffer->byte_length(), *array_buffer);
 
     // 5. For each Uint8Array array, enqueue array in ds's transform.
@@ -143,33 +153,29 @@ WebIDL::ExceptionOr<void> DecompressionStream::decompress_flush_and_enqueue()
     auto& realm = this->realm();
 
     // 1. Let buffer be the result of decompressing an empty input with ds's format and context, with the finish flag.
-    auto buffer = decompress({});
+    auto maybe_buffer = m_decompressor.visit([&](auto const& decompressor) -> ErrorOr<ByteBuffer> {
+        return TRY(decompressor->read_until_eof());
+    });
+    if (maybe_buffer.is_error())
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Unable to compress flush: {}", maybe_buffer.error())) };
 
-    if (buffer.is_error())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Unable to compress flush: {}", buffer.error())) };
+    auto buffer = maybe_buffer.release_value();
 
-    // FIXME: 2. If the end of the compressed input has not been reached, then throw a TypeError.
+    // 2. If the end of the compressed input has not been reached, then throw a TypeError.
+    if (m_decompressor.visit([](auto const& decompressor) { return !decompressor->is_eof(); }))
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "End of compressed input has not been reached"sv };
 
     // 3. If buffer is empty, return.
-    if (buffer.value().is_empty())
+    if (buffer.is_empty())
         return {};
 
     // 4. Split buffer into one or more non-empty pieces and convert them into Uint8Arrays.
-    auto array_buffer = JS::ArrayBuffer::create(realm, buffer.release_value());
+    auto array_buffer = JS::ArrayBuffer::create(realm, move(buffer));
     auto array = JS::Uint8Array::create(realm, array_buffer->byte_length(), *array_buffer);
 
     // 5. For each Uint8Array array, enqueue array in ds's transform.
     m_transform->enqueue(array);
     return {};
-}
-
-ErrorOr<ByteBuffer> DecompressionStream::decompress(ReadonlyBytes bytes)
-{
-    TRY(m_input_stream->write_until_depleted(bytes));
-
-    return TRY(m_decompressor.visit([&](auto const& decompressor) {
-        return decompressor->read_until_eof();
-    }));
 }
 
 }
