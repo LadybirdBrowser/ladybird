@@ -182,8 +182,17 @@ void SVGGraphicsElement::apply_presentational_hints(GC::Ref<CSS::CascadedPropert
         for (auto property : attribute_style_properties) {
             if (!name.equals_ignoring_ascii_case(property.name))
                 continue;
-            if (auto style_value = parse_css_value(parsing_context, value, property.id))
-                cascaded_properties->set_property_from_presentational_hint(property.id, style_value.release_nonnull());
+            if (property.id == CSS::PropertyID::Mask) {
+                // Mask is a shorthand property in CSS, but parse_css_value does not take that into account. For now,
+                // just parse as 'mask-image' as anything else is currently not supported.
+                // FIXME: properly parse longhand 'mask' property
+                if (auto style_value = parse_css_value(parsing_context, value, CSS::PropertyID::MaskImage)) {
+                    cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::MaskImage, style_value.release_nonnull());
+                }
+            } else {
+                if (auto style_value = parse_css_value(parsing_context, value, property.id))
+                    cascaded_properties->set_property_from_presentational_hint(property.id, style_value.release_nonnull());
+            }
             break;
         }
     });

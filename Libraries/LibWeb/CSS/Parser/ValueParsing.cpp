@@ -15,6 +15,7 @@
 #include <AK/Debug.h>
 #include <AK/GenericLexer.h>
 #include <AK/TemporaryChange.h>
+#include <LibURL/URL.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyName.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
@@ -1925,8 +1926,19 @@ RefPtr<StringStyleValue> Parser::parse_string_value(TokenStream<ComponentValue>&
 
 RefPtr<AbstractImageStyleValue> Parser::parse_image_value(TokenStream<ComponentValue>& tokens)
 {
-    if (auto url = parse_url_function(tokens); url.has_value())
-        return ImageStyleValue::create(url.value());
+    tokens.mark();
+    auto url = parse_url_function(tokens);
+    if (url.has_value()) {
+        // If the value is a 'url(..)' parse as image, but if it is just a reference 'url(#xx)', leave it alone,
+        // so we can parse as URL further on. These URLs are used as references inside SVG documents for masks.
+        if (!url.value().equals(m_url, URL::ExcludeFragment::Yes)) {
+            tokens.discard_a_mark();
+            return ImageStyleValue::create(url.value());
+        }
+        tokens.restore_a_mark();
+        return nullptr;
+    }
+    tokens.discard_a_mark();
 
     if (auto linear_gradient = parse_linear_gradient_function(tokens))
         return linear_gradient;
