@@ -62,11 +62,10 @@ WebIDL::ExceptionOr<GC::Ref<IDBOpenDBRequest>> IDBFactory::open(String const& na
         // 1. Let result be the result of opening a database connection, with storageKey, name, version if given and undefined otherwise, and request.
         auto result = open_a_database_connection(realm, storage_key.value(), name, version, request);
 
-        // FIXME: https://github.com/w3c/IndexedDB/issues/434
-        // We need to set the request as processed, since we didnt always do it via the above function.
+        // 2. Set request’s processed flag to true.
         request->set_processed(true);
 
-        // 2. Queue a task to run these steps:
+        // 3. Queue a task to run these steps:
         HTML::queue_a_task(HTML::Task::Source::DatabaseAccess, nullptr, nullptr, GC::create_function(realm.heap(), [&realm, request, result = move(result)]() mutable {
             // 1. If result is an error, then:
             if (result.is_error()) {
