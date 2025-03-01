@@ -117,11 +117,8 @@ WebIDL::ExceptionOr<void> DecompressionStream::decompress_and_enqueue_chunk(JS::
     // 2. Let buffer be the result of decompressing chunk with ds's format and context. If this results in an error,
     //    then throw a TypeError.
     auto maybe_buffer = [&]() -> ErrorOr<ByteBuffer> {
-        auto chunk_buffer = WebIDL::underlying_buffer_source(chunk.as_object());
-        if (!chunk_buffer)
-            return ByteBuffer {};
-
-        TRY(m_input_stream->write_until_depleted(chunk_buffer->buffer()));
+        auto chunk_buffer = TRY(WebIDL::get_buffer_source_copy(chunk.as_object()));
+        TRY(m_input_stream->write_until_depleted(move(chunk_buffer)));
 
         auto decompressed = TRY(ByteBuffer::create_uninitialized(4096));
         auto size = TRY(m_decompressor.visit([&](auto const& decompressor) -> ErrorOr<size_t> {

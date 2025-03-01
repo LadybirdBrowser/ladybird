@@ -2,7 +2,7 @@ Harness status: OK
 
 Found 3 tests
 
-3 Fail
-Fail	deflate compression with large flush output
-Fail	gzip compression with large flush output
-Fail	deflate-raw compression with large flush output
+3 Pass
+Pass	deflate compression with large flush output
+Pass	gzip compression with large flush output
+Pass	deflate-raw compression with large flush output
