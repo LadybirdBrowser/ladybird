@@ -986,6 +986,15 @@ TEST_CASE(extremely_long_fork_chain)
     EXPECT_EQ(result.success, true);
 }
 
+TEST_CASE(nullable_quantifiers)
+{
+    // clang-format off
+    Regex<ECMA262> re("(a?b?""?)*"); // Pattern (a?b??)* has to be concatenated to avoid "??)", which is a trigraph.
+    // clang-format on
+    auto result = re.match("ab"sv);
+    EXPECT_EQ(result.matches.at(0).view, "ab"sv);
+}
+
 TEST_CASE(theoretically_infinite_loop)
 {
     Array patterns {
