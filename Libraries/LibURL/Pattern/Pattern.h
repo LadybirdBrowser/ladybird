@@ -49,6 +49,8 @@ class Pattern {
 public:
     static PatternErrorOr<Pattern> create(Input const&, Optional<String> const& base_url = {}, Options const& = {});
 
+    PatternErrorOr<Optional<Result>> match(Input const&, Optional<String> const& base_url_string) const;
+
     bool has_regexp_groups() const;
 
     Component const& protocol_component() const { return m_protocol_component; }
