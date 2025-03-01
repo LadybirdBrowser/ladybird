@@ -12,6 +12,7 @@
 #include <AK/Vector.h>
 #include <LibURL/Pattern/Component.h>
 #include <LibURL/Pattern/Init.h>
+#include <LibURL/Pattern/PatternError.h>
 
 namespace URL::Pattern {
 
@@ -46,6 +47,8 @@ struct Result {
 // https://urlpattern.spec.whatwg.org/#url-pattern
 class Pattern {
 public:
+    static PatternErrorOr<Pattern> create(Input const&, Optional<String> const& base_url = {}, Options const& = {});
+
     bool has_regexp_groups() const;
 
     Component const& protocol_component() const { return m_protocol_component; }
