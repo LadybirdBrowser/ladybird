@@ -4,24 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibCrypto/Checksum/Adler32.h>
 #include <LibCrypto/Checksum/CRC32.h>
 #include <LibCrypto/Checksum/cksum.h>
 #include <LibTest/TestCase.h>
-
-TEST_CASE(test_adler32)
-{
-    auto do_test = [](ReadonlyBytes input, u32 expected_result) {
-        auto digest = Crypto::Checksum::Adler32(input).digest();
-        EXPECT_EQ(digest, expected_result);
-    };
-
-    do_test(""sv.bytes(), 0x1);
-    do_test("a"sv.bytes(), 0x00620062);
-    do_test("abc"sv.bytes(), 0x024d0127);
-    do_test("message digest"sv.bytes(), 0x29750586);
-    do_test("abcdefghijklmnopqrstuvwxyz"sv.bytes(), 0x90860b20);
-}
 
 TEST_CASE(test_cksum)
 {
