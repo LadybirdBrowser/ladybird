@@ -34,7 +34,7 @@ WebIDL::ExceptionOr<GC::Ref<DecompressionStream>> DecompressionStream::construct
         case Bindings::CompressionFormat::Deflate:
             return TRY(Compress::ZlibDecompressor::create(move(input_stream)));
         case Bindings::CompressionFormat::DeflateRaw:
-            return TRY(Compress::DeflateDecompressor::construct(make<LittleEndianInputBitStream>(move(input_stream))));
+            return TRY(Compress::DeflateDecompressor::create(move(input_stream)));
         case Bindings::CompressionFormat::Gzip:
             return TRY(Compress::GzipDecompressor::create((move(input_stream))));
         }
