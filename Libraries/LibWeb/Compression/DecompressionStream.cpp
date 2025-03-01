@@ -36,7 +36,7 @@ WebIDL::ExceptionOr<GC::Ref<DecompressionStream>> DecompressionStream::construct
         case Bindings::CompressionFormat::DeflateRaw:
             return TRY(Compress::DeflateDecompressor::construct(make<LittleEndianInputBitStream>(move(input_stream))));
         case Bindings::CompressionFormat::Gzip:
-            return make<Compress::GzipDecompressor>(move(input_stream));
+            return TRY(Compress::GzipDecompressor::create((move(input_stream))));
         }
 
         VERIFY_NOT_REACHED();
