@@ -467,7 +467,7 @@ void Node::invalidate_style(StyleInvalidationReason reason)
     document().schedule_style_update();
 }
 
-void Node::invalidate_style(StyleInvalidationReason, Vector<CSS::InvalidationSet::Property> const& properties, StyleInvalidationOptions options)
+void Node::invalidate_style(StyleInvalidationReason reason, Vector<CSS::InvalidationSet::Property> const& properties, StyleInvalidationOptions options)
 {
     if (is_character_data())
         return;
@@ -486,6 +486,11 @@ void Node::invalidate_style(StyleInvalidationReason, Vector<CSS::InvalidationSet
     if (invalidation_set.is_empty())
         return;
 
+    if (invalidation_set.needs_invalidate_whole_subtree()) {
+        invalidate_style(reason);
+        return;
+    }
+
     if (invalidation_set.needs_invalidate_self()) {
         set_needs_style_update(true);
     }
@@ -497,8 +502,10 @@ void Node::invalidate_style(StyleInvalidationReason, Vector<CSS::InvalidationSet
             auto& element = static_cast<Element&>(node);
             bool needs_style_recalculation = false;
             if (invalidation_set.needs_invalidate_whole_subtree()) {
-                needs_style_recalculation = true;
-            } else if (element.includes_properties_from_invalidation_set(invalidation_set)) {
+                VERIFY_NOT_REACHED();
+            }
+
+            if (element.includes_properties_from_invalidation_set(invalidation_set)) {
                 needs_style_recalculation = true;
             } else if (options.invalidate_elements_that_use_css_custom_properties && element.style_uses_css_custom_properties()) {
                 needs_style_recalculation = true;
