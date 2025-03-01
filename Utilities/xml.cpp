@@ -16,9 +16,14 @@
 #include <LibXML/DOM/Node.h>
 #include <LibXML/Parser/Parser.h>
 
+/* Global flags for optional enhancements */
 static bool g_color = false;
 static bool g_only_contents = false;
 
+/*
+    ColorRole is used by color() to highlight different parts of XML
+    (e.g., tags, attributes, etc.) in the terminal.
+*/
 enum class ColorRole {
     PITag,
     PITarget,
@@ -33,6 +38,11 @@ enum class ColorRole {
     Doctype,
     Keyword,
 };
+
+/*
+    color() applies terminal escapes if g_color is enabled,
+    highlighting different portions of text based on a role.
+*/
 static void color(ColorRole role)
 {
     if (!g_color)
@@ -53,6 +63,7 @@ static void color(ColorRole role)
         out("\x1b[38;5;27m");
         break;
     case ColorRole::Eq:
+        // Intentionally no color for '=' sign
         break;
     case ColorRole::AttributeValue:
         out("\x1b[38;5;46m");
@@ -61,6 +72,7 @@ static void color(ColorRole role)
         out("\x1b[{};{}m", 1, "38;5;220");
         break;
     case ColorRole::Text:
+        // Default color for text
         break;
     case ColorRole::Comment:
         out("\x1b[{};{}m", 3, "38;5;250");
@@ -74,22 +86,30 @@ static void color(ColorRole role)
     }
 }
 
+/*
+    dump(XML::Node const&) recursively prints an XML node to stdout,
+    optionally applying syntax highlighting if g_color is true.
+*/
 static void dump(XML::Node const& node)
 {
     node.content.visit(
         [](XML::Node::Text const& text) {
+            // Text content, print as-is
             out("{}", text.builder.string_view());
         },
         [](XML::Node::Comment const& comment) {
+            // Comment node
             color(ColorRole::Comment);
             out("<!--{}-->", comment.text);
             color(ColorRole::Reset);
         },
         [](XML::Node::Element const& element) {
+            // Element node
             color(ColorRole::Tag);
             out("<{}", element.name);
             color(ColorRole::Reset);
 
+            // Print element attributes if any
             if (!element.attributes.is_empty()) {
                 for (auto& attribute : element.attributes) {
                     auto quote = attribute.value.contains('"') ? '\'' : '"';
@@ -102,17 +122,19 @@ static void dump(XML::Node const& node)
                     color(ColorRole::Reset);
                 }
             }
+
+            // If no children, close the element
             if (element.children.is_empty()) {
                 color(ColorRole::Tag);
                 out("/>");
                 color(ColorRole::Reset);
             } else {
+                // Otherwise, open the tag, dump children, and then close the tag
                 color(ColorRole::Tag);
                 out(">");
                 color(ColorRole::Reset);
-
-                for (auto& node : element.children)
-                    dump(*node);
+                for (auto& child_node : element.children)
+                    dump(*child_node);
 
                 color(ColorRole::Tag);
                 out("</{}>", element.name);
@@ -121,9 +143,14 @@ static void dump(XML::Node const& node)
         });
 }
 
+/*
+    dump(XML::Document&) prints out the prologue (xml declaration, doctype, etc.)
+    unless g_only_contents is set, then dumps the root node content.
+*/
 static void dump(XML::Document& document)
 {
     if (!g_only_contents) {
+        // XML declaration/PI
         {
             color(ColorRole::PITag);
             out("<?");
@@ -138,6 +165,7 @@ static void dump(XML::Document& document)
             outln("?>");
         }
 
+        // Print any processing instructions
         for (auto& pi : document.processing_instructions()) {
             color(ColorRole::PITag);
             out("<?");
@@ -154,6 +182,7 @@ static void dump(XML::Document& document)
             outln("?>");
         }
 
+        // Print doctype if needed
         if (auto maybe_doctype = document.doctype(); maybe_doctype.has_value()) {
             auto& doctype = *maybe_doctype;
             color(ColorRole::Doctype);
@@ -180,8 +209,10 @@ static void dump(XML::Document& document)
                                     out("ANY");
                                 },
                                 [&](XML::ElementDeclaration::Mixed const&) {
+                                    // Mixed content is not elaborated further here
                                 },
                                 [&](XML::ElementDeclaration::Children const&) {
+                                    // Children content model not elaborated here
                                 });
                             color(ColorRole::Doctype);
                             outln(">");
@@ -245,14 +276,14 @@ static void dump(XML::Document& document)
                                         color(ColorRole::Reset);
                                         out("( ");
                                         bool first = true;
-                                        for (auto& name : type.tokens) {
+                                        for (auto& token_name : type.tokens) {
                                             color(ColorRole::Reset);
                                             if (first)
                                                 first = false;
                                             else
                                                 out(" | ");
                                             color(ColorRole::AttributeValue);
-                                            out("{}", name);
+                                            out("{}", token_name);
                                         }
                                         color(ColorRole::Reset);
                                         out(" )");
@@ -342,7 +373,7 @@ static void dump(XML::Document& document)
                                 });
                         },
                         [&](XML::NotationDeclaration const&) {
-
+                            // Notation declarations intentionally not elaborated
                         });
                 }
                 color(ColorRole::Reset);
@@ -352,10 +383,20 @@ static void dump(XML::Document& document)
             outln(">");
         }
     }
+
+    // Finally dump the root element
     dump(document.root());
 }
 
+/*
+    s_path holds the path of the file read by this utility (for relative references).
+*/
 static ByteString s_path;
+
+/*
+    parse(StringView contents) returns an XML::Parser object configured with
+    a callback to handle external references (like entities), resolving them via local files.
+*/
 static auto parse(StringView contents)
 {
     return XML::Parser {
@@ -378,19 +419,36 @@ static auto parse(StringView contents)
     };
 }
 
+/*
+    TestResult enumerates whether a test passed, failed, or if the runner had an issue
+    that prevented the test from running.
+*/
 enum class TestResult {
     Passed,
     Failed,
     RunnerFailed,
 };
+
+/*
+    s_test_results is a map from test file path to the test's outcome.
+*/
 static HashMap<ByteString, TestResult> s_test_results {};
+
+/*
+    do_run_tests(XML::Document&) reads the test file from the provided document
+    and enqueues the test cases. It then walks through each test case, attempts
+    to parse the corresponding file, and verifies if the result matches the test
+    expectations (e.g., "invalid" test vs. "error" vs. valid parse).
+*/
 static void do_run_tests(XML::Document& document)
 {
     auto& root = document.root().content.get<XML::Node::Element>();
     VERIFY(root.name == "TESTSUITE");
+
     Queue<XML::Node*> suites;
-    auto dump_cases = [&](auto& root) {
-        for (auto& node : root.children) {
+    // Helper lambda to enqueue all TESTSUITE references
+    auto dump_cases = [&](auto& root_element) {
+        for (auto& node : root_element.children) {
             auto element = node->content.template get_pointer<XML::Node::Element>();
             if (!element)
                 continue;
@@ -423,6 +481,7 @@ static void do_run_tests(XML::Document& document)
 
             auto type = suite.attributes.find("TYPE")->value;
 
+            // Build up the test file path
             StringBuilder path_builder;
             path_builder.append(base_path);
             path_builder.append('/');
@@ -445,15 +504,17 @@ static void do_run_tests(XML::Document& document)
 
             warnln("Running test {}", file_path);
 
-            auto contents = file_result.value()->read_until_eof();
-            if (contents.is_error()) {
-                warnln("Read error for {}: {}", file_path, contents.error());
+            auto contents_or_error = file_result.value()->read_until_eof();
+            if (contents_or_error.is_error()) {
+                warnln("Read error for {}: {}", file_path, contents_or_error.error());
                 s_test_results.set(file_path, TestResult::RunnerFailed);
                 continue;
             }
-            auto parser = parse(contents.value());
+
+            auto parser = parse(contents_or_error.value());
             auto doc_or_error = parser.parse();
             if (doc_or_error.is_error()) {
+                // If the test expects an invalid or error scenario
                 if (type == "invalid" || type == "error" || type == "not-wf")
                     s_test_results.set(file_path, TestResult::Passed);
                 else
@@ -461,35 +522,40 @@ static void do_run_tests(XML::Document& document)
                 continue;
             }
 
+            // If we have OUTPUT to compare, parse that file and check equivalence
             auto out = suite.attributes.find("OUTPUT");
             if (out != suite.attributes.end()) {
                 auto out_path = LexicalPath::join(test_base_path, out->value).string();
-                auto file_result = Core::File::open(out_path, Core::File::OpenMode::Read);
-                if (file_result.is_error()) {
-                    warnln("Read error for {}: {}", out_path, file_result.error());
+                auto out_file_result = Core::File::open(out_path, Core::File::OpenMode::Read);
+                if (out_file_result.is_error()) {
+                    warnln("Read error for {}: {}", out_path, out_file_result.error());
                     s_test_results.set(file_path, TestResult::RunnerFailed);
                     continue;
                 }
-                auto contents = file_result.value()->read_until_eof();
-                if (contents.is_error()) {
-                    warnln("Read error for {}: {}", out_path, contents.error());
+                auto out_contents_or_error = out_file_result.value()->read_until_eof();
+                if (out_contents_or_error.is_error()) {
+                    warnln("Read error for {}: {}", out_path, out_contents_or_error.error());
                     s_test_results.set(file_path, TestResult::RunnerFailed);
                     continue;
                 }
-                auto parser = parse(contents.value());
-                auto out_doc_or_error = parser.parse();
+
+                auto out_parser = parse(out_contents_or_error.value());
+                auto out_doc_or_error = out_parser.parse();
                 if (out_doc_or_error.is_error()) {
                     warnln("Parse error for {}: {}", out_path, out_doc_or_error.error());
                     s_test_results.set(file_path, TestResult::RunnerFailed);
                     continue;
                 }
+
                 auto out_doc = out_doc_or_error.release_value();
                 if (out_doc.root() != doc_or_error.value().root()) {
+                    // If roots differ, the test fails
                     s_test_results.set(file_path, TestResult::Failed);
                     continue;
                 }
             }
 
+            // If the scenario is "invalid"/"error"/"not-wf" but parsing succeeded, it's a fail
             if (type == "invalid" || type == "error" || type == "not-wf")
                 s_test_results.set(file_path, TestResult::Failed);
             else
@@ -498,6 +564,13 @@ static void do_run_tests(XML::Document& document)
     }
 }
 
+/*
+    serenity_main() is the main entry point:
+      - Parses command line arguments.
+      - Reads and parses the given XML file.
+      - If run-tests is specified, it processes the test file through do_run_tests().
+      - Otherwise, dumps the parsed result to stdout, optionally with color.
+*/
 ErrorOr<int> serenity_main(Main::Arguments arguments)
 {
     StringView filename;
@@ -518,6 +591,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     auto xml_parser = parse(contents);
     auto result = xml_parser.parse();
     if (result.is_error()) {
+        // Preserve existing error messages and flow
         if (xml_parser.parse_error_causes().is_empty()) {
             warnln("{}", result.error());
         } else {
@@ -531,10 +605,12 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     auto doc = result.release_value();
     if (run_tests) {
         do_run_tests(doc);
+
         size_t passed = 0;
         size_t failed = 0;
         size_t runner_error = 0;
         size_t total = 0;
+
         for (auto& entry : s_test_results) {
             total++;
             switch (entry.value) {
@@ -549,10 +625,12 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
                 break;
             }
         }
+
         outln("{} passed, {} failed, {} runner failed of {} tests run.", passed, failed, runner_error, total);
         return 0;
     }
 
+    // If not running tests, dump the parsed document
     dump(doc);
     if (!g_only_contents)
         outln();
