@@ -426,7 +426,7 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
             mime_type_string = extracted_mime_type->essence();
     }
 
-    if (mime_type_string != "text/css"sv) {
+    if (mime_type_string.has_value() && mime_type_string != "text/css"sv) {
         success = false;
     }
 
