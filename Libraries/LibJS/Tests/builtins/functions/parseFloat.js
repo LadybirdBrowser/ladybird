@@ -1,6 +1,16 @@
+// This is necessary because we can't simply check if 0 is negative using equality,
+// since -0 === 0 evaluates to true.
+// test262 checks for negative zero in a similar way here:
+// https://github.com/tc39/test262/blob/main/test/built-ins/parseFloat/S15.1.2.3_A1_T2.js
+function isZeroNegative(x) {
+    const isZero = x === 0;
+    const isNegative = 1 / x === Number.NEGATIVE_INFINITY;
+
+    return isZero && isNegative;
+}
+
 test("parsing numbers", () => {
     [
-        [0, 0],
         [1, 1],
         [0.23, 0.23],
         [1.23, 1.23],
@@ -12,6 +22,16 @@ test("parsing numbers", () => {
         expect(parseFloat(+test[0])).toBe(test[1]);
         expect(parseFloat(-test[0])).toBe(-test[1]);
     });
+});
+
+test("parsing zero", () => {
+    expect(isZeroNegative(parseFloat("0"))).toBeFalse();
+    expect(isZeroNegative(parseFloat("+0"))).toBeFalse();
+    expect(isZeroNegative(parseFloat("-0"))).toBeTrue();
+
+    expect(isZeroNegative(parseFloat(0))).toBeFalse();
+    expect(isZeroNegative(parseFloat(+0))).toBeFalse();
+    expect(isZeroNegative(parseFloat(-0))).toBeFalse();
 });
 
 test("parsing strings", () => {
