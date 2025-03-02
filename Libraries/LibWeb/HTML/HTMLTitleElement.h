@@ -25,6 +25,12 @@ private:
 
     virtual void initialize(JS::Realm&) override;
     virtual void children_changed(ChildrenChangedMetadata const*) override;
+
+    void consider_propagate_title_update();
+    void propagate_title_update();
+
+    i64 m_first_block_at_ms { 0 };
+    RefPtr<Core::Timer> m_throttle_update_timer;
 };
 
 }
