@@ -499,6 +499,7 @@ namespace JS {
     P(substr)                                \
     P(substring)                             \
     P(subtract)                              \
+    P(sumPrecise)                            \
     P(sup)                                   \
     P(supportedLocalesOf)                    \
     P(supportedValuesOf)                     \

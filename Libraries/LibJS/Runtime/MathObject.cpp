@@ -10,7 +10,9 @@
 #include <AK/BuiltinWrappers.h>
 #include <AK/Function.h>
 #include <AK/Random.h>
+#include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/GlobalObject.h>
+#include <LibJS/Runtime/Iterator.h>
 #include <LibJS/Runtime/MathObject.h>
 #include <LibJS/Runtime/ValueInlines.h>
 #include <math.h>
@@ -65,6 +67,7 @@ void MathObject::initialize(Realm& realm)
     define_native_function(realm, vm.names.sinh, sinh, 1, attr);
     define_native_function(realm, vm.names.cosh, cosh, 1, attr);
     define_native_function(realm, vm.names.tanh, tanh, 1, attr);
+    define_native_function(realm, vm.names.sumPrecise, sumPrecise, 1, attr);
 
     // 21.3.1 Value Properties of the Math Object, https://tc39.es/ecma262/#sec-value-properties-of-the-math-object
     define_direct_property(vm.names.E, Value(M_E), 0);
@@ -955,6 +958,243 @@ JS_DEFINE_NATIVE_FUNCTION(MathObject::trunc)
     return Value(number.as_double() < 0
             ? ::ceil(number.as_double())
             : ::floor(number.as_double()));
+}
+
+struct TwoSumResult {
+    double hi;
+    double lo;
+};
+
+static TwoSumResult two_sum(double x, double y)
+{
+    double hi = x + y;
+    double lo = y - (hi - x);
+    return { hi, lo };
+}
+
+// https://tc39.es/proposal-math-sum/#sec-math.sumprecise
+ThrowCompletionOr<Value> MathObject::sum_precise_impl(VM& vm, Value iterable)
+{
+    constexpr double MAX_DOUBLE = 1.79769313486231570815e+308;         // std::numeric_limits<double>::max()
+    constexpr double PENULTIMATE_DOUBLE = 1.79769313486231550856e+308; // std::nextafter(DBL_MAX, 0)
+    constexpr double MAX_ULP = MAX_DOUBLE - PENULTIMATE_DOUBLE;
+    constexpr double POW_2_1023 = 8.98846567431158e+307; // 2^1023
+
+    // 1. Perform ? RequireObjectCoercible(items).
+    TRY(require_object_coercible(vm, iterable));
+
+    // 2. Let iteratorRecord be ? GetIterator(items, sync).
+    auto using_iterator = TRY(iterable.get_method(vm, vm.well_known_symbol_iterator()));
+    if (!using_iterator)
+        return vm.throw_completion<TypeError>(ErrorType::NotIterable, iterable.to_string_without_side_effects());
+
+    auto iterator = TRY(get_iterator_from_method(vm, iterable, *using_iterator));
+
+    enum State {
+        MinusZero,
+        PlusInfinity,
+        MinusInfinity,
+        NotANumber,
+        Finite
+    };
+
+    // 3. Let state be minus-zero.
+    State state = State::MinusZero;
+
+    // 4. Let sum be 0.
+    // 5. Let count be 0.
+    double overflow = 0.0;
+    u64 count = 0;
+    Vector<double> partials;
+
+    // 6. Let next be not-started.
+    // 7. Repeat, while next is not done
+    for (;;) {
+        // a. Set next to ? IteratorStepValue(iteratorRecord).
+        auto next = TRY(iterator_step_value(vm, iterator));
+
+        if (!next.has_value())
+            break;
+
+        // If next is not done, then
+        // i. Set count to count + 1.
+        count++;
+        // ii. If count ≥ 2**53, then
+        // 1. Let error be ThrowCompletion(a newly created RangeError object).
+        // 2. Return ? IteratorClose(iteratorRecord, error).
+        if (count >= (1ULL << 53))
+            return iterator_close(vm, iterator, vm.throw_completion<RangeError>(ErrorType::ArrayMaxSize));
+
+        // iii. NOTE: The above case is not expected to be reached in practice and is included only so that implementations may rely on inputs being
+        // "reasonably sized" without violating this specification.
+
+        // iv. If next is not a Number, then
+        auto value = next.value();
+        if (!value.is_number())
+            // 1. Let error be ThrowCompletion(a newly created TypeError object).
+            // 2. Return ? IteratorClose(iteratorRecord, error).
+            return iterator_close(vm, iterator, vm.throw_completion<TypeError>(ErrorType::IsNotA, value.to_string_without_side_effects(), "number"));
+
+        // v. Let n be next.
+        auto n = value.as_double();
+
+        // vi. If state is not not-a-number, then
+        if (state != State::NotANumber) {
+            // 1. If n is NaN, then
+            if (isnan(n)) {
+                // a. Set state to not-a-number.
+                state = State::NotANumber;
+            } // 2. Else if n is +∞𝔽, then
+            else if (Value(n).is_positive_infinity()) {
+                // a. If state is minus-infinity, set state to not-a-number.
+                // b. Else, set state to plus-infinity.
+                state = (state == State::MinusInfinity) ? State::NotANumber : State::PlusInfinity;
+            } // 3. Else if n is -∞𝔽, then
+            else if (Value(n).is_negative_infinity()) {
+                // a. If state is plus-infinity, set state to not-a-number.
+                // b. Else, set state to minus-infinity.
+                state = (state == State::PlusInfinity) ? State::NotANumber : State::MinusInfinity;
+            } // 4. Else if n is not -0𝔽 and state is either minus-zero or finite, then
+            else if (!Value(n).is_negative_zero() && (state == State::MinusZero || state == State::Finite)) {
+                // a. Set state to finite.
+                state = State::Finite;
+
+                // b. Set sum to sum + ℝ(n).
+                double x = n;
+                size_t used_partials = 0;
+
+                for (size_t i = 0; i < partials.size(); i++) {
+                    double y = partials[i];
+
+                    if (AK::abs(x) < AK::abs(y))
+                        swap(x, y);
+
+                    TwoSumResult result = two_sum(x, y);
+                    double hi = result.hi;
+                    double lo = result.lo;
+
+                    if (isinf(hi)) {
+                        double sign = signbit(hi) ? -1.0 : 1.0;
+                        overflow += sign;
+
+                        if (AK::abs(overflow) >= (1ULL << 53))
+                            return vm.throw_completion<RangeError>(ErrorType::MathSumPreciseOverflow);
+
+                        x = (x - sign * POW_2_1023) - sign * POW_2_1023;
+
+                        if (AK::abs(x) < AK::abs(y))
+                            swap(x, y);
+
+                        result = two_sum(x, y);
+                        hi = result.hi;
+                        lo = result.lo;
+                    }
+
+                    if (lo != 0.0) {
+                        partials[used_partials++] = lo;
+                    }
+
+                    x = hi;
+                }
+
+                partials.resize(used_partials);
+
+                if (x != 0.0) {
+                    partials.append(x);
+                }
+            }
+        }
+    }
+
+    // 8. If state is not-a-number, return NaN.
+    if (state == State::NotANumber)
+        return js_nan();
+
+    // 9. If state is plus-infinity, return +∞𝔽.
+    if (state == State::PlusInfinity)
+        return js_infinity();
+
+    // 10. If state is minus-infinity, return -∞𝔽.
+    if (state == State::MinusInfinity)
+        return js_negative_infinity();
+
+    // 11. If state is minus-zero, return -0𝔽.
+    if (state == State::MinusZero)
+        return Value(-0.0);
+
+    // 12. Return 𝔽(sum).
+    int n = partials.size() - 1;
+    double hi = 0.0;
+    double lo = 0.0;
+
+    if (overflow != 0.0) {
+        double next = n >= 0 ? partials[n] : 0.0;
+        n--;
+
+        if (AK::abs(overflow) > 1.0 || (overflow > 0.0 && next > 0.0) || (overflow < 0.0 && next < 0.0)) {
+            return overflow > 0.0 ? js_infinity() : js_negative_infinity();
+        }
+
+        TwoSumResult result = two_sum(overflow * POW_2_1023, next / 2.0);
+        hi = result.hi;
+        lo = result.lo * 2.0;
+
+        if (isinf(hi * 2.0)) {
+            if (hi > 0.0) {
+                if (hi == POW_2_1023 && lo == -(MAX_ULP / 2.0) && n >= 0 && partials[n] < 0.0) {
+                    return Value(MAX_DOUBLE);
+                }
+
+                return js_infinity();
+            } else {
+                if (hi == -POW_2_1023 && lo == (MAX_ULP / 2.0) && n >= 0 && partials[n] > 0.0) {
+                    return Value(-MAX_DOUBLE);
+                }
+
+                return js_negative_infinity();
+            }
+        }
+
+        if (lo != 0.0) {
+            partials[n + 1] = lo;
+            n++;
+            lo = 0.0;
+        }
+
+        hi *= 2.0;
+    }
+
+    while (n >= 0) {
+        double x = hi;
+        double y = partials[n];
+        n--;
+
+        TwoSumResult result = two_sum(x, y);
+        hi = result.hi;
+        lo = result.lo;
+
+        if (lo != 0.0) {
+            break;
+        }
+    }
+
+    if (n >= 0 && ((lo < 0.0 && partials[n] < 0.0) || (lo > 0.0 && partials[n] > 0.0))) {
+        double y = lo * 2.0;
+        double x = hi + y;
+        double yr = x - hi;
+
+        if (y == yr) {
+            hi = x;
+        }
+    }
+
+    return Value(hi);
+}
+
+// https://tc39.es/proposal-math-sum/#sec-math.sumprecise
+JS_DEFINE_NATIVE_FUNCTION(MathObject::sumPrecise)
+{
+    return sum_precise_impl(vm, vm.argument(0));
 }
 
 }
