@@ -8,8 +8,8 @@
 
 #include <AK/RefPtr.h>
 #include <LibGfx/Bitmap.h>
-#include <LibGfx/Size.h>
 #include <LibGfx/ImageOrientation.h>
+#include <LibGfx/Size.h>
 #include <LibIPC/Forward.h>
 
 namespace Gfx {

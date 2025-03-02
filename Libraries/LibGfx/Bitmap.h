@@ -12,8 +12,8 @@
 #include <LibCore/AnonymousBuffer.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/Forward.h>
-#include <LibGfx/Rect.h>
 #include <LibGfx/ImageOrientation.h>
+#include <LibGfx/Rect.h>
 
 namespace Gfx {
 

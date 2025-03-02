@@ -11,8 +11,8 @@
 #include <AK/RefCounted.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ColorSpace.h>
-#include <LibGfx/ImageOrientation.h>
 #include <LibGfx/Forward.h>
+#include <LibGfx/ImageOrientation.h>
 #include <LibGfx/Rect.h>
 
 class SkImage;

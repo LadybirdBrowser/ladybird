@@ -8,19 +8,20 @@
 
 namespace Gfx {
 
-bool is_valid_exif_orientation(u32 orientation){
+bool is_valid_exif_orientation(u32 orientation)
+{
     switch (static_cast<Gfx::ExifOrientation>(orientation)) {
-        case Gfx::ExifOrientation::Default:
-        case Gfx::ExifOrientation::FlipHorizontally:
-        case Gfx::ExifOrientation::Rotate180:
-        case Gfx::ExifOrientation::FlipVertically:
-        case Gfx::ExifOrientation::Rotate90ClockwiseThenFlipHorizontally:
-        case Gfx::ExifOrientation::Rotate90Clockwise:
-        case Gfx::ExifOrientation::FlipHorizontallyThenRotate90Clockwise:
-        case Gfx::ExifOrientation::Rotate90CounterClockwise:
-            return true;
-        default:
-            return false;
+    case Gfx::ExifOrientation::Default:
+    case Gfx::ExifOrientation::FlipHorizontally:
+    case Gfx::ExifOrientation::Rotate180:
+    case Gfx::ExifOrientation::FlipVertically:
+    case Gfx::ExifOrientation::Rotate90ClockwiseThenFlipHorizontally:
+    case Gfx::ExifOrientation::Rotate90Clockwise:
+    case Gfx::ExifOrientation::FlipHorizontallyThenRotate90Clockwise:
+    case Gfx::ExifOrientation::Rotate90CounterClockwise:
+        return true;
+    default:
+        return false;
     }
 }
 

@@ -10,9 +10,9 @@
 #include <LibGfx/ImageFormats/PNGLoader.h>
 #include <LibGfx/ImageFormats/TIFFLoader.h>
 #include <LibGfx/ImageFormats/TIFFMetadata.h>
+#include <LibGfx/ImageOrientation.h>
 #include <LibGfx/ImmutableBitmap.h>
 #include <LibGfx/Painter.h>
-#include <LibGfx/ImageOrientation.h>
 #include <png.h>
 
 namespace Gfx {

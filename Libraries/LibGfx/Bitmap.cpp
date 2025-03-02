@@ -40,11 +40,13 @@ IntSize oriented_size(IntSize size, Gfx::ExifOrientation orientation)
     VERIFY_NOT_REACHED();
 }
 
-int Bitmap::width_considering_exif() const {
+int Bitmap::width_considering_exif() const
+{
     return oriented_size(size(), m_exif_orientation).width();
 }
 
-int Bitmap::height_considering_exif() const {
+int Bitmap::height_considering_exif() const
+{
     return oriented_size(size(), m_exif_orientation).height();
 }
 
@@ -140,7 +142,8 @@ Bitmap::Bitmap(BitmapFormat format, AlphaType alpha_type, IntSize size, size_t p
     // FIXME: assert that `data` is actually long enough!
 }
 
-ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::create_with_anonymous_buffer(BitmapFormat format, AlphaType alpha_type, Core::AnonymousBuffer buffer, IntSize size, ExifOrientation orientation) {
+ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::create_with_anonymous_buffer(BitmapFormat format, AlphaType alpha_type, Core::AnonymousBuffer buffer, IntSize size, ExifOrientation orientation)
+{
     if (size_would_overflow(format, size))
         return Error::from_string_literal("Gfx::Bitmap::create_with_anonymous_buffer size overflow");
 

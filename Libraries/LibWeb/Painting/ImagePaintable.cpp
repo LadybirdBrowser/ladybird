@@ -163,7 +163,19 @@ void ImagePaintable::paint(PaintContext& context, PaintPhase phase) const
                 context.rounded_device_pixels(scaled_bitmap_height).value()
             };
 
-            context.display_list_recorder().draw_scaled_immutable_bitmap(draw_rect.intersected(image_int_rect_device_pixels), *bitmap, bitmap_rect.intersected(bitmap_intersect), scaling_mode);
+            auto const image_orientation = computed_values().image_orientation();
+            auto const gfx_img_orientation = [&] {
+                switch (image_orientation) {
+                case CSS::ImageOrientation::None:
+                    return Gfx::ImageOrientation::FromDecoded;
+                case CSS::ImageOrientation::FromImage:
+                    return Gfx::ImageOrientation::FromExif;
+                }
+
+                VERIFY_NOT_REACHED();
+            }();
+
+            context.display_list_recorder().draw_scaled_immutable_bitmap(draw_rect.intersected(image_int_rect_device_pixels), *bitmap, bitmap_rect.intersected(bitmap_intersect), scaling_mode, gfx_img_orientation);
         }
     }
 }

@@ -23,10 +23,10 @@
 #include <pathops/SkPathOps.h>
 
 #include <LibGfx/Font/ScaledFont.h>
+#include <LibGfx/ImageOrientation.h>
 #include <LibGfx/PainterSkia.h>
 #include <LibGfx/PathSkia.h>
 #include <LibGfx/SkiaUtils.h>
-#include <LibGfx/ImageOrientation.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
 #include <LibWeb/Painting/ShadowPainting.h>
@@ -134,23 +134,24 @@ void DisplayListPlayerSkia::draw_painting_surface(DrawPaintingSurface const& com
     canvas.drawImageRect(image, src_rect, dst_rect, to_skia_sampling_options(command.scaling_mode), &paint, SkCanvas::kStrict_SrcRectConstraint);
 }
 
-void apply_exif_orientation(Gfx::PaintingSurface &surface, Gfx::ExifOrientation orientation, Gfx::IntRect &dst_rect);
+void apply_exif_orientation(Gfx::PaintingSurface& surface, Gfx::ExifOrientation orientation, Gfx::IntRect& dst_rect);
 
-void apply_exif_orientation(Gfx::PaintingSurface &surface, Gfx::ExifOrientation orientation, Gfx::IntRect &dst_rect) {
+void apply_exif_orientation(Gfx::PaintingSurface& surface, Gfx::ExifOrientation orientation, Gfx::IntRect& dst_rect)
+{
     auto& canvas = surface.canvas();
 
     auto x = dst_rect.top_left().x();
     auto y = dst_rect.top_left().y();
 
     switch (orientation) {
-        case Gfx::ExifOrientation::Rotate90ClockwiseThenFlipHorizontally:
-        case Gfx::ExifOrientation::Rotate90Clockwise:
-        case Gfx::ExifOrientation::FlipHorizontallyThenRotate90Clockwise:
-        case Gfx::ExifOrientation::Rotate90CounterClockwise:
-            dst_rect.set_size(dst_rect.height(), dst_rect.width());
-            break;
-        default:
-            break;
+    case Gfx::ExifOrientation::Rotate90ClockwiseThenFlipHorizontally:
+    case Gfx::ExifOrientation::Rotate90Clockwise:
+    case Gfx::ExifOrientation::FlipHorizontallyThenRotate90Clockwise:
+    case Gfx::ExifOrientation::Rotate90CounterClockwise:
+        dst_rect.set_size(dst_rect.height(), dst_rect.width());
+        break;
+    default:
+        break;
     }
 
     switch (orientation) {
@@ -205,9 +206,11 @@ void DisplayListPlayerSkia::draw_scaled_immutable_bitmap(DrawScaledImmutableBitm
 
     canvas.save();
 
-    auto orientation = command.bitmap->bitmap()->exif_orientation();
+    if (command.image_orientation == Gfx::ImageOrientation::FromExif) {
+        auto orientation = command.bitmap->bitmap()->exif_orientation();
 
-    apply_exif_orientation(surface(), orientation, command_dst_rect);
+        apply_exif_orientation(surface(), orientation, command_dst_rect);
+    }
 
     auto src_rect = to_skia_rect(command.src_rect);
     auto dst_rect = to_skia_rect(command_dst_rect);
