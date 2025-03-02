@@ -247,8 +247,13 @@ JS_DEFINE_NATIVE_FUNCTION(GlobalObject::parse_float)
     auto string = vm.argument(0);
 
     // OPTIMIZATION: We can skip the number-to-string-to-number round trip when the value is already a number.
-    if (string.is_number())
+    if (string.is_number()) {
+        // Special case for negative zero - it should become positive zero
+        if (string.is_negative_zero())
+            return Value(0);
+
         return string;
+    }
 
     // 1. Let inputString be ? ToString(string).
     auto input_string = TRY(string.to_string(vm));
