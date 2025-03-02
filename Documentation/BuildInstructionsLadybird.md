@@ -82,6 +82,11 @@ sudo apt install qt6-multimedia-dev
 sudo pacman -S --needed autoconf-archive automake base-devel ccache cmake curl libgl nasm ninja qt6-base qt6-multimedia qt6-tools qt6-wayland ttf-liberation tar unzip zip
 ```
 
+Or you can install through AUR :
+```
+yay -S ladybird
+```
+
 ### Fedora or derivatives:
 ```
 sudo dnf install autoconf-archive automake ccache cmake curl liberation-sans-fonts libglvnd-devel nasm ninja-build perl-FindBin perl-IPC-Cmd perl-lib qt6-qtbase-devel qt6-qtmultimedia-devel qt6-qttools-devel qt6-qtwayland-devel tar unzip zip zlib-ng-compat-static
