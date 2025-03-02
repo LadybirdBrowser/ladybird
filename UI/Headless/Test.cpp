@@ -146,8 +146,10 @@ void run_dump_test(HeadlessWebView& view, Test& test, URL::URL const& url, int t
     });
 
     auto handle_completed_test = [&test, url]() -> ErrorOr<TestResult> {
-        if (test.mode == TestMode::Crash)
+        if (test.expectation_path.is_empty()) {
+            outln("{}", test.text);
             return TestResult::Pass;
+        }
 
         auto open_expectation_file = [&](auto mode) {
             auto expectation_file_or_error = Core::File::open(test.expectation_path, mode);
@@ -232,16 +234,24 @@ void run_dump_test(HeadlessWebView& view, Test& test, URL::URL const& url, int t
                 });
             });
         };
-    } else if (test.mode == TestMode::Text) {
-        view.on_load_finish = [&test, on_test_complete, url](auto const& loaded_url) {
+    } else if (test.mode == TestMode::Text || test.mode == TestMode::Crash) {
+        view.on_load_finish = [&view, &test, on_test_complete, url](auto const& loaded_url) {
             // We don't want subframe loads to trigger the test finish.
             if (!url.equals(loaded_url, URL::ExcludeFragment::Yes))
                 return;
 
             test.did_finish_loading = true;
 
-            if (test.did_finish_test)
+            if (test.expectation_path.is_empty()) {
+                auto promise = view.request_internal_page_info(WebView::PageInfoType::Text);
+
+                promise->when_resolved([&test, on_test_complete = move(on_test_complete)](auto const& text) {
+                    test.text = text;
+                    on_test_complete();
+                });
+            } else if (test.did_finish_test) {
                 on_test_complete();
+            }
         };
 
         view.on_text_test_finish = [&test, on_test_complete](auto const& text) {
@@ -250,13 +260,6 @@ void run_dump_test(HeadlessWebView& view, Test& test, URL::URL const& url, int t
 
             if (test.did_finish_loading)
                 on_test_complete();
-        };
-    } else if (test.mode == TestMode::Crash) {
-        view.on_load_finish = [on_test_complete = move(on_test_complete), url](auto const& loaded_url) {
-            // We don't want subframe loads to trigger the test finish.
-            if (!url.equals(loaded_url, URL::ExcludeFragment::Yes))
-                return;
-            on_test_complete();
         };
     }
 
