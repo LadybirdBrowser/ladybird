@@ -9,6 +9,7 @@
 #include <AK/RefPtr.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/Size.h>
+#include <LibGfx/ImageOrientation.h>
 #include <LibIPC/Forward.h>
 
 namespace Gfx {
@@ -22,6 +23,7 @@ struct BitmapMetadata {
     Gfx::BitmapFormat format;
     Gfx::AlphaType alpha_type;
     Gfx::IntSize size;
+    Gfx::ExifOrientation exif_orientation;
     size_t size_in_bytes;
 };
 

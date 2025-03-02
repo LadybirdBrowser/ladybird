@@ -13,6 +13,7 @@
 #include <LibGfx/Color.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Rect.h>
+#include <LibGfx/ImageOrientation.h>
 
 namespace Gfx {
 
@@ -64,11 +65,11 @@ struct BackingStore;
 
 class Bitmap : public RefCounted<Bitmap> {
 public:
-    [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create(BitmapFormat, IntSize);
-    [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create(BitmapFormat, AlphaType, IntSize);
-    [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create_shareable(BitmapFormat, AlphaType, IntSize);
-    [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create_wrapper(BitmapFormat, AlphaType, IntSize, size_t pitch, void*, Function<void()>&& destruction_callback = {});
-    [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create_with_anonymous_buffer(BitmapFormat, AlphaType, Core::AnonymousBuffer, IntSize);
+    [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create(BitmapFormat, IntSize, ExifOrientation = ExifOrientation::Default);
+    [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create(BitmapFormat, AlphaType, IntSize, ExifOrientation = ExifOrientation::Default);
+    [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create_shareable(BitmapFormat, AlphaType, IntSize, ExifOrientation = ExifOrientation::Default);
+    [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create_wrapper(BitmapFormat, AlphaType, IntSize, size_t pitch, void*, Function<void()>&& destruction_callback = {}, ExifOrientation = ExifOrientation::Default);
+    [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create_with_anonymous_buffer(BitmapFormat, AlphaType, Core::AnonymousBuffer, IntSize, ExifOrientation = ExifOrientation::Default);
 
     ErrorOr<NonnullRefPtr<Gfx::Bitmap>> clone() const;
 
@@ -106,6 +107,9 @@ public:
     [[nodiscard]] IntSize size() const { return m_size; }
     [[nodiscard]] int width() const { return m_size.width(); }
     [[nodiscard]] int height() const { return m_size.height(); }
+    [[nodiscard]] int width_considering_exif() const;
+    [[nodiscard]] int height_considering_exif() const;
+    [[nodiscard]] ExifOrientation exif_orientation() const { return m_exif_orientation; }
 
     [[nodiscard]] size_t pitch() const { return m_pitch; }
 
@@ -147,9 +151,9 @@ public:
     [[nodiscard]] AlphaType alpha_type() const { return m_alpha_type; }
 
 private:
-    Bitmap(BitmapFormat, AlphaType, IntSize, BackingStore const&);
-    Bitmap(BitmapFormat, AlphaType, IntSize, size_t pitch, void*, Function<void()>&& destruction_callback);
-    Bitmap(BitmapFormat, AlphaType, Core::AnonymousBuffer, IntSize);
+    Bitmap(BitmapFormat, AlphaType, IntSize, BackingStore const&, ExifOrientation);
+    Bitmap(BitmapFormat, AlphaType, IntSize, size_t pitch, void*, Function<void()>&& destruction_callback, ExifOrientation);
+    Bitmap(BitmapFormat, AlphaType, Core::AnonymousBuffer, IntSize, ExifOrientation);
 
     static ErrorOr<BackingStore> allocate_backing_store(BitmapFormat format, IntSize size);
 
@@ -160,6 +164,7 @@ private:
     AlphaType m_alpha_type { AlphaType::Premultiplied };
     Core::AnonymousBuffer m_buffer;
     Function<void()> m_destruction_callback;
+    ExifOrientation m_exif_orientation;
 };
 
 ALWAYS_INLINE u8* Bitmap::unchecked_scanline_u8(int y)

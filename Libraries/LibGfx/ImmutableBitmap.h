@@ -11,6 +11,7 @@
 #include <AK/RefCounted.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ColorSpace.h>
+#include <LibGfx/ImageOrientation.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Rect.h>
 
@@ -29,6 +30,9 @@ public:
 
     int width() const;
     int height() const;
+    int width_considering_exif() const;
+    int height_considering_exif() const;
+
     IntRect rect() const;
     IntSize size() const;
 

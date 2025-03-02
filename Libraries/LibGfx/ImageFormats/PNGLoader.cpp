@@ -12,6 +12,7 @@
 #include <LibGfx/ImageFormats/TIFFMetadata.h>
 #include <LibGfx/ImmutableBitmap.h>
 #include <LibGfx/Painter.h>
+#include <LibGfx/ImageOrientation.h>
 #include <png.h>
 
 namespace Gfx {
@@ -35,7 +36,6 @@ struct PNGLoadingContext {
     OwnPtr<ExifMetadata> exif_metadata;
 
     ErrorOr<size_t> read_frames(png_structp, png_infop);
-    ErrorOr<void> apply_exif_orientation();
 
     ErrorOr<void> read_all_frames()
     {
@@ -48,8 +48,6 @@ struct PNGLoadingContext {
 
         frame_count = TRY(read_frames(png_ptr, info_ptr));
 
-        if (exif_metadata)
-            TRY(apply_exif_orientation());
         return {};
     }
 };
@@ -221,33 +219,10 @@ ErrorOr<void> PNGImageDecoderPlugin::initialize()
     return {};
 }
 
-ErrorOr<void> PNGLoadingContext::apply_exif_orientation()
-{
-    auto orientation = exif_metadata->orientation().value_or(TIFF::Orientation::Default);
-    if (orientation == TIFF::Orientation::Default)
-        return {};
-
-    for (auto& img_frame_descriptor : frame_descriptors) {
-        auto& img = img_frame_descriptor.image;
-        auto oriented_bmp = TRY(ExifOrientedBitmap::create(orientation, img->size(), img->format()));
-
-        for (int y = 0; y < img->size().height(); ++y) {
-            for (int x = 0; x < img->size().width(); ++x) {
-                auto pixel = img->get_pixel(x, y);
-                oriented_bmp.set_pixel(x, y, pixel.value());
-            }
-        }
-
-        img_frame_descriptor.image = oriented_bmp.bitmap();
-    }
-
-    size = ExifOrientedBitmap::oriented_size(size, orientation);
-
-    return {};
-}
-
 ErrorOr<size_t> PNGLoadingContext::read_frames(png_structp png_ptr, png_infop info_ptr)
 {
+    auto exif_orientation = exif_metadata ? static_cast<ExifOrientation>(exif_metadata->orientation().value()) : ExifOrientation::Default;
+
     if (png_get_acTL(png_ptr, info_ptr, &frame_count, &loop_count)) {
         // acTL chunk present: This is an APNG.
 
@@ -287,7 +262,7 @@ ErrorOr<size_t> PNGLoadingContext::read_frames(png_structp png_ptr, png_infop in
             }
             auto frame_rect = FloatRect { x, y, width, height };
 
-            auto decoded_frame_bitmap = TRY(Bitmap::create(BitmapFormat::BGRA8888, AlphaType::Unpremultiplied, IntSize { static_cast<int>(width), static_cast<int>(height) }));
+            auto decoded_frame_bitmap = TRY(Bitmap::create(BitmapFormat::BGRA8888, AlphaType::Unpremultiplied, IntSize { static_cast<int>(width), static_cast<int>(height) }, exif_orientation));
             row_pointers.resize(height);
             for (u32 i = 0; i < height; ++i) {
                 row_pointers[i] = decoded_frame_bitmap->scanline_u8(i);
@@ -335,7 +310,7 @@ ErrorOr<size_t> PNGLoadingContext::read_frames(png_structp png_ptr, png_infop in
         frame_count = 1;
         loop_count = 0;
 
-        auto decoded_frame_bitmap = TRY(Bitmap::create(BitmapFormat::BGRA8888, AlphaType::Unpremultiplied, size));
+        auto decoded_frame_bitmap = TRY(Bitmap::create(BitmapFormat::BGRA8888, AlphaType::Unpremultiplied, size, exif_orientation));
         Vector<u8*> row_pointers;
         row_pointers.resize(size.height());
         for (int i = 0; i < size.height(); ++i)
