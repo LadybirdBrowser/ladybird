@@ -1448,7 +1448,11 @@ public:
                 function_impl_generator.set("array_argument_name", "data");
             }
 
+            // "If the passed location is null, the data passed in will be silently ignored and no uniform variables will be changed."
             function_impl_generator.append(R"~~~(
+    if (!location)
+        return;
+
     auto matrix_size = @number_of_matrix_elements@ * @number_of_matrix_elements@;
     float const* raw_data = nullptr;
     u64 count = 0;
@@ -1501,7 +1505,12 @@ public:
                 VERIFY_NOT_REACHED();
             }
             function_impl_generator.set("number_of_vector_elements", number_of_vector_elements);
+
+            // "If the passed location is null, the data passed in will be silently ignored and no uniform variables will be changed."
             function_impl_generator.append(R"~~~(
+    if (!location)
+        return;
+
     @cpp_element_type@ const* data = nullptr;
     size_t count = 0;
     if (v.has<Vector<@cpp_element_type@>>()) {
