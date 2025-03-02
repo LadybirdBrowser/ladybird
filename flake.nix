@@ -22,7 +22,7 @@
           pkgs = nixpkgs.legacyPackages.${system};
         in
         {
-          default = pkgs.callPackage ./shell.nix;
+          default = pkgs.callPackage ./shell.nix { inherit pkgs; };
         }
       );
 
