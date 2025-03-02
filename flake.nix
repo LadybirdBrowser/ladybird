@@ -8,6 +8,7 @@
 
   outputs =
     {
+      self,
       systems,
       nixpkgs,
       ...
@@ -16,13 +17,34 @@
       eachSystem = nixpkgs.lib.genAttrs (import systems);
     in
     {
+      packages = eachSystem (
+        system:
+        let
+          pkgs = nixpkgs.legacyPackages.${system};
+        in
+        {
+          # Default ladybird package built from source using current directory
+          # as the source. This is not cached.
+          ladybird = pkgs.callPackage ./nix/package.nix { inherit self; };
+
+          # Alias for `nix run .` or `nix run github:LadybirdBrowser/ladybird`
+          default = self.packages.${system}.ladybird;
+        }
+      );
+
       devShells = eachSystem (
         system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
         in
         {
-          default = pkgs.callPackage ./shell.nix { inherit pkgs; };
+          default = pkgs.callPackage ./nix/shell.nix {
+            # Override nixpkgs ladybird with the one provided
+            # by this flake. This will allow inputsFrom to
+            # remain in-sync with the package provided by the
+            # flake.
+            inherit (self.packages.${system}) ladybird;
+          };
         }
       );
 
