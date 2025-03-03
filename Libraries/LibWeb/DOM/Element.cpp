@@ -1129,22 +1129,24 @@ void Element::inserted()
 {
     Base::inserted();
 
-    if (m_id.has_value())
-        document().element_with_id_was_added({}, *this);
-
-    if (m_name.has_value())
-        document().element_with_name_was_added({}, *this);
+    if (is_connected()) {
+        if (m_id.has_value())
+            document().element_with_id_was_added({}, *this);
+        if (m_name.has_value())
+            document().element_with_name_was_added({}, *this);
+    }
 }
 
 void Element::removed_from(Node* old_parent, Node& old_root)
 {
     Base::removed_from(old_parent, old_root);
 
-    if (m_id.has_value())
-        document().element_with_id_was_removed({}, *this);
-
-    if (m_name.has_value())
-        document().element_with_name_was_removed({}, *this);
+    if (old_root.is_connected()) {
+        if (m_id.has_value())
+            document().element_with_id_was_removed({}, *this);
+        if (m_name.has_value())
+            document().element_with_name_was_removed({}, *this);
+    }
 }
 
 void Element::children_changed(ChildrenChangedMetadata const* metadata)
@@ -3530,14 +3532,16 @@ void Element::attribute_changed(FlyString const& local_name, Optional<String> co
         else
             m_id = value_or_empty;
 
-        document().element_id_changed({}, *this);
+        if (is_connected())
+            document().element_id_changed({}, *this);
     } else if (local_name == HTML::AttributeNames::name) {
         if (value_or_empty.is_empty())
             m_name = {};
         else
             m_name = value_or_empty;
 
-        document().element_name_changed({}, *this);
+        if (is_connected())
+            document().element_name_changed({}, *this);
     } else if (local_name == HTML::AttributeNames::class_) {
         if (value_or_empty.is_empty()) {
             m_classes.clear();

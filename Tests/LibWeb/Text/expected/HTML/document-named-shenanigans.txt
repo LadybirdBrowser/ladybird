@@ -1,0 +1,15 @@
+Testing <div> element
+,,,,,,,,,,,,,,,
+
+Testing <form> element
+,,,,,,[object HTMLFormElement],,[object HTMLFormElement],,,,,,,
+
+Testing <img> element
+,,,,,,[object HTMLImageElement],,[object HTMLImageElement],,,,,,,
+
+Testing <embed> element
+,,,,,,[object HTMLEmbedElement],,[object HTMLEmbedElement],,,,,,,
+
+Testing <object> element
+,,,,,,[object HTMLObjectElement],,[object HTMLObjectElement],,[object HTMLObjectElement],[object HTMLObjectElement],,[object HTMLObjectElement],,
+

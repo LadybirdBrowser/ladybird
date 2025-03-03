@@ -1,0 +1,64 @@
+<script src="../include.js"></script>
+<script>
+    function go(tagName) {
+        println("Testing <" + tagName + "> element");
+
+        let a = [];
+
+        let e = document.createElement(tagName);
+        a.push(document.shenanigans);
+
+        e.setAttribute("name", "shenanigans");
+        a.push(document.shenanigans);
+
+        e.setAttribute("name", "mischief");
+        a.push(document.shenanigans);
+        a.push(document.mischief);
+
+        e.name = "shenanigans";
+        a.push(document.shenanigans);
+        a.push(document.mischief);
+
+        document.body.appendChild(e);
+        a.push(document.shenanigans);
+
+        e.remove();
+        a.push(document.shenanigans);
+
+        document.body.appendChild(e);
+        a.push(document.shenanigans);
+
+        e.removeAttribute("name");
+        a.push(document.hijinks);
+
+        e.setAttribute("id", "hijinks");
+        a.push(document.hijinks);
+
+        document.body.appendChild(e);
+        a.push(document.hijinks);
+
+        e.remove();
+        a.push(document.hijinks);
+
+        document.body.appendChild(e);
+        a.push(document.hijinks);
+
+        e.removeAttribute("id");
+        a.push(document.hijinks);
+
+        e.remove();
+        a.push(document.hijinks);
+
+        println(a);
+
+        println("");
+    }
+
+    test(() => {
+        go("div");
+        go("form");
+        go("img");
+        go("embed");
+        go("object");
+    });
+</script>
