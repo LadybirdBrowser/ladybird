@@ -17,7 +17,7 @@
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/DOM/NodeType.h>
 #include <LibWeb/DOM/Slottable.h>
-#include <LibWeb/DOMParsing/XMLSerializer.h>
+#include <LibWeb/HTML/XMLSerializer.h>
 #include <LibWeb/TraversalDecision.h>
 #include <LibWeb/TreeNode.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -329,7 +329,7 @@ public:
     [[nodiscard]] UniqueNodeID unique_id() const { return m_unique_id; }
     static Node* from_unique_id(UniqueNodeID);
 
-    WebIDL::ExceptionOr<String> serialize_fragment(DOMParsing::RequireWellFormed, FragmentSerializationMode = FragmentSerializationMode::Inner) const;
+    WebIDL::ExceptionOr<String> serialize_fragment(HTML::RequireWellFormed, FragmentSerializationMode = FragmentSerializationMode::Inner) const;
 
     WebIDL::ExceptionOr<void> unsafely_set_html(Element&, StringView);
 

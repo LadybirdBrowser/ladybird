@@ -1,6 +1,6 @@
 #import <DOM/Node.idl>
 
-// https://w3c.github.io/DOM-Parsing/#the-xmlserializer-interface
+// https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#xmlserializer
 [Exposed=Window]
 interface XMLSerializer {
     constructor();
