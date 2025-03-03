@@ -18,7 +18,6 @@ static constexpr Array libweb_interface_namespaces = {
     "Compression"sv,
     "Crypto"sv,
     "DOM"sv,
-    "DOMParsing"sv,
     "DOMURL"sv,
     "Encoding"sv,
     "Fetch"sv,

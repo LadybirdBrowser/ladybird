@@ -8,8 +8,9 @@
 
 #include <LibWeb/Bindings/PlatformObject.h>
 
-namespace Web::DOMParsing {
+namespace Web::HTML {
 
+// https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#xmlserializer
 class XMLSerializer final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(XMLSerializer, Bindings::PlatformObject);
     GC_DECLARE_ALLOCATOR(XMLSerializer);

@@ -328,10 +328,6 @@ struct AddEventListenerOptions;
 struct EventListenerOptions;
 }
 
-namespace Web::DOMParsing {
-class XMLSerializer;
-}
-
 namespace Web::Encoding {
 class TextDecoder;
 class TextEncoder;
@@ -568,6 +564,7 @@ class WorkerEnvironmentSettingsObject;
 class WorkerGlobalScope;
 class WorkerLocation;
 class WorkerNavigator;
+class XMLSerializer;
 
 enum class AllowMultipleFiles;
 enum class MediaSeekMode;

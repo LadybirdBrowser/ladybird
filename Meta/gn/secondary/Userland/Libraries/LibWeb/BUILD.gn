@@ -301,7 +301,6 @@ shared_library("LibWeb") {
            "Cookie",
            "Crypto",
            "DOM",
-           "DOMParsing",
            "DOMURL",
            "Encoding",
            "EntriesAPI",

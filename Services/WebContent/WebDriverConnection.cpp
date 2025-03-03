@@ -2033,13 +2033,13 @@ Messages::WebDriverClient::GetSourceResponse WebDriverConnection::get_source()
         // 3. Let source be the result of invoking the fragment serializing algorithm on a fictional node whose only
         //    child is the document element providing true for the require well-formed flag. If this causes an exception
         //    to be thrown, let source be null.
-        if (auto result = document->document_element()->serialize_fragment(Web::DOMParsing::RequireWellFormed::Yes, Web::DOM::FragmentSerializationMode::Outer); !result.is_error())
+        if (auto result = document->document_element()->serialize_fragment(Web::HTML::RequireWellFormed::Yes, Web::DOM::FragmentSerializationMode::Outer); !result.is_error())
             source = result.release_value();
 
         // 4. Let source be the result of serializing to string session's current browsing context's active document,
         //    if source is null.
         if (!source.has_value())
-            source = MUST(document->serialize_fragment(Web::DOMParsing::RequireWellFormed::No));
+            source = MUST(document->serialize_fragment(Web::HTML::RequireWellFormed::No));
 
         // 5. Return success with data source.
         async_driver_execution_complete({ source.release_value() });
