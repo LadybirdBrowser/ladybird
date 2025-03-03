@@ -3042,6 +3042,9 @@ bool HTMLInputElement::suffering_from_being_missing() const
     return false;
 }
 
+// https://html.spec.whatwg.org/multipage/input.html#valid-e-mail-address
+static Regex<ECMA262> const valid_email_address_regex = Regex<ECMA262>("^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$");
+
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#suffering-from-a-type-mismatch
 bool HTMLInputElement::suffering_from_a_type_mismatch() const
 {
@@ -3056,8 +3059,20 @@ bool HTMLInputElement::suffering_from_a_type_mismatch() const
         return !input.is_empty() && !URL::Parser::basic_parse(input).has_value();
     case TypeAttributeState::Email:
         // https://html.spec.whatwg.org/multipage/input.html#email-state-(type%3Demail)%3Asuffering-from-a-type-mismatch
-        // While the value of the element is neither the empty string nor a single valid email address, the element is suffering from a type mismatch.
-        // FIXME: Implement this.
+        // When the multiple attribute is not specified on the element: While the value of the element is neither the
+        // empty string nor a single valid email address, the element is suffering from a type mismatch.
+        if (!has_attribute(HTML::AttributeNames::multiple))
+            return !input.is_empty() && !valid_email_address_regex.match(input).success;
+        // When the multiple attribute is specified on the element: While the value of the element is not a valid email
+        // address list, the element is suffering from a type mismatch.
+        // https://html.spec.whatwg.org/multipage/input.html#valid-e-mail-address-list
+        // A valid email address list is a set of comma-separated tokens, where each token is itself a valid email
+        // address. To obtain the list of tokens from a valid email address list, an implementation must split the
+        // string on commas.
+        for (auto& address : MUST(input.split(','))) {
+            if (!valid_email_address_regex.match(address).success)
+                return true;
+        }
         break;
     default:
         break;
