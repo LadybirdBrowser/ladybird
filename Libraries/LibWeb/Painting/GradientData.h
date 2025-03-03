@@ -10,6 +10,7 @@
 #include <AK/Vector.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/Gradients.h>
+#include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::Painting {
@@ -24,15 +25,18 @@ struct ColorStopData {
 struct LinearGradientData {
     float gradient_angle;
     ColorStopData color_stops;
+    CSS::InterpolationMethod interpolation_method;
 };
 
 struct ConicGradientData {
     float start_angle;
     ColorStopData color_stops;
+    CSS::InterpolationMethod interpolation_method;
 };
 
 struct RadialGradientData {
     ColorStopData color_stops;
+    CSS::InterpolationMethod interpolation_method;
 };
 
 }
