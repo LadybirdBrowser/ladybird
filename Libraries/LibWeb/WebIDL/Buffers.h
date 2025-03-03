@@ -14,6 +14,8 @@
 
 namespace Web::WebIDL {
 
+bool is_buffer_source_detached(JS::Value const&);
+
 using BufferableObject = Variant<
     GC::Ref<JS::TypedArrayBase>,
     GC::Ref<JS::DataView>,
