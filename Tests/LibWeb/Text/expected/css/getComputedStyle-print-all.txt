@@ -154,7 +154,6 @@ margin-inline-start: 8px
 margin-left: 8px
 margin-right: 8px
 margin-top: 8px
-mask: none
 mask-image: none
 mask-type: luminance
 max-block-size: none
