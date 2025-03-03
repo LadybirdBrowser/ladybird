@@ -62,6 +62,7 @@ using FloatQuad = Quad<float>;
 
 enum class BitmapFormat;
 enum class ColorRole;
+enum class LineStyle;
 enum class TextAlignment;
 
 }
