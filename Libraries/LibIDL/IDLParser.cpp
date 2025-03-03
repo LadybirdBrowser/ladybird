@@ -295,6 +295,10 @@ NonnullRefPtr<Type const> Parser::parse_type()
         // Note: This case is handled above
     }
 
+    if (builder.is_empty()) {
+        report_parsing_error("Type can't be an empty string"sv, filename, input, lexer.tell());
+    }
+
     if (is_parameterized_type)
         return adopt_ref(*new ParameterizedType(builder.to_byte_string(), nullable, move(parameters)));
 
