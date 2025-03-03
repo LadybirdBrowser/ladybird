@@ -22,8 +22,8 @@ public:
 private:
     explicit SegmenterPrototype(Realm&);
 
-    JS_DECLARE_NATIVE_FUNCTION(segment);
     JS_DECLARE_NATIVE_FUNCTION(resolved_options);
+    JS_DECLARE_NATIVE_FUNCTION(segment);
 };
 
 }

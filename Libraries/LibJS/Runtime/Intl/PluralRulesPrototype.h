@@ -22,9 +22,9 @@ public:
 private:
     explicit PluralRulesPrototype(Realm&);
 
+    JS_DECLARE_NATIVE_FUNCTION(resolved_options);
     JS_DECLARE_NATIVE_FUNCTION(select);
     JS_DECLARE_NATIVE_FUNCTION(select_range);
-    JS_DECLARE_NATIVE_FUNCTION(resolved_options);
 };
 
 }

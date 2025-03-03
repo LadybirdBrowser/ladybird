@@ -25,7 +25,7 @@ void SegmenterPrototype::initialize(Realm& realm)
 
     auto& vm = this->vm();
 
-    // 19.3.2 Intl.Segmenter.prototype [ @@toStringTag ], https://tc39.es/ecma402/#sec-intl.segmenter.prototype-@@tostringtag
+    // 19.3.4 Intl.Segmenter.prototype [ %Symbol.toStringTag% ], https://tc39.es/ecma402/#sec-intl.segmenter.prototype-%symbol.tostringtag%
     define_direct_property(vm.well_known_symbol_to_string_tag(), PrimitiveString::create(vm, "Intl.Segmenter"_string), Attribute::Configurable);
 
     u8 attr = Attribute::Writable | Attribute::Configurable;
@@ -33,7 +33,7 @@ void SegmenterPrototype::initialize(Realm& realm)
     define_native_function(realm, vm.names.segment, segment, 1, attr);
 }
 
-// 19.3.4 Intl.Segmenter.prototype.resolvedOptions ( ), https://tc39.es/ecma402/#sec-intl.segmenter.prototype.resolvedoptions
+// 19.3.2 Intl.Segmenter.prototype.resolvedOptions ( ), https://tc39.es/ecma402/#sec-intl.segmenter.prototype.resolvedoptions
 JS_DEFINE_NATIVE_FUNCTION(SegmenterPrototype::resolved_options)
 {
     auto& realm = *vm.current_realm();

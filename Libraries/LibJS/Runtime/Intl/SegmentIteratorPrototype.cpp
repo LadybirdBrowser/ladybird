@@ -14,7 +14,7 @@ namespace JS::Intl {
 
 GC_DEFINE_ALLOCATOR(SegmentIteratorPrototype);
 
-// 19.6.2 The %SegmentIteratorPrototype% Object, https://tc39.es/ecma402/#sec-%segmentiteratorprototype%-object
+// 19.6.2 The %IntlSegmentIteratorPrototype% Object, https://tc39.es/ecma402/#sec-%intlsegmentiteratorprototype%-object
 SegmentIteratorPrototype::SegmentIteratorPrototype(Realm& realm)
     : PrototypeObject(realm.intrinsics().iterator_prototype())
 {
@@ -26,14 +26,14 @@ void SegmentIteratorPrototype::initialize(Realm& realm)
 
     auto& vm = this->vm();
 
-    // 19.6.2.2 %SegmentIteratorPrototype% [ @@toStringTag ], https://tc39.es/ecma402/#sec-%segmentiteratorprototype%.@@tostringtag
+    // 19.6.2.2 %IntlSegmentIteratorPrototype% [ %Symbol.toStringTag% ], https://tc39.es/ecma402/#sec-%intlsegmentiteratorprototype%.%symbol.tostringtag%
     define_direct_property(vm.well_known_symbol_to_string_tag(), PrimitiveString::create(vm, "Segmenter String Iterator"_string), Attribute::Configurable);
 
     u8 attr = Attribute::Writable | Attribute::Configurable;
     define_native_function(realm, vm.names.next, next, 0, attr);
 }
 
-// 19.6.2.1 %SegmentIteratorPrototype%.next ( ), https://tc39.es/ecma402/#sec-%segmentiteratorprototype%.next
+// 19.6.2.1 %IntlSegmentIteratorPrototype%.next ( ), https://tc39.es/ecma402/#sec-%intlsegmentiteratorprototype%.next
 JS_DEFINE_NATIVE_FUNCTION(SegmentIteratorPrototype::next)
 {
     // 1. Let iterator be the this value.

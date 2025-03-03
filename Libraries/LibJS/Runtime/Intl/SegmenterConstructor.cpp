@@ -95,7 +95,7 @@ JS_DEFINE_NATIVE_FUNCTION(SegmenterConstructor::supported_locales_of)
     auto locales = vm.argument(0);
     auto options = vm.argument(1);
 
-    // 1. Let availableLocales be %Segmenter%.[[AvailableLocales]].
+    // 1. Let availableLocales be %Intl.Segmenter%.[[AvailableLocales]].
 
     // 2. Let requestedLocales be ? CanonicalizeLocaleList(locales).
     auto requested_locales = TRY(canonicalize_locale_list(vm, locales));
