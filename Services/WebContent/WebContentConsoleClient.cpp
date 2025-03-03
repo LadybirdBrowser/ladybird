@@ -54,33 +54,4 @@ void WebContentConsoleClient::handle_input(StringView js_source)
     }
 }
 
-void WebContentConsoleClient::print_html(String const& line)
-{
-    m_message_log.append({ .type = ConsoleOutput::Type::HTML, .data = line });
-    m_client->did_output_js_console_message(m_message_log.size() - 1);
-}
-
-void WebContentConsoleClient::clear()
-{
-    clear_output();
-}
-
-void WebContentConsoleClient::clear_output()
-{
-    m_message_log.append({ .type = ConsoleOutput::Type::Clear, .data = String {} });
-    m_client->did_output_js_console_message(m_message_log.size() - 1);
-}
-
-void WebContentConsoleClient::begin_group(String const& label, bool start_expanded)
-{
-    m_message_log.append({ .type = start_expanded ? ConsoleOutput::Type::BeginGroup : ConsoleOutput::Type::BeginGroupCollapsed, .data = label });
-    m_client->did_output_js_console_message(m_message_log.size() - 1);
-}
-
-void WebContentConsoleClient::end_group()
-{
-    m_message_log.append({ .type = ConsoleOutput::Type::EndGroup, .data = String {} });
-    m_client->did_output_js_console_message(m_message_log.size() - 1);
-}
-
 }

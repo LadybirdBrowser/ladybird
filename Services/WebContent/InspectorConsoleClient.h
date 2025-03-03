@@ -8,7 +8,9 @@
 
 #pragma once
 
+#include <AK/String.h>
 #include <AK/StringBuilder.h>
+#include <AK/Vector.h>
 #include <LibWeb/Forward.h>
 #include <WebContent/Forward.h>
 #include <WebContent/WebContentConsoleClient.h>
@@ -28,8 +30,14 @@ private:
 
     virtual void handle_result(JS::Value) override;
     virtual void report_exception(JS::Error const&, bool) override;
-    virtual void send_messages(i32 start_index) override;
 
+    void begin_group(String const& label, bool start_expanded);
+    virtual void end_group() override;
+    virtual void clear() override;
+
+    void print_html(String const& line);
+
+    virtual void send_messages(i32 start_index) override;
     virtual JS::ThrowCompletionOr<JS::Value> printer(JS::Console::LogLevel log_level, PrinterArguments) override;
 
     virtual void add_css_style_to_current_message(StringView style) override
@@ -38,6 +46,19 @@ private:
         m_current_message_style.append(';');
     }
 
+    struct ConsoleOutput {
+        enum class Type {
+            HTML,
+            Clear,
+            BeginGroup,
+            BeginGroupCollapsed,
+            EndGroup,
+        };
+        Type type;
+        String data;
+    };
+
+    Vector<ConsoleOutput> m_message_log;
     StringBuilder m_current_message_style;
 };
 

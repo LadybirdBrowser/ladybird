@@ -27,9 +27,11 @@ private:
 
     virtual void handle_result(JS::Value) override;
     virtual void report_exception(JS::Error const&, bool) override;
-    virtual void send_messages(i32 start_index) override;
+    virtual void end_group() override { }
+    virtual void clear() override { }
 
-    virtual JS::ThrowCompletionOr<JS::Value> printer(JS::Console::LogLevel log_level, PrinterArguments) override;
+    virtual void send_messages(i32 start_index) override;
+    virtual JS::ThrowCompletionOr<JS::Value> printer(JS::Console::LogLevel, PrinterArguments) override;
 };
 
 }

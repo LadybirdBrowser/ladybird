@@ -8,7 +8,6 @@
 
 #pragma once
 
-#include <AK/Vector.h>
 #include <LibJS/Console.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/Value.h>
@@ -34,30 +33,9 @@ protected:
 
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
-    void print_html(String const& line);
-
-    virtual void clear() override;
-    void clear_output();
-
-    void begin_group(String const& label, bool start_expanded);
-    virtual void end_group() override;
-
     GC::Ref<JS::Realm> m_realm;
     GC::Ref<PageClient> m_client;
     GC::Ref<ConsoleGlobalEnvironmentExtensions> m_console_global_environment_extensions;
-
-    struct ConsoleOutput {
-        enum class Type {
-            HTML,
-            Clear,
-            BeginGroup,
-            BeginGroupCollapsed,
-            EndGroup,
-        };
-        Type type;
-        String data;
-    };
-    Vector<ConsoleOutput> m_message_log;
 };
 
 }
