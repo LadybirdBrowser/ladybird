@@ -194,7 +194,7 @@ void DisplayListRecorder::draw_painting_surface(Gfx::IntRect const& dst_rect, No
     });
 }
 
-void DisplayListRecorder::draw_scaled_immutable_bitmap(Gfx::IntRect const& dst_rect, Gfx::ImmutableBitmap const& bitmap, Gfx::IntRect const& src_rect, Gfx::ScalingMode scaling_mode)
+void DisplayListRecorder::draw_scaled_immutable_bitmap(Gfx::IntRect const& dst_rect, Gfx::ImmutableBitmap const& bitmap, Gfx::IntRect const& src_rect, Gfx::ScalingMode scaling_mode, Gfx::ImageOrientation image_orientation)
 {
     if (dst_rect.is_empty())
         return;
@@ -203,6 +203,7 @@ void DisplayListRecorder::draw_scaled_immutable_bitmap(Gfx::IntRect const& dst_r
         .bitmap = bitmap,
         .src_rect = src_rect,
         .scaling_mode = scaling_mode,
+        .image_orientation = image_orientation,
     });
 }
 
