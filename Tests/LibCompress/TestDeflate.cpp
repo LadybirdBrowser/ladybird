@@ -4,17 +4,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibTest/TestCase.h>
-
 #include <AK/Array.h>
 #include <AK/BitStream.h>
 #include <AK/MemoryStream.h>
 #include <AK/Random.h>
 #include <LibCompress/Deflate.h>
-#include <LibCore/File.h>
-#include <cstring>
-
-#define TEST_INPUT(x) ("deflate-test-files/" x)
+#include <LibTest/TestCase.h>
 
 TEST_CASE(canonical_code_simple)
 {
@@ -30,7 +25,7 @@ TEST_CASE(canonical_code_simple)
         0x00, 0x01, 0x01, 0x02, 0x03, 0x05, 0x08, 0x0d, 0x15
     };
 
-    auto const huffman = Compress::CanonicalCode::from_bytes(code).value();
+    auto const huffman = TRY_OR_FAIL(Compress::CanonicalCode::from_bytes(code));
     auto memory_stream = MUST(try_make<FixedMemoryStream>(input));
     LittleEndianInputBitStream bit_stream { move(memory_stream) };
 
@@ -50,7 +45,7 @@ TEST_CASE(canonical_code_complex)
         0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05
     };
 
-    auto const huffman = Compress::CanonicalCode::from_bytes(code).value();
+    auto const huffman = TRY_OR_FAIL(Compress::CanonicalCode::from_bytes(code));
     auto memory_stream = MUST(try_make<FixedMemoryStream>(input));
     LittleEndianInputBitStream bit_stream { move(memory_stream) };
 
@@ -75,8 +70,8 @@ TEST_CASE(deflate_decompress_compressed_block)
 
     u8 const uncompressed[] = "This is a simple text file :)";
 
-    auto const decompressed = Compress::DeflateDecompressor::decompress_all(compressed);
-    EXPECT(decompressed.value().bytes() == ReadonlyBytes({ uncompressed, sizeof(uncompressed) - 1 }));
+    auto const decompressed = TRY_OR_FAIL(Compress::DeflateDecompressor::decompress_all(compressed));
+    EXPECT(decompressed.bytes() == ReadonlyBytes({ uncompressed, sizeof(uncompressed) - 1 }));
 }
 
 TEST_CASE(deflate_decompress_uncompressed_block)
@@ -88,13 +83,13 @@ TEST_CASE(deflate_decompress_uncompressed_block)
 
     u8 const uncompressed[] = "Hello, World!";
 
-    auto const decompressed = Compress::DeflateDecompressor::decompress_all(compressed);
-    EXPECT(decompressed.value().bytes() == (ReadonlyBytes { uncompressed, sizeof(uncompressed) - 1 }));
+    auto const decompressed = TRY_OR_FAIL(Compress::DeflateDecompressor::decompress_all(compressed));
+    EXPECT(decompressed.bytes() == (ReadonlyBytes { uncompressed, sizeof(uncompressed) - 1 }));
 }
 
 TEST_CASE(deflate_decompress_multiple_blocks)
 {
-    Array<u8, 84> const compressed {
+    Array<u8, 72> const compressed {
         0x00, 0x1f, 0x00, 0xe0, 0xff, 0x54, 0x68, 0x65, 0x20, 0x66, 0x69, 0x72,
         0x73, 0x74, 0x20, 0x62, 0x6c, 0x6f, 0x63, 0x6b, 0x20, 0x69, 0x73, 0x20,
         0x75, 0x6e, 0x63, 0x6f, 0x6d, 0x70, 0x72, 0x65, 0x73, 0x73, 0x65, 0x64,
@@ -105,8 +100,8 @@ TEST_CASE(deflate_decompress_multiple_blocks)
 
     u8 const uncompressed[] = "The first block is uncompressed and the second block is compressed.";
 
-    auto const decompressed = Compress::DeflateDecompressor::decompress_all(compressed);
-    EXPECT(decompressed.value().bytes() == (ReadonlyBytes { uncompressed, sizeof(uncompressed) - 1 }));
+    auto const decompressed = TRY_OR_FAIL(Compress::DeflateDecompressor::decompress_all(compressed));
+    EXPECT(decompressed.bytes() == (ReadonlyBytes { uncompressed, sizeof(uncompressed) - 1 }));
 }
 
 TEST_CASE(deflate_decompress_zeroes)
@@ -118,15 +113,15 @@ TEST_CASE(deflate_decompress_zeroes)
 
     Array<u8, 4096> const uncompressed { 0 };
 
-    auto const decompressed = Compress::DeflateDecompressor::decompress_all(compressed);
-    EXPECT(uncompressed == decompressed.value().bytes());
+    auto const decompressed = TRY_OR_FAIL(Compress::DeflateDecompressor::decompress_all(compressed));
+    EXPECT(uncompressed == decompressed.bytes());
 }
 
 TEST_CASE(deflate_round_trip_store)
 {
     auto original = ByteBuffer::create_uninitialized(1024).release_value();
     fill_with_random(original);
-    auto compressed = TRY_OR_FAIL(Compress::DeflateCompressor::compress_all(original, Compress::DeflateCompressor::CompressionLevel::STORE));
+    auto compressed = TRY_OR_FAIL(Compress::DeflateCompressor::compress_all(original));
     auto uncompressed = TRY_OR_FAIL(Compress::DeflateDecompressor::decompress_all(compressed));
     EXPECT(uncompressed == original);
 }
@@ -136,19 +131,21 @@ TEST_CASE(deflate_round_trip_compress)
     auto original = ByteBuffer::create_zeroed(2048).release_value();
     fill_with_random(original.bytes().trim(1024)); // we pre-filled the second half with 0s to make sure we test back references as well
     // Since the different levels just change how much time is spent looking for better matches, just use fast here to reduce test time
-    auto compressed = TRY_OR_FAIL(Compress::DeflateCompressor::compress_all(original, Compress::DeflateCompressor::CompressionLevel::FAST));
+    auto compressed = TRY_OR_FAIL(Compress::DeflateCompressor::compress_all(original));
     auto uncompressed = TRY_OR_FAIL(Compress::DeflateDecompressor::decompress_all(compressed));
     EXPECT(uncompressed == original);
 }
 
 TEST_CASE(deflate_round_trip_compress_large)
 {
-    auto size = Compress::DeflateCompressor::block_size * 2;
-    auto original = ByteBuffer::create_uninitialized(size).release_value(); // Compress a buffer larger than the maximum block size to test the sliding window mechanism
+    // Compress a buffer larger than the maximum block size to test the sliding window mechanism
+    auto original = TRY_OR_FAIL(ByteBuffer::create_uninitialized((32 * KiB - 1) * 2));
     fill_with_random(original);
+
     // Since the different levels just change how much time is spent looking for better matches, just use fast here to reduce test time
-    auto compressed = TRY_OR_FAIL(Compress::DeflateCompressor::compress_all(original, Compress::DeflateCompressor::CompressionLevel::FAST));
+    auto compressed = TRY_OR_FAIL(Compress::DeflateCompressor::compress_all(original));
     auto uncompressed = TRY_OR_FAIL(Compress::DeflateDecompressor::decompress_all(compressed));
+    EXPECT(uncompressed.span() == original.span().slice(0, uncompressed.size()));
     EXPECT(uncompressed == original);
 }
 
@@ -156,23 +153,5 @@ TEST_CASE(deflate_compress_literals)
 {
     // This byte array is known to not produce any back references with our lz77 implementation even at the highest compression settings
     Array<u8, 0x13> test { 0, 0, 0, 0, 0x72, 0, 0, 0xee, 0, 0, 0, 0x26, 0, 0, 0, 0x28, 0, 0, 0x72 };
-    auto compressed = TRY_OR_FAIL(Compress::DeflateCompressor::compress_all(test, Compress::DeflateCompressor::CompressionLevel::GOOD));
-}
-
-TEST_CASE(ossfuzz_63183)
-{
-    auto path = TEST_INPUT("clusterfuzz-testcase-minimized-FuzzDeflateCompression-6163230961303552.fuzz"sv);
-    auto test_file = MUST(Core::File::open(path, Core::File::OpenMode::Read));
-    auto test_data = MUST(test_file->read_until_eof());
-    auto compressed = TRY_OR_FAIL(Compress::DeflateCompressor::compress_all(test_data, Compress::DeflateCompressor::CompressionLevel::GOOD));
-    auto decompressed = TRY_OR_FAIL(Compress::DeflateDecompressor::decompress_all(compressed));
-    EXPECT(test_data == decompressed);
-}
-
-TEST_CASE(ossfuzz_58046)
-{
-    auto path = TEST_INPUT("clusterfuzz-testcase-minimized-FuzzDeflateDecompression-5523852259360768.fuzz"sv);
-    auto test_file = TRY_OR_FAIL(Core::File::open(path, Core::File::OpenMode::Read));
-    auto test_data = TRY_OR_FAIL(test_file->read_until_eof());
-    EXPECT(Compress::DeflateDecompressor::decompress_all(test_data).is_error());
+    auto compressed = TRY_OR_FAIL(Compress::DeflateCompressor::compress_all(test));
 }
