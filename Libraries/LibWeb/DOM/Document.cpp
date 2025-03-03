@@ -1520,8 +1520,6 @@ void Document::update_animated_style_if_needed()
     if (!m_needs_animated_style_update)
         return;
 
-    invalidate_display_list();
-
     for (auto& timeline : m_associated_animation_timelines) {
         for (auto& animation : timeline->associated_animations()) {
             if (animation->is_finished())
