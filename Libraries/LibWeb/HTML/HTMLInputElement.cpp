@@ -32,6 +32,7 @@
 #include <LibWeb/HTML/Dates.h>
 #include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/HTML/HTMLDataListElement.h>
 #include <LibWeb/HTML/HTMLDivElement.h>
 #include <LibWeb/HTML/HTMLFormElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
@@ -188,6 +189,39 @@ void HTMLInputElement::set_indeterminate(bool value)
 {
     // On setting, it must be set to the new value. It has no effect except for changing the appearance of checkbox controls.
     m_indeterminate = value;
+}
+
+// https://html.spec.whatwg.org/multipage/input.html#dom-input-list
+GC::Ptr<HTMLDataListElement const> HTMLInputElement::list() const
+{
+    // The list IDL attribute must return the current suggestions source element, if any, or null otherwise.
+    if (auto data_list_element = suggestions_source_element(); data_list_element.has_value())
+        return *data_list_element;
+
+    return nullptr;
+}
+
+// https://html.spec.whatwg.org/multipage/input.html#concept-input-list
+Optional<GC::Ref<HTMLDataListElement const>> HTMLInputElement::suggestions_source_element() const
+{
+    // The suggestions source element is the first element in the tree in tree order to have an ID equal to the value of the list attribute,
+    // if that element is a datalist element. If there is no list attribute, or if there is no element with that ID,
+    // or if the first element with that ID is not a datalist element, then there is no suggestions source element.
+    Optional<GC::Ref<HTMLDataListElement const>> result;
+    if (auto list_attribute_value = get_attribute(HTML::AttributeNames::list); list_attribute_value.has_value()) {
+        root().for_each_in_inclusive_subtree_of_type<DOM::Element>([&](auto& element) {
+            if (element.id() == *list_attribute_value) {
+                if (auto data_list_element = as_if<HTMLDataListElement>(element))
+                    result = *data_list_element;
+
+                return TraversalDecision::Break;
+            }
+
+            return TraversalDecision::Continue;
+        });
+    }
+
+    return result;
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#compiled-pattern-regular-expression

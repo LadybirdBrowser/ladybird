@@ -1,3 +1,4 @@
+#import <HTML/HTMLDataListElement.idl>
 #import <HTML/HTMLElement.idl>
 #import <HTML/HTMLFormElement.idl>
 #import <HTML/PopoverInvokerElement.idl>
@@ -25,7 +26,7 @@ interface HTMLInputElement : HTMLElement {
     [CEReactions, Reflect=formtarget] attribute DOMString formTarget;
     [CEReactions] attribute unsigned long height;
     attribute boolean indeterminate;
-    [FIXME] readonly attribute HTMLDataListElement? list;
+    readonly attribute HTMLDataListElement? list;
     [CEReactions, Reflect] attribute DOMString max;
     [CEReactions] attribute long maxLength;
     [CEReactions, Reflect] attribute DOMString min;

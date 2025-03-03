@@ -106,6 +106,8 @@ public:
     bool indeterminate() const { return m_indeterminate; }
     void set_indeterminate(bool);
 
+    GC::Ptr<HTMLDataListElement const> list() const;
+
     void did_pick_color(Optional<Color> picked_color, ColorPickerUpdateState state);
 
     enum class MultipleHandling {
@@ -355,6 +357,8 @@ private:
     SelectedCoordinate m_selected_coordinate;
 
     Optional<Regex<ECMA262>> compiled_pattern_regular_expression() const;
+
+    Optional<GC::Ref<HTMLDataListElement const>> suggestions_source_element() const;
 
     Optional<DOM::DocumentLoadEventDelayer> m_load_event_delayer;
 
