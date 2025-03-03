@@ -1529,6 +1529,8 @@ void Document::update_animated_style_if_needed()
         }
 
         for (auto& animation : timeline->associated_animations()) {
+            if (animation->is_finished())
+                continue;
             if (auto effect = animation->effect())
                 effect->update_computed_properties();
         }
