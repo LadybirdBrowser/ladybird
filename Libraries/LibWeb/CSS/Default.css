@@ -504,6 +504,10 @@ li {
     text-align: match-parent;
 }
 
+li:empty::before {
+    content: "\00a0";
+}
+
 dir, dl, menu, ol, ul {
     margin-block-start: 1em;
     margin-block-end: 1em;
