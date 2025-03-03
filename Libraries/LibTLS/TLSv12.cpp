@@ -27,8 +27,12 @@ ErrorOr<NonnullOwnPtr<TLSv12>> TLSv12::connect(ByteString const& host, u16 port,
 
 ErrorOr<NonnullOwnPtr<TLSv12>> TLSv12::connect(Core::SocketAddress const& address, ByteString const& host, Options options)
 {
+    if (!address.is_valid()) {
+        return Error::from_string_literal("Invalid socket address");
+    }
+
     auto tcp_socket = TRY(Core::TCPSocket::connect(address));
-    return connect_internal(move(tcp_socket), host, move(options));
+    return connect_internal(move(tcp_socket), host, move(options))
 }
 
 static void wait_for_activity(int sock, bool read)
@@ -37,10 +41,9 @@ static void wait_for_activity(int sock, bool read)
     FD_ZERO(&fds);
     FD_SET(sock, &fds);
 
-    if (read)
-        select(sock + 1, &fds, nullptr, nullptr, nullptr);
-    else
-        select(sock + 1, nullptr, &fds, nullptr, nullptr);
+    struct timeval tv;
+    tv.tv_sec = std::chrono::duration_cast<std::chrono::seconds>(timeout).count();
+    tv.tv_usec = std::chrono::duration_cast<std::chrono::microseconds>(timeout % std::chrono::seconds(1)).count();
 }
 
 void TLSv12::handle_fatal_error()
