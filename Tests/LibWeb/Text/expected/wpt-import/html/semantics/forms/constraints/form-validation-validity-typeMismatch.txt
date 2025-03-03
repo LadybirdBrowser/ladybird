@@ -2,15 +2,14 @@ Harness status: OK
 
 Found 11 tests
 
-8 Pass
-3 Fail
+11 Pass
 Pass	[INPUT in EMAIL status] The value is empty
 Pass	[INPUT in EMAIL status] The value is a valid email address
 Pass	[INPUT in EMAIL status] The value is a valid email address with some white spaces.
-Fail	[INPUT in EMAIL status] The value is not an email address
-Fail	[INPUT in EMAIL status] The value contains multiple email addresses
+Pass	[INPUT in EMAIL status] The value is not an email address
+Pass	[INPUT in EMAIL status] The value contains multiple email addresses
 Pass	[INPUT in EMAIL status] The value is valid email addresses
-Fail	[INPUT in EMAIL status] The value contains invalid separator
+Pass	[INPUT in EMAIL status] The value contains invalid separator
 Pass	[INPUT in URL status] The value is empty
 Pass	[INPUT in URL status] The value is a valid url
 Pass	[INPUT in URL status] The value is a valid url with some white spaces.

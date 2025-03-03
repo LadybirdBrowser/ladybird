@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 130 tests
 
-114 Pass
-16 Fail
+116 Pass
+14 Fail
 Pass	[INPUT in TEXT status] no constraint
 Pass	[INPUT in TEXT status] no constraint (in a form)
 Pass	[INPUT in TEXT status] not suffering from being too long
@@ -52,8 +52,8 @@ Pass	[INPUT in EMAIL status] not suffering from being too long
 Pass	[INPUT in EMAIL status] not suffering from being too long (in a form)
 Pass	[INPUT in EMAIL status] suffering from a pattern mismatch
 Pass	[INPUT in EMAIL status] suffering from a pattern mismatch (in a form)
-Fail	[INPUT in EMAIL status] suffering from a type mismatch
-Fail	[INPUT in EMAIL status] suffering from a type mismatch (in a form)
+Pass	[INPUT in EMAIL status] suffering from a type mismatch
+Pass	[INPUT in EMAIL status] suffering from a type mismatch (in a form)
 Pass	[INPUT in EMAIL status] suffering from being missing
 Pass	[INPUT in EMAIL status] suffering from being missing (in a form)
 Pass	[INPUT in DATETIME-LOCAL status] no constraint
