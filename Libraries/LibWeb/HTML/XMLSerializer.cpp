@@ -16,13 +16,13 @@
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/ProcessingInstruction.h>
 #include <LibWeb/DOM/Text.h>
-#include <LibWeb/DOMParsing/XMLSerializer.h>
 #include <LibWeb/HTML/HTMLTemplateElement.h>
+#include <LibWeb/HTML/XMLSerializer.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
-namespace Web::DOMParsing {
+namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(XMLSerializer);
 
@@ -44,10 +44,12 @@ void XMLSerializer::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(XMLSerializer);
 }
 
-// https://w3c.github.io/DOM-Parsing/#dom-xmlserializer-serializetostring
+// https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-xmlserializer-serializetostring
 WebIDL::ExceptionOr<String> XMLSerializer::serialize_to_string(GC::Ref<DOM::Node const> root)
 {
-    // The serializeToString(root) method must produce an XML serialization of root passing a value of false for the require well-formed parameter, and return the result.
+    // The serializeToString(root) method steps are:
+
+    // 1. Return the XML serialization of root given false.
     return serialize_node_to_xml_string(root, RequireWellFormed::No);
 }
 

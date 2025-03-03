@@ -240,7 +240,6 @@ set(SOURCES
     DOM/TreeWalker.cpp
     DOM/Utils.cpp
     DOM/XMLDocument.cpp
-    DOMParsing/XMLSerializer.cpp
     DOMURL/DOMURL.cpp
     DOMURL/URLSearchParams.cpp
     DOMURL/URLSearchParamsIterator.cpp
@@ -536,6 +535,7 @@ set(SOURCES
     HTML/WorkerNavigator.cpp
     HTML/WorkletGlobalScope.cpp
     HTML/ValidityState.cpp
+    HTML/XMLSerializer.cpp
     HighResolutionTime/Performance.cpp
     HighResolutionTime/TimeOrigin.cpp
     Infra/ByteSequences.cpp

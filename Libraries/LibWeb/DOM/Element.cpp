@@ -865,7 +865,7 @@ WebIDL::ExceptionOr<void> Element::set_inner_html(StringView value)
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-element-innerhtml
 WebIDL::ExceptionOr<String> Element::inner_html() const
 {
-    return serialize_fragment(DOMParsing::RequireWellFormed::Yes);
+    return serialize_fragment(HTML::RequireWellFormed::Yes);
 }
 
 bool Element::is_focused() const
@@ -1768,7 +1768,7 @@ WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> Element::parse_fragment(Stri
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-element-outerhtml
 WebIDL::ExceptionOr<String> Element::outer_html() const
 {
-    return serialize_fragment(DOMParsing::RequireWellFormed::Yes, FragmentSerializationMode::Outer);
+    return serialize_fragment(HTML::RequireWellFormed::Yes, FragmentSerializationMode::Outer);
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-element-outerhtml

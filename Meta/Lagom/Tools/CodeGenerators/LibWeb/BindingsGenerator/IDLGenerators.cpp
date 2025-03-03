@@ -4505,7 +4505,6 @@ using namespace Web::CredentialManagement;
 using namespace Web::Crypto;
 using namespace Web::CSS;
 using namespace Web::DOM;
-using namespace Web::DOMParsing;
 using namespace Web::DOMURL;
 using namespace Web::Encoding;
 using namespace Web::EntriesAPI;

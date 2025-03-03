@@ -1815,7 +1815,7 @@ void Node::string_replace_all(String const& string)
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#fragment-serializing-algorithm-steps
-WebIDL::ExceptionOr<String> Node::serialize_fragment(DOMParsing::RequireWellFormed require_well_formed, FragmentSerializationMode fragment_serialization_mode) const
+WebIDL::ExceptionOr<String> Node::serialize_fragment(HTML::RequireWellFormed require_well_formed, FragmentSerializationMode fragment_serialization_mode) const
 {
     // 1. Let context document be the value of node's node document.
     auto const& context_document = document();
@@ -1830,12 +1830,12 @@ WebIDL::ExceptionOr<String> Node::serialize_fragment(DOMParsing::RequireWellForm
     if (fragment_serialization_mode == FragmentSerializationMode::Inner) {
         StringBuilder markup;
         for (auto* child = first_child(); child; child = child->next_sibling()) {
-            auto child_markup = TRY(DOMParsing::serialize_node_to_xml_string(*child, require_well_formed));
+            auto child_markup = TRY(HTML::serialize_node_to_xml_string(*child, require_well_formed));
             markup.append(child_markup.bytes_as_string_view());
         }
         return MUST(markup.to_string());
     }
-    return DOMParsing::serialize_node_to_xml_string(*this, require_well_formed);
+    return HTML::serialize_node_to_xml_string(*this, require_well_formed);
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#unsafely-set-html
