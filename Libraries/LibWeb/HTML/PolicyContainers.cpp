@@ -7,6 +7,8 @@
 
 #include <LibJS/Runtime/Realm.h>
 #include <LibURL/URL.h>
+#include <LibWeb/ContentSecurityPolicy/Policy.h>
+#include <LibWeb/ContentSecurityPolicy/PolicyList.h>
 #include <LibWeb/Fetch/Infrastructure/URL.h>
 #include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/HTML/SerializedPolicyContainer.h>
@@ -15,7 +17,8 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(PolicyContainer);
 
-PolicyContainer::PolicyContainer(JS::Realm&)
+PolicyContainer::PolicyContainer(JS::Realm& realm)
+    : csp_list(realm.create<ContentSecurityPolicy::PolicyList>())
 {
 }
 
@@ -34,6 +37,7 @@ bool url_requires_storing_the_policy_container_in_history(URL::URL const& url)
 GC::Ref<PolicyContainer> create_a_policy_container_from_serialized_policy_container(JS::Realm& realm, SerializedPolicyContainer const& serialized_policy_container)
 {
     GC::Ref<PolicyContainer> result = realm.create<PolicyContainer>(realm);
+    result->csp_list = ContentSecurityPolicy::PolicyList::create(realm, serialized_policy_container.csp_list);
     result->embedder_policy = serialized_policy_container.embedder_policy;
     result->referrer_policy = serialized_policy_container.referrer_policy;
     return result;
@@ -45,7 +49,8 @@ GC::Ref<PolicyContainer> PolicyContainer::clone(JS::Realm& realm) const
     // 1. Let clone be a new policy container.
     auto clone = realm.create<PolicyContainer>(realm);
 
-    // FIXME: 2. For each policy in policyContainer's CSP list, append a copy of policy into clone's CSP list.
+    // 2. For each policy in policyContainer's CSP list, append a copy of policy into clone's CSP list.
+    clone->csp_list = csp_list->clone(realm);
 
     // 3. Set clone's embedder policy to a copy of policyContainer's embedder policy.
     // NOTE: This is a C++ copy.
@@ -61,9 +66,16 @@ GC::Ref<PolicyContainer> PolicyContainer::clone(JS::Realm& realm) const
 SerializedPolicyContainer PolicyContainer::serialize() const
 {
     return SerializedPolicyContainer {
+        .csp_list = csp_list->serialize(),
         .embedder_policy = embedder_policy,
         .referrer_policy = referrer_policy,
     };
+}
+
+void PolicyContainer::visit_edges(Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(csp_list);
 }
 
 }
