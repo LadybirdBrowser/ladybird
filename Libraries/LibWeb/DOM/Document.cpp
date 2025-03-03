@@ -1524,15 +1524,13 @@ void Document::update_animated_style_if_needed()
 
     for (auto& timeline : m_associated_animation_timelines) {
         for (auto& animation : timeline->associated_animations()) {
-            if (auto effect = animation->effect(); effect && effect->target())
-                effect->target()->reset_animated_css_properties();
-        }
-
-        for (auto& animation : timeline->associated_animations()) {
             if (animation->is_finished())
                 continue;
-            if (auto effect = animation->effect())
+            if (auto effect = animation->effect()) {
+                if (auto* target = effect->target())
+                    target->reset_animated_css_properties();
                 effect->update_computed_properties();
+            }
         }
     }
     m_needs_animated_style_update = false;
