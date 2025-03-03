@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	calc() serialization
+1 Pass
+Pass	calc() serialization
