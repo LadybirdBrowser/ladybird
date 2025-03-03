@@ -17,6 +17,10 @@ namespace TLS {
 
 ErrorOr<NonnullOwnPtr<TLSv12>> TLSv12::connect(ByteString const& host, u16 port, Options options)
 {
+    if (port == 0) {
+        return Error::from_string_literal("Invalid port number");
+    }
+
     auto tcp_socket = TRY(Core::TCPSocket::connect(host, port));
     return connect_internal(move(tcp_socket), host, move(options));
 }
