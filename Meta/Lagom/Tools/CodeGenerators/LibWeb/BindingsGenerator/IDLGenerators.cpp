@@ -3731,38 +3731,44 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.getter_callback@)
                     // NOTE: this is "impl" above
 
                     // 2. Let contentAttributeValue be the result of running this's get the content attribute.
-                    // 8. Return the canonical keyword for the state of attributeDefinition that contentAttributeValue corresponds to.
-                    // NOTE: We run step 8 here to have a field to assign to
+
                     attribute_generator.append(R"~~~(
-    auto retval = impl->attribute("@attribute.reflect_name@"_fly_string);
+    auto content_attribute_value = impl->attribute("@attribute.reflect_name@"_fly_string);
 )~~~");
 
                     // 3. Let attributeDefinition be the attribute definition of element's content attribute whose namespace is null
                     //    and local name is the reflected content attribute name.
                     // NOTE: this is "attribute" above
 
-                    // 4. Assert: attributeDefinition indicates it is an enumerated attribute.
-                    // 5. Assert: the reflected IDL attribute is limited to only known values.
-                    // NOTE: This is checked by the "Enumerated" extended attribute
+                    // 4. If attributeDefinition indicates it is an enumerated attribute:
                     auto is_enumerated = attribute.extended_attributes.contains("Enumerated");
-                    VERIFY(is_enumerated);
+                    if (is_enumerated) {
 
-                    // 6. Assert: contentAttributeValue corresponds to a state of attributeDefinition.
-                    auto valid_enumerations_type = attribute.extended_attributes.get("Enumerated").value();
-                    auto valid_enumerations = interface.enumerations.get(valid_enumerations_type).value();
+                        // NOTE: We run step 4 here to have a field to assign to
+                        // 4. Return the canonical keyword for the state of attributeDefinition that contentAttributeValue corresponds to.
+                        attribute_generator.append(R"~~~(
+    auto retval = impl->attribute("@attribute.reflect_name@"_fly_string);
+)~~~");
 
-                    auto missing_value_default = valid_enumerations.extended_attributes.get("MissingValueDefault");
-                    auto invalid_value_default = valid_enumerations.extended_attributes.get("InvalidValueDefault");
+                        // 1. Assert: the reflected IDL attribute is limited to only known values.
+                        // NOTE: This is checked by the "Enumerated" extended attribute, so there's nothing additional to assert.
 
-                    attribute_generator.set("missing_enum_default_value", missing_value_default.has_value() ? missing_value_default.value().view() : ""sv);
-                    attribute_generator.set("invalid_enum_default_value", invalid_value_default.has_value() ? invalid_value_default.value().view() : ""sv);
-                    attribute_generator.set("valid_enum_values", MUST(String::join(", "sv, valid_enumerations.values.values(), "\"{}\"_string"sv)));
+                        // 2. Assert: contentAttributeValue corresponds to a state of attributeDefinition.
+                        auto valid_enumerations_type = attribute.extended_attributes.get("Enumerated").value();
+                        auto valid_enumerations = interface.enumerations.get(valid_enumerations_type).value();
 
-                    attribute_generator.append(R"~~~(
+                        auto missing_value_default = valid_enumerations.extended_attributes.get("MissingValueDefault");
+                        auto invalid_value_default = valid_enumerations.extended_attributes.get("InvalidValueDefault");
+
+                        attribute_generator.set("missing_enum_default_value", missing_value_default.has_value() ? missing_value_default.value().view() : ""sv);
+                        attribute_generator.set("invalid_enum_default_value", invalid_value_default.has_value() ? invalid_value_default.value().view() : ""sv);
+                        attribute_generator.set("valid_enum_values", MUST(String::join(", "sv, valid_enumerations.values.values(), "\"{}\"_string"sv)));
+
+                        attribute_generator.append(R"~~~(
     Array valid_values { @valid_enum_values@ };
     )~~~");
-                    if (invalid_value_default.has_value()) {
-                        attribute_generator.append(R"~~~(
+                        if (invalid_value_default.has_value()) {
+                            attribute_generator.append(R"~~~(
 
     if (retval.has_value()) {
         auto found = false;
@@ -3778,19 +3784,26 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.getter_callback@)
             retval = "@invalid_enum_default_value@"_string;
     }
     )~~~");
-                    }
+                        }
 
-                    if (missing_value_default.has_value()) {
-                        attribute_generator.append(R"~~~(
+                        if (missing_value_default.has_value()) {
+                            attribute_generator.append(R"~~~(
     if (!retval.has_value())
         retval = "@missing_enum_default_value@"_string;
     )~~~");
-                    }
+                        }
 
-                    attribute_generator.append(R"~~~(
+                        attribute_generator.append(R"~~~(
     VERIFY(!retval.has_value() || valid_values.contains_slow(retval.value()));
 )~~~");
-                    // FIXME: 7. If contentAttributeValue corresponds to a state of attributeDefinition with no associated keyword value, then return null.
+
+                        // FIXME: 3. If contentAttributeValue corresponds to a state of attributeDefinition with no associated keyword value, then return null.
+                    } else {
+                        // 5. Return contentAttributeValue.
+                        attribute_generator.append(R"~~~(
+    auto retval = move(content_attribute_value);
+)~~~");
+                    }
                 }
             }
             // If a reflected IDL attribute has the type boolean:
