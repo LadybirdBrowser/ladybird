@@ -22,9 +22,9 @@ public:
 private:
     explicit DurationFormatPrototype(Realm&);
 
+    JS_DECLARE_NATIVE_FUNCTION(resolved_options);
     JS_DECLARE_NATIVE_FUNCTION(format);
     JS_DECLARE_NATIVE_FUNCTION(format_to_parts);
-    JS_DECLARE_NATIVE_FUNCTION(resolved_options);
 };
 
 }
