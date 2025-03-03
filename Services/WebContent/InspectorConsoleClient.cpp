@@ -8,7 +8,6 @@
  */
 
 #include <AK/MemoryStream.h>
-#include <AK/String.h>
 #include <LibJS/MarkupGenerator.h>
 #include <LibJS/Print.h>
 #include <LibJS/Runtime/Realm.h>
@@ -47,16 +46,38 @@ void InspectorConsoleClient::report_exception(JS::Error const& exception, bool i
     print_html(JS::MarkupGenerator::html_from_error(exception, in_promise).release_value_but_fixme_should_propagate_errors());
 }
 
+void InspectorConsoleClient::begin_group(String const& label, bool start_expanded)
+{
+    m_message_log.append({ .type = start_expanded ? ConsoleOutput::Type::BeginGroup : ConsoleOutput::Type::BeginGroupCollapsed, .data = label });
+    m_client->did_output_js_console_message(m_message_log.size() - 1);
+}
+
+void InspectorConsoleClient::end_group()
+{
+    m_message_log.append({ .type = ConsoleOutput::Type::EndGroup, .data = String {} });
+    m_client->did_output_js_console_message(m_message_log.size() - 1);
+}
+
+void InspectorConsoleClient::clear()
+{
+    m_message_log.append({ .type = ConsoleOutput::Type::Clear, .data = String {} });
+    m_client->did_output_js_console_message(m_message_log.size() - 1);
+}
+
+void InspectorConsoleClient::print_html(String const& line)
+{
+    m_message_log.append({ .type = ConsoleOutput::Type::HTML, .data = line });
+    m_client->did_output_js_console_message(m_message_log.size() - 1);
+}
+
 void InspectorConsoleClient::send_messages(i32 start_index)
 {
-    // FIXME: Cap the number of messages we send at once?
     auto messages_to_send = m_message_log.size() - start_index;
     if (messages_to_send < 1) {
-        // When the console is first created, it requests any messages that happened before
-        // then, by requesting with start_index=0. If we don't have any messages at all, that
-        // is still a valid request, and we can just ignore it.
+        // When the console is first created, it requests any messages that happened before then, by requesting with
+        // start_index=0. If we don't have any messages at all, that is still a valid request, and we can just ignore it.
         if (start_index != 0)
-            m_client->console_peer_did_misbehave("Requested non-existent console message index.");
+            m_client->console_peer_did_misbehave("Requested non-existent console message index");
         return;
     }
 
