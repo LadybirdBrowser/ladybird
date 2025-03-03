@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibURL/Parser.h>
 #include <LibWeb/Bindings/HTMLTrackElementPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/Document.h>
@@ -191,7 +192,9 @@ void HTMLTrackElement::start_the_track_processing_model_parallel_steps(JS::Realm
     if (!url.is_empty()) {
         // 1. Let request be the result of creating a potential-CORS request given URL, "track", and corsAttributeState,
         // and with the same-origin fallback flag set.
-        auto request = create_potential_CORS_request(realm.vm(), url, Fetch::Infrastructure::Request::Destination::Track, cors_attribute_state, SameOriginFallbackFlag::Yes);
+        auto parsed_url = URL::Parser::basic_parse(url);
+        VERIFY(parsed_url.has_value());
+        auto request = create_potential_CORS_request(realm.vm(), parsed_url.release_value(), Fetch::Infrastructure::Request::Destination::Track, cors_attribute_state, SameOriginFallbackFlag::Yes);
 
         // 2. Set request's client to the track element's node document's relevant settings object.
         request->set_client(&document().relevant_settings_object());

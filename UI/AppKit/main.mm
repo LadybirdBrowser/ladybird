@@ -7,6 +7,7 @@
 #include <AK/Enumerate.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibMain/Main.h>
+#include <LibURL/Parser.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/ChromeProcess.h>
 #include <LibWebView/EventLoop/EventLoopImplementationMacOS.h>
@@ -49,7 +50,9 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     Application* application = [Application sharedApplication];
 
     Core::EventLoopManager::install(*new WebView::EventLoopManagerMacOS);
-    [application setupWebViewApplication:arguments newTabPageURL:Browser::default_new_tab_url];
+    auto url = URL::Parser::basic_parse(Browser::default_new_tab_url);
+    VERIFY(url.has_value());
+    [application setupWebViewApplication:arguments newTabPageURL:url.release_value()];
 
     WebView::platform_init();
 
