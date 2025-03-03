@@ -3,7 +3,7 @@
 //
 // By building this dev container image in advance, tools
 // like GitHub Codespaces (https://containers.dev/supporting)
-// do not need to install all the prerequsite dependencies from scratch,
+// do not need to install all the prerequisite dependencies from scratch,
 // getting you into your development environment faster!
 {
     "name": "Ladybird (Pre-Built Image)",
