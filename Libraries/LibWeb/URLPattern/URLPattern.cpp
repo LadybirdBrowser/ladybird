@@ -13,8 +13,9 @@ namespace Web::URLPattern {
 
 GC_DEFINE_ALLOCATOR(URLPattern);
 
-URLPattern::URLPattern(JS::Realm& realm)
+URLPattern::URLPattern(JS::Realm& realm, URL::Pattern::Pattern pattern)
     : PlatformObject(realm)
+    , m_url_pattern(move(pattern))
 {
 }
 
@@ -26,21 +27,55 @@ void URLPattern::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(URLPattern);
 }
 
-WebIDL::ExceptionOr<GC::Ref<URLPattern>> URLPattern::construct_impl(JS::Realm& realm, URLPatternInput const&, String const&, URLPatternOptions const&)
+// https://urlpattern.spec.whatwg.org/#dom-urlpattern-urlpattern
+WebIDL::ExceptionOr<GC::Ref<URLPattern>> URLPattern::construct_impl(JS::Realm& realm, URLPatternInput const& input, String const& base_url, URLPatternOptions const& options)
 {
-    return realm.create<URLPattern>(realm);
+    // 1. Run initialize given this, input, baseURL, and options.
+    return create(realm, input, base_url, options);
 }
 
-WebIDL::ExceptionOr<GC::Ref<URLPattern>> URLPattern::construct_impl(JS::Realm& realm, URLPatternInput const&, URLPatternOptions const&)
+// https://urlpattern.spec.whatwg.org/#dom-urlpattern-urlpattern-input-options
+WebIDL::ExceptionOr<GC::Ref<URLPattern>> URLPattern::construct_impl(JS::Realm& realm, URLPatternInput const& input, URLPatternOptions const& options)
 {
-    return realm.create<URLPattern>(realm);
+    // 1. Run initialize given this, input, null, and options.
+    return create(realm, input, {}, options);
+}
+
+// https://urlpattern.spec.whatwg.org/#urlpattern-initialize
+WebIDL::ExceptionOr<GC::Ref<URLPattern>> URLPattern::create(JS::Realm& realm, URLPatternInput const& input, Optional<String> const& base_url, URLPatternOptions const& options)
+{
+    // 1. Set this’s associated URL pattern to the result of create given input, baseURL, and options.
+    auto pattern_or_error = URL::Pattern::Pattern::create(input, base_url, options);
+    if (pattern_or_error.is_error())
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, pattern_or_error.error().message };
+    return realm.create<URLPattern>(realm, pattern_or_error.release_value());
+}
+
+// https://urlpattern.spec.whatwg.org/#dom-urlpattern-test
+WebIDL::ExceptionOr<bool> URLPattern::test(URLPatternInput const& input, Optional<String> const& base_url) const
+{
+    // 1. Let result be the result of match given this's associated URL pattern, input, and baseURL if given.
+    auto result_or_error = m_url_pattern.match(input, base_url);
+    if (result_or_error.is_error())
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, result_or_error.error().message };
+    auto result = result_or_error.release_value();
+
+    // 2. If result is null, return false.
+    if (!result.has_value())
+        return false;
+
+    // 3. Return true.
+    return true;
 }
 
 // https://urlpattern.spec.whatwg.org/#dom-urlpattern-exec
-Optional<URLPatternResult> URLPattern::exec(URLPatternInput const&, Optional<String> const&) const
+WebIDL::ExceptionOr<Optional<URLPatternResult>> URLPattern::exec(URLPatternInput const& input, Optional<String> const& base_url) const
 {
-    dbgln("FIXME: Implement URLPattern::match");
-    return {};
+    // 1. Return the result of match given this's associated URL pattern, input, and baseURL if given.
+    auto result_or_error = m_url_pattern.match(input, base_url);
+    if (result_or_error.is_error())
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, result_or_error.error().message };
+    return result_or_error.release_value();
 }
 
 // https://urlpattern.spec.whatwg.org/#dom-urlpattern-protocol
