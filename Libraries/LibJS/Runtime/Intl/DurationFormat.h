@@ -68,7 +68,7 @@ public:
 
     static constexpr auto relevant_extension_keys()
     {
-        // 13.3.3 Internal slots, https://tc39.es/ecma402/#sec-Intl.DurationFormat-internal-slots
+        // 13.2.3 Internal slots, https://tc39.es/ecma402/#sec-Intl.DurationFormat-internal-slots
         // The value of the [[RelevantExtensionKeys]] internal slot is « "nu" ».
         return AK::Array { "nu"sv };
     }
@@ -218,8 +218,8 @@ struct DurationInstanceComponent {
     DurationFormat::ValueStyle digital_default;
 };
 
-// Table 21: DurationFormat instance internal slots and properties relevant to PartitionDurationFormatPattern, https://tc39.es/ecma402/#table-partition-duration-format-pattern
-// Table 22: Internal slots and property names of DurationFormat instances relevant to Intl.DurationFormat constructor, https://tc39.es/ecma402/#table-durationformat
+// Table 20: Internal slots and property names of DurationFormat instances relevant to Intl.DurationFormat constructor, https://tc39.es/ecma402/#table-durationformat
+// Table 23: DurationFormat instance internal slots and properties relevant to PartitionDurationFormatPattern, https://tc39.es/ecma402/#table-partition-duration-format-pattern
 static constexpr auto date_values = AK::Array { "long"sv, "short"sv, "narrow"sv };
 static constexpr auto time_values = AK::Array { "long"sv, "short"sv, "narrow"sv, "numeric"sv, "2-digit"sv };
 static constexpr auto sub_second_values = AK::Array { "long"sv, "short"sv, "narrow"sv, "numeric"sv };

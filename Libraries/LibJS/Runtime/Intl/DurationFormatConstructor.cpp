@@ -18,7 +18,7 @@ namespace JS::Intl {
 
 GC_DEFINE_ALLOCATOR(DurationFormatConstructor);
 
-// 13.2 The Intl.DurationFormat Constructor, https://tc39.es/ecma402/#sec-intl-durationformat-constructor
+// 13.1 The Intl.DurationFormat Constructor, https://tc39.es/ecma402/#sec-intl-durationformat-constructor
 DurationFormatConstructor::DurationFormatConstructor(Realm& realm)
     : NativeFunction(realm.vm().names.DurationFormat.as_string(), realm.intrinsics().function_prototype())
 {
@@ -38,14 +38,14 @@ void DurationFormatConstructor::initialize(Realm& realm)
     define_native_function(realm, vm.names.supportedLocalesOf, supported_locales_of, 1, attr);
 }
 
-// 13.2.1 Intl.DurationFormat ( [ locales [ , options ] ] ), https://tc39.es/ecma402/#sec-Intl.DurationFormat
+// 13.1.1 Intl.DurationFormat ( [ locales [ , options ] ] ), https://tc39.es/ecma402/#sec-Intl.DurationFormat
 ThrowCompletionOr<Value> DurationFormatConstructor::call()
 {
     // 1. If NewTarget is undefined, throw a TypeError exception.
     return vm().throw_completion<TypeError>(ErrorType::ConstructorWithoutNew, "Intl.DurationFormat");
 }
 
-// 13.2.1 Intl.DurationFormat ( [ locales [ , options ] ] ), https://tc39.es/ecma402/#sec-Intl.DurationFormat
+// 13.1.1 Intl.DurationFormat ( [ locales [ , options ] ] ), https://tc39.es/ecma402/#sec-Intl.DurationFormat
 ThrowCompletionOr<GC::Ref<Object>> DurationFormatConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
@@ -110,7 +110,7 @@ ThrowCompletionOr<GC::Ref<Object>> DurationFormatConstructor::construct(Function
     // 18. Let prevStyle be the empty String.
     Optional<DurationFormat::ValueStyle> previous_style;
 
-    // 19. For each row of Table 22, except the header row, in table order, do
+    // 19. For each row of Table 20, except the header row, in table order, do
     for (auto const& duration_instances_component : duration_instances_components) {
         // a. Let styleSlot be the Style Slot value of the current row.
         auto style_slot = duration_instances_component.set_style_slot;
@@ -150,7 +150,7 @@ ThrowCompletionOr<GC::Ref<Object>> DurationFormatConstructor::construct(Function
     return duration_format;
 }
 
-// 13.3.2 Intl.DurationFormat.supportedLocalesOf ( locales [ , options ] ), https://tc39.es/ecma402/#sec-Intl.DurationFormat.supportedLocalesOf
+// 13.2.2 Intl.DurationFormat.supportedLocalesOf ( locales [ , options ] ), https://tc39.es/ecma402/#sec-Intl.DurationFormat.supportedLocalesOf
 JS_DEFINE_NATIVE_FUNCTION(DurationFormatConstructor::supported_locales_of)
 {
     auto locales = vm.argument(0);
