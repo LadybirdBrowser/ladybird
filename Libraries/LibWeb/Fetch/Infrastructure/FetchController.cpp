@@ -32,7 +32,7 @@ void FetchController::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_fetch_params);
 }
 
-void FetchController::set_report_timing_steps(Function<void(JS::Object const&)> report_timing_steps)
+void FetchController::set_report_timing_steps(Function<void(JS::Object&)> report_timing_steps)
 {
     m_report_timing_steps = GC::create_function(vm().heap(), move(report_timing_steps));
 }
@@ -43,7 +43,7 @@ void FetchController::set_next_manual_redirect_steps(Function<void()> next_manua
 }
 
 // https://fetch.spec.whatwg.org/#finalize-and-report-timing
-void FetchController::report_timing(JS::Object const& global) const
+void FetchController::report_timing(JS::Object& global) const
 {
     // 1. Assert: this’s report timing steps is not null.
     VERIFY(m_report_timing_steps);
