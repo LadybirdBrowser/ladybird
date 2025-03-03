@@ -1,0 +1,7 @@
+#import <WebAudio/AudioNode.idl>
+
+[Exposed=Window]
+interface ScriptProcessorNode : AudioNode {
+    attribute EventHandler onaudioprocess;
+    readonly attribute long bufferSize;
+};
