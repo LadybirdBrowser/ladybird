@@ -16,7 +16,7 @@ GC_DEFINE_ALLOCATOR(Segments);
 GC::Ref<Segments> Segments::create(Realm& realm, Unicode::Segmenter const& segmenter, Utf16String string)
 {
     // 1. Let internalSlotsList be « [[SegmentsSegmenter]], [[SegmentsString]] ».
-    // 2. Let segments be OrdinaryObjectCreate(%SegmentsPrototype%, internalSlotsList).
+    // 2. Let segments be OrdinaryObjectCreate(%IntlSegmentsPrototype%, internalSlotsList).
     // 3. Set segments.[[SegmentsSegmenter]] to segmenter.
     // 4. Set segments.[[SegmentsString]] to string.
     // 5. Return segments.

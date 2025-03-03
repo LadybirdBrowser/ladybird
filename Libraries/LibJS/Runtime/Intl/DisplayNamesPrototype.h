@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -22,8 +22,8 @@ public:
 private:
     explicit DisplayNamesPrototype(Realm&);
 
-    JS_DECLARE_NATIVE_FUNCTION(of);
     JS_DECLARE_NATIVE_FUNCTION(resolved_options);
+    JS_DECLARE_NATIVE_FUNCTION(of);
 };
 
 }

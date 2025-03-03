@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -22,11 +22,11 @@ public:
 private:
     explicit DateTimeFormatPrototype(Realm&);
 
+    JS_DECLARE_NATIVE_FUNCTION(resolved_options);
     JS_DECLARE_NATIVE_FUNCTION(format);
-    JS_DECLARE_NATIVE_FUNCTION(format_to_parts);
     JS_DECLARE_NATIVE_FUNCTION(format_range);
     JS_DECLARE_NATIVE_FUNCTION(format_range_to_parts);
-    JS_DECLARE_NATIVE_FUNCTION(resolved_options);
+    JS_DECLARE_NATIVE_FUNCTION(format_to_parts);
 };
 
 }

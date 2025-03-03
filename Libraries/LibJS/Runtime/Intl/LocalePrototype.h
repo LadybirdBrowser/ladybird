@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -32,11 +32,11 @@ private:
     JS_DECLARE_NATIVE_FUNCTION(collation);
     JS_DECLARE_NATIVE_FUNCTION(first_day_of_week);
     JS_DECLARE_NATIVE_FUNCTION(hour_cycle);
+    JS_DECLARE_NATIVE_FUNCTION(language);
     JS_DECLARE_NATIVE_FUNCTION(numbering_system);
     JS_DECLARE_NATIVE_FUNCTION(numeric);
-    JS_DECLARE_NATIVE_FUNCTION(language);
-    JS_DECLARE_NATIVE_FUNCTION(script);
     JS_DECLARE_NATIVE_FUNCTION(region);
+    JS_DECLARE_NATIVE_FUNCTION(script);
     JS_DECLARE_NATIVE_FUNCTION(get_calendars);
     JS_DECLARE_NATIVE_FUNCTION(get_collations);
     JS_DECLARE_NATIVE_FUNCTION(get_hour_cycles);
