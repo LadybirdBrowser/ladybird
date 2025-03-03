@@ -126,7 +126,7 @@ template<typename T, typename ValueT>
 concept IterableContainerOf = IterableContainer<T> && requires {
     {
         *declval<T>().begin()
-    } -> SameAs<ValueT>;
+    } -> SameAs<ValueT&>;
 };
 
 template<typename Func, typename... Args>

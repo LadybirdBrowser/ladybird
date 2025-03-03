@@ -38,10 +38,17 @@ public:
     }
 
     template<IterableContainerOf<JsonValue> ContainerT>
-    JsonArray(ContainerT const& source)
+    JsonArray(ContainerT&& source)
     {
         for (auto& value : source)
             m_values.append(move(value));
+    }
+
+    template<IterableContainerOf<JsonValue> ContainerT>
+    JsonArray(ContainerT const& source)
+    {
+        for (auto const& value : source)
+            m_values.append(value);
     }
 
     JsonArray& operator=(JsonArray const& other)
