@@ -55,19 +55,18 @@ JS_DEFINE_NATIVE_FUNCTION(DurationFormatPrototype::resolved_options)
         // b. Let v be the value of df's internal slot whose name is the Internal Slot value of the current row.
 
         // c. If p is "fractionalDigits", then
-        //     i. If v is not undefined, set v to 𝔽(v).
+        //     i. If v is not undefined, perform ! CreateDataPropertyOrThrow(options, p, 𝔽(v)).
+        // NOTE: This case is handled separately below.
+
         // d. Else,
         //     i. Assert: v is not undefined.
-
-        // e. If v is "fractional", then
+        //     ii. If v is "fractional", then
         if (value == "fractional"sv) {
-            // i. Assert: The Internal Slot value of the current row is [[MillisecondsStyle]], [[MicrosecondsStyle]], or [[NanosecondsStyle]].
-            // ii. Set v to "numeric".
+            // 1. Assert: The Internal Slot value of the current row is [[MillisecondsStyle]], [[MicrosecondsStyle]], or [[NanosecondsStyle]] .
+            // 2. Set v to "numeric".
             value = "numeric"sv;
         }
-
-        // f. If v is not undefined, then
-        //     i. Perform ! CreateDataPropertyOrThrow(options, p, v).
+        //     iii. Perform ! CreateDataPropertyOrThrow(options, p, v).
         MUST(options->create_data_property_or_throw(property, PrimitiveString::create(vm, value)));
     };
 
