@@ -73,7 +73,8 @@ void HTMLLinkElement::inserted()
         // The appropriate times to fetch and process this type of link are:
         //  - When the external resource link is created on a link element that is already browsing-context connected.
         //  - When the external resource link's link element becomes browsing-context connected.
-        fetch_and_process_linked_resource();
+        if (is_browsing_context_connected())
+            fetch_and_process_linked_resource();
     }
 
     // FIXME: Follow spec for fetching and processing these attributes as well
