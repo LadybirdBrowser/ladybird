@@ -185,6 +185,28 @@ static GC::Ref<ListFormat> construct_list_format(VM& vm, DurationFormat const& d
     return static_cast<ListFormat&>(*list_format);
 }
 
+// 13.5.6.1 ValidateDurationUnitStyle ( unit, style, display, prevStyle ), https://tc39.es/ecma402/#sec-validatedurationunitstyle
+// AD-HOC: Our implementation takes extra parameters for better exception messages.
+static ThrowCompletionOr<void> validate_duration_unit_style(VM& vm, PropertyKey const& unit, DurationFormat::ValueStyle style, DurationFormat::Display display, Optional<DurationFormat::ValueStyle> previous_style, StringView display_field)
+{
+    // 1. If display is "always" and style is "fractional", throw a RangeError exception.
+    if (display == DurationFormat::Display::Always && style == DurationFormat::ValueStyle::Fractional)
+        return vm.throw_completion<RangeError>(ErrorType::IntlFractionalUnitsMixedWithAlwaysDisplay, unit, display_field);
+
+    // 2. If prevStyle is "fractional" and style is not "fractional", throw a RangeError exception.
+    if (previous_style == DurationFormat::ValueStyle::Fractional && style != DurationFormat::ValueStyle::Fractional)
+        return vm.throw_completion<RangeError>(ErrorType::IntlFractionalUnitFollowedByNonFractionalUnit, unit);
+
+    // 3. If prevStyle is "numeric" or "2-digit" and style is not one of "fractional", "numeric" or "2-digit", throw a RangeError exception.
+    if (first_is_one_of(previous_style, DurationFormat::ValueStyle::Numeric, DurationFormat::ValueStyle::TwoDigit)
+        && !first_is_one_of(style, DurationFormat::ValueStyle::Fractional, DurationFormat::ValueStyle::Numeric, DurationFormat::ValueStyle::TwoDigit)) {
+        return vm.throw_completion<RangeError>(ErrorType::IntlNonNumericOr2DigitAfterNumericOr2Digit);
+    }
+
+    // 4. Return unused.
+    return {};
+}
+
 // 13.5.6 GetDurationUnitOptions ( unit, options, baseStyle, stylesList, digitalBase, prevStyle, twoDigitHours ), https://tc39.es/ecma402/#sec-getdurationunitoptions
 ThrowCompletionOr<DurationUnitOptions> get_duration_unit_options(VM& vm, DurationFormat::Unit unit, Object const& options, DurationFormat::Style base_style, ReadonlySpan<StringView> styles_list, DurationFormat::ValueStyle digital_base, Optional<DurationFormat::ValueStyle> previous_style, bool two_digit_hours)
 {
@@ -201,51 +223,41 @@ ThrowCompletionOr<DurationUnitOptions> get_duration_unit_options(VM& vm, Duratio
     if (style_value.is_undefined()) {
         // a. If baseStyle is "digital", then
         if (base_style == DurationFormat::Style::Digital) {
-            // i. If unit is not one of "hours", "minutes", or "seconds", then
-            if (!first_is_one_of(unit, DurationFormat::Unit::Hours, DurationFormat::Unit::Minutes, DurationFormat::Unit::Seconds)) {
-                // 1. Set displayDefault to "auto".
-                display_default = "auto"sv;
-            }
-
-            // ii. Set style to digitalBase.
+            // i. Set style to digitalBase.
             style = digital_base;
-        }
-        // b. Else,
-        else {
-            // i. If prevStyle is "fractional", "numeric" or "2-digit", then
-            if (first_is_one_of(previous_style, DurationFormat::ValueStyle::Fractional, DurationFormat::ValueStyle::Numeric, DurationFormat::ValueStyle::TwoDigit)) {
-                // 1. If unit is not one of "minutes" or "seconds", then
-                if (!first_is_one_of(unit, DurationFormat::Unit::Minutes, DurationFormat::Unit::Seconds)) {
-                    // a. Set displayDefault to "auto".
-                    display_default = "auto"sv;
-                }
 
-                // 2. Set style to "numeric".
-                style = DurationFormat::ValueStyle::Numeric;
-            }
-            // ii. Else,
-            else {
-                // 1. Set displayDefault to "auto".
+            // ii. If unit is not one of "hours", "minutes", or "seconds", set displayDefault to "auto".
+            if (!first_is_one_of(unit, DurationFormat::Unit::Hours, DurationFormat::Unit::Minutes, DurationFormat::Unit::Seconds))
                 display_default = "auto"sv;
+        }
+        // b. Else if prevStyle is one of "fractional", "numeric" or "2-digit", then
+        else if (first_is_one_of(previous_style, DurationFormat::ValueStyle::Fractional, DurationFormat::ValueStyle::Numeric, DurationFormat::ValueStyle::TwoDigit)) {
+            // i. Set style to "numeric".
+            style = DurationFormat::ValueStyle::Numeric;
 
-                // 2. Set style to baseStyle.
-                style = static_cast<DurationFormat::ValueStyle>(base_style);
-            }
+            // ii. If unit is not "minutes" or "seconds", set displayDefault to "auto".
+            if (!first_is_one_of(unit, DurationFormat::Unit::Minutes, DurationFormat::Unit::Seconds))
+                display_default = "auto"sv;
+        }
+        // c. Else,
+        else {
+            // i. Set style to baseStyle.
+            style = static_cast<DurationFormat::ValueStyle>(base_style);
+
+            // ii. Set displayDefault to "auto".
+            display_default = "auto"sv;
         }
     } else {
         style = DurationFormat::value_style_from_string(style_value.as_string().utf8_string_view());
     }
 
-    // 4. If style is "numeric", then
-    if (style == DurationFormat::ValueStyle::Numeric) {
-        // a. If unit is one of "milliseconds", "microseconds", or "nanoseconds", then
-        if (first_is_one_of(unit, DurationFormat::Unit::Milliseconds, DurationFormat::Unit::Microseconds, DurationFormat::Unit::Nanoseconds)) {
-            // i. Set style to "fractional".
-            style = DurationFormat::ValueStyle::Fractional;
+    // 4. If style is "numeric" and unit is one of "milliseconds", "microseconds", or "nanoseconds", then
+    if (style == DurationFormat::ValueStyle::Numeric && first_is_one_of(unit, DurationFormat::Unit::Milliseconds, DurationFormat::Unit::Microseconds, DurationFormat::Unit::Nanoseconds)) {
+        // a. Set style to "fractional".
+        style = DurationFormat::ValueStyle::Fractional;
 
-            // ii. Set displayDefault to "auto".
-            display_default = "auto"sv;
-        }
+        // b. Set displayDefault to "auto".
+        display_default = "auto"sv;
     }
 
     // 5. Let displayField be the string-concatenation of unit and "Display".
@@ -255,43 +267,20 @@ ThrowCompletionOr<DurationUnitOptions> get_duration_unit_options(VM& vm, Duratio
     auto display_value = TRY(get_option(vm, options, display_field.to_byte_string(), OptionType::String, { "auto"sv, "always"sv }, display_default));
     auto display = DurationFormat::display_from_string(display_value.as_string().utf8_string());
 
-    // 7. If display is "always" and style is "fractional", then
-    if (display == DurationFormat::Display::Always && style == DurationFormat::ValueStyle::Fractional) {
-        // a. Throw a RangeError exception.
-        return vm.throw_completion<RangeError>(ErrorType::IntlFractionalUnitsMixedWithAlwaysDisplay, unit_property_key, display_field);
-    }
+    // 7. Perform ? ValidateDurationUnitStyle(unit, style, display, prevStyle).
+    TRY(validate_duration_unit_style(vm, unit_property_key, style, display, previous_style, display_field));
 
-    // 8. If prevStyle is "fractional", then
-    if (previous_style == DurationFormat::ValueStyle::Fractional) {
-        // a. If style is not "fractional", then
-        if (style != DurationFormat::ValueStyle::Fractional) {
-            // i. Throw a RangeError exception.
-            return vm.throw_completion<RangeError>(ErrorType::IntlFractionalUnitFollowedByNonFractionalUnit, unit_property_key);
-        }
-    }
+    // 8. If unit is "hours" and twoDigitHours is true, set style to "2-digit".
+    if (unit == DurationFormat::Unit::Hours && two_digit_hours)
+        style = DurationFormat::ValueStyle::TwoDigit;
 
-    // 9. If prevStyle is "numeric" or "2-digit", then
-    if (first_is_one_of(previous_style, DurationFormat::ValueStyle::Numeric, DurationFormat::ValueStyle::TwoDigit)) {
-        // a. If style is not "fractional", "numeric" or "2-digit", then
-        if (!first_is_one_of(style, DurationFormat::ValueStyle::Fractional, DurationFormat::ValueStyle::Numeric, DurationFormat::ValueStyle::TwoDigit)) {
-            // i. Throw a RangeError exception.
-            return vm.throw_completion<RangeError>(ErrorType::IntlNonNumericOr2DigitAfterNumericOr2Digit);
-        }
-
-        // b. If unit is "minutes" or "seconds", then
-        if (first_is_one_of(unit, DurationFormat::Unit::Minutes, DurationFormat::Unit::Seconds)) {
-            // i. Set style to "2-digit".
-            style = DurationFormat::ValueStyle::TwoDigit;
-        }
-    }
-
-    // 10. If unit is "hours" and twoDigitHours is true, then
-    if (unit == DurationFormat::Unit::Hours && two_digit_hours) {
-        // a. Set style to "2-digit".
+    // 9. If unit is "minutes" or "seconds" and prevStyle is "numeric" or "2-digit", set style to "2-digit".
+    if (first_is_one_of(unit, DurationFormat::Unit::Minutes, DurationFormat::Unit::Seconds)
+        && first_is_one_of(previous_style, DurationFormat::ValueStyle::Numeric, DurationFormat::ValueStyle::TwoDigit)) {
         style = DurationFormat::ValueStyle::TwoDigit;
     }
 
-    // 11. Return the Record { [[Style]]: style, [[Display]]: display  }.
+    // 10. Return the Record { [[Style]]: style, [[Display]]: display  }.
     return DurationUnitOptions { .style = style, .display = display };
 }
 
