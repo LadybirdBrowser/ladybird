@@ -854,11 +854,8 @@ void Navigation::resolve_the_finished_promise(GC::Ref<NavigationAPIMethodTracker
 {
     auto& realm = this->realm();
 
-    // 1. Resolve apiMethodTracker's committed promise with its committed-to entry.
-    // NOTE: Usually, notify about the committed-to entry has previously been called on apiMethodTracker,
-    //       and so this will do nothing. However, in some cases resolve the finished promise is called
-    //       directly, in which case this step is necessary.
-    WebIDL::resolve_promise(realm, api_method_tracker->committed_promise, api_method_tracker->commited_to_entry);
+    // 1. Assert: apiMethodTracker's committed-to entry is not null.
+    VERIFY(api_method_tracker->commited_to_entry != nullptr);
 
     // 2. Resolve apiMethodTracker's finished promise with its committed-to entry.
     WebIDL::resolve_promise(realm, api_method_tracker->finished_promise, api_method_tracker->commited_to_entry);
