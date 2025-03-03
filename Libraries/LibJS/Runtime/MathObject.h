@@ -26,6 +26,7 @@ public:
     static ThrowCompletionOr<Value> round_impl(VM&, Value);
     static ThrowCompletionOr<Value> exp_impl(VM&, Value);
     static ThrowCompletionOr<Value> abs_impl(VM&, Value);
+    static ThrowCompletionOr<Value> sum_precise_impl(VM&, Value);
 
 private:
     explicit MathObject(Realm&);
@@ -66,6 +67,7 @@ private:
     JS_DECLARE_NATIVE_FUNCTION(sinh);
     JS_DECLARE_NATIVE_FUNCTION(cosh);
     JS_DECLARE_NATIVE_FUNCTION(tanh);
+    JS_DECLARE_NATIVE_FUNCTION(sumPrecise);
 };
 
 }
