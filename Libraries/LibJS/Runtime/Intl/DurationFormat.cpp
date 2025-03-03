@@ -513,42 +513,36 @@ Vector<DurationFormatPart> format_numeric_seconds(VM& vm, DurationFormat const& 
     // 10. Perform ! CreateDataPropertyOrThrow(nfOpts, "useGrouping", false).
     MUST(number_format_options->create_data_property_or_throw(vm.names.useGrouping, Value { false }));
 
-    u8 maximum_fraction_digits = 0;
-    u8 minimum_fraction_digits = 0;
-
-    // 11. If durationFormat.[[FractionalDigits]] is undefined, then
+    // 11. Let fractionDigits be durationFormat.[[FractionalDigits]].
+    // 12. If fractionDigits is undefined, then
     if (!duration_format.has_fractional_digits()) {
-        // a. Let maximumFractionDigits be 9𝔽.
-        maximum_fraction_digits = 9;
+        // a. Perform ! CreateDataPropertyOrThrow(nfOpts, "maximumFractionDigits", 9𝔽).
+        MUST(number_format_options->create_data_property_or_throw(vm.names.maximumFractionDigits, Value { 9 }));
 
-        // b. Let minimumFractionDigits be +0𝔽.
-        minimum_fraction_digits = 0;
+        // b. Perform ! CreateDataPropertyOrThrow(nfOpts, "minimumFractionDigits", +0𝔽).
+        MUST(number_format_options->create_data_property_or_throw(vm.names.minimumFractionDigits, Value { 0 }));
     }
-    // 12. Else,
+    // 13. Else,
     else {
-        // a. Let maximumFractionDigits be durationFormat.[[FractionalDigits]].
-        maximum_fraction_digits = duration_format.fractional_digits();
+        auto fraction_digits = duration_format.fractional_digits();
 
-        // b. Let minimumFractionDigits be durationFormat.[[FractionalDigits]].
-        minimum_fraction_digits = duration_format.fractional_digits();
+        // a. Perform ! CreateDataPropertyOrThrow(nfOpts, "maximumFractionDigits", fractionDigits).
+        MUST(number_format_options->create_data_property_or_throw(vm.names.maximumFractionDigits, Value { fraction_digits }));
+
+        // b. Perform ! CreateDataPropertyOrThrow(nfOpts, "minimumFractionDigits", fractionDigits).
+        MUST(number_format_options->create_data_property_or_throw(vm.names.minimumFractionDigits, Value { fraction_digits }));
     }
 
-    // 13. Perform ! CreateDataPropertyOrThrow(nfOpts, "maximumFractionDigits", maximumFractionDigits).
-    MUST(number_format_options->create_data_property_or_throw(vm.names.maximumFractionDigits, Value { maximum_fraction_digits }));
-
-    // 14. Perform ! CreateDataPropertyOrThrow(nfOpts, "minimumFractionDigits", minimumFractionDigits).
-    MUST(number_format_options->create_data_property_or_throw(vm.names.minimumFractionDigits, Value { minimum_fraction_digits }));
-
-    // 15. Perform ! CreateDataPropertyOrThrow(nfOpts, "roundingMode", "trunc").
+    // 14. Perform ! CreateDataPropertyOrThrow(nfOpts, "roundingMode", "trunc").
     MUST(number_format_options->create_data_property_or_throw(vm.names.roundingMode, PrimitiveString::create(vm, "trunc"sv)));
 
-    // 16. Let nf be ! Construct(%Intl.NumberFormat%, « durationFormat.[[Locale]], nfOpts »).
+    // 15. Let nf be ! Construct(%Intl.NumberFormat%, « durationFormat.[[Locale]], nfOpts »).
     auto number_format = construct_number_format(vm, duration_format, number_format_options);
 
-    // 17. Let secondsParts be PartitionNumberPattern(nf, secondsValue).
+    // 16. Let secondsParts be PartitionNumberPattern(nf, secondsValue).
     auto seconds_parts = partition_number_pattern(number_format, seconds_value);
 
-    // 18. For each Record { [[Type]], [[Value]] } part of secondsParts, do
+    // 17. For each Record { [[Type]], [[Value]] } part of secondsParts, do
     result.ensure_capacity(result.size() + seconds_parts.size());
 
     for (auto& part : seconds_parts) {
@@ -556,7 +550,7 @@ Vector<DurationFormatPart> format_numeric_seconds(VM& vm, DurationFormat const& 
         result.unchecked_append({ .type = part.type, .value = move(part.value), .unit = "second"sv });
     }
 
-    // 19. Return result.
+    // 18. Return result.
     return result;
 }
 
@@ -827,97 +821,83 @@ Vector<DurationFormatPart> partition_duration_format_pattern(VM& vm, DurationFor
             // i. Let nfOpts be OrdinaryObjectCreate(null).
             auto number_format_options = Object::create(realm, nullptr);
 
-            // ii. If unit is "seconds", "milliseconds", or "microseconds", then
-            if (first_is_one_of(unit, DurationFormat::Unit::Milliseconds, DurationFormat::Unit::Microseconds, DurationFormat::Unit::Nanoseconds)) {
-                // 1. If NextUnitFractional(durationFormat, unit) is true, then
-                if (next_unit_fractional(duration_format, unit)) {
-                    // a. Set value to value + ComputeFractionalDigits(durationFormat, duration).
-                    value = value + compute_fractional_digits(duration_format, duration);
+            // ii. If unit is one of "seconds", "milliseconds", or "microseconds", and NextUnitFractional(durationFormat, unit) is true, then
+            if (first_is_one_of(unit, DurationFormat::Unit::Milliseconds, DurationFormat::Unit::Microseconds, DurationFormat::Unit::Nanoseconds) && next_unit_fractional(duration_format, unit)) {
+                // 1. Set value to value + ComputeFractionalDigits(durationFormat, duration).
+                value = value + compute_fractional_digits(duration_format, duration);
 
-                    u8 maximum_fraction_digits = 0;
-                    u8 minimum_fraction_digits = 0;
+                // 2. Let fractionDigits be durationFormat.[[FractionalDigits]].
+                // 3. If fractionDigits is undefined, then
+                if (!duration_format.has_fractional_digits()) {
+                    // a. Perform ! CreateDataPropertyOrThrow(nfOpts, "maximumFractionDigits", 9𝔽).
+                    MUST(number_format_options->create_data_property_or_throw(vm.names.maximumFractionDigits, Value { 9 }));
 
-                    // b. If durationFormat.[[FractionalDigits]] is undefined, then
-                    if (!duration_format.has_fractional_digits()) {
-                        // a. Let maximumFractionDigits be 9𝔽.
-                        maximum_fraction_digits = 9;
-
-                        // b. Let minimumFractionDigits be +0𝔽.
-                        minimum_fraction_digits = 0;
-                    }
-                    // c. Else,
-                    else {
-                        // a. Let maximumFractionDigits be durationFormat.[[FractionalDigits]].
-                        maximum_fraction_digits = duration_format.fractional_digits();
-
-                        // b. Let minimumFractionDigits be durationFormat.[[FractionalDigits]].
-                        minimum_fraction_digits = duration_format.fractional_digits();
-                    }
-
-                    // d. Perform ! CreateDataPropertyOrThrow(nfOpts, "maximumFractionDigits", maximumFractionDigits).
-                    MUST(number_format_options->create_data_property_or_throw(vm.names.maximumFractionDigits, Value { maximum_fraction_digits }));
-
-                    // e. Perform ! CreateDataPropertyOrThrow(nfOpts, "minimumFractionDigits", minimumFractionDigits).
-                    MUST(number_format_options->create_data_property_or_throw(vm.names.minimumFractionDigits, Value { minimum_fraction_digits }));
-
-                    // f. Perform ! CreateDataPropertyOrThrow(nfOpts, "roundingMode", "trunc").
-                    MUST(number_format_options->create_data_property_or_throw(vm.names.roundingMode, PrimitiveString::create(vm, "trunc"sv)));
-
-                    // g. Set numericUnitFound to true.
-                    numeric_unit_found = true;
+                    // b. Perform ! CreateDataPropertyOrThrow(nfOpts, "minimumFractionDigits", +0𝔽).
+                    MUST(number_format_options->create_data_property_or_throw(vm.names.minimumFractionDigits, Value { 0 }));
                 }
+                // 4. Else,
+                else {
+                    auto fraction_digits = duration_format.fractional_digits();
+
+                    // a. Perform ! CreateDataPropertyOrThrow(nfOpts, "maximumFractionDigits", fractionDigits).
+                    MUST(number_format_options->create_data_property_or_throw(vm.names.maximumFractionDigits, Value { fraction_digits }));
+
+                    // b. Perform ! CreateDataPropertyOrThrow(nfOpts, "minimumFractionDigits", fractionDigits).
+                    MUST(number_format_options->create_data_property_or_throw(vm.names.minimumFractionDigits, Value { fraction_digits }));
+                }
+
+                // 5. Perform ! CreateDataPropertyOrThrow(nfOpts, "roundingMode", "trunc").
+                MUST(number_format_options->create_data_property_or_throw(vm.names.roundingMode, PrimitiveString::create(vm, "trunc"sv)));
+
+                // 6. Set numericUnitFound to true.
+                numeric_unit_found = true;
             }
 
-            // iii. If value is not 0 or display is "always", then
-            if (!value.is_zero() || display == DurationFormat::Display::Always) {
+            // iii. If display is "always" or value is not 0, then
+            if (display == DurationFormat::Display::Always || !value.is_zero()) {
                 MathematicalValue value_mv { value.to_string(9) };
 
-                // 1. Let numberingSystem be durationFormat.[[NumberingSystem]].
-                auto const& numbering_system = duration_format.numbering_system();
+                // 1. Perform ! CreateDataPropertyOrThrow(nfOpts, "numberingSystem", durationFormat.[[NumberingSystem]]).
+                MUST(number_format_options->create_data_property_or_throw(vm.names.numberingSystem, PrimitiveString::create(vm, duration_format.numbering_system())));
 
-                // 2. Perform ! CreateDataPropertyOrThrow(nfOpts, "numberingSystem", numberingSystem).
-                MUST(number_format_options->create_data_property_or_throw(vm.names.numberingSystem, PrimitiveString::create(vm, numbering_system)));
-
-                // 3. If signDisplayed is true, then
+                // 2. If signDisplayed is true, then
                 if (sign_displayed) {
                     // a. Set signDisplayed to false.
                     sign_displayed = false;
 
-                    // b. If value is 0 and DurationSign(duration) is -1, then
-                    if (value.is_zero() && duration_sign(duration) == -1) {
-                        // i. Set value to NEGATIVE-ZERO.
+                    // b. If value is 0 and DurationSign(duration) is -1, set value to NEGATIVE-ZERO.
+                    if (value.is_zero() && duration_sign(duration) == -1)
                         value_mv = MathematicalValue { MathematicalValue::Symbol::NegativeZero };
-                    }
                 }
-                // 4. Else,
+                // 3. Else,
                 else {
                     // a. Perform ! CreateDataPropertyOrThrow(nfOpts, "signDisplay", "never").
                     MUST(number_format_options->create_data_property_or_throw(vm.names.signDisplay, PrimitiveString::create(vm, "never"sv)));
                 }
 
-                // 5. Let numberFormatUnit be the NumberFormat Unit value of the current row.
+                // 4. Let numberFormatUnit be the NumberFormat Unit value of the current row.
                 auto const& number_format_unit = unit_to_number_format_property_key(vm, duration_instances_component.unit);
 
-                // 6. Perform ! CreateDataPropertyOrThrow(nfOpts, "style", "unit").
+                // 5. Perform ! CreateDataPropertyOrThrow(nfOpts, "style", "unit").
                 MUST(number_format_options->create_data_property_or_throw(vm.names.style, PrimitiveString::create(vm, "unit"sv)));
 
-                // 7. Perform ! CreateDataPropertyOrThrow(nfOpts, "unit", numberFormatUnit).
+                // 6. Perform ! CreateDataPropertyOrThrow(nfOpts, "unit", numberFormatUnit).
                 MUST(number_format_options->create_data_property_or_throw(vm.names.unit, PrimitiveString::create(vm, number_format_unit.as_string())));
 
-                // 8. Perform ! CreateDataPropertyOrThrow(nfOpts, "unitDisplay", style).
+                // 7. Perform ! CreateDataPropertyOrThrow(nfOpts, "unitDisplay", style).
                 auto locale_style = Unicode::style_to_string(static_cast<Unicode::Style>(style));
                 MUST(number_format_options->create_data_property_or_throw(vm.names.unitDisplay, PrimitiveString::create(vm, locale_style)));
 
-                // 9. Let nf be ! Construct(%Intl.NumberFormat%, « durationFormat.[[Locale]], nfOpts »).
+                // 8. Let nf be ! Construct(%Intl.NumberFormat%, « durationFormat.[[Locale]], nfOpts »).
                 auto number_format = construct_number_format(vm, duration_format, number_format_options);
 
-                // 10. Let parts be PartitionNumberPattern(nf, value).
+                // 9. Let parts be PartitionNumberPattern(nf, value).
                 auto parts = partition_number_pattern(number_format, value_mv);
 
-                // 11. Let list be a new empty List.
+                // 10. Let list be a new empty List.
                 Vector<DurationFormatPart> list;
 
-                // 12. For each Record { [[Type]], [[Value]] } part of parts, do
+                // 11. For each Record { [[Type]], [[Value]] } part of parts, do
                 list.ensure_capacity(parts.size());
 
                 for (auto& part : parts) {
@@ -925,7 +905,7 @@ Vector<DurationFormatPart> partition_duration_format_pattern(VM& vm, DurationFor
                     list.unchecked_append({ .type = part.type, .value = move(part.value), .unit = number_format_unit.as_string() });
                 }
 
-                // 13. Append list to result.
+                // 12. Append list to result.
                 result.append(list);
             }
         }

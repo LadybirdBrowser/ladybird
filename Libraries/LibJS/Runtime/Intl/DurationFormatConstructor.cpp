@@ -70,7 +70,7 @@ ThrowCompletionOr<GC::Ref<Object>> DurationFormatConstructor::construct(Function
 
     // 7. If numberingSystem is not undefined, then
     if (!numbering_system.is_undefined()) {
-        // a. If numberingSystem does not match the Unicode Locale Identifier type nonterminal, throw a RangeError exception.
+        // a. If numberingSystem cannot be matched by the type Unicode locale nonterminal, throw a RangeError exception.
         if (!Unicode::is_type_identifier(numbering_system.as_string().utf8_string_view()))
             return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, numbering_system, "numberingSystem"sv);
     }
