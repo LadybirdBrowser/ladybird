@@ -17,6 +17,7 @@
 #include <LibGfx/Gradients.h>
 #include <LibGfx/ImmutableBitmap.h>
 #include <LibGfx/LineStyle.h>
+#include <LibGfx/Matrix3x3.h>
 #include <LibGfx/PaintStyle.h>
 #include <LibGfx/PaintingSurface.h>
 #include <LibGfx/Palette.h>
@@ -75,6 +76,7 @@ struct DrawScaledImmutableBitmap {
     NonnullRefPtr<Gfx::ImmutableBitmap> bitmap;
     Gfx::IntRect src_rect;
     Gfx::ScalingMode scaling_mode;
+    Gfx::Matrix3x3<float> transmat;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return dst_rect; }
     void translate_by(Gfx::IntPoint const& offset) { dst_rect.translate_by(offset); }

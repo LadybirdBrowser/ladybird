@@ -23,6 +23,7 @@
 #include <pathops/SkPathOps.h>
 
 #include <LibGfx/Font/ScaledFont.h>
+#include <LibGfx/ImageOrientation.h>
 #include <LibGfx/PainterSkia.h>
 #include <LibGfx/PathSkia.h>
 #include <LibGfx/SkiaUtils.h>
@@ -135,11 +136,30 @@ void DisplayListPlayerSkia::draw_painting_surface(DrawPaintingSurface const& com
 
 void DisplayListPlayerSkia::draw_scaled_immutable_bitmap(DrawScaledImmutableBitmap const& command)
 {
-    auto src_rect = to_skia_rect(command.src_rect);
-    auto dst_rect = to_skia_rect(command.dst_rect);
     auto& canvas = surface().canvas();
+    auto command_dst_rect = command.dst_rect;
+    auto gfx_transmat_elements { command.transmat.elements() };
+    auto transmat {
+        SkMatrix::MakeAll(
+            gfx_transmat_elements[0][0],
+            gfx_transmat_elements[0][1],
+            gfx_transmat_elements[0][2],
+            gfx_transmat_elements[1][0],
+            gfx_transmat_elements[1][1],
+            gfx_transmat_elements[1][2],
+            gfx_transmat_elements[2][0],
+            gfx_transmat_elements[2][1],
+            gfx_transmat_elements[2][2])
+    };
+
+    canvas.save();
+    canvas.concat(transmat);
+
+    auto src_rect = to_skia_rect(command.src_rect);
+    auto dst_rect = to_skia_rect(command_dst_rect);
     SkPaint paint;
     canvas.drawImageRect(command.bitmap->sk_image(), src_rect, dst_rect, to_skia_sampling_options(command.scaling_mode), &paint, SkCanvas::kStrict_SrcRectConstraint);
+    canvas.restore();
 }
 
 void DisplayListPlayerSkia::draw_repeated_immutable_bitmap(DrawRepeatedImmutableBitmap const& command)

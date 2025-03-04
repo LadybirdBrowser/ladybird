@@ -6,6 +6,7 @@
 
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/ShadowPainting.h>
+#include <core/SkMatrix.h>
 
 namespace Web::Painting {
 
@@ -194,16 +195,92 @@ void DisplayListRecorder::draw_painting_surface(Gfx::IntRect const& dst_rect, No
     });
 }
 
+static SkMatrix compute_exif_orientation_matrix(Gfx::ExifOrientation orientation, Gfx::IntRect& dst_rect)
+{
+    SkMatrix matrix = SkMatrix::I();
+    auto x = dst_rect.top_left().x();
+    auto y = dst_rect.top_left().y();
+
+    switch (orientation) {
+    case Gfx::ExifOrientation::Rotate90ClockwiseThenFlipHorizontally:
+    case Gfx::ExifOrientation::Rotate90Clockwise:
+    case Gfx::ExifOrientation::FlipHorizontallyThenRotate90Clockwise:
+    case Gfx::ExifOrientation::Rotate90CounterClockwise:
+        dst_rect.set_size(dst_rect.height(), dst_rect.width());
+        break;
+    default:
+        break;
+    }
+
+    switch (orientation) {
+    case Gfx::ExifOrientation::Default:
+        return matrix;
+    case Gfx::ExifOrientation::FlipHorizontally:
+        matrix.preTranslate(x * 2 + dst_rect.width() / 2, 0);
+        matrix.preScale(-1, 1);
+        matrix.preTranslate(-dst_rect.width() / 2, 0);
+        break;
+    case Gfx::ExifOrientation::Rotate180:
+        matrix.preTranslate(dst_rect.width(), dst_rect.height());
+        matrix.preRotate(180, x, y);
+        break;
+    case Gfx::ExifOrientation::FlipVertically:
+        matrix.preTranslate(0, y * 2 + dst_rect.height() / 2);
+        matrix.preScale(1, -1);
+        matrix.preTranslate(0, -dst_rect.height() / 2);
+        break;
+    case Gfx::ExifOrientation::Rotate90ClockwiseThenFlipHorizontally:
+        matrix.preTranslate(x * 2 + dst_rect.height() / 2, 0);
+        matrix.preScale(-1, 1);
+        matrix.preTranslate(dst_rect.height() / 2, 0);
+        matrix.preRotate(90, x, y);
+        break;
+    case Gfx::ExifOrientation::Rotate90Clockwise:
+        matrix.preTranslate(dst_rect.height(), 0);
+        matrix.preRotate(90, x, y);
+        break;
+    case Gfx::ExifOrientation::FlipHorizontallyThenRotate90Clockwise:
+        matrix.preTranslate(dst_rect.height(), 0);
+        matrix.preRotate(90, x, y);
+        matrix.preTranslate(x * 2 + dst_rect.width() / 2, 0);
+        matrix.preScale(-1, 1);
+        matrix.preTranslate(-dst_rect.width() / 2, 0);
+        break;
+    case Gfx::ExifOrientation::Rotate90CounterClockwise:
+        matrix.preTranslate(0, dst_rect.width());
+        matrix.preRotate(-90, x, y);
+        break;
+    default:
+        VERIFY_NOT_REACHED();
+    }
+
+    return matrix;
+}
+
 void DisplayListRecorder::draw_scaled_immutable_bitmap(Gfx::IntRect const& dst_rect, Gfx::ImmutableBitmap const& bitmap, Gfx::IntRect const& src_rect, Gfx::ScalingMode scaling_mode)
 {
     if (dst_rect.is_empty())
         return;
+
+    auto effective_dst_rect = dst_rect;
+
+    auto orientation = bitmap.bitmap()->exif_orientation();
+    auto transmat = compute_exif_orientation_matrix(orientation, effective_dst_rect);
+
+    SkScalar elements[9];
+    transmat.get9(elements);
+    Gfx::Matrix3x3<float> gfx_transmat {
+        elements[0], elements[1], elements[2],
+        elements[3], elements[4], elements[5],
+        elements[6], elements[7], elements[8]
+    };
+
     append(DrawScaledImmutableBitmap {
-        .dst_rect = dst_rect,
+        .dst_rect = effective_dst_rect,
         .bitmap = bitmap,
         .src_rect = src_rect,
         .scaling_mode = scaling_mode,
-    });
+        .transmat = gfx_transmat });
 }
 
 void DisplayListRecorder::draw_repeated_immutable_bitmap(Gfx::IntRect dst_rect, Gfx::IntRect clip_rect, NonnullRefPtr<Gfx::ImmutableBitmap> bitmap, Gfx::ScalingMode scaling_mode, DrawRepeatedImmutableBitmap::Repeat repeat)

@@ -31,6 +31,24 @@ int ImmutableBitmap::height() const
     return m_impl->sk_image->height();
 }
 
+int ImmutableBitmap::width_considering_exif() const
+{
+    auto bitmap = m_impl->source.get_pointer<NonnullRefPtr<Gfx::Bitmap>>();
+    if (!bitmap)
+        return width();
+
+    return (*bitmap)->width_considering_exif();
+}
+
+int ImmutableBitmap::height_considering_exif() const
+{
+    auto bitmap = m_impl->source.get_pointer<NonnullRefPtr<Gfx::Bitmap>>();
+    if (!bitmap)
+        return height();
+
+    return (*bitmap)->height_considering_exif();
+}
+
 IntRect ImmutableBitmap::rect() const
 {
     return { {}, size() };
