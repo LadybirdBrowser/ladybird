@@ -810,6 +810,11 @@ void PageClient::did_get_styled_js_console_messages(i32 start_index, Vector<Stri
     client().async_did_get_styled_js_console_messages(m_id, start_index, move(message_types), move(messages));
 }
 
+void PageClient::did_get_unstyled_js_console_messages(i32 start_index, Vector<WebView::ConsoleOutput> console_output)
+{
+    client().async_did_get_unstyled_js_console_messages(m_id, start_index, move(console_output));
+}
+
 static void gather_style_sheets(Vector<Web::CSS::StyleSheetIdentifier>& results, Web::CSS::CSSStyleSheet& sheet)
 {
     Web::CSS::StyleSheetIdentifier identifier {};

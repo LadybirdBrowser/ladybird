@@ -14,6 +14,7 @@
 #include <LibWeb/HTML/FileFilter.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/PixelUnits.h>
+#include <LibWebView/Forward.h>
 #include <WebContent/BackingStoreManager.h>
 #include <WebContent/Forward.h>
 
@@ -91,6 +92,7 @@ public:
     void did_output_js_console_message(i32 message_index);
     void console_peer_did_misbehave(char const* reason);
     void did_get_styled_js_console_messages(i32 start_index, Vector<String> message_types, Vector<String> messages);
+    void did_get_unstyled_js_console_messages(i32 start_index, Vector<WebView::ConsoleOutput> console_output);
 
     Vector<Web::CSS::StyleSheetIdentifier> list_style_sheets() const;
 

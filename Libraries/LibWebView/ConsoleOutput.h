@@ -9,6 +9,7 @@
 #include <AK/JsonValue.h>
 #include <AK/Time.h>
 #include <AK/Vector.h>
+#include <LibIPC/Forward.h>
 #include <LibJS/Console.h>
 
 namespace WebView {
@@ -18,5 +19,15 @@ struct ConsoleOutput {
     UnixDateTime timestamp;
     Vector<JsonValue> arguments;
 };
+
+}
+
+namespace IPC {
+
+template<>
+ErrorOr<void> encode(Encoder&, WebView::ConsoleOutput const&);
+
+template<>
+ErrorOr<WebView::ConsoleOutput> decode(Decoder&);
 
 }

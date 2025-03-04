@@ -6,9 +6,12 @@
 
 #pragma once
 
+#include <AK/Time.h>
+#include <LibIPC/Forward.h>
 #include <LibJS/Console.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Forward.h>
+#include <LibWebView/ConsoleOutput.h>
 #include <WebContent/Forward.h>
 #include <WebContent/WebContentConsoleClient.h>
 
@@ -32,6 +35,8 @@ private:
 
     virtual void send_messages(i32 start_index) override;
     virtual JS::ThrowCompletionOr<JS::Value> printer(JS::Console::LogLevel, PrinterArguments) override;
+
+    Vector<WebView::ConsoleOutput> m_console_output;
 };
 
 }
