@@ -104,6 +104,7 @@
         {conditions: {max: "5", value: "6"}, expected: false, name: "[target] suffering from an overflow"},
         {conditions: {min: "5", value: "4"}, expected: false, name: "[target] suffering from an underflow"},
         {conditions: {step: 2 * 1 * 1, value: "3"}, expected: false, name: "[target] suffering from a step mismatch"},
+        {conditions: {step: 10, value: "20", content_value: "9"}, expected: false, name: "[target] (with 'value' content attribute) suffering from a step mismatch"},
         {conditions: {required: true, value: ""}, expected: false, name: "[target] suffering from being missing"}
       ]
     },
