@@ -118,12 +118,12 @@ InspectorClient::InspectorClient(ViewImplementation& content_web_view, ViewImple
             m_content_web_view.on_insert_clipboard_entry(html, "unspecified"_string, "text/plain"_string);
     };
 
-    m_content_web_view.on_received_console_message = [this](auto message_index) {
-        handle_console_message(message_index);
+    m_content_web_view.on_console_message_available = [this](auto message_index) {
+        console_message_available(message_index);
     };
 
-    m_content_web_view.on_received_console_messages = [this](auto start_index, auto const& message_types, auto const& messages) {
-        handle_console_messages(start_index, message_types, messages);
+    m_content_web_view.on_received_styled_console_messages = [this](auto start_index, auto const& message_types, auto const& messages) {
+        console_messages_received(start_index, message_types, messages);
     };
 
     m_inspector_web_view.enable_inspector_prototype();
@@ -257,8 +257,8 @@ InspectorClient::~InspectorClient()
 {
     m_content_web_view.on_finshed_editing_dom_node = nullptr;
     m_content_web_view.on_received_accessibility_tree = nullptr;
-    m_content_web_view.on_received_console_message = nullptr;
-    m_content_web_view.on_received_console_messages = nullptr;
+    m_content_web_view.on_console_message_available = nullptr;
+    m_content_web_view.on_received_styled_console_messages = nullptr;
     m_content_web_view.on_received_dom_node_html = nullptr;
     m_content_web_view.on_received_dom_node_properties = nullptr;
     m_content_web_view.on_received_dom_tree = nullptr;
@@ -700,7 +700,7 @@ void InspectorClient::request_console_messages()
     m_waiting_for_messages = true;
 }
 
-void InspectorClient::handle_console_message(i32 message_index)
+void InspectorClient::console_message_available(i32 message_index)
 {
     if (message_index <= m_highest_received_message_index) {
         dbgln("Notified about console message we already have");
@@ -717,7 +717,7 @@ void InspectorClient::handle_console_message(i32 message_index)
         request_console_messages();
 }
 
-void InspectorClient::handle_console_messages(i32 start_index, ReadonlySpan<String> message_types, ReadonlySpan<String> messages)
+void InspectorClient::console_messages_received(i32 start_index, ReadonlySpan<String> message_types, ReadonlySpan<String> messages)
 {
     auto end_index = start_index + static_cast<i32>(message_types.size()) - 1;
     if (end_index <= m_highest_received_message_index) {

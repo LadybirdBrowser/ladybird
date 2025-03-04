@@ -90,7 +90,7 @@ public:
     void js_console_request_messages(i32 start_index);
     void did_output_js_console_message(i32 message_index);
     void console_peer_did_misbehave(char const* reason);
-    void did_get_js_console_messages(i32 start_index, Vector<String> message_types, Vector<String> messages);
+    void did_get_styled_js_console_messages(i32 start_index, Vector<String> message_types, Vector<String> messages);
 
     Vector<Web::CSS::StyleSheetIdentifier> list_style_sheets() const;
 
