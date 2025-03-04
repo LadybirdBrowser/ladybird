@@ -14,6 +14,7 @@
 #include "Namespaces.h"
 #include <AK/Array.h>
 #include <AK/LexicalPath.h>
+#include <AK/NumericLimits.h>
 #include <AK/Queue.h>
 #include <AK/QuickSort.h>
 #include <LibIDL/Types.h>
@@ -2856,6 +2857,18 @@ JS::ThrowCompletionOr<GC::Ref<JS::Object>> @constructor_class@::construct([[mayb
     }
 }
 
+static ByteString get_best_value_for_underlying_enum_type(size_t size)
+{
+
+    if (size < NumericLimits<u8>::max()) {
+        return "u8";
+    } else if (size < NumericLimits<u16>::max()) {
+        return "u16";
+    }
+
+    VERIFY_NOT_REACHED();
+}
+
 static void generate_enumerations(HashMap<ByteString, Enumeration> const& enumerations, StringBuilder& builder)
 {
     SourceGenerator generator { builder };
@@ -2865,8 +2878,9 @@ static void generate_enumerations(HashMap<ByteString, Enumeration> const& enumer
             continue;
         auto enum_generator = generator.fork();
         enum_generator.set("enum.type.name", it.key);
+        enum_generator.set("enum.underlying_type", get_best_value_for_underlying_enum_type(it.value.translated_cpp_names.size()));
         enum_generator.append(R"~~~(
-enum class @enum.type.name@ {
+enum class @enum.type.name@ : @enum.underlying_type@ {
 )~~~");
         for (auto const& entry : it.value.translated_cpp_names) {
             enum_generator.set("enum.entry", entry.value);
