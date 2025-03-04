@@ -425,6 +425,13 @@ ID is then sent once the script is complete:
 << {"from":"server0-console8","type":"evaluationResult","timestamp":1740417141889,"resultID":"server0-console8-3","input":"1+1","result":2,"exception":null,"exceptionMessage":null,"helperResult":null}
 ```
 
+Anytime console messages are evaluated by the page (`console.log`, `console.warn`, etc.), the server will independently
+notify the client without any prompt. The same grip serialization used for console results is used here.
+
+```jsonc
+<< {"from":"server0-frame10","type":"resources-available-array","array":[["console-message",[{"level":"log","filename":"<eval>","line_number":1,"column_number":1,"time_stamp":1741096175644,"arguments":["hello!"]}]]]}
+```
+
 ### Session termination
 
 When the user disconnects from the DevTools server, the client will send a few cleanup messages. We currently do not
