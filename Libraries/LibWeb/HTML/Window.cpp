@@ -128,6 +128,12 @@ void Window::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_pdf_viewer_plugin_objects);
     visitor.visit(m_pdf_viewer_mime_type_objects);
     visitor.visit(m_close_watcher_manager);
+    visitor.visit(m_locationbar);
+    visitor.visit(m_menubar);
+    visitor.visit(m_personalbar);
+    visitor.visit(m_scrollbars);
+    visitor.visit(m_statusbar);
+    visitor.visit(m_toolbar);
 }
 
 void Window::finalize()
@@ -918,6 +924,60 @@ void Window::focus()
 void Window::blur()
 {
     // The blur() method steps are to do nothing.
+}
+
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-window-locationbar
+GC::Ref<BarProp const> Window::locationbar()
+{
+    if (!m_locationbar)
+        m_locationbar = BarProp::create(realm());
+
+    return *m_locationbar;
+}
+
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-window-menubar
+GC::Ref<BarProp const> Window::menubar()
+{
+    if (!m_menubar)
+        m_menubar = BarProp::create(realm());
+
+    return *m_menubar;
+}
+
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-window-personalbar
+GC::Ref<BarProp const> Window::personalbar()
+{
+    if (!m_personalbar)
+        m_personalbar = BarProp::create(realm());
+
+    return *m_personalbar;
+}
+
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-window-scrollbars
+GC::Ref<BarProp const> Window::scrollbars()
+{
+    if (!m_scrollbars)
+        m_scrollbars = BarProp::create(realm());
+
+    return *m_scrollbars;
+}
+
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-window-statusbar
+GC::Ref<BarProp const> Window::statusbar()
+{
+    if (!m_statusbar)
+        m_statusbar = BarProp::create(realm());
+
+    return *m_statusbar;
+}
+
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-window-toolbar
+GC::Ref<BarProp const> Window::toolbar()
+{
+    if (!m_toolbar)
+        m_toolbar = BarProp::create(realm());
+
+    return *m_toolbar;
 }
 
 // https://html.spec.whatwg.org/multipage/window-object.html#dom-frames
