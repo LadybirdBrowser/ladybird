@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 130 tests
+Found 132 tests
 
-116 Pass
+118 Pass
 14 Fail
 Pass	[INPUT in TEXT status] no constraint
 Pass	[INPUT in TEXT status] no constraint (in a form)
@@ -112,6 +112,8 @@ Fail	[INPUT in NUMBER status] suffering from an underflow
 Fail	[INPUT in NUMBER status] suffering from an underflow (in a form)
 Pass	[INPUT in NUMBER status] suffering from a step mismatch
 Pass	[INPUT in NUMBER status] suffering from a step mismatch (in a form)
+Pass	[INPUT in NUMBER status] (with 'value' content attribute) suffering from a step mismatch
+Pass	[INPUT in NUMBER status] (with 'value' content attribute) suffering from a step mismatch (in a form)
 Pass	[INPUT in NUMBER status] suffering from being missing
 Pass	[INPUT in NUMBER status] suffering from being missing (in a form)
 Pass	[INPUT in CHECKBOX status] no constraint
