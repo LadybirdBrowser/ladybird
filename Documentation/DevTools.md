@@ -455,6 +455,73 @@ WebContent process:
 << {"from":"server0-frame14"}
 ```
 
+## Inspecting the protocol with Firefox
+
+When developing a DevTools feature, it's invaluable to see how the DevTools protocol is used by Firefox itself. First,
+enable remote debugging in your Firefox profile's `about:config` page. You may wish to create a new profile for this:
+
+```
+devtools.chrome.enabled = true
+devtools.debugger.remote-enabled = true
+```
+
+Then close all Firefox windows. Restart Firefox via the command line, specifying the DevTools server port:
+
+```bash
+firefox --start-debugger-server 6000
+```
+
+If you created a new profile, specify its path with the `--profile` flag:
+
+```bash
+firefox --start-debugger-server 6000 --profile ~/snap/firefox/common/.mozilla/firefox/z20dtqwq.TEST
+```
+
+After Firefox is running, we can now snoop the specified port. The Servo team has written a nice script using `tshark`
+to listen on this port and pretty-print the JSON packets. You will have to install `tshark` before using the script.
+
+https://github.com/servo/servo/blob/main/etc/devtools_parser.py
+
+You may run into issues with the latest version of Firefox using this script directly, such as exceptions being thrown
+while decoding packets. The following patch helps with this:
+
+```diff
+diff --git a/etc/devtools_parser.py b/etc/devtools_parser.py
+index d33a4ee330..3d5dc74a32 100755
+--- a/etc/devtools_parser.py
++++ b/etc/devtools_parser.py
+@@ -118,7 +118,7 @@ def process_data(out, port):
+             continue
+         try:
+             dec = bytearray.fromhex(curr_data).decode()
+-        except UnicodeError:
++        except:
+             continue
+
+         indices = [m.span() for m in re.finditer(pattern, dec)]
+```
+
+Since such exceptions are hit fairly regularly, it is recommended to run this script in two phases. First, use the script
+to snoop on the DevTools port and write out a packet capture. You may need to run this script with `sudo`.
+
+```bash
+./etc/devtools_parser.py -s /tmp/devtools.pcap -p 6000
+```
+
+(NOTE: It is important to only run this script *after* Firefox has started. Running the script sooner will not intercept
+any DevTools packets.)
+
+Now, use `about:debugging` to connect to the Firefox DevTools server and inspect a tab. Use the DevTools client to
+exercise the feature you wish to implement.
+
+Once complete, use `ctrl+c` on Servo's snooping script to complete the capture. The script will try to print all packets
+at this point, but due to the aforementioned exceptions, it is likely that this will not print everything. So we can use
+the script again to inspect the now-existing .pcap, and it seems to have better luck printing everything this way:
+
+```bash
+./etc/devtools_parser.py --use /tmp/devtools.pcap -p 6000
+```
+
 ## Known issues
 
 1. We occasionally fail to inspect a tab. There isn't any information logged by client or server, other than the client
