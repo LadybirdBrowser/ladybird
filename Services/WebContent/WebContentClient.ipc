@@ -16,8 +16,9 @@
 #include <LibWeb/Page/EventResult.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWebView/Attribute.h>
-#include <LibWebView/ProcessHandle.h>
+#include <LibWebView/ConsoleOutput.h>
 #include <LibWebView/PageInfo.h>
+#include <LibWebView/ProcessHandle.h>
 
 endpoint WebContentClient
 {
@@ -95,6 +96,7 @@ endpoint WebContentClient
     did_execute_js_console_input(u64 page_id, JsonValue result) =|
     did_output_js_console_message(u64 page_id, i32 message_index) =|
     did_get_styled_js_console_messages(u64 page_id, i32 start_index, Vector<String> message_types, Vector<String> messages) =|
+    did_get_unstyled_js_console_messages(u64 page_id, i32 start_index, Vector<WebView::ConsoleOutput> console_output) =|
 
     did_finish_text_test(u64 page_id, String text) =|
     did_set_test_timeout(u64 page_id, double milliseconds) =|

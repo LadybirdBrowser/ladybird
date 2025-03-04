@@ -385,6 +385,14 @@ void WebContentClient::did_get_styled_js_console_messages(u64 page_id, i32 start
     }
 }
 
+void WebContentClient::did_get_unstyled_js_console_messages(u64 page_id, i32 start_index, Vector<ConsoleOutput> const& console_output)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
+        if (view->on_received_unstyled_console_messages)
+            view->on_received_unstyled_console_messages(start_index, move(const_cast<Vector<ConsoleOutput>&>(console_output)));
+    }
+}
+
 void WebContentClient::did_request_alert(u64 page_id, String const& message)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {

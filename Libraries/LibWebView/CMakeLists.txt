@@ -4,6 +4,7 @@ set(SOURCES
     Application.cpp
     Attribute.cpp
     ChromeProcess.cpp
+    ConsoleOutput.cpp
     CookieJar.cpp
     Database.cpp
     HelperProcess.cpp

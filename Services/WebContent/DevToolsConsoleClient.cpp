@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/GenericShorthands.h>
 #include <AK/JsonObject.h>
 #include <AK/JsonValue.h>
 #include <AK/MemoryStream.h>
@@ -106,14 +107,39 @@ void DevToolsConsoleClient::report_exception(JS::Error const& exception, bool in
 
 void DevToolsConsoleClient::send_messages(i32 start_index)
 {
-    (void)start_index;
+    if (m_console_output.size() - start_index < 1) {
+        // When the console is first created, it requests any messages that happened before then, by requesting with
+        // start_index=0. If we don't have any messages at all, that is still a valid request, and we can just ignore it.
+        if (start_index != 0)
+            m_client->console_peer_did_misbehave("Requested non-existent console message index");
+        return;
+    }
+
+    Vector<WebView::ConsoleOutput> messages { m_console_output.span().slice(start_index) };
+    m_client->did_get_unstyled_js_console_messages(start_index, move(messages));
 }
 
 // 2.3. Printer(logLevel, args[, options]), https://console.spec.whatwg.org/#printer
 JS::ThrowCompletionOr<JS::Value> DevToolsConsoleClient::printer(JS::Console::LogLevel log_level, PrinterArguments arguments)
 {
-    (void)log_level;
-    (void)arguments;
+    // FIXME: Implement these.
+    if (first_is_one_of(log_level, JS::Console::LogLevel::Table, JS::Console::LogLevel::Trace, JS::Console::LogLevel::Group, JS::Console::LogLevel::GroupCollapsed))
+        return JS::js_undefined();
+
+    auto const& argument_values = arguments.get<GC::RootVector<JS::Value>>();
+
+    auto output = TRY(generically_format_values(argument_values));
+    m_console->output_debug_message(log_level, output);
+
+    Vector<JsonValue> serialized_arguments;
+    serialized_arguments.ensure_capacity(argument_values.size());
+
+    for (auto value : argument_values)
+        serialized_arguments.unchecked_append(serialize_js_value(m_console->realm(), value));
+
+    m_console_output.empend(log_level, UnixDateTime::now(), move(serialized_arguments));
+    m_client->did_output_js_console_message(m_console_output.size() - 1);
+
     return JS::js_undefined();
 }
 
