@@ -19,6 +19,7 @@ class ViewImplementation;
 class WebContentClient;
 
 struct Attribute;
+struct ConsoleOutput;
 struct CookieStorageKey;
 struct ProcessHandle;
 struct SearchEngine;
