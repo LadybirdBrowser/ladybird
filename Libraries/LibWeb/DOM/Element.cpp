@@ -534,8 +534,15 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style()
         invalidation = CSS::RequiredInvalidationAfterStyleChange::full();
     }
 
+    auto old_display_is_none = m_computed_properties ? m_computed_properties->display().is_none() : true;
+    auto new_display_is_none = new_computed_properties->display().is_none();
+
     if (!invalidation.is_none())
         set_computed_properties(move(new_computed_properties));
+
+    if (old_display_is_none != new_display_is_none) {
+        play_or_cancel_animations_after_display_property_change();
+    }
 
     // Any document change that can cause this element's style to change, could also affect its pseudo-elements.
     auto recompute_pseudo_element_style = [&](CSS::Selector::PseudoElement::Type pseudo_element) {
@@ -2648,69 +2655,8 @@ void Element::set_cascaded_properties(Optional<CSS::Selector::PseudoElement::Typ
     }
 }
 
-bool Element::has_display_none_ancestor()
-{
-    for (auto* ancestor = parent_or_shadow_host(); ancestor; ancestor = ancestor->parent_or_shadow_host()) {
-        if (!ancestor->is_element())
-            continue;
-        auto const& ancestor_element = static_cast<Element&>(*ancestor);
-        if (ancestor_element.computed_properties() && ancestor_element.computed_properties()->display().is_none()) {
-            return true;
-        }
-    }
-    return false;
-}
-
-void Element::play_or_cancel_animations_after_display_property_change(Optional<CSS::Display> old_display, Optional<CSS::Display> new_display)
-{
-    // https://www.w3.org/TR/css-animations-1/#animations
-    // Setting the display property to none will terminate any running animation applied to the element and its descendants.
-    // If an element has a display of none, updating display to a value other than none will start all animations applied to
-    // the element by the animation-name property, as well as all animations applied to descendants with display other than none.
-
-    if (has_display_none_ancestor())
-        return;
-
-    bool previous_display_is_none = old_display.has_value() && old_display->is_none();
-    bool new_display_is_none = new_display.has_value() && new_display->is_none();
-    if (previous_display_is_none == new_display_is_none)
-        return;
-
-    auto play_or_cancel_depending_on_display = [&](Animations::Animation& animation) {
-        if (new_display_is_none) {
-            animation.cancel();
-        } else {
-            HTML::TemporaryExecutionContext context(realm());
-            animation.play().release_value_but_fixme_should_propagate_errors();
-        }
-    };
-
-    for_each_shadow_including_inclusive_descendant([&](auto& node) {
-        if (!node.is_element())
-            return TraversalDecision::Continue;
-
-        auto const& element = static_cast<Element const&>(node);
-        if (auto animation = element.cached_animation_name_animation({}))
-            play_or_cancel_depending_on_display(*animation);
-        for (auto i = 0; i < to_underlying(CSS::Selector::PseudoElement::Type::KnownPseudoElementCount); i++) {
-            auto pseudo_element = static_cast<CSS::Selector::PseudoElement::Type>(i);
-            if (auto animation = element.cached_animation_name_animation(pseudo_element))
-                play_or_cancel_depending_on_display(*animation);
-        }
-        return TraversalDecision::Continue;
-    });
-}
-
 void Element::set_computed_properties(GC::Ptr<CSS::ComputedProperties> style)
 {
-    Optional<CSS::Display> old_display;
-    Optional<CSS::Display> new_display;
-    if (m_computed_properties)
-        old_display = m_computed_properties->display();
-    if (style)
-        new_display = style->display();
-    play_or_cancel_animations_after_display_property_change(old_display, new_display);
-
     m_computed_properties = style;
     computed_properties_changed();
 }

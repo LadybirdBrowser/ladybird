@@ -2605,7 +2605,7 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::Element& elem
                 effect->set_target(&element);
                 element.set_cached_animation_name_animation(animation, pseudo_element);
 
-                if (!element.has_display_none_ancestor()) {
+                if (!element.has_inclusive_ancestor_with_display_none()) {
                     HTML::TemporaryExecutionContext context(realm);
                     animation->play().release_value_but_fixme_should_propagate_errors();
                 }

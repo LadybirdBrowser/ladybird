@@ -12,8 +12,10 @@
 #include <LibGC/DeferGC.h>
 #include <LibJS/Runtime/FunctionObject.h>
 #include <LibRegex/Regex.h>
+#include <LibWeb/Animations/Animation.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/NodePrototype.h>
+#include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/CDATASection.h>
@@ -49,6 +51,7 @@
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
+#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/TextNode.h>
@@ -1425,12 +1428,16 @@ void Node::post_connection()
 void Node::inserted()
 {
     set_needs_style_update(true);
+
+    play_or_cancel_animations_after_display_property_change();
 }
 
 void Node::removed_from(Node*, Node&)
 {
     m_layout_node = nullptr;
     m_paintable = nullptr;
+
+    play_or_cancel_animations_after_display_property_change();
 }
 
 ParentNode* Node::parent_or_shadow_host()
@@ -2868,6 +2875,53 @@ void Node::add_registered_observer(RegisteredObserver& registered_observer)
     if (!m_registered_observer_list)
         m_registered_observer_list = make<Vector<GC::Ref<RegisteredObserver>>>();
     m_registered_observer_list->append(registered_observer);
+}
+
+bool Node::has_inclusive_ancestor_with_display_none()
+{
+    for (auto* ancestor = this; ancestor; ancestor = ancestor->parent_or_shadow_host()) {
+        if (!ancestor->is_element())
+            continue;
+        auto const& ancestor_element = static_cast<Element&>(*ancestor);
+        if (ancestor_element.computed_properties() && ancestor_element.computed_properties()->display().is_none()) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void Node::play_or_cancel_animations_after_display_property_change()
+{
+    // https://www.w3.org/TR/css-animations-1/#animations
+    // Setting the display property to none will terminate any running animation applied to the element and its descendants.
+    // If an element has a display of none, updating display to a value other than none will start all animations applied to
+    // the element by the animation-name property, as well as all animations applied to descendants with display other than none.
+
+    auto has_display_none_inclusive_ancestor = this->has_inclusive_ancestor_with_display_none();
+
+    auto play_or_cancel_depending_on_display = [&](Animations::Animation& animation) {
+        if (has_display_none_inclusive_ancestor) {
+            animation.cancel();
+        } else {
+            HTML::TemporaryExecutionContext context(realm());
+            animation.play().release_value_but_fixme_should_propagate_errors();
+        }
+    };
+
+    for_each_shadow_including_inclusive_descendant([&](auto& node) {
+        if (!node.is_element())
+            return TraversalDecision::Continue;
+
+        auto const& element = static_cast<Element const&>(node);
+        if (auto animation = element.cached_animation_name_animation({}))
+            play_or_cancel_depending_on_display(*animation);
+        for (auto i = 0; i < to_underlying(CSS::Selector::PseudoElement::Type::KnownPseudoElementCount); i++) {
+            auto pseudo_element = static_cast<CSS::Selector::PseudoElement::Type>(i);
+            if (auto animation = element.cached_animation_name_animation(pseudo_element))
+                play_or_cancel_depending_on_display(*animation);
+        }
+        return TraversalDecision::Continue;
+    });
 }
 
 }
