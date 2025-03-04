@@ -6,10 +6,7 @@
 
 #include <AK/Base64.h>
 #include <AK/Checked.h>
-#include <AK/MemoryStream.h>
 #include <LibGfx/Bitmap.h>
-#include <LibGfx/ImageFormats/JPEGWriter.h>
-#include <LibGfx/ImageFormats/PNGWriter.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/HTMLCanvasElementPrototype.h>
 #include <LibWeb/CSS/ComputedProperties.h>
@@ -289,7 +286,7 @@ Gfx::IntSize HTMLCanvasElement::bitmap_size_for_canvas(size_t minimum_width, siz
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-canvas-todataurl
-String HTMLCanvasElement::to_data_url(StringView type, JS::Value quality)
+String HTMLCanvasElement::to_data_url(StringView type, JS::Value js_quality)
 {
     // It is possible the canvas doesn't have a associated bitmap so create one
     allocate_painting_surface_if_needed();
@@ -312,7 +309,8 @@ String HTMLCanvasElement::to_data_url(StringView type, JS::Value quality)
     auto snapshot = Gfx::ImmutableBitmap::create_snapshot_from_painting_surface(*surface);
     auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, surface->size()));
     surface->read_into_bitmap(*bitmap);
-    auto file = serialize_bitmap(bitmap, type, move(quality));
+    Optional<double> quality = js_quality.is_number() ? js_quality.as_double() : Optional<double>();
+    auto file = serialize_bitmap(bitmap, type, quality);
 
     // 4. If file is null then return "data:,".
     if (file.is_error()) {
@@ -329,7 +327,7 @@ String HTMLCanvasElement::to_data_url(StringView type, JS::Value quality)
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-canvas-toblob
-WebIDL::ExceptionOr<void> HTMLCanvasElement::to_blob(GC::Ref<WebIDL::CallbackType> callback, StringView type, JS::Value quality)
+WebIDL::ExceptionOr<void> HTMLCanvasElement::to_blob(GC::Ref<WebIDL::CallbackType> callback, StringView type, JS::Value js_quality)
 {
     // It is possible the canvas doesn't have a associated bitmap so create one
     allocate_painting_surface_if_needed();
@@ -353,12 +351,14 @@ WebIDL::ExceptionOr<void> HTMLCanvasElement::to_blob(GC::Ref<WebIDL::CallbackTyp
         surface->read_into_bitmap(*bitmap_result);
     }
 
+    Optional<double> quality = js_quality.is_number() ? js_quality.as_double() : Optional<double>();
+
     // 4. Run these steps in parallel:
     Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [this, callback, bitmap_result, type, quality] {
         // 1. If result is non-null, then set result to a serialization of result as a file with type and quality if given.
         Optional<SerializeBitmapResult> file_result;
         if (bitmap_result) {
-            if (auto result = serialize_bitmap(*bitmap_result, type, move(quality)); !result.is_error())
+            if (auto result = serialize_bitmap(*bitmap_result, type, quality); !result.is_error())
                 file_result = result.release_value();
         }
 
