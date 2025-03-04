@@ -16,6 +16,7 @@ StyleSheet::StyleSheet(JS::Realm& realm, MediaList& media)
     : PlatformObject(realm)
     , m_media(media)
 {
+    m_media->set_associated_style_sheet(*this);
 }
 
 void StyleSheet::visit_edges(Cell::Visitor& visitor)

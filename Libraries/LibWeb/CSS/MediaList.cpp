@@ -7,6 +7,7 @@
 
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/MediaListPrototype.h>
+#include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/MediaList.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -33,6 +34,12 @@ void MediaList::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(MediaList);
 }
 
+void MediaList::visit_edges(Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_associated_style_sheet);
+}
+
 // https://www.w3.org/TR/cssom-1/#dom-medialist-mediatext
 String MediaList::media_text() const
 {
@@ -42,6 +49,11 @@ String MediaList::media_text() const
 // https://www.w3.org/TR/cssom-1/#dom-medialist-mediatext
 void MediaList::set_media_text(StringView text)
 {
+    ScopeGuard guard = [&] {
+        if (m_associated_style_sheet)
+            as<CSS::CSSStyleSheet>(*m_associated_style_sheet).invalidate_owners(DOM::StyleInvalidationReason::MediaListSetMediaText);
+    };
+
     m_media.clear();
     if (text.is_empty())
         return;
@@ -76,6 +88,9 @@ void MediaList::append_medium(StringView medium)
 
     // 4. Append m to the collection of media queries.
     m_media.append(m.release_nonnull());
+
+    if (m_associated_style_sheet)
+        as<CSS::CSSStyleSheet>(*m_associated_style_sheet).invalidate_owners(DOM::StyleInvalidationReason::MediaListAppendMedium);
 }
 
 // https://www.w3.org/TR/cssom-1/#dom-medialist-deletemedium
@@ -84,9 +99,13 @@ void MediaList::delete_medium(StringView medium)
     auto m = parse_media_query(Parser::ParsingParams { realm() }, medium);
     if (!m)
         return;
-    m_media.remove_all_matching([&](auto& existing) -> bool {
+    bool was_removed = m_media.remove_all_matching([&](auto& existing) -> bool {
         return m->to_string() == existing->to_string();
     });
+    if (was_removed) {
+        if (m_associated_style_sheet)
+            as<CSS::CSSStyleSheet>(*m_associated_style_sheet).invalidate_owners(DOM::StyleInvalidationReason::MediaListDeleteMedium);
+    }
     // FIXME: If nothing was removed, then throw a NotFoundError exception.
 }
 

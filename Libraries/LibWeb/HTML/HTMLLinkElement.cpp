@@ -14,6 +14,7 @@
 #include <LibWeb/Bindings/HTMLLinkElementPrototype.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/DOM/DOMTokenList.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
@@ -123,6 +124,18 @@ GC::Ref<DOM::DOMTokenList> HTMLLinkElement::sizes()
     if (!m_sizes)
         m_sizes = DOM::DOMTokenList::create(*this, HTML::AttributeNames::sizes);
     return *m_sizes;
+}
+
+void HTMLLinkElement::set_media(String media)
+{
+    (void)set_attribute(HTML::AttributeNames::media, media);
+    if (auto sheet = m_loaded_style_sheet)
+        sheet->set_media(media);
+}
+
+String HTMLLinkElement::media() const
+{
+    return attribute(HTML::AttributeNames::media).value_or(String {});
 }
 
 bool HTMLLinkElement::has_loaded_icon() const
