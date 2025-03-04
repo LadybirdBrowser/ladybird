@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 130 tests
 
-90 Pass
-40 Fail
+108 Pass
+22 Fail
 Pass	[INPUT in TEXT status] no constraint
 Pass	[INPUT in TEXT status] no constraint (in a form)
 Pass	[INPUT in TEXT status] not suffering from being too long
@@ -68,32 +68,32 @@ Pass	[INPUT in DATETIME-LOCAL status] suffering from being missing
 Pass	[INPUT in DATETIME-LOCAL status] suffering from being missing (in a form)
 Pass	[INPUT in DATE status] no constraint
 Pass	[INPUT in DATE status] no constraint (in a form)
-Fail	[INPUT in DATE status] suffering from an overflow
-Fail	[INPUT in DATE status] suffering from an overflow (in a form)
-Fail	[INPUT in DATE status] suffering from an underflow
-Fail	[INPUT in DATE status] suffering from an underflow (in a form)
-Fail	[INPUT in DATE status] suffering from a step mismatch
-Fail	[INPUT in DATE status] suffering from a step mismatch (in a form)
+Pass	[INPUT in DATE status] suffering from an overflow
+Pass	[INPUT in DATE status] suffering from an overflow (in a form)
+Pass	[INPUT in DATE status] suffering from an underflow
+Pass	[INPUT in DATE status] suffering from an underflow (in a form)
+Pass	[INPUT in DATE status] suffering from a step mismatch
+Pass	[INPUT in DATE status] suffering from a step mismatch (in a form)
 Pass	[INPUT in DATE status] suffering from being missing
 Pass	[INPUT in DATE status] suffering from being missing (in a form)
 Pass	[INPUT in MONTH status] no constraint
 Pass	[INPUT in MONTH status] no constraint (in a form)
-Fail	[INPUT in MONTH status] suffering from an overflow
-Fail	[INPUT in MONTH status] suffering from an overflow (in a form)
-Fail	[INPUT in MONTH status] suffering from an underflow
-Fail	[INPUT in MONTH status] suffering from an underflow (in a form)
-Fail	[INPUT in MONTH status] suffering from a step mismatch
-Fail	[INPUT in MONTH status] suffering from a step mismatch (in a form)
+Pass	[INPUT in MONTH status] suffering from an overflow
+Pass	[INPUT in MONTH status] suffering from an overflow (in a form)
+Pass	[INPUT in MONTH status] suffering from an underflow
+Pass	[INPUT in MONTH status] suffering from an underflow (in a form)
+Pass	[INPUT in MONTH status] suffering from a step mismatch
+Pass	[INPUT in MONTH status] suffering from a step mismatch (in a form)
 Pass	[INPUT in MONTH status] suffering from being missing
 Pass	[INPUT in MONTH status] suffering from being missing (in a form)
 Pass	[INPUT in WEEK status] no constraint
 Pass	[INPUT in WEEK status] no constraint (in a form)
-Fail	[INPUT in WEEK status] suffering from an overflow
-Fail	[INPUT in WEEK status] suffering from an overflow (in a form)
-Fail	[INPUT in WEEK status] suffering from an underflow
-Fail	[INPUT in WEEK status] suffering from an underflow (in a form)
-Fail	[INPUT in WEEK status] suffering from a step mismatch
-Fail	[INPUT in WEEK status] suffering from a step mismatch (in a form)
+Pass	[INPUT in WEEK status] suffering from an overflow
+Pass	[INPUT in WEEK status] suffering from an overflow (in a form)
+Pass	[INPUT in WEEK status] suffering from an underflow
+Pass	[INPUT in WEEK status] suffering from an underflow (in a form)
+Pass	[INPUT in WEEK status] suffering from a step mismatch
+Pass	[INPUT in WEEK status] suffering from a step mismatch (in a form)
 Pass	[INPUT in WEEK status] suffering from being missing
 Pass	[INPUT in WEEK status] suffering from being missing (in a form)
 Pass	[INPUT in TIME status] no constraint
