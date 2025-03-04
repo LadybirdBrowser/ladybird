@@ -51,13 +51,42 @@
     exit(EXIT_FAILURE);
 }
 
+static bool is_valid_cpp_identifier_start(char start)
+{
+    // https://en.cppreference.com/w/cpp/language/identifiers
+    // to be a valid C++ identifier it must be a:
+
+    // uppercase Latin letter A-Z
+    // lowercase Latin letter a-z
+    if (is_ascii_alpha(start)) {
+        return true;
+    }
+
+    // underscore
+    if (start == '_') {
+        return true;
+    }
+
+    // FIXME: any Unicode character with the Unicode property XID_Start
+
+    return false;
+}
+
 static ByteString convert_enumeration_value_to_cpp_enum_member(ByteString const& value, HashTable<ByteString>& names_already_seen)
 {
     StringBuilder builder;
     GenericLexer lexer { value };
 
+    bool first_word = true;
     while (!lexer.is_eof()) {
         lexer.ignore_while([](auto c) { return is_ascii_space(c) || c == '-' || c == '_'; });
+        if (first_word) {
+            auto const first_letter = lexer.peek();
+            if (!is_valid_cpp_identifier_start(first_letter))
+                builder.append('_');
+            first_word = false;
+        }
+
         auto word = lexer.consume_while([](auto c) { return is_ascii_alphanumeric(c); });
         if (!word.is_empty()) {
             builder.append(word.to_titlecase_string());
