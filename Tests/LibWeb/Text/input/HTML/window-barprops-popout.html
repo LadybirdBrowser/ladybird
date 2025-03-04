@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        window.addEventListener("message", event => {
+            println(event.data);
+            done();
+        });
+
+        let win = window.open("../../data/window-barprops-popout-window.html", "_blank", "popup=true");
+
+        if (!win) {
+            println("Couldn't open window");
+            done();
+        }
+    });
+</script>
