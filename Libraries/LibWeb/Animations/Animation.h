@@ -66,6 +66,8 @@ public:
     GC::Ref<WebIDL::Promise> finished() const { return current_finished_promise(); }
     bool is_finished() const { return m_is_finished; }
 
+    bool is_idle() const { return play_state() == Bindings::AnimationPlayState::Idle; }
+
     GC::Ptr<WebIDL::CallbackType> onfinish();
     void set_onfinish(GC::Ptr<WebIDL::CallbackType>);
     GC::Ptr<WebIDL::CallbackType> oncancel();
