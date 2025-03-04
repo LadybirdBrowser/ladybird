@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const availableProps = [
+            "locationbar",
+            "menubar",
+            "personalbar",
+            "scrollbars",
+            "statusbar",
+            "toolbar",
+        ];
+
+        for (const propName of availableProps) {
+            const windowProp = window[propName];
+            println(
+                `${propName} is BarProp: ${windowProp instanceof BarProp} visible: ${
+                    windowProp.visible
+                }`
+            );
+        }
+    });
+</script>
