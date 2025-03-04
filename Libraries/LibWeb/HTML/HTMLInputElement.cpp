@@ -3098,10 +3098,20 @@ bool HTMLInputElement::suffering_from_an_overflow() const
 // https://html.spec.whatwg.org/multipage/input.html#the-step-attribute%3Asuffering-from-a-step-mismatch
 bool HTMLInputElement::suffering_from_a_step_mismatch() const
 {
-    // When the element has an allowed value step, and the result of applying the algorithm to convert a string to a number to the string given by the element's
-    // value is a number, and that number subtracted from the step base is not an integral multiple of the allowed value step, the element is suffering from a step mismatch.
-    // FIXME: Implement this.
-    return false;
+    // When the element has an allowed value step,
+    auto maybe_allowed_value_step = allowed_value_step();
+    if (!maybe_allowed_value_step.has_value())
+        return false;
+    double allowed_value_step = *maybe_allowed_value_step;
+    // and the result of applying the algorithm to convert a string to a number to the string given by the element's
+    // value is a number,
+    auto maybe_number = convert_string_to_number(value());
+    if (!maybe_number.has_value())
+        return false;
+    double number = maybe_number.value();
+    // and that number subtracted from the step base is not an integral multiple of the allowed value step, the element
+    // is suffering from a step mismatch.
+    return fmod(step_base() - number, allowed_value_step) != 0;
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#suffering-from-bad-input
