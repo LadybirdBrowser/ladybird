@@ -2,6 +2,19 @@
 #import <HTML/OffscreenCanvasRenderingContext2D.idl>
 #import <HTML/Canvas/OffscreenCanvasBase.idl>
 
+
+// FIXME: This should be in OffscreenCanvasBase.idl but then it is not exported
+// https://html.spec.whatwg.org/multipage/canvas.html#imageencodeoptions
+dictionary ImageEncodeOptions {
+    DOMString type = "image/png";
+    unrestricted double quality;
+};
+
+// FIXME: This should be in OffscreenCanvasBase.idl but then it is not exported
+// https://html.spec.whatwg.org/multipage/canvas.html#offscreenrenderingcontextid
+enum OffscreenRenderingContextId { "2d", "bitmaprenderer", "webgl", "webgl2", "webgpu" };
+
+
 // https://html.spec.whatwg.org/multipage/canvas.html#offscreencanvas
 [Exposed=(Window,Worker), Transferable]
 interface OffscreenCanvas : EventTarget {

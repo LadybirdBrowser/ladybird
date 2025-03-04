@@ -7,12 +7,3 @@ typedef (OffscreenCanvasRenderingContext2D or
          WebGL2RenderingContext 
 //FIXME: GPUCanvasContext
          ) OffscreenRenderingContext;
-
-// https://html.spec.whatwg.org/multipage/canvas.html#imageencodeoptions
-dictionary ImageEncodeOptions {
-    DOMString type = "image/png";
-    unrestricted double quality;
-};
-
-// https://html.spec.whatwg.org/multipage/canvas.html#offscreenrenderingcontextid
-enum OffscreenRenderingContextId { "2d", "bitmaprenderer", "webgl", "webgl2", "webgpu" };
