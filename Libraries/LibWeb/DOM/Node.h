@@ -502,6 +502,9 @@ public:
 
     bool is_inert() const;
 
+    bool has_inclusive_ancestor_with_display_none();
+    void play_or_cancel_animations_after_display_property_change();
+
 protected:
     Node(JS::Realm&, Document&, NodeType);
     Node(Document&, NodeType);
