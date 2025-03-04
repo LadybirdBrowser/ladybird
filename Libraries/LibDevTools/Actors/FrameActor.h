@@ -7,7 +7,10 @@
 #pragma once
 
 #include <AK/NonnullRefPtr.h>
+#include <AK/Types.h>
+#include <AK/Vector.h>
 #include <LibDevTools/Actor.h>
+#include <LibWebView/Forward.h>
 
 namespace DevTools {
 
@@ -26,12 +29,20 @@ public:
 private:
     FrameActor(DevToolsServer&, String name, WeakPtr<TabActor>, WeakPtr<CSSPropertiesActor>, WeakPtr<ConsoleActor>, WeakPtr<InspectorActor>, WeakPtr<ThreadActor>);
 
+    void console_message_available(i32 message_index);
+    void console_messages_received(i32 start_index, Vector<WebView::ConsoleOutput>);
+    void request_console_messages();
+
     WeakPtr<TabActor> m_tab;
 
     WeakPtr<CSSPropertiesActor> m_css_properties;
     WeakPtr<ConsoleActor> m_console;
     WeakPtr<InspectorActor> m_inspector;
     WeakPtr<ThreadActor> m_thread;
+
+    i32 m_highest_notified_message_index { -1 };
+    i32 m_highest_received_message_index { -1 };
+    bool m_waiting_for_messages { false };
 };
 
 }

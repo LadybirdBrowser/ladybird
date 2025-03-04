@@ -16,6 +16,7 @@
 #include <LibDevTools/Forward.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/Forward.h>
+#include <LibWebView/Forward.h>
 
 namespace DevTools {
 
@@ -38,6 +39,12 @@ public:
 
     using OnScriptEvaluationComplete = Function<void(ErrorOr<JsonValue>)>;
     virtual void evaluate_javascript(TabDescription const&, String, OnScriptEvaluationComplete) const { }
+
+    using OnConsoleMessageAvailable = Function<void(i32 message_id)>;
+    using OnReceivedConsoleMessages = Function<void(i32 start_index, Vector<WebView::ConsoleOutput>)>;
+    virtual void listen_for_console_messages(TabDescription const&, OnConsoleMessageAvailable, OnReceivedConsoleMessages) const { }
+    virtual void stop_listening_for_console_messages(TabDescription const&) const { }
+    virtual void request_console_messages(TabDescription const&, i32) const { }
 };
 
 }
