@@ -10,6 +10,11 @@
 
 namespace Gfx {
 
+enum class ImageOrientation {
+    FromExif,
+    FromDecoded
+};
+
 enum class ExifOrientation {
     Default = 1,
     FlipHorizontally = 2,

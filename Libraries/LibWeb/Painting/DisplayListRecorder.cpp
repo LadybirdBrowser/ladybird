@@ -257,7 +257,7 @@ static SkMatrix compute_exif_orientation_matrix(Gfx::ExifOrientation orientation
     return matrix;
 }
 
-void DisplayListRecorder::draw_scaled_immutable_bitmap(Gfx::IntRect const& dst_rect, Gfx::ImmutableBitmap const& bitmap, Gfx::IntRect const& src_rect, Gfx::ScalingMode scaling_mode)
+void DisplayListRecorder::draw_scaled_immutable_bitmap(Gfx::IntRect const& dst_rect, Gfx::ImmutableBitmap const& bitmap, Gfx::IntRect const& src_rect, Gfx::ScalingMode scaling_mode, Gfx::ImageOrientation image_orientation)
 {
     if (dst_rect.is_empty())
         return;
@@ -265,7 +265,9 @@ void DisplayListRecorder::draw_scaled_immutable_bitmap(Gfx::IntRect const& dst_r
     auto effective_dst_rect = dst_rect;
 
     auto orientation = bitmap.bitmap()->exif_orientation();
-    auto transmat = compute_exif_orientation_matrix(orientation, effective_dst_rect);
+    auto transmat = image_orientation == Gfx::ImageOrientation::FromExif
+        ? compute_exif_orientation_matrix(orientation, effective_dst_rect)
+        : SkMatrix::I();
 
     SkScalar elements[9];
     transmat.get9(elements);

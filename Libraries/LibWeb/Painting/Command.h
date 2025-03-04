@@ -15,6 +15,7 @@
 #include <LibGfx/CompositingAndBlendingOperator.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Gradients.h>
+#include <LibGfx/ImageOrientation.h>
 #include <LibGfx/ImmutableBitmap.h>
 #include <LibGfx/LineStyle.h>
 #include <LibGfx/Matrix3x3.h>
