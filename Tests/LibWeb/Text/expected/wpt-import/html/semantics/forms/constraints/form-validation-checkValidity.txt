@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 130 tests
 
-108 Pass
-22 Fail
+112 Pass
+18 Fail
 Pass	[INPUT in TEXT status] no constraint
 Pass	[INPUT in TEXT status] no constraint (in a form)
 Pass	[INPUT in TEXT status] not suffering from being too long
@@ -102,16 +102,16 @@ Fail	[INPUT in TIME status] suffering from an overflow
 Fail	[INPUT in TIME status] suffering from an overflow (in a form)
 Fail	[INPUT in TIME status] suffering from an underflow
 Fail	[INPUT in TIME status] suffering from an underflow (in a form)
-Fail	[INPUT in TIME status] suffering from a step mismatch
-Fail	[INPUT in TIME status] suffering from a step mismatch (in a form)
+Pass	[INPUT in TIME status] suffering from a step mismatch
+Pass	[INPUT in TIME status] suffering from a step mismatch (in a form)
 Pass	[INPUT in TIME status] suffering from being missing
 Pass	[INPUT in TIME status] suffering from being missing (in a form)
 Fail	[INPUT in NUMBER status] suffering from an overflow
 Fail	[INPUT in NUMBER status] suffering from an overflow (in a form)
 Fail	[INPUT in NUMBER status] suffering from an underflow
 Fail	[INPUT in NUMBER status] suffering from an underflow (in a form)
-Fail	[INPUT in NUMBER status] suffering from a step mismatch
-Fail	[INPUT in NUMBER status] suffering from a step mismatch (in a form)
+Pass	[INPUT in NUMBER status] suffering from a step mismatch
+Pass	[INPUT in NUMBER status] suffering from a step mismatch (in a form)
 Pass	[INPUT in NUMBER status] suffering from being missing
 Pass	[INPUT in NUMBER status] suffering from being missing (in a form)
 Pass	[INPUT in CHECKBOX status] no constraint
