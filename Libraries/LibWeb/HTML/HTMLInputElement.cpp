@@ -2137,6 +2137,18 @@ static Optional<double> convert_date_string_to_number(StringView input)
     return date_time.milliseconds_since_epoch();
 }
 
+// https://html.spec.whatwg.org/multipage/input.html#time-state-(type=time):concept-input-value-string-number
+Optional<double> HTMLInputElement::convert_time_string_to_number(StringView input) const
+{
+    // The algorithm to convert a string to a number, given a string input, is as follows: If parsing a time from input
+    // results in an error, then return an error; otherwise, return the number of milliseconds elapsed from midnight to
+    // the parsed time on a day with no time changes.
+    auto maybe_time = parse_time_string(realm(), input);
+    if (maybe_time.is_exception())
+        return {};
+    return maybe_time.value()->date_value();
+}
+
 // https://html.spec.whatwg.org/multipage/input.html#concept-input-value-string-number
 Optional<double> HTMLInputElement::convert_string_to_number(StringView input) const
 {
@@ -2156,6 +2168,9 @@ Optional<double> HTMLInputElement::convert_string_to_number(StringView input) co
 
     if (type_state() == TypeAttributeState::Date)
         return convert_date_string_to_number(input);
+
+    if (type_state() == TypeAttributeState::Time)
+        return convert_time_string_to_number(input);
 
     dbgln("HTMLInputElement::convert_string_to_number() not implemented for input type {}", type());
     return {};
@@ -2341,6 +2356,10 @@ double HTMLInputElement::default_step() const
     if (type_state() == TypeAttributeState::Range)
         return 1;
 
+    // https://html.spec.whatwg.org/multipage/input.html#time-state-(type=time):concept-input-step-default
+    if (type_state() == TypeAttributeState::Time)
+        return 60;
+
     dbgln("HTMLInputElement::default_step() not implemented for input type {}", type());
     return 0;
 }
@@ -2355,6 +2374,10 @@ double HTMLInputElement::step_scale_factor() const
     // https://html.spec.whatwg.org/multipage/input.html#range-state-(type=range):concept-input-step-scale
     if (type_state() == TypeAttributeState::Range)
         return 1;
+
+    // https://html.spec.whatwg.org/multipage/input.html#time-state-(type=time):concept-input-step-scale
+    if (type_state() == TypeAttributeState::Time)
+        return 1000;
 
     dbgln("HTMLInputElement::step_scale_factor() not implemented for input type {}", type());
     return 0;
@@ -2398,8 +2421,10 @@ double HTMLInputElement::step_base() const
 
     // 2. If the element has a value content attribute, and the result of applying the algorithm to convert a string to a number to the value of
     // the value content attribute is not an error, then return that result.
-    if (auto value = convert_string_to_number(this->value()); value.has_value())
-        return *value;
+    // AD-HOC: https://github.com/whatwg/html/issues/11097 Skipping this step seems to be necessary in order to get the
+    //         behavior that's actually expected — and necessary in order get the tests to pass (they otherwise fail).
+    // if (auto value = convert_string_to_number(this->value()); value.has_value())
+    // return *value;
 
     // 3. If a default step base is defined for this element given its type attribute's state, then return it.
     if (type_state() == TypeAttributeState::Week) {

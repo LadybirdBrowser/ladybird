@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 60 tests
 
-48 Pass
-12 Fail
+51 Pass
+9 Fail
 Pass	valueAsNumber getter on type date (actual value: , expected valueAsNumber: NaN)
 Pass	valueAsNumber getter on type date (actual value: 0000-12-10, expected valueAsNumber: NaN)
 Pass	valueAsNumber getter on type date (actual value: 2019-00-12, expected valueAsNumber: NaN)
@@ -34,9 +34,9 @@ Pass	valueAsNumber setter on type week (actual valueAsNumber: -20217600000, expe
 Pass	valueAsNumber getter on type time (actual value: , expected valueAsNumber: NaN)
 Pass	valueAsNumber getter on type time (actual value: 24:00, expected valueAsNumber: NaN)
 Pass	valueAsNumber getter on type time (actual value: 00:60, expected valueAsNumber: NaN)
-Fail	valueAsNumber getter on type time (actual value: 00:00, expected valueAsNumber: 0)
-Fail	valueAsNumber getter on type time (actual value: 12:00, expected valueAsNumber: 43200000)
-Fail	valueAsNumber getter on type time (actual value: 23:59, expected valueAsNumber: 86340000)
+Pass	valueAsNumber getter on type time (actual value: 00:00, expected valueAsNumber: 0)
+Pass	valueAsNumber getter on type time (actual value: 12:00, expected valueAsNumber: 43200000)
+Pass	valueAsNumber getter on type time (actual value: 23:59, expected valueAsNumber: 86340000)
 Fail	valueAsNumber setter on type time (actual valueAsNumber: 0, expected value: 00:00)
 Fail	valueAsNumber setter on type time (actual valueAsNumber: 43200000, expected value: 12:00)
 Fail	valueAsNumber setter on type time (actual valueAsNumber: 86340000, expected value: 23:59)
