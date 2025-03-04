@@ -145,6 +145,7 @@ constexpr u32 const ZERO_WIDTH_JOINER { 0x200D };
     __ENUMERATE_JS_TOKEN(Throw, ControlKeyword)                 \
     __ENUMERATE_JS_TOKEN(Tilde, Operator)                       \
     __ENUMERATE_JS_TOKEN(TripleDot, Operator)                   \
+    __ENUMERATE_JS_TOKEN(Trivia, Trivia)                        \
     __ENUMERATE_JS_TOKEN(Try, ControlKeyword)                   \
     __ENUMERATE_JS_TOKEN(Typeof, Keyword)                       \
     __ENUMERATE_JS_TOKEN(UnsignedShiftRight, Operator)          \
@@ -168,6 +169,7 @@ constexpr size_t cs_num_of_js_tokens = static_cast<size_t>(TokenType::_COUNT_OF_
 
 enum class TokenCategory {
     Invalid,
+    Trivia,
     Number,
     String,
     Punctuation,

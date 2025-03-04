@@ -78,7 +78,7 @@ void SyntaxHighlighter::rehighlight(Palette const& palette)
         Syntax::TextDocumentSpan span;
         span.range.set_start(start);
         span.range.set_end({ position.line(), position.column() });
-        auto type = is_trivia ? TokenType::Invalid : token.type();
+        auto type = is_trivia ? TokenType::Trivia : token.type();
         span.attributes = style_for_token_type(palette, type);
         span.is_skippable = is_trivia;
         span.data = static_cast<u64>(type);
