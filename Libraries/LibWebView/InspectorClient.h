@@ -57,8 +57,8 @@ private:
     void load_cookies();
 
     void request_console_messages();
-    void handle_console_message(i32 message_index);
-    void handle_console_messages(i32 start_index, ReadonlySpan<String> message_types, ReadonlySpan<String> messages);
+    void console_message_available(i32 message_index);
+    void console_messages_received(i32 start_index, ReadonlySpan<String> message_types, ReadonlySpan<String> messages);
 
     void append_console_source(StringView);
     void append_console_message(StringView);

@@ -216,8 +216,8 @@ public:
     Function<void(Optional<Web::UniqueNodeID> const& node_id)> on_finshed_editing_dom_node;
     Function<void(String const&)> on_received_dom_node_html;
     Function<void(JsonValue)> on_received_js_console_result;
-    Function<void(i32 message_id)> on_received_console_message;
-    Function<void(i32 start_index, Vector<String> const& message_types, Vector<String> const& messages)> on_received_console_messages;
+    Function<void(i32 message_id)> on_console_message_available;
+    Function<void(i32 start_index, Vector<String> const& message_types, Vector<String> const& messages)> on_received_styled_console_messages;
     Function<void(i32 count_waiting)> on_resource_status_change;
     Function<void()> on_restore_window;
     Function<void(Gfx::IntPoint)> on_reposition_window;

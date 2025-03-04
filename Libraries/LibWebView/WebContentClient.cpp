@@ -372,16 +372,16 @@ void WebContentClient::did_execute_js_console_input(u64 page_id, JsonValue const
 void WebContentClient::did_output_js_console_message(u64 page_id, i32 message_index)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (view->on_received_console_message)
-            view->on_received_console_message(message_index);
+        if (view->on_console_message_available)
+            view->on_console_message_available(message_index);
     }
 }
 
-void WebContentClient::did_get_js_console_messages(u64 page_id, i32 start_index, Vector<String> const& message_types, Vector<String> const& messages)
+void WebContentClient::did_get_styled_js_console_messages(u64 page_id, i32 start_index, Vector<String> const& message_types, Vector<String> const& messages)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (view->on_received_console_messages)
-            view->on_received_console_messages(start_index, message_types, messages);
+        if (view->on_received_styled_console_messages)
+            view->on_received_styled_console_messages(start_index, message_types, messages);
     }
 }
 
