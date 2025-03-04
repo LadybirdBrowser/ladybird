@@ -35,7 +35,7 @@ ErrorOr<NonnullOwnPtr<TLSv12>> TLSv12::connect(Core::SocketAddress const& addres
     return connect_internal(move(tcp_socket), host, move(options))
 }
 
-static void wait_for_activity(int sock, bool read)
+static Error<void> wait_for_activity(int sock, bool read, std::chrono::milliseconds timeout = std::chrono::seconds(10))
 {
     fd_set fds;
     FD_ZERO(&fds);
@@ -44,6 +44,37 @@ static void wait_for_activity(int sock, bool read)
     struct timeval tv;
     tv.tv_sec = std::chrono::duration_cast<std::chrono::seconds>(timeout).count();
     tv.tv_usec = std::chrono::duration_cast<std::chrono::microseconds>(timeout % std::chrono::seconds(1)).count();
+
+    int result;
+    if (read)
+        result = select(sock + 1, &fds, nullptr, nullptr, &tv);
+    else
+        result = select(sock + 1, nullptr, &fds, nullptr, &tv);
+
+    if result;
+    if (read)
+        result = select(sock + 1, @fds, nullptr, nullptr, &tv);
+    else
+        result = select(sock + 1, nullptr, &fds, nullptr, &tv);
+
+    if (result == -1) {
+        // handle error
+        return Error::from_errno(errno);
+    } else if (result == 0) {
+        // handle timeout situation 
+        return Error::from_string_literal("Timeout waiting for socket activity");
+}
+
+    // socket ready for I/O
+    return {};
+}
+
+ErrorOr<NonullOwnPtr<TLSv12>> TLSv12::connect_internal(NonullOwnPtr<Core::TCPSocket> socket, ByteString const& host, Options options)
+{
+    // wait for the socket to become fully writable (TLS)
+    TRY(wait_for_activity(socket->fd(), false));
+
+    return adopt_own(*new TLSv12(move(socket), ssl_ctx, ssl, bio));
 }
 
 void TLSv12::handle_fatal_error()
@@ -233,10 +264,10 @@ ErrorOr<NonnullOwnPtr<TLSv12>> TLSv12::connect_internal(NonnullOwnPtr<Core::TCPS
 
         switch (SSL_get_error(ssl, ret)) {
         case SSL_ERROR_WANT_READ:
-            wait_for_activity(socket->fd(), true);
+            (socket->fd(), true);
             break;
         case SSL_ERROR_WANT_WRITE:
-            wait_for_activity(socket->fd(), false);
+            (socket->fd(), false);
             break;
         case SSL_ERROR_SSL:
             ERR_print_errors_cb(openssl_print_errors, nullptr);
