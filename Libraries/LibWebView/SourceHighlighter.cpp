@@ -205,6 +205,8 @@ StringView SourceHighlighterClient::class_for_token(u64 token_type) const
         switch (category) {
         case JS::TokenCategory::Invalid:
             return "invalid"sv;
+        case JS::TokenCategory::Trivia:
+            return "comment"sv;
         case JS::TokenCategory::Number:
             return "number"sv;
         case JS::TokenCategory::String:
