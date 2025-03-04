@@ -68,6 +68,9 @@ enum class ShouldComputeRole {
     X(HTMLOptionElementSelectedChange)              \
     X(HTMLSelectElementSetIsOpen)                   \
     X(Hover)                                        \
+    X(MediaListSetMediaText)                        \
+    X(MediaListAppendMedium)                        \
+    X(MediaListDeleteMedium)                        \
     X(MediaQueryChangedMatchState)                  \
     X(NavigableSetViewportSize)                     \
     X(NodeInsertBefore)                             \

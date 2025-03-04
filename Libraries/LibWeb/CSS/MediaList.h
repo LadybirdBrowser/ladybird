@@ -36,11 +36,15 @@ public:
     bool evaluate(HTML::Window const&);
     bool matches() const;
 
+    void set_associated_style_sheet(GC::Ref<StyleSheet> style_sheet) { m_associated_style_sheet = style_sheet; }
+
 private:
     MediaList(JS::Realm&, Vector<NonnullRefPtr<MediaQuery>>&&);
 
     virtual void initialize(JS::Realm&) override;
+    virtual void visit_edges(Visitor&) override;
 
+    GC::Ptr<StyleSheet> m_associated_style_sheet;
     Vector<NonnullRefPtr<MediaQuery>> m_media;
 };
 

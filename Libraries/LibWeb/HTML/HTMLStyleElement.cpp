@@ -7,6 +7,8 @@
  */
 
 #include <LibWeb/Bindings/HTMLStyleElementPrototype.h>
+#include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/HTMLStyleElement.h>
 
 namespace Web::HTML {
@@ -75,6 +77,18 @@ void HTMLStyleElement::set_disabled(bool disabled)
     // 2. If the given value is true, set this's associated CSS style sheet's disabled flag.
     //    Otherwise, unset this's associated CSS style sheet's disabled flag.
     sheet()->set_disabled(disabled);
+}
+
+String HTMLStyleElement::media() const
+{
+    return attribute(HTML::AttributeNames::media).value_or(String {});
+}
+
+void HTMLStyleElement::set_media(String media)
+{
+    (void)set_attribute(HTML::AttributeNames::media, media);
+    if (auto sheet = m_style_element_utils.sheet())
+        sheet->set_media(media);
 }
 
 // https://www.w3.org/TR/cssom/#dom-linkstyle-sheet

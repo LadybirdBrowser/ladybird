@@ -26,6 +26,9 @@ public:
     bool disabled();
     void set_disabled(bool disabled);
 
+    [[nodiscard]] String media() const;
+    void set_media(String);
+
     CSS::CSSStyleSheet* sheet();
     CSS::CSSStyleSheet const* sheet() const;
 

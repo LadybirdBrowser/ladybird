@@ -45,6 +45,9 @@ public:
 
     void set_parser_document(Badge<HTMLParser>, GC::Ref<DOM::Document>);
 
+    void set_media(String);
+    String media() const;
+
 private:
     HTMLLinkElement(DOM::Document&, DOM::QualifiedName);
 

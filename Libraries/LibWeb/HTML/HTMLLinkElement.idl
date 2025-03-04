@@ -42,7 +42,7 @@ interface HTMLLinkElement : HTMLElement {
     [CEReactions, Reflect] attribute DOMString rel;
     [CEReactions, Reflect, Enumerated=PotentialDestination] attribute DOMString as;
     [SameObject, PutForwards=value] readonly attribute DOMTokenList relList;
-    [CEReactions, Reflect] attribute DOMString media;
+    [CEReactions] attribute DOMString media;
     [CEReactions, Reflect] attribute DOMString integrity;
     [CEReactions, Reflect] attribute DOMString hreflang;
     [CEReactions, Reflect] attribute DOMString type;
