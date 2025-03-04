@@ -1148,10 +1148,12 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
 
     GC::Ref<DOM::Document> document = *m_navigable->active_document();
 
-    if (key == UIEvents::KeyCode::Key_Tab) {
-        if (modifiers & UIEvents::KeyModifier::Mod_Shift)
-            return focus_previous_element() ? EventResult::Handled : EventResult::Dropped;
-        return focus_next_element() ? EventResult::Handled : EventResult::Dropped;
+    if (!(modifiers & UIEvents::KeyModifier::Mod_Ctrl)) {
+        if (key == UIEvents::KeyCode::Key_Tab) {
+            if (modifiers & UIEvents::KeyModifier::Mod_Shift)
+                return focus_previous_element() ? EventResult::Handled : EventResult::Dropped;
+            return focus_next_element() ? EventResult::Handled : EventResult::Dropped;
+        }
     }
 
     // https://html.spec.whatwg.org/multipage/interaction.html#close-requests
