@@ -465,6 +465,20 @@ void Application::set_dom_node_text(DevTools::TabDescription const& description,
     });
 }
 
+void Application::add_dom_node_attributes(DevTools::TabDescription const& description, Web::UniqueNodeID node_id, Vector<Attribute> replacement_attributes, OnDOMNodeEditComplete on_complete) const
+{
+    edit_dom_node(description, move(on_complete), [&](auto& view) {
+        view.add_dom_node_attributes(node_id, move(replacement_attributes));
+    });
+}
+
+void Application::replace_dom_node_attribute(DevTools::TabDescription const& description, Web::UniqueNodeID node_id, String name, Vector<Attribute> replacement_attributes, OnDOMNodeEditComplete on_complete) const
+{
+    edit_dom_node(description, move(on_complete), [&](auto& view) {
+        view.replace_dom_node_attribute(node_id, move(name), move(replacement_attributes));
+    });
+}
+
 void Application::evaluate_javascript(DevTools::TabDescription const& description, String script, OnScriptEvaluationComplete on_complete) const
 {
     auto view = ViewImplementation::find_view_by_id(description.id);

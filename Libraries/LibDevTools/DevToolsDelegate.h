@@ -43,6 +43,8 @@ public:
 
     using OnDOMNodeEditComplete = Function<void(ErrorOr<Web::UniqueNodeID>)>;
     virtual void set_dom_node_text(TabDescription const&, Web::UniqueNodeID, String, OnDOMNodeEditComplete) const { }
+    virtual void add_dom_node_attributes(TabDescription const&, Web::UniqueNodeID, Vector<WebView::Attribute>, OnDOMNodeEditComplete) const { }
+    virtual void replace_dom_node_attribute(TabDescription const&, Web::UniqueNodeID, String, Vector<WebView::Attribute>, OnDOMNodeEditComplete) const { }
 
     using OnScriptEvaluationComplete = Function<void(ErrorOr<JsonValue>)>;
     virtual void evaluate_javascript(TabDescription const&, String, OnScriptEvaluationComplete) const { }
