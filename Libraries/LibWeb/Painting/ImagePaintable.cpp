@@ -79,6 +79,7 @@ void ImagePaintable::paint(PaintContext& context, PaintPhase phase) const
 
             auto scale_x = 0.0f;
             auto scale_y = 0.0f;
+            Gfx::IntRect bitmap_intersect = bitmap_rect;
 
             // https://drafts.csswg.org/css-images/#the-object-fit
             auto object_fit = m_is_svg_image ? CSS::ObjectFit::Contain : computed_values().object_fit();
@@ -108,9 +109,11 @@ void ImagePaintable::paint(PaintContext& context, PaintPhase phase) const
                 if (bitmap_aspect_ratio >= image_aspect_ratio) {
                     scale_x = (float)image_rect.width() / bitmap_rect.width();
                     scale_y = scale_x;
+                    bitmap_intersect.set_height(bitmap_rect.width() * image_aspect_ratio);
                 } else {
                     scale_x = (float)image_rect.height() / bitmap_rect.height();
                     scale_y = scale_x;
+                    bitmap_intersect.set_width(bitmap_rect.height() / image_aspect_ratio);
                 }
                 break;
             case CSS::ObjectFit::ScaleDown:
@@ -118,6 +121,7 @@ void ImagePaintable::paint(PaintContext& context, PaintPhase phase) const
             case CSS::ObjectFit::None:
                 scale_x = 1;
                 scale_y = 1;
+                bitmap_intersect.set_size(image_rect.size().to_type<int>());
             }
 
             auto scaled_bitmap_width = CSSPixels::nearest_value_for(bitmap_rect.width() * scale_x);
@@ -126,22 +130,31 @@ void ImagePaintable::paint(PaintContext& context, PaintPhase phase) const
             auto residual_horizontal = image_rect.width() - scaled_bitmap_width;
             auto residual_vertical = image_rect.height() - scaled_bitmap_height;
 
+            bitmap_intersect.set_x((bitmap_rect.width() - bitmap_intersect.width()) / 2);
+            bitmap_intersect.set_y((bitmap_rect.height() - bitmap_intersect.height()) / 2);
+
             // https://drafts.csswg.org/css-images/#the-object-position
             auto const& object_position = computed_values().object_position();
 
             auto offset_x = CSSPixels::from_raw(0);
             if (object_position.edge_x == CSS::PositionEdge::Left) {
                 offset_x = object_position.offset_x.to_px(layout_node(), residual_horizontal);
+                bitmap_intersect.set_x(0);
             } else if (object_position.edge_x == CSS::PositionEdge::Right) {
                 offset_x = residual_horizontal - object_position.offset_x.to_px(layout_node(), residual_horizontal);
             }
+            if (image_rect.width() < scaled_bitmap_width)
+                bitmap_intersect.set_x(-(offset_x / scale_x));
 
             auto offset_y = CSSPixels::from_raw(0);
             if (object_position.edge_y == CSS::PositionEdge::Top) {
                 offset_y = object_position.offset_y.to_px(layout_node(), residual_vertical);
+                bitmap_intersect.set_y(0);
             } else if (object_position.edge_y == CSS::PositionEdge::Bottom) {
                 offset_y = residual_vertical - object_position.offset_y.to_px(layout_node(), residual_vertical);
             }
+            if (image_rect.height() < scaled_bitmap_height)
+                bitmap_intersect.set_y(-(offset_y / scale_y));
 
             Gfx::IntRect draw_rect = {
                 image_int_rect_device_pixels.x() + context.rounded_device_pixels(offset_x).value(),
@@ -150,7 +163,7 @@ void ImagePaintable::paint(PaintContext& context, PaintPhase phase) const
                 context.rounded_device_pixels(scaled_bitmap_height).value()
             };
 
-            context.display_list_recorder().draw_scaled_immutable_bitmap(draw_rect, image_int_rect_device_pixels, *bitmap, scaling_mode);
+            context.display_list_recorder().draw_scaled_immutable_bitmap(draw_rect.intersected(image_int_rect_device_pixels), *bitmap, bitmap_rect.intersected(bitmap_intersect), scaling_mode);
         }
     }
 }

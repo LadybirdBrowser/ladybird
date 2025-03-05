@@ -135,14 +135,11 @@ void DisplayListPlayerSkia::draw_painting_surface(DrawPaintingSurface const& com
 
 void DisplayListPlayerSkia::draw_scaled_immutable_bitmap(DrawScaledImmutableBitmap const& command)
 {
+    auto src_rect = to_skia_rect(command.src_rect);
     auto dst_rect = to_skia_rect(command.dst_rect);
-    auto clip_rect = to_skia_rect(command.clip_rect);
     auto& canvas = surface().canvas();
     SkPaint paint;
-    canvas.save();
-    canvas.clipRect(clip_rect);
-    canvas.drawImageRect(command.bitmap->sk_image(), dst_rect, to_skia_sampling_options(command.scaling_mode), &paint);
-    canvas.restore();
+    canvas.drawImageRect(command.bitmap->sk_image(), src_rect, dst_rect, to_skia_sampling_options(command.scaling_mode), &paint, SkCanvas::kStrict_SrcRectConstraint);
 }
 
 void DisplayListPlayerSkia::draw_repeated_immutable_bitmap(DrawRepeatedImmutableBitmap const& command)
