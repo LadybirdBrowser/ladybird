@@ -2046,7 +2046,7 @@ void GridFormattingContext::run(AvailableSpace const& available_space)
         determine_grid_container_height();
     }
 
-    if (available_space.height.is_intrinsic_sizing_constraint() || available_space.width.is_intrinsic_sizing_constraint()) {
+    if (m_layout_mode == LayoutMode::IntrinsicSizing) {
         determine_intrinsic_size_of_grid_container(available_space);
         return;
     }
