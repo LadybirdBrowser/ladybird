@@ -1,0 +1,39 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>Input.list</title>
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<div id="testcontent">
+  <input id="input" list="datalist">
+</div>
+<script>
+
+test(() => {
+  assert_equals(document.getElementById('input').list, null);
+  var dl = document.createElement("datalist");
+  dl.id = "datalist";
+  document.getElementById("testcontent").appendChild(dl);
+  assert_equals(document.getElementById('input').list, dl);
+}, "Input element's list attribute should point to the datalist element.");
+
+
+test(() => {
+  var host = document.createElement("div");
+  document.getElementById("testcontent").appendChild(host);
+  var sr = host.attachShadow({mode: "open"});
+  var input = document.createElement("input");
+  input.setAttribute("list", "datalist");
+  sr.appendChild(input);
+  assert_equals(input.list, null);
+
+  var dl = document.createElement("datalist");
+  dl.id = "datalist";
+  sr.appendChild(dl);
+  assert_equals(input.list, dl);
+
+  dl.remove();
+  assert_equals(input.list, null);
+}, "Input element's list attribute should point to the datalist element in Shadow DOM.");
+
+
+</script>
