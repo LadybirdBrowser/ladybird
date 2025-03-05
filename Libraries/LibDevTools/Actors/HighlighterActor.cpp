@@ -39,15 +39,11 @@ void HighlighterActor::handle_message(StringView type, JsonObject const& message
             return;
         }
 
-        auto tab = InspectorActor::tab_for(m_inspector);
-        auto walker = InspectorActor::walker_for(m_inspector);
         response.set("value"sv, false);
 
-        if (tab && walker) {
-            if (auto const& dom_node = walker->dom_node(*node); dom_node.has_value()) {
-                devtools().delegate().highlight_dom_node(tab->description(), dom_node->id, dom_node->pseudo_element);
-                response.set("value"sv, true);
-            }
+        if (auto dom_node = WalkerActor::dom_node_for(InspectorActor::walker_for(m_inspector), *node); dom_node.has_value()) {
+            devtools().delegate().highlight_dom_node(dom_node->tab->description(), dom_node->id, dom_node->pseudo_element);
+            response.set("value"sv, true);
         }
 
         send_message(move(response));

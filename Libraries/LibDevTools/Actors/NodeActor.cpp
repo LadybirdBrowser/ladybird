@@ -6,6 +6,7 @@
 
 #include <AK/JsonObject.h>
 #include <LibDevTools/Actors/NodeActor.h>
+#include <LibDevTools/Actors/TabActor.h>
 #include <LibDevTools/Actors/WalkerActor.h>
 
 namespace DevTools {
@@ -29,10 +30,8 @@ void NodeActor::handle_message(StringView type, JsonObject const&)
     response.set("from"sv, name());
 
     if (type == "getUniqueSelector"sv) {
-        if (auto walker = m_walker.strong_ref()) {
-            if (auto const& dom_node = walker->dom_node(name()); dom_node.has_value())
-                response.set("value"sv, dom_node->node.get_string("name"sv)->to_ascii_lowercase());
-        }
+        if (auto dom_node = WalkerActor::dom_node_for(m_walker, name()); dom_node.has_value())
+            response.set("value"sv, dom_node->node.get_string("name"sv)->to_ascii_lowercase());
 
         send_message(move(response));
         return;

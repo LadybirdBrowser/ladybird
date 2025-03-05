@@ -95,19 +95,14 @@ JsonValue PageStyleActor::serialize_style() const
 template<typename Callback>
 void PageStyleActor::inspect_dom_node(StringView node_actor, Callback&& callback)
 {
-    auto tab = InspectorActor::tab_for(m_inspector);
-    auto walker = InspectorActor::walker_for(m_inspector);
-    if (!tab || !walker)
-        return;
-
-    auto const& dom_node = walker->dom_node(node_actor);
+    auto dom_node = WalkerActor::dom_node_for(InspectorActor::walker_for(m_inspector), node_actor);
     if (!dom_node.has_value())
         return;
 
     auto block_token = block_responses();
 
     devtools().delegate().inspect_dom_node(
-        tab->description(), dom_node->id, dom_node->pseudo_element,
+        dom_node->tab->description(), dom_node->id, dom_node->pseudo_element,
         [weak_self = make_weak_ptr<PageStyleActor>(), block_token = move(block_token), callback = forward<Callback>(callback)](ErrorOr<DOMNodeProperties> properties) mutable {
             if (properties.is_error()) {
                 dbgln_if(DEVTOOLS_DEBUG, "Unable to inspect DOM node: {}", properties.error());
