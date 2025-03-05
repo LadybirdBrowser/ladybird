@@ -112,13 +112,21 @@ void DedicatedWorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataHo
         auto process_custom_fetch_response_function = GC::create_function(vm.heap(), move(process_custom_fetch_response));
 
         // 3. Fetch request with processResponseConsumeBody set to the following steps given response response and null, failure, or a byte sequence bodyBytes:
-        fetch_algorithms_input.process_response_consume_body = [worker_global_scope, process_custom_fetch_response_function](auto response, auto body_bytes) {
+        fetch_algorithms_input.process_response_consume_body = [worker_global_scope, process_custom_fetch_response_function, inner_settings](auto response, auto body_bytes) {
+            auto& vm = inner_settings->vm();
+
             // 1. Set worker global scope's url to response's url.
             worker_global_scope->set_url(response->url().value_or({}));
 
-            // FIXME: 2. Initialize worker global scope's policy container given worker global scope, response, and inside settings.
-            // FIXME: 3. If the Run CSP initialization for a global object algorithm returns "Blocked" when executed upon worker
+            // 2. Initialize worker global scope's policy container given worker global scope, response, and inside settings.
+            worker_global_scope->initialize_policy_container(response, inner_settings);
+
+            // 3. If the Run CSP initialization for a global object algorithm returns "Blocked" when executed upon worker
             //    global scope, set response to a network error. [CSP]
+            if (worker_global_scope->run_csp_initialization() == Web::ContentSecurityPolicy::Directives::Directive::Result::Blocked) {
+                response = Web::Fetch::Infrastructure::Response::network_error(vm, "Blocked by Content Security Policy"sv);
+            }
+
             // FIXME: 4. If worker global scope's embedder policy's value is compatible with cross-origin isolation and is shared is true,
             //    then set agent's agent cluster's cross-origin isolation mode to "logical" or "concrete".
             //    The one chosen is implementation-defined.
