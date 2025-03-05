@@ -50,6 +50,26 @@ enum class QuirksMode {
     Yes
 };
 
+#define ENUMERATE_INVALIDATE_LAYOUT_TREE_REASONS(X)       \
+    X(DocumentAddAnElementToTheTopLayer)                  \
+    X(DocumentRequestAnElementToBeRemovedFromTheTopLayer) \
+    X(HTMLInputElementSrcAttributeChange)                 \
+    X(HTMLObjectElement)                                  \
+    X(KeyframeEffect)                                     \
+    X(MediaQueryChangedMatchState)                        \
+    X(SVGGraphicsElementTransformAttributeChange)         \
+    X(SVGUseElement)                                      \
+    X(ShadowRootSetInnerHTML)                             \
+    X(UpdateFileInputShadowTree)
+
+enum class InvalidateLayoutTreeReason {
+#define ENUMERATE_INVALIDATE_LAYOUT_TREE_REASON(e) e,
+    ENUMERATE_INVALIDATE_LAYOUT_TREE_REASONS(ENUMERATE_INVALIDATE_LAYOUT_TREE_REASON)
+#undef ENUMERATE_INVALIDATE_LAYOUT_TREE_REASON
+};
+
+[[nodiscard]] StringView to_string(InvalidateLayoutTreeReason);
+
 #define ENUMERATE_UPDATE_LAYOUT_REASONS(X) \
     X(CanvasRenderingContext2DSetFilter)   \
     X(CursorBlinkTimer)                    \
@@ -322,7 +342,7 @@ public:
 
     void set_needs_layout();
 
-    void invalidate_layout_tree();
+    void invalidate_layout_tree(InvalidateLayoutTreeReason);
     void invalidate_stacking_context_tree();
 
     virtual bool is_child_allowed(Node const&) const override;

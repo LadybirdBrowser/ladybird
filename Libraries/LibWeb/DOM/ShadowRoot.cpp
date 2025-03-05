@@ -88,7 +88,7 @@ WebIDL::ExceptionOr<void> ShadowRoot::set_inner_html(StringView value)
 
         if (this->is_connected()) {
             // NOTE: Since the DOM has changed, we have to rebuild the layout tree.
-            this->document().invalidate_layout_tree();
+            this->document().invalidate_layout_tree(InvalidateLayoutTreeReason::ShadowRootSetInnerHTML);
         }
     }
 

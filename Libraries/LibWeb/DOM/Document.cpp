@@ -1219,8 +1219,10 @@ void Document::set_needs_layout()
     schedule_layout_update();
 }
 
-void Document::invalidate_layout_tree()
+void Document::invalidate_layout_tree(InvalidateLayoutTreeReason reason)
 {
+    if (m_layout_root)
+        dbgln_if(UPDATE_LAYOUT_DEBUG, "DROP TREE {}", to_string(reason));
     tear_down_layout_tree();
     schedule_layout_update();
 }
@@ -3394,7 +3396,7 @@ void Document::evaluate_media_rules()
     if (any_media_queries_changed_match_state) {
         style_computer().invalidate_rule_cache();
         invalidate_style(StyleInvalidationReason::MediaQueryChangedMatchState);
-        invalidate_layout_tree();
+        invalidate_layout_tree(InvalidateLayoutTreeReason::MediaQueryChangedMatchState);
     }
 }
 
@@ -5953,7 +5955,7 @@ void Document::add_an_element_to_the_top_layer(GC::Ref<Element> element)
     // FIXME: 4. At the UA !important cascade origin, add a rule targeting el containing an overlay: auto declaration.
     element->set_rendered_in_top_layer(true);
     element->set_needs_style_update(true);
-    invalidate_layout_tree();
+    invalidate_layout_tree(InvalidateLayoutTreeReason::DocumentAddAnElementToTheTopLayer);
 }
 
 // https://drafts.csswg.org/css-position-4/#request-an-element-to-be-removed-from-the-top-layer
@@ -5968,7 +5970,7 @@ void Document::request_an_element_to_be_remove_from_the_top_layer(GC::Ref<Elemen
     // FIXME: 3. Remove the UA !important overlay: auto rule targeting el.
     element->set_rendered_in_top_layer(false);
     element->set_needs_style_update(true);
-    invalidate_layout_tree();
+    invalidate_layout_tree(InvalidateLayoutTreeReason::DocumentRequestAnElementToBeRemovedFromTheTopLayer);
 
     // 4. Append el to doc’s pending top layer removals.
     m_top_layer_pending_removals.set(element);
@@ -6401,6 +6403,18 @@ WebIDL::CallbackType* Document::onvisibilitychange()
 void Document::set_onvisibilitychange(WebIDL::CallbackType* value)
 {
     set_event_handler_attribute(HTML::EventNames::visibilitychange, value);
+}
+
+StringView to_string(InvalidateLayoutTreeReason reason)
+{
+    switch (reason) {
+#define ENUMERATE_INVALIDATE_LAYOUT_TREE_REASON(e) \
+    case InvalidateLayoutTreeReason::e:            \
+        return #e##sv;
+        ENUMERATE_INVALIDATE_LAYOUT_TREE_REASONS(ENUMERATE_INVALIDATE_LAYOUT_TREE_REASON)
+#undef ENUMERATE_INVALIDATE_LAYOUT_TREE_REASON
+    }
+    VERIFY_NOT_REACHED();
 }
 
 StringView to_string(UpdateLayoutReason reason)
