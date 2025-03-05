@@ -1039,7 +1039,10 @@ WebIDL::ExceptionOr<void> Document::set_title(String const& title)
 
         // 2. If the title element is non-null, let element be the title element.
         if (title_element) {
-            element = title_element;
+            // AD-HOC:
+            // HTMLTitleElement::set_text will call string_replace_all, but additionally will skip the first "empty"
+            // update which would happen when we remove the child element
+            title_element->set_text(title);
         }
         // 3. Otherwise:
         else {
@@ -1052,7 +1055,9 @@ WebIDL::ExceptionOr<void> Document::set_title(String const& title)
         }
 
         // 4. String replace all with the given value within element.
-        element->string_replace_all(title);
+        // AD-HOC: don't do this if title_element exists, as title_element->set_text in point 2 has already called it.
+        if (!title_element)
+            element->string_replace_all(title);
     }
 
     // -> Otherwise
