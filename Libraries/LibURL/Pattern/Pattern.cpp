@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibURL/Pattern/ConstructorStringParser.h>
 #include <LibURL/Pattern/Pattern.h>
 
 namespace URL::Pattern {
@@ -16,7 +17,8 @@ PatternErrorOr<Pattern> Pattern::create(Input const& input, Optional<String> con
 
     // 2. If input is a scalar value string then:
     if (input.has<String>()) {
-        // FIXME: 1. Set init to the result of running parse a constructor string given input.
+        // 1. Set init to the result of running parse a constructor string given input.
+        init = TRY(ConstructorStringParser::parse(input.get<String>().code_points()));
 
         // 2. If baseURL is null and init["protocol"] does not exist, then throw a TypeError.
         if (!base_url.has_value() && !init.protocol.has_value())
