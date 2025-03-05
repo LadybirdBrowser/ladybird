@@ -1,0 +1,11 @@
+#import <WebGL/Types.idl>
+
+// https://registry.khronos.org/webgl/extensions/EXT_color_buffer_float/
+// NOTE: Original EXT_color_buffer_float name is changed to title case,
+//       so it matches corresponding C++ class name, and does not require
+//       IDL generator to handle snake_case to TitleCase conversion.
+//       Having a different name is totally fine, because LegacyNoInterfaceObject
+//       prevents the name from being exposed to JavaScript.
+[Exposed=(Window,Worker), LegacyNoInterfaceObject]
+interface EXTColorBufferFloat {
+};

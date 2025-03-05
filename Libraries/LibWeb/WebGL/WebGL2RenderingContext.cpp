@@ -15,6 +15,7 @@
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/WebGL/EventNames.h>
+#include <LibWeb/WebGL/Extensions/EXTColorBufferFloat.h>
 #include <LibWeb/WebGL/Extensions/WebGLCompressedTextureS3tc.h>
 #include <LibWeb/WebGL/OpenGLContext.h>
 #include <LibWeb/WebGL/WebGL2RenderingContext.h>
@@ -73,6 +74,7 @@ void WebGL2RenderingContext::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     WebGL2RenderingContextImpl::visit_edges(visitor);
     visitor.visit(m_canvas_element);
+    visitor.visit(m_ext_color_buffer_float_extension);
     visitor.visit(m_webgl_compressed_texture_s3tc_extension);
 }
 
@@ -178,6 +180,15 @@ JS::Object* WebGL2RenderingContext::get_extension(String const& name)
 
         VERIFY(m_webgl_compressed_texture_s3tc_extension);
         return m_webgl_compressed_texture_s3tc_extension;
+    }
+
+    if (Infra::is_ascii_case_insensitive_match(name, "EXT_color_buffer_float"sv)) {
+        if (!m_ext_color_buffer_float_extension) {
+            m_ext_color_buffer_float_extension = MUST(Extensions::EXTColorBufferFloat::create(realm(), *this));
+        }
+
+        VERIFY(m_ext_color_buffer_float_extension);
+        return m_ext_color_buffer_float_extension;
     }
 
     return nullptr;
