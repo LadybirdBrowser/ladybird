@@ -402,7 +402,7 @@ void SourceSet::normalize_source_densities(DOM::Element const& element)
 
         // HACK: Flush any pending layouts here so we get an up-to-date length resolution context.
         // FIXME: We should have a way to build a LengthResolutionContext for any DOM node without going through the layout tree.
-        const_cast<DOM::Document&>(element.document()).update_layout();
+        const_cast<DOM::Document&>(element.document()).update_layout(DOM::UpdateLayoutReason::SourceSetNormalizeSourceDensities);
         if (element.layout_node()) {
             CSS::CalculationResolutionContext context { .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(*element.layout_node()) };
             return m_source_size.resolved(context).value_or(CSS::Length::make_auto());

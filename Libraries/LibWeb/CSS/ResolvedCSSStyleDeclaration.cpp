@@ -513,7 +513,7 @@ Optional<StyleProperty> ResolvedCSSStyleDeclaration::property(PropertyID propert
     //        We may legitimately have no layout node if we're not visible, but this protects against situations
     //        where we're requesting the computed style before layout has happened.
     if (!layout_node || property_affects_layout(property_id)) {
-        const_cast<DOM::Document&>(m_element->document()).update_layout();
+        const_cast<DOM::Document&>(m_element->document()).update_layout(DOM::UpdateLayoutReason::ResolvedCSSStyleDeclarationProperty);
         layout_node = get_layout_node();
     } else {
         // FIXME: If we had a way to update style for a single element, this would be a good place to use it.

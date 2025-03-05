@@ -69,7 +69,7 @@ JS::Object* Internals::hit_test(double x, double y)
     // NOTE: Force a layout update just before hit testing. This is because the current layout tree, which is required
     //       for stacking context traversal, might not exist if this call occurs between the tear_down_layout_tree()
     //       and update_layout() calls
-    active_document.update_layout();
+    active_document.update_layout(DOM::UpdateLayoutReason::InternalsHitTest);
     auto result = active_document.paintable_box()->hit_test({ x, y }, Painting::HitTestType::Exact);
     if (result.has_value()) {
         auto hit_tеsting_result = JS::Object::create(realm(), nullptr);

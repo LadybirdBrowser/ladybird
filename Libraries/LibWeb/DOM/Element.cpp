@@ -994,7 +994,7 @@ GC::Ref<Geometry::DOMRectList> Element::get_client_rects() const
         return Geometry::DOMRectList::create(realm(), {});
 
     // NOTE: Ensure that layout is up-to-date before looking at metrics.
-    const_cast<Document&>(document()).update_layout();
+    const_cast<Document&>(document()).update_layout(UpdateLayoutReason::ElementGetClientRects);
 
     // 1. If the element on which it was invoked does not have an associated layout box return an empty DOMRectList
     //    object and stop this algorithm.
@@ -1047,7 +1047,7 @@ GC::Ref<Geometry::DOMRectList> Element::get_client_rects() const
 int Element::client_top() const
 {
     // NOTE: Ensure that layout is up-to-date before looking at metrics.
-    const_cast<Document&>(document()).update_layout();
+    const_cast<Document&>(document()).update_layout(UpdateLayoutReason::ElementClientTop);
 
     // 1. If the element has no associated CSS layout box or if the CSS layout box is inline, return zero.
     if (!paintable_box())
@@ -1063,7 +1063,7 @@ int Element::client_top() const
 int Element::client_left() const
 {
     // NOTE: Ensure that layout is up-to-date before looking at metrics.
-    const_cast<Document&>(document()).update_layout();
+    const_cast<Document&>(document()).update_layout(UpdateLayoutReason::ElementClientLeft);
 
     // 1. If the element has no associated CSS layout box or if the CSS layout box is inline, return zero.
     if (!paintable_box())
@@ -1089,7 +1089,7 @@ int Element::client_width() const
     }
 
     // NOTE: Ensure that layout is up-to-date before looking at metrics.
-    const_cast<Document&>(document()).update_layout();
+    const_cast<Document&>(document()).update_layout(UpdateLayoutReason::ElementClientWidth);
 
     // 1. If the element has no associated CSS layout box or if the CSS layout box is inline, return zero.
     if (!paintable_box())
@@ -1114,7 +1114,7 @@ int Element::client_height() const
     }
 
     // NOTE: Ensure that layout is up-to-date before looking at metrics.
-    const_cast<Document&>(document()).update_layout();
+    const_cast<Document&>(document()).update_layout(UpdateLayoutReason::ElementClientHeight);
 
     // 1. If the element has no associated CSS layout box or if the CSS layout box is inline, return zero.
     if (!paintable_box())
@@ -1420,7 +1420,7 @@ void Element::set_tab_index(i32 tab_index)
 bool Element::is_potentially_scrollable() const
 {
     // NOTE: Ensure that layout is up-to-date before looking at metrics.
-    const_cast<Document&>(document()).update_layout();
+    const_cast<Document&>(document()).update_layout(UpdateLayoutReason::ElementIsPotentiallyScrollable);
 
     // An element body (which will be the body element) is potentially scrollable if all of the following conditions are true:
     VERIFY(is<HTML::HTMLBodyElement>(this) || is<HTML::HTMLFrameSetElement>(this));
@@ -1466,7 +1466,7 @@ double Element::scroll_top() const
         return window->scroll_y();
 
     // NOTE: Ensure that layout is up-to-date before looking at metrics.
-    const_cast<Document&>(document).update_layout();
+    const_cast<Document&>(document).update_layout(UpdateLayoutReason::ElementScrollTop);
 
     // 7. If the element is the body element, document is in quirks mode, and the element is not potentially scrollable, return the value of scrollY on window.
     if (document.body() == this && document.in_quirks_mode() && !is_potentially_scrollable())
@@ -1508,7 +1508,7 @@ double Element::scroll_left() const
         return window->scroll_x();
 
     // NOTE: Ensure that layout is up-to-date before looking at metrics.
-    const_cast<Document&>(document).update_layout();
+    const_cast<Document&>(document).update_layout(UpdateLayoutReason::ElementScrollLeft);
 
     // 7. If the element is the body element, document is in quirks mode, and the element is not potentially scrollable, return the value of scrollX on window.
     if (document.body() == this && document.in_quirks_mode() && !is_potentially_scrollable())
@@ -1557,7 +1557,7 @@ void Element::set_scroll_left(double x)
     }
 
     // NOTE: Ensure that layout is up-to-date before looking at metrics or scrolling the page.
-    const_cast<Document&>(document).update_layout();
+    const_cast<Document&>(document).update_layout(UpdateLayoutReason::ElementSetScrollLeft);
 
     // 9. If the element is the body element, document is in quirks mode, and the element is not potentially scrollable, invoke scroll() on window with x as first argument and scrollY on window as second argument, and terminate these steps.
     if (document.body() == this && document.in_quirks_mode() && !is_potentially_scrollable()) {
@@ -1614,7 +1614,7 @@ void Element::set_scroll_top(double y)
     }
 
     // NOTE: Ensure that layout is up-to-date before looking at metrics or scrolling the page.
-    const_cast<Document&>(document).update_layout();
+    const_cast<Document&>(document).update_layout(UpdateLayoutReason::ElementSetScrollTop);
 
     // 9. If the element is the body element, document is in quirks mode, and the element is not potentially scrollable, invoke scroll() on window with scrollX as first argument and y as second argument, and terminate these steps.
     if (document.body() == this && document.in_quirks_mode() && !is_potentially_scrollable()) {
@@ -1659,7 +1659,7 @@ int Element::scroll_width() const
         return max(viewport_scroll_width, viewport_width);
 
     // NOTE: Ensure that layout is up-to-date before looking at metrics.
-    const_cast<Document&>(document).update_layout();
+    const_cast<Document&>(document).update_layout(UpdateLayoutReason::ElementScrollWidth);
 
     // 5. If the element is the body element, document is in quirks mode and the element is not potentially scrollable,
     //    return max(viewport scrolling area width, viewport width).
@@ -1698,7 +1698,7 @@ int Element::scroll_height() const
         return max(viewport_scroll_height, viewport_height);
 
     // NOTE: Ensure that layout is up-to-date before looking at metrics.
-    const_cast<Document&>(document).update_layout();
+    const_cast<Document&>(document).update_layout(UpdateLayoutReason::ElementScrollHeight);
 
     // 5. If the element is the body element, document is in quirks mode and the element is not potentially scrollable,
     //    return max(viewport scrolling area height, viewport height).
@@ -2180,7 +2180,7 @@ ErrorOr<void> Element::scroll_into_view(Optional<Variant<bool, ScrollIntoViewOpt
     }
 
     // 7. If the element does not have any associated box, or is not available to user-agent features, then return.
-    document().update_layout();
+    document().update_layout(UpdateLayoutReason::ElementScrollIntoView);
     if (!layout_node())
         return Error::from_string_literal("Element has no associated box");
 
@@ -2761,7 +2761,7 @@ void Element::scroll(double x, double y)
         return;
 
     // NOTE: Ensure that layout is up-to-date before looking at metrics.
-    document.update_layout();
+    document.update_layout(UpdateLayoutReason::ElementScroll);
 
     // 8. If the element is the root element invoke scroll() on window with scrollX on window as first argument and y as second argument, and terminate these steps.
     if (document.document_element() == this) {
@@ -2841,7 +2841,7 @@ void Element::scroll_by(HTML::ScrollToOptions options)
 bool Element::check_visibility(Optional<CheckVisibilityOptions> options)
 {
     // NOTE: Ensure that layout is up-to-date before looking at metrics.
-    document().update_layout();
+    document().update_layout(UpdateLayoutReason::ElementCheckVisibility);
 
     // 1. If this does not have an associated box, return false.
     if (!paintable_box())
