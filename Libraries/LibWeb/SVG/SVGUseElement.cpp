@@ -185,7 +185,7 @@ void SVGUseElement::clone_element_tree_as_our_shadow_tree(Element* to_clone)
     }
 
     // FIXME: Only invalidate the part of the layout tree that is affected by this change.
-    document().invalidate_layout_tree();
+    document().invalidate_layout_tree(DOM::InvalidateLayoutTreeReason::SVGUseElement);
 }
 
 bool SVGUseElement::is_valid_reference_element(Element const& reference_element) const

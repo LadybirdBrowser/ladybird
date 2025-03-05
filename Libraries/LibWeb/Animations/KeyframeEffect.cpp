@@ -964,7 +964,7 @@ void KeyframeEffect::update_computed_properties()
     if (invalidation.relayout)
         document.set_needs_layout();
     if (invalidation.rebuild_layout_tree)
-        document.invalidate_layout_tree();
+        document.invalidate_layout_tree(DOM::InvalidateLayoutTreeReason::KeyframeEffect);
     if (invalidation.repaint) {
         document.set_needs_display();
         document.set_needs_to_resolve_paint_only_properties();

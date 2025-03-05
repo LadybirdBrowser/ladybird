@@ -1129,7 +1129,7 @@ void HTMLInputElement::update_file_input_shadow_tree()
         m_file_label->set_text_content(MUST(String::formatted("No {} selected.", files_label)));
     }
 
-    document().invalidate_layout_tree();
+    document().invalidate_layout_tree(DOM::InvalidateLayoutTreeReason::UpdateFileInputShadowTree);
 }
 
 void HTMLInputElement::create_range_input_shadow_tree()
@@ -1458,7 +1458,7 @@ WebIDL::ExceptionOr<void> HTMLInputElement::handle_src_attribute(String const& v
             });
 
             m_load_event_delayer.clear();
-            document().invalidate_layout_tree();
+            document().invalidate_layout_tree(DOM::InvalidateLayoutTreeReason::HTMLInputElementSrcAttributeChange);
         },
         [this, &realm]() {
             // 2. Otherwise, if the fetching process fails without a response from the remote server, or completes but the
