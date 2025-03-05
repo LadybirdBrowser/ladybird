@@ -1877,7 +1877,7 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
             auto length = value.as_length().length();
             if (length.is_absolute() || length.is_relative()) {
                 Length::FontMetrics font_metrics { font_size_in_px, font_pixel_metrics };
-                return length.to_px(viewport_rect(), font_metrics, m_root_element_font_metrics);
+                return length.to_px(viewport_rect(), font_metrics, root_element_font_metrics_for_element(element));
             }
         }
         return font_size_in_px;
@@ -1942,7 +1942,7 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
         Length::ResolutionContext const length_resolution_context {
             .viewport_rect = viewport_rect(),
             .font_metrics = Length::FontMetrics { parent_font_size, font_pixel_metrics },
-            .root_font_metrics = m_root_element_font_metrics,
+            .root_font_metrics = root_element_font_metrics_for_element(element),
         };
 
         Optional<Length> maybe_length;
@@ -2128,10 +2128,10 @@ Gfx::Font const& StyleComputer::initial_font() const
     return ComputedProperties::font_fallback(false, false, 12);
 }
 
-void StyleComputer::absolutize_values(ComputedProperties& style) const
+void StyleComputer::absolutize_values(ComputedProperties& style, GC::Ptr<DOM::Element const> element) const
 {
     Length::FontMetrics font_metrics {
-        m_root_element_font_metrics.font_size,
+        root_element_font_metrics_for_element(element).font_size,
         style.first_available_computed_font().pixel_metrics()
     };
 
@@ -2359,7 +2359,7 @@ GC::Ref<ComputedProperties> StyleComputer::create_document_style() const
     compute_math_depth(style, nullptr, {});
     compute_font(style, nullptr, {});
     compute_defaulted_values(style, nullptr, {});
-    absolutize_values(style);
+    absolutize_values(style, nullptr);
     style->set_property(CSS::PropertyID::Width, CSS::LengthStyleValue::create(CSS::Length::make_px(viewport_rect().width())));
     style->set_property(CSS::PropertyID::Height, CSS::LengthStyleValue::create(CSS::Length::make_px(viewport_rect().height())));
     style->set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::Block)));
@@ -2644,7 +2644,7 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::Element& elem
     compute_font(computed_style, &element, pseudo_element);
 
     // 4. Absolutize values, turning font/viewport relative lengths into absolute lengths
-    absolutize_values(computed_style);
+    absolutize_values(computed_style, element);
 
     // 5. Default the values, applying inheritance and 'initial' as needed
     compute_defaulted_values(computed_style, &element, pseudo_element);
@@ -3265,6 +3265,13 @@ void RuleCache::for_each_matching_rules(DOM::Element const& element, Optional<Se
         return;
 
     (void)callback(other_rules);
+}
+
+Length::FontMetrics const& StyleComputer::root_element_font_metrics_for_element(GC::Ptr<DOM::Element const> element) const
+{
+    if (element && element->document().document_element() == element)
+        return m_default_font_metrics;
+    return m_root_element_font_metrics;
 }
 
 }

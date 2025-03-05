@@ -200,7 +200,7 @@ public:
 
     [[nodiscard]] GC::Ref<ComputedProperties> compute_properties(DOM::Element&, Optional<Selector::PseudoElement::Type>, CascadedProperties&) const;
 
-    void absolutize_values(ComputedProperties&) const;
+    void absolutize_values(ComputedProperties&, GC::Ptr<DOM::Element const>) const;
     void compute_font(ComputedProperties&, DOM::Element const*, Optional<CSS::Selector::PseudoElement::Type>) const;
 
     [[nodiscard]] inline bool should_reject_with_ancestor_filter(Selector const&) const;
@@ -302,6 +302,8 @@ private:
 
     using FontLoaderList = Vector<NonnullOwnPtr<FontLoader>>;
     HashMap<OwnFontFaceKey, FontLoaderList> m_loaded_fonts;
+
+    [[nodiscard]] Length::FontMetrics const& root_element_font_metrics_for_element(GC::Ptr<DOM::Element const>) const;
 
     Length::FontMetrics m_default_font_metrics;
     Length::FontMetrics m_root_element_font_metrics;

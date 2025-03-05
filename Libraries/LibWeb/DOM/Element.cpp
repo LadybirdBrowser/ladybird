@@ -631,7 +631,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
         return invalidation;
 
     document().style_computer().compute_font(*computed_properties, this, {});
-    document().style_computer().absolutize_values(*computed_properties);
+    document().style_computer().absolutize_values(*computed_properties, this);
 
     for (auto [property_id, old_value] : old_values_with_relative_units) {
         auto new_value = computed_properties->maybe_null_property(static_cast<CSS::PropertyID>(property_id));
