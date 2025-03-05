@@ -11,7 +11,8 @@
         "brotli",
         "http2",
         "openssl",
-        "websockets"
+        "websockets",
+        "zstd"
       ]
     },
     {
