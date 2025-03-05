@@ -1,0 +1,24 @@
+<style>
+:root { font-size: 1.1rem; }
+#whf { width: max-content; }
+</style>
+<body><div id="whf">WHF :^)</div></body>
+<script src="../include.js"></script>
+<script>
+    function relayout() {
+        let e = document.documentElement;
+        e.style.display = 'none';
+        e.style.display = '';
+        e.offsetWidth;
+    }
+    test(() => {
+        let cs = getComputedStyle(whf);
+        println(cs.width);
+        relayout();
+        println(cs.width);
+        relayout();
+        println(cs.width);
+        relayout();
+        println(cs.width);
+    });
+</script>
