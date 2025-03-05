@@ -205,6 +205,6 @@ source_set("HTML") {
     "WorkerGlobalScope.cpp",
     "WorkerLocation.cpp",
     "WorkerNavigator.cpp",
-    "XMLSerializer.cpp"
+    "XMLSerializer.cpp",
   ]
 }
