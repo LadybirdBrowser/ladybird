@@ -952,8 +952,8 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
             m_fetch_controller->terminate();
         }
 
-        // FIXME: 7. Report timing for this’s fetch controller given the current global object.
-        //        We cannot do this for responses that have a body yet, as we do not setup the stream that then calls processResponseEndOfBody in `fetch_response_handover`.
+        // 7. Report timing for this’s fetch controller given the current global object.
+        m_fetch_controller->report_timing(HTML::current_principal_global_object());
 
         // 8. Run handle response end-of-body for this.
         TRY(handle_response_end_of_body());

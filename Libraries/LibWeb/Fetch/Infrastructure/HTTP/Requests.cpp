@@ -442,6 +442,55 @@ StringView request_mode_to_string(Request::Mode mode)
     VERIFY_NOT_REACHED();
 }
 
+FlyString initiator_type_to_string(Request::InitiatorType initiator_type)
+{
+    switch (initiator_type) {
+    case Request::InitiatorType::Audio:
+        return "audio"_fly_string;
+    case Request::InitiatorType::Beacon:
+        return "beacon"_fly_string;
+    case Request::InitiatorType::Body:
+        return "body"_fly_string;
+    case Request::InitiatorType::CSS:
+        return "css"_fly_string;
+    case Request::InitiatorType::EarlyHint:
+        return "early-hints"_fly_string;
+    case Request::InitiatorType::Embed:
+        return "embed"_fly_string;
+    case Request::InitiatorType::Fetch:
+        return "fetch"_fly_string;
+    case Request::InitiatorType::Font:
+        return "font"_fly_string;
+    case Request::InitiatorType::Frame:
+        return "frame"_fly_string;
+    case Request::InitiatorType::IFrame:
+        return "iframe"_fly_string;
+    case Request::InitiatorType::Image:
+        return "image"_fly_string;
+    case Request::InitiatorType::IMG:
+        return "img"_fly_string;
+    case Request::InitiatorType::Input:
+        return "input"_fly_string;
+    case Request::InitiatorType::Link:
+        return "link"_fly_string;
+    case Request::InitiatorType::Object:
+        return "object"_fly_string;
+    case Request::InitiatorType::Ping:
+        return "ping"_fly_string;
+    case Request::InitiatorType::Script:
+        return "script"_fly_string;
+    case Request::InitiatorType::Track:
+        return "track"_fly_string;
+    case Request::InitiatorType::Video:
+        return "video"_fly_string;
+    case Request::InitiatorType::XMLHttpRequest:
+        return "xmlhttprequest"_fly_string;
+    case Request::InitiatorType::Other:
+        return "other"_fly_string;
+    }
+    VERIFY_NOT_REACHED();
+}
+
 Optional<Request::Priority> request_priority_from_string(StringView string)
 {
     if (string.equals_ignoring_ascii_case("high"sv))

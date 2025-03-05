@@ -4523,6 +4523,7 @@ using namespace Web::NavigationTiming;
 using namespace Web::PerformanceTimeline;
 using namespace Web::RequestIdleCallback;
 using namespace Web::ResizeObserver;
+using namespace Web::ResourceTiming;
 using namespace Web::Selection;
 using namespace Web::ServiceWorker;
 using namespace Web::StorageAPI;

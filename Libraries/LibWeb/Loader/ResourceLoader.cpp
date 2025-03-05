@@ -110,10 +110,10 @@ RefPtr<Resource> ResourceLoader::load_resource(Resource::Type type, LoadRequest&
 
     load(
         request,
-        GC::create_function(m_heap, [resource](ReadonlyBytes data, HTTP::HeaderMap const& headers, Optional<u32> status_code, Optional<String> const&) {
+        GC::create_function(m_heap, [resource](ReadonlyBytes data, Requests::RequestTimingInfo const&, HTTP::HeaderMap const& headers, Optional<u32> status_code, Optional<String> const&) {
             resource->did_load({}, data, headers, status_code);
         }),
-        GC::create_function(m_heap, [resource](ByteString const& error, Optional<u32> status_code, Optional<String> const&, ReadonlyBytes data, HTTP::HeaderMap const& headers) {
+        GC::create_function(m_heap, [resource](ByteString const& error, Requests::RequestTimingInfo const&, Optional<u32> status_code, Optional<String> const&, ReadonlyBytes data, HTTP::HeaderMap const& headers) {
             resource->did_fail({}, error, data, headers, status_code);
         }));
 
@@ -240,23 +240,26 @@ void ResourceLoader::load(LoadRequest& request, GC::Root<SuccessCallback> succes
     request.start_timer();
 
     if (should_block_request(request)) {
-        error_callback->function()("Request was blocked", {}, {}, {}, {});
+        error_callback->function()("Request was blocked", {}, {}, {}, {}, {});
         return;
     }
 
     auto respond_directory_page = [](LoadRequest const& request, URL::URL const& url, GC::Root<SuccessCallback> success_callback, GC::Root<ErrorCallback> error_callback) {
+        // FIXME: Implement timing info for directory requests.
+        Requests::RequestTimingInfo fixme_implement_timing_info {};
+
         auto maybe_response = load_file_directory_page(url);
         if (maybe_response.is_error()) {
             log_failure(request, maybe_response.error());
             if (error_callback)
-                error_callback->function()(ByteString::formatted("{}", maybe_response.error()), 500u, {}, {}, {});
+                error_callback->function()(ByteString::formatted("{}", maybe_response.error()), fixme_implement_timing_info, 500u, {}, {}, {});
             return;
         }
 
         log_success(request);
         HTTP::HeaderMap response_headers;
         response_headers.set("Content-Type"sv, "text/html"sv);
-        success_callback->function()(maybe_response.release_value().bytes(), response_headers, {}, {});
+        success_callback->function()(maybe_response.release_value().bytes(), fixme_implement_timing_info, response_headers, {}, {});
     };
 
     if (url.scheme() == "about") {
@@ -266,9 +269,12 @@ void ResourceLoader::load(LoadRequest& request, GC::Root<SuccessCallback> succes
         HTTP::HeaderMap response_headers;
         response_headers.set("Content-Type", "text/html; charset=UTF-8");
 
+        // FIXME: Implement timing info for about requests.
+        Requests::RequestTimingInfo fixme_implement_timing_info {};
+
         // About version page
         if (url.path_segment_at_index(0) == "version") {
-            success_callback->function()(MUST(load_about_version_page()).bytes(), response_headers, {}, {});
+            success_callback->function()(MUST(load_about_version_page()).bytes(), fixme_implement_timing_info, response_headers, {}, {});
             return;
         }
 
@@ -276,12 +282,12 @@ void ResourceLoader::load(LoadRequest& request, GC::Root<SuccessCallback> succes
         auto resource = Core::Resource::load_from_uri(MUST(String::formatted("resource://ladybird/{}.html", url.path_segment_at_index(0))));
         if (!resource.is_error()) {
             auto data = resource.value()->data();
-            success_callback->function()(data, response_headers, {}, {});
+            success_callback->function()(data, fixme_implement_timing_info, response_headers, {}, {});
             return;
         }
 
-        Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(m_heap, [success_callback, response_headers = move(response_headers)] {
-            success_callback->function()(ByteString::empty().to_byte_buffer(), response_headers, {}, {});
+        Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(m_heap, [success_callback, response_headers = move(response_headers), fixme_implement_timing_info = move(fixme_implement_timing_info)] {
+            success_callback->function()(ByteString::empty().to_byte_buffer(), fixme_implement_timing_info, response_headers, {}, {});
         }));
         return;
     }
@@ -291,7 +297,7 @@ void ResourceLoader::load(LoadRequest& request, GC::Root<SuccessCallback> succes
         if (data_url_or_error.is_error()) {
             auto error_message = data_url_or_error.error().string_literal();
             log_failure(request, error_message);
-            error_callback->function()(error_message, {}, {}, {}, {});
+            error_callback->function()(error_message, {}, {}, {}, {}, {});
             return;
         }
         auto data_url = data_url_or_error.release_value();
@@ -306,7 +312,10 @@ void ResourceLoader::load(LoadRequest& request, GC::Root<SuccessCallback> succes
         log_success(request);
 
         Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(m_heap, [data = move(data_url.body), response_headers = move(response_headers), success_callback] {
-            success_callback->function()(data, response_headers, {}, {});
+            // FIXME: Implement timing info for data requests.
+            Requests::RequestTimingInfo fixme_implement_timing_info {};
+
+            success_callback->function()(data, fixme_implement_timing_info, response_headers, {}, {});
         }));
         return;
     }
@@ -316,7 +325,7 @@ void ResourceLoader::load(LoadRequest& request, GC::Root<SuccessCallback> succes
         if (resource.is_error()) {
             log_failure(request, resource.error());
             if (error_callback)
-                error_callback->function()(ByteString::formatted("{}", resource.error()), {}, {}, {}, {});
+                error_callback->function()(ByteString::formatted("{}", resource.error()), {}, {}, {}, {}, {});
             return;
         }
 
@@ -331,8 +340,11 @@ void ResourceLoader::load(LoadRequest& request, GC::Root<SuccessCallback> succes
         auto data = resource.value()->data();
         auto response_headers = response_headers_for_file(URL::percent_decode(url.serialize_path()), resource.value()->modified_time());
 
+        // FIXME: Implement timing info for resource requests.
+        Requests::RequestTimingInfo fixme_implement_timing_info {};
+
         log_success(request);
-        success_callback->function()(data, response_headers, {}, {});
+        success_callback->function()(data, fixme_implement_timing_info, response_headers, {}, {});
 
         return;
     }
@@ -352,7 +364,7 @@ void ResourceLoader::load(LoadRequest& request, GC::Root<SuccessCallback> succes
             if (file_or_error.is_error()) {
                 log_failure(request, file_or_error.error());
                 if (error_callback)
-                    error_callback->function()(ByteString::formatted("{}", file_or_error.error()), {}, {}, {}, {});
+                    error_callback->function()(ByteString::formatted("{}", file_or_error.error()), {}, {}, {}, {}, {});
                 return;
             }
 
@@ -369,7 +381,7 @@ void ResourceLoader::load(LoadRequest& request, GC::Root<SuccessCallback> succes
             if (st_or_error.is_error()) {
                 log_failure(request, st_or_error.error());
                 if (error_callback)
-                    error_callback->function()(ByteString::formatted("{}", st_or_error.error()), {}, {}, {}, {});
+                    error_callback->function()(ByteString::formatted("{}", st_or_error.error()), {}, {}, {}, {}, {});
                 return;
             }
 
@@ -378,7 +390,7 @@ void ResourceLoader::load(LoadRequest& request, GC::Root<SuccessCallback> succes
             if (maybe_file.is_error()) {
                 log_failure(request, maybe_file.error());
                 if (error_callback)
-                    error_callback->function()(ByteString::formatted("{}", maybe_file.error()), {}, {}, {}, {});
+                    error_callback->function()(ByteString::formatted("{}", maybe_file.error()), {}, {}, {}, {}, {});
                 return;
             }
 
@@ -387,15 +399,18 @@ void ResourceLoader::load(LoadRequest& request, GC::Root<SuccessCallback> succes
             if (maybe_data.is_error()) {
                 log_failure(request, maybe_data.error());
                 if (error_callback)
-                    error_callback->function()(ByteString::formatted("{}", maybe_data.error()), {}, {}, {}, {});
+                    error_callback->function()(ByteString::formatted("{}", maybe_data.error()), {}, {}, {}, {}, {});
                 return;
             }
 
             auto data = maybe_data.release_value();
             auto response_headers = response_headers_for_file(URL::percent_decode(request.url().serialize_path()), st_or_error.value().st_mtime);
 
+            // FIXME: Implement timing info for file requests.
+            Requests::RequestTimingInfo fixme_implement_timing_info {};
+
             log_success(request);
-            success_callback->function()(data, response_headers, {}, {});
+            success_callback->function()(data, fixme_implement_timing_info, response_headers, {}, {});
         });
 
         page->client().request_file(move(file_request));
@@ -411,7 +426,7 @@ void ResourceLoader::load(LoadRequest& request, GC::Root<SuccessCallback> succes
         auto protocol_request = start_network_request(request);
         if (!protocol_request) {
             if (error_callback)
-                error_callback->function()("Failed to start network request"sv, {}, {}, {}, {});
+                error_callback->function()("Failed to start network request"sv, {}, {}, {}, {}, {});
             return;
         }
 
@@ -426,7 +441,7 @@ void ResourceLoader::load(LoadRequest& request, GC::Root<SuccessCallback> succes
             timer->start();
         }
 
-        auto on_buffered_request_finished = [this, success_callback, error_callback, request, &protocol_request = *protocol_request](auto, auto const& network_error, auto& response_headers, auto status_code, auto const& reason_phrase, ReadonlyBytes payload) mutable {
+        auto on_buffered_request_finished = [this, success_callback, error_callback, request, &protocol_request = *protocol_request](auto, auto const& timing_info, auto const& network_error, auto& response_headers, auto status_code, auto const& reason_phrase, ReadonlyBytes payload) mutable {
             handle_network_response_headers(request, response_headers);
 
             // NOTE: We finish the network request *after* invoking callbacks, otherwise a nested
@@ -449,12 +464,12 @@ void ResourceLoader::load(LoadRequest& request, GC::Root<SuccessCallback> succes
 
                 log_failure(request, error_builder.string_view());
                 if (error_callback)
-                    error_callback->function()(error_builder.to_byte_string(), status_code, reason_phrase, payload, response_headers);
+                    error_callback->function()(error_builder.to_byte_string(), timing_info, status_code, reason_phrase, payload, response_headers);
                 return;
             }
 
             log_success(request);
-            success_callback->function()(payload, response_headers, status_code, reason_phrase);
+            success_callback->function()(payload, timing_info, response_headers, status_code, reason_phrase);
         };
 
         protocol_request->set_buffered_request_finished_callback(move(on_buffered_request_finished));
@@ -463,8 +478,9 @@ void ResourceLoader::load(LoadRequest& request, GC::Root<SuccessCallback> succes
 
     auto not_implemented_error = ByteString::formatted("Protocol not implemented: {}", url.scheme());
     log_failure(request, not_implemented_error);
-    if (error_callback)
-        error_callback->function()(not_implemented_error, {}, {}, {}, {});
+    if (error_callback) {
+        error_callback->function()(not_implemented_error, {}, {}, {}, {}, {});
+    }
 }
 
 void ResourceLoader::load_unbuffered(LoadRequest& request, GC::Root<OnHeadersReceived> on_headers_received, GC::Root<OnDataReceived> on_data_received, GC::Root<OnComplete> on_complete)
@@ -475,19 +491,19 @@ void ResourceLoader::load_unbuffered(LoadRequest& request, GC::Root<OnHeadersRec
     request.start_timer();
 
     if (should_block_request(request)) {
-        on_complete->function()(false, "Request was blocked"sv);
+        on_complete->function()(false, {}, "Request was blocked"sv);
         return;
     }
 
     if (!url.scheme().is_one_of("http"sv, "https"sv)) {
         // FIXME: Non-network requests from fetch should not go through this path.
-        on_complete->function()(false, "Cannot establish connection non-network scheme"sv);
+        on_complete->function()(false, {}, "Cannot establish connection non-network scheme"sv);
         return;
     }
 
     auto protocol_request = start_network_request(request);
     if (!protocol_request) {
-        on_complete->function()(false, "Failed to start network request"sv);
+        on_complete->function()(false, {}, "Failed to start network request"sv);
         return;
     }
 
@@ -500,15 +516,15 @@ void ResourceLoader::load_unbuffered(LoadRequest& request, GC::Root<OnHeadersRec
         on_data_received->function()(data);
     };
 
-    auto protocol_complete = [this, on_complete, request, &protocol_request = *protocol_request](u64, Optional<Requests::NetworkError> const& network_error) {
+    auto protocol_complete = [this, on_complete, request, &protocol_request = *protocol_request](u64, Requests::RequestTimingInfo const& timing_info, Optional<Requests::NetworkError> const& network_error) {
         finish_network_request(protocol_request);
 
         if (!network_error.has_value()) {
             log_success(request);
-            on_complete->function()(true, {});
+            on_complete->function()(true, timing_info, {});
         } else {
             log_failure(request, "Request finished with error"sv);
-            on_complete->function()(false, "Request finished with error"sv);
+            on_complete->function()(false, timing_info, "Request finished with error"sv);
         }
     };
 
