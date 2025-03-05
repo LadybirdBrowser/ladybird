@@ -34,6 +34,13 @@ interface Window : EventTarget {
     undefined focus();
     undefined blur();
 
+    [Replaceable] readonly attribute BarProp locationbar;
+    [Replaceable] readonly attribute BarProp menubar;
+    [Replaceable] readonly attribute BarProp personalbar;
+    [Replaceable] readonly attribute BarProp scrollbars;
+    [Replaceable] readonly attribute BarProp statusbar;
+    [Replaceable] readonly attribute BarProp toolbar;
+
     // other browsing contexts
     [Replaceable] readonly attribute WindowProxy frames;
     [Replaceable] readonly attribute unsigned long length;
