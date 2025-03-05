@@ -27,7 +27,7 @@ Process::~Process()
 
 ErrorOr<Process::ProcessAndIPCTransport> Process::spawn_and_connect_to_process(Core::ProcessSpawnOptions const& options)
 {
-    static_assert(IsSame<IPC::Transport, IPC::TransportSocket>, "Need to handle other IPC transports here");
+    // TODO: Mach IPC
 
     int socket_fds[2] {};
     TRY(Core::System::socketpair(AF_LOCAL, SOCK_STREAM, 0, socket_fds));
@@ -35,8 +35,8 @@ ErrorOr<Process::ProcessAndIPCTransport> Process::spawn_and_connect_to_process(C
     ArmedScopeGuard guard_fd_0 { [&] { MUST(Core::System::close(socket_fds[0])); } };
     ArmedScopeGuard guard_fd_1 { [&] { MUST(Core::System::close(socket_fds[1])); } };
 
-    auto& file_actions = const_cast<Core::ProcessSpawnOptions&>(options).file_actions;
-    file_actions.append(Core::FileAction::CloseFile { socket_fds[0] });
+    // Note: Core::System::socketpair creates inheritable sockets both on Linux and Windows unless SOCK_CLOEXEC is specified.
+    TRY(Core::System::set_close_on_exec(socket_fds[0], true));
 
     auto takeover_string = MUST(String::formatted("{}:{}", options.name, socket_fds[1]));
     TRY(Core::Environment::set("SOCKET_TAKEOVER"sv, takeover_string, Core::Environment::Overwrite::Yes));
@@ -50,8 +50,12 @@ ErrorOr<Process::ProcessAndIPCTransport> Process::spawn_and_connect_to_process(C
     return ProcessAndIPCTransport { move(process), IPC::Transport(move(ipc_socket)) };
 }
 
-ErrorOr<Optional<pid_t>> Process::get_process_pid(StringView process_name, StringView pid_path)
+ErrorOr<Optional<pid_t>> Process::get_process_pid([[maybe_unused]] StringView process_name, [[maybe_unused]] StringView pid_path)
 {
+    // FIXME: Implement WebView::Process::get_process_pid on Windows
+#ifdef AK_OS_WINDOWS
+    VERIFY(0 && "WebView::Process::get_process_pid is not implemented");
+#else
     if (Core::System::stat(pid_path).is_error())
         return OptionalNone {};
 
@@ -84,27 +88,32 @@ ErrorOr<Optional<pid_t>> Process::get_process_pid(StringView process_name, Strin
     }
 
     return pid;
+#endif
 }
 
 // This is heavily based on how SystemServer's Service creates its socket.
-ErrorOr<int> Process::create_ipc_socket(ByteString const& socket_path)
+ErrorOr<int> Process::create_ipc_socket([[maybe_unused]] ByteString const& socket_path)
 {
+    // FIXME: Implement WebView::Process::create_ipc_socket on Windows
+#ifdef AK_OS_WINDOWS
+    VERIFY(0 && "WebView::Process::create_ipc_socket is not implemented");
+#else
     if (!Core::System::stat(socket_path).is_error())
         TRY(Core::System::unlink(socket_path));
 
-#ifdef SOCK_NONBLOCK
+#    ifdef SOCK_NONBLOCK
     auto socket_fd = TRY(Core::System::socket(AF_LOCAL, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0));
-#else
+#    else
     auto socket_fd = TRY(Core::System::socket(AF_LOCAL, SOCK_STREAM, 0));
 
     int option = 1;
     TRY(Core::System::ioctl(socket_fd, FIONBIO, &option));
     TRY(Core::System::fcntl(socket_fd, F_SETFD, FD_CLOEXEC));
-#endif
+#    endif
 
-#if !defined(AK_OS_BSD_GENERIC) && !defined(AK_OS_GNU_HURD)
+#    if !defined(AK_OS_BSD_GENERIC) && !defined(AK_OS_GNU_HURD)
     TRY(Core::System::fchmod(socket_fd, 0600));
-#endif
+#    endif
 
     auto socket_address = Core::SocketAddress::local(socket_path);
     auto socket_address_un = socket_address.to_sockaddr_un().release_value();
@@ -113,6 +122,7 @@ ErrorOr<int> Process::create_ipc_socket(ByteString const& socket_path)
     TRY(Core::System::listen(socket_fd, 16));
 
     return socket_fd;
+#endif
 }
 
 ErrorOr<Process::ProcessPaths> Process::paths_for_process(StringView process_name)
