@@ -76,7 +76,7 @@ private:
     RefPtr<Gfx::PaintingSurface> m_surface;
 };
 
-class DisplayList : public RefCounted<DisplayList> {
+class DisplayList : public AtomicRefCounted<DisplayList> {
 public:
     static NonnullRefPtr<DisplayList> create()
     {
