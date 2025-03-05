@@ -32,7 +32,9 @@ public:
         JsonObject const& node;
         Web::UniqueNodeID id { 0 };
         Optional<Web::CSS::Selector::PseudoElement::Type> pseudo_element;
+        NonnullRefPtr<TabActor> tab;
     };
+    static Optional<DOMNode> dom_node_for(WeakPtr<WalkerActor> const&, StringView actor);
     Optional<DOMNode> dom_node(StringView actor);
 
 private:

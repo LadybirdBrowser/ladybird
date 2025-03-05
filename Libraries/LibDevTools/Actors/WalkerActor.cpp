@@ -249,8 +249,19 @@ JsonValue WalkerActor::serialize_node(JsonObject const& node) const
     return serialized;
 }
 
+Optional<WalkerActor::DOMNode> WalkerActor::dom_node_for(WeakPtr<WalkerActor> const& weak_walker, StringView actor)
+{
+    if (auto walker = weak_walker.strong_ref())
+        return walker->dom_node(actor);
+    return {};
+}
+
 Optional<WalkerActor::DOMNode> WalkerActor::dom_node(StringView actor)
 {
+    auto tab = m_tab.strong_ref();
+    if (!tab)
+        return {};
+
     auto maybe_dom_node = m_actor_to_dom_node_map.get(actor);
     if (!maybe_dom_node.has_value() || !maybe_dom_node.value())
         return {};
@@ -268,7 +279,7 @@ Optional<WalkerActor::DOMNode> WalkerActor::dom_node(StringView actor)
     else
         node_id = dom_node.get_integer<Web::UniqueNodeID::Type>("id"sv).value();
 
-    return DOMNode { .node = dom_node, .id = node_id, .pseudo_element = pseudo_element };
+    return DOMNode { .node = dom_node, .id = node_id, .pseudo_element = pseudo_element, .tab = tab.release_nonnull() };
 }
 
 Optional<JsonObject const&> WalkerActor::find_node_by_selector(JsonObject const& node, StringView selector)
