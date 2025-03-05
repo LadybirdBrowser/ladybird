@@ -170,22 +170,44 @@ bool HTMLImageElement::is_image_available() const
 
 Optional<CSSPixels> HTMLImageElement::intrinsic_width() const
 {
-    if (auto image_data = m_current_request->image_data())
+    if (auto image_data = m_current_request->image_data()) {
+        if (auto bitmap = current_image_bitmap()) {
+            auto const& computed_values = layout_node()->computed_values();
+            if (computed_values.image_orientation() == CSS::ImageOrientation::FromImage)
+                return bitmap->width_considering_exif();
+        }
+
         return image_data->intrinsic_width();
+    }
+
     return {};
 }
 
 Optional<CSSPixels> HTMLImageElement::intrinsic_height() const
 {
-    if (auto image_data = m_current_request->image_data())
+    if (auto image_data = m_current_request->image_data()) {
+        if (auto bitmap = current_image_bitmap()) {
+            auto const& computed_values = layout_node()->computed_values();
+            if (computed_values.image_orientation() == CSS::ImageOrientation::FromImage)
+                return bitmap->height_considering_exif();
+        }
+
         return image_data->intrinsic_height();
+    }
     return {};
 }
 
 Optional<CSSPixelFraction> HTMLImageElement::intrinsic_aspect_ratio() const
 {
-    if (auto image_data = m_current_request->image_data())
+    if (auto image_data = m_current_request->image_data()) {
+        if (auto bitmap = current_image_bitmap()) {
+            auto const& computed_values = layout_node()->computed_values();
+            if (computed_values.image_orientation() == CSS::ImageOrientation::FromImage)
+                return CSSPixels(bitmap->width_considering_exif()) / CSSPixels(bitmap->height_considering_exif());
+        }
+
         return image_data->intrinsic_aspect_ratio();
+    }
     return {};
 }
 
