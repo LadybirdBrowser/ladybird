@@ -362,7 +362,7 @@ GC::Ref<Geometry::DOMRect> SVGGraphicsElement::get_b_box(Optional<SVGBoundingBox
     // SVG coordinate space (before any viewbox or other transformations), so it should be possible to
     // calculate this from SVG geometry without a full layout tree (at least for simple cases).
     // See: https://svgwg.org/svg2-draft/coords.html#BoundingBoxes
-    const_cast<DOM::Document&>(document()).update_layout();
+    const_cast<DOM::Document&>(document()).update_layout(DOM::UpdateLayoutReason::SVGGraphicsElementGetBBox);
     if (!layout_node())
         return Geometry::DOMRect::create(realm());
     // Invert the SVG -> screen space transform.

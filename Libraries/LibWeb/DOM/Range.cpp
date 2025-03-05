@@ -1157,7 +1157,7 @@ GC::Ref<Geometry::DOMRectList> Range::get_client_rects()
     if (!start_container()->document().navigable())
         return Geometry::DOMRectList::create(realm(), {});
 
-    start_container()->document().update_layout();
+    start_container()->document().update_layout(DOM::UpdateLayoutReason::RangeGetClientRects);
     update_associated_selection();
     Vector<GC::Root<Geometry::DOMRect>> rects;
     // FIXME: take Range collapsed into consideration

@@ -886,7 +886,7 @@ static void append_layout_tree(Web::Page& page, StringBuilder& builder)
         return;
     }
 
-    document->update_layout();
+    document->update_layout(Web::DOM::UpdateLayoutReason::Debugging);
 
     auto* layout_root = document->layout_node();
     if (!layout_root) {
@@ -905,7 +905,7 @@ static void append_paint_tree(Web::Page& page, StringBuilder& builder)
         return;
     }
 
-    document->update_layout();
+    document->update_layout(Web::DOM::UpdateLayoutReason::Debugging);
 
     auto* layout_root = document->layout_node();
     if (!layout_root) {

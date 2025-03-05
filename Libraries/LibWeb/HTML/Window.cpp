@@ -1422,7 +1422,7 @@ void Window::scroll(ScrollToOptions const& options)
     VERIFY(document);
 
     // Make sure layout is up-to-date before looking at scrollable overflow metrics.
-    document->update_layout();
+    document->update_layout(DOM::UpdateLayoutReason::WindowScroll);
 
     VERIFY(document->paintable_box());
     auto scrolling_area = document->paintable_box()->scrollable_overflow_rect()->to_type<float>();

@@ -458,7 +458,7 @@ Document::Document(JS::Realm& realm, const URL::URL& url, TemporaryDocumentForFr
         if (!navigable || !navigable->is_focused())
             return;
 
-        node->document().update_layout();
+        node->document().update_layout(UpdateLayoutReason::CursorBlinkTimer);
 
         if (node->paintable()) {
             m_cursor_blink_state = !m_cursor_blink_state;
@@ -1278,7 +1278,7 @@ static void propagate_overflow_to_viewport(Element& root_element, Layout::Viewpo
     overflow_origin_computed_values.set_overflow_y(CSS::Overflow::Visible);
 }
 
-void Document::update_layout()
+void Document::update_layout(UpdateLayoutReason reason)
 {
     auto navigable = this->navigable();
     if (!navigable || navigable->active_document() != this)
@@ -1287,7 +1287,7 @@ void Document::update_layout()
     // NOTE: If our parent document needs a relayout, we must do that *first*.
     //       This is necessary as the parent layout may cause our viewport to change.
     if (navigable->container() && &navigable->container()->document() != this)
-        navigable->container()->document().update_layout();
+        navigable->container()->document().update_layout(reason);
 
     update_style();
 
@@ -1303,6 +1303,8 @@ void Document::update_layout()
     auto* document_element = this->document_element();
     auto viewport_rect = navigable->viewport_rect();
 
+    auto timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
+
     if (!m_layout_root || needs_layout_tree_update() || child_needs_layout_tree_update() || needs_full_layout_tree_update()) {
         Layout::TreeBuilder tree_builder;
         m_layout_root = as<Layout::Viewport>(*tree_builder.build(*this));
@@ -1313,6 +1315,10 @@ void Document::update_layout()
         }
 
         set_needs_full_layout_tree_update(false);
+
+        if constexpr (UPDATE_LAYOUT_DEBUG) {
+            dbgln("TREEBUILD {} µs", timer.elapsed_time().to_microseconds());
+        }
     }
 
     // Assign each box that establishes a formatting context a list of absolutely positioned children it should take care of during layout
@@ -1388,6 +1394,10 @@ void Document::update_layout()
     // after the viewport size change.
     if (auto window = this->window())
         window->scroll_by(0, 0);
+
+    if constexpr (UPDATE_LAYOUT_DEBUG) {
+        dbgln("LAYOUT {} {} µs", to_string(reason), timer.elapsed_time().to_microseconds());
+    }
 }
 
 [[nodiscard]] static CSS::RequiredInvalidationAfterStyleChange update_style_recursively(Node& node, CSS::StyleComputer& style_computer, bool needs_inherited_style_update)
@@ -5405,7 +5415,7 @@ WebIDL::ExceptionOr<void> Document::set_design_mode(String const& design_mode)
             if (auto active_range = selection->range(); active_range) {
                 TRY(active_range->set_start(*this, 0));
                 TRY(active_range->set_end(*this, 0));
-                update_layout();
+                update_layout(UpdateLayoutReason::DocumentSetDesignMode);
             }
         }
         // 3. Run the focusing steps for this's document element, if non-null.
@@ -5432,7 +5442,7 @@ Element const* Document::element_from_point(double x, double y)
         return nullptr;
 
     // Ensure the layout tree exists prior to hit testing.
-    update_layout();
+    update_layout(UpdateLayoutReason::DocumentElementFromPoint);
 
     // 2. If there is a box in the viewport that would be a target for hit testing at coordinates x,y, when applying the transforms
     //    that apply to the descendants of the viewport, return the associated element and terminate these steps.
@@ -5474,7 +5484,7 @@ GC::RootVector<GC::Ref<Element>> Document::elements_from_point(double x, double 
         return sequence;
 
     // Ensure the layout tree exists prior to hit testing.
-    update_layout();
+    update_layout(UpdateLayoutReason::DocumentElementsFromPoint);
 
     // 3. For each box in the viewport, in paint order, starting with the topmost box, that would be a target for
     //    hit testing at coordinates x,y even if nothing would be overlapping it, when applying the transforms that
@@ -6002,7 +6012,7 @@ void Document::set_needs_to_refresh_scroll_state(bool b)
 Vector<GC::Root<DOM::Range>> Document::find_matching_text(String const& query, CaseSensitivity case_sensitivity)
 {
     // Ensure the layout tree exists before searching for text matches.
-    update_layout();
+    update_layout(UpdateLayoutReason::DocumentFindMatchingText);
 
     if (!layout_node())
         return {};
@@ -6391,6 +6401,18 @@ WebIDL::CallbackType* Document::onvisibilitychange()
 void Document::set_onvisibilitychange(WebIDL::CallbackType* value)
 {
     set_event_handler_attribute(HTML::EventNames::visibilitychange, value);
+}
+
+StringView to_string(UpdateLayoutReason reason)
+{
+    switch (reason) {
+#define ENUMERATE_UPDATE_LAYOUT_REASON(e) \
+    case UpdateLayoutReason::e:           \
+        return #e##sv;
+        ENUMERATE_UPDATE_LAYOUT_REASONS(ENUMERATE_UPDATE_LAYOUT_REASON)
+#undef ENUMERATE_UPDATE_LAYOUT_REASON
+    }
+    VERIFY_NOT_REACHED();
 }
 
 }

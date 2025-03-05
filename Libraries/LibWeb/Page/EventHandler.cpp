@@ -365,7 +365,7 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint viewport_position, CSS
     if (!m_navigable->active_document()->is_fully_active())
         return EventResult::Dropped;
 
-    m_navigable->active_document()->update_layout();
+    m_navigable->active_document()->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseWheel);
 
     if (!paint_root())
         return EventResult::Dropped;
@@ -431,7 +431,7 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint viewport_position, CSSPix
     if (!m_navigable->active_document()->is_fully_active())
         return EventResult::Dropped;
 
-    m_navigable->active_document()->update_layout();
+    m_navigable->active_document()->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseUp);
 
     if (!paint_root())
         return EventResult::Dropped;
@@ -575,7 +575,7 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint viewport_position, CSSP
     if (!m_navigable->active_document()->is_fully_active())
         return EventResult::Dropped;
 
-    m_navigable->active_document()->update_layout();
+    m_navigable->active_document()->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseDown);
 
     if (!paint_root())
         return EventResult::Dropped;
@@ -699,7 +699,7 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint viewport_position, CSSP
     if (!m_navigable->active_document()->is_fully_active())
         return EventResult::Dropped;
 
-    m_navigable->active_document()->update_layout();
+    m_navigable->active_document()->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseMove);
 
     if (!paint_root())
         return EventResult::Dropped;
@@ -846,7 +846,7 @@ EventResult EventHandler::handle_doubleclick(CSSPixelPoint viewport_position, CS
 
     auto& document = *m_navigable->active_document();
 
-    document.update_layout();
+    document.update_layout(DOM::UpdateLayoutReason::EventHandlerHandleDoubleClick);
 
     if (!paint_root())
         return EventResult::Dropped;
@@ -924,7 +924,7 @@ EventResult EventHandler::handle_drag_and_drop_event(DragEvent::Type type, CSSPi
         return EventResult::Dropped;
 
     auto& document = *m_navigable->active_document();
-    document.update_layout();
+    document.update_layout(DOM::UpdateLayoutReason::EventHandlerHandleDragAndDrop);
 
     if (!paint_root())
         return EventResult::Dropped;

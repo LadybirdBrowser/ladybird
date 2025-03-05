@@ -962,7 +962,7 @@ void CanvasRenderingContext2D::set_filter(String filter)
         drawing_state().filters.grow_capacity(filter_value_list.size());
 
         // Note: The layout must be updated to make sure the canvas's layout node isn't null.
-        canvas_element().document().update_layout();
+        canvas_element().document().update_layout(DOM::UpdateLayoutReason::CanvasRenderingContext2DSetFilter);
         auto layout_node = canvas_element().layout_node();
 
         // 4. Set this's current filter to the given value.

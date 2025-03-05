@@ -400,7 +400,7 @@ void EventLoop::update_the_rendering()
         while (true) {
             // 1. Recalculate styles and update layout for doc.
             // NOTE: Recalculation of styles is handled by update_layout()
-            document->update_layout();
+            document->update_layout(DOM::UpdateLayoutReason::HTMLEventLoopRenderingUpdate);
 
             // 2. Let hadInitialVisibleContentVisibilityDetermination be false.
             bool had_initial_visible_content_visibility_determination = false;

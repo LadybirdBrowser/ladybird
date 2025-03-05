@@ -254,6 +254,10 @@
 #    cmakedefine01 TOKENIZER_TRACE_DEBUG
 #endif
 
+#ifndef UPDATE_LAYOUT_DEBUG
+#    cmakedefine01 UPDATE_LAYOUT_DEBUG
+#endif
+
 #ifndef URL_PARSER_DEBUG
 #    cmakedefine01 URL_PARSER_DEBUG
 #endif

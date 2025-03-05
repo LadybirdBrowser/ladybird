@@ -2745,7 +2745,7 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
                 if (!child_node->is_element() && !child_node->is_text())
                     continue;
                 bool should_add_space = true;
-                const_cast<DOM::Document&>(document).update_layout();
+                const_cast<DOM::Document&>(document).update_layout(DOM::UpdateLayoutReason::NodeNameOrDescription);
                 auto const* layout_node = child_node->layout_node();
                 if (layout_node) {
                     auto display = layout_node->display();

@@ -50,6 +50,64 @@ enum class QuirksMode {
     Yes
 };
 
+#define ENUMERATE_UPDATE_LAYOUT_REASONS(X) \
+    X(CanvasRenderingContext2DSetFilter)   \
+    X(CursorBlinkTimer)                    \
+    X(Debugging)                           \
+    X(DocumentElementFromPoint)            \
+    X(DocumentElementsFromPoint)           \
+    X(DocumentFindMatchingText)            \
+    X(DocumentSetDesignMode)               \
+    X(ElementCheckVisibility)              \
+    X(ElementClientHeight)                 \
+    X(ElementClientLeft)                   \
+    X(ElementClientTop)                    \
+    X(ElementClientWidth)                  \
+    X(ElementGetClientRects)               \
+    X(ElementIsPotentiallyScrollable)      \
+    X(ElementScroll)                       \
+    X(ElementScrollHeight)                 \
+    X(ElementScrollIntoView)               \
+    X(ElementScrollLeft)                   \
+    X(ElementScrollTop)                    \
+    X(ElementScrollWidth)                  \
+    X(ElementSetScrollLeft)                \
+    X(ElementSetScrollTop)                 \
+    X(EventHandlerHandleDoubleClick)       \
+    X(EventHandlerHandleDragAndDrop)       \
+    X(EventHandlerHandleMouseDown)         \
+    X(EventHandlerHandleMouseMove)         \
+    X(EventHandlerHandleMouseUp)           \
+    X(EventHandlerHandleMouseWheel)        \
+    X(HTMLElementGetTheTextSteps)          \
+    X(HTMLElementOffsetHeight)             \
+    X(HTMLElementOffsetLeft)               \
+    X(HTMLElementOffsetParent)             \
+    X(HTMLElementOffsetTop)                \
+    X(HTMLElementOffsetWidth)              \
+    X(HTMLEventLoopRenderingUpdate)        \
+    X(HTMLImageElementHeight)              \
+    X(HTMLImageElementWidth)               \
+    X(HTMLInputElementHeight)              \
+    X(HTMLInputElementWidth)               \
+    X(InternalsHitTest)                    \
+    X(MediaQueryListMatches)               \
+    X(NodeNameOrDescription)               \
+    X(RangeGetClientRects)                 \
+    X(ResolvedCSSStyleDeclarationProperty) \
+    X(SVGDecodedImageDataRender)           \
+    X(SVGGraphicsElementGetBBox)           \
+    X(SourceSetNormalizeSourceDensities)   \
+    X(WindowScroll)
+
+enum class UpdateLayoutReason {
+#define ENUMERATE_UPDATE_LAYOUT_REASON(e) e,
+    ENUMERATE_UPDATE_LAYOUT_REASONS(ENUMERATE_UPDATE_LAYOUT_REASON)
+#undef ENUMERATE_UPDATE_LAYOUT_REASON
+};
+
+[[nodiscard]] StringView to_string(UpdateLayoutReason);
+
 // https://html.spec.whatwg.org/multipage/dom.html#document-load-timing-info
 struct DocumentLoadTimingInfo {
     // https://html.spec.whatwg.org/multipage/dom.html#navigation-start-time
@@ -258,7 +316,7 @@ public:
     void obtain_theme_color();
 
     void update_style();
-    void update_layout();
+    void update_layout(UpdateLayoutReason);
     void update_paint_and_hit_testing_properties_if_needed();
     void update_animated_style_if_needed();
 

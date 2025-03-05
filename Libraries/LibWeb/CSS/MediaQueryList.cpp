@@ -65,7 +65,7 @@ bool MediaQueryList::matches() const
     // NOTE: If our document is inside a frame, we need to update layout
     //       since that may cause our frame (and thus viewport) to resize.
     if (auto container_document = m_document->container_document()) {
-        container_document->update_layout();
+        container_document->update_layout(DOM::UpdateLayoutReason::MediaQueryListMatches);
         const_cast<MediaQueryList*>(this)->evaluate();
     }
 

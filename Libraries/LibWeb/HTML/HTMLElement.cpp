@@ -368,7 +368,7 @@ static Vector<Variant<String, RequiredLineBreakCount>> rendered_text_collection_
 String HTMLElement::get_the_text_steps()
 {
     // 1. If element is not being rendered or if the user agent is a non-CSS user agent, then return element's descendant text content.
-    document().update_layout();
+    document().update_layout(DOM::UpdateLayoutReason::HTMLElementGetTheTextSteps);
     if (!layout_node())
         return descendant_text_content();
 
@@ -444,7 +444,7 @@ String HTMLElement::outer_text()
 // https://www.w3.org/TR/cssom-view-1/#dom-htmlelement-offsetparent
 GC::Ptr<DOM::Element> HTMLElement::offset_parent() const
 {
-    const_cast<DOM::Document&>(document()).update_layout();
+    const_cast<DOM::Document&>(document()).update_layout(DOM::UpdateLayoutReason::HTMLElementOffsetParent);
 
     // 1. If any of the following holds true return null and terminate this algorithm:
     //    - The element does not have an associated CSS layout box.
@@ -491,7 +491,7 @@ int HTMLElement::offset_top() const
         return 0;
 
     // NOTE: Ensure that layout is up-to-date before looking at metrics.
-    const_cast<DOM::Document&>(document()).update_layout();
+    const_cast<DOM::Document&>(document()).update_layout(DOM::UpdateLayoutReason::HTMLElementOffsetTop);
 
     if (!paintable_box())
         return 0;
@@ -533,7 +533,7 @@ int HTMLElement::offset_left() const
         return 0;
 
     // NOTE: Ensure that layout is up-to-date before looking at metrics.
-    const_cast<DOM::Document&>(document()).update_layout();
+    const_cast<DOM::Document&>(document()).update_layout(DOM::UpdateLayoutReason::HTMLElementOffsetLeft);
 
     if (!paintable_box())
         return 0;
@@ -571,7 +571,7 @@ int HTMLElement::offset_left() const
 int HTMLElement::offset_width() const
 {
     // NOTE: Ensure that layout is up-to-date before looking at metrics.
-    const_cast<DOM::Document&>(document()).update_layout();
+    const_cast<DOM::Document&>(document()).update_layout(DOM::UpdateLayoutReason::HTMLElementOffsetWidth);
 
     // 1. If the element does not have any associated box return zero and terminate this algorithm.
     auto const* box = paintable_box();
@@ -590,7 +590,7 @@ int HTMLElement::offset_width() const
 int HTMLElement::offset_height() const
 {
     // NOTE: Ensure that layout is up-to-date before looking at metrics.
-    const_cast<DOM::Document&>(document()).update_layout();
+    const_cast<DOM::Document&>(document()).update_layout(DOM::UpdateLayoutReason::HTMLElementOffsetHeight);
 
     // 1. If the element does not have any associated box return zero and terminate this algorithm.
     auto const* box = paintable_box();

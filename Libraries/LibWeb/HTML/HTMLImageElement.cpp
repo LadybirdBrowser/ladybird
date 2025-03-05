@@ -204,7 +204,7 @@ void HTMLImageElement::set_visible_in_viewport(bool)
 // https://html.spec.whatwg.org/multipage/embedded-content.html#dom-img-width
 WebIDL::UnsignedLong HTMLImageElement::width() const
 {
-    const_cast<DOM::Document&>(document()).update_layout();
+    const_cast<DOM::Document&>(document()).update_layout(DOM::UpdateLayoutReason::HTMLImageElementWidth);
 
     // Return the rendered width of the image, in CSS pixels, if the image is being rendered.
     if (auto* paintable_box = this->paintable_box())
@@ -235,7 +235,7 @@ WebIDL::ExceptionOr<void> HTMLImageElement::set_width(WebIDL::UnsignedLong width
 // https://html.spec.whatwg.org/multipage/embedded-content.html#dom-img-height
 WebIDL::UnsignedLong HTMLImageElement::height() const
 {
-    const_cast<DOM::Document&>(document()).update_layout();
+    const_cast<DOM::Document&>(document()).update_layout(DOM::UpdateLayoutReason::HTMLImageElementHeight);
 
     // Return the rendered height of the image, in CSS pixels, if the image is being rendered.
     if (auto* paintable_box = this->paintable_box())
