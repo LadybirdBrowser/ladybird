@@ -153,7 +153,7 @@ void FlexFormattingContext::run(AvailableSpace const& available_space)
     // 16. Align all flex lines (per align-content)
     align_all_flex_lines();
 
-    if (available_space.width.is_intrinsic_sizing_constraint() || available_space.height.is_intrinsic_sizing_constraint()) {
+    if (m_layout_mode == LayoutMode::IntrinsicSizing) {
         // We're computing intrinsic size for the flex container.
         determine_intrinsic_size_of_flex_container();
     } else {
