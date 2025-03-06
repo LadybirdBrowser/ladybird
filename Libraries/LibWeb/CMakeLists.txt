@@ -473,6 +473,8 @@ set(SOURCES
     HTML/NavigatorBeacon.cpp
     HTML/NavigatorID.cpp
     HTML/Numbers.cpp
+    HTML/OffscreenCanvas.cpp
+    HTML/OffscreenCanvasRenderingContext2D.cpp
     HTML/PageTransitionEvent.cpp
     HTML/PolicyContainers.cpp
     HTML/PopoverInvokerElement.cpp
