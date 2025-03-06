@@ -136,14 +136,14 @@ For more information, see [Custom CMake build directory](#custom-cmake-build-dir
 
 ### macOS:
 
-Xcode 14 versions before 14.3 might crash while building ladybird. Xcode 14.3 or clang from homebrew may be required to successfully build ladybird.
+Xcode 14 versions before 14.3 might crash while building ladybird. Xcode 14.3 may be required to successfully build ladybird.
 
 ```
 xcode-select --install
 brew install autoconf autoconf-archive automake ccache cmake nasm ninja pkg-config
 ```
 
-If you wish to use clang from homebrew instead:
+The Apple-installed version of clang (version 16) will not work. You need clang 19 or later — which you can install from homebrew:
 ```
 brew install llvm@19
 ```
@@ -214,7 +214,7 @@ The simplest way to build and run ladybird is via the ladybird.sh script:
 ./Meta/ladybird.sh run ladybird
 ```
 
-On macOS, to build using clang from homebrew:
+On macOS, you need to build using the clang version from homebrew:
 ```bash
 CC=$(brew --prefix llvm)/bin/clang CXX=$(brew --prefix llvm)/bin/clang++ ./Meta/ladybird.sh run
 ```
