@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const workerScript = `
+            self.onmessage = function(evt) {
+                try{
+                    let canvas = new OffscreenCanvas(10, 10);
+                    self.postMessage(JSON.stringify({ w: canvas.width, h: canvas.height }));
+                    let context = canvas.getContext("2d");
+                    context.font = "20px SerenitySans";
+                    self.postMessage(context.font);
+                    context.font = "!!!"; // Invalid value, should be ignored.
+                    self.postMessage(context.font);
+                    self.postMessage(null);
+                }catch(err){
+                    self.postMessage("Error: " + err);
+                    self.postMessage(null);
+                }
+            };
+        `;
+        const blob = new Blob([workerScript], { type: "application/javascript" });
+        const workerScriptURL = URL.createObjectURL(blob);
+        const worker = new Worker(workerScriptURL);
+
+        worker.onmessage = function (evt) {
+            if (evt.data === null) {
+                done();
+            }
+            println("Message received from worker: " + JSON.stringify(evt.data));
+        };
+
+        // Send a message to the worker
+        worker.postMessage("Hello from main script");
+    });
+</script>
