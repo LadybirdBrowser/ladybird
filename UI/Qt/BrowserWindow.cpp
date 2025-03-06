@@ -569,6 +569,17 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
         });
     });
 
+    m_enable_content_filtering_action = new QAction("Enable Content Filtering", this);
+    m_enable_content_filtering_action->setCheckable(true);
+    m_enable_content_filtering_action->setChecked(true);
+    debug_menu->addAction(m_enable_content_filtering_action);
+    QObject::connect(m_enable_content_filtering_action, &QAction::triggered, this, [this] {
+        bool const state = m_enable_content_filtering_action->isChecked();
+        for_each_tab([state](auto& tab) {
+            tab.set_content_filtering(state);
+        });
+    });
+
     m_block_pop_ups_action = new QAction("Block Pop-ups", this);
     m_block_pop_ups_action->setCheckable(true);
     m_block_pop_ups_action->setChecked(WebView::Application::chrome_options().allow_popups == WebView::AllowPopups::No);
@@ -828,6 +839,7 @@ void BrowserWindow::initialize_tab(Tab* tab)
 
     tab->set_line_box_borders(m_show_line_box_borders_action->isChecked());
     tab->set_scripting(m_enable_scripting_action->isChecked());
+    tab->set_content_filtering(m_enable_content_filtering_action->isChecked());
     tab->set_block_popups(m_block_pop_ups_action->isChecked());
     tab->set_same_origin_policy(m_enable_same_origin_policy_action->isChecked());
     tab->set_user_agent_string(user_agent_string());
