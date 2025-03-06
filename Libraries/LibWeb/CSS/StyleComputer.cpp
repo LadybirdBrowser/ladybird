@@ -1708,8 +1708,6 @@ NonnullRefPtr<CSSStyleValue const> StyleComputer::get_inherit_value(CSS::Propert
 
 void StyleComputer::compute_defaulted_property_value(ComputedProperties& style, DOM::Element const* element, CSS::PropertyID property_id, Optional<CSS::PseudoElement> pseudo_element) const
 {
-    // FIXME: If we don't know the correct initial value for a property, we fall back to `initial`.
-
     auto& value_slot = style.m_property_values[to_underlying(property_id)];
     if (!value_slot) {
         if (is_inherited_property(property_id)) {
