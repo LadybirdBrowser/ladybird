@@ -112,6 +112,7 @@ public:
     void highlight_dom_node(Web::UniqueNodeID node_id, Optional<Web::CSS::Selector::PseudoElement::Type> pseudo_element);
     void clear_highlighted_dom_node();
 
+    void set_listen_for_dom_mutations(bool);
     void set_dom_node_text(Web::UniqueNodeID node_id, String text);
     void set_dom_node_tag(Web::UniqueNodeID node_id, String name);
     void add_dom_node_attributes(Web::UniqueNodeID node_id, Vector<Attribute> attributes);
@@ -213,6 +214,7 @@ public:
     Function<void(Web::CSS::StyleSheetIdentifier const&)> on_inspector_requested_style_sheet_source;
     Function<void(Web::CSS::StyleSheetIdentifier const&, URL::URL const&, String const&)> on_received_style_sheet_source;
     Function<void(Web::UniqueNodeID)> on_received_hovered_node_id;
+    Function<void(Mutation)> on_dom_mutation_received;
     Function<void(Optional<Web::UniqueNodeID> const& node_id)> on_finshed_editing_dom_node;
     Function<void(String const&)> on_received_dom_node_html;
     Function<void(JsonValue)> on_received_js_console_result;

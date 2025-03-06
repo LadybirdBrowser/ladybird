@@ -57,6 +57,7 @@
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/MathML/MathMLElement.h>
 #include <LibWeb/Namespace.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/SVG/SVGElement.h>
@@ -2232,8 +2233,11 @@ Painting::PaintableBox* Node::paintable_box()
 }
 
 // https://dom.spec.whatwg.org/#queue-a-mutation-record
-void Node::queue_mutation_record(FlyString const& type, Optional<FlyString> const& attribute_name, Optional<FlyString> const& attribute_namespace, Optional<String> const& old_value, Vector<GC::Root<Node>> added_nodes, Vector<GC::Root<Node>> removed_nodes, Node* previous_sibling, Node* next_sibling) const
+void Node::queue_mutation_record(FlyString const& type, Optional<FlyString> const& attribute_name, Optional<FlyString> const& attribute_namespace, Optional<String> const& old_value, Vector<GC::Root<Node>> added_nodes, Vector<GC::Root<Node>> removed_nodes, Node* previous_sibling, Node* next_sibling)
 {
+    auto& document = this->document();
+    auto& page = document.page();
+
     // NOTE: We defer garbage collection until the end of the scope, since we can't safely use MutationObserver* as a hashmap key otherwise.
     // FIXME: This is a total hack.
     GC::DeferGC defer_gc(heap());
@@ -2278,22 +2282,22 @@ void Node::queue_mutation_record(FlyString const& type, Optional<FlyString> cons
     }
 
     // OPTIMIZATION: If there are no interested observers, bail without doing any more work.
-    if (interested_observers.is_empty())
+    if (interested_observers.is_empty() && !page.listen_for_dom_mutations())
         return;
+
+    // FIXME: The MutationRecord constructor shuld take an Optional<FlyString> attribute name and namespace
+    Optional<String> string_attribute_name;
+    if (attribute_name.has_value())
+        string_attribute_name = attribute_name->to_string();
+    Optional<String> string_attribute_namespace;
+    if (attribute_namespace.has_value())
+        string_attribute_namespace = attribute_namespace->to_string();
 
     auto added_nodes_list = StaticNodeList::create(realm(), move(added_nodes));
     auto removed_nodes_list = StaticNodeList::create(realm(), move(removed_nodes));
 
     // 4. For each observer → mappedOldValue of interestedObservers:
     for (auto& interested_observer : interested_observers) {
-        // FIXME: The MutationRecord constructor shuld take an Optional<FlyString> attribute name and namespace
-        Optional<String> string_attribute_name;
-        if (attribute_name.has_value())
-            string_attribute_name = attribute_name->to_string();
-        Optional<String> string_attribute_namespace;
-        if (attribute_namespace.has_value())
-            string_attribute_namespace = attribute_namespace->to_string();
-
         // 1. Let record be a new MutationRecord object with its type set to type, target set to target, attributeName set to name, attributeNamespace set to namespace, oldValue set to mappedOldValue,
         //    addedNodes set to addedNodes, removedNodes set to removedNodes, previousSibling set to previousSibling, and nextSibling set to nextSibling.
         auto record = MutationRecord::create(realm(), type, *this, added_nodes_list, removed_nodes_list, previous_sibling, next_sibling, string_attribute_name, string_attribute_namespace, /* mappedOldValue */ interested_observer.value);
@@ -2303,7 +2307,11 @@ void Node::queue_mutation_record(FlyString const& type, Optional<FlyString> cons
     }
 
     // 5. Queue a mutation observer microtask.
-    Bindings::queue_mutation_observer_microtask(document());
+    Bindings::queue_mutation_observer_microtask(document);
+
+    // AD-HOC: Notify the UI if it is interested in DOM mutations (i.e. for DevTools).
+    if (page.listen_for_dom_mutations())
+        page.client().page_did_mutate_dom(type, *this, added_nodes_list, removed_nodes_list, previous_sibling, next_sibling, string_attribute_name);
 }
 
 // https://dom.spec.whatwg.org/#queue-a-tree-mutation-record

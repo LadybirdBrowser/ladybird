@@ -76,6 +76,7 @@ private:
     virtual void did_inspect_accessibility_tree(u64 page_id, String const&) override;
     virtual void did_get_hovered_node_id(u64 page_id, Web::UniqueNodeID const& node_id) override;
     virtual void did_finish_editing_dom_node(u64 page_id, Optional<Web::UniqueNodeID> const& node_id) override;
+    virtual void did_mutate_dom(u64 page_id, Mutation const&) override;
     virtual void did_get_dom_node_html(u64 page_id, String const& html) override;
     virtual void did_take_screenshot(u64 page_id, Gfx::ShareableBitmap const& screenshot) override;
     virtual void did_get_internal_page_info(u64 page_id, PageInfoType, String const&) override;

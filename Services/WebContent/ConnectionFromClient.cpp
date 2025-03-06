@@ -663,6 +663,15 @@ void ConnectionFromClient::request_style_sheet_source(u64 page_id, Web::CSS::Sty
     }
 }
 
+void ConnectionFromClient::set_listen_for_dom_mutations(u64 page_id, bool listen_for_dom_mutations)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value())
+        return;
+
+    page->page().set_listen_for_dom_mutations(listen_for_dom_mutations);
+}
+
 void ConnectionFromClient::set_dom_node_text(u64 page_id, Web::UniqueNodeID const& node_id, String const& text)
 {
     auto* dom_node = Web::DOM::Node::from_unique_id(node_id);

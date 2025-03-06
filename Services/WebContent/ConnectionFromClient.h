@@ -83,6 +83,7 @@ private:
     virtual void list_style_sheets(u64 page_id) override;
     virtual void request_style_sheet_source(u64 page_id, Web::CSS::StyleSheetIdentifier const& identifier) override;
 
+    virtual void set_listen_for_dom_mutations(u64 page_id, bool) override;
     virtual void set_dom_node_text(u64 page_id, Web::UniqueNodeID const& node_id, String const& text) override;
     virtual void set_dom_node_tag(u64 page_id, Web::UniqueNodeID const& node_id, String const& name) override;
     virtual void add_dom_node_attributes(u64 page_id, Web::UniqueNodeID const& node_id, Vector<WebView::Attribute> const& attributes) override;

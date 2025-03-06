@@ -333,6 +333,11 @@ void ViewImplementation::clear_highlighted_dom_node()
     highlight_dom_node(0, {});
 }
 
+void ViewImplementation::set_listen_for_dom_mutations(bool listen_for_dom_mutations)
+{
+    client().async_set_listen_for_dom_mutations(page_id(), listen_for_dom_mutations);
+}
+
 void ViewImplementation::set_dom_node_text(Web::UniqueNodeID node_id, String text)
 {
     client().async_set_dom_node_text(page_id(), node_id, move(text));

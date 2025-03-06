@@ -9,6 +9,7 @@ set(SOURCES
     Database.cpp
     HelperProcess.cpp
     InspectorClient.cpp
+    Mutation.cpp
     Plugins/FontPlugin.cpp
     Plugins/ImageCodecPlugin.cpp
     Process.cpp

@@ -341,6 +341,14 @@ void WebContentClient::did_finish_editing_dom_node(u64 page_id, Optional<Web::Un
     }
 }
 
+void WebContentClient::did_mutate_dom(u64 page_id, Mutation const& mutation)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
+        if (view->on_dom_mutation_received)
+            view->on_dom_mutation_received(move(const_cast<Mutation&>(mutation)));
+    }
+}
+
 void WebContentClient::did_get_dom_node_html(u64 page_id, String const& html)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {

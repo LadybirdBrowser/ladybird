@@ -222,6 +222,9 @@ public:
     FindInPageResult find_in_page_previous_match();
     Optional<FindInPageQuery> last_find_in_page_query() const { return m_last_find_in_page_query; }
 
+    bool listen_for_dom_mutations() const { return m_listen_for_dom_mutations; }
+    void set_listen_for_dom_mutations(bool listen_for_dom_mutations) { m_listen_for_dom_mutations = listen_for_dom_mutations; }
+
 private:
     explicit Page(GC::Ref<PageClient>);
     virtual void visit_edges(Visitor&) override;
@@ -287,9 +290,12 @@ private:
     // Spec Note: This value also impacts the navigation processing model.
     // FIXME: Actually support pdf viewing
     bool m_pdf_viewer_supported { false };
+
     size_t m_find_in_page_match_index { 0 };
     Optional<FindInPageQuery> m_last_find_in_page_query;
     URL::URL m_last_find_in_page_url;
+
+    bool m_listen_for_dom_mutations { false };
 };
 
 struct PaintOptions {
@@ -396,6 +402,8 @@ public:
     virtual void page_did_change_audio_play_state(HTML::AudioPlayState) { }
 
     virtual IPC::File request_worker_agent() { return IPC::File {}; }
+
+    virtual void page_did_mutate_dom([[maybe_unused]] FlyString const& type, [[maybe_unused]] DOM::Node const& target, [[maybe_unused]] DOM::NodeList& added_nodes, [[maybe_unused]] DOM::NodeList& removed_nodes, [[maybe_unused]] GC::Ptr<DOM::Node> previous_sibling, [[maybe_unused]] GC::Ptr<DOM::Node> next_sibling, [[maybe_unused]] Optional<String> const& attribute_name) { }
 
     virtual void inspector_did_load() { }
     virtual void inspector_did_select_dom_node([[maybe_unused]] UniqueNodeID node_id, [[maybe_unused]] Optional<CSS::Selector::PseudoElement::Type> const& pseudo_element) { }
