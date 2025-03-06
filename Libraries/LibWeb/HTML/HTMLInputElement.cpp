@@ -2263,6 +2263,9 @@ String HTMLInputElement::convert_number_to_string(double input) const
     if (type_state() == TypeAttributeState::Date)
         return convert_number_to_date_string(input);
 
+    if (type_state() == TypeAttributeState::Time)
+        return convert_number_to_time_string(input);
+
     dbgln("HTMLInputElement::convert_number_to_string() not implemented for input type {}", type());
     return {};
 }
