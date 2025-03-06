@@ -730,7 +730,7 @@ struct ConvertedTexture {
     int height { 0 };
 };
 
-static Optional<ConvertedTexture> read_and_pixel_convert_texture_image_source(Variant<GC::Root<ImageBitmap>, GC::Root<ImageData>, GC::Root<HTMLImageElement>, GC::Root<HTMLCanvasElement>, GC::Root<HTMLVideoElement>> const& source, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, Optional<int> destination_width = OptionalNone {}, Optional<int> destination_height = OptionalNone {})
+static Optional<ConvertedTexture> read_and_pixel_convert_texture_image_source(TexImageSource const& source, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, Optional<int> destination_width = OptionalNone {}, Optional<int> destination_height = OptionalNone {})
 {
     // FIXME: If this function is called with an ImageData whose data attribute has been neutered,
     //        an INVALID_VALUE error is generated.
@@ -752,6 +752,9 @@ static Optional<ConvertedTexture> read_and_pixel_convert_texture_image_source(Va
             auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::RGBA8888, Gfx::AlphaType::Premultiplied, surface->size()));
             surface->read_into_bitmap(*bitmap);
             return Gfx::ImmutableBitmap::create(*bitmap);
+        },
+        [](GC::Root<OffscreenCanvas> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
+            return Gfx::ImmutableBitmap::create(*source->bitmap());
         },
         [](GC::Root<HTMLVideoElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
             return Gfx::ImmutableBitmap::create(*source->bitmap());

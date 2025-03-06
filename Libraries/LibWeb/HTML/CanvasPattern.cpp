@@ -17,6 +17,7 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(CanvasPattern);
 
+// https://html.spec.whatwg.org/multipage/canvas.html#dom-canvaspattern-settransform
 void CanvasPatternPaintStyle::paint(Gfx::IntRect physical_bounding_box, PaintFunction paint) const
 {
     // 1. Create an infinite transparent black bitmap.
@@ -50,6 +51,7 @@ void CanvasPatternPaintStyle::paint(Gfx::IntRect physical_bounding_box, PaintFun
     auto bitmap = m_image.visit(
         [](GC::Root<HTMLImageElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> { return source->immutable_bitmap(); },
         [](GC::Root<SVG::SVGImageElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> { return source->current_image_bitmap(); },
+        [](GC::Root<OffscreenCanvas> const& source) -> RefPtr<Gfx::ImmutableBitmap> { return Gfx::ImmutableBitmap::create(*source->bitmap()); },
         [](GC::Root<HTMLCanvasElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> { return Gfx::ImmutableBitmap::create_snapshot_from_painting_surface(*source->surface()); },
         [](GC::Root<HTMLVideoElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> { return Gfx::ImmutableBitmap::create(*source->bitmap()); },
         [](GC::Root<ImageBitmap> const& source) -> RefPtr<Gfx::ImmutableBitmap> { return Gfx::ImmutableBitmap::create(*source->bitmap()); });
