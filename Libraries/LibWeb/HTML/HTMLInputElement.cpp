@@ -2422,10 +2422,10 @@ double HTMLInputElement::step_base() const
 
     // 2. If the element has a value content attribute, and the result of applying the algorithm to convert a string to a number to the value of
     // the value content attribute is not an error, then return that result.
-    // AD-HOC: https://github.com/whatwg/html/issues/11097 Skipping this step seems to be necessary in order to get the
-    //         behavior that's actually expected — and necessary in order get the tests to pass (they otherwise fail).
-    // if (auto value = convert_string_to_number(this->value()); value.has_value())
-    // return *value;
+    if (auto value = get_attribute(HTML::AttributeNames::value); value.has_value()) {
+        if (auto value_as_number = convert_string_to_number(value.value()); value_as_number.has_value())
+            return value_as_number.value();
+    }
 
     // 3. If a default step base is defined for this element given its type attribute's state, then return it.
     if (type_state() == TypeAttributeState::Week) {
