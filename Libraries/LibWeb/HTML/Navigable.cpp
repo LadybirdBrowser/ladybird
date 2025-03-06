@@ -2100,7 +2100,7 @@ void finalize_a_cross_document_navigation(GC::Ref<Navigable> navigable, HistoryH
     // AD-HOC: If we're inside a navigable container, let's trigger a relayout in the container document.
     //         This allows size negotiation between the containing document and SVG documents to happen.
     if (auto container = navigable->container()) {
-        container->document().set_needs_layout();
+        container->document().set_needs_layout(DOM::SetNeedsLayoutReason::FinalizeACrossDocumentNavigation);
     }
 }
 
@@ -2223,7 +2223,7 @@ void Navigable::set_viewport_size(CSSPixelSize size)
     if (auto document = active_document()) {
         // NOTE: Resizing the viewport changes the reference value for viewport-relative CSS lengths.
         document->invalidate_style(DOM::StyleInvalidationReason::NavigableSetViewportSize);
-        document->set_needs_layout();
+        document->set_needs_layout(DOM::SetNeedsLayoutReason::NavigableSetViewportSize);
     }
 
     if (auto document = active_document()) {

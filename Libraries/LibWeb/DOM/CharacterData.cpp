@@ -146,7 +146,7 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
     if (auto* layout_node = this->layout_node(); layout_node && layout_node->is_text_node())
         static_cast<Layout::TextNode&>(*layout_node).invalidate_text_for_rendering();
 
-    document().set_needs_layout();
+    document().set_needs_layout(SetNeedsLayoutReason::CharacterDataReplaceData);
     document().bump_character_data_version();
 
     if (m_grapheme_segmenter)

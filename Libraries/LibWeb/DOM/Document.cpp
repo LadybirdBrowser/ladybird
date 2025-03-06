@@ -1211,10 +1211,16 @@ Optional<String> Document::encoding_parse_and_serialize_url(StringView url) cons
     return parsed_url->serialize();
 }
 
-void Document::set_needs_layout()
+void Document::set_needs_layout(SetNeedsLayoutReason reason)
 {
     if (m_needs_layout)
         return;
+    if constexpr (UPDATE_LAYOUT_DEBUG) {
+        // NOTE: We check some conditions here to avoid debug spam in documents that don't do layout.
+        auto navigable = this->navigable();
+        if (m_layout_root && navigable && navigable->active_document() == this)
+            dbgln_if(UPDATE_LAYOUT_DEBUG, "NEED LAYOUT {}", to_string(reason));
+    }
     m_needs_layout = true;
     schedule_layout_update();
 }
@@ -1527,7 +1533,7 @@ void Document::update_style()
     if (!invalidation.is_none())
         invalidate_display_list();
     if (invalidation.relayout)
-        set_needs_layout();
+        set_needs_layout(SetNeedsLayoutReason::StyleChange);
     if (invalidation.rebuild_stacking_context_tree)
         invalidate_stacking_context_tree();
     m_needs_full_style_update = false;
@@ -6403,6 +6409,18 @@ WebIDL::CallbackType* Document::onvisibilitychange()
 void Document::set_onvisibilitychange(WebIDL::CallbackType* value)
 {
     set_event_handler_attribute(HTML::EventNames::visibilitychange, value);
+}
+
+StringView to_string(SetNeedsLayoutReason reason)
+{
+    switch (reason) {
+#define ENUMERATE_SET_NEEDS_LAYOUT_REASON(e) \
+    case SetNeedsLayoutReason::e:            \
+        return #e##sv;
+        ENUMERATE_SET_NEEDS_LAYOUT_REASONS(ENUMERATE_SET_NEEDS_LAYOUT_REASON)
+#undef ENUMERATE_SET_NEEDS_LAYOUT_REASON
+    }
+    VERIFY_NOT_REACHED();
 }
 
 StringView to_string(InvalidateLayoutTreeReason reason)
