@@ -787,6 +787,9 @@ void Node::insert_before(GC::Ref<Node> node, GC::Ptr<Node> child, bool suppress_
     }
 
     if (is_connected()) {
+        if (layout_node() && layout_node()->display().is_contents() && parent_element()) {
+            parent_element()->set_needs_layout_tree_update(true);
+        }
         set_needs_layout_tree_update(true);
     }
 

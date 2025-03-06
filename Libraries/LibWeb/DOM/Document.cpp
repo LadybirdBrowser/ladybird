@@ -1403,14 +1403,25 @@ void Document::update_layout()
     //       We will still recompute style for the children, though.
     bool is_display_none = false;
 
+    CSS::RequiredInvalidationAfterStyleChange node_invalidation;
     if (is<Element>(node)) {
         if (needs_full_style_update || node.needs_style_update()) {
-            invalidation |= static_cast<Element&>(node).recompute_style();
+            node_invalidation = static_cast<Element&>(node).recompute_style();
         } else if (needs_inherited_style_update) {
-            invalidation |= static_cast<Element&>(node).recompute_inherited_style();
+            node_invalidation = static_cast<Element&>(node).recompute_inherited_style();
         }
         is_display_none = static_cast<Element&>(node).computed_properties()->display().is_none();
     }
+    if (node_invalidation.rebuild_layout_tree) {
+        // We mark layout tree for rebuild starting from parent element to correctly invalidate
+        // "display" property change to/from "contents" value.
+        if (auto* parent_element = node.parent_element()) {
+            parent_element->set_needs_layout_tree_update(true);
+        } else {
+            node.set_needs_layout_tree_update(true);
+        }
+    }
+    invalidation |= node_invalidation;
     node.set_needs_style_update(false);
 
     bool children_need_inherited_style_update = !invalidation.is_none();
@@ -1501,17 +1512,12 @@ void Document::update_style()
     style_computer().reset_ancestor_filter();
 
     auto invalidation = update_style_recursively(*this, style_computer(), false);
-    if (!invalidation.is_none()) {
+    if (!invalidation.is_none())
         invalidate_display_list();
-    }
-    if (invalidation.rebuild_layout_tree) {
-        invalidate_layout_tree();
-    } else {
-        if (invalidation.relayout)
-            set_needs_layout();
-        if (invalidation.rebuild_stacking_context_tree)
-            invalidate_stacking_context_tree();
-    }
+    if (invalidation.relayout)
+        set_needs_layout();
+    if (invalidation.rebuild_stacking_context_tree)
+        invalidate_stacking_context_tree();
     m_needs_full_style_update = false;
 }
 
@@ -5937,6 +5943,7 @@ void Document::add_an_element_to_the_top_layer(GC::Ref<Element> element)
     // FIXME: 4. At the UA !important cascade origin, add a rule targeting el containing an overlay: auto declaration.
     element->set_rendered_in_top_layer(true);
     element->set_needs_style_update(true);
+    invalidate_layout_tree();
 }
 
 // https://drafts.csswg.org/css-position-4/#request-an-element-to-be-removed-from-the-top-layer
@@ -5951,6 +5958,7 @@ void Document::request_an_element_to_be_remove_from_the_top_layer(GC::Ref<Elemen
     // FIXME: 3. Remove the UA !important overlay: auto rule targeting el.
     element->set_rendered_in_top_layer(false);
     element->set_needs_style_update(true);
+    invalidate_layout_tree();
 
     // 4. Append el to doc’s pending top layer removals.
     m_top_layer_pending_removals.set(element);
