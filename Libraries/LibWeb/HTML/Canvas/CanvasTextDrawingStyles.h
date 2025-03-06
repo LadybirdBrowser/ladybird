@@ -112,6 +112,12 @@ public:
                 return {};
             });
 
+        if (!font_list)
+            return;
+
+        if (font_list->is_empty())
+            return;
+
         my_drawing_state().current_font = font_list->first();
     }
 

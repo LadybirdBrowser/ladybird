@@ -9,6 +9,7 @@
 #include <LibWeb/HTML/Canvas/SerializeBitmap.h>
 #include <LibWeb/HTML/OffscreenCanvas.h>
 #include <LibWeb/HTML/OffscreenCanvasRenderingContext2D.h>
+#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/WebGL/WebGL2RenderingContext.h>
@@ -292,6 +293,8 @@ GC::Ref<WebIDL::Promise> OffscreenCanvas::convert_to_blob(Optional<ImageEncodeOp
 
         // AD-HOC: queue the task in an appropiate queue. This depends if the global object is a window or a worker
         Function<void()> task_to_queue = [this, result_promise, file_result = move(file_result)] -> void {
+            HTML::TemporaryExecutionContext context(realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+
             // 1. If file is null, then reject result with an "EncodingError" DOMException.
             if (!file_result.has_value()) {
                 auto error = WebIDL::EncodingError::create(realm(), "Failed to convert OffscreenCanvas to Blob"_string);
@@ -299,7 +302,14 @@ GC::Ref<WebIDL::Promise> OffscreenCanvas::convert_to_blob(Optional<ImageEncodeOp
                 WebIDL::reject_promise(realm(), result_promise, error);
             } else {
                 // 1. If result is non-null, resolve result with a new Blob object, created in the relevant realm of this OffscreenCanvas object, representing file. [FILEAPI]
-                GC::Ptr<FileAPI::Blob> blob_result = FileAPI::Blob::create(realm(), file_result->buffer, MUST(vm(), String::from_utf8(file_result->mime_type)));
+                auto type = String::from_utf8(file_result->mime_type);
+                if (type.is_error()) {
+                    auto error = WebIDL::EncodingError::create(realm(), MUST(String::formatted("OOM Error while converting string in OffscreenCanvas to blob: {}"_string, type.error())));
+                    WebIDL::reject_promise(realm(), result_promise, error);
+                    return;
+                }
+
+                GC::Ptr<FileAPI::Blob> blob_result = FileAPI::Blob::create(realm(), file_result->buffer, type.release_value());
                 WebIDL::resolve_promise(realm(), result_promise, blob_result);
             }
         };
