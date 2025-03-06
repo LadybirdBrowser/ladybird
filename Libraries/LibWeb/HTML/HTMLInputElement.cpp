@@ -2289,7 +2289,7 @@ String HTMLInputElement::covert_date_to_string(GC::Ref<JS::Date> input) const
     if (type_state() == TypeAttributeState::Date) {
         // Return a valid date string that represents the date current at the time represented by input in the UTC time zone.
         // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#valid-date-string
-        return MUST(String::formatted("{:04d}-{:02d}-{:02d}", JS::year_from_time(input->date_value()), JS::month_from_time(input->date_value()) + 1, JS::date_from_time(input->date_value())));
+        return convert_number_to_date_string(input->date_value());
     }
 
     // https://html.spec.whatwg.org/multipage/input.html#time-state-(type=time):concept-input-value-string-date
