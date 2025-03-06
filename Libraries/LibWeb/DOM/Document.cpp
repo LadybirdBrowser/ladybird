@@ -57,6 +57,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentFragment.h>
 #include <LibWeb/DOM/DocumentObserver.h>
+#include <LibWeb/DOM/DocumentOrShadowRoot.h>
 #include <LibWeb/DOM/DocumentType.h>
 #include <LibWeb/DOM/EditingHostManager.h>
 #include <LibWeb/DOM/Element.h>
@@ -93,6 +94,7 @@
 #include <LibWeb/HTML/HTMLAreaElement.h>
 #include <LibWeb/HTML/HTMLBaseElement.h>
 #include <LibWeb/HTML/HTMLBodyElement.h>
+#include <LibWeb/HTML/HTMLDialogElement.h>
 #include <LibWeb/HTML/HTMLDocument.h>
 #include <LibWeb/HTML/HTMLEmbedElement.h>
 #include <LibWeb/HTML/HTMLFormElement.h>
@@ -590,6 +592,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_session_storage_holder);
     visitor.visit(m_render_blocking_elements);
     visitor.visit(m_policy_container);
+    visitor.visit(m_open_dialogs);
 }
 
 // https://w3c.github.io/selection-api/#dom-document-getselection
@@ -2383,44 +2386,9 @@ String const& Document::compat_mode() const
     return css1_compat;
 }
 
-// https://html.spec.whatwg.org/multipage/interaction.html#dom-documentorshadowroot-activeelement
 void Document::update_active_element()
 {
-    // 1. Let candidate be the DOM anchor of the focused area of this DocumentOrShadowRoot's node document.
-    Node* candidate = focused_element();
-
-    // 2. Set candidate to the result of retargeting candidate against this DocumentOrShadowRoot.
-    candidate = as<Node>(retarget(candidate, this));
-
-    // 3. If candidate's root is not this DocumentOrShadowRoot, then return null.
-    if (&candidate->root() != this) {
-        set_active_element(nullptr);
-        return;
-    }
-
-    // 4. If candidate is not a Document object, then return candidate.
-    if (!is<Document>(candidate)) {
-        set_active_element(as<Element>(candidate));
-        return;
-    }
-
-    auto* candidate_document = static_cast<Document*>(candidate);
-
-    // 5. If candidate has a body element, then return that body element.
-    if (candidate_document->body()) {
-        set_active_element(candidate_document->body());
-        return;
-    }
-
-    // 6. If candidate's document element is non-null, then return that document element.
-    if (candidate_document->document_element()) {
-        set_active_element(candidate_document->document_element());
-        return;
-    }
-
-    // 7. Return null.
-    set_active_element(nullptr);
-    return;
+    set_active_element(calculate_active_element(*this));
 }
 
 void Document::set_focused_element(Element* element)
@@ -6383,6 +6351,16 @@ WebIDL::CallbackType* Document::onvisibilitychange()
 void Document::set_onvisibilitychange(WebIDL::CallbackType* value)
 {
     set_event_handler_attribute(HTML::EventNames::visibilitychange, value);
+}
+
+void Document::add_to_open_dialogs_list(GC::Ref<HTML::HTMLDialogElement> dialog)
+{
+    m_open_dialogs.append(dialog);
+}
+
+void Document::remove_from_open_dialogs_list(HTML::HTMLDialogElement& dialog)
+{
+    m_open_dialogs.remove_first_matching([&](auto& entry) { return entry.ptr() == &dialog; });
 }
 
 }
