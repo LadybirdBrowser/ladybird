@@ -35,11 +35,6 @@ public:
 
     virtual void die() override;
 
-    void did_receive_headers(Badge<Request>, Request&);
-    void did_finish_request(Badge<Request>, Request&, bool success);
-    void did_progress_request(Badge<Request>, Request&);
-    void did_request_certificates(Badge<Request>, Request&);
-
 private:
     explicit ConnectionFromClient(IPC::Transport);
 
