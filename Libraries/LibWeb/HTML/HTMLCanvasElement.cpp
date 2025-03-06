@@ -6,10 +6,7 @@
 
 #include <AK/Base64.h>
 #include <AK/Checked.h>
-#include <AK/MemoryStream.h>
 #include <LibGfx/Bitmap.h>
-#include <LibGfx/ImageFormats/JPEGWriter.h>
-#include <LibGfx/ImageFormats/PNGWriter.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/HTMLCanvasElementPrototype.h>
 #include <LibWeb/CSS/ComputedProperties.h>
@@ -19,6 +16,7 @@
 #include <LibWeb/CSS/StyleValues/RatioStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/HTML/Canvas/SerializeBitmap.h>
 #include <LibWeb/HTML/CanvasRenderingContext2D.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
 #include <LibWeb/HTML/Numbers.h>
@@ -287,35 +285,8 @@ Gfx::IntSize HTMLCanvasElement::bitmap_size_for_canvas(size_t minimum_width, siz
     return Gfx::IntSize(width, height);
 }
 
-struct SerializeBitmapResult {
-    ByteBuffer buffer;
-    StringView mime_type;
-};
-
-// https://html.spec.whatwg.org/multipage/canvas.html#a-serialisation-of-the-bitmap-as-a-file
-static ErrorOr<SerializeBitmapResult> serialize_bitmap(Gfx::Bitmap const& bitmap, StringView type, JS::Value quality)
-{
-    // If type is an image format that supports variable quality (such as "image/jpeg"), quality is given, and type is not "image/png", then,
-    // if quality is a Number in the range 0.0 to 1.0 inclusive, the user agent must treat quality as the desired quality level.
-    // Otherwise, the user agent must use its default quality value, as if the quality argument had not been given.
-    bool valid_quality = quality.is_number() && quality.as_double() >= 0.0 && quality.as_double() <= 1.0;
-
-    if (type.equals_ignoring_ascii_case("image/jpeg"sv)) {
-        AllocatingMemoryStream file;
-        Gfx::JPEGWriter::Options jpeg_options;
-        if (valid_quality)
-            jpeg_options.quality = static_cast<int>(quality.as_double() * 100);
-        TRY(Gfx::JPEGWriter::encode(file, bitmap, jpeg_options));
-        return SerializeBitmapResult { TRY(file.read_until_eof()), "image/jpeg"sv };
-    }
-
-    // User agents must support PNG ("image/png"). User agents may support other types.
-    // If the user agent does not support the requested type, then it must create the file using the PNG format. [PNG]
-    return SerializeBitmapResult { TRY(Gfx::PNGWriter::encode(bitmap)), "image/png"sv };
-}
-
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-canvas-todataurl
-String HTMLCanvasElement::to_data_url(StringView type, JS::Value quality)
+String HTMLCanvasElement::to_data_url(StringView type, JS::Value js_quality)
 {
     // It is possible the canvas doesn't have a associated bitmap so create one
     allocate_painting_surface_if_needed();
@@ -338,7 +309,8 @@ String HTMLCanvasElement::to_data_url(StringView type, JS::Value quality)
     auto snapshot = Gfx::ImmutableBitmap::create_snapshot_from_painting_surface(*surface);
     auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, surface->size()));
     surface->read_into_bitmap(*bitmap);
-    auto file = serialize_bitmap(bitmap, type, move(quality));
+    Optional<double> quality = js_quality.is_number() ? js_quality.as_double() : Optional<double>();
+    auto file = serialize_bitmap(bitmap, type, quality);
 
     // 4. If file is null then return "data:,".
     if (file.is_error()) {
@@ -355,7 +327,7 @@ String HTMLCanvasElement::to_data_url(StringView type, JS::Value quality)
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-canvas-toblob
-WebIDL::ExceptionOr<void> HTMLCanvasElement::to_blob(GC::Ref<WebIDL::CallbackType> callback, StringView type, JS::Value quality)
+WebIDL::ExceptionOr<void> HTMLCanvasElement::to_blob(GC::Ref<WebIDL::CallbackType> callback, StringView type, JS::Value js_quality)
 {
     // It is possible the canvas doesn't have a associated bitmap so create one
     allocate_painting_surface_if_needed();
@@ -379,12 +351,14 @@ WebIDL::ExceptionOr<void> HTMLCanvasElement::to_blob(GC::Ref<WebIDL::CallbackTyp
         surface->read_into_bitmap(*bitmap_result);
     }
 
+    Optional<double> quality = js_quality.is_number() ? js_quality.as_double() : Optional<double>();
+
     // 4. Run these steps in parallel:
     Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [this, callback, bitmap_result, type, quality] {
         // 1. If result is non-null, then set result to a serialization of result as a file with type and quality if given.
         Optional<SerializeBitmapResult> file_result;
         if (bitmap_result) {
-            if (auto result = serialize_bitmap(*bitmap_result, type, move(quality)); !result.is_error())
+            if (auto result = serialize_bitmap(*bitmap_result, type, quality); !result.is_error())
                 file_result = result.release_value();
         }
 
