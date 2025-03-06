@@ -9,6 +9,7 @@
 #include "Loader.h"
 #include <AK/Error.h>
 #include <AK/NonnullOwnPtr.h>
+#include <LibMedia/FFmpeg/FFmpegIOContext.h>
 
 extern "C" {
 #include <libavcodec/avcodec.h>
@@ -17,22 +18,9 @@ extern "C" {
 
 namespace Audio {
 
-class FFmpegIOContext {
-public:
-    explicit FFmpegIOContext(AVIOContext*);
-    ~FFmpegIOContext();
-
-    static ErrorOr<NonnullOwnPtr<FFmpegIOContext>> create(AK::SeekableStream& stream);
-
-    AVIOContext* avio_context() const { return m_avio_context; }
-
-private:
-    AVIOContext* m_avio_context { nullptr };
-};
-
 class FFmpegLoaderPlugin : public LoaderPlugin {
 public:
-    explicit FFmpegLoaderPlugin(NonnullOwnPtr<SeekableStream>, NonnullOwnPtr<FFmpegIOContext>);
+    explicit FFmpegLoaderPlugin(NonnullOwnPtr<SeekableStream>, NonnullOwnPtr<Media::FFmpeg::FFmpegIOContext>);
     virtual ~FFmpegLoaderPlugin();
 
     static bool sniff(SeekableStream& stream);
@@ -58,7 +46,7 @@ private:
     AVCodecContext* m_codec_context { nullptr };
     AVFormatContext* m_format_context { nullptr };
     AVFrame* m_frame { nullptr };
-    NonnullOwnPtr<FFmpegIOContext> m_io_context;
+    NonnullOwnPtr<Media::FFmpeg::FFmpegIOContext> m_io_context;
     int m_loaded_samples { 0 };
     AVPacket* m_packet { nullptr };
     int m_total_samples { 0 };
