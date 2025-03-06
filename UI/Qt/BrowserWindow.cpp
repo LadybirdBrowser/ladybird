@@ -480,7 +480,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
         debug_request("clear-cache");
     });
 
-    auto* clear_all_cookies_action = new QAction("Clear all Cookies", this);
+    auto* clear_all_cookies_action = new QAction("Clear All Cookies", this);
     debug_menu->addAction(clear_all_cookies_action);
     QObject::connect(clear_all_cookies_action, &QAction::triggered, this, [] {
         WebView::Application::cookie_jar().clear_all_cookies();
