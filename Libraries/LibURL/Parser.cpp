@@ -894,7 +894,7 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
                 else {
                     url->m_data->cannot_be_a_base_url = true;
                     url->append_slash();
-                    state = State::CannotBeABaseUrlPath;
+                    state = State::OpaquePath;
                 }
             }
             // 3. Otherwise, if state override is not given, set buffer to the empty string, state to no scheme state, and start over (from the first code point in input).
@@ -1539,7 +1539,7 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
             }
             break;
         // -> opaque path state, https://url.spec.whatwg.org/#cannot-be-a-base-url-path-state
-        case State::CannotBeABaseUrlPath:
+        case State::OpaquePath:
             // NOTE: This does not follow the spec exactly but rather uses the buffer and only sets the path on EOF.
             VERIFY(url->m_data->paths.size() == 1 && url->m_data->paths[0].is_empty());
 
