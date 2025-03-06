@@ -21,6 +21,7 @@ class WebContentClient;
 struct Attribute;
 struct ConsoleOutput;
 struct CookieStorageKey;
+struct Mutation;
 struct ProcessHandle;
 struct SearchEngine;
 

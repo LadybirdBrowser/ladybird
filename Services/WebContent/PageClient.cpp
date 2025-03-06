@@ -7,6 +7,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/JsonObjectSerializer.h>
 #include <AK/JsonValue.h>
 #include <LibGfx/ShareableBitmap.h>
 #include <LibJS/Console.h>
@@ -15,7 +16,11 @@
 #include <LibWeb/CSS/CSSImportRule.h>
 #include <LibWeb/Cookie/ParsedCookie.h>
 #include <LibWeb/DOM/Attr.h>
+#include <LibWeb/DOM/CharacterData.h>
+#include <LibWeb/DOM/Element.h>
+#include <LibWeb/DOM/MutationType.h>
 #include <LibWeb/DOM/NamedNodeMap.h>
+#include <LibWeb/DOM/NodeList.h>
 #include <LibWeb/HTML/HTMLLinkElement.h>
 #include <LibWeb/HTML/HTMLStyleElement.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
@@ -654,6 +659,44 @@ IPC::File PageClient::request_worker_agent()
     }
 
     return response->take_socket();
+}
+
+void PageClient::page_did_mutate_dom(FlyString const& type, Web::DOM::Node const& target, Web::DOM::NodeList& added_nodes, Web::DOM::NodeList& removed_nodes, GC::Ptr<Web::DOM::Node>, GC::Ptr<Web::DOM::Node>, Optional<String> const& attribute_name)
+{
+    Optional<WebView::Mutation::Type> mutation;
+
+    if (type == Web::DOM::MutationType::attributes) {
+        VERIFY(attribute_name.has_value());
+
+        auto const& element = as<Web::DOM::Element>(target);
+        mutation = WebView::AttributeMutation { *attribute_name, element.attribute(*attribute_name) };
+    } else if (type == Web::DOM::MutationType::characterData) {
+        auto const& character_data = as<Web::DOM::CharacterData>(target);
+        mutation = WebView::CharacterDataMutation { character_data.data() };
+    } else if (type == Web::DOM::MutationType::childList) {
+        Vector<Web::UniqueNodeID> added;
+        added.ensure_capacity(added_nodes.length());
+
+        Vector<Web::UniqueNodeID> removed;
+        removed.ensure_capacity(removed_nodes.length());
+
+        for (auto i = 0u; i < added_nodes.length(); ++i)
+            added.unchecked_append(added_nodes.item(i)->unique_id());
+        for (auto i = 0u; i < removed_nodes.length(); ++i)
+            removed.unchecked_append(removed_nodes.item(i)->unique_id());
+
+        mutation = WebView::ChildListMutation { move(added), move(removed), target.child_count() };
+    } else {
+        VERIFY_NOT_REACHED();
+    }
+
+    StringBuilder builder;
+    auto serializer = MUST(JsonObjectSerializer<>::try_create(builder));
+    target.serialize_tree_as_json(serializer);
+    MUST(serializer.finish());
+    auto serialized_target = MUST(builder.to_string());
+
+    client().async_did_mutate_dom(m_id, { type.to_string(), target.unique_id(), move(serialized_target), mutation.release_value() });
 }
 
 void PageClient::inspector_did_load()

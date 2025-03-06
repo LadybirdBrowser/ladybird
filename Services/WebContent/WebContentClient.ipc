@@ -17,6 +17,7 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWebView/Attribute.h>
 #include <LibWebView/ConsoleOutput.h>
+#include <LibWebView/Mutation.h>
 #include <LibWebView/PageInfo.h>
 #include <LibWebView/ProcessHandle.h>
 
@@ -54,6 +55,7 @@ endpoint WebContentClient
     did_inspect_accessibility_tree(u64 page_id, String accessibility_tree) =|
     did_get_hovered_node_id(u64 page_id, Web::UniqueNodeID node_id) =|
     did_finish_editing_dom_node(u64 page_id, Optional<Web::UniqueNodeID> node_id) =|
+    did_mutate_dom(u64 page_id, WebView::Mutation mutation) =|
     did_get_dom_node_html(u64 page_id, String html) =|
 
     inspector_did_list_style_sheets(u64 page_id, Vector<Web::CSS::StyleSheetIdentifier> style_sheets) =|

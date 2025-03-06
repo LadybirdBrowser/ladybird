@@ -56,6 +56,7 @@ endpoint WebContentServer
     list_style_sheets(u64 page_id) =|
     request_style_sheet_source(u64 page_id, Web::CSS::StyleSheetIdentifier identifier) =|
 
+    set_listen_for_dom_mutations(u64 page_id, bool listen_for_dom_mutations) =|
     set_dom_node_text(u64 page_id, Web::UniqueNodeID node_id, String text) =|
     set_dom_node_tag(u64 page_id, Web::UniqueNodeID node_id, String name) =|
     add_dom_node_attributes(u64 page_id, Web::UniqueNodeID node_id, Vector<WebView::Attribute> attributes) =|
