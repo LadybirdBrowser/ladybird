@@ -22,6 +22,7 @@ target_link_libraries(LibMedia PRIVATE LibCore LibCrypto LibRIFF LibIPC LibGfx L
 if (NOT ANDROID)
     target_sources(LibMedia PRIVATE
             Audio/FFmpegLoader.cpp
+            FFmpeg/FFmpegIOContext.cpp
             FFmpeg/FFmpegVideoDecoder.cpp
     )
     target_link_libraries(LibMedia PRIVATE PkgConfig::AVCODEC PkgConfig::AVFORMAT PkgConfig::AVUTIL)
