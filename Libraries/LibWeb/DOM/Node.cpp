@@ -1404,7 +1404,7 @@ void Node::set_needs_layout_tree_update(bool value)
                 break;
             ancestor->m_child_needs_layout_tree_update = true;
         }
-        document().set_needs_layout();
+        document().set_needs_layout(SetNeedsLayoutReason::LayoutTreeUpdate);
     }
 }
 
