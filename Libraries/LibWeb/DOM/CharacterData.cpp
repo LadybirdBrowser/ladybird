@@ -80,9 +80,6 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
     if (offset + count > length)
         count = length - offset;
 
-    // 4. Queue a mutation record of "characterData" for node with null, null, node’s data, « », « », null, and null.
-    queue_mutation_record(MutationType::characterData, {}, {}, m_data, {}, {}, nullptr, nullptr);
-
     // 5. Insert data into node’s data after offset code units.
     // 6. Let delete offset be offset + data’s length.
     // 7. Starting from delete offset code units, remove count code units from node’s data.
@@ -97,11 +94,16 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
     Utf16View full_view { full_data };
 
     bool characters_are_the_same = utf16_view == full_view;
+    auto old_data = m_data;
 
     // OPTIMIZATION: Skip UTF-8 encoding if the characters are the same.
     if (!characters_are_the_same) {
         m_data = MUST(full_view.to_utf8(Utf16View::AllowInvalidCodeUnits::Yes));
     }
+
+    // 4. Queue a mutation record of "characterData" for node with null, null, node’s data, « », « », null, and null.
+    // NOTE: We do this later so that the mutation observer may notify UI clients of this node's new value.
+    queue_mutation_record(MutationType::characterData, {}, {}, old_data, {}, {}, nullptr, nullptr);
 
     // 8. For each live range whose start node is node and start offset is greater than offset but less than or equal to offset plus count, set its start offset to offset.
     for (auto& range : Range::live_ranges()) {
