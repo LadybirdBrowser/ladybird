@@ -135,6 +135,7 @@ WebIDL::ExceptionOr<void> CanvasRenderingContext2D::draw_image_internal(CanvasIm
         [](GC::Root<SVG::SVGImageElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
             return source->current_image_bitmap();
         },
+        [](GC::Root<OffscreenCanvas> const& source) -> RefPtr<Gfx::ImmutableBitmap> { return Gfx::ImmutableBitmap::create(*source->bitmap()); },
         [](GC::Root<HTMLCanvasElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
             auto surface = source->surface();
             if (!surface)
@@ -737,8 +738,14 @@ WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(CanvasI
             return Optional<CanvasImageSourceUsability> {};
         },
 
+        // OffscreenCanvas
+        [](GC::Root<OffscreenCanvas> const& offscreen_canvas) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
+            // If image has either a horizontal dimension or a vertical dimension equal to zero, then throw an "InvalidStateError" DOMException.
+            if (offscreen_canvas->width() == 0 || offscreen_canvas->height() == 0)
+                return WebIDL::InvalidStateError::create(offscreen_canvas->realm(), "OffscreenCanvas width or height is zero"_string);
+            return Optional<CanvasImageSourceUsability> {};
+        },
         // HTMLCanvasElement
-        // FIXME: OffscreenCanvas
         [](GC::Root<HTMLCanvasElement> const& canvas_element) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
             // If image has either a horizontal dimension or a vertical dimension equal to zero, then throw an "InvalidStateError" DOMException.
             if (canvas_element->width() == 0 || canvas_element->height() == 0)
@@ -778,8 +785,8 @@ bool image_is_not_origin_clean(CanvasImageSource const& image)
             // FIXME: image's media data is CORS-cross-origin.
             return false;
         },
-        // HTMLCanvasElement
-        [](OneOf<GC::Root<HTMLCanvasElement>, GC::Root<ImageBitmap>> auto const&) {
+        // HTMLCanvasElement, ImageBitmap or OffscreenCanvas
+        [](OneOf<GC::Root<HTMLCanvasElement>, GC::Root<ImageBitmap>, GC::Root<OffscreenCanvas>> auto const&) {
             // FIXME: image's bitmap's origin-clean flag is false.
             return false;
         });
