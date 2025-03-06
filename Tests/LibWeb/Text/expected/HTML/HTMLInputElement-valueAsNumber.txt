@@ -34,7 +34,7 @@ password threw exception: InvalidStateError: valueAsNumber: Invalid input type u
 date did not throw: 0
 month did not throw: 100
 week did not throw: 345600000
-time did not throw: NaN
+time did not throw: 0
 datetime-local did not throw: NaN
 color threw exception: InvalidStateError: valueAsNumber: Invalid input type used
 checkbox threw exception: InvalidStateError: valueAsNumber: Invalid input type used

@@ -2228,6 +2228,21 @@ static String convert_number_to_date_string(double input)
     return MUST(date.to_string("%Y-%m-%d"sv, Core::DateTime::LocalTime::No));
 }
 
+// https://html.spec.whatwg.org/multipage/input.html#time-state-(type=time):concept-input-value-number-string
+static String convert_number_to_time_string(double input)
+{
+    // The algorithm to convert a number to a string, given a number input, is as follows: Return a valid time
+    // string that represents the time that is input milliseconds after midnight on a day with no time changes.
+    auto seconds = JS::sec_from_time(input);
+    auto milliseconds = JS::ms_from_time(input);
+    if (seconds > 0) {
+        if (milliseconds > 0)
+            return MUST(String::formatted("{:02d}:{:02d}:{:02d}.{:3d}", JS::hour_from_time(input), JS::min_from_time(input), seconds, milliseconds));
+        return MUST(String::formatted("{:02d}:{:02d}:{:02d}", JS::hour_from_time(input), JS::min_from_time(input), seconds));
+    }
+    return MUST(String::formatted("{:02d}:{:02d}", JS::hour_from_time(input), JS::min_from_time(input)));
+}
+
 // https://html.spec.whatwg.org/multipage/input.html#concept-input-value-string-number
 String HTMLInputElement::convert_number_to_string(double input) const
 {
@@ -2247,6 +2262,9 @@ String HTMLInputElement::convert_number_to_string(double input) const
 
     if (type_state() == TypeAttributeState::Date)
         return convert_number_to_date_string(input);
+
+    if (type_state() == TypeAttributeState::Time)
+        return convert_number_to_time_string(input);
 
     dbgln("HTMLInputElement::convert_number_to_string() not implemented for input type {}", type());
     return {};
@@ -2289,21 +2307,14 @@ String HTMLInputElement::covert_date_to_string(GC::Ref<JS::Date> input) const
     if (type_state() == TypeAttributeState::Date) {
         // Return a valid date string that represents the date current at the time represented by input in the UTC time zone.
         // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#valid-date-string
-        return MUST(String::formatted("{:04d}-{:02d}-{:02d}", JS::year_from_time(input->date_value()), JS::month_from_time(input->date_value()) + 1, JS::date_from_time(input->date_value())));
+        return convert_number_to_date_string(input->date_value());
     }
 
     // https://html.spec.whatwg.org/multipage/input.html#time-state-(type=time):concept-input-value-string-date
     if (type_state() == TypeAttributeState::Time) {
         // Return a valid time string that represents the UTC time component that is represented by input.
         // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#valid-time-string
-        auto seconds = JS::sec_from_time(input->date_value());
-        auto milliseconds = JS::ms_from_time(input->date_value());
-        if (seconds > 0) {
-            if (milliseconds > 0)
-                return MUST(String::formatted("{:02d}:{:02d}:{:02d}.{:3d}", JS::hour_from_time(input->date_value()), JS::min_from_time(input->date_value()), seconds, milliseconds));
-            return MUST(String::formatted("{:02d}:{:02d}:{:02d}", JS::hour_from_time(input->date_value()), JS::min_from_time(input->date_value()), seconds));
-        }
-        return MUST(String::formatted("{:02d}:{:02d}", JS::hour_from_time(input->date_value()), JS::min_from_time(input->date_value())));
+        return convert_number_to_time_string(input->date_value());
     }
 
     dbgln("HTMLInputElement::covert_date_to_string() not implemented for input type {}", type());
