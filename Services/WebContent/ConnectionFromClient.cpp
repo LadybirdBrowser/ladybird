@@ -416,6 +416,11 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString const& request,
         Web::ResourceLoader::the().set_navigator_compatibility_mode(compatibility_mode);
         return;
     }
+
+    if (request == "content-filtering") {
+        Web::ContentFilter::the().set_filtering_enabled(argument == "on");
+        return;
+    }
 }
 
 void ConnectionFromClient::get_source(u64 page_id)

@@ -205,6 +205,7 @@ private:
     QAction* m_inspect_dom_node_action { nullptr };
     QAction* m_show_line_box_borders_action { nullptr };
     QAction* m_enable_scripting_action { nullptr };
+    QAction* m_enable_content_filtering_action { nullptr };
     QAction* m_block_pop_ups_action { nullptr };
     QAction* m_enable_same_origin_policy_action { nullptr };
 

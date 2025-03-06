@@ -982,6 +982,11 @@ void Tab::set_scripting(bool enabled)
     debug_request("scripting", enabled ? "on" : "off");
 }
 
+void Tab::set_content_filtering(bool const enabled)
+{
+    debug_request("content-filtering", enabled ? "on" : "off");
+}
+
 void Tab::set_user_agent_string(ByteString const& user_agent)
 {
     debug_request("spoof-user-agent", user_agent);
