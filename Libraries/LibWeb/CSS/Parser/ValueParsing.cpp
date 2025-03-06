@@ -4222,7 +4222,7 @@ NonnullRefPtr<CSSStyleValue const> Parser::resolve_unresolved_style_value(Parsin
 {
     // Unresolved always contains a var() or attr(), unless it is a custom property's value, in which case we shouldn't be trying
     // to produce a different CSSStyleValue from it.
-    VERIFY(unresolved.contains_var_or_attr());
+    VERIFY(unresolved.contains_arbitrary_substitution_function());
 
     auto parser = Parser::create(context, ""sv);
     return parser.resolve_unresolved_style_value(element, pseudo_element, property_id, unresolved);
