@@ -345,6 +345,7 @@ set(SOURCES
     HTML/Canvas/CanvasDrawImage.cpp
     HTML/Canvas/CanvasPath.cpp
     HTML/Canvas/CanvasState.cpp
+    HTML/Canvas/SerializeBitmap.cpp
     HTML/CanvasGradient.cpp
     HTML/CanvasPattern.cpp
     HTML/CanvasRenderingContext2D.cpp
