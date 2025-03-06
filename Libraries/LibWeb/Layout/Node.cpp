@@ -140,6 +140,7 @@ Box const* Node::containing_block() const
     return nearest_ancestor_capable_of_forming_a_containing_block(*this);
 }
 
+// returns containing block this node would have had if its position was static
 Box const* Node::static_position_containing_block() const
 {
     return nearest_ancestor_capable_of_forming_a_containing_block(*this);
