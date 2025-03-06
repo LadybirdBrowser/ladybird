@@ -90,6 +90,7 @@ struct LayoutState {
         void set_content_x(CSSPixels x) { offset.set_x(x); }
         void set_content_y(CSSPixels y) { offset.set_y(y); }
 
+        // offset from top-left corner of content area of box's containing block to top-left corner of box's content area
         CSSPixelPoint offset;
 
         SizeConstraint width_constraint { SizeConstraint::None };

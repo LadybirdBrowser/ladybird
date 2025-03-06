@@ -2253,14 +2253,11 @@ StaticPositionRect FlexFormattingContext::calculate_static_position_rect(Box con
         break;
     }
 
-    auto absolute_position_of_flex_container = absolute_content_rect(flex_container()).location();
-    auto absolute_position_of_abspos_containing_block = absolute_content_rect(*box.containing_block()).location();
-
     auto flex_container_width = is_row_layout() ? inner_main_size(m_flex_container_state) : inner_cross_size(m_flex_container_state);
     auto flex_container_height = is_row_layout() ? inner_cross_size(m_flex_container_state) : inner_main_size(m_flex_container_state);
 
     StaticPositionRect static_position_rect;
-    static_position_rect.rect = { absolute_position_of_flex_container - absolute_position_of_abspos_containing_block, { flex_container_width, flex_container_height } };
+    static_position_rect.rect = { { 0, 0 }, { flex_container_width, flex_container_height } };
     static_position_rect.horizontal_alignment = is_row_layout() ? main_axis_alignment : cross_axis_alignment;
     static_position_rect.vertical_alignment = is_row_layout() ? cross_axis_alignment : main_axis_alignment;
     return static_position_rect;

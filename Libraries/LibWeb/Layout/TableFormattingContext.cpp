@@ -1853,12 +1853,11 @@ CSSPixels TableFormattingContext::border_spacing_vertical() const
     return computed_values.border_spacing_vertical().to_px(table_box());
 }
 
-StaticPositionRect TableFormattingContext::calculate_static_position_rect(Box const& box) const
+StaticPositionRect TableFormattingContext::calculate_static_position_rect(Box const&) const
 {
     // FIXME: Implement static position calculation for table descendants instead of always returning a rectangle with zero position and size.
     StaticPositionRect static_position;
-    auto offset_to_static_parent = content_box_rect_in_static_position_ancestor_coordinate_space(box, *box.containing_block());
-    static_position.rect = { offset_to_static_parent.location(), { 0, 0 } };
+    static_position.rect = { { 0, 0 }, { 0, 0 } };
     return static_position;
 }
 
