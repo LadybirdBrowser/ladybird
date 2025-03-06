@@ -93,12 +93,10 @@ WebIDL::ExceptionOr<void> fetch_classic_worker_script(URL::URL const&, Environme
 WebIDL::ExceptionOr<GC::Ref<ClassicScript>> fetch_a_classic_worker_imported_script(URL::URL const&, HTML::EnvironmentSettingsObject&, PerformTheFetchHook = nullptr);
 WebIDL::ExceptionOr<void> fetch_module_worker_script_graph(URL::URL const&, EnvironmentSettingsObject& fetch_client, Fetch::Infrastructure::Request::Destination, EnvironmentSettingsObject& settings_object, PerformTheFetchHook, OnFetchScriptComplete);
 WebIDL::ExceptionOr<void> fetch_worklet_module_worker_script_graph(URL::URL const&, EnvironmentSettingsObject& fetch_client, Fetch::Infrastructure::Request::Destination, EnvironmentSettingsObject& settings_object, PerformTheFetchHook, OnFetchScriptComplete);
-void fetch_internal_module_script_graph(JS::Realm&, JS::ModuleRequest const& module_request, EnvironmentSettingsObject& fetch_client_settings_object, Fetch::Infrastructure::Request::Destination, ScriptFetchOptions const&, Script& referring_script, HashTable<ModuleLocationTuple> const& visited_set, PerformTheFetchHook, OnFetchScriptComplete on_complete);
 void fetch_external_module_script_graph(JS::Realm&, URL::URL const&, EnvironmentSettingsObject& settings_object, ScriptFetchOptions const&, OnFetchScriptComplete on_complete);
 void fetch_inline_module_script_graph(JS::Realm&, ByteString const& filename, ByteString const& source_text, URL::URL const& base_url, EnvironmentSettingsObject& settings_object, OnFetchScriptComplete on_complete);
 void fetch_single_imported_module_script(JS::Realm&, URL::URL const&, EnvironmentSettingsObject& fetch_client, Fetch::Infrastructure::Request::Destination, ScriptFetchOptions const&, JS::Realm& module_map_realm, Fetch::Infrastructure::Request::ReferrerType, JS::ModuleRequest const&, PerformTheFetchHook, OnFetchScriptComplete on_complete);
 
-void fetch_descendants_of_a_module_script(JS::Realm&, JavaScriptModuleScript& module_script, EnvironmentSettingsObject& fetch_client_settings_object, Fetch::Infrastructure::Request::Destination, HashTable<ModuleLocationTuple> visited_set, PerformTheFetchHook, OnFetchScriptComplete callback);
 void fetch_descendants_of_and_link_a_module_script(JS::Realm&, JavaScriptModuleScript&, EnvironmentSettingsObject&, Fetch::Infrastructure::Request::Destination, PerformTheFetchHook, OnFetchScriptComplete on_complete);
 
 Fetch::Infrastructure::Request::Destination fetch_destination_from_module_type(Fetch::Infrastructure::Request::Destination, ByteString const&);
