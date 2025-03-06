@@ -2292,7 +2292,7 @@ void Node::queue_mutation_record(FlyString const& type, Optional<FlyString> cons
             string_attribute_name = attribute_name->to_string();
         Optional<String> string_attribute_namespace;
         if (attribute_namespace.has_value())
-            string_attribute_name = attribute_namespace->to_string();
+            string_attribute_namespace = attribute_namespace->to_string();
 
         // 1. Let record be a new MutationRecord object with its type set to type, target set to target, attributeName set to name, attributeNamespace set to namespace, oldValue set to mappedOldValue,
         //    addedNodes set to addedNodes, removedNodes set to removedNodes, previousSibling set to previousSibling, and nextSibling set to nextSibling.
