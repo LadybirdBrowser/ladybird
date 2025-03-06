@@ -653,23 +653,6 @@ Messages::RequestServer::StopRequestResponse ConnectionFromClient::stop_request(
     return true;
 }
 
-void ConnectionFromClient::did_receive_headers(Badge<Request>, Request&)
-{
-}
-
-void ConnectionFromClient::did_finish_request(Badge<Request>, Request&, bool)
-{
-}
-
-void ConnectionFromClient::did_progress_request(Badge<Request>, Request&)
-{
-}
-
-void ConnectionFromClient::did_request_certificates(Badge<Request>, Request&)
-{
-    TODO();
-}
-
 Messages::RequestServer::SetCertificateResponse ConnectionFromClient::set_certificate(i32 request_id, ByteString const& certificate, ByteString const& key)
 {
     (void)request_id;
