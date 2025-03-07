@@ -486,6 +486,13 @@ void Application::replace_dom_node_attribute(DevTools::TabDescription const& des
     });
 }
 
+void Application::create_child_element(DevTools::TabDescription const& description, Web::UniqueNodeID node_id, OnDOMNodeEditComplete on_complete) const
+{
+    edit_dom_node(description, move(on_complete), [&](auto& view) {
+        view.create_child_element(node_id);
+    });
+}
+
 void Application::remove_dom_node(DevTools::TabDescription const& description, Web::UniqueNodeID node_id, OnDOMNodeEditComplete on_complete) const
 {
     edit_dom_node(description, move(on_complete), [&](auto& view) {

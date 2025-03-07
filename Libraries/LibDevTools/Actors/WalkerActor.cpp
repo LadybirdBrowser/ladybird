@@ -134,6 +134,47 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
         return;
     }
 
+    if (type == "insertAdjacentHTML") {
+        // FIXME: This message also contains `value` and `position` parameters, containing the HTML to insert and the
+        //        location to insert it. For the "Create New Node" action, this is always "<div></div>" and "beforeEnd",
+        //        which is exactly what our WebView implementation currently supports.
+        auto node = message.get_string("node"sv);
+        if (!node.has_value()) {
+            send_missing_parameter_error("node"sv);
+            return;
+        }
+
+        if (auto dom_node = WalkerActor::dom_node_for(*this, *node); dom_node.has_value()) {
+            auto block_token = block_responses();
+
+            devtools().delegate().create_child_element(
+                dom_node->tab->description(), dom_node->identifier.id,
+                [weak_self = make_weak_ptr<WalkerActor>(), block_token = move(block_token)](ErrorOr<Web::UniqueNodeID> node_id) mutable {
+                    if (node_id.is_error()) {
+                        dbgln_if(DEVTOOLS_DEBUG, "Unable to edit DOM node: {}", node_id.error());
+                        return;
+                    }
+
+                    if (auto self = weak_self.strong_ref()) {
+                        JsonArray nodes;
+
+                        if (auto actor = self->m_dom_node_id_to_actor_map.get(node_id.value()); actor.has_value()) {
+                            if (auto dom_node = WalkerActor::dom_node_for(self, *actor); dom_node.has_value())
+                                nodes.must_append(self->serialize_node(dom_node->node));
+                        }
+
+                        JsonObject message;
+                        message.set("from"sv, self->name());
+                        message.set("newParents"sv, JsonArray {});
+                        message.set("nodes"sv, move(nodes));
+                        self->send_message(move(message), move(block_token));
+                    }
+                });
+        }
+
+        return;
+    }
+
     if (type == "isInDOMTree"sv) {
         auto node = message.get_string("node"sv);
         if (!node.has_value()) {
@@ -346,7 +387,7 @@ JsonValue WalkerActor::serialize_node(JsonObject const& node) const
     serialized.set("containerType"sv, JsonValue {});
     serialized.set("displayName"sv, name.to_ascii_lowercase());
     serialized.set("displayType"sv, "block"sv);
-    serialized.set("host"sv, JsonValue {});
+    serialized.set("hasEventListeners"sv, false);
     serialized.set("isAfterPseudoElement"sv, false);
     serialized.set("isAnonymous"sv, false);
     serialized.set("isBeforePseudoElement"sv, false);
@@ -365,6 +406,9 @@ JsonValue WalkerActor::serialize_node(JsonObject const& node) const
     serialized.set("numChildren"sv, child_count);
     serialized.set("shadowRootMode"sv, JsonValue {});
     serialized.set("traits"sv, JsonObject {});
+
+    // FIXME: De-duplicate this string. LibDevTools currently cannot depend on LibWeb.
+    serialized.set("namespaceURI"sv, "http://www.w3.org/1999/xhtml"sv);
 
     if (!is_top_level_document) {
         if (auto parent = m_dom_node_to_parent_map.get(&node); parent.has_value() && parent.value()) {
