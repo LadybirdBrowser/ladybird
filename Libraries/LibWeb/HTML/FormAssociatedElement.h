@@ -45,6 +45,13 @@ private:                                                                        
         form_associated_element_was_removed(old_parent);                                                                                                                    \
     }                                                                                                                                                                       \
                                                                                                                                                                             \
+    virtual void moved_from(GC::Ptr<DOM::Node> old_parent) override                                                                                                         \
+    {                                                                                                                                                                       \
+        ElementBaseClass::moved_from(old_parent);                                                                                                                           \
+        form_node_was_moved();                                                                                                                                              \
+        form_associated_element_was_moved(old_parent);                                                                                                                      \
+    }                                                                                                                                                                       \
+                                                                                                                                                                            \
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override \
     {                                                                                                                                                                       \
         ElementBaseClass::attribute_changed(name, old_value, value, namespace_);                                                                                            \
@@ -137,10 +144,12 @@ protected:
 
     virtual void form_associated_element_was_inserted() { }
     virtual void form_associated_element_was_removed(DOM::Node*) { }
+    virtual void form_associated_element_was_moved(GC::Ptr<DOM::Node>) { }
     virtual void form_associated_element_attribute_changed(FlyString const&, Optional<String> const&, Optional<FlyString> const&) { }
 
     void form_node_was_inserted();
     void form_node_was_removed();
+    void form_node_was_moved();
     void form_node_attribute_changed(FlyString const&, Optional<String> const&);
 
 private:

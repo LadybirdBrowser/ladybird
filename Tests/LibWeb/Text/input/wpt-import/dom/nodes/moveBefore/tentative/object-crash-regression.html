@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<title>Object element moveBefore() regression test</title>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<body>
+
+<b id="p"><object>
+
+<script>
+test(t => {
+  // Per https://crbug.com/373924127, simply moving an object element would
+  // crash, due to an internal subframe count mechanism getting out of sync.
+  p.moveBefore(p.lastChild, p.firstChild);
+}, "Moving an object element does not crash");
+</script>

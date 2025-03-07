@@ -212,6 +212,8 @@ public:
     WebIDL::ExceptionOr<GC::Ref<Node>> clone_single_node(Document&) const;
     WebIDL::ExceptionOr<GC::Ref<Node>> clone_node_binding(bool subtree);
 
+    WebIDL::ExceptionOr<void> move_node(Node& new_parent, Node* child);
+
     // NOTE: This is intended for the JS bindings.
     bool has_child_nodes() const { return has_children(); }
     GC::Ref<NodeList> child_nodes();
@@ -270,6 +272,8 @@ public:
     virtual void inserted();
     virtual void post_connection();
     virtual void removed_from(Node* old_parent, Node& old_root);
+    virtual void moved_from(GC::Ptr<Node> old_parent);
+
     struct ChildrenChangedMetadata {
         enum class Type {
             Inserted,
