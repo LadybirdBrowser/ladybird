@@ -1956,6 +1956,15 @@ CSSPixelRect GridFormattingContext::get_grid_area_rect(GridItem const& grid_item
 
 void GridFormattingContext::run(AvailableSpace const& available_space)
 {
+    // OPTIMIZATION: If we're in intrinsic sizing layout, but the grid container is not the
+    //               box being measured, we can skip everything here.
+    //               The parent formatting context has already figured out our size anyway.
+    if (m_layout_mode == LayoutMode::IntrinsicSizing
+        && !available_space.width.is_intrinsic_sizing_constraint()
+        && !available_space.height.is_intrinsic_sizing_constraint()) {
+        return;
+    }
+
     m_available_space = available_space;
 
     init_grid_lines(GridDimension::Column);

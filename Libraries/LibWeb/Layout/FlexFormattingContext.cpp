@@ -51,6 +51,15 @@ void FlexFormattingContext::run(AvailableSpace const& available_space)
 {
     // This implements https://www.w3.org/TR/css-flexbox-1/#layout-algorithm
 
+    // OPTIMIZATION: If we're in intrinsic sizing layout, but the flex container is not the
+    //               box being measured, we can skip everything here.
+    //               The parent formatting context has already figured out our size anyway.
+    if (m_layout_mode == LayoutMode::IntrinsicSizing
+        && !available_space.width.is_intrinsic_sizing_constraint()
+        && !available_space.height.is_intrinsic_sizing_constraint()) {
+        return;
+    }
+
     m_available_space = available_space;
 
     // 1. Generate anonymous flex items
