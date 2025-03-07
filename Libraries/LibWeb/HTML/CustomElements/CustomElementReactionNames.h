@@ -15,6 +15,7 @@ namespace Web::HTML::CustomElementReactionNames {
     __ENUMERATE_CUSTOM_ELEMENT_REACTION_NAME(connectedCallback)        \
     __ENUMERATE_CUSTOM_ELEMENT_REACTION_NAME(disconnectedCallback)     \
     __ENUMERATE_CUSTOM_ELEMENT_REACTION_NAME(adoptedCallback)          \
+    __ENUMERATE_CUSTOM_ELEMENT_REACTION_NAME(connectedMoveCallback)    \
     __ENUMERATE_CUSTOM_ELEMENT_REACTION_NAME(attributeChangedCallback) \
     __ENUMERATE_CUSTOM_ELEMENT_REACTION_NAME(formAssociatedCallback)   \
     __ENUMERATE_CUSTOM_ELEMENT_REACTION_NAME(formDisabledCallback)     \

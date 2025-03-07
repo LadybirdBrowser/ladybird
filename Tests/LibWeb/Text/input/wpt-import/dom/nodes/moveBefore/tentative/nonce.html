@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<title>Nonce attribute is not cleared</title>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<body>
+
+<section id="new_parent"></section>
+
+<script>
+test(t => {
+  const div = document.createElement('div');
+  document.body.append(div);
+
+  const kNonce = '8IBTHwOdqNKAWeKl7plt8g==';
+  div.setAttribute('nonce', kNonce);
+  assert_equals(div.getAttribute('nonce'), kNonce);
+
+  new_parent.moveBefore(div, null);
+  assert_equals(div.getAttribute('nonce'), kNonce);
+
+  new_parent.insertBefore(div, null);
+  assert_equals(div.getAttribute('nonce'), "");
+}, "Element nonce content attribute is not cleared after move");
+</script>

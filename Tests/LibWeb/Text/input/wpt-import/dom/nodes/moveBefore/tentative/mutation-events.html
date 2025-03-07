@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<title>Mutation events are suppressed during moveBefore()</title>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+
+<body>
+<p id=reference>reference</p>
+<p id=target>target</p>
+
+<script>
+  const reference = document.querySelector('#reference');
+  const target = document.querySelector('#target');
+
+  test(() => {
+    target.addEventListener('DOMNodeInserted', () => assert_unreached('DOMNodeInserted not called'));
+    target.addEventListener('DOMNodeRemoved', () => assert_unreached('DOMNodeRemoved not called'));
+    document.body.moveBefore(target, reference);
+  }, "MutationEvents (if supported by the UA) are suppressed during `moveBefore()`");
+</script>
+</body>

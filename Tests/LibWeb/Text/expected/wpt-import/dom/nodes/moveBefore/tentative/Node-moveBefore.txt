@@ -1,0 +1,38 @@
+Harness status: OK
+
+Found 32 tests
+
+31 Pass
+1 Fail
+Pass	If node is a host-including inclusive ancestor of parent, then throw a HierarchyRequestError DOMException.
+Pass	If node is not a DocumentFragment, DocumentType, Element, Text, ProcessingInstruction, or Comment node, then throw a HierarchyRequestError DOMException.
+Pass	If node is a Text node and parent is a document, then throw a HierarchyRequestError DOMException.
+Pass	If node is a doctype and parent is not a document, then throw a HierarchyRequestError DOMException.
+Pass	If node is a DocumentFragment with multiple elements and parent is a document, then throw a HierarchyRequestError DOMException.
+Pass	If node is a DocumentFragment with an element and parent is a document with another element, then throw a HierarchyRequestError DOMException.
+Pass	If node is an Element and parent is a document with another element, then throw a HierarchyRequestError DOMException.
+Pass	If node is a doctype and parent is a document with another doctype, then throw a HierarchyRequestError DOMException.
+Pass	If node is a doctype and parent is a document with an element, then throw a HierarchyRequestError DOMException.
+Pass	Calling moveBefore with a non-Node first argument must throw TypeError.
+Pass	Calling moveBefore with second argument missing, or other than Node, null, or undefined, must throw TypeError.
+Pass	moveBefore() method does not exist on non-ParentNode Nodes
+Pass	moveBefore() on disconnected parent throws a HierarchyRequestError
+Pass	moveBefore() with disconnected target node throws a HierarchyRequestError
+Fail	moveBefore() on a cross-document target node throws a HierarchyRequestError
+Pass	moveBefore() into a Document throws a HierarchyRequestError
+Pass	moveBefore() CharacterData into a Document
+Pass	moveBefore() with node being an inclusive ancestor of parent throws a HierarchyRequestError
+Pass	moveBefore() with a non-{Element, CharacterData} throws a HierarchyRequestError
+Pass	moveBefore with an Element or CharacterData succeeds
+Pass	moveBefore on a paragraph's Text node child
+Pass	moveBefore with reference child whose parent is NOT the destination parent (context node) throws a NotFoundError.
+Pass	moveBefore() returns undefined
+Pass	Moving a node before itself should not move the node
+Pass	Moving a node from a disconnected container to a disconnected new parent without a shared ancestor throws a HIERARCHY_REQUEST_ERR
+Pass	Moving a node from a disconnected container to a disconnected new parent in the same tree succeeds
+Pass	Moving a node from a disconnected container to a disconnected new parent in the same tree succeeds,also across shadow-roots
+Pass	Moving a node from disconnected->connected throws a HIERARCHY_REQUEST_ERR
+Pass	Moving a node from connected->disconnected throws a HIERARCHY_REQUEST_ERR
+Pass	No custom element callbacks are run during disconnected moveBefore()
+Pass	Invalid node hierarchy with null old parent does not crash
+Pass	Move disconnected iframe does not crash
