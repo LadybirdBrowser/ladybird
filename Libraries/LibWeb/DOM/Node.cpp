@@ -858,13 +858,13 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::append_child(GC::Ref<Node> node)
     return pre_insert(node, nullptr);
 }
 
-// https://dom.spec.whatwg.org/#concept-node-remove
-void Node::remove(bool suppress_observers)
+// https://dom.spec.whatwg.org/#live-range-pre-remove-steps
+void Node::live_range_pre_remove()
 {
-    // 1. Let parent be node’s parent
+    // 1. Let parent be node’s parent.
     auto* parent = this->parent();
 
-    // 2. Assert: parent is non-null.
+    // 2. Assert: parent is not null.
     VERIFY(parent);
 
     // 3. Let index be node’s index.
@@ -893,16 +893,29 @@ void Node::remove(bool suppress_observers)
         if (range->end_container() == parent && range->end_offset() > index)
             range->decrease_end_offset({}, 1);
     }
+}
 
-    // 8. For each NodeIterator object iterator whose root’s node document is node’s node document, run the NodeIterator pre-removing steps given node and iterator.
+// https://dom.spec.whatwg.org/#concept-node-remove
+void Node::remove(bool suppress_observers)
+{
+    // 1. Let parent be node’s parent
+    auto* parent = this->parent();
+
+    // 2. Assert: parent is non-null.
+    VERIFY(parent);
+
+    // 3. Run the live range pre-remove steps, given node.
+    live_range_pre_remove();
+
+    // 4. For each NodeIterator object iterator whose root’s node document is node’s node document, run the NodeIterator pre-removing steps given node and iterator.
     document().for_each_node_iterator([&](NodeIterator& node_iterator) {
         node_iterator.run_pre_removing_steps(*this);
     });
 
-    // 9. Let oldPreviousSibling be node’s previous sibling.
+    // 5. Let oldPreviousSibling be node’s previous sibling.
     GC::Ptr<Node> old_previous_sibling = previous_sibling();
 
-    // 10. Let oldNextSibling be node’s next sibling.
+    // 6. Let oldNextSibling be node’s next sibling.
     GC::Ptr<Node> old_next_sibling = next_sibling();
 
     if (is_connected()) {
@@ -916,17 +929,17 @@ void Node::remove(bool suppress_observers)
             parent->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeRemove);
     }
 
-    // 11. Remove node from its parent’s children.
+    // 7. Remove node from its parent’s children.
     parent->remove_child_impl(*this);
 
-    // 12. If node is assigned, then run assign slottables for node’s assigned slot.
+    // 8. If node is assigned, then run assign slottables for node’s assigned slot.
     if (auto assigned_slot = assigned_slot_for_node(*this))
         assign_slottables(*assigned_slot);
 
     auto& parent_root = parent->root();
 
-    // 13. If parent’s root is a shadow root, and parent is a slot whose assigned nodes is the empty list, then run
-    //     signal a slot change for parent.
+    // 9. If parent’s root is a shadow root, and parent is a slot whose assigned nodes is the empty list, then run
+    //    signal a slot change for parent.
     if (parent_root.is_shadow_root() && is<HTML::HTMLSlotElement>(parent)) {
         auto& slot = static_cast<HTML::HTMLSlotElement&>(*parent);
 
@@ -934,7 +947,7 @@ void Node::remove(bool suppress_observers)
             signal_a_slot_change(slot);
     }
 
-    // 14. If node has an inclusive descendant that is a slot, then:
+    // 10. If node has an inclusive descendant that is a slot, then:
     auto has_descendent_slot = false;
 
     for_each_in_inclusive_subtree_of_type<HTML::HTMLSlotElement>([&](auto const&) {
@@ -950,13 +963,13 @@ void Node::remove(bool suppress_observers)
         assign_slottables_for_a_tree(*this);
     }
 
-    // 15. Run the removing steps with node and parent.
+    // 11. Run the removing steps with node and parent.
     removed_from(parent, parent_root);
 
-    // 16. Let isParentConnected be parent’s connected.
+    // 12. Let isParentConnected be parent’s connected.
     bool is_parent_connected = parent->is_connected();
 
-    // 17. If node is custom and isParentConnected is true, then enqueue a custom element callback reaction with node,
+    // 13. If node is custom and isParentConnected is true, then enqueue a custom element callback reaction with node,
     //     callback name "disconnectedCallback", and an empty argument list.
     // Spec Note: It is intentional for now that custom elements do not get parent passed.
     //            This might change in the future if there is a need.
@@ -969,7 +982,7 @@ void Node::remove(bool suppress_observers)
         }
     }
 
-    // 18. For each shadow-including descendant descendant of node, in shadow-including tree order, then:
+    // 14. For each shadow-including descendant descendant of node, in shadow-including tree order, then:
     for_each_shadow_including_descendant([&](Node& descendant) {
         // 1. Run the removing steps with descendant
         descendant.removed_from(nullptr, parent_root);
@@ -988,7 +1001,7 @@ void Node::remove(bool suppress_observers)
         return TraversalDecision::Continue;
     });
 
-    // 19. For each inclusive ancestor inclusiveAncestor of parent, and then for each registered of inclusiveAncestor’s registered observer list,
+    // 15. For each inclusive ancestor inclusiveAncestor of parent, and then for each registered of inclusiveAncestor’s registered observer list,
     //     if registered’s options["subtree"] is true, then append a new transient registered observer
     //     whose observer is registered’s observer, options is registered’s options, and source is registered to node’s registered observer list.
     for (auto* inclusive_ancestor = parent; inclusive_ancestor; inclusive_ancestor = inclusive_ancestor->parent()) {
@@ -1002,12 +1015,12 @@ void Node::remove(bool suppress_observers)
         }
     }
 
-    // 20. If suppress observers flag is unset, then queue a tree mutation record for parent with « », « node », oldPreviousSibling, and oldNextSibling.
+    // 16. If suppress observers flag is unset, then queue a tree mutation record for parent with « », « node », oldPreviousSibling, and oldNextSibling.
     if (!suppress_observers) {
         parent->queue_tree_mutation_record({}, { *this }, old_previous_sibling.ptr(), old_next_sibling.ptr());
     }
 
-    // 21. Run the children changed steps for parent.
+    // 17. Run the children changed steps for parent.
     parent->children_changed(nullptr);
 
     document().bump_dom_tree_version();
