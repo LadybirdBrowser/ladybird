@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<script src='../../../../resources/testharness.js'></script>
+<script src='../../../../resources/testharnessreport.js'></script>
+<body>
+</body>
+<script>
+'use strict';
+
+promise_test(async t => {
+  const link = document.createElement("link");
+  link.href = "data:text/css,body{background: green}";
+  link.rel = "stylesheet";
+  t.add_cleanup(() => link.remove());
+  document.body.append(link);
+  const backgroundColorBefore = getComputedStyle(document.body).backgroundColor;
+  document.body.moveBefore(link, null);
+  assert_equals(getComputedStyle(document.body).backgroundColor, backgroundColorBefore);
+}, "Moving a style inside the document should not affect whether it's applied");
+</script>
+</html>

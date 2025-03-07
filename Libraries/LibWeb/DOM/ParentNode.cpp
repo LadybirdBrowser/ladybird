@@ -244,6 +244,22 @@ WebIDL::ExceptionOr<void> ParentNode::replace_children(Vector<Variant<GC::Root<N
     return {};
 }
 
+// https://dom.spec.whatwg.org/#dom-parentnode-movebefore
+WebIDL::ExceptionOr<void> ParentNode::move_before(GC::Ref<Node> node, GC::Ptr<Node> child)
+{
+    // 1. Let referenceChild be child.
+    auto reference_child = child;
+
+    // 2. If referenceChild is node, then set referenceChild to node’s next sibling.
+    if (reference_child == node)
+        reference_child = node->next_sibling();
+
+    // 3. Move node into this before referenceChild.
+    TRY(node->move_node(*this, reference_child));
+
+    return {};
+}
+
 // https://dom.spec.whatwg.org/#dom-document-getelementsbyclassname
 GC::Ref<HTMLCollection> ParentNode::get_elements_by_class_name(StringView class_names)
 {

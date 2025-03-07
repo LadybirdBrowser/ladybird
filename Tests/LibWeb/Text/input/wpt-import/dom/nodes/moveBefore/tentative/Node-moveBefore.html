@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<title>Node.moveBefore</title>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<div id="log"></div>
+<!-- First test shared pre-insertion checks that work similarly for replaceChild
+     and moveBefore -->
+<script>
+  var insertFunc = Node.prototype.moveBefore;
+</script>
+<script src="../../pre-insertion-validation-hierarchy.js"></script>
+<script>
+preInsertionValidateHierarchy("moveBefore");
+
+test(function() {
+  // WebIDL: first argument.
+  assert_throws_js(TypeError, function() { document.body.moveBefore(null, null) })
+  assert_throws_js(TypeError, function() { document.body.moveBefore(null, document.body.firstChild) })
+  assert_throws_js(TypeError, function() { document.body.moveBefore({'a':'b'}, document.body.firstChild) })
+}, "Calling moveBefore with a non-Node first argument must throw TypeError.")
+
+test(function() {
+  // WebIDL: second argument.
+  assert_throws_js(TypeError, function() { document.body.moveBefore(document.createTextNode("child")) })
+  assert_throws_js(TypeError, function() { document.body.moveBefore(document.createTextNode("child"), {'a':'b'}) })
+}, "Calling moveBefore with second argument missing, or other than Node, null, or undefined, must throw TypeError.")
+
+test(() => {
+  assert_false("moveBefore" in document.doctype, "moveBefore() not on DocumentType");
+  assert_false("moveBefore" in document.createTextNode("text"), "moveBefore() not on TextNode");
+  assert_false("moveBefore" in new Comment("comment"), "moveBefore() not on CommentNode");
+  assert_false("moveBefore" in document.createProcessingInstruction("foo", "bar"), "moveBefore() not on ProcessingInstruction");
+}, "moveBefore() method does not exist on non-ParentNode Nodes");
+
+// Pre-move validity, step 1:
+// "If either parent or node are not connected, then throw a
+// "HierarchyRequestError" DOMException."
+//
+// https://whatpr.org/dom/1307.html#concept-node-ensure-pre-move-validity
+test(t => {
+  const connectedTarget = document.body.appendChild(document.createElement('div'));
+  const disconnectedDestination = document.createElement('div');
+  t.add_cleanup(() => connectedTarget.remove());
+
+  assert_throws_dom("HIERARCHY_REQUEST_ERR", () => {
+    disconnectedDestination.moveBefore(connectedTarget, null);
+  });
+}, "moveBefore() on disconnected parent throws a HierarchyRequestError");
+test(t => {
+  const connectedDestination = document.body.appendChild(document.createElement('div'));
+  const disconnectedTarget = document.createElement('div');
+  t.add_cleanup(() => connectedDestination.remove());
+
+  assert_throws_dom("HIERARCHY_REQUEST_ERR", () => {
+    connectedDestination.moveBefore(disconnectedTarget, null);
+  });
+}, "moveBefore() with disconnected target node throws a HierarchyRequestError");
+
+// Pre-move validity, step 2:
+// "If parent’s shadow-including root is not the same as node’s shadow-including
+// "root, then throw a "HierarchyRequestError" DOMException."
+//
+// https://whatpr.org/dom/1307.html#concept-node-ensure-pre-move-validity
+test(t => {
+  const iframe = document.createElement('iframe');
+  document.body.append(iframe);
+  const connectedCrossDocChild = iframe.contentDocument.createElement('div');
+  const connectedLocalParent = document.querySelector('div');
+  t.add_cleanup(() => iframe.remove());
+
+  assert_throws_dom("HIERARCHY_REQUEST_ERR", () => {
+    connectedLocalParent.moveBefore(connectedCrossDocChild, null);
+  });
+}, "moveBefore() on a cross-document target node throws a HierarchyRequestError");
+
+// Pre-move validity, step 3:
+// "If parent is not a Document, DocumentFragment, or Element node, then throw a
+// "HierarchyRequestError" DOMException."
+//
+// https://whatpr.org/dom/1307.html#concept-node-ensure-pre-move-validity
+test(t => {
+  const iframe = document.body.appendChild(document.createElement('iframe'));
+  const innerBody = iframe.contentDocument.querySelector('body');
+
+  assert_throws_dom("HIERARCHY_REQUEST_ERR", iframe.contentWindow.DOMException, () => {
+    // Moving the body into the same place that it already is, which is a valid
+    // action in the normal case, when moving an Element directly under the
+    // document. This is not `moveBefore()`-specific behavior; it is consistent
+    // with traditional Document insertion rules, just like `insertBefore()`.
+    iframe.contentDocument.moveBefore(innerBody, null);
+  });
+}, "moveBefore() into a Document throws a HierarchyRequestError");
+test(t => {
+  const iframe = document.body.appendChild(document.createElement('iframe'));
+  const comment = iframe.contentDocument.createComment("comment");
+  iframe.contentDocument.body.append(comment);
+
+  iframe.contentDocument.moveBefore(comment, null);
+  assert_equals(comment.parentNode, iframe.contentDocument);
+}, "moveBefore() CharacterData into a Document");
+
+// Pre-move validity, step 4:
+// "If node is a host-including inclusive ancestor of parent, then throw a
+// "HierarchyRequestError" DOMException."
+//
+// https://whatpr.org/dom/1307.html#concept-node-ensure-pre-move-validity
+test(t => {
+  const parentDiv = document.body.appendChild(document.createElement('div'));
+  const childDiv = parentDiv.appendChild(document.createElement('div'));
+  t.add_cleanup(() => {
+    parentDiv.remove();
+    childDiv.remove();
+  });
+
+  assert_throws_dom("HIERARCHY_REQUEST_ERR", () => {
+    parentDiv.moveBefore(parentDiv, null);
+  }, "parent moving itself");
+
+  assert_throws_dom("HIERARCHY_REQUEST_ERR", () => {
+    childDiv.moveBefore(parentDiv, null);
+  }, "Moving parent into immediate child");
+
+  assert_throws_dom("HIERARCHY_REQUEST_ERR", () => {
+    childDiv.moveBefore(document.body, null);
+  }, "Moving grandparent into grandchild");
+
+  assert_throws_dom("HIERARCHY_REQUEST_ERR", () => {
+    document.body.moveBefore(document.documentElement, childDiv);
+  }, "Moving documentElement (<html>) into a deeper child");
+}, "moveBefore() with node being an inclusive ancestor of parent throws a " +
+   "HierarchyRequestError");
+
+// Pre-move validity, step 5:
+// "If node is not an Element or a CharacterData node, then throw a
+// "HierarchyRequestError" DOMException."
+//
+// https://whatpr.org/dom/1307.html#concept-node-ensure-pre-move-validity
+test(t => {
+  assert_true(document.doctype.isConnected);
+  assert_throws_dom("HIERARCHY_REQUEST_ERR", () => {
+    document.body.moveBefore(document.doctype, null);
+  }, "DocumentType throws");
+
+  assert_throws_dom("HIERARCHY_REQUEST_ERR", () => {
+    document.body.moveBefore(new DocumentFragment(), null);
+  }, "DocumentFragment throws");
+
+  const doc = document.implementation.createHTMLDocument("title");
+  assert_true(doc.isConnected);
+  assert_throws_dom("HIERARCHY_REQUEST_ERR", () => {
+    document.body.moveBefore(doc, null);
+  });
+}, "moveBefore() with a non-{Element, CharacterData} throws a HierarchyRequestError");
+promise_test(async t => {
+  const text = new Text("child text");
+  document.body.prepend(text);
+
+  const childElement = document.createElement('p');
+  document.body.prepend(childElement);
+
+  const comment = new Comment("comment");
+  document.body.prepend(comment);
+
+  t.add_cleanup(() => {
+    text.remove();
+    childElement.remove();
+    comment.remove();
+  });
+
+  // Wait until style is computed once, then continue after. This is necessary
+  // to reproduce a Chromium crash regression with moving Comment nodes in the
+  // DOM.
+  await new Promise(r => {
+    requestAnimationFrame(() => requestAnimationFrame(() => r()));
+  });
+
+  document.body.moveBefore(text, null);
+  assert_equals(document.body.lastChild, text);
+
+  document.body.moveBefore(childElement, null);
+  assert_equals(document.body.lastChild, childElement);
+
+  document.body.moveBefore(text, null);
+  assert_equals(document.body.lastChild, text);
+
+  document.body.moveBefore(comment, null);
+  assert_equals(document.body.lastChild, comment);
+}, "moveBefore with an Element or CharacterData succeeds");
+test(t => {
+  const p = document.createElement('p');
+  p.textContent = "Some content";
+  document.body.prepend(p);
+
+  const text_node = p.firstChild;
+
+  // The Text node is *inside* the paragraph.
+  assert_equals(text_node.textContent, "Some content");
+  assert_not_equals(document.body.lastChild, text_node);
+
+  t.add_cleanup(() => {
+    text_node.remove();
+    p.remove();
+  });
+
+  document.body.moveBefore(p.firstChild, null);
+  assert_equals(document.body.lastChild, text_node);
+}, "moveBefore on a paragraph's Text node child");
+
+// Pre-move validity, step 6:
+// "If child is non-null and its parent is not parent, then throw a
+// "NotFoundError" DOMException."
+//
+// https://whatpr.org/dom/1307.html#concept-node-ensure-pre-move-validity
+test(t => {
+  const a = document.body.appendChild(document.createElement("div"));
+  const b = document.body.appendChild(document.createElement("div"));
+  const c = document.body.appendChild(document.createElement("div"));
+
+  t.add_cleanup(() => {
+    a.remove();
+    b.remove();
+    c.remove();
+  });
+
+  assert_throws_dom("NotFoundError", () => {
+    a.moveBefore(b, c);
+  });
+}, "moveBefore with reference child whose parent is NOT the destination " +
+   "parent (context node) throws a NotFoundError.")
+
+test(() => {
+  const a = document.body.appendChild(document.createElement("div"));
+  const b = document.createElement("div");
+  const c = document.createElement("div");
+  a.append(b);
+  a.append(c);
+  assert_array_equals(a.childNodes, [b, c]);
+  assert_equals(a.moveBefore(c, b), undefined, "moveBefore() returns undefined");
+  assert_array_equals(a.childNodes, [c, b]);
+}, "moveBefore() returns undefined");
+
+test(() => {
+  const a = document.body.appendChild(document.createElement("div"));
+  const b = document.createElement("div");
+  const c = document.createElement("div");
+  a.append(b);
+  a.append(c);
+  assert_array_equals(a.childNodes, [b, c]);
+  a.moveBefore(b, b);
+  assert_array_equals(a.childNodes, [b, c]);
+  a.moveBefore(c, c);
+  assert_array_equals(a.childNodes, [b, c]);
+}, "Moving a node before itself should not move the node");
+
+test(() => {
+  const disconnectedOrigin = document.createElement('div');
+  const disconnectedDestination = document.createElement('div');
+  const p = disconnectedOrigin.appendChild(document.createElement('p'));
+
+  assert_throws_dom("HIERARCHY_REQUEST_ERR", () => {
+    disconnectedDestination.moveBefore(p, null);
+  });
+}, "Moving a node from a disconnected container to a disconnected new parent " +
+   "without a shared ancestor throws a HIERARCHY_REQUEST_ERR");
+
+test(() => {
+  const disconnectedOrigin = document.createElement('div');
+  const disconnectedDestination = disconnectedOrigin.appendChild(document.createElement('div'));
+  const p = disconnectedOrigin.appendChild(document.createElement('p'));
+
+  disconnectedDestination.moveBefore(p, null);
+
+  assert_equals(disconnectedDestination.firstChild, p, "<p> Was successfully moved");
+}, "Moving a node from a disconnected container to a disconnected new parent in the same tree succeeds");
+
+test(() => {
+  const disconnectedOrigin = document.createElement('div');
+  const disconnectedHost = disconnectedOrigin.appendChild(document.createElement('div'));
+  const p = disconnectedOrigin.appendChild(document.createElement('p'));
+  const shadow = disconnectedHost.attachShadow({mode: "closed"});
+  const disconnectedDestination = shadow.appendChild(document.createElement('div'));
+
+  disconnectedDestination.moveBefore(p, null);
+
+  assert_equals(disconnectedDestination.firstChild, p, "<p> Was successfully moved");
+}, "Moving a node from a disconnected container to a disconnected new parent in the same tree succeeds," +
+   "also across shadow-roots");
+
+test(() => {
+  const disconnectedOrigin = document.createElement('div');
+  const connectedDestination = document.body.appendChild(document.createElement('div'));
+  const p = disconnectedOrigin.appendChild(document.createElement('p'));
+
+  assert_throws_dom("HIERARCHY_REQUEST_ERR", () => connectedDestination.moveBefore(p, null));
+}, "Moving a node from disconnected->connected throws a HIERARCHY_REQUEST_ERR");
+
+test(() => {
+  const connectedOrigin = document.body.appendChild(document.createElement('div'));
+  const disconnectedDestination = document.createElement('div');
+  const p = connectedOrigin.appendChild(document.createElement('p'));
+
+  assert_throws_dom("HIERARCHY_REQUEST_ERR", () => disconnectedDestination.moveBefore(p, null));
+}, "Moving a node from connected->disconnected throws a HIERARCHY_REQUEST_ERR");
+
+promise_test(async t => {
+  let reactions = [];
+  const element_name = `ce-${performance.now()}`;
+  customElements.define(element_name,
+    class MockCustomElement extends HTMLElement {
+      connectedMoveCallback() { reactions.push("connectedMove"); }
+      connectedCallback() { reactions.push("connected"); }
+      disconnectedCallback() { reactions.push("disconnected"); }
+    });
+
+  const oldParent = document.createElement('div');
+  const newParent = oldParent.appendChild(document.createElement('div'));
+  const element = oldParent.appendChild(document.createElement(element_name));
+  t.add_cleanup(() => {
+    element.remove();
+    newParent.remove();
+    oldParent.remove();
+  });
+
+  // Wait a microtask to let any custom element reactions run (should be none,
+  // since the initial parent is disconnected).
+  await Promise.resolve();
+
+  newParent.moveBefore(element, null);
+  await Promise.resolve();
+  assert_array_equals(reactions, []);
+}, "No custom element callbacks are run during disconnected moveBefore()");
+
+// This is a regression test for a Chromium crash: https://crbug.com/388934346.
+test(t => {
+  // This test caused a crash in Chromium because after the detection of invalid
+  // /node hierarchy, and throwing the JS error, we did not return from native
+  // code, and continued to operate on the node tree on bad assumptions.
+  const outer = document.createElement('div');
+  const div = outer.appendChild(document.createElement('div'));
+  assert_throws_dom("HIERARCHY_REQUEST_ERR", () => div.moveBefore(outer, null));
+}, "Invalid node hierarchy with null old parent does not crash");
+
+test(t => {
+  const outerDiv = document.createElement('div');
+  const innerDiv = outerDiv.appendChild(document.createElement('div'));
+  const iframe = innerDiv.appendChild(document.createElement('iframe'));
+  outerDiv.moveBefore(iframe, null);
+}, "Move disconnected iframe does not crash");
+</script>
