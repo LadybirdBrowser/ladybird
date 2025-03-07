@@ -1128,8 +1128,6 @@ void HTMLInputElement::update_file_input_shadow_tree()
     } else {
         m_file_label->set_text_content(MUST(String::formatted("No {} selected.", files_label)));
     }
-
-    document().invalidate_layout_tree(DOM::InvalidateLayoutTreeReason::UpdateFileInputShadowTree);
 }
 
 void HTMLInputElement::create_range_input_shadow_tree()
