@@ -17,8 +17,8 @@ HTMLHyperlinkElementUtils::~HTMLHyperlinkElementUtils() = default;
 // https://html.spec.whatwg.org/multipage/links.html#reinitialise-url
 void HTMLHyperlinkElementUtils::reinitialize_url() const
 {
-    // 1. If element's url is non-null, its scheme is "blob", and its cannot-be-a-basFe-URL is true, terminate these steps.
-    if (m_url.has_value() && m_url->scheme() == "blob"sv && m_url->cannot_be_a_base_url())
+    // 1. If the element's url is non-null, its scheme is "blob", and it has an opaque path, then terminate these steps.
+    if (m_url.has_value() && m_url->scheme() == "blob"sv && m_url->has_an_opaque_path())
         return;
 
     // 2. Set the url.
@@ -204,8 +204,8 @@ void HTMLHyperlinkElementUtils::set_host(StringView host)
     // 2. Let url be this element's url.
     auto& url = m_url;
 
-    // 3. If url is null or url's cannot-be-a-base-URL is true, then return.
-    if (!url.has_value() || url->cannot_be_a_base_url())
+    // 3. If url is null or url has an opaque path, then return.
+    if (!url.has_value() || url->has_an_opaque_path())
         return;
 
     // 4. Basic URL parse the given value, with url as url and host state as state override.
@@ -241,8 +241,8 @@ void HTMLHyperlinkElementUtils::set_hostname(StringView hostname)
     // 2. Let url be this element's url.
     auto& url = m_url;
 
-    // 3. If url is null or url's cannot-be-a-base-URL is true, then return.
-    if (!url.has_value() || url->cannot_be_a_base_url())
+    // 3. If url is null or url has an opaque path, then return.
+    if (!url.has_value() || url->has_an_opaque_path())
         return;
 
     // 4. Basic URL parse the given value, with url as url and hostname state as state override.
@@ -317,16 +317,17 @@ void HTMLHyperlinkElementUtils::set_pathname(StringView pathname)
     reinitialize_url();
 
     // 2. Let url be this element's url.
+    auto& url = m_url;
 
-    // 3. If url is null or url's cannot-be-a-base-URL is true, then return.
-    if (!m_url.has_value() || m_url->cannot_be_a_base_url())
+    // 3. If url is null or url has an opaque path, then return.
+    if (!url.has_value() || url->has_an_opaque_path())
         return;
 
     // 4. Set url's path to the empty list.
-    m_url->set_paths({});
+    url->set_paths({});
 
     // 5. Basic URL parse the given value, with url as url and path start state as state override.
-    (void)URL::Parser::basic_parse(pathname, {}, &m_url.value(), URL::Parser::State::PathStart);
+    (void)URL::Parser::basic_parse(pathname, {}, &url.value(), URL::Parser::State::PathStart);
 
     // 6. Update href.
     update_href();
