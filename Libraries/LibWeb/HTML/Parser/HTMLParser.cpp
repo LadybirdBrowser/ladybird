@@ -18,6 +18,7 @@
 #include <LibWeb/DOM/Comment.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentType.h>
+#include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/ProcessingInstruction.h>
@@ -321,8 +322,14 @@ void HTMLParser::the_end(GC::Ref<DOM::Document> document, GC::Ptr<HTMLParser> pa
         (void)document->scripts_to_execute_when_parsing_has_finished().take_first();
     }
 
-    // FIXME: Spec bug: https://github.com/whatwg/html/issues/10914
-    document->scroll_to_the_fragment();
+    // AD-HOC: We need to scroll to the fragment on page load somewhere.
+    // But a script that ran in step 5 above may have scrolled the page already,
+    // so only do this if there is an actual fragment to avoid resetting the scroll position unexpectedly.
+    // Spec bug: https://github.com/whatwg/html/issues/10914
+    auto indicated_part = document->determine_the_indicated_part();
+    if (indicated_part.has<DOM::Element*>() && indicated_part.get<DOM::Element*>() != nullptr) {
+        document->scroll_to_the_fragment();
+    }
 
     // 6. Queue a global task on the DOM manipulation task source given the Document's relevant global object to run the following substeps:
     queue_global_task(HTML::Task::Source::DOMManipulation, *document, GC::create_function(heap, [document] {
