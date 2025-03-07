@@ -243,7 +243,7 @@ ErrorOr<HttpRequest, HttpRequest::ParseError> HttpRequest::from_raw_request(Read
         return ParseError::InvalidURL;
     };
 
-    request.m_url.set_cannot_be_a_base_url(true);
+    request.m_url.set_has_an_opaque_path(true);
     if (url_parts.size() == 2) {
         request.m_resource = url_parts[0];
         request.m_url.set_paths({ url_parts[0] });
