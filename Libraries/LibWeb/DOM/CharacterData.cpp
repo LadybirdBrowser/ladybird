@@ -140,13 +140,16 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
     if (characters_are_the_same)
         return {};
 
-    // NOTE: Since the text node's data has changed, we need to invalidate the text for rendering.
-    //       This ensures that the new text is reflected in layout, even if we don't end up
-    //       doing a full layout tree rebuild.
-    if (auto* layout_node = this->layout_node(); layout_node && layout_node->is_text_node())
+    if (auto* layout_node = this->layout_node(); layout_node && layout_node->is_text_node()) {
+        // NOTE: Since the text node's data has changed, we need to invalidate the text for rendering.
+        //       This ensures that the new text is reflected in layout, even if we don't end up
+        //       doing a full layout tree rebuild.
         static_cast<Layout::TextNode&>(*layout_node).invalidate_text_for_rendering();
 
-    document().set_needs_layout(SetNeedsLayoutReason::CharacterDataReplaceData);
+        // We also need to relayout.
+        document().set_needs_layout(SetNeedsLayoutReason::CharacterDataReplaceData);
+    }
+
     document().bump_character_data_version();
 
     if (m_grapheme_segmenter)
