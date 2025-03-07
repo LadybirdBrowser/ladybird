@@ -64,8 +64,7 @@ public:
 
     void set_paths(Vector<ByteString> const& paths) { return m_url.set_paths(paths); }
 
-    // FIXME: Reimplement this to meet the definition in https://url.spec.whatwg.org/#url-opaque-path once we modernize URL to meet the spec.
-    bool cannot_be_a_base_url() const { return m_url.cannot_be_a_base_url(); }
+    bool has_an_opaque_path() const { return m_url.has_an_opaque_path(); }
 
     String search() const;
     void set_search(String const&);
