@@ -147,7 +147,7 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
         static_cast<Layout::TextNode&>(*layout_node).invalidate_text_for_rendering();
 
         // We also need to relayout.
-        document().set_needs_layout(SetNeedsLayoutReason::CharacterDataReplaceData);
+        set_needs_layout_update(SetNeedsLayoutReason::CharacterDataReplaceData);
     }
 
     document().bump_character_data_version();
