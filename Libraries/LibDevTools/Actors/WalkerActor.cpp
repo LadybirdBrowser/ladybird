@@ -73,6 +73,41 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
         return;
     }
 
+    if (type == "editTagName"sv) {
+        auto node = message.get_string("node"sv);
+        if (!node.has_value()) {
+            send_missing_parameter_error("node"sv);
+            return;
+        }
+
+        auto tag_name = message.get_string("tagName"sv);
+        if (!tag_name.has_value()) {
+            send_missing_parameter_error("tagName"sv);
+            return;
+        }
+
+        if (auto dom_node = WalkerActor::dom_node_for(*this, *node); dom_node.has_value()) {
+            auto block_token = block_responses();
+
+            devtools().delegate().set_dom_node_tag(
+                dom_node->tab->description(), dom_node->identifier.id, tag_name.release_value(),
+                [weak_self = make_weak_ptr<WalkerActor>(), block_token = move(block_token)](ErrorOr<Web::UniqueNodeID> node_id) mutable {
+                    if (node_id.is_error()) {
+                        dbgln_if(DEVTOOLS_DEBUG, "Unable to edit DOM node: {}", node_id.error());
+                        return;
+                    }
+
+                    if (auto self = weak_self.strong_ref()) {
+                        JsonObject message;
+                        message.set("from"sv, self->name());
+                        self->send_message(move(message), move(block_token));
+                    }
+                });
+        }
+
+        return;
+    }
+
     if (type == "getLayoutInspector"sv) {
         if (!m_layout_inspector)
             m_layout_inspector = devtools().register_actor<LayoutInspectorActor>();
