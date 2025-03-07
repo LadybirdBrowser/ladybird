@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 49 tests
 
-32 Pass
-17 Fail
+41 Pass
+8 Fail
 Pass	[INPUT in DATETIME-LOCAL status] The max attribute is not set
 Pass	[INPUT in DATETIME-LOCAL status] Value is empty string
 Pass	[INPUT in DATETIME-LOCAL status] The max attribute is an invalid local date time string
@@ -23,8 +23,8 @@ Pass	[INPUT in DATE status] The value is an invalid date(year is three digits)
 Pass	[INPUT in DATE status] The value is an invalid date(month is greater than 12)
 Pass	[INPUT in DATE status] The value is an invalid date(date is greater than 29 for Feb)
 Pass	[INPUT in DATE status] The max attribute is greater than value attribute
-Fail	[INPUT in DATE status] The value attribute is greater than max attribute
-Fail	[INPUT in DATE status] The value attribute is greater than max attribute(Year is 10000 should be valid)
+Pass	[INPUT in DATE status] The value attribute is greater than max attribute
+Pass	[INPUT in DATE status] The value attribute is greater than max attribute(Year is 10000 should be valid)
 Pass	[INPUT in TIME status] The max attribute is not set
 Pass	[INPUT in TIME status] Value is empty string
 Pass	[INPUT in TIME status] The max attribute is an invalid time string
@@ -34,13 +34,13 @@ Pass	[INPUT in TIME status] The value attribute is an invalid time string(minute
 Pass	[INPUT in TIME status] The value attribute is an invalid time string(second is greater than 59)
 Pass	[INPUT in TIME status] The max attribute is greater than value attribute
 Pass	[INPUT in TIME status] The time missing second and minute parts is invalid
-Fail	[INPUT in TIME status] The value attribute is greater than max attribute
+Pass	[INPUT in TIME status] The value attribute is greater than max attribute
 Fail	[INPUT in TIME status] The value is greater than max(with millisecond in 1 digit)
 Fail	[INPUT in TIME status] The value is greater than max(with millisecond in 2 digit)
 Fail	[INPUT in TIME status] The value is greater than max(with millisecond in 3 digit)
-Fail	[INPUT in TIME status] The time missing second part is valid
+Pass	[INPUT in TIME status] The time missing second part is valid
 Pass	[INPUT in TIME status] The time is max for reversed range
-Fail	[INPUT in TIME status] The time is outside the accepted range for reversed range
+Pass	[INPUT in TIME status] The time is outside the accepted range for reversed range
 Pass	[INPUT in TIME status] The time is min for reversed range
 Pass	[INPUT in TIME status] The time is inside the accepted range for reversed range
 Pass	[INPUT in NUMBER status] The max attribute is not set
@@ -49,7 +49,7 @@ Pass	[INPUT in NUMBER status] The max is greater than value(integer)
 Pass	[INPUT in NUMBER status] The max is greater than value(floating number)
 Pass	[INPUT in NUMBER status] The max equals to value
 Pass	[INPUT in NUMBER status] The value is not a number
-Fail	[INPUT in NUMBER status] The value is greater than max(integer)
-Fail	[INPUT in NUMBER status] The value is greater than max(floating number)
-Fail	[INPUT in NUMBER status] The value is greater than max(special floating number)
-Fail	[INPUT in NUMBER status] The value is greater than max(scientific notation)
+Pass	[INPUT in NUMBER status] The value is greater than max(integer)
+Pass	[INPUT in NUMBER status] The value is greater than max(floating number)
+Pass	[INPUT in NUMBER status] The value is greater than max(special floating number)
+Pass	[INPUT in NUMBER status] The value is greater than max(scientific notation)

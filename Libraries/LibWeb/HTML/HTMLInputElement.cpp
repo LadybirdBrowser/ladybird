@@ -3006,6 +3006,19 @@ bool HTMLInputElement::is_focusable() const
     return m_type != TypeAttributeState::Hidden && enabled();
 }
 
+// https://html.spec.whatwg.org/multipage/input.html#has-a-reversed-range
+bool HTMLInputElement::has_reversed_range() const
+{
+    auto minimum = min();
+    if (!minimum.has_value())
+        return false;
+    auto maximum = max();
+    if (!maximum.has_value())
+        return false;
+    // An element has a reversed range if it has a periodic domain and its maximum is less than its minimum.
+    return has_periodic_domain() && maximum.value() < minimum.value();
+}
+
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#suffering-from-being-missing
 bool HTMLInputElement::suffering_from_being_missing() const
 {
@@ -3122,32 +3135,57 @@ bool HTMLInputElement::suffering_from_a_pattern_mismatch() const
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#suffering-from-an-underflow
 bool HTMLInputElement::suffering_from_an_underflow() const
 {
+    // and the result of applying the algorithm to convert a string to a number to the string given by the element's
+    // value is a number
+    auto result = convert_string_to_number(value());
+    if (!result.has_value())
+        return false;
+    auto number = result.value();
     // https://html.spec.whatwg.org/multipage/input.html#the-min-and-max-attributes%3Asuffering-from-an-underflow-2
-    // When the element has a minimum and does not have a reversed range, and the result of applying the algorithm to convert a string to a number to the string
-    // given by the element's value is a number, and the number obtained from that algorithm is less than the minimum, the element is suffering from an underflow.
-    // FIXME: Implement this.
+    // When the element has a minimum and does not have a reversed range,
+    auto minimum = min();
+    if (minimum.has_value() && !has_reversed_range()) {
+        // and the number obtained from that algorithm is less than the minimum, the element is suffering from an underflow.
+        return number < minimum.value();
+    }
 
+    if (!minimum.has_value())
+        return false;
+    auto maximum = max();
+    if (!maximum.has_value())
+        return false;
     // https://html.spec.whatwg.org/multipage/input.html#the-min-and-max-attributes%3Asuffering-from-an-underflow-3
-    // When an element has a reversed range, and the result of applying the algorithm to convert a string to a number to the string given by the element's value is a
-    // number, and the number obtained from that algorithm is more than the maximum and less than the minimum, the element is simultaneously suffering from an underflow and
-    // suffering from an overflow.
-    // FIXME: Implement this.
-    return false;
+    // When an element has a reversed range, and the number obtained from that algorithm is more than the maximum and
+    // less than the minimum, the element is simultaneously suffering from an underflow and suffering from an overflow.
+    return has_reversed_range() && number > maximum.value() && number < minimum.value();
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#suffering-from-an-overflow
 bool HTMLInputElement::suffering_from_an_overflow() const
 {
+    // and the result of applying the algorithm to convert a string to a number to the string given by the element's
+    // value is a number
+    auto result = convert_string_to_number(value());
+    if (!result.has_value())
+        return false;
+    auto number = result.value();
+    auto maximum = max();
     // https://html.spec.whatwg.org/multipage/input.html#the-min-and-max-attributes%3Asuffering-from-an-overflow-2
-    // When the element has a maximum and does not have a reversed range, and the result of applying the algorithm to convert a string to a number to the string
-    // given by the element's value is a number, and the number obtained from that algorithm is more than the maximum, the element is suffering from an overflow.
+    // When the element has a maximum and does not have a reversed range,
+    if (maximum.has_value() && !has_reversed_range()) {
+        // and the number obtained from that algorithm is more than the maximum, the element is suffering from an overflow.
+        return number > maximum.value();
+    }
 
+    if (!maximum.has_value())
+        return false;
+    auto minimum = min();
+    if (!minimum.has_value())
+        return false;
     // https://html.spec.whatwg.org/multipage/input.html#the-min-and-max-attributes%3Asuffering-from-an-underflow-3
-    // When an element has a reversed range, and the result of applying the algorithm to convert a string to a number to the string given by the element's value is a
-    // number, and the number obtained from that algorithm is more than the maximum and less than the minimum, the element is simultaneously suffering from an underflow and
-    // suffering from an overflow.
-    // FIXME: Implement this.
-    return false;
+    // When an element has a reversed range, and the number obtained from that algorithm is more than the maximum and
+    // less than the minimum, the element is simultaneously suffering from an underflow and suffering from an overflow.
+    return has_reversed_range() && number > maximum.value() && number < minimum.value();
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#the-step-attribute%3Asuffering-from-a-step-mismatch
