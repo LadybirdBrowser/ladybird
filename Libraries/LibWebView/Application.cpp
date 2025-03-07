@@ -486,6 +486,13 @@ void Application::replace_dom_node_attribute(DevTools::TabDescription const& des
     });
 }
 
+void Application::remove_dom_node(DevTools::TabDescription const& description, Web::UniqueNodeID node_id, OnDOMNodeEditComplete on_complete) const
+{
+    edit_dom_node(description, move(on_complete), [&](auto& view) {
+        view.remove_dom_node(node_id);
+    });
+}
+
 void Application::evaluate_javascript(DevTools::TabDescription const& description, String script, OnScriptEvaluationComplete on_complete) const
 {
     auto view = ViewImplementation::find_view_by_id(description.id);
