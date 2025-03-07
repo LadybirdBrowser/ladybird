@@ -78,7 +78,6 @@ enum class SetNeedsLayoutReason {
     X(KeyframeEffect)                                     \
     X(MediaQueryChangedMatchState)                        \
     X(SVGGraphicsElementTransformAttributeChange)         \
-    X(SVGUseElement)                                      \
     X(ShadowRootSetInnerHTML)                             \
     X(UpdateFileInputShadowTree)
 
