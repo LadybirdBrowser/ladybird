@@ -41,10 +41,27 @@ PatternErrorOr<Pattern> Pattern::create(Input const& input, Optional<String> con
         init = input.get<Init>();
     }
 
-    // FIXME: 4. Let processedInit be the result of process a URLPatternInit given init, "pattern", null, null, null, null, null, null, null, and null.
+    // 4. Let processedInit be the result of process a URLPatternInit given init, "pattern", null, null, null, null, null, null, null, and null.
+    auto processed_init = TRY(process_a_url_pattern_init(init, PatternProcessType::Pattern, {}, {}, {}, {}, {}, {}, {}, {}));
 
-    // FIXME: 5. For each componentName of « "protocol", "username", "password", "hostname", "port", "pathname", "search", "hash" »:
-    //     FIXME: 1. If processedInit[componentName] does not exist, then set processedInit[componentName] to "*".
+    // 5. For each componentName of « "protocol", "username", "password", "hostname", "port", "pathname", "search", "hash" »:
+    //     1. If processedInit[componentName] does not exist, then set processedInit[componentName] to "*".
+    if (!processed_init.protocol.has_value())
+        processed_init.protocol = "*"_string;
+    if (!processed_init.username.has_value())
+        processed_init.username = "*"_string;
+    if (!processed_init.password.has_value())
+        processed_init.password = "*"_string;
+    if (!processed_init.hostname.has_value())
+        processed_init.hostname = "*"_string;
+    if (!processed_init.port.has_value())
+        processed_init.port = "*"_string;
+    if (!processed_init.pathname.has_value())
+        processed_init.pathname = "*"_string;
+    if (!processed_init.search.has_value())
+        processed_init.search = "*"_string;
+    if (!processed_init.hash.has_value())
+        processed_init.hash = "*"_string;
 
     // FIXME: 6. If processedInit["protocol"] is a special scheme and processedInit["port"] is a string which represents its
     //    corresponding default port in radix-10 using ASCII digits then set processedInit["port"] to the empty string.
