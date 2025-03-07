@@ -8,6 +8,7 @@
 #include <AK/AnyOf.h>
 #include <AK/Debug.h>
 #include <AK/StringBuilder.h>
+#include <LibJS/Runtime/NativeFunction.h>
 #include <LibUnicode/CharacterTypes.h>
 #include <LibUnicode/Locale.h>
 #include <LibWeb/Animations/Animation.h>
@@ -1284,6 +1285,11 @@ void Element::removed_from(Node* old_parent, Node& old_root)
     }
 }
 
+void Element::moved_from(GC::Ptr<Node> old_parent)
+{
+    Base::moved_from(old_parent);
+}
+
 void Element::children_changed(ChildrenChangedMetadata const* metadata)
 {
     Node::children_changed(metadata);
@@ -2531,22 +2537,54 @@ void Element::enqueue_a_custom_element_upgrade_reaction(HTML::CustomElementDefin
     enqueue_an_element_on_the_appropriate_element_queue();
 }
 
+// https://html.spec.whatwg.org/multipage/custom-elements.html#enqueue-a-custom-element-callback-reaction
 void Element::enqueue_a_custom_element_callback_reaction(FlyString const& callback_name, GC::RootVector<JS::Value> arguments)
 {
     // 1. Let definition be element's custom element definition.
     auto& definition = m_custom_element_definition;
 
     // 2. Let callback be the value of the entry in definition's lifecycle callbacks with key callbackName.
-    auto callback_iterator = definition->lifecycle_callbacks().find(callback_name);
+    GC::Ptr<Web::WebIDL::CallbackType> callback;
+    if (auto callback_iterator = definition->lifecycle_callbacks().find(callback_name); callback_iterator != definition->lifecycle_callbacks().end())
+        callback = callback_iterator->value;
+
+    // 3. If callbackName is "connectedMoveCallback" and callback is null:
+    if (callback_name == HTML::CustomElementReactionNames::connectedMoveCallback && !callback) {
+        // 1. Let disconnectedCallback be the value of the entry in definition's lifecycle callbacks with key "disconnectedCallback".
+        GC::Ptr<WebIDL::CallbackType> disconnected_callback;
+        if (auto it = definition->lifecycle_callbacks().find(HTML::CustomElementReactionNames::disconnectedCallback); it != definition->lifecycle_callbacks().end())
+            disconnected_callback = it->value;
+
+        // 2. Let connectedCallback be the value of the entry in definition's lifecycle callbacks with key "connectedCallback".
+        GC::Ptr<WebIDL::CallbackType> connected_callback;
+        if (auto it = definition->lifecycle_callbacks().find(HTML::CustomElementReactionNames::connectedCallback); it != definition->lifecycle_callbacks().end())
+            connected_callback = it->value;
+
+        // 3. If connectedCallback and disconnectedCallback are null, then return.
+        if (!connected_callback && !disconnected_callback)
+            return;
+
+        // 4. Set callback to the following steps:
+        auto steps = JS::NativeFunction::create(realm(), [this, disconnected_callback, connected_callback](JS::VM&) {
+            GC::RootVector<JS::Value> no_arguments { heap() };
+
+            // 1. If disconnectedCallback is not null, then call disconnectedCallback with no arguments.
+            if (disconnected_callback)
+                (void)WebIDL::invoke_callback(*disconnected_callback, this, WebIDL::ExceptionBehavior::Report, no_arguments);
+
+            // 2. If connectedCallback is not null, then call connectedCallback with no arguments.
+            if (connected_callback)
+                (void)WebIDL::invoke_callback(*connected_callback, this, WebIDL::ExceptionBehavior::Report, no_arguments);
+
+            return JS::js_undefined(); }, 0, FlyString {}, &realm());
+        callback = realm().heap().allocate<WebIDL::CallbackType>(steps, realm());
+    }
 
     // 3. If callback is null, then return.
-    if (callback_iterator == definition->lifecycle_callbacks().end())
+    if (!callback)
         return;
 
-    if (!callback_iterator->value)
-        return;
-
-    // 4. If callbackName is "attributeChangedCallback", then:
+    // 5. If callbackName is "attributeChangedCallback":
     if (callback_name == HTML::CustomElementReactionNames::attributeChangedCallback) {
         // 1. Let attributeName be the first element of args.
         VERIFY(!arguments.is_empty());
@@ -2559,10 +2597,10 @@ void Element::enqueue_a_custom_element_callback_reaction(FlyString const& callba
             return;
     }
 
-    // 5. Add a new callback reaction to element's custom element reaction queue, with callback function callback and arguments args.
-    ensure_custom_element_reaction_queue().append(CustomElementCallbackReaction { .callback = callback_iterator->value, .arguments = move(arguments) });
+    // 6. Add a new callback reaction to element's custom element reaction queue, with callback function callback and arguments args.
+    ensure_custom_element_reaction_queue().append(CustomElementCallbackReaction { .callback = callback, .arguments = move(arguments) });
 
-    // 6. Enqueue an element on the appropriate element queue given element.
+    // 7. Enqueue an element on the appropriate element queue given element.
     enqueue_an_element_on_the_appropriate_element_queue();
 }
 

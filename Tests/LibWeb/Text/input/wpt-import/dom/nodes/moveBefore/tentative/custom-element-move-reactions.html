@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<title>Node.moveBefore custom element reactions</title>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script>
+;
+</script>
+
+<body>
+  <section id="section"></section>
+  <script>
+    promise_test(async t => {
+        const ce = document.getElementById("ce");
+        let reactions = [];
+        const element_name = `ce-${performance.now()}`;
+        customElements.define(element_name,
+            class MockCustomElement extends HTMLElement {
+                connectedCallback() { reactions.push("connected"); }
+                disconnectedCallback() { reactions.push("disconnected"); }
+            });
+        const element = document.createElement(element_name);
+        t.add_cleanup(() => element.remove());
+        document.body.append(element);
+        await Promise.resolve();
+        reactions = [];
+        document.getElementById("section").moveBefore(element, null);
+        await Promise.resolve();
+        assert_array_equals(reactions, ["disconnected", "connected"]);
+    }, "the disconnected/connected callbacks should be called when no other callback is defined");
+
+    promise_test(async t => {
+        const ce = document.getElementById("ce");
+        let reactions = [];
+        const element_name = `ce-${performance.now()}`;
+        customElements.define(element_name,
+            class MockCustomElement extends HTMLElement {
+                connectedCallback() { reactions.push(this.isConnected); }
+                disconnectedCallback() { reactions.push(this.isConnected); }
+            });
+        const element = document.createElement(element_name);
+        t.add_cleanup(() => element.remove());
+        document.body.append(element);
+        await Promise.resolve();
+        reactions = [];
+        document.getElementById("section").moveBefore(element, null);
+        await Promise.resolve();
+        assert_array_equals(reactions, [true, true]);
+    }, "the element should stay connected during the callbacks");
+
+    promise_test(async t => {
+        const ce = document.getElementById("ce");
+        let reactions = [];
+        const element_name = `ce-${performance.now()}`;
+        customElements.define(element_name,
+            class MockCustomElement extends HTMLElement {
+              connectedMoveCallback() { reactions.push("connectedMove"); }
+              connectedCallback() { reactions.push("connected"); }
+              disconnectedCallback() { reactions.push("disconnected"); }
+            });
+        const element = document.createElement(element_name);
+        t.add_cleanup(() => element.remove());
+        document.body.append(element);
+        await Promise.resolve();
+        reactions = [];
+        document.getElementById("section").moveBefore(element, null);
+        await Promise.resolve();
+        assert_array_equals(reactions, ["connectedMove"]);
+    }, "When connectedMoveCallback is defined, it is called instead of disconnectedCallback/connectedCallback");
+
+    promise_test(async t => {
+        const ce = document.getElementById("ce");
+        let reactions = [];
+        const outer_element_name = `ce-${performance.now()}-outer`;
+        const inner_element_name = `ce-${performance.now()}-inner`;
+        customElements.define(outer_element_name,
+            class MockCustomElement extends HTMLElement {
+              connectedCallback() { reactions.push("outer connected"); }
+              disconnectedCallback() { reactions.push("outer disconnected"); }
+            });
+          customElements.define(inner_element_name,
+            class MockCustomElement extends HTMLElement {
+              connectedCallback() { reactions.push("inner connected"); }
+              disconnectedCallback() { reactions.push("inner disconnected"); }
+            });
+        const outer = document.createElement(outer_element_name);
+        const inner = document.createElement(inner_element_name);
+        t.add_cleanup(() => outer.remove());
+        outer.append(inner);
+        document.body.append(outer);
+        await Promise.resolve();
+        reactions = [];
+        document.getElementById("section").moveBefore(outer, null);
+        await Promise.resolve();
+        assert_array_equals(reactions, ["outer disconnected", "outer connected", "inner disconnected", "inner connected"]);
+    }, "Reactions to atomic move are called in order of element, not in order of operation");
+
+    promise_test(async t => {
+        const ce = document.getElementById("ce");
+        let reactions = [];
+        const element_name = `ce-${performance.now()}`;
+        customElements.define(element_name,
+            class MockCustomElement extends HTMLElement {
+                disconnectedCallback() { reactions.push("disconnected"); }
+            });
+        const element = document.createElement(element_name);
+        t.add_cleanup(() => element.remove());
+        document.body.append(element);
+        await Promise.resolve();
+        reactions = [];
+        document.getElementById("section").moveBefore(element, null);
+        await Promise.resolve();
+        assert_array_equals(reactions, ["disconnected"]);
+    }, "When connectedCallback is not defined, no crash");
+
+    promise_test(async t => {
+        const ce = document.getElementById("ce");
+        let reactions = [];
+        const element_name = `ce-${performance.now()}`;
+        customElements.define(element_name,
+            class MockCustomElement extends HTMLElement {
+                connectedCallback() { reactions.push("connected"); }
+            });
+        const element = document.createElement(element_name);
+        t.add_cleanup(() => element.remove());
+        document.body.append(element);
+        await Promise.resolve();
+        reactions = [];
+        document.getElementById("section").moveBefore(element, null);
+        await Promise.resolve();
+        assert_array_equals(reactions, ["connected"]);
+    }, "When disconnectedCallback is not defined, no crash");
+</script>
+</body>

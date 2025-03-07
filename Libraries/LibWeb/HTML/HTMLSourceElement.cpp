@@ -48,7 +48,16 @@ void HTMLSourceElement::inserted()
     //           count this as a relevant mutation for child.
 }
 
-// https://html.spec.whatwg.org/multipage/embedded-content.html#the-source-element:html-element-removing-steps
+// https://html.spec.whatwg.org/multipage/embedded-content.html#the-source-element:the-source-element-17
+void HTMLSourceElement::moved_from(GC::Ptr<DOM::Node> old_parent)
+{
+    Base::moved_from(old_parent);
+
+    // FIXME: 1. If oldParent is a picture element, then for each child of oldParent's children, if child is an img
+    //        element, then count this as a relevant mutation for child.
+}
+
+// https://html.spec.whatwg.org/multipage/embedded-content.html#the-source-element:the-source-element-18
 void HTMLSourceElement::removed_from(DOM::Node* old_parent, DOM::Node& old_root)
 {
     // The source HTML element removing steps, given removedNode and oldParent, are:
