@@ -102,6 +102,7 @@ private:
     virtual void set_dom_node_tag(DevTools::TabDescription const&, Web::UniqueNodeID, String, OnDOMNodeEditComplete) const override;
     virtual void add_dom_node_attributes(DevTools::TabDescription const&, Web::UniqueNodeID, Vector<Attribute>, OnDOMNodeEditComplete) const override;
     virtual void replace_dom_node_attribute(DevTools::TabDescription const&, Web::UniqueNodeID, String, Vector<Attribute>, OnDOMNodeEditComplete) const override;
+    virtual void remove_dom_node(DevTools::TabDescription const&, Web::UniqueNodeID, OnDOMNodeEditComplete) const override;
     virtual void evaluate_javascript(DevTools::TabDescription const&, String, OnScriptEvaluationComplete) const override;
     virtual void listen_for_console_messages(DevTools::TabDescription const&, OnConsoleMessageAvailable, OnReceivedConsoleMessages) const override;
     virtual void stop_listening_for_console_messages(DevTools::TabDescription const&) const override;

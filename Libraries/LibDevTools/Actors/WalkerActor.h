@@ -43,6 +43,10 @@ private:
     JsonValue serialize_node(JsonObject const&) const;
     Optional<JsonObject const&> find_node_by_selector(JsonObject const& node, StringView selector);
 
+    Optional<JsonObject const&> previous_sibling_for_node(JsonObject const& node);
+    Optional<JsonObject const&> next_sibling_for_node(JsonObject const& node);
+    Optional<JsonObject const&> remove_node(JsonObject const& node);
+
     void new_dom_node_mutation(WebView::Mutation);
     JsonValue serialize_mutations();
 

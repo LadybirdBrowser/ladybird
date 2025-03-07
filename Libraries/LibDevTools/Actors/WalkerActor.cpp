@@ -134,6 +134,37 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
         return;
     }
 
+    if (type == "isInDOMTree"sv) {
+        auto node = message.get_string("node"sv);
+        if (!node.has_value()) {
+            send_missing_parameter_error("node"sv);
+            return;
+        }
+
+        response.set("attached"sv, m_actor_to_dom_node_map.contains(*node));
+        send_message(move(response));
+        return;
+    }
+
+    if (type == "previousSibling"sv) {
+        auto node = message.get_string("node"sv);
+        if (!node.has_value()) {
+            send_missing_parameter_error("node"sv);
+            return;
+        }
+
+        JsonValue previous_sibling;
+
+        if (auto dom_node = WalkerActor::dom_node_for(*this, *node); dom_node.has_value()) {
+            if (auto previous_sibling_node = previous_sibling_for_node(dom_node->node); previous_sibling_node.has_value())
+                previous_sibling = serialize_node(*previous_sibling_node);
+        }
+
+        response.set("node"sv, move(previous_sibling));
+        send_message(move(response));
+        return;
+    }
+
     if (type == "querySelector"sv) {
         auto node = message.get_string("node"sv);
         if (!node.has_value()) {
@@ -161,6 +192,49 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
             }
         }
 
+        send_message(move(response));
+        return;
+    }
+
+    if (type == "removeNode"sv) {
+        auto node = message.get_string("node"sv);
+        if (!node.has_value()) {
+            send_missing_parameter_error("node"sv);
+            return;
+        }
+
+        if (auto dom_node = WalkerActor::dom_node_for(*this, *node); dom_node.has_value()) {
+            JsonValue next_sibling;
+            if (auto next_sibling_node = next_sibling_for_node(dom_node->node); next_sibling_node.has_value())
+                next_sibling = serialize_node(*next_sibling_node);
+
+            auto parent_node = remove_node(dom_node->node);
+            if (!parent_node.has_value())
+                return;
+
+            auto block_token = block_responses();
+
+            devtools().delegate().remove_dom_node(
+                dom_node->tab->description(), dom_node->identifier.id,
+                [weak_self = make_weak_ptr<WalkerActor>(), next_sibling = move(next_sibling), block_token = move(block_token)](ErrorOr<Web::UniqueNodeID> node_id) mutable {
+                    if (node_id.is_error()) {
+                        dbgln_if(DEVTOOLS_DEBUG, "Unable to edit DOM node: {}", node_id.error());
+                        return;
+                    }
+
+                    if (auto self = weak_self.strong_ref()) {
+                        JsonObject message;
+                        message.set("from"sv, self->name());
+                        message.set("nextSibling"sv, move(next_sibling));
+                        self->send_message(move(message), move(block_token));
+                    }
+                });
+        }
+
+        return;
+    }
+
+    if (type == "retainNode"sv) {
         send_message(move(response));
         return;
     }
@@ -350,6 +424,71 @@ Optional<JsonObject const&> WalkerActor::find_node_by_selector(JsonObject const&
     }
 
     return {};
+}
+
+enum class Direction {
+    Previous,
+    Next,
+};
+static Optional<JsonObject const&> sibling_for_node(JsonObject const& parent, JsonObject const& node, Direction direction)
+{
+    auto children = parent.get_array("children"sv);
+    VERIFY(children.has_value());
+
+    auto index = children->values().find_first_index_if([&](auto const& child) {
+        return &child.as_object() == &node;
+    });
+    VERIFY(index.has_value());
+
+    switch (direction) {
+    case Direction::Previous:
+        if (*index == 0)
+            return {};
+        index = *index - 1;
+        break;
+
+    case Direction::Next:
+        if (*index == children->size() - 1)
+            return {};
+        index = *index + 1;
+        break;
+    }
+
+    return children->at(*index).as_object();
+}
+
+Optional<JsonObject const&> WalkerActor::previous_sibling_for_node(JsonObject const& node)
+{
+    auto parent = m_dom_node_to_parent_map.get(&node);
+    if (!parent.has_value() || !parent.value())
+        return {};
+    return sibling_for_node(*parent.value(), node, Direction::Previous);
+}
+
+Optional<JsonObject const&> WalkerActor::next_sibling_for_node(JsonObject const& node)
+{
+    auto parent = m_dom_node_to_parent_map.get(&node);
+    if (!parent.has_value() || !parent.value())
+        return {};
+    return sibling_for_node(*parent.value(), node, Direction::Next);
+}
+
+Optional<JsonObject const&> WalkerActor::remove_node(JsonObject const& node)
+{
+    auto maybe_parent = m_dom_node_to_parent_map.get(&node);
+    if (!maybe_parent.has_value() || !maybe_parent.value())
+        return {};
+    auto const& parent = *maybe_parent.value();
+
+    auto children = parent.get_array("children"sv);
+    VERIFY(children.has_value());
+
+    const_cast<JsonArray&>(*children).values().remove_first_matching([&](auto const& child) {
+        return &child.as_object() == &node;
+    });
+
+    populate_dom_tree_cache();
+    return parent;
 }
 
 void WalkerActor::new_dom_node_mutation(WebView::Mutation mutation)
