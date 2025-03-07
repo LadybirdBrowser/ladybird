@@ -36,6 +36,8 @@ public:
 private:
     NodeActor(DevToolsServer&, String name, NodeIdentifier, WeakPtr<WalkerActor>);
 
+    void finished_editing_dom_node(BlockToken);
+
     NodeIdentifier m_node_identifier;
 
     WeakPtr<WalkerActor> m_walker;

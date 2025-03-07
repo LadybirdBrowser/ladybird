@@ -41,6 +41,9 @@ public:
     virtual void listen_for_dom_mutations(TabDescription const&, OnDOMMutationReceived) const { }
     virtual void stop_listening_for_dom_mutations(TabDescription const&) const { }
 
+    using OnDOMNodeEditComplete = Function<void(ErrorOr<Web::UniqueNodeID>)>;
+    virtual void set_dom_node_text(TabDescription const&, Web::UniqueNodeID, String, OnDOMNodeEditComplete) const { }
+
     using OnScriptEvaluationComplete = Function<void(ErrorOr<JsonValue>)>;
     virtual void evaluate_javascript(TabDescription const&, String, OnScriptEvaluationComplete) const { }
 

@@ -437,6 +437,34 @@ void Application::stop_listening_for_dom_mutations(DevTools::TabDescription cons
     view->set_listen_for_dom_mutations(false);
 }
 
+template<typename Edit>
+static void edit_dom_node(DevTools::TabDescription const& description, Application::OnDOMNodeEditComplete on_complete, Edit&& edit)
+{
+    auto view = ViewImplementation::find_view_by_id(description.id);
+    if (!view.has_value()) {
+        on_complete(Error::from_string_literal("Unable to locate tab"));
+        return;
+    }
+
+    view->on_finshed_editing_dom_node = [&view = *view, on_complete = move(on_complete)](auto node_id) {
+        view.on_finshed_editing_dom_node = nullptr;
+
+        if (node_id.has_value())
+            on_complete(*node_id);
+        else
+            on_complete(Error::from_string_literal("Unable to find DOM node to edit"));
+    };
+
+    edit(*view);
+}
+
+void Application::set_dom_node_text(DevTools::TabDescription const& description, Web::UniqueNodeID node_id, String value, OnDOMNodeEditComplete on_complete) const
+{
+    edit_dom_node(description, move(on_complete), [&](auto& view) {
+        view.set_dom_node_text(node_id, move(value));
+    });
+}
+
 void Application::evaluate_javascript(DevTools::TabDescription const& description, String script, OnScriptEvaluationComplete on_complete) const
 {
     auto view = ViewImplementation::find_view_by_id(description.id);

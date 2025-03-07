@@ -8,6 +8,8 @@
 #include <LibDevTools/Actors/NodeActor.h>
 #include <LibDevTools/Actors/TabActor.h>
 #include <LibDevTools/Actors/WalkerActor.h>
+#include <LibDevTools/DevToolsDelegate.h>
+#include <LibDevTools/DevToolsServer.h>
 
 namespace DevTools {
 
@@ -42,7 +44,7 @@ NodeActor::NodeActor(DevToolsServer& devtools, String name, NodeIdentifier node_
 
 NodeActor::~NodeActor() = default;
 
-void NodeActor::handle_message(StringView type, JsonObject const&)
+void NodeActor::handle_message(StringView type, JsonObject const& message)
 {
     JsonObject response;
     response.set("from"sv, name());
@@ -55,7 +57,40 @@ void NodeActor::handle_message(StringView type, JsonObject const&)
         return;
     }
 
+    if (type == "setNodeValue"sv) {
+        auto value = message.get_string("value"sv);
+        if (!value.has_value()) {
+            send_missing_parameter_error("value"sv);
+            return;
+        }
+
+        if (auto dom_node = WalkerActor::dom_node_for(m_walker, name()); dom_node.has_value()) {
+            auto block_token = block_responses();
+
+            devtools().delegate().set_dom_node_text(
+                dom_node->tab->description(), dom_node->identifier.id, value.release_value(),
+                [weak_self = make_weak_ptr<NodeActor>(), block_token = move(block_token)](ErrorOr<Web::UniqueNodeID> node_id) mutable {
+                    if (node_id.is_error()) {
+                        dbgln_if(DEVTOOLS_DEBUG, "Unable to edit DOM node: {}", node_id.error());
+                        return;
+                    }
+
+                    if (auto self = weak_self.strong_ref())
+                        self->finished_editing_dom_node(move(block_token));
+                });
+        }
+
+        return;
+    }
+
     send_unrecognized_packet_type_error(type);
+}
+
+void NodeActor::finished_editing_dom_node(BlockToken block_token)
+{
+    JsonObject message;
+    message.set("from"sv, name());
+    send_message(move(message), move(block_token));
 }
 
 }
