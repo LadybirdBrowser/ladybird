@@ -11,7 +11,7 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <LibDevTools/Actor.h>
-#include <LibWeb/CSS/Selector.h>
+#include <LibDevTools/Actors/NodeActor.h>
 #include <LibWeb/Forward.h>
 
 namespace DevTools {
@@ -30,8 +30,7 @@ public:
 
     struct DOMNode {
         JsonObject const& node;
-        Web::UniqueNodeID id { 0 };
-        Optional<Web::CSS::Selector::PseudoElement::Type> pseudo_element;
+        NodeIdentifier identifier;
         NonnullRefPtr<TabActor> tab;
     };
     static Optional<DOMNode> dom_node_for(WeakPtr<WalkerActor> const&, StringView actor);
@@ -43,7 +42,10 @@ private:
     JsonValue serialize_node(JsonObject const&) const;
     Optional<JsonObject const&> find_node_by_selector(JsonObject const& node, StringView selector);
 
-    void populate_dom_tree_cache(JsonObject& node, JsonObject const* parent = nullptr);
+    void populate_dom_tree_cache();
+    void populate_dom_tree_cache(JsonObject& node, JsonObject const* parent);
+
+    NodeActor const& actor_for_node(JsonObject const& node);
 
     WeakPtr<TabActor> m_tab;
     WeakPtr<LayoutInspectorActor> m_layout_inspector;
@@ -52,6 +54,7 @@ private:
 
     HashMap<JsonObject const*, JsonObject const*> m_dom_node_to_parent_map;
     HashMap<String, JsonObject const*> m_actor_to_dom_node_map;
+    HashMap<Web::UniqueNodeID, String> m_dom_node_id_to_actor_map;
 };
 
 }

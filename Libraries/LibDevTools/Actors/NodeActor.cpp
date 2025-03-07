@@ -11,13 +11,31 @@
 
 namespace DevTools {
 
-NonnullRefPtr<NodeActor> NodeActor::create(DevToolsServer& devtools, String name, WeakPtr<WalkerActor> walker)
+NodeIdentifier NodeIdentifier::for_node(JsonObject const& node)
 {
-    return adopt_ref(*new NodeActor(devtools, move(name), move(walker)));
+    NodeIdentifier identifier;
+
+    identifier.pseudo_element = node.get_integer<UnderlyingType<Web::CSS::Selector::PseudoElement::Type>>("pseudo-element"sv).map([](auto value) {
+        VERIFY(value < to_underlying(Web::CSS::Selector::PseudoElement::Type::KnownPseudoElementCount));
+        return static_cast<Web::CSS::Selector::PseudoElement::Type>(value);
+    });
+
+    if (identifier.pseudo_element.has_value())
+        identifier.id = node.get_integer<Web::UniqueNodeID::Type>("parent-id"sv).value();
+    else
+        identifier.id = node.get_integer<Web::UniqueNodeID::Type>("id"sv).value();
+
+    return identifier;
 }
 
-NodeActor::NodeActor(DevToolsServer& devtools, String name, WeakPtr<WalkerActor> walker)
+NonnullRefPtr<NodeActor> NodeActor::create(DevToolsServer& devtools, String name, NodeIdentifier node_identifier, WeakPtr<WalkerActor> walker)
+{
+    return adopt_ref(*new NodeActor(devtools, move(name), move(node_identifier), move(walker)));
+}
+
+NodeActor::NodeActor(DevToolsServer& devtools, String name, NodeIdentifier node_identifier, WeakPtr<WalkerActor> walker)
     : Actor(devtools, move(name))
+    , m_node_identifier(move(node_identifier))
     , m_walker(move(walker))
 {
 }

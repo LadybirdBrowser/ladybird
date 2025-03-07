@@ -7,7 +7,6 @@
 #include <AK/JsonArray.h>
 #include <AK/StringUtils.h>
 #include <LibDevTools/Actors/LayoutInspectorActor.h>
-#include <LibDevTools/Actors/NodeActor.h>
 #include <LibDevTools/Actors/TabActor.h>
 #include <LibDevTools/Actors/WalkerActor.h>
 #include <LibDevTools/DevToolsServer.h>
@@ -25,7 +24,7 @@ WalkerActor::WalkerActor(DevToolsServer& devtools, String name, WeakPtr<TabActor
     , m_tab(move(tab))
     , m_dom_tree(move(dom_tree))
 {
-    populate_dom_tree_cache(m_dom_tree);
+    populate_dom_tree_cache();
 }
 
 WalkerActor::~WalkerActor() = default;
@@ -267,19 +266,9 @@ Optional<WalkerActor::DOMNode> WalkerActor::dom_node(StringView actor)
         return {};
 
     auto const& dom_node = *maybe_dom_node.value();
+    auto identifier = NodeIdentifier::for_node(dom_node);
 
-    auto pseudo_element = dom_node.get_integer<UnderlyingType<Web::CSS::Selector::PseudoElement::Type>>("pseudo-element"sv).map([](auto value) {
-        VERIFY(value < to_underlying(Web::CSS::Selector::PseudoElement::Type::KnownPseudoElementCount));
-        return static_cast<Web::CSS::Selector::PseudoElement::Type>(value);
-    });
-
-    Web::UniqueNodeID node_id { 0 };
-    if (pseudo_element.has_value())
-        node_id = dom_node.get_integer<Web::UniqueNodeID::Type>("parent-id"sv).value();
-    else
-        node_id = dom_node.get_integer<Web::UniqueNodeID::Type>("id"sv).value();
-
-    return DOMNode { .node = dom_node, .id = node_id, .pseudo_element = pseudo_element, .tab = tab.release_nonnull() };
+    return DOMNode { .node = dom_node, .identifier = move(identifier), .tab = tab.release_nonnull() };
 }
 
 Optional<JsonObject const&> WalkerActor::find_node_by_selector(JsonObject const& node, StringView selector)
@@ -306,14 +295,25 @@ Optional<JsonObject const&> WalkerActor::find_node_by_selector(JsonObject const&
     return {};
 }
 
+void WalkerActor::populate_dom_tree_cache()
+{
+    m_dom_node_to_parent_map.clear();
+    m_actor_to_dom_node_map.clear();
+    m_dom_node_id_to_actor_map.clear();
+
+    populate_dom_tree_cache(m_dom_tree, nullptr);
+}
+
 void WalkerActor::populate_dom_tree_cache(JsonObject& node, JsonObject const* parent)
 {
-    auto& node_actor = devtools().register_actor<NodeActor>(*this);
+    auto const& node_actor = actor_for_node(node);
+    node.set("actor"sv, node_actor.name());
 
     m_dom_node_to_parent_map.set(&node, parent);
-
     m_actor_to_dom_node_map.set(node_actor.name(), &node);
-    node.set("actor"sv, node_actor.name());
+
+    if (!node_actor.node_identifier().pseudo_element.has_value())
+        m_dom_node_id_to_actor_map.set(node_actor.node_identifier().id, node_actor.name());
 
     auto children = node.get_array("children"sv);
     if (!children.has_value())
@@ -326,6 +326,22 @@ void WalkerActor::populate_dom_tree_cache(JsonObject& node, JsonObject const* pa
     children->for_each([&](JsonValue& child) {
         populate_dom_tree_cache(child.as_object(), &node);
     });
+}
+
+NodeActor const& WalkerActor::actor_for_node(JsonObject const& node)
+{
+    auto identifier = NodeIdentifier::for_node(node);
+
+    for (auto const& actor : devtools().actor_registry()) {
+        auto const* node_actor = as_if<NodeActor>(*actor.value);
+        if (!node_actor)
+            continue;
+
+        if (node_actor->node_identifier() == identifier)
+            return *node_actor;
+    }
+
+    return devtools().register_actor<NodeActor>(move(identifier), *this);
 }
 
 }
