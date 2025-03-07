@@ -42,7 +42,7 @@ void HighlighterActor::handle_message(StringView type, JsonObject const& message
         response.set("value"sv, false);
 
         if (auto dom_node = WalkerActor::dom_node_for(InspectorActor::walker_for(m_inspector), *node); dom_node.has_value()) {
-            devtools().delegate().highlight_dom_node(dom_node->tab->description(), dom_node->id, dom_node->pseudo_element);
+            devtools().delegate().highlight_dom_node(dom_node->tab->description(), dom_node->identifier.id, dom_node->identifier.pseudo_element);
             response.set("value"sv, true);
         }
 
