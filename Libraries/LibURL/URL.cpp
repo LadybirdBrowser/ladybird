@@ -119,7 +119,7 @@ bool URL::compute_validity() const
     if (m_data->scheme.is_empty())
         return false;
 
-    if (m_data->cannot_be_a_base_url) {
+    if (m_data->has_an_opaque_path) {
         if (m_data->paths.size() != 1)
             return false;
         if (m_data->paths[0].is_empty())
@@ -193,7 +193,7 @@ URL create_with_url_or_path(ByteString const& url_or_path)
 URL create_with_data(StringView mime_type, StringView payload, bool is_base64)
 {
     URL url;
-    url.set_cannot_be_a_base_url(true);
+    url.set_has_an_opaque_path(true);
     url.set_scheme("data"_string);
 
     StringBuilder builder;
@@ -216,8 +216,7 @@ bool is_special_scheme(StringView scheme)
 String URL::serialize_path() const
 {
     // 1. If url has an opaque path, then return url’s path.
-    // FIXME: Reimplement this step once we modernize the URL implementation to meet the spec.
-    if (cannot_be_a_base_url())
+    if (has_an_opaque_path())
         return m_data->paths[0];
 
     // 2. Let output be the empty string.
@@ -272,7 +271,7 @@ String URL::serialize(ExcludeFragment exclude_fragment) const
     // 3. If url’s host is null, url does not have an opaque path, url’s path’s size is greater than 1, and url’s path[0] is the empty string, then append U+002F (/) followed by U+002E (.) to output.
     // 4. Append the result of URL path serializing url to output.
     // FIXME: Implement this closer to spec steps.
-    if (cannot_be_a_base_url()) {
+    if (has_an_opaque_path()) {
         output.append(m_data->paths[0]);
     } else {
         if (!m_data->host.has_value() && m_data->paths.size() > 1 && m_data->paths[0].is_empty())
@@ -318,7 +317,7 @@ ByteString URL::serialize_for_display() const
             builder.appendff(":{}", *m_data->port);
     }
 
-    if (cannot_be_a_base_url()) {
+    if (has_an_opaque_path()) {
         builder.append(m_data->paths[0]);
     } else {
         if (!m_data->host.has_value() && m_data->paths.size() > 1 && m_data->paths[0].is_empty())
@@ -470,7 +469,7 @@ URL URL::about(String path)
     url.m_data->valid = true;
     url.m_data->scheme = "about"_string;
     url.m_data->paths = { move(path) };
-    url.m_data->cannot_be_a_base_url = true;
+    url.m_data->has_an_opaque_path = true;
     return url;
 }
 
