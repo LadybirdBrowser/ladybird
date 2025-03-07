@@ -1211,20 +1211,6 @@ Optional<String> Document::encoding_parse_and_serialize_url(StringView url) cons
     return parsed_url->serialize();
 }
 
-void Document::set_needs_layout(SetNeedsLayoutReason reason)
-{
-    if (m_needs_layout)
-        return;
-    if constexpr (UPDATE_LAYOUT_DEBUG) {
-        // NOTE: We check some conditions here to avoid debug spam in documents that don't do layout.
-        auto navigable = this->navigable();
-        if (m_layout_root && navigable && navigable->active_document() == this)
-            dbgln_if(UPDATE_LAYOUT_DEBUG, "NEED LAYOUT {}", to_string(reason));
-    }
-    m_needs_layout = true;
-    schedule_layout_update();
-}
-
 void Document::invalidate_layout_tree(InvalidateLayoutTreeReason reason)
 {
     if (m_layout_root)
@@ -1299,7 +1285,7 @@ void Document::update_layout(UpdateLayoutReason reason)
 
     update_style();
 
-    if (!m_needs_layout && m_layout_root)
+    if (!m_needs_layout_update && m_layout_root)
         return;
 
     // NOTE: If this is a document hosting <template> contents, layout is unnecessary.
@@ -1329,11 +1315,16 @@ void Document::update_layout(UpdateLayoutReason reason)
         }
     }
 
-    // Assign each box that establishes a formatting context a list of absolutely positioned children it should take care of during layout
     m_layout_root->for_each_in_inclusive_subtree_of_type<Layout::Box>([&](auto& child) {
+        bool needs_layout_update = child.dom_node() && child.dom_node()->needs_layout_update();
+        if (needs_layout_update || child.is_anonymous()) {
+            child.reset_cached_intrinsic_sizes();
+        }
         child.clear_contained_abspos_children();
         return TraversalDecision::Continue;
     });
+
+    // Assign each box that establishes a formatting context a list of absolutely positioned children it should take care of during layout
     m_layout_root->for_each_in_inclusive_subtree([&](auto& child) {
         if (!child.is_absolutely_positioned())
             return TraversalDecision::Continue;
@@ -1396,7 +1387,10 @@ void Document::update_layout(UpdateLayoutReason reason)
         paintable()->recompute_selection_states(*range);
     }
 
-    m_needs_layout = false;
+    for_each_shadow_including_inclusive_descendant([](auto& node) {
+        node.reset_needs_layout_update();
+        return TraversalDecision::Continue;
+    });
 
     // Scrolling by zero offset will clamp scroll offset back to valid range if it was out of bounds
     // after the viewport size change.
@@ -1430,6 +1424,9 @@ void Document::update_layout(UpdateLayoutReason reason)
         }
         is_display_none = static_cast<Element&>(node).computed_properties()->display().is_none();
     }
+    if (node_invalidation.relayout) {
+        node.set_needs_layout_update(SetNeedsLayoutReason::StyleChange);
+    }
     if (node_invalidation.rebuild_layout_tree) {
         // We mark layout tree for rebuild starting from parent element to correctly invalidate
         // "display" property change to/from "contents" value.
@@ -1441,6 +1438,7 @@ void Document::update_layout(UpdateLayoutReason reason)
     }
     invalidation |= node_invalidation;
     node.set_needs_style_update(false);
+    invalidation |= node_invalidation;
 
     bool children_need_inherited_style_update = !invalidation.is_none();
     if (needs_full_style_update || node.child_needs_style_update() || children_need_inherited_style_update) {
@@ -1532,8 +1530,6 @@ void Document::update_style()
     auto invalidation = update_style_recursively(*this, style_computer(), false);
     if (!invalidation.is_none())
         invalidate_display_list();
-    if (invalidation.relayout)
-        set_needs_layout(SetNeedsLayoutReason::StyleChange);
     if (invalidation.rebuild_stacking_context_tree)
         invalidate_stacking_context_tree();
     m_needs_full_style_update = false;
