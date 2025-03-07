@@ -78,8 +78,7 @@ enum class SetNeedsLayoutReason {
     X(KeyframeEffect)                                     \
     X(MediaQueryChangedMatchState)                        \
     X(SVGGraphicsElementTransformAttributeChange)         \
-    X(ShadowRootSetInnerHTML)                             \
-    X(UpdateFileInputShadowTree)
+    X(ShadowRootSetInnerHTML)
 
 enum class InvalidateLayoutTreeReason {
 #define ENUMERATE_INVALIDATE_LAYOUT_TREE_REASON(e) e,
