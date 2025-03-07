@@ -465,6 +465,13 @@ void Application::set_dom_node_text(DevTools::TabDescription const& description,
     });
 }
 
+void Application::set_dom_node_tag(DevTools::TabDescription const& description, Web::UniqueNodeID node_id, String value, OnDOMNodeEditComplete on_complete) const
+{
+    edit_dom_node(description, move(on_complete), [&](auto& view) {
+        view.set_dom_node_tag(node_id, move(value));
+    });
+}
+
 void Application::add_dom_node_attributes(DevTools::TabDescription const& description, Web::UniqueNodeID node_id, Vector<Attribute> replacement_attributes, OnDOMNodeEditComplete on_complete) const
 {
     edit_dom_node(description, move(on_complete), [&](auto& view) {
