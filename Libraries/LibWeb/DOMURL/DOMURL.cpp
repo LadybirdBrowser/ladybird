@@ -288,11 +288,11 @@ String DOMURL::host() const
     return MUST(String::formatted("{}:{}", url.serialized_host(), *url.port()));
 }
 
-// https://url.spec.whatwg.org/#dom-url-hostref-for-dom-url-host%E2%91%A0
+// https://url.spec.whatwg.org/#dom-url-host
 void DOMURL::set_host(String const& host)
 {
-    // 1. If this’s URL’s cannot-be-a-base-URL is true, then return.
-    if (m_url.cannot_be_a_base_url())
+    // 1. If this’s URL has an opaque path, then return.
+    if (m_url.has_an_opaque_path())
         return;
 
     // 2. Basic URL parse the given value with this’s URL as url and host state as state override.
@@ -313,8 +313,8 @@ String DOMURL::hostname() const
 // https://url.spec.whatwg.org/#ref-for-dom-url-hostname①
 void DOMURL::set_hostname(String const& hostname)
 {
-    // 1. If this’s URL’s cannot-be-a-base-URL is true, then return.
-    if (m_url.cannot_be_a_base_url())
+    // 1. If this’s URL has an opaque path, then return.
+    if (m_url.has_an_opaque_path())
         return;
 
     // 2. Basic URL parse the given value with this’s URL as url and hostname state as state override.
@@ -359,9 +359,8 @@ String DOMURL::pathname() const
 // https://url.spec.whatwg.org/#ref-for-dom-url-pathname%E2%91%A0
 void DOMURL::set_pathname(String const& pathname)
 {
-    // FIXME: These steps no longer match the speci.
-    // 1. If this’s URL’s cannot-be-a-base-URL is true, then return.
-    if (m_url.cannot_be_a_base_url())
+    // 1. If this’s URL has an opaque path, then return.
+    if (m_url.has_an_opaque_path())
         return;
 
     // 2. Empty this’s URL’s path.
