@@ -98,6 +98,7 @@ private:
     virtual void clear_highlighted_dom_node(DevTools::TabDescription const&) const override;
     virtual void listen_for_dom_mutations(DevTools::TabDescription const&, OnDOMMutationReceived) const override;
     virtual void stop_listening_for_dom_mutations(DevTools::TabDescription const&) const override;
+    virtual void set_dom_node_text(DevTools::TabDescription const&, Web::UniqueNodeID, String, OnDOMNodeEditComplete) const override;
     virtual void evaluate_javascript(DevTools::TabDescription const&, String, OnScriptEvaluationComplete) const override;
     virtual void listen_for_console_messages(DevTools::TabDescription const&, OnConsoleMessageAvailable, OnReceivedConsoleMessages) const override;
     virtual void stop_listening_for_console_messages(DevTools::TabDescription const&) const override;
