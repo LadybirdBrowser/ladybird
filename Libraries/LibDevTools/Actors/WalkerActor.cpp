@@ -73,6 +73,33 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
         return;
     }
 
+    if (type == "duplicateNode"sv) {
+        auto node = message.get_string("node"sv);
+        if (!node.has_value()) {
+            send_missing_parameter_error("node"sv);
+            return;
+        }
+
+        if (auto dom_node = WalkerActor::dom_node_for(*this, *node); dom_node.has_value()) {
+            auto block_token = block_responses();
+
+            devtools().delegate().clone_dom_node(
+                dom_node->tab->description(), dom_node->identifier.id,
+                [weak_self = make_weak_ptr<WalkerActor>(), block_token = move(block_token)](ErrorOr<Web::UniqueNodeID> node_id) mutable {
+                    if (node_id.is_error()) {
+                        dbgln_if(DEVTOOLS_DEBUG, "Unable to edit DOM node: {}", node_id.error());
+                        return;
+                    }
+
+                    if (auto self = weak_self.strong_ref()) {
+                        JsonObject message;
+                        message.set("from"sv, self->name());
+                        self->send_message(move(message), move(block_token));
+                    }
+                });
+        }
+    }
+
     if (type == "editTagName"sv) {
         auto node = message.get_string("node"sv);
         if (!node.has_value()) {

@@ -47,6 +47,7 @@ public:
     virtual void add_dom_node_attributes(TabDescription const&, Web::UniqueNodeID, Vector<WebView::Attribute>, OnDOMNodeEditComplete) const { }
     virtual void replace_dom_node_attribute(TabDescription const&, Web::UniqueNodeID, String, Vector<WebView::Attribute>, OnDOMNodeEditComplete) const { }
     virtual void create_child_element(TabDescription const&, Web::UniqueNodeID, OnDOMNodeEditComplete) const { }
+    virtual void clone_dom_node(TabDescription const&, Web::UniqueNodeID, OnDOMNodeEditComplete) const { }
     virtual void remove_dom_node(TabDescription const&, Web::UniqueNodeID, OnDOMNodeEditComplete) const { }
 
     using OnScriptEvaluationComplete = Function<void(ErrorOr<JsonValue>)>;
