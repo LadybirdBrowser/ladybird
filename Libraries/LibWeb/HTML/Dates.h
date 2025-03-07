@@ -40,7 +40,20 @@ struct YearMonthDay {
     u32 day;
 };
 
+struct HourMinuteSecond {
+    i32 hour;
+    i32 minute;
+    i32 second;
+};
+
+struct DateAndTime {
+    YearMonthDay date;
+    HourMinuteSecond time;
+};
+
 Optional<YearMonthDay> parse_a_date_string(StringView);
+
+Optional<DateAndTime> parse_a_local_date_and_time_string(StringView);
 
 i32 number_of_months_since_unix_epoch(YearAndMonth);
 

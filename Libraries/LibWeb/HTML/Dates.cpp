@@ -401,4 +401,103 @@ Optional<YearMonthDay> parse_a_date_string(StringView input_view)
     return year_month_day.release_value();
 }
 
+// https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#parse-a-time-component
+static Optional<HourMinuteSecond> parse_a_time_component(GenericLexer& input)
+{
+    // 1. Collect a sequence of code points that are ASCII digits from input given position. If the collected sequence
+    //    is not exactly two characters long, then fail.  Otherwise, interpret the resulting sequence as a base-ten
+    //    integer. Let that number be the hour.
+    auto hour_string = input.consume_while(is_ascii_digit);
+    if (hour_string.length() != 2)
+        return {};
+    auto maybe_hour = hour_string.to_number<i32>();
+    if (!maybe_hour.has_value())
+        return {};
+    auto hour = maybe_hour.value();
+    // 2. If hour is not a number in the range 0 ≤ hour ≤ 23, then fail.
+    if (hour < 0 || hour > 23)
+        return {};
+    // 3. If position is beyond the end of input or if the character at position is not a U+003A COLON character, then
+    //    fail. Otherwise, move position forwards one character.
+    if (!input.consume_specific(':'))
+        return {};
+    // 4. Collect a sequence of code points that are ASCII digits from input given position. If the collected sequence
+    //    is not exactly two characters long, then fail. Otherwise, interpret the resulting sequence as a base-ten integer.
+    //    Let that number be the minute.
+    auto minute_string = input.consume_while(is_ascii_digit);
+    if (minute_string.length() != 2)
+        return {};
+    auto maybe_minute = minute_string.to_number<i32>();
+    if (!maybe_minute.has_value())
+        return {};
+    auto minute = maybe_minute.value();
+    // 5. If minute is not a number in the range 0 ≤ minute ≤ 59, then fail.
+    if (minute < 0 || hour > 59)
+        return {};
+    // 6. Let second be 0.
+    i32 second = 0;
+    // 7. If position is not beyond the end of input and the character at position is U+003A (:), then:
+    if (!input.consume_specific(':'))
+        return {};
+    // 7.1. Advance position to the next character in input.
+    // 7.2. If position is beyond the end of input, or at the last character in input, or if the next two characters in
+    //      input starting at position are not both ASCII digits, then fail.
+    if (input.is_eof() || input.tell_remaining() == 1 || (!is_ascii_digit(input.peek()) && !is_ascii_digit(input.peek(1))))
+        return {};
+    // 7.3. Collect a sequence of code points that are either ASCII digits or U+002E FULL STOP characters from input
+    //      given position.
+    auto second_string = input.consume_while([](auto ch) { return is_ascii_digit(ch) || ch == '.'; });
+    // If the collected sequence is three characters long, or if it is longer than three characters long and the third
+    // character is not a U+002E FULL STOP character, or if it has more than one U+002E FULL STOP character, then fail.
+    if (second_string.length() == 3)
+        return {};
+    if (second_string.length() > 3 && second_string[2] != '.')
+        return {};
+    if (second_string.find_all("."sv).size() > 1)
+        return {};
+    // Otherwise, interpret the resulting sequence as a base-ten number (possibly with a fractional part). Set second
+    // to that number.
+    // NB: The spec doesn't state requirements for what we must do with the fractional part of the second(s) string.
+    //     The spec neither requires that we separately preserve it nor requires that we completely discard it. If we
+    //     did have any reason at all to preserve it, we could parse the string into a float here. But there doesn't
+    //     seem to be any point in doing that, because there’s nothing in the corresponding calling algorithm(s) in the
+    //     spec that takes a milliseconds field and does anything with it anyway.
+    auto maybe_second = second_string.to_number<i32>();
+    if (!maybe_second.has_value())
+        return {};
+    second = maybe_second.value();
+    // 7.4. If second is not a number in the range 0 ≤ second < 60, then fail.
+    if (second < 0 || second > 60)
+        return {};
+    // 8. Return hour, minute, and second.
+    return HourMinuteSecond { hour, minute, second };
+}
+
+// https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#parse-a-local-date-and-time-string
+Optional<DateAndTime> parse_a_local_date_and_time_string(StringView input_view)
+{
+    // 1. Let input be the string being parsed.
+    // 2. Let position be a pointer into input, initially pointing at the start of the string.
+    GenericLexer input { input_view };
+    // 3. Parse a date component to obtain year, month, and day. If this returns nothing, then fail.
+    auto year_month_day = parse_a_date_component(input);
+    if (!year_month_day.has_value())
+        return {};
+    // 4. If position is beyond the end of input or if the character at position is neither a U+0054 LATIN CAPITAL
+    //    LETTER T character (T) nor a U+0020 SPACE character, then fail. Otherwise, move position forwards one character.
+    if (!input.consume_specific("T") && !input.consume_specific(" "))
+        return {};
+    // 5. Parse a time component to obtain hour, minute, and second. If this returns nothing, then fail.
+    auto hour_minute_second = parse_a_time_component(input);
+    if (!hour_minute_second.has_value())
+        return {};
+    // 6. If position is not beyond the end of input, then fail.
+    if (!input.is_eof())
+        return {};
+    // 7. Let date be the date with year year, month month, and day day.
+    // 8. Let time be the time with hour hour, minute minute, and second second.
+    // 9. Return date and time.
+    return DateAndTime { year_month_day.release_value(), hour_minute_second.release_value() };
+}
+
 }

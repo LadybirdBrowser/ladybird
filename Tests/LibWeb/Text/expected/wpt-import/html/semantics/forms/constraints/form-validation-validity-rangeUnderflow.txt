@@ -2,19 +2,19 @@ Harness status: OK
 
 Found 47 tests
 
-39 Pass
-8 Fail
+41 Pass
+6 Fail
 Pass	[INPUT in DATETIME-LOCAL status] The min attribute is not set
 Pass	[INPUT in DATETIME-LOCAL status] Value is empty string
 Pass	[INPUT in DATETIME-LOCAL status] The min attribute is an invalid local date time string
 Pass	[INPUT in DATETIME-LOCAL status] The min attribute is less than the value attribute
 Pass	[INPUT in DATETIME-LOCAL status] The value is an invalid local date time string(hour is greater than 23)
 Pass	[INPUT in DATETIME-LOCAL status] The value is an invalid local date time string(year is two digits)
-Fail	[INPUT in DATETIME-LOCAL status] The value is less than min
+Pass	[INPUT in DATETIME-LOCAL status] The value is less than min
 Fail	[INPUT in DATETIME-LOCAL status] The value is less than min(with millisecond in 1 digit)
 Fail	[INPUT in DATETIME-LOCAL status] The value is less than min(with millisecond in 2 digits)
 Fail	[INPUT in DATETIME-LOCAL status] The value is less than min(with millisecond in 3 digits)
-Fail	[INPUT in DATETIME-LOCAL status] The value is less than min(Year is 10000 should be valid)
+Pass	[INPUT in DATETIME-LOCAL status] The value is less than min(Year is 10000 should be valid)
 Pass	[INPUT in DATETIME-LOCAL status] The value is greater than max
 Pass	[INPUT in DATE status] The min attribute is not set
 Pass	[INPUT in DATE status] Value is empty string
