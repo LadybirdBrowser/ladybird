@@ -8,6 +8,7 @@
 
 #include <AK/Optional.h>
 #include <AK/String.h>
+#include <LibURL/Pattern/PatternError.h>
 
 namespace URL::Pattern {
 
@@ -23,5 +24,15 @@ struct Init {
     Optional<String> hash;
     Optional<String> base_url;
 };
+
+enum class PatternProcessType {
+    Pattern,
+    URL,
+};
+
+PatternErrorOr<Init> process_a_url_pattern_init(Init const&, PatternProcessType type,
+    Optional<String> const& protocol, Optional<String> const& username, Optional<String> const& password,
+    Optional<String> const& hostname, Optional<String> const& port, Optional<String> const& pathname,
+    Optional<String> const& search, Optional<String> const& hash);
 
 }
