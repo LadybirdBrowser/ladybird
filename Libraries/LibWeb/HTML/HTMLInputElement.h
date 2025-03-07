@@ -232,6 +232,11 @@ public:
     virtual void did_edit_text_node() override;
     virtual GC::Ptr<DOM::Text> form_associated_element_to_text_node() override { return m_text_node; }
 
+    // https://html.spec.whatwg.org/multipage/input.html#has-a-periodic-domain/
+    bool has_periodic_domain() const { return type_state() == HTMLInputElement::TypeAttributeState::Time; }
+    // https://html.spec.whatwg.org/multipage/input.html#has-a-reversed-range
+    bool has_reversed_range() const;
+
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#definitions
     virtual bool suffering_from_being_missing() const override;
     virtual bool suffering_from_a_type_mismatch() const override;

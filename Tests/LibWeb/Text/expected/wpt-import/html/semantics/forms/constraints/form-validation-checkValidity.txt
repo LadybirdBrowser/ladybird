@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 132 tests
 
-118 Pass
-14 Fail
+126 Pass
+6 Fail
 Pass	[INPUT in TEXT status] no constraint
 Pass	[INPUT in TEXT status] no constraint (in a form)
 Pass	[INPUT in TEXT status] not suffering from being too long
@@ -98,18 +98,18 @@ Pass	[INPUT in WEEK status] suffering from being missing
 Pass	[INPUT in WEEK status] suffering from being missing (in a form)
 Pass	[INPUT in TIME status] no constraint
 Pass	[INPUT in TIME status] no constraint (in a form)
-Fail	[INPUT in TIME status] suffering from an overflow
-Fail	[INPUT in TIME status] suffering from an overflow (in a form)
-Fail	[INPUT in TIME status] suffering from an underflow
-Fail	[INPUT in TIME status] suffering from an underflow (in a form)
+Pass	[INPUT in TIME status] suffering from an overflow
+Pass	[INPUT in TIME status] suffering from an overflow (in a form)
+Pass	[INPUT in TIME status] suffering from an underflow
+Pass	[INPUT in TIME status] suffering from an underflow (in a form)
 Pass	[INPUT in TIME status] suffering from a step mismatch
 Pass	[INPUT in TIME status] suffering from a step mismatch (in a form)
 Pass	[INPUT in TIME status] suffering from being missing
 Pass	[INPUT in TIME status] suffering from being missing (in a form)
-Fail	[INPUT in NUMBER status] suffering from an overflow
-Fail	[INPUT in NUMBER status] suffering from an overflow (in a form)
-Fail	[INPUT in NUMBER status] suffering from an underflow
-Fail	[INPUT in NUMBER status] suffering from an underflow (in a form)
+Pass	[INPUT in NUMBER status] suffering from an overflow
+Pass	[INPUT in NUMBER status] suffering from an overflow (in a form)
+Pass	[INPUT in NUMBER status] suffering from an underflow
+Pass	[INPUT in NUMBER status] suffering from an underflow (in a form)
 Pass	[INPUT in NUMBER status] suffering from a step mismatch
 Pass	[INPUT in NUMBER status] suffering from a step mismatch (in a form)
 Pass	[INPUT in NUMBER status] (with 'value' content attribute) suffering from a step mismatch
