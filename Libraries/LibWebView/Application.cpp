@@ -417,6 +417,26 @@ void Application::clear_highlighted_dom_node(DevTools::TabDescription const& des
         view->clear_highlighted_dom_node();
 }
 
+void Application::listen_for_dom_mutations(DevTools::TabDescription const& description, OnDOMMutationReceived on_dom_mutation_received) const
+{
+    auto view = ViewImplementation::find_view_by_id(description.id);
+    if (!view.has_value())
+        return;
+
+    view->on_dom_mutation_received = move(on_dom_mutation_received);
+    view->set_listen_for_dom_mutations(true);
+}
+
+void Application::stop_listening_for_dom_mutations(DevTools::TabDescription const& description) const
+{
+    auto view = ViewImplementation::find_view_by_id(description.id);
+    if (!view.has_value())
+        return;
+
+    view->on_dom_mutation_received = nullptr;
+    view->set_listen_for_dom_mutations(false);
+}
+
 void Application::evaluate_javascript(DevTools::TabDescription const& description, String script, OnScriptEvaluationComplete on_complete) const
 {
     auto view = ViewImplementation::find_view_by_id(description.id);

@@ -37,6 +37,10 @@ public:
     virtual void highlight_dom_node(TabDescription const&, Web::UniqueNodeID, Optional<Web::CSS::Selector::PseudoElement::Type>) const { }
     virtual void clear_highlighted_dom_node(TabDescription const&) const { }
 
+    using OnDOMMutationReceived = Function<void(WebView::Mutation)>;
+    virtual void listen_for_dom_mutations(TabDescription const&, OnDOMMutationReceived) const { }
+    virtual void stop_listening_for_dom_mutations(TabDescription const&) const { }
+
     using OnScriptEvaluationComplete = Function<void(ErrorOr<JsonValue>)>;
     virtual void evaluate_javascript(TabDescription const&, String, OnScriptEvaluationComplete) const { }
 
