@@ -183,9 +183,6 @@ void SVGUseElement::clone_element_tree_as_our_shadow_tree(Element* to_clone)
         auto cloned_reference_node = MUST(to_clone->clone_node(nullptr, true));
         shadow_root()->append_child(cloned_reference_node).release_value_but_fixme_should_propagate_errors();
     }
-
-    // FIXME: Only invalidate the part of the layout tree that is affected by this change.
-    document().invalidate_layout_tree(DOM::InvalidateLayoutTreeReason::SVGUseElement);
 }
 
 bool SVGUseElement::is_valid_reference_element(Element const& reference_element) const
