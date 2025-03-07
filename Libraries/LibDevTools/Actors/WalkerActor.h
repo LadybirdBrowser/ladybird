@@ -13,6 +13,7 @@
 #include <LibDevTools/Actor.h>
 #include <LibDevTools/Actors/NodeActor.h>
 #include <LibWeb/Forward.h>
+#include <LibWebView/Forward.h>
 
 namespace DevTools {
 
@@ -42,6 +43,11 @@ private:
     JsonValue serialize_node(JsonObject const&) const;
     Optional<JsonObject const&> find_node_by_selector(JsonObject const& node, StringView selector);
 
+    void new_dom_node_mutation(WebView::Mutation);
+    JsonValue serialize_mutations();
+
+    bool replace_node_in_tree(JsonObject replacement);
+
     void populate_dom_tree_cache();
     void populate_dom_tree_cache(JsonObject& node, JsonObject const* parent);
 
@@ -51,6 +57,9 @@ private:
     WeakPtr<LayoutInspectorActor> m_layout_inspector;
 
     JsonObject m_dom_tree;
+
+    Vector<WebView::Mutation> m_dom_node_mutations;
+    bool m_has_new_mutations_since_last_mutations_request { false };
 
     HashMap<JsonObject const*, JsonObject const*> m_dom_node_to_parent_map;
     HashMap<String, JsonObject const*> m_actor_to_dom_node_map;

@@ -9,8 +9,10 @@
 #include <LibDevTools/Actors/LayoutInspectorActor.h>
 #include <LibDevTools/Actors/TabActor.h>
 #include <LibDevTools/Actors/WalkerActor.h>
+#include <LibDevTools/DevToolsDelegate.h>
 #include <LibDevTools/DevToolsServer.h>
 #include <LibWeb/DOM/NodeType.h>
+#include <LibWebView/Mutation.h>
 
 namespace DevTools {
 
@@ -25,9 +27,21 @@ WalkerActor::WalkerActor(DevToolsServer& devtools, String name, WeakPtr<TabActor
     , m_dom_tree(move(dom_tree))
 {
     populate_dom_tree_cache();
+
+    if (auto tab = m_tab.strong_ref()) {
+        devtools.delegate().listen_for_dom_mutations(tab->description(),
+            [weak_self = make_weak_ptr<WalkerActor>()](WebView::Mutation mutation) {
+                if (auto self = weak_self.strong_ref())
+                    self->new_dom_node_mutation(move(mutation));
+            });
+    }
 }
 
-WalkerActor::~WalkerActor() = default;
+WalkerActor::~WalkerActor()
+{
+    if (auto tab = m_tab.strong_ref())
+        devtools().delegate().stop_listening_for_dom_mutations(tab->description());
+}
 
 void WalkerActor::handle_message(StringView type, JsonObject const& message)
 {
@@ -68,6 +82,14 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
 
         response.set("actor"sv, move(actor));
         send_message(move(response));
+        return;
+    }
+
+    if (type == "getMutations"sv) {
+        response.set("mutations"sv, serialize_mutations());
+        send_message(move(response));
+
+        m_has_new_mutations_since_last_mutations_request = false;
         return;
     }
 
@@ -293,6 +315,97 @@ Optional<JsonObject const&> WalkerActor::find_node_by_selector(JsonObject const&
     }
 
     return {};
+}
+
+void WalkerActor::new_dom_node_mutation(WebView::Mutation mutation)
+{
+    auto serialized_target = JsonValue::from_string(mutation.serialized_target);
+    if (serialized_target.is_error() || !serialized_target.value().is_object()) {
+        dbgln_if(DEVTOOLS_DEBUG, "Unable to parse serialized target as JSON object: {}", serialized_target.error());
+        return;
+    }
+
+    if (!replace_node_in_tree(move(serialized_target.release_value().as_object()))) {
+        dbgln_if(DEVTOOLS_DEBUG, "Unable to apply mutation to DOM tree");
+        return;
+    }
+
+    m_dom_node_mutations.append(move(mutation));
+
+    if (m_has_new_mutations_since_last_mutations_request)
+        return;
+
+    JsonObject message;
+    message.set("from"sv, name());
+    message.set("type"sv, "newMutations"sv);
+    send_message(move(message));
+
+    m_has_new_mutations_since_last_mutations_request = true;
+}
+
+JsonValue WalkerActor::serialize_mutations()
+{
+    JsonArray mutations;
+    mutations.ensure_capacity(m_dom_node_mutations.size());
+
+    for (auto& mutation : m_dom_node_mutations) {
+        auto target = m_dom_node_id_to_actor_map.get(mutation.target);
+        if (!target.has_value())
+            continue;
+
+        JsonObject serialized;
+        serialized.set("target"sv, target.release_value());
+        serialized.set("type"sv, move(mutation.type));
+
+        mutation.mutation.visit(
+            [&](WebView::AttributeMutation& mutation) {
+                serialized.set("attributeName"sv, move(mutation.attribute_name));
+
+                if (mutation.new_value.has_value())
+                    serialized.set("newValue"sv, mutation.new_value.release_value());
+                else
+                    serialized.set("newValue"sv, JsonValue {});
+            },
+            [&](WebView::CharacterDataMutation& mutation) {
+                serialized.set("newValue"sv, move(mutation.new_value));
+            },
+            [&](WebView::ChildListMutation const& mutation) {
+                JsonArray added;
+                JsonArray removed;
+
+                for (auto id : mutation.added) {
+                    if (auto node = m_dom_node_id_to_actor_map.get(id); node.has_value())
+                        added.must_append(node.release_value());
+                }
+                for (auto id : mutation.removed) {
+                    if (auto node = m_dom_node_id_to_actor_map.get(id); node.has_value())
+                        removed.must_append(node.release_value());
+                }
+
+                serialized.set("added"sv, move(added));
+                serialized.set("removed"sv, move(removed));
+                serialized.set("numChildren"sv, mutation.target_child_count);
+            });
+
+        mutations.must_append(move(serialized));
+    }
+
+    m_dom_node_mutations.clear();
+    return mutations;
+}
+
+bool WalkerActor::replace_node_in_tree(JsonObject replacement)
+{
+    auto const& actor = actor_for_node(replacement);
+
+    auto node = m_actor_to_dom_node_map.get(actor.name());
+    if (!node.has_value() || !node.value())
+        return false;
+
+    const_cast<JsonObject&>(*node.value()) = move(replacement);
+    populate_dom_tree_cache();
+
+    return true;
 }
 
 void WalkerActor::populate_dom_tree_cache()

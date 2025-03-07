@@ -58,6 +58,7 @@ void FrameActor::handle_message(StringView type, JsonObject const&)
 
     if (type == "detach"sv) {
         if (auto tab = m_tab.strong_ref()) {
+            devtools().delegate().stop_listening_for_dom_mutations(tab->description());
             devtools().delegate().stop_listening_for_console_messages(tab->description());
             tab->reset_selected_node();
         }
