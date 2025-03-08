@@ -12,7 +12,7 @@
     test(() => {
         const input = document.getElementById("input");
         input.addEventListener("input", (e) => {
-            println(`input data=(${e.data}) intputType=(${e.inputType})`);
+            println(`input data=(${e.data}) inputType=(${e.inputType})`);
         });
         internals.sendText(input, "hello");
         internals.commitText();

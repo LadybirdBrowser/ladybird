@@ -2319,7 +2319,7 @@ void Node::queue_mutation_record(FlyString const& type, Optional<FlyString> cons
     if (interested_observers.is_empty() && !page.listen_for_dom_mutations())
         return;
 
-    // FIXME: The MutationRecord constructor shuld take an Optional<FlyString> attribute name and namespace
+    // FIXME: The MutationRecord constructor should take an Optional<FlyString> attribute name and namespace
     Optional<String> string_attribute_name;
     if (attribute_name.has_value())
         string_attribute_name = attribute_name->to_string();

@@ -39,14 +39,14 @@ NavigationAPIMethodTracker::NavigationAPIMethodTracker(GC::Ref<Navigation> navig
     Optional<String> key,
     JS::Value info,
     Optional<SerializationRecord> serialized_state,
-    GC::Ptr<NavigationHistoryEntry> commited_to_entry,
+    GC::Ptr<NavigationHistoryEntry> committed_to_entry,
     GC::Ref<WebIDL::Promise> committed_promise,
     GC::Ref<WebIDL::Promise> finished_promise)
     : navigation(navigation)
     , key(move(key))
     , info(info)
     , serialized_state(move(serialized_state))
-    , commited_to_entry(commited_to_entry)
+    , committed_to_entry(committed_to_entry)
     , committed_promise(committed_promise)
     , finished_promise(finished_promise)
 {
@@ -57,7 +57,7 @@ void NavigationAPIMethodTracker::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(navigation);
     visitor.visit(info);
-    visitor.visit(commited_to_entry);
+    visitor.visit(committed_to_entry);
     visitor.visit(committed_promise);
     visitor.visit(finished_promise);
 }
@@ -544,15 +544,15 @@ GC::Ref<NavigationAPIMethodTracker> Navigation::maybe_set_the_upcoming_non_trave
     //     key:               null
     //     info:              info
     //     serialized state:  serializedState
-    //     comitted-to entry: null
-    //     comitted promise:  committedPromise
+    //     committed-to entry: null
+    //     committed promise:  committedPromise
     //     finished promise:  finishedPromise
     auto api_method_tracker = vm.heap().allocate<NavigationAPIMethodTracker>(
         /* .navigation = */ *this,
         /* .key = */ OptionalNone {},
         /* .info = */ info,
         /* .serialized_state = */ move(serialized_state),
-        /* .commited_to_entry = */ nullptr,
+        /* .committed_to_entry = */ nullptr,
         /* .committed_promise = */ committed_promise,
         /* .finished_promise = */ finished_promise);
 
@@ -593,15 +593,15 @@ GC::Ref<NavigationAPIMethodTracker> Navigation::add_an_upcoming_traverse_api_met
     //     key:               destinationKey
     //     info:              info
     //     serialized state:  null
-    //     comitted-to entry: null
-    //     comitted promise:  committedPromise
+    //     committed-to entry: null
+    //     committed promise:  committedPromise
     //     finished promise:  finishedPromise
     auto api_method_tracker = vm.heap().allocate<NavigationAPIMethodTracker>(
         /* .navigation = */ *this,
         /* .key = */ destination_key,
         /* .info = */ info,
         /* .serialized_state = */ OptionalNone {},
-        /* .commited_to_entry = */ nullptr,
+        /* .committed_to_entry = */ nullptr,
         /* .committed_promise = */ committed_promise,
         /* .finished_promise = */ finished_promise);
 
@@ -855,10 +855,10 @@ void Navigation::resolve_the_finished_promise(GC::Ref<NavigationAPIMethodTracker
     auto& realm = this->realm();
 
     // 1. Assert: apiMethodTracker's committed-to entry is not null.
-    VERIFY(api_method_tracker->commited_to_entry != nullptr);
+    VERIFY(api_method_tracker->committed_to_entry != nullptr);
 
     // 2. Resolve apiMethodTracker's finished promise with its committed-to entry.
-    WebIDL::resolve_promise(realm, api_method_tracker->finished_promise, api_method_tracker->commited_to_entry);
+    WebIDL::resolve_promise(realm, api_method_tracker->finished_promise, api_method_tracker->committed_to_entry);
 
     // 3. Clean up apiMethodTracker.
     clean_up(api_method_tracker);
@@ -887,7 +887,7 @@ void Navigation::notify_about_the_committed_to_entry(GC::Ref<NavigationAPIMethod
     auto& realm = this->realm();
 
     // 1. Set apiMethodTracker's committed-to entry to nhe.
-    api_method_tracker->commited_to_entry = nhe;
+    api_method_tracker->committed_to_entry = nhe;
 
     // 2. If apiMethodTracker's serialized state is not null, then set nhe's session history entry's navigation API state to apiMethodTracker's serialized state.'
     // NOTE: If it's null, then we're traversing to nhe via navigation.traverseTo(), which does not allow changing the state.
