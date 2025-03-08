@@ -923,6 +923,13 @@ void KeyframeEffect::update_computed_properties()
     if (!target || !target->is_connected())
         return;
 
+    if (target->has_inclusive_ancestor_with_display_none()) {
+        // FIXME: Reaching this point means we failed to cancel animation for an element that started
+        //        being nested in "display: none".
+        //        For now this hack is needed to avoid lots of unnecessary work.
+        return;
+    }
+
     GC::Ptr<CSS::ComputedProperties> style = {};
     if (!pseudo_element_type().has_value())
         style = target->computed_properties();
