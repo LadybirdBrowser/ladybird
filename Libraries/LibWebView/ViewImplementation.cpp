@@ -196,7 +196,7 @@ void ViewImplementation::enqueue_input_event(Web::InputEvent event)
             auto cloned_event = event.clone_without_chrome_data();
             cloned_event.files = move(event.files);
 
-            client().async_drag_event(m_client_state.page_index, move(cloned_event));
+            client().async_drag_event(m_client_state.page_index, cloned_event);
         });
 }
 
@@ -236,9 +236,9 @@ void ViewImplementation::set_preferred_motion(Web::CSS::PreferredMotion motion)
     client().async_set_preferred_motion(page_id(), motion);
 }
 
-void ViewImplementation::set_preferred_languages(Vector<String> preferred_languages)
+void ViewImplementation::set_preferred_languages(ReadonlySpan<String> preferred_languages)
 {
-    client().async_set_preferred_languages(page_id(), move(preferred_languages));
+    client().async_set_preferred_languages(page_id(), preferred_languages);
 }
 
 void ViewImplementation::set_enable_do_not_track(bool enable)
@@ -315,7 +315,7 @@ void ViewImplementation::get_hovered_node_id()
 
 void ViewImplementation::inspect_dom_node(Web::UniqueNodeID node_id, Optional<Web::CSS::Selector::PseudoElement::Type> pseudo_element)
 {
-    client().async_inspect_dom_node(page_id(), node_id, move(pseudo_element));
+    client().async_inspect_dom_node(page_id(), node_id, pseudo_element);
 }
 
 void ViewImplementation::clear_inspected_dom_node()
@@ -325,7 +325,7 @@ void ViewImplementation::clear_inspected_dom_node()
 
 void ViewImplementation::highlight_dom_node(Web::UniqueNodeID node_id, Optional<Web::CSS::Selector::PseudoElement::Type> pseudo_element)
 {
-    client().async_highlight_dom_node(page_id(), node_id, move(pseudo_element));
+    client().async_highlight_dom_node(page_id(), node_id, pseudo_element);
 }
 
 void ViewImplementation::clear_highlighted_dom_node()
@@ -338,24 +338,24 @@ void ViewImplementation::set_listen_for_dom_mutations(bool listen_for_dom_mutati
     client().async_set_listen_for_dom_mutations(page_id(), listen_for_dom_mutations);
 }
 
-void ViewImplementation::set_dom_node_text(Web::UniqueNodeID node_id, String text)
+void ViewImplementation::set_dom_node_text(Web::UniqueNodeID node_id, String const& text)
 {
-    client().async_set_dom_node_text(page_id(), node_id, move(text));
+    client().async_set_dom_node_text(page_id(), node_id, text);
 }
 
-void ViewImplementation::set_dom_node_tag(Web::UniqueNodeID node_id, String name)
+void ViewImplementation::set_dom_node_tag(Web::UniqueNodeID node_id, String const& name)
 {
-    client().async_set_dom_node_tag(page_id(), node_id, move(name));
+    client().async_set_dom_node_tag(page_id(), node_id, name);
 }
 
-void ViewImplementation::add_dom_node_attributes(Web::UniqueNodeID node_id, Vector<Attribute> attributes)
+void ViewImplementation::add_dom_node_attributes(Web::UniqueNodeID node_id, ReadonlySpan<Attribute> attributes)
 {
-    client().async_add_dom_node_attributes(page_id(), node_id, move(attributes));
+    client().async_add_dom_node_attributes(page_id(), node_id, attributes);
 }
 
-void ViewImplementation::replace_dom_node_attribute(Web::UniqueNodeID node_id, String name, Vector<Attribute> replacement_attributes)
+void ViewImplementation::replace_dom_node_attribute(Web::UniqueNodeID node_id, String const& name, ReadonlySpan<Attribute> replacement_attributes)
 {
-    client().async_replace_dom_node_attribute(page_id(), node_id, move(name), move(replacement_attributes));
+    client().async_replace_dom_node_attribute(page_id(), node_id, name, replacement_attributes);
 }
 
 void ViewImplementation::create_child_element(Web::UniqueNodeID node_id)
@@ -398,14 +398,14 @@ void ViewImplementation::debug_request(ByteString const& request, ByteString con
     client().async_debug_request(page_id(), request, argument);
 }
 
-void ViewImplementation::run_javascript(String js_source)
+void ViewImplementation::run_javascript(String const& js_source)
 {
-    client().async_run_javascript(page_id(), move(js_source));
+    client().async_run_javascript(page_id(), js_source);
 }
 
-void ViewImplementation::js_console_input(String js_source)
+void ViewImplementation::js_console_input(String const& js_source)
 {
-    client().async_js_console_input(page_id(), move(js_source));
+    client().async_js_console_input(page_id(), js_source);
 }
 
 void ViewImplementation::js_console_request_messages(i32 start_index)
@@ -423,9 +423,9 @@ void ViewImplementation::confirm_closed(bool accepted)
     client().async_confirm_closed(page_id(), accepted);
 }
 
-void ViewImplementation::prompt_closed(Optional<String> response)
+void ViewImplementation::prompt_closed(Optional<String> const& response)
 {
-    client().async_prompt_closed(page_id(), move(response));
+    client().async_prompt_closed(page_id(), response);
 }
 
 void ViewImplementation::color_picker_update(Optional<Color> picked_color, Web::HTML::ColorPickerUpdateState state)
@@ -740,9 +740,9 @@ ErrorOr<LexicalPath> ViewImplementation::dump_gc_graph()
     return path;
 }
 
-void ViewImplementation::set_user_style_sheet(String source)
+void ViewImplementation::set_user_style_sheet(String const& source)
 {
-    client().async_set_user_style(page_id(), move(source));
+    client().async_set_user_style(page_id(), source);
 }
 
 void ViewImplementation::use_native_user_style_sheet()

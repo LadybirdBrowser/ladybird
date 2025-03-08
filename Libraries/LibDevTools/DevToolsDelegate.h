@@ -42,16 +42,16 @@ public:
     virtual void stop_listening_for_dom_mutations(TabDescription const&) const { }
 
     using OnDOMNodeEditComplete = Function<void(ErrorOr<Web::UniqueNodeID>)>;
-    virtual void set_dom_node_text(TabDescription const&, Web::UniqueNodeID, String, OnDOMNodeEditComplete) const { }
-    virtual void set_dom_node_tag(TabDescription const&, Web::UniqueNodeID, String, OnDOMNodeEditComplete) const { }
-    virtual void add_dom_node_attributes(TabDescription const&, Web::UniqueNodeID, Vector<WebView::Attribute>, OnDOMNodeEditComplete) const { }
-    virtual void replace_dom_node_attribute(TabDescription const&, Web::UniqueNodeID, String, Vector<WebView::Attribute>, OnDOMNodeEditComplete) const { }
+    virtual void set_dom_node_text(TabDescription const&, Web::UniqueNodeID, String const&, OnDOMNodeEditComplete) const { }
+    virtual void set_dom_node_tag(TabDescription const&, Web::UniqueNodeID, String const&, OnDOMNodeEditComplete) const { }
+    virtual void add_dom_node_attributes(TabDescription const&, Web::UniqueNodeID, ReadonlySpan<WebView::Attribute>, OnDOMNodeEditComplete) const { }
+    virtual void replace_dom_node_attribute(TabDescription const&, Web::UniqueNodeID, String const&, ReadonlySpan<WebView::Attribute>, OnDOMNodeEditComplete) const { }
     virtual void create_child_element(TabDescription const&, Web::UniqueNodeID, OnDOMNodeEditComplete) const { }
     virtual void clone_dom_node(TabDescription const&, Web::UniqueNodeID, OnDOMNodeEditComplete) const { }
     virtual void remove_dom_node(TabDescription const&, Web::UniqueNodeID, OnDOMNodeEditComplete) const { }
 
     using OnScriptEvaluationComplete = Function<void(ErrorOr<JsonValue>)>;
-    virtual void evaluate_javascript(TabDescription const&, String, OnScriptEvaluationComplete) const { }
+    virtual void evaluate_javascript(TabDescription const&, String const&, OnScriptEvaluationComplete) const { }
 
     using OnConsoleMessageAvailable = Function<void(i32 message_id)>;
     using OnReceivedConsoleMessages = Function<void(i32 start_index, Vector<WebView::ConsoleOutput>)>;

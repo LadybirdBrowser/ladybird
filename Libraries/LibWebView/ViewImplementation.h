@@ -86,7 +86,7 @@ public:
     void set_preferred_contrast(Web::CSS::PreferredContrast);
     void set_preferred_motion(Web::CSS::PreferredMotion);
 
-    void set_preferred_languages(Vector<String>);
+    void set_preferred_languages(ReadonlySpan<String>);
 
     void set_enable_do_not_track(bool);
 
@@ -113,10 +113,10 @@ public:
     void clear_highlighted_dom_node();
 
     void set_listen_for_dom_mutations(bool);
-    void set_dom_node_text(Web::UniqueNodeID node_id, String text);
-    void set_dom_node_tag(Web::UniqueNodeID node_id, String name);
-    void add_dom_node_attributes(Web::UniqueNodeID node_id, Vector<Attribute> attributes);
-    void replace_dom_node_attribute(Web::UniqueNodeID node_id, String name, Vector<Attribute> replacement_attributes);
+    void set_dom_node_text(Web::UniqueNodeID node_id, String const& text);
+    void set_dom_node_tag(Web::UniqueNodeID node_id, String const& name);
+    void add_dom_node_attributes(Web::UniqueNodeID node_id, ReadonlySpan<Attribute> attributes);
+    void replace_dom_node_attribute(Web::UniqueNodeID node_id, String const& name, ReadonlySpan<Attribute> replacement_attributes);
     void create_child_element(Web::UniqueNodeID node_id);
     void create_child_text_node(Web::UniqueNodeID node_id);
     void clone_dom_node(Web::UniqueNodeID node_id);
@@ -128,13 +128,13 @@ public:
 
     void debug_request(ByteString const& request, ByteString const& argument = {});
 
-    void run_javascript(String);
-    void js_console_input(String);
+    void run_javascript(String const&);
+    void js_console_input(String const&);
     void js_console_request_messages(i32 start_index);
 
     void alert_closed();
     void confirm_closed(bool accepted);
-    void prompt_closed(Optional<String> response);
+    void prompt_closed(Optional<String> const& response);
     void color_picker_update(Optional<Color> picked_color, Web::HTML::ColorPickerUpdateState state);
     void file_picker_closed(Vector<Web::HTML::SelectedFile> selected_files);
     void select_dropdown_closed(Optional<u32> const& selected_item_id);
@@ -170,7 +170,7 @@ public:
 
     ErrorOr<LexicalPath> dump_gc_graph();
 
-    void set_user_style_sheet(String source);
+    void set_user_style_sheet(String const& source);
     // Load Native.css as the User style sheet, which attempts to make WebView content look as close to
     // native GUI widgets as possible.
     void use_native_user_style_sheet();

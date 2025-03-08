@@ -131,7 +131,7 @@ void NodeActor::handle_message(StringView type, JsonObject const& message)
             };
 
             if (attribute_to_replace.has_value()) {
-                devtools().delegate().replace_dom_node_attribute(dom_node->tab->description(), dom_node->identifier.id, attribute_to_replace.release_value(), move(replacement_attributes), move(on_complete));
+                devtools().delegate().replace_dom_node_attribute(dom_node->tab->description(), dom_node->identifier.id, *attribute_to_replace, move(replacement_attributes), move(on_complete));
             } else {
                 devtools().delegate().add_dom_node_attributes(dom_node->tab->description(), dom_node->identifier.id, move(replacement_attributes), move(on_complete));
             }
@@ -151,7 +151,7 @@ void NodeActor::handle_message(StringView type, JsonObject const& message)
             auto block_token = block_responses();
 
             devtools().delegate().set_dom_node_text(
-                dom_node->tab->description(), dom_node->identifier.id, value.release_value(),
+                dom_node->tab->description(), dom_node->identifier.id, *value,
                 [weak_self = make_weak_ptr<NodeActor>(), block_token = move(block_token)](ErrorOr<Web::UniqueNodeID> node_id) mutable {
                     if (node_id.is_error()) {
                         dbgln_if(DEVTOOLS_DEBUG, "Unable to edit DOM node: {}", node_id.error());
