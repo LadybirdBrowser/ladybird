@@ -1,0 +1,38 @@
+Harness status: OK
+
+Found 32 tests
+
+30 Pass
+2 Fail
+Pass	time element of default time value
+Pass	step attribute on default value check
+Pass	max  attribute on default value check
+Pass	min  attribute on default value check
+Pass	type attribute support on input element
+Pass	max attribute support on input element
+Pass	min attribute support on input element
+Pass	step attribute support on input element
+Pass	stepUp function support on input Element
+Pass	stepDown function support on input Element
+Pass	stepUp step value empty on default step value 
+Pass	stepDown step value empty default step value
+Pass	stepUp on step value minus
+Pass	stepDown on step value minus
+Pass	stepUp on step value zero 
+Pass	stepDown on step value zero 
+Pass	stepUp on step value 24 hour
+Pass	stepDown on step value 24 hour 
+Pass	stepUp on step value hour  
+Pass	stepDown on step value hour 
+Pass	stepUp on step value second 
+Pass	stepDown on step value second 
+Fail	stepUp on step value with fractional seconds
+Pass	stepDown on step value with fractional seconds
+Pass	stepUp argument 2 times
+Pass	stepDown argument 2 times
+Pass	stepUp stop because it exceeds the maximum value
+Pass	stepDown stop so lower than the minimum value
+Fail	stop at border on stepUp
+Pass	stop at border on stepDown
+Pass	 empty value of stepUp
+Pass	set value on not time format value
