@@ -169,7 +169,7 @@
     ]
   },
   "animation": {
-    "affects-layout": true,
+    "affects-layout": false,
     "inherited": false,
     "initial": "none 0s ease 1 normal running 0s none",
     "longhands": [
@@ -184,7 +184,7 @@
     ]
   },
   "animation-delay": {
-    "affects-layout": true,
+    "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
     "initial": "0s",
@@ -205,7 +205,7 @@
     ]
   },
   "animation-duration": {
-    "affects-layout": true,
+    "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
     "initial": "auto",
@@ -217,7 +217,7 @@
     ]
   },
   "animation-fill-mode": {
-    "affects-layout": true,
+    "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
     "initial": "none",
@@ -229,7 +229,7 @@
     ]
   },
   "animation-iteration-count": {
-    "affects-layout": true,
+    "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
     "initial": "1",
@@ -241,7 +241,7 @@
     ]
   },
   "animation-name": {
-    "affects-layout": true,
+    "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
     "initial": "none",
@@ -264,7 +264,7 @@
     ]
   },
   "animation-timing-function": {
-    "affects-layout": true,
+    "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
     "initial": "ease",
@@ -2810,7 +2810,7 @@
     "percentages-resolve-to": "length"
   },
   "transition": {
-    "affects-layout": true,
+    "affects-layout": false,
     "inherited": false,
     "initial": "none",
     "longhands": [
@@ -2821,7 +2821,7 @@
     ]
   },
   "transition-delay": {
-    "affects-layout": true,
+    "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
     "initial": "0s",
@@ -2830,7 +2830,7 @@
     ]
   },
   "transition-duration": {
-    "affects-layout": true,
+    "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
     "initial": "0s",
@@ -2839,7 +2839,7 @@
     ]
   },
   "transition-property": {
-    "affects-layout": true,
+    "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
     "initial": "all",
@@ -2852,7 +2852,7 @@
     ]
   },
   "transition-timing-function": {
-    "affects-layout": true,
+    "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
     "initial": "ease",
