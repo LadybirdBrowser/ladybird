@@ -206,7 +206,8 @@ void assign_a_slot(Slottable const& slottable)
 // https://dom.spec.whatwg.org/#signal-a-slot-change
 void signal_a_slot_change(GC::Ref<HTML::HTMLSlotElement> slottable)
 {
-    // FIXME: 1. Append slot to slot’s relevant agent’s signal slots.
+    // 1. Append slot to slot’s relevant agent’s signal slots.
+    HTML::relevant_agent(slottable).signal_slots.append(slottable);
 
     // 2. Queue a mutation observer microtask.
     Bindings::queue_mutation_observer_microtask(slottable->document());

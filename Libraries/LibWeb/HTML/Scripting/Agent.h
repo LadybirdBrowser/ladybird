@@ -32,6 +32,10 @@ struct Agent {
     // Each similar-origin window agent has a custom element reactions stack, which is initially empty.
     CustomElementReactionsStack custom_element_reactions_stack {};
 
+    // https://dom.spec.whatwg.org/#signal-slot-list
+    // Each similar-origin window agent has signal slots (a set of slots), which is initially empty. [HTML]
+    Vector<GC::Root<HTML::HTMLSlotElement>> signal_slots;
+
     // https://html.spec.whatwg.org/multipage/custom-elements.html#current-element-queue
     // A similar-origin window agent's current element queue is the element queue at the top of its custom element reactions stack.
     Vector<GC::Root<DOM::Element>>& current_element_queue() { return custom_element_reactions_stack.element_queue_stack.last(); }
