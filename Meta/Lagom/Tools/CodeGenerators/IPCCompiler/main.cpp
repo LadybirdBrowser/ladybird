@@ -336,7 +336,7 @@ void do_message(SourceGenerator message_generator, ByteString const& name, Vecto
     message_generator.set("message.response_type", response_type);
     message_generator.set("message.constructor", constructor_for_message(pascal_name, parameters));
 
-    message_generator.appendln(R"~~~(
+    message_generator.append(R"~~~(
 class @message.pascal_name@ final : public IPC::Message {
 public:)~~~");
 
@@ -364,8 +364,8 @@ public:)~~~");
     })~~~");
     }
 
-    message_generator.appendln(R"~~~(
-    virtual ~@message.pascal_name@() override {}
+    message_generator.append(R"~~~(
+    virtual ~@message.pascal_name@() override = default;
 
     virtual u32 endpoint_magic() const override { return @endpoint.magic@; }
     virtual i32 message_id() const override { return (int)MessageID::@message.pascal_name@; }
@@ -387,7 +387,7 @@ public:)~~~");
         else
             parameter_generator.set("parameter.initial_value", "{}");
 
-        parameter_generator.appendln(R"~~~(
+        parameter_generator.append(R"~~~(
         auto @parameter.name@ = TRY((decoder.decode<@parameter.type@>()));)~~~");
 
         if (parameter.attributes.contains_slow("UTF8")) {
@@ -439,14 +439,14 @@ public:)~~~");
     @parameter.type@ take_@parameter.name@() { return move(m_@parameter.name@); })~~~");
     }
 
-    message_generator.appendln(R"~~~(
+    message_generator.append(R"~~~(
 private:)~~~");
 
     for (auto const& parameter : parameters) {
         auto parameter_generator = message_generator.fork();
         parameter_generator.set("parameter.type", parameter.type);
         parameter_generator.set("parameter.name", parameter.name);
-        parameter_generator.appendln(R"~~~(
+        parameter_generator.append(R"~~~(
     @parameter.type@ m_@parameter.name@;)~~~");
     }
 
@@ -474,7 +474,7 @@ void do_message_for_proxy(SourceGenerator message_generator, Endpoint const& end
         message_generator.set("try_prefix_maybe", is_try ? "try_" : "");
 
         message_generator.set("handler_name", name);
-        message_generator.appendln(R"~~~(
+        message_generator.append(R"~~~(
     @message.complex_return_type@ @try_prefix_maybe@@async_prefix_maybe@@handler_name@()~~~");
 
         for (size_t i = 0; i < parameters.size(); ++i) {
@@ -696,28 +696,28 @@ public:
             message_generator.set("message.response_type", pascal_case(message.response_name()));
             message_generator.set("handler_name", name);
             message_generator.set("arguments", argument_generator.to_byte_string());
-            message_generator.appendln(R"~~~(
+            message_generator.append(R"~~~(
         case (int)Messages::@endpoint.name@::MessageID::@message.pascal_name@: {)~~~");
             if (returns_something) {
                 if (message.outputs.is_empty()) {
-                    message_generator.appendln(R"~~~(
+                    message_generator.append(R"~~~(
             [[maybe_unused]] auto& request = static_cast<const Messages::@endpoint.name@::@message.pascal_name@&>(message);
             @handler_name@(@arguments@);
             auto response = Messages::@endpoint.name@::@message.response_type@ { };
             return make<IPC::MessageBuffer>(TRY(response.encode()));)~~~");
                 } else {
-                    message_generator.appendln(R"~~~(
+                    message_generator.append(R"~~~(
             [[maybe_unused]] auto& request = static_cast<const Messages::@endpoint.name@::@message.pascal_name@&>(message);
             auto response = @handler_name@(@arguments@);
             return make<IPC::MessageBuffer>(TRY(response.encode()));)~~~");
                 }
             } else {
-                message_generator.appendln(R"~~~(
+                message_generator.append(R"~~~(
             [[maybe_unused]] auto& request = static_cast<const Messages::@endpoint.name@::@message.pascal_name@&>(message);
             @handler_name@(@arguments@);
             return nullptr;)~~~");
             }
-            message_generator.appendln(R"~~~(
+            message_generator.append(R"~~~(
         })~~~");
         };
         do_handle_message(message.name, message.inputs, message.is_synchronous);
@@ -738,7 +738,7 @@ public:
             message_generator.set("message.complex_return_type", return_type);
 
             message_generator.set("handler_name", name);
-            message_generator.appendln(R"~~~(
+            message_generator.append(R"~~~(
     virtual @message.complex_return_type@ @handler_name@()~~~");
 
             auto make_argument_type = [](ByteString const& type) {
@@ -766,7 +766,7 @@ public:
             if (is_response) {
                 message_generator.append(") { };");
             } else {
-                message_generator.appendln(") = 0;");
+                message_generator.append(") = 0;");
             }
         };
 
@@ -774,7 +774,6 @@ public:
     }
 
     generator.appendln(R"~~~(
-private:
 };
 
 #if defined(AK_COMPILER_CLANG)
@@ -786,7 +785,7 @@ void build(StringBuilder& builder, Vector<Endpoint> const& endpoints)
 {
     SourceGenerator generator { builder };
 
-    generator.appendln("#pragma once");
+    generator.appendln("#pragma once\n");
 
     // This must occur before LibIPC/Decoder.h
     for (auto const& endpoint : endpoints) {
