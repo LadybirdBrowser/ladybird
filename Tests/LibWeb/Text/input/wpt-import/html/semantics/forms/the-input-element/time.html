@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <title>Input Time</title>
+     <meta name=viewport content="width=device-width, maximum-scale=1.0, user-scalable=no" />
+    <link rel="help" href="https://html.spec.whatwg.org/multipage/#the-input-element">
+   <script src="../../../../resources/testharness.js"></script>
+    <script src="../../../../resources/testharnessreport.js"></script>
+  </head>
+
+  <body>
+      <h1>Input Time</h1>
+      <div style="display:none;">
+              <input type="time "id="chkDefaultValue" />
+              <input type="time" id="chkStep" />
+              <input type="time" id="chkSetValueTest" />
+              <input type="time" id="chkSupportAttribute" min="01:01:01.001" max="12:12:12.012" step="600" />
+      </div>
+    <div id="log">
+    </div>
+
+  <script type="text/javascript">
+
+/* check default value */
+test(function(){ assert_equals(document.getElementById("chkDefaultValue").value, "");
+}, "time element of default time value");
+test(function(){assert_equals(document.getElementById('chkStep').step, "");
+}, "step attribute on default value check");
+test(function(){assert_equals(document.getElementById('chkDefaultValue').max, "");
+}, "max  attribute on default value check")
+test(function(){assert_equals(document.getElementById('chkDefaultValue').max, "");
+}, "min  attribute on default value check")
+
+/* simple attribute test*/
+test(function(){assert_equals(document.getElementById("chkSupportAttribute").type,"time");}
+  , "type attribute support on input element");
+test(function(){assert_equals(document.getElementById('chkSupportAttribute').min, "01:01:01.001")}
+  , "max attribute support on input element");
+test(function(){assert_equals(document.getElementById('chkSupportAttribute').max, "12:12:12.012")}
+  , "min attribute support on input element");
+test(function(){assert_equals(document.getElementById("chkSupportAttribute").step, "600")}
+  , "step attribute support on input element");
+
+/* check step up and down */
+var _StepTest = document.getElementById("chkStep");
+test(function(){ assert_true(typeof(_StepTest.stepUp) ==="function" ) }   , "stepUp function support on input Element");
+test(function(){ assert_true(typeof(_StepTest.stepDown) ==="function" ) } , "stepDown function support on input Element");
+
+test(function(){
+  _StepTest.value = "12:00";
+  _StepTest.step = "";
+  _StepTest.stepUp();
+  assert_in_array(
+    _StepTest.value,
+    [
+      "12:01",
+      "12:01:00",
+      "12:01:00.0",
+      "12:01:00.00",
+      "12:01:00.000"],
+    "a valid time string representing 1 minute after noon");
+} , "stepUp step value empty on default step value ");
+
+test(function(){
+  _StepTest.value = "12:00";
+  _StepTest.step = "";
+  _StepTest.stepDown();
+  assert_in_array(
+    _StepTest.value,
+    [
+      "11:59",
+      "11:59:00",
+      "11:59:00.0",
+      "11:59:00.00",
+      "11:59:00.000"],
+    "a valid time string representing 1 minute before noon");
+}, "stepDown step value empty default step value");
+
+test(function(){
+  _StepTest.value = "12:00";
+  _StepTest.step = "-600";
+  _StepTest.stepUp();
+  assert_in_array(
+    _StepTest.value,
+    [
+      "12:01",
+      "12:01:00",
+      "12:01:00.0",
+      "12:01:00.00",
+      "12:01:00.000"],
+    "a valid time string representing 1 minute after noon");
+},"stepUp on step value minus");
+test(function(){
+  _StepTest.value = "12:00";
+  _StepTest.step = "-600";
+  _StepTest.stepDown();
+  assert_in_array(
+    _StepTest.value,
+    [
+      "11:59",
+      "11:59:00",
+      "11:59:00.0",
+      "11:59:00.00",
+      "11:59:00.000"],
+    "a valid time string representing 1 minute before noon");
+},"stepDown on step value minus");
+
+test(function(){
+  _StepTest.value = "12:00";
+  _StepTest.step = "0";
+  _StepTest.stepUp();
+  assert_in_array(
+    _StepTest.value,
+    [
+      "12:01",
+      "12:01:00",
+      "12:01:00.0",
+      "12:01:00.00",
+      "12:01:00.000"],
+    "a valid time string representing 1 minute after noon");
+} , "stepUp on step value zero ");
+test(function(){
+  _StepTest.value = "12:00";
+  _StepTest.step = "0";
+  _StepTest.stepDown();
+  assert_in_array(
+    _StepTest.value,
+    [
+      "11:59",
+      "11:59:00",
+      "11:59:00.0",
+      "11:59:00.00",
+      "11:59:00.000"],
+    "a valid time string representing 1 minute before noon");
+} , "stepDown on step value zero ");
+
+test(function(){
+  _StepTest.value = "00:00";
+  _StepTest.step = "86399";
+  _StepTest.stepUp();
+  assert_in_array(
+    _StepTest.value,
+    [
+      "23:59:59",
+      "23:59:59.0",
+      "23:59:59.00",
+      "23:59:59.000"],
+    "a valid time string representing 1 second before midnight");
+} , "stepUp on step value 24 hour");
+test(function(){
+  _StepTest.value = "23:59:59";
+  _StepTest.step = "86399";
+  _StepTest.stepDown();
+  assert_in_array(
+    _StepTest.value,
+    [
+      "00:00",
+      "00:00:00",
+      "00:00:00.0",
+      "00:00:00.00",
+      "00:00:00.000"],
+    "a valid time string representing midnight");
+} , "stepDown on step value 24 hour ");
+
+test(function(){
+  _StepTest.value = "12:00";
+  _StepTest.step = "3600";
+  _StepTest.stepUp();
+  assert_in_array(
+    _StepTest.value,
+    [
+      "13:00",
+      "13:00:00",
+      "13:00:00.0",
+      "13:00:00.00",
+      "13:00:00.000"],
+    "a valid time string representing 1pm");
+} , "stepUp on step value hour  ");
+test(function(){
+  _StepTest.value = "12:00";
+  _StepTest.step = "3600";
+  _StepTest.stepDown();
+  assert_in_array(
+    _StepTest.value,
+    [
+      "11:00",
+      "11:00:00",
+      "11:00:00.0",
+      "11:00:00.00",
+      "11:00:00.000"],
+    "a valid time string representing 11am");
+} , "stepDown on step value hour ");
+
+test(function(){
+  _StepTest.value = "12:00";
+  _StepTest.step = "1";
+  _StepTest.stepUp();
+  assert_in_array(
+    _StepTest.value,
+    [
+      "12:00:01",
+      "12:00:01.0",
+      "12:00:01.00",
+      "12:00:01.000"],
+    "a valid time string representing 1 second after noon");
+} , "stepUp on step value second ");
+test(function(){
+  _StepTest.value = "12:00";
+  _StepTest.step = "1";
+  _StepTest.stepDown();
+  assert_in_array(
+    _StepTest.value,
+    [
+      "11:59:59",
+      "11:59:59.0",
+      "11:59:59.00",
+      "11:59:59.000"],
+    "a valid time string representing 1 second before noon");
+} , "stepDown on step value second ");
+
+test(function(){
+  _StepTest.value = "12:00";
+  _StepTest.step = "0.001";
+  _StepTest.stepUp();
+  assert_equals(_StepTest.value, "12:00:00.001");
+} , "stepUp on step value with fractional seconds");
+test(function(){
+  _StepTest.value = "12:00";
+  _StepTest.step = "0.001";
+  _StepTest.stepDown();
+  assert_equals(_StepTest.value, "11:59:59.999");
+} , "stepDown on step value with fractional seconds");
+
+test(function(){
+  _StepTest.value = "13:00:00";
+  _StepTest.step = "1";
+  _StepTest.stepUp(2);
+  assert_in_array(
+    _StepTest.value,
+    [
+      "13:00:02",
+      "13:00:02.0",
+      "13:00:02.00",
+      "13:00:02.000"],
+    "a valid time string representing 2 seconds after 1pm");
+}, "stepUp argument 2 times");
+test(function(){
+  _StepTest.value = "13:00:00";
+  _StepTest.step = "1";
+  _StepTest.stepDown(2);
+  assert_in_array(
+    _StepTest.value,
+    [
+      "12:59:58",
+      "12:59:58.0",
+      "12:59:58.00",
+      "12:59:58.000"],
+    "a valid time string representing 2 seconds before 1pm");
+}, "stepDown argument 2 times");
+
+test(function(){
+  _StepTest.max = "15:00";
+  this.add_cleanup(function() { _StepTest.max = ""; });
+  _StepTest.value = "15:00";
+  _StepTest.stepUp();
+  assert_in_array(
+    _StepTest.value,
+    [
+      "15:00",
+      "15:00:00",
+      "15:00:00.0",
+      "15:00:00.00",
+      "15:00:00.000"],
+    "a valid time string representing 3pm");
+} , "stepUp stop because it exceeds the maximum value");
+test(function(){
+  _StepTest.min = "13:00";
+  this.add_cleanup(function() { _StepTest.min = ""; });
+  _StepTest.value = "13:00";
+  _StepTest.stepDown();
+  assert_in_array(
+    _StepTest.value,
+    [
+      "13:00",
+      "13:00:00",
+      "13:00:00.0",
+      "13:00:00.00",
+      "13:00:00.000"],
+    "a valid time string representing 1pm");
+} , "stepDown stop so lower than the minimum value");
+
+test(function(){
+  // Set min value to ensure that 15:01 - base is a multiple of 2 min (i.e., a
+  // valid value).
+  _StepTest.min = "14:01";
+  _StepTest.max = "15:01";
+  this.add_cleanup(function() { _StepTest.min = _StepTest.max = ""; });
+  _StepTest.value = "15:00";
+  _StepTest.step = "120";
+  _StepTest.stepUp();
+  assert_in_array(
+    _StepTest.value,
+    [
+      "15:01",
+      "15:01:00",
+      "15:01:00.0",
+      "15:01:00.00",
+      "15:01:00.000"],
+    "a valid time string representing 1 minute after 3pm");
+} , "stop at border on stepUp");
+test(function(){
+  _StepTest.min = "12:59";
+  this.add_cleanup(function() { _StepTest.min = ""; });
+  _StepTest.value = "13:00";
+  _StepTest.step = "120";
+  _StepTest.stepDown();
+  assert_in_array(
+    _StepTest.value,
+    [
+      "12:59",
+      "12:59:00",
+      "12:59:00.0",
+      "12:59:00.00",
+      "12:59:00.000"],
+    "a valid time string representing 1 minute before 2pm");
+} , "stop at border on stepDown");
+
+test(function(){
+  _StepTest.value = "";
+  _StepTest.step = "60";
+  _StepTest.stepUp();
+  assert_in_array(
+    _StepTest.value,
+    [
+      "00:01",
+      "00:01:00",
+      "00:01:00.0",
+      "00:01:00.00",
+      "00:01:00.000"],
+    "a valid time string representing 1 minute after midnight");
+} , " empty value of stepUp");
+
+
+/* set value test */
+test(function(){
+  var _time = document.getElementById("chkSetValueTest");
+  _time.value = "12:00:00.000";
+  assert_equals(_time.value, "12:00:00.000");
+  _time.value = "hh:mi:ss.sss";
+  assert_equals(_time.value, "");
+}, "set value on not time format value");
+
+
+  </script>
+  </body>
+</html>
