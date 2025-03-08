@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 6 tests
+
+4 Pass
+2 Fail
+Pass	Forms
+Pass	Calling stepUp() on input -number- where value > max should not modify value.
+Fail	Calling stepUp() on input -date- where value > max should not modify value.
+Fail	Calling stepUp() on input -datetime-local- where value > max should not modify value.
+Pass	Calling stepUp() on input -time- where value > max should not modify value.
+Pass	Calling stepUp() should use the “value” content attribute as the “step base”.
