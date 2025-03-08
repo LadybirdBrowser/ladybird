@@ -1,0 +1,21 @@
+Harness status: OK
+
+Found 16 tests
+
+16 Pass
+Pass	empty value
+Pass	Valid value: Value should be 2014-W52
+Pass	2014 has 52 weeks: Value should be empty
+Pass	2015 has 53 weeks: Value should be 2015-W53
+Pass	Invalid value: year only
+Pass	Invalid value: no week number
+Pass	Invalid value: no '-' (U+002D)
+Pass	Invalid value: yearless week
+Pass	Invalid value: should be capital letter 'W'
+Pass	Invalid value: incorrect with '-' at the end
+Pass	Invalid value: value should be two parts
+Pass	Invalid value: yearless week and no '-' (U+002D)
+Pass	Value >= min attribute
+Pass	Value < min attribute
+Pass	Value <= max attribute
+Pass	Value > max attribute
