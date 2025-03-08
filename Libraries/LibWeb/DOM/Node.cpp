@@ -2285,7 +2285,7 @@ void Node::queue_mutation_record(FlyString const& type, Optional<FlyString> cons
     if (interested_observers.is_empty() && !page.listen_for_dom_mutations())
         return;
 
-    // FIXME: The MutationRecord constructor shuld take an Optional<FlyString> attribute name and namespace
+    // FIXME: The MutationRecord constructor should take an Optional<FlyString> attribute name and namespace
     Optional<String> string_attribute_name;
     if (attribute_name.has_value())
         string_attribute_name = attribute_name->to_string();
@@ -2532,7 +2532,7 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
         //
         // AD-HOC: We’ve reordered substeps C and D from https://w3c.github.io/accname/#step2 — because
         // the more-specific per-HTML-element requirements at https://w3c.github.io/html-aam/#accname-computation
-        // necessitate doing so, and the “input with label for association is superceded by aria-label” subtest at
+        // necessitate doing so, and the “input with label for association is superseded by aria-label” subtest at
         // https://wpt.fyi/results/accname/name/comp_label.html won’t pass unless we do this reordering.
         // Spec PR: https://github.com/w3c/aria/pull/2377
         if (target == NameOrDescription::Name && element->aria_label().has_value() && !element->aria_label()->is_empty() && !element->aria_label()->bytes_as_string_view().is_whitespace()) {
