@@ -453,112 +453,113 @@ private:)~~~");
     message_generator.appendln("\n};");
 }
 
-void do_message_for_proxy(SourceGenerator message_generator, Endpoint const& endpoint, Message const& message)
+void generate_proxy_method(SourceGenerator& message_generator, Endpoint const& endpoint, Message const& message, ByteString const& name, Vector<Parameter> const& parameters, bool is_synchronous, bool is_try)
 {
-    auto do_implement_proxy = [&](ByteString const& name, Vector<Parameter> const& parameters, bool is_synchronous, bool is_try) {
-        ByteString return_type = "void";
-        if (is_synchronous) {
-            if (message.outputs.size() == 1)
-                return_type = message.outputs[0].type;
-            else if (!message.outputs.is_empty())
-                return_type = message_name(endpoint.name, message.name, true);
-        }
-        ByteString inner_return_type = return_type;
-        if (is_try)
-            return_type = ByteString::formatted("IPC::IPCErrorOr<{}>", return_type);
+    ByteString return_type = "void";
+    if (is_synchronous) {
+        if (message.outputs.size() == 1)
+            return_type = message.outputs[0].type;
+        else if (!message.outputs.is_empty())
+            return_type = message_name(endpoint.name, message.name, true);
+    }
+    ByteString inner_return_type = return_type;
+    if (is_try)
+        return_type = ByteString::formatted("IPC::IPCErrorOr<{}>", return_type);
 
-        message_generator.set("message.name", message.name);
-        message_generator.set("message.pascal_name", pascal_case(message.name));
-        message_generator.set("message.complex_return_type", return_type);
-        message_generator.set("async_prefix_maybe", is_synchronous ? "" : "async_");
-        message_generator.set("try_prefix_maybe", is_try ? "try_" : "");
+    message_generator.set("message.name", message.name);
+    message_generator.set("message.pascal_name", pascal_case(message.name));
+    message_generator.set("message.complex_return_type", return_type);
+    message_generator.set("async_prefix_maybe", is_synchronous ? "" : "async_");
+    message_generator.set("try_prefix_maybe", is_try ? "try_" : "");
 
-        message_generator.set("handler_name", name);
-        message_generator.append(R"~~~(
+    message_generator.set("handler_name", name);
+    message_generator.append(R"~~~(
     @message.complex_return_type@ @try_prefix_maybe@@async_prefix_maybe@@handler_name@()~~~");
 
-        for (size_t i = 0; i < parameters.size(); ++i) {
-            auto const& parameter = parameters[i];
-            auto argument_generator = message_generator.fork();
-            argument_generator.set("argument.type", parameter.type);
-            argument_generator.set("argument.name", parameter.name);
-            argument_generator.append("@argument.type@ @argument.name@");
-            if (i != parameters.size() - 1)
-                argument_generator.append(", ");
-        }
+    for (size_t i = 0; i < parameters.size(); ++i) {
+        auto const& parameter = parameters[i];
+        auto argument_generator = message_generator.fork();
+        argument_generator.set("argument.type", parameter.type);
+        argument_generator.set("argument.name", parameter.name);
+        argument_generator.append("@argument.type@ @argument.name@");
+        if (i != parameters.size() - 1)
+            argument_generator.append(", ");
+    }
 
-        message_generator.append(") {");
+    message_generator.append(") {");
 
-        if (is_synchronous && !is_try) {
-            if (return_type != "void") {
-                message_generator.append(R"~~~(
-        return )~~~");
-                if (message.outputs.size() != 1)
-                    message_generator.append("move(*");
-            } else {
-                message_generator.append(R"~~~(
-        (void) )~~~");
-            }
-
-            message_generator.append("m_connection.template send_sync<Messages::@endpoint.name@::@message.pascal_name@>(");
-        } else if (is_try) {
+    if (is_synchronous && !is_try) {
+        if (return_type != "void") {
             message_generator.append(R"~~~(
-        auto result = m_connection.template send_sync_but_allow_failure<Messages::@endpoint.name@::@message.pascal_name@>()~~~");
+        return )~~~");
+            if (message.outputs.size() != 1)
+                message_generator.append("move(*");
         } else {
             message_generator.append(R"~~~(
+        (void) )~~~");
+        }
+
+        message_generator.append("m_connection.template send_sync<Messages::@endpoint.name@::@message.pascal_name@>(");
+    } else if (is_try) {
+        message_generator.append(R"~~~(
+        auto result = m_connection.template send_sync_but_allow_failure<Messages::@endpoint.name@::@message.pascal_name@>()~~~");
+    } else {
+        message_generator.append(R"~~~(
         MUST(m_connection.post_message(Messages::@endpoint.name@::@message.pascal_name@ { )~~~");
+    }
+
+    for (size_t i = 0; i < parameters.size(); ++i) {
+        auto const& parameter = parameters[i];
+        auto argument_generator = message_generator.fork();
+        argument_generator.set("argument.name", parameter.name);
+        if (is_primitive_or_simple_type(parameters[i].type))
+            argument_generator.append("@argument.name@");
+        else
+            argument_generator.append("move(@argument.name@)");
+        if (i != parameters.size() - 1)
+            argument_generator.append(", ");
+    }
+
+    if (is_synchronous && !is_try) {
+        if (return_type != "void") {
+            message_generator.append(")");
         }
 
-        for (size_t i = 0; i < parameters.size(); ++i) {
-            auto const& parameter = parameters[i];
-            auto argument_generator = message_generator.fork();
-            argument_generator.set("argument.name", parameter.name);
-            if (is_primitive_or_simple_type(parameters[i].type))
-                argument_generator.append("@argument.name@");
-            else
-                argument_generator.append("move(@argument.name@)");
-            if (i != parameters.size() - 1)
-                argument_generator.append(", ");
-        }
+        if (message.outputs.size() == 1) {
+            message_generator.append("->take_");
+            message_generator.append(message.outputs[0].name);
+            message_generator.append("()");
+        } else
+            message_generator.append(")");
 
-        if (is_synchronous && !is_try) {
-            if (return_type != "void") {
-                message_generator.append(")");
-            }
-
-            if (message.outputs.size() == 1) {
-                message_generator.append("->take_");
-                message_generator.append(message.outputs[0].name);
-                message_generator.append("()");
-            } else
-                message_generator.append(")");
-
-            message_generator.append(";");
-        } else if (is_try) {
-            message_generator.append(R"~~~();
+        message_generator.append(";");
+    } else if (is_try) {
+        message_generator.append(R"~~~();
         if (!result) {
             m_connection.shutdown();
             return IPC::ErrorCode::PeerDisconnected;
         })~~~");
-            if (inner_return_type != "void") {
-                message_generator.appendln(R"~~~(
+        if (inner_return_type != "void") {
+            message_generator.appendln(R"~~~(
         return move(*result);)~~~");
-            } else {
-                message_generator.appendln(R"~~~(
-        return { };)~~~");
-            }
         } else {
-            message_generator.appendln(" }));");
+            message_generator.appendln(R"~~~(
+        return { };)~~~");
         }
+    } else {
+        message_generator.appendln(" }));");
+    }
 
-        message_generator.appendln(R"~~~(
+    message_generator.appendln(R"~~~(
     })~~~");
-    };
+}
 
-    do_implement_proxy(message.name, message.inputs, message.is_synchronous, false);
+void do_message_for_proxy(SourceGenerator message_generator, Endpoint const& endpoint, Message const& message)
+{
+    generate_proxy_method(message_generator, endpoint, message, message.name, message.inputs, message.is_synchronous, false);
     if (message.is_synchronous) {
-        do_implement_proxy(message.name, message.inputs, false, false);
-        do_implement_proxy(message.name, message.inputs, true, true);
+        generate_proxy_method(message_generator, endpoint, message, message.name, message.inputs, false, false);
+        generate_proxy_method(message_generator, endpoint, message, message.name, message.inputs, true, true);
     }
 }
 
