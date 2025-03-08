@@ -426,9 +426,9 @@ void PageClient::page_did_request_image_context_menu(Web::CSSPixelPoint content_
     client().async_did_request_image_context_menu(m_id, page().css_to_device_point(content_position).to_type<int>(), url, target, modifiers, bitmap);
 }
 
-void PageClient::page_did_request_media_context_menu(Web::CSSPixelPoint content_position, ByteString const& target, unsigned modifiers, Web::Page::MediaContextMenu menu)
+void PageClient::page_did_request_media_context_menu(Web::CSSPixelPoint content_position, ByteString const& target, unsigned modifiers, Web::Page::MediaContextMenu const& menu)
 {
-    client().async_did_request_media_context_menu(m_id, page().css_to_device_point(content_position).to_type<int>(), target, modifiers, move(menu));
+    client().async_did_request_media_context_menu(m_id, page().css_to_device_point(content_position).to_type<int>(), target, modifiers, menu);
 }
 
 void PageClient::page_did_request_alert(String const& message)
@@ -554,9 +554,9 @@ void PageClient::page_did_set_cookie(URL::URL const& url, Web::Cookie::ParsedCoo
     }
 }
 
-void PageClient::page_did_update_cookie(Web::Cookie::Cookie cookie)
+void PageClient::page_did_update_cookie(Web::Cookie::Cookie const& cookie)
 {
-    client().async_did_update_cookie(move(cookie));
+    client().async_did_update_cookie(cookie);
 }
 
 void PageClient::page_did_expire_cookies_with_time_offset(AK::Duration offset)
@@ -620,9 +620,9 @@ void PageClient::page_did_request_color_picker(Color current_color)
     client().async_did_request_color_picker(m_id, current_color);
 }
 
-void PageClient::page_did_request_file_picker(Web::HTML::FileFilter accepted_file_types, Web::HTML::AllowMultipleFiles allow_multiple_files)
+void PageClient::page_did_request_file_picker(Web::HTML::FileFilter const& accepted_file_types, Web::HTML::AllowMultipleFiles allow_multiple_files)
 {
-    client().async_did_request_file_picker(m_id, move(accepted_file_types), allow_multiple_files);
+    client().async_did_request_file_picker(m_id, accepted_file_types, allow_multiple_files);
 }
 
 void PageClient::page_did_request_select_dropdown(Web::CSSPixelPoint content_position, Web::CSSPixels minimum_width, Vector<Web::HTML::SelectItem> items)
@@ -635,9 +635,9 @@ void PageClient::page_did_change_theme_color(Gfx::Color color)
     client().async_did_change_theme_color(m_id, color);
 }
 
-void PageClient::page_did_insert_clipboard_entry(String data, String presentation_style, String mime_type)
+void PageClient::page_did_insert_clipboard_entry(StringView data, StringView presentation_style, StringView mime_type)
 {
-    client().async_did_insert_clipboard_entry(m_id, move(data), move(presentation_style), move(mime_type));
+    client().async_did_insert_clipboard_entry(m_id, data, presentation_style, mime_type);
 }
 
 void PageClient::page_did_change_audio_play_state(Web::HTML::AudioPlayState play_state)
@@ -794,9 +794,9 @@ void PageClient::initialize_js_console(Web::DOM::Document& document)
     document.set_console_client(console_client);
 }
 
-void PageClient::did_execute_js_console_input(JsonValue result)
+void PageClient::did_execute_js_console_input(JsonValue const& result)
 {
-    client().async_did_execute_js_console_input(m_id, move(result));
+    client().async_did_execute_js_console_input(m_id, result);
 }
 
 void PageClient::js_console_input(StringView js_source)
@@ -848,14 +848,14 @@ void PageClient::console_peer_did_misbehave(char const* reason)
     client().did_misbehave(reason);
 }
 
-void PageClient::did_get_styled_js_console_messages(i32 start_index, Vector<String> message_types, Vector<String> messages)
+void PageClient::did_get_styled_js_console_messages(i32 start_index, ReadonlySpan<String> message_types, ReadonlySpan<String> messages)
 {
-    client().async_did_get_styled_js_console_messages(m_id, start_index, move(message_types), move(messages));
+    client().async_did_get_styled_js_console_messages(m_id, start_index, message_types, messages);
 }
 
-void PageClient::did_get_unstyled_js_console_messages(i32 start_index, Vector<WebView::ConsoleOutput> console_output)
+void PageClient::did_get_unstyled_js_console_messages(i32 start_index, ReadonlySpan<WebView::ConsoleOutput> console_output)
 {
-    client().async_did_get_unstyled_js_console_messages(m_id, start_index, move(console_output));
+    client().async_did_get_unstyled_js_console_messages(m_id, start_index, console_output);
 }
 
 static void gather_style_sheets(Vector<Web::CSS::StyleSheetIdentifier>& results, Web::CSS::CSSStyleSheet& sheet)

@@ -409,13 +409,13 @@ void Page::color_picker_update(Optional<Color> picked_color, HTML::ColorPickerUp
     }
 }
 
-void Page::did_request_file_picker(WeakPtr<HTML::HTMLInputElement> target, HTML::FileFilter accepted_file_types, HTML::AllowMultipleFiles allow_multiple_files)
+void Page::did_request_file_picker(WeakPtr<HTML::HTMLInputElement> target, HTML::FileFilter const& accepted_file_types, HTML::AllowMultipleFiles allow_multiple_files)
 {
     if (m_pending_non_blocking_dialog == PendingNonBlockingDialog::None) {
         m_pending_non_blocking_dialog = PendingNonBlockingDialog::FilePicker;
         m_pending_non_blocking_dialog_target = move(target);
 
-        m_client->page_did_request_file_picker(move(accepted_file_types), allow_multiple_files);
+        m_client->page_did_request_file_picker(accepted_file_types, allow_multiple_files);
     }
 }
 
@@ -467,10 +467,10 @@ void Page::unregister_media_element(Badge<HTML::HTMLMediaElement>, UniqueNodeID 
     });
 }
 
-void Page::did_request_media_context_menu(UniqueNodeID media_id, CSSPixelPoint position, ByteString const& target, unsigned modifiers, MediaContextMenu menu)
+void Page::did_request_media_context_menu(UniqueNodeID media_id, CSSPixelPoint position, ByteString const& target, unsigned modifiers, MediaContextMenu const& menu)
 {
     m_media_context_menu_element_id = media_id;
-    client().page_did_request_media_context_menu(position, target, modifiers, move(menu));
+    client().page_did_request_media_context_menu(position, target, modifiers, menu);
 }
 
 WebIDL::ExceptionOr<void> Page::toggle_media_play_state()

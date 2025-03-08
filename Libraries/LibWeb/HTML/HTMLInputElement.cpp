@@ -374,7 +374,7 @@ static void show_the_picker_if_applicable(HTMLInputElement& element)
         auto weak_element = element.make_weak_ptr<HTMLInputElement>();
 
         element.set_is_open(true);
-        element.document().browsing_context()->top_level_browsing_context()->page().did_request_file_picker(weak_element, move(accepted_file_types), allow_multiple_files);
+        element.document().browsing_context()->top_level_browsing_context()->page().did_request_file_picker(weak_element, accepted_file_types, allow_multiple_files);
         return;
     }
 

@@ -86,13 +86,13 @@ public:
 
     void initialize_js_console(Web::DOM::Document& document);
     void js_console_input(StringView js_source);
-    void did_execute_js_console_input(JsonValue);
+    void did_execute_js_console_input(JsonValue const&);
     void run_javascript(StringView js_source);
     void js_console_request_messages(i32 start_index);
     void did_output_js_console_message(i32 message_index);
     void console_peer_did_misbehave(char const* reason);
-    void did_get_styled_js_console_messages(i32 start_index, Vector<String> message_types, Vector<String> messages);
-    void did_get_unstyled_js_console_messages(i32 start_index, Vector<WebView::ConsoleOutput> console_output);
+    void did_get_styled_js_console_messages(i32 start_index, ReadonlySpan<String> message_types, ReadonlySpan<String> messages);
+    void did_get_unstyled_js_console_messages(i32 start_index, ReadonlySpan<WebView::ConsoleOutput> console_output);
 
     Vector<Web::CSS::StyleSheetIdentifier> list_style_sheets() const;
 
@@ -138,7 +138,7 @@ private:
     virtual void page_did_request_context_menu(Web::CSSPixelPoint) override;
     virtual void page_did_request_link_context_menu(Web::CSSPixelPoint, URL::URL const&, ByteString const& target, unsigned modifiers) override;
     virtual void page_did_request_image_context_menu(Web::CSSPixelPoint, URL::URL const&, ByteString const& target, unsigned modifiers, Optional<Gfx::Bitmap const*>) override;
-    virtual void page_did_request_media_context_menu(Web::CSSPixelPoint, ByteString const& target, unsigned modifiers, Web::Page::MediaContextMenu) override;
+    virtual void page_did_request_media_context_menu(Web::CSSPixelPoint, ByteString const& target, unsigned modifiers, Web::Page::MediaContextMenu const&) override;
     virtual void page_did_start_loading(URL::URL const&, bool) override;
     virtual void page_did_create_new_document(Web::DOM::Document&) override;
     virtual void page_did_change_active_document_in_top_level_browsing_context(Web::DOM::Document&) override;
@@ -154,7 +154,7 @@ private:
     virtual Optional<Web::Cookie::Cookie> page_did_request_named_cookie(URL::URL const&, String const&) override;
     virtual String page_did_request_cookie(URL::URL const&, Web::Cookie::Source) override;
     virtual void page_did_set_cookie(URL::URL const&, Web::Cookie::ParsedCookie const&, Web::Cookie::Source) override;
-    virtual void page_did_update_cookie(Web::Cookie::Cookie) override;
+    virtual void page_did_update_cookie(Web::Cookie::Cookie const&) override;
     virtual void page_did_expire_cookies_with_time_offset(AK::Duration) override;
     virtual void page_did_update_resource_count(i32) override;
     virtual NewWebViewResult page_did_request_new_web_view(Web::HTML::ActivateTab, Web::HTML::WebViewHints, Web::HTML::TokenizedFeature::NoOpener) override;
@@ -163,13 +163,13 @@ private:
     virtual void page_did_update_navigation_buttons_state(bool back_enabled, bool forward_enabled) override;
     virtual void request_file(Web::FileRequest) override;
     virtual void page_did_request_color_picker(Color current_color) override;
-    virtual void page_did_request_file_picker(Web::HTML::FileFilter accepted_file_types, Web::HTML::AllowMultipleFiles) override;
+    virtual void page_did_request_file_picker(Web::HTML::FileFilter const& accepted_file_types, Web::HTML::AllowMultipleFiles) override;
     virtual void page_did_request_select_dropdown(Web::CSSPixelPoint content_position, Web::CSSPixels minimum_width, Vector<Web::HTML::SelectItem> items) override;
     virtual void page_did_finish_text_test(String const& text) override;
     virtual void page_did_set_test_timeout(double milliseconds) override;
     virtual void page_did_set_browser_zoom(double factor) override;
     virtual void page_did_change_theme_color(Gfx::Color color) override;
-    virtual void page_did_insert_clipboard_entry(String data, String presentation_style, String mime_type) override;
+    virtual void page_did_insert_clipboard_entry(StringView data, StringView presentation_style, StringView mime_type) override;
     virtual void page_did_change_audio_play_state(Web::HTML::AudioPlayState) override;
     virtual void page_did_allocate_backing_stores(i32 front_bitmap_id, Gfx::ShareableBitmap front_bitmap, i32 back_bitmap_id, Gfx::ShareableBitmap back_bitmap) override;
     virtual IPC::File request_worker_agent() override;

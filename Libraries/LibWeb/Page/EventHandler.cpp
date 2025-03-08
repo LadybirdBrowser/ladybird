@@ -542,7 +542,7 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint viewport_position, CSSPix
                             .is_looping = media_element.has_attribute(HTML::AttributeNames::loop),
                         };
 
-                        m_navigable->page().did_request_media_context_menu(media_element.unique_id(), top_level_viewport_position, "", modifiers, move(menu));
+                        m_navigable->page().did_request_media_context_menu(media_element.unique_id(), top_level_viewport_position, "", modifiers, menu);
                     } else {
                         m_navigable->page().client().page_did_request_context_menu(top_level_viewport_position);
                     }

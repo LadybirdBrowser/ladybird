@@ -115,8 +115,7 @@ void DevToolsConsoleClient::send_messages(i32 start_index)
         return;
     }
 
-    Vector<WebView::ConsoleOutput> messages { m_console_output.span().slice(start_index) };
-    m_client->did_get_unstyled_js_console_messages(start_index, move(messages));
+    m_client->did_get_unstyled_js_console_messages(start_index, m_console_output.span().slice(start_index));
 }
 
 // 2.3. Printer(logLevel, args[, options]), https://console.spec.whatwg.org/#printer

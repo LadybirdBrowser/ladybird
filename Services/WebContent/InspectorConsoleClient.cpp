@@ -110,7 +110,7 @@ void InspectorConsoleClient::send_messages(i32 start_index)
         messages.append(message.data);
     }
 
-    m_client->did_get_styled_js_console_messages(start_index, move(message_types), move(messages));
+    m_client->did_get_styled_js_console_messages(start_index, message_types, messages);
 }
 
 // 2.3. Printer(logLevel, args[, options]), https://console.spec.whatwg.org/#printer

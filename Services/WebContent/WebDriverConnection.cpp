@@ -174,7 +174,7 @@ static Optional<Web::DOM::Element&> container_for_element(Web::DOM::Element& ele
 }
 
 template<typename T>
-static bool fire_an_event(FlyString name, Optional<Web::DOM::Element&> target)
+static bool fire_an_event(FlyString const& name, Optional<Web::DOM::Element&> target)
 {
     // FIXME: This is supposed to call the https://dom.spec.whatwg.org/#concept-event-fire DOM algorithm,
     //        but that doesn't seem to be implemented elsewhere. So, we'll ad-hack it for now. :^)
@@ -3082,7 +3082,7 @@ void WebDriverConnection::delete_cookies(Optional<StringView> const& name)
         if (!name.has_value() || name.value() == cookie.name) {
             // Set the cookie expiry time to a Unix timestamp in the past.
             cookie.expiry_time = UnixDateTime::earliest();
-            current_browsing_context().page().client().page_did_update_cookie(move(cookie));
+            current_browsing_context().page().client().page_did_update_cookie(cookie);
         }
         // -> Otherwise
         //    Do nothing.
