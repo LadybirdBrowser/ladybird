@@ -58,50 +58,50 @@ private:
     virtual Messages::WebContentServer::InitTransportResponse init_transport(int peer_pid) override;
     virtual void close_server() override;
     virtual Messages::WebContentServer::GetWindowHandleResponse get_window_handle(u64 page_id) override;
-    virtual void set_window_handle(u64 page_id, String const& handle) override;
-    virtual void connect_to_webdriver(u64 page_id, ByteString const& webdriver_ipc_path) override;
-    virtual void connect_to_image_decoder(IPC::File const& image_decoder_socket) override;
-    virtual void update_system_theme(u64 page_id, Core::AnonymousBuffer const&) override;
-    virtual void update_screen_rects(u64 page_id, Vector<Web::DevicePixelRect> const&, u32) override;
-    virtual void load_url(u64 page_id, URL::URL const&) override;
-    virtual void load_html(u64 page_id, ByteString const&) override;
+    virtual void set_window_handle(u64 page_id, String handle) override;
+    virtual void connect_to_webdriver(u64 page_id, ByteString webdriver_ipc_path) override;
+    virtual void connect_to_image_decoder(IPC::File image_decoder_socket) override;
+    virtual void update_system_theme(u64 page_id, Core::AnonymousBuffer) override;
+    virtual void update_screen_rects(u64 page_id, Vector<Web::DevicePixelRect>, u32) override;
+    virtual void load_url(u64 page_id, URL::URL) override;
+    virtual void load_html(u64 page_id, ByteString) override;
     virtual void reload(u64 page_id) override;
     virtual void traverse_the_history_by_delta(u64 page_id, i32 delta) override;
-    virtual void set_viewport_size(u64 page_id, Web::DevicePixelSize const) override;
-    virtual void key_event(u64 page_id, Web::KeyEvent const&) override;
-    virtual void mouse_event(u64 page_id, Web::MouseEvent const&) override;
-    virtual void drag_event(u64 page_id, Web::DragEvent const&) override;
+    virtual void set_viewport_size(u64 page_id, Web::DevicePixelSize) override;
+    virtual void key_event(u64 page_id, Web::KeyEvent) override;
+    virtual void mouse_event(u64 page_id, Web::MouseEvent) override;
+    virtual void drag_event(u64 page_id, Web::DragEvent) override;
     virtual void ready_to_paint(u64 page_id) override;
-    virtual void debug_request(u64 page_id, ByteString const&, ByteString const&) override;
+    virtual void debug_request(u64 page_id, ByteString, ByteString) override;
     virtual void get_source(u64 page_id) override;
     virtual void inspect_dom_tree(u64 page_id) override;
-    virtual void inspect_dom_node(u64 page_id, Web::UniqueNodeID const& node_id, Optional<Web::CSS::Selector::PseudoElement::Type> const& pseudo_element) override;
-    virtual void highlight_dom_node(u64 page_id, Web::UniqueNodeID const& node_id, Optional<Web::CSS::Selector::PseudoElement::Type> const& pseudo_element) override;
+    virtual void inspect_dom_node(u64 page_id, Web::UniqueNodeID node_id, Optional<Web::CSS::Selector::PseudoElement::Type> pseudo_element) override;
+    virtual void highlight_dom_node(u64 page_id, Web::UniqueNodeID node_id, Optional<Web::CSS::Selector::PseudoElement::Type> pseudo_element) override;
     virtual void inspect_accessibility_tree(u64 page_id) override;
     virtual void get_hovered_node_id(u64 page_id) override;
 
     virtual void list_style_sheets(u64 page_id) override;
-    virtual void request_style_sheet_source(u64 page_id, Web::CSS::StyleSheetIdentifier const& identifier) override;
+    virtual void request_style_sheet_source(u64 page_id, Web::CSS::StyleSheetIdentifier identifier) override;
 
     virtual void set_listen_for_dom_mutations(u64 page_id, bool) override;
-    virtual void set_dom_node_text(u64 page_id, Web::UniqueNodeID const& node_id, String const& text) override;
-    virtual void set_dom_node_tag(u64 page_id, Web::UniqueNodeID const& node_id, String const& name) override;
-    virtual void add_dom_node_attributes(u64 page_id, Web::UniqueNodeID const& node_id, Vector<WebView::Attribute> const& attributes) override;
-    virtual void replace_dom_node_attribute(u64 page_id, Web::UniqueNodeID const& node_id, String const& name, Vector<WebView::Attribute> const& replacement_attributes) override;
-    virtual void create_child_element(u64 page_id, Web::UniqueNodeID const& node_id) override;
-    virtual void create_child_text_node(u64 page_id, Web::UniqueNodeID const& node_id) override;
-    virtual void clone_dom_node(u64 page_id, Web::UniqueNodeID const& node_id) override;
-    virtual void remove_dom_node(u64 page_id, Web::UniqueNodeID const& node_id) override;
-    virtual void get_dom_node_html(u64 page_id, Web::UniqueNodeID const& node_id) override;
+    virtual void set_dom_node_text(u64 page_id, Web::UniqueNodeID node_id, String text) override;
+    virtual void set_dom_node_tag(u64 page_id, Web::UniqueNodeID node_id, String name) override;
+    virtual void add_dom_node_attributes(u64 page_id, Web::UniqueNodeID node_id, Vector<WebView::Attribute> attributes) override;
+    virtual void replace_dom_node_attribute(u64 page_id, Web::UniqueNodeID node_id, String name, Vector<WebView::Attribute> replacement_attributes) override;
+    virtual void create_child_element(u64 page_id, Web::UniqueNodeID node_id) override;
+    virtual void create_child_text_node(u64 page_id, Web::UniqueNodeID node_id) override;
+    virtual void clone_dom_node(u64 page_id, Web::UniqueNodeID node_id) override;
+    virtual void remove_dom_node(u64 page_id, Web::UniqueNodeID node_id) override;
+    virtual void get_dom_node_html(u64 page_id, Web::UniqueNodeID node_id) override;
 
-    virtual void set_content_filters(u64 page_id, Vector<String> const&) override;
+    virtual void set_content_filters(u64 page_id, Vector<String>) override;
     virtual void set_autoplay_allowed_on_all_websites(u64 page_id) override;
-    virtual void set_autoplay_allowlist(u64 page_id, Vector<String> const& allowlist) override;
-    virtual void set_proxy_mappings(u64 page_id, Vector<ByteString> const&, HashMap<ByteString, size_t> const&) override;
-    virtual void set_preferred_color_scheme(u64 page_id, Web::CSS::PreferredColorScheme const&) override;
-    virtual void set_preferred_contrast(u64 page_id, Web::CSS::PreferredContrast const&) override;
-    virtual void set_preferred_motion(u64 page_id, Web::CSS::PreferredMotion const&) override;
-    virtual void set_preferred_languages(u64 page_id, Vector<String> const&) override;
+    virtual void set_autoplay_allowlist(u64 page_id, Vector<String> allowlist) override;
+    virtual void set_proxy_mappings(u64 page_id, Vector<ByteString>, HashMap<ByteString, size_t>) override;
+    virtual void set_preferred_color_scheme(u64 page_id, Web::CSS::PreferredColorScheme) override;
+    virtual void set_preferred_contrast(u64 page_id, Web::CSS::PreferredContrast) override;
+    virtual void set_preferred_motion(u64 page_id, Web::CSS::PreferredMotion) override;
+    virtual void set_preferred_languages(u64 page_id, Vector<String>) override;
     virtual void set_enable_do_not_track(u64 page_id, bool) override;
     virtual void set_has_focus(u64 page_id, bool) override;
     virtual void set_is_scripting_enabled(u64 page_id, bool) override;
@@ -109,19 +109,19 @@ private:
     virtual void set_window_position(u64 page_id, Web::DevicePixelPoint) override;
     virtual void set_window_size(u64 page_id, Web::DevicePixelSize) override;
     virtual void did_update_window_rect(u64 page_id) override;
-    virtual void handle_file_return(u64 page_id, i32 error, Optional<IPC::File> const& file, i32 request_id) override;
+    virtual void handle_file_return(u64 page_id, i32 error, Optional<IPC::File> file, i32 request_id) override;
     virtual void set_system_visibility_state(u64 page_id, Web::HTML::VisibilityState) override;
 
-    virtual void js_console_input(u64 page_id, String const&) override;
-    virtual void run_javascript(u64 page_id, String const&) override;
+    virtual void js_console_input(u64 page_id, String) override;
+    virtual void run_javascript(u64 page_id, String) override;
     virtual void js_console_request_messages(u64 page_id, i32) override;
 
     virtual void alert_closed(u64 page_id) override;
     virtual void confirm_closed(u64 page_id, bool accepted) override;
-    virtual void prompt_closed(u64 page_id, Optional<String> const& response) override;
-    virtual void color_picker_update(u64 page_id, Optional<Color> const& picked_color, Web::HTML::ColorPickerUpdateState const& state) override;
-    virtual void file_picker_closed(u64 page_id, Vector<Web::HTML::SelectedFile> const& selected_files) override;
-    virtual void select_dropdown_closed(u64 page_id, Optional<u32> const& selected_item_id) override;
+    virtual void prompt_closed(u64 page_id, Optional<String> response) override;
+    virtual void color_picker_update(u64 page_id, Optional<Color> picked_color, Web::HTML::ColorPickerUpdateState state) override;
+    virtual void file_picker_closed(u64 page_id, Vector<Web::HTML::SelectedFile> selected_files) override;
+    virtual void select_dropdown_closed(u64 page_id, Optional<u32> selected_item_id) override;
 
     virtual void toggle_media_play_state(u64 page_id) override;
     virtual void toggle_media_mute_state(u64 page_id) override;
@@ -130,12 +130,12 @@ private:
 
     virtual void toggle_page_mute_state(u64 page_id) override;
 
-    virtual void set_user_style(u64 page_id, String const&) override;
+    virtual void set_user_style(u64 page_id, String) override;
 
     virtual void enable_inspector_prototype(u64 page_id) override;
 
     virtual void take_document_screenshot(u64 page_id) override;
-    virtual void take_dom_node_screenshot(u64 page_id, Web::UniqueNodeID const& node_id) override;
+    virtual void take_dom_node_screenshot(u64 page_id, Web::UniqueNodeID node_id) override;
 
     virtual void request_internal_page_info(u64 page_id, WebView::PageInfoType) override;
 
@@ -145,11 +145,11 @@ private:
     virtual Messages::WebContentServer::GetSelectedTextResponse get_selected_text(u64 page_id) override;
     virtual void select_all(u64 page_id) override;
 
-    virtual void find_in_page(u64 page_id, String const& query, CaseSensitivity) override;
+    virtual void find_in_page(u64 page_id, String query, CaseSensitivity) override;
     virtual void find_in_page_next_match(u64 page_id) override;
     virtual void find_in_page_previous_match(u64 page_id) override;
 
-    virtual void paste(u64 page_id, String const& text) override;
+    virtual void paste(u64 page_id, String text) override;
 
     virtual void system_time_zone_changed() override;
 

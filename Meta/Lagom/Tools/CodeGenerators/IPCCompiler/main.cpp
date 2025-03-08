@@ -771,17 +771,20 @@ public:
     virtual u32 magic() const override { return @endpoint.magic@; }
     virtual ByteString name() const override { return "@endpoint.name@"; }
 
-    virtual ErrorOr<OwnPtr<IPC::MessageBuffer>> handle(const IPC::Message& message) override
+    virtual ErrorOr<OwnPtr<IPC::MessageBuffer>> handle(NonnullOwnPtr<IPC::Message> message) override
     {
-        switch (message.message_id()) {)~~~");
+        switch (message->message_id()) {)~~~");
     for (auto const& message : endpoint.messages) {
         auto do_handle_message = [&](ByteString const& name, Vector<Parameter> const& parameters, bool returns_something) {
             auto message_generator = generator.fork();
 
             StringBuilder argument_generator;
-            for (size_t i = 0; i < parameters.size(); ++i) {
-                auto const& parameter = parameters[i];
-                argument_generator.append("request."sv);
+            for (auto const& [i, parameter] : enumerate(parameters)) {
+                if (is_primitive_or_simple_type(parameter.type))
+                    argument_generator.append("request."sv);
+                else
+                    argument_generator.append("request.take_"sv);
+
                 argument_generator.append(parameter.name);
                 argument_generator.append("()"sv);
                 if (i != parameters.size() - 1)
@@ -797,19 +800,19 @@ public:
             if (returns_something) {
                 if (message.outputs.is_empty()) {
                     message_generator.append(R"~~~(
-            [[maybe_unused]] auto& request = static_cast<const Messages::@endpoint.name@::@message.pascal_name@&>(message);
+            [[maybe_unused]] auto& request = static_cast<Messages::@endpoint.name@::@message.pascal_name@&>(*message);
             @handler_name@(@arguments@);
             auto response = Messages::@endpoint.name@::@message.response_type@ { };
             return make<IPC::MessageBuffer>(TRY(response.encode()));)~~~");
                 } else {
                     message_generator.append(R"~~~(
-            [[maybe_unused]] auto& request = static_cast<const Messages::@endpoint.name@::@message.pascal_name@&>(message);
+            [[maybe_unused]] auto& request = static_cast<Messages::@endpoint.name@::@message.pascal_name@&>(*message);
             auto response = @handler_name@(@arguments@);
             return make<IPC::MessageBuffer>(TRY(response.encode()));)~~~");
                 }
             } else {
                 message_generator.append(R"~~~(
-            [[maybe_unused]] auto& request = static_cast<const Messages::@endpoint.name@::@message.pascal_name@&>(message);
+            [[maybe_unused]] auto& request = static_cast<Messages::@endpoint.name@::@message.pascal_name@&>(*message);
             @handler_name@(@arguments@);
             return nullptr;)~~~");
             }
@@ -827,9 +830,9 @@ public:
     for (auto const& message : endpoint.messages) {
         auto message_generator = generator.fork();
 
-        auto do_handle_message_decl = [&](ByteString const& name, Vector<Parameter> const& parameters, bool is_response) {
+        auto do_handle_message_decl = [&](ByteString const& name, Vector<Parameter> const& parameters) {
             ByteString return_type = "void";
-            if (message.is_synchronous && !message.outputs.is_empty() && !is_response)
+            if (message.is_synchronous && !message.outputs.is_empty())
                 return_type = message_name(endpoint.name, message.name, true);
             message_generator.set("message.complex_return_type", return_type);
 
@@ -840,21 +843,17 @@ public:
             for (size_t i = 0; i < parameters.size(); ++i) {
                 auto const& parameter = parameters[i];
                 auto argument_generator = message_generator.fork();
-                argument_generator.set("argument.type", make_argument_type(parameter.type));
+                argument_generator.set("argument.type", parameter.type);
                 argument_generator.set("argument.name", parameter.name);
-                argument_generator.append("[[maybe_unused]] @argument.type@ @argument.name@");
+                argument_generator.append("@argument.type@ @argument.name@");
                 if (i != parameters.size() - 1)
                     argument_generator.append(", ");
             }
 
-            if (is_response) {
-                message_generator.append(") { };");
-            } else {
-                message_generator.append(") = 0;");
-            }
+            message_generator.append(") = 0;");
         };
 
-        do_handle_message_decl(message.name, message.inputs, false);
+        do_handle_message_decl(message.name, message.inputs);
     }
 
     generator.appendln(R"~~~(

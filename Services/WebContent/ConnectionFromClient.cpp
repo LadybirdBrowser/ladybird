@@ -109,13 +109,13 @@ Messages::WebContentServer::GetWindowHandleResponse ConnectionFromClient::get_wi
     return String {};
 }
 
-void ConnectionFromClient::set_window_handle(u64 page_id, String const& handle)
+void ConnectionFromClient::set_window_handle(u64 page_id, String handle)
 {
     if (auto page = this->page(page_id); page.has_value())
-        page->page().top_level_traversable()->set_window_handle(handle);
+        page->page().top_level_traversable()->set_window_handle(move(handle));
 }
 
-void ConnectionFromClient::connect_to_webdriver(u64 page_id, ByteString const& webdriver_ipc_path)
+void ConnectionFromClient::connect_to_webdriver(u64 page_id, ByteString webdriver_ipc_path)
 {
     if (auto page = this->page(page_id); page.has_value()) {
         // FIXME: Propagate this error back to the browser.
@@ -124,13 +124,13 @@ void ConnectionFromClient::connect_to_webdriver(u64 page_id, ByteString const& w
     }
 }
 
-void ConnectionFromClient::connect_to_image_decoder(IPC::File const& image_decoder_socket)
+void ConnectionFromClient::connect_to_image_decoder(IPC::File image_decoder_socket)
 {
     if (on_image_decoder_connection)
         on_image_decoder_connection(image_decoder_socket);
 }
 
-void ConnectionFromClient::update_system_theme(u64 page_id, Core::AnonymousBuffer const& theme_buffer)
+void ConnectionFromClient::update_system_theme(u64 page_id, Core::AnonymousBuffer theme_buffer)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -141,13 +141,13 @@ void ConnectionFromClient::update_system_theme(u64 page_id, Core::AnonymousBuffe
     page->set_palette_impl(*impl);
 }
 
-void ConnectionFromClient::update_screen_rects(u64 page_id, Vector<Web::DevicePixelRect> const& rects, u32 main_screen)
+void ConnectionFromClient::update_screen_rects(u64 page_id, Vector<Web::DevicePixelRect> rects, u32 main_screen)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->set_screen_rects(rects, main_screen);
 }
 
-void ConnectionFromClient::load_url(u64 page_id, const URL::URL& url)
+void ConnectionFromClient::load_url(u64 page_id, URL::URL url)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -156,7 +156,7 @@ void ConnectionFromClient::load_url(u64 page_id, const URL::URL& url)
     page->page().load(url);
 }
 
-void ConnectionFromClient::load_html(u64 page_id, ByteString const& html)
+void ConnectionFromClient::load_html(u64 page_id, ByteString html)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->page().load_html(html);
@@ -174,7 +174,7 @@ void ConnectionFromClient::traverse_the_history_by_delta(u64 page_id, i32 delta)
         page->page().traverse_the_history_by_delta(delta);
 }
 
-void ConnectionFromClient::set_viewport_size(u64 page_id, Web::DevicePixelSize const size)
+void ConnectionFromClient::set_viewport_size(u64 page_id, Web::DevicePixelSize size)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->set_viewport_size(size);
@@ -186,12 +186,12 @@ void ConnectionFromClient::ready_to_paint(u64 page_id)
         page->ready_to_paint();
 }
 
-void ConnectionFromClient::key_event(u64 page_id, Web::KeyEvent const& event)
+void ConnectionFromClient::key_event(u64 page_id, Web::KeyEvent event)
 {
-    enqueue_input_event({ page_id, move(const_cast<Web::KeyEvent&>(event)), 0 });
+    enqueue_input_event({ page_id, move(event), 0 });
 }
 
-void ConnectionFromClient::mouse_event(u64 page_id, Web::MouseEvent const& event)
+void ConnectionFromClient::mouse_event(u64 page_id, Web::MouseEvent event)
 {
     // OPTIMIZATION: Coalesce consecutive unprocessed mouse move and wheel events.
     auto event_to_coalesce = [&]() -> Web::MouseEvent const* {
@@ -212,22 +212,21 @@ void ConnectionFromClient::mouse_event(u64 page_id, Web::MouseEvent const& event
     };
 
     if (auto const* last_mouse_event = event_to_coalesce()) {
-        auto& mutable_event = const_cast<Web::MouseEvent&>(event);
-        mutable_event.wheel_delta_x += last_mouse_event->wheel_delta_x;
-        mutable_event.wheel_delta_y += last_mouse_event->wheel_delta_y;
+        event.wheel_delta_x += last_mouse_event->wheel_delta_x;
+        event.wheel_delta_y += last_mouse_event->wheel_delta_y;
 
-        m_input_event_queue.tail().event = move(mutable_event);
+        m_input_event_queue.tail().event = move(event);
         ++m_input_event_queue.tail().coalesced_event_count;
 
         return;
     }
 
-    enqueue_input_event({ page_id, move(const_cast<Web::MouseEvent&>(event)), 0 });
+    enqueue_input_event({ page_id, move(event), 0 });
 }
 
-void ConnectionFromClient::drag_event(u64 page_id, Web::DragEvent const& event)
+void ConnectionFromClient::drag_event(u64 page_id, Web::DragEvent event)
 {
-    enqueue_input_event({ page_id, move(const_cast<Web::DragEvent&>(event)), 0 });
+    enqueue_input_event({ page_id, move(event), 0 });
 }
 
 void ConnectionFromClient::enqueue_input_event(Web::QueuedInputEvent event)
@@ -235,7 +234,7 @@ void ConnectionFromClient::enqueue_input_event(Web::QueuedInputEvent event)
     m_input_event_queue.enqueue(move(event));
 }
 
-void ConnectionFromClient::debug_request(u64 page_id, ByteString const& request, ByteString const& argument)
+void ConnectionFromClient::debug_request(u64 page_id, ByteString request, ByteString argument)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -434,7 +433,7 @@ void ConnectionFromClient::inspect_dom_tree(u64 page_id)
     }
 }
 
-void ConnectionFromClient::inspect_dom_node(u64 page_id, Web::UniqueNodeID const& node_id, Optional<Web::CSS::Selector::PseudoElement::Type> const& pseudo_element)
+void ConnectionFromClient::inspect_dom_node(u64 page_id, Web::UniqueNodeID node_id, Optional<Web::CSS::Selector::PseudoElement::Type> pseudo_element)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -599,7 +598,7 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, Web::UniqueNodeID const
     async_did_inspect_dom_node(page_id, false, String {}, String {}, String {}, String {}, String {}, String {});
 }
 
-void ConnectionFromClient::highlight_dom_node(u64 page_id, Web::UniqueNodeID const& node_id, Optional<Web::CSS::Selector::PseudoElement::Type> const& pseudo_element)
+void ConnectionFromClient::highlight_dom_node(u64 page_id, Web::UniqueNodeID node_id, Optional<Web::CSS::Selector::PseudoElement::Type> pseudo_element)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -651,7 +650,7 @@ void ConnectionFromClient::list_style_sheets(u64 page_id)
     async_inspector_did_list_style_sheets(page_id, page->list_style_sheets());
 }
 
-void ConnectionFromClient::request_style_sheet_source(u64 page_id, Web::CSS::StyleSheetIdentifier const& identifier)
+void ConnectionFromClient::request_style_sheet_source(u64 page_id, Web::CSS::StyleSheetIdentifier identifier)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -672,7 +671,7 @@ void ConnectionFromClient::set_listen_for_dom_mutations(u64 page_id, bool listen
     page->page().set_listen_for_dom_mutations(listen_for_dom_mutations);
 }
 
-void ConnectionFromClient::set_dom_node_text(u64 page_id, Web::UniqueNodeID const& node_id, String const& text)
+void ConnectionFromClient::set_dom_node_text(u64 page_id, Web::UniqueNodeID node_id, String text)
 {
     auto* dom_node = Web::DOM::Node::from_unique_id(node_id);
     if (!dom_node || (!dom_node->is_text() && !dom_node->is_comment())) {
@@ -686,7 +685,7 @@ void ConnectionFromClient::set_dom_node_text(u64 page_id, Web::UniqueNodeID cons
     async_did_finish_editing_dom_node(page_id, character_data.unique_id());
 }
 
-void ConnectionFromClient::set_dom_node_tag(u64 page_id, Web::UniqueNodeID const& node_id, String const& name)
+void ConnectionFromClient::set_dom_node_tag(u64 page_id, Web::UniqueNodeID node_id, String name)
 {
     auto* dom_node = Web::DOM::Node::from_unique_id(node_id);
     if (!dom_node || !dom_node->is_element() || !dom_node->parent()) {
@@ -710,7 +709,7 @@ void ConnectionFromClient::set_dom_node_tag(u64 page_id, Web::UniqueNodeID const
     async_did_finish_editing_dom_node(page_id, new_element->unique_id());
 }
 
-void ConnectionFromClient::add_dom_node_attributes(u64 page_id, Web::UniqueNodeID const& node_id, Vector<WebView::Attribute> const& attributes)
+void ConnectionFromClient::add_dom_node_attributes(u64 page_id, Web::UniqueNodeID node_id, Vector<WebView::Attribute> attributes)
 {
     auto* dom_node = Web::DOM::Node::from_unique_id(node_id);
     if (!dom_node || !dom_node->is_element()) {
@@ -728,7 +727,7 @@ void ConnectionFromClient::add_dom_node_attributes(u64 page_id, Web::UniqueNodeI
     async_did_finish_editing_dom_node(page_id, element.unique_id());
 }
 
-void ConnectionFromClient::replace_dom_node_attribute(u64 page_id, Web::UniqueNodeID const& node_id, String const& name, Vector<WebView::Attribute> const& replacement_attributes)
+void ConnectionFromClient::replace_dom_node_attribute(u64 page_id, Web::UniqueNodeID node_id, String name, Vector<WebView::Attribute> replacement_attributes)
 {
     auto* dom_node = Web::DOM::Node::from_unique_id(node_id);
     if (!dom_node || !dom_node->is_element()) {
@@ -753,7 +752,7 @@ void ConnectionFromClient::replace_dom_node_attribute(u64 page_id, Web::UniqueNo
     async_did_finish_editing_dom_node(page_id, element.unique_id());
 }
 
-void ConnectionFromClient::create_child_element(u64 page_id, Web::UniqueNodeID const& node_id)
+void ConnectionFromClient::create_child_element(u64 page_id, Web::UniqueNodeID node_id)
 {
     auto* dom_node = Web::DOM::Node::from_unique_id(node_id);
     if (!dom_node) {
@@ -767,7 +766,7 @@ void ConnectionFromClient::create_child_element(u64 page_id, Web::UniqueNodeID c
     async_did_finish_editing_dom_node(page_id, element->unique_id());
 }
 
-void ConnectionFromClient::create_child_text_node(u64 page_id, Web::UniqueNodeID const& node_id)
+void ConnectionFromClient::create_child_text_node(u64 page_id, Web::UniqueNodeID node_id)
 {
     auto* dom_node = Web::DOM::Node::from_unique_id(node_id);
     if (!dom_node) {
@@ -781,7 +780,7 @@ void ConnectionFromClient::create_child_text_node(u64 page_id, Web::UniqueNodeID
     async_did_finish_editing_dom_node(page_id, text_node->unique_id());
 }
 
-void ConnectionFromClient::clone_dom_node(u64 page_id, Web::UniqueNodeID const& node_id)
+void ConnectionFromClient::clone_dom_node(u64 page_id, Web::UniqueNodeID node_id)
 {
     auto* dom_node = Web::DOM::Node::from_unique_id(node_id);
     if (!dom_node || !dom_node->parent_node()) {
@@ -795,7 +794,7 @@ void ConnectionFromClient::clone_dom_node(u64 page_id, Web::UniqueNodeID const& 
     async_did_finish_editing_dom_node(page_id, dom_node_clone->unique_id());
 }
 
-void ConnectionFromClient::remove_dom_node(u64 page_id, Web::UniqueNodeID const& node_id)
+void ConnectionFromClient::remove_dom_node(u64 page_id, Web::UniqueNodeID node_id)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -822,7 +821,7 @@ void ConnectionFromClient::remove_dom_node(u64 page_id, Web::UniqueNodeID const&
     async_did_finish_editing_dom_node(page_id, previous_dom_node->unique_id());
 }
 
-void ConnectionFromClient::get_dom_node_html(u64 page_id, Web::UniqueNodeID const& node_id)
+void ConnectionFromClient::get_dom_node_html(u64 page_id, Web::UniqueNodeID node_id)
 {
     auto* dom_node = Web::DOM::Node::from_unique_id(node_id);
     if (!dom_node)
@@ -852,7 +851,7 @@ void ConnectionFromClient::take_document_screenshot(u64 page_id)
     page->queue_screenshot_task({});
 }
 
-void ConnectionFromClient::take_dom_node_screenshot(u64 page_id, Web::UniqueNodeID const& node_id)
+void ConnectionFromClient::take_dom_node_screenshot(u64 page_id, Web::UniqueNodeID node_id)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -974,7 +973,7 @@ void ConnectionFromClient::select_all(u64 page_id)
         page->page().focused_navigable().select_all();
 }
 
-void ConnectionFromClient::find_in_page(u64 page_id, String const& query, CaseSensitivity case_sensitivity)
+void ConnectionFromClient::find_in_page(u64 page_id, String query, CaseSensitivity case_sensitivity)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -1004,13 +1003,13 @@ void ConnectionFromClient::find_in_page_previous_match(u64 page_id)
     async_did_find_in_page(page_id, result.current_match_index, result.total_match_count);
 }
 
-void ConnectionFromClient::paste(u64 page_id, String const& text)
+void ConnectionFromClient::paste(u64 page_id, String text)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->page().focused_navigable().paste(text);
 }
 
-void ConnectionFromClient::set_content_filters(u64, Vector<String> const& filters)
+void ConnectionFromClient::set_content_filters(u64, Vector<String> filters)
 {
     Web::ContentFilter::the().set_patterns(filters).release_value_but_fixme_should_propagate_errors();
 }
@@ -1021,13 +1020,13 @@ void ConnectionFromClient::set_autoplay_allowed_on_all_websites(u64)
     autoplay_allowlist.enable_globally();
 }
 
-void ConnectionFromClient::set_autoplay_allowlist(u64, Vector<String> const& allowlist)
+void ConnectionFromClient::set_autoplay_allowlist(u64, Vector<String> allowlist)
 {
     auto& autoplay_allowlist = Web::PermissionsPolicy::AutoplayAllowlist::the();
     autoplay_allowlist.enable_for_origins(allowlist).release_value_but_fixme_should_propagate_errors();
 }
 
-void ConnectionFromClient::set_proxy_mappings(u64, Vector<ByteString> const& proxies, HashMap<ByteString, size_t> const& mappings)
+void ConnectionFromClient::set_proxy_mappings(u64, Vector<ByteString> proxies, HashMap<ByteString, size_t> mappings)
 {
     auto keys = mappings.keys();
     quick_sort(keys, [&](auto& a, auto& b) { return a.length() < b.length(); });
@@ -1040,34 +1039,34 @@ void ConnectionFromClient::set_proxy_mappings(u64, Vector<ByteString> const& pro
         sorted_mappings.set(key, value);
     }
 
-    Web::ProxyMappings::the().set_mappings(proxies, move(sorted_mappings));
+    Web::ProxyMappings::the().set_mappings(move(proxies), move(sorted_mappings));
 }
 
-void ConnectionFromClient::set_preferred_color_scheme(u64 page_id, Web::CSS::PreferredColorScheme const& color_scheme)
+void ConnectionFromClient::set_preferred_color_scheme(u64 page_id, Web::CSS::PreferredColorScheme color_scheme)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->set_preferred_color_scheme(color_scheme);
 }
 
-void ConnectionFromClient::set_preferred_contrast(u64 page_id, Web::CSS::PreferredContrast const& contrast)
+void ConnectionFromClient::set_preferred_contrast(u64 page_id, Web::CSS::PreferredContrast contrast)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->set_preferred_contrast(contrast);
 }
 
-void ConnectionFromClient::set_preferred_motion(u64 page_id, Web::CSS::PreferredMotion const& motion)
+void ConnectionFromClient::set_preferred_motion(u64 page_id, Web::CSS::PreferredMotion motion)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->set_preferred_motion(motion);
 }
 
-void ConnectionFromClient::set_preferred_languages(u64, Vector<String> const& preferred_languages)
+void ConnectionFromClient::set_preferred_languages(u64, Vector<String> preferred_languages)
 {
     // FIXME: Whenever the user agent needs to make the navigator.languages attribute of a Window or WorkerGlobalScope
     // object global return a new set of language tags, the user agent must queue a global task on the DOM manipulation
     // task source given global to fire an event named languagechange at global, and wait until that task begins to be
     // executed before actually returning a new value.
-    Web::ResourceLoader::the().set_preferred_languages(preferred_languages);
+    Web::ResourceLoader::the().set_preferred_languages(move(preferred_languages));
 }
 
 void ConnectionFromClient::set_enable_do_not_track(u64, bool enable)
@@ -1133,7 +1132,7 @@ Messages::WebContentServer::GetSessionStorageEntriesResponse ConnectionFromClien
     return session_storage->map();
 }
 
-void ConnectionFromClient::handle_file_return(u64, i32 error, Optional<IPC::File> const& file, i32 request_id)
+void ConnectionFromClient::handle_file_return(u64, i32 error, Optional<IPC::File> file, i32 request_id)
 {
     auto file_request = m_requested_files.take(request_id);
 
@@ -1159,7 +1158,7 @@ void ConnectionFromClient::set_system_visibility_state(u64 page_id, Web::HTML::V
         page->page().top_level_traversable()->set_system_visibility_state(visibility_state);
 }
 
-void ConnectionFromClient::js_console_input(u64 page_id, String const& js_source)
+void ConnectionFromClient::js_console_input(u64 page_id, String js_source)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -1168,7 +1167,7 @@ void ConnectionFromClient::js_console_input(u64 page_id, String const& js_source
     page->js_console_input(js_source);
 }
 
-void ConnectionFromClient::run_javascript(u64 page_id, String const& js_source)
+void ConnectionFromClient::run_javascript(u64 page_id, String js_source)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->run_javascript(js_source);
@@ -1192,25 +1191,25 @@ void ConnectionFromClient::confirm_closed(u64 page_id, bool accepted)
         page->page().confirm_closed(accepted);
 }
 
-void ConnectionFromClient::prompt_closed(u64 page_id, Optional<String> const& response)
+void ConnectionFromClient::prompt_closed(u64 page_id, Optional<String> response)
 {
     if (auto page = this->page(page_id); page.has_value())
-        page->page().prompt_closed(response);
+        page->page().prompt_closed(move(response));
 }
 
-void ConnectionFromClient::color_picker_update(u64 page_id, Optional<Color> const& picked_color, Web::HTML::ColorPickerUpdateState const& state)
+void ConnectionFromClient::color_picker_update(u64 page_id, Optional<Color> picked_color, Web::HTML::ColorPickerUpdateState state)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->page().color_picker_update(picked_color, state);
 }
 
-void ConnectionFromClient::file_picker_closed(u64 page_id, Vector<Web::HTML::SelectedFile> const& selected_files)
+void ConnectionFromClient::file_picker_closed(u64 page_id, Vector<Web::HTML::SelectedFile> selected_files)
 {
     if (auto page = this->page(page_id); page.has_value())
-        page->page().file_picker_closed(const_cast<Vector<Web::HTML::SelectedFile>&>(selected_files));
+        page->page().file_picker_closed(selected_files);
 }
 
-void ConnectionFromClient::select_dropdown_closed(u64 page_id, Optional<u32> const& selected_item_id)
+void ConnectionFromClient::select_dropdown_closed(u64 page_id, Optional<u32> selected_item_id)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->page().select_dropdown_closed(selected_item_id);
@@ -1246,10 +1245,10 @@ void ConnectionFromClient::toggle_page_mute_state(u64 page_id)
         page->page().toggle_page_mute_state();
 }
 
-void ConnectionFromClient::set_user_style(u64 page_id, String const& source)
+void ConnectionFromClient::set_user_style(u64 page_id, String source)
 {
     if (auto page = this->page(page_id); page.has_value())
-        page->page().set_user_style(source);
+        page->page().set_user_style(move(source));
 }
 
 void ConnectionFromClient::enable_inspector_prototype(u64)

@@ -160,7 +160,7 @@ NonnullRefPtr<ConnectionFromClient::Job> ConnectionFromClient::make_decode_image
         });
 }
 
-Messages::ImageDecoderServer::DecodeImageResponse ConnectionFromClient::decode_image(Core::AnonymousBuffer const& encoded_buffer, Optional<Gfx::IntSize> const& ideal_size, Optional<ByteString> const& mime_type)
+Messages::ImageDecoderServer::DecodeImageResponse ConnectionFromClient::decode_image(Core::AnonymousBuffer encoded_buffer, Optional<Gfx::IntSize> ideal_size, Optional<ByteString> mime_type)
 {
     auto image_id = m_next_image_id++;
 
@@ -170,7 +170,7 @@ Messages::ImageDecoderServer::DecodeImageResponse ConnectionFromClient::decode_i
         return image_id;
     }
 
-    m_pending_jobs.set(image_id, make_decode_image_job(image_id, encoded_buffer, ideal_size, mime_type));
+    m_pending_jobs.set(image_id, make_decode_image_job(image_id, move(encoded_buffer), ideal_size, move(mime_type)));
 
     return image_id;
 }

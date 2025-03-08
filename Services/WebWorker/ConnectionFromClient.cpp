@@ -63,15 +63,13 @@ Web::Page const& ConnectionFromClient::page() const
     return m_page_host->page();
 }
 
-void ConnectionFromClient::start_dedicated_worker(URL::URL const& url, Web::Bindings::WorkerType const& type, Web::Bindings::RequestCredentials const&, String const& name, Web::HTML::TransferDataHolder const& implicit_port, Web::HTML::SerializedEnvironmentSettingsObject const& outside_settings)
+void ConnectionFromClient::start_dedicated_worker(URL::URL url, Web::Bindings::WorkerType type, Web::Bindings::RequestCredentials, String name, Web::HTML::TransferDataHolder implicit_port, Web::HTML::SerializedEnvironmentSettingsObject outside_settings)
 {
-    m_worker_host = make_ref_counted<DedicatedWorkerHost>(url, type, name);
-    // FIXME: Yikes, const_cast to move? Feels like a LibIPC bug.
-    //     We should be able to move non-copyable types from a Message type.
-    m_worker_host->run(page(), move(const_cast<Web::HTML::TransferDataHolder&>(implicit_port)), outside_settings);
+    m_worker_host = make_ref_counted<DedicatedWorkerHost>(move(url), type, move(name));
+    m_worker_host->run(page(), move(implicit_port), outside_settings);
 }
 
-void ConnectionFromClient::handle_file_return(i32 error, Optional<IPC::File> const& file, i32 request_id)
+void ConnectionFromClient::handle_file_return(i32 error, Optional<IPC::File> file, i32 request_id)
 {
     auto file_request = m_requested_files.take(request_id);
 

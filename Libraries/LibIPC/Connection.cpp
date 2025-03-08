@@ -107,7 +107,7 @@ void ConnectionBase::handle_messages()
     auto messages = move(m_unprocessed_messages);
     for (auto& message : messages) {
         if (message->endpoint_magic() == m_local_endpoint_magic) {
-            auto handler_result = m_local_stub.handle(*message);
+            auto handler_result = m_local_stub.handle(move(message));
             if (handler_result.is_error()) {
                 dbgln("IPC::ConnectionBase::handle_messages: {}", handler_result.error());
                 continue;

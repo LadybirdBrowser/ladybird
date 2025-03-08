@@ -340,12 +340,12 @@ Messages::RequestServer::ConnectNewClientResponse ConnectionFromClient::connect_
     return IPC::File::adopt_fd(socket_fds[1]);
 }
 
-Messages::RequestServer::IsSupportedProtocolResponse ConnectionFromClient::is_supported_protocol(ByteString const& protocol)
+Messages::RequestServer::IsSupportedProtocolResponse ConnectionFromClient::is_supported_protocol(ByteString protocol)
 {
     return protocol == "http"sv || protocol == "https"sv;
 }
 
-void ConnectionFromClient::set_dns_server(ByteString const& host_or_address, u16 port, bool use_tls)
+void ConnectionFromClient::set_dns_server(ByteString host_or_address, u16 port, bool use_tls)
 {
     if (host_or_address == g_dns_info.server_hostname && port == g_dns_info.port && use_tls == g_dns_info.use_dns_over_tls)
         return;
@@ -372,7 +372,7 @@ void ConnectionFromClient::set_dns_server(ByteString const& host_or_address, u16
         default_resolver()->dns.reset_connection();
 }
 
-void ConnectionFromClient::start_request(i32 request_id, ByteString const& method, URL::URL const& url, HTTP::HeaderMap const& request_headers, ByteBuffer const& request_body, Core::ProxyData const& proxy_data)
+void ConnectionFromClient::start_request(i32 request_id, ByteString method, URL::URL url, HTTP::HeaderMap request_headers, ByteBuffer request_body, Core::ProxyData proxy_data)
 {
     auto host = url.serialized_host().to_byte_string();
 
@@ -386,7 +386,7 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString const& metho
             // FIXME: Implement timing info for DNS lookup failure.
             async_request_finished(request_id, 0, {}, Requests::NetworkError::UnableToResolveHost);
         })
-        .when_resolved([this, request_id, host, url, method, request_body, request_headers, proxy_data](auto const& dns_result) {
+        .when_resolved([this, request_id, host = move(host), url = move(url), method = move(method), request_body = move(request_body), request_headers = move(request_headers), proxy_data](auto const& dns_result) mutable {
             if (dns_result->records().is_empty() || dns_result->cached_addresses().is_empty()) {
                 dbgln("StartRequest: DNS lookup failed for '{}'", host);
                 // FIXME: Implement timing info for DNS lookup failure.
@@ -438,7 +438,7 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString const& metho
             if (method == "GET"sv) {
                 set_option(CURLOPT_HTTPGET, 1L);
             } else if (method.is_one_of("POST"sv, "PUT"sv, "PATCH"sv, "DELETE"sv)) {
-                request->body = request_body;
+                request->body = move(request_body);
                 set_option(CURLOPT_POSTFIELDSIZE, request->body.size());
                 set_option(CURLOPT_POSTFIELDS, request->body.data());
                 did_set_body = true;
@@ -653,7 +653,7 @@ Messages::RequestServer::StopRequestResponse ConnectionFromClient::stop_request(
     return true;
 }
 
-Messages::RequestServer::SetCertificateResponse ConnectionFromClient::set_certificate(i32 request_id, ByteString const& certificate, ByteString const& key)
+Messages::RequestServer::SetCertificateResponse ConnectionFromClient::set_certificate(i32 request_id, ByteString certificate, ByteString key)
 {
     (void)request_id;
     (void)certificate;
@@ -661,7 +661,7 @@ Messages::RequestServer::SetCertificateResponse ConnectionFromClient::set_certif
     TODO();
 }
 
-void ConnectionFromClient::ensure_connection(URL::URL const& url, ::RequestServer::CacheLevel const& cache_level)
+void ConnectionFromClient::ensure_connection(URL::URL url, ::RequestServer::CacheLevel cache_level)
 {
     auto const url_string_value = url.to_string();
 
@@ -715,7 +715,7 @@ void ConnectionFromClient::ensure_connection(URL::URL const& url, ::RequestServe
     }
 }
 
-void ConnectionFromClient::websocket_connect(i64 websocket_id, URL::URL const& url, ByteString const& origin, Vector<ByteString> const& protocols, Vector<ByteString> const& extensions, HTTP::HeaderMap const& additional_request_headers)
+void ConnectionFromClient::websocket_connect(i64 websocket_id, URL::URL url, ByteString origin, Vector<ByteString> protocols, Vector<ByteString> extensions, HTTP::HeaderMap additional_request_headers)
 {
     auto host = url.serialized_host().to_byte_string();
 
@@ -728,18 +728,18 @@ void ConnectionFromClient::websocket_connect(i64 websocket_id, URL::URL const& u
             dbgln("WebSocketConnect: DNS lookup failed: {}", error);
             async_websocket_errored(websocket_id, static_cast<i32>(Requests::WebSocket::Error::CouldNotEstablishConnection));
         })
-        .when_resolved([this, websocket_id, host, url, origin, protocols, extensions, additional_request_headers](auto dns_result) {
+        .when_resolved([this, websocket_id, host = move(host), url = move(url), origin = move(origin), protocols = move(protocols), extensions = move(extensions), additional_request_headers = move(additional_request_headers)](auto const& dns_result) mutable {
             if (dns_result->records().is_empty() || dns_result->cached_addresses().is_empty()) {
                 dbgln("WebSocketConnect: DNS lookup failed for '{}'", host);
                 async_websocket_errored(websocket_id, static_cast<i32>(Requests::WebSocket::Error::CouldNotEstablishConnection));
                 return;
             }
 
-            WebSocket::ConnectionInfo connection_info(url);
-            connection_info.set_origin(origin);
-            connection_info.set_protocols(protocols);
-            connection_info.set_extensions(extensions);
-            connection_info.set_headers(additional_request_headers);
+            WebSocket::ConnectionInfo connection_info(move(url));
+            connection_info.set_origin(move(origin));
+            connection_info.set_protocols(move(protocols));
+            connection_info.set_extensions(move(extensions));
+            connection_info.set_headers(move(additional_request_headers));
             connection_info.set_dns_result(move(dns_result));
 
             if (!g_default_certificate_path.is_empty())
@@ -769,19 +769,19 @@ void ConnectionFromClient::websocket_connect(i64 websocket_id, URL::URL const& u
         });
 }
 
-void ConnectionFromClient::websocket_send(i64 websocket_id, bool is_text, ByteBuffer const& data)
+void ConnectionFromClient::websocket_send(i64 websocket_id, bool is_text, ByteBuffer data)
 {
     if (auto connection = m_websockets.get(websocket_id).value_or({}); connection && connection->ready_state() == WebSocket::ReadyState::Open)
-        connection->send(WebSocket::Message { data, is_text });
+        connection->send(WebSocket::Message { move(data), is_text });
 }
 
-void ConnectionFromClient::websocket_close(i64 websocket_id, u16 code, ByteString const& reason)
+void ConnectionFromClient::websocket_close(i64 websocket_id, u16 code, ByteString reason)
 {
     if (auto connection = m_websockets.get(websocket_id).value_or({}); connection && connection->ready_state() == WebSocket::ReadyState::Open)
         connection->close(code, reason);
 }
 
-Messages::RequestServer::WebsocketSetCertificateResponse ConnectionFromClient::websocket_set_certificate(i64 websocket_id, ByteString const&, ByteString const&)
+Messages::RequestServer::WebsocketSetCertificateResponse ConnectionFromClient::websocket_set_certificate(i64 websocket_id, ByteString, ByteString)
 {
     auto success = false;
     if (auto connection = m_websockets.get(websocket_id).value_or({}); connection) {

@@ -231,14 +231,14 @@ void WebDriverConnection::close_session()
     }
 }
 
-void WebDriverConnection::set_page_load_strategy(Web::WebDriver::PageLoadStrategy const& page_load_strategy)
+void WebDriverConnection::set_page_load_strategy(Web::WebDriver::PageLoadStrategy page_load_strategy)
 {
     m_page_load_strategy = page_load_strategy;
 }
 
-void WebDriverConnection::set_user_prompt_handler(Web::WebDriver::UserPromptHandler const& user_prompt_handler)
+void WebDriverConnection::set_user_prompt_handler(Web::WebDriver::UserPromptHandler user_prompt_handler)
 {
-    Web::WebDriver::set_user_prompt_handler(move(const_cast<Web::WebDriver::UserPromptHandler&>(user_prompt_handler)));
+    Web::WebDriver::set_user_prompt_handler(move(user_prompt_handler));
 }
 
 void WebDriverConnection::set_strict_file_interactability(bool strict_file_interactability)
@@ -262,7 +262,7 @@ Messages::WebDriverClient::GetTimeoutsResponse WebDriverConnection::get_timeouts
 }
 
 // 9.2 Set Timeouts, https://w3c.github.io/webdriver/#dfn-set-timeouts
-Messages::WebDriverClient::SetTimeoutsResponse WebDriverConnection::set_timeouts(JsonValue const& payload)
+Messages::WebDriverClient::SetTimeoutsResponse WebDriverConnection::set_timeouts(JsonValue payload)
 {
     // FIXME: Spec issue: As written, the spec replaces the timeouts configuration with the newly provided values. But
     //        all other implementations update the existing configuration with any new values instead. WPT relies on
@@ -280,7 +280,7 @@ Messages::WebDriverClient::SetTimeoutsResponse WebDriverConnection::set_timeouts
 }
 
 // 10.1 Navigate To, https://w3c.github.io/webdriver/#navigate-to
-Messages::WebDriverClient::NavigateToResponse WebDriverConnection::navigate_to(JsonValue const& payload)
+Messages::WebDriverClient::NavigateToResponse WebDriverConnection::navigate_to(JsonValue payload)
 {
     // 1. If the current top-level browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_top_level_browsing_context_is_open());
@@ -565,7 +565,7 @@ Messages::WebDriverClient::CloseWindowResponse WebDriverConnection::close_window
 }
 
 // 11.3 Switch to Window, https://w3c.github.io/webdriver/#dfn-switch-to-window
-Messages::WebDriverClient::SwitchToWindowResponse WebDriverConnection::switch_to_window(String const& handle)
+Messages::WebDriverClient::SwitchToWindowResponse WebDriverConnection::switch_to_window(String handle)
 {
     // 4. If handle is equal to the associated window handle for some top-level browsing context, let context be the that
     //    browsing context, and set the current top-level browsing context with session and context.
@@ -595,7 +595,7 @@ Messages::WebDriverClient::SwitchToWindowResponse WebDriverConnection::switch_to
 }
 
 // 11.5 New Window, https://w3c.github.io/webdriver/#dfn-new-window
-Messages::WebDriverClient::NewWindowResponse WebDriverConnection::new_window(JsonValue const& payload)
+Messages::WebDriverClient::NewWindowResponse WebDriverConnection::new_window(JsonValue payload)
 {
     // 1. If the implementation does not support creating new top-level browsing contexts, return error with error code unsupported operation.
 
@@ -603,7 +603,7 @@ Messages::WebDriverClient::NewWindowResponse WebDriverConnection::new_window(Jso
     TRY(ensure_current_top_level_browsing_context_is_open());
 
     // 3. Handle any user prompts and return its value if it is an error.
-    handle_any_user_prompts([this, payload = move(const_cast<JsonValue&>(payload))]() {
+    handle_any_user_prompts([this, payload = move(payload)]() {
         // 4. Let type hint be the result of getting the property "type" from the parameters argument.
         if (!payload.is_object()) {
             async_driver_execution_complete(Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "Payload is not a JSON object"sv));
@@ -650,7 +650,7 @@ Messages::WebDriverClient::NewWindowResponse WebDriverConnection::new_window(Jso
 }
 
 // 11.6 Switch To Frame, https://w3c.github.io/webdriver/#dfn-switch-to-frame
-Messages::WebDriverClient::SwitchToFrameResponse WebDriverConnection::switch_to_frame(JsonValue const& payload)
+Messages::WebDriverClient::SwitchToFrameResponse WebDriverConnection::switch_to_frame(JsonValue payload)
 {
     // 1. Let id be the result of getting the property "id" from parameters.
     if (!payload.is_object() || !payload.as_object().has("id"sv))
@@ -747,7 +747,7 @@ Messages::WebDriverClient::SwitchToFrameResponse WebDriverConnection::switch_to_
 }
 
 // 11.7 Switch To Parent Frame, https://w3c.github.io/webdriver/#dfn-switch-to-parent-frame
-Messages::WebDriverClient::SwitchToParentFrameResponse WebDriverConnection::switch_to_parent_frame(JsonValue const&)
+Messages::WebDriverClient::SwitchToParentFrameResponse WebDriverConnection::switch_to_parent_frame(JsonValue)
 {
     // 1. If session's current browsing context is already the top-level browsing context:
     if (&current_browsing_context() == current_top_level_browsing_context()) {
@@ -795,7 +795,7 @@ Messages::WebDriverClient::GetWindowRectResponse WebDriverConnection::get_window
 }
 
 // 11.8.2 Set Window Rect, https://w3c.github.io/webdriver/#dfn-set-window-rect
-Messages::WebDriverClient::SetWindowRectResponse WebDriverConnection::set_window_rect(JsonValue const& payload)
+Messages::WebDriverClient::SetWindowRectResponse WebDriverConnection::set_window_rect(JsonValue payload)
 {
     if (!payload.is_object())
         return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "Payload is not a JSON object"sv);
@@ -977,7 +977,7 @@ static Web::WebDriver::Response extract_first_element(Web::WebDriver::Response r
 }
 
 // 12.3.2 Find Element, https://w3c.github.io/webdriver/#dfn-find-element
-Messages::WebDriverClient::FindElementResponse WebDriverConnection::find_element(JsonValue const& payload)
+Messages::WebDriverClient::FindElementResponse WebDriverConnection::find_element(JsonValue payload)
 {
     // 1. Let location strategy be the result of getting a property named "using" from parameters.
     auto location_strategy_string = TRY(Web::WebDriver::get_property(payload, "using"sv));
@@ -1019,7 +1019,7 @@ Messages::WebDriverClient::FindElementResponse WebDriverConnection::find_element
 }
 
 // 12.3.3 Find Elements, https://w3c.github.io/webdriver/#dfn-find-elements
-Messages::WebDriverClient::FindElementsResponse WebDriverConnection::find_elements(JsonValue const& payload)
+Messages::WebDriverClient::FindElementsResponse WebDriverConnection::find_elements(JsonValue payload)
 {
     // 1. Let location strategy be the result of getting a property named "using" from parameters.
     auto location_strategy_string = TRY(Web::WebDriver::get_property(payload, "using"sv));
@@ -1060,7 +1060,7 @@ Messages::WebDriverClient::FindElementsResponse WebDriverConnection::find_elemen
 }
 
 // 12.3.4 Find Element From Element, https://w3c.github.io/webdriver/#dfn-find-element-from-element
-Messages::WebDriverClient::FindElementFromElementResponse WebDriverConnection::find_element_from_element(JsonValue const& payload, String const& element_id)
+Messages::WebDriverClient::FindElementFromElementResponse WebDriverConnection::find_element_from_element(JsonValue payload, String element_id)
 {
     // 1. Let location strategy be the result of getting a property named "using" from parameters.
     auto location_strategy_string = TRY(Web::WebDriver::get_property(payload, "using"sv));
@@ -1095,7 +1095,7 @@ Messages::WebDriverClient::FindElementFromElementResponse WebDriverConnection::f
 }
 
 // 12.3.5 Find Elements From Element, https://w3c.github.io/webdriver/#dfn-find-elements-from-element
-Messages::WebDriverClient::FindElementsFromElementResponse WebDriverConnection::find_elements_from_element(JsonValue const& payload, String const& element_id)
+Messages::WebDriverClient::FindElementsFromElementResponse WebDriverConnection::find_elements_from_element(JsonValue payload, String element_id)
 {
     // 1. Let location strategy be the result of getting a property named "using" from parameters.
     auto location_strategy_string = TRY(Web::WebDriver::get_property(payload, "using"sv));
@@ -1129,7 +1129,7 @@ Messages::WebDriverClient::FindElementsFromElementResponse WebDriverConnection::
 }
 
 // 12.3.6 Find Element From Shadow Root, https://w3c.github.io/webdriver/#find-element-from-shadow-root
-Messages::WebDriverClient::FindElementFromShadowRootResponse WebDriverConnection::find_element_from_shadow_root(JsonValue const& payload, String const& shadow_id)
+Messages::WebDriverClient::FindElementFromShadowRootResponse WebDriverConnection::find_element_from_shadow_root(JsonValue payload, String shadow_id)
 {
     // 1. Let location strategy be the result of getting a property called "using".
     auto location_strategy_string = TRY(Web::WebDriver::get_property(payload, "using"sv));
@@ -1164,7 +1164,7 @@ Messages::WebDriverClient::FindElementFromShadowRootResponse WebDriverConnection
 }
 
 // 12.3.7 Find Elements From Shadow Root, https://w3c.github.io/webdriver/#find-elements-from-shadow-root
-Messages::WebDriverClient::FindElementsFromShadowRootResponse WebDriverConnection::find_elements_from_shadow_root(JsonValue const& payload, String const& shadow_id)
+Messages::WebDriverClient::FindElementsFromShadowRootResponse WebDriverConnection::find_elements_from_shadow_root(JsonValue payload, String shadow_id)
 {
     // 1. Let location strategy be the result of getting a property called "using".
     auto location_strategy_string = TRY(Web::WebDriver::get_property(payload, "using"sv));
@@ -1223,13 +1223,13 @@ Messages::WebDriverClient::GetActiveElementResponse WebDriverConnection::get_act
 }
 
 // 12.3.9 Get Element Shadow Root, https://w3c.github.io/webdriver/#get-element-shadow-root
-Messages::WebDriverClient::GetElementShadowRootResponse WebDriverConnection::get_element_shadow_root(String const& element_id)
+Messages::WebDriverClient::GetElementShadowRootResponse WebDriverConnection::get_element_shadow_root(String element_id)
 {
     // 1. If session's current browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
-    handle_any_user_prompts([this, element_id]() {
+    handle_any_user_prompts([this, element_id = move(element_id)]() {
         // 3. Let element be the result of trying to get a known element with session and URL variables[element id].
         auto element = WEBDRIVER_TRY(Web::WebDriver::get_known_element(current_browsing_context(), element_id));
 
@@ -1253,13 +1253,13 @@ Messages::WebDriverClient::GetElementShadowRootResponse WebDriverConnection::get
 }
 
 // 12.4.1 Is Element Selected, https://w3c.github.io/webdriver/#dfn-is-element-selected
-Messages::WebDriverClient::IsElementSelectedResponse WebDriverConnection::is_element_selected(String const& element_id)
+Messages::WebDriverClient::IsElementSelectedResponse WebDriverConnection::is_element_selected(String element_id)
 {
     // 1. If the current browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
-    handle_any_user_prompts([this, element_id]() {
+    handle_any_user_prompts([this, element_id = move(element_id)]() {
         // 3. Let element be the result of trying to get a known connected element with url variable element id.
         auto element = WEBDRIVER_TRY(Web::WebDriver::get_known_element(current_browsing_context(), element_id));
 
@@ -1291,13 +1291,13 @@ Messages::WebDriverClient::IsElementSelectedResponse WebDriverConnection::is_ele
 }
 
 // 12.4.2 Get Element Attribute, https://w3c.github.io/webdriver/#dfn-get-element-attribute
-Messages::WebDriverClient::GetElementAttributeResponse WebDriverConnection::get_element_attribute(String const& element_id, String const& name)
+Messages::WebDriverClient::GetElementAttributeResponse WebDriverConnection::get_element_attribute(String element_id, String name)
 {
     // 1. If session's current browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_browsing_context_is_open());
 
     // 2. Try to handle any user prompts with session.
-    handle_any_user_prompts([this, element_id, name]() {
+    handle_any_user_prompts([this, element_id = move(element_id), name]() {
         // 3. Let element be the result of trying to get a known element with session and URL variables' element id.
         auto element = WEBDRIVER_TRY(Web::WebDriver::get_known_element(current_browsing_context(), element_id));
 
@@ -1326,13 +1326,13 @@ Messages::WebDriverClient::GetElementAttributeResponse WebDriverConnection::get_
 }
 
 // 12.4.3 Get Element Property, https://w3c.github.io/webdriver/#dfn-get-element-property
-Messages::WebDriverClient::GetElementPropertyResponse WebDriverConnection::get_element_property(String const& element_id, String const& name)
+Messages::WebDriverClient::GetElementPropertyResponse WebDriverConnection::get_element_property(String element_id, String name)
 {
     // 1. If session's current browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_browsing_context_is_open());
 
     // 2. Try to handle any user prompts with session.
-    handle_any_user_prompts([this, element_id, name]() {
+    handle_any_user_prompts([this, element_id = move(element_id), name]() {
         Web::WebDriver::Response result { JsonValue {} };
 
         // 3. Let element be the result of trying to get a known element with session and URL variables' element id.
@@ -1358,13 +1358,13 @@ Messages::WebDriverClient::GetElementPropertyResponse WebDriverConnection::get_e
 }
 
 // 12.4.4 Get Element CSS Value, https://w3c.github.io/webdriver/#dfn-get-element-css-value
-Messages::WebDriverClient::GetElementCssValueResponse WebDriverConnection::get_element_css_value(String const& element_id, String const& name)
+Messages::WebDriverClient::GetElementCssValueResponse WebDriverConnection::get_element_css_value(String element_id, String name)
 {
     // 1. If session's current browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_browsing_context_is_open());
 
     // 2. Try to handle any user prompts with session.
-    handle_any_user_prompts([this, element_id, name]() {
+    handle_any_user_prompts([this, element_id = move(element_id), name]() {
         // 3. Let element be the result of trying to get a known element with URL variables["element id"].
         auto element = WEBDRIVER_TRY(Web::WebDriver::get_known_element(current_browsing_context(), element_id));
 
@@ -1392,13 +1392,13 @@ Messages::WebDriverClient::GetElementCssValueResponse WebDriverConnection::get_e
 }
 
 // 12.4.5 Get Element Text, https://w3c.github.io/webdriver/#dfn-get-element-text
-Messages::WebDriverClient::GetElementTextResponse WebDriverConnection::get_element_text(String const& element_id)
+Messages::WebDriverClient::GetElementTextResponse WebDriverConnection::get_element_text(String element_id)
 {
     // 1. If the current browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
-    handle_any_user_prompts([this, element_id]() {
+    handle_any_user_prompts([this, element_id = move(element_id)]() {
         // 3. Let element be the result of trying to get a known connected element with url variable element id.
         auto element = WEBDRIVER_TRY(Web::WebDriver::get_known_element(current_browsing_context(), element_id));
 
@@ -1414,13 +1414,13 @@ Messages::WebDriverClient::GetElementTextResponse WebDriverConnection::get_eleme
 }
 
 // 12.4.6 Get Element Tag Name, https://w3c.github.io/webdriver/#dfn-get-element-tag-name
-Messages::WebDriverClient::GetElementTagNameResponse WebDriverConnection::get_element_tag_name(String const& element_id)
+Messages::WebDriverClient::GetElementTagNameResponse WebDriverConnection::get_element_tag_name(String element_id)
 {
     // 1. If session's current browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_browsing_context_is_open());
 
     // 2. Try to handle any user prompts with session.
-    handle_any_user_prompts([this, element_id]() {
+    handle_any_user_prompts([this, element_id = move(element_id)]() {
         // 3. Let element be the result of trying to get a known element with URL variables["element id"].
         auto element = WEBDRIVER_TRY(Web::WebDriver::get_known_element(current_browsing_context(), element_id));
 
@@ -1437,13 +1437,13 @@ Messages::WebDriverClient::GetElementTagNameResponse WebDriverConnection::get_el
 }
 
 // 12.4.7 Get Element Rect, https://w3c.github.io/webdriver/#dfn-get-element-rect
-Messages::WebDriverClient::GetElementRectResponse WebDriverConnection::get_element_rect(String const& element_id)
+Messages::WebDriverClient::GetElementRectResponse WebDriverConnection::get_element_rect(String element_id)
 {
     // 1. If the current browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
-    handle_any_user_prompts([this, element_id]() {
+    handle_any_user_prompts([this, element_id = move(element_id)]() {
         // 3. Let element be the result of trying to get a known connected element with url variable element id.
         auto element = WEBDRIVER_TRY(Web::WebDriver::get_known_element(current_browsing_context(), element_id));
 
@@ -1470,13 +1470,13 @@ Messages::WebDriverClient::GetElementRectResponse WebDriverConnection::get_eleme
 }
 
 // 12.4.8 Is Element Enabled, https://w3c.github.io/webdriver/#dfn-is-element-enabled
-Messages::WebDriverClient::IsElementEnabledResponse WebDriverConnection::is_element_enabled(String const& element_id)
+Messages::WebDriverClient::IsElementEnabledResponse WebDriverConnection::is_element_enabled(String element_id)
 {
     // 1. If the current browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
-    handle_any_user_prompts([this, element_id]() {
+    handle_any_user_prompts([this, element_id = move(element_id)]() {
         // 3. Let element be the result of trying to get a known connected element with url variable element id.
         auto element = WEBDRIVER_TRY(Web::WebDriver::get_known_element(current_browsing_context(), element_id));
 
@@ -1498,13 +1498,13 @@ Messages::WebDriverClient::IsElementEnabledResponse WebDriverConnection::is_elem
 }
 
 // 12.4.9 Get Computed Role, https://w3c.github.io/webdriver/#dfn-get-computed-role
-Messages::WebDriverClient::GetComputedRoleResponse WebDriverConnection::get_computed_role(String const& element_id)
+Messages::WebDriverClient::GetComputedRoleResponse WebDriverConnection::get_computed_role(String element_id)
 {
     // 1. If the current top-level browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_top_level_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
-    handle_any_user_prompts([this, element_id]() {
+    handle_any_user_prompts([this, element_id = move(element_id)]() {
         // 3. Let element be the result of trying to get a known connected element with url variable element id.
         auto element = WEBDRIVER_TRY(Web::WebDriver::get_known_element(current_browsing_context(), element_id));
 
@@ -1523,13 +1523,13 @@ Messages::WebDriverClient::GetComputedRoleResponse WebDriverConnection::get_comp
 }
 
 // 12.4.10 Get Computed Label, https://w3c.github.io/webdriver/#get-computed-label
-Messages::WebDriverClient::GetComputedLabelResponse WebDriverConnection::get_computed_label(String const& element_id)
+Messages::WebDriverClient::GetComputedLabelResponse WebDriverConnection::get_computed_label(String element_id)
 {
     // 1. If the current browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
-    handle_any_user_prompts([this, element_id]() {
+    handle_any_user_prompts([this, element_id = move(element_id)]() {
         // 3. Let element be the result of trying to get a known element with url variable element id.
         auto element = WEBDRIVER_TRY(Web::WebDriver::get_known_element(current_browsing_context(), element_id));
 
@@ -1544,20 +1544,20 @@ Messages::WebDriverClient::GetComputedLabelResponse WebDriverConnection::get_com
 }
 
 // 12.5.1 Element Click, https://w3c.github.io/webdriver/#element-click
-Messages::WebDriverClient::ElementClickResponse WebDriverConnection::element_click(String const& element_id)
+Messages::WebDriverClient::ElementClickResponse WebDriverConnection::element_click(String element_id)
 {
     // 1. If the current browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
-    handle_any_user_prompts([this, element_id]() {
+    handle_any_user_prompts([this, element_id = move(element_id)]() {
         WEBDRIVER_TRY(element_click_impl(element_id));
     });
 
     return JsonValue {};
 }
 
-Web::WebDriver::Response WebDriverConnection::element_click_impl(String const& element_id)
+Web::WebDriver::Response WebDriverConnection::element_click_impl(StringView element_id)
 {
     // 3. Let element be the result of trying to get a known element with element id.
     auto element = TRY(Web::WebDriver::get_known_element(current_browsing_context(), element_id));
@@ -1724,20 +1724,20 @@ Web::WebDriver::Response WebDriverConnection::element_click_impl(String const& e
 }
 
 // 12.5.2 Element Clear, https://w3c.github.io/webdriver/#dfn-element-clear
-Messages::WebDriverClient::ElementClearResponse WebDriverConnection::element_clear(String const& element_id)
+Messages::WebDriverClient::ElementClearResponse WebDriverConnection::element_clear(String element_id)
 {
     // 1. If session's current browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_browsing_context_is_open());
 
     // 2. Try to handle any user prompts with session.
-    handle_any_user_prompts([this, element_id]() {
+    handle_any_user_prompts([this, element_id = move(element_id)]() {
         async_driver_execution_complete(element_clear_impl(element_id));
     });
 
     return JsonValue {};
 }
 
-Web::WebDriver::Response WebDriverConnection::element_clear_impl(String const& element_id)
+Web::WebDriver::Response WebDriverConnection::element_clear_impl(StringView element_id)
 {
     // https://w3c.github.io/webdriver/#dfn-clear-a-content-editable-element
     auto clear_content_editable_element = [&](Web::DOM::Element& element) {
@@ -1836,7 +1836,7 @@ Web::WebDriver::Response WebDriverConnection::element_clear_impl(String const& e
 }
 
 // 12.5.3 Element Send Keys, https://w3c.github.io/webdriver/#dfn-element-send-keys
-Messages::WebDriverClient::ElementSendKeysResponse WebDriverConnection::element_send_keys(String const& element_id, JsonValue const& payload)
+Messages::WebDriverClient::ElementSendKeysResponse WebDriverConnection::element_send_keys(String element_id, JsonValue payload)
 {
     // 1. Let text be the result of getting a property named "text" from parameters.
     // 2. If text is not a String, return an error with error code invalid argument.
@@ -1846,14 +1846,14 @@ Messages::WebDriverClient::ElementSendKeysResponse WebDriverConnection::element_
     TRY(ensure_current_browsing_context_is_open());
 
     // 4. Try to handle any user prompts with session.
-    handle_any_user_prompts([this, element_id, text = move(text)]() {
+    handle_any_user_prompts([this, element_id = move(element_id), text = move(text)]() {
         WEBDRIVER_TRY(element_send_keys_impl(element_id, text));
     });
 
     return JsonValue {};
 }
 
-Web::WebDriver::Response WebDriverConnection::element_send_keys_impl(String const& element_id, String const& text)
+Web::WebDriver::Response WebDriverConnection::element_send_keys_impl(StringView element_id, String const& text)
 {
     // 5. Let element be the result of trying to get a known element with session and URL variables[element id].
     auto element = TRY(Web::WebDriver::get_known_element(current_browsing_context(), element_id));
@@ -2049,7 +2049,7 @@ Messages::WebDriverClient::GetSourceResponse WebDriverConnection::get_source()
 }
 
 // 13.2.1 Execute Script, https://w3c.github.io/webdriver/#dfn-execute-script
-Messages::WebDriverClient::ExecuteScriptResponse WebDriverConnection::execute_script(JsonValue const& payload)
+Messages::WebDriverClient::ExecuteScriptResponse WebDriverConnection::execute_script(JsonValue payload)
 {
     auto* window = current_browsing_context().active_window();
     auto& vm = window->vm();
@@ -2079,7 +2079,7 @@ Messages::WebDriverClient::ExecuteScriptResponse WebDriverConnection::execute_sc
 }
 
 // 13.2.2 Execute Async Script, https://w3c.github.io/webdriver/#dfn-execute-async-script
-Messages::WebDriverClient::ExecuteAsyncScriptResponse WebDriverConnection::execute_async_script(JsonValue const& payload)
+Messages::WebDriverClient::ExecuteAsyncScriptResponse WebDriverConnection::execute_async_script(JsonValue payload)
 {
     auto* window = current_browsing_context().active_window();
     auto& vm = window->vm();
@@ -2170,7 +2170,7 @@ Messages::WebDriverClient::GetAllCookiesResponse WebDriverConnection::get_all_co
 }
 
 // 14.2 Get Named Cookie, https://w3c.github.io/webdriver/#dfn-get-named-cookie
-Messages::WebDriverClient::GetNamedCookieResponse WebDriverConnection::get_named_cookie(String const& name)
+Messages::WebDriverClient::GetNamedCookieResponse WebDriverConnection::get_named_cookie(String name)
 {
     // 1. If the current browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_browsing_context_is_open());
@@ -2194,7 +2194,7 @@ Messages::WebDriverClient::GetNamedCookieResponse WebDriverConnection::get_named
 }
 
 // 14.3 Add Cookie, https://w3c.github.io/webdriver/#dfn-adding-a-cookie
-Messages::WebDriverClient::AddCookieResponse WebDriverConnection::add_cookie(JsonValue const& payload)
+Messages::WebDriverClient::AddCookieResponse WebDriverConnection::add_cookie(JsonValue payload)
 {
     // 1. Let data be the result of getting a property named cookie from the parameters argument.
     auto const& data = *TRY(Web::WebDriver::get_property<JsonObject const*>(payload, "cookie"sv));
@@ -2289,7 +2289,7 @@ Web::WebDriver::Response WebDriverConnection::add_cookie_impl(JsonObject const& 
 }
 
 // 14.4 Delete Cookie, https://w3c.github.io/webdriver/#dfn-delete-cookie
-Messages::WebDriverClient::DeleteCookieResponse WebDriverConnection::delete_cookie(String const& name)
+Messages::WebDriverClient::DeleteCookieResponse WebDriverConnection::delete_cookie(String name)
 {
     // 1. If the current browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_browsing_context_is_open());
@@ -2325,13 +2325,13 @@ Messages::WebDriverClient::DeleteAllCookiesResponse WebDriverConnection::delete_
 }
 
 // 15.7 Perform Actions, https://w3c.github.io/webdriver/#perform-actions
-Messages::WebDriverClient::PerformActionsResponse WebDriverConnection::perform_actions(JsonValue const& payload)
+Messages::WebDriverClient::PerformActionsResponse WebDriverConnection::perform_actions(JsonValue payload)
 {
     // 1. If session's current browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_browsing_context_is_open());
 
     // 2. Try to handle any user prompts with session.
-    handle_any_user_prompts([this, payload = move(const_cast<JsonValue&>(payload))]() {
+    handle_any_user_prompts([this, payload = move(payload)]() {
         // 3. Let input state be the result of get the input state with session and session's current top-level browsing context.
         auto& input_state = Web::WebDriver::get_input_state(*current_top_level_browsing_context());
 
@@ -2465,7 +2465,7 @@ Messages::WebDriverClient::GetAlertTextResponse WebDriverConnection::get_alert_t
 }
 
 // 16.4 Send Alert Text, https://w3c.github.io/webdriver/#send-alert-text
-Messages::WebDriverClient::SendAlertTextResponse WebDriverConnection::send_alert_text(JsonValue const& payload)
+Messages::WebDriverClient::SendAlertTextResponse WebDriverConnection::send_alert_text(JsonValue payload)
 {
     // 1. Let text be the result of getting the property "text" from parameters.
     // 2. If text is not a String, return error with error code invalid argument.
@@ -2539,7 +2539,7 @@ Messages::WebDriverClient::TakeScreenshotResponse WebDriverConnection::take_scre
 }
 
 // 17.2 Take Element Screenshot, https://w3c.github.io/webdriver/#dfn-take-element-screenshot
-Messages::WebDriverClient::TakeElementScreenshotResponse WebDriverConnection::take_element_screenshot(String const& element_id)
+Messages::WebDriverClient::TakeElementScreenshotResponse WebDriverConnection::take_element_screenshot(String element_id)
 {
     // 1. If session's current browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_browsing_context_is_open());
@@ -2577,7 +2577,7 @@ Messages::WebDriverClient::TakeElementScreenshotResponse WebDriverConnection::ta
 }
 
 // 18.1 Print Page, https://w3c.github.io/webdriver/#dfn-print-page
-Messages::WebDriverClient::PrintPageResponse WebDriverConnection::print_page(JsonValue const& payload)
+Messages::WebDriverClient::PrintPageResponse WebDriverConnection::print_page(JsonValue payload)
 {
     dbgln("FIXME: WebDriverConnection::print_page({})", payload);
     return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnsupportedOperation, "Print not implemented"sv);

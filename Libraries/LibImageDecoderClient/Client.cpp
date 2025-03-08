@@ -57,9 +57,9 @@ NonnullRefPtr<Core::Promise<DecodedImage>> Client::decode_image(ReadonlyBytes en
     return promise;
 }
 
-void Client::did_decode_image(i64 image_id, bool is_animated, u32 loop_count, Gfx::BitmapSequence const& bitmap_sequence, Vector<u32> const& durations, Gfx::FloatPoint scale, Gfx::ColorSpace const& color_space)
+void Client::did_decode_image(i64 image_id, bool is_animated, u32 loop_count, Gfx::BitmapSequence bitmap_sequence, Vector<u32> durations, Gfx::FloatPoint scale, Gfx::ColorSpace color_space)
 {
-    auto const& bitmaps = bitmap_sequence.bitmaps;
+    auto bitmaps = move(bitmap_sequence.bitmaps);
     VERIFY(!bitmaps.is_empty());
 
     auto maybe_promise = m_pending_decoded_images.take(image_id);
@@ -82,13 +82,13 @@ void Client::did_decode_image(i64 image_id, bool is_animated, u32 loop_count, Gf
             return;
         }
 
-        image.frames.empend(*bitmaps[i], durations[i]);
+        image.frames.empend(bitmaps[i].release_value(), durations[i]);
     }
 
     promise->resolve(move(image));
 }
 
-void Client::did_fail_to_decode_image(i64 image_id, String const& error_message)
+void Client::did_fail_to_decode_image(i64 image_id, String error_message)
 {
     auto maybe_promise = m_pending_decoded_images.take(image_id);
     if (!maybe_promise.has_value()) {

@@ -27,7 +27,7 @@ public:
 private:
     virtual void die() override;
 
-    virtual void driver_execution_complete(Web::WebDriver::Response const&) override;
+    virtual void driver_execution_complete(Web::WebDriver::Response) override;
 };
 
 }
