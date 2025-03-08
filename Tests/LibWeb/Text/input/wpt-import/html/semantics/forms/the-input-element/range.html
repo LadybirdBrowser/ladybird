@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <title>Input Range</title>
+    <meta name=viewport content="width=device-width, maximum-scale=1.0, user-scalable=no" />
+    <link rel="author" title="Fabrice Clari" href="mailto:f.clari@inno-group.com">
+    <link rel="author" title="Dimitri Bocquet" href="mailto:Dimitri.Bocquet@mosquito-fp7.eu">
+    <link rel="author" title="Tomoyuki SHIMIZU" href="mailto:tomoyuki.labs@gmail.com">
+    <link rel="help" href="https://html.spec.whatwg.org/multipage/#the-input-element">
+    <link rel="help" href="https://html.spec.whatwg.org/multipage/#dom-input-type">
+    <link rel="help" href="https://html.spec.whatwg.org/multipage/#dom-input-min">
+    <link rel="help" href="https://html.spec.whatwg.org/multipage/#dom-input-max">
+    <link rel="help" href="https://html.spec.whatwg.org/multipage/#range-state-(type=range)">
+    <link rel="help" href="https://html.spec.whatwg.org/multipage/#dom-input-stepup">
+    <link rel="help" href="https://html.spec.whatwg.org/multipage/#dom-input-stepdown">
+    <link rel="help" href="https://html.spec.whatwg.org/multipage/#best-representation-of-the-number-as-a-floating-point-number">
+    <script src="../../../../resources/testharness.js"></script>
+    <script src="../../../../resources/testharnessreport.js"></script>
+  </head>
+
+  <body>
+
+
+    <h1>Input Range</h1>
+    <div style="display:none">
+      <input type="range" id="range_basic" min=0 max=5 />
+      <input type="range" id="value_smaller_than_min" min=0 max=5 value=-10 />
+      <input type="range" id="value_larger_than_max" min=0 max=5 value=7 />
+      <input type="range" id="empty_attributes" />
+      <input type="range" id="value_not_specified" min=2 max=6 />
+      <input type="range" id="control_step_mismatch" min=0 max=7 step=2 />
+      <input type="range" id="max_smaller_than_min" min=2 max=-3 />
+      <input type="range" id="default_step_scale_factor_1" min=5 max=12.6 value=6.7 />
+      <input type="range" id="default_step_scale_factor_2" min=5.3 max=12 value=6.7 />
+      <input type="range" id="float_step_scale_factor" min=5.3 max=12 step=0.5 value=6.7 />
+      <input type="range" id="stepup" min=3 max=14 value=6 step=3 />
+      <input type="range" id="stepdown" min=3 max=11 value=9 step=3 />
+      <input type="range" id="stepup_beyond_max" min=3 max=14 value=9 step=3 />
+      <input type="range" id="stepdown_beyond_min" min=3 max=11 value=6 step=3 />
+      <input type="range" id="illegal_min_and_max" min="ab" max="f" />
+      <input type="range" id="illegal_value_and_step" min=0 max=5 value="ppp" step="xyz" />
+      <input type="range" id="should_skip_whitespace" value=" 123"/>
+      <input type="range" id="exponent_value1" value=""/>
+      <input type="range" id="exponent_value2" value=""/>
+    </div>
+
+    <div id="log">
+    </div>
+
+    <script type="text/javascript">
+
+      test(
+        function() {
+          assert_equals(document.getElementById('range_basic').type, "range");
+        },
+        "range type support on input element"
+      );
+
+      test(function() {
+        assert_equals(getComputedStyle(document.getElementById('range_basic')).overflow, "visible");
+      }, "range overflow styles");
+
+      test(
+        function() {
+          assert_equals(document.getElementById('range_basic').min, "0")
+        },
+        "min attribute support on input element"
+      );
+
+      test(
+        function() {
+          assert_equals(document.getElementById('range_basic').max, "5")
+        },
+        "max attribute support on input element"
+      );
+
+      test(
+        function() {
+          assert_equals(document.getElementById('illegal_min_and_max').min, "ab")
+        },
+        "Illegal value of min attribute"
+      );
+
+      test(
+        function() {
+          assert_equals(document.getElementById('illegal_min_and_max').max, "f")
+        },
+        "Illegal value of max attribute"
+      );
+
+      test(
+        function() {
+          assert_equals(document.getElementById('illegal_value_and_step').value, "3")
+        },
+        "Converting an illegal string to the default value"
+      );
+
+      test(
+        function() {
+          assert_equals(document.getElementById('illegal_value_and_step').step, "xyz")
+        },
+        "Illegal value of step attribute"
+      );
+
+      test(
+        function() {
+          assert_equals(document.getElementById('value_smaller_than_min').value, "0")
+        },
+        "the value is set to min when a smaller value than min attribute is given"
+      );
+
+      test(
+        function() {
+          assert_equals(document.getElementById('value_larger_than_max').value, "5")
+        },
+        "the value is set to max when a larger value than max attribute is given"
+      );
+
+      test(
+        function() {
+          assert_equals(document.getElementById('empty_attributes').min, "")
+        },
+        "default value of min attribute in input type=range"
+      );
+
+      test(
+        function() {
+          assert_equals(document.getElementById('empty_attributes').max, "")
+        },
+        "default value of max attribute in input type=range"
+      );
+
+      test(
+        function() {
+          assert_equals(document.getElementById('value_not_specified').value, "4")
+        },
+        "default value when min and max attributes are given (= min plus half the difference between min and max)"
+      );
+
+      test(
+        function() {
+          assert_equals(document.getElementById('control_step_mismatch').value, "4")
+        },
+        "default value with step control when both min and max attributes are given"
+      );
+
+      // Chrome would result in different value out of the range between min and max. Why?
+      test(
+        function() {
+          assert_equals(document.getElementById('max_smaller_than_min').value, "2")
+        },
+        "default value when both min and max attributes are given, while min > max"
+      );
+
+      test(
+        function() {
+          assert_equals(document.getElementById('default_step_scale_factor_1').value, "7")
+        },
+        "The default step scale factor is 1, unless min attribute has non-integer value"
+      );
+
+      test(
+        function() {
+          assert_equals(document.getElementById('default_step_scale_factor_2').value, "6.3")
+        },
+        "Step scale factor behavior when min attribute has integer value but max attribute is non-integer "
+      );
+
+      test(
+        function() {
+          assert_equals(document.getElementById('float_step_scale_factor').value, "6.8")
+        },
+        "Solving the step mismatch"
+      );
+
+      // Firefox Nightly (24.0a1) would result in the possible maximum value in this range... (i.e. 12)
+      test(
+        function() {
+          var e = document.getElementById('stepup');
+          e.stepUp();
+          assert_equals(e.value, "9")
+        },
+        "Performing stepUp()"
+      );
+
+      // Firefox Nightly (24.0a1) would result in the possible minimum value in this range... (i.e. 3)
+      test(
+        function() {
+          var e = document.getElementById('stepdown');
+          e.stepDown();
+          assert_equals(e.value, "6")
+        },
+        "Performing stepDown()"
+      );
+
+      // Chrome and Opera would throw DOM Exception 11 (InvalidStateError)
+      // Firefox Nightly gives the correct result
+      test(
+        function() {
+          var e = document.getElementById('stepup_beyond_max');
+          e.stepUp(2);
+          assert_equals(e.value, "12")
+        },
+        "Performing stepUp() beyond the value of the max attribute"
+      );
+
+      // Chrome and Opera would throw DOM Exception 11 (InvalidStateError)
+      // Firefox Nightly gives the correct result
+      test(
+        function() {
+          var e = document.getElementById('stepdown_beyond_min');
+          e.stepDown(2);
+          assert_equals(e.value, "3")
+        }, "Performing stepDown() beyond the value of the min attribute"
+      );
+
+      test(
+        function() {
+          var e = document.getElementById('should_skip_whitespace');
+          assert_equals(e.value, "50")
+        }, "Input should be reset to the default value when value attribute has whitespace"
+      );
+
+      test(
+        function() {
+          var e = document.getElementById('exponent_value1');
+          e.value = 1e2;
+          assert_equals(e.value, "100")
+        }, "Multiply value by ten raised to the exponentth power with `e`"
+      );
+
+      test(
+        function() {
+          var e = document.getElementById('exponent_value2');
+          e.value = 1E2;
+          assert_equals(e.value, "100")
+        }, "Multiply value by ten raised to the exponentth power with `E`"
+      );
+
+    </script>
+
+  </body>
+
+</html>

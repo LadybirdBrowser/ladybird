@@ -1,0 +1,38 @@
+Harness status: OK
+
+Found 33 tests
+
+33 Pass
+Pass	empty value
+Pass	value = 11
+Pass	value = 11.12
+Pass	value = -11111
+Pass	value = -11111.123
+Pass	value = 1e2
+Pass	value = 1E2
+Pass	value = 1e+2
+Pass	value = 1e-2
+Pass	value is not a valid floating-point number: 1d+2
+Pass	value not a valid floating-point number: random string
+Pass	Value >= min attribute
+Pass	Value < min attribute
+Pass	Value <= max attribute
+Pass	Value > max attribute
+Pass	value with a leading '.'
+Pass	value ending with '.'
+Pass	value = -0
+Pass	 value = Infinity
+Pass	value = -Infinity
+Pass	value = NaN
+Pass	value = 2^53+1
+Pass	value >= Number.MAX_VALUE
+Pass	value = 1e
+Pass	value = +1
+Pass	value = '+'
+Pass	value = '-'
+Pass	value with a leading tab
+Pass	value with a leading newline
+Pass	value with a leading form feed
+Pass	value with a leading carriage return
+Pass	value with a leading space
+Pass	value = 1trailing junk

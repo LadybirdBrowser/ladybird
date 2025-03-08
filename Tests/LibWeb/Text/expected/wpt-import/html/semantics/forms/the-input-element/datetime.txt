@@ -1,0 +1,26 @@
+Harness status: OK
+
+Found 21 tests
+
+21 Pass
+Pass	date type support on input element
+Pass	[date] The value must be a valid global date and time string
+Pass	[date] The min attribute must have a value that is a valid global date and time string
+Pass	[date] The max attribute must have a value that is a valid global date and time string
+Pass	[date] The step attribute must be expressed in seconds
+Pass	[date] stepUp method support on input 'date' element
+Pass	[date] stepDown method support on input 'date' element
+Pass	[time] time type support on input element
+Pass	[time] The value must be a valid global date and time string
+Pass	[time] The min attribute must have a value that is a valid global date and time string
+Pass	[time] The max attribute must have a value that is a valid global date and time string
+Pass	[time] The step attribute must be expressed in seconds
+Pass	[time] stepUp method support on input 'time' element
+Pass	[time] stepDown method support on input 'time' element
+Pass	datetime-local type support on input element
+Pass	[datetime-local] The must be a valid local date and time string
+Pass	[datetime-local] The min attribute must have a value that is a valid local date and time string
+Pass	[datetime-local] The max attribute must have a value that is a valid local date and time string
+Pass	[datetime-local] The step attribute must be expressed in seconds
+Pass	[datetime-local] stepUp method support on input 'datetime-local' element
+Pass	[datetime-local] stepDown method support on input 'datetime-local' element

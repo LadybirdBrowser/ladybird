@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <title>Required Attribute</title>
+    <meta name=viewport content="width=device-width, maximum-scale=1.0, user-scalable=no" />
+    <link rel="author" title="Fabrice Clari" href="mailto:f.clari@inno-group.com">
+    <link rel="author" title="Dimitri Bocquet" href="mailto:Dimitri.Bocquet@mosquito-fp7.eu">
+    <link rel="help" href="https://html.spec.whatwg.org/multipage/#attr-input-required">
+    <script src="../../../../resources/testharness.js"></script>
+    <script src="../../../../resources/testharnessreport.js"></script>
+  </head>
+
+  <body>
+
+
+      <h1>Required Attribute</h1>
+      <div style="display: none">
+      <input type="text" required="required" />
+    </div>
+
+    <div id="log">
+    </div>
+
+  <script type="text/javascript">
+
+
+    test(function() {assert_equals(document.getElementsByTagName("input")[0].getAttribute("required"), "required")}, "required attribute support on input element");
+
+  </script>
+
+  </body>
+
+</html>
