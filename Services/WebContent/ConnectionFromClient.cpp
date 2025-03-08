@@ -449,7 +449,7 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, Web::UniqueNodeID const
     auto* node = Web::DOM::Node::from_unique_id(node_id);
     // Note: Nodes without layout (aka non-visible nodes, don't have style computed)
     if (!node || !node->layout_node()) {
-        async_did_inspect_dom_node(page_id, false, {}, {}, {}, {}, {}, {});
+        async_did_inspect_dom_node(page_id, false, String {}, String {}, String {}, String {}, String {}, String {});
         return;
     }
 
@@ -458,7 +458,7 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, Web::UniqueNodeID const
     if (node->is_element()) {
         auto& element = as<Web::DOM::Element>(*node);
         if (!element.computed_properties()) {
-            async_did_inspect_dom_node(page_id, false, {}, {}, {}, {}, {}, {});
+            async_did_inspect_dom_node(page_id, false, String {}, String {}, String {}, String {}, String {}, String {});
             return;
         }
 
@@ -562,7 +562,7 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, Web::UniqueNodeID const
         if (pseudo_element.has_value()) {
             auto pseudo_element_node = element.get_pseudo_element_node(pseudo_element.value());
             if (!pseudo_element_node) {
-                async_did_inspect_dom_node(page_id, false, {}, {}, {}, {}, {}, {});
+                async_did_inspect_dom_node(page_id, false, String {}, String {}, String {}, String {}, String {}, String {});
                 return;
             }
 
@@ -596,7 +596,7 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, Web::UniqueNodeID const
         return;
     }
 
-    async_did_inspect_dom_node(page_id, false, {}, {}, {}, {}, {}, {});
+    async_did_inspect_dom_node(page_id, false, String {}, String {}, String {}, String {}, String {}, String {});
 }
 
 void ConnectionFromClient::highlight_dom_node(u64 page_id, Web::UniqueNodeID const& node_id, Optional<Web::CSS::Selector::PseudoElement::Type> const& pseudo_element)

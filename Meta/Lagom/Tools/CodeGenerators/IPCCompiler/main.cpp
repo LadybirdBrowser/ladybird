@@ -5,6 +5,7 @@
  */
 
 #include <AK/Debug.h>
+#include <AK/Enumerate.h>
 #include <AK/Function.h>
 #include <AK/GenericLexer.h>
 #include <AK/HashMap.h>
@@ -17,9 +18,11 @@
 #include <stdio.h>
 
 namespace {
+
 struct Parameter {
     Vector<ByteString> attributes;
     ByteString type;
+    ByteString type_for_encoding;
     ByteString name;
 };
 
@@ -71,7 +74,9 @@ static bool is_primitive_type(ByteString const& type)
 static bool is_simple_type(ByteString const& type)
 {
     // Small types that it makes sense just to pass by value.
-    return type.is_one_of("AK::CaseSensitivity", "AK::Duration", "Gfx::Color", "Web::DevicePixels", "Gfx::IntPoint", "Gfx::FloatPoint", "Web::DevicePixelPoint", "Gfx::IntSize", "Gfx::FloatSize", "Web::DevicePixelSize", "Web::DevicePixelRect", "Core::File::OpenMode", "Web::Cookie::Source", "Web::EventResult", "Web::HTML::AllowMultipleFiles", "Web::HTML::AudioPlayState", "Web::HTML::HistoryHandlingBehavior", "Web::HTML::VisibilityState", "WebView::PageInfoType");
+    if (type.starts_with("ReadonlySpan<"sv) && type.ends_with(">"sv))
+        return true;
+    return type.is_one_of("AK::CaseSensitivity", "AK::Duration", "Gfx::Color", "ReadonlyBytes", "StringView", "Web::DevicePixels", "Gfx::IntPoint", "Gfx::FloatPoint", "Web::DevicePixelPoint", "Gfx::IntSize", "Gfx::FloatSize", "Web::DevicePixelSize", "Web::DevicePixelRect", "Core::File::OpenMode", "Web::Cookie::Source", "Web::EventResult", "Web::HTML::AllowMultipleFiles", "Web::HTML::AudioPlayState", "Web::HTML::HistoryHandlingBehavior", "Web::HTML::VisibilityState", "WebView::PageInfoType");
 }
 
 static bool is_primitive_or_simple_type(ByteString const& type)
@@ -88,6 +93,19 @@ static ByteString message_name(ByteString const& endpoint, ByteString const& mes
     builder.append(pascal_case(message));
     if (is_response)
         builder.append("Response"sv);
+    return builder.to_byte_string();
+}
+
+static ByteString make_argument_type(ByteString const& type)
+{
+    StringBuilder builder;
+
+    bool const_ref = !is_primitive_or_simple_type(type);
+
+    builder.append(type);
+    if (const_ref)
+        builder.append(" const&"sv);
+
     return builder.to_byte_string();
 }
 
@@ -165,11 +183,23 @@ Vector<Endpoint> parse(ByteBuffer const& file_contents)
                     consume_whitespace();
                 }
             }
+
             parameter.type = parse_parameter_type();
             if (parameter.type.ends_with(',') || parameter.type.ends_with(')')) {
                 warnln("Parameter {} of method: {} must be named", parameter_index, message_name);
                 VERIFY_NOT_REACHED();
             }
+
+            if (parameter.type.starts_with("Vector<"sv) && parameter.type.ends_with(">"sv)) {
+                parameter.type_for_encoding = parameter.type.replace("Vector"sv, "ReadonlySpan"sv, ReplaceMode::FirstOnly);
+            } else if (parameter.type.is_one_of("String"sv, "ByteString"sv)) {
+                parameter.type_for_encoding = "StringView"sv;
+            } else if (parameter.type == "ByteBuffer"sv) {
+                parameter.type_for_encoding = "ReadonlyBytes"sv;
+            } else {
+                parameter.type_for_encoding = parameter.type;
+            }
+
             VERIFY(!lexer.is_eof());
             consume_whitespace();
             parameter.name = lexer.consume_until([](char ch) { return isspace(ch) || ch == ',' || ch == ')'; });
@@ -367,7 +397,9 @@ public:)~~~");
     message_generator.append(R"~~~(
     virtual ~@message.pascal_name@() override = default;
 
-    virtual u32 endpoint_magic() const override { return @endpoint.magic@; }
+    static constexpr u32 ENDPOINT_MAGIC = @endpoint.magic@;
+
+    virtual u32 endpoint_magic() const override { return ENDPOINT_MAGIC; }
     virtual i32 message_id() const override { return (int)MessageID::@message.pascal_name@; }
     static i32 static_message_id() { return (int)MessageID::@message.pascal_name@; }
     virtual const char* message_name() const override { return "@endpoint.name@::@message.pascal_name@"; }
@@ -410,24 +442,51 @@ public:)~~~");
         return make<@message.pascal_name@>(@message.constructor_call_parameters@);
     })~~~");
 
-    message_generator.appendln(R"~~~(
-    virtual ErrorOr<IPC::MessageBuffer> encode() const override
+    message_generator.append(R"~~~(
+    static ErrorOr<IPC::MessageBuffer> static_encode()~~~");
+
+    for (auto const& [i, parameter] : enumerate(parameters)) {
+        auto argument_generator = message_generator.fork();
+        argument_generator.set("argument.type", make_argument_type(parameter.type_for_encoding));
+        argument_generator.set("argument.name", parameter.name);
+        argument_generator.append("@argument.type@ @argument.name@");
+        if (i != parameters.size() - 1)
+            argument_generator.append(", ");
+    }
+
+    message_generator.append(R"~~~()
     {
         IPC::MessageBuffer buffer;
         IPC::Encoder stream(buffer);
-        TRY(stream.encode(endpoint_magic()));
+        TRY(stream.encode(ENDPOINT_MAGIC));
         TRY(stream.encode((int)MessageID::@message.pascal_name@));)~~~");
 
     for (auto const& parameter : parameters) {
         auto parameter_generator = message_generator.fork();
 
         parameter_generator.set("parameter.name", parameter.name);
-        parameter_generator.appendln(R"~~~(
-        TRY(stream.encode(m_@parameter.name@));)~~~");
+        parameter_generator.append(R"~~~(
+        TRY(stream.encode(@parameter.name@));)~~~");
     }
 
     message_generator.appendln(R"~~~(
         return buffer;
+    })~~~");
+
+    message_generator.append(R"~~~(
+    virtual ErrorOr<IPC::MessageBuffer> encode() const override
+    {
+        return static_encode()~~~");
+
+    for (auto const& [i, parameter] : enumerate(parameters)) {
+        auto parameter_generator = message_generator.fork();
+        parameter_generator.set("parameter.name", parameter.name);
+        parameter_generator.append("m_@parameter.name@");
+        if (i != parameters.size() - 1)
+            parameter_generator.append(", ");
+    }
+
+    message_generator.appendln(R"~~~();
     })~~~");
 
     for (auto const& parameter : parameters) {
@@ -453,8 +512,17 @@ private:)~~~");
     message_generator.appendln("\n};");
 }
 
-void generate_proxy_method(SourceGenerator& message_generator, Endpoint const& endpoint, Message const& message, ByteString const& name, Vector<Parameter> const& parameters, bool is_synchronous, bool is_try)
+void generate_proxy_method(SourceGenerator& message_generator, Endpoint const& endpoint, Message const& message, ByteString const& name, Vector<Parameter> const& parameters, bool is_synchronous, bool is_try, bool is_utf8_string_overload = false)
 {
+    // FIXME: For String parameters, we want to retain the property that all tranferred String objects are strictly UTF-8.
+    //        So instead of generating a single proxy method that accepts StringView parameters, we generate two overloads.
+    //        The first accepts StringView parameters, but validates the view is UTF-8. The second accepts String parameters,
+    //        for callers that already have a UTF-8 String object.
+    //
+    //        Ideally, we will eventually have separate StringView types for each of String and ByteString, where String's
+    //        view internally provides UTF-8 guarantees. Then we won't need these overloads.
+    bool generate_utf8_string_overload = false;
+
     ByteString return_type = "void";
     if (is_synchronous) {
         if (message.outputs.size() == 1)
@@ -476,10 +544,17 @@ void generate_proxy_method(SourceGenerator& message_generator, Endpoint const& e
     message_generator.append(R"~~~(
     @message.complex_return_type@ @try_prefix_maybe@@async_prefix_maybe@@handler_name@()~~~");
 
-    for (size_t i = 0; i < parameters.size(); ++i) {
-        auto const& parameter = parameters[i];
+    for (auto const& [i, parameter] : enumerate(parameters)) {
+        ByteString type;
+        if (is_synchronous || is_try)
+            type = parameter.type;
+        else if (is_utf8_string_overload)
+            type = make_argument_type(parameter.type);
+        else
+            type = make_argument_type(parameter.type_for_encoding);
+
         auto argument_generator = message_generator.fork();
-        argument_generator.set("argument.type", parameter.type);
+        argument_generator.set("argument.type", type);
         argument_generator.set("argument.name", parameter.name);
         argument_generator.append("@argument.type@ @argument.name@");
         if (i != parameters.size() - 1)
@@ -487,6 +562,21 @@ void generate_proxy_method(SourceGenerator& message_generator, Endpoint const& e
     }
 
     message_generator.append(") {");
+
+    if (!is_synchronous && !is_try && !is_utf8_string_overload) {
+        for (auto const& parameter : parameters) {
+            auto const& type = is_synchronous || is_try ? parameter.type : parameter.type_for_encoding;
+
+            if (parameter.type == "String"sv && type == "StringView"sv) {
+                auto argument_generator = message_generator.fork();
+                argument_generator.set("argument.name", parameter.name);
+                argument_generator.append(R"~~~(
+        VERIFY(Utf8View { @argument.name@ }.validate());)~~~");
+
+                generate_utf8_string_overload = true;
+            }
+        }
+    }
 
     if (is_synchronous && !is_try) {
         if (return_type != "void") {
@@ -505,14 +595,15 @@ void generate_proxy_method(SourceGenerator& message_generator, Endpoint const& e
         auto result = m_connection.template send_sync_but_allow_failure<Messages::@endpoint.name@::@message.pascal_name@>()~~~");
     } else {
         message_generator.append(R"~~~(
-        MUST(m_connection.post_message(Messages::@endpoint.name@::@message.pascal_name@ { )~~~");
+        auto message_buffer = MUST(Messages::@endpoint.name@::@message.pascal_name@::static_encode()~~~");
     }
 
-    for (size_t i = 0; i < parameters.size(); ++i) {
-        auto const& parameter = parameters[i];
+    for (auto const& [i, parameter] : enumerate(parameters)) {
+        auto const& type = is_synchronous || is_try ? parameter.type : parameter.type_for_encoding;
+
         auto argument_generator = message_generator.fork();
         argument_generator.set("argument.name", parameter.name);
-        if (is_primitive_or_simple_type(parameters[i].type))
+        if (is_primitive_or_simple_type(type))
             argument_generator.append("@argument.name@");
         else
             argument_generator.append("move(@argument.name@)");
@@ -547,11 +638,15 @@ void generate_proxy_method(SourceGenerator& message_generator, Endpoint const& e
         return { };)~~~");
         }
     } else {
-        message_generator.appendln(" }));");
+        message_generator.append(R"~~~());
+        MUST(m_connection.post_message(move(message_buffer))); )~~~");
     }
 
     message_generator.appendln(R"~~~(
     })~~~");
+
+    if (generate_utf8_string_overload)
+        generate_proxy_method(message_generator, endpoint, message, message.name, message.inputs, is_synchronous, is_try, generate_utf8_string_overload);
 }
 
 void do_message_for_proxy(SourceGenerator message_generator, Endpoint const& endpoint, Message const& message)
@@ -741,18 +836,6 @@ public:
             message_generator.set("handler_name", name);
             message_generator.append(R"~~~(
     virtual @message.complex_return_type@ @handler_name@()~~~");
-
-            auto make_argument_type = [](ByteString const& type) {
-                StringBuilder builder;
-
-                bool const_ref = !is_primitive_or_simple_type(type);
-
-                builder.append(type);
-                if (const_ref)
-                    builder.append(" const&"sv);
-
-                return builder.to_byte_string();
-            };
 
             for (size_t i = 0; i < parameters.size(); ++i) {
                 auto const& parameter = parameters[i];
