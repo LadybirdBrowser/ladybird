@@ -130,7 +130,6 @@ ErrorOr<void> encode(Encoder& encoder, Array<T, N> const& array)
 template<Concepts::Vector T>
 ErrorOr<void> encode(Encoder& encoder, T const& vector)
 {
-    // NOTE: Do not change this encoding without also updating LibC/netdb.cpp.
     TRY(encoder.encode_size(vector.size()));
 
     for (auto const& value : vector)
