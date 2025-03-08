@@ -82,7 +82,7 @@ public:
     template<CallableAs<void, Result&> F>
     Promise& when_resolved(F handler)
     {
-        return when_resolved([handler = move(handler)](Result& result) -> ErrorOr<void> {
+        return when_resolved([handler = move(handler)](Result& result) mutable -> ErrorOr<void> {
             handler(result);
             return {};
         });
