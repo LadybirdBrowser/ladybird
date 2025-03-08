@@ -59,6 +59,9 @@ private:
 
     // https://html.spec.whatwg.org/multipage/interactive-elements.html#dialog-toggle-task-tracker
     Optional<ToggleTaskTracker> m_dialog_toggle_task_tracker;
+
+    // https://html.spec.whatwg.org/multipage/interactive-elements.html#previously-focused-element
+    GC::Ptr<Element> m_previously_focused_element;
 };
 
 }
