@@ -156,7 +156,7 @@ void HeadlessWebView::initialize_client(CreateNewClient create_new_client)
     client().async_update_system_theme(m_client_state.page_index, m_theme);
     client().async_set_viewport_size(m_client_state.page_index, viewport_size());
     client().async_set_window_size(m_client_state.page_index, viewport_size());
-    client().async_update_screen_rects(m_client_state.page_index, { screen_rect }, 0);
+    client().async_update_screen_rects(m_client_state.page_index, { { screen_rect } }, 0);
 }
 
 void HeadlessWebView::clear_content_filters()
