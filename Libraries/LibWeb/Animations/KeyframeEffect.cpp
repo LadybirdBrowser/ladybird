@@ -962,7 +962,7 @@ void KeyframeEffect::update_computed_properties()
     }
 
     if (invalidation.relayout)
-        target->set_needs_layout_update(DOM::SetNeedsLayoutReason::KeyframeEffect);
+        document.set_needs_layout(DOM::SetNeedsLayoutReason::KeyframeEffect);
     if (invalidation.rebuild_layout_tree)
         document.invalidate_layout_tree(DOM::InvalidateLayoutTreeReason::KeyframeEffect);
     if (invalidation.repaint) {

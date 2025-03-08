@@ -168,7 +168,7 @@ void SVGImageElement::fetch_the_document(URL::URL const& url)
                 m_animation_timer->start();
             }
             set_needs_style_update(true);
-            set_needs_layout_update(DOM::SetNeedsLayoutReason::SVGImageElementFetchTheDocument);
+            document().set_needs_layout(DOM::SetNeedsLayoutReason::SVGImageElementFetchTheDocument);
 
             dispatch_event(DOM::Event::create(realm(), HTML::EventNames::load));
         },

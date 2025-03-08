@@ -50,6 +50,26 @@ enum class QuirksMode {
     Yes
 };
 
+#define ENUMERATE_SET_NEEDS_LAYOUT_REASONS(X)         \
+    X(CharacterDataReplaceData)                       \
+    X(FinalizeACrossDocumentNavigation)               \
+    X(HTMLImageElementReactToChangesInTheEnvironment) \
+    X(HTMLImageElementUpdateTheImageData)             \
+    X(HTMLVideoElementSetVideoTrack)                  \
+    X(KeyframeEffect)                                 \
+    X(LayoutTreeUpdate)                               \
+    X(NavigableSetViewportSize)                       \
+    X(SVGImageElementFetchTheDocument)                \
+    X(StyleChange)
+
+enum class SetNeedsLayoutReason {
+#define ENUMERATE_SET_NEEDS_LAYOUT_REASON(e) e,
+    ENUMERATE_SET_NEEDS_LAYOUT_REASONS(ENUMERATE_SET_NEEDS_LAYOUT_REASON)
+#undef ENUMERATE_SET_NEEDS_LAYOUT_REASON
+};
+
+[[nodiscard]] StringView to_string(SetNeedsLayoutReason);
+
 #define ENUMERATE_INVALIDATE_LAYOUT_TREE_REASONS(X)       \
     X(DocumentAddAnElementToTheTopLayer)                  \
     X(DocumentRequestAnElementToBeRemovedFromTheTopLayer) \
@@ -337,6 +357,8 @@ public:
     void update_layout(UpdateLayoutReason);
     void update_paint_and_hit_testing_properties_if_needed();
     void update_animated_style_if_needed();
+
+    void set_needs_layout(SetNeedsLayoutReason);
 
     void invalidate_layout_tree(InvalidateLayoutTreeReason);
     void invalidate_stacking_context_tree();
@@ -1053,6 +1075,8 @@ private:
 
     // Used by evaluate_media_queries_and_report_changes().
     Vector<WeakPtr<CSS::MediaQueryList>> m_media_query_lists;
+
+    bool m_needs_layout { false };
 
     bool m_needs_full_style_update { false };
     bool m_needs_full_layout_tree_update { false };
