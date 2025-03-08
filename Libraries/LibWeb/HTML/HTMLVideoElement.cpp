@@ -111,7 +111,7 @@ u32 HTMLVideoElement::video_height() const
 void HTMLVideoElement::set_video_track(GC::Ptr<HTML::VideoTrack> video_track)
 {
     set_needs_style_update(true);
-    document().set_needs_layout(DOM::SetNeedsLayoutReason::HTMLVideoElementSetVideoTrack);
+    set_needs_layout_update(DOM::SetNeedsLayoutReason::HTMLVideoElementSetVideoTrack);
 
     if (m_video_track)
         m_video_track->pause_video({});

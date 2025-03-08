@@ -91,6 +91,26 @@ enum class StyleInvalidationReason {
 #undef __ENUMERATE_STYLE_INVALIDATION_REASON
 };
 
+#define ENUMERATE_SET_NEEDS_LAYOUT_REASONS(X)         \
+    X(CharacterDataReplaceData)                       \
+    X(FinalizeACrossDocumentNavigation)               \
+    X(HTMLImageElementReactToChangesInTheEnvironment) \
+    X(HTMLImageElementUpdateTheImageData)             \
+    X(HTMLVideoElementSetVideoTrack)                  \
+    X(KeyframeEffect)                                 \
+    X(LayoutTreeUpdate)                               \
+    X(NavigableSetViewportSize)                       \
+    X(SVGImageElementFetchTheDocument)                \
+    X(StyleChange)
+
+enum class SetNeedsLayoutReason {
+#define ENUMERATE_SET_NEEDS_LAYOUT_REASON(e) e,
+    ENUMERATE_SET_NEEDS_LAYOUT_REASONS(ENUMERATE_SET_NEEDS_LAYOUT_REASON)
+#undef ENUMERATE_SET_NEEDS_LAYOUT_REASON
+};
+
+[[nodiscard]] StringView to_string(SetNeedsLayoutReason);
+
 class Node : public EventTarget
     , public TreeNode<Node> {
     WEB_PLATFORM_OBJECT(Node, EventTarget);
@@ -290,6 +310,10 @@ public:
     bool needs_style_update() const { return m_needs_style_update; }
     void set_needs_style_update(bool);
     void set_needs_style_update_internal(bool) { m_needs_style_update = true; }
+
+    bool needs_layout_update() const { return m_needs_layout_update; }
+    void set_needs_layout_update(SetNeedsLayoutReason);
+    void reset_needs_layout_update() { m_needs_layout_update = false; }
 
     bool child_needs_style_update() const { return m_child_needs_style_update; }
     void set_child_needs_style_update(bool b) { m_child_needs_style_update = b; }
@@ -527,6 +551,8 @@ protected:
     bool m_needs_style_update { false };
     bool m_child_needs_style_update { false };
     bool m_entire_subtree_needs_style_update { false };
+
+    bool m_needs_layout_update { false };
 
     UniqueNodeID m_unique_id;
 

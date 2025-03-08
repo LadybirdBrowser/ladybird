@@ -17,6 +17,13 @@ struct LineBoxFragmentCoordinate {
     size_t fragment_index { 0 };
 };
 
+struct IntrinsicSizes {
+    Optional<CSSPixels> min_content_width;
+    Optional<CSSPixels> max_content_width;
+    HashMap<CSSPixels, Optional<CSSPixels>> min_content_height;
+    HashMap<CSSPixels, Optional<CSSPixels>> max_content_height;
+};
+
 class Box : public NodeWithStyleAndBoxModelMetrics {
     GC_CELL(Box, NodeWithStyleAndBoxModelMetrics);
 
@@ -53,6 +60,14 @@ public:
 
     virtual void visit_edges(Cell::Visitor&) override;
 
+    IntrinsicSizes& cached_intrinsic_sizes() const
+    {
+        if (!m_cached_intrinsic_sizes)
+            m_cached_intrinsic_sizes = make<IntrinsicSizes>();
+        return *m_cached_intrinsic_sizes;
+    }
+    void reset_cached_intrinsic_sizes() const { m_cached_intrinsic_sizes.clear(); }
+
 protected:
     Box(DOM::Document&, DOM::Node*, GC::Ref<CSS::ComputedProperties>);
     Box(DOM::Document&, DOM::Node*, NonnullOwnPtr<CSS::ComputedValues>);
@@ -65,6 +80,8 @@ private:
     Optional<CSSPixelFraction> m_natural_aspect_ratio;
 
     Vector<GC::Ref<Node>> m_contained_abspos_children;
+
+    OwnPtr<IntrinsicSizes> mutable m_cached_intrinsic_sizes;
 };
 
 template<>
