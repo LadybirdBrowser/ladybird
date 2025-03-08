@@ -497,9 +497,9 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, Web::UniqueNodeID const
             }
 
             MUST(serializer.finish());
-
             return MUST(builder.to_string());
         };
+
         auto serialize_node_box_sizing_json = [](Web::Layout::Node const* layout_node) {
             if (!layout_node || !layout_node->is_box() || !layout_node->first_paintable() || !layout_node->first_paintable()->is_paintable_box()) {
                 return "{}"_string;
@@ -581,7 +581,7 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, Web::UniqueNodeID const
 
             auto custom_properties_json = serialize_custom_properties_json(element, pseudo_element);
             auto node_box_sizing_json = serialize_node_box_sizing_json(pseudo_element_node.ptr());
-            async_did_inspect_dom_node(page_id, true, move(computed_values), move(resolved_values), move(custom_properties_json), move(node_box_sizing_json), "{}"_string, move(fonts_json));
+            async_did_inspect_dom_node(page_id, true, computed_values, resolved_values, custom_properties_json, node_box_sizing_json, "{}"_string, fonts_json);
             return;
         }
 
@@ -592,7 +592,7 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, Web::UniqueNodeID const
         auto aria_properties_state_json = serialize_aria_properties_state_json(element);
         auto fonts_json = serialize_fonts_json(*element.computed_properties());
 
-        async_did_inspect_dom_node(page_id, true, move(computed_values), move(resolved_values), move(custom_properties_json), move(node_box_sizing_json), move(aria_properties_state_json), move(fonts_json));
+        async_did_inspect_dom_node(page_id, true, computed_values, resolved_values, custom_properties_json, node_box_sizing_json, aria_properties_state_json, move(fonts_json));
         return;
     }
 
@@ -840,7 +840,7 @@ void ConnectionFromClient::get_dom_node_html(u64 page_id, Web::UniqueNodeID cons
         return;
     }
 
-    async_did_get_dom_node_html(page_id, move(html));
+    async_did_get_dom_node_html(page_id, html);
 }
 
 void ConnectionFromClient::take_document_screenshot(u64 page_id)

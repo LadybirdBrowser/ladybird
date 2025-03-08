@@ -164,7 +164,7 @@ public:
     void did_request_color_picker(WeakPtr<HTML::HTMLInputElement> target, Color current_color);
     void color_picker_update(Optional<Color> picked_color, HTML::ColorPickerUpdateState state);
 
-    void did_request_file_picker(WeakPtr<HTML::HTMLInputElement> target, HTML::FileFilter accepted_file_types, HTML::AllowMultipleFiles);
+    void did_request_file_picker(WeakPtr<HTML::HTMLInputElement> target, HTML::FileFilter const& accepted_file_types, HTML::AllowMultipleFiles);
     void file_picker_closed(Span<HTML::SelectedFile> selected_files);
 
     void did_request_select_dropdown(WeakPtr<HTML::HTMLSelectElement> target, Web::CSSPixelPoint content_position, Web::CSSPixels minimum_width, Vector<Web::HTML::SelectItem> items);
@@ -188,7 +188,7 @@ public:
         bool has_user_agent_controls { false };
         bool is_looping { false };
     };
-    void did_request_media_context_menu(UniqueNodeID media_id, CSSPixelPoint, ByteString const& target, unsigned modifiers, MediaContextMenu);
+    void did_request_media_context_menu(UniqueNodeID media_id, CSSPixelPoint, ByteString const& target, unsigned modifiers, MediaContextMenu const&);
     WebIDL::ExceptionOr<void> toggle_media_play_state();
     void toggle_media_mute_state();
     WebIDL::ExceptionOr<void> toggle_media_loop_state();
@@ -349,7 +349,7 @@ public:
     virtual void page_did_request_context_menu(CSSPixelPoint) { }
     virtual void page_did_request_link_context_menu(CSSPixelPoint, URL::URL const&, [[maybe_unused]] ByteString const& target, [[maybe_unused]] unsigned modifiers) { }
     virtual void page_did_request_image_context_menu(CSSPixelPoint, URL::URL const&, [[maybe_unused]] ByteString const& target, [[maybe_unused]] unsigned modifiers, Optional<Gfx::Bitmap const*>) { }
-    virtual void page_did_request_media_context_menu(CSSPixelPoint, [[maybe_unused]] ByteString const& target, [[maybe_unused]] unsigned modifiers, Page::MediaContextMenu) { }
+    virtual void page_did_request_media_context_menu(CSSPixelPoint, [[maybe_unused]] ByteString const& target, [[maybe_unused]] unsigned modifiers, Page::MediaContextMenu const&) { }
     virtual void page_did_click_link(URL::URL const&, [[maybe_unused]] ByteString const& target, [[maybe_unused]] unsigned modifiers) { }
     virtual void page_did_middle_click_link(URL::URL const&, [[maybe_unused]] ByteString const& target, [[maybe_unused]] unsigned modifiers) { }
     virtual void page_did_request_tooltip_override(CSSPixelPoint, ByteString const&) { }
@@ -370,7 +370,7 @@ public:
     virtual Optional<Web::Cookie::Cookie> page_did_request_named_cookie(URL::URL const&, String const&) { return {}; }
     virtual String page_did_request_cookie(URL::URL const&, Cookie::Source) { return {}; }
     virtual void page_did_set_cookie(URL::URL const&, Cookie::ParsedCookie const&, Cookie::Source) { }
-    virtual void page_did_update_cookie(Web::Cookie::Cookie) { }
+    virtual void page_did_update_cookie(Web::Cookie::Cookie const&) { }
     virtual void page_did_expire_cookies_with_time_offset(AK::Duration) { }
     virtual void page_did_update_resource_count(i32) { }
     struct NewWebViewResult {
@@ -387,7 +387,7 @@ public:
 
     // https://html.spec.whatwg.org/multipage/input.html#show-the-picker,-if-applicable
     virtual void page_did_request_color_picker([[maybe_unused]] Color current_color) { }
-    virtual void page_did_request_file_picker([[maybe_unused]] HTML::FileFilter accepted_file_types, Web::HTML::AllowMultipleFiles) { }
+    virtual void page_did_request_file_picker([[maybe_unused]] HTML::FileFilter const& accepted_file_types, Web::HTML::AllowMultipleFiles) { }
     virtual void page_did_request_select_dropdown([[maybe_unused]] Web::CSSPixelPoint content_position, [[maybe_unused]] Web::CSSPixels minimum_width, [[maybe_unused]] Vector<Web::HTML::SelectItem> items) { }
 
     virtual void page_did_finish_text_test([[maybe_unused]] String const& text) { }
@@ -397,7 +397,7 @@ public:
 
     virtual void page_did_change_theme_color(Gfx::Color) { }
 
-    virtual void page_did_insert_clipboard_entry([[maybe_unused]] String data, [[maybe_unused]] String presentation_style, [[maybe_unused]] String mime_type) { }
+    virtual void page_did_insert_clipboard_entry([[maybe_unused]] StringView data, [[maybe_unused]] StringView presentation_style, [[maybe_unused]] StringView mime_type) { }
 
     virtual void page_did_change_audio_play_state(HTML::AudioPlayState) { }
 

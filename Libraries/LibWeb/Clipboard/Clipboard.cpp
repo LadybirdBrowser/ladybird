@@ -40,13 +40,13 @@ void Clipboard::initialize(JS::Realm& realm)
 }
 
 // https://w3c.github.io/clipboard-apis/#os-specific-well-known-format
-static String os_specific_well_known_format(StringView mime_type_string)
+static StringView os_specific_well_known_format(StringView mime_type_string)
 {
     // NOTE: Here we always takes the Linux case, and defer to the chrome layer to handle OS specific implementations.
     auto mime_type = MimeSniff::MimeType::parse(mime_type_string);
 
     // 1. Let wellKnownFormat be an empty string.
-    String well_known_format {};
+    StringView well_known_format {};
 
     // 2. If mimeType’s essence is "text/plain", then
     if (mime_type->essence() == "text/plain"sv) {
@@ -56,7 +56,7 @@ static String os_specific_well_known_format(StringView mime_type_string)
         //     Assign NSPasteboardTypeString to wellKnownFormat.
         // On Linux, ChromeOS, and Android, follow the convention described below:
         //     Assign "text/plain" to wellKnownFormat.
-        well_known_format = "text/plain"_string;
+        well_known_format = "text/plain"sv;
     }
     // 3. Else, if mimeType’s essence is "text/html", then
     if (mime_type->essence() == "text/html"sv) {
@@ -66,7 +66,7 @@ static String os_specific_well_known_format(StringView mime_type_string)
         //     Assign NSHTMLPboardType to wellKnownFormat.
         // On Linux, ChromeOS, and Android, follow the convention described below:
         //     Assign "text/html" to wellKnownFormat.
-        well_known_format = "text/html"_string;
+        well_known_format = "text/html"sv;
     }
     // 4. Else, if mimeType’s essence is "image/png", then
     if (mime_type->essence() == "image/png"sv) {
@@ -76,7 +76,7 @@ static String os_specific_well_known_format(StringView mime_type_string)
         //     Assign NSPasteboardTypePNG to wellKnownFormat.
         // On Linux, ChromeOS, and Android, follow the convention described below:
         //     Assign "image/png" to wellKnownFormat.
-        well_known_format = "image/png"_string;
+        well_known_format = "image/png"sv;
     }
 
     // 5. Return wellKnownFormat.
@@ -84,7 +84,7 @@ static String os_specific_well_known_format(StringView mime_type_string)
 }
 
 // https://w3c.github.io/clipboard-apis/#write-blobs-and-option-to-the-clipboard
-static void write_blobs_and_option_to_clipboard(JS::Realm& realm, ReadonlySpan<GC::Ref<FileAPI::Blob>> items, String presentation_style)
+static void write_blobs_and_option_to_clipboard(JS::Realm& realm, ReadonlySpan<GC::Ref<FileAPI::Blob>> items, StringView presentation_style)
 {
     auto& window = as<HTML::Window>(realm.global_object());
 
@@ -113,7 +113,7 @@ static void write_blobs_and_option_to_clipboard(JS::Realm& realm, ReadonlySpan<G
         auto payload = MUST(TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, item->raw_bytes()));
 
         // 4. Insert payload and presentationStyle into the system clipboard using formatString as the native clipboard format.
-        window.page().client().page_did_insert_clipboard_entry(move(payload), move(presentation_style), move(format_string));
+        window.page().client().page_did_insert_clipboard_entry(payload, presentation_style, format_string);
     }
 
     // FIXME: 3. Write web custom formats given webCustomFormats.
@@ -181,10 +181,10 @@ GC::Ref<WebIDL::Promise> Clipboard::write_text(String data)
             item_list.append(text_blob);
 
             // 4. Let option be set to "unspecified".
-            auto option = "unspecified"_string;
+            static constexpr auto option = "unspecified"sv;
 
             // 5. Write blobs and option to the clipboard with itemList and option.
-            write_blobs_and_option_to_clipboard(realm, item_list, move(option));
+            write_blobs_and_option_to_clipboard(realm, item_list, option);
 
             // 6. Resolve p.
             HTML::TemporaryExecutionContext execution_context { realm };
