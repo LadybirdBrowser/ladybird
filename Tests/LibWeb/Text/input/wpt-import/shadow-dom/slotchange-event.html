@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Shadow DOM: slotchange event</title>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<meta name="author" title="Hayato Ito" href="mailto:hayato@google.com">
+<link rel="help" href="https://dom.spec.whatwg.org/#signaling-slot-change">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+</head>
+<body>
+<div id="log"></div>
+<script>
+function treeName(mode, connectedToDocument)
+{
+    return (mode == 'open' ? 'an ' : 'a ') + mode + ' shadow root '
+        + (connectedToDocument ? '' : ' not') + ' in a document';
+}
+
+function testAppendingSpanToShadowRootWithDefaultSlot(mode, connectedToDocument)
+{
+    var test = async_test('slotchange event must fire on a default slot element inside '
+        + treeName(mode, connectedToDocument));
+
+    var host;
+    var slot;
+    var eventCount = 0;
+
+    test.step(function () {
+        host = document.createElement('div');
+        if (connectedToDocument)
+            document.body.appendChild(host);
+
+        var shadowRoot = host.attachShadow({'mode': mode});
+        slot = document.createElement('slot');
+
+        slot.addEventListener('slotchange', function (event) {
+            if (event.isFakeEvent)
+                return;
+
+            test.step(function () {
+                assert_equals(event.type, 'slotchange', 'slotchange event\'s type must be "slotchange"');
+                assert_equals(event.target, slot, 'slotchange event\'s target must be the slot element');
+                assert_equals(event.relatedTarget, undefined, 'slotchange must not set relatedTarget');
+            });
+            eventCount++;
+        });
+
+        shadowRoot.appendChild(slot);
+
+        host.appendChild(document.createElement('span'));
+        host.appendChild(document.createElement('b'));
+
+        assert_equals(eventCount, 0, 'slotchange event must not be fired synchronously');
+    });
+
+    setTimeout(function () {
+        test.step(function () {
+            assert_equals(eventCount, 1, 'slotchange must be fired exactly once after the assigned nodes changed');
+
+            host.appendChild(document.createElement('i'));
+        });
+
+        setTimeout(function () {
+            test.step(function () {
+                assert_equals(eventCount, 2, 'slotchange must be fired exactly once after the assigned nodes changed');
+
+                host.appendChild(document.createTextNode('hello'));
+
+                var fakeEvent = new Event('slotchange');
+                fakeEvent.isFakeEvent = true;
+                slot.dispatchEvent(fakeEvent);
+            });
+
+            setTimeout(function () {
+                test.step(function () {
+                    assert_equals(eventCount, 3, 'slotchange must be fired exactly once after the assigned nodes changed'
+                        + ' event if there was a synthetic slotchange event fired');
+                });
+                test.done();
+            }, 1);
+        }, 1);
+    }, 1);
+}
+
+testAppendingSpanToShadowRootWithDefaultSlot('open', true);
+testAppendingSpanToShadowRootWithDefaultSlot('closed', true);
+testAppendingSpanToShadowRootWithDefaultSlot('open', false);
+testAppendingSpanToShadowRootWithDefaultSlot('closed', false);
+
+function testAppendingSpanToShadowRootWithNamedSlot(mode, connectedToDocument)
+{
+    var test = async_test('slotchange event must fire on a named slot element inside'
+        + treeName(mode, connectedToDocument));
+
+    var host;
+    var slot;
+    var eventCount = 0;
+
+    test.step(function () {
+        host = document.createElement('div');
+        if (connectedToDocument)
+            document.body.appendChild(host);
+
+        var shadowRoot = host.attachShadow({'mode': mode});
+        slot = document.createElement('slot');
+        slot.name = 'someSlot';
+
+        slot.addEventListener('slotchange', function (event) {
+            if (event.isFakeEvent)
+                return;
+
+            test.step(function () {
+                assert_equals(event.type, 'slotchange', 'slotchange event\'s type must be "slotchange"');
+                assert_equals(event.target, slot, 'slotchange event\'s target must be the slot element');
+                assert_equals(event.relatedTarget, undefined, 'slotchange must not set relatedTarget');
+            });
+            eventCount++;
+        });
+
+        shadowRoot.appendChild(slot);
+
+        var span = document.createElement('span');
+        span.slot = 'someSlot';
+        host.appendChild(span);
+
+        var b = document.createElement('b');
+        b.slot = 'someSlot';
+        host.appendChild(b);
+
+        assert_equals(eventCount, 0, 'slotchange event must not be fired synchronously');
+    });
+
+    setTimeout(function () {
+        test.step(function () {
+            assert_equals(eventCount, 1, 'slotchange must be fired exactly once after the assigned nodes changed');
+
+            var i = document.createElement('i');
+            i.slot = 'someSlot';
+            host.appendChild(i);
+        });
+
+        setTimeout(function () {
+            test.step(function () {
+                assert_equals(eventCount, 2, 'slotchange must be fired exactly once after the assigned nodes changed');
+
+                var em = document.createElement('em');
+                em.slot = 'someSlot';
+                host.appendChild(em);
+
+                var fakeEvent = new Event('slotchange');
+                fakeEvent.isFakeEvent = true;
+                slot.dispatchEvent(fakeEvent);
+            });
+
+            setTimeout(function () {
+                test.step(function () {
+                    assert_equals(eventCount, 3, 'slotchange must be fired exactly once after the assigned nodes changed'
+                        + ' event if there was a synthetic slotchange event fired');
+                });
+                test.done();
+            }, 1);
+
+        }, 1);
+    }, 1);
+}
+
+testAppendingSpanToShadowRootWithNamedSlot('open', true);
+testAppendingSpanToShadowRootWithNamedSlot('closed', true);
+testAppendingSpanToShadowRootWithNamedSlot('open', false);
+testAppendingSpanToShadowRootWithNamedSlot('closed', false);
+
+function testSlotchangeDoesNotFireWhenOtherSlotsChange(mode, connectedToDocument)
+{
+    var test = async_test('slotchange event must not fire on a slot element inside '
+        + treeName(mode, connectedToDocument)
+        + ' when another slot\'s assigned nodes change');
+
+    var host;
+    var defaultSlotEventCount = 0;
+    var namedSlotEventCount = 0;
+
+    test.step(function () {
+        host = document.createElement('div');
+        if (connectedToDocument)
+            document.body.appendChild(host);
+
+        var shadowRoot = host.attachShadow({'mode': mode});
+        var defaultSlot = document.createElement('slot');
+        defaultSlot.addEventListener('slotchange', function (event) {
+            test.step(function () {
+                assert_equals(event.target, defaultSlot, 'slotchange event\'s target must be the slot element');
+            });
+            defaultSlotEventCount++;
+        });
+
+        var namedSlot = document.createElement('slot');
+        namedSlot.name = 'slotName';
+        namedSlot.addEventListener('slotchange', function (event) {
+            test.step(function () {
+                assert_equals(event.target, namedSlot, 'slotchange event\'s target must be the slot element');
+            });
+            namedSlotEventCount++;
+        });
+
+        shadowRoot.appendChild(defaultSlot);
+        shadowRoot.appendChild(namedSlot);
+
+        host.appendChild(document.createElement('span'));
+
+        assert_equals(defaultSlotEventCount, 0, 'slotchange event must not be fired synchronously');
+        assert_equals(namedSlotEventCount, 0, 'slotchange event must not be fired synchronously');
+    });
+
+    setTimeout(function () {
+        test.step(function () {
+            assert_equals(defaultSlotEventCount, 1,
+                'slotchange must be fired exactly once after the assigned nodes change on a default slot');
+            assert_equals(namedSlotEventCount, 0,
+                'slotchange must not be fired on a named slot after the assigned nodes change on a default slot');
+
+            var span = document.createElement('span');
+            span.slot = 'slotName';
+            host.appendChild(span);
+        });
+
+        setTimeout(function () {
+            test.step(function () {
+                assert_equals(defaultSlotEventCount, 1,
+                    'slotchange must not be fired on a default slot after the assigned nodes change on a named slot');
+                assert_equals(namedSlotEventCount, 1,
+                    'slotchange must be fired exactly once after the assigned nodes change on a default slot');
+            });
+            test.done();
+        }, 1);
+    }, 1);
+}
+
+testSlotchangeDoesNotFireWhenOtherSlotsChange('open', true);
+testSlotchangeDoesNotFireWhenOtherSlotsChange('closed', true);
+testSlotchangeDoesNotFireWhenOtherSlotsChange('open', false);
+testSlotchangeDoesNotFireWhenOtherSlotsChange('closed', false);
+
+function testSlotchangeDoesFireAtInsertedAndDoesNotFireForMutationAfterRemoved(mode, connectedToDocument)
+{
+    var test = async_test('slotchange event must fire on a slot element when a shadow host has a slottable and the slot was inserted'
+                        + ' and must not fire when the shadow host was mutated after the slot was removed inside '
+                        + treeName(mode, connectedToDocument));
+
+    var host;
+    var slot;
+    var eventCount = 0;
+
+    test.step(function () {
+        host = document.createElement('div');
+        if (connectedToDocument)
+            document.body.appendChild(host);
+
+        var shadowRoot = host.attachShadow({'mode': mode});
+        slot = document.createElement('slot');
+        slot.addEventListener('slotchange', function (event) {
+            test.step(function () {
+                assert_equals(event.target, slot, 'slotchange event\'s target must be the slot element');
+            });
+            eventCount++;
+        });
+
+        host.appendChild(document.createElement('span'));
+        shadowRoot.appendChild(slot);
+
+        assert_equals(eventCount, 0, 'slotchange event must not be fired synchronously');
+    });
+
+    setTimeout(function () {
+        test.step(function () {
+            assert_equals(eventCount, 1,
+                          'slotchange must be fired on a slot element if there is assigned nodes when the slot was inserted');
+            host.removeChild(host.firstChild);
+        });
+
+        setTimeout(function () {
+            test.step(function () {
+                assert_equals(eventCount, 2,
+                              'slotchange must be fired after the assigned nodes change on a slot while the slot element was in the tree');
+                slot.parentNode.removeChild(slot);
+                host.appendChild(document.createElement('span'));
+            });
+
+            setTimeout(function () {
+                assert_equals(eventCount, 2,
+                              'slotchange must not be fired on a slot element if the assigned nodes changed after the slot was removed');
+                test.done();
+            }, 1);
+        }, 1);
+    }, 1);
+}
+
+testSlotchangeDoesFireAtInsertedAndDoesNotFireForMutationAfterRemoved('open', true);
+testSlotchangeDoesFireAtInsertedAndDoesNotFireForMutationAfterRemoved('closed', true);
+testSlotchangeDoesFireAtInsertedAndDoesNotFireForMutationAfterRemoved('open', false);
+testSlotchangeDoesFireAtInsertedAndDoesNotFireForMutationAfterRemoved('closed', false);
+
+function testSlotchangeFiresOnTransientlyPresentSlot(mode, connectedToDocument)
+{
+    var test = async_test('slotchange event must fire on a slot element inside '
+        + treeName(mode, connectedToDocument)
+        + ' even if the slot was removed immediately after the assigned nodes were mutated');
+
+    var host;
+    var slot;
+    var anotherSlot;
+    var slotEventCount = 0;
+    var anotherSlotEventCount = 0;
+
+    test.step(function () {
+        host = document.createElement('div');
+        if (connectedToDocument)
+            document.body.appendChild(host);
+
+        var shadowRoot = host.attachShadow({'mode': mode});
+        slot = document.createElement('slot');
+        slot.name = 'someSlot';
+        slot.addEventListener('slotchange', function (event) {
+            test.step(function () {
+                assert_equals(event.target, slot, 'slotchange event\'s target must be the slot element');
+            });
+            slotEventCount++;
+        });
+
+        anotherSlot = document.createElement('slot');
+        anotherSlot.name = 'someSlot';
+        anotherSlot.addEventListener('slotchange', function (event) {
+            test.step(function () {
+                assert_equals(event.target, anotherSlot, 'slotchange event\'s target must be the slot element');
+            });
+            anotherSlotEventCount++;
+        });
+
+        shadowRoot.appendChild(slot);
+
+        var span = document.createElement('span');
+        span.slot = 'someSlot';
+        host.appendChild(span);
+
+        shadowRoot.removeChild(slot);
+        shadowRoot.appendChild(anotherSlot);
+
+        var span = document.createElement('span');
+        span.slot = 'someSlot';
+        host.appendChild(span);
+
+        shadowRoot.removeChild(anotherSlot);
+
+        assert_equals(slotEventCount, 0, 'slotchange event must not be fired synchronously');
+        assert_equals(anotherSlotEventCount, 0, 'slotchange event must not be fired synchronously');
+    });
+
+    setTimeout(function () {
+        test.step(function () {
+            assert_equals(slotEventCount, 1,
+                'slotchange must be fired on a slot element if the assigned nodes changed while the slot was present');
+            assert_equals(anotherSlotEventCount, 1,
+                'slotchange must be fired on a slot element if the assigned nodes changed while the slot was present');
+        });
+        test.done();
+    }, 1);
+}
+
+testSlotchangeFiresOnTransientlyPresentSlot('open', true);
+testSlotchangeFiresOnTransientlyPresentSlot('closed', true);
+testSlotchangeFiresOnTransientlyPresentSlot('open', false);
+testSlotchangeFiresOnTransientlyPresentSlot('closed', false);
+
+function testSlotchangeFiresOnInnerHTML(mode, connectedToDocument)
+{
+    var test = async_test('slotchange event must fire on a slot element inside '
+        + treeName(mode, connectedToDocument)
+        + ' when innerHTML modifies the children of the shadow host');
+
+    var host;
+    var defaultSlot;
+    var namedSlot;
+    var defaultSlotEventCount = 0;
+    var namedSlotEventCount = 0;
+
+    test.step(function () {
+        host = document.createElement('div');
+        if (connectedToDocument)
+            document.body.appendChild(host);
+
+        var shadowRoot = host.attachShadow({'mode': mode});
+        defaultSlot = document.createElement('slot');
+        defaultSlot.addEventListener('slotchange', function (event) {
+            test.step(function () {
+                assert_equals(event.target, defaultSlot, 'slotchange event\'s target must be the slot element');
+            });
+            defaultSlotEventCount++;
+        });
+
+        namedSlot = document.createElement('slot');
+        namedSlot.name = 'someSlot';
+        namedSlot.addEventListener('slotchange', function (event) {
+            test.step(function () {
+                assert_equals(event.target, namedSlot, 'slotchange event\'s target must be the slot element');
+            });
+            namedSlotEventCount++;
+        });
+        shadowRoot.appendChild(namedSlot);
+        shadowRoot.appendChild(defaultSlot);
+        host.innerHTML = 'foo <b>bar</b>';
+
+        assert_equals(defaultSlotEventCount, 0, 'slotchange event must not be fired synchronously');
+        assert_equals(namedSlotEventCount, 0, 'slotchange event must not be fired synchronously');
+    });
+
+    setTimeout(function () {
+        test.step(function () {
+            assert_equals(defaultSlotEventCount, 1,
+                'slotchange must be fired on a slot element if the assigned nodes are changed by innerHTML');
+            assert_equals(namedSlotEventCount, 0,
+                'slotchange must not be fired on a slot element if the assigned nodes are not changed by innerHTML');
+            host.innerHTML = 'baz';
+        });
+        setTimeout(function () {
+            test.step(function () {
+                assert_equals(defaultSlotEventCount, 2,
+                    'slotchange must be fired on a slot element if the assigned nodes are changed by innerHTML');
+                assert_equals(namedSlotEventCount, 0,
+                    'slotchange must not be fired on a slot element if the assigned nodes are not changed by innerHTML');
+                host.innerHTML = '';
+            });
+            setTimeout(function () {
+                test.step(function () {
+                    assert_equals(defaultSlotEventCount, 3,
+                        'slotchange must be fired on a slot element if the assigned nodes are changed by innerHTML');
+                    assert_equals(namedSlotEventCount, 0,
+                        'slotchange must not be fired on a slot element if the assigned nodes are not changed by innerHTML');
+                    host.innerHTML = '<b slot="someSlot">content</b>';
+                });
+                setTimeout(function () {
+                    test.step(function () {
+                        assert_equals(defaultSlotEventCount, 3,
+                            'slotchange must not be fired on a slot element if the assigned nodes are not changed by innerHTML');
+                        assert_equals(namedSlotEventCount, 1,
+                            'slotchange must not be fired on a slot element if the assigned nodes are changed by innerHTML');
+                        host.innerHTML = '';
+                    });
+                    setTimeout(function () {
+                        test.step(function () {
+                            // FIXME: This test would fail in the current implementation because we can't tell
+                            // whether a text node was removed in AllChildrenRemoved or not.
+//                            assert_equals(defaultSlotEventCount, 3,
+//                                'slotchange must not be fired on a slot element if the assigned nodes are not changed by innerHTML');
+                            assert_equals(namedSlotEventCount, 2,
+                                'slotchange must not be fired on a slot element if the assigned nodes are changed by innerHTML');
+                        });
+                        test.done();
+                    }, 1);
+                }, 1);
+            }, 1);
+        }, 1);
+    }, 1);
+}
+
+testSlotchangeFiresOnInnerHTML('open', true);
+testSlotchangeFiresOnInnerHTML('closed', true);
+testSlotchangeFiresOnInnerHTML('open', false);
+testSlotchangeFiresOnInnerHTML('closed', false);
+
+function testSlotchangeFiresWhenNestedSlotChange(mode, connectedToDocument)
+{
+    var test = async_test('slotchange event must fire on a slot element inside '
+        + treeName(mode, connectedToDocument)
+        + ' when nested slots\'s contents change');
+
+    var outerHost;
+    var innerHost;
+    var outerSlot;
+    var innerSlot;
+    var outerSlotEventCount = 0;
+    var innerSlotEventCount = 0;
+
+    test.step(function () {
+        outerHost = document.createElement('div');
+        if (connectedToDocument)
+            document.body.appendChild(outerHost);
+
+        var outerShadow = outerHost.attachShadow({'mode': mode});
+        outerShadow.appendChild(document.createElement('span'));
+        outerSlot = document.createElement('slot');
+        outerSlot.addEventListener('slotchange', function (event) {
+            test.step(function () {
+                assert_equals(event.target, outerSlot, 'slotchange event\'s target must be the slot element');
+            });
+            outerSlotEventCount++;
+        });
+
+        innerHost = document.createElement('div');
+        innerHost.appendChild(outerSlot);
+        outerShadow.appendChild(innerHost);
+
+        var innerShadow = innerHost.attachShadow({'mode': mode});
+        innerShadow.appendChild(document.createElement('span'));
+        innerSlot = document.createElement('slot');
+        innerSlot.addEventListener('slotchange', function (event) {
+            event.stopPropagation();
+            test.step(function () {
+                if (innerSlotEventCount === 0) {
+                    assert_equals(event.target, innerSlot, 'slotchange event\'s target must be the inner slot element at 1st slotchange');
+                } else if (innerSlotEventCount === 1) {
+                    assert_equals(event.target, outerSlot, 'slotchange event\'s target must be the outer slot element at 2nd sltochange');
+                }
+            });
+            innerSlotEventCount++;
+        });
+        innerShadow.appendChild(innerSlot);
+
+        outerHost.appendChild(document.createElement('span'));
+
+        assert_equals(innerSlotEventCount, 0, 'slotchange event must not be fired synchronously');
+        assert_equals(outerSlotEventCount, 0, 'slotchange event must not be fired synchronously');
+    });
+
+    setTimeout(function () {
+        test.step(function () {
+            assert_equals(outerSlotEventCount, 1,
+                'slotchange must be fired on a slot element if the assigned nodes changed');
+            assert_equals(innerSlotEventCount, 2,
+                'slotchange must be fired on a slot element and must bubble');
+        });
+        test.done();
+    }, 1);
+}
+
+testSlotchangeFiresWhenNestedSlotChange('open', true);
+testSlotchangeFiresWhenNestedSlotChange('closed', true);
+testSlotchangeFiresWhenNestedSlotChange('open', false);
+testSlotchangeFiresWhenNestedSlotChange('closed', false);
+
+function testSlotchangeFiresAtEndOfMicroTask(mode, connectedToDocument)
+{
+    var test = async_test('slotchange event must fire at the end of current microtask after mutation observers are invoked inside '
+        + treeName(mode, connectedToDocument) + ' when slots\'s contents change');
+
+    var host;
+    var slot;
+    var eventCount = 0;
+
+    test.step(function () {
+        host = document.createElement('div');
+        if (connectedToDocument)
+            document.body.appendChild(host);
+
+        var shadowRoot = host.attachShadow({'mode': mode});
+        slot = document.createElement('slot');
+
+        slot.addEventListener('slotchange', function (event) {
+            test.step(function () {
+                assert_equals(event.type, 'slotchange', 'slotchange event\'s type must be "slotchange"');
+                assert_equals(event.target, slot, 'slotchange event\'s target must be the slot element');
+            });
+            eventCount++;
+        });
+
+        shadowRoot.appendChild(slot);
+    });
+
+    var element = document.createElement('div');
+
+    new MutationObserver(function () {
+        test.step(function () {
+            assert_equals(eventCount, 0, 'slotchange event must not be fired before mutation records are delivered');
+        });
+        host.appendChild(document.createElement('span'));
+        element.setAttribute('title', 'bar');
+    }).observe(element, {attributes: true, attributeFilter: ['id']});
+
+    new MutationObserver(function () {
+        test.step(function () {
+            assert_equals(eventCount, 1, 'slotchange event must be fired during a single compound microtask');
+        });
+    }).observe(element, {attributes: true, attributeFilter: ['title']});
+
+    element.setAttribute('id', 'foo');
+    host.appendChild(document.createElement('div'));
+
+    setTimeout(function () {
+        test.step(function () {
+            assert_equals(eventCount, 2,
+                'a distinct slotchange event must be enqueued for changes made during a mutation observer delivery');
+        });
+        test.done();
+    }, 0);
+}
+
+testSlotchangeFiresAtEndOfMicroTask('open', true);
+testSlotchangeFiresAtEndOfMicroTask('closed', true);
+testSlotchangeFiresAtEndOfMicroTask('open', false);
+testSlotchangeFiresAtEndOfMicroTask('closed', false);
+</script>
+</body>
+</html>
