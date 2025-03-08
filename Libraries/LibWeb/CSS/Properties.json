@@ -2750,6 +2750,7 @@
     ]
   },
   "text-transform": {
+    "__comment": "NOTE: This property has custom invalidation handling.",
     "animation-type": "discrete",
     "inherited": true,
     "initial": "none",

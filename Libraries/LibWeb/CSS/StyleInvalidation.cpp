@@ -24,6 +24,15 @@ RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::Property
         return RequiredInvalidationAfterStyleChange::full();
     }
 
+    // NOTE: If the text-transform property changes, it may affect layout. Furthermore, since the
+    //       Layout::TextNode caches the post-transform text, we have to update the layout tree.
+    if (property_id == CSS::PropertyID::TextTransform) {
+        invalidation.rebuild_layout_tree = true;
+        invalidation.relayout = true;
+        invalidation.repaint = true;
+        return invalidation;
+    }
+
     // NOTE: If one of the overflow properties change, we rebuild the entire layout tree.
     //       This ensures that overflow propagation from root/body to viewport happens correctly.
     //       In the future, we can make this invalidation narrower.
