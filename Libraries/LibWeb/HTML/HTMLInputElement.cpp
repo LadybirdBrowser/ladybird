@@ -2475,8 +2475,23 @@ double HTMLInputElement::default_step() const
     if (type_state() == TypeAttributeState::Time)
         return 60;
 
-    dbgln("HTMLInputElement::default_step() not implemented for input type {}", type());
-    return 0;
+    // https://html.spec.whatwg.org/multipage/input.html#date-state-(type=date):concept-input-step-default
+    if (type_state() == TypeAttributeState::Date)
+        return 1;
+
+    // https://html.spec.whatwg.org/multipage/input.html#month-state-(type=month):concept-input-step-default
+    if (type_state() == TypeAttributeState::Month)
+        return 1;
+
+    // https://html.spec.whatwg.org/multipage/input.html#week-state-(type=week):concept-input-step-default
+    if (type_state() == TypeAttributeState::Week)
+        return 1;
+
+    // https://html.spec.whatwg.org/multipage/input.html#local-date-and-time-state-(type=datetime-local):concept-input-step-default
+    if (type_state() == TypeAttributeState::LocalDateAndTime)
+        return 60;
+
+    VERIFY_NOT_REACHED();
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#concept-input-step-scale
@@ -2494,8 +2509,23 @@ double HTMLInputElement::step_scale_factor() const
     if (type_state() == TypeAttributeState::Time)
         return 1000;
 
-    dbgln("HTMLInputElement::step_scale_factor() not implemented for input type {}", type());
-    return 0;
+    // https://html.spec.whatwg.org/multipage/input.html#date-state-(type=date):concept-input-step-scale
+    if (type_state() == TypeAttributeState::Date)
+        return 86400000;
+
+    // https://html.spec.whatwg.org/multipage/input.html#month-state-(type=month):concept-input-step-scale
+    if (type_state() == TypeAttributeState::Month)
+        return 1;
+
+    // https://html.spec.whatwg.org/multipage/input.html#week-state-(type=week):concept-input-step-scale
+    if (type_state() == TypeAttributeState::Week)
+        return 604800000;
+
+    // https://html.spec.whatwg.org/multipage/input.html#local-date-and-time-state-(type=datetime-local):concept-input-step-scale
+    if (type_state() == TypeAttributeState::LocalDateAndTime)
+        return 1000;
+
+    VERIFY_NOT_REACHED();
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#concept-input-step

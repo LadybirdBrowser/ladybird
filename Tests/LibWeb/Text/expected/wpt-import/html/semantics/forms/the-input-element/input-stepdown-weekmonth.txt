@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Calling stepDown() on input - month - where value < min should not modify value.
+Pass	Calling stepDown() on input - week - where value < min should not modify value.

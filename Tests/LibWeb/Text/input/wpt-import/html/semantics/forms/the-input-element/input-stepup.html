@@ -1,0 +1,44 @@
+<!DOCTYPE HTML>
+<html>
+<title>Forms</title>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<h3>input_stepUp</h3>
+<input type='number' id='input_number'> <br/>
+<input type="number" id="number_input" max="100" step="1" value="200">
+<input type="date" id="date_input"  max="2009-02-10" step="1" value="2010-02-10">
+<input type="datetime-local" id="dtl_input" max="2009-02-10T20:13" step="1" value="2010-02-10T20:13">
+<input type="time" id="time_input" max="19:13" step="60" value="20:13">
+
+<script>
+
+    var input_number = document.getElementById("input_number");
+    input_number.max = "30";
+    input_number.step = "3";
+    input_number.value = "0";
+    input_number.stepUp(5);
+
+    if (typeof(input_number.stepUp) == "function") {
+      test(function() {
+        assert_equals(input_number.value, "15", "call of stepUp method is failed.");
+      });
+    } else {
+      test(function() {
+        assert_unreached("stepUp attribute is not exist.");
+      });
+    }
+
+    function testStepUpOverflow(id, value, type) {
+      test(function() {
+        var input = document.getElementById(id);
+        input.stepUp();
+        assert_equals(input.value, value, "value shouldn't change.");
+      }, "Calling stepUp() on input -" + type + "- where value > max should not modify value.");
+    }
+
+    testStepUpOverflow("number_input", "200", "number");
+    testStepUpOverflow("date_input", "2010-02-10", "date");
+    testStepUpOverflow("dtl_input", "2010-02-10T20:13", "datetime-local");
+    testStepUpOverflow("time_input", "20:13", "time");
+</script>
+</html>
