@@ -1,0 +1,18 @@
+<style>
+    #theDiv {
+        width: max-content;
+    }
+</style>
+<script src="../include.js"></script>
+<div id="theDiv">heLLo FrIends</div>
+<script>
+    test(() => {
+        println(theDiv.offsetWidth);
+        theDiv.style.textTransform = 'uppercase';
+        println(theDiv.offsetWidth);
+        theDiv.style.textTransform = 'lowercase';
+        println(theDiv.offsetWidth);
+        theDiv.style.textTransform = 'capitalize';
+        println(theDiv.offsetWidth);
+    });
+</script>
