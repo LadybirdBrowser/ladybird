@@ -458,31 +458,31 @@ static void edit_dom_node(DevTools::TabDescription const& description, Applicati
     edit(*view);
 }
 
-void Application::set_dom_node_text(DevTools::TabDescription const& description, Web::UniqueNodeID node_id, String value, OnDOMNodeEditComplete on_complete) const
+void Application::set_dom_node_text(DevTools::TabDescription const& description, Web::UniqueNodeID node_id, String const& value, OnDOMNodeEditComplete on_complete) const
 {
     edit_dom_node(description, move(on_complete), [&](auto& view) {
-        view.set_dom_node_text(node_id, move(value));
+        view.set_dom_node_text(node_id, value);
     });
 }
 
-void Application::set_dom_node_tag(DevTools::TabDescription const& description, Web::UniqueNodeID node_id, String value, OnDOMNodeEditComplete on_complete) const
+void Application::set_dom_node_tag(DevTools::TabDescription const& description, Web::UniqueNodeID node_id, String const& value, OnDOMNodeEditComplete on_complete) const
 {
     edit_dom_node(description, move(on_complete), [&](auto& view) {
-        view.set_dom_node_tag(node_id, move(value));
+        view.set_dom_node_tag(node_id, value);
     });
 }
 
-void Application::add_dom_node_attributes(DevTools::TabDescription const& description, Web::UniqueNodeID node_id, Vector<Attribute> replacement_attributes, OnDOMNodeEditComplete on_complete) const
+void Application::add_dom_node_attributes(DevTools::TabDescription const& description, Web::UniqueNodeID node_id, ReadonlySpan<Attribute> replacement_attributes, OnDOMNodeEditComplete on_complete) const
 {
     edit_dom_node(description, move(on_complete), [&](auto& view) {
-        view.add_dom_node_attributes(node_id, move(replacement_attributes));
+        view.add_dom_node_attributes(node_id, replacement_attributes);
     });
 }
 
-void Application::replace_dom_node_attribute(DevTools::TabDescription const& description, Web::UniqueNodeID node_id, String name, Vector<Attribute> replacement_attributes, OnDOMNodeEditComplete on_complete) const
+void Application::replace_dom_node_attribute(DevTools::TabDescription const& description, Web::UniqueNodeID node_id, String const& name, ReadonlySpan<Attribute> replacement_attributes, OnDOMNodeEditComplete on_complete) const
 {
     edit_dom_node(description, move(on_complete), [&](auto& view) {
-        view.replace_dom_node_attribute(node_id, move(name), move(replacement_attributes));
+        view.replace_dom_node_attribute(node_id, name, replacement_attributes);
     });
 }
 
@@ -507,7 +507,7 @@ void Application::remove_dom_node(DevTools::TabDescription const& description, W
     });
 }
 
-void Application::evaluate_javascript(DevTools::TabDescription const& description, String script, OnScriptEvaluationComplete on_complete) const
+void Application::evaluate_javascript(DevTools::TabDescription const& description, String const& script, OnScriptEvaluationComplete on_complete) const
 {
     auto view = ViewImplementation::find_view_by_id(description.id);
     if (!view.has_value()) {
@@ -520,7 +520,7 @@ void Application::evaluate_javascript(DevTools::TabDescription const& descriptio
         on_complete(move(result));
     };
 
-    view->js_console_input(move(script));
+    view->js_console_input(script);
 }
 
 void Application::listen_for_console_messages(DevTools::TabDescription const& description, OnConsoleMessageAvailable on_console_message_available, OnReceivedConsoleMessages on_received_console_output) const

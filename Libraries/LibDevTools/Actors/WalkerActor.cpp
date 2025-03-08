@@ -117,7 +117,7 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
             auto block_token = block_responses();
 
             devtools().delegate().set_dom_node_tag(
-                dom_node->tab->description(), dom_node->identifier.id, tag_name.release_value(),
+                dom_node->tab->description(), dom_node->identifier.id, *tag_name,
                 [weak_self = make_weak_ptr<WalkerActor>(), block_token = move(block_token)](ErrorOr<Web::UniqueNodeID> node_id) mutable {
                     if (node_id.is_error()) {
                         dbgln_if(DEVTOOLS_DEBUG, "Unable to edit DOM node: {}", node_id.error());
