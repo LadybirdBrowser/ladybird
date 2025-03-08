@@ -34,8 +34,8 @@ public:
 private:
     UIProcessConnectionFromClient(IPC::Transport, int client_id);
 
-    virtual void create_new_tab(Vector<ByteString> const& urls) override;
-    virtual void create_new_window(Vector<ByteString> const& urls) override;
+    virtual void create_new_tab(Vector<ByteString> urls) override;
+    virtual void create_new_window(Vector<ByteString> urls) override;
 };
 
 class ChromeProcess {

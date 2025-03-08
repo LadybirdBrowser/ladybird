@@ -23,7 +23,7 @@ public:
 
     virtual u32 magic() const = 0;
     virtual ByteString name() const = 0;
-    virtual ErrorOr<OwnPtr<MessageBuffer>> handle(Message const&) = 0;
+    virtual ErrorOr<OwnPtr<MessageBuffer>> handle(NonnullOwnPtr<Message>) = 0;
 
 protected:
     Stub() = default;

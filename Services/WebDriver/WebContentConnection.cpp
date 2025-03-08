@@ -20,10 +20,10 @@ void WebContentConnection::die()
         on_close();
 }
 
-void WebContentConnection::driver_execution_complete(Web::WebDriver::Response const& response)
+void WebContentConnection::driver_execution_complete(Web::WebDriver::Response response)
 {
     if (on_driver_execution_complete)
-        on_driver_execution_complete(response);
+        on_driver_execution_complete(move(response));
 }
 
 }

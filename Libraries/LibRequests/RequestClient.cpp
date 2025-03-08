@@ -43,7 +43,7 @@ RefPtr<Request> RequestClient::start_request(ByteString const& method, URL::URL 
     return request;
 }
 
-void RequestClient::request_started(i32 request_id, IPC::File const& response_file)
+void RequestClient::request_started(i32 request_id, IPC::File response_file)
 {
     auto request = m_requests.get(request_id);
     if (!request.has_value()) {
@@ -69,7 +69,7 @@ bool RequestClient::set_certificate(Badge<Request>, Request& request, ByteString
     return IPCProxy::set_certificate(request.id(), move(certificate), move(key));
 }
 
-void RequestClient::request_finished(i32 request_id, u64 total_size, RequestTimingInfo const& timing_info, Optional<NetworkError> const& network_error)
+void RequestClient::request_finished(i32 request_id, u64 total_size, RequestTimingInfo timing_info, Optional<NetworkError> network_error)
 {
     RefPtr<Request> request;
     if ((request = m_requests.get(request_id).value_or(nullptr))) {
@@ -78,7 +78,7 @@ void RequestClient::request_finished(i32 request_id, u64 total_size, RequestTimi
     m_requests.remove(request_id);
 }
 
-void RequestClient::headers_became_available(i32 request_id, HTTP::HeaderMap const& response_headers, Optional<u32> const& status_code, Optional<String> const& reason_phrase)
+void RequestClient::headers_became_available(i32 request_id, HTTP::HeaderMap response_headers, Optional<u32> status_code, Optional<String> reason_phrase)
 {
     auto request = const_cast<Request*>(m_requests.get(request_id).value_or(nullptr));
     if (!request) {
@@ -111,11 +111,11 @@ void RequestClient::websocket_connected(i64 websocket_id)
         maybe_connection.value()->did_open({});
 }
 
-void RequestClient::websocket_received(i64 websocket_id, bool is_text, ByteBuffer const& data)
+void RequestClient::websocket_received(i64 websocket_id, bool is_text, ByteBuffer data)
 {
     auto maybe_connection = m_websockets.get(websocket_id);
     if (maybe_connection.has_value())
-        maybe_connection.value()->did_receive({}, data, is_text);
+        maybe_connection.value()->did_receive({}, move(data), is_text);
 }
 
 void RequestClient::websocket_errored(i64 websocket_id, i32 message)
@@ -125,11 +125,11 @@ void RequestClient::websocket_errored(i64 websocket_id, i32 message)
         maybe_connection.value()->did_error({}, message);
 }
 
-void RequestClient::websocket_closed(i64 websocket_id, u16 code, ByteString const& reason, bool clean)
+void RequestClient::websocket_closed(i64 websocket_id, u16 code, ByteString reason, bool clean)
 {
     auto maybe_connection = m_websockets.get(websocket_id);
     if (maybe_connection.has_value())
-        maybe_connection.value()->did_close({}, code, reason, clean);
+        maybe_connection.value()->did_close({}, code, move(reason), clean);
 }
 
 void RequestClient::websocket_ready_state_changed(i64 websocket_id, u32 ready_state)
@@ -141,11 +141,11 @@ void RequestClient::websocket_ready_state_changed(i64 websocket_id, u32 ready_st
     }
 }
 
-void RequestClient::websocket_subprotocol(i64 websocket_id, ByteString const& subprotocol)
+void RequestClient::websocket_subprotocol(i64 websocket_id, ByteString subprotocol)
 {
     auto maybe_connection = m_websockets.get(websocket_id);
     if (maybe_connection.has_value()) {
-        maybe_connection.value()->set_subprotocol_in_use(subprotocol);
+        maybe_connection.value()->set_subprotocol_in_use(move(subprotocol));
     }
 }
 
