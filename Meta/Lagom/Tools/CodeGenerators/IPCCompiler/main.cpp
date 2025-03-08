@@ -493,9 +493,15 @@ public:)~~~");
         auto parameter_generator = message_generator.fork();
         parameter_generator.set("parameter.type", parameter.type);
         parameter_generator.set("parameter.name", parameter.name);
-        parameter_generator.appendln(R"~~~(
+
+        if (is_primitive_or_simple_type(parameter.type)) {
+            parameter_generator.appendln(R"~~~(
+    @parameter.type@ @parameter.name@() const { return m_@parameter.name@; })~~~");
+        } else {
+            parameter_generator.appendln(R"~~~(
     const @parameter.type@& @parameter.name@() const { return m_@parameter.name@; }
     @parameter.type@ take_@parameter.name@() { return move(m_@parameter.name@); })~~~");
+        }
     }
 
     message_generator.append(R"~~~(
@@ -617,7 +623,11 @@ void generate_proxy_method(SourceGenerator& message_generator, Endpoint const& e
         }
 
         if (message.outputs.size() == 1) {
-            message_generator.append("->take_");
+            if (is_primitive_or_simple_type(message.outputs[0].type))
+                message_generator.append("->");
+            else
+                message_generator.append("->take_");
+
             message_generator.append(message.outputs[0].name);
             message_generator.append("()");
         } else
