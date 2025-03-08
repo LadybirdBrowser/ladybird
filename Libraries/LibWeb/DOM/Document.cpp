@@ -3398,7 +3398,6 @@ void Document::evaluate_media_rules()
     if (any_media_queries_changed_match_state) {
         style_computer().invalidate_rule_cache();
         invalidate_style(StyleInvalidationReason::MediaQueryChangedMatchState);
-        invalidate_layout_tree(InvalidateLayoutTreeReason::MediaQueryChangedMatchState);
     }
 }
 

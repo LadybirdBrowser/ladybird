@@ -56,7 +56,6 @@ enum class QuirksMode {
     X(HTMLInputElementSrcAttributeChange)                 \
     X(HTMLObjectElement)                                  \
     X(KeyframeEffect)                                     \
-    X(MediaQueryChangedMatchState)                        \
     X(SVGGraphicsElementTransformAttributeChange)         \
     X(ShadowRootSetInnerHTML)
 
