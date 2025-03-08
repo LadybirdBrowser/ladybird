@@ -458,6 +458,7 @@ void SVGFormattingContext::layout_mask_or_clip(SVGBox const& mask_or_clip)
     else
         VERIFY_NOT_REACHED();
     // FIXME: Somehow limit <clipPath> contents to: shape elements, <text>, and <use>.
+
     auto& layout_state = m_state.get_mutable(mask_or_clip);
     auto parent_viewbox_transform = m_current_viewbox_transform;
     if (content_units == SVG::SVGUnits::ObjectBoundingBox) {
@@ -470,6 +471,16 @@ void SVGFormattingContext::layout_mask_or_clip(SVGBox const& mask_or_clip)
         layout_state.set_content_width(m_viewport_size.width());
         layout_state.set_content_height(m_viewport_size.height());
     }
+    // Ensure child elements have valid layout states before the nested context runs
+    mask_or_clip.for_each_child_of_type<Box>([&](Box const& child) {
+        // Access the child's layout state, which should create it if it doesn't exist
+        auto& child_state = m_state.get_mutable(child);
+        // Initialize with default values to avoid crashes
+        child_state.set_has_definite_width(true);
+        child_state.set_has_definite_height(true);
+        return IterationDecision::Continue;
+        return IterationDecision::Continue;
+    });
     // Pretend masks/clips are a viewport so we can scale the contents depending on the `contentUnits`.
     SVGFormattingContext nested_context(m_state, LayoutMode::Normal, mask_or_clip, this, parent_viewbox_transform);
     layout_state.set_has_definite_width(true);
