@@ -55,7 +55,6 @@ enum class QuirksMode {
     X(DocumentRequestAnElementToBeRemovedFromTheTopLayer) \
     X(HTMLInputElementSrcAttributeChange)                 \
     X(HTMLObjectElement)                                  \
-    X(KeyframeEffect)                                     \
     X(SVGGraphicsElementTransformAttributeChange)         \
     X(ShadowRootSetInnerHTML)
 
