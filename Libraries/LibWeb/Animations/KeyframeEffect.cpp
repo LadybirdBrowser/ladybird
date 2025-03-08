@@ -963,8 +963,15 @@ void KeyframeEffect::update_computed_properties()
 
     if (invalidation.relayout)
         target->set_needs_layout_update(DOM::SetNeedsLayoutReason::KeyframeEffect);
-    if (invalidation.rebuild_layout_tree)
-        document.invalidate_layout_tree(DOM::InvalidateLayoutTreeReason::KeyframeEffect);
+    if (invalidation.rebuild_layout_tree) {
+        // We mark layout tree for rebuild starting from parent element to correctly invalidate
+        // "display" property change to/from "contents" value.
+        if (auto* parent_element = target->parent_element()) {
+            parent_element->set_needs_layout_tree_update(true);
+        } else {
+            target->set_needs_layout_tree_update(true);
+        }
+    }
     if (invalidation.repaint) {
         document.set_needs_display();
         document.set_needs_to_resolve_paint_only_properties();
