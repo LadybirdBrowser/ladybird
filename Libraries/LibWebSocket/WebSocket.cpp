@@ -525,11 +525,11 @@ void WebSocket::read_frame()
         m_fragmented_data_buffer.clear();
     }
     if (op_code == WebSocket::OpCode::Text) {
-        notify_message(Message(payload, true));
+        notify_message(Message(move(payload), true));
         return;
     }
     if (op_code == WebSocket::OpCode::Binary) {
-        notify_message(Message(payload, false));
+        notify_message(Message(move(payload), false));
         return;
     }
     dbgln("Websocket: Found unknown opcode {}", (u8)op_code);

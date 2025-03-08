@@ -20,13 +20,7 @@ public:
     {
     }
 
-    explicit Message(ByteBuffer data, bool is_text)
-        : m_is_text(is_text)
-        , m_data(move(data))
-    {
-    }
-
-    explicit Message(ByteBuffer const&& data, bool is_text)
+    Message(ByteBuffer data, bool is_text)
         : m_is_text(is_text)
         , m_data(move(data))
     {
