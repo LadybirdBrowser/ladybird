@@ -116,26 +116,27 @@ ErrorOr<void> encode(Encoder&, File const&);
 template<>
 ErrorOr<void> encode(Encoder&, Empty const&);
 
-template<typename T, size_t N>
-ErrorOr<void> encode(Encoder& encoder, Array<T, N> const& array)
+template<Concepts::Span T>
+ErrorOr<void> encode(Encoder& encoder, T const& span)
 {
-    TRY(encoder.encode_size(array.size()));
+    TRY(encoder.encode_size(span.size()));
 
-    for (auto const& value : array)
+    for (auto const& value : span)
         TRY(encoder.encode(value));
 
     return {};
 }
 
+template<typename T, size_t N>
+ErrorOr<void> encode(Encoder& encoder, Array<T, N> const& array)
+{
+    return encoder.encode(array.span());
+}
+
 template<Concepts::Vector T>
 ErrorOr<void> encode(Encoder& encoder, T const& vector)
 {
-    TRY(encoder.encode_size(vector.size()));
-
-    for (auto const& value : vector)
-        TRY(encoder.encode(value));
-
-    return {};
+    return encoder.encode(vector.span());
 }
 
 template<Concepts::HashMap T>
