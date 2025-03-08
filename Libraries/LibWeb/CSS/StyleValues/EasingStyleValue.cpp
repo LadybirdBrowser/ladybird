@@ -279,9 +279,9 @@ double EasingStyleValue::CubicBezier::evaluate_at(double input_progress, bool) c
 
     size_t nearby_index = 0;
     if (auto found = binary_search(m_cached_x_samples, x, &nearby_index, [](auto x, auto& sample) {
-            if (x - sample.x >= NumericLimits<double>::epsilon())
+            if (x - sample.x > NumericLimits<double>::epsilon())
                 return 1;
-            if (x - sample.x <= NumericLimits<double>::epsilon())
+            if (x - sample.x < -NumericLimits<double>::epsilon())
                 return -1;
             return 0;
         }))
@@ -299,9 +299,9 @@ double EasingStyleValue::CubicBezier::evaluate_at(double input_progress, bool) c
         }
 
         if (auto found = binary_search(m_cached_x_samples, x, &nearby_index, [](auto x, auto& sample) {
-                if (x - sample.x >= NumericLimits<double>::epsilon())
+                if (x - sample.x > NumericLimits<double>::epsilon())
                     return 1;
-                if (x - sample.x <= NumericLimits<double>::epsilon())
+                if (x - sample.x < -NumericLimits<double>::epsilon())
                     return -1;
                 return 0;
             }))
