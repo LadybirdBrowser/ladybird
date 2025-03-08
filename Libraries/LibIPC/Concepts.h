@@ -6,6 +6,7 @@
 
 #include <AK/HashMap.h>
 #include <AK/Optional.h>
+#include <AK/Span.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibCore/SharedCircularQueue.h>
@@ -27,7 +28,8 @@ namespace IPC::Concepts {
 
 namespace Detail {
 
-// Cannot use SpecializationOf with these templates because they have non-type parameters. See https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2022/p1985r3.pdf
+// Cannot use SpecializationOf with these templates because they have non-type parameters. See:
+// https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2022/p1985r3.pdf
 template<typename T>
 constexpr inline bool IsArray = false;
 template<typename T, size_t N>
@@ -55,6 +57,9 @@ concept Array = Detail::IsArray<T>;
 
 template<typename T>
 concept Vector = Detail::IsVector<T>;
+
+template<typename T>
+concept Span = SpecializationOf<T, AK::Span>;
 
 template<typename T>
 concept HashMap = Detail::IsHashMap<T>;
