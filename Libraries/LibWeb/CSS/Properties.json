@@ -2774,6 +2774,15 @@
       "unitless-length"
     ]
   },
+  "touch-action": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "auto",
+    "max-values": 2,
+    "valid-types": [
+      "touch-action"
+    ]
+  },
   "transform": {
     "animation-type": "custom",
     "inherited": false,

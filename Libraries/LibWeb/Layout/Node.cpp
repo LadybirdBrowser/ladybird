@@ -918,6 +918,48 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
             computed_values.set_aspect_ratio({ false, aspect_ratio.as_ratio().ratio() });
     }
 
+    auto const& touch_action = computed_style.property(CSS::PropertyID::TouchAction);
+    if (touch_action.is_value_list())
+    {
+        CSS::TouchActionData touch_action_data = CSS::TouchActionData::none();
+        for (auto const& value : touch_action.as_value_list().values()) {
+            switch (value->as_keyword().keyword()) {
+            case CSS::Keyword::Auto:
+                touch_action_data = {};
+                break;
+            case CSS::Keyword::None:
+                break;
+            case CSS::Keyword::Manipulation:
+                touch_action_data = {};
+                touch_action_data.allow_other = false;
+                break;
+            case CSS::Keyword::PanX:
+                touch_action_data.allow_right = true;
+                touch_action_data.allow_left = true;
+                break;
+            case CSS::Keyword::PanLeft:
+                touch_action_data.allow_left = true;
+                break;
+            case CSS::Keyword::PanRight:
+                touch_action_data.allow_right = true;
+                break;
+            case CSS::Keyword::PanY:
+                touch_action_data.allow_up = true;
+                touch_action_data.allow_down = true;
+                break;
+            case CSS::Keyword::PanUp:
+                touch_action_data.allow_up = true;
+                break;
+            case CSS::Keyword::PanDown:
+                touch_action_data.allow_down = true;
+                break;
+            default:
+                VERIFY_NOT_REACHED();
+            }
+        }
+        computed_values.set_touch_action(touch_action_data);
+    }
+
     auto const& math_shift_value = computed_style.property(CSS::PropertyID::MathShift);
     if (auto math_shift = keyword_to_math_shift(math_shift_value.to_keyword()); math_shift.has_value())
         computed_values.set_math_shift(math_shift.value());
