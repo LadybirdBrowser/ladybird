@@ -1020,10 +1020,9 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
         // 14. Set locationURL to response's location URL given currentURL's fragment.
         location_url = response_holder->response()->location_url(current_url.fragment());
 
-        VERIFY(!location_url.is_error());
-
         // 15. If locationURL is failure or null, then break.
         if (location_url.is_error() || !location_url.value().has_value()) {
+            dbgln("Received bad location_url when creating navigation params");
             break;
         }
 
