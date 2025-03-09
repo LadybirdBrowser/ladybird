@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Pointer Events: getComputedStyle().touchAction</title>
+<link rel="help" href="https://w3c.github.io/pointerevents/#the-touch-action-css-property">
+<meta name="assert" content="touch-action computed value is as specified.">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value("touch-action", "auto");
+test_computed_value("touch-action", "none");
+test_computed_value("touch-action", "manipulation");
+
+test_computed_value("touch-action", "pan-x");
+test_computed_value("touch-action", "pan-y");
+test_computed_value("touch-action", "pan-x pan-y");
+</script>
+</body>
+</html>
