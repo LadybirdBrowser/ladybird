@@ -509,7 +509,7 @@ enum class AtomicRewritePreconditionResult {
     SatisfiedWithEmptyHeader,
     NotSatisfied,
 };
-static AtomicRewritePreconditionResult block_satisfies_atomic_rewrite_precondition(ByteCode const& bytecode, Block const& repeated_block, Block const& following_block)
+static AtomicRewritePreconditionResult block_satisfies_atomic_rewrite_precondition(ByteCode const& bytecode, Block repeated_block, Block following_block, auto const& all_blocks)
 {
     Vector<Vector<CompareTypeAndValuePair>> repeated_values;
     MatchState state;
@@ -544,6 +544,18 @@ static AtomicRewritePreconditionResult block_satisfies_atomic_rewrite_preconditi
             if (!has_seen_actionable_opcode)
                 return AtomicRewritePreconditionResult::NotSatisfied;
             break;
+        case OpCodeId::Jump: {
+            // Just follow the jump, it's unconditional.
+            auto& jump = static_cast<OpCode_Jump const&>(opcode);
+            auto jump_target = state.instruction_position + jump.offset() + jump.size();
+            // Find the block that this jump leads to.
+            auto next_block_it = find_if(all_blocks.begin(), all_blocks.end(), [jump_target](auto& block) { return block.start == jump_target; });
+            if (next_block_it == all_blocks.end())
+                return AtomicRewritePreconditionResult::NotSatisfied;
+            repeated_block = *next_block_it;
+            state.instruction_position = repeated_block.start;
+            continue;
+        }
         default:
             break;
         }
@@ -551,6 +563,43 @@ static AtomicRewritePreconditionResult block_satisfies_atomic_rewrite_preconditi
         state.instruction_position += opcode.size();
     }
     dbgln_if(REGEX_DEBUG, "Found {} entries in reference", repeated_values.size());
+
+    auto accept_empty_follow = false;
+    while (following_block.start == following_block.end && !accept_empty_follow) {
+        dbgln_if(REGEX_DEBUG, "Following empty block {}", following_block.start);
+        // If the following block has a single instruction, it must be some kind of jump.
+        // Unless it's an unconditional jump, we can't rewrite it - so bail out.
+        state.instruction_position = following_block.start;
+        auto& opcode = bytecode.get_opcode(state);
+        switch (opcode.opcode_id()) {
+        case OpCodeId::Jump: {
+            // Just follow the jump, it's unconditional.
+            auto& jump = static_cast<OpCode_Jump const&>(opcode);
+            auto jump_target = state.instruction_position + jump.offset() + jump.size();
+            if (jump_target < state.instruction_position) {
+                dbgln_if(REGEX_DEBUG, "Jump to {} is backwards, I'm scared of loops", jump_target);
+                return AtomicRewritePreconditionResult::NotSatisfied;
+            }
+            dbgln_if(REGEX_DEBUG, "Following jump to {}", jump_target);
+            // Find the block that this jump leads to.
+            auto next_block_it = find_if(all_blocks.begin(), all_blocks.end(), [jump_target](auto& block) { return block.start == jump_target; });
+            if (next_block_it == all_blocks.end())
+                return AtomicRewritePreconditionResult::NotSatisfied;
+            following_block = *next_block_it;
+            state.instruction_position = repeated_block.start;
+            continue;
+        }
+        case OpCodeId::ForkJump:
+        case OpCodeId::ForkReplaceJump:
+        case OpCodeId::JumpNonEmpty:
+            return AtomicRewritePreconditionResult::NotSatisfied;
+        default:
+            // No interesting effect here.
+            dbgln_if(REGEX_DEBUG, "Empty follow had instruction {}", opcode.to_byte_string());
+            accept_empty_follow = true;
+            break;
+        }
+    }
 
     bool following_block_has_at_least_one_compare = false;
     // Find the first compare in the following block, it must NOT match any of the values in `repeated_values'.
@@ -756,12 +805,12 @@ void Regex<Parser>::attempt_rewrite_loops_as_atomic_groups(BasicBlockList const&
                 // We've found RE0 (and RE1 is just the following block, if any), let's see if the precondition applies.
                 // if RE1 is empty, there's no first(RE1), so this is an automatic pass.
                 if (!fork_fallback_block.has_value()
-                    || (fork_fallback_block->end == fork_fallback_block->start && block_satisfies_atomic_rewrite_precondition(bytecode, forking_block, *fork_fallback_block) != AtomicRewritePreconditionResult::NotSatisfied)) {
+                    || (fork_fallback_block->end == fork_fallback_block->start && block_satisfies_atomic_rewrite_precondition(bytecode, forking_block, *fork_fallback_block, basic_blocks) != AtomicRewritePreconditionResult::NotSatisfied)) {
                     candidate_blocks.append({ forking_block, fork_fallback_block, AlternateForm::DirectLoopWithoutHeader });
                     break;
                 }
 
-                auto precondition = block_satisfies_atomic_rewrite_precondition(bytecode, forking_block, *fork_fallback_block);
+                auto precondition = block_satisfies_atomic_rewrite_precondition(bytecode, forking_block, *fork_fallback_block, basic_blocks);
                 if (precondition == AtomicRewritePreconditionResult::SatisfiedWithProperHeader) {
                     candidate_blocks.append({ forking_block, fork_fallback_block, AlternateForm::DirectLoopWithoutHeader });
                     break;
@@ -785,7 +834,7 @@ void Regex<Parser>::attempt_rewrite_loops_as_atomic_groups(BasicBlockList const&
                     if (i + 2 < basic_blocks.size())
                         block_following_fork_fallback = basic_blocks[i + 2];
                     if (!block_following_fork_fallback.has_value()
-                        || block_satisfies_atomic_rewrite_precondition(bytecode, *fork_fallback_block, *block_following_fork_fallback) != AtomicRewritePreconditionResult::NotSatisfied) {
+                        || block_satisfies_atomic_rewrite_precondition(bytecode, *fork_fallback_block, *block_following_fork_fallback, basic_blocks) != AtomicRewritePreconditionResult::NotSatisfied) {
                         candidate_blocks.append({ forking_block, {}, AlternateForm::DirectLoopWithHeader });
                         break;
                     }
@@ -802,7 +851,7 @@ void Regex<Parser>::attempt_rewrite_loops_as_atomic_groups(BasicBlockList const&
                     if (i + 2 < basic_blocks.size())
                         block_following_fork_fallback = basic_blocks[i + 2];
                     if (!block_following_fork_fallback.has_value()
-                        || block_satisfies_atomic_rewrite_precondition(bytecode, *fork_fallback_block, *block_following_fork_fallback) != AtomicRewritePreconditionResult::NotSatisfied) {
+                        || block_satisfies_atomic_rewrite_precondition(bytecode, *fork_fallback_block, *block_following_fork_fallback, basic_blocks) != AtomicRewritePreconditionResult::NotSatisfied) {
                         candidate_blocks.append({ forking_block, {}, AlternateForm::DirectLoopWithoutHeader });
                         break;
                     }
@@ -812,6 +861,27 @@ void Regex<Parser>::attempt_rewrite_loops_as_atomic_groups(BasicBlockList const&
     }
 
     dbgln_if(REGEX_DEBUG, "Found {} candidate blocks", candidate_blocks.size());
+    if constexpr (REGEX_DEBUG) {
+        for (auto const& candidate : candidate_blocks) {
+            dbgln("Candidate block from {} to {} (comment: {})", candidate.forking_block.start, candidate.forking_block.end, candidate.forking_block.comment);
+            if (candidate.new_target_block.has_value())
+                dbgln("  with target block from {} to {} (comment: {})", candidate.new_target_block->start, candidate.new_target_block->end, candidate.new_target_block->comment);
+            switch (candidate.form) {
+            case AlternateForm::DirectLoopWithoutHeader:
+                dbgln("  form: DirectLoopWithoutHeader");
+                break;
+            case AlternateForm::DirectLoopWithoutHeaderAndEmptyFollow:
+                dbgln("  form: DirectLoopWithoutHeaderAndEmptyFollow");
+                break;
+            case AlternateForm::DirectLoopWithHeader:
+                dbgln("  form: DirectLoopWithHeader");
+                break;
+            default:
+                dbgln("  form: Unknown");
+                break;
+            }
+        }
+    }
     if (candidate_blocks.is_empty()) {
         dbgln_if(REGEX_DEBUG, "Failed to find anything for {}", pattern_value);
         return;

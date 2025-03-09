@@ -1074,6 +1074,8 @@ TEST_CASE(optimizer_atomic_groups)
         Tuple { "(b+)(b+)"sv, "bbb"sv, true },
         // Don't treat [\S] as [\s]; see ladybird#2296.
         Tuple { "([^\\s]+?)\\(([\\s\\S]*)\\)"sv, "a(b)"sv, true },
+        // Follow direct jumps in the optimizer instead of assuming they're a noop.
+        Tuple { "(|[^]*)\\)"sv, "p)"sv, true },
     };
 
     for (auto& test : tests) {
