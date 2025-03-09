@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Images Module Level 3: image-orientation: from-image</title>
+<link rel="author" title="Stephen Chenney" href="mailto:schenney@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-images-3/#propdef-image-orientation">
+<meta name="fuzzy" content="maxDifference=0-100; totalPixels=0-236">
+<link rel="match" href="../expected/exif-orientation-jpeg-ref.html" />
+<style>
+    body {
+        overflow: hidden;
+        image-orientation: from-image;
+    }
+    div {
+        display: inline-block;
+        width: 100px;
+        vertical-align: top;
+    }
+</style>
+</head>
+<body>
+    <p>The images should rotate respecting their EXIF orientation because
+       image-orientation: from-image is specified.</p>
+    <div>
+        <img src="../data/exif-orientation-jpeg/exif-orientation-1-ul.jpg"/>
+        <br>Normal
+    </div>
+    <div>
+        <img src="../data/exif-orientation-jpeg/exif-orientation-2-ur.jpg"/>
+        <br>Flipped horizontally
+    </div>
+    <div>
+        <img src="../data/exif-orientation-jpeg/exif-orientation-3-lr.jpg"/>
+        <br>Rotated 180&deg;
+    </div>
+    <div>
+        <img src="../data/exif-orientation-jpeg/exif-orientation-4-lol.jpg"/>
+        <br>Flipped vertically
+    </div>
+    <div>
+        <img src="../data/exif-orientation-jpeg/exif-orientation-5-lu.jpg"/>
+        <br>Rotated 90&deg; CCW and flipped vertically
+    </div>
+    <div>
+        <img src="../data/exif-orientation-jpeg/exif-orientation-6-ru.jpg"/>
+        <br>Rotated 90&deg; CW
+    </div>
+    <div>
+        <img src="../data/exif-orientation-jpeg/exif-orientation-7-rl.jpg"/>
+        <br>Rotated 90&deg; CW and flipped vertically
+    </div>
+    <div>
+        <img src="../data/exif-orientation-jpeg/exif-orientation-8-llo.jpg"/>
+        <br>Rotated 90&deg; CCW
+    </div>
+    <div>
+        <img src="../data/exif-orientation-jpeg/exif-orientation-9-u.jpg"/>
+        <br>Undefined (invalid value)
+    </div>
+</body>
+</html>
