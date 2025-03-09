@@ -11,6 +11,7 @@
 #include <AK/SegmentedVector.h>
 #include <AK/Utf8View.h>
 #include <AK/Vector.h>
+#include <LibGfx/AffineTransform.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/CompositingAndBlendingOperator.h>
 #include <LibGfx/Forward.h>
@@ -75,6 +76,7 @@ struct DrawScaledImmutableBitmap {
     NonnullRefPtr<Gfx::ImmutableBitmap> bitmap;
     Gfx::IntRect src_rect;
     Gfx::ScalingMode scaling_mode;
+    Gfx::AffineTransform transformation_matrix;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return dst_rect; }
     void translate_by(Gfx::IntPoint const& offset) { dst_rect.translate_by(offset); }
@@ -88,9 +90,11 @@ struct DrawRepeatedImmutableBitmap {
 
     Gfx::IntRect dst_rect;
     Gfx::IntRect clip_rect;
+    Gfx::IntSize src_size;
     NonnullRefPtr<Gfx::ImmutableBitmap> bitmap;
     Gfx::ScalingMode scaling_mode;
     Repeat repeat;
+    Gfx::AffineTransform transformation_matrix;
 
     void translate_by(Gfx::IntPoint const& offset) { dst_rect.translate_by(offset); }
 };

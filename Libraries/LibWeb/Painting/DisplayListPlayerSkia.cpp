@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGfx/AffineTransformToSkMatrix.h>
 #include <core/SkBitmap.h>
 #include <core/SkBlurTypes.h>
 #include <core/SkCanvas.h>
@@ -51,21 +52,6 @@ static SkRRect to_skia_rrect(auto const& rect, CornerRadii const& corner_radii)
     radii[3].set(corner_radii.bottom_left.horizontal_radius, corner_radii.bottom_left.vertical_radius);
     rrect.setRectRadii(to_skia_rect(rect), radii);
     return rrect;
-}
-
-static SkMatrix to_skia_matrix(Gfx::AffineTransform const& affine_transform)
-{
-    SkScalar affine[6];
-    affine[0] = affine_transform.a();
-    affine[1] = affine_transform.b();
-    affine[2] = affine_transform.c();
-    affine[3] = affine_transform.d();
-    affine[4] = affine_transform.e();
-    affine[5] = affine_transform.f();
-
-    SkMatrix matrix;
-    matrix.setAffine(affine);
-    return matrix;
 }
 
 void DisplayListPlayerSkia::flush()
@@ -135,20 +121,34 @@ void DisplayListPlayerSkia::draw_painting_surface(DrawPaintingSurface const& com
 
 void DisplayListPlayerSkia::draw_scaled_immutable_bitmap(DrawScaledImmutableBitmap const& command)
 {
-    auto src_rect = to_skia_rect(command.src_rect);
-    auto dst_rect = to_skia_rect(command.dst_rect);
     auto& canvas = surface().canvas();
+    auto command_dst_rect = command.dst_rect;
+    auto skia_transformation_matrix { to_skia_matrix(command.transformation_matrix) };
+
+    auto src_rect = to_skia_rect(command.src_rect);
+    auto dst_rect = to_skia_rect(command_dst_rect);
+
+    canvas.save();
+    canvas.translate(command_dst_rect.x(), command_dst_rect.y());
+    canvas.concat(skia_transformation_matrix);
+    canvas.translate(-command_dst_rect.x(), -command_dst_rect.y());
+
     SkPaint paint;
     canvas.drawImageRect(command.bitmap->sk_image(), src_rect, dst_rect, to_skia_sampling_options(command.scaling_mode), &paint, SkCanvas::kStrict_SrcRectConstraint);
+    canvas.restore();
 }
 
 void DisplayListPlayerSkia::draw_repeated_immutable_bitmap(DrawRepeatedImmutableBitmap const& command)
 {
     SkMatrix matrix;
     auto dst_rect = command.dst_rect.to_type<float>();
-    auto src_size = command.bitmap->size().to_type<float>();
+    auto src_size = command.src_size.to_type<float>();
     matrix.setScale(dst_rect.width() / src_size.width(), dst_rect.height() / src_size.height());
+
+    auto skia_transformation_matrix { to_skia_matrix(command.transformation_matrix) };
+    matrix.postConcat(skia_transformation_matrix);
     matrix.postTranslate(dst_rect.x(), dst_rect.y());
+
     auto sampling_options = to_skia_sampling_options(command.scaling_mode);
 
     auto tile_mode_x = command.repeat.x ? SkTileMode::kRepeat : SkTileMode::kDecal;
