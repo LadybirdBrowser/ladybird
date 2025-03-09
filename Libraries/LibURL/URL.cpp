@@ -430,7 +430,7 @@ bool code_point_is_in_percent_encode_set(u32 code_point, PercentEncodeSet set)
     case PercentEncodeSet::Path:
         return code_point_is_in_percent_encode_set(code_point, PercentEncodeSet::Query) || "?^`{}"sv.contains(static_cast<char>(code_point));
     case PercentEncodeSet::Userinfo:
-        return code_point_is_in_percent_encode_set(code_point, PercentEncodeSet::Path) || "/:;=@[\\]^|"sv.contains(static_cast<char>(code_point));
+        return code_point_is_in_percent_encode_set(code_point, PercentEncodeSet::Path) || "/:;=@[\\]|"sv.contains(static_cast<char>(code_point));
     case PercentEncodeSet::Component:
         return code_point_is_in_percent_encode_set(code_point, PercentEncodeSet::Userinfo) || "$%&+,"sv.contains(static_cast<char>(code_point));
     case PercentEncodeSet::ApplicationXWWWFormUrlencoded:
