@@ -554,6 +554,24 @@ if (BUILD_TESTING)
 
     lagom_test(../../Tests/LibCore/TestLibCoreDateTime.cpp LIBS LibUnicode)
 
+    if (ENABLE_SWIFT)
+        find_package(SwiftTesting REQUIRED)
+
+        add_executable(TestCoreSwift
+            ../../Tests/LibCore/TestEventLoopActor.swift
+            ../../Tests/LibCore/TestEventLoop.cpp
+        )
+
+        # FIXME: Swift doesn't seem to like object libraries for @main
+        target_sources(TestCoreSwift PRIVATE ../../Tests/Resources/SwiftTestMain.swift)
+
+        set_target_properties(TestCoreSwift PROPERTIES SUFFIX .swift-testing)
+        target_include_directories(TestCoreSwift PRIVATE ../../Tests/LibCore)
+        target_link_libraries(TestCoreSwift PRIVATE AK LibCore SwiftTesting::SwiftTesting)
+        add_test(NAME TestCoreSwift COMMAND TestCoreSwift)
+    endif()
+
+
     # RegexLibC test POSIX <regex.h> and contains many Serenity extensions
     # It is therefore not reasonable to run it on Lagom, and we only run the Regex test
     lagom_test(../../Tests/LibRegex/Regex.cpp LIBS LibRegex WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/LibRegex)
