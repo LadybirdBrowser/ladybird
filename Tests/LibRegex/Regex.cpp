@@ -636,7 +636,6 @@ TEST_CASE(ECMA262_match)
         bool matches { true };
         ECMAScriptFlags options {};
     };
-    // clang-format off
     constexpr _test tests[] {
         { "^hello.$"sv, "hello1"sv },
         { "^(hello.)$"sv, "hello1"sv },
@@ -677,49 +676,69 @@ TEST_CASE(ECMA262_match)
         { "{"sv, "{"sv, true, ECMAScriptFlags::BrowserExtended },
         { "\\5"sv, "\5"sv, true, ECMAScriptFlags::BrowserExtended },
         { "\\05"sv, "\5"sv, true, ECMAScriptFlags::BrowserExtended },
-        { "\\455"sv, "\45""5"sv, true, ECMAScriptFlags::BrowserExtended },
+        { "\\455"sv, "\0455"sv, true, ECMAScriptFlags::BrowserExtended },
         { "\\314"sv, "\314"sv, true, ECMAScriptFlags::BrowserExtended },
         { "\\c"sv, "\\c"sv, true, ECMAScriptFlags::BrowserExtended },
         { "\\cf"sv, "\06"sv, true, ECMAScriptFlags::BrowserExtended },
         { "\\c1"sv, "\\c1"sv, true, ECMAScriptFlags::BrowserExtended },
         { "[\\c1]"sv, "\x11"sv, true, ECMAScriptFlags::BrowserExtended },
         { "[\\w-\\d]"sv, "-"sv, true, ECMAScriptFlags::BrowserExtended },
-        { "^(?:^^\\.?|[!+-]|!=|!==|#|%|%=|&|&&|&&=|&=|\\(|\\*|\\*=|\\+=|,|-=|->|\\/|\\/=|:|::|;|<|<<|<<=|<=|=|==|===|>|>=|>>|>>=|>>>|>>>=|[?@[^]|\\^=|\\^\\^|\\^\\^=|{|\\||\\|=|\\|\\||\\|\\|=|~|break|case|continue|delete|do|else|finally|instanceof|return|throw|try|typeof)\\s*(\\/(?=[^*/])(?:[^/[\\\\]|\\\\[\\S\\s]|\\[(?:[^\\\\\\]]|\\\\[\\S\\s])*(?:]|$))+\\/)"sv,
-                 "return /xx/"sv, true, ECMAScriptFlags::BrowserExtended
-        }, // #5517, appears to be matching JS expressions that involve regular expressions...
-        { "a{2,}"sv, "aaaa"sv }, // #5518
+        // #5517, appears to be matching JS expressions that involve regular expressions...
+        {
+            "^(?:^^\\.?|[!+-]|!=|!==|#|%|%=|&|&&|&&=|&=|\\(|\\*|\\*=|\\+=|,|-=|->|\\/|\\/=|:|::|;|<|<<|<<=|<=|=|==|===|>|>=|>>|>>=|>>>|>>>=|[?@[^]|\\^=|\\^\\^|\\^\\^=|{|\\||\\|=|\\|\\||\\|\\|=|~|break|case|continue|delete|do|else|finally|instanceof|return|throw|try|typeof)\\s*(\\/(?=[^*/])(?:[^/[\\\\]|\\\\[\\S\\s]|\\[(?:[^\\\\\\]]|\\\\[\\S\\s])*(?:]|$))+\\/)"sv,
+            "return /xx/"sv,
+            true,
+            ECMAScriptFlags::BrowserExtended,
+        },
+        // #5518
+        { "a{2,}"sv, "aaaa"sv },
         { "\\0"sv, "\0"sv, true, ECMAScriptFlags::BrowserExtended },
         { "\\0"sv, "\0"sv, true, combine_flags(ECMAScriptFlags::Unicode, ECMAScriptFlags::BrowserExtended) },
         { "\\01"sv, "\1"sv, true, ECMAScriptFlags::BrowserExtended },
         { "[\\0]"sv, "\0"sv, true, ECMAScriptFlags::BrowserExtended },
         { "[\\0]"sv, "\0"sv, true, combine_flags(ECMAScriptFlags::Unicode, ECMAScriptFlags::BrowserExtended) },
         { "[\\01]"sv, "\1"sv, true, ECMAScriptFlags::BrowserExtended },
-        { "(\0|a)"sv, "a"sv, true }, // #9686, Should allow null bytes in pattern
-        { "(.*?)a(?!(a+)b\\2c)\\2(.*)"sv, "baaabaac"sv, true }, // #6042, Groups inside lookarounds may be referenced outside, but their contents appear empty if the pattern in the lookaround fails.
-        { "a|$"sv, "x"sv, true, (ECMAScriptFlags)regex::AllFlags::Global }, // #11940, Global (not the 'g' flag) regexps should attempt to match the zero-length end of the string too.
-        { "foo\nbar"sv, "foo\nbar"sv, true }, // #12126, ECMA262 regexp should match literal newlines without the 's' flag.
-        { "foo[^]bar"sv, "foo\nbar"sv, true }, // #12126, ECMA262 regexp should match newline with [^].
-        { "^[_A-Z]+$"sv, "_aA"sv, true, ECMAScriptFlags::Insensitive }, // Insensitive lookup table: characters in a range do not necessarily lie in the same range after being converted to lowercase.
+        // #9686, Should allow null bytes in pattern
+        { "(\0|a)"sv, "a"sv, true },
+        // #6042, Groups inside lookarounds may be referenced outside, but their contents appear empty if the pattern in the lookaround fails.
+        { "(.*?)a(?!(a+)b\\2c)\\2(.*)"sv, "baaabaac"sv, true },
+        // #11940, Global (not the 'g' flag) regexps should attempt to match the zero-length end of the string too.
+        { "a|$"sv, "x"sv, true, (ECMAScriptFlags)regex::AllFlags::Global },
+        // #12126, ECMA262 regexp should match literal newlines without the 's' flag.
+        { "foo\nbar"sv, "foo\nbar"sv, true },
+        // #12126, ECMA262 regexp should match newline with [^].
+        { "foo[^]bar"sv, "foo\nbar"sv, true },
+        // Insensitive lookup table: characters in a range do not necessarily lie in the same range after being converted to lowercase.
+        { "^[_A-Z]+$"sv, "_aA"sv, true, ECMAScriptFlags::Insensitive },
         { "^[a-sy-z]$"sv, "b"sv, true, ECMAScriptFlags::Insensitive },
         { "^[a-sy-z]$"sv, "y"sv, true, ECMAScriptFlags::Insensitive },
         { "^[a-sy-z]$"sv, "u"sv, false, ECMAScriptFlags::Insensitive },
-        { "."sv, "\n\r\u2028\u2029"sv, false }, // Dot should not match any of CR/LF/LS/PS in ECMA262 mode without DotAll.
-        { "a$"sv, "a\r\n"sv, true, global_multiline.value() }, // $ should accept all LineTerminators in ECMA262 mode with Multiline.
+        // Dot should not match any of CR/LF/LS/PS in ECMA262 mode without DotAll.
+        { "."sv, "\n\r\u2028\u2029"sv, false },
+        // $ should accept all LineTerminators in ECMA262 mode with Multiline.
+        { "a$"sv, "a\r\n"sv, true, global_multiline.value() },
         { "^a"sv, "\ra"sv, true, global_multiline.value() },
         { "^(.*?):[ \\t]*([^\\r\\n]*)$"sv, "content-length: 488\r\ncontent-type: application/json; charset=utf-8\r\n"sv, true, global_multiline.value() },
-        { "^\\?((&?category=[0-9]+)?(&?shippable=1)?(&?ad_type=demand)?(&?page=[0-9]+)?(&?locations=(r|d)_[0-9]+)?)+$"sv,
-            "?category=54&shippable=1&baby_age=p,0,1,3"sv, false }, // ladybird#968, ?+ should not loop forever.
-        { "([^\\s]+):\\s*([^;]+);"sv, "font-family: 'Inter';"sv, true }, // optimizer bug, blindly accepting inverted char classes [^x] as atomic rewrite opportunities.
-        { "(a)(?=a*\\1)"sv, "aaaa"sv, true, global_multiline.value() }, // Optimizer bug, ignoring references that weren't bound in the current or past block, ladybird#2281
-        { "[ a](b{2})"sv, "abb"sv, true }, // Optimizer bug, wrong Repeat basic block splits.
-        { "^ {0,3}(([\\`\\~])\\2{2,})\\s*([\\*_]*)\\s*([^\\*_\\s]*).*$"sv, ""sv, false }, // See above.
-        { "^(\\d{4}|[+-]\\d{6})(?:-?(\\d{2})(?:-?(\\d{2}))?)?(?:[ T]?(\\d{2}):?(\\d{2})(?::?(\\d{2})(?:[,.](\\d{1,}))?)?(?:(Z)|([+-])(\\d{2})(?::?(\\d{2}))?)?)?$"sv,
+        // ladybird#968, ?+ should not loop forever. */
+        { "^\\?((&?category=[0-9]+)?(&?shippable=1)?(&?ad_type=demand)?(&?page=[0-9]+)?(&?locations=(r|d)_[0-9]+)?)+$"sv, "?category=54&shippable=1&baby_age=p,0,1,3"sv, false },
+        // optimizer bug, blindly accepting inverted char classes [^x] as atomic rewrite opportunities.
+        { "([^\\s]+):\\s*([^;]+);"sv, "font-family: 'Inter';"sv, true },
+        // Optimizer bug, ignoring references that weren't bound in the current or past block, ladybird#2281
+        { "(a)(?=a*\\1)"sv, "aaaa"sv, true, global_multiline.value() },
+        // Optimizer bug, wrong Repeat basic block splits.
+        { "[ a](b{2})"sv, "abb"sv, true },
+        // See above.
+        { "^ {0,3}(([\\`\\~])\\2{2,})\\s*([\\*_]*)\\s*([^\\*_\\s]*).*$"sv, ""sv, false },
+        // See above, also ladybird#2931.
+        {
+            "^(\\d{4}|[+-]\\d{6})(?:-?(\\d{2})(?:-?(\\d{2}))?)?(?:[ T]?(\\d{2}):?(\\d{2})(?::?(\\d{2})(?:[,.](\\d{1,}))?)?(?:(Z)|([+-])(\\d{2})(?::?(\\d{2}))?)?)?$"sv,
             ""sv,
-            false, }, // See above, also ladybird#2931.
-        { "[^]*[^]"sv, "i"sv, true }, // Optimizer bug, ignoring an enabled trailing 'invert' when comparing blocks, ladybird#3421.
+            false,
+        },
+        // Optimizer bug, ignoring an enabled trailing 'invert' when comparing blocks, ladybird#3421.
+        { "[^]*[^]"sv, "i"sv, true },
         { "xx|...|...."sv, "cd"sv, false },
     };
-    // clang-format on
 
     for (auto& test : tests) {
         Regex<ECMA262> re(test.pattern, test.options);
@@ -989,9 +1008,7 @@ TEST_CASE(extremely_long_fork_chain)
 
 TEST_CASE(nullable_quantifiers)
 {
-    // clang-format off
-    Regex<ECMA262> re("(a?b?""?)*"); // Pattern (a?b??)* has to be concatenated to avoid "??)", which is a trigraph.
-    // clang-format on
+    Regex<ECMA262> re("(a?b?\x3f)*"); // Pattern (a?b??)* isn't written plain to avoid "??)", which is a trigraph.
     auto result = re.match("ab"sv);
     EXPECT_EQ(result.matches.at(0).view, "ab"sv);
 }
