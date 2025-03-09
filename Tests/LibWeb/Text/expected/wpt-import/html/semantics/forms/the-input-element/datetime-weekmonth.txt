@@ -1,0 +1,19 @@
+Harness status: OK
+
+Found 14 tests
+
+14 Pass
+Pass	month type support on input element
+Pass	[month] The value must be a value that is a valid global date and time string
+Pass	[month] The min attribute must have a value that is a valid global date and time string
+Pass	[month] The max attribute must have a value that is a valid global date and time string
+Pass	[month] The step attribute must be expressed in seconds
+Pass	[month] stepUp method support on input 'month' element
+Pass	[month] stepDown method support on input 'month' element
+Pass	week type support on input element
+Pass	[week] The value must be a value that is a valid global date and time string
+Pass	[week] The min attribute must have a value that is a valid global date and time string
+Pass	[week] The max attribute must have a value that is a valid global date and time string
+Pass	[week] The step attribute must be expressed in seconds
+Pass	[week] stepUp method support on input 'week' element
+Pass	[week] stepDown method support on input 'week' element
