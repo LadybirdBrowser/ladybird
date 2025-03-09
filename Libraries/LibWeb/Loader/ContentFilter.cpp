@@ -21,6 +21,9 @@ ContentFilter::~ContentFilter() = default;
 
 bool ContentFilter::is_filtered(const URL::URL& url) const
 {
+    if (!filtering_enabled())
+        return false;
+
     if (url.scheme() == "data")
         return false;
 
