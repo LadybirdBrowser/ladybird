@@ -131,7 +131,7 @@
   };
 
   var cssTransitionAllInterpolationAllowDiscrete = {
-    name: 'CSS Transitions with transition-property:all and transition-behavor:allow-discrete',
+    name: 'CSS Transitions with transition-property:all and transition-behavior:allow-discrete',
     isSupported: function() {return true;},
     // The 'all' value doesn't cover custom properties.
     supportsProperty: function(property) {return property.indexOf('--') !== 0;},
