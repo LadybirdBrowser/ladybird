@@ -4,8 +4,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/StringView.h>
 #include <LibGfx/CMYKBitmap.h>
 #include <LibGfx/ImageFormats/JPEGLoader.h>
+#include <LibGfx/ImageFormats/TIFFLoader.h>
+#include <LibGfx/ImageFormats/TIFFMetadata.h>
 #include <jpeglib.h>
 #include <setjmp.h>
 
@@ -22,6 +25,7 @@ struct JPEGLoadingContext {
 
     RefPtr<Gfx::Bitmap> rgb_bitmap;
     RefPtr<Gfx::CMYKBitmap> cmyk_bitmap;
+    OwnPtr<ExifMetadata> exif_metadata;
 
     ReadonlyBytes data;
     Vector<u8> icc_data;
@@ -62,7 +66,7 @@ ErrorOr<void> JPEGLoadingContext::decode()
 
     source_manager.next_input_byte = data.data();
     source_manager.bytes_in_buffer = data.size();
-    source_manager.init_source = [](j_decompress_ptr) { };
+    source_manager.init_source = [](j_decompress_ptr) {};
     source_manager.fill_input_buffer = [](j_decompress_ptr) -> boolean { return false; };
     source_manager.skip_input_data = [](j_decompress_ptr context, long num_bytes) {
         if (num_bytes > static_cast<long>(context->src->bytes_in_buffer)) {
@@ -73,10 +77,12 @@ ErrorOr<void> JPEGLoadingContext::decode()
         context->src->bytes_in_buffer -= num_bytes;
     };
     source_manager.resync_to_restart = jpeg_resync_to_restart;
-    source_manager.term_source = [](j_decompress_ptr) { };
+    source_manager.term_source = [](j_decompress_ptr) {};
 
     cinfo.src = &source_manager;
 
+    constexpr auto jpeg_app1 = JPEG_APP0 + 1;
+    jpeg_save_markers(&cinfo, jpeg_app1, 0xFFFF);
     jpeg_save_markers(&cinfo, JPEG_APP0 + 2, 0xFFFF);
     if (jpeg_read_header(&cinfo, TRUE) != JPEG_HEADER_OK)
         return Error::from_string_literal("Failed to read JPEG header");
@@ -87,11 +93,28 @@ ErrorOr<void> JPEGLoadingContext::decode()
         cinfo.out_color_space = JCS_EXT_BGRX;
     }
 
+    auto marker = cinfo.marker_list;
+    while (marker) {
+        if (marker->marker == jpeg_app1 && marker->data_length >= 6) {
+            constexpr auto expected = "Exif\0\0"sv;
+
+            auto signature = StringView { marker->data, 6 };
+            if (signature != expected) {
+                marker = marker->next;
+                continue;
+            }
+
+            exif_metadata = TRY(TIFFImageDecoderPlugin::read_exif_metadata({ marker->data + 6, marker->original_length - 6 }));
+            break;
+        }
+    }
+
     jpeg_start_decompress(&cinfo);
     bool could_read_all_scanlines = true;
 
     if (cinfo.out_color_space == JCS_EXT_BGRX) {
-        rgb_bitmap = TRY(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRx8888, { static_cast<int>(cinfo.output_width), static_cast<int>(cinfo.output_height) }));
+        auto exif_orientation = exif_metadata ? static_cast<ExifOrientation>(exif_metadata->orientation().value()) : ExifOrientation::Default;
+        rgb_bitmap = TRY(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRx8888, { static_cast<int>(cinfo.output_width), static_cast<int>(cinfo.output_height) }, exif_orientation));
         while (cinfo.output_scanline < cinfo.output_height) {
             auto* row_ptr = (u8*)rgb_bitmap->scanline(cinfo.output_scanline);
             auto out_size = jpeg_read_scanlines(&cinfo, &row_ptr, 1);
