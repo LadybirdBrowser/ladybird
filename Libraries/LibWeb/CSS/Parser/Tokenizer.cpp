@@ -1227,7 +1227,7 @@ Token Tokenizer::consume_a_token()
         // If the next 3 input code points would start an ident sequence, consume an ident sequence, create
         // an <at-keyword-token> with its value set to the returned value, and return it.
         if (would_start_an_ident_sequence(peek_triplet())) {
-            auto name = consume_an_ident_sequence();
+            auto name = consume_an_ident_sequence().to_ascii_lowercase();
             return create_value_token(Token::Type::AtKeyword, move(name), input_since(start_byte_offset));
         }
 
