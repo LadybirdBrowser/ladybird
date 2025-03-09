@@ -1,0 +1,19 @@
+Harness status: OK
+
+Found 14 tests
+
+14 Pass
+Pass	Serialize space
+Pass	Serialize empty value
+Pass	Serialize empty name
+Pass	Serialize empty name and value
+Pass	Serialize +
+Pass	Serialize =
+Pass	Serialize &
+Pass	Serialize *-._
+Pass	Serialize %
+Pass	Serialize \0
+Pass	Serialize í ½U+dca9
+Pass	URLSearchParams.toString
+Pass	URLSearchParams connected to URL
+Pass	URLSearchParams must not do newline normalization

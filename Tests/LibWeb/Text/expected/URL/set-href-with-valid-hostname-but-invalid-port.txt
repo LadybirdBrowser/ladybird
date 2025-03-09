@@ -1,2 +1,0 @@
-http://example.net/path
-http://example.com/path

@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	Delete basics
+Pass	Deleting appended multiple
+Pass	Deleting all params removes ? from URL
+Pass	Removing non-existent param removes ? from URL
+Pass	Changing the query of a URL with an opaque path can impact the path
+Pass	Changing the query of a URL with an opaque path can impact the path if the URL has no fragment
+Pass	Two-argument delete()
+Pass	Two-argument delete() respects undefined as second arg
