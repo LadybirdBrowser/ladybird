@@ -1349,6 +1349,12 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
     auto& active_document = *this->active_document();
     auto& realm = active_document.realm();
 
+    // AD-HOC: If we are not able to continue in this process, request a new process from the UI.
+    if (!active_document.page().client().is_url_suitable_for_same_process_navigation(active_document.url(), params.url)) {
+        active_document.page().client().request_new_process_for_navigation(params.url);
+        return {};
+    }
+
     // 2. Let sourceSnapshotParams be the result of snapshotting source snapshot params given sourceDocument.
     auto source_snapshot_params = source_document->snapshot_source_snapshot_params();
 

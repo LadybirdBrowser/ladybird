@@ -111,6 +111,8 @@ private:
 
     // ^PageClient
     virtual bool is_connection_open() const override;
+    virtual bool is_url_suitable_for_same_process_navigation(URL::URL const& current_url, URL::URL const& target_url) const override;
+    virtual void request_new_process_for_navigation(URL::URL const&) override;
     virtual Gfx::Palette palette() const override;
     virtual Web::DevicePixelRect screen_rect() const override { return m_screen_rect; }
     virtual Web::CSS::PreferredColorScheme preferred_color_scheme() const override { return m_preferred_color_scheme; }

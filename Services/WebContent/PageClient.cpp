@@ -29,6 +29,7 @@
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWebView/Attribute.h>
+#include <LibWebView/SiteIsolation.h>
 #include <WebContent/ConnectionFromClient.h>
 #include <WebContent/DevToolsConsoleClient.h>
 #include <WebContent/InspectorConsoleClient.h>
@@ -132,6 +133,16 @@ void PageClient::setup_palette()
 bool PageClient::is_connection_open() const
 {
     return client().is_open();
+}
+
+bool PageClient::is_url_suitable_for_same_process_navigation(URL::URL const& current_url, URL::URL const& target_url) const
+{
+    return WebView::is_url_suitable_for_same_process_navigation(current_url, target_url);
+}
+
+void PageClient::request_new_process_for_navigation(URL::URL const& url)
+{
+    client().async_did_request_new_process_for_navigation(m_id, url);
 }
 
 Gfx::Palette PageClient::palette() const

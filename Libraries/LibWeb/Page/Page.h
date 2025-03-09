@@ -321,6 +321,8 @@ public:
     virtual Page& page() = 0;
     virtual Page const& page() const = 0;
     virtual bool is_connection_open() const = 0;
+    virtual bool is_url_suitable_for_same_process_navigation([[maybe_unused]] URL::URL const& current_url, [[maybe_unused]] URL::URL const& target_url) const { return true; }
+    virtual void request_new_process_for_navigation(URL::URL const&) { }
     virtual Gfx::Palette palette() const = 0;
     virtual DevicePixelRect screen_rect() const = 0;
     virtual double device_pixels_per_css_pixel() const = 0;

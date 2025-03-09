@@ -62,6 +62,12 @@ void WebContentClient::did_paint(u64 page_id, Gfx::IntRect rect, i32 bitmap_id)
         view->server_did_paint({}, bitmap_id, rect.size());
 }
 
+void WebContentClient::did_request_new_process_for_navigation(u64 page_id, URL::URL url)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value())
+        view->create_new_process_for_cross_site_navigation(url);
+}
+
 void WebContentClient::did_start_loading(u64 page_id, URL::URL url, bool is_redirect)
 {
     if (auto process = WebView::Application::the().find_process(m_process_handle.pid); process.has_value())

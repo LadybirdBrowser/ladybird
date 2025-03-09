@@ -14,6 +14,7 @@
 #include <LibWeb/Infra/Strings.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/HelperProcess.h>
+#include <LibWebView/SiteIsolation.h>
 #include <LibWebView/UserAgent.h>
 #include <LibWebView/ViewImplementation.h>
 
@@ -87,6 +88,21 @@ u64 ViewImplementation::page_id() const
 {
     VERIFY(m_client_state.client);
     return m_client_state.page_index;
+}
+
+void ViewImplementation::create_new_process_for_cross_site_navigation(URL::URL const& url)
+{
+    if (m_client_state.client)
+        client().async_close_server();
+
+    initialize_client();
+    VERIFY(m_client_state.client);
+
+    // Don't keep a stale backup bitmap around.
+    m_backup_bitmap = nullptr;
+    handle_resize();
+
+    load(url);
 }
 
 void ViewImplementation::server_did_paint(Badge<WebContentClient>, i32 bitmap_id, Gfx::IntSize size)

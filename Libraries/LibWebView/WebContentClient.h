@@ -52,6 +52,7 @@ private:
     virtual void die() override;
 
     virtual void did_paint(u64 page_id, Gfx::IntRect, i32) override;
+    virtual void did_request_new_process_for_navigation(u64 page_id, URL::URL url) override;
     virtual void did_finish_loading(u64 page_id, URL::URL) override;
     virtual void did_request_refresh(u64 page_id) override;
     virtual void did_request_cursor_change(u64 page_id, Gfx::Cursor) override;

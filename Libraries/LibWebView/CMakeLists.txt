@@ -16,6 +16,7 @@ set(SOURCES
     ProcessHandle.cpp
     ProcessManager.cpp
     SearchEngine.cpp
+    SiteIsolation.cpp
     SourceHighlighter.cpp
     URL.cpp
     UserAgent.cpp
