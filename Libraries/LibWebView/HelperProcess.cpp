@@ -79,10 +79,11 @@ static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process(
     VERIFY_NOT_REACHED();
 }
 
-ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process(
-    WebView::ViewImplementation& view,
+template<typename... ClientArguments>
+static ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process_impl(
     IPC::File image_decoder_socket,
-    Optional<IPC::File> request_server_socket)
+    Optional<IPC::File> request_server_socket,
+    ClientArguments&&... client_arguments)
 {
     auto const& chrome_options = WebView::Application::chrome_options();
     auto const& web_content_options = WebView::Application::web_content_options();
@@ -138,7 +139,22 @@ ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process(
     arguments.append("--image-decoder-socket"sv);
     arguments.append(ByteString::number(image_decoder_socket.fd()));
 
-    return launch_server_process<WebView::WebContentClient>("WebContent"sv, move(arguments), view);
+    return launch_server_process<WebView::WebContentClient>("WebContent"sv, move(arguments), forward<ClientArguments>(client_arguments)...);
+}
+
+ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process(
+    WebView::ViewImplementation& view,
+    IPC::File image_decoder_socket,
+    Optional<IPC::File> request_server_socket)
+{
+    return launch_web_content_process_impl(move(image_decoder_socket), move(request_server_socket), view);
+}
+
+ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_spare_web_content_process(
+    IPC::File image_decoder_socket,
+    Optional<IPC::File> request_server_socket)
+{
+    return launch_web_content_process_impl(move(image_decoder_socket), move(request_server_socket));
 }
 
 ErrorOr<NonnullRefPtr<ImageDecoderClient::Client>> launch_image_decoder_process()

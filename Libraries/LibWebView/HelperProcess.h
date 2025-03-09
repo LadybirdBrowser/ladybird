@@ -21,6 +21,10 @@ ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process(
     IPC::File image_decoder_socket,
     Optional<IPC::File> request_server_socket = {});
 
+ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_spare_web_content_process(
+    IPC::File image_decoder_socket,
+    Optional<IPC::File> request_server_socket = {});
+
 ErrorOr<NonnullRefPtr<ImageDecoderClient::Client>> launch_image_decoder_process();
 ErrorOr<NonnullRefPtr<Web::HTML::WebWorkerClient>> launch_web_worker_process();
 ErrorOr<NonnullRefPtr<Requests::RequestClient>> launch_request_server_process();

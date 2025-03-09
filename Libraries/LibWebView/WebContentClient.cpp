@@ -31,6 +31,12 @@ WebContentClient::WebContentClient(IPC::Transport transport, ViewImplementation&
     m_views.set(0, &view);
 }
 
+WebContentClient::WebContentClient(IPC::Transport transport)
+    : IPC::ConnectionToServer<WebContentClientEndpoint, WebContentServerEndpoint>(*this, move(transport))
+{
+    s_clients.set(this);
+}
+
 WebContentClient::~WebContentClient()
 {
     s_clients.remove(this);
@@ -39,6 +45,12 @@ WebContentClient::~WebContentClient()
 void WebContentClient::die()
 {
     // Intentionally empty. Restart is handled at another level.
+}
+
+void WebContentClient::assign_view(Badge<Application>, ViewImplementation& view)
+{
+    VERIFY(m_views.is_empty());
+    m_views.set(0, &view);
 }
 
 void WebContentClient::register_view(u64 page_id, ViewImplementation& view)
@@ -768,6 +780,10 @@ void WebContentClient::did_get_style_sheet_source(u64 page_id, Web::CSS::StyleSh
 
 Optional<ViewImplementation&> WebContentClient::view_for_page_id(u64 page_id, SourceLocation location)
 {
+    // Don't bother logging anything for the spare WebContent process. It will only receive a load notification for about:blank.
+    if (m_views.is_empty())
+        return {};
+
     if (auto view = m_views.get(page_id); view.has_value())
         return *view.value();
 

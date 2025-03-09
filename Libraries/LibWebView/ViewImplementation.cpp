@@ -568,11 +568,8 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client)
     if (create_new_client == CreateNewClient::Yes) {
         m_client_state = {};
 
-        // FIXME: Fail to open the tab, rather than crashing the whole application if these fail.
-        auto request_server_socket = connect_new_request_server_client().release_value_but_fixme_should_propagate_errors();
-        auto image_decoder_socket = connect_new_image_decoder_client().release_value_but_fixme_should_propagate_errors();
-
-        m_client_state.client = launch_web_content_process(*this, AK::move(image_decoder_socket), AK::move(request_server_socket)).release_value_but_fixme_should_propagate_errors();
+        // FIXME: Fail to open the tab, rather than crashing the whole application if this fails.
+        m_client_state.client = Application::the().launch_web_content_process(*this).release_value_but_fixme_should_propagate_errors();
     } else {
         m_client_state.client->register_view(m_client_state.page_index, *this);
     }

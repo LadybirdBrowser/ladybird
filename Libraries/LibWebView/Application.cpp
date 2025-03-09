@@ -191,6 +191,52 @@ void Application::initialize(Main::Arguments const& arguments, URL::URL new_tab_
     }
 }
 
+static ErrorOr<NonnullRefPtr<WebContentClient>> create_web_content_client(Optional<ViewImplementation&> view)
+{
+    auto request_server_socket = TRY(connect_new_request_server_client());
+    auto image_decoder_socket = TRY(connect_new_image_decoder_client());
+
+    if (view.has_value())
+        return WebView::launch_web_content_process(*view, move(image_decoder_socket), move(request_server_socket));
+    return WebView::launch_spare_web_content_process(move(image_decoder_socket), move(request_server_socket));
+}
+
+ErrorOr<NonnullRefPtr<WebContentClient>> Application::launch_web_content_process(ViewImplementation& view)
+{
+    if (m_spare_web_content_process) {
+        auto web_content_client = m_spare_web_content_process.release_nonnull();
+        launch_spare_web_content_process();
+
+        web_content_client->assign_view({}, view);
+        return web_content_client;
+    }
+
+    launch_spare_web_content_process();
+    return create_web_content_client(view);
+}
+
+void Application::launch_spare_web_content_process()
+{
+    if (m_has_queued_task_to_launch_spare_web_content_process)
+        return;
+    m_has_queued_task_to_launch_spare_web_content_process = true;
+
+    Core::deferred_invoke([this]() {
+        m_has_queued_task_to_launch_spare_web_content_process = false;
+
+        auto web_content_client = create_web_content_client({});
+        if (web_content_client.is_error()) {
+            dbgln("Unable to create spare web content client: {}", web_content_client.error());
+            return;
+        }
+
+        m_spare_web_content_process = web_content_client.release_value();
+
+        if (auto process = find_process(m_spare_web_content_process->pid()); process.has_value())
+            process->set_title("(spare)"_string);
+    });
+}
+
 ErrorOr<void> Application::launch_services()
 {
     TRY(launch_request_server());
