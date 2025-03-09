@@ -1,0 +1,401 @@
+Harness status: OK
+
+Found 387 tests
+
+387 Pass
+Pass	Loading data…
+Pass	Origin parsing: <http://example	.
+org> against <http://example.org/foo/bar>
+Pass	Origin parsing: <http://user:pass@foo:21/bar;par?b#c> against <http://example.org/foo/bar>
+Pass	Origin parsing: <https://test:@test> without base
+Pass	Origin parsing: <https://:@test> without base
+Pass	Origin parsing: <non-special://test:@test/x> without base
+Pass	Origin parsing: <non-special://:@test/x> without base
+Pass	Origin parsing: <http:foo.com> against <http://example.org/foo/bar>
+Pass	Origin parsing: <	   :foo.com   
+> against <http://example.org/foo/bar>
+Pass	Origin parsing: < foo.com  > against <http://example.org/foo/bar>
+Pass	Origin parsing: <a:	 foo.com> against <http://example.org/foo/bar>
+Pass	Origin parsing: <http://f:21/ b ? d # e > against <http://example.org/foo/bar>
+Pass	Origin parsing: <http://f:/c> against <http://example.org/foo/bar>
+Pass	Origin parsing: <http://f:0/c> against <http://example.org/foo/bar>
+Pass	Origin parsing: <http://f:00000000000000/c> against <http://example.org/foo/bar>
+Pass	Origin parsing: <http://f:00000000000000000000080/c> against <http://example.org/foo/bar>
+Pass	Origin parsing: <http://f:
+/c> against <http://example.org/foo/bar>
+Pass	Origin parsing: <> against <http://example.org/foo/bar>
+Pass	Origin parsing: <  	> against <http://example.org/foo/bar>
+Pass	Origin parsing: <:foo.com/> against <http://example.org/foo/bar>
+Pass	Origin parsing: <:foo.com\> against <http://example.org/foo/bar>
+Pass	Origin parsing: <:> against <http://example.org/foo/bar>
+Pass	Origin parsing: <:a> against <http://example.org/foo/bar>
+Pass	Origin parsing: <:/> against <http://example.org/foo/bar>
+Pass	Origin parsing: <:\> against <http://example.org/foo/bar>
+Pass	Origin parsing: <:#> against <http://example.org/foo/bar>
+Pass	Origin parsing: <#> against <http://example.org/foo/bar>
+Pass	Origin parsing: <#/> against <http://example.org/foo/bar>
+Pass	Origin parsing: <#\> against <http://example.org/foo/bar>
+Pass	Origin parsing: <#;?> against <http://example.org/foo/bar>
+Pass	Origin parsing: <?> against <http://example.org/foo/bar>
+Pass	Origin parsing: </> against <http://example.org/foo/bar>
+Pass	Origin parsing: <:23> against <http://example.org/foo/bar>
+Pass	Origin parsing: </:23> against <http://example.org/foo/bar>
+Pass	Origin parsing: <\x> against <http://example.org/foo/bar>
+Pass	Origin parsing: <\\x\hello> against <http://example.org/foo/bar>
+Pass	Origin parsing: <::> against <http://example.org/foo/bar>
+Pass	Origin parsing: <::23> against <http://example.org/foo/bar>
+Pass	Origin parsing: <foo://> against <http://example.org/foo/bar>
+Pass	Origin parsing: <http://a:b@c:29/d> against <http://example.org/foo/bar>
+Pass	Origin parsing: <http::@c:29> against <http://example.org/foo/bar>
+Pass	Origin parsing: <http://&a:foo(b]c@d:2/> against <http://example.org/foo/bar>
+Pass	Origin parsing: <http://::@c@d:2> against <http://example.org/foo/bar>
+Pass	Origin parsing: <http://foo.com:b@d/> against <http://example.org/foo/bar>
+Pass	Origin parsing: <http://foo.com/\@> against <http://example.org/foo/bar>
+Pass	Origin parsing: <http:\\foo.com\> against <http://example.org/foo/bar>
+Pass	Origin parsing: <http:\\a\b:c\d@foo.com\> against <http://example.org/foo/bar>
+Pass	Origin parsing: <http://a:b@c\> without base
+Pass	Origin parsing: <ws://a@b\c> without base
+Pass	Origin parsing: <foo:/> against <http://example.org/foo/bar>
+Pass	Origin parsing: <foo:/bar.com/> against <http://example.org/foo/bar>
+Pass	Origin parsing: <foo://///////> against <http://example.org/foo/bar>
+Pass	Origin parsing: <foo://///////bar.com/> against <http://example.org/foo/bar>
+Pass	Origin parsing: <foo:////://///> against <http://example.org/foo/bar>
+Pass	Origin parsing: <c:/foo> against <http://example.org/foo/bar>
+Pass	Origin parsing: <//foo/bar> against <http://example.org/foo/bar>
+Pass	Origin parsing: <http://foo/path;a??e#f#g> against <http://example.org/foo/bar>
+Pass	Origin parsing: <http://foo/abcd?efgh?ijkl> against <http://example.org/foo/bar>
+Pass	Origin parsing: <http://foo/abcd#foo?bar> against <http://example.org/foo/bar>
+Pass	Origin parsing: <[61:24:74]:98> against <http://example.org/foo/bar>
+Pass	Origin parsing: <http:[61:27]/:foo> against <http://example.org/foo/bar>
+Pass	Origin parsing: <http://[2001::1]> against <http://example.org/foo/bar>
+Pass	Origin parsing: <http://[::127.0.0.1]> against <http://example.org/foo/bar>
+Pass	Origin parsing: <http://[0:0:0:0:0:0:13.1.68.3]> against <http://example.org/foo/bar>
+Pass	Origin parsing: <http://[2001::1]:80> against <http://example.org/foo/bar>
+Pass	Origin parsing: <http:/example.com/> against <http://example.org/foo/bar>
+Pass	Origin parsing: <ftp:/example.com/> against <http://example.org/foo/bar>
+Pass	Origin parsing: <https:/example.com/> against <http://example.org/foo/bar>
+Pass	Origin parsing: <madeupscheme:/example.com/> against <http://example.org/foo/bar>
+Pass	Origin parsing: <ftps:/example.com/> against <http://example.org/foo/bar>
+Pass	Origin parsing: <gopher:/example.com/> against <http://example.org/foo/bar>
+Pass	Origin parsing: <ws:/example.com/> against <http://example.org/foo/bar>
+Pass	Origin parsing: <wss:/example.com/> against <http://example.org/foo/bar>
+Pass	Origin parsing: <data:/example.com/> against <http://example.org/foo/bar>
+Pass	Origin parsing: <javascript:/example.com/> against <http://example.org/foo/bar>
+Pass	Origin parsing: <mailto:/example.com/> against <http://example.org/foo/bar>
+Pass	Origin parsing: <http:example.com/> against <http://example.org/foo/bar>
+Pass	Origin parsing: <ftp:example.com/> against <http://example.org/foo/bar>
+Pass	Origin parsing: <https:example.com/> against <http://example.org/foo/bar>
+Pass	Origin parsing: <madeupscheme:example.com/> against <http://example.org/foo/bar>
+Pass	Origin parsing: <ftps:example.com/> against <http://example.org/foo/bar>
+Pass	Origin parsing: <gopher:example.com/> against <http://example.org/foo/bar>
+Pass	Origin parsing: <ws:example.com/> against <http://example.org/foo/bar>
+Pass	Origin parsing: <wss:example.com/> against <http://example.org/foo/bar>
+Pass	Origin parsing: <data:example.com/> against <http://example.org/foo/bar>
+Pass	Origin parsing: <javascript:example.com/> against <http://example.org/foo/bar>
+Pass	Origin parsing: <mailto:example.com/> against <http://example.org/foo/bar>
+Pass	Origin parsing: </a/b/c> against <http://example.org/foo/bar>
+Pass	Origin parsing: </a/ /c> against <http://example.org/foo/bar>
+Pass	Origin parsing: </a%2fc> against <http://example.org/foo/bar>
+Pass	Origin parsing: </a/%2f/c> against <http://example.org/foo/bar>
+Pass	Origin parsing: <#β> against <http://example.org/foo/bar>
+Pass	Origin parsing: <data:text/html,test#test> against <http://example.org/foo/bar>
+Pass	Origin parsing: <tel:1234567890> against <http://example.org/foo/bar>
+Pass	Origin parsing: <ssh://example.com/foo/bar.git> against <http://example.org/>
+Pass	Origin parsing: <http://example.com/././foo> without base
+Pass	Origin parsing: <http://example.com/./.foo> without base
+Pass	Origin parsing: <http://example.com/foo/.> without base
+Pass	Origin parsing: <http://example.com/foo/./> without base
+Pass	Origin parsing: <http://example.com/foo/bar/..> without base
+Pass	Origin parsing: <http://example.com/foo/bar/../> without base
+Pass	Origin parsing: <http://example.com/foo/..bar> without base
+Pass	Origin parsing: <http://example.com/foo/bar/../ton> without base
+Pass	Origin parsing: <http://example.com/foo/bar/../ton/../../a> without base
+Pass	Origin parsing: <http://example.com/foo/../../..> without base
+Pass	Origin parsing: <http://example.com/foo/../../../ton> without base
+Pass	Origin parsing: <http://example.com/foo/%2e> without base
+Pass	Origin parsing: <http://example.com/foo/%2e%2> without base
+Pass	Origin parsing: <http://example.com/foo/%2e./%2e%2e/.%2e/%2e.bar> without base
+Pass	Origin parsing: <http://example.com////../..> without base
+Pass	Origin parsing: <http://example.com/foo/bar//../..> without base
+Pass	Origin parsing: <http://example.com/foo/bar//..> without base
+Pass	Origin parsing: <http://example.com/foo> without base
+Pass	Origin parsing: <http://example.com/%20foo> without base
+Pass	Origin parsing: <http://example.com/foo%> without base
+Pass	Origin parsing: <http://example.com/foo%2> without base
+Pass	Origin parsing: <http://example.com/foo%2zbar> without base
+Pass	Origin parsing: <http://example.com/foo%2Â©zbar> without base
+Pass	Origin parsing: <http://example.com/foo%41%7a> without base
+Pass	Origin parsing: <http://example.com/foo	%91> without base
+Pass	Origin parsing: <http://example.com/foo%00%51> without base
+Pass	Origin parsing: <http://example.com/(%28:%3A%29)> without base
+Pass	Origin parsing: <http://example.com/%3A%3a%3C%3c> without base
+Pass	Origin parsing: <http://example.com/foo	bar> without base
+Pass	Origin parsing: <http://example.com\\foo\\bar> without base
+Pass	Origin parsing: <http://example.com/%7Ffp3%3Eju%3Dduvgw%3Dd> without base
+Pass	Origin parsing: <http://example.com/@asdf%40> without base
+Pass	Origin parsing: <http://example.com/你好你好> without base
+Pass	Origin parsing: <http://example.com/‥/foo> without base
+Pass	Origin parsing: <http://example.com/﻿/foo> without base
+Pass	Origin parsing: <http://example.com/‮/foo/‭/bar> without base
+Pass	Origin parsing: <http://www.google.com/foo?bar=baz#> without base
+Pass	Origin parsing: <http://www.google.com/foo?bar=baz# »> without base
+Pass	Origin parsing: <data:test# »> without base
+Pass	Origin parsing: <http://www.google.com> without base
+Pass	Origin parsing: <http://192.0x00A80001> without base
+Pass	Origin parsing: <http://www/foo%2Ehtml> without base
+Pass	Origin parsing: <http://www/foo/%2E/html> without base
+Pass	Origin parsing: <http://%25DOMAIN:foobar@foodomain.com/> without base
+Pass	Origin parsing: <http:\\www.google.com\foo> without base
+Pass	Origin parsing: <http://foo:80/> without base
+Pass	Origin parsing: <http://foo:81/> without base
+Pass	Origin parsing: <httpa://foo:80/> without base
+Pass	Origin parsing: <https://foo:443/> without base
+Pass	Origin parsing: <https://foo:80/> without base
+Pass	Origin parsing: <ftp://foo:21/> without base
+Pass	Origin parsing: <ftp://foo:80/> without base
+Pass	Origin parsing: <gopher://foo:70/> without base
+Pass	Origin parsing: <gopher://foo:443/> without base
+Pass	Origin parsing: <ws://foo:80/> without base
+Pass	Origin parsing: <ws://foo:81/> without base
+Pass	Origin parsing: <ws://foo:443/> without base
+Pass	Origin parsing: <ws://foo:815/> without base
+Pass	Origin parsing: <wss://foo:80/> without base
+Pass	Origin parsing: <wss://foo:81/> without base
+Pass	Origin parsing: <wss://foo:443/> without base
+Pass	Origin parsing: <wss://foo:815/> without base
+Pass	Origin parsing: <http:/example.com/> without base
+Pass	Origin parsing: <ftp:/example.com/> without base
+Pass	Origin parsing: <https:/example.com/> without base
+Pass	Origin parsing: <madeupscheme:/example.com/> without base
+Pass	Origin parsing: <ftps:/example.com/> without base
+Pass	Origin parsing: <gopher:/example.com/> without base
+Pass	Origin parsing: <ws:/example.com/> without base
+Pass	Origin parsing: <wss:/example.com/> without base
+Pass	Origin parsing: <data:/example.com/> without base
+Pass	Origin parsing: <javascript:/example.com/> without base
+Pass	Origin parsing: <mailto:/example.com/> without base
+Pass	Origin parsing: <http:example.com/> without base
+Pass	Origin parsing: <ftp:example.com/> without base
+Pass	Origin parsing: <https:example.com/> without base
+Pass	Origin parsing: <madeupscheme:example.com/> without base
+Pass	Origin parsing: <ftps:example.com/> without base
+Pass	Origin parsing: <gopher:example.com/> without base
+Pass	Origin parsing: <ws:example.com/> without base
+Pass	Origin parsing: <wss:example.com/> without base
+Pass	Origin parsing: <data:example.com/> without base
+Pass	Origin parsing: <javascript:example.com/> without base
+Pass	Origin parsing: <mailto:example.com/> without base
+Pass	Origin parsing: <https://example.com/aaa/bbb/%2e%2e?query> without base
+Pass	Origin parsing: <http:@www.example.com> without base
+Pass	Origin parsing: <http:/@www.example.com> without base
+Pass	Origin parsing: <http://@www.example.com> without base
+Pass	Origin parsing: <http:a:b@www.example.com> without base
+Pass	Origin parsing: <http:/a:b@www.example.com> without base
+Pass	Origin parsing: <http://a:b@www.example.com> without base
+Pass	Origin parsing: <http://@pple.com> without base
+Pass	Origin parsing: <http::b@www.example.com> without base
+Pass	Origin parsing: <http:/:b@www.example.com> without base
+Pass	Origin parsing: <http://:b@www.example.com> without base
+Pass	Origin parsing: <http:a:@www.example.com> without base
+Pass	Origin parsing: <http:/a:@www.example.com> without base
+Pass	Origin parsing: <http://a:@www.example.com> without base
+Pass	Origin parsing: <http://www.@pple.com> without base
+Pass	Origin parsing: <http://:@www.example.com> without base
+Pass	Origin parsing: </> against <http://www.example.com/test>
+Pass	Origin parsing: </test.txt> against <http://www.example.com/test>
+Pass	Origin parsing: <.> against <http://www.example.com/test>
+Pass	Origin parsing: <..> against <http://www.example.com/test>
+Pass	Origin parsing: <test.txt> against <http://www.example.com/test>
+Pass	Origin parsing: <./test.txt> against <http://www.example.com/test>
+Pass	Origin parsing: <../test.txt> against <http://www.example.com/test>
+Pass	Origin parsing: <../aaa/test.txt> against <http://www.example.com/test>
+Pass	Origin parsing: <../../test.txt> against <http://www.example.com/test>
+Pass	Origin parsing: <中/test.txt> against <http://www.example.com/test>
+Pass	Origin parsing: <http://www.example2.com> against <http://www.example.com/test>
+Pass	Origin parsing: <//www.example2.com> against <http://www.example.com/test>
+Pass	Origin parsing: <http://ExAmPlE.CoM> against <http://other.com/>
+Pass	Origin parsing: <http://GOO​⁠﻿goo.com> against <http://other.com/>
+Pass	Origin parsing: <  http://example.com/  > without base
+Pass	Origin parsing: <http://www.foo。bar.com> against <http://other.com/>
+Pass	Origin parsing: <https://x/�?�#�> without base
+Pass	Origin parsing: <http://Ｇｏ.com> against <http://other.com/>
+Pass	Origin parsing: <http://你好你好> against <http://other.com/>
+Pass	Origin parsing: <https://faß.ExAmPlE/> without base
+Pass	Origin parsing: <sc://faß.ExAmPlE/> without base
+Pass	Origin parsing: <http://%30%78%63%30%2e%30%32%35%30.01> against <http://other.com/>
+Pass	Origin parsing: <http://%30%78%63%30%2e%30%32%35%30.01%2e> against <http://other.com/>
+Pass	Origin parsing: <http://０Ｘｃ０．０２５０．０１> against <http://other.com/>
+Pass	Origin parsing: <http://./> without base
+Pass	Origin parsing: <http://../> without base
+Pass	Origin parsing: <h://.> without base
+Pass	Origin parsing: <http://foo:���U+dca9@example.com/bar> against <http://other.com/>
+Pass	Origin parsing: <#> against <test:test>
+Pass	Origin parsing: <#x> against <mailto:x@x.com>
+Pass	Origin parsing: <#x> against <data:,>
+Pass	Origin parsing: <#x> against <about:blank>
+Pass	Origin parsing: <#x:y> against <about:blank>
+Pass	Origin parsing: <#> against <test:test?test>
+Pass	Origin parsing: <https://@test@test@example:800/> against <http://doesnotmatter/>
+Pass	Origin parsing: <https://@@@example> against <http://doesnotmatter/>
+Pass	Origin parsing: <http://`{}:`{}@h/`{}?`{}> against <http://doesnotmatter/>
+Pass	Origin parsing: <http://host/?'> without base
+Pass	Origin parsing: <notspecial://host/?'> without base
+Pass	Origin parsing: </some/path> against <http://user@example.org/smth>
+Pass	Origin parsing: <> against <http://user:pass@example.org:21/smth>
+Pass	Origin parsing: </some/path> against <http://user:pass@example.org:21/smth>
+Pass	Origin parsing: <i> against <sc:/pa/pa>
+Pass	Origin parsing: <i> against <sc://ho/pa>
+Pass	Origin parsing: <i> against <sc:///pa/pa>
+Pass	Origin parsing: <../i> against <sc:/pa/pa>
+Pass	Origin parsing: <../i> against <sc://ho/pa>
+Pass	Origin parsing: <../i> against <sc:///pa/pa>
+Pass	Origin parsing: </i> against <sc:/pa/pa>
+Pass	Origin parsing: </i> against <sc://ho/pa>
+Pass	Origin parsing: </i> against <sc:///pa/pa>
+Pass	Origin parsing: <?i> against <sc:/pa/pa>
+Pass	Origin parsing: <?i> against <sc://ho/pa>
+Pass	Origin parsing: <?i> against <sc:///pa/pa>
+Pass	Origin parsing: <#i> against <sc:sd>
+Pass	Origin parsing: <#i> against <sc:sd/sd>
+Pass	Origin parsing: <#i> against <sc:/pa/pa>
+Pass	Origin parsing: <#i> against <sc://ho/pa>
+Pass	Origin parsing: <#i> against <sc:///pa/pa>
+Pass	Origin parsing: <about:/../> without base
+Pass	Origin parsing: <data:/../> without base
+Pass	Origin parsing: <javascript:/../> without base
+Pass	Origin parsing: <mailto:/../> without base
+Pass	Origin parsing: <sc://ñ.test/> without base
+Pass	Origin parsing: <x> against <sc://ñ>
+Pass	Origin parsing: <sc:\../> without base
+Pass	Origin parsing: <sc::a@example.net> without base
+Pass	Origin parsing: <wow:%NBD> without base
+Pass	Origin parsing: <wow:%1G> without base
+Pass	Origin parsing: <wow:￿> without base
+Pass	Origin parsing: <http://!"$&'()*+,-.;=_`{}~/> without base
+Pass	Origin parsing: <sc://!"$%&'()*+,-.;=_`{}~/> without base
+Pass	Origin parsing: <ftp://%e2%98%83> without base
+Pass	Origin parsing: <https://%e2%98%83> without base
+Pass	Origin parsing: <http://127.0.0.1:10100/relative_import.html> without base
+Pass	Origin parsing: <http://facebook.com/?foo=%7B%22abc%22> without base
+Pass	Origin parsing: <https://localhost:3000/jqueryui@1.2.3> without base
+Pass	Origin parsing: <h	t
+tp://h	o
+st:9	0
+00/p	a
+th?q	u
+ery#f	r
+ag> without base
+Pass	Origin parsing: <?a=b&c=d> against <http://example.org/foo/bar>
+Pass	Origin parsing: <??a=b&c=d> against <http://example.org/foo/bar>
+Pass	Origin parsing: <http:> against <http://example.org/foo/bar>
+Pass	Origin parsing: <sc:> against <https://example.org/foo/bar>
+Pass	Origin parsing: <http://foo.bar/baz?qux#foobar> without base
+Pass	Origin parsing: <http://foo.bar/baz?qux#foo"bar> without base
+Pass	Origin parsing: <http://foo.bar/baz?qux#foo<bar> without base
+Pass	Origin parsing: <http://foo.bar/baz?qux#foo>bar> without base
+Pass	Origin parsing: <http://foo.bar/baz?qux#foo`bar> without base
+Pass	Origin parsing: <http://1.2.3.4/> against <http://other.com/>
+Pass	Origin parsing: <http://1.2.3.4./> against <http://other.com/>
+Pass	Origin parsing: <http://192.168.257> against <http://other.com/>
+Pass	Origin parsing: <http://192.168.257.> against <http://other.com/>
+Pass	Origin parsing: <http://192.168.257.com> against <http://other.com/>
+Pass	Origin parsing: <http://256> against <http://other.com/>
+Pass	Origin parsing: <http://256.com> against <http://other.com/>
+Pass	Origin parsing: <http://999999999> against <http://other.com/>
+Pass	Origin parsing: <http://999999999.> against <http://other.com/>
+Pass	Origin parsing: <http://999999999.com> against <http://other.com/>
+Pass	Origin parsing: <http://10000000000.com> against <http://other.com/>
+Pass	Origin parsing: <http://4294967295> against <http://other.com/>
+Pass	Origin parsing: <http://0xffffffff> against <http://other.com/>
+Pass	Origin parsing: <https://0x.0x.0> without base
+Pass	Origin parsing: <asdf://%43%7C/> without base
+Pass	Origin parsing: <http://[1:0::]> against <http://example.net/>
+Pass	Origin parsing: <sc://ñ> without base
+Pass	Origin parsing: <sc://ñ?x> without base
+Pass	Origin parsing: <sc://ñ#x> without base
+Pass	Origin parsing: <#x> against <sc://ñ>
+Pass	Origin parsing: <?x> against <sc://ñ>
+Pass	Origin parsing: <tftp://foobar.com/someconfig;mode=netascii> without base
+Pass	Origin parsing: <telnet://user:pass@foobar.com:23/> without base
+Pass	Origin parsing: <ut2004://10.10.10.10:7777/Index.ut2> without base
+Pass	Origin parsing: <redis://foo:bar@somehost:6379/0?baz=bam&qux=baz> without base
+Pass	Origin parsing: <rsync://foo@host:911/sup> without base
+Pass	Origin parsing: <git://github.com/foo/bar.git> without base
+Pass	Origin parsing: <irc://myserver.com:6999/channel?passwd> without base
+Pass	Origin parsing: <dns://fw.example.org:9999/foo.bar.org?type=TXT> without base
+Pass	Origin parsing: <ldap://localhost:389/ou=People,o=JNDITutorial> without base
+Pass	Origin parsing: <git+https://github.com/foo/bar> without base
+Pass	Origin parsing: <urn:ietf:rfc:2648> without base
+Pass	Origin parsing: <tag:joe@example.org,2001:foo/bar> without base
+Pass	Origin parsing: <blob:https://example.com:443/> without base
+Pass	Origin parsing: <blob:http://example.org:88/> without base
+Pass	Origin parsing: <blob:d3958f5c-0777-0845-9dcf-2cb28783acaf> without base
+Pass	Origin parsing: <blob:> without base
+Pass	Origin parsing: <blob:blob:> without base
+Pass	Origin parsing: <blob:blob:https://example.org/> without base
+Pass	Origin parsing: <blob:about:blank> without base
+Pass	Origin parsing: <blob:ftp://host/path> without base
+Pass	Origin parsing: <blob:ws://example.org/> without base
+Pass	Origin parsing: <blob:wss://example.org/> without base
+Pass	Origin parsing: <blob:http%3a//example.org/> without base
+Pass	Origin parsing: <non-special:cannot-be-a-base-url- ~> without base
+Pass	Origin parsing: <non-special:cannot-be-a-base-url-!"$%&'()*+,-.;<=>@[\]^_`{|}~@/> without base
+Pass	Origin parsing: <https://www.example.com/path{path.html?query'=query#fragment<fragment> without base
+Pass	Origin parsing: <https://user:pass[@foo/bar> against <http://example.org>
+Pass	Origin parsing: <foo:// !"$%&'()*+,-.;<=>@[\]^_`{|}~@host/> without base
+Pass	Origin parsing: <wss:// !"$%&'()*+,-.;<=>@[]^_`{|}~@host/> without base
+Pass	Origin parsing: <foo://joe: !"$%&'()*+,-.:;<=>@[\]^_`{|}~@host/> without base
+Pass	Origin parsing: <wss://joe: !"$%&'()*+,-.:;<=>@[]^_`{|}~@host/> without base
+Pass	Origin parsing: <foo://!"$%&'()*+,-.;=_`{}~/> without base
+Pass	Origin parsing: <wss://!"$&'()*+,-.;=_`{}~/> without base
+Pass	Origin parsing: <foo://host/ !"$%&'()*+,-./:;<=>@[\]^_`{|}~> without base
+Pass	Origin parsing: <wss://host/ !"$%&'()*+,-./:;<=>@[\]^_`{|}~> without base
+Pass	Origin parsing: <foo://host/dir/? !"$%&'()*+,-./:;<=>?@[\]^_`{|}~> without base
+Pass	Origin parsing: <wss://host/dir/? !"$%&'()*+,-./:;<=>?@[\]^_`{|}~> without base
+Pass	Origin parsing: <foo://host/dir/# !"#$%&'()*+,-./:;<=>?@[\]^_`{|}~> without base
+Pass	Origin parsing: <wss://host/dir/# !"#$%&'()*+,-./:;<=>?@[\]^_`{|}~> without base
+Pass	Origin parsing: <https://example.com/"quoted"> without base
+Pass	Origin parsing: <https://a%C2%ADb/> without base
+Pass	Origin parsing: <data://example.com:8080/pathname?search#hash> without base
+Pass	Origin parsing: <data:///test> without base
+Pass	Origin parsing: <data://test/a/../b> without base
+Pass	Origin parsing: <javascript://example.com:8080/pathname?search#hash> without base
+Pass	Origin parsing: <javascript:///test> without base
+Pass	Origin parsing: <javascript://test/a/../b> without base
+Pass	Origin parsing: <mailto://example.com:8080/pathname?search#hash> without base
+Pass	Origin parsing: <mailto:///test> without base
+Pass	Origin parsing: <mailto://test/a/../b> without base
+Pass	Origin parsing: <intent://example.com:8080/pathname?search#hash> without base
+Pass	Origin parsing: <intent:///test> without base
+Pass	Origin parsing: <intent://test/a/../b> without base
+Pass	Origin parsing: <urn://example.com:8080/pathname?search#hash> without base
+Pass	Origin parsing: <urn:///test> without base
+Pass	Origin parsing: <urn://test/a/../b> without base
+Pass	Origin parsing: <turn://example.com:8080/pathname?search#hash> without base
+Pass	Origin parsing: <turn:///test> without base
+Pass	Origin parsing: <turn://test/a/../b> without base
+Pass	Origin parsing: <stun://example.com:8080/pathname?search#hash> without base
+Pass	Origin parsing: <stun:///test> without base
+Pass	Origin parsing: <stun://test/a/../b> without base
+Pass	Origin parsing: <w://x:0> without base
+Pass	Origin parsing: <west://x:0> without base
+Pass	Origin parsing: <android://x:0/a> without base
+Pass	Origin parsing: <drivefs://x:0/a> without base
+Pass	Origin parsing: <chromeos-steam://x:0/a> without base
+Pass	Origin parsing: <steam://x:0/a> without base
+Pass	Origin parsing: <materialized-view://x:0/a> without base
+Pass	Origin parsing: <android-app://x:0> without base
+Pass	Origin parsing: <chrome-distiller://x:0> without base
+Pass	Origin parsing: <chrome-extension://x:0> without base
+Pass	Origin parsing: <chrome-native://x:0> without base
+Pass	Origin parsing: <chrome-resource://x:0> without base
+Pass	Origin parsing: <chrome-search://x:0> without base
+Pass	Origin parsing: <fuchsia-dir://x:0> without base
+Pass	Origin parsing: <isolated-app://x:0> without base
+Pass	Origin parsing: <non-special:\\opaque> without base
+Pass	Origin parsing: <non-special:\\opaque/path> without base
+Pass	Origin parsing: <non-special:\\opaque\path> without base
+Pass	Origin parsing: <non-special:\/opaque> without base
+Pass	Origin parsing: <non-special:/\path> without base
+Pass	Origin parsing: <non-special://host/a\b> without base
+Pass	Origin parsing: <http://example.com//U+d800���U+dffeU+dfff﷐﷏﷯ﷰ￾￿??U+d800���U+dffeU+dfff﷐﷏﷯ﷰ￾￿> without base
