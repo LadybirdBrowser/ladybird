@@ -112,6 +112,10 @@ NonnullRefPtr<MediaQuery> Parser::parse_media_query(TokenStream<ComponentValue>&
 
     // `<media-type>`
     if (auto media_type = parse_media_type(tokens); media_type.has_value()) {
+        // https://drafts.csswg.org/mediaqueries-4/#error-handling
+        // An unknown <media-type> must be treated as not matching.
+        if (media_type.value() == MediaQuery::MediaType::Unknown)
+            return invalid_media_query();
         media_query->m_media_type = media_type.value();
         tokens.discard_whitespace();
     } else {
