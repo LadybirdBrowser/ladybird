@@ -93,7 +93,11 @@ public:
     size_t path_segment_count() const { return m_data->paths.size(); }
 
     u16 port_or_default() const { return m_data->port.value_or(default_port_for_scheme(m_data->scheme).value_or(0)); }
-    bool cannot_be_a_base_url() const { return m_data->cannot_be_a_base_url; }
+
+    // https://url.spec.whatwg.org/#url-opaque-path
+    // A URL has an opaque path if its path is a URL path segment.
+    bool has_an_opaque_path() const { return m_data->has_an_opaque_path; }
+
     bool cannot_have_a_username_or_password_or_port() const;
 
     bool includes_credentials() const { return !m_data->username.is_empty() || !m_data->password.is_empty(); }
@@ -108,7 +112,7 @@ public:
     Vector<String> const& paths() const { return m_data->paths; }
     void set_query(Optional<String> query) { m_data->query = move(query); }
     void set_fragment(Optional<String> fragment) { m_data->fragment = move(fragment); }
-    void set_cannot_be_a_base_url(bool value) { m_data->cannot_be_a_base_url = value; }
+    void set_has_an_opaque_path(bool value) { m_data->has_an_opaque_path = value; }
     void append_path(StringView);
     void append_slash()
     {
@@ -156,7 +160,7 @@ private:
             clone->paths = paths;
             clone->query = query;
             clone->fragment = fragment;
-            clone->cannot_be_a_base_url = cannot_be_a_base_url;
+            clone->has_an_opaque_path = has_an_opaque_path;
             clone->blob_url_entry = blob_url_entry;
             return clone;
         }
@@ -188,7 +192,7 @@ private:
         // A URL’s fragment is either null or an ASCII string that can be used for further processing on the resource the URL’s other components identify. It is initially null.
         Optional<String> fragment;
 
-        bool cannot_be_a_base_url { false };
+        bool has_an_opaque_path { false };
 
         // https://url.spec.whatwg.org/#concept-url-blob-entry
         // A URL also has an associated blob URL entry that is either null or a blob URL entry. It is initially null.
