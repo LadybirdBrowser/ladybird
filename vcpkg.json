@@ -122,7 +122,8 @@
       "name": "vulkan-headers",
       "platform": "!android"
     },
-    "woff2"
+    "woff2",
+    "zlib"
   ],
   "overrides": [
     {
@@ -196,6 +197,10 @@
     {
       "name": "woff2",
       "version": "1.0.2#4"
+    },
+    {
+      "name": "zlib",
+      "version": "1.3.1"
     }
   ]
 }
