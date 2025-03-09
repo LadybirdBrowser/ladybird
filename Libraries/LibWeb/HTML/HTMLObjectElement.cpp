@@ -11,6 +11,7 @@
 #include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
+#include <LibWeb/CSS/ToGfxConversions.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
 #include <LibWeb/DOM/DocumentLoading.h>
@@ -585,22 +586,37 @@ bool HTMLObjectElement::is_image_available() const
 
 Optional<CSSPixels> HTMLObjectElement::intrinsic_width() const
 {
-    if (auto image_data = this->image_data())
-        return image_data->intrinsic_width();
+    if (auto image_data = this->image_data()) {
+        auto const image_orientation = computed_properties()
+            ? to_gfx_image_orientation(computed_properties()->image_orientation())
+            : Gfx::ImageOrientation::FromExif;
+
+        return image_data->intrinsic_width(image_orientation);
+    }
     return {};
 }
 
 Optional<CSSPixels> HTMLObjectElement::intrinsic_height() const
 {
-    if (auto image_data = this->image_data())
-        return image_data->intrinsic_height();
+    if (auto image_data = this->image_data()) {
+        auto const image_orientation = computed_properties()
+            ? to_gfx_image_orientation(computed_properties()->image_orientation())
+            : Gfx::ImageOrientation::FromExif;
+
+        return image_data->intrinsic_height(image_orientation);
+    }
     return {};
 }
 
 Optional<CSSPixelFraction> HTMLObjectElement::intrinsic_aspect_ratio() const
 {
-    if (auto image_data = this->image_data())
-        return image_data->intrinsic_aspect_ratio();
+    if (auto image_data = this->image_data()) {
+        auto const image_orientation = computed_properties()
+            ? to_gfx_image_orientation(computed_properties()->image_orientation())
+            : Gfx::ImageOrientation::FromExif;
+
+        return image_data->intrinsic_aspect_ratio(image_orientation);
+    }
     return {};
 }
 
