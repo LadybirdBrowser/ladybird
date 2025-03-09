@@ -934,6 +934,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
 
     computed_values.set_object_fit(computed_style.object_fit());
     computed_values.set_object_position(computed_style.object_position());
+    computed_values.set_image_orientation(computed_style.image_orientation());
     computed_values.set_direction(computed_style.direction());
     computed_values.set_unicode_bidi(computed_style.unicode_bidi());
     computed_values.set_scrollbar_width(computed_style.scrollbar_width());
