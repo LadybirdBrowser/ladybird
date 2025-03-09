@@ -241,7 +241,7 @@ RefPtr<CSSStyleValue const> ResolvedCSSStyleDeclaration::style_value_for_propert
         return LengthStyleValue::create(Length::make_px(layout_node.computed_values().line_height()));
     }
 
-        // FIXME: -> block-size
+        // -> block-size
         // -> height
         // FIXME: -> inline-size
         // -> margin-block-end
@@ -264,6 +264,13 @@ RefPtr<CSSStyleValue const> ResolvedCSSStyleDeclaration::style_value_for_propert
         // If the property applies to the element or pseudo-element and the resolved value of the
         // display property is not none or contents, then the resolved value is the used value.
         // Otherwise the resolved value is the computed value.
+    case PropertyID::BlockSize: {
+        auto writing_mode = layout_node.computed_values().writing_mode();
+        auto is_vertically_oriented = first_is_one_of(writing_mode, WritingMode::VerticalLr, WritingMode::VerticalRl);
+        if (is_vertically_oriented)
+            return style_value_for_property(layout_node, PropertyID::Width);
+        return style_value_for_property(layout_node, PropertyID::Height);
+    }
     case PropertyID::Height: {
         auto maybe_used_height = used_value_for_property([](auto const& paintable_box) { return paintable_box.content_height(); });
         if (maybe_used_height.has_value())
