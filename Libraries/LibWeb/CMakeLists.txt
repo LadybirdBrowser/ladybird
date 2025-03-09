@@ -912,6 +912,8 @@ invoke_generator(
 
 generate_css_implementation()
 
+generate_html_implementation()
+
 invoke_generator(
     "WebGLRenderingContextImpl.cpp"
     Lagom::GenerateWebGLRenderingContext
@@ -955,6 +957,7 @@ set(GENERATED_SOURCES
     WebGL/WebGLRenderingContextImpl.cpp
     Worker/WebWorkerClientEndpoint.h
     Worker/WebWorkerServerEndpoint.h
+    HTML/Parser/NamedCharacterReferences.cpp
 )
 
 serenity_lib(LibWeb web)
