@@ -1,6 +1,6 @@
 All supported properties and their default values exposed from CSSStyleDeclaration from getComputedStyle:
 'cssText': ''
-'length': '219'
+'length': '220'
 'parentRule': 'null'
 'cssFloat': 'none'
 'WebkitAlignContent': 'normal'
@@ -245,6 +245,8 @@ All supported properties and their default values exposed from CSSStyleDeclarati
 'box-sizing': 'content-box'
 'captionSide': 'top'
 'caption-side': 'top'
+'caretColor': 'rgb(0, 0, 0)'
+'caret-color': 'rgb(0, 0, 0)'
 'clear': 'none'
 'clip': 'auto'
 'clipPath': 'none'

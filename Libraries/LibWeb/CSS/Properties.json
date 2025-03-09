@@ -818,6 +818,18 @@
       "caption-side"
     ]
   },
+  "caret-color": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "inherited": true,
+    "initial": "auto",
+    "valid-identifiers": [
+      "auto"
+    ],
+    "valid-types": [
+      "color"
+    ]
+  },
   "clear": {
     "animation-type": "discrete",
     "inherited": false,

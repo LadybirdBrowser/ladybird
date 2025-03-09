@@ -832,6 +832,18 @@ Float ComputedProperties::float_() const
     return keyword_to_float(value.to_keyword()).release_value();
 }
 
+Color ComputedProperties::caret_color(Layout::NodeWithStyle const& node) const
+{
+    auto const& value = property(PropertyID::CaretColor);
+    if (value.is_keyword() && value.to_keyword() == Keyword::Auto)
+        return node.computed_values().color();
+
+    if (value.has_color())
+        return value.to_color(node);
+
+    return InitialValues::caret_color();
+}
+
 Clear ComputedProperties::clear() const
 {
     auto const& value = property(PropertyID::Clear);

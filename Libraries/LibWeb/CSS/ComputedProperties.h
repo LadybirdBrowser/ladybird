@@ -86,6 +86,7 @@ public:
     Clip clip() const;
     Display display() const;
     Float float_() const;
+    Color caret_color(Layout::NodeWithStyle const&) const;
     Clear clear() const;
     ColumnSpan column_span() const;
     struct ContentDataAndQuoteNestingLevel {

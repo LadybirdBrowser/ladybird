@@ -3,6 +3,7 @@ accent-color: auto
 border-collapse: separate
 border-spacing: 0px
 caption-side: top
+caret-color: rgb(0, 0, 0)
 clip-rule: nonzero
 color: rgb(0, 0, 0)
 color-scheme: normal
@@ -135,7 +136,7 @@ grid-row-start: auto
 grid-template-areas: none
 grid-template-columns: auto
 grid-template-rows: auto
-height: 1918px
+height: 1932px
 inline-size: auto
 inset-block-end: auto
 inset-block-start: auto
