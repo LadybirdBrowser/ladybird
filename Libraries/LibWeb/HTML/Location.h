@@ -13,6 +13,7 @@
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/CrossOrigin/CrossOriginPropertyDescriptorMap.h>
+#include <LibWeb/HTML/DOMStringList.h>
 #include <LibWeb/HTML/Navigable.h>
 
 namespace Web::HTML {
@@ -54,6 +55,9 @@ public:
     void reload() const;
     WebIDL::ExceptionOr<void> assign(String const& url);
 
+    [[nodiscard]] GC::Ref<DOMStringList> ancestor_origins_list() const { return m_ancestor_origins_list; }
+    WebIDL::ExceptionOr<GC::Ref<DOMStringList>> ancestor_origins() const;
+
     virtual JS::ThrowCompletionOr<JS::Object*> internal_get_prototype_of() const override;
     virtual JS::ThrowCompletionOr<bool> internal_set_prototype_of(Object* prototype) override;
     virtual JS::ThrowCompletionOr<bool> internal_is_extensible() const override;
@@ -76,6 +80,10 @@ private:
 
     GC::Ptr<DOM::Document> relevant_document() const;
     URL::URL url() const;
+
+    // https://html.spec.whatwg.org/multipage/nav-history-apis.html#concept-location-ancestor-origins-list
+    GC::Ref<DOMStringList> m_ancestor_origins_list;
+
     WebIDL::ExceptionOr<void> navigate(URL::URL, Bindings::NavigationHistoryBehavior = Bindings::NavigationHistoryBehavior::Auto);
 
     // [[CrossOriginPropertyDescriptorMap]], https://html.spec.whatwg.org/multipage/browsers.html#crossoriginpropertydescriptormap
