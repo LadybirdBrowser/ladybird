@@ -98,6 +98,9 @@ struct DomainName {
         copy.labels.take_first();
         return copy;
     }
+
+    bool operator==(DomainName const&) const& = default;
+    bool operator!=(DomainName const&) const& = default;
 };
 
 // Listing from IANA https://www.iana.org/assignments/dns-parameters/dns-parameters.xhtml#dns-parameters-4.
@@ -419,7 +422,7 @@ struct SOA {
 
     static constexpr ResourceType type = ResourceType::SOA;
     static ErrorOr<SOA> from_raw(ParseContext&);
-    ErrorOr<void> to_raw(ByteBuffer&) const { return Error::from_string_literal("Not implemented: SOA::to_raw"); }
+    ErrorOr<void> to_raw(ByteBuffer&) const;
     ErrorOr<String> to_string() const
     {
         return String::formatted("SOA MName: '{}', RName: '{}', Serial: {}, Refresh: {}, Retry: {}, Expire: {}, Minimum: {}", mname.to_string(), rname.to_string(), serial, refresh, retry, expire, minimum);

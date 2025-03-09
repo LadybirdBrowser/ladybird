@@ -8,8 +8,9 @@
 
 namespace AK {
 
-CountingStream::CountingStream(MaybeOwned<Stream> stream)
+CountingStream::CountingStream(MaybeOwned<Stream> stream, size_t offset)
     : m_stream(move(stream))
+    , m_read_bytes(offset)
 {
 }
 

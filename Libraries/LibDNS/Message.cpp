@@ -663,11 +663,17 @@ ErrorOr<DomainName> DomainName::from_raw(ParseContext& ctx)
         constexpr static u8 OffsetMarkerMask = 0b11000000;
         if ((length & OffsetMarkerMask) == OffsetMarkerMask) {
             // This is a pointer to a prior domain name.
-            u16 const offset = static_cast<u16>(length & ~OffsetMarkerMask) << 8 | TRY(ctx.stream.read_value<u8>());
+            u16 offset = static_cast<u16>(length & ~OffsetMarkerMask) << 8 | TRY(ctx.stream.read_value<u8>());
             if (auto it = ctx.pointers->find_largest_not_above_iterator(offset); !it.is_end()) {
                 auto labels = it->labels;
-                for (auto& entry : labels)
-                    name.labels.append(entry);
+                size_t start_index = 0;
+                size_t start_entry_offset = offset - it.key();
+                while (start_entry_offset > 0 && start_index < labels.size()) {
+                    start_entry_offset -= labels[start_index].length() + 1; // +1 for the length byte
+                    start_index++;
+                }
+                for (size_t i = start_index; i < labels.size(); ++i)
+                    name.labels.append(labels[i].substring_view(i == start_index ? start_entry_offset : 0));
                 break;
             }
             dbgln("Invalid domain name pointer in label, no prior domain name found around offset {}", offset);
@@ -786,9 +792,10 @@ ErrorOr<ResourceRecord> ResourceRecord::from_raw(ParseContext& ctx)
     ResourceType type;
     Class class_;
     u32 ttl;
+    size_t original_offset = ctx.stream.read_bytes();
     {
         RecordingStream rr_stream { ctx.stream };
-        CountingStream rr_counting_stream { MaybeOwned<Stream>(rr_stream) };
+        CountingStream rr_counting_stream { MaybeOwned<Stream>(rr_stream), original_offset };
         ParseContext rr_ctx { rr_counting_stream, move(ctx.pointers) };
         ScopeGuard guard([&] { ctx.pointers = move(rr_ctx.pointers); });
 
@@ -809,13 +816,14 @@ ErrorOr<ResourceRecord> ResourceRecord::from_raw(ParseContext& ctx)
         class_ = static_cast<Class>(static_cast<u16>(TRY(rr_ctx.stream.read_value<NetworkOrdered<u16>>())));
         ttl = static_cast<u32>(TRY(rr_ctx.stream.read_value<NetworkOrdered<u32>>()));
         auto rd_length = static_cast<u16>(TRY(rr_ctx.stream.read_value<NetworkOrdered<u16>>()));
+        original_offset = rr_ctx.stream.read_bytes();
         TRY(rr_ctx.stream.read_until_filled(TRY(rdata.get_bytes_for_writing(rd_length))));
 
         rr_raw_data = move(rr_stream).take_recorded_data();
     }
 
     FixedMemoryStream stream { rdata.bytes() };
-    CountingStream rdata_stream { MaybeOwned<Stream>(stream) };
+    CountingStream rdata_stream { MaybeOwned<Stream>(stream), original_offset };
     ParseContext rdata_ctx { rdata_stream, move(ctx.pointers) };
     ScopeGuard guard([&] { ctx.pointers = move(rdata_ctx.pointers); });
 
@@ -1026,6 +1034,24 @@ ErrorOr<Records::SOA> Records::SOA::from_raw(ParseContext& ctx)
 
     return Records::SOA { move(mname), move(rname), serial, refresh, retry, expire, minimum };
 }
+
+ErrorOr<void> Records::SOA::to_raw(ByteBuffer& buffer) const
+{
+    TRY(mname.to_raw(buffer));
+    TRY(rname.to_raw(buffer));
+
+    auto const output_size = 5 * sizeof(u32);
+    FixedMemoryStream stream { TRY(buffer.get_bytes_for_writing(output_size)) };
+
+    TRY(stream.write_value(static_cast<NetworkOrdered<u32>>(serial)));
+    TRY(stream.write_value(static_cast<NetworkOrdered<u32>>(refresh)));
+    TRY(stream.write_value(static_cast<NetworkOrdered<u32>>(retry)));
+    TRY(stream.write_value(static_cast<NetworkOrdered<u32>>(expire)));
+    TRY(stream.write_value(static_cast<NetworkOrdered<u32>>(minimum)));
+
+    return {};
+}
+
 
 ErrorOr<Records::MX> Records::MX::from_raw(ParseContext& ctx)
 {

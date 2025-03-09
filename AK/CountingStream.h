@@ -13,7 +13,7 @@ namespace AK {
 
 class CountingStream : public Stream {
 public:
-    CountingStream(MaybeOwned<Stream>);
+    CountingStream(MaybeOwned<Stream>, size_t offset = 0);
 
     u64 read_bytes() const;
 
