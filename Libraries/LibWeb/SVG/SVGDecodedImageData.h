@@ -78,7 +78,7 @@ public:
     virtual void request_file(FileRequest) override { }
     virtual void paint_next_frame() override { }
     virtual void process_screenshot_requests() override { }
-    virtual void paint(DevicePixelRect const&, Painting::BackingStore&, Web::PaintOptions = {}) override { }
+    virtual void start_display_list_rendering(DevicePixelRect const&, Painting::BackingStore&, PaintOptions, Function<void()>&&) override { }
     virtual bool is_ready_to_paint() const override { return true; }
     virtual Queue<QueuedInputEvent>& input_event_queue() override { VERIFY_NOT_REACHED(); }
     virtual void report_finished_handling_input_event([[maybe_unused]] u64 page_id, [[maybe_unused]] EventResult event_was_handled) override { }
