@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 132 tests
 
-126 Pass
-6 Fail
+132 Pass
 Pass	[INPUT in TEXT status] no constraint
 Pass	[INPUT in TEXT status] no constraint (in a form)
 Pass	[INPUT in TEXT status] not suffering from being too long
@@ -58,12 +57,12 @@ Pass	[INPUT in EMAIL status] suffering from being missing
 Pass	[INPUT in EMAIL status] suffering from being missing (in a form)
 Pass	[INPUT in DATETIME-LOCAL status] no constraint
 Pass	[INPUT in DATETIME-LOCAL status] no constraint (in a form)
-Fail	[INPUT in DATETIME-LOCAL status] suffering from an overflow
-Fail	[INPUT in DATETIME-LOCAL status] suffering from an overflow (in a form)
-Fail	[INPUT in DATETIME-LOCAL status] suffering from an underflow
-Fail	[INPUT in DATETIME-LOCAL status] suffering from an underflow (in a form)
-Fail	[INPUT in DATETIME-LOCAL status] suffering from a step mismatch
-Fail	[INPUT in DATETIME-LOCAL status] suffering from a step mismatch (in a form)
+Pass	[INPUT in DATETIME-LOCAL status] suffering from an overflow
+Pass	[INPUT in DATETIME-LOCAL status] suffering from an overflow (in a form)
+Pass	[INPUT in DATETIME-LOCAL status] suffering from an underflow
+Pass	[INPUT in DATETIME-LOCAL status] suffering from an underflow (in a form)
+Pass	[INPUT in DATETIME-LOCAL status] suffering from a step mismatch
+Pass	[INPUT in DATETIME-LOCAL status] suffering from a step mismatch (in a form)
 Pass	[INPUT in DATETIME-LOCAL status] suffering from being missing
 Pass	[INPUT in DATETIME-LOCAL status] suffering from being missing (in a form)
 Pass	[INPUT in DATE status] no constraint

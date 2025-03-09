@@ -2170,6 +2170,24 @@ static Optional<double> convert_date_string_to_number(StringView input)
     return date_time.milliseconds_since_epoch();
 }
 
+// https://html.spec.whatwg.org/multipage/input.html#local-date-and-time-state-(type=datetime-local):parse-a-local-date-and-time-string-2
+static Optional<double> convert_local_date_and_time_string_to_number(StringView input)
+{
+    // The algorithm to convert a string to a number, given a string input, is as follows: If parsing a date and time
+    // from input results in an error, then return an error; otherwise, return the number of milliseconds elapsed from
+    // midnight on the morning of 1970-01-01 (the time represented by the value "1970-01-01T00:00:00.0") to the parsed
+    // local date and time, ignoring leap seconds.
+    auto maybe_date_and_time = parse_a_local_date_and_time_string(input);
+    if (!maybe_date_and_time.has_value())
+        return {};
+    auto date_and_time = maybe_date_and_time.value();
+    auto date = date_and_time.date;
+    auto time = date_and_time.time;
+
+    auto date_time = UnixDateTime::from_unix_time_parts(date.year, date.month, date.day, time.hour, time.minute, time.second, 0);
+    return date_time.milliseconds_since_epoch();
+}
+
 // https://html.spec.whatwg.org/multipage/input.html#time-state-(type=time):concept-input-value-string-number
 Optional<double> HTMLInputElement::convert_time_string_to_number(StringView input) const
 {
@@ -2205,7 +2223,9 @@ Optional<double> HTMLInputElement::convert_string_to_number(StringView input) co
     if (type_state() == TypeAttributeState::Time)
         return convert_time_string_to_number(input);
 
-    dbgln("HTMLInputElement::convert_string_to_number() not implemented for input type {}", type());
+    if (type_state() == TypeAttributeState::LocalDateAndTime)
+        return convert_local_date_and_time_string_to_number(input);
+
     return {};
 }
 
