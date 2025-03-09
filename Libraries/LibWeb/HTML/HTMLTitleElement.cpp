@@ -30,6 +30,13 @@ void HTMLTitleElement::initialize(JS::Realm& realm)
 void HTMLTitleElement::children_changed(ChildrenChangedMetadata const* metadata)
 {
     HTMLElement::children_changed(metadata);
+
+    // This happens when children_changed is called on removal of the title element, and is about to be replaced with an empty string.
+    if (m_skipTitleUpdate) {
+        m_skipTitleUpdate = false;
+        return;
+    }
+
     auto navigable = this->navigable();
     if (navigable && navigable->is_traversable()) {
         navigable->traversable_navigable()->page().client().page_did_change_title(document().title().to_byte_string());
@@ -47,6 +54,8 @@ String HTMLTitleElement::text() const
 void HTMLTitleElement::set_text(String const& value)
 {
     // The text attribute's setter must string replace all with the given value within this title element.
+    // AD-HOC: Skip the first update with an empty string, to avoid flashing an invalid window title to the user.
+    m_skipTitleUpdate = true;
     string_replace_all(value);
 }
 
