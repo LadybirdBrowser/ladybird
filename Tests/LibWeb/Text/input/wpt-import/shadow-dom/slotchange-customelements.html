@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Shadow DOM: slotchange customelements</title>
+<meta name="author" title="Surma" href="mailto:surma@google.com">
+<link rel="help" href="https://dom.spec.whatwg.org/#signaling-slot-change">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+</head>
+<body>
+<slots-in-constructor id="constructor-upgrade"><div></div></slots-in-constructor>
+<slots-in-callback id="callback-upgrade"><div></div></slots-in-callback>
+<script>
+var calls = [];
+class SlotsInConstructor extends HTMLElement {
+    constructor() {
+        super();
+        this.attachShadow({mode: 'open'});
+        this.shadowRoot.innerHTML = '<slot></slot>';
+        var slot = this.shadowRoot.children[0];
+        slot.addEventListener('slotchange', function() {
+            calls.push(this.id);
+        }.bind(this));
+    }
+}
+customElements.define('slots-in-constructor', SlotsInConstructor);
+class SlotsInCallback extends HTMLElement {
+    constructor() {
+        super();
+    }
+
+    connectedCallback() {
+        this.attachShadow({mode: 'open'});
+        this.shadowRoot.innerHTML = '<slot></slot>';
+        var slot = this.shadowRoot.children[0];
+        slot.addEventListener('slotchange', function() {
+            calls.push(this.id);
+        }.bind(this));
+    }
+}
+customElements.define('slots-in-callback', SlotsInCallback);
+</script>
+<slots-in-constructor id="constructor-parser"><div></div></slots-in-constructor>
+<slots-in-callback id="callback-parser"><div></div></slots-in-callback>
+<script>
+test(function () {
+    assert_true(calls.includes("constructor-parser"));
+    assert_true(calls.includes("callback-parser"));
+    assert_true(calls.includes("constructor-upgrade"));
+    assert_true(calls.includes("callback-upgrade"));
+}, 'slotchange must fire on initialization of custom elements with slotted children');
+done();
+</script>
+</body>
+</html>
