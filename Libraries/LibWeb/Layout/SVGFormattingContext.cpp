@@ -278,7 +278,7 @@ void SVGFormattingContext::layout_svg_element(Box const& child)
     if (is<SVG::SVGViewport>(child.dom_node())) {
         layout_nested_viewport(child);
     } else if (is<SVG::SVGForeignObjectElement>(child.dom_node()) && is<BlockContainer>(child)) {
-        Layout::BlockFormattingContext bfc(m_state, LayoutMode::Normal, static_cast<BlockContainer const&>(child), this);
+        Layout::BlockFormattingContext bfc(m_state, m_layout_mode, static_cast<BlockContainer const&>(child), this);
         bfc.run(*m_available_space);
         auto& child_state = m_state.get_mutable(child);
         child_state.set_content_offset(child_state.offset.translated(m_svg_offset));
@@ -295,7 +295,7 @@ void SVGFormattingContext::layout_nested_viewport(Box const& viewport)
 {
     // Layout for a nested SVG viewport.
     // https://svgwg.org/svg2-draft/coords.html#EstablishingANewSVGViewport.
-    SVGFormattingContext nested_context(m_state, LayoutMode::Normal, viewport, this, m_current_viewbox_transform);
+    SVGFormattingContext nested_context(m_state, m_layout_mode, viewport, this, m_current_viewbox_transform);
     auto& nested_viewport_state = m_state.get_mutable(viewport);
     auto resolve_dimension = [](auto& node, auto size, auto reference_value) {
         // The value auto for width and height on the ‘svg’ element is treated as 100%.
@@ -471,7 +471,7 @@ void SVGFormattingContext::layout_mask_or_clip(SVGBox const& mask_or_clip)
         layout_state.set_content_height(m_viewport_size.height());
     }
     // Pretend masks/clips are a viewport so we can scale the contents depending on the `contentUnits`.
-    SVGFormattingContext nested_context(m_state, LayoutMode::Normal, mask_or_clip, this, parent_viewbox_transform);
+    SVGFormattingContext nested_context(m_state, m_layout_mode, mask_or_clip, this, parent_viewbox_transform);
     layout_state.set_has_definite_width(true);
     layout_state.set_has_definite_height(true);
     nested_context.run(*m_available_space);
