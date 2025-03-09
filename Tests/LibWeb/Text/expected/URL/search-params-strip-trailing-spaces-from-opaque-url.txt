@@ -1,6 +1,0 @@
-URL pathname is 'space    '
-URL href is 'data:space    ?test'
-true
-false
-URL pathname is 'space'
-URL href is 'data:space'

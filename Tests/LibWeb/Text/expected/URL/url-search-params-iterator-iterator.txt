@@ -1,6 +1,0 @@
-[object URLSearchParams Iterator]
-[object URLSearchParams Iterator]
-true
-hello
-1
-[object Window]
