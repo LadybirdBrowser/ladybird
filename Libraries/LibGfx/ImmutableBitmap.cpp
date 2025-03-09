@@ -21,34 +21,34 @@ struct ImmutableBitmapImpl {
     ColorSpace color_space;
 };
 
-int ImmutableBitmap::width() const
+int ImmutableBitmap::width(ImageOrientation image_orientation) const
 {
     auto const* bitmap = m_impl->source.get_pointer<NonnullRefPtr<Gfx::Bitmap>>();
 
-    if (!bitmap)
+    if (!bitmap || image_orientation == ImageOrientation::FromDecoded)
         return m_impl->sk_image->width();
 
-    return (*bitmap)->width();
+    return (*bitmap)->width(image_orientation);
 }
 
-int ImmutableBitmap::height() const
+int ImmutableBitmap::height(ImageOrientation image_orientation) const
 {
     auto const* bitmap = m_impl->source.get_pointer<NonnullRefPtr<Gfx::Bitmap>>();
 
-    if (!bitmap)
+    if (!bitmap || image_orientation == ImageOrientation::FromDecoded)
         return m_impl->sk_image->height();
 
-    return (*bitmap)->height();
+    return (*bitmap)->height(image_orientation);
 }
 
-IntRect ImmutableBitmap::rect() const
+IntRect ImmutableBitmap::rect(ImageOrientation image_orientation) const
 {
-    return { {}, size() };
+    return { {}, size(image_orientation) };
 }
 
-IntSize ImmutableBitmap::size() const
+IntSize ImmutableBitmap::size(ImageOrientation image_orientation) const
 {
-    return { width(), height() };
+    return { width(image_orientation), height(image_orientation) };
 }
 
 Gfx::AlphaType ImmutableBitmap::alpha_type() const

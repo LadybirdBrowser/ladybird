@@ -31,9 +31,9 @@ public:
     virtual size_t loop_count() const override { return m_loop_count; }
     virtual bool is_animated() const override { return m_animated; }
 
-    virtual Optional<CSSPixels> intrinsic_width() const override;
-    virtual Optional<CSSPixels> intrinsic_height() const override;
-    virtual Optional<CSSPixelFraction> intrinsic_aspect_ratio() const override;
+    virtual Optional<CSSPixels> intrinsic_width(Gfx::ImageOrientation orientation) const override;
+    virtual Optional<CSSPixels> intrinsic_height(Gfx::ImageOrientation orientation) const override;
+    virtual Optional<CSSPixelFraction> intrinsic_aspect_ratio(Gfx::ImageOrientation orientation) const override;
 
 private:
     AnimatedBitmapDecodedImageData(Vector<Frame>&&, size_t loop_count, bool animated);
