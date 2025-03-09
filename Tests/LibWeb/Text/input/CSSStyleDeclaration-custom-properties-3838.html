@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="./include.js"></script>
+<style>
+    body {
+        --color: red;
+    }
+    body.green {
+        --color: green;
+    }
+</style>
+<body></body>
+<script>
+    test(() => {
+        const div = document.createElement('div');
+        document.body.appendChild(div);
+
+        div.style["backgroundColor"] = "var(--color)";
+        div.style["width"] = "100px";
+        div.style["height"] = "100px";
+
+        const bgColorBefore = getComputedStyle(div).backgroundColor;
+
+        document.body.className = "green";
+        const bgColorAfter = getComputedStyle(div).backgroundColor;
+
+        println(bgColorBefore);
+        println(bgColorAfter);
+    });
+</script>
