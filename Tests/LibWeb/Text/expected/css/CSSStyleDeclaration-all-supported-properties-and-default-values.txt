@@ -1,6 +1,6 @@
 All supported properties and their default values exposed from CSSStyleDeclaration from getComputedStyle:
 'cssText': ''
-'length': '220'
+'length': '221'
 'parentRule': 'null'
 'cssFloat': 'none'
 'WebkitAlignContent': 'normal'
@@ -372,6 +372,8 @@ All supported properties and their default values exposed from CSSStyleDeclarati
 'gridTemplateRows': 'auto'
 'grid-template-rows': 'auto'
 'height': '0px'
+'imageOrientation': 'from-image'
+'image-orientation': 'from-image'
 'imageRendering': 'auto'
 'image-rendering': 'auto'
 'inlineSize': '284px'

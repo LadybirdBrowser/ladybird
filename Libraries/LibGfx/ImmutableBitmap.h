@@ -40,6 +40,9 @@ public:
 
     RefPtr<Bitmap const> bitmap() const;
 
+    [[nodiscard]]
+    ExifOrientation get_exif_orientation() const;
+
 private:
     NonnullOwnPtr<ImmutableBitmapImpl> m_impl;
 

@@ -198,22 +198,51 @@ void DisplayListRecorder::draw_scaled_immutable_bitmap(Gfx::IntRect const& dst_r
 {
     if (dst_rect.is_empty())
         return;
+
+    auto clip_rect_oriented = clip_rect;
+    auto const exif_orientation = bitmap.get_exif_orientation();
+    switch (exif_orientation) {
+    case Gfx::ExifOrientation::Rotate90ClockwiseThenFlipHorizontally:
+    case Gfx::ExifOrientation::Rotate90Clockwise:
+    case Gfx::ExifOrientation::FlipHorizontallyThenRotate90Clockwise:
+    case Gfx::ExifOrientation::Rotate90CounterClockwise:
+        clip_rect_oriented.set_size(clip_rect.height(), clip_rect.width());
+        break;
+    default:
+        break;
+    }
+
+    auto effective_dst_rect = dst_rect.to_type<float>();
+    auto const transformation_matrix = compute_exif_orientation_matrix(exif_orientation, effective_dst_rect);
+
     append(DrawScaledImmutableBitmap {
-        .dst_rect = dst_rect,
-        .clip_rect = clip_rect,
+        .dst_rect = effective_dst_rect.to_type<int>(),
+        .clip_rect = clip_rect_oriented,
         .bitmap = bitmap,
         .scaling_mode = scaling_mode,
+        .transformation_matrix = transformation_matrix,
     });
 }
 
 void DisplayListRecorder::draw_repeated_immutable_bitmap(Gfx::IntRect dst_rect, Gfx::IntRect clip_rect, NonnullRefPtr<Gfx::ImmutableBitmap> bitmap, Gfx::ScalingMode scaling_mode, DrawRepeatedImmutableBitmap::Repeat repeat)
 {
+    if (dst_rect.is_empty())
+        return;
+
+    auto effective_dst_rect = dst_rect.to_type<float>();
+
+    auto const exif_orientation = bitmap->get_exif_orientation();
+    auto const transformation_matrix = compute_exif_orientation_matrix(exif_orientation, effective_dst_rect);
+    auto const size = bitmap->size();
+
     append(DrawRepeatedImmutableBitmap {
-        .dst_rect = dst_rect,
+        .dst_rect = effective_dst_rect.to_type<int>(),
         .clip_rect = clip_rect,
+        .src_size = size,
         .bitmap = move(bitmap),
         .scaling_mode = scaling_mode,
         .repeat = repeat,
+        .transformation_matrix = transformation_matrix,
     });
 }
 

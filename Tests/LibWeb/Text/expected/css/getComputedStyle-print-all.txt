@@ -27,6 +27,7 @@ font-variant-position: normal
 font-variation-settings: normal
 font-weight: 400
 font-width: normal
+image-orientation: from-image
 image-rendering: auto
 letter-spacing: normal
 line-height: normal
@@ -83,7 +84,7 @@ background-position-x: 0%
 background-position-y: 0%
 background-repeat: repeat
 background-size: auto auto
-block-size: 1190px
+block-size: 1204px
 border-bottom-color: rgb(0, 0, 0)
 border-bottom-left-radius: 0px
 border-bottom-right-radius: 0px
@@ -136,7 +137,7 @@ grid-row-start: auto
 grid-template-areas: none
 grid-template-columns: auto
 grid-template-rows: auto
-height: 1932px
+height: 1946px
 inline-size: 784px
 inset-block-end: auto
 inset-block-start: auto
