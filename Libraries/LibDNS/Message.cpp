@@ -1141,6 +1141,19 @@ ErrorOr<Records::DS> Records::DS::from_raw(ParseContext& ctx)
     return Records::DS { key_tag, algorithm, digest_type, move(digest) };
 }
 
+ErrorOr<void> Records::DS::to_raw(ByteBuffer& buffer) const
+{
+    auto const output_size = 2 + 1 + 1 + digest.size();
+    FixedMemoryStream stream { TRY(buffer.get_bytes_for_writing(output_size)) };
+
+    TRY(stream.write_value(static_cast<NetworkOrdered<u16>>(key_tag)));
+    TRY(stream.write_value(static_cast<u8>(algorithm)));
+    TRY(stream.write_value(static_cast<u8>(digest_type)));
+    TRY(stream.write_until_depleted(digest.bytes()));
+
+    return {};
+}
+
 ErrorOr<Records::SIG> Records::SIG::from_raw(ParseContext& ctx)
 {
     // RFC 4034, 2.2. The SIG Resource Record.

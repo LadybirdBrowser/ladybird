@@ -707,8 +707,15 @@ private:
 
                 lookup.promise = move(promise);
             };
-            if (is_root_zone)
-                return resolve_using_keys(move(parent_zone_keys));
+            if (is_root_zone) {
+                return resolve_using_keys(Vector { Messages::Records::DNSKEY {
+                    .flags = 256,
+                    .protocol = 3,
+                    .algorithm = Messages::DNSSEC::Algorithm::RSASHA256,
+                    .public_key = MUST(decode_base64("AwEAAa96jeuknZlaeSrvyAJj6ZHv28hhOKkx3rLGXVaC6rXTsDc449/cidltpkyGwCJNnOAlFNKF2jBosZBU5eeHspaQWOmOElZsjICMQMC3aeHbGiShvZsx4wMYSjH8e7Vrhbu6irwCzVBApESjbUdpWWmEnhathWu1jo+siFUiRAAxm9qyJNg/wOZqqzL/dL/q8PkcRU5oUKEpUge71M3ej2/7CPqpdVwuMoTvoB+ZOT4YeGyxMvHmbrxlFzGOHOijtzN+u1TQNatX2XBuzZNQ1K+s2CXkPIZo7s6JgZyvaBevYtxPvYLw4z9mR7K2vaF18UYH9Z9GNUUeayffKC73PYc="sv)),
+                    .calculated_key_tag = 38696,
+                } });
+            }
 
             dbgln_if(DNS_DEBUG, "DNS: Starting DNSKEY lookup for {}", lookup.name);
             this->lookup(lookup.name, Messages::Class::IN, { Messages::ResourceType::DNSKEY }, { .validate_dnssec_locally = false })

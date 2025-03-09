@@ -484,7 +484,7 @@ struct DNSKEY {
     ErrorOr<void> to_raw(ByteBuffer&) const;
     ErrorOr<String> to_string() const
     {
-        return String::formatted("DNSKEY Flags: {}{}{}{}({}), Protocol: {}, Algorithm: {}, Public Key: {}",
+        return String::formatted("DNSKEY Flags: {}{}{}{}({}), Protocol: {}, Algorithm: {}, Public Key: {}, Tag: {}",
             is_secure_entry_point() ? "sep "sv : ""sv,
             is_zone_key() ? "zone "sv : ""sv,
             is_revoked() ? "revoked "sv : ""sv,
@@ -492,7 +492,8 @@ struct DNSKEY {
             flags,
             protocol,
             DNSSEC::to_string(algorithm),
-            TRY(encode_base64(public_key)));
+            TRY(encode_base64(public_key)),
+            calculated_key_tag);
     }
 };
 struct CDNSKEY : public DNSKEY {
@@ -513,8 +514,15 @@ struct DS {
 
     static constexpr ResourceType type = ResourceType::DS;
     static ErrorOr<DS> from_raw(ParseContext&);
-    ErrorOr<void> to_raw(ByteBuffer&) const { return Error::from_string_literal("Not implemented: DS::to_raw"); }
-    ErrorOr<String> to_string() const { return "DS"_string; }
+    ErrorOr<void> to_raw(ByteBuffer&) const;
+    ErrorOr<String> to_string() const
+    {
+        return String::formatted("DS Key Tag: {}, Algorithm: {}, Digest Type: {}, Digest: {}",
+            key_tag,
+            DNSSEC::to_string(algorithm),
+            DNSSEC::to_string(digest_type),
+            TRY(encode_base64(digest)));
+    }
 };
 struct CDS : public DS {
     template<typename... Ts>
