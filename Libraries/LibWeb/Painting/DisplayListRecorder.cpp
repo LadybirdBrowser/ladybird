@@ -198,22 +198,40 @@ void DisplayListRecorder::draw_scaled_immutable_bitmap(Gfx::IntRect const& dst_r
 {
     if (dst_rect.is_empty())
         return;
+
+    auto effective_dst_rect = dst_rect.to_type<float>();
+
+    auto const exif_orientation = bitmap.bitmap()->exif_orientation();
+    auto const transformation_matrix = compute_exif_orientation_matrix(exif_orientation, effective_dst_rect);
+
     append(DrawScaledImmutableBitmap {
-        .dst_rect = dst_rect,
+        .dst_rect = effective_dst_rect.to_type<int>(),
         .bitmap = bitmap,
         .src_rect = src_rect,
         .scaling_mode = scaling_mode,
+        .transformation_matrix = transformation_matrix,
     });
 }
 
 void DisplayListRecorder::draw_repeated_immutable_bitmap(Gfx::IntRect dst_rect, Gfx::IntRect clip_rect, NonnullRefPtr<Gfx::ImmutableBitmap> bitmap, Gfx::ScalingMode scaling_mode, DrawRepeatedImmutableBitmap::Repeat repeat)
 {
+    if (dst_rect.is_empty())
+        return;
+
+    auto effective_dst_rect = dst_rect.to_type<float>();
+
+    auto const exif_orientation = bitmap->bitmap()->exif_orientation();
+    auto const transformation_matrix = compute_exif_orientation_matrix(exif_orientation, effective_dst_rect);
+    auto const size = bitmap->size();
+
     append(DrawRepeatedImmutableBitmap {
-        .dst_rect = dst_rect,
+        .dst_rect = effective_dst_rect.to_type<int>(),
         .clip_rect = clip_rect,
+        .src_size = size,
         .bitmap = move(bitmap),
         .scaling_mode = scaling_mode,
         .repeat = repeat,
+        .transformation_matrix = transformation_matrix,
     });
 }
 
