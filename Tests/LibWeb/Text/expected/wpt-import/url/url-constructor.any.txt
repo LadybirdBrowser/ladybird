@@ -1,0 +1,880 @@
+Harness status: OK
+
+Found 863 tests
+
+863 Pass
+Pass	Loading data…
+Pass	Parsing: <http://example	.
+org> against <http://example.org/foo/bar>
+Pass	Parsing: <http://user:pass@foo:21/bar;par?b#c> against <http://example.org/foo/bar>
+Pass	Parsing: <https://test:@test> without base
+Pass	Parsing: <https://:@test> without base
+Pass	Parsing: <non-special://test:@test/x> without base
+Pass	Parsing: <non-special://:@test/x> without base
+Pass	Parsing: <http:foo.com> against <http://example.org/foo/bar>
+Pass	Parsing: <	   :foo.com   
+> against <http://example.org/foo/bar>
+Pass	Parsing: < foo.com  > against <http://example.org/foo/bar>
+Pass	Parsing: <a:	 foo.com> against <http://example.org/foo/bar>
+Pass	Parsing: <http://f:21/ b ? d # e > against <http://example.org/foo/bar>
+Pass	Parsing: <lolscheme:x x#x x> without base
+Pass	Parsing: <http://f:/c> against <http://example.org/foo/bar>
+Pass	Parsing: <http://f:0/c> against <http://example.org/foo/bar>
+Pass	Parsing: <http://f:00000000000000/c> against <http://example.org/foo/bar>
+Pass	Parsing: <http://f:00000000000000000000080/c> against <http://example.org/foo/bar>
+Pass	Parsing: <http://f:b/c> against <http://example.org/foo/bar>
+Pass	Parsing: <http://f: /c> against <http://example.org/foo/bar>
+Pass	Parsing: <http://f:
+/c> against <http://example.org/foo/bar>
+Pass	Parsing: <http://f:fifty-two/c> against <http://example.org/foo/bar>
+Pass	Parsing: <http://f:999999/c> against <http://example.org/foo/bar>
+Pass	Parsing: <non-special://f:999999/c> against <http://example.org/foo/bar>
+Pass	Parsing: <http://f: 21 / b ? d # e > against <http://example.org/foo/bar>
+Pass	Parsing: <> against <http://example.org/foo/bar>
+Pass	Parsing: <  	> against <http://example.org/foo/bar>
+Pass	Parsing: <:foo.com/> against <http://example.org/foo/bar>
+Pass	Parsing: <:foo.com\> against <http://example.org/foo/bar>
+Pass	Parsing: <:> against <http://example.org/foo/bar>
+Pass	Parsing: <:a> against <http://example.org/foo/bar>
+Pass	Parsing: <:/> against <http://example.org/foo/bar>
+Pass	Parsing: <:\> against <http://example.org/foo/bar>
+Pass	Parsing: <:#> against <http://example.org/foo/bar>
+Pass	Parsing: <#> against <http://example.org/foo/bar>
+Pass	Parsing: <#/> against <http://example.org/foo/bar>
+Pass	Parsing: <#\> against <http://example.org/foo/bar>
+Pass	Parsing: <#;?> against <http://example.org/foo/bar>
+Pass	Parsing: <?> against <http://example.org/foo/bar>
+Pass	Parsing: </> against <http://example.org/foo/bar>
+Pass	Parsing: <:23> against <http://example.org/foo/bar>
+Pass	Parsing: </:23> against <http://example.org/foo/bar>
+Pass	Parsing: <\x> against <http://example.org/foo/bar>
+Pass	Parsing: <\\x\hello> against <http://example.org/foo/bar>
+Pass	Parsing: <::> against <http://example.org/foo/bar>
+Pass	Parsing: <::23> against <http://example.org/foo/bar>
+Pass	Parsing: <foo://> against <http://example.org/foo/bar>
+Pass	Parsing: <http://a:b@c:29/d> against <http://example.org/foo/bar>
+Pass	Parsing: <http::@c:29> against <http://example.org/foo/bar>
+Pass	Parsing: <http://&a:foo(b]c@d:2/> against <http://example.org/foo/bar>
+Pass	Parsing: <http://::@c@d:2> against <http://example.org/foo/bar>
+Pass	Parsing: <http://foo.com:b@d/> against <http://example.org/foo/bar>
+Pass	Parsing: <http://foo.com/\@> against <http://example.org/foo/bar>
+Pass	Parsing: <http:\\foo.com\> against <http://example.org/foo/bar>
+Pass	Parsing: <http:\\a\b:c\d@foo.com\> against <http://example.org/foo/bar>
+Pass	Parsing: <http://a:b@c\> without base
+Pass	Parsing: <ws://a@b\c> without base
+Pass	Parsing: <foo:/> against <http://example.org/foo/bar>
+Pass	Parsing: <foo:/bar.com/> against <http://example.org/foo/bar>
+Pass	Parsing: <foo://///////> against <http://example.org/foo/bar>
+Pass	Parsing: <foo://///////bar.com/> against <http://example.org/foo/bar>
+Pass	Parsing: <foo:////://///> against <http://example.org/foo/bar>
+Pass	Parsing: <c:/foo> against <http://example.org/foo/bar>
+Pass	Parsing: <//foo/bar> against <http://example.org/foo/bar>
+Pass	Parsing: <http://foo/path;a??e#f#g> against <http://example.org/foo/bar>
+Pass	Parsing: <http://foo/abcd?efgh?ijkl> against <http://example.org/foo/bar>
+Pass	Parsing: <http://foo/abcd#foo?bar> against <http://example.org/foo/bar>
+Pass	Parsing: <[61:24:74]:98> against <http://example.org/foo/bar>
+Pass	Parsing: <http:[61:27]/:foo> against <http://example.org/foo/bar>
+Pass	Parsing: <http://[1::2]:3:4> against <http://example.org/foo/bar>
+Pass	Parsing: <http://2001::1> against <http://example.org/foo/bar>
+Pass	Parsing: <http://2001::1]> against <http://example.org/foo/bar>
+Pass	Parsing: <http://2001::1]:80> against <http://example.org/foo/bar>
+Pass	Parsing: <http://[2001::1]> against <http://example.org/foo/bar>
+Pass	Parsing: <http://[::127.0.0.1]> against <http://example.org/foo/bar>
+Pass	Parsing: <http://[::127.0.0.1.]> against <http://example.org/foo/bar>
+Pass	Parsing: <http://[0:0:0:0:0:0:13.1.68.3]> against <http://example.org/foo/bar>
+Pass	Parsing: <http://[2001::1]:80> against <http://example.org/foo/bar>
+Pass	Parsing: <http:/example.com/> against <http://example.org/foo/bar>
+Pass	Parsing: <ftp:/example.com/> against <http://example.org/foo/bar>
+Pass	Parsing: <https:/example.com/> against <http://example.org/foo/bar>
+Pass	Parsing: <madeupscheme:/example.com/> against <http://example.org/foo/bar>
+Pass	Parsing: <file:/example.com/> against <http://example.org/foo/bar>
+Pass	Parsing: <file://example:1/> without base
+Pass	Parsing: <file://example:test/> without base
+Pass	Parsing: <file://example%/> without base
+Pass	Parsing: <file://[example]/> without base
+Pass	Parsing: <ftps:/example.com/> against <http://example.org/foo/bar>
+Pass	Parsing: <gopher:/example.com/> against <http://example.org/foo/bar>
+Pass	Parsing: <ws:/example.com/> against <http://example.org/foo/bar>
+Pass	Parsing: <wss:/example.com/> against <http://example.org/foo/bar>
+Pass	Parsing: <data:/example.com/> against <http://example.org/foo/bar>
+Pass	Parsing: <javascript:/example.com/> against <http://example.org/foo/bar>
+Pass	Parsing: <mailto:/example.com/> against <http://example.org/foo/bar>
+Pass	Parsing: <http:example.com/> against <http://example.org/foo/bar>
+Pass	Parsing: <ftp:example.com/> against <http://example.org/foo/bar>
+Pass	Parsing: <https:example.com/> against <http://example.org/foo/bar>
+Pass	Parsing: <madeupscheme:example.com/> against <http://example.org/foo/bar>
+Pass	Parsing: <ftps:example.com/> against <http://example.org/foo/bar>
+Pass	Parsing: <gopher:example.com/> against <http://example.org/foo/bar>
+Pass	Parsing: <ws:example.com/> against <http://example.org/foo/bar>
+Pass	Parsing: <wss:example.com/> against <http://example.org/foo/bar>
+Pass	Parsing: <data:example.com/> against <http://example.org/foo/bar>
+Pass	Parsing: <javascript:example.com/> against <http://example.org/foo/bar>
+Pass	Parsing: <mailto:example.com/> against <http://example.org/foo/bar>
+Pass	Parsing: </a/b/c> against <http://example.org/foo/bar>
+Pass	Parsing: </a/ /c> against <http://example.org/foo/bar>
+Pass	Parsing: </a%2fc> against <http://example.org/foo/bar>
+Pass	Parsing: </a/%2f/c> against <http://example.org/foo/bar>
+Pass	Parsing: <#β> against <http://example.org/foo/bar>
+Pass	Parsing: <data:text/html,test#test> against <http://example.org/foo/bar>
+Pass	Parsing: <tel:1234567890> against <http://example.org/foo/bar>
+Pass	Parsing: <ssh://example.com/foo/bar.git> against <http://example.org/>
+Pass	Parsing: <file:c:\foo\bar.html> against <file:///tmp/mock/path>
+Pass	Parsing: <  File:c|////foo\bar.html> against <file:///tmp/mock/path>
+Pass	Parsing: <C|/foo/bar> against <file:///tmp/mock/path>
+Pass	Parsing: </C|\foo\bar> against <file:///tmp/mock/path>
+Pass	Parsing: <//C|/foo/bar> against <file:///tmp/mock/path>
+Pass	Parsing: <//server/file> against <file:///tmp/mock/path>
+Pass	Parsing: <\\server\file> against <file:///tmp/mock/path>
+Pass	Parsing: </\server/file> against <file:///tmp/mock/path>
+Pass	Parsing: <file:///foo/bar.txt> against <file:///tmp/mock/path>
+Pass	Parsing: <file:///home/me> against <file:///tmp/mock/path>
+Pass	Parsing: <//> against <file:///tmp/mock/path>
+Pass	Parsing: <///> against <file:///tmp/mock/path>
+Pass	Parsing: <///test> against <file:///tmp/mock/path>
+Pass	Parsing: <file://test> against <file:///tmp/mock/path>
+Pass	Parsing: <file://localhost> against <file:///tmp/mock/path>
+Pass	Parsing: <file://localhost/> against <file:///tmp/mock/path>
+Pass	Parsing: <file://localhost/test> against <file:///tmp/mock/path>
+Pass	Parsing: <test> against <file:///tmp/mock/path>
+Pass	Parsing: <file:test> against <file:///tmp/mock/path>
+Pass	Parsing: <file:///w|m> without base
+Pass	Parsing: <file:///w||m> without base
+Pass	Parsing: <file:///w|/m> without base
+Pass	Parsing: <file:C|/m/> without base
+Pass	Parsing: <file:C||/m/> without base
+Pass	Parsing: <http://example.com/././foo> without base
+Pass	Parsing: <http://example.com/./.foo> without base
+Pass	Parsing: <http://example.com/foo/.> without base
+Pass	Parsing: <http://example.com/foo/./> without base
+Pass	Parsing: <http://example.com/foo/bar/..> without base
+Pass	Parsing: <http://example.com/foo/bar/../> without base
+Pass	Parsing: <http://example.com/foo/..bar> without base
+Pass	Parsing: <http://example.com/foo/bar/../ton> without base
+Pass	Parsing: <http://example.com/foo/bar/../ton/../../a> without base
+Pass	Parsing: <http://example.com/foo/../../..> without base
+Pass	Parsing: <http://example.com/foo/../../../ton> without base
+Pass	Parsing: <http://example.com/foo/%2e> without base
+Pass	Parsing: <http://example.com/foo/%2e%2> without base
+Pass	Parsing: <http://example.com/foo/%2e./%2e%2e/.%2e/%2e.bar> without base
+Pass	Parsing: <http://example.com////../..> without base
+Pass	Parsing: <http://example.com/foo/bar//../..> without base
+Pass	Parsing: <http://example.com/foo/bar//..> without base
+Pass	Parsing: <http://example.com/foo> without base
+Pass	Parsing: <http://example.com/%20foo> without base
+Pass	Parsing: <http://example.com/foo%> without base
+Pass	Parsing: <http://example.com/foo%2> without base
+Pass	Parsing: <http://example.com/foo%2zbar> without base
+Pass	Parsing: <http://example.com/foo%2Â©zbar> without base
+Pass	Parsing: <http://example.com/foo%41%7a> without base
+Pass	Parsing: <http://example.com/foo	%91> without base
+Pass	Parsing: <http://example.com/foo%00%51> without base
+Pass	Parsing: <http://example.com/(%28:%3A%29)> without base
+Pass	Parsing: <http://example.com/%3A%3a%3C%3c> without base
+Pass	Parsing: <http://example.com/foo	bar> without base
+Pass	Parsing: <http://example.com\\foo\\bar> without base
+Pass	Parsing: <http://example.com/%7Ffp3%3Eju%3Dduvgw%3Dd> without base
+Pass	Parsing: <http://example.com/@asdf%40> without base
+Pass	Parsing: <http://example.com/你好你好> without base
+Pass	Parsing: <http://example.com/‥/foo> without base
+Pass	Parsing: <http://example.com/﻿/foo> without base
+Pass	Parsing: <http://example.com/‮/foo/‭/bar> without base
+Pass	Parsing: <http://www.google.com/foo?bar=baz#> without base
+Pass	Parsing: <http://www.google.com/foo?bar=baz# »> without base
+Pass	Parsing: <data:test# »> without base
+Pass	Parsing: <http://www.google.com> without base
+Pass	Parsing: <http://192.0x00A80001> without base
+Pass	Parsing: <http://www/foo%2Ehtml> without base
+Pass	Parsing: <http://www/foo/%2E/html> without base
+Pass	Parsing: <http://user:pass@/> without base
+Pass	Parsing: <http://%25DOMAIN:foobar@foodomain.com/> without base
+Pass	Parsing: <http:\\www.google.com\foo> without base
+Pass	Parsing: <http://foo:80/> without base
+Pass	Parsing: <http://foo:81/> without base
+Pass	Parsing: <httpa://foo:80/> without base
+Pass	Parsing: <http://foo:-80/> without base
+Pass	Parsing: <https://foo:443/> without base
+Pass	Parsing: <https://foo:80/> without base
+Pass	Parsing: <ftp://foo:21/> without base
+Pass	Parsing: <ftp://foo:80/> without base
+Pass	Parsing: <gopher://foo:70/> without base
+Pass	Parsing: <gopher://foo:443/> without base
+Pass	Parsing: <ws://foo:80/> without base
+Pass	Parsing: <ws://foo:81/> without base
+Pass	Parsing: <ws://foo:443/> without base
+Pass	Parsing: <ws://foo:815/> without base
+Pass	Parsing: <wss://foo:80/> without base
+Pass	Parsing: <wss://foo:81/> without base
+Pass	Parsing: <wss://foo:443/> without base
+Pass	Parsing: <wss://foo:815/> without base
+Pass	Parsing: <http:/example.com/> without base
+Pass	Parsing: <ftp:/example.com/> without base
+Pass	Parsing: <https:/example.com/> without base
+Pass	Parsing: <madeupscheme:/example.com/> without base
+Pass	Parsing: <file:/example.com/> without base
+Pass	Parsing: <ftps:/example.com/> without base
+Pass	Parsing: <gopher:/example.com/> without base
+Pass	Parsing: <ws:/example.com/> without base
+Pass	Parsing: <wss:/example.com/> without base
+Pass	Parsing: <data:/example.com/> without base
+Pass	Parsing: <javascript:/example.com/> without base
+Pass	Parsing: <mailto:/example.com/> without base
+Pass	Parsing: <http:example.com/> without base
+Pass	Parsing: <ftp:example.com/> without base
+Pass	Parsing: <https:example.com/> without base
+Pass	Parsing: <madeupscheme:example.com/> without base
+Pass	Parsing: <ftps:example.com/> without base
+Pass	Parsing: <gopher:example.com/> without base
+Pass	Parsing: <ws:example.com/> without base
+Pass	Parsing: <wss:example.com/> without base
+Pass	Parsing: <data:example.com/> without base
+Pass	Parsing: <javascript:example.com/> without base
+Pass	Parsing: <mailto:example.com/> without base
+Pass	Parsing: <https://example.com/aaa/bbb/%2e%2e?query> without base
+Pass	Parsing: <http:@www.example.com> without base
+Pass	Parsing: <http:/@www.example.com> without base
+Pass	Parsing: <http://@www.example.com> without base
+Pass	Parsing: <http:a:b@www.example.com> without base
+Pass	Parsing: <http:/a:b@www.example.com> without base
+Pass	Parsing: <http://a:b@www.example.com> without base
+Pass	Parsing: <http://@pple.com> without base
+Pass	Parsing: <http::b@www.example.com> without base
+Pass	Parsing: <http:/:b@www.example.com> without base
+Pass	Parsing: <http://:b@www.example.com> without base
+Pass	Parsing: <http:/:@/www.example.com> without base
+Pass	Parsing: <http://user@/www.example.com> without base
+Pass	Parsing: <http:@/www.example.com> without base
+Pass	Parsing: <http:/@/www.example.com> without base
+Pass	Parsing: <http://@/www.example.com> without base
+Pass	Parsing: <https:@/www.example.com> without base
+Pass	Parsing: <http:a:b@/www.example.com> without base
+Pass	Parsing: <http:/a:b@/www.example.com> without base
+Pass	Parsing: <http://a:b@/www.example.com> without base
+Pass	Parsing: <http::@/www.example.com> without base
+Pass	Parsing: <http:a:@www.example.com> without base
+Pass	Parsing: <http:/a:@www.example.com> without base
+Pass	Parsing: <http://a:@www.example.com> without base
+Pass	Parsing: <http://www.@pple.com> without base
+Pass	Parsing: <http:@:www.example.com> without base
+Pass	Parsing: <http:/@:www.example.com> without base
+Pass	Parsing: <http://@:www.example.com> without base
+Pass	Parsing: <http://:@www.example.com> without base
+Pass	Parsing: </> against <http://www.example.com/test>
+Pass	Parsing: </test.txt> against <http://www.example.com/test>
+Pass	Parsing: <.> against <http://www.example.com/test>
+Pass	Parsing: <..> against <http://www.example.com/test>
+Pass	Parsing: <test.txt> against <http://www.example.com/test>
+Pass	Parsing: <./test.txt> against <http://www.example.com/test>
+Pass	Parsing: <../test.txt> against <http://www.example.com/test>
+Pass	Parsing: <../aaa/test.txt> against <http://www.example.com/test>
+Pass	Parsing: <../../test.txt> against <http://www.example.com/test>
+Pass	Parsing: <中/test.txt> against <http://www.example.com/test>
+Pass	Parsing: <http://www.example2.com> against <http://www.example.com/test>
+Pass	Parsing: <//www.example2.com> against <http://www.example.com/test>
+Pass	Parsing: <file:...> against <http://www.example.com/test>
+Pass	Parsing: <file:..> against <http://www.example.com/test>
+Pass	Parsing: <file:a> against <http://www.example.com/test>
+Pass	Parsing: <file:.> without base
+Pass	Parsing: <file:.> against <http://www.example.com/test>
+Pass	Parsing: <http://ExAmPlE.CoM> against <http://other.com/>
+Pass	Parsing: <http://example example.com> against <http://other.com/>
+Pass	Parsing: <http://Goo%20 goo%7C|.com> against <http://other.com/>
+Pass	Parsing: <http://[]> against <http://other.com/>
+Pass	Parsing: <http://[:]> against <http://other.com/>
+Pass	Parsing: <http://GOO 　goo.com> against <http://other.com/>
+Pass	Parsing: <http://GOO​⁠﻿goo.com> against <http://other.com/>
+Pass	Parsing: <  http://example.com/  > without base
+Pass	Parsing: <http://www.foo。bar.com> against <http://other.com/>
+Pass	Parsing: <http://﷐zyx.com> against <http://other.com/>
+Pass	Parsing: <http://%ef%b7%90zyx.com> against <http://other.com/>
+Pass	Parsing: <https://�> without base
+Pass	Parsing: <https://%EF%BF%BD> without base
+Pass	Parsing: <https://x/�?�#�> without base
+Pass	Parsing: <http://a.b.c.xn--pokxncvks> without base
+Pass	Parsing: <http://10.0.0.xn--pokxncvks> without base
+Pass	Parsing: <http://a.b.c.XN--pokxncvks> without base
+Pass	Parsing: <http://a.b.c.Xn--pokxncvks> without base
+Pass	Parsing: <http://10.0.0.XN--pokxncvks> without base
+Pass	Parsing: <http://10.0.0.xN--pokxncvks> without base
+Pass	Parsing: <http://Ｇｏ.com> against <http://other.com/>
+Pass	Parsing: <http://％４１.com> against <http://other.com/>
+Pass	Parsing: <http://%ef%bc%85%ef%bc%94%ef%bc%91.com> against <http://other.com/>
+Pass	Parsing: <http://％００.com> against <http://other.com/>
+Pass	Parsing: <http://%ef%bc%85%ef%bc%90%ef%bc%90.com> against <http://other.com/>
+Pass	Parsing: <http://你好你好> against <http://other.com/>
+Pass	Parsing: <https://faß.ExAmPlE/> without base
+Pass	Parsing: <sc://faß.ExAmPlE/> without base
+Pass	Parsing: <http://%zz%66%a.com> against <http://other.com/>
+Pass	Parsing: <http://%25> against <http://other.com/>
+Pass	Parsing: <http://hello%00> against <http://other.com/>
+Pass	Parsing: <http://%30%78%63%30%2e%30%32%35%30.01> against <http://other.com/>
+Pass	Parsing: <http://%30%78%63%30%2e%30%32%35%30.01%2e> against <http://other.com/>
+Pass	Parsing: <http://192.168.0.257> against <http://other.com/>
+Pass	Parsing: <http://%3g%78%63%30%2e%30%32%35%30%2E.01> against <http://other.com/>
+Pass	Parsing: <http://192.168.0.1 hello> against <http://other.com/>
+Pass	Parsing: <https://x x:12> without base
+Pass	Parsing: <http://０Ｘｃ０．０２５０．０１> against <http://other.com/>
+Pass	Parsing: <http://./> without base
+Pass	Parsing: <http://../> without base
+Pass	Parsing: <h://.> without base
+Pass	Parsing: <http://[www.google.com]/> without base
+Pass	Parsing: <http://[google.com]> against <http://other.com/>
+Pass	Parsing: <http://[::1.2.3.4x]> against <http://other.com/>
+Pass	Parsing: <http://[::1.2.3.]> against <http://other.com/>
+Pass	Parsing: <http://[::1.2.]> against <http://other.com/>
+Pass	Parsing: <http://[::.1.2]> against <http://other.com/>
+Pass	Parsing: <http://[::1.]> against <http://other.com/>
+Pass	Parsing: <http://[::.1]> against <http://other.com/>
+Pass	Parsing: <http://[::%31]> against <http://other.com/>
+Pass	Parsing: <http://%5B::1]> against <http://other.com/>
+Pass	Parsing: <http://foo:���U+dca9@example.com/bar> against <http://other.com/>
+Pass	Parsing: <#> against <test:test>
+Pass	Parsing: <#x> against <mailto:x@x.com>
+Pass	Parsing: <#x> against <data:,>
+Pass	Parsing: <#x> against <about:blank>
+Pass	Parsing: <#x:y> against <about:blank>
+Pass	Parsing: <#> against <test:test?test>
+Pass	Parsing: <https://@test@test@example:800/> against <http://doesnotmatter/>
+Pass	Parsing: <https://@@@example> against <http://doesnotmatter/>
+Pass	Parsing: <http://`{}:`{}@h/`{}?`{}> against <http://doesnotmatter/>
+Pass	Parsing: <http://host/?'> without base
+Pass	Parsing: <notspecial://host/?'> without base
+Pass	Parsing: </some/path> against <http://user@example.org/smth>
+Pass	Parsing: <> against <http://user:pass@example.org:21/smth>
+Pass	Parsing: </some/path> against <http://user:pass@example.org:21/smth>
+Pass	Parsing: <i> against <sc:sd>
+Pass	Parsing: <i> against <sc:sd/sd>
+Pass	Parsing: <i> against <sc:/pa/pa>
+Pass	Parsing: <i> against <sc://ho/pa>
+Pass	Parsing: <i> against <sc:///pa/pa>
+Pass	Parsing: <../i> against <sc:sd>
+Pass	Parsing: <../i> against <sc:sd/sd>
+Pass	Parsing: <../i> against <sc:/pa/pa>
+Pass	Parsing: <../i> against <sc://ho/pa>
+Pass	Parsing: <../i> against <sc:///pa/pa>
+Pass	Parsing: </i> against <sc:sd>
+Pass	Parsing: </i> against <sc:sd/sd>
+Pass	Parsing: </i> against <sc:/pa/pa>
+Pass	Parsing: </i> against <sc://ho/pa>
+Pass	Parsing: </i> against <sc:///pa/pa>
+Pass	Parsing: <?i> against <sc:sd>
+Pass	Parsing: <?i> against <sc:sd/sd>
+Pass	Parsing: <?i> against <sc:/pa/pa>
+Pass	Parsing: <?i> against <sc://ho/pa>
+Pass	Parsing: <?i> against <sc:///pa/pa>
+Pass	Parsing: <#i> against <sc:sd>
+Pass	Parsing: <#i> against <sc:sd/sd>
+Pass	Parsing: <#i> against <sc:/pa/pa>
+Pass	Parsing: <#i> against <sc://ho/pa>
+Pass	Parsing: <#i> against <sc:///pa/pa>
+Pass	Parsing: <about:/../> without base
+Pass	Parsing: <data:/../> without base
+Pass	Parsing: <javascript:/../> without base
+Pass	Parsing: <mailto:/../> without base
+Pass	Parsing: <sc://ñ.test/> without base
+Pass	Parsing: <sc://%/> without base
+Pass	Parsing: <sc://@/> without base
+Pass	Parsing: <sc://te@s:t@/> without base
+Pass	Parsing: <sc://:/> without base
+Pass	Parsing: <sc://:12/> without base
+Pass	Parsing: <x> against <sc://ñ>
+Pass	Parsing: <sc:\../> without base
+Pass	Parsing: <sc::a@example.net> without base
+Pass	Parsing: <wow:%NBD> without base
+Pass	Parsing: <wow:%1G> without base
+Pass	Parsing: <wow:￿> without base
+Pass	Parsing: <sc://a b/> without base
+Pass	Parsing: <sc://a b/> without base
+Pass	Parsing: <sc://a<b> without base
+Pass	Parsing: <sc://a>b> without base
+Pass	Parsing: <sc://a[b/> without base
+Pass	Parsing: <sc://a\b/> without base
+Pass	Parsing: <sc://a]b/> without base
+Pass	Parsing: <sc://a^b> without base
+Pass	Parsing: <sc://a|b/> without base
+Pass	Parsing: <foo://ho	st/> without base
+Pass	Parsing: <foo://ho
+st/> without base
+Pass	Parsing: <foo://host/> without base
+Pass	Parsing: <http://a b/> without base
+Pass	Parsing: <http://ab/> without base
+Pass	Parsing: <http://ab/> without base
+Pass	Parsing: <http://ab/> without base
+Pass	Parsing: <http://ab/> without base
+Pass	Parsing: <http://ab/> without base
+Pass	Parsing: <http://ab/> without base
+Pass	Parsing: <http://ab/> without base
+Pass	Parsing: <http://ab/> without base
+Pass	Parsing: <http://ab/> without base
+Pass	Parsing: <http://ab/> without base
+Pass	Parsing: <http://ab/> without base
+Pass	Parsing: <http://ab/> without base
+Pass	Parsing: <http://ab/> without base
+Pass	Parsing: <http://ab/> without base
+Pass	Parsing: <http://ab/> without base
+Pass	Parsing: <http://ab/> without base
+Pass	Parsing: <http://ab/> without base
+Pass	Parsing: <http://ab/> without base
+Pass	Parsing: <http://ab/> without base
+Pass	Parsing: <http://ab/> without base
+Pass	Parsing: <http://ab/> without base
+Pass	Parsing: <http://ab/> without base
+Pass	Parsing: <http://ab/> without base
+Pass	Parsing: <http://ab/> without base
+Pass	Parsing: <http://ab/> without base
+Pass	Parsing: <http://ab/> without base
+Pass	Parsing: <http://ab/> without base
+Pass	Parsing: <http://ab/> without base
+Pass	Parsing: <http://a b/> without base
+Pass	Parsing: <http://a%b/> without base
+Pass	Parsing: <http://a<b> without base
+Pass	Parsing: <http://a>b> without base
+Pass	Parsing: <http://a[b/> without base
+Pass	Parsing: <http://a]b/> without base
+Pass	Parsing: <http://a^b> without base
+Pass	Parsing: <http://a|b/> without base
+Pass	Parsing: <http://ab/> without base
+Pass	Parsing: <http://ho	st/> without base
+Pass	Parsing: <http://ho
+st/> without base
+Pass	Parsing: <http://host/> without base
+Pass	Parsing: <http://ho%00st/> without base
+Pass	Parsing: <http://ho%01st/> without base
+Pass	Parsing: <http://ho%02st/> without base
+Pass	Parsing: <http://ho%03st/> without base
+Pass	Parsing: <http://ho%04st/> without base
+Pass	Parsing: <http://ho%05st/> without base
+Pass	Parsing: <http://ho%06st/> without base
+Pass	Parsing: <http://ho%07st/> without base
+Pass	Parsing: <http://ho%08st/> without base
+Pass	Parsing: <http://ho%09st/> without base
+Pass	Parsing: <http://ho%0Ast/> without base
+Pass	Parsing: <http://ho%0Bst/> without base
+Pass	Parsing: <http://ho%0Cst/> without base
+Pass	Parsing: <http://ho%0Dst/> without base
+Pass	Parsing: <http://ho%0Est/> without base
+Pass	Parsing: <http://ho%0Fst/> without base
+Pass	Parsing: <http://ho%10st/> without base
+Pass	Parsing: <http://ho%11st/> without base
+Pass	Parsing: <http://ho%12st/> without base
+Pass	Parsing: <http://ho%13st/> without base
+Pass	Parsing: <http://ho%14st/> without base
+Pass	Parsing: <http://ho%15st/> without base
+Pass	Parsing: <http://ho%16st/> without base
+Pass	Parsing: <http://ho%17st/> without base
+Pass	Parsing: <http://ho%18st/> without base
+Pass	Parsing: <http://ho%19st/> without base
+Pass	Parsing: <http://ho%1Ast/> without base
+Pass	Parsing: <http://ho%1Bst/> without base
+Pass	Parsing: <http://ho%1Cst/> without base
+Pass	Parsing: <http://ho%1Dst/> without base
+Pass	Parsing: <http://ho%1Est/> without base
+Pass	Parsing: <http://ho%1Fst/> without base
+Pass	Parsing: <http://ho%20st/> without base
+Pass	Parsing: <http://ho%23st/> without base
+Pass	Parsing: <http://ho%25st/> without base
+Pass	Parsing: <http://ho%2Fst/> without base
+Pass	Parsing: <http://ho%3Ast/> without base
+Pass	Parsing: <http://ho%3Cst/> without base
+Pass	Parsing: <http://ho%3Est/> without base
+Pass	Parsing: <http://ho%3Fst/> without base
+Pass	Parsing: <http://ho%40st/> without base
+Pass	Parsing: <http://ho%5Bst/> without base
+Pass	Parsing: <http://ho%5Cst/> without base
+Pass	Parsing: <http://ho%5Dst/> without base
+Pass	Parsing: <http://ho%7Cst/> without base
+Pass	Parsing: <http://ho%7Fst/> without base
+Pass	Parsing: <http://!"$&'()*+,-.;=_`{}~/> without base
+Pass	Parsing: <sc://!"$%&'()*+,-.;=_`{}~/> without base
+Pass	Parsing: <ftp://example.com%80/> without base
+Pass	Parsing: <ftp://example.com%A0/> without base
+Pass	Parsing: <https://example.com%80/> without base
+Pass	Parsing: <https://example.com%A0/> without base
+Pass	Parsing: <ftp://%e2%98%83> without base
+Pass	Parsing: <https://%e2%98%83> without base
+Pass	Parsing: <http://127.0.0.1:10100/relative_import.html> without base
+Pass	Parsing: <http://facebook.com/?foo=%7B%22abc%22> without base
+Pass	Parsing: <https://localhost:3000/jqueryui@1.2.3> without base
+Pass	Parsing: <h	t
+tp://h	o
+st:9	0
+00/p	a
+th?q	u
+ery#f	r
+ag> without base
+Pass	Parsing: <?a=b&c=d> against <http://example.org/foo/bar>
+Pass	Parsing: <??a=b&c=d> against <http://example.org/foo/bar>
+Pass	Parsing: <http:> against <http://example.org/foo/bar>
+Pass	Parsing: <http:> against <https://example.org/foo/bar>
+Pass	Parsing: <sc:> against <https://example.org/foo/bar>
+Pass	Parsing: <http://foo.bar/baz?qux#foobar> without base
+Pass	Parsing: <http://foo.bar/baz?qux#foo"bar> without base
+Pass	Parsing: <http://foo.bar/baz?qux#foo<bar> without base
+Pass	Parsing: <http://foo.bar/baz?qux#foo>bar> without base
+Pass	Parsing: <http://foo.bar/baz?qux#foo`bar> without base
+Pass	Parsing: <http://1.2.3.4/> against <http://other.com/>
+Pass	Parsing: <http://1.2.3.4./> against <http://other.com/>
+Pass	Parsing: <http://192.168.257> against <http://other.com/>
+Pass	Parsing: <http://192.168.257.> against <http://other.com/>
+Pass	Parsing: <http://192.168.257.com> against <http://other.com/>
+Pass	Parsing: <http://256> against <http://other.com/>
+Pass	Parsing: <http://256.com> against <http://other.com/>
+Pass	Parsing: <http://999999999> against <http://other.com/>
+Pass	Parsing: <http://999999999.> against <http://other.com/>
+Pass	Parsing: <http://999999999.com> against <http://other.com/>
+Pass	Parsing: <http://10000000000> against <http://other.com/>
+Pass	Parsing: <http://10000000000.com> against <http://other.com/>
+Pass	Parsing: <http://4294967295> against <http://other.com/>
+Pass	Parsing: <http://4294967296> against <http://other.com/>
+Pass	Parsing: <http://0xffffffff> against <http://other.com/>
+Pass	Parsing: <http://0xffffffff1> against <http://other.com/>
+Pass	Parsing: <http://256.256.256.256> against <http://other.com/>
+Pass	Parsing: <https://0x.0x.0> without base
+Pass	Parsing: <https://0x100000000/test> without base
+Pass	Parsing: <https://256.0.0.1/test> without base
+Pass	Parsing: <file:///C%3A/> without base
+Pass	Parsing: <file:///C%7C/> without base
+Pass	Parsing: <file://%43%3A> without base
+Pass	Parsing: <file://%43%7C> without base
+Pass	Parsing: <file://%43|> without base
+Pass	Parsing: <file://C%7C> without base
+Pass	Parsing: <file://%43%7C/> without base
+Pass	Parsing: <https://%43%7C/> without base
+Pass	Parsing: <asdf://%43|/> without base
+Pass	Parsing: <asdf://%43%7C/> without base
+Pass	Parsing: <pix/submit.gif> against <file:///C:/Users/Domenic/Dropbox/GitHub/tmpvar/jsdom/test/level2/html/files/anchor.html>
+Pass	Parsing: <..> against <file:///C:/>
+Pass	Parsing: <..> against <file:///>
+Pass	Parsing: </> against <file:///C:/a/b>
+Pass	Parsing: </> against <file://h/C:/a/b>
+Pass	Parsing: </> against <file://h/a/b>
+Pass	Parsing: <//d:> against <file:///C:/a/b>
+Pass	Parsing: <//d:/..> against <file:///C:/a/b>
+Pass	Parsing: <..> against <file:///ab:/>
+Pass	Parsing: <..> against <file:///1:/>
+Pass	Parsing: <> against <file:///test?test#test>
+Pass	Parsing: <file:> against <file:///test?test#test>
+Pass	Parsing: <?x> against <file:///test?test#test>
+Pass	Parsing: <file:?x> against <file:///test?test#test>
+Pass	Parsing: <#x> against <file:///test?test#test>
+Pass	Parsing: <file:#x> against <file:///test?test#test>
+Pass	Parsing: <file:\\//> without base
+Pass	Parsing: <file:\\\\> without base
+Pass	Parsing: <file:\\\\?fox> without base
+Pass	Parsing: <file:\\\\#guppy> without base
+Pass	Parsing: <file://spider///> without base
+Pass	Parsing: <file:\\localhost//> without base
+Pass	Parsing: <file:///localhost//cat> without base
+Pass	Parsing: <file://\/localhost//cat> without base
+Pass	Parsing: <file://localhost//a//../..//> without base
+Pass	Parsing: </////mouse> against <file:///elephant>
+Pass	Parsing: <\//pig> against <file://lion/>
+Pass	Parsing: <\/localhost//pig> against <file://lion/>
+Pass	Parsing: <//localhost//pig> against <file://lion/>
+Pass	Parsing: </..//localhost//pig> against <file://lion/>
+Pass	Parsing: <file://> against <file://ape/>
+Pass	Parsing: </rooibos> against <file://tea/>
+Pass	Parsing: </?chai> against <file://tea/>
+Pass	Parsing: <C|> against <file://host/dir/file>
+Pass	Parsing: <C|> against <file://host/D:/dir1/dir2/file>
+Pass	Parsing: <C|#> against <file://host/dir/file>
+Pass	Parsing: <C|?> against <file://host/dir/file>
+Pass	Parsing: <C|/> against <file://host/dir/file>
+Pass	Parsing: <C|
+/> against <file://host/dir/file>
+Pass	Parsing: <C|\> against <file://host/dir/file>
+Pass	Parsing: <C> against <file://host/dir/file>
+Pass	Parsing: <C|a> against <file://host/dir/file>
+Pass	Parsing: </c:/foo/bar> against <file:///c:/baz/qux>
+Pass	Parsing: </c|/foo/bar> against <file:///c:/baz/qux>
+Pass	Parsing: <file:\c:\foo\bar> against <file:///c:/baz/qux>
+Pass	Parsing: </c:/foo/bar> against <file://host/path>
+Pass	Parsing: <file://example.net/C:/> without base
+Pass	Parsing: <file://1.2.3.4/C:/> without base
+Pass	Parsing: <file://[1::8]/C:/> without base
+Pass	Parsing: <C|/> against <file://host/>
+Pass	Parsing: </C:/> against <file://host/>
+Pass	Parsing: <file:C:/> against <file://host/>
+Pass	Parsing: <file:/C:/> against <file://host/>
+Pass	Parsing: <//C:/> against <file://host/>
+Pass	Parsing: <file://C:/> against <file://host/>
+Pass	Parsing: <///C:/> against <file://host/>
+Pass	Parsing: <file:///C:/> against <file://host/>
+Pass	Parsing: <file:/C|/> without base
+Pass	Parsing: <file://C|/> without base
+Pass	Parsing: <file:> without base
+Pass	Parsing: <file:?q=v> without base
+Pass	Parsing: <file:#frag> without base
+Pass	Parsing: <file:///Y:> without base
+Pass	Parsing: <file:///Y:/> without base
+Pass	Parsing: <file:///./Y> without base
+Pass	Parsing: <file:///./Y:> without base
+Pass	Parsing: <\\\.\Y:> without base
+Pass	Parsing: <file:///y:> without base
+Pass	Parsing: <file:///y:/> without base
+Pass	Parsing: <file:///./y> without base
+Pass	Parsing: <file:///./y:> without base
+Pass	Parsing: <\\\.\y:> without base
+Pass	Parsing: <file://localhost//a//../..//foo> without base
+Pass	Parsing: <file://localhost////foo> without base
+Pass	Parsing: <file:////foo> without base
+Pass	Parsing: <file:///one/two> against <file:///>
+Pass	Parsing: <file:////one/two> against <file:///>
+Pass	Parsing: <//one/two> against <file:///>
+Pass	Parsing: <///one/two> against <file:///>
+Pass	Parsing: <////one/two> against <file:///>
+Pass	Parsing: <file:///.//> against <file:////>
+Pass	Parsing: <file:.//p> without base
+Pass	Parsing: <file:/.//p> without base
+Pass	Parsing: <http://[1:0::]> against <http://example.net/>
+Pass	Parsing: <http://[0:1:2:3:4:5:6:7:8]> against <http://example.net/>
+Pass	Parsing: <https://[0::0::0]> without base
+Pass	Parsing: <https://[0:.0]> without base
+Pass	Parsing: <https://[0:0:]> without base
+Pass	Parsing: <https://[0:1:2:3:4:5:6:7.0.0.0.1]> without base
+Pass	Parsing: <https://[0:1.00.0.0.0]> without base
+Pass	Parsing: <https://[0:1.290.0.0.0]> without base
+Pass	Parsing: <https://[0:1.23.23]> without base
+Pass	Parsing: <http://?> without base
+Pass	Parsing: <http://#> without base
+Pass	Parsing: <http://f:4294967377/c> against <http://example.org/>
+Pass	Parsing: <http://f:18446744073709551697/c> against <http://example.org/>
+Pass	Parsing: <http://f:340282366920938463463374607431768211537/c> against <http://example.org/>
+Pass	Parsing: <sc://ñ> without base
+Pass	Parsing: <sc://ñ?x> without base
+Pass	Parsing: <sc://ñ#x> without base
+Pass	Parsing: <#x> against <sc://ñ>
+Pass	Parsing: <?x> against <sc://ñ>
+Pass	Parsing: <sc://?> without base
+Pass	Parsing: <sc://#> without base
+Pass	Parsing: <///> against <sc://x/>
+Pass	Parsing: <////> against <sc://x/>
+Pass	Parsing: <////x/> against <sc://x/>
+Pass	Parsing: <tftp://foobar.com/someconfig;mode=netascii> without base
+Pass	Parsing: <telnet://user:pass@foobar.com:23/> without base
+Pass	Parsing: <ut2004://10.10.10.10:7777/Index.ut2> without base
+Pass	Parsing: <redis://foo:bar@somehost:6379/0?baz=bam&qux=baz> without base
+Pass	Parsing: <rsync://foo@host:911/sup> without base
+Pass	Parsing: <git://github.com/foo/bar.git> without base
+Pass	Parsing: <irc://myserver.com:6999/channel?passwd> without base
+Pass	Parsing: <dns://fw.example.org:9999/foo.bar.org?type=TXT> without base
+Pass	Parsing: <ldap://localhost:389/ou=People,o=JNDITutorial> without base
+Pass	Parsing: <git+https://github.com/foo/bar> without base
+Pass	Parsing: <urn:ietf:rfc:2648> without base
+Pass	Parsing: <tag:joe@example.org,2001:foo/bar> without base
+Pass	Parsing: <non-spec:/.//> without base
+Pass	Parsing: <non-spec:/..//> without base
+Pass	Parsing: <non-spec:/a/..//> without base
+Pass	Parsing: <non-spec:/.//path> without base
+Pass	Parsing: <non-spec:/..//path> without base
+Pass	Parsing: <non-spec:/a/..//path> without base
+Pass	Parsing: </.//path> against <non-spec:/p>
+Pass	Parsing: </..//path> against <non-spec:/p>
+Pass	Parsing: <..//path> against <non-spec:/p>
+Pass	Parsing: <a/..//path> against <non-spec:/p>
+Pass	Parsing: <> against <non-spec:/..//p>
+Pass	Parsing: <path> against <non-spec:/..//p>
+Pass	Parsing: <../path> against <non-spec:/.//p>
+Pass	Parsing: <non-special://%E2%80%A0/> without base
+Pass	Parsing: <non-special://H%4fSt/path> without base
+Pass	Parsing: <non-special://[1:2:0:0:5:0:0:0]/> without base
+Pass	Parsing: <non-special://[1:2:0:0:0:0:0:3]/> without base
+Pass	Parsing: <non-special://[1:2::3]:80/> without base
+Pass	Parsing: <non-special://[:80/> without base
+Pass	Parsing: <blob:https://example.com:443/> without base
+Pass	Parsing: <blob:http://example.org:88/> without base
+Pass	Parsing: <blob:d3958f5c-0777-0845-9dcf-2cb28783acaf> without base
+Pass	Parsing: <blob:> without base
+Pass	Parsing: <blob:blob:> without base
+Pass	Parsing: <blob:blob:https://example.org/> without base
+Pass	Parsing: <blob:about:blank> without base
+Pass	Parsing: <blob:file://host/path> without base
+Pass	Parsing: <blob:ftp://host/path> without base
+Pass	Parsing: <blob:ws://example.org/> without base
+Pass	Parsing: <blob:wss://example.org/> without base
+Pass	Parsing: <blob:http%3a//example.org/> without base
+Pass	Parsing: <http://0x7f.0.0.0x7g> without base
+Pass	Parsing: <http://0X7F.0.0.0X7G> without base
+Pass	Parsing: <http://[::127.0.0.0.1]> without base
+Pass	Parsing: <http://[0:1:0:1:0:1:0:1]> without base
+Pass	Parsing: <http://[1:0:1:0:1:0:1:0]> without base
+Pass	Parsing: <http://example.org/test?"> without base
+Pass	Parsing: <http://example.org/test?#> without base
+Pass	Parsing: <http://example.org/test?<> without base
+Pass	Parsing: <http://example.org/test?>> without base
+Pass	Parsing: <http://example.org/test?⌣> without base
+Pass	Parsing: <http://example.org/test?%23%23> without base
+Pass	Parsing: <http://example.org/test?%GH> without base
+Pass	Parsing: <http://example.org/test?a#%EF> without base
+Pass	Parsing: <http://example.org/test?a#%GH> without base
+Pass	Parsing: <a> without base
+Pass	Parsing: <a/> without base
+Pass	Parsing: <a//> without base
+Pass	Parsing: <test-a-colon.html> against <a:>
+Pass	Parsing: <test-a-colon-b.html> against <a:b>
+Pass	Parsing: <test-a-colon-slash.html> against <a:/>
+Pass	Parsing: <test-a-colon-slash-slash.html> against <a://>
+Pass	Parsing: <test-a-colon-slash-b.html> against <a:/b>
+Pass	Parsing: <test-a-colon-slash-slash-b.html> against <a://b>
+Pass	Parsing: <http://example.org/test?a#b c> without base
+Pass	Parsing: <non-spec://example.org/test?a#b c> without base
+Pass	Parsing: <non-spec:/test?a#b c> without base
+Pass	Parsing: <10.0.0.7:8080/foo.html> against <file:///some/dir/bar.html>
+Pass	Parsing: <a!@$*=/foo.html> against <file:///some/dir/bar.html>
+Pass	Parsing: <a1234567890-+.:foo/bar> against <http://example.com/dir/file>
+Pass	Parsing: <file://a­b/p> without base
+Pass	Parsing: <file://a%C2%ADb/p> without base
+Pass	Parsing: <file://loC���U+dc00���U+dc0b���U+dc07���U+dc28���U+dc2c���U+dc2d/usr/bin> without base
+Pass	Parsing: <file://­/p> without base
+Pass	Parsing: <file://%C2%AD/p> without base
+Pass	Parsing: <file://xn--/p> without base
+Pass	Parsing: <#link> against <https://example.org/##link>
+Pass	Parsing: <non-special:cannot-be-a-base-url- ~> without base
+Pass	Parsing: <non-special:cannot-be-a-base-url-!"$%&'()*+,-.;<=>@[\]^_`{|}~@/> without base
+Pass	Parsing: <https://www.example.com/path{path.html?query'=query#fragment<fragment> without base
+Pass	Parsing: <https://user:pass[@foo/bar> against <http://example.org>
+Pass	Parsing: <foo:// !"$%&'()*+,-.;<=>@[\]^_`{|}~@host/> without base
+Pass	Parsing: <wss:// !"$%&'()*+,-.;<=>@[]^_`{|}~@host/> without base
+Pass	Parsing: <foo://joe: !"$%&'()*+,-.:;<=>@[\]^_`{|}~@host/> without base
+Pass	Parsing: <wss://joe: !"$%&'()*+,-.:;<=>@[]^_`{|}~@host/> without base
+Pass	Parsing: <foo://!"$%&'()*+,-.;=_`{}~/> without base
+Pass	Parsing: <wss://!"$&'()*+,-.;=_`{}~/> without base
+Pass	Parsing: <foo://host/ !"$%&'()*+,-./:;<=>@[\]^_`{|}~> without base
+Pass	Parsing: <wss://host/ !"$%&'()*+,-./:;<=>@[\]^_`{|}~> without base
+Pass	Parsing: <foo://host/dir/? !"$%&'()*+,-./:;<=>?@[\]^_`{|}~> without base
+Pass	Parsing: <wss://host/dir/? !"$%&'()*+,-./:;<=>?@[\]^_`{|}~> without base
+Pass	Parsing: <foo://host/dir/# !"#$%&'()*+,-./:;<=>?@[\]^_`{|}~> without base
+Pass	Parsing: <wss://host/dir/# !"#$%&'()*+,-./:;<=>?@[\]^_`{|}~> without base
+Pass	Parsing: <abc:rootless> against <abc://host/path>
+Pass	Parsing: <abc:rootless> against <abc:/path>
+Pass	Parsing: <abc:rootless> against <abc:path>
+Pass	Parsing: <abc:/rooted> against <abc://host/path>
+Pass	Parsing: <#> without base
+Pass	Parsing: <?> without base
+Pass	Parsing: <http://1.2.3.4.5> against <http://other.com/>
+Pass	Parsing: <http://1.2.3.4.5.> against <http://other.com/>
+Pass	Parsing: <http://0..0x300/> without base
+Pass	Parsing: <http://0..0x300./> without base
+Pass	Parsing: <http://256.256.256.256.256> against <http://other.com/>
+Pass	Parsing: <http://256.256.256.256.256.> against <http://other.com/>
+Pass	Parsing: <http://1.2.3.08> without base
+Pass	Parsing: <http://1.2.3.08.> without base
+Pass	Parsing: <http://1.2.3.09> without base
+Pass	Parsing: <http://09.2.3.4> without base
+Pass	Parsing: <http://09.2.3.4.> without base
+Pass	Parsing: <http://01.2.3.4.5> without base
+Pass	Parsing: <http://01.2.3.4.5.> without base
+Pass	Parsing: <http://0x100.2.3.4> without base
+Pass	Parsing: <http://0x100.2.3.4.> without base
+Pass	Parsing: <http://0x1.2.3.4.5> without base
+Pass	Parsing: <http://0x1.2.3.4.5.> without base
+Pass	Parsing: <http://foo.1.2.3.4> without base
+Pass	Parsing: <http://foo.1.2.3.4.> without base
+Pass	Parsing: <http://foo.2.3.4> without base
+Pass	Parsing: <http://foo.2.3.4.> without base
+Pass	Parsing: <http://foo.09> without base
+Pass	Parsing: <http://foo.09.> without base
+Pass	Parsing: <http://foo.0x4> without base
+Pass	Parsing: <http://foo.0x4.> without base
+Pass	Parsing: <http://foo.09..> without base
+Pass	Parsing: <http://0999999999999999999/> without base
+Pass	Parsing: <http://foo.0x> without base
+Pass	Parsing: <http://foo.0XFfFfFfFfFfFfFfFfFfAcE123> without base
+Pass	Parsing: <http://���U+dca9.123/> without base
+Pass	Parsing: <https:// y> without base
+Pass	Parsing: <https://x/ y> without base
+Pass	Parsing: <https://x/? y> without base
+Pass	Parsing: <https://x/?# y> without base
+Pass	Parsing: <https://￿y> without base
+Pass	Parsing: <https://x/￿y> without base
+Pass	Parsing: <https://x/?￿y> without base
+Pass	Parsing: <https://x/?#￿y> without base
+Pass	Parsing: <non-special: y> without base
+Pass	Parsing: <non-special:x/ y> without base
+Pass	Parsing: <non-special:x/? y> without base
+Pass	Parsing: <non-special:x/?# y> without base
+Pass	Parsing: <non-special:￿y> without base
+Pass	Parsing: <non-special:x/￿y> without base
+Pass	Parsing: <non-special:x/?￿y> without base
+Pass	Parsing: <non-special:x/?#￿y> without base
+Pass	Parsing: <> without base
+Pass	Parsing: <https://example.com/"quoted"> without base
+Pass	Parsing: <https://a%C2%ADb/> without base
+Pass	Parsing: <https://­/> without base
+Pass	Parsing: <https://%C2%AD/> without base
+Pass	Parsing: <https://xn--/> without base
+Pass	Parsing: <data://example.com:8080/pathname?search#hash> without base
+Pass	Parsing: <data:///test> without base
+Pass	Parsing: <data://test/a/../b> without base
+Pass	Parsing: <data://:443> without base
+Pass	Parsing: <data://test:test> without base
+Pass	Parsing: <data://[:1]> without base
+Pass	Parsing: <javascript://example.com:8080/pathname?search#hash> without base
+Pass	Parsing: <javascript:///test> without base
+Pass	Parsing: <javascript://test/a/../b> without base
+Pass	Parsing: <javascript://:443> without base
+Pass	Parsing: <javascript://test:test> without base
+Pass	Parsing: <javascript://[:1]> without base
+Pass	Parsing: <mailto://example.com:8080/pathname?search#hash> without base
+Pass	Parsing: <mailto:///test> without base
+Pass	Parsing: <mailto://test/a/../b> without base
+Pass	Parsing: <mailto://:443> without base
+Pass	Parsing: <mailto://test:test> without base
+Pass	Parsing: <mailto://[:1]> without base
+Pass	Parsing: <intent://example.com:8080/pathname?search#hash> without base
+Pass	Parsing: <intent:///test> without base
+Pass	Parsing: <intent://test/a/../b> without base
+Pass	Parsing: <intent://:443> without base
+Pass	Parsing: <intent://test:test> without base
+Pass	Parsing: <intent://[:1]> without base
+Pass	Parsing: <urn://example.com:8080/pathname?search#hash> without base
+Pass	Parsing: <urn:///test> without base
+Pass	Parsing: <urn://test/a/../b> without base
+Pass	Parsing: <urn://:443> without base
+Pass	Parsing: <urn://test:test> without base
+Pass	Parsing: <urn://[:1]> without base
+Pass	Parsing: <turn://example.com:8080/pathname?search#hash> without base
+Pass	Parsing: <turn:///test> without base
+Pass	Parsing: <turn://test/a/../b> without base
+Pass	Parsing: <turn://:443> without base
+Pass	Parsing: <turn://test:test> without base
+Pass	Parsing: <turn://[:1]> without base
+Pass	Parsing: <stun://example.com:8080/pathname?search#hash> without base
+Pass	Parsing: <stun:///test> without base
+Pass	Parsing: <stun://test/a/../b> without base
+Pass	Parsing: <stun://:443> without base
+Pass	Parsing: <stun://test:test> without base
+Pass	Parsing: <stun://[:1]> without base
+Pass	Parsing: <w://x:0> without base
+Pass	Parsing: <west://x:0> without base
+Pass	Parsing: <android://x:0/a> without base
+Pass	Parsing: <drivefs://x:0/a> without base
+Pass	Parsing: <chromeos-steam://x:0/a> without base
+Pass	Parsing: <steam://x:0/a> without base
+Pass	Parsing: <materialized-view://x:0/a> without base
+Pass	Parsing: <android-app://x:0> without base
+Pass	Parsing: <chrome-distiller://x:0> without base
+Pass	Parsing: <chrome-extension://x:0> without base
+Pass	Parsing: <chrome-native://x:0> without base
+Pass	Parsing: <chrome-resource://x:0> without base
+Pass	Parsing: <chrome-search://x:0> without base
+Pass	Parsing: <fuchsia-dir://x:0> without base
+Pass	Parsing: <isolated-app://x:0> without base
+Pass	Parsing: <///test> against <http://example.org/>
+Pass	Parsing: <///\//\//test> against <http://example.org/>
+Pass	Parsing: <///example.org/path> against <http://example.org/>
+Pass	Parsing: <///example.org/../path> against <http://example.org/>
+Pass	Parsing: <///example.org/../../> against <http://example.org/>
+Pass	Parsing: <///example.org/../path/../../> against <http://example.org/>
+Pass	Parsing: <///example.org/../path/../../path> against <http://example.org/>
+Pass	Parsing: </\/\//example.org/../path> against <http://example.org/>
+Pass	Parsing: <///abcdef/../> against <file:///>
+Pass	Parsing: </\//\/a/../> against <file:///>
+Pass	Parsing: <//a/../> against <file:///>
+Pass	Parsing: <non-special:\\opaque> without base
+Pass	Parsing: <non-special:\\opaque/path> without base
+Pass	Parsing: <non-special:\\opaque\path> without base
+Pass	Parsing: <non-special:\/opaque> without base
+Pass	Parsing: <non-special:/\path> without base
+Pass	Parsing: <non-special://host\a> without base
+Pass	Parsing: <non-special://host/a\b> without base
+Pass	Parsing: <http://example.com//U+d800���U+dffeU+dfff﷐﷏﷯ﷰ￾￿??U+d800���U+dffeU+dfff﷐﷏﷯ﷰ￾￿> without base
