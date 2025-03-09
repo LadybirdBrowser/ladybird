@@ -1628,6 +1628,12 @@ Optional<FlyString> ComputedProperties::view_transition_name() const
     return {};
 }
 
+ImageOrientation ComputedProperties::image_orientation() const
+{
+    auto const& value = property(PropertyID::ImageOrientation);
+    return keyword_to_image_orientation(value.to_keyword()).release_value();
+}
+
 MaskType ComputedProperties::mask_type() const
 {
     auto const& value = property(PropertyID::MaskType);

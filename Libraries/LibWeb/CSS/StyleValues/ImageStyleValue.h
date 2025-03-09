@@ -35,12 +35,12 @@ public:
 
     virtual void load_any_resources(DOM::Document&) override;
 
-    Optional<CSSPixels> natural_width() const override;
-    Optional<CSSPixels> natural_height() const override;
-    Optional<CSSPixelFraction> natural_aspect_ratio() const override;
+    Optional<CSSPixels> natural_width(ImageOrientation image_orientation) const override;
+    Optional<CSSPixels> natural_height(ImageOrientation image_orientation) const override;
+    Optional<CSSPixelFraction> natural_aspect_ratio(ImageOrientation image_orientation) const override;
 
     virtual bool is_paintable() const override;
-    void paint(PaintContext& context, DevicePixelRect const& dest_rect, CSS::ImageRendering image_rendering) const override;
+    void paint(PaintContext& context, DevicePixelRect const& dest_rect, CSS::ImageRendering image_rendering, ImageOrientation image_orientation) const override;
 
     virtual Optional<Gfx::Color> color_if_single_pixel_bitmap() const override;
     Gfx::ImmutableBitmap const* current_frame_bitmap(DevicePixelRect const& dest_rect) const;

@@ -28,6 +28,11 @@ bool is_valid_exif_orientation(u32 orientation)
     }
 }
 
+ImageOrientation to_gfx_image_orientation(Web::CSS::ImageOrientation orientation)
+{
+    return static_cast<ImageOrientation>(orientation);
+}
+
 Gfx::AffineTransform compute_exif_orientation_matrix(Gfx::ExifOrientation orientation, Gfx::FloatRect& dst_rect)
 {
     Gfx::AffineTransform matrix;

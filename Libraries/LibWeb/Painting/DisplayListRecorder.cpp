@@ -194,7 +194,7 @@ void DisplayListRecorder::draw_painting_surface(Gfx::IntRect const& dst_rect, No
     });
 }
 
-void DisplayListRecorder::draw_scaled_immutable_bitmap(Gfx::IntRect const& dst_rect, Gfx::ImmutableBitmap const& bitmap, Gfx::IntRect const& src_rect, Gfx::ScalingMode scaling_mode)
+void DisplayListRecorder::draw_scaled_immutable_bitmap(Gfx::IntRect const& dst_rect, Gfx::ImmutableBitmap const& bitmap, Gfx::IntRect const& src_rect, Gfx::ScalingMode scaling_mode, Gfx::ImageOrientation image_orientation)
 {
     if (dst_rect.is_empty())
         return;
@@ -202,7 +202,9 @@ void DisplayListRecorder::draw_scaled_immutable_bitmap(Gfx::IntRect const& dst_r
     auto effective_dst_rect = dst_rect.to_type<float>();
 
     auto const exif_orientation = bitmap.bitmap()->exif_orientation();
-    auto const transformation_matrix = compute_exif_orientation_matrix(exif_orientation, effective_dst_rect);
+    auto const transformation_matrix = image_orientation == Gfx::ImageOrientation::FromExif
+        ? compute_exif_orientation_matrix(exif_orientation, effective_dst_rect)
+        : Gfx::AffineTransform {};
 
     append(DrawScaledImmutableBitmap {
         .dst_rect = effective_dst_rect.to_type<int>(),
@@ -213,7 +215,7 @@ void DisplayListRecorder::draw_scaled_immutable_bitmap(Gfx::IntRect const& dst_r
     });
 }
 
-void DisplayListRecorder::draw_repeated_immutable_bitmap(Gfx::IntRect dst_rect, Gfx::IntRect clip_rect, NonnullRefPtr<Gfx::ImmutableBitmap> bitmap, Gfx::ScalingMode scaling_mode, DrawRepeatedImmutableBitmap::Repeat repeat)
+void DisplayListRecorder::draw_repeated_immutable_bitmap(Gfx::IntRect dst_rect, Gfx::IntRect clip_rect, NonnullRefPtr<Gfx::ImmutableBitmap> bitmap, Gfx::ScalingMode scaling_mode, DrawRepeatedImmutableBitmap::Repeat repeat, Gfx::ImageOrientation image_orientation)
 {
     if (dst_rect.is_empty())
         return;
@@ -221,8 +223,10 @@ void DisplayListRecorder::draw_repeated_immutable_bitmap(Gfx::IntRect dst_rect, 
     auto effective_dst_rect = dst_rect.to_type<float>();
 
     auto const exif_orientation = bitmap->bitmap()->exif_orientation();
-    auto const transformation_matrix = compute_exif_orientation_matrix(exif_orientation, effective_dst_rect);
-    auto const size = bitmap->size();
+    auto const transformation_matrix = image_orientation == Gfx::ImageOrientation::FromExif
+        ? compute_exif_orientation_matrix(exif_orientation, effective_dst_rect)
+        : Gfx::AffineTransform {};
+    auto const size = bitmap->size(image_orientation);
 
     append(DrawRepeatedImmutableBitmap {
         .dst_rect = effective_dst_rect.to_type<int>(),

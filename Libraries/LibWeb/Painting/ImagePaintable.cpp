@@ -70,9 +70,11 @@ void ImagePaintable::paint(PaintContext& context, PaintPhase phase) const
             context.display_list_recorder().draw_rect(enclosing_rect, Gfx::Color::Black);
             context.display_list_recorder().draw_text(enclosing_rect, m_alt_text, *Platform::FontPlugin::the().default_font(12), Gfx::TextAlignment::Center, computed_values().color());
         } else if (auto bitmap = m_image_provider.current_image_bitmap(image_rect_device_pixels.size().to_type<int>())) {
+            auto const image_orientation = Gfx::to_gfx_image_orientation(computed_values().image_orientation());
+
             ScopedCornerRadiusClip corner_clip { context, image_rect_device_pixels, normalized_border_radii_data(ShrinkRadiiForBorders::Yes) };
             auto image_int_rect_device_pixels = image_rect_device_pixels.to_type<int>();
-            auto bitmap_rect = bitmap->rect();
+            auto bitmap_rect = bitmap->rect(Gfx::ImageOrientation::FromDecoded);
             auto scaling_mode = to_gfx_scaling_mode(computed_values().image_rendering(), bitmap_rect, image_int_rect_device_pixels);
             auto bitmap_aspect_ratio = (float)bitmap_rect.height() / bitmap_rect.width();
             auto image_aspect_ratio = (float)image_rect.height() / (float)image_rect.width();
@@ -163,7 +165,7 @@ void ImagePaintable::paint(PaintContext& context, PaintPhase phase) const
                 context.rounded_device_pixels(scaled_bitmap_height).value()
             };
 
-            context.display_list_recorder().draw_scaled_immutable_bitmap(draw_rect.intersected(image_int_rect_device_pixels), *bitmap, bitmap_rect.intersected(bitmap_intersect), scaling_mode);
+            context.display_list_recorder().draw_scaled_immutable_bitmap(draw_rect.intersected(image_int_rect_device_pixels), *bitmap, bitmap_rect.intersected(bitmap_intersect), scaling_mode, image_orientation);
         }
     }
 }

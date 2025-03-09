@@ -10,7 +10,16 @@
 
 #include "AffineTransform.h"
 
+namespace Web::CSS {
+enum class ImageOrientation : u8;
+}
+
 namespace Gfx {
+
+enum class ImageOrientation : u8 {
+    FromExif,
+    FromDecoded,
+};
 
 enum class ExifOrientation : u8 {
     Default = 1,
@@ -25,6 +34,8 @@ enum class ExifOrientation : u8 {
 
 [[nodiscard]]
 bool is_valid_exif_orientation(u32 orientation);
+
+ImageOrientation to_gfx_image_orientation(Web::CSS::ImageOrientation orientation);
 
 AffineTransform compute_exif_orientation_matrix(ExifOrientation orientation, FloatRect& dst_rect);
 
