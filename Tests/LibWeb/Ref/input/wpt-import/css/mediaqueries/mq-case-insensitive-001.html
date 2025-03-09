@@ -1,0 +1,45 @@
+<!doctype html>
+<meta charset="utf-8">
+<html>
+ <head>
+  <title>Test: ASCII-case-insensitivity of media queries</title>
+  <link rel="author" title="Gerald Squelart" href="mailto:gerald@mozilla.com">
+  <link rel="help" href="http://www.w3.org/TR/CSS21/syndata.html#characters">
+  <link rel="help" href="https://drafts.csswg.org/mediaqueries-4/#mq-syntax">
+  <link rel="help" href="https://drafts.csswg.org/css-syntax/#rule-defs">
+  <link rel="match" href="../../../../expected/wpt-import/css/reference/ref-filled-green-100px-square.xht">
+  <style type="text/css">
+
+  div {
+   width: 100px;
+   height: 100px;
+  }
+
+  @media all and (height) and (min-width:0) and (orientation:landscape) {
+   div { background-color: red; }
+  }
+  @media all and (height) and (min-width:0) and (orientation:portrait) {
+   div { background-color: red; }
+  }
+
+  @MeDIa aLL and (Height) and (mIN-Width:0cM) and (orienTAtion:LandScape) {
+   div { background-color: green; }
+  }
+  @MeDIa All and (heiGHt) and (Min-widtH:0MM) and (Orientation:porTrait) {
+   div { background-color: green; }
+  }
+
+  /* In some languages Non-ASCII 'İ' (Latin capital I with dot above) may be
+     lowercased to ASCII 'i'; This would make "heİght" compare the same as
+     "height", which would be incorrect. */
+  @media all and (heİght) {
+   div { background-color: red; }
+  }
+
+  </style>
+ </head>
+ <body>
+  <p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+  <div></div>
+ </body>
+</html>
