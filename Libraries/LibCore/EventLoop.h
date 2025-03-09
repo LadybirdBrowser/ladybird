@@ -12,6 +12,7 @@
 #include <AK/Function.h>
 #include <AK/Noncopyable.h>
 #include <AK/NonnullOwnPtr.h>
+#include <AK/Swift.h>
 #include <AK/Time.h>
 #include <LibCore/Event.h>
 #include <LibCore/Forward.h>
@@ -40,6 +41,10 @@ class ThreadEventQueue;
 // - Quit events, i.e. the event loop should exit.
 // Any event that the event loop needs to wait on or needs to repeatedly handle is stored in a handle, e.g. s_timers.
 class EventLoop {
+    AK_MAKE_NONMOVABLE(EventLoop);
+    AK_MAKE_NONCOPYABLE(EventLoop);
+
+private:
     friend struct EventLoopPusher;
 
 public:
@@ -90,7 +95,7 @@ public:
 
 private:
     NonnullOwnPtr<EventLoopImplementation> m_impl;
-};
+} SWIFT_UNSAFE_REFERENCE;
 
 void deferred_invoke(ESCAPING Function<void()>);
 
