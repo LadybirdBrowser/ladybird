@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Logical Properties and Values: getComputedStyle().blockSize</title>
+<link rel="help" href="https://drafts.csswg.org/css-logical-1/#dimension-properties">
+<meta name="assert" content="block-size computed value is an absolute length.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+<style>
+  #parent {
+    height: 300px;
+  }
+  #target {
+    width: 0px;
+    height: 0px;
+    font-size: 40px;
+  }
+  #child {
+    height: 80px;
+  }
+</style>
+</head>
+<body>
+<div id="parent">
+  <div id="target">
+    <div id="child">
+    </div>
+  </div>
+</div>
+<script>
+test_computed_value("block-size", "auto", "80px"); // child height
+
+test_computed_value("block-size", "10px");
+test_computed_value("block-size", "20%", "60px");
+test_computed_value("block-size", "calc(0.5em + 10px)", "30px");
+test_computed_value("block-size", "calc(-0.5em + 10px)", "0px");
+
+test_computed_value("block-size", "min-content", "80px"); // child height
+test_computed_value("block-size", "max-content", "80px");
+</script>
+</body>
+</html>
