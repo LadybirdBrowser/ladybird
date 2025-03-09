@@ -558,3 +558,52 @@ TEST_CASE(invalid_domain_code_points)
         EXPECT(!url.has_value());
     }
 }
+
+TEST_CASE(get_registrable_domain)
+{
+    {
+        auto domain = URL::get_registrable_domain({});
+        EXPECT(!domain.has_value());
+    }
+    {
+        auto domain = URL::get_registrable_domain("foobar"sv);
+        EXPECT(!domain.has_value());
+    }
+    {
+        auto domain = URL::get_registrable_domain("com"sv);
+        EXPECT(!domain.has_value());
+    }
+    {
+        auto domain = URL::get_registrable_domain(".com"sv);
+        EXPECT(!domain.has_value());
+    }
+    {
+        auto domain = URL::get_registrable_domain("example.com"sv);
+        VERIFY(domain.has_value());
+        EXPECT_EQ(*domain, "example.com"sv);
+    }
+    {
+        auto domain = URL::get_registrable_domain(".example.com"sv);
+        VERIFY(domain.has_value());
+        EXPECT_EQ(*domain, "example.com"sv);
+    }
+    {
+        auto domain = URL::get_registrable_domain("www.example.com"sv);
+        VERIFY(domain.has_value());
+        EXPECT_EQ(*domain, "example.com"sv);
+    }
+    {
+        auto domain = URL::get_registrable_domain("sub.www.example.com"sv);
+        VERIFY(domain.has_value());
+        EXPECT_EQ(*domain, "example.com"sv);
+    }
+    {
+        auto domain = URL::get_registrable_domain("github.io"sv);
+        EXPECT(!domain.has_value());
+    }
+    {
+        auto domain = URL::get_registrable_domain("ladybird.github.io"sv);
+        VERIFY(domain.has_value());
+        EXPECT_EQ(*domain, "ladybird.github.io"sv);
+    }
+}

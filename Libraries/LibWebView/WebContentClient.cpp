@@ -31,6 +31,12 @@ WebContentClient::WebContentClient(IPC::Transport transport, ViewImplementation&
     m_views.set(0, &view);
 }
 
+WebContentClient::WebContentClient(IPC::Transport transport)
+    : IPC::ConnectionToServer<WebContentClientEndpoint, WebContentServerEndpoint>(*this, move(transport))
+{
+    s_clients.set(this);
+}
+
 WebContentClient::~WebContentClient()
 {
     s_clients.remove(this);
@@ -39,6 +45,12 @@ WebContentClient::~WebContentClient()
 void WebContentClient::die()
 {
     // Intentionally empty. Restart is handled at another level.
+}
+
+void WebContentClient::assign_view(Badge<Application>, ViewImplementation& view)
+{
+    VERIFY(m_views.is_empty());
+    m_views.set(0, &view);
 }
 
 void WebContentClient::register_view(u64 page_id, ViewImplementation& view)
@@ -60,6 +72,12 @@ void WebContentClient::did_paint(u64 page_id, Gfx::IntRect rect, i32 bitmap_id)
 {
     if (auto view = view_for_page_id(page_id); view.has_value())
         view->server_did_paint({}, bitmap_id, rect.size());
+}
+
+void WebContentClient::did_request_new_process_for_navigation(u64 page_id, URL::URL url)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value())
+        view->create_new_process_for_cross_site_navigation(url);
 }
 
 void WebContentClient::did_start_loading(u64 page_id, URL::URL url, bool is_redirect)
@@ -762,6 +780,10 @@ void WebContentClient::did_get_style_sheet_source(u64 page_id, Web::CSS::StyleSh
 
 Optional<ViewImplementation&> WebContentClient::view_for_page_id(u64 page_id, SourceLocation location)
 {
+    // Don't bother logging anything for the spare WebContent process. It will only receive a load notification for about:blank.
+    if (m_views.is_empty())
+        return {};
+
     if (auto view = m_views.get(page_id); view.has_value())
         return *view.value();
 
