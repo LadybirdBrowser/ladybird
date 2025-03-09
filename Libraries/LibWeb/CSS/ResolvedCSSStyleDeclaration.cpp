@@ -203,7 +203,7 @@ RefPtr<CSSStyleValue const> ResolvedCSSStyleDeclaration::style_value_for_propert
         // -> border-right-color
         // -> border-top-color
         // -> box-shadow
-        // FIXME: -> caret-color
+        // -> caret-color
         // -> color
         // -> outline-color
         // -> A resolved value special case property like color defined in another specification
@@ -220,6 +220,8 @@ RefPtr<CSSStyleValue const> ResolvedCSSStyleDeclaration::style_value_for_propert
         return CSSColorValue::create_from_color(layout_node.computed_values().border_top().color, ColorSyntax::Modern);
     case PropertyID::BoxShadow:
         return style_value_for_shadow(layout_node.computed_values().box_shadow());
+    case PropertyID::CaretColor:
+        return CSSColorValue::create_from_color(layout_node.computed_values().caret_color(), ColorSyntax::Modern);
     case PropertyID::Color:
         return CSSColorValue::create_from_color(layout_node.computed_values().color(), ColorSyntax::Modern);
     case PropertyID::OutlineColor:

@@ -657,6 +657,10 @@ void paint_cursor_if_needed(PaintContext& context, TextPaintable const& paintabl
     if (!dom_node || (!dom_node->is_editable() && !active_element_is_editable))
         return;
 
+    auto caret_color = paintable.computed_values().caret_color();
+    if (caret_color.alpha() == 0)
+        return;
+
     auto fragment_rect = fragment.absolute_rect();
 
     auto text = fragment.string_view();
@@ -670,7 +674,7 @@ void paint_cursor_if_needed(PaintContext& context, TextPaintable const& paintabl
 
     auto cursor_device_rect = context.rounded_device_rect(cursor_rect).to_type<int>();
 
-    context.display_list_recorder().draw_rect(cursor_device_rect, paintable.computed_values().color());
+    context.display_list_recorder().draw_rect(cursor_device_rect, caret_color);
 }
 
 void paint_text_decoration(PaintContext& context, TextPaintable const& paintable, PaintableFragment const& fragment)

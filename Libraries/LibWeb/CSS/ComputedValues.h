@@ -93,6 +93,7 @@ public:
     static CSS::Float float_() { return CSS::Float::None; }
     static CSS::Length border_spacing() { return CSS::Length::make_px(0); }
     static CSS::CaptionSide caption_side() { return CSS::CaptionSide::Top; }
+    static Color caret_color() { return Color::Black; }
     static CSS::Clear clear() { return CSS::Clear::None; }
     static CSS::Clip clip() { return CSS::Clip::make_auto(); }
     static CSS::PreferredColorScheme color_scheme() { return CSS::PreferredColorScheme::Auto; }
@@ -374,6 +375,7 @@ public:
     CSS::Length border_spacing_horizontal() const { return m_inherited.border_spacing_horizontal; }
     CSS::Length border_spacing_vertical() const { return m_inherited.border_spacing_vertical; }
     CSS::CaptionSide caption_side() const { return m_inherited.caption_side; }
+    Color caret_color() const { return m_inherited.caret_color; }
     CSS::Clear clear() const { return m_noninherited.clear; }
     CSS::Clip clip() const { return m_noninherited.clip; }
     CSS::PreferredColorScheme color_scheme() const { return m_inherited.color_scheme; }
@@ -555,6 +557,7 @@ public:
 
 protected:
     struct {
+        Color caret_color { InitialValues::caret_color() };
         RefPtr<Gfx::FontCascadeList> font_list {};
         CSSPixels font_size { InitialValues::font_size() };
         int font_weight { InitialValues::font_weight() };
@@ -744,6 +747,7 @@ public:
     }
 
     void set_aspect_ratio(AspectRatio aspect_ratio) { m_noninherited.aspect_ratio = move(aspect_ratio); }
+    void set_caret_color(Color caret_color) { m_inherited.caret_color = caret_color; }
     void set_font_list(NonnullRefPtr<Gfx::FontCascadeList> font_list) { m_inherited.font_list = move(font_list); }
     void set_font_size(CSSPixels font_size) { m_inherited.font_size = font_size; }
     void set_font_weight(int font_weight) { m_inherited.font_weight = font_weight; }

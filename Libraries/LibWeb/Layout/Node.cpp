@@ -943,6 +943,8 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     computed_values.set_mix_blend_mode(computed_style.mix_blend_mode());
     computed_values.set_view_transition_name(computed_style.view_transition_name());
 
+    computed_values.set_caret_color(computed_style.caret_color(*this));
+
     propagate_style_to_anonymous_wrappers();
 
     if (auto* box_node = as_if<NodeWithStyleAndBoxModelMetrics>(*this))
