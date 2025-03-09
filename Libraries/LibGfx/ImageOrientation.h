@@ -11,7 +11,16 @@
 #include <LibGfx/Rect.h>
 #include <cmath>
 
+namespace Web::CSS {
+enum class ImageOrientation : u8;
+}
+
 namespace Gfx {
+
+enum class ImageOrientation : u8 {
+    FromExif,
+    FromDecoded,
+};
 
 enum class ExifOrientation : u8 {
     Default = 1,
