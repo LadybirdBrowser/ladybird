@@ -1,0 +1,6 @@
+Initial caret position for input: 0
+Caret position after pressing right for input: 1
+Caret position after pressing left for input: 0
+Initial caret position for textarea: 0
+Caret position after pressing right for textarea: 1
+Caret position after pressing left for textarea: 0
