@@ -16,6 +16,7 @@
 #include <LibWeb/HTML/SelectItem.h>
 #include <LibWeb/HTML/WebViewHints.h>
 #include <LibWeb/Page/EventResult.h>
+#include <LibWebView/Forward.h>
 #include <WebContent/WebContentClientEndpoint.h>
 #include <WebContent/WebContentServerEndpoint.h>
 
@@ -38,14 +39,17 @@ public:
 
     static size_t client_count() { return s_clients.size(); }
 
+    explicit WebContentClient(IPC::Transport);
     WebContentClient(IPC::Transport, ViewImplementation&);
     ~WebContentClient();
 
+    void assign_view(Badge<Application>, ViewImplementation&);
     void register_view(u64 page_id, ViewImplementation&);
     void unregister_view(u64 page_id);
 
     Function<void()> on_web_content_process_crash;
 
+    pid_t pid() const { return m_process_handle.pid; }
     void set_pid(pid_t pid) { m_process_handle.pid = pid; }
 
 private:

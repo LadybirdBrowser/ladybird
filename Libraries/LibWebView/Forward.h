@@ -10,6 +10,7 @@
 
 namespace WebView {
 
+class Application;
 class CookieJar;
 class Database;
 class InspectorClient;
