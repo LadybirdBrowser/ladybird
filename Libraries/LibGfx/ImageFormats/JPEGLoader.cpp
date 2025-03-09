@@ -4,8 +4,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/StringView.h>
 #include <LibGfx/CMYKBitmap.h>
 #include <LibGfx/ImageFormats/JPEGLoader.h>
+#include <LibGfx/ImageFormats/TIFFLoader.h>
+#include <LibGfx/ImageFormats/TIFFMetadata.h>
 #include <jpeglib.h>
 #include <setjmp.h>
 
@@ -22,6 +25,7 @@ struct JPEGLoadingContext {
 
     RefPtr<Gfx::Bitmap> rgb_bitmap;
     RefPtr<Gfx::CMYKBitmap> cmyk_bitmap;
+    OwnPtr<ExifMetadata> exif_metadata;
 
     ReadonlyBytes data;
     Vector<u8> icc_data;
@@ -77,6 +81,8 @@ ErrorOr<void> JPEGLoadingContext::decode()
 
     cinfo.src = &source_manager;
 
+    constexpr auto jpeg_app1 = JPEG_APP0 + 1;
+    jpeg_save_markers(&cinfo, jpeg_app1, 0xFFFF);
     jpeg_save_markers(&cinfo, JPEG_APP0 + 2, 0xFFFF);
     if (jpeg_read_header(&cinfo, TRUE) != JPEG_HEADER_OK)
         return Error::from_string_literal("Failed to read JPEG header");
@@ -89,11 +95,28 @@ ErrorOr<void> JPEGLoadingContext::decode()
         cinfo.out_color_space = JCS_EXT_BGRX;
     }
 
+    auto marker = cinfo.marker_list;
+    while (marker) {
+        constexpr auto expected_length = sizeof("Exif\0\0") - 1;
+        if (marker->marker == jpeg_app1 && marker->data_length >= expected_length) {
+            constexpr auto expected = "Exif\0\0"sv;
+
+            auto signature = StringView { marker->data, expected_length };
+            if (signature == expected) {
+                exif_metadata = TRY(TIFFImageDecoderPlugin::read_exif_metadata({ marker->data + expected_length, marker->original_length - expected_length }));
+                break;
+            }
+        }
+
+        marker = marker->next;
+    }
+
     jpeg_start_decompress(&cinfo);
     bool could_read_all_scanlines = true;
 
     if (cinfo.out_color_space == JCS_EXT_BGRX) {
-        rgb_bitmap = TRY(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRx8888, { static_cast<int>(cinfo.output_width), static_cast<int>(cinfo.output_height) }));
+        auto exif_orientation = exif_metadata ? static_cast<ExifOrientation>(exif_metadata->orientation().value()) : ExifOrientation::Default;
+        rgb_bitmap = TRY(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRx8888, { static_cast<int>(cinfo.output_width), static_cast<int>(cinfo.output_height) }, exif_orientation));
         while (cinfo.output_scanline < cinfo.output_height) {
             auto* row_ptr = (u8*)rgb_bitmap->scanline(cinfo.output_scanline);
             auto out_size = jpeg_read_scanlines(&cinfo, &row_ptr, 1);
@@ -240,6 +263,9 @@ ErrorOr<ImageFrameDescriptor> JPEGImageDecoderPlugin::frame(size_t index, Option
 
 Optional<Metadata const&> JPEGImageDecoderPlugin::metadata()
 {
+    if (m_context->exif_metadata)
+        return *m_context->exif_metadata;
+
     return OptionalNone {};
 }
 

@@ -436,6 +436,20 @@ TEST_CASE(test_apng_idat_not_affecting_next_frame)
     EXPECT_EQ(frame.image->size(), Gfx::IntSize(100, 100));
 }
 
+TEST_CASE(test_exif_decoding_jpeg)
+{
+    auto const file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("jpg/exif.jpg"sv)));
+    EXPECT(Gfx::JPEGImageDecoderPlugin::sniff(file->bytes()));
+
+    auto const plugin_decoder = TRY_OR_FAIL(Gfx::JPEGImageDecoderPlugin::create(file->bytes()));
+
+    // ::frame triggers a decode
+    TRY_OR_FAIL(plugin_decoder->frame(0));
+    EXPECT(plugin_decoder->metadata().has_value());
+    auto const& exif_metadata = static_cast<Gfx::ExifMetadata const&>(plugin_decoder->metadata().value());
+    EXPECT_EQ(*exif_metadata.orientation(), Gfx::TIFF::Orientation::Rotate90Clockwise);
+}
+
 TEST_CASE(test_exif_decoding_png)
 {
     auto const file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("png/exif.png"sv)));
