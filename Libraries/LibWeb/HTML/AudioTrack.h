@@ -22,8 +22,8 @@ public:
 
     void set_audio_track_list(Badge<AudioTrackList>, GC::Ptr<AudioTrackList> audio_track_list) { m_audio_track_list = audio_track_list; }
 
-    void play(Badge<HTMLAudioElement>);
-    void pause(Badge<HTMLAudioElement>);
+    void play();
+    void pause();
 
     AK::Duration duration();
     void seek(double, MediaSeekMode);

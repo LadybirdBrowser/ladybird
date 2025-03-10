@@ -17,7 +17,7 @@ class Sample final {
 public:
     using AuxiliaryData = Variant<VideoSampleData>;
 
-    Sample(AK::Duration timestamp, ReadonlyBytes data, AuxiliaryData auxiliary_data)
+    Sample(AK::Duration timestamp, ByteBuffer data, AuxiliaryData auxiliary_data)
         : m_timestamp(timestamp)
         , m_data(data)
         , m_auxiliary_data(auxiliary_data)
@@ -25,12 +25,12 @@ public:
     }
 
     AK::Duration timestamp() const { return m_timestamp; }
-    ReadonlyBytes const& data() const { return m_data; }
+    ByteBuffer const& data() const { return m_data; }
     AuxiliaryData const& auxiliary_data() const { return m_auxiliary_data; }
 
 private:
     AK::Duration m_timestamp;
-    ReadonlyBytes m_data;
+    ByteBuffer m_data;
     AuxiliaryData m_auxiliary_data;
 };
 

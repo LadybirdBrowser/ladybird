@@ -49,7 +49,7 @@ DecoderErrorOr<Vector<Track>> MatroskaDemuxer::get_tracks_for_type(TrackType typ
         switch (type) {
         case TrackType::Video:
             if (auto video_track = track_entry.video_track(); video_track.has_value())
-                track.set_video_data({ TRY(duration()), video_track->pixel_width, video_track->pixel_height });
+                track.set_video_data({ TRY(duration(track)), video_track->pixel_width, video_track->pixel_height });
             break;
         default:
             break;
@@ -148,10 +148,11 @@ DecoderErrorOr<Sample> MatroskaDemuxer::get_next_sample_for_track(Track track)
         status.frame_index = 0;
     }
     auto cicp = TRY(m_reader.track_for_track_number(track.identifier()))->video_track()->color_format.to_cicp();
-    return Sample(status.block->timestamp(), status.block->frame(status.frame_index++), VideoSampleData(cicp));
+    auto sample_data = DECODER_TRY_ALLOC(ByteBuffer::copy(status.block->frame(status.frame_index++)));
+    return Sample(status.block->timestamp(), move(sample_data), VideoSampleData(cicp));
 }
 
-DecoderErrorOr<AK::Duration> MatroskaDemuxer::duration()
+DecoderErrorOr<AK::Duration> MatroskaDemuxer::duration(Track)
 {
     auto duration = TRY(m_reader.segment_information()).duration();
     return duration.value_or(AK::Duration::zero());
