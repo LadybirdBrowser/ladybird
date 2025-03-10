@@ -354,6 +354,11 @@ void ViewImplementation::set_listen_for_dom_mutations(bool listen_for_dom_mutati
     client().async_set_listen_for_dom_mutations(page_id(), listen_for_dom_mutations);
 }
 
+void ViewImplementation::get_dom_node_inner_html(Web::UniqueNodeID node_id)
+{
+    client().async_get_dom_node_inner_html(page_id(), node_id);
+}
+
 void ViewImplementation::get_dom_node_outer_html(Web::UniqueNodeID node_id)
 {
     client().async_get_dom_node_outer_html(page_id(), node_id);

@@ -115,6 +115,7 @@ public:
     void clear_highlighted_dom_node();
 
     void set_listen_for_dom_mutations(bool);
+    void get_dom_node_inner_html(Web::UniqueNodeID node_id);
     void get_dom_node_outer_html(Web::UniqueNodeID node_id);
     void set_dom_node_outer_html(Web::UniqueNodeID node_id, String const& html);
     void set_dom_node_text(Web::UniqueNodeID node_id, String const& text);

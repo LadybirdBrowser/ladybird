@@ -161,6 +161,36 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
         return;
     }
 
+    if (type == "innerHTML"sv) {
+        auto node = message.get_string("node"sv);
+        if (!node.has_value()) {
+            send_missing_parameter_error("node"sv);
+            return;
+        }
+
+        if (auto dom_node = WalkerActor::dom_node_for(*this, *node); dom_node.has_value()) {
+            auto block_token = block_responses();
+
+            devtools().delegate().get_dom_node_inner_html(
+                dom_node->tab->description(), dom_node->identifier.id,
+                [weak_self = make_weak_ptr<WalkerActor>(), block_token = move(block_token)](ErrorOr<String> html) mutable {
+                    if (html.is_error()) {
+                        dbgln_if(DEVTOOLS_DEBUG, "Unable to edit DOM node: {}", html.error());
+                        return;
+                    }
+
+                    if (auto self = weak_self.strong_ref()) {
+                        JsonObject message;
+                        message.set("from"sv, self->name());
+                        message.set("value"sv, html.release_value());
+                        self->send_message(move(message), move(block_token));
+                    }
+                });
+        }
+
+        return;
+    }
+
     if (type == "insertAdjacentHTML") {
         // FIXME: This message also contains `value` and `position` parameters, containing the HTML to insert and the
         //        location to insert it. For the "Create New Node" action, this is always "<div></div>" and "beforeEnd",

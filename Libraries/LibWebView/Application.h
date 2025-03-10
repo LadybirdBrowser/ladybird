@@ -100,6 +100,7 @@ private:
     virtual void clear_highlighted_dom_node(DevTools::TabDescription const&) const override;
     virtual void listen_for_dom_mutations(DevTools::TabDescription const&, OnDOMMutationReceived) const override;
     virtual void stop_listening_for_dom_mutations(DevTools::TabDescription const&) const override;
+    virtual void get_dom_node_inner_html(DevTools::TabDescription const&, Web::UniqueNodeID, OnDOMNodeHTMLReceived) const override;
     virtual void get_dom_node_outer_html(DevTools::TabDescription const&, Web::UniqueNodeID, OnDOMNodeHTMLReceived) const override;
     virtual void set_dom_node_outer_html(DevTools::TabDescription const&, Web::UniqueNodeID, String const&, OnDOMNodeEditComplete) const override;
     virtual void set_dom_node_text(DevTools::TabDescription const&, Web::UniqueNodeID, String const&, OnDOMNodeEditComplete) const override;
