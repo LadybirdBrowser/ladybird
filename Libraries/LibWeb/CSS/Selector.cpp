@@ -765,6 +765,36 @@ Optional<Selector::SimpleSelector> Selector::SimpleSelector::absolutized(Selecto
     VERIFY_NOT_REACHED();
 }
 
+size_t Selector::sibling_invalidation_distance() const
+{
+    if (m_sibling_invalidation_distance.has_value())
+        return *m_sibling_invalidation_distance;
+
+    m_sibling_invalidation_distance = 0;
+    size_t current_distance = 0;
+    for (auto const& compound_selector : compound_selectors()) {
+        if (compound_selector.combinator == Combinator::None)
+            continue;
+
+        if (compound_selector.combinator == Combinator::SubsequentSibling) {
+            m_sibling_invalidation_distance = NumericLimits<size_t>::max();
+            return *m_sibling_invalidation_distance;
+        }
+
+        if (compound_selector.combinator == Combinator::NextSibling) {
+            current_distance++;
+        } else {
+            m_sibling_invalidation_distance = max(*m_sibling_invalidation_distance, current_distance);
+            current_distance = 0;
+        }
+    }
+
+    if (current_distance > 0) {
+        m_sibling_invalidation_distance = max(*m_sibling_invalidation_distance, current_distance);
+    }
+    return *m_sibling_invalidation_distance;
+}
+
 SelectorList adapt_nested_relative_selector_list(SelectorList const& selectors)
 {
     // "Nested style rules differ from non-nested rules in the following ways:

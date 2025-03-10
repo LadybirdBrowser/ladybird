@@ -509,9 +509,11 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style()
     m_affected_by_has_pseudo_class_in_subject_position = false;
     m_affected_by_has_pseudo_class_in_non_subject_position = false;
     m_affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator = false;
-    m_affected_by_sibling_combinator = false;
+    m_affected_by_direct_sibling_combinator = false;
+    m_affected_by_indirect_sibling_combinator = false;
     m_affected_by_first_or_last_child_pseudo_class = false;
     m_affected_by_nth_child_pseudo_class = false;
+    m_sibling_invalidation_distance = 0;
 
     auto& style_computer = document().style_computer();
     auto new_computed_properties = style_computer.compute_style(*this);

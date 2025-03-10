@@ -460,16 +460,21 @@ void Node::invalidate_style(StyleInvalidationReason reason)
         }
     }
 
+    size_t current_sibling_distance = 1;
     for (auto* sibling = next_sibling(); sibling; sibling = sibling->next_sibling()) {
         if (auto* element = as_if<Element>(sibling)) {
             bool needs_to_invalidate = false;
             if (reason == StyleInvalidationReason::NodeInsertBefore || reason == StyleInvalidationReason::NodeRemove) {
                 needs_to_invalidate = element->style_affected_by_structural_changes();
-            } else {
-                needs_to_invalidate = element->affected_by_sibling_combinator() || element->affected_by_nth_child_pseudo_class();
+            } else if (element->affected_by_indirect_sibling_combinator() || element->affected_by_nth_child_pseudo_class()) {
+                needs_to_invalidate = true;
+            } else if (element->affected_by_direct_sibling_combinator() && current_sibling_distance <= element->sibling_invalidation_distance()) {
+                needs_to_invalidate = true;
             }
-            if (needs_to_invalidate)
+            if (needs_to_invalidate) {
                 element->set_entire_subtree_needs_style_update(true);
+            }
+            current_sibling_distance++;
         }
     }
 
