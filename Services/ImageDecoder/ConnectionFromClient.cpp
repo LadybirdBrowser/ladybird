@@ -84,7 +84,7 @@ Messages::ImageDecoderServer::ConnectNewClientsResponse ConnectionFromClient::co
     return files;
 }
 
-static void decode_image_to_bitmaps_and_durations_with_decoder(Gfx::ImageDecoder const& decoder, Optional<Gfx::IntSize> ideal_size, Vector<Optional<NonnullRefPtr<Gfx::Bitmap>>>& bitmaps, Vector<u32>& durations)
+static void decode_image_to_bitmaps_and_durations_with_decoder(Gfx::ImageDecoder const& decoder, Optional<Gfx::IntSize> ideal_size, Vector<RefPtr<Gfx::Bitmap>>& bitmaps, Vector<u32>& durations)
 {
     for (size_t i = 0; i < decoder.frame_count(); ++i) {
         auto frame_or_error = decoder.frame(i, ideal_size);
@@ -118,7 +118,7 @@ static ErrorOr<ConnectionFromClient::DecodeResult> decode_image_to_details(Core:
     else
         dbgln("Invalid color profile: {}", maybe_icc_data.error());
 
-    Vector<Optional<NonnullRefPtr<Gfx::Bitmap>>> bitmaps;
+    Vector<RefPtr<Gfx::Bitmap>> bitmaps;
 
     if (auto maybe_metadata = decoder->metadata(); maybe_metadata.has_value() && is<Gfx::ExifMetadata>(*maybe_metadata)) {
         auto const& exif = static_cast<Gfx::ExifMetadata const&>(maybe_metadata.value());

@@ -66,8 +66,8 @@ ErrorOr<void> encode(Encoder& encoder, Gfx::BitmapSequence const& bitmap_sequenc
     for (auto const& bitmap_option : bitmaps) {
         Optional<Gfx::BitmapMetadata> data = {};
 
-        if (bitmap_option.has_value()) {
-            data = get_metadata(bitmap_option.value());
+        if (bitmap_option) {
+            data = get_metadata(*bitmap_option);
             total_buffer_size += data->size_in_bytes;
         }
 
@@ -84,9 +84,8 @@ ErrorOr<void> encode(Encoder& encoder, Gfx::BitmapSequence const& bitmap_sequenc
 
         Bytes buffer_bytes = { collated_buffer.data<u8>(), collated_buffer.size() };
         size_t write_offset = 0;
-        for (auto const& bitmap_option : bitmaps) {
-            if (bitmap_option.has_value()) {
-                auto const& bitmap = bitmap_option.value();
+        for (auto const& bitmap : bitmaps) {
+            if (bitmap) {
                 buffer_bytes.overwrite(write_offset, bitmap->scanline(0), bitmap->size_in_bytes());
                 write_offset += bitmap->size_in_bytes();
             }
@@ -118,7 +117,7 @@ ErrorOr<Gfx::BitmapSequence> decode(Decoder& decoder)
 
     // sequentially read each valid bitmap's data from the collated buffer
     for (auto const& metadata_option : metadata_list) {
-        Optional<NonnullRefPtr<Gfx::Bitmap>> bitmap = {};
+        RefPtr<Gfx::Bitmap> bitmap;
 
         if (metadata_option.has_value()) {
             auto metadata = metadata_option.value();
@@ -139,7 +138,7 @@ ErrorOr<Gfx::BitmapSequence> decode(Decoder& decoder)
             bitmap = TRY(Gfx::Bitmap::create_with_anonymous_buffer(metadata.format, metadata.alpha_type, move(buffer), metadata.size));
         }
 
-        bitmaps.append(move(bitmap));
+        bitmaps.append(bitmap);
     }
 
     return result;

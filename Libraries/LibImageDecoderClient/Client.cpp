@@ -76,13 +76,13 @@ void Client::did_decode_image(i64 image_id, bool is_animated, u32 loop_count, Gf
     image.frames.ensure_capacity(bitmaps.size());
     image.color_space = move(color_space);
     for (size_t i = 0; i < bitmaps.size(); ++i) {
-        if (!bitmaps[i].has_value()) {
+        if (!bitmaps[i]) {
             dbgln("ImageDecoderClient: Invalid bitmap for request {} at index {}", image_id, i);
             promise->reject(Error::from_string_literal("Invalid bitmap"));
             return;
         }
 
-        image.frames.empend(bitmaps[i].release_value(), durations[i]);
+        image.frames.empend(bitmaps[i].release_nonnull(), durations[i]);
     }
 
     promise->resolve(move(image));
