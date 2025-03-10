@@ -14,7 +14,7 @@ extern "C" {
 
 namespace Media::FFmpeg {
 
-static inline AVCodecID ffmpeg_codec_id_from_serenity_codec_id(CodecID codec)
+static inline AVCodecID ffmpeg_codec_id_from_media_codec_id(CodecID codec)
 {
     switch (codec) {
     case CodecID::VP8:
@@ -42,6 +42,37 @@ static inline AVCodecID ffmpeg_codec_id_from_serenity_codec_id(CodecID codec)
         return AV_CODEC_ID_OPUS;
     default:
         return AV_CODEC_ID_NONE;
+    }
+}
+
+static inline CodecID media_codec_id_from_ffmpeg_codec_id(AVCodecID codec)
+{
+    switch (codec) {
+    case AV_CODEC_ID_VP8:
+        return CodecID::VP8;
+    case AV_CODEC_ID_VP9:
+        return CodecID::VP9;
+    case AV_CODEC_ID_H261:
+        return CodecID::H261;
+    case AV_CODEC_ID_MPEG2VIDEO:
+        // FIXME: This could also map to CodecID::MPEG1
+        return CodecID::H262;
+    case AV_CODEC_ID_H263:
+        return CodecID::H263;
+    case AV_CODEC_ID_H264:
+        return CodecID::H264;
+    case AV_CODEC_ID_HEVC:
+        return CodecID::H265;
+    case AV_CODEC_ID_AV1:
+        return CodecID::AV1;
+    case AV_CODEC_ID_THEORA:
+        return CodecID::Theora;
+    case AV_CODEC_ID_VORBIS:
+        return CodecID::Vorbis;
+    case AV_CODEC_ID_OPUS:
+        return CodecID::Opus;
+    default:
+        return CodecID::Unknown;
     }
 }
 

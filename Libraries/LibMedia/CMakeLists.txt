@@ -22,13 +22,17 @@ target_link_libraries(LibMedia PRIVATE LibCore LibCrypto LibRIFF LibIPC LibGfx L
 if (NOT ANDROID)
     target_sources(LibMedia PRIVATE
             Audio/FFmpegLoader.cpp
+            FFmpeg/FFmpegDemuxer.cpp
             FFmpeg/FFmpegIOContext.cpp
             FFmpeg/FFmpegVideoDecoder.cpp
     )
     target_link_libraries(LibMedia PRIVATE PkgConfig::AVCODEC PkgConfig::AVFORMAT PkgConfig::AVUTIL)
 else()
     # FIXME: Need to figure out how to build or replace ffmpeg libs on Android and Windows
-    target_sources(LibMedia PRIVATE FFmpeg/FFmpegVideoDecoderStub.cpp)
+    target_sources(LibMedia PRIVATE
+            FFmpeg/FFmpegDemuxerStub.cpp
+            FFmpeg/FFmpegVideoDecoderStub.cpp
+    )
 endif()
 
 if (LADYBIRD_AUDIO_BACKEND STREQUAL "PULSE")

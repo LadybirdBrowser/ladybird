@@ -31,7 +31,7 @@ public:
 
     DecoderErrorOr<Optional<AK::Duration>> seek_to_most_recent_keyframe(Track track, AK::Duration timestamp, Optional<AK::Duration> earliest_available_sample = OptionalNone()) override;
 
-    DecoderErrorOr<AK::Duration> duration() override;
+    DecoderErrorOr<AK::Duration> duration(Track track) override;
 
     DecoderErrorOr<CodecID> get_codec_id_for_track(Track track) override;
 
