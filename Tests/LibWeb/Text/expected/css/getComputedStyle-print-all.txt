@@ -89,6 +89,12 @@ border-bottom-left-radius: 0px
 border-bottom-right-radius: 0px
 border-bottom-style: none
 border-bottom-width: medium
+border-inline-end-color: rgb(0, 0, 0)
+border-inline-end-style: none
+border-inline-end-width: medium
+border-inline-start-color: rgb(0, 0, 0)
+border-inline-start-style: none
+border-inline-start-width: medium
 border-left-color: rgb(0, 0, 0)
 border-left-style: none
 border-left-width: medium
@@ -136,7 +142,7 @@ grid-row-start: auto
 grid-template-areas: none
 grid-template-columns: auto
 grid-template-rows: auto
-height: 1932px
+height: 2016px
 inline-size: 784px
 inset-block-end: auto
 inset-block-start: auto

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Logical Properties and Values: parsing border-inline-color with valid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-logical/#propdef-border-inline-color">
+<meta name="assert" content="border-inline-color supports the full grammar '<color>{1,2}'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value("border-inline-start-color", "currentcolor");
+test_valid_value("border-inline-start-color", "rgb(2, 3, 4)");
+test_valid_value("border-inline-end-color", "#234", "rgb(34, 51, 68)");
+test_valid_value("border-inline-end-color", "transparent");
+test_valid_value("border-inline-color", "#234", "rgb(34, 51, 68)");
+test_valid_value("border-inline-color", "transparent rgb(2, 3, 4)");
+test_valid_value("border-inline-color", "rgb(2, 3, 4) rgb(2, 3, 4)", "rgb(2, 3, 4)");
+</script>
+</body>
+</html>

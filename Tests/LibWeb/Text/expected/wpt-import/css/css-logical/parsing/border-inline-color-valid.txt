@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 7 tests
+
+4 Pass
+3 Fail
+Pass	e.style['border-inline-start-color'] = "currentcolor" should set the property value
+Pass	e.style['border-inline-start-color'] = "rgb(2, 3, 4)" should set the property value
+Pass	e.style['border-inline-end-color'] = "#234" should set the property value
+Pass	e.style['border-inline-end-color'] = "transparent" should set the property value
+Fail	e.style['border-inline-color'] = "#234" should set the property value
+Fail	e.style['border-inline-color'] = "transparent rgb(2, 3, 4)" should set the property value
+Fail	e.style['border-inline-color'] = "rgb(2, 3, 4) rgb(2, 3, 4)" should set the property value
