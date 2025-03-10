@@ -508,6 +508,17 @@
     "clip",
     "ellipsis"
   ],
+  "touch-action": [
+    "auto",
+    "manipulation",
+    "none",
+    "pan-down",
+    "pan-left",
+    "pan-right",
+    "pan-up",
+    "pan-x",
+    "pan-y"
+  ],
   "scrollbar-gutter": [
     "auto",
     "stable",

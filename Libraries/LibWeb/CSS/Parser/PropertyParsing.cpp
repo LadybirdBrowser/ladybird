@@ -706,6 +706,10 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue>> Parser::parse_css_value(Prope
         if (auto parsed_value = parse_shadow_value(tokens, AllowInsetKeyword::No); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
+    case PropertyID::TouchAction:
+        if (auto parsed_value = parse_touch_action_value(tokens); parsed_value && !tokens.has_next_token())
+            return parsed_value.release_nonnull();
+        return ParseError::SyntaxError;
     case PropertyID::Transform:
         if (auto parsed_value = parse_transform_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
@@ -3551,6 +3555,61 @@ RefPtr<CSSStyleValue> Parser::parse_text_decoration_line_value(TokenStream<Compo
     });
 
     return StyleValueList::create(move(style_values), StyleValueList::Separator::Space);
+}
+
+// https://www.w3.org/TR/pointerevents/#the-touch-action-css-property
+RefPtr<CSSStyleValue> Parser::parse_touch_action_value(TokenStream<ComponentValue>& stream)
+{
+    // auto | none | [ [ pan-x | pan-left | pan-right ] || [ pan-y | pan-up | pan-down ] ] | manipulation
+    StyleValueVector parsed_values;
+
+    // We will verify that we have up to one vertical and one horizontal value
+    bool has_horizontal = false;
+    bool has_vertical = false;
+
+    // Were the values specified in y/x order? (we need to store them in cannonical x/y order)
+    bool swap_order = false;
+
+    while (auto parsed_value = parse_css_value_for_property(PropertyID::TouchAction, stream)) {
+        switch (parsed_value->as_keyword().keyword()) {
+        case Keyword::PanX:
+        case Keyword::PanLeft:
+        case Keyword::PanRight:
+            if (has_horizontal)
+                return {};
+            if (has_vertical)
+                swap_order = true;
+            has_horizontal = true;
+            break;
+        case Keyword::PanY:
+        case Keyword::PanUp:
+        case Keyword::PanDown:
+            if (has_vertical)
+                return {};
+            has_vertical = true;
+            break;
+        case Keyword::Auto:
+        case Keyword::None:
+        case Keyword::Manipulation:
+            if (has_vertical || has_horizontal)
+                return {};
+            has_horizontal = true;
+            has_vertical = true;
+            break;
+        default:
+            VERIFY_NOT_REACHED();
+        }
+
+        parsed_values.append(parsed_value.release_nonnull());
+        if (!stream.has_next_token())
+            break;
+    }
+
+    if (swap_order)
+        swap(parsed_values[0], parsed_values[1]);
+
+    auto temp = StyleValueList::create(move(parsed_values), StyleValueList::Separator::Space);
+    return temp;
 }
 
 // https://www.w3.org/TR/css-transforms-1/#transform-property
