@@ -243,7 +243,6 @@ icons_32x32 = [
   "//Base/res/icons/32x32/app-system-monitor.png",
   "//Base/res/icons/32x32/filetype-folder.png",
   "//Base/res/icons/32x32/filetype-unknown.png",
-  "//Base/res/icons/32x32/msgbox-warning.png",
 ]
 
 icons_48x48 = [ "//Base/res/icons/48x48/app-browser.png" ]

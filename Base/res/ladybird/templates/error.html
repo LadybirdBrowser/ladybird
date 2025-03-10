@@ -4,26 +4,52 @@
     <meta charset="UTF-8">
     <title>Error!</title>
     <style>
-        html {
+        :root {
             color-scheme: light dark;
+            font-family: system-ui, sans-serif;
         }
-
-        h1 {
-            display: inline;
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 1rem;
+            text-align: center;
         }
-
         header {
-            margin-bottom: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
         }
-
-        img {
-            margin-right: 5px;
+        svg {
+            height: 64px;
+            width: auto;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+        h1 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+        p {
+            font-size: 1rem;
+            color: #555;
         }
     </style>
 </head>
 <body>
     <header>
-        <img src="resource://icons/32x32/msgbox-warning.png" alt="Warning" width="24" height="24">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 22">
+            <path d="M12 1H3a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6z"/>
+            <path d="M11 1v4a2 2 0 0 0 2 2h4M6 10v2m6-2v2M6 17c1-2.67 5-2.67 6 0"/>
+        </svg>
         <h1>Failed to load %failed_url%</h1>
     </header>
     <p>%error_message%</p>
