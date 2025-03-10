@@ -1030,10 +1030,7 @@ void StyleComputer::set_all_properties(
         NonnullRefPtr<CSSStyleValue const> property_value = value;
         if (property_value->is_unresolved())
             property_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { document }, element, pseudo_element, property_id, property_value->as_unresolved());
-        if (!property_value->is_unresolved())
-            set_property_expanding_shorthands(cascaded_properties, property_id, property_value, declaration, cascade_origin, important, layer_name);
-
-        set_property_expanding_shorthands(cascaded_properties, property_id, value, declaration, cascade_origin, important, layer_name);
+        set_property_expanding_shorthands(cascaded_properties, property_id, property_value, declaration, cascade_origin, important, layer_name);
     }
 }
 
