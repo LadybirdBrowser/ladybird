@@ -978,7 +978,9 @@ bool matches(CSS::Selector const& selector, int component_list_index, DOM::Eleme
     }
     case CSS::Selector::Combinator::NextSibling:
         if (context.collect_per_element_selector_involvement_metadata) {
-            const_cast<DOM::Element&>(element).set_affected_by_sibling_combinator(true);
+            const_cast<DOM::Element&>(element).set_affected_by_direct_sibling_combinator(true);
+            auto new_sibling_invalidation_distance = max(selector.sibling_invalidation_distance(), element.sibling_invalidation_distance());
+            const_cast<DOM::Element&>(element).set_sibling_invalidation_distance(new_sibling_invalidation_distance);
         }
         VERIFY(component_list_index != 0);
         if (auto* sibling = element.previous_element_sibling())
@@ -986,7 +988,7 @@ bool matches(CSS::Selector const& selector, int component_list_index, DOM::Eleme
         return false;
     case CSS::Selector::Combinator::SubsequentSibling:
         if (context.collect_per_element_selector_involvement_metadata) {
-            const_cast<DOM::Element&>(element).set_affected_by_sibling_combinator(true);
+            const_cast<DOM::Element&>(element).set_affected_by_indirect_sibling_combinator(true);
         }
         VERIFY(component_list_index != 0);
         for (auto* sibling = element.previous_element_sibling(); sibling; sibling = sibling->previous_element_sibling()) {

@@ -437,8 +437,11 @@ public:
     bool affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator() const { return m_affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator; }
     void set_affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator(bool value) { m_affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator = value; }
 
-    bool affected_by_sibling_combinator() const { return m_affected_by_sibling_combinator; }
-    void set_affected_by_sibling_combinator(bool value) { m_affected_by_sibling_combinator = value; }
+    bool affected_by_direct_sibling_combinator() const { return m_affected_by_direct_sibling_combinator; }
+    void set_affected_by_direct_sibling_combinator(bool value) { m_affected_by_direct_sibling_combinator = value; }
+
+    bool affected_by_indirect_sibling_combinator() const { return m_affected_by_indirect_sibling_combinator; }
+    void set_affected_by_indirect_sibling_combinator(bool value) { m_affected_by_indirect_sibling_combinator = value; }
 
     bool affected_by_first_or_last_child_pseudo_class() const { return m_affected_by_first_or_last_child_pseudo_class; }
     void set_affected_by_first_or_last_child_pseudo_class(bool value) { m_affected_by_first_or_last_child_pseudo_class = value; }
@@ -446,9 +449,12 @@ public:
     bool affected_by_nth_child_pseudo_class() const { return m_affected_by_nth_child_pseudo_class; }
     void set_affected_by_nth_child_pseudo_class(bool value) { m_affected_by_nth_child_pseudo_class = value; }
 
+    size_t sibling_invalidation_distance() const { return m_sibling_invalidation_distance; }
+    void set_sibling_invalidation_distance(size_t value) { m_sibling_invalidation_distance = value; }
+
     bool style_affected_by_structural_changes() const
     {
-        return affected_by_sibling_combinator() || affected_by_first_or_last_child_pseudo_class() || affected_by_nth_child_pseudo_class();
+        return affected_by_direct_sibling_combinator() || affected_by_indirect_sibling_combinator() || affected_by_first_or_last_child_pseudo_class() || affected_by_nth_child_pseudo_class();
     }
 
     size_t number_of_owned_list_items() const;
@@ -547,10 +553,13 @@ private:
     bool m_style_uses_css_custom_properties { false };
     bool m_affected_by_has_pseudo_class_in_subject_position : 1 { false };
     bool m_affected_by_has_pseudo_class_in_non_subject_position : 1 { false };
-    bool m_affected_by_sibling_combinator : 1 { false };
+    bool m_affected_by_direct_sibling_combinator : 1 { false };
+    bool m_affected_by_indirect_sibling_combinator : 1 { false };
     bool m_affected_by_first_or_last_child_pseudo_class : 1 { false };
     bool m_affected_by_nth_child_pseudo_class : 1 { false };
     bool m_affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator : 1 { false };
+
+    size_t m_sibling_invalidation_distance { 0 };
 
     OwnPtr<CSS::CountersSet> m_counters_set;
 

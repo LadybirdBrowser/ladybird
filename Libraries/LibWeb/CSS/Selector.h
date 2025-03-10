@@ -271,12 +271,15 @@ public:
     bool can_use_fast_matches() const { return m_can_use_fast_matches; }
     bool can_use_ancestor_filter() const { return m_can_use_ancestor_filter; }
 
+    size_t sibling_invalidation_distance() const;
+
 private:
     explicit Selector(Vector<CompoundSelector>&&);
 
     Vector<CompoundSelector> m_compound_selectors;
     mutable Optional<u32> m_specificity;
     Optional<Selector::PseudoElement> m_pseudo_element;
+    mutable Optional<size_t> m_sibling_invalidation_distance;
     bool m_can_use_fast_matches { false };
     bool m_can_use_ancestor_filter { false };
     bool m_contains_the_nesting_selector { false };
