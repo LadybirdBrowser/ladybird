@@ -21,13 +21,13 @@ class AbstractImageStyleValue : public CSSStyleValue {
 public:
     using CSSStyleValue::CSSStyleValue;
 
-    virtual Optional<CSSPixels> natural_width() const { return {}; }
-    virtual Optional<CSSPixels> natural_height() const { return {}; }
+    virtual Optional<CSSPixels> natural_width(ImageOrientation) const { return {}; }
+    virtual Optional<CSSPixels> natural_height(ImageOrientation) const { return {}; }
 
-    virtual Optional<CSSPixelFraction> natural_aspect_ratio() const
+    virtual Optional<CSSPixelFraction> natural_aspect_ratio(ImageOrientation image_orientation) const
     {
-        auto width = natural_width();
-        auto height = natural_height();
+        auto width = natural_width(image_orientation);
+        auto height = natural_height(image_orientation);
         if (width.has_value() && height.has_value())
             return *width / *height;
         return {};
@@ -37,7 +37,7 @@ public:
     virtual void resolve_for_size(Layout::NodeWithStyle const&, CSSPixelSize) const { }
 
     virtual bool is_paintable() const = 0;
-    virtual void paint(PaintContext& context, DevicePixelRect const& dest_rect, ImageRendering) const = 0;
+    virtual void paint(PaintContext& context, DevicePixelRect const& dest_rect, ImageRendering, ImageOrientation) const = 0;
 
     virtual Optional<Gfx::Color> color_if_single_pixel_bitmap() const { return {}; }
 };

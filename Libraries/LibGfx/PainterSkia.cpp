@@ -23,6 +23,8 @@
 #include <effects/SkBlurMaskFilter.h>
 #include <effects/SkGradientShader.h>
 
+#include "AffineTransformToSkMatrix.h"
+
 namespace Gfx {
 
 struct PainterSkia::Impl {
@@ -139,13 +141,27 @@ void PainterSkia::draw_bitmap(Gfx::FloatRect const& dst_rect, Gfx::ImmutableBitm
     paint.setAlpha(static_cast<u8>(global_alpha * 255));
     paint.setBlender(to_skia_blender(compositing_and_blending_operator));
 
-    impl().canvas()->drawImageRect(
+    auto oriented_dst_rect = dst_rect;
+
+    auto const transformation_matrix = compute_exif_orientation_matrix(src_bitmap.bitmap()->exif_orientation(), oriented_dst_rect);
+    auto const skia_transformation_matrix = to_skia_matrix(transformation_matrix);
+
+    auto* const canvas = impl().canvas();
+
+    canvas->save();
+    canvas->translate(oriented_dst_rect.x(), oriented_dst_rect.y());
+    canvas->concat(skia_transformation_matrix);
+    canvas->translate(-oriented_dst_rect.x(), -oriented_dst_rect.y());
+
+    canvas->drawImageRect(
         src_bitmap.sk_image(),
         to_skia_rect(src_rect),
-        to_skia_rect(dst_rect),
+        to_skia_rect(oriented_dst_rect),
         to_skia_sampling_options(scaling_mode),
         &paint,
         SkCanvas::kStrict_SrcRectConstraint);
+
+    canvas->restore();
 }
 
 void PainterSkia::set_transform(Gfx::AffineTransform const& transform)

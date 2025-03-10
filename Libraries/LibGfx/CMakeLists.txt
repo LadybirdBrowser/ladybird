@@ -3,6 +3,7 @@ include(vulkan)
 
 set(SOURCES
     AffineTransform.cpp
+    AffineTransformToSkMatrix.cpp
     Bitmap.cpp
     BitmapSequence.cpp
     CMYKBitmap.cpp
@@ -58,6 +59,7 @@ set(SOURCES
     Triangle.cpp
     VectorGraphic.cpp
     SkiaBackendContext.cpp
+    ImageOrientation.cpp
 )
 
 set(SWIFT_EXCLUDE_HEADERS

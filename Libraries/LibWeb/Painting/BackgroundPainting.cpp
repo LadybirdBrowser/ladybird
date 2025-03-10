@@ -73,7 +73,7 @@ static BackgroundBox get_box(CSS::BackgroundBox box_clip, BackgroundBox border_b
 }
 
 // https://www.w3.org/TR/css-backgrounds-3/#backgrounds
-void paint_background(PaintContext& context, PaintableBox const& paintable_box, CSS::ImageRendering image_rendering, ResolvedBackground resolved_background, BorderRadiiData const& border_radii)
+void paint_background(PaintContext& context, PaintableBox const& paintable_box, CSS::ImageRendering image_rendering, CSS::ImageOrientation image_orientation, ResolvedBackground resolved_background, BorderRadiiData const& border_radii)
 {
     auto& display_list_recorder = context.display_list_recorder();
 
@@ -282,17 +282,18 @@ void paint_background(PaintContext& context, PaintableBox const& paintable_box, 
             // of a repeated background, so the painter has the opportunity to optimize the painting of repeated images.
             auto dest_rect = context.rounded_device_rect(image_rect);
             auto const* bitmap = static_cast<CSS::ImageStyleValue const&>(image).current_frame_bitmap(dest_rect);
-            auto scaling_mode = to_gfx_scaling_mode(image_rendering, bitmap->rect(), dest_rect.to_type<int>());
-            context.display_list_recorder().draw_repeated_immutable_bitmap(dest_rect.to_type<int>(), clip_rect.to_type<int>(), *bitmap, scaling_mode, { .x = repeat_x, .y = repeat_y });
+            auto const gfx_image_orientation = Gfx::to_gfx_image_orientation(image_orientation);
+            auto scaling_mode = to_gfx_scaling_mode(image_rendering, bitmap->rect(gfx_image_orientation), dest_rect.to_type<int>());
+            context.display_list_recorder().draw_repeated_immutable_bitmap(dest_rect.to_type<int>(), clip_rect.to_type<int>(), *bitmap, scaling_mode, { .x = repeat_x, .y = repeat_y }, gfx_image_orientation);
         } else {
             for_each_image_device_rect([&](auto const& image_device_rect) {
-                image.paint(context, image_device_rect, image_rendering);
+                image.paint(context, image_device_rect, image_rendering, image_orientation);
             });
         }
     }
 }
 
-ResolvedBackground resolve_background_layers(Vector<CSS::BackgroundLayerData> const& layers, PaintableBox const& paintable_box, Color background_color, CSSPixelRect const& border_rect, BorderRadiiData const& border_radii)
+ResolvedBackground resolve_background_layers(Vector<CSS::BackgroundLayerData> const& layers, CSS::ImageOrientation image_orientation, PaintableBox const& paintable_box, Color background_color, CSSPixelRect const& border_rect, BorderRadiiData const& border_radii)
 {
     auto layer_is_paintable = [&](auto& layer) {
         return layer.background_image && layer.background_image->is_paintable();
@@ -325,7 +326,7 @@ ResolvedBackground resolve_background_layers(Vector<CSS::BackgroundLayerData> co
         }
         auto concrete_image_size = CSS::run_default_sizing_algorithm(
             specified_width, specified_height,
-            image.natural_width(), image.natural_height(), image.natural_aspect_ratio(),
+            image.natural_width(image_orientation), image.natural_height(image_orientation), image.natural_aspect_ratio(image_orientation),
             background_positioning_area.size());
 
         // If any of these are zero, the NaNs will pop up in the painting code.

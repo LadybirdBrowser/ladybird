@@ -45,14 +45,14 @@ void MarkerPaintable::paint(PaintContext& context, PaintPhase phase) const
     if (auto const* list_style_image = layout_box().list_style_image()) {
         CSSPixelRect image_rect {
             0, 0,
-            list_style_image->natural_width().value_or(marker_width),
-            list_style_image->natural_height().value_or(marker_width)
+            list_style_image->natural_width(CSS::ImageOrientation::FromImage).value_or(marker_width),
+            list_style_image->natural_height(CSS::ImageOrientation::FromImage).value_or(marker_width)
         };
         image_rect.center_within(enclosing);
 
         auto device_image_rect = context.enclosing_device_rect(image_rect);
         list_style_image->resolve_for_size(layout_box(), image_rect.size());
-        list_style_image->paint(context, device_image_rect, computed_values().image_rendering());
+        list_style_image->paint(context, device_image_rect, computed_values().image_rendering(), CSS::ImageOrientation::FromImage);
         return;
     }
 
