@@ -84,14 +84,14 @@ ErrorOr<void> JPEGLoadingContext::decode()
     if (cinfo.jpeg_color_space == JCS_CMYK || cinfo.jpeg_color_space == JCS_YCCK) {
         cinfo.out_color_space = JCS_CMYK;
     } else {
-        cinfo.out_color_space = JCS_EXT_BGRX;
+        cinfo.out_color_space = JCS_EXT_RGBX;
     }
 
     jpeg_start_decompress(&cinfo);
     bool could_read_all_scanlines = true;
 
-    if (cinfo.out_color_space == JCS_EXT_BGRX) {
-        rgb_bitmap = TRY(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRx8888, { static_cast<int>(cinfo.output_width), static_cast<int>(cinfo.output_height) }));
+    if (cinfo.out_color_space == JCS_EXT_RGBX) {
+        rgb_bitmap = TRY(Gfx::Bitmap::create(Gfx::BitmapFormat::RGBx8888, { static_cast<int>(cinfo.output_width), static_cast<int>(cinfo.output_height) }));
         while (cinfo.output_scanline < cinfo.output_height) {
             auto* row_ptr = (u8*)rgb_bitmap->scanline(cinfo.output_scanline);
             auto out_size = jpeg_read_scanlines(&cinfo, &row_ptr, 1);
