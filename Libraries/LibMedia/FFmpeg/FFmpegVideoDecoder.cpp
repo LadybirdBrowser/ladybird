@@ -47,7 +47,7 @@ DecoderErrorOr<NonnullOwnPtr<FFmpegVideoDecoder>> FFmpegVideoDecoder::try_create
         }
     };
 
-    auto ff_codec_id = ffmpeg_codec_id_from_serenity_codec_id(codec_id);
+    auto ff_codec_id = ffmpeg_codec_id_from_media_codec_id(codec_id);
     auto const* codec = avcodec_find_decoder(ff_codec_id);
     if (!codec)
         return DecoderError::format(DecoderErrorCategory::NotImplemented, "Could not find FFmpeg decoder for codec {}", codec_id);

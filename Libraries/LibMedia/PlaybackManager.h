@@ -110,10 +110,8 @@ public:
 
     static constexpr SeekMode DEFAULT_SEEK_MODE = SeekMode::Accurate;
 
-    static DecoderErrorOr<NonnullOwnPtr<PlaybackManager>> from_file(StringView file);
-    static DecoderErrorOr<NonnullOwnPtr<PlaybackManager>> from_mapped_file(NonnullOwnPtr<Core::MappedFile> file);
-
     static DecoderErrorOr<NonnullOwnPtr<PlaybackManager>> from_data(ReadonlyBytes data);
+    static DecoderErrorOr<NonnullOwnPtr<PlaybackManager>> from_stream(NonnullOwnPtr<SeekableStream> stream);
 
     PlaybackManager(NonnullOwnPtr<Demuxer>& demuxer, Track video_track, NonnullOwnPtr<VideoDecoder>&& decoder, VideoFrameQueue&& frame_queue);
     ~PlaybackManager();
