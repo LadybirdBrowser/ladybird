@@ -90,9 +90,20 @@ ErrorOr<void> FFmpegLoaderPlugin::initialize()
 
     // This is an initial estimate of the total number of samples in the stream.
     // During decoding, we might need to increase the number as more frames come in.
-    double duration_in_seconds = static_cast<double>(m_audio_stream->duration) * time_base();
-    if (duration_in_seconds < 0)
-        return Error::from_string_literal("Negative stream duration");
+    auto duration_in_seconds = TRY([this] -> ErrorOr<double> {
+        if (m_audio_stream->duration >= 0) {
+            auto time_base = av_q2d(m_audio_stream->time_base);
+            return static_cast<double>(m_audio_stream->duration) * time_base;
+        }
+
+        // If the stream doesn't specify the duration, fallback to what the container says the duration is.
+        // If the container doesn't know the duration, then we're out of luck. Return an error.
+        if (m_format_context->duration < 0)
+            return Error::from_string_literal("Negative stream duration");
+
+        return static_cast<double>(m_format_context->duration) / AV_TIME_BASE;
+    }());
+
     m_total_samples = AK::round_to<decltype(m_total_samples)>(sample_rate() * duration_in_seconds);
 
     // Allocate packet (logical chunk of data) and frame (video / audio frame) buffers
