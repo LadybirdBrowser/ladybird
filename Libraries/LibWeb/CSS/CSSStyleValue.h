@@ -108,7 +108,6 @@ public:
         Flex,
         FontSource,
         FontStyle,
-        FontVariant,
         Frequency,
         GridAutoFlow,
         GridTemplateArea,
