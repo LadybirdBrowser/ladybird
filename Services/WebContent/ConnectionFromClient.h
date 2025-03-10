@@ -84,6 +84,8 @@ private:
     virtual void request_style_sheet_source(u64 page_id, Web::CSS::StyleSheetIdentifier identifier) override;
 
     virtual void set_listen_for_dom_mutations(u64 page_id, bool) override;
+    virtual void get_dom_node_outer_html(u64 page_id, Web::UniqueNodeID node_id) override;
+    virtual void set_dom_node_outer_html(u64 page_id, Web::UniqueNodeID node_id, String html) override;
     virtual void set_dom_node_text(u64 page_id, Web::UniqueNodeID node_id, String text) override;
     virtual void set_dom_node_tag(u64 page_id, Web::UniqueNodeID node_id, String name) override;
     virtual void add_dom_node_attributes(u64 page_id, Web::UniqueNodeID node_id, Vector<WebView::Attribute> attributes) override;
@@ -92,7 +94,6 @@ private:
     virtual void create_child_text_node(u64 page_id, Web::UniqueNodeID node_id) override;
     virtual void clone_dom_node(u64 page_id, Web::UniqueNodeID node_id) override;
     virtual void remove_dom_node(u64 page_id, Web::UniqueNodeID node_id) override;
-    virtual void get_dom_node_html(u64 page_id, Web::UniqueNodeID node_id) override;
 
     virtual void set_content_filters(u64 page_id, Vector<String>) override;
     virtual void set_autoplay_allowed_on_all_websites(u64 page_id) override;

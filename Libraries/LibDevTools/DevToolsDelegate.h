@@ -41,7 +41,10 @@ public:
     virtual void listen_for_dom_mutations(TabDescription const&, OnDOMMutationReceived) const { }
     virtual void stop_listening_for_dom_mutations(TabDescription const&) const { }
 
+    using OnDOMNodeHTMLReceived = Function<void(ErrorOr<String>)>;
     using OnDOMNodeEditComplete = Function<void(ErrorOr<Web::UniqueNodeID>)>;
+    virtual void get_dom_node_outer_html(TabDescription const&, Web::UniqueNodeID, OnDOMNodeHTMLReceived) const { }
+    virtual void set_dom_node_outer_html(TabDescription const&, Web::UniqueNodeID, String const&, OnDOMNodeEditComplete) const { }
     virtual void set_dom_node_text(TabDescription const&, Web::UniqueNodeID, String const&, OnDOMNodeEditComplete) const { }
     virtual void set_dom_node_tag(TabDescription const&, Web::UniqueNodeID, String const&, OnDOMNodeEditComplete) const { }
     virtual void add_dom_node_attributes(TabDescription const&, Web::UniqueNodeID, ReadonlySpan<WebView::Attribute>, OnDOMNodeEditComplete) const { }

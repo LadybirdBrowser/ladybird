@@ -214,6 +214,36 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
         return;
     }
 
+    if (type == "outerHTML"sv) {
+        auto node = message.get_string("node"sv);
+        if (!node.has_value()) {
+            send_missing_parameter_error("node"sv);
+            return;
+        }
+
+        if (auto dom_node = WalkerActor::dom_node_for(*this, *node); dom_node.has_value()) {
+            auto block_token = block_responses();
+
+            devtools().delegate().get_dom_node_outer_html(
+                dom_node->tab->description(), dom_node->identifier.id,
+                [weak_self = make_weak_ptr<WalkerActor>(), block_token = move(block_token)](ErrorOr<String> html) mutable {
+                    if (html.is_error()) {
+                        dbgln_if(DEVTOOLS_DEBUG, "Unable to edit DOM node: {}", html.error());
+                        return;
+                    }
+
+                    if (auto self = weak_self.strong_ref()) {
+                        JsonObject message;
+                        message.set("from"sv, self->name());
+                        message.set("value"sv, html.release_value());
+                        self->send_message(move(message), move(block_token));
+                    }
+                });
+        }
+
+        return;
+    }
+
     if (type == "previousSibling"sv) {
         auto node = message.get_string("node"sv);
         if (!node.has_value()) {
@@ -304,6 +334,41 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
 
     if (type == "retainNode"sv) {
         send_message(move(response));
+        return;
+    }
+
+    if (type == "setOuterHTML"sv) {
+        auto node = message.get_string("node"sv);
+        if (!node.has_value()) {
+            send_missing_parameter_error("node"sv);
+            return;
+        }
+
+        auto value = message.get_string("value"sv);
+        if (!value.has_value()) {
+            send_missing_parameter_error("value"sv);
+            return;
+        }
+
+        if (auto dom_node = WalkerActor::dom_node_for(*this, *node); dom_node.has_value()) {
+            auto block_token = block_responses();
+
+            devtools().delegate().set_dom_node_outer_html(
+                dom_node->tab->description(), dom_node->identifier.id, value.release_value(),
+                [weak_self = make_weak_ptr<WalkerActor>(), block_token = move(block_token)](ErrorOr<Web::UniqueNodeID> node_id) mutable {
+                    if (node_id.is_error()) {
+                        dbgln_if(DEVTOOLS_DEBUG, "Unable to edit DOM node: {}", node_id.error());
+                        return;
+                    }
+
+                    if (auto self = weak_self.strong_ref()) {
+                        JsonObject message;
+                        message.set("from"sv, self->name());
+                        self->send_message(move(message), move(block_token));
+                    }
+                });
+        }
+
         return;
     }
 

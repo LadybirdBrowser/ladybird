@@ -676,6 +676,49 @@ void ConnectionFromClient::set_listen_for_dom_mutations(u64 page_id, bool listen
     page->page().set_listen_for_dom_mutations(listen_for_dom_mutations);
 }
 
+void ConnectionFromClient::get_dom_node_outer_html(u64 page_id, Web::UniqueNodeID node_id)
+{
+    auto* dom_node = Web::DOM::Node::from_unique_id(node_id);
+    if (!dom_node)
+        return;
+
+    String html;
+
+    if (dom_node->is_element()) {
+        auto const& element = static_cast<Web::DOM::Element const&>(*dom_node);
+        html = element.outer_html().release_value_but_fixme_should_propagate_errors();
+    } else if (dom_node->is_text() || dom_node->is_comment()) {
+        auto const& character_data = static_cast<Web::DOM::CharacterData const&>(*dom_node);
+        html = character_data.data();
+    } else {
+        return;
+    }
+
+    async_did_get_dom_node_html(page_id, html);
+}
+
+void ConnectionFromClient::set_dom_node_outer_html(u64 page_id, Web::UniqueNodeID node_id, String html)
+{
+    auto* dom_node = Web::DOM::Node::from_unique_id(node_id);
+    if (!dom_node) {
+        async_did_finish_editing_dom_node(page_id, {});
+        return;
+    }
+
+    if (dom_node->is_element()) {
+        auto& element = static_cast<Web::DOM::Element&>(*dom_node);
+        element.set_outer_html(html).release_value_but_fixme_should_propagate_errors();
+    } else if (dom_node->is_text() || dom_node->is_comment()) {
+        auto& character_data = static_cast<Web::DOM::CharacterData&>(*dom_node);
+        character_data.set_data(html);
+    } else {
+        async_did_finish_editing_dom_node(page_id, {});
+        return;
+    }
+
+    async_did_finish_editing_dom_node(page_id, node_id);
+}
+
 void ConnectionFromClient::set_dom_node_text(u64 page_id, Web::UniqueNodeID node_id, String text)
 {
     auto* dom_node = Web::DOM::Node::from_unique_id(node_id);
@@ -824,27 +867,6 @@ void ConnectionFromClient::remove_dom_node(u64 page_id, Web::UniqueNodeID node_i
     dom_node->remove();
 
     async_did_finish_editing_dom_node(page_id, previous_dom_node->unique_id());
-}
-
-void ConnectionFromClient::get_dom_node_html(u64 page_id, Web::UniqueNodeID node_id)
-{
-    auto* dom_node = Web::DOM::Node::from_unique_id(node_id);
-    if (!dom_node)
-        return;
-
-    String html;
-
-    if (dom_node->is_element()) {
-        auto const& element = static_cast<Web::DOM::Element const&>(*dom_node);
-        html = element.outer_html().release_value_but_fixme_should_propagate_errors();
-    } else if (dom_node->is_text() || dom_node->is_comment()) {
-        auto const& character_data = static_cast<Web::DOM::CharacterData const&>(*dom_node);
-        html = character_data.data();
-    } else {
-        return;
-    }
-
-    async_did_get_dom_node_html(page_id, html);
 }
 
 void ConnectionFromClient::take_document_screenshot(u64 page_id)
