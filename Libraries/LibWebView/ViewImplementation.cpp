@@ -399,6 +399,11 @@ void ViewImplementation::create_child_text_node(Web::UniqueNodeID node_id)
     client().async_create_child_text_node(page_id(), node_id);
 }
 
+void ViewImplementation::insert_dom_node_before(Web::UniqueNodeID node_id, Web::UniqueNodeID parent_node_id, Optional<Web::UniqueNodeID> sibling_node_id)
+{
+    client().async_insert_dom_node_before(page_id(), node_id, parent_node_id, sibling_node_id);
+}
+
 void ViewImplementation::clone_dom_node(Web::UniqueNodeID node_id)
 {
     client().async_clone_dom_node(page_id(), node_id);

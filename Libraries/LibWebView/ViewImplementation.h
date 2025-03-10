@@ -124,6 +124,7 @@ public:
     void replace_dom_node_attribute(Web::UniqueNodeID node_id, String const& name, ReadonlySpan<Attribute> replacement_attributes);
     void create_child_element(Web::UniqueNodeID node_id);
     void create_child_text_node(Web::UniqueNodeID node_id);
+    void insert_dom_node_before(Web::UniqueNodeID node_id, Web::UniqueNodeID parent_node_id, Optional<Web::UniqueNodeID> sibling_node_id);
     void clone_dom_node(Web::UniqueNodeID node_id);
     void remove_dom_node(Web::UniqueNodeID node_id);
 

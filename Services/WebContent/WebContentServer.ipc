@@ -66,6 +66,7 @@ endpoint WebContentServer
     replace_dom_node_attribute(u64 page_id, Web::UniqueNodeID node_id, String name, Vector<WebView::Attribute> replacement_attributes) =|
     create_child_element(u64 page_id, Web::UniqueNodeID node_id) =|
     create_child_text_node(u64 page_id, Web::UniqueNodeID node_id) =|
+    insert_dom_node_before(u64 page_id, Web::UniqueNodeID node_id, Web::UniqueNodeID parent_node_id, Optional<Web::UniqueNodeID> sibling_node_id) =|
     clone_dom_node(u64 page_id, Web::UniqueNodeID node_id) =|
     remove_dom_node(u64 page_id, Web::UniqueNodeID node_id) =|
 

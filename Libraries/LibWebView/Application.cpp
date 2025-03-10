@@ -578,6 +578,13 @@ void Application::create_child_element(DevTools::TabDescription const& descripti
     });
 }
 
+void Application::insert_dom_node_before(DevTools::TabDescription const& description, Web::UniqueNodeID node_id, Web::UniqueNodeID parent_node_id, Optional<Web::UniqueNodeID> sibling_node_id, OnDOMNodeEditComplete on_complete) const
+{
+    edit_dom_node(description, move(on_complete), [&](auto& view) {
+        view.insert_dom_node_before(node_id, parent_node_id, sibling_node_id);
+    });
+}
+
 void Application::clone_dom_node(DevTools::TabDescription const& description, Web::UniqueNodeID node_id, OnDOMNodeEditComplete on_complete) const
 {
     edit_dom_node(description, move(on_complete), [&](auto& view) {

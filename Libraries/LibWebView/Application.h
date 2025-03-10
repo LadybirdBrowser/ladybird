@@ -108,6 +108,7 @@ private:
     virtual void add_dom_node_attributes(DevTools::TabDescription const&, Web::UniqueNodeID, ReadonlySpan<Attribute>, OnDOMNodeEditComplete) const override;
     virtual void replace_dom_node_attribute(DevTools::TabDescription const&, Web::UniqueNodeID, String const&, ReadonlySpan<Attribute>, OnDOMNodeEditComplete) const override;
     virtual void create_child_element(DevTools::TabDescription const&, Web::UniqueNodeID, OnDOMNodeEditComplete) const override;
+    virtual void insert_dom_node_before(DevTools::TabDescription const&, Web::UniqueNodeID, Web::UniqueNodeID, Optional<Web::UniqueNodeID>, OnDOMNodeEditComplete) const override;
     virtual void clone_dom_node(DevTools::TabDescription const&, Web::UniqueNodeID, OnDOMNodeEditComplete) const override;
     virtual void remove_dom_node(DevTools::TabDescription const&, Web::UniqueNodeID, OnDOMNodeEditComplete) const override;
     virtual void evaluate_javascript(DevTools::TabDescription const&, String const&, OnScriptEvaluationComplete) const override;
