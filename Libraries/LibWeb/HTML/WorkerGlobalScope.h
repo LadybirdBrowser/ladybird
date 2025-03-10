@@ -97,6 +97,9 @@ public:
 
     bool is_closing() const { return m_closing; }
 
+    void initialize_policy_container(GC::Ref<Fetch::Infrastructure::Response const> response, GC::Ref<EnvironmentSettingsObject> environment);
+    [[nodiscard]] ContentSecurityPolicy::Directives::Directive::Result run_csp_initialization() const;
+
 protected:
     explicit WorkerGlobalScope(JS::Realm&, GC::Ref<Web::Page>);
 

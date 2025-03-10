@@ -28,11 +28,6 @@
 
 namespace Web::HTML {
 
-enum class CSPNavigationType {
-    Other,
-    FormSubmission,
-};
-
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#target-snapshot-params
 struct TargetSnapshotParams {
     SandboxingFlagSet sandboxing_flags {};
@@ -130,7 +125,7 @@ public:
         UserNavigationInvolvement user_involvement,
         Optional<String> navigation_id = {},
         NavigationParamsVariant navigation_params = Navigable::NullOrError {},
-        CSPNavigationType csp_navigation_type = CSPNavigationType::Other,
+        ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type = ContentSecurityPolicy::Directives::Directive::NavigationType::Other,
         bool allow_POST = false,
         GC::Ptr<GC::Function<void()>> completion_steps = {});
 
@@ -204,7 +199,7 @@ protected:
 private:
     void begin_navigation(NavigateParams);
     void navigate_to_a_fragment(URL::URL const&, HistoryHandlingBehavior, UserNavigationInvolvement, GC::Ptr<DOM::Element> source_element, Optional<SerializationRecord> navigation_api_state, String navigation_id);
-    void navigate_to_a_javascript_url(URL::URL const&, HistoryHandlingBehavior, GC::Ref<SourceSnapshotParams>, URL::Origin const& initiator_origin, UserNavigationInvolvement, CSPNavigationType csp_navigation_type, String navigation_id);
+    void navigate_to_a_javascript_url(URL::URL const&, HistoryHandlingBehavior, GC::Ref<SourceSnapshotParams>, URL::Origin const& initiator_origin, UserNavigationInvolvement, ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type, String navigation_id);
 
     void reset_cursor_blink_cycle();
 
