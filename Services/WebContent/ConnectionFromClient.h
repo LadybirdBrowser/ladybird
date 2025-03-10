@@ -84,6 +84,7 @@ private:
     virtual void request_style_sheet_source(u64 page_id, Web::CSS::StyleSheetIdentifier identifier) override;
 
     virtual void set_listen_for_dom_mutations(u64 page_id, bool) override;
+    virtual void get_dom_node_inner_html(u64 page_id, Web::UniqueNodeID node_id) override;
     virtual void get_dom_node_outer_html(u64 page_id, Web::UniqueNodeID node_id) override;
     virtual void set_dom_node_outer_html(u64 page_id, Web::UniqueNodeID node_id, String html) override;
     virtual void set_dom_node_text(u64 page_id, Web::UniqueNodeID node_id, String text) override;

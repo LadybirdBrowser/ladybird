@@ -676,6 +676,27 @@ void ConnectionFromClient::set_listen_for_dom_mutations(u64 page_id, bool listen
     page->page().set_listen_for_dom_mutations(listen_for_dom_mutations);
 }
 
+void ConnectionFromClient::get_dom_node_inner_html(u64 page_id, Web::UniqueNodeID node_id)
+{
+    auto* dom_node = Web::DOM::Node::from_unique_id(node_id);
+    if (!dom_node)
+        return;
+
+    String html;
+
+    if (dom_node->is_element()) {
+        auto const& element = static_cast<Web::DOM::Element const&>(*dom_node);
+        html = element.inner_html().release_value_but_fixme_should_propagate_errors();
+    } else if (dom_node->is_text() || dom_node->is_comment()) {
+        auto const& character_data = static_cast<Web::DOM::CharacterData const&>(*dom_node);
+        html = character_data.data();
+    } else {
+        return;
+    }
+
+    async_did_get_dom_node_html(page_id, html);
+}
+
 void ConnectionFromClient::get_dom_node_outer_html(u64 page_id, Web::UniqueNodeID node_id)
 {
     auto* dom_node = Web::DOM::Node::from_unique_id(node_id);

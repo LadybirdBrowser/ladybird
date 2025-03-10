@@ -43,6 +43,7 @@ public:
 
     using OnDOMNodeHTMLReceived = Function<void(ErrorOr<String>)>;
     using OnDOMNodeEditComplete = Function<void(ErrorOr<Web::UniqueNodeID>)>;
+    virtual void get_dom_node_inner_html(TabDescription const&, Web::UniqueNodeID, OnDOMNodeHTMLReceived) const { }
     virtual void get_dom_node_outer_html(TabDescription const&, Web::UniqueNodeID, OnDOMNodeHTMLReceived) const { }
     virtual void set_dom_node_outer_html(TabDescription const&, Web::UniqueNodeID, String const&, OnDOMNodeEditComplete) const { }
     virtual void set_dom_node_text(TabDescription const&, Web::UniqueNodeID, String const&, OnDOMNodeEditComplete) const { }
