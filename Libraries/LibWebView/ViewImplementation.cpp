@@ -14,6 +14,7 @@
 #include <LibWeb/Infra/Strings.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/HelperProcess.h>
+#include <LibWebView/SiteIsolation.h>
 #include <LibWebView/UserAgent.h>
 #include <LibWebView/ViewImplementation.h>
 
@@ -87,6 +88,21 @@ u64 ViewImplementation::page_id() const
 {
     VERIFY(m_client_state.client);
     return m_client_state.page_index;
+}
+
+void ViewImplementation::create_new_process_for_cross_site_navigation(URL::URL const& url)
+{
+    if (m_client_state.client)
+        client().async_close_server();
+
+    initialize_client();
+    VERIFY(m_client_state.client);
+
+    // Don't keep a stale backup bitmap around.
+    m_backup_bitmap = nullptr;
+    handle_resize();
+
+    load(url);
 }
 
 void ViewImplementation::server_did_paint(Badge<WebContentClient>, i32 bitmap_id, Gfx::IntSize size)
@@ -552,11 +568,8 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client)
     if (create_new_client == CreateNewClient::Yes) {
         m_client_state = {};
 
-        // FIXME: Fail to open the tab, rather than crashing the whole application if these fail.
-        auto request_server_socket = connect_new_request_server_client().release_value_but_fixme_should_propagate_errors();
-        auto image_decoder_socket = connect_new_image_decoder_client().release_value_but_fixme_should_propagate_errors();
-
-        m_client_state.client = launch_web_content_process(*this, AK::move(image_decoder_socket), AK::move(request_server_socket)).release_value_but_fixme_should_propagate_errors();
+        // FIXME: Fail to open the tab, rather than crashing the whole application if this fails.
+        m_client_state.client = Application::the().launch_web_content_process(*this).release_value_but_fixme_should_propagate_errors();
     } else {
         m_client_state.client->register_view(m_client_state.page_index, *this);
     }

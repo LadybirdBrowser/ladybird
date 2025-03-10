@@ -45,6 +45,7 @@ public:
 
     Core::EventLoop& event_loop() { return m_event_loop; }
 
+    ErrorOr<NonnullRefPtr<WebContentClient>> launch_web_content_process(ViewImplementation&);
     ErrorOr<void> launch_services();
 
     void add_child_process(Process&&);
@@ -85,6 +86,7 @@ protected:
 private:
     void initialize(Main::Arguments const& arguments, URL::URL new_tab_page_url);
 
+    void launch_spare_web_content_process();
     ErrorOr<void> launch_request_server();
     ErrorOr<void> launch_image_decoder_server();
     ErrorOr<void> launch_devtools_server();
@@ -117,6 +119,9 @@ private:
 
     RefPtr<Requests::RequestClient> m_request_server_client;
     RefPtr<ImageDecoderClient::Client> m_image_decoder_client;
+
+    RefPtr<WebContentClient> m_spare_web_content_process;
+    bool m_has_queued_task_to_launch_spare_web_content_process { false };
 
     RefPtr<Database> m_database;
     OwnPtr<CookieJar> m_cookie_jar;

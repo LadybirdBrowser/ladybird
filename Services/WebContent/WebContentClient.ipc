@@ -23,6 +23,7 @@
 
 endpoint WebContentClient
 {
+    did_request_new_process_for_navigation(u64 page_id, URL::URL url) =|
     did_start_loading(u64 page_id, URL::URL url, bool is_redirect) =|
     did_finish_loading(u64 page_id, URL::URL url) =|
     did_request_refresh(u64 page_id) =|

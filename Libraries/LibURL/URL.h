@@ -203,6 +203,7 @@ URL create_with_data(StringView mime_type, StringView payload, bool is_base64 = 
 
 bool is_public_suffix(StringView host);
 Optional<String> get_public_suffix(StringView host);
+Optional<String> get_registrable_domain(StringView host);
 
 inline URL about_blank() { return URL::about("blank"_string); }
 inline URL about_srcdoc() { return URL::about("srcdoc"_string); }

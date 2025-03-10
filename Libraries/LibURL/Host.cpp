@@ -220,7 +220,7 @@ Optional<String> Host::registrable_domain() const
     // 3. Let registrableDomain be the registrable domain determined by running the Public Suffix List algorithm with host as domain. [PSL]
     // NOTE: The spec algorithm for the public suffix returns "*" by default, but get_public_suffix() returns an empty Optional.
     //       Remove the `value_or()` if and when we update it.
-    auto registrable_domain = get_public_suffix(host_string).value_or("*"_string);
+    auto registrable_domain = get_registrable_domain(host_string).value_or("*"_string);
 
     // 4. Assert: registrableDomain is an ASCII string that does not end with ".".
     VERIFY(all_of(registrable_domain.code_points(), is_ascii));

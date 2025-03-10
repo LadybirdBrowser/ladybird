@@ -527,4 +527,28 @@ Optional<String> get_public_suffix([[maybe_unused]] StringView host)
 #endif
 }
 
+// https://github.com/publicsuffix/list/wiki/Format#algorithm
+Optional<String> get_registrable_domain(StringView host)
+{
+    // The registered or registrable domain is the public suffix plus one additional label.
+    auto public_suffix = get_public_suffix(host);
+    if (!public_suffix.has_value() || !host.ends_with(*public_suffix))
+        return {};
+
+    if (host == *public_suffix)
+        return {};
+
+    auto subhost = host.substring_view(0, host.length() - public_suffix->bytes_as_string_view().length());
+    subhost = subhost.trim("."sv, TrimMode::Right);
+
+    if (subhost.is_empty())
+        return {};
+
+    size_t start_index = 0;
+    if (auto index = subhost.find_last('.'); index.has_value())
+        start_index = *index + 1;
+
+    return MUST(String::from_utf8(host.substring_view(start_index)));
+}
+
 }
