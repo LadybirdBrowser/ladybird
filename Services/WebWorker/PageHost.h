@@ -33,7 +33,7 @@ public:
     virtual Web::CSS::PreferredMotion preferred_motion() const override;
     virtual void paint_next_frame() override { }
     virtual void process_screenshot_requests() override { }
-    virtual void paint(Web::DevicePixelRect const&, Web::Painting::BackingStore&, Web::PaintOptions = {}) override;
+    virtual void start_display_list_rendering(Web::DevicePixelRect const&, Web::Painting::BackingStore&, Web::PaintOptions, Function<void()>&& callback) override;
     virtual void request_file(Web::FileRequest) override;
     virtual bool is_ready_to_paint() const override { return true; }
     virtual Web::DisplayListPlayerType display_list_player_type() const override { VERIFY_NOT_REACHED(); }
