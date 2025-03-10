@@ -2,6 +2,10 @@
 # Ladybird browser build automation
 # 60-column limit enforced throughout
 
+# Note: Just is a command runner (not a build system) with cleaner
+# syntax than Make. No need for .PHONY, and recipes are more
+# straightforward. String literals must be quoted.
+
 # Default recipe when just is called without arguments
 default:
     @just --list
@@ -17,9 +21,13 @@ uname := `uname -s`
 os := if uname =~ "Darwin" { "macos" } else { "linux" }
 
 # Detect if we're on macOS
+# Just conditionals use if/else blocks with curly braces and
+# require string literals to be quoted ("true"/"false")
 is_macos := if os == "macos" { "true" } else { "false" }
 
 # Ensures the toolchain is ready
+# Ladybird uses vcpkg for dependency management - this handles
+# many complex dependencies like Skia, ICU, SQLite, etc.
 toolchain:
     @echo "Ensuring toolchain is ready..."
     cd Toolchain && python3 ./BuildVcpkg.py
@@ -68,12 +76,15 @@ setup-deps-linux-fedora:
         qt6-qttools-devel qt6-qtwayland-devel
 
 # Configure the build with the specified preset
+# This handles complex library linking and framework setup
 configure preset=build_preset:
     @echo "Configuring with preset: {{preset}}..."
     cmake --preset {{preset}} -S . -B Build/{{preset}}
     @echo "Configuration complete!"
 
 # Build the project
+# Ladybird uses a multi-process architecture like modern browsers,
+# with separate processes for UI and web content
 build preset=build_preset target="":
     #!/usr/bin/env bash
     echo "Building with preset: {{preset}}..."
@@ -102,6 +113,8 @@ build preset=build_preset target="":
     echo "Build complete!"
 
 # Run Ladybird browser
+# The browser is still in development with many "FIXME: 
+# Unimplemented IDL interface" messages in the console
 run preset=build_preset *args:
     #!/usr/bin/env bash
     echo "Running Ladybird..."
@@ -111,6 +124,8 @@ run preset=build_preset *args:
     just build {{preset}} Ladybird
     
     if [ "$(uname -s)" = "Darwin" ]; then
+        # macOS uses a proper app bundle structure with binaries in
+        # Contents/MacOS/ and dependencies in Contents/Frameworks/
         open -W --stdout $(tty) --stderr $(tty) \
             $BUILD_DIR/bin/Ladybird.app --args {{args}}
     else
@@ -201,6 +216,7 @@ disable-qt:
     @echo "Qt chrome disabled. Please rebuild."
 
 # Show build status and information
+# Useful for checking a partially built browser status
 status preset=build_preset:
     @echo "Build status for preset: {{preset}}"
     @echo "Build directory: Build/{{preset}}"
@@ -222,6 +238,8 @@ status preset=build_preset:
     fi
 
 # Helper for macOS to build with homebrew clang
+# macOS requires special handling for library paths and RPATH
+# adjustments to ensure proper framework resolution
 [unix]
 build-with-homebrew-clang preset=build_preset:
     #!/usr/bin/env bash
