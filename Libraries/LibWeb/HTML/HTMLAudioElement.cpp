@@ -55,14 +55,14 @@ Layout::AudioBox const* HTMLAudioElement::layout_node() const
 void HTMLAudioElement::on_playing()
 {
     audio_tracks()->for_each_enabled_track([](auto& audio_track) {
-        audio_track.play({});
+        audio_track.play();
     });
 }
 
 void HTMLAudioElement::on_paused()
 {
     audio_tracks()->for_each_enabled_track([](auto& audio_track) {
-        audio_track.pause({});
+        audio_track.pause();
     });
 }
 

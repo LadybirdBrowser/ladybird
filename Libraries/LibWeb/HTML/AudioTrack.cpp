@@ -60,12 +60,12 @@ void AudioTrack::initialize(JS::Realm& realm)
     m_id = String::number(id);
 }
 
-void AudioTrack::play(Badge<HTMLAudioElement>)
+void AudioTrack::play()
 {
     m_audio_plugin->resume_playback();
 }
 
-void AudioTrack::pause(Badge<HTMLAudioElement>)
+void AudioTrack::pause()
 {
     m_audio_plugin->pause_playback();
 }
