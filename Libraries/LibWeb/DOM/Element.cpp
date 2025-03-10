@@ -2202,10 +2202,20 @@ void Element::invalidate_style_after_attribute_change(FlyString const& attribute
         style_invalidation_options.invalidate_self = true;
     }
 
+    if (style_uses_css_custom_properties()) {
+        // A css custom property can be hooked on to this element by any attribute
+        // so invalidate elements and rerender them in that scenario
+        style_invalidation_options.invalidate_elements_that_use_css_custom_properties = true;
+    }
+
     if (attribute_name == HTML::AttributeNames::style) {
         style_invalidation_options.invalidate_self = true;
+        // even if we don't have custom properties, the new "style" attribute could add one
         style_invalidation_options.invalidate_elements_that_use_css_custom_properties = true;
     } else if (attribute_name == HTML::AttributeNames::class_) {
+        // adding or removing classes can add new custom properties to this element
+        style_invalidation_options.invalidate_elements_that_use_css_custom_properties = true;
+
         Vector<StringView> old_classes;
         Vector<StringView> new_classes;
         if (old_value.has_value())
