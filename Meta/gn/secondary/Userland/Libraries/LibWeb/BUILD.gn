@@ -248,6 +248,23 @@ embed_as_string("generate_quirks_mode_stylesheet_source") {
   namespace = "Web::CSS"
 }
 
+compiled_action("generate_named_character_references") {
+  tool = "//Meta/Lagom/Tools/CodeGenerators/LibWeb:GenerateNamedCharacterReferences"
+  inputs = [ "HTML/Parser/Entities.json" ]
+  outputs = [
+    "$target_gen_dir/HTML/Parser/NamedCharacterReferences.h",
+    "$target_gen_dir/HTML/Parser/NamedCharacterReferences.cpp",
+  ]
+  args = [
+    "-h",
+    rebase_path(outputs[0], root_build_dir),
+    "-c",
+    rebase_path(outputs[1], root_build_dir),
+    "-j",
+    rebase_path(inputs[0], root_build_dir),
+  ]
+}
+
 source_set("all_generated") {
   generated_deps = [
     ":WebWorkerClientEndpoint",
