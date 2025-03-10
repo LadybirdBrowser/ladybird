@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibURL/Pattern/ConstructorStringParser.h>
 #include <LibURL/Pattern/Pattern.h>
 
 namespace URL::Pattern {
@@ -16,7 +17,8 @@ PatternErrorOr<Pattern> Pattern::create(Input const& input, Optional<String> con
 
     // 2. If input is a scalar value string then:
     if (input.has<String>()) {
-        // FIXME: 1. Set init to the result of running parse a constructor string given input.
+        // 1. Set init to the result of running parse a constructor string given input.
+        init = TRY(ConstructorStringParser::parse(input.get<String>().code_points()));
 
         // 2. If baseURL is null and init["protocol"] does not exist, then throw a TypeError.
         if (!base_url.has_value() && !init.protocol.has_value())
@@ -39,10 +41,27 @@ PatternErrorOr<Pattern> Pattern::create(Input const& input, Optional<String> con
         init = input.get<Init>();
     }
 
-    // FIXME: 4. Let processedInit be the result of process a URLPatternInit given init, "pattern", null, null, null, null, null, null, null, and null.
+    // 4. Let processedInit be the result of process a URLPatternInit given init, "pattern", null, null, null, null, null, null, null, and null.
+    auto processed_init = TRY(process_a_url_pattern_init(init, PatternProcessType::Pattern, {}, {}, {}, {}, {}, {}, {}, {}));
 
-    // FIXME: 5. For each componentName of « "protocol", "username", "password", "hostname", "port", "pathname", "search", "hash" »:
-    //     FIXME: 1. If processedInit[componentName] does not exist, then set processedInit[componentName] to "*".
+    // 5. For each componentName of « "protocol", "username", "password", "hostname", "port", "pathname", "search", "hash" »:
+    //     1. If processedInit[componentName] does not exist, then set processedInit[componentName] to "*".
+    if (!processed_init.protocol.has_value())
+        processed_init.protocol = "*"_string;
+    if (!processed_init.username.has_value())
+        processed_init.username = "*"_string;
+    if (!processed_init.password.has_value())
+        processed_init.password = "*"_string;
+    if (!processed_init.hostname.has_value())
+        processed_init.hostname = "*"_string;
+    if (!processed_init.port.has_value())
+        processed_init.port = "*"_string;
+    if (!processed_init.pathname.has_value())
+        processed_init.pathname = "*"_string;
+    if (!processed_init.search.has_value())
+        processed_init.search = "*"_string;
+    if (!processed_init.hash.has_value())
+        processed_init.hash = "*"_string;
 
     // FIXME: 6. If processedInit["protocol"] is a special scheme and processedInit["port"] is a string which represents its
     //    corresponding default port in radix-10 using ASCII digits then set processedInit["port"] to the empty string.

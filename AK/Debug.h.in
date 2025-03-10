@@ -262,6 +262,10 @@
 #    cmakedefine01 URL_PARSER_DEBUG
 #endif
 
+#ifndef URL_PATTERN_DEBUG
+#    cmakedefine01 URL_PATTERN_DEBUG
+#endif
+
 #ifndef UTF8_DEBUG
 #    cmakedefine01 UTF8_DEBUG
 #endif
