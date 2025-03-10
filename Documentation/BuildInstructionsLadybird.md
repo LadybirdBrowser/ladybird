@@ -200,6 +200,9 @@ pkgman install cmake cmd:python3 ninja openal_devel qt6_base_devel qt6_multimedi
 
 ### Android:
 
+> [!NOTE]
+> The Android port is currently [broken](https://github.com/LadybirdBrowser/ladybird/issues/2774) and won't build.
+
 On a Unix-like platform, install the prerequisites for that platform and then see the [Android Studio guide](EditorConfiguration/AndroidStudioConfiguration.md).
 Or, download a version of Gradle >= 8.0.0, and run the ``gradlew`` program in ``UI/Android``
 
