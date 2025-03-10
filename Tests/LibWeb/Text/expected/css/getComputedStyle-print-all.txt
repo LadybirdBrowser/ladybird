@@ -84,6 +84,12 @@ background-position-y: 0%
 background-repeat: repeat
 background-size: auto auto
 block-size: 1190px
+border-block-end-color: rgb(0, 0, 0)
+border-block-end-style: none
+border-block-end-width: medium
+border-block-start-color: rgb(0, 0, 0)
+border-block-start-style: none
+border-block-start-width: medium
 border-bottom-color: rgb(0, 0, 0)
 border-bottom-left-radius: 0px
 border-bottom-right-radius: 0px
@@ -142,7 +148,7 @@ grid-row-start: auto
 grid-template-areas: none
 grid-template-columns: auto
 grid-template-rows: auto
-height: 2016px
+height: 2100px
 inline-size: 784px
 inset-block-end: auto
 inset-block-start: auto

@@ -194,8 +194,8 @@ RefPtr<CSSStyleValue const> ResolvedCSSStyleDeclaration::style_value_for_propert
     // The resolved value for a given longhand property can be determined as follows:
     switch (property_id) {
         // -> background-color
-        // FIXME: -> border-block-end-color
-        // FIXME: -> border-block-start-color
+        // -> border-block-end-color
+        // -> border-block-start-color
         // -> border-bottom-color
         // -> border-inline-end-color
         // -> border-inline-start-color
@@ -210,6 +210,12 @@ RefPtr<CSSStyleValue const> ResolvedCSSStyleDeclaration::style_value_for_propert
         //    The resolved value is the used value.
     case PropertyID::BackgroundColor:
         return CSSColorValue::create_from_color(layout_node.computed_values().background_color(), ColorSyntax::Modern);
+    case PropertyID::BorderBlockEndColor:
+        // FIXME: Honor writing-mode, direction and text-orientation.
+        return style_value_for_property(layout_node, PropertyID::BorderBottomColor);
+    case PropertyID::BorderBlockStartColor:
+        // FIXME: Honor writing-mode, direction and text-orientation.
+        return style_value_for_property(layout_node, PropertyID::BorderTopColor);
     case PropertyID::BorderBottomColor:
         return CSSColorValue::create_from_color(layout_node.computed_values().border_bottom().color, ColorSyntax::Modern);
     case PropertyID::BorderInlineEndColor:
