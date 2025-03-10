@@ -560,6 +560,78 @@
       "hashless-hex-color"
     ]
   },
+  "border-inline-end": {
+    "inherited": false,
+    "initial": "medium currentcolor none",
+    "longhands": [
+      "border-inline-end-width",
+      "border-inline-end-style",
+      "border-inline-end-color"
+    ]
+  },
+  "border-inline-end-color": {
+    "logical-alias-for": [
+      "border-top-color",
+      "border-right-color",
+      "border-bottom-color",
+      "border-left-color"
+    ],
+    "max-values": 1
+  },
+  "border-inline-end-style": {
+    "logical-alias-for": [
+      "border-top-style",
+      "border-right-style",
+      "border-bottom-style",
+      "border-left-style"
+    ],
+    "max-values": 1
+  },
+  "border-inline-end-width": {
+    "logical-alias-for": [
+      "border-top-width",
+      "border-right-width",
+      "border-bottom-width",
+      "border-left-width"
+    ],
+    "max-values": 1
+  },
+  "border-inline-start": {
+    "inherited": false,
+    "initial": "medium currentcolor none",
+    "longhands": [
+      "border-inline-start-width",
+      "border-inline-start-style",
+      "border-inline-start-color"
+    ]
+  },
+  "border-inline-start-color": {
+    "logical-alias-for": [
+      "border-top-color",
+      "border-right-color",
+      "border-bottom-color",
+      "border-left-color"
+    ],
+    "max-values": 1
+  },
+  "border-inline-start-style": {
+    "logical-alias-for": [
+      "border-top-style",
+      "border-right-style",
+      "border-bottom-style",
+      "border-left-style"
+    ],
+    "max-values": 1
+  },
+  "border-inline-start-width": {
+    "logical-alias-for": [
+      "border-top-width",
+      "border-right-width",
+      "border-bottom-width",
+      "border-left-width"
+    ],
+    "max-values": 1
+  },
   "border-left": {
     "inherited": false,
     "initial": "medium currentcolor none",

@@ -197,8 +197,8 @@ RefPtr<CSSStyleValue const> ResolvedCSSStyleDeclaration::style_value_for_propert
         // FIXME: -> border-block-end-color
         // FIXME: -> border-block-start-color
         // -> border-bottom-color
-        // FIXME: -> border-inline-end-color
-        // FIXME: -> border-inline-start-color
+        // -> border-inline-end-color
+        // -> border-inline-start-color
         // -> border-left-color
         // -> border-right-color
         // -> border-top-color
@@ -212,6 +212,12 @@ RefPtr<CSSStyleValue const> ResolvedCSSStyleDeclaration::style_value_for_propert
         return CSSColorValue::create_from_color(layout_node.computed_values().background_color(), ColorSyntax::Modern);
     case PropertyID::BorderBottomColor:
         return CSSColorValue::create_from_color(layout_node.computed_values().border_bottom().color, ColorSyntax::Modern);
+    case PropertyID::BorderInlineEndColor:
+        // FIXME: Honor writing-mode, direction and text-orientation.
+        return style_value_for_property(layout_node, PropertyID::BorderRightColor);
+    case PropertyID::BorderInlineStartColor:
+        // FIXME: Honor writing-mode, direction and text-orientation.
+        return style_value_for_property(layout_node, PropertyID::BorderLeftColor);
     case PropertyID::BorderLeftColor:
         return CSSColorValue::create_from_color(layout_node.computed_values().border_left().color, ColorSyntax::Modern);
     case PropertyID::BorderRightColor:
