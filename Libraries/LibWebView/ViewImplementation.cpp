@@ -354,6 +354,16 @@ void ViewImplementation::set_listen_for_dom_mutations(bool listen_for_dom_mutati
     client().async_set_listen_for_dom_mutations(page_id(), listen_for_dom_mutations);
 }
 
+void ViewImplementation::get_dom_node_outer_html(Web::UniqueNodeID node_id)
+{
+    client().async_get_dom_node_outer_html(page_id(), node_id);
+}
+
+void ViewImplementation::set_dom_node_outer_html(Web::UniqueNodeID node_id, String const& html)
+{
+    client().async_set_dom_node_outer_html(page_id(), node_id, html);
+}
+
 void ViewImplementation::set_dom_node_text(Web::UniqueNodeID node_id, String const& text)
 {
     client().async_set_dom_node_text(page_id(), node_id, text);
@@ -392,11 +402,6 @@ void ViewImplementation::clone_dom_node(Web::UniqueNodeID node_id)
 void ViewImplementation::remove_dom_node(Web::UniqueNodeID node_id)
 {
     client().async_remove_dom_node(page_id(), node_id);
-}
-
-void ViewImplementation::get_dom_node_html(Web::UniqueNodeID node_id)
-{
-    client().async_get_dom_node_html(page_id(), node_id);
 }
 
 void ViewImplementation::list_style_sheets()

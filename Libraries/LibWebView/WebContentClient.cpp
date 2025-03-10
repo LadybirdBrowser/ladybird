@@ -371,7 +371,7 @@ void WebContentClient::did_get_dom_node_html(u64 page_id, String html)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_received_dom_node_html)
-            view->on_received_dom_node_html(html);
+            view->on_received_dom_node_html(move(html));
     }
 }
 

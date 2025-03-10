@@ -368,7 +368,7 @@ void InspectorClient::context_menu_copy_dom_node()
 {
     VERIFY(m_context_menu_data.has_value());
 
-    m_content_web_view.get_dom_node_html(m_context_menu_data->dom_node_id);
+    m_content_web_view.get_dom_node_outer_html(m_context_menu_data->dom_node_id);
     m_context_menu_data.clear();
 }
 

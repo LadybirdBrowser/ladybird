@@ -115,6 +115,8 @@ public:
     void clear_highlighted_dom_node();
 
     void set_listen_for_dom_mutations(bool);
+    void get_dom_node_outer_html(Web::UniqueNodeID node_id);
+    void set_dom_node_outer_html(Web::UniqueNodeID node_id, String const& html);
     void set_dom_node_text(Web::UniqueNodeID node_id, String const& text);
     void set_dom_node_tag(Web::UniqueNodeID node_id, String const& name);
     void add_dom_node_attributes(Web::UniqueNodeID node_id, ReadonlySpan<Attribute> attributes);
@@ -123,7 +125,6 @@ public:
     void create_child_text_node(Web::UniqueNodeID node_id);
     void clone_dom_node(Web::UniqueNodeID node_id);
     void remove_dom_node(Web::UniqueNodeID node_id);
-    void get_dom_node_html(Web::UniqueNodeID node_id);
 
     void list_style_sheets();
     void request_style_sheet_source(Web::CSS::StyleSheetIdentifier const&);
@@ -218,7 +219,7 @@ public:
     Function<void(Web::UniqueNodeID)> on_received_hovered_node_id;
     Function<void(Mutation)> on_dom_mutation_received;
     Function<void(Optional<Web::UniqueNodeID> const& node_id)> on_finshed_editing_dom_node;
-    Function<void(String const&)> on_received_dom_node_html;
+    Function<void(String)> on_received_dom_node_html;
     Function<void(JsonValue)> on_received_js_console_result;
     Function<void(i32 message_id)> on_console_message_available;
     Function<void(i32 start_index, Vector<String> const& message_types, Vector<String> const& messages)> on_received_styled_console_messages;

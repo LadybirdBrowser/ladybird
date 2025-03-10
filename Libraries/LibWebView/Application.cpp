@@ -504,6 +504,29 @@ static void edit_dom_node(DevTools::TabDescription const& description, Applicati
     edit(*view);
 }
 
+void Application::get_dom_node_outer_html(DevTools::TabDescription const& description, Web::UniqueNodeID node_id, OnDOMNodeHTMLReceived on_complete) const
+{
+    auto view = ViewImplementation::find_view_by_id(description.id);
+    if (!view.has_value()) {
+        on_complete(Error::from_string_literal("Unable to locate tab"));
+        return;
+    }
+
+    view->on_received_dom_node_html = [&view = *view, on_complete = move(on_complete)](auto html) {
+        view.on_received_dom_node_html = nullptr;
+        on_complete(html);
+    };
+
+    view->get_dom_node_outer_html(node_id);
+}
+
+void Application::set_dom_node_outer_html(DevTools::TabDescription const& description, Web::UniqueNodeID node_id, String const& value, OnDOMNodeEditComplete on_complete) const
+{
+    edit_dom_node(description, move(on_complete), [&](auto& view) {
+        view.set_dom_node_outer_html(node_id, value);
+    });
+}
+
 void Application::set_dom_node_text(DevTools::TabDescription const& description, Web::UniqueNodeID node_id, String const& value, OnDOMNodeEditComplete on_complete) const
 {
     edit_dom_node(description, move(on_complete), [&](auto& view) {
