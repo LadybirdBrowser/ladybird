@@ -878,6 +878,7 @@ class AudioDestinationNode;
 class AudioListener;
 class AudioNode;
 class AudioParam;
+class AudioProcessingEvent;
 class AudioScheduledSourceNode;
 class BaseAudioContext;
 class BiquadFilterNode;
@@ -887,6 +888,7 @@ class OfflineAudioContext;
 class OscillatorNode;
 class PannerNode;
 class PeriodicWave;
+class ScriptProcessorNode;
 
 enum class AudioContextState;
 
