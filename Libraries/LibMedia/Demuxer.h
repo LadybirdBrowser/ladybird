@@ -33,7 +33,7 @@ public:
     // in the case that the timestamp is closer to the current time than the nearest keyframe.
     virtual DecoderErrorOr<Optional<AK::Duration>> seek_to_most_recent_keyframe(Track track, AK::Duration timestamp, Optional<AK::Duration> earliest_available_sample = OptionalNone()) = 0;
 
-    virtual DecoderErrorOr<AK::Duration> duration() = 0;
+    virtual DecoderErrorOr<AK::Duration> duration(Track track) = 0;
 };
 
 }

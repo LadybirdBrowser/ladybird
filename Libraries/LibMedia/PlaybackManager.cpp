@@ -5,8 +5,9 @@
  */
 
 #include <AK/Format.h>
+#include <LibCore/MappedFile.h>
 #include <LibCore/Timer.h>
-#include <LibMedia/Containers/Matroska/MatroskaDemuxer.h>
+#include <LibMedia/FFmpeg/FFmpegDemuxer.h>
 #include <LibMedia/FFmpeg/FFmpegVideoDecoder.h>
 #include <LibMedia/VideoFrame.h>
 
@@ -26,21 +27,15 @@ namespace Media {
         _fatal_expression.release_value();                                                           \
     })
 
-DecoderErrorOr<NonnullOwnPtr<PlaybackManager>> PlaybackManager::from_file(StringView filename)
-{
-    auto demuxer = TRY(Matroska::MatroskaDemuxer::from_file(filename));
-    return create(move(demuxer));
-}
-
-DecoderErrorOr<NonnullOwnPtr<PlaybackManager>> PlaybackManager::from_mapped_file(NonnullOwnPtr<Core::MappedFile> mapped_file)
-{
-    auto demuxer = TRY(Matroska::MatroskaDemuxer::from_mapped_file(move(mapped_file)));
-    return create(move(demuxer));
-}
-
 DecoderErrorOr<NonnullOwnPtr<PlaybackManager>> PlaybackManager::from_data(ReadonlyBytes data)
 {
-    auto demuxer = TRY(Matroska::MatroskaDemuxer::from_data(data));
+    auto stream = make<FixedMemoryStream>(data);
+    return from_stream(move(stream));
+}
+
+DecoderErrorOr<NonnullOwnPtr<PlaybackManager>> PlaybackManager::from_stream(NonnullOwnPtr<SeekableStream> stream)
+{
+    auto demuxer = MUST(FFmpeg::FFmpegDemuxer::create(move(stream)));
     return create(move(demuxer));
 }
 
@@ -93,7 +88,7 @@ AK::Duration PlaybackManager::duration()
 {
     auto duration_result = ({
         auto demuxer_locker = Threading::MutexLocker(m_decoder_mutex);
-        m_demuxer->duration();
+        m_demuxer->duration(m_selected_video_track);
     });
     if (duration_result.is_error()) {
         dispatch_decoder_error(duration_result.release_error());
