@@ -849,6 +849,30 @@ void ConnectionFromClient::create_child_text_node(u64 page_id, Web::UniqueNodeID
     async_did_finish_editing_dom_node(page_id, text_node->unique_id());
 }
 
+void ConnectionFromClient::insert_dom_node_before(u64 page_id, Web::UniqueNodeID node_id, Web::UniqueNodeID parent_node_id, Optional<Web::UniqueNodeID> sibling_node_id)
+{
+    auto* dom_node = Web::DOM::Node::from_unique_id(node_id);
+    auto* parent_dom_node = Web::DOM::Node::from_unique_id(parent_node_id);
+
+    if (!dom_node || !parent_dom_node) {
+        async_did_finish_editing_dom_node(page_id, {});
+        return;
+    }
+
+    GC::Ptr<Web::DOM::Node> sibling_dom_node;
+    if (sibling_node_id.has_value()) {
+        sibling_dom_node = Web::DOM::Node::from_unique_id(*sibling_node_id);
+
+        if (!sibling_dom_node) {
+            async_did_finish_editing_dom_node(page_id, {});
+            return;
+        }
+    }
+
+    parent_dom_node->insert_before(*dom_node, sibling_dom_node);
+    async_did_finish_editing_dom_node(page_id, dom_node->unique_id());
+}
+
 void ConnectionFromClient::clone_dom_node(u64 page_id, Web::UniqueNodeID node_id)
 {
     auto* dom_node = Web::DOM::Node::from_unique_id(node_id);

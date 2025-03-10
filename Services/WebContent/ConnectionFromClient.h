@@ -93,6 +93,7 @@ private:
     virtual void replace_dom_node_attribute(u64 page_id, Web::UniqueNodeID node_id, String name, Vector<WebView::Attribute> replacement_attributes) override;
     virtual void create_child_element(u64 page_id, Web::UniqueNodeID node_id) override;
     virtual void create_child_text_node(u64 page_id, Web::UniqueNodeID node_id) override;
+    virtual void insert_dom_node_before(u64 page_id, Web::UniqueNodeID node_id, Web::UniqueNodeID parent_node_id, Optional<Web::UniqueNodeID> sibling_node_id) override;
     virtual void clone_dom_node(u64 page_id, Web::UniqueNodeID node_id) override;
     virtual void remove_dom_node(u64 page_id, Web::UniqueNodeID node_id) override;
 

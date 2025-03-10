@@ -232,6 +232,53 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
         return;
     }
 
+    if (type == "insertBefore"sv) {
+        auto node = message.get_string("node"sv);
+        if (!node.has_value()) {
+            send_missing_parameter_error("node"sv);
+            return;
+        }
+
+        auto parent = message.get_string("parent"sv);
+        if (!parent.has_value()) {
+            send_missing_parameter_error("parent"sv);
+            return;
+        }
+
+        auto dom_node = WalkerActor::dom_node_for(*this, *node);
+        auto parent_dom_node = WalkerActor::dom_node_for(*this, *parent);
+
+        Optional<Web::UniqueNodeID> sibling_node_id;
+        if (auto sibling = message.get_string("sibling"sv); sibling.has_value()) {
+            auto sibling_dom_node = WalkerActor::dom_node_for(*this, *sibling);
+            if (!sibling_dom_node.has_value())
+                return;
+
+            sibling_node_id = sibling_dom_node->identifier.id;
+        }
+
+        if (dom_node.has_value() && parent_dom_node.has_value()) {
+            auto block_token = block_responses();
+
+            devtools().delegate().insert_dom_node_before(
+                dom_node->tab->description(), dom_node->identifier.id, parent_dom_node->identifier.id, sibling_node_id,
+                [weak_self = make_weak_ptr<WalkerActor>(), block_token = move(block_token)](ErrorOr<Web::UniqueNodeID> node_id) mutable {
+                    if (node_id.is_error()) {
+                        dbgln_if(DEVTOOLS_DEBUG, "Unable to edit DOM node: {}", node_id.error());
+                        return;
+                    }
+
+                    if (auto self = weak_self.strong_ref()) {
+                        JsonObject message;
+                        message.set("from"sv, self->name());
+                        self->send_message(move(message), move(block_token));
+                    }
+                });
+        }
+
+        return;
+    }
+
     if (type == "isInDOMTree"sv) {
         auto node = message.get_string("node"sv);
         if (!node.has_value()) {
