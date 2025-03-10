@@ -1,0 +1,19 @@
+Harness status: OK
+
+Found 13 tests
+
+10 Pass
+3 Fail
+Pass	e.style['border-block-start-style'] = "dotted" should set the property value
+Pass	e.style['border-block-start-style'] = "groove" should set the property value
+Pass	e.style['border-block-start-style'] = "inset" should set the property value
+Pass	e.style['border-block-start-style'] = "none" should set the property value
+Pass	e.style['border-block-start-style'] = "solid" should set the property value
+Pass	e.style['border-block-end-style'] = "dashed" should set the property value
+Pass	e.style['border-block-end-style'] = "double" should set the property value
+Pass	e.style['border-block-end-style'] = "hidden" should set the property value
+Pass	e.style['border-block-end-style'] = "outset" should set the property value
+Pass	e.style['border-block-end-style'] = "ridge" should set the property value
+Fail	e.style['border-block-style'] = "dotted" should set the property value
+Fail	e.style['border-block-style'] = "double groove" should set the property value
+Fail	e.style['border-block-style'] = "hidden hidden" should set the property value

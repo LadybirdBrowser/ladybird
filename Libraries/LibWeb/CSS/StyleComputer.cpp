@@ -600,6 +600,18 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
         switch (property_id) {
         case PropertyID::BlockSize:
             return PropertyID::Height;
+        case PropertyID::BorderBlockEndColor:
+            return PropertyID::BorderBottomColor;
+        case PropertyID::BorderBlockEndStyle:
+            return PropertyID::BorderBottomStyle;
+        case PropertyID::BorderBlockEndWidth:
+            return PropertyID::BorderBottomWidth;
+        case PropertyID::BorderBlockStartColor:
+            return PropertyID::BorderTopColor;
+        case PropertyID::BorderBlockStartStyle:
+            return PropertyID::BorderTopStyle;
+        case PropertyID::BorderBlockStartWidth:
+            return PropertyID::BorderTopWidth;
         case PropertyID::BorderInlineStartColor:
             return PropertyID::BorderLeftColor;
         case PropertyID::BorderInlineStartStyle:
