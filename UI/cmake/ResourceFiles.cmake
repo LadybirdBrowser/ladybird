@@ -41,7 +41,6 @@ set(32x32_ICONS
     app-system-monitor.png
     filetype-folder.png
     filetype-unknown.png
-    msgbox-warning.png
 )
 set(48x48_ICONS
     app-browser.png
