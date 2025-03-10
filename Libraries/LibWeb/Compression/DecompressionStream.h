@@ -44,8 +44,6 @@ private:
     WebIDL::ExceptionOr<void> decompress_and_enqueue_chunk(JS::Value);
     WebIDL::ExceptionOr<void> decompress_flush_and_enqueue();
 
-    ErrorOr<ByteBuffer> decompress(ReadonlyBytes);
-
     Decompressor m_decompressor;
     NonnullOwnPtr<AllocatingMemoryStream> m_input_stream;
 };
