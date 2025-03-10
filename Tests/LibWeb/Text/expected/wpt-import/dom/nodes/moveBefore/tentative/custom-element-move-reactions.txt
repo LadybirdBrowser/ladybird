@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	the disconnected/connected callbacks should be called when no other callback is defined
+Pass	the element should stay connected during the callbacks
+Pass	When connectedMoveCallback is defined, it is called instead of disconnectedCallback/connectedCallback
+Pass	Reactions to atomic move are called in order of element, not in order of operation
+Pass	When connectedCallback is not defined, no crash
+Pass	When disconnectedCallback is not defined, no crash

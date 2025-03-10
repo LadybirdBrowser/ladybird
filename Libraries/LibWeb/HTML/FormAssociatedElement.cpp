@@ -116,6 +116,14 @@ void FormAssociatedElement::form_node_was_removed()
         reset_form_owner();
 }
 
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#association-of-controls-and-forms:attr-fae-form-2
+void FormAssociatedElement::form_node_was_moved()
+{
+    // When a listed form-associated element's form attribute is set, changed, or removed, then the user agent must reset the form owner of that element.
+    if (m_form && &form_associated_element_to_html_element().root() != &m_form->root())
+        reset_form_owner();
+}
+
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#association-of-controls-and-forms:category-listed-3
 void FormAssociatedElement::form_node_attribute_changed(FlyString const& name, Optional<String> const& value)
 {

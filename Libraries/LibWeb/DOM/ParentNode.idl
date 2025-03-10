@@ -12,6 +12,8 @@ interface mixin ParentNode {
     [CEReactions, Unscopable] undefined append((Node or DOMString)... nodes);
     [CEReactions, Unscopable] undefined replaceChildren((Node or DOMString)... nodes);
 
+    [CEReactions] undefined moveBefore(Node node, Node? child);
+
     Element? querySelector(DOMString selectors);
     [NewObject] NodeList querySelectorAll(DOMString selectors);
 };
