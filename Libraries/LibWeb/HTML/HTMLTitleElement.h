@@ -25,6 +25,8 @@ private:
 
     virtual void initialize(JS::Realm&) override;
     virtual void children_changed(ChildrenChangedMetadata const*) override;
+
+    bool m_skipTitleUpdate = false;
 };
 
 }
