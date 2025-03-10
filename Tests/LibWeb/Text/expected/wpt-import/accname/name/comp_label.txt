@@ -112,16 +112,16 @@ Pass	label valid on td element
 Pass	label valid on tfoot element
 Pass	label valid on textarea element
 Pass	label valid on list (unordered) element
-Pass	button's hidden referenced name (display:none) supercedes aria-label
-Pass	button's hidden referenced name (visibility:hidden) supercedes aria-label
+Pass	button's hidden referenced name (display:none) supersedes aria-label
+Pass	button's hidden referenced name (visibility:hidden) supersedes aria-label
 Pass	button's hidden referenced name (visibility:hidden) with hidden aria-labelledby traversal falls back to aria-label
-Pass	link's aria-labelledby name supercedes aria-label
-Pass	img's aria-label supercedes alt attribute
-Pass	svg's aria-label supercedes title tag
-Pass	input with label for association is superceded by aria-label
-Pass	button name from contents is superceded by aria-label
-Pass	h1 text is superceded by aria-label
-Pass	button with title is superceded by aria-label
+Pass	link's aria-labelledby name supersedes aria-label
+Pass	img's aria-label supersedes alt attribute
+Pass	svg's aria-label supersedes title tag
+Pass	input with label for association is superseded by aria-label
+Pass	button name from contents is superseded by aria-label
+Pass	h1 text is superseded by aria-label
+Pass	button with title is superseded by aria-label
 Pass	textarea's name with trailing whitespace in aria-label is valid
 Pass	link's name with leading whitespace in aria-label is valid
 Pass	button with blank braille pattern has name as such (not treated as whitespace per Unicode standard)
