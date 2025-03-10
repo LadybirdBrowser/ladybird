@@ -16,6 +16,7 @@
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
+#include <LibWeb/HTML/AudioTrackList.h>
 #include <LibWeb/HTML/HTMLVideoElement.h>
 #include <LibWeb/HTML/VideoTrack.h>
 #include <LibWeb/HTML/VideoTrackList.h>
@@ -130,18 +131,37 @@ void HTMLVideoElement::on_playing()
 {
     if (m_video_track)
         m_video_track->play_video({});
+
+    audio_tracks()->for_each_enabled_track([](auto& audio_track) {
+        audio_track.play();
+    });
 }
 
 void HTMLVideoElement::on_paused()
 {
     if (m_video_track)
         m_video_track->pause_video({});
+
+    audio_tracks()->for_each_enabled_track([](auto& audio_track) {
+        audio_track.pause();
+    });
 }
 
 void HTMLVideoElement::on_seek(double position, MediaSeekMode seek_mode)
 {
     if (m_video_track)
         m_video_track->seek(AK::Duration::from_milliseconds(position * 1000.0), seek_mode);
+
+    audio_tracks()->for_each_enabled_track([&](auto& audio_track) {
+        audio_track.seek(position, seek_mode);
+    });
+}
+
+void HTMLVideoElement::on_volume_change()
+{
+    audio_tracks()->for_each_enabled_track([&](auto& audio_track) {
+        audio_track.update_volume();
+    });
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#attr-video-poster
