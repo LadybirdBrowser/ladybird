@@ -98,6 +98,8 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
                     }
                 });
         }
+
+        return;
     }
 
     if (type == "editTagName"sv) {
