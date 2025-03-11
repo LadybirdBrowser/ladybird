@@ -10,6 +10,7 @@
 #include <AK/Types.h>
 #include <AK/Vector.h>
 #include <LibDevTools/Actor.h>
+#include <LibWeb/Forward.h>
 #include <LibWebView/Forward.h>
 
 namespace DevTools {
@@ -18,7 +19,7 @@ class FrameActor final : public Actor {
 public:
     static constexpr auto base_name = "frame"sv;
 
-    static NonnullRefPtr<FrameActor> create(DevToolsServer&, String name, WeakPtr<TabActor>, WeakPtr<CSSPropertiesActor>, WeakPtr<ConsoleActor>, WeakPtr<InspectorActor>, WeakPtr<ThreadActor>);
+    static NonnullRefPtr<FrameActor> create(DevToolsServer&, String name, WeakPtr<TabActor>, WeakPtr<CSSPropertiesActor>, WeakPtr<ConsoleActor>, WeakPtr<InspectorActor>, WeakPtr<StyleSheetsActor>, WeakPtr<ThreadActor>);
     virtual ~FrameActor() override;
 
     void send_frame_update_message();
@@ -26,7 +27,9 @@ public:
     JsonObject serialize_target() const;
 
 private:
-    FrameActor(DevToolsServer&, String name, WeakPtr<TabActor>, WeakPtr<CSSPropertiesActor>, WeakPtr<ConsoleActor>, WeakPtr<InspectorActor>, WeakPtr<ThreadActor>);
+    FrameActor(DevToolsServer&, String name, WeakPtr<TabActor>, WeakPtr<CSSPropertiesActor>, WeakPtr<ConsoleActor>, WeakPtr<InspectorActor>, WeakPtr<StyleSheetsActor>, WeakPtr<ThreadActor>);
+
+    void style_sheets_available(JsonObject& response, Vector<Web::CSS::StyleSheetIdentifier> style_sheets);
 
     virtual void handle_message(Message const&) override;
 
@@ -39,6 +42,7 @@ private:
     WeakPtr<CSSPropertiesActor> m_css_properties;
     WeakPtr<ConsoleActor> m_console;
     WeakPtr<InspectorActor> m_inspector;
+    WeakPtr<StyleSheetsActor> m_style_sheets;
     WeakPtr<ThreadActor> m_thread;
 
     i32 m_highest_notified_message_index { -1 };

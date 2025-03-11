@@ -11,6 +11,7 @@
 #include <LibDevTools/Actors/ConsoleActor.h>
 #include <LibDevTools/Actors/FrameActor.h>
 #include <LibDevTools/Actors/InspectorActor.h>
+#include <LibDevTools/Actors/StyleSheetsActor.h>
 #include <LibDevTools/Actors/TabActor.h>
 #include <LibDevTools/Actors/TargetConfigurationActor.h>
 #include <LibDevTools/Actors/ThreadActor.h>
@@ -92,9 +93,10 @@ void WatcherActor::handle_message(Message const& message)
             auto& css_properties = devtools().register_actor<CSSPropertiesActor>();
             auto& console = devtools().register_actor<ConsoleActor>(m_tab);
             auto& inspector = devtools().register_actor<InspectorActor>(m_tab);
+            auto& style_sheets = devtools().register_actor<StyleSheetsActor>(m_tab);
             auto& thread = devtools().register_actor<ThreadActor>();
 
-            auto& target = devtools().register_actor<FrameActor>(m_tab, css_properties, console, inspector, thread);
+            auto& target = devtools().register_actor<FrameActor>(m_tab, css_properties, console, inspector, style_sheets, thread);
             m_target = target;
 
             response.set("type"sv, "target-available-form"sv);

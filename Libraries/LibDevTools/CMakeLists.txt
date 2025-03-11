@@ -12,6 +12,7 @@ set(SOURCES
     Actors/PreferenceActor.cpp
     Actors/ProcessActor.cpp
     Actors/RootActor.cpp
+    Actors/StyleSheetsActor.cpp
     Actors/TabActor.cpp
     Actors/TargetConfigurationActor.cpp
     Actors/ThreadActor.cpp

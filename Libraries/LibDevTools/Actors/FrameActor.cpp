@@ -4,12 +4,14 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Enumerate.h>
 #include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
 #include <LibDevTools/Actors/CSSPropertiesActor.h>
 #include <LibDevTools/Actors/ConsoleActor.h>
 #include <LibDevTools/Actors/FrameActor.h>
 #include <LibDevTools/Actors/InspectorActor.h>
+#include <LibDevTools/Actors/StyleSheetsActor.h>
 #include <LibDevTools/Actors/TabActor.h>
 #include <LibDevTools/Actors/ThreadActor.h>
 #include <LibDevTools/DevToolsDelegate.h>
@@ -18,17 +20,18 @@
 
 namespace DevTools {
 
-NonnullRefPtr<FrameActor> FrameActor::create(DevToolsServer& devtools, String name, WeakPtr<TabActor> tab, WeakPtr<CSSPropertiesActor> css_properties, WeakPtr<ConsoleActor> console, WeakPtr<InspectorActor> inspector, WeakPtr<ThreadActor> thread)
+NonnullRefPtr<FrameActor> FrameActor::create(DevToolsServer& devtools, String name, WeakPtr<TabActor> tab, WeakPtr<CSSPropertiesActor> css_properties, WeakPtr<ConsoleActor> console, WeakPtr<InspectorActor> inspector, WeakPtr<StyleSheetsActor> style_sheets, WeakPtr<ThreadActor> thread)
 {
-    return adopt_ref(*new FrameActor(devtools, move(name), move(tab), move(css_properties), move(console), move(inspector), move(thread)));
+    return adopt_ref(*new FrameActor(devtools, move(name), move(tab), move(css_properties), move(console), move(inspector), move(style_sheets), move(thread)));
 }
 
-FrameActor::FrameActor(DevToolsServer& devtools, String name, WeakPtr<TabActor> tab, WeakPtr<CSSPropertiesActor> css_properties, WeakPtr<ConsoleActor> console, WeakPtr<InspectorActor> inspector, WeakPtr<ThreadActor> thread)
+FrameActor::FrameActor(DevToolsServer& devtools, String name, WeakPtr<TabActor> tab, WeakPtr<CSSPropertiesActor> css_properties, WeakPtr<ConsoleActor> console, WeakPtr<InspectorActor> inspector, WeakPtr<StyleSheetsActor> style_sheets, WeakPtr<ThreadActor> thread)
     : Actor(devtools, move(name))
     , m_tab(move(tab))
     , m_css_properties(move(css_properties))
     , m_console(move(console))
     , m_inspector(move(inspector))
+    , m_style_sheets(move(style_sheets))
     , m_thread(move(thread))
 {
     if (auto tab = m_tab.strong_ref()) {
@@ -42,6 +45,12 @@ FrameActor::FrameActor(DevToolsServer& devtools, String name, WeakPtr<TabActor> 
                 if (auto self = weak_self.strong_ref())
                     self->console_messages_received(start_index, move(console_output));
             });
+
+        // FIXME: We should adopt WebContent to inform us when style sheets are available or removed.
+        devtools.delegate().retrieve_style_sheets(tab->description(),
+            async_handler<FrameActor>({}, [](auto& self, auto style_sheets, auto& response) {
+                self.style_sheets_available(response, move(style_sheets));
+            }));
     }
 }
 
@@ -59,6 +68,7 @@ void FrameActor::handle_message(Message const& message)
         if (auto tab = m_tab.strong_ref()) {
             devtools().delegate().stop_listening_for_dom_mutations(tab->description());
             devtools().delegate().stop_listening_for_console_messages(tab->description());
+            devtools().delegate().stop_listening_for_style_sheet_sources(tab->description());
             tab->reset_selected_node();
         }
 
@@ -121,10 +131,76 @@ JsonObject FrameActor::serialize_target() const
         target.set("consoleActor"sv, console->name());
     if (auto inspector = m_inspector.strong_ref())
         target.set("inspectorActor"sv, inspector->name());
+    if (auto style_sheets = m_style_sheets.strong_ref())
+        target.set("styleSheetsActor"sv, style_sheets->name());
     if (auto thread = m_thread.strong_ref())
         target.set("threadActor"sv, thread->name());
 
     return target;
+}
+
+void FrameActor::style_sheets_available(JsonObject& response, Vector<Web::CSS::StyleSheetIdentifier> style_sheets)
+{
+    JsonArray sheets;
+
+    String tab_url;
+    if (auto tab_actor = m_tab.strong_ref())
+        tab_url = tab_actor->description().url;
+
+    auto style_sheets_actor = m_style_sheets.strong_ref();
+    if (!style_sheets_actor)
+        return;
+
+    for (auto const& [i, style_sheet] : enumerate(style_sheets)) {
+        auto resource_id = MUST(String::formatted("{}-stylesheet:{}", style_sheets_actor->name(), i));
+
+        JsonValue href;
+        JsonValue source_map_base_url;
+        JsonValue title;
+
+        if (style_sheet.url.has_value()) {
+            // LibWeb sets the URL to a style sheet name for UA style sheets. DevTools would reject these invalid URLs.
+            if (style_sheet.type == Web::CSS::StyleSheetIdentifier::Type::UserAgent) {
+                title = *style_sheet.url;
+                source_map_base_url = tab_url;
+            } else {
+                href = *style_sheet.url;
+                source_map_base_url = *style_sheet.url;
+            }
+        } else {
+            source_map_base_url = tab_url;
+        }
+
+        JsonObject sheet;
+        sheet.set("atRules"sv, JsonArray {});
+        sheet.set("constructed"sv, false);
+        sheet.set("disabled"sv, false);
+        sheet.set("fileName"sv, JsonValue {});
+        sheet.set("href"sv, move(href));
+        sheet.set("isNew"sv, false);
+        sheet.set("nodeHref"sv, tab_url);
+        sheet.set("resourceId"sv, move(resource_id));
+        sheet.set("ruleCount"sv, style_sheet.rule_count);
+        sheet.set("sourceMapBaseURL"sv, move(source_map_base_url));
+        sheet.set("sourceMapURL"sv, ""sv);
+        sheet.set("styleSheetIndex"sv, i);
+        sheet.set("system"sv, false);
+        sheet.set("title"sv, move(title));
+
+        sheets.must_append(move(sheet));
+    }
+
+    JsonArray stylesheets;
+    stylesheets.must_append("stylesheet"sv);
+    stylesheets.must_append(move(sheets));
+
+    JsonArray array;
+    array.must_append(move(stylesheets));
+
+    response.set("type"sv, "resources-available-array"sv);
+    response.set("array"sv, move(array));
+
+    style_sheets_actor->set_style_sheets(move(style_sheets));
 }
 
 void FrameActor::console_message_available(i32 message_index)
