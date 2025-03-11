@@ -24,6 +24,7 @@ class PageStyleActor;
 class PreferenceActor;
 class ProcessActor;
 class RootActor;
+class StyleSheetsActor;
 class TabActor;
 class TargetConfigurationActor;
 class ThreadActor;

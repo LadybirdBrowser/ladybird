@@ -15,6 +15,7 @@
 #include <LibDevTools/Actors/TabActor.h>
 #include <LibDevTools/Forward.h>
 #include <LibWeb/CSS/Selector.h>
+#include <LibWeb/CSS/StyleSheetIdentifier.h>
 #include <LibWeb/Forward.h>
 #include <LibWebView/Forward.h>
 
@@ -54,6 +55,13 @@ public:
     virtual void insert_dom_node_before(TabDescription const&, Web::UniqueNodeID, Web::UniqueNodeID, Optional<Web::UniqueNodeID>, OnDOMNodeEditComplete) const { }
     virtual void clone_dom_node(TabDescription const&, Web::UniqueNodeID, OnDOMNodeEditComplete) const { }
     virtual void remove_dom_node(TabDescription const&, Web::UniqueNodeID, OnDOMNodeEditComplete) const { }
+
+    using OnStyleSheetsReceived = Function<void(ErrorOr<Vector<Web::CSS::StyleSheetIdentifier>>)>;
+    using OnStyleSheetSourceReceived = Function<void(Web::CSS::StyleSheetIdentifier const&, String)>;
+    virtual void retrieve_style_sheets(TabDescription const&, OnStyleSheetsReceived) const { }
+    virtual void retrieve_style_sheet_source(TabDescription const&, Web::CSS::StyleSheetIdentifier const&) const { }
+    virtual void listen_for_style_sheet_sources(TabDescription const&, OnStyleSheetSourceReceived) const { }
+    virtual void stop_listening_for_style_sheet_sources(TabDescription const&) const { }
 
     using OnScriptEvaluationComplete = Function<void(ErrorOr<JsonValue>)>;
     virtual void evaluate_javascript(TabDescription const&, String const&, OnScriptEvaluationComplete) const { }
