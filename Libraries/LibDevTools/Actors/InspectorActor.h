@@ -27,7 +27,7 @@ public:
 private:
     InspectorActor(DevToolsServer&, String name, WeakPtr<TabActor>);
 
-    void received_dom_tree(JsonObject, BlockToken);
+    void received_dom_tree(JsonObject& response, JsonObject dom_tree);
 
     WeakPtr<TabActor> m_tab;
     WeakPtr<WalkerActor> m_walker;

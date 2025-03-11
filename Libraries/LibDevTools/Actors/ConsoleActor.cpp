@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Debug.h>
 #include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
 #include <AK/Time.h>
@@ -14,6 +13,18 @@
 #include <LibDevTools/DevToolsServer.h>
 
 namespace DevTools {
+
+static void received_console_result(JsonObject& response, String result_id, String input, JsonValue result)
+{
+    response.set("type"sv, "evaluationResult"_string);
+    response.set("timestamp"sv, AK::UnixDateTime::now().milliseconds_since_epoch());
+    response.set("resultID"sv, move(result_id));
+    response.set("input"sv, move(input));
+    response.set("result"sv, move(result));
+    response.set("exception"sv, JsonValue {});
+    response.set("exceptionMessage"sv, JsonValue {});
+    response.set("helperResult"sv, JsonValue {});
+}
 
 NonnullRefPtr<ConsoleActor> ConsoleActor::create(DevToolsServer& devtools, String name, WeakPtr<TabActor> tab)
 {
@@ -55,39 +66,16 @@ void ConsoleActor::handle_message(StringView type, JsonObject const& message)
         }
 
         if (auto tab = m_tab.strong_ref()) {
-            auto block_token = block_responses();
-
             devtools().delegate().evaluate_javascript(tab->description(), *text,
-                [result_id, input = *text, weak_self = make_weak_ptr<ConsoleActor>(), block_token = move(block_token)](ErrorOr<JsonValue> result) mutable {
-                    if (result.is_error()) {
-                        dbgln_if(DEVTOOLS_DEBUG, "Unable to inspect DOM node: {}", result.error());
-                        return;
-                    }
-
-                    if (auto self = weak_self.strong_ref())
-                        self->received_console_result(move(result_id), move(input), result.release_value(), move(block_token));
-                });
+                async_handler([result_id, input = *text](auto&, auto result, auto& response) {
+                    received_console_result(response, move(result_id), move(input), move(result));
+                }));
         }
 
         return;
     }
 
     send_unrecognized_packet_type_error(type);
-}
-
-void ConsoleActor::received_console_result(String result_id, String input, JsonValue result, BlockToken block_token)
-{
-    JsonObject message;
-    message.set("type"sv, "evaluationResult"_string);
-    message.set("timestamp"sv, AK::UnixDateTime::now().milliseconds_since_epoch());
-    message.set("resultID"sv, move(result_id));
-    message.set("input"sv, move(input));
-    message.set("result"sv, move(result));
-    message.set("exception"sv, JsonValue {});
-    message.set("exceptionMessage"sv, JsonValue {});
-    message.set("helperResult"sv, JsonValue {});
-
-    send_message(move(message), move(block_token));
 }
 
 }

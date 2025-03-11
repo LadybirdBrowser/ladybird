@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Badge.h>
+#include <AK/Debug.h>
 #include <AK/JsonObject.h>
 #include <AK/Optional.h>
 #include <AK/RefCounted.h>
@@ -78,6 +79,28 @@ protected:
             send_missing_parameter_error(parameter);
 
         return result;
+    }
+
+    template<typename ActorType = Actor, typename Handler>
+    auto async_handler(Handler&& handler)
+    {
+        return [weak_self = make_weak_ptr<ActorType>(), handler = forward<Handler>(handler), block_token = block_responses()](auto result) mutable {
+            if (result.is_error()) {
+                dbgln_if(DEVTOOLS_DEBUG, "Error performing async action: {}", result.error());
+                return;
+            }
+
+            if (auto self = weak_self.strong_ref()) {
+                JsonObject response;
+                handler(*self, result.release_value(), response);
+                self->send_message(move(response), move(block_token));
+            }
+        };
+    }
+
+    auto default_async_handler()
+    {
+        return async_handler([](auto&, auto, auto) { });
     }
 
 private:
