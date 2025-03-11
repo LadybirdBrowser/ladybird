@@ -23,8 +23,6 @@ public:
 private:
     ConsoleActor(DevToolsServer&, String name, WeakPtr<TabActor>);
 
-    void received_console_result(String result_id, String input, JsonValue result, BlockToken);
-
     WeakPtr<TabActor> m_tab;
 
     u64 m_execution_id { 0 };

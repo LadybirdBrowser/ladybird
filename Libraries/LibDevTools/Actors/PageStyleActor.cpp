@@ -15,6 +15,63 @@
 
 namespace DevTools {
 
+static void received_layout(JsonObject& response, JsonObject const& computed_style, JsonObject const& node_box_sizing)
+{
+    response.set("autoMargins"sv, JsonObject {});
+
+    auto pixel_value = [&](auto const& object, auto key) {
+        return object.get_double_with_precision_loss(key).value_or(0);
+    };
+    auto set_pixel_value_from = [&](auto const& object, auto object_key, auto message_key) {
+        response.set(message_key, MUST(String::formatted("{}px", pixel_value(object, object_key))));
+    };
+    auto set_computed_value_from = [&](auto const& object, auto key) {
+        response.set(key, object.get_string(key).value_or(String {}));
+    };
+
+    response.set("width"sv, pixel_value(node_box_sizing, "content_width"sv));
+    response.set("height"sv, pixel_value(node_box_sizing, "content_height"sv));
+
+    // FIXME: This response should also contain "top", "right", "bottom", and "left", but our box model metrics in
+    //        WebContent do not provide this information.
+
+    set_pixel_value_from(node_box_sizing, "border_top"sv, "border-top-width"sv);
+    set_pixel_value_from(node_box_sizing, "border_right"sv, "border-right-width"sv);
+    set_pixel_value_from(node_box_sizing, "border_bottom"sv, "border-bottom-width"sv);
+    set_pixel_value_from(node_box_sizing, "border_left"sv, "border-left-width"sv);
+
+    set_pixel_value_from(node_box_sizing, "margin_top"sv, "margin-top"sv);
+    set_pixel_value_from(node_box_sizing, "margin_right"sv, "margin-right"sv);
+    set_pixel_value_from(node_box_sizing, "margin_bottom"sv, "margin-bottom"sv);
+    set_pixel_value_from(node_box_sizing, "margin_left"sv, "margin-left"sv);
+
+    set_pixel_value_from(node_box_sizing, "padding_top"sv, "padding-top"sv);
+    set_pixel_value_from(node_box_sizing, "padding_right"sv, "padding-right"sv);
+    set_pixel_value_from(node_box_sizing, "padding_bottom"sv, "padding-bottom"sv);
+    set_pixel_value_from(node_box_sizing, "padding_left"sv, "padding-left"sv);
+
+    set_computed_value_from(computed_style, "box-sizing"sv);
+    set_computed_value_from(computed_style, "display"sv);
+    set_computed_value_from(computed_style, "float"sv);
+    set_computed_value_from(computed_style, "line-height"sv);
+    set_computed_value_from(computed_style, "position"sv);
+    set_computed_value_from(computed_style, "z-index"sv);
+}
+
+static void received_computed_style(JsonObject& response, JsonObject const& computed_style)
+{
+    JsonObject computed;
+
+    computed_style.for_each_member([&](String const& name, JsonValue const& value) {
+        JsonObject property;
+        property.set("matched"sv, true);
+        property.set("value"sv, value);
+        computed.set(name, move(property));
+    });
+
+    response.set("computed"sv, move(computed));
+}
+
 NonnullRefPtr<PageStyleActor> PageStyleActor::create(DevToolsServer& devtools, String name, WeakPtr<InspectorActor> inspector)
 {
     return adopt_ref(*new PageStyleActor(devtools, move(name), move(inspector)));
@@ -45,8 +102,8 @@ void PageStyleActor::handle_message(StringView type, JsonObject const& message)
         if (!node.has_value())
             return;
 
-        inspect_dom_node(*node, [](auto& self, auto const& properties, auto block_token) {
-            self.received_computed_style(properties.computed_style, move(block_token));
+        inspect_dom_node(*node, [](auto& response, auto const& properties) {
+            received_computed_style(response, properties.computed_style);
         });
 
         return;
@@ -57,8 +114,8 @@ void PageStyleActor::handle_message(StringView type, JsonObject const& message)
         if (!node.has_value())
             return;
 
-        inspect_dom_node(*node, [](auto& self, auto const& properties, auto block_token) {
-            self.received_layout(properties.computed_style, properties.node_box_sizing, move(block_token));
+        inspect_dom_node(*node, [](auto& response, auto const& properties) {
+            received_layout(response, properties.computed_style, properties.node_box_sizing);
         });
 
         return;
@@ -96,81 +153,10 @@ void PageStyleActor::inspect_dom_node(StringView node_actor, Callback&& callback
         return;
     }
 
-    auto block_token = block_responses();
-
-    devtools().delegate().inspect_dom_node(
-        dom_node->tab->description(), dom_node->identifier.id, dom_node->identifier.pseudo_element,
-        [weak_self = make_weak_ptr<PageStyleActor>(), block_token = move(block_token), callback = forward<Callback>(callback)](ErrorOr<DOMNodeProperties> properties) mutable {
-            if (properties.is_error()) {
-                dbgln_if(DEVTOOLS_DEBUG, "Unable to inspect DOM node: {}", properties.error());
-                return;
-            }
-
-            if (auto self = weak_self.strong_ref())
-                callback(*self, properties.value(), move(block_token));
-        });
-}
-
-void PageStyleActor::received_layout(JsonObject const& computed_style, JsonObject const& node_box_sizing, BlockToken block_token)
-{
-    JsonObject message;
-    message.set("autoMargins"sv, JsonObject {});
-
-    auto pixel_value = [&](auto const& object, auto key) {
-        return object.get_double_with_precision_loss(key).value_or(0);
-    };
-    auto set_pixel_value_from = [&](auto const& object, auto object_key, auto message_key) {
-        message.set(message_key, MUST(String::formatted("{}px", pixel_value(object, object_key))));
-    };
-    auto set_computed_value_from = [&](auto const& object, auto key) {
-        message.set(key, object.get_string(key).value_or(String {}));
-    };
-
-    message.set("width"sv, pixel_value(node_box_sizing, "content_width"sv));
-    message.set("height"sv, pixel_value(node_box_sizing, "content_height"sv));
-
-    // FIXME: This response should also contain "top", "right", "bottom", and "left", but our box model metrics in
-    //        WebContent do not provide this information.
-
-    set_pixel_value_from(node_box_sizing, "border_top"sv, "border-top-width"sv);
-    set_pixel_value_from(node_box_sizing, "border_right"sv, "border-right-width"sv);
-    set_pixel_value_from(node_box_sizing, "border_bottom"sv, "border-bottom-width"sv);
-    set_pixel_value_from(node_box_sizing, "border_left"sv, "border-left-width"sv);
-
-    set_pixel_value_from(node_box_sizing, "margin_top"sv, "margin-top"sv);
-    set_pixel_value_from(node_box_sizing, "margin_right"sv, "margin-right"sv);
-    set_pixel_value_from(node_box_sizing, "margin_bottom"sv, "margin-bottom"sv);
-    set_pixel_value_from(node_box_sizing, "margin_left"sv, "margin-left"sv);
-
-    set_pixel_value_from(node_box_sizing, "padding_top"sv, "padding-top"sv);
-    set_pixel_value_from(node_box_sizing, "padding_right"sv, "padding-right"sv);
-    set_pixel_value_from(node_box_sizing, "padding_bottom"sv, "padding-bottom"sv);
-    set_pixel_value_from(node_box_sizing, "padding_left"sv, "padding-left"sv);
-
-    set_computed_value_from(computed_style, "box-sizing"sv);
-    set_computed_value_from(computed_style, "display"sv);
-    set_computed_value_from(computed_style, "float"sv);
-    set_computed_value_from(computed_style, "line-height"sv);
-    set_computed_value_from(computed_style, "position"sv);
-    set_computed_value_from(computed_style, "z-index"sv);
-
-    send_message(move(message), move(block_token));
-}
-
-void PageStyleActor::received_computed_style(JsonObject const& computed_style, BlockToken block_token)
-{
-    JsonObject computed;
-
-    computed_style.for_each_member([&](String const& name, JsonValue const& value) {
-        JsonObject property;
-        property.set("matched"sv, true);
-        property.set("value"sv, value);
-        computed.set(name, move(property));
-    });
-
-    JsonObject message;
-    message.set("computed"sv, move(computed));
-    send_message(move(message), move(block_token));
+    devtools().delegate().inspect_dom_node(dom_node->tab->description(), dom_node->identifier.id, dom_node->identifier.pseudo_element,
+        async_handler([callback = forward<Callback>(callback)](auto&, auto properties, auto& response) {
+            callback(response, properties);
+        }));
 }
 
 }

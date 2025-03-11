@@ -33,9 +33,6 @@ private:
     template<typename Callback>
     void inspect_dom_node(StringView node_actor, Callback&&);
 
-    void received_layout(JsonObject const& computed_style, JsonObject const& node_box_sizing, BlockToken);
-    void received_computed_style(JsonObject const& computed_style, BlockToken);
-
     WeakPtr<InspectorActor> m_inspector;
 };
 

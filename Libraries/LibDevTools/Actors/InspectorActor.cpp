@@ -58,22 +58,15 @@ void InspectorActor::handle_message(StringView type, JsonObject const& message)
 
     if (type == "getWalker"sv) {
         if (auto tab = m_tab.strong_ref()) {
-            auto block_token = block_responses();
-
             devtools().delegate().inspect_tab(tab->description(),
-                [weak_self = make_weak_ptr<InspectorActor>(), block_token = move(block_token)](ErrorOr<JsonValue> dom_tree) mutable {
-                    if (dom_tree.is_error()) {
-                        dbgln_if(DEVTOOLS_DEBUG, "Unable to retrieve DOM tree: {}", dom_tree.error());
-                        return;
-                    }
-                    if (!WalkerActor::is_suitable_for_dom_inspection(dom_tree.value())) {
+                async_handler<InspectorActor>([](auto& self, auto dom_tree, auto& response) {
+                    if (!WalkerActor::is_suitable_for_dom_inspection(dom_tree)) {
                         dbgln_if(DEVTOOLS_DEBUG, "Did not receive a suitable DOM tree: {}", dom_tree);
                         return;
                     }
 
-                    if (auto self = weak_self.strong_ref())
-                        self->received_dom_tree(move(dom_tree.release_value().as_object()), move(block_token));
-                });
+                    self.received_dom_tree(response, move(dom_tree.as_object()));
+                }));
         }
 
         return;
@@ -88,7 +81,7 @@ void InspectorActor::handle_message(StringView type, JsonObject const& message)
     send_unrecognized_packet_type_error(type);
 }
 
-void InspectorActor::received_dom_tree(JsonObject dom_tree, BlockToken block_token)
+void InspectorActor::received_dom_tree(JsonObject& response, JsonObject dom_tree)
 {
     auto& walker_actor = devtools().register_actor<WalkerActor>(m_tab, move(dom_tree));
     m_walker = walker_actor;
@@ -97,9 +90,7 @@ void InspectorActor::received_dom_tree(JsonObject dom_tree, BlockToken block_tok
     walker.set("actor"sv, walker_actor.name());
     walker.set("root"sv, walker_actor.serialize_root());
 
-    JsonObject message;
-    message.set("walker"sv, move(walker));
-    send_message(move(message), move(block_token));
+    response.set("walker"sv, move(walker));
 }
 
 RefPtr<TabActor> InspectorActor::tab_for(WeakPtr<InspectorActor> const& weak_inspector)
