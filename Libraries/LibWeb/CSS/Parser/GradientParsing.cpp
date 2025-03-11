@@ -545,6 +545,14 @@ RefPtr<RadialGradientStyleValue> Parser::parse_radial_gradient_function(TokenStr
         return {};
     };
 
+    auto length_percentage_is_non_negative = [](LengthPercentage const& length_percentage) -> bool {
+        if (length_percentage.is_length() && length_percentage.length().raw_value() < 0)
+            return false;
+        if (length_percentage.is_percentage() && length_percentage.percentage().value() < 0)
+            return false;
+        return true;
+    };
+
     auto parse_size = [&]() -> Optional<Size> {
         // <size> =
         //      <extent-keyword>              |
@@ -561,15 +569,18 @@ RefPtr<RadialGradientStyleValue> Parser::parse_radial_gradient_function(TokenStr
             return commit_value(*extent, transaction_size);
         }
         auto first_radius = parse_length_percentage(tokens);
-        if (!first_radius.has_value())
+        if (!first_radius.has_value() || !length_percentage_is_non_negative(*first_radius))
             return {};
         auto transaction_second_dimension = tokens.begin_transaction();
         tokens.discard_whitespace();
         if (tokens.has_next_token()) {
             auto second_radius = parse_length_percentage(tokens);
-            if (second_radius.has_value())
+            if (second_radius.has_value()) {
+                if (!length_percentage_is_non_negative(*second_radius))
+                    return {};
                 return commit_value(EllipseSize { first_radius.release_value(), second_radius.release_value() },
                     transaction_size, transaction_second_dimension);
+            }
         }
         // FIXME: Support calculated lengths
         if (first_radius->is_length())

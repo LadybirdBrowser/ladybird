@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Backgrounds and Borders Module Level 3: parsing background-image with invalid values</title>
+<link rel="author" title="Eric Willigers" href="mailto:ericwilligers@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-backgrounds/#background-image">
+<link rel="help" href="https://drafts.csswg.org/css-images/#radial-gradients">
+<meta name="assert" content="background-image supports only the grammar '<bg-image>#'.">
+<meta name="assert" content="Negative radial-gradient radii are invalid.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("background-image", "none, auto");
+
+// Negative radii are invalid.
+test_invalid_value("background-image", "radial-gradient(circle -10px at center, red, blue)");
+test_invalid_value("background-image", "repeating-radial-gradient(-10px at center, red, blue)");
+test_invalid_value("background-image", "radial-gradient(ellipse -20px 30px at center, red, blue)");
+test_invalid_value("background-image", "repeating-radial-gradient(-20% 30% at center, red, blue)");
+test_invalid_value("background-image", "radial-gradient(20px -30px at center, red, blue)");
+test_invalid_value("background-image", "repeating-radial-gradient(20px -30px ellipse at center, red, blue)");
+
+test_invalid_value("background-image", "cross-fade(auto blue, 50% red)");
+test_invalid_value("background-image", "cross-fade(1px red, green)");
+test_invalid_value("background-image", "cross-fade(calc(1% + 1px) red, green)");
+test_invalid_value("background-image", "cross-fade(-1% red, green)");
+test_invalid_value("background-image", "cross-fade(101% red, green)");
+</script>
+</body>
+</html>
