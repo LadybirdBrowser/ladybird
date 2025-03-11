@@ -1,0 +1,254 @@
+<link rel="match" href="../expected/svg-stroke-styles-ref.html" />
+<style>
+    path {
+        stroke-width: 20;
+    }
+    path:nth-of-type(1) {
+        stroke-linecap: butt;
+    }
+    path:nth-of-type(2) {
+        stroke-linecap: round;
+    }
+    path:nth-of-type(3) {
+        stroke-linecap: square;
+    }
+</style>
+<svg width="600" viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg">
+    <!-- Horizontal lines. -->
+    <path d="M20,20 h40" stroke="red" />
+    <path d="M20,50 h40" stroke="yellow" />
+    <path d="M20,80 h40" stroke="blue" />
+
+    <!-- Vertical lines. -->
+    <path d="M20,250 v-40" stroke="red" stroke-linecap="butt" />
+    <path d="M50,250 v-40" stroke="yellow" stroke-linecap="round" />
+    <path d="M80,250 v-40" stroke="blue" stroke-linecap="square" />
+
+    <!-- Degenerate lines. -->
+    <path d="M95,20 h0" stroke="red" stroke-linecap="butt" />
+    <path d="M95,50 h0" stroke="yellow" stroke-linecap="round" />
+    <path d="M95,80 h0" stroke="blue" stroke-linecap="square" />
+
+    <!-- Degenerate line ends, but actual path. -->
+    <path d="M130,20 h0 l20,-10 h0" stroke="red" stroke-linecap="butt" />
+    <path d="M130,50 h0 l20,-10 h0" stroke="yellow" stroke-linecap="round" />
+    <path d="M130,80 h0 l20,-10 h0" stroke="blue" stroke-linecap="square" />
+
+    <!-- Weird line ends. -->
+    <path d="M190,21 l0,-1 l20,-10 l0,-1" stroke="red" stroke-linecap="butt" />
+    <path d="M190,51 l0,-1 l20,-10 l0,-1" stroke="yellow" stroke-linecap="round" />
+    <path d="M190,81 l0,-1 l20,-10 l0,-1" stroke="blue" stroke-linecap="square" />
+
+    <!-- Half-open lines. -->
+    <path d="M240,20 h20 h-20" stroke="red" stroke-linecap="butt" stroke-linejoin="round" />
+    <path d="M240,50 h20 h-20" stroke="yellow" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M240,80 h20 h-20" stroke="blue" stroke-linecap="square" stroke-linejoin="round" />
+
+    <!-- Closed lines. -->
+    <path d="M290,20 h20 z" stroke="red" stroke-linecap="butt" stroke-linejoin="miter" />
+    <path d="M290,50 h20 z" stroke="yellow" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M290,80 h20 z" stroke="blue" stroke-linecap="square" stroke-linejoin="bevel" />
+
+    <!-- Open triangle, facing down. -->
+    <path d="M200,130 h60 L230,170 L200,130" stroke="red" stroke-linecap="butt" fill="none" />
+
+    <!-- Open triangle, facing down, opposite winding order. Bevel linejoins. -->
+    <path
+        d="M240,210 L270,250 L300,210 h-60"
+        stroke="red"
+        stroke-linecap="butt"
+        fill="none"
+        stroke-linejoin="bevel"
+    />
+
+    <!-- Closed triangle, facing up. -->
+    <path d="M280,170 h60 L310,130 L280,170 Z" stroke="red" stroke-linecap="butt" fill="none" />
+
+    <!-- Very short and wide line. -->
+    <path
+        d="M370,150 h2"
+        stroke="red"
+        stroke-linecap="butt"
+        style="stroke-width: 200"
+        fill="none"
+    />
+
+    <!-- Very short and wide line with very thin caps -->
+    <path
+        d="M375,150 h0.01 h1.98 h0.01"
+        stroke="blue"
+        stroke-linecap="butt"
+        style="stroke-width: 200"
+        fill="none"
+    />
+
+    <!-- Closed rect (using <rect>) -->
+    <rect
+        x="20"
+        y="120"
+        width="50"
+        height="50"
+        stroke="green"
+        fill="none"
+        stroke-linecap="butt"
+        stroke-linejoin="round"
+        stroke-width="20"
+    />
+
+    <!-- Open rect. -->
+    <path
+        d="M110,170 h50 v-50 h-50 v50"
+        stroke="green"
+        fill="none"
+        stroke-linecap="butt"
+        stroke-linejoin="round"
+    />
+
+    <!-- Small closed rects with line width becoming wider than rect size. -->
+    <rect
+        x="100"
+        y="200"
+        width="20"
+        height="20"
+        stroke="green"
+        stroke-linejoin="round"
+        stroke-width="8"
+        fill="none"
+    />
+    <rect
+        x="130"
+        y="200"
+        width="15"
+        height="15"
+        stroke="green"
+        stroke-linejoin="round"
+        stroke-width="8"
+        fill="none"
+    />
+    <rect
+        x="155"
+        y="200"
+        width="10"
+        height="10"
+        stroke="green"
+        stroke-linejoin="round"
+        stroke-width="8"
+        fill="none"
+    />
+    <!-- FIXME: Figure out why this is missing the center pixel on mac/arm64
+  <rect x="175" y="200" width="5" height="5" stroke="green"
+        stroke-linejoin="round" stroke-width="8" fill="none" /> -->
+
+    <!-- Lines with sharp angles, miter linejoins, and differing miter limits. -->
+    <path
+        d="M300,290 l 5,-55 l5,55"
+        stroke="blue"
+        stroke-linecap="butt"
+        stroke-linejoin="miter"
+        fill="none"
+        style="stroke-width: 4"
+    />
+    <path
+        d="M320,290 l 5,-55 l5,55"
+        stroke="blue"
+        stroke-linecap="butt"
+        stroke-linejoin="miter"
+        fill="none"
+        stroke-miterlimit="20"
+        style="stroke-width: 4; stroke-miterlimit: -5"
+    />
+
+    <!-- PDF 1.7 spec, TABLE 4.6 Examples of line dash patterns. -->
+    <g fill="none" stroke-linecap="butt" stroke="red" transform="translate(100, 240) scale(3)">
+        <path
+            d="M0,0 h13"
+            style="stroke-width: 1; stroke-linecap: butt"
+            stroke-dashoffset="0"
+            stroke-dasharray="none"
+        />
+        <path
+            d="M0,3 h13"
+            style="stroke-width: 1; stroke-linecap: butt"
+            stroke-dashoffset="0"
+            stroke-dasharray="3"
+        />
+        <path
+            d="M0,6 h13"
+            style="stroke-width: 1; stroke-linecap: butt"
+            stroke-dashoffset="1"
+            stroke-dasharray="2"
+        />
+        <path
+            d="M0,9 h13"
+            style="stroke-width: 1; stroke-linecap: butt"
+            stroke-dashoffset="0"
+            stroke-dasharray="2 1"
+        />
+        <path
+            d="M0,12 h13"
+            style="stroke-width: 1; stroke-linecap: butt"
+            stroke-dashoffset="6"
+            stroke-dasharray="3 5"
+        />
+        <path
+            d="M0,15 h13"
+            style="stroke-width: 1; stroke-linecap: butt"
+            stroke-dashoffset="11"
+            stroke-dasharray="2 3"
+        />
+    </g>
+
+    <!-- Dashed rect with 0 dash length. -->
+    <rect
+        x="155"
+        y="225"
+        width="30"
+        height="30"
+        fill="none"
+        stroke="green"
+        style="stroke-linecap: round"
+        stroke-dashoffset="0"
+        stroke-dasharray="0 10"
+        stroke-width="4"
+    />
+
+    <!-- Dashed rects with different cap styles. The last one also has a no-op negative scale factor. -->
+    <rect
+        x="195"
+        y="225"
+        width="30"
+        height="30"
+        fill="none"
+        stroke="green"
+        style="stroke-linecap: butt"
+        stroke-dashoffset="1"
+        stroke-dasharray="2 2"
+        stroke-width="1"
+    />
+    <rect
+        x="155"
+        y="265"
+        width="30"
+        height="30"
+        fill="none"
+        stroke="green"
+        style="stroke-linecap: round"
+        stroke-dashoffset="1"
+        stroke-dasharray="2 2"
+        stroke-width="1"
+    />
+    <g transform="scale(-1)">
+        <rect
+            x="-225"
+            y="-295"
+            width="30"
+            height="30"
+            fill="none"
+            stroke="green"
+            style="stroke-linecap: square"
+            stroke-dashoffset="1"
+            stroke-dasharray="2 2"
+            stroke-width="1"
+        />
+    </g>
+</svg>

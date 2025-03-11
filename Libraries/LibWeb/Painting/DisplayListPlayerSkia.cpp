@@ -651,18 +651,46 @@ void DisplayListPlayerSkia::fill_path_using_paint_style(FillPathUsingPaintStyle 
     surface().canvas().drawPath(path, paint);
 }
 
+static SkPaint::Cap to_skia_cap(Gfx::Path::CapStyle const& cap_style)
+{
+    switch (cap_style) {
+    case Gfx::Path::CapStyle::Butt:
+        return SkPaint::kButt_Cap;
+    case Gfx::Path::CapStyle::Round:
+        return SkPaint::kRound_Cap;
+    case Gfx::Path::CapStyle::Square:
+        return SkPaint::kSquare_Cap;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+static SkPaint::Join to_skia_join(Gfx::Path::JoinStyle const& join_style)
+{
+    switch (join_style) {
+    case Gfx::Path::JoinStyle::Round:
+        return SkPaint::kRound_Join;
+    case Gfx::Path::JoinStyle::Bevel:
+        return SkPaint::kBevel_Join;
+    case Gfx::Path::JoinStyle::Miter:
+        return SkPaint::kMiter_Join;
+    }
+    VERIFY_NOT_REACHED();
+}
+
 void DisplayListPlayerSkia::stroke_path_using_color(StrokePathUsingColor const& command)
 {
     // Skia treats zero thickness as a special case and will draw a hairline, while we want to draw nothing.
     if (!command.thickness)
         return;
 
-    // FIXME: Use .cap_style, .join_style, .miter_limit, .dash_array, .dash_offset.
+    // FIXME: Use .miter_limit, .dash_array, .dash_offset.
     auto& canvas = surface().canvas();
     SkPaint paint;
     paint.setAntiAlias(true);
     paint.setStyle(SkPaint::kStroke_Style);
     paint.setStrokeWidth(command.thickness);
+    paint.setStrokeCap(to_skia_cap(command.cap_style));
+    paint.setStrokeJoin(to_skia_join(command.join_style));
     paint.setColor(to_skia_color(command.color));
     auto path = to_skia_path(command.path);
     path.offset(command.aa_translation.x(), command.aa_translation.y());
@@ -675,7 +703,7 @@ void DisplayListPlayerSkia::stroke_path_using_paint_style(StrokePathUsingPaintSt
     if (!command.thickness)
         return;
 
-    // FIXME: Use .cap_style, .join_style, .miter_limit, .dash_array, .dash_offset.
+    // FIXME: Use .miter_limit, .dash_array, .dash_offset.
     auto path = to_skia_path(command.path);
     path.offset(command.aa_translation.x(), command.aa_translation.y());
     auto paint = paint_style_to_skia_paint(*command.paint_style, command.bounding_rect().to_type<float>());
@@ -683,6 +711,8 @@ void DisplayListPlayerSkia::stroke_path_using_paint_style(StrokePathUsingPaintSt
     paint.setAlphaf(command.opacity);
     paint.setStyle(SkPaint::Style::kStroke_Style);
     paint.setStrokeWidth(command.thickness);
+    paint.setStrokeCap(to_skia_cap(command.cap_style));
+    paint.setStrokeJoin(to_skia_join(command.join_style));
     surface().canvas().drawPath(path, paint);
 }
 
