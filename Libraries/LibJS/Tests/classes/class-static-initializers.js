@@ -72,3 +72,20 @@ describe("class like constructs can be used inside", () => {
         expect(hit).toBeTrue();
     });
 });
+
+// https://github.com/LadybirdBrowser/ladybird/pull/4226
+test("declaring variables", () => {
+    class A {
+        static {
+            const a = 1;
+            let b = 2;
+            var c = 3;
+            function d() {}
+
+            expect(a).toBe(1);
+            expect(b).toBe(2);
+            expect(c).toBe(3);
+            expect(typeof d).toBe("function");
+        }
+    }
+});
