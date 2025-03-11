@@ -1537,6 +1537,8 @@ NonnullRefPtr<ClassExpression const> Parser::parse_class_expression(bool expect_
 
                 {
                     ScopePusher static_init_scope = ScopePusher::static_init_block_scope(*this, *static_init_block);
+                    static_init_scope.set_function_parameters(FunctionParameters::empty());
+
                     parse_statement_list(static_init_block);
                 }
 
