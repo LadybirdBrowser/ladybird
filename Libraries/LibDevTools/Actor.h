@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Badge.h>
+#include <AK/JsonObject.h>
 #include <AK/Optional.h>
 #include <AK/RefCounted.h>
 #include <AK/String.h>
@@ -54,6 +55,30 @@ protected:
     DevToolsServer const& devtools() const { return m_devtools; }
 
     BlockToken block_responses();
+
+    template<typename ParameterType>
+    auto get_required_parameter(JsonObject const& message, StringView parameter)
+    {
+        auto result = [&]() {
+            if constexpr (IsIntegral<ParameterType>)
+                return message.get_integer<ParameterType>(parameter);
+            else if constexpr (IsSame<ParameterType, bool>)
+                return message.get_bool(parameter);
+            else if constexpr (IsSame<ParameterType, String>)
+                return message.get_string(parameter);
+            else if constexpr (IsSame<ParameterType, JsonObject>)
+                return message.get_object(parameter);
+            else if constexpr (IsSame<ParameterType, JsonArray>)
+                return message.get_array(parameter);
+            else
+                static_assert(DependentFalse<ParameterType>);
+        }();
+
+        if (!result.has_value())
+            send_missing_parameter_error(parameter);
+
+        return result;
+    }
 
 private:
     DevToolsServer& m_devtools;

@@ -41,11 +41,9 @@ void PageStyleActor::handle_message(StringView type, JsonObject const& message)
     }
 
     if (type == "getComputed"sv) {
-        auto node = message.get_string("node"sv);
-        if (!node.has_value()) {
-            send_missing_parameter_error("node"sv);
+        auto node = get_required_parameter<String>(message, "node"sv);
+        if (!node.has_value())
             return;
-        }
 
         inspect_dom_node(*node, [](auto& self, auto const& properties, auto block_token) {
             self.received_computed_style(properties.computed_style, move(block_token));
@@ -55,11 +53,9 @@ void PageStyleActor::handle_message(StringView type, JsonObject const& message)
     }
 
     if (type == "getLayout"sv) {
-        auto node = message.get_string("node"sv);
-        if (!node.has_value()) {
-            send_missing_parameter_error("node"sv);
+        auto node = get_required_parameter<String>(message, "node"sv);
+        if (!node.has_value())
             return;
-        }
 
         inspect_dom_node(*node, [](auto& self, auto const& properties, auto block_token) {
             self.received_layout(properties.computed_style, properties.node_box_sizing, move(block_token));

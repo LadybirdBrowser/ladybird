@@ -48,11 +48,9 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
     JsonObject response;
 
     if (type == "children"sv) {
-        auto node = message.get_string("node"sv);
-        if (!node.has_value()) {
-            send_missing_parameter_error("node"sv);
+        auto node = get_required_parameter<String>(message, "node"sv);
+        if (!node.has_value())
             return;
-        }
 
         auto ancestor_node = WalkerActor::dom_node_for(*this, *node);
         if (!ancestor_node.has_value()) {
@@ -76,11 +74,9 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
     }
 
     if (type == "duplicateNode"sv) {
-        auto node = message.get_string("node"sv);
-        if (!node.has_value()) {
-            send_missing_parameter_error("node"sv);
+        auto node = get_required_parameter<String>(message, "node"sv);
+        if (!node.has_value())
             return;
-        }
 
         auto dom_node = WalkerActor::dom_node_for(*this, *node);
         if (!dom_node.has_value()) {
@@ -106,17 +102,13 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
     }
 
     if (type == "editTagName"sv) {
-        auto node = message.get_string("node"sv);
-        if (!node.has_value()) {
-            send_missing_parameter_error("node"sv);
+        auto node = get_required_parameter<String>(message, "node"sv);
+        if (!node.has_value())
             return;
-        }
 
-        auto tag_name = message.get_string("tagName"sv);
-        if (!tag_name.has_value()) {
-            send_missing_parameter_error("tagName"sv);
+        auto tag_name = get_required_parameter<String>(message, "tagName"sv);
+        if (!tag_name.has_value())
             return;
-        }
 
         auto dom_node = WalkerActor::dom_node_for(*this, *node);
         if (!dom_node.has_value()) {
@@ -168,11 +160,9 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
     }
 
     if (type == "innerHTML"sv) {
-        auto node = message.get_string("node"sv);
-        if (!node.has_value()) {
-            send_missing_parameter_error("node"sv);
+        auto node = get_required_parameter<String>(message, "node"sv);
+        if (!node.has_value())
             return;
-        }
 
         auto dom_node = WalkerActor::dom_node_for(*this, *node);
         if (!dom_node.has_value()) {
@@ -204,11 +194,9 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
         // FIXME: This message also contains `value` and `position` parameters, containing the HTML to insert and the
         //        location to insert it. For the "Create New Node" action, this is always "<div></div>" and "beforeEnd",
         //        which is exactly what our WebView implementation currently supports.
-        auto node = message.get_string("node"sv);
-        if (!node.has_value()) {
-            send_missing_parameter_error("node"sv);
+        auto node = get_required_parameter<String>(message, "node"sv);
+        if (!node.has_value())
             return;
-        }
 
         auto dom_node = WalkerActor::dom_node_for(*this, *node);
         if (!dom_node.has_value()) {
@@ -245,17 +233,13 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
     }
 
     if (type == "insertBefore"sv) {
-        auto node = message.get_string("node"sv);
-        if (!node.has_value()) {
-            send_missing_parameter_error("node"sv);
+        auto node = get_required_parameter<String>(message, "node"sv);
+        if (!node.has_value())
             return;
-        }
 
-        auto parent = message.get_string("parent"sv);
-        if (!parent.has_value()) {
-            send_missing_parameter_error("parent"sv);
+        auto parent = get_required_parameter<String>(message, "parent"sv);
+        if (!parent.has_value())
             return;
-        }
 
         auto dom_node = WalkerActor::dom_node_for(*this, *node);
         if (!dom_node.has_value()) {
@@ -298,11 +282,9 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
     }
 
     if (type == "isInDOMTree"sv) {
-        auto node = message.get_string("node"sv);
-        if (!node.has_value()) {
-            send_missing_parameter_error("node"sv);
+        auto node = get_required_parameter<String>(message, "node"sv);
+        if (!node.has_value())
             return;
-        }
 
         response.set("attached"sv, m_actor_to_dom_node_map.contains(*node));
         send_message(move(response));
@@ -310,11 +292,9 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
     }
 
     if (type == "outerHTML"sv) {
-        auto node = message.get_string("node"sv);
-        if (!node.has_value()) {
-            send_missing_parameter_error("node"sv);
+        auto node = get_required_parameter<String>(message, "node"sv);
+        if (!node.has_value())
             return;
-        }
 
         auto dom_node = WalkerActor::dom_node_for(*this, *node);
         if (!dom_node.has_value()) {
@@ -343,11 +323,9 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
     }
 
     if (type == "previousSibling"sv) {
-        auto node = message.get_string("node"sv);
-        if (!node.has_value()) {
-            send_missing_parameter_error("node"sv);
+        auto node = get_required_parameter<String>(message, "node"sv);
+        if (!node.has_value())
             return;
-        }
 
         auto dom_node = WalkerActor::dom_node_for(*this, *node);
         if (!dom_node.has_value()) {
@@ -365,17 +343,13 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
     }
 
     if (type == "querySelector"sv) {
-        auto node = message.get_string("node"sv);
-        if (!node.has_value()) {
-            send_missing_parameter_error("node"sv);
+        auto node = get_required_parameter<String>(message, "node"sv);
+        if (!node.has_value())
             return;
-        }
 
-        auto selector = message.get_string("selector"sv);
-        if (!selector.has_value()) {
-            send_missing_parameter_error("selector"sv);
+        auto selector = get_required_parameter<String>(message, "selector"sv);
+        if (!selector.has_value())
             return;
-        }
 
         auto ancestor_node = WalkerActor::dom_node_for(*this, *node);
         if (!ancestor_node.has_value()) {
@@ -400,11 +374,9 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
     }
 
     if (type == "removeNode"sv) {
-        auto node = message.get_string("node"sv);
-        if (!node.has_value()) {
-            send_missing_parameter_error("node"sv);
+        auto node = get_required_parameter<String>(message, "node"sv);
+        if (!node.has_value())
             return;
-        }
 
         auto dom_node = WalkerActor::dom_node_for(*this, *node);
         if (!dom_node.has_value()) {
@@ -446,17 +418,13 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
     }
 
     if (type == "setOuterHTML"sv) {
-        auto node = message.get_string("node"sv);
-        if (!node.has_value()) {
-            send_missing_parameter_error("node"sv);
+        auto node = get_required_parameter<String>(message, "node"sv);
+        if (!node.has_value())
             return;
-        }
 
-        auto value = message.get_string("value"sv);
-        if (!value.has_value()) {
-            send_missing_parameter_error("value"sv);
+        auto value = get_required_parameter<String>(message, "value"sv);
+        if (!value.has_value())
             return;
-        }
 
         auto dom_node = WalkerActor::dom_node_for(*this, *node);
         if (!dom_node.has_value()) {

@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/JsonObject.h>
 #include <LibDevTools/Actor.h>
 #include <LibDevTools/Connection.h>
 #include <LibDevTools/DevToolsServer.h>

@@ -110,11 +110,9 @@ void NodeActor::handle_message(StringView type, JsonObject const& message)
     }
 
     if (type == "modifyAttributes"sv) {
-        auto modifications = message.get_array("modifications"sv);
-        if (!modifications.has_value()) {
-            send_missing_parameter_error("modifications"sv);
+        auto modifications = get_required_parameter<JsonArray>(message, "modifications"sv);
+        if (!modifications.has_value())
             return;
-        }
 
         auto [attribute_to_replace, replacement_attributes] = parse_attribute_modification(*modifications);
         if (!attribute_to_replace.has_value() && replacement_attributes.is_empty())
@@ -148,11 +146,9 @@ void NodeActor::handle_message(StringView type, JsonObject const& message)
     }
 
     if (type == "setNodeValue"sv) {
-        auto value = message.get_string("value"sv);
-        if (!value.has_value()) {
-            send_missing_parameter_error("value"sv);
+        auto value = get_required_parameter<String>(message, "value"sv);
+        if (!value.has_value())
             return;
-        }
 
         auto dom_node = WalkerActor::dom_node_for(m_walker, name());
         if (!dom_node.has_value()) {
