@@ -30,7 +30,6 @@ void PreferenceActor::handle_message(StringView type, JsonObject const&)
     //        We just blindly return `false` for these, but we will eventually want a real configuration manager.
     if (type == "getBoolPref"sv) {
         JsonObject response;
-        response.set("from"sv, name());
         response.set("value"sv, false);
         send_message(move(response));
         return;

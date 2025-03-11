@@ -25,7 +25,6 @@ ThreadConfigurationActor::~ThreadConfigurationActor() = default;
 void ThreadConfigurationActor::handle_message(StringView type, JsonObject const& message)
 {
     JsonObject response;
-    response.set("from"sv, name());
 
     if (type == "updateConfiguration"sv) {
         auto configuration = message.get_object("configuration"sv);

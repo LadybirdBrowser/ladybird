@@ -32,7 +32,6 @@ InspectorActor::~InspectorActor() = default;
 void InspectorActor::handle_message(StringView type, JsonObject const& message)
 {
     JsonObject response;
-    response.set("from"sv, name());
 
     if (type == "getPageStyle"sv) {
         if (!m_page_style)
@@ -101,7 +100,6 @@ void InspectorActor::received_dom_tree(JsonObject dom_tree, BlockToken block_tok
     walker.set("root"sv, walker_actor.serialize_root());
 
     JsonObject message;
-    message.set("from"sv, name());
     message.set("walker"sv, move(walker));
     send_message(move(message), move(block_token));
 }

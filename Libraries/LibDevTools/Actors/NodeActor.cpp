@@ -96,7 +96,6 @@ NodeActor::~NodeActor() = default;
 void NodeActor::handle_message(StringView type, JsonObject const& message)
 {
     JsonObject response;
-    response.set("from"sv, name());
 
     if (type == "getUniqueSelector"sv) {
         auto dom_node = WalkerActor::dom_node_for(m_walker, name());
@@ -136,7 +135,7 @@ void NodeActor::handle_message(StringView type, JsonObject const& message)
             }
 
             if (auto self = weak_self.strong_ref())
-                self->finished_editing_dom_node(move(block_token));
+                self->send_message({}, move(block_token));
         };
 
         if (attribute_to_replace.has_value()) {
@@ -172,20 +171,13 @@ void NodeActor::handle_message(StringView type, JsonObject const& message)
                 }
 
                 if (auto self = weak_self.strong_ref())
-                    self->finished_editing_dom_node(move(block_token));
+                    self->send_message({}, move(block_token));
             });
 
         return;
     }
 
     send_unrecognized_packet_type_error(type);
-}
-
-void NodeActor::finished_editing_dom_node(BlockToken block_token)
-{
-    JsonObject message;
-    message.set("from"sv, name());
-    send_message(move(message), move(block_token));
 }
 
 }

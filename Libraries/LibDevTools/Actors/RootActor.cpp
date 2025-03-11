@@ -27,7 +27,6 @@ NonnullRefPtr<RootActor> RootActor::create(DevToolsServer& devtools, String name
     traits.set("networkMonitor"sv, false);
 
     JsonObject message;
-    message.set("from"sv, actor->name());
     message.set("applicationType"sv, "browser"sv);
     message.set("traits"sv, move(traits));
     actor->send_message(move(message));
@@ -45,7 +44,6 @@ RootActor::~RootActor() = default;
 void RootActor::handle_message(StringView type, JsonObject const& message)
 {
     JsonObject response;
-    response.set("from"sv, name());
 
     if (type == "connect") {
         send_message(move(response));
@@ -165,7 +163,6 @@ void RootActor::send_tab_list_changed_message()
         return;
 
     JsonObject message;
-    message.set("from"sv, name());
     message.set("type"sv, "tabListChanged"sv);
     send_message(move(message));
 

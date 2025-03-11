@@ -31,7 +31,6 @@ PageStyleActor::~PageStyleActor() = default;
 void PageStyleActor::handle_message(StringView type, JsonObject const& message)
 {
     JsonObject response;
-    response.set("from"sv, name());
 
     if (type == "getApplied"sv) {
         // FIXME: This provides information to the "styles" pane in the inspector tab, which allows toggling and editing
@@ -119,7 +118,6 @@ void PageStyleActor::inspect_dom_node(StringView node_actor, Callback&& callback
 void PageStyleActor::received_layout(JsonObject const& computed_style, JsonObject const& node_box_sizing, BlockToken block_token)
 {
     JsonObject message;
-    message.set("from"sv, name());
     message.set("autoMargins"sv, JsonObject {});
 
     auto pixel_value = [&](auto const& object, auto key) {
@@ -175,7 +173,6 @@ void PageStyleActor::received_computed_style(JsonObject const& computed_style, B
     });
 
     JsonObject message;
-    message.set("from"sv, name());
     message.set("computed"sv, move(computed));
     send_message(move(message), move(block_token));
 }

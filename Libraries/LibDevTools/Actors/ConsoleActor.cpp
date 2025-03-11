@@ -31,7 +31,6 @@ ConsoleActor::~ConsoleActor() = default;
 void ConsoleActor::handle_message(StringView type, JsonObject const& message)
 {
     JsonObject response;
-    response.set("from"sv, name());
 
     if (type == "autocomplete"sv) {
         response.set("matches"sv, JsonArray {});
@@ -81,7 +80,6 @@ void ConsoleActor::handle_message(StringView type, JsonObject const& message)
 void ConsoleActor::received_console_result(String result_id, String input, JsonValue result, BlockToken block_token)
 {
     JsonObject message;
-    message.set("from"sv, name());
     message.set("type"sv, "evaluationResult"_string);
     message.set("timestamp"sv, AK::UnixDateTime::now().milliseconds_since_epoch());
     message.set("resultID"sv, move(result_id));
