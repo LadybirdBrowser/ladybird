@@ -1535,8 +1535,10 @@ NonnullRefPtr<ClassExpression const> Parser::parse_class_expression(bool expect_
                 TemporaryChange class_static_init_block_rollback(m_state.in_class_static_init_block, true);
                 TemporaryChange super_property_access_rollback(m_state.allow_super_property_lookup, true);
 
-                ScopePusher static_init_scope = ScopePusher::static_init_block_scope(*this, *static_init_block);
-                parse_statement_list(static_init_block);
+                {
+                    ScopePusher static_init_scope = ScopePusher::static_init_block_scope(*this, *static_init_block);
+                    parse_statement_list(static_init_block);
+                }
 
                 consume(TokenType::CurlyClose);
                 elements.append(create_ast_node<StaticInitializer>({ m_source_code, static_start.position(), position() }, move(static_init_block)));
