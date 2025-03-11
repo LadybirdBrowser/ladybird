@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Filter Effects Module Level 1: parsing filter with invalid values</title>
+<link rel="author" title="Eric Willigers" href="mailto:ericwilligers@chromium.org">
+<link rel="help" href="https://drafts.fxtf.org/filter-effects/#FilterProperty">
+<meta name="assert" content="filter supports only the grammar 'none | <filter-function-list>'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+// Edge fails: expected "" but got "none"
+
+test_invalid_value("filter", "auto");
+test_invalid_value("filter", "none hue-rotate(0deg)");
+
+test_invalid_value("filter", "blur(10)");
+test_invalid_value("filter", "blur(-100px)");
+
+test_invalid_value("filter", "brightness(-20)"); // crbug.com/776208 Blink/WebKit accept negative brightness.
+test_invalid_value("filter", "brightness(30px)");
+
+test_invalid_value("filter", "contrast(-20)");
+test_invalid_value("filter", "contrast(30px)");
+
+test_invalid_value("filter", "drop-shadow(10 20)");
+test_invalid_value("filter", "drop-shadow(10% 20%)");
+test_invalid_value("filter", "drop-shadow(1px)");
+test_invalid_value("filter", "drop-shadow(1px 2px 3px 4px)");
+test_invalid_value("filter", "drop-shadow(rgb(4, 5, 6))");
+test_invalid_value("filter", "drop-shadow()");
+
+test_invalid_value("filter", "grayscale(-20)");
+test_invalid_value("filter", "grayscale(30px)");
+
+test_invalid_value("filter", "hue-rotate(90)");
+
+test_invalid_value("filter", "invert(-20)");
+test_invalid_value("filter", "invert(30px)");
+
+test_invalid_value("filter", "opacity(-20)");
+test_invalid_value("filter", "opacity(30px)");
+
+test_invalid_value("filter", "saturate(-20)");
+test_invalid_value("filter", "saturate(30px)");
+
+test_invalid_value("filter", "sepia(-20)");
+test_invalid_value("filter", "sepia(30px)");
+</script>
+</body>
+</html>
