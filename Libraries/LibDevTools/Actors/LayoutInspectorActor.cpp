@@ -25,7 +25,6 @@ LayoutInspectorActor::~LayoutInspectorActor() = default;
 void LayoutInspectorActor::handle_message(StringView type, JsonObject const&)
 {
     JsonObject response;
-    response.set("from"sv, name());
 
     if (type == "getCurrentFlexbox"sv) {
         response.set("flexbox"sv, JsonValue {});

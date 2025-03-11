@@ -27,7 +27,6 @@ CSSPropertiesActor::~CSSPropertiesActor() = default;
 void CSSPropertiesActor::handle_message(StringView type, JsonObject const&)
 {
     JsonObject response;
-    response.set("from"sv, name());
 
     if (type == "getCSSDatabase"sv) {
         auto css_property_list = devtools().delegate().css_property_list();

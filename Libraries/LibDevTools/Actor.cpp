@@ -19,22 +19,23 @@ Actor::Actor(DevToolsServer& devtools, String name)
 
 Actor::~Actor() = default;
 
-void Actor::send_message(JsonValue message, Optional<BlockToken> block_token)
+void Actor::send_message(JsonObject message, Optional<BlockToken> block_token)
 {
     if (m_block_responses && !block_token.has_value()) {
         m_blocked_responses.append(move(message));
         return;
     }
 
+    message.set("from"sv, name());
+
     if (auto& connection = devtools().connection())
-        connection->send_message(message);
+        connection->send_message(move(message));
 }
 
 // https://firefox-source-docs.mozilla.org/devtools/backend/protocol.html#error-packets
 void Actor::send_missing_parameter_error(StringView parameter)
 {
     JsonObject error;
-    error.set("from"sv, name());
     error.set("error"sv, "missingParameter"sv);
     error.set("message"sv, MUST(String::formatted("Missing parameter: '{}'", parameter)));
     send_message(move(error));
@@ -44,7 +45,6 @@ void Actor::send_missing_parameter_error(StringView parameter)
 void Actor::send_unrecognized_packet_type_error(StringView type)
 {
     JsonObject error;
-    error.set("from"sv, name());
     error.set("error"sv, "unrecognizedPacketType"sv);
     error.set("message"sv, MUST(String::formatted("Unrecognized packet type: '{}'", type)));
     send_message(move(error));
@@ -55,7 +55,6 @@ void Actor::send_unrecognized_packet_type_error(StringView type)
 void Actor::send_unknown_actor_error(StringView actor)
 {
     JsonObject error;
-    error.set("from"sv, name());
     error.set("error"sv, "unknownActor"sv);
     error.set("message"sv, MUST(String::formatted("Unknown actor: '{}'", actor)));
     send_message(move(error));

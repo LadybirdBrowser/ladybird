@@ -30,7 +30,6 @@ HighlighterActor::~HighlighterActor() = default;
 void HighlighterActor::handle_message(StringView type, JsonObject const& message)
 {
     JsonObject response;
-    response.set("from"sv, name());
 
     if (type == "show"sv) {
         auto node = message.get_string("node"sv);

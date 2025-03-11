@@ -42,7 +42,7 @@ public:
         WeakPtr<Actor> m_actor;
     };
 
-    void send_message(JsonValue, Optional<BlockToken> block_token = {});
+    void send_message(JsonObject, Optional<BlockToken> block_token = {});
     void send_missing_parameter_error(StringView parameter);
     void send_unrecognized_packet_type_error(StringView type);
     void send_unknown_actor_error(StringView actor);
@@ -59,7 +59,7 @@ private:
     DevToolsServer& m_devtools;
     String m_name;
 
-    Vector<JsonValue> m_blocked_responses;
+    Vector<JsonObject> m_blocked_responses;
     bool m_block_responses { false };
 };
 

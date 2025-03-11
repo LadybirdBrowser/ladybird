@@ -48,10 +48,9 @@ void DeviceActor::handle_message(StringView type, JsonObject const&)
         value.set("arch"sv, arch);
 
         JsonObject response;
-        response.set("from"sv, name());
         response.set("value"sv, move(value));
-
         send_message(move(response));
+
         return;
     }
 

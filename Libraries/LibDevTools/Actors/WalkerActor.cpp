@@ -46,7 +46,6 @@ WalkerActor::~WalkerActor()
 void WalkerActor::handle_message(StringView type, JsonObject const& message)
 {
     JsonObject response;
-    response.set("from"sv, name());
 
     if (type == "children"sv) {
         auto node = message.get_string("node"sv);
@@ -99,11 +98,8 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
                     return;
                 }
 
-                if (auto self = weak_self.strong_ref()) {
-                    JsonObject message;
-                    message.set("from"sv, self->name());
-                    self->send_message(move(message), move(block_token));
-                }
+                if (auto self = weak_self.strong_ref())
+                    self->send_message({}, move(block_token));
             });
 
         return;
@@ -138,11 +134,8 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
                     return;
                 }
 
-                if (auto self = weak_self.strong_ref()) {
-                    JsonObject message;
-                    message.set("from"sv, self->name());
-                    self->send_message(move(message), move(block_token));
-                }
+                if (auto self = weak_self.strong_ref())
+                    self->send_message({}, move(block_token));
             });
 
         return;
@@ -199,7 +192,6 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
 
                 if (auto self = weak_self.strong_ref()) {
                     JsonObject message;
-                    message.set("from"sv, self->name());
                     message.set("value"sv, html.release_value());
                     self->send_message(move(message), move(block_token));
                 }
@@ -243,7 +235,6 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
                     }
 
                     JsonObject message;
-                    message.set("from"sv, self->name());
                     message.set("newParents"sv, JsonArray {});
                     message.set("nodes"sv, move(nodes));
                     self->send_message(move(message), move(block_token));
@@ -299,11 +290,8 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
                     return;
                 }
 
-                if (auto self = weak_self.strong_ref()) {
-                    JsonObject message;
-                    message.set("from"sv, self->name());
-                    self->send_message(move(message), move(block_token));
-                }
+                if (auto self = weak_self.strong_ref())
+                    self->send_message({}, move(block_token));
             });
 
         return;
@@ -346,7 +334,6 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
 
                 if (auto self = weak_self.strong_ref()) {
                     JsonObject message;
-                    message.set("from"sv, self->name());
                     message.set("value"sv, html.release_value());
                     self->send_message(move(message), move(block_token));
                 }
@@ -445,7 +432,6 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
 
                 if (auto self = weak_self.strong_ref()) {
                     JsonObject message;
-                    message.set("from"sv, self->name());
                     message.set("nextSibling"sv, move(next_sibling));
                     self->send_message(move(message), move(block_token));
                 }
@@ -488,11 +474,8 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
                     return;
                 }
 
-                if (auto self = weak_self.strong_ref()) {
-                    JsonObject message;
-                    message.set("from"sv, self->name());
-                    self->send_message(move(message), move(block_token));
-                }
+                if (auto self = weak_self.strong_ref())
+                    self->send_message({}, move(block_token));
             });
 
         return;
@@ -503,10 +486,7 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
         response.set("node"sv, serialize_root());
         send_message(move(response));
 
-        JsonObject message;
-        message.set("from"sv, name());
-        send_message(move(message));
-
+        send_message({});
         return;
     }
 
@@ -772,7 +752,6 @@ void WalkerActor::new_dom_node_mutation(WebView::Mutation mutation)
         return;
 
     JsonObject message;
-    message.set("from"sv, name());
     message.set("type"sv, "newMutations"sv);
     send_message(move(message));
 

@@ -36,7 +36,6 @@ WatcherActor::~WatcherActor() = default;
 void WatcherActor::handle_message(StringView type, JsonObject const& message)
 {
     JsonObject response;
-    response.set("from"sv, name());
 
     if (type == "getParentBrowsingContextID"sv) {
         auto browsing_context_id = message.get_integer<u64>("browsingContextID"sv);
@@ -110,10 +109,7 @@ void WatcherActor::handle_message(StringView type, JsonObject const& message)
 
             target.send_frame_update_message();
 
-            JsonObject message;
-            message.set("from"sv, name());
-            send_message(move(message));
-
+            send_message({});
             return;
         }
     }

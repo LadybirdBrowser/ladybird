@@ -31,7 +31,6 @@ TabActor::~TabActor()
 void TabActor::handle_message(StringView type, JsonObject const&)
 {
     JsonObject response;
-    response.set("from"sv, name());
 
     if (type == "getFavicon"sv) {
         // FIXME: Firefox DevTools wants a favicon URL here, but supplying a URL seems to prevent this tab from being

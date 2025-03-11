@@ -54,7 +54,6 @@ FrameActor::~FrameActor()
 void FrameActor::handle_message(StringView type, JsonObject const&)
 {
     JsonObject response;
-    response.set("from"sv, name());
 
     if (type == "detach"sv) {
         if (auto tab = m_tab.strong_ref()) {
@@ -88,7 +87,6 @@ void FrameActor::send_frame_update_message()
     }
 
     JsonObject message;
-    message.set("from"sv, name());
     message.set("type"sv, "frameUpdate"sv);
     message.set("frames"sv, move(frames));
     send_message(move(message));
@@ -198,7 +196,6 @@ void FrameActor::console_messages_received(i32 start_index, Vector<WebView::Cons
     array.must_append(move(console_message));
 
     JsonObject message;
-    message.set("from"sv, name());
     message.set("type"sv, "resources-available-array"sv);
     message.set("array"sv, move(array));
     send_message(move(message));
