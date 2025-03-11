@@ -3127,6 +3127,9 @@ RefPtr<GridTrackPlacementStyleValue> Parser::parse_grid_track_placement(TokenStr
     if (!tokens.has_next_token())
         return nullptr;
 
+    if (tokens.remaining_token_count() > 3)
+        return nullptr;
+
     // https://www.w3.org/TR/css-grid-2/#line-placement
     // Line-based Placement: the grid-row-start, grid-column-start, grid-row-end, and grid-column-end properties
     // <grid-line> =
@@ -3169,10 +3172,6 @@ RefPtr<GridTrackPlacementStyleValue> Parser::parse_grid_track_placement(TokenStr
             transaction.commit();
             return GridTrackPlacementStyleValue::create(GridTrackPlacement::make_auto());
         }
-        if (token.is_ident("span"sv)) {
-            transaction.commit();
-            return GridTrackPlacementStyleValue::create(GridTrackPlacement::make_span(1));
-        }
         if (is_valid_integer(token)) {
             transaction.commit();
             return GridTrackPlacementStyleValue::create(GridTrackPlacement::make_line(static_cast<int>(token.token().number_value()), {}));
@@ -3191,6 +3190,8 @@ RefPtr<GridTrackPlacementStyleValue> Parser::parse_grid_track_placement(TokenStr
             if (span_value)
                 return nullptr;
             tokens.discard_a_token(); // span
+            if (tokens.has_next_token() && ((span_or_position_value != 0 && identifier_value.is_empty()) || (span_or_position_value == 0 && !identifier_value.is_empty())))
+                return nullptr;
             span_value = true;
             continue;
         }
@@ -3208,6 +3209,9 @@ RefPtr<GridTrackPlacementStyleValue> Parser::parse_grid_track_placement(TokenStr
         }
         break;
     }
+
+    if (tokens.has_next_token())
+        return nullptr;
 
     // Negative integers or zero are invalid.
     if (span_value && span_or_position_value < 1)
