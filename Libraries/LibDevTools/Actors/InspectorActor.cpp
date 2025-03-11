@@ -43,11 +43,9 @@ void InspectorActor::handle_message(StringView type, JsonObject const& message)
     }
 
     if (type == "getHighlighterByType"sv) {
-        auto type_name = message.get_string("typeName"sv);
-        if (!type_name.has_value()) {
-            send_missing_parameter_error("typeName"sv);
+        auto type_name = get_required_parameter<String>(message, "typeName"sv);
+        if (!type_name.has_value())
             return;
-        }
 
         auto highlighter = m_highlighters.ensure(*type_name, [&]() -> NonnullRefPtr<HighlighterActor> {
             return devtools().register_actor<HighlighterActor>(*this);

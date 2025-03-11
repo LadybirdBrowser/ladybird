@@ -40,11 +40,9 @@ void ConsoleActor::handle_message(StringView type, JsonObject const& message)
     }
 
     if (type == "evaluateJSAsync"sv) {
-        auto text = message.get_string("text"sv);
-        if (!text.has_value()) {
-            send_missing_parameter_error("text"sv);
+        auto text = get_required_parameter<String>(message, "text"sv);
+        if (!text.has_value())
             return;
-        }
 
         auto result_id = MUST(String::formatted("{}-{}", name(), m_execution_id++));
 

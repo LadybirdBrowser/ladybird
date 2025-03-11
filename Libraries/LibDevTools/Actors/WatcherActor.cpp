@@ -38,11 +38,9 @@ void WatcherActor::handle_message(StringView type, JsonObject const& message)
     JsonObject response;
 
     if (type == "getParentBrowsingContextID"sv) {
-        auto browsing_context_id = message.get_integer<u64>("browsingContextID"sv);
-        if (!browsing_context_id.has_value()) {
-            send_missing_parameter_error("browsingContextID"sv);
+        auto browsing_context_id = get_required_parameter<u64>(message, "browsingContextID"sv);
+        if (!browsing_context_id.has_value())
             return;
-        }
 
         response.set("browsingContextID"sv, *browsing_context_id);
         send_message(move(response));
@@ -68,11 +66,9 @@ void WatcherActor::handle_message(StringView type, JsonObject const& message)
     }
 
     if (type == "watchResources"sv) {
-        auto resource_types = message.get_array("resourceTypes"sv);
-        if (!resource_types.has_value()) {
-            send_missing_parameter_error("resourceTypes"sv);
+        auto resource_types = get_required_parameter<JsonArray>(message, "resourceTypes"sv);
+        if (!resource_types.has_value())
             return;
-        }
 
         if constexpr (DEVTOOLS_DEBUG) {
             for (auto const& resource_type : resource_types->values()) {
@@ -88,11 +84,9 @@ void WatcherActor::handle_message(StringView type, JsonObject const& message)
     }
 
     if (type == "watchTargets"sv) {
-        auto target_type = message.get_string("targetType"sv);
-        if (!target_type.has_value()) {
-            send_missing_parameter_error("targetType"sv);
+        auto target_type = get_required_parameter<String>(message, "targetType"sv);
+        if (!target_type.has_value())
             return;
-        }
 
         if (target_type == "frame"sv) {
             auto& css_properties = devtools().register_actor<CSSPropertiesActor>();

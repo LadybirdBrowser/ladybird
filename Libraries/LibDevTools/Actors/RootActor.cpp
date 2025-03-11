@@ -65,11 +65,9 @@ void RootActor::handle_message(StringView type, JsonObject const& message)
     }
 
     if (type == "getProcess"sv) {
-        auto id = message.get_integer<u64>("id"sv);
-        if (!id.has_value()) {
-            send_missing_parameter_error("id"sv);
+        auto id = get_required_parameter<u64>(message, "id"sv);
+        if (!id.has_value())
             return;
-        }
 
         for (auto const& actor : devtools().actor_registry()) {
             auto const* process_actor = as_if<ProcessActor>(*actor.value);
@@ -87,11 +85,9 @@ void RootActor::handle_message(StringView type, JsonObject const& message)
     }
 
     if (type == "getTab"sv) {
-        auto browser_id = message.get_integer<u64>("browserId"sv);
-        if (!browser_id.has_value()) {
-            send_missing_parameter_error("browserId"sv);
+        auto browser_id = get_required_parameter<u64>(message, "browserId"sv);
+        if (!browser_id.has_value())
             return;
-        }
 
         for (auto const& actor : devtools().actor_registry()) {
             auto const* tab_actor = as_if<TabActor>(*actor.value);

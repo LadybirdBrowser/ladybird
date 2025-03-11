@@ -27,11 +27,9 @@ void ThreadConfigurationActor::handle_message(StringView type, JsonObject const&
     JsonObject response;
 
     if (type == "updateConfiguration"sv) {
-        auto configuration = message.get_object("configuration"sv);
-        if (!configuration.has_value()) {
-            send_missing_parameter_error("configuration"sv);
+        auto configuration = get_required_parameter<JsonObject>(message, "configuration"sv);
+        if (!configuration.has_value())
             return;
-        }
 
         send_message(move(response));
         return;

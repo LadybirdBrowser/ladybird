@@ -32,11 +32,9 @@ void HighlighterActor::handle_message(StringView type, JsonObject const& message
     JsonObject response;
 
     if (type == "show"sv) {
-        auto node = message.get_string("node"sv);
-        if (!node.has_value()) {
-            send_missing_parameter_error("node"sv);
+        auto node = get_required_parameter<String>(message, "node"sv);
+        if (!node.has_value())
             return;
-        }
 
         response.set("value"sv, false);
 
