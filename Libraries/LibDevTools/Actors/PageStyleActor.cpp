@@ -96,8 +96,10 @@ template<typename Callback>
 void PageStyleActor::inspect_dom_node(StringView node_actor, Callback&& callback)
 {
     auto dom_node = WalkerActor::dom_node_for(InspectorActor::walker_for(m_inspector), node_actor);
-    if (!dom_node.has_value())
+    if (!dom_node.has_value()) {
+        send_unknown_actor_error(node_actor);
         return;
+    }
 
     auto block_token = block_responses();
 

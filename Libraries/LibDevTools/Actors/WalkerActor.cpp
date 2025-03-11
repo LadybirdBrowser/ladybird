@@ -55,15 +55,18 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
             return;
         }
 
+        auto ancestor_node = WalkerActor::dom_node_for(*this, *node);
+        if (!ancestor_node.has_value()) {
+            send_unknown_actor_error(*node);
+            return;
+        }
+
         JsonArray nodes;
 
-        if (auto ancestor_node = m_actor_to_dom_node_map.get(*node); ancestor_node.has_value()) {
-            if (auto children = ancestor_node.value()->get_array("children"sv); children.has_value()) {
-
-                children->for_each([&](JsonValue const& child) {
-                    nodes.must_append(serialize_node(child.as_object()));
-                });
-            }
+        if (auto children = ancestor_node->node.get_array("children"sv); children.has_value()) {
+            children->for_each([&](JsonValue const& child) {
+                nodes.must_append(serialize_node(child.as_object()));
+            });
         }
 
         response.set("hasFirst"sv, !nodes.is_empty());
@@ -80,24 +83,28 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
             return;
         }
 
-        if (auto dom_node = WalkerActor::dom_node_for(*this, *node); dom_node.has_value()) {
-            auto block_token = block_responses();
-
-            devtools().delegate().clone_dom_node(
-                dom_node->tab->description(), dom_node->identifier.id,
-                [weak_self = make_weak_ptr<WalkerActor>(), block_token = move(block_token)](ErrorOr<Web::UniqueNodeID> node_id) mutable {
-                    if (node_id.is_error()) {
-                        dbgln_if(DEVTOOLS_DEBUG, "Unable to edit DOM node: {}", node_id.error());
-                        return;
-                    }
-
-                    if (auto self = weak_self.strong_ref()) {
-                        JsonObject message;
-                        message.set("from"sv, self->name());
-                        self->send_message(move(message), move(block_token));
-                    }
-                });
+        auto dom_node = WalkerActor::dom_node_for(*this, *node);
+        if (!dom_node.has_value()) {
+            send_unknown_actor_error(*node);
+            return;
         }
+
+        auto block_token = block_responses();
+
+        devtools().delegate().clone_dom_node(
+            dom_node->tab->description(), dom_node->identifier.id,
+            [weak_self = make_weak_ptr<WalkerActor>(), block_token = move(block_token)](ErrorOr<Web::UniqueNodeID> node_id) mutable {
+                if (node_id.is_error()) {
+                    dbgln_if(DEVTOOLS_DEBUG, "Unable to edit DOM node: {}", node_id.error());
+                    return;
+                }
+
+                if (auto self = weak_self.strong_ref()) {
+                    JsonObject message;
+                    message.set("from"sv, self->name());
+                    self->send_message(move(message), move(block_token));
+                }
+            });
 
         return;
     }
@@ -115,24 +122,28 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
             return;
         }
 
-        if (auto dom_node = WalkerActor::dom_node_for(*this, *node); dom_node.has_value()) {
-            auto block_token = block_responses();
-
-            devtools().delegate().set_dom_node_tag(
-                dom_node->tab->description(), dom_node->identifier.id, *tag_name,
-                [weak_self = make_weak_ptr<WalkerActor>(), block_token = move(block_token)](ErrorOr<Web::UniqueNodeID> node_id) mutable {
-                    if (node_id.is_error()) {
-                        dbgln_if(DEVTOOLS_DEBUG, "Unable to edit DOM node: {}", node_id.error());
-                        return;
-                    }
-
-                    if (auto self = weak_self.strong_ref()) {
-                        JsonObject message;
-                        message.set("from"sv, self->name());
-                        self->send_message(move(message), move(block_token));
-                    }
-                });
+        auto dom_node = WalkerActor::dom_node_for(*this, *node);
+        if (!dom_node.has_value()) {
+            send_unknown_actor_error(*node);
+            return;
         }
+
+        auto block_token = block_responses();
+
+        devtools().delegate().set_dom_node_tag(
+            dom_node->tab->description(), dom_node->identifier.id, *tag_name,
+            [weak_self = make_weak_ptr<WalkerActor>(), block_token = move(block_token)](ErrorOr<Web::UniqueNodeID> node_id) mutable {
+                if (node_id.is_error()) {
+                    dbgln_if(DEVTOOLS_DEBUG, "Unable to edit DOM node: {}", node_id.error());
+                    return;
+                }
+
+                if (auto self = weak_self.strong_ref()) {
+                    JsonObject message;
+                    message.set("from"sv, self->name());
+                    self->send_message(move(message), move(block_token));
+                }
+            });
 
         return;
     }
@@ -170,25 +181,29 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
             return;
         }
 
-        if (auto dom_node = WalkerActor::dom_node_for(*this, *node); dom_node.has_value()) {
-            auto block_token = block_responses();
-
-            devtools().delegate().get_dom_node_inner_html(
-                dom_node->tab->description(), dom_node->identifier.id,
-                [weak_self = make_weak_ptr<WalkerActor>(), block_token = move(block_token)](ErrorOr<String> html) mutable {
-                    if (html.is_error()) {
-                        dbgln_if(DEVTOOLS_DEBUG, "Unable to edit DOM node: {}", html.error());
-                        return;
-                    }
-
-                    if (auto self = weak_self.strong_ref()) {
-                        JsonObject message;
-                        message.set("from"sv, self->name());
-                        message.set("value"sv, html.release_value());
-                        self->send_message(move(message), move(block_token));
-                    }
-                });
+        auto dom_node = WalkerActor::dom_node_for(*this, *node);
+        if (!dom_node.has_value()) {
+            send_unknown_actor_error(*node);
+            return;
         }
+
+        auto block_token = block_responses();
+
+        devtools().delegate().get_dom_node_inner_html(
+            dom_node->tab->description(), dom_node->identifier.id,
+            [weak_self = make_weak_ptr<WalkerActor>(), block_token = move(block_token)](ErrorOr<String> html) mutable {
+                if (html.is_error()) {
+                    dbgln_if(DEVTOOLS_DEBUG, "Unable to edit DOM node: {}", html.error());
+                    return;
+                }
+
+                if (auto self = weak_self.strong_ref()) {
+                    JsonObject message;
+                    message.set("from"sv, self->name());
+                    message.set("value"sv, html.release_value());
+                    self->send_message(move(message), move(block_token));
+                }
+            });
 
         return;
     }
@@ -203,33 +218,37 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
             return;
         }
 
-        if (auto dom_node = WalkerActor::dom_node_for(*this, *node); dom_node.has_value()) {
-            auto block_token = block_responses();
-
-            devtools().delegate().create_child_element(
-                dom_node->tab->description(), dom_node->identifier.id,
-                [weak_self = make_weak_ptr<WalkerActor>(), block_token = move(block_token)](ErrorOr<Web::UniqueNodeID> node_id) mutable {
-                    if (node_id.is_error()) {
-                        dbgln_if(DEVTOOLS_DEBUG, "Unable to edit DOM node: {}", node_id.error());
-                        return;
-                    }
-
-                    if (auto self = weak_self.strong_ref()) {
-                        JsonArray nodes;
-
-                        if (auto actor = self->m_dom_node_id_to_actor_map.get(node_id.value()); actor.has_value()) {
-                            if (auto dom_node = WalkerActor::dom_node_for(self, *actor); dom_node.has_value())
-                                nodes.must_append(self->serialize_node(dom_node->node));
-                        }
-
-                        JsonObject message;
-                        message.set("from"sv, self->name());
-                        message.set("newParents"sv, JsonArray {});
-                        message.set("nodes"sv, move(nodes));
-                        self->send_message(move(message), move(block_token));
-                    }
-                });
+        auto dom_node = WalkerActor::dom_node_for(*this, *node);
+        if (!dom_node.has_value()) {
+            send_unknown_actor_error(*node);
+            return;
         }
+
+        auto block_token = block_responses();
+
+        devtools().delegate().create_child_element(
+            dom_node->tab->description(), dom_node->identifier.id,
+            [weak_self = make_weak_ptr<WalkerActor>(), block_token = move(block_token)](ErrorOr<Web::UniqueNodeID> node_id) mutable {
+                if (node_id.is_error()) {
+                    dbgln_if(DEVTOOLS_DEBUG, "Unable to edit DOM node: {}", node_id.error());
+                    return;
+                }
+
+                if (auto self = weak_self.strong_ref()) {
+                    JsonArray nodes;
+
+                    if (auto actor = self->m_dom_node_id_to_actor_map.get(node_id.value()); actor.has_value()) {
+                        if (auto dom_node = WalkerActor::dom_node_for(self, *actor); dom_node.has_value())
+                            nodes.must_append(self->serialize_node(dom_node->node));
+                    }
+
+                    JsonObject message;
+                    message.set("from"sv, self->name());
+                    message.set("newParents"sv, JsonArray {});
+                    message.set("nodes"sv, move(nodes));
+                    self->send_message(move(message), move(block_token));
+                }
+            });
 
         return;
     }
@@ -248,35 +267,44 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
         }
 
         auto dom_node = WalkerActor::dom_node_for(*this, *node);
+        if (!dom_node.has_value()) {
+            send_unknown_actor_error(*node);
+            return;
+        }
+
         auto parent_dom_node = WalkerActor::dom_node_for(*this, *parent);
+        if (!parent_dom_node.has_value()) {
+            send_unknown_actor_error(*parent);
+            return;
+        }
 
         Optional<Web::UniqueNodeID> sibling_node_id;
         if (auto sibling = message.get_string("sibling"sv); sibling.has_value()) {
             auto sibling_dom_node = WalkerActor::dom_node_for(*this, *sibling);
-            if (!sibling_dom_node.has_value())
+            if (!sibling_dom_node.has_value()) {
+                send_unknown_actor_error(*sibling);
                 return;
+            }
 
             sibling_node_id = sibling_dom_node->identifier.id;
         }
 
-        if (dom_node.has_value() && parent_dom_node.has_value()) {
-            auto block_token = block_responses();
+        auto block_token = block_responses();
 
-            devtools().delegate().insert_dom_node_before(
-                dom_node->tab->description(), dom_node->identifier.id, parent_dom_node->identifier.id, sibling_node_id,
-                [weak_self = make_weak_ptr<WalkerActor>(), block_token = move(block_token)](ErrorOr<Web::UniqueNodeID> node_id) mutable {
-                    if (node_id.is_error()) {
-                        dbgln_if(DEVTOOLS_DEBUG, "Unable to edit DOM node: {}", node_id.error());
-                        return;
-                    }
+        devtools().delegate().insert_dom_node_before(
+            dom_node->tab->description(), dom_node->identifier.id, parent_dom_node->identifier.id, sibling_node_id,
+            [weak_self = make_weak_ptr<WalkerActor>(), block_token = move(block_token)](ErrorOr<Web::UniqueNodeID> node_id) mutable {
+                if (node_id.is_error()) {
+                    dbgln_if(DEVTOOLS_DEBUG, "Unable to edit DOM node: {}", node_id.error());
+                    return;
+                }
 
-                    if (auto self = weak_self.strong_ref()) {
-                        JsonObject message;
-                        message.set("from"sv, self->name());
-                        self->send_message(move(message), move(block_token));
-                    }
-                });
-        }
+                if (auto self = weak_self.strong_ref()) {
+                    JsonObject message;
+                    message.set("from"sv, self->name());
+                    self->send_message(move(message), move(block_token));
+                }
+            });
 
         return;
     }
@@ -300,25 +328,29 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
             return;
         }
 
-        if (auto dom_node = WalkerActor::dom_node_for(*this, *node); dom_node.has_value()) {
-            auto block_token = block_responses();
-
-            devtools().delegate().get_dom_node_outer_html(
-                dom_node->tab->description(), dom_node->identifier.id,
-                [weak_self = make_weak_ptr<WalkerActor>(), block_token = move(block_token)](ErrorOr<String> html) mutable {
-                    if (html.is_error()) {
-                        dbgln_if(DEVTOOLS_DEBUG, "Unable to edit DOM node: {}", html.error());
-                        return;
-                    }
-
-                    if (auto self = weak_self.strong_ref()) {
-                        JsonObject message;
-                        message.set("from"sv, self->name());
-                        message.set("value"sv, html.release_value());
-                        self->send_message(move(message), move(block_token));
-                    }
-                });
+        auto dom_node = WalkerActor::dom_node_for(*this, *node);
+        if (!dom_node.has_value()) {
+            send_unknown_actor_error(*node);
+            return;
         }
+
+        auto block_token = block_responses();
+
+        devtools().delegate().get_dom_node_outer_html(
+            dom_node->tab->description(), dom_node->identifier.id,
+            [weak_self = make_weak_ptr<WalkerActor>(), block_token = move(block_token)](ErrorOr<String> html) mutable {
+                if (html.is_error()) {
+                    dbgln_if(DEVTOOLS_DEBUG, "Unable to edit DOM node: {}", html.error());
+                    return;
+                }
+
+                if (auto self = weak_self.strong_ref()) {
+                    JsonObject message;
+                    message.set("from"sv, self->name());
+                    message.set("value"sv, html.release_value());
+                    self->send_message(move(message), move(block_token));
+                }
+            });
 
         return;
     }
@@ -330,12 +362,15 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
             return;
         }
 
-        JsonValue previous_sibling;
-
-        if (auto dom_node = WalkerActor::dom_node_for(*this, *node); dom_node.has_value()) {
-            if (auto previous_sibling_node = previous_sibling_for_node(dom_node->node); previous_sibling_node.has_value())
-                previous_sibling = serialize_node(*previous_sibling_node);
+        auto dom_node = WalkerActor::dom_node_for(*this, *node);
+        if (!dom_node.has_value()) {
+            send_unknown_actor_error(*node);
+            return;
         }
+
+        JsonValue previous_sibling;
+        if (auto previous_sibling_node = previous_sibling_for_node(dom_node->node); previous_sibling_node.has_value())
+            previous_sibling = serialize_node(*previous_sibling_node);
 
         response.set("node"sv, move(previous_sibling));
         send_message(move(response));
@@ -355,17 +390,21 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
             return;
         }
 
-        if (auto ancestor_node = m_actor_to_dom_node_map.get(*node); ancestor_node.has_value()) {
-            if (auto selected_node = find_node_by_selector(*ancestor_node.value(), *selector); selected_node.has_value()) {
-                response.set("node"sv, serialize_node(*selected_node));
+        auto ancestor_node = WalkerActor::dom_node_for(*this, *node);
+        if (!ancestor_node.has_value()) {
+            send_unknown_actor_error(*node);
+            return;
+        }
 
-                if (auto parent = m_dom_node_to_parent_map.get(&selected_node.value()); parent.value() && parent.value() != ancestor_node.value()) {
-                    // FIXME: Should this be a stack of nodes leading to `ancestor_node`?
-                    JsonArray new_parents;
-                    new_parents.must_append(serialize_node(*parent.value()));
+        if (auto selected_node = find_node_by_selector(ancestor_node->node, *selector); selected_node.has_value()) {
+            response.set("node"sv, serialize_node(*selected_node));
 
-                    response.set("newParents"sv, move(new_parents));
-                }
+            if (auto parent = m_dom_node_to_parent_map.get(&selected_node.value()); parent.value() && parent.value() != &ancestor_node->node) {
+                // FIXME: Should this be a stack of nodes leading to `ancestor_node`?
+                JsonArray new_parents;
+                new_parents.must_append(serialize_node(*parent.value()));
+
+                response.set("newParents"sv, move(new_parents));
             }
         }
 
@@ -380,33 +419,37 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
             return;
         }
 
-        if (auto dom_node = WalkerActor::dom_node_for(*this, *node); dom_node.has_value()) {
-            JsonValue next_sibling;
-            if (auto next_sibling_node = next_sibling_for_node(dom_node->node); next_sibling_node.has_value())
-                next_sibling = serialize_node(*next_sibling_node);
-
-            auto parent_node = remove_node(dom_node->node);
-            if (!parent_node.has_value())
-                return;
-
-            auto block_token = block_responses();
-
-            devtools().delegate().remove_dom_node(
-                dom_node->tab->description(), dom_node->identifier.id,
-                [weak_self = make_weak_ptr<WalkerActor>(), next_sibling = move(next_sibling), block_token = move(block_token)](ErrorOr<Web::UniqueNodeID> node_id) mutable {
-                    if (node_id.is_error()) {
-                        dbgln_if(DEVTOOLS_DEBUG, "Unable to edit DOM node: {}", node_id.error());
-                        return;
-                    }
-
-                    if (auto self = weak_self.strong_ref()) {
-                        JsonObject message;
-                        message.set("from"sv, self->name());
-                        message.set("nextSibling"sv, move(next_sibling));
-                        self->send_message(move(message), move(block_token));
-                    }
-                });
+        auto dom_node = WalkerActor::dom_node_for(*this, *node);
+        if (!dom_node.has_value()) {
+            send_unknown_actor_error(*node);
+            return;
         }
+
+        JsonValue next_sibling;
+        if (auto next_sibling_node = next_sibling_for_node(dom_node->node); next_sibling_node.has_value())
+            next_sibling = serialize_node(*next_sibling_node);
+
+        auto parent_node = remove_node(dom_node->node);
+        if (!parent_node.has_value())
+            return;
+
+        auto block_token = block_responses();
+
+        devtools().delegate().remove_dom_node(
+            dom_node->tab->description(), dom_node->identifier.id,
+            [weak_self = make_weak_ptr<WalkerActor>(), next_sibling = move(next_sibling), block_token = move(block_token)](ErrorOr<Web::UniqueNodeID> node_id) mutable {
+                if (node_id.is_error()) {
+                    dbgln_if(DEVTOOLS_DEBUG, "Unable to edit DOM node: {}", node_id.error());
+                    return;
+                }
+
+                if (auto self = weak_self.strong_ref()) {
+                    JsonObject message;
+                    message.set("from"sv, self->name());
+                    message.set("nextSibling"sv, move(next_sibling));
+                    self->send_message(move(message), move(block_token));
+                }
+            });
 
         return;
     }
@@ -429,24 +472,28 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
             return;
         }
 
-        if (auto dom_node = WalkerActor::dom_node_for(*this, *node); dom_node.has_value()) {
-            auto block_token = block_responses();
-
-            devtools().delegate().set_dom_node_outer_html(
-                dom_node->tab->description(), dom_node->identifier.id, value.release_value(),
-                [weak_self = make_weak_ptr<WalkerActor>(), block_token = move(block_token)](ErrorOr<Web::UniqueNodeID> node_id) mutable {
-                    if (node_id.is_error()) {
-                        dbgln_if(DEVTOOLS_DEBUG, "Unable to edit DOM node: {}", node_id.error());
-                        return;
-                    }
-
-                    if (auto self = weak_self.strong_ref()) {
-                        JsonObject message;
-                        message.set("from"sv, self->name());
-                        self->send_message(move(message), move(block_token));
-                    }
-                });
+        auto dom_node = WalkerActor::dom_node_for(*this, *node);
+        if (!dom_node.has_value()) {
+            send_unknown_actor_error(*node);
+            return;
         }
+
+        auto block_token = block_responses();
+
+        devtools().delegate().set_dom_node_outer_html(
+            dom_node->tab->description(), dom_node->identifier.id, value.release_value(),
+            [weak_self = make_weak_ptr<WalkerActor>(), block_token = move(block_token)](ErrorOr<Web::UniqueNodeID> node_id) mutable {
+                if (node_id.is_error()) {
+                    dbgln_if(DEVTOOLS_DEBUG, "Unable to edit DOM node: {}", node_id.error());
+                    return;
+                }
+
+                if (auto self = weak_self.strong_ref()) {
+                    JsonObject message;
+                    message.set("from"sv, self->name());
+                    self->send_message(move(message), move(block_token));
+                }
+            });
 
         return;
     }
