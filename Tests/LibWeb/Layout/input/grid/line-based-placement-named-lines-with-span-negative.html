@@ -1,0 +1,27 @@
+<!DOCTYPE html><style>
+.wrapper {
+    display: grid;
+    grid-gap: 10px;
+    grid-template-columns: [col] 100px [col] 100px [col] 100px [col] 100px;
+    grid-template-rows: [row] auto [row] auto [row];
+    background-color: #fff;
+    color: #444;
+}
+.box {
+    background-color: #444;
+    color: #fff;
+    border-radius: 5px;
+    padding: 20px;
+    font-size: 150%;
+}
+.a {
+    grid-row: row -2 ;
+}
+.b {
+    grid-row: row -1 ;
+}
+</style>
+<body>
+<div class="wrapper">
+<div class="box a">A</div>
+<div class="box b">B</div>
