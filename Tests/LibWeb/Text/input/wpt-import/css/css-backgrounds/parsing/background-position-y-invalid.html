@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Backgrounds and Borders Module Level 4: parsing background-position-y with invalid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-backgrounds-4/#propdef-background-position-y">
+<meta name="assert" content="background-position-y supports only the grammar '[ center | [ top | bottom | y-start | y-end ]? <length-percentage>? ]#'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("background-position-y", "left");
+test_invalid_value("background-position-y", "right");
+test_invalid_value("background-position-y", "x-start");
+test_invalid_value("background-position-y", "x-end");
+test_invalid_value("background-position-y", "center 10px");
+test_invalid_value("background-position-y", "20% top");
+test_invalid_value("background-position-y", "bottom top");
+test_invalid_value("background-position-y", "y-start center");
+test_invalid_value("background-position-y", "top, center bottom");
+</script>
+</body>
+</html>

@@ -1363,6 +1363,8 @@ RefPtr<CSSStyleValue> Parser::parse_single_background_position_x_or_y_value(Toke
                 transaction.commit();
                 return EdgeStyleValue::create(relative_edge, {});
             }
+            if (value->is_keyword())
+                return {};
         }
     }
 
