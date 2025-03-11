@@ -3980,8 +3980,11 @@ RefPtr<CSSStyleValue> Parser::parse_grid_track_placement_shorthand_value(Propert
 
     Vector<ComponentValue> track_start_placement_tokens;
     while (true) {
-        if (current_token->is_delim('/'))
+        if (current_token->is_delim('/')) {
+            if (!tokens.has_next_token())
+                return nullptr;
             break;
+        }
         track_start_placement_tokens.append(current_token);
         if (!tokens.has_next_token())
             break;

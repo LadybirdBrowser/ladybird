@@ -2,15 +2,14 @@ Harness status: OK
 
 Found 25 tests
 
-21 Pass
-4 Fail
+25 Pass
 Pass	e.style['grid-area'] = "'string'" should not set the property value
 Pass	e.style['grid-row'] = "1.0" should not set the property value
 Pass	e.style['grid-column'] = "1 2" should not set the property value
 Pass	e.style['grid-row-start'] = "+-3" should not set the property value
 Pass	e.style['grid-column-start'] = "0" should not set the property value
-Fail	e.style['grid-row-end'] = "span" should not set the property value
-Fail	e.style['grid-column-end'] = "sPaN" should not set the property value
+Pass	e.style['grid-row-end'] = "span" should not set the property value
+Pass	e.style['grid-column-end'] = "sPaN" should not set the property value
 Pass	e.style['grid-column-end'] = "\"1st\"" should not set the property value
 Pass	e.style['grid-column-end'] = "1st" should not set the property value
 Pass	e.style['grid-column-start'] = "auto 1" should not set the property value
@@ -19,8 +18,8 @@ Pass	e.style['grid-area'] = "auto / initial" should not set the property value
 Pass	e.style['grid-row'] = "auto / inherit" should not set the property value
 Pass	e.style['grid-column'] = "auto / unset" should not set the property value
 Pass	e.style['grid-area'] = "auto / auto / auto / auto / auto" should not set the property value
-Fail	e.style['grid-row'] = "1 / 2 / 3" should not set the property value
-Fail	e.style['grid-column'] = "a / b / c" should not set the property value
+Pass	e.style['grid-row'] = "1 / 2 / 3" should not set the property value
+Pass	e.style['grid-column'] = "a / b / c" should not set the property value
 Pass	e.style['grid-row-end'] = "span 1 / span 2" should not set the property value
 Pass	e.style['grid-area'] = "auto 2 auto 4" should not set the property value
 Pass	e.style['grid-row'] = "33 -A0 auto" should not set the property value

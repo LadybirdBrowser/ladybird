@@ -2,36 +2,35 @@ Harness status: OK
 
 Found 31 tests
 
-1 Pass
-30 Fail
+31 Pass
 Pass	e.style['grid-column'] = "4 5" should not set the property value
-Fail	e.style['grid-column'] = "4 /" should not set the property value
-Fail	e.style['grid-column'] = "5 5" should not set the property value
-Fail	e.style['grid-column'] = "5 / /" should not set the property value
-Fail	e.style['grid-column'] = "0 / 5" should not set the property value
-Fail	e.style['grid-column'] = "6 / 0" should not set the property value
-Fail	e.style['grid-column'] = "0" should not set the property value
-Fail	e.style['grid-column'] = "span" should not set the property value
-Fail	e.style['grid-column'] = "span / span" should not set the property value
-Fail	e.style['grid-column'] = "span span / span span" should not set the property value
-Fail	e.style['grid-column'] = "5 5 / span 2" should not set the property value
-Fail	e.style['grid-column'] = "5 first last / span 2" should not set the property value
-Fail	e.style['grid-column'] = "5 / first last 2" should not set the property value
-Fail	e.style['grid-column'] = "first last / span 2" should not set the property value
-Fail	e.style['grid-column'] = "5 / first last" should not set the property value
-Fail	e.style['grid-column'] = "5 5 span / 2" should not set the property value
-Fail	e.style['grid-column'] = "span 3 5 / 1" should not set the property value
-Fail	e.style['grid-column'] = "span last first / 1" should not set the property value
-Fail	e.style['grid-column'] = "2 / span last first" should not set the property value
-Fail	e.style['grid-column'] = "span 1 last first / 1" should not set the property value
-Fail	e.style['grid-column'] = "2 / span last 3 first" should not set the property value
-Fail	e.style['grid-column'] = "1 span 2 first / 1" should not set the property value
-Fail	e.style['grid-column'] = "2 / 3 span 3 first" should not set the property value
-Fail	e.style['grid-column'] = "span -1 / -2" should not set the property value
-Fail	e.style['grid-column'] = "-1 / -2 span" should not set the property value
-Fail	e.style['grid-column'] = "0 span / 0" should not set the property value
-Fail	e.style['grid-column'] = "0 / span 0" should not set the property value
-Fail	e.style['grid-column'] = "span -3 'first' / 3 last" should not set the property value
-Fail	e.style['grid-column'] = "first span 1 / last" should not set the property value
-Fail	e.style['grid-column'] = "3 first / 2 span last" should not set the property value
-Fail	e.style['grid-column'] = "3 / 1 span 2" should not set the property value
+Pass	e.style['grid-column'] = "4 /" should not set the property value
+Pass	e.style['grid-column'] = "5 5" should not set the property value
+Pass	e.style['grid-column'] = "5 / /" should not set the property value
+Pass	e.style['grid-column'] = "0 / 5" should not set the property value
+Pass	e.style['grid-column'] = "6 / 0" should not set the property value
+Pass	e.style['grid-column'] = "0" should not set the property value
+Pass	e.style['grid-column'] = "span" should not set the property value
+Pass	e.style['grid-column'] = "span / span" should not set the property value
+Pass	e.style['grid-column'] = "span span / span span" should not set the property value
+Pass	e.style['grid-column'] = "5 5 / span 2" should not set the property value
+Pass	e.style['grid-column'] = "5 first last / span 2" should not set the property value
+Pass	e.style['grid-column'] = "5 / first last 2" should not set the property value
+Pass	e.style['grid-column'] = "first last / span 2" should not set the property value
+Pass	e.style['grid-column'] = "5 / first last" should not set the property value
+Pass	e.style['grid-column'] = "5 5 span / 2" should not set the property value
+Pass	e.style['grid-column'] = "span 3 5 / 1" should not set the property value
+Pass	e.style['grid-column'] = "span last first / 1" should not set the property value
+Pass	e.style['grid-column'] = "2 / span last first" should not set the property value
+Pass	e.style['grid-column'] = "span 1 last first / 1" should not set the property value
+Pass	e.style['grid-column'] = "2 / span last 3 first" should not set the property value
+Pass	e.style['grid-column'] = "1 span 2 first / 1" should not set the property value
+Pass	e.style['grid-column'] = "2 / 3 span 3 first" should not set the property value
+Pass	e.style['grid-column'] = "span -1 / -2" should not set the property value
+Pass	e.style['grid-column'] = "-1 / -2 span" should not set the property value
+Pass	e.style['grid-column'] = "0 span / 0" should not set the property value
+Pass	e.style['grid-column'] = "0 / span 0" should not set the property value
+Pass	e.style['grid-column'] = "span -3 'first' / 3 last" should not set the property value
+Pass	e.style['grid-column'] = "first span 1 / last" should not set the property value
+Pass	e.style['grid-column'] = "3 first / 2 span last" should not set the property value
+Pass	e.style['grid-column'] = "3 / 1 span 2" should not set the property value
