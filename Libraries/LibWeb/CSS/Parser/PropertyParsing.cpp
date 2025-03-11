@@ -4432,7 +4432,7 @@ RefPtr<CSSStyleValue> Parser::parse_filter_value_list_value(TokenStream<Componen
                 return FilterOperation::Blur {};
             auto blur_radius = parse_length(tokens);
             tokens.discard_whitespace();
-            if (!blur_radius.has_value())
+            if (!blur_radius.has_value() || (!blur_radius->is_calculated() && blur_radius->value().raw_value() < 0))
                 return {};
             return if_no_more_tokens_return(FilterOperation::Blur { blur_radius.value() });
         } else if (filter_token == FilterToken::DropShadow) {
@@ -4498,6 +4498,12 @@ RefPtr<CSSStyleValue> Parser::parse_filter_value_list_value(TokenStream<Componen
             if (!tokens.has_next_token())
                 return FilterOperation::Color { filter_token_to_operation(filter_token) };
             auto amount = parse_number_percentage(tokens);
+            if (amount.has_value()) {
+                if (amount->is_percentage() && amount->percentage().value() < 0)
+                    return {};
+                if (amount->is_number() && amount->number().value() < 0)
+                    return {};
+            }
             return if_no_more_tokens_return(FilterOperation::Color { filter_token_to_operation(filter_token), amount });
         }
     };
