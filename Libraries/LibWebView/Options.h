@@ -94,6 +94,11 @@ enum class EnableHTTPCache {
     Yes,
 };
 
+enum class DisableSiteIsolation {
+    No,
+    Yes,
+};
+
 enum class ExposeInternalsObject {
     No,
     Yes,
@@ -131,6 +136,7 @@ struct WebContentOptions {
     Optional<StringView> user_agent_preset {};
     IsLayoutTestMode is_layout_test_mode { IsLayoutTestMode::No };
     LogAllJSExceptions log_all_js_exceptions { LogAllJSExceptions::No };
+    DisableSiteIsolation disable_site_isolation { DisableSiteIsolation::No };
     EnableIDLTracing enable_idl_tracing { EnableIDLTracing::No };
     EnableHTTPCache enable_http_cache { EnableHTTPCache::No };
     ExposeInternalsObject expose_internals_object { ExposeInternalsObject::No };
