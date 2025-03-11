@@ -56,6 +56,9 @@ static Vector<ByteString> create_arguments(ByteString const& socket_path, bool f
     if (debug_process.has_value())
         arguments.append(ByteString::formatted("--debug-process={}", debug_process.value()));
 
+    // FIXME: WebDriver does not yet handle the WebContent process switch brought by site isolation.
+    arguments.append("--disable-site-isolation"sv);
+
     arguments.append("about:blank"sv);
     return arguments;
 }
