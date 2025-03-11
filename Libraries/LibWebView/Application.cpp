@@ -442,6 +442,7 @@ void Application::inspect_dom_node(DevTools::TabDescription const& description, 
         on_complete(DevTools::DOMNodeProperties {
             .computed_style = move(properties.computed_style),
             .node_box_sizing = move(properties.node_box_sizing),
+            .fonts = move(properties.fonts),
         });
     };
 

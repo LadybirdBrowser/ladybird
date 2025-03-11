@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/JsonObject.h>
 #include <AK/JsonValue.h>
 #include <LibDevTools/Actors/InspectorActor.h>
 #include <LibDevTools/Actors/PageStyleActor.h>
@@ -72,6 +71,37 @@ static void received_computed_style(JsonObject& response, JsonObject const& comp
     response.set("computed"sv, move(computed));
 }
 
+static void received_fonts(JsonObject& response, JsonArray const& fonts)
+{
+    JsonArray font_faces;
+
+    fonts.for_each([&](JsonValue const& font) {
+        if (!font.is_object())
+            return;
+
+        auto name = font.as_object().get_string("name"sv).value_or({});
+        auto weight = font.as_object().get_integer<i64>("weight"sv).value_or(0);
+
+        JsonObject font_face;
+        font_face.set("CSSFamilyName"sv, name);
+        font_face.set("CSSGeneric"sv, JsonValue {});
+        font_face.set("format"sv, ""sv);
+        font_face.set("localName"sv, ""sv);
+        font_face.set("metadata"sv, ""sv);
+        font_face.set("name"sv, name);
+        font_face.set("srcIndex"sv, -1);
+        font_face.set("style"sv, ""sv);
+        font_face.set("URI"sv, ""sv);
+        font_face.set("variationAxes"sv, JsonArray {});
+        font_face.set("variationInstances"sv, JsonArray {});
+        font_face.set("weight"sv, weight);
+
+        font_faces.must_append(move(font_face));
+    });
+
+    response.set("fontFaces"sv, move(font_faces));
+}
+
 NonnullRefPtr<PageStyleActor> PageStyleActor::create(DevToolsServer& devtools, String name, WeakPtr<InspectorActor> inspector)
 {
     return adopt_ref(*new PageStyleActor(devtools, move(name), move(inspector)));
@@ -88,6 +118,12 @@ PageStyleActor::~PageStyleActor() = default;
 void PageStyleActor::handle_message(Message const& message)
 {
     JsonObject response;
+
+    if (message.type == "getAllUsedFontFaces"sv) {
+        response.set("fontFaces"sv, JsonArray {});
+        send_response(message, move(response));
+        return;
+    }
 
     if (message.type == "getApplied"sv) {
         // FIXME: This provides information to the "styles" pane in the inspector tab, which allows toggling and editing
@@ -116,6 +152,18 @@ void PageStyleActor::handle_message(Message const& message)
 
         inspect_dom_node(message, *node, [](auto& response, auto const& properties) {
             received_layout(response, properties.computed_style, properties.node_box_sizing);
+        });
+
+        return;
+    }
+
+    if (message.type == "getUsedFontFaces"sv) {
+        auto node = get_required_parameter<String>(message, "node"sv);
+        if (!node.has_value())
+            return;
+
+        inspect_dom_node(message, *node, [](auto& response, auto const& properties) {
+            received_fonts(response, properties.fonts);
         });
 
         return;

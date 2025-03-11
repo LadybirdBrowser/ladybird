@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
 #include <AK/NonnullRefPtr.h>
 #include <LibDevTools/Actor.h>
@@ -15,6 +16,7 @@ namespace DevTools {
 struct DOMNodeProperties {
     JsonObject computed_style;
     JsonObject node_box_sizing;
+    JsonArray fonts;
 };
 
 class PageStyleActor final : public Actor {
