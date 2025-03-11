@@ -105,6 +105,8 @@ static ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_proc
         arguments.append("--layout-test-mode"sv);
     if (web_content_options.log_all_js_exceptions == WebView::LogAllJSExceptions::Yes)
         arguments.append("--log-all-js-exceptions"sv);
+    if (web_content_options.disable_site_isolation == WebView::DisableSiteIsolation::Yes)
+        arguments.append("--disable-site-isolation"sv);
     if (web_content_options.enable_idl_tracing == WebView::EnableIDLTracing::Yes)
         arguments.append("--enable-idl-tracing"sv);
     if (web_content_options.enable_http_cache == WebView::EnableHTTPCache::Yes)

@@ -79,6 +79,7 @@ void Application::initialize(Main::Arguments const& arguments, URL::URL new_tab_
     Optional<u16> dns_server_port;
     bool use_dns_over_tls = false;
     bool log_all_js_exceptions = false;
+    bool disable_site_isolation = false;
     bool enable_idl_tracing = false;
     bool enable_http_cache = false;
     bool enable_autoplay = false;
@@ -102,6 +103,7 @@ void Application::initialize(Main::Arguments const& arguments, URL::URL new_tab_
     args_parser.add_option(webdriver_content_ipc_path, "Path to WebDriver IPC for WebContent", "webdriver-content-path", 0, "path", Core::ArgsParser::OptionHideMode::CommandLineAndMarkdown);
     args_parser.add_option(devtools_port, "Set the Firefox DevTools port (EXPERIMENTAL)", "devtools", 0, "port");
     args_parser.add_option(log_all_js_exceptions, "Log all JavaScript exceptions", "log-all-js-exceptions");
+    args_parser.add_option(disable_site_isolation, "Disable site isolation", "disable-site-isolation");
     args_parser.add_option(enable_idl_tracing, "Enable IDL tracing", "enable-idl-tracing");
     args_parser.add_option(enable_http_cache, "Enable HTTP cache", "enable-http-cache");
     args_parser.add_option(enable_autoplay, "Enable multimedia autoplay", "enable-autoplay");
@@ -171,6 +173,7 @@ void Application::initialize(Main::Arguments const& arguments, URL::URL new_tab_
         .executable_path = MUST(String::from_byte_string(MUST(Core::System::current_executable_path()))),
         .user_agent_preset = move(user_agent_preset),
         .log_all_js_exceptions = log_all_js_exceptions ? LogAllJSExceptions::Yes : LogAllJSExceptions::No,
+        .disable_site_isolation = disable_site_isolation ? DisableSiteIsolation::Yes : DisableSiteIsolation::No,
         .enable_idl_tracing = enable_idl_tracing ? EnableIDLTracing::Yes : EnableIDLTracing::No,
         .enable_http_cache = enable_http_cache ? EnableHTTPCache::Yes : EnableHTTPCache::No,
         .expose_internals_object = expose_internals_object ? ExposeInternalsObject::Yes : ExposeInternalsObject::No,

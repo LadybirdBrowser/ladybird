@@ -30,6 +30,7 @@
 #include <LibWeb/Platform/EventLoopPluginSerenity.h>
 #include <LibWebView/Plugins/FontPlugin.h>
 #include <LibWebView/Plugins/ImageCodecPlugin.h>
+#include <LibWebView/SiteIsolation.h>
 #include <LibWebView/Utilities.h>
 #include <WebContent/ConnectionFromClient.h>
 #include <WebContent/PageClient.h>
@@ -100,6 +101,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     bool expose_internals_object = false;
     bool wait_for_debugger = false;
     bool log_all_js_exceptions = false;
+    bool disable_site_isolation = false;
     bool enable_idl_tracing = false;
     bool enable_http_cache = false;
     bool force_cpu_painting = false;
@@ -122,6 +124,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     args_parser.add_option(wait_for_debugger, "Wait for debugger", "wait-for-debugger");
     args_parser.add_option(mach_server_name, "Mach server name", "mach-server-name", 0, "mach_server_name");
     args_parser.add_option(log_all_js_exceptions, "Log all JavaScript exceptions", "log-all-js-exceptions");
+    args_parser.add_option(disable_site_isolation, "Disable site isolation", "disable-site-isolation");
     args_parser.add_option(enable_idl_tracing, "Enable IDL tracing", "enable-idl-tracing");
     args_parser.add_option(enable_http_cache, "Enable HTTP cache", "enable-http-cache");
     args_parser.add_option(force_cpu_painting, "Force CPU painting", "force-cpu-painting");
@@ -158,6 +161,9 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
     WebContent::PageClient::set_is_headless(is_headless);
     WebContent::PageClient::set_devtools_enabled(devtools);
+
+    if (disable_site_isolation)
+        WebView::disable_site_isolation();
 
     if (enable_http_cache) {
         Web::Fetch::Fetching::g_http_cache_enabled = true;

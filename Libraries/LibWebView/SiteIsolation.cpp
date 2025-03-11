@@ -11,8 +11,18 @@
 
 namespace WebView {
 
+static bool s_site_isolation_enabled = true;
+
+void disable_site_isolation()
+{
+    s_site_isolation_enabled = false;
+}
+
 bool is_url_suitable_for_same_process_navigation(URL::URL const& current_url, URL::URL const& target_url)
 {
+    if (!s_site_isolation_enabled)
+        return true;
+
     // Allow navigating from about:blank to any site.
     if (Web::HTML::url_matches_about_blank(current_url))
         return true;
