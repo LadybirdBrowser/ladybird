@@ -896,6 +896,7 @@ static void gather_style_sheets(Vector<Web::CSS::StyleSheetIdentifier>& results,
         if (auto location = sheet.location(); location.has_value())
             identifier.url = location.release_value();
 
+        identifier.rule_count = sheet.rules().length();
         results.append(move(identifier));
     }
 
@@ -904,8 +905,10 @@ static void gather_style_sheets(Vector<Web::CSS::StyleSheetIdentifier>& results,
             gather_style_sheets(results, *import_rule->loaded_style_sheet());
         } else {
             // We can gather this anyway, and hope it loads later
-            results.append({ .type = Web::CSS::StyleSheetIdentifier::Type::ImportRule,
-                .url = import_rule->url().to_string() });
+            results.append({
+                .type = Web::CSS::StyleSheetIdentifier::Type::ImportRule,
+                .url = import_rule->url().to_string(),
+            });
         }
     }
 }
