@@ -154,6 +154,7 @@ executable("ladybird_executable") {
     deps += [ "//Userland/Libraries/LibThreading" ]
   } else {
     data_deps += [
+      ":ladybird_copy_about_pages",
       ":ladybird_copy_cacert",
       ":ladybird_copy_config_resources",
       ":ladybird_copy_fonts",
@@ -265,11 +266,14 @@ themes = [
 ]
 
 web_resources = [
-  "//Base/res/ladybird/about.html",
   "//Base/res/ladybird/inspector.css",
   "//Base/res/ladybird/inspector.html",
   "//Base/res/ladybird/inspector.js",
-  "//Base/res/ladybird/newtab.html",
+]
+
+about_pages = [
+  "//Base/res/ladybird/about-pages/about.html",
+  "//Base/res/ladybird/about-pages/newtab.html",
 ]
 
 web_templates = [
@@ -325,6 +329,13 @@ if (current_os != "mac") {
   copy("ladybird_copy_web_resources") {
     sources = web_resources
     outputs = [ "$root_out_dir/share/Lagom/ladybird/{{source_file_part}}" ]
+  }
+
+  copy("ladybird_copy_about_pages") {
+    sources = about_pages
+    outputs = [
+      "$root_out_dir/share/Lagom/ladybird/about-pages/{{source_file_part}}",
+    ]
   }
 
   copy("ladybird_copy_web_templates") {
@@ -477,6 +488,12 @@ if (current_os != "mac") {
     outputs = [ "{{bundle_resources_dir}}/ladybird/{{source_file_part}}" ]
   }
 
+  bundle_data("ladybird_about_pages") {
+    sources = about_pages
+    outputs =
+        [ "{{bundle_resources_dir}}/ladybird/about-pages/{{source_file_part}}" ]
+  }
+
   bundle_data("ladybird_web_templates") {
     sources = web_templates
     outputs =
@@ -537,6 +554,7 @@ if (current_os != "mac") {
     bundle_executable_dir = "$bundle_contents_dir/MacOS"
 
     deps = [
+      ":ladybird_about_pages",
       ":ladybird_bundle_executables",
       ":ladybird_bundle_info_plist",
       ":ladybird_bundle_libs",

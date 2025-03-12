@@ -272,18 +272,25 @@ void ResourceLoader::load(LoadRequest& request, GC::Root<SuccessCallback> succes
         // FIXME: Implement timing info for about requests.
         Requests::RequestTimingInfo fixme_implement_timing_info {};
 
+        auto serialized_path = URL::percent_decode(url.serialize_path());
+
         // About version page
-        if (url.path_segment_at_index(0) == "version") {
+        if (serialized_path == "version") {
             success_callback->function()(MUST(load_about_version_page()).bytes(), fixme_implement_timing_info, response_headers, {}, {});
             return;
         }
 
         // Other about static HTML pages
-        auto resource = Core::Resource::load_from_uri(MUST(String::formatted("resource://ladybird/{}.html", url.path_segment_at_index(0))));
-        if (!resource.is_error()) {
-            auto data = resource.value()->data();
-            success_callback->function()(data, fixme_implement_timing_info, response_headers, {}, {});
-            return;
+        auto target_file = ByteString::formatted("{}.html", serialized_path);
+
+        auto about_directory = MUST(Core::Resource::load_from_uri("resource://ladybird/about-pages"_string));
+        if (about_directory->children().contains_slow(target_file.view())) {
+            auto resource = Core::Resource::load_from_uri(ByteString::formatted("resource://ladybird/about-pages/{}", target_file));
+            if (!resource.is_error()) {
+                auto data = resource.value()->data();
+                success_callback->function()(data, fixme_implement_timing_info, response_headers, {}, {});
+                return;
+            }
         }
 
         Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(m_heap, [success_callback, response_headers = move(response_headers), fixme_implement_timing_info = move(fixme_implement_timing_info)] {

@@ -63,10 +63,12 @@ list(TRANSFORM 128x128_ICONS PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/icons/128x
 list(TRANSFORM BROWSER_ICONS PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/icons/browser/")
 
 set(WEB_RESOURCES
-    about.html
     inspector.css
     inspector.html
     inspector.js
+)
+set(ABOUT_PAGES
+    about.html
     newtab.html
 )
 set(WEB_TEMPLATES
@@ -75,6 +77,7 @@ set(WEB_TEMPLATES
     version.html
 )
 list(TRANSFORM WEB_RESOURCES PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/ladybird/")
+list(TRANSFORM ABOUT_PAGES PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/ladybird/about-pages/")
 list(TRANSFORM WEB_TEMPLATES PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/ladybird/templates/")
 
 set(THEMES
@@ -163,6 +166,10 @@ function(copy_resources_to_build base_directory bundle_target)
         DESTINATION ${base_directory} TARGET ${bundle_target}
     )
 
+    copy_resource_set(ladybird/about-pages RESOURCES ${ABOUT_PAGES}
+        DESTINATION ${base_directory} TARGET ${bundle_target}
+    )
+
     copy_resource_set(ladybird/templates RESOURCES ${WEB_TEMPLATES}
         DESTINATION ${base_directory} TARGET ${bundle_target}
     )
@@ -186,6 +193,7 @@ function(install_ladybird_resources destination component)
     install(FILES ${BROWSER_ICONS} DESTINATION "${destination}/icons/browser" COMPONENT ${component})
     install(FILES ${THEMES} DESTINATION "${destination}/themes" COMPONENT ${component})
     install(FILES ${WEB_RESOURCES} DESTINATION "${destination}/ladybird" COMPONENT ${component})
+    install(FILES ${ABOUT_PAGES} DESTINATION "${destination}/ladybird/about-pages" COMPONENT ${component})
     install(FILES ${WEB_TEMPLATES} DESTINATION "${destination}/ladybird/templates" COMPONENT ${component})
     install(FILES ${CONFIG_RESOURCES} DESTINATION "${destination}/ladybird/default-config" COMPONENT ${component})
     install(FILES ${DOWNLOADED_RESOURCES} DESTINATION "${destination}/ladybird" COMPONENT ${component})
