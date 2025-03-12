@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Transitions: parsing transition with invalid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-transitions/#transition-shorthand-property">
+<meta name="assert" content="transition supports only the grammar '<single-transition> #'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+// <single-transition> = [ none | <single-transition-property> ] ||
+// <time> || <easing-function> || <time>
+test_invalid_value("transition", "1s 2s 3s");
+test_invalid_value("transition", "-1s -2s");
+
+test_invalid_value("transition", "steps(1) steps(2)");
+
+test_invalid_value("transition", "none top");
+
+test_invalid_value("transition", "initial 1s");
+
+</script>
+</body>
+</html>

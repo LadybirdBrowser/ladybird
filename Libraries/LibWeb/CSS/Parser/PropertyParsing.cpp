@@ -3791,13 +3791,18 @@ RefPtr<CSSStyleValue> Parser::parse_transition_value(TokenStream<ComponentValue>
         auto time_value_count = 0;
 
         while (tokens.has_next_token() && !tokens.next_token().is(Token::Type::Comma)) {
-            if (auto time = parse_time(tokens); time.has_value()) {
+            if (auto maybe_time = parse_time(tokens); maybe_time.has_value()) {
+                auto time = maybe_time.release_value();
                 switch (time_value_count) {
                 case 0:
-                    transition.duration = time.release_value();
+                    if (!time.is_calculated() && !property_accepts_time(PropertyID::TransitionDuration, time.value()))
+                        return nullptr;
+                    transition.duration = move(time);
                     break;
                 case 1:
-                    transition.delay = time.release_value();
+                    if (!time.is_calculated() && !property_accepts_time(PropertyID::TransitionDelay, time.value()))
+                        return nullptr;
+                    transition.delay = move(time);
                     break;
                 default:
                     dbgln_if(CSS_PARSER_DEBUG, "Transition property has more than two time values");
