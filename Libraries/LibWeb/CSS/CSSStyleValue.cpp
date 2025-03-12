@@ -48,6 +48,7 @@
 #include <LibWeb/CSS/StyleValues/MathDepthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/OpenTypeTaggedStyleValue.h>
+#include <LibWeb/CSS/StyleValues/PendingSubstitutionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RadialGradientStyleValue.h>
@@ -293,6 +294,12 @@ OpenTypeTaggedStyleValue const& CSSStyleValue::as_open_type_tagged() const
 {
     VERIFY(is_open_type_tagged());
     return static_cast<OpenTypeTaggedStyleValue const&>(*this);
+}
+
+PendingSubstitutionStyleValue const& CSSStyleValue::as_pending_substitution() const
+{
+    VERIFY(is_pending_substitution());
+    return static_cast<PendingSubstitutionStyleValue const&>(*this);
 }
 
 PercentageStyleValue const& CSSStyleValue::as_percentage() const
