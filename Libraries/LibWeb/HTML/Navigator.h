@@ -13,6 +13,7 @@
 #include <LibWeb/HTML/NavigatorDeviceMemory.h>
 #include <LibWeb/HTML/NavigatorID.h>
 #include <LibWeb/HTML/NavigatorLanguage.h>
+#include <LibWeb/HTML/NavigatorLocks.h>
 #include <LibWeb/HTML/NavigatorOnLine.h>
 #include <LibWeb/HTML/PluginArray.h>
 #include <LibWeb/HTML/UserActivation.h>
@@ -27,6 +28,7 @@ class Navigator : public Bindings::PlatformObject
     , public NavigatorDeviceMemoryMixin
     , public NavigatorIDMixin
     , public NavigatorLanguageMixin
+    , public NavigatorLocksMixin
     , public NavigatorOnLineMixin
     , public StorageAPI::NavigatorStorage {
     WEB_PLATFORM_OBJECT(Navigator, Bindings::PlatformObject);
@@ -76,6 +78,9 @@ private:
 
     // ^StorageAPI::NavigatorStorage
     virtual Bindings::PlatformObject const& this_navigator_storage_object() const override { return *this; }
+
+    // ^NavigatorLocksMixin
+    virtual Bindings::PlatformObject const& this_navigator_locks_object() const override { return *this; }
 
     GC::Ptr<PluginArray> m_plugin_array;
     GC::Ptr<MimeTypeArray> m_mime_type_array;

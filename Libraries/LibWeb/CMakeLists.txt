@@ -458,6 +458,7 @@ set(SOURCES
     HTML/Navigator.cpp
     HTML/NavigatorBeacon.cpp
     HTML/NavigatorID.cpp
+    HTML/NavigatorLocks.cpp
     HTML/Numbers.cpp
     HTML/PageTransitionEvent.cpp
     HTML/PolicyContainers.cpp
@@ -883,6 +884,8 @@ set(SOURCES
     WebIDL/OverloadResolution.cpp
     WebIDL/Promise.cpp
     WebIDL/Tracing.cpp
+    WebLocks/LockManager.cpp
+    WebLocks/Lock.cpp
     WebSockets/WebSocket.cpp
     WebVTT/VTTCue.cpp
     WebVTT/VTTRegion.cpp
