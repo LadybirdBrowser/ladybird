@@ -67,6 +67,15 @@ void EnvironmentSettingsObject::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_service_worker_object_map);
 }
 
+void EnvironmentSettingsObject::discard_environment()
+{
+    // https://w3c.github.io/ServiceWorker/#ref-for-environment-discarding-steps
+    // Each service worker client has the following environment discarding steps:
+
+    // 1. Set client’s discarded flag.
+    set_discarded(true);
+}
+
 JS::ExecutionContext& EnvironmentSettingsObject::realm_execution_context()
 {
     // NOTE: All environment settings objects are created with a realm execution context, so it's stored and returned here in the base class.
