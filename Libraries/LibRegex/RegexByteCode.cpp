@@ -217,6 +217,12 @@ ALWAYS_INLINE ExecutionResult OpCode_FailForks::execute(MatchInput const& input,
     input.fail_counter += state.forks_since_last_save;
     return ExecutionResult::Failed_ExecuteLowPrioForks;
 }
+ALWAYS_INLINE ExecutionResult OpCode_PopSaved::execute(MatchInput const& input, MatchState&) const
+{
+    input.saved_positions.take_last();
+    input.saved_code_unit_positions.take_last();
+    return ExecutionResult::Failed_ExecuteLowPrioForks;
+}
 
 ALWAYS_INLINE ExecutionResult OpCode_Jump::execute(MatchInput const&, MatchState& state) const
 {
