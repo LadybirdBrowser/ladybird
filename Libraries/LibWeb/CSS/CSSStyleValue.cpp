@@ -40,6 +40,7 @@
 #include <LibWeb/CSS/StyleValues/GridTemplateAreaStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTrackPlacementStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTrackSizeListStyleValue.h>
+#include <LibWeb/CSS/StyleValues/GuaranteedInvalidStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
@@ -238,6 +239,12 @@ GridTrackSizeListStyleValue const& CSSStyleValue::as_grid_track_size_list() cons
 {
     VERIFY(is_grid_track_size_list());
     return static_cast<GridTrackSizeListStyleValue const&>(*this);
+}
+
+GuaranteedInvalidStyleValue const& CSSStyleValue::as_guaranteed_invalid() const
+{
+    VERIFY(is_guaranteed_invalid());
+    return static_cast<GuaranteedInvalidStyleValue const&>(*this);
 }
 
 CSSKeywordValue const& CSSStyleValue::as_keyword() const
