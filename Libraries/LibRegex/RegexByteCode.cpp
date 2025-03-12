@@ -218,6 +218,15 @@ ALWAYS_INLINE ExecutionResult OpCode_FailForks::execute(MatchInput const& input,
     return ExecutionResult::Failed_ExecuteLowPrioForks;
 }
 
+ALWAYS_INLINE ExecutionResult OpCode_PopSaved::execute(MatchInput const& input, MatchState&) const
+{
+    if (input.saved_positions.is_empty() || input.saved_code_unit_positions.is_empty())
+        return ExecutionResult::Failed_ExecuteLowPrioForks;
+    input.saved_positions.take_last();
+    input.saved_code_unit_positions.take_last();
+    return ExecutionResult::Failed_ExecuteLowPrioForks;
+}
+
 ALWAYS_INLINE ExecutionResult OpCode_Jump::execute(MatchInput const&, MatchState& state) const
 {
     state.instruction_position += offset();
