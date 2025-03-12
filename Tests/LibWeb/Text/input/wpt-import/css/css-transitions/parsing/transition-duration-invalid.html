@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Transitions: parsing transition-duration with invalid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-transitions/#propdef-transition-duration">
+<meta name="assert" content="transition-duration supports only the grammar '<time> #'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("transition-duration", 'infinite');
+test_invalid_value("transition-duration", '-500ms');
+test_invalid_value("transition-duration", '1s 2s');
+
+test_invalid_value("transition-duration", '1s, initial');
+test_invalid_value("transition-duration", 'initial, 1s');
+</script>
+</body>
+</html>

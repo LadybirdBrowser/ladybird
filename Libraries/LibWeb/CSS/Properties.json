@@ -2848,7 +2848,7 @@
     "inherited": false,
     "initial": "0s",
     "valid-types": [
-      "time"
+      "time [0,∞]"
     ]
   },
   "transition-property": {
