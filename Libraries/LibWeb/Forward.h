@@ -245,6 +245,7 @@ class GridTrackPlacement;
 class GridTrackPlacementStyleValue;
 class GridTrackSizeList;
 class GridTrackSizeListStyleValue;
+class GuaranteedInvalidStyleValue;
 class ImageStyleValue;
 class IntegerOrCalculated;
 class IntegerStyleValue;

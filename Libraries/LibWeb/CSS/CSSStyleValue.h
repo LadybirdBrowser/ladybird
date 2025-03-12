@@ -113,6 +113,7 @@ public:
         GridTemplateArea,
         GridTrackPlacement,
         GridTrackSizeList,
+        GuaranteedInvalid,
         Image,
         Integer,
         Keyword,
@@ -257,6 +258,10 @@ public:
     bool is_grid_track_size_list() const { return type() == Type::GridTrackSizeList; }
     GridTrackSizeListStyleValue const& as_grid_track_size_list() const;
     GridTrackSizeListStyleValue& as_grid_track_size_list() { return const_cast<GridTrackSizeListStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_grid_track_size_list()); }
+
+    bool is_guaranteed_invalid() const { return type() == Type::GuaranteedInvalid; }
+    GuaranteedInvalidStyleValue const& as_guaranteed_invalid() const;
+    GuaranteedInvalidStyleValue& as_guaranteed_invalid() { return const_cast<GuaranteedInvalidStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_guaranteed_invalid()); }
 
     bool is_image() const { return type() == Type::Image; }
     ImageStyleValue const& as_image() const;
