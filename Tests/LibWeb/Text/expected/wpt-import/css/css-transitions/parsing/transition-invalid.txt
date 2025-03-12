@@ -2,10 +2,9 @@ Harness status: OK
 
 Found 5 tests
 
-3 Pass
-2 Fail
+5 Pass
 Pass	e.style['transition'] = "1s 2s 3s" should not set the property value
 Pass	e.style['transition'] = "-1s -2s" should not set the property value
 Pass	e.style['transition'] = "steps(1) steps(2)" should not set the property value
-Fail	e.style['transition'] = "none top" should not set the property value
-Fail	e.style['transition'] = "initial 1s" should not set the property value
+Pass	e.style['transition'] = "none top" should not set the property value
+Pass	e.style['transition'] = "initial 1s" should not set the property value
