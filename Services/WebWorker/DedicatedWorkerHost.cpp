@@ -156,7 +156,9 @@ void DedicatedWorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataHo
         if (!script || !script->error_to_rethrow().is_null()) {
             // FIXME: 1. Queue a global task on the DOM manipulation task source given worker's relevant global object to fire an event named error at worker.
             // FIXME: Notify Worker parent through IPC to fire an error event at Worker
-            // FIXME 2. Run the environment discarding steps for inside settings.
+
+            // 2. Run the environment discarding steps for inside settings.
+            inside_settings->discard_environment();
 
             // 3. Abort these steps.
             dbgln("DedicatedWorkerHost: Unable to fetch script {} because {}", url, script ? script->error_to_rethrow().to_string_without_side_effects() : "script was null"_string);

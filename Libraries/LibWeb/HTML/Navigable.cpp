@@ -1287,7 +1287,13 @@ WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
 
             // 4. If navigationParams is not null, then:
             if (!navigation_params.has<NullOrError>()) {
-                // FIXME: 1. Run the environment discarding steps for navigationParams's reserved environment.
+                // 1. Run the environment discarding steps for navigationParams's reserved environment.
+                navigation_params.visit(
+                    [](GC::Ref<NavigationParams> const& it) {
+                        it->reserved_environment->discard_environment();
+                    },
+                    [](auto const&) {});
+
                 // FIXME: 2. Invoke WebDriver BiDi navigation failed with navigable and a new WebDriver BiDi navigation status whose id is navigationId, status is "canceled", and url is navigationParams's response's URL.
             }
         }

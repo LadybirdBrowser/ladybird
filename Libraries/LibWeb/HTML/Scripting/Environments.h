@@ -46,6 +46,9 @@ public:
     // https://html.spec.whatwg.org/multipage/webappapis.html#concept-environment-execution-ready-flag
     bool execution_ready { false };
 
+    // https://html.spec.whatwg.org/multipage/webappapis.html#environment-discarding-steps
+    virtual void discard_environment() { }
+
 protected:
     virtual void visit_edges(Cell::Visitor&) override;
 };
@@ -114,6 +117,8 @@ public:
 
     [[nodiscard]] bool discarded() const { return m_discarded; }
     void set_discarded(bool b) { m_discarded = b; }
+
+    virtual void discard_environment() override;
 
 protected:
     explicit EnvironmentSettingsObject(NonnullOwnPtr<JS::ExecutionContext>);
