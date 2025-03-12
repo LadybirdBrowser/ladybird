@@ -3822,15 +3822,15 @@ RefPtr<CSSStyleValue> Parser::parse_transition_value(TokenStream<ComponentValue>
                 continue;
             }
 
-            if (tokens.next_token().is(Token::Type::Ident)) {
+            if (auto transition_property = parse_custom_ident_value(tokens, { { "none"sv } })) {
                 if (transition.property_name) {
                     dbgln_if(CSS_PARSER_DEBUG, "Transition property has multiple property identifiers");
                     return {};
                 }
 
-                auto ident = tokens.consume_a_token().token().ident();
-                if (auto property = property_id_from_string(ident); property.has_value())
-                    transition.property_name = CustomIdentStyleValue::create(ident);
+                auto custom_ident = transition_property->custom_ident();
+                if (auto property = property_id_from_string(custom_ident); property.has_value())
+                    transition.property_name = CustomIdentStyleValue::create(custom_ident);
 
                 continue;
             }
