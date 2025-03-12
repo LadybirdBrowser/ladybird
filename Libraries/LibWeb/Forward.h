@@ -266,6 +266,7 @@ class NumberOrCalculated;
 class NumberStyleValue;
 class OpenTypeTaggedStyleValue;
 class ParsedFontFace;
+class PendingSubstitutionStyleValue;
 class Percentage;
 class PercentageOrCalculated;
 class PercentageStyleValue;
