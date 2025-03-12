@@ -41,16 +41,16 @@ RootActor::RootActor(DevToolsServer& devtools, String name)
 
 RootActor::~RootActor() = default;
 
-void RootActor::handle_message(StringView type, JsonObject const& message)
+void RootActor::handle_message(Message const& message)
 {
     JsonObject response;
 
-    if (type == "connect") {
+    if (message.type == "connect") {
         send_message(move(response));
         return;
     }
 
-    if (type == "getRoot"sv) {
+    if (message.type == "getRoot"sv) {
         response.set("selected"sv, 0);
 
         for (auto const& actor : devtools().actor_registry()) {
@@ -64,7 +64,7 @@ void RootActor::handle_message(StringView type, JsonObject const& message)
         return;
     }
 
-    if (type == "getProcess"sv) {
+    if (message.type == "getProcess"sv) {
         auto id = get_required_parameter<u64>(message, "id"sv);
         if (!id.has_value())
             return;
@@ -84,7 +84,7 @@ void RootActor::handle_message(StringView type, JsonObject const& message)
         return;
     }
 
-    if (type == "getTab"sv) {
+    if (message.type == "getTab"sv) {
         auto browser_id = get_required_parameter<u64>(message, "browserId"sv);
         if (!browser_id.has_value())
             return;
@@ -104,13 +104,13 @@ void RootActor::handle_message(StringView type, JsonObject const& message)
         return;
     }
 
-    if (type == "listAddons"sv) {
+    if (message.type == "listAddons"sv) {
         response.set("addons"sv, JsonArray {});
         send_message(move(response));
         return;
     }
 
-    if (type == "listProcesses"sv) {
+    if (message.type == "listProcesses"sv) {
         JsonArray processes;
 
         for (auto const& actor : devtools().actor_registry()) {
@@ -123,13 +123,13 @@ void RootActor::handle_message(StringView type, JsonObject const& message)
         return;
     }
 
-    if (type == "listServiceWorkerRegistrations"sv) {
+    if (message.type == "listServiceWorkerRegistrations"sv) {
         response.set("registrations"sv, JsonArray {});
         send_message(move(response));
         return;
     }
 
-    if (type == "listTabs"sv) {
+    if (message.type == "listTabs"sv) {
         m_has_sent_tab_list_changed_since_last_list_tabs_request = false;
 
         JsonArray tabs;
@@ -144,13 +144,13 @@ void RootActor::handle_message(StringView type, JsonObject const& message)
         return;
     }
 
-    if (type == "listWorkers"sv) {
+    if (message.type == "listWorkers"sv) {
         response.set("workers"sv, JsonArray {});
         send_message(move(response));
         return;
     }
 
-    send_unrecognized_packet_type_error(type);
+    send_unrecognized_packet_type_error(message);
 }
 
 void RootActor::send_tab_list_changed_message()

@@ -18,10 +18,10 @@ public:
     static NonnullRefPtr<LayoutInspectorActor> create(DevToolsServer&, String name);
     virtual ~LayoutInspectorActor() override;
 
-    virtual void handle_message(StringView type, JsonObject const&) override;
-
 private:
     LayoutInspectorActor(DevToolsServer&, String name);
+
+    virtual void handle_message(Message const&) override;
 };
 
 }

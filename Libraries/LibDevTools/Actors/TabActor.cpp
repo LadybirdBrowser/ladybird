@@ -28,11 +28,11 @@ TabActor::~TabActor()
     reset_selected_node();
 }
 
-void TabActor::handle_message(StringView type, JsonObject const&)
+void TabActor::handle_message(Message const& message)
 {
     JsonObject response;
 
-    if (type == "getFavicon"sv) {
+    if (message.type == "getFavicon"sv) {
         // FIXME: Firefox DevTools wants a favicon URL here, but supplying a URL seems to prevent this tab from being
         //        listed on the about:debugging page. Both Servo and Firefox itself supply `null` here.
         response.set("favicon"sv, JsonValue {});
@@ -40,7 +40,7 @@ void TabActor::handle_message(StringView type, JsonObject const&)
         return;
     }
 
-    if (type == "getWatcher"sv) {
+    if (message.type == "getWatcher"sv) {
         if (!m_watcher)
             m_watcher = devtools().register_actor<WatcherActor>(this);
 
@@ -50,7 +50,7 @@ void TabActor::handle_message(StringView type, JsonObject const&)
         return;
     }
 
-    send_unrecognized_packet_type_error(type);
+    send_unrecognized_packet_type_error(message);
 }
 
 JsonObject TabActor::serialize_description() const

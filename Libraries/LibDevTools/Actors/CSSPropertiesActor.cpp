@@ -24,11 +24,11 @@ CSSPropertiesActor::CSSPropertiesActor(DevToolsServer& devtools, String name)
 
 CSSPropertiesActor::~CSSPropertiesActor() = default;
 
-void CSSPropertiesActor::handle_message(StringView type, JsonObject const&)
+void CSSPropertiesActor::handle_message(Message const& message)
 {
     JsonObject response;
 
-    if (type == "getCSSDatabase"sv) {
+    if (message.type == "getCSSDatabase"sv) {
         auto css_property_list = devtools().delegate().css_property_list();
 
         JsonObject properties;
@@ -51,7 +51,7 @@ void CSSPropertiesActor::handle_message(StringView type, JsonObject const&)
         return;
     }
 
-    send_unrecognized_packet_type_error(type);
+    send_unrecognized_packet_type_error(message);
 }
 
 }

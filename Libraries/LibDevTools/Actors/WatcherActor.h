@@ -18,12 +18,12 @@ public:
     static NonnullRefPtr<WatcherActor> create(DevToolsServer&, String name, WeakPtr<TabActor>);
     virtual ~WatcherActor() override;
 
-    virtual void handle_message(StringView type, JsonObject const&) override;
-
     JsonObject serialize_description() const;
 
 private:
     WatcherActor(DevToolsServer&, String name, WeakPtr<TabActor>);
+
+    virtual void handle_message(Message const&) override;
 
     WeakPtr<TabActor> m_tab;
     WeakPtr<Actor> m_target;

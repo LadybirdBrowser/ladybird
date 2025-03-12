@@ -33,11 +33,11 @@ WatcherActor::WatcherActor(DevToolsServer& devtools, String name, WeakPtr<TabAct
 
 WatcherActor::~WatcherActor() = default;
 
-void WatcherActor::handle_message(StringView type, JsonObject const& message)
+void WatcherActor::handle_message(Message const& message)
 {
     JsonObject response;
 
-    if (type == "getParentBrowsingContextID"sv) {
+    if (message.type == "getParentBrowsingContextID"sv) {
         auto browsing_context_id = get_required_parameter<u64>(message, "browsingContextID"sv);
         if (!browsing_context_id.has_value())
             return;
@@ -47,7 +47,7 @@ void WatcherActor::handle_message(StringView type, JsonObject const& message)
         return;
     }
 
-    if (type == "getTargetConfigurationActor"sv) {
+    if (message.type == "getTargetConfigurationActor"sv) {
         if (!m_target_configuration)
             m_target_configuration = devtools().register_actor<TargetConfigurationActor>();
 
@@ -56,7 +56,7 @@ void WatcherActor::handle_message(StringView type, JsonObject const& message)
         return;
     }
 
-    if (type == "getThreadConfigurationActor"sv) {
+    if (message.type == "getThreadConfigurationActor"sv) {
         if (!m_thread_configuration)
             m_thread_configuration = devtools().register_actor<ThreadConfigurationActor>();
 
@@ -65,7 +65,7 @@ void WatcherActor::handle_message(StringView type, JsonObject const& message)
         return;
     }
 
-    if (type == "watchResources"sv) {
+    if (message.type == "watchResources"sv) {
         auto resource_types = get_required_parameter<JsonArray>(message, "resourceTypes"sv);
         if (!resource_types.has_value())
             return;
@@ -83,7 +83,7 @@ void WatcherActor::handle_message(StringView type, JsonObject const& message)
         return;
     }
 
-    if (type == "watchTargets"sv) {
+    if (message.type == "watchTargets"sv) {
         auto target_type = get_required_parameter<String>(message, "targetType"sv);
         if (!target_type.has_value())
             return;
@@ -108,7 +108,7 @@ void WatcherActor::handle_message(StringView type, JsonObject const& message)
         }
     }
 
-    send_unrecognized_packet_type_error(type);
+    send_unrecognized_packet_type_error(message);
 }
 
 JsonObject WatcherActor::serialize_description() const

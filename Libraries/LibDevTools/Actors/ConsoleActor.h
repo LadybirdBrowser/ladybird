@@ -18,10 +18,10 @@ public:
     static NonnullRefPtr<ConsoleActor> create(DevToolsServer&, String name, WeakPtr<TabActor>);
     virtual ~ConsoleActor() override;
 
-    virtual void handle_message(StringView type, JsonObject const&) override;
-
 private:
     ConsoleActor(DevToolsServer&, String name, WeakPtr<TabActor>);
+
+    virtual void handle_message(Message const&) override;
 
     WeakPtr<TabActor> m_tab;
 

@@ -22,9 +22,9 @@ ProcessActor::ProcessActor(DevToolsServer& devtools, String name, ProcessDescrip
 
 ProcessActor::~ProcessActor() = default;
 
-void ProcessActor::handle_message(StringView type, JsonObject const&)
+void ProcessActor::handle_message(Message const& message)
 {
-    send_unrecognized_packet_type_error(type);
+    send_unrecognized_packet_type_error(message);
 }
 
 JsonObject ProcessActor::serialize_description() const

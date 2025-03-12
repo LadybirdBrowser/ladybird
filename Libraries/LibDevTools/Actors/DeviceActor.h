@@ -18,10 +18,10 @@ public:
     static NonnullRefPtr<DeviceActor> create(DevToolsServer&, String name);
     virtual ~DeviceActor() override;
 
-    virtual void handle_message(StringView type, JsonObject const&) override;
-
 private:
     DeviceActor(DevToolsServer&, String name);
+
+    virtual void handle_message(Message const&) override;
 };
 
 }

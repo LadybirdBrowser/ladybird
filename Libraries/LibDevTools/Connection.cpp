@@ -88,9 +88,9 @@ ErrorOr<void> Connection::on_ready_to_read()
         if (!message.is_object())
             continue;
 
-        Core::deferred_invoke([this, message = move(message)]() {
+        Core::deferred_invoke([this, message = move(message)]() mutable {
             if (on_message_received)
-                on_message_received(message.as_object());
+                on_message_received(move(message.as_object()));
         });
     }
 

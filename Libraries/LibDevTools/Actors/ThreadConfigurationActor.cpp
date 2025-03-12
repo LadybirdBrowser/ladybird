@@ -22,11 +22,11 @@ ThreadConfigurationActor::ThreadConfigurationActor(DevToolsServer& devtools, Str
 
 ThreadConfigurationActor::~ThreadConfigurationActor() = default;
 
-void ThreadConfigurationActor::handle_message(StringView type, JsonObject const& message)
+void ThreadConfigurationActor::handle_message(Message const& message)
 {
     JsonObject response;
 
-    if (type == "updateConfiguration"sv) {
+    if (message.type == "updateConfiguration"sv) {
         auto configuration = get_required_parameter<JsonObject>(message, "configuration"sv);
         if (!configuration.has_value())
             return;
@@ -35,7 +35,7 @@ void ThreadConfigurationActor::handle_message(StringView type, JsonObject const&
         return;
     }
 
-    send_unrecognized_packet_type_error(type);
+    send_unrecognized_packet_type_error(message);
 }
 
 JsonObject ThreadConfigurationActor::serialize_configuration() const

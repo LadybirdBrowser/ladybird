@@ -18,10 +18,10 @@ public:
     static NonnullRefPtr<ThreadActor> create(DevToolsServer&, String name);
     virtual ~ThreadActor() override;
 
-    virtual void handle_message(StringView type, JsonObject const&) override;
-
 private:
     ThreadActor(DevToolsServer&, String name);
+
+    virtual void handle_message(Message const&) override;
 };
 
 }

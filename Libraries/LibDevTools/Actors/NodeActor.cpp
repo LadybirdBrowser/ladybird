@@ -93,11 +93,11 @@ NodeActor::NodeActor(DevToolsServer& devtools, String name, NodeIdentifier node_
 
 NodeActor::~NodeActor() = default;
 
-void NodeActor::handle_message(StringView type, JsonObject const& message)
+void NodeActor::handle_message(Message const& message)
 {
     JsonObject response;
 
-    if (type == "getUniqueSelector"sv) {
+    if (message.type == "getUniqueSelector"sv) {
         auto dom_node = WalkerActor::dom_node_for(m_walker, name());
         if (!dom_node.has_value()) {
             send_unknown_actor_error(name());
@@ -109,7 +109,7 @@ void NodeActor::handle_message(StringView type, JsonObject const& message)
         return;
     }
 
-    if (type == "modifyAttributes"sv) {
+    if (message.type == "modifyAttributes"sv) {
         auto modifications = get_required_parameter<JsonArray>(message, "modifications"sv);
         if (!modifications.has_value())
             return;
@@ -132,7 +132,7 @@ void NodeActor::handle_message(StringView type, JsonObject const& message)
         return;
     }
 
-    if (type == "setNodeValue"sv) {
+    if (message.type == "setNodeValue"sv) {
         auto value = get_required_parameter<String>(message, "value"sv);
         if (!value.has_value())
             return;
@@ -147,7 +147,7 @@ void NodeActor::handle_message(StringView type, JsonObject const& message)
         return;
     }
 
-    send_unrecognized_packet_type_error(type);
+    send_unrecognized_packet_type_error(message);
 }
 
 }

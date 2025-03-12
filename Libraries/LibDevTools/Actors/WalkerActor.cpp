@@ -43,11 +43,11 @@ WalkerActor::~WalkerActor()
         devtools().delegate().stop_listening_for_dom_mutations(tab->description());
 }
 
-void WalkerActor::handle_message(StringView type, JsonObject const& message)
+void WalkerActor::handle_message(Message const& message)
 {
     JsonObject response;
 
-    if (type == "children"sv) {
+    if (message.type == "children"sv) {
         auto node = get_required_parameter<String>(message, "node"sv);
         if (!node.has_value())
             return;
@@ -73,7 +73,7 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
         return;
     }
 
-    if (type == "duplicateNode"sv) {
+    if (message.type == "duplicateNode"sv) {
         auto node = get_required_parameter<String>(message, "node"sv);
         if (!node.has_value())
             return;
@@ -88,7 +88,7 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
         return;
     }
 
-    if (type == "editTagName"sv) {
+    if (message.type == "editTagName"sv) {
         auto node = get_required_parameter<String>(message, "node"sv);
         if (!node.has_value())
             return;
@@ -107,7 +107,7 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
         return;
     }
 
-    if (type == "getLayoutInspector"sv) {
+    if (message.type == "getLayoutInspector"sv) {
         if (!m_layout_inspector)
             m_layout_inspector = devtools().register_actor<LayoutInspectorActor>();
 
@@ -119,7 +119,7 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
         return;
     }
 
-    if (type == "getMutations"sv) {
+    if (message.type == "getMutations"sv) {
         response.set("mutations"sv, serialize_mutations());
         send_message(move(response));
 
@@ -127,13 +127,13 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
         return;
     }
 
-    if (type == "getOffsetParent"sv) {
+    if (message.type == "getOffsetParent"sv) {
         response.set("node"sv, JsonValue {});
         send_message(move(response));
         return;
     }
 
-    if (type == "innerHTML"sv) {
+    if (message.type == "innerHTML"sv) {
         auto node = get_required_parameter<String>(message, "node"sv);
         if (!node.has_value())
             return;
@@ -152,7 +152,7 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
         return;
     }
 
-    if (type == "insertAdjacentHTML") {
+    if (message.type == "insertAdjacentHTML") {
         // FIXME: This message also contains `value` and `position` parameters, containing the HTML to insert and the
         //        location to insert it. For the "Create New Node" action, this is always "<div></div>" and "beforeEnd",
         //        which is exactly what our WebView implementation currently supports.
@@ -182,7 +182,7 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
         return;
     }
 
-    if (type == "insertBefore"sv) {
+    if (message.type == "insertBefore"sv) {
         auto node = get_required_parameter<String>(message, "node"sv);
         if (!node.has_value())
             return;
@@ -204,7 +204,7 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
         }
 
         Optional<Web::UniqueNodeID> sibling_node_id;
-        if (auto sibling = message.get_string("sibling"sv); sibling.has_value()) {
+        if (auto sibling = message.data.get_string("sibling"sv); sibling.has_value()) {
             auto sibling_dom_node = WalkerActor::dom_node_for(*this, *sibling);
             if (!sibling_dom_node.has_value()) {
                 send_unknown_actor_error(*sibling);
@@ -218,7 +218,7 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
         return;
     }
 
-    if (type == "isInDOMTree"sv) {
+    if (message.type == "isInDOMTree"sv) {
         auto node = get_required_parameter<String>(message, "node"sv);
         if (!node.has_value())
             return;
@@ -228,7 +228,7 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
         return;
     }
 
-    if (type == "outerHTML"sv) {
+    if (message.type == "outerHTML"sv) {
         auto node = get_required_parameter<String>(message, "node"sv);
         if (!node.has_value())
             return;
@@ -247,7 +247,7 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
         return;
     }
 
-    if (type == "previousSibling"sv) {
+    if (message.type == "previousSibling"sv) {
         auto node = get_required_parameter<String>(message, "node"sv);
         if (!node.has_value())
             return;
@@ -267,7 +267,7 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
         return;
     }
 
-    if (type == "querySelector"sv) {
+    if (message.type == "querySelector"sv) {
         auto node = get_required_parameter<String>(message, "node"sv);
         if (!node.has_value())
             return;
@@ -298,7 +298,7 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
         return;
     }
 
-    if (type == "removeNode"sv) {
+    if (message.type == "removeNode"sv) {
         auto node = get_required_parameter<String>(message, "node"sv);
         if (!node.has_value())
             return;
@@ -325,12 +325,12 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
         return;
     }
 
-    if (type == "retainNode"sv) {
+    if (message.type == "retainNode"sv) {
         send_message(move(response));
         return;
     }
 
-    if (type == "setOuterHTML"sv) {
+    if (message.type == "setOuterHTML"sv) {
         auto node = get_required_parameter<String>(message, "node"sv);
         if (!node.has_value())
             return;
@@ -349,7 +349,7 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
         return;
     }
 
-    if (type == "watchRootNode"sv) {
+    if (message.type == "watchRootNode"sv) {
         response.set("type"sv, "root-available"sv);
         response.set("node"sv, serialize_root());
         send_message(move(response));
@@ -358,7 +358,7 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
         return;
     }
 
-    send_unrecognized_packet_type_error(type);
+    send_unrecognized_packet_type_error(message);
 }
 
 bool WalkerActor::is_suitable_for_dom_inspection(JsonValue const& node)

@@ -24,10 +24,16 @@ class Actor
     : public RefCounted<Actor>
     , public Weakable<Actor> {
 public:
+    struct Message {
+        StringView type;
+        JsonObject data;
+    };
+
     virtual ~Actor();
 
     String const& name() const { return m_name; }
-    virtual void handle_message(StringView type, JsonObject const&) = 0;
+
+    void message_received(StringView type, JsonObject);
 
     class [[nodiscard]] BlockToken {
     public:
@@ -46,11 +52,13 @@ public:
 
     void send_message(JsonObject, Optional<BlockToken> block_token = {});
     void send_missing_parameter_error(StringView parameter);
-    void send_unrecognized_packet_type_error(StringView type);
+    void send_unrecognized_packet_type_error(Message const&);
     void send_unknown_actor_error(StringView actor);
 
 protected:
     explicit Actor(DevToolsServer&, String name);
+
+    virtual void handle_message(Message const&) = 0;
 
     DevToolsServer& devtools() { return m_devtools; }
     DevToolsServer const& devtools() const { return m_devtools; }
@@ -58,19 +66,19 @@ protected:
     BlockToken block_responses();
 
     template<typename ParameterType>
-    auto get_required_parameter(JsonObject const& message, StringView parameter)
+    auto get_required_parameter(Message const& message, StringView parameter)
     {
         auto result = [&]() {
             if constexpr (IsIntegral<ParameterType>)
-                return message.get_integer<ParameterType>(parameter);
+                return message.data.get_integer<ParameterType>(parameter);
             else if constexpr (IsSame<ParameterType, bool>)
-                return message.get_bool(parameter);
+                return message.data.get_bool(parameter);
             else if constexpr (IsSame<ParameterType, String>)
-                return message.get_string(parameter);
+                return message.data.get_string(parameter);
             else if constexpr (IsSame<ParameterType, JsonObject>)
-                return message.get_object(parameter);
+                return message.data.get_object(parameter);
             else if constexpr (IsSame<ParameterType, JsonArray>)
-                return message.get_array(parameter);
+                return message.data.get_array(parameter);
             else
                 static_assert(DependentFalse<ParameterType>);
         }();

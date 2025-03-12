@@ -18,11 +18,12 @@ public:
     static NonnullRefPtr<HighlighterActor> create(DevToolsServer&, String name, WeakPtr<InspectorActor>);
     virtual ~HighlighterActor() override;
 
-    virtual void handle_message(StringView type, JsonObject const&) override;
     JsonValue serialize_highlighter() const;
 
 private:
     HighlighterActor(DevToolsServer&, String name, WeakPtr<InspectorActor>);
+
+    virtual void handle_message(Message const&) override;
 
     WeakPtr<InspectorActor> m_inspector;
 };

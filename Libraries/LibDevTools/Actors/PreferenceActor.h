@@ -18,10 +18,10 @@ public:
     static NonnullRefPtr<PreferenceActor> create(DevToolsServer&, String name);
     virtual ~PreferenceActor() override;
 
-    virtual void handle_message(StringView type, JsonObject const&) override;
-
 private:
     PreferenceActor(DevToolsServer&, String name);
+
+    virtual void handle_message(Message const&) override;
 };
 
 }

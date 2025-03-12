@@ -18,6 +18,11 @@ Actor::Actor(DevToolsServer& devtools, String name)
 
 Actor::~Actor() = default;
 
+void Actor::message_received(StringView type, JsonObject message)
+{
+    handle_message({ type, move(message) });
+}
+
 void Actor::send_message(JsonObject message, Optional<BlockToken> block_token)
 {
     if (m_block_responses && !block_token.has_value()) {
@@ -41,11 +46,11 @@ void Actor::send_missing_parameter_error(StringView parameter)
 }
 
 // https://firefox-source-docs.mozilla.org/devtools/backend/protocol.html#error-packets
-void Actor::send_unrecognized_packet_type_error(StringView type)
+void Actor::send_unrecognized_packet_type_error(Message const& message)
 {
     JsonObject error;
     error.set("error"sv, "unrecognizedPacketType"sv);
-    error.set("message"sv, MUST(String::formatted("Unrecognized packet type: '{}'", type)));
+    error.set("message"sv, MUST(String::formatted("Unrecognized packet type: '{}'", message.type)));
     send_message(move(error));
 }
 
