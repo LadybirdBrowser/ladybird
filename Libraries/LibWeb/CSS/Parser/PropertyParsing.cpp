@@ -895,12 +895,15 @@ RefPtr<CSSStyleValue> Parser::parse_counter_definitions_value(TokenStream<Compon
         CounterDefinition definition {};
 
         // <counter-name> | <reversed-counter-name>
-        auto& token = tokens.consume_a_token();
-        if (token.is(Token::Type::Ident)) {
-            definition.name = token.token().ident();
+        auto& token = tokens.next_token();
+
+        // A <counter-name> name cannot match the keyword none; such an identifier is invalid as a <counter-name>.
+        if (auto counter_name = parse_custom_ident_value(tokens, { { "none"sv } })) {
+            definition.name = counter_name->custom_ident();
             definition.is_reversed = false;
         } else if (allow_reversed == AllowReversed::Yes && token.is_function("reversed"sv)) {
             TokenStream function_tokens { token.function().value };
+            tokens.discard_a_token();
             function_tokens.discard_whitespace();
             auto& name_token = function_tokens.consume_a_token();
             if (!name_token.is(Token::Type::Ident))
