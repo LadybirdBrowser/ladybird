@@ -50,6 +50,15 @@ public:
     virtual void discard_environment() { }
 
 protected:
+    Environment() = default;
+    Environment(String id, URL::URL creation_url, URL::URL top_level_creation_url, URL::Origin top_level_origin, GC::Ptr<BrowsingContext> target_browsing_context)
+        : id(move(id))
+        , creation_url(move(creation_url))
+        , top_level_creation_url(move(top_level_creation_url))
+        , top_level_origin(move(top_level_origin))
+        , target_browsing_context(move(target_browsing_context))
+    {
+    }
     virtual void visit_edges(Cell::Visitor&) override;
 };
 
