@@ -579,6 +579,25 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
         }
     }
 
+    if (is<HTML::HTMLSlotElement>(dom_node)) {
+        auto& slot_element = static_cast<HTML::HTMLSlotElement&>(dom_node);
+
+        if (slot_element.computed_properties()->content_visibility() != CSS::ContentVisibility::Hidden) {
+            auto slottables = slot_element.assigned_nodes_internal();
+            push_parent(as<NodeWithStyle>(*layout_node));
+
+            MustCreateSubtree must_create_subtree_for_slottable = must_create_subtree;
+            if (slot_element.needs_layout_tree_update())
+                must_create_subtree_for_slottable = MustCreateSubtree::Yes;
+
+            for (auto const& slottable : slottables) {
+                slottable.visit([&](auto& node) { update_layout_tree(node, context, must_create_subtree_for_slottable); });
+            }
+
+            pop_parent();
+        }
+    }
+
     if (should_create_layout_node) {
         update_layout_tree_after_children(dom_node, *layout_node, context, element_has_content_visibility_hidden);
         wrap_in_button_layout_tree_if_needed(dom_node, *layout_node);
@@ -692,21 +711,6 @@ void TreeBuilder::update_layout_tree_after_children(DOM::Node& dom_node, GC::Ref
         static_cast<ListItemBox&>(*layout_node).set_marker(list_item_marker);
         element.set_pseudo_element_node({}, CSS::Selector::PseudoElement::Type::Marker, list_item_marker);
         layout_node->append_child(*list_item_marker);
-    }
-
-    if (is<HTML::HTMLSlotElement>(dom_node)) {
-        auto& slot_element = static_cast<HTML::HTMLSlotElement&>(dom_node);
-
-        if (slot_element.computed_properties()->content_visibility() == CSS::ContentVisibility::Hidden)
-            return;
-
-        auto slottables = slot_element.assigned_nodes_internal();
-        push_parent(as<NodeWithStyle>(*layout_node));
-
-        for (auto const& slottable : slottables)
-            slottable.visit([&](auto& node) { update_layout_tree(node, context, MustCreateSubtree::Yes); });
-
-        pop_parent();
     }
 
     if (is<SVG::SVGGraphicsElement>(dom_node)) {
