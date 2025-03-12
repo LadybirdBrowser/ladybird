@@ -1043,8 +1043,8 @@ void StyleComputer::cascade_declarations(
     Important important,
     Optional<FlyString> layer_name) const
 {
-    for (auto const& match : matching_rules) {
-        for (auto const& property : match->declaration().properties()) {
+    auto cascade_style_declaration = [&](CSSStyleProperties const& declaration) {
+        for (auto const& property : declaration.properties()) {
             if (important != property.important)
                 continue;
 
@@ -1052,7 +1052,7 @@ void StyleComputer::cascade_declarations(
                 continue;
 
             if (property.property_id == CSS::PropertyID::All) {
-                set_all_properties(cascaded_properties, element, pseudo_element, property.value, m_document, &match->declaration(), cascade_origin, important, layer_name);
+                set_all_properties(cascaded_properties, element, pseudo_element, property.value, m_document, &declaration, cascade_origin, important, layer_name);
                 continue;
             }
 
@@ -1060,27 +1060,17 @@ void StyleComputer::cascade_declarations(
             if (property.value->is_unresolved())
                 property_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { document() }, element, pseudo_element, property.property_id, property.value->as_unresolved());
             if (!property_value->is_unresolved())
-                set_property_expanding_shorthands(cascaded_properties, property.property_id, property_value, &match->declaration(), cascade_origin, important, layer_name);
+                set_property_expanding_shorthands(cascaded_properties, property.property_id, property_value, &declaration, cascade_origin, important, layer_name);
         }
+    };
+
+    for (auto const& match : matching_rules) {
+        cascade_style_declaration(match->declaration());
     }
 
     if (cascade_origin == CascadeOrigin::Author && !pseudo_element.has_value()) {
         if (auto const inline_style = element.inline_style()) {
-            for (auto const& property : inline_style->properties()) {
-                if (important != property.important)
-                    continue;
-
-                if (property.property_id == CSS::PropertyID::All) {
-                    set_all_properties(cascaded_properties, element, pseudo_element, property.value, m_document, inline_style, cascade_origin, important, layer_name);
-                    continue;
-                }
-
-                auto property_value = property.value;
-                if (property.value->is_unresolved())
-                    property_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { document() }, element, pseudo_element, property.property_id, property.value->as_unresolved());
-                if (!property_value->is_unresolved())
-                    set_property_expanding_shorthands(cascaded_properties, property.property_id, property_value, inline_style, cascade_origin, important, layer_name);
-            }
+            cascade_style_declaration(*inline_style);
         }
     }
 }
