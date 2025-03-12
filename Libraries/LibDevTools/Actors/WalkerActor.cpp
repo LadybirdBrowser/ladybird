@@ -54,7 +54,7 @@ void WalkerActor::handle_message(Message const& message)
 
         auto ancestor_node = WalkerActor::dom_node_for(*this, *node);
         if (!ancestor_node.has_value()) {
-            send_unknown_actor_error(*node);
+            send_unknown_actor_error(message, *node);
             return;
         }
 
@@ -69,7 +69,7 @@ void WalkerActor::handle_message(Message const& message)
         response.set("hasFirst"sv, !nodes.is_empty());
         response.set("hasLast"sv, !nodes.is_empty());
         response.set("nodes"sv, move(nodes));
-        send_message(move(response));
+        send_response(message, move(response));
         return;
     }
 
@@ -80,11 +80,11 @@ void WalkerActor::handle_message(Message const& message)
 
         auto dom_node = WalkerActor::dom_node_for(*this, *node);
         if (!dom_node.has_value()) {
-            send_unknown_actor_error(*node);
+            send_unknown_actor_error(message, *node);
             return;
         }
 
-        devtools().delegate().clone_dom_node(dom_node->tab->description(), dom_node->identifier.id, default_async_handler());
+        devtools().delegate().clone_dom_node(dom_node->tab->description(), dom_node->identifier.id, default_async_handler(message));
         return;
     }
 
@@ -99,11 +99,11 @@ void WalkerActor::handle_message(Message const& message)
 
         auto dom_node = WalkerActor::dom_node_for(*this, *node);
         if (!dom_node.has_value()) {
-            send_unknown_actor_error(*node);
+            send_unknown_actor_error(message, *node);
             return;
         }
 
-        devtools().delegate().set_dom_node_tag(dom_node->tab->description(), dom_node->identifier.id, *tag_name, default_async_handler());
+        devtools().delegate().set_dom_node_tag(dom_node->tab->description(), dom_node->identifier.id, *tag_name, default_async_handler(message));
         return;
     }
 
@@ -115,13 +115,13 @@ void WalkerActor::handle_message(Message const& message)
         actor.set("actor"sv, m_layout_inspector->name());
 
         response.set("actor"sv, move(actor));
-        send_message(move(response));
+        send_response(message, move(response));
         return;
     }
 
     if (message.type == "getMutations"sv) {
         response.set("mutations"sv, serialize_mutations());
-        send_message(move(response));
+        send_response(message, move(response));
 
         m_has_new_mutations_since_last_mutations_request = false;
         return;
@@ -129,7 +129,7 @@ void WalkerActor::handle_message(Message const& message)
 
     if (message.type == "getOffsetParent"sv) {
         response.set("node"sv, JsonValue {});
-        send_message(move(response));
+        send_response(message, move(response));
         return;
     }
 
@@ -140,12 +140,12 @@ void WalkerActor::handle_message(Message const& message)
 
         auto dom_node = WalkerActor::dom_node_for(*this, *node);
         if (!dom_node.has_value()) {
-            send_unknown_actor_error(*node);
+            send_unknown_actor_error(message, *node);
             return;
         }
 
         devtools().delegate().get_dom_node_inner_html(dom_node->tab->description(), dom_node->identifier.id,
-            async_handler([](auto&, auto html, auto& response) {
+            async_handler(message, [](auto&, auto html, auto& response) {
                 response.set("value"sv, move(html));
             }));
 
@@ -162,12 +162,12 @@ void WalkerActor::handle_message(Message const& message)
 
         auto dom_node = WalkerActor::dom_node_for(*this, *node);
         if (!dom_node.has_value()) {
-            send_unknown_actor_error(*node);
+            send_unknown_actor_error(message, *node);
             return;
         }
 
         devtools().delegate().create_child_element(dom_node->tab->description(), dom_node->identifier.id,
-            async_handler<WalkerActor>([](auto& self, auto node_id, auto& response) {
+            async_handler<WalkerActor>(message, [](auto& self, auto node_id, auto& response) {
                 JsonArray nodes;
 
                 if (auto actor = self.m_dom_node_id_to_actor_map.get(node_id); actor.has_value()) {
@@ -193,13 +193,13 @@ void WalkerActor::handle_message(Message const& message)
 
         auto dom_node = WalkerActor::dom_node_for(*this, *node);
         if (!dom_node.has_value()) {
-            send_unknown_actor_error(*node);
+            send_unknown_actor_error(message, *node);
             return;
         }
 
         auto parent_dom_node = WalkerActor::dom_node_for(*this, *parent);
         if (!parent_dom_node.has_value()) {
-            send_unknown_actor_error(*parent);
+            send_unknown_actor_error(message, *parent);
             return;
         }
 
@@ -207,14 +207,14 @@ void WalkerActor::handle_message(Message const& message)
         if (auto sibling = message.data.get_string("sibling"sv); sibling.has_value()) {
             auto sibling_dom_node = WalkerActor::dom_node_for(*this, *sibling);
             if (!sibling_dom_node.has_value()) {
-                send_unknown_actor_error(*sibling);
+                send_unknown_actor_error(message, *sibling);
                 return;
             }
 
             sibling_node_id = sibling_dom_node->identifier.id;
         }
 
-        devtools().delegate().insert_dom_node_before(dom_node->tab->description(), dom_node->identifier.id, parent_dom_node->identifier.id, sibling_node_id, default_async_handler());
+        devtools().delegate().insert_dom_node_before(dom_node->tab->description(), dom_node->identifier.id, parent_dom_node->identifier.id, sibling_node_id, default_async_handler(message));
         return;
     }
 
@@ -224,7 +224,7 @@ void WalkerActor::handle_message(Message const& message)
             return;
 
         response.set("attached"sv, m_actor_to_dom_node_map.contains(*node));
-        send_message(move(response));
+        send_response(message, move(response));
         return;
     }
 
@@ -235,12 +235,12 @@ void WalkerActor::handle_message(Message const& message)
 
         auto dom_node = WalkerActor::dom_node_for(*this, *node);
         if (!dom_node.has_value()) {
-            send_unknown_actor_error(*node);
+            send_unknown_actor_error(message, *node);
             return;
         }
 
         devtools().delegate().get_dom_node_outer_html(dom_node->tab->description(), dom_node->identifier.id,
-            async_handler([](auto&, auto html, auto& response) {
+            async_handler(message, [](auto&, auto html, auto& response) {
                 response.set("value"sv, move(html));
             }));
 
@@ -254,7 +254,7 @@ void WalkerActor::handle_message(Message const& message)
 
         auto dom_node = WalkerActor::dom_node_for(*this, *node);
         if (!dom_node.has_value()) {
-            send_unknown_actor_error(*node);
+            send_unknown_actor_error(message, *node);
             return;
         }
 
@@ -263,7 +263,7 @@ void WalkerActor::handle_message(Message const& message)
             previous_sibling = serialize_node(*previous_sibling_node);
 
         response.set("node"sv, move(previous_sibling));
-        send_message(move(response));
+        send_response(message, move(response));
         return;
     }
 
@@ -278,7 +278,7 @@ void WalkerActor::handle_message(Message const& message)
 
         auto ancestor_node = WalkerActor::dom_node_for(*this, *node);
         if (!ancestor_node.has_value()) {
-            send_unknown_actor_error(*node);
+            send_unknown_actor_error(message, *node);
             return;
         }
 
@@ -294,7 +294,7 @@ void WalkerActor::handle_message(Message const& message)
             }
         }
 
-        send_message(move(response));
+        send_response(message, move(response));
         return;
     }
 
@@ -305,7 +305,7 @@ void WalkerActor::handle_message(Message const& message)
 
         auto dom_node = WalkerActor::dom_node_for(*this, *node);
         if (!dom_node.has_value()) {
-            send_unknown_actor_error(*node);
+            send_unknown_actor_error(message, *node);
             return;
         }
 
@@ -318,7 +318,7 @@ void WalkerActor::handle_message(Message const& message)
             return;
 
         devtools().delegate().remove_dom_node(dom_node->tab->description(), dom_node->identifier.id,
-            async_handler([next_sibling = move(next_sibling)](auto&, auto, auto& response) mutable {
+            async_handler(message, [next_sibling = move(next_sibling)](auto&, auto, auto& response) mutable {
                 response.set("nextSibling"sv, move(next_sibling));
             }));
 
@@ -326,7 +326,7 @@ void WalkerActor::handle_message(Message const& message)
     }
 
     if (message.type == "retainNode"sv) {
-        send_message(move(response));
+        send_response(message, move(response));
         return;
     }
 
@@ -341,18 +341,18 @@ void WalkerActor::handle_message(Message const& message)
 
         auto dom_node = WalkerActor::dom_node_for(*this, *node);
         if (!dom_node.has_value()) {
-            send_unknown_actor_error(*node);
+            send_unknown_actor_error(message, *node);
             return;
         }
 
-        devtools().delegate().set_dom_node_outer_html(dom_node->tab->description(), dom_node->identifier.id, value.release_value(), default_async_handler());
+        devtools().delegate().set_dom_node_outer_html(dom_node->tab->description(), dom_node->identifier.id, value.release_value(), default_async_handler(message));
         return;
     }
 
     if (message.type == "watchRootNode"sv) {
         response.set("type"sv, "root-available"sv);
         response.set("node"sv, serialize_root());
-        send_message(move(response));
+        send_response(message, move(response));
 
         send_message({});
         return;

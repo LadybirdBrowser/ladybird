@@ -43,7 +43,7 @@ void WatcherActor::handle_message(Message const& message)
             return;
 
         response.set("browsingContextID"sv, *browsing_context_id);
-        send_message(move(response));
+        send_response(message, move(response));
         return;
     }
 
@@ -52,7 +52,7 @@ void WatcherActor::handle_message(Message const& message)
             m_target_configuration = devtools().register_actor<TargetConfigurationActor>();
 
         response.set("configuration"sv, m_target_configuration->serialize_configuration());
-        send_message(move(response));
+        send_response(message, move(response));
         return;
     }
 
@@ -61,7 +61,7 @@ void WatcherActor::handle_message(Message const& message)
             m_thread_configuration = devtools().register_actor<ThreadConfigurationActor>();
 
         response.set("configuration"sv, m_thread_configuration->serialize_configuration());
-        send_message(move(response));
+        send_response(message, move(response));
         return;
     }
 
@@ -79,7 +79,7 @@ void WatcherActor::handle_message(Message const& message)
             }
         }
 
-        send_message(move(response));
+        send_response(message, move(response));
         return;
     }
 
@@ -99,7 +99,7 @@ void WatcherActor::handle_message(Message const& message)
 
             response.set("type"sv, "target-available-form"sv);
             response.set("target"sv, target.serialize_target());
-            send_message(move(response));
+            send_response(message, move(response));
 
             target.send_frame_update_message();
 

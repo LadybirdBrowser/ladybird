@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Enumerate.h>
 #include <LibDevTools/Actor.h>
 #include <LibDevTools/Connection.h>
 #include <LibDevTools/DevToolsServer.h>
@@ -20,29 +21,70 @@ Actor::~Actor() = default;
 
 void Actor::message_received(StringView type, JsonObject message)
 {
-    handle_message({ type, move(message) });
+    auto message_id = m_next_message_id++;
+    m_pending_responses.empend(message_id, OptionalNone {});
+
+    handle_message({ type, move(message), message_id });
 }
 
-void Actor::send_message(JsonObject message, Optional<BlockToken> block_token)
+void Actor::send_response(Message const& message, JsonObject response)
 {
-    if (m_block_responses && !block_token.has_value()) {
-        m_blocked_responses.append(move(message));
+    auto& connection = devtools().connection();
+    if (!connection)
         return;
+
+    response.set("from"sv, name());
+
+    for (auto const& [i, pending_response] : enumerate(m_pending_responses)) {
+        if (pending_response.id != message.id)
+            continue;
+
+        pending_response.response = move(response);
+
+        if (i != 0)
+            return;
     }
+
+    size_t number_of_sent_messages = 0;
+
+    for (auto const& pending_response : m_pending_responses) {
+        if (!pending_response.response.has_value())
+            break;
+
+        connection->send_message(*pending_response.response);
+        ++number_of_sent_messages;
+    }
+
+    m_pending_responses.remove(0, number_of_sent_messages);
+}
+
+void Actor::send_message(JsonObject message)
+{
+    auto& connection = devtools().connection();
+    if (!connection)
+        return;
 
     message.set("from"sv, name());
 
-    if (auto& connection = devtools().connection())
-        connection->send_message(move(message));
+    if (m_pending_responses.is_empty()) {
+        connection->send_message(message);
+        return;
+    }
+
+    m_pending_responses.empend(OptionalNone {}, move(message));
 }
 
 // https://firefox-source-docs.mozilla.org/devtools/backend/protocol.html#error-packets
-void Actor::send_missing_parameter_error(StringView parameter)
+void Actor::send_missing_parameter_error(Optional<Message const&> message, StringView parameter)
 {
     JsonObject error;
     error.set("error"sv, "missingParameter"sv);
     error.set("message"sv, MUST(String::formatted("Missing parameter: '{}'", parameter)));
-    send_message(move(error));
+
+    if (message.has_value())
+        send_response(*message, move(error));
+    else
+        send_message(move(error));
 }
 
 // https://firefox-source-docs.mozilla.org/devtools/backend/protocol.html#error-packets
@@ -51,64 +93,21 @@ void Actor::send_unrecognized_packet_type_error(Message const& message)
     JsonObject error;
     error.set("error"sv, "unrecognizedPacketType"sv);
     error.set("message"sv, MUST(String::formatted("Unrecognized packet type: '{}'", message.type)));
-    send_message(move(error));
+    send_response(message, move(error));
 }
 
 // https://github.com/mozilla/gecko-dev/blob/master/devtools/server/actors/object.js
 // This error is not documented, but is used by Firefox nonetheless.
-void Actor::send_unknown_actor_error(StringView actor)
+void Actor::send_unknown_actor_error(Optional<Message const&> message, StringView actor)
 {
     JsonObject error;
     error.set("error"sv, "unknownActor"sv);
     error.set("message"sv, MUST(String::formatted("Unknown actor: '{}'", actor)));
-    send_message(move(error));
-}
 
-Actor::BlockToken Actor::block_responses()
-{
-    // https://firefox-source-docs.mozilla.org/devtools/backend/protocol.html#the-request-reply-pattern
-    // The actor processes packets in the order they are received, and the client can trust that the i’th reply
-    // corresponds to the i’th request.
-
-    // The above requirement gets tricky for actors which require an async implementation. For example, the "getWalker"
-    // message sent to the InspectorActor results in the server fetching the DOM tree as JSON from the WebContent process.
-    // We cannot reply to the message until that is received. However, we will likely receive more messages from the
-    // client in that time. We cannot reply to those messages until we've replied to the "getWalker" message. Thus, we
-    // use this token to queue responses from the actor until that reply can be sent.
-    return { {}, *this };
-}
-
-Actor::BlockToken::BlockToken(Badge<Actor>, Actor& actor)
-    : m_actor(actor)
-{
-    // If we end up in a situtation where an actor has multiple async handlers at once, we will need to come up with a
-    // more sophisticated blocking mechanism.
-    VERIFY(!actor.m_block_responses);
-    actor.m_block_responses = true;
-}
-
-Actor::BlockToken::BlockToken(BlockToken&& other)
-    : m_actor(move(other.m_actor))
-{
-}
-
-Actor::BlockToken& Actor::BlockToken::operator=(BlockToken&& other)
-{
-    m_actor = move(other.m_actor);
-    return *this;
-}
-
-Actor::BlockToken::~BlockToken()
-{
-    auto actor = m_actor.strong_ref();
-    if (!actor)
-        return;
-
-    auto blocked_responses = move(actor->m_blocked_responses);
-    actor->m_block_responses = false;
-
-    for (auto& message : blocked_responses)
-        actor->send_message(move(message));
+    if (message.has_value())
+        send_response(*message, move(error));
+    else
+        send_message(move(error));
 }
 
 }

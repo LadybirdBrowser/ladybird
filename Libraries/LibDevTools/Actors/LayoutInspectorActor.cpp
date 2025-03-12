@@ -28,13 +28,13 @@ void LayoutInspectorActor::handle_message(Message const& message)
 
     if (message.type == "getCurrentFlexbox"sv) {
         response.set("flexbox"sv, JsonValue {});
-        send_message(move(response));
+        send_response(message, move(response));
         return;
     }
 
     if (message.type == "getGrids"sv) {
         response.set("grids"sv, JsonArray {});
-        send_message(move(response));
+        send_response(message, move(response));
         return;
     }
 

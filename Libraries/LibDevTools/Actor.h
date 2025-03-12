@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/Badge.h>
 #include <AK/Debug.h>
 #include <AK/JsonObject.h>
 #include <AK/Optional.h>
@@ -25,8 +24,9 @@ class Actor
     , public Weakable<Actor> {
 public:
     struct Message {
-        StringView type;
-        JsonObject data;
+        StringView type {};
+        JsonObject data {};
+        u64 id { 0 };
     };
 
     virtual ~Actor();
@@ -35,25 +35,15 @@ public:
 
     void message_received(StringView type, JsonObject);
 
-    class [[nodiscard]] BlockToken {
-    public:
-        BlockToken(Badge<Actor>, Actor&);
-        ~BlockToken();
+    // Use send_response when replying directly to a request received from the client.
+    void send_response(Message const&, JsonObject);
 
-        BlockToken(BlockToken const&) = delete;
-        BlockToken& operator=(BlockToken const&) = delete;
+    // Use send_message when sending an unprompted message to the client.
+    void send_message(JsonObject);
 
-        BlockToken(BlockToken&&);
-        BlockToken& operator=(BlockToken&&);
-
-    private:
-        WeakPtr<Actor> m_actor;
-    };
-
-    void send_message(JsonObject, Optional<BlockToken> block_token = {});
-    void send_missing_parameter_error(StringView parameter);
+    void send_missing_parameter_error(Optional<Message const&>, StringView parameter);
     void send_unrecognized_packet_type_error(Message const&);
-    void send_unknown_actor_error(StringView actor);
+    void send_unknown_actor_error(Optional<Message const&>, StringView actor);
 
 protected:
     explicit Actor(DevToolsServer&, String name);
@@ -62,8 +52,6 @@ protected:
 
     DevToolsServer& devtools() { return m_devtools; }
     DevToolsServer const& devtools() const { return m_devtools; }
-
-    BlockToken block_responses();
 
     template<typename ParameterType>
     auto get_required_parameter(Message const& message, StringView parameter)
@@ -84,15 +72,17 @@ protected:
         }();
 
         if (!result.has_value())
-            send_missing_parameter_error(parameter);
+            send_missing_parameter_error(message, parameter);
 
         return result;
     }
 
     template<typename ActorType = Actor, typename Handler>
-    auto async_handler(Handler&& handler)
+    auto async_handler(Optional<Message const&> message, Handler&& handler)
     {
-        return [weak_self = make_weak_ptr<ActorType>(), handler = forward<Handler>(handler), block_token = block_responses()](auto result) mutable {
+        auto message_id = message.map([](auto const& message) { return message.id; });
+
+        return [weak_self = make_weak_ptr<ActorType>(), message_id, handler = forward<Handler>(handler)](auto result) mutable {
             if (result.is_error()) {
                 dbgln_if(DEVTOOLS_DEBUG, "Error performing async action: {}", result.error());
                 return;
@@ -101,22 +91,30 @@ protected:
             if (auto self = weak_self.strong_ref()) {
                 JsonObject response;
                 handler(*self, result.release_value(), response);
-                self->send_message(move(response), move(block_token));
+
+                if (message_id.has_value())
+                    self->send_response({ .id = *message_id }, move(response));
+                else
+                    self->send_message(move(response));
             }
         };
     }
 
-    auto default_async_handler()
+    auto default_async_handler(Message const& message)
     {
-        return async_handler([](auto&, auto, auto) { });
+        return async_handler(message, [](auto&, auto, auto) { });
     }
 
 private:
     DevToolsServer& m_devtools;
     String m_name;
 
-    Vector<JsonObject> m_blocked_responses;
-    bool m_block_responses { false };
+    struct PendingResponse {
+        Optional<u64> id;
+        Optional<JsonObject> response;
+    };
+    Vector<PendingResponse, 1> m_pending_responses;
+    u64 m_next_message_id { 0 };
 };
 
 }

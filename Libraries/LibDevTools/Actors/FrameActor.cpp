@@ -62,12 +62,12 @@ void FrameActor::handle_message(Message const& message)
             tab->reset_selected_node();
         }
 
-        send_message(move(response));
+        send_response(message, move(response));
         return;
     }
 
     if (message.type == "listFrames"sv) {
-        send_message(move(response));
+        send_response(message, move(response));
         return;
     }
 

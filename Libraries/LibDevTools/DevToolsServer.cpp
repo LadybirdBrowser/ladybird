@@ -87,19 +87,19 @@ void DevToolsServer::on_message_received(JsonObject message)
 {
     auto to = message.get_string("to"sv);
     if (!to.has_value()) {
-        m_root_actor->send_missing_parameter_error("to"sv);
+        m_root_actor->send_missing_parameter_error({}, "to"sv);
         return;
     }
 
     auto actor = m_actor_registry.find(*to);
     if (actor == m_actor_registry.end()) {
-        m_root_actor->send_unknown_actor_error(*to);
+        m_root_actor->send_unknown_actor_error({}, *to);
         return;
     }
 
     auto type = message.get_string("type"sv);
     if (!type.has_value()) {
-        actor->value->send_missing_parameter_error("type"sv);
+        actor->value->send_missing_parameter_error({}, "type"sv);
         return;
     }
 

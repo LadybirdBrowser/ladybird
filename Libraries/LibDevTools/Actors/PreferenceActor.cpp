@@ -31,7 +31,7 @@ void PreferenceActor::handle_message(Message const& message)
     if (message.type == "getBoolPref"sv) {
         JsonObject response;
         response.set("value"sv, false);
-        send_message(move(response));
+        send_response(message, move(response));
         return;
     }
 

@@ -49,7 +49,7 @@ void DeviceActor::handle_message(Message const& message)
 
         JsonObject response;
         response.set("value"sv, move(value));
-        send_message(move(response));
+        send_response(message, move(response));
 
         return;
     }

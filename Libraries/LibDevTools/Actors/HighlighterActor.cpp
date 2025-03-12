@@ -43,7 +43,7 @@ void HighlighterActor::handle_message(Message const& message)
             response.set("value"sv, true);
         }
 
-        send_message(move(response));
+        send_response(message, move(response));
         return;
     }
 
@@ -51,7 +51,7 @@ void HighlighterActor::handle_message(Message const& message)
         if (auto tab = InspectorActor::tab_for(m_inspector))
             devtools().delegate().clear_highlighted_dom_node(tab->description());
 
-        send_message(move(response));
+        send_response(message, move(response));
         return;
     }
 

@@ -32,7 +32,7 @@ private:
     virtual void handle_message(Message const&) override;
 
     template<typename Callback>
-    void inspect_dom_node(StringView node_actor, Callback&&);
+    void inspect_dom_node(Message const&, StringView node_actor, Callback&&);
 
     WeakPtr<InspectorActor> m_inspector;
 };

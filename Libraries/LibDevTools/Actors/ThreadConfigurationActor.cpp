@@ -31,7 +31,7 @@ void ThreadConfigurationActor::handle_message(Message const& message)
         if (!configuration.has_value())
             return;
 
-        send_message(move(response));
+        send_response(message, move(response));
         return;
     }
 

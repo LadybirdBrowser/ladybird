@@ -46,7 +46,7 @@ void RootActor::handle_message(Message const& message)
     JsonObject response;
 
     if (message.type == "connect") {
-        send_message(move(response));
+        send_response(message, move(response));
         return;
     }
 
@@ -60,7 +60,7 @@ void RootActor::handle_message(Message const& message)
                 response.set("preferenceActor"sv, actor.key);
         }
 
-        send_message(move(response));
+        send_response(message, move(response));
         return;
     }
 
@@ -80,7 +80,7 @@ void RootActor::handle_message(Message const& message)
             break;
         }
 
-        send_message(move(response));
+        send_response(message, move(response));
         return;
     }
 
@@ -100,13 +100,13 @@ void RootActor::handle_message(Message const& message)
             break;
         }
 
-        send_message(move(response));
+        send_response(message, move(response));
         return;
     }
 
     if (message.type == "listAddons"sv) {
         response.set("addons"sv, JsonArray {});
-        send_message(move(response));
+        send_response(message, move(response));
         return;
     }
 
@@ -119,13 +119,13 @@ void RootActor::handle_message(Message const& message)
         }
 
         response.set("processes"sv, move(processes));
-        send_message(move(response));
+        send_response(message, move(response));
         return;
     }
 
     if (message.type == "listServiceWorkerRegistrations"sv) {
         response.set("registrations"sv, JsonArray {});
-        send_message(move(response));
+        send_response(message, move(response));
         return;
     }
 
@@ -140,13 +140,13 @@ void RootActor::handle_message(Message const& message)
         }
 
         response.set("tabs"sv, move(tabs));
-        send_message(move(response));
+        send_response(message, move(response));
         return;
     }
 
     if (message.type == "listWorkers"sv) {
         response.set("workers"sv, JsonArray {});
-        send_message(move(response));
+        send_response(message, move(response));
         return;
     }
 
