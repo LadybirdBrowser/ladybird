@@ -738,6 +738,8 @@ TEST_CASE(ECMA262_match)
         // Optimizer bug, ignoring an enabled trailing 'invert' when comparing blocks, ladybird#3421.
         { "[^]*[^]"sv, "i"sv, true },
         { "xx|...|...."sv, "cd"sv, false },
+        // Tests nested lookahead with alternation - verifies proper save/restore stack cleanup
+        { "a(?=.(?=c)|b)b"sv, "ab"sv, true },
     };
 
     for (auto& test : tests) {
