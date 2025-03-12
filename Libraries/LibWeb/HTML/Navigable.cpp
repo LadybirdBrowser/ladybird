@@ -934,8 +934,49 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
 
     // 19. While true:
     while (true) {
-        // FIXME: 1. If request's reserved client is not null and currentURL's origin is not the same as request's reserved client's creation URL's origin, then:
-        // FIXME: 2. If request's reserved client is null, then:
+        // 1. If request's reserved client is not null and currentURL's origin is not the same as request's reserved client's creation URL's origin, then:
+        if (request->reserved_client() && !current_url.origin().is_same_origin(request->reserved_client()->creation_url.origin())) {
+            // 1. Run the environment discarding steps for request's reserved client.
+            request->reserved_client()->discard_environment();
+
+            // 2. Set request's reserved client to null.
+            request->set_reserved_client(nullptr);
+
+            // 3. Set commitEarlyHints to null.
+            commit_early_hints = nullptr;
+        }
+
+        // 2. If request's reserved client is null, then:
+        if (!request->reserved_client()) {
+            // 1. Let topLevelCreationURL be currentURL.
+            auto top_level_creation_url = current_url;
+
+            // 2. Let topLevelOrigin be null.
+            URL::Origin top_level_origin;
+
+            // 3. If navigable is not a top-level traversable, then:
+            if (!navigable->is_top_level_traversable()) {
+                // 1. Let parentEnvironment be navigable's parent's active document's relevant settings object.
+                auto& parent_environment = navigable->parent()->active_document()->relevant_settings_object();
+
+                // 2. Set topLevelCreationURL to parentEnvironment's top-level creation URL.
+                top_level_creation_url = parent_environment.top_level_creation_url;
+
+                // 3. Set topLevelOrigin to parentEnvironment's top-level origin.
+                top_level_origin = parent_environment.top_level_origin;
+            }
+
+            // 4. Set request's reserved client to a new environment whose id is a unique opaque string,
+            //    target browsing context is navigable's active browsing context,
+            //    creation URL is currentURL,
+            //    top-level creation URL is topLevelCreationURL,
+            //    and top-level origin is topLevelOrigin.
+            // FIXME: Make this a proper unique opaque string.
+            static int next_id = 1;
+            auto id_string = MUST(String::formatted("create-by-fetching-{}", next_id++));
+            request->set_reserved_client(realm.create<Environment>(id_string, current_url, top_level_creation_url, top_level_origin, navigable->active_browsing_context()));
+        }
+
         // FIXME: 3. If the result of should navigation request of type be blocked by Content Security Policy? given request and cspNavigationType is "Blocked", then set response to a network error and break. [CSP]
 
         // 4. Set response to null.
