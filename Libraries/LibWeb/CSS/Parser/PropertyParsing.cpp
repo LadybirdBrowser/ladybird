@@ -1816,6 +1816,10 @@ RefPtr<CSSStyleValue> Parser::parse_single_shadow_value(TokenStream<ComponentVal
             if (!maybe_blur_radius)
                 continue;
             blur_radius = maybe_blur_radius;
+            if (blur_radius->is_length() && blur_radius->as_length().length().raw_value() < 0)
+                return nullptr;
+            if (blur_radius->is_percentage() && blur_radius->as_percentage().value() < 0)
+                return nullptr;
             tokens.discard_a_token();
 
             // spread distance (optional)
