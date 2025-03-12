@@ -59,9 +59,9 @@ void DedicatedWorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataHo
 
     // 9. Set up a worker environment settings object with realm execution context,
     //    outside settings, and unsafeWorkerCreationTime, and let inside settings be the result.
-    auto inner_settings = Web::HTML::WorkerEnvironmentSettingsObject::setup(page, move(realm_execution_context), outside_settings_snapshot, unsafe_worker_creation_time);
+    auto inside_settings = Web::HTML::WorkerEnvironmentSettingsObject::setup(page, move(realm_execution_context), outside_settings_snapshot, unsafe_worker_creation_time);
 
-    auto& console_object = *inner_settings->realm().intrinsics().console_object();
+    auto& console_object = *inside_settings->realm().intrinsics().console_object();
     m_console = console_object.heap().allocate<Web::HTML::WorkerDebugConsoleClient>(console_object.console());
     VERIFY(m_console);
     console_object.console().set_client(*m_console);
@@ -76,7 +76,7 @@ void DedicatedWorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataHo
     // FIXME: support for 'owner' set on WorkerGlobalScope
 
     // IMPLEMENTATION DEFINED: We need an object to represent the fetch response's client
-    auto outside_settings = inner_settings->realm().create<Web::HTML::EnvironmentSettingsSnapshot>(inner_settings->realm(), inner_settings->realm_execution_context().copy(), outside_settings_snapshot);
+    auto outside_settings = inside_settings->realm().create<Web::HTML::EnvironmentSettingsSnapshot>(inside_settings->realm(), inside_settings->realm_execution_context().copy(), outside_settings_snapshot);
 
     // 12. If is shared is true, then:
     if (is_shared) {
@@ -92,8 +92,8 @@ void DedicatedWorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataHo
                                  : Web::Fetch::Infrastructure::Request::Destination::Worker;
 
     // In both cases, let performFetch be the following perform the fetch hook given request, isTopLevel and processCustomFetchResponse:
-    auto perform_fetch_function = [inner_settings, worker_global_scope](GC::Ref<Web::Fetch::Infrastructure::Request> request, Web::HTML::TopLevelModule is_top_level, Web::Fetch::Infrastructure::FetchAlgorithms::ProcessResponseConsumeBodyFunction process_custom_fetch_response) -> Web::WebIDL::ExceptionOr<void> {
-        auto& realm = inner_settings->realm();
+    auto perform_fetch_function = [inside_settings, worker_global_scope](GC::Ref<Web::Fetch::Infrastructure::Request> request, Web::HTML::TopLevelModule is_top_level, Web::Fetch::Infrastructure::FetchAlgorithms::ProcessResponseConsumeBodyFunction process_custom_fetch_response) -> Web::WebIDL::ExceptionOr<void> {
+        auto& realm = inside_settings->realm();
         auto& vm = realm.vm();
 
         Web::Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
@@ -106,20 +106,20 @@ void DedicatedWorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataHo
         }
 
         // 2. Set request's reserved client to inside settings.
-        request->set_reserved_client(GC::Ptr<Web::HTML::EnvironmentSettingsObject>(inner_settings));
+        request->set_reserved_client(GC::Ptr<Web::HTML::EnvironmentSettingsObject>(inside_settings));
 
         // We need to store the process custom fetch response function on the heap here, because we're storing it in another heap function
         auto process_custom_fetch_response_function = GC::create_function(vm.heap(), move(process_custom_fetch_response));
 
         // 3. Fetch request with processResponseConsumeBody set to the following steps given response response and null, failure, or a byte sequence bodyBytes:
-        fetch_algorithms_input.process_response_consume_body = [worker_global_scope, process_custom_fetch_response_function, inner_settings](auto response, auto body_bytes) {
-            auto& vm = inner_settings->vm();
+        fetch_algorithms_input.process_response_consume_body = [worker_global_scope, process_custom_fetch_response_function, inside_settings](auto response, auto body_bytes) {
+            auto& vm = inside_settings->vm();
 
             // 1. Set worker global scope's url to response's url.
             worker_global_scope->set_url(response->url().value_or({}));
 
             // 2. Initialize worker global scope's policy container given worker global scope, response, and inside settings.
-            worker_global_scope->initialize_policy_container(response, inner_settings);
+            worker_global_scope->initialize_policy_container(response, inside_settings);
 
             // 3. If the Run CSP initialization for a global object algorithm returns "Blocked" when executed upon worker
             //    global scope, set response to a network error. [CSP]
@@ -148,10 +148,10 @@ void DedicatedWorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataHo
         TRY(Web::Fetch::Fetching::fetch(realm, request, Web::Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input))));
         return {};
     };
-    auto perform_fetch = Web::HTML::create_perform_the_fetch_hook(inner_settings->heap(), move(perform_fetch_function));
+    auto perform_fetch = Web::HTML::create_perform_the_fetch_hook(inside_settings->heap(), move(perform_fetch_function));
 
-    auto on_complete_function = [inner_settings, worker_global_scope, message_port_data = move(message_port_data), url = m_url](GC::Ptr<Web::HTML::Script> script) mutable {
-        auto& realm = inner_settings->realm();
+    auto on_complete_function = [inside_settings, worker_global_scope, message_port_data = move(message_port_data), url = m_url](GC::Ptr<Web::HTML::Script> script) mutable {
+        auto& realm = inside_settings->realm();
         // 1. If script is null or if script's error to rethrow is non-null, then:
         if (!script || !script->error_to_rethrow().is_null()) {
             // FIXME: 1. Queue a global task on the DOM manipulation task source given worker's relevant global object to fire an event named error at worker.
@@ -188,7 +188,7 @@ void DedicatedWorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataHo
         //     true or the worker stops being a suspendable worker
 
         // 9. Set inside settings's execution ready flag.
-        inner_settings->execution_ready = true;
+        inside_settings->execution_ready = true;
 
         // 10. If script is a classic script, then run the classic script script.
         //     Otherwise, it is a module script; run the module script script.
@@ -213,7 +213,7 @@ void DedicatedWorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataHo
         //     worker client is worker global scope's relevant settings object.
 
         // 15. Event loop: Run the responsible event loop specified by inside settings until it is destroyed.
-        inner_settings->responsible_event_loop().schedule();
+        inside_settings->responsible_event_loop().schedule();
 
         // FIXME: We need to react to the closing flag being set on the responsible event loop
         //        And use that to shutdown the WorkerHost
@@ -221,7 +221,7 @@ void DedicatedWorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataHo
         // FIXME: 17. Disentangle all the ports in the list of the worker's ports.
         // FIXME: 18. Empty worker global scope's owner set.
     };
-    auto on_complete = Web::HTML::create_on_fetch_script_complete(inner_settings->vm().heap(), move(on_complete_function));
+    auto on_complete = Web::HTML::create_on_fetch_script_complete(inside_settings->vm().heap(), move(on_complete_function));
 
     // 14. Obtain script by switching on the value of options's type member:
     // classic:  Fetch a classic worker script given url, outside settings, destination, inside settings,
@@ -229,7 +229,7 @@ void DedicatedWorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataHo
     // module:   Fetch a module worker script graph given url, outside settings, destination, the value of the credentials member of options, inside settings,
     //               and with onComplete and performFetch as defined below.
     if (m_type == Web::Bindings::WorkerType::Classic) {
-        if (auto err = Web::HTML::fetch_classic_worker_script(m_url, outside_settings, destination, inner_settings, perform_fetch, on_complete); err.is_error()) {
+        if (auto err = Web::HTML::fetch_classic_worker_script(m_url, outside_settings, destination, inside_settings, perform_fetch, on_complete); err.is_error()) {
             dbgln("Failed to run worker script");
             // FIXME: Abort the worker properly
             TODO();
@@ -237,7 +237,7 @@ void DedicatedWorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataHo
     } else {
         VERIFY(m_type == Web::Bindings::WorkerType::Module);
         // FIXME: Pass credentials
-        if (auto err = Web::HTML::fetch_module_worker_script_graph(m_url, outside_settings, destination, inner_settings, perform_fetch, on_complete); err.is_error()) {
+        if (auto err = Web::HTML::fetch_module_worker_script_graph(m_url, outside_settings, destination, inside_settings, perform_fetch, on_complete); err.is_error()) {
             dbgln("Failed to run worker script");
             // FIXME: Abort the worker properly
             TODO();
