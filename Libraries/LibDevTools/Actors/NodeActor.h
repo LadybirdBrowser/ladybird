@@ -29,12 +29,12 @@ public:
     static NonnullRefPtr<NodeActor> create(DevToolsServer&, String name, NodeIdentifier, WeakPtr<WalkerActor>);
     virtual ~NodeActor() override;
 
-    virtual void handle_message(StringView type, JsonObject const&) override;
-
     NodeIdentifier const& node_identifier() const { return m_node_identifier; }
 
 private:
     NodeActor(DevToolsServer&, String name, NodeIdentifier, WeakPtr<WalkerActor>);
+
+    virtual void handle_message(Message const&) override;
 
     NodeIdentifier m_node_identifier;
 

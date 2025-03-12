@@ -22,23 +22,23 @@ LayoutInspectorActor::LayoutInspectorActor(DevToolsServer& devtools, String name
 
 LayoutInspectorActor::~LayoutInspectorActor() = default;
 
-void LayoutInspectorActor::handle_message(StringView type, JsonObject const&)
+void LayoutInspectorActor::handle_message(Message const& message)
 {
     JsonObject response;
 
-    if (type == "getCurrentFlexbox"sv) {
+    if (message.type == "getCurrentFlexbox"sv) {
         response.set("flexbox"sv, JsonValue {});
         send_message(move(response));
         return;
     }
 
-    if (type == "getGrids"sv) {
+    if (message.type == "getGrids"sv) {
         response.set("grids"sv, JsonArray {});
         send_message(move(response));
         return;
     }
 
-    send_unrecognized_packet_type_error(type);
+    send_unrecognized_packet_type_error(message);
 }
 
 }

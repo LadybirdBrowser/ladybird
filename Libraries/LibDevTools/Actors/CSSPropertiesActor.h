@@ -24,10 +24,10 @@ public:
     static NonnullRefPtr<CSSPropertiesActor> create(DevToolsServer&, String name);
     virtual ~CSSPropertiesActor() override;
 
-    virtual void handle_message(StringView type, JsonObject const&) override;
-
 private:
     CSSPropertiesActor(DevToolsServer&, String name);
+
+    virtual void handle_message(Message const&) override;
 };
 
 }

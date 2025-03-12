@@ -85,11 +85,11 @@ PageStyleActor::PageStyleActor(DevToolsServer& devtools, String name, WeakPtr<In
 
 PageStyleActor::~PageStyleActor() = default;
 
-void PageStyleActor::handle_message(StringView type, JsonObject const& message)
+void PageStyleActor::handle_message(Message const& message)
 {
     JsonObject response;
 
-    if (type == "getApplied"sv) {
+    if (message.type == "getApplied"sv) {
         // FIXME: This provides information to the "styles" pane in the inspector tab, which allows toggling and editing
         //        styles live. We do not yet support figuring out the list of styles that apply to a specific node.
         response.set("entries"sv, JsonArray {});
@@ -97,7 +97,7 @@ void PageStyleActor::handle_message(StringView type, JsonObject const& message)
         return;
     }
 
-    if (type == "getComputed"sv) {
+    if (message.type == "getComputed"sv) {
         auto node = get_required_parameter<String>(message, "node"sv);
         if (!node.has_value())
             return;
@@ -109,7 +109,7 @@ void PageStyleActor::handle_message(StringView type, JsonObject const& message)
         return;
     }
 
-    if (type == "getLayout"sv) {
+    if (message.type == "getLayout"sv) {
         auto node = get_required_parameter<String>(message, "node"sv);
         if (!node.has_value())
             return;
@@ -121,13 +121,13 @@ void PageStyleActor::handle_message(StringView type, JsonObject const& message)
         return;
     }
 
-    if (type == "isPositionEditable") {
+    if (message.type == "isPositionEditable") {
         response.set("value"sv, false);
         send_message(move(response));
         return;
     }
 
-    send_unrecognized_packet_type_error(type);
+    send_unrecognized_packet_type_error(message);
 }
 
 JsonValue PageStyleActor::serialize_style() const

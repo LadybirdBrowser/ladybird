@@ -27,11 +27,11 @@ HighlighterActor::HighlighterActor(DevToolsServer& devtools, String name, WeakPt
 
 HighlighterActor::~HighlighterActor() = default;
 
-void HighlighterActor::handle_message(StringView type, JsonObject const& message)
+void HighlighterActor::handle_message(Message const& message)
 {
     JsonObject response;
 
-    if (type == "show"sv) {
+    if (message.type == "show"sv) {
         auto node = get_required_parameter<String>(message, "node"sv);
         if (!node.has_value())
             return;
@@ -47,7 +47,7 @@ void HighlighterActor::handle_message(StringView type, JsonObject const& message
         return;
     }
 
-    if (type == "hide"sv) {
+    if (message.type == "hide"sv) {
         if (auto tab = InspectorActor::tab_for(m_inspector))
             devtools().delegate().clear_highlighted_dom_node(tab->description());
 
@@ -55,7 +55,7 @@ void HighlighterActor::handle_message(StringView type, JsonObject const& message
         return;
     }
 
-    send_unrecognized_packet_type_error(type);
+    send_unrecognized_packet_type_error(message);
 }
 
 JsonValue HighlighterActor::serialize_highlighter() const

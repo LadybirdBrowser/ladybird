@@ -24,11 +24,12 @@ public:
     static NonnullRefPtr<PageStyleActor> create(DevToolsServer&, String name, WeakPtr<InspectorActor>);
     virtual ~PageStyleActor() override;
 
-    virtual void handle_message(StringView type, JsonObject const&) override;
     JsonValue serialize_style() const;
 
 private:
     PageStyleActor(DevToolsServer&, String name, WeakPtr<InspectorActor>);
+
+    virtual void handle_message(Message const&) override;
 
     template<typename Callback>
     void inspect_dom_node(StringView node_actor, Callback&&);

@@ -22,7 +22,7 @@ public:
     ~Connection();
 
     Function<void()> on_connection_closed;
-    Function<void(JsonObject const&)> on_message_received;
+    Function<void(JsonObject)> on_message_received;
 
     void send_message(JsonValue const&);
 

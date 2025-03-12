@@ -19,13 +19,13 @@ public:
     static NonnullRefPtr<InspectorActor> create(DevToolsServer&, String name, WeakPtr<TabActor>);
     virtual ~InspectorActor() override;
 
-    virtual void handle_message(StringView type, JsonObject const&) override;
-
     static RefPtr<TabActor> tab_for(WeakPtr<InspectorActor> const&);
     static RefPtr<WalkerActor> walker_for(WeakPtr<InspectorActor> const&);
 
 private:
     InspectorActor(DevToolsServer&, String name, WeakPtr<TabActor>);
+
+    virtual void handle_message(Message const&) override;
 
     void received_dom_tree(JsonObject& response, JsonObject dom_tree);
 

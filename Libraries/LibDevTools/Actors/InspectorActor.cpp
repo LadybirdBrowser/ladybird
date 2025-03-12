@@ -29,11 +29,11 @@ InspectorActor::InspectorActor(DevToolsServer& devtools, String name, WeakPtr<Ta
 
 InspectorActor::~InspectorActor() = default;
 
-void InspectorActor::handle_message(StringView type, JsonObject const& message)
+void InspectorActor::handle_message(Message const& message)
 {
     JsonObject response;
 
-    if (type == "getPageStyle"sv) {
+    if (message.type == "getPageStyle"sv) {
         if (!m_page_style)
             m_page_style = devtools().register_actor<PageStyleActor>(*this);
 
@@ -42,7 +42,7 @@ void InspectorActor::handle_message(StringView type, JsonObject const& message)
         return;
     }
 
-    if (type == "getHighlighterByType"sv) {
+    if (message.type == "getHighlighterByType"sv) {
         auto type_name = get_required_parameter<String>(message, "typeName"sv);
         if (!type_name.has_value())
             return;
@@ -56,7 +56,7 @@ void InspectorActor::handle_message(StringView type, JsonObject const& message)
         return;
     }
 
-    if (type == "getWalker"sv) {
+    if (message.type == "getWalker"sv) {
         if (auto tab = m_tab.strong_ref()) {
             devtools().delegate().inspect_tab(tab->description(),
                 async_handler<InspectorActor>([](auto& self, auto dom_tree, auto& response) {
@@ -72,13 +72,13 @@ void InspectorActor::handle_message(StringView type, JsonObject const& message)
         return;
     }
 
-    if (type == "supportsHighlighters"sv) {
+    if (message.type == "supportsHighlighters"sv) {
         response.set("value"sv, true);
         send_message(move(response));
         return;
     }
 
-    send_unrecognized_packet_type_error(type);
+    send_unrecognized_packet_type_error(message);
 }
 
 void InspectorActor::received_dom_tree(JsonObject& response, JsonObject dom_tree)

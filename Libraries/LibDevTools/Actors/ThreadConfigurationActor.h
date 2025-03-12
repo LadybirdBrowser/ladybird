@@ -18,12 +18,12 @@ public:
     static NonnullRefPtr<ThreadConfigurationActor> create(DevToolsServer&, String name);
     virtual ~ThreadConfigurationActor() override;
 
-    virtual void handle_message(StringView type, JsonObject const&) override;
-
     JsonObject serialize_configuration() const;
 
 private:
     ThreadConfigurationActor(DevToolsServer&, String name);
+
+    virtual void handle_message(Message const&) override;
 };
 
 }

@@ -24,13 +24,13 @@ public:
     static NonnullRefPtr<ProcessActor> create(DevToolsServer&, String name, ProcessDescription);
     virtual ~ProcessActor() override;
 
-    virtual void handle_message(StringView type, JsonObject const&) override;
-
     ProcessDescription const& description() const { return m_description; }
     JsonObject serialize_description() const;
 
 private:
     ProcessActor(DevToolsServer&, String name, ProcessDescription);
+
+    virtual void handle_message(Message const&) override;
 
     ProcessDescription m_description;
 };

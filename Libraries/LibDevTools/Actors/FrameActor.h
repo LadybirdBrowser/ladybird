@@ -21,13 +21,14 @@ public:
     static NonnullRefPtr<FrameActor> create(DevToolsServer&, String name, WeakPtr<TabActor>, WeakPtr<CSSPropertiesActor>, WeakPtr<ConsoleActor>, WeakPtr<InspectorActor>, WeakPtr<ThreadActor>);
     virtual ~FrameActor() override;
 
-    virtual void handle_message(StringView type, JsonObject const&) override;
     void send_frame_update_message();
 
     JsonObject serialize_target() const;
 
 private:
     FrameActor(DevToolsServer&, String name, WeakPtr<TabActor>, WeakPtr<CSSPropertiesActor>, WeakPtr<ConsoleActor>, WeakPtr<InspectorActor>, WeakPtr<ThreadActor>);
+
+    virtual void handle_message(Message const&) override;
 
     void console_message_available(i32 message_index);
     void console_messages_received(i32 start_index, Vector<WebView::ConsoleOutput>);

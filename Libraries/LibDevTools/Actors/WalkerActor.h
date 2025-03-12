@@ -24,8 +24,6 @@ public:
     static NonnullRefPtr<WalkerActor> create(DevToolsServer&, String name, WeakPtr<TabActor>, JsonObject dom_tree);
     virtual ~WalkerActor() override;
 
-    virtual void handle_message(StringView type, JsonObject const&) override;
-
     static bool is_suitable_for_dom_inspection(JsonValue const&);
     JsonValue serialize_root() const;
 
@@ -39,6 +37,8 @@ public:
 
 private:
     WalkerActor(DevToolsServer&, String name, WeakPtr<TabActor>, JsonObject dom_tree);
+
+    virtual void handle_message(Message const&) override;
 
     JsonValue serialize_node(JsonObject const&) const;
     Optional<JsonObject const&> find_node_by_selector(JsonObject const& node, StringView selector);

@@ -70,8 +70,8 @@ ErrorOr<void> DevToolsServer::on_new_client()
         close_connection();
     };
 
-    m_connection->on_message_received = [this](auto const& message) {
-        on_message_received(message);
+    m_connection->on_message_received = [this](auto message) {
+        on_message_received(move(message));
     };
 
     m_root_actor = register_actor<RootActor>();
@@ -83,7 +83,7 @@ ErrorOr<void> DevToolsServer::on_new_client()
     return {};
 }
 
-void DevToolsServer::on_message_received(JsonObject const& message)
+void DevToolsServer::on_message_received(JsonObject message)
 {
     auto to = message.get_string("to"sv);
     if (!to.has_value()) {
@@ -103,7 +103,7 @@ void DevToolsServer::on_message_received(JsonObject const& message)
         return;
     }
 
-    actor->value->handle_message(*type, message);
+    actor->value->message_received(*type, move(message));
 }
 
 void DevToolsServer::close_connection()

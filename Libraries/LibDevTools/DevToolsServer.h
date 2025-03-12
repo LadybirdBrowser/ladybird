@@ -52,7 +52,7 @@ private:
     explicit DevToolsServer(DevToolsDelegate&, NonnullRefPtr<Core::TCPServer>);
 
     ErrorOr<void> on_new_client();
-    void on_message_received(JsonObject const&);
+    void on_message_received(JsonObject);
 
     void close_connection();
 

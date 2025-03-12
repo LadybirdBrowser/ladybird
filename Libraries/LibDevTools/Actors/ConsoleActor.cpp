@@ -39,18 +39,18 @@ ConsoleActor::ConsoleActor(DevToolsServer& devtools, String name, WeakPtr<TabAct
 
 ConsoleActor::~ConsoleActor() = default;
 
-void ConsoleActor::handle_message(StringView type, JsonObject const& message)
+void ConsoleActor::handle_message(Message const& message)
 {
     JsonObject response;
 
-    if (type == "autocomplete"sv) {
+    if (message.type == "autocomplete"sv) {
         response.set("matches"sv, JsonArray {});
         response.set("matchProp"sv, String {});
         send_message(move(response));
         return;
     }
 
-    if (type == "evaluateJSAsync"sv) {
+    if (message.type == "evaluateJSAsync"sv) {
         auto text = get_required_parameter<String>(message, "text"sv);
         if (!text.has_value())
             return;
@@ -61,7 +61,7 @@ void ConsoleActor::handle_message(StringView type, JsonObject const& message)
         send_message(move(response));
 
         // FIXME: We do not support eager evaluation of scripts. Just bail for now.
-        if (message.get_bool("eager"sv).value_or(false)) {
+        if (message.data.get_bool("eager"sv).value_or(false)) {
             return;
         }
 
@@ -75,7 +75,7 @@ void ConsoleActor::handle_message(StringView type, JsonObject const& message)
         return;
     }
 
-    send_unrecognized_packet_type_error(type);
+    send_unrecognized_packet_type_error(message);
 }
 
 }

@@ -24,9 +24,9 @@ DeviceActor::DeviceActor(DevToolsServer& devtools, String name)
 
 DeviceActor::~DeviceActor() = default;
 
-void DeviceActor::handle_message(StringView type, JsonObject const&)
+void DeviceActor::handle_message(Message const& message)
 {
-    if (type == "getDescription"sv) {
+    if (message.type == "getDescription"sv) {
         auto build_id = Core::Version::read_long_version_string();
 
         static auto browser_name = String::from_utf8_without_validation({ BROWSER_NAME, __builtin_strlen(BROWSER_NAME) });
@@ -54,7 +54,7 @@ void DeviceActor::handle_message(StringView type, JsonObject const&)
         return;
     }
 
-    send_unrecognized_packet_type_error(type);
+    send_unrecognized_packet_type_error(message);
 }
 
 }

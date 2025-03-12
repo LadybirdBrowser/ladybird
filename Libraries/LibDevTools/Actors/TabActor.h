@@ -25,8 +25,6 @@ public:
     static NonnullRefPtr<TabActor> create(DevToolsServer&, String name, TabDescription);
     virtual ~TabActor() override;
 
-    virtual void handle_message(StringView type, JsonObject const&) override;
-
     TabDescription const& description() const { return m_description; }
     JsonObject serialize_description() const;
 
@@ -34,6 +32,8 @@ public:
 
 private:
     TabActor(DevToolsServer&, String name, TabDescription);
+
+    virtual void handle_message(Message const&) override;
 
     TabDescription m_description;
     WeakPtr<WatcherActor> m_watcher;
