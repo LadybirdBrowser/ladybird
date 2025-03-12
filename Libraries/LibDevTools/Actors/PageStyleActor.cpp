@@ -93,7 +93,7 @@ void PageStyleActor::handle_message(Message const& message)
         // FIXME: This provides information to the "styles" pane in the inspector tab, which allows toggling and editing
         //        styles live. We do not yet support figuring out the list of styles that apply to a specific node.
         response.set("entries"sv, JsonArray {});
-        send_message(move(response));
+        send_response(message, move(response));
         return;
     }
 
@@ -102,7 +102,7 @@ void PageStyleActor::handle_message(Message const& message)
         if (!node.has_value())
             return;
 
-        inspect_dom_node(*node, [](auto& response, auto const& properties) {
+        inspect_dom_node(message, *node, [](auto& response, auto const& properties) {
             received_computed_style(response, properties.computed_style);
         });
 
@@ -114,7 +114,7 @@ void PageStyleActor::handle_message(Message const& message)
         if (!node.has_value())
             return;
 
-        inspect_dom_node(*node, [](auto& response, auto const& properties) {
+        inspect_dom_node(message, *node, [](auto& response, auto const& properties) {
             received_layout(response, properties.computed_style, properties.node_box_sizing);
         });
 
@@ -123,7 +123,7 @@ void PageStyleActor::handle_message(Message const& message)
 
     if (message.type == "isPositionEditable") {
         response.set("value"sv, false);
-        send_message(move(response));
+        send_response(message, move(response));
         return;
     }
 
@@ -145,16 +145,16 @@ JsonValue PageStyleActor::serialize_style() const
 }
 
 template<typename Callback>
-void PageStyleActor::inspect_dom_node(StringView node_actor, Callback&& callback)
+void PageStyleActor::inspect_dom_node(Message const& message, StringView node_actor, Callback&& callback)
 {
     auto dom_node = WalkerActor::dom_node_for(InspectorActor::walker_for(m_inspector), node_actor);
     if (!dom_node.has_value()) {
-        send_unknown_actor_error(node_actor);
+        send_unknown_actor_error(message, node_actor);
         return;
     }
 
     devtools().delegate().inspect_dom_node(dom_node->tab->description(), dom_node->identifier.id, dom_node->identifier.pseudo_element,
-        async_handler([callback = forward<Callback>(callback)](auto&, auto properties, auto& response) {
+        async_handler(message, [callback = forward<Callback>(callback)](auto&, auto properties, auto& response) {
             callback(response, properties);
         }));
 }

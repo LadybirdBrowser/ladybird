@@ -100,12 +100,12 @@ void NodeActor::handle_message(Message const& message)
     if (message.type == "getUniqueSelector"sv) {
         auto dom_node = WalkerActor::dom_node_for(m_walker, name());
         if (!dom_node.has_value()) {
-            send_unknown_actor_error(name());
+            send_unknown_actor_error(message, name());
             return;
         }
 
         response.set("value"sv, dom_node->node.get_string("name"sv)->to_ascii_lowercase());
-        send_message(move(response));
+        send_response(message, move(response));
         return;
     }
 
@@ -120,14 +120,14 @@ void NodeActor::handle_message(Message const& message)
 
         auto dom_node = WalkerActor::dom_node_for(m_walker, name());
         if (!dom_node.has_value()) {
-            send_unknown_actor_error(name());
+            send_unknown_actor_error(message, name());
             return;
         }
 
         if (attribute_to_replace.has_value())
-            devtools().delegate().replace_dom_node_attribute(dom_node->tab->description(), dom_node->identifier.id, *attribute_to_replace, move(replacement_attributes), default_async_handler());
+            devtools().delegate().replace_dom_node_attribute(dom_node->tab->description(), dom_node->identifier.id, *attribute_to_replace, move(replacement_attributes), default_async_handler(message));
         else
-            devtools().delegate().add_dom_node_attributes(dom_node->tab->description(), dom_node->identifier.id, move(replacement_attributes), default_async_handler());
+            devtools().delegate().add_dom_node_attributes(dom_node->tab->description(), dom_node->identifier.id, move(replacement_attributes), default_async_handler(message));
 
         return;
     }
@@ -139,11 +139,11 @@ void NodeActor::handle_message(Message const& message)
 
         auto dom_node = WalkerActor::dom_node_for(m_walker, name());
         if (!dom_node.has_value()) {
-            send_unknown_actor_error(name());
+            send_unknown_actor_error(message, name());
             return;
         }
 
-        devtools().delegate().set_dom_node_text(dom_node->tab->description(), dom_node->identifier.id, *value, default_async_handler());
+        devtools().delegate().set_dom_node_text(dom_node->tab->description(), dom_node->identifier.id, *value, default_async_handler(message));
         return;
     }
 

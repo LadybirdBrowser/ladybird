@@ -46,7 +46,7 @@ void ConsoleActor::handle_message(Message const& message)
     if (message.type == "autocomplete"sv) {
         response.set("matches"sv, JsonArray {});
         response.set("matchProp"sv, String {});
-        send_message(move(response));
+        send_response(message, move(response));
         return;
     }
 
@@ -58,7 +58,7 @@ void ConsoleActor::handle_message(Message const& message)
         auto result_id = MUST(String::formatted("{}-{}", name(), m_execution_id++));
 
         response.set("resultID"sv, result_id);
-        send_message(move(response));
+        send_response(message, move(response));
 
         // FIXME: We do not support eager evaluation of scripts. Just bail for now.
         if (message.data.get_bool("eager"sv).value_or(false)) {
@@ -67,7 +67,7 @@ void ConsoleActor::handle_message(Message const& message)
 
         if (auto tab = m_tab.strong_ref()) {
             devtools().delegate().evaluate_javascript(tab->description(), *text,
-                async_handler([result_id, input = *text](auto&, auto result, auto& response) {
+                async_handler({}, [result_id, input = *text](auto&, auto result, auto& response) {
                     received_console_result(response, move(result_id), move(input), move(result));
                 }));
         }

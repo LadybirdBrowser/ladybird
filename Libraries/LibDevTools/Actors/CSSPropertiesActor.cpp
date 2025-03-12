@@ -47,7 +47,7 @@ void CSSPropertiesActor::handle_message(Message const& message)
         }
 
         response.set("properties"sv, move(properties));
-        send_message(move(response));
+        send_response(message, move(response));
         return;
     }
 

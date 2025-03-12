@@ -38,7 +38,7 @@ void InspectorActor::handle_message(Message const& message)
             m_page_style = devtools().register_actor<PageStyleActor>(*this);
 
         response.set("pageStyle"sv, m_page_style->serialize_style());
-        send_message(move(response));
+        send_response(message, move(response));
         return;
     }
 
@@ -52,14 +52,14 @@ void InspectorActor::handle_message(Message const& message)
         });
 
         response.set("highlighter"sv, highlighter->serialize_highlighter());
-        send_message(move(response));
+        send_response(message, move(response));
         return;
     }
 
     if (message.type == "getWalker"sv) {
         if (auto tab = m_tab.strong_ref()) {
             devtools().delegate().inspect_tab(tab->description(),
-                async_handler<InspectorActor>([](auto& self, auto dom_tree, auto& response) {
+                async_handler<InspectorActor>(message, [](auto& self, auto dom_tree, auto& response) {
                     if (!WalkerActor::is_suitable_for_dom_inspection(dom_tree)) {
                         dbgln_if(DEVTOOLS_DEBUG, "Did not receive a suitable DOM tree: {}", dom_tree);
                         return;
@@ -74,7 +74,7 @@ void InspectorActor::handle_message(Message const& message)
 
     if (message.type == "supportsHighlighters"sv) {
         response.set("value"sv, true);
-        send_message(move(response));
+        send_response(message, move(response));
         return;
     }
 
