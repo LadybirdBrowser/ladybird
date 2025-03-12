@@ -19,9 +19,12 @@ struct StyleSheetIdentifier {
         ImportRule,
         UserAgent,
         UserStyle,
-    } type;
+    };
+
+    Type type;
     Optional<UniqueNodeID> dom_element_unique_id {};
     Optional<String> url {};
+    size_t rule_count { 0 };
 };
 
 StringView style_sheet_identifier_type_to_string(StyleSheetIdentifier::Type);

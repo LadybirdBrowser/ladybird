@@ -52,6 +52,7 @@ ErrorOr<void> encode(Encoder& encoder, Web::CSS::StyleSheetIdentifier const& sty
     TRY(encoder.encode(style_sheet_source.type));
     TRY(encoder.encode(style_sheet_source.dom_element_unique_id.map([](auto value) { return value.value(); })));
     TRY(encoder.encode(style_sheet_source.url));
+    TRY(encoder.encode(style_sheet_source.rule_count));
 
     return {};
 }
@@ -62,11 +63,13 @@ ErrorOr<Web::CSS::StyleSheetIdentifier> decode(Decoder& decoder)
     auto type = TRY(decoder.decode<Web::CSS::StyleSheetIdentifier::Type>());
     auto dom_element_unique_id = TRY(decoder.decode<Optional<Web::UniqueNodeID::Type>>());
     auto url = TRY(decoder.decode<Optional<String>>());
+    auto rule_count = TRY(decoder.decode<size_t>());
 
     return Web::CSS::StyleSheetIdentifier {
         .type = type,
         .dom_element_unique_id = dom_element_unique_id.map([](auto value) -> Web::UniqueNodeID { return value; }),
         .url = move(url),
+        .rule_count = rule_count,
     };
 }
 
