@@ -615,6 +615,10 @@
       "border-bottom-left-radius",
       "border-bottom-right-radius"
     ],
+    "valid-types": [
+      "length [0,∞]",
+      "percentage [0,∞]"
+    ],
     "percentages-resolve-to": "length"
   },
   "border-right": {

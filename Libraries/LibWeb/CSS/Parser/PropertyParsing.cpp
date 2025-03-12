@@ -1659,6 +1659,10 @@ RefPtr<CSSStyleValue> Parser::parse_border_radius_shorthand_value(TokenStream<Co
         auto maybe_dimension = parse_length_percentage(tokens);
         if (!maybe_dimension.has_value())
             return nullptr;
+        if (maybe_dimension->is_length() && !property_accepts_length(PropertyID::BorderRadius, maybe_dimension->length()))
+            return nullptr;
+        if (maybe_dimension->is_percentage() && !property_accepts_percentage(PropertyID::BorderRadius, maybe_dimension->percentage()))
+            return nullptr;
         if (reading_vertical) {
             vertical_radii.append(maybe_dimension.release_value());
         } else {
