@@ -570,6 +570,12 @@ ALWAYS_INLINE bool operator==(Optional<T1> const& first, T2 const& second)
     return first.has_value() && first.value() == second;
 }
 
+template<typename T>
+ALWAYS_INLINE bool operator==(Optional<T> const& first, OptionalNone)
+{
+    return !first.has_value();
+}
+
 }
 
 #if USING_AK_GLOBALLY
