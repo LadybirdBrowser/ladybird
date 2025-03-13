@@ -6,7 +6,9 @@
 
 #pragma once
 
+#include <AK/HashFunctions.h>
 #include <AK/NonnullRefPtr.h>
+#include <AK/Traits.h>
 #include <LibDevTools/Actor.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/Forward.h>
@@ -30,6 +32,7 @@ public:
     virtual ~NodeActor() override;
 
     NodeIdentifier const& node_identifier() const { return m_node_identifier; }
+    WeakPtr<WalkerActor> const& walker() const { return m_walker; }
 
 private:
     NodeActor(DevToolsServer&, String name, NodeIdentifier, WeakPtr<WalkerActor>);
@@ -42,3 +45,17 @@ private:
 };
 
 }
+
+template<>
+struct AK::Traits<DevTools::NodeIdentifier> : public AK::DefaultTraits<DevTools::NodeIdentifier> {
+    static bool equals(DevTools::NodeIdentifier const& lhs, DevTools::NodeIdentifier const& rhs)
+    {
+        return lhs == rhs;
+    }
+
+    static unsigned hash(DevTools::NodeIdentifier const& node_identifier)
+    {
+        auto pseudo_element = node_identifier.pseudo_element.value_or(Web::CSS::Selector::PseudoElement::Type::KnownPseudoElementCount);
+        return pair_int_hash(node_identifier.id.value(), to_underlying(pseudo_element));
+    }
+};

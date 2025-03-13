@@ -68,6 +68,8 @@ private:
     HashMap<JsonObject const*, JsonObject const*> m_dom_node_to_parent_map;
     HashMap<String, JsonObject const*> m_actor_to_dom_node_map;
     HashMap<Web::UniqueNodeID, String> m_dom_node_id_to_actor_map;
+
+    HashMap<NodeIdentifier, WeakPtr<NodeActor>> m_node_actors;
 };
 
 }
