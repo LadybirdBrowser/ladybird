@@ -4,7 +4,7 @@ interface IDBFactory {
     [NewObject] IDBOpenDBRequest open(DOMString name, optional [EnforceRange] unsigned long long version);
     [NewObject] IDBOpenDBRequest deleteDatabase(DOMString name);
 
-    [FIXME] Promise<sequence<IDBDatabaseInfo>> databases();
+    Promise<sequence<IDBDatabaseInfo>> databases();
 
     short cmp(any first, any second);
 };

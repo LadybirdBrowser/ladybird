@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, stelar7 <dudedbz@gmail.com>
+ * Copyright (c) 2024-2025, stelar7 <dudedbz@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -26,6 +26,16 @@ void Database::visit_edges(Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_associated_connections);
     visitor.visit(m_upgrade_transaction);
+}
+
+Vector<GC::Root<Database>> Database::for_key(StorageAPI::StorageKey const& key)
+{
+    Vector<GC::Root<Database>> databases;
+    for (auto const& database_mapping : m_databases.get(key).value_or({})) {
+        databases.append(database_mapping.value);
+    }
+
+    return databases;
 }
 
 RequestList& ConnectionQueueHandler::for_key_and_name(StorageAPI::StorageKey& key, String& name)

@@ -1,10 +1,13 @@
 /*
  * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
- * Copyright (c) 2024, stelar7 <dudedbz@gmail.com>
+ * Copyright (c) 2024-2025, stelar7 <dudedbz@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Vector.h>
+#include <LibJS/Runtime/Array.h>
+#include <LibJS/Runtime/Value.h>
 #include <LibWeb/Bindings/IDBFactoryPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/Event.h>
@@ -16,6 +19,7 @@
 #include <LibWeb/IndexedDB/Internal/Key.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/StorageAPI/StorageKey.h>
+#include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::IndexedDB {
 
@@ -171,6 +175,59 @@ WebIDL::ExceptionOr<GC::Ref<IDBOpenDBRequest>> IDBFactory::delete_database(Strin
 
     // 5. Return a new IDBOpenDBRequest object for request.
     return request;
+}
+
+// https://w3c.github.io/IndexedDB/#dom-idbfactory-databases
+GC::Ref<WebIDL::Promise> IDBFactory::databases()
+{
+    auto& realm = this->realm();
+
+    // 1. Let environment be this's relevant settings object.
+    auto& environment = HTML::relevant_settings_object(*this);
+
+    // 2. Let storageKey be the result of running obtain a storage key given environment.
+    //    If failure is returned, then return a promise rejected with a "SecurityError" DOMException
+    auto maybe_storage_key = StorageAPI::obtain_a_storage_key(environment);
+    if (!maybe_storage_key.has_value())
+        return WebIDL::create_rejected_promise_from_exception(realm, WebIDL::SecurityError::create(realm, "Failed to obtain a storage key"_string));
+
+    auto storage_key = maybe_storage_key.release_value();
+
+    // 3. Let p be a new promise.
+    auto p = WebIDL::create_promise(realm);
+
+    // 4. Run these steps in parallel:
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, storage_key, p]() {
+        HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+
+        // 1. Let databases be the set of databases in storageKey.
+        //    If this cannot be determined for any reason, then reject p with an appropriate error (e.g. an "UnknownError" DOMException) and terminate these steps.
+        auto databases = Database::for_key(storage_key);
+
+        // 2. Let result be a new list.
+        auto result = MUST(JS::Array::create(realm, databases.size()));
+
+        // 3. For each db of databases:
+        for (u32 i = 0; i < databases.size(); ++i) {
+            auto& db = databases[i];
+
+            // 1. Let info be a new IDBDatabaseInfo dictionary.
+            // 2. Set info’s name dictionary member to db’s name.
+            // 3. Set info’s version dictionary member to db’s version.
+            auto info = JS::Object::create(realm, realm.intrinsics().object_prototype());
+            MUST(info->create_data_property("name", JS::PrimitiveString::create(realm.vm(), db->name())));
+            MUST(info->create_data_property("version", JS::Value(db->version())));
+
+            // 4. Append info to result.
+            MUST(result->create_data_property_or_throw(i, info));
+        }
+
+        // 4. Resolve p with result.
+        WebIDL::resolve_promise(realm, p, result);
+    }));
+
+    // 5. Return p.
+    return p;
 }
 
 }
