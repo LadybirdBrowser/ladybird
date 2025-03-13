@@ -17,11 +17,11 @@ list(APPEND ANGLEGLESv2_LIBRARIES
 # Metal backend
 if(USE_METAL)
     list(APPEND ANGLE_SOURCES
-        ${_metal_backend_sources}
+        ${metal_backend_sources}
 
-        ${angle_translator_lib_metal_sources}
-    
-        ${angle_glslang_wrapper}
+        ${angle_translator_lib_msl_sources}
+
+        ${angle_translator_glsl_apple_sources}
     )
 
     list(APPEND ANGLE_DEFINITIONS
@@ -38,7 +38,6 @@ if(USE_OPENGL)
     list(APPEND ANGLE_SOURCES
         ${angle_translator_glsl_base_sources}
         ${angle_translator_glsl_sources}
-        ${angle_translator_apple_sources}
     )
     # Enable GLSL compiler output.
     list(APPEND ANGLE_DEFINITIONS ANGLE_ENABLE_GLSL ANGLE_ENABLE_GL_DESKTOP_BACKEND ANGLE_ENABLE_APPLE_WORKAROUNDS)
@@ -46,7 +45,7 @@ endif()
 
 if(USE_ANGLE_EGL OR ENABLE_WEBGL)
     list(APPEND ANGLE_SOURCES
-        ${_gl_backend_sources}
+        ${gl_backend_sources}
 
         ${libangle_gl_egl_dl_sources}
         ${libangle_gl_egl_sources}

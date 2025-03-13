@@ -25,16 +25,4 @@ index f4bb137f2..86495013b 100644
 +
  namespace angle
  {
- 
-diff --git a/include/GLSLANG/ShaderVars.h b/include/GLSLANG/ShaderVars.h
-index 94cb93e..5593f66 100644
---- a/include/GLSLANG/ShaderVars.h
-+++ b/include/GLSLANG/ShaderVars.h
-@@ -14,6 +14,7 @@
- #include <array>
- #include <string>
- #include <vector>
-+#include <stdint.h>
- 
- namespace sh
- {
+

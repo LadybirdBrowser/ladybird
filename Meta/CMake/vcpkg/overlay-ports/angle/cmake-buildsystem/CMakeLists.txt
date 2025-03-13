@@ -235,13 +235,6 @@ set(angle_gl_enum_utils # VCPKG EDIT: Update paths
     "src/common/gl_enum_utils_autogen.h"
 )
 
-set(angle_glslang_wrapper
-    "src/libANGLE/renderer/ShaderInterfaceVariableInfoMap.cpp"
-    "src/libANGLE/renderer/ShaderInterfaceVariableInfoMap.h"
-    "src/libANGLE/renderer/glslang_wrapper_utils.cpp"
-    "src/libANGLE/renderer/glslang_wrapper_utils.h"
-)
-
 WEBKIT_INCLUDE_CONFIG_FILES_IF_EXISTS()
 
 add_subdirectory(include)
