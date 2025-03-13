@@ -728,16 +728,15 @@ NodeActor const& WalkerActor::actor_for_node(JsonObject const& node)
 {
     auto identifier = NodeIdentifier::for_node(node);
 
-    for (auto const& actor : devtools().actor_registry()) {
-        auto const* node_actor = as_if<NodeActor>(*actor.value);
-        if (!node_actor)
-            continue;
-
-        if (node_actor->node_identifier() == identifier)
+    if (auto it = m_node_actors.find(identifier); it != m_node_actors.end()) {
+        if (auto node_actor = it->value.strong_ref())
             return *node_actor;
     }
 
-    return devtools().register_actor<NodeActor>(move(identifier), *this);
+    auto& node_actor = devtools().register_actor<NodeActor>(move(identifier), *this);
+    m_node_actors.set(identifier, node_actor);
+
+    return node_actor;
 }
 
 }
