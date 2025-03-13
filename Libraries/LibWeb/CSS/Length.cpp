@@ -154,6 +154,10 @@ Length::ResolutionContext Length::ResolutionContext::for_layout_node(Layout::Nod
 {
     auto const* root_element = node.document().document_element();
     VERIFY(root_element);
+    if (!root_element->layout_node()) {
+        dbgln(">document with url={} has no layout node for its root element", node.document().url());
+        VERIFY_NOT_REACHED();
+    }
     VERIFY(root_element->layout_node());
     return Length::ResolutionContext {
         .viewport_rect = node.navigable()->viewport_rect(),
