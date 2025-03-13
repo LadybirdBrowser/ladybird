@@ -9,7 +9,6 @@
 #include <AK/Debug.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/Layout/AvailableSpace.h>
-#include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/InlineNode.h>
 #include <LibWeb/Layout/LayoutState.h>
 #include <LibWeb/Layout/Viewport.h>
@@ -21,7 +20,6 @@ namespace Web::Layout {
 
 LayoutState::LayoutState(LayoutState const* parent)
     : m_parent(parent)
-    , m_root(find_root())
 {
 }
 
