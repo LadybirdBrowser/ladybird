@@ -76,7 +76,6 @@ bool PolicyList::contains_header_delivered_policy() const
 
 HTML::SandboxingFlagSet PolicyList::csp_derived_sandboxing_flags() const
 {
-    dbgln("FIXME: Implement PolicyList::csp_derived_sandboxing_flags");
     return HTML::SandboxingFlagSet {};
 }
 
