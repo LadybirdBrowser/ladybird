@@ -518,6 +518,5 @@ CSS::CSSRule* parse_css_rule(CSS::Parser::ParsingParams const&, StringView);
 RefPtr<CSS::MediaQuery> parse_media_query(CSS::Parser::ParsingParams const&, StringView);
 Vector<NonnullRefPtr<CSS::MediaQuery>> parse_media_query_list(CSS::Parser::ParsingParams const&, StringView);
 RefPtr<CSS::Supports> parse_css_supports(CSS::Parser::ParsingParams const&, StringView);
-Optional<CSS::StyleProperty> parse_css_supports_condition(CSS::Parser::ParsingParams const&, StringView);
 
 }

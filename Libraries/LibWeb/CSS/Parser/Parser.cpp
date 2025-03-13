@@ -154,7 +154,7 @@ RefPtr<Supports> Parser::parse_a_supports(TokenStream<T>& tokens)
     m_rule_context.take_last();
     token_stream.discard_whitespace();
     if (maybe_condition && !token_stream.has_next_token())
-        return Supports::create(realm(), maybe_condition.release_nonnull());
+        return Supports::create(maybe_condition.release_nonnull());
 
     return {};
 }
@@ -279,7 +279,9 @@ Optional<Supports::Feature> Parser::parse_supports_feature(TokenStream<Component
         if (auto declaration = consume_a_declaration(block_tokens); declaration.has_value()) {
             transaction.commit();
             return Supports::Feature {
-                Supports::Declaration { declaration->to_string() }
+                Supports::Declaration {
+                    declaration->to_string(),
+                    convert_to_style_property(*declaration).has_value() }
             };
         }
     }
@@ -291,8 +293,11 @@ Optional<Supports::Feature> Parser::parse_supports_feature(TokenStream<Component
         for (auto const& item : first_token.function().value)
             builder.append(item.to_string());
         transaction.commit();
+        TokenStream selector_tokens { first_token.function().value };
         return Supports::Feature {
-            Supports::Selector { builder.to_string().release_value_but_fixme_should_propagate_errors() }
+            Supports::Selector {
+                builder.to_string_without_validation(),
+                !parse_a_selector_list(selector_tokens, SelectorType::Standalone).is_error() }
         };
     }
 

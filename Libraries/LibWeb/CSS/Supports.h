@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -17,26 +17,26 @@ namespace Web::CSS {
 
 // https://www.w3.org/TR/css-conditional-3/#at-supports
 class Supports final : public RefCounted<Supports> {
-    friend class Parser::Parser;
-
 public:
     struct Declaration {
         String declaration;
-        [[nodiscard]] bool evaluate(JS::Realm&) const;
+        bool matches;
+        [[nodiscard]] bool evaluate() const { return matches; }
         String to_string() const;
         void dump(StringBuilder&, int indent_levels = 0) const;
     };
 
     struct Selector {
         String selector;
-        [[nodiscard]] bool evaluate(JS::Realm&) const;
+        bool matches;
+        [[nodiscard]] bool evaluate() const { return matches; }
         String to_string() const;
         void dump(StringBuilder&, int indent_levels = 0) const;
     };
 
     struct Feature {
         Variant<Declaration, Selector> value;
-        [[nodiscard]] bool evaluate(JS::Realm&) const;
+        [[nodiscard]] bool evaluate() const;
         String to_string() const;
         void dump(StringBuilder&, int indent_levels = 0) const;
     };
@@ -45,7 +45,7 @@ public:
     struct InParens {
         Variant<NonnullOwnPtr<Condition>, Feature, GeneralEnclosed> value;
 
-        [[nodiscard]] bool evaluate(JS::Realm&) const;
+        [[nodiscard]] bool evaluate() const;
         String to_string() const;
         void dump(StringBuilder&, int indent_levels = 0) const;
     };
@@ -59,14 +59,14 @@ public:
         Type type;
         Vector<InParens> children;
 
-        [[nodiscard]] bool evaluate(JS::Realm&) const;
+        [[nodiscard]] bool evaluate() const;
         String to_string() const;
         void dump(StringBuilder&, int indent_levels = 0) const;
     };
 
-    static NonnullRefPtr<Supports> create(JS::Realm& realm, NonnullOwnPtr<Condition>&& condition)
+    static NonnullRefPtr<Supports> create(NonnullOwnPtr<Condition>&& condition)
     {
-        return adopt_ref(*new Supports(realm, move(condition)));
+        return adopt_ref(*new Supports(move(condition)));
     }
 
     bool matches() const { return m_matches; }
@@ -75,7 +75,7 @@ public:
     void dump(StringBuilder&, int indent_levels = 0) const;
 
 private:
-    Supports(JS::Realm&, NonnullOwnPtr<Condition>&&);
+    Supports(NonnullOwnPtr<Condition>&&);
 
     NonnullOwnPtr<Condition> m_condition;
     bool m_matches { false };

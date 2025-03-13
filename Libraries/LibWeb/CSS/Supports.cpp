@@ -1,11 +1,10 @@
 /*
- * Copyright (c) 2021-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Supports.h>
 
 namespace Web::CSS {
@@ -16,26 +15,26 @@ static void indent(StringBuilder& builder, int levels)
         builder.append("  "sv);
 }
 
-Supports::Supports(JS::Realm& realm, NonnullOwnPtr<Condition>&& condition)
+Supports::Supports(NonnullOwnPtr<Condition>&& condition)
     : m_condition(move(condition))
 {
-    m_matches = m_condition->evaluate(realm);
+    m_matches = m_condition->evaluate();
 }
 
-bool Supports::Condition::evaluate(JS::Realm& realm) const
+bool Supports::Condition::evaluate() const
 {
     switch (type) {
     case Type::Not:
-        return !children.first().evaluate(realm);
+        return !children.first().evaluate();
     case Type::And:
         for (auto& child : children) {
-            if (!child.evaluate(realm))
+            if (!child.evaluate())
                 return false;
         }
         return true;
     case Type::Or:
         for (auto& child : children) {
-            if (child.evaluate(realm))
+            if (child.evaluate())
                 return true;
         }
         return false;
@@ -43,40 +42,28 @@ bool Supports::Condition::evaluate(JS::Realm& realm) const
     VERIFY_NOT_REACHED();
 }
 
-bool Supports::InParens::evaluate(JS::Realm& realm) const
+bool Supports::InParens::evaluate() const
 {
     return value.visit(
         [&](NonnullOwnPtr<Condition> const& condition) {
-            return condition->evaluate(realm);
+            return condition->evaluate();
         },
         [&](Feature const& feature) {
-            return feature.evaluate(realm);
+            return feature.evaluate();
         },
         [&](GeneralEnclosed const&) {
             return false;
         });
 }
 
-bool Supports::Declaration::evaluate(JS::Realm& realm) const
-{
-    auto style_property = parse_css_supports_condition(Parser::ParsingParams { realm }, declaration);
-    return style_property.has_value();
-}
-
-bool Supports::Selector::evaluate(JS::Realm& realm) const
-{
-    auto style_property = parse_selector(Parser::ParsingParams { realm }, selector);
-    return style_property.has_value();
-}
-
-bool Supports::Feature::evaluate(JS::Realm& realm) const
+bool Supports::Feature::evaluate() const
 {
     return value.visit(
         [&](Declaration const& declaration) {
-            return declaration.evaluate(realm);
+            return declaration.evaluate();
         },
         [&](Selector const& selector) {
-            return selector.evaluate(realm);
+            return selector.evaluate();
         });
 }
 
