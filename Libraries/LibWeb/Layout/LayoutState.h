@@ -55,21 +55,10 @@ struct StaticPositionRect {
 };
 
 struct LayoutState {
-    LayoutState()
-        : m_root(*this)
-    {
-    }
+    LayoutState() = default;
 
     explicit LayoutState(LayoutState const* parent);
     ~LayoutState();
-
-    LayoutState const& find_root() const
-    {
-        LayoutState const* root = this;
-        for (auto* state = m_parent; state; state = state->m_parent)
-            root = state;
-        return *root;
-    }
 
     struct UsedValues {
         NodeWithStyle const& node() const { return *m_node; }
@@ -222,7 +211,6 @@ struct LayoutState {
     HashMap<GC::Ref<Layout::Node const>, NonnullOwnPtr<UsedValues>> used_values_per_layout_node;
 
     LayoutState const* m_parent { nullptr };
-    LayoutState const& m_root;
 
 private:
     void resolve_relative_positions();
