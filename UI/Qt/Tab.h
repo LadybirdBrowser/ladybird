@@ -24,7 +24,6 @@
 namespace Ladybird {
 
 class BrowserWindow;
-class InspectorWidget;
 
 class HyperlinkLabel final : public QLabel {
     Q_OBJECT
@@ -65,12 +64,6 @@ public:
 
     void open_file();
     void update_reset_zoom_button();
-
-    enum class InspectorTarget {
-        Document,
-        HoveredElement
-    };
-    void show_inspector_window(InspectorTarget = InspectorTarget::Document);
 
     void show_find_in_page();
     void find_previous();
@@ -124,10 +117,6 @@ private:
     void open_link_in_new_tab(URL::URL const&);
     void copy_link_url(URL::URL const&);
 
-    void close_sub_widgets();
-
-    void recreate_inspector();
-
     QBoxLayout* m_layout { nullptr };
     QToolBar* m_toolbar { nullptr };
     QToolButton* m_hamburger_button { nullptr };
@@ -171,8 +160,6 @@ private:
     QMenu* m_select_dropdown { nullptr };
 
     int tab_index();
-
-    Ladybird::InspectorWidget* m_inspector_widget { nullptr };
 
     QPointer<QDialog> m_dialog;
 

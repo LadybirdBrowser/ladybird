@@ -99,11 +99,6 @@ public:
         return *m_view_source_action;
     }
 
-    QAction& inspect_dom_node_action()
-    {
-        return *m_inspect_dom_node_action;
-    }
-
     Tab* current_tab() const { return m_current_tab; }
 
 public slots:
@@ -202,7 +197,6 @@ private:
     QAction* m_select_all_action { nullptr };
     QAction* m_find_in_page_action { nullptr };
     QAction* m_view_source_action { nullptr };
-    QAction* m_inspect_dom_node_action { nullptr };
     QAction* m_show_line_box_borders_action { nullptr };
     QAction* m_enable_scripting_action { nullptr };
     QAction* m_enable_content_filtering_action { nullptr };
