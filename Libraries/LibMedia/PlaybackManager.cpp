@@ -35,8 +35,10 @@ DecoderErrorOr<NonnullOwnPtr<PlaybackManager>> PlaybackManager::from_data(Readon
 
 DecoderErrorOr<NonnullOwnPtr<PlaybackManager>> PlaybackManager::from_stream(NonnullOwnPtr<SeekableStream> stream)
 {
-    auto demuxer = MUST(FFmpeg::FFmpegDemuxer::create(move(stream)));
-    return create(move(demuxer));
+    auto demuxer_or_error = FFmpeg::FFmpegDemuxer::create(move(stream));
+    if (demuxer_or_error.is_error())
+        return DecoderError::format(DecoderErrorCategory::Unknown, "{}", demuxer_or_error.error());
+    return create(demuxer_or_error.release_value());
 }
 
 PlaybackManager::PlaybackManager(NonnullOwnPtr<Demuxer>& demuxer, Track video_track, NonnullOwnPtr<VideoDecoder>&& decoder, VideoFrameQueue&& frame_queue)
