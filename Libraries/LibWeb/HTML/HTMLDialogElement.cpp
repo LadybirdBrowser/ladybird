@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2020, the SerenityOS developers.
- * Copyright (c) 2024, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2024-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -16,6 +16,7 @@
 #include <LibWeb/HTML/Focus.h>
 #include <LibWeb/HTML/HTMLDialogElement.h>
 #include <LibWeb/HTML/ToggleEvent.h>
+#include <LibWeb/HTML/TraversableNavigable.h>
 
 namespace Web::HTML {
 
@@ -406,18 +407,32 @@ void HTMLDialogElement::set_close_watcher()
 // https://html.spec.whatwg.org/multipage/interactive-elements.html#dialog-focusing-steps
 void HTMLDialogElement::run_dialog_focusing_steps()
 {
-    // 1. Let control be null
+    // 1. If the allow focus steps given subject's node document return false, then return.
+    if (!document().allow_focus())
+        return;
+
+    // 2. Let control be null
     GC::Ptr<Element> control = nullptr;
 
-    // FIXME 2. If subject has the autofocus attribute, then set control to subject.
-    // FIXME 3. If control is null, then set control to the focus delegate of subject.
+    // FIXME 3. If subject has the autofocus attribute, then set control to subject.
+    // FIXME 4. If control is null, then set control to the focus delegate of subject.
 
-    // 4. If control is null, then set control to subject.
+    // 5. If control is null, then set control to subject.
     if (!control)
         control = this;
 
-    // 5. Run the focusing steps for control.
+    // 6. Run the focusing steps for control.
     run_focusing_steps(control);
+
+    // 7. Let topDocument be control's node navigable's top-level traversable's active document.
+    auto top_document = control->navigable()->top_level_traversable()->active_document();
+
+    // 8. If control's node document's origin is not the same as the origin of topDocument, then return.
+    if (!control->document().origin().is_same_origin(top_document->origin()))
+        return;
+
+    // FIXME: 9. Empty topDocument's autofocus candidates.
+    // FIXME: 10. Set topDocument's autofocus processed flag to true.
 }
 
 }

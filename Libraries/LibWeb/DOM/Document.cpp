@@ -3418,6 +3418,24 @@ bool Document::has_focus() const
     return true;
 }
 
+// https://html.spec.whatwg.org/multipage/interaction.html#allow-focus-steps
+bool Document::allow_focus() const
+{
+    // The allow focus steps, given a Document object target, are as follows:
+
+    // 1. If target is allowed to use the "focus-without-user-activation" feature, then return true.
+    if (is_allowed_to_use_feature(PolicyControlledFeature::FocusWithoutUserActivation))
+        return true;
+
+    // FIXME: 2. If any of the following are true:
+    //    - target's relevant global object has transient user activation; or
+    //    - target's node navigable's container, if any, is marked as locked for focus,
+    //    then return true.
+
+    // 3. Return false.
+    return false;
+}
+
 void Document::set_parser(Badge<HTML::HTMLParser>, HTML::HTMLParser& parser)
 {
     m_parser = parser;
@@ -4295,6 +4313,9 @@ bool Document::is_allowed_to_use_feature(PolicyControlledFeature feature) const
         if (PermissionsPolicy::AutoplayAllowlist::the().is_allowed_for_origin(*this, origin()) == PermissionsPolicy::Decision::Enabled)
             return true;
         break;
+    case PolicyControlledFeature::FocusWithoutUserActivation:
+        // FIXME: Implement allowlist for this.
+        return true;
     }
 
     // 4. Return false.

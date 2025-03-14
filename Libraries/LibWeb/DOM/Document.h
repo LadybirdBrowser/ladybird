@@ -154,8 +154,9 @@ struct ElementCreationOptions {
     Optional<String> is;
 };
 
-enum class PolicyControlledFeature {
+enum class PolicyControlledFeature : u8 {
     Autoplay,
+    FocusWithoutUserActivation,
 };
 
 class Document
@@ -551,6 +552,8 @@ public:
     void inform_all_viewport_clients_about_the_current_viewport_rect();
 
     bool has_focus() const;
+
+    bool allow_focus() const;
 
     void set_parser(Badge<HTML::HTMLParser>, HTML::HTMLParser&);
     void detach_parser(Badge<HTML::HTMLParser>);
