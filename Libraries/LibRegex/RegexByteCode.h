@@ -31,7 +31,6 @@ using ByteCodeValueType = u64;
     __ENUMERATE_OPCODE(ForkReplaceJump)            \
     __ENUMERATE_OPCODE(ForkReplaceStay)            \
     __ENUMERATE_OPCODE(FailForks)                  \
-    __ENUMERATE_OPCODE(PopSaved)                   \
     __ENUMERATE_OPCODE(SaveLeftCaptureGroup)       \
     __ENUMERATE_OPCODE(SaveRightCaptureGroup)      \
     __ENUMERATE_OPCODE(SaveRightNamedCaptureGroup) \
@@ -267,15 +266,9 @@ public:
         switch (type) {
         case LookAroundType::LookAhead: {
             // SAVE
-            // FORKJUMP _BODY
-            // POPSAVED
-            // LABEL _BODY
             // REGEXP BODY
             // RESTORE
             empend((ByteCodeValueType)OpCodeId::Save);
-            empend((ByteCodeValueType)OpCodeId::ForkJump);
-            empend((ByteCodeValueType)1);
-            empend((ByteCodeValueType)OpCodeId::PopSaved);
             extend(move(lookaround_body));
             empend((ByteCodeValueType)OpCodeId::Restore);
             return;
@@ -616,14 +609,6 @@ class OpCode_FailForks final : public OpCode {
 public:
     ExecutionResult execute(MatchInput const& input, MatchState& state) const override;
     ALWAYS_INLINE OpCodeId opcode_id() const override { return OpCodeId::FailForks; }
-    ALWAYS_INLINE size_t size() const override { return 1; }
-    ByteString arguments_string() const override { return ByteString::empty(); }
-};
-
-class OpCode_PopSaved final : public OpCode {
-public:
-    ExecutionResult execute(MatchInput const& input, MatchState& state) const override;
-    ALWAYS_INLINE OpCodeId opcode_id() const override { return OpCodeId::PopSaved; }
     ALWAYS_INLINE size_t size() const override { return 1; }
     ByteString arguments_string() const override { return ByteString::empty(); }
 };
