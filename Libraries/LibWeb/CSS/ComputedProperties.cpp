@@ -1626,6 +1626,12 @@ Containment ComputedProperties::contain() const
     return containment;
 }
 
+MixBlendMode ComputedProperties::background_blend_mode() const
+{
+    auto const& value = property(PropertyID::BackgroundBlendMode);
+    return keyword_to_mix_blend_mode(value.to_keyword()).release_value();
+}
+
 MixBlendMode ComputedProperties::mix_blend_mode() const
 {
     auto const& value = property(PropertyID::MixBlendMode);

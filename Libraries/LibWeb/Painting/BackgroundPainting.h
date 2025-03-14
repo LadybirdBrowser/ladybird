@@ -24,6 +24,7 @@ struct ResolvedBackgroundLayerData {
     CSSPixelRect image_rect;
     CSS::Repeat repeat_x;
     CSS::Repeat repeat_y;
+    CSS::MixBlendMode mix_blend_mode;
 };
 
 struct BackgroundBox {

@@ -1,6 +1,6 @@
 All supported properties and their default values exposed from CSSStyleDeclaration from getComputedStyle:
 'cssText': ''
-'length': '220'
+'length': '221'
 'parentRule': 'null'
 'cssFloat': 'none'
 'WebkitAlignContent': 'normal'
@@ -165,6 +165,8 @@ All supported properties and their default values exposed from CSSStyleDeclarati
 'background': 'rgba(0, 0, 0, 0) none 0% 0% auto auto repeat scroll padding-box border-box'
 'backgroundAttachment': 'scroll'
 'background-attachment': 'scroll'
+'backgroundBlendMode': 'normal'
+'background-blend-mode': 'normal'
 'backgroundClip': 'border-box'
 'background-clip': 'border-box'
 'backgroundColor': 'rgba(0, 0, 0, 0)'
