@@ -646,6 +646,24 @@ NonnullRefPtr<Selector> Selector::relative_to(SimpleSelector const& parent) cons
     return Selector::create(move(copied_compound_selectors));
 }
 
+bool Selector::contains_unknown_webkit_pseudo_element() const
+{
+    for (auto const& compound_selector : m_compound_selectors) {
+        for (auto const& simple_selector : compound_selector.simple_selectors) {
+            if (simple_selector.type == SimpleSelector::Type::PseudoClass) {
+                for (auto const& child_selector : simple_selector.pseudo_class().argument_selector_list) {
+                    if (child_selector->contains_unknown_webkit_pseudo_element()) {
+                        return true;
+                    }
+                }
+            }
+            if (simple_selector.type == SimpleSelector::Type::PseudoElement && simple_selector.pseudo_element().type() == PseudoElement::Type::UnknownWebKit)
+                return true;
+        }
+    }
+    return false;
+}
+
 RefPtr<Selector> Selector::absolutized(Selector::SimpleSelector const& selector_for_nesting) const
 {
     if (!contains_the_nesting_selector())
