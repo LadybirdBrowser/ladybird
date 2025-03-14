@@ -92,3 +92,15 @@ private:
 #define DECODER_TRY_ALLOC(expression) DECODER_TRY(DecoderErrorCategory::Memory, expression)
 
 }
+
+namespace AK {
+
+template<>
+struct Formatter<Media::DecoderError> : Formatter<FormatString> {
+    ErrorOr<void> format(FormatBuilder& builder, Media::DecoderError const& decoder_error)
+    {
+        return Formatter<FormatString>::format(builder, "[DecoderError]: {}"sv, decoder_error.description());
+    }
+};
+
+}
