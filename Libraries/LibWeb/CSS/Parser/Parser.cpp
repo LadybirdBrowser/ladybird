@@ -15,6 +15,7 @@
 #include <AK/Debug.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
+#include <LibWeb/CSS/FontFace.h>
 #include <LibWeb/CSS/MediaList.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyName.h>
@@ -274,10 +275,11 @@ OwnPtr<BooleanExpression> Parser::parse_boolean_expression_group(TokenStream<Com
     return {};
 }
 
-// https://drafts.csswg.org/css-conditional-4/#typedef-supports-feature
+// https://drafts.csswg.org/css-conditional-5/#typedef-supports-feature
 OwnPtr<BooleanExpression> Parser::parse_supports_feature(TokenStream<ComponentValue>& tokens)
 {
-    // <supports-feature> = <supports-selector-fn> | <supports-decl>
+    // <supports-feature> = <supports-selector-fn> | <supports-font-tech-fn>
+    //                    | <supports-font-format-fn> | <supports-decl>
     auto transaction = tokens.begin_transaction();
     tokens.discard_whitespace();
     auto const& first_token = tokens.consume_a_token();
@@ -305,6 +307,36 @@ OwnPtr<BooleanExpression> Parser::parse_supports_feature(TokenStream<ComponentVa
         return Supports::Selector::create(
             builder.to_string_without_validation(),
             !parse_a_selector_list(selector_tokens, SelectorType::Standalone).is_error());
+    }
+
+    // `<supports-font-tech-fn> = font-tech( <font-tech> )`
+    if (first_token.is_function("font-tech"sv)) {
+        TokenStream tech_tokens { first_token.function().value };
+        tech_tokens.discard_whitespace();
+        auto tech_token = tech_tokens.consume_a_token();
+        tech_tokens.discard_whitespace();
+        if (tech_tokens.has_next_token() || !tech_token.is(Token::Type::Ident))
+            return {};
+
+        transaction.commit();
+        auto tech_name = tech_token.token().ident();
+        bool matches = font_tech_is_supported(tech_name);
+        return Supports::FontTech::create(move(tech_name), matches);
+    }
+
+    // `<supports-font-format-fn> = font-format( <font-format> )`
+    if (first_token.is_function("font-format"sv)) {
+        TokenStream format_tokens { first_token.function().value };
+        format_tokens.discard_whitespace();
+        auto format_token = format_tokens.consume_a_token();
+        format_tokens.discard_whitespace();
+        if (format_tokens.has_next_token() || !format_token.is(Token::Type::Ident))
+            return {};
+
+        transaction.commit();
+        auto format_name = format_token.token().ident();
+        bool matches = font_format_is_supported(format_name);
+        return Supports::FontFormat::create(move(format_name), matches);
     }
 
     return {};
