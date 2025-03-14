@@ -1,0 +1,67 @@
+<!doctype html>
+<html>
+    <head>
+        <title>touch-action: illegal</title>
+        <meta name="viewport" content="width=device-width">
+        <link rel="stylesheet" type="text/css" href="pointerevent_styles.css">
+        <script src="../resources/testharness.js"></script>
+        <script src="../resources/testharnessreport.js"></script>
+        <script src="pointerevent_support.js"></script>
+        <style>
+            #target0 {
+            width: 700px;
+            height: 50px;
+            touch-action: pan-x none;
+            }
+            #target1 {
+            width: 700px;
+            height: 50px;
+            background: black;
+            margin-top: 5px;
+            touch-action: pan-y none;
+            }
+            #target2 {
+            width: 700px;
+            height: 50px;
+            background: black;
+            margin-top: 5px;
+            touch-action: auto none;
+            }
+        </style>
+    </head>
+    <body onload="run()">
+        <h1>Pointer Events touch-action attribute support</h1>
+        <h4 id="desc">Test Description: Test will automatically check behaviour of following combinations: 'pan-x none', 'pan-y none', 'auto none'</h4>
+        <div id="target0"></div>
+        <div id="target1"></div>
+        <div id="target2"></div>
+        <script type='text/javascript'>
+            var detected_pointertypes = {};
+
+            setup({ explicit_done: true });
+            add_completion_callback(showPointerTypes);
+
+            function run() {
+                var target0 = document.getElementById('target0');
+                var target1 = document.getElementById('target1');
+                var target2 = document.getElementById('target2');
+
+                test(function() {
+                    assert_true(getComputedStyle(target0).touchAction == 'auto', "'pan-x none' is corrected properly");
+                }, "'pan-x none' is corrected properly");
+                test(function() {
+                    assert_true(getComputedStyle(target1).touchAction == 'auto', "'pan-y none' is corrected properly");
+                }, "'pan-y none' is corrected properly");
+                test(function() {
+                    assert_true(getComputedStyle(target2).touchAction == 'auto', "'auto none' is corrected properly");
+                }, "'auto none' is corrected properly");
+                done();
+            }
+        </script>
+        <h1>touch-action: none</h1>
+        <div id="complete-notice">
+            <p>The following pointer types were detected: <span id="pointertype-log"></span>.</p>
+        </div>
+        <div id="log"></div>
+    </body>
+</html>

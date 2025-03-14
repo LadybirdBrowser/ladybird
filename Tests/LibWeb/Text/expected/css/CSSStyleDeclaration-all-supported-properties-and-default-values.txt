@@ -1,6 +1,6 @@
 All supported properties and their default values exposed from CSSStyleDeclaration from getComputedStyle:
 'cssText': ''
-'length': '220'
+'length': '221'
 'parentRule': 'null'
 'cssFloat': 'none'
 'WebkitAlignContent': 'normal'
@@ -570,6 +570,8 @@ All supported properties and their default values exposed from CSSStyleDeclarati
 'textTransform': 'none'
 'text-transform': 'none'
 'top': 'auto'
+'touchAction': 'auto'
+'touch-action': 'auto'
 'transform': 'none'
 'transformBox': 'view-box'
 'transform-box': 'view-box'

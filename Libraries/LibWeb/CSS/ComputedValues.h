@@ -307,6 +307,29 @@ public:
     bool operator==(BorderData const&) const = default;
 };
 
+struct TouchActionData {
+    bool allow_left : 1 { true };
+    bool allow_right : 1 { true };
+    bool allow_up : 1 { true };
+    bool allow_down : 1 { true };
+    bool allow_pinch_zoom : 1 { true };
+
+    // Other touch interactions which aren't pan or pinch to zoom. E.g.: Double tap to zoom.
+    bool allow_other : 1 { true };
+
+    static TouchActionData none()
+    {
+        TouchActionData data;
+        data.allow_left = false;
+        data.allow_right = false;
+        data.allow_up = false;
+        data.allow_down = false;
+        data.allow_pinch_zoom = false;
+        data.allow_other = false;
+        return data;
+    }
+};
+
 struct TransformOrigin {
     CSS::LengthPercentage x { Percentage(50) };
     CSS::LengthPercentage y { Percentage(50) };
@@ -454,6 +477,7 @@ public:
     CSS::Containment const& contain() const { return m_noninherited.contain; }
     CSS::MixBlendMode mix_blend_mode() const { return m_noninherited.mix_blend_mode; }
     Optional<FlyString> view_transition_name() const { return m_noninherited.view_transition_name; }
+    TouchActionData touch_action() const { return m_noninherited.touch_action; }
 
     CSS::LengthBox const& inset() const { return m_noninherited.inset; }
     const CSS::LengthBox& margin() const { return m_noninherited.margin; }
@@ -711,6 +735,7 @@ protected:
         CSS::Containment contain { InitialValues::contain() };
         CSS::MixBlendMode mix_blend_mode { InitialValues::mix_blend_mode() };
         Optional<FlyString> view_transition_name;
+        TouchActionData touch_action;
 
         Optional<CSS::Transformation> rotate;
         Optional<CSS::Transformation> translate;
@@ -889,6 +914,7 @@ public:
     void set_contain(CSS::Containment value) { m_noninherited.contain = move(value); }
     void set_mix_blend_mode(CSS::MixBlendMode value) { m_noninherited.mix_blend_mode = value; }
     void set_view_transition_name(Optional<FlyString> value) { m_noninherited.view_transition_name = value; }
+    void set_touch_action(TouchActionData value) { m_noninherited.touch_action = value; }
 
     void set_fill(SVGPaint value) { m_inherited.fill = move(value); }
     void set_stroke(SVGPaint value) { m_inherited.stroke = move(value); }
