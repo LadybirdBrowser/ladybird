@@ -52,7 +52,7 @@ class LinkedResourceFinder(HTMLParser):
     def __init__(self):
         super().__init__()
         self._tag_stack_ = []
-        self._match_css_url_ = re.compile(r"url\(\"?(?P<url>[^\")]+)\"?\)")
+        self._match_css_url_ = re.compile(r"url\(['\"]?(?P<url>[^'\")]+)['\"]?\)")
         self._match_css_import_string_ = re.compile(r"@import\s+\"(?P<url>[^\")]+)\"")
         self._resources = []
 
