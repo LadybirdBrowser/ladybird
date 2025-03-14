@@ -11,6 +11,7 @@
 #include <LibGfx/Filter.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/PaintStyle.h>
+#include <LibGfx/Path.h>
 #include <LibGfx/ScalingMode.h>
 #include <LibGfx/WindingRule.h>
 
@@ -30,6 +31,7 @@ public:
     virtual void stroke_path(Gfx::Path const&, Gfx::Color, float thickness) = 0;
     virtual void stroke_path(Gfx::Path const&, Gfx::Color, float thickness, float blur_radius, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator) = 0;
     virtual void stroke_path(Gfx::Path const&, Gfx::PaintStyle const&, ReadonlySpan<Gfx::Filter>, float thickness, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator) = 0;
+    virtual void stroke_path(Gfx::Path const&, Gfx::PaintStyle const&, ReadonlySpan<Gfx::Filter>, float thickness, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Gfx::Path::CapStyle const&, Gfx::Path::JoinStyle const&) = 0;
 
     virtual void fill_path(Gfx::Path const&, Gfx::Color, Gfx::WindingRule) = 0;
     virtual void fill_path(Gfx::Path const&, Gfx::Color, Gfx::WindingRule, float blur_radius, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator) = 0;
