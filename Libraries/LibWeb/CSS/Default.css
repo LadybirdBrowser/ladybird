@@ -758,8 +758,6 @@ video {
  * https://html.spec.whatwg.org/multipage/rendering.html#attributes-for-embedded-content-and-images
  */
 
-iframe[frameborder='0'], iframe[frameborder=no i] { border: none; }
-
 embed[align=left i], iframe[align=left i], img[align=left i],
 input[type=image i][align=left i], object[align=left i] {
     float: left;
