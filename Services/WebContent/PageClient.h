@@ -38,8 +38,6 @@ public:
     virtual bool is_headless() const override;
     static void set_is_headless(bool);
 
-    static void set_devtools_enabled(bool);
-
     virtual bool is_ready_to_paint() const override;
 
     virtual Web::Page& page() override { return *m_page; }
@@ -176,17 +174,6 @@ private:
     virtual void page_did_allocate_backing_stores(i32 front_bitmap_id, Gfx::ShareableBitmap front_bitmap, i32 back_bitmap_id, Gfx::ShareableBitmap back_bitmap) override;
     virtual IPC::File request_worker_agent() override;
     virtual void page_did_mutate_dom(FlyString const& type, Web::DOM::Node const& target, Web::DOM::NodeList& added_nodes, Web::DOM::NodeList& removed_nodes, GC::Ptr<Web::DOM::Node> previous_sibling, GC::Ptr<Web::DOM::Node> next_sibling, Optional<String> const& attribute_name) override;
-    virtual void inspector_did_load() override;
-    virtual void inspector_did_select_dom_node(Web::UniqueNodeID, Optional<Web::CSS::Selector::PseudoElement::Type> const& pseudo_element) override;
-    virtual void inspector_did_set_dom_node_text(Web::UniqueNodeID, String const& text) override;
-    virtual void inspector_did_set_dom_node_tag(Web::UniqueNodeID, String const& tag) override;
-    virtual void inspector_did_add_dom_node_attributes(Web::UniqueNodeID, GC::Ref<Web::DOM::NamedNodeMap> attributes) override;
-    virtual void inspector_did_replace_dom_node_attribute(Web::UniqueNodeID, size_t attribute_index, GC::Ref<Web::DOM::NamedNodeMap> replacement_attributes) override;
-    virtual void inspector_did_request_dom_tree_context_menu(Web::UniqueNodeID, Web::CSSPixelPoint position, String const& type, Optional<String> const& tag, Optional<size_t> const& attribute_index) override;
-    virtual void inspector_did_request_cookie_context_menu(size_t cookie_index, Web::CSSPixelPoint position) override;
-    virtual void inspector_did_request_style_sheet_source(Web::CSS::StyleSheetIdentifier const& stylesheet_source) override;
-    virtual void inspector_did_execute_console_script(String const& script) override;
-    virtual void inspector_did_export_inspector_html(String const& script) override;
 
     Web::Layout::Viewport* layout_root();
     void setup_palette();

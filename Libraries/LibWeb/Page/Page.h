@@ -9,12 +9,7 @@
 
 #pragma once
 
-#include <AK/Noncopyable.h>
-#include <AK/OwnPtr.h>
-#include <AK/RefPtr.h>
 #include <AK/WeakPtr.h>
-#include <AK/Weakable.h>
-#include <LibGC/Heap.h>
 #include <LibGC/Root.h>
 #include <LibGfx/Cursor.h>
 #include <LibGfx/Forward.h>
@@ -28,8 +23,6 @@
 #include <LibWeb/CSS/PreferredColorScheme.h>
 #include <LibWeb/CSS/PreferredContrast.h>
 #include <LibWeb/CSS/PreferredMotion.h>
-#include <LibWeb/CSS/Selector.h>
-#include <LibWeb/CSS/StyleSheetIdentifier.h>
 #include <LibWeb/Cookie/Cookie.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/ActivateTab.h>
@@ -406,18 +399,6 @@ public:
     virtual IPC::File request_worker_agent() { return IPC::File {}; }
 
     virtual void page_did_mutate_dom([[maybe_unused]] FlyString const& type, [[maybe_unused]] DOM::Node const& target, [[maybe_unused]] DOM::NodeList& added_nodes, [[maybe_unused]] DOM::NodeList& removed_nodes, [[maybe_unused]] GC::Ptr<DOM::Node> previous_sibling, [[maybe_unused]] GC::Ptr<DOM::Node> next_sibling, [[maybe_unused]] Optional<String> const& attribute_name) { }
-
-    virtual void inspector_did_load() { }
-    virtual void inspector_did_select_dom_node([[maybe_unused]] UniqueNodeID node_id, [[maybe_unused]] Optional<CSS::Selector::PseudoElement::Type> const& pseudo_element) { }
-    virtual void inspector_did_set_dom_node_text([[maybe_unused]] UniqueNodeID node_id, [[maybe_unused]] String const& text) { }
-    virtual void inspector_did_set_dom_node_tag([[maybe_unused]] UniqueNodeID node_id, [[maybe_unused]] String const& tag) { }
-    virtual void inspector_did_add_dom_node_attributes([[maybe_unused]] UniqueNodeID node_id, [[maybe_unused]] GC::Ref<DOM::NamedNodeMap> attributes) { }
-    virtual void inspector_did_replace_dom_node_attribute([[maybe_unused]] UniqueNodeID node_id, [[maybe_unused]] size_t attribute_index, [[maybe_unused]] GC::Ref<DOM::NamedNodeMap> replacement_attributes) { }
-    virtual void inspector_did_request_dom_tree_context_menu([[maybe_unused]] UniqueNodeID node_id, [[maybe_unused]] CSSPixelPoint position, [[maybe_unused]] String const& type, [[maybe_unused]] Optional<String> const& tag, [[maybe_unused]] Optional<size_t> const& attribute_index) { }
-    virtual void inspector_did_request_cookie_context_menu([[maybe_unused]] size_t cookie_index, [[maybe_unused]] CSSPixelPoint position) { }
-    virtual void inspector_did_request_style_sheet_source([[maybe_unused]] CSS::StyleSheetIdentifier const& identifier) { }
-    virtual void inspector_did_execute_console_script([[maybe_unused]] String const& script) { }
-    virtual void inspector_did_export_inspector_html([[maybe_unused]] String const& html) { }
 
     virtual bool is_ready_to_paint() const = 0;
 

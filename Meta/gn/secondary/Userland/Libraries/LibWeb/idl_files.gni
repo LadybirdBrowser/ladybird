@@ -261,7 +261,6 @@ standard_idl_files = [
   "//Userland/Libraries/LibWeb/IndexedDB/IDBFactory.idl",
   "//Userland/Libraries/LibWeb/IndexedDB/IDBOpenDBRequest.idl",
   "//Userland/Libraries/LibWeb/IndexedDB/IDBRequest.idl",
-  "//Userland/Libraries/LibWeb/Internals/Inspector.idl",
   "//Userland/Libraries/LibWeb/Internals/InternalAnimationTimeline.idl",
   "//Userland/Libraries/LibWeb/Internals/Internals.idl",
   "//Userland/Libraries/LibWeb/IntersectionObserver/IntersectionObserver.idl",

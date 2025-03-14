@@ -180,8 +180,6 @@ public:
     // native GUI widgets as possible.
     void use_native_user_style_sheet();
 
-    void enable_inspector_prototype();
-
     Function<void()> on_ready_to_paint;
     Function<String(Web::HTML::ActivateTab, Web::HTML::WebViewHints, Optional<u64>)> on_new_web_view;
     Function<void()> on_activate_tab;
@@ -215,13 +213,12 @@ public:
     Function<void(JsonObject)> on_received_dom_tree;
     Function<void(DOMNodeProperties)> on_received_dom_node_properties;
     Function<void(JsonObject)> on_received_accessibility_tree;
-    Function<void(Vector<Web::CSS::StyleSheetIdentifier>)> on_received_style_sheet_list;
-    Function<void(Web::CSS::StyleSheetIdentifier const&)> on_inspector_requested_style_sheet_source;
-    Function<void(Web::CSS::StyleSheetIdentifier const&, URL::URL const&, String const&)> on_received_style_sheet_source;
     Function<void(Web::UniqueNodeID)> on_received_hovered_node_id;
     Function<void(Mutation)> on_dom_mutation_received;
     Function<void(Optional<Web::UniqueNodeID> const& node_id)> on_finshed_editing_dom_node;
     Function<void(String)> on_received_dom_node_html;
+    Function<void(Vector<Web::CSS::StyleSheetIdentifier>)> on_received_style_sheet_list;
+    Function<void(Web::CSS::StyleSheetIdentifier const&, URL::URL const&, String const&)> on_received_style_sheet_source;
     Function<void(JsonValue)> on_received_js_console_result;
     Function<void(i32 message_id)> on_console_message_available;
     Function<void(i32 start_index, Vector<String> const& message_types, Vector<String> const& messages)> on_received_styled_console_messages;
@@ -246,16 +243,6 @@ public:
     Function<void(String const&, String const&, String const&)> on_insert_clipboard_entry;
     Function<void(Web::HTML::AudioPlayState)> on_audio_play_state_changed;
     Function<void(bool, bool)> on_navigation_buttons_state_changed;
-    Function<void()> on_inspector_loaded;
-    Function<void(Web::UniqueNodeID, Optional<Web::CSS::Selector::PseudoElement::Type> const&)> on_inspector_selected_dom_node;
-    Function<void(Web::UniqueNodeID, String const&)> on_inspector_set_dom_node_text;
-    Function<void(Web::UniqueNodeID, String const&)> on_inspector_set_dom_node_tag;
-    Function<void(Web::UniqueNodeID, Vector<Attribute> const&)> on_inspector_added_dom_node_attributes;
-    Function<void(Web::UniqueNodeID, size_t, Vector<Attribute> const&)> on_inspector_replaced_dom_node_attribute;
-    Function<void(Web::UniqueNodeID, Gfx::IntPoint, String const&, Optional<String> const&, Optional<size_t> const&)> on_inspector_requested_dom_tree_context_menu;
-    Function<void(size_t, Gfx::IntPoint)> on_inspector_requested_cookie_context_menu;
-    Function<void(String const&)> on_inspector_executed_console_script;
-    Function<void(String const&)> on_inspector_exported_inspector_html;
     Function<void()> on_web_content_crashed;
 
     virtual Web::DevicePixelSize viewport_size() const = 0;
