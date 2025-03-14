@@ -1,20 +1,21 @@
 /*
  * Copyright (c) 2020-2021, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2023-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibURL/Origin.h>
 #include <LibWeb/Bindings/HTMLIFrameElementPrototype.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
+#include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/DOM/DOMTokenList.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/HTMLIFrameElement.h>
 #include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/HTML/Numbers.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/Layout/NavigableContainerViewport.h>
@@ -224,6 +225,34 @@ i32 HTMLIFrameElement::default_tab_index_value() const
 {
     // See the base function for the spec comments.
     return 0;
+}
+
+bool HTMLIFrameElement::is_presentational_hint(FlyString const& name) const
+{
+    if (Base::is_presentational_hint(name))
+        return true;
+
+    return name == HTML::AttributeNames::frameborder;
+}
+
+void HTMLIFrameElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
+{
+    Base::apply_presentational_hints(cascaded_properties);
+
+    // https://html.spec.whatwg.org/multipage/rendering.html#attributes-for-embedded-content-and-images:attr-iframe-frameborder
+    // When an iframe element has a frameborder attribute whose value, when parsed using the rules for parsing integers,
+    // is zero or an error, the user agent is expected to have presentational hints setting the element's
+    // 'border-top-width', 'border-right-width', 'border-bottom-width', and 'border-left-width' properties to zero.
+    if (auto frameborder_attribute = get_attribute(HTML::AttributeNames::frameborder); frameborder_attribute.has_value()) {
+        auto frameborder = parse_integer(*frameborder_attribute);
+        if (!frameborder.has_value() || frameborder == 0) {
+            auto zero = CSS::LengthStyleValue::create(CSS::Length::make_px(0));
+            cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderTopWidth, zero);
+            cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderRightWidth, zero);
+            cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderBottomWidth, zero);
+            cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderLeftWidth, zero);
+        }
+    }
 }
 
 // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#dom-iframe-sandbox
