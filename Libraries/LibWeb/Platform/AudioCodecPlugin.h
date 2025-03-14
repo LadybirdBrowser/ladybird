@@ -10,11 +10,12 @@
 #include <AK/Function.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/NonnullRefPtr.h>
+#include <AK/Weakable.h>
 #include <LibMedia/Audio/Forward.h>
 
 namespace Web::Platform {
 
-class AudioCodecPlugin {
+class AudioCodecPlugin : public Weakable<AudioCodecPlugin> {
 public:
     using AudioCodecPluginCreator = Function<ErrorOr<NonnullOwnPtr<AudioCodecPlugin>>(NonnullRefPtr<Audio::Loader>)>;
 

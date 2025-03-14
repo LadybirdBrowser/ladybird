@@ -87,8 +87,9 @@ AudioCodecPluginAgnostic::AudioCodecPluginAgnostic(NonnullRefPtr<Audio::Loader> 
     , m_main_thread_event_loop(Core::EventLoop::current())
     , m_update_timer(move(update_timer))
 {
-    m_update_timer->on_timeout = [this]() {
-        update_timestamp();
+    m_update_timer->on_timeout = [self = make_weak_ptr<AudioCodecPluginAgnostic>()]() {
+        if (self)
+            self->update_timestamp();
     };
 }
 
@@ -96,10 +97,16 @@ void AudioCodecPluginAgnostic::resume_playback()
 {
     m_paused = false;
     m_output->resume()
-        ->when_resolved([this](AK::Duration new_device_time) {
-            m_main_thread_event_loop.deferred_invoke([this, new_device_time]() {
-                m_last_resume_in_device_time = new_device_time;
-                m_update_timer->start();
+        ->when_resolved([self = make_weak_ptr<AudioCodecPluginAgnostic>()](AK::Duration new_device_time) {
+            if (!self)
+                return;
+
+            self->m_main_thread_event_loop.deferred_invoke([self, new_device_time]() {
+                if (!self)
+                    return;
+
+                self->m_last_resume_in_device_time = new_device_time;
+                self->m_update_timer->start();
             });
         })
         .when_rejected([](Error&&) {
@@ -111,15 +118,23 @@ void AudioCodecPluginAgnostic::pause_playback()
 {
     m_paused = true;
     m_output->drain_buffer_and_suspend()
-        ->when_resolved([this]() -> ErrorOr<void> {
-            auto new_media_time = timestamp_from_samples(m_loader->loaded_samples(), m_loader->sample_rate());
-            auto new_device_time = TRY(m_output->total_time_played());
-            m_main_thread_event_loop.deferred_invoke([this, new_media_time, new_device_time]() {
-                m_last_resume_in_media_time = new_media_time;
-                m_last_resume_in_device_time = new_device_time;
-                m_update_timer->stop();
-                update_timestamp();
+        ->when_resolved([self = make_weak_ptr<AudioCodecPluginAgnostic>()]() -> ErrorOr<void> {
+            if (!self)
+                return {};
+
+            auto new_media_time = timestamp_from_samples(self->m_loader->loaded_samples(), self->m_loader->sample_rate());
+            auto new_device_time = TRY(self->m_output->total_time_played());
+
+            self->m_main_thread_event_loop.deferred_invoke([self, new_media_time, new_device_time]() {
+                if (!self)
+                    return;
+
+                self->m_last_resume_in_media_time = new_media_time;
+                self->m_last_resume_in_device_time = new_device_time;
+                self->m_update_timer->stop();
+                self->update_timestamp();
             });
+
             return {};
         })
         .when_rejected([](Error&&) {
@@ -137,22 +152,29 @@ void AudioCodecPluginAgnostic::set_volume(double volume)
 void AudioCodecPluginAgnostic::seek(double position)
 {
     m_output->discard_buffer_and_suspend()
-        ->when_resolved([this, position, was_paused = m_paused]() -> ErrorOr<void> {
-            auto sample_position = static_cast<i32>(position * m_loader->sample_rate());
-            auto seek_result = m_loader->seek(sample_position);
+        ->when_resolved([self = make_weak_ptr<AudioCodecPluginAgnostic>(), position, was_paused = m_paused]() -> ErrorOr<void> {
+            if (!self)
+                return {};
+
+            auto sample_position = static_cast<i32>(position * self->m_loader->sample_rate());
+            auto seek_result = self->m_loader->seek(sample_position);
             if (seek_result.is_error())
                 return Error::from_string_literal("Seeking in audio loader failed");
 
-            auto new_media_time = get_loader_timestamp(m_loader);
-            auto new_device_time = m_output->total_time_played().release_value_but_fixme_should_propagate_errors();
+            auto new_media_time = get_loader_timestamp(self->m_loader);
+            auto new_device_time = self->m_output->total_time_played().release_value_but_fixme_should_propagate_errors();
 
-            m_main_thread_event_loop.deferred_invoke([this, was_paused, new_device_time, new_media_time]() {
-                m_last_resume_in_device_time = new_device_time;
-                m_last_resume_in_media_time = new_media_time;
+            self->m_main_thread_event_loop.deferred_invoke([self, was_paused, new_device_time, new_media_time]() {
+                if (!self)
+                    return;
+
+                self->m_last_resume_in_device_time = new_device_time;
+                self->m_last_resume_in_media_time = new_media_time;
+
                 if (was_paused) {
-                    update_timestamp();
+                    self->update_timestamp();
                 } else {
-                    m_output->resume()->when_rejected([](Error&&) {
+                    self->m_output->resume()->when_rejected([](Error&&) {
                         // FIXME: Propagate errors.
                     });
                 }
