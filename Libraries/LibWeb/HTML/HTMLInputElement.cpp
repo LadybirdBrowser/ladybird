@@ -2806,9 +2806,11 @@ void HTMLInputElement::activation_behavior(DOM::Event const& event)
 {
     // The activation behavior for input elements are these steps:
 
-    // FIXME: 1. If this element is not mutable and is not in the Checkbox state and is not in the Radio state, then return.
+    // 1. If element is not mutable, and element's type attribute is neither in the Checkbox nor in the Radio state, then return.
+    if (!is_mutable() && !first_is_one_of(m_type, TypeAttributeState::Checkbox, TypeAttributeState::RadioButton))
+        return;
 
-    // 2. Run this element's input activation behavior, if any, and do nothing otherwise.
+    // 2. Run element's input activation behavior, if any, and do nothing otherwise.
     run_input_activation_behavior(event).release_value_but_fixme_should_propagate_errors();
 
     // 3. If element has a form owner and element's type attribute is not in the Button state, then return.
