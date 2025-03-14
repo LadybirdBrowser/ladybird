@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/FlyString.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/RefCounted.h>
 #include <AK/String.h>
@@ -57,6 +58,50 @@ public:
         {
         }
         String m_selector;
+        bool m_matches;
+    };
+
+    class FontTech final : public BooleanExpression {
+    public:
+        static NonnullOwnPtr<FontTech> create(FlyString tech, bool matches)
+        {
+            return adopt_own(*new FontTech(move(tech), matches));
+        }
+        virtual ~FontTech() override = default;
+
+        virtual MatchResult evaluate(HTML::Window const*) const override;
+        virtual String to_string() const override;
+        virtual void dump(StringBuilder&, int indent_levels = 0) const override;
+
+    private:
+        FontTech(FlyString tech, bool matches)
+            : m_tech(move(tech))
+            , m_matches(matches)
+        {
+        }
+        FlyString m_tech;
+        bool m_matches;
+    };
+
+    class FontFormat final : public BooleanExpression {
+    public:
+        static NonnullOwnPtr<FontFormat> create(FlyString format, bool matches)
+        {
+            return adopt_own(*new FontFormat(move(format), matches));
+        }
+        virtual ~FontFormat() override = default;
+
+        virtual MatchResult evaluate(HTML::Window const*) const override;
+        virtual String to_string() const override;
+        virtual void dump(StringBuilder&, int indent_levels = 0) const override;
+
+    private:
+        FontFormat(FlyString format, bool matches)
+            : m_format(move(format))
+            , m_matches(matches)
+        {
+        }
+        FlyString m_format;
         bool m_matches;
     };
 

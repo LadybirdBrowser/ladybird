@@ -47,6 +47,38 @@ void Supports::Selector::dump(StringBuilder& builder, int indent_levels) const
     builder.appendff("Selector: `{}` matches={}\n", m_selector, m_matches);
 }
 
+MatchResult Supports::FontTech::evaluate(HTML::Window const*) const
+{
+    return as_match_result(m_matches);
+}
+
+String Supports::FontTech::to_string() const
+{
+    return MUST(String::formatted("font-tech({})", m_tech));
+}
+
+void Supports::FontTech::dump(StringBuilder& builder, int indent_levels) const
+{
+    indent(builder, indent_levels);
+    builder.appendff("FontTech: `{}` matches={}\n", m_tech, m_matches);
+}
+
+MatchResult Supports::FontFormat::evaluate(HTML::Window const*) const
+{
+    return as_match_result(m_matches);
+}
+
+String Supports::FontFormat::to_string() const
+{
+    return MUST(String::formatted("font-format({})", m_format));
+}
+
+void Supports::FontFormat::dump(StringBuilder& builder, int indent_levels) const
+{
+    indent(builder, indent_levels);
+    builder.appendff("FontFormat: `{}` matches={}\n", m_format, m_matches);
+}
+
 String Supports::to_string() const
 {
     return m_condition->to_string();
