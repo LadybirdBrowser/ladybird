@@ -36,6 +36,7 @@ list-style-type: disc
 math-depth: 0
 math-shift: normal
 math-style: normal
+overflow-wrap: normal
 pointer-events: auto
 quotes: auto
 stroke: none
@@ -58,7 +59,6 @@ visibility: visible
 white-space: normal
 word-break: normal
 word-spacing: normal
-word-wrap: normal
 writing-mode: horizontal-tb
 align-content: normal
 align-items: normal

@@ -464,6 +464,11 @@
     "scroll",
     "visible"
   ],
+  "overflow-wrap": [
+      "normal",
+      "break-word",
+      "anywhere"
+  ],
   "pointer-events": [
     "auto",
     "all",
