@@ -2438,12 +2438,12 @@ CSSPixels GridFormattingContext::calculate_min_content_contribution(GridItem con
     }
 
     auto preferred_size = get_item_preferred_size(item, dimension);
-    if (dimension == GridDimension::Row && preferred_size.is_auto() && item.box->has_preferred_aspect_ratio()) {
-        return m_state.get(item.box).content_width() / item.box->preferred_aspect_ratio().value();
+    if (dimension == GridDimension::Column) {
+        auto width = calculate_inner_width(item.box, m_available_space->width, preferred_size);
+        return min(item.add_margin_box_sizes(width, dimension), maxium_size);
     }
-    auto containing_block_size = containing_block_size_for_item(item, dimension);
-    auto result = item.add_margin_box_sizes(preferred_size.to_px(grid_container(), containing_block_size), dimension);
-    return min(result, maxium_size);
+    auto height = calculate_inner_height(item.box, *m_available_space, preferred_size);
+    return min(item.add_margin_box_sizes(height, dimension), maxium_size);
 }
 
 CSSPixels GridFormattingContext::calculate_max_content_contribution(GridItem const& item, GridDimension const dimension) const
