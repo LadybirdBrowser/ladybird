@@ -192,6 +192,7 @@ public:
     static CSS::UserSelect user_select() { return CSS::UserSelect::Auto; }
     static CSS::Isolation isolation() { return CSS::Isolation::Auto; }
     static CSS::Containment contain() { return {}; }
+    static CSS::MixBlendMode background_blend_mode() { return CSS::MixBlendMode::Normal; }
     static CSS::MixBlendMode mix_blend_mode() { return CSS::MixBlendMode::Normal; }
     static Optional<int> z_index() { return OptionalNone(); }
 
@@ -296,6 +297,7 @@ struct BackgroundLayerData {
     CSS::LengthPercentage size_y { CSS::Length::make_auto() };
     CSS::Repeat repeat_x { CSS::Repeat::Repeat };
     CSS::Repeat repeat_y { CSS::Repeat::Repeat };
+    CSS::MixBlendMode mix_blend_mode { CSS::MixBlendMode::Normal };
 };
 
 struct BorderData {
@@ -452,6 +454,7 @@ public:
     CSS::UserSelect user_select() const { return m_noninherited.user_select; }
     CSS::Isolation isolation() const { return m_noninherited.isolation; }
     CSS::Containment const& contain() const { return m_noninherited.contain; }
+    CSS::MixBlendMode background_blend_mode() const { return m_noninherited.background_blend_mode; }
     CSS::MixBlendMode mix_blend_mode() const { return m_noninherited.mix_blend_mode; }
     Optional<FlyString> view_transition_name() const { return m_noninherited.view_transition_name; }
 
@@ -709,6 +712,7 @@ protected:
         CSS::UserSelect user_select { InitialValues::user_select() };
         CSS::Isolation isolation { InitialValues::isolation() };
         CSS::Containment contain { InitialValues::contain() };
+        CSS::MixBlendMode background_blend_mode { InitialValues::background_blend_mode() };
         CSS::MixBlendMode mix_blend_mode { InitialValues::mix_blend_mode() };
         Optional<FlyString> view_transition_name;
 
@@ -887,6 +891,7 @@ public:
     void set_user_select(CSS::UserSelect value) { m_noninherited.user_select = value; }
     void set_isolation(CSS::Isolation value) { m_noninherited.isolation = value; }
     void set_contain(CSS::Containment value) { m_noninherited.contain = move(value); }
+    void set_background_blend_mode(CSS::MixBlendMode value) { m_noninherited.background_blend_mode = value; }
     void set_mix_blend_mode(CSS::MixBlendMode value) { m_noninherited.mix_blend_mode = value; }
     void set_view_transition_name(Optional<FlyString> value) { m_noninherited.view_transition_name = value; }
 

@@ -164,6 +164,7 @@ public:
     UserSelect user_select() const;
     Isolation isolation() const;
     Containment contain() const;
+    MixBlendMode background_blend_mode() const;
     MixBlendMode mix_blend_mode() const;
     Optional<FlyString> view_transition_name() const;
 
