@@ -1439,6 +1439,10 @@ CSSPixels FormattingContext::calculate_fit_content_height(Layout::Box const& box
 
 CSSPixels FormattingContext::calculate_min_content_width(Layout::Box const& box) const
 {
+    if (box.is_replaced_box() && box.computed_values().width().is_percentage()) {
+        return 0;
+    }
+
     if (box.has_natural_width())
         return *box.natural_width();
 
@@ -1594,8 +1598,12 @@ CSSPixels FormattingContext::calculate_inner_width(Layout::Box const& box, Avail
     return width.to_px(box, width_of_containing_block);
 }
 
-CSSPixels FormattingContext::calculate_inner_height(Layout::Box const& box, AvailableSpace const& available_space, CSS::Size const& height) const
+CSSPixels FormattingContext::calculate_inner_height(Box const& box, AvailableSpace const& available_space, CSS::Size const& height) const
 {
+    if (height.is_auto() && box.has_preferred_aspect_ratio()) {
+        return m_state.get(box).content_width() / *box.preferred_aspect_ratio();
+    }
+
     VERIFY(!height.is_auto());
 
     if (height.is_fit_content()) {
@@ -1701,8 +1709,12 @@ bool FormattingContext::should_treat_width_as_auto(Box const& box, AvailableSpac
 bool FormattingContext::should_treat_height_as_auto(Box const& box, AvailableSpace const& available_space) const
 {
     auto computed_height = box.computed_values().height();
-    if (computed_height.is_auto())
+    if (computed_height.is_auto()) {
+        auto const& box_state = m_state.get(box);
+        if (box_state.has_definite_width() && box.has_preferred_aspect_ratio())
+            return false;
         return true;
+    }
 
     if (computed_height.contains_percentage()) {
         if (available_space.height.is_max_content())

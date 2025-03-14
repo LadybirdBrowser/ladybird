@@ -2438,6 +2438,9 @@ CSSPixels GridFormattingContext::calculate_min_content_contribution(GridItem con
     }
 
     auto preferred_size = get_item_preferred_size(item, dimension);
+    if (dimension == GridDimension::Row && preferred_size.is_auto() && item.box->has_preferred_aspect_ratio()) {
+        return m_state.get(item.box).content_width() / item.box->preferred_aspect_ratio().value();
+    }
     auto containing_block_size = containing_block_size_for_item(item, dimension);
     auto result = item.add_margin_box_sizes(preferred_size.to_px(grid_container(), containing_block_size), dimension);
     return min(result, maxium_size);
