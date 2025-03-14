@@ -304,9 +304,13 @@ OwnPtr<BooleanExpression> Parser::parse_supports_feature(TokenStream<ComponentVa
             builder.append(item.to_string());
         transaction.commit();
         TokenStream selector_tokens { first_token.function().value };
-        return Supports::Selector::create(
-            builder.to_string_without_validation(),
-            !parse_a_selector_list(selector_tokens, SelectorType::Standalone).is_error());
+        auto maybe_selector = parse_complex_selector(selector_tokens, SelectorType::Standalone);
+        // A CSS processor is considered to support a CSS selector if it accepts that all aspects of that selector,
+        // recursively, (rather than considering any of its syntax to be unknown or invalid) and that selector doesn’t
+        // contain unknown -webkit- pseudo-elements.
+        // https://drafts.csswg.org/css-conditional-4/#dfn-support-selector
+        bool matches = !maybe_selector.is_error() && !maybe_selector.value()->contains_unknown_webkit_pseudo_element();
+        return Supports::Selector::create(builder.to_string_without_validation(), matches);
     }
 
     // `<supports-font-tech-fn> = font-tech( <font-tech> )`
