@@ -55,6 +55,7 @@ set(SOURCES
     Crypto/SubtleCrypto.cpp
     CSS/Angle.cpp
     CSS/AnimationEvent.cpp
+    CSS/BooleanExpression.cpp
     CSS/CalculatedOr.cpp
     CSS/Clip.cpp
     CSS/CountersSet.cpp

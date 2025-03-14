@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -83,57 +83,58 @@ String MediaFeature::to_string() const
     VERIFY_NOT_REACHED();
 }
 
-bool MediaFeature::evaluate(HTML::Window const& window) const
+MatchResult MediaFeature::evaluate(HTML::Window const* window) const
 {
-    auto maybe_queried_value = window.query_media_feature(m_id);
+    VERIFY(window);
+    auto maybe_queried_value = window->query_media_feature(m_id);
     if (!maybe_queried_value.has_value())
-        return false;
+        return MatchResult::False;
     auto queried_value = maybe_queried_value.release_value();
 
     CalculationResolutionContext calculation_context {
-        .length_resolution_context = Length::ResolutionContext::for_window(window),
+        .length_resolution_context = Length::ResolutionContext::for_window(*window),
     };
     switch (m_type) {
     case Type::IsTrue:
         if (queried_value.is_integer())
-            return queried_value.integer().resolved(calculation_context) != 0;
+            return as_match_result(queried_value.integer().resolved(calculation_context) != 0);
         if (queried_value.is_length()) {
             auto length = queried_value.length().resolved(calculation_context);
-            return length->raw_value() != 0;
+            return as_match_result(length->raw_value() != 0);
         }
         // FIXME: I couldn't figure out from the spec how ratios should be evaluated in a boolean context.
         if (queried_value.is_ratio())
-            return !queried_value.ratio().is_degenerate();
+            return as_match_result(!queried_value.ratio().is_degenerate());
         if (queried_value.is_resolution())
-            return queried_value.resolution().resolved(calculation_context).map([](auto& it) { return it.to_dots_per_pixel(); }).value_or(0) != 0;
+            return as_match_result(queried_value.resolution().resolved(calculation_context).map([](auto& it) { return it.to_dots_per_pixel(); }).value_or(0) != 0);
         if (queried_value.is_ident()) {
             // NOTE: It is not technically correct to always treat `no-preference` as false, but every
             //       media-feature that accepts it as a value treats it as false, so good enough. :^)
             //       If other features gain this property for other keywords in the future, we can
             //       add more robust handling for them then.
-            return queried_value.ident() != Keyword::None
-                && queried_value.ident() != Keyword::NoPreference;
+            return as_match_result(queried_value.ident() != Keyword::None
+                && queried_value.ident() != Keyword::NoPreference);
         }
-        return false;
+        return MatchResult::False;
 
     case Type::ExactValue:
-        return compare(window, *m_value, Comparison::Equal, queried_value);
+        return as_match_result(compare(*window, *m_value, Comparison::Equal, queried_value));
 
     case Type::MinValue:
-        return compare(window, queried_value, Comparison::GreaterThanOrEqual, *m_value);
+        return as_match_result(compare(*window, queried_value, Comparison::GreaterThanOrEqual, *m_value));
 
     case Type::MaxValue:
-        return compare(window, queried_value, Comparison::LessThanOrEqual, *m_value);
+        return as_match_result(compare(*window, queried_value, Comparison::LessThanOrEqual, *m_value));
 
     case Type::Range:
-        if (!compare(window, m_range->left_value, m_range->left_comparison, queried_value))
-            return false;
+        if (!compare(*window, m_range->left_value, m_range->left_comparison, queried_value))
+            return MatchResult::False;
 
         if (m_range->right_comparison.has_value())
-            if (!compare(window, queried_value, *m_range->right_comparison, *m_range->right_value))
-                return false;
+            if (!compare(*window, queried_value, *m_range->right_comparison, *m_range->right_value))
+                return MatchResult::False;
 
-        return true;
+        return MatchResult::True;
     }
 
     VERIFY_NOT_REACHED();
@@ -247,92 +248,10 @@ bool MediaFeature::compare(HTML::Window const& window, MediaFeatureValue left, C
     VERIFY_NOT_REACHED();
 }
 
-NonnullOwnPtr<MediaCondition> MediaCondition::from_general_enclosed(GeneralEnclosed&& general_enclosed)
+void MediaFeature::dump(StringBuilder& builder, int indent_levels) const
 {
-    auto result = new MediaCondition;
-    result->type = Type::GeneralEnclosed;
-    result->general_enclosed = move(general_enclosed);
-
-    return adopt_own(*result);
-}
-
-NonnullOwnPtr<MediaCondition> MediaCondition::from_feature(MediaFeature&& feature)
-{
-    auto result = new MediaCondition;
-    result->type = Type::Single;
-    result->feature = move(feature);
-
-    return adopt_own(*result);
-}
-
-NonnullOwnPtr<MediaCondition> MediaCondition::from_not(NonnullOwnPtr<MediaCondition>&& condition)
-{
-    auto result = new MediaCondition;
-    result->type = Type::Not;
-    result->conditions.append(move(condition));
-
-    return adopt_own(*result);
-}
-
-NonnullOwnPtr<MediaCondition> MediaCondition::from_and_list(Vector<NonnullOwnPtr<MediaCondition>>&& conditions)
-{
-    auto result = new MediaCondition;
-    result->type = Type::And;
-    result->conditions = move(conditions);
-
-    return adopt_own(*result);
-}
-
-NonnullOwnPtr<MediaCondition> MediaCondition::from_or_list(Vector<NonnullOwnPtr<MediaCondition>>&& conditions)
-{
-    auto result = new MediaCondition;
-    result->type = Type::Or;
-    result->conditions = move(conditions);
-
-    return adopt_own(*result);
-}
-
-String MediaCondition::to_string() const
-{
-    StringBuilder builder;
-    builder.append('(');
-    switch (type) {
-    case Type::Single:
-        builder.append(feature->to_string());
-        break;
-    case Type::Not:
-        builder.append("not "sv);
-        builder.append(conditions.first()->to_string());
-        break;
-    case Type::And:
-        builder.join(" and "sv, conditions);
-        break;
-    case Type::Or:
-        builder.join(" or "sv, conditions);
-        break;
-    case Type::GeneralEnclosed:
-        builder.append(general_enclosed->to_string());
-        break;
-    }
-    builder.append(')');
-    return MUST(builder.to_string());
-}
-
-MatchResult MediaCondition::evaluate(HTML::Window const& window) const
-{
-    switch (type) {
-    case Type::Single:
-        return as_match_result(feature->evaluate(window));
-    case Type::Not:
-        return negate(conditions.first()->evaluate(window));
-    case Type::And:
-        return evaluate_and(conditions, [&](auto& child) { return child->evaluate(window); });
-    case Type::Or:
-        return evaluate_or(conditions, [&](auto& child) { return child->evaluate(window); });
-    case Type::GeneralEnclosed:
-        return general_enclosed->evaluate();
-    }
-    VERIFY_NOT_REACHED();
+    indent(builder, indent_levels);
+    builder.appendff("MediaFeature: {}", to_string());
 }
 
 String MediaQuery::to_string() const
@@ -386,7 +305,7 @@ bool MediaQuery::evaluate(HTML::Window const& window)
     MatchResult result = matches_media(m_media_type);
 
     if ((result == MatchResult::True) && m_media_condition)
-        result = m_media_condition->evaluate(window);
+        result = m_media_condition->evaluate(&window);
 
     if (m_negated)
         result = negate(result);

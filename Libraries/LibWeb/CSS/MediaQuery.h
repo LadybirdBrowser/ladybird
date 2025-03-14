@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -10,8 +10,8 @@
 #include <AK/Optional.h>
 #include <AK/OwnPtr.h>
 #include <AK/RefCounted.h>
+#include <LibWeb/CSS/BooleanExpression.h>
 #include <LibWeb/CSS/CalculatedOr.h>
-#include <LibWeb/CSS/GeneralEnclosed.h>
 #include <LibWeb/CSS/MediaFeatureID.h>
 #include <LibWeb/CSS/Ratio.h>
 
@@ -94,7 +94,7 @@ private:
 };
 
 // https://www.w3.org/TR/mediaqueries-4/#mq-features
-class MediaFeature {
+class MediaFeature final : public BooleanExpression {
 public:
     enum class Comparison {
         Equal,
@@ -105,51 +105,52 @@ public:
     };
 
     // Corresponds to `<mf-boolean>` grammar
-    static MediaFeature boolean(MediaFeatureID id)
+    static NonnullOwnPtr<MediaFeature> boolean(MediaFeatureID id)
     {
-        return MediaFeature(Type::IsTrue, id);
+        return adopt_own(*new MediaFeature(Type::IsTrue, id));
     }
 
     // Corresponds to `<mf-plain>` grammar
-    static MediaFeature plain(MediaFeatureID id, MediaFeatureValue value)
+    static NonnullOwnPtr<MediaFeature> plain(MediaFeatureID id, MediaFeatureValue value)
     {
-        return MediaFeature(Type::ExactValue, move(id), move(value));
+        return adopt_own(*new MediaFeature(Type::ExactValue, move(id), move(value)));
     }
-    static MediaFeature min(MediaFeatureID id, MediaFeatureValue value)
+    static NonnullOwnPtr<MediaFeature> min(MediaFeatureID id, MediaFeatureValue value)
     {
-        return MediaFeature(Type::MinValue, id, move(value));
+        return adopt_own(*new MediaFeature(Type::MinValue, id, move(value)));
     }
-    static MediaFeature max(MediaFeatureID id, MediaFeatureValue value)
+    static NonnullOwnPtr<MediaFeature> max(MediaFeatureID id, MediaFeatureValue value)
     {
-        return MediaFeature(Type::MaxValue, id, move(value));
+        return adopt_own(*new MediaFeature(Type::MaxValue, id, move(value)));
     }
 
     // Corresponds to `<mf-range>` grammar, with a single comparison
-    static MediaFeature half_range(MediaFeatureValue value, Comparison comparison, MediaFeatureID id)
+    static NonnullOwnPtr<MediaFeature> half_range(MediaFeatureValue value, Comparison comparison, MediaFeatureID id)
     {
-        MediaFeature feature { Type::Range, id };
-        feature.m_range = Range {
-            .left_value = value,
+        auto feature = adopt_own(*new MediaFeature(Type::Range, id));
+        feature->m_range = Range {
+            .left_value = move(value),
             .left_comparison = comparison,
         };
         return feature;
     }
 
     // Corresponds to `<mf-range>` grammar, with two comparisons
-    static MediaFeature range(MediaFeatureValue left_value, Comparison left_comparison, MediaFeatureID id, Comparison right_comparison, MediaFeatureValue right_value)
+    static NonnullOwnPtr<MediaFeature> range(MediaFeatureValue left_value, Comparison left_comparison, MediaFeatureID id, Comparison right_comparison, MediaFeatureValue right_value)
     {
-        MediaFeature feature { Type::Range, id };
-        feature.m_range = Range {
-            .left_value = left_value,
+        auto feature = adopt_own(*new MediaFeature(Type::Range, id));
+        feature->m_range = Range {
+            .left_value = move(left_value),
             .left_comparison = left_comparison,
             .right_comparison = right_comparison,
-            .right_value = right_value,
+            .right_value = move(right_value),
         };
         return feature;
     }
 
-    bool evaluate(HTML::Window const&) const;
-    String to_string() const;
+    virtual MatchResult evaluate(HTML::Window const*) const override;
+    virtual String to_string() const override;
+    virtual void dump(StringBuilder&, int indent_levels = 0) const override;
 
 private:
     enum class Type {
@@ -180,39 +181,6 @@ private:
     MediaFeatureID m_id;
     Optional<MediaFeatureValue> m_value {};
     Optional<Range> m_range {};
-};
-
-// https://www.w3.org/TR/mediaqueries-4/#media-conditions
-struct MediaCondition {
-    enum class Type {
-        Single,
-        And,
-        Or,
-        Not,
-        GeneralEnclosed,
-    };
-
-    // Only used in parsing
-    enum class AllowOr {
-        No = 0,
-        Yes = 1,
-    };
-
-    static NonnullOwnPtr<MediaCondition> from_general_enclosed(GeneralEnclosed&&);
-    static NonnullOwnPtr<MediaCondition> from_feature(MediaFeature&&);
-    static NonnullOwnPtr<MediaCondition> from_not(NonnullOwnPtr<MediaCondition>&&);
-    static NonnullOwnPtr<MediaCondition> from_and_list(Vector<NonnullOwnPtr<MediaCondition>>&&);
-    static NonnullOwnPtr<MediaCondition> from_or_list(Vector<NonnullOwnPtr<MediaCondition>>&&);
-
-    MatchResult evaluate(HTML::Window const&) const;
-    String to_string() const;
-
-private:
-    MediaCondition() = default;
-    Type type;
-    Optional<MediaFeature> feature;
-    Vector<NonnullOwnPtr<MediaCondition>> conditions;
-    Optional<GeneralEnclosed> general_enclosed;
 };
 
 class MediaQuery : public RefCounted<MediaQuery> {
@@ -252,7 +220,7 @@ private:
     // https://www.w3.org/TR/mediaqueries-4/#mq-not
     bool m_negated { false };
     MediaType m_media_type { MediaType::All };
-    OwnPtr<MediaCondition> m_media_condition { nullptr };
+    OwnPtr<BooleanExpression> m_media_condition { nullptr };
 
     // Cached value, updated by evaluate()
     bool m_matches { false };
@@ -272,14 +240,6 @@ struct Formatter<Web::CSS::MediaFeature> : Formatter<StringView> {
     ErrorOr<void> format(FormatBuilder& builder, Web::CSS::MediaFeature const& media_feature)
     {
         return Formatter<StringView>::format(builder, media_feature.to_string());
-    }
-};
-
-template<>
-struct Formatter<Web::CSS::MediaCondition> : Formatter<StringView> {
-    ErrorOr<void> format(FormatBuilder& builder, Web::CSS::MediaCondition const& media_condition)
-    {
-        return Formatter<StringView>::format(builder, media_condition.to_string());
     }
 };
 
