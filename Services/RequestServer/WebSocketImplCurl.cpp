@@ -160,11 +160,12 @@ void WebSocketImplCurl::discard_connection()
     }
 }
 
-void WebSocketImplCurl::did_connect()
+bool WebSocketImplCurl::did_connect()
 {
     curl_socket_t socket_fd = CURL_SOCKET_BAD;
     auto res = curl_easy_getinfo(m_easy_handle, CURLINFO_ACTIVESOCKET, &socket_fd);
-    VERIFY(res == CURLE_OK && socket_fd != CURL_SOCKET_BAD);
+    if (res != CURLE_OK || socket_fd == CURL_SOCKET_BAD)
+        return false;
 
     m_read_notifier = Core::Notifier::construct(socket_fd, Core::Notifier::Type::Read);
     m_read_notifier->on_activation = [this] {
@@ -190,6 +191,7 @@ void WebSocketImplCurl::did_connect()
     };
 
     on_connected();
+    return true;
 }
 
 }
