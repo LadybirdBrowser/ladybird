@@ -11,6 +11,8 @@ enum CanvasTextRendering { "auto", "optimizeSpeed", "optimizeLegibility", "geome
 
 // https://html.spec.whatwg.org/multipage/canvas.html#canvastextdrawingstyles
 interface mixin CanvasTextDrawingStyles {
+    // text
+    [FIXME] attribute DOMString lang; // (default: "inherit")
     attribute DOMString font; // (default 10px sans-serif)
     attribute CanvasTextAlign textAlign; // (default: "start")
     attribute CanvasTextBaseline textBaseline; // (default: "alphabetic")

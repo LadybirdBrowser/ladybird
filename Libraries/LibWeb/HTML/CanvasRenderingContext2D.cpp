@@ -241,7 +241,7 @@ Gfx::Path CanvasRenderingContext2D::text_path(StringView text, float x, float y,
     Gfx::AffineTransform transform = {};
 
     // https://html.spec.whatwg.org/multipage/canvas.html#text-preparation-algorithm:
-    // 6. If maxWidth was provided and the hypothetical width of the inline box in the hypothetical line box
+    // 9. If maxWidth was provided and the hypothetical width of the inline box in the hypothetical line box
     // is greater than maxWidth CSS pixels, then change font to have a more condensed font (if one is
     // available or if a reasonably readable one can be synthesized by applying a horizontal scale
     // factor to the font) or a smaller font, and return to the previous step.
@@ -547,15 +547,16 @@ CanvasRenderingContext2D::PreparedText CanvasRenderingContext2D::prepare_text(By
     // 3. Let font be the current font of target, as given by that object's font attribute.
     auto font = current_font();
 
-    // 4. Apply the appropriate step from the following list to determine the value of direction:
-    //   4.1. If the target object's direction attribute has the value "ltr": Let direction be 'ltr'.
-    //   4.2. If the target object's direction attribute has the value "rtl": Let direction be 'rtl'.
-    //   4.3. If the target object's font style source object is an element: Let direction be the directionality of the target object's font style source object.
-    //   4.4. If the target object's font style source object is a Document with a non-null document element: Let direction be the directionality of the target object's font style source object's document element.
-    //   4.5. Otherwise: Let direction be 'ltr'.
-    // FIXME: Once we have CanvasTextDrawingStyles, implement directionality.
+    // FIXME: 4. Let language be the target's language.
+    // FIXME: 5. If language is "inherit":
+    //           ...
+    // FIXME: 6. If language is the empty string, then set language to explicitly unknown.
 
-    // 5. Form a hypothetical infinitely-wide CSS line box containing a single inline box containing the text text, with its CSS properties set as follows:
+    // FIXME: 7. Apply the appropriate step from the following list to determine the value of direction:
+    //           ...
+
+    // 8. Form a hypothetical infinitely-wide CSS line box containing a single inline box containing the text text,
+    //    with the CSS content language set to language, and with its CSS properties set as follows:
     //   'direction'         -> direction
     //   'font'              -> font
     //   'font-kerning'      -> target's fontKerning
@@ -570,31 +571,23 @@ CanvasRenderingContext2D::PreparedText CanvasRenderingContext2D::prepare_text(By
     // FIXME: Once we have CanvasTextDrawingStyles, add the CSS attributes.
     size_t height = font->pixel_size();
 
-    // 6. If maxWidth was provided and the hypothetical width of the inline box in the hypothetical line box is greater than maxWidth CSS pixels, then change font to have a more condensed font (if one is available or if a reasonably readable one can be synthesized by applying a horizontal scale factor to the font) or a smaller font, and return to the previous step.
+    // 9. If maxWidth was provided and the hypothetical width of the inline box in the hypothetical line box is greater than maxWidth CSS pixels, then change font to have a more condensed font (if one is available or if a reasonably readable one can be synthesized by applying a horizontal scale factor to the font) or a smaller font, and return to the previous step.
     // FIXME: Record the font size used for this piece of text, and actually retry with a smaller size if needed.
 
-    // 7. The anchor point is a point on the inline box, and the physical alignment is one of the values left, right, and center. These variables are determined by the textAlign and textBaseline values as follows:
-    // Horizontal position:
-    //   7.1. If textAlign is left, if textAlign is start and direction is 'ltr' or if textAlign is end and direction is 'rtl': Let the anchor point's horizontal position be the left edge of the inline box, and let physical alignment be left.
-    //   7.2. If textAlign is right, if textAlign is end and direction is 'ltr' or if textAlign is start and direction is 'rtl': Let the anchor point's horizontal position be the right edge of the inline box, and let physical alignment be right.
-    //   7.3. If textAlign is center: Let the anchor point's horizontal position be half way between the left and right edges of the inline box, and let physical alignment be center.
-    // Vertical position:
-    //   7.4. If textBaseline is top: Let the anchor point's vertical position be the top of the em box of the first available font of the inline box.
-    //   7.5. If textBaseline is hanging: Let the anchor point's vertical position be the hanging baseline of the first available font of the inline box.
-    //   7.6. If textBaseline is middle: Let the anchor point's vertical position be half way between the bottom and the top of the em box of the first available font of the inline box.
-    //   7.7. If textBaseline is alphabetic: Let the anchor point's vertical position be the alphabetic baseline of the first available font of the inline box.
-    //   7.8. If textBaseline is ideographic: Let the anchor point's vertical position be the ideographic-under baseline of the first available font of the inline box.
-    //   7.9. If textBaseline is bottom: Let the anchor point's vertical position be the bottom of the em box of the first available font of the inline box.
-    // FIXME: Once we have CanvasTextDrawingStyles, handle the alignment and baseline.
+    // FIXME: 10. The anchor point is a point on the inline box, and the physical alignment is one of the values left, right,
+    //            and center. These variables are determined by the textAlign and textBaseline values as follows:
+    //            ...
     Gfx::FloatPoint anchor { 0, 0 };
     auto physical_alignment = Gfx::TextAlignment::CenterLeft;
 
     auto glyph_run = Gfx::shape_text(anchor, 0, replaced_text.code_points(), *font, Gfx::GlyphRun::TextType::Ltr, {});
 
-    // 8. Let result be an array constructed by iterating over each glyph in the inline box from left to right (if any), adding to the array, for each glyph, the shape of the glyph as it is in the inline box, positioned on a coordinate space using CSS pixels with its origin is at the anchor point.
+    // 11. Let result be an array constructed by iterating over each glyph in the inline box from left to right (if
+    //     any), adding to the array, for each glyph, the shape of the glyph as it is in the inline box, positioned on
+    //     a coordinate space using CSS pixels with its origin is at the anchor point.
     PreparedText prepared_text { glyph_run, physical_alignment, { 0, 0, static_cast<int>(glyph_run->width()), static_cast<int>(height) } };
 
-    // 9. Return result, physical alignment, and the inline box.
+    // 12. Return result, physical alignment, and the inline box.
     return prepared_text;
 }
 
