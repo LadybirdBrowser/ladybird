@@ -15,7 +15,6 @@
 #include <LibWebView/URL.h>
 #include <UI/Qt/BrowserWindow.h>
 #include <UI/Qt/Icon.h>
-#include <UI/Qt/InspectorWidget.h>
 #include <UI/Qt/Settings.h>
 #include <UI/Qt/StringUtils.h>
 
@@ -139,9 +138,6 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     };
 
     view().on_load_start = [this](const URL::URL& url, bool) {
-        if (m_inspector_widget)
-            m_inspector_widget->reset();
-
         auto url_serialized = qstring_from_ak_string(url.serialize());
 
         m_title = url_serialized;
@@ -152,11 +148,6 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
 
         m_location_edit->set_url(url);
         m_location_edit->setCursorPosition(0);
-    };
-
-    view().on_load_finish = [this](auto&) {
-        if (m_inspector_widget != nullptr && m_inspector_widget->isVisible())
-            m_inspector_widget->inspect();
     };
 
     view().on_url_change = [this](auto const& url) {
@@ -349,10 +340,6 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
         m_window->new_tab_from_content(html, Web::HTML::ActivateTab::Yes);
     };
 
-    view().on_inspector_requested_style_sheet_source = [this](auto const& identifier) {
-        view().request_style_sheet_source(identifier);
-    };
-
     view().on_restore_window = [this]() {
         m_window->showNormal();
     };
@@ -528,7 +515,6 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     m_page_context_menu->addAction(take_full_screenshot_action);
     m_page_context_menu->addSeparator();
     m_page_context_menu->addAction(&m_window->view_source_action());
-    m_page_context_menu->addAction(&m_window->inspect_dom_node_action());
 
     view().on_context_menu_request = [this, search_selected_text_action](Gfx::IntPoint content_position) {
         auto selected_text = Settings::the()->enable_search()
@@ -562,8 +548,6 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     m_link_context_menu = new QMenu("Link context menu", this);
     m_link_context_menu->addAction(open_link_in_new_tab_action);
     m_link_context_menu->addAction(m_link_context_menu_copy_url_action);
-    m_link_context_menu->addSeparator();
-    m_link_context_menu->addAction(&m_window->inspect_dom_node_action());
 
     view().on_link_context_menu_request = [this](auto const& url, Gfx::IntPoint content_position) {
         m_link_context_menu_url = url;
@@ -629,8 +613,6 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     m_image_context_menu->addSeparator();
     m_image_context_menu->addAction(m_image_context_menu_copy_image_action);
     m_image_context_menu->addAction(copy_image_url_action);
-    m_image_context_menu->addSeparator();
-    m_image_context_menu->addAction(&m_window->inspect_dom_node_action());
 
     view().on_image_context_menu_request = [this](auto& image_url, Gfx::IntPoint content_position, Optional<Gfx::ShareableBitmap> const& shareable_bitmap) {
         m_image_context_menu_url = image_url;
@@ -697,8 +679,6 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     m_audio_context_menu->addAction(open_audio_in_new_tab_action);
     m_audio_context_menu->addSeparator();
     m_audio_context_menu->addAction(copy_audio_url_action);
-    m_audio_context_menu->addSeparator();
-    m_audio_context_menu->addAction(&m_window->inspect_dom_node_action());
 
     auto* open_video_action = new QAction("&Open Video", this);
     open_video_action->setIcon(load_icon_from_uri("resource://icons/16x16/filetype-video.png"sv));
@@ -728,8 +708,6 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     m_video_context_menu->addAction(open_video_in_new_tab_action);
     m_video_context_menu->addSeparator();
     m_video_context_menu->addAction(copy_video_url_action);
-    m_video_context_menu->addSeparator();
-    m_video_context_menu->addAction(&m_window->inspect_dom_node_action());
 
     view().on_media_context_menu_request = [this](Gfx::IntPoint content_position, Web::Page::MediaContextMenu const& menu) {
         m_media_context_menu_url = menu.media_url;
@@ -761,14 +739,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     };
 }
 
-Tab::~Tab()
-{
-    close_sub_widgets();
-
-    // Delete the InspectorWidget explicitly to ensure it is deleted before the WebContentView. Otherwise, Qt
-    // can destroy these objects in any order, which may cause use-after-free in InspectorWidget's destructor.
-    delete m_inspector_widget;
-}
+Tab::~Tab() = default;
 
 void Tab::update_reset_zoom_button()
 {
@@ -906,36 +877,6 @@ void Tab::recreate_toolbar_icons()
     m_hamburger_button->setIcon(create_tvg_icon_with_theme_colors("hamburger", palette()));
 }
 
-void Tab::recreate_inspector()
-{
-    if (m_inspector_widget)
-        m_inspector_widget->deleteLater();
-
-    m_inspector_widget = new InspectorWidget(this, view());
-
-    QObject::connect(m_inspector_widget, &InspectorWidget::closed, [this] {
-        m_inspector_widget->deleteLater();
-        m_inspector_widget = nullptr;
-    });
-}
-
-void Tab::show_inspector_window(InspectorTarget inspector_target)
-{
-    if (!m_inspector_widget)
-        recreate_inspector();
-    else
-        m_inspector_widget->inspect();
-
-    m_inspector_widget->show();
-    m_inspector_widget->activateWindow();
-    m_inspector_widget->raise();
-
-    if (inspector_target == InspectorTarget::HoveredElement)
-        m_inspector_widget->select_hovered_node();
-    else
-        m_inspector_widget->select_default_node();
-}
-
 void Tab::show_find_in_page()
 {
     m_find_in_page->setVisible(true);
@@ -950,16 +891,6 @@ void Tab::find_previous()
 void Tab::find_next()
 {
     m_find_in_page->find_next();
-}
-
-void Tab::close_sub_widgets()
-{
-    auto close_widget_window = [](auto* widget) {
-        if (widget)
-            widget->close();
-    };
-
-    close_widget_window(m_inspector_widget);
 }
 
 void Tab::set_block_popups(bool enabled)

@@ -353,18 +353,6 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
         }
     });
 
-    auto* inspector_action = new QAction("Open &Inspector", this);
-    inspector_action->setIcon(load_icon_from_uri("resource://icons/browser/dom-tree.png"sv));
-    inspector_action->setShortcuts({ QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_I),
-        QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_C),
-        QKeySequence(Qt::Key_F12) });
-    inspect_menu->addAction(inspector_action);
-    QObject::connect(inspector_action, &QAction::triggered, this, [this] {
-        if (m_current_tab) {
-            m_current_tab->show_inspector_window();
-        }
-    });
-
     auto* task_manager_action = new QAction("Open Task &Manager", this);
     task_manager_action->setIcon(load_icon_from_uri("resource://icons/16x16/app-system-monitor.png"sv));
     task_manager_action->setShortcuts({ QKeySequence("Ctrl+Shift+M") });
@@ -648,11 +636,6 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     QObject::connect(m_tabs_container, &QTabWidget::tabCloseRequested, this, &BrowserWindow::close_tab);
     QObject::connect(close_current_tab_action, &QAction::triggered, this, &BrowserWindow::close_current_tab);
 
-    m_inspect_dom_node_action = new QAction("&Inspect Element", this);
-    connect(m_inspect_dom_node_action, &QAction::triggered, this, [this] {
-        if (m_current_tab)
-            m_current_tab->show_inspector_window(Tab::InspectorTarget::HoveredElement);
-    });
     m_go_back_action = new QAction("Go Back", this);
     connect(m_go_back_action, &QAction::triggered, this, [this] {
         if (m_current_tab)
