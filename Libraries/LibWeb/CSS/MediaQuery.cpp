@@ -68,16 +68,18 @@ String MediaFeature::to_string() const
     case Type::IsTrue:
         return MUST(String::from_utf8(string_from_media_feature_id(m_id)));
     case Type::ExactValue:
-        return MUST(String::formatted("{}: {}", string_from_media_feature_id(m_id), m_value->to_string()));
+        return MUST(String::formatted("{}: {}", string_from_media_feature_id(m_id), value().to_string()));
     case Type::MinValue:
-        return MUST(String::formatted("min-{}: {}", string_from_media_feature_id(m_id), m_value->to_string()));
+        return MUST(String::formatted("min-{}: {}", string_from_media_feature_id(m_id), value().to_string()));
     case Type::MaxValue:
-        return MUST(String::formatted("max-{}: {}", string_from_media_feature_id(m_id), m_value->to_string()));
-    case Type::Range:
-        if (!m_range->right_comparison.has_value())
-            return MUST(String::formatted("{} {} {}", m_range->left_value.to_string(), comparison_string(m_range->left_comparison), string_from_media_feature_id(m_id)));
+        return MUST(String::formatted("max-{}: {}", string_from_media_feature_id(m_id), value().to_string()));
+    case Type::Range: {
+        auto& range = this->range();
+        if (!range.right_comparison.has_value())
+            return MUST(String::formatted("{} {} {}", range.left_value.to_string(), comparison_string(range.left_comparison), string_from_media_feature_id(m_id)));
 
-        return MUST(String::formatted("{} {} {} {} {}", m_range->left_value.to_string(), comparison_string(m_range->left_comparison), string_from_media_feature_id(m_id), comparison_string(*m_range->right_comparison), m_range->right_value->to_string()));
+        return MUST(String::formatted("{} {} {} {} {}", range.left_value.to_string(), comparison_string(range.left_comparison), string_from_media_feature_id(m_id), comparison_string(*range.right_comparison), range.right_value->to_string()));
+    }
     }
 
     VERIFY_NOT_REACHED();
@@ -118,23 +120,25 @@ MatchResult MediaFeature::evaluate(HTML::Window const* window) const
         return MatchResult::False;
 
     case Type::ExactValue:
-        return as_match_result(compare(*window, *m_value, Comparison::Equal, queried_value));
+        return as_match_result(compare(*window, value(), Comparison::Equal, queried_value));
 
     case Type::MinValue:
-        return as_match_result(compare(*window, queried_value, Comparison::GreaterThanOrEqual, *m_value));
+        return as_match_result(compare(*window, queried_value, Comparison::GreaterThanOrEqual, value()));
 
     case Type::MaxValue:
-        return as_match_result(compare(*window, queried_value, Comparison::LessThanOrEqual, *m_value));
+        return as_match_result(compare(*window, queried_value, Comparison::LessThanOrEqual, value()));
 
-    case Type::Range:
-        if (!compare(*window, m_range->left_value, m_range->left_comparison, queried_value))
+    case Type::Range: {
+        auto& range = this->range();
+        if (!compare(*window, range.left_value, range.left_comparison, queried_value))
             return MatchResult::False;
 
-        if (m_range->right_comparison.has_value())
-            if (!compare(*window, queried_value, *m_range->right_comparison, *m_range->right_value))
+        if (range.right_comparison.has_value())
+            if (!compare(*window, queried_value, *range.right_comparison, *range.right_value))
                 return MatchResult::False;
 
         return MatchResult::True;
+    }
     }
 
     VERIFY_NOT_REACHED();
