@@ -113,4 +113,7 @@ private:
     bool m_is_css_connected { false };
 };
 
+bool font_format_is_supported(FlyString const& name);
+bool font_tech_is_supported(FlyString const& name);
+
 }
