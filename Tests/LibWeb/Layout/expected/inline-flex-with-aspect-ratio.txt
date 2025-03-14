@@ -1,15 +1,15 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
   BlockContainer <html> at (0,0) content-size 800x33 [BFC] children: not-inline
     BlockContainer <body> at (8,8) content-size 784x17 children: inline
-      frag 0 from Box start: 0, length: 0, rect: [8,11 10x10.3125] baseline: 9.953125
-      Box <div.inline-flex.aspect-ratio> at (8,11) content-size 10x10.3125 flex-container(row) [FFC] children: not-inline
-        BlockContainer <div.img-wrapper> at (8,7.65625) content-size 10x17 flex-item [BFC] children: inline
-          frag 0 from ImageBox start: 0, length: 0, rect: [8,10.65625 10x10] baseline: 10
-          ImageBox <img> at (8,10.65625) content-size 10x10 children: not-inline
+      frag 0 from Box start: 0, length: 0, rect: [8,8 10x10.3125] baseline: 13.296875
+      Box <div.inline-flex.aspect-ratio> at (8,8) content-size 10x10.3125 flex-container(row) [FFC] children: not-inline
+        BlockContainer <div.img-wrapper> at (8,8) content-size 10x10.3125 flex-item [BFC] children: inline
+          frag 0 from ImageBox start: 0, length: 0, rect: [8,11 10x10] baseline: 10
+          ImageBox <img> at (8,11) content-size 10x10 children: not-inline
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x33]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x17]
-      PaintableBox (Box<DIV>.inline-flex.aspect-ratio) [8,11 10x10.3125] overflow: [8,7.65625 10x17]
-        PaintableWithLines (BlockContainer<DIV>.img-wrapper) [8,7.65625 10x17]
-          ImagePaintable (ImageBox<IMG>) [8,10.65625 10x10]
+      PaintableBox (Box<DIV>.inline-flex.aspect-ratio) [8,8 10x10.3125] overflow: [8,8 10x13]
+        PaintableWithLines (BlockContainer<DIV>.img-wrapper) [8,8 10x10.3125] overflow: [8,8 10x13]
+          ImagePaintable (ImageBox<IMG>) [8,11 10x10]
