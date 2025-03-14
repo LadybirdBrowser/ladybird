@@ -393,7 +393,7 @@ void HTMLParser::the_end(GC::Ref<DOM::Document> document, GC::Ptr<HTMLParser> pa
         // 9. Assert: Document's page showing is false.
         VERIFY(!document->page_showing());
 
-        // 10. Set the Document's page showing flag to true.
+        // 10. Set the Document's page showing to true.
         document->set_page_showing(true);
 
         // 11. Fire a page transition event named pageshow at window with false.
