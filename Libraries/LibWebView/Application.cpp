@@ -145,6 +145,10 @@ void Application::initialize(Main::Arguments const& arguments, URL::URL new_tab_
     if (profile_process.has_value())
         profile_process_type = process_type_from_name(*profile_process);
 
+    // Disable site isolation when debugging WebContent. Otherwise, the process swap may interfere with the gdb session.
+    if (debug_process_type == ProcessType::WebContent)
+        disable_site_isolation = true;
+
     m_chrome_options = {
         .urls = sanitize_urls(raw_urls, new_tab_page_url),
         .raw_urls = move(raw_urls),
@@ -220,6 +224,10 @@ ErrorOr<NonnullRefPtr<WebContentClient>> Application::launch_web_content_process
 
 void Application::launch_spare_web_content_process()
 {
+    // Disable spare processes when debugging WebContent. Otherwise, it breaks running `gdb attach -p $(pidof WebContent)`.
+    if (chrome_options().debug_helper_process == ProcessType::WebContent)
+        return;
+
     if (m_has_queued_task_to_launch_spare_web_content_process)
         return;
     m_has_queued_task_to_launch_spare_web_content_process = true;
