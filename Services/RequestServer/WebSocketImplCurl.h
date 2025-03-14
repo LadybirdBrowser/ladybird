@@ -29,7 +29,7 @@ public:
 
     virtual bool handshake_complete_when_connected() const override { return true; }
 
-    void did_connect();
+    bool did_connect();
 
 private:
     explicit WebSocketImplCurl(CURLM*);
