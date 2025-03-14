@@ -9,30 +9,25 @@
 
 #include <AK/JsonObjectSerializer.h>
 #include <AK/JsonValue.h>
+#include <LibCore/Timer.h>
 #include <LibGfx/ShareableBitmap.h>
 #include <LibJS/Console.h>
 #include <LibJS/Runtime/ConsoleObject.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/CSS/CSSImportRule.h>
 #include <LibWeb/Cookie/ParsedCookie.h>
-#include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/CharacterData.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/MutationType.h>
-#include <LibWeb/DOM/NamedNodeMap.h>
 #include <LibWeb/DOM/NodeList.h>
 #include <LibWeb/HTML/HTMLLinkElement.h>
-#include <LibWeb/HTML/HTMLStyleElement.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Painting/PaintableBox.h>
-#include <LibWeb/Painting/ViewportPaintable.h>
-#include <LibWebView/Attribute.h>
 #include <LibWebView/SiteIsolation.h>
 #include <WebContent/ConnectionFromClient.h>
 #include <WebContent/DevToolsConsoleClient.h>
-#include <WebContent/InspectorConsoleClient.h>
 #include <WebContent/PageClient.h>
 #include <WebContent/PageHost.h>
 #include <WebContent/WebContentClientEndpoint.h>
@@ -42,7 +37,6 @@ namespace WebContent {
 
 static PageClient::UseSkiaPainter s_use_skia_painter = PageClient::UseSkiaPainter::GPUBackendIfAvailable;
 static bool s_is_headless { false };
-static bool s_devtools_enabled { false };
 
 GC_DEFINE_ALLOCATOR(PageClient);
 
@@ -59,11 +53,6 @@ bool PageClient::is_headless() const
 void PageClient::set_is_headless(bool is_headless)
 {
     s_is_headless = is_headless;
-}
-
-void PageClient::set_devtools_enabled(bool devtools_enabled)
-{
-    s_devtools_enabled = devtools_enabled;
 }
 
 GC::Ref<PageClient> PageClient::create(JS::VM& vm, PageHost& page_host, u64 id)
@@ -710,76 +699,6 @@ void PageClient::page_did_mutate_dom(FlyString const& type, Web::DOM::Node const
     client().async_did_mutate_dom(m_id, { type.to_string(), target.unique_id(), move(serialized_target), mutation.release_value() });
 }
 
-void PageClient::inspector_did_load()
-{
-    client().async_inspector_did_load(m_id);
-}
-
-void PageClient::inspector_did_select_dom_node(Web::UniqueNodeID node_id, Optional<Web::CSS::Selector::PseudoElement::Type> const& pseudo_element)
-{
-    client().async_inspector_did_select_dom_node(m_id, node_id, pseudo_element);
-}
-
-void PageClient::inspector_did_set_dom_node_text(Web::UniqueNodeID node_id, String const& text)
-{
-    client().async_inspector_did_set_dom_node_text(m_id, node_id, text);
-}
-
-void PageClient::inspector_did_set_dom_node_tag(Web::UniqueNodeID node_id, String const& tag)
-{
-    client().async_inspector_did_set_dom_node_tag(m_id, node_id, tag);
-}
-
-static Vector<WebView::Attribute> named_node_map_to_vector(GC::Ref<Web::DOM::NamedNodeMap> map)
-{
-    Vector<WebView::Attribute> attributes;
-    attributes.ensure_capacity(map->length());
-
-    for (size_t i = 0; i < map->length(); ++i) {
-        auto const* attribute = map->item(i);
-        VERIFY(attribute);
-
-        attributes.empend(attribute->name().to_string(), attribute->value());
-    }
-
-    return attributes;
-}
-
-void PageClient::inspector_did_add_dom_node_attributes(Web::UniqueNodeID node_id, GC::Ref<Web::DOM::NamedNodeMap> attributes)
-{
-    client().async_inspector_did_add_dom_node_attributes(m_id, node_id, named_node_map_to_vector(attributes));
-}
-
-void PageClient::inspector_did_replace_dom_node_attribute(Web::UniqueNodeID node_id, size_t attribute_index, GC::Ref<Web::DOM::NamedNodeMap> replacement_attributes)
-{
-    client().async_inspector_did_replace_dom_node_attribute(m_id, node_id, attribute_index, named_node_map_to_vector(replacement_attributes));
-}
-
-void PageClient::inspector_did_request_dom_tree_context_menu(Web::UniqueNodeID node_id, Web::CSSPixelPoint position, String const& type, Optional<String> const& tag, Optional<size_t> const& attribute_index)
-{
-    client().async_inspector_did_request_dom_tree_context_menu(m_id, node_id, page().css_to_device_point(position).to_type<int>(), type, tag, attribute_index);
-}
-
-void PageClient::inspector_did_request_cookie_context_menu(size_t cookie_index, Web::CSSPixelPoint position)
-{
-    client().async_inspector_did_request_cookie_context_menu(m_id, cookie_index, page().css_to_device_point(position).to_type<int>());
-}
-
-void PageClient::inspector_did_request_style_sheet_source(Web::CSS::StyleSheetIdentifier const& identifier)
-{
-    client().async_inspector_did_request_style_sheet_source(m_id, identifier);
-}
-
-void PageClient::inspector_did_execute_console_script(String const& script)
-{
-    client().async_inspector_did_execute_console_script(m_id, script);
-}
-
-void PageClient::inspector_did_export_inspector_html(String const& html)
-{
-    client().async_inspector_did_export_inspector_html(m_id, html);
-}
-
 ErrorOr<void> PageClient::connect_to_webdriver(ByteString const& webdriver_ipc_path)
 {
     VERIFY(!m_webdriver);
@@ -796,12 +715,7 @@ void PageClient::initialize_js_console(Web::DOM::Document& document)
     auto& realm = document.realm();
     auto console_object = realm.intrinsics().console_object();
 
-    GC::Ptr<JS::ConsoleClient> console_client;
-    if (s_devtools_enabled)
-        console_client = DevToolsConsoleClient::create(document.realm(), console_object->console(), *this);
-    else
-        console_client = InspectorConsoleClient::create(document.realm(), console_object->console(), *this);
-
+    auto console_client = DevToolsConsoleClient::create(document.realm(), console_object->console(), *this);
     document.set_console_client(console_client);
 }
 

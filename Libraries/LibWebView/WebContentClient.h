@@ -83,6 +83,8 @@ private:
     virtual void did_finish_editing_dom_node(u64 page_id, Optional<Web::UniqueNodeID> node_id) override;
     virtual void did_mutate_dom(u64 page_id, Mutation) override;
     virtual void did_get_dom_node_html(u64 page_id, String html) override;
+    virtual void did_list_style_sheets(u64 page_id, Vector<Web::CSS::StyleSheetIdentifier> stylesheets) override;
+    virtual void did_get_style_sheet_source(u64 page_id, Web::CSS::StyleSheetIdentifier identifier, URL::URL, String source) override;
     virtual void did_take_screenshot(u64 page_id, Gfx::ShareableBitmap screenshot) override;
     virtual void did_get_internal_page_info(u64 page_id, PageInfoType, String) override;
     virtual void did_execute_js_console_input(u64 page_id, JsonValue) override;
@@ -126,20 +128,7 @@ private:
     virtual void did_change_audio_play_state(u64 page_id, Web::HTML::AudioPlayState) override;
     virtual void did_update_navigation_buttons_state(u64 page_id, bool back_enabled, bool forward_enabled) override;
     virtual void did_allocate_backing_stores(u64 page_id, i32 front_bitmap_id, Gfx::ShareableBitmap, i32 back_bitmap_id, Gfx::ShareableBitmap) override;
-    virtual void inspector_did_load(u64 page_id) override;
-    virtual void inspector_did_select_dom_node(u64 page_id, Web::UniqueNodeID node_id, Optional<Web::CSS::Selector::PseudoElement::Type> pseudo_element) override;
-    virtual void inspector_did_set_dom_node_text(u64 page_id, Web::UniqueNodeID node_id, String text) override;
-    virtual void inspector_did_set_dom_node_tag(u64 page_id, Web::UniqueNodeID node_id, String tag) override;
-    virtual void inspector_did_add_dom_node_attributes(u64 page_id, Web::UniqueNodeID node_id, Vector<Attribute> attributes) override;
-    virtual void inspector_did_replace_dom_node_attribute(u64 page_id, Web::UniqueNodeID node_id, size_t attribute_index, Vector<Attribute> replacement_attributes) override;
-    virtual void inspector_did_request_dom_tree_context_menu(u64 page_id, Web::UniqueNodeID node_id, Gfx::IntPoint position, String type, Optional<String> tag, Optional<size_t> attribute_index) override;
-    virtual void inspector_did_request_cookie_context_menu(u64 page_id, size_t cookie_index, Gfx::IntPoint position) override;
-    virtual void inspector_did_execute_console_script(u64 page_id, String script) override;
-    virtual void inspector_did_export_inspector_html(u64 page_id, String html) override;
     virtual Messages::WebContentClient::RequestWorkerAgentResponse request_worker_agent(u64 page_id) override;
-    virtual void inspector_did_list_style_sheets(u64 page_id, Vector<Web::CSS::StyleSheetIdentifier> stylesheets) override;
-    virtual void inspector_did_request_style_sheet_source(u64 page_id, Web::CSS::StyleSheetIdentifier identifier) override;
-    virtual void did_get_style_sheet_source(u64 page_id, Web::CSS::StyleSheetIdentifier identifier, URL::URL, String source) override;
 
     Optional<ViewImplementation&> view_for_page_id(u64, SourceLocation = SourceLocation::current());
 

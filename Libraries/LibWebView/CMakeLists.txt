@@ -8,7 +8,6 @@ set(SOURCES
     CookieJar.cpp
     Database.cpp
     HelperProcess.cpp
-    InspectorClient.cpp
     Mutation.cpp
     Plugins/FontPlugin.cpp
     Plugins/ImageCodecPlugin.cpp

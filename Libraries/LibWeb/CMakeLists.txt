@@ -555,7 +555,6 @@ set(SOURCES
     IndexedDB/Internal/Database.cpp
     IndexedDB/Internal/Key.cpp
     IndexedDB/Internal/RequestList.cpp
-    Internals/Inspector.cpp
     Internals/InternalAnimationTimeline.cpp
     Internals/Internals.cpp
     IntersectionObserver/IntersectionObserver.cpp

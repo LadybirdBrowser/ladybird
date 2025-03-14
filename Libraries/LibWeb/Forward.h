@@ -621,7 +621,6 @@ class RequestList;
 }
 
 namespace Web::Internals {
-class Inspector;
 class Internals;
 }
 

@@ -247,7 +247,6 @@ public:
 
     void consume_history_action_user_activation();
 
-    static void set_inspector_object_exposed(bool);
     static void set_internals_object_exposed(bool);
 
     [[nodiscard]] OrderedHashMap<FlyString, GC::Ref<Navigable>> document_tree_child_navigable_target_name_property_set();

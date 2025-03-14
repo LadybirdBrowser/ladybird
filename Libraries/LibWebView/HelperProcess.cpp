@@ -85,7 +85,6 @@ static ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_proc
     Optional<IPC::File> request_server_socket,
     ClientArguments&&... client_arguments)
 {
-    auto const& chrome_options = WebView::Application::chrome_options();
     auto const& web_content_options = WebView::Application::web_content_options();
 
     Vector<ByteString> arguments {
@@ -95,8 +94,6 @@ static ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_proc
         web_content_options.executable_path.to_byte_string(),
     };
 
-    if (chrome_options.devtools_port.has_value())
-        arguments.append("--devtools"sv);
     if (web_content_options.config_path.has_value()) {
         arguments.append("--config-path"sv);
         arguments.append(web_content_options.config_path.value());

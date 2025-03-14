@@ -652,7 +652,7 @@ void ConnectionFromClient::list_style_sheets(u64 page_id)
     if (!page.has_value())
         return;
 
-    async_inspector_did_list_style_sheets(page_id, page->list_style_sheets());
+    async_did_list_style_sheets(page_id, page->list_style_sheets());
 }
 
 void ConnectionFromClient::request_style_sheet_source(u64 page_id, Web::CSS::StyleSheetIdentifier identifier)
@@ -1321,11 +1321,6 @@ void ConnectionFromClient::set_user_style(u64 page_id, String source)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->page().set_user_style(move(source));
-}
-
-void ConnectionFromClient::enable_inspector_prototype(u64)
-{
-    Web::HTML::Window::set_inspector_object_exposed(true);
 }
 
 void ConnectionFromClient::system_time_zone_changed()
