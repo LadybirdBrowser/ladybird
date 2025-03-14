@@ -292,6 +292,33 @@ void CanvasRenderingContext2D::begin_path()
     path().clear();
 }
 
+static Gfx::Path::CapStyle to_gfx_cap(Bindings::CanvasLineCap const& cap_style)
+{
+    switch (cap_style) {
+    case Bindings::CanvasLineCap::Butt:
+        return Gfx::Path::CapStyle::Butt;
+    case Bindings::CanvasLineCap::Round:
+        return Gfx::Path::CapStyle::Round;
+    case Bindings::CanvasLineCap::Square:
+        return Gfx::Path::CapStyle::Square;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+static Gfx::Path::JoinStyle to_gfx_join(Bindings::CanvasLineJoin const& join_style)
+{
+    switch (join_style) {
+    case Bindings::CanvasLineJoin::Round:
+        return Gfx::Path::JoinStyle::Round;
+    case Bindings::CanvasLineJoin::Bevel:
+        return Gfx::Path::JoinStyle::Bevel;
+    case Bindings::CanvasLineJoin::Miter:
+        return Gfx::Path::JoinStyle::Miter;
+    }
+
+    VERIFY_NOT_REACHED();
+}
+
 void CanvasRenderingContext2D::stroke_internal(Gfx::Path const& path)
 {
     auto* painter = this->painter();
@@ -302,8 +329,10 @@ void CanvasRenderingContext2D::stroke_internal(Gfx::Path const& path)
 
     auto& state = drawing_state();
 
-    // FIXME: Honor state's line_cap, line_join, miter_limit, dash_list, and line_dash_offset.
-    painter->stroke_path(path, state.stroke_style.to_gfx_paint_style(), state.filters, state.line_width, state.global_alpha, state.current_compositing_and_blending_operator);
+    // FIXME: Honor state's miter_limit, dash_list, and line_dash_offset.
+    auto line_cap = to_gfx_cap(state.line_cap);
+    auto line_join = to_gfx_join(state.line_join);
+    painter->stroke_path(path, state.stroke_style.to_gfx_paint_style(), state.filters, state.line_width, state.global_alpha, state.current_compositing_and_blending_operator, line_cap, line_join);
 
     did_draw(path.bounding_box());
 }
