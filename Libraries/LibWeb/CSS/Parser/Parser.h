@@ -13,9 +13,9 @@
 #include <AK/Vector.h>
 #include <LibGC/Ptr.h>
 #include <LibGfx/Font/UnicodeRange.h>
+#include <LibWeb/CSS/BooleanExpression.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/CSSStyleValue.h>
-#include <LibWeb/CSS/GeneralEnclosed.h>
 #include <LibWeb/CSS/MediaQuery.h>
 #include <LibWeb/CSS/ParsedFontFace.h>
 #include <LibWeb/CSS/Parser/ComponentValue.h>
@@ -215,7 +215,7 @@ private:
     void consume_a_function_and_do_nothing(TokenStream<Token>&);
     // TODO: consume_a_unicode_range_value()
 
-    Optional<GeneralEnclosed> parse_general_enclosed(TokenStream<ComponentValue>&);
+    OwnPtr<GeneralEnclosed> parse_general_enclosed(TokenStream<ComponentValue>&, MatchResult);
 
     template<typename T>
     Vector<ParsedFontFace::Source> parse_font_face_src(TokenStream<T>&);
@@ -434,15 +434,16 @@ private:
     ParseErrorOr<Optional<Selector::SimpleSelector>> parse_simple_selector(TokenStream<ComponentValue>&);
 
     NonnullRefPtr<MediaQuery> parse_media_query(TokenStream<ComponentValue>&);
-    OwnPtr<MediaCondition> parse_media_condition(TokenStream<ComponentValue>&, MediaCondition::AllowOr allow_or);
-    Optional<MediaFeature> parse_media_feature(TokenStream<ComponentValue>&);
+    OwnPtr<BooleanExpression> parse_media_condition(TokenStream<ComponentValue>&);
+    OwnPtr<MediaFeature> parse_media_feature(TokenStream<ComponentValue>&);
     Optional<MediaQuery::MediaType> parse_media_type(TokenStream<ComponentValue>&);
-    OwnPtr<MediaCondition> parse_media_in_parens(TokenStream<ComponentValue>&);
     Optional<MediaFeatureValue> parse_media_feature_value(MediaFeatureID, TokenStream<ComponentValue>&);
 
-    OwnPtr<Supports::Condition> parse_supports_condition(TokenStream<ComponentValue>&);
-    Optional<Supports::InParens> parse_supports_in_parens(TokenStream<ComponentValue>&);
-    Optional<Supports::Feature> parse_supports_feature(TokenStream<ComponentValue>&);
+    using ParseTest = AK::Function<OwnPtr<BooleanExpression>(TokenStream<ComponentValue>&)> const&;
+    OwnPtr<BooleanExpression> parse_boolean_expression(TokenStream<ComponentValue>&, MatchResult result_for_general_enclosed, ParseTest parse_test);
+    OwnPtr<BooleanExpression> parse_boolean_expression_group(TokenStream<ComponentValue>&, MatchResult result_for_general_enclosed, ParseTest parse_test);
+
+    OwnPtr<BooleanExpression> parse_supports_feature(TokenStream<ComponentValue>&);
 
     NonnullRefPtr<CSSStyleValue> resolve_unresolved_style_value(DOM::Element&, Optional<Selector::PseudoElement::Type>, PropertyID, UnresolvedStyleValue const&);
     bool expand_variables(DOM::Element&, Optional<Selector::PseudoElement::Type>, FlyString const& property_name, HashMap<FlyString, NonnullRefPtr<PropertyDependencyNode>>& dependencies, TokenStream<ComponentValue>& source, Vector<ComponentValue>& dest);
