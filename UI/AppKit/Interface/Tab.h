@@ -19,9 +19,4 @@
 - (instancetype)initAsChild:(Tab*)parent
                   pageIndex:(u64)page_index;
 
-- (void)tabWillClose;
-
-- (void)openInspector:(id)sender;
-- (void)onInspectorClosed;
-
 @end

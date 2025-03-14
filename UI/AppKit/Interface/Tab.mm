@@ -12,8 +12,6 @@
 #include <LibWebView/ViewImplementation.h>
 
 #import <Application/ApplicationDelegate.h>
-#import <Interface/Inspector.h>
-#import <Interface/InspectorController.h>
 #import <Interface/LadybirdWebView.h>
 #import <Interface/SearchPanel.h>
 #import <Interface/Tab.h>
@@ -33,8 +31,6 @@ static constexpr CGFloat const WINDOW_HEIGHT = 800;
 @property (nonatomic, strong) NSImage* favicon;
 
 @property (nonatomic, strong) SearchPanel* search_panel;
-
-@property (nonatomic, strong) InspectorController* inspector_controller;
 
 @end
 
@@ -127,37 +123,6 @@ static constexpr CGFloat const WINDOW_HEIGHT = 800;
 - (void)useSelectionForFind:(id)sender
 {
     [self.search_panel useSelectionForFind:sender];
-}
-
-- (void)tabWillClose
-{
-    if (self.inspector_controller != nil) {
-        [self.inspector_controller.window close];
-    }
-}
-
-- (void)openInspector:(id)sender
-{
-    if (self.inspector_controller != nil) {
-        [self.inspector_controller.window makeKeyAndOrderFront:sender];
-        return;
-    }
-
-    self.inspector_controller = [[InspectorController alloc] init:self];
-    [self.inspector_controller showWindow:nil];
-}
-
-- (void)onInspectorClosed
-{
-    self.inspector_controller = nil;
-}
-
-- (void)inspectElement:(id)sender
-{
-    [self openInspector:sender];
-
-    auto* inspector = (Inspector*)[self.inspector_controller window];
-    [inspector selectHoveredElement];
 }
 
 #pragma mark - Private methods
@@ -310,19 +275,10 @@ static constexpr CGFloat const WINDOW_HEIGHT = 800;
     [self updateTabTitleAndFavicon];
 
     [[self tabController] onLoadStart:url isRedirect:is_redirect];
-
-    if (self.inspector_controller != nil) {
-        auto* inspector = (Inspector*)[self.inspector_controller window];
-        [inspector reset];
-    }
 }
 
 - (void)onLoadFinish:(URL::URL const&)url
 {
-    if (self.inspector_controller != nil) {
-        auto* inspector = (Inspector*)[self.inspector_controller window];
-        [inspector inspect];
-    }
 }
 
 - (void)onURLChange:(URL::URL const&)url

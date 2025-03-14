@@ -604,8 +604,6 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 
 - (void)windowWillClose:(NSNotification*)notification
 {
-    [[self tab] tabWillClose];
-
     auto* delegate = (ApplicationDelegate*)[NSApp delegate];
     [delegate removeTab:self];
 }

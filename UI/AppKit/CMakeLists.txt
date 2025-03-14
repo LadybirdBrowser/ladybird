@@ -3,8 +3,6 @@ add_library(ladybird_impl STATIC
     Application/Application.mm
     Application/ApplicationDelegate.mm
     Interface/Event.mm
-    Interface/Inspector.mm
-    Interface/InspectorController.mm
     Interface/LadybirdWebView.mm
     Interface/LadybirdWebViewBridge.cpp
     Interface/LadybirdWebViewWindow.mm
