@@ -144,7 +144,7 @@ MatchResult MediaFeature::evaluate(HTML::Window const* window) const
     VERIFY_NOT_REACHED();
 }
 
-bool MediaFeature::compare(HTML::Window const& window, MediaFeatureValue left, Comparison comparison, MediaFeatureValue right)
+bool MediaFeature::compare(HTML::Window const& window, MediaFeatureValue const& left, Comparison comparison, MediaFeatureValue const& right)
 {
     if (!left.is_same_type(right))
         return false;
