@@ -18,6 +18,7 @@
 #include <core/SkColor.h>
 #include <core/SkColorType.h>
 #include <core/SkImageFilter.h>
+#include <core/SkPaint.h>
 #include <core/SkPath.h>
 #include <core/SkSamplingOptions.h>
 
@@ -47,6 +48,32 @@ constexpr SkRect to_skia_rect(auto const& rect)
 constexpr SkColor to_skia_color(Gfx::Color const& color)
 {
     return SkColorSetARGB(color.alpha(), color.red(), color.green(), color.blue());
+}
+
+constexpr SkPaint::Join to_skia_join(Gfx::Path::JoinStyle const& join_style)
+{
+    switch (join_style) {
+    case Gfx::Path::JoinStyle::Round:
+        return SkPaint::kRound_Join;
+    case Gfx::Path::JoinStyle::Bevel:
+        return SkPaint::kBevel_Join;
+    case Gfx::Path::JoinStyle::Miter:
+        return SkPaint::kMiter_Join;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+constexpr SkPaint::Cap to_skia_cap(Gfx::Path::CapStyle const& cap_style)
+{
+    switch (cap_style) {
+    case Gfx::Path::CapStyle::Butt:
+        return SkPaint::kButt_Cap;
+    case Gfx::Path::CapStyle::Round:
+        return SkPaint::kRound_Cap;
+    case Gfx::Path::CapStyle::Square:
+        return SkPaint::kSquare_Cap;
+    }
+    VERIFY_NOT_REACHED();
 }
 
 constexpr SkColor4f to_skia_color4f(Color const& color)
