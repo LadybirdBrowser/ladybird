@@ -910,12 +910,16 @@ void Window::focus()
     if (!current)
         return;
 
-    // 3. Run the focusing steps with current.
+    // 3. If the allow focus steps given current's active document return false, then return.
+    if (!document()->allow_focus())
+        return;
+
+    // 4. Run the focusing steps with current.
     // FIXME: We should pass in the browsing context itself instead of the active document, however the focusing steps don't currently accept browsing contexts.
     //        Passing in a browsing context always makes it resolve to its active document for focus, so this is fine for now.
     run_focusing_steps(current->active_document());
 
-    // FIXME: 4. If current is a top-level traversable, user agents are encouraged to trigger some sort of notification to
+    // FIXME: 5. If current is a top-level traversable, user agents are encouraged to trigger some sort of notification to
     //           indicate to the user that the page is attempting to gain focus.
 }
 
