@@ -127,25 +127,23 @@ public:
     // Corresponds to `<mf-range>` grammar, with a single comparison
     static NonnullOwnPtr<MediaFeature> half_range(MediaFeatureValue value, Comparison comparison, MediaFeatureID id)
     {
-        auto feature = adopt_own(*new MediaFeature(Type::Range, id));
-        feature->m_range = Range {
-            .left_value = move(value),
-            .left_comparison = comparison,
-        };
-        return feature;
+        return adopt_own(*new MediaFeature(Type::Range, id,
+            Range {
+                .left_value = move(value),
+                .left_comparison = comparison,
+            }));
     }
 
     // Corresponds to `<mf-range>` grammar, with two comparisons
     static NonnullOwnPtr<MediaFeature> range(MediaFeatureValue left_value, Comparison left_comparison, MediaFeatureID id, Comparison right_comparison, MediaFeatureValue right_value)
     {
-        auto feature = adopt_own(*new MediaFeature(Type::Range, id));
-        feature->m_range = Range {
-            .left_value = move(left_value),
-            .left_comparison = left_comparison,
-            .right_comparison = right_comparison,
-            .right_value = move(right_value),
-        };
-        return feature;
+        return adopt_own(*new MediaFeature(Type::Range, id,
+            Range {
+                .left_value = move(left_value),
+                .left_comparison = left_comparison,
+                .right_comparison = right_comparison,
+                .right_value = move(right_value),
+            }));
     }
 
     virtual MatchResult evaluate(HTML::Window const*) const override;
@@ -161,15 +159,6 @@ private:
         Range,
     };
 
-    MediaFeature(Type type, MediaFeatureID id, Optional<MediaFeatureValue> value = {})
-        : m_type(type)
-        , m_id(move(id))
-        , m_value(move(value))
-    {
-    }
-
-    static bool compare(HTML::Window const& window, MediaFeatureValue left, Comparison comparison, MediaFeatureValue right);
-
     struct Range {
         MediaFeatureValue left_value;
         Comparison left_comparison;
@@ -177,10 +166,20 @@ private:
         Optional<MediaFeatureValue> right_value {};
     };
 
+    MediaFeature(Type type, MediaFeatureID id, Variant<Empty, MediaFeatureValue, Range> value = {})
+        : m_type(type)
+        , m_id(move(id))
+        , m_value(move(value))
+    {
+    }
+
+    static bool compare(HTML::Window const& window, MediaFeatureValue left, Comparison comparison, MediaFeatureValue right);
+    MediaFeatureValue const& value() const { return m_value.get<MediaFeatureValue>(); }
+    Range const& range() const { return m_value.get<Range>(); }
+
     Type m_type;
     MediaFeatureID m_id;
-    Optional<MediaFeatureValue> m_value {};
-    Optional<Range> m_range {};
+    Variant<Empty, MediaFeatureValue, Range> m_value {};
 };
 
 class MediaQuery : public RefCounted<MediaQuery> {
