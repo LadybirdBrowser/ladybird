@@ -1201,8 +1201,8 @@ void BlockFormattingContext::ensure_sizes_correct_for_left_offset_calculation(Li
     CSSPixels image_width = 0;
     CSSPixels image_height = 0;
     if (auto const* list_style_image = marker.list_style_image()) {
-        image_width = list_style_image->natural_width().value_or(0);
-        image_height = list_style_image->natural_height().value_or(0);
+        image_width = list_style_image->natural_width(CSS::ImageOrientation::None).value_or(0);
+        image_height = list_style_image->natural_height(CSS::ImageOrientation::None).value_or(0);
     }
 
     auto default_marker_width = max(4, marker.first_available_font().pixel_size_rounded_up() - 4);

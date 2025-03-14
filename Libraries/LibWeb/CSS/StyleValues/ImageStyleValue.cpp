@@ -124,33 +124,43 @@ bool ImageStyleValue::equals(CSSStyleValue const& other) const
     return m_url == other.as_image().m_url;
 }
 
-Optional<CSSPixels> ImageStyleValue::natural_width() const
+Optional<CSSPixels> ImageStyleValue::natural_width(ImageOrientation orientation) const
 {
+    auto const gfx_orientation = Gfx::to_gfx_image_orientation(orientation);
+
     if (auto image_data = this->image_data())
-        return image_data->intrinsic_width();
+        return image_data->intrinsic_width(gfx_orientation);
+
     return {};
 }
 
-Optional<CSSPixels> ImageStyleValue::natural_height() const
+Optional<CSSPixels> ImageStyleValue::natural_height(ImageOrientation orientation) const
 {
+    auto const gfx_orientation = Gfx::to_gfx_image_orientation(orientation);
+
     if (auto image_data = this->image_data())
-        return image_data->intrinsic_height();
+        return image_data->intrinsic_height(gfx_orientation);
+
     return {};
 }
 
-Optional<CSSPixelFraction> ImageStyleValue::natural_aspect_ratio() const
+Optional<CSSPixelFraction> ImageStyleValue::natural_aspect_ratio(ImageOrientation orientation) const
 {
+    auto const gfx_orientation = Gfx::to_gfx_image_orientation(orientation);
+
     if (auto image_data = this->image_data())
-        return image_data->intrinsic_aspect_ratio();
+        return image_data->intrinsic_aspect_ratio(gfx_orientation);
+
     return {};
 }
 
-void ImageStyleValue::paint(PaintContext& context, DevicePixelRect const& dest_rect, CSS::ImageRendering image_rendering) const
+void ImageStyleValue::paint(PaintContext& context, DevicePixelRect const& dest_rect, CSS::ImageRendering image_rendering, CSS::ImageOrientation image_orientation) const
 {
     if (auto const* b = bitmap(m_current_frame_index, dest_rect.size().to_type<int>()); b != nullptr) {
-        auto scaling_mode = to_gfx_scaling_mode(image_rendering, b->rect(), dest_rect.to_type<int>());
+        auto gfx_image_orientation = Gfx::to_gfx_image_orientation(image_orientation);
+        auto scaling_mode = to_gfx_scaling_mode(image_rendering, b->rect(gfx_image_orientation), dest_rect.to_type<int>());
         auto dest_int_rect = dest_rect.to_type<int>();
-        context.display_list_recorder().draw_scaled_immutable_bitmap(dest_int_rect, dest_int_rect, *b, scaling_mode);
+        context.display_list_recorder().draw_scaled_immutable_bitmap(dest_int_rect, dest_int_rect, *b, scaling_mode, gfx_image_orientation);
     }
 }
 
@@ -169,7 +179,7 @@ GC::Ptr<HTML::DecodedImageData> ImageStyleValue::image_data() const
 Optional<Gfx::Color> ImageStyleValue::color_if_single_pixel_bitmap() const
 {
     if (auto const* b = bitmap(m_current_frame_index)) {
-        if (b->width() == 1 && b->height() == 1)
+        if (b->width(Gfx::ImageOrientation::FromDecoded) == 1 && b->height(Gfx::ImageOrientation::FromDecoded) == 1)
             return b->get_pixel(0, 0);
     }
     return {};
