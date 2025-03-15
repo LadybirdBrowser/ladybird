@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 387 tests
+Found 395 tests
 
-387 Pass
+395 Pass
 Pass	Loading data…
 Pass	Origin parsing: <http://example	.
 org> against <http://example.org/foo/bar>
@@ -216,6 +216,14 @@ Pass	Origin parsing: <//www.example2.com> against <http://www.example.com/test>
 Pass	Origin parsing: <http://ExAmPlE.CoM> against <http://other.com/>
 Pass	Origin parsing: <http://GOO​⁠﻿goo.com> against <http://other.com/>
 Pass	Origin parsing: <  http://example.com/  > without base
+Pass	Origin parsing: <non-special:opaque  > without base
+Pass	Origin parsing: <non-special:opaque  ?hi> without base
+Pass	Origin parsing: <non-special:opaque  #hi> without base
+Pass	Origin parsing: <non-special:opaque  x?hi> without base
+Pass	Origin parsing: <non-special:opaque  x#hi> without base
+Pass	Origin parsing: <non-special:opaque 		  	#hi> without base
+Pass	Origin parsing: <non-special:opaque 		  #hi> without base
+Pass	Origin parsing: <non-special:opaque		   #hi> without base
 Pass	Origin parsing: <http://www.foo。bar.com> against <http://other.com/>
 Pass	Origin parsing: <https://x/�?�#�> without base
 Pass	Origin parsing: <http://Ｇｏ.com> against <http://other.com/>
