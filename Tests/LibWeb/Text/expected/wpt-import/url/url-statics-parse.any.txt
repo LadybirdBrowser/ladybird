@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	URL.parse(undefined, undefined)
+Pass	URL.parse(aaa:b, undefined)
+Pass	URL.parse(undefined, aaa:b)
+Pass	URL.parse(aaa:/b, undefined)
+Pass	URL.parse(undefined, aaa:/b)
+Pass	URL.parse(https://test:test, undefined)
+Pass	URL.parse(a, https://b/)
+Pass	URL.parse() should return a unique object

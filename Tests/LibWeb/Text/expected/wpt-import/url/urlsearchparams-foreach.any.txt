@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	ForEach Check
+Pass	For-of Check
+Pass	empty
+Pass	delete next param during iteration
+Pass	delete current param during iteration
+Pass	delete every param seen during iteration
