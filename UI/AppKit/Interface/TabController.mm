@@ -100,8 +100,8 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
         m_page_index = 0;
 
         m_settings = {
-            .scripting_enabled = WebView::Application::chrome_options().disable_scripting == WebView::DisableScripting::Yes ? NO : YES,
-            .block_popups = WebView::Application::chrome_options().allow_popups == WebView::AllowPopups::Yes ? NO : YES,
+            .scripting_enabled = WebView::Application::browser_options().disable_scripting == WebView::DisableScripting::Yes ? NO : YES,
+            .block_popups = WebView::Application::browser_options().allow_popups == WebView::AllowPopups::Yes ? NO : YES,
             .autoplay_enabled = WebView::Application::web_content_options().enable_autoplay == WebView::EnableAutoplay::Yes ? YES : NO,
         };
 
@@ -234,7 +234,7 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 
     self.tab.titlebarAppearsTransparent = NO;
 
-    [delegate createNewTab:WebView::Application::chrome_options().new_tab_page_url
+    [delegate createNewTab:WebView::Application::browser_options().new_tab_page_url
                    fromTab:[self tab]
                activateTab:Web::HTML::ActivateTab::Yes];
 

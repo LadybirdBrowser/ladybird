@@ -19,11 +19,11 @@ static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process(
     ClientArguments&&... client_arguments)
 {
     auto process_type = WebView::process_type_from_name(server_name);
-    auto const& chrome_options = WebView::Application::chrome_options();
+    auto const& browser_options = WebView::Application::browser_options();
 
     auto candidate_server_paths = TRY(get_paths_for_helper_process(server_name));
 
-    if (chrome_options.profile_helper_process == process_type) {
+    if (browser_options.profile_helper_process == process_type) {
         arguments.prepend({
             "--tool=callgrind"sv,
             "--instr-atstart=no"sv,
@@ -31,13 +31,13 @@ static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process(
         });
     }
 
-    if (chrome_options.debug_helper_process == process_type)
+    if (browser_options.debug_helper_process == process_type)
         arguments.append("--wait-for-debugger"sv);
 
     for (auto [i, path] : enumerate(candidate_server_paths)) {
         Core::ProcessSpawnOptions options { .name = server_name, .arguments = arguments };
 
-        if (chrome_options.profile_helper_process == process_type) {
+        if (browser_options.profile_helper_process == process_type) {
             options.executable = "valgrind"sv;
             options.search_for_executable_in_path = true;
             arguments[2] = path;
@@ -60,7 +60,7 @@ static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process(
 
             WebView::Application::the().add_child_process(move(process));
 
-            if (chrome_options.profile_helper_process == process_type) {
+            if (browser_options.profile_helper_process == process_type) {
                 dbgln();
                 dbgln("\033[1;45mLaunched {} process under callgrind!\033[0m", server_name);
                 dbgln("\033[100mRun `\033[4mcallgrind_control -i on\033[24m` to start instrumentation and `\033[4mcallgrind_control -i off\033[24m` stop it again.\033[0m");
@@ -187,7 +187,7 @@ ErrorOr<NonnullRefPtr<Requests::RequestClient>> launch_request_server_process()
         arguments.append(s_ladybird_resource_root);
     }
 
-    for (auto const& certificate : WebView::Application::chrome_options().certificates)
+    for (auto const& certificate : WebView::Application::browser_options().certificates)
         arguments.append(ByteString::formatted("--certificate={}", certificate));
 
     if (auto server = mach_server_name(); server.has_value()) {
@@ -196,7 +196,7 @@ ErrorOr<NonnullRefPtr<Requests::RequestClient>> launch_request_server_process()
     }
 
     auto client = TRY(launch_server_process<Requests::RequestClient>("RequestServer"sv, move(arguments)));
-    WebView::Application::chrome_options().dns_settings.visit(
+    WebView::Application::browser_options().dns_settings.visit(
         [](WebView::SystemDNS) {},
         [&](WebView::DNSOverTLS const& dns_over_tls) {
             dbgln("Setting DNS server to {}:{} with TLS", dns_over_tls.server_address, dns_over_tls.port);

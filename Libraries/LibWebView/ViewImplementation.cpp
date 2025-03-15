@@ -604,10 +604,10 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client)
     client().async_set_device_pixels_per_css_pixel(m_client_state.page_index, m_device_pixel_ratio);
     client().async_set_system_visibility_state(m_client_state.page_index, m_system_visibility_state);
 
-    if (auto webdriver_content_ipc_path = Application::chrome_options().webdriver_content_ipc_path; webdriver_content_ipc_path.has_value())
+    if (auto webdriver_content_ipc_path = Application::browser_options().webdriver_content_ipc_path; webdriver_content_ipc_path.has_value())
         client().async_connect_to_webdriver(m_client_state.page_index, *webdriver_content_ipc_path);
 
-    if (Application::chrome_options().allow_popups == AllowPopups::Yes)
+    if (Application::browser_options().allow_popups == AllowPopups::Yes)
         client().async_debug_request(m_client_state.page_index, "block-pop-ups"sv, "off"sv);
 
     if (auto const& user_agent_preset = Application::web_content_options().user_agent_preset; user_agent_preset.has_value())

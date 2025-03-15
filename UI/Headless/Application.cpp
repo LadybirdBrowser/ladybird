@@ -64,7 +64,7 @@ void Application::create_platform_arguments(Core::ArgsParser& args_parser)
     });
 }
 
-void Application::create_platform_options(WebView::ChromeOptions& chrome_options, WebView::WebContentOptions& web_content_options)
+void Application::create_platform_options(WebView::BrowserOptions& browser_options, WebView::WebContentOptions& web_content_options)
 {
     if (!test_root_path.is_empty()) {
         // --run-tests implies --layout-test-mode.
@@ -73,7 +73,7 @@ void Application::create_platform_options(WebView::ChromeOptions& chrome_options
 
     if (is_layout_test_mode) {
         // Allow window.open() to succeed for tests.
-        chrome_options.allow_popups = WebView::AllowPopups::Yes;
+        browser_options.allow_popups = WebView::AllowPopups::Yes;
 
         // Ensure consistent font rendering between operating systems.
         web_content_options.force_fontconfig = WebView::ForceFontconfig::Yes;

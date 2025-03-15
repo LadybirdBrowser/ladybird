@@ -84,8 +84,8 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
     WebView::ChromeProcess chrome_process;
 
-    if (app->chrome_options().force_new_process == WebView::ForceNewProcess::No) {
-        auto disposition = TRY(chrome_process.connect(app->chrome_options().raw_urls, app->chrome_options().new_window));
+    if (app->browser_options().force_new_process == WebView::ForceNewProcess::No) {
+        auto disposition = TRY(chrome_process.connect(app->browser_options().raw_urls, app->browser_options().new_window));
 
         if (disposition == WebView::ChromeProcess::ProcessDisposition::ExitProcess) {
             outln("Opening in existing process");
@@ -129,7 +129,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
         app->new_window(urls);
     };
 
-    auto& window = app->new_window(app->chrome_options().urls);
+    auto& window = app->new_window(app->browser_options().urls);
     window.setWindowTitle("Ladybird");
 
     if (Ladybird::Settings::the()->is_maximized()) {

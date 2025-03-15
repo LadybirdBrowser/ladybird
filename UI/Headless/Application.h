@@ -29,7 +29,7 @@ public:
     }
 
     virtual void create_platform_arguments(Core::ArgsParser&) override;
-    virtual void create_platform_options(WebView::ChromeOptions&, WebView::WebContentOptions&) override;
+    virtual void create_platform_options(WebView::BrowserOptions&, WebView::WebContentOptions&) override;
 
     ErrorOr<void> launch_test_fixtures();
 
