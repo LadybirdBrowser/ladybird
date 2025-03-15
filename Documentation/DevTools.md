@@ -1,20 +1,18 @@
 # Firefox DevTools Integration
 
-Ladybird contains an experimental, work-in-progress DevTools server. This document describes how to use the server and
-the protocol used to communicate with the DevTools client.
+Ladybird contains a DevTools server. This document describes how to use the server and the protocol used to communicate
+with the DevTools client.
 
 ## Using DevTools
 
-The DevTools server may be enabled with the `--devtools` command line flag when launching Ladybird. This flag expects a
-port for the DevTools server to listen on. For example:
+The DevTools server may be enabled in the "Inspect" menu via the "Enable DevTools" menu item. A banner will be displayed
+in Ladybird with the port on which the DevTools server is listening. This port may be changed with the `--devtools-port`
+command line flag. To disable DevTools, use the same menu item (which will now be titled "Disable DevTools"), or close
+the banner.
 
-```bash
-./Meta/ladybird.sh run ladybird --devtools 6000 https://ladybird.org/
-```
-
-Once the browser is running, in Firefox, navigate to `about:debugging` and select the "Setup" tab. In the
-"Network Location" form, enter the DevTools server address. In the above example, this will be `localhost:6000`. You
-will only have to enter this information once:
+Once DevTools is enabled, in Firefox, navigate to `about:debugging` and select the "Setup" tab. In the "Network Location"
+form, enter the DevTools server address. In the above example, this will be `localhost:6000`. You will only have to
+enter this information once:
 
 <img src="Images/devtools_setup.png" alt="DevTools setup" width="675px" />
 
