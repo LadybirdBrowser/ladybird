@@ -58,8 +58,8 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
     WebView::ChromeProcess chrome_process;
 
-    if (auto const& chrome_options = WebView::Application::chrome_options(); chrome_options.force_new_process == WebView::ForceNewProcess::No) {
-        auto disposition = TRY(chrome_process.connect(chrome_options.raw_urls, chrome_options.new_window));
+    if (auto const& browser_options = WebView::Application::browser_options(); browser_options.force_new_process == WebView::ForceNewProcess::No) {
+        auto disposition = TRY(chrome_process.connect(browser_options.raw_urls, browser_options.new_window));
 
         if (disposition == WebView::ChromeProcess::ProcessDisposition::ExitProcess) {
             outln("Opening in existing process");

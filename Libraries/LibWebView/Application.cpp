@@ -149,7 +149,7 @@ void Application::initialize(Main::Arguments const& arguments, URL::URL new_tab_
     if (debug_process_type == ProcessType::WebContent)
         disable_site_isolation = true;
 
-    m_chrome_options = {
+    m_browser_options = {
         .urls = sanitize_urls(raw_urls, new_tab_page_url),
         .raw_urls = move(raw_urls),
         .new_tab_page_url = move(new_tab_page_url),
@@ -170,7 +170,7 @@ void Application::initialize(Main::Arguments const& arguments, URL::URL new_tab_
     };
 
     if (webdriver_content_ipc_path.has_value())
-        m_chrome_options.webdriver_content_ipc_path = *webdriver_content_ipc_path;
+        m_browser_options.webdriver_content_ipc_path = *webdriver_content_ipc_path;
 
     m_web_content_options = {
         .command_line = MUST(String::join(' ', arguments.strings)),
@@ -188,9 +188,9 @@ void Application::initialize(Main::Arguments const& arguments, URL::URL new_tab_
         .paint_viewport_scrollbars = disable_scrollbar_painting ? PaintViewportScrollbars::No : PaintViewportScrollbars::Yes,
     };
 
-    create_platform_options(m_chrome_options, m_web_content_options);
+    create_platform_options(m_browser_options, m_web_content_options);
 
-    if (m_chrome_options.disable_sql_database == DisableSQLDatabase::No) {
+    if (m_browser_options.disable_sql_database == DisableSQLDatabase::No) {
         m_database = Database::create().release_value_but_fixme_should_propagate_errors();
         m_cookie_jar = CookieJar::create(*m_database).release_value_but_fixme_should_propagate_errors();
     } else {
@@ -225,7 +225,7 @@ ErrorOr<NonnullRefPtr<WebContentClient>> Application::launch_web_content_process
 void Application::launch_spare_web_content_process()
 {
     // Disable spare processes when debugging WebContent. Otherwise, it breaks running `gdb attach -p $(pidof WebContent)`.
-    if (chrome_options().debug_helper_process == ProcessType::WebContent)
+    if (browser_options().debug_helper_process == ProcessType::WebContent)
         return;
 
     if (m_has_queued_task_to_launch_spare_web_content_process)
@@ -293,7 +293,7 @@ ErrorOr<void> Application::launch_image_decoder_server()
 ErrorOr<void> Application::launch_devtools_server()
 {
     VERIFY(!m_devtools);
-    m_devtools = TRY(DevTools::DevToolsServer::create(*this, m_chrome_options.devtools_port));
+    m_devtools = TRY(DevTools::DevToolsServer::create(*this, m_browser_options.devtools_port));
     return {};
 }
 

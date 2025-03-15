@@ -286,7 +286,7 @@
         self.info_bar = [[InfoBar alloc] init];
     }
 
-    auto message = MUST(String::formatted("DevTools is enabled on port {}", WebView::Application::chrome_options().devtools_port));
+    auto message = MUST(String::formatted("DevTools is enabled on port {}", WebView::Application::browser_options().devtools_port));
 
     [self.info_bar showWithMessage:Ladybird::string_to_ns_string(message)
               dismissButtonTooltip:@"Disable DevTools"
@@ -814,7 +814,7 @@
 {
     Tab* tab = nil;
 
-    for (auto const& url : WebView::Application::chrome_options().urls) {
+    for (auto const& url : WebView::Application::browser_options().urls) {
         auto activate_tab = tab == nil ? Web::HTML::ActivateTab::Yes : Web::HTML::ActivateTab::No;
 
         auto* controller = [self createNewTab:url

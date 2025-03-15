@@ -21,7 +21,7 @@ Application::Application(Badge<WebView::Application>, Main::Arguments& arguments
 {
 }
 
-void Application::create_platform_options(WebView::ChromeOptions&, WebView::WebContentOptions& web_content_options)
+void Application::create_platform_options(WebView::BrowserOptions&, WebView::WebContentOptions& web_content_options)
 {
     web_content_options.config_path = Settings::the()->directory();
 }

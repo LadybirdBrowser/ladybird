@@ -59,7 +59,7 @@ using DNSSettings = Variant<SystemDNS, DNSOverTLS, DNSOverUDP>;
 
 constexpr inline u16 default_devtools_port = 6000;
 
-struct ChromeOptions {
+struct BrowserOptions {
     Vector<URL::URL> urls;
     Vector<ByteString> raw_urls;
     URL::URL new_tab_page_url;

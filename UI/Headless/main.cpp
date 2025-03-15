@@ -83,8 +83,8 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
     auto& view = app->create_web_view(move(theme), window_size);
 
-    VERIFY(!WebView::Application::chrome_options().urls.is_empty());
-    auto const& url = WebView::Application::chrome_options().urls.first();
+    VERIFY(!WebView::Application::browser_options().urls.is_empty());
+    auto const& url = WebView::Application::browser_options().urls.first();
     if (!url.is_valid()) {
         warnln("Invalid URL: \"{}\"", url);
         return Error::from_string_literal("Invalid URL");
@@ -99,7 +99,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     }
 
     RefPtr<Core::Timer> timer;
-    if (!WebView::Application::chrome_options().webdriver_content_ipc_path.has_value())
+    if (!WebView::Application::browser_options().webdriver_content_ipc_path.has_value())
         timer = TRY(load_page_for_screenshot_and_exit(Core::EventLoop::current(), view, url, app->screenshot_timeout));
 
     return app->execute();
