@@ -263,4 +263,9 @@ u64 physical_memory_bytes()
     return ms.ullTotalPhys;
 }
 
+ErrorOr<bool> isatty(int handle)
+{
+    return GetFileType(to_handle(handle)) == FILE_TYPE_CHAR;
+}
+
 }
