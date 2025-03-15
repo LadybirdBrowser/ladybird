@@ -1,64 +1,47 @@
-name: Build and Test Ladybird
+name: Build Ladybird
 
 on:
-  # Allows the workflow to be triggered manually
-  workflow_dispatch:
-  # Triggers the workflow on push or pull request events to the main branch
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+  workflow_dispatch:  # Allows manual triggering of the workflow
+    inputs:
+      build_type:
+        description: 'Specify the build type: Debug or Release'
+        required: true
+        default: 'Release'
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      # Check out the repository
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # Install build dependencies
       - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            autoconf \
-            autoconf-archive \
-            automake \
             build-essential \
-            ccache \
             cmake \
-            curl \
-            fonts-liberation2 \
-            git \
             libgl1-mesa-dev \
-            nasm \
             ninja-build \
-            pkg-config \
             qt6-base-dev \
             qt6-tools-dev-tools \
+            qt6-multimedia-dev \
             qt6-wayland \
-            tar \
-            unzip \
-            zip
+            ccache
 
-      # Configure the build
       - name: Configure build
         run: |
-          cmake -S . -B build -GNinja
+          cmake -S . -B build -GNinja -DCMAKE_BUILD_TYPE=${{ github.event.inputs.build_type }}
 
-      # Build the project
       - name: Build project
         run: |
           ninja -C build
 
-      # Run tests
       - name: Run tests
         run: |
           cd build
           ctest --output-on-failure
 
-      # Archive build artifacts
       - name: Upload build artifacts
         uses: actions/upload-artifact@v3
         with:
