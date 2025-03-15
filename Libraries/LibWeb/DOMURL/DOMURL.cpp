@@ -388,18 +388,10 @@ void DOMURL::set_search(String const& search)
     // 1. Let url be this’s URL.
     auto& url = m_url;
 
-    // 2. If the given value is the empty string:
+    // 2. If the given value is the empty string, then set url’s query to null, empty this’s query object’s list, and return.
     if (search.is_empty()) {
-        // 1. Set url’s query to null.
         url.set_query({});
-
-        // 2. Empty this’s query object’s list.
         m_query->m_list.clear();
-
-        // 3. Potentially strip trailing spaces from an opaque path with this.
-        strip_trailing_spaces_from_an_opaque_path(*this);
-
-        // 4. Return.
         return;
     }
 
@@ -438,15 +430,9 @@ String DOMURL::hash() const
 // https://url.spec.whatwg.org/#ref-for-dom-url-hash%E2%91%A0
 void DOMURL::set_hash(String const& hash)
 {
-    // 1. If the given value is the empty string:
+    // 1. If the given value is the empty string, then set this’s URL’s fragment to null and return.
     if (hash.is_empty()) {
-        // 1. Set this’s URL’s fragment to null.
         m_url.set_fragment({});
-
-        // 2. Potentially strip trailing spaces from an opaque path with this.
-        strip_trailing_spaces_from_an_opaque_path(*this);
-
-        // 3. Return.
         return;
     }
 
@@ -459,29 +445,6 @@ void DOMURL::set_hash(String const& hash)
 
     // 4. Basic URL parse input with this’s URL as url and fragment state as state override.
     (void)URL::Parser::basic_parse(input, {}, &m_url, URL::Parser::State::Fragment);
-}
-
-// https://url.spec.whatwg.org/#potentially-strip-trailing-spaces-from-an-opaque-path
-void strip_trailing_spaces_from_an_opaque_path(DOMURL& url)
-{
-    // 1. If url’s URL does not have an opaque path, then return.
-    // FIXME: Reimplement this step once we modernize the URL implementation to meet the spec.
-    if (!url.cannot_be_a_base_url())
-        return;
-
-    // 2. If url’s URL’s fragment is non-null, then return.
-    if (url.fragment().has_value())
-        return;
-
-    // 3. If url’s URL’s query is non-null, then return.
-    if (url.query().has_value())
-        return;
-
-    // 4. Remove all trailing U+0020 SPACE code points from url’s URL’s path.
-    // NOTE: At index 0 since the first step tells us that the URL only has one path segment.
-    auto opaque_path = url.path_segment_at_index(0);
-    auto trimmed_path = opaque_path.trim(" "sv, TrimMode::Right);
-    url.set_paths({ trimmed_path });
 }
 
 // https://url.spec.whatwg.org/#concept-url-parser
