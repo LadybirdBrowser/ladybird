@@ -16,6 +16,7 @@
 #include <LibWeb/Bindings/WindowGlobalMixin.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/HTML/BarProp.h>
 #include <LibWeb/HTML/CrossOrigin/CrossOriginPropertyDescriptorMap.h>
 #include <LibWeb/HTML/GlobalEventHandlers.h>
 #include <LibWeb/HTML/MimeType.h>
@@ -172,6 +173,15 @@ public:
     void stop();
     void focus();
     void blur();
+
+    // For historical reasons, the Window interface had some properties that represented the visibility of certain web browser interface elements.
+    // For privacy and interoperability reasons, those properties now return values that represent whether the Window's browsing context's is popup property is true or false.
+    GC::Ref<BarProp const> locationbar();
+    GC::Ref<BarProp const> menubar();
+    GC::Ref<BarProp const> personalbar();
+    GC::Ref<BarProp const> scrollbars();
+    GC::Ref<BarProp const> statusbar();
+    GC::Ref<BarProp const> toolbar();
 
     GC::Ref<WindowProxy> frames() const;
     u32 length();
@@ -332,6 +342,13 @@ private:
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-window-status
     // When the Window object is created, the attribute must be set to the empty string. It does not do anything else.
     String m_status;
+
+    GC::Ptr<BarProp const> m_locationbar;
+    GC::Ptr<BarProp const> m_menubar;
+    GC::Ptr<BarProp const> m_personalbar;
+    GC::Ptr<BarProp const> m_scrollbars;
+    GC::Ptr<BarProp const> m_statusbar;
+    GC::Ptr<BarProp const> m_toolbar;
 };
 
 void run_animation_frame_callbacks(DOM::Document&, double now);
