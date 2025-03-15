@@ -87,11 +87,4 @@ RefPtr<CSS::Supports> parse_css_supports(CSS::Parser::ParsingParams const& conte
     return CSS::Parser::Parser::create(context, string).parse_as_supports();
 }
 
-Optional<CSS::StyleProperty> parse_css_supports_condition(CSS::Parser::ParsingParams const& context, StringView string)
-{
-    if (string.is_empty())
-        return {};
-    return CSS::Parser::Parser::create(context, string).parse_as_supports_condition();
-}
-
 }

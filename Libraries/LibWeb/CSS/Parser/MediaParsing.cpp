@@ -96,11 +96,11 @@ NonnullRefPtr<MediaQuery> Parser::parse_media_query(TokenStream<ComponentValue>&
     tokens.discard_whitespace();
 
     // `<media-condition>`
-    if (auto media_condition = parse_media_condition(tokens, MediaCondition::AllowOr::Yes)) {
+    if (auto media_condition = parse_media_condition(tokens)) {
         tokens.discard_whitespace();
         if (tokens.has_next_token())
             return invalid_media_query();
-        media_query->m_media_condition = move(media_condition);
+        media_query->m_media_condition = media_condition.release_nonnull();
         return media_query;
     }
 
@@ -127,7 +127,11 @@ NonnullRefPtr<MediaQuery> Parser::parse_media_query(TokenStream<ComponentValue>&
 
     // `[ and <media-condition-without-or> ]?`
     if (auto const& maybe_and = tokens.consume_a_token(); maybe_and.is_ident("and"sv)) {
-        if (auto media_condition = parse_media_condition(tokens, MediaCondition::AllowOr::No)) {
+        if (auto media_condition = parse_media_condition(tokens)) {
+            // "or" is disallowed at the top level
+            if (is<BooleanOrExpression>(*media_condition))
+                return invalid_media_query();
+
             tokens.discard_whitespace();
             if (tokens.has_next_token())
                 return invalid_media_query();
@@ -141,115 +145,15 @@ NonnullRefPtr<MediaQuery> Parser::parse_media_query(TokenStream<ComponentValue>&
 }
 
 // `<media-condition>`, https://www.w3.org/TR/mediaqueries-4/#typedef-media-condition
-// `<media-condition-widthout-or>`, https://www.w3.org/TR/mediaqueries-4/#typedef-media-condition-without-or
-// (We distinguish between these two with the `allow_or` parameter.)
-OwnPtr<MediaCondition> Parser::parse_media_condition(TokenStream<ComponentValue>& tokens, MediaCondition::AllowOr allow_or)
+OwnPtr<BooleanExpression> Parser::parse_media_condition(TokenStream<ComponentValue>& tokens)
 {
-    // `<media-not> | <media-in-parens> [ <media-and>* | <media-or>* ]`
-    auto transaction = tokens.begin_transaction();
-    tokens.discard_whitespace();
-
-    // `<media-not> = not <media-in-parens>`
-    auto parse_media_not = [&](auto& tokens) -> OwnPtr<MediaCondition> {
-        auto local_transaction = tokens.begin_transaction();
-        tokens.discard_whitespace();
-
-        auto& first_token = tokens.consume_a_token();
-        if (first_token.is_ident("not"sv)) {
-            if (auto child_condition = parse_media_condition(tokens, MediaCondition::AllowOr::Yes)) {
-                local_transaction.commit();
-                return MediaCondition::from_not(child_condition.release_nonnull());
-            }
-        }
-
-        return {};
-    };
-
-    auto parse_media_with_combinator = [&](auto& tokens, StringView combinator) -> OwnPtr<MediaCondition> {
-        auto local_transaction = tokens.begin_transaction();
-        tokens.discard_whitespace();
-
-        auto& first = tokens.consume_a_token();
-        if (first.is_ident(combinator)) {
-            tokens.discard_whitespace();
-            if (auto media_in_parens = parse_media_in_parens(tokens)) {
-                local_transaction.commit();
-                return media_in_parens;
-            }
-        }
-
-        return {};
-    };
-
-    // `<media-and> = and <media-in-parens>`
-    auto parse_media_and = [&](auto& tokens) { return parse_media_with_combinator(tokens, "and"sv); };
-    // `<media-or> = or <media-in-parens>`
-    auto parse_media_or = [&](auto& tokens) { return parse_media_with_combinator(tokens, "or"sv); };
-
-    // `<media-not>`
-    if (auto maybe_media_not = parse_media_not(tokens)) {
-        transaction.commit();
-        return maybe_media_not.release_nonnull();
-    }
-
-    // `<media-in-parens> [ <media-and>* | <media-or>* ]`
-    if (auto maybe_media_in_parens = parse_media_in_parens(tokens)) {
-        tokens.discard_whitespace();
-        // Only `<media-in-parens>`
-        if (!tokens.has_next_token()) {
-            transaction.commit();
-            return maybe_media_in_parens.release_nonnull();
-        }
-
-        Vector<NonnullOwnPtr<MediaCondition>> child_conditions;
-        child_conditions.append(maybe_media_in_parens.release_nonnull());
-
-        // `<media-and>*`
-        if (auto media_and = parse_media_and(tokens)) {
-            child_conditions.append(media_and.release_nonnull());
-
-            tokens.discard_whitespace();
-            while (tokens.has_next_token()) {
-                if (auto next_media_and = parse_media_and(tokens)) {
-                    child_conditions.append(next_media_and.release_nonnull());
-                    tokens.discard_whitespace();
-                    continue;
-                }
-                // We failed - invalid syntax!
-                return {};
-            }
-
-            transaction.commit();
-            return MediaCondition::from_and_list(move(child_conditions));
-        }
-
-        // `<media-or>*`
-        if (allow_or == MediaCondition::AllowOr::Yes) {
-            if (auto media_or = parse_media_or(tokens)) {
-                child_conditions.append(media_or.release_nonnull());
-
-                tokens.discard_whitespace();
-                while (tokens.has_next_token()) {
-                    if (auto next_media_or = parse_media_or(tokens)) {
-                        child_conditions.append(next_media_or.release_nonnull());
-                        tokens.discard_whitespace();
-                        continue;
-                    }
-                    // We failed - invalid syntax!
-                    return {};
-                }
-
-                transaction.commit();
-                return MediaCondition::from_or_list(move(child_conditions));
-            }
-        }
-    }
-
-    return {};
+    return parse_boolean_expression(tokens, MatchResult::Unknown, [this](TokenStream<ComponentValue>& tokens) -> OwnPtr<BooleanExpression> {
+        return parse_media_feature(tokens);
+    });
 }
 
 // `<media-feature>`, https://www.w3.org/TR/mediaqueries-4/#typedef-media-feature
-Optional<MediaFeature> Parser::parse_media_feature(TokenStream<ComponentValue>& tokens)
+OwnPtr<MediaFeature> Parser::parse_media_feature(TokenStream<ComponentValue>& tokens)
 {
     // `[ <mf-plain> | <mf-boolean> | <mf-range> ]`
     tokens.discard_whitespace();
@@ -288,7 +192,7 @@ Optional<MediaFeature> Parser::parse_media_feature(TokenStream<ComponentValue>& 
     };
 
     // `<mf-boolean> = <mf-name>`
-    auto parse_mf_boolean = [&](auto& tokens) -> Optional<MediaFeature> {
+    auto parse_mf_boolean = [&](auto& tokens) -> OwnPtr<MediaFeature> {
         auto transaction = tokens.begin_transaction();
         tokens.discard_whitespace();
 
@@ -304,7 +208,7 @@ Optional<MediaFeature> Parser::parse_media_feature(TokenStream<ComponentValue>& 
     };
 
     // `<mf-plain> = <mf-name> : <mf-value>`
-    auto parse_mf_plain = [&](auto& tokens) -> Optional<MediaFeature> {
+    auto parse_mf_plain = [&](auto& tokens) -> OwnPtr<MediaFeature> {
         auto transaction = tokens.begin_transaction();
         tokens.discard_whitespace();
 
@@ -406,7 +310,7 @@ Optional<MediaFeature> Parser::parse_media_feature(TokenStream<ComponentValue>& 
     //             | <mf-value> <mf-comparison> <mf-name>
     //             | <mf-value> <mf-lt> <mf-name> <mf-lt> <mf-value>
     //             | <mf-value> <mf-gt> <mf-name> <mf-gt> <mf-value>`
-    auto parse_mf_range = [&](auto& tokens) -> Optional<MediaFeature> {
+    auto parse_mf_range = [&](auto& tokens) -> OwnPtr<MediaFeature> {
         auto transaction = tokens.begin_transaction();
         tokens.discard_whitespace();
 
@@ -490,14 +394,14 @@ Optional<MediaFeature> Parser::parse_media_feature(TokenStream<ComponentValue>& 
         return {};
     };
 
-    if (auto maybe_mf_boolean = parse_mf_boolean(tokens); maybe_mf_boolean.has_value())
-        return maybe_mf_boolean.release_value();
+    if (auto maybe_mf_boolean = parse_mf_boolean(tokens))
+        return maybe_mf_boolean.release_nonnull();
 
-    if (auto maybe_mf_plain = parse_mf_plain(tokens); maybe_mf_plain.has_value())
-        return maybe_mf_plain.release_value();
+    if (auto maybe_mf_plain = parse_mf_plain(tokens))
+        return maybe_mf_plain.release_nonnull();
 
-    if (auto maybe_mf_range = parse_mf_range(tokens); maybe_mf_range.has_value())
-        return maybe_mf_range.release_value();
+    if (auto maybe_mf_range = parse_mf_range(tokens))
+        return maybe_mf_range.release_nonnull();
 
     return {};
 }
@@ -515,41 +419,6 @@ Optional<MediaQuery::MediaType> Parser::parse_media_type(TokenStream<ComponentVa
 
     auto ident = token.token().ident();
     return media_type_from_string(ident);
-}
-
-// `<media-in-parens>`, https://www.w3.org/TR/mediaqueries-4/#typedef-media-in-parens
-OwnPtr<MediaCondition> Parser::parse_media_in_parens(TokenStream<ComponentValue>& tokens)
-{
-    // `<media-in-parens> = ( <media-condition> ) | ( <media-feature> ) | <general-enclosed>`
-    auto transaction = tokens.begin_transaction();
-    tokens.discard_whitespace();
-
-    // `( <media-condition> ) | ( <media-feature> )`
-    auto const& first_token = tokens.next_token();
-    if (first_token.is_block() && first_token.block().is_paren()) {
-        TokenStream inner_token_stream { first_token.block().value };
-        if (auto maybe_media_condition = parse_media_condition(inner_token_stream, MediaCondition::AllowOr::Yes)) {
-            tokens.discard_a_token();
-            transaction.commit();
-            return maybe_media_condition.release_nonnull();
-        }
-        if (auto maybe_media_feature = parse_media_feature(inner_token_stream); maybe_media_feature.has_value()) {
-            tokens.discard_a_token();
-            transaction.commit();
-            return MediaCondition::from_feature(maybe_media_feature.release_value());
-        }
-    }
-
-    // `<general-enclosed>`
-    // FIXME: We should only be taking this branch if the grammar doesn't match the above options.
-    //        Currently we take it if the above fail to parse, which is different.
-    //        eg, `@media (min-width: 76yaks)` is valid grammar, but does not parse because `yaks` isn't a unit.
-    if (auto maybe_general_enclosed = parse_general_enclosed(tokens); maybe_general_enclosed.has_value()) {
-        transaction.commit();
-        return MediaCondition::from_general_enclosed(maybe_general_enclosed.release_value());
-    }
-
-    return {};
 }
 
 // `<mf-value>`, https://www.w3.org/TR/mediaqueries-4/#typedef-mf-value

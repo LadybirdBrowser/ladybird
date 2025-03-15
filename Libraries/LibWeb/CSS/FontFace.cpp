@@ -398,4 +398,57 @@ GC::Ref<WebIDL::Promise> FontFace::load()
     return font_face.loaded();
 }
 
+bool font_format_is_supported(FlyString const& name)
+{
+    // https://drafts.csswg.org/css-fonts-4/#font-format-definitions
+    // FIXME: Determine this automatically somehow?
+    if (name.equals_ignoring_ascii_case("collection"sv))
+        return false;
+    if (name.equals_ignoring_ascii_case("embedded-opentype"sv))
+        return false;
+    if (name.equals_ignoring_ascii_case("opentype"sv))
+        return true;
+    if (name.equals_ignoring_ascii_case("svg"sv))
+        return false;
+    if (name.equals_ignoring_ascii_case("truetype"sv))
+        return true;
+    if (name.equals_ignoring_ascii_case("woff"sv))
+        return true;
+    if (name.equals_ignoring_ascii_case("woff2"sv))
+        return true;
+    return false;
+}
+
+bool font_tech_is_supported(FlyString const& name)
+{
+    // https://drafts.csswg.org/css-fonts-4/#font-tech-definitions
+    // FIXME: Determine this automatically somehow?
+    if (name.equals_ignoring_ascii_case("features-opentype"sv))
+        return true;
+    if (name.equals_ignoring_ascii_case("features-aat"sv))
+        return false;
+    if (name.equals_ignoring_ascii_case("features-graphite"sv))
+        return false;
+    if (name.equals_ignoring_ascii_case("variations"sv))
+        return true;
+    if (name.equals_ignoring_ascii_case("color-colrv0"sv))
+        return true;
+    if (name.equals_ignoring_ascii_case("color-colrv1"sv))
+        return true;
+    if (name.equals_ignoring_ascii_case("color-svg"sv))
+        return false;
+    if (name.equals_ignoring_ascii_case("color-sbix"sv))
+        return false;
+    if (name.equals_ignoring_ascii_case("color-cbdt"sv))
+        return false;
+    if (name.equals_ignoring_ascii_case("palettes"sv))
+        return false;
+    if (name.equals_ignoring_ascii_case("incremental"sv))
+        return false;
+    // https://drafts.csswg.org/css-fonts-5/#font-tech-definitions
+    if (name.equals_ignoring_ascii_case("avar2"sv))
+        return false;
+    return false;
+}
+
 }
