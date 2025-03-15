@@ -14,8 +14,8 @@ namespace WebView {
 
 ProcessType process_type_from_name(StringView name)
 {
-    if (name == "Chrome"sv)
-        return ProcessType::Chrome;
+    if (name == "Browser"sv)
+        return ProcessType::Browser;
     if (name == "WebContent"sv)
         return ProcessType::WebContent;
     if (name == "WebWorker"sv)
@@ -32,8 +32,8 @@ ProcessType process_type_from_name(StringView name)
 StringView process_name_from_type(ProcessType type)
 {
     switch (type) {
-    case ProcessType::Chrome:
-        return "Chrome"sv;
+    case ProcessType::Browser:
+        return "Browser"sv;
     case ProcessType::WebContent:
         return "WebContent"sv;
     case ProcessType::WebWorker:
@@ -61,7 +61,7 @@ ProcessManager::ProcessManager()
         }
     });
 
-    add_process(Process(WebView::ProcessType::Chrome, nullptr, Core::Process::current()));
+    add_process(Process(WebView::ProcessType::Browser, nullptr, Core::Process::current()));
 
 #ifdef AK_OS_MACH
     auto self_send_port = mach_task_self();
