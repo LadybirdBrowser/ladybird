@@ -1,55 +1,70 @@
-name: Build Ladybird EXE
+name: Build Ladybird on Windows
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   pull_request:
-    branches:
-      - main
+    branches: [main]
+  workflow_dispatch:
 
 jobs:
   build:
-    runs-on: windows-latest # Or a specific Windows version if needed
+    runs-on: windows-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-        with:
-          submodules: recursive # Important for Ladybird's dependencies
+    - name: Checkout Repository
+      uses: actions/checkout@v4
 
-      - name: Setup MSVC environment
-        uses: ilammy/msvc-dev-cmd@v1 # Sets up the Visual Studio build environment
-        with:
-          arch: amd64 # or x86, arm64 as needed.
+    - name: Install Dependencies via Chocolatey
+      shell: pwsh
+      run: |
+        # Install Chocolatey (if not already available) and Ninja
+        Set-ExecutionPolicy Bypass -Scope Process -Force
+        iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
+        choco install ninja -y
+        # Confirm Ninja is installed
+        ninja --version
 
-      - name: Install dependencies (if any)
-        # Ladybird usually requires Qt and some other dependencies.
-        # This step might need to be customized based on your specific setup.
-        # Example using vcpkg (if you use it):
-        run: |
-          git clone https://github.com/microsoft/vcpkg.git
-          cd vcpkg
-          .\bootstrap-vcpkg.bat
-          .\vcpkg integrate install
-          .\vcpkg install qt5-base:x64-windows # or qt6
-          # Add any other required dependencies using vcpkg install
+    - name: Configure Build with CMake
+      shell: pwsh
+      run: |
+        cmake -S . -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release
 
-      - name: Configure CMake
-        run: |
-          mkdir build
-          cd build
-          cmake .. -G "Visual Studio 17 2022" -A x64 # Adjust generator and architecture as needed.
-          # If you used vcpkg, use this instead:
-          # cmake .. -G "Visual Studio 17 2022" -A x64 -DCMAKE_TOOLCHAIN_FILE=../vcpkg/scripts/buildsystems/vcpkg.cmake
+    - name: Build Ladybird (With Progress Logging)
+      shell: pwsh
+      run: |
+        # Start the build as a background job and pipe output to build.log
+        $job = Start-Job -ScriptBlock {
+          cmake --build build --config Release --parallel 4 2>&1 | Tee-Object -FilePath build.log
+        }
+        # While the build is running, output progress every 5 minutes
+        while ((Get-Job -Id $job.Id).State -eq 'Running') {
+          Write-Output "Still compiling... (Preventing Timeout)"
+          if (Test-Path build.log) {
+             Get-Content build.log -Tail 15
+          }
+          Start-Sleep -Seconds 300
+        }
+        # When done, output any remaining build output
+        Receive-Job -Id $job.Id
 
-      - name: Build
-        run: |
-          cd build
-          cmake --build . --config Release # Or Debug if needed.
+    - name: Verify Executable
+      shell: pwsh
+      run: |
+        if (-Not (Test-Path -Path "build\ladybird.exe")) {
+          Write-Error "ERROR: ladybird.exe not found!"
+          exit 1
+        } else {
+          Write-Output "Build successful! Executable located at build\ladybird.exe"
+        }
 
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: ladybird-exe
-          path: build/Release/ladybird.exe # Adjust path based on your build output
+    - name: Package Windows Executable
+      shell: pwsh
+      run: |
+        Compress-Archive -Path "build\ladybird.exe" -DestinationPath "ladybird-windows.zip"
+
+    - name: Upload Windows Binary Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ladybird-windows-binary
+        path: ladybird-windows.zip
