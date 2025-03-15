@@ -9,7 +9,7 @@
 #include <LibMain/Main.h>
 #include <LibURL/Parser.h>
 #include <LibWebView/Application.h>
-#include <LibWebView/ChromeProcess.h>
+#include <LibWebView/BrowserProcess.h>
 #include <LibWebView/EventLoop/EventLoopImplementationMacOS.h>
 #include <LibWebView/MachPortServer.h>
 #include <LibWebView/URL.h>
@@ -56,22 +56,22 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
     WebView::platform_init();
 
-    WebView::ChromeProcess chrome_process;
+    WebView::BrowserProcess browser_process;
 
     if (auto const& browser_options = WebView::Application::browser_options(); browser_options.force_new_process == WebView::ForceNewProcess::No) {
-        auto disposition = TRY(chrome_process.connect(browser_options.raw_urls, browser_options.new_window));
+        auto disposition = TRY(browser_process.connect(browser_options.raw_urls, browser_options.new_window));
 
-        if (disposition == WebView::ChromeProcess::ProcessDisposition::ExitProcess) {
+        if (disposition == WebView::BrowserProcess::ProcessDisposition::ExitProcess) {
             outln("Opening in existing process");
             return 0;
         }
     }
 
-    chrome_process.on_new_tab = [&](auto const& raw_urls) {
+    browser_process.on_new_tab = [&](auto const& raw_urls) {
         open_urls_from_client(raw_urls, WebView::NewWindow::No);
     };
 
-    chrome_process.on_new_window = [&](auto const& raw_urls) {
+    browser_process.on_new_window = [&](auto const& raw_urls) {
         open_urls_from_client(raw_urls, WebView::NewWindow::Yes);
     };
 

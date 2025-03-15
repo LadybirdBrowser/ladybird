@@ -3,7 +3,7 @@ include(fontconfig)
 set(SOURCES
     Application.cpp
     Attribute.cpp
-    ChromeProcess.cpp
+    BrowserProcess.cpp
     ConsoleOutput.cpp
     CookieJar.cpp
     Database.cpp
