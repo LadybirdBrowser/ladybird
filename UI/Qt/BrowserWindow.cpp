@@ -32,8 +32,10 @@
 #include <QClipboard>
 #include <QGuiApplication>
 #include <QInputDialog>
+#include <QMessageBox>
 #include <QPlainTextEdit>
 #include <QShortcut>
+#include <QStatusBar>
 #include <QTabBar>
 #include <QWindow>
 
@@ -350,6 +352,30 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     QObject::connect(m_view_source_action, &QAction::triggered, this, [this] {
         if (m_current_tab) {
             m_current_tab->view().get_source();
+        }
+    });
+
+    m_enable_devtools_action = new QAction("Enable &DevTools", this);
+    m_enable_devtools_action->setIcon(load_icon_from_uri("resource://icons/browser/dom-tree.png"sv));
+    m_enable_devtools_action->setShortcuts({
+        QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_I),
+        QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_C),
+        QKeySequence(Qt::Key_F12),
+    });
+    inspect_menu->addAction(m_enable_devtools_action);
+    QObject::connect(m_enable_devtools_action, &QAction::triggered, this, [this] {
+        if (auto result = WebView::Application::the().toggle_devtools_enabled(); result.is_error()) {
+            auto error_message = MUST(String::formatted("Unable to start DevTools: {}", result.error()));
+            QMessageBox::warning(this, "Ladybird", qstring_from_ak_string(error_message));
+        } else {
+            switch (result.value()) {
+            case WebView::Application::DevtoolsState::Disabled:
+                devtools_disabled();
+                break;
+            case WebView::Application::DevtoolsState::Enabled:
+                devtools_enabled();
+                break;
+            }
         }
     });
 
@@ -691,6 +717,29 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
 
     setCentralWidget(m_tabs_container);
     setContextMenuPolicy(Qt::PreventContextMenu);
+}
+
+void BrowserWindow::devtools_disabled()
+{
+    m_enable_devtools_action->setText("Enable &DevTools");
+    setStatusBar(nullptr);
+}
+
+void BrowserWindow::devtools_enabled()
+{
+    auto* disable_button = new TabBarButton(create_tvg_icon_with_theme_colors("close", palette()), this);
+    disable_button->setToolTip("Disable DevTools");
+
+    connect(disable_button, &QPushButton::clicked, this, [this]() {
+        MUST(WebView::Application::the().toggle_devtools_enabled());
+        devtools_disabled();
+    });
+
+    m_enable_devtools_action->setText("Disable &DevTools");
+    statusBar()->addPermanentWidget(disable_button);
+
+    auto message = MUST(String::formatted("DevTools is enabled on port {}", WebView::Application::chrome_options().devtools_port));
+    statusBar()->showMessage(qstring_from_ak_string(message));
 }
 
 void BrowserWindow::set_current_tab(Tab* tab)
