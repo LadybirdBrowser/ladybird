@@ -26,7 +26,7 @@ check_program_version_at_least()
         return 1
     fi
     v=$("$2" --version 2>&1 | grep -E -o '[0-9]+\.[0-9\.]+[a-z]*' | head -n1)
-    if printf '%s\n' "$3" "$v" | sort --version-sort --check &>/dev/null; then
+    if printf '%s\n' "$3" "$v" | sort -V -c &>/dev/null; then
         echo "ok, found $v"
         return 0;
     else
