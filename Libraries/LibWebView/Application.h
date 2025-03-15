@@ -62,6 +62,11 @@ public:
 
     ErrorOr<LexicalPath> path_for_downloaded_file(StringView file) const;
 
+    enum class DevtoolsState {
+        Disabled,
+        Enabled,
+    };
+    ErrorOr<DevtoolsState> toggle_devtools_enabled();
     void refresh_tab_list();
 
 protected:

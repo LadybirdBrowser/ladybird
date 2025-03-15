@@ -70,7 +70,7 @@ void Application::initialize(Main::Arguments const& arguments, URL::URL new_tab_
     bool allow_popups = false;
     bool disable_scripting = false;
     bool disable_sql_database = false;
-    Optional<u16> devtools_port;
+    u16 devtools_port = WebView::default_devtools_port;
     Optional<StringView> debug_process;
     Optional<StringView> profile_process;
     Optional<StringView> webdriver_content_ipc_path;
@@ -101,7 +101,7 @@ void Application::initialize(Main::Arguments const& arguments, URL::URL new_tab_
     args_parser.add_option(debug_process, "Wait for a debugger to attach to the given process name (WebContent, RequestServer, etc.)", "debug-process", 0, "process-name");
     args_parser.add_option(profile_process, "Enable callgrind profiling of the given process name (WebContent, RequestServer, etc.)", "profile-process", 0, "process-name");
     args_parser.add_option(webdriver_content_ipc_path, "Path to WebDriver IPC for WebContent", "webdriver-content-path", 0, "path", Core::ArgsParser::OptionHideMode::CommandLineAndMarkdown);
-    args_parser.add_option(devtools_port, "Set the Firefox DevTools port (EXPERIMENTAL)", "devtools", 0, "port");
+    args_parser.add_option(devtools_port, "Set the Firefox DevTools server port ", "devtools-port", 0, "port");
     args_parser.add_option(log_all_js_exceptions, "Log all JavaScript exceptions", "log-all-js-exceptions");
     args_parser.add_option(disable_site_isolation, "Disable site isolation", "disable-site-isolation");
     args_parser.add_option(enable_idl_tracing, "Enable IDL tracing", "enable-idl-tracing");
@@ -252,7 +252,6 @@ ErrorOr<void> Application::launch_services()
 {
     TRY(launch_request_server());
     TRY(launch_image_decoder_server());
-    TRY(launch_devtools_server());
     return {};
 }
 
@@ -293,8 +292,8 @@ ErrorOr<void> Application::launch_image_decoder_server()
 
 ErrorOr<void> Application::launch_devtools_server()
 {
-    if (m_chrome_options.devtools_port.has_value())
-        m_devtools = TRY(DevTools::DevToolsServer::create(*this, *m_chrome_options.devtools_port));
+    VERIFY(!m_devtools);
+    m_devtools = TRY(DevTools::DevToolsServer::create(*this, m_chrome_options.devtools_port));
     return {};
 }
 
@@ -383,6 +382,17 @@ ErrorOr<LexicalPath> Application::path_for_downloaded_file(StringView file) cons
         return Error::from_errno(ENOENT);
 
     return LexicalPath::join(downloads_directory, file);
+}
+
+ErrorOr<Application::DevtoolsState> Application::toggle_devtools_enabled()
+{
+    if (m_devtools) {
+        m_devtools.clear();
+        return DevtoolsState::Disabled;
+    }
+
+    TRY(launch_devtools_server());
+    return DevtoolsState::Enabled;
 }
 
 void Application::refresh_tab_list()
