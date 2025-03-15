@@ -1,10 +1,13 @@
-name: Build and Archive Ladybird
+name: Build and Test Ladybird
 
 on:
+  # Allows the workflow to be triggered manually
+  workflow_dispatch:
+  # Triggers the workflow on push or pull request events to the main branch
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   build:
@@ -19,11 +22,25 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
+            autoconf \
+            autoconf-archive \
+            automake \
             build-essential \
+            ccache \
             cmake \
+            curl \
+            fonts-liberation2 \
+            git \
+            libgl1-mesa-dev \
+            nasm \
             ninja-build \
+            pkg-config \
             qt6-base-dev \
-            qt6-tools-dev-tools
+            qt6-tools-dev-tools \
+            qt6-wayland \
+            tar \
+            unzip \
+            zip
 
       # Configure the build
       - name: Configure build
