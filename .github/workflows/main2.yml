@@ -1,4 +1,4 @@
-name: Build Ladybird on Windows
+name: Build Ladybird (Windows Native)
 
 on:
   push:
@@ -18,78 +18,35 @@ jobs:
       - name: Install Dependencies via Chocolatey
         shell: pwsh
         run: |
-          # Install Chocolatey (if not already installed) and Ninja
+          # Ensure Chocolatey is installed (it’s not preinstalled on Windows runners)
           Set-ExecutionPolicy Bypass -Scope Process -Force
-          iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
-          choco install ninja -y
+          if (-Not (Get-Command choco -ErrorAction SilentlyContinue)) {
+            iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
+          }
+          # Install Ninja and pkgconfiglite (needed for pkg-config support in some builds)
+          choco install ninja pkgconfiglite -y
+          Write-Output "Installed dependencies."
           Write-Output "Ninja version:"
           ninja --version
 
-      - name: Check if CMakeLists.txt exists
-        id: check_cmake
+      - name: Build Ladybird using build script
         shell: pwsh
         run: |
-          $file = "Meta/Lagom/CMakeLists.txt"
-          if (Test-Path $file) {
-            echo "exists=true" >> $env:GITHUB_OUTPUT
-            Write-Output "$file exists."
+          # Check if the build script exists and run it.
+          if (Test-Path "./Meta/ladybird.sh") {
+            Write-Output "Found build script. Starting build..."
+            # This script is expected to build a Release version of Ladybird.
+            ./Meta/ladybird.sh run ladybird
           } else {
-            echo "exists=false" >> $env:GITHUB_OUTPUT
-            Write-Output "$file not found."
+            Write-Error "Build script not found: Meta/ladybird.sh"
+            exit 1
           }
-
-      - name: Patch CMakeLists.txt to Disable pthread
-        if: steps.check_cmake.outputs.exists == 'true'
-        shell: pwsh
-        run: |
-          $file = "Meta/Lagom/CMakeLists.txt"
-          (Get-Content $file) | ForEach-Object {
-            if ($_ -like "*find_package(pthread*") {
-              "# $_  (Disabled on Windows)"
-            } else {
-              $_
-            }
-          } | Set-Content $file
-          Write-Output "Patched $file to disable pthread find_package."
-
-      - name: Configure Build with CMake
-        if: steps.check_cmake.outputs.exists == 'true'
-        shell: pwsh
-        run: |
-          # Configure build using Ninja in Release mode, with pthread disabled
-          cmake -S . -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DCMAKE_DISABLE_FIND_PACKAGE_PTHREAD=TRUE -DTHREADS_PREFER_PTHREAD_FLAG=OFF
-
-      - name: Build Ladybird (With Progress Logging)
-        shell: pwsh
-        run: |
-          # Determine build command based on existence of CMakeLists.txt
-          if ((Get-Item "Meta/Lagom/CMakeLists.txt" -ErrorAction SilentlyContinue) -ne $null) {
-            $buildCmd = "cmake --build build --config Release --parallel 4"
-          } else {
-            Write-Output "CMakeLists.txt not found. Running alternative build command."
-            # Replace the following command with your project's actual build command if needed
-            $buildCmd = "ninja"
-          }
-          Write-Output "Build command: $buildCmd"
-          # Start the build as a background job and log output to build.log
-          $job = Start-Job -ScriptBlock {
-            Invoke-Expression $using:buildCmd 2>&1 | Tee-Object -FilePath build.log
-          }
-          # Periodically output build progress to prevent GitHub Actions timeout
-          while ((Get-Job -Id $job.Id).State -eq 'Running') {
-            Write-Output "Still compiling... (Preventing Timeout)"
-            if (Test-Path build.log) {
-              Get-Content build.log -Tail 15
-            }
-            Start-Sleep -Seconds 300
-          }
-          Receive-Job -Id $job.Id
 
       - name: Verify Executable
         shell: pwsh
         run: |
-          # Adjust the path if your executable is generated in a different location
-          if (-Not (Test-Path -Path "build\ladybird.exe")) {
+          # Adjust the path below if your executable is generated in a different location.
+          if (-Not (Test-Path "build\ladybird.exe")) {
             Write-Error "ERROR: ladybird.exe not found!"
             exit 1
           } else {
@@ -100,9 +57,10 @@ jobs:
         shell: pwsh
         run: |
           Compress-Archive -Path "build\ladybird.exe" -DestinationPath "ladybird-windows.zip"
+          Write-Output "Packaged ladybird-windows.zip"
 
       - name: Upload Windows Binary Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ladybird-windows-binary
+          name: ladybird-windows-executable
           path: ladybird-windows.zip
