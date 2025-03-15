@@ -22,11 +22,13 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     StringView server_address;
     StringView cert_path;
     bool use_tls = false;
+    bool dnssec = false;
 
     Core::ArgsParser args_parser;
     args_parser.add_option(cert_path, "Path to the CA certificate file", "ca-certs", 'C', "file");
     args_parser.add_option(server_address, "The address of the DNS server to query", "server", 's', "addr");
     args_parser.add_option(use_tls, "Use TLS to connect to the server", "tls", 0);
+    args_parser.add_option(dnssec, "Validate DNSSEC records locally", "dnssec", 0);
     args_parser.add_positional_argument(Core::ArgsParser::Arg {
         .help_string = "The resource types and name of the DNS record to query",
         .name = "rr,rr@name",
@@ -105,7 +107,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
     size_t pending_requests = requests.size();
     for (auto& request : requests) {
-        resolver.lookup(request.name, DNS::Messages::Class::IN, request.types)
+        resolver.lookup(request.name, DNS::Messages::Class::IN, request.types, { .validate_dnssec_locally = dnssec })
             ->when_resolved([&](auto& result) {
                 outln("Resolved {}:", request.name);
                 HashTable<DNS::Messages::ResourceType> types;
