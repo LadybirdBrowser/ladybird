@@ -19,9 +19,7 @@
 #    include <pthread.h>
 #    include <pthread_np.h>
 #elif defined(AK_OS_WINDOWS)
-#    include <Windows.h>
-// NOTE: Prevent clang-format from re-ordering this header order
-#    include <Processthreadsapi.h>
+#    include <AK/Windows.h>
 #endif
 
 namespace AK {

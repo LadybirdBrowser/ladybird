@@ -10,8 +10,8 @@
 
 #include <AK/String.h>
 #include <AK/Utf16View.h>
+#include <AK/Windows.h>
 #include <LibCore/Process.h>
-#include <windows.h>
 
 namespace Core {
 
