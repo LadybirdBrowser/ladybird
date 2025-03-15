@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2023-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -9,6 +9,7 @@
 #include <LibWebView/SearchEngine.h>
 
 #import <Application/ApplicationDelegate.h>
+#import <Interface/InfoBar.h>
 #import <Interface/LadybirdWebView.h>
 #import <Interface/Tab.h>
 #import <Interface/TabController.h>
@@ -42,7 +43,11 @@
 @property (nonatomic, strong) NSMutableArray<TabController*>* managed_tabs;
 @property (nonatomic, weak) Tab* active_tab;
 
+@property (nonatomic, strong) InfoBar* info_bar;
+
 @property (nonatomic, strong) TaskManagerController* task_manager_controller;
+
+@property (nonatomic, strong) NSMenuItem* toggle_devtools_menu_item;
 
 - (NSMenuItem*)createApplicationMenu;
 - (NSMenuItem*)createFileMenu;
@@ -133,6 +138,10 @@
 - (void)setActiveTab:(Tab*)tab
 {
     self.active_tab = tab;
+
+    if (self.info_bar) {
+        [self.info_bar tabBecameActive:self.active_tab];
+    }
 }
 
 - (Tab*)activeTab
@@ -235,6 +244,57 @@
 {
     auto* current_window = [NSApp keyWindow];
     [current_window close];
+}
+
+- (void)toggleDevToolsEnabled:(id)sender
+{
+    if (auto result = WebView::Application::the().toggle_devtools_enabled(); result.is_error()) {
+        auto error_message = MUST(String::formatted("Unable to start DevTools: {}", result.error()));
+
+        auto* dialog = [[NSAlert alloc] init];
+        [dialog setMessageText:Ladybird::string_to_ns_string(error_message)];
+
+        [dialog beginSheetModalForWindow:self.active_tab
+                       completionHandler:nil];
+    } else {
+        switch (result.value()) {
+        case WebView::Application::DevtoolsState::Disabled:
+            [self devtoolsDisabled];
+            break;
+        case WebView::Application::DevtoolsState::Enabled:
+            [self devtoolsEnabled];
+            break;
+        }
+    }
+}
+
+- (void)devtoolsDisabled
+{
+    [self.toggle_devtools_menu_item setTitle:@"Enable DevTools"];
+
+    if (self.info_bar) {
+        [self.info_bar hide];
+        self.info_bar = nil;
+    }
+}
+
+- (void)devtoolsEnabled
+{
+    [self.toggle_devtools_menu_item setTitle:@"Disable DevTools"];
+
+    if (!self.info_bar) {
+        self.info_bar = [[InfoBar alloc] init];
+    }
+
+    auto message = MUST(String::formatted("DevTools is enabled on port {}", WebView::Application::chrome_options().devtools_port));
+
+    [self.info_bar showWithMessage:Ladybird::string_to_ns_string(message)
+              dismissButtonTooltip:@"Disable DevTools"
+              dismissButtonClicked:^{
+                  MUST(WebView::Application::the().toggle_devtools_enabled());
+                  [self devtoolsDisabled];
+              }
+                         activeTab:self.active_tab];
 }
 
 - (void)openTaskManager:(id)sender
@@ -608,6 +668,12 @@
     [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"View Source"
                                                 action:@selector(viewSource:)
                                          keyEquivalent:@""]];
+
+    self.toggle_devtools_menu_item = [[NSMenuItem alloc] initWithTitle:@"Enable DevTools"
+                                                                action:@selector(toggleDevToolsEnabled:)
+                                                         keyEquivalent:@"I"];
+    [submenu addItem:self.toggle_devtools_menu_item];
+
     [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Open Task Manager"
                                                 action:@selector(openTaskManager:)
                                          keyEquivalent:@"M"]];
