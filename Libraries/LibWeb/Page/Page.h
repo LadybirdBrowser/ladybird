@@ -324,7 +324,7 @@ public:
     virtual CSS::PreferredMotion preferred_motion() const = 0;
     virtual void paint_next_frame() = 0;
     virtual void process_screenshot_requests() = 0;
-    virtual void paint(DevicePixelRect const&, Painting::BackingStore&, PaintOptions = {}) = 0;
+    virtual void start_display_list_rendering(DevicePixelRect const&, Painting::BackingStore&, PaintOptions, Function<void()>&& callback) = 0;
     virtual Queue<QueuedInputEvent>& input_event_queue() = 0;
     virtual void report_finished_handling_input_event(u64 page_id, EventResult event_was_handled) = 0;
     virtual void page_did_change_title(ByteString const&) { }
