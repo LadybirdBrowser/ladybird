@@ -18,17 +18,18 @@ jobs:
     - name: Install Dependencies via Chocolatey
       shell: pwsh
       run: |
-        # Install Chocolatey (if not already available) and Ninja
+        # Install Chocolatey if not already available, then install Ninja
         Set-ExecutionPolicy Bypass -Scope Process -Force
         iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
         choco install ninja -y
-        # Confirm Ninja is installed
+        Write-Output "Ninja version:"
         ninja --version
 
     - name: Configure Build with CMake
       shell: pwsh
       run: |
-        cmake -S . -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release
+        # The flag -DCMAKE_DISABLE_FIND_PACKAGE_PTHREAD=TRUE prevents CMake from trying to locate pthread
+        cmake -S . -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DCMAKE_DISABLE_FIND_PACKAGE_PTHREAD=TRUE
 
     - name: Build Ladybird (With Progress Logging)
       shell: pwsh
@@ -37,7 +38,7 @@ jobs:
         $job = Start-Job -ScriptBlock {
           cmake --build build --config Release --parallel 4 2>&1 | Tee-Object -FilePath build.log
         }
-        # While the build is running, output progress every 5 minutes
+        # While the build is running, output progress every 5 minutes to prevent timeout
         while ((Get-Job -Id $job.Id).State -eq 'Running') {
           Write-Output "Still compiling... (Preventing Timeout)"
           if (Test-Path build.log) {
@@ -45,7 +46,7 @@ jobs:
           }
           Start-Sleep -Seconds 300
         }
-        # When done, output any remaining build output
+        # Retrieve any remaining output from the build job
         Receive-Job -Id $job.Id
 
     - name: Verify Executable
