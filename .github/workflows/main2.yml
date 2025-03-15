@@ -1,70 +1,49 @@
-name: Build and Package Ladybird (.deb)
+name: Build and Archive Ladybird
 
 on:
   push:
     branches: [ main ]
   pull_request:
     branches: [ main ]
-  workflow_dispatch:
 
 jobs:
-  build-deb:
+  build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      # Check out the repository
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-      - name: Install Build Dependencies
+      # Install build dependencies
+      - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            autoconf autoconf-archive automake build-essential ccache cmake curl \
-            fonts-liberation2 git libgl1-mesa-dev nasm ninja-build pkg-config \
-            qt6-base-dev qt6-tools-dev-tools qt6-wayland tar unzip zip
-          # Note: dpkg-deb is part of dpkg, which is usually preinstalled.
+            build-essential \
+            cmake \
+            ninja-build \
+            qt6-base-dev \
+            qt6-tools-dev-tools
 
-      - name: Build Ladybird
+      # Configure the build
+      - name: Configure build
         run: |
-          # Ensure the build script is executable and run it.
-          chmod +x Meta/ladybird.sh
-          ./Meta/ladybird.sh run ladybird
+          cmake -S . -B build -GNinja
 
-      - name: Install Ladybird into Staging Directory
+      # Build the project
+      - name: Build project
         run: |
-          # Create the directory structure for the Debian package
-          mkdir -p package/usr/bin
-          mkdir -p package/DEBIAN
-          # Copy the built binary to the staging directory.
-          # Adjust the source path if your build script places the binary elsewhere.
-          if [ -f Build/release/bin/Ladybird ]; then
-            cp Build/release/bin/Ladybird package/usr/bin/ladybird
-          elif [ -f Build/release/ladybird ]; then
-            cp Build/release/ladybird package/usr/bin/ladybird
-          else
-            echo "ERROR: Built executable not found."
-            exit 1
-          fi
+          ninja -C build
 
-      - name: Create DEBIAN Control File
+      # Run tests
+      - name: Run tests
         run: |
-          cat <<EOF > package/DEBIAN/control
-          Package: ladybird-browser
-          Version: 0.1.0
-          Section: web
-          Priority: optional
-          Architecture: $(dpkg --print-architecture)
-          Maintainer: Your Name <you@example.com>
-          Description: Ladybird Browser - an experimental, independent web browser.
-           Built from source as part of the LadybirdBrowser project.
-          EOF
+          cd build
+          ctest --output-on-failure
 
-      - name: Build .deb Package
-        run: |
-          dpkg-deb --build package ladybird-browser_0.1.0_$(dpkg --print-architecture).deb
-
-      - name: Upload .deb Artifact
-        uses: actions/upload-artifact@v4
+      # Archive build artifacts
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
         with:
-          name: ladybird-deb
-          path: ladybird-browser_0.1.0_$(dpkg --print-architecture).deb
+          name: ladybird-build
+          path: build/
