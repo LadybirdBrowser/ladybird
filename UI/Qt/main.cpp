@@ -11,7 +11,7 @@
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibMain/Main.h>
 #include <LibWebView/Application.h>
-#include <LibWebView/ChromeProcess.h>
+#include <LibWebView/BrowserProcess.h>
 #include <LibWebView/EventLoop/EventLoopImplementationQt.h>
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/ProcessManager.h>
@@ -82,18 +82,18 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
     WebView::platform_init();
 
-    WebView::ChromeProcess chrome_process;
+    WebView::BrowserProcess browser_process;
 
     if (app->browser_options().force_new_process == WebView::ForceNewProcess::No) {
-        auto disposition = TRY(chrome_process.connect(app->browser_options().raw_urls, app->browser_options().new_window));
+        auto disposition = TRY(browser_process.connect(app->browser_options().raw_urls, app->browser_options().new_window));
 
-        if (disposition == WebView::ChromeProcess::ProcessDisposition::ExitProcess) {
+        if (disposition == WebView::BrowserProcess::ProcessDisposition::ExitProcess) {
             outln("Opening in existing process");
             return 0;
         }
     }
 
-    chrome_process.on_new_tab = [&](auto const& urls) {
+    browser_process.on_new_tab = [&](auto const& urls) {
         auto& window = app->active_window();
         for (size_t i = 0; i < urls.size(); ++i) {
             window.new_tab_from_url(urls[i], (i == 0) ? Web::HTML::ActivateTab::Yes : Web::HTML::ActivateTab::No);
@@ -125,7 +125,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
     TRY(app->launch_services());
 
-    chrome_process.on_new_window = [&](auto const& urls) {
+    browser_process.on_new_window = [&](auto const& urls) {
         app->new_window(urls);
     };
 

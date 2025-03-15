@@ -38,9 +38,9 @@ private:
     virtual void create_new_window(Vector<ByteString> urls) override;
 };
 
-class ChromeProcess {
-    AK_MAKE_NONCOPYABLE(ChromeProcess);
-    AK_MAKE_DEFAULT_MOVABLE(ChromeProcess);
+class BrowserProcess {
+    AK_MAKE_NONCOPYABLE(BrowserProcess);
+    AK_MAKE_DEFAULT_MOVABLE(BrowserProcess);
 
 public:
     enum class ProcessDisposition : u8 {
@@ -48,8 +48,8 @@ public:
         ExitProcess,
     };
 
-    ChromeProcess() = default;
-    ~ChromeProcess();
+    BrowserProcess() = default;
+    ~BrowserProcess();
 
     ErrorOr<ProcessDisposition> connect(Vector<ByteString> const& raw_urls, NewWindow new_window);
 
