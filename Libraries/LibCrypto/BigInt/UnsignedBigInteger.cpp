@@ -484,10 +484,8 @@ FLATTEN UnsignedBigInteger UnsignedBigInteger::bitwise_not_fill_to_one_based_ind
 FLATTEN ErrorOr<UnsignedBigInteger> UnsignedBigInteger::try_shift_left(size_t num_bits) const
 {
     UnsignedBigInteger output;
-    UnsignedBigInteger temp_result;
-    UnsignedBigInteger temp_plus;
 
-    TRY(UnsignedBigIntegerAlgorithms::try_shift_left_without_allocation(*this, num_bits, temp_result, temp_plus, output));
+    TRY(UnsignedBigIntegerAlgorithms::try_shift_left_without_allocation(*this, num_bits, output));
 
     return output;
 }
@@ -509,11 +507,9 @@ FLATTEN UnsignedBigInteger UnsignedBigInteger::shift_right(size_t num_bits) cons
 FLATTEN UnsignedBigInteger UnsignedBigInteger::multiplied_by(UnsignedBigInteger const& other) const
 {
     UnsignedBigInteger result;
-    UnsignedBigInteger temp_shift_result;
-    UnsignedBigInteger temp_shift_plus;
     UnsignedBigInteger temp_shift;
 
-    UnsignedBigIntegerAlgorithms::multiply_without_allocation(*this, other, temp_shift_result, temp_shift_plus, temp_shift, result);
+    UnsignedBigIntegerAlgorithms::multiply_without_allocation(*this, other, temp_shift, result);
 
     return result;
 }
@@ -529,11 +525,6 @@ FLATTEN UnsignedDivisionResult UnsignedBigInteger::divided_by(UnsignedBigInteger
         UnsignedBigIntegerAlgorithms::divide_u16_without_allocation(*this, divisor.m_words[0], quotient, remainder);
         return UnsignedDivisionResult { quotient, remainder };
     }
-
-    UnsignedBigInteger temp_shift_result;
-    UnsignedBigInteger temp_shift_plus;
-    UnsignedBigInteger temp_shift;
-    UnsignedBigInteger temp_minus;
 
     UnsignedBigIntegerAlgorithms::divide_without_allocation(*this, divisor, quotient, remainder);
 

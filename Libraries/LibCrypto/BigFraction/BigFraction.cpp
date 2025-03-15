@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2022, Lucas Chollet <lucas.chollet@free.fr>
+ * Copyright (c) 2025, Manuel Zahariev <manuel@duck.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -8,7 +9,10 @@
 #include <AK/ByteString.h>
 #include <AK/Math.h>
 #include <AK/StringBuilder.h>
+#include <LibCrypto/BigInt/UnsignedBigInteger.h>
 #include <LibCrypto/NumberTheory/ModularFunctions.h>
+#include <cstddef>
+#include <limits>
 
 namespace Crypto {
 
@@ -134,10 +138,64 @@ BigFraction::BigFraction(double d)
     m_numerator.set_to(negative ? (m_numerator.negated_value()) : m_numerator);
 }
 
+/*
+ * Complexity O(N), where N=total number of words in numerator and denominator:
+ *   - shifts: O(N)
+ *   - division: constant (fixed bound on size of shifted numerator and denominator
+ *   - conversion to double: constant (64-bit quotient)
+ */
 double BigFraction::to_double() const
 {
-    // FIXME: very naive implementation
-    return m_numerator.to_double() / m_denominator.to_double();
+    // 1. Shift the numerator and denominator so that:
+    //   - the denominator is at most 64 bits
+    //   - the numerator is exactly 64 bits larger than the denominator
+    size_t const bit_precision = 64; // divide the fraction to this precision
+    bool const sign = m_numerator.is_negative();
+
+    int denominator_right_shift = 0;
+
+    size_t bit_size_numerator = m_numerator.unsigned_value().one_based_index_of_highest_set_bit();
+    size_t bit_size_denominator = m_denominator.one_based_index_of_highest_set_bit();
+
+    if (bit_size_denominator > bit_precision) { // reduce precision of a large denominator
+        denominator_right_shift = bit_size_denominator - bit_precision;
+        bit_size_denominator = bit_precision;
+    }
+
+    int numerator_right_shift = bit_size_numerator - bit_size_denominator - bit_precision;
+
+    UnsignedBigInteger shifted_denominator = m_denominator.shift_right(denominator_right_shift);
+    UnsignedBigInteger shifted_numerator;
+    if (numerator_right_shift < 0)
+        shifted_numerator.set_to(m_numerator.unsigned_value().shift_left(-numerator_right_shift)); // increase numerator to increase precision
+    else
+        shifted_numerator.set_to(m_numerator.unsigned_value().shift_right(numerator_right_shift)); // decrease precision of numerator
+
+    // 2. Divide the shifted numerator to the shifted denominator. The result will have 64-bit precision.
+    //    Then, convert the quotient to double.
+    double result = SignedBigInteger { shifted_numerator.divided_by(shifted_denominator).quotient, sign }.to_double();
+
+    // 3. Convert the result to a double, including the denominator/numerator shifts in the exponent.
+    using Extractor = FloatExtractor<double>;
+
+    Extractor double_extractor;
+    double_extractor.d = result;
+
+    int exponent = double_extractor.exponent + numerator_right_shift - denominator_right_shift;
+
+    if ((exponent < 0) && sign) // undeflow
+        return -0.0;
+    if (exponent < 0)
+        return +0.0;
+    if ((exponent > int(Extractor::exponent_max)) && sign) // overflow
+        return -std::numeric_limits<double>::infinity();
+    if (exponent > int(Extractor::exponent_max))
+        return std::numeric_limits<double>::infinity();
+
+    double_extractor.sign = sign;
+    double_extractor.exponent += (numerator_right_shift - denominator_right_shift);
+
+    return double_extractor.d;
 }
 
 bool BigFraction::is_zero() const
