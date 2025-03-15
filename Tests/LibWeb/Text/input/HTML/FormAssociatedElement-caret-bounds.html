@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<input type="text" value="a">
+<textarea>a</textarea>
+<script>
+    test(() => {
+        function printCaretPosition(element, description) {
+            println(`${description} for ${element.tagName.toLocaleLowerCase()}: ${element.selectionStart}`);
+        }
+
+        for (const textControl of ["input", "textarea"]) {
+            const element = document.querySelector(textControl);
+            element.focus();
+            printCaretPosition(element, "Initial caret position");
+            internals.sendKey(element, "Right");
+            printCaretPosition(element, "Caret position after pressing right");
+            internals.sendKey(element, "Left");
+            printCaretPosition(element, "Caret position after pressing left");
+        }
+    });
+</script>
