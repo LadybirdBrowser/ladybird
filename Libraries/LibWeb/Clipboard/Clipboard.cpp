@@ -42,7 +42,7 @@ void Clipboard::initialize(JS::Realm& realm)
 // https://w3c.github.io/clipboard-apis/#os-specific-well-known-format
 static StringView os_specific_well_known_format(StringView mime_type_string)
 {
-    // NOTE: Here we always takes the Linux case, and defer to the chrome layer to handle OS specific implementations.
+    // NOTE: Here we always takes the Linux case, and defer to the browser process to handle OS specific implementations.
     auto mime_type = MimeSniff::MimeType::parse(mime_type_string);
 
     // 1. Let wellKnownFormat be an empty string.

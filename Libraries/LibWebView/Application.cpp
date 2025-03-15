@@ -94,7 +94,7 @@ void Application::initialize(Main::Arguments const& arguments, URL::URL new_tab_
     args_parser.add_positional_argument(raw_urls, "URLs to open", "url", Core::ArgsParser::Required::No);
     args_parser.add_option(certificates, "Path to a certificate file", "certificate", 'C', "certificate");
     args_parser.add_option(new_window, "Force opening in a new window", "new-window", 'n');
-    args_parser.add_option(force_new_process, "Force creation of new browser/chrome process", "force-new-process");
+    args_parser.add_option(force_new_process, "Force creation of a new browser process", "force-new-process");
     args_parser.add_option(allow_popups, "Disable popup blocking by default", "allow-popups");
     args_parser.add_option(disable_scripting, "Disable scripting by default", "disable-scripting");
     args_parser.add_option(disable_sql_database, "Disable SQL database", "disable-sql-database");
