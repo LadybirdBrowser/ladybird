@@ -182,7 +182,6 @@ body {
 
 .tab-header {
     position: sticky;
-    top: 2px; /* FIXME: Remove this when https://github.com/LadybirdBrowser/ladybird/issues/1245 is resolved. */
     left: 0;
     right: 0;
     background-color: var(--tab-controls);
