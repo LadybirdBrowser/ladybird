@@ -1,4 +1,4 @@
-name: Build Ladybird for Windows
+name: Build Ladybird EXE
 
 on:
   push:
@@ -7,54 +7,49 @@ on:
   pull_request:
     branches:
       - main
-  workflow_dispatch:  # Allows manual execution
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest # Or a specific Windows version if needed
 
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive # Important for Ladybird's dependencies
 
-    - name: Install Cross-Compilation Dependencies
-      run: |
-        sudo apt update
-        sudo apt install -y cmake ninja-build clang lld gcc g++ python3 python3-pip perl bash jq nasm \
-                           mingw-w64 qt6-base-dev qt6-tools-dev-tools zip
+      - name: Setup MSVC environment
+        uses: ilammy/msvc-dev-cmd@v1 # Sets up the Visual Studio build environment
+        with:
+          arch: amd64 # or x86, arm64 as needed.
 
-    - name: Configure Windows Build
-      run: |
-        cmake -S . -B build -G Ninja \
-          -DCMAKE_TOOLCHAIN_FILE=Toolchain-mingw-w64.cmake \
-          -DCMAKE_SYSTEM_NAME=Windows \
-          -DCMAKE_EXE_LINKER_FLAGS="-static"
+      - name: Install dependencies (if any)
+        # Ladybird usually requires Qt and some other dependencies.
+        # This step might need to be customized based on your specific setup.
+        # Example using vcpkg (if you use it):
+        run: |
+          git clone https://github.com/microsoft/vcpkg.git
+          cd vcpkg
+          .\bootstrap-vcpkg.bat
+          .\vcpkg integrate install
+          .\vcpkg install qt5-base:x64-windows # or qt6
+          # Add any other required dependencies using vcpkg install
 
-    - name: Build Ladybird (With Progress Logging)
-      run: |
-        cmake --build build --parallel 4 | tee build.log &
+      - name: Configure CMake
+        run: |
+          mkdir build
+          cd build
+          cmake .. -G "Visual Studio 17 2022" -A x64 # Adjust generator and architecture as needed.
+          # If you used vcpkg, use this instead:
+          # cmake .. -G "Visual Studio 17 2022" -A x64 -DCMAKE_TOOLCHAIN_FILE=../vcpkg/scripts/buildsystems/vcpkg.cmake
 
-        # Progress update loop to prevent GitHub timeout
-        while ps aux | grep -v grep | grep -q "cmake --build"; do
-          echo "Still compiling... (Preventing Timeout)"
-          tail -n 15 build.log  # Show last 15 lines to track progress
-          sleep 300  # Output progress every 5 minutes
-        done
+      - name: Build
+        run: |
+          cd build
+          cmake --build . --config Release # Or Debug if needed.
 
-    - name: Verify Executable
-      run: |
-        if [ ! -f "build/ladybird.exe" ]; then
-          echo "ERROR: ladybird.exe not found!"
-          exit 1
-        fi
-        echo "Build successful! Executable located at build/ladybird.exe"
-
-    - name: Package Windows Executable
-      run: |
-        zip -j ladybird-windows.zip build/ladybird.exe
-
-    - name: Upload Windows Binary
-      uses: actions/upload-artifact@v4
-      with:
-        name: ladybird-windows-binary
-        path: ladybird-windows.zi
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: ladybird-exe
+          path: build/Release/ladybird.exe # Adjust path based on your build output
