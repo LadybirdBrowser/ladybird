@@ -801,7 +801,7 @@ void WebContentView::enqueue_native_event(Web::MouseEvent::Type type, QSinglePoi
     enqueue_input_event(Web::MouseEvent { type, position, screen_position.to_type<Web::DevicePixels>(), button, buttons, modifiers, wheel_delta_x, wheel_delta_y, nullptr });
 }
 
-struct DragData : Web::ChromeInputData {
+struct DragData : Web::BrowserInputData {
     explicit DragData(QDropEvent const& event)
         : urls(event.mimeData()->urls())
     {
@@ -822,7 +822,7 @@ void WebContentView::enqueue_native_event(Web::DragEvent::Type type, QDropEvent 
     auto modifiers = get_modifiers_from_qt_keyboard_modifiers(event.modifiers());
 
     Vector<Web::HTML::SelectedFile> files;
-    OwnPtr<DragData> chrome_data;
+    OwnPtr<DragData> browser_data;
 
     if (type == Web::DragEvent::Type::DragStart) {
         VERIFY(event.mimeData()->hasUrls());
@@ -836,10 +836,10 @@ void WebContentView::enqueue_native_event(Web::DragEvent::Type type, QDropEvent 
                 files.append(file.release_value());
         }
     } else if (type == Web::DragEvent::Type::Drop) {
-        chrome_data = make<DragData>(event);
+        browser_data = make<DragData>(event);
     }
 
-    enqueue_input_event(Web::DragEvent { type, position, screen_position.to_type<Web::DevicePixels>(), button, buttons, modifiers, AK::move(files), AK::move(chrome_data) });
+    enqueue_input_event(Web::DragEvent { type, position, screen_position.to_type<Web::DevicePixels>(), button, buttons, modifiers, AK::move(files), AK::move(browser_data) });
 }
 
 void WebContentView::finish_handling_drag_event(Web::DragEvent const& event)
@@ -847,11 +847,11 @@ void WebContentView::finish_handling_drag_event(Web::DragEvent const& event)
     if (event.type != Web::DragEvent::Type::Drop)
         return;
 
-    auto const& chrome_data = as<DragData>(*event.chrome_data);
-    emit urls_dropped(chrome_data.urls);
+    auto const& browser_data = as<DragData>(*event.browser_data);
+    emit urls_dropped(browser_data.urls);
 }
 
-struct KeyData : Web::ChromeInputData {
+struct KeyData : Web::BrowserInputData {
     explicit KeyData(QKeyEvent const& event)
         : event(adopt_own(*event.clone()))
     {
@@ -887,8 +887,8 @@ void WebContentView::enqueue_native_event(Web::KeyEvent::Type type, QKeyEvent co
 
 void WebContentView::finish_handling_key_event(Web::KeyEvent const& key_event)
 {
-    auto& chrome_data = as<KeyData>(*key_event.chrome_data);
-    auto& event = *chrome_data.event;
+    auto& browser_data = as<KeyData>(*key_event.browser_data);
+    auto& event = *browser_data.event;
 
     switch (key_event.type) {
     case Web::KeyEvent::Type::KeyDown:

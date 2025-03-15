@@ -203,13 +203,13 @@ void ViewImplementation::enqueue_input_event(Web::InputEvent event)
 
     m_pending_input_events.tail().visit(
         [this](Web::KeyEvent const& event) {
-            client().async_key_event(m_client_state.page_index, event.clone_without_chrome_data());
+            client().async_key_event(m_client_state.page_index, event.clone_without_browser_data());
         },
         [this](Web::MouseEvent const& event) {
-            client().async_mouse_event(m_client_state.page_index, event.clone_without_chrome_data());
+            client().async_mouse_event(m_client_state.page_index, event.clone_without_browser_data());
         },
         [this](Web::DragEvent& event) {
-            auto cloned_event = event.clone_without_chrome_data();
+            auto cloned_event = event.clone_without_browser_data();
             cloned_event.files = move(event.files);
 
             client().async_drag_event(m_client_state.page_index, cloned_event);
