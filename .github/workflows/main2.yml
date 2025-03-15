@@ -1,7 +1,7 @@
 name: Build Ladybird
 
 on:
-  workflow_dispatch:  # Allows manual triggering of the workflow
+  workflow_dispatch:
     inputs:
       build_type:
         description: 'Specify the build type: Debug or Release'
@@ -43,7 +43,7 @@ jobs:
           ctest --output-on-failure
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4  # Updated to version 4
         with:
           name: ladybird-build
           path: build/
