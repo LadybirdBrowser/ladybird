@@ -1,0 +1,60 @@
+name: Build Ladybird for Windows
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:  # Allows manual execution
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Install Cross-Compilation Dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y cmake ninja-build clang lld gcc g++ python3 python3-pip perl bash jq nasm \
+                           mingw-w64 qt6-base-dev qt6-tools-dev-tools zip
+
+    - name: Configure Windows Build
+      run: |
+        cmake -S . -B build -G Ninja \
+          -DCMAKE_TOOLCHAIN_FILE=Toolchain-mingw-w64.cmake \
+          -DCMAKE_SYSTEM_NAME=Windows \
+          -DCMAKE_EXE_LINKER_FLAGS="-static"
+
+    - name: Build Ladybird (With Progress Logging)
+      run: |
+        cmake --build build --parallel 4 | tee build.log &
+
+        # Progress update loop to prevent GitHub timeout
+        while ps aux | grep -v grep | grep -q "cmake --build"; do
+          echo "Still compiling... (Preventing Timeout)"
+          tail -n 15 build.log  # Show last 15 lines to track progress
+          sleep 300  # Output progress every 5 minutes
+        done
+
+    - name: Verify Executable
+      run: |
+        if [ ! -f "build/ladybird.exe" ]; then
+          echo "ERROR: ladybird.exe not found!"
+          exit 1
+        fi
+        echo "Build successful! Executable located at build/ladybird.exe"
+
+    - name: Package Windows Executable
+      run: |
+        zip -j ladybird-windows.zip build/ladybird.exe
+
+    - name: Upload Windows Binary
+      uses: actions/upload-artifact@v4
+      with:
+        name: ladybird-windows-binary
+        path: ladybird-windows.zi
