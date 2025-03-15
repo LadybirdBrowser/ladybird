@@ -1,6 +1,6 @@
-URL pathname is 'space    '
-URL href is 'data:space    ?test'
+URL pathname is 'space   %20'
+URL href is 'data:space   %20?test'
 true
 false
-URL pathname is 'space'
-URL href is 'data:space'
+URL pathname is 'space   %20'
+URL href is 'data:space   %20'
