@@ -32,16 +32,20 @@ CipherString = DEFAULT@SECLEVEL=1
 Options = UnsafeLegacyRenegotiation
 ```
 
-### “Targets may link only to libraries. CMake is dropping the item” message (when building with the Qt chrome on macOS)
+### “Targets may link only to libraries. CMake is dropping the item” message (when building with the Qt UI on macOS)
 
-When building with the Qt chrome on macOS, you may encounter the following message:
+When building with the Qt UI on macOS, you may encounter the following message:
 
-> CMake Warning at /opt/homebrew/Cellar/qt/6.7.0_1/lib/cmake/Qt6/FindWrapOpenGL.cmake:48 (target_link_libraries):
-> Target "ladybird" requests linking to directory "/usr/X11R6/lib". Targets
-> may link only to libraries. CMake is dropping the item.
+```
+CMake Warning at /opt/homebrew/Cellar/qt/6.7.0_1/lib/cmake/Qt6/FindWrapOpenGL.cmake:48 (target_link_libraries):
+Target "ladybird" requests linking to directory "/usr/X11R6/lib". Targets
+may link only to libraries. CMake is dropping the item.
+```
 
 …followed by 14-line stack trace, the top of which is this:
 
-> Build/vcpkg/scripts/buildsystems/vcpkg.cmake:859 (_find_package)
+```
+Build/vcpkg/scripts/buildsystems/vcpkg.cmake:859 (_find_package)
+```
 
-…and all of it shown in bright yellow, making you think it must be important and something must need to be fixed. But that’s not the case. Instead, despite that, you’ll be able to build successfully with the Qt chrome.
+…and all of it shown in bright yellow, making you think it must be important and something must need to be fixed. But that’s not the case. Instead, despite that, you’ll be able to build successfully with the Qt UI.

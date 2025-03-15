@@ -148,7 +148,7 @@ If you wish to use clang from homebrew instead:
 brew install llvm@19
 ```
 
-If you also plan to use the Qt chrome on macOS:
+If you also plan to use the Qt UI on macOS:
 ```
 brew install qt
 ```
@@ -236,22 +236,22 @@ BUILD_PRESET=Debug ./Meta/ladybird.sh run ladybird
 
 Note that debug symbols are available in both Release and Debug builds.
 
-### The chromes
+### The User Interfaces
 
-Ladybird will be built with one of the following browser chromes (graphical frontends), depending on the platform:
-* [AppKit](https://developer.apple.com/documentation/appkit?language=objc) - The native chrome on macOS.
-* [Qt](https://doc.qt.io/qt-6/) - The chrome used on all other platforms.
-* [Android UI](https://developer.android.com/develop/ui) - The native chrome on Android.
+Ladybird will be built with one of the following browser frontends, depending on the platform:
+* [AppKit](https://developer.apple.com/documentation/appkit?language=objc) - The native UI on macOS.
+* [Qt](https://doc.qt.io/qt-6/) - The UI used on all other platforms.
+* [Android UI](https://developer.android.com/develop/ui) - The native UI on Android.
 
-The Qt chrome is available on platforms where it is not the default as well (except on Android). To build the
-Qt chrome, install the Qt dependencies for your platform, and enable the Qt chrome via CMake:
+The Qt UI is available on platforms where it is not the default as well (except on Android). To build the
+Qt UI, install the Qt dependencies for your platform, and enable the Qt UI via CMake:
 
 ```bash
 # From /path/to/ladybird
 cmake --preset default -DENABLE_QT=ON
 ```
 
-To re-disable the Qt chrome, run the above command with `-DENABLE_QT=OFF`.
+To re-disable the Qt UI, run the above command with `-DENABLE_QT=OFF`.
 
 ### Build error messages you may encounter
 

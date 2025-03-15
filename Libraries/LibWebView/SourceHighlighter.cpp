@@ -72,7 +72,7 @@ SourceHighlighterClient::SourceHighlighterClient(String const& source, Syntax::L
     : m_document(SourceDocument::create(source))
 {
     // HACK: Syntax highlighters require a palette, but we don't actually care about the output styling, only the type of token for each span.
-    //       Also, getting a palette from the chrome is nontrivial. So, create a dummy blank one and use that.
+    //       Also, getting a palette from the UI is nontrivial. So, create a dummy blank one and use that.
     auto buffer = MUST(Core::AnonymousBuffer::create_with_size(sizeof(Gfx::SystemTheme)));
     auto palette_impl = Gfx::PaletteImpl::create_with_anonymous_buffer(buffer);
     Gfx::Palette dummy_palette { palette_impl };

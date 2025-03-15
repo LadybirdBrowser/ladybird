@@ -1,4 +1,4 @@
 declare_args() {
-  # Build the Ladybird application using the Qt chrome.
+  # Build the Ladybird application using the Qt UI.
   enable_qt = current_os != "mac"
 }

@@ -30,7 +30,7 @@ void ConnectionFromClient::die()
 
 void ConnectionFromClient::request_file(Web::FileRequest request)
 {
-    // FIXME: Route this to FSAS or Brower chrome as appropriate instead of allowing
+    // FIXME: Route this to FSAS or browser process as appropriate instead of allowing
     //        the WebWorker process filesystem access
     auto path = request.path();
     auto request_id = ++last_id;

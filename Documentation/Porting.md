@@ -7,15 +7,15 @@ be accepted into the mainline repository.
 
 There are two types of ports that can be made to Ladybird:
 
-- Chrome port: We define the "browser chrome" as the UI layer. This includes the browser window, tabs, address bar, etc.
+- UI port: We define the "browser frontend" as the UI layer. This includes the browser window, tabs, address bar, etc.
 - Platform port: This includes the underlying platform-specific code that interacts with the OS. This includes things like
   file I/O, networking, and process management.
 
-### Chrome Ports
+### UI Ports
 
-There are currently three supported chrome ports:
+There are currently three supported UI ports:
 
-- Qt6: The generic chrome port.
+- Qt6: The generic UI port.
 - AppKit/Cocoa: The macOS native port, which uses the AppKit framework.
 - Headless: A headless port that does not have a UI, used for testing.
 
@@ -38,15 +38,15 @@ There is currently one in progress platform port:
 
 ## Porting Steps
 
-### Chrome ports
+### UI ports
 
-Chrome ports mostly concern themselves with the UI layer. This means the main Ladybird process, using LibWebView.
+UI ports mostly concern themselves with the UI layer. This means the main Ladybird process, using LibWebView.
 
-To create a new Ladybird chrome, you will need to implement a new `WebView::ViewImplementation` subclass.
+To create a new Ladybird UI, you will need to implement a new `WebView::ViewImplementation` subclass.
 ViewImplementation is the main interface between the UI process and WebContent processes. It is expected that each tab
 of the browser will have its own WebContent process. This is all managed by the WebView layer.
 
-Each chrome must also subclass `WebView::Application` to add any chrome-specific command-line flags.
+Each UI port must also subclass `WebView::Application` to add any UI-specific command-line flags.
 
 TODO: Explain any more details that are necessary
 
@@ -56,7 +56,7 @@ Platform ports concern themselves with the underlying OS-specific code. In Ladyb
 the AK and LibCore libraries.
 
 AK is the standard template library for Ladybird. The first step of a new platform port is a new platform define in
-`AK/Platform.h`. This define will be used to conditionally compile platform-specific code. 
+`AK/Platform.h`. This define will be used to conditionally compile platform-specific code.
 In AK, the most likely class to need platform-specific code is `AK::StackInfo`.
 
 LibCore is an abstraction over POSIX. It contains classes to wrap lower level OS functionality into APIs that are
