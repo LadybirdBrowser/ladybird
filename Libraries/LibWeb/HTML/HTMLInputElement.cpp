@@ -355,39 +355,52 @@ static void show_the_picker_if_applicable(HTMLInputElement& element)
     if (!element.supports_a_picker())
         return;
 
-    // 5. If element's type attribute is in the File Upload state, then run these steps in parallel:
+    // 5. If element is an input element and element's type attribute is in the File Upload state, then run these steps in parallel:
     if (element.type_state() == HTMLInputElement::TypeAttributeState::FileUpload) {
         // NOTE: These steps cannot be fully implemented here, and must be done in the PageClient when the response comes back from the PageHost
+        //       See: ViewImplementation::on_request_file_picker, Page::did_request_file_picker(), Page::file_picker_closed()
 
         // 1. Optionally, wait until any prior execution of this algorithm has terminated.
-        // 2. Display a prompt to the user requesting that the user specify some files.
-        //    If the multiple attribute is not set on element, there must be no more than one file selected; otherwise, any number may be selected.
-        //    Files can be from the filesystem or created on the fly, e.g., a picture taken from a camera connected to the user's device.
-        // 3. Wait for the user to have made their selection.
-        // 4. If the user dismissed the prompt without changing their selection,
+        // FIXME: 2. Let dismissed be the result of WebDriver BiDi file dialog opened with element.
+        bool dismissed = false;
+        // 3. If dismissed is false:
+        if (!dismissed) {
+            // 1. Display a prompt to the user requesting that the user specify some files.
+            //    If the multiple attribute is not set on element, there must be no more than one file selected;
+            //    otherwise, any number may be selected.
+            //    Files can be from the filesystem or created on the fly, e.g., a picture taken from a camera connected
+            //    to the user's device.
+            // 2. Wait for the user to have made their selection.
+            auto accepted_file_types = element.parse_accept_attribute();
+            auto allow_multiple_files = element.has_attribute(HTML::AttributeNames::multiple) ? AllowMultipleFiles::Yes : AllowMultipleFiles::No;
+            auto weak_element = element.make_weak_ptr<HTMLInputElement>();
+
+            element.set_is_open(true);
+            element.document().browsing_context()->top_level_browsing_context()->page().did_request_file_picker(weak_element, accepted_file_types, allow_multiple_files);
+        }
+        // 4. If dismissed is true or if the user dismissed the prompt without changing their selection,
         //    then queue an element task on the user interaction task source given element to fire an event named cancel at element,
         //    with the bubbles attribute initialized to true.
+        else {
+            // FIXME: Handle the "dismissed is true" case here.
+        }
         // 5. Otherwise, update the file selection for element.
-
-        auto accepted_file_types = element.parse_accept_attribute();
-        auto allow_multiple_files = element.has_attribute(HTML::AttributeNames::multiple) ? AllowMultipleFiles::Yes : AllowMultipleFiles::No;
-        auto weak_element = element.make_weak_ptr<HTMLInputElement>();
-
-        element.set_is_open(true);
-        element.document().browsing_context()->top_level_browsing_context()->page().did_request_file_picker(weak_element, accepted_file_types, allow_multiple_files);
-        return;
     }
 
-    // 6. Otherwise, the user agent should show any relevant user interface for selecting a value for element,
-    //    in the way it normally would when the user interacts with the control. (If no such UI applies to element, then this step does nothing.)
-    //    If such a user interface is shown, it must respect the requirements stated in the relevant parts of the specification for how element
-    //    behaves given its type attribute state. (For example, various sections describe restrictions on the resulting value string.)
+    // 6. Otherwise, the user agent should show the relevant user interface for selecting a value for element, in the
+    //    way it normally would when the user interacts with the control.
+    //    When showing such a user interface, it must respect the requirements stated in the relevant parts of the
+    //    specification for how element behaves given its type attribute state. (For example, various sections describe
+    //    restrictions on the resulting value string.)
     //    This step can have side effects, such as closing other pickers that were previously shown by this algorithm.
-    //    (If this closes a file selection picker, then per the above that will lead to firing either input and change events, or a cancel event.)
-    if (element.type_state() == HTMLInputElement::TypeAttributeState::Color) {
-        auto weak_element = element.make_weak_ptr<HTMLInputElement>();
-        element.set_is_open(true);
-        element.document().browsing_context()->top_level_browsing_context()->page().did_request_color_picker(weak_element, Color::from_string(element.value()).value_or(Color(0, 0, 0)));
+    //    (If this closes a file selection picker, then per the above that will lead to firing either input and change
+    //    events, or a cancel event.)
+    else {
+        if (element.type_state() == HTMLInputElement::TypeAttributeState::Color) {
+            auto weak_element = element.make_weak_ptr<HTMLInputElement>();
+            element.set_is_open(true);
+            element.document().browsing_context()->top_level_browsing_context()->page().did_request_color_picker(weak_element, Color::from_string(element.value()).value_or(Color(0, 0, 0)));
+        }
     }
 }
 
