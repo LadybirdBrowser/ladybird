@@ -15,7 +15,18 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Install dependencies
+      - name: Set up vcpkg
+        uses: microsoft/vcpkg-action@v2
+        with:
+          vcpkgDirectory: '${{ runner.temp }}/vcpkg'
+          cleanAfterBuild: true
+
+      - name: Install dependencies with vcpkg
+        run: |
+          vcpkg install simdutf
+          vcpkg integrate install
+
+      - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -27,11 +38,15 @@ jobs:
             qt6-tools-dev-tools \
             qt6-multimedia-dev \
             qt6-wayland \
-            ccache
+            ccache \
+            nasm \
+            g++-13
 
       - name: Configure build
         run: |
-          cmake -S . -B build -GNinja -DCMAKE_BUILD_TYPE=${{ github.event.inputs.build_type }}
+          cmake -S . -B build -GNinja \
+            -DCMAKE_BUILD_TYPE=${{ github.event.inputs.build_type }} \
+            -DCMAKE_TOOLCHAIN_FILE=${{ runner.temp }}/vcpkg/scripts/buildsystems/vcpkg.cmake
 
       - name: Build project
         run: |
@@ -43,7 +58,7 @@ jobs:
           ctest --output-on-failure
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v4  # Updated to version 4
+        uses: actions/upload-artifact@v4
         with:
           name: ladybird-build
           path: build/
