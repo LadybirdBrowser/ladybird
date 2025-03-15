@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Date and Time Inputs</title>
+    <meta name=viewport content="width=device-width, maximum-scale=1.0, user-scalable=no" />
+    <link rel="author" title="Fabrice Clari" href="mailto:f.clari@inno-group.com">
+    <link rel="author" title="Dimitri Bocquet" href="mailto:Dimitri.Bocquet@mosquito-fp7.eu">
+    <link rel="help" href="https://html.spec.whatwg.org/multipage/#the-input-element">
+    <link rel="help" href="https://html.spec.whatwg.org/multipage/#dom-input-type">
+    <link rel="help" href="https://html.spec.whatwg.org/multipage/#dom-input-value">
+    <link rel="help" href="https://html.spec.whatwg.org/multipage/#dom-input-min">
+    <link rel="help" href="https://html.spec.whatwg.org/multipage/#dom-input-max">
+    <link rel="help" href="https://html.spec.whatwg.org/multipage/#dom-input-step">
+    <link rel="help" href="https://html.spec.whatwg.org/multipage/#dom-input-stepup">
+    <link rel="help" href="https://html.spec.whatwg.org/multipage/#dom-input-stepdown">
+    <script src="../../../../resources/testharness.js"></script>
+    <script src="../../../../resources/testharnessreport.js"></script>
+  </head>
+  <body>
+
+      <h1>Date and Time Inputs</h1>
+      <div style="display: none">
+        <input type="date" value="2011-12-01" min="2011-12-01" max="2011-12-31" step="5" />
+        <input type="time" value= "12:00" min="11:30" max="14:00" step="600" />
+        <input type="datetime-local" value="2011-12-01T12:00" min="2011-12-01T12:00" max="2011-12-31T22:00" step="7200" />
+    </div>
+
+    <div id="log">
+    </div>
+
+  <script type="text/javascript">
+    test(function() {assert_equals(document.getElementsByTagName("input")[0].type, "date")}, "date type support on input element");
+    test(function() {assert_equals(document.getElementsByTagName("input")[0].value, "2011-12-01")}, "[date] The value must be a valid global date and time string");
+    test(function() {assert_equals(document.getElementsByTagName("input")[0].min, "2011-12-01")}, "[date] The min attribute must have a value that is a valid global date and time string");
+    test(function() {assert_equals(document.getElementsByTagName("input")[0].max, "2011-12-31")}, "[date] The max attribute must have a value that is a valid global date and time string");
+    test(function() {assert_equals(document.getElementsByTagName("input")[0].step, "5")}, "[date] The step attribute must be expressed in seconds");
+    test(function() {assert_true(typeof(document.getElementsByTagName("input")[0].stepUp) == "function")}, "[date] stepUp method support on input 'date' element");
+    test(function() {assert_true(typeof(document.getElementsByTagName("input")[0].stepDown) == "function")}, "[date] stepDown method support on input 'date' element");
+
+    test(function() {assert_equals(document.getElementsByTagName("input")[1].type, "time")}, "[time] time type support on input element");
+    test(function() {assert_equals(document.getElementsByTagName("input")[1].value, "12:00")}, "[time] The value must be a valid global date and time string");
+    test(function() {assert_equals(document.getElementsByTagName("input")[1].min, "11:30")}, "[time] The min attribute must have a value that is a valid global date and time string");
+    test(function() {assert_equals(document.getElementsByTagName("input")[1].max, "14:00")}, "[time] The max attribute must have a value that is a valid global date and time string");
+    test(function() {assert_equals(document.getElementsByTagName("input")[1].step, "600")}, "[time] The step attribute must be expressed in seconds");
+    test(function() {assert_true(typeof(document.getElementsByTagName("input")[1].stepUp) == "function")}, "[time] stepUp method support on input 'time' element");
+    test(function() {assert_true(typeof(document.getElementsByTagName("input")[1].stepDown) == "function")}, "[time] stepDown method support on input 'time' element");
+
+    test(function() {assert_equals(document.getElementsByTagName("input")[2].type, "datetime-local")}, "datetime-local type support on input element");
+    test(function() {assert_equals(document.getElementsByTagName("input")[2].value, "2011-12-01T12:00")}, "[datetime-local] The must be a valid local date and time string");
+    test(function() {assert_equals(document.getElementsByTagName("input")[2].min, "2011-12-01T12:00")}, "[datetime-local] The min attribute must have a value that is a valid local date and time string");
+    test(function() {assert_equals(document.getElementsByTagName("input")[2].max, "2011-12-31T22:00")}, "[datetime-local] The max attribute must have a value that is a valid local date and time string");
+    test(function() {assert_equals(document.getElementsByTagName("input")[2].step, "7200")}, "[datetime-local] The step attribute must be expressed in seconds");
+    test(function() {assert_true(typeof(document.getElementsByTagName("input")[2].stepUp) == "function")}, "[datetime-local] stepUp method support on input 'datetime-local' element");
+    test(function() {assert_true(typeof(document.getElementsByTagName("input")[2].stepDown) == "function")}, "[datetime-local] stepDown method support on input 'datetime-local' element");
+
+  </script>
+
+  </body>
+
+</html>

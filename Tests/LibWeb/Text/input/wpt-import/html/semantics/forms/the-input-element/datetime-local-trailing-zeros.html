@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<link rel=author href="mailto:jarhar@chromium.org">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<link rel=help href="https://html.spec.whatwg.org/multipage/multipage/common-microsyntaxes.html#local-dates-and-times">
+<link rel=help href="https://html.spec.whatwg.org/multipage/multipage/states-of-the-type-attribute.html#local-date-and-time-state-(type=datetime-local)">
+
+<input id=input type=datetime-local value="2022-04-19T12:34:56.010">
+
+<script>
+test(() => {
+  assert_equals(input.value, '2022-04-19T12:34:56.01');
+}, 'Verifies that trailing zeros in the milliseconds portion of the date strings are removed.');
+</script>
