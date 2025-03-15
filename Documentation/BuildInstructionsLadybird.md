@@ -160,7 +160,7 @@ brew install qt
 
 ### Windows:
 
-WSL2 is the supported way to build Ladybird on Windows. An experimental native build is being setup but does not fully
+WSL2 is the supported way to build Ladybird on Windows. An experimental native build is being set up but does not fully
 build.
 
 #### WSL2
