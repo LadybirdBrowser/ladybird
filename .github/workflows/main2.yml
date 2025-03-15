@@ -1,66 +1,69 @@
-name: Build Ladybird (Windows Native)
+name: Build and Package Ladybird (.deb)
 
 on:
   push:
-    branches: [main]
+    branches: [ main ]
   pull_request:
-    branches: [main]
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
-  build:
-    runs-on: windows-latest
+  build-deb:
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Install Dependencies via Chocolatey
-        shell: pwsh
+      - name: Install Build Dependencies
         run: |
-          # Ensure Chocolatey is installed (it’s not preinstalled on Windows runners)
-          Set-ExecutionPolicy Bypass -Scope Process -Force
-          if (-Not (Get-Command choco -ErrorAction SilentlyContinue)) {
-            iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
-          }
-          # Install Ninja and pkgconfiglite (needed for pkg-config support in some builds)
-          choco install ninja pkgconfiglite -y
-          Write-Output "Installed dependencies."
-          Write-Output "Ninja version:"
-          ninja --version
+          sudo apt-get update
+          sudo apt-get install -y \
+            autoconf autoconf-archive automake build-essential ccache cmake curl \
+            fonts-liberation2 git libgl1-mesa-dev nasm ninja-build pkg-config \
+            qt6-base-dev qt6-tools-dev-tools qt6-wayland tar unzip zip dpkg-deb
 
-      - name: Build Ladybird using build script
-        shell: pwsh
+      - name: Build Ladybird
         run: |
-          # Check if the build script exists and run it.
-          if (Test-Path "./Meta/ladybird.sh") {
-            Write-Output "Found build script. Starting build..."
-            # This script is expected to build a Release version of Ladybird.
-            ./Meta/ladybird.sh run ladybird
-          } else {
-            Write-Error "Build script not found: Meta/ladybird.sh"
+          # Ensure the build script is executable and run it.
+          chmod +x Meta/ladybird.sh
+          ./Meta/ladybird.sh run ladybird
+
+      - name: Install Ladybird into Staging Directory
+        run: |
+          # Create the directory structure for the Debian package
+          mkdir -p package/usr/bin
+          mkdir -p package/DEBIAN
+          # Copy the built binary to the staging directory.
+          # Adjust the source path if your build script places the binary elsewhere.
+          if [ -f Build/release/bin/Ladybird ]; then
+            cp Build/release/bin/Ladybird package/usr/bin/ladybird
+          elif [ -f Build/release/ladybird ]; then
+            cp Build/release/ladybird package/usr/bin/ladybird
+          else
+            echo "ERROR: Built executable not found."
             exit 1
-          }
+          fi
 
-      - name: Verify Executable
-        shell: pwsh
+      - name: Create DEBIAN Control File
         run: |
-          # Adjust the path below if your executable is generated in a different location.
-          if (-Not (Test-Path "build\ladybird.exe")) {
-            Write-Error "ERROR: ladybird.exe not found!"
-            exit 1
-          } else {
-            Write-Output "Build successful! Executable located at build\ladybird.exe"
-          }
+          cat <<EOF > package/DEBIAN/control
+          Package: ladybird-browser
+          Version: 0.1.0
+          Section: web
+          Priority: optional
+          Architecture: $(dpkg --print-architecture)
+          Maintainer: Your Name <you@example.com>
+          Description: Ladybird Browser - an experimental, independent web browser.
+           Built from source as part of the LadybirdBrowser project.
+          EOF
 
-      - name: Package Windows Executable
-        shell: pwsh
+      - name: Build .deb Package
         run: |
-          Compress-Archive -Path "build\ladybird.exe" -DestinationPath "ladybird-windows.zip"
-          Write-Output "Packaged ladybird-windows.zip"
+          dpkg-deb --build package ladybird-browser_0.1.0_$(dpkg --print-architecture).deb
 
-      - name: Upload Windows Binary Artifact
+      - name: Upload .deb Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ladybird-windows-executable
-          path: ladybird-windows.zip
+          name: ladybird-deb
+          path: ladybird-browser_0.1.0_$(dpkg --print-architecture).deb
