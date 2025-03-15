@@ -360,8 +360,8 @@ void Application::process_did_exit(Process&& process)
     case ProcessType::WebWorker:
         dbgln_if(WEBVIEW_PROCESS_DEBUG, "WebWorker {} died, not sure what to do.", process.pid());
         break;
-    case ProcessType::Chrome:
-        dbgln("Invalid process type to be dying: Chrome");
+    case ProcessType::Browser:
+        dbgln("Invalid process type to be dying: Browser");
         VERIFY_NOT_REACHED();
     }
 }

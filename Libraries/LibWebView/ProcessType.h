@@ -11,7 +11,7 @@
 namespace WebView {
 
 enum class ProcessType : u8 {
-    Chrome,
+    Browser,
     WebContent,
     WebWorker,
     RequestServer,
