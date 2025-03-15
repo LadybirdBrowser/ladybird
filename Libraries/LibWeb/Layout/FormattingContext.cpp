@@ -1179,7 +1179,6 @@ void FormattingContext::compute_height_for_absolutely_positioned_non_replaced_el
     box_state.margin_bottom = margin_bottom.to_px(box, width_of_containing_block);
 }
 
-// NOTE: This is different from content_box_rect_in_ancestor_coordinate_space() as this does *not* follow the containing block chain up, but rather the parent() chain.
 CSSPixelRect FormattingContext::content_box_rect_in_static_position_ancestor_coordinate_space(Box const& box, Box const& ancestor_box) const
 {
     auto rect = content_box_rect(box);
@@ -1261,6 +1260,8 @@ void FormattingContext::layout_absolutely_positioned_element(Box const& box, Ava
     CSSPixelPoint used_offset;
 
     auto static_position = m_state.get(box).static_position();
+    auto offset_to_static_parent = content_box_rect_in_static_position_ancestor_coordinate_space(box, *box.containing_block());
+    static_position += offset_to_static_parent.location();
 
     if (box.computed_values().inset().top().is_auto() && box.computed_values().inset().bottom().is_auto()) {
         used_offset.set_y(static_position.y());

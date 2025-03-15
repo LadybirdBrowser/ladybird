@@ -411,6 +411,16 @@ void InlineFormattingContext::generate_line_boxes()
         }
     }
 
+    for (auto& line_box : line_boxes) {
+        for (auto& fragment : line_box.fragments()) {
+            if (fragment.layout_node().is_inline_block()) {
+                auto& box = as<Box>(fragment.layout_node());
+                auto& box_state = m_state.get_mutable(box);
+                box_state.set_content_offset(fragment.offset());
+            }
+        }
+    }
+
     for (auto* box : absolute_boxes) {
         auto& box_state = m_state.get_mutable(*box);
         box_state.set_static_position_rect(calculate_static_position_rect(*box));
@@ -494,9 +504,8 @@ StaticPositionRect InlineFormattingContext::calculate_static_position_rect(Box c
     } else {
         // Easy case: no previous sibling, we're at the top of the containing block.
     }
-    auto offset_to_static_parent = content_box_rect_in_static_position_ancestor_coordinate_space(box, *box.containing_block());
     StaticPositionRect static_position_rect;
-    static_position_rect.rect = { offset_to_static_parent.location().translated(x, y), { 0, 0 } };
+    static_position_rect.rect = { { x, y }, { 0, 0 } };
     return static_position_rect;
 }
 
