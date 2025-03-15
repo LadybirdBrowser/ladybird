@@ -803,7 +803,8 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
                 });
             }
 
-            layout_block_level_children(as<BlockContainer>(box), box_state.available_inner_space_or_constraints_from(available_space));
+            auto space_available_for_children = box.is_anonymous() ? available_space : box_state.available_inner_space_or_constraints_from(available_space);
+            layout_block_level_children(as<BlockContainer>(box), space_available_for_children);
         }
     }
 
