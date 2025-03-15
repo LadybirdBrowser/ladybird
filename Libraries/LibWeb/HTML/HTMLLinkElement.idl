@@ -60,4 +60,4 @@ interface HTMLLinkElement : HTMLElement {
     [CEReactions, Reflect] attribute DOMString target;
 
 };
-// FIXME: HTMLLinkElement includes LinkStyle;
+HTMLLinkElement includes LinkStyle;

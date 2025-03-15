@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const link = document.createElement("link");
+        link.rel = "stylesheet";
+        document.head.appendChild(link);
+        println(`sheet property initial value: ${link.sheet}`);
+        link.href = "../valid.css";
+        link.onload = () => {
+            println(`Sheet property after stylesheet loaded: ${link.sheet}`);
+            done();
+        }
+    });
+</script>

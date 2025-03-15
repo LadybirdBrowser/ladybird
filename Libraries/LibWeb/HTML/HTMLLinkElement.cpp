@@ -138,6 +138,12 @@ String HTMLLinkElement::media() const
     return attribute(HTML::AttributeNames::media).value_or(String {});
 }
 
+// https://drafts.csswg.org/cssom/#dom-linkstyle-sheet
+GC::Ptr<CSS::CSSStyleSheet> HTMLLinkElement::sheet() const
+{
+    return m_loaded_style_sheet;
+}
+
 bool HTMLLinkElement::has_loaded_icon() const
 {
     return m_relationship & Relationship::Icon && resource() && resource()->is_loaded() && resource()->has_encoded_data();
