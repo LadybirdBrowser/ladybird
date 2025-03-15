@@ -4,11 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibTest/TestCase.h>
-
-#include <AK/Array.h>
-#include <AK/Random.h>
 #include <LibCompress/Gzip.h>
+#include <LibTest/TestCase.h>
 
 TEST_CASE(gzip_decompress_simple)
 {
@@ -20,8 +17,8 @@ TEST_CASE(gzip_decompress_simple)
 
     u8 const uncompressed[] = "word1 abc word2";
 
-    auto const decompressed = Compress::GzipDecompressor::decompress_all(compressed);
-    EXPECT(decompressed.value().bytes() == (ReadonlyBytes { uncompressed, sizeof(uncompressed) - 1 }));
+    auto const decompressed = TRY_OR_FAIL(Compress::GzipDecompressor::decompress_all(compressed));
+    EXPECT(decompressed.bytes() == (ReadonlyBytes { uncompressed, sizeof(uncompressed) - 1 }));
 }
 
 TEST_CASE(gzip_decompress_multiple_members)
@@ -36,8 +33,8 @@ TEST_CASE(gzip_decompress_multiple_members)
 
     u8 const uncompressed[] = "abcabcabcabc";
 
-    auto const decompressed = Compress::GzipDecompressor::decompress_all(compressed);
-    EXPECT(decompressed.value().bytes() == (ReadonlyBytes { uncompressed, sizeof(uncompressed) - 1 }));
+    auto const decompressed = TRY_OR_FAIL(Compress::GzipDecompressor::decompress_all(compressed));
+    EXPECT(decompressed.bytes() == (ReadonlyBytes { uncompressed, sizeof(uncompressed) - 1 }));
 }
 
 TEST_CASE(gzip_decompress_zeroes)
@@ -61,8 +58,8 @@ TEST_CASE(gzip_decompress_zeroes)
 
     Array<u8, 128 * 1024> const uncompressed = { 0 };
 
-    auto const decompressed = Compress::GzipDecompressor::decompress_all(compressed);
-    EXPECT(uncompressed == decompressed.value().bytes());
+    auto const decompressed = TRY_OR_FAIL(Compress::GzipDecompressor::decompress_all(compressed));
+    EXPECT(uncompressed == decompressed.bytes());
 }
 
 TEST_CASE(gzip_decompress_repeat_around_buffer)
@@ -81,8 +78,8 @@ TEST_CASE(gzip_decompress_repeat_around_buffer)
     uncompressed.span().slice(0x0100, 0x7e00).fill(0);
     uncompressed.span().slice(0x7f00, 0x0100).fill(1);
 
-    auto const decompressed = Compress::GzipDecompressor::decompress_all(compressed);
-    EXPECT(uncompressed == decompressed.value().bytes());
+    auto const decompressed = TRY_OR_FAIL(Compress::GzipDecompressor::decompress_all(compressed));
+    EXPECT(uncompressed == decompressed.bytes());
 }
 
 TEST_CASE(gzip_round_trip)

@@ -1,0 +1,56 @@
+<script src="../include.js"></script>
+<script>
+    function readStream(reader) {
+        return new Promise((resolve, reject) => {
+            let chunks = [];
+            reader.read().then(function pump({value, done}) {
+                if (done) {
+                    let blob = new Blob(chunks);
+                    blob.arrayBuffer().then((b) => resolve(new Uint8Array(b, 0, blob.size))).catch(reject)
+                    return;
+                }
+                chunks.push(value);
+                reader.read().then(pump);
+            });
+        });
+    }
+
+    function compress(data, format) {
+        let stream = new Blob([data]).stream();
+        let compressor = stream.pipeThrough(new CompressionStream(format));
+        let reader = compressor.getReader();
+        return readStream(reader);
+    }
+
+    function decompress(data, format) {
+        let stream = new Blob([data]).stream();
+        let decompressor = stream.pipeThrough(new DecompressionStream(format));
+        let reader = decompressor.getReader();
+        return readStream(reader);
+    }
+
+    async function roundTrip(data) {
+        let expectedPrefixLengths = {
+            'deflate': 2,
+            'deflate-raw': 0,
+            'gzip': 2
+        }
+
+        for (const format of ["deflate", "deflate-raw", "gzip"]) {
+            let compressed = await compress(data, format);
+            println(`prefix=${compressed.slice(0, expectedPrefixLengths[format])}`)
+            println(`equal=${data === compressed}`)
+
+            let decompressed = await decompress(compressed, format);
+            let result = new TextDecoder().decode(decompressed);
+            println(`format=${format}: ${result}`);
+            println('--------------')
+        }
+    }
+
+    asyncTest(async done => {
+        await roundTrip('Well hello friends!')
+        await roundTrip('Well hello friends!'.repeat(100))
+        done();
+    });
+</script>
