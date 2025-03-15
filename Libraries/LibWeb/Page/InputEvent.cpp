@@ -10,17 +10,17 @@
 
 namespace Web {
 
-KeyEvent KeyEvent::clone_without_chrome_data() const
+KeyEvent KeyEvent::clone_without_browser_data() const
 {
     return { type, key, modifiers, code_point, repeat, nullptr };
 }
 
-MouseEvent MouseEvent::clone_without_chrome_data() const
+MouseEvent MouseEvent::clone_without_browser_data() const
 {
     return { type, position, screen_position, button, buttons, modifiers, wheel_delta_x, wheel_delta_y, nullptr };
 }
 
-DragEvent DragEvent::clone_without_chrome_data() const
+DragEvent DragEvent::clone_without_browser_data() const
 {
     return { type, position, screen_position, button, buttons, modifiers, {}, nullptr };
 }

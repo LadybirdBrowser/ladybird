@@ -18,8 +18,8 @@
 
 namespace Web {
 
-struct ChromeInputData {
-    virtual ~ChromeInputData() = default;
+struct BrowserInputData {
+    virtual ~BrowserInputData() = default;
 };
 
 struct KeyEvent {
@@ -28,7 +28,7 @@ struct KeyEvent {
         KeyUp,
     };
 
-    KeyEvent clone_without_chrome_data() const;
+    KeyEvent clone_without_browser_data() const;
 
     Type type;
     UIEvents::KeyCode key { UIEvents::KeyCode::Key_Invalid };
@@ -36,7 +36,7 @@ struct KeyEvent {
     u32 code_point { 0 };
     bool repeat { false };
 
-    OwnPtr<ChromeInputData> chrome_data;
+    OwnPtr<BrowserInputData> browser_data;
 };
 
 struct MouseEvent {
@@ -48,7 +48,7 @@ struct MouseEvent {
         DoubleClick,
     };
 
-    MouseEvent clone_without_chrome_data() const;
+    MouseEvent clone_without_browser_data() const;
 
     Type type;
     Web::DevicePixelPoint position;
@@ -59,7 +59,7 @@ struct MouseEvent {
     int wheel_delta_x { 0 };
     int wheel_delta_y { 0 };
 
-    OwnPtr<ChromeInputData> chrome_data;
+    OwnPtr<BrowserInputData> browser_data;
 };
 
 struct DragEvent {
@@ -70,7 +70,7 @@ struct DragEvent {
         Drop,
     };
 
-    DragEvent clone_without_chrome_data() const;
+    DragEvent clone_without_browser_data() const;
 
     Type type;
     Web::DevicePixelPoint position;
@@ -80,7 +80,7 @@ struct DragEvent {
     UIEvents::KeyModifier modifiers { UIEvents::KeyModifier::Mod_None };
     Vector<HTML::SelectedFile> files;
 
-    OwnPtr<ChromeInputData> chrome_data;
+    OwnPtr<BrowserInputData> browser_data;
 };
 
 using InputEvent = Variant<KeyEvent, MouseEvent, DragEvent>;

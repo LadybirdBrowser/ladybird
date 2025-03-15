@@ -75,7 +75,7 @@ Web::MouseEvent ns_event_to_mouse_event(Web::MouseEvent::Type type, NSEvent* eve
     return { type, device_position, device_screen_position, button, button, modifiers, wheel_delta_x, wheel_delta_y, nullptr };
 }
 
-struct DragData : public Web::ChromeInputData {
+struct DragData : public Web::BrowserInputData {
     explicit DragData(Vector<URL::URL> urls)
         : urls(move(urls))
     {
@@ -96,7 +96,7 @@ Web::DragEvent ns_event_to_drag_event(Web::DragEvent::Type type, id<NSDraggingIn
     auto modifiers = ns_modifiers_to_key_modifiers([NSEvent modifierFlags], button);
 
     Vector<Web::HTML::SelectedFile> files;
-    OwnPtr<DragData> chrome_data;
+    OwnPtr<DragData> browser_data;
 
     auto for_each_file = [&](auto callback) {
         NSArray* file_list = [[event draggingPasteboard] readObjectsForClasses:@[ [NSURL class] ]
@@ -123,16 +123,16 @@ Web::DragEvent ns_event_to_drag_event(Web::DragEvent::Type type, id<NSDraggingIn
                 urls.append(move(url));
         });
 
-        chrome_data = make<DragData>(move(urls));
+        browser_data = make<DragData>(move(urls));
     }
 
-    return { type, device_position, device_screen_position, button, button, modifiers, move(files), move(chrome_data) };
+    return { type, device_position, device_screen_position, button, button, modifiers, move(files), move(browser_data) };
 }
 
 Vector<URL::URL> drag_event_url_list(Web::DragEvent const& event)
 {
-    auto& chrome_data = as<DragData>(*event.chrome_data);
-    return move(chrome_data.urls);
+    auto& browser_data = as<DragData>(*event.browser_data);
+    return move(browser_data.urls);
 }
 
 NSEvent* create_context_menu_mouse_event(NSView* view, Gfx::IntPoint position)
@@ -269,7 +269,7 @@ static Web::UIEvents::KeyCode ns_key_code_to_key_code(unsigned short key_code, W
     return Web::UIEvents::KeyCode::Key_Invalid;
 }
 
-class KeyData : public Web::ChromeInputData {
+class KeyData : public Web::BrowserInputData {
 public:
     explicit KeyData(NSEvent* event)
         : m_event(CFBridgingRetain(event))
@@ -322,8 +322,8 @@ Web::KeyEvent ns_event_to_key_event(Web::KeyEvent::Type type, NSEvent* event)
 
 NSEvent* key_event_to_ns_event(Web::KeyEvent const& event)
 {
-    auto& chrome_data = as<KeyData>(*event.chrome_data);
-    return chrome_data.take_event();
+    auto& browser_data = as<KeyData>(*event.browser_data);
+    return browser_data.take_event();
 }
 
 }
