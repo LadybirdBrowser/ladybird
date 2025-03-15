@@ -4,11 +4,15 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibCore/Timer.h>
 #include <LibWeb/Bindings/HTMLTitleElementPrototype.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/HTMLTitleElement.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/Page/Page.h>
+
+static constexpr u32 timer_throttle_ms = 5;
+static constexpr u32 timer_unconditional_update_ms = 15;
 
 namespace Web::HTML {
 
@@ -17,6 +21,10 @@ GC_DEFINE_ALLOCATOR(HTMLTitleElement);
 HTMLTitleElement::HTMLTitleElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : HTMLElement(document, move(qualified_name))
 {
+    m_throttle_update_timer = Core::Timer::create_single_shot(timer_throttle_ms, [this] {
+        this->propagate_title_update();
+    });
+    m_throttle_update_timer->set_active(false);
 }
 
 HTMLTitleElement::~HTMLTitleElement() = default;
@@ -30,9 +38,10 @@ void HTMLTitleElement::initialize(JS::Realm& realm)
 void HTMLTitleElement::children_changed(ChildrenChangedMetadata const* metadata)
 {
     HTMLElement::children_changed(metadata);
+
     auto navigable = this->navigable();
     if (navigable && navigable->is_traversable()) {
-        navigable->traversable_navigable()->page().client().page_did_change_title(document().title().to_byte_string());
+        consider_propagate_title_update();
     }
 }
 
@@ -48,6 +57,42 @@ void HTMLTitleElement::set_text(String const& value)
 {
     // The text attribute's setter must string replace all with the given value within this title element.
     string_replace_all(value);
+}
+
+void HTMLTitleElement::consider_propagate_title_update()
+{
+    if (text().is_empty()) {
+        m_empty_titles_in_a_row++;
+    } else {
+        m_empty_titles_in_a_row = 0;
+    }
+
+    if (m_first_block_at_ms == 0) {
+        m_first_block_at_ms = MonotonicTime::now_coarse().milliseconds();
+    }
+
+    if (MonotonicTime::now_coarse().milliseconds() - m_first_block_at_ms > timer_unconditional_update_ms) {
+        if (m_empty_titles_in_a_row == 1) {
+            // skip this update anyways. This is the first update, which should be followed by the "actual" update.
+            return;
+        }
+
+        // we've exceeded the max ms without a title update, we'll propagate it immediately
+        propagate_title_update();
+        return;
+    }
+
+    // start a throttling timer. This is to not spam every update to the front-end.
+    // furthermore, the first update is removing the title, so it gives us an erroneous empty title.
+    m_throttle_update_timer->set_active(true);
+    m_throttle_update_timer->restart();
+}
+
+void HTMLTitleElement::propagate_title_update()
+{
+    m_first_block_at_ms = 0;
+    m_throttle_update_timer->set_active(false);
+    this->navigable()->traversable_navigable()->page().client().page_did_change_title(this->document().title().to_byte_string());
 }
 
 }
