@@ -112,8 +112,8 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     StringView echo_server_port_string_view {};
 
     Core::ArgsParser args_parser;
-    args_parser.add_option(command_line, "Chrome process command line", "command-line", 0, "command_line");
-    args_parser.add_option(executable_path, "Chrome process executable path", "executable-path", 0, "executable_path");
+    args_parser.add_option(command_line, "Browser process command line", "command-line", 0, "command_line");
+    args_parser.add_option(executable_path, "Browser process executable path", "executable-path", 0, "executable_path");
     args_parser.add_option(config_path, "Ladybird configuration path", "config-path", 0, "config_path");
     args_parser.add_option(request_server_socket, "File descriptor of the socket for the RequestServer connection", "request-server-socket", 'r', "request_server_socket");
     args_parser.add_option(image_decoder_socket, "File descriptor of the socket for the ImageDecoder connection", "image-decoder-socket", 'i', "image_decoder_socket");
@@ -151,8 +151,8 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
         force_cpu_painting = true;
     }
 
-    Web::set_chrome_process_command_line(command_line);
-    Web::set_chrome_process_executable_path(executable_path);
+    Web::set_browser_process_command_line(command_line);
+    Web::set_browser_process_executable_path(executable_path);
 
     // Always use the CPU backend for layout tests, as the GPU backend is not deterministic
     WebContent::PageClient::set_use_skia_painter(force_cpu_painting ? WebContent::PageClient::UseSkiaPainter::CPUBackend : WebContent::PageClient::UseSkiaPainter::GPUBackendIfAvailable);
