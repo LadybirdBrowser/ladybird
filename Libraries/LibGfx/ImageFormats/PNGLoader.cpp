@@ -248,15 +248,25 @@ ErrorOr<void> PNGLoadingContext::apply_exif_orientation()
 
 ErrorOr<size_t> PNGLoadingContext::read_frames(png_structp png_ptr, png_infop info_ptr)
 {
+    Vector<u8*> row_pointers;
+    auto decode_frame = [&](IntSize frame_size) -> ErrorOr<NonnullRefPtr<Bitmap>> {
+        auto frame_bitmap = TRY(Bitmap::create(BitmapFormat::BGRA8888, AlphaType::Unpremultiplied, frame_size));
+
+        row_pointers.resize_and_keep_capacity(frame_size.height());
+        for (auto i = 0; i < frame_size.height(); ++i)
+            row_pointers[i] = frame_bitmap->scanline_u8(i);
+
+        png_read_image(png_ptr, row_pointers.data());
+        return frame_bitmap;
+    };
+
     if (png_get_acTL(png_ptr, info_ptr, &frame_count, &loop_count)) {
         // acTL chunk present: This is an APNG.
-
         png_set_acTL(png_ptr, info_ptr, frame_count, loop_count);
 
         // Conceptually, at the beginning of each play the output buffer must be completely initialized to a fully transparent black rectangle, with width and height dimensions from the `IHDR` chunk.
         auto output_buffer = TRY(Bitmap::create(BitmapFormat::BGRA8888, AlphaType::Unpremultiplied, size));
         auto painter = Painter::create(output_buffer);
-        Vector<u8*> row_pointers;
 
         for (size_t frame_index = 0; frame_index < frame_count; ++frame_index) {
             png_read_frame_head(png_ptr, info_ptr);
@@ -287,12 +297,7 @@ ErrorOr<size_t> PNGLoadingContext::read_frames(png_structp png_ptr, png_infop in
             }
             auto frame_rect = FloatRect { x, y, width, height };
 
-            auto decoded_frame_bitmap = TRY(Bitmap::create(BitmapFormat::BGRA8888, AlphaType::Unpremultiplied, IntSize { static_cast<int>(width), static_cast<int>(height) }));
-            row_pointers.resize(height);
-            for (u32 i = 0; i < height; ++i) {
-                row_pointers[i] = decoded_frame_bitmap->scanline_u8(i);
-            }
-            png_read_image(png_ptr, row_pointers.data());
+            auto decoded_frame_bitmap = TRY(decode_frame({ width, height }));
 
             RefPtr<Bitmap> prev_output_buffer;
             if (dispose_op == PNG_DISPOSE_OP_PREVIOUS) // Only actually clone if it's necessary
@@ -331,17 +336,10 @@ ErrorOr<size_t> PNGLoadingContext::read_frames(png_structp png_ptr, png_infop in
         }
     } else {
         // This is a single-frame PNG.
-
         frame_count = 1;
         loop_count = 0;
 
-        auto decoded_frame_bitmap = TRY(Bitmap::create(BitmapFormat::BGRA8888, AlphaType::Unpremultiplied, size));
-        Vector<u8*> row_pointers;
-        row_pointers.resize(size.height());
-        for (int i = 0; i < size.height(); ++i)
-            row_pointers[i] = decoded_frame_bitmap->scanline_u8(i);
-
-        png_read_image(png_ptr, row_pointers.data());
+        auto decoded_frame_bitmap = TRY(decode_frame(size));
         frame_descriptors.append({ move(decoded_frame_bitmap), 0 });
     }
     return this->frame_count;
