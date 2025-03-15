@@ -951,6 +951,11 @@ class VTTCue;
 class VTTRegion;
 }
 
+namespace Web::WebLocks {
+class LockManager;
+class Lock;
+}
+
 namespace Web::XHR {
 class FormData;
 class FormDataIterator;

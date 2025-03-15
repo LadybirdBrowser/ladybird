@@ -75,6 +75,8 @@ static bool is_platform_object(Type const& type)
         "Instance"sv,
         "IntersectionObserverEntry"sv,
         "KeyframeEffect"sv,
+        "LockManager"sv,
+        "Locks"sv,
         "MediaList"sv,
         "Memory"sv,
         "MessagePort"sv,
@@ -4538,6 +4540,7 @@ using namespace Web::WebGL;
 using namespace Web::WebGL::Extensions;
 using namespace Web::WebIDL;
 using namespace Web::WebVTT;
+using namespace Web::WebLocks;
 using namespace Web::XHR;
 )~~~"sv);
 }

@@ -1,0 +1,8 @@
+enum LockMode { "shared", "exclusive" };
+
+// https://w3c.github.io/web-locks/#lock
+[SecureContext, Exposed=(Window,Worker)]
+interface Lock {
+    readonly attribute DOMString name;
+    readonly attribute LockMode mode;
+};

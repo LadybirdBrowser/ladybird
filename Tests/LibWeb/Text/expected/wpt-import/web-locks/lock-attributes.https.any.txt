@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Lock attributes reflect requested properties (exclusive)
+Pass	Lock attributes reflect requested properties (shared)

@@ -2,6 +2,7 @@
 #import <HTML/NavigatorDeviceMemory.idl>
 #import <HTML/NavigatorID.idl>
 #import <HTML/NavigatorLanguage.idl>
+#import <HTML/NavigatorLocks.idl>
 #import <HTML/NavigatorOnLine.idl>
 #import <MediaCapabilitiesAPI/MediaCapabilities.idl>
 #import <StorageAPI/NavigatorStorage.idl>
@@ -22,3 +23,4 @@ WorkerNavigator includes NavigatorOnLine;
 WorkerNavigator includes NavigatorConcurrentHardware;
 WorkerNavigator includes NavigatorStorage;
 WorkerNavigator includes NavigatorDeviceMemory;
+WorkerNavigator includes NavigatorLocks;
