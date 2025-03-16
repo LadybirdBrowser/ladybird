@@ -27,6 +27,10 @@ bool is_url_suitable_for_same_process_navigation(URL::URL const& current_url, UR
     if (Web::HTML::url_matches_about_blank(current_url))
         return true;
 
+    // Make sure JavaScript URLs run in the same process.
+    if (target_url.scheme() == "javascript"sv)
+        return true;
+
     // Allow cross-scheme non-HTTP(S) navigation. Disallow cross-scheme HTTP(s) navigation.
     auto current_url_is_http = Web::Fetch::Infrastructure::is_http_or_https_scheme(current_url.scheme());
     auto target_url_is_http = Web::Fetch::Infrastructure::is_http_or_https_scheme(target_url.scheme());
