@@ -1125,8 +1125,13 @@ inline ThrowCompletionOr<Value> get_global(Interpreter& interpreter, IdentifierT
 
         // OPTIMIZATION: For global lexical bindings, if the global declarative environment hasn't changed,
         //               we can use the cached environment binding index.
-        if (cache.environment_binding_index.has_value())
-            return declarative_record.get_binding_value_direct(vm, cache.environment_binding_index.value());
+        if (cache.has_environment_binding_index) {
+            if (cache.in_module_environment) {
+                auto module = vm.running_execution_context().script_or_module.get_pointer<GC::Ref<Module>>();
+                return (*module)->environment()->get_binding_value_direct(vm, cache.environment_binding_index);
+            }
+            return declarative_record.get_binding_value_direct(vm, cache.environment_binding_index);
+        }
     }
 
     cache.environment_serial_number = declarative_record.environment_serial_number();
@@ -1137,8 +1142,14 @@ inline ThrowCompletionOr<Value> get_global(Interpreter& interpreter, IdentifierT
         // NOTE: GetGlobal is used to access variables stored in the module environment and global environment.
         //       The module environment is checked first since it precedes the global environment in the environment chain.
         auto& module_environment = *(*module)->environment();
-        if (TRY(module_environment.has_binding(identifier))) {
-            // TODO: Cache offset of binding value
+        Optional<size_t> index;
+        if (TRY(module_environment.has_binding(identifier, &index))) {
+            if (index.has_value()) {
+                cache.environment_binding_index = static_cast<u32>(index.value());
+                cache.has_environment_binding_index = true;
+                cache.in_module_environment = true;
+                return TRY(module_environment.get_binding_value_direct(vm, index.value()));
+            }
             return TRY(module_environment.get_binding_value(vm, identifier, vm.in_strict_mode()));
         }
     }
@@ -1146,6 +1157,8 @@ inline ThrowCompletionOr<Value> get_global(Interpreter& interpreter, IdentifierT
     Optional<size_t> offset;
     if (TRY(declarative_record.has_binding(identifier, &offset))) {
         cache.environment_binding_index = static_cast<u32>(offset.value());
+        cache.has_environment_binding_index = true;
+        cache.in_module_environment = false;
         return TRY(declarative_record.get_binding_value(vm, identifier, vm.in_strict_mode()));
     }
 
