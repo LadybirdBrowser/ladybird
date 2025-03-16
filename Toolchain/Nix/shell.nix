@@ -4,7 +4,7 @@
   ccache,
   clang-tools,
   pre-commit,
-  prettier,
+  prettierd,
   ladybird,
   ...
 }:
@@ -17,7 +17,7 @@ mkShell {
     ccache
     clang-tools
     pre-commit
-    prettier
+    prettierd
   ];
 
   # Fix for: https://github.com/LadybirdBrowser/ladybird/issues/371#issuecomment-2616415434
