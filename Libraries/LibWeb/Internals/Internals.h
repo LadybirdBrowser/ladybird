@@ -6,15 +6,15 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Internals/InternalAnimationTimeline.h>
+#include <LibWeb/Internals/InternalsBase.h>
 #include <LibWeb/UIEvents/MouseButton.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::Internals {
 
-class Internals final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(Internals, Bindings::PlatformObject);
+class Internals final : public InternalsBase {
+    WEB_PLATFORM_OBJECT(Internals, InternalsBase);
     GC_DECLARE_ALLOCATOR(Internals);
 
 public:
@@ -62,13 +62,11 @@ public:
 
 private:
     explicit Internals(JS::Realm&);
+
     virtual void initialize(JS::Realm&) override;
 
     void click(double x, double y, UIEvents::MouseButton);
     void mouse_down(double x, double y, UIEvents::MouseButton);
-
-    HTML::Window& internals_window() const;
-    Page& internals_page() const;
 };
 
 }

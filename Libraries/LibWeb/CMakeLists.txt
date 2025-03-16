@@ -562,6 +562,7 @@ set(SOURCES
     IndexedDB/Internal/RequestList.cpp
     Internals/InternalAnimationTimeline.cpp
     Internals/Internals.cpp
+    Internals/InternalsBase.cpp
     IntersectionObserver/IntersectionObserver.cpp
     IntersectionObserver/IntersectionObserverEntry.cpp
     Layout/AudioBox.cpp

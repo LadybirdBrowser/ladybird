@@ -26,7 +26,7 @@ static u16 s_echo_server_port { 0 };
 GC_DEFINE_ALLOCATOR(Internals);
 
 Internals::Internals(JS::Realm& realm)
-    : Bindings::PlatformObject(realm)
+    : InternalsBase(realm)
 {
 }
 
@@ -38,24 +38,14 @@ void Internals::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(Internals);
 }
 
-HTML::Window& Internals::internals_window() const
-{
-    return as<HTML::Window>(HTML::relevant_global_object(*this));
-}
-
-Page& Internals::internals_page() const
-{
-    return internals_window().page();
-}
-
 void Internals::signal_test_is_done(String const& text)
 {
-    internals_page().client().page_did_finish_test(text);
+    page().client().page_did_finish_test(text);
 }
 
 void Internals::set_test_timeout(double milliseconds)
 {
-    internals_page().client().page_did_set_test_timeout(milliseconds);
+    page().client().page_did_set_test_timeout(milliseconds);
 }
 
 void Internals::gc()
@@ -65,7 +55,7 @@ void Internals::gc()
 
 JS::Object* Internals::hit_test(double x, double y)
 {
-    auto& active_document = internals_window().associated_document();
+    auto& active_document = window().associated_document();
     // NOTE: Force a layout update just before hit testing. This is because the current layout tree, which is required
     //       for stacking context traversal, might not exist if this call occurs between the tear_down_layout_tree()
     //       and update_layout() calls
@@ -82,7 +72,7 @@ JS::Object* Internals::hit_test(double x, double y)
 
 void Internals::send_text(HTML::HTMLElement& target, String const& text, WebIDL::UnsignedShort modifiers)
 {
-    auto& page = internals_page();
+    auto& page = this->page();
     target.focus();
 
     for (auto code_point : text.code_points())
@@ -94,12 +84,12 @@ void Internals::send_key(HTML::HTMLElement& target, String const& key_name, WebI
     auto key_code = UIEvents::key_code_from_string(key_name);
     target.focus();
 
-    internals_page().handle_keydown(key_code, modifiers, 0, false);
+    page().handle_keydown(key_code, modifiers, 0, false);
 }
 
 void Internals::commit_text()
 {
-    internals_page().handle_keydown(UIEvents::Key_Return, 0, 0, false);
+    page().handle_keydown(UIEvents::Key_Return, 0, 0, false);
 }
 
 void Internals::click(double x, double y)
@@ -109,7 +99,7 @@ void Internals::click(double x, double y)
 
 void Internals::doubleclick(double x, double y)
 {
-    auto& page = internals_page();
+    auto& page = this->page();
 
     auto position = page.css_to_device_point({ x, y });
     page.handle_doubleclick(position, position, UIEvents::MouseButton::Primary, 0, 0);
@@ -122,7 +112,7 @@ void Internals::middle_click(double x, double y)
 
 void Internals::click(double x, double y, UIEvents::MouseButton button)
 {
-    auto& page = internals_page();
+    auto& page = this->page();
 
     auto position = page.css_to_device_point({ x, y });
     page.handle_mousedown(position, position, button, 0, 0);
@@ -136,14 +126,14 @@ void Internals::mouse_down(double x, double y)
 
 void Internals::mouse_down(double x, double y, UIEvents::MouseButton button)
 {
-    auto& page = internals_page();
+    auto& page = this->page();
     auto position = page.css_to_device_point({ x, y });
     page.handle_mousedown(position, position, button, 0, 0);
 }
 
 void Internals::move_pointer_to(double x, double y)
 {
-    auto& page = internals_page();
+    auto& page = this->page();
 
     auto position = page.css_to_device_point({ x, y });
     page.handle_mousemove(position, position, 0, 0);
@@ -151,7 +141,7 @@ void Internals::move_pointer_to(double x, double y)
 
 void Internals::wheel(double x, double y, double delta_x, double delta_y)
 {
-    auto& page = internals_page();
+    auto& page = this->page();
 
     auto position = page.css_to_device_point({ x, y });
     page.handle_mousewheel(position, position, 0, 0, 0, delta_x, delta_y);
@@ -171,7 +161,7 @@ void Internals::spoof_current_url(String const& url_string)
 
     auto origin = url->origin();
 
-    auto& window = internals_window();
+    auto& window = this->window();
     window.associated_document().set_url(url.value());
     window.associated_document().set_origin(origin);
     HTML::relevant_settings_object(window.associated_document()).creation_url = url.release_value();
@@ -188,7 +178,7 @@ void Internals::simulate_drag_start(double x, double y, String const& name, Stri
     Vector<HTML::SelectedFile> files;
     files.empend(name.to_byte_string(), MUST(ByteBuffer::copy(contents.bytes())));
 
-    auto& page = internals_page();
+    auto& page = this->page();
 
     auto position = page.css_to_device_point({ x, y });
     page.handle_drag_and_drop_event(DragEvent::Type::DragStart, position, position, UIEvents::MouseButton::Primary, 0, 0, move(files));
@@ -196,7 +186,7 @@ void Internals::simulate_drag_start(double x, double y, String const& name, Stri
 
 void Internals::simulate_drag_move(double x, double y)
 {
-    auto& page = internals_page();
+    auto& page = this->page();
 
     auto position = page.css_to_device_point({ x, y });
     page.handle_drag_and_drop_event(DragEvent::Type::DragMove, position, position, UIEvents::MouseButton::Primary, 0, 0, {});
@@ -204,7 +194,7 @@ void Internals::simulate_drag_move(double x, double y)
 
 void Internals::simulate_drop(double x, double y)
 {
-    auto& page = internals_page();
+    auto& page = this->page();
 
     auto position = page.css_to_device_point({ x, y });
     page.handle_drag_and_drop_event(DragEvent::Type::Drop, position, position, UIEvents::MouseButton::Primary, 0, 0, {});
@@ -212,12 +202,12 @@ void Internals::simulate_drop(double x, double y)
 
 void Internals::enable_cookies_on_file_domains()
 {
-    internals_window().associated_document().enable_cookies_on_file_domains({});
+    window().associated_document().enable_cookies_on_file_domains({});
 }
 
 void Internals::expire_cookies_with_time_offset(WebIDL::LongLong seconds)
 {
-    internals_page().client().page_did_expire_cookies_with_time_offset(AK::Duration::from_seconds(seconds));
+    page().client().page_did_expire_cookies_with_time_offset(AK::Duration::from_seconds(seconds));
 }
 
 // NOLINTNEXTLINE(readability-convert-member-functions-to-static
@@ -230,7 +220,7 @@ String Internals::get_computed_role(DOM::Element& element)
 
 String Internals::get_computed_label(DOM::Element& element)
 {
-    auto& active_document = internals_window().associated_document();
+    auto& active_document = window().associated_document();
     return MUST(element.accessible_name(active_document));
 }
 
@@ -246,12 +236,12 @@ void Internals::set_echo_server_port(u16 const port)
 
 void Internals::set_browser_zoom(double factor)
 {
-    internals_page().client().page_did_set_browser_zoom(factor);
+    page().client().page_did_set_browser_zoom(factor);
 }
 
 bool Internals::headless()
 {
-    return internals_page().client().is_headless();
+    return page().client().is_headless();
 }
 
 }
