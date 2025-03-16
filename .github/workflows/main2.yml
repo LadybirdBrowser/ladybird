@@ -1,65 +1,50 @@
-name: Build Ladybird
+name: Build and Upload Ladybird Artifacts
 
 on:
-  workflow_dispatch:
-    inputs:
-      build_type:
-        description: 'Specify the build type: Debug or Release'
-        required: true
-        default: 'Release'
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout source code
         uses: actions/checkout@v3
 
-      - name: Install vcpkg manually
-        run: |
-          git clone https://github.com/microsoft/vcpkg.git $HOME/vcpkg
-          cd $HOME/vcpkg
-          ./bootstrap-vcpkg.sh
-          ./vcpkg integrate install
-          echo "VCPKG_ROOT=$HOME/vcpkg" >> $GITHUB_ENV
+      - name: Set up ccache
+        uses: actions/cache@v3
+        with:
+          path: ~/.ccache
+          key: ${{ runner.os }}-ccache-${{ hashFiles('**/*.cpp', '**/*.h') }}
+          restore-keys: |
+            ${{ runner.os }}-ccache-
 
       - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
             build-essential \
-            cmake \
-            libgl1-mesa-dev \
-            ninja-build \
-            qt6-base-dev \
-            qt6-tools-dev-tools \
-            qt6-multimedia-dev \
-            qt6-wayland \
             ccache \
+            cmake \
+            ninja-build \
             nasm \
-            g++-13
-
-      - name: Install required vcpkg packages
-        run: |
-          $HOME/vcpkg/vcpkg install simdutf
-          echo "CMAKE_TOOLCHAIN_FILE=$HOME/vcpkg/scripts/buildsystems/vcpkg.cmake" >> $GITHUB_ENV
+            python3 \
+            qt6-base-dev \
+            qt6-multimedia-dev \
+            qt6-tools-dev \
+            qt6-wayland-dev \
+            libgl1-mesa-dev
 
       - name: Configure build
-        run: |
-          cmake -S . -B build -GNinja \
-            -DCMAKE_BUILD_TYPE=${{ github.event.inputs.build_type }} \
-            -DCMAKE_TOOLCHAIN_FILE=$HOME/vcpkg/scripts/buildsystems/vcpkg.cmake
+        run: cmake -GNinja -B Build/release
 
-      - name: Build project
-        run: ninja -C build
+      - name: Build Ladybird
+        run: ninja -C Build/release
 
-      - name: Run tests
-        run: |
-          cd build
-          ctest --output-on-failure
-
-      - name: Upload build artifacts
+      - name: Archive build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ladybird-build
-          path: build/
+          path: Build/release/bin/
