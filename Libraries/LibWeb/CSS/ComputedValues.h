@@ -19,6 +19,7 @@
 #include <LibWeb/CSS/ColumnCount.h>
 #include <LibWeb/CSS/CountersSet.h>
 #include <LibWeb/CSS/Display.h>
+#include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/Filter.h>
 #include <LibWeb/CSS/GridTrackPlacement.h>
 #include <LibWeb/CSS/GridTrackSize.h>
@@ -134,6 +135,7 @@ public:
     static CSS::AlignSelf align_self() { return CSS::AlignSelf::Auto; }
     static CSS::Appearance appearance() { return CSS::Appearance::Auto; }
     static CSS::Overflow overflow() { return CSS::Overflow::Visible; }
+    static CSS::OverflowWrap overflow_wrap() { return CSS::OverflowWrap::Normal; }
     static CSS::BoxSizing box_sizing() { return CSS::BoxSizing::ContentBox; }
     static CSS::PointerEvents pointer_events() { return CSS::PointerEvents::Auto; }
     static float flex_grow() { return 0.0f; }
@@ -470,6 +472,7 @@ public:
     const CSS::BorderRadiusData& border_top_left_radius() const { return m_noninherited.border_top_left_radius; }
     const CSS::BorderRadiusData& border_top_right_radius() const { return m_noninherited.border_top_right_radius; }
 
+    CSS::OverflowWrap overflow_wrap() const { return m_noninherited.overflow_wrap; }
     CSS::Overflow overflow_x() const { return m_noninherited.overflow_x; }
     CSS::Overflow overflow_y() const { return m_noninherited.overflow_y; }
 
@@ -670,6 +673,7 @@ protected:
         CSS::JustifyContent justify_content { InitialValues::justify_content() };
         CSS::JustifyItems justify_items { InitialValues::justify_items() };
         CSS::JustifySelf justify_self { InitialValues::justify_self() };
+        CSS::OverflowWrap overflow_wrap { InitialValues::overflow_wrap() };
         CSS::Overflow overflow_x { InitialValues::overflow() };
         CSS::Overflow overflow_y { InitialValues::overflow() };
         float opacity { InitialValues::opacity() };
@@ -804,6 +808,7 @@ public:
     void set_inset(CSS::LengthBox const& inset) { m_noninherited.inset = inset; }
     void set_margin(const CSS::LengthBox& margin) { m_noninherited.margin = margin; }
     void set_padding(const CSS::LengthBox& padding) { m_noninherited.padding = padding; }
+    void set_overflow_wrap(CSS::OverflowWrap value) { m_noninherited.overflow_wrap = value; }
     void set_overflow_x(CSS::Overflow value) { m_noninherited.overflow_x = value; }
     void set_overflow_y(CSS::Overflow value) { m_noninherited.overflow_y = value; }
     void set_list_style_type(CSS::ListStyleType value) { m_inherited.list_style_type = value; }

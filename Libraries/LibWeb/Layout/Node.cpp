@@ -654,6 +654,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
 
     computed_values.set_caption_side(computed_style.caption_side());
     computed_values.set_clear(computed_style.clear());
+    computed_values.set_overflow_wrap(computed_style.overflow_wrap());
     computed_values.set_overflow_x(computed_style.overflow_x());
     computed_values.set_overflow_y(computed_style.overflow_y());
     computed_values.set_content_visibility(computed_style.content_visibility());

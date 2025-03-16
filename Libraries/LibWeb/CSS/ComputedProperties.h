@@ -128,6 +128,7 @@ public:
     JustifyContent justify_content() const;
     JustifyItems justify_items() const;
     JustifySelf justify_self() const;
+    OverflowWrap overflow_wrap() const;
     Overflow overflow_x() const;
     Overflow overflow_y() const;
     Vector<ShadowData> box_shadow(Layout::Node const&) const;
