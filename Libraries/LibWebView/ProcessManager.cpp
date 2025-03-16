@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/JsonArraySerializer.h>
+#include <AK/JsonObjectSerializer.h>
 #include <AK/NumberFormat.h>
 #include <AK/String.h>
 #include <LibCore/EventLoop.h>
@@ -200,6 +202,35 @@ String ProcessManager::generate_html()
     )"sv);
 
     return builder.to_string_without_validation();
+}
+
+String ProcessManager::serialize_json()
+{
+    Threading::MutexLocker locker { m_lock };
+
+    StringBuilder builder;
+    auto serializer = MUST(JsonArraySerializer<>::try_create(builder));
+
+    m_statistics.for_each_process([&](auto const& process) {
+        auto& process_handle = find_process(process.pid).value();
+
+        auto type = WebView::process_name_from_type(process_handle.type());
+        auto const& title = process_handle.title();
+
+        auto process_name = title.has_value()
+            ? MUST(String::formatted("{} - {}", type, *title))
+            : String::from_utf8_without_validation(type.bytes());
+
+        auto object = MUST(serializer.add_object());
+        MUST(object.add("name"sv, move(process_name)));
+        MUST(object.add("pid"sv, process.pid));
+        MUST(object.add("cpu"sv, process.cpu_percent));
+        MUST(object.add("memory"sv, process.memory_usage_bytes));
+        MUST(object.finish());
+    });
+
+    MUST(serializer.finish());
+    return MUST(builder.to_string());
 }
 
 }

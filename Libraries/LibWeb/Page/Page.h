@@ -400,6 +400,8 @@ public:
 
     virtual void page_did_mutate_dom([[maybe_unused]] FlyString const& type, [[maybe_unused]] DOM::Node const& target, [[maybe_unused]] DOM::NodeList& added_nodes, [[maybe_unused]] DOM::NodeList& removed_nodes, [[maybe_unused]] GC::Ptr<DOM::Node> previous_sibling, [[maybe_unused]] GC::Ptr<DOM::Node> next_sibling, [[maybe_unused]] Optional<String> const& attribute_name) { }
 
+    virtual void update_process_statistics() { }
+
     virtual bool is_ready_to_paint() const = 0;
 
     virtual DisplayListPlayerType display_list_player_type() const = 0;

@@ -37,6 +37,7 @@ public:
 
     void update_all_process_statistics();
     String generate_html();
+    String serialize_json();
 
     Function<void(Process&&)> on_process_exited;
 

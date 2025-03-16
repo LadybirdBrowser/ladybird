@@ -148,7 +148,7 @@ public:
     // https://html.spec.whatwg.org/multipage/interaction.html#history-action-activation
     bool has_history_action_activation() const;
 
-    WebIDL::ExceptionOr<void> initialize_web_interfaces(Badge<WindowEnvironmentSettingsObject>);
+    WebIDL::ExceptionOr<void> initialize_web_interfaces(Badge<WindowEnvironmentSettingsObject>, URL::URL const&);
 
     Vector<GC::Ref<Plugin>> pdf_viewer_plugin_objects();
     Vector<GC::Ref<MimeType>> pdf_viewer_mime_type_objects();
