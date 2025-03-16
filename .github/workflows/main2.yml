@@ -17,7 +17,7 @@ jobs:
             autoconf autoconf-archive automake build-essential ccache cmake curl \
             fonts-liberation2 git libgl1-mesa-dev nasm ninja-build pkg-config \
             qt6-base-dev qt6-tools-dev-tools qt6-wayland tar unzip zip \
-            libpulse-dev qt6-multimedia-dev
+            libpulse-dev qt6-multimedia-dev xvfb  # 🟢 Added Xvfb for virtual display
 
       - name: Install CMake 3.25+ from Kitware
         run: |
@@ -31,10 +31,10 @@ jobs:
           echo "deb [signed-by=/usr/share/keyrings/llvm-snapshot.gpg.key] https://apt.llvm.org/$(lsb_release -sc)/ llvm-toolchain-$(lsb_release -sc)-19 main" | sudo tee -a /etc/apt/sources.list.d/llvm.list
           sudo apt update -y && sudo apt install clang-19 clangd-19 clang-format-19 clang-tidy-19 lld-19 -y
 
-      - name: Build Ladybird Using `ladybird.sh`
+      - name: Build Ladybird Using `ladybird.sh` with Virtual Display
         run: |
           chmod +x Meta/ladybird.sh
-          ./Meta/ladybird.sh run ladybird
+          xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" ./Meta/ladybird.sh run ladybird  # 🟢 Run in a virtual X server
 
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
