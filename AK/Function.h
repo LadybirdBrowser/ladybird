@@ -2,6 +2,7 @@
  * Copyright (C) 2016 Apple Inc. All rights reserved.
  * Copyright (c) 2021, Gunnar Beutner <gbeutner@serenityos.org>
  * Copyright (c) 2018-2023, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2025, Andrew Kaster <andrew@ladybird.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -34,7 +35,13 @@
 #include <AK/ScopeGuard.h>
 #include <AK/Span.h>
 #include <AK/StdLibExtras.h>
+#include <AK/TypeCasts.h>
 #include <AK/Types.h>
+
+// BlockRuntime methods for Objective-C block closure support.
+extern "C" void* _Block_copy(void const*);
+extern "C" void _Block_release(void const*);
+extern "C" size_t Block_size(void const*);
 
 namespace AK {
 
@@ -47,6 +54,17 @@ namespace AK {
 #    define ESCAPING
 #    define IGNORE_USE_IN_ESCAPING_LAMBDA
 #endif
+
+namespace Detail {
+#ifdef AK_HAS_OBJC_ARC
+inline constexpr bool HaveObjcArc = true;
+#else
+inline constexpr bool HaveObjcArc = false;
+#endif
+
+// validated in TestFunction.mm
+inline constexpr size_t block_layout_size = 32;
+}
 
 template<typename>
 class Function;
@@ -84,7 +102,7 @@ public:
         if (!m_size)
             return {};
         if (auto* wrapper = callable_wrapper())
-            return ReadonlyBytes { wrapper, m_size };
+            return ReadonlyBytes { wrapper->raw_callable(), m_size };
         return {};
     }
 
@@ -100,6 +118,13 @@ public:
     requires((IsFunctionPointer<FunctionType> && IsCallableWithArguments<RemovePointer<FunctionType>, Out, In...> && !IsSame<RemoveCVReference<FunctionType>, Function>))
     {
         init_with_callable(move(f), CallableKind::FunctionPointer);
+    }
+
+    template<typename BlockType>
+    Function(BlockType b)
+    requires((IsBlockClosure<BlockType> && IsCallableWithArguments<BlockType, Out, In...>))
+    {
+        init_with_callable(move(b), CallableKind::Block);
     }
 
     Function(Function&& other)
@@ -141,6 +166,15 @@ public:
         return *this;
     }
 
+    template<typename BlockType>
+    Function& operator=(BlockType&& block)
+    requires((IsBlockClosure<BlockType> && IsCallableWithArguments<BlockType, Out, In...>))
+    {
+        clear();
+        init_with_callable(static_cast<RemoveCVReference<BlockType>>(block), CallableKind::Block);
+        return *this;
+    }
+
     Function& operator=(nullptr_t)
     {
         clear();
@@ -160,6 +194,7 @@ private:
     enum class CallableKind {
         FunctionPointer,
         FunctionObject,
+        Block,
     };
 
     class CallableWrapperBase {
@@ -169,6 +204,7 @@ private:
         virtual Out call(In...) = 0;
         virtual void destroy() = 0;
         virtual void init_and_swap(u8*, size_t) = 0;
+        virtual void const* raw_callable() const = 0;
     };
 
     template<typename CallableType>
@@ -189,7 +225,15 @@ private:
 
         void destroy() final override
         {
-            delete this;
+            if constexpr (IsBlockClosure<CallableType>) {
+                if constexpr (Detail::HaveObjcArc)
+                    m_callable = nullptr;
+                else
+                    _Block_release(m_callable);
+            } else {
+                // This code is a bit too clever for gcc. Pinky promise we're only deleting heap objects.
+                AK_IGNORE_DIAGNOSTIC("-Wfree-nonheap-object", delete this);
+            }
         }
 
         // NOLINTNEXTLINE(readability-non-const-parameter) False positive; destination is used in a placement new expression
@@ -197,6 +241,14 @@ private:
         {
             VERIFY(size >= sizeof(CallableWrapper));
             new (destination) CallableWrapper { move(m_callable) };
+        }
+
+        void const* raw_callable() const final override
+        {
+            if constexpr (IsBlockClosure<CallableType>)
+                return static_cast<u8 const*>(bridge_cast<void>(m_callable)) + Detail::block_layout_size;
+            else
+                return &m_callable;
         }
 
     private:
@@ -207,6 +259,7 @@ private:
         NullPointer,
         Inline,
         Outline,
+        Block,
     };
 
     CallableWrapperBase* callable_wrapper() const
@@ -215,6 +268,7 @@ private:
         case FunctionKind::NullPointer:
             return nullptr;
         case FunctionKind::Inline:
+        case FunctionKind::Block:
             return bit_cast<CallableWrapperBase*>(&m_storage);
         case FunctionKind::Outline:
             return *bit_cast<CallableWrapperBase**>(&m_storage);
@@ -234,12 +288,22 @@ private:
         }
         m_deferred_clear = false;
         auto* wrapper = callable_wrapper();
-        if (m_kind == FunctionKind::Inline) {
+        switch (m_kind) {
+        case FunctionKind::Inline:
             VERIFY(wrapper);
             wrapper->~CallableWrapperBase();
-        } else if (m_kind == FunctionKind::Outline) {
+            break;
+        case FunctionKind::Outline:
             VERIFY(wrapper);
             wrapper->destroy();
+            break;
+        case FunctionKind::Block:
+            VERIFY(wrapper);
+            wrapper->destroy();
+            wrapper->~CallableWrapperBase();
+            break;
+        case FunctionKind::NullPointer:
+            break;
         }
         m_kind = FunctionKind::NullPointer;
     }
@@ -256,18 +320,33 @@ private:
         }
         VERIFY(m_call_nesting_level == 0);
         using WrapperType = CallableWrapper<Callable>;
+        if (callable_kind == CallableKind::FunctionObject)
+            m_size = sizeof(Callable);
+        else
+            m_size = 0;
+        if constexpr (IsBlockClosure<Callable>) {
+            auto block_size = Block_size(bridge_cast<void>(callable));
+            VERIFY(block_size >= Detail::block_layout_size);
+            m_size = block_size - Detail::block_layout_size;
+        }
+
         if constexpr (alignof(Callable) > inline_alignment || sizeof(WrapperType) > inline_capacity) {
             *bit_cast<CallableWrapperBase**>(&m_storage) = new WrapperType(forward<Callable>(callable));
             m_kind = FunctionKind::Outline;
         } else {
             static_assert(sizeof(WrapperType) <= inline_capacity);
-            new (m_storage) WrapperType(forward<Callable>(callable));
-            m_kind = FunctionKind::Inline;
+            if constexpr (IsBlockClosure<Callable>) {
+                if constexpr (Detail::HaveObjcArc) {
+                    new (m_storage) WrapperType(forward<Callable>(callable));
+                } else {
+                    new (m_storage) WrapperType(reinterpret_cast<Callable>(_Block_copy(callable)));
+                }
+                m_kind = FunctionKind::Block;
+            } else {
+                new (m_storage) WrapperType(forward<Callable>(callable));
+                m_kind = FunctionKind::Inline;
+            }
         }
-        if (callable_kind == CallableKind::FunctionObject)
-            m_size = sizeof(WrapperType);
-        else
-            m_size = 0;
     }
 
     void move_from(Function&& other)
@@ -279,8 +358,9 @@ private:
         case FunctionKind::NullPointer:
             break;
         case FunctionKind::Inline:
+        case FunctionKind::Block:
             other_wrapper->init_and_swap(m_storage, inline_capacity);
-            m_kind = FunctionKind::Inline;
+            m_kind = other.m_kind;
             break;
         case FunctionKind::Outline:
             *bit_cast<CallableWrapperBase**>(&m_storage) = other_wrapper;
