@@ -208,6 +208,22 @@ Or, download a version of Gradle >= 8.0.0, and run the ``gradlew`` program in ``
 
 ## Build steps
 
+### Cloning the repo
+
+Before you can run the build script, you'll need to clone the repo and `cd` to the clone directory:
+
+```bash
+git clone https://github.com/LadybirdBrowser/ladybird.git
+cd ladybird
+```
+
+If you have your public SSH key set up with GitHub, you can replace the `https` URL above with the SSH URL:
+
+```bash
+git clone git@github.com:LadybirdBrowser/ladybird.git
+cd ladybird
+```
+
 ### Using ladybird.sh
 
 The simplest way to build and run ladybird is via the ladybird.sh script:
