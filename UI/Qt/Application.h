@@ -30,9 +30,6 @@ public:
 
     BrowserWindow& new_window(Vector<URL::URL> const& initial_urls, BrowserWindow::IsPopupWindow is_popup_window = BrowserWindow::IsPopupWindow::No, Tab* parent_tab = nullptr, Optional<u64> page_index = {});
 
-    void show_task_manager_window();
-    void close_task_manager_window();
-
     BrowserWindow& active_window() { return *m_active_window; }
     void set_active_window(BrowserWindow& w) { m_active_window = &w; }
 
@@ -41,7 +38,6 @@ private:
 
     virtual Optional<ByteString> ask_user_for_download_folder() const override;
 
-    TaskManagerWindow* m_task_manager_window { nullptr };
     BrowserWindow* m_active_window { nullptr };
 };
 
