@@ -21,7 +21,7 @@ TESTJS_GLOBAL_FUNCTION(read_binary_wasm_file, readBinaryWasmFile)
         return StringView { error_string, strlen(error_string) };
     };
 
-    auto filename = TRY(vm.argument(0).to_byte_string(vm));
+    auto filename = TRY(vm.argument(0).to_string(vm));
     auto file = Core::File::open(filename, Core::File::OpenMode::Read);
     if (file.is_error())
         return vm.throw_completion<JS::TypeError>(error_code_to_string(file.error().code()));
