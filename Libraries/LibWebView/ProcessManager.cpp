@@ -6,7 +6,6 @@
 
 #include <AK/JsonArraySerializer.h>
 #include <AK/JsonObjectSerializer.h>
-#include <AK/NumberFormat.h>
 #include <AK/String.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/System.h>
@@ -119,89 +118,6 @@ void ProcessManager::update_all_process_statistics()
 {
     Threading::MutexLocker locker { m_lock };
     (void)update_process_statistics(m_statistics);
-}
-
-String ProcessManager::generate_html()
-{
-    Threading::MutexLocker locker { m_lock };
-    StringBuilder builder;
-
-    builder.append(R"(
-        <html>
-        <head>
-        <title>Task Manager</title>
-        <style>
-                @media (prefers-color-scheme: dark) {
-                    tr:nth-child(even) {
-                        background: rgb(57, 57, 57);
-                    }
-                }
-
-                @media (prefers-color-scheme: light) {
-                    tr:nth-child(even) {
-                        background: #f7f7f7;
-                    }
-                }
-
-                html {
-                    color-scheme: light dark;
-                }
-
-                table {
-                    width: 100%;
-                    border-collapse: collapse;
-                }
-                th {
-                    text-align: left;
-                    border-bottom: 1px solid #aaa;
-                }
-                td, th {
-                    padding: 4px;
-                    border: 1px solid #aaa;
-                }
-        </style>
-        </head>
-        <body>
-        <table>
-                <thead>
-                <tr>
-                        <th>Name</th>
-                        <th>PID</th>
-                        <th>Memory Usage</th>
-                        <th>CPU %</th>
-                </tr>
-                </thead>
-                <tbody>
-    )"sv);
-
-    m_statistics.for_each_process([&](auto const& process) {
-        builder.append("<tr>"sv);
-        builder.append("<td>"sv);
-        auto& process_handle = this->find_process(process.pid).value();
-        builder.append(WebView::process_name_from_type(process_handle.type()));
-        if (process_handle.title().has_value())
-            builder.appendff(" - {}", escape_html_entities(*process_handle.title()));
-        builder.append("</td>"sv);
-        builder.append("<td>"sv);
-        builder.append(String::number(process.pid));
-        builder.append("</td>"sv);
-        builder.append("<td>"sv);
-        builder.append(human_readable_size(process.memory_usage_bytes));
-        builder.append("</td>"sv);
-        builder.append("<td>"sv);
-        builder.append(MUST(String::formatted("{:.1f}", process.cpu_percent)));
-        builder.append("</td>"sv);
-        builder.append("</tr>"sv);
-    });
-
-    builder.append(R"(
-                </tbody>
-                </table>
-                </body>
-                </html>
-    )"sv);
-
-    return builder.to_string_without_validation();
 }
 
 String ProcessManager::serialize_json()
