@@ -34,7 +34,7 @@ ThrowCompletionOr<Value> ModuleEnvironment::get_binding_value(VM& vm, Deprecated
         // a. Let M and N2 be the indirection values provided when this binding for N was created.
 
         // b. Let targetEnv be M.[[Environment]].
-        auto* target_env = indirect_binding->module->environment();
+        auto target_env = indirect_binding->module->environment();
 
         // c. If targetEnv is empty, throw a ReferenceError exception.
         if (!target_env)
@@ -97,11 +97,10 @@ Optional<ModuleEnvironment::BindingAndIndex> ModuleEnvironment::find_binding_and
 {
     auto* indirect_binding = get_indirect_binding(name);
     if (indirect_binding != nullptr) {
-        auto* target_env = indirect_binding->module->environment();
+        auto target_env = indirect_binding->module->environment();
         if (!target_env)
             return {};
 
-        VERIFY(is<ModuleEnvironment>(target_env));
         auto& target_module_environment = static_cast<ModuleEnvironment&>(*target_env);
         auto result = target_module_environment.find_binding_and_index(indirect_binding->binding_name);
         if (!result.has_value())

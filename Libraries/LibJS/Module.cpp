@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2021-2025, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2022, David Tuin <davidot@serenityos.org>
  * Copyright (c) 2023, networkException <networkexception@serenityos.org>
  *
@@ -8,6 +8,7 @@
 
 #include <LibJS/CyclicModule.h>
 #include <LibJS/Module.h>
+#include <LibJS/Runtime/ModuleEnvironment.h>
 #include <LibJS/Runtime/ModuleNamespaceObject.h>
 #include <LibJS/Runtime/ModuleRequest.h>
 #include <LibJS/Runtime/Promise.h>

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2021-2025, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2022, David Tuin <davidot@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -100,7 +100,7 @@ public:
 
     StringView filename() const { return m_filename; }
 
-    Environment* environment() { return m_environment; }
+    GC::Ptr<ModuleEnvironment> environment() { return m_environment; }
 
     Script::HostDefined* host_defined() const { return m_host_defined; }
 
@@ -122,7 +122,7 @@ protected:
 
     virtual void visit_edges(Cell::Visitor&) override;
 
-    void set_environment(Environment* environment)
+    void set_environment(GC::Ref<ModuleEnvironment> environment)
     {
         m_environment = environment;
     }
@@ -136,7 +136,7 @@ private:
     // stores modules with a RefPtr we cannot just store the VM as that leads to
     // cycles.
     GC::Ptr<Realm> m_realm;                          // [[Realm]]
-    GC::Ptr<Environment> m_environment;              // [[Environment]]
+    GC::Ptr<ModuleEnvironment> m_environment;        // [[Environment]]
     GC::Ptr<Object> m_namespace;                     // [[Namespace]]
     Script::HostDefined* m_host_defined { nullptr }; // [[HostDefined]]
 
