@@ -6,9 +6,26 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      CCACHE_DIR: /home/runner/.ccache
+      CCACHE_MAXSIZE: 2G
+      
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
+
+      - name: Configure CCache
+        run: |
+          sudo apt install -y ccache
+          echo "MAXSIZE=2.0G" | sudo tee /etc/ccache.conf
+
+      - name: Cache build artifacts
+        uses: actions/cache@v3
+        with:
+          path: |
+            Build/
+            /home/runner/.ccache
+          key: ${{ runner.os }}-build-${{ hashFiles('**/CMakeLists.txt') }}-${{ hashFiles('**/package.json') }}
 
       - name: Install dependencies
         run: |
@@ -17,7 +34,7 @@ jobs:
             autoconf autoconf-archive automake build-essential ccache cmake curl \
             fonts-liberation2 git libgl1-mesa-dev nasm ninja-build pkg-config \
             qt6-base-dev qt6-tools-dev-tools qt6-wayland tar unzip zip \
-            libpulse-dev qt6-multimedia-dev xvfb  # 🟢 Added Xvfb for virtual display
+            libpulse-dev qt6-multimedia-dev xvfb
 
       - name: Install CMake 3.25+ from Kitware
         run: |
@@ -34,7 +51,9 @@ jobs:
       - name: Build Ladybird Using `ladybird.sh` with Virtual Display
         run: |
           chmod +x Meta/ladybird.sh
-          xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" ./Meta/ladybird.sh run ladybird  # 🟢 Run in a virtual X server
+          export CC="clang-19"
+          export CXX="clang++-19"
+          xvfb-run --auto-servernum --server-args="-screen 0 1280x720x24" ./Meta/ladybird.sh run ladybird
 
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
