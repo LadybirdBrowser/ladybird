@@ -60,6 +60,8 @@ public:
     void update_process_statistics();
     String generate_process_statistics_html();
 
+    void send_updated_process_statistics_to_view(ViewImplementation&);
+
     ErrorOr<LexicalPath> path_for_downloaded_file(StringView file) const;
 
     enum class DevtoolsState {

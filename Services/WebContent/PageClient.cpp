@@ -699,6 +699,11 @@ void PageClient::page_did_mutate_dom(FlyString const& type, Web::DOM::Node const
     client().async_did_mutate_dom(m_id, { type.to_string(), target.unique_id(), move(serialized_target), mutation.release_value() });
 }
 
+void PageClient::update_process_statistics()
+{
+    client().async_update_process_statistics(m_id);
+}
+
 ErrorOr<void> PageClient::connect_to_webdriver(ByteString const& webdriver_ipc_path)
 {
     VERIFY(!m_webdriver);

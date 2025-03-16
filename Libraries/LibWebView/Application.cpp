@@ -331,6 +331,19 @@ String Application::generate_process_statistics_html()
     return m_process_manager.generate_html();
 }
 
+void Application::send_updated_process_statistics_to_view(ViewImplementation& view)
+{
+    m_process_manager.update_all_process_statistics();
+    auto statistics = m_process_manager.serialize_json();
+
+    StringBuilder builder;
+    builder.append("processes.loadProcessStatistics(\""sv);
+    builder.append_escaped_for_json(statistics);
+    builder.append("\");"sv);
+
+    view.run_javascript(MUST(builder.to_string()));
+}
+
 void Application::process_did_exit(Process&& process)
 {
     if (m_in_shutdown)

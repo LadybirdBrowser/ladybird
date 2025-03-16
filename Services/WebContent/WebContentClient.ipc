@@ -108,4 +108,6 @@ endpoint WebContentClient
     did_find_in_page(u64 page_id, size_t current_match_index, Optional<size_t> total_match_count) =|
 
     request_worker_agent(u64 page_id) => (IPC::File socket) // FIXME: Add required attributes to select a SharedWorker Agent
+
+    update_process_statistics(u64 page_id) =|
 }

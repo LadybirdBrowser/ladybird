@@ -1,0 +1,175 @@
+<!doctype html>
+<html>
+    <head>
+        <title>Task Manager</title>
+        <style>
+            @media (prefers-color-scheme: dark) {
+                :root {
+                    --table-border: gray;
+                    --table-row-odd: rgb(57, 57, 57);
+                    --table-row-hover: rgb(80, 79, 79);
+                }
+            }
+
+            @media (prefers-color-scheme: light) {
+                :root {
+                    --table-border: gray;
+                    --table-row-odd: rgb(229, 229, 229);
+                    --table-row-hover: rgb(199, 198, 198);
+                }
+            }
+
+            html {
+                color-scheme: light dark;
+
+                font-family: Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+                font-size: 10pt;
+            }
+
+            table {
+                width: 100%;
+                border-collapse: collapse;
+            }
+
+            th {
+                text-align: left;
+                border-bottom: 1px solid var(--table-border);
+            }
+
+            th:hover {
+                background-color: var(--table-row-hover);
+                cursor: pointer;
+            }
+
+            th.sorted-ascending:after {
+                content: " ▲";
+            }
+
+            th.sorted-descending:after {
+                content: " ▼";
+            }
+
+            td,
+            th {
+                padding: 4px;
+                border: 1px solid var(--table-border);
+            }
+
+            tbody tr:nth-of-type(2n + 1) {
+                background-color: var(--table-row-odd);
+            }
+
+            tbody tr:hover {
+                background-color: var(--table-row-hover);
+            }
+        </style>
+    </head>
+    <body>
+        <table>
+            <thead>
+                <tr>
+                    <th id="name">Name</th>
+                    <th id="pid">PID</th>
+                    <th id="cpu">CPU</th>
+                    <th id="memory">Memory</th>
+                </tr>
+            </thead>
+            <tbody id="process-table"></tbody>
+        </table>
+
+        <script type="text/javascript">
+            const cpuFormatter = new Intl.NumberFormat([], {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+            });
+
+            const memoryFormatter = new Intl.NumberFormat([], {
+                style: "unit",
+                unit: "byte",
+                notation: "compact",
+                unitDisplay: "narrow",
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+            });
+
+            const Direction = Object.freeze({
+                ascending: 1,
+                descending: 2,
+            });
+
+            processes.processes = [];
+            processes.sortDirection = Direction.ascending;
+            processes.sortKey = "pid";
+
+            const renderSortedProcesses = () => {
+                document.querySelectorAll("th").forEach(header => {
+                    header.classList.remove("sorted-ascending");
+                    header.classList.remove("sorted-descending");
+                });
+
+                if (processes.sortDirection === Direction.ascending) {
+                    document.getElementById(processes.sortKey).classList.add("sorted-ascending");
+                } else {
+                    document.getElementById(processes.sortKey).classList.add("sorted-descending");
+                }
+
+                const multiplier = processes.sortDirection === Direction.ascending ? 1 : -1;
+
+                processes.processes.sort((lhs, rhs) => {
+                    const lhsValue = lhs[processes.sortKey];
+                    const rhsValue = rhs[processes.sortKey];
+
+                    if (typeof lhsValue === "string") {
+                        return multiplier * lhsValue.localeCompare(rhsValue);
+                    }
+
+                    return multiplier * (lhsValue - rhsValue);
+                });
+
+                let oldTable = document.getElementById("process-table");
+
+                let newTable = document.createElement("tbody");
+                newTable.setAttribute("id", "process-table");
+
+                const insertColumn = (row, value) => {
+                    let column = row.insertCell();
+                    column.innerText = value;
+                };
+
+                processes.processes.forEach(process => {
+                    let row = newTable.insertRow();
+                    insertColumn(row, process.name);
+                    insertColumn(row, process.pid);
+                    insertColumn(row, cpuFormatter.format(process.cpu));
+                    insertColumn(row, memoryFormatter.format(process.memory));
+                });
+
+                oldTable.parentNode.replaceChild(newTable, oldTable);
+            };
+
+            processes.loadProcessStatistics = statistics => {
+                processes.processes = JSON.parse(statistics);
+                renderSortedProcesses();
+            };
+
+            document.addEventListener("DOMContentLoaded", () => {
+                document.querySelectorAll("th").forEach(header => {
+                    header.addEventListener("click", () => {
+                        processes.sortDirection = header.classList.contains("sorted-descending")
+                            ? Direction.ascending
+                            : Direction.descending;
+                        processes.sortKey = header.getAttribute("id");
+
+                        renderSortedProcesses();
+                    });
+                });
+
+                setInterval(() => {
+                    processes.updateProcessStatistics();
+                }, 1000);
+
+                processes.updateProcessStatistics();
+            });
+        </script>
+    </body>
+</html>

@@ -60,6 +60,7 @@
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/Internals/Internals.h>
+#include <LibWeb/Internals/Processes.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/PaintableBox.h>
@@ -721,7 +722,7 @@ void Window::set_internals_object_exposed(bool exposed)
     s_internals_object_exposed = exposed;
 }
 
-WebIDL::ExceptionOr<void> Window::initialize_web_interfaces(Badge<WindowEnvironmentSettingsObject>)
+WebIDL::ExceptionOr<void> Window::initialize_web_interfaces(Badge<WindowEnvironmentSettingsObject>, URL::URL const& url)
 {
     auto& realm = this->realm();
     add_window_exposed_interfaces(*this);
@@ -733,6 +734,14 @@ WebIDL::ExceptionOr<void> Window::initialize_web_interfaces(Badge<WindowEnvironm
 
     if (s_internals_object_exposed)
         define_direct_property("internals", realm.create<Internals::Internals>(realm), JS::default_attributes);
+
+    if (url.scheme() == "about"sv && url.paths().size() == 1) {
+        auto const& path = url.paths().first();
+
+        if (path == "processes"sv) {
+            define_direct_property("processes", realm.create<Internals::Processes>(realm), JS::default_attributes);
+        }
+    }
 
     return {};
 }

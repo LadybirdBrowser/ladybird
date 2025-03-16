@@ -690,6 +690,12 @@ Messages::WebContentClient::RequestWorkerAgentResponse WebContentClient::request
     return IPC::File {};
 }
 
+void WebContentClient::update_process_statistics(u64 page_id)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value())
+        WebView::Application::the().send_updated_process_statistics_to_view(*view);
+}
+
 Optional<ViewImplementation&> WebContentClient::view_for_page_id(u64 page_id, SourceLocation location)
 {
     // Don't bother logging anything for the spare WebContent process. It will only receive a load notification for about:blank.
