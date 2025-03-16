@@ -35,6 +35,8 @@ public:
     bool any_floats_intrude_at_block_offset(CSSPixels block_offset) const;
     bool can_fit_new_line_at_block_offset(CSSPixels block_offset) const;
 
+    Optional<AvailableSpace> const& available_space() const { return m_available_space; }
+
     CSSPixels vertical_float_clearance() const;
     void set_vertical_float_clearance(CSSPixels);
 

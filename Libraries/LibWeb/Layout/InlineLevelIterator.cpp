@@ -5,12 +5,15 @@
  */
 
 #include <LibGfx/Font/FontVariant.h>
+#include <LibGfx/TextLayout.h>
+#include <LibWeb/CSS/Enums.h>
 #include <LibWeb/Layout/BreakNode.h>
 #include <LibWeb/Layout/InlineFormattingContext.h>
 #include <LibWeb/Layout/InlineLevelIterator.h>
 #include <LibWeb/Layout/InlineNode.h>
 #include <LibWeb/Layout/ListItemMarkerBox.h>
 #include <LibWeb/Layout/ReplacedBox.h>
+#include <LibWeb/PixelUnits.h>
 
 namespace Web::Layout {
 
@@ -555,6 +558,38 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::next_without_lookahead(
         auto glyph_run = Gfx::shape_text({ x, 0 }, letter_spacing.to_float(), chunk.view, chunk.font, text_type, shape_features);
 
         CSSPixels chunk_width = CSSPixels::nearest_value_for(glyph_run->width());
+
+        // FIXME: Probably a better implementation is possible easily
+        {
+
+            if (text_node.computed_values().overflow_wrap() == CSS::OverflowWrap::BreakWord) {
+                auto glyph_run = Gfx::shape_text({ x, 0 }, letter_spacing.to_float(), chunk.view, chunk.font, text_type, shape_features);
+                dbgln("Shaping current chunk: {}", chunk.view);
+
+                CSSPixels chunk_width = CSSPixels::nearest_value_for(glyph_run->width());
+
+                auto maybe_available_space = m_inline_formatting_context.available_space();
+                if (maybe_available_space.has_value()) {
+                    auto available_space = maybe_available_space.value();
+                    auto removed_code_points_count = 0;
+                    auto new_chunk_view = chunk.view;
+                    dbgln("Chunk Width: {}, Available Width: {}", chunk_width.to_int(), available_space.width.to_px_or_zero().to_int());
+
+                    // FIXME: Use binary search (maybe) to find the number of characters to rewind to
+                    while (chunk_width + CSSPixels::from_raw(removed_code_points_count) > available_space.width.to_px_or_zero()) {
+                        new_chunk_view = new_chunk_view.unicode_substring_view(0, new_chunk_view.length() - 1);
+                        glyph_run = Gfx::shape_text({ x, 0 }, letter_spacing.to_float(), new_chunk_view, chunk.font, text_type, shape_features);
+                        dbgln("Shaped current chunk: {}", new_chunk_view);
+                        chunk_width = CSSPixels::nearest_value_for(glyph_run->width());
+                        removed_code_points_count++;
+                    }
+
+                    // FIXME: Rewind the chunk_iterator back removed_code_points_count times.
+
+                    dbgln("Removed {} codepoints when Breaking Words", removed_code_points_count);
+                }
+            }
+        }
 
         // NOTE: We never consider `content: ""` to be collapsible whitespace.
         bool is_generated_empty_string = text_node.is_generated() && chunk.length == 0;
