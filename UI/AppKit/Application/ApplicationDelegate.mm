@@ -15,22 +15,13 @@
 #import <Interface/TabController.h>
 #import <LibWebView/UserAgent.h>
 
-#if defined(LADYBIRD_USE_SWIFT)
-// FIXME: Report this codegen error to Apple
-#    define StyleMask NSWindowStyleMask
-#    import <Ladybird-Swift.h>
-#    undef StyleMask
-#else
-#    import <Interface/TaskManagerController.h>
-#endif
-
 #import <Utilities/Conversions.h>
 
 #if !__has_feature(objc_arc)
 #    error "This project requires ARC"
 #endif
 
-@interface ApplicationDelegate () <TaskManagerDelegate>
+@interface ApplicationDelegate ()
 {
     Web::CSS::PreferredColorScheme m_preferred_color_scheme;
     Web::CSS::PreferredContrast m_preferred_contrast;
@@ -44,8 +35,6 @@
 @property (nonatomic, weak) Tab* active_tab;
 
 @property (nonatomic, strong) InfoBar* info_bar;
-
-@property (nonatomic, strong) TaskManagerController* task_manager_controller;
 
 @property (nonatomic, strong) NSMenuItem* toggle_devtools_menu_item;
 
@@ -152,12 +141,6 @@
 - (void)removeTab:(TabController*)controller
 {
     [self.managed_tabs removeObject:controller];
-
-    if ([self.managed_tabs count] == 0u) {
-        if (self.task_manager_controller != nil) {
-            [self.task_manager_controller.window close];
-        }
-    }
 }
 
 - (Web::CSS::PreferredColorScheme)preferredColorScheme
@@ -299,13 +282,9 @@
 
 - (void)openTaskManager:(id)sender
 {
-    if (self.task_manager_controller != nil) {
-        [self.task_manager_controller.window makeKeyAndOrderFront:sender];
-        return;
-    }
-
-    self.task_manager_controller = [[TaskManagerController alloc] initWithDelegate:self];
-    [self.task_manager_controller showWindow:nil];
+    [self createNewTab:URL::URL::about("processes"_string)
+               fromTab:self.active_tab
+           activateTab:Web::HTML::ActivateTab::Yes];
 }
 
 - (void)openLocation:(id)sender
@@ -862,13 +841,6 @@
     }
 
     return YES;
-}
-
-#pragma mark - TaskManagerDelegate
-
-- (void)onTaskManagerClosed
-{
-    self.task_manager_controller = nil;
 }
 
 @end
