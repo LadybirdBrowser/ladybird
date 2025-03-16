@@ -6,18 +6,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-
-      - name: Restore CCache Cache
-        uses: actions/cache@v3
-        with:
-          path: ~/.ccache
-          key: ccache-${{ runner.os }}-${{ github.sha }}
-          restore-keys: |
-            ccache-${{ runner.os }}-
 
       - name: Install dependencies
         run: |
@@ -26,45 +17,29 @@ jobs:
             autoconf autoconf-archive automake build-essential ccache cmake curl \
             fonts-liberation2 git libgl1-mesa-dev nasm ninja-build pkg-config \
             qt6-base-dev qt6-tools-dev-tools qt6-wayland tar unzip zip \
-            libpulse-dev qt6-multimedia-dev
-
+            libpulse-dev qt6-multimedia-dev xvfb  # 🟢 Added Xvfb for virtual display
       - name: Install CMake 3.25+ from Kitware
         run: |
           wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | sudo tee /usr/share/keyrings/kitware-archive-keyring.gpg >/dev/null
           echo "deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/kitware.list
           sudo apt update -y && sudo apt install cmake -y
-
       - name: Install Clang 19 (C++23-capable compiler)
         run: |
           sudo wget -O /usr/share/keyrings/llvm-snapshot.gpg.key https://apt.llvm.org/llvm-snapshot.gpg.key
           echo "deb [signed-by=/usr/share/keyrings/llvm-snapshot.gpg.key] https://apt.llvm.org/$(lsb_release -sc)/ llvm-toolchain-$(lsb_release -sc)-19 main" | sudo tee -a /etc/apt/sources.list.d/llvm.list
           sudo apt update -y && sudo apt install clang-19 clangd-19 clang-format-19 clang-tidy-19 lld-19 -y
-
-      - name: Enable Software Rendering (Fix Vulkan Issue)
-        run: echo "QT_QUICK_BACKEND=software" >> $GITHUB_ENV
-
-      - name: Build Ladybird Using `ladybird.sh`
+      - name: Build Ladybird Using `ladybird.sh` with Virtual Display
         run: |
           chmod +x Meta/ladybird.sh
-          ./Meta/ladybird.sh run ladybird
-
-      - name: Move Artifacts to New Location
-        run: |
-          mkdir -p artifacts1/
-          cp -r Build/Ladybird/* artifacts1/
-          ls -lah artifacts1/
-
-      - name: Upload Incremental Artifacts
+          xvfb-run --auto-servernum --server-args="-screen 0 800x600x24" ./Meta/ladybird.sh run ladybird  # 🟢 Run in a virtual X server
+      - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Ladybird-Partial
-          path: artifacts1/*
+          name: Ladybird-Browser
+          path: |
+            Build/Ladybird/Ladybird*
+            Build/Ladybird/*.so
+            Build/Ladybird/*.dll
+            Build/Ladybird/*.dylib
+            Build/Ladybird/*.exe
           retention-days: 7
-          if-no-files-found: ignore
-          overwrite: true  # Allows updates while running
-
-      - name: Save CCache Cache
-        uses: actions/cache@v3
-        with:
-          path: ~/.ccache
-          key: ccache-${{ runner.os }}-${{ github.sha }}
