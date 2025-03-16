@@ -23,7 +23,6 @@
 #include <UI/Qt/SettingsDialog.h>
 #include <UI/Qt/StringUtils.h>
 #include <UI/Qt/TabBar.h>
-#include <UI/Qt/TaskManagerWindow.h>
 #include <UI/Qt/WebContentView.h>
 
 #include <QAction>
@@ -383,8 +382,8 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     task_manager_action->setIcon(load_icon_from_uri("resource://icons/16x16/app-system-monitor.png"sv));
     task_manager_action->setShortcuts({ QKeySequence("Ctrl+Shift+M") });
     inspect_menu->addAction(task_manager_action);
-    QObject::connect(task_manager_action, &QAction::triggered, this, [&] {
-        static_cast<Ladybird::Application*>(QApplication::instance())->show_task_manager_window();
+    QObject::connect(task_manager_action, &QAction::triggered, this, [this]() {
+        new_tab_from_url(URL::URL::about("processes"_string), Web::HTML::ActivateTab::Yes);
     });
 
     auto* debug_menu = m_hamburger_menu->addMenu("&Debug");
