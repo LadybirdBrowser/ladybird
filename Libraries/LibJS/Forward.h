@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2020-2025, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2020-2022, Linus Groh <linusg@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -189,6 +189,7 @@ class Intrinsics;
 class IteratorRecord;
 class MemberExpression;
 class MetaProperty;
+class ModuleEnvironment;
 class Module;
 struct ModuleRequest;
 class NativeFunction;

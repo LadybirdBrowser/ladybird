@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2021-2025, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -26,6 +26,7 @@
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Iterator.h>
 #include <LibJS/Runtime/MathObject.h>
+#include <LibJS/Runtime/ModuleEnvironment.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/ObjectEnvironment.h>
 #include <LibJS/Runtime/Realm.h>
@@ -1132,10 +1133,10 @@ inline ThrowCompletionOr<Value> get_global(Interpreter& interpreter, IdentifierT
 
     auto& identifier = interpreter.current_executable().get_identifier(identifier_index);
 
-    if (vm.running_execution_context().script_or_module.has<GC::Ref<Module>>()) {
+    if (auto* module = vm.running_execution_context().script_or_module.get_pointer<GC::Ref<Module>>()) {
         // NOTE: GetGlobal is used to access variables stored in the module environment and global environment.
         //       The module environment is checked first since it precedes the global environment in the environment chain.
-        auto& module_environment = *vm.running_execution_context().script_or_module.get<GC::Ref<Module>>()->environment();
+        auto& module_environment = *(*module)->environment();
         if (TRY(module_environment.has_binding(identifier))) {
             // TODO: Cache offset of binding value
             return TRY(module_environment.get_binding_value(vm, identifier, vm.in_strict_mode()));
