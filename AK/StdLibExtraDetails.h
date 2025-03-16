@@ -142,6 +142,27 @@ inline constexpr bool IsFunction<Ret(Args...) const volatile&&> = true;
 template<class Ret, class... Args>
 inline constexpr bool IsFunction<Ret(Args..., ...) const volatile&&> = true;
 
+template<class>
+inline constexpr bool IsBlockClosure = false;
+#ifdef AK_HAS_BLOCKS
+template<class Ret, class... Args>
+inline constexpr bool IsBlockClosure<Ret (^)(Args...)> = true;
+template<class Ret, class... Args>
+inline constexpr bool IsBlockClosure<Ret (^)(Args..., ...)> = true;
+template<class Ret, class... Args>
+inline constexpr bool IsBlockClosure<Ret (^const)(Args...)> = true;
+template<class Ret, class... Args>
+inline constexpr bool IsBlockClosure<Ret (^const)(Args..., ...)> = true;
+template<class Ret, class... Args>
+inline constexpr bool IsBlockClosure<Ret (^volatile)(Args...)> = true;
+template<class Ret, class... Args>
+inline constexpr bool IsBlockClosure<Ret (^volatile)(Args..., ...)> = true;
+template<class Ret, class... Args>
+inline constexpr bool IsBlockClosure<Ret (^const volatile)(Args...)> = true;
+template<class Ret, class... Args>
+inline constexpr bool IsBlockClosure<Ret (^const volatile)(Args..., ...)> = true;
+#endif
+
 template<class T>
 inline constexpr bool IsRvalueReference = false;
 template<class T>
@@ -641,6 +662,7 @@ using AK::Detail::InvokeResult;
 using AK::Detail::IsArithmetic;
 using AK::Detail::IsAssignable;
 using AK::Detail::IsBaseOf;
+using AK::Detail::IsBlockClosure;
 using AK::Detail::IsClass;
 using AK::Detail::IsConst;
 using AK::Detail::IsConstructible;
