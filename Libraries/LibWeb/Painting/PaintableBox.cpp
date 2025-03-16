@@ -687,9 +687,7 @@ void paint_text_decoration(PaintContext& context, TextPaintable const& paintable
 
     auto line_color = paintable.computed_values().text_decoration_color();
     auto line_style = paintable.computed_values().text_decoration_style();
-    auto const& text_paintable = static_cast<TextPaintable const&>(fragment.paintable());
-    auto device_line_thickness = context.rounded_device_pixels(text_paintable.text_decoration_thickness());
-
+    auto device_line_thickness = context.rounded_device_pixels(fragment.text_decoration_thickness());
     auto text_decoration_lines = paintable.computed_values().text_decoration_line();
     for (auto line : text_decoration_lines) {
         DevicePixelPoint line_start_point {};
@@ -1364,10 +1362,24 @@ void PaintableWithLines::resolve_paint_properties()
     Base::resolve_paint_properties();
 
     auto const& layout_node = this->layout_node();
-    for (auto const& fragment : fragments()) {
-        auto const& text_shadow = fragment.m_layout_node->computed_values().text_shadow();
+    for (auto& fragment : fragments()) {
+        if (!fragment.m_layout_node->is_text_node())
+            continue;
+        auto const& text_node = static_cast<Layout::TextNode const&>(*fragment.m_layout_node);
+
+        auto const& font = fragment.m_layout_node->first_available_font();
+        auto const glyph_height = CSSPixels::nearest_value_for(font.pixel_size());
+        auto const css_line_thickness = [&] {
+            auto computed_thickness = text_node.computed_values().text_decoration_thickness().resolved(text_node, CSS::Length(1, CSS::Length::Type::Em).to_px(text_node));
+            if (computed_thickness.is_auto())
+                return max(glyph_height.scaled(0.1), 1);
+            return computed_thickness.to_px(*fragment.m_layout_node);
+        }();
+        fragment.set_text_decoration_thickness(css_line_thickness);
+
+        auto const& text_shadow = text_node.computed_values().text_shadow();
         if (!text_shadow.is_empty()) {
-            Vector<Painting::ShadowData> resolved_shadow_data;
+            Vector<ShadowData> resolved_shadow_data;
             resolved_shadow_data.ensure_capacity(text_shadow.size());
             for (auto const& layer : text_shadow) {
                 resolved_shadow_data.empend(
@@ -1376,9 +1388,9 @@ void PaintableWithLines::resolve_paint_properties()
                     layer.offset_y.to_px(layout_node),
                     layer.blur_radius.to_px(layout_node),
                     layer.spread_distance.to_px(layout_node),
-                    Painting::ShadowPlacement::Outer);
+                    ShadowPlacement::Outer);
             }
-            const_cast<Painting::PaintableFragment&>(fragment).set_shadows(move(resolved_shadow_data));
+            fragment.set_shadows(move(resolved_shadow_data));
         }
     }
 }

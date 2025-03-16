@@ -363,17 +363,6 @@ void LayoutState::commit(Box& root)
 
     for (auto* text_node : text_nodes) {
         text_node->add_paintable(text_node->create_paintable());
-        auto* paintable = text_node->first_paintable();
-        auto const& font = text_node->first_available_font();
-        auto const glyph_height = CSSPixels::nearest_value_for(font.pixel_size());
-        auto const css_line_thickness = [&] {
-            auto computed_thickness = text_node->computed_values().text_decoration_thickness().resolved(*text_node, CSS::Length(1, CSS::Length::Type::Em).to_px(*text_node));
-            if (computed_thickness.is_auto())
-                return max(glyph_height.scaled(0.1), 1);
-            return computed_thickness.to_px(*text_node);
-        }();
-        auto& text_paintable = static_cast<Painting::TextPaintable&>(*paintable);
-        text_paintable.set_text_decoration_thickness(css_line_thickness);
     }
 
     build_paint_tree(root);
