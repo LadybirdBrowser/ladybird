@@ -73,10 +73,21 @@ ALWAYS_INLINE CopyConst<InputType, OutputType>* as(InputType* input)
     return result;
 }
 
+template<typename OutputType, typename InputType>
+ALWAYS_INLINE CopyConst<InputType, OutputType>* bridge_cast(InputType input)
+{
+#ifdef AK_HAS_OBJC_ARC
+    return (__bridge CopyConst<InputType, OutputType>*)(input);
+#else
+    return static_cast<CopyConst<InputType, OutputType>*>(input);
+#endif
+}
+
 }
 
 #if USING_AK_GLOBALLY
 using AK::as;
 using AK::as_if;
+using AK::bridge_cast;
 using AK::is;
 #endif
