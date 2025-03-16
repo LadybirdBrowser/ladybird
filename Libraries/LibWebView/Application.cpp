@@ -321,16 +321,6 @@ Optional<Process&> Application::find_process(pid_t pid)
     return m_process_manager.find_process(pid);
 }
 
-void Application::update_process_statistics()
-{
-    m_process_manager.update_all_process_statistics();
-}
-
-String Application::generate_process_statistics_html()
-{
-    return m_process_manager.generate_html();
-}
-
 void Application::send_updated_process_statistics_to_view(ViewImplementation& view)
 {
     m_process_manager.update_all_process_statistics();

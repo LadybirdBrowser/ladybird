@@ -7,8 +7,6 @@
 #pragma once
 
 #include <AK/Types.h>
-#include <AK/Vector.h>
-#include <LibCore/EventReceiver.h>
 #include <LibCore/Platform/ProcessStatistics.h>
 #include <LibThreading/Mutex.h>
 #include <LibWebView/Forward.h>
@@ -36,7 +34,6 @@ public:
 #endif
 
     void update_all_process_statistics();
-    String generate_html();
     String serialize_json();
 
     Function<void(Process&&)> on_process_exited;
