@@ -25,9 +25,6 @@ public:
     virtual DispatchEventOfSameName handle_mouseup(Badge<EventHandler>, CSSPixelPoint, unsigned button, unsigned modifiers) override;
     virtual DispatchEventOfSameName handle_mousemove(Badge<EventHandler>, CSSPixelPoint, unsigned button, unsigned modifiers) override;
 
-    void set_text_decoration_thickness(CSSPixels thickness) { m_text_decoration_thickness = thickness; }
-    CSSPixels text_decoration_thickness() const { return m_text_decoration_thickness; }
-
     String const& text_for_rendering() const { return m_text_for_rendering; }
 
 private:
@@ -36,7 +33,6 @@ private:
     TextPaintable(Layout::TextNode const&, String const& text_for_rendering);
 
     String m_text_for_rendering;
-    CSSPixels m_text_decoration_thickness { 0 };
 };
 
 }
