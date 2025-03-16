@@ -838,9 +838,9 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayPrototype::join)
     };
 
     auto length = TRY(length_of_array_like(vm, this_object));
-    ByteString separator = ",";
+    String separator = ","_string;
     if (!vm.argument(0).is_undefined())
-        separator = TRY(vm.argument(0).to_byte_string(vm));
+        separator = TRY(vm.argument(0).to_string(vm));
     StringBuilder builder;
     for (size_t i = 0; i < length; ++i) {
         if (i > 0)
@@ -848,11 +848,11 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayPrototype::join)
         auto value = TRY(this_object->get(i));
         if (value.is_nullish())
             continue;
-        auto string = TRY(value.to_byte_string(vm));
+        auto string = TRY(value.to_string(vm));
         builder.append(string);
     }
 
-    return PrimitiveString::create(vm, builder.to_byte_string());
+    return PrimitiveString::create(vm, builder.to_string_without_validation());
 }
 
 // 23.1.3.19 Array.prototype.keys ( ), https://tc39.es/ecma262/#sec-array.prototype.keys
@@ -1650,7 +1650,7 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayPrototype::to_locale_string)
             auto locale_string_result = TRY(value.invoke(vm, vm.names.toLocaleString, locales, options));
 
             // ii. Set R to the string-concatenation of R and S.
-            auto string = TRY(locale_string_result.to_byte_string(vm));
+            auto string = TRY(locale_string_result.to_string(vm));
             builder.append(string);
         }
 
@@ -1658,7 +1658,7 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayPrototype::to_locale_string)
     }
 
     // 7. Return R.
-    return PrimitiveString::create(vm, builder.to_byte_string());
+    return PrimitiveString::create(vm, builder.to_string_without_validation());
 }
 
 // 23.1.3.33 Array.prototype.toReversed ( ), https://tc39.es/ecma262/#sec-array.prototype.toreversed

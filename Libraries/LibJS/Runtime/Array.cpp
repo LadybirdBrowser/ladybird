@@ -243,10 +243,10 @@ ThrowCompletionOr<double> compare_array_elements(VM& vm, Value x, Value y, Funct
     }
 
     // 5. Let xString be ? ToString(x).
-    auto x_string = PrimitiveString::create(vm, TRY(x.to_byte_string(vm)));
+    auto x_string = PrimitiveString::create(vm, TRY(x.to_string(vm)));
 
     // 6. Let yString be ? ToString(y).
-    auto y_string = PrimitiveString::create(vm, TRY(y.to_byte_string(vm)));
+    auto y_string = PrimitiveString::create(vm, TRY(y.to_string(vm)));
 
     // 7. Let xSmaller be ! IsLessThan(xString, yString, true).
     auto x_smaller = MUST(is_less_than(vm, x_string, y_string, true));
