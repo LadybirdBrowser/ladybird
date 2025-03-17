@@ -5,9 +5,10 @@ on:
   schedule:
     - cron: '0 0 * * *'
 
+  # Manual trigger
+  workflow_dispatch:
+
 env:
-  # runner.workspace = /home/runner/work/ladybird
-  # github.workspace = /home/runner/work/ladybird/ladybird
   LADYBIRD_SOURCE_DIR: ${{ github.workspace }}
   CCACHE_DIR: ${{ github.workspace }}/.ccache
   VCPKG_ROOT:  ${{ github.workspace }}/Build/vcpkg
@@ -77,7 +78,6 @@ jobs:
           # Create emulator
           echo "no" | ${ANDROID_HOME}/cmdline-tools/latest/bin/avdmanager create avd -n xamarin_android_emulator -k 'system-images;android-30;google_apis;x86_64' --force
 
-
           ${ANDROID_HOME}/emulator/emulator -list-avds
 
           echo "Starting emulator"
@@ -94,8 +94,7 @@ jobs:
         working-directory: ${{ github.workspace }}/UI/Android
         run: ./gradlew connectedAndroidTest
         env:
-          GRADLE_OPTS: '-Xmx3072m'
-          SERENITY_CACHE_DIR: ${{ github.workspace }}/Build/caches
+          SERENITY_CACHE_DIR: ${{ github.workspace }}/Build/caches  # No memory limits
 
       - name: Save Caches
         uses: ./.github/actions/cache-save
@@ -103,3 +102,26 @@ jobs:
           arch: 'Lagom'
           ccache_path: ${{ env.CCACHE_DIR }}
           ccache_primary_key: ${{ steps.cache-restore.outputs.ccache_primary_key }}
+
+      # === UPLOAD ARTIFACTS ===
+
+      - name: Upload APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: Android-APK
+          path: ${{ github.workspace }}/UI/Android/app/build/outputs/apk/**/*.apk
+          retention-days: 7
+
+      - name: Upload Build Logs
+        uses: actions/upload-artifact@v4
+        with:
+          name: Build-Logs
+          path: ${{ github.workspace }}/UI/Android/app/build/reports/**
+          retention-days: 7
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: Test-Results
+          path: ${{ github.workspace }}/UI/Android/app/build/test-results/**
+          retention-days: 7
