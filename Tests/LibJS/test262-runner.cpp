@@ -90,19 +90,19 @@ static ErrorOr<void, TestError> run_program(InterpreterT& interpreter, ScriptOrM
         if (error_value.is_object()) {
             auto& object = error_value.as_object();
 
-            auto name = object.get_without_side_effects("name");
+            auto name = object.get_without_side_effects("name"_fly_string);
             if (!name.is_empty() && !name.is_accessor()) {
                 error.type = name.to_string_without_side_effects();
             } else {
-                auto constructor = object.get_without_side_effects("constructor");
+                auto constructor = object.get_without_side_effects("constructor"_fly_string);
                 if (constructor.is_object()) {
-                    name = constructor.as_object().get_without_side_effects("name");
+                    name = constructor.as_object().get_without_side_effects("name"_fly_string);
                     if (!name.is_undefined())
                         error.type = name.to_string_without_side_effects();
                 }
             }
 
-            auto message = object.get_without_side_effects("message");
+            auto message = object.get_without_side_effects("message"_fly_string);
             if (!message.is_empty() && !message.is_accessor())
                 error.details = message.to_string_without_side_effects();
         }

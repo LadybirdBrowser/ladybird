@@ -82,15 +82,15 @@ ThrowCompletionOr<Value> GeneratorObject::execute(VM& vm, Completion const& comp
 
     VERIFY(completion.value().has_value());
 
-    auto generated_value = [](Value value) -> Value {
+    auto generated_value = [&vm](Value value) -> Value {
         if (value.is_object())
-            return value.as_object().get_without_side_effects("result");
+            return value.as_object().get_without_side_effects(vm.names.result);
         return value.is_empty() ? js_undefined() : value;
     };
 
     auto generated_continuation = [&](Value value) -> Optional<size_t> {
         if (value.is_object()) {
-            auto number_value = value.as_object().get_without_side_effects("continuation");
+            auto number_value = value.as_object().get_without_side_effects(vm.names.continuation);
             if (number_value.is_null())
                 return {};
             return static_cast<u64>(number_value.as_double());

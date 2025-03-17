@@ -104,13 +104,13 @@ static WebIDL::ExceptionOr<KeyframeType<AL>> process_a_keyframe_like_object(JS::
         return keyframe_output;
 
     auto& keyframe_object = keyframe_input.as_object();
-    auto composite = TRY(keyframe_object.get("composite"));
+    auto composite = TRY(keyframe_object.get("composite"_fly_string));
     if (composite.is_undefined())
         composite = JS::PrimitiveString::create(vm, "auto"_string);
-    auto easing = TRY(keyframe_object.get("easing"));
+    auto easing = TRY(keyframe_object.get("easing"_fly_string));
     if (easing.is_undefined())
         easing = JS::PrimitiveString::create(vm, "linear"_string);
-    auto offset = TRY(keyframe_object.get("offset"));
+    auto offset = TRY(keyframe_object.get("offset"_fly_string));
 
     if constexpr (AL == AllowLists::Yes) {
         keyframe_output.composite = TRY(convert_value_to_maybe_list(realm, composite, to_composite_operation));

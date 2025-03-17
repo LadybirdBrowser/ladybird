@@ -104,7 +104,7 @@ ThrowCompletionOr<void> AsyncGenerator::await(Value value)
     };
 
     // 4. Let onFulfilled be CreateBuiltinFunction(fulfilledClosure, 1, "", « »).
-    auto on_fulfilled = NativeFunction::create(realm, move(fulfilled_closure), 1, "");
+    auto on_fulfilled = NativeFunction::create(realm, move(fulfilled_closure), 1);
 
     // 5. Let rejectedClosure be a new Abstract Closure with parameters (reason) that captures asyncContext and performs the
     //    following steps when called:
@@ -131,7 +131,7 @@ ThrowCompletionOr<void> AsyncGenerator::await(Value value)
     };
 
     // 6. Let onRejected be CreateBuiltinFunction(rejectedClosure, 1, "", « »).
-    auto on_rejected = NativeFunction::create(realm, move(rejected_closure), 1, "");
+    auto on_rejected = NativeFunction::create(realm, move(rejected_closure), 1);
 
     // 7. Perform PerformPromiseThen(promise, onFulfilled, onRejected).
     m_current_promise = as<Promise>(promise_object);
@@ -155,15 +155,15 @@ void AsyncGenerator::execute(VM& vm, Completion completion)
         // Loosely based on step 4 of https://tc39.es/ecma262/#sec-asyncgeneratorstart
         VERIFY(completion.value().has_value());
 
-        auto generated_value = [](Value value) -> Value {
+        auto generated_value = [&vm](Value value) -> Value {
             if (value.is_object())
-                return value.as_object().get_without_side_effects("result");
+                return value.as_object().get_without_side_effects(vm.names.result);
             return value.is_empty() ? js_undefined() : value;
         };
 
         auto generated_continuation = [&](Value value) -> Optional<size_t> {
             if (value.is_object()) {
-                auto number_value = value.as_object().get_without_side_effects("continuation");
+                auto number_value = value.as_object().get_without_side_effects(vm.names.continuation);
                 if (number_value.is_null())
                     return {};
                 return static_cast<size_t>(number_value.as_double());
@@ -171,9 +171,9 @@ void AsyncGenerator::execute(VM& vm, Completion completion)
             return {};
         };
 
-        auto generated_is_await = [](Value value) -> bool {
+        auto generated_is_await = [&vm](Value value) -> bool {
             if (value.is_object())
-                return value.as_object().get_without_side_effects("isAwait").as_bool();
+                return value.as_object().get_without_side_effects(vm.names.isAwait).as_bool();
             return false;
         };
 
@@ -393,7 +393,7 @@ void AsyncGenerator::await_return()
     };
 
     // 11. Let onFulfilled be CreateBuiltinFunction(fulfilledClosure, 1, "", « »).
-    auto on_fulfilled = NativeFunction::create(realm, move(fulfilled_closure), 1, "");
+    auto on_fulfilled = NativeFunction::create(realm, move(fulfilled_closure), 1);
 
     // 12. Let rejectedClosure be a new Abstract Closure with parameters (reason) that captures generator and performs
     //    the following steps when called:
@@ -415,7 +415,7 @@ void AsyncGenerator::await_return()
     };
 
     // 13. Let onRejected be CreateBuiltinFunction(rejectedClosure, 1, "", « »).
-    auto on_rejected = NativeFunction::create(realm, move(rejected_closure), 1, "");
+    auto on_rejected = NativeFunction::create(realm, move(rejected_closure), 1);
 
     // 14. Perform PerformPromiseThen(promise, onFulfilled, onRejected).
     // NOTE: await_return should only be called when the generator is in SuspendedStart or Completed state,

@@ -108,7 +108,7 @@ JS_DEFINE_NATIVE_FUNCTION(ProxyConstructor::revocable)
 
     // 3. Let revoker be CreateBuiltinFunction(revokerClosure, 0, "", « [[RevocableProxy]] »).
     // 4. Set revoker.[[RevocableProxy]] to p.
-    auto revoker = NativeFunction::create(realm, move(revoker_closure), 0, "");
+    auto revoker = NativeFunction::create(realm, move(revoker_closure), 0);
 
     // 5. Let result be OrdinaryObjectCreate(%Object.prototype%).
     auto result = Object::create(realm, realm.intrinsics().object_prototype());

@@ -603,7 +603,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::match_all)
         // b. If isRegExp is true, then
         if (is_regexp) {
             // i. Let flags be ? Get(regexp, "flags").
-            auto flags = TRY(regexp.as_object().get("flags"));
+            auto flags = TRY(regexp.as_object().get(vm.names.flags));
 
             // ii. Perform ? RequireObjectCoercible(flags).
             auto flags_object = TRY(require_object_coercible(vm, flags));

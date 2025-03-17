@@ -233,7 +233,7 @@ ThrowCompletionOr<void> initialize_bound_name(VM& vm, DeprecatedFlyString const&
 bool is_compatible_property_descriptor(bool extensible, PropertyDescriptor const& descriptor, Optional<PropertyDescriptor> const& current)
 {
     // 1. Return ValidateAndApplyPropertyDescriptor(undefined, "", Extensible, Desc, Current).
-    return validate_and_apply_property_descriptor(nullptr, "", extensible, descriptor, current);
+    return validate_and_apply_property_descriptor(nullptr, FlyString {}, extensible, descriptor, current);
 }
 
 // 10.1.6.3 ValidateAndApplyPropertyDescriptor ( O, P, extensible, Desc, current ), https://tc39.es/ecma262/#sec-validateandapplypropertydescriptor
@@ -1544,7 +1544,7 @@ ThrowCompletionOr<GC::Ptr<FunctionObject>> get_dispose_method(VM& vm, Value valu
                 //    thrown synchronously.
 
                 // 3. Return CreateBuiltinFunction(closure, 0, "", « »).
-                return NativeFunction::create(realm, move(closure), 0, "");
+                return NativeFunction::create(realm, move(closure), 0);
             }
         }
     }

@@ -75,7 +75,7 @@ void CryptoKey::set_usages(Vector<Bindings::KeyUsage> usages)
 String CryptoKey::algorithm_name() const
 {
     if (m_algorithm_name.is_empty()) {
-        auto name = MUST(m_algorithm->get("name"));
+        auto name = MUST(m_algorithm->get("name"_fly_string));
         m_algorithm_name = MUST(name.to_string(vm()));
     }
     return m_algorithm_name;
@@ -95,8 +95,8 @@ CryptoKeyPair::CryptoKeyPair(JS::Realm& realm, GC::Ref<CryptoKey> public_key, GC
 
 void CryptoKeyPair::initialize(JS::Realm& realm)
 {
-    define_native_accessor(realm, "publicKey", public_key_getter, {}, JS::Attribute::Enumerable | JS::Attribute::Configurable);
-    define_native_accessor(realm, "privateKey", private_key_getter, {}, JS::Attribute::Enumerable | JS::Attribute::Configurable);
+    define_native_accessor(realm, "publicKey"_fly_string, public_key_getter, {}, JS::Attribute::Enumerable | JS::Attribute::Configurable);
+    define_native_accessor(realm, "privateKey"_fly_string, private_key_getter, {}, JS::Attribute::Enumerable | JS::Attribute::Configurable);
 
     Base::initialize(realm);
 }

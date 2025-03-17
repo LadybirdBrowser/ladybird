@@ -1051,7 +1051,7 @@ void HTMLInputElement::create_text_input_shadow_tree()
                 commit_pending_changes();
                 return JS::js_undefined();
             },
-            0, "", &realm());
+            0, FlyString {}, &realm());
         auto mouseup_callback = realm().heap().allocate<WebIDL::CallbackType>(*mouseup_callback_function, realm());
         DOM::AddEventListenerOptions mouseup_listener_options;
         mouseup_listener_options.once = true;
@@ -1064,7 +1064,7 @@ void HTMLInputElement::create_text_input_shadow_tree()
                 }
                 return JS::js_undefined();
             },
-            0, "", &realm());
+            0, FlyString {}, &realm());
         auto step_up_callback = realm().heap().allocate<WebIDL::CallbackType>(*up_callback_function, realm());
         up_button->add_event_listener_without_options(UIEvents::EventNames::mousedown, DOM::IDLEventListener::create(realm(), step_up_callback));
         up_button->add_event_listener_without_options(UIEvents::EventNames::mouseup, DOM::IDLEventListener::create(realm(), mouseup_callback));
@@ -1086,7 +1086,7 @@ void HTMLInputElement::create_text_input_shadow_tree()
                 }
                 return JS::js_undefined();
             },
-            0, "", &realm());
+            0, FlyString {}, &realm());
         auto step_down_callback = realm().heap().allocate<WebIDL::CallbackType>(*down_callback_function, realm());
         down_button->add_event_listener_without_options(UIEvents::EventNames::mousedown, DOM::IDLEventListener::create(realm(), step_down_callback));
         down_button->add_event_listener_without_options(UIEvents::EventNames::mouseup, DOM::IDLEventListener::create(realm(), mouseup_callback));
@@ -1147,7 +1147,7 @@ void HTMLInputElement::create_file_input_shadow_tree()
         return JS::js_undefined();
     };
 
-    auto on_button_click_function = JS::NativeFunction::create(realm, move(on_button_click), 0, "", &realm);
+    auto on_button_click_function = JS::NativeFunction::create(realm, move(on_button_click), 0, FlyString {}, &realm);
     auto on_button_click_callback = realm.heap().allocate<WebIDL::CallbackType>(on_button_click_function, realm);
     m_file_button->add_event_listener_without_options(UIEvents::EventNames::click, DOM::IDLEventListener::create(realm, on_button_click_callback));
 
@@ -1198,7 +1198,7 @@ void HTMLInputElement::create_range_input_shadow_tree()
 
     auto keydown_callback_function = JS::NativeFunction::create(
         realm(), [this](JS::VM& vm) {
-            auto key = MUST(vm.argument(0).get(vm, "key")).as_string().utf8_string();
+            auto key = MUST(vm.argument(0).get(vm, "key"_fly_string)).as_string().utf8_string();
 
             if (key == "ArrowLeft" || key == "ArrowDown")
                 MUST(step_down());
@@ -1213,13 +1213,13 @@ void HTMLInputElement::create_range_input_shadow_tree()
             user_interaction_did_change_input_value();
             return JS::js_undefined();
         },
-        0, "", &realm());
+        0, ""_fly_string, &realm());
     auto keydown_callback = realm().heap().allocate<WebIDL::CallbackType>(*keydown_callback_function, realm());
     add_event_listener_without_options(UIEvents::EventNames::keydown, DOM::IDLEventListener::create(realm(), keydown_callback));
 
     auto wheel_callback_function = JS::NativeFunction::create(
         realm(), [this](JS::VM& vm) {
-            auto delta_y = MUST(vm.argument(0).get(vm, "deltaY")).as_i32();
+            auto delta_y = MUST(vm.argument(0).get(vm, "deltaY"_fly_string)).as_i32();
             if (delta_y > 0) {
                 MUST(step_down());
             } else {
@@ -1228,12 +1228,12 @@ void HTMLInputElement::create_range_input_shadow_tree()
             user_interaction_did_change_input_value();
             return JS::js_undefined();
         },
-        0, "", &realm());
+        0, ""_fly_string, &realm());
     auto wheel_callback = realm().heap().allocate<WebIDL::CallbackType>(*wheel_callback_function, realm());
     add_event_listener_without_options(UIEvents::EventNames::wheel, DOM::IDLEventListener::create(realm(), wheel_callback));
 
     auto update_slider_by_mouse = [this](JS::VM& vm) {
-        auto client_x = MUST(vm.argument(0).get(vm, "clientX")).as_double();
+        auto client_x = MUST(vm.argument(0).get(vm, "clientX"_fly_string)).as_double();
         auto rect = get_bounding_client_rect();
         double minimum = *min();
         double maximum = *max();
@@ -1251,7 +1251,7 @@ void HTMLInputElement::create_range_input_shadow_tree()
                     update_slider_by_mouse(vm);
                     return JS::js_undefined();
                 },
-                0, "", &realm());
+                0, ""_fly_string, &realm());
             auto mousemove_callback = realm().heap().allocate<WebIDL::CallbackType>(*mousemove_callback_function, realm());
             auto mousemove_listener = DOM::IDLEventListener::create(realm(), mousemove_callback);
             auto& window = static_cast<HTML::Window&>(relevant_global_object(*this));
@@ -1263,7 +1263,7 @@ void HTMLInputElement::create_range_input_shadow_tree()
                     window.remove_event_listener_without_options(UIEvents::EventNames::mousemove, mousemove_listener);
                     return JS::js_undefined();
                 },
-                0, "", &realm());
+                0, ""_fly_string, &realm());
             auto mouseup_callback = realm().heap().allocate<WebIDL::CallbackType>(*mouseup_callback_function, realm());
             DOM::AddEventListenerOptions mouseup_listener_options;
             mouseup_listener_options.once = true;
@@ -1271,7 +1271,7 @@ void HTMLInputElement::create_range_input_shadow_tree()
 
             return JS::js_undefined();
         },
-        0, "", &realm());
+        0, ""_fly_string, &realm());
     auto mousedown_callback = realm().heap().allocate<WebIDL::CallbackType>(*mousedown_callback_function, realm());
     add_event_listener_without_options(UIEvents::EventNames::mousedown, DOM::IDLEventListener::create(realm(), mousedown_callback));
 }

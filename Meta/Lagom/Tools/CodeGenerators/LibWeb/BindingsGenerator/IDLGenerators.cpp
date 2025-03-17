@@ -929,7 +929,7 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
                 dictionary_generator.append(R"~~~(
     auto @member_property_value_name@ = JS::js_undefined();
     if (@js_name@@js_suffix@.is_object())
-        @member_property_value_name@ = TRY(@js_name@@js_suffix@.as_object().get("@member_key@"));
+        @member_property_value_name@ = TRY(@js_name@@js_suffix@.as_object().get("@member_key@"_fly_string));
 )~~~");
                 if (member.required) {
                     dictionary_generator.append(R"~~~(
@@ -2039,7 +2039,7 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
                 generate_wrap_statement(dictionary_generator, ByteString::formatted("{}{}{}", value, type.is_nullable() ? "->" : ".", member.name.to_snakecase()), member.type, interface, ByteString::formatted("{} =", wrapped_value_name), WrappingReference::No, recursion_depth + 1, is_optional);
 
                 dictionary_generator.append(R"~~~(
-        MUST(dictionary_object@recursion_depth@->create_data_property("@member_key@", @wrapped_value_name@));
+        MUST(dictionary_object@recursion_depth@->create_data_property("@member_key@"_fly_string, @wrapped_value_name@));
 )~~~");
             }
 
@@ -3112,7 +3112,7 @@ static void collect_attribute_values_of_an_inheritance_stack(SourceGenerator& fu
             generate_wrap_statement(attribute_generator, return_value_name, attribute.type, interface_in_chain, ByteString::formatted("auto {}_wrapped =", return_value_name));
 
             attribute_generator.append(R"~~~(
-    MUST(result->create_data_property("@attribute.name@", @attribute.return_value_name@_wrapped));
+    MUST(result->create_data_property("@attribute.name@"_fly_string, @attribute.return_value_name@_wrapped));
 )~~~");
         }
 
@@ -3123,7 +3123,7 @@ static void collect_attribute_values_of_an_inheritance_stack(SourceGenerator& fu
             generate_wrap_statement(constant_generator, constant.value, constant.type, interface_in_chain, ByteString::formatted("auto constant_{}_value =", constant.name));
 
             constant_generator.append(R"~~~(
-    MUST(result->create_data_property("@constant.name@", constant_@constant.name@_value));
+    MUST(result->create_data_property("@constant.name@"_fly_string, constant_@constant.name@_value));
 )~~~");
         }
     }
@@ -3422,7 +3422,7 @@ void @class_name@::initialize(JS::Realm& realm)
             auto fixme_attribute_generator = generator.fork();
             fixme_attribute_generator.set("attribute.name", attribute.name);
             fixme_attribute_generator.append(R"~~~(
-    define_direct_property("@attribute.name@", JS::js_undefined(), default_attributes | JS::Attribute::Unimplemented);
+    define_direct_property("@attribute.name@"_fly_string, JS::js_undefined(), default_attributes | JS::Attribute::Unimplemented);
             )~~~");
             continue;
         }
@@ -3438,12 +3438,12 @@ void @class_name@::initialize(JS::Realm& realm)
 
         if (attribute.extended_attributes.contains("Unscopable")) {
             attribute_generator.append(R"~~~(
-    MUST(unscopable_object->create_data_property("@attribute.name@", JS::Value(true)));
+    MUST(unscopable_object->create_data_property("@attribute.name@"_fly_string, JS::Value(true)));
 )~~~");
         }
 
         attribute_generator.append(R"~~~(
-    define_native_accessor(realm, "@attribute.name@", @attribute.getter_callback@, @attribute.setter_callback@, default_attributes);
+    define_native_accessor(realm, "@attribute.name@"_fly_string, @attribute.getter_callback@, @attribute.setter_callback@, default_attributes);
 )~~~");
     }
 
@@ -3452,7 +3452,7 @@ void @class_name@::initialize(JS::Realm& realm)
             auto fixme_function_generator = generator.fork();
             fixme_function_generator.set("function.name", function.name);
             fixme_function_generator.append(R"~~~(
-        define_direct_property("@function.name@", JS::js_undefined(), default_attributes | JS::Attribute::Unimplemented);
+        define_direct_property("@function.name@"_fly_string, JS::js_undefined(), default_attributes | JS::Attribute::Unimplemented);
             )~~~");
         }
     }
@@ -3467,7 +3467,7 @@ void @class_name@::initialize(JS::Realm& realm)
         generate_wrap_statement(constant_generator, constant.value, constant.type, interface, ByteString::formatted("auto constant_{}_value =", constant.name));
 
         constant_generator.append(R"~~~(
-    define_direct_property("@constant.name@", constant_@constant.name@_value, JS::Attribute::Enumerable);
+    define_direct_property("@constant.name@"_fly_string, constant_@constant.name@_value, JS::Attribute::Enumerable);
 )~~~");
     }
 
@@ -3481,12 +3481,12 @@ void @class_name@::initialize(JS::Realm& realm)
         if (any_of(overload_set.value, [](auto const& function) { return function.extended_attributes.contains("Unscopable"); })) {
             VERIFY(all_of(overload_set.value, [](auto const& function) { return function.extended_attributes.contains("Unscopable"); }));
             function_generator.append(R"~~~(
-    MUST(unscopable_object->create_data_property("@function.name@", JS::Value(true)));
+    MUST(unscopable_object->create_data_property("@function.name@"_fly_string, JS::Value(true)));
 )~~~");
         }
 
         function_generator.append(R"~~~(
-    define_native_function(realm, "@function.name@", @function.name:snakecase@, @function.length@, default_attributes);
+    define_native_function(realm, "@function.name@"_fly_string, @function.name:snakecase@, @function.length@, default_attributes);
 )~~~");
     }
 
@@ -3495,7 +3495,7 @@ void @class_name@::initialize(JS::Realm& realm)
 
         auto stringifier_generator = generator.fork();
         stringifier_generator.append(R"~~~(
-    define_native_function(realm, "toString", to_string, 0, default_attributes);
+    define_native_function(realm, "toString"_fly_string, to_string, 0, default_attributes);
 )~~~");
     }
 
@@ -4142,7 +4142,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
     }
 
     if (window) {
-        TRY(window->internal_define_own_property("@attribute.name@", JS::PropertyDescriptor { .value = vm.argument(0), .writable = true }));
+        TRY(window->internal_define_own_property("@attribute.name@"_fly_string, JS::PropertyDescriptor { .value = vm.argument(0), .writable = true }));
         return JS::js_undefined();
     }
 
@@ -4160,7 +4160,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "@namespaced_name@");
     if (vm.argument_count() < 1)
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::BadArgCountOne, "@namespaced_name@ setter");
-    TRY(this_value.as_object().internal_define_own_property("@attribute.name@", JS::PropertyDescriptor { .value = vm.argument(0), .writable = true }));
+    TRY(this_value.as_object().internal_define_own_property("@attribute.name@"_fly_string, JS::PropertyDescriptor { .value = vm.argument(0), .writable = true }));
     return JS::js_undefined();
 }
 )~~~");
@@ -4613,7 +4613,7 @@ void @namespace_class@::initialize(JS::Realm& realm)
         function_generator.set("function.length", ByteString::number(get_shortest_function_length(overload_set.value)));
 
         function_generator.append(R"~~~(
-    define_native_function(realm, "@function.name@", @function.name:snakecase@, @function.length@, default_attributes);
+    define_native_function(realm, "@function.name@"_fly_string, @function.name:snakecase@, @function.length@, default_attributes);
 )~~~");
     }
 
@@ -4749,7 +4749,7 @@ static void define_the_operations(SourceGenerator& generator, HashMap<ByteString
             function_generator.set("function.attributes", "JS::Attribute::Writable | JS::Attribute::Enumerable | JS::Attribute::Configurable");
 
         function_generator.append(R"~~~(
-    define_native_function(realm, "@function.name@", @function.name:snakecase@, @function.length@, @function.attributes@);
+    define_native_function(realm, "@function.name@"_fly_string, @function.name:snakecase@, @function.length@, @function.attributes@);
 )~~~");
     }
 }
@@ -4865,7 +4865,7 @@ void @constructor_class@::initialize(JS::Realm& realm)
         generate_wrap_statement(constant_generator, constant.value, constant.type, interface, ByteString::formatted("auto constant_{}_value =", constant.name));
 
         constant_generator.append(R"~~~(
-    define_direct_property("@constant.name@", constant_@constant.name@_value, JS::Attribute::Enumerable);
+    define_direct_property("@constant.name@"_fly_string, constant_@constant.name@_value, JS::Attribute::Enumerable);
 )~~~");
     }
 
@@ -4881,7 +4881,7 @@ void @constructor_class@::initialize(JS::Realm& realm)
             attribute_generator.set("attribute.setter_callback", "nullptr");
 
         attribute_generator.append(R"~~~(
-    define_native_accessor(realm, "@attribute.name@", @attribute.getter_callback@, @attribute.setter_callback@, default_attributes);
+    define_native_accessor(realm, "@attribute.name@"_fly_string, @attribute.getter_callback@, @attribute.setter_callback@, default_attributes);
 )~~~");
     }
 

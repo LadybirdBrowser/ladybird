@@ -734,7 +734,7 @@ WebIDL::ExceptionOr<void> Window::initialize_web_interfaces(Badge<WindowEnvironm
     WindowOrWorkerGlobalScopeMixin::initialize(realm);
 
     if (s_internals_object_exposed)
-        define_direct_property("internals", realm.create<Internals::Internals>(realm), JS::default_attributes);
+        define_direct_property("internals"_fly_string, realm.create<Internals::Internals>(realm), JS::default_attributes);
 
     if (url.scheme() == "about"sv && url.paths().size() == 1) {
         auto const& path = url.paths().first();

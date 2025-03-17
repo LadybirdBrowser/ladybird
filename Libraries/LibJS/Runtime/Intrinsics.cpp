@@ -246,7 +246,7 @@ void Intrinsics::initialize_intrinsics(Realm& realm)
         realm, [](VM& vm) {
             return vm.throw_completion<TypeError>(ErrorType::RestrictedFunctionPropertiesAccess);
         },
-        0, "", &realm);
+        0, FlyString {}, &realm);
     m_throw_type_error_function->define_direct_property(vm.names.length, Value(0), 0);
     m_throw_type_error_function->define_direct_property(vm.names.name, PrimitiveString::create(vm, String {}), 0);
     MUST(m_throw_type_error_function->internal_prevent_extensions());

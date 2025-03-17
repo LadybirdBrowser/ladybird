@@ -674,8 +674,8 @@ GC::Ref<WebIDL::Promise> instantiate_promise_of_module(JS::VM& vm, GC::Ref<WebID
 
             // 1. Let result be the WebAssemblyInstantiatedSource value «[ "module" → module, "instance" → instance ]».
             auto result = JS::Object::create(realm, nullptr);
-            result->define_direct_property("module", module, JS::default_attributes);
-            result->define_direct_property("instance", instance, JS::default_attributes);
+            result->define_direct_property("module"_fly_string, module, JS::default_attributes);
+            result->define_direct_property("instance"_fly_string, instance, JS::default_attributes);
 
             // 2. Resolve promise with result.
             WebIDL::resolve_promise(realm, promise, result);

@@ -21,7 +21,7 @@ class NativeFunction : public FunctionObject {
     GC_DECLARE_ALLOCATOR(NativeFunction);
 
 public:
-    static GC::Ref<NativeFunction> create(Realm&, ESCAPING Function<ThrowCompletionOr<Value>(VM&)> behaviour, i32 length, PropertyKey const& name, Optional<Realm*> = {}, Optional<Object*> prototype = {}, Optional<StringView> const& prefix = {});
+    static GC::Ref<NativeFunction> create(Realm&, ESCAPING Function<ThrowCompletionOr<Value>(VM&)> behaviour, i32 length, PropertyKey const& name = FlyString {}, Optional<Realm*> = {}, Optional<Object*> prototype = {}, Optional<StringView> const& prefix = {});
     static GC::Ref<NativeFunction> create(Realm&, DeprecatedFlyString const& name, ESCAPING Function<ThrowCompletionOr<Value>(VM&)>);
 
     virtual ~NativeFunction() override = default;

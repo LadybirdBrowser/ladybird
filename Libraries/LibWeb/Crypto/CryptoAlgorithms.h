@@ -34,7 +34,7 @@ struct HashAlgorithmIdentifier : public AlgorithmIdentifier {
         auto value = visit(
             [](String const& name) -> JS::ThrowCompletionOr<String> { return name; },
             [&](GC::Root<JS::Object> const& obj) -> JS::ThrowCompletionOr<String> {
-                auto name_property = TRY(obj->get("name"));
+                auto name_property = TRY(obj->get("name"_fly_string));
                 return name_property.to_string(vm);
             });
 

@@ -121,7 +121,7 @@ GC::Ref<WebIDL::CallbackType> UniversalGlobalScopeMixin::count_queuing_strategy_
         };
 
         // 2. Let F be ! CreateBuiltinFunction(steps, 0, "size", « », globalObject’s relevant Realm).
-        auto function = JS::NativeFunction::create(realm, move(steps), 0, "size", &realm);
+        auto function = JS::NativeFunction::create(realm, move(steps), 0, "size"_fly_string, &realm);
 
         // 3. Set globalObject’s count queuing strategy size function to a Function that represents a reference to F, with callback context equal to globalObject’s relevant settings object.
         // FIXME: Update spec comment to pass globalObject's relevant realm once Streams spec is updated for ShadowRealm spec
@@ -146,7 +146,7 @@ GC::Ref<WebIDL::CallbackType> UniversalGlobalScopeMixin::byte_length_queuing_str
         };
 
         // 2. Let F be ! CreateBuiltinFunction(steps, 1, "size", « », globalObject’s relevant Realm).
-        auto function = JS::NativeFunction::create(realm, move(steps), 1, "size", &realm);
+        auto function = JS::NativeFunction::create(realm, move(steps), 1, "size"_fly_string, &realm);
 
         // 3. Set globalObject’s byte length queuing strategy size function to a Function that represents a reference to F, with callback context equal to globalObject’s relevant settings object.
         // FIXME: Update spec comment to pass globalObject's relevant realm once Streams spec is updated for ShadowRealm spec

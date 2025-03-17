@@ -92,6 +92,7 @@ namespace JS {
     P(construct)                             \
     P(constructor)                           \
     P(containing)                            \
+    P(continuation)                          \
     P(copyWithin)                            \
     P(cos)                                   \
     P(cosh)                                  \
@@ -277,6 +278,7 @@ namespace JS {
     P(Intl)                                  \
     P(is)                                    \
     P(isArray)                               \
+    P(isAwait)                               \
     P(isDisjointFrom)                        \
     P(isError)                               \
     P(isExtensible)                          \
@@ -408,6 +410,7 @@ namespace JS {
     P(reason)                                \
     P(reduce)                                \
     P(reduceRight)                           \
+    P(result)                                \
     P(Reflect)                               \
     P(RegExp)                                \
     P(region)                                \

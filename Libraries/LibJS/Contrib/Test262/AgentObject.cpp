@@ -24,8 +24,8 @@ void AgentObject::initialize(JS::Realm& realm)
     Base::initialize(realm);
 
     u8 attr = Attribute::Writable | Attribute::Configurable;
-    define_native_function(realm, "monotonicNow", monotonic_now, 0, attr);
-    define_native_function(realm, "sleep", sleep, 1, attr);
+    define_native_function(realm, "monotonicNow"_fly_string, monotonic_now, 0, attr);
+    define_native_function(realm, "sleep"_fly_string, sleep, 1, attr);
     // TODO: broadcast
     // TODO: getReport
     // TODO: start

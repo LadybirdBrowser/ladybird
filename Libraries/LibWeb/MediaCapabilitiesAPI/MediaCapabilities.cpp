@@ -236,9 +236,9 @@ GC::Ref<JS::Object> MediaCapabilitiesDecodingInfo::to_object(JS::Realm& realm)
 
     // FIXME: Also include configuration in this object.
 
-    MUST(object->create_data_property("supported", JS::BooleanObject::create(realm, supported)));
-    MUST(object->create_data_property("smooth", JS::BooleanObject::create(realm, smooth)));
-    MUST(object->create_data_property("powerEfficent", JS::BooleanObject::create(realm, power_efficient)));
+    MUST(object->create_data_property("supported"_fly_string, JS::BooleanObject::create(realm, supported)));
+    MUST(object->create_data_property("smooth"_fly_string, JS::BooleanObject::create(realm, smooth)));
+    MUST(object->create_data_property("powerEfficent"_fly_string, JS::BooleanObject::create(realm, power_efficient)));
 
     return object;
 }

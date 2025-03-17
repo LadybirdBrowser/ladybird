@@ -58,7 +58,7 @@ static Object* async_from_sync_iterator_continuation(VM& vm, Object& result, Pro
 
     // 9. Let onFulfilled be CreateBuiltinFunction(unwrap, 1, "", « »).
     // 10. NOTE: onFulfilled is used when processing the "value" property of an IteratorResult object in order to wait for its value if it is a promise and re-package the result in a new "unwrapped" IteratorResult object.
-    auto on_fulfilled = NativeFunction::create(realm, move(unwrap), 1, "");
+    auto on_fulfilled = NativeFunction::create(realm, move(unwrap), 1);
 
     // 11. Perform PerformPromiseThen(valueWrapper, onFulfilled, undefined, promiseCapability).
     as<Promise>(value_wrapper)->perform_then(move(on_fulfilled), js_undefined(), &promise_capability);

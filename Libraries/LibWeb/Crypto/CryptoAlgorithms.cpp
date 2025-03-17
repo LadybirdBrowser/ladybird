@@ -337,7 +337,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> AesCbcParams::from_value(J
 {
     auto& object = value.as_object();
 
-    auto iv_value = TRY(object.get("iv"));
+    auto iv_value = TRY(object.get("iv"_fly_string));
     if (!iv_value.is_object() || !(is<JS::TypedArrayBase>(iv_value.as_object()) || is<JS::ArrayBuffer>(iv_value.as_object()) || is<JS::DataView>(iv_value.as_object())))
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "BufferSource");
     auto iv = TRY_OR_THROW_OOM(vm, WebIDL::get_buffer_source_copy(iv_value.as_object()));
@@ -351,12 +351,12 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> AesCtrParams::from_value(J
 {
     auto& object = value.as_object();
 
-    auto iv_value = TRY(object.get("counter"));
+    auto iv_value = TRY(object.get("counter"_fly_string));
     if (!iv_value.is_object() || !(is<JS::TypedArrayBase>(iv_value.as_object()) || is<JS::ArrayBuffer>(iv_value.as_object()) || is<JS::DataView>(iv_value.as_object())))
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "BufferSource");
     auto iv = TRY_OR_THROW_OOM(vm, WebIDL::get_buffer_source_copy(iv_value.as_object()));
 
-    auto length_value = TRY(object.get("length"));
+    auto length_value = TRY(object.get("length"_fly_string));
     auto length = TRY(length_value.to_u8(vm));
 
     return adopt_own<AlgorithmParams>(*new AesCtrParams { iv, length });
@@ -368,22 +368,22 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> AesGcmParams::from_value(J
 {
     auto& object = value.as_object();
 
-    auto iv_value = TRY(object.get("iv"));
+    auto iv_value = TRY(object.get("iv"_fly_string));
     if (!iv_value.is_object() || !(is<JS::TypedArrayBase>(iv_value.as_object()) || is<JS::ArrayBuffer>(iv_value.as_object()) || is<JS::DataView>(iv_value.as_object())))
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "BufferSource");
     auto iv = TRY_OR_THROW_OOM(vm, WebIDL::get_buffer_source_copy(iv_value.as_object()));
 
     auto maybe_additional_data = Optional<ByteBuffer> {};
-    if (MUST(object.has_property("additionalData"))) {
-        auto additional_data_value = TRY(object.get("additionalData"));
+    if (MUST(object.has_property("additionalData"_fly_string))) {
+        auto additional_data_value = TRY(object.get("additionalData"_fly_string));
         if (!additional_data_value.is_object() || !(is<JS::TypedArrayBase>(additional_data_value.as_object()) || is<JS::ArrayBuffer>(additional_data_value.as_object()) || is<JS::DataView>(additional_data_value.as_object())))
             return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "BufferSource");
         maybe_additional_data = TRY_OR_THROW_OOM(vm, WebIDL::get_buffer_source_copy(additional_data_value.as_object()));
     }
 
     auto maybe_tag_length = Optional<u8> {};
-    if (MUST(object.has_property("tagLength"))) {
-        auto tag_length_value = TRY(object.get("tagLength"));
+    if (MUST(object.has_property("tagLength"_fly_string))) {
+        auto tag_length_value = TRY(object.get("tagLength"_fly_string));
         maybe_tag_length = TRY(tag_length_value.to_u8(vm));
     }
 
@@ -396,15 +396,15 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> HKDFParams::from_value(JS:
 {
     auto& object = value.as_object();
 
-    auto hash_value = TRY(object.get("hash"));
+    auto hash_value = TRY(object.get("hash"_fly_string));
     auto hash = TRY(hash_algorithm_identifier_from_value(vm, hash_value));
 
-    auto salt_value = TRY(object.get("salt"));
+    auto salt_value = TRY(object.get("salt"_fly_string));
     if (!salt_value.is_object() || !(is<JS::TypedArrayBase>(salt_value.as_object()) || is<JS::ArrayBuffer>(salt_value.as_object()) || is<JS::DataView>(salt_value.as_object())))
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "BufferSource");
     auto salt = TRY_OR_THROW_OOM(vm, WebIDL::get_buffer_source_copy(salt_value.as_object()));
 
-    auto info_value = TRY(object.get("info"));
+    auto info_value = TRY(object.get("info"_fly_string));
     if (!info_value.is_object() || !(is<JS::TypedArrayBase>(info_value.as_object()) || is<JS::ArrayBuffer>(info_value.as_object()) || is<JS::DataView>(info_value.as_object())))
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "BufferSource");
     auto info = TRY_OR_THROW_OOM(vm, WebIDL::get_buffer_source_copy(info_value.as_object()));
@@ -418,17 +418,17 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> PBKDF2Params::from_value(J
 {
     auto& object = value.as_object();
 
-    auto salt_value = TRY(object.get("salt"));
+    auto salt_value = TRY(object.get("salt"_fly_string));
 
     if (!salt_value.is_object() || !(is<JS::TypedArrayBase>(salt_value.as_object()) || is<JS::ArrayBuffer>(salt_value.as_object()) || is<JS::DataView>(salt_value.as_object())))
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "BufferSource");
 
     auto salt = TRY_OR_THROW_OOM(vm, WebIDL::get_buffer_source_copy(salt_value.as_object()));
 
-    auto iterations_value = TRY(object.get("iterations"));
+    auto iterations_value = TRY(object.get("iterations"_fly_string));
     auto iterations = TRY(iterations_value.to_u32(vm));
 
-    auto hash_value = TRY(object.get("hash"));
+    auto hash_value = TRY(object.get("hash"_fly_string));
     auto hash = TRY(hash_algorithm_identifier_from_value(vm, hash_value));
 
     return adopt_own<AlgorithmParams>(*new PBKDF2Params { salt, iterations, hash });
@@ -440,10 +440,10 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> RsaKeyGenParams::from_valu
 {
     auto& object = value.as_object();
 
-    auto modulus_length_value = TRY(object.get("modulusLength"));
+    auto modulus_length_value = TRY(object.get("modulusLength"_fly_string));
     auto modulus_length = TRY(modulus_length_value.to_u32(vm));
 
-    auto public_exponent_value = TRY(object.get("publicExponent"));
+    auto public_exponent_value = TRY(object.get("publicExponent"_fly_string));
     GC::Ptr<JS::Uint8Array> public_exponent;
 
     if (!public_exponent_value.is_object() || !is<JS::Uint8Array>(public_exponent_value.as_object()))
@@ -460,10 +460,10 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> RsaHashedKeyGenParams::fro
 {
     auto& object = value.as_object();
 
-    auto modulus_length_value = TRY(object.get("modulusLength"));
+    auto modulus_length_value = TRY(object.get("modulusLength"_fly_string));
     auto modulus_length = TRY(modulus_length_value.to_u32(vm));
 
-    auto public_exponent_value = TRY(object.get("publicExponent"));
+    auto public_exponent_value = TRY(object.get("publicExponent"_fly_string));
     GC::Ptr<JS::Uint8Array> public_exponent;
 
     if (!public_exponent_value.is_object() || !is<JS::Uint8Array>(public_exponent_value.as_object()))
@@ -471,7 +471,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> RsaHashedKeyGenParams::fro
 
     public_exponent = static_cast<JS::Uint8Array&>(public_exponent_value.as_object());
 
-    auto hash_value = TRY(object.get("hash"));
+    auto hash_value = TRY(object.get("hash"_fly_string));
     auto hash = TRY(hash_algorithm_identifier_from_value(vm, hash_value));
 
     return adopt_own<AlgorithmParams>(*new RsaHashedKeyGenParams { modulus_length, big_integer_from_api_big_integer(public_exponent), hash });
@@ -483,7 +483,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> RsaHashedImportParams::fro
 {
     auto& object = value.as_object();
 
-    auto hash_value = TRY(object.get("hash"));
+    auto hash_value = TRY(object.get("hash"_fly_string));
     auto hash = TRY(hash_algorithm_identifier_from_value(vm, hash_value));
 
     return adopt_own<AlgorithmParams>(*new RsaHashedImportParams { hash });
@@ -495,7 +495,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> RsaOaepParams::from_value(
 {
     auto& object = value.as_object();
 
-    auto label_value = TRY(object.get("label"));
+    auto label_value = TRY(object.get("label"_fly_string));
 
     ByteBuffer label;
     if (!label_value.is_nullish()) {
@@ -515,7 +515,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> RsaPssParams::from_value(J
 {
     auto& object = value.as_object();
 
-    auto salt_length_value = TRY(object.get("saltLength"));
+    auto salt_length_value = TRY(object.get("saltLength"_fly_string));
     auto salt_length = TRY(salt_length_value.to_u32(vm));
 
     return adopt_own<AlgorithmParams>(*new RsaPssParams { salt_length });
@@ -527,7 +527,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> EcdsaParams::from_value(JS
 {
     auto& object = value.as_object();
 
-    auto hash_value = TRY(object.get("hash"));
+    auto hash_value = TRY(object.get("hash"_fly_string));
     auto hash = TRY(hash_algorithm_identifier_from_value(vm, hash_value));
 
     return adopt_own<AlgorithmParams>(*new EcdsaParams { hash });
@@ -539,7 +539,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> EcKeyGenParams::from_value
 {
     auto& object = value.as_object();
 
-    auto curve_value = TRY(object.get("namedCurve"));
+    auto curve_value = TRY(object.get("namedCurve"_fly_string));
     auto curve = TRY(curve_value.to_string(vm));
 
     return adopt_own<AlgorithmParams>(*new EcKeyGenParams { curve });
@@ -551,7 +551,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> AesKeyGenParams::from_valu
 {
     auto& object = value.as_object();
 
-    auto length_value = TRY(object.get("length"));
+    auto length_value = TRY(object.get("length"_fly_string));
     auto length = TRY(length_value.to_u16(vm));
 
     return adopt_own<AlgorithmParams>(*new AesKeyGenParams { length });
@@ -563,7 +563,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> AesDerivedKeyParams::from_
 {
     auto& object = value.as_object();
 
-    auto length_value = TRY(object.get("length"));
+    auto length_value = TRY(object.get("length"_fly_string));
     auto length = TRY(length_value.to_u16(vm));
 
     return adopt_own<AlgorithmParams>(*new AesDerivedKeyParams { length });
@@ -575,7 +575,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> EcdhKeyDeriveParams::from_
 {
     auto& object = value.as_object();
 
-    auto key_value = TRY(object.get("public"));
+    auto key_value = TRY(object.get("public"_fly_string));
     auto key_object = TRY(key_value.to_object(vm));
 
     if (!is<CryptoKey>(*key_object)) {
@@ -593,7 +593,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> EcKeyImportParams::from_va
 {
     auto& object = value.as_object();
 
-    auto named_curve_value = TRY(object.get("namedCurve"));
+    auto named_curve_value = TRY(object.get("namedCurve"_fly_string));
     auto named_curve = TRY(named_curve_value.to_string(vm));
 
     return adopt_own<AlgorithmParams>(*new EcKeyImportParams { named_curve });
@@ -605,12 +605,12 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> HmacImportParams::from_val
 {
     auto& object = value.as_object();
 
-    auto hash_value = TRY(object.get("hash"));
+    auto hash_value = TRY(object.get("hash"_fly_string));
     auto hash = TRY(hash_algorithm_identifier_from_value(vm, hash_value));
 
     auto maybe_length = Optional<WebIDL::UnsignedLong> {};
-    if (MUST(object.has_property("length"))) {
-        auto length_value = TRY(object.get("length"));
+    if (MUST(object.has_property("length"_fly_string))) {
+        auto length_value = TRY(object.get("length"_fly_string));
         maybe_length = TRY(length_value.to_u32(vm));
     }
 
@@ -623,12 +623,12 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> HmacKeyGenParams::from_val
 {
     auto& object = value.as_object();
 
-    auto hash_value = TRY(object.get("hash"));
+    auto hash_value = TRY(object.get("hash"_fly_string));
     auto hash = TRY(hash_algorithm_identifier_from_value(vm, hash_value));
 
     auto maybe_length = Optional<WebIDL::UnsignedLong> {};
-    if (MUST(object.has_property("length"))) {
-        auto length_value = TRY(object.get("length"));
+    if (MUST(object.has_property("length"_fly_string))) {
+        auto length_value = TRY(object.get("length"_fly_string));
         maybe_length = TRY(length_value.to_u32(vm));
     }
 
@@ -642,8 +642,8 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> Ed448Params::from_value(JS
     auto& object = value.as_object();
 
     auto maybe_context = Optional<ByteBuffer> {};
-    if (MUST(object.has_property("context"))) {
-        auto context_value = TRY(object.get("context"));
+    if (MUST(object.has_property("context"_fly_string))) {
+        auto context_value = TRY(object.get("context"_fly_string));
         if (!context_value.is_object() || !(is<JS::TypedArrayBase>(context_value.as_object()) || is<JS::ArrayBuffer>(context_value.as_object()) || is<JS::DataView>(context_value.as_object())))
             return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "BufferSource");
         maybe_context = TRY_OR_THROW_OOM(vm, WebIDL::get_buffer_source_copy(context_value.as_object()));

@@ -71,7 +71,7 @@ WebIDL::ExceptionOr<NormalizedAlgorithmAndParameter> normalize_an_algorithm(JS::
         // Return the result of running the normalize an algorithm algorithm,
         // with the alg set to a new Algorithm dictionary whose name attribute is alg, and with the op set to op.
         auto dictionary = GC::make_root(JS::Object::create(realm, realm.intrinsics().object_prototype()));
-        TRY(dictionary->create_data_property("name", JS::PrimitiveString::create(vm, algorithm.get<String>())));
+        TRY(dictionary->create_data_property("name"_fly_string, JS::PrimitiveString::create(vm, algorithm.get<String>())));
 
         return normalize_an_algorithm(realm, dictionary, operation);
     }
@@ -88,7 +88,7 @@ WebIDL::ExceptionOr<NormalizedAlgorithmAndParameter> normalize_an_algorithm(JS::
     // 3. If an error occurred, return the error and terminate this algorithm.
     // Note: We're not going to bother creating an Algorithm object, all we want is the name attribute so that we can
     //       fetch the actual algorithm factory from the registeredAlgorithms map.
-    auto initial_algorithm = TRY(algorithm.get<GC::Root<JS::Object>>()->get("name"));
+    auto initial_algorithm = TRY(algorithm.get<GC::Root<JS::Object>>()->get("name"_fly_string));
 
     if (initial_algorithm.is_undefined()) {
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "Algorithm");
