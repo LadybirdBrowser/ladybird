@@ -1,4 +1,4 @@
-name: Nightly Android
+name: Nightly Android (Linux)
 
 on:
   # Automatically run at the end of every day.
@@ -10,7 +10,7 @@ on:
 env:
   LADYBIRD_SOURCE_DIR: ${{ github.workspace }}
   CCACHE_DIR: ${{ github.workspace }}/.ccache
-  VCPKG_ROOT:  ${{ github.workspace }}/Build/vcpkg
+  VCPKG_ROOT: ${{ github.workspace }}/Build/vcpkg
   VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
 
 concurrency:
@@ -19,23 +19,17 @@ concurrency:
 
 jobs:
   CI:
-    # Use an Ubuntu runner with ARM support.
-    runs-on: ${{ matrix.os }}
+    # Use a Linux runner (Ubuntu 24.04 with ARM support)
+    runs-on: ubuntu-24.04-arm
     if: github.repository != 'LadybirdBrowser/ladybird'
-    strategy:
-      fail-fast: false
-      matrix:
-        os_name: ['Android']
-        os: [ubuntu-24.04-arm]
-
     steps:
       - uses: actions/checkout@v4
 
       - name: Set Up Environment
         uses: ./.github/actions/setup
         with:
-          os: ${{ matrix.os_name }}
-          arch: 'Lagom'
+          os: "Android"
+          arch: "Lagom"
 
       - name: Set Up Java
         uses: actions/setup-java@v4
@@ -52,9 +46,9 @@ jobs:
         uses: ./.github/actions/cache-restore
         id: cache-restore
         with:
-          os: ${{ matrix.os_name }}
-          arch: 'Lagom'
-          cache_key_extra: 'Nightly Android'
+          os: "Android"
+          arch: "Lagom"
+          cache_key_extra: "Nightly Android"
           ccache_path: ${{ env.CCACHE_DIR }}
           download_cache_path: ${{ github.workspace }}/Build/caches
 
@@ -64,7 +58,7 @@ jobs:
           echo "host_cc=$(which clang)" >> "$GITHUB_OUTPUT"
           echo "host_cxx=$(which clang++)" >> "$GITHUB_OUTPUT"
 
-      - name: Install NDK
+      - name: Install NDK and SDK Tools
         run: |
           yes | ${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager --licenses
           yes | ${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager "platform-tools" "build-tools;32.0.0" "platforms;android-34"
@@ -74,21 +68,17 @@ jobs:
         run: |
           # Install ARM64 AVD system image
           echo "y" | ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager --install 'system-images;android-30;google_apis;arm64-v8a'
-
           # Create emulator using the ARM64 image
           echo "no" | ${ANDROID_HOME}/cmdline-tools/latest/bin/avdmanager create avd -n xamarin_android_emulator -k 'system-images;android-30;google_apis;arm64-v8a' --force
-
           ${ANDROID_HOME}/emulator/emulator -list-avds
-
           echo "Starting emulator"
-
-          # Start emulator in background
+          # Start emulator in the background
           nohup ${ANDROID_HOME}/emulator/emulator -avd xamarin_android_emulator -no-snapshot > /dev/null 2>&1 &
           ${ANDROID_HOME}/platform-tools/adb wait-for-device shell 'while [[ -z $(getprop sys.boot_completed | tr -d "\r") ]]; do sleep 1; done; input keyevent 82'
           ${ANDROID_HOME}/platform-tools/adb devices
           echo "Emulator started"
 
-      # === BUILD ===
+      # === BUILD AND TEST ===
 
       - name: Build and Test
         working-directory: ${{ github.workspace }}/UI/Android
@@ -99,7 +89,7 @@ jobs:
       - name: Save Caches
         uses: ./.github/actions/cache-save
         with:
-          arch: 'Lagom'
+          arch: "Lagom"
           ccache_path: ${{ env.CCACHE_DIR }}
           ccache_primary_key: ${{ steps.cache-restore.outputs.ccache_primary_key }}
 
