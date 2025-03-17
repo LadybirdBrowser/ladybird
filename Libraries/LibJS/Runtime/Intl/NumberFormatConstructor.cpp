@@ -184,8 +184,7 @@ ThrowCompletionOr<GC::Ref<Object>> NumberFormatConstructor::construct(FunctionOb
 
     // Non-standard, create an ICU number formatter for this Intl object.
     auto formatter = Unicode::NumberFormat::create(
-        number_format->locale(),
-        number_format->numbering_system(),
+        result.icu_locale,
         number_format->display_options(),
         number_format->rounding_options());
     number_format->set_formatter(move(formatter));

@@ -47,32 +47,32 @@ static Optional<Unicode::DateTimeFormat const&> get_or_create_formatter(StringVi
 
 Optional<Unicode::DateTimeFormat const&> DateTimeFormat::temporal_plain_date_formatter()
 {
-    return get_or_create_formatter(m_locale, m_temporal_time_zone, m_temporal_plain_date_formatter, m_temporal_plain_date_format);
+    return get_or_create_formatter(m_icu_locale, m_temporal_time_zone, m_temporal_plain_date_formatter, m_temporal_plain_date_format);
 }
 
 Optional<Unicode::DateTimeFormat const&> DateTimeFormat::temporal_plain_year_month_formatter()
 {
-    return get_or_create_formatter(m_locale, m_temporal_time_zone, m_temporal_plain_year_month_formatter, m_temporal_plain_year_month_format);
+    return get_or_create_formatter(m_icu_locale, m_temporal_time_zone, m_temporal_plain_year_month_formatter, m_temporal_plain_year_month_format);
 }
 
 Optional<Unicode::DateTimeFormat const&> DateTimeFormat::temporal_plain_month_day_formatter()
 {
-    return get_or_create_formatter(m_locale, m_temporal_time_zone, m_temporal_plain_month_day_formatter, m_temporal_plain_month_day_format);
+    return get_or_create_formatter(m_icu_locale, m_temporal_time_zone, m_temporal_plain_month_day_formatter, m_temporal_plain_month_day_format);
 }
 
 Optional<Unicode::DateTimeFormat const&> DateTimeFormat::temporal_plain_time_formatter()
 {
-    return get_or_create_formatter(m_locale, m_temporal_time_zone, m_temporal_plain_time_formatter, m_temporal_plain_time_format);
+    return get_or_create_formatter(m_icu_locale, m_temporal_time_zone, m_temporal_plain_time_formatter, m_temporal_plain_time_format);
 }
 
 Optional<Unicode::DateTimeFormat const&> DateTimeFormat::temporal_plain_date_time_formatter()
 {
-    return get_or_create_formatter(m_locale, m_temporal_time_zone, m_temporal_plain_date_time_formatter, m_temporal_plain_date_time_format);
+    return get_or_create_formatter(m_icu_locale, m_temporal_time_zone, m_temporal_plain_date_time_formatter, m_temporal_plain_date_time_format);
 }
 
 Optional<Unicode::DateTimeFormat const&> DateTimeFormat::temporal_instant_formatter()
 {
-    return get_or_create_formatter(m_locale, m_temporal_time_zone, m_temporal_instant_formatter, m_temporal_instant_format);
+    return get_or_create_formatter(m_icu_locale, m_temporal_time_zone, m_temporal_instant_formatter, m_temporal_instant_format);
 }
 
 // 11.5.5 FormatDateTimePattern ( dateTimeFormat, patternParts, x, rangeFormatOptions ), https://tc39.es/ecma402/#sec-formatdatetimepattern

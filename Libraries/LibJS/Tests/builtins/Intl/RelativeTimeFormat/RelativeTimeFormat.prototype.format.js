@@ -129,6 +129,11 @@ describe("second", () => {
 
         runTest("second", "narrow", "auto", en, ar, pl);
     });
+
+    test("numberingSystem set via locale options", () => {
+        const formatter = new Intl.RelativeTimeFormat("en", { numberingSystem: "arab" });
+        expect(formatter.format(1, "second")).toBe("in ١ second");
+    });
 });
 
 describe("minute", () => {
