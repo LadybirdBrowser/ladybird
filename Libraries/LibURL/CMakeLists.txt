@@ -10,6 +10,7 @@ set(SOURCES
     Pattern/Canonicalization.cpp
     Pattern/ConstructorStringParser.cpp
     Pattern/Init.cpp
+    Pattern/Options.cpp
     Pattern/Part.cpp
     Pattern/Pattern.cpp
     Pattern/String.cpp
