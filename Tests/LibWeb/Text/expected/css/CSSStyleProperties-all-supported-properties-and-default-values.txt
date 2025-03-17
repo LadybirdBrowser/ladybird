@@ -616,6 +616,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'textTransform': 'none'
 'text-transform': 'none'
 'top': 'auto'
+'touchAction': 'auto'
+'touch-action': 'auto'
 'transform': 'none'
 'transformBox': 'view-box'
 'transform-box': 'view-box'

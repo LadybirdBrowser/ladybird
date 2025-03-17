@@ -605,6 +605,17 @@
     "none",
     "uppercase"
   ],
+  "touch-action": [
+    "auto",
+    "manipulation",
+    "none",
+    "pan-down",
+    "pan-left",
+    "pan-right",
+    "pan-up",
+    "pan-x",
+    "pan-y"
+  ],
   "transform-box": [
     "content-box",
     "border-box",

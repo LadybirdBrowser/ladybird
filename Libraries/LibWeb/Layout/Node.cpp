@@ -933,6 +933,8 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
             computed_values.set_aspect_ratio({ false, aspect_ratio.as_ratio().ratio() });
     }
 
+    computed_values.set_touch_action(computed_style.touch_action());
+
     auto const& math_shift_value = computed_style.property(CSS::PropertyID::MathShift);
     if (auto math_shift = keyword_to_math_shift(math_shift_value.to_keyword()); math_shift.has_value())
         computed_values.set_math_shift(math_shift.value());

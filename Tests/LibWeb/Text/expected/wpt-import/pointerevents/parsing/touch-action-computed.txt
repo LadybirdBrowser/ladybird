@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	Property touch-action value 'auto'
+Pass	Property touch-action value 'none'
+Pass	Property touch-action value 'manipulation'
+Pass	Property touch-action value 'pan-x'
+Pass	Property touch-action value 'pan-y'
+Pass	Property touch-action value 'pan-x pan-y'

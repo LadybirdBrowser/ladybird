@@ -166,6 +166,7 @@ public:
     WritingMode writing_mode() const;
     UserSelect user_select() const;
     Isolation isolation() const;
+    TouchActionData touch_action() const;
     Containment contain() const;
     MixBlendMode mix_blend_mode() const;
     Optional<FlyString> view_transition_name() const;

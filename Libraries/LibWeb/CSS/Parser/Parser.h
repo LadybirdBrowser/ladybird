@@ -434,6 +434,7 @@ private:
     RefPtr<CSSStyleValue const> parse_grid_template_areas_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_grid_area_shorthand_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_grid_shorthand_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_touch_action_value(TokenStream<ComponentValue>&);
 
     RefPtr<CSSStyleValue const> parse_list_of_time_values(PropertyID, TokenStream<ComponentValue>&);
 
