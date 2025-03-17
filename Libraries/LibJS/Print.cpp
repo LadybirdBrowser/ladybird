@@ -743,19 +743,19 @@ ErrorOr<void> print_intl_plural_rules(JS::PrintContext& print_context, JS::Intl:
 ErrorOr<void> print_intl_collator(JS::PrintContext& print_context, JS::Intl::Collator const& collator, HashTable<JS::Object*>& seen_objects)
 {
     TRY(print_type(print_context, "Intl.Collator"sv));
-    out("\n  locale: ");
+    TRY(js_out(print_context, "\n  locale: "));
     TRY(print_value(print_context, JS::PrimitiveString::create(collator.vm(), collator.locale()), seen_objects));
-    out("\n  usage: ");
+    TRY(js_out(print_context, "\n  usage: "));
     TRY(print_value(print_context, JS::PrimitiveString::create(collator.vm(), collator.usage_string()), seen_objects));
-    out("\n  sensitivity: ");
+    TRY(js_out(print_context, "\n  sensitivity: "));
     TRY(print_value(print_context, JS::PrimitiveString::create(collator.vm(), collator.sensitivity_string()), seen_objects));
-    out("\n  caseFirst: ");
+    TRY(js_out(print_context, "\n  caseFirst: "));
     TRY(print_value(print_context, JS::PrimitiveString::create(collator.vm(), collator.case_first_string()), seen_objects));
-    out("\n  collation: ");
+    TRY(js_out(print_context, "\n  collation: "));
     TRY(print_value(print_context, JS::PrimitiveString::create(collator.vm(), collator.collation()), seen_objects));
-    out("\n  ignorePunctuation: ");
+    TRY(js_out(print_context, "\n  ignorePunctuation: "));
     TRY(print_value(print_context, JS::Value(collator.ignore_punctuation()), seen_objects));
-    out("\n  numeric: ");
+    TRY(js_out(print_context, "\n  numeric: "));
     TRY(print_value(print_context, JS::Value(collator.numeric()), seen_objects));
     return {};
 }
@@ -763,9 +763,9 @@ ErrorOr<void> print_intl_collator(JS::PrintContext& print_context, JS::Intl::Col
 ErrorOr<void> print_intl_segmenter(JS::PrintContext& print_context, JS::Intl::Segmenter const& segmenter, HashTable<JS::Object*>& seen_objects)
 {
     TRY(print_type(print_context, "Intl.Segmenter"sv));
-    out("\n  locale: ");
+    TRY(js_out(print_context, "\n  locale: "));
     TRY(print_value(print_context, JS::PrimitiveString::create(segmenter.vm(), segmenter.locale()), seen_objects));
-    out("\n  granularity: ");
+    TRY(js_out(print_context, "\n  granularity: "));
     TRY(print_value(print_context, JS::PrimitiveString::create(segmenter.vm(), segmenter.segmenter_granularity_string()), seen_objects));
     return {};
 }
@@ -775,7 +775,7 @@ ErrorOr<void> print_intl_segments(JS::PrintContext& print_context, JS::Intl::Seg
     auto segments_string = JS::Utf16String::create(segments.segments_string());
 
     TRY(print_type(print_context, "Segments"sv));
-    out("\n  string: ");
+    TRY(js_out(print_context, "\n  string: "));
     TRY(print_value(print_context, JS::PrimitiveString::create(segments.vm(), move(segments_string)), seen_objects));
     return {};
 }
@@ -783,54 +783,54 @@ ErrorOr<void> print_intl_segments(JS::PrintContext& print_context, JS::Intl::Seg
 ErrorOr<void> print_intl_duration_format(JS::PrintContext& print_context, JS::Intl::DurationFormat const& duration_format, HashTable<JS::Object*>& seen_objects)
 {
     TRY(print_type(print_context, "Intl.DurationFormat"sv));
-    out("\n  locale: ");
+    TRY(js_out(print_context, "\n  locale: "));
     TRY(print_value(print_context, JS::PrimitiveString::create(duration_format.vm(), duration_format.locale()), seen_objects));
-    out("\n  numberingSystem: ");
+    TRY(js_out(print_context, "\n  numberingSystem: "));
     TRY(print_value(print_context, JS::PrimitiveString::create(duration_format.vm(), duration_format.numbering_system()), seen_objects));
-    out("\n  style: ");
+    TRY(js_out(print_context, "\n  style: "));
     TRY(print_value(print_context, JS::PrimitiveString::create(duration_format.vm(), duration_format.style_string()), seen_objects));
-    out("\n  years: ");
+    TRY(js_out(print_context, "\n  years: "));
     TRY(print_value(print_context, JS::PrimitiveString::create(duration_format.vm(), duration_format.years_style_string()), seen_objects));
-    out("\n  yearsDisplay: ");
+    TRY(js_out(print_context, "\n  yearsDisplay: "));
     TRY(print_value(print_context, JS::PrimitiveString::create(duration_format.vm(), duration_format.years_display_string()), seen_objects));
-    out("\n  months: ");
+    TRY(js_out(print_context, "\n  months: "));
     TRY(print_value(print_context, JS::PrimitiveString::create(duration_format.vm(), duration_format.months_style_string()), seen_objects));
-    out("\n  monthsDisplay: ");
+    TRY(js_out(print_context, "\n  monthsDisplay: "));
     TRY(print_value(print_context, JS::PrimitiveString::create(duration_format.vm(), duration_format.months_display_string()), seen_objects));
-    out("\n  weeks: ");
+    TRY(js_out(print_context, "\n  weeks: "));
     TRY(print_value(print_context, JS::PrimitiveString::create(duration_format.vm(), duration_format.weeks_style_string()), seen_objects));
-    out("\n  weeksDisplay: ");
+    TRY(js_out(print_context, "\n  weeksDisplay: "));
     TRY(print_value(print_context, JS::PrimitiveString::create(duration_format.vm(), duration_format.weeks_display_string()), seen_objects));
-    out("\n  days: ");
+    TRY(js_out(print_context, "\n  days: "));
     TRY(print_value(print_context, JS::PrimitiveString::create(duration_format.vm(), duration_format.days_style_string()), seen_objects));
-    out("\n  daysDisplay: ");
+    TRY(js_out(print_context, "\n  daysDisplay: "));
     TRY(print_value(print_context, JS::PrimitiveString::create(duration_format.vm(), duration_format.days_display_string()), seen_objects));
-    out("\n  hours: ");
+    TRY(js_out(print_context, "\n  hours: "));
     TRY(print_value(print_context, JS::PrimitiveString::create(duration_format.vm(), duration_format.hours_style_string()), seen_objects));
-    out("\n  hoursDisplay: ");
+    TRY(js_out(print_context, "\n  hoursDisplay: "));
     TRY(print_value(print_context, JS::PrimitiveString::create(duration_format.vm(), duration_format.hours_display_string()), seen_objects));
-    out("\n  minutes: ");
+    TRY(js_out(print_context, "\n  minutes: "));
     TRY(print_value(print_context, JS::PrimitiveString::create(duration_format.vm(), duration_format.minutes_style_string()), seen_objects));
-    out("\n  minutesDisplay: ");
+    TRY(js_out(print_context, "\n  minutesDisplay: "));
     TRY(print_value(print_context, JS::PrimitiveString::create(duration_format.vm(), duration_format.minutes_display_string()), seen_objects));
-    out("\n  seconds: ");
+    TRY(js_out(print_context, "\n  seconds: "));
     TRY(print_value(print_context, JS::PrimitiveString::create(duration_format.vm(), duration_format.seconds_style_string()), seen_objects));
-    out("\n  secondsDisplay: ");
+    TRY(js_out(print_context, "\n  secondsDisplay: "));
     TRY(print_value(print_context, JS::PrimitiveString::create(duration_format.vm(), duration_format.seconds_display_string()), seen_objects));
-    out("\n  milliseconds: ");
+    TRY(js_out(print_context, "\n  milliseconds: "));
     TRY(print_value(print_context, JS::PrimitiveString::create(duration_format.vm(), duration_format.milliseconds_style_string()), seen_objects));
-    out("\n  millisecondsDisplay: ");
+    TRY(js_out(print_context, "\n  millisecondsDisplay: "));
     TRY(print_value(print_context, JS::PrimitiveString::create(duration_format.vm(), duration_format.milliseconds_display_string()), seen_objects));
-    out("\n  microseconds: ");
+    TRY(js_out(print_context, "\n  microseconds: "));
     TRY(print_value(print_context, JS::PrimitiveString::create(duration_format.vm(), duration_format.microseconds_style_string()), seen_objects));
-    out("\n  microsecondsDisplay: ");
+    TRY(js_out(print_context, "\n  microsecondsDisplay: "));
     TRY(print_value(print_context, JS::PrimitiveString::create(duration_format.vm(), duration_format.microseconds_display_string()), seen_objects));
-    out("\n  nanoseconds: ");
+    TRY(js_out(print_context, "\n  nanoseconds: "));
     TRY(print_value(print_context, JS::PrimitiveString::create(duration_format.vm(), duration_format.nanoseconds_style_string()), seen_objects));
-    out("\n  nanosecondsDisplay: ");
+    TRY(js_out(print_context, "\n  nanosecondsDisplay: "));
     TRY(print_value(print_context, JS::PrimitiveString::create(duration_format.vm(), duration_format.nanoseconds_display_string()), seen_objects));
     if (duration_format.has_fractional_digits()) {
-        out("\n  fractionalDigits: ");
+        TRY(js_out(print_context, "\n  fractionalDigits: "));
         TRY(print_value(print_context, JS::Value(duration_format.fractional_digits()), seen_objects));
     }
     return {};
