@@ -4,7 +4,6 @@ on:
   # Automatically run at the end of every day.
   schedule:
     - cron: '0 0 * * *'
-
   # Manual trigger
   workflow_dispatch:
 
@@ -20,13 +19,14 @@ concurrency:
 
 jobs:
   CI:
+    # Use an Ubuntu runner with ARM support.
     runs-on: ${{ matrix.os }}
-    if: github.repository != 'LadybirdBrowser/ladybird'
+    if: github.repository == 'LadybirdBrowser/ladybird'
     strategy:
       fail-fast: false
       matrix:
         os_name: ['Android']
-        os: [macos-14]
+        os: [ubuntu-24.04-arm]
 
     steps:
       - uses: actions/checkout@v4
@@ -50,7 +50,7 @@ jobs:
 
       - name: Restore Caches
         uses: ./.github/actions/cache-restore
-        id: 'cache-restore'
+        id: cache-restore
         with:
           os: ${{ matrix.os_name }}
           arch: 'Lagom'
@@ -59,10 +59,10 @@ jobs:
           download_cache_path: ${{ github.workspace }}/Build/caches
 
       - name: Assign Build Parameters
-        id: 'build-parameters'
+        id: build-parameters
         run: |
-          echo "host_cc=$(xcrun --find clang)" >> "$GITHUB_OUTPUT"
-          echo "host_cxx=$(xcrun --find clang++)" >> "$GITHUB_OUTPUT"
+          echo "host_cc=$(which clang)" >> "$GITHUB_OUTPUT"
+          echo "host_cxx=$(which clang++)" >> "$GITHUB_OUTPUT"
 
       - name: Install NDK
         run: |
@@ -72,11 +72,11 @@ jobs:
 
       - name: Start Android Emulator
         run: |
-          # Install AVD files
-          echo "y" | ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager --install 'system-images;android-30;google_apis;x86_64'
+          # Install ARM64 AVD system image
+          echo "y" | ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager --install 'system-images;android-30;google_apis;arm64-v8a'
 
-          # Create emulator
-          echo "no" | ${ANDROID_HOME}/cmdline-tools/latest/bin/avdmanager create avd -n xamarin_android_emulator -k 'system-images;android-30;google_apis;x86_64' --force
+          # Create emulator using the ARM64 image
+          echo "no" | ${ANDROID_HOME}/cmdline-tools/latest/bin/avdmanager create avd -n xamarin_android_emulator -k 'system-images;android-30;google_apis;arm64-v8a' --force
 
           ${ANDROID_HOME}/emulator/emulator -list-avds
 
@@ -84,7 +84,7 @@ jobs:
 
           # Start emulator in background
           nohup ${ANDROID_HOME}/emulator/emulator -avd xamarin_android_emulator -no-snapshot > /dev/null 2>&1 &
-          ${ANDROID_HOME}/platform-tools/adb wait-for-device shell 'while [[ -z $(getprop sys.boot_completed | tr -d '\r') ]]; do sleep 1; done; input keyevent 82'
+          ${ANDROID_HOME}/platform-tools/adb wait-for-device shell 'while [[ -z $(getprop sys.boot_completed | tr -d "\r") ]]; do sleep 1; done; input keyevent 82'
           ${ANDROID_HOME}/platform-tools/adb devices
           echo "Emulator started"
 
@@ -94,7 +94,7 @@ jobs:
         working-directory: ${{ github.workspace }}/UI/Android
         run: ./gradlew connectedAndroidTest
         env:
-          SERENITY_CACHE_DIR: ${{ github.workspace }}/Build/caches  # No memory limits
+          SERENITY_CACHE_DIR: ${{ github.workspace }}/Build/caches
 
       - name: Save Caches
         uses: ./.github/actions/cache-save
