@@ -63,8 +63,8 @@ JS::Object* Internals::hit_test(double x, double y)
     auto result = active_document.paintable_box()->hit_test({ x, y }, Painting::HitTestType::Exact);
     if (result.has_value()) {
         auto hit_tеsting_result = JS::Object::create(realm(), nullptr);
-        hit_tеsting_result->define_direct_property("node", result->dom_node(), JS::default_attributes);
-        hit_tеsting_result->define_direct_property("indexInNode", JS::Value(result->index_in_node), JS::default_attributes);
+        hit_tеsting_result->define_direct_property("node"_fly_string, result->dom_node(), JS::default_attributes);
+        hit_tеsting_result->define_direct_property("indexInNode"_fly_string, JS::Value(result->index_in_node), JS::default_attributes);
         return hit_tеsting_result;
     }
     return nullptr;

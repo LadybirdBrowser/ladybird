@@ -34,8 +34,8 @@ WebIDL::ExceptionOr<ImportMap> parse_import_map_string(JS::Realm& realm, ByteStr
     ModuleSpecifierMap sorted_and_normalised_imports;
 
     // 4. If parsed["imports"] exists, then:
-    if (TRY(parsed_object.has_property("imports"))) {
-        auto imports = TRY(parsed_object.get("imports"));
+    if (TRY(parsed_object.has_property("imports"_fly_string))) {
+        auto imports = TRY(parsed_object.get("imports"_fly_string));
 
         // If parsed["imports"] is not an ordered map, then throw a TypeError indicating that the value for the "imports" top-level key needs to be a JSON object.
         if (!imports.is_object())
@@ -49,8 +49,8 @@ WebIDL::ExceptionOr<ImportMap> parse_import_map_string(JS::Realm& realm, ByteStr
     HashMap<URL::URL, ModuleSpecifierMap> sorted_and_normalised_scopes;
 
     // 6. If parsed["scopes"] exists, then:
-    if (TRY(parsed_object.has_property("scopes"))) {
-        auto scopes = TRY(parsed_object.get("scopes"));
+    if (TRY(parsed_object.has_property("scopes"_fly_string))) {
+        auto scopes = TRY(parsed_object.get("scopes"_fly_string));
 
         // If parsed["scopes"] is not an ordered map, then throw a TypeError indicating that the value for the "scopes" top-level key needs to be a JSON object.
         if (!scopes.is_object())
@@ -64,8 +64,8 @@ WebIDL::ExceptionOr<ImportMap> parse_import_map_string(JS::Realm& realm, ByteStr
     ModuleIntegrityMap normalised_integrity;
 
     // 8. If parsed["integrity"] exists, then:
-    if (TRY(parsed_object.has_property("integrity"))) {
-        auto integrity = TRY(parsed_object.get("integrity"));
+    if (TRY(parsed_object.has_property("integrity"_fly_string))) {
+        auto integrity = TRY(parsed_object.get("integrity"_fly_string));
 
         // 1. If parsed["integrity"] is not an ordered map, then throw a TypeError indicating that the value for the "integrity" top-level key needs to be a JSON object.
         if (!integrity.is_object())

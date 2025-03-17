@@ -61,9 +61,8 @@ public:
     {
     }
 
-    template<size_t N>
-    PropertyKey(char const (&chars)[N])
-        : PropertyKey(DeprecatedFlyString(chars))
+    PropertyKey(FlyString const& string)
+        : PropertyKey(string.to_deprecated_fly_string())
     {
     }
 

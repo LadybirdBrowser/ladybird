@@ -381,8 +381,8 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
 
         // 5. Return « Record { [[Key]]: "url", [[Value]]: urlString }, Record { [[Key]]: "resolve", [[Value]]: resolveFunction } ».
         HashMap<JS::PropertyKey, JS::Value> meta;
-        meta.set("url", JS::PrimitiveString::create(vm, move(url_string)));
-        meta.set("resolve", resolve_function);
+        meta.set("url"_fly_string, JS::PrimitiveString::create(vm, move(url_string)));
+        meta.set("resolve"_fly_string, resolve_function);
 
         return meta;
     };

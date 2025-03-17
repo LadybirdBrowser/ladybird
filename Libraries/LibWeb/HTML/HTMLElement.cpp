@@ -1332,7 +1332,7 @@ WebIDL::ExceptionOr<void> HTMLElement::show_popover(ThrowExceptions throw_except
 
                 return JS::js_undefined();
             },
-            0, "", &realm());
+            0, FlyString {}, &realm());
         auto close_callback = realm().heap().allocate<WebIDL::CallbackType>(*close_callback_function, realm());
         m_popover_close_watcher->add_event_listener_without_options(HTML::EventNames::close, DOM::IDLEventListener::create(realm(), close_callback));
         // - getEnabledState being to return true.

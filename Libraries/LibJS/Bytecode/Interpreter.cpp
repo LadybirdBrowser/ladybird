@@ -193,16 +193,16 @@ ALWAYS_INLINE void Interpreter::set(Operand op, Value value)
 ALWAYS_INLINE Value Interpreter::do_yield(Value value, Optional<Label> continuation)
 {
     auto object = Object::create(realm(), nullptr);
-    object->define_direct_property("result", value, JS::default_attributes);
+    object->define_direct_property(m_vm.names.result, value, JS::default_attributes);
 
     if (continuation.has_value())
         // FIXME: If we get a pointer, which is not accurately representable as a double
         //        will cause this to explode
-        object->define_direct_property("continuation", Value(continuation->address()), JS::default_attributes);
+        object->define_direct_property(m_vm.names.continuation, Value(continuation->address()), JS::default_attributes);
     else
-        object->define_direct_property("continuation", js_null(), JS::default_attributes);
+        object->define_direct_property(m_vm.names.continuation, js_null(), JS::default_attributes);
 
-    object->define_direct_property("isAwait", Value(false), JS::default_attributes);
+    object->define_direct_property(m_vm.names.isAwait, Value(false), JS::default_attributes);
     return object;
 }
 
@@ -2842,13 +2842,14 @@ void PrepareYield::execute_impl(Bytecode::Interpreter& interpreter) const
 
 void Await::execute_impl(Bytecode::Interpreter& interpreter) const
 {
+    auto& vm = interpreter.vm();
     auto yielded_value = interpreter.get(m_argument).value_or(js_undefined());
     auto object = Object::create(interpreter.realm(), nullptr);
-    object->define_direct_property("result", yielded_value, JS::default_attributes);
+    object->define_direct_property(vm.names.result, yielded_value, JS::default_attributes);
     // FIXME: If we get a pointer, which is not accurately representable as a double
     //        will cause this to explode
-    object->define_direct_property("continuation", Value(m_continuation_label.address()), JS::default_attributes);
-    object->define_direct_property("isAwait", Value(true), JS::default_attributes);
+    object->define_direct_property(vm.names.continuation, Value(m_continuation_label.address()), JS::default_attributes);
+    object->define_direct_property(vm.names.isAwait, Value(true), JS::default_attributes);
     interpreter.do_return(object);
 }
 

@@ -49,7 +49,7 @@ KeyAlgorithm::KeyAlgorithm(JS::Realm& realm)
 
 void KeyAlgorithm::initialize(JS::Realm& realm)
 {
-    define_native_accessor(realm, "name", name_getter, {}, JS::Attribute::Enumerable | JS::Attribute::Configurable);
+    define_native_accessor(realm, "name"_fly_string, name_getter, {}, JS::Attribute::Enumerable | JS::Attribute::Configurable);
     Base::initialize(realm);
 }
 
@@ -81,8 +81,8 @@ void RsaKeyAlgorithm::initialize(JS::Realm& realm)
 {
     Base::initialize(realm);
 
-    define_native_accessor(realm, "modulusLength", modulus_length_getter, {}, JS::Attribute::Enumerable | JS::Attribute::Configurable);
-    define_native_accessor(realm, "publicExponent", public_exponent_getter, {}, JS::Attribute::Enumerable | JS::Attribute::Configurable);
+    define_native_accessor(realm, "modulusLength"_fly_string, modulus_length_getter, {}, JS::Attribute::Enumerable | JS::Attribute::Configurable);
+    define_native_accessor(realm, "publicExponent"_fly_string, public_exponent_getter, {}, JS::Attribute::Enumerable | JS::Attribute::Configurable);
 }
 
 void RsaKeyAlgorithm::visit_edges(Visitor& visitor)
@@ -146,7 +146,7 @@ void EcKeyAlgorithm::initialize(JS::Realm& realm)
 {
     Base::initialize(realm);
 
-    define_native_accessor(realm, "namedCurve", named_curve_getter, {}, JS::Attribute::Enumerable | JS::Attribute::Configurable);
+    define_native_accessor(realm, "namedCurve"_fly_string, named_curve_getter, {}, JS::Attribute::Enumerable | JS::Attribute::Configurable);
 }
 
 JS_DEFINE_NATIVE_FUNCTION(EcKeyAlgorithm::named_curve_getter)
@@ -170,7 +170,7 @@ void RsaHashedKeyAlgorithm::initialize(JS::Realm& realm)
 {
     Base::initialize(realm);
 
-    define_native_accessor(realm, "hash", hash_getter, {}, JS::Attribute::Enumerable | JS::Attribute::Configurable);
+    define_native_accessor(realm, "hash"_fly_string, hash_getter, {}, JS::Attribute::Enumerable | JS::Attribute::Configurable);
 }
 
 JS_DEFINE_NATIVE_FUNCTION(RsaHashedKeyAlgorithm::hash_getter)
@@ -204,7 +204,7 @@ void AesKeyAlgorithm::initialize(JS::Realm& realm)
 {
     Base::initialize(realm);
 
-    define_native_accessor(realm, "length", length_getter, {}, JS::Attribute::Enumerable | JS::Attribute::Configurable);
+    define_native_accessor(realm, "length"_fly_string, length_getter, {}, JS::Attribute::Enumerable | JS::Attribute::Configurable);
 }
 
 JS_DEFINE_NATIVE_FUNCTION(AesKeyAlgorithm::length_getter)
@@ -227,8 +227,8 @@ HmacKeyAlgorithm::HmacKeyAlgorithm(JS::Realm& realm)
 void HmacKeyAlgorithm::initialize(JS::Realm& realm)
 {
     Base::initialize(realm);
-    define_native_accessor(realm, "hash", hash_getter, {}, JS::Attribute::Enumerable | JS::Attribute::Configurable);
-    define_native_accessor(realm, "length", length_getter, {}, JS::Attribute::Enumerable | JS::Attribute::Configurable);
+    define_native_accessor(realm, "hash"_fly_string, hash_getter, {}, JS::Attribute::Enumerable | JS::Attribute::Configurable);
+    define_native_accessor(realm, "length"_fly_string, length_getter, {}, JS::Attribute::Enumerable | JS::Attribute::Configurable);
 }
 
 void HmacKeyAlgorithm::visit_edges(JS::Cell::Visitor& visitor)

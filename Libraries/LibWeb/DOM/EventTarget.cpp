@@ -614,7 +614,7 @@ void EventTarget::activate_event_handler(FlyString const& name, HTML::EventHandl
             TRY(event_target->process_event_handler_for_event(name, event));
             return JS::js_undefined();
         },
-        0, "", &realm);
+        0, FlyString {}, &realm);
 
     // NOTE: As per the spec, the callback context is arbitrary.
     auto callback = realm.heap().allocate<WebIDL::CallbackType>(*callback_function, realm);

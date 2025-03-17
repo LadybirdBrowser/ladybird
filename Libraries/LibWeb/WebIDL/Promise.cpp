@@ -112,7 +112,7 @@ GC::Ref<Promise> react_to_promise(Promise const& promise, GC::Ptr<ReactionSteps>
     };
 
     // 2. Let onFulfilled be CreateBuiltinFunction(onFulfilledSteps, « »):
-    auto on_fulfilled = JS::NativeFunction::create(realm, move(on_fulfilled_steps), 1, "");
+    auto on_fulfilled = JS::NativeFunction::create(realm, move(on_fulfilled_steps), 1);
 
     // 3. Let onRejectedSteps be the following steps given argument R:
     auto on_rejected_steps = [&realm, on_rejected_callback = move(on_rejected_callback)](JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
@@ -129,7 +129,7 @@ GC::Ref<Promise> react_to_promise(Promise const& promise, GC::Ptr<ReactionSteps>
     };
 
     // 4. Let onRejected be CreateBuiltinFunction(onRejectedSteps, « »):
-    auto on_rejected = JS::NativeFunction::create(realm, move(on_rejected_steps), 1, "");
+    auto on_rejected = JS::NativeFunction::create(realm, move(on_rejected_steps), 1);
 
     // 5. Let constructor be promise.[[Promise]].[[Realm]].[[Intrinsics]].[[%Promise%]].
     auto constructor = realm.intrinsics().promise_constructor();
@@ -232,7 +232,7 @@ void wait_for_all(JS::Realm& realm, Vector<GC::Ref<Promise>> const& promises, Fu
     };
 
     // 4. Let rejectionHandler be CreateBuiltinFunction(rejectionHandlerSteps, « »):
-    auto rejection_handler = JS::NativeFunction::create(realm, move(rejection_handler_steps), 1, "");
+    auto rejection_handler = JS::NativeFunction::create(realm, move(rejection_handler_steps), 1);
 
     // 5. Let total be promises’s size.
     auto total = promises.size();
@@ -280,7 +280,7 @@ void wait_for_all(JS::Realm& realm, Vector<GC::Ref<Promise>> const& promises, Fu
         };
 
         // 3. Let fulfillmentHandler be CreateBuiltinFunction(fulfillmentHandler, « »):
-        auto fulfillment_handler = JS::NativeFunction::create(realm, move(fulfillment_handler_steps), 1, "");
+        auto fulfillment_handler = JS::NativeFunction::create(realm, move(fulfillment_handler_steps), 1);
 
         // 4. Perform PerformPromiseThen(promise, fulfillmentHandler, rejectionHandler).
         static_cast<JS::Promise&>(*promise->promise()).perform_then(fulfillment_handler, rejection_handler, nullptr);

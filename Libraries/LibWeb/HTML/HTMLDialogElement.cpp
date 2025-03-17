@@ -385,7 +385,7 @@ void HTMLDialogElement::set_close_watcher()
                 event.prevent_default();
             return JS::js_undefined();
         },
-        0, "", &realm());
+        0, ""_fly_string, &realm());
     auto cancel_callback = realm().heap().allocate<WebIDL::CallbackType>(*cancel_callback_function, realm());
     m_close_watcher->add_event_listener_without_options(HTML::EventNames::cancel, DOM::IDLEventListener::create(realm(), cancel_callback));
     // - closeAction being to close the dialog given dialog and dialog's request close return value.
@@ -395,7 +395,7 @@ void HTMLDialogElement::set_close_watcher()
 
             return JS::js_undefined();
         },
-        0, "", &realm());
+        0, ""_fly_string, &realm());
     auto close_callback = realm().heap().allocate<WebIDL::CallbackType>(*close_callback_function, realm());
     m_close_watcher->add_event_listener_without_options(HTML::EventNames::close, DOM::IDLEventListener::create(realm(), close_callback));
     // - getEnabledState being to return true if dialog's enable close watcher for requestClose() is true or dialog's computed closed-by state is not None; otherwise false.

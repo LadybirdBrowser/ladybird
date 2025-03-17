@@ -243,7 +243,7 @@ TESTJS_GLOBAL_FUNCTION(test_simd_vector, testSIMDVector)
     if (!is<JS::TypedArrayBase>(*got))
         return vm.throw_completion<JS::TypeError>("Expected a TypedArray"sv);
     auto& got_array = static_cast<JS::TypedArrayBase&>(*got);
-    auto element_size = 128 / TRY(TRY(expected_array.get("length")).to_u32(vm));
+    auto element_size = 128 / TRY(TRY(expected_array.get("length"_fly_string)).to_u32(vm));
     size_t i = 0;
     for (auto it = expected_array.indexed_properties().begin(false); it != expected_array.indexed_properties().end(); ++it) {
         auto got_value = TRY(got_array.get(i++));
@@ -277,8 +277,8 @@ TESTJS_GLOBAL_FUNCTION(test_simd_vector, testSIMDVector)
 void WebAssemblyModule::initialize(JS::Realm& realm)
 {
     Base::initialize(realm);
-    define_native_function(realm, "getExport", get_export, 1, JS::default_attributes);
-    define_native_function(realm, "invoke", wasm_invoke, 1, JS::default_attributes);
+    define_native_function(realm, "getExport"_fly_string, get_export, 1, JS::default_attributes);
+    define_native_function(realm, "invoke"_fly_string, wasm_invoke, 1, JS::default_attributes);
 }
 
 JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::get_export)

@@ -116,7 +116,7 @@ void Intrinsics::create_web_namespace<@namespace_class@>(JS::Realm& realm)
             gen.set("owned_prototype_class", interface.prototype_class);
 
             gen.append(R"~~~(
-    namespace_object->define_intrinsic_accessor("@owned_interface_name@", attr, [](auto& realm) -> JS::Value { return &Bindings::ensure_web_constructor<@owned_prototype_class@>(realm, "@interface_name@.@owned_interface_name@"_fly_string); });)~~~");
+    namespace_object->define_intrinsic_accessor("@owned_interface_name@"_fly_string, attr, [](auto& realm) -> JS::Value { return &Bindings::ensure_web_constructor<@owned_prototype_class@>(realm, "@interface_name@.@owned_interface_name@"_fly_string); });)~~~");
         }
 
         gen.append(R"~~~(
@@ -267,7 +267,7 @@ void add_@global_object_snake_name@_exposed_interfaces(JS::Object& global)
         gen.set("prototype_class", prototype_class);
 
         gen.append(R"~~~(
-    global.define_intrinsic_accessor("@interface_name@", attr, [](auto& realm) -> JS::Value { return &ensure_web_constructor<@prototype_class@>(realm, "@interface_name@"_fly_string); });)~~~");
+    global.define_intrinsic_accessor("@interface_name@"_fly_string, attr, [](auto& realm) -> JS::Value { return &ensure_web_constructor<@prototype_class@>(realm, "@interface_name@"_fly_string); });)~~~");
 
         // https://webidl.spec.whatwg.org/#LegacyWindowAlias
         if (legacy_alias_name.has_value()) {
@@ -276,19 +276,19 @@ void add_@global_object_snake_name@_exposed_interfaces(JS::Object& global)
                 for (auto legacy_alias_name : legacy_alias_names) {
                     gen.set("interface_alias_name", legacy_alias_name.trim_whitespace());
                     gen.append(R"~~~(
-    global.define_intrinsic_accessor("@interface_alias_name@", attr, [](auto& realm) -> JS::Value { return &ensure_web_constructor<@prototype_class@>(realm, "@interface_name@"_fly_string); });)~~~");
+    global.define_intrinsic_accessor("@interface_alias_name@"_fly_string, attr, [](auto& realm) -> JS::Value { return &ensure_web_constructor<@prototype_class@>(realm, "@interface_name@"_fly_string); });)~~~");
                 }
             } else {
                 gen.set("interface_alias_name", *legacy_alias_name);
                 gen.append(R"~~~(
-    global.define_intrinsic_accessor("@interface_alias_name@", attr, [](auto& realm) -> JS::Value { return &ensure_web_constructor<@prototype_class@>(realm, "@interface_name@"_fly_string); });)~~~");
+    global.define_intrinsic_accessor("@interface_alias_name@"_fly_string, attr, [](auto& realm) -> JS::Value { return &ensure_web_constructor<@prototype_class@>(realm, "@interface_name@"_fly_string); });)~~~");
             }
         }
 
         if (legacy_constructor.has_value()) {
             gen.set("legacy_interface_name", legacy_constructor->name);
             gen.append(R"~~~(
-    global.define_intrinsic_accessor("@legacy_interface_name@", attr, [](auto& realm) -> JS::Value { return &ensure_web_constructor<@prototype_class@>(realm, "@legacy_interface_name@"_fly_string); });)~~~");
+    global.define_intrinsic_accessor("@legacy_interface_name@"_fly_string, attr, [](auto& realm) -> JS::Value { return &ensure_web_constructor<@prototype_class@>(realm, "@legacy_interface_name@"_fly_string); });)~~~");
         }
     };
 
@@ -297,7 +297,7 @@ void add_@global_object_snake_name@_exposed_interfaces(JS::Object& global)
         gen.set("namespace_class", namespace_class);
 
         gen.append(R"~~~(
-    global.define_intrinsic_accessor("@interface_name@", attr, [](auto& realm) -> JS::Value { return &ensure_web_namespace<@namespace_class@>(realm, "@interface_name@"_fly_string); });)~~~");
+    global.define_intrinsic_accessor("@interface_name@"_fly_string, attr, [](auto& realm) -> JS::Value { return &ensure_web_namespace<@namespace_class@>(realm, "@interface_name@"_fly_string); });)~~~");
     };
 
     for (auto& interface : exposed_interfaces) {

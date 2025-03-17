@@ -139,7 +139,7 @@ Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper(Variant<HT
                     realm, [function = GC::make_root(*value)](auto& vm) {
                         return JS::call(vm, function.value(), JS::js_undefined(), vm.running_execution_context().arguments.span());
                     },
-                    0, "");
+                    0);
             }
 
             // 3. Set crossOriginDesc to PropertyDescriptor{ [[Value]]: value, [[Enumerable]]: false, [[Writable]]: false, [[Configurable]]: true }.
@@ -156,7 +156,7 @@ Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper(Variant<HT
                     realm, [object_ptr, getter = GC::make_root(*original_descriptor->get)](auto& vm) {
                         return JS::call(vm, getter.cell(), object_ptr, vm.running_execution_context().arguments.span());
                     },
-                    0, "");
+                    0);
             }
 
             // 3. Let crossOriginSet be undefined.
@@ -168,7 +168,7 @@ Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper(Variant<HT
                     realm, [object_ptr, setter = GC::make_root(*original_descriptor->set)](auto& vm) {
                         return JS::call(vm, setter.cell(), object_ptr, vm.running_execution_context().arguments.span());
                     },
-                    0, "");
+                    0);
             }
 
             // 5. Set crossOriginDesc to PropertyDescriptor{ [[Get]]: crossOriginGet, [[Set]]: crossOriginSet, [[Enumerable]]: false, [[Configurable]]: true }.

@@ -27,10 +27,10 @@ void ConsoleGlobalEnvironmentExtensions::initialize(JS::Realm& realm)
 {
     Base::initialize(realm);
 
-    define_native_accessor(realm, "$0", $0_getter, nullptr, 0);
-    define_native_accessor(realm, "$_", $__getter, nullptr, 0);
-    define_native_function(realm, "$", $_function, 2, JS::default_attributes);
-    define_native_function(realm, "$$", $$_function, 2, JS::default_attributes);
+    define_native_accessor(realm, "$0"_fly_string, $0_getter, nullptr, 0);
+    define_native_accessor(realm, "$_"_fly_string, $__getter, nullptr, 0);
+    define_native_function(realm, "$"_fly_string, $_function, 2, JS::default_attributes);
+    define_native_function(realm, "$$"_fly_string, $$_function, 2, JS::default_attributes);
 }
 
 void ConsoleGlobalEnvironmentExtensions::visit_edges(Visitor& visitor)

@@ -67,7 +67,7 @@ JS_DEFINE_NATIVE_FUNCTION(DisposableStackPrototype::adopt)
     };
 
     // 6. Let F be CreateBuiltinFunction(closure, 0, "", « »).
-    auto function = NativeFunction::create(realm, move(closure), 0, "");
+    auto function = NativeFunction::create(realm, move(closure), 0);
 
     // 7. Perform ? AddDisposableResource(disposableStack.[[DisposeCapability]], undefined, sync-dispose, F).
     TRY(add_disposable_resource(vm, disposable_stack->dispose_capability(), js_undefined(), Environment::InitializeBindingHint::SyncDispose, function));

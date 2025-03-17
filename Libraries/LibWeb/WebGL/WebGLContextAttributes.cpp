@@ -23,7 +23,7 @@ JS::ThrowCompletionOr<WebGLContextAttributes> convert_value_to_context_attribute
     if (value.is_nullish())
         alpha = JS::js_undefined();
     else
-        alpha = TRY(value.as_object().get("alpha"));
+        alpha = TRY(value.as_object().get("alpha"_fly_string));
 
     bool alpha_value;
     if (!alpha.is_undefined())
@@ -37,7 +37,7 @@ JS::ThrowCompletionOr<WebGLContextAttributes> convert_value_to_context_attribute
     if (value.is_nullish())
         antialias = JS::js_undefined();
     else
-        antialias = TRY(value.as_object().get("antialias"));
+        antialias = TRY(value.as_object().get("antialias"_fly_string));
 
     bool antialias_value;
     if (!antialias.is_undefined())
@@ -51,7 +51,7 @@ JS::ThrowCompletionOr<WebGLContextAttributes> convert_value_to_context_attribute
     if (value.is_nullish())
         depth = JS::js_undefined();
     else
-        depth = TRY(value.as_object().get("depth"));
+        depth = TRY(value.as_object().get("depth"_fly_string));
 
     bool depth_value;
     if (!depth.is_undefined())
@@ -65,7 +65,7 @@ JS::ThrowCompletionOr<WebGLContextAttributes> convert_value_to_context_attribute
     if (value.is_nullish())
         desynchronized = JS::js_undefined();
     else
-        desynchronized = TRY(value.as_object().get("desynchronized"));
+        desynchronized = TRY(value.as_object().get("desynchronized"_fly_string));
 
     bool desynchronized_value;
 
@@ -80,7 +80,7 @@ JS::ThrowCompletionOr<WebGLContextAttributes> convert_value_to_context_attribute
     if (value.is_nullish())
         fail_if_major_performance_caveat = JS::js_undefined();
     else
-        fail_if_major_performance_caveat = TRY(value.as_object().get("failIfMajorPerformanceCaveat"));
+        fail_if_major_performance_caveat = TRY(value.as_object().get("failIfMajorPerformanceCaveat"_fly_string));
 
     bool fail_if_major_performance_caveat_value;
     if (!fail_if_major_performance_caveat.is_undefined())
@@ -94,7 +94,7 @@ JS::ThrowCompletionOr<WebGLContextAttributes> convert_value_to_context_attribute
     if (value.is_nullish())
         power_preference = JS::js_undefined();
     else
-        power_preference = TRY(value.as_object().get("powerPreference"));
+        power_preference = TRY(value.as_object().get("powerPreference"_fly_string));
 
     Bindings::WebGLPowerPreference power_preference_value { Bindings::WebGLPowerPreference::Default };
 
@@ -117,7 +117,7 @@ JS::ThrowCompletionOr<WebGLContextAttributes> convert_value_to_context_attribute
     if (value.is_nullish())
         premultiplied_alpha = JS::js_undefined();
     else
-        premultiplied_alpha = TRY(value.as_object().get("premultipliedAlpha"));
+        premultiplied_alpha = TRY(value.as_object().get("premultipliedAlpha"_fly_string));
 
     bool premultiplied_alpha_value;
 
@@ -132,7 +132,7 @@ JS::ThrowCompletionOr<WebGLContextAttributes> convert_value_to_context_attribute
     if (value.is_nullish())
         preserve_drawing_buffer = JS::js_undefined();
     else
-        preserve_drawing_buffer = TRY(value.as_object().get("preserveDrawingBuffer"));
+        preserve_drawing_buffer = TRY(value.as_object().get("preserveDrawingBuffer"_fly_string));
 
     bool preserve_drawing_buffer_value;
     if (!preserve_drawing_buffer.is_undefined())
@@ -146,7 +146,7 @@ JS::ThrowCompletionOr<WebGLContextAttributes> convert_value_to_context_attribute
     if (value.is_nullish())
         stencil = JS::js_undefined();
     else
-        stencil = TRY(value.as_object().get("stencil"));
+        stencil = TRY(value.as_object().get("stencil"_fly_string));
 
     bool stencil_value;
 

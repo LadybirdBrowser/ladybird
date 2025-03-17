@@ -611,7 +611,7 @@ void CyclicModule::execute_async_module(VM& vm)
     };
 
     // 5. Let onFulfilled be CreateBuiltinFunction(fulfilledClosure, 0, "", « »).
-    auto on_fulfilled = NativeFunction::create(realm, move(fulfilled_closure), 0, "");
+    auto on_fulfilled = NativeFunction::create(realm, move(fulfilled_closure), 0);
 
     // 6. Let rejectedClosure be a new Abstract Closure with parameters (error) that captures module and performs the following steps when called:
     auto rejected_closure = [&](VM& vm) -> ThrowCompletionOr<Value> {
@@ -625,7 +625,7 @@ void CyclicModule::execute_async_module(VM& vm)
     };
 
     // 7. Let onRejected be CreateBuiltinFunction(rejectedClosure, 0, "", « »).
-    auto on_rejected = NativeFunction::create(realm, move(rejected_closure), 0, "");
+    auto on_rejected = NativeFunction::create(realm, move(rejected_closure), 0);
 
     // 8. Perform PerformPromiseThen(capability.[[Promise]], onFulfilled, onRejected).
     as<Promise>(capability->promise().ptr())->perform_then(on_fulfilled, on_rejected, {});
@@ -863,7 +863,7 @@ void continue_dynamic_import(GC::Ref<PromiseCapability> promise_capability, Thro
     };
 
     // 5. Let onRejected be CreateBuiltinFunction(rejectedClosure, 1, "", « »).
-    auto on_rejected = NativeFunction::create(*vm.current_realm(), move(reject_closure), 1, "");
+    auto on_rejected = NativeFunction::create(*vm.current_realm(), move(reject_closure), 1);
 
     // 6. Let linkAndEvaluateClosure be a new Abstract Closure with no parameters that captures module, promiseCapability,
     //    and onRejected and performs the following steps when called:
@@ -897,7 +897,7 @@ void continue_dynamic_import(GC::Ref<PromiseCapability> promise_capability, Thro
         };
 
         // e. Let onFulfilled be CreateBuiltinFunction(fulfilledClosure, 0, "", « »).
-        auto on_fulfilled = NativeFunction::create(*vm.current_realm(), move(fulfilled_closure), 0, "");
+        auto on_fulfilled = NativeFunction::create(*vm.current_realm(), move(fulfilled_closure), 0);
 
         // f. Perform PerformPromiseThen(evaluatePromise, onFulfilled, onRejected).
         evaluate_promise.value()->perform_then(on_fulfilled, on_rejected, {});
@@ -907,7 +907,7 @@ void continue_dynamic_import(GC::Ref<PromiseCapability> promise_capability, Thro
     };
 
     // 7. Let linkAndEvaluate be CreateBuiltinFunction(linkAndEvaluateClosure, 0, "", « »).
-    auto link_and_evaluate = NativeFunction::create(*vm.current_realm(), move(link_and_evaluate_closure), 0, "");
+    auto link_and_evaluate = NativeFunction::create(*vm.current_realm(), move(link_and_evaluate_closure), 0);
 
     // 8. Perform PerformPromiseThen(loadPromise, linkAndEvaluate, onRejected).
     // FIXME: This is likely a spec bug, see load_requested_modules.

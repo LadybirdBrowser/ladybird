@@ -185,7 +185,7 @@ inline void TestRunnerGlobalObject::initialize(JS::Realm& realm)
 {
     Base::initialize(realm);
 
-    define_direct_property("global", this, JS::Attribute::Enumerable);
+    define_direct_property("global"_fly_string, this, JS::Attribute::Enumerable);
     for (auto& entry : s_exposed_global_functions) {
         define_native_function(
             realm,
@@ -242,7 +242,7 @@ inline AK::Result<GC::Ref<JS::SourceTextModule>, ParserError> parse_module(Strin
 
 inline ErrorOr<JsonValue> get_test_results(JS::Realm& realm)
 {
-    auto results = MUST(realm.global_object().get("__TestResults__"));
+    auto results = MUST(realm.global_object().get("__TestResults__"_fly_string));
     auto maybe_json_string = MUST(JS::JSONObject::stringify_impl(*g_vm, results, JS::js_undefined(), JS::js_undefined()));
     if (maybe_json_string.has_value())
         return JsonValue::from_string(*maybe_json_string);
@@ -362,7 +362,7 @@ inline JSFileResult TestRunner::run_file_test(ByteString const& test_path)
     JSFileResult file_result { test_path.substring(m_test_root.length() + 1, test_path.length() - m_test_root.length() - 1) };
 
     // Collect logged messages
-    auto user_output = MUST(realm->global_object().get("__UserOutput__"));
+    auto user_output = MUST(realm->global_object().get("__UserOutput__"_fly_string));
 
     auto& arr = user_output.as_array();
     for (auto& entry : arr.indexed_properties()) {
