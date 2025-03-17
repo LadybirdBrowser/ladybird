@@ -215,6 +215,7 @@ text-decoration-style: solid
 text-decoration-thickness: auto
 text-overflow: clip
 top: auto
+touch-action: auto
 transform: none
 transform-box: view-box
 transform-origin: 50% 50%
