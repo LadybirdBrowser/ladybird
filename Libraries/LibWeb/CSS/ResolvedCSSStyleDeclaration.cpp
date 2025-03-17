@@ -551,16 +551,9 @@ Optional<StyleProperty> ResolvedCSSStyleDeclaration::property(PropertyID propert
     if (!layout_node) {
         auto style = m_element->document().style_computer().compute_style(const_cast<DOM::Element&>(*m_element), m_pseudo_element);
 
-        // FIXME: This is a stopgap until we implement shorthand -> longhand conversion.
-        auto const* value = style->maybe_null_property(property_id);
-        if (!value) {
-            dbgln("FIXME: ResolvedCSSStyleDeclaration::property(property_id={:#x}) No value for property ID in newly computed style case.", to_underlying(property_id));
-            return {};
-        }
-        return StyleProperty {
-            .property_id = property_id,
-            .value = *value,
-        };
+        // Create a temporary layout node for this style, so that we can still use `style_value_for_property` without a
+        // layout node on the element, allowing us to have consistent style value handling.
+        layout_node = realm().heap().allocate<Layout::NodeWithStyle>(m_element->document(), m_element, style);
     }
 
     auto value = style_value_for_property(*layout_node, property_id);
