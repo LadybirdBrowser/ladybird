@@ -21,7 +21,7 @@ jobs:
   CI:
     # Use an Ubuntu runner with ARM support.
     runs-on: ${{ matrix.os }}
-    if: github.repository == 'LadybirdBrowser/ladybird'
+    if: github.repository != 'LadybirdBrowser/ladybird'
     strategy:
       fail-fast: false
       matrix:
