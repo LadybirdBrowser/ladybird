@@ -652,17 +652,17 @@ describe("Temporal objects", () => {
 
     test("Temporal.PlainDate", () => {
         const plainDate = new Temporal.PlainDate(1989, 1, 23);
-        expect(formatter.format(plainDate)).toBe("1/23/1989");
+        expect(formatter.format(plainDate)).toBe("1989-01-23");
     });
 
     test("Temporal.PlainYearMonth", () => {
         const plainYearMonth = new Temporal.PlainYearMonth(1989, 1);
-        expect(formatter.format(plainYearMonth)).toBe("1/1989");
+        expect(formatter.format(plainYearMonth)).toBe("1989-01");
     });
 
     test("Temporal.PlainMonthDay", () => {
         const plainMonthDay = new Temporal.PlainMonthDay(1, 23);
-        expect(formatter.format(plainMonthDay)).toBe("1/23");
+        expect(formatter.format(plainMonthDay)).toBe("01-23");
     });
 
     test("Temporal.PlainTime", () => {
@@ -672,6 +672,6 @@ describe("Temporal objects", () => {
 
     test("Temporal.Instant", () => {
         const instant = new Temporal.Instant(1732740069000000000n);
-        expect(formatter.format(instant)).toBe("11/27/2024, 8:41:09 PM");
+        expect(formatter.format(instant)).toBe("2024-11-27, 8:41:09 PM");
     });
 });

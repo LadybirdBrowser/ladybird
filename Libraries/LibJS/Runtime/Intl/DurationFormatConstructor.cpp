@@ -89,7 +89,7 @@ ThrowCompletionOr<GC::Ref<Object>> DurationFormatConstructor::construct(Function
     // 11. Let resolvedLocaleData be r.[[LocaleData]].
 
     // 12. Let digitalFormat be resolvedLocaleData.[[DigitalFormat]].
-    auto digital_format = Unicode::digital_format(duration_format->locale());
+    auto digital_format = Unicode::digital_format(result.icu_locale);
 
     // 13. Set durationFormat.[[HourMinuteSeparator]] to digitalFormat.[[HourMinuteSeparator]].
     duration_format->set_hour_minute_separator(move(digital_format.hours_minutes_separator));
