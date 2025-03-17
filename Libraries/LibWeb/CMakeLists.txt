@@ -81,6 +81,7 @@ set(SOURCES
     CSS/CSSRule.cpp
     CSS/CSSRuleList.cpp
     CSS/CSSStyleDeclaration.cpp
+    CSS/CSSStyleProperties.cpp
     CSS/CSSStyleRule.cpp
     CSS/CSSStyleSheet.cpp
     CSS/CSSStyleValue.cpp
@@ -124,7 +125,6 @@ set(SOURCES
     CSS/PreferredMotion.cpp
     CSS/Ratio.cpp
     CSS/Resolution.cpp
-    CSS/ResolvedCSSStyleDeclaration.cpp
     CSS/Screen.cpp
     CSS/ScreenOrientation.cpp
     CSS/Selector.cpp

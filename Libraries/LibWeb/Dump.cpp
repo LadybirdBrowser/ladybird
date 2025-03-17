@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2018-2023, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, the SerenityOS developers.
- * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -17,6 +17,7 @@
 #include <LibWeb/CSS/CSSNestedDeclarations.h>
 #include <LibWeb/CSS/CSSPropertyRule.h>
 #include <LibWeb/CSS/CSSRule.h>
+#include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/CSSSupportsRule.h>
@@ -834,7 +835,7 @@ void dump_property_rule(StringBuilder& builder, CSS::CSSPropertyRule const& prop
     }
 }
 
-void dump_declaration(StringBuilder& builder, CSS::PropertyOwningCSSStyleDeclaration const& declaration, int indent_levels)
+void dump_style_properties(StringBuilder& builder, CSS::CSSStyleProperties const& declaration, int indent_levels)
 {
     indent(builder, indent_levels);
     builder.appendff("Declarations ({}):\n", declaration.length());
@@ -859,7 +860,7 @@ void dump_style_rule(StringBuilder& builder, CSS::CSSStyleRule const& rule, int 
     for (auto& selector : rule.selectors()) {
         dump_selector(builder, selector, indent_levels + 1);
     }
-    dump_declaration(builder, rule.declaration(), indent_levels + 1);
+    dump_style_properties(builder, rule.declaration(), indent_levels + 1);
 
     indent(builder, indent_levels);
     builder.appendff("  Child rules ({}):\n", rule.css_rules().length());
@@ -951,6 +952,6 @@ void dump_nested_declarations(StringBuilder& builder, CSS::CSSNestedDeclarations
 {
     indent(builder, indent_levels);
     builder.append("  Nested declarations:\n"sv);
-    dump_declaration(builder, declarations.declaration(), indent_levels + 1);
+    dump_style_properties(builder, declarations.declaration(), indent_levels + 1);
 }
 }
