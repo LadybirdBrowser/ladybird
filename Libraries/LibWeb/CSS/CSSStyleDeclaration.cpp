@@ -668,8 +668,8 @@ void ElementInlineCSSStyleDeclaration::set_declarations_from_text(StringView css
     }
 
     empty_the_declarations();
-    auto style = parse_css_style_attribute(CSS::Parser::ParsingParams(element->element().document()), css_text, element->element());
-    set_the_declarations(style->properties(), style->custom_properties());
+    auto style = parse_css_style_attribute(Parser::ParsingParams(element->element().document()), css_text);
+    set_the_declarations(style.properties, style.custom_properties);
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-csstext

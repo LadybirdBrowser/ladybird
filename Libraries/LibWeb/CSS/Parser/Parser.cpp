@@ -1317,7 +1317,7 @@ Vector<Vector<ComponentValue>> Parser::parse_a_comma_separated_list_of_component
     return groups;
 }
 
-ElementInlineCSSStyleDeclaration* Parser::parse_as_style_attribute(DOM::Element& element)
+Parser::PropertiesAndCustomProperties Parser::parse_as_style_attribute()
 {
     auto expand_shorthands = [&](Vector<StyleProperty>& properties) -> Vector<StyleProperty> {
         Vector<StyleProperty> expanded_properties;
@@ -1341,9 +1341,9 @@ ElementInlineCSSStyleDeclaration* Parser::parse_as_style_attribute(DOM::Element&
     auto declarations_and_at_rules = parse_a_blocks_contents(m_token_stream);
     m_rule_context.take_last();
 
-    auto [properties, custom_properties] = extract_properties(declarations_and_at_rules);
-    auto expanded_properties = expand_shorthands(properties);
-    return ElementInlineCSSStyleDeclaration::create(element, move(expanded_properties), move(custom_properties));
+    auto properties = extract_properties(declarations_and_at_rules);
+    properties.properties = expand_shorthands(properties.properties);
+    return properties;
 }
 
 bool Parser::is_valid_in_the_current_context(Declaration const&) const
