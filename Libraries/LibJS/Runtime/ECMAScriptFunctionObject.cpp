@@ -439,6 +439,17 @@ ThrowCompletionOr<GC::Ref<Object>> ECMAScriptFunctionObject::internal_construct(
 {
     auto& vm = this->vm();
 
+    auto callee_context = ExecutionContext::create();
+
+    // Non-standard
+    callee_context->arguments.ensure_capacity(max(arguments_list.size(), m_formal_parameters.size()));
+    callee_context->arguments.append(arguments_list.data(), arguments_list.size());
+    callee_context->passed_argument_count = arguments_list.size();
+    if (arguments_list.size() < m_formal_parameters.size()) {
+        for (size_t i = arguments_list.size(); i < m_formal_parameters.size(); ++i)
+            callee_context->arguments.append(js_undefined());
+    }
+
     // 1. Let callerContext be the running execution context.
     // NOTE: No-op, kept by the VM in its execution context stack.
 
@@ -451,17 +462,6 @@ ThrowCompletionOr<GC::Ref<Object>> ECMAScriptFunctionObject::internal_construct(
     if (kind == ConstructorKind::Base) {
         // a. Let thisArgument be ? OrdinaryCreateFromConstructor(newTarget, "%Object.prototype%").
         this_argument = TRY(ordinary_create_from_constructor<Object>(vm, new_target, &Intrinsics::object_prototype, ConstructWithPrototypeTag::Tag));
-    }
-
-    auto callee_context = ExecutionContext::create();
-
-    // Non-standard
-    callee_context->arguments.ensure_capacity(max(arguments_list.size(), m_formal_parameters.size()));
-    callee_context->arguments.append(arguments_list.data(), arguments_list.size());
-    callee_context->passed_argument_count = arguments_list.size();
-    if (arguments_list.size() < m_formal_parameters.size()) {
-        for (size_t i = arguments_list.size(); i < m_formal_parameters.size(); ++i)
-            callee_context->arguments.append(js_undefined());
     }
 
     // 4. Let calleeContext be PrepareForOrdinaryCall(F, newTarget).
