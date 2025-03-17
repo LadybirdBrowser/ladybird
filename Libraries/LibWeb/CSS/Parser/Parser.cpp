@@ -14,6 +14,7 @@
 
 #include <AK/Debug.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
+#include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/FontFace.h>
 #include <LibWeb/CSS/MediaList.h>
@@ -1492,14 +1493,14 @@ void Parser::extract_property(Declaration const& declaration, PropertiesAndCusto
     }
 }
 
-PropertyOwningCSSStyleDeclaration* Parser::convert_to_style_declaration(Vector<Declaration> const& declarations)
+CSSStyleProperties* Parser::convert_to_style_declaration(Vector<Declaration> const& declarations)
 {
     PropertiesAndCustomProperties properties;
     PropertiesAndCustomProperties& dest = properties;
     for (auto const& declaration : declarations) {
         extract_property(declaration, dest);
     }
-    return PropertyOwningCSSStyleDeclaration::create(realm(), move(properties.properties), move(properties.custom_properties));
+    return CSSStyleProperties::create(realm(), move(properties.properties), move(properties.custom_properties));
 }
 
 Optional<StyleProperty> Parser::convert_to_style_property(Declaration const& declaration)

@@ -17,12 +17,12 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSStyleRule);
 
-GC::Ref<CSSStyleRule> CSSStyleRule::create(JS::Realm& realm, SelectorList&& selectors, PropertyOwningCSSStyleDeclaration& declaration, CSSRuleList& nested_rules)
+GC::Ref<CSSStyleRule> CSSStyleRule::create(JS::Realm& realm, SelectorList&& selectors, CSSStyleProperties& declaration, CSSRuleList& nested_rules)
 {
     return realm.create<CSSStyleRule>(realm, move(selectors), declaration, nested_rules);
 }
 
-CSSStyleRule::CSSStyleRule(JS::Realm& realm, SelectorList&& selectors, PropertyOwningCSSStyleDeclaration& declaration, CSSRuleList& nested_rules)
+CSSStyleRule::CSSStyleRule(JS::Realm& realm, SelectorList&& selectors, CSSStyleProperties& declaration, CSSRuleList& nested_rules)
     : CSSGroupingRule(realm, nested_rules, Type::Style)
     , m_selectors(move(selectors))
     , m_declaration(declaration)
@@ -43,7 +43,7 @@ void CSSStyleRule::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://drafts.csswg.org/cssom-1/#dom-cssstylerule-style
-CSSStyleDeclaration* CSSStyleRule::style()
+CSSStyleProperties* CSSStyleRule::style()
 {
     return m_declaration;
 }

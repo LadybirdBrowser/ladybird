@@ -14,10 +14,10 @@
 #include <LibWeb/Bindings/ElementPrototype.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
-#include <LibWeb/CSS/ResolvedCSSStyleDeclaration.h>
 #include <LibWeb/CSS/SelectorEngine.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
@@ -649,7 +649,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
 
 GC::Ref<CSS::ComputedProperties> Element::resolved_css_values(Optional<CSS::Selector::PseudoElement::Type> type)
 {
-    auto element_computed_style = CSS::ResolvedCSSStyleDeclaration::create(*this, type);
+    auto element_computed_style = CSS::CSSStyleProperties::create_resolved_style({ *this, type });
     auto properties = heap().allocate<CSS::ComputedProperties>();
 
     for (auto i = to_underlying(CSS::first_property_id); i <= to_underlying(CSS::last_property_id); ++i) {
@@ -918,10 +918,10 @@ void Element::set_shadow_root(GC::Ptr<ShadowRoot> shadow_root)
     invalidate_style(StyleInvalidationReason::ElementSetShadowRoot);
 }
 
-CSS::CSSStyleDeclaration* Element::style_for_bindings()
+CSS::CSSStyleProperties* Element::style_for_bindings()
 {
     if (!m_inline_style)
-        m_inline_style = CSS::PropertyOwningCSSStyleDeclaration::create_element_inline_style(realm(), *this, {}, {});
+        m_inline_style = CSS::CSSStyleProperties::create_element_inline_style({ *this }, {}, {});
     return m_inline_style;
 }
 
@@ -3524,7 +3524,7 @@ void Element::attribute_changed(FlyString const& local_name, Optional<String> co
             if (m_inline_style && m_inline_style->is_updating())
                 return;
             if (!m_inline_style)
-                m_inline_style = CSS::PropertyOwningCSSStyleDeclaration::create_element_inline_style(realm(), *this, {}, {});
+                m_inline_style = CSS::CSSStyleProperties::create_element_inline_style({ *this }, {}, {});
             m_inline_style->set_declarations_from_text(*value);
             set_needs_style_update(true);
         }

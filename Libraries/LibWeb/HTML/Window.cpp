@@ -23,7 +23,6 @@
 #include <LibWeb/Bindings/WindowPrototype.h>
 #include <LibWeb/CSS/MediaQueryList.h>
 #include <LibWeb/CSS/Parser/Parser.h>
-#include <LibWeb/CSS/ResolvedCSSStyleDeclaration.h>
 #include <LibWeb/CSS/Screen.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
@@ -1208,7 +1207,7 @@ GC::Ref<CSS::CSSStyleDeclaration> Window::get_computed_style(DOM::Element& eleme
     // 1. Let doc be elt’s node document.
 
     // 2. Let obj be elt.
-    Optional<CSS::Selector::PseudoElement::Type> obj_pseudo;
+    DOM::ElementReference object { element };
 
     // 3. If pseudoElt is provided, is not the empty string, and starts with a colon, then:
     if (pseudo_element.has_value() && pseudo_element.value().starts_with(':')) {
@@ -1216,22 +1215,18 @@ GC::Ref<CSS::CSSStyleDeclaration> Window::get_computed_style(DOM::Element& eleme
         auto type = parse_pseudo_element_selector(CSS::Parser::ParsingParams(associated_document()), pseudo_element.value());
 
         // 2. If type is failure, or is an ::slotted() or ::part() pseudo-element, let obj be null.
-        // FIXME: We can't pass a null element to ResolvedCSSStyleDeclaration
+        // FIXME: We can't pass a null element to CSSStyleProperties::create_resolved_style()
         if (!type.has_value()) {
         }
         // 3. Otherwise let obj be the given pseudo-element of elt.
         else {
             // TODO: Keep the function arguments of the pseudo-element if there are any.
-            obj_pseudo = type.value().type();
+            object = { element, type.value().type() };
         }
     }
 
-    // AD-HOC: Just return a ResolvedCSSStyleDeclaration because that's what we have for now.
-    // FIXME: Implement CSSStyleProperties, and then follow the rest of these steps instead.
-    return realm().create<CSS::ResolvedCSSStyleDeclaration>(element, obj_pseudo);
-
+    // FIXME: Implement steps 4 and 5 when we can.
     // 4. Let decls be an empty list of CSS declarations.
-
     // 5. If obj is not null, and elt is connected, part of the flat tree, and its shadow-including root
     //    has a browsing context which either doesn’t have a browsing context container, or whose browsing
     //    context container is being rendered, set decls to a list of all longhand properties that are
@@ -1250,6 +1245,7 @@ GC::Ref<CSS::CSSStyleDeclaration> Window::get_computed_style(DOM::Element& eleme
     //        Null.
     //    owner node
     //        obj.
+    return CSS::CSSStyleProperties::create_resolved_style(move(object));
 }
 
 // https://w3c.github.io/csswg-drafts/cssom-view/#dom-window-matchmedia

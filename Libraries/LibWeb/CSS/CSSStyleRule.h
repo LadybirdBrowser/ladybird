@@ -9,7 +9,7 @@
 
 #include <AK/NonnullRefPtr.h>
 #include <LibWeb/CSS/CSSGroupingRule.h>
-#include <LibWeb/CSS/CSSStyleDeclaration.h>
+#include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/Selector.h>
 
 namespace Web::CSS {
@@ -19,23 +19,23 @@ class CSSStyleRule final : public CSSGroupingRule {
     GC_DECLARE_ALLOCATOR(CSSStyleRule);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSStyleRule> create(JS::Realm&, SelectorList&&, PropertyOwningCSSStyleDeclaration&, CSSRuleList&);
+    [[nodiscard]] static GC::Ref<CSSStyleRule> create(JS::Realm&, SelectorList&&, CSSStyleProperties&, CSSRuleList&);
 
     virtual ~CSSStyleRule() override = default;
 
     SelectorList const& selectors() const { return m_selectors; }
     SelectorList const& absolutized_selectors() const;
-    PropertyOwningCSSStyleDeclaration const& declaration() const { return m_declaration; }
+    CSSStyleProperties const& declaration() const { return m_declaration; }
 
     String selector_text() const;
     void set_selector_text(StringView);
 
-    CSSStyleDeclaration* style();
+    CSSStyleProperties* style();
 
     [[nodiscard]] FlyString const& qualified_layer_name() const { return parent_layer_internal_qualified_name(); }
 
 private:
-    CSSStyleRule(JS::Realm&, SelectorList&&, PropertyOwningCSSStyleDeclaration&, CSSRuleList&);
+    CSSStyleRule(JS::Realm&, SelectorList&&, CSSStyleProperties&, CSSRuleList&);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
@@ -46,7 +46,7 @@ private:
 
     SelectorList m_selectors;
     mutable Optional<SelectorList> m_cached_absolutized_selectors;
-    GC::Ref<PropertyOwningCSSStyleDeclaration> m_declaration;
+    GC::Ref<CSSStyleProperties> m_declaration;
 };
 
 template<>

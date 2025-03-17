@@ -51,6 +51,7 @@ CSSPropertyRule
 CSSRule
 CSSRuleList
 CSSStyleDeclaration
+CSSStyleProperties
 CSSStyleRule
 CSSStyleSheet
 CSSSupportsRule

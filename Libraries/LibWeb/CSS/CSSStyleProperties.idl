@@ -1,0 +1,6 @@
+#import <CSS/CSSStyleDeclaration.idl>
+
+// https://drafts.csswg.org/cssom/#cssstyleproperties
+[Exposed=Window]
+interface CSSStyleProperties : CSSStyleDeclaration {
+};

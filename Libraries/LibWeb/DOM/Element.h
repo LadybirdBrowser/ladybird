@@ -211,10 +211,10 @@ public:
 
     void reset_animated_css_properties();
 
-    GC::Ptr<CSS::PropertyOwningCSSStyleDeclaration> inline_style() { return m_inline_style; }
-    GC::Ptr<CSS::PropertyOwningCSSStyleDeclaration const> inline_style() const { return m_inline_style; }
+    GC::Ptr<CSS::CSSStyleProperties> inline_style() { return m_inline_style; }
+    GC::Ptr<CSS::CSSStyleProperties const> inline_style() const { return m_inline_style; }
 
-    CSS::CSSStyleDeclaration* style_for_bindings();
+    CSS::CSSStyleProperties* style_for_bindings();
 
     CSS::StyleSheetList& document_or_shadow_root_style_sheets();
 
@@ -499,7 +499,7 @@ private:
     FlyString m_html_uppercased_qualified_name;
 
     GC::Ptr<NamedNodeMap> m_attributes;
-    GC::Ptr<CSS::PropertyOwningCSSStyleDeclaration> m_inline_style;
+    GC::Ptr<CSS::CSSStyleProperties> m_inline_style;
     GC::Ptr<DOMTokenList> m_class_list;
     GC::Ptr<ShadowRoot> m_shadow_root;
 
