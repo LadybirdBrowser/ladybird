@@ -88,7 +88,12 @@ public:
     static Parser create(ParsingParams const&, StringView input, StringView encoding = "utf-8"sv);
 
     CSSStyleSheet* parse_as_css_stylesheet(Optional<URL::URL> location);
-    ElementInlineCSSStyleDeclaration* parse_as_style_attribute(DOM::Element&);
+
+    struct PropertiesAndCustomProperties {
+        Vector<StyleProperty> properties;
+        HashMap<FlyString, StyleProperty> custom_properties;
+    };
+    PropertiesAndCustomProperties parse_as_style_attribute();
     CSSRule* parse_as_css_rule();
     Optional<StyleProperty> parse_as_supports_condition();
 
@@ -452,11 +457,6 @@ private:
 
     static bool has_ignored_vendor_prefix(StringView);
 
-    struct PropertiesAndCustomProperties {
-        Vector<StyleProperty> properties;
-        HashMap<FlyString, StyleProperty> custom_properties;
-    };
-
     PropertiesAndCustomProperties extract_properties(Vector<RuleOrListOfDeclarations> const&);
     void extract_property(Declaration const&, Parser::PropertiesAndCustomProperties&);
 
@@ -510,7 +510,7 @@ private:
 namespace Web {
 
 CSS::CSSStyleSheet* parse_css_stylesheet(CSS::Parser::ParsingParams const&, StringView, Optional<URL::URL> location = {});
-CSS::ElementInlineCSSStyleDeclaration* parse_css_style_attribute(CSS::Parser::ParsingParams const&, StringView, DOM::Element&);
+CSS::Parser::Parser::PropertiesAndCustomProperties parse_css_style_attribute(CSS::Parser::ParsingParams const&, StringView);
 RefPtr<CSS::CSSStyleValue> parse_css_value(CSS::Parser::ParsingParams const&, StringView, CSS::PropertyID property_id = CSS::PropertyID::Invalid);
 Optional<CSS::SelectorList> parse_selector(CSS::Parser::ParsingParams const&, StringView);
 Optional<CSS::SelectorList> parse_selector_for_nested_style_rule(CSS::Parser::ParsingParams const&, StringView);
