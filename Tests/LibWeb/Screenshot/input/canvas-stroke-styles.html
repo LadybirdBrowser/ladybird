@@ -1,0 +1,147 @@
+<link rel="match" href="../expected/canvas-stroke-styles-ref.html" />
+<canvas id="canvas" width="400" height="350"></canvas>
+<style>
+    #canvas {
+        border: 1px solid black;
+    }
+
+    body {
+        background: white;
+    }
+</style>
+<script>
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+
+    // Line styles
+    ctx.lineWidth = 10;
+
+    // Butt cap (default)
+    ctx.lineCap = "butt";
+    ctx.beginPath();
+    ctx.moveTo(20, 30);
+    ctx.lineTo(100, 30);
+    ctx.stroke();
+
+    // Butt cap, zero length path
+    ctx.beginPath();
+    ctx.moveTo(120, 30);
+    ctx.lineTo(120, 30);
+    ctx.stroke();
+
+    // Round cap
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(20, 75);
+    ctx.lineTo(100, 75);
+    ctx.stroke();
+
+    // Round cap, zero length path
+    ctx.beginPath();
+    ctx.moveTo(120, 75);
+    ctx.lineTo(120, 75);
+    ctx.stroke();
+
+    // Square cap
+    ctx.lineCap = "square";
+    ctx.beginPath();
+    ctx.moveTo(20, 120);
+    ctx.lineTo(100, 120);
+    ctx.stroke();
+
+    // Square cap, zero length path
+    ctx.beginPath();
+    ctx.moveTo(120, 120);
+    ctx.lineTo(120, 120);
+    ctx.stroke();
+
+    // Open path
+    ctx.lineCap = "butt";
+    ctx.beginPath();
+    ctx.moveTo(150, 50);
+    ctx.lineTo(250, 50);
+    ctx.lineTo(200, 100);
+    ctx.lineTo(150, 50);
+    ctx.stroke();
+
+    // Closed path with round lineJoin
+    ctx.lineCap = "butt";
+    ctx.lineJoin = "round";
+    ctx.beginPath();
+    ctx.moveTo(300, 50);
+    ctx.lineTo(350, 100);
+    ctx.lineTo(250, 100);
+    ctx.lineTo(300, 50);
+    ctx.closePath();
+    ctx.stroke();
+
+    // Miter limit test.
+    ctx.lineWidth = 5;
+    ctx.lineJoin = "miter";
+    ctx.beginPath();
+    ctx.moveTo(380, 100);
+    ctx.lineTo(385, 20);
+    ctx.lineTo(390, 100);
+    ctx.stroke();
+
+    ctx.miterLimit = 20;
+    ctx.beginPath();
+    ctx.moveTo(380, 230);
+    ctx.lineTo(385, 150);
+    ctx.lineTo(390, 230);
+    ctx.stroke();
+
+    // Different angles, butt caps
+    ctx.lineCap = "butt";
+    ctx.lineWidth = 5;
+
+    let centerX = 100;
+    const centerY = 230;
+    const innerRadius = 50;
+    const outerRadius = 80;
+
+    for (let angle = 0; angle < 360; angle += 15) {
+        const radians = (angle * Math.PI) / 180;
+        const startX = centerX + innerRadius * Math.cos(radians);
+        const startY = centerY + innerRadius * Math.sin(radians);
+        const endX = centerX + outerRadius * Math.cos(radians);
+        const endY = centerY + outerRadius * Math.sin(radians);
+
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(endX, endY);
+        ctx.stroke();
+    }
+
+    // Circles with different dashes
+    let dashes = [[15, 3, 3, 3, 3, 3, 3, 3], [1], [12, 3, 3]];
+    for (let r = innerRadius - 10, i = 0; r >= 10; r -= 10, i++) {
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, r, 0, 2 * Math.PI);
+        ctx.closePath();
+        ctx.setLineDash(dashes[i % dashes.length]);
+        ctx.lineDashOffset = (r - 30) / 2;
+        ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    ctx.lineDashOffset = 0;
+
+    // Different angles, round caps
+    ctx.lineCap = "round";
+    ctx.lineWidth = 5;
+
+    centerX = 280;
+
+    for (let angle = 0; angle < 360; angle += 15) {
+        const radians = (angle * Math.PI) / 180;
+        const startX = centerX + innerRadius * Math.cos(radians);
+        const startY = centerY + innerRadius * Math.sin(radians);
+        const endX = centerX + outerRadius * Math.cos(radians);
+        const endY = centerY + outerRadius * Math.sin(radians);
+
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(endX, endY);
+        ctx.stroke();
+    }
+</script>

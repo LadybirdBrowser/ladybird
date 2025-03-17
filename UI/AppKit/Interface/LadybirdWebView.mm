@@ -1294,9 +1294,6 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
         [_page_context_menu addItem:[[NSMenuItem alloc] initWithTitle:@"View Source"
                                                                action:@selector(viewSource:)
                                                         keyEquivalent:@""]];
-        [_page_context_menu addItem:[[NSMenuItem alloc] initWithTitle:@"Inspect Element"
-                                                               action:@selector(inspectElement:)
-                                                        keyEquivalent:@""]];
     }
 
     return _page_context_menu;
@@ -1320,11 +1317,6 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
                                                         keyEquivalent:@""];
         [copy_link_menu_item setTag:CONTEXT_MENU_COPY_LINK_TAG];
         [_link_context_menu addItem:copy_link_menu_item];
-        [_link_context_menu addItem:[NSMenuItem separatorItem]];
-
-        [_link_context_menu addItem:[[NSMenuItem alloc] initWithTitle:@"Inspect Element"
-                                                               action:@selector(inspectElement:)
-                                                        keyEquivalent:@""]];
     }
 
     return _link_context_menu;
@@ -1352,11 +1344,6 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
 
         [_image_context_menu addItem:[[NSMenuItem alloc] initWithTitle:@"Copy Image URL"
                                                                 action:@selector(copyLink:)
-                                                         keyEquivalent:@""]];
-        [_image_context_menu addItem:[NSMenuItem separatorItem]];
-
-        [_image_context_menu addItem:[[NSMenuItem alloc] initWithTitle:@"Inspect Element"
-                                                                action:@selector(inspectElement:)
                                                          keyEquivalent:@""]];
     }
 
@@ -1405,11 +1392,6 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
         [_audio_context_menu addItem:[[NSMenuItem alloc] initWithTitle:@"Copy Audio URL"
                                                                 action:@selector(copyLink:)
                                                          keyEquivalent:@""]];
-        [_audio_context_menu addItem:[NSMenuItem separatorItem]];
-
-        [_audio_context_menu addItem:[[NSMenuItem alloc] initWithTitle:@"Inspect Element"
-                                                                action:@selector(inspectElement:)
-                                                         keyEquivalent:@""]];
     }
 
     return _audio_context_menu;
@@ -1456,11 +1438,6 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
 
         [_video_context_menu addItem:[[NSMenuItem alloc] initWithTitle:@"Copy Video URL"
                                                                 action:@selector(copyLink:)
-                                                         keyEquivalent:@""]];
-        [_video_context_menu addItem:[NSMenuItem separatorItem]];
-
-        [_video_context_menu addItem:[[NSMenuItem alloc] initWithTitle:@"Inspect Element"
-                                                                action:@selector(inspectElement:)
                                                          keyEquivalent:@""]];
     }
 

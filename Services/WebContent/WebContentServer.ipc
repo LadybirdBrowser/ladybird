@@ -123,7 +123,5 @@ endpoint WebContentServer
 
     set_user_style(u64 page_id, String source) =|
 
-    enable_inspector_prototype(u64 page_id) =|
-
     system_time_zone_changed() =|
 }

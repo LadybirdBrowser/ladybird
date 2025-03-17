@@ -3,12 +3,11 @@ include(fontconfig)
 set(SOURCES
     Application.cpp
     Attribute.cpp
-    ChromeProcess.cpp
+    BrowserProcess.cpp
     ConsoleOutput.cpp
     CookieJar.cpp
     Database.cpp
     HelperProcess.cpp
-    InspectorClient.cpp
     Mutation.cpp
     Plugins/FontPlugin.cpp
     Plugins/ImageCodecPlugin.cpp

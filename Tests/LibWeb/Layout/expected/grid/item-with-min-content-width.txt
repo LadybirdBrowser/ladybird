@@ -1,0 +1,15 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x33 [BFC] children: not-inline
+    Box <body> at (8,8) content-size 784x17 [GFC] children: not-inline
+      Box <div.main> at (8,8) content-size 100x17 flex-container(row) [FFC] children: not-inline
+        BlockContainer <div.player> at (8,8) content-size 100x17 flex-item [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 3, rect: [8,8 26.953125x17] baseline: 13.296875
+              "whf"
+          TextNode <#text>
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x33]
+    PaintableBox (Box<BODY>) [8,8 784x17]
+      PaintableBox (Box<DIV>.main) [8,8 100x17]
+        PaintableWithLines (BlockContainer<DIV>.player) [8,8 100x17]
+          TextPaintable (TextNode<#text>)

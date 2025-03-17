@@ -70,7 +70,7 @@ void Application::initialize(Main::Arguments const& arguments, URL::URL new_tab_
     bool allow_popups = false;
     bool disable_scripting = false;
     bool disable_sql_database = false;
-    Optional<u16> devtools_port;
+    u16 devtools_port = WebView::default_devtools_port;
     Optional<StringView> debug_process;
     Optional<StringView> profile_process;
     Optional<StringView> webdriver_content_ipc_path;
@@ -94,14 +94,14 @@ void Application::initialize(Main::Arguments const& arguments, URL::URL new_tab_
     args_parser.add_positional_argument(raw_urls, "URLs to open", "url", Core::ArgsParser::Required::No);
     args_parser.add_option(certificates, "Path to a certificate file", "certificate", 'C', "certificate");
     args_parser.add_option(new_window, "Force opening in a new window", "new-window", 'n');
-    args_parser.add_option(force_new_process, "Force creation of new browser/chrome process", "force-new-process");
+    args_parser.add_option(force_new_process, "Force creation of a new browser process", "force-new-process");
     args_parser.add_option(allow_popups, "Disable popup blocking by default", "allow-popups");
     args_parser.add_option(disable_scripting, "Disable scripting by default", "disable-scripting");
     args_parser.add_option(disable_sql_database, "Disable SQL database", "disable-sql-database");
     args_parser.add_option(debug_process, "Wait for a debugger to attach to the given process name (WebContent, RequestServer, etc.)", "debug-process", 0, "process-name");
     args_parser.add_option(profile_process, "Enable callgrind profiling of the given process name (WebContent, RequestServer, etc.)", "profile-process", 0, "process-name");
     args_parser.add_option(webdriver_content_ipc_path, "Path to WebDriver IPC for WebContent", "webdriver-content-path", 0, "path", Core::ArgsParser::OptionHideMode::CommandLineAndMarkdown);
-    args_parser.add_option(devtools_port, "Set the Firefox DevTools port (EXPERIMENTAL)", "devtools", 0, "port");
+    args_parser.add_option(devtools_port, "Set the Firefox DevTools server port ", "devtools-port", 0, "port");
     args_parser.add_option(log_all_js_exceptions, "Log all JavaScript exceptions", "log-all-js-exceptions");
     args_parser.add_option(disable_site_isolation, "Disable site isolation", "disable-site-isolation");
     args_parser.add_option(enable_idl_tracing, "Enable IDL tracing", "enable-idl-tracing");
@@ -149,7 +149,7 @@ void Application::initialize(Main::Arguments const& arguments, URL::URL new_tab_
     if (debug_process_type == ProcessType::WebContent)
         disable_site_isolation = true;
 
-    m_chrome_options = {
+    m_browser_options = {
         .urls = sanitize_urls(raw_urls, new_tab_page_url),
         .raw_urls = move(raw_urls),
         .new_tab_page_url = move(new_tab_page_url),
@@ -170,7 +170,7 @@ void Application::initialize(Main::Arguments const& arguments, URL::URL new_tab_
     };
 
     if (webdriver_content_ipc_path.has_value())
-        m_chrome_options.webdriver_content_ipc_path = *webdriver_content_ipc_path;
+        m_browser_options.webdriver_content_ipc_path = *webdriver_content_ipc_path;
 
     m_web_content_options = {
         .command_line = MUST(String::join(' ', arguments.strings)),
@@ -188,9 +188,9 @@ void Application::initialize(Main::Arguments const& arguments, URL::URL new_tab_
         .paint_viewport_scrollbars = disable_scrollbar_painting ? PaintViewportScrollbars::No : PaintViewportScrollbars::Yes,
     };
 
-    create_platform_options(m_chrome_options, m_web_content_options);
+    create_platform_options(m_browser_options, m_web_content_options);
 
-    if (m_chrome_options.disable_sql_database == DisableSQLDatabase::No) {
+    if (m_browser_options.disable_sql_database == DisableSQLDatabase::No) {
         m_database = Database::create().release_value_but_fixme_should_propagate_errors();
         m_cookie_jar = CookieJar::create(*m_database).release_value_but_fixme_should_propagate_errors();
     } else {
@@ -225,7 +225,7 @@ ErrorOr<NonnullRefPtr<WebContentClient>> Application::launch_web_content_process
 void Application::launch_spare_web_content_process()
 {
     // Disable spare processes when debugging WebContent. Otherwise, it breaks running `gdb attach -p $(pidof WebContent)`.
-    if (chrome_options().debug_helper_process == ProcessType::WebContent)
+    if (browser_options().debug_helper_process == ProcessType::WebContent)
         return;
 
     if (m_has_queued_task_to_launch_spare_web_content_process)
@@ -252,7 +252,6 @@ ErrorOr<void> Application::launch_services()
 {
     TRY(launch_request_server());
     TRY(launch_image_decoder_server());
-    TRY(launch_devtools_server());
     return {};
 }
 
@@ -293,8 +292,8 @@ ErrorOr<void> Application::launch_image_decoder_server()
 
 ErrorOr<void> Application::launch_devtools_server()
 {
-    if (m_chrome_options.devtools_port.has_value())
-        m_devtools = TRY(DevTools::DevToolsServer::create(*this, *m_chrome_options.devtools_port));
+    VERIFY(!m_devtools);
+    m_devtools = TRY(DevTools::DevToolsServer::create(*this, m_browser_options.devtools_port));
     return {};
 }
 
@@ -361,8 +360,8 @@ void Application::process_did_exit(Process&& process)
     case ProcessType::WebWorker:
         dbgln_if(WEBVIEW_PROCESS_DEBUG, "WebWorker {} died, not sure what to do.", process.pid());
         break;
-    case ProcessType::Chrome:
-        dbgln("Invalid process type to be dying: Chrome");
+    case ProcessType::Browser:
+        dbgln("Invalid process type to be dying: Browser");
         VERIFY_NOT_REACHED();
     }
 }
@@ -383,6 +382,17 @@ ErrorOr<LexicalPath> Application::path_for_downloaded_file(StringView file) cons
         return Error::from_errno(ENOENT);
 
     return LexicalPath::join(downloads_directory, file);
+}
+
+ErrorOr<Application::DevtoolsState> Application::toggle_devtools_enabled()
+{
+    if (m_devtools) {
+        m_devtools.clear();
+        return DevtoolsState::Disabled;
+    }
+
+    TRY(launch_devtools_server());
+    return DevtoolsState::Enabled;
 }
 
 void Application::refresh_tab_list()

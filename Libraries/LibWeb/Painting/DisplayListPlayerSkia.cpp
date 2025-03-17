@@ -651,32 +651,6 @@ void DisplayListPlayerSkia::fill_path_using_paint_style(FillPathUsingPaintStyle 
     surface().canvas().drawPath(path, paint);
 }
 
-static SkPaint::Cap to_skia_cap(Gfx::Path::CapStyle const& cap_style)
-{
-    switch (cap_style) {
-    case Gfx::Path::CapStyle::Butt:
-        return SkPaint::kButt_Cap;
-    case Gfx::Path::CapStyle::Round:
-        return SkPaint::kRound_Cap;
-    case Gfx::Path::CapStyle::Square:
-        return SkPaint::kSquare_Cap;
-    }
-    VERIFY_NOT_REACHED();
-}
-
-static SkPaint::Join to_skia_join(Gfx::Path::JoinStyle const& join_style)
-{
-    switch (join_style) {
-    case Gfx::Path::JoinStyle::Round:
-        return SkPaint::kRound_Join;
-    case Gfx::Path::JoinStyle::Bevel:
-        return SkPaint::kBevel_Join;
-    case Gfx::Path::JoinStyle::Miter:
-        return SkPaint::kMiter_Join;
-    }
-    VERIFY_NOT_REACHED();
-}
-
 void DisplayListPlayerSkia::stroke_path_using_color(StrokePathUsingColor const& command)
 {
     // Skia treats zero thickness as a special case and will draw a hairline, while we want to draw nothing.

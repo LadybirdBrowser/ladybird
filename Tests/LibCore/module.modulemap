@@ -1,0 +1,5 @@
+module CoreTesting {
+    header "TestEventLoop.h"
+    requires cplusplus
+    export *
+}

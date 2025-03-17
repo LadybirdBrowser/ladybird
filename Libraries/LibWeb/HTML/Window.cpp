@@ -60,7 +60,6 @@
 #include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Infra/CharacterTypes.h>
-#include <LibWeb/Internals/Inspector.h>
 #include <LibWeb/Internals/Internals.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/Page.h>
@@ -716,13 +715,7 @@ Vector<GC::Ref<MimeType>> Window::pdf_viewer_mime_type_objects()
     return m_pdf_viewer_mime_type_objects;
 }
 
-static bool s_inspector_object_exposed = false;
 static bool s_internals_object_exposed = false;
-
-void Window::set_inspector_object_exposed(bool exposed)
-{
-    s_inspector_object_exposed = exposed;
-}
 
 void Window::set_internals_object_exposed(bool exposed)
 {
@@ -739,8 +732,6 @@ WebIDL::ExceptionOr<void> Window::initialize_web_interfaces(Badge<WindowEnvironm
     Bindings::WindowGlobalMixin::initialize(realm, *this);
     WindowOrWorkerGlobalScopeMixin::initialize(realm);
 
-    if (s_inspector_object_exposed)
-        define_direct_property("inspector", realm.create<Internals::Inspector>(realm), JS::default_attributes);
     if (s_internals_object_exposed)
         define_direct_property("internals", realm.create<Internals::Internals>(realm), JS::default_attributes);
 

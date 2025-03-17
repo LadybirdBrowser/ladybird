@@ -1,4 +1,4 @@
 declare_args() {
-  # Build the Ladybird application using the AppKit chrome.
+  # Build the Ladybird application using the AppKit UI.
   enable_appkit = current_os == "mac"
 }

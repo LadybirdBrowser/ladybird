@@ -10,7 +10,7 @@
 #include <LibCore/System.h>
 #include <LibIPC/ConnectionToServer.h>
 #include <LibWebView/Application.h>
-#include <LibWebView/ChromeProcess.h>
+#include <LibWebView/BrowserProcess.h>
 #include <LibWebView/URL.h>
 
 namespace WebView {
@@ -25,7 +25,7 @@ private:
     explicit UIProcessClient(IPC::Transport);
 };
 
-ErrorOr<ChromeProcess::ProcessDisposition> ChromeProcess::connect(Vector<ByteString> const& raw_urls, NewWindow new_window)
+ErrorOr<BrowserProcess::ProcessDisposition> BrowserProcess::connect(Vector<ByteString> const& raw_urls, NewWindow new_window)
 {
     static constexpr auto process_name = "Ladybird"sv;
 
@@ -45,7 +45,7 @@ ErrorOr<ChromeProcess::ProcessDisposition> ChromeProcess::connect(Vector<ByteStr
     return ProcessDisposition::ContinueMainProcess;
 }
 
-ErrorOr<void> ChromeProcess::connect_as_client(ByteString const& socket_path, Vector<ByteString> const& raw_urls, NewWindow new_window)
+ErrorOr<void> BrowserProcess::connect_as_client(ByteString const& socket_path, Vector<ByteString> const& raw_urls, NewWindow new_window)
 {
     auto socket = TRY(Core::LocalSocket::connect(socket_path));
     static_assert(IsSame<IPC::Transport, IPC::TransportSocket>, "Need to handle other IPC transports here");
@@ -62,7 +62,7 @@ ErrorOr<void> ChromeProcess::connect_as_client(ByteString const& socket_path, Ve
     return {};
 }
 
-ErrorOr<void> ChromeProcess::connect_as_server(ByteString const& socket_path)
+ErrorOr<void> BrowserProcess::connect_as_server(ByteString const& socket_path)
 {
     static_assert(IsSame<IPC::Transport, IPC::TransportSocket>, "Need to handle other IPC transports here");
 
@@ -88,7 +88,7 @@ ErrorOr<void> ChromeProcess::connect_as_server(ByteString const& socket_path)
     return {};
 }
 
-ChromeProcess::~ChromeProcess()
+BrowserProcess::~BrowserProcess()
 {
     if (m_pid_file) {
         MUST(m_pid_file->truncate(0));
@@ -118,13 +118,13 @@ void UIProcessConnectionFromClient::die()
 void UIProcessConnectionFromClient::create_new_tab(Vector<ByteString> urls)
 {
     if (on_new_tab)
-        on_new_tab(sanitize_urls(urls, Application::chrome_options().new_tab_page_url));
+        on_new_tab(sanitize_urls(urls, Application::browser_options().new_tab_page_url));
 }
 
 void UIProcessConnectionFromClient::create_new_window(Vector<ByteString> urls)
 {
     if (on_new_window)
-        on_new_window(sanitize_urls(urls, Application::chrome_options().new_tab_page_url));
+        on_new_window(sanitize_urls(urls, Application::browser_options().new_tab_page_url));
 }
 
 }

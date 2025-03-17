@@ -25,6 +25,7 @@ public:
     virtual void stroke_path(Gfx::Path const&, Gfx::Color, float thickness) override;
     virtual void stroke_path(Gfx::Path const&, Gfx::Color, float thickness, float blur_radius, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator) override;
     virtual void stroke_path(Gfx::Path const&, Gfx::PaintStyle const&, ReadonlySpan<Gfx::Filter>, float thickness, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator) override;
+    virtual void stroke_path(Gfx::Path const&, Gfx::PaintStyle const&, ReadonlySpan<Gfx::Filter>, float thickness, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Gfx::Path::CapStyle const&, Gfx::Path::JoinStyle const&) override;
     virtual void fill_path(Gfx::Path const&, Gfx::Color, Gfx::WindingRule) override;
     virtual void fill_path(Gfx::Path const&, Gfx::Color, Gfx::WindingRule, float blur_radius, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator) override;
     virtual void fill_path(Gfx::Path const&, Gfx::PaintStyle const&, ReadonlySpan<Gfx::Filter>, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Gfx::WindingRule) override;

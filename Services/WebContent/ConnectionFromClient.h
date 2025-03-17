@@ -135,8 +135,6 @@ private:
 
     virtual void set_user_style(u64 page_id, String) override;
 
-    virtual void enable_inspector_prototype(u64 page_id) override;
-
     virtual void take_document_screenshot(u64 page_id) override;
     virtual void take_dom_node_screenshot(u64 page_id, Web::UniqueNodeID node_id) override;
 

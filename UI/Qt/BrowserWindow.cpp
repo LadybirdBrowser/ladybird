@@ -32,8 +32,10 @@
 #include <QClipboard>
 #include <QGuiApplication>
 #include <QInputDialog>
+#include <QMessageBox>
 #include <QPlainTextEdit>
 #include <QShortcut>
+#include <QStatusBar>
 #include <QTabBar>
 #include <QWindow>
 
@@ -353,15 +355,27 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
         }
     });
 
-    auto* inspector_action = new QAction("Open &Inspector", this);
-    inspector_action->setIcon(load_icon_from_uri("resource://icons/browser/dom-tree.png"sv));
-    inspector_action->setShortcuts({ QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_I),
+    m_enable_devtools_action = new QAction("Enable &DevTools", this);
+    m_enable_devtools_action->setIcon(load_icon_from_uri("resource://icons/browser/dom-tree.png"sv));
+    m_enable_devtools_action->setShortcuts({
+        QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_I),
         QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_C),
-        QKeySequence(Qt::Key_F12) });
-    inspect_menu->addAction(inspector_action);
-    QObject::connect(inspector_action, &QAction::triggered, this, [this] {
-        if (m_current_tab) {
-            m_current_tab->show_inspector_window();
+        QKeySequence(Qt::Key_F12),
+    });
+    inspect_menu->addAction(m_enable_devtools_action);
+    QObject::connect(m_enable_devtools_action, &QAction::triggered, this, [this] {
+        if (auto result = WebView::Application::the().toggle_devtools_enabled(); result.is_error()) {
+            auto error_message = MUST(String::formatted("Unable to start DevTools: {}", result.error()));
+            QMessageBox::warning(this, "Ladybird", qstring_from_ak_string(error_message));
+        } else {
+            switch (result.value()) {
+            case WebView::Application::DevtoolsState::Disabled:
+                devtools_disabled();
+                break;
+            case WebView::Application::DevtoolsState::Enabled:
+                devtools_enabled();
+                break;
+            }
         }
     });
 
@@ -560,7 +574,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
 
     m_enable_scripting_action = new QAction("Enable Scripting", this);
     m_enable_scripting_action->setCheckable(true);
-    m_enable_scripting_action->setChecked(WebView::Application::chrome_options().disable_scripting == WebView::DisableScripting::No);
+    m_enable_scripting_action->setChecked(WebView::Application::browser_options().disable_scripting == WebView::DisableScripting::No);
     debug_menu->addAction(m_enable_scripting_action);
     QObject::connect(m_enable_scripting_action, &QAction::triggered, this, [this] {
         bool state = m_enable_scripting_action->isChecked();
@@ -582,7 +596,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
 
     m_block_pop_ups_action = new QAction("Block Pop-ups", this);
     m_block_pop_ups_action->setCheckable(true);
-    m_block_pop_ups_action->setChecked(WebView::Application::chrome_options().allow_popups == WebView::AllowPopups::No);
+    m_block_pop_ups_action->setChecked(WebView::Application::browser_options().allow_popups == WebView::AllowPopups::No);
     debug_menu->addAction(m_block_pop_ups_action);
     QObject::connect(m_block_pop_ups_action, &QAction::triggered, this, [this] {
         bool state = m_block_pop_ups_action->isChecked();
@@ -648,11 +662,6 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     QObject::connect(m_tabs_container, &QTabWidget::tabCloseRequested, this, &BrowserWindow::close_tab);
     QObject::connect(close_current_tab_action, &QAction::triggered, this, &BrowserWindow::close_current_tab);
 
-    m_inspect_dom_node_action = new QAction("&Inspect Element", this);
-    connect(m_inspect_dom_node_action, &QAction::triggered, this, [this] {
-        if (m_current_tab)
-            m_current_tab->show_inspector_window(Tab::InspectorTarget::HoveredElement);
-    });
     m_go_back_action = new QAction("Go Back", this);
     connect(m_go_back_action, &QAction::triggered, this, [this] {
         if (m_current_tab)
@@ -708,6 +717,29 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
 
     setCentralWidget(m_tabs_container);
     setContextMenuPolicy(Qt::PreventContextMenu);
+}
+
+void BrowserWindow::devtools_disabled()
+{
+    m_enable_devtools_action->setText("Enable &DevTools");
+    setStatusBar(nullptr);
+}
+
+void BrowserWindow::devtools_enabled()
+{
+    auto* disable_button = new TabBarButton(create_tvg_icon_with_theme_colors("close", palette()), this);
+    disable_button->setToolTip("Disable DevTools");
+
+    connect(disable_button, &QPushButton::clicked, this, [this]() {
+        MUST(WebView::Application::the().toggle_devtools_enabled());
+        devtools_disabled();
+    });
+
+    m_enable_devtools_action->setText("Disable &DevTools");
+    statusBar()->addPermanentWidget(disable_button);
+
+    auto message = MUST(String::formatted("DevTools is enabled on port {}", WebView::Application::browser_options().devtools_port));
+    statusBar()->showMessage(qstring_from_ak_string(message));
 }
 
 void BrowserWindow::set_current_tab(Tab* tab)

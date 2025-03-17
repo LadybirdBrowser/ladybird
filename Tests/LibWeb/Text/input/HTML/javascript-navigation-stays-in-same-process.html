@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="test">Hello world, this was printed by a JavaScript navigation!</div>
+<script>
+    asyncTest((done) => {
+        location.href = "javascript:void println(document.getElementById('test').innerText)";
+        setTimeout(() => {
+            done();
+        }, 0);
+    });
+</script>

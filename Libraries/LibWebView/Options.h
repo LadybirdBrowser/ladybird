@@ -57,7 +57,9 @@ struct DNSOverUDP {
 
 using DNSSettings = Variant<SystemDNS, DNSOverTLS, DNSOverUDP>;
 
-struct ChromeOptions {
+constexpr inline u16 default_devtools_port = 6000;
+
+struct BrowserOptions {
     Vector<URL::URL> urls;
     Vector<ByteString> raw_urls;
     URL::URL new_tab_page_url;
@@ -71,7 +73,7 @@ struct ChromeOptions {
     Optional<ProcessType> profile_helper_process {};
     Optional<ByteString> webdriver_content_ipc_path {};
     DNSSettings dns_settings { SystemDNS {} };
-    Optional<u16> devtools_port;
+    u16 devtools_port { default_devtools_port };
 };
 
 enum class IsLayoutTestMode {

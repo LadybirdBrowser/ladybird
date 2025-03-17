@@ -11,7 +11,6 @@ namespace WebContent {
 class ConnectionFromClient;
 class ConsoleGlobalEnvironmentExtensions;
 class DevToolsConsoleClient;
-class InspectorConsoleClient;
 class PageHost;
 class PageClient;
 class WebContentConsoleClient;

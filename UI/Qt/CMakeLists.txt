@@ -5,7 +5,6 @@ target_sources(ladybird PRIVATE
     BrowserWindow.cpp
     FindInPageWidget.cpp
     Icon.cpp
-    InspectorWidget.cpp
     LocationEdit.cpp
     Settings.cpp
     SettingsDialog.cpp

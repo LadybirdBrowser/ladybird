@@ -48,6 +48,9 @@ public:
 
     StringView string_view() const;
 
+    CSSPixels text_decoration_thickness() const { return m_text_decoration_thickness; }
+    void set_text_decoration_thickness(CSSPixels thickness) { m_text_decoration_thickness = thickness; }
+
 private:
     GC::Ref<Layout::Node const> m_layout_node;
     CSSPixelPoint m_offset;
@@ -58,6 +61,7 @@ private:
     RefPtr<Gfx::GlyphRun> m_glyph_run;
     CSS::WritingMode m_writing_mode;
     Vector<ShadowData> m_shadows;
+    CSSPixels m_text_decoration_thickness { 0 };
 };
 
 }

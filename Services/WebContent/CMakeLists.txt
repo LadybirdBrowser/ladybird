@@ -5,7 +5,6 @@ set(SOURCES
     ConnectionFromClient.cpp
     ConsoleGlobalEnvironmentExtensions.cpp
     DevToolsConsoleClient.cpp
-    InspectorConsoleClient.cpp
     PageClient.cpp
     PageHost.cpp
     WebContentConsoleClient.cpp

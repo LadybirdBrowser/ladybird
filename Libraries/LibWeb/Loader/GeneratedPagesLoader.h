@@ -11,11 +11,8 @@
 
 namespace Web {
 
-static String s_chrome_process_command_line {};
-static String s_chrome_process_executable_path {};
-
-void set_chrome_process_command_line(StringView command_line);
-void set_chrome_process_executable_path(StringView executable_path);
+void set_browser_process_command_line(StringView command_line);
+void set_browser_process_executable_path(StringView executable_path);
 
 ErrorOr<String> load_error_page(URL::URL const&, StringView error_message);
 

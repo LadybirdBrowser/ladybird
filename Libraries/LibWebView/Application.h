@@ -35,7 +35,7 @@ public:
 
     static Application& the() { return *s_the; }
 
-    static ChromeOptions const& chrome_options() { return the().m_chrome_options; }
+    static BrowserOptions const& browser_options() { return the().m_browser_options; }
     static WebContentOptions& web_content_options() { return the().m_web_content_options; }
 
     static Requests::RequestClient& request_server_client() { return *the().m_request_server_client; }
@@ -62,6 +62,11 @@ public:
 
     ErrorOr<LexicalPath> path_for_downloaded_file(StringView file) const;
 
+    enum class DevtoolsState {
+        Disabled,
+        Enabled,
+    };
+    ErrorOr<DevtoolsState> toggle_devtools_enabled();
     void refresh_tab_list();
 
 protected:
@@ -79,7 +84,7 @@ protected:
     virtual void process_did_exit(Process&&);
 
     virtual void create_platform_arguments(Core::ArgsParser&) { }
-    virtual void create_platform_options(ChromeOptions&, WebContentOptions&) { }
+    virtual void create_platform_options(BrowserOptions&, WebContentOptions&) { }
 
     virtual Optional<ByteString> ask_user_for_download_folder() const { return {}; }
 
@@ -122,7 +127,7 @@ private:
 
     static Application* s_the;
 
-    ChromeOptions m_chrome_options;
+    BrowserOptions m_browser_options;
     WebContentOptions m_web_content_options;
 
     RefPtr<Requests::RequestClient> m_request_server_client;

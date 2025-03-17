@@ -109,12 +109,11 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     bool collect_garbage_on_every_allocation = false;
     bool is_headless = false;
     bool disable_scrollbar_painting = false;
-    bool devtools = false;
     StringView echo_server_port_string_view {};
 
     Core::ArgsParser args_parser;
-    args_parser.add_option(command_line, "Chrome process command line", "command-line", 0, "command_line");
-    args_parser.add_option(executable_path, "Chrome process executable path", "executable-path", 0, "executable_path");
+    args_parser.add_option(command_line, "Browser process command line", "command-line", 0, "command_line");
+    args_parser.add_option(executable_path, "Browser process executable path", "executable-path", 0, "executable_path");
     args_parser.add_option(config_path, "Ladybird configuration path", "config-path", 0, "config_path");
     args_parser.add_option(request_server_socket, "File descriptor of the socket for the RequestServer connection", "request-server-socket", 'r', "request_server_socket");
     args_parser.add_option(image_decoder_socket, "File descriptor of the socket for the ImageDecoder connection", "image-decoder-socket", 'i', "image_decoder_socket");
@@ -133,7 +132,6 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     args_parser.add_option(disable_scrollbar_painting, "Don't paint horizontal or vertical viewport scrollbars", "disable-scrollbar-painting");
     args_parser.add_option(echo_server_port_string_view, "Echo server port used in test internals", "echo-server-port", 0, "echo_server_port");
     args_parser.add_option(is_headless, "Report that the browser is running in headless mode", "headless");
-    args_parser.add_option(devtools, "Report that the browser is running with Firefox DevTools support", "devtools");
 
     args_parser.parse(arguments);
 
@@ -153,14 +151,13 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
         force_cpu_painting = true;
     }
 
-    Web::set_chrome_process_command_line(command_line);
-    Web::set_chrome_process_executable_path(executable_path);
+    Web::set_browser_process_command_line(command_line);
+    Web::set_browser_process_executable_path(executable_path);
 
     // Always use the CPU backend for layout tests, as the GPU backend is not deterministic
     WebContent::PageClient::set_use_skia_painter(force_cpu_painting ? WebContent::PageClient::UseSkiaPainter::CPUBackend : WebContent::PageClient::UseSkiaPainter::GPUBackendIfAvailable);
 
     WebContent::PageClient::set_is_headless(is_headless);
-    WebContent::PageClient::set_devtools_enabled(devtools);
 
     if (disable_site_isolation)
         WebView::disable_site_isolation();

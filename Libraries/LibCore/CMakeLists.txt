@@ -114,3 +114,20 @@ endif()
 if (ANDROID)
     target_link_libraries(LibCore PRIVATE log)
 endif()
+
+if (ENABLE_SWIFT)
+    set(SWIFT_EXCLUDE_HEADERS "SocketAddressWindows.h")
+    if(WIN32)
+        list(APPEND SWIFT_EXCLUDE_HEADERS "EventLoopImplementationUnix.h")
+    else()
+        list(APPEND SWIFT_EXCLUDE_HEADERS "EventLoopImplementationWindows.h")
+    endif()
+
+    generate_clang_module_map(LibCore EXCLUDE_FILES ${SWIFT_EXCLUDE_HEADERS})
+    target_sources(LibCore PRIVATE
+        EventSwift.mm
+        EventLoopExecutor.swift)
+    set_source_files_properties(EventSwift.mm PRIVATE PROPERTIES COMPILE_FLAGS -fobjc-arc)
+    target_link_libraries(LibCore PRIVATE AK)
+    add_swift_target_properties(LibCore LAGOM_LIBRARIES AK)
+endif()
