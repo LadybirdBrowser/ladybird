@@ -843,7 +843,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::wrap_key(Bindings::KeyFormat format, GC::
             }
 
             // 3. Let bytes be the result of UTF-8 encoding json.
-            bytes = maybe_json.release_value()->to_byte_buffer();
+            bytes = MUST(ByteBuffer::copy(maybe_json.value()->bytes()));
         } else {
             VERIFY_NOT_REACHED();
         }

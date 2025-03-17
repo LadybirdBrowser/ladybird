@@ -1342,7 +1342,7 @@ Messages::WebDriverClient::GetElementPropertyResponse WebDriverConnection::get_e
         // 5. Let property be the result of calling the Object.[[GetProperty]](name) on element.
         Web::HTML::TemporaryExecutionContext execution_context { current_browsing_context().active_document()->realm() };
 
-        if (auto property_or_error = element->get(name.to_byte_string()); !property_or_error.is_throw_completion()) {
+        if (auto property_or_error = element->get(name); !property_or_error.is_throw_completion()) {
             auto property = property_or_error.release_value();
 
             // 6. Let result be the value of property if not undefined, or null.
