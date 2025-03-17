@@ -23,7 +23,6 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSStyleDeclaration);
 GC_DEFINE_ALLOCATOR(PropertyOwningCSSStyleDeclaration);
-GC_DEFINE_ALLOCATOR(ElementInlineCSSStyleDeclaration);
 
 CSSStyleDeclaration::CSSStyleDeclaration(JS::Realm& realm, Computed computed, Readonly readonly)
     : PlatformObject(realm)
@@ -43,14 +42,21 @@ void CSSStyleDeclaration::initialize(JS::Realm& realm)
 
 GC::Ref<PropertyOwningCSSStyleDeclaration> PropertyOwningCSSStyleDeclaration::create(JS::Realm& realm, Vector<StyleProperty> properties, HashMap<FlyString, StyleProperty> custom_properties)
 {
-    return realm.create<PropertyOwningCSSStyleDeclaration>(realm, move(properties), move(custom_properties));
+    return realm.create<PropertyOwningCSSStyleDeclaration>(realm, nullptr, move(properties), move(custom_properties));
 }
 
-PropertyOwningCSSStyleDeclaration::PropertyOwningCSSStyleDeclaration(JS::Realm& realm, Vector<StyleProperty> properties, HashMap<FlyString, StyleProperty> custom_properties)
+GC::Ref<PropertyOwningCSSStyleDeclaration> PropertyOwningCSSStyleDeclaration::create_element_inline_style(JS::Realm& realm, GC::Ref<DOM::Element> element, Vector<StyleProperty> properties, HashMap<FlyString, StyleProperty> custom_properties)
+{
+    return realm.create<PropertyOwningCSSStyleDeclaration>(realm, element, move(properties), move(custom_properties));
+}
+
+PropertyOwningCSSStyleDeclaration::PropertyOwningCSSStyleDeclaration(JS::Realm& realm, GC::Ptr<DOM::Element> element, Vector<StyleProperty> properties, HashMap<FlyString, StyleProperty> custom_properties)
     : CSSStyleDeclaration(realm, Computed::No, Readonly::No)
     , m_properties(move(properties))
     , m_custom_properties(move(custom_properties))
 {
+    if (element)
+        set_owner_node(DOM::ElementReference { *element });
 }
 
 void PropertyOwningCSSStyleDeclaration::visit_edges(Visitor& visitor)
@@ -67,18 +73,6 @@ String PropertyOwningCSSStyleDeclaration::item(size_t index) const
     if (index >= m_properties.size())
         return {};
     return CSS::string_from_property_id(m_properties[index].property_id).to_string();
-}
-
-GC::Ref<ElementInlineCSSStyleDeclaration> ElementInlineCSSStyleDeclaration::create(DOM::Element& element, Vector<StyleProperty> properties, HashMap<FlyString, StyleProperty> custom_properties)
-{
-    auto& realm = element.realm();
-    return realm.create<ElementInlineCSSStyleDeclaration>(element, move(properties), move(custom_properties));
-}
-
-ElementInlineCSSStyleDeclaration::ElementInlineCSSStyleDeclaration(DOM::Element& element, Vector<StyleProperty> properties, HashMap<FlyString, StyleProperty> custom_properties)
-    : PropertyOwningCSSStyleDeclaration(element.realm(), move(properties), move(custom_properties))
-{
-    set_owner_node(DOM::ElementReference { element });
 }
 
 size_t PropertyOwningCSSStyleDeclaration::length() const
@@ -210,7 +204,7 @@ WebIDL::ExceptionOr<String> PropertyOwningCSSStyleDeclaration::remove_property(S
 }
 
 // https://drafts.csswg.org/cssom/#update-style-attribute-for
-void ElementInlineCSSStyleDeclaration::update_style_attribute()
+void CSSStyleDeclaration::update_style_attribute()
 {
     // 1. Assert: declaration block’s computed flag is unset.
     VERIFY(!is_computed());
@@ -640,9 +634,21 @@ String PropertyOwningCSSStyleDeclaration::serialized() const
     return MUST(builder.to_string());
 }
 
+// https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-csstext
 WebIDL::ExceptionOr<void> PropertyOwningCSSStyleDeclaration::set_css_text(StringView css_text)
 {
-    dbgln("(STUBBED) PropertyOwningCSSStyleDeclaration::set_css_text(css_text='{}')", css_text);
+    // 1. If the readonly flag is set, then throw a NoModificationAllowedError exception.
+    if (is_readonly()) {
+        return WebIDL::NoModificationAllowedError::create(realm(), "Cannot modify properties: CSSStyleDeclaration is read-only."_string);
+    }
+
+    // 2. Empty the declarations.
+    // 3. Parse the given value and, if the return value is not the empty list, insert the items in the list into the declarations, in specified order.
+    set_declarations_from_text(css_text);
+
+    // 4. Update style attribute for the CSS declaration block.
+    update_style_attribute();
+
     return {};
 }
 
@@ -658,40 +664,14 @@ void PropertyOwningCSSStyleDeclaration::set_the_declarations(Vector<StylePropert
     m_custom_properties = move(custom_properties);
 }
 
-void ElementInlineCSSStyleDeclaration::set_declarations_from_text(StringView css_text)
+void PropertyOwningCSSStyleDeclaration::set_declarations_from_text(StringView css_text)
 {
-    // FIXME: What do we do if the element is null?
-    auto element = owner_node();
-    if (!element.has_value()) {
-        dbgln("FIXME: Returning from ElementInlineCSSStyleDeclaration::declarations_from_text as element is null.");
-        return;
-    }
-
     empty_the_declarations();
-    auto style = parse_css_style_attribute(Parser::ParsingParams(element->element().document()), css_text);
+    auto parsing_params = owner_node().has_value()
+        ? Parser::ParsingParams(owner_node()->element().document())
+        : Parser::ParsingParams();
+    auto style = parse_css_style_attribute(parsing_params, css_text);
     set_the_declarations(style.properties, style.custom_properties);
-}
-
-// https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-csstext
-WebIDL::ExceptionOr<void> ElementInlineCSSStyleDeclaration::set_css_text(StringView css_text)
-{
-    // FIXME: What do we do if the element is null?
-    if (!owner_node().has_value()) {
-        dbgln("FIXME: Returning from ElementInlineCSSStyleDeclaration::set_css_text as element is null.");
-        return {};
-    }
-
-    // 1. If the computed flag is set, then throw a NoModificationAllowedError exception.
-    // NOTE: See ResolvedCSSStyleDeclaration.
-
-    // 2. Empty the declarations.
-    // 3. Parse the given value and, if the return value is not the empty list, insert the items in the list into the declarations, in specified order.
-    set_declarations_from_text(css_text);
-
-    // 4. Update style attribute for the CSS declaration block.
-    update_style_attribute();
-
-    return {};
 }
 
 }

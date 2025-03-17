@@ -84,6 +84,8 @@ protected:
 
     virtual CSSStyleDeclaration& generated_style_properties_to_css_style_declaration() override { return *this; }
 
+    void update_style_attribute();
+
 private:
     // ^PlatformObject
     virtual Optional<JS::Value> item_value(size_t index) const override;
@@ -109,11 +111,12 @@ class PropertyOwningCSSStyleDeclaration : public CSSStyleDeclaration {
     WEB_PLATFORM_OBJECT(PropertyOwningCSSStyleDeclaration, CSSStyleDeclaration);
     GC_DECLARE_ALLOCATOR(PropertyOwningCSSStyleDeclaration);
 
-    friend class ElementInlineCSSStyleDeclaration;
-
 public:
     [[nodiscard]] static GC::Ref<PropertyOwningCSSStyleDeclaration>
     create(JS::Realm&, Vector<StyleProperty>, HashMap<FlyString, StyleProperty> custom_properties);
+
+    [[nodiscard]] static GC::Ref<PropertyOwningCSSStyleDeclaration>
+    create_element_inline_style(JS::Realm&, GC::Ref<DOM::Element>, Vector<StyleProperty>, HashMap<FlyString, StyleProperty> custom_properties);
 
     virtual ~PropertyOwningCSSStyleDeclaration() override = default;
 
@@ -133,10 +136,10 @@ public:
     virtual String serialized() const final override;
     virtual WebIDL::ExceptionOr<void> set_css_text(StringView) override;
 
-protected:
-    PropertyOwningCSSStyleDeclaration(JS::Realm&, Vector<StyleProperty>, HashMap<FlyString, StyleProperty>);
+    void set_declarations_from_text(StringView);
 
-    virtual void update_style_attribute() { }
+protected:
+    PropertyOwningCSSStyleDeclaration(JS::Realm&, GC::Ptr<DOM::Element> owner_node, Vector<StyleProperty>, HashMap<FlyString, StyleProperty>);
 
     void empty_the_declarations();
     void set_the_declarations(Vector<StyleProperty> properties, HashMap<FlyString, StyleProperty> custom_properties);
@@ -148,25 +151,6 @@ private:
 
     Vector<StyleProperty> m_properties;
     HashMap<FlyString, StyleProperty> m_custom_properties;
-};
-
-class ElementInlineCSSStyleDeclaration final : public PropertyOwningCSSStyleDeclaration {
-    WEB_PLATFORM_OBJECT(ElementInlineCSSStyleDeclaration, PropertyOwningCSSStyleDeclaration);
-    GC_DECLARE_ALLOCATOR(ElementInlineCSSStyleDeclaration);
-
-public:
-    [[nodiscard]] static GC::Ref<ElementInlineCSSStyleDeclaration> create(DOM::Element&, Vector<StyleProperty>, HashMap<FlyString, StyleProperty> custom_properties);
-
-    virtual ~ElementInlineCSSStyleDeclaration() override = default;
-
-    void set_declarations_from_text(StringView);
-
-    virtual WebIDL::ExceptionOr<void> set_css_text(StringView) override;
-
-private:
-    ElementInlineCSSStyleDeclaration(DOM::Element&, Vector<StyleProperty> properties, HashMap<FlyString, StyleProperty> custom_properties);
-
-    virtual void update_style_attribute() override;
 };
 
 }

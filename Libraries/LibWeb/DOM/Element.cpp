@@ -921,7 +921,7 @@ void Element::set_shadow_root(GC::Ptr<ShadowRoot> shadow_root)
 CSS::CSSStyleDeclaration* Element::style_for_bindings()
 {
     if (!m_inline_style)
-        m_inline_style = CSS::ElementInlineCSSStyleDeclaration::create(*this, {}, {});
+        m_inline_style = CSS::PropertyOwningCSSStyleDeclaration::create_element_inline_style(realm(), *this, {}, {});
     return m_inline_style;
 }
 
@@ -3524,7 +3524,7 @@ void Element::attribute_changed(FlyString const& local_name, Optional<String> co
             if (m_inline_style && m_inline_style->is_updating())
                 return;
             if (!m_inline_style)
-                m_inline_style = CSS::ElementInlineCSSStyleDeclaration::create(*this, {}, {});
+                m_inline_style = CSS::PropertyOwningCSSStyleDeclaration::create_element_inline_style(realm(), *this, {}, {});
             m_inline_style->set_declarations_from_text(*value);
             set_needs_style_update(true);
         }
