@@ -20,16 +20,6 @@ public:
     {
     }
 
-    StringOrSymbol(char const* chars)
-        : StringOrSymbol(DeprecatedFlyString(chars))
-    {
-    }
-
-    StringOrSymbol(ByteString const& string)
-        : StringOrSymbol(DeprecatedFlyString(string))
-    {
-    }
-
     StringOrSymbol(DeprecatedFlyString const& string)
         : m_string(string)
     {
