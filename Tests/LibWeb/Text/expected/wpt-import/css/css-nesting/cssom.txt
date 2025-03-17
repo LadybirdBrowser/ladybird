@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 13 tests
 
-12 Pass
-1 Fail
+13 Pass
 Pass	CSSStyleRule is a CSSGroupingRule
 Pass	Simple CSSOM manipulation of subrules
 Pass	Simple CSSOM manipulation of subrules 1
@@ -13,7 +12,7 @@ Pass	Simple CSSOM manipulation of subrules 4
 Pass	Simple CSSOM manipulation of subrules 5
 Pass	Simple CSSOM manipulation of subrules 6
 Pass	Simple CSSOM manipulation of subrules 7
-Fail	Simple CSSOM manipulation of subrules 8
+Pass	Simple CSSOM manipulation of subrules 8
 Pass	Simple CSSOM manipulation of subrules 9
 Pass	Simple CSSOM manipulation of subrules 10
 Pass	Mutating the selectorText of outer rule invalidates inner rules

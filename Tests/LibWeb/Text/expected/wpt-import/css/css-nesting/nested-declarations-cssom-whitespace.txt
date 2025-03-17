@@ -2,6 +2,7 @@ Harness status: OK
 
 Found 2 tests
 
-2 Fail
-Fail	Empty CSSNestedDeclarations do not affect outer serialization
+1 Pass
+1 Fail
+Pass	Empty CSSNestedDeclarations do not affect outer serialization
 Fail	Empty CSSNestedDeclarations do not affect outer serialization (nested grouping rule)

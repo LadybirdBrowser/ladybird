@@ -189,7 +189,6 @@ class Display;
 class DisplayStyleValue;
 class EasingStyleValue;
 class EdgeStyleValue;
-class ElementInlineCSSStyleDeclaration;
 class ExplicitGridTrack;
 class FilterValueListStyleValue;
 class FitContentStyleValue;
