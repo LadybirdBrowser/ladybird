@@ -56,8 +56,8 @@ public:
     {
     }
 
-    PropertyKey(ByteString const& string)
-        : PropertyKey(DeprecatedFlyString(string))
+    PropertyKey(String const& string)
+        : PropertyKey(DeprecatedFlyString(string.to_byte_string()))
     {
     }
 

@@ -264,7 +264,7 @@ ThrowCompletionOr<DurationFormat::DurationUnitOptions> get_duration_unit_options
     auto display_field = MUST(String::formatted("{}Display", unit_property_key));
 
     // 6. Let display be ? GetOption(options, displayField, STRING, « "auto", "always" », displayDefault).
-    auto display_value = TRY(get_option(vm, options, display_field.to_byte_string(), OptionType::String, { "auto"sv, "always"sv }, display_default));
+    auto display_value = TRY(get_option(vm, options, display_field, OptionType::String, { "auto"sv, "always"sv }, display_default));
     auto display = DurationFormat::display_from_string(display_value.as_string().utf8_string());
 
     // 7. Perform ? ValidateDurationUnitStyle(unit, style, display, prevStyle).

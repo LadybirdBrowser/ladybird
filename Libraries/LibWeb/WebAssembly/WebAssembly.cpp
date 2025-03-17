@@ -172,7 +172,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<Wasm::ModuleInstance>> instantiate_module(JS
         for (Wasm::Linker::Name const& import_name : linker.unresolved_imports()) {
             dbgln_if(LIBWEB_WASM_DEBUG, "Trying to resolve {}::{}", import_name.module, import_name.name);
             // 3.1. Let o be ? Get(importObject, moduleName).
-            auto value_or_error = import_object->get(import_name.module);
+            auto value_or_error = import_object->get(MUST(String::from_byte_string(import_name.module)));
             if (value_or_error.is_error())
                 break;
             auto value = value_or_error.release_value();
@@ -182,7 +182,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<Wasm::ModuleInstance>> instantiate_module(JS
                 break;
             auto object = object_or_error.release_value();
             // 3.3. Let v be ? Get(o, componentName).
-            auto import_or_error = object->get(import_name.name);
+            auto import_or_error = object->get(MUST(String::from_byte_string(import_name.name)));
             if (import_or_error.is_error())
                 break;
             auto import_ = import_or_error.release_value();

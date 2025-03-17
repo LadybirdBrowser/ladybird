@@ -171,7 +171,7 @@ JS::Completion call_user_object_operation(WebIDL::CallbackType& callback, String
     // 9. If ! IsCallable(O) is false, then:
     if (!object->is_function()) {
         // 1. Let getResult be Get(O, opName).
-        auto get_result = object->get(operation_name.to_byte_string());
+        auto get_result = object->get(operation_name);
 
         // 2. If getResult is an abrupt completion, set completion to getResult and jump to the step labeled return.
         if (get_result.is_throw_completion()) {

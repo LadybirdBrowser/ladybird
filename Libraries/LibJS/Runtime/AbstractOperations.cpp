@@ -1363,7 +1363,7 @@ ThrowCompletionOr<String> get_substitution(VM& vm, Utf16View const& matched, Utf
 
                 // 2. Let groupName be the substring of templateRemainder from 2 to gtPos.
                 auto group_name_view = template_remainder.substring_view(2, *greater_than_position - 2);
-                auto group_name = MUST(group_name_view.to_byte_string(Utf16View::AllowInvalidCodeUnits::Yes));
+                auto group_name = MUST(group_name_view.to_utf8(Utf16View::AllowInvalidCodeUnits::Yes));
 
                 // 3. Assert: namedCaptures is an Object.
                 VERIFY(named_captures.is_object());

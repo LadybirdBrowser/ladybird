@@ -1018,7 +1018,7 @@ public:
                     auto deserialized_value = TRY(deserialize());
 
                     // 2. Let result be ! CreateDataProperty(value, entry.[[Key]], deserializedValue).
-                    auto result = MUST(object.create_data_property(key.to_byte_string(), deserialized_value));
+                    auto result = MUST(object.create_data_property(key, deserialized_value));
 
                     // 3. Assert: result is true.
                     VERIFY(result);

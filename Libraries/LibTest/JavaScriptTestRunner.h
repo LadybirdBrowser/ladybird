@@ -58,9 +58,9 @@
         }                                                                                                                                       \
     } __testjs_register_##fn {};
 
-#define TESTJS_GLOBAL_FUNCTION(function, exposed_name, ...)                    \
-    JS_DECLARE_NATIVE_FUNCTION(function);                                      \
-    __TESTJS_REGISTER_GLOBAL_FUNCTION(#exposed_name, function, ##__VA_ARGS__); \
+#define TESTJS_GLOBAL_FUNCTION(function, exposed_name, ...)                             \
+    JS_DECLARE_NATIVE_FUNCTION(function);                                               \
+    __TESTJS_REGISTER_GLOBAL_FUNCTION(#exposed_name##_string, function, ##__VA_ARGS__); \
     JS_DEFINE_NATIVE_FUNCTION(function)
 
 #define TESTJS_MAIN_HOOK()                  \
@@ -117,7 +117,7 @@ struct FunctionWithLength {
     JS::ThrowCompletionOr<JS::Value> (*function)(JS::VM&);
     size_t length { 0 };
 };
-extern HashMap<ByteString, FunctionWithLength> s_exposed_global_functions;
+extern HashMap<String, FunctionWithLength> s_exposed_global_functions;
 extern ByteString g_test_root_fragment;
 extern ByteString g_test_root;
 extern int g_test_argc;

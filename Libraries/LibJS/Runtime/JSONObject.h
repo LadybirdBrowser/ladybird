@@ -20,7 +20,7 @@ public:
 
     // The base implementation of stringify is exposed because it is used by
     // test-js to communicate between the JS tests and the C++ test runner.
-    static ThrowCompletionOr<Optional<ByteString>> stringify_impl(VM&, Value value, Value replacer, Value space);
+    static ThrowCompletionOr<Optional<String>> stringify_impl(VM&, Value value, Value replacer, Value space);
 
     static Value parse_json_value(VM&, JsonValue const&);
 
@@ -30,16 +30,16 @@ private:
     struct StringifyState {
         GC::Ptr<FunctionObject> replacer_function;
         HashTable<GC::Ptr<Object>> seen_objects;
-        ByteString indent { ByteString::empty() };
-        ByteString gap;
-        Optional<Vector<ByteString>> property_list;
+        String indent;
+        String gap;
+        Optional<Vector<String>> property_list;
     };
 
     // Stringify helpers
-    static ThrowCompletionOr<Optional<ByteString>> serialize_json_property(VM&, StringifyState&, PropertyKey const& key, Object* holder);
-    static ThrowCompletionOr<ByteString> serialize_json_object(VM&, StringifyState&, Object&);
-    static ThrowCompletionOr<ByteString> serialize_json_array(VM&, StringifyState&, Object&);
-    static ByteString quote_json_string(ByteString);
+    static ThrowCompletionOr<Optional<String>> serialize_json_property(VM&, StringifyState&, PropertyKey const& key, Object* holder);
+    static ThrowCompletionOr<String> serialize_json_object(VM&, StringifyState&, Object&);
+    static ThrowCompletionOr<String> serialize_json_array(VM&, StringifyState&, Object&);
+    static String quote_json_string(String);
 
     // Parse helpers
     static Object* parse_json_object(VM&, JsonObject const&);

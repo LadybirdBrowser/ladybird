@@ -21,7 +21,7 @@ namespace JS {
 RefPtr<::JS::VM> g_vm;
 bool g_collect_on_every_allocation = false;
 ByteString g_currently_running_test;
-HashMap<ByteString, FunctionWithLength> s_exposed_global_functions;
+HashMap<String, FunctionWithLength> s_exposed_global_functions;
 Function<void()> g_main_hook;
 HashMap<bool*, Tuple<ByteString, ByteString, char>> g_extra_args;
 IntermediateRunFileResult (*g_run_file)(ByteString const&, JS::Realm&, JS::ExecutionContext&) = nullptr;
