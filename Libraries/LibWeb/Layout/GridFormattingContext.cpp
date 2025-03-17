@@ -2554,18 +2554,44 @@ CSSPixels GridFormattingContext::content_based_minimum_size(GridItem const& item
     // The content-based minimum size for a grid item in a given dimension is its specified size suggestion if it exists,
     // otherwise its transferred size suggestion if that exists,
     // else its content size suggestion, see below.
-    // In all cases, the size suggestion is additionally clamped by the maximum size in the affected axis, if it’s definite.
-
-    auto maximum_size = CSSPixels::max();
-    if (auto const& css_maximum_size = get_item_maximum_size(item, dimension); css_maximum_size.is_length()) {
-        maximum_size = css_maximum_size.length().to_px(item.box);
-    }
-
+    CSSPixels result = 0;
     if (auto specified_size_suggestion = this->specified_size_suggestion(item, dimension); specified_size_suggestion.has_value()) {
-        return min(specified_size_suggestion.value(), maximum_size);
+        result = specified_size_suggestion.value();
+    } else {
+        result = content_size_suggestion(item, dimension);
     }
 
-    return min(content_size_suggestion(item, dimension), maximum_size);
+    // However, if in a given dimension the grid item spans only grid tracks that have a fixed max track sizing function, then
+    // its specified size suggestion and content size suggestion in that dimension (and its input from this dimension to the
+    // transferred size suggestion in the opposite dimension) are further clamped to less than or equal to the stretch fit into
+    // the grid area’s maximum size in that dimension, as represented by the sum of those grid tracks’ max track sizing functions
+    // plus any intervening fixed gutters.
+    // FIXME: Account for intervening fixed gutters.
+    auto const& tracks = dimension == GridDimension::Column ? m_grid_columns : m_grid_rows;
+    auto const& available_size = dimension == GridDimension::Column ? m_available_space->width : m_available_space->height;
+    auto item_track_index = item.raw_position(dimension);
+    auto item_track_span = item.span(dimension);
+    bool spans_only_tracks_with_limited_max_track_sizing_function = true;
+    CSSPixels sum_of_max_sizing_functions = 0;
+    for (size_t index = 0; index < item_track_span; index++) {
+        auto const& track = tracks[item_track_index + index];
+        if (!track.max_track_sizing_function.is_fixed(available_size)) {
+            spans_only_tracks_with_limited_max_track_sizing_function = false;
+            break;
+        }
+        sum_of_max_sizing_functions += track.max_track_sizing_function.length_percentage().length().to_px(item.box);
+    }
+    if (spans_only_tracks_with_limited_max_track_sizing_function) {
+        result = min(result, sum_of_max_sizing_functions);
+    }
+
+    // In all cases, the size suggestion is additionally clamped by the maximum size in the affected axis, if it’s definite.
+    if (auto const& css_maximum_size = get_item_maximum_size(item, dimension); css_maximum_size.is_length()) {
+        auto maximum_size = css_maximum_size.length().to_px(item.box);
+        result = min(result, maximum_size);
+    }
+
+    return result;
 }
 
 CSSPixels GridFormattingContext::automatic_minimum_size(GridItem const& item, GridDimension const dimension) const
