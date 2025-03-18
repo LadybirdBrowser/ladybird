@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 350 tests
 
-155 Pass
-195 Fail
+160 Pass
+190 Fail
 Pass	Loading data...
 Fail	Pattern: [{"pathname":"/foo/bar"}] Inputs: [{"pathname":"/foo/bar"}]
 Pass	Pattern: [{"pathname":"/foo/bar"}] Inputs: [{"pathname":"/foo/ba"}]
@@ -218,10 +218,10 @@ Fail	Pattern: ["/foo?bar#baz","https://example.com:8080"] Inputs: [{"pathname":"
 Pass	Pattern: ["/foo"] Inputs: undefined
 Pass	Pattern: ["example.com/foo"] Inputs: undefined
 Pass	Pattern: ["http{s}?://{*.}?example.com/:product/:endpoint"] Inputs: ["https://sub.example.com/foo/bar"]
-Fail	Pattern: ["https://example.com?foo"] Inputs: ["https://example.com/?foo"]
-Fail	Pattern: ["https://example.com#foo"] Inputs: ["https://example.com/#foo"]
-Fail	Pattern: ["https://example.com:8080?foo"] Inputs: ["https://example.com:8080/?foo"]
-Fail	Pattern: ["https://example.com:8080#foo"] Inputs: ["https://example.com:8080/#foo"]
+Pass	Pattern: ["https://example.com?foo"] Inputs: ["https://example.com/?foo"]
+Pass	Pattern: ["https://example.com#foo"] Inputs: ["https://example.com/#foo"]
+Pass	Pattern: ["https://example.com:8080?foo"] Inputs: ["https://example.com:8080/?foo"]
+Pass	Pattern: ["https://example.com:8080#foo"] Inputs: ["https://example.com:8080/#foo"]
 Pass	Pattern: ["https://example.com/?foo"] Inputs: ["https://example.com/?foo"]
 Pass	Pattern: ["https://example.com/#foo"] Inputs: ["https://example.com/#foo"]
 Fail	Pattern: ["https://example.com/*?foo"] Inputs: ["https://example.com/?foo"]
@@ -259,7 +259,7 @@ Pass	Pattern: ["https://foo\\:bar@example.com"] Inputs: ["https://foo:bar@exampl
 Pass	Pattern: ["https://foo@example.com"] Inputs: ["https://foo@example.com"]
 Pass	Pattern: ["https://\\:bar@example.com"] Inputs: ["https://:bar@example.com"]
 Pass	Pattern: ["https://:user::pass@example.com"] Inputs: ["https://foo:bar@example.com"]
-Fail	Pattern: ["https\\:foo\\:bar@example.com"] Inputs: ["https:foo:bar@example.com"]
+Pass	Pattern: ["https\\:foo\\:bar@example.com"] Inputs: ["https:foo:bar@example.com"]
 Fail	Pattern: ["data\\:foo\\:bar@example.com"] Inputs: ["data:foo:bar@example.com"]
 Pass	Pattern: ["https://foo{\\:}bar@example.com"] Inputs: ["https://foo:bar@example.com"]
 Pass	Pattern: ["data{\\:}channel.html","https://example.com"] Inputs: ["https://example.com/data:channel.html"]
