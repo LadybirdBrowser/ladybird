@@ -381,7 +381,16 @@ String ConstructorStringParser::make_a_component_string() const
 // https://urlpattern.spec.whatwg.org/#compute-protocol-matches-a-special-scheme-flag
 PatternErrorOr<void> ConstructorStringParser::compute_protocol_matches_a_special_scheme_flag()
 {
-    // FIXME: Implement this.
+    // 1. Let protocol string be the result of running make a component string given parser.
+    auto protocol_string = make_a_component_string();
+
+    // 2. Let protocol component be the result of compiling a component given protocol string, canonicalize a protocol, and default options.
+    auto protocol_component = TRY(Component::compile(protocol_string.code_points(), canonicalize_a_protocol, Options::default_()));
+
+    // 3. If the result of running protocol component matches a special scheme given protocol component is true, then set parser’s protocol matches a special scheme flag to true.
+    if (protocol_component_matches_a_special_scheme(protocol_component))
+        m_protocol_matches_a_special_scheme = true;
+
     return {};
 }
 
