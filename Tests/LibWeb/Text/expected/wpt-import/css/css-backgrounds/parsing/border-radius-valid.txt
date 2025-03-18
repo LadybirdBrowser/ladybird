@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 23 tests
 
-21 Pass
-2 Fail
+23 Pass
 Pass	e.style['border-radius'] = "initial" should set the property value
 Pass	e.style['border-radius'] = "inherit" should set the property value
 Pass	e.style['border-radius'] = "unset" should set the property value
@@ -25,5 +24,5 @@ Pass	e.style['border-radius'] = "1px 2% 1px 1px" should set the property value
 Pass	e.style['border-radius'] = "1px 2% 2% 2% / 1px 2% 3px 2%" should set the property value
 Pass	e.style['border-top-left-radius'] = "10px" should set the property value
 Pass	e.style['border-top-right-radius'] = "20%" should set the property value
-Fail	e.style['border-bottom-right-radius'] = "30px 40%" should set the property value
-Fail	e.style['border-bottom-left-radius'] = "50% 60px" should set the property value
+Pass	e.style['border-bottom-right-radius'] = "30px 40%" should set the property value
+Pass	e.style['border-bottom-left-radius'] = "50% 60px" should set the property value
