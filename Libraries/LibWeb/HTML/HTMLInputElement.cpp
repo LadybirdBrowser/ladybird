@@ -2308,6 +2308,29 @@ static String convert_number_to_time_string(double input)
     return MUST(String::formatted("{:02d}:{:02d}", JS::hour_from_time(input), JS::min_from_time(input)));
 }
 
+// https://html.spec.whatwg.org/multipage/input.html#local-date-and-time-state-(type=datetime-local):concept-input-value-number-string
+static String convert_number_to_local_date_and_time_string(double input)
+{
+    // The algorithm to convert a number to a string, given a number input, is as follows: Return a valid
+    // normalized local date and time string that represents the date and time that is input milliseconds
+    // after midnight on the morning of 1970-01-01 (the time represented by the value "1970-01-01T00:00:00.0").
+    auto year = JS::year_from_time(input);
+    auto month = JS::month_from_time(input) + 1; // Adjust for zero-based month
+    auto day = JS::date_from_time(input);
+    auto hour = JS::hour_from_time(input);
+    auto minutes = JS::min_from_time(input);
+    auto seconds = JS::sec_from_time(input);
+    auto milliseconds = JS::ms_from_time(input);
+
+    if (seconds > 0) {
+        if (milliseconds > 0)
+            return MUST(String::formatted("{:04d}-{:02d}-{:02d}T{:02d}:{:02d}:{:02d}.{:03d}", year, month, day, hour, minutes, seconds, milliseconds));
+        return MUST(String::formatted("{:04d}-{:02d}-{:02d}T{:02d}:{:02d}:{:02d}", year, month, day, hour, minutes, seconds));
+    }
+
+    return MUST(String::formatted("{:04d}-{:02d}-{:02d}T{:02d}:{:02d}", year, month, day, hour, minutes));
+}
+
 // https://html.spec.whatwg.org/multipage/input.html#concept-input-value-string-number
 String HTMLInputElement::convert_number_to_string(double input) const
 {
@@ -2330,6 +2353,9 @@ String HTMLInputElement::convert_number_to_string(double input) const
 
     if (type_state() == TypeAttributeState::Time)
         return convert_number_to_time_string(input);
+
+    if (type_state() == TypeAttributeState::LocalDateAndTime)
+        return convert_number_to_local_date_and_time_string(input);
 
     dbgln("HTMLInputElement::convert_number_to_string() not implemented for input type {}", type());
     return {};
