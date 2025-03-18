@@ -336,6 +336,7 @@ private:
 
     CSSPixels content_size_suggestion(GridItem const&, GridDimension const) const;
     Optional<CSSPixels> specified_size_suggestion(GridItem const&, GridDimension const) const;
+    Optional<CSSPixels> transferred_size_suggestion(GridItem const&, GridDimension const) const;
     CSSPixels content_based_minimum_size(GridItem const&, GridDimension const) const;
     CSSPixels automatic_minimum_size(GridItem const&, GridDimension const) const;
     CSSPixels calculate_minimum_contribution(GridItem const&, GridDimension const) const;
