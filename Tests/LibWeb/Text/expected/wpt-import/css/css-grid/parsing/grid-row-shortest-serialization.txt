@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 15 tests
 
-8 Pass
-7 Fail
+11 Pass
+4 Fail
 Pass	Property grid-row value 'auto / auto'
 Pass	Property grid-row value 'auto'
 Pass	Property grid-row value '10 / auto'
@@ -12,10 +12,10 @@ Pass	Property grid-row value '-10 / auto'
 Pass	Property grid-row value '-10'
 Pass	Property grid-row value 'span 2 / auto'
 Pass	Property grid-row value 'span 2'
-Fail	Property grid-row value '3 last / auto'
-Fail	Property grid-row value '3 last'
+Pass	Property grid-row value '3 last / auto'
+Pass	Property grid-row value '3 last'
 Fail	Property grid-row value 'span first / auto'
 Fail	Property grid-row value 'span first'
 Fail	Property grid-row value 'span 2 first / auto'
 Fail	Property grid-row value 'span 2 first'
-Fail	Property grid-row value 'last / last'
+Pass	Property grid-row value 'last / last'
