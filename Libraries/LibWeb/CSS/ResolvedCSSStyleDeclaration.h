@@ -36,14 +36,7 @@ public:
 private:
     explicit ResolvedCSSStyleDeclaration(DOM::Element&, Optional<CSS::Selector::PseudoElement::Type>);
 
-    virtual void visit_edges(Cell::Visitor&) override;
-
-    virtual bool computed_flag() const override { return true; }
-
     RefPtr<CSSStyleValue const> style_value_for_property(Layout::NodeWithStyle const&, PropertyID) const;
-
-    GC::Ref<DOM::Element> m_element;
-    Optional<CSS::Selector::PseudoElement::Type> m_pseudo_element;
 };
 
 }

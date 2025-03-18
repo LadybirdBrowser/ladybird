@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2018-2023, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2024-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -12,9 +13,11 @@
 #include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/GeneratedCSSStyleProperties.h>
 #include <LibWeb/CSS/StyleProperty.h>
+#include <LibWeb/DOM/ElementReference.h>
 
 namespace Web::CSS {
 
+// https://drafts.csswg.org/cssom/#css-declaration-blocks
 class CSSStyleDeclaration
     : public Bindings::PlatformObject
     , public Bindings::GeneratedCSSStyleProperties {
@@ -48,13 +51,36 @@ public:
 
     virtual String serialized() const = 0;
 
-    virtual GC::Ptr<CSSRule> parent_rule() const;
-
     // https://drafts.csswg.org/cssom/#cssstyledeclaration-computed-flag
-    [[nodiscard]] virtual bool computed_flag() const { return false; }
+    [[nodiscard]] bool is_computed() const { return m_computed; }
+
+    // https://drafts.csswg.org/cssom/#cssstyledeclaration-readonly-flag
+    [[nodiscard]] bool is_readonly() const { return m_readonly; }
+
+    // https://drafts.csswg.org/cssom/#cssstyledeclaration-parent-css-rule
+    GC::Ptr<CSSRule> parent_rule() const { return m_parent_rule; }
+    void set_parent_rule(GC::Ptr<CSSRule> parent) { m_parent_rule = parent; }
+
+    // https://drafts.csswg.org/cssom/#cssstyledeclaration-owner-node
+    Optional<DOM::ElementReference> owner_node() const { return m_owner_node; }
+    void set_owner_node(Optional<DOM::ElementReference> owner_node) { m_owner_node = move(owner_node); }
+
+    // https://drafts.csswg.org/cssom/#cssstyledeclaration-updating-flag
+    [[nodiscard]] bool is_updating() const { return m_updating; }
+    void set_is_updating(bool value) { m_updating = value; }
 
 protected:
-    explicit CSSStyleDeclaration(JS::Realm&);
+    enum class Computed : u8 {
+        No,
+        Yes,
+    };
+    enum class Readonly : u8 {
+        No,
+        Yes,
+    };
+    explicit CSSStyleDeclaration(JS::Realm&, Computed, Readonly);
+
+    virtual void visit_edges(Visitor&) override;
 
     virtual CSSStyleDeclaration& generated_style_properties_to_css_style_declaration() override { return *this; }
 
@@ -62,6 +88,21 @@ private:
     // ^PlatformObject
     virtual Optional<JS::Value> item_value(size_t index) const override;
     Optional<StyleProperty> get_property_internal(PropertyID) const;
+
+    // https://drafts.csswg.org/cssom/#cssstyledeclaration-parent-css-rule
+    GC::Ptr<CSSRule> m_parent_rule { nullptr };
+
+    // https://drafts.csswg.org/cssom/#cssstyledeclaration-owner-node
+    Optional<DOM::ElementReference> m_owner_node {};
+
+    // https://drafts.csswg.org/cssom/#cssstyledeclaration-computed-flag
+    bool m_computed { false };
+
+    // https://drafts.csswg.org/cssom/#cssstyledeclaration-readonly-flag
+    bool m_readonly { false };
+
+    // https://drafts.csswg.org/cssom/#cssstyledeclaration-updating-flag
+    bool m_updating { false };
 };
 
 class PropertyOwningCSSStyleDeclaration : public CSSStyleDeclaration {
@@ -92,9 +133,6 @@ public:
     virtual String serialized() const final override;
     virtual WebIDL::ExceptionOr<void> set_css_text(StringView) override;
 
-    virtual GC::Ptr<CSSRule> parent_rule() const override;
-    void set_parent_rule(GC::Ref<CSSRule>);
-
 protected:
     PropertyOwningCSSStyleDeclaration(JS::Realm&, Vector<StyleProperty>, HashMap<FlyString, StyleProperty>);
 
@@ -108,7 +146,6 @@ private:
 
     virtual void visit_edges(Cell::Visitor&) override;
 
-    GC::Ptr<CSSRule> m_parent_rule;
     Vector<StyleProperty> m_properties;
     HashMap<FlyString, StyleProperty> m_custom_properties;
 };
@@ -122,11 +159,6 @@ public:
 
     virtual ~ElementInlineCSSStyleDeclaration() override = default;
 
-    DOM::Element* element() { return m_element.ptr(); }
-    const DOM::Element* element() const { return m_element.ptr(); }
-
-    bool is_updating() const { return m_updating; }
-
     void set_declarations_from_text(StringView);
 
     virtual WebIDL::ExceptionOr<void> set_css_text(StringView) override;
@@ -134,14 +166,7 @@ public:
 private:
     ElementInlineCSSStyleDeclaration(DOM::Element&, Vector<StyleProperty> properties, HashMap<FlyString, StyleProperty> custom_properties);
 
-    virtual void visit_edges(Cell::Visitor&) override;
-
     virtual void update_style_attribute() override;
-
-    GC::Ptr<DOM::Element> m_element;
-
-    // https://drafts.csswg.org/cssom/#cssstyledeclaration-updating-flag
-    bool m_updating { false };
 };
 
 }

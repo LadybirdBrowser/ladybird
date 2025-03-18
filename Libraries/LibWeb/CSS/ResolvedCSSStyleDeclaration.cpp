@@ -39,16 +39,9 @@ GC::Ref<ResolvedCSSStyleDeclaration> ResolvedCSSStyleDeclaration::create(DOM::El
 }
 
 ResolvedCSSStyleDeclaration::ResolvedCSSStyleDeclaration(DOM::Element& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element)
-    : CSSStyleDeclaration(element.realm())
-    , m_element(element)
-    , m_pseudo_element(move(pseudo_element))
+    : CSSStyleDeclaration(element.realm(), Computed::Yes, Readonly::Yes)
 {
-}
-
-void ResolvedCSSStyleDeclaration::visit_edges(Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_element);
+    set_owner_node(DOM::ElementReference { element, pseudo_element });
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-length
@@ -180,6 +173,9 @@ RefPtr<CSSStyleValue const> ResolvedCSSStyleDeclaration::style_value_for_propert
         return {};
     };
 
+    auto& element = owner_node()->element();
+    auto pseudo_element = owner_node()->pseudo_element();
+
     auto used_value_for_inset = [&layout_node, used_value_for_property](LengthPercentage const& start_side, LengthPercentage const& end_side, Function<CSSPixels(Painting::PaintableBox const&)>&& used_value_getter) -> Optional<CSSPixels> {
         if (!layout_node.is_positioned())
             return {};
@@ -194,10 +190,10 @@ RefPtr<CSSStyleValue const> ResolvedCSSStyleDeclaration::style_value_for_propert
         return used_value_for_property(move(used_value_getter));
     };
 
-    auto get_computed_value = [this](PropertyID property_id) -> auto const& {
-        if (m_pseudo_element.has_value())
-            return m_element->pseudo_element_computed_properties(m_pseudo_element.value())->property(property_id);
-        return m_element->computed_properties()->property(property_id);
+    auto get_computed_value = [&element, pseudo_element](PropertyID property_id) -> auto const& {
+        if (pseudo_element.has_value())
+            return element.pseudo_element_computed_properties(pseudo_element.value())->property(property_id);
+        return element.computed_properties()->property(property_id);
     };
 
     // A limited number of properties have special rules for producing their "resolved value".
@@ -557,15 +553,18 @@ RefPtr<CSSStyleValue const> ResolvedCSSStyleDeclaration::style_value_for_propert
 
 Optional<StyleProperty> ResolvedCSSStyleDeclaration::property(PropertyID property_id) const
 {
+    auto& element = owner_node()->element();
+    auto pseudo_element = owner_node()->pseudo_element();
+
     // https://www.w3.org/TR/cssom-1/#dom-window-getcomputedstyle
     // NOTE: This is a partial enforcement of step 5 ("If elt is connected, ...")
-    if (!m_element->is_connected())
+    if (!element.is_connected())
         return {};
 
     auto get_layout_node = [&]() {
-        if (m_pseudo_element.has_value())
-            return m_element->get_pseudo_element_node(m_pseudo_element.value());
-        return m_element->layout_node();
+        if (pseudo_element.has_value())
+            return element.get_pseudo_element_node(pseudo_element.value());
+        return element.layout_node();
     };
 
     Layout::NodeWithStyle* layout_node = get_layout_node();
@@ -574,15 +573,15 @@ Optional<StyleProperty> ResolvedCSSStyleDeclaration::property(PropertyID propert
     //        We may legitimately have no layout node if we're not visible, but this protects against situations
     //        where we're requesting the computed style before layout has happened.
     if (!layout_node || property_affects_layout(property_id)) {
-        const_cast<DOM::Document&>(m_element->document()).update_layout(DOM::UpdateLayoutReason::ResolvedCSSStyleDeclarationProperty);
+        element.document().update_layout(DOM::UpdateLayoutReason::ResolvedCSSStyleDeclarationProperty);
         layout_node = get_layout_node();
     } else {
         // FIXME: If we had a way to update style for a single element, this would be a good place to use it.
-        const_cast<DOM::Document&>(m_element->document()).update_style();
+        element.document().update_style();
     }
 
     if (!layout_node) {
-        auto style = m_element->document().style_computer().compute_style(const_cast<DOM::Element&>(*m_element), m_pseudo_element);
+        auto style = element.document().style_computer().compute_style(element, pseudo_element);
 
         // FIXME: This is a stopgap until we implement shorthand -> longhand conversion.
         auto const* value = style->maybe_null_property(property_id);
@@ -607,11 +606,14 @@ Optional<StyleProperty> ResolvedCSSStyleDeclaration::property(PropertyID propert
 
 Optional<StyleProperty const&> ResolvedCSSStyleDeclaration::custom_property(FlyString const& name) const
 {
-    const_cast<DOM::Document&>(m_element->document()).update_style();
+    auto& element = owner_node()->element();
+    auto pseudo_element = owner_node()->pseudo_element();
 
-    auto const* element_to_check = m_element.ptr();
+    element.document().update_style();
+
+    auto const* element_to_check = &element;
     while (element_to_check) {
-        if (auto property = element_to_check->custom_properties(m_pseudo_element).get(name); property.has_value())
+        if (auto property = element_to_check->custom_properties(pseudo_element).get(name); property.has_value())
             return *property;
 
         element_to_check = element_to_check->parent_element();
