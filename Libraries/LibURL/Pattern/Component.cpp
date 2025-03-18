@@ -273,4 +273,41 @@ PatternErrorOr<Component> Component::compile(Utf8View const& input, PatternParse
     };
 }
 
+// https://urlpattern.spec.whatwg.org/#create-a-component-match-result
+Component::Result Component::create_match_result(String const& input, regex::RegexResult const& exec_result) const
+{
+    // 1. Let result be a new URLPatternComponentResult.
+    Component::Result result;
+
+    // 2. Set result["input"] to input.
+    result.input = input;
+
+    // 3. Let groups be a record<USVString, (USVString or undefined)>.
+    OrderedHashMap<String, Variant<String, Empty>> groups;
+
+    // 4. Let index be 1.
+    // 5. While index is less than Get(execResult, "length"):
+    for (size_t index = 1; index <= exec_result.n_capture_groups; ++index) {
+        auto const& capture = exec_result.capture_group_matches[0][index];
+
+        // 1. Let name be component’s group name list[index − 1].
+        auto name = group_name_list[index - 1];
+
+        // 2. Let value be Get(execResult, ToString(index)).
+        // 3. Set groups[name] to value.
+        if (capture.view.is_null())
+            groups.set(name, Empty {});
+        else
+            groups.set(name, MUST(capture.view.to_string()));
+
+        // 4. Increment index by 1.
+    }
+
+    // 6. Set result["groups"] to groups.
+    result.groups = move(groups);
+
+    // 7. Return result.
+    return result;
+}
+
 }
