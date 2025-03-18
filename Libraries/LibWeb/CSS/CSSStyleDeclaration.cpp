@@ -25,8 +25,10 @@ GC_DEFINE_ALLOCATOR(CSSStyleDeclaration);
 GC_DEFINE_ALLOCATOR(PropertyOwningCSSStyleDeclaration);
 GC_DEFINE_ALLOCATOR(ElementInlineCSSStyleDeclaration);
 
-CSSStyleDeclaration::CSSStyleDeclaration(JS::Realm& realm)
+CSSStyleDeclaration::CSSStyleDeclaration(JS::Realm& realm, Computed computed, Readonly readonly)
     : PlatformObject(realm)
+    , m_computed(computed == Computed::Yes)
+    , m_readonly(readonly == Readonly::Yes)
 {
     m_legacy_platform_object_flags = LegacyPlatformObjectFlags {
         .supports_indexed_properties = true,
@@ -39,27 +41,21 @@ void CSSStyleDeclaration::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSStyleDeclaration);
 }
 
-GC::Ptr<CSSRule> CSSStyleDeclaration::parent_rule() const
-{
-    return nullptr;
-}
-
 GC::Ref<PropertyOwningCSSStyleDeclaration> PropertyOwningCSSStyleDeclaration::create(JS::Realm& realm, Vector<StyleProperty> properties, HashMap<FlyString, StyleProperty> custom_properties)
 {
     return realm.create<PropertyOwningCSSStyleDeclaration>(realm, move(properties), move(custom_properties));
 }
 
 PropertyOwningCSSStyleDeclaration::PropertyOwningCSSStyleDeclaration(JS::Realm& realm, Vector<StyleProperty> properties, HashMap<FlyString, StyleProperty> custom_properties)
-    : CSSStyleDeclaration(realm)
+    : CSSStyleDeclaration(realm, Computed::No, Readonly::No)
     , m_properties(move(properties))
     , m_custom_properties(move(custom_properties))
 {
 }
 
-void PropertyOwningCSSStyleDeclaration::visit_edges(Cell::Visitor& visitor)
+void PropertyOwningCSSStyleDeclaration::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_parent_rule);
     for (auto& property : m_properties) {
         if (property.value->is_image())
             property.value->as_image().visit_edges(visitor);
@@ -81,14 +77,8 @@ GC::Ref<ElementInlineCSSStyleDeclaration> ElementInlineCSSStyleDeclaration::crea
 
 ElementInlineCSSStyleDeclaration::ElementInlineCSSStyleDeclaration(DOM::Element& element, Vector<StyleProperty> properties, HashMap<FlyString, StyleProperty> custom_properties)
     : PropertyOwningCSSStyleDeclaration(element.realm(), move(properties), move(custom_properties))
-    , m_element(element.make_weak_ptr<DOM::Element>())
 {
-}
-
-void ElementInlineCSSStyleDeclaration::visit_edges(Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_element);
+    set_owner_node(DOM::ElementReference { element });
 }
 
 size_t PropertyOwningCSSStyleDeclaration::length() const
@@ -132,8 +122,8 @@ WebIDL::ExceptionOr<void> PropertyOwningCSSStyleDeclaration::set_property(String
         return {};
 
     // 5. Let component value list be the result of parsing value for property property.
-    auto component_value_list = is<ElementInlineCSSStyleDeclaration>(this)
-        ? parse_css_value(CSS::Parser::ParsingParams { static_cast<ElementInlineCSSStyleDeclaration&>(*this).element()->document() }, value, property_id)
+    auto component_value_list = owner_node().has_value()
+        ? parse_css_value(CSS::Parser::ParsingParams { owner_node()->element().document() }, value, property_id)
         : parse_css_value(CSS::Parser::ParsingParams {}, value, property_id);
 
     // 6. If component value list is null, then return.
@@ -223,21 +213,21 @@ WebIDL::ExceptionOr<String> PropertyOwningCSSStyleDeclaration::remove_property(S
 void ElementInlineCSSStyleDeclaration::update_style_attribute()
 {
     // 1. Assert: declaration block’s computed flag is unset.
-    // NOTE: Unnecessary, only relevant for ResolvedCSSStyleDeclaration.
+    VERIFY(!is_computed());
 
     // 2. Let owner node be declaration block’s owner node.
     // 3. If owner node is null, then return.
-    if (!m_element)
+    if (!owner_node().has_value())
         return;
 
     // 4. Set declaration block’s updating flag.
-    m_updating = true;
+    set_is_updating(true);
 
     // 5. Set an attribute value for owner node using "style" and the result of serializing declaration block.
-    MUST(m_element->set_attribute(HTML::AttributeNames::style, serialized()));
+    MUST(owner_node()->element().set_attribute(HTML::AttributeNames::style, serialized()));
 
     // 6. Unset declaration block’s updating flag.
-    m_updating = false;
+    set_is_updating(false);
 }
 
 // https://drafts.csswg.org/cssom/#set-a-css-declaration
@@ -445,8 +435,8 @@ String CSSStyleDeclaration::get_property_value(StringView property_name) const
         auto maybe_custom_property = custom_property(FlyString::from_utf8_without_validation(property_name.bytes()));
         if (maybe_custom_property.has_value()) {
             return maybe_custom_property.value().value->to_string(
-                computed_flag() ? CSSStyleValue::SerializationMode::ResolvedValue
-                                : CSSStyleValue::SerializationMode::Normal);
+                is_computed() ? CSSStyleValue::SerializationMode::ResolvedValue
+                              : CSSStyleValue::SerializationMode::Normal);
         }
         return {};
     }
@@ -455,8 +445,8 @@ String CSSStyleDeclaration::get_property_value(StringView property_name) const
     if (!maybe_property.has_value())
         return {};
     return maybe_property->value->to_string(
-        computed_flag() ? CSSStyleValue::SerializationMode::ResolvedValue
-                        : CSSStyleValue::SerializationMode::Normal);
+        is_computed() ? CSSStyleValue::SerializationMode::ResolvedValue
+                      : CSSStyleValue::SerializationMode::Normal);
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-getpropertypriority
@@ -518,6 +508,14 @@ Optional<JS::Value> CSSStyleDeclaration::item_value(size_t index) const
         return {};
 
     return JS::PrimitiveString::create(vm(), value);
+}
+
+void CSSStyleDeclaration::visit_edges(Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_parent_rule);
+    if (m_owner_node.has_value())
+        m_owner_node->visit(visitor);
 }
 
 // https://www.w3.org/TR/cssom/#serialize-a-css-declaration
@@ -663,13 +661,14 @@ void PropertyOwningCSSStyleDeclaration::set_the_declarations(Vector<StylePropert
 void ElementInlineCSSStyleDeclaration::set_declarations_from_text(StringView css_text)
 {
     // FIXME: What do we do if the element is null?
-    if (!m_element) {
-        dbgln("FIXME: Returning from ElementInlineCSSStyleDeclaration::declarations_from_text as m_element is null.");
+    auto element = owner_node();
+    if (!element.has_value()) {
+        dbgln("FIXME: Returning from ElementInlineCSSStyleDeclaration::declarations_from_text as element is null.");
         return;
     }
 
     empty_the_declarations();
-    auto style = parse_css_style_attribute(CSS::Parser::ParsingParams(m_element->document()), css_text, *m_element.ptr());
+    auto style = parse_css_style_attribute(CSS::Parser::ParsingParams(element->element().document()), css_text, element->element());
     set_the_declarations(style->properties(), style->custom_properties());
 }
 
@@ -677,8 +676,8 @@ void ElementInlineCSSStyleDeclaration::set_declarations_from_text(StringView css
 WebIDL::ExceptionOr<void> ElementInlineCSSStyleDeclaration::set_css_text(StringView css_text)
 {
     // FIXME: What do we do if the element is null?
-    if (!m_element) {
-        dbgln("FIXME: Returning from ElementInlineCSSStyleDeclaration::set_css_text as m_element is null.");
+    if (!owner_node().has_value()) {
+        dbgln("FIXME: Returning from ElementInlineCSSStyleDeclaration::set_css_text as element is null.");
         return {};
     }
 
@@ -693,16 +692,6 @@ WebIDL::ExceptionOr<void> ElementInlineCSSStyleDeclaration::set_css_text(StringV
     update_style_attribute();
 
     return {};
-}
-
-GC::Ptr<CSSRule> PropertyOwningCSSStyleDeclaration::parent_rule() const
-{
-    return m_parent_rule;
-}
-
-void PropertyOwningCSSStyleDeclaration::set_parent_rule(GC::Ref<CSSRule> rule)
-{
-    m_parent_rule = rule;
 }
 
 }
