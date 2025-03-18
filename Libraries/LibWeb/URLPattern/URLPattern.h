@@ -15,8 +15,12 @@ namespace Web::URLPattern {
 
 using URLPatternInit = URL::Pattern::Init;
 using URLPatternInput = URL::Pattern::Input;
-using URLPatternOptions = URL::Pattern::Options;
 using URLPatternResult = URL::Pattern::Result;
+
+// https://urlpattern.spec.whatwg.org/#dictdef-urlpatternoptions
+struct URLPatternOptions {
+    bool ignore_case { false };
+};
 
 // https://urlpattern.spec.whatwg.org/#urlpattern
 class URLPattern : public Bindings::PlatformObject {

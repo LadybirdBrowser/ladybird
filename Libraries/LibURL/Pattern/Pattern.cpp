@@ -10,7 +10,7 @@
 namespace URL::Pattern {
 
 // https://urlpattern.spec.whatwg.org/#url-pattern-create
-PatternErrorOr<Pattern> Pattern::create(Input const& input, Optional<String> const& base_url, Options const&)
+PatternErrorOr<Pattern> Pattern::create(Input const& input, Optional<String> const& base_url, IgnoreCase)
 {
     // 1. Let init be null.
     Init init;

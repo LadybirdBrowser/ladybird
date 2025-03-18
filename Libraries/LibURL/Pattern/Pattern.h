@@ -19,11 +19,6 @@ namespace URL::Pattern {
 // https://urlpattern.spec.whatwg.org/#typedefdef-urlpatterninput
 using Input = Variant<String, Init>;
 
-// https://urlpattern.spec.whatwg.org/#dictdef-urlpatternoptions
-struct Options {
-    bool ignore_case { false };
-};
-
 // https://urlpattern.spec.whatwg.org/#dictdef-urlpatterncomponentresult
 struct ComponentResult {
     String input;
@@ -44,10 +39,16 @@ struct Result {
     ComponentResult hash;
 };
 
+// https://urlpattern.spec.whatwg.org/#dictdef-urlpatternoptions
+enum class IgnoreCase {
+    Yes,
+    No,
+};
+
 // https://urlpattern.spec.whatwg.org/#url-pattern
 class Pattern {
 public:
-    static PatternErrorOr<Pattern> create(Input const&, Optional<String> const& base_url = {}, Options const& = {});
+    static PatternErrorOr<Pattern> create(Input const&, Optional<String> const& base_url = {}, IgnoreCase = IgnoreCase::No);
 
     PatternErrorOr<Optional<Result>> match(Input const&, Optional<String> const& base_url_string) const;
 
