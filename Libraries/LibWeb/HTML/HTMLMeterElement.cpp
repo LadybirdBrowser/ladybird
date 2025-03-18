@@ -207,9 +207,6 @@ void HTMLMeterElement::create_shadow_tree_if_needed()
 
 void HTMLMeterElement::update_meter_value_element()
 {
-    if (!m_meter_value_element)
-        return;
-
     // UA requirements for regions of the gauge:
     double value = this->value();
     double min = this->min();
@@ -221,25 +218,40 @@ void HTMLMeterElement::update_meter_value_element()
     // If the optimum point is equal to the low boundary or the high boundary, or anywhere in between them, then the region between the low and high boundaries of the gauge must be treated as the optimum region, and the low and high parts, if any, must be treated as suboptimal.
     if (optimum >= low && optimum <= high) {
         if (value >= low && value <= high)
-            m_meter_value_element->set_use_pseudo_element(CSS::Selector::PseudoElement::Type::MeterOptimumValue);
+            m_cached_value_state = ValueState::Optimal;
         else
-            m_meter_value_element->set_use_pseudo_element(CSS::Selector::PseudoElement::Type::MeterSuboptimumValue);
+            m_cached_value_state = ValueState::Suboptimal;
     }
     // Otherwise, if the optimum point is less than the low boundary, then the region between the minimum value and the low boundary must be treated as the optimum region, the region from the low boundary up to the high boundary must be treated as a suboptimal region, and the remaining region must be treated as an even less good region.
     else if (optimum < low) {
         if (value >= low && value <= high)
-            m_meter_value_element->set_use_pseudo_element(CSS::Selector::PseudoElement::Type::MeterSuboptimumValue);
+            m_cached_value_state = ValueState::Suboptimal;
         else
-            m_meter_value_element->set_use_pseudo_element(CSS::Selector::PseudoElement::Type::MeterEvenLessGoodValue);
+            m_cached_value_state = ValueState::EvenLessGood;
     }
     // Finally, if the optimum point is higher than the high boundary, then the situation is reversed; the region between the high boundary and the maximum value must be treated as the optimum region, the region from the high boundary down to the low boundary must be treated as a suboptimal region, and the remaining region must be treated as an even less good region.
     else {
         if (value >= high && value <= max)
-            m_meter_value_element->set_use_pseudo_element(CSS::Selector::PseudoElement::Type::MeterOptimumValue);
+            m_cached_value_state = ValueState::Optimal;
         else if (value >= low && value <= high)
-            m_meter_value_element->set_use_pseudo_element(CSS::Selector::PseudoElement::Type::MeterSuboptimumValue);
+            m_cached_value_state = ValueState::Suboptimal;
         else
-            m_meter_value_element->set_use_pseudo_element(CSS::Selector::PseudoElement::Type::MeterEvenLessGoodValue);
+            m_cached_value_state = ValueState::EvenLessGood;
+    }
+
+    if (!m_meter_value_element)
+        return;
+
+    switch (m_cached_value_state) {
+    case ValueState::Optimal:
+        m_meter_value_element->set_use_pseudo_element(CSS::Selector::PseudoElement::Type::MeterOptimumValue);
+        break;
+    case ValueState::Suboptimal:
+        m_meter_value_element->set_use_pseudo_element(CSS::Selector::PseudoElement::Type::MeterSuboptimumValue);
+        break;
+    case ValueState::EvenLessGood:
+        m_meter_value_element->set_use_pseudo_element(CSS::Selector::PseudoElement::Type::MeterEvenLessGoodValue);
+        break;
     }
 
     double position = (value - min) / (max - min) * 100;
