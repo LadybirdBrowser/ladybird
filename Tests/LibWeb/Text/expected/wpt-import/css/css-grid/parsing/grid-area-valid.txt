@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 57 tests
 
-13 Pass
-44 Fail
+15 Pass
+42 Fail
 Fail	e.style['grid-area'] = "auto" should set the property value
 Fail	e.style['grid-area'] = "auto / auto" should set the property value
 Fail	e.style['grid-area'] = "auto / auto / auto" should set the property value
@@ -28,9 +28,9 @@ Fail	e.style['grid-column'] = "-A0 33" should set the property value
 Pass	e.style['grid-row-start'] = "-19" should set the property value
 Fail	e.style['grid-row-start'] = "9 -Z_" should set the property value
 Pass	e.style['grid-column-start'] = "+90" should set the property value
-Fail	e.style['grid-column-start'] = "Z -44" should set the property value
+Pass	e.style['grid-column-start'] = "Z -44" should set the property value
 Fail	e.style['grid-row-end'] = "1 -πA" should set the property value
-Fail	e.style['grid-column-end'] = "π_ +5" should set the property value
+Pass	e.style['grid-column-end'] = "π_ +5" should set the property value
 Fail	e.style['grid-area'] = "span 2 i" should set the property value
 Fail	e.style['grid-area'] = "i 2 SpAn" should set the property value
 Fail	e.style['grid-area'] = "span 1 i" should set the property value

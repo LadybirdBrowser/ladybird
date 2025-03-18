@@ -22,8 +22,7 @@ String GridTrackPlacement::to_string() const
                 builder.appendff("{} {}", *area_or_line.line_number, *area_or_line.name);
             } else if (area_or_line.line_number.has_value()) {
                 builder.appendff("{}", *area_or_line.line_number);
-            }
-            if (area_or_line.name.has_value()) {
+            } else if (area_or_line.name.has_value()) {
                 builder.appendff("{}", *area_or_line.name);
             }
         },
