@@ -61,6 +61,7 @@ void append_percent_encoded_if_necessary(StringBuilder&, u32 code_point, Percent
 void append_percent_encoded(StringBuilder&, u32 code_point);
 bool code_point_is_in_percent_encode_set(u32 code_point, PercentEncodeSet);
 Optional<u16> default_port_for_scheme(StringView);
+ReadonlySpan<StringView> special_schemes();
 bool is_special_scheme(StringView);
 
 enum class SpaceAsPlus {
