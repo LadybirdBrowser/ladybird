@@ -130,7 +130,7 @@ static ErrorOr<void> collect_crash_tests(Application const& app, Vector<Test>& t
 static void clear_test_callbacks(HeadlessWebView& view)
 {
     view.on_load_finish = {};
-    view.on_text_test_finish = {};
+    view.on_test_finish = {};
     view.on_web_content_crashed = {};
 }
 
@@ -138,7 +138,7 @@ void run_dump_test(HeadlessWebView& view, Test& test, URL::URL const& url, int t
 {
     auto timer = Core::Timer::create_single_shot(timeout_in_milliseconds, [&view, &test]() {
         view.on_load_finish = {};
-        view.on_text_test_finish = {};
+        view.on_test_finish = {};
         view.on_set_test_timeout = {};
         view.reset_zoom();
 
@@ -255,7 +255,7 @@ void run_dump_test(HeadlessWebView& view, Test& test, URL::URL const& url, int t
             }
         };
 
-        view.on_text_test_finish = [&test, on_test_complete](auto const& text) {
+        view.on_test_finish = [&test, on_test_complete](auto const& text) {
             test.text = text;
             test.did_finish_test = true;
 
@@ -290,7 +290,7 @@ static void run_ref_test(HeadlessWebView& view, Test& test, URL::URL const& url,
 {
     auto timer = Core::Timer::create_single_shot(timeout_in_milliseconds, [&view, &test]() {
         view.on_load_finish = {};
-        view.on_text_test_finish = {};
+        view.on_test_finish = {};
         view.on_set_test_timeout = {};
         view.reset_zoom();
 
@@ -364,7 +364,7 @@ static void run_ref_test(HeadlessWebView& view, Test& test, URL::URL const& url,
         }
     };
 
-    view.on_text_test_finish = [&](auto const&) {
+    view.on_test_finish = [&](auto const&) {
         dbgln("Unexpected text test finished during ref test for {}", url);
     };
 
@@ -398,7 +398,7 @@ static void run_test(HeadlessWebView& view, Test& test, Application& app)
         });
     };
 
-    view.on_text_test_finish = {};
+    view.on_test_finish = {};
 
     promise->when_resolved([&view, &test, &app](auto) {
         auto url = URL::create_with_file_scheme(MUST(FileSystem::real_path(test.input_path)));

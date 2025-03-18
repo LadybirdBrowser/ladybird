@@ -5,7 +5,7 @@
 [Exposed=Nobody]
 interface Internals {
 
-    undefined signalTextTestIsDone(DOMString text);
+    undefined signalTestIsDone(DOMString text);
     undefined setTestTimeout(double milliseconds);
 
     undefined gc();
