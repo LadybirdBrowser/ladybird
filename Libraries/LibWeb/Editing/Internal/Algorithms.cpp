@@ -2669,7 +2669,7 @@ void justify_the_selection(DOM::Document& document, JustifyAlignment alignment)
             element->remove_attribute_ns(Namespace::HTML, HTML::AttributeNames::align);
 
         // 2. Unset the CSS property "text-align" on element, if it's set by a style attribute.
-        auto* inline_style = element->style_for_bindings();
+        auto inline_style = element->style_for_bindings();
         MUST(inline_style->remove_property(CSS::PropertyID::TextAlign));
 
         // 3. If element is a div or span or center with no attributes, remove it, preserving its descendants.
