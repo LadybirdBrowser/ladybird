@@ -337,7 +337,7 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
     case PropertyID::GridRow: {
         auto start = longhand(PropertyID::GridRowStart);
         auto end = longhand(PropertyID::GridRowEnd);
-        if (end->as_grid_track_placement().grid_track_placement().is_auto())
+        if (end->as_grid_track_placement().grid_track_placement().is_auto() || start == end)
             return start->to_string(mode);
         return MUST(String::formatted("{} / {}", start->to_string(mode), end->to_string(mode)));
     }
