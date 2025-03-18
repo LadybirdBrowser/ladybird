@@ -9,6 +9,7 @@
 #include <AK/OwnPtr.h>
 #include <AK/String.h>
 #include <LibRegex/Regex.h>
+#include <LibURL/Pattern/PatternParser.h>
 
 namespace URL::Pattern {
 
@@ -29,6 +30,8 @@ struct Component {
     // https://urlpattern.spec.whatwg.org/#component-has-regexp-groups
     // has regexp groups, a boolean
     bool has_regexp_groups {};
+
+    static PatternErrorOr<Component> compile(Utf8View const& input, PatternParser::EncodingCallback, Options const&);
 };
 
 }
