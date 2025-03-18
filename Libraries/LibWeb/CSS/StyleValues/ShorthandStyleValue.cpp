@@ -134,20 +134,50 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
         return MUST(builder.to_string());
     }
     case PropertyID::BorderRadius: {
-        auto& top_left = longhand(PropertyID::BorderTopLeftRadius)->as_border_radius();
-        auto& top_right = longhand(PropertyID::BorderTopRightRadius)->as_border_radius();
-        auto& bottom_right = longhand(PropertyID::BorderBottomRightRadius)->as_border_radius();
-        auto& bottom_left = longhand(PropertyID::BorderBottomLeftRadius)->as_border_radius();
+        auto top_left = longhand(PropertyID::BorderTopLeftRadius);
+        auto top_right = longhand(PropertyID::BorderTopRightRadius);
+        auto bottom_right = longhand(PropertyID::BorderBottomRightRadius);
+        auto bottom_left = longhand(PropertyID::BorderBottomLeftRadius);
 
-        return MUST(String::formatted("{} {} {} {} / {} {} {} {}",
-            top_left.horizontal_radius().to_string(),
-            top_right.horizontal_radius().to_string(),
-            bottom_right.horizontal_radius().to_string(),
-            bottom_left.horizontal_radius().to_string(),
-            top_left.vertical_radius().to_string(),
-            top_right.vertical_radius().to_string(),
-            bottom_right.vertical_radius().to_string(),
-            bottom_left.vertical_radius().to_string()));
+        auto horizontal_radius = [&](auto& style_value) -> String {
+            if (style_value->is_border_radius())
+                return style_value->as_border_radius().horizontal_radius().to_string();
+            return style_value->to_string(mode);
+        };
+
+        auto top_left_horizontal_string = horizontal_radius(top_left);
+        auto top_right_horizontal_string = horizontal_radius(top_right);
+        auto bottom_right_horizontal_string = horizontal_radius(bottom_right);
+        auto bottom_left_horizontal_string = horizontal_radius(bottom_left);
+
+        auto vertical_radius = [&](auto& style_value) -> String {
+            if (style_value->is_border_radius())
+                return style_value->as_border_radius().vertical_radius().to_string();
+            return style_value->to_string(mode);
+        };
+
+        auto top_left_vertical_string = vertical_radius(top_left);
+        auto top_right_vertical_string = vertical_radius(top_right);
+        auto bottom_right_vertical_string = vertical_radius(bottom_right);
+        auto bottom_left_vertical_string = vertical_radius(bottom_left);
+
+        auto serialize_radius = [](auto top_left, auto const& top_right, auto const& bottom_right, auto const& bottom_left) -> String {
+            if (first_is_equal_to_all_of(top_left, top_right, bottom_right, bottom_left))
+                return top_left;
+            if (top_left == bottom_right && top_right == bottom_left)
+                return MUST(String::formatted("{} {}", top_left, top_right));
+            if (top_right == bottom_left)
+                return MUST(String::formatted("{} {} {}", top_left, top_right, bottom_right));
+
+            return MUST(String::formatted("{} {} {} {}", top_left, top_right, bottom_right, bottom_left));
+        };
+
+        auto first_radius_serialization = serialize_radius(move(top_left_horizontal_string), top_right_horizontal_string, bottom_right_horizontal_string, bottom_left_horizontal_string);
+        auto second_radius_serialization = serialize_radius(move(top_left_vertical_string), top_right_vertical_string, bottom_right_vertical_string, bottom_left_vertical_string);
+        if (first_radius_serialization == second_radius_serialization)
+            return first_radius_serialization;
+
+        return MUST(String::formatted("{} / {}", first_radius_serialization, second_radius_serialization));
     }
     case PropertyID::Columns: {
         auto column_width = longhand(PropertyID::ColumnWidth)->to_string(mode);
