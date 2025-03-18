@@ -50,49 +50,57 @@ JS_DEFINE_NATIVE_FUNCTION(DurationFormatPrototype::resolved_options)
     auto options = Object::create(realm, realm.intrinsics().object_prototype());
 
     // 4. For each row of Table 21, except the header row, in table order, do
-    auto create_option = [&](PropertyKey const& property, StringView value) {
+    auto create_option = [&]<typename T>(PropertyKey const& property, Optional<PropertyKey const&> display_property, T value) {
         // a. Let p be the Property value of the current row.
         // b. Let v be the value of df's internal slot whose name is the Internal Slot value of the current row.
 
-        // c. If p is "fractionalDigits", then
-        //     i. If v is not undefined, perform ! CreateDataPropertyOrThrow(options, p, 𝔽(v)).
-        // NOTE: This case is handled separately below.
+        // c. If v is not undefined, then
+        //     i. If there is a Conversion value in the current row, let conversion be that value; else let conversion be empty.
+        //     ii. If conversion is number, then
+        //         1. Set v to 𝔽(v).
+        // NOTE: This case is for fractionalDigits and is handled separately below.
 
-        // d. Else,
-        //     i. Assert: v is not undefined.
-        //     ii. If v is "fractional", then
-        if (value == "fractional"sv) {
-            // 1. Assert: The Internal Slot value of the current row is [[MillisecondsStyle]], [[MicrosecondsStyle]], or [[NanosecondsStyle]] .
-            // 2. Set v to "numeric".
-            value = "numeric"sv;
+        //     iii. Else if conversion is not empty, then
+        if constexpr (IsSame<T, DurationFormat::DurationUnitOptions>) {
+            // 1. Assert: conversion is STYLE+DISPLAY and v is a Duration Unit Options Record.
+            // 2. NOTE: v.[[Style]] will be represented with a property named p (a plural Temporal unit), then v.[[Display]] will be represented with a property whose name suffixes p with "Display".
+            VERIFY(display_property.has_value());
+
+            // 3. Let style be v.[[Style]].
+            auto style = value.style;
+
+            // 4. If style is "fractional", then
+            if (style == DurationFormat::ValueStyle::Fractional) {
+                // a. Assert: IsFractionalSecondUnitName(p) is true.
+                // b. Set style to "numeric".
+                style = DurationFormat::ValueStyle::Numeric;
+            }
+
+            // 5. Perform ! CreateDataPropertyOrThrow(options, p, style).
+            MUST(options->create_data_property_or_throw(property, PrimitiveString::create(vm, DurationFormat::value_style_to_string(style))));
+
+            // 6. Set p to the string-concatenation of p and "Display".
+            // 7. Set v to v.[[Display]].
+            MUST(options->create_data_property_or_throw(*display_property, PrimitiveString::create(vm, DurationFormat::display_to_string(value.display))));
+        } else {
+            // iv. Perform ! CreateDataPropertyOrThrow(options, p, v).
+            MUST(options->create_data_property_or_throw(property, PrimitiveString::create(vm, move(value))));
         }
-        //     iii. Perform ! CreateDataPropertyOrThrow(options, p, v).
-        MUST(options->create_data_property_or_throw(property, PrimitiveString::create(vm, value)));
     };
 
-    create_option(vm.names.locale, duration_format->locale());
-    create_option(vm.names.numberingSystem, duration_format->numbering_system());
-    create_option(vm.names.style, duration_format->style_string());
-    create_option(vm.names.years, duration_format->years_style_string());
-    create_option(vm.names.yearsDisplay, duration_format->years_display_string());
-    create_option(vm.names.months, duration_format->months_style_string());
-    create_option(vm.names.monthsDisplay, duration_format->months_display_string());
-    create_option(vm.names.weeks, duration_format->weeks_style_string());
-    create_option(vm.names.weeksDisplay, duration_format->weeks_display_string());
-    create_option(vm.names.days, duration_format->days_style_string());
-    create_option(vm.names.daysDisplay, duration_format->days_display_string());
-    create_option(vm.names.hours, duration_format->hours_style_string());
-    create_option(vm.names.hoursDisplay, duration_format->hours_display_string());
-    create_option(vm.names.minutes, duration_format->minutes_style_string());
-    create_option(vm.names.minutesDisplay, duration_format->minutes_display_string());
-    create_option(vm.names.seconds, duration_format->seconds_style_string());
-    create_option(vm.names.secondsDisplay, duration_format->seconds_display_string());
-    create_option(vm.names.milliseconds, duration_format->milliseconds_style_string());
-    create_option(vm.names.millisecondsDisplay, duration_format->milliseconds_display_string());
-    create_option(vm.names.microseconds, duration_format->microseconds_style_string());
-    create_option(vm.names.microsecondsDisplay, duration_format->microseconds_display_string());
-    create_option(vm.names.nanoseconds, duration_format->nanoseconds_style_string());
-    create_option(vm.names.nanosecondsDisplay, duration_format->nanoseconds_display_string());
+    create_option(vm.names.locale, {}, duration_format->locale());
+    create_option(vm.names.numberingSystem, {}, duration_format->numbering_system());
+    create_option(vm.names.style, {}, duration_format->style_string());
+    create_option(vm.names.years, vm.names.yearsDisplay, duration_format->years_options());
+    create_option(vm.names.months, vm.names.monthsDisplay, duration_format->months_options());
+    create_option(vm.names.weeks, vm.names.weeksDisplay, duration_format->weeks_options());
+    create_option(vm.names.days, vm.names.daysDisplay, duration_format->days_options());
+    create_option(vm.names.hours, vm.names.hoursDisplay, duration_format->hours_options());
+    create_option(vm.names.minutes, vm.names.minutesDisplay, duration_format->minutes_options());
+    create_option(vm.names.seconds, vm.names.secondsDisplay, duration_format->seconds_options());
+    create_option(vm.names.milliseconds, vm.names.millisecondsDisplay, duration_format->milliseconds_options());
+    create_option(vm.names.microseconds, vm.names.microsecondsDisplay, duration_format->microseconds_options());
+    create_option(vm.names.nanoseconds, vm.names.nanosecondsDisplay, duration_format->nanoseconds_options());
 
     if (duration_format->has_fractional_digits())
         MUST(options->create_data_property_or_throw(vm.names.fractionalDigits, Value(duration_format->fractional_digits())));

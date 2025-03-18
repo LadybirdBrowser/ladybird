@@ -56,7 +56,7 @@ JS_DEFINE_NATIVE_FUNCTION(PluralRulesPrototype::resolved_options)
         return PrimitiveString::create(vm, Unicode::plural_category_to_string(category));
     });
 
-    // 5. For each row of Table 29, except the header row, in table order, do
+    // 5. For each row of Table 30, except the header row, in table order, do
     //     a. Let p be the Property value of the current row.
     //     b. If p is "pluralCategories", then
     //         i. Let v be CreateArrayFromList(pluralCategories).
