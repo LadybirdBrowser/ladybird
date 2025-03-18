@@ -474,9 +474,14 @@ FLATTEN UnsignedBigInteger UnsignedBigInteger::bitwise_xor(UnsignedBigInteger co
 
 FLATTEN UnsignedBigInteger UnsignedBigInteger::bitwise_not_fill_to_one_based_index(size_t size) const
 {
+    return MUST(try_bitwise_not_fill_to_one_based_index(size));
+}
+
+FLATTEN ErrorOr<UnsignedBigInteger> UnsignedBigInteger::try_bitwise_not_fill_to_one_based_index(size_t size) const
+{
     UnsignedBigInteger result;
 
-    UnsignedBigIntegerAlgorithms::bitwise_not_fill_to_one_based_index_without_allocation(*this, size, result);
+    TRY(UnsignedBigIntegerAlgorithms::bitwise_not_fill_to_one_based_index_without_allocation(*this, size, result));
 
     return result;
 }
@@ -502,6 +507,33 @@ FLATTEN UnsignedBigInteger UnsignedBigInteger::shift_right(size_t num_bits) cons
     UnsignedBigInteger output;
 
     UnsignedBigIntegerAlgorithms::shift_right_without_allocation(*this, num_bits, output);
+
+    return output;
+}
+
+FLATTEN UnsignedBigInteger UnsignedBigInteger::as_n_bits(size_t n) const
+{
+    if (auto const num_bits = one_based_index_of_highest_set_bit(); n >= num_bits)
+        return *this;
+
+    UnsignedBigInteger output;
+    output.set_to(*this);
+
+    auto const word_index = n / BITS_IN_WORD;
+
+    auto const bits_to_keep = n % BITS_IN_WORD;
+    auto const bits_to_discard = BITS_IN_WORD - bits_to_keep;
+
+    output.m_words.resize(word_index + 1);
+
+    auto const last_word = output.m_words[word_index];
+    Word new_last_word = 0;
+
+    // avoid UB from a 32 bit shift on a u32
+    if (bits_to_keep != 0)
+        new_last_word = last_word << bits_to_discard >> bits_to_discard;
+
+    output.m_words[word_index] = new_last_word;
 
     return output;
 }

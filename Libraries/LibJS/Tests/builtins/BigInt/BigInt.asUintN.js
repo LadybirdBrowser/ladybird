@@ -22,12 +22,6 @@ describe("errors", () => {
             BigInt.asUintN(1, "foo");
         }).toThrowWithMessage(SyntaxError, "Invalid value for BigInt: foo");
     });
-
-    test("large allocation", () => {
-        expect(() => {
-            BigInt.asUintN(0x4000000000000, 1n);
-        }).toThrowWithMessage(InternalError, "Out of memory");
-    });
 });
 
 describe("correct behavior", () => {
@@ -79,5 +73,21 @@ describe("correct behavior", () => {
         expect(BigInt.asUintN(256, -extremelyBigInt)).toBe(
             115792089237316195423570861551898784396480861208851440582668460551124006183147n
         );
+    });
+
+    test("large bit values", () => {
+        const INDEX_MAX = 2 ** 53 - 1;
+        const LAST_8_DIGITS = 10n ** 8n;
+
+        expect(BigInt.asUintN(0x400000000, 1n)).toBe(1n);
+        expect(BigInt.asUintN(0x4000, -1n) % LAST_8_DIGITS).toBe(64066815n);
+
+        expect(BigInt.asUintN(0x400000000, 2n)).toBe(2n);
+        expect(BigInt.asUintN(0x4000, -2n) % LAST_8_DIGITS).toBe(64066814n);
+
+        expect(BigInt.asUintN(INDEX_MAX, 2n)).toBe(2n);
+        expect(() => {
+            BigInt.asUintN(INDEX_MAX, -2n);
+        }).toThrowWithMessage(InternalError, "Out of memory");
     });
 });

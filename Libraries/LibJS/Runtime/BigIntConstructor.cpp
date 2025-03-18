@@ -18,6 +18,7 @@ namespace JS {
 GC_DEFINE_ALLOCATOR(BigIntConstructor);
 
 static Crypto::SignedBigInteger const BIGINT_ONE { 1 };
+static Crypto::SignedBigInteger const BIGINT_ZERO { 0 };
 
 BigIntConstructor::BigIntConstructor(Realm& realm)
     : NativeFunction(realm.vm().names.BigInt.as_string(), realm.intrinsics().function_prototype())
@@ -72,20 +73,25 @@ JS_DEFINE_NATIVE_FUNCTION(BigIntConstructor::as_int_n)
     // 2. Set bigint to ? ToBigInt(bigint).
     auto bigint = TRY(vm.argument(1).to_bigint(vm));
 
+    // OPTIMIZATION: mod = bigint (mod 2^0) = 0 < 2^(0-1) = 0.5
+    if (bits == 0)
+        return BigInt::create(vm, BIGINT_ZERO);
+
     // 3. Let mod be ℝ(bigint) modulo 2^bits.
-    // FIXME: For large values of `bits`, this can likely be improved with a SignedBigInteger API to
-    //        drop the most significant bits.
-    auto bits_shift_left = TRY_OR_THROW_OOM(vm, BIGINT_ONE.try_shift_left(bits));
-    auto mod = modulo(bigint->big_integer(), bits_shift_left);
+    auto const mod = TRY_OR_THROW_OOM(vm, bigint->big_integer().mod_power_of_two(bits));
 
-    // 4. If mod ≥ 2^(bits-1), return ℤ(mod - 2^bits); otherwise, return ℤ(mod).
-    // NOTE: Some of the below conditionals are non-standard, but are to protect SignedBigInteger from
-    //       allocating an absurd amount of memory if `bits - 1` overflows to NumericLimits<size_t>::max.
-    if ((bits == 0) && (mod >= BIGINT_ONE))
-        return BigInt::create(vm, mod.minus(bits_shift_left));
-    if ((bits > 0) && (mod >= BIGINT_ONE.shift_left(bits - 1)))
-        return BigInt::create(vm, mod.minus(bits_shift_left));
+    // OPTIMIZATION: mod < 2^(bits-1)
+    if (mod.is_zero())
+        return BigInt::create(vm, BIGINT_ZERO);
 
+    // 4. If mod ≥ 2^(bits-1), return ℤ(mod - 2^bits); ...
+    if (auto top_bit_index = mod.unsigned_value().one_based_index_of_highest_set_bit(); top_bit_index >= bits) {
+        // twos complement decode
+        auto decoded = TRY_OR_THROW_OOM(vm, mod.unsigned_value().try_bitwise_not_fill_to_one_based_index(bits)).plus(1);
+        return BigInt::create(vm, Crypto::SignedBigInteger { std::move(decoded), true });
+    }
+
+    // ... otherwise, return ℤ(mod).
     return BigInt::create(vm, mod);
 }
 
@@ -98,10 +104,10 @@ JS_DEFINE_NATIVE_FUNCTION(BigIntConstructor::as_uint_n)
     // 2. Set bigint to ? ToBigInt(bigint).
     auto bigint = TRY(vm.argument(1).to_bigint(vm));
 
-    // 3. Return the BigInt value that represents ℝ(bigint) modulo 2bits.
-    // FIXME: For large values of `bits`, this can likely be improved with a SignedBigInteger API to
-    //        drop the most significant bits.
-    return BigInt::create(vm, modulo(bigint->big_integer(), TRY_OR_THROW_OOM(vm, BIGINT_ONE.try_shift_left(bits))));
+    // 3. Return the BigInt value that represents ℝ(bigint) modulo 2^bits.
+    auto const mod = TRY_OR_THROW_OOM(vm, bigint->big_integer().mod_power_of_two(bits));
+
+    return BigInt::create(vm, mod);
 }
 
 }
