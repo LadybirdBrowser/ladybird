@@ -46,6 +46,9 @@ Storage::Storage(JS::Realm& realm, Type type, NonnullRefPtr<StorageAPI::StorageB
         .named_property_deleter_has_identifier = true,
     };
 
+    for (auto const& item : map())
+        m_stored_bytes += item.key.byte_count() + item.value.byte_count();
+
     all_storages().set(*this);
 }
 
