@@ -207,9 +207,23 @@ URL create_with_data(StringView mime_type, StringView payload, bool is_base64)
 }
 
 // https://url.spec.whatwg.org/#special-scheme
+ReadonlySpan<StringView> special_schemes()
+{
+    static auto const schemes = to_array<StringView>({
+        "ftp"sv,
+        "file"sv,
+        "http"sv,
+        "https"sv,
+        "ws"sv,
+        "wss"sv,
+    });
+    return schemes;
+}
+
+// https://url.spec.whatwg.org/#is-special
 bool is_special_scheme(StringView scheme)
 {
-    return scheme.is_one_of("ftp", "file", "http", "https", "ws", "wss");
+    return special_schemes().contains_slow(scheme);
 }
 
 // https://url.spec.whatwg.org/#url-path-serializer
