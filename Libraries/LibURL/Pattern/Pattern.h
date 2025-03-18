@@ -13,6 +13,7 @@
 #include <LibURL/Pattern/Component.h>
 #include <LibURL/Pattern/Init.h>
 #include <LibURL/Pattern/PatternError.h>
+#include <LibURL/URL.h>
 
 namespace URL::Pattern {
 
@@ -44,7 +45,7 @@ class Pattern {
 public:
     static PatternErrorOr<Pattern> create(Input const&, Optional<String> const& base_url = {}, IgnoreCase = IgnoreCase::No);
 
-    PatternErrorOr<Optional<Result>> match(Input const&, Optional<String> const& base_url_string) const;
+    PatternErrorOr<Optional<Result>> match(Variant<String, Init, URL> const&, Optional<String> const& base_url_string) const;
 
     bool has_regexp_groups() const;
 
