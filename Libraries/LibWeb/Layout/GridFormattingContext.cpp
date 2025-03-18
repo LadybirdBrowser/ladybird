@@ -2548,16 +2548,41 @@ Optional<CSSPixels> GridFormattingContext::specified_size_suggestion(GridItem co
     return {};
 }
 
+Optional<CSSPixels> GridFormattingContext::transferred_size_suggestion(GridItem const& item, GridDimension dimension) const
+{
+    // https://www.w3.org/TR/css-grid-2/#transferred-size-suggestion
+    // If the item has a preferred aspect ratio and its preferred size in the opposite axis is definite, then the transferred
+    // size suggestion is that size (clamped by the opposite-axis minimum and maximum sizes if they are definite), converted
+    // through the aspect ratio. It is otherwise undefined.
+    if (!item.box->preferred_aspect_ratio().has_value()) {
+        return {};
+    }
+
+    CSS::Size const& preferred_size_in_opposite_axis = get_item_preferred_size(item, dimension == GridDimension::Column ? GridDimension::Row : GridDimension::Column);
+    if (preferred_size_in_opposite_axis.is_length()) {
+        auto opposite_axis_size = preferred_size_in_opposite_axis.length().to_px(item.box);
+        // FIXME: Clamp by opposite-axis minimum and maximum sizes if they are definite
+        return opposite_axis_size * item.box->preferred_aspect_ratio().value();
+    }
+
+    return {};
+}
+
 CSSPixels GridFormattingContext::content_based_minimum_size(GridItem const& item, GridDimension const dimension) const
 {
     // https://www.w3.org/TR/css-grid-1/#content-based-minimum-size
-    // The content-based minimum size for a grid item in a given dimension is its specified size suggestion if it exists,
-    // otherwise its transferred size suggestion if that exists,
-    // else its content size suggestion, see below.
+
     CSSPixels result = 0;
+    // The content-based minimum size for a grid item in a given dimension is its specified size suggestion if it exists,
     if (auto specified_size_suggestion = this->specified_size_suggestion(item, dimension); specified_size_suggestion.has_value()) {
         result = specified_size_suggestion.value();
-    } else {
+    }
+    // otherwise its transferred size suggestion if that exists,
+    else if (auto transferred_size_suggestion = this->transferred_size_suggestion(item, dimension); transferred_size_suggestion.has_value()) {
+        result = transferred_size_suggestion.value();
+    }
+    // else its content size suggestion.
+    else {
         result = content_size_suggestion(item, dimension);
     }
 
