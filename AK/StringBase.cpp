@@ -18,7 +18,7 @@ ReadonlyBytes ShortString::bytes() const
 
 size_t ShortString::byte_count() const
 {
-    return byte_count_and_short_string_flag >> 1;
+    return byte_count_and_short_string_flag >> StringBase::SHORT_STRING_BYTE_COUNT_SHIFT_COUNT;
 }
 
 StringBase::StringBase(NonnullRefPtr<Detail::StringData const> data)
@@ -78,7 +78,7 @@ size_t StringBase::byte_count() const
 {
     ASSERT(!is_invalid());
     if (is_short_string())
-        return m_short_string.byte_count_and_short_string_flag >> 1;
+        return m_short_string.byte_count_and_short_string_flag >> StringBase::SHORT_STRING_BYTE_COUNT_SHIFT_COUNT;
     return m_data->byte_count();
 }
 

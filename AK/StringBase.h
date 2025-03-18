@@ -103,9 +103,11 @@ protected:
 private:
     friend class ::AK::String;
     friend class ::AK::FlyString;
+    friend struct ::AK::Detail::ShortString;
 
     // NOTE: If the least significant bit of the pointer is set, this is a short string.
     static constexpr uintptr_t SHORT_STRING_FLAG = 1;
+    static constexpr unsigned SHORT_STRING_BYTE_COUNT_SHIFT_COUNT = 2;
 
     explicit StringBase(NonnullRefPtr<Detail::StringData const>);
 
@@ -127,7 +129,7 @@ private:
         VERIFY(byte_count <= MAX_SHORT_STRING_BYTE_COUNT);
 
         m_short_string = ShortString {};
-        m_short_string.byte_count_and_short_string_flag = (byte_count << 1) | SHORT_STRING_FLAG;
+        m_short_string.byte_count_and_short_string_flag = (byte_count << SHORT_STRING_BYTE_COUNT_SHIFT_COUNT) | SHORT_STRING_FLAG;
         return { m_short_string.storage, byte_count };
     }
 
