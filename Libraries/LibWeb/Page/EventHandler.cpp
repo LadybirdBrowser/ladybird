@@ -1272,7 +1272,7 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
     switch (key) {
     case UIEvents::KeyCode::Key_Up:
     case UIEvents::KeyCode::Key_Down:
-        if (modifiers && modifiers != UIEvents::KeyModifier::Mod_Ctrl)
+        if (modifiers && modifiers != UIEvents::KeyModifier::Mod_PlatformCtrl)
             break;
         if (modifiers)
             key == UIEvents::KeyCode::Key_Up ? document->scroll_to_the_beginning_of_the_document() : document->window()->scroll_by(0, INT64_MAX);
@@ -1281,7 +1281,11 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         return EventResult::Handled;
     case UIEvents::KeyCode::Key_Left:
     case UIEvents::KeyCode::Key_Right:
+#if defined(AK_OS_MACOS)
+        if (modifiers && modifiers != UIEvents::KeyModifier::Mod_Super)
+#else
         if (modifiers && modifiers != UIEvents::KeyModifier::Mod_Alt)
+#endif
             break;
         if (modifiers)
             document->page().traverse_the_history_by_delta(key == UIEvents::KeyCode::Key_Left ? -1 : 1);
