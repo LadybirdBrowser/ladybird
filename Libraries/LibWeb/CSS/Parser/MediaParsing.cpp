@@ -505,12 +505,7 @@ GC::Ptr<CSSMediaRule> Parser::convert_to_media_rule(AtRule const& rule, Nested n
                     child_rules.append(child_rule);
             },
             [&](Vector<Declaration> const& declarations) {
-                auto* declaration = convert_to_style_declaration(declarations);
-                if (!declaration) {
-                    dbgln_if(CSS_PARSER_DEBUG, "CSSParser: nested declarations invalid; discarding.");
-                    return;
-                }
-                child_rules.append(CSSNestedDeclarations::create(realm(), *declaration));
+                child_rules.append(CSSNestedDeclarations::create(realm(), *convert_to_style_declaration(declarations)));
             });
     }
     auto rule_list = CSSRuleList::create(realm(), child_rules);

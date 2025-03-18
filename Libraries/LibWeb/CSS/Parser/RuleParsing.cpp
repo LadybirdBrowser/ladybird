@@ -103,11 +103,7 @@ GC::Ptr<CSSStyleRule> Parser::convert_to_style_rule(QualifiedRule const& qualifi
     if (nested == Nested::Yes)
         selectors = adapt_nested_relative_selector_list(selectors);
 
-    auto* declaration = convert_to_style_declaration(qualified_rule.declarations);
-    if (!declaration) {
-        dbgln_if(CSS_PARSER_DEBUG, "CSSParser: style rule declaration invalid; discarding.");
-        return {};
-    }
+    auto declaration = convert_to_style_declaration(qualified_rule.declarations);
 
     GC::RootVector<CSSRule*> child_rules { realm().heap() };
     for (auto& child : qualified_rule.child_rules) {
@@ -125,12 +121,7 @@ GC::Ptr<CSSStyleRule> Parser::convert_to_style_rule(QualifiedRule const& qualifi
                 }
             },
             [&](Vector<Declaration> const& declarations) {
-                auto* declaration = convert_to_style_declaration(declarations);
-                if (!declaration) {
-                    dbgln_if(CSS_PARSER_DEBUG, "CSSParser: nested declarations invalid; discarding.");
-                    return;
-                }
-                child_rules.append(CSSNestedDeclarations::create(realm(), *declaration));
+                child_rules.append(CSSNestedDeclarations::create(realm(), *convert_to_style_declaration(declarations)));
             });
     }
     auto nested_rules = CSSRuleList::create(realm(), move(child_rules));
@@ -256,12 +247,7 @@ GC::Ptr<CSSRule> Parser::convert_to_layer_rule(AtRule const& rule, Nested nested
                         child_rules.append(child_rule);
                 },
                 [&](Vector<Declaration> const& declarations) {
-                    auto* declaration = convert_to_style_declaration(declarations);
-                    if (!declaration) {
-                        dbgln_if(CSS_PARSER_DEBUG, "CSSParser: nested declarations invalid; discarding.");
-                        return;
-                    }
-                    child_rules.append(CSSNestedDeclarations::create(realm(), *declaration));
+                    child_rules.append(CSSNestedDeclarations::create(realm(), *convert_to_style_declaration(declarations)));
                 });
         }
         auto rule_list = CSSRuleList::create(realm(), child_rules);
@@ -478,12 +464,7 @@ GC::Ptr<CSSSupportsRule> Parser::convert_to_supports_rule(AtRule const& rule, Ne
                     child_rules.append(child_rule);
             },
             [&](Vector<Declaration> const& declarations) {
-                auto* declaration = convert_to_style_declaration(declarations);
-                if (!declaration) {
-                    dbgln_if(CSS_PARSER_DEBUG, "CSSParser: nested declarations invalid; discarding.");
-                    return;
-                }
-                child_rules.append(CSSNestedDeclarations::create(realm(), *declaration));
+                child_rules.append(CSSNestedDeclarations::create(realm(), *convert_to_style_declaration(declarations)));
             });
     }
 

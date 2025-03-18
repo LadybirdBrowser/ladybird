@@ -1493,7 +1493,7 @@ void Parser::extract_property(Declaration const& declaration, PropertiesAndCusto
     }
 }
 
-CSSStyleProperties* Parser::convert_to_style_declaration(Vector<Declaration> const& declarations)
+GC::Ref<CSSStyleProperties> Parser::convert_to_style_declaration(Vector<Declaration> const& declarations)
 {
     PropertiesAndCustomProperties properties;
     PropertiesAndCustomProperties& dest = properties;
