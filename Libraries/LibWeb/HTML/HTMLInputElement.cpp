@@ -1276,24 +1276,6 @@ void HTMLInputElement::create_range_input_shadow_tree()
     add_event_listener_without_options(UIEvents::EventNames::mousedown, DOM::IDLEventListener::create(realm(), mousedown_callback));
 }
 
-void HTMLInputElement::computed_properties_changed()
-{
-    auto appearance = computed_properties()->appearance();
-    if (appearance == CSS::Appearance::None)
-        return;
-
-    auto accent_color = MUST(String::from_utf8(CSS::string_from_keyword(CSS::Keyword::Accentcolor)));
-
-    auto const& accent_color_property = computed_properties()->property(CSS::PropertyID::AccentColor);
-    if (accent_color_property.has_color())
-        accent_color = accent_color_property.to_string(CSS::CSSStyleValue::SerializationMode::Normal);
-
-    if (m_slider_progress_element)
-        MUST(m_slider_progress_element->style_for_bindings()->set_property(CSS::PropertyID::BackgroundColor, accent_color));
-    if (m_slider_thumb)
-        MUST(m_slider_thumb->style_for_bindings()->set_property(CSS::PropertyID::BackgroundColor, accent_color));
-}
-
 void HTMLInputElement::user_interaction_did_change_input_value()
 {
     // https://html.spec.whatwg.org/multipage/input.html#common-input-element-events
