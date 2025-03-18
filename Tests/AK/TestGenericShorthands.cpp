@@ -203,6 +203,27 @@ TEST_CASE(first_is_larger_than_one_of)
     EXPECT(!first_is_larger_than_one_of(10));
 }
 
+TEST_CASE(first_is_equal_to_all_of)
+{
+    static_assert(first_is_equal_to_all_of(1));
+    EXPECT(first_is_equal_to_all_of(1));
+
+    static_assert(first_is_equal_to_all_of(1, 1));
+    EXPECT(first_is_equal_to_all_of(1, 1));
+
+    static_assert(!first_is_equal_to_all_of(1, 2));
+    EXPECT(!first_is_equal_to_all_of(1, 2));
+
+    static_assert(!first_is_equal_to_all_of(1, 1, 2));
+    EXPECT(!first_is_equal_to_all_of(1, 1, 2));
+
+    static_assert(!first_is_equal_to_all_of(2, 1, 1));
+    EXPECT(!first_is_equal_to_all_of(2, 1, 1));
+
+    static_assert(!first_is_equal_to_all_of(2, 2, 1));
+    EXPECT(!first_is_equal_to_all_of(2, 2, 1));
+}
+
 TEST_CASE(first_is_larger_or_equal_than_all_of)
 {
     // Finds larger than all items
