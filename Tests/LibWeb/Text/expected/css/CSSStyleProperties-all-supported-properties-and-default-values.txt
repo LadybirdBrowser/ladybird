@@ -1,7 +1,4 @@
-All supported properties and their default values exposed from CSSStyleDeclaration from getComputedStyle:
-'cssText': ''
-'length': '232'
-'parentRule': 'null'
+All supported properties and their default values exposed from CSSStyleProperties from getComputedStyle:
 'cssFloat': 'none'
 'WebkitAlignContent': 'normal'
 'webkitAlignContent': 'normal'
@@ -641,9 +638,4 @@ All supported properties and their default values exposed from CSSStyleDeclarati
 'y': '0px'
 'zIndex': 'auto'
 'z-index': 'auto'
-'getPropertyPriority': 'function getPropertyPriority() { [native code] }'
-'getPropertyValue': 'function getPropertyValue() { [native code] }'
-'removeProperty': 'function removeProperty() { [native code] }'
-'item': 'function item() { [native code] }'
-'setProperty': 'function setProperty() { [native code] }'
-'constructor': 'function CSSStyleDeclaration() { [native code] }'
+'constructor': 'function CSSStyleProperties() { [native code] }'
