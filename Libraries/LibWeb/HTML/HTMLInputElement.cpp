@@ -1183,19 +1183,15 @@ void HTMLInputElement::create_range_input_shadow_tree()
     set_shadow_root(shadow_root);
 
     m_slider_runnable_track = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
-    m_slider_runnable_track->set_use_pseudo_element(CSS::Selector::PseudoElement::Type::SliderRunnableTrack);
+    m_slider_runnable_track->set_use_pseudo_element(CSS::Selector::PseudoElement::Type::Track);
     MUST(shadow_root->append_child(*m_slider_runnable_track));
 
     m_slider_progress_element = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
-    MUST(m_slider_progress_element->set_attribute(HTML::AttributeNames::style, R"~~~(
-        display: block;
-        position: absolute;
-        height: 100%;
-    )~~~"_string));
+    m_slider_progress_element->set_use_pseudo_element(CSS::Selector::PseudoElement::Type::Fill);
     MUST(m_slider_runnable_track->append_child(*m_slider_progress_element));
 
     m_slider_thumb = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
-    m_slider_thumb->set_use_pseudo_element(CSS::Selector::PseudoElement::Type::SliderThumb);
+    m_slider_thumb->set_use_pseudo_element(CSS::Selector::PseudoElement::Type::Thumb);
     MUST(m_slider_runnable_track->append_child(*m_slider_thumb));
 
     update_slider_shadow_tree_elements();
