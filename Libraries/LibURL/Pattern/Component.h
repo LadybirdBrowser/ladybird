@@ -34,4 +34,6 @@ struct Component {
     static PatternErrorOr<Component> compile(Utf8View const& input, PatternParser::EncodingCallback, Options const&);
 };
 
+bool protocol_component_matches_a_special_scheme(Component const& protocol_component);
+
 }
