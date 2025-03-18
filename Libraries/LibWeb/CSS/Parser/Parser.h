@@ -245,7 +245,7 @@ private:
     GC::Ptr<CSSSupportsRule> convert_to_supports_rule(AtRule const&, Nested);
     GC::Ptr<CSSPropertyRule> convert_to_property_rule(AtRule const& rule);
 
-    CSSStyleProperties* convert_to_style_declaration(Vector<Declaration> const&);
+    GC::Ref<CSSStyleProperties> convert_to_style_declaration(Vector<Declaration> const&);
     Optional<StyleProperty> convert_to_style_property(Declaration const&);
 
     Optional<Dimension> parse_dimension(ComponentValue const&);
