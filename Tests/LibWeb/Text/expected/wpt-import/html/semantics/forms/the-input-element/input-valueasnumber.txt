@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 60 tests
 
-56 Pass
-4 Fail
+58 Pass
+2 Fail
 Pass	valueAsNumber getter on type date (actual value: , expected valueAsNumber: NaN)
 Pass	valueAsNumber getter on type date (actual value: 0000-12-10, expected valueAsNumber: NaN)
 Pass	valueAsNumber getter on type date (actual value: 2019-00-12, expected valueAsNumber: NaN)
@@ -41,8 +41,8 @@ Pass	valueAsNumber setter on type time (actual valueAsNumber: 0, expected value:
 Pass	valueAsNumber setter on type time (actual valueAsNumber: 43200000, expected value: 12:00)
 Pass	valueAsNumber setter on type time (actual valueAsNumber: 86340000, expected value: 23:59)
 Pass	valueAsNumber getter on type datetime-local (actual value: , expected valueAsNumber: NaN)
-Fail	valueAsNumber getter on type datetime-local (actual value: 2019-12-10T00:00, expected valueAsNumber: 1575936000000)
-Fail	valueAsNumber getter on type datetime-local (actual value: 2019-12-10T12:00, expected valueAsNumber: 1575979200000)
+Pass	valueAsNumber getter on type datetime-local (actual value: 2019-12-10T00:00, expected valueAsNumber: 1575936000000)
+Pass	valueAsNumber getter on type datetime-local (actual value: 2019-12-10T12:00, expected valueAsNumber: 1575979200000)
 Pass	valueAsNumber setter on type datetime-local (actual valueAsNumber: 1575936000000, expected value: 2019-12-10T00:00)
 Pass	valueAsNumber setter on type datetime-local (actual valueAsNumber: 1575979200000, expected value: 2019-12-10T12:00)
 Pass	valueAsNumber getter on type number (actual value: , expected valueAsNumber: NaN)
