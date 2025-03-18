@@ -1,0 +1,65 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index db48e9f..5c35276 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -328,6 +328,10 @@ else ()
+   list(APPEND BASE_SRCS src/base/ftdebug.c)
+ endif ()
+ 
++if(MSVC)
++  add_definitions(-D_CRT_SECURE_NO_DEPRECATE -D_CRT_NONSTDC_NO_DEPRECATE -D_CRT_SECURE_NO_WARNINGS)
++endif()
++
+ if (BUILD_FRAMEWORK)
+   list(APPEND BASE_SRCS builds/mac/freetype-Info.plist)
+ endif ()
+diff --git a/include/freetype/freetype.h b/include/freetype/freetype.h
+index 4f2eaca..1e01fe4 100644
+--- a/include/freetype/freetype.h
++++ b/include/freetype/freetype.h
+@@ -1038,6 +1038,11 @@ FT_BEGIN_HEADER
+    *   Especially for TrueType fonts see also the documentation for
+    *   @FT_Size_Metrics.
+    */
++   
++#if defined(WINAPI_FAMILY) && (WINAPI_FAMILY != WINAPI_FAMILY_DESKTOP_APP)
++#define generic GenericFromFreeTypeLibrary
++#endif
++
+   typedef struct  FT_FaceRec_
+   {
+     FT_Long           num_faces;
+@@ -1910,6 +1915,9 @@ FT_BEGIN_HEADER
+ 
+   } FT_GlyphSlotRec;
+ 
++#if defined(WINAPI_FAMILY) && (WINAPI_FAMILY != WINAPI_FAMILY_DESKTOP_APP)
++#undef generic
++#endif
+ 
+   /*************************************************************************/
+   /*************************************************************************/
+diff --git a/src/base/ftobjs.c b/src/base/ftobjs.c
+index 3f8619d..edf03b6 100644
+--- a/src/base/ftobjs.c
++++ b/src/base/ftobjs.c
+@@ -528,6 +528,9 @@
+     return error;
+   }
+ 
++#if defined(WINAPI_FAMILY) && (WINAPI_FAMILY != WINAPI_FAMILY_DESKTOP_APP)
++#define generic GenericFromFreeTypeLibrary
++#endif
+ 
+   static void
+   ft_glyphslot_clear( FT_GlyphSlot  slot )
+@@ -1195,6 +1198,9 @@
+     FT_FREE( face );
+   }
+ 
++#if defined(WINAPI_FAMILY) && (WINAPI_FAMILY != WINAPI_FAMILY_DESKTOP_APP)
++#undef generic
++#endif
+ 
+   static void
+   Destroy_Driver( FT_Driver  driver )
