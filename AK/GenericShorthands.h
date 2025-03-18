@@ -42,6 +42,12 @@ template<typename T, typename... Ts>
 }
 
 template<typename T, typename... Ts>
+[[nodiscard]] constexpr bool first_is_equal_to_all_of(T&& to_compare, Ts&&... valid_values)
+{
+    return (... && (forward<T>(to_compare) == forward<Ts>(valid_values)));
+}
+
+template<typename T, typename... Ts>
 [[nodiscard]] constexpr bool first_is_smaller_than_all_of(T&& to_compare, Ts&&... valid_values)
 {
     return (... && (forward<T>(to_compare) < forward<Ts>(valid_values)));
@@ -67,6 +73,7 @@ template<typename T, typename... Ts>
 }
 
 #if USING_AK_GLOBALLY
+using AK::first_is_equal_to_all_of;
 using AK::first_is_larger_or_equal_than_all_of;
 using AK::first_is_larger_or_equal_than_one_of;
 using AK::first_is_larger_than_all_of;
