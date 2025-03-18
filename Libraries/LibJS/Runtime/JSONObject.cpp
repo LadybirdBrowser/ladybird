@@ -239,7 +239,7 @@ ThrowCompletionOr<String> JSONObject::serialize_json_object(VM& vm, StringifySta
         if (serialized_property_string.has_value()) {
             property_strings.append(MUST(String::formatted(
                 "{}:{}{}",
-                quote_json_string(MUST(String::from_byte_string(key.to_string()))),
+                quote_json_string(key.to_string()),
                 state.gap.is_empty() ? "" : " ",
                 serialized_property_string)));
         }

@@ -59,8 +59,8 @@ Vector<CrossOriginProperty> cross_origin_properties(Variant<HTML::Location const
 bool is_cross_origin_accessible_window_property_name(JS::PropertyKey const& property_key)
 {
     // A JavaScript property name P is a cross-origin accessible window property name if it is "window", "self", "location", "close", "closed", "focus", "blur", "frames", "length", "top", "opener", "parent", "postMessage", or an array index property name.
-    static Array<DeprecatedFlyString, 13> property_names {
-        "window"sv, "self"sv, "location"sv, "close"sv, "closed"sv, "focus"sv, "blur"sv, "frames"sv, "length"sv, "top"sv, "opener"sv, "parent"sv, "postMessage"sv
+    static Array<FlyString, 13> property_names {
+        "window"_fly_string, "self"_fly_string, "location"_fly_string, "close"_fly_string, "closed"_fly_string, "focus"_fly_string, "blur"_fly_string, "frames"_fly_string, "length"_fly_string, "top"_fly_string, "opener"_fly_string, "parent"_fly_string, "postMessage"_fly_string
     };
     return (property_key.is_string() && any_of(property_names, [&](auto const& name) { return property_key.as_string() == name; })) || property_key.is_number();
 }
@@ -108,7 +108,7 @@ Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper(Variant<HT
     if (!property_key.is_string()) {
         return {};
     }
-    auto const& property_key_string = MUST(FlyString::from_deprecated_fly_string(property_key.as_string()));
+    auto const& property_key_string = property_key.as_string();
 
     // 2. For each e of CrossOriginProperties(O):
     for (auto const& entry : cross_origin_properties(object_const_variant)) {

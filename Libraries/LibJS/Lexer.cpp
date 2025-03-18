@@ -16,7 +16,7 @@
 
 namespace JS {
 
-HashMap<DeprecatedFlyString, TokenType> Lexer::s_keywords;
+HashMap<FlyString, TokenType> Lexer::s_keywords;
 
 static constexpr TokenType parse_two_char_token(StringView view)
 {
@@ -231,46 +231,46 @@ Lexer::Lexer(StringView source, StringView filename, size_t line_number, size_t 
     , m_parsed_identifiers(adopt_ref(*new ParsedIdentifiers))
 {
     if (s_keywords.is_empty()) {
-        s_keywords.set("async", TokenType::Async);
-        s_keywords.set("await", TokenType::Await);
-        s_keywords.set("break", TokenType::Break);
-        s_keywords.set("case", TokenType::Case);
-        s_keywords.set("catch", TokenType::Catch);
-        s_keywords.set("class", TokenType::Class);
-        s_keywords.set("const", TokenType::Const);
-        s_keywords.set("continue", TokenType::Continue);
-        s_keywords.set("debugger", TokenType::Debugger);
-        s_keywords.set("default", TokenType::Default);
-        s_keywords.set("delete", TokenType::Delete);
-        s_keywords.set("do", TokenType::Do);
-        s_keywords.set("else", TokenType::Else);
-        s_keywords.set("enum", TokenType::Enum);
-        s_keywords.set("export", TokenType::Export);
-        s_keywords.set("extends", TokenType::Extends);
-        s_keywords.set("false", TokenType::BoolLiteral);
-        s_keywords.set("finally", TokenType::Finally);
-        s_keywords.set("for", TokenType::For);
-        s_keywords.set("function", TokenType::Function);
-        s_keywords.set("if", TokenType::If);
-        s_keywords.set("import", TokenType::Import);
-        s_keywords.set("in", TokenType::In);
-        s_keywords.set("instanceof", TokenType::Instanceof);
-        s_keywords.set("let", TokenType::Let);
-        s_keywords.set("new", TokenType::New);
-        s_keywords.set("null", TokenType::NullLiteral);
-        s_keywords.set("return", TokenType::Return);
-        s_keywords.set("super", TokenType::Super);
-        s_keywords.set("switch", TokenType::Switch);
-        s_keywords.set("this", TokenType::This);
-        s_keywords.set("throw", TokenType::Throw);
-        s_keywords.set("true", TokenType::BoolLiteral);
-        s_keywords.set("try", TokenType::Try);
-        s_keywords.set("typeof", TokenType::Typeof);
-        s_keywords.set("var", TokenType::Var);
-        s_keywords.set("void", TokenType::Void);
-        s_keywords.set("while", TokenType::While);
-        s_keywords.set("with", TokenType::With);
-        s_keywords.set("yield", TokenType::Yield);
+        s_keywords.set("async"_fly_string, TokenType::Async);
+        s_keywords.set("await"_fly_string, TokenType::Await);
+        s_keywords.set("break"_fly_string, TokenType::Break);
+        s_keywords.set("case"_fly_string, TokenType::Case);
+        s_keywords.set("catch"_fly_string, TokenType::Catch);
+        s_keywords.set("class"_fly_string, TokenType::Class);
+        s_keywords.set("const"_fly_string, TokenType::Const);
+        s_keywords.set("continue"_fly_string, TokenType::Continue);
+        s_keywords.set("debugger"_fly_string, TokenType::Debugger);
+        s_keywords.set("default"_fly_string, TokenType::Default);
+        s_keywords.set("delete"_fly_string, TokenType::Delete);
+        s_keywords.set("do"_fly_string, TokenType::Do);
+        s_keywords.set("else"_fly_string, TokenType::Else);
+        s_keywords.set("enum"_fly_string, TokenType::Enum);
+        s_keywords.set("export"_fly_string, TokenType::Export);
+        s_keywords.set("extends"_fly_string, TokenType::Extends);
+        s_keywords.set("false"_fly_string, TokenType::BoolLiteral);
+        s_keywords.set("finally"_fly_string, TokenType::Finally);
+        s_keywords.set("for"_fly_string, TokenType::For);
+        s_keywords.set("function"_fly_string, TokenType::Function);
+        s_keywords.set("if"_fly_string, TokenType::If);
+        s_keywords.set("import"_fly_string, TokenType::Import);
+        s_keywords.set("in"_fly_string, TokenType::In);
+        s_keywords.set("instanceof"_fly_string, TokenType::Instanceof);
+        s_keywords.set("let"_fly_string, TokenType::Let);
+        s_keywords.set("new"_fly_string, TokenType::New);
+        s_keywords.set("null"_fly_string, TokenType::NullLiteral);
+        s_keywords.set("return"_fly_string, TokenType::Return);
+        s_keywords.set("super"_fly_string, TokenType::Super);
+        s_keywords.set("switch"_fly_string, TokenType::Switch);
+        s_keywords.set("this"_fly_string, TokenType::This);
+        s_keywords.set("throw"_fly_string, TokenType::Throw);
+        s_keywords.set("true"_fly_string, TokenType::BoolLiteral);
+        s_keywords.set("try"_fly_string, TokenType::Try);
+        s_keywords.set("typeof"_fly_string, TokenType::Typeof);
+        s_keywords.set("var"_fly_string, TokenType::Var);
+        s_keywords.set("void"_fly_string, TokenType::Void);
+        s_keywords.set("while"_fly_string, TokenType::While);
+        s_keywords.set("with"_fly_string, TokenType::With);
+        s_keywords.set("yield"_fly_string, TokenType::Yield);
     }
 
     consume();
@@ -699,7 +699,7 @@ Token Lexer::next()
     // bunch of Invalid* tokens (bad numeric literals, unterminated comments etc.)
     StringView token_message;
 
-    Optional<DeprecatedFlyString> identifier;
+    Optional<FlyString> identifier;
     size_t identifier_length = 0;
 
     if (m_current_token.type() == TokenType::RegexLiteral && !is_eof() && is_ascii_alpha(m_current_char) && !did_consume_whitespace_or_comments) {
@@ -767,7 +767,7 @@ Token Lexer::next()
                 code_point = is_identifier_middle(identifier_length);
             } while (code_point.has_value());
 
-            identifier = builder.string_view();
+            identifier = builder.to_string_without_validation();
             token_type = TokenType::PrivateIdentifier;
 
             m_parsed_identifiers->identifiers.set(*identifier);
@@ -789,7 +789,7 @@ Token Lexer::next()
             code_point = is_identifier_middle(identifier_length);
         } while (code_point.has_value());
 
-        identifier = builder.string_view();
+        identifier = builder.to_string_without_validation();
         m_parsed_identifiers->identifiers.set(*identifier);
 
         auto it = s_keywords.find(identifier->hash(), [&](auto& entry) { return entry.key == identifier; });

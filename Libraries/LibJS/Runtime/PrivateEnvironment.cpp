@@ -21,7 +21,7 @@ PrivateEnvironment::PrivateEnvironment(PrivateEnvironment* parent)
 // Note: we start at one such that 0 can be invalid / default initialized.
 u64 PrivateEnvironment::s_next_id = 1u;
 
-PrivateName PrivateEnvironment::resolve_private_identifier(DeprecatedFlyString const& identifier) const
+PrivateName PrivateEnvironment::resolve_private_identifier(FlyString const& identifier) const
 {
     auto name_or_end = find_private_name(identifier);
 
@@ -34,7 +34,7 @@ PrivateName PrivateEnvironment::resolve_private_identifier(DeprecatedFlyString c
     return m_outer_environment->resolve_private_identifier(identifier);
 }
 
-void PrivateEnvironment::add_private_name(DeprecatedFlyString description)
+void PrivateEnvironment::add_private_name(FlyString description)
 {
     if (!find_private_name(description).is_end())
         return;

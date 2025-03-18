@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/DeprecatedFlyString.h>
+#include <AK/FlyString.h>
 #include <AK/HashMap.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/OwnPtr.h>
@@ -60,7 +60,7 @@ public:
 
     virtual ~Executable() override;
 
-    DeprecatedFlyString name;
+    FlyString name;
     Vector<u8> bytecode;
     Vector<PropertyLookupCache> property_lookup_caches;
     Vector<GlobalVariableCache> global_variable_caches;
@@ -85,15 +85,15 @@ public:
 
     HashMap<size_t, SourceRecord> source_map;
 
-    Vector<DeprecatedFlyString> local_variable_names;
+    Vector<FlyString> local_variable_names;
     size_t local_index_base { 0 };
 
     Optional<IdentifierTableIndex> length_identifier;
 
-    ByteString const& get_string(StringTableIndex index) const { return string_table->get(index); }
-    DeprecatedFlyString const& get_identifier(IdentifierTableIndex index) const { return identifier_table->get(index); }
+    String const& get_string(StringTableIndex index) const { return string_table->get(index); }
+    FlyString const& get_identifier(IdentifierTableIndex index) const { return identifier_table->get(index); }
 
-    Optional<DeprecatedFlyString const&> get_identifier(Optional<IdentifierTableIndex> const& index) const
+    Optional<FlyString const&> get_identifier(Optional<IdentifierTableIndex> const& index) const
     {
         if (!index.has_value())
             return {};

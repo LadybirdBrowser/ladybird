@@ -71,13 +71,13 @@ class ExportedWasmFunction final : public JS::NativeFunction {
     GC_DECLARE_ALLOCATOR(ExportedWasmFunction);
 
 public:
-    static GC::Ref<ExportedWasmFunction> create(JS::Realm&, DeprecatedFlyString const& name, ESCAPING Function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)>, Wasm::FunctionAddress);
+    static GC::Ref<ExportedWasmFunction> create(JS::Realm&, FlyString const& name, ESCAPING Function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)>, Wasm::FunctionAddress);
     virtual ~ExportedWasmFunction() override = default;
 
     Wasm::FunctionAddress exported_address() const { return m_exported_address; }
 
 protected:
-    ExportedWasmFunction(DeprecatedFlyString name, GC::Ptr<GC::Function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)>>, Wasm::FunctionAddress, Object& prototype);
+    ExportedWasmFunction(FlyString name, GC::Ptr<GC::Function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)>>, Wasm::FunctionAddress, Object& prototype);
 
 private:
     Wasm::FunctionAddress m_exported_address;
@@ -87,7 +87,7 @@ WebAssemblyCache& get_cache(JS::Realm&);
 
 JS::ThrowCompletionOr<NonnullOwnPtr<Wasm::ModuleInstance>> instantiate_module(JS::VM&, Wasm::Module const&, GC::Ptr<JS::Object> import_object);
 JS::ThrowCompletionOr<NonnullRefPtr<CompiledWebAssemblyModule>> compile_a_webassembly_module(JS::VM&, ByteBuffer);
-JS::NativeFunction* create_native_function(JS::VM&, Wasm::FunctionAddress address, ByteString const& name, Instance* instance = nullptr);
+JS::NativeFunction* create_native_function(JS::VM&, Wasm::FunctionAddress address, String const& name, Instance* instance = nullptr);
 JS::ThrowCompletionOr<Wasm::Value> to_webassembly_value(JS::VM&, JS::Value value, Wasm::ValueType const& type);
 Wasm::Value default_webassembly_value(JS::VM&, Wasm::ValueType type);
 JS::Value to_js_value(JS::VM&, Wasm::Value& wasm_value, Wasm::ValueType type);

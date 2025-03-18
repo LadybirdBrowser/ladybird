@@ -912,7 +912,7 @@ ThrowCompletionOr<PropertyKey> Value::to_property_key(VM& vm) const
     }
 
     // 3. Return ! ToString(key).
-    return MUST(key.to_byte_string(vm));
+    return MUST(key.to_string(vm));
 }
 
 // 7.1.6 ToInt32 ( argument ), https://tc39.es/ecma262/#sec-toint32

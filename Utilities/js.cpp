@@ -692,8 +692,8 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
                 CompleteProperty,
             } mode { Initial };
 
-            StringView variable_name;
-            StringView property_name;
+            FlyString variable_name;
+            FlyString property_name;
 
             // we're only going to complete either
             //    - <N>
@@ -720,7 +720,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
                     if (js_token.is_identifier_name()) {
                         // ...<name> <dot> <name>
                         mode = CompleteProperty;
-                        property_name = js_token.value();
+                        property_name = js_token.fly_string_value();
                     } else {
                         mode = Initial;
                     }
@@ -731,7 +731,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
                     if (js_token.type() == JS::TokenType::Identifier) {
                         // ...<name>...
                         mode = CompleteVariable;
-                        variable_name = js_token.value();
+                        variable_name = js_token.fly_string_value();
                     } else {
                         mode = Initial;
                     }
@@ -743,7 +743,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
             if (mode == CompleteNullProperty) {
                 mode = CompleteProperty;
-                property_name = ""sv;
+                property_name = ""_fly_string;
                 last_token_has_trivia = false; // <name> <dot> [tab] is sensible to complete.
             }
 
@@ -757,10 +757,10 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
                     if (!descriptor.key.is_string())
                         continue;
                     auto key = descriptor.key.as_string();
-                    if (key.view().starts_with(property_pattern)) {
+                    if (key.bytes_as_string_view().starts_with(property_pattern)) {
                         Line::CompletionSuggestion completion { key, Line::CompletionSuggestion::ForSearch };
                         if (!results.contains_slow(completion)) { // hide duplicates
-                            results.append(ByteString(key));
+                            results.append(key.to_string().to_byte_string());
                             results.last().invariant_offset = property_pattern.length();
                         }
                     }
@@ -794,9 +794,9 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
                 list_all_properties(variable.shape(), variable_name);
 
                 for (auto const& name : global_environment.declarative_record().bindings()) {
-                    if (name.starts_with(variable_name)) {
-                        results.empend(name);
-                        results.last().invariant_offset = variable_name.length();
+                    if (name.bytes_as_string_view().starts_with(variable_name)) {
+                        results.empend(name.to_deprecated_fly_string());
+                        results.last().invariant_offset = variable_name.bytes().size();
                     }
                 }
 

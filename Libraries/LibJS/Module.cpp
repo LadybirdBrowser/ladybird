@@ -101,7 +101,7 @@ void finish_loading_imported_module(ImportedModuleReferrer referrer, ModuleReque
 
                 // i. Append the Record { [[Specifier]]: specifier, [[Module]]: result.[[Value]] } to referrer.[[LoadedModules]].
                 loaded_modules.append(ModuleWithSpecifier {
-                    .specifier = module_request.module_specifier,
+                    .specifier = module_request.module_specifier.to_string(),
                     .module = GC::Ref<Module>(*module) });
             }
         }
@@ -136,7 +136,7 @@ ThrowCompletionOr<Object*> Module::get_module_namespace(VM& vm)
         auto exported_names = TRY(get_exported_names(vm));
 
         // b. Let unambiguousNames be a new empty List.
-        Vector<DeprecatedFlyString> unambiguous_names;
+        Vector<FlyString> unambiguous_names;
 
         // c. For each element name of exportedNames, do
         for (auto& name : exported_names) {
@@ -159,7 +159,7 @@ ThrowCompletionOr<Object*> Module::get_module_namespace(VM& vm)
 }
 
 // 10.4.6.12 ModuleNamespaceCreate ( module, exports ), https://tc39.es/ecma262/#sec-modulenamespacecreate
-Object* Module::module_namespace_create(Vector<DeprecatedFlyString> unambiguous_names)
+Object* Module::module_namespace_create(Vector<FlyString> unambiguous_names)
 {
     auto& realm = this->realm();
 

@@ -19,7 +19,7 @@ namespace JS {
 
 GC_DEFINE_ALLOCATOR(RegExpObject);
 
-Result<regex::RegexOptions<ECMAScriptFlags>, ByteString> regex_flags_from_string(StringView flags)
+Result<regex::RegexOptions<ECMAScriptFlags>, String> regex_flags_from_string(StringView flags)
 {
     bool d = false, g = false, i = false, m = false, s = false, u = false, y = false, v = false;
     auto options = RegExpObject::default_flags;
@@ -28,42 +28,42 @@ Result<regex::RegexOptions<ECMAScriptFlags>, ByteString> regex_flags_from_string
         switch (ch) {
         case 'd':
             if (d)
-                return ByteString::formatted(ErrorType::RegExpObjectRepeatedFlag.message(), ch);
+                return MUST(String::formatted(ErrorType::RegExpObjectRepeatedFlag.message(), ch));
             d = true;
             break;
         case 'g':
             if (g)
-                return ByteString::formatted(ErrorType::RegExpObjectRepeatedFlag.message(), ch);
+                return MUST(String::formatted(ErrorType::RegExpObjectRepeatedFlag.message(), ch));
             g = true;
             options |= regex::ECMAScriptFlags::Global;
             break;
         case 'i':
             if (i)
-                return ByteString::formatted(ErrorType::RegExpObjectRepeatedFlag.message(), ch);
+                return MUST(String::formatted(ErrorType::RegExpObjectRepeatedFlag.message(), ch));
             i = true;
             options |= regex::ECMAScriptFlags::Insensitive;
             break;
         case 'm':
             if (m)
-                return ByteString::formatted(ErrorType::RegExpObjectRepeatedFlag.message(), ch);
+                return MUST(String::formatted(ErrorType::RegExpObjectRepeatedFlag.message(), ch));
             m = true;
             options |= regex::ECMAScriptFlags::Multiline;
             break;
         case 's':
             if (s)
-                return ByteString::formatted(ErrorType::RegExpObjectRepeatedFlag.message(), ch);
+                return MUST(String::formatted(ErrorType::RegExpObjectRepeatedFlag.message(), ch));
             s = true;
             options |= regex::ECMAScriptFlags::SingleLine;
             break;
         case 'u':
             if (u)
-                return ByteString::formatted(ErrorType::RegExpObjectRepeatedFlag.message(), ch);
+                return MUST(String::formatted(ErrorType::RegExpObjectRepeatedFlag.message(), ch));
             u = true;
             options |= regex::ECMAScriptFlags::Unicode;
             break;
         case 'y':
             if (y)
-                return ByteString::formatted(ErrorType::RegExpObjectRepeatedFlag.message(), ch);
+                return MUST(String::formatted(ErrorType::RegExpObjectRepeatedFlag.message(), ch));
             y = true;
             // Now for the more interesting flag, 'sticky' actually unsets 'global', part of which is the default.
             options.reset_flag(regex::ECMAScriptFlags::Global);
@@ -75,12 +75,12 @@ Result<regex::RegexOptions<ECMAScriptFlags>, ByteString> regex_flags_from_string
             break;
         case 'v':
             if (v)
-                return ByteString::formatted(ErrorType::RegExpObjectRepeatedFlag.message(), ch);
+                return MUST(String::formatted(ErrorType::RegExpObjectRepeatedFlag.message(), ch));
             v = true;
             options |= regex::ECMAScriptFlags::UnicodeSets;
             break;
         default:
-            return ByteString::formatted(ErrorType::RegExpObjectBadFlag.message(), ch);
+            return MUST(String::formatted(ErrorType::RegExpObjectBadFlag.message(), ch));
         }
     }
 
@@ -88,14 +88,14 @@ Result<regex::RegexOptions<ECMAScriptFlags>, ByteString> regex_flags_from_string
 }
 
 // 22.2.3.4 Static Semantics: ParsePattern ( patternText, u, v ), https://tc39.es/ecma262/#sec-parsepattern
-ErrorOr<ByteString, ParseRegexPatternError> parse_regex_pattern(StringView pattern, bool unicode, bool unicode_sets)
+ErrorOr<String, ParseRegexPatternError> parse_regex_pattern(StringView pattern, bool unicode, bool unicode_sets)
 {
     if (unicode && unicode_sets)
-        return ParseRegexPatternError { ByteString::formatted(ErrorType::RegExpObjectIncompatibleFlags.message(), 'u', 'v') };
+        return ParseRegexPatternError { MUST(String::formatted(ErrorType::RegExpObjectIncompatibleFlags.message(), 'u', 'v')) };
 
     auto utf16_pattern_result = AK::utf8_to_utf16(pattern);
     if (utf16_pattern_result.is_error())
-        return ParseRegexPatternError { "Out of memory"sv };
+        return ParseRegexPatternError { "Out of memory"_string };
 
     auto utf16_pattern = utf16_pattern_result.release_value();
     Utf16View utf16_pattern_view { utf16_pattern };
@@ -133,11 +133,11 @@ ErrorOr<ByteString, ParseRegexPatternError> parse_regex_pattern(StringView patte
             previous_code_unit_was_backslash = false;
     }
 
-    return builder.to_byte_string();
+    return builder.to_string_without_validation();
 }
 
 // 22.2.3.4 Static Semantics: ParsePattern ( patternText, u, v ), https://tc39.es/ecma262/#sec-parsepattern
-ThrowCompletionOr<ByteString> parse_regex_pattern(VM& vm, StringView pattern, bool unicode, bool unicode_sets)
+ThrowCompletionOr<String> parse_regex_pattern(VM& vm, StringView pattern, bool unicode, bool unicode_sets)
 {
     auto result = parse_regex_pattern(pattern, unicode, unicode_sets);
     if (result.is_error())
@@ -151,7 +151,7 @@ GC::Ref<RegExpObject> RegExpObject::create(Realm& realm)
     return realm.create<RegExpObject>(realm.intrinsics().regexp_prototype());
 }
 
-GC::Ref<RegExpObject> RegExpObject::create(Realm& realm, Regex<ECMA262> regex, ByteString pattern, ByteString flags)
+GC::Ref<RegExpObject> RegExpObject::create(Realm& realm, Regex<ECMA262> regex, String pattern, String flags)
 {
     return realm.create<RegExpObject>(move(regex), move(pattern), move(flags), realm.intrinsics().regexp_prototype());
 }
@@ -179,7 +179,7 @@ static RegExpObject::Flags to_flag_bits(StringView flags)
     return flag_bits;
 }
 
-RegExpObject::RegExpObject(Regex<ECMA262> regex, ByteString pattern, ByteString flags, Object& prototype)
+RegExpObject::RegExpObject(Regex<ECMA262> regex, String pattern, String flags, Object& prototype)
     : Object(ConstructWithPrototypeTag::Tag, prototype)
     , m_pattern(move(pattern))
     , m_flags(move(flags))
@@ -203,14 +203,14 @@ ThrowCompletionOr<GC::Ref<RegExpObject>> RegExpObject::regexp_initialize(VM& vm,
     // 1. If pattern is undefined, let P be the empty String.
     // 2. Else, let P be ? ToString(pattern).
     auto pattern = pattern_value.is_undefined()
-        ? ByteString::empty()
-        : TRY(pattern_value.to_byte_string(vm));
+        ? String {}
+        : TRY(pattern_value.to_string(vm));
 
     // 3. If flags is undefined, let F be the empty String.
     // 4. Else, let F be ? ToString(flags).
     auto flags = flags_value.is_undefined()
-        ? ByteString::empty()
-        : TRY(flags_value.to_byte_string(vm));
+        ? String {}
+        : TRY(flags_value.to_string(vm));
 
     // 5. If F contains any code unit other than "d", "g", "i", "m", "s", "u", "v", or "y", or if F contains any code unit more than once, throw a SyntaxError exception.
     // 6. If F contains "i", let i be true; else let i be false.
@@ -223,7 +223,7 @@ ThrowCompletionOr<GC::Ref<RegExpObject>> RegExpObject::regexp_initialize(VM& vm,
         return vm.throw_completion<SyntaxError>(parsed_flags_or_error.release_error());
     auto parsed_flags = parsed_flags_or_error.release_value();
 
-    auto parsed_pattern = ByteString::empty();
+    auto parsed_pattern = String {};
     if (!pattern.is_empty()) {
         bool unicode = parsed_flags.has_flag_set(regex::ECMAScriptFlags::Unicode);
         bool unicode_sets = parsed_flags.has_flag_set(regex::ECMAScriptFlags::UnicodeSets);
@@ -237,7 +237,7 @@ ThrowCompletionOr<GC::Ref<RegExpObject>> RegExpObject::regexp_initialize(VM& vm,
     }
 
     // 14. If parseResult is a non-empty List of SyntaxError objects, throw a SyntaxError exception.
-    Regex<ECMA262> regex(move(parsed_pattern), parsed_flags);
+    Regex<ECMA262> regex(parsed_pattern.to_byte_string(), parsed_flags);
     if (regex.parser_result.error != regex::Error::NoError)
         return vm.throw_completion<SyntaxError>(ErrorType::RegExpCompileError, regex.error_string());
 
@@ -265,7 +265,7 @@ ThrowCompletionOr<GC::Ref<RegExpObject>> RegExpObject::regexp_initialize(VM& vm,
 }
 
 // 22.2.6.13.1 EscapeRegExpPattern ( P, F ), https://tc39.es/ecma262/#sec-escaperegexppattern
-ByteString RegExpObject::escape_regexp_pattern() const
+String RegExpObject::escape_regexp_pattern() const
 {
     // 1. Let S be a String in the form of a Pattern[~UnicodeMode] (Pattern[+UnicodeMode] if F contains "u") equivalent
     //    to P interpreted as UTF-16 encoded Unicode code points (6.1.4), in which certain code points are escaped as
@@ -281,7 +281,7 @@ ByteString RegExpObject::escape_regexp_pattern() const
     //    specification can be met by letting S be "(?:)".
     // 3. Return S.
     if (m_pattern.is_empty())
-        return "(?:)";
+        return "(?:)"_string;
 
     // FIXME: Check the 'u' and 'v' flags and escape accordingly
     StringBuilder builder;
@@ -322,7 +322,7 @@ ByteString RegExpObject::escape_regexp_pattern() const
         }
     }
 
-    return builder.to_byte_string();
+    return builder.to_string_without_validation();
 }
 
 void RegExpObject::visit_edges(JS::Cell::Visitor& visitor)

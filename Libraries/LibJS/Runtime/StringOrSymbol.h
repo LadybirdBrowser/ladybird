@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/DeprecatedFlyString.h>
+#include <AK/FlyString.h>
 #include <LibJS/Runtime/PrimitiveString.h>
 #include <LibJS/Runtime/Symbol.h>
 #include <LibJS/Runtime/Value.h>
@@ -20,7 +20,7 @@ public:
     {
     }
 
-    StringOrSymbol(DeprecatedFlyString const& string)
+    StringOrSymbol(FlyString const& string)
         : m_string(string)
     {
     }
@@ -28,7 +28,7 @@ public:
     ~StringOrSymbol()
     {
         if (is_string())
-            m_string.~DeprecatedFlyString();
+            m_string.~FlyString();
     }
 
     StringOrSymbol(Symbol const* symbol)
@@ -40,7 +40,7 @@ public:
     StringOrSymbol(StringOrSymbol const& other)
     {
         if (other.is_string())
-            new (&m_string) DeprecatedFlyString(other.m_string);
+            new (&m_string) FlyString(other.m_string);
         else
             m_bits = other.m_bits;
     }
@@ -48,7 +48,7 @@ public:
     StringOrSymbol(StringOrSymbol&& other)
     {
         if (other.is_string())
-            new (&m_string) DeprecatedFlyString(move(other.m_string));
+            new (&m_string) FlyString(move(other.m_string));
         else
             m_bits = exchange(other.m_bits, 0);
     }
@@ -57,7 +57,7 @@ public:
     ALWAYS_INLINE bool is_symbol() const { return is_valid() && (m_bits & 2); }
     ALWAYS_INLINE bool is_string() const { return is_valid() && !(m_bits & 2); }
 
-    ALWAYS_INLINE DeprecatedFlyString as_string() const
+    ALWAYS_INLINE FlyString as_string() const
     {
         VERIFY(is_string());
         return m_string;
@@ -69,12 +69,12 @@ public:
         return reinterpret_cast<Symbol const*>(m_bits & ~2ULL);
     }
 
-    ByteString to_display_string() const
+    String to_display_string() const
     {
         if (is_string())
-            return as_string();
+            return as_string().to_string();
         if (is_symbol())
-            return as_symbol()->descriptive_string().release_value_but_fixme_should_propagate_errors().to_byte_string();
+            return MUST(as_symbol()->descriptive_string());
         VERIFY_NOT_REACHED();
     }
 
@@ -134,7 +134,7 @@ private:
     }
 
     union {
-        DeprecatedFlyString m_string;
+        FlyString m_string;
         Symbol const* m_symbol_with_tag;
         uintptr_t m_bits;
     };

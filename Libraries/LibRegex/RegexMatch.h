@@ -12,7 +12,7 @@
 
 #include <AK/ByteString.h>
 #include <AK/COWVector.h>
-#include <AK/DeprecatedFlyString.h>
+#include <AK/FlyString.h>
 #include <AK/MemMem.h>
 #include <AK/RedBlackTree.h>
 #include <AK/StringBuilder.h>
@@ -476,7 +476,7 @@ private:
 
 class Match final {
 private:
-    Optional<DeprecatedFlyString> string;
+    Optional<FlyString> string;
 
 public:
     Match() = default;
@@ -491,9 +491,9 @@ public:
     {
     }
 
-    Match(ByteString string_, size_t const line_, size_t const column_, size_t const global_offset_)
+    Match(String string_, size_t const line_, size_t const column_, size_t const global_offset_)
         : string(move(string_))
-        , view(string.value().view())
+        , view(string.value().bytes_as_string_view())
         , line(line_)
         , column(column_)
         , global_offset(global_offset_)
@@ -502,7 +502,7 @@ public:
 
     Match(RegexStringView const view_, StringView capture_group_name_, size_t const line_, size_t const column_, size_t const global_offset_)
         : view(view_)
-        , capture_group_name(capture_group_name_)
+        , capture_group_name(MUST(FlyString::from_utf8(capture_group_name_)))
         , line(line_)
         , column(column_)
         , global_offset(global_offset_)
@@ -521,7 +521,7 @@ public:
     }
 
     RegexStringView view {};
-    Optional<DeprecatedFlyString> capture_group_name {};
+    Optional<FlyString> capture_group_name {};
     size_t line { 0 };
     size_t column { 0 };
     size_t global_offset { 0 };

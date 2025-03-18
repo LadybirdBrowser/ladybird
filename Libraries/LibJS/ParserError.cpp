@@ -15,14 +15,14 @@ namespace JS {
 String ParserError::to_string() const
 {
     if (!position.has_value())
-        return MUST(String::from_byte_string(message));
+        return message;
     return MUST(String::formatted("{} (line: {}, column: {})", message, position.value().line, position.value().column));
 }
 
 ByteString ParserError::to_byte_string() const
 {
     if (!position.has_value())
-        return message;
+        return message.to_byte_string();
     return ByteString::formatted("{} (line: {}, column: {})", message, position.value().line, position.value().column);
 }
 

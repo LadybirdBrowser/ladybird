@@ -178,7 +178,7 @@ TESTJS_GLOBAL_FUNCTION(parse_webassembly_module, parseWebAssemblyModule)
             auto& module_object = static_cast<WebAssemblyModule&>(value.as_object());
             for (auto& entry : module_object.module_instance().exports()) {
                 // FIXME: Don't pretend that everything is a function
-                imports.set({ property.key.as_string(), entry.name(), Wasm::TypeIndex(0) }, entry.value());
+                imports.set({ property.key.as_string().to_string().to_byte_string(), entry.name(), Wasm::TypeIndex(0) }, entry.value());
             }
         }
     }

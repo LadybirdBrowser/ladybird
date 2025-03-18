@@ -13,8 +13,8 @@
 
 namespace Web::HTML {
 
-using ModuleSpecifierMap = HashMap<ByteString, Optional<URL::URL>>;
-using ModuleIntegrityMap = HashMap<URL::URL, ByteString>;
+using ModuleSpecifierMap = HashMap<String, Optional<URL::URL>>;
+using ModuleIntegrityMap = HashMap<URL::URL, String>;
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#import-map
 class ImportMap {
@@ -40,7 +40,7 @@ private:
 };
 
 WebIDL::ExceptionOr<ImportMap> parse_import_map_string(JS::Realm& realm, ByteString const& input, URL::URL base_url);
-Optional<DeprecatedFlyString> normalise_specifier_key(JS::Realm& realm, DeprecatedFlyString specifier_key, URL::URL base_url);
+Optional<FlyString> normalize_specifier_key(JS::Realm& realm, FlyString specifier_key, URL::URL base_url);
 WebIDL::ExceptionOr<ModuleSpecifierMap> sort_and_normalise_module_specifier_map(JS::Realm& realm, JS::Object& original_map, URL::URL base_url);
 WebIDL::ExceptionOr<HashMap<URL::URL, ModuleSpecifierMap>> sort_and_normalise_scopes(JS::Realm& realm, JS::Object& original_map, URL::URL base_url);
 WebIDL::ExceptionOr<ModuleIntegrityMap> normalize_module_integrity_map(JS::Realm& realm, JS::Object& original_map, URL::URL base_url);

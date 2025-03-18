@@ -243,7 +243,7 @@ private:
     bool match(TokenType type) const;
     bool done() const;
     void expected(char const* what);
-    void syntax_error(ByteString const& message, Optional<Position> = {});
+    void syntax_error(String const& message, Optional<Position> = {});
     Token consume();
     Token consume_and_allow_division();
     Token consume_identifier();
@@ -260,7 +260,7 @@ private:
 
     Token next_token(size_t steps = 1) const;
 
-    void check_identifier_name_for_assignment_validity(DeprecatedFlyString const&, bool force_strict = false);
+    void check_identifier_name_for_assignment_validity(FlyString const&, bool force_strict = false);
 
     bool try_parse_arrow_function_expression_failed_at_position(Position const&) const;
     void set_try_parse_arrow_function_expression_failed_at_position(Position const&, bool);
@@ -270,7 +270,7 @@ private:
     bool parse_directive(ScopeNode& body);
     void parse_statement_list(ScopeNode& output_node, AllowLabelledFunction allow_labelled_functions = AllowLabelledFunction::No);
 
-    DeprecatedFlyString consume_string_value();
+    FlyString consume_string_value();
     ModuleRequest parse_module_request();
 
     struct RulePosition {
@@ -308,9 +308,9 @@ private:
         Vector<ParserError> errors;
         ScopePusher* current_scope_pusher { nullptr };
 
-        HashMap<StringView, Optional<Position>> labels_in_scope;
+        HashMap<FlyString, Optional<Position>> labels_in_scope;
         HashMap<size_t, Position> invalid_property_range_in_object_expression;
-        HashTable<StringView>* referenced_private_names { nullptr };
+        HashTable<FlyString>* referenced_private_names { nullptr };
 
         bool strict_mode { false };
         bool allow_super_property_lookup { false };
@@ -333,7 +333,7 @@ private:
         ParserState(Lexer, Program::Type);
     };
 
-    [[nodiscard]] NonnullRefPtr<Identifier const> create_identifier_and_register_in_current_scope(SourceRange range, DeprecatedFlyString string, Optional<DeclarationKind> = {});
+    [[nodiscard]] NonnullRefPtr<Identifier const> create_identifier_and_register_in_current_scope(SourceRange range, FlyString string, Optional<DeclarationKind> = {});
 
     NonnullRefPtr<SourceCode const> m_source_code;
     Vector<Position> m_rule_starts;

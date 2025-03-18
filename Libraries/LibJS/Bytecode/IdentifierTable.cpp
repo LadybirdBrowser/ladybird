@@ -8,14 +8,14 @@
 
 namespace JS::Bytecode {
 
-IdentifierTableIndex IdentifierTable::insert(DeprecatedFlyString string)
+IdentifierTableIndex IdentifierTable::insert(FlyString string)
 {
     m_identifiers.append(move(string));
     VERIFY(m_identifiers.size() <= NumericLimits<u32>::max());
     return { static_cast<u32>(m_identifiers.size() - 1) };
 }
 
-DeprecatedFlyString const& IdentifierTable::get(IdentifierTableIndex index) const
+FlyString const& IdentifierTable::get(IdentifierTableIndex index) const
 {
     return m_identifiers[index.value];
 }

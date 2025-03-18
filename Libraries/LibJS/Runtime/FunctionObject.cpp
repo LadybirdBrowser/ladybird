@@ -32,7 +32,7 @@ void FunctionObject::set_function_name(Variant<PropertyKey, PrivateName> const& 
     VERIFY(m_is_extensible);
     VERIFY(!storage_has(vm.names.name));
 
-    ByteString name;
+    String name;
 
     // 2. If Type(name) is Symbol, then
     if (auto const* property_key = name_arg.get_pointer<PropertyKey>(); property_key && property_key->is_symbol()) {
@@ -41,15 +41,15 @@ void FunctionObject::set_function_name(Variant<PropertyKey, PrivateName> const& 
 
         // b. If description is undefined, set name to the empty String.
         if (!description.has_value())
-            name = ByteString::empty();
+            name = ""_string;
         // c. Else, set name to the string-concatenation of "[", description, and "]".
         else
-            name = ByteString::formatted("[{}]", *description);
+            name = MUST(String::formatted("[{}]", *description));
     }
     // 3. Else if name is a Private Name, then
     else if (auto const* private_name = name_arg.get_pointer<PrivateName>()) {
         // a. Set name to name.[[Description]].
-        name = private_name->description;
+        name = private_name->description.to_string();
     }
     // NOTE: This is necessary as we use a different parameter name.
     else {
@@ -65,7 +65,7 @@ void FunctionObject::set_function_name(Variant<PropertyKey, PrivateName> const& 
     // 5. If prefix is present, then
     if (prefix.has_value()) {
         // a. Set name to the string-concatenation of prefix, the code unit 0x0020 (SPACE), and name.
-        name = ByteString::formatted("{} {}", *prefix, name);
+        name = MUST(String::formatted("{} {}", *prefix, name));
 
         // b. If F has an [[InitialName]] internal slot, then
         if (is<NativeFunction>(this)) {

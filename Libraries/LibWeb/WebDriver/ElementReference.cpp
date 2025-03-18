@@ -26,11 +26,11 @@ namespace Web::WebDriver {
 
 // https://w3c.github.io/webdriver/#dfn-web-element-identifier
 static String const web_element_identifier = "element-6066-11e4-a52e-4f735466cecf"_string;
-static JS::PropertyKey web_element_identifier_key { web_element_identifier.to_byte_string() };
+static JS::PropertyKey web_element_identifier_key { web_element_identifier };
 
 // https://w3c.github.io/webdriver/#dfn-shadow-root-identifier
 static String const shadow_root_identifier = "shadow-6066-11e4-a52e-4f735466cecf"_string;
-static JS::PropertyKey shadow_root_identifier_key { shadow_root_identifier.to_byte_string() };
+static JS::PropertyKey shadow_root_identifier_key { shadow_root_identifier };
 
 // https://w3c.github.io/webdriver/#dfn-browsing-context-group-node-map
 static HashMap<GC::RawPtr<HTML::BrowsingContextGroup const>, HashTable<String>> browsing_context_group_node_map;

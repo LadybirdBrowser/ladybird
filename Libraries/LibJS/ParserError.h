@@ -16,7 +16,7 @@
 namespace JS {
 
 struct ParserError {
-    ByteString message;
+    String message;
     Optional<Position> position;
 
     String to_string() const;

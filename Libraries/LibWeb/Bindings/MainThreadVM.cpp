@@ -369,7 +369,7 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
 
             // 2. Let url be the result of resolving a module specifier given moduleScript and specifier.
             auto url = TRY(Bindings::throw_dom_exception_if_needed(vm, [&] {
-                return HTML::resolve_module_specifier(*module_script, specifier_string.to_byte_string());
+                return HTML::resolve_module_specifier(*module_script, specifier_string);
             }));
 
             // 3. Return the serialization of url.
@@ -388,9 +388,9 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
     };
 
     // 8.1.6.7.2 HostGetSupportedImportAttributes(), https://html.spec.whatwg.org/multipage/webappapis.html#hostgetsupportedimportassertions
-    s_main_thread_vm->host_get_supported_import_attributes = []() -> Vector<ByteString> {
+    s_main_thread_vm->host_get_supported_import_attributes = []() -> Vector<String> {
         // 1. Return « "type" ».
-        return { "type"sv };
+        return { "type"_string };
     };
 
     // 8.1.6.7.3 HostLoadImportedModule(referrer, moduleRequest, loadState, payload), https://html.spec.whatwg.org/multipage/webappapis.html#hostloadimportedmodule
@@ -460,7 +460,7 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
 
                 // 2. Resolve a module specifier given referencingScript and moduleRequest.[[Specifier]], catching any
                 //    exceptions. If they throw an exception, let resolutionError be the thrown exception.
-                auto maybe_exception = HTML::resolve_module_specifier(referencing_script, module_request.module_specifier);
+                auto maybe_exception = HTML::resolve_module_specifier(referencing_script, module_request.module_specifier.to_string());
 
                 // 3. If the previous step threw an exception, then:
                 if (maybe_exception.is_exception()) {
@@ -500,7 +500,7 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
 
         // 8. Let url be the result of resolving a module specifier given referencingScript and moduleRequest.[[Specifier]],
         //    catching any exceptions. If they throw an exception, let resolutionError be the thrown exception.
-        auto url = HTML::resolve_module_specifier(referencing_script, module_request.module_specifier);
+        auto url = HTML::resolve_module_specifier(referencing_script, module_request.module_specifier.to_string());
 
         // 9. If the previous step threw an exception, then:
         if (url.is_exception()) {

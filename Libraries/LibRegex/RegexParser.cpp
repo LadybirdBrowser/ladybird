@@ -11,6 +11,7 @@
 #include <AK/ByteString.h>
 #include <AK/CharacterTypes.h>
 #include <AK/Debug.h>
+#include <AK/DeprecatedFlyString.h>
 #include <AK/GenericLexer.h>
 #include <AK/ScopeGuard.h>
 #include <AK/StringBuilder.h>

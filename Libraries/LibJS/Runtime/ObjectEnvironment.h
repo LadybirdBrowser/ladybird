@@ -20,13 +20,13 @@ public:
         Yes,
     };
 
-    virtual ThrowCompletionOr<bool> has_binding(DeprecatedFlyString const& name, Optional<size_t>* = nullptr) const override;
-    virtual ThrowCompletionOr<void> create_mutable_binding(VM&, DeprecatedFlyString const& name, bool can_be_deleted) override;
-    virtual ThrowCompletionOr<void> create_immutable_binding(VM&, DeprecatedFlyString const& name, bool strict) override;
-    virtual ThrowCompletionOr<void> initialize_binding(VM&, DeprecatedFlyString const& name, Value, Environment::InitializeBindingHint) override;
-    virtual ThrowCompletionOr<void> set_mutable_binding(VM&, DeprecatedFlyString const& name, Value, bool strict) override;
-    virtual ThrowCompletionOr<Value> get_binding_value(VM&, DeprecatedFlyString const& name, bool strict) override;
-    virtual ThrowCompletionOr<bool> delete_binding(VM&, DeprecatedFlyString const& name) override;
+    virtual ThrowCompletionOr<bool> has_binding(FlyString const& name, Optional<size_t>* = nullptr) const override;
+    virtual ThrowCompletionOr<void> create_mutable_binding(VM&, FlyString const& name, bool can_be_deleted) override;
+    virtual ThrowCompletionOr<void> create_immutable_binding(VM&, FlyString const& name, bool strict) override;
+    virtual ThrowCompletionOr<void> initialize_binding(VM&, FlyString const& name, Value, Environment::InitializeBindingHint) override;
+    virtual ThrowCompletionOr<void> set_mutable_binding(VM&, FlyString const& name, Value, bool strict) override;
+    virtual ThrowCompletionOr<Value> get_binding_value(VM&, FlyString const& name, bool strict) override;
+    virtual ThrowCompletionOr<bool> delete_binding(VM&, FlyString const& name) override;
 
     // 9.1.1.2.10 WithBaseObject ( ), https://tc39.es/ecma262/#sec-object-environment-records-withbaseobject
     virtual Object* with_base_object() const override

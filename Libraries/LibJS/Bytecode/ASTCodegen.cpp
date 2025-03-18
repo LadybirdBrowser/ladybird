@@ -788,7 +788,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> LabelledStatement::gene
 
 // 14.13.4 Runtime Semantics: LabelledEvaluation, https://tc39.es/ecma262/#sec-runtime-semantics-labelledevaluation
 // LabelledStatement : LabelIdentifier : LabelledItem
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> LabelledStatement::generate_labelled_evaluation(Bytecode::Generator& generator, Vector<DeprecatedFlyString> const& label_set, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
+Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> LabelledStatement::generate_labelled_evaluation(Bytecode::Generator& generator, Vector<FlyString> const& label_set, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
     // Convert the m_labelled_item NNRP to a reference early so we don't have to do it every single time we want to use it.
@@ -836,7 +836,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> LabelledStatement::gene
     return stmt_result;
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> IterationStatement::generate_labelled_evaluation(Bytecode::Generator&, Vector<DeprecatedFlyString> const&, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
+Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> IterationStatement::generate_labelled_evaluation(Bytecode::Generator&, Vector<FlyString> const&, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
     return Bytecode::CodeGenerationError {
         this,
@@ -850,7 +850,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> WhileStatement::generat
     return generate_labelled_evaluation(generator, {});
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> WhileStatement::generate_labelled_evaluation(Bytecode::Generator& generator, Vector<DeprecatedFlyString> const& label_set, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
+Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> WhileStatement::generate_labelled_evaluation(Bytecode::Generator& generator, Vector<FlyString> const& label_set, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
     // test
@@ -902,7 +902,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> DoWhileStatement::gener
     return generate_labelled_evaluation(generator, {});
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> DoWhileStatement::generate_labelled_evaluation(Bytecode::Generator& generator, Vector<DeprecatedFlyString> const& label_set, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
+Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> DoWhileStatement::generate_labelled_evaluation(Bytecode::Generator& generator, Vector<FlyString> const& label_set, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
     // jump always (true) body
@@ -960,7 +960,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ForStatement::generate_
     return generate_labelled_evaluation(generator, {});
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ForStatement::generate_labelled_evaluation(Bytecode::Generator& generator, Vector<DeprecatedFlyString> const& label_set, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
+Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ForStatement::generate_labelled_evaluation(Bytecode::Generator& generator, Vector<FlyString> const& label_set, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
     // init
@@ -1142,17 +1142,17 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ObjectExpression::gener
 
         if (is<StringLiteral>(property->key())) {
             auto& string_literal = static_cast<StringLiteral const&>(property->key());
-            Bytecode::IdentifierTableIndex key_name = generator.intern_identifier(string_literal.value());
+            Bytecode::IdentifierTableIndex key_name = generator.intern_identifier(MUST(FlyString::from_utf8(string_literal.value().bytes())));
 
             Optional<ScopedOperand> value;
             if (property_kind == Bytecode::Op::PropertyKind::ProtoSetter) {
                 value = TRY(property->value().generate_bytecode(generator)).value();
             } else {
-                ByteString identifier = string_literal.value();
+                auto identifier = string_literal.value();
                 if (property_kind == Bytecode::Op::PropertyKind::Getter)
-                    identifier = ByteString::formatted("get {}", identifier);
+                    identifier = MUST(String::formatted("get {}", identifier));
                 else if (property_kind == Bytecode::Op::PropertyKind::Setter)
-                    identifier = ByteString::formatted("set {}", identifier);
+                    identifier = MUST(String::formatted("set {}", identifier));
                 auto name = generator.intern_identifier(identifier);
                 value = TRY(generator.emit_named_evaluation_if_anonymous_function(property->value(), name)).value();
             }
@@ -1846,8 +1846,8 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ReturnStatement::genera
             auto received_completion_type = generator.allocate_register();
             auto received_completion_value = generator.allocate_register();
 
-            auto type_identifier = generator.intern_identifier("type");
-            auto value_identifier = generator.intern_identifier("value");
+            auto type_identifier = generator.intern_identifier("type"_fly_string);
+            auto value_identifier = generator.intern_identifier("value"_fly_string);
             return_value = generate_await(generator, *return_value, received_completion, received_completion_type, received_completion_value, type_identifier, value_identifier);
         }
 
@@ -1966,8 +1966,8 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> YieldExpression::genera
     auto received_completion_type = generator.allocate_register();
     auto received_completion_value = generator.allocate_register();
 
-    auto type_identifier = generator.intern_identifier("type");
-    auto value_identifier = generator.intern_identifier("value");
+    auto type_identifier = generator.intern_identifier("type"_fly_string);
+    auto value_identifier = generator.intern_identifier("value"_fly_string);
 
     if (m_is_yield_from) {
         // 15.5.5 Runtime Semantics: Evaluation, https://tc39.es/ecma262/#sec-generator-function-definitions-runtime-semantics-evaluation
@@ -2102,7 +2102,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> YieldExpression::genera
 
         // i. Let throw be ? GetMethod(iterator, "throw").
         auto throw_method = generator.allocate_register();
-        generator.emit<Bytecode::Op::GetMethod>(throw_method, iterator, generator.intern_identifier("throw"));
+        generator.emit<Bytecode::Op::GetMethod>(throw_method, iterator, generator.intern_identifier("throw"_fly_string));
 
         // ii. If throw is not undefined, then
         auto& throw_method_is_defined_block = generator.make_block();
@@ -2187,7 +2187,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> YieldExpression::genera
 
         // ii. Let return be ? GetMethod(iterator, "return").
         auto return_method = generator.allocate_register();
-        generator.emit<Bytecode::Op::GetMethod>(return_method, iterator, generator.intern_identifier("return"));
+        generator.emit<Bytecode::Op::GetMethod>(return_method, iterator, generator.intern_identifier("return"_fly_string));
 
         // iii. If return is undefined, then
         auto& return_is_undefined_block = generator.make_block();
@@ -2542,7 +2542,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> TaggedTemplateLiteral::
         generator.emit_with_extra_operand_slots<Bytecode::Op::NewArray>(raw_string_regs.size(), raw_strings_array, raw_string_regs);
     }
 
-    generator.emit<Bytecode::Op::PutById>(strings_array, generator.intern_identifier("raw"), raw_strings_array, Bytecode::Op::PropertyKind::KeyValue, generator.next_property_lookup_cache());
+    generator.emit<Bytecode::Op::PutById>(strings_array, generator.intern_identifier("raw"_fly_string), raw_strings_array, Bytecode::Op::PropertyKind::KeyValue, generator.next_property_lookup_cache());
 
     auto arguments = generator.allocate_register();
     if (!argument_regs.is_empty())
@@ -2661,7 +2661,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> TryStatement::generate_
         bool did_create_variable_scope_for_catch_clause = false;
 
         TRY(m_handler->parameter().visit(
-            [&](DeprecatedFlyString const& parameter) -> Bytecode::CodeGenerationErrorOr<void> {
+            [&](FlyString const& parameter) -> Bytecode::CodeGenerationErrorOr<void> {
                 if (!parameter.is_empty()) {
                     generator.begin_variable_scope();
                     did_create_variable_scope_for_catch_clause = true;
@@ -2762,7 +2762,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> SwitchStatement::genera
     return generate_labelled_evaluation(generator, {});
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> SwitchStatement::generate_labelled_evaluation(Bytecode::Generator& generator, Vector<DeprecatedFlyString> const& label_set, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
+Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> SwitchStatement::generate_labelled_evaluation(Bytecode::Generator& generator, Vector<FlyString> const& label_set, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
 
@@ -2989,8 +2989,8 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> AwaitExpression::genera
 
     generator.emit<Bytecode::Op::Mov>(received_completion, generator.accumulator());
 
-    auto type_identifier = generator.intern_identifier("type");
-    auto value_identifier = generator.intern_identifier("value");
+    auto type_identifier = generator.intern_identifier("type"_fly_string);
+    auto value_identifier = generator.intern_identifier("value"_fly_string);
 
     return generate_await(generator, argument, received_completion, received_completion_type, received_completion_value, type_identifier, value_identifier);
 }
@@ -3144,7 +3144,7 @@ static Bytecode::CodeGenerationErrorOr<ForInOfHeadEvaluationResult> for_in_of_he
 }
 
 // 14.7.5.7 ForIn/OfBodyEvaluation ( lhs, stmt, iteratorRecord, iterationKind, lhsKind, labelSet [ , iteratorKind ] ), https://tc39.es/ecma262/#sec-runtime-semantics-forin-div-ofbodyevaluation-lhs-stmt-iterator-lhskind-labelset
-static Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> for_in_of_body_evaluation(Bytecode::Generator& generator, ASTNode const& node, Variant<NonnullRefPtr<ASTNode const>, NonnullRefPtr<BindingPattern const>> const& lhs, ASTNode const& body, ForInOfHeadEvaluationResult const& head_result, Vector<DeprecatedFlyString> const& label_set, Bytecode::BasicBlock& loop_end, Bytecode::BasicBlock& loop_update, IteratorHint iterator_kind = IteratorHint::Sync, [[maybe_unused]] Optional<ScopedOperand> preferred_dst = {})
+static Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> for_in_of_body_evaluation(Bytecode::Generator& generator, ASTNode const& node, Variant<NonnullRefPtr<ASTNode const>, NonnullRefPtr<BindingPattern const>> const& lhs, ASTNode const& body, ForInOfHeadEvaluationResult const& head_result, Vector<FlyString> const& label_set, Bytecode::BasicBlock& loop_end, Bytecode::BasicBlock& loop_update, IteratorHint iterator_kind = IteratorHint::Sync, [[maybe_unused]] Optional<ScopedOperand> preferred_dst = {})
 {
     // 1. If iteratorKind is not present, set iteratorKind to sync.
 
@@ -3186,8 +3186,8 @@ static Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> for_in_of_body_e
         auto received_completion_type = generator.allocate_register();
         auto received_completion_value = generator.allocate_register();
 
-        auto type_identifier = generator.intern_identifier("type");
-        auto value_identifier = generator.intern_identifier("value");
+        auto type_identifier = generator.intern_identifier("type"_fly_string);
+        auto value_identifier = generator.intern_identifier("value"_fly_string);
 
         generator.emit<Bytecode::Op::Mov>(received_completion, generator.accumulator());
         auto new_result = generate_await(generator, next_result, received_completion, received_completion_type, received_completion_value, type_identifier, value_identifier);
@@ -3377,7 +3377,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ForInStatement::generat
 }
 
 // 14.7.5.5 Runtime Semantics: ForInOfLoopEvaluation, https://tc39.es/ecma262/#sec-runtime-semantics-forinofloopevaluation
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ForInStatement::generate_labelled_evaluation(Bytecode::Generator& generator, Vector<DeprecatedFlyString> const& label_set, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
+Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ForInStatement::generate_labelled_evaluation(Bytecode::Generator& generator, Vector<FlyString> const& label_set, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
     auto& loop_end = generator.make_block();
     auto& loop_update = generator.make_block();
@@ -3393,7 +3393,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ForOfStatement::generat
     return generate_labelled_evaluation(generator, {});
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ForOfStatement::generate_labelled_evaluation(Bytecode::Generator& generator, Vector<DeprecatedFlyString> const& label_set, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
+Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ForOfStatement::generate_labelled_evaluation(Bytecode::Generator& generator, Vector<FlyString> const& label_set, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
     auto& loop_end = generator.make_block();
     auto& loop_update = generator.make_block();
@@ -3409,7 +3409,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ForAwaitOfStatement::ge
     return generate_labelled_evaluation(generator, {});
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ForAwaitOfStatement::generate_labelled_evaluation(Bytecode::Generator& generator, Vector<DeprecatedFlyString> const& label_set, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
+Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ForAwaitOfStatement::generate_labelled_evaluation(Bytecode::Generator& generator, Vector<FlyString> const& label_set, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
     auto& loop_end = generator.make_block();
     auto& loop_update = generator.make_block();
@@ -3561,7 +3561,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ExportStatement::genera
     }
 
     if (is<ClassExpression>(*m_statement)) {
-        auto value = TRY(generator.emit_named_evaluation_if_anonymous_function(static_cast<ClassExpression const&>(*m_statement), generator.intern_identifier("default"sv))).value();
+        auto value = TRY(generator.emit_named_evaluation_if_anonymous_function(static_cast<ClassExpression const&>(*m_statement), generator.intern_identifier("default"_fly_string))).value();
 
         if (!static_cast<ClassExpression const&>(*m_statement).has_name()) {
             generator.emit<Bytecode::Op::InitializeLexicalBinding>(
@@ -3574,7 +3574,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ExportStatement::genera
 
     // ExportDeclaration : export default AssignmentExpression ;
     VERIFY(is<Expression>(*m_statement));
-    auto value = TRY(generator.emit_named_evaluation_if_anonymous_function(static_cast<Expression const&>(*m_statement), generator.intern_identifier("default"sv))).value();
+    auto value = TRY(generator.emit_named_evaluation_if_anonymous_function(static_cast<Expression const&>(*m_statement), generator.intern_identifier("default"_fly_string))).value();
     generator.emit<Bytecode::Op::InitializeLexicalBinding>(
         generator.intern_identifier(ExportStatement::local_name_for_default),
         value);

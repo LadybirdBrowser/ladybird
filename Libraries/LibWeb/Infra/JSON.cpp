@@ -137,7 +137,7 @@ WebIDL::ExceptionOr<ByteBuffer> serialize_javascript_value_to_json_bytes(JS::VM&
         auto map_value_js_value = convert_an_infra_value_to_a_json_compatible_javascript_value(realm, map_entry.value);
 
         // 3. Perform ! CreateDataPropertyOrThrow(jsValue, mapKey, mapValueJSValue).
-        MUST(js_value->create_data_property_or_throw(map_entry.key.to_byte_string(), map_value_js_value));
+        MUST(js_value->create_data_property_or_throw(map_entry.key, map_value_js_value));
     }
 
     // 6. Return jsValue.
