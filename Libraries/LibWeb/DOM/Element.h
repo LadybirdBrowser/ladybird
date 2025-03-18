@@ -214,7 +214,7 @@ public:
     GC::Ptr<CSS::CSSStyleProperties> inline_style() { return m_inline_style; }
     GC::Ptr<CSS::CSSStyleProperties const> inline_style() const { return m_inline_style; }
 
-    CSS::CSSStyleProperties* style_for_bindings();
+    GC::Ref<CSS::CSSStyleProperties> style_for_bindings();
 
     CSS::StyleSheetList& document_or_shadow_root_style_sheets();
 

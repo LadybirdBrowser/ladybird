@@ -30,7 +30,7 @@ public:
     String selector_text() const;
     void set_selector_text(StringView);
 
-    CSSStyleProperties* style();
+    GC::Ref<CSSStyleProperties> style();
 
     [[nodiscard]] FlyString const& qualified_layer_name() const { return parent_layer_internal_qualified_name(); }
 

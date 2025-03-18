@@ -43,7 +43,7 @@ void CSSStyleRule::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://drafts.csswg.org/cssom-1/#dom-cssstylerule-style
-CSSStyleProperties* CSSStyleRule::style()
+GC::Ref<CSSStyleProperties> CSSStyleRule::style()
 {
     return m_declaration;
 }

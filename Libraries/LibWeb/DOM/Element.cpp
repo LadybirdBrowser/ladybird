@@ -918,11 +918,11 @@ void Element::set_shadow_root(GC::Ptr<ShadowRoot> shadow_root)
     invalidate_style(StyleInvalidationReason::ElementSetShadowRoot);
 }
 
-CSS::CSSStyleProperties* Element::style_for_bindings()
+GC::Ref<CSS::CSSStyleProperties> Element::style_for_bindings()
 {
     if (!m_inline_style)
         m_inline_style = CSS::CSSStyleProperties::create_element_inline_style({ *this }, {}, {});
-    return m_inline_style;
+    return *m_inline_style;
 }
 
 // https://dom.spec.whatwg.org/#element-html-uppercased-qualified-name
