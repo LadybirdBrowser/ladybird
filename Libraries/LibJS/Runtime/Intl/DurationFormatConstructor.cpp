@@ -53,7 +53,7 @@ ThrowCompletionOr<GC::Ref<Object>> DurationFormatConstructor::construct(Function
     auto locales = vm.argument(0);
     auto options_value = vm.argument(1);
 
-    // 2. Let durationFormat be ? OrdinaryCreateFromConstructor(NewTarget, "%Intl.DurationFormatPrototype%", « [[InitializedDurationFormat]], [[Locale]], [[NumberingSystem]], [[Style]], [[YearsStyle]], [[YearsDisplay]], [[MonthsStyle]], [[MonthsDisplay]], [[WeeksStyle]], [[WeeksDisplay]], [[DaysStyle]], [[DaysDisplay]], [[HoursStyle]], [[HoursDisplay]], [[MinutesStyle]], [[MinutesDisplay]], [[SecondsStyle]], [[SecondsDisplay]], [[MillisecondsStyle]], [[MillisecondsDisplay]], [[MicrosecondsStyle]], [[MicrosecondsDisplay]], [[NanosecondsStyle]], [[NanosecondsDisplay]], [[HourMinuteSeparator]], [[MinuteSecondSeparator]], [[FractionalDigits]] »).
+    // 2. Let durationFormat be ? OrdinaryCreateFromConstructor(NewTarget, "%Intl.DurationFormatPrototype%", « [[InitializedDurationFormat]], [[Locale]], [[NumberingSystem]], [[Style]], [[YearsOptions]], [[MonthsOptions]], [[WeeksOptions]], [[DaysOptions]], [[HoursOptions]], [[MinutesOptions]], [[SecondsOptions]], [[MillisecondsOptions]], [[MicrosecondsOptions]], [[NanosecondsOptions]], [[HourMinuteSeparator]], [[MinuteSecondSeparator]], [[FractionalDigits]] »).
     auto duration_format = TRY(ordinary_create_from_constructor<DurationFormat>(vm, new_target, &Intrinsics::intl_duration_format_prototype));
 
     // 3. Let requestedLocales be ? CanonicalizeLocaleList(locales).
@@ -112,31 +112,25 @@ ThrowCompletionOr<GC::Ref<Object>> DurationFormatConstructor::construct(Function
 
     // 19. For each row of Table 20, except the header row, in table order, do
     for (auto const& duration_instances_component : duration_instances_components) {
-        // a. Let styleSlot be the Style Slot value of the current row.
-        auto style_slot = duration_instances_component.set_style_slot;
+        // a. Let slot be the Internal Slot value of the current row.
+        auto slot = duration_instances_component.set_internal_slot;
 
-        // b. Let displaySlot be the Display Slot value of the current row.
-        auto display_slot = duration_instances_component.set_display_slot;
-
-        // c. Let unit be the Unit value of the current row.
+        // b. Let unit be the Unit value of the current row.
         auto unit = duration_instances_component.unit;
 
-        // d. Let valueList be the Values value of the current row.
-        auto value_list = duration_instances_component.values;
+        // c. Let styles be the Styles value of the current row.
+        auto styles = duration_instances_component.styles;
 
-        // e. Let digitalBase be the Digital Default value of the current row.
+        // d. Let digitalBase be the Digital Default value of the current row.
         auto digital_base = duration_instances_component.digital_default;
 
-        // f. Let unitOptions be ? GetDurationUnitOptions(unit, options, style, valueList, digitalBase, prevStyle, digitalFormat.[[TwoDigitHours]]).
-        auto unit_options = TRY(get_duration_unit_options(vm, unit, *options, duration_format->style(), value_list, digital_base, previous_style, digital_format.uses_two_digit_hours));
+        // e. Let unitOptions be ? GetDurationUnitOptions(unit, options, style, styles, digitalBase, prevStyle, digitalFormat.[[TwoDigitHours]]).
+        auto unit_options = TRY(get_duration_unit_options(vm, unit, *options, duration_format->style(), styles, digital_base, previous_style, digital_format.uses_two_digit_hours));
 
-        // g. Set the value of the styleSlot slot of durationFormat to unitOptions.[[Style]].
-        (duration_format->*style_slot)(unit_options.style);
+        // f. Set the value of durationFormat's internal slot whose name is slot to unitOptions.
+        (duration_format->*slot)(unit_options);
 
-        // h. Set the value of the displaySlot slot of durationFormat to unitOptions.[[Display]].
-        (duration_format->*display_slot)(unit_options.display);
-
-        // i. If unit is one of "hours", "minutes", "seconds", "milliseconds", or "microseconds", then
+        // g. If unit is one of "hours", "minutes", "seconds", "milliseconds", or "microseconds", then
         if (first_is_one_of(unit, DurationFormat::Unit::Hours, DurationFormat::Unit::Minutes, DurationFormat::Unit::Seconds, DurationFormat::Unit::Milliseconds, DurationFormat::Unit::Microseconds)) {
             // i. Set prevStyle to unitOptions.[[Style]].
             previous_style = unit_options.style;
