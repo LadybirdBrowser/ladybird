@@ -201,6 +201,7 @@ void HTMLMeterElement::create_shadow_tree_if_needed()
     MUST(shadow_root->append_child(*meter_bar_element));
 
     m_meter_value_element = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
+    m_meter_value_element->set_use_pseudo_element(CSS::Selector::PseudoElement::Type::Fill);
     MUST(meter_bar_element->append_child(*m_meter_value_element));
     update_meter_value_element();
 }
@@ -241,18 +242,6 @@ void HTMLMeterElement::update_meter_value_element()
 
     if (!m_meter_value_element)
         return;
-
-    switch (m_cached_value_state) {
-    case ValueState::Optimal:
-        m_meter_value_element->set_use_pseudo_element(CSS::Selector::PseudoElement::Type::MeterOptimumValue);
-        break;
-    case ValueState::Suboptimal:
-        m_meter_value_element->set_use_pseudo_element(CSS::Selector::PseudoElement::Type::MeterSuboptimumValue);
-        break;
-    case ValueState::EvenLessGood:
-        m_meter_value_element->set_use_pseudo_element(CSS::Selector::PseudoElement::Type::MeterEvenLessGoodValue);
-        break;
-    }
 
     double position = (value - min) / (max - min) * 100;
     MUST(m_meter_value_element->style_for_bindings()->set_property(CSS::PropertyID::Width, MUST(String::formatted("{}%", position))));

@@ -122,21 +122,20 @@ meter {
         border: 1px solid rgba(0, 0, 0, 0.5);
     }
 
-    &::-webkit-meter-optimum-value {
+    &::fill {
         display: block;
         height: 100%;
+    }
+
+    &:optimal-value::fill {
         background-color: hsl(141, 53%, 53%);
     }
 
-    &::-webkit-meter-suboptimum-value {
-        display: block;
-        height: 100%;
+    &:suboptimal-value::fill {
         background-color: hsl(48, 100%, 67%);
     }
 
-    &::-webkit-meter-even-less-good-value {
-        display: block;
-        height: 100%;
+    &:even-less-good-value::fill {
         background-color: hsl(348, 100%, 61%);
     }
 }
