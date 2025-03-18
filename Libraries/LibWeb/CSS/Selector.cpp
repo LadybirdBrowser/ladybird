@@ -554,12 +554,6 @@ StringView Selector::PseudoElement::name(Selector::PseudoElement::Type pseudo_el
         return "fill"sv;
     case Selector::PseudoElement::Type::Thumb:
         return "thumb"sv;
-    case Selector::PseudoElement::Type::MeterEvenLessGoodValue:
-        return "-webkit-meter-even-less-good-value"sv;
-    case Selector::PseudoElement::Type::MeterOptimumValue:
-        return "-webkit-meter-optimum-value"sv;
-    case Selector::PseudoElement::Type::MeterSuboptimumValue:
-        return "-webkit-meter-suboptimum-value"sv;
     case Selector::PseudoElement::Type::Placeholder:
         return "placeholder"sv;
     case Selector::PseudoElement::Type::Selection:
@@ -595,12 +589,6 @@ Optional<Selector::PseudoElement> Selector::PseudoElement::from_string(FlyString
         return Selector::PseudoElement { Selector::PseudoElement::Type::Fill };
     } else if (name.equals_ignoring_ascii_case("thumb"sv)) {
         return Selector::PseudoElement { Selector::PseudoElement::Type::Thumb };
-    } else if (name.equals_ignoring_ascii_case("-webkit-meter-even-less-good-value"sv)) {
-        return Selector::PseudoElement { Selector::PseudoElement::Type::MeterEvenLessGoodValue };
-    } else if (name.equals_ignoring_ascii_case("-webkit-meter-optimum-value"sv)) {
-        return Selector::PseudoElement { Selector::PseudoElement::Type::MeterOptimumValue };
-    } else if (name.equals_ignoring_ascii_case("-webkit-meter-suboptimum-value"sv)) {
-        return Selector::PseudoElement { Selector::PseudoElement::Type::MeterSuboptimumValue };
     } else if (name.equals_ignoring_ascii_case("placeholder"sv)) {
         return Selector::PseudoElement { Selector::PseudoElement::Type::Placeholder };
     } else if (name.equals_ignoring_ascii_case("selection"sv)) {
