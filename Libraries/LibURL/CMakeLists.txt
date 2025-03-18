@@ -13,6 +13,7 @@ set(SOURCES
     Pattern/Options.cpp
     Pattern/Part.cpp
     Pattern/Pattern.cpp
+    Pattern/PatternParser.cpp
     Pattern/String.cpp
     Pattern/Tokenizer.cpp
 )
