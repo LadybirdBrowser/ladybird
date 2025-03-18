@@ -133,16 +133,4 @@ void HTMLProgressElement::update_progress_value_element()
         MUST(m_progress_value_element->style_for_bindings()->set_property(CSS::PropertyID::Width, MUST(String::formatted("{}%", position() * 100))));
 }
 
-void HTMLProgressElement::computed_properties_changed()
-{
-    auto accent_color = MUST(String::from_utf8(CSS::string_from_keyword(CSS::Keyword::Accentcolor)));
-
-    auto const& accent_color_property = computed_properties()->property(CSS::PropertyID::AccentColor);
-    if (accent_color_property.has_color())
-        accent_color = accent_color_property.to_string(Web::CSS::CSSStyleValue::SerializationMode::Normal);
-
-    if (m_progress_value_element)
-        MUST(m_progress_value_element->style_for_bindings()->set_property(CSS::PropertyID::BackgroundColor, accent_color));
-}
-
 }

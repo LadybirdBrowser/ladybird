@@ -93,6 +93,7 @@ input[type=range] {
         display: block;
         position: absolute;
         height: 100%;
+        background-color: AccentColor;
     }
 
     &::thumb {
@@ -104,6 +105,7 @@ input[type=range] {
         border-radius: 50%;
         outline: 1px solid rgba(0, 0, 0, 0.5);
         z-index: 1;
+        background-color: AccentColor;
     }
 }
 
@@ -155,6 +157,7 @@ progress {
     &::fill {
         display: block;
         height: 100%;
+        background-color: AccentColor;
     }
 }
 
