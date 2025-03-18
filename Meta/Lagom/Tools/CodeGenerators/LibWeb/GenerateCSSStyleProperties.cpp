@@ -97,8 +97,8 @@ protected:
     GeneratedCSSStyleProperties() = default;
     virtual ~GeneratedCSSStyleProperties() = default;
 
-    virtual CSS::CSSStyleDeclaration& generated_style_properties_to_css_style_declaration() = 0;
-    CSS::CSSStyleDeclaration const& generated_style_properties_to_css_style_declaration() const { return const_cast<GeneratedCSSStyleProperties&>(*this).generated_style_properties_to_css_style_declaration(); }
+    virtual CSS::CSSStyleProperties& generated_style_properties_to_css_style_properties() = 0;
+    CSS::CSSStyleProperties const& generated_style_properties_to_css_style_properties() const { return const_cast<GeneratedCSSStyleProperties&>(*this).generated_style_properties_to_css_style_properties(); }
 }; // class GeneratedCSSStyleProperties
 
 } // namespace Web::Bindings
@@ -114,7 +114,7 @@ ErrorOr<void> generate_implementation_file(JsonObject& properties, Core::File& f
     SourceGenerator generator { builder };
 
     generator.append(R"~~~(
-#include <LibWeb/CSS/CSSStyleDeclaration.h>
+#include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/GeneratedCSSStyleProperties.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -131,12 +131,12 @@ namespace Web::Bindings {
         definition_generator.append(R"~~~(
 WebIDL::ExceptionOr<void> GeneratedCSSStyleProperties::set_@name:acceptable_cpp@(StringView value)
 {
-    return generated_style_properties_to_css_style_declaration().set_property("@name@"sv, value, ""sv);
+    return generated_style_properties_to_css_style_properties().set_property("@name@"sv, value, ""sv);
 }
 
 String GeneratedCSSStyleProperties::@name:acceptable_cpp@() const
 {
-    return generated_style_properties_to_css_style_declaration().get_property_value("@name@"sv);
+    return generated_style_properties_to_css_style_properties().get_property_value("@name@"sv);
 }
 )~~~");
     });

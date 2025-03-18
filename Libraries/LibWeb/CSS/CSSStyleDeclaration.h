@@ -8,10 +8,8 @@
 #pragma once
 
 #include <AK/String.h>
-#include <AK/Vector.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/CSS/CSSStyleValue.h>
-#include <LibWeb/CSS/GeneratedCSSStyleProperties.h>
 #include <LibWeb/CSS/StyleProperty.h>
 #include <LibWeb/DOM/ElementReference.h>
 
@@ -19,8 +17,7 @@ namespace Web::CSS {
 
 // https://drafts.csswg.org/cssom/#css-declaration-blocks
 class CSSStyleDeclaration
-    : public Bindings::PlatformObject
-    , public Bindings::GeneratedCSSStyleProperties {
+    : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(CSSStyleDeclaration, Bindings::PlatformObject);
     GC_DECLARE_ALLOCATOR(CSSStyleDeclaration);
 
@@ -31,23 +28,14 @@ public:
     virtual size_t length() const = 0;
     virtual String item(size_t index) const = 0;
 
-    virtual Optional<StyleProperty> property(PropertyID) const = 0;
-    virtual Optional<StyleProperty const&> custom_property(FlyString const& custom_property_name) const = 0;
-
-    virtual WebIDL::ExceptionOr<void> set_property(PropertyID, StringView css_text, StringView priority = ""sv);
-    virtual WebIDL::ExceptionOr<String> remove_property(PropertyID);
-
     virtual WebIDL::ExceptionOr<void> set_property(StringView property_name, StringView css_text, StringView priority) = 0;
     virtual WebIDL::ExceptionOr<String> remove_property(StringView property_name) = 0;
 
-    String get_property_value(StringView property) const;
-    StringView get_property_priority(StringView property) const;
+    virtual String get_property_value(StringView property_name) const = 0;
+    virtual StringView get_property_priority(StringView property_name) const = 0;
 
     String css_text() const;
     virtual WebIDL::ExceptionOr<void> set_css_text(StringView) = 0;
-
-    String css_float() const;
-    WebIDL::ExceptionOr<void> set_css_float(StringView);
 
     virtual String serialized() const = 0;
 
@@ -82,14 +70,11 @@ protected:
 
     virtual void visit_edges(Visitor&) override;
 
-    virtual CSSStyleDeclaration& generated_style_properties_to_css_style_declaration() override { return *this; }
-
     void update_style_attribute();
 
 private:
     // ^PlatformObject
     virtual Optional<JS::Value> item_value(size_t index) const override;
-    Optional<StyleProperty> get_property_internal(PropertyID) const;
 
     // https://drafts.csswg.org/cssom/#cssstyledeclaration-parent-css-rule
     GC::Ptr<CSSRule> m_parent_rule { nullptr };
