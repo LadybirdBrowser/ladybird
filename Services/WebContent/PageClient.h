@@ -165,7 +165,7 @@ private:
     virtual void page_did_request_color_picker(Color current_color) override;
     virtual void page_did_request_file_picker(Web::HTML::FileFilter const& accepted_file_types, Web::HTML::AllowMultipleFiles) override;
     virtual void page_did_request_select_dropdown(Web::CSSPixelPoint content_position, Web::CSSPixels minimum_width, Vector<Web::HTML::SelectItem> items) override;
-    virtual void page_did_finish_text_test(String const& text) override;
+    virtual void page_did_finish_test(String const& text) override;
     virtual void page_did_set_test_timeout(double milliseconds) override;
     virtual void page_did_set_browser_zoom(double factor) override;
     virtual void page_did_change_theme_color(Gfx::Color color) override;

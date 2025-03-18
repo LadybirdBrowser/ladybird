@@ -20,7 +20,7 @@ class Internals final : public Bindings::PlatformObject {
 public:
     virtual ~Internals() override;
 
-    void signal_text_test_is_done(String const& text);
+    void signal_test_is_done(String const& text);
     void set_test_timeout(double milliseconds);
 
     void gc();

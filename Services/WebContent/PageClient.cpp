@@ -386,9 +386,9 @@ void PageClient::page_did_finish_loading(URL::URL const& url)
     client().async_did_finish_loading(m_id, url);
 }
 
-void PageClient::page_did_finish_text_test(String const& text)
+void PageClient::page_did_finish_test(String const& text)
 {
-    client().async_did_finish_text_test(m_id, text);
+    client().async_did_finish_test(m_id, text);
 }
 
 void PageClient::page_did_set_test_timeout(double milliseconds)

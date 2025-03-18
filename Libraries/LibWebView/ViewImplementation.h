@@ -235,7 +235,7 @@ public:
     Function<void(Gfx::IntPoint content_position, i32 minimum_width, Vector<Web::HTML::SelectItem> items)> on_request_select_dropdown;
     Function<void(Web::KeyEvent const&)> on_finish_handling_key_event;
     Function<void(Web::DragEvent const&)> on_finish_handling_drag_event;
-    Function<void(String const&)> on_text_test_finish;
+    Function<void(String const&)> on_test_finish;
     Function<void(double milliseconds)> on_set_test_timeout;
     Function<void(double factor)> on_set_browser_zoom;
     Function<void(size_t current_match_index, Optional<size_t> const& total_match_count)> on_find_in_page;
