@@ -8,8 +8,27 @@
 #include <LibURL/Pattern/Component.h>
 #include <LibURL/Pattern/PatternParser.h>
 #include <LibURL/Pattern/String.h>
+#include <LibURL/URL.h>
 
 namespace URL::Pattern {
+
+// https://urlpattern.spec.whatwg.org/#protocol-component-matches-a-special-scheme
+bool protocol_component_matches_a_special_scheme(Component const& protocol_component)
+{
+    // 1. Let special scheme list be a list populated with all of the special schemes.
+    // 2. For each scheme of special scheme list:
+    for (StringView scheme : special_schemes()) {
+        // 1. Let test result be RegExpBuiltinExec(protocol component’s regular expression, scheme).
+        auto test_result = protocol_component.regular_expression->match(scheme);
+
+        // 2. If test result is not null, then return true.
+        if (test_result.success)
+            return true;
+    }
+
+    // 3. Return false.
+    return false;
+}
 
 // https://urlpattern.spec.whatwg.org/#generate-a-regular-expression-and-name-list
 struct RegularExpressionAndNameList {
