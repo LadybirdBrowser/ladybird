@@ -1,0 +1,14 @@
+diff --git a/meson.build b/meson.build
+index 8e78700..95bae59 100644
+--- a/meson.build
++++ b/meson.build
+@@ -112,6 +112,9 @@ check_alignofs = [
+ ]
+ 
+ add_project_arguments('-DHAVE_CONFIG_H', language: 'c')
++if cc.get_id() == 'clang' and host_machine.cpu_family() == 'wasm'
++    add_project_arguments('-matomics', '-mbulk-memory', language: 'c')
++endif
+ 
+ c_args = []
+ 
