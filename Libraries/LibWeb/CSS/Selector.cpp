@@ -548,26 +548,22 @@ StringView Selector::PseudoElement::name(Selector::PseudoElement::Type pseudo_el
         return "first-letter"sv;
     case Selector::PseudoElement::Type::Marker:
         return "marker"sv;
-    case Selector::PseudoElement::Type::MeterBar:
-        return "-webkit-meter-bar"sv;
+    case Selector::PseudoElement::Type::Track:
+        return "track"sv;
+    case Selector::PseudoElement::Type::Fill:
+        return "fill"sv;
+    case Selector::PseudoElement::Type::Thumb:
+        return "thumb"sv;
     case Selector::PseudoElement::Type::MeterEvenLessGoodValue:
         return "-webkit-meter-even-less-good-value"sv;
     case Selector::PseudoElement::Type::MeterOptimumValue:
         return "-webkit-meter-optimum-value"sv;
     case Selector::PseudoElement::Type::MeterSuboptimumValue:
         return "-webkit-meter-suboptimum-value"sv;
-    case Selector::PseudoElement::Type::ProgressBar:
-        return "-webkit-progress-bar"sv;
-    case Selector::PseudoElement::Type::ProgressValue:
-        return "-webkit-progress-value"sv;
     case Selector::PseudoElement::Type::Placeholder:
         return "placeholder"sv;
     case Selector::PseudoElement::Type::Selection:
         return "selection"sv;
-    case Selector::PseudoElement::Type::SliderRunnableTrack:
-        return "-webkit-slider-runnable-track"sv;
-    case Selector::PseudoElement::Type::SliderThumb:
-        return "-webkit-slider-thumb"sv;
     case Selector::PseudoElement::Type::Backdrop:
         return "backdrop"sv;
     case Selector::PseudoElement::Type::FileSelectorButton:
@@ -575,7 +571,6 @@ StringView Selector::PseudoElement::name(Selector::PseudoElement::Type pseudo_el
     case Selector::PseudoElement::Type::DetailsContent:
         return "details-content"sv;
     case Selector::PseudoElement::Type::KnownPseudoElementCount:
-        break;
     case Selector::PseudoElement::Type::UnknownWebKit:
         VERIFY_NOT_REACHED();
     }
@@ -594,18 +589,18 @@ Optional<Selector::PseudoElement> Selector::PseudoElement::from_string(FlyString
         return Selector::PseudoElement { Selector::PseudoElement::Type::FirstLine };
     } else if (name.equals_ignoring_ascii_case("marker"sv)) {
         return Selector::PseudoElement { Selector::PseudoElement::Type::Marker };
-    } else if (name.equals_ignoring_ascii_case("-webkit-meter-bar"sv)) {
-        return Selector::PseudoElement { Selector::PseudoElement::Type::MeterBar };
+    } else if (name.equals_ignoring_ascii_case("track"sv)) {
+        return Selector::PseudoElement { Selector::PseudoElement::Type::Track };
+    } else if (name.equals_ignoring_ascii_case("fill"sv)) {
+        return Selector::PseudoElement { Selector::PseudoElement::Type::Fill };
+    } else if (name.equals_ignoring_ascii_case("thumb"sv)) {
+        return Selector::PseudoElement { Selector::PseudoElement::Type::Thumb };
     } else if (name.equals_ignoring_ascii_case("-webkit-meter-even-less-good-value"sv)) {
         return Selector::PseudoElement { Selector::PseudoElement::Type::MeterEvenLessGoodValue };
     } else if (name.equals_ignoring_ascii_case("-webkit-meter-optimum-value"sv)) {
         return Selector::PseudoElement { Selector::PseudoElement::Type::MeterOptimumValue };
     } else if (name.equals_ignoring_ascii_case("-webkit-meter-suboptimum-value"sv)) {
         return Selector::PseudoElement { Selector::PseudoElement::Type::MeterSuboptimumValue };
-    } else if (name.equals_ignoring_ascii_case("-webkit-progress-bar"sv)) {
-        return Selector::PseudoElement { Selector::PseudoElement::Type::ProgressBar };
-    } else if (name.equals_ignoring_ascii_case("-webkit-progress-value"sv)) {
-        return Selector::PseudoElement { Selector::PseudoElement::Type::ProgressValue };
     } else if (name.equals_ignoring_ascii_case("placeholder"sv)) {
         return Selector::PseudoElement { Selector::PseudoElement::Type::Placeholder };
     } else if (name.equals_ignoring_ascii_case("selection"sv)) {
@@ -616,10 +611,6 @@ Optional<Selector::PseudoElement> Selector::PseudoElement::from_string(FlyString
         return Selector::PseudoElement { Selector::PseudoElement::Type::FileSelectorButton };
     } else if (name.equals_ignoring_ascii_case("details-content"sv)) {
         return Selector::PseudoElement { Selector::PseudoElement::Type::DetailsContent };
-    } else if (name.equals_ignoring_ascii_case("-webkit-slider-runnable-track"sv)) {
-        return Selector::PseudoElement { Selector::PseudoElement::Type::SliderRunnableTrack };
-    } else if (name.equals_ignoring_ascii_case("-webkit-slider-thumb"sv)) {
-        return Selector::PseudoElement { Selector::PseudoElement::Type::SliderThumb };
     }
     return {};
 }

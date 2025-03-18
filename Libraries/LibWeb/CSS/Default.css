@@ -78,26 +78,33 @@ input[type=range] {
     display: inline-block;
     width: 20ch;
     height: 16px;
-}
-input[type=range]::-webkit-slider-runnable-track, input[type=range]::-webkit-slider-thumb {
-    display: block;
-}
-input[type=range]::-webkit-slider-runnable-track {
-    position: relative;
-    height: 4px;
-    width: 100%;
-    margin-top: 6px;
-    background-color: AccentColorText;
-    border: 1px solid rgba(0, 0, 0, 0.5);
-}
-input[type=range]::-webkit-slider-thumb {
-    margin-top: -6px;
-    width: 16px;
-    height: 16px;
-    transform: translateX(-50%);
-    border-radius: 50%;
-    outline: 1px solid rgba(0, 0, 0, 0.5);
-    z-index: 1;
+
+    &::track {
+        display: block;
+        position: relative;
+        height: 4px;
+        width: 100%;
+        margin-top: 6px;
+        background-color: AccentColorText;
+        border: 1px solid rgba(0, 0, 0, 0.5);
+    }
+
+    &::fill {
+        display: block;
+        position: absolute;
+        height: 100%;
+    }
+
+    &::thumb {
+        display: block;
+        margin-top: -6px;
+        width: 16px;
+        height: 16px;
+        transform: translateX(-50%);
+        border-radius: 50%;
+        outline: 1px solid rgba(0, 0, 0, 0.5);
+        z-index: 1;
+    }
 }
 
 /* Custom <meter> styles */
@@ -105,23 +112,31 @@ meter {
     display: inline-block;
     width: 300px;
     height: 12px;
-}
-meter::-webkit-meter-bar, meter::-webkit-meter-optimum-value, meter::-webkit-meter-suboptimum-value, meter::-webkit-meter-even-less-good-value {
-    display: block;
-    height: 100%;
-}
-meter::-webkit-meter-bar {
-    background-color: hsl(0, 0%, 96%);
-    border: 1px solid rgba(0, 0, 0, 0.5);
-}
-meter::-webkit-meter-optimum-value {
-    background-color: hsl(141, 53%, 53%);
-}
-meter::-webkit-meter-suboptimum-value {
-    background-color: hsl(48, 100%, 67%);
-}
-meter::-webkit-meter-even-less-good-value {
-    background-color: hsl(348, 100%, 61%);
+
+    &::track {
+        display: block;
+        height: 100%;
+        background-color: hsl(0, 0%, 96%);
+        border: 1px solid rgba(0, 0, 0, 0.5);
+    }
+
+    &::-webkit-meter-optimum-value {
+        display: block;
+        height: 100%;
+        background-color: hsl(141, 53%, 53%);
+    }
+
+    &::-webkit-meter-suboptimum-value {
+        display: block;
+        height: 100%;
+        background-color: hsl(48, 100%, 67%);
+    }
+
+    &::-webkit-meter-even-less-good-value {
+        display: block;
+        height: 100%;
+        background-color: hsl(348, 100%, 61%);
+    }
 }
 
 /* Custom <progress> styles */
@@ -129,14 +144,18 @@ progress {
     display: inline-block;
     width: 300px;
     height: 12px;
-}
-progress::-webkit-progress-bar, progress::-webkit-progress-value {
-    display: block;
-    height: 100%;
-}
-progress::-webkit-progress-bar {
-    background-color: AccentColorText;
-    border: 1px solid rgba(0, 0, 0, 0.5);
+
+    &::track {
+        display: block;
+        height: 100%;
+        background-color: AccentColorText;
+        border: 1px solid rgba(0, 0, 0, 0.5);
+    }
+
+    &::fill {
+        display: block;
+        height: 100%;
+    }
 }
 
 /* 15.3.1 Hidden elements
