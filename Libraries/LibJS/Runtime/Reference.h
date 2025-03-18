@@ -13,7 +13,7 @@
 
 namespace JS {
 
-Reference make_private_reference(VM&, Value base_value, DeprecatedFlyString const& private_identifier);
+Reference make_private_reference(VM&, Value base_value, FlyString const& private_identifier);
 
 class Reference {
 public:
@@ -39,7 +39,7 @@ public:
     {
     }
 
-    Reference(Environment& base, DeprecatedFlyString referenced_name, bool strict = false, Optional<EnvironmentCoordinate> environment_coordinate = {})
+    Reference(Environment& base, FlyString referenced_name, bool strict = false, Optional<EnvironmentCoordinate> environment_coordinate = {})
         : m_base_type(BaseType::Environment)
         , m_base_environment(&base)
         , m_name(move(referenced_name))

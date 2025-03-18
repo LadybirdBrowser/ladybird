@@ -372,7 +372,7 @@ JS::ThrowCompletionOr<NonnullRefPtr<CompiledWebAssemblyModule>> compile_a_webass
 
 GC_DEFINE_ALLOCATOR(ExportedWasmFunction);
 
-GC::Ref<ExportedWasmFunction> ExportedWasmFunction::create(JS::Realm& realm, DeprecatedFlyString const& name, Function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)> behavior, Wasm::FunctionAddress exported_address)
+GC::Ref<ExportedWasmFunction> ExportedWasmFunction::create(JS::Realm& realm, FlyString const& name, Function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)> behavior, Wasm::FunctionAddress exported_address)
 {
     auto& vm = realm.vm();
     auto prototype = realm.intrinsics().function_prototype();
@@ -383,13 +383,13 @@ GC::Ref<ExportedWasmFunction> ExportedWasmFunction::create(JS::Realm& realm, Dep
         prototype);
 }
 
-ExportedWasmFunction::ExportedWasmFunction(DeprecatedFlyString name, GC::Ptr<GC::Function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)>> behavior, Wasm::FunctionAddress exported_address, JS::Object& prototype)
+ExportedWasmFunction::ExportedWasmFunction(FlyString name, GC::Ptr<GC::Function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)>> behavior, Wasm::FunctionAddress exported_address, JS::Object& prototype)
     : NativeFunction(move(name), move(behavior), prototype)
     , m_exported_address(exported_address)
 {
 }
 
-JS::NativeFunction* create_native_function(JS::VM& vm, Wasm::FunctionAddress address, ByteString const& name, Instance* instance)
+JS::NativeFunction* create_native_function(JS::VM& vm, Wasm::FunctionAddress address, String const& name, Instance* instance)
 {
     auto& realm = *vm.current_realm();
     Optional<Wasm::FunctionType> type;
@@ -545,7 +545,7 @@ JS::Value to_js_value(JS::VM& vm, Wasm::Value& wasm_value, Wasm::ValueType type)
             [](Wasm::HostFunction& host_function) {
                 return host_function.name();
             });
-        return create_native_function(vm, address, name);
+        return create_native_function(vm, address, MUST(String::from_byte_string(name)));
     }
     case Wasm::ValueType::ExternReference: {
         auto ref_ = wasm_value.to<Wasm::Reference>();

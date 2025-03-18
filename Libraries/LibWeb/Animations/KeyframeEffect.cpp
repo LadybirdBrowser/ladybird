@@ -185,7 +185,7 @@ static WebIDL::ExceptionOr<KeyframeType<AL>> process_a_keyframe_like_object(JS::
         // 1. Let raw value be the result of calling the [[Get]] internal method on keyframe input, with property name
         //    as the property key and keyframe input as the receiver.
         // 2. Check the completion record of raw value.
-        JS::PropertyKey key { property_name.to_byte_string(), JS::PropertyKey::StringMayBeNumber::No };
+        JS::PropertyKey key { property_name, JS::PropertyKey::StringMayBeNumber::No };
         auto raw_value = TRY(keyframe_object.has_property(key)) ? TRY(keyframe_object.get(key)) : *all_value;
 
         using PropertyValuesType = Conditional<AL == AllowLists::Yes, Vector<String>, String>;
@@ -827,7 +827,7 @@ WebIDL::ExceptionOr<GC::RootVector<JS::Object*>> KeyframeEffect::get_keyframes()
 
             for (auto const& [id, value] : keyframe.parsed_properties()) {
                 auto value_string = JS::PrimitiveString::create(vm, value->to_string(CSS::CSSStyleValue::SerializationMode::Normal));
-                TRY(object->set(JS::PropertyKey { DeprecatedFlyString(CSS::camel_case_string_from_property_id(id)), JS::PropertyKey::StringMayBeNumber::No }, value_string, ShouldThrowExceptions::Yes));
+                TRY(object->set(JS::PropertyKey { CSS::camel_case_string_from_property_id(id), JS::PropertyKey::StringMayBeNumber::No }, value_string, ShouldThrowExceptions::Yes));
             }
 
             m_keyframe_objects.append(object);

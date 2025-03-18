@@ -1889,7 +1889,7 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
         // 2. For each key → value of D:
         for (auto const& [key, value] : @value@) {
             // 1. Let jsKey be key converted to a JavaScript value.
-            auto js_key = JS::PropertyKey { key.to_byte_string() };
+            auto js_key = JS::PropertyKey { key };
 
             // 2. Let jsValue be value converted to a JavaScript value.
 )~~~");
@@ -3263,7 +3263,7 @@ JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> @named_properties_class@
 
     // 4. If the result of running the named property visibility algorithm with property name P and object object is true, then:
     if (TRY(object.is_named_property_exposed_on_object(property_name))) {
-        auto property_name_string = MUST(FlyString::from_deprecated_fly_string(property_name.to_string()));
+        auto property_name_string = property_name.to_string();
 
         // 1. Let operation be the operation used to declare the named property getter.
         // 2. Let value be an uninitialized variable.
@@ -4179,7 +4179,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
     auto value = vm.argument(0);
 
     auto receiver = TRY(throw_dom_exception_if_needed(vm, [&]() { return impl->@attribute.cpp_name@(); }));
-    TRY(receiver->set(JS::PropertyKey { "@put_forwards_identifier@", JS::PropertyKey::StringMayBeNumber::No }, value, JS::Object::ShouldThrowExceptions::Yes));
+    TRY(receiver->set(JS::PropertyKey { "@put_forwards_identifier@"_fly_string, JS::PropertyKey::StringMayBeNumber::No }, value, JS::Object::ShouldThrowExceptions::Yes));
 
     return JS::js_undefined();
 }
@@ -4818,7 +4818,7 @@ namespace Web::Bindings {
 GC_DEFINE_ALLOCATOR(@constructor_class@);
 
 @constructor_class@::@constructor_class@(JS::Realm& realm)
-    : NativeFunction("@name@"sv, realm.intrinsics().function_prototype())
+    : NativeFunction("@name@"_fly_string, realm.intrinsics().function_prototype())
 {
 }
 

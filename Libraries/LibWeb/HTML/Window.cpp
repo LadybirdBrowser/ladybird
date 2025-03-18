@@ -740,9 +740,9 @@ WebIDL::ExceptionOr<void> Window::initialize_web_interfaces(Badge<WindowEnvironm
         auto const& path = url.paths().first();
 
         if (path == "processes"sv)
-            define_direct_property("processes", realm.create<Internals::Processes>(realm), JS::default_attributes);
+            define_direct_property("processes"_fly_string, realm.create<Internals::Processes>(realm), JS::default_attributes);
         else if (path == "settings"sv)
-            define_direct_property("settings", realm.create<Internals::Settings>(realm), JS::default_attributes);
+            define_direct_property("settings"_fly_string, realm.create<Internals::Settings>(realm), JS::default_attributes);
     }
 
     return {};

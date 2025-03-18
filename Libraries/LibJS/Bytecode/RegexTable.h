@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include <AK/ByteString.h>
 #include <AK/DistinctNumeric.h>
+#include <AK/String.h>
 #include <AK/Vector.h>
 #include <LibRegex/RegexParser.h>
 
@@ -17,7 +17,7 @@ AK_TYPEDEF_DISTINCT_NUMERIC_GENERAL(size_t, RegexTableIndex, Comparison);
 
 struct ParsedRegex {
     regex::Parser::Result regex;
-    ByteString pattern;
+    String pattern;
     regex::RegexOptions<ECMAScriptFlags> flags;
 };
 

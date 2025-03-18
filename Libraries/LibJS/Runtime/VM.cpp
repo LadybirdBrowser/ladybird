@@ -40,7 +40,7 @@ namespace JS {
 ErrorOr<NonnullRefPtr<VM>> VM::create(OwnPtr<CustomData> custom_data)
 {
     ErrorMessages error_messages {};
-    error_messages[to_underlying(ErrorMessage::OutOfMemory)] = TRY(String::from_utf8(ErrorType::OutOfMemory.message()));
+    error_messages[to_underlying(ErrorMessage::OutOfMemory)] = ErrorType::OutOfMemory.message();
 
     auto vm = adopt_ref(*new VM(move(custom_data), move(error_messages)));
 
@@ -121,7 +121,7 @@ VM::VM(OwnPtr<CustomData> custom_data, ErrorMessages error_messages)
     };
 
     host_get_supported_import_attributes = [&] {
-        return Vector<ByteString> { "type" };
+        return Vector<String> { "type"_string };
     };
 
     // 19.2.1.2 HostEnsureCanCompileStrings ( calleeRealm, parameterStrings, bodyString, direct ), https://tc39.es/ecma262/#sec-hostensurecancompilestrings
@@ -276,7 +276,7 @@ void VM::gather_roots(HashMap<GC::Cell*, GC::HeapRoot>& roots)
 }
 
 // 9.1.2.1 GetIdentifierReference ( env, name, strict ), https://tc39.es/ecma262/#sec-getidentifierreference
-ThrowCompletionOr<Reference> VM::get_identifier_reference(Environment* environment, DeprecatedFlyString name, bool strict, size_t hops)
+ThrowCompletionOr<Reference> VM::get_identifier_reference(Environment* environment, FlyString name, bool strict, size_t hops)
 {
     // 1. If env is the value null, then
     if (!environment) {
@@ -310,7 +310,7 @@ ThrowCompletionOr<Reference> VM::get_identifier_reference(Environment* environme
 }
 
 // 9.4.2 ResolveBinding ( name [ , env ] ), https://tc39.es/ecma262/#sec-resolvebinding
-ThrowCompletionOr<Reference> VM::resolve_binding(DeprecatedFlyString const& name, Environment* environment)
+ThrowCompletionOr<Reference> VM::resolve_binding(FlyString const& name, Environment* environment)
 {
     // 1. If env is not present or if env is undefined, then
     if (!environment) {
@@ -522,7 +522,7 @@ ScriptOrModule VM::get_active_script_or_module() const
     return m_execution_context_stack[0]->script_or_module;
 }
 
-VM::StoredModule* VM::get_stored_module(ImportedModuleReferrer const&, ByteString const& filename, ByteString const&)
+VM::StoredModule* VM::get_stored_module(ImportedModuleReferrer const&, ByteString const& filename, String const&)
 {
     // Note the spec says:
     // If this operation is called multiple times with the same (referrer, specifier) pair and it performs
@@ -632,7 +632,7 @@ void VM::load_imported_module(ImportedModuleReferrer referrer, ModuleRequest con
         return;
     }
 
-    ByteString module_type;
+    String module_type;
     for (auto& attribute : module_request.attributes) {
         if (attribute.key == "type"sv) {
             module_type = attribute.value;
@@ -659,7 +659,7 @@ void VM::load_imported_module(ImportedModuleReferrer referrer, ModuleRequest con
         });
 
     LexicalPath base_path { base_filename };
-    auto filename = LexicalPath::absolute_path(base_path.dirname(), module_request.module_specifier);
+    auto filename = LexicalPath::absolute_path(base_path.dirname(), module_request.module_specifier.to_deprecated_fly_string());
 
     dbgln_if(JS_MODULE_DEBUG, "[JS MODULE] base path: '{}'", base_path);
     dbgln_if(JS_MODULE_DEBUG, "[JS MODULE] initial filename: '{}'", filename);
@@ -735,7 +735,7 @@ void VM::load_imported_module(ImportedModuleReferrer referrer, ModuleRequest con
         m_loaded_modules.empend(
             referrer,
             module->filename(),
-            ByteString {}, // Null type
+            String {}, // Null type
             make_root<Module>(*module),
             true);
 

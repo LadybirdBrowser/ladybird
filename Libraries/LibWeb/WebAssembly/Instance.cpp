@@ -54,7 +54,7 @@ void Instance::initialize(JS::Realm& realm)
             [&](Wasm::FunctionAddress const& address) {
                 Optional<GC::Ptr<JS::FunctionObject>> object = m_function_instances.get(address);
                 if (!object.has_value()) {
-                    object = Detail::create_native_function(vm, address, export_.name(), this);
+                    object = Detail::create_native_function(vm, address, MUST(String::from_byte_string(export_.name())), this);
                     m_function_instances.set(address, *object);
                 }
 

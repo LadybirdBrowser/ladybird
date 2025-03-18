@@ -177,8 +177,8 @@ JS_DEFINE_NATIVE_FUNCTION(TestRunnerGlobalObject::fuzzilli)
 void TestRunnerGlobalObject::initialize(JS::Realm& realm)
 {
     Base::initialize(realm);
-    define_direct_property("global", this, JS::Attribute::Enumerable);
-    define_native_function(realm, "fuzzilli", fuzzilli, 2, JS::default_attributes);
+    define_direct_property("global"_fly_string, this, JS::Attribute::Enumerable);
+    define_native_function(realm, "fuzzilli"_fly_string, fuzzilli, 2, JS::default_attributes);
 }
 
 int main(int, char**)

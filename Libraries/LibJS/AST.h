@@ -9,7 +9,7 @@
 #pragma once
 
 #include <AK/ByteString.h>
-#include <AK/DeprecatedFlyString.h>
+#include <AK/FlyString.h>
 #include <AK/OwnPtr.h>
 #include <AK/RefPtr.h>
 #include <AK/Variant.h>
@@ -168,7 +168,7 @@ private:
 // 14.13 Labelled Statements, https://tc39.es/ecma262/#sec-labelled-statements
 class LabelledStatement final : public Statement {
 public:
-    LabelledStatement(SourceRange source_range, DeprecatedFlyString label, NonnullRefPtr<Statement const> labelled_item)
+    LabelledStatement(SourceRange source_range, FlyString label, NonnullRefPtr<Statement const> labelled_item)
         : Statement(move(source_range))
         , m_label(move(label))
         , m_labelled_item(move(labelled_item))
@@ -177,16 +177,16 @@ public:
 
     virtual void dump(int indent) const override;
     virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_bytecode(Bytecode::Generator&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const override;
-    virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_labelled_evaluation(Bytecode::Generator&, Vector<DeprecatedFlyString> const&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const;
+    virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_labelled_evaluation(Bytecode::Generator&, Vector<FlyString> const&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const;
 
-    DeprecatedFlyString const& label() const { return m_label; }
-    DeprecatedFlyString& label() { return m_label; }
+    FlyString const& label() const { return m_label; }
+    FlyString& label() { return m_label; }
     NonnullRefPtr<Statement const> const& labelled_item() const { return m_labelled_item; }
 
 private:
     virtual bool is_labelled_statement() const final { return true; }
 
-    DeprecatedFlyString m_label;
+    FlyString m_label;
     NonnullRefPtr<Statement const> m_labelled_item;
 };
 
@@ -194,18 +194,18 @@ class LabelableStatement : public Statement {
 public:
     using Statement::Statement;
 
-    Vector<DeprecatedFlyString> const& labels() const { return m_labels; }
-    virtual void add_label(DeprecatedFlyString string) { m_labels.append(move(string)); }
+    Vector<FlyString> const& labels() const { return m_labels; }
+    virtual void add_label(FlyString string) { m_labels.append(move(string)); }
 
 protected:
-    Vector<DeprecatedFlyString> m_labels;
+    Vector<FlyString> m_labels;
 };
 
 class IterationStatement : public Statement {
 public:
     using Statement::Statement;
 
-    virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_labelled_evaluation(Bytecode::Generator&, Vector<DeprecatedFlyString> const&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const;
+    virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_labelled_evaluation(Bytecode::Generator&, Vector<FlyString> const&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const;
 
 private:
     virtual bool is_iteration_statement() const final { return true; }
@@ -325,8 +325,8 @@ public:
 
     ThrowCompletionOr<void> for_each_function_hoistable_with_annexB_extension(ThrowCompletionOrVoidCallback<FunctionDeclaration&>&& callback) const;
 
-    Vector<DeprecatedFlyString> const& local_variables_names() const { return m_local_variables_names; }
-    size_t add_local_variable(DeprecatedFlyString name)
+    Vector<FlyString> const& local_variables_names() const { return m_local_variables_names; }
+    size_t add_local_variable(FlyString name)
     {
         auto index = m_local_variables_names.size();
         m_local_variables_names.append(move(name));
@@ -348,15 +348,15 @@ private:
 
     Vector<NonnullRefPtr<FunctionDeclaration const>> m_functions_hoistable_with_annexB_extension;
 
-    Vector<DeprecatedFlyString> m_local_variables_names;
+    Vector<FlyString> m_local_variables_names;
 };
 
 // ImportEntry Record, https://tc39.es/ecma262/#table-importentry-record-fields
 struct ImportEntry {
-    Optional<DeprecatedFlyString> import_name; // [[ImportName]]: stored string if Optional is not empty, NAMESPACE-OBJECT otherwise
-    DeprecatedFlyString local_name;            // [[LocalName]]
+    Optional<FlyString> import_name; // [[ImportName]]: stored string if Optional is not empty, NAMESPACE-OBJECT otherwise
+    FlyString local_name;            // [[LocalName]]
 
-    ImportEntry(Optional<DeprecatedFlyString> import_name_, DeprecatedFlyString local_name_)
+    ImportEntry(Optional<FlyString> import_name_, FlyString local_name_)
         : import_name(move(import_name_))
         , local_name(move(local_name_))
     {
@@ -390,7 +390,7 @@ public:
 
     virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_bytecode(Bytecode::Generator&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const override;
 
-    bool has_bound_name(DeprecatedFlyString const& name) const;
+    bool has_bound_name(FlyString const& name) const;
     Vector<ImportEntry> const& entries() const { return m_entries; }
     ModuleRequest const& module_request() const { return m_module_request; }
 
@@ -412,10 +412,10 @@ struct ExportEntry {
         EmptyNamedExport,
     } kind;
 
-    Optional<DeprecatedFlyString> export_name;          // [[ExportName]]
-    Optional<DeprecatedFlyString> local_or_import_name; // Either [[ImportName]] or [[LocalName]]
+    Optional<FlyString> export_name;          // [[ExportName]]
+    Optional<FlyString> local_or_import_name; // Either [[ImportName]] or [[LocalName]]
 
-    ExportEntry(Kind export_kind, Optional<DeprecatedFlyString> export_name_, Optional<DeprecatedFlyString> local_or_import_name_)
+    ExportEntry(Kind export_kind, Optional<FlyString> export_name_, Optional<FlyString> local_or_import_name_)
         : kind(export_kind)
         , export_name(move(export_name_))
         , local_or_import_name(move(local_or_import_name_))
@@ -427,7 +427,7 @@ struct ExportEntry {
         return m_module_request != nullptr;
     }
 
-    static ExportEntry indirect_export_entry(ModuleRequest const& module_request, Optional<DeprecatedFlyString> export_name, Optional<DeprecatedFlyString> import_name)
+    static ExportEntry indirect_export_entry(ModuleRequest const& module_request, Optional<FlyString> export_name, Optional<FlyString> import_name)
     {
         ExportEntry entry { Kind::NamedExport, move(export_name), move(import_name) };
         entry.m_module_request = &module_request;
@@ -445,7 +445,7 @@ private:
     friend class ExportStatement;
 
 public:
-    static ExportEntry named_export(DeprecatedFlyString export_name, DeprecatedFlyString local_name)
+    static ExportEntry named_export(FlyString export_name, FlyString local_name)
     {
         return ExportEntry { Kind::NamedExport, move(export_name), move(local_name) };
     }
@@ -455,7 +455,7 @@ public:
         return ExportEntry { Kind::ModuleRequestAllButDefault, {}, {} };
     }
 
-    static ExportEntry all_module_request(DeprecatedFlyString export_name)
+    static ExportEntry all_module_request(FlyString export_name)
     {
         return ExportEntry { Kind::ModuleRequestAll, move(export_name), {} };
     }
@@ -468,7 +468,7 @@ public:
 
 class ExportStatement final : public Statement {
 public:
-    static DeprecatedFlyString local_name_for_default;
+    static FlyString local_name_for_default;
 
     ExportStatement(SourceRange source_range, RefPtr<ASTNode const> statement, Vector<ExportEntry> entries, bool is_default_export, Optional<ModuleRequest> module_request)
         : Statement(move(source_range))
@@ -487,7 +487,7 @@ public:
 
     virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_bytecode(Bytecode::Generator&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const override;
 
-    bool has_export(DeprecatedFlyString const& export_name) const;
+    bool has_export(FlyString const& export_name) const;
 
     bool has_statement() const { return m_statement; }
     Vector<ExportEntry> const& entries() const { return m_entries; }
@@ -654,13 +654,13 @@ struct BindingPattern : RefCounted<BindingPattern> {
 
 class Identifier final : public Expression {
 public:
-    explicit Identifier(SourceRange source_range, DeprecatedFlyString string)
+    explicit Identifier(SourceRange source_range, FlyString string)
         : Expression(move(source_range))
         , m_string(move(string))
     {
     }
 
-    DeprecatedFlyString const& string() const { return m_string; }
+    FlyString const& string() const { return m_string; }
 
     bool is_local() const { return m_local_variable_index.has_value(); }
     size_t local_variable_index() const
@@ -679,7 +679,7 @@ public:
 private:
     virtual bool is_identifier() const override { return true; }
 
-    DeprecatedFlyString m_string;
+    FlyString m_string;
 
     Optional<size_t> m_local_variable_index;
     bool m_is_global { false };
@@ -701,13 +701,13 @@ struct FunctionParsingInsights {
 
 class FunctionNode {
 public:
-    StringView name() const { return m_name ? m_name->string().view() : ""sv; }
+    FlyString name() const { return m_name ? m_name->string() : ""_fly_string; }
     RefPtr<Identifier const> name_identifier() const { return m_name; }
     ByteString const& source_text() const { return m_source_text; }
     Statement const& body() const { return *m_body; }
     Vector<FunctionParameter> const& parameters() const { return m_parameters; }
     i32 function_length() const { return m_function_length; }
-    Vector<DeprecatedFlyString> const& local_variables_names() const { return m_local_variables_names; }
+    Vector<FlyString> const& local_variables_names() const { return m_local_variables_names; }
     bool is_strict_mode() const { return m_is_strict_mode; }
     bool might_need_arguments_object() const { return m_parsing_insights.might_need_arguments_object; }
     bool contains_direct_call_to_eval() const { return m_parsing_insights.contains_direct_call_to_eval; }
@@ -717,12 +717,12 @@ public:
     bool uses_this_from_environment() const { return m_parsing_insights.uses_this_from_environment; }
 
     virtual bool has_name() const = 0;
-    virtual Value instantiate_ordinary_function_expression(VM&, DeprecatedFlyString given_name) const = 0;
+    virtual Value instantiate_ordinary_function_expression(VM&, FlyString given_name) const = 0;
 
     virtual ~FunctionNode() { }
 
 protected:
-    FunctionNode(RefPtr<Identifier const> name, ByteString source_text, NonnullRefPtr<Statement const> body, Vector<FunctionParameter> parameters, i32 function_length, FunctionKind kind, bool is_strict_mode, FunctionParsingInsights parsing_insights, bool is_arrow_function, Vector<DeprecatedFlyString> local_variables_names)
+    FunctionNode(RefPtr<Identifier const> name, ByteString source_text, NonnullRefPtr<Statement const> body, Vector<FunctionParameter> parameters, i32 function_length, FunctionKind kind, bool is_strict_mode, FunctionParsingInsights parsing_insights, bool is_arrow_function, Vector<FlyString> local_variables_names)
         : m_name(move(name))
         , m_source_text(move(source_text))
         , m_body(move(body))
@@ -752,7 +752,7 @@ private:
     bool m_is_arrow_function : 1 { false };
     FunctionParsingInsights m_parsing_insights;
 
-    Vector<DeprecatedFlyString> m_local_variables_names;
+    Vector<FlyString> m_local_variables_names;
 };
 
 class FunctionDeclaration final
@@ -761,7 +761,7 @@ class FunctionDeclaration final
 public:
     static bool must_have_name() { return true; }
 
-    FunctionDeclaration(SourceRange source_range, RefPtr<Identifier const> name, ByteString source_text, NonnullRefPtr<Statement const> body, Vector<FunctionParameter> parameters, i32 function_length, FunctionKind kind, bool is_strict_mode, FunctionParsingInsights insights, Vector<DeprecatedFlyString> local_variables_names)
+    FunctionDeclaration(SourceRange source_range, RefPtr<Identifier const> name, ByteString source_text, NonnullRefPtr<Statement const> body, Vector<FunctionParameter> parameters, i32 function_length, FunctionKind kind, bool is_strict_mode, FunctionParsingInsights insights, Vector<FlyString> local_variables_names)
         : Declaration(move(source_range))
         , FunctionNode(move(name), move(source_text), move(body), move(parameters), function_length, kind, is_strict_mode, insights, false, move(local_variables_names))
     {
@@ -777,7 +777,7 @@ public:
     void set_should_do_additional_annexB_steps() { m_is_hoisted = true; }
 
     bool has_name() const override { return true; }
-    Value instantiate_ordinary_function_expression(VM&, DeprecatedFlyString) const override { VERIFY_NOT_REACHED(); }
+    Value instantiate_ordinary_function_expression(VM&, FlyString) const override { VERIFY_NOT_REACHED(); }
 
     virtual ~FunctionDeclaration() { }
 
@@ -791,7 +791,7 @@ class FunctionExpression final
 public:
     static bool must_have_name() { return false; }
 
-    FunctionExpression(SourceRange source_range, RefPtr<Identifier const> name, ByteString source_text, NonnullRefPtr<Statement const> body, Vector<FunctionParameter> parameters, i32 function_length, FunctionKind kind, bool is_strict_mode, FunctionParsingInsights insights, Vector<DeprecatedFlyString> local_variables_names, bool is_arrow_function = false)
+    FunctionExpression(SourceRange source_range, RefPtr<Identifier const> name, ByteString source_text, NonnullRefPtr<Statement const> body, Vector<FunctionParameter> parameters, i32 function_length, FunctionKind kind, bool is_strict_mode, FunctionParsingInsights insights, Vector<FlyString> local_variables_names, bool is_arrow_function = false)
         : Expression(move(source_range))
         , FunctionNode(move(name), move(source_text), move(body), move(parameters), function_length, kind, is_strict_mode, insights, is_arrow_function, move(local_variables_names))
     {
@@ -804,7 +804,7 @@ public:
 
     bool has_name() const override { return !name().is_empty(); }
 
-    Value instantiate_ordinary_function_expression(VM&, DeprecatedFlyString given_name) const override;
+    Value instantiate_ordinary_function_expression(VM&, FlyString given_name) const override;
 
     virtual ~FunctionExpression() { }
 
@@ -909,7 +909,7 @@ public:
 
     virtual void dump(int indent) const override;
     virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_bytecode(Bytecode::Generator&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const override;
-    virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_labelled_evaluation(Bytecode::Generator&, Vector<DeprecatedFlyString> const&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const override;
+    virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_labelled_evaluation(Bytecode::Generator&, Vector<FlyString> const&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const override;
 
 private:
     NonnullRefPtr<Expression const> m_test;
@@ -930,7 +930,7 @@ public:
 
     virtual void dump(int indent) const override;
     virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_bytecode(Bytecode::Generator&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const override;
-    virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_labelled_evaluation(Bytecode::Generator&, Vector<DeprecatedFlyString> const&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const override;
+    virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_labelled_evaluation(Bytecode::Generator&, Vector<FlyString> const&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const override;
 
 private:
     NonnullRefPtr<Expression const> m_test;
@@ -975,7 +975,7 @@ public:
 
     virtual void dump(int indent) const override;
     virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_bytecode(Bytecode::Generator&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const override;
-    virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_labelled_evaluation(Bytecode::Generator&, Vector<DeprecatedFlyString> const&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const override;
+    virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_labelled_evaluation(Bytecode::Generator&, Vector<FlyString> const&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const override;
 
 private:
     RefPtr<ASTNode const> m_init;
@@ -999,7 +999,7 @@ public:
     Statement const& body() const { return *m_body; }
 
     virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_bytecode(Bytecode::Generator&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const override;
-    virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_labelled_evaluation(Bytecode::Generator&, Vector<DeprecatedFlyString> const&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const override;
+    virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_labelled_evaluation(Bytecode::Generator&, Vector<FlyString> const&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const override;
     virtual void dump(int indent) const override;
 
 private:
@@ -1023,7 +1023,7 @@ public:
     Statement const& body() const { return *m_body; }
 
     virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_bytecode(Bytecode::Generator&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const override;
-    virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_labelled_evaluation(Bytecode::Generator&, Vector<DeprecatedFlyString> const&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const override;
+    virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_labelled_evaluation(Bytecode::Generator&, Vector<FlyString> const&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const override;
     virtual void dump(int indent) const override;
 
 private:
@@ -1043,7 +1043,7 @@ public:
     }
 
     virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_bytecode(Bytecode::Generator&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const override;
-    virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_labelled_evaluation(Bytecode::Generator&, Vector<DeprecatedFlyString> const&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const override;
+    virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_labelled_evaluation(Bytecode::Generator&, Vector<FlyString> const&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const override;
     virtual void dump(int indent) const override;
 
 private:
@@ -1228,7 +1228,7 @@ private:
 
 class StringLiteral final : public Expression {
 public:
-    explicit StringLiteral(SourceRange source_range, ByteString value)
+    explicit StringLiteral(SourceRange source_range, String value)
         : Expression(move(source_range))
         , m_value(move(value))
     {
@@ -1237,12 +1237,12 @@ public:
     virtual void dump(int indent) const override;
     virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_bytecode(Bytecode::Generator&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const override;
 
-    ByteString const& value() const { return m_value; }
+    String const& value() const { return m_value; }
 
 private:
     virtual bool is_string_literal() const override { return true; }
 
-    ByteString m_value;
+    String m_value;
 };
 
 class NullLiteral final : public PrimitiveLiteral {
@@ -1260,7 +1260,7 @@ public:
 
 class RegExpLiteral final : public Expression {
 public:
-    RegExpLiteral(SourceRange source_range, regex::Parser::Result parsed_regex, ByteString parsed_pattern, regex::RegexOptions<ECMAScriptFlags> parsed_flags, ByteString pattern, ByteString flags)
+    RegExpLiteral(SourceRange source_range, regex::Parser::Result parsed_regex, String parsed_pattern, regex::RegexOptions<ECMAScriptFlags> parsed_flags, String pattern, String flags)
         : Expression(move(source_range))
         , m_parsed_regex(move(parsed_regex))
         , m_parsed_pattern(move(parsed_pattern))
@@ -1274,35 +1274,35 @@ public:
     virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_bytecode(Bytecode::Generator&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const override;
 
     regex::Parser::Result const& parsed_regex() const { return m_parsed_regex; }
-    ByteString const& parsed_pattern() const { return m_parsed_pattern; }
+    String const& parsed_pattern() const { return m_parsed_pattern; }
     regex::RegexOptions<ECMAScriptFlags> const& parsed_flags() const { return m_parsed_flags; }
-    ByteString const& pattern() const { return m_pattern; }
-    ByteString const& flags() const { return m_flags; }
+    String const& pattern() const { return m_pattern; }
+    String const& flags() const { return m_flags; }
 
 private:
     regex::Parser::Result m_parsed_regex;
-    ByteString m_parsed_pattern;
+    String m_parsed_pattern;
     regex::RegexOptions<ECMAScriptFlags> m_parsed_flags;
-    ByteString m_pattern;
-    ByteString m_flags;
+    String m_pattern;
+    String m_flags;
 };
 
 class PrivateIdentifier final : public Expression {
 public:
-    explicit PrivateIdentifier(SourceRange source_range, DeprecatedFlyString string)
+    explicit PrivateIdentifier(SourceRange source_range, FlyString string)
         : Expression(move(source_range))
         , m_string(move(string))
     {
     }
 
-    DeprecatedFlyString const& string() const { return m_string; }
+    FlyString const& string() const { return m_string; }
 
     virtual void dump(int indent) const override;
 
     virtual bool is_private_identifier() const override { return true; }
 
 private:
-    DeprecatedFlyString m_string;
+    FlyString m_string;
 };
 
 class ClassElement : public ASTNode {
@@ -1326,7 +1326,7 @@ public:
     using ClassValue = Variant<ClassFieldDefinition, Completion, PrivateElement>;
     virtual ThrowCompletionOr<ClassValue> class_element_evaluation(VM&, Object& home_object, Value) const = 0;
 
-    virtual Optional<DeprecatedFlyString> private_bound_identifier() const { return {}; }
+    virtual Optional<FlyString> private_bound_identifier() const { return {}; }
 
 private:
     bool m_is_static { false };
@@ -1354,7 +1354,7 @@ public:
 
     virtual void dump(int indent) const override;
     virtual ThrowCompletionOr<ClassValue> class_element_evaluation(VM&, Object& home_object, Value property_key) const override;
-    virtual Optional<DeprecatedFlyString> private_bound_identifier() const override;
+    virtual Optional<FlyString> private_bound_identifier() const override;
 
 private:
     virtual bool is_class_method() const override { return true; }
@@ -1381,7 +1381,7 @@ public:
 
     virtual void dump(int indent) const override;
     virtual ThrowCompletionOr<ClassValue> class_element_evaluation(VM&, Object& home_object, Value property_key) const override;
-    virtual Optional<DeprecatedFlyString> private_bound_identifier() const override;
+    virtual Optional<FlyString> private_bound_identifier() const override;
 
 private:
     NonnullRefPtr<Expression const> m_key;
@@ -1433,7 +1433,7 @@ public:
     {
     }
 
-    StringView name() const { return m_name ? m_name->string().view() : ""sv; }
+    FlyString name() const { return m_name ? m_name->string() : ""_fly_string; }
 
     ByteString const& source_text() const { return m_source_text; }
     RefPtr<FunctionExpression const> constructor() const { return m_constructor; }
@@ -1444,7 +1444,7 @@ public:
 
     bool has_name() const { return m_name; }
 
-    ThrowCompletionOr<ECMAScriptFunctionObject*> create_class_constructor(VM&, Environment* class_environment, Environment* environment, Value super_class, ReadonlySpan<Value> element_keys, Optional<DeprecatedFlyString> const& binding_name = {}, DeprecatedFlyString const& class_name = {}) const;
+    ThrowCompletionOr<ECMAScriptFunctionObject*> create_class_constructor(VM&, Environment* class_environment, Environment* environment, Value super_class, ReadonlySpan<Value> element_keys, Optional<FlyString> const& binding_name = {}, FlyString const& class_name = {}) const;
 
 private:
     virtual bool is_class_expression() const override { return true; }
@@ -1473,7 +1473,7 @@ public:
 
     virtual bool is_lexical_declaration() const override { return true; }
 
-    StringView name() const { return m_class_expression->name(); }
+    FlyString name() const { return m_class_expression->name(); }
 
 private:
     virtual bool is_class_declaration() const override { return true; }
@@ -1487,7 +1487,7 @@ private:
 // 10.2.1.3 Runtime Semantics: EvaluateBody, https://tc39.es/ecma262/#sec-runtime-semantics-evaluatebody
 class ClassFieldInitializerStatement final : public Statement {
 public:
-    ClassFieldInitializerStatement(SourceRange source_range, NonnullRefPtr<Expression const> expression, DeprecatedFlyString field_name)
+    ClassFieldInitializerStatement(SourceRange source_range, NonnullRefPtr<Expression const> expression, FlyString field_name)
         : Statement(move(source_range))
         , m_expression(move(expression))
         , m_class_field_identifier_name(move(field_name))
@@ -1499,7 +1499,7 @@ public:
 
 private:
     NonnullRefPtr<Expression const> m_expression;
-    DeprecatedFlyString m_class_field_identifier_name; // [[ClassFieldIdentifierName]]
+    FlyString m_class_field_identifier_name; // [[ClassFieldIdentifierName]]
 };
 
 class SpreadExpression final : public Expression {
@@ -1575,7 +1575,7 @@ protected:
 
     virtual bool is_call_expression() const override { return true; }
 
-    Optional<ByteString> expression_string() const;
+    Optional<String> expression_string() const;
 
     NonnullRefPtr<Expression const> m_callee;
 };
@@ -1924,7 +1924,7 @@ public:
     Expression const& object() const { return *m_object; }
     Expression const& property() const { return *m_property; }
 
-    ByteString to_string_approximation() const;
+    [[nodiscard]] String to_string_approximation() const;
 
     bool ends_in_private_name() const;
 
@@ -2040,7 +2040,7 @@ private:
 
 class CatchClause final : public ASTNode {
 public:
-    CatchClause(SourceRange source_range, DeprecatedFlyString parameter, NonnullRefPtr<BlockStatement const> body)
+    CatchClause(SourceRange source_range, FlyString parameter, NonnullRefPtr<BlockStatement const> body)
         : ASTNode(move(source_range))
         , m_parameter(move(parameter))
         , m_body(move(body))
@@ -2060,7 +2060,7 @@ public:
     virtual void dump(int indent) const override;
 
 private:
-    Variant<DeprecatedFlyString, NonnullRefPtr<BindingPattern const>> m_parameter;
+    Variant<FlyString, NonnullRefPtr<BindingPattern const>> m_parameter;
     NonnullRefPtr<BlockStatement const> m_body;
 };
 
@@ -2130,7 +2130,7 @@ public:
 
     virtual void dump(int indent) const override;
     virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_bytecode(Bytecode::Generator&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const override;
-    virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_labelled_evaluation(Bytecode::Generator&, Vector<DeprecatedFlyString> const&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const;
+    virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_labelled_evaluation(Bytecode::Generator&, Vector<FlyString> const&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const;
 
     void add_case(NonnullRefPtr<SwitchCase const> switch_case) { m_cases.append(move(switch_case)); }
 
@@ -2141,22 +2141,22 @@ private:
 
 class BreakStatement final : public Statement {
 public:
-    BreakStatement(SourceRange source_range, Optional<DeprecatedFlyString> target_label)
+    BreakStatement(SourceRange source_range, Optional<FlyString> target_label)
         : Statement(move(source_range))
         , m_target_label(move(target_label))
     {
     }
 
-    Optional<DeprecatedFlyString> const& target_label() const { return m_target_label; }
+    Optional<FlyString> const& target_label() const { return m_target_label; }
     virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_bytecode(Bytecode::Generator&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const override;
 
 private:
-    Optional<DeprecatedFlyString> m_target_label;
+    Optional<FlyString> m_target_label;
 };
 
 class ContinueStatement final : public Statement {
 public:
-    ContinueStatement(SourceRange source_range, Optional<DeprecatedFlyString> target_label)
+    ContinueStatement(SourceRange source_range, Optional<FlyString> target_label)
         : Statement(move(source_range))
         , m_target_label(move(target_label))
     {
@@ -2164,10 +2164,10 @@ public:
 
     virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_bytecode(Bytecode::Generator&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const override;
 
-    Optional<DeprecatedFlyString> const& target_label() const { return m_target_label; }
+    Optional<FlyString> const& target_label() const { return m_target_label; }
 
 private:
-    Optional<DeprecatedFlyString> m_target_label;
+    Optional<FlyString> m_target_label;
 };
 
 class DebuggerStatement final : public Statement {

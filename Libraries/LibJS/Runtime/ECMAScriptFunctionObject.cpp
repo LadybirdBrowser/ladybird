@@ -33,7 +33,7 @@ namespace JS {
 
 GC_DEFINE_ALLOCATOR(ECMAScriptFunctionObject);
 
-GC::Ref<ECMAScriptFunctionObject> ECMAScriptFunctionObject::create(Realm& realm, DeprecatedFlyString name, ByteString source_text, Statement const& ecmascript_code, Vector<FunctionParameter> parameters, i32 m_function_length, Vector<DeprecatedFlyString> local_variables_names, Environment* parent_environment, PrivateEnvironment* private_environment, FunctionKind kind, bool is_strict, FunctionParsingInsights parsing_insights, bool is_arrow_function, Variant<PropertyKey, PrivateName, Empty> class_field_initializer_name)
+GC::Ref<ECMAScriptFunctionObject> ECMAScriptFunctionObject::create(Realm& realm, FlyString name, ByteString source_text, Statement const& ecmascript_code, Vector<FunctionParameter> parameters, i32 m_function_length, Vector<FlyString> local_variables_names, Environment* parent_environment, PrivateEnvironment* private_environment, FunctionKind kind, bool is_strict, FunctionParsingInsights parsing_insights, bool is_arrow_function, Variant<PropertyKey, PrivateName, Empty> class_field_initializer_name)
 {
     Object* prototype = nullptr;
     switch (kind) {
@@ -53,12 +53,12 @@ GC::Ref<ECMAScriptFunctionObject> ECMAScriptFunctionObject::create(Realm& realm,
     return realm.create<ECMAScriptFunctionObject>(move(name), move(source_text), ecmascript_code, move(parameters), m_function_length, move(local_variables_names), parent_environment, private_environment, *prototype, kind, is_strict, parsing_insights, is_arrow_function, move(class_field_initializer_name));
 }
 
-GC::Ref<ECMAScriptFunctionObject> ECMAScriptFunctionObject::create(Realm& realm, DeprecatedFlyString name, Object& prototype, ByteString source_text, Statement const& ecmascript_code, Vector<FunctionParameter> parameters, i32 m_function_length, Vector<DeprecatedFlyString> local_variables_names, Environment* parent_environment, PrivateEnvironment* private_environment, FunctionKind kind, bool is_strict, FunctionParsingInsights parsing_insights, bool is_arrow_function, Variant<PropertyKey, PrivateName, Empty> class_field_initializer_name)
+GC::Ref<ECMAScriptFunctionObject> ECMAScriptFunctionObject::create(Realm& realm, FlyString name, Object& prototype, ByteString source_text, Statement const& ecmascript_code, Vector<FunctionParameter> parameters, i32 m_function_length, Vector<FlyString> local_variables_names, Environment* parent_environment, PrivateEnvironment* private_environment, FunctionKind kind, bool is_strict, FunctionParsingInsights parsing_insights, bool is_arrow_function, Variant<PropertyKey, PrivateName, Empty> class_field_initializer_name)
 {
     return realm.create<ECMAScriptFunctionObject>(move(name), move(source_text), ecmascript_code, move(parameters), m_function_length, move(local_variables_names), parent_environment, private_environment, prototype, kind, is_strict, parsing_insights, is_arrow_function, move(class_field_initializer_name));
 }
 
-ECMAScriptFunctionObject::ECMAScriptFunctionObject(DeprecatedFlyString name, ByteString source_text, Statement const& ecmascript_code, Vector<FunctionParameter> formal_parameters, i32 function_length, Vector<DeprecatedFlyString> local_variables_names, Environment* parent_environment, PrivateEnvironment* private_environment, Object& prototype, FunctionKind kind, bool strict, FunctionParsingInsights parsing_insights, bool is_arrow_function, Variant<PropertyKey, PrivateName, Empty> class_field_initializer_name)
+ECMAScriptFunctionObject::ECMAScriptFunctionObject(FlyString name, ByteString source_text, Statement const& ecmascript_code, Vector<FunctionParameter> formal_parameters, i32 function_length, Vector<FlyString> local_variables_names, Environment* parent_environment, PrivateEnvironment* private_environment, Object& prototype, FunctionKind kind, bool strict, FunctionParsingInsights parsing_insights, bool is_arrow_function, Variant<PropertyKey, PrivateName, Empty> class_field_initializer_name)
     : FunctionObject(prototype)
     , m_name(move(name))
     , m_function_length(function_length)
@@ -161,7 +161,7 @@ ECMAScriptFunctionObject::ECMAScriptFunctionObject(DeprecatedFlyString name, Byt
         m_arguments_object_needed = false;
     }
 
-    HashTable<DeprecatedFlyString> function_names;
+    HashTable<FlyString> function_names;
 
     // 18. Else if hasParameterExpressions is false, then
     //     a. If functionNames contains "arguments" or lexicalNames contains "arguments", then
@@ -210,7 +210,7 @@ ECMAScriptFunctionObject::ECMAScriptFunctionObject(DeprecatedFlyString name, Byt
 
     *environment_size += parameters_in_environment;
 
-    HashMap<DeprecatedFlyString, ParameterIsLocal> parameter_bindings;
+    HashMap<FlyString, ParameterIsLocal> parameter_bindings;
 
     auto arguments_object_needs_binding = m_arguments_object_needed && !m_local_variables_names.contains_slow(vm().names.arguments.as_string());
 
@@ -227,7 +227,7 @@ ECMAScriptFunctionObject::ECMAScriptFunctionObject(DeprecatedFlyString name, Byt
         // a. Let parameterBindings be parameterNames.
     }
 
-    HashMap<DeprecatedFlyString, ParameterIsLocal> instantiated_var_names;
+    HashMap<FlyString, ParameterIsLocal> instantiated_var_names;
 
     size_t* var_environment_size = nullptr;
 
@@ -721,7 +721,7 @@ void async_block_start(VM& vm, T const& async_body, PromiseCapability const& pro
     auto& running_context = vm.running_execution_context();
 
     // 2. Let closure be a new Abstract Closure with no parameters that captures promiseCapability and asyncBody and performs the following steps when called:
-    auto closure = NativeFunction::create(realm, "", [&async_body, &promise_capability](auto& vm) -> ThrowCompletionOr<Value> {
+    auto closure = NativeFunction::create(realm, ""_fly_string, [&async_body, &promise_capability](auto& vm) -> ThrowCompletionOr<Value> {
         Completion result;
 
         // a. Let acAsyncContext be the running execution context.
@@ -729,7 +729,7 @@ void async_block_start(VM& vm, T const& async_body, PromiseCapability const& pro
         // b. If asyncBody is a Parse Node, then
         if constexpr (!IsSame<T, GC::Function<Completion()>>) {
             // i. Let result be Completion(Evaluation of asyncBody).
-            auto maybe_executable = Bytecode::compile(vm, async_body, FunctionKind::Async, "AsyncBlockStart"sv);
+            auto maybe_executable = Bytecode::compile(vm, async_body, FunctionKind::Async, "AsyncBlockStart"_fly_string);
             if (maybe_executable.is_error())
                 result = maybe_executable.release_error();
             else
@@ -840,7 +840,7 @@ Completion ECMAScriptFunctionObject::ordinary_call_evaluate_body()
     return { Completion::Type::Return, generator_object };
 }
 
-void ECMAScriptFunctionObject::set_name(DeprecatedFlyString const& name)
+void ECMAScriptFunctionObject::set_name(FlyString const& name)
 {
     auto& vm = this->vm();
     m_name = name;

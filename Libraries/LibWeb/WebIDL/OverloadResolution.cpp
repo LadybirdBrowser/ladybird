@@ -228,7 +228,7 @@ JS::ThrowCompletionOr<ResolvedOverload> resolve_overload(JS::VM& vm, IDL::Effect
         //    then remove from S all other entries.
         else if (value.is_object() && value.as_object().is_typed_array()
             && has_overload_with_argument_type_or_subtype_matching(overloads, i, [&](IDL::Type const& type) {
-                   if (type.is_plain() && (type.name() == static_cast<JS::TypedArrayBase const&>(value.as_object()).element_name() || type.name() == "BufferSource" || type.name() == "ArrayBufferView"))
+                   if (type.is_plain() && (type.name() == static_cast<JS::TypedArrayBase const&>(value.as_object()).element_name().bytes_as_string_view() || type.name() == "BufferSource" || type.name() == "ArrayBufferView"))
                        return true;
                    if (type.is_object())
                        return true;

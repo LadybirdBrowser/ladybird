@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include <AK/ByteString.h>
 #include <AK/DistinctNumeric.h>
+#include <AK/String.h>
 #include <AK/Vector.h>
 
 namespace JS::Bytecode {
@@ -21,13 +21,13 @@ class StringTable {
 public:
     StringTable() = default;
 
-    StringTableIndex insert(ByteString);
-    ByteString const& get(StringTableIndex) const;
+    StringTableIndex insert(String);
+    String const& get(StringTableIndex) const;
     void dump() const;
     bool is_empty() const { return m_strings.is_empty(); }
 
 private:
-    Vector<ByteString> m_strings;
+    Vector<String> m_strings;
 };
 
 }

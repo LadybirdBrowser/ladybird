@@ -7,21 +7,21 @@
 
 #pragma once
 
-#include <AK/DeprecatedFlyString.h>
+#include <AK/FlyString.h>
 #include <AK/Vector.h>
 #include <LibJS/Module.h>
 
 namespace JS {
 
 struct ModuleWithSpecifier {
-    ByteString specifier;   // [[Specifier]]
+    String specifier;       // [[Specifier]]
     GC::Ref<Module> module; // [[Module]]
 };
 
 // https://tc39.es/proposal-import-attributes/#importattribute-record
 struct ImportAttribute {
-    ByteString key;
-    ByteString value;
+    String key;
+    String value;
 
     bool operator==(ImportAttribute const&) const = default;
 };
@@ -30,20 +30,20 @@ struct ImportAttribute {
 struct ModuleRequest {
     ModuleRequest() = default;
 
-    explicit ModuleRequest(DeprecatedFlyString specifier)
+    explicit ModuleRequest(FlyString specifier)
         : module_specifier(move(specifier))
     {
     }
 
-    ModuleRequest(DeprecatedFlyString specifier, Vector<ImportAttribute> attributes);
+    ModuleRequest(FlyString specifier, Vector<ImportAttribute> attributes);
 
-    void add_attribute(ByteString key, ByteString value)
+    void add_attribute(String key, String value)
     {
         attributes.empend(move(key), move(value));
     }
 
-    DeprecatedFlyString module_specifier; // [[Specifier]]
-    Vector<ImportAttribute> attributes;   // [[Attributes]]
+    FlyString module_specifier;         // [[Specifier]]
+    Vector<ImportAttribute> attributes; // [[Attributes]]
 
     bool operator==(ModuleRequest const&) const = default;
 };

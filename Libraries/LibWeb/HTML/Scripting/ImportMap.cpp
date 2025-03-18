@@ -31,7 +31,7 @@ WebIDL::ExceptionOr<ImportMap> parse_import_map_string(JS::Realm& realm, ByteStr
     auto& parsed_object = parsed.as_object();
 
     // 3. Let sortedAndNormalizedImports be an empty ordered map.
-    ModuleSpecifierMap sorted_and_normalised_imports;
+    ModuleSpecifierMap sorted_and_normalized_imports;
 
     // 4. If parsed["imports"] exists, then:
     if (TRY(parsed_object.has_property("imports"_fly_string))) {
@@ -42,11 +42,11 @@ WebIDL::ExceptionOr<ImportMap> parse_import_map_string(JS::Realm& realm, ByteStr
             return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "The 'imports' top-level value of an importmap needs to be a JSON object."_string };
 
         // Set sortedAndNormalizedImports to the result of sorting and normalizing a module specifier map given parsed["imports"] and baseURL.
-        sorted_and_normalised_imports = TRY(sort_and_normalise_module_specifier_map(realm, imports.as_object(), base_url));
+        sorted_and_normalized_imports = TRY(sort_and_normalise_module_specifier_map(realm, imports.as_object(), base_url));
     }
 
     // 5. Let sortedAndNormalizedScopes be an empty ordered map.
-    HashMap<URL::URL, ModuleSpecifierMap> sorted_and_normalised_scopes;
+    HashMap<URL::URL, ModuleSpecifierMap> sorted_and_normalized_scopes;
 
     // 6. If parsed["scopes"] exists, then:
     if (TRY(parsed_object.has_property("scopes"_fly_string))) {
@@ -57,11 +57,11 @@ WebIDL::ExceptionOr<ImportMap> parse_import_map_string(JS::Realm& realm, ByteStr
             return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "The 'scopes' top-level value of an importmap needs to be a JSON object."_string };
 
         // Set sortedAndNormalizedScopes to the result of sorting and normalizing scopes given parsed["scopes"] and baseURL.
-        sorted_and_normalised_scopes = TRY(sort_and_normalise_scopes(realm, scopes.as_object(), base_url));
+        sorted_and_normalized_scopes = TRY(sort_and_normalise_scopes(realm, scopes.as_object(), base_url));
     }
 
     // 7. Let normalizedIntegrity be an empty ordered map.
-    ModuleIntegrityMap normalised_integrity;
+    ModuleIntegrityMap normalized_integrity;
 
     // 8. If parsed["integrity"] exists, then:
     if (TRY(parsed_object.has_property("integrity"_fly_string))) {
@@ -72,7 +72,7 @@ WebIDL::ExceptionOr<ImportMap> parse_import_map_string(JS::Realm& realm, ByteStr
             return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "The 'integrity' top-level value of an importmap needs to be a JSON object."_string };
 
         // 2. Set normalizedIntegrity to the result of normalizing a module integrity map given parsed["integrity"] and baseURL.
-        normalised_integrity = TRY(normalize_module_integrity_map(realm, integrity.as_object(), base_url));
+        normalized_integrity = TRY(normalize_module_integrity_map(realm, integrity.as_object(), base_url));
     }
 
     // 9. If parsed's keys contains any items besides "imports", "scopes", or "integrity", then the user agent should report a warning to the console indicating that an invalid top-level key was present in the import map.
@@ -86,14 +86,14 @@ WebIDL::ExceptionOr<ImportMap> parse_import_map_string(JS::Realm& realm, ByteStr
 
     // 10. Return an import map whose imports are sortedAndNormalizedImports, whose scopes are sortedAndNormalizedScopes, and whose integrity are normalizedIntegrity.
     ImportMap import_map;
-    import_map.set_imports(sorted_and_normalised_imports);
-    import_map.set_scopes(sorted_and_normalised_scopes);
-    import_map.set_integrity(normalised_integrity);
+    import_map.set_imports(sorted_and_normalized_imports);
+    import_map.set_scopes(sorted_and_normalized_scopes);
+    import_map.set_integrity(normalized_integrity);
     return import_map;
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#normalizing-a-specifier-key
-Optional<DeprecatedFlyString> normalise_specifier_key(JS::Realm& realm, DeprecatedFlyString specifier_key, URL::URL base_url)
+Optional<FlyString> normalize_specifier_key(JS::Realm& realm, FlyString specifier_key, URL::URL base_url)
 {
     // 1. If specifierKey is the empty string, then:
     if (specifier_key.is_empty()) {
@@ -102,15 +102,15 @@ Optional<DeprecatedFlyString> normalise_specifier_key(JS::Realm& realm, Deprecat
         console.output_debug_message(JS::Console::LogLevel::Warn, "Specifier keys may not be empty"sv);
 
         // 2. Return null.
-        return Optional<DeprecatedFlyString> {};
+        return Optional<FlyString> {};
     }
 
     // 2. Let url be the result of resolving a URL-like module specifier, given specifierKey and baseURL.
-    auto url = resolve_url_like_module_specifier(specifier_key, base_url);
+    auto url = resolve_url_like_module_specifier(specifier_key.to_string().to_byte_string(), base_url);
 
     // 3. If url is not null, then return the serialization of url.
     if (url.has_value())
-        return url->serialize().to_byte_string();
+        return url->serialize();
 
     // 4. Return specifierKey.
     return specifier_key;
@@ -120,17 +120,17 @@ Optional<DeprecatedFlyString> normalise_specifier_key(JS::Realm& realm, Deprecat
 WebIDL::ExceptionOr<ModuleSpecifierMap> sort_and_normalise_module_specifier_map(JS::Realm& realm, JS::Object& original_map, URL::URL base_url)
 {
     // 1. Let normalized be an empty ordered map.
-    ModuleSpecifierMap normalised;
+    ModuleSpecifierMap normalized;
 
     // 2. For each specifierKey → value of originalMap:
     for (auto& specifier_key : original_map.shape().property_table().keys()) {
         auto value = TRY(original_map.get(specifier_key.as_string()));
 
         // 1. Let normalizedSpecifierKey be the result of normalizing a specifier key given specifierKey and baseURL.
-        auto normalised_specifier_key = normalise_specifier_key(realm, specifier_key.as_string(), base_url);
+        auto normalized_specifier_key = normalize_specifier_key(realm, specifier_key.as_string(), base_url);
 
         // 2. If normalizedSpecifierKey is null, then continue.
-        if (!normalised_specifier_key.has_value())
+        if (!normalized_specifier_key.has_value())
             continue;
 
         // 3. If value is not a string, then:
@@ -140,7 +140,7 @@ WebIDL::ExceptionOr<ModuleSpecifierMap> sort_and_normalise_module_specifier_map(
             console.output_debug_message(JS::Console::LogLevel::Warn, "Addresses need to be strings"sv);
 
             // 2. Set normalized[normalizedSpecifierKey] to null.
-            normalised.set(normalised_specifier_key.value(), {});
+            normalized.set(normalized_specifier_key.value().to_string(), {});
 
             // 3. Continue.
             continue;
@@ -156,39 +156,39 @@ WebIDL::ExceptionOr<ModuleSpecifierMap> sort_and_normalise_module_specifier_map(
             console.output_debug_message(JS::Console::LogLevel::Warn, "Address was invalid"sv);
 
             // 2. Set normalized[normalizedSpecifierKey] to null.
-            normalised.set(normalised_specifier_key.value(), {});
+            normalized.set(normalized_specifier_key.value().to_string(), {});
 
             // 3. Continue.
             continue;
         }
 
         // 6. If specifierKey ends with U+002F (/), and the serialization of addressURL does not end with U+002F (/), then:
-        if (specifier_key.as_string().ends_with("/"sv) && !address_url->serialize().ends_with('/')) {
+        if (specifier_key.as_string().bytes_as_string_view().ends_with("/"sv) && !address_url->serialize().ends_with('/')) {
             // 1. The user agent may report a warning to the console indicating that an invalid address was given for the specifier key specifierKey; since specifierKey ends with a slash, the address needs to as well.
             auto& console = realm.intrinsics().console_object()->console();
             console.output_debug_message(JS::Console::LogLevel::Warn,
                 MUST(String::formatted("An invalid address was given for the specifier key ({}); since specifierKey ends with a slash, the address needs to as well", specifier_key.as_string())));
 
             // 2. Set normalized[normalizedSpecifierKey] to null.
-            normalised.set(normalised_specifier_key.value(), {});
+            normalized.set(normalized_specifier_key.value().to_string(), {});
 
             // 3. Continue.
             continue;
         }
 
         // 7. Set normalized[normalizedSpecifierKey] to addressURL.
-        normalised.set(normalised_specifier_key.value(), address_url.value());
+        normalized.set(normalized_specifier_key.value().to_string(), address_url.value());
     }
 
     // 3. Return the result of sorting in descending order normalized, with an entry a being less than an entry b if a's key is code unit less than b's key.
-    return normalised;
+    return normalized;
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#sorting-and-normalizing-scopes
 WebIDL::ExceptionOr<HashMap<URL::URL, ModuleSpecifierMap>> sort_and_normalise_scopes(JS::Realm& realm, JS::Object& original_map, URL::URL base_url)
 {
     // 1. Let normalized be an empty ordered map.
-    HashMap<URL::URL, ModuleSpecifierMap> normalised;
+    HashMap<URL::URL, ModuleSpecifierMap> normalized;
 
     // 2. For each scopePrefix → potentialSpecifierMap of originalMap:
     for (auto& scope_prefix : original_map.shape().property_table().keys()) {
@@ -214,25 +214,25 @@ WebIDL::ExceptionOr<HashMap<URL::URL, ModuleSpecifierMap>> sort_and_normalise_sc
 
         // 4. Let normalizedScopePrefix be the serialization of scopePrefixURL.
         // 5. Set normalized[normalizedScopePrefix] to the result of sorting and normalizing a module specifier map given potentialSpecifierMap and baseURL.
-        normalised.set(scope_prefix_url.value(), TRY(sort_and_normalise_module_specifier_map(realm, potential_specifier_map.as_object(), base_url)));
+        normalized.set(scope_prefix_url.value(), TRY(sort_and_normalise_module_specifier_map(realm, potential_specifier_map.as_object(), base_url)));
     }
 
     // 3. Return the result of sorting in descending order normalized, with an entry a being less than an entry b if a's key is code unit less than b's key.
-    return normalised;
+    return normalized;
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#normalizing-a-module-integrity-map
 WebIDL::ExceptionOr<ModuleIntegrityMap> normalize_module_integrity_map(JS::Realm& realm, JS::Object& original_map, URL::URL base_url)
 {
     // 1. Let normalized be an empty ordered map.
-    ModuleIntegrityMap normalised;
+    ModuleIntegrityMap normalized;
 
     // 2. For each key → value of originalMap:
     for (auto& key : original_map.shape().property_table().keys()) {
         auto value = TRY(original_map.get(key.as_string()));
 
         // 1. Let resolvedURL be the result of resolving a URL-like module specifier given key and baseURL.
-        auto resolved_url = resolve_url_like_module_specifier(key.as_string(), base_url);
+        auto resolved_url = resolve_url_like_module_specifier(key.as_string().to_string().to_byte_string(), base_url);
 
         // 2. If resolvedURL is null, then:
         if (!resolved_url.has_value()) {
@@ -257,11 +257,11 @@ WebIDL::ExceptionOr<ModuleIntegrityMap> normalize_module_integrity_map(JS::Realm
         }
 
         // 4. Set normalized[resolvedURL] to value.
-        normalised.set(resolved_url.release_value(), value.as_string().byte_string());
+        normalized.set(resolved_url.release_value(), value.as_string().utf8_string());
     }
 
     // 3. Return normalized.
-    return normalised;
+    return normalized;
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#merge-module-specifier-maps
@@ -316,13 +316,13 @@ void merge_existing_and_new_import_maps(Window& global, ImportMap& new_import_ma
             // 1. If scopePrefix is record's serialized base URL, or if scopePrefix ends with U+002F (/) and scopePrefix is a code unit prefix of record's serialized base URL, then:
             if (scope_prefix.to_string() == record.serialized_base_url || (scope_prefix.to_string().ends_with('/') && record.serialized_base_url.has_value() && Infra::is_code_unit_prefix(scope_prefix.to_string(), *record.serialized_base_url))) {
                 // 1. For each specifierKey → resolutionResult of scopeImports:
-                scope_imports.remove_all_matching([&](ByteString const& specifier_key, Optional<URL::URL> const&) {
+                scope_imports.remove_all_matching([&](String const& specifier_key, Optional<URL::URL> const&) {
                     // 1. If specifierKey is record's specifier, or if all of the following conditions are true:
                     //      * specifierKey ends with U+002F (/);
                     //      * specifierKey is a code unit prefix of record's specifier;
                     //      * either record's specifier as a URL is null or is special,
                     //    then:
-                    if (specifier_key.view() == record.specifier
+                    if (specifier_key.bytes_as_string_view() == record.specifier
                         || (specifier_key.ends_with('/')
                             && Infra::is_code_unit_prefix(specifier_key, record.specifier)
                             && record.specifier_is_null_or_url_like_that_is_special)) {
@@ -373,9 +373,9 @@ void merge_existing_and_new_import_maps(Window& global, ImportMap& new_import_ma
     // 6. For each record of global's resolved module set:
     for (auto const& record : global.resolved_module_set()) {
         // 1. For each specifier → url of newImportMapImports:
-        new_import_map_imports.remove_all_matching([&](ByteString const& specifier, Optional<URL::URL> const&) {
+        new_import_map_imports.remove_all_matching([&](String const& specifier, Optional<URL::URL> const&) {
             // 1. If specifier starts with record's specifier, then:
-            if (specifier.starts_with(record.specifier)) {
+            if (specifier.bytes_as_string_view().starts_with(record.specifier)) {
                 // 1. The user agent may report a warning to the console indicating the ignored rule. They may choose to
                 //    avoid reporting if the rule is identical to an existing one.
                 auto& console = realm.intrinsics().console_object()->console();

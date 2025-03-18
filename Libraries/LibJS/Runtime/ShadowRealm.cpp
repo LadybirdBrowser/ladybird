@@ -147,7 +147,7 @@ ThrowCompletionOr<Value> perform_shadow_realm_eval(VM& vm, StringView source_tex
     // 11. If result.[[Type]] is normal, then
     if (!eval_result.is_throw_completion()) {
         // a. Set result to the result of evaluating body.
-        auto maybe_executable = Bytecode::compile(vm, program, FunctionKind::Normal, "ShadowRealmEval"sv);
+        auto maybe_executable = Bytecode::compile(vm, program, FunctionKind::Normal, "ShadowRealmEval"_fly_string);
         if (maybe_executable.is_error()) {
             result = maybe_executable.release_error();
         } else {
@@ -211,7 +211,7 @@ ThrowCompletionOr<Value> shadow_realm_import_value(VM& vm, String specifier_stri
     auto referrer = GC::Ref { *eval_context->realm };
 
     // 7. Perform HostLoadImportedModule(referrer, specifierString, empty, innerCapability).
-    vm.host_load_imported_module(referrer, ModuleRequest { specifier_string.to_byte_string() }, nullptr, inner_capability);
+    vm.host_load_imported_module(referrer, ModuleRequest { specifier_string }, nullptr, inner_capability);
 
     // 7. Suspend evalContext and remove it from the execution context stack.
     // NOTE: We don't support this concept yet.

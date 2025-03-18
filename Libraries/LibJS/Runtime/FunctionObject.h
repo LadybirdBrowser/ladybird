@@ -26,7 +26,7 @@ public:
     virtual ThrowCompletionOr<Value> internal_call(Value this_argument, ReadonlySpan<Value> arguments_list) = 0;
     virtual ThrowCompletionOr<GC::Ref<Object>> internal_construct([[maybe_unused]] ReadonlySpan<Value> arguments_list, [[maybe_unused]] FunctionObject& new_target) { VERIFY_NOT_REACHED(); }
 
-    virtual DeprecatedFlyString const& name() const = 0;
+    virtual FlyString const& name() const = 0;
 
     void set_function_name(Variant<PropertyKey, PrivateName> const& name_arg, Optional<StringView> const& prefix = {});
     void set_function_length(double length);
@@ -38,7 +38,7 @@ public:
     // [[Realm]]
     virtual Realm* realm() const { return nullptr; }
 
-    virtual Vector<DeprecatedFlyString> const& local_variables_names() const { VERIFY_NOT_REACHED(); }
+    virtual Vector<FlyString> const& local_variables_names() const { VERIFY_NOT_REACHED(); }
 
     virtual Vector<FunctionParameter> const& formal_parameters() const { VERIFY_NOT_REACHED(); }
 

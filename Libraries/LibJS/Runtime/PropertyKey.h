@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/DeprecatedFlyString.h>
 #include <AK/FlyString.h>
 #include <LibGC/Root.h>
 #include <LibJS/Runtime/Completion.h>
@@ -31,7 +30,7 @@ public:
             return PropertyKey { value.as_symbol() };
         if (value.is_integral_number() && value.as_double() >= 0 && value.as_double() < NumericLimits<u32>::max())
             return static_cast<u32>(value.as_double());
-        return TRY(value.to_byte_string(vm));
+        return TRY(value.to_string(vm));
     }
 
     PropertyKey() = delete;
@@ -45,24 +44,19 @@ public:
         VERIFY(index >= 0);
         if constexpr (NumericLimits<T>::max() >= NumericLimits<u32>::max()) {
             if (index >= NumericLimits<u32>::max()) {
-                m_data = DeprecatedFlyString { ByteString::number(index) };
+                m_data = FlyString { String::number(index) };
                 return;
             }
         }
     }
 
-    PropertyKey(DeprecatedFlyString string, StringMayBeNumber string_may_be_number = StringMayBeNumber::Yes)
+    PropertyKey(FlyString string, StringMayBeNumber string_may_be_number = StringMayBeNumber::Yes)
         : m_data { try_coerce_into_number(move(string), string_may_be_number) }
     {
     }
 
     PropertyKey(String const& string)
-        : PropertyKey(DeprecatedFlyString(string.to_byte_string()))
-    {
-    }
-
-    PropertyKey(FlyString const& string)
-        : PropertyKey(string.to_deprecated_fly_string())
+        : PropertyKey(FlyString(string))
     {
     }
 
@@ -74,26 +68,26 @@ public:
     PropertyKey(StringOrSymbol const& string_or_symbol)
         : m_data {
             string_or_symbol.is_string()
-                ? Variant<DeprecatedFlyString, GC::Root<Symbol>, u32> { string_or_symbol.as_string() }
-                : Variant<DeprecatedFlyString, GC::Root<Symbol>, u32> { const_cast<Symbol*>(string_or_symbol.as_symbol()) }
+                ? Variant<FlyString, GC::Root<Symbol>, u32> { string_or_symbol.as_string() }
+                : Variant<FlyString, GC::Root<Symbol>, u32> { const_cast<Symbol*>(string_or_symbol.as_symbol()) }
         }
     {
     }
 
     bool is_number() const { return m_data.has<u32>(); }
-    bool is_string() const { return m_data.has<DeprecatedFlyString>(); }
+    bool is_string() const { return m_data.has<FlyString>(); }
     bool is_symbol() const { return m_data.has<GC::Root<Symbol>>(); }
 
     u32 as_number() const { return m_data.get<u32>(); }
-    DeprecatedFlyString const& as_string() const { return m_data.get<DeprecatedFlyString>(); }
+    FlyString const& as_string() const { return m_data.get<FlyString>(); }
     Symbol const* as_symbol() const { return m_data.get<GC::Root<Symbol>>(); }
 
-    ByteString to_string() const
+    String to_string() const
     {
         VERIFY(!is_symbol());
         if (is_string())
-            return as_string();
-        return ByteString::number(as_number());
+            return as_string().to_string();
+        return String::number(as_number());
     }
 
     StringOrSymbol to_string_or_symbol() const
@@ -109,21 +103,21 @@ public:
 private:
     friend Traits<JS::PropertyKey>;
 
-    static Variant<DeprecatedFlyString, u32> try_coerce_into_number(DeprecatedFlyString string, StringMayBeNumber string_may_be_number)
+    static Variant<FlyString, u32> try_coerce_into_number(FlyString string, StringMayBeNumber string_may_be_number)
     {
         if (string_may_be_number != StringMayBeNumber::Yes)
             return string;
         if (string.is_empty())
             return string;
-        if (string.starts_with("0"sv) && string.length() != 1)
+        if (string.bytes_as_string_view().starts_with("0"sv) && string.bytes().size() != 1)
             return string;
-        auto property_index = string.to_number<u32>(TrimWhitespace::No);
+        auto property_index = string.bytes_as_string_view().to_number<u32>(TrimWhitespace::No);
         if (!property_index.has_value() || property_index.value() >= NumericLimits<u32>::max())
             return string;
         return property_index.release_value();
     }
 
-    Variant<DeprecatedFlyString, u32, GC::Root<Symbol>> m_data;
+    Variant<FlyString, u32, GC::Root<Symbol>> m_data;
 };
 
 }
@@ -135,7 +129,7 @@ struct Traits<JS::PropertyKey> : public DefaultTraits<JS::PropertyKey> {
     static unsigned hash(JS::PropertyKey const& name)
     {
         return name.m_data.visit(
-            [](DeprecatedFlyString const& string) { return string.hash(); },
+            [](FlyString const& string) { return string.hash(); },
             [](GC::Root<JS::Symbol> const& symbol) { return ptr_hash(symbol.ptr()); },
             [](u32 const& number) { return int_hash(number); });
     }

@@ -261,7 +261,7 @@ Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse(S
 }
 
 // 16.2.1.6.2 GetExportedNames ( [ exportStarSet ] ), https://tc39.es/ecma262/#sec-getexportednames
-ThrowCompletionOr<Vector<DeprecatedFlyString>> SourceTextModule::get_exported_names(VM& vm, Vector<Module*> export_star_set)
+ThrowCompletionOr<Vector<FlyString>> SourceTextModule::get_exported_names(VM& vm, Vector<Module*> export_star_set)
 {
     dbgln_if(JS_MODULE_DEBUG, "[JS MODULE] get_export_names of {}", filename());
     // 1. Assert: module.[[Status]] is not new.
@@ -276,14 +276,14 @@ ThrowCompletionOr<Vector<DeprecatedFlyString>> SourceTextModule::get_exported_na
         // FIXME: How do we check that?
 
         // b. Return a new empty List.
-        return Vector<DeprecatedFlyString> {};
+        return Vector<FlyString> {};
     }
 
     // 4. Append module to exportStarSet.
     export_star_set.append(this);
 
     // 5. Let exportedNames be a new empty List.
-    Vector<DeprecatedFlyString> exported_names;
+    Vector<FlyString> exported_names;
 
     // 6. For each ExportEntry Record e of module.[[LocalExportEntries]], do
     for (auto& entry : m_local_export_entries) {
@@ -443,7 +443,7 @@ ThrowCompletionOr<void> SourceTextModule::initialize_environment(VM& vm)
     // Note: We just loop through them in step 21.
 
     // 20. Let declaredVarNames be a new empty List.
-    Vector<DeprecatedFlyString> declared_var_names;
+    Vector<FlyString> declared_var_names;
 
     // 21. For each element d of varDeclarations, do
     // a. For each element dn of the BoundNames of d, do
@@ -497,9 +497,9 @@ ThrowCompletionOr<void> SourceTextModule::initialize_environment(VM& vm)
                 // 1. Let fo be InstantiateFunctionObject of d with arguments env and privateEnv.
                 // NOTE: Special case if the function is a default export of an anonymous function
                 //       it has name "*default*" but internally should have name "default".
-                DeprecatedFlyString function_name = function_declaration.name();
+                FlyString function_name = function_declaration.name();
                 if (function_name == ExportStatement::local_name_for_default)
-                    function_name = "default"sv;
+                    function_name = "default"_fly_string;
                 auto function = ECMAScriptFunctionObject::create(realm(), function_name, function_declaration.source_text(), function_declaration.body(), function_declaration.parameters(), function_declaration.function_length(), function_declaration.local_variables_names(), environment, private_environment, function_declaration.kind(), function_declaration.is_strict_mode(),
                     function_declaration.parsing_insights());
 
@@ -537,7 +537,7 @@ ThrowCompletionOr<void> SourceTextModule::initialize_environment(VM& vm)
 }
 
 // 16.2.1.6.3 ResolveExport ( exportName [ , resolveSet ] ), https://tc39.es/ecma262/#sec-resolveexport
-ThrowCompletionOr<ResolvedBinding> SourceTextModule::resolve_export(VM& vm, DeprecatedFlyString const& export_name, Vector<ResolvedBinding> resolve_set)
+ThrowCompletionOr<ResolvedBinding> SourceTextModule::resolve_export(VM& vm, FlyString const& export_name, Vector<ResolvedBinding> resolve_set)
 {
     // 1. Assert: module.[[Status]] is not new.
     VERIFY(m_status != ModuleStatus::New);
@@ -716,7 +716,7 @@ ThrowCompletionOr<void> SourceTextModule::execute_module(VM& vm, GC::Ptr<Promise
         // c. Let result be the result of evaluating module.[[ECMAScriptCode]].
         Completion result;
 
-        auto maybe_executable = Bytecode::compile(vm, m_ecmascript_code, FunctionKind::Normal, "ShadowRealmEval"sv);
+        auto maybe_executable = Bytecode::compile(vm, m_ecmascript_code, FunctionKind::Normal, "ShadowRealmEval"_fly_string);
         if (maybe_executable.is_error())
             result = maybe_executable.release_error();
         else {
@@ -769,7 +769,7 @@ ThrowCompletionOr<void> SourceTextModule::execute_module(VM& vm, GC::Ptr<Promise
         parsing_insights.uses_this_from_environment = true;
         parsing_insights.uses_this = true;
         auto module_wrapper_function = ECMAScriptFunctionObject::create(
-            realm(), "module code with top-level await", StringView {}, this->m_ecmascript_code,
+            realm(), "module code with top-level await"_fly_string, StringView {}, this->m_ecmascript_code,
             {}, 0, {}, environment(), nullptr, FunctionKind::Async, true, parsing_insights);
         module_wrapper_function->set_is_module_wrapper(true);
 

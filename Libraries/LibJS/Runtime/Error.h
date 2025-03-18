@@ -7,7 +7,6 @@
 
 #pragma once
 
-#include <AK/DeprecatedFlyString.h>
 #include <AK/String.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/Object.h>
@@ -16,7 +15,7 @@
 namespace JS {
 
 struct TracebackFrame {
-    DeprecatedFlyString function_name;
+    FlyString function_name;
     [[nodiscard]] SourceRange const& source_range() const;
 
     RefPtr<CachedSourceRange> cached_source_range;

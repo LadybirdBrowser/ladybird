@@ -84,7 +84,7 @@ void Error::populate_stack()
     for (auto& element : stack_trace) {
         auto* context = element.execution_context;
         TracebackFrame frame {
-            .function_name = context->function_name ? context->function_name->byte_string() : "",
+            .function_name = context->function_name ? context->function_name->utf8_string() : ""_string,
             .cached_source_range = element.source_range,
         };
 
@@ -111,7 +111,7 @@ String Error::stack_string(CompactTraceback compact) const
             else
                 stack_string_builder.appendff("    at {} ({}:{}:{})\n", function_name, source_range.filename(), source_range.start.line, source_range.start.column);
         } else {
-            stack_string_builder.appendff("    at {}\n", function_name.is_empty() ? "<unknown>"sv : function_name.view());
+            stack_string_builder.appendff("    at {}\n", function_name.is_empty() ? "<unknown>"sv : function_name);
         }
     };
 

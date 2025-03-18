@@ -833,7 +833,7 @@ void Interpreter::enter_object_environment(Object& object)
     running_execution_context().lexical_environment = new_object_environment(object, true, old_environment);
 }
 
-ThrowCompletionOr<GC::Ref<Bytecode::Executable>> compile(VM& vm, ASTNode const& node, FunctionKind kind, DeprecatedFlyString const& name)
+ThrowCompletionOr<GC::Ref<Bytecode::Executable>> compile(VM& vm, ASTNode const& node, FunctionKind kind, FlyString const& name)
 {
     auto executable_result = Bytecode::Generator::generate_from_ast_node(vm, node, kind);
     if (executable_result.is_error())
@@ -1199,7 +1199,7 @@ inline ThrowCompletionOr<Value> get_global(Interpreter& interpreter, IdentifierT
     return vm.throw_completion<ReferenceError>(ErrorType::UnknownIdentifier, identifier);
 }
 
-inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value this_value, Value value, Optional<DeprecatedFlyString const&> const& base_identifier, PropertyKey name, Op::PropertyKind kind, PropertyLookupCache* cache = nullptr)
+inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value this_value, Value value, Optional<FlyString const&> const& base_identifier, PropertyKey name, Op::PropertyKind kind, PropertyLookupCache* cache = nullptr)
 {
     // Better error message than to_object would give
     if (vm.in_strict_mode() && base.is_nullish())
@@ -1219,14 +1219,14 @@ inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value thi
     case Op::PropertyKind::Getter: {
         auto& function = value.as_function();
         if (function.name().is_empty() && is<ECMAScriptFunctionObject>(function))
-            static_cast<ECMAScriptFunctionObject*>(&function)->set_name(ByteString::formatted("get {}", name));
+            static_cast<ECMAScriptFunctionObject*>(&function)->set_name(MUST(String::formatted("get {}", name)));
         object->define_direct_accessor(name, &function, nullptr, Attribute::Configurable | Attribute::Enumerable);
         break;
     }
     case Op::PropertyKind::Setter: {
         auto& function = value.as_function();
         if (function.name().is_empty() && is<ECMAScriptFunctionObject>(function))
-            static_cast<ECMAScriptFunctionObject*>(&function)->set_name(ByteString::formatted("set {}", name));
+            static_cast<ECMAScriptFunctionObject*>(&function)->set_name(MUST(String::formatted("set {}", name)));
         object->define_direct_accessor(name, nullptr, &function, Attribute::Configurable | Attribute::Enumerable);
         break;
     }
@@ -1306,7 +1306,7 @@ inline Value new_function(VM& vm, FunctionNode const& function_node, Optional<Id
     Value value;
 
     if (!function_node.has_name()) {
-        DeprecatedFlyString name = {};
+        FlyString name;
         if (lhs_name.has_value())
             name = vm.bytecode_interpreter().current_executable().get_identifier(lhs_name.value());
         value = function_node.instantiate_ordinary_function_expression(vm, name);
@@ -1323,7 +1323,7 @@ inline Value new_function(VM& vm, FunctionNode const& function_node, Optional<Id
     return value;
 }
 
-inline ThrowCompletionOr<void> put_by_value(VM& vm, Value base, Optional<DeprecatedFlyString const&> const& base_identifier, Value property_key_value, Value value, Op::PropertyKind kind)
+inline ThrowCompletionOr<void> put_by_value(VM& vm, Value base, Optional<FlyString const&> const& base_identifier, Value property_key_value, Value value, Op::PropertyKind kind)
 {
     // OPTIMIZATION: Fast path for simple Int32 indexes in array-like objects.
     if ((kind == Op::PropertyKind::KeyValue || kind == Op::PropertyKind::DirectKeyValue)
@@ -1426,7 +1426,7 @@ struct CalleeAndThis {
     Value this_value;
 };
 
-inline ThrowCompletionOr<CalleeAndThis> get_callee_and_this_from_environment(Bytecode::Interpreter& interpreter, DeprecatedFlyString const& name, EnvironmentCoordinate& cache)
+inline ThrowCompletionOr<CalleeAndThis> get_callee_and_this_from_environment(Bytecode::Interpreter& interpreter, FlyString const& name, EnvironmentCoordinate& cache)
 {
     auto& vm = interpreter.vm();
 
@@ -1472,14 +1472,14 @@ inline ThrowCompletionOr<CalleeAndThis> get_callee_and_this_from_environment(Byt
 }
 
 // 13.2.7.3 Runtime Semantics: Evaluation, https://tc39.es/ecma262/#sec-regular-expression-literals-runtime-semantics-evaluation
-inline Value new_regexp(VM& vm, ParsedRegex const& parsed_regex, ByteString const& pattern, ByteString const& flags)
+inline Value new_regexp(VM& vm, ParsedRegex const& parsed_regex, String const& pattern, String const& flags)
 {
     // 1. Let pattern be CodePointsToString(BodyText of RegularExpressionLiteral).
     // 2. Let flags be CodePointsToString(FlagText of RegularExpressionLiteral).
 
     // 3. Return ! RegExpCreate(pattern, flags).
     auto& realm = *vm.current_realm();
-    Regex<ECMA262> regex(parsed_regex.regex, parsed_regex.pattern, parsed_regex.flags);
+    Regex<ECMA262> regex(parsed_regex.regex, parsed_regex.pattern.to_byte_string(), parsed_regex.flags);
     // NOTE: We bypass RegExpCreate and subsequently RegExpAlloc as an optimization to use the already parsed values.
     auto regexp_object = RegExpObject::create(realm, move(regex), pattern, flags);
     // RegExpAlloc has these two steps from the 'Legacy RegExp features' proposal.
@@ -1514,7 +1514,7 @@ inline GC::RootVector<Value> argument_list_evaluation(VM& vm, Value arguments)
     return argument_values;
 }
 
-inline ThrowCompletionOr<void> create_variable(VM& vm, DeprecatedFlyString const& name, Op::EnvironmentMode mode, bool is_global, bool is_immutable, bool is_strict)
+inline ThrowCompletionOr<void> create_variable(VM& vm, FlyString const& name, Op::EnvironmentMode mode, bool is_global, bool is_immutable, bool is_strict)
 {
     if (mode == Op::EnvironmentMode::Lexical) {
         VERIFY(!is_global);
@@ -1549,13 +1549,13 @@ inline ThrowCompletionOr<ECMAScriptFunctionObject*> new_class(VM& vm, Value supe
     auto* class_environment = vm.lexical_environment();
     vm.running_execution_context().lexical_environment = vm.running_execution_context().saved_lexical_environments.take_last();
 
-    Optional<DeprecatedFlyString> binding_name;
-    DeprecatedFlyString class_name;
+    Optional<FlyString> binding_name;
+    FlyString class_name;
     if (!class_expression.has_name() && lhs_name.has_value()) {
         class_name = interpreter.current_executable().get_identifier(lhs_name.value());
     } else {
         binding_name = name;
-        class_name = name.is_null() ? ""sv : name;
+        class_name = name;
     }
 
     return TRY(class_expression.create_class_constructor(vm, class_environment, vm.lexical_environment(), super_class, element_keys, binding_name, class_name));

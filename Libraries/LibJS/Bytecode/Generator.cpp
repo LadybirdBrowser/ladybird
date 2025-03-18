@@ -56,7 +56,7 @@ CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(E
 
     if (function.m_arguments_object_needed) {
         Optional<Operand> dst;
-        auto local_var_index = function.m_local_variables_names.find_first_index("arguments"sv);
+        auto local_var_index = function.m_local_variables_names.find_first_index("arguments"_fly_string);
         if (local_var_index.has_value())
             dst = local(local_var_index.value());
 
@@ -219,7 +219,7 @@ CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(E
     return {};
 }
 
-CodeGenerationErrorOr<GC::Ref<Executable>> Generator::compile(VM& vm, ASTNode const& node, FunctionKind enclosing_function_kind, GC::Ptr<ECMAScriptFunctionObject const> function, MustPropagateCompletion must_propagate_completion, Vector<DeprecatedFlyString> local_variable_names)
+CodeGenerationErrorOr<GC::Ref<Executable>> Generator::compile(VM& vm, ASTNode const& node, FunctionKind enclosing_function_kind, GC::Ptr<ECMAScriptFunctionObject const> function, MustPropagateCompletion must_propagate_completion, Vector<FlyString> local_variable_names)
 {
     Generator generator(vm, function, must_propagate_completion);
 
@@ -482,7 +482,7 @@ CodeGenerationErrorOr<GC::Ref<Executable>> Generator::compile(VM& vm, ASTNode co
 
 CodeGenerationErrorOr<GC::Ref<Executable>> Generator::generate_from_ast_node(VM& vm, ASTNode const& node, FunctionKind enclosing_function_kind)
 {
-    Vector<DeprecatedFlyString> local_variable_names;
+    Vector<FlyString> local_variable_names;
     if (is<ScopeNode>(node))
         local_variable_names = static_cast<ScopeNode const&>(node).local_variables_names();
     return compile(vm, node, enclosing_function_kind, {}, MustPropagateCompletion::Yes, move(local_variable_names));
@@ -588,7 +588,7 @@ void Generator::end_variable_scope()
     }
 }
 
-void Generator::begin_continuable_scope(Label continue_target, Vector<DeprecatedFlyString> const& language_label_set)
+void Generator::begin_continuable_scope(Label continue_target, Vector<FlyString> const& language_label_set)
 {
     m_continuable_scopes.append({ continue_target, language_label_set });
     start_boundary(BlockBoundaryType::Continue);
@@ -605,7 +605,7 @@ Label Generator::nearest_breakable_scope() const
     return m_breakable_scopes.last().bytecode_target;
 }
 
-void Generator::begin_breakable_scope(Label breakable_target, Vector<DeprecatedFlyString> const& language_label_set)
+void Generator::begin_breakable_scope(Label breakable_target, Vector<FlyString> const& language_label_set)
 {
     m_breakable_scopes.append({ breakable_target, language_label_set });
     start_boundary(BlockBoundaryType::Break);
@@ -902,21 +902,21 @@ void Generator::emit_set_variable(JS::Identifier const& identifier, ScopedOperan
     }
 }
 
-static Optional<ByteString> expression_identifier(Expression const& expression)
+static Optional<String> expression_identifier(Expression const& expression)
 {
     if (expression.is_identifier()) {
         auto const& identifier = static_cast<Identifier const&>(expression);
-        return identifier.string();
+        return identifier.string().to_string();
     }
 
     if (expression.is_numeric_literal()) {
         auto const& literal = static_cast<NumericLiteral const&>(expression);
-        return literal.value().to_string_without_side_effects().to_byte_string();
+        return literal.value().to_string_without_side_effects();
     }
 
     if (expression.is_string_literal()) {
         auto const& literal = static_cast<StringLiteral const&>(expression);
-        return ByteString::formatted("'{}'", literal.value());
+        return MUST(String::formatted("'{}'", literal.value()));
     }
 
     if (expression.is_member_expression()) {
@@ -933,7 +933,7 @@ static Optional<ByteString> expression_identifier(Expression const& expression)
                 builder.appendff(".{}", *identifer);
         }
 
-        return builder.to_byte_string();
+        return builder.to_string_without_validation();
     }
 
     return {};
@@ -996,7 +996,7 @@ void Generator::generate_scoped_jump(JumpType type)
     VERIFY_NOT_REACHED();
 }
 
-void Generator::generate_labelled_jump(JumpType type, DeprecatedFlyString const& label)
+void Generator::generate_labelled_jump(JumpType type, FlyString const& label)
 {
     TemporaryChange temp { m_current_unwind_context, m_current_unwind_context };
     size_t current_boundary = m_boundaries.size();
@@ -1047,7 +1047,7 @@ void Generator::generate_break()
     generate_scoped_jump(JumpType::Break);
 }
 
-void Generator::generate_break(DeprecatedFlyString const& break_label)
+void Generator::generate_break(FlyString const& break_label)
 {
     generate_labelled_jump(JumpType::Break, break_label);
 }
@@ -1057,7 +1057,7 @@ void Generator::generate_continue()
     generate_scoped_jump(JumpType::Continue);
 }
 
-void Generator::generate_continue(DeprecatedFlyString const& continue_label)
+void Generator::generate_continue(FlyString const& continue_label)
 {
     generate_labelled_jump(JumpType::Continue, continue_label);
 }
@@ -1121,12 +1121,12 @@ void Generator::emit_get_by_id_with_this(ScopedOperand dst, ScopedOperand base, 
 
 void Generator::emit_iterator_value(ScopedOperand dst, ScopedOperand result)
 {
-    emit_get_by_id(dst, result, intern_identifier("value"sv));
+    emit_get_by_id(dst, result, intern_identifier("value"_fly_string));
 }
 
 void Generator::emit_iterator_complete(ScopedOperand dst, ScopedOperand result)
 {
-    emit_get_by_id(dst, result, intern_identifier("done"sv));
+    emit_get_by_id(dst, result, intern_identifier("done"_fly_string));
 }
 
 bool Generator::is_local_initialized(u32 local_index) const

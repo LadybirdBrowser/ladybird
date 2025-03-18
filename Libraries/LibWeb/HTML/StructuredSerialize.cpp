@@ -521,8 +521,8 @@ WebIDL::ExceptionOr<void> serialize_reg_exp_object(JS::VM& vm, SerializationReco
     // Note: A Regex<ECMA262> object is perfectly happy to be reconstructed with just the source+flags
     //       In the future, we could optimize the work being done on the deserialize step by serializing
     //       more of the internal state (the [[RegExpMatcher]] internal slot)
-    TRY(serialize_string(vm, serialized, TRY_OR_THROW_OOM(vm, String::from_byte_string(regexp_object.pattern()))));
-    TRY(serialize_string(vm, serialized, TRY_OR_THROW_OOM(vm, String::from_byte_string(regexp_object.flags()))));
+    TRY(serialize_string(vm, serialized, regexp_object.pattern()));
+    TRY(serialize_string(vm, serialized, regexp_object.flags()));
     return {};
 }
 
@@ -684,8 +684,8 @@ WebIDL::ExceptionOr<void> serialize_viewed_array_buffer(JS::VM& vm, Vector<u32>&
         //    [[ArrayBufferSerialized]]: bufferSerialized, [[ByteLength]]: value.[[ByteLength]],
         //    [[ByteOffset]]: value.[[ByteOffset]], [[ArrayLength]]: value.[[ArrayLength]] }.
         serialize_enum(vector, ValueTag::ArrayBufferView);
-        vector.extend(move(buffer_serialized));                 // [[ArrayBufferSerialized]]
-        TRY(serialize_string(vm, vector, view.element_name())); // [[Constructor]]
+        vector.extend(move(buffer_serialized));                             // [[ArrayBufferSerialized]]
+        TRY(serialize_string(vm, vector, view.element_name().to_string())); // [[Constructor]]
         serialize_primitive_type(vector, JS::typed_array_byte_length(view_record));
         serialize_primitive_type(vector, view.byte_offset());
         serialize_primitive_type(vector, JS::typed_array_length(view_record));

@@ -4737,7 +4737,7 @@ void Document::start_intersection_observing_a_lazy_loading_element(Element& elem
     // 2. If doc's lazy load intersection observer is null, set it to a new IntersectionObserver instance, initialized as follows:
     if (!m_lazy_load_intersection_observer) {
         // - The callback is these steps, with arguments entries and observer:
-        auto callback = JS::NativeFunction::create(realm, "", [this](JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
+        auto callback = JS::NativeFunction::create(realm, ""_fly_string, [this](JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
             // For each entry in entries using a method of iteration which does not trigger developer-modifiable array accessors or iteration hooks:
             auto& entries = as<JS::Array>(vm.argument(0).as_object());
             auto entries_length = MUST(MUST(entries.get(vm.names.length)).to_length(vm));
