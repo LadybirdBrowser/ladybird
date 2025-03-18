@@ -1,0 +1,17 @@
+<iframe id="frame" src="../../data/local-storage-iframe.html"></iframe>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        window.onmessage = () => {
+           try {
+                println(localStorage.getItem("foo"));
+                localStorage.setItem("foo", "bar");
+                println(localStorage.getItem("foo"));
+            } catch (e) {
+                println(e);
+            }
+
+            done();
+        };
+    });
+</script>
