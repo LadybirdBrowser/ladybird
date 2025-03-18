@@ -19,24 +19,18 @@ namespace URL::Pattern {
 // https://urlpattern.spec.whatwg.org/#typedefdef-urlpatterninput
 using Input = Variant<String, Init>;
 
-// https://urlpattern.spec.whatwg.org/#dictdef-urlpatterncomponentresult
-struct ComponentResult {
-    String input;
-    OrderedHashMap<String, Variant<String, Empty>> groups;
-};
-
 // https://urlpattern.spec.whatwg.org/#dictdef-urlpatternresult
 struct Result {
     Vector<Input> inputs;
 
-    ComponentResult protocol;
-    ComponentResult username;
-    ComponentResult password;
-    ComponentResult hostname;
-    ComponentResult port;
-    ComponentResult pathname;
-    ComponentResult search;
-    ComponentResult hash;
+    Component::Result protocol;
+    Component::Result username;
+    Component::Result password;
+    Component::Result hostname;
+    Component::Result port;
+    Component::Result pathname;
+    Component::Result search;
+    Component::Result hash;
 };
 
 // https://urlpattern.spec.whatwg.org/#dictdef-urlpatternoptions
