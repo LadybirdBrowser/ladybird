@@ -1771,18 +1771,21 @@ inline ThrowCompletionOr<Object*> get_object_property_iterator(VM& vm, Value val
     properties.remove_all_matching([&](auto& entry) { return !entry.enumerable; });
 
     auto& realm = *vm.current_realm();
+
+    auto result_object = Object::create_with_premade_shape(realm.intrinsics().iterator_result_object_shape());
+    auto value_offset = realm.intrinsics().iterator_result_object_value_offset();
+    auto done_offset = realm.intrinsics().iterator_result_object_done_offset();
+
     auto callback = NativeFunction::create(
-        *vm.current_realm(), [items = move(properties)](VM& vm) mutable -> ThrowCompletionOr<Value> {
-            auto& realm = *vm.current_realm();
+        *vm.current_realm(), [items = move(properties), result_object, value_offset, done_offset](VM& vm) mutable -> ThrowCompletionOr<Value> {
             auto iterated_object_value = vm.this_value();
             if (!iterated_object_value.is_object())
                 return vm.throw_completion<InternalError>("Invalid state for GetObjectPropertyIterator.next"sv);
 
             auto& iterated_object = iterated_object_value.as_object();
-            auto result_object = Object::create(realm, nullptr);
             while (true) {
                 if (items.is_empty()) {
-                    result_object->define_direct_property(vm.names.done, JS::Value(true), default_attributes);
+                    result_object->put_direct(done_offset, JS::Value(true));
                     return result_object;
                 }
 
@@ -1792,12 +1795,12 @@ inline ThrowCompletionOr<Object*> get_object_property_iterator(VM& vm, Value val
                 if (!TRY(iterated_object.has_property(key)))
                     continue;
 
-                result_object->define_direct_property(vm.names.done, JS::Value(false), default_attributes);
+                result_object->put_direct(done_offset, JS::Value(false));
 
                 if (key.is_number())
-                    result_object->define_direct_property(vm.names.value, PrimitiveString::create(vm, String::number(key.as_number())), default_attributes);
+                    result_object->put_direct(value_offset, PrimitiveString::create(vm, String::number(key.as_number())));
                 else if (key.is_string())
-                    result_object->define_direct_property(vm.names.value, PrimitiveString::create(vm, key.as_string()), default_attributes);
+                    result_object->put_direct(value_offset, PrimitiveString::create(vm, key.as_string()));
                 else
                     VERIFY_NOT_REACHED(); // We should not have non-string/number keys.
 
