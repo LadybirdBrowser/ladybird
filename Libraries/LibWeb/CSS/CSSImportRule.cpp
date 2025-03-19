@@ -23,16 +23,17 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSImportRule);
 
-GC::Ref<CSSImportRule> CSSImportRule::create(URL::URL url, DOM::Document& document)
+GC::Ref<CSSImportRule> CSSImportRule::create(URL::URL url, DOM::Document& document, RefPtr<Supports> supports)
 {
     auto& realm = document.realm();
-    return realm.create<CSSImportRule>(move(url), document);
+    return realm.create<CSSImportRule>(move(url), document, supports);
 }
 
-CSSImportRule::CSSImportRule(URL::URL url, DOM::Document& document)
+CSSImportRule::CSSImportRule(URL::URL url, DOM::Document& document, RefPtr<Supports> supports)
     : CSSRule(document.realm(), Type::Import)
     , m_url(move(url))
     , m_document(document)
+    , m_supports(supports)
 {
 }
 
@@ -70,6 +71,11 @@ String CSSImportRule::serialized() const
     // 2. The result of performing serialize a URL on the rule’s location.
     serialize_a_url(builder, m_url.to_string());
 
+    // AD-HOC: Serialize the rule's supports condition if it exists.
+    //         This isn't currently specified, but major browsers include this in their serialization of import rules
+    if (m_supports)
+        builder.appendff(" supports({})", m_supports->to_string());
+
     // FIXME: 3. If the rule’s associated media list is not empty, a single SPACE (U+0020) followed by the result of performing serialize a media query list on the media list.
 
     // 4. The string ";", i.e., SEMICOLON (U+003B).
@@ -88,7 +94,10 @@ void CSSImportRule::fetch()
     VERIFY(parent_style_sheet());
     auto& parent_style_sheet = *this->parent_style_sheet();
 
-    // FIXME: 2. If rule has a <supports-condition>, and that condition is not true, return.
+    // 2. If rule has a <supports-condition>, and that condition is not true, return.
+    if (m_supports && !m_supports->matches()) {
+        return;
+    }
 
     // 3. Let parsedUrl be the result of the URL parser steps with rule’s URL and parentStylesheet’s location.
     //    If the algorithm returns an error, return. [CSSOM]
