@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #element #element2 {
+        display: none;
+    }
+</style>
+<div id="element">
+    <div id="element2"></div>
+</div>
+<script>
+    test(() => {
+        const element2 = document.getElementById("element2");
+        const computedStyle = window.getComputedStyle(element2);
+
+        // Previously, this would be 'block' instead of 'none' when the element had no layout node.
+        println("display of hidden node: " + computedStyle.display);
+    });
+</script>
