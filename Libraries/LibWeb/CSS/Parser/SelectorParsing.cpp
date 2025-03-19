@@ -430,6 +430,20 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
             };
         }
 
+        // Aliased pseudo-elements behave like their target pseudo-element, but serialize as themselves. So store their
+        // name like we do for unknown -webkit pseudos below.
+        if (auto pseudo_element = aliased_pseudo_element_from_string(pseudo_name); pseudo_element.has_value()) {
+            // :has() is fussy about pseudo-elements inside it
+            if (m_pseudo_class_context.contains_slow(PseudoClass::Has) && !is_has_allowed_pseudo_element(*pseudo_element)) {
+                return ParseError::SyntaxError;
+            }
+
+            return Selector::SimpleSelector {
+                .type = Selector::SimpleSelector::Type::PseudoElement,
+                .value = Selector::PseudoElementSelector { pseudo_element.release_value(), pseudo_name.to_string().to_ascii_lowercase() }
+            };
+        }
+
         // https://www.w3.org/TR/selectors-4/#compat
         // All other pseudo-elements whose names begin with the string “-webkit-” (matched ASCII case-insensitively)
         // and that are not functional notations must be treated as valid at parse time. (That is, ::-webkit-asdf is

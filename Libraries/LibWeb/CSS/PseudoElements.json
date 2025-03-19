@@ -1,4 +1,34 @@
 {
+  "-moz-meter-bar": {
+    "alias-for": "fill"
+  },
+  "-moz-progress-bar": {
+    "alias-for": "fill"
+  },
+  "-moz-range-progress": {
+    "alias-for": "fill"
+  },
+  "-moz-range-track": {
+    "alias-for": "track"
+  },
+  "-moz-range-thumb": {
+    "alias-for": "thumb"
+  },
+  "-webkit-meter-bar": {
+    "alias-for": "track"
+  },
+  "-webkit-progress-bar": {
+    "alias-for": "track"
+  },
+  "-webkit-progress-value": {
+    "alias-for": "fill"
+  },
+  "-webkit-slider-runnable-track": {
+    "alias-for": "track"
+  },
+  "-webkit-slider-thumb": {
+    "alias-for": "thumb"
+  },
   "after": {
     "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-after",
     "is-generated": true
