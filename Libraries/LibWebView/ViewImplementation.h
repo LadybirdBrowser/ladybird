@@ -9,7 +9,6 @@
 
 #include <AK/Forward.h>
 #include <AK/Function.h>
-#include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
 #include <AK/LexicalPath.h>
 #include <AK/Queue.h>
@@ -26,6 +25,7 @@
 #include <LibWeb/HTML/SelectItem.h>
 #include <LibWeb/Page/EventResult.h>
 #include <LibWeb/Page/InputEvent.h>
+#include <LibWebView/DOMNodeProperties.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/PageInfo.h>
 #include <LibWebView/WebContentClient.h>
@@ -35,15 +35,6 @@ namespace WebView {
 class ViewImplementation {
 public:
     virtual ~ViewImplementation();
-
-    struct DOMNodeProperties {
-        JsonObject computed_style;
-        JsonObject resolved_style;
-        JsonObject custom_properties;
-        JsonObject node_box_sizing;
-        JsonObject aria_properties_state;
-        JsonArray fonts;
-    };
 
     static void for_each_view(Function<IterationDecision(ViewImplementation&)>);
     static Optional<ViewImplementation&> find_view_by_id(u64);
@@ -108,7 +99,7 @@ public:
     void inspect_accessibility_tree();
     void get_hovered_node_id();
 
-    void inspect_dom_node(Web::UniqueNodeID node_id, Optional<Web::CSS::Selector::PseudoElement::Type> pseudo_element);
+    void inspect_dom_node(Web::UniqueNodeID node_id, DOMNodeProperties::Type, Optional<Web::CSS::Selector::PseudoElement::Type> pseudo_element);
     void clear_inspected_dom_node();
 
     void highlight_dom_node(Web::UniqueNodeID node_id, Optional<Web::CSS::Selector::PseudoElement::Type> pseudo_element);

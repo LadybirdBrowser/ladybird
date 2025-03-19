@@ -77,7 +77,7 @@ private:
     virtual void did_request_media_context_menu(u64 page_id, Gfx::IntPoint, ByteString, unsigned, Web::Page::MediaContextMenu) override;
     virtual void did_get_source(u64 page_id, URL::URL, URL::URL, String) override;
     virtual void did_inspect_dom_tree(u64 page_id, String) override;
-    virtual void did_inspect_dom_node(u64 page_id, bool has_style, String computed_style, String resolved_style, String custom_properties, String node_box_sizing, String aria_properties_state, String fonts) override;
+    virtual void did_inspect_dom_node(u64 page_id, DOMNodeProperties) override;
     virtual void did_inspect_accessibility_tree(u64 page_id, String) override;
     virtual void did_get_hovered_node_id(u64 page_id, Web::UniqueNodeID node_id) override;
     virtual void did_finish_editing_dom_node(u64 page_id, Optional<Web::UniqueNodeID> node_id) override;

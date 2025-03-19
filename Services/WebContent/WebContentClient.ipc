@@ -17,6 +17,7 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWebView/Attribute.h>
 #include <LibWebView/ConsoleOutput.h>
+#include <LibWebView/DOMNodeProperties.h>
 #include <LibWebView/Mutation.h>
 #include <LibWebView/PageInfo.h>
 #include <LibWebView/ProcessHandle.h>
@@ -52,7 +53,7 @@ endpoint WebContentClient
     did_get_source(u64 page_id, URL::URL url, URL::URL base_url, String source) =|
 
     did_inspect_dom_tree(u64 page_id, String dom_tree) =|
-    did_inspect_dom_node(u64 page_id, bool has_style, String computed_style,  String resolved_style,  String custom_properties, String node_box_sizing, String aria_properties_state, String fonts) =|
+    did_inspect_dom_node(u64 page_id, WebView::DOMNodeProperties properties) =|
     did_inspect_accessibility_tree(u64 page_id, String accessibility_tree) =|
     did_get_hovered_node_id(u64 page_id, Web::UniqueNodeID node_id) =|
     did_finish_editing_dom_node(u64 page_id, Optional<Web::UniqueNodeID> node_id) =|

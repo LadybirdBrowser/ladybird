@@ -451,25 +451,31 @@ void Application::inspect_tab(DevTools::TabDescription const& description, OnTab
     view->inspect_dom_tree();
 }
 
-void Application::inspect_dom_node(DevTools::TabDescription const& description, Web::UniqueNodeID node_id, Optional<Web::CSS::Selector::PseudoElement::Type> pseudo_element, OnDOMNodeInspectionComplete on_complete) const
+void Application::listen_for_dom_properties(DevTools::TabDescription const& description, OnDOMNodePropertiesReceived on_dom_node_properties_received) const
 {
     auto view = ViewImplementation::find_view_by_id(description.id);
-    if (!view.has_value()) {
-        on_complete(Error::from_string_literal("Unable to locate tab"));
+    if (!view.has_value())
         return;
-    }
 
-    view->on_received_dom_node_properties = [&view = *view, on_complete = move(on_complete)](ViewImplementation::DOMNodeProperties properties) {
-        view.on_received_dom_node_properties = nullptr;
+    view->on_received_dom_node_properties = move(on_dom_node_properties_received);
+}
 
-        on_complete(DevTools::DOMNodeProperties {
-            .computed_style = move(properties.computed_style),
-            .node_box_sizing = move(properties.node_box_sizing),
-            .fonts = move(properties.fonts),
-        });
-    };
+void Application::stop_listening_for_dom_properties(DevTools::TabDescription const& description) const
+{
+    auto view = ViewImplementation::find_view_by_id(description.id);
+    if (!view.has_value())
+        return;
 
-    view->inspect_dom_node(node_id, pseudo_element);
+    view->on_received_dom_node_properties = nullptr;
+}
+
+void Application::inspect_dom_node(DevTools::TabDescription const& description, DOMNodeProperties::Type property_type, Web::UniqueNodeID node_id, Optional<Web::CSS::Selector::PseudoElement::Type> pseudo_element) const
+{
+    auto view = ViewImplementation::find_view_by_id(description.id);
+    if (!view.has_value())
+        return;
+
+    view->inspect_dom_node(node_id, property_type, pseudo_element);
 }
 
 void Application::clear_inspected_dom_node(DevTools::TabDescription const& description) const

@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/JsonArray.h>
+#include <AK/JsonObject.h>
 #include <AK/JsonValue.h>
 #include <LibDevTools/Actors/InspectorActor.h>
 #include <LibDevTools/Actors/PageStyleActor.h>
@@ -111,9 +113,20 @@ PageStyleActor::PageStyleActor(DevToolsServer& devtools, String name, WeakPtr<In
     : Actor(devtools, move(name))
     , m_inspector(move(inspector))
 {
+    if (auto tab = InspectorActor::tab_for(m_inspector)) {
+        devtools.delegate().listen_for_dom_properties(tab->description(),
+            [weak_self = make_weak_ptr<PageStyleActor>()](WebView::DOMNodeProperties const& properties) {
+                if (auto self = weak_self.strong_ref())
+                    self->received_dom_node_properties(properties);
+            });
+    }
 }
 
-PageStyleActor::~PageStyleActor() = default;
+PageStyleActor::~PageStyleActor()
+{
+    if (auto tab = InspectorActor::tab_for(m_inspector))
+        devtools().delegate().stop_listening_for_dom_properties(tab->description());
+}
 
 void PageStyleActor::handle_message(Message const& message)
 {
@@ -134,38 +147,17 @@ void PageStyleActor::handle_message(Message const& message)
     }
 
     if (message.type == "getComputed"sv) {
-        auto node = get_required_parameter<String>(message, "node"sv);
-        if (!node.has_value())
-            return;
-
-        inspect_dom_node(message, *node, [](auto& response, auto const& properties) {
-            received_computed_style(response, properties.computed_style);
-        });
-
+        inspect_dom_node(message, WebView::DOMNodeProperties::Type::ComputedStyle);
         return;
     }
 
     if (message.type == "getLayout"sv) {
-        auto node = get_required_parameter<String>(message, "node"sv);
-        if (!node.has_value())
-            return;
-
-        inspect_dom_node(message, *node, [](auto& response, auto const& properties) {
-            received_layout(response, properties.node_box_sizing);
-        });
-
+        inspect_dom_node(message, WebView::DOMNodeProperties::Type::Layout);
         return;
     }
 
     if (message.type == "getUsedFontFaces"sv) {
-        auto node = get_required_parameter<String>(message, "node"sv);
-        if (!node.has_value())
-            return;
-
-        inspect_dom_node(message, *node, [](auto& response, auto const& properties) {
-            received_fonts(response, properties.fonts);
-        });
-
+        inspect_dom_node(message, WebView::DOMNodeProperties::Type::UsedFonts);
         return;
     }
 
@@ -192,19 +184,46 @@ JsonValue PageStyleActor::serialize_style() const
     return style;
 }
 
-template<typename Callback>
-void PageStyleActor::inspect_dom_node(Message const& message, StringView node_actor, Callback&& callback)
+void PageStyleActor::inspect_dom_node(Message const& message, WebView::DOMNodeProperties::Type property_type)
 {
-    auto dom_node = WalkerActor::dom_node_for(InspectorActor::walker_for(m_inspector), node_actor);
+    auto node = get_required_parameter<String>(message, "node"sv);
+    if (!node.has_value())
+        return;
+
+    auto dom_node = WalkerActor::dom_node_for(InspectorActor::walker_for(m_inspector), *node);
     if (!dom_node.has_value()) {
-        send_unknown_actor_error(message, node_actor);
+        send_unknown_actor_error(message, *node);
         return;
     }
 
-    devtools().delegate().inspect_dom_node(dom_node->tab->description(), dom_node->identifier.id, dom_node->identifier.pseudo_element,
-        async_handler(message, [callback = forward<Callback>(callback)](auto&, auto properties, auto& response) {
-            callback(response, properties);
-        }));
+    devtools().delegate().inspect_dom_node(dom_node->tab->description(), property_type, dom_node->identifier.id, dom_node->identifier.pseudo_element);
+    m_pending_inspect_requests.append({ .id = message.id });
+}
+
+void PageStyleActor::received_dom_node_properties(WebView::DOMNodeProperties const& properties)
+{
+    if (m_pending_inspect_requests.is_empty())
+        return;
+
+    JsonObject response;
+
+    switch (properties.type) {
+    case WebView::DOMNodeProperties::Type::ComputedStyle:
+        if (properties.properties.is_object())
+            received_computed_style(response, properties.properties.as_object());
+        break;
+    case WebView::DOMNodeProperties::Type::Layout:
+        if (properties.properties.is_object())
+            received_layout(response, properties.properties.as_object());
+        break;
+    case WebView::DOMNodeProperties::Type::UsedFonts:
+        if (properties.properties.is_array())
+            received_fonts(response, properties.properties.as_array());
+        break;
+    }
+
+    auto message = m_pending_inspect_requests.take_first();
+    send_response(message, move(response));
 }
 
 }
