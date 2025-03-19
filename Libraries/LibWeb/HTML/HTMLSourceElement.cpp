@@ -27,33 +27,35 @@ void HTMLSourceElement::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLSourceElement);
 }
 
-// https://html.spec.whatwg.org/multipage/embedded-content.html#the-source-element:the-source-element-15
+// https://html.spec.whatwg.org/multipage/embedded-content.html#the-source-element:html-element-insertion-steps
 void HTMLSourceElement::inserted()
 {
     // The source HTML element insertion steps, given insertedNode, are:
     Base::inserted();
 
-    // 1. If insertedNode's parent is a media element that has no src attribute and whose networkState has the value
-    //    NETWORK_EMPTY, then invoke that media element's resource selection algorithm.
-    if (is<HTMLMediaElement>(parent())) {
-        auto& media_element = static_cast<HTMLMediaElement&>(*parent());
+    // 1. Let parent be insertedNode's parent.
+    auto* parent = this->parent();
 
-        if (!media_element.has_attribute(HTML::AttributeNames::src) && media_element.network_state() == HTMLMediaElement::NetworkState::Empty)
-            media_element.select_resource().release_value_but_fixme_should_propagate_errors();
+    // 2. If parent is a media element that has no src attribute and whose networkState has the value NETWORK_EMPTY,
+    //    then invoke that media element's resource selection algorithm.
+    if (auto* media_element = as_if<HTMLMediaElement>(parent); media_element
+        && !media_element->has_attribute(HTML::AttributeNames::src)
+        && media_element->network_state() == HTMLMediaElement::NetworkState::Empty) {
+        media_element->select_resource().release_value_but_fixme_should_propagate_errors();
     }
 
-    // FIXME: 2. If insertedNode's next sibling is an img element and its parent is a picture element, then, count this as a
-    //           relevant mutation for the img element.
+    // FIXME: 3. If parent is a picture element, then for each child of parent's children, if child is an img element, then
+    //           count this as a relevant mutation for child.
 }
 
-// https://html.spec.whatwg.org/multipage/embedded-content.html#the-source-element:the-source-element-16
+// https://html.spec.whatwg.org/multipage/embedded-content.html#the-source-element:html-element-removing-steps
 void HTMLSourceElement::removed_from(DOM::Node* old_parent, DOM::Node& old_root)
 {
     // The source HTML element removing steps, given removedNode and oldParent, are:
     Base::removed_from(old_parent, old_root);
 
-    // FIXME: 1. If removedNode's next sibling was an img element and oldParent is a picture element, then, count this as a
-    //           relevant mutation for the img element.
+    // FIXME: 1. If oldParent is a picture element, then for each child of oldParent's children, if child is an img
+    //           element, then count this as a relevant mutation for child.
 }
 
 }
