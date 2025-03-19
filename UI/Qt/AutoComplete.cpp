@@ -6,7 +6,6 @@
 
 #include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
-#include <AK/JsonParser.h>
 #include <LibURL/URL.h>
 #include <UI/Qt/AutoComplete.h>
 #include <UI/Qt/Settings.h>
@@ -111,8 +110,8 @@ ErrorOr<void> AutoComplete::got_network_response(QNetworkReply* reply)
     if (reply->error() == QNetworkReply::NetworkError::OperationCanceledError)
         return {};
 
-    AK::JsonParser parser(ak_byte_string_from_qstring(reply->readAll()));
-    auto json = TRY(parser.parse());
+    auto reply_data = ak_string_from_qstring(reply->readAll());
+    auto json = TRY(JsonValue::from_string(reply_data));
 
     auto engine_name = Settings::the()->autocomplete_engine().name;
     Vector<String> results;
