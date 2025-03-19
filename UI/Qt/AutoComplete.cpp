@@ -37,67 +37,79 @@ AutoComplete::AutoComplete(QWidget* parent)
     });
 }
 
-ErrorOr<Vector<String>> AutoComplete::parse_google_autocomplete(Vector<JsonValue> const& json)
+ErrorOr<Vector<String>> AutoComplete::parse_google_autocomplete(JsonValue const& json)
 {
-    if (json.size() != 5)
-        return Error::from_string_literal("Invalid JSON, expected 5 elements in array");
+    if (!json.is_array())
+        return Error::from_string_literal("Expected Google autocomplete response to be a JSON array");
 
-    if (!json[0].is_string())
-        return Error::from_string_literal("Invalid JSON, expected first element to be a string");
-    auto query = json[0].as_string();
+    auto const& values = json.as_array();
 
-    if (!json[1].is_array())
-        return Error::from_string_literal("Invalid JSON, expected second element to be an array");
-    auto suggestions_array = json[1].as_array().values();
+    if (values.size() != 5)
+        return Error::from_string_literal("Invalid Google autocomplete response, expected 5 elements in array");
 
+    if (!values[0].is_string())
+        return Error::from_string_literal("Invalid Google autocomplete response, expected first element to be a string");
+
+    auto const& query = values[0].as_string();
     if (query != m_query)
-        return Error::from_string_literal("Invalid JSON, query does not match");
+        return Error::from_string_literal("Invalid Google autocomplete response, query does not match");
+
+    if (!values[1].is_array())
+        return Error::from_string_literal("Invalid Google autocomplete response, expected second element to be an array");
+    auto const& suggestions_array = values[1].as_array().values();
 
     Vector<String> results;
     results.ensure_capacity(suggestions_array.size());
-    for (auto& suggestion : suggestions_array)
+    for (auto const& suggestion : suggestions_array)
         results.unchecked_append(suggestion.as_string());
 
     return results;
 }
 
-ErrorOr<Vector<String>> AutoComplete::parse_duckduckgo_autocomplete(Vector<JsonValue> const& json)
+ErrorOr<Vector<String>> AutoComplete::parse_duckduckgo_autocomplete(JsonValue const& json)
 {
-    Vector<String> results;
+    if (!json.is_array())
+        return Error::from_string_literal("Expected DuckDuckGo autocomplete response to be a JSON array");
 
-    for (auto const& suggestion : json) {
+    Vector<String> results;
+    results.ensure_capacity(json.as_array().size());
+
+    for (auto const& suggestion : json.as_array().values()) {
         if (!suggestion.is_object())
-            return Error::from_string_literal("Invalid JSON, expected value to be an object");
+            return Error::from_string_literal("Invalid DuckDuckGo autocomplete response, expected value to be an object");
 
         if (auto value = suggestion.as_object().get_string("phrase"sv); value.has_value())
-            results.append(*value);
+            results.unchecked_append(*value);
     }
 
     return results;
 }
 
-ErrorOr<Vector<String>> AutoComplete::parse_yahoo_autocomplete(JsonObject const& json)
+ErrorOr<Vector<String>> AutoComplete::parse_yahoo_autocomplete(JsonValue const& json)
 {
-    auto query = json.get_string("q"sv);
-    if (!query.has_value())
-        return Error::from_string_view("Invalid JSON, expected \"q\" to be a string"sv);
-    if (query != m_query)
-        return Error::from_string_literal("Invalid JSON, query does not match");
+    if (!json.is_object())
+        return Error::from_string_literal("Expected Yahoo autocomplete response to be a JSON array");
 
-    auto suggestions = json.get_array("r"sv);
+    auto query = json.as_object().get_string("q"sv);
+    if (!query.has_value())
+        return Error::from_string_literal("Invalid Yahoo autocomplete response, expected \"q\" to be a string");
+    if (query != m_query)
+        return Error::from_string_literal("Invalid Yahoo autocomplete response, query does not match");
+
+    auto suggestions = json.as_object().get_array("r"sv);
     if (!suggestions.has_value())
-        return Error::from_string_view("Invalid JSON, expected \"r\" to be an object"sv);
+        return Error::from_string_literal("Invalid Yahoo autocomplete response, expected \"r\" to be an object");
 
     Vector<String> results;
     results.ensure_capacity(suggestions->size());
 
     for (auto const& suggestion : suggestions->values()) {
         if (!suggestion.is_object())
-            return Error::from_string_literal("Invalid JSON, expected value to be an object");
+            return Error::from_string_literal("Invalid Yahoo autocomplete response, expected value to be an object");
 
         auto result = suggestion.as_object().get_string("k"sv);
         if (!result.has_value())
-            return Error::from_string_view("Invalid JSON, expected \"k\" to be a string"sv);
+            return Error::from_string_literal("Invalid Yahoo autocomplete response, expected \"k\" to be a string");
 
         results.unchecked_append(*result);
     }
@@ -113,17 +125,17 @@ ErrorOr<void> AutoComplete::got_network_response(QNetworkReply* reply)
     auto reply_data = ak_string_from_qstring(reply->readAll());
     auto json = TRY(JsonValue::from_string(reply_data));
 
-    auto engine_name = Settings::the()->autocomplete_engine().name;
+    auto const& engine_name = Settings::the()->autocomplete_engine().name;
+
     Vector<String> results;
-    if (engine_name == "Google") {
-        results = TRY(parse_google_autocomplete(json.as_array().values()));
-    } else if (engine_name == "DuckDuckGo") {
-        results = TRY(parse_duckduckgo_autocomplete(json.as_array().values()));
-    } else if (engine_name == "Yahoo")
-        results = TRY(parse_yahoo_autocomplete(json.as_object()));
-    else {
+    if (engine_name == "Google")
+        results = TRY(parse_google_autocomplete(json));
+    else if (engine_name == "DuckDuckGo")
+        results = TRY(parse_duckduckgo_autocomplete(json));
+    else if (engine_name == "Yahoo")
+        results = TRY(parse_yahoo_autocomplete(json));
+    else
         return Error::from_string_literal("Invalid engine name");
-    }
 
     constexpr size_t MAX_AUTOCOMPLETE_RESULTS = 6;
     if (results.is_empty()) {
