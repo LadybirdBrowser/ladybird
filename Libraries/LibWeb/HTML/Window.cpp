@@ -1223,7 +1223,7 @@ GC::Ref<CSS::CSSStyleDeclaration> Window::get_computed_style(DOM::Element& eleme
         // 1. Parse pseudoElt as a <pseudo-element-selector>, and let type be the result.
         auto type = parse_pseudo_element_selector(CSS::Parser::ParsingParams(associated_document()), pseudo_element.value());
 
-        // 2. If type is failure, or is an ::slotted() or ::part() pseudo-element, let obj be null.
+        // 2. If type is failure, or is a ::slotted() or ::part() pseudo-element, let obj be null.
         // FIXME: We can't pass a null element to CSSStyleProperties::create_resolved_style()
         if (!type.has_value()) {
         }
