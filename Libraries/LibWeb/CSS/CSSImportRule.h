@@ -33,6 +33,8 @@ public:
     CSSStyleSheet const* loaded_style_sheet() const { return m_style_sheet; }
     CSSStyleSheet* style_sheet_for_bindings() { return m_style_sheet; }
 
+    Optional<String> supports_text() const;
+
 private:
     CSSImportRule(URL::URL, DOM::Document&, RefPtr<Supports>);
 

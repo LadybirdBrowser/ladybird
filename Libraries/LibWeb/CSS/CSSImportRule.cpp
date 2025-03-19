@@ -171,4 +171,11 @@ void CSSImportRule::set_style_sheet(GC::Ref<CSSStyleSheet> style_sheet)
     m_document->invalidate_style(DOM::StyleInvalidationReason::CSSImportRule);
 }
 
+Optional<String> CSSImportRule::supports_text() const
+{
+    if (!m_supports)
+        return {};
+    return m_supports->to_string();
+}
+
 }

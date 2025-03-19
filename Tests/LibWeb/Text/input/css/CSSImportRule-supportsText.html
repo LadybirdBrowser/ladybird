@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<style>
+    @import url("https://something.invalid") supports(foo: bar);
+    @import url("https://something.invalid") supports((display: block) and (foo: bar));
+</style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        function printImportRule(importRule) {
+            println(`cssText: ${importRule.cssText}`);
+            println(`supportsText: ${importRule.supportsText}`);
+        }
+
+        printImportRule(document.styleSheets[0].cssRules[0]);
+        printImportRule(document.styleSheets[0].cssRules[1]);
+    });
+</script>
