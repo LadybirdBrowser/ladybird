@@ -37,6 +37,30 @@
 #include <LibJS/Runtime/ValueInlines.h>
 #include <LibJS/SourceTextModule.h>
 
+namespace JS {
+
+struct PropertyKeyAndEnumerableFlag {
+    JS::PropertyKey key;
+    bool enumerable { false };
+};
+
+}
+
+namespace AK {
+template<>
+struct Traits<JS::PropertyKeyAndEnumerableFlag> : public DefaultTraits<JS::PropertyKeyAndEnumerableFlag> {
+    static unsigned hash(JS::PropertyKeyAndEnumerableFlag const& entry)
+    {
+        return Traits<JS::PropertyKey>::hash(entry.key);
+    }
+
+    static bool equals(JS::PropertyKeyAndEnumerableFlag const& a, JS::PropertyKeyAndEnumerableFlag const& b)
+    {
+        return Traits<JS::PropertyKey>::equals(a.key, b.key);
+    }
+};
+}
+
 namespace JS::Bytecode {
 
 bool g_dump_bytecode = false;
@@ -1713,8 +1737,8 @@ inline ThrowCompletionOr<Object*> get_object_property_iterator(VM& vm, Value val
     auto object = TRY(value.to_object(vm));
     // Note: While the spec doesn't explicitly require these to be ordered, it says that the values should be retrieved via OwnPropertyKeys,
     //       so we just keep the order consistent anyway.
-    OrderedHashTable<PropertyKey> properties;
-    OrderedHashTable<PropertyKey> non_enumerable_properties;
+
+    OrderedHashTable<PropertyKeyAndEnumerableFlag> properties;
     HashTable<GC::Ref<Object>> seen_objects;
     // Collect all keys immediately (invariant no. 5)
     for (auto object_to_check = GC::Ptr { object.ptr() }; object_to_check && !seen_objects.contains(*object_to_check); object_to_check = TRY(object_to_check->internal_get_prototype_of())) {
@@ -1722,24 +1746,30 @@ inline ThrowCompletionOr<Object*> get_object_property_iterator(VM& vm, Value val
         for (auto& key : TRY(object_to_check->internal_own_property_keys())) {
             if (key.is_symbol())
                 continue;
-            auto property_key = TRY(PropertyKey::from_value(vm, key));
 
-            // If there is a non-enumerable property higher up the prototype chain with the same key,
-            // we mustn't include this property even if it's enumerable (invariant no. 5 and 6)
-            if (non_enumerable_properties.contains(property_key))
-                continue;
-            if (properties.contains(property_key))
+            // NOTE: If there is a non-enumerable property higher up the prototype chain with the same key,
+            //       we mustn't include this property even if it's enumerable (invariant no. 5 and 6)
+            //       This is achieved with the PropertyKeyAndEnumerableFlag struct, which doesn't consider
+            //       the enumerable flag when comparing keys.
+            PropertyKeyAndEnumerableFlag new_entry {
+                .key = TRY(PropertyKey::from_value(vm, key)),
+                .enumerable = false,
+            };
+
+            if (properties.contains(new_entry))
                 continue;
 
-            auto descriptor = TRY(object_to_check->internal_get_own_property(property_key));
+            auto descriptor = TRY(object_to_check->internal_get_own_property(new_entry.key));
             if (!descriptor.has_value())
                 continue;
-            if (!*descriptor->enumerable)
-                non_enumerable_properties.set(move(property_key));
-            else
-                properties.set(move(property_key));
+
+            new_entry.enumerable = *descriptor->enumerable;
+            properties.set(move(new_entry), AK::HashSetExistingEntryBehavior::Keep);
         }
     }
+
+    properties.remove_all_matching([&](auto& entry) { return !entry.enumerable; });
+
     auto& realm = *vm.current_realm();
     auto callback = NativeFunction::create(
         *vm.current_realm(), [items = move(properties)](VM& vm) mutable -> ThrowCompletionOr<Value> {
@@ -1756,7 +1786,7 @@ inline ThrowCompletionOr<Object*> get_object_property_iterator(VM& vm, Value val
                     return result_object;
                 }
 
-                auto key = items.take_first();
+                auto key = move(items.take_first().key);
 
                 // If the property is deleted, don't include it (invariant no. 2)
                 if (!TRY(iterated_object.has_property(key)))
