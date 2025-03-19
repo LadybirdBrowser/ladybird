@@ -173,7 +173,7 @@ PatternErrorOr<String> canonicalize_a_pathname(String const& value)
 
     // 6. Let parseResult be the result of running basic URL parser given modified value with dummyURL
     //    as url and path start state as state override.
-    auto parse_result = Parser::basic_parse(value, {}, &dummy_url, Parser::State::PathStart);
+    auto parse_result = Parser::basic_parse(modified_value.string_view(), {}, &dummy_url, Parser::State::PathStart);
 
     // 7. If parseResult is failure, then throw a TypeError.
     if (!parse_result.has_value())
