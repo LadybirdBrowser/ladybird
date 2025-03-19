@@ -759,11 +759,4 @@ SelectorList adapt_nested_relative_selector_list(SelectorList const& selectors)
     return new_list;
 }
 
-// https://drafts.csswg.org/selectors/#has-allowed-pseudo-element
-bool is_has_allowed_pseudo_element(PseudoElement)
-{
-    // No spec currently defines any pseudo-elements that are allowed in :has()
-    return false;
-}
-
 }
