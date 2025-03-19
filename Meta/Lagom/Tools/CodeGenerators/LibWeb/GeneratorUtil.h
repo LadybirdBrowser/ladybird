@@ -103,3 +103,14 @@ inline String css_property_to_idl_attribute(StringView property_name, bool lower
     // 5. Return output.
     return MUST(output.to_string());
 }
+
+inline StringView underlying_type_for_enum(size_t member_count)
+{
+    if (member_count <= NumericLimits<u8>::max())
+        return "u8"sv;
+    if (member_count <= NumericLimits<u16>::max())
+        return "u16"sv;
+    if (member_count <= NumericLimits<u32>::max())
+        return "u32"sv;
+    return "u64"sv;
+}

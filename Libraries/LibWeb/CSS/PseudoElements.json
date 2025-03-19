@@ -1,0 +1,43 @@
+{
+  "after": {
+    "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-after",
+    "is-generated": true
+  },
+  "backdrop": {
+    "spec": "https://drafts.csswg.org/css-position-4/#selectordef-backdrop"
+  },
+  "before": {
+    "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-before",
+    "is-generated": true
+  },
+  "details-content": {
+    "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-details-content"
+  },
+  "file-selector-button": {
+    "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-file-selector-button"
+  },
+  "fill": {
+    "spec": "https://drafts.csswg.org/css-forms-1/#selectordef-fill"
+  },
+  "first-letter": {
+    "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-first-letter"
+  },
+  "first-line": {
+    "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-first-line"
+  },
+  "marker": {
+    "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-marker"
+  },
+  "placeholder": {
+    "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-placeholder"
+  },
+  "selection": {
+    "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-selection"
+  },
+  "thumb": {
+    "spec": "https://drafts.csswg.org/css-forms-1/#selectordef-thumb"
+  },
+  "track": {
+    "spec": "https://drafts.csswg.org/css-forms-1/#selectordef-track"
+  }
+}

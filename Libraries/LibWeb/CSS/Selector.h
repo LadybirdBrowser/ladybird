@@ -14,33 +14,11 @@
 #include <LibWeb/CSS/Keyword.h>
 #include <LibWeb/CSS/Parser/ComponentValue.h>
 #include <LibWeb/CSS/PseudoClass.h>
+#include <LibWeb/CSS/PseudoElement.h>
 
 namespace Web::CSS {
 
 using SelectorList = Vector<NonnullRefPtr<class Selector>>;
-
-enum class PseudoElement : u8 {
-    Before,
-    After,
-    FirstLine,
-    FirstLetter,
-    Marker,
-    Track,
-    Fill,
-    Thumb,
-    Placeholder,
-    Selection,
-    Backdrop,
-    FileSelectorButton,
-    DetailsContent,
-
-    // Keep this last.
-    KnownPseudoElementCount,
-
-    // https://www.w3.org/TR/selectors-4/#compat
-    // NOTE: This is not last as the 'unknown -webkit- pseudo-elements' are not stored as part of any Element.
-    UnknownWebKit,
-};
 
 // This is a <complex-selector> in the spec. https://www.w3.org/TR/selectors-4/#complex
 class Selector : public RefCounted<Selector> {
@@ -61,21 +39,17 @@ public:
 
         bool operator==(PseudoElementSelector const&) const = default;
 
-        static Optional<PseudoElementSelector> from_string(FlyString const&);
-
         [[nodiscard]] static bool is_known_pseudo_element_type(PseudoElement type)
         {
             return to_underlying(type) < to_underlying(PseudoElement::KnownPseudoElementCount);
         }
-
-        static StringView name(PseudoElement pseudo_element);
 
         StringView name() const
         {
             if (!m_name.is_empty())
                 return m_name;
 
-            return name(m_type);
+            return pseudo_element_name(m_type);
         }
 
         PseudoElement type() const { return m_type; }

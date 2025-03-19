@@ -28,7 +28,7 @@ WebIDL::ExceptionOr<Optional<CSS::Selector::PseudoElementSelector>> pseudo_eleme
     // 3. If value is one of the legacy Selectors Level 2 single-colon selectors (':before', ':after', ':first-letter', or ':first-line'),
     // then return the equivalent two-colon selector (e.g. '::before').
     if (value.has_value() && value->is_one_of(":before", ":after", ":first-letter", ":first-line")) {
-        return CSS::Selector::PseudoElementSelector::from_string(MUST(value->substring_from_byte_offset(1)));
+        return CSS::pseudo_element_from_string(MUST(value->substring_from_byte_offset(1)));
     }
 
     // 4. Otherwise, return value.
