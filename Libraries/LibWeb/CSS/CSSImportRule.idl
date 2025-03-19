@@ -9,5 +9,5 @@ interface CSSImportRule : CSSRule {
     // FIXME: [SameObject, PutForwards=mediaText] readonly attribute MediaList media;
     [SameObject, ImplementedAs=style_sheet_for_bindings] readonly attribute CSSStyleSheet? styleSheet;
     [FIXME] readonly attribute CSSOMString? layerName;
-    [FIXME] readonly attribute CSSOMString? supportsText;
+    readonly attribute CSSOMString? supportsText;
 };

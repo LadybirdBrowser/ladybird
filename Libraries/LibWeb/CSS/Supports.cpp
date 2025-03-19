@@ -22,7 +22,7 @@ MatchResult Supports::Declaration::evaluate(HTML::Window const*) const
 
 String Supports::Declaration::to_string() const
 {
-    return MUST(String::formatted("({})", m_declaration));
+    return m_declaration;
 }
 
 void Supports::Declaration::dump(StringBuilder& builder, int indent_levels) const

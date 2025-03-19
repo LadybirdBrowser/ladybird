@@ -291,9 +291,11 @@ OwnPtr<BooleanExpression> Parser::parse_supports_feature(TokenStream<ComponentVa
         // FIXME: Parsing and then converting back to a string is weird.
         if (auto declaration = consume_a_declaration(block_tokens); declaration.has_value()) {
             transaction.commit();
-            return Supports::Declaration::create(
+            auto supports_declaration = Supports::Declaration::create(
                 declaration->to_string(),
                 convert_to_style_property(*declaration).has_value());
+
+            return BooleanExpressionInParens::create(supports_declaration.release_nonnull<BooleanExpression>());
         }
     }
 
