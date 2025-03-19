@@ -1,7 +1,7 @@
 import com.android.build.gradle.internal.tasks.factory.dependsOn
 
 plugins {
-    id("com.android.application") version "8.4.0"
+    id("com.android.application") version "8.7.3"
     id("org.jetbrains.kotlin.android") version "1.9.0"
 }
 
@@ -22,12 +22,13 @@ tasks.named("prepareKotlinBuildScriptModel").dependsOn("buildLagomTools")
 
 android {
     namespace = "org.serenityos.ladybird"
-    compileSdk = 34
+    ndkVersion = "29.0.13113456"
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "org.serenityos.ladybird"
         minSdk = 30
-        targetSdk = 34
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0"
 
@@ -41,7 +42,10 @@ android {
                     "-DANDROID_STL=c++_shared",
                     "-DSERENITY_CACHE_DIR=$cacheDir",
                     "-DVCPKG_ROOT=$sourceDir/Build/vcpkg",
-                    "-DVCPKG_TARGET_ANDROID=ON"
+                    "-DVCPKG_TARGET_ANDROID=ON",
+                    "-DVCPKG_INSTALL_OPTIONS=--no-print-usage",
+                    "-DVCPKG_OVERLAY_TRIPLETS=$sourceDir/Meta/CMake/vcpkg/distribution-triplets",
+                    "-DBUILD_SHARED_LIBS=OFF"
                 )
             }
         }

@@ -1,0 +1,13 @@
+{
+  "name": "woff2",
+  "version": "1.0.2",
+  "port-version": 4,
+  "description": "font compression reference code",
+  "dependencies": [
+    "brotli",
+    {
+      "name": "vcpkg-cmake",
+      "host": true
+    }
+  ]
+}
