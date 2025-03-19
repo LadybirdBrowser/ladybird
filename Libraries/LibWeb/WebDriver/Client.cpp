@@ -12,7 +12,6 @@
 #include <AK/Debug.h>
 #include <AK/Format.h>
 #include <AK/JsonObject.h>
-#include <AK/JsonParser.h>
 #include <AK/JsonValue.h>
 #include <AK/Span.h>
 #include <AK/StringBuilder.h>
@@ -258,8 +257,7 @@ ErrorOr<JsonValue, Client::WrappedError> Client::read_body_as_json(HTTP::HttpReq
     if (content_length == 0)
         return JsonValue {};
 
-    JsonParser json_parser(request.body());
-    return TRY(json_parser.parse());
+    return TRY(JsonValue::from_string(request.body()));
 }
 
 ErrorOr<void, Client::WrappedError> Client::handle_request(HTTP::HttpRequest const& request, JsonValue body)
