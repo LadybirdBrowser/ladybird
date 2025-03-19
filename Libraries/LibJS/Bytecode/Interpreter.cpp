@@ -1732,6 +1732,8 @@ inline ThrowCompletionOr<Object*> get_object_property_iterator(VM& vm, Value val
                 continue;
 
             auto descriptor = TRY(object_to_check->internal_get_own_property(property_key));
+            if (!descriptor.has_value())
+                continue;
             if (!*descriptor->enumerable)
                 non_enumerable_properties.set(move(property_key));
             else
