@@ -46,9 +46,6 @@ endif()
 
 serenity_lib(AK ak)
 
-serenity_install_headers(AK)
-serenity_install_sources(AK)
-
 include(stacktrace)
 configure_file(Backtrace.h.in Backtrace.h @ONLY)
 link_stacktrace_library(AK STD_DEFINITION AK_HAS_STD_STACKTRACE)
