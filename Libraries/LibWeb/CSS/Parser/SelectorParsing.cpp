@@ -418,15 +418,15 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
 
         auto pseudo_name = name_token.token().ident();
 
-        if (auto pseudo_element = Selector::PseudoElementSelector::from_string(pseudo_name); pseudo_element.has_value()) {
+        if (auto pseudo_element = pseudo_element_from_string(pseudo_name); pseudo_element.has_value()) {
             // :has() is fussy about pseudo-elements inside it
-            if (m_pseudo_class_context.contains_slow(PseudoClass::Has) && !is_has_allowed_pseudo_element(pseudo_element->type())) {
+            if (m_pseudo_class_context.contains_slow(PseudoClass::Has) && !is_has_allowed_pseudo_element(*pseudo_element)) {
                 return ParseError::SyntaxError;
             }
 
             return Selector::SimpleSelector {
                 .type = Selector::SimpleSelector::Type::PseudoElement,
-                .value = pseudo_element.release_value()
+                .value = Selector::PseudoElementSelector { pseudo_element.release_value() }
             };
         }
 
@@ -481,20 +481,20 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
 
         // Single-colon syntax allowed for ::after, ::before, ::first-letter and ::first-line for compatibility.
         // https://www.w3.org/TR/selectors/#pseudo-element-syntax
-        if (auto pseudo_element = Selector::PseudoElementSelector::from_string(pseudo_name); pseudo_element.has_value()) {
-            switch (pseudo_element.value().type()) {
+        if (auto pseudo_element = pseudo_element_from_string(pseudo_name); pseudo_element.has_value()) {
+            switch (pseudo_element.value()) {
             case PseudoElement::After:
             case PseudoElement::Before:
             case PseudoElement::FirstLetter:
             case PseudoElement::FirstLine:
                 // :has() is fussy about pseudo-elements inside it
-                if (m_pseudo_class_context.contains_slow(PseudoClass::Has) && !is_has_allowed_pseudo_element(pseudo_element->type())) {
+                if (m_pseudo_class_context.contains_slow(PseudoClass::Has) && !is_has_allowed_pseudo_element(pseudo_element.value())) {
                     return ParseError::SyntaxError;
                 }
 
                 return Selector::SimpleSelector {
                     .type = Selector::SimpleSelector::Type::PseudoElement,
-                    .value = pseudo_element.value()
+                    .value = Selector::PseudoElementSelector { pseudo_element.value() }
                 };
             default:
                 break;
