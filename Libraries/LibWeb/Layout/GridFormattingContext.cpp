@@ -1549,6 +1549,7 @@ void GridFormattingContext::resolve_grid_item_widths()
 {
     for (auto& item : m_grid_items) {
         CSSPixels containing_block_width = containing_block_size_for_item(item, GridDimension::Column);
+        CSS::JustifyItems justification = justification_for_item(item.box);
 
         auto const& computed_values = item.box->computed_values();
         auto const& computed_width = computed_values.width();
@@ -1559,15 +1560,14 @@ void GridFormattingContext::resolve_grid_item_widths()
             CSSPixels width;
         };
 
-        ItemAlignment initial {
-            .margin_left = item.used_values.margin_left,
-            .margin_right = item.used_values.margin_right,
-            .width = item.used_values.content_width()
-        };
+        auto try_compute_width = [&item, containing_block_width, justification](CSSPixels a_width, CSS::Size const& computed_width) -> ItemAlignment {
+            auto const& computed_values = item.box->computed_values();
 
-        auto try_compute_width = [&](CSSPixels a_width, CSS::Size const& computed_width) -> ItemAlignment {
-            ItemAlignment result = initial;
-            result.width = a_width;
+            ItemAlignment result = {
+                .margin_left = item.used_values.margin_left,
+                .margin_right = item.used_values.margin_right,
+                .width = a_width
+            };
 
             // Auto margins absorb positive free space prior to alignment via the box alignment properties.
             auto free_space_left_for_margins = containing_block_width - result.width - item.used_values.border_left - item.used_values.border_right - item.used_values.padding_left - item.used_values.padding_right - item.used_values.margin_left - item.used_values.margin_right;
@@ -1578,13 +1578,14 @@ void GridFormattingContext::resolve_grid_item_widths()
                 result.margin_left = free_space_left_for_margins;
             } else if (computed_values.margin().right().is_auto()) {
                 result.margin_right = free_space_left_for_margins;
-            } else if (computed_width.is_auto()) {
+            } else if (computed_width.is_auto() && !item.box->is_replaced_box()) {
                 result.width += free_space_left_for_margins;
             }
 
             auto free_space_left_for_alignment = containing_block_width - a_width - item.used_values.border_left - item.used_values.border_right - item.used_values.padding_left - item.used_values.padding_right - item.used_values.margin_left - item.used_values.margin_right;
-            switch (justification_for_item(item.box)) {
+            switch (justification) {
             case CSS::JustifyItems::Normal:
+                break;
             case CSS::JustifyItems::Stretch:
                 break;
             case CSS::JustifyItems::Center:
@@ -1613,13 +1614,18 @@ void GridFormattingContext::resolve_grid_item_widths()
 
         ItemAlignment used_alignment;
         AvailableSpace available_space { AvailableSize::make_definite(containing_block_width), AvailableSize::make_indefinite() };
-        if (computed_width.is_auto()) {
-            used_alignment = try_compute_width(calculate_fit_content_width(item.box, available_space), computed_width);
-        } else if (computed_width.is_fit_content()) {
-            used_alignment = try_compute_width(calculate_fit_content_width(item.box, available_space), computed_width);
+        if (item.box->is_replaced_box() && item.box->has_natural_width()) {
+            auto width = tentative_width_for_replaced_element(item.box, computed_values.width(), available_space);
+            used_alignment = try_compute_width(width, computed_width);
         } else {
-            auto width_px = calculate_inner_width(item.box, available_space.width, computed_width);
-            used_alignment = try_compute_width(width_px, computed_width);
+            if (computed_width.is_auto() || computed_width.is_fit_content()) {
+                auto fit_content_width = calculate_fit_content_width(item.box, available_space);
+                used_alignment = try_compute_width(fit_content_width, computed_width);
+                used_alignment = try_compute_width(calculate_fit_content_width(item.box, available_space), computed_width);
+            } else {
+                auto width_px = calculate_inner_width(item.box, available_space.width, computed_width);
+                used_alignment = try_compute_width(width_px, computed_width);
+            }
         }
 
         if (!should_treat_max_width_as_none(item.box, m_available_space->width)) {
@@ -1648,6 +1654,7 @@ void GridFormattingContext::resolve_grid_item_heights()
 {
     for (auto& item : m_grid_items) {
         CSSPixels containing_block_height = containing_block_size_for_item(item, GridDimension::Row);
+        CSS::AlignItems alignment = alignment_for_item(item.box);
 
         auto const& computed_values = item.box->computed_values();
         auto const& computed_height = computed_values.height();
@@ -1658,15 +1665,14 @@ void GridFormattingContext::resolve_grid_item_heights()
             CSSPixels height;
         };
 
-        ItemAlignment initial {
-            .margin_top = item.used_values.margin_top,
-            .margin_bottom = item.used_values.margin_bottom,
-            .height = item.used_values.content_height()
-        };
+        auto try_compute_height = [&item, containing_block_height, alignment](CSSPixels a_height) -> ItemAlignment {
+            auto const& computed_values = item.box->computed_values();
 
-        auto try_compute_height = [&](CSSPixels a_height) -> ItemAlignment {
-            ItemAlignment result = initial;
-            result.height = a_height;
+            ItemAlignment result = {
+                .margin_top = item.used_values.margin_top,
+                .margin_bottom = item.used_values.margin_bottom,
+                .height = a_height
+            };
 
             CSSPixels height = a_height;
             auto underflow_px = containing_block_height - height - item.used_values.border_top - item.used_values.border_bottom - item.used_values.padding_top - item.used_values.padding_bottom - item.used_values.margin_top - item.used_values.margin_bottom;
@@ -1678,13 +1684,14 @@ void GridFormattingContext::resolve_grid_item_heights()
                 result.margin_top = underflow_px;
             } else if (computed_values.margin().bottom().is_auto()) {
                 result.margin_bottom = underflow_px;
-            } else if (computed_values.height().is_auto()) {
+            } else if (computed_values.height().is_auto() && !item.box->is_replaced_box()) {
                 height += underflow_px;
             }
 
-            switch (alignment_for_item(item.box)) {
+            switch (alignment) {
             case CSS::AlignItems::Baseline:
                 // FIXME: Not implemented
+                break;
             case CSS::AlignItems::Stretch:
             case CSS::AlignItems::Normal:
                 result.height = height;
