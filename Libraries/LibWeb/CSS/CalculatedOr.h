@@ -18,7 +18,7 @@
 
 namespace Web::CSS {
 
-template<typename T>
+template<typename Self, typename T>
 class CalculatedOr {
 public:
     CalculatedOr(T t)
@@ -30,8 +30,6 @@ public:
         : m_value(move(calculated))
     {
     }
-
-    virtual ~CalculatedOr() = default;
 
     bool is_calculated() const { return m_value.template has<NonnullRefPtr<CalculatedStyleValue>>(); }
 
@@ -80,7 +78,7 @@ public:
             });
     }
 
-    bool operator==(CalculatedOr<T> const& other) const
+    bool operator==(CalculatedOr<Self, T> const& other) const
     {
         if (is_calculated() || other.is_calculated())
             return false;
@@ -88,92 +86,89 @@ public:
     }
 
 protected:
-    virtual Optional<T> resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const&, CalculationResolutionContext const&) const = 0;
-    virtual NonnullRefPtr<CSSStyleValue> create_style_value() const = 0;
+    Optional<T> resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const& calculated, CalculationResolutionContext const& context) const
+    {
+        return static_cast<Self const*>(this)->resolve_calculated(calculated, context);
+    }
+    NonnullRefPtr<CSSStyleValue> create_style_value() const
+    {
+        return static_cast<Self const*>(this)->create_style_value();
+    }
 
 private:
     Variant<T, NonnullRefPtr<CalculatedStyleValue>> m_value;
 };
 
-class AngleOrCalculated : public CalculatedOr<Angle> {
+class AngleOrCalculated : public CalculatedOr<AngleOrCalculated, Angle> {
 public:
-    using CalculatedOr<Angle>::CalculatedOr;
+    using CalculatedOr::CalculatedOr;
 
-private:
-    virtual Optional<Angle> resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const&, CalculationResolutionContext const&) const override;
-    virtual NonnullRefPtr<CSSStyleValue> create_style_value() const override;
+    Optional<Angle> resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const&, CalculationResolutionContext const&) const;
+    NonnullRefPtr<CSSStyleValue> create_style_value() const;
 };
 
-class FlexOrCalculated : public CalculatedOr<Flex> {
+class FlexOrCalculated : public CalculatedOr<FlexOrCalculated, Flex> {
 public:
-    using CalculatedOr<Flex>::CalculatedOr;
+    using CalculatedOr::CalculatedOr;
 
-private:
-    virtual Optional<Flex> resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const&, CalculationResolutionContext const&) const override;
-    virtual NonnullRefPtr<CSSStyleValue> create_style_value() const override;
+    Optional<Flex> resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const&, CalculationResolutionContext const&) const;
+    NonnullRefPtr<CSSStyleValue> create_style_value() const;
 };
 
-class FrequencyOrCalculated : public CalculatedOr<Frequency> {
+class FrequencyOrCalculated : public CalculatedOr<FrequencyOrCalculated, Frequency> {
 public:
-    using CalculatedOr<Frequency>::CalculatedOr;
+    using CalculatedOr::CalculatedOr;
 
-private:
-    virtual Optional<Frequency> resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const&, CalculationResolutionContext const&) const override;
-    virtual NonnullRefPtr<CSSStyleValue> create_style_value() const override;
+    Optional<Frequency> resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const&, CalculationResolutionContext const&) const;
+    NonnullRefPtr<CSSStyleValue> create_style_value() const;
 };
 
-class IntegerOrCalculated : public CalculatedOr<i64> {
+class IntegerOrCalculated : public CalculatedOr<IntegerOrCalculated, i64> {
 public:
-    using CalculatedOr<i64>::CalculatedOr;
+    using CalculatedOr::CalculatedOr;
 
-private:
-    virtual Optional<i64> resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const&, CalculationResolutionContext const&) const override;
-    virtual NonnullRefPtr<CSSStyleValue> create_style_value() const override;
+    Optional<i64> resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const&, CalculationResolutionContext const&) const;
+    NonnullRefPtr<CSSStyleValue> create_style_value() const;
 };
 
-class LengthOrCalculated : public CalculatedOr<Length> {
+class LengthOrCalculated : public CalculatedOr<LengthOrCalculated, Length> {
 public:
-    using CalculatedOr<Length>::CalculatedOr;
+    using CalculatedOr::CalculatedOr;
 
-private:
-    virtual Optional<Length> resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const&, CalculationResolutionContext const&) const override;
-    virtual NonnullRefPtr<CSSStyleValue> create_style_value() const override;
+    Optional<Length> resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const&, CalculationResolutionContext const&) const;
+    NonnullRefPtr<CSSStyleValue> create_style_value() const;
 };
 
-class NumberOrCalculated : public CalculatedOr<double> {
+class NumberOrCalculated : public CalculatedOr<NumberOrCalculated, double> {
 public:
-    using CalculatedOr<double>::CalculatedOr;
+    using CalculatedOr::CalculatedOr;
 
-private:
-    virtual Optional<double> resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const&, CalculationResolutionContext const&) const override;
-    virtual NonnullRefPtr<CSSStyleValue> create_style_value() const override;
+    Optional<double> resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const&, CalculationResolutionContext const&) const;
+    NonnullRefPtr<CSSStyleValue> create_style_value() const;
 };
 
-class PercentageOrCalculated : public CalculatedOr<Percentage> {
+class PercentageOrCalculated : public CalculatedOr<PercentageOrCalculated, Percentage> {
 public:
-    using CalculatedOr<Percentage>::CalculatedOr;
+    using CalculatedOr::CalculatedOr;
 
-private:
-    virtual Optional<Percentage> resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const&, CalculationResolutionContext const&) const override;
-    virtual NonnullRefPtr<CSSStyleValue> create_style_value() const override;
+    Optional<Percentage> resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const&, CalculationResolutionContext const&) const;
+    NonnullRefPtr<CSSStyleValue> create_style_value() const;
 };
 
-class ResolutionOrCalculated : public CalculatedOr<Resolution> {
+class ResolutionOrCalculated : public CalculatedOr<ResolutionOrCalculated, Resolution> {
 public:
-    using CalculatedOr<Resolution>::CalculatedOr;
+    using CalculatedOr::CalculatedOr;
 
-private:
-    virtual Optional<Resolution> resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const&, CalculationResolutionContext const&) const override;
-    virtual NonnullRefPtr<CSSStyleValue> create_style_value() const override;
+    Optional<Resolution> resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const&, CalculationResolutionContext const&) const;
+    NonnullRefPtr<CSSStyleValue> create_style_value() const;
 };
 
-class TimeOrCalculated : public CalculatedOr<Time> {
+class TimeOrCalculated : public CalculatedOr<TimeOrCalculated, Time> {
 public:
-    using CalculatedOr<Time>::CalculatedOr;
+    using CalculatedOr::CalculatedOr;
 
-private:
-    virtual Optional<Time> resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const&, CalculationResolutionContext const&) const override;
-    virtual NonnullRefPtr<CSSStyleValue> create_style_value() const override;
+    Optional<Time> resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const&, CalculationResolutionContext const&) const;
+    NonnullRefPtr<CSSStyleValue> create_style_value() const;
 };
 
 }
