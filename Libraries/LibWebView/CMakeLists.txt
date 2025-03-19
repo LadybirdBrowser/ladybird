@@ -7,6 +7,7 @@ set(SOURCES
     ConsoleOutput.cpp
     CookieJar.cpp
     Database.cpp
+    DOMNodeProperties.cpp
     HelperProcess.cpp
     Mutation.cpp
     Plugins/FontPlugin.cpp

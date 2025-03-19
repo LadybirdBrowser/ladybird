@@ -438,7 +438,121 @@ void ConnectionFromClient::inspect_dom_tree(u64 page_id)
     }
 }
 
-void ConnectionFromClient::inspect_dom_node(u64 page_id, Web::UniqueNodeID node_id, Optional<Web::CSS::Selector::PseudoElement::Type> pseudo_element)
+void ConnectionFromClient::inspect_dom_node(u64 page_id, WebView::DOMNodeProperties::Type property_type, Web::UniqueNodeID node_id, Optional<Web::CSS::Selector::PseudoElement::Type> pseudo_element)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value())
+        return;
+
+    clear_inspected_dom_node(page_id);
+
+    auto* node = Web::DOM::Node::from_unique_id(node_id);
+    // Nodes without layout (aka non-visible nodes) don't have style computed.
+    if (!node || !node->layout_node() || !node->is_element()) {
+        async_did_inspect_dom_node(page_id, { property_type, {} });
+        return;
+    }
+
+    auto& element = as<Web::DOM::Element>(*node);
+    node->document().set_inspected_node(node);
+
+    GC::Ptr<Web::CSS::ComputedProperties> properties;
+    if (pseudo_element.has_value()) {
+        if (auto pseudo_element_node = element.get_pseudo_element_node(*pseudo_element))
+            properties = element.pseudo_element_computed_properties(*pseudo_element);
+    } else {
+        properties = element.computed_properties();
+    }
+
+    if (!properties) {
+        async_did_inspect_dom_node(page_id, { property_type, {} });
+        return;
+    }
+
+    auto serialize_computed_style = [&]() {
+        JsonObject serialized;
+
+        properties->for_each_property([&](auto property_id, auto& value) {
+            serialized.set(
+                Web::CSS::string_from_property_id(property_id),
+                value.to_string(Web::CSS::CSSStyleValue::SerializationMode::Normal));
+        });
+
+        return serialized;
+    };
+
+    auto serialize_layout = [&](Web::Layout::Node const* layout_node) {
+        if (!layout_node || !layout_node->is_box() || !layout_node->first_paintable() || !layout_node->first_paintable()->is_paintable_box()) {
+            return JsonObject {};
+        }
+
+        auto const& paintable_box = as<Web::Painting::PaintableBox>(*layout_node->first_paintable());
+        auto const& box_model = paintable_box.box_model();
+
+        JsonObject serialized;
+
+        serialized.set("width"sv, paintable_box.content_width().to_double());
+        serialized.set("height"sv, paintable_box.content_height().to_double());
+
+        serialized.set("padding-top"sv, box_model.padding.top.to_double());
+        serialized.set("padding-right"sv, box_model.padding.right.to_double());
+        serialized.set("padding-bottom"sv, box_model.padding.bottom.to_double());
+        serialized.set("padding-left"sv, box_model.padding.left.to_double());
+
+        serialized.set("margin-top"sv, box_model.margin.top.to_double());
+        serialized.set("margin-right"sv, box_model.margin.right.to_double());
+        serialized.set("margin-bottom"sv, box_model.margin.bottom.to_double());
+        serialized.set("margin-left"sv, box_model.margin.left.to_double());
+
+        serialized.set("border-top-width"sv, box_model.border.top.to_double());
+        serialized.set("border-right-width"sv, box_model.border.right.to_double());
+        serialized.set("border-bottom-width"sv, box_model.border.bottom.to_double());
+        serialized.set("border-left-width"sv, box_model.border.left.to_double());
+
+        serialized.set("box-sizing"sv, properties->property(Web::CSS::PropertyID::BoxSizing).to_string(Web::CSS::CSSStyleValue::SerializationMode::Normal));
+        serialized.set("display"sv, properties->property(Web::CSS::PropertyID::Display).to_string(Web::CSS::CSSStyleValue::SerializationMode::Normal));
+        serialized.set("float"sv, properties->property(Web::CSS::PropertyID::Float).to_string(Web::CSS::CSSStyleValue::SerializationMode::Normal));
+        serialized.set("line-height"sv, properties->property(Web::CSS::PropertyID::LineHeight).to_string(Web::CSS::CSSStyleValue::SerializationMode::Normal));
+        serialized.set("position"sv, properties->property(Web::CSS::PropertyID::Position).to_string(Web::CSS::CSSStyleValue::SerializationMode::Normal));
+        serialized.set("z-index"sv, properties->property(Web::CSS::PropertyID::ZIndex).to_string(Web::CSS::CSSStyleValue::SerializationMode::Normal));
+
+        return serialized;
+    };
+
+    auto serialize_used_fonts = [&]() {
+        JsonArray serialized;
+
+        properties->computed_font_list().for_each_font_entry([&](Gfx::FontCascadeList::Entry const& entry) {
+            auto const& font = *entry.font;
+
+            JsonObject font_object;
+            font_object.set("name"sv, font.family().to_string());
+            font_object.set("size"sv, font.point_size());
+            font_object.set("weight"sv, font.weight());
+            serialized.must_append(move(font_object));
+        });
+
+        return serialized;
+    };
+
+    JsonValue serialized;
+
+    switch (property_type) {
+    case WebView::DOMNodeProperties::Type::ComputedStyle:
+        serialized = serialize_computed_style();
+        break;
+    case WebView::DOMNodeProperties::Type::Layout:
+        serialized = serialize_layout(element.layout_node());
+        break;
+    case WebView::DOMNodeProperties::Type::UsedFonts:
+        serialized = serialize_used_fonts();
+        break;
+    }
+
+    async_did_inspect_dom_node(page_id, { property_type, move(serialized) });
+}
+
+void ConnectionFromClient::clear_inspected_dom_node(u64 page_id)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -449,168 +563,6 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, Web::UniqueNodeID node_
             navigable->active_document()->set_inspected_node(nullptr);
         }
     }
-
-    auto* node = Web::DOM::Node::from_unique_id(node_id);
-    // Note: Nodes without layout (aka non-visible nodes, don't have style computed)
-    if (!node || !node->layout_node()) {
-        async_did_inspect_dom_node(page_id, false, String {}, String {}, String {}, String {}, String {}, String {});
-        return;
-    }
-
-    node->document().set_inspected_node(node);
-
-    if (node->is_element()) {
-        auto& element = as<Web::DOM::Element>(*node);
-        if (!element.computed_properties()) {
-            async_did_inspect_dom_node(page_id, false, String {}, String {}, String {}, String {}, String {}, String {});
-            return;
-        }
-
-        auto serialize_json = [](Web::CSS::ComputedProperties const& properties) {
-            StringBuilder builder;
-
-            auto serializer = MUST(JsonObjectSerializer<>::try_create(builder));
-            properties.for_each_property([&](auto property_id, auto& value) {
-                MUST(serializer.add(Web::CSS::string_from_property_id(property_id), value.to_string(Web::CSS::CSSStyleValue::SerializationMode::Normal).to_byte_string()));
-            });
-            MUST(serializer.finish());
-
-            return MUST(builder.to_string());
-        };
-
-        auto serialize_custom_properties_json = [](Web::DOM::Element const& element, Optional<Web::CSS::Selector::PseudoElement::Type> pseudo_element) {
-            StringBuilder builder;
-            auto serializer = MUST(JsonObjectSerializer<>::try_create(builder));
-            HashTable<FlyString> seen_properties;
-
-            auto const* element_to_check = &element;
-            auto pseudo_element_to_check = pseudo_element;
-            while (element_to_check) {
-                for (auto const& property : element_to_check->custom_properties(pseudo_element_to_check)) {
-                    if (!seen_properties.contains(property.key)) {
-                        seen_properties.set(property.key);
-                        MUST(serializer.add(property.key, property.value.value->to_string(Web::CSS::CSSStyleValue::SerializationMode::Normal)));
-                    }
-                }
-
-                if (pseudo_element_to_check.has_value()) {
-                    pseudo_element_to_check.clear();
-                } else {
-                    element_to_check = element_to_check->parent_element();
-                }
-            }
-
-            MUST(serializer.finish());
-            return MUST(builder.to_string());
-        };
-
-        auto serialize_node_box_sizing_json = [](Web::Layout::Node const* layout_node, GC::Ptr<Web::CSS::ComputedProperties> properties) {
-            if (!layout_node || !layout_node->is_box() || !layout_node->first_paintable() || !layout_node->first_paintable()->is_paintable_box()) {
-                return "{}"_string;
-            }
-            auto const& paintable_box = as<Web::Painting::PaintableBox>(*layout_node->first_paintable());
-            auto const& box_model = paintable_box.box_model();
-            StringBuilder builder;
-
-            auto serializer = MUST(JsonObjectSerializer<>::try_create(builder));
-            MUST(serializer.add("width"sv, paintable_box.content_width().to_double()));
-            MUST(serializer.add("height"sv, paintable_box.content_height().to_double()));
-            MUST(serializer.add("padding-top"sv, box_model.padding.top.to_double()));
-            MUST(serializer.add("padding-right"sv, box_model.padding.right.to_double()));
-            MUST(serializer.add("padding-bottom"sv, box_model.padding.bottom.to_double()));
-            MUST(serializer.add("padding-left"sv, box_model.padding.left.to_double()));
-            MUST(serializer.add("margin-top"sv, box_model.margin.top.to_double()));
-            MUST(serializer.add("margin-right"sv, box_model.margin.right.to_double()));
-            MUST(serializer.add("margin-bottom"sv, box_model.margin.bottom.to_double()));
-            MUST(serializer.add("margin-left"sv, box_model.margin.left.to_double()));
-            MUST(serializer.add("border-top-width"sv, box_model.border.top.to_double()));
-            MUST(serializer.add("border-right-width"sv, box_model.border.right.to_double()));
-            MUST(serializer.add("border-bottom-width"sv, box_model.border.bottom.to_double()));
-            MUST(serializer.add("border-left-width"sv, box_model.border.left.to_double()));
-
-            if (properties) {
-                MUST(serializer.add("box-sizing"sv, properties->property(Web::CSS::PropertyID::BoxSizing).to_string(Web::CSS::CSSStyleValue::SerializationMode::Normal)));
-                MUST(serializer.add("display"sv, properties->property(Web::CSS::PropertyID::Display).to_string(Web::CSS::CSSStyleValue::SerializationMode::Normal)));
-                MUST(serializer.add("float"sv, properties->property(Web::CSS::PropertyID::Float).to_string(Web::CSS::CSSStyleValue::SerializationMode::Normal)));
-                MUST(serializer.add("line-height"sv, properties->property(Web::CSS::PropertyID::LineHeight).to_string(Web::CSS::CSSStyleValue::SerializationMode::Normal)));
-                MUST(serializer.add("position"sv, properties->property(Web::CSS::PropertyID::Position).to_string(Web::CSS::CSSStyleValue::SerializationMode::Normal)));
-                MUST(serializer.add("z-index"sv, properties->property(Web::CSS::PropertyID::ZIndex).to_string(Web::CSS::CSSStyleValue::SerializationMode::Normal)));
-            }
-
-            MUST(serializer.finish());
-            return MUST(builder.to_string());
-        };
-
-        auto serialize_aria_properties_state_json = [](Web::DOM::Element const& element) {
-            auto role_name = element.role_or_default();
-            if (!role_name.has_value()) {
-                return "{}"_string;
-            }
-            auto aria_data = MUST(Web::ARIA::AriaData::build_data(element));
-            auto role = MUST(Web::ARIA::RoleType::build_role_object(role_name.value(), element.is_focusable(), *aria_data));
-
-            StringBuilder builder;
-            auto serializer = MUST(JsonObjectSerializer<>::try_create(builder));
-            MUST(role->serialize_as_json(serializer));
-            MUST(serializer.finish());
-            return MUST(builder.to_string());
-        };
-
-        auto serialize_fonts_json = [](Web::CSS::ComputedProperties const& properties) {
-            StringBuilder builder;
-            auto serializer = MUST(JsonArraySerializer<>::try_create(builder));
-
-            auto const& font_list = properties.computed_font_list();
-            font_list.for_each_font_entry([&serializer](Gfx::FontCascadeList::Entry const& entry) {
-                auto const& font = entry.font;
-                auto font_json_object = MUST(serializer.add_object());
-                MUST(font_json_object.add("name"sv, font->family()));
-                MUST(font_json_object.add("size"sv, font->point_size()));
-                MUST(font_json_object.add("weight"sv, font->weight()));
-                MUST(font_json_object.finish());
-            });
-            MUST(serializer.finish());
-            return MUST(builder.to_string());
-        };
-
-        if (pseudo_element.has_value()) {
-            auto pseudo_element_node = element.get_pseudo_element_node(pseudo_element.value());
-            if (!pseudo_element_node) {
-                async_did_inspect_dom_node(page_id, false, String {}, String {}, String {}, String {}, String {}, String {});
-                return;
-            }
-
-            auto pseudo_element_style = element.pseudo_element_computed_properties(pseudo_element.value());
-
-            String computed_values;
-            String fonts_json;
-            String resolved_values;
-            if (pseudo_element_style) {
-                computed_values = serialize_json(*pseudo_element_style);
-                fonts_json = serialize_fonts_json(*pseudo_element_style);
-                resolved_values = serialize_json(element.resolved_css_values(pseudo_element.value()));
-            } else {
-                dbgln("Inspected pseudo-element has no computed style.");
-            }
-
-            auto custom_properties_json = serialize_custom_properties_json(element, pseudo_element);
-            auto node_box_sizing_json = serialize_node_box_sizing_json(pseudo_element_node.ptr(), pseudo_element_style);
-            async_did_inspect_dom_node(page_id, true, computed_values, resolved_values, custom_properties_json, node_box_sizing_json, "{}"_string, fonts_json);
-            return;
-        }
-
-        auto computed_values = serialize_json(*element.computed_properties());
-        auto resolved_values = serialize_json(element.resolved_css_values());
-        auto custom_properties_json = serialize_custom_properties_json(element, {});
-        auto node_box_sizing_json = serialize_node_box_sizing_json(element.layout_node(), element.computed_properties());
-        auto aria_properties_state_json = serialize_aria_properties_state_json(element);
-        auto fonts_json = serialize_fonts_json(*element.computed_properties());
-
-        async_did_inspect_dom_node(page_id, true, computed_values, resolved_values, custom_properties_json, node_box_sizing_json, aria_properties_state_json, move(fonts_json));
-        return;
-    }
-
-    async_did_inspect_dom_node(page_id, false, String {}, String {}, String {}, String {}, String {}, String {});
 }
 
 void ConnectionFromClient::highlight_dom_node(u64 page_id, Web::UniqueNodeID node_id, Optional<Web::CSS::Selector::PseudoElement::Type> pseudo_element)

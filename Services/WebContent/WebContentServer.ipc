@@ -12,6 +12,7 @@
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWeb/WebDriver/ExecuteScript.h>
 #include <LibWebView/Attribute.h>
+#include <LibWebView/DOMNodeProperties.h>
 #include <LibWebView/PageInfo.h>
 
 endpoint WebContentServer
@@ -44,7 +45,8 @@ endpoint WebContentServer
     debug_request(u64 page_id, ByteString request, ByteString argument) =|
     get_source(u64 page_id) =|
     inspect_dom_tree(u64 page_id) =|
-    inspect_dom_node(u64 page_id, Web::UniqueNodeID node_id, Optional<Web::CSS::Selector::PseudoElement::Type> pseudo_element) =|
+    inspect_dom_node(u64 page_id, WebView::DOMNodeProperties::Type property_type, Web::UniqueNodeID node_id, Optional<Web::CSS::Selector::PseudoElement::Type> pseudo_element) =|
+    clear_inspected_dom_node(u64 page_id) =|
     highlight_dom_node(u64 page_id, Web::UniqueNodeID node_id, Optional<Web::CSS::Selector::PseudoElement::Type> pseudo_element) =|
     inspect_accessibility_tree(u64 page_id) =|
     get_hovered_node_id(u64 page_id) =|

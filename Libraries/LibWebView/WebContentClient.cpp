@@ -277,8 +277,7 @@ void WebContentClient::did_get_source(u64 page_id, URL::URL url, URL::URL base_u
     }
 }
 
-template<typename JsonType = JsonObject>
-static JsonType parse_json(StringView json, StringView name)
+static JsonObject parse_json(StringView json, StringView name)
 {
     auto parsed_tree = JsonValue::from_string(json);
     if (parsed_tree.is_error()) {
@@ -286,23 +285,12 @@ static JsonType parse_json(StringView json, StringView name)
         return {};
     }
 
-    if constexpr (IsSame<JsonType, JsonObject>) {
-        if (!parsed_tree.value().is_object()) {
-            dbgln("Expected {} to be an object: {}", name, parsed_tree.value());
-            return {};
-        }
-
-        return move(parsed_tree.release_value().as_object());
-    } else if constexpr (IsSame<JsonType, JsonArray>) {
-        if (!parsed_tree.value().is_array()) {
-            dbgln("Expected {} to be an array: {}", name, parsed_tree.value());
-            return {};
-        }
-
-        return move(parsed_tree.release_value().as_array());
-    } else {
-        static_assert(DependentFalse<JsonType>);
+    if (!parsed_tree.value().is_object()) {
+        dbgln("Expected {} to be an object: {}", name, parsed_tree.value());
+        return {};
     }
+
+    return move(parsed_tree.release_value().as_object());
 }
 
 void WebContentClient::did_inspect_dom_tree(u64 page_id, String dom_tree)
@@ -313,26 +301,12 @@ void WebContentClient::did_inspect_dom_tree(u64 page_id, String dom_tree)
     }
 }
 
-void WebContentClient::did_inspect_dom_node(u64 page_id, bool has_style, String computed_style, String resolved_style, String custom_properties, String node_box_sizing, String aria_properties_state, String fonts)
+void WebContentClient::did_inspect_dom_node(u64 page_id, DOMNodeProperties properties)
 {
-    auto view = view_for_page_id(page_id);
-    if (!view.has_value() || !view->on_received_dom_node_properties)
-        return;
-
-    ViewImplementation::DOMNodeProperties properties;
-
-    if (has_style) {
-        properties = ViewImplementation::DOMNodeProperties {
-            .computed_style = parse_json(computed_style, "computed style"sv),
-            .resolved_style = parse_json(resolved_style, "resolved style"sv),
-            .custom_properties = parse_json(custom_properties, "custom properties"sv),
-            .node_box_sizing = parse_json(node_box_sizing, "node box sizing"sv),
-            .aria_properties_state = parse_json(aria_properties_state, "aria properties state"sv),
-            .fonts = parse_json<JsonArray>(fonts, "fonts"sv),
-        };
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
+        if (view->on_received_dom_node_properties)
+            view->on_received_dom_node_properties(move(properties));
     }
-
-    view->on_received_dom_node_properties(move(properties));
 }
 
 void WebContentClient::did_inspect_accessibility_tree(u64 page_id, String accessibility_tree)

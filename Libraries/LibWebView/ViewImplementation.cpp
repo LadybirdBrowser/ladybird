@@ -329,14 +329,14 @@ void ViewImplementation::get_hovered_node_id()
     client().async_get_hovered_node_id(page_id());
 }
 
-void ViewImplementation::inspect_dom_node(Web::UniqueNodeID node_id, Optional<Web::CSS::Selector::PseudoElement::Type> pseudo_element)
+void ViewImplementation::inspect_dom_node(Web::UniqueNodeID node_id, DOMNodeProperties::Type property_type, Optional<Web::CSS::Selector::PseudoElement::Type> pseudo_element)
 {
-    client().async_inspect_dom_node(page_id(), node_id, pseudo_element);
+    client().async_inspect_dom_node(page_id(), property_type, node_id, pseudo_element);
 }
 
 void ViewImplementation::clear_inspected_dom_node()
 {
-    inspect_dom_node(0, {});
+    client().async_clear_inspected_dom_node(page_id());
 }
 
 void ViewImplementation::highlight_dom_node(Web::UniqueNodeID node_id, Optional<Web::CSS::Selector::PseudoElement::Type> pseudo_element)
