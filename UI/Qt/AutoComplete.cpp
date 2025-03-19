@@ -69,7 +69,7 @@ ErrorOr<Vector<String>> AutoComplete::parse_duckduckgo_autocomplete(Vector<JsonV
         if (!suggestion.is_object())
             return Error::from_string_literal("Invalid JSON, expected value to be an object");
 
-        if (auto value = suggestion.as_object().get_string("phrase"sv); !value.has_value())
+        if (auto value = suggestion.as_object().get_string("phrase"sv); value.has_value())
             results.append(*value);
     }
 
