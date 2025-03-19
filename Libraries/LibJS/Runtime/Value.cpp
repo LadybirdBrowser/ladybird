@@ -898,6 +898,10 @@ ThrowCompletionOr<PropertyKey> Value::to_property_key(VM& vm) const
     if (is_int32() && as_i32() >= 0)
         return PropertyKey { as_i32() };
 
+    // OPTIMIZATION: If this is already a string, we can skip all the ceremony.
+    if (is_string())
+        return PropertyKey { as_string().utf8_string() };
+
     // 1. Let key be ? ToPrimitive(argument, string).
     auto key = TRY(to_primitive(vm, PreferredType::String));
 
