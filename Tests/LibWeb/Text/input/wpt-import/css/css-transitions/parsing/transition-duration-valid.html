@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Transitions: parsing transition-duration with valid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-transitions/#propdef-transition-duration">
+<meta name="assert" content="transition-duration supports the full grammar '<time> #'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value("transition-duration", '0s');
+test_valid_value("transition-duration", '500ms');
+test_valid_value("transition-duration", '1s, 2s');
+</script>
+</body>
+</html>
