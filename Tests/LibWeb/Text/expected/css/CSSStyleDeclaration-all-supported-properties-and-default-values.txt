@@ -507,6 +507,8 @@ All supported properties and their default values exposed from CSSStyleDeclarati
 'outlineWidth': 'medium'
 'outline-width': 'medium'
 'overflow': 'visible'
+'overflowWrap': 'normal'
+'overflow-wrap': 'normal'
 'overflowX': 'visible'
 'overflow-x': 'visible'
 'overflowY': 'visible'

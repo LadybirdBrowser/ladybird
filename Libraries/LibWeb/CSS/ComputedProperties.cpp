@@ -11,6 +11,7 @@
 #include <LibGC/CellAllocator.h>
 #include <LibWeb/CSS/Clip.h>
 #include <LibWeb/CSS/ComputedProperties.h>
+#include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
 #include <LibWeb/CSS/StyleValues/ColorSchemeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ContentStyleValue.h>
@@ -1054,6 +1055,12 @@ ListStylePosition ComputedProperties::list_style_position() const
 {
     auto const& value = property(PropertyID::ListStylePosition);
     return keyword_to_list_style_position(value.to_keyword()).release_value();
+}
+
+OverflowWrap ComputedProperties::overflow_wrap() const
+{
+    auto const& value = property(PropertyID::OverflowWrap);
+    return keyword_to_overflow_wrap(value.to_keyword()).release_value();
 }
 
 Overflow ComputedProperties::overflow_x() const
