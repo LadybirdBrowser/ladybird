@@ -64,7 +64,11 @@ namespace Web::CSS {
 enum class PseudoElement : @pseudo_element_underlying_type@ {
 )~~~");
 
-    pseudo_elements_data.for_each_member([&](auto& name, auto&) {
+    pseudo_elements_data.for_each_member([&](auto& name, JsonValue const& value) {
+        auto& pseudo_element = value.as_object();
+        if (pseudo_element.has("alias-for"sv))
+            return;
+
         auto member_generator = generator.fork();
         member_generator.set("name:titlecase", title_casify(name));
 
@@ -77,6 +81,7 @@ enum class PseudoElement : @pseudo_element_underlying_type@ {
 };
 
 Optional<PseudoElement> pseudo_element_from_string(StringView);
+Optional<PseudoElement> aliased_pseudo_element_from_string(StringView);
 StringView pseudo_element_name(PseudoElement);
 
 bool is_has_allowed_pseudo_element(PseudoElement);
@@ -119,7 +124,10 @@ Optional<PseudoElement> pseudo_element_from_string(StringView string)
 {
 )~~~");
 
-    pseudo_elements_data.for_each_member([&](auto& name, auto&) {
+    pseudo_elements_data.for_each_member([&](auto& name, JsonValue const& value) {
+        auto& pseudo_element = value.as_object();
+        if (pseudo_element.has("alias-for"sv))
+            return;
         auto member_generator = generator.fork();
         member_generator.set("name", name);
         member_generator.set("name:titlecase", title_casify(name));
@@ -135,12 +143,40 @@ Optional<PseudoElement> pseudo_element_from_string(StringView string)
     return {};
 }
 
+Optional<PseudoElement> aliased_pseudo_element_from_string(StringView string)
+{
+)~~~");
+
+    pseudo_elements_data.for_each_member([&](auto& name, JsonValue const& value) {
+        auto& pseudo_element = value.as_object();
+        auto alias_for = pseudo_element.get_string("alias-for"sv);
+        if (!alias_for.has_value())
+            return;
+
+        auto member_generator = generator.fork();
+        member_generator.set("name", name);
+        member_generator.set("alias:titlecase", title_casify(alias_for.value()));
+
+        member_generator.append(R"~~~(
+    if (string.equals_ignoring_ascii_case("@name@"sv))
+        return PseudoElement::@alias:titlecase@;
+)~~~");
+    });
+
+    generator.append(R"~~~(
+
+    return {};
+}
+
 StringView pseudo_element_name(PseudoElement pseudo_element)
 {
     switch (pseudo_element) {
 )~~~");
 
-    pseudo_elements_data.for_each_member([&](auto& name, auto&) {
+    pseudo_elements_data.for_each_member([&](auto& name, JsonValue const& value) {
+        auto& pseudo_element = value.as_object();
+        if (pseudo_element.has("alias-for"sv))
+            return;
         auto member_generator = generator.fork();
         member_generator.set("name", name);
         member_generator.set("name:titlecase", title_casify(name));
@@ -166,6 +202,8 @@ bool is_has_allowed_pseudo_element(PseudoElement pseudo_element)
 
     pseudo_elements_data.for_each_member([&](auto& name, JsonValue const& value) {
         auto& pseudo_element = value.as_object();
+        if (pseudo_element.has("alias-for"sv))
+            return;
         if (!pseudo_element.get_bool("is-allowed-in-has"sv).value_or(false))
             return;
 
@@ -191,6 +229,8 @@ Optional<GeneratedPseudoElement> to_generated_pseudo_element(PseudoElement pseud
 
     pseudo_elements_data.for_each_member([&](auto& name, JsonValue const& value) {
         auto& pseudo_element = value.as_object();
+        if (pseudo_element.has("alias-for"sv))
+            return;
         if (!pseudo_element.get_bool("is-generated"sv).value_or(false))
             return;
 
@@ -215,6 +255,8 @@ PseudoElement to_pseudo_element(GeneratedPseudoElement generated_pseudo_element)
 
     pseudo_elements_data.for_each_member([&](auto& name, JsonValue const& value) {
         auto& pseudo_element = value.as_object();
+        if (pseudo_element.has("alias-for"sv))
+            return;
         if (!pseudo_element.get_bool("is-generated"sv).value_or(false))
             return;
 
