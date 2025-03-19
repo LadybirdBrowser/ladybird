@@ -13,14 +13,15 @@ namespace AK {
 
 class JsonParser : private GenericLexer {
 public:
+    static ErrorOr<JsonValue> parse(StringView);
+
+private:
     explicit JsonParser(StringView input)
         : GenericLexer(input)
     {
     }
 
-    ErrorOr<JsonValue> parse();
-
-private:
+    ErrorOr<JsonValue> parse_json();
     ErrorOr<JsonValue> parse_helper();
 
     ErrorOr<ByteString> consume_and_unescape_string();
