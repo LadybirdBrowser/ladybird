@@ -14,47 +14,47 @@
 
 namespace DevTools {
 
-static void received_layout(JsonObject& response, JsonObject const& computed_style, JsonObject const& node_box_sizing)
+static void received_layout(JsonObject& response, JsonObject const& node_box_sizing)
 {
     response.set("autoMargins"sv, JsonObject {});
 
-    auto pixel_value = [&](auto const& object, auto key) {
-        return object.get_double_with_precision_loss(key).value_or(0);
+    auto pixel_value = [&](auto key) {
+        return node_box_sizing.get_double_with_precision_loss(key).value_or(0);
     };
-    auto set_pixel_value_from = [&](auto const& object, auto object_key, auto message_key) {
-        response.set(message_key, MUST(String::formatted("{}px", pixel_value(object, object_key))));
+    auto set_pixel_value = [&](auto key) {
+        response.set(key, MUST(String::formatted("{}px", pixel_value(key))));
     };
-    auto set_computed_value_from = [&](auto const& object, auto key) {
-        response.set(key, object.get_string(key).value_or(String {}));
+    auto set_computed_value = [&](auto key) {
+        response.set(key, node_box_sizing.get_string(key).value_or(String {}));
     };
-
-    response.set("width"sv, pixel_value(node_box_sizing, "content_width"sv));
-    response.set("height"sv, pixel_value(node_box_sizing, "content_height"sv));
 
     // FIXME: This response should also contain "top", "right", "bottom", and "left", but our box model metrics in
     //        WebContent do not provide this information.
 
-    set_pixel_value_from(node_box_sizing, "border_top"sv, "border-top-width"sv);
-    set_pixel_value_from(node_box_sizing, "border_right"sv, "border-right-width"sv);
-    set_pixel_value_from(node_box_sizing, "border_bottom"sv, "border-bottom-width"sv);
-    set_pixel_value_from(node_box_sizing, "border_left"sv, "border-left-width"sv);
+    set_computed_value("width"sv);
+    set_computed_value("height"sv);
 
-    set_pixel_value_from(node_box_sizing, "margin_top"sv, "margin-top"sv);
-    set_pixel_value_from(node_box_sizing, "margin_right"sv, "margin-right"sv);
-    set_pixel_value_from(node_box_sizing, "margin_bottom"sv, "margin-bottom"sv);
-    set_pixel_value_from(node_box_sizing, "margin_left"sv, "margin-left"sv);
+    set_pixel_value("border-top-width"sv);
+    set_pixel_value("border-right-width"sv);
+    set_pixel_value("border-bottom-width"sv);
+    set_pixel_value("border-left-width"sv);
 
-    set_pixel_value_from(node_box_sizing, "padding_top"sv, "padding-top"sv);
-    set_pixel_value_from(node_box_sizing, "padding_right"sv, "padding-right"sv);
-    set_pixel_value_from(node_box_sizing, "padding_bottom"sv, "padding-bottom"sv);
-    set_pixel_value_from(node_box_sizing, "padding_left"sv, "padding-left"sv);
+    set_pixel_value("margin-top"sv);
+    set_pixel_value("margin-right"sv);
+    set_pixel_value("margin-bottom"sv);
+    set_pixel_value("margin-left"sv);
 
-    set_computed_value_from(computed_style, "box-sizing"sv);
-    set_computed_value_from(computed_style, "display"sv);
-    set_computed_value_from(computed_style, "float"sv);
-    set_computed_value_from(computed_style, "line-height"sv);
-    set_computed_value_from(computed_style, "position"sv);
-    set_computed_value_from(computed_style, "z-index"sv);
+    set_pixel_value("padding-top"sv);
+    set_pixel_value("padding-right"sv);
+    set_pixel_value("padding-bottom"sv);
+    set_pixel_value("padding-left"sv);
+
+    set_computed_value("box-sizing"sv);
+    set_computed_value("display"sv);
+    set_computed_value("float"sv);
+    set_computed_value("line-height"sv);
+    set_computed_value("position"sv);
+    set_computed_value("z-index"sv);
 }
 
 static void received_computed_style(JsonObject& response, JsonObject const& computed_style)
@@ -151,7 +151,7 @@ void PageStyleActor::handle_message(Message const& message)
             return;
 
         inspect_dom_node(message, *node, [](auto& response, auto const& properties) {
-            received_layout(response, properties.computed_style, properties.node_box_sizing);
+            received_layout(response, properties.node_box_sizing);
         });
 
         return;

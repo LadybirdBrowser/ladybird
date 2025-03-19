@@ -504,28 +504,38 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, Web::UniqueNodeID node_
             return MUST(builder.to_string());
         };
 
-        auto serialize_node_box_sizing_json = [](Web::Layout::Node const* layout_node) {
+        auto serialize_node_box_sizing_json = [](Web::Layout::Node const* layout_node, GC::Ptr<Web::CSS::ComputedProperties> properties) {
             if (!layout_node || !layout_node->is_box() || !layout_node->first_paintable() || !layout_node->first_paintable()->is_paintable_box()) {
                 return "{}"_string;
             }
             auto const& paintable_box = as<Web::Painting::PaintableBox>(*layout_node->first_paintable());
             auto const& box_model = paintable_box.box_model();
             StringBuilder builder;
+
             auto serializer = MUST(JsonObjectSerializer<>::try_create(builder));
-            MUST(serializer.add("padding_top"sv, box_model.padding.top.to_double()));
-            MUST(serializer.add("padding_right"sv, box_model.padding.right.to_double()));
-            MUST(serializer.add("padding_bottom"sv, box_model.padding.bottom.to_double()));
-            MUST(serializer.add("padding_left"sv, box_model.padding.left.to_double()));
-            MUST(serializer.add("margin_top"sv, box_model.margin.top.to_double()));
-            MUST(serializer.add("margin_right"sv, box_model.margin.right.to_double()));
-            MUST(serializer.add("margin_bottom"sv, box_model.margin.bottom.to_double()));
-            MUST(serializer.add("margin_left"sv, box_model.margin.left.to_double()));
-            MUST(serializer.add("border_top"sv, box_model.border.top.to_double()));
-            MUST(serializer.add("border_right"sv, box_model.border.right.to_double()));
-            MUST(serializer.add("border_bottom"sv, box_model.border.bottom.to_double()));
-            MUST(serializer.add("border_left"sv, box_model.border.left.to_double()));
-            MUST(serializer.add("content_width"sv, paintable_box.content_width().to_double()));
-            MUST(serializer.add("content_height"sv, paintable_box.content_height().to_double()));
+            MUST(serializer.add("width"sv, paintable_box.content_width().to_double()));
+            MUST(serializer.add("height"sv, paintable_box.content_height().to_double()));
+            MUST(serializer.add("padding-top"sv, box_model.padding.top.to_double()));
+            MUST(serializer.add("padding-right"sv, box_model.padding.right.to_double()));
+            MUST(serializer.add("padding-bottom"sv, box_model.padding.bottom.to_double()));
+            MUST(serializer.add("padding-left"sv, box_model.padding.left.to_double()));
+            MUST(serializer.add("margin-top"sv, box_model.margin.top.to_double()));
+            MUST(serializer.add("margin-right"sv, box_model.margin.right.to_double()));
+            MUST(serializer.add("margin-bottom"sv, box_model.margin.bottom.to_double()));
+            MUST(serializer.add("margin-left"sv, box_model.margin.left.to_double()));
+            MUST(serializer.add("border-top-width"sv, box_model.border.top.to_double()));
+            MUST(serializer.add("border-right-width"sv, box_model.border.right.to_double()));
+            MUST(serializer.add("border-bottom-width"sv, box_model.border.bottom.to_double()));
+            MUST(serializer.add("border-left-width"sv, box_model.border.left.to_double()));
+
+            if (properties) {
+                MUST(serializer.add("box-sizing"sv, properties->property(Web::CSS::PropertyID::BoxSizing).to_string(Web::CSS::CSSStyleValue::SerializationMode::Normal)));
+                MUST(serializer.add("display"sv, properties->property(Web::CSS::PropertyID::Display).to_string(Web::CSS::CSSStyleValue::SerializationMode::Normal)));
+                MUST(serializer.add("float"sv, properties->property(Web::CSS::PropertyID::Float).to_string(Web::CSS::CSSStyleValue::SerializationMode::Normal)));
+                MUST(serializer.add("line-height"sv, properties->property(Web::CSS::PropertyID::LineHeight).to_string(Web::CSS::CSSStyleValue::SerializationMode::Normal)));
+                MUST(serializer.add("position"sv, properties->property(Web::CSS::PropertyID::Position).to_string(Web::CSS::CSSStyleValue::SerializationMode::Normal)));
+                MUST(serializer.add("z-index"sv, properties->property(Web::CSS::PropertyID::ZIndex).to_string(Web::CSS::CSSStyleValue::SerializationMode::Normal)));
+            }
 
             MUST(serializer.finish());
             return MUST(builder.to_string());
@@ -584,7 +594,7 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, Web::UniqueNodeID node_
             }
 
             auto custom_properties_json = serialize_custom_properties_json(element, pseudo_element);
-            auto node_box_sizing_json = serialize_node_box_sizing_json(pseudo_element_node.ptr());
+            auto node_box_sizing_json = serialize_node_box_sizing_json(pseudo_element_node.ptr(), pseudo_element_style);
             async_did_inspect_dom_node(page_id, true, computed_values, resolved_values, custom_properties_json, node_box_sizing_json, "{}"_string, fonts_json);
             return;
         }
@@ -592,7 +602,7 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, Web::UniqueNodeID node_
         auto computed_values = serialize_json(*element.computed_properties());
         auto resolved_values = serialize_json(element.resolved_css_values());
         auto custom_properties_json = serialize_custom_properties_json(element, {});
-        auto node_box_sizing_json = serialize_node_box_sizing_json(element.layout_node());
+        auto node_box_sizing_json = serialize_node_box_sizing_json(element.layout_node(), element.computed_properties());
         auto aria_properties_state_json = serialize_aria_properties_state_json(element);
         auto fonts_json = serialize_fonts_json(*element.computed_properties());
 
