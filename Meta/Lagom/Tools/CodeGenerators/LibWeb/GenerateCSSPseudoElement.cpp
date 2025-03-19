@@ -72,6 +72,8 @@ enum class PseudoElement : @pseudo_element_underlying_type@ {
 Optional<PseudoElement> pseudo_element_from_string(StringView);
 StringView pseudo_element_name(PseudoElement);
 
+bool is_has_allowed_pseudo_element(PseudoElement);
+
 }
 )~~~");
 
@@ -131,6 +133,31 @@ StringView pseudo_element_name(PseudoElement pseudo_element)
         VERIFY_NOT_REACHED();
     }
     VERIFY_NOT_REACHED();
+}
+
+bool is_has_allowed_pseudo_element(PseudoElement pseudo_element)
+{
+    switch (pseudo_element) {
+)~~~");
+
+    pseudo_elements_data.for_each_member([&](auto& name, JsonValue const& value) {
+        auto& pseudo_element = value.as_object();
+        if (!pseudo_element.get_bool("is-allowed-in-has"sv).value_or(false))
+            return;
+
+        auto member_generator = generator.fork();
+        member_generator.set("name:titlecase", title_casify(name));
+
+        member_generator.append(R"~~~(
+    case PseudoElement::@name:titlecase@:
+        return true;
+)~~~");
+    });
+
+    generator.append(R"~~~(
+    default:
+        return false;
+    }
 }
 
 }
