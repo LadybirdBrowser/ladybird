@@ -1778,11 +1778,7 @@ inline ThrowCompletionOr<Object*> get_object_property_iterator(VM& vm, Value val
 
     auto callback = NativeFunction::create(
         *vm.current_realm(), [items = move(properties), result_object, value_offset, done_offset](VM& vm) mutable -> ThrowCompletionOr<Value> {
-            auto iterated_object_value = vm.this_value();
-            if (!iterated_object_value.is_object())
-                return vm.throw_completion<InternalError>("Invalid state for GetObjectPropertyIterator.next"sv);
-
-            auto& iterated_object = iterated_object_value.as_object();
+            auto& iterated_object = vm.this_value().as_object();
             while (true) {
                 if (items.is_empty()) {
                     result_object->put_direct(done_offset, JS::Value(true));
