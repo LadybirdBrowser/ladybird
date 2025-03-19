@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 350 tests
 
-160 Pass
-190 Fail
+170 Pass
+180 Fail
 Pass	Loading data...
 Fail	Pattern: [{"pathname":"/foo/bar"}] Inputs: [{"pathname":"/foo/bar"}]
 Pass	Pattern: [{"pathname":"/foo/bar"}] Inputs: [{"pathname":"/foo/ba"}]
@@ -162,7 +162,7 @@ Fail	Pattern: [{"hostname":"caf√©.com"}] Inputs: [{"hostname":"caf√©.com"}]
 Fail	Pattern: ["http://Ì†ΩU+deb2.com/"] Inputs: ["http://Ì†ΩU+deb2.com/"]
 Pass	Pattern: ["http://\ud83d \udeb2"] Inputs: undefined
 Pass	Pattern: [{"hostname":"\ud83d \udeb2"}] Inputs: undefined
-Fail	Pattern: [{"pathname":"\ud83d \udeb2"}] Inputs: []
+Pass	Pattern: [{"pathname":"\ud83d \udeb2"}] Inputs: []
 Pass	Pattern: [{"pathname":":\ud83d \udeb2"}] Inputs: undefined
 Pass	Pattern: [{"pathname":":aÌ≠ÄU+dd00b"}] Inputs: []
 Fail	Pattern: [{"pathname":"test/:aÌ†ÅU+dc50b"}] Inputs: [{"pathname":"test/foo"}]
@@ -189,9 +189,9 @@ Fail	Pattern: [{"pathname":"","baseURL":"https://example.com"}] Inputs: [{"pathn
 Pass	Pattern: [{"pathname":"{/bar}","baseURL":"https://example.com/foo/"}] Inputs: [{"pathname":"./bar","baseURL":"https://example.com/foo/"}]
 Pass	Pattern: [{"pathname":"\\/bar","baseURL":"https://example.com/foo/"}] Inputs: [{"pathname":"./bar","baseURL":"https://example.com/foo/"}]
 Fail	Pattern: [{"pathname":"b","baseURL":"https://example.com/foo/"}] Inputs: [{"pathname":"./b","baseURL":"https://example.com/foo/"}]
-Fail	Pattern: [{"pathname":"foo/bar"}] Inputs: ["https://example.com/foo/bar"]
+Pass	Pattern: [{"pathname":"foo/bar"}] Inputs: ["https://example.com/foo/bar"]
 Pass	Pattern: [{"pathname":"foo/bar","baseURL":"https://example.com"}] Inputs: ["https://example.com/foo/bar"]
-Fail	Pattern: [{"pathname":":name.html","baseURL":"https://example.com"}] Inputs: ["https://example.com/foo.html"]
+Pass	Pattern: [{"pathname":":name.html","baseURL":"https://example.com"}] Inputs: ["https://example.com/foo.html"]
 Fail	Pattern: [{"search":"q=caf%C3%A9"}] Inputs: [{"search":"q=caf√©"}]
 Fail	Pattern: [{"search":"q=caf√©"}] Inputs: [{"search":"q=caf√©"}]
 Pass	Pattern: [{"search":"q=caf%c3%a9"}] Inputs: [{"search":"q=caf√©"}]
@@ -206,10 +206,10 @@ Fail	Pattern: [{"pathname":"/foo\\:"}] Inputs: [{"pathname":"/foo:"}]
 Fail	Pattern: [{"pathname":"/foo\\{"}] Inputs: [{"pathname":"/foo{"}]
 Fail	Pattern: [{"pathname":"/foo\\("}] Inputs: [{"pathname":"/foo("}]
 Fail	Pattern: [{"protocol":"javascript","pathname":"var x = 1;"}] Inputs: [{"protocol":"javascript","pathname":"var x = 1;"}]
-Fail	Pattern: [{"pathname":"var x = 1;"}] Inputs: [{"protocol":"javascript","pathname":"var x = 1;"}]
+Pass	Pattern: [{"pathname":"var x = 1;"}] Inputs: [{"protocol":"javascript","pathname":"var x = 1;"}]
 Fail	Pattern: [{"protocol":"javascript","pathname":"var x = 1;"}] Inputs: [{"baseURL":"javascript:var x = 1;"}]
 Fail	Pattern: [{"protocol":"(data|javascript)","pathname":"var x = 1;"}] Inputs: [{"protocol":"javascript","pathname":"var x = 1;"}]
-Fail	Pattern: [{"protocol":"(https|javascript)","pathname":"var x = 1;"}] Inputs: [{"protocol":"javascript","pathname":"var x = 1;"}]
+Pass	Pattern: [{"protocol":"(https|javascript)","pathname":"var x = 1;"}] Inputs: [{"protocol":"javascript","pathname":"var x = 1;"}]
 Fail	Pattern: [{"pathname":"var x = 1;"}] Inputs: [{"pathname":"var x = 1;"}]
 Pass	Pattern: [{"pathname":"/foo/bar"}] Inputs: ["./foo/bar","https://example.com"]
 Pass	Pattern: [{"pathname":"/foo/bar"}] Inputs: [{"pathname":"/foo/bar"},"https://example.com"]
@@ -224,13 +224,13 @@ Pass	Pattern: ["https://example.com:8080?foo"] Inputs: ["https://example.com:808
 Pass	Pattern: ["https://example.com:8080#foo"] Inputs: ["https://example.com:8080/#foo"]
 Pass	Pattern: ["https://example.com/?foo"] Inputs: ["https://example.com/?foo"]
 Pass	Pattern: ["https://example.com/#foo"] Inputs: ["https://example.com/#foo"]
-Fail	Pattern: ["https://example.com/*?foo"] Inputs: ["https://example.com/?foo"]
+Pass	Pattern: ["https://example.com/*?foo"] Inputs: ["https://example.com/?foo"]
 Pass	Pattern: ["https://example.com/*\\?foo"] Inputs: ["https://example.com/?foo"]
-Fail	Pattern: ["https://example.com/:name?foo"] Inputs: ["https://example.com/bar?foo"]
+Pass	Pattern: ["https://example.com/:name?foo"] Inputs: ["https://example.com/bar?foo"]
 Pass	Pattern: ["https://example.com/:name\\?foo"] Inputs: ["https://example.com/bar?foo"]
-Fail	Pattern: ["https://example.com/(bar)?foo"] Inputs: ["https://example.com/bar?foo"]
+Pass	Pattern: ["https://example.com/(bar)?foo"] Inputs: ["https://example.com/bar?foo"]
 Pass	Pattern: ["https://example.com/(bar)\\?foo"] Inputs: ["https://example.com/bar?foo"]
-Fail	Pattern: ["https://example.com/{bar}?foo"] Inputs: ["https://example.com/bar?foo"]
+Pass	Pattern: ["https://example.com/{bar}?foo"] Inputs: ["https://example.com/bar?foo"]
 Pass	Pattern: ["https://example.com/{bar}\\?foo"] Inputs: ["https://example.com/bar?foo"]
 Pass	Pattern: ["https://example.com/"] Inputs: ["https://example.com:8080/"]
 Pass	Pattern: ["data:foobar"] Inputs: ["data:foobar"]
@@ -316,7 +316,7 @@ Fail	Pattern: [{"pathname":"(foo)?(.*)"}] Inputs: [{"pathname":"foobarbaz"}]
 Fail	Pattern: [{"pathname":"{:foo}(.*)"}] Inputs: [{"pathname":"foobarbaz"}]
 Fail	Pattern: [{"pathname":"{:foo}(barbaz)"}] Inputs: [{"pathname":"foobarbaz"}]
 Fail	Pattern: [{"pathname":"{:foo}{(.*)}"}] Inputs: [{"pathname":"foobarbaz"}]
-Fail	Pattern: [{"pathname":"{:foo}{(.*)bar}"}] Inputs: [{"pathname":"foobarbaz"}]
+Pass	Pattern: [{"pathname":"{:foo}{(.*)bar}"}] Inputs: [{"pathname":"foobarbaz"}]
 Fail	Pattern: [{"pathname":"{:foo}{bar(.*)}"}] Inputs: [{"pathname":"foobarbaz"}]
 Fail	Pattern: [{"pathname":"{:foo}:bar(.*)"}] Inputs: [{"pathname":"foobarbaz"}]
 Fail	Pattern: [{"pathname":"{:foo}?(.*)"}] Inputs: [{"pathname":"foobarbaz"}]
