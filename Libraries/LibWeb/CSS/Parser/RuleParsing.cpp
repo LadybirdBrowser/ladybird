@@ -161,16 +161,35 @@ GC::Ptr<CSSImportRule> Parser::convert_to_import_rule(AtRule const& rule)
     }
 
     tokens.discard_whitespace();
-    // TODO: Support layers and import-conditions
+    // FIXME: Implement layer support.
+    RefPtr<Supports> supports {};
+    if (tokens.next_token().is_function("supports"sv)) {
+        auto component_value = tokens.consume_a_token();
+        TokenStream supports_tokens { component_value.function().value };
+        if (supports_tokens.next_token().is_block()) {
+            supports = parse_a_supports(supports_tokens);
+        } else {
+            m_rule_context.append(ContextType::SupportsCondition);
+            auto declaration = consume_a_declaration(supports_tokens);
+            m_rule_context.take_last();
+            if (declaration.has_value()) {
+                auto supports_declaration = Supports::Declaration::create(declaration->to_string(), convert_to_style_property(*declaration).has_value());
+                supports = Supports::create(supports_declaration.release_nonnull<BooleanExpression>());
+            }
+        }
+    }
+
+    // FIXME: Implement media query support.
+
     if (tokens.has_next_token()) {
         if constexpr (CSS_PARSER_DEBUG) {
-            dbgln("Failed to parse @import rule: Trailing tokens after URL are not yet supported.");
+            dbgln("Failed to parse @import rule:");
             tokens.dump_all_tokens();
         }
         return {};
     }
 
-    return CSSImportRule::create(url.value(), const_cast<DOM::Document&>(*document()));
+    return CSSImportRule::create(url.value(), const_cast<DOM::Document&>(*document()), supports);
 }
 
 Optional<FlyString> Parser::parse_layer_name(TokenStream<ComponentValue>& tokens, AllowBlankLayerName allow_blank_layer_name)
