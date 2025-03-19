@@ -80,7 +80,6 @@ if (ENABLE_FUZZERS OR CMAKE_CROSSCOMPILING)
     set(BUILD_LAGOM_TOOLS OFF)
 endif()
 
-include(flac_spec_tests)
 include(ca_certificates_data)
 include(lagom_compile_options)
 
@@ -248,7 +247,6 @@ function(lagom_lib target_name fs_name)
     endif()
     add_lagom_library_install_rules(${target_name} ALIAS_NAME ${library})
     if (ENABLE_INSTALL_HEADERS)
-        # FIXME: Move this to serenity_install_headers
         install(
             DIRECTORY "${SERENITY_PROJECT_ROOT}/Libraries/Lib${library}"
             COMPONENT Lagom_Development
@@ -311,12 +309,6 @@ function(serenity_lib name fs_name)
     lagom_lib(${name} ${fs_name} LIBRARY_TYPE ${SERENITY_LIB_TYPE} SOURCES ${SOURCES} ${GENERATED_SOURCES})
 endfunction()
 
-function(serenity_install_headers dir)
-endfunction()
-
-function(serenity_install_sources dir)
-endfunction()
-
 macro(add_serenity_subdirectory path)
     add_subdirectory("${SERENITY_PROJECT_ROOT}/${path}" "${CMAKE_CURRENT_BINARY_DIR}/${path}")
 endmacro()
@@ -331,14 +323,13 @@ add_lagom_library_install_rules(GenericClangPlugin)
 add_lagom_library_install_rules(JSClangPlugin)
 
 # Create mostly empty targets for system libraries we don't need to build for Lagom
-add_library(LibC INTERFACE)
 add_library(LibCrypt INTERFACE)
 if (NOT APPLE AND NOT ANDROID AND NOT EMSCRIPTEN AND NOT ${CMAKE_SYSTEM_NAME} MATCHES "OpenBSD" AND NOT HAIKU AND NOT WIN32)
     target_link_libraries(LibCrypt INTERFACE crypt) # LibCore::Account uses crypt() but it's not in libcrypt on macOS
 endif()
 add_library(NoCoverage INTERFACE)
 # "install" these special targets to placate CMake
-install(TARGETS LibC LibCrypt NoCoverage EXPORT LagomTargets)
+install(TARGETS LibCrypt NoCoverage EXPORT LagomTargets)
 
 # AK
 add_serenity_subdirectory(AK)
