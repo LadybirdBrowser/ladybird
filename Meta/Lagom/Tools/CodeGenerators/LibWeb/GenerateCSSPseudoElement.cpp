@@ -43,8 +43,15 @@ ErrorOr<void> generate_header_file(JsonObject& pseudo_elements_data, Core::File&
     SourceGenerator generator { builder };
 
     auto pseudo_element_count = 0u;
-    pseudo_elements_data.for_each_member([&pseudo_element_count](auto const&, auto const&) { ++pseudo_element_count; });
+    auto generated_pseudo_element_count = 0u;
+    pseudo_elements_data.for_each_member([&](auto const&, JsonValue const& value) {
+        auto& pseudo_element = value.as_object();
+        ++pseudo_element_count;
+        if (pseudo_element.get_bool("is-generated"sv).value_or(false))
+            ++generated_pseudo_element_count;
+    });
     generator.set("pseudo_element_underlying_type", underlying_type_for_enum(pseudo_element_count));
+    generator.set("generated_pseudo_element_underlying_type", underlying_type_for_enum(generated_pseudo_element_count));
 
     generator.append(R"~~~(
 #pragma once
@@ -73,6 +80,23 @@ Optional<PseudoElement> pseudo_element_from_string(StringView);
 StringView pseudo_element_name(PseudoElement);
 
 bool is_has_allowed_pseudo_element(PseudoElement);
+
+enum class GeneratedPseudoElement : @generated_pseudo_element_underlying_type@ {
+)~~~");
+    pseudo_elements_data.for_each_member([&](auto& name, JsonValue const& value) {
+        auto& pseudo_element = value.as_object();
+        if (!pseudo_element.get_bool("is-generated"sv).value_or(false))
+            return;
+
+        auto member_generator = generator.fork();
+        member_generator.set("name:titlecase", title_casify(name));
+        member_generator.appendln("    @name:titlecase@,");
+    });
+    generator.append(R"~~~(
+};
+
+Optional<GeneratedPseudoElement> to_generated_pseudo_element(PseudoElement);
+PseudoElement to_pseudo_element(GeneratedPseudoElement);
 
 }
 )~~~");
@@ -158,6 +182,53 @@ bool is_has_allowed_pseudo_element(PseudoElement pseudo_element)
     default:
         return false;
     }
+}
+
+Optional<GeneratedPseudoElement> to_generated_pseudo_element(PseudoElement pseudo_element)
+{
+    switch (pseudo_element) {
+)~~~");
+
+    pseudo_elements_data.for_each_member([&](auto& name, JsonValue const& value) {
+        auto& pseudo_element = value.as_object();
+        if (!pseudo_element.get_bool("is-generated"sv).value_or(false))
+            return;
+
+        auto member_generator = generator.fork();
+        member_generator.set("name:titlecase", title_casify(name));
+        member_generator.append(R"~~~(
+    case PseudoElement::@name:titlecase@:
+        return GeneratedPseudoElement::@name:titlecase@;
+)~~~");
+    });
+
+    generator.append(R"~~~(
+    default:
+        return {};
+    }
+}
+
+PseudoElement to_pseudo_element(GeneratedPseudoElement generated_pseudo_element)
+{
+    switch (generated_pseudo_element) {
+)~~~");
+
+    pseudo_elements_data.for_each_member([&](auto& name, JsonValue const& value) {
+        auto& pseudo_element = value.as_object();
+        if (!pseudo_element.get_bool("is-generated"sv).value_or(false))
+            return;
+
+        auto member_generator = generator.fork();
+        member_generator.set("name:titlecase", title_casify(name));
+        member_generator.append(R"~~~(
+    case GeneratedPseudoElement::@name:titlecase@:
+        return PseudoElement::@name:titlecase@;
+)~~~");
+    });
+
+    generator.append(R"~~~(
+    }
+    VERIFY_NOT_REACHED();
 }
 
 }

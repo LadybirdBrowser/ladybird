@@ -225,15 +225,7 @@ void TreeBuilder::create_pseudo_element_if_needed(DOM::Element& element, CSS::Ps
         pseudo_element_node->append_child(*list_item_marker);
     }
 
-    auto generated_for = Node::GeneratedFor::NotGenerated;
-    if (pseudo_element == CSS::PseudoElement::Before) {
-        generated_for = Node::GeneratedFor::PseudoBefore;
-    } else if (pseudo_element == CSS::PseudoElement::After) {
-        generated_for = Node::GeneratedFor::PseudoAfter;
-    } else {
-        VERIFY_NOT_REACHED();
-    }
-
+    auto generated_for = CSS::to_generated_pseudo_element(pseudo_element).release_value();
     pseudo_element_node->set_generated_for(generated_for, element);
     pseudo_element_node->set_initial_quote_nesting_level(initial_quote_nesting_level);
 
