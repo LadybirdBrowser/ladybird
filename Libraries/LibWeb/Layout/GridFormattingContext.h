@@ -88,6 +88,13 @@ struct GridItem {
     {
         return dimension == GridDimension::Column ? computed_values().width() : computed_values().height();
     }
+
+    AvailableSpace available_space() const
+    {
+        auto available_width = used_values.has_definite_width() ? AvailableSize::make_definite(used_values.content_width()) : AvailableSize::make_indefinite();
+        auto available_height = used_values.has_definite_height() ? AvailableSize::make_definite(used_values.content_height()) : AvailableSize::make_indefinite();
+        return { available_width, available_height };
+    }
 };
 
 enum class FoundUnoccupiedPlace {
@@ -348,7 +355,6 @@ private:
     CSSPixels calculate_limited_max_content_contribution(GridItem const&, GridDimension const) const;
 
     CSSPixels containing_block_size_for_item(GridItem const&, GridDimension const) const;
-    AvailableSpace get_available_space_for_item(GridItem const&) const;
 
     CSSPixelRect get_grid_area_rect(GridItem const&) const;
 
