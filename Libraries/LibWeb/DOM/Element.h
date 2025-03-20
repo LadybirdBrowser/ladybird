@@ -466,6 +466,8 @@ public:
     Element const* list_owner() const;
     size_t ordinal_value() const;
 
+    bool is_fullscreen_element() const;
+
 protected:
     Element(Document&, DOM::QualifiedName);
     virtual void initialize(JS::Realm&) override;

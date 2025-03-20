@@ -60,6 +60,7 @@ enum class ShouldComputeRole {
     X(ElementAttributeChange)                       \
     X(ElementSetShadowRoot)                         \
     X(FocusedElementChange)                         \
+    X(Fullscreen)                                   \
     X(HTMLHyperlinkElementHrefChange)               \
     X(HTMLIFrameElementGeometryChange)              \
     X(HTMLInputElementSetChecked)                   \

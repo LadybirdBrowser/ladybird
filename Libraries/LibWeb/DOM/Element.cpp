@@ -3233,6 +3233,11 @@ size_t Element::ordinal_value() const
     return numbering;
 }
 
+bool Element::is_fullscreen_element() const
+{
+    return false;
+}
+
 bool Element::id_reference_exists(String const& id_reference) const
 {
     return document().get_element_by_id(id_reference);
