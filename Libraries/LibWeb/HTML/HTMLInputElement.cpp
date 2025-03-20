@@ -1000,7 +1000,7 @@ void HTMLInputElement::create_text_input_shadow_tree()
     MUST(shadow_root->append_child(element));
 
     m_placeholder_element = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
-    m_placeholder_element->set_use_pseudo_element(CSS::Selector::PseudoElement::Type::Placeholder);
+    m_placeholder_element->set_use_pseudo_element(CSS::PseudoElement::Placeholder);
 
     // https://www.w3.org/TR/css-ui-4/#input-rules
     MUST(m_placeholder_element->set_attribute(HTML::AttributeNames::style, R"~~~(
@@ -1137,7 +1137,7 @@ void HTMLInputElement::create_file_input_shadow_tree()
     auto shadow_root = realm.create<DOM::ShadowRoot>(document(), *this, Bindings::ShadowRootMode::Closed);
 
     m_file_button = DOM::create_element(document(), HTML::TagNames::button, Namespace::HTML).release_value_but_fixme_should_propagate_errors();
-    m_file_button->set_use_pseudo_element(CSS::Selector::PseudoElement::Type::FileSelectorButton);
+    m_file_button->set_use_pseudo_element(CSS::PseudoElement::FileSelectorButton);
 
     m_file_label = DOM::create_element(document(), HTML::TagNames::label, Namespace::HTML).release_value_but_fixme_should_propagate_errors();
     MUST(m_file_label->set_attribute(HTML::AttributeNames::style, "padding-left: 4px;"_string));
@@ -1183,15 +1183,15 @@ void HTMLInputElement::create_range_input_shadow_tree()
     set_shadow_root(shadow_root);
 
     m_slider_runnable_track = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
-    m_slider_runnable_track->set_use_pseudo_element(CSS::Selector::PseudoElement::Type::Track);
+    m_slider_runnable_track->set_use_pseudo_element(CSS::PseudoElement::Track);
     MUST(shadow_root->append_child(*m_slider_runnable_track));
 
     m_slider_progress_element = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
-    m_slider_progress_element->set_use_pseudo_element(CSS::Selector::PseudoElement::Type::Fill);
+    m_slider_progress_element->set_use_pseudo_element(CSS::PseudoElement::Fill);
     MUST(m_slider_runnable_track->append_child(*m_slider_progress_element));
 
     m_slider_thumb = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
-    m_slider_thumb->set_use_pseudo_element(CSS::Selector::PseudoElement::Type::Thumb);
+    m_slider_thumb->set_use_pseudo_element(CSS::PseudoElement::Thumb);
     MUST(m_slider_runnable_track->append_child(*m_slider_thumb));
 
     update_slider_shadow_tree_elements();

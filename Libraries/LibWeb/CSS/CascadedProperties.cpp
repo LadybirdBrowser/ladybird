@@ -56,7 +56,7 @@ void CascadedProperties::revert_layer_property(PropertyID property_id, Important
         m_properties.remove(it);
 }
 
-void CascadedProperties::resolve_unresolved_properties(GC::Ref<DOM::Element> element, Optional<Selector::PseudoElement::Type> pseudo_element)
+void CascadedProperties::resolve_unresolved_properties(GC::Ref<DOM::Element> element, Optional<PseudoElement> pseudo_element)
 {
     for (auto& [property_id, entries] : m_properties) {
         for (auto& entry : entries) {

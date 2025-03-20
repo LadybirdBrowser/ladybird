@@ -32,7 +32,7 @@ Optional<SelectorList> Parser::parse_as_relative_selector(SelectorParsingMode pa
     return {};
 }
 
-Optional<Selector::PseudoElement> Parser::parse_as_pseudo_element_selector()
+Optional<Selector::PseudoElementSelector> Parser::parse_as_pseudo_element_selector()
 {
     // FIXME: This is quite janky. Selector parsing is not at all designed to allow parsing just a single part of a selector.
     //        So, this code parses a whole selector, then rejects it if it's not a single pseudo-element simple selector.
@@ -418,8 +418,7 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
 
         auto pseudo_name = name_token.token().ident();
 
-        // Note: We allow the "ignored" -webkit prefix here for -webkit-progress-bar/-webkit-progress-bar
-        if (auto pseudo_element = Selector::PseudoElement::from_string(pseudo_name); pseudo_element.has_value()) {
+        if (auto pseudo_element = Selector::PseudoElementSelector::from_string(pseudo_name); pseudo_element.has_value()) {
             // :has() is fussy about pseudo-elements inside it
             if (m_pseudo_class_context.contains_slow(PseudoClass::Has) && !is_has_allowed_pseudo_element(pseudo_element->type())) {
                 return ParseError::SyntaxError;
@@ -444,7 +443,7 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
             return Selector::SimpleSelector {
                 .type = Selector::SimpleSelector::Type::PseudoElement,
                 // Unknown -webkit- pseudo-elements must be serialized in ASCII lowercase.
-                .value = Selector::PseudoElement { Selector::PseudoElement::Type::UnknownWebKit, pseudo_name.to_string().to_ascii_lowercase() },
+                .value = Selector::PseudoElementSelector { PseudoElement::UnknownWebKit, pseudo_name.to_string().to_ascii_lowercase() },
             };
         }
 
@@ -482,12 +481,12 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
 
         // Single-colon syntax allowed for ::after, ::before, ::first-letter and ::first-line for compatibility.
         // https://www.w3.org/TR/selectors/#pseudo-element-syntax
-        if (auto pseudo_element = Selector::PseudoElement::from_string(pseudo_name); pseudo_element.has_value()) {
+        if (auto pseudo_element = Selector::PseudoElementSelector::from_string(pseudo_name); pseudo_element.has_value()) {
             switch (pseudo_element.value().type()) {
-            case Selector::PseudoElement::Type::After:
-            case Selector::PseudoElement::Type::Before:
-            case Selector::PseudoElement::Type::FirstLetter:
-            case Selector::PseudoElement::Type::FirstLine:
+            case PseudoElement::After:
+            case PseudoElement::Before:
+            case PseudoElement::FirstLetter:
+            case PseudoElement::FirstLine:
                 // :has() is fussy about pseudo-elements inside it
                 if (m_pseudo_class_context.contains_slow(PseudoClass::Has) && !is_has_allowed_pseudo_element(pseudo_element->type())) {
                     return ParseError::SyntaxError;

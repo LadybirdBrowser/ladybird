@@ -66,9 +66,9 @@ NodeIdentifier NodeIdentifier::for_node(JsonObject const& node)
 {
     NodeIdentifier identifier;
 
-    identifier.pseudo_element = node.get_integer<UnderlyingType<Web::CSS::Selector::PseudoElement::Type>>("pseudo-element"sv).map([](auto value) {
-        VERIFY(value < to_underlying(Web::CSS::Selector::PseudoElement::Type::KnownPseudoElementCount));
-        return static_cast<Web::CSS::Selector::PseudoElement::Type>(value);
+    identifier.pseudo_element = node.get_integer<UnderlyingType<Web::CSS::PseudoElement>>("pseudo-element"sv).map([](auto value) {
+        VERIFY(value < to_underlying(Web::CSS::PseudoElement::KnownPseudoElementCount));
+        return static_cast<Web::CSS::PseudoElement>(value);
     });
 
     if (identifier.pseudo_element.has_value())

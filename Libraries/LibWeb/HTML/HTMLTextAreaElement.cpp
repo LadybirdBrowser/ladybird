@@ -372,7 +372,7 @@ void HTMLTextAreaElement::create_shadow_tree_if_needed()
     MUST(shadow_root->append_child(element));
 
     m_placeholder_element = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
-    m_placeholder_element->set_use_pseudo_element(CSS::Selector::PseudoElement::Type::Placeholder);
+    m_placeholder_element->set_use_pseudo_element(CSS::PseudoElement::Placeholder);
     MUST(element->append_child(*m_placeholder_element));
 
     m_placeholder_text_node = realm().create<DOM::Text>(document(), String {});

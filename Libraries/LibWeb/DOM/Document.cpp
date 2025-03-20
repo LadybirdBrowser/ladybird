@@ -1685,7 +1685,7 @@ void Document::set_inspected_node(GC::Ptr<Node> node)
     m_inspected_node = node;
 }
 
-void Document::set_highlighted_node(GC::Ptr<Node> node, Optional<CSS::Selector::PseudoElement::Type> pseudo_element)
+void Document::set_highlighted_node(GC::Ptr<Node> node, Optional<CSS::PseudoElement> pseudo_element)
 {
     if (m_highlighted_node == node && m_highlighted_pseudo_element == pseudo_element)
         return;
@@ -1797,12 +1797,12 @@ void Document::invalidate_style_for_elements_affected_by_hover_change(Node& old_
         SelectorEngine::MatchContext context;
         if (SelectorEngine::matches(selector, element, {}, context, {}))
             return true;
-        if (element.has_pseudo_element(CSS::Selector::PseudoElement::Type::Before)) {
-            if (SelectorEngine::matches(selector, element, {}, context, CSS::Selector::PseudoElement::Type::Before))
+        if (element.has_pseudo_element(CSS::PseudoElement::Before)) {
+            if (SelectorEngine::matches(selector, element, {}, context, CSS::PseudoElement::Before))
                 return true;
         }
-        if (element.has_pseudo_element(CSS::Selector::PseudoElement::Type::After)) {
-            if (SelectorEngine::matches(selector, element, {}, context, CSS::Selector::PseudoElement::Type::After))
+        if (element.has_pseudo_element(CSS::PseudoElement::After)) {
+            if (SelectorEngine::matches(selector, element, {}, context, CSS::PseudoElement::After))
                 return true;
         }
         return false;

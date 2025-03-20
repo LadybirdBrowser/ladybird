@@ -173,7 +173,7 @@ OwnFontFaceKey::operator FontFaceKey() const
         && slope == other.slope;
 }
 
-static DOM::Element const* element_to_inherit_style_from(DOM::Element const*, Optional<CSS::Selector::PseudoElement::Type>);
+static DOM::Element const* element_to_inherit_style_from(DOM::Element const*, Optional<CSS::PseudoElement>);
 
 StyleComputer::StyleComputer(DOM::Document& document)
     : m_document(document)
@@ -472,7 +472,7 @@ bool StyleComputer::invalidation_property_used_in_has_selector(InvalidationSet::
     return false;
 }
 
-Vector<MatchingRule const*> StyleComputer::collect_matching_rules(DOM::Element const& element, CascadeOrigin cascade_origin, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, bool& did_match_any_hover_rules, FlyString const& qualified_layer_name) const
+Vector<MatchingRule const*> StyleComputer::collect_matching_rules(DOM::Element const& element, CascadeOrigin cascade_origin, Optional<CSS::PseudoElement> pseudo_element, bool& did_match_any_hover_rules, FlyString const& qualified_layer_name) const
 {
     auto const& root_node = element.root();
     auto shadow_root = is<DOM::ShadowRoot>(root_node) ? static_cast<DOM::ShadowRoot const*>(&root_node) : nullptr;
@@ -985,7 +985,7 @@ void StyleComputer::set_property_expanding_shorthands(
 void StyleComputer::set_all_properties(
     CascadedProperties& cascaded_properties,
     DOM::Element& element,
-    Optional<Selector::PseudoElement::Type> pseudo_element,
+    Optional<PseudoElement> pseudo_element,
     CSSStyleValue const& value,
     DOM::Document& document,
     GC::Ptr<CSSStyleDeclaration const> declaration,
@@ -1019,7 +1019,7 @@ void StyleComputer::set_all_properties(
 void StyleComputer::cascade_declarations(
     CascadedProperties& cascaded_properties,
     DOM::Element& element,
-    Optional<CSS::Selector::PseudoElement::Type> pseudo_element,
+    Optional<CSS::PseudoElement> pseudo_element,
     Vector<MatchingRule const*> const& matching_rules,
     CascadeOrigin cascade_origin,
     Important important,
@@ -1064,7 +1064,7 @@ void StyleComputer::cascade_declarations(
     }
 }
 
-static void cascade_custom_properties(DOM::Element& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, Vector<MatchingRule const*> const& matching_rules, HashMap<FlyString, StyleProperty>& custom_properties)
+static void cascade_custom_properties(DOM::Element& element, Optional<CSS::PseudoElement> pseudo_element, Vector<MatchingRule const*> const& matching_rules, HashMap<FlyString, StyleProperty>& custom_properties)
 {
     size_t needed_capacity = 0;
     for (auto const& matching_rule : matching_rules)
@@ -1094,7 +1094,7 @@ static void cascade_custom_properties(DOM::Element& element, Optional<CSS::Selec
     }
 }
 
-void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, GC::Ref<Animations::KeyframeEffect> effect, ComputedProperties& computed_properties, AnimationRefresh refresh) const
+void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::PseudoElement> pseudo_element, GC::Ref<Animations::KeyframeEffect> effect, ComputedProperties& computed_properties, AnimationRefresh refresh) const
 {
     auto animation = effect->associated_animation();
     if (!animation)
@@ -1285,7 +1285,7 @@ static void apply_dimension_attribute(CascadedProperties& cascaded_properties, D
     cascaded_properties.set_property_from_presentational_hint(property_id, parsed_value.release_nonnull());
 }
 
-static void compute_transitioned_properties(ComputedProperties const& style, DOM::Element& element, Optional<Selector::PseudoElement::Type> pseudo_element)
+static void compute_transitioned_properties(ComputedProperties const& style, DOM::Element& element, Optional<PseudoElement> pseudo_element)
 {
     // FIXME: Implement transitioning for pseudo-elements
     (void)pseudo_element;
@@ -1369,7 +1369,7 @@ static void compute_transitioned_properties(ComputedProperties const& style, DOM
 }
 
 // https://drafts.csswg.org/css-transitions/#starting
-void StyleComputer::start_needed_transitions(ComputedProperties const& previous_style, ComputedProperties& new_style, DOM::Element& element, Optional<Selector::PseudoElement::Type> pseudo_element) const
+void StyleComputer::start_needed_transitions(ComputedProperties const& previous_style, ComputedProperties& new_style, DOM::Element& element, Optional<PseudoElement> pseudo_element) const
 {
     // FIXME: Implement transitions for pseudo-elements
     if (pseudo_element.has_value())
@@ -1563,7 +1563,7 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
 
 // https://www.w3.org/TR/css-cascade/#cascading
 // https://drafts.csswg.org/css-cascade-5/#layering
-GC::Ref<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Element& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, bool& did_match_any_pseudo_element_rules, bool& did_match_any_hover_rules, ComputeStyleMode mode) const
+GC::Ref<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Element& element, Optional<CSS::PseudoElement> pseudo_element, bool& did_match_any_pseudo_element_rules, bool& did_match_any_hover_rules, ComputeStyleMode mode) const
 {
     auto cascaded_properties = m_document->heap().allocate<CascadedProperties>();
 
@@ -1652,7 +1652,7 @@ GC::Ref<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Element&
     return cascaded_properties;
 }
 
-DOM::Element const* element_to_inherit_style_from(DOM::Element const* element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element)
+DOM::Element const* element_to_inherit_style_from(DOM::Element const* element, Optional<CSS::PseudoElement> pseudo_element)
 {
     // Pseudo-elements treat their originating element as their parent.
     DOM::Element const* parent_element = nullptr;
@@ -1664,7 +1664,7 @@ DOM::Element const* element_to_inherit_style_from(DOM::Element const* element, O
     return parent_element;
 }
 
-NonnullRefPtr<CSSStyleValue const> StyleComputer::get_inherit_value(CSS::PropertyID property_id, DOM::Element const* element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element)
+NonnullRefPtr<CSSStyleValue const> StyleComputer::get_inherit_value(CSS::PropertyID property_id, DOM::Element const* element, Optional<CSS::PseudoElement> pseudo_element)
 {
     auto* parent_element = element_to_inherit_style_from(element, pseudo_element);
 
@@ -1673,7 +1673,7 @@ NonnullRefPtr<CSSStyleValue const> StyleComputer::get_inherit_value(CSS::Propert
     return parent_element->computed_properties()->property(property_id);
 }
 
-void StyleComputer::compute_defaulted_property_value(ComputedProperties& style, DOM::Element const* element, CSS::PropertyID property_id, Optional<CSS::Selector::PseudoElement::Type> pseudo_element) const
+void StyleComputer::compute_defaulted_property_value(ComputedProperties& style, DOM::Element const* element, CSS::PropertyID property_id, Optional<CSS::PseudoElement> pseudo_element) const
 {
     // FIXME: If we don't know the correct initial value for a property, we fall back to `initial`.
 
@@ -1717,7 +1717,7 @@ void StyleComputer::compute_defaulted_property_value(ComputedProperties& style, 
 }
 
 // https://www.w3.org/TR/css-cascade/#defaulting
-void StyleComputer::compute_defaulted_values(ComputedProperties& style, DOM::Element const* element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element) const
+void StyleComputer::compute_defaulted_values(ComputedProperties& style, DOM::Element const* element, Optional<CSS::PseudoElement> pseudo_element) const
 {
     // Walk the list of all known CSS properties and:
     // - Add them to `style` if they are missing.
@@ -1880,7 +1880,7 @@ CSSPixelFraction StyleComputer::absolute_size_mapping(Keyword keyword)
     }
 }
 
-RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(DOM::Element const* element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, CSSStyleValue const& font_family, CSSStyleValue const& font_size, CSSStyleValue const& font_style, CSSStyleValue const& font_weight, CSSStyleValue const& font_stretch, int math_depth) const
+RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(DOM::Element const* element, Optional<CSS::PseudoElement> pseudo_element, CSSStyleValue const& font_family, CSSStyleValue const& font_size, CSSStyleValue const& font_style, CSSStyleValue const& font_weight, CSSStyleValue const& font_stretch, int math_depth) const
 {
     auto* parent_element = element_to_inherit_style_from(element, pseudo_element);
 
@@ -2100,7 +2100,7 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
     return font_list;
 }
 
-void StyleComputer::compute_font(ComputedProperties& style, DOM::Element const* element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element) const
+void StyleComputer::compute_font(ComputedProperties& style, DOM::Element const* element, Optional<CSS::PseudoElement> pseudo_element) const
 {
     // To compute the font, first ensure that we've defaulted the relevant CSS font properties.
     // FIXME: This should be more sophisticated.
@@ -2211,7 +2211,7 @@ void StyleComputer::resolve_effective_overflow_values(ComputedProperties& style)
     }
 }
 
-static void compute_text_align(ComputedProperties& style, DOM::Element const& element, Optional<Selector::PseudoElement::Type> pseudo_element)
+static void compute_text_align(ComputedProperties& style, DOM::Element const& element, Optional<PseudoElement> pseudo_element)
 {
     // https://drafts.csswg.org/css-text-4/#valdef-text-align-match-parent
     // This value behaves the same as inherit (computes to its parent’s computed value) except that an inherited
@@ -2261,7 +2261,7 @@ enum class BoxTypeTransformation {
     Inlinify,
 };
 
-static BoxTypeTransformation required_box_type_transformation(ComputedProperties const& style, DOM::Element const& element, Optional<CSS::Selector::PseudoElement::Type> const& pseudo_element)
+static BoxTypeTransformation required_box_type_transformation(ComputedProperties const& style, DOM::Element const& element, Optional<CSS::PseudoElement> const& pseudo_element)
 {
     // NOTE: We never blockify <br> elements. They are always inline.
     //       There is currently no way to express in CSS how a <br> element really behaves.
@@ -2289,7 +2289,7 @@ static BoxTypeTransformation required_box_type_transformation(ComputedProperties
 }
 
 // https://drafts.csswg.org/css-display/#transformations
-void StyleComputer::transform_box_type_if_needed(ComputedProperties& style, DOM::Element const& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element) const
+void StyleComputer::transform_box_type_if_needed(ComputedProperties& style, DOM::Element const& element, Optional<CSS::PseudoElement> pseudo_element) const
 {
     // 2.7. Automatic Box Type Transformations
 
@@ -2391,17 +2391,17 @@ GC::Ref<ComputedProperties> StyleComputer::create_document_style() const
     return style;
 }
 
-GC::Ref<ComputedProperties> StyleComputer::compute_style(DOM::Element& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element) const
+GC::Ref<ComputedProperties> StyleComputer::compute_style(DOM::Element& element, Optional<CSS::PseudoElement> pseudo_element) const
 {
     return *compute_style_impl(element, move(pseudo_element), ComputeStyleMode::Normal);
 }
 
-GC::Ptr<ComputedProperties> StyleComputer::compute_pseudo_element_style_if_needed(DOM::Element& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element) const
+GC::Ptr<ComputedProperties> StyleComputer::compute_pseudo_element_style_if_needed(DOM::Element& element, Optional<CSS::PseudoElement> pseudo_element) const
 {
     return compute_style_impl(element, move(pseudo_element), ComputeStyleMode::CreatePseudoElementStyleIfNeeded);
 }
 
-GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::Element& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, ComputeStyleMode mode) const
+GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::Element& element, Optional<CSS::PseudoElement> pseudo_element, ComputeStyleMode mode) const
 {
     build_rule_cache_if_needed();
 
@@ -2451,7 +2451,7 @@ GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::Element& elem
             // NOTE: `normal` is the initial value, so the absence of a value is treated as `normal`.
             content_is_normal = true;
         }
-        if (content_is_normal && first_is_one_of(*pseudo_element, CSS::Selector::PseudoElement::Type::Before, CSS::Selector::PseudoElement::Type::After)) {
+        if (content_is_normal && first_is_one_of(*pseudo_element, CSS::PseudoElement::Before, CSS::PseudoElement::After)) {
             return {};
         }
     }
@@ -2483,7 +2483,7 @@ static bool is_monospace(CSSStyleValue const& value)
 //       https://manishearth.github.io/blog/2017/08/10/font-size-an-unexpectedly-complex-css-property/
 RefPtr<CSSStyleValue> StyleComputer::recascade_font_size_if_needed(
     DOM::Element& element,
-    Optional<CSS::Selector::PseudoElement::Type> pseudo_element,
+    Optional<CSS::PseudoElement> pseudo_element,
     CascadedProperties& cascaded_properties) const
 {
     // Check for `font-family: monospace`. Note that `font-family: monospace, AnythingElse` does not trigger this path.
@@ -2545,7 +2545,7 @@ RefPtr<CSSStyleValue> StyleComputer::recascade_font_size_if_needed(
     return CSS::LengthStyleValue::create(CSS::Length::make_px(current_size_in_px));
 }
 
-GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::Element& element, Optional<Selector::PseudoElement::Type> pseudo_element, CascadedProperties& cascaded_properties) const
+GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::Element& element, Optional<PseudoElement> pseudo_element, CascadedProperties& cascaded_properties) const
 {
     auto computed_style = document().heap().allocate<CSS::ComputedProperties>();
 
@@ -2620,7 +2620,7 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::Element& elem
                 animation->set_effect(effect);
                 apply_animation_properties(m_document, cascaded_properties, animation);
                 if (pseudo_element.has_value())
-                    effect->set_pseudo_element(Selector::PseudoElement { pseudo_element.value() });
+                    effect->set_pseudo_element(Selector::PseudoElementSelector { pseudo_element.value() });
 
                 if (auto* rule_cache = rule_cache_for_cascade_origin(CascadeOrigin::Author, {}, {})) {
                     if (auto keyframe_set = rule_cache->rules_by_animation_keyframes.get(animation->id()); keyframe_set.has_value())
@@ -2811,7 +2811,7 @@ void StyleComputer::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_ori
                 auto& rule_cache = qualified_layer_name.is_empty() ? rule_caches.main : *rule_caches.by_layer.ensure(qualified_layer_name, [] { return make<RuleCache>(); });
 
                 bool contains_root_pseudo_class = false;
-                Optional<CSS::Selector::PseudoElement::Type> pseudo_element;
+                Optional<CSS::PseudoElement> pseudo_element;
 
                 collect_selector_insights(selector, insights);
 
@@ -3072,7 +3072,7 @@ void StyleComputer::unload_fonts_from_sheet(CSSStyleSheet& sheet)
     }
 }
 
-void StyleComputer::compute_math_depth(ComputedProperties& style, DOM::Element const* element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element) const
+void StyleComputer::compute_math_depth(ComputedProperties& style, DOM::Element const* element, Optional<CSS::PseudoElement> pseudo_element) const
 {
     // https://w3c.github.io/mathml-core/#propdef-math-depth
 
@@ -3183,7 +3183,7 @@ bool StyleComputer::have_has_selectors() const
     return m_selector_insights->has_has_selectors;
 }
 
-void RuleCache::add_rule(MatchingRule const& matching_rule, Optional<Selector::PseudoElement::Type> pseudo_element, bool contains_root_pseudo_class)
+void RuleCache::add_rule(MatchingRule const& matching_rule, Optional<PseudoElement> pseudo_element, bool contains_root_pseudo_class)
 {
     // NOTE: We traverse the simple selectors in reverse order to make sure that class/ID buckets are preferred over tag buckets
     //       in the common case of div.foo or div#foo selectors.
@@ -3230,7 +3230,7 @@ void RuleCache::add_rule(MatchingRule const& matching_rule, Optional<Selector::P
     }
 
     if (matching_rule.contains_pseudo_element && pseudo_element.has_value()) {
-        if (Selector::PseudoElement::is_known_pseudo_element_type(pseudo_element.value())) {
+        if (Selector::PseudoElementSelector::is_known_pseudo_element_type(pseudo_element.value())) {
             rules_by_pseudo_element[to_underlying(pseudo_element.value())].append(matching_rule);
         } else {
             // NOTE: We don't cache rules for unknown pseudo-elements. They can't match anything anyway.
@@ -3248,7 +3248,7 @@ void RuleCache::add_rule(MatchingRule const& matching_rule, Optional<Selector::P
     }
 }
 
-void RuleCache::for_each_matching_rules(DOM::Element const& element, Optional<Selector::PseudoElement::Type> pseudo_element, Function<IterationDecision(Vector<MatchingRule> const&)> callback) const
+void RuleCache::for_each_matching_rules(DOM::Element const& element, Optional<PseudoElement> pseudo_element, Function<IterationDecision(Vector<MatchingRule> const&)> callback) const
 {
     for (auto const& class_name : element.class_names()) {
         if (auto it = rules_by_class.find(class_name); it != rules_by_class.end()) {
@@ -3267,7 +3267,7 @@ void RuleCache::for_each_matching_rules(DOM::Element const& element, Optional<Se
             return;
     }
     if (pseudo_element.has_value()) {
-        if (Selector::PseudoElement::is_known_pseudo_element_type(pseudo_element.value())) {
+        if (Selector::PseudoElementSelector::is_known_pseudo_element_type(pseudo_element.value())) {
             if (callback(rules_by_pseudo_element.at(to_underlying(pseudo_element.value()))) == IterationDecision::Break)
                 return;
         } else {
