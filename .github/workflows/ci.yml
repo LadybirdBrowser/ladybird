@@ -7,23 +7,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  lint_code:
-    name: 'Lint Code'
-    uses: ./.github/workflows/lint-code.yml
-
-  lint_commits:
-    name: 'Lint Commits'
-    if: ${{ github.event_name == 'pull_request' }}
-    uses: ./.github/workflows/lint-commits.yml
-
   # CI matrix - runs the job in lagom-template.yml with different configurations.
   Lagom:
-    needs: [lint_code, lint_commits]
-    if: |
-      always()
-      && github.repository == 'LadybirdBrowser/ladybird'
-      && needs.lint_code.result == 'success'
-      && (needs.lint_commits.result == 'skipped' || needs.lint_commits.result == 'success')
+    if: github.repository == 'LadybirdBrowser/ladybird'
 
     strategy:
       fail-fast: false

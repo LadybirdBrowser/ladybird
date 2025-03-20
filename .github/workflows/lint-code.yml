@@ -1,7 +1,6 @@
 name: Lint Code
 
-# Used by ci.yml
-on: [workflow_call]
+on: [ push, pull_request ]
 
 jobs:
   lint:
