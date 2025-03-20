@@ -4176,14 +4176,14 @@ RefPtr<CSSStyleValue> Parser::parse_grid_area_shorthand_value(TokenStream<Compon
     if (row_end_style_value)
         row_end = row_end_style_value.release_nonnull()->as_grid_track_placement().grid_track_placement();
     else
-        row_end = column_start;
+        row_end = row_start;
 
     // When grid-column-end is omitted, if grid-column-start is a <custom-ident>, grid-column-end is set to
     // that <custom-ident>; otherwise, it is set to auto.
     if (column_end_style_value)
         column_end = column_end_style_value.release_nonnull()->as_grid_track_placement().grid_track_placement();
     else
-        column_end = row_end;
+        column_end = column_start;
 
     transaction.commit();
     return ShorthandStyleValue::create(PropertyID::GridArea,
