@@ -7,9 +7,18 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  lint_code:
+    name: 'Lint Code'
+    uses: ./.github/workflows/lint-code.yml
+
+  lint_commits:
+    name: 'Lint Commits'
+    uses: ./.github/workflows/lint-commits.yml
+
   # CI matrix - runs the job in lagom-template.yml with different configurations.
   Lagom:
     if: github.repository == 'LadybirdBrowser/ladybird'
+    needs: [lint_code, lint_commits]
 
     strategy:
       fail-fast: false
