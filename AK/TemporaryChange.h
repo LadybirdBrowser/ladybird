@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Platform.h>
+#include <AK/StdLibExtras.h>
 
 namespace AK {
 
@@ -15,11 +16,15 @@ class TemporaryChange {
 public:
     TemporaryChange(T& variable, T value)
         : m_variable(variable)
-        , m_old_value(move(variable))
+        , m_old_value(AK::move(variable))
     {
-        m_variable = move(value);
+        m_variable = AK::move(value);
     }
-    ~TemporaryChange() { m_variable = move(m_old_value); }
+
+    ~TemporaryChange()
+    {
+        m_variable = AK::move(m_old_value);
+    }
 
 private:
     T& m_variable;
