@@ -10,6 +10,7 @@
 #import <DOM/ParentNode.idl>
 #import <DOM/ShadowRoot.idl>
 #import <DOM/Slottable.idl>
+#import <Fullscreen/ElementExtensions.idl>
 #import <Geometry/DOMRect.idl>
 #import <Geometry/DOMRectList.idl>
 #import <HTML/HTMLSlotElement.idl>
