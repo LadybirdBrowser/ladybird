@@ -186,7 +186,7 @@ void TreeBuilder::insert_node_into_inline_or_block_ancestor(Layout::Node& node, 
     }
 }
 
-void TreeBuilder::create_pseudo_element_if_needed(DOM::Element& element, CSS::Selector::PseudoElement::Type pseudo_element, AppendOrPrepend mode)
+void TreeBuilder::create_pseudo_element_if_needed(DOM::Element& element, CSS::PseudoElement pseudo_element, AppendOrPrepend mode)
 {
     auto& document = element.document();
 
@@ -213,7 +213,7 @@ void TreeBuilder::create_pseudo_element_if_needed(DOM::Element& element, CSS::Se
 
     // FIXME: This code actually computes style for element::marker, and shouldn't for element::pseudo::marker
     if (is<ListItemBox>(*pseudo_element_node)) {
-        auto marker_style = style_computer.compute_style(element, CSS::Selector::PseudoElement::Type::Marker);
+        auto marker_style = style_computer.compute_style(element, CSS::PseudoElement::Marker);
         auto list_item_marker = document.heap().allocate<ListItemMarkerBox>(
             document,
             pseudo_element_node->computed_values().list_style_type(),
@@ -221,14 +221,14 @@ void TreeBuilder::create_pseudo_element_if_needed(DOM::Element& element, CSS::Se
             element,
             marker_style);
         static_cast<ListItemBox&>(*pseudo_element_node).set_marker(list_item_marker);
-        element.set_pseudo_element_node({}, CSS::Selector::PseudoElement::Type::Marker, list_item_marker);
+        element.set_pseudo_element_node({}, CSS::PseudoElement::Marker, list_item_marker);
         pseudo_element_node->append_child(*list_item_marker);
     }
 
     auto generated_for = Node::GeneratedFor::NotGenerated;
-    if (pseudo_element == CSS::Selector::PseudoElement::Type::Before) {
+    if (pseudo_element == CSS::PseudoElement::Before) {
         generated_for = Node::GeneratedFor::PseudoBefore;
-    } else if (pseudo_element == CSS::Selector::PseudoElement::Type::After) {
+    } else if (pseudo_element == CSS::PseudoElement::After) {
         generated_for = Node::GeneratedFor::PseudoAfter;
     } else {
         VERIFY_NOT_REACHED();
@@ -694,7 +694,7 @@ void TreeBuilder::update_layout_tree_before_children(DOM::Node& dom_node, GC::Re
     if (is<DOM::Element>(dom_node) && layout_node->can_have_children() && !element_has_content_visibility_hidden) {
         auto& element = static_cast<DOM::Element&>(dom_node);
         push_parent(as<NodeWithStyle>(*layout_node));
-        create_pseudo_element_if_needed(element, CSS::Selector::PseudoElement::Type::Before, AppendOrPrepend::Prepend);
+        create_pseudo_element_if_needed(element, CSS::PseudoElement::Before, AppendOrPrepend::Prepend);
         pop_parent();
     }
 }
@@ -706,10 +706,10 @@ void TreeBuilder::update_layout_tree_after_children(DOM::Node& dom_node, GC::Ref
 
     if (is<ListItemBox>(*layout_node)) {
         auto& element = static_cast<DOM::Element&>(dom_node);
-        auto marker_style = style_computer.compute_style(element, CSS::Selector::PseudoElement::Type::Marker);
+        auto marker_style = style_computer.compute_style(element, CSS::PseudoElement::Marker);
         auto list_item_marker = document.heap().allocate<ListItemMarkerBox>(document, layout_node->computed_values().list_style_type(), layout_node->computed_values().list_style_position(), element, marker_style);
         static_cast<ListItemBox&>(*layout_node).set_marker(list_item_marker);
-        element.set_pseudo_element_node({}, CSS::Selector::PseudoElement::Type::Marker, list_item_marker);
+        element.set_pseudo_element_node({}, CSS::PseudoElement::Marker, list_item_marker);
         layout_node->append_child(*list_item_marker);
     }
 
@@ -735,7 +735,7 @@ void TreeBuilder::update_layout_tree_after_children(DOM::Node& dom_node, GC::Ref
     if (is<DOM::Element>(dom_node) && layout_node->can_have_children() && !element_has_content_visibility_hidden) {
         auto& element = static_cast<DOM::Element&>(dom_node);
         push_parent(as<NodeWithStyle>(*layout_node));
-        create_pseudo_element_if_needed(element, CSS::Selector::PseudoElement::Type::After, AppendOrPrepend::Append);
+        create_pseudo_element_if_needed(element, CSS::PseudoElement::After, AppendOrPrepend::Append);
         pop_parent();
     }
 }

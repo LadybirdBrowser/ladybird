@@ -791,7 +791,7 @@ WebIDL::ExceptionOr<void> KeyframeEffect::set_pseudo_element(Optional<String> va
     return {};
 }
 
-Optional<CSS::Selector::PseudoElement::Type> KeyframeEffect::pseudo_element_type() const
+Optional<CSS::PseudoElement> KeyframeEffect::pseudo_element_type() const
 {
     if (!m_target_pseudo_selector.has_value())
         return {};

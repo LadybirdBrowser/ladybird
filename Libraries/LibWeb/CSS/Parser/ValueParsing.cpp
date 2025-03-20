@@ -3555,7 +3555,7 @@ RefPtr<StringStyleValue> Parser::parse_opentype_tag_value(TokenStream<ComponentV
     return string_value;
 }
 
-NonnullRefPtr<CSSStyleValue> Parser::resolve_unresolved_style_value(ParsingParams const& context, DOM::Element& element, Optional<Selector::PseudoElement::Type> pseudo_element, PropertyID property_id, UnresolvedStyleValue const& unresolved)
+NonnullRefPtr<CSSStyleValue> Parser::resolve_unresolved_style_value(ParsingParams const& context, DOM::Element& element, Optional<PseudoElement> pseudo_element, PropertyID property_id, UnresolvedStyleValue const& unresolved)
 {
     // Unresolved always contains a var() or attr(), unless it is a custom property's value, in which case we shouldn't be trying
     // to produce a different CSSStyleValue from it.
@@ -3610,7 +3610,7 @@ private:
     bool m_marked { false };
 };
 
-NonnullRefPtr<CSSStyleValue> Parser::resolve_unresolved_style_value(DOM::Element& element, Optional<Selector::PseudoElement::Type> pseudo_element, PropertyID property_id, UnresolvedStyleValue const& unresolved)
+NonnullRefPtr<CSSStyleValue> Parser::resolve_unresolved_style_value(DOM::Element& element, Optional<PseudoElement> pseudo_element, PropertyID property_id, UnresolvedStyleValue const& unresolved)
 {
     TokenStream unresolved_values_without_variables_expanded { unresolved.values() };
     Vector<ComponentValue> values_with_variables_expanded;
@@ -3639,7 +3639,7 @@ NonnullRefPtr<CSSStyleValue> Parser::resolve_unresolved_style_value(DOM::Element
     return CSSKeywordValue::create(Keyword::Unset);
 }
 
-static RefPtr<CSSStyleValue const> get_custom_property(DOM::Element const& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, FlyString const& custom_property_name)
+static RefPtr<CSSStyleValue const> get_custom_property(DOM::Element const& element, Optional<CSS::PseudoElement> pseudo_element, FlyString const& custom_property_name)
 {
     if (pseudo_element.has_value()) {
         if (auto it = element.custom_properties(pseudo_element).find(custom_property_name); it != element.custom_properties(pseudo_element).end())
@@ -3653,7 +3653,7 @@ static RefPtr<CSSStyleValue const> get_custom_property(DOM::Element const& eleme
     return nullptr;
 }
 
-bool Parser::expand_variables(DOM::Element& element, Optional<Selector::PseudoElement::Type> pseudo_element, FlyString const& property_name, HashMap<FlyString, NonnullRefPtr<PropertyDependencyNode>>& dependencies, TokenStream<ComponentValue>& source, Vector<ComponentValue>& dest)
+bool Parser::expand_variables(DOM::Element& element, Optional<PseudoElement> pseudo_element, FlyString const& property_name, HashMap<FlyString, NonnullRefPtr<PropertyDependencyNode>>& dependencies, TokenStream<ComponentValue>& source, Vector<ComponentValue>& dest)
 {
     // Arbitrary large value chosen to avoid the billion-laughs attack.
     // https://www.w3.org/TR/css-variables-1/#long-variables

@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -19,56 +19,56 @@ namespace Web::CSS {
 
 using SelectorList = Vector<NonnullRefPtr<class Selector>>;
 
+enum class PseudoElement : u8 {
+    Before,
+    After,
+    FirstLine,
+    FirstLetter,
+    Marker,
+    Track,
+    Fill,
+    Thumb,
+    Placeholder,
+    Selection,
+    Backdrop,
+    FileSelectorButton,
+    DetailsContent,
+
+    // Keep this last.
+    KnownPseudoElementCount,
+
+    // https://www.w3.org/TR/selectors-4/#compat
+    // NOTE: This is not last as the 'unknown -webkit- pseudo-elements' are not stored as part of any Element.
+    UnknownWebKit,
+};
+
 // This is a <complex-selector> in the spec. https://www.w3.org/TR/selectors-4/#complex
 class Selector : public RefCounted<Selector> {
 public:
-    class PseudoElement {
+    class PseudoElementSelector {
     public:
-        enum class Type : u8 {
-            Before,
-            After,
-            FirstLine,
-            FirstLetter,
-            Marker,
-            Track,
-            Fill,
-            Thumb,
-            Placeholder,
-            Selection,
-            Backdrop,
-            FileSelectorButton,
-            DetailsContent,
-
-            // Keep this last.
-            KnownPseudoElementCount,
-
-            // https://www.w3.org/TR/selectors-4/#compat
-            // NOTE: This is not last as the 'unknown -webkit- pseudo-elements' are not stored as part of any Element.
-            UnknownWebKit,
-        };
-
-        explicit PseudoElement(Type type)
+        explicit PseudoElementSelector(PseudoElement type)
             : m_type(type)
         {
             VERIFY(is_known_pseudo_element_type(type));
         }
 
-        PseudoElement(Type type, String name)
+        PseudoElementSelector(PseudoElement type, String name)
             : m_type(type)
             , m_name(move(name))
         {
         }
 
-        bool operator==(PseudoElement const&) const = default;
+        bool operator==(PseudoElementSelector const&) const = default;
 
-        static Optional<PseudoElement> from_string(FlyString const&);
+        static Optional<PseudoElementSelector> from_string(FlyString const&);
 
-        [[nodiscard]] static bool is_known_pseudo_element_type(Type type)
+        [[nodiscard]] static bool is_known_pseudo_element_type(PseudoElement type)
         {
-            return to_underlying(type) < to_underlying(CSS::Selector::PseudoElement::Type::KnownPseudoElementCount);
+            return to_underlying(type) < to_underlying(PseudoElement::KnownPseudoElementCount);
         }
 
-        static StringView name(Selector::PseudoElement::Type pseudo_element);
+        static StringView name(PseudoElement pseudo_element);
 
         StringView name() const
         {
@@ -78,10 +78,10 @@ public:
             return name(m_type);
         }
 
-        Type type() const { return m_type; }
+        PseudoElement type() const { return m_type; }
 
     private:
-        Type m_type;
+        PseudoElement m_type;
         String m_name;
     };
 
@@ -206,14 +206,14 @@ public:
         };
 
         Type type;
-        Variant<Empty, Attribute, PseudoClassSelector, PseudoElement, Name, QualifiedName, Invalid> value {};
+        Variant<Empty, Attribute, PseudoClassSelector, PseudoElementSelector, Name, QualifiedName, Invalid> value {};
 
         Attribute const& attribute() const { return value.get<Attribute>(); }
         Attribute& attribute() { return value.get<Attribute>(); }
         PseudoClassSelector const& pseudo_class() const { return value.get<PseudoClassSelector>(); }
         PseudoClassSelector& pseudo_class() { return value.get<PseudoClassSelector>(); }
-        PseudoElement const& pseudo_element() const { return value.get<PseudoElement>(); }
-        PseudoElement& pseudo_element() { return value.get<PseudoElement>(); }
+        PseudoElementSelector const& pseudo_element() const { return value.get<PseudoElementSelector>(); }
+        PseudoElementSelector& pseudo_element() { return value.get<PseudoElementSelector>(); }
 
         FlyString const& name() const { return value.get<Name>().name; }
         FlyString& name() { return value.get<Name>().name; }
@@ -253,7 +253,7 @@ public:
     ~Selector() = default;
 
     Vector<CompoundSelector> const& compound_selectors() const { return m_compound_selectors; }
-    Optional<PseudoElement> const& pseudo_element() const { return m_pseudo_element; }
+    Optional<PseudoElementSelector> const& pseudo_element() const { return m_pseudo_element; }
     NonnullRefPtr<Selector> relative_to(SimpleSelector const&) const;
     bool contains_the_nesting_selector() const { return m_contains_the_nesting_selector; }
     bool contains_hover_pseudo_class() const { return m_contains_hover_pseudo_class; }
@@ -274,7 +274,7 @@ private:
 
     Vector<CompoundSelector> m_compound_selectors;
     mutable Optional<u32> m_specificity;
-    Optional<Selector::PseudoElement> m_pseudo_element;
+    Optional<Selector::PseudoElementSelector> m_pseudo_element;
     mutable Optional<size_t> m_sibling_invalidation_distance;
     bool m_can_use_fast_matches { false };
     bool m_can_use_ancestor_filter { false };
@@ -290,7 +290,7 @@ String serialize_a_group_of_selectors(SelectorList const& selectors);
 
 SelectorList adapt_nested_relative_selector_list(SelectorList const&);
 
-bool is_has_allowed_pseudo_element(Selector::PseudoElement::Type);
+bool is_has_allowed_pseudo_element(PseudoElement);
 
 }
 

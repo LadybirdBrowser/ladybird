@@ -35,10 +35,10 @@ public:
     using OnDOMNodePropertiesReceived = Function<void(WebView::DOMNodeProperties)>;
     virtual void listen_for_dom_properties(TabDescription const&, OnDOMNodePropertiesReceived) const { }
     virtual void stop_listening_for_dom_properties(TabDescription const&) const { }
-    virtual void inspect_dom_node(TabDescription const&, WebView::DOMNodeProperties::Type, Web::UniqueNodeID, Optional<Web::CSS::Selector::PseudoElement::Type>) const { }
+    virtual void inspect_dom_node(TabDescription const&, WebView::DOMNodeProperties::Type, Web::UniqueNodeID, Optional<Web::CSS::PseudoElement>) const { }
     virtual void clear_inspected_dom_node(TabDescription const&) const { }
 
-    virtual void highlight_dom_node(TabDescription const&, Web::UniqueNodeID, Optional<Web::CSS::Selector::PseudoElement::Type>) const { }
+    virtual void highlight_dom_node(TabDescription const&, Web::UniqueNodeID, Optional<Web::CSS::PseudoElement>) const { }
     virtual void clear_highlighted_dom_node(TabDescription const&) const { }
 
     using OnDOMMutationReceived = Function<void(WebView::Mutation)>;

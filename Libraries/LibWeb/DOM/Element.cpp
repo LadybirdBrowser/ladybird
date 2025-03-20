@@ -547,7 +547,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style()
     }
 
     // Any document change that can cause this element's style to change, could also affect its pseudo-elements.
-    auto recompute_pseudo_element_style = [&](CSS::Selector::PseudoElement::Type pseudo_element) {
+    auto recompute_pseudo_element_style = [&](CSS::PseudoElement pseudo_element) {
         style_computer.push_ancestor(*this);
 
         auto pseudo_element_style = pseudo_element_computed_properties(pseudo_element);
@@ -564,10 +564,10 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style()
         style_computer.pop_ancestor(*this);
     };
 
-    recompute_pseudo_element_style(CSS::Selector::PseudoElement::Type::Before);
-    recompute_pseudo_element_style(CSS::Selector::PseudoElement::Type::After);
+    recompute_pseudo_element_style(CSS::PseudoElement::Before);
+    recompute_pseudo_element_style(CSS::PseudoElement::After);
     if (had_list_marker || m_computed_properties->display().is_list_item())
-        recompute_pseudo_element_style(CSS::Selector::PseudoElement::Type::Marker);
+        recompute_pseudo_element_style(CSS::PseudoElement::Marker);
 
     if (invalidation.is_none())
         return invalidation;
@@ -582,8 +582,8 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style()
             paintable()->set_needs_display();
 
         // Do the same for pseudo-elements.
-        for (auto i = 0; i < to_underlying(CSS::Selector::PseudoElement::Type::KnownPseudoElementCount); i++) {
-            auto pseudo_element_type = static_cast<CSS::Selector::PseudoElement::Type>(i);
+        for (auto i = 0; i < to_underlying(CSS::PseudoElement::KnownPseudoElementCount); i++) {
+            auto pseudo_element_type = static_cast<CSS::PseudoElement>(i);
             auto pseudo_element = get_pseudo_element(pseudo_element_type);
             if (!pseudo_element.has_value() || !pseudo_element->layout_node)
                 continue;
@@ -647,7 +647,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
     return invalidation;
 }
 
-GC::Ref<CSS::ComputedProperties> Element::resolved_css_values(Optional<CSS::Selector::PseudoElement::Type> type)
+GC::Ref<CSS::ComputedProperties> Element::resolved_css_values(Optional<CSS::PseudoElement> type)
 {
     auto element_computed_style = CSS::CSSStyleProperties::create_resolved_style({ *this, type });
     auto properties = heap().allocate<CSS::ComputedProperties>();
@@ -1180,20 +1180,20 @@ void Element::children_changed(ChildrenChangedMetadata const* metadata)
     set_needs_style_update(true);
 }
 
-void Element::set_pseudo_element_node(Badge<Layout::TreeBuilder>, CSS::Selector::PseudoElement::Type pseudo_element, GC::Ptr<Layout::NodeWithStyle> pseudo_element_node)
+void Element::set_pseudo_element_node(Badge<Layout::TreeBuilder>, CSS::PseudoElement pseudo_element, GC::Ptr<Layout::NodeWithStyle> pseudo_element_node)
 {
     auto existing_pseudo_element = get_pseudo_element(pseudo_element);
     if (!existing_pseudo_element.has_value() && !pseudo_element_node)
         return;
 
-    if (!CSS::Selector::PseudoElement::is_known_pseudo_element_type(pseudo_element)) {
+    if (!CSS::Selector::PseudoElementSelector::is_known_pseudo_element_type(pseudo_element)) {
         return;
     }
 
     ensure_pseudo_element(pseudo_element).layout_node = move(pseudo_element_node);
 }
 
-GC::Ptr<Layout::NodeWithStyle> Element::get_pseudo_element_node(CSS::Selector::PseudoElement::Type pseudo_element) const
+GC::Ptr<Layout::NodeWithStyle> Element::get_pseudo_element_node(CSS::PseudoElement pseudo_element) const
 {
     if (auto element_data = get_pseudo_element(pseudo_element); element_data.has_value())
         return element_data->layout_node;
@@ -1401,7 +1401,7 @@ void Element::serialize_pseudo_elements_as_json(JsonArraySerializer<StringBuilde
         if (!pseudo_element)
             continue;
         auto object = MUST(children_array.add_object());
-        MUST(object.add("name"sv, MUST(String::formatted("::{}", CSS::Selector::PseudoElement::name(static_cast<CSS::Selector::PseudoElement::Type>(i))))));
+        MUST(object.add("name"sv, MUST(String::formatted("::{}", CSS::Selector::PseudoElementSelector::name(static_cast<CSS::PseudoElement>(i))))));
         MUST(object.add("type"sv, "pseudo-element"));
         MUST(object.add("parent-id"sv, unique_id().value()));
         MUST(object.add("pseudo-element"sv, i));
@@ -2661,7 +2661,7 @@ size_t Element::attribute_list_size() const
     return m_attributes->length();
 }
 
-GC::Ptr<CSS::CascadedProperties> Element::cascaded_properties(Optional<CSS::Selector::PseudoElement::Type> pseudo_element) const
+GC::Ptr<CSS::CascadedProperties> Element::cascaded_properties(Optional<CSS::PseudoElement> pseudo_element) const
 {
     if (pseudo_element.has_value()) {
         auto pseudo_element_data = get_pseudo_element(pseudo_element.value());
@@ -2672,10 +2672,10 @@ GC::Ptr<CSS::CascadedProperties> Element::cascaded_properties(Optional<CSS::Sele
     return m_cascaded_properties;
 }
 
-void Element::set_cascaded_properties(Optional<CSS::Selector::PseudoElement::Type> pseudo_element, GC::Ptr<CSS::CascadedProperties> cascaded_properties)
+void Element::set_cascaded_properties(Optional<CSS::PseudoElement> pseudo_element, GC::Ptr<CSS::CascadedProperties> cascaded_properties)
 {
     if (pseudo_element.has_value()) {
-        if (pseudo_element.value() >= CSS::Selector::PseudoElement::Type::KnownPseudoElementCount)
+        if (pseudo_element.value() >= CSS::PseudoElement::KnownPseudoElementCount)
             return;
         ensure_pseudo_element(pseudo_element.value()).cascaded_properties = cascaded_properties;
     } else {
@@ -2689,19 +2689,19 @@ void Element::set_computed_properties(GC::Ptr<CSS::ComputedProperties> style)
     computed_properties_changed();
 }
 
-void Element::set_pseudo_element_computed_properties(CSS::Selector::PseudoElement::Type pseudo_element, GC::Ptr<CSS::ComputedProperties> style)
+void Element::set_pseudo_element_computed_properties(CSS::PseudoElement pseudo_element, GC::Ptr<CSS::ComputedProperties> style)
 {
     if (!m_pseudo_element_data && !style)
         return;
 
-    if (!CSS::Selector::PseudoElement::is_known_pseudo_element_type(pseudo_element)) {
+    if (!CSS::Selector::PseudoElementSelector::is_known_pseudo_element_type(pseudo_element)) {
         return;
     }
 
     ensure_pseudo_element(pseudo_element).computed_properties = style;
 }
 
-GC::Ptr<CSS::ComputedProperties> Element::pseudo_element_computed_properties(CSS::Selector::PseudoElement::Type type)
+GC::Ptr<CSS::ComputedProperties> Element::pseudo_element_computed_properties(CSS::PseudoElement type)
 {
     auto pseudo_element = get_pseudo_element(type);
     if (pseudo_element.has_value())
@@ -2709,48 +2709,48 @@ GC::Ptr<CSS::ComputedProperties> Element::pseudo_element_computed_properties(CSS
     return {};
 }
 
-Optional<Element::PseudoElement&> Element::get_pseudo_element(CSS::Selector::PseudoElement::Type type) const
+Optional<Element::PseudoElement&> Element::get_pseudo_element(CSS::PseudoElement type) const
 {
     if (!m_pseudo_element_data)
         return {};
 
-    if (!CSS::Selector::PseudoElement::is_known_pseudo_element_type(type)) {
+    if (!CSS::Selector::PseudoElementSelector::is_known_pseudo_element_type(type)) {
         return {};
     }
 
     return m_pseudo_element_data->at(to_underlying(type));
 }
 
-Element::PseudoElement& Element::ensure_pseudo_element(CSS::Selector::PseudoElement::Type type) const
+Element::PseudoElement& Element::ensure_pseudo_element(CSS::PseudoElement type) const
 {
     if (!m_pseudo_element_data)
         m_pseudo_element_data = make<PseudoElementData>();
 
-    VERIFY(CSS::Selector::PseudoElement::is_known_pseudo_element_type(type));
+    VERIFY(CSS::Selector::PseudoElementSelector::is_known_pseudo_element_type(type));
 
     return m_pseudo_element_data->at(to_underlying(type));
 }
 
-void Element::set_custom_properties(Optional<CSS::Selector::PseudoElement::Type> pseudo_element, HashMap<FlyString, CSS::StyleProperty> custom_properties)
+void Element::set_custom_properties(Optional<CSS::PseudoElement> pseudo_element, HashMap<FlyString, CSS::StyleProperty> custom_properties)
 {
     if (!pseudo_element.has_value()) {
         m_custom_properties = move(custom_properties);
         return;
     }
 
-    if (!CSS::Selector::PseudoElement::is_known_pseudo_element_type(pseudo_element.value())) {
+    if (!CSS::Selector::PseudoElementSelector::is_known_pseudo_element_type(pseudo_element.value())) {
         return;
     }
 
     ensure_pseudo_element(pseudo_element.value()).custom_properties = move(custom_properties);
 }
 
-HashMap<FlyString, CSS::StyleProperty> const& Element::custom_properties(Optional<CSS::Selector::PseudoElement::Type> pseudo_element) const
+HashMap<FlyString, CSS::StyleProperty> const& Element::custom_properties(Optional<CSS::PseudoElement> pseudo_element) const
 {
     if (!pseudo_element.has_value())
         return m_custom_properties;
 
-    VERIFY(CSS::Selector::PseudoElement::is_known_pseudo_element_type(pseudo_element.value()));
+    VERIFY(CSS::Selector::PseudoElementSelector::is_known_pseudo_element_type(pseudo_element.value()));
 
     return ensure_pseudo_element(pseudo_element.value()).custom_properties;
 }

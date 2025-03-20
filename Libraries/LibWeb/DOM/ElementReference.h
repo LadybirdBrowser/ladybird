@@ -14,7 +14,7 @@ namespace Web::DOM {
 
 class ElementReference {
 public:
-    ElementReference(GC::Ref<Element> element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element = {})
+    ElementReference(GC::Ref<Element> element, Optional<CSS::PseudoElement> pseudo_element = {})
         : m_element(element)
         , m_pseudo_element(move(pseudo_element))
     {
@@ -22,7 +22,7 @@ public:
 
     Element& element() { return m_element; }
     Element const& element() const { return m_element; }
-    Optional<CSS::Selector::PseudoElement::Type> pseudo_element() const { return m_pseudo_element; }
+    Optional<CSS::PseudoElement> pseudo_element() const { return m_pseudo_element; }
 
     void visit(GC::Cell::Visitor& visitor) const
     {
@@ -31,7 +31,7 @@ public:
 
 private:
     GC::Ref<Element> m_element;
-    Optional<CSS::Selector::PseudoElement::Type> m_pseudo_element;
+    Optional<CSS::PseudoElement> m_pseudo_element;
 };
 
 }

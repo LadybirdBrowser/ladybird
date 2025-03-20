@@ -91,8 +91,8 @@ public:
     Optional<String> pseudo_element() const;
     WebIDL::ExceptionOr<void> set_pseudo_element(Optional<String>);
 
-    Optional<CSS::Selector::PseudoElement::Type> pseudo_element_type() const;
-    void set_pseudo_element(Optional<CSS::Selector::PseudoElement> pseudo_element) { m_target_pseudo_selector = pseudo_element; }
+    Optional<CSS::PseudoElement> pseudo_element_type() const;
+    void set_pseudo_element(Optional<CSS::Selector::PseudoElementSelector> pseudo_element) { m_target_pseudo_selector = pseudo_element; }
 
     Bindings::CompositeOperation composite() const { return m_composite; }
     void set_composite(Bindings::CompositeOperation value) { m_composite = value; }
@@ -121,7 +121,7 @@ private:
     GC::Ptr<DOM::Element> m_target_element {};
 
     // https://www.w3.org/TR/web-animations-1/#dom-keyframeeffect-pseudoelement
-    Optional<CSS::Selector::PseudoElement> m_target_pseudo_selector {};
+    Optional<CSS::Selector::PseudoElementSelector> m_target_pseudo_selector {};
 
     // https://www.w3.org/TR/web-animations-1/#dom-keyframeeffect-composite
     Bindings::CompositeOperation m_composite { Bindings::CompositeOperation::Replace };

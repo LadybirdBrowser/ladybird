@@ -33,7 +33,7 @@ public:
     void revert_property(PropertyID, Important, CascadeOrigin);
     void revert_layer_property(PropertyID, Important, Optional<FlyString> layer_name);
 
-    void resolve_unresolved_properties(GC::Ref<DOM::Element>, Optional<Selector::PseudoElement::Type>);
+    void resolve_unresolved_properties(GC::Ref<DOM::Element>, Optional<PseudoElement>);
 
 private:
     CascadedProperties();

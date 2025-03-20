@@ -2750,7 +2750,7 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
             // b. For ::after pseudo elements, User agents MUST append CSS textual content, without a space, to the textual
             //    content of the current node. NOTE: The code for handling the ::after pseudo elements case is further below,
             //    following the “iii. For each child node of the current node” code.
-            if (auto before = element->get_pseudo_element_node(CSS::Selector::PseudoElement::Type::Before)) {
+            if (auto before = element->get_pseudo_element_node(CSS::PseudoElement::Before)) {
                 if (before->computed_values().content().alt_text.has_value())
                     total_accumulated_text.append(before->computed_values().content().alt_text.release_value());
                 else
@@ -2806,7 +2806,7 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
             }
 
             // NOTE: See step ii.b above.
-            if (auto after = element->get_pseudo_element_node(CSS::Selector::PseudoElement::Type::After)) {
+            if (auto after = element->get_pseudo_element_node(CSS::PseudoElement::After)) {
                 if (after->computed_values().content().alt_text.has_value())
                     total_accumulated_text.append(after->computed_values().content().alt_text.release_value());
                 else
@@ -2960,8 +2960,8 @@ void Node::play_or_cancel_animations_after_display_property_change()
         auto const& element = static_cast<Element const&>(node);
         if (auto animation = element.cached_animation_name_animation({}))
             play_or_cancel_depending_on_display(*animation);
-        for (auto i = 0; i < to_underlying(CSS::Selector::PseudoElement::Type::KnownPseudoElementCount); i++) {
-            auto pseudo_element = static_cast<CSS::Selector::PseudoElement::Type>(i);
+        for (auto i = 0; i < to_underlying(CSS::PseudoElement::KnownPseudoElementCount); i++) {
+            auto pseudo_element = static_cast<CSS::PseudoElement>(i);
             if (auto animation = element.cached_animation_name_animation(pseudo_element))
                 play_or_cancel_depending_on_display(*animation);
         }

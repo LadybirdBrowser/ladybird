@@ -14,6 +14,6 @@
 namespace Web::Animations {
 
 // https://drafts.csswg.org/web-animations-1/#dom-keyframeeffect-pseudo-element-parsing
-WebIDL::ExceptionOr<Optional<CSS::Selector::PseudoElement>> pseudo_element_parsing(JS::Realm&, Optional<String> const&);
+WebIDL::ExceptionOr<Optional<CSS::Selector::PseudoElementSelector>> pseudo_element_parsing(JS::Realm&, Optional<String> const&);
 
 }

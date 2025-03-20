@@ -192,8 +192,8 @@ public:
     CSS::RequiredInvalidationAfterStyleChange recompute_style();
     CSS::RequiredInvalidationAfterStyleChange recompute_inherited_style();
 
-    Optional<CSS::Selector::PseudoElement::Type> use_pseudo_element() const { return m_use_pseudo_element; }
-    void set_use_pseudo_element(Optional<CSS::Selector::PseudoElement::Type> use_pseudo_element) { m_use_pseudo_element = move(use_pseudo_element); }
+    Optional<CSS::PseudoElement> use_pseudo_element() const { return m_use_pseudo_element; }
+    void set_use_pseudo_element(Optional<CSS::PseudoElement> use_pseudo_element) { m_use_pseudo_element = move(use_pseudo_element); }
 
     GC::Ptr<Layout::NodeWithStyle> layout_node();
     GC::Ptr<Layout::NodeWithStyle const> layout_node() const;
@@ -201,13 +201,13 @@ public:
     GC::Ptr<CSS::ComputedProperties> computed_properties() { return m_computed_properties; }
     GC::Ptr<CSS::ComputedProperties const> computed_properties() const { return m_computed_properties; }
     void set_computed_properties(GC::Ptr<CSS::ComputedProperties>);
-    GC::Ref<CSS::ComputedProperties> resolved_css_values(Optional<CSS::Selector::PseudoElement::Type> = {});
+    GC::Ref<CSS::ComputedProperties> resolved_css_values(Optional<CSS::PseudoElement> = {});
 
-    [[nodiscard]] GC::Ptr<CSS::CascadedProperties> cascaded_properties(Optional<CSS::Selector::PseudoElement::Type>) const;
-    void set_cascaded_properties(Optional<CSS::Selector::PseudoElement::Type>, GC::Ptr<CSS::CascadedProperties>);
+    [[nodiscard]] GC::Ptr<CSS::CascadedProperties> cascaded_properties(Optional<CSS::PseudoElement>) const;
+    void set_cascaded_properties(Optional<CSS::PseudoElement>, GC::Ptr<CSS::CascadedProperties>);
 
-    void set_pseudo_element_computed_properties(CSS::Selector::PseudoElement::Type, GC::Ptr<CSS::ComputedProperties>);
-    GC::Ptr<CSS::ComputedProperties> pseudo_element_computed_properties(CSS::Selector::PseudoElement::Type);
+    void set_pseudo_element_computed_properties(CSS::PseudoElement, GC::Ptr<CSS::ComputedProperties>);
+    GC::Ptr<CSS::ComputedProperties> pseudo_element_computed_properties(CSS::PseudoElement);
 
     void reset_animated_css_properties();
 
@@ -242,8 +242,8 @@ public:
     GC::Ptr<ShadowRoot const> shadow_root() const { return m_shadow_root; }
     void set_shadow_root(GC::Ptr<ShadowRoot>);
 
-    void set_custom_properties(Optional<CSS::Selector::PseudoElement::Type>, HashMap<FlyString, CSS::StyleProperty> custom_properties);
-    [[nodiscard]] HashMap<FlyString, CSS::StyleProperty> const& custom_properties(Optional<CSS::Selector::PseudoElement::Type>) const;
+    void set_custom_properties(Optional<CSS::PseudoElement>, HashMap<FlyString, CSS::StyleProperty> custom_properties);
+    [[nodiscard]] HashMap<FlyString, CSS::StyleProperty> const& custom_properties(Optional<CSS::PseudoElement>) const;
 
     bool style_uses_css_custom_properties() const { return m_style_uses_css_custom_properties; }
     void set_style_uses_css_custom_properties(bool value) { m_style_uses_css_custom_properties = value; }
@@ -271,9 +271,9 @@ public:
     bool affected_by_hover() const;
     bool includes_properties_from_invalidation_set(CSS::InvalidationSet const&) const;
 
-    void set_pseudo_element_node(Badge<Layout::TreeBuilder>, CSS::Selector::PseudoElement::Type, GC::Ptr<Layout::NodeWithStyle>);
-    GC::Ptr<Layout::NodeWithStyle> get_pseudo_element_node(CSS::Selector::PseudoElement::Type) const;
-    bool has_pseudo_element(CSS::Selector::PseudoElement::Type) const;
+    void set_pseudo_element_node(Badge<Layout::TreeBuilder>, CSS::PseudoElement, GC::Ptr<Layout::NodeWithStyle>);
+    GC::Ptr<Layout::NodeWithStyle> get_pseudo_element_node(CSS::PseudoElement) const;
+    bool has_pseudo_element(CSS::PseudoElement) const;
     bool has_pseudo_elements() const;
     void clear_pseudo_element_nodes(Badge<Layout::TreeBuilder>);
     void serialize_pseudo_elements_as_json(JsonArraySerializer<StringBuilder>& children_array) const;
@@ -516,14 +516,14 @@ private:
         GC::Ptr<CSS::ComputedProperties> computed_properties;
         HashMap<FlyString, CSS::StyleProperty> custom_properties;
     };
-    // TODO: CSS::Selector::PseudoElement::Type includes a lot of pseudo-elements that exist in shadow trees,
+    // TODO: CSS::Selector::PseudoElement includes a lot of pseudo-elements that exist in shadow trees,
     //       and so we don't want to include data for them here.
-    using PseudoElementData = Array<PseudoElement, to_underlying(CSS::Selector::PseudoElement::Type::KnownPseudoElementCount)>;
+    using PseudoElementData = Array<PseudoElement, to_underlying(CSS::PseudoElement::KnownPseudoElementCount)>;
     mutable OwnPtr<PseudoElementData> m_pseudo_element_data;
-    Optional<PseudoElement&> get_pseudo_element(CSS::Selector::PseudoElement::Type) const;
-    PseudoElement& ensure_pseudo_element(CSS::Selector::PseudoElement::Type) const;
+    Optional<PseudoElement&> get_pseudo_element(CSS::PseudoElement) const;
+    PseudoElement& ensure_pseudo_element(CSS::PseudoElement) const;
 
-    Optional<CSS::Selector::PseudoElement::Type> m_use_pseudo_element;
+    Optional<CSS::PseudoElement> m_use_pseudo_element;
 
     Vector<FlyString> m_classes;
     Optional<Dir> m_dir;
@@ -603,11 +603,11 @@ inline bool Element::has_class(FlyString const& class_name, CaseSensitivity case
     });
 }
 
-inline bool Element::has_pseudo_element(CSS::Selector::PseudoElement::Type type) const
+inline bool Element::has_pseudo_element(CSS::PseudoElement type) const
 {
     if (!m_pseudo_element_data)
         return false;
-    if (!CSS::Selector::PseudoElement::is_known_pseudo_element_type(type))
+    if (!CSS::Selector::PseudoElementSelector::is_known_pseudo_element_type(type))
         return false;
     return m_pseudo_element_data->at(to_underlying(type)).layout_node;
 }
