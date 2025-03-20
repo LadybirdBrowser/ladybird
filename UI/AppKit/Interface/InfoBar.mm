@@ -28,7 +28,7 @@ static constexpr CGFloat const INFO_BAR_HEIGHT = 40;
     if (self = [super init]) {
         self.text_label = [NSTextField labelWithString:@""];
 
-        self.dismiss_button = [NSButton buttonWithImage:[NSImage imageNamed:NSImageNameStopProgressTemplate]
+        self.dismiss_button = [NSButton buttonWithTitle:@""
                                                  target:self
                                                  action:@selector(dismiss:)];
         [self.dismiss_button setBezelStyle:NSBezelStyleAccessoryBarAction];
@@ -46,13 +46,13 @@ static constexpr CGFloat const INFO_BAR_HEIGHT = 40;
 }
 
 - (void)showWithMessage:(NSString*)message
-    dismissButtonTooltip:(NSString*)tooltip
+      dismissButtonTitle:(NSString*)title
     dismissButtonClicked:(InfoBarDismissed)on_dimissed
                activeTab:(Tab*)tab
 {
     [self.text_label setStringValue:message];
 
-    [self.dismiss_button setToolTip:tooltip];
+    self.dismiss_button.title = title;
     self.on_dimissed = on_dimissed;
 
     if (tab) {

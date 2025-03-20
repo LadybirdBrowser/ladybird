@@ -726,8 +726,7 @@ void BrowserWindow::devtools_disabled()
 
 void BrowserWindow::devtools_enabled()
 {
-    auto* disable_button = new TabBarButton(create_tvg_icon_with_theme_colors("close", palette()), this);
-    disable_button->setToolTip("Disable DevTools");
+    auto* disable_button = new QPushButton("Disable", this);
 
     connect(disable_button, &QPushButton::clicked, this, [this]() {
         MUST(WebView::Application::the().toggle_devtools_enabled());
