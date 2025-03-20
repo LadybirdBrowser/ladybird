@@ -69,6 +69,8 @@ namespace Web::HTML::EventNames {
     __ENUMERATE_HTML_EVENT(focusin)                  \
     __ENUMERATE_HTML_EVENT(focusout)                 \
     __ENUMERATE_HTML_EVENT(formdata)                 \
+    __ENUMERATE_HTML_EVENT(fullscreenchange)         \
+    __ENUMERATE_HTML_EVENT(fullscreenerror)          \
     __ENUMERATE_HTML_EVENT(hashchange)               \
     __ENUMERATE_HTML_EVENT(input)                    \
     __ENUMERATE_HTML_EVENT(invalid)                  \
