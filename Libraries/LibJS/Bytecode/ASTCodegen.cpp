@@ -1616,9 +1616,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> VariableDeclaration::ge
         } else if (m_declaration_kind != DeclarationKind::Var) {
             (void)TRY(assign_value_to_variable_declarator(generator, declarator, *this, generator.add_constant(js_undefined())));
         }
-    }
 
-    for (auto& declarator : m_declarations) {
         if (auto const* identifier = declarator->target().get_pointer<NonnullRefPtr<Identifier const>>()) {
             if ((*identifier)->is_local()) {
                 generator.set_local_initialized((*identifier)->local_variable_index());
