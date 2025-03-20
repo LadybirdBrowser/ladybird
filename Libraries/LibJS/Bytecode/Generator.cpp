@@ -136,7 +136,19 @@ CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(E
             }
         }
     } else {
-        emit<Op::CreateVariableEnvironment>(function.m_var_environment_bindings_count);
+        bool has_non_local_parameters = false;
+        if (scope_body) {
+            for (auto const& variable_to_initialize : function.m_var_names_to_initialize_binding) {
+                auto const& id = variable_to_initialize.identifier;
+                if (!id.is_local()) {
+                    has_non_local_parameters = true;
+                    break;
+                }
+            }
+        }
+
+        if (has_non_local_parameters)
+            emit<Op::CreateVariableEnvironment>(function.m_var_environment_bindings_count);
 
         if (scope_body) {
             for (auto const& variable_to_initialize : function.m_var_names_to_initialize_binding) {
