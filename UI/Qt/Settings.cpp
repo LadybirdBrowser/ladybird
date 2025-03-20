@@ -7,27 +7,14 @@
  */
 
 #include <AK/LexicalPath.h>
-#include <UI/DefaultSettings.h>
 #include <UI/Qt/Settings.h>
 #include <UI/Qt/StringUtils.h>
 
 namespace Ladybird {
 
 Settings::Settings()
-    : m_search_engine(WebView::default_search_engine())
 {
     m_qsettings = make<QSettings>(QSettings::IniFormat, QSettings::UserScope, "Ladybird", "Ladybird", this);
-
-    auto default_search_engine = WebView::default_search_engine();
-    auto default_search_engine_name = qstring_from_ak_string(default_search_engine.name);
-
-    auto search_engine_name = m_qsettings->value("search_engine_name", default_search_engine_name).toString();
-    auto search_engine = WebView::find_search_engine_by_name(ak_string_from_qstring(search_engine_name));
-
-    if (search_engine.has_value())
-        m_search_engine = search_engine.release_value();
-    else
-        set_search_engine(move(default_search_engine));
 }
 
 ByteString Settings::directory()
@@ -67,13 +54,6 @@ void Settings::set_is_maximized(bool is_maximized)
     m_qsettings->setValue("is_maximized", is_maximized);
 }
 
-void Settings::set_search_engine(WebView::SearchEngine search_engine)
-{
-    m_qsettings->setValue("search_engine_name", qstring_from_ak_string(search_engine.name));
-    m_search_engine = move(search_engine);
-    emit search_engine_changed(m_search_engine);
-}
-
 QStringList Settings::preferred_languages()
 {
     return m_qsettings->value("preferred_languages").toStringList();
@@ -99,17 +79,6 @@ void Settings::set_autocomplete_engine(EngineProvider const& engine_provider)
     m_qsettings->setValue("autocomplete_engine", engine_provider.url);
 }
 
-QString Settings::new_tab_page()
-{
-    static auto const default_new_tab_url = qstring_from_ak_string(Browser::default_new_tab_url);
-    return m_qsettings->value("new_tab_page", default_new_tab_url).toString();
-}
-
-void Settings::set_new_tab_page(QString const& page)
-{
-    m_qsettings->setValue("new_tab_page", page);
-}
-
 bool Settings::enable_autocomplete()
 {
     return m_qsettings->value("enable_autocomplete", false).toBool();
@@ -118,17 +87,6 @@ bool Settings::enable_autocomplete()
 void Settings::set_enable_autocomplete(bool enable)
 {
     m_qsettings->setValue("enable_autocomplete", enable);
-}
-
-bool Settings::enable_search()
-{
-    return m_qsettings->value("enable_search", false).toBool();
-}
-
-void Settings::set_enable_search(bool enable)
-{
-    m_qsettings->setValue("enable_search", enable);
-    emit enable_search_changed(enable);
 }
 
 bool Settings::enable_do_not_track()

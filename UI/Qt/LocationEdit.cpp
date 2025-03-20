@@ -5,6 +5,7 @@
  */
 
 #include <LibURL/URL.h>
+#include <LibWebView/Application.h>
 #include <LibWebView/URL.h>
 #include <UI/Qt/LocationEdit.h>
 #include <UI/Qt/Settings.h>
@@ -21,8 +22,6 @@ LocationEdit::LocationEdit(QWidget* parent)
     : QLineEdit(parent)
 {
     update_placeholder();
-    QObject::connect(Settings::the(), &Settings::enable_search_changed, this, &LocationEdit::update_placeholder);
-    QObject::connect(Settings::the(), &Settings::search_engine_changed, this, &LocationEdit::update_placeholder);
 
     m_autocomplete = make<AutoComplete>(this);
     this->setCompleter(m_autocomplete);
@@ -38,8 +37,8 @@ LocationEdit::LocationEdit(QWidget* parent)
         clearFocus();
 
         Optional<StringView> search_engine_url;
-        if (Settings::the()->enable_search())
-            search_engine_url = Settings::the()->search_engine().query_url;
+        if (auto const& search_engine = WebView::Application::settings().search_engine(); search_engine.has_value())
+            search_engine_url = search_engine->query_url;
 
         auto query = ak_string_from_qstring(text());
 
@@ -87,14 +86,19 @@ void LocationEdit::focusOutEvent(QFocusEvent* event)
     }
 }
 
+void LocationEdit::search_engine_changed()
+{
+    update_placeholder();
+}
+
 void LocationEdit::update_placeholder()
 {
-    if (Settings::the()->enable_search())
-        setPlaceholderText(qstring_from_ak_string(
-            MUST(String::formatted("Search with {} or enter web address",
-                Settings::the()->search_engine().name))));
-    else
+    if (auto const& search_engine = WebView::Application::settings().search_engine(); search_engine.has_value()) {
+        auto prompt = MUST(String::formatted("Search with {} or enter web address", search_engine->name));
+        setPlaceholderText(qstring_from_ak_string(prompt));
+    } else {
         setPlaceholderText("Enter web address");
+    }
 }
 
 void LocationEdit::highlight_location()

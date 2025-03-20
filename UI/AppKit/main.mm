@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2024, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2023-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -12,11 +12,11 @@
 #include <LibWebView/BrowserProcess.h>
 #include <LibWebView/EventLoop/EventLoopImplementationMacOS.h>
 #include <LibWebView/MachPortServer.h>
+#include <LibWebView/Settings.h>
 #include <LibWebView/URL.h>
 #include <LibWebView/Utilities.h>
 #include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebContentClient.h>
-#include <UI/DefaultSettings.h>
 
 #import <Application/Application.h>
 #import <Application/ApplicationDelegate.h>
@@ -50,9 +50,8 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     Application* application = [Application sharedApplication];
 
     Core::EventLoopManager::install(*new WebView::EventLoopManagerMacOS);
-    auto url = URL::Parser::basic_parse(Browser::default_new_tab_url);
-    VERIFY(url.has_value());
-    [application setupWebViewApplication:arguments newTabPageURL:url.release_value()];
+
+    [application setupWebViewApplication:arguments];
 
     WebView::platform_init();
 

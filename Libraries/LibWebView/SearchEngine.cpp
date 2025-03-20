@@ -28,14 +28,6 @@ ReadonlySpan<SearchEngine> search_engines()
     return builtin_search_engines;
 }
 
-SearchEngine const& default_search_engine()
-{
-    static auto default_engine = find_search_engine_by_name("Google"sv);
-    VERIFY(default_engine.has_value());
-
-    return *default_engine;
-}
-
 Optional<SearchEngine const&> find_search_engine_by_name(StringView name)
 {
     auto it = AK::find_if(builtin_search_engines.begin(), builtin_search_engines.end(),

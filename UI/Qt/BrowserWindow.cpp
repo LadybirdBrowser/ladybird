@@ -633,9 +633,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     QObject::connect(quit_action, &QAction::triggered, this, &QMainWindow::close);
 
     QObject::connect(m_new_tab_action, &QAction::triggered, this, [this] {
-        auto url = ak_url_from_qstring(Settings::the()->new_tab_page());
-        VERIFY(url.has_value());
-        auto& tab = new_tab_from_url(url.release_value(), Web::HTML::ActivateTab::Yes);
+        auto& tab = new_tab_from_url(WebView::Application::settings().new_tab_page_url(), Web::HTML::ActivateTab::Yes);
         tab.set_url_is_hidden(true);
         tab.focus_location_editor();
     });
