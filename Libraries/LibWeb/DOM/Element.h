@@ -471,6 +471,8 @@ public:
     void release_pointer_capture(WebIDL::Long pointer_id);
     bool has_pointer_capture(WebIDL::Long pointer_id);
 
+    bool is_fullscreen_element() const;
+
 protected:
     Element(Document&, DOM::QualifiedName);
     virtual void initialize(JS::Realm&) override;
