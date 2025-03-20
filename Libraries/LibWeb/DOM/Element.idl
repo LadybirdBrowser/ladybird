@@ -125,6 +125,10 @@ interface Element : Node {
     undefined setPointerCapture(long pointerId);
     undefined releasePointerCapture(long pointerId);
     boolean hasPointerCapture(long pointerId);
+
+    // partial interface for https://fullscreen.spec.whatwg.org/#api
+    attribute EventHandler onfullscreenchange;
+    attribute EventHandler onfullscreenerror;
 };
 
 dictionary GetHTMLOptions {
