@@ -2410,20 +2410,6 @@ AvailableSpace GridFormattingContext::get_available_space_for_item(GridItem cons
     return AvailableSpace(available_width, available_height);
 }
 
-static CSS::Size const& get_item_minimum_size(GridItem const& item, GridDimension const dimension)
-{
-    if (dimension == GridDimension::Column)
-        return item.box->computed_values().min_width();
-    return item.box->computed_values().min_height();
-}
-
-static CSS::Size const& get_item_maximum_size(GridItem const& item, GridDimension const dimension)
-{
-    if (dimension == GridDimension::Column)
-        return item.box->computed_values().max_width();
-    return item.box->computed_values().max_height();
-}
-
 CSSPixels GridFormattingContext::calculate_min_content_contribution(GridItem const& item, GridDimension const dimension) const
 {
     auto available_space_for_item = get_available_space_for_item(item);
@@ -2435,7 +2421,7 @@ CSSPixels GridFormattingContext::calculate_min_content_contribution(GridItem con
     }();
 
     auto maxium_size = CSSPixels::max();
-    if (auto const& css_maximum_size = get_item_maximum_size(item, dimension); css_maximum_size.is_length()) {
+    if (auto const& css_maximum_size = item.maximum_size(dimension); css_maximum_size.is_length()) {
         maxium_size = css_maximum_size.length().to_px(item.box);
     }
 
@@ -2464,7 +2450,7 @@ CSSPixels GridFormattingContext::calculate_max_content_contribution(GridItem con
     }();
 
     auto maxium_size = CSSPixels::max();
-    if (auto const& css_maximum_size = get_item_maximum_size(item, dimension); css_maximum_size.is_length()) {
+    if (auto const& css_maximum_size = item.maximum_size(dimension); css_maximum_size.is_length()) {
         maxium_size = css_maximum_size.length().to_px(item.box);
     }
 
@@ -2618,7 +2604,7 @@ CSSPixels GridFormattingContext::content_based_minimum_size(GridItem const& item
     }
 
     // In all cases, the size suggestion is additionally clamped by the maximum size in the affected axis, if it’s definite.
-    if (auto const& css_maximum_size = get_item_maximum_size(item, dimension); css_maximum_size.is_length()) {
+    if (auto const& css_maximum_size = item.maximum_size(dimension); css_maximum_size.is_length()) {
         auto maximum_size = css_maximum_size.length().to_px(item.box);
         result = min(result, maximum_size);
     }
@@ -2673,7 +2659,7 @@ CSSPixels GridFormattingContext::calculate_minimum_contribution(GridItem const& 
     }();
 
     if (should_treat_preferred_size_as_auto) {
-        auto minimum_size = get_item_minimum_size(item, dimension);
+        auto minimum_size = item.minimum_size(dimension);
         if (minimum_size.is_auto())
             return item.add_margin_box_sizes(automatic_minimum_size(item, dimension), dimension);
         auto containing_block_size = containing_block_size_for_item(item, dimension);
