@@ -154,6 +154,7 @@ struct ElementCreationOptions {
 enum class PolicyControlledFeature : u8 {
     Autoplay,
     FocusWithoutUserActivation,
+    Fullscreen,
 };
 
 struct PendingFullscreenEvent {
@@ -906,6 +907,12 @@ public:
     // https://fullscreen.spec.whatwg.org/#run-the-fullscreen-steps
     void run_fullscreen_steps();
     void append_pending_fullscreen_change(PendingFullscreenEvent::Type type, GC::Ref<Element> element);
+
+    // https://fullscreen.spec.whatwg.org/#api
+    [[nodiscard]] WebIDL::CallbackType* onfullscreenchange();
+    void set_onfullscreenchange(WebIDL::CallbackType*);
+    [[nodiscard]] WebIDL::CallbackType* onfullscreenerror();
+    void set_onfullscreenerror(WebIDL::CallbackType*);
 
 protected:
     virtual void initialize(JS::Realm&) override;

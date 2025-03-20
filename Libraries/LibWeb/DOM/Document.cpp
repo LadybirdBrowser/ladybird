@@ -4325,6 +4325,9 @@ bool Document::is_allowed_to_use_feature(PolicyControlledFeature feature) const
     case PolicyControlledFeature::FocusWithoutUserActivation:
         // FIXME: Implement allowlist for this.
         return true;
+    case PolicyControlledFeature::Fullscreen:
+        // FIXME: Implement the permissions policy specification
+        return true;
     }
 
     // 4. Return false.
@@ -6182,6 +6185,26 @@ void Document::run_fullscreen_steps()
 void Document::append_pending_fullscreen_change(PendingFullscreenEvent::Type type, GC::Ref<Element> element)
 {
     m_pending_fullscreen_events.append(PendingFullscreenEvent { type, element });
+}
+
+WebIDL::CallbackType* Document::onfullscreenchange()
+{
+    return event_handler_attribute(HTML::EventNames::fullscreenchange);
+}
+
+void Document::set_onfullscreenchange(WebIDL::CallbackType* value)
+{
+    set_event_handler_attribute(HTML::EventNames::fullscreenchange, value);
+}
+
+WebIDL::CallbackType* Document::onfullscreenerror()
+{
+    return event_handler_attribute(HTML::EventNames::fullscreenerror);
+}
+
+void Document::set_onfullscreenerror(WebIDL::CallbackType* value)
+{
+    set_event_handler_attribute(HTML::EventNames::fullscreenerror, value);
 }
 
 // https://dom.spec.whatwg.org/#document-allow-declarative-shadow-roots
