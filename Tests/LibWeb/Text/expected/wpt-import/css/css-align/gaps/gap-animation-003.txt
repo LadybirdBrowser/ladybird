@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Default gap is not interpolable
+1 Pass
+Pass	Default gap is not interpolable

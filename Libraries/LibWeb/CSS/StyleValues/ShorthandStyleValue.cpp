@@ -396,6 +396,17 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
         return builder.to_string_without_validation();
     }
     default:
+        auto all_properties_same_value = true;
+        auto first_property_value = m_properties.values.first();
+        for (auto i = 1u; i < m_properties.values.size(); ++i) {
+            if (m_properties.values[i] != first_property_value) {
+                all_properties_same_value = false;
+                break;
+            }
+        }
+        if (all_properties_same_value)
+            return first_property_value->to_string(mode);
+
         StringBuilder builder;
         auto first = true;
         for (auto& value : m_properties.values) {
