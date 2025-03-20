@@ -15,7 +15,7 @@ using InfoBarDismissed = void (^)(void);
 @interface InfoBar : NSStackView
 
 - (void)showWithMessage:(NSString*)message
-    dismissButtonTooltip:(NSString*)tooltip
+      dismissButtonTitle:(NSString*)title
     dismissButtonClicked:(InfoBarDismissed)on_dimissed
                activeTab:(Tab*)tab;
 - (void)hide;
