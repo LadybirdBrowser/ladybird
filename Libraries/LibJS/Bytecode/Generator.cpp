@@ -164,8 +164,8 @@ CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(E
     }
 
     if (!function.m_strict) {
-        bool can_elide_declarative_environment = !function.m_contains_direct_call_to_eval && (!scope_body || !scope_body->has_non_local_lexical_declarations());
-        if (!can_elide_declarative_environment) {
+        bool can_elide_lexical_environment = !scope_body || !scope_body->has_non_local_lexical_declarations();
+        if (!can_elide_lexical_environment) {
             emit<Op::CreateLexicalEnvironment>(function.m_lex_environment_bindings_count);
         }
     }
