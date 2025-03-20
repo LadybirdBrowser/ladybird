@@ -1719,9 +1719,9 @@ void GridFormattingContext::resolve_grid_item_heights()
 
         ItemAlignment used_alignment;
         if (computed_height.is_auto()) {
-            used_alignment = try_compute_height(calculate_fit_content_height(item.box, get_available_space_for_item(item)));
+            used_alignment = try_compute_height(calculate_fit_content_height(item.box, item.available_space()));
         } else if (computed_height.is_fit_content()) {
-            used_alignment = try_compute_height(calculate_fit_content_height(item.box, get_available_space_for_item(item)));
+            used_alignment = try_compute_height(calculate_fit_content_height(item.box, item.available_space()));
         } else {
             used_alignment = try_compute_height(computed_height.to_px(grid_container(), containing_block_height));
         }
@@ -2373,18 +2373,16 @@ CSSPixels GridFormattingContext::calculate_min_content_size(GridItem const& item
 {
     if (dimension == GridDimension::Column) {
         return calculate_min_content_width(item.box);
-    } else {
-        return calculate_min_content_height(item.box, get_available_space_for_item(item).width.to_px_or_zero());
     }
+    return calculate_min_content_height(item.box, item.available_space().width.to_px_or_zero());
 }
 
 CSSPixels GridFormattingContext::calculate_max_content_size(GridItem const& item, GridDimension const dimension) const
 {
     if (dimension == GridDimension::Column) {
         return calculate_max_content_width(item.box);
-    } else {
-        return calculate_max_content_height(item.box, get_available_space_for_item(item).width.to_px_or_zero());
     }
+    return calculate_max_content_height(item.box, item.available_space().width.to_px_or_zero());
 }
 
 CSSPixels GridFormattingContext::containing_block_size_for_item(GridItem const& item, GridDimension const dimension) const
@@ -2396,16 +2394,9 @@ CSSPixels GridFormattingContext::containing_block_size_for_item(GridItem const& 
     return containing_block_size;
 }
 
-AvailableSpace GridFormattingContext::get_available_space_for_item(GridItem const& item) const
-{
-    AvailableSize available_width = item.used_values.has_definite_width() ? AvailableSize::make_definite(item.used_values.content_width()) : AvailableSize::make_indefinite();
-    AvailableSize available_height = item.used_values.has_definite_height() ? AvailableSize::make_definite(item.used_values.content_height()) : AvailableSize::make_indefinite();
-    return AvailableSpace(available_width, available_height);
-}
-
 CSSPixels GridFormattingContext::calculate_min_content_contribution(GridItem const& item, GridDimension const dimension) const
 {
-    auto available_space_for_item = get_available_space_for_item(item);
+    auto available_space_for_item = item.available_space();
 
     auto should_treat_preferred_size_as_auto = [&] {
         if (dimension == GridDimension::Column)
@@ -2434,7 +2425,7 @@ CSSPixels GridFormattingContext::calculate_min_content_contribution(GridItem con
 
 CSSPixels GridFormattingContext::calculate_max_content_contribution(GridItem const& item, GridDimension const dimension) const
 {
-    auto available_space_for_item = get_available_space_for_item(item);
+    auto available_space_for_item = item.available_space();
 
     auto should_treat_preferred_size_as_auto = [&] {
         if (dimension == GridDimension::Column)
@@ -2647,8 +2638,8 @@ CSSPixels GridFormattingContext::calculate_minimum_contribution(GridItem const& 
     auto preferred_size = item.preferred_size(dimension);
     auto should_treat_preferred_size_as_auto = [&] {
         if (dimension == GridDimension::Column)
-            return should_treat_width_as_auto(item.box, get_available_space_for_item(item));
-        return should_treat_height_as_auto(item.box, get_available_space_for_item(item));
+            return should_treat_width_as_auto(item.box, item.available_space());
+        return should_treat_height_as_auto(item.box, item.available_space());
     }();
 
     if (should_treat_preferred_size_as_auto) {
