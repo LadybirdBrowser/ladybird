@@ -83,6 +83,11 @@ struct GridItem {
     {
         return dimension == GridDimension::Column ? computed_values().max_width() : computed_values().max_height();
     }
+
+    CSS::Size const& preferred_size(GridDimension dimension) const
+    {
+        return dimension == GridDimension::Column ? computed_values().width() : computed_values().height();
+    }
 };
 
 enum class FoundUnoccupiedPlace {
@@ -332,8 +337,6 @@ private:
     void run_track_sizing(GridDimension);
 
     CSSPixels calculate_grid_container_maximum_size(GridDimension const) const;
-
-    CSS::Size const& get_item_preferred_size(GridItem const&, GridDimension const) const;
 
     CSSPixels calculate_min_content_size(GridItem const&, GridDimension const) const;
     CSSPixels calculate_max_content_size(GridItem const&, GridDimension const) const;
