@@ -284,6 +284,8 @@ void HTMLSelectElement::set_selected_index(WebIDL::Long index)
     for (auto& option : m_cached_list_of_options)
         option->set_selected_internal(false);
 
+    ScopeGuard guard { [&]() { update_inner_text_element(); } };
+
     if (index < 0 || static_cast<size_t>(index) >= m_cached_list_of_options.size())
         return;
 

@@ -1,0 +1,27 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x37 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x21 children: inline
+      frag 0 from BlockContainer start: 0, length: 0, rect: [13,10 78.390625x17] baseline: 18.5
+      BlockContainer <select#select> at (13,10) content-size 78.390625x17 inline-block [BFC] children: not-inline
+        Box <div> at (13,10) content-size 78.390625x17 flex-container(row) [FFC] children: not-inline
+          BlockContainer <div> at (13,10) content-size 58.390625x17 flex-item [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 7, rect: [13,10 58.390625x17] baseline: 13.296875
+                "Value 1"
+            TextNode <#text>
+          BlockContainer <div> at (75.390625,10.5) content-size 16x16 flex-item [BFC] children: inline
+            frag 0 from SVGSVGBox start: 0, length: 0, rect: [75.390625,10.5 16x16] baseline: 16
+            SVGSVGBox <svg> at (75.390625,10.5) content-size 16x16 [SVG] children: not-inline
+              SVGGeometryBox <path> at (79.390625,16.21875) content-size 8x4.953125 children: not-inline
+      TextNode <#text>
+      TextNode <#text>
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x37]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x21]
+      PaintableWithLines (BlockContainer<SELECT>#select) [8,8 88.390625x21]
+        PaintableBox (Box<DIV>) [13,10 78.390625x17]
+          PaintableWithLines (BlockContainer<DIV>) [13,10 58.390625x17]
+            TextPaintable (TextNode<#text>)
+          PaintableWithLines (BlockContainer<DIV>) [75.390625,10.5 16x16]
+            SVGSVGPaintable (SVGSVGBox<svg>) [75.390625,10.5 16x16]
+              SVGPathPaintable (SVGGeometryBox<path>) [79.390625,16.21875 8x4.953125]
