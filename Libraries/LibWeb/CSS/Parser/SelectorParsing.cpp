@@ -237,6 +237,7 @@ Optional<Selector::SimpleSelector::QualifiedName> Parser::parse_selector_qualifi
             return Selector::SimpleSelector::QualifiedName {
                 .namespace_type = Selector::SimpleSelector::QualifiedName::NamespaceType::None,
                 .name = get_name(name_token),
+                
             };
         }
         return {};
@@ -263,6 +264,7 @@ Optional<Selector::SimpleSelector::QualifiedName> Parser::parse_selector_qualifi
             .namespace_type = namespace_type,
             .namespace_ = namespace_,
             .name = name,
+            
         };
     }
 
@@ -275,6 +277,7 @@ Optional<Selector::SimpleSelector::QualifiedName> Parser::parse_selector_qualifi
     return Selector::SimpleSelector::QualifiedName {
         .namespace_type = Selector::SimpleSelector::QualifiedName::NamespaceType::Default,
         .name = get_name(name_token),
+        
     };
 }
 
@@ -746,7 +749,7 @@ Parser::ParseErrorOr<Optional<Selector::SimpleSelector>> Parser::parse_simple_se
             }
             return Selector::SimpleSelector {
                 .type = Selector::SimpleSelector::Type::Class,
-                .value = Selector::SimpleSelector::Name { class_name_value.token().ident() }
+                .value = Selector::SimpleSelector::Name { class_name_value.token().ident() },
             };
         }
         case '>':
@@ -770,7 +773,7 @@ Parser::ParseErrorOr<Optional<Selector::SimpleSelector>> Parser::parse_simple_se
         }
         return Selector::SimpleSelector {
             .type = Selector::SimpleSelector::Type::Id,
-            .value = Selector::SimpleSelector::Name { first_value.token().hash_value() }
+            .value = Selector::SimpleSelector::Name { first_value.token().hash_value() },
         };
     }
 
