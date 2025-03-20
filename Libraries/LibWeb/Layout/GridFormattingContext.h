@@ -49,12 +49,12 @@ struct GridItem {
     Optional<int> column;
     Optional<size_t> column_span;
 
-    [[nodiscard]] size_t span(GridDimension const dimension) const
+    [[nodiscard]] size_t span(GridDimension dimension) const
     {
         return dimension == GridDimension::Column ? column_span.value() : row_span.value();
     }
 
-    [[nodiscard]] int raw_position(GridDimension const dimension) const
+    [[nodiscard]] int raw_position(GridDimension dimension) const
     {
         return dimension == GridDimension::Column ? column.value() : row.value();
     }
@@ -66,7 +66,7 @@ struct GridItem {
         return used_values.margin_box_top() + content_size + used_values.margin_box_bottom();
     }
 
-    [[nodiscard]] int gap_adjusted_position(GridDimension const dimension) const
+    [[nodiscard]] int gap_adjusted_position(GridDimension dimension) const
     {
         return dimension == GridDimension::Column ? gap_adjusted_column() : gap_adjusted_row();
     }
@@ -195,7 +195,7 @@ public:
 private:
     Alignment alignment_for_item(Box const& box, GridDimension dimension) const;
 
-    void resolve_items_box_metrics(GridDimension const dimension);
+    void resolve_items_box_metrics(GridDimension dimension);
 
     CSSPixels m_automatic_content_height { 0 };
 
@@ -243,7 +243,7 @@ private:
     Vector<GridTrack> m_grid_rows;
     Vector<GridTrack> m_grid_columns;
 
-    bool has_gaps(GridDimension const dimension) const
+    bool has_gaps(GridDimension dimension) const
     {
         if (dimension == GridDimension::Column) {
             return !grid_container().computed_values().column_gap().has<CSS::NormalGap>();
@@ -253,7 +253,7 @@ private:
     }
 
     template<typename Callback>
-    void for_each_spanned_track_by_item(GridItem const& item, GridDimension const dimension, Callback callback)
+    void for_each_spanned_track_by_item(GridItem const& item, GridDimension dimension, Callback callback)
     {
         auto& tracks = dimension == GridDimension::Column ? m_grid_columns : m_grid_rows;
         auto& gaps = dimension == GridDimension::Column ? m_column_gap_tracks : m_row_gap_tracks;
@@ -277,7 +277,7 @@ private:
     }
 
     template<typename Callback>
-    void for_each_spanned_track_by_item(GridItem const& item, GridDimension const dimension, Callback callback) const
+    void for_each_spanned_track_by_item(GridItem const& item, GridDimension dimension, Callback callback) const
     {
         auto& tracks = dimension == GridDimension::Column ? m_grid_columns : m_grid_rows;
         auto& gaps = dimension == GridDimension::Column ? m_column_gap_tracks : m_row_gap_tracks;
@@ -324,9 +324,9 @@ private:
 
     void resolve_grid_item_sizes(GridDimension dimension);
 
-    void resolve_track_spacing(GridDimension const dimension);
+    void resolve_track_spacing(GridDimension dimension);
 
-    AvailableSize get_free_space(AvailableSpace const&, GridDimension const) const;
+    AvailableSize get_free_space(AvailableSpace const&, GridDimension) const;
 
     Optional<int> get_line_index_by_line_name(GridDimension dimension, String const&);
     CSSPixels resolve_definite_track_size(CSS::GridSize const&, AvailableSpace const&);
@@ -339,7 +339,7 @@ private:
         int end { 0 };
         size_t span { 1 };
     };
-    PlacementPosition resolve_grid_position(Box const& child_box, GridDimension const dimension);
+    PlacementPosition resolve_grid_position(Box const& child_box, GridDimension dimension);
 
     void place_grid_items();
     void place_item_with_row_and_column_position(Box const& child_box);
@@ -352,7 +352,7 @@ private:
     void initialize_grid_tracks_for_columns_and_rows();
     void initialize_gap_tracks(AvailableSpace const&);
 
-    void collapse_auto_fit_tracks_if_needed(GridDimension const);
+    void collapse_auto_fit_tracks_if_needed(GridDimension);
 
     enum class SpaceDistributionPhase {
         AccommodateMinimumContribution,
@@ -376,27 +376,27 @@ private:
     void stretch_auto_tracks(GridDimension);
     void run_track_sizing(GridDimension);
 
-    CSSPixels calculate_grid_container_maximum_size(GridDimension const) const;
+    CSSPixels calculate_grid_container_maximum_size(GridDimension) const;
 
-    CSSPixels calculate_min_content_size(GridItem const&, GridDimension const) const;
-    CSSPixels calculate_max_content_size(GridItem const&, GridDimension const) const;
+    CSSPixels calculate_min_content_size(GridItem const&, GridDimension) const;
+    CSSPixels calculate_max_content_size(GridItem const&, GridDimension) const;
 
-    CSSPixels calculate_min_content_contribution(GridItem const&, GridDimension const) const;
-    CSSPixels calculate_max_content_contribution(GridItem const&, GridDimension const) const;
+    CSSPixels calculate_min_content_contribution(GridItem const&, GridDimension) const;
+    CSSPixels calculate_max_content_contribution(GridItem const&, GridDimension) const;
 
-    CSSPixels calculate_limited_min_content_contribution(GridItem const&, GridDimension const) const;
-    CSSPixels calculate_limited_max_content_contribution(GridItem const&, GridDimension const) const;
+    CSSPixels calculate_limited_min_content_contribution(GridItem const&, GridDimension) const;
+    CSSPixels calculate_limited_max_content_contribution(GridItem const&, GridDimension) const;
 
-    CSSPixels containing_block_size_for_item(GridItem const&, GridDimension const) const;
+    CSSPixels containing_block_size_for_item(GridItem const&, GridDimension) const;
 
     CSSPixelRect get_grid_area_rect(GridItem const&) const;
 
-    CSSPixels content_size_suggestion(GridItem const&, GridDimension const) const;
-    Optional<CSSPixels> specified_size_suggestion(GridItem const&, GridDimension const) const;
-    Optional<CSSPixels> transferred_size_suggestion(GridItem const&, GridDimension const) const;
-    CSSPixels content_based_minimum_size(GridItem const&, GridDimension const) const;
-    CSSPixels automatic_minimum_size(GridItem const&, GridDimension const) const;
-    CSSPixels calculate_minimum_contribution(GridItem const&, GridDimension const) const;
+    CSSPixels content_size_suggestion(GridItem const&, GridDimension) const;
+    Optional<CSSPixels> specified_size_suggestion(GridItem const&, GridDimension) const;
+    Optional<CSSPixels> transferred_size_suggestion(GridItem const&, GridDimension) const;
+    CSSPixels content_based_minimum_size(GridItem const&, GridDimension) const;
+    CSSPixels automatic_minimum_size(GridItem const&, GridDimension) const;
+    CSSPixels calculate_minimum_contribution(GridItem const&, GridDimension) const;
 };
 
 }

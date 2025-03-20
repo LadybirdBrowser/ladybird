@@ -292,7 +292,7 @@ int GridFormattingContext::count_of_repeated_auto_fill_or_fit_tracks(GridDimensi
     // floor be 1px.
 }
 
-GridFormattingContext::PlacementPosition GridFormattingContext::resolve_grid_position(Box const& child_box, GridDimension const dimension)
+GridFormattingContext::PlacementPosition GridFormattingContext::resolve_grid_position(Box const& child_box, GridDimension dimension)
 {
     auto const& computed_values = child_box.computed_values();
     auto const& placement_start = dimension == GridDimension::Row ? computed_values.grid_row_start() : computed_values.grid_column_start();
@@ -682,7 +682,7 @@ void GridFormattingContext::initialize_gap_tracks(AvailableSpace const& availabl
     }
 }
 
-void GridFormattingContext::initialize_track_sizes(GridDimension const dimension)
+void GridFormattingContext::initialize_track_sizes(GridDimension dimension)
 {
     // https://www.w3.org/TR/css-grid-2/#algo-init
     // 12.4. Initialize Track Sizes
@@ -718,7 +718,7 @@ void GridFormattingContext::initialize_track_sizes(GridDimension const dimension
     }
 }
 
-void GridFormattingContext::resolve_intrinsic_track_sizes(GridDimension const dimension)
+void GridFormattingContext::resolve_intrinsic_track_sizes(GridDimension dimension)
 {
     // https://www.w3.org/TR/css-grid-2/#algo-content
     // 12.5. Resolve Intrinsic Track Sizes
@@ -916,7 +916,7 @@ void GridFormattingContext::distribute_extra_space_across_spanned_tracks_growth_
     }
 }
 
-void GridFormattingContext::increase_sizes_to_accommodate_spanning_items_crossing_content_sized_tracks(GridDimension const dimension, size_t span)
+void GridFormattingContext::increase_sizes_to_accommodate_spanning_items_crossing_content_sized_tracks(GridDimension dimension, size_t span)
 {
     auto& available_size = dimension == GridDimension::Column ? m_available_space->width : m_available_space->height;
     auto& tracks = dimension == GridDimension::Column ? m_grid_columns : m_grid_rows;
@@ -1031,7 +1031,7 @@ void GridFormattingContext::increase_sizes_to_accommodate_spanning_items_crossin
     }
 }
 
-void GridFormattingContext::increase_sizes_to_accommodate_spanning_items_crossing_flexible_tracks(GridDimension const dimension)
+void GridFormattingContext::increase_sizes_to_accommodate_spanning_items_crossing_flexible_tracks(GridDimension dimension)
 {
     auto& tracks = dimension == GridDimension::Column ? m_grid_columns : m_grid_rows;
     for (auto& item : m_grid_items) {
@@ -1068,7 +1068,7 @@ void GridFormattingContext::increase_sizes_to_accommodate_spanning_items_crossin
     }
 }
 
-void GridFormattingContext::maximize_tracks_using_available_size(AvailableSpace const& available_space, GridDimension const dimension)
+void GridFormattingContext::maximize_tracks_using_available_size(AvailableSpace const& available_space, GridDimension dimension)
 {
     // https://www.w3.org/TR/css-grid-2/#algo-grow-tracks
     // 12.6. Maximize Tracks
@@ -1106,7 +1106,7 @@ void GridFormattingContext::maximize_tracks_using_available_size(AvailableSpace 
     }
 }
 
-void GridFormattingContext::maximize_tracks(GridDimension const dimension)
+void GridFormattingContext::maximize_tracks(GridDimension dimension)
 {
     // https://www.w3.org/TR/css-grid-2/#algo-grow-tracks
     // 12.6. Maximize Tracks
@@ -1148,7 +1148,7 @@ void GridFormattingContext::maximize_tracks(GridDimension const dimension)
     }
 }
 
-void GridFormattingContext::expand_flexible_tracks(GridDimension const dimension)
+void GridFormattingContext::expand_flexible_tracks(GridDimension dimension)
 {
     // https://drafts.csswg.org/css-grid/#algo-flex-tracks
     // 12.7. Expand Flexible Tracks
@@ -1265,7 +1265,7 @@ void GridFormattingContext::expand_flexible_tracks(GridDimension const dimension
     }
 }
 
-void GridFormattingContext::stretch_auto_tracks(GridDimension const dimension)
+void GridFormattingContext::stretch_auto_tracks(GridDimension dimension)
 {
     // https://www.w3.org/TR/css-grid-2/#algo-stretch
     // 12.8. Stretch auto Tracks
@@ -1306,7 +1306,7 @@ void GridFormattingContext::stretch_auto_tracks(GridDimension const dimension)
     }
 }
 
-void GridFormattingContext::run_track_sizing(GridDimension const dimension)
+void GridFormattingContext::run_track_sizing(GridDimension dimension)
 {
     // https://www.w3.org/TR/css-grid-2/#algo-track-sizing
     // 12.3. Track Sizing Algorithm
@@ -1734,7 +1734,7 @@ void GridFormattingContext::resolve_grid_item_sizes(GridDimension dimension)
     }
 }
 
-void GridFormattingContext::resolve_track_spacing(GridDimension const dimension)
+void GridFormattingContext::resolve_track_spacing(GridDimension dimension)
 {
     auto is_column_dimension = dimension == GridDimension::Column;
 
@@ -1787,7 +1787,7 @@ void GridFormattingContext::resolve_track_spacing(GridDimension const dimension)
     }
 }
 
-void GridFormattingContext::resolve_items_box_metrics(GridDimension const dimension)
+void GridFormattingContext::resolve_items_box_metrics(GridDimension dimension)
 {
     for (auto& item : m_grid_items) {
         auto& computed_values = item.box->computed_values();
@@ -1815,7 +1815,7 @@ void GridFormattingContext::resolve_items_box_metrics(GridDimension const dimens
     }
 }
 
-void GridFormattingContext::collapse_auto_fit_tracks_if_needed(GridDimension const dimension)
+void GridFormattingContext::collapse_auto_fit_tracks_if_needed(GridDimension dimension)
 {
     // https://www.w3.org/TR/css-grid-2/#auto-repeat
     // The auto-fit keyword behaves the same as auto-fill, except that after grid item placement any
@@ -1840,7 +1840,7 @@ CSSPixelRect GridFormattingContext::get_grid_area_rect(GridItem const& grid_item
 {
     CSSPixelRect area_rect;
 
-    auto place_into_track = [&](GridDimension const dimension) {
+    auto place_into_track = [&](GridDimension dimension) {
         auto const& tracks_and_gaps = dimension == GridDimension::Column ? m_grid_columns_and_gaps : m_grid_rows_and_gaps;
 
         auto resolved_span = grid_item.span(dimension) * 2;
@@ -1891,7 +1891,7 @@ CSSPixelRect GridFormattingContext::get_grid_area_rect(GridItem const& grid_item
         }
     };
 
-    auto place_into_track_formed_by_last_line_and_grid_container_padding_edge = [&](GridDimension const dimension) {
+    auto place_into_track_formed_by_last_line_and_grid_container_padding_edge = [&](GridDimension dimension) {
         VERIFY(grid_item.box->is_absolutely_positioned());
         auto const& tracks_and_gaps = dimension == GridDimension::Column ? m_grid_columns_and_gaps : m_grid_rows_and_gaps;
         CSSPixels offset = 0;
@@ -2248,7 +2248,7 @@ bool GridFormattingContext::is_auto_positioned_track(CSS::GridTrackPlacement con
     return grid_track_start.is_auto_positioned() && grid_track_end.is_auto_positioned();
 }
 
-AvailableSize GridFormattingContext::get_free_space(AvailableSpace const& available_space, GridDimension const dimension) const
+AvailableSize GridFormattingContext::get_free_space(AvailableSpace const& available_space, GridDimension dimension) const
 {
     // https://www.w3.org/TR/css-grid-2/#algo-terms
     // free space: Equal to the available grid space minus the sum of the base sizes of all the grid
@@ -2343,7 +2343,7 @@ int GridItem::gap_adjusted_column() const
     return column.value() * 2;
 }
 
-CSSPixels GridFormattingContext::calculate_grid_container_maximum_size(GridDimension const dimension) const
+CSSPixels GridFormattingContext::calculate_grid_container_maximum_size(GridDimension dimension) const
 {
     auto const& computed_values = grid_container().computed_values();
     if (dimension == GridDimension::Column)
@@ -2351,7 +2351,7 @@ CSSPixels GridFormattingContext::calculate_grid_container_maximum_size(GridDimen
     return calculate_inner_height(grid_container(), m_available_space.value(), computed_values.max_height());
 }
 
-CSSPixels GridFormattingContext::calculate_min_content_size(GridItem const& item, GridDimension const dimension) const
+CSSPixels GridFormattingContext::calculate_min_content_size(GridItem const& item, GridDimension dimension) const
 {
     if (dimension == GridDimension::Column) {
         return calculate_min_content_width(item.box);
@@ -2359,7 +2359,7 @@ CSSPixels GridFormattingContext::calculate_min_content_size(GridItem const& item
     return calculate_min_content_height(item.box, item.available_space().width.to_px_or_zero());
 }
 
-CSSPixels GridFormattingContext::calculate_max_content_size(GridItem const& item, GridDimension const dimension) const
+CSSPixels GridFormattingContext::calculate_max_content_size(GridItem const& item, GridDimension dimension) const
 {
     if (dimension == GridDimension::Column) {
         return calculate_max_content_width(item.box);
@@ -2367,7 +2367,7 @@ CSSPixels GridFormattingContext::calculate_max_content_size(GridItem const& item
     return calculate_max_content_height(item.box, item.available_space().width.to_px_or_zero());
 }
 
-CSSPixels GridFormattingContext::containing_block_size_for_item(GridItem const& item, GridDimension const dimension) const
+CSSPixels GridFormattingContext::containing_block_size_for_item(GridItem const& item, GridDimension dimension) const
 {
     CSSPixels containing_block_size = 0;
     for_each_spanned_track_by_item(item, dimension, [&](GridTrack const& track) {
@@ -2376,7 +2376,7 @@ CSSPixels GridFormattingContext::containing_block_size_for_item(GridItem const& 
     return containing_block_size;
 }
 
-CSSPixels GridFormattingContext::calculate_min_content_contribution(GridItem const& item, GridDimension const dimension) const
+CSSPixels GridFormattingContext::calculate_min_content_contribution(GridItem const& item, GridDimension dimension) const
 {
     auto available_space_for_item = item.available_space();
 
@@ -2405,7 +2405,7 @@ CSSPixels GridFormattingContext::calculate_min_content_contribution(GridItem con
     return min(item.add_margin_box_sizes(height, dimension), maxium_size);
 }
 
-CSSPixels GridFormattingContext::calculate_max_content_contribution(GridItem const& item, GridDimension const dimension) const
+CSSPixels GridFormattingContext::calculate_max_content_contribution(GridItem const& item, GridDimension dimension) const
 {
     auto available_space_for_item = item.available_space();
 
@@ -2432,7 +2432,7 @@ CSSPixels GridFormattingContext::calculate_max_content_contribution(GridItem con
     return min(result, maxium_size);
 }
 
-CSSPixels GridFormattingContext::calculate_limited_min_content_contribution(GridItem const& item, GridDimension const dimension) const
+CSSPixels GridFormattingContext::calculate_limited_min_content_contribution(GridItem const& item, GridDimension dimension) const
 {
     // The limited min-content contribution of an item is its min-content contribution,
     // limited by the max track sizing function (which could be the argument to a fit-content() track
@@ -2463,7 +2463,7 @@ CSSPixels GridFormattingContext::calculate_limited_min_content_contribution(Grid
     return min_content_contribution;
 }
 
-CSSPixels GridFormattingContext::calculate_limited_max_content_contribution(GridItem const& item, GridDimension const dimension) const
+CSSPixels GridFormattingContext::calculate_limited_max_content_contribution(GridItem const& item, GridDimension dimension) const
 {
     // The limited max-content contribution of an item is its max-content contribution,
     // limited by the max track sizing function (which could be the argument to a fit-content() track
@@ -2484,7 +2484,7 @@ CSSPixels GridFormattingContext::calculate_limited_max_content_contribution(Grid
     return max_content_contribution;
 }
 
-CSSPixels GridFormattingContext::content_size_suggestion(GridItem const& item, GridDimension const dimension) const
+CSSPixels GridFormattingContext::content_size_suggestion(GridItem const& item, GridDimension dimension) const
 {
     // The content size suggestion is the min-content size in the relevant axis
     // FIXME: clamped, if it has a preferred aspect ratio, by any definite opposite-axis minimum and maximum sizes
@@ -2492,7 +2492,7 @@ CSSPixels GridFormattingContext::content_size_suggestion(GridItem const& item, G
     return calculate_min_content_size(item, dimension);
 }
 
-Optional<CSSPixels> GridFormattingContext::specified_size_suggestion(GridItem const& item, GridDimension const dimension) const
+Optional<CSSPixels> GridFormattingContext::specified_size_suggestion(GridItem const& item, GridDimension dimension) const
 {
     // https://www.w3.org/TR/css-grid-1/#specified-size-suggestion
     // If the item’s preferred size in the relevant axis is definite, then the specified size suggestion is that size.
@@ -2527,7 +2527,7 @@ Optional<CSSPixels> GridFormattingContext::transferred_size_suggestion(GridItem 
     return {};
 }
 
-CSSPixels GridFormattingContext::content_based_minimum_size(GridItem const& item, GridDimension const dimension) const
+CSSPixels GridFormattingContext::content_based_minimum_size(GridItem const& item, GridDimension dimension) const
 {
     // https://www.w3.org/TR/css-grid-1/#content-based-minimum-size
 
@@ -2578,7 +2578,7 @@ CSSPixels GridFormattingContext::content_based_minimum_size(GridItem const& item
     return result;
 }
 
-CSSPixels GridFormattingContext::automatic_minimum_size(GridItem const& item, GridDimension const dimension) const
+CSSPixels GridFormattingContext::automatic_minimum_size(GridItem const& item, GridDimension dimension) const
 {
     // To provide a more reasonable default minimum size for grid items, the used value of its automatic minimum size
     // in a given axis is the content-based minimum size if all of the following are true:
@@ -2608,7 +2608,7 @@ CSSPixels GridFormattingContext::automatic_minimum_size(GridItem const& item, Gr
     return 0;
 }
 
-CSSPixels GridFormattingContext::calculate_minimum_contribution(GridItem const& item, GridDimension const dimension) const
+CSSPixels GridFormattingContext::calculate_minimum_contribution(GridItem const& item, GridDimension dimension) const
 {
     // The minimum contribution of an item is the smallest outer size it can have.
     // Specifically, if the item’s computed preferred size behaves as auto or depends on the size of its
