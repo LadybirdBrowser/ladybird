@@ -10,6 +10,7 @@
 #include <LibGfx/ImageFormats/BMPWriter.h>
 #include <LibURL/Parser.h>
 #include <LibWeb/HTML/SelectedFile.h>
+#include <LibWebView/Application.h>
 #include <LibWebView/SearchEngine.h>
 #include <LibWebView/SourceHighlighter.h>
 #include <LibWebView/URL.h>
@@ -454,9 +455,14 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     auto* search_selected_text_action = new QAction("&Search for <query>", this);
     search_selected_text_action->setIcon(load_icon_from_uri("resource://icons/16x16/find.png"sv));
     QObject::connect(search_selected_text_action, &QAction::triggered, this, [this]() {
-        auto url_string = MUST(String::formatted(Settings::the()->search_engine().query_url, URL::percent_encode(*m_page_context_menu_search_text)));
+        auto const& search_engine = WebView::Application::settings().search_engine();
+        if (!search_engine.has_value())
+            return;
+
+        auto url_string = MUST(String::formatted(search_engine->query_url, URL::percent_encode(*m_page_context_menu_search_text)));
         auto url = URL::Parser::basic_parse(url_string);
         VERIFY(url.has_value());
+
         m_window->new_tab_from_url(url.release_value(), Web::HTML::ActivateTab::Yes);
     });
 
@@ -517,13 +523,15 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     m_page_context_menu->addAction(&m_window->view_source_action());
 
     view().on_context_menu_request = [this, search_selected_text_action](Gfx::IntPoint content_position) {
-        auto selected_text = Settings::the()->enable_search()
+        auto const& search_engine = WebView::Application::settings().search_engine();
+
+        auto selected_text = search_engine.has_value()
             ? view().selected_text_with_whitespace_collapsed()
             : OptionalNone {};
-        TemporaryChange change_url { m_page_context_menu_search_text, std::move(selected_text) };
+        TemporaryChange change_url { m_page_context_menu_search_text, AK::move(selected_text) };
 
         if (m_page_context_menu_search_text.has_value()) {
-            auto action_text = WebView::format_search_query_for_display(Settings::the()->search_engine().query_url, *m_page_context_menu_search_text);
+            auto action_text = WebView::format_search_query_for_display(search_engine->query_url, *m_page_context_menu_search_text);
             search_selected_text_action->setText(qstring_from_ak_string(action_text));
             search_selected_text_action->setVisible(true);
         } else {

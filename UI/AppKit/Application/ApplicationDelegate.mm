@@ -6,7 +6,6 @@
 
 #include <LibWebView/Application.h>
 #include <LibWebView/CookieJar.h>
-#include <LibWebView/SearchEngine.h>
 
 #import <Application/ApplicationDelegate.h>
 #import <Interface/InfoBar.h>
@@ -27,8 +26,6 @@
     Web::CSS::PreferredContrast m_preferred_contrast;
     Web::CSS::PreferredMotion m_preferred_motion;
     ByteString m_navigator_compatibility_mode;
-
-    WebView::SearchEngine m_search_engine;
 }
 
 @property (nonatomic, strong) NSMutableArray<TabController*>* managed_tabs;
@@ -75,7 +72,6 @@
         m_preferred_contrast = Web::CSS::PreferredContrast::Auto;
         m_preferred_motion = Web::CSS::PreferredMotion::Auto;
         m_navigator_compatibility_mode = "chrome";
-        m_search_engine = WebView::default_search_engine();
 
         // Reduce the tooltip delay, as the default delay feels quite long.
         [[NSUserDefaults standardUserDefaults] setObject:@100 forKey:@"NSInitialToolTipDelay"];
@@ -156,11 +152,6 @@
 - (Web::CSS::PreferredMotion)preferredMotion
 {
     return m_preferred_motion;
-}
-
-- (WebView::SearchEngine const&)searchEngine
-{
-    return m_search_engine;
 }
 
 #pragma mark - Private methods
@@ -383,17 +374,6 @@
     }
 }
 
-- (void)setSearchEngine:(id)sender
-{
-    auto* item = (NSMenuItem*)sender;
-    auto title = Ladybird::ns_string_to_string([item title]);
-
-    if (auto search_engine = WebView::find_search_engine_by_name(title); search_engine.has_value())
-        m_search_engine = search_engine.release_value();
-    else
-        m_search_engine = WebView::default_search_engine();
-}
-
 - (void)clearHistory:(id)sender
 {
     for (TabController* controller in self.managed_tabs) {
@@ -589,21 +569,6 @@
 {
     auto* menu = [[NSMenuItem alloc] init];
     auto* submenu = [[NSMenu alloc] initWithTitle:@"Settings"];
-
-    auto* search_engine_menu = [[NSMenu alloc] init];
-
-    for (auto const& search_engine : WebView::search_engines()) {
-        [search_engine_menu addItem:[[NSMenuItem alloc] initWithTitle:Ladybird::string_to_ns_string(search_engine.name)
-                                                               action:@selector(setSearchEngine:)
-                                                        keyEquivalent:@""]];
-    }
-
-    auto* search_engine_menu_item = [[NSMenuItem alloc] initWithTitle:@"Search Engine"
-                                                               action:nil
-                                                        keyEquivalent:@""];
-    [search_engine_menu_item setSubmenu:search_engine_menu];
-
-    [submenu addItem:search_engine_menu_item];
 
     [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Enable Autoplay"
                                                 action:@selector(toggleAutoplay:)
@@ -835,9 +800,6 @@
         [item setState:(m_preferred_motion == Web::CSS::PreferredMotion::NoPreference) ? NSControlStateValueOn : NSControlStateValueOff];
     } else if ([item action] == @selector(setReducePreferredMotion:)) {
         [item setState:(m_preferred_motion == Web::CSS::PreferredMotion::Reduce) ? NSControlStateValueOn : NSControlStateValueOff];
-    } else if ([item action] == @selector(setSearchEngine:)) {
-        auto title = Ladybird::ns_string_to_string([item title]);
-        [item setState:(m_search_engine.name == title) ? NSControlStateValueOn : NSControlStateValueOff];
     }
 
     return YES;

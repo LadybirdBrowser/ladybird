@@ -63,7 +63,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 {
     WebView::platform_init();
 
-    auto app = Ladybird::Application::create(arguments, URL::about_newtab());
+    auto app = Ladybird::Application::create(arguments);
     TRY(app->launch_services());
 
     Core::ResourceImplementation::install(make<Core::ResourceImplementationFile>(MUST(String::from_byte_string(app->resources_folder))));

@@ -62,7 +62,6 @@ constexpr inline u16 default_devtools_port = 6000;
 struct BrowserOptions {
     Vector<URL::URL> urls;
     Vector<ByteString> raw_urls;
-    URL::URL new_tab_page_url;
     Vector<ByteString> certificates {};
     NewWindow new_window { NewWindow::No };
     ForceNewProcess force_new_process { ForceNewProcess::No };

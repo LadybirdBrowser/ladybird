@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2023-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -234,7 +234,7 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 
     self.tab.titlebarAppearsTransparent = NO;
 
-    [delegate createNewTab:WebView::Application::browser_options().new_tab_page_url
+    [delegate createNewTab:WebView::Application::settings().new_tab_page_url()
                    fromTab:[self tab]
                activateTab:Web::HTML::ActivateTab::Yes];
 
@@ -705,9 +705,12 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
     }
 
     auto url_string = Ladybird::ns_string_to_string([[text_view textStorage] string]);
-    auto* delegate = (ApplicationDelegate*)[NSApp delegate];
 
-    if (auto url = WebView::sanitize_url(url_string, [delegate searchEngine].query_url); url.has_value()) {
+    Optional<StringView> search_engine_url;
+    if (auto const& search_engine = WebView::Application::settings().search_engine(); search_engine.has_value())
+        search_engine_url = search_engine->query_url;
+
+    if (auto url = WebView::sanitize_url(url_string, search_engine_url); url.has_value()) {
         [self loadURL:*url];
     }
 

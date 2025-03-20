@@ -27,6 +27,7 @@ namespace WebView {
 Application* Application::s_the = nullptr;
 
 Application::Application()
+    : m_settings(Settings::create({}))
 {
     VERIFY(!s_the);
     s_the = this;
@@ -57,7 +58,7 @@ Application::~Application()
     s_the = nullptr;
 }
 
-void Application::initialize(Main::Arguments const& arguments, URL::URL new_tab_page_url)
+void Application::initialize(Main::Arguments const& arguments)
 {
 #ifndef AK_OS_WINDOWS
     // Increase the open file limit, as the default limits on Linux cause us to run out of file descriptors with around 15 tabs open.
@@ -152,9 +153,8 @@ void Application::initialize(Main::Arguments const& arguments, URL::URL new_tab_
         disable_site_isolation = true;
 
     m_browser_options = {
-        .urls = sanitize_urls(raw_urls, new_tab_page_url),
+        .urls = sanitize_urls(raw_urls, m_settings.new_tab_page_url()),
         .raw_urls = move(raw_urls),
-        .new_tab_page_url = move(new_tab_page_url),
         .certificates = move(certificates),
         .new_window = new_window ? NewWindow::Yes : NewWindow::No,
         .force_new_process = force_new_process ? ForceNewProcess::Yes : ForceNewProcess::No,

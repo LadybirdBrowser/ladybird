@@ -7,14 +7,18 @@
 #pragma once
 
 #include <AK/OwnPtr.h>
+#include <LibWebView/Settings.h>
 #include <UI/Qt/AutoComplete.h>
 
 #include <QLineEdit>
 
 namespace Ladybird {
 
-class LocationEdit final : public QLineEdit {
+class LocationEdit final
+    : public QLineEdit
+    , public WebView::SettingsObserver {
     Q_OBJECT
+
 public:
     explicit LocationEdit(QWidget*);
 
@@ -27,6 +31,8 @@ public:
 private:
     virtual void focusInEvent(QFocusEvent* event) override;
     virtual void focusOutEvent(QFocusEvent* event) override;
+
+    virtual void search_engine_changed() override;
 
     void update_placeholder();
     void highlight_location();
