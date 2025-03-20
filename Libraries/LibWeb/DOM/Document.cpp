@@ -4877,6 +4877,9 @@ bool Document::is_allowed_to_use_feature(PolicyControlledFeature feature) const
     case PolicyControlledFeature::EncryptedMedia:
         // FIXME: Implement allowlist for this.
         return true;
+    case PolicyControlledFeature::Fullscreen:
+        // FIXME: Implement allowlist for this.
+        return true;
     case PolicyControlledFeature::Gamepad:
         // FIXME: Implement allowlist for this.
         return true;
@@ -7142,6 +7145,26 @@ WebIDL::CallbackType* Document::onvisibilitychange()
 void Document::set_onvisibilitychange(WebIDL::CallbackType* value)
 {
     set_event_handler_attribute(HTML::EventNames::visibilitychange, value);
+}
+
+WebIDL::CallbackType* Document::onfullscreenchange()
+{
+    return event_handler_attribute(HTML::EventNames::fullscreenchange);
+}
+
+void Document::set_onfullscreenchange(WebIDL::CallbackType* value)
+{
+    set_event_handler_attribute(HTML::EventNames::fullscreenchange, value);
+}
+
+WebIDL::CallbackType* Document::onfullscreenerror()
+{
+    return event_handler_attribute(HTML::EventNames::fullscreenerror);
+}
+
+void Document::set_onfullscreenerror(WebIDL::CallbackType* value)
+{
+    set_event_handler_attribute(HTML::EventNames::fullscreenerror, value);
 }
 
 // https://drafts.csswg.org/css-view-transitions-1/#dom-document-startviewtransition

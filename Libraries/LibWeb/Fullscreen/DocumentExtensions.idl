@@ -1,0 +1,7 @@
+#import <DOM/EventHandler.idl>
+
+// https://fullscreen.spec.whatwg.org/#ref-for-document
+partial interface Document {
+    attribute EventHandler onfullscreenchange;
+    attribute EventHandler onfullscreenerror;
+};

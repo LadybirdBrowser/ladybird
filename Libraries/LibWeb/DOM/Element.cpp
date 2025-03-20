@@ -2419,6 +2419,26 @@ WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, 
     return {};
 }
 
+GC::Ptr<WebIDL::CallbackType> Element::onfullscreenchange()
+{
+    return event_handler_attribute(HTML::EventNames::fullscreenchange);
+}
+
+void Element::set_onfullscreenchange(GC::Ptr<WebIDL::CallbackType> event_handler)
+{
+    set_event_handler_attribute(HTML::EventNames::fullscreenchange, event_handler);
+}
+
+GC::Ptr<WebIDL::CallbackType> Element::onfullscreenerror()
+{
+    return event_handler_attribute(HTML::EventNames::fullscreenerror);
+}
+
+void Element::set_onfullscreenerror(GC::Ptr<WebIDL::CallbackType> event_handler)
+{
+    set_event_handler_attribute(HTML::EventNames::fullscreenerror, event_handler);
+}
+
 // https://dom.spec.whatwg.org/#insert-adjacent
 WebIDL::ExceptionOr<GC::Ptr<Node>> Element::insert_adjacent(StringView where, GC::Ref<Node> node)
 {

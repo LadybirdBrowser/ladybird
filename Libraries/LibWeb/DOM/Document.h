@@ -160,6 +160,7 @@ enum class PolicyControlledFeature : u8 {
     Autoplay,
     EncryptedMedia,
     FocusWithoutUserActivation,
+    Fullscreen,
     Gamepad,
     WindowManagement,
 };
@@ -905,6 +906,12 @@ public:
     [[nodiscard]] WebIDL::CallbackType* onvisibilitychange();
     void set_onvisibilitychange(WebIDL::CallbackType*);
 
+    // https://fullscreen.spec.whatwg.org/#api
+    [[nodiscard]] WebIDL::CallbackType* onfullscreenchange();
+    void set_onfullscreenchange(WebIDL::CallbackType*);
+    [[nodiscard]] WebIDL::CallbackType* onfullscreenerror();
+    void set_onfullscreenerror(WebIDL::CallbackType*);
+
     // https://drafts.csswg.org/css-view-transitions-1/#dom-document-startviewtransition
     GC::Ptr<ViewTransition::ViewTransition> start_view_transition(GC::Ptr<WebIDL::CallbackType> update_callback);
     // https://drafts.csswg.org/css-view-transitions-1/#perform-pending-transition-operations
@@ -965,6 +972,7 @@ public:
     void remove_render_blocking_element(GC::Ref<Element>);
 
     ElementByIdMap& element_by_id() const;
+
     // https://fullscreen.spec.whatwg.org/#run-the-fullscreen-steps
     void run_fullscreen_steps();
     void append_pending_fullscreen_change(PendingFullscreenEvent::Type type, GC::Ref<Element> element);
