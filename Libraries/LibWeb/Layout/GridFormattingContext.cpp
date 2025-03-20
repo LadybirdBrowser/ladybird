@@ -2369,13 +2369,6 @@ CSSPixels GridFormattingContext::calculate_grid_container_maximum_size(GridDimen
     return calculate_inner_height(grid_container(), m_available_space.value(), computed_values.max_height());
 }
 
-CSS::Size const& GridFormattingContext::get_item_preferred_size(GridItem const& item, GridDimension const dimension) const
-{
-    if (dimension == GridDimension::Column)
-        return item.box->computed_values().width();
-    return item.box->computed_values().height();
-}
-
 CSSPixels GridFormattingContext::calculate_min_content_size(GridItem const& item, GridDimension const dimension) const
 {
     if (dimension == GridDimension::Column) {
@@ -2430,7 +2423,7 @@ CSSPixels GridFormattingContext::calculate_min_content_contribution(GridItem con
         return min(result, maxium_size);
     }
 
-    auto preferred_size = get_item_preferred_size(item, dimension);
+    auto preferred_size = item.preferred_size(dimension);
     if (dimension == GridDimension::Column) {
         auto width = calculate_inner_width(item.box, m_available_space->width, preferred_size);
         return min(item.add_margin_box_sizes(width, dimension), maxium_size);
@@ -2454,7 +2447,7 @@ CSSPixels GridFormattingContext::calculate_max_content_contribution(GridItem con
         maxium_size = css_maximum_size.length().to_px(item.box);
     }
 
-    auto preferred_size = get_item_preferred_size(item, dimension);
+    auto preferred_size = item.preferred_size(dimension);
     if (should_treat_preferred_size_as_auto || preferred_size.is_fit_content()) {
         auto fit_content_size = dimension == GridDimension::Column ? calculate_fit_content_width(item.box, available_space_for_item) : calculate_fit_content_height(item.box, available_space_for_item);
         auto result = item.add_margin_box_sizes(fit_content_size, dimension);
@@ -2535,7 +2528,7 @@ Optional<CSSPixels> GridFormattingContext::specified_size_suggestion(GridItem co
     if (has_definite_preferred_size) {
         // FIXME: consider margins, padding and borders because it is outer size.
         auto containing_block_size = containing_block_size_for_item(item, dimension);
-        return get_item_preferred_size(item, dimension).to_px(item.box, containing_block_size);
+        return item.preferred_size(dimension).to_px(item.box, containing_block_size);
     }
 
     return {};
@@ -2551,7 +2544,7 @@ Optional<CSSPixels> GridFormattingContext::transferred_size_suggestion(GridItem 
         return {};
     }
 
-    CSS::Size const& preferred_size_in_opposite_axis = get_item_preferred_size(item, dimension == GridDimension::Column ? GridDimension::Row : GridDimension::Column);
+    CSS::Size const& preferred_size_in_opposite_axis = item.preferred_size(dimension == GridDimension::Column ? GridDimension::Row : GridDimension::Column);
     if (preferred_size_in_opposite_axis.is_length()) {
         auto opposite_axis_size = preferred_size_in_opposite_axis.length().to_px(item.box);
         // FIXME: Clamp by opposite-axis minimum and maximum sizes if they are definite
@@ -2651,7 +2644,7 @@ CSSPixels GridFormattingContext::calculate_minimum_contribution(GridItem const& 
     // contribution is its min-content contribution. Because the minimum contribution often depends on
     // the size of the item’s content, it is considered a type of intrinsic size contribution.
 
-    auto preferred_size = get_item_preferred_size(item, dimension);
+    auto preferred_size = item.preferred_size(dimension);
     auto should_treat_preferred_size_as_auto = [&] {
         if (dimension == GridDimension::Column)
             return should_treat_width_as_auto(item.box, get_available_space_for_item(item));
