@@ -61,17 +61,23 @@ list(TRANSFORM 48x48_ICONS PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/icons/48x48/
 list(TRANSFORM 128x128_ICONS PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/icons/128x128/")
 list(TRANSFORM BROWSER_ICONS PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/icons/browser/")
 
+set(INTERNAL_RESOURCES
+    ladybird.css
+)
+list(TRANSFORM INTERNAL_RESOURCES PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/ladybird/")
+
 set(ABOUT_PAGES
     about.html
     newtab.html
     processes.html
 )
+list(TRANSFORM ABOUT_PAGES PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/ladybird/about-pages/")
+
 set(WEB_TEMPLATES
     directory.html
     error.html
     version.html
 )
-list(TRANSFORM ABOUT_PAGES PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/ladybird/about-pages/")
 list(TRANSFORM WEB_TEMPLATES PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/ladybird/templates/")
 
 set(THEMES
@@ -153,6 +159,10 @@ function(copy_resources_to_build base_directory bundle_target)
     )
 
     copy_resource_set(themes RESOURCES ${THEMES}
+        DESTINATION ${base_directory} TARGET ${bundle_target}
+    )
+
+    copy_resource_set(ladybird RESOURCES ${INTERNAL_RESOURCES}
         DESTINATION ${base_directory} TARGET ${bundle_target}
     )
 
