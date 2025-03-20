@@ -1030,6 +1030,9 @@ void StyleComputer::cascade_declarations(
             if (important != property.important)
                 continue;
 
+            if (pseudo_element.has_value() && !pseudo_element_supports_property(*pseudo_element, property.property_id))
+                continue;
+
             if (property.property_id == CSS::PropertyID::All) {
                 set_all_properties(cascaded_properties, element, pseudo_element, property.value, m_document, &match->declaration(), cascade_origin, important, layer_name);
                 continue;
@@ -1596,11 +1599,13 @@ GC::Ref<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Element&
     // Then we resolve all the CSS custom properties ("variables") for this element:
     // FIXME: Also resolve !important custom properties, in a second cascade.
 
-    HashMap<FlyString, CSS::StyleProperty> custom_properties;
-    for (auto& layer : matching_rule_set.author_rules) {
-        cascade_custom_properties(element, pseudo_element, layer.rules, custom_properties);
+    if (!pseudo_element.has_value() || pseudo_element_supports_property(*pseudo_element, PropertyID::Custom)) {
+        HashMap<FlyString, CSS::StyleProperty> custom_properties;
+        for (auto& layer : matching_rule_set.author_rules) {
+            cascade_custom_properties(element, pseudo_element, layer.rules, custom_properties);
+        }
+        element.set_custom_properties(pseudo_element, move(custom_properties));
     }
-    element.set_custom_properties(pseudo_element, move(custom_properties));
 
     // Then we apply the declarations from the matched rules in cascade order:
 
