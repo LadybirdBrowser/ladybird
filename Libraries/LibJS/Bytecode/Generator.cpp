@@ -33,7 +33,15 @@ Generator::Generator(VM& vm, GC::Ptr<ECMAScriptFunctionObject const> function, M
 CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(ECMAScriptFunctionObject const& function)
 {
     if (function.m_has_parameter_expressions) {
-        emit<Op::CreateLexicalEnvironment>();
+        bool has_non_local_parameters = false;
+        for (auto const& parameter_name : function.m_parameter_names) {
+            if (parameter_name.value == ECMAScriptFunctionObject::ParameterIsLocal::No) {
+                has_non_local_parameters = true;
+                break;
+            }
+        }
+        if (has_non_local_parameters)
+            emit<Op::CreateLexicalEnvironment>();
     }
 
     for (auto const& parameter_name : function.m_parameter_names) {
