@@ -68,6 +68,21 @@ struct GridItem {
 
     [[nodiscard]] int gap_adjusted_row() const;
     [[nodiscard]] int gap_adjusted_column() const;
+
+    CSS::ComputedValues const& computed_values() const
+    {
+        return box->computed_values();
+    }
+
+    CSS::Size const& minimum_size(GridDimension dimension) const
+    {
+        return dimension == GridDimension::Column ? computed_values().min_width() : computed_values().min_height();
+    }
+
+    CSS::Size const& maximum_size(GridDimension dimension) const
+    {
+        return dimension == GridDimension::Column ? computed_values().max_width() : computed_values().max_height();
+    }
 };
 
 enum class FoundUnoccupiedPlace {
