@@ -14,6 +14,7 @@
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/ReplacedBox.h>
 #include <LibWeb/Layout/Viewport.h>
+#include <LibWeb/Painting/Blending.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Painting/SVGSVGPaintable.h>
@@ -313,16 +314,7 @@ void StackingContext::paint(PaintContext& context) const
     auto transform_matrix = paintable_box().transform();
     auto transform_origin = paintable_box().transform_origin().to_type<float>();
 
-    Gfx::CompositingAndBlendingOperator compositing_and_blending_operator;
-    switch (paintable_box().computed_values().mix_blend_mode()) {
-#undef __ENUMERATE
-#define __ENUMERATE(mix_blend_mode)                                                              \
-    case CSS::MixBlendMode::mix_blend_mode:                                                      \
-        compositing_and_blending_operator = Gfx::CompositingAndBlendingOperator::mix_blend_mode; \
-        break;
-        ENUMERATE_MIX_BLEND_MODES(__ENUMERATE)
-#undef __ENUMERATE
-    }
+    Gfx::CompositingAndBlendingOperator compositing_and_blending_operator = mix_blend_mode_to_compositing_and_blending_operator(paintable_box().computed_values().mix_blend_mode());
 
     DisplayListRecorder::PushStackingContextParams push_stacking_context_params {
         .opacity = opacity,
