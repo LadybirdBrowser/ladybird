@@ -293,6 +293,8 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
             builder.appendff(" / {}", row_end.grid_track_placement().to_string());
         if (!column_end.grid_track_placement().is_auto())
             builder.appendff(" / {}", column_end.grid_track_placement().to_string());
+        if (builder.is_empty())
+            return "auto"_string;
         return MUST(builder.to_string());
     }
         // FIXME: Serialize Grid differently once we support it better!

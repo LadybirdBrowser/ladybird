@@ -2,9 +2,9 @@ Harness status: OK
 
 Found 30 tests
 
-13 Pass
-17 Fail
-Fail	Property grid-area value 'auto / auto / auto / auto'
+14 Pass
+16 Fail
+Pass	Property grid-area value 'auto / auto / auto / auto'
 Pass	Property grid-row value 'auto / auto'
 Pass	Property grid-column-end value 'auto'
 Fail	Property grid-row value '-zπ'
