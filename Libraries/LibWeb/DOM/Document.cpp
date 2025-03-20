@@ -6028,6 +6028,8 @@ void Document::remove_an_element_from_the_top_layer_immediately(GC::Ref<Element>
     // FIXME: 3. Remove the UA !important overlay: auto rule targeting el, if it exists.
     element->set_rendered_in_top_layer(false);
     element->set_needs_style_update(true);
+
+    invalidate_layout_tree(InvalidateLayoutTreeReason::DocumentRemoveAnElementFromTheTopLayerImmediately);
 }
 
 // https://drafts.csswg.org/css-position-4/#process-top-layer-removals
