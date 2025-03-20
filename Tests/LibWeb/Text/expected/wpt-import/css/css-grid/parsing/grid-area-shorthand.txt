@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 53 tests
 
-44 Pass
-9 Fail
+46 Pass
+7 Fail
 Pass	e.style['grid-area'] = "auto" should set grid-column-end
 Pass	e.style['grid-area'] = "auto" should set grid-column-start
 Pass	e.style['grid-area'] = "auto" should set grid-row-end
@@ -16,10 +16,10 @@ Pass	e.style['grid-area'] = "--a" should set grid-row-start
 Pass	e.style['grid-area'] = "--a" should not set unrelated longhands
 Pass	e.style['grid-area'] = "a / b" should set grid-column-end
 Pass	e.style['grid-area'] = "a / b" should set grid-column-start
-Fail	e.style['grid-area'] = "a / b" should set grid-row-end
+Pass	e.style['grid-area'] = "a / b" should set grid-row-end
 Pass	e.style['grid-area'] = "a / b" should set grid-row-start
 Pass	e.style['grid-area'] = "a / b" should not set unrelated longhands
-Fail	e.style['grid-area'] = "a / b / c" should set grid-column-end
+Pass	e.style['grid-area'] = "a / b / c" should set grid-column-end
 Pass	e.style['grid-area'] = "a / b / c" should set grid-column-start
 Pass	e.style['grid-area'] = "a / b / c" should set grid-row-end
 Pass	e.style['grid-area'] = "a / b / c" should set grid-row-start
