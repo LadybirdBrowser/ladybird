@@ -296,6 +296,7 @@ struct BackgroundLayerData {
     CSS::LengthPercentage size_y { CSS::Length::make_auto() };
     CSS::Repeat repeat_x { CSS::Repeat::Repeat };
     CSS::Repeat repeat_y { CSS::Repeat::Repeat };
+    CSS::MixBlendMode blend_mode { CSS::MixBlendMode::Normal };
 };
 
 struct BorderData {

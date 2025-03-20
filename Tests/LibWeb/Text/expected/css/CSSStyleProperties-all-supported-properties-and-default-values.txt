@@ -162,6 +162,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'background': 'rgba(0, 0, 0, 0) none 0% 0% auto auto repeat scroll padding-box border-box'
 'backgroundAttachment': 'scroll'
 'background-attachment': 'scroll'
+'backgroundBlendMode': 'normal'
+'background-blend-mode': 'normal'
 'backgroundClip': 'border-box'
 'background-clip': 'border-box'
 'backgroundColor': 'rgba(0, 0, 0, 0)'
