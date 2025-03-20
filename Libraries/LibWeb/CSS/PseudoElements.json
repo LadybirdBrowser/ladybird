@@ -50,19 +50,61 @@
     "spec": "https://drafts.csswg.org/css-forms-1/#selectordef-fill"
   },
   "first-letter": {
-    "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-first-letter"
+    "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-first-letter",
+    "property-whitelist": [
+      "#font-properties",
+      "color",
+      "opacity",
+      "#background-properties",
+      "#inline-typesetting-properties",
+      "#text-decoration-properties",
+      "#inline-layout-properties",
+      "#margin-properties",
+      "#padding-properties",
+      "#border-properties",
+      "box-shadow"
+    ]
   },
   "first-line": {
-    "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-first-line"
+    "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-first-line",
+    "property-whitelist": [
+      "#font-properties",
+      "color",
+      "opacity",
+      "#background-properties",
+      "#inline-typesetting-properties",
+      "#text-decoration-properties",
+      "FIXME: ruby-position",
+      "#inline-layout-properties"
+    ]
   },
   "marker": {
     "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-marker"
   },
   "placeholder": {
-    "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-placeholder"
+    "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-placeholder",
+    "property-whitelist": [
+      "#font-properties",
+      "color",
+      "opacity",
+      "#background-properties",
+      "#inline-typesetting-properties",
+      "#text-decoration-properties",
+      "FIXME: ruby-position"
+    ]
   },
   "selection": {
-    "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-selection"
+    "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-selection",
+    "property-whitelist": [
+      "color",
+      "background-color",
+      "#text-decoration-properties",
+      "text-shadow",
+      "FIXME: stroke-color",
+      "FIXME: fill-color",
+      "stroke-width",
+      "#custom-properties"
+    ]
   },
   "thumb": {
     "spec": "https://drafts.csswg.org/css-forms-1/#selectordef-thumb"
