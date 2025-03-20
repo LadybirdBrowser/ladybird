@@ -245,6 +245,12 @@ public:
 
     WebIDL::ExceptionOr<void> insert_adjacent_html(String const& position, String const&);
 
+    GC::Ptr<WebIDL::CallbackType> onfullscreenchange();
+    void set_onfullscreenchange(GC::Ptr<WebIDL::CallbackType>);
+
+    GC::Ptr<WebIDL::CallbackType> onfullscreenerror();
+    void set_onfullscreenerror(GC::Ptr<WebIDL::CallbackType>);
+
     WebIDL::ExceptionOr<String> outer_html() const;
     WebIDL::ExceptionOr<void> set_outer_html(String const&);
 

@@ -160,6 +160,7 @@ struct ElementCreationOptions {
 enum class PolicyControlledFeature : u8 {
     Autoplay,
     FocusWithoutUserActivation,
+    Fullscreen,
 };
 
 struct PendingFullscreenEvent {
@@ -864,6 +865,12 @@ public:
     [[nodiscard]] WebIDL::CallbackType* onvisibilitychange();
     void set_onvisibilitychange(WebIDL::CallbackType*);
 
+    // https://fullscreen.spec.whatwg.org/#api
+    [[nodiscard]] WebIDL::CallbackType* onfullscreenchange();
+    void set_onfullscreenchange(WebIDL::CallbackType*);
+    [[nodiscard]] WebIDL::CallbackType* onfullscreenerror();
+    void set_onfullscreenerror(WebIDL::CallbackType*);
+
     void reset_cursor_blink_cycle();
 
     GC::Ref<EditingHostManager> editing_host_manager() const { return *m_editing_host_manager; }
@@ -912,6 +919,7 @@ public:
     }
 
     ElementByIdMap& element_by_id() const;
+
     // https://fullscreen.spec.whatwg.org/#run-the-fullscreen-steps
     void run_fullscreen_steps();
     void append_pending_fullscreen_change(PendingFullscreenEvent::Type type, GC::Ref<Element> element);

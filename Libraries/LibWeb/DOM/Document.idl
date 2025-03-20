@@ -159,6 +159,10 @@ interface Document : Node {
 
     // https://www.w3.org/TR/SVG2/struct.html#InterfaceDocumentExtensions
     readonly attribute SVGSVGElement? rootElement;
+
+    // https://fullscreen.spec.whatwg.org/#api
+    attribute EventHandler onfullscreenchange;
+    attribute EventHandler onfullscreenerror;
 };
 
 dictionary ElementCreationOptions {
