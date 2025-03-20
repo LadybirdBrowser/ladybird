@@ -164,6 +164,14 @@ enum class PolicyControlledFeature : u8 {
     WindowManagement,
 };
 
+struct PendingFullscreenEvent {
+    enum class Type {
+        Change,
+        Error,
+    } type;
+    GC::Ref<Element> element;
+};
+
 class WEB_API Document
     : public ParentNode
     , public HTML::GlobalEventHandlers {
@@ -957,6 +965,9 @@ public:
     void remove_render_blocking_element(GC::Ref<Element>);
 
     ElementByIdMap& element_by_id() const;
+    // https://fullscreen.spec.whatwg.org/#run-the-fullscreen-steps
+    void run_fullscreen_steps();
+    void append_pending_fullscreen_change(PendingFullscreenEvent::Type type, GC::Ref<Element> element);
 
     auto& script_blocking_style_sheet_set() { return m_script_blocking_style_sheet_set; }
     auto const& script_blocking_style_sheet_set() const { return m_script_blocking_style_sheet_set; }
@@ -1401,6 +1412,9 @@ private:
 
     // https://drafts.csswg.org/css-values-5/#random-caching
     HashMap<CSS::RandomCachingKey, double> m_element_shared_css_random_base_value_cache;
+
+    // https://fullscreen.spec.whatwg.org/#list-of-pending-fullscreen-events
+    Vector<PendingFullscreenEvent> m_pending_fullscreen_events;
 };
 
 template<>

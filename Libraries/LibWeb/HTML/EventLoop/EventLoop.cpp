@@ -423,7 +423,10 @@ void EventLoop::update_the_rendering()
         document->update_animations_and_send_events(HighResolutionTime::relative_high_resolution_time(frame_timestamp, relevant_global_object(*document)));
     };
 
-    // FIXME: 12. For each doc of docs, run the fullscreen steps for doc. [FULLSCREEN]
+    // 12. For each doc of docs, run the fullscreen steps for doc. [FULLSCREEN]
+    for (auto& document : docs) {
+        document->run_fullscreen_steps();
+    }
 
     // FIXME: 13. For each doc of docs, if the user agent detects that the backing storage associated with a CanvasRenderingContext2D or an OffscreenCanvasRenderingContext2D, context, has been lost, then it must run the context lost steps for each such context:
 

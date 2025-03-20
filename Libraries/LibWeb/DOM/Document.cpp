@@ -648,6 +648,10 @@ void Document::visit_edges(Cell::Visitor& visitor)
         visitor.visit(event.target);
     }
 
+    for (auto& event : m_pending_fullscreen_events) {
+        visitor.visit(event.element);
+    }
+
     visitor.visit(m_adopted_style_sheets);
     visitor.visit(m_script_blocking_style_sheet_set);
 
@@ -6754,6 +6758,40 @@ void Document::add_render_blocking_element(GC::Ref<Element> element)
 void Document::remove_render_blocking_element(GC::Ref<Element> element)
 {
     m_render_blocking_elements.remove(element);
+}
+
+// https://fullscreen.spec.whatwg.org/#run-the-fullscreen-steps
+void Document::run_fullscreen_steps()
+{
+    // 1. Let pendingEvents be document’s list of pending fullscreen events.
+    auto pending_events = GC::ConservativeVector<PendingFullscreenEvent> { vm().heap() };
+    pending_events.extend(m_pending_fullscreen_events);
+
+    // 2. Empty document’s list of pending fullscreen events.
+    m_pending_fullscreen_events.clear();
+
+    // 3. For each (type, element) in pendingEvents:
+    for (auto const& [type, element] : pending_events) {
+        // 1. Let target be element if element is connected and its node document is document, and otherwise let target be document.
+        GC::Ref<Node> target { *this };
+        if (element->is_connected() && &element->document() == this)
+            target = element;
+
+        // 2. Fire an event named type, with its bubbles and composed attributes set to true, at target.
+        switch (type) {
+        case PendingFullscreenEvent::Type::Change:
+            target->dispatch_event(Event::create(realm(), HTML::EventNames::fullscreenchange, EventInit { .bubbles = true, .composed = true }));
+            break;
+        case PendingFullscreenEvent::Type::Error:
+            target->dispatch_event(Event::create(realm(), HTML::EventNames::fullscreenerror, EventInit { .bubbles = true, .composed = true }));
+            break;
+        }
+    }
+}
+
+void Document::append_pending_fullscreen_change(PendingFullscreenEvent::Type type, GC::Ref<Element> element)
+{
+    m_pending_fullscreen_events.append(PendingFullscreenEvent { type, element });
 }
 
 // https://dom.spec.whatwg.org/#document-allow-declarative-shadow-roots
