@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2023-2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  * Copyright (c) 2022-2023, Martin Falisse <mfalisse@outlook.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -18,14 +18,19 @@ enum class GridDimension {
 };
 
 enum class Alignment {
-    Normal,
-    SpaceBetween,
-    SpaceAround,
-    SpaceEvenly,
+    Baseline,
     Center,
-    Start,
     End,
+    Normal,
+    Safe,
+    SelfEnd,
+    SelfStart,
+    SpaceAround,
+    SpaceBetween,
+    SpaceEvenly,
+    Start,
     Stretch,
+    Unsafe,
 };
 
 struct GridPosition {
@@ -87,6 +92,36 @@ struct GridItem {
     CSS::Size const& preferred_size(GridDimension dimension) const
     {
         return dimension == GridDimension::Column ? computed_values().width() : computed_values().height();
+    }
+
+    CSS::LengthPercentage const& margin_start(GridDimension dimension) const
+    {
+        return dimension == GridDimension::Column ? computed_values().margin().left() : computed_values().margin().top();
+    }
+
+    CSS::LengthPercentage const& margin_end(GridDimension dimension) const
+    {
+        return dimension == GridDimension::Column ? computed_values().margin().right() : computed_values().margin().bottom();
+    }
+
+    CSSPixels used_margin_box_start(GridDimension dimension) const
+    {
+        return dimension == GridDimension::Column ? used_values.margin_box_left() : used_values.margin_box_top();
+    }
+
+    CSSPixels used_margin_box_end(GridDimension dimension) const
+    {
+        return dimension == GridDimension::Column ? used_values.margin_box_right() : used_values.margin_box_bottom();
+    }
+
+    CSSPixels used_margin_start(GridDimension dimension) const
+    {
+        return dimension == GridDimension::Column ? used_values.margin_left : used_values.margin_top;
+    }
+
+    CSSPixels used_margin_end(GridDimension dimension) const
+    {
+        return dimension == GridDimension::Column ? used_values.margin_right : used_values.margin_bottom;
     }
 
     AvailableSpace available_space() const
@@ -158,8 +193,7 @@ public:
     Box const& grid_container() const { return context_box(); }
 
 private:
-    CSS::JustifyItems justification_for_item(Box const& box) const;
-    CSS::AlignItems alignment_for_item(Box const& box) const;
+    Alignment alignment_for_item(Box const& box, GridDimension dimension) const;
 
     void resolve_items_box_metrics(GridDimension const dimension);
 
@@ -288,8 +322,7 @@ private:
     void layout_absolutely_positioned_element(Box const&);
     virtual void parent_context_did_dimension_child_root_box() override;
 
-    void resolve_grid_item_widths();
-    void resolve_grid_item_heights();
+    void resolve_grid_item_sizes(GridDimension dimension);
 
     void resolve_track_spacing(GridDimension const dimension);
 
