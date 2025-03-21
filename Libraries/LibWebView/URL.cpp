@@ -1,53 +1,103 @@
 /*
  * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
  * Copyright (c) 2023, Cameron Youell <cameronyouell@gmail.com>
+ * Copyright (c) 2025, Manuel Zahariev <manuel@duck.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <AK/String.h>
+#include <AK/Vector.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibURL/Parser.h>
 #include <LibWebView/URL.h>
 
 namespace WebView {
 
-Optional<URL::URL> sanitize_url(StringView url, Optional<StringView> search_engine, AppendTLD append_tld)
+Optional<URL::URL> sanitize_url(StringView location, Optional<StringView> search_engine, AppendTLD append_tld)
 {
-    if (FileSystem::exists(url.trim_whitespace())) {
-        auto path = FileSystem::real_path(url.trim_whitespace());
-        if (path.is_error())
-            return {};
+    StringView const location_trimmed = location.trim_whitespace();
 
-        return URL::create_with_file_scheme(path.value());
-    }
+    // FIXME: On empty return, the user should be presented with Requests::NetworkError::MalformedUrl
+    //        or similar, maybe without issuing the request.
+    //        Firefox has "Hmm that address doesn't look right." on "about:error".
+    // Current behaviour: the browser simply reverts back to the latest good state
+    // (about:newtab or last displayed site), overwriting the location entered by the user,
+    // without any feedback. Not cool.
 
-    auto format_search_engine = [&]() -> Optional<URL::URL> {
+    auto search_url_or_error = [&]() -> Optional<URL::URL> {
         if (!search_engine.has_value())
             return {};
 
-        return URL::Parser::basic_parse(MUST(String::formatted(*search_engine, URL::percent_decode(url))));
+        return URL::Parser::basic_parse(MUST(String::formatted(*search_engine, URL::percent_encode(location_trimmed))));
     };
 
-    ByteString url_with_scheme = url;
-    if (!(url_with_scheme.starts_with("about:"sv) || url_with_scheme.contains("://"sv) || url_with_scheme.starts_with("data:"sv)))
-        url_with_scheme = ByteString::formatted("https://{}"sv, url_with_scheme);
+    auto url_or_error = [&]() -> Optional<URL::URL> {
+        auto url = URL::create_with_url_or_path(location_trimmed);
+        if (!url.is_valid())
+            return {};
 
-    auto result = URL::create_with_url_or_path(url_with_scheme);
+        return url;
+    };
 
-    if (result.is_valid() && append_tld == AppendTLD::Yes) {
-        if (auto maybe_host = result.host(); maybe_host.has_value()) {
-            auto serialized_host = maybe_host->serialize();
-            auto maybe_public_suffix = URL::get_public_suffix(serialized_host);
-            if (!maybe_public_suffix.has_value() || *maybe_public_suffix == serialized_host)
-                result.set_host(MUST(String::formatted("{}.com", serialized_host)));
-        }
+    if (FileSystem::exists(location_trimmed)) {
+        auto path = FileSystem::real_path(location_trimmed);
+        if (path.is_error())
+            return search_url_or_error();
+
+        return url_or_error();
     }
 
-    if (!result.is_valid())
-        return format_search_engine();
+    if (location_trimmed.contains('"'))
+        return search_url_or_error();
 
-    return result;
+    auto const index_for_first_space = location_trimmed.find(' ');
+    if (index_for_first_space.has_value()) {
+        auto const head = location_trimmed.substring_view(0, index_for_first_space.value());
+        auto const tail = location_trimmed.substring_view(index_for_first_space.value() + 1);
+
+        if (!head.contains("://"sv))
+            return search_url_or_error();
+
+        auto const head_as_url = URL::create_with_url_or_path(head);
+        if (!head_as_url.is_valid() || !head_as_url.host().has_value())
+            return search_url_or_error();
+
+        if (head.ends_with('/') || (head_as_url.paths().size() > 0 && head_as_url.paths().at(0).byte_count() > 0))
+            // "http://example.com/ once" or "http://example.com/some cool page"
+            return URL::create_with_url_or_path(ByteString::formatted("{}%20{}"sv, head, URL::percent_encode(tail)));
+
+        return search_url_or_error(); // "http://example.org and other examples"
+    }
+
+    if (location_trimmed.starts_with("about:"sv) || location_trimmed.contains("://"sv) || location_trimmed.starts_with("data:"sv))
+        return url_or_error();
+
+    auto location_with_scheme = URL::create_with_url_or_path(ByteString::formatted("https://{}"sv, location_trimmed));
+
+    if (!location_with_scheme.is_valid())
+        return search_url_or_error();
+
+    auto const& host = location_with_scheme.host();
+    if (!host.has_value())
+        return search_url_or_error();
+
+    auto host_as_string = host->serialize();
+    auto public_suffix = URL::get_public_suffix(host_as_string);
+
+    if (!public_suffix.has_value() || *public_suffix == host_as_string) { // "nosuffix" or "com"
+        if (append_tld == AppendTLD::Yes) {
+            location_with_scheme.set_host(MUST(String::formatted("{}.com", host_as_string)));
+            return location_with_scheme;
+        }
+
+        if (host_as_string == "localhost"sv)
+            return location_with_scheme;
+
+        return search_url_or_error();
+    }
+
+    return location_with_scheme;
 }
 
 Vector<URL::URL> sanitize_urls(ReadonlySpan<ByteString> raw_urls, URL::URL const& new_tab_page_url)
