@@ -349,12 +349,14 @@ void upgrade_a_database(JS::Realm& realm, GC::Ref<IDBDatabase> connection, u64 v
         transaction->set_state(IDBTransaction::TransactionState::Active);
 
         // 5. Let didThrow be the result of firing a version change event named upgradeneeded at request with old version and version.
-        [[maybe_unused]] auto did_throw = fire_a_version_change_event(realm, HTML::EventNames::upgradeneeded, request, old_version, version);
+        auto did_throw = fire_a_version_change_event(realm, HTML::EventNames::upgradeneeded, request, old_version, version);
 
         // 6. Set transaction’s state to inactive.
         transaction->set_state(IDBTransaction::TransactionState::Inactive);
 
-        // FIXME: 7. If didThrow is true, run abort a transaction with transaction and a newly created "AbortError" DOMException.
+        // 7. If didThrow is true, run abort a transaction with transaction and a newly created "AbortError" DOMException.
+        if (did_throw)
+            abort_a_transaction(*transaction, WebIDL::AbortError::create(realm, "Version change event threw an exception"_string));
 
         wait_for_transaction = false;
     }));
