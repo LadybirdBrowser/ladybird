@@ -37,6 +37,30 @@
 #include <LibJS/Runtime/ValueInlines.h>
 #include <LibJS/SourceTextModule.h>
 
+namespace JS {
+
+struct PropertyKeyAndEnumerableFlag {
+    JS::PropertyKey key;
+    bool enumerable { false };
+};
+
+}
+
+namespace AK {
+template<>
+struct Traits<JS::PropertyKeyAndEnumerableFlag> : public DefaultTraits<JS::PropertyKeyAndEnumerableFlag> {
+    static unsigned hash(JS::PropertyKeyAndEnumerableFlag const& entry)
+    {
+        return Traits<JS::PropertyKey>::hash(entry.key);
+    }
+
+    static bool equals(JS::PropertyKeyAndEnumerableFlag const& a, JS::PropertyKeyAndEnumerableFlag const& b)
+    {
+        return Traits<JS::PropertyKey>::equals(a.key, b.key);
+    }
+};
+}
+
 namespace JS::Bytecode {
 
 bool g_dump_bytecode = false;
@@ -1694,16 +1718,6 @@ inline ThrowCompletionOr<Value> delete_by_value_with_this(Bytecode::Interpreter&
     return Value(TRY(reference.delete_(vm)));
 }
 
-class PropertyNameIteratorState final : public GC::Cell {
-    GC_CELL(PropertyNameIteratorState, GC::Cell);
-    GC_DECLARE_ALLOCATOR(PropertyNameIteratorState);
-
-public:
-    HashTable<PropertyKey> non_enumerable_property_keys;
-};
-
-GC_DEFINE_ALLOCATOR(PropertyNameIteratorState);
-
 // 14.7.5.9 EnumerateObjectProperties ( O ), https://tc39.es/ecma262/#sec-enumerate-object-properties
 inline ThrowCompletionOr<Object*> get_object_property_iterator(VM& vm, Value value)
 {
@@ -1724,34 +1738,37 @@ inline ThrowCompletionOr<Object*> get_object_property_iterator(VM& vm, Value val
     // Note: While the spec doesn't explicitly require these to be ordered, it says that the values should be retrieved via OwnPropertyKeys,
     //       so we just keep the order consistent anyway.
 
-    struct ObjectWithProperties {
-        WeakPtr<Object> object;
-        OrderedHashTable<PropertyKey> property_names;
-    };
-    Vector<ObjectWithProperties> objects_with_properties;
-
+    OrderedHashTable<PropertyKeyAndEnumerableFlag> properties;
     HashTable<GC::Ref<Object>> seen_objects;
-    HashTable<PropertyKey> seen_property_keys;
     // Collect all keys immediately (invariant no. 5)
     for (auto object_to_check = GC::Ptr { object.ptr() }; object_to_check && !seen_objects.contains(*object_to_check); object_to_check = TRY(object_to_check->internal_get_prototype_of())) {
         seen_objects.set(*object_to_check);
-        objects_with_properties.prepend(ObjectWithProperties {
-            .object = *object_to_check,
-            .property_names = {},
-        });
-        auto& properties = objects_with_properties.first().property_names;
         for (auto& key : TRY(object_to_check->internal_own_property_keys())) {
             if (key.is_symbol())
                 continue;
 
-            auto property_key = TRY(PropertyKey::from_value(vm, key));
+            // NOTE: If there is a non-enumerable property higher up the prototype chain with the same key,
+            //       we mustn't include this property even if it's enumerable (invariant no. 5 and 6)
+            //       This is achieved with the PropertyKeyAndEnumerableFlag struct, which doesn't consider
+            //       the enumerable flag when comparing keys.
+            PropertyKeyAndEnumerableFlag new_entry {
+                .key = TRY(PropertyKey::from_value(vm, key)),
+                .enumerable = false,
+            };
 
-            if (seen_property_keys.set(property_key, AK::HashSetExistingEntryBehavior::Keep) == HashSetResult::KeptExistingEntry)
+            if (properties.contains(new_entry))
                 continue;
 
-            properties.set(property_key);
+            auto descriptor = TRY(object_to_check->internal_get_own_property(new_entry.key));
+            if (!descriptor.has_value())
+                continue;
+
+            new_entry.enumerable = *descriptor->enumerable;
+            properties.set(move(new_entry), AK::HashSetExistingEntryBehavior::Keep);
         }
     }
+
+    properties.remove_all_matching([&](auto& entry) { return !entry.enumerable; });
 
     auto& realm = *vm.current_realm();
 
@@ -1759,39 +1776,22 @@ inline ThrowCompletionOr<Object*> get_object_property_iterator(VM& vm, Value val
     auto value_offset = realm.intrinsics().iterator_result_object_value_offset();
     auto done_offset = realm.intrinsics().iterator_result_object_done_offset();
 
-    auto state = realm.heap().allocate<PropertyNameIteratorState>();
-
     auto callback = NativeFunction::create(
-        *vm.current_realm(), [objects_with_properties = move(objects_with_properties), result_object, value_offset, done_offset, state](VM& vm) mutable -> ThrowCompletionOr<Value> {
+        *vm.current_realm(), [items = move(properties), result_object, value_offset, done_offset](VM& vm) mutable -> ThrowCompletionOr<Value> {
+            auto& iterated_object = vm.this_value().as_object();
             while (true) {
-                if (objects_with_properties.is_empty()) {
+                if (items.is_empty()) {
                     result_object->put_direct(done_offset, JS::Value(true));
                     return result_object;
                 }
 
-                auto& object = objects_with_properties.last();
+                auto key = move(items.take_first().key);
 
-                if (object.property_names.is_empty()
-                    || !object.object) {
-                    objects_with_properties.take_last();
-                    continue;
-                }
-
-                auto key = object.property_names.take_first();
-
-                // NOTE: If there is a non-enumerable property higher up the prototype chain with the same key,
-                //       we mustn't include this property even if it's enumerable (invariant no. 5 and 6)
-                if (state->non_enumerable_property_keys.contains(key))
+                // If the property is deleted, don't include it (invariant no. 2)
+                if (!TRY(iterated_object.has_property(key)))
                     continue;
 
-                auto descriptor = TRY(object.object->internal_get_own_property(key));
-                if (!descriptor.has_value())
-                    continue;
-
-                if (!*descriptor->enumerable) {
-                    state->non_enumerable_property_keys.set(move(key));
-                    continue;
-                }
+                result_object->put_direct(done_offset, JS::Value(false));
 
                 if (key.is_number())
                     result_object->put_direct(value_offset, PrimitiveString::create(vm, String::number(key.as_number())));
@@ -1800,7 +1800,6 @@ inline ThrowCompletionOr<Object*> get_object_property_iterator(VM& vm, Value val
                 else
                     VERIFY_NOT_REACHED(); // We should not have non-string/number keys.
 
-                result_object->put_direct(done_offset, JS::Value(false));
                 return result_object;
             }
         },
