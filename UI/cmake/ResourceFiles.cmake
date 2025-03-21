@@ -70,6 +70,7 @@ set(ABOUT_PAGES
     about.html
     newtab.html
     processes.html
+    settings.html
 )
 list(TRANSFORM ABOUT_PAGES PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/ladybird/about-pages/")
 

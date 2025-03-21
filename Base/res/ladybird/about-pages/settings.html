@@ -1,0 +1,254 @@
+<!doctype html>
+<html>
+    <head>
+        <title>Settings</title>
+        <link rel="stylesheet" type="text/css" href="resource://ladybird/ladybird.css" />
+        <style>
+            @media (prefers-color-scheme: light) {
+                :root {
+                    --card-background-color: #f9f9f9;
+                    --card-header-background-color: #f0f2f5;
+
+                    --input-background-color: white;
+
+                    --border-color: #dcdde1;
+                }
+            }
+
+            @media (prefers-color-scheme: dark) {
+                :root {
+                    --card-background-color: #2c2c2c;
+                    --card-header-background-color: #252525;
+
+                    --border-color: #3d3d3d;
+                }
+            }
+
+            * {
+                box-sizing: border-box;
+            }
+
+            body {
+                max-width: 800px;
+
+                margin: 0 auto;
+                padding: 20px;
+            }
+
+            header {
+                display: flex;
+                align-items: center;
+
+                margin-bottom: 30px;
+            }
+
+            header h1 {
+                font-size: 20px;
+            }
+
+            header img {
+                height: 48px;
+                margin-right: 10px;
+                float: left;
+            }
+
+            .card {
+                background-color: var(--card-background-color);
+
+                border-radius: 8px;
+                margin-bottom: 20px;
+
+                overflow: hidden;
+            }
+
+            .card-header {
+                background-color: var(--card-header-background-color);
+
+                border-bottom: 1px solid var(--border-color);
+                padding: 15px 20px;
+            }
+
+            .card-body {
+                padding: 20px;
+            }
+
+            .card-group {
+                margin-bottom: 20px;
+            }
+
+            .card-group:last-child {
+                margin-bottom: 0;
+            }
+
+            label {
+                display: block;
+                margin-bottom: 8px;
+
+                font-size: 14px;
+            }
+
+            input[type="url"],
+            select {
+                background-color: var(--input-background-color);
+
+                width: 100%;
+                border: 1px solid var(--border-color);
+            }
+
+            input[type="url"].success {
+                border: 1px solid green;
+            }
+
+            input[type="url"].error {
+                border: 1px solid red;
+            }
+
+            .button-container {
+                display: flex;
+                justify-content: flex-end;
+
+                margin-top: 20px;
+                gap: 10px;
+            }
+        </style>
+    </head>
+    <body>
+        <header>
+            <picture>
+                <source
+                    srcset="resource://icons/128x128/app-browser.png"
+                    media="(prefers-color-scheme: dark)"
+                />
+                <img src="resource://icons/128x128/app-browser-dark.png" />
+            </picture>
+            <h1>Ladybird Settings</h1>
+        </header>
+
+        <div class="card">
+            <div class="card-header">General</div>
+            <div class="card-body">
+                <div class="card-group">
+                    <label for="new-tab-page-url">New Tab Page URL</label>
+                    <input id="new-tab-page-url" type="url" placeholder="about:newtab" />
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">Search</div>
+            <div class="card-body">
+                <div class="card-group">
+                    <div class="toggle-container">
+                        <label for="search-enabled">Enable Search</label>
+                        <label class="toggle">
+                            <input id="search-enabled" type="checkbox" />
+                            <span class="toggle-button"></span>
+                        </label>
+                    </div>
+                </div>
+                <div id="search-engine-list" class="card-group" style="display: none">
+                    <label for="search-engine">Default Search Engine</label>
+                    <select id="search-engine">
+                        <option value="">Please Select a Search Engine</option>
+                        <hr />
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="button-container">
+            <button id="restore-defaults" class="primary-button">Restore Defaults</button>
+        </div>
+
+        <script>
+            const newTabPageURL = document.querySelector("#new-tab-page-url");
+            const searchEngineList = document.querySelector("#search-engine-list");
+            const searchEnabled = document.querySelector("#search-enabled");
+            const searchEngine = document.querySelector("#search-engine");
+            const restoreDefaults = document.querySelector("#restore-defaults");
+
+            settings.settings = {};
+
+            const renderSettings = () => {
+                newTabPageURL.classList.remove("error");
+                newTabPageURL.value = settings.settings.newTabPageURL;
+
+                const searchEngineName = settings.settings.searchEngine?.name;
+
+                if (searchEngineName) {
+                    searchEnabled.checked = true;
+                    searchEngine.value = searchEngineName;
+                } else {
+                    searchEnabled.checked = false;
+                }
+
+                renderSearchEngine();
+            };
+
+            const renderSearchEngine = () => {
+                searchEngineList.style.display = searchEnabled.checked ? "block" : "none";
+
+                if (searchEnabled.checked && searchEngine.selectedIndex !== 0) {
+                    searchEngine.item(0).disabled = true;
+                } else if (!searchEnabled.checked) {
+                    searchEngine.item(0).disabled = false;
+                    searchEngine.selectedIndex = 0;
+                }
+            };
+
+            const saveSearchEngine = () => {
+                if (searchEnabled.checked && searchEngine.selectedIndex !== 0) {
+                    settings.setSearchEngine(searchEngine.value);
+                } else if (!searchEnabled.checked) {
+                    settings.setSearchEngine(null);
+                }
+
+                renderSearchEngine();
+            };
+
+            newTabPageURL.addEventListener("change", () => {
+                newTabPageURL.classList.remove("success");
+                newTabPageURL.classList.remove("error");
+
+                if (!newTabPageURL.checkValidity()) {
+                    newTabPageURL.classList.add("error");
+                    return;
+                }
+
+                settings.setNewTabPageURL(newTabPageURL.value);
+                newTabPageURL.classList.add("success");
+
+                setTimeout(() => {
+                    newTabPageURL.classList.remove("success");
+                }, 1000);
+            });
+
+            searchEnabled.addEventListener("change", saveSearchEngine);
+            searchEngine.addEventListener("change", saveSearchEngine);
+
+            restoreDefaults.addEventListener("click", () => {
+                settings.restoreDefaultSettings();
+            });
+
+            settings.loadSettings = settings => {
+                window.settings.settings = JSON.parse(settings);
+                renderSettings();
+            };
+
+            settings.loadSearchEngines = engines => {
+                for (const engine of JSON.parse(engines)) {
+                    const option = document.createElement("option");
+                    option.text = engine;
+                    option.value = engine;
+
+                    searchEngine.add(option);
+                }
+            };
+
+            document.addEventListener("DOMContentLoaded", () => {
+                settings.loadAvailableSearchEngines();
+                settings.loadCurrentSettings();
+            });
+        </script>
+    </body>
+</html>

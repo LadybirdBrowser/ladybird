@@ -5,6 +5,7 @@
  */
 
 #include <AK/Debug.h>
+#include <AK/JsonArraySerializer.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/Environment.h>
 #include <LibCore/StandardPaths.h>
@@ -331,6 +332,35 @@ void Application::send_updated_process_statistics_to_view(ViewImplementation& vi
     StringBuilder builder;
     builder.append("processes.loadProcessStatistics(\""sv);
     builder.append_escaped_for_json(statistics);
+    builder.append("\");"sv);
+
+    view.run_javascript(MUST(builder.to_string()));
+}
+
+void Application::send_current_settings_to_view(ViewImplementation& view)
+{
+    auto settings = m_settings.serialize_json();
+
+    StringBuilder builder;
+    builder.append("settings.loadSettings(\""sv);
+    builder.append_escaped_for_json(settings);
+    builder.append("\");"sv);
+
+    view.run_javascript(MUST(builder.to_string()));
+}
+
+void Application::send_available_search_engines_to_view(ViewImplementation& view)
+{
+    StringBuilder engines;
+
+    auto serializer = MUST(JsonArraySerializer<>::try_create(engines));
+    for (auto const& engine : search_engines())
+        MUST(serializer.add(engine.name));
+    MUST(serializer.finish());
+
+    StringBuilder builder;
+    builder.append("settings.loadSearchEngines(\""sv);
+    builder.append_escaped_for_json(engines.string_view());
     builder.append("\");"sv);
 
     view.run_javascript(MUST(builder.to_string()));

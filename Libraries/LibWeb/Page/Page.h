@@ -402,6 +402,12 @@ public:
 
     virtual void update_process_statistics() { }
 
+    virtual void request_current_settings() { }
+    virtual void restore_default_settings() { }
+    virtual void set_new_tab_page_url(URL::URL const&) { }
+    virtual void request_available_search_engines() { }
+    virtual void set_search_engine(Optional<String> const&) { }
+
     virtual bool is_ready_to_paint() const = 0;
 
     virtual DisplayListPlayerType display_list_player_type() const = 0;
