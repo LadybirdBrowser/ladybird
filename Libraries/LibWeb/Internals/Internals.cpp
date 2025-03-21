@@ -89,7 +89,7 @@ void Internals::send_key(HTML::HTMLElement& target, String const& key_name, WebI
 
 void Internals::commit_text()
 {
-    page().handle_keydown(UIEvents::Key_Return, 0, 0, false);
+    page().handle_keydown(UIEvents::Key_Return, 0, 0x0d, false);
 }
 
 void Internals::click(double x, double y)

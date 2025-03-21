@@ -11,5 +11,8 @@
 
         internals.sendText(input, "wfh :^)");
         internals.commitText();
+
+        // A second commit should not result in a change event.
+        internals.commitText();
     })
 </script>

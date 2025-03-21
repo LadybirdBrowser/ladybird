@@ -25,7 +25,7 @@ public:
 
     virtual void handle_insert(String const&) override;
     virtual void handle_delete(DeleteDirection) override;
-    virtual void handle_return_key() override;
+    virtual EventResult handle_return_key() override;
     virtual void select_all() override;
     virtual void set_selection_anchor(GC::Ref<DOM::Node>, size_t offset) override;
     virtual void set_selection_focus(GC::Ref<DOM::Node>, size_t offset) override;

@@ -190,9 +190,10 @@ void EditingHostManager::handle_delete(DeleteDirection direction)
     MUST(selection_range->delete_contents());
 }
 
-void EditingHostManager::handle_return_key()
+EventResult EditingHostManager::handle_return_key()
 {
     dbgln("FIXME: Implement EditingHostManager::handle_return_key()");
+    return EventResult::Dropped;
 }
 
 }
