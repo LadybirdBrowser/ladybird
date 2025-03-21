@@ -488,24 +488,46 @@ ImageRendering ComputedProperties::image_rendering() const
 
 Length ComputedProperties::border_spacing_horizontal(Layout::Node const& layout_node) const
 {
-    auto const& value = property(PropertyID::BorderSpacing);
-    if (value.is_length())
-        return value.as_length().length();
-    if (value.is_calculated())
-        return value.as_calculated().resolve_length({ .length_resolution_context = Length::ResolutionContext::for_layout_node(layout_node) }).value_or(Length(0, Length::Type::Px));
-    auto const& list = value.as_value_list();
-    return list.value_at(0, false)->as_length().length();
+    auto resolve_value = [&](auto const& style_value) -> Optional<Length> {
+        if (style_value.is_length())
+            return style_value.as_length().length();
+        if (style_value.is_calculated())
+            return style_value.as_calculated().resolve_length({ .length_resolution_context = Length::ResolutionContext::for_layout_node(layout_node) }).value_or(Length(0, Length::Type::Px));
+        return {};
+    };
+
+    auto const& style_value = property(PropertyID::BorderSpacing);
+    auto resolved_value = resolve_value(style_value);
+    if (!resolved_value.has_value()) {
+        auto const& list = style_value.as_value_list();
+        VERIFY(list.size() > 0);
+        resolved_value = resolve_value(*list.value_at(0, false));
+    }
+
+    VERIFY(resolved_value.has_value());
+    return *resolved_value;
 }
 
 Length ComputedProperties::border_spacing_vertical(Layout::Node const& layout_node) const
 {
-    auto const& value = property(PropertyID::BorderSpacing);
-    if (value.is_length())
-        return value.as_length().length();
-    if (value.is_calculated())
-        return value.as_calculated().resolve_length({ .length_resolution_context = Length::ResolutionContext::for_layout_node(layout_node) }).value_or(Length(0, Length::Type::Px));
-    auto const& list = value.as_value_list();
-    return list.value_at(1, false)->as_length().length();
+    auto resolve_value = [&](auto const& style_value) -> Optional<Length> {
+        if (style_value.is_length())
+            return style_value.as_length().length();
+        if (style_value.is_calculated())
+            return style_value.as_calculated().resolve_length({ .length_resolution_context = Length::ResolutionContext::for_layout_node(layout_node) }).value_or(Length(0, Length::Type::Px));
+        return {};
+    };
+
+    auto const& style_value = property(PropertyID::BorderSpacing);
+    auto resolved_value = resolve_value(style_value);
+    if (!resolved_value.has_value()) {
+        auto const& list = style_value.as_value_list();
+        VERIFY(list.size() > 1);
+        resolved_value = resolve_value(*list.value_at(1, false));
+    }
+
+    VERIFY(resolved_value.has_value());
+    return *resolved_value;
 }
 
 CaptionSide ComputedProperties::caption_side() const
