@@ -1,7 +1,3 @@
-#
-# Options common for the Serenity (target) and Lagom (host) builds
-#
-
 # Make relative paths in depfiles be relative to CMAKE_CURRENT_BINARY_DIR rather than to CMAKE_BINARY_DIR
 if (POLICY CMP0116)
     cmake_policy(SET CMP0116 NEW)

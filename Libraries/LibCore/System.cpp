@@ -1017,4 +1017,17 @@ ErrorOr<void> sleep_ms(u32 milliseconds)
     return {};
 }
 
+ErrorOr<void> set_close_on_exec(int fd, bool enabled)
+{
+    int flags = TRY(fcntl(fd, F_GETFD));
+
+    if (enabled)
+        flags |= FD_CLOEXEC;
+    else
+        flags &= ~FD_CLOEXEC;
+
+    TRY(fcntl(fd, F_SETFD, flags));
+    return {};
+}
+
 }

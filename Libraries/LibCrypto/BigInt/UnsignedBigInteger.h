@@ -117,9 +117,11 @@ public:
     [[nodiscard]] UnsignedBigInteger bitwise_not_fill_to_one_based_index(size_t) const;
     [[nodiscard]] UnsignedBigInteger shift_left(size_t num_bits) const;
     [[nodiscard]] UnsignedBigInteger shift_right(size_t num_bits) const;
+    [[nodiscard]] UnsignedBigInteger as_n_bits(size_t n) const;
     [[nodiscard]] UnsignedBigInteger multiplied_by(UnsignedBigInteger const& other) const;
     [[nodiscard]] UnsignedDivisionResult divided_by(UnsignedBigInteger const& divisor) const;
 
+    [[nodiscard]] ErrorOr<UnsignedBigInteger> try_bitwise_not_fill_to_one_based_index(size_t) const;
     [[nodiscard]] ErrorOr<UnsignedBigInteger> try_shift_left(size_t num_bits) const;
 
     [[nodiscard]] u32 hash() const;

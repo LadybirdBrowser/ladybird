@@ -190,7 +190,7 @@ JsonValue::JsonValue(JsonArray&& value)
 
 ErrorOr<JsonValue> JsonValue::from_string(StringView input)
 {
-    return JsonParser(input).parse();
+    return JsonParser::parse(input);
 }
 
 String JsonValue::serialized() const

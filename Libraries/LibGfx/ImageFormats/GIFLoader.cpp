@@ -468,29 +468,31 @@ size_t GIFImageDecoderPlugin::first_animated_frame_index()
 
 ErrorOr<ImageFrameDescriptor> GIFImageDecoderPlugin::frame(size_t index, Optional<IntSize>)
 {
-    if (m_context->error_state >= GIFLoadingContext::ErrorState::FailedToDecodeAnyFrame) {
+    if (m_context->error_state == GIFLoadingContext::ErrorState::FailedToDecodeAnyFrame) {
         return Error::from_string_literal("GIFImageDecoderPlugin: Decoding failed");
     }
 
     if (m_context->state < GIFLoadingContext::State::FrameDescriptorsLoaded) {
         if (auto result = load_gif_frame_descriptors(*m_context); result.is_error()) {
             m_context->error_state = GIFLoadingContext::ErrorState::FailedToLoadFrameDescriptors;
-            return result.release_error();
+
+            // If we failed to load frame descriptors but we have some images, we can still try to decode them.
+            if (m_context->images.is_empty()) {
+                return result.release_error();
+            }
         }
     }
 
-    if (m_context->error_state == GIFLoadingContext::ErrorState::NoError) {
-        if (auto result = decode_frame(*m_context, index); result.is_error()) {
-            if (m_context->state < GIFLoadingContext::State::FrameComplete) {
-                m_context->error_state = GIFLoadingContext::ErrorState::FailedToDecodeAnyFrame;
-                return result.release_error();
-            }
-            if (auto result = decode_frame(*m_context, 0); result.is_error()) {
-                m_context->error_state = GIFLoadingContext::ErrorState::FailedToDecodeAnyFrame;
-                return result.release_error();
-            }
-            m_context->error_state = GIFLoadingContext::ErrorState::FailedToDecodeAllFrames;
+    if (auto result = decode_frame(*m_context, index); result.is_error()) {
+        if (m_context->state < GIFLoadingContext::State::FrameComplete) {
+            m_context->error_state = GIFLoadingContext::ErrorState::FailedToDecodeAnyFrame;
+            return result.release_error();
         }
+        if (auto result = decode_frame(*m_context, 0); result.is_error()) {
+            m_context->error_state = GIFLoadingContext::ErrorState::FailedToDecodeAnyFrame;
+            return result.release_error();
+        }
+        m_context->error_state = GIFLoadingContext::ErrorState::FailedToDecodeAllFrames;
     }
 
     ImageFrameDescriptor frame {};

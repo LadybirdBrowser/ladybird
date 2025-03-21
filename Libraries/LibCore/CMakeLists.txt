@@ -13,10 +13,13 @@ set(SOURCES
 
 if (WIN32)
     list(APPEND SOURCES
+        ProcessWindows.cpp
         SocketpairWindows.cpp
         SystemWindows.cpp)
 else()
-    list(APPEND SOURCES System.cpp)
+    list(APPEND SOURCES
+        Process.cpp
+        System.cpp)
 endif()
 
 serenity_lib(LibCoreMinimal coreminimal)
@@ -52,14 +55,12 @@ set(SOURCES
 if (WIN32)
     # FIXME: Support UDPServer and TCPServer on Windows
     list(APPEND SOURCES
-        ProcessWindows.cpp
         SocketWindows.cpp
         AnonymousBufferWindows.cpp
         EventLoopImplementationWindows.cpp)
 else()
     list(APPEND SOURCES
         Command.cpp
-        Process.cpp
         Socket.cpp
         AnonymousBuffer.cpp
         EventLoopImplementationUnix.cpp

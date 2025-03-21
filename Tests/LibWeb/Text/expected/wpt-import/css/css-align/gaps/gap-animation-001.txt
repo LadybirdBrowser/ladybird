@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	gap is interpolable
+1 Pass
+Pass	gap is interpolable

@@ -18,6 +18,12 @@ constexpr bool is_space(int ch)
     return ch == '\t' || ch == '\n' || ch == '\r' || ch == ' ';
 }
 
+ErrorOr<JsonValue> JsonParser::parse(StringView input)
+{
+    JsonParser parser(input);
+    return parser.parse_json();
+}
+
 // ECMA-404 9 String
 // Boils down to
 // STRING = "\"" *("[^\"\\]" | "\\" ("[\"\\bfnrt]" | "u[0-9A-Za-z]{4}")) "\""
@@ -335,7 +341,7 @@ ErrorOr<JsonValue> JsonParser::parse_helper()
     return Error::from_string_literal("JsonParser: Unexpected character");
 }
 
-ErrorOr<JsonValue> JsonParser::parse()
+ErrorOr<JsonValue> JsonParser::parse_json()
 {
     auto result = TRY(parse_helper());
     ignore_while(is_space);

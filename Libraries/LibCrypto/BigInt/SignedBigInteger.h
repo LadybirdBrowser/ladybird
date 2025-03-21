@@ -120,6 +120,7 @@ public:
     [[nodiscard]] SignedBigInteger multiplied_by(SignedBigInteger const& other) const;
     [[nodiscard]] SignedDivisionResult divided_by(SignedBigInteger const& divisor) const;
 
+    [[nodiscard]] ErrorOr<SignedBigInteger> mod_power_of_two(size_t power_of_two) const;
     [[nodiscard]] ErrorOr<SignedBigInteger> try_shift_left(size_t num_bits) const;
 
     [[nodiscard]] SignedBigInteger plus(UnsignedBigInteger const& other) const;

@@ -193,15 +193,7 @@ ErrorOr<void> PosixSocketHelper::set_blocking(bool enabled)
 
 ErrorOr<void> PosixSocketHelper::set_close_on_exec(bool enabled)
 {
-    int flags = TRY(System::fcntl(m_fd, F_GETFD));
-
-    if (enabled)
-        flags |= FD_CLOEXEC;
-    else
-        flags &= ~FD_CLOEXEC;
-
-    TRY(System::fcntl(m_fd, F_SETFD, flags));
-    return {};
+    return System::set_close_on_exec(m_fd, enabled);
 }
 
 ErrorOr<void> PosixSocketHelper::set_receive_timeout(AK::Duration timeout)

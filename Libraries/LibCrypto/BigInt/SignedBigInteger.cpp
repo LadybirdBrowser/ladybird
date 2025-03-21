@@ -291,6 +291,17 @@ FLATTEN SignedBigInteger SignedBigInteger::shift_right(size_t num_bits) const
     return SignedBigInteger { m_unsigned_data.shift_right(num_bits), m_sign };
 }
 
+FLATTEN ErrorOr<SignedBigInteger> SignedBigInteger::mod_power_of_two(size_t power_of_two) const
+{
+    auto const lower_bits = m_unsigned_data.as_n_bits(power_of_two);
+
+    if (is_positive())
+        return SignedBigInteger(lower_bits);
+
+    // twos encode lower bits
+    return SignedBigInteger(TRY(lower_bits.try_bitwise_not_fill_to_one_based_index(power_of_two)).plus(1).as_n_bits(power_of_two));
+}
+
 FLATTEN SignedBigInteger SignedBigInteger::multiplied_by(SignedBigInteger const& other) const
 {
     bool result_sign = m_sign ^ other.m_sign;

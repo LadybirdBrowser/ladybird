@@ -66,6 +66,7 @@ void FrameActor::handle_message(Message const& message)
 
     if (message.type == "detach"sv) {
         if (auto tab = m_tab.strong_ref()) {
+            devtools().delegate().stop_listening_for_dom_properties(tab->description());
             devtools().delegate().stop_listening_for_dom_mutations(tab->description());
             devtools().delegate().stop_listening_for_console_messages(tab->description());
             devtools().delegate().stop_listening_for_style_sheet_sources(tab->description());

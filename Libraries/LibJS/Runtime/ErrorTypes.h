@@ -77,7 +77,7 @@
     M(InvalidEnumerationValue, "Invalid value '{}' for enumeration type '{}'")                                                      \
     M(InvalidFractionDigits, "Fraction Digits must be an integer no less than 0, and no greater than 100")                          \
     M(InvalidHint, "Invalid hint: \"{}\"")                                                                                          \
-    M(InvalidIndex, "Index must be a positive integer")                                                                             \
+    M(InvalidIndex, "Index must be a positive integer no greater than 2^53-1")                                                      \
     M(InvalidLeftHandAssignment, "Invalid left-hand side in assignment")                                                            \
     M(InvalidLength, "Invalid {} length")                                                                                           \
     M(InvalidNormalizationForm, "The normalization form must be one of NFC, NFD, NFKC, NFKD. Got '{}'")                             \

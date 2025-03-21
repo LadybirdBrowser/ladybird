@@ -2,13 +2,13 @@ Harness status: OK
 
 Found 57 tests
 
-19 Pass
-38 Fail
-Fail	e.style['grid-area'] = "auto" should set the property value
-Fail	e.style['grid-area'] = "auto / auto" should set the property value
-Fail	e.style['grid-area'] = "auto / auto / auto" should set the property value
-Fail	e.style['grid-area'] = "auto / auto / auto / auto" should set the property value
-Fail	e.style['grid-area'] = "AuTo" should set the property value
+24 Pass
+33 Fail
+Pass	e.style['grid-area'] = "auto" should set the property value
+Pass	e.style['grid-area'] = "auto / auto" should set the property value
+Pass	e.style['grid-area'] = "auto / auto / auto" should set the property value
+Pass	e.style['grid-area'] = "auto / auto / auto / auto" should set the property value
+Pass	e.style['grid-area'] = "AuTo" should set the property value
 Pass	e.style['grid-row'] = "auto" should set the property value
 Pass	e.style['grid-row'] = "auto/auto" should set the property value
 Pass	e.style['grid-column-end'] = "AuTo" should set the property value

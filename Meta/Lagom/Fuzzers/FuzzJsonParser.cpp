@@ -9,7 +9,6 @@
 extern "C" int LLVMFuzzerTestOneInput(uint8_t const* data, size_t size)
 {
     AK::set_debug_enabled(false);
-    JsonParser parser({ data, size });
-    (void)parser.parse();
+    (void)JsonParser::parse({ data, size });
     return 0;
 }

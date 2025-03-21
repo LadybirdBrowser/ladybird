@@ -6,18 +6,11 @@
 
 #pragma once
 
-#include <AK/JsonArray.h>
-#include <AK/JsonObject.h>
 #include <AK/NonnullRefPtr.h>
 #include <LibDevTools/Actor.h>
+#include <LibWebView/DOMNodeProperties.h>
 
 namespace DevTools {
-
-struct DOMNodeProperties {
-    JsonObject computed_style;
-    JsonObject node_box_sizing;
-    JsonArray fonts;
-};
 
 class PageStyleActor final : public Actor {
 public:
@@ -33,10 +26,12 @@ private:
 
     virtual void handle_message(Message const&) override;
 
-    template<typename Callback>
-    void inspect_dom_node(Message const&, StringView node_actor, Callback&&);
+    void inspect_dom_node(Message const&, WebView::DOMNodeProperties::Type);
+    void received_dom_node_properties(WebView::DOMNodeProperties const&);
 
     WeakPtr<InspectorActor> m_inspector;
+
+    Vector<Message, 1> m_pending_inspect_requests;
 };
 
 }

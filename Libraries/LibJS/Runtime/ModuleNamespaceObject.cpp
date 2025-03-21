@@ -6,6 +6,7 @@
 
 #include <AK/QuickSort.h>
 #include <LibJS/Runtime/GlobalObject.h>
+#include <LibJS/Runtime/ModuleEnvironment.h>
 #include <LibJS/Runtime/ModuleNamespaceObject.h>
 
 namespace JS {
@@ -173,7 +174,7 @@ ThrowCompletionOr<Value> ModuleNamespaceObject::internal_get(PropertyKey const& 
     }
 
     // 10. Let targetEnv be targetModule.[[Environment]].
-    auto* target_environment = target_module->environment();
+    auto target_environment = target_module->environment();
 
     // 11. If targetEnv is empty, throw a ReferenceError exception.
     if (!target_environment)

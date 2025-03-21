@@ -93,7 +93,7 @@ TEST_CASE(test_ico_malformed_frame)
 
 TEST_CASE(test_gif)
 {
-    auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("download-animation.gif"sv)));
+    auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("gif/download-animation.gif"sv)));
     EXPECT(Gfx::GIFImageDecoderPlugin::sniff(file->bytes()));
     auto plugin_decoder = TRY_OR_FAIL(Gfx::GIFImageDecoderPlugin::create(file->bytes()));
 
@@ -103,6 +103,16 @@ TEST_CASE(test_gif)
 
     auto frame = TRY_OR_FAIL(plugin_decoder->frame(1));
     EXPECT(frame.duration == 400);
+}
+
+TEST_CASE(test_corrupted_gif)
+{
+    auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("gif/corrupted.gif"sv)));
+    EXPECT(Gfx::GIFImageDecoderPlugin::sniff(file->bytes()));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::GIFImageDecoderPlugin::create(file->bytes()));
+
+    auto frame = TRY_OR_FAIL(plugin_decoder->frame(0));
+    EXPECT_EQ(plugin_decoder->frame_count(), 1u);
 }
 
 TEST_CASE(test_gif_without_global_color_table)

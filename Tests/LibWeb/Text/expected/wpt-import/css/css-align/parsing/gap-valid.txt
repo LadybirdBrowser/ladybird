@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 9 tests
+
+9 Pass
+Pass	e.style['gap'] = "normal normal" should set the property value
+Pass	e.style['gap'] = "10px 10px" should set the property value
+Pass	e.style['gap'] = "20% 20%" should set the property value
+Pass	e.style['gap'] = "calc(20% + 10px) calc(20% + 10px)" should set the property value
+Pass	e.style['gap'] = "normal 10px" should set the property value
+Pass	e.style['gap'] = "10px 20%" should set the property value
+Pass	e.style['gap'] = "20% calc(20% + 10px)" should set the property value
+Pass	e.style['gap'] = "calc(20% + 10px) 0px" should set the property value
+Pass	e.style['gap'] = "0px normal" should set the property value

@@ -157,8 +157,7 @@ ByteString StandardPaths::config_directory()
 ByteString StandardPaths::user_data_directory()
 {
 #ifdef AK_OS_WINDOWS
-    dbgln("Core::StandardPaths::user_data_directory() is not implemented");
-    VERIFY_NOT_REACHED();
+    return ByteString::formatted("{}/Ladybird"sv, getenv("LOCALAPPDATA"));
 #endif
     if (auto data_directory = get_environment_if_not_empty("XDG_DATA_HOME"sv); data_directory.has_value())
         return LexicalPath::canonicalized_path(*data_directory);

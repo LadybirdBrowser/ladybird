@@ -2,20 +2,20 @@ Harness status: OK
 
 Found 16 tests
 
-6 Pass
-10 Fail
-Fail	e.style['gap'] = "normal" should set the property value
-Fail	e.style['gap'] = "10px" should set the property value
-Fail	e.style['gap'] = "normal normal" should set the property value
-Fail	e.style['gap'] = "10px 10px" should set the property value
+12 Pass
+4 Fail
+Pass	e.style['gap'] = "normal" should set the property value
+Pass	e.style['gap'] = "10px" should set the property value
+Pass	e.style['gap'] = "normal normal" should set the property value
+Pass	e.style['gap'] = "10px 10px" should set the property value
 Pass	e.style['column-gap'] = "normal" should set the property value
 Pass	e.style['column-gap'] = "10px" should set the property value
 Pass	e.style['row-gap'] = "normal" should set the property value
 Pass	e.style['row-gap'] = "10px" should set the property value
 Fail	'row-gap: normal; column-gap: normal;' is serialized to 'gap: normal;'
-Fail	getPropertyValue for 'row-gap: normal; column-gap: normal;' returns 'normal'
+Pass	getPropertyValue for 'row-gap: normal; column-gap: normal;' returns 'normal'
 Fail	'row-gap: 10px; column-gap: 10px;' is serialized to 'gap: 10px;'
-Fail	getPropertyValue for 'row-gap: 10px; column-gap: 10px;' returns '10px'
+Pass	getPropertyValue for 'row-gap: 10px; column-gap: 10px;' returns '10px'
 Fail	'row-gap: 10px; column-gap: normal;' is serialized to 'gap: 10px normal;'
 Pass	getPropertyValue for 'row-gap: 10px; column-gap: normal;' returns '10px normal'
 Fail	'column-gap: normal; row-gap: 10px;' is serialized to 'gap: 10px normal;'
