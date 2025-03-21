@@ -564,6 +564,7 @@ set(SOURCES
     Internals/Internals.cpp
     Internals/InternalsBase.cpp
     Internals/Processes.cpp
+    Internals/Settings.cpp
     IntersectionObserver/IntersectionObserver.cpp
     IntersectionObserver/IntersectionObserverEntry.cpp
     Layout/AudioBox.cpp

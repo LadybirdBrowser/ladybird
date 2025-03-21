@@ -704,6 +704,31 @@ void PageClient::update_process_statistics()
     client().async_update_process_statistics(m_id);
 }
 
+void PageClient::request_current_settings()
+{
+    client().async_request_current_settings(m_id);
+}
+
+void PageClient::restore_default_settings()
+{
+    client().async_restore_default_settings(m_id);
+}
+
+void PageClient::set_new_tab_page_url(URL::URL const& new_tab_page_url)
+{
+    client().async_set_new_tab_page_url(m_id, new_tab_page_url);
+}
+
+void PageClient::request_available_search_engines()
+{
+    client().async_request_available_search_engines(m_id);
+}
+
+void PageClient::set_search_engine(Optional<String> const& search_engine)
+{
+    client().async_set_search_engine(m_id, search_engine);
+}
+
 ErrorOr<void> PageClient::connect_to_webdriver(ByteString const& webdriver_ipc_path)
 {
     VERIFY(!m_webdriver);

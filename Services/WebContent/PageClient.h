@@ -175,6 +175,11 @@ private:
     virtual IPC::File request_worker_agent() override;
     virtual void page_did_mutate_dom(FlyString const& type, Web::DOM::Node const& target, Web::DOM::NodeList& added_nodes, Web::DOM::NodeList& removed_nodes, GC::Ptr<Web::DOM::Node> previous_sibling, GC::Ptr<Web::DOM::Node> next_sibling, Optional<String> const& attribute_name) override;
     virtual void update_process_statistics() override;
+    virtual void request_current_settings() override;
+    virtual void restore_default_settings() override;
+    virtual void set_new_tab_page_url(URL::URL const&) override;
+    virtual void request_available_search_engines() override;
+    virtual void set_search_engine(Optional<String> const&) override;
 
     Web::Layout::Viewport* layout_root();
     void setup_palette();
