@@ -1,0 +1,61 @@
+name: 'Run the JS benchmarks'
+
+on:
+  workflow_run:
+    workflows: ['Package the js repl as a binary artifact']
+    branches: [master]
+    types:
+      - completed
+
+jobs:
+  js-benchmarks:
+    runs-on: js-benchmarks-runner
+    if: ${{ github.repository == 'LadybirdBrowser/ladybird' && github.event.workflow_run.conclusion == 'success' }}
+
+    concurrency:
+      group: js-benchmarks
+
+    steps:
+      - name: 'Checkout LadybirdBrowser/js-benchmarks'
+        uses: actions/checkout@v4
+        with:
+          repository: LadybirdBrowser/js-benchmarks
+          path: js-benchmarks
+
+      - name: 'Install dependencies'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang++-19 python3-venv
+          sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-19 100
+          sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-19 100
+
+      - name: 'Download JS repl artifact'
+        id: download-artifact
+        uses: dawidd6/action-download-artifact@v9
+        with:
+          workflow: js-artifacts.yml
+          name: ladybird-js-Linux-x86_64
+          path: js-repl
+
+      - name: 'Extract JS repl'
+        shell: bash
+        run: |
+          cd js-repl
+          tar -xvzf ladybird-js-Linux-x86_64.tar.gz
+
+      - name: 'Run the JS benchmarks'
+        shell: bash
+        run: |
+          cd js-benchmarks
+          python3 -m venv .venv
+          source .venv/bin/activate
+          python3 -m pip install -r requirements.txt
+          ./run.py --executable=${{ github.workspace }}/js-repl/bin/js --iterations=5
+
+      - name: 'Save results as an artifact'
+        uses: actions/upload-artifact@v4
+        with:
+          name: js-benchmarks-results
+          path: js-benchmarks/results.json
+          retention-days: 93
