@@ -8,6 +8,7 @@
 
 #include <LibGC/Ptr.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/Page/EventResult.h>
 
 namespace Web {
 
@@ -18,7 +19,7 @@ public:
     virtual GC::Ref<JS::Cell> as_cell() = 0;
 
     virtual void handle_insert(String const&) = 0;
-    virtual void handle_return_key() = 0;
+    virtual EventResult handle_return_key() = 0;
 
     enum class DeleteDirection {
         Backward,

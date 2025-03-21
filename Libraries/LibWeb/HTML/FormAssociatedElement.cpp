@@ -781,17 +781,18 @@ void FormAssociatedTextControlElement::handle_delete(DeleteDirection direction)
     MUST(set_range_text(String {}, selection_start, selection_end, Bindings::SelectionMode::End));
 }
 
-void FormAssociatedTextControlElement::handle_return_key()
+EventResult FormAssociatedTextControlElement::handle_return_key()
 {
-    auto& html_element = form_associated_element_to_html_element();
-    if (is<HTMLInputElement>(html_element)) {
-        auto& input_element = static_cast<HTMLInputElement&>(html_element);
-        if (auto* form = input_element.form()) {
-            form->implicitly_submit_form().release_value_but_fixme_should_propagate_errors();
-            return;
-        }
-        input_element.commit_pending_changes();
-    }
+    auto* input_element = as_if<HTMLInputElement>(form_associated_element_to_html_element());
+    if (!input_element)
+        return EventResult::Dropped;
+
+    if (auto* form = input_element->form())
+        form->implicitly_submit_form().release_value_but_fixme_should_propagate_errors();
+    else
+        input_element->commit_pending_changes();
+
+    return EventResult::Handled;
 }
 
 void FormAssociatedTextControlElement::collapse_selection_to_offset(size_t position)
