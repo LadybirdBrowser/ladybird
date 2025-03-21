@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2025, Manuel Zahariev <manuel@duck.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -23,6 +24,29 @@ static bool is_sanitized_url_the_same(StringView url)
     if (!sanitized_url.has_value())
         return false;
     return sanitized_url->to_string() == url;
+}
+
+static void expect_url_equals_sanitized_url(StringView test_url, StringView url, WebView::AppendTLD append_tld = WebView::AppendTLD::No)
+{
+    StringView const search_engine_url = "https://ecosia.org/search?q={}"sv;
+
+    auto sanitized_url = WebView::sanitize_url(url, search_engine_url, append_tld);
+
+    EXPECT(sanitized_url.has_value());
+    EXPECT_EQ(sanitized_url->to_string(), test_url);
+}
+
+static void expect_search_url_equals_sanitized_url(StringView url)
+{
+    dbgln("DBG: {}", url);
+
+    StringView const search_engine_url = "https://ecosia.org/search?q={}"sv;
+    auto const search_url = String::formatted(search_engine_url, URL::percent_encode(url));
+
+    auto sanitized_url = WebView::sanitize_url(url, search_engine_url);
+
+    EXPECT(sanitized_url.has_value());
+    EXPECT_EQ(sanitized_url->to_string(), search_url.value());
 }
 
 TEST_CASE(invalid_url)
@@ -104,4 +128,38 @@ TEST_CASE(data_url)
 
     EXPECT(!is_sanitized_url_the_same("data text/html"sv));
     EXPECT(!is_sanitized_url_the_same("text/html data:"sv));
+}
+
+TEST_CASE(location_to_search_or_url)
+{
+    expect_search_url_equals_sanitized_url("hello"sv); // Search.
+    expect_search_url_equals_sanitized_url("hello world"sv);
+    expect_search_url_equals_sanitized_url("\"example.org\""sv);
+    expect_search_url_equals_sanitized_url("\"example.org"sv);
+    expect_search_url_equals_sanitized_url("\"http://example.org\""sv);
+    expect_search_url_equals_sanitized_url("example.org hello"sv);
+    expect_search_url_equals_sanitized_url("http://example.org and example sites"sv);
+
+    // The '/' makes it look like a path.
+    expect_url_equals_sanitized_url("https://example.com/%20some%20cool%20page"sv, "https://example.com/ some cool page"sv);
+    expect_url_equals_sanitized_url("https://example.com/some%20cool%20page"sv, "https://example.com/some cool page"sv);
+
+    expect_url_equals_sanitized_url("https://example.org/"sv, "example.org"sv); // Valid domain.
+    expect_url_equals_sanitized_url("https://example.abc/"sv, "example.abc"sv); // .abc is a recognized TLD.
+
+    expect_search_url_equals_sanitized_url("example.def"sv); // Invalid domain but no scheme: search (Like Firefox or Chrome).
+
+    expect_url_equals_sanitized_url("https://example.org/"sv, "https://example.org"sv); // Scheme.
+    // Respect the user if the url has a valid scheme but not a public suffix (.def is not a recognized TLD).
+    expect_url_equals_sanitized_url("https://example.def/"sv, "https://example.def"sv);
+
+    expect_url_equals_sanitized_url("https://localhost/"sv, "localhost"sv); // Respect localhost.
+    expect_url_equals_sanitized_url("https://localhost/hello"sv, "localhost/hello"sv);
+    expect_url_equals_sanitized_url("https://localhost/hello.world"sv, "localhost/hello.world"sv);
+    expect_url_equals_sanitized_url("https://localhost/hello.world?query=123"sv, "localhost/hello.world?query=123"sv);
+
+    expect_url_equals_sanitized_url("https://example.com/"sv, "example"sv, WebView::AppendTLD::Yes); // User holds down the Ctrl key.
+    expect_url_equals_sanitized_url("https://example.def.com/"sv, "example.def"sv, WebView::AppendTLD::Yes);
+    expect_url_equals_sanitized_url("https://com.com/"sv, "com"sv, WebView::AppendTLD::Yes);
+    expect_url_equals_sanitized_url("https://example.com/index.html"sv, "example/index.html"sv, WebView::AppendTLD::Yes);
 }
