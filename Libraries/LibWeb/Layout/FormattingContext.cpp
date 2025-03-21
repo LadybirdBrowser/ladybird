@@ -1170,9 +1170,9 @@ void FormattingContext::compute_height_for_absolutely_positioned_non_replaced_el
     box_state.set_content_height(used_height.to_px(box));
 
     // do not set calculated insets or margins on the first pass, there will be a second pass
-    if (before_or_after_inside_layout == BeforeOrAfterInsideLayout::Before)
+    if (box.computed_values().height().is_auto() && before_or_after_inside_layout == BeforeOrAfterInsideLayout::Before)
         return;
-
+    box_state.set_has_definite_height(true);
     box_state.inset_top = top.to_px(box, height_of_containing_block);
     box_state.inset_bottom = bottom.to_px(box, height_of_containing_block);
     box_state.margin_top = margin_top.to_px(box, width_of_containing_block);
@@ -1255,7 +1255,9 @@ void FormattingContext::layout_absolutely_positioned_element(Box const& box, Ava
 
     auto independent_formatting_context = layout_inside(box, LayoutMode::Normal, box_state.available_inner_space_or_constraints_from(available_space));
 
-    compute_height_for_absolutely_positioned_element(box, available_space, BeforeOrAfterInsideLayout::After);
+    if (box.computed_values().height().is_auto()) {
+        compute_height_for_absolutely_positioned_element(box, available_space, BeforeOrAfterInsideLayout::After);
+    }
 
     CSSPixelPoint used_offset;
 
@@ -1350,8 +1352,9 @@ void FormattingContext::compute_height_for_absolutely_positioned_replaced_elemen
     box_state.set_content_height(height);
 
     // do not set calculated insets or margins on the first pass, there will be a second pass
-    if (before_or_after_inside_layout == BeforeOrAfterInsideLayout::Before)
+    if (box.computed_values().height().is_auto() && before_or_after_inside_layout == BeforeOrAfterInsideLayout::Before)
         return;
+    box_state.set_has_definite_height(true);
     box_state.inset_top = to_px(top);
     box_state.inset_bottom = to_px(bottom);
     box_state.margin_top = to_px(margin_top);
