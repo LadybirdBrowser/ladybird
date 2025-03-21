@@ -214,6 +214,13 @@
     [controller onCreateNewTab];
 }
 
+- (void)openSettings:(id)sender
+{
+    [self createNewTab:URL::URL::about("settings"_string)
+               fromTab:self.active_tab
+           activateTab:Web::HTML::ActivateTab::Yes];
+}
+
 - (void)closeCurrentTab:(id)sender
 {
     auto* current_window = [NSApp keyWindow];
@@ -401,6 +408,11 @@
     [submenu addItem:[[NSMenuItem alloc] initWithTitle:[NSString stringWithFormat:@"About %@", process_name]
                                                 action:@selector(openAboutVersionPage:)
                                          keyEquivalent:@""]];
+    [submenu addItem:[NSMenuItem separatorItem]];
+
+    [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Settings"
+                                                action:@selector(openSettings:)
+                                         keyEquivalent:@","]];
     [submenu addItem:[NSMenuItem separatorItem]];
 
     [submenu addItem:[[NSMenuItem alloc] initWithTitle:[NSString stringWithFormat:@"Hide %@", process_name]
