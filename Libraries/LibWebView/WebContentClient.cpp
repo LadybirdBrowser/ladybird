@@ -610,7 +610,7 @@ void WebContentClient::did_request_select_dropdown(u64 page_id, Gfx::IntPoint co
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_request_select_dropdown)
-            view->on_request_select_dropdown(content_position, minimum_width, items);
+            view->on_request_select_dropdown(view->to_widget_position(content_position), minimum_width / view->device_pixel_ratio(), items);
     }
 }
 

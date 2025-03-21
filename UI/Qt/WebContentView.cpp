@@ -133,7 +133,7 @@ WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient
 
     on_request_select_dropdown = [this](Gfx::IntPoint content_position, i32 minimum_width, Vector<Web::HTML::SelectItem> items) {
         m_select_dropdown->clear();
-        m_select_dropdown->setMinimumWidth(minimum_width / device_pixel_ratio());
+        m_select_dropdown->setMinimumWidth(minimum_width);
 
         auto add_menu_item = [this](Web::HTML::SelectItemOption const& item_option, bool in_option_group) {
             QAction* action = new QAction(qstring_from_ak_string(in_option_group ? MUST(String::formatted("    {}", item_option.label)) : item_option.label), this);
