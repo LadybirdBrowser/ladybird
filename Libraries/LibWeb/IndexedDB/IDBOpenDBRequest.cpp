@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
  * Copyright (c) 2024, Jamie Mansfield <jmansfield@cadixdev.org>
+ * Copyright (c) 2025, stelar7 <dudedbz@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -16,8 +17,9 @@ GC_DEFINE_ALLOCATOR(IDBOpenDBRequest);
 
 IDBOpenDBRequest::~IDBOpenDBRequest() = default;
 
+// NOTE: The source of an open request is always null.
 IDBOpenDBRequest::IDBOpenDBRequest(JS::Realm& realm)
-    : IDBRequest(realm)
+    : IDBRequest(realm, {})
 {
 }
 
