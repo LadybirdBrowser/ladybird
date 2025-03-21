@@ -3291,10 +3291,18 @@ Element::Directionality Element::directionality() const
     // -> undefined
     VERIFY(!maybe_dir.has_value());
 
-    // FIXME: If element is a bdi element:
-    // FIXME:     1. Let result be the auto directionality of element.
-    // FIXME:     2. If result is null, then return 'ltr'.
-    // FIXME:     3. Return result.
+    // If element is a bdi element:
+    if (local_name() == HTML::TagNames::bdi) {
+        // 1. Let result be the auto directionality of element.
+        auto result = auto_directionality();
+
+        // 2. If result is null, then return 'ltr'.
+        if (!result.has_value())
+            return Directionality::Ltr;
+
+        // 3. Return result.
+        return result.release_value();
+    }
 
     // If element is an input element whose type attribute is in the Telephone state:
     if (is<HTML::HTMLInputElement>(this) && static_cast<HTML::HTMLInputElement const&>(*this).type_state() == HTML::HTMLInputElement::TypeAttributeState::Telephone) {
