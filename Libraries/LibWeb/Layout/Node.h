@@ -188,6 +188,9 @@ public:
     // https://drafts.csswg.org/css-ui/#propdef-user-select
     CSS::UserSelect user_select_used_value() const;
 
+    // https://drafts.csswg.org/css-writing-modes-4/#text-flow
+    Gfx::Orientation text_flow_direction() const;
+
     [[nodiscard]] bool has_been_wrapped_in_table_wrapper() const { return m_has_been_wrapped_in_table_wrapper; }
     void set_has_been_wrapped_in_table_wrapper(bool value) { m_has_been_wrapped_in_table_wrapper = value; }
 
