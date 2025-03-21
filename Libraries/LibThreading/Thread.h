@@ -60,6 +60,7 @@ public:
     ErrorOr<void> set_priority(int priority);
     ErrorOr<int> get_priority() const;
 
+    void set_detached_on_start();
     // Only callable in the Startable state.
     void start();
     // Only callable in the Running state.
@@ -80,6 +81,8 @@ private:
     explicit Thread(ESCAPING Function<intptr_t()> action, StringView thread_name = {});
     Function<intptr_t()> m_action;
     pthread_t m_tid {};
+    pthread_attr_t m_attribute;
+    bool m_attribute_detached_flag = { false };
     ByteString m_thread_name;
     Atomic<ThreadState> m_state { ThreadState::Startable };
 };
