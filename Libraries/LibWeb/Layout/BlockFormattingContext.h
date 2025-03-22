@@ -81,6 +81,8 @@ private:
 
     void measure_scrollable_overflow(Box const&, CSSPixels& bottom_edge, CSSPixels& right_edge) const;
 
+    Gfx::Orientation block_flow_direction() const;
+
     enum class FloatSide {
         Left,
         Right,
