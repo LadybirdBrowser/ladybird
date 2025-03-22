@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<title>moveBefore should handle focus bubbling correctly</title>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<body>
+<section id="old_parent">
+<button id="button" tabindex="1">Button</button>
+</section>
+<section id="new_parent">
+</section>
+<section id="inert_parent" inert>
+</section>
+<section id="inert_when_not_empty_parent">
+</section>
+
+<style>
+    #inert_when_not_empty_parent:has(button) {
+        display: none;
+    }
+</style>
+
+<script>
+function assert_focus_within(expected) {
+    const element_to_string = e => e.id || e.nodeName;
+    assert_array_equals(
+        Array.from(document.querySelectorAll(":focus-within"), element_to_string),
+        expected.map(element_to_string));
+}
+
+test(t => {
+    const old_parent = document.querySelector("#old_parent");
+    const button = document.querySelector("#button");
+    t.add_cleanup(() => old_parent.append(button));
+    button.focus();
+    assert_focus_within([document.documentElement, document.body, old_parent, button]);
+    new_parent.moveBefore(button, null);
+    assert_focus_within([document.documentElement, document.body, new_parent, button]);
+}, "focus-within should be updated when reparenting focused element directly");
+
+test(t => {
+    const old_parent = document.querySelector("#old_parent");
+    const button = document.querySelector("#button");
+    t.add_cleanup(() => document.body.append(old_parent));
+    button.focus();
+    new_parent.moveBefore(old_parent, null);
+    assert_focus_within([document.documentElement, document.body, new_parent, old_parent, button]);
+}, "focus-within should be updated when reparenting an element that has focus within");
+
+test(t => {
+    const old_parent = document.querySelector("#old_parent");
+    const button = document.querySelector("#button");
+    t.add_cleanup(() => old_parent.append(button));
+    button.focus();
+    old_parent.moveBefore(button, null);
+    assert_focus_within([document.documentElement, document.body, old_parent, button]);
+}, "focus-within should remain the same when moving to the same parent");
+
+promise_test(async t => {
+    const old_parent = document.querySelector("#old_parent");
+    const inert_parent= document.querySelector("#inert_parent");
+    const button = document.querySelector("#button");
+    t.add_cleanup(() => old_parent.append(button));
+    button.focus();
+    inert_parent.moveBefore(button, null);
+    assert_focus_within([document.documentElement, document.body, inert_parent, button]);
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+    assert_focus_within([]);
+}, ":focus-within should be eventually up to date when moving to an inert subtree");
+
+promise_test(async t => {
+    const old_parent = document.querySelector("#old_parent");
+    const inert_when_not_empty_parent = document.querySelector("#inert_when_not_empty_parent");
+    const button = document.querySelector("#button");
+    t.add_cleanup(() => old_parent.append(button));
+    button.focus();
+    inert_when_not_empty_parent.moveBefore(button, null);
+    assert_focus_within([document.documentElement, document.body, inert_when_not_empty_parent, button]);
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+    assert_focus_within([]);
+}, ":focus-within should be eventually up to date when moving to a subtree that would become inert via style");
+</script>
