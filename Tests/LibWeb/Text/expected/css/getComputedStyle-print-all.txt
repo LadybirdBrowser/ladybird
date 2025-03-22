@@ -71,7 +71,7 @@ animation-iteration-count: 1
 animation-name: none
 animation-play-state: running
 animation-timing-function: ease
-appearance: auto
+appearance: none
 aspect-ratio: auto
 backdrop-filter: none
 background-attachment: scroll
