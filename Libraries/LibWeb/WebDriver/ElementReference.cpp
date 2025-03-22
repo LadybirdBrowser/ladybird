@@ -393,7 +393,7 @@ GC::RootVector<GC::Ref<Web::DOM::Element>> pointer_interactable_tree(Web::HTML::
     auto rectangles = element.get_client_rects();
 
     // 3. If rectangles has the length of 0, return an empty sequence.
-    if (rectangles->length() == 0)
+    if (rectangles.is_empty())
         return GC::RootVector<GC::Ref<Web::DOM::Element>>(browsing_context.heap());
 
     // 4. Let center point be the in-view center point of the first indexed element in rectangles.
@@ -530,20 +530,19 @@ String element_rendered_text(DOM::Node& node)
 CSSPixelPoint in_view_center_point(DOM::Element const& element, CSSPixelRect viewport)
 {
     // 1. Let rectangle be the first element of the DOMRect sequence returned by calling getClientRects() on element.
-    auto const* rectangle = element.get_client_rects()->item(0);
-    VERIFY(rectangle);
+    auto rectangle = element.get_client_rects().first();
 
     // 2. Let left be max(0, min(x coordinate, x coordinate + width dimension)).
-    auto left = max(0.0, min(rectangle->x(), rectangle->x() + rectangle->width()));
+    auto left = max(CSSPixels(0), min(rectangle.x(), rectangle.x() + rectangle.width()));
 
     // 3. Let right be min(innerWidth, max(x coordinate, x coordinate + width dimension)).
-    auto right = min(viewport.width().to_double(), max(rectangle->x(), rectangle->x() + rectangle->width()));
+    auto right = min(viewport.width(), max(rectangle.x(), rectangle.x() + rectangle.width()));
 
     // 4. Let top be max(0, min(y coordinate, y coordinate + height dimension)).
-    auto top = max(0.0, min(rectangle->y(), rectangle->y() + rectangle->height()));
+    auto top = max(CSSPixels(0), min(rectangle.y(), rectangle.y() + rectangle.height()));
 
     // 5. Let bottom be min(innerHeight, max(y coordinate, y coordinate + height dimension)).
-    auto bottom = min(viewport.height().to_double(), max(rectangle->y(), rectangle->y() + rectangle->height()));
+    auto bottom = min(viewport.height(), max(rectangle.y(), rectangle.y() + rectangle.height()));
 
     // 6. Let x be floor((left + right) ÷ 2.0).
     auto x = floor((left + right) / 2.0);

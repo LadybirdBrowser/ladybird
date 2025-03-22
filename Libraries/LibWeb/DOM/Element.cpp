@@ -954,46 +954,62 @@ bool Element::serializes_as_void() const
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-element-getboundingclientrect
-GC::Ref<Geometry::DOMRect> Element::get_bounding_client_rect() const
+GC::Ref<Geometry::DOMRect> Element::get_bounding_client_rect_for_bindings() const
+{
+    auto rect = get_bounding_client_rect();
+    return MUST(Geometry::DOMRect::construct_impl(realm(), static_cast<double>(rect.x()), static_cast<double>(rect.y()), static_cast<double>(rect.width()), static_cast<double>(rect.height())));
+}
+
+// https://drafts.csswg.org/cssom-view/#dom-element-getboundingclientrect
+CSSPixelRect Element::get_bounding_client_rect() const
 {
     // 1. Let list be the result of invoking getClientRects() on element.
     auto list = get_client_rects();
 
     // 2. If the list is empty return a DOMRect object whose x, y, width and height members are zero.
-    if (list->length() == 0)
-        return Geometry::DOMRect::construct_impl(realm(), 0, 0, 0, 0).release_value_but_fixme_should_propagate_errors();
+    if (list.size() == 0)
+        return { 0, 0, 0, 0 };
 
     // 3. If all rectangles in list have zero width or height, return the first rectangle in list.
     auto all_rectangle_has_zero_width_or_height = true;
-    for (auto i = 0u; i < list->length(); ++i) {
-        auto const& rect = list->item(i);
-        if (rect->width() != 0 && rect->height() != 0) {
+    for (auto i = 0u; i < list.size(); ++i) {
+        auto const& rect = list.at(i);
+        if (rect.width() != 0 && rect.height() != 0) {
             all_rectangle_has_zero_width_or_height = false;
             break;
         }
     }
     if (all_rectangle_has_zero_width_or_height)
-        return GC::Ref { *const_cast<Geometry::DOMRect*>(list->item(0)) };
+        return list.at(0);
 
     // 4. Otherwise, return a DOMRect object describing the smallest rectangle that includes all of the rectangles in
     //    list of which the height or width is not zero.
-    auto const* first_rect = list->item(0);
-    auto bounding_rect = Gfx::Rect { first_rect->x(), first_rect->y(), first_rect->width(), first_rect->height() };
-    for (auto i = 1u; i < list->length(); ++i) {
-        auto const& rect = list->item(i);
-        if (rect->width() == 0 || rect->height() == 0)
+    auto bounding_rect = list.at(0);
+    for (auto i = 1u; i < list.size(); ++i) {
+        auto const& rect = list.at(i);
+        if (rect.width() == 0 || rect.height() == 0)
             continue;
-        bounding_rect.unite({ rect->x(), rect->y(), rect->width(), rect->height() });
+        bounding_rect.unite(rect);
     }
-    return Geometry::DOMRect::create(realm(), bounding_rect.to_type<float>());
+    return bounding_rect;
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-element-getclientrects
-GC::Ref<Geometry::DOMRectList> Element::get_client_rects() const
+GC::Ref<Geometry::DOMRectList> Element::get_client_rects_for_bindings() const
+{
+    Vector<GC::Root<Geometry::DOMRect>> rects;
+    for (auto const& rect : get_client_rects()) {
+        rects.append(MUST(Geometry::DOMRect::construct_impl(realm(), static_cast<double>(rect.x()), static_cast<double>(rect.y()), static_cast<double>(rect.width()), static_cast<double>(rect.height()))));
+    }
+    return Geometry::DOMRectList::create(realm(), move(rects));
+}
+
+// https://drafts.csswg.org/cssom-view/#dom-element-getclientrects
+Vector<CSSPixelRect> Element::get_client_rects() const
 {
     auto navigable = document().navigable();
     if (!navigable)
-        return Geometry::DOMRectList::create(realm(), {});
+        return {};
 
     // NOTE: Ensure that layout is up-to-date before looking at metrics.
     const_cast<Document&>(document()).update_layout(UpdateLayoutReason::ElementGetClientRects);
@@ -1001,7 +1017,7 @@ GC::Ref<Geometry::DOMRectList> Element::get_client_rects() const
     // 1. If the element on which it was invoked does not have an associated layout box return an empty DOMRectList
     //    object and stop this algorithm.
     if (!layout_node())
-        return Geometry::DOMRectList::create(realm(), {});
+        return {};
 
     // FIXME: 2. If the element has an associated SVG layout box return a DOMRectList object containing a single
     //          DOMRect object that describes the bounding box of the element as defined by the SVG specification,
@@ -1022,7 +1038,7 @@ GC::Ref<Geometry::DOMRectList> Element::get_client_rects() const
     CSSPixelPoint scroll_offset;
     auto const* paintable = this->paintable();
 
-    Vector<GC::Root<Geometry::DOMRect>> rects;
+    Vector<CSSPixelRect> rects;
     if (auto const* paintable_box = this->paintable_box()) {
         transform = Gfx::extract_2d_affine_transform(paintable_box->transform());
         for (auto const* containing_block = paintable->containing_block(); !containing_block->is_viewport(); containing_block = containing_block->containing_block()) {
@@ -1038,12 +1054,12 @@ GC::Ref<Geometry::DOMRectList> Element::get_client_rects() const
                                     .to_type<CSSPixels>()
                                     .translated(paintable_box->transform_origin())
                                     .translated(-scroll_offset);
-        rects.append(Geometry::DOMRect::create(realm(), transformed_rect.to_type<float>()));
+        rects.append(transformed_rect);
     } else if (paintable) {
         dbgln("FIXME: Failed to get client rects for element ({})", debug_description());
     }
 
-    return Geometry::DOMRectList::create(realm(), move(rects));
+    return rects;
 }
 
 int Element::client_top() const
@@ -1969,24 +1985,24 @@ static CSSPixelPoint determine_the_scroll_into_view_position(Element& target, Bi
     // 2. Let scrolling box edge A be the beginning edge in the block flow direction of scrolling box, and
     //    let element edge A be target bounding border box’s edge on the same physical side as that of
     //    scrolling box edge A.
-    CSSPixels element_edge_a = CSSPixels::nearest_value_for(target_bounding_border_box->top());
+    CSSPixels element_edge_a = target_bounding_border_box.top();
     CSSPixels scrolling_box_edge_a = scrolling_box_rect.top();
 
     // 3. Let scrolling box edge B be the ending edge in the block flow direction of scrolling box, and let
     //    element edge B be target bounding border box’s edge on the same physical side as that of scrolling
     //    box edge B.
-    CSSPixels element_edge_b = CSSPixels::nearest_value_for(target_bounding_border_box->bottom());
+    CSSPixels element_edge_b = target_bounding_border_box.bottom();
     CSSPixels scrolling_box_edge_b = scrolling_box_rect.bottom();
 
     // 4. Let scrolling box edge C be the beginning edge in the inline base direction of scrolling box, and
     //    let element edge C be target bounding border box’s edge on the same physical side as that of scrolling
     //    box edge C.
-    CSSPixels element_edge_c = CSSPixels::nearest_value_for(target_bounding_border_box->left());
+    CSSPixels element_edge_c = target_bounding_border_box.left();
     CSSPixels scrolling_box_edge_c = scrolling_box_rect.left();
 
     // 5. Let scrolling box edge D be the ending edge in the inline base direction of scrolling box, and let element
     //    edge D be target bounding border box’s edge on the same physical side as that of scrolling box edge D.
-    CSSPixels element_edge_d = CSSPixels::nearest_value_for(target_bounding_border_box->right());
+    CSSPixels element_edge_d = target_bounding_border_box.right();
     CSSPixels scrolling_box_edge_d = scrolling_box_rect.right();
 
     // 6. Let element height be the distance between element edge A and element edge B.
