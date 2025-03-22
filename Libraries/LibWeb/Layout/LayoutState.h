@@ -55,11 +55,6 @@ struct StaticPositionRect {
 };
 
 struct LayoutState {
-    LayoutState() = default;
-
-    explicit LayoutState(LayoutState const* parent);
-    ~LayoutState();
-
     struct UsedValues {
         NodeWithStyle const& node() const { return *m_node; }
         NodeWithStyle& node() { return const_cast<NodeWithStyle&>(*m_node); }
@@ -200,18 +195,15 @@ struct LayoutState {
         Optional<StaticPositionRect> m_static_position_rect;
     };
 
+    ~LayoutState();
+
     // Commits the used values produced by layout and builds a paintable tree.
     void commit(Box& root);
 
-    // NOTE: get_mutable() will CoW the UsedValues if it's inherited from an ancestor state;
     UsedValues& get_mutable(NodeWithStyle const&);
-
-    // NOTE: get() will not CoW the UsedValues.
     UsedValues const& get(NodeWithStyle const&) const;
 
     HashMap<GC::Ref<Layout::Node const>, NonnullOwnPtr<UsedValues>> used_values_per_layout_node;
-
-    LayoutState const* m_parent { nullptr };
 
 private:
     void resolve_relative_positions();
