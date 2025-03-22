@@ -4585,7 +4585,7 @@ void Document::queue_an_intersection_observer_entry(IntersectionObserver::Inters
 }
 
 // https://www.w3.org/TR/intersection-observer/#compute-the-intersection
-static GC::Ref<Geometry::DOMRectReadOnly> compute_intersection(GC::Ref<Element> target, IntersectionObserver::IntersectionObserver const& observer)
+static CSSPixelRect compute_intersection(GC::Ref<Element> target, IntersectionObserver::IntersectionObserver const& observer)
 {
     // 1. Let intersectionRect be the result of getting the bounding box for target.
     auto intersection_rect = target->get_bounding_client_rect();
@@ -4604,12 +4604,7 @@ static GC::Ref<Geometry::DOMRectReadOnly> compute_intersection(GC::Ref<Element> 
     // 5. Update intersectionRect by intersecting it with the root intersection rectangle.
     // FIXME: Pass in target so we can properly apply rootMargin.
     auto root_intersection_rectangle = observer.root_intersection_rectangle();
-    CSSPixelRect intersection_rect_as_pixel_rect(intersection_rect->x(), intersection_rect->y(), intersection_rect->width(), intersection_rect->height());
-    intersection_rect_as_pixel_rect.intersect(root_intersection_rectangle);
-    intersection_rect->set_x(static_cast<double>(intersection_rect_as_pixel_rect.x()));
-    intersection_rect->set_y(static_cast<double>(intersection_rect_as_pixel_rect.y()));
-    intersection_rect->set_width(static_cast<double>(intersection_rect_as_pixel_rect.width()));
-    intersection_rect->set_height(static_cast<double>(intersection_rect_as_pixel_rect.height()));
+    intersection_rect.intersect(root_intersection_rectangle);
 
     // FIXME: 6. Map intersectionRect to the coordinate space of the viewport of the document containing target.
 
@@ -4647,10 +4642,10 @@ void Document::run_the_update_intersection_observations_steps(HighResolutionTime
             bool is_intersecting = false;
 
             // targetRect be a DOMRectReadOnly with x, y, width, and height set to 0.
-            auto target_rect = Geometry::DOMRectReadOnly::construct_impl(realm, 0, 0, 0, 0).release_value_but_fixme_should_propagate_errors();
+            CSSPixelRect target_rect { 0, 0, 0, 0 };
 
             // intersectionRect be a DOMRectReadOnly with x, y, width, and height set to 0.
-            auto intersection_rect = Geometry::DOMRectReadOnly::construct_impl(realm, 0, 0, 0, 0).release_value_but_fixme_should_propagate_errors();
+            CSSPixelRect intersection_rect { 0, 0, 0, 0 };
 
             // SPEC ISSUE: It doesn't pass in intersection ratio to "queue an IntersectionObserverEntry" despite needing it.
             //             This is default 0, as isIntersecting is default false, see step 9.
@@ -4673,20 +4668,19 @@ void Document::run_the_update_intersection_observations_steps(HighResolutionTime
                 intersection_rect = compute_intersection(target, observer);
 
                 // 6. Let targetArea be targetRect’s area.
-                auto target_area = target_rect->width() * target_rect->height();
+                auto target_area = target_rect.width() * target_rect.height();
 
                 // 7. Let intersectionArea be intersectionRect’s area.
-                auto intersection_area = intersection_rect->width() * intersection_rect->height();
+                auto intersection_area = intersection_rect.size().area();
 
                 // 8. Let isIntersecting be true if targetRect and rootBounds intersect or are edge-adjacent, even if the
                 //    intersection has zero area (because rootBounds or targetRect have zero area).
-                CSSPixelRect target_rect_as_pixel_rect(target_rect->x(), target_rect->y(), target_rect->width(), target_rect->height());
-                is_intersecting = target_rect_as_pixel_rect.edge_adjacent_intersects(root_bounds);
+                is_intersecting = target_rect.edge_adjacent_intersects(root_bounds);
 
                 // 9. If targetArea is non-zero, let intersectionRatio be intersectionArea divided by targetArea.
                 //    Otherwise, let intersectionRatio be 1 if isIntersecting is true, or 0 if isIntersecting is false.
                 if (target_area != 0.0)
-                    intersection_ratio = intersection_area / target_area;
+                    intersection_ratio = (intersection_area / target_area).to_double();
                 else
                     intersection_ratio = is_intersecting ? 1.0 : 0.0;
 
@@ -4716,7 +4710,9 @@ void Document::run_the_update_intersection_observations_steps(HighResolutionTime
                 auto root_bounds_as_dom_rect = Geometry::DOMRectReadOnly::construct_impl(realm, static_cast<double>(root_bounds.x()), static_cast<double>(root_bounds.y()), static_cast<double>(root_bounds.width()), static_cast<double>(root_bounds.height())).release_value_but_fixme_should_propagate_errors();
 
                 // SPEC ISSUE: It doesn't pass in intersectionRatio, but it's required.
-                queue_an_intersection_observer_entry(observer, time, root_bounds_as_dom_rect, target_rect, intersection_rect, is_intersecting, intersection_ratio, target);
+                auto target_dom_rect = MUST(Geometry::DOMRectReadOnly::construct_impl(realm, static_cast<double>(target_rect.x()), static_cast<double>(target_rect.y()), static_cast<double>(target_rect.width()), static_cast<double>(target_rect.height())));
+                auto intersection_dom_rect = MUST(Geometry::DOMRectReadOnly::construct_impl(realm, static_cast<double>(intersection_rect.x()), static_cast<double>(intersection_rect.y()), static_cast<double>(intersection_rect.width()), static_cast<double>(intersection_rect.height())));
+                queue_an_intersection_observer_entry(observer, time, root_bounds_as_dom_rect, target_dom_rect, intersection_dom_rect, is_intersecting, intersection_ratio, target);
             }
 
             // 15. Assign thresholdIndex to intersectionObserverRegistration’s previousThresholdIndex property.

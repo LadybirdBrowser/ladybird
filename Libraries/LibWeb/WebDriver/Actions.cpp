@@ -160,8 +160,8 @@ static CSSPixelPoint get_parent_offset(HTML::BrowsingContext const& browsing_con
         // 9. Add containerRect.left + borderLeftWidth to offsetLeft.
         // 10. Add containerRect.top + borderTopWidth to offsetTop.
         offset.translate_by(
-            CSSPixels { container_rect->left() } + border_left_width,
-            CSSPixels { container_rect->top() } + border_top_width);
+            container_rect.left() + border_left_width,
+            container_rect.top() + border_top_width);
     }
 
     // 5. Return (offsetLeft, offsetTop).
