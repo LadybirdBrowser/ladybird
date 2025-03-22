@@ -1,0 +1,6 @@
+#import <WebLocks/LockManager.idl>
+
+[SecureContext]
+interface mixin NavigatorLocks {
+    readonly attribute LockManager locks;
+};
