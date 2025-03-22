@@ -120,11 +120,16 @@ run_tests() {
 }
 
 build_target() {
+    # Disable Vulkan and force software rendering
+    export LIBGL_ALWAYS_SOFTWARE=1
+    export MESA_LOADER_DRIVER_OVERRIDE=llvmpipe
+    export QT_QPA_PLATFORM=offscreen  # Prevents GUI from launching
+    export QT_QPA_PLATFORMTHEME=qt5ct  # Avoids some Qt6 theme issues
+
     # Get either the environment MAKEJOBS or all processors via CMake
     [ -z "$MAKEJOBS" ] && MAKEJOBS=$(cmake -P "$LADYBIRD_SOURCE_DIR/Meta/CMake/processor-count.cmake")
 
-    # With zero args, we are doing a standard "build"
-    # With multiple args, we are doing an install/run
+    # Build with Ninja
     if [ $# -eq 0 ]; then
         CMAKE_BUILD_PARALLEL_LEVEL="$MAKEJOBS" cmake --build "$BUILD_DIR"
     else
