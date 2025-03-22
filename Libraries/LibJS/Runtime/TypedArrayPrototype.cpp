@@ -1433,7 +1433,11 @@ static ThrowCompletionOr<void> set_typed_array_from_typed_array(VM& vm, TypedArr
 
     // 16. If srcLength + targetOffset > targetLength, throw a RangeError exception.
     Checked<size_t> checked = source_length;
-    checked += static_cast<u32>(target_offset);
+
+    if (target_offset > static_cast<double>(NumericLimits<size_t>::max()))
+        return vm.throw_completion<RangeError>(ErrorType::TypedArrayOverflowOrOutOfBounds, "target offset");
+    checked += static_cast<size_t>(target_offset);
+
     if (checked.has_overflow() || checked.value() > target_length)
         return vm.throw_completion<RangeError>(ErrorType::TypedArrayOverflowOrOutOfBounds, "target length");
 
@@ -1539,7 +1543,11 @@ static ThrowCompletionOr<void> set_typed_array_from_array_like(VM& vm, TypedArra
 
     // 7. If srcLength + targetOffset > targetLength, throw a RangeError exception.
     Checked<size_t> checked = source_length;
-    checked += static_cast<u32>(target_offset);
+
+    if (target_offset > static_cast<double>(NumericLimits<size_t>::max()))
+        return vm.throw_completion<RangeError>(ErrorType::TypedArrayOverflowOrOutOfBounds, "target offset");
+    checked += static_cast<size_t>(target_offset);
+
     if (checked.has_overflow() || checked.value() > target_length)
         return vm.throw_completion<RangeError>(ErrorType::TypedArrayOverflowOrOutOfBounds, "target length");
 

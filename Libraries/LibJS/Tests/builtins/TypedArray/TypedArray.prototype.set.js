@@ -146,3 +146,19 @@ test("detached buffer", () => {
         expect(typedArray.length).toBe(0);
     });
 });
+
+test("very large targetOffset", () => {
+    TYPED_ARRAYS.forEach(({ array: T }) => {
+        let typedArray = new T();
+
+        expect(() => {
+            // set_typed_array_from_typed_array
+            typedArray.set(typedArray, 2 ** 128);
+        }).toThrowWithMessage(RangeError, "Overflow or out of bounds in target offset");
+
+        expect(() => {
+            // set_typed_array_from_array_like
+            typedArray.set([], 2 ** 128);
+        }).toThrowWithMessage(RangeError, "Overflow or out of bounds in target offset");
+    });
+});
