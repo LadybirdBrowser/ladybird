@@ -208,7 +208,7 @@
     "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
-    "initial": "auto",
+    "initial": "0s",
     "valid-types": [
       "time [0,∞]"
     ],
