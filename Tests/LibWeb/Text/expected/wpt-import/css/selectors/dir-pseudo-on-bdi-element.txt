@@ -2,10 +2,9 @@ Harness status: OK
 
 Found 5 tests
 
-3 Pass
-2 Fail
-Fail	bdi element without dir content attribute
-Fail	bdi element with invalid dir content attribute
+5 Pass
+Pass	bdi element without dir content attribute
+Pass	bdi element with invalid dir content attribute
 Pass	bdi element with dir=auto content attribute
 Pass	bdi element with dir=ltr content attribute
 Pass	bdi element with dir=rtl content attribute
