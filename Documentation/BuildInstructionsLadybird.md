@@ -112,12 +112,6 @@ nix develop
 
 # With a custom entrypoint, for example, your favorite shell
 nix develop --command bash
-
-# Using nix-shell
-nix-shell
-
-# Using nix-shell and a custom shell
-nix-shell --command bash
 ```
 
 Then invoke `cmake` directly. For example:
