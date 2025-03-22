@@ -275,7 +275,7 @@
   "appearance": {
     "animation-type": "discrete",
     "inherited": false,
-    "initial": "auto",
+    "initial": "none",
     "valid-types": [
       "appearance"
     ]
