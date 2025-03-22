@@ -31,7 +31,7 @@ Iterator::Iterator(Object& prototype, GC::Ref<IteratorRecord> iterated)
 }
 
 Iterator::Iterator(Object& prototype)
-    : Iterator(prototype, prototype.shape().realm().create<IteratorRecord>(prototype.shape().realm(), nullptr, js_undefined(), false))
+    : Iterator(prototype, prototype.heap().allocate<IteratorRecord>(nullptr, js_undefined(), false))
 {
 }
 
@@ -43,8 +43,7 @@ ThrowCompletionOr<GC::Ref<IteratorRecord>> get_iterator_direct(VM& vm, Object& o
 
     // 2. Let iteratorRecord be Record { [[Iterator]]: obj, [[NextMethod]]: nextMethod, [[Done]]: false }.
     // 3. Return iteratorRecord.
-    auto& realm = *vm.current_realm();
-    return realm.create<IteratorRecord>(realm, object, next_method, false);
+    return vm.heap().allocate<IteratorRecord>(object, next_method, false);
 }
 
 // 7.4.3 GetIteratorFromMethod ( obj, method ), https://tc39.es/ecma262/#sec-getiteratorfrommethod
@@ -61,8 +60,7 @@ ThrowCompletionOr<GC::Ref<IteratorRecord>> get_iterator_from_method(VM& vm, Valu
     auto next_method = TRY(iterator.get(vm, vm.names.next));
 
     // 4. Let iteratorRecord be the Iterator Record { [[Iterator]]: iterator, [[NextMethod]]: nextMethod, [[Done]]: false }.
-    auto& realm = *vm.current_realm();
-    auto iterator_record = realm.create<IteratorRecord>(realm, iterator.as_object(), next_method, false);
+    auto iterator_record = vm.heap().allocate<IteratorRecord>(iterator.as_object(), next_method, false);
 
     // 5. Return iteratorRecord.
     return iterator_record;
