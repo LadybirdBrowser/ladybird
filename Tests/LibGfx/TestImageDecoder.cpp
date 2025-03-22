@@ -436,19 +436,16 @@ TEST_CASE(test_apng_idat_not_affecting_next_frame)
     EXPECT_EQ(frame.image->size(), Gfx::IntSize(100, 100));
 }
 
-TEST_CASE(test_exif)
+TEST_CASE(test_exif_decoding_png)
 {
-    auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("png/exif.png"sv)));
+    auto const file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("png/exif.png"sv)));
     EXPECT(Gfx::PNGImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::PNGImageDecoderPlugin::create(file->bytes()));
 
-    auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 200, 100 }));
+    auto const plugin_decoder = TRY_OR_FAIL(Gfx::PNGImageDecoderPlugin::create(file->bytes()));
+
     EXPECT(plugin_decoder->metadata().has_value());
     auto const& exif_metadata = static_cast<Gfx::ExifMetadata const&>(plugin_decoder->metadata().value());
     EXPECT_EQ(*exif_metadata.orientation(), Gfx::TIFF::Orientation::Rotate90Clockwise);
-
-    EXPECT_EQ(frame.image->get_pixel(65, 70), Gfx::Color(0, 255, 0));
-    EXPECT_EQ(frame.image->get_pixel(190, 10), Gfx::Color(255, 0, 0));
 }
 
 TEST_CASE(test_png_malformed_frame)

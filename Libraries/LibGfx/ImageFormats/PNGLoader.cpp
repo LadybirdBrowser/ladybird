@@ -10,6 +10,7 @@
 #include <LibGfx/ImageFormats/PNGLoader.h>
 #include <LibGfx/ImageFormats/TIFFLoader.h>
 #include <LibGfx/ImageFormats/TIFFMetadata.h>
+#include <LibGfx/ImageOrientation.h>
 #include <LibGfx/ImmutableBitmap.h>
 #include <LibGfx/Painter.h>
 #include <png.h>
@@ -35,7 +36,6 @@ struct PNGLoadingContext {
     OwnPtr<ExifMetadata> exif_metadata;
 
     ErrorOr<size_t> read_frames(png_structp, png_infop);
-    ErrorOr<void> apply_exif_orientation();
 
     ErrorOr<void> read_all_frames()
     {
@@ -48,8 +48,6 @@ struct PNGLoadingContext {
 
         frame_count = TRY(read_frames(png_ptr, info_ptr));
 
-        if (exif_metadata)
-            TRY(apply_exif_orientation());
         return {};
     }
 };
@@ -221,36 +219,13 @@ ErrorOr<void> PNGImageDecoderPlugin::initialize()
     return {};
 }
 
-ErrorOr<void> PNGLoadingContext::apply_exif_orientation()
-{
-    auto orientation = exif_metadata->orientation().value_or(TIFF::Orientation::Default);
-    if (orientation == TIFF::Orientation::Default)
-        return {};
-
-    for (auto& img_frame_descriptor : frame_descriptors) {
-        auto& img = img_frame_descriptor.image;
-        auto oriented_bmp = TRY(ExifOrientedBitmap::create(orientation, img->size(), img->format()));
-
-        for (int y = 0; y < img->size().height(); ++y) {
-            for (int x = 0; x < img->size().width(); ++x) {
-                auto pixel = img->get_pixel(x, y);
-                oriented_bmp.set_pixel(x, y, pixel.value());
-            }
-        }
-
-        img_frame_descriptor.image = oriented_bmp.bitmap();
-    }
-
-    size = ExifOrientedBitmap::oriented_size(size, orientation);
-
-    return {};
-}
-
 ErrorOr<size_t> PNGLoadingContext::read_frames(png_structp png_ptr, png_infop info_ptr)
 {
+    auto exif_orientation = exif_metadata ? static_cast<ExifOrientation>(exif_metadata->orientation().value()) : ExifOrientation::Default;
+
     Vector<u8*> row_pointers;
     auto decode_frame = [&](IntSize frame_size) -> ErrorOr<NonnullRefPtr<Bitmap>> {
-        auto frame_bitmap = TRY(Bitmap::create(BitmapFormat::BGRA8888, AlphaType::Unpremultiplied, frame_size));
+        auto frame_bitmap = TRY(Bitmap::create(BitmapFormat::BGRA8888, AlphaType::Unpremultiplied, frame_size, exif_orientation));
 
         row_pointers.resize_and_keep_capacity(frame_size.height());
         for (auto i = 0; i < frame_size.height(); ++i)

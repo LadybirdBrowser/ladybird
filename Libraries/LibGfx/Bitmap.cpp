@@ -24,6 +24,26 @@ struct BackingStore {
     size_t size_in_bytes { 0 };
 };
 
+IntRect Bitmap::rect() const
+{
+    return { {}, size() };
+}
+
+IntSize Bitmap::size() const
+{
+    return exif_oriented_size(m_size, m_exif_orientation);
+}
+
+int Bitmap::width() const
+{
+    return size().width();
+}
+
+int Bitmap::height() const
+{
+    return size().height();
+}
+
 size_t Bitmap::minimum_pitch(size_t width, BitmapFormat format)
 {
     size_t element_size;
@@ -53,19 +73,19 @@ static bool size_would_overflow(BitmapFormat format, IntSize size)
     return Checked<size_t>::multiplication_would_overflow(pitch, size.height());
 }
 
-ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::create(BitmapFormat format, IntSize size)
+ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::create(BitmapFormat format, IntSize size, ExifOrientation orientation)
 {
     // For backwards compatibility, premultiplied alpha is assumed
-    return create(format, AlphaType::Premultiplied, size);
+    return create(format, AlphaType::Premultiplied, size, orientation);
 }
 
-ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::create(BitmapFormat format, AlphaType alpha_type, IntSize size)
+ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::create(BitmapFormat format, AlphaType alpha_type, IntSize size, ExifOrientation orientation)
 {
     auto backing_store = TRY(Bitmap::allocate_backing_store(format, size));
-    return AK::adopt_nonnull_ref_or_enomem(new (nothrow) Bitmap(format, alpha_type, size, backing_store));
+    return AK::adopt_nonnull_ref_or_enomem(new (nothrow) Bitmap(format, alpha_type, size, backing_store, orientation));
 }
 
-ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::create_shareable(BitmapFormat format, AlphaType alpha_type, IntSize size)
+ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::create_shareable(BitmapFormat format, AlphaType alpha_type, IntSize size, ExifOrientation orientation)
 {
     if (size_would_overflow(format, size))
         return Error::from_string_literal("Gfx::Bitmap::create_shareable size overflow");
@@ -74,16 +94,17 @@ ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::create_shareable(BitmapFormat format, Alp
     auto const data_size = size_in_bytes(pitch, size.height());
 
     auto buffer = TRY(Core::AnonymousBuffer::create_with_size(round_up_to_power_of_two(data_size, PAGE_SIZE)));
-    auto bitmap = TRY(Bitmap::create_with_anonymous_buffer(format, alpha_type, buffer, size));
+    auto bitmap = TRY(Bitmap::create_with_anonymous_buffer(format, alpha_type, buffer, size, orientation));
     return bitmap;
 }
 
-Bitmap::Bitmap(BitmapFormat format, AlphaType alpha_type, IntSize size, BackingStore const& backing_store)
+Bitmap::Bitmap(BitmapFormat format, AlphaType alpha_type, IntSize size, BackingStore const& backing_store, ExifOrientation orientation)
     : m_size(size)
     , m_data(backing_store.data)
     , m_pitch(backing_store.pitch)
     , m_format(format)
     , m_alpha_type(alpha_type)
+    , m_exif_orientation(orientation)
 {
     VERIFY(!m_size.is_empty());
     VERIFY(!size_would_overflow(format, size));
@@ -94,41 +115,43 @@ Bitmap::Bitmap(BitmapFormat format, AlphaType alpha_type, IntSize size, BackingS
     };
 }
 
-ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::create_wrapper(BitmapFormat format, AlphaType alpha_type, IntSize size, size_t pitch, void* data, Function<void()>&& destruction_callback)
+ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::create_wrapper(BitmapFormat format, AlphaType alpha_type, IntSize size, size_t pitch, void* data, Function<void()>&& destruction_callback, ExifOrientation orientation)
 {
     if (size_would_overflow(format, size))
         return Error::from_string_literal("Gfx::Bitmap::create_wrapper size overflow");
-    return adopt_ref(*new Bitmap(format, alpha_type, size, pitch, data, move(destruction_callback)));
+    return adopt_ref(*new Bitmap(format, alpha_type, size, pitch, data, move(destruction_callback), orientation));
 }
 
-Bitmap::Bitmap(BitmapFormat format, AlphaType alpha_type, IntSize size, size_t pitch, void* data, Function<void()>&& destruction_callback)
+Bitmap::Bitmap(BitmapFormat format, AlphaType alpha_type, IntSize size, size_t pitch, void* data, Function<void()>&& destruction_callback, ExifOrientation orientation)
     : m_size(size)
     , m_data(data)
     , m_pitch(pitch)
     , m_format(format)
     , m_alpha_type(alpha_type)
     , m_destruction_callback(move(destruction_callback))
+    , m_exif_orientation(orientation)
 {
     VERIFY(pitch >= minimum_pitch(size.width(), format));
     VERIFY(!size_would_overflow(format, size));
     // FIXME: assert that `data` is actually long enough!
 }
 
-ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::create_with_anonymous_buffer(BitmapFormat format, AlphaType alpha_type, Core::AnonymousBuffer buffer, IntSize size)
+ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::create_with_anonymous_buffer(BitmapFormat format, AlphaType alpha_type, Core::AnonymousBuffer buffer, IntSize size, ExifOrientation orientation)
 {
     if (size_would_overflow(format, size))
         return Error::from_string_literal("Gfx::Bitmap::create_with_anonymous_buffer size overflow");
 
-    return adopt_nonnull_ref_or_enomem(new (nothrow) Bitmap(format, alpha_type, move(buffer), size));
+    return adopt_nonnull_ref_or_enomem(new (nothrow) Bitmap(format, alpha_type, move(buffer), size, orientation));
 }
 
-Bitmap::Bitmap(BitmapFormat format, AlphaType alpha_type, Core::AnonymousBuffer buffer, IntSize size)
+Bitmap::Bitmap(BitmapFormat format, AlphaType alpha_type, Core::AnonymousBuffer buffer, IntSize size, ExifOrientation orientation)
     : m_size(size)
     , m_data(buffer.data<void>())
     , m_pitch(minimum_pitch(size.width(), format))
     , m_format(format)
     , m_alpha_type(alpha_type)
     , m_buffer(move(buffer))
+    , m_exif_orientation(orientation)
 {
     VERIFY(!size_would_overflow(format, size));
 }
