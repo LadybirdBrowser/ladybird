@@ -1,0 +1,25 @@
+Harness status: OK
+
+Found 20 tests
+
+20 Pass
+Pass	Property grid-auto-columns has initial value auto
+Pass	Property grid-auto-columns does not inherit
+Pass	Property grid-auto-flow has initial value row
+Pass	Property grid-auto-flow does not inherit
+Pass	Property grid-auto-rows has initial value auto
+Pass	Property grid-auto-rows does not inherit
+Pass	Property grid-column-end has initial value auto
+Pass	Property grid-column-end does not inherit
+Pass	Property grid-column-start has initial value auto
+Pass	Property grid-column-start does not inherit
+Pass	Property grid-row-end has initial value auto
+Pass	Property grid-row-end does not inherit
+Pass	Property grid-row-start has initial value auto
+Pass	Property grid-row-start does not inherit
+Pass	Property grid-template-areas has initial value none
+Pass	Property grid-template-areas does not inherit
+Pass	Property grid-template-columns has initial value none
+Pass	Property grid-template-columns does not inherit
+Pass	Property grid-template-rows has initial value none
+Pass	Property grid-template-rows does not inherit

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Inheritance of CSS Grid Layout properties</title>
+<link rel="help" href="https://drafts.csswg.org/css-grid/#property-index">
+<meta name="assert" content="Properties inherit or not according to the spec.">
+<meta name="assert" content="Properties have initial values according to the spec.">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/support/inheritance-testcommon.js"></script>
+</head>
+<body>
+<div id="container">
+<div id="target"></div>
+</div>
+<script>
+assert_not_inherited('grid-auto-columns', 'auto', '10px');
+assert_not_inherited('grid-auto-flow', 'row', 'column dense');
+assert_not_inherited('grid-auto-rows', 'auto', '10px');
+assert_not_inherited('grid-column-end', 'auto', 'span 2');
+assert_not_inherited('grid-column-start', 'auto', 'span 2');
+assert_not_inherited('grid-row-end', 'auto', 'span 2');
+assert_not_inherited('grid-row-start', 'auto', 'span 2');
+assert_not_inherited('grid-template-areas', 'none', '"one two" "three four"');
+assert_not_inherited('grid-template-columns', 'none', '10px');
+assert_not_inherited('grid-template-rows', 'none', '10px');
+</script>
+</body>
+</html>

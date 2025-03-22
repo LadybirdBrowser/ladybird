@@ -2,9 +2,9 @@ Harness status: OK
 
 Found 32 tests
 
-12 Pass
-20 Fail
-Fail	Property grid-template-columns value 'none'
+13 Pass
+19 Fail
+Pass	Property grid-template-columns value 'none'
 Pass	Property grid-template-columns value '1px'
 Pass	Property grid-template-columns value '1px [a]'
 Pass	Property grid-template-columns value '1px [a] 2px'

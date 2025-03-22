@@ -2,14 +2,14 @@ Harness status: OK
 
 Found 63 tests
 
-21 Pass
-42 Fail
+24 Pass
+39 Fail
 Fail	e.style['grid'] = "none" should set grid-auto-columns
 Fail	e.style['grid'] = "none" should set grid-auto-flow
 Fail	e.style['grid'] = "none" should set grid-auto-rows
 Pass	e.style['grid'] = "none" should set grid-template-areas
-Fail	e.style['grid'] = "none" should set grid-template-columns
-Fail	e.style['grid'] = "none" should set grid-template-rows
+Pass	e.style['grid'] = "none" should set grid-template-columns
+Pass	e.style['grid'] = "none" should set grid-template-rows
 Pass	e.style['grid'] = "none" should not set unrelated longhands
 Fail	e.style['grid'] = "10px / 20%" should set grid-auto-columns
 Fail	e.style['grid'] = "10px / 20%" should set grid-auto-flow
@@ -23,7 +23,7 @@ Fail	e.style['grid'] = "none / 10px" should set grid-auto-flow
 Fail	e.style['grid'] = "none / 10px" should set grid-auto-rows
 Pass	e.style['grid'] = "none / 10px" should set grid-template-areas
 Pass	e.style['grid'] = "none / 10px" should set grid-template-columns
-Fail	e.style['grid'] = "none / 10px" should set grid-template-rows
+Pass	e.style['grid'] = "none / 10px" should set grid-template-rows
 Pass	e.style['grid'] = "none / 10px" should not set unrelated longhands
 Fail	e.style['grid'] = "fit-content(calc(-0.5em + 10px)) / fit-content(calc(0.5em + 10px))" should set grid-auto-columns
 Fail	e.style['grid'] = "fit-content(calc(-0.5em + 10px)) / fit-content(calc(0.5em + 10px))" should set grid-auto-flow
