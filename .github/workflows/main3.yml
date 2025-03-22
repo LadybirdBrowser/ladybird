@@ -49,14 +49,15 @@ jobs:
           chmod +x Meta/ladybird.sh
           ./Meta/ladybird.sh build
 
-      - name: Upload Build Artifacts
+      - name: Find & List Produced Files (Debugging)
+        run: find . -type f -printf "%P\n" | tee build-file-list.txt
+
+      - name: Upload All Produced Files
         uses: actions/upload-artifact@v4
         with:
-          name: Ladybird-Browser
+          name: Ladybird-All-Files
           path: |
-            Build/Ladybird/bin/Ladybird*
-            Build/Ladybird/bin/*.so
-            Build/Ladybird/bin/*.dll
-            Build/Ladybird/bin/*.dylib
-            Build/Ladybird/bin/*.exe
-          retention-days: 7
+            Build/release/**
+            Build/**
+            build-file-list.txt
+          retention-days: 14
