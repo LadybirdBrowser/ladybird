@@ -17,14 +17,13 @@
 namespace JS {
 
 // 7.4.1 Iterator Records, https://tc39.es/ecma262/#sec-iterator-records
-class IteratorRecord final : public Object {
-    JS_OBJECT(IteratorRecord, Object);
+class IteratorRecord final : public Cell {
+    GC_CELL(IteratorRecord, Cell);
     GC_DECLARE_ALLOCATOR(IteratorRecord);
 
 public:
-    IteratorRecord(Realm& realm, GC::Ptr<Object> iterator, Value next_method, bool done)
-        : Object(ConstructWithoutPrototypeTag::Tag, realm)
-        , iterator(iterator)
+    IteratorRecord(GC::Ptr<Object> iterator, Value next_method, bool done)
+        : iterator(iterator)
         , next_method(next_method)
         , done(done)
     {
@@ -36,11 +35,7 @@ public:
 
 private:
     virtual void visit_edges(Cell::Visitor&) override;
-    virtual bool is_iterator_record() const override { return true; }
 };
-
-template<>
-inline bool Object::fast_is<IteratorRecord>() const { return is_iterator_record(); }
 
 class Iterator : public Object {
     JS_OBJECT(Iterator, Object);
