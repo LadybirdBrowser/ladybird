@@ -45,15 +45,10 @@ public:
     DOM::Element const* pseudo_element_generator() const;
     DOM::Element* pseudo_element_generator();
 
-    enum class GeneratedFor {
-        NotGenerated,
-        PseudoBefore,
-        PseudoAfter
-    };
-    bool is_generated() const { return m_generated_for != GeneratedFor::NotGenerated; }
-    bool is_generated_for_before_pseudo_element() const { return m_generated_for == GeneratedFor::PseudoBefore; }
-    bool is_generated_for_after_pseudo_element() const { return m_generated_for == GeneratedFor::PseudoAfter; }
-    void set_generated_for(GeneratedFor type, DOM::Element& element)
+    bool is_generated() const { return m_generated_for.has_value(); }
+    bool is_generated_for_before_pseudo_element() const { return m_generated_for == CSS::GeneratedPseudoElement::Before; }
+    bool is_generated_for_after_pseudo_element() const { return m_generated_for == CSS::GeneratedPseudoElement::After; }
+    void set_generated_for(CSS::GeneratedPseudoElement type, DOM::Element& element)
     {
         m_generated_for = type;
         m_pseudo_element_generator = &element;
@@ -213,7 +208,7 @@ private:
 
     bool m_has_been_wrapped_in_table_wrapper { false };
 
-    GeneratedFor m_generated_for { GeneratedFor::NotGenerated };
+    Optional<CSS::GeneratedPseudoElement> m_generated_for {};
 
     u32 m_initial_quote_nesting_level { 0 };
 };

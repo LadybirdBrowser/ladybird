@@ -21,7 +21,7 @@ struct NodeIdentifier {
     bool operator==(NodeIdentifier const&) const = default;
 
     Web::UniqueNodeID id { 0 };
-    Optional<Web::CSS::Selector::PseudoElement::Type> pseudo_element;
+    Optional<Web::CSS::PseudoElement> pseudo_element;
 };
 
 class NodeActor final : public Actor {
@@ -55,7 +55,7 @@ struct AK::Traits<DevTools::NodeIdentifier> : public AK::DefaultTraits<DevTools:
 
     static unsigned hash(DevTools::NodeIdentifier const& node_identifier)
     {
-        auto pseudo_element = node_identifier.pseudo_element.value_or(Web::CSS::Selector::PseudoElement::Type::KnownPseudoElementCount);
+        auto pseudo_element = node_identifier.pseudo_element.value_or(Web::CSS::PseudoElement::KnownPseudoElementCount);
         return pair_int_hash(node_identifier.id.value(), to_underlying(pseudo_element));
     }
 };

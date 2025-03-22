@@ -265,7 +265,7 @@ public:
     void set_inspected_node(GC::Ptr<Node>);
     GC::Ptr<Node const> inspected_node() const { return m_inspected_node; }
 
-    void set_highlighted_node(GC::Ptr<Node>, Optional<CSS::Selector::PseudoElement::Type>);
+    void set_highlighted_node(GC::Ptr<Node>, Optional<CSS::PseudoElement>);
     GC::Ptr<Node const> highlighted_node() const { return m_highlighted_node; }
     GC::Ptr<Layout::Node> highlighted_layout_node();
     GC::Ptr<Layout::Node const> highlighted_layout_node() const { return const_cast<Document*>(this)->highlighted_layout_node(); }
@@ -963,7 +963,7 @@ private:
     GC::Ptr<Node> m_hovered_node;
     GC::Ptr<Node> m_inspected_node;
     GC::Ptr<Node> m_highlighted_node;
-    Optional<CSS::Selector::PseudoElement::Type> m_highlighted_pseudo_element;
+    Optional<CSS::PseudoElement> m_highlighted_pseudo_element;
 
     Optional<Color> m_normal_link_color;
     Optional<Color> m_active_link_color;

@@ -58,7 +58,7 @@ private:
         Prepend,
     };
     void insert_node_into_inline_or_block_ancestor(Layout::Node&, CSS::Display, AppendOrPrepend);
-    void create_pseudo_element_if_needed(DOM::Element&, CSS::Selector::PseudoElement::Type, AppendOrPrepend);
+    void create_pseudo_element_if_needed(DOM::Element&, CSS::PseudoElement, AppendOrPrepend);
     void restructure_block_node_in_inline_parent(NodeWithStyleAndBoxModelMetrics&);
 
     GC::Ptr<Layout::Node> m_layout_root;

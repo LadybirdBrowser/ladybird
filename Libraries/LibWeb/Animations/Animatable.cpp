@@ -72,7 +72,7 @@ WebIDL::ExceptionOr<Vector<GC::Ref<Animation>>> Animatable::get_animations_inter
 
     // 2. Let pseudoElement be the result of pseudo-element parsing applied to pseudoElement of options, or null if options is not passed.
     // FIXME: Currently only DOM::Element includes Animatable, but that might not always be true.
-    Optional<CSS::Selector::PseudoElement> pseudo_element;
+    Optional<CSS::Selector::PseudoElementSelector> pseudo_element;
     if (options.has_value() && options->pseudo_element.has_value()) {
         auto& realm = static_cast<DOM::Element&>(*this).realm();
         pseudo_element = TRY(pseudo_element_parsing(realm, options->pseudo_element));
@@ -185,10 +185,10 @@ void Animatable::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_associated_transitions);
 }
 
-GC::Ptr<CSS::CSSStyleDeclaration const> Animatable::cached_animation_name_source(Optional<CSS::Selector::PseudoElement::Type> pseudo_element) const
+GC::Ptr<CSS::CSSStyleDeclaration const> Animatable::cached_animation_name_source(Optional<CSS::PseudoElement> pseudo_element) const
 {
     if (pseudo_element.has_value()) {
-        if (!CSS::Selector::PseudoElement::is_known_pseudo_element_type(pseudo_element.value())) {
+        if (!CSS::Selector::PseudoElementSelector::is_known_pseudo_element_type(pseudo_element.value())) {
             return {};
         }
         return m_cached_animation_name_source[to_underlying(pseudo_element.value()) + 1];
@@ -196,10 +196,10 @@ GC::Ptr<CSS::CSSStyleDeclaration const> Animatable::cached_animation_name_source
     return m_cached_animation_name_source[0];
 }
 
-void Animatable::set_cached_animation_name_source(GC::Ptr<CSS::CSSStyleDeclaration const> value, Optional<CSS::Selector::PseudoElement::Type> pseudo_element)
+void Animatable::set_cached_animation_name_source(GC::Ptr<CSS::CSSStyleDeclaration const> value, Optional<CSS::PseudoElement> pseudo_element)
 {
     if (pseudo_element.has_value()) {
-        if (!CSS::Selector::PseudoElement::is_known_pseudo_element_type(pseudo_element.value())) {
+        if (!CSS::Selector::PseudoElementSelector::is_known_pseudo_element_type(pseudo_element.value())) {
             return;
         }
         m_cached_animation_name_source[to_underlying(pseudo_element.value()) + 1] = value;
@@ -208,10 +208,10 @@ void Animatable::set_cached_animation_name_source(GC::Ptr<CSS::CSSStyleDeclarati
     }
 }
 
-GC::Ptr<Animations::Animation> Animatable::cached_animation_name_animation(Optional<CSS::Selector::PseudoElement::Type> pseudo_element) const
+GC::Ptr<Animations::Animation> Animatable::cached_animation_name_animation(Optional<CSS::PseudoElement> pseudo_element) const
 {
     if (pseudo_element.has_value()) {
-        if (!CSS::Selector::PseudoElement::is_known_pseudo_element_type(pseudo_element.value())) {
+        if (!CSS::Selector::PseudoElementSelector::is_known_pseudo_element_type(pseudo_element.value())) {
             return {};
         }
 
@@ -220,11 +220,11 @@ GC::Ptr<Animations::Animation> Animatable::cached_animation_name_animation(Optio
     return m_cached_animation_name_animation[0];
 }
 
-void Animatable::set_cached_animation_name_animation(GC::Ptr<Animations::Animation> value, Optional<CSS::Selector::PseudoElement::Type> pseudo_element)
+void Animatable::set_cached_animation_name_animation(GC::Ptr<Animations::Animation> value, Optional<CSS::PseudoElement> pseudo_element)
 {
 
     if (pseudo_element.has_value()) {
-        if (!CSS::Selector::PseudoElement::is_known_pseudo_element_type(pseudo_element.value())) {
+        if (!CSS::Selector::PseudoElementSelector::is_known_pseudo_element_type(pseudo_element.value())) {
             return;
         }
 

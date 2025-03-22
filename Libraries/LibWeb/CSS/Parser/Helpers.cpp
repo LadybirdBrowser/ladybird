@@ -65,7 +65,7 @@ Optional<CSS::SelectorList> parse_selector_for_nested_style_rule(CSS::Parser::Pa
     return adapt_nested_relative_selector_list(*maybe_selectors);
 }
 
-Optional<CSS::Selector::PseudoElement> parse_pseudo_element_selector(CSS::Parser::ParsingParams const& context, StringView selector_text)
+Optional<CSS::Selector::PseudoElementSelector> parse_pseudo_element_selector(CSS::Parser::ParsingParams const& context, StringView selector_text)
 {
     return CSS::Parser::Parser::create(context, selector_text).parse_as_pseudo_element_selector();
 }

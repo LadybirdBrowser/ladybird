@@ -499,7 +499,7 @@ void Application::stop_listening_for_dom_properties(DevTools::TabDescription con
     view->on_received_dom_node_properties = nullptr;
 }
 
-void Application::inspect_dom_node(DevTools::TabDescription const& description, DOMNodeProperties::Type property_type, Web::UniqueNodeID node_id, Optional<Web::CSS::Selector::PseudoElement::Type> pseudo_element) const
+void Application::inspect_dom_node(DevTools::TabDescription const& description, DOMNodeProperties::Type property_type, Web::UniqueNodeID node_id, Optional<Web::CSS::PseudoElement> pseudo_element) const
 {
     auto view = ViewImplementation::find_view_by_id(description.id);
     if (!view.has_value())
@@ -514,7 +514,7 @@ void Application::clear_inspected_dom_node(DevTools::TabDescription const& descr
         view->clear_inspected_dom_node();
 }
 
-void Application::highlight_dom_node(DevTools::TabDescription const& description, Web::UniqueNodeID node_id, Optional<Web::CSS::Selector::PseudoElement::Type> pseudo_element) const
+void Application::highlight_dom_node(DevTools::TabDescription const& description, Web::UniqueNodeID node_id, Optional<Web::CSS::PseudoElement> pseudo_element) const
 {
     if (auto view = ViewImplementation::find_view_by_id(description.id); view.has_value())
         view->highlight_dom_node(node_id, pseudo_element);

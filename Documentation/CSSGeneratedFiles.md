@@ -120,6 +120,50 @@ The generated code provides:
 - The `PseudoClassMetadata` struct which holds a representation of the data from the JSON file
 - `PseudoClassMetadata pseudo_class_metadata(PseudoClass)` to retrieve that data
 
+## PsuedoElements.json
+
+This is a single JSON object, with pseudo-element names as keys and the values being objects with fields for the pseudo-element.
+This generated `PsuedoElement.h` and `PseudoElement.cpp`.
+
+Each entry has the following properties:
+
+| Field                | Required | Default | Description                                                                                                                                                            |
+|----------------------|----------|---------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `spec`               | No       | Nothing | Link to the spec definition, for reference. Not used in generated code.                                                                                                |
+| `alias-for`          | No       | Nothing | Use to specify that this should be treated as an alias for the named pseudo-element.                                                                                   |
+| `is-generated`       | No       | `false` | Whether this is a [generated pseudo-element.](https://drafts.csswg.org/css-pseudo-4/#generated-content)                                                                |
+| `is-allowed-in-has`  | No       | `false` | Whether this is a [`:has`-allowed pseudo-element.](https://drafts.csswg.org/selectors/#has-allowed-pseudo-element)                                                     |
+| `property-whitelist` | No       | Nothing | Some pseudo-elements only permit certain properties. If so, name them in an array here. Some special values are allowed here for categories of properties - see below. |
+
+The generated code provides:
+- A `PseudoElement` enum listing every pseudo-element name
+- `Optional<PseudoElement> pseudo_element_from_string(StringView)` to parse a string as a `PseudoElement` name
+- `Optional<PseudoElement> aliased_pseudo_element_from_string(StringView)` is similar, but returns the `PseudoElement` this name is an alias for
+- `StringView pseudo_element_name(PseudoElement)` to convert a `PseudoElement` back into a string
+- `bool is_has_allowed_pseudo_element(PseudoElement)` returns whether the pseudo-element is valid inside `:has()`
+- `bool pseudo_element_supports_property(PseudoElement, PropertyID)` returns whether the property can be applied to this pseudo-element
+- A `GeneratedPseudoElement` enum listing only the pseudo-elements that are [generated content](https://drafts.csswg.org/css-pseudo-4/#generated-content)
+- `Optional<GeneratedPseudoElement> to_generated_pseudo_element(PseudoElement)` for converting from `PseudoElement` to `GeneratedPseudoElement`. Returns nothing if it's not a generated pseudo-element
+- `PseudoElement to_pseudo_element(GeneratedPseudoElement)` does the opposite conversion
+
+### `property-whitelist`
+
+This is an array of strings. Properties can be named directly ("color"), or categories of properties with a leading `#`
+("#font-properties"), as the specs often says a group is allowed instead of listing the properties exactly.
+Any properties we don't support yet can be prefixed with "FIXME:" and will be ignored.
+
+The following categories are supported:
+
+- `#background-properties`: `background` and its longhands
+- `#border-properties`: `border`, `border-radius`, and their longhands
+- `#custom-properties`: Custom properties, AKA CSS variables
+- `#font-properties`: `font`, its longhands, and other `font-*` properties
+- `#inline-layout-properties`: Properties defined in [CSS Inline](https://drafts.csswg.org/css-inline-3/)
+- `#inline-typesetting-properties`: Properties defined in [CSS Text](https://drafts.csswg.org/css-text-4/)
+- `#margin-properties`: `margin` and its longhands
+- `#padding-properties`: `padding` and its longhands
+- `#text-decoration-properties`: `text-decoration` and its longhands
+
 ## MediaFeatures.json
 
 This is a single JSON object, with media-feature names as keys and the values being objects with fields for the media-feature.

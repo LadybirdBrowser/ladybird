@@ -535,74 +535,6 @@ String serialize_a_group_of_selectors(SelectorList const& selectors)
     return MUST(String::join(", "sv, selectors));
 }
 
-StringView Selector::PseudoElement::name(Selector::PseudoElement::Type pseudo_element)
-{
-    switch (pseudo_element) {
-    case Selector::PseudoElement::Type::Before:
-        return "before"sv;
-    case Selector::PseudoElement::Type::After:
-        return "after"sv;
-    case Selector::PseudoElement::Type::FirstLine:
-        return "first-line"sv;
-    case Selector::PseudoElement::Type::FirstLetter:
-        return "first-letter"sv;
-    case Selector::PseudoElement::Type::Marker:
-        return "marker"sv;
-    case Selector::PseudoElement::Type::Track:
-        return "track"sv;
-    case Selector::PseudoElement::Type::Fill:
-        return "fill"sv;
-    case Selector::PseudoElement::Type::Thumb:
-        return "thumb"sv;
-    case Selector::PseudoElement::Type::Placeholder:
-        return "placeholder"sv;
-    case Selector::PseudoElement::Type::Selection:
-        return "selection"sv;
-    case Selector::PseudoElement::Type::Backdrop:
-        return "backdrop"sv;
-    case Selector::PseudoElement::Type::FileSelectorButton:
-        return "file-selector-button"sv;
-    case Selector::PseudoElement::Type::DetailsContent:
-        return "details-content"sv;
-    case Selector::PseudoElement::Type::KnownPseudoElementCount:
-    case Selector::PseudoElement::Type::UnknownWebKit:
-        VERIFY_NOT_REACHED();
-    }
-    VERIFY_NOT_REACHED();
-}
-
-Optional<Selector::PseudoElement> Selector::PseudoElement::from_string(FlyString const& name)
-{
-    if (name.equals_ignoring_ascii_case("after"sv)) {
-        return Selector::PseudoElement { Selector::PseudoElement::Type::After };
-    } else if (name.equals_ignoring_ascii_case("before"sv)) {
-        return Selector::PseudoElement { Selector::PseudoElement::Type::Before };
-    } else if (name.equals_ignoring_ascii_case("first-letter"sv)) {
-        return Selector::PseudoElement { Selector::PseudoElement::Type::FirstLetter };
-    } else if (name.equals_ignoring_ascii_case("first-line"sv)) {
-        return Selector::PseudoElement { Selector::PseudoElement::Type::FirstLine };
-    } else if (name.equals_ignoring_ascii_case("marker"sv)) {
-        return Selector::PseudoElement { Selector::PseudoElement::Type::Marker };
-    } else if (name.equals_ignoring_ascii_case("track"sv)) {
-        return Selector::PseudoElement { Selector::PseudoElement::Type::Track };
-    } else if (name.equals_ignoring_ascii_case("fill"sv)) {
-        return Selector::PseudoElement { Selector::PseudoElement::Type::Fill };
-    } else if (name.equals_ignoring_ascii_case("thumb"sv)) {
-        return Selector::PseudoElement { Selector::PseudoElement::Type::Thumb };
-    } else if (name.equals_ignoring_ascii_case("placeholder"sv)) {
-        return Selector::PseudoElement { Selector::PseudoElement::Type::Placeholder };
-    } else if (name.equals_ignoring_ascii_case("selection"sv)) {
-        return Selector::PseudoElement { Selector::PseudoElement::Type::Selection };
-    } else if (name.equals_ignoring_ascii_case("backdrop"sv)) {
-        return Selector::PseudoElement { Selector::PseudoElement::Type::Backdrop };
-    } else if (name.equals_ignoring_ascii_case("file-selector-button"sv)) {
-        return Selector::PseudoElement { Selector::PseudoElement::Type::FileSelectorButton };
-    } else if (name.equals_ignoring_ascii_case("details-content"sv)) {
-        return Selector::PseudoElement { Selector::PseudoElement::Type::DetailsContent };
-    }
-    return {};
-}
-
 NonnullRefPtr<Selector> Selector::relative_to(SimpleSelector const& parent) const
 {
     // To make us relative to the parent, prepend it to the list of compound selectors,
@@ -636,7 +568,7 @@ bool Selector::contains_unknown_webkit_pseudo_element() const
                     }
                 }
             }
-            if (simple_selector.type == SimpleSelector::Type::PseudoElement && simple_selector.pseudo_element().type() == PseudoElement::Type::UnknownWebKit)
+            if (simple_selector.type == SimpleSelector::Type::PseudoElement && simple_selector.pseudo_element().type() == PseudoElement::UnknownWebKit)
                 return true;
         }
     }
@@ -825,13 +757,6 @@ SelectorList adapt_nested_relative_selector_list(SelectorList const& selectors)
         }
     }
     return new_list;
-}
-
-// https://drafts.csswg.org/selectors/#has-allowed-pseudo-element
-bool is_has_allowed_pseudo_element(Selector::PseudoElement::Type)
-{
-    // No spec currently defines any pseudo-elements that are allowed in :has()
-    return false;
 }
 
 }

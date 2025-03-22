@@ -47,6 +47,15 @@ function (generate_css_implementation)
     )
 
     invoke_generator(
+        "PseudoElement.cpp"
+        Lagom::GenerateCSSPseudoElement
+        "${LIBWEB_INPUT_FOLDER}/CSS/PseudoElements.json"
+        "CSS/PseudoElement.h"
+        "CSS/PseudoElement.cpp"
+        arguments -j "${LIBWEB_INPUT_FOLDER}/CSS/PseudoElements.json"
+    )
+
+    invoke_generator(
         "TransformFunctions.cpp"
         Lagom::GenerateCSSTransformFunctions
         "${LIBWEB_INPUT_FOLDER}/CSS/TransformFunctions.json"
@@ -115,6 +124,7 @@ function (generate_css_implementation)
        "CSS/MediaFeatureID.h"
        "CSS/PropertyID.h"
        "CSS/PseudoClass.h"
+       "CSS/PseudoElement.h"
        "CSS/TransformFunctions.h"
     )
     list(TRANSFORM CSS_GENERATED_HEADERS PREPEND "${CMAKE_CURRENT_BINARY_DIR}/")

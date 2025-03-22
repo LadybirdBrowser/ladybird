@@ -185,6 +185,23 @@ compiled_action("generate_css_pseudo_class") {
   ]
 }
 
+compiled_action("generate_css_pseudo_element") {
+  tool = "//Meta/Lagom/Tools/CodeGenerators/LibWeb:GenerateCSSPseudoElement"
+  inputs = [ "CSS/PseudoElement.json" ]
+  outputs = [
+    "$target_gen_dir/CSS/PseudoElement.h",
+    "$target_gen_dir/CSS/PseudoElement.cpp",
+  ]
+  args = [
+    "-h",
+    rebase_path(outputs[0], root_build_dir),
+    "-c",
+    rebase_path(outputs[1], root_build_dir),
+    "-j",
+    rebase_path(inputs[0], root_build_dir),
+  ]
+}
+
 compiled_action("generate_css_transform_functions") {
   tool =
       "//Meta/Lagom/Tools/CodeGenerators/LibWeb:GenerateCSSTransformFunctions"

@@ -47,11 +47,11 @@ public:
     void associate_with_animation(GC::Ref<Animation>);
     void disassociate_with_animation(GC::Ref<Animation>);
 
-    GC::Ptr<CSS::CSSStyleDeclaration const> cached_animation_name_source(Optional<CSS::Selector::PseudoElement::Type>) const;
-    void set_cached_animation_name_source(GC::Ptr<CSS::CSSStyleDeclaration const> value, Optional<CSS::Selector::PseudoElement::Type>);
+    GC::Ptr<CSS::CSSStyleDeclaration const> cached_animation_name_source(Optional<CSS::PseudoElement>) const;
+    void set_cached_animation_name_source(GC::Ptr<CSS::CSSStyleDeclaration const> value, Optional<CSS::PseudoElement>);
 
-    GC::Ptr<Animations::Animation> cached_animation_name_animation(Optional<CSS::Selector::PseudoElement::Type>) const;
-    void set_cached_animation_name_animation(GC::Ptr<Animations::Animation> value, Optional<CSS::Selector::PseudoElement::Type>);
+    GC::Ptr<Animations::Animation> cached_animation_name_animation(Optional<CSS::PseudoElement>) const;
+    void set_cached_animation_name_animation(GC::Ptr<Animations::Animation> value, Optional<CSS::PseudoElement>);
 
     GC::Ptr<CSS::CSSStyleDeclaration const> cached_transition_property_source() const { return m_cached_transition_property_source; }
     void set_cached_transition_property_source(GC::Ptr<CSS::CSSStyleDeclaration const> value) { m_cached_transition_property_source = value; }
@@ -70,8 +70,8 @@ private:
     Vector<GC::Ref<Animation>> m_associated_animations;
     bool m_is_sorted_by_composite_order { true };
 
-    Array<GC::Ptr<CSS::CSSStyleDeclaration const>, to_underlying(CSS::Selector::PseudoElement::Type::KnownPseudoElementCount) + 1> m_cached_animation_name_source;
-    Array<GC::Ptr<Animations::Animation>, to_underlying(CSS::Selector::PseudoElement::Type::KnownPseudoElementCount) + 1> m_cached_animation_name_animation;
+    Array<GC::Ptr<CSS::CSSStyleDeclaration const>, to_underlying(CSS::PseudoElement::KnownPseudoElementCount) + 1> m_cached_animation_name_source;
+    Array<GC::Ptr<Animations::Animation>, to_underlying(CSS::PseudoElement::KnownPseudoElementCount) + 1> m_cached_animation_name_animation;
 
     HashMap<CSS::PropertyID, size_t> m_transition_attribute_indices;
     Vector<TransitionAttributes> m_transition_attributes;

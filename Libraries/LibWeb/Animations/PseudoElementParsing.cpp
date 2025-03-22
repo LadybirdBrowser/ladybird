@@ -10,12 +10,12 @@
 namespace Web::Animations {
 
 // https://drafts.csswg.org/web-animations-1/#dom-keyframeeffect-pseudo-element-parsing
-WebIDL::ExceptionOr<Optional<CSS::Selector::PseudoElement>> pseudo_element_parsing(JS::Realm& realm, Optional<String> const& value)
+WebIDL::ExceptionOr<Optional<CSS::Selector::PseudoElementSelector>> pseudo_element_parsing(JS::Realm& realm, Optional<String> const& value)
 {
     // 1. Given the value value, perform the following steps:
 
     // 2. If value is not null and is an invalid <pseudo-element-selector>,
-    Optional<CSS::Selector::PseudoElement> pseudo_element;
+    Optional<CSS::Selector::PseudoElementSelector> pseudo_element;
     if (value.has_value()) {
         pseudo_element = parse_pseudo_element_selector(CSS::Parser::ParsingParams { realm }, *value);
         if (!pseudo_element.has_value()) {
@@ -28,7 +28,7 @@ WebIDL::ExceptionOr<Optional<CSS::Selector::PseudoElement>> pseudo_element_parsi
     // 3. If value is one of the legacy Selectors Level 2 single-colon selectors (':before', ':after', ':first-letter', or ':first-line'),
     // then return the equivalent two-colon selector (e.g. '::before').
     if (value.has_value() && value->is_one_of(":before", ":after", ":first-letter", ":first-line")) {
-        return CSS::Selector::PseudoElement::from_string(MUST(value->substring_from_byte_offset(1)));
+        return CSS::pseudo_element_from_string(MUST(value->substring_from_byte_offset(1)));
     }
 
     // 4. Otherwise, return value.
