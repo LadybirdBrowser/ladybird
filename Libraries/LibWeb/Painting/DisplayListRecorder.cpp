@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGfx/ImageOrientation.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/ShadowPainting.h>
 
@@ -198,22 +199,39 @@ void DisplayListRecorder::draw_scaled_immutable_bitmap(Gfx::IntRect const& dst_r
 {
     if (dst_rect.is_empty())
         return;
+
+    auto const exif_orientation = bitmap.get_exif_orientation();
+    auto const rect_correction_necessary = Gfx::exif_orientation_affects_image_size(exif_orientation);
+
+    auto const transformation_matrix = compute_exif_orientation_matrix(exif_orientation, dst_rect);
+
     append(DrawScaledImmutableBitmap {
         .dst_rect = dst_rect,
         .clip_rect = clip_rect,
         .bitmap = bitmap,
         .scaling_mode = scaling_mode,
+        .transformation_matrix = transformation_matrix,
+        .rect_correction_necessary = rect_correction_necessary,
     });
 }
 
 void DisplayListRecorder::draw_repeated_immutable_bitmap(Gfx::IntRect dst_rect, Gfx::IntRect clip_rect, NonnullRefPtr<Gfx::ImmutableBitmap const> bitmap, Gfx::ScalingMode scaling_mode, DrawRepeatedImmutableBitmap::Repeat repeat)
 {
+    if (dst_rect.is_empty())
+        return;
+
+    auto const exif_orientation = bitmap->get_exif_orientation();
+    auto const transformation_matrix = compute_exif_orientation_matrix(exif_orientation, dst_rect);
+    auto const size = bitmap->size();
+
     append(DrawRepeatedImmutableBitmap {
         .dst_rect = dst_rect,
         .clip_rect = clip_rect,
+        .src_size = size,
         .bitmap = move(bitmap),
         .scaling_mode = scaling_mode,
         .repeat = repeat,
+        .transformation_matrix = transformation_matrix,
     });
 }
 
