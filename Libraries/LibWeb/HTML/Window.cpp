@@ -731,6 +731,7 @@ WebIDL::ExceptionOr<void> Window::initialize_web_interfaces(Badge<WindowEnvironm
     WEB_SET_PROTOTYPE_FOR_INTERFACE(Window);
 
     Bindings::WindowGlobalMixin::initialize(realm, *this);
+    Bindings::WindowGlobalMixin::define_unforgeable_attributes(realm, *this);
     WindowOrWorkerGlobalScopeMixin::initialize(realm);
 
     if (s_internals_object_exposed)
