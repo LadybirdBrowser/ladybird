@@ -146,8 +146,8 @@ grid-column-start: auto
 grid-row-end: auto
 grid-row-start: auto
 grid-template-areas: none
-grid-template-columns: auto
-grid-template-rows: auto
+grid-template-columns: none
+grid-template-rows: none
 height: 2100px
 inline-size: 784px
 inset-block-end: auto
