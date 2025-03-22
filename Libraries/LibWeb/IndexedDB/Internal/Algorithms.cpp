@@ -120,7 +120,8 @@ WebIDL::ExceptionOr<GC::Ref<IDBDatabase>> open_a_database_connection(JS::Realm& 
         }));
 
         // 6. Run upgrade a database using connection, version and request.
-        upgrade_a_database(realm, connection, version, request);
+        // AD-HOC: https://github.com/w3c/IndexedDB/issues/433#issuecomment-2512330086
+        auto upgrade_transaction = upgrade_a_database(realm, connection, version, request);
 
         // 7. If connection was closed, return a newly created "AbortError" DOMException and abort these steps.
         if (connection->state() == IDBDatabase::ConnectionState::Closed) {
@@ -129,8 +130,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBDatabase>> open_a_database_connection(JS::Realm& 
 
         // 8. If the upgrade transaction was aborted, run the steps to close a database connection with connection,
         //    return a newly created "AbortError" DOMException and abort these steps.
-        auto transaction = connection->associated_database()->upgrade_transaction();
-        if (transaction->aborted()) {
+        if (upgrade_transaction->aborted()) {
             close_a_database_connection(*connection, true);
             return WebIDL::AbortError::create(realm, "Upgrade transaction was aborted"_string);
         }
@@ -304,7 +304,7 @@ void close_a_database_connection(IDBDatabase& connection, bool forced)
 }
 
 // https://w3c.github.io/IndexedDB/#upgrade-a-database
-void upgrade_a_database(JS::Realm& realm, GC::Ref<IDBDatabase> connection, u64 version, GC::Ref<IDBRequest> request)
+GC::Ref<IDBTransaction> upgrade_a_database(JS::Realm& realm, GC::Ref<IDBDatabase> connection, u64 version, GC::Ref<IDBRequest> request)
 {
     // 1. Let db be connection’s database.
     auto db = connection->associated_database();
@@ -349,12 +349,14 @@ void upgrade_a_database(JS::Realm& realm, GC::Ref<IDBDatabase> connection, u64 v
         transaction->set_state(IDBTransaction::TransactionState::Active);
 
         // 5. Let didThrow be the result of firing a version change event named upgradeneeded at request with old version and version.
-        [[maybe_unused]] auto did_throw = fire_a_version_change_event(realm, HTML::EventNames::upgradeneeded, request, old_version, version);
+        auto did_throw = fire_a_version_change_event(realm, HTML::EventNames::upgradeneeded, request, old_version, version);
 
         // 6. Set transaction’s state to inactive.
         transaction->set_state(IDBTransaction::TransactionState::Inactive);
 
-        // FIXME: 7. If didThrow is true, run abort a transaction with transaction and a newly created "AbortError" DOMException.
+        // 7. If didThrow is true, run abort a transaction with transaction and a newly created "AbortError" DOMException.
+        if (did_throw)
+            abort_a_transaction(*transaction, WebIDL::AbortError::create(realm, "Version change event threw an exception"_string));
 
         wait_for_transaction = false;
     }));
@@ -363,6 +365,8 @@ void upgrade_a_database(JS::Realm& realm, GC::Ref<IDBDatabase> connection, u64 v
     HTML::main_thread_event_loop().spin_until(GC::create_function(realm.vm().heap(), [&wait_for_transaction]() {
         return !wait_for_transaction;
     }));
+
+    return transaction;
 }
 
 // https://w3c.github.io/IndexedDB/#deleting-a-database

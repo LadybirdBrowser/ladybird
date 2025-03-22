@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
  * Copyright (c) 2024, Jamie Mansfield <jmansfield@cadixdev.org>
- * Copyright (c) 2024, stelar7 <dudedbz@gmail.com>
+ * Copyright (c) 2024-2025, stelar7 <dudedbz@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -16,8 +16,9 @@ GC_DEFINE_ALLOCATOR(IDBRequest);
 
 IDBRequest::~IDBRequest() = default;
 
-IDBRequest::IDBRequest(JS::Realm& realm)
+IDBRequest::IDBRequest(JS::Realm& realm, IDBRequestSource source)
     : EventTarget(realm)
+    , m_source(source)
 {
 }
 
@@ -25,6 +26,11 @@ void IDBRequest::initialize(JS::Realm& realm)
 {
     Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(IDBRequest);
+}
+
+GC::Ref<IDBRequest> IDBRequest::create(JS::Realm& realm, IDBRequestSource source)
+{
+    return realm.create<IDBRequest>(realm, source);
 }
 
 void IDBRequest::visit_edges(Visitor& visitor)
