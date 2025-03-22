@@ -15,7 +15,7 @@
       types: ["text", "search", "tel", "url", "email", "password"],
       testData: [
         {conditions: {pattern: null, value: "abc"}, expected: false, name: "[target] The pattern attribute is not set"},
-        {conditions: {pattern: "[A-Z]+", value: ""}, expected: false, name: "[target] The value attibute is empty string"},
+        {conditions: {pattern: "[A-Z]+", value: ""}, expected: false, name: "[target] The value attribute is empty string"},
         {conditions: {pattern: "[A-Z]{1}", value: "A"}, expected: false, name: "[target] The value attribute matches the pattern attribute"},
         {conditions: {pattern: "[A-Z]+", value: "\x41\x42\x43"}, expected: false, name: "[target] The value(ABC) in unicode attribute matches the pattern attribute"},
         {conditions: {pattern: "[a-z]{3,}", value: "ABCD"}, expected: true, name: "[target] The value attribute mismatches the pattern attribute"},
@@ -33,7 +33,7 @@
       types: ["email"],
       testData: [
         {conditions: {multiple: true, pattern: null, value: "abc,abc"}, expected: false, name: "[target] The pattern attribute is not set, if multiple is present"},
-        {conditions: {multiple: true, pattern: "[A-Z]+", value: ""}, expected: false, name: "[target] The value attibute is empty string, if multiple is present"},
+        {conditions: {multiple: true, pattern: "[A-Z]+", value: ""}, expected: false, name: "[target] The value attribute is empty string, if multiple is present"},
         {conditions: {multiple: true, pattern: "[A-Z]{1}", value: "A,A"}, expected: false, name: "[target] The value attribute matches the pattern attribute, if multiple is present"},
         {conditions: {multiple: true, pattern: "[A-Z]+", value: "\x41\x42\x43,\x41\x42\x43"}, expected: false, name: "[target] The value(ABC) in unicode attribute matches the pattern attribute, if multiple is present"},
         {conditions: {multiple: true, pattern: "[a-z]{3,}", value: "abcd,ABCD"}, expected: true, name: "[target] The value attribute mismatches the pattern attribute, if multiple is present"},
