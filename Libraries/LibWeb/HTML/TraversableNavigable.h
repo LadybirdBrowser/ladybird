@@ -9,12 +9,12 @@
 #include <AK/Vector.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/NavigationType.h>
+#include <LibWeb/HTML/RenderingThread.h>
 #include <LibWeb/HTML/SessionHistoryTraversalQueue.h>
 #include <LibWeb/HTML/VisibilityState.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
 #include <LibWeb/StorageAPI/StorageShed.h>
-#include <WebContent/BackingStoreManager.h>
 
 #ifdef AK_OS_MACOS
 #    include <LibGfx/MetalContext.h>
@@ -97,7 +97,8 @@ public:
 
     [[nodiscard]] GC::Ptr<DOM::Node> currently_focused_area();
 
-    void paint(Web::DevicePixelRect const&, Painting::BackingStore&, Web::PaintOptions);
+    RefPtr<Painting::DisplayList> record_display_list(DevicePixelRect const&, PaintOptions);
+    void start_display_list_rendering(RefPtr<Painting::DisplayList> display_list, NonnullRefPtr<Gfx::PaintingSurface> painting_surface, Function<void()>&& callback);
 
     enum class CheckIfUnloadingIsCanceledResult {
         CanceledByBeforeUnload,
@@ -115,6 +116,8 @@ public:
 
     bool needs_repaint() const { return m_needs_repaint; }
     void set_needs_repaint() { m_needs_repaint = true; }
+
+    NonnullRefPtr<Gfx::PaintingSurface> painting_surface_for_backing_store(Painting::BackingStore&);
 
 private:
     TraversableNavigable(GC::Ref<Page>);
@@ -136,8 +139,6 @@ private:
     Vector<GC::Ref<SessionHistoryEntry>> get_session_history_entries_for_the_navigation_api(GC::Ref<Navigable>, int);
 
     [[nodiscard]] bool can_go_forward() const;
-
-    NonnullRefPtr<Gfx::PaintingSurface> painting_surface_for_backing_store(Painting::BackingStore&);
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#tn-current-session-history-step
     int m_current_session_history_step { 0 };
@@ -162,10 +163,11 @@ private:
     String m_window_handle;
 
     RefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
-    OwnPtr<Painting::DisplayListPlayerSkia> m_skia_player;
     HashMap<Gfx::Bitmap*, NonnullRefPtr<Gfx::PaintingSurface>> m_bitmap_to_surface;
 
     bool m_needs_repaint { true };
+
+    RenderingThread m_rendering_thread;
 };
 
 struct BrowsingContextAndDocument {

@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/AtomicRefCounted.h>
 #include <AK/Forward.h>
 #include <AK/Utf8View.h>
 #include <AK/Vector.h>
@@ -33,7 +34,7 @@ typedef struct ShapeFeature {
 
 using ShapeFeatures = Vector<ShapeFeature, 4>;
 
-class GlyphRun : public RefCounted<GlyphRun> {
+class GlyphRun : public AtomicRefCounted<GlyphRun> {
 public:
     enum class TextType {
         Common,

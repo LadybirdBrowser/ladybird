@@ -57,7 +57,14 @@ ErrorOr<GC::Ref<HTML::HTMLCanvasElement>, WebDriver::Error> draw_bounding_box_fr
 
     auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, canvas.surface()->size()));
     auto backing_store = Web::Painting::BitmapBackingStore(bitmap);
-    browsing_context.page().client().paint(paint_rect.to_type<Web::DevicePixels>(), backing_store);
+    IGNORE_USE_IN_ESCAPING_LAMBDA bool did_paint = false;
+    browsing_context.page().client().start_display_list_rendering(paint_rect.to_type<Web::DevicePixels>(), backing_store, {}, [&did_paint] {
+        did_paint = true;
+    });
+    HTML::main_thread_event_loop().spin_until(GC::create_function(HTML::main_thread_event_loop().heap(), [&] {
+        return did_paint;
+    }));
+
     canvas.surface()->write_from_bitmap(*bitmap);
 
     // 7. Return success with canvas.

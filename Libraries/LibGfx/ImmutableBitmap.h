@@ -1,14 +1,14 @@
 /*
- * Copyright (c) 2023-2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2023-2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #pragma once
 
+#include <AK/AtomicRefCounted.h>
 #include <AK/Forward.h>
 #include <AK/NonnullOwnPtr.h>
-#include <AK/RefCounted.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ColorSpace.h>
 #include <LibGfx/Forward.h>
@@ -20,7 +20,7 @@ namespace Gfx {
 
 struct ImmutableBitmapImpl;
 
-class ImmutableBitmap final : public RefCounted<ImmutableBitmap> {
+class ImmutableBitmap final : public AtomicRefCounted<ImmutableBitmap> {
 public:
     static NonnullRefPtr<ImmutableBitmap> create(NonnullRefPtr<Bitmap> bitmap, ColorSpace color_space = {});
     static NonnullRefPtr<ImmutableBitmap> create(NonnullRefPtr<Bitmap> bitmap, AlphaType, ColorSpace color_space = {});
