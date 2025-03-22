@@ -298,6 +298,16 @@ double EasingStyleValue::CubicBezier::evaluate_at(double input_progress, bool) c
             last_x = solution.x;
         }
 
+        // Ad-hoc: Sometimes the last entry in 'm_cached_x_samples' does not
+        // reach {x = 1}, which leads to an index out of bounds error when x is 1 and we
+        // try to linearly interpolate between nearby_index and nearby_index + 1
+        // (since nearby_index will point to the last entry when x is 1 and last entry has {x < 1})
+        // This fixes that by manually making sure the last entry is {x = 1} when x is 1
+        if (x == 1 && last_x < 1) {
+            auto solution = solve(1.0);
+            m_cached_x_samples.append(solution);
+        }
+
         if (auto found = binary_search(m_cached_x_samples, x, &nearby_index, [](auto x, auto& sample) {
                 if (x - sample.x >= NumericLimits<double>::epsilon())
                     return 1;
