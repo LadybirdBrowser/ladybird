@@ -38,6 +38,9 @@ public:
     String const& locale() const { return m_locale; }
     void set_locale(String locale) { m_locale = move(locale); }
 
+    String const& icu_locale() const { return m_icu_locale; }
+    void set_icu_locale(String icu_locale) { m_icu_locale = move(icu_locale); }
+
     String const& calendar() const { return m_calendar; }
     void set_calendar(String calendar) { m_calendar = move(calendar); }
 
@@ -107,6 +110,7 @@ private:
     GC::Ptr<NativeFunction> m_bound_format;                                // [[BoundFormat]]
 
     // Non-standard. Stores the ICU date-time formatters for the Intl object's formatting options.
+    String m_icu_locale;
     OwnPtr<Unicode::DateTimeFormat> m_formatter;
     OwnPtr<Unicode::DateTimeFormat> m_temporal_plain_date_formatter;
     OwnPtr<Unicode::DateTimeFormat> m_temporal_plain_year_month_formatter;

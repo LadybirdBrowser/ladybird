@@ -38,6 +38,7 @@ struct MatchedLocale {
 
 struct ResolvedLocale {
     String locale;
+    String icu_locale;
     LocaleKey ca; // [[Calendar]]
     LocaleKey co; // [[Collation]]
     LocaleKey hc; // [[HourCycle]]

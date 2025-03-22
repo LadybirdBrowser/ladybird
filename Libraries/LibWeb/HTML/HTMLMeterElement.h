@@ -45,6 +45,13 @@ public:
     // https://www.w3.org/TR/html-aria/#el-meter
     virtual Optional<ARIA::Role> default_role() const override { return ARIA::Role::meter; }
 
+    enum class ValueState : u8 {
+        Optimal,
+        Suboptimal,
+        EvenLessGood,
+    };
+    ValueState value_state() const { return m_cached_value_state; }
+
 private:
     HTMLMeterElement(DOM::Document&, DOM::QualifiedName);
 
@@ -56,6 +63,7 @@ private:
     void update_meter_value_element();
 
     GC::Ptr<DOM::Element> m_meter_value_element;
+    ValueState m_cached_value_state { ValueState::Optimal };
 };
 
 }

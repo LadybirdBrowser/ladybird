@@ -53,7 +53,7 @@ JS_DEFINE_NATIVE_FUNCTION(NumberFormatPrototype::resolved_options)
     // 4. Let options be OrdinaryObjectCreate(%Object.prototype%).
     auto options = Object::create(realm, realm.intrinsics().object_prototype());
 
-    // 5. For each row of Table 25, except the header row, in table order, do
+    // 5. For each row of Table 26, except the header row, in table order, do
     //     a. Let p be the Property value of the current row.
     //     b. Let v be the value of nf's internal slot whose name is the Internal Slot value of the current row.
     //     c. If v is not undefined, then

@@ -13,12 +13,12 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSNestedDeclarations);
 
-GC::Ref<CSSNestedDeclarations> CSSNestedDeclarations::create(JS::Realm& realm, PropertyOwningCSSStyleDeclaration& declaration)
+GC::Ref<CSSNestedDeclarations> CSSNestedDeclarations::create(JS::Realm& realm, CSSStyleProperties& declaration)
 {
     return realm.create<CSSNestedDeclarations>(realm, declaration);
 }
 
-CSSNestedDeclarations::CSSNestedDeclarations(JS::Realm& realm, PropertyOwningCSSStyleDeclaration& declaration)
+CSSNestedDeclarations::CSSNestedDeclarations(JS::Realm& realm, CSSStyleProperties& declaration)
     : CSSRule(realm, Type::NestedDeclarations)
     , m_declaration(declaration)
 {

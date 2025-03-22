@@ -251,7 +251,7 @@ RefPtr<LinearGradientStyleValue> Parser::parse_linear_gradient_function(TokenStr
     if (!function_name.equals_ignoring_ascii_case("linear-gradient"sv))
         return nullptr;
 
-    // <linear-gradient-syntax> = [ [ <angle> | to <side-or-corner> ] || <color-interpolation-method> ]? , <color-stop-list>
+    // <linear-gradient-syntax> = [ [ <angle> | <zero> | to <side-or-corner> ] || <color-interpolation-method> ]? , <color-stop-list>
 
     TokenStream tokens { component_value.function().value };
     tokens.discard_whitespace();
@@ -290,7 +290,7 @@ RefPtr<LinearGradientStyleValue> Parser::parse_linear_gradient_function(TokenStr
     auto const& first_param = tokens.next_token();
     if (first_param.is(Token::Type::Dimension)) {
         // <angle>
-        tokens.discard_a_token();
+        tokens.discard_a_token(); // <angle>
         auto angle_value = first_param.token().dimension_value();
         auto unit_string = first_param.token().dimension_unit();
         auto angle_type = Angle::unit_from_name(unit_string);
@@ -299,6 +299,10 @@ RefPtr<LinearGradientStyleValue> Parser::parse_linear_gradient_function(TokenStr
             return nullptr;
 
         gradient_direction = Angle { angle_value, angle_type.release_value() };
+    } else if (first_param.is(Token::Type::Number) && first_param.token().number().value() == 0) {
+        // <zero>
+        tokens.discard_a_token(); // <zero>
+        gradient_direction = Angle::make_degrees(0);
     } else if (is_to_side_or_corner(first_param)) {
         // <side-or-corner> = [left | right] || [top | bottom]
 
@@ -396,7 +400,7 @@ RefPtr<ConicGradientStyleValue> Parser::parse_conic_gradient_function(TokenStrea
     RefPtr<PositionStyleValue> at_position;
     Optional<InterpolationMethod> maybe_interpolation_method;
 
-    // conic-gradient( [ [ [ from <angle> ]? [ at <position> ]? ] || <color-interpolation-method> ]? , <angular-color-stop-list> )
+    // conic-gradient( [ [ [ from [ <angle> | <zero> ] ]? [ at <position> ]? ] || <color-interpolation-method> ]? , <angular-color-stop-list> )
     NonnullRawPtr<ComponentValue const> token = tokens.next_token();
     bool got_from_angle = false;
     bool got_color_interpolation_method = false;
@@ -413,23 +417,28 @@ RefPtr<ConicGradientStyleValue> Parser::parse_conic_gradient_function(TokenStrea
         };
 
         if (consume_identifier("from"sv)) {
-            // from <angle>
+            // from [ <angle> | <zero> ]
             if (got_from_angle || got_at_position)
                 return nullptr;
             if (!tokens.has_next_token())
                 return nullptr;
 
             auto const& angle_token = tokens.consume_a_token();
-            if (!angle_token.is(Token::Type::Dimension))
-                return nullptr;
-            auto angle = angle_token.token().dimension_value();
-            auto angle_unit = angle_token.token().dimension_unit();
-            auto angle_type = Angle::unit_from_name(angle_unit);
-            if (!angle_type.has_value())
-                return nullptr;
+            if (angle_token.is(Token::Type::Dimension)) {
+                auto angle = angle_token.token().dimension_value();
+                auto angle_unit = angle_token.token().dimension_unit();
+                auto angle_type = Angle::unit_from_name(angle_unit);
+                if (!angle_type.has_value())
+                    return nullptr;
 
-            from_angle = Angle(angle, *angle_type);
-            got_from_angle = true;
+                from_angle = Angle(angle, *angle_type);
+                got_from_angle = true;
+            } else if (angle_token.is(Token::Type::Number) && angle_token.token().number().value() == 0) {
+                from_angle = Angle::make_degrees(0);
+                got_from_angle = true;
+            } else {
+                return nullptr;
+            }
         } else if (consume_identifier("at"sv)) {
             // at <position>
             if (got_at_position)

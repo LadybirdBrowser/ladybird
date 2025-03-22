@@ -1,0 +1,4 @@
+cssText: @import url("https://something.invalid/") supports(foo: bar);
+supportsText: foo: bar
+cssText: @import url("https://something.invalid/") supports((display: block) and (foo: bar));
+supportsText: (display: block) and (foo: bar)

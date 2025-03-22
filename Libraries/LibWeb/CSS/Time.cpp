@@ -28,7 +28,7 @@ Time Time::percentage_of(Percentage const& percentage) const
 
 String Time::to_string() const
 {
-    return MUST(String::formatted("{}s", to_seconds()));
+    return MUST(String::formatted("{}{}", raw_value(), unit_name()));
 }
 
 double Time::to_seconds() const

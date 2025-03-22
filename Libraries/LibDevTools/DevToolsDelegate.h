@@ -17,6 +17,7 @@
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
 #include <LibWeb/Forward.h>
+#include <LibWebView/DOMNodeProperties.h>
 #include <LibWebView/Forward.h>
 
 namespace DevTools {
@@ -31,8 +32,10 @@ public:
     using OnTabInspectionComplete = Function<void(ErrorOr<JsonValue>)>;
     virtual void inspect_tab(TabDescription const&, OnTabInspectionComplete) const { }
 
-    using OnDOMNodeInspectionComplete = Function<void(ErrorOr<DOMNodeProperties>)>;
-    virtual void inspect_dom_node(TabDescription const&, Web::UniqueNodeID, Optional<Web::CSS::Selector::PseudoElement::Type>, OnDOMNodeInspectionComplete) const { }
+    using OnDOMNodePropertiesReceived = Function<void(WebView::DOMNodeProperties)>;
+    virtual void listen_for_dom_properties(TabDescription const&, OnDOMNodePropertiesReceived) const { }
+    virtual void stop_listening_for_dom_properties(TabDescription const&) const { }
+    virtual void inspect_dom_node(TabDescription const&, WebView::DOMNodeProperties::Type, Web::UniqueNodeID, Optional<Web::CSS::Selector::PseudoElement::Type>) const { }
     virtual void clear_inspected_dom_node(TabDescription const&) const { }
 
     virtual void highlight_dom_node(TabDescription const&, Web::UniqueNodeID, Optional<Web::CSS::Selector::PseudoElement::Type>) const { }

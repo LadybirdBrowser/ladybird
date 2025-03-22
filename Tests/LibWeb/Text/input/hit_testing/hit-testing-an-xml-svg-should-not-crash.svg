@@ -8,7 +8,7 @@
       // Note: This test _must_ be in a .svg file!
       internals.hitTest(400, 400);
       // Did not crash!
-      internals.signalTextTestIsDone("");
+      internals.signalTestIsDone("");
     });
   </script>
 </svg>

@@ -14,7 +14,9 @@
 
 #include <AK/Debug.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
+#include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
+#include <LibWeb/CSS/FontFace.h>
 #include <LibWeb/CSS/MediaList.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyName.h>
@@ -150,68 +152,75 @@ RefPtr<Supports> Parser::parse_a_supports(TokenStream<T>& tokens)
     auto component_values = parse_a_list_of_component_values(tokens);
     TokenStream<ComponentValue> token_stream { component_values };
     m_rule_context.append(ContextType::SupportsCondition);
-    auto maybe_condition = parse_supports_condition(token_stream);
+    auto maybe_condition = parse_boolean_expression(token_stream, MatchResult::False, [this](auto& tokens) { return parse_supports_feature(tokens); });
     m_rule_context.take_last();
     token_stream.discard_whitespace();
     if (maybe_condition && !token_stream.has_next_token())
-        return Supports::create(realm(), maybe_condition.release_nonnull());
+        return Supports::create(maybe_condition.release_nonnull());
 
     return {};
 }
 
-OwnPtr<Supports::Condition> Parser::parse_supports_condition(TokenStream<ComponentValue>& tokens)
+// https://drafts.csswg.org/css-values-5/#typedef-boolean-expr
+OwnPtr<BooleanExpression> Parser::parse_boolean_expression(TokenStream<ComponentValue>& tokens, MatchResult result_for_general_enclosed, ParseTest parse_test)
 {
+    // <boolean-expr[ <test> ]> = not <boolean-expr-group> | <boolean-expr-group>
+    //                            [ [ and <boolean-expr-group> ]*
+    //                            | [ or <boolean-expr-group> ]* ]
+
     auto transaction = tokens.begin_transaction();
     tokens.discard_whitespace();
 
     auto const& peeked_token = tokens.next_token();
-    // `not <supports-in-parens>`
+    // `not <boolean-expr-group>`
     if (peeked_token.is_ident("not"sv)) {
         tokens.discard_a_token();
         tokens.discard_whitespace();
-        auto child = parse_supports_in_parens(tokens);
-        if (!child.has_value())
-            return {};
 
-        transaction.commit();
-        auto condition = make<Supports::Condition>();
-        condition->type = Supports::Condition::Type::Not;
-        condition->children.append(child.release_value());
-        return condition;
+        if (auto child = parse_boolean_expression_group(tokens, result_for_general_enclosed, parse_test)) {
+            transaction.commit();
+            return BooleanNotExpression::create(child.release_nonnull());
+        }
+        return {};
     }
 
-    // `  <supports-in-parens> [ and <supports-in-parens> ]*
-    //  | <supports-in-parens> [ or <supports-in-parens> ]*`
-    Vector<Supports::InParens> children;
-    Optional<Supports::Condition::Type> condition_type {};
-    auto as_condition_type = [](auto& token) -> Optional<Supports::Condition::Type> {
+    // `<boolean-expr-group>
+    //   [ [ and <boolean-expr-group> ]*
+    //   | [ or <boolean-expr-group> ]* ]`
+    Vector<NonnullOwnPtr<BooleanExpression>> children;
+    enum class Combinator : u8 {
+        And,
+        Or,
+    };
+    Optional<Combinator> combinator;
+    auto as_combinator = [](auto& token) -> Optional<Combinator> {
         if (!token.is(Token::Type::Ident))
             return {};
         auto ident = token.token().ident();
         if (ident.equals_ignoring_ascii_case("and"sv))
-            return Supports::Condition::Type::And;
+            return Combinator::And;
         if (ident.equals_ignoring_ascii_case("or"sv))
-            return Supports::Condition::Type::Or;
+            return Combinator::Or;
         return {};
     };
 
     while (tokens.has_next_token()) {
         if (!children.is_empty()) {
             // Expect `and` or `or` here
-            auto maybe_combination = as_condition_type(tokens.consume_a_token());
-            if (!maybe_combination.has_value())
+            auto maybe_combinator = as_combinator(tokens.consume_a_token());
+            if (!maybe_combinator.has_value())
                 return {};
-            if (!condition_type.has_value()) {
-                condition_type = maybe_combination.value();
-            } else if (maybe_combination != condition_type) {
+            if (!combinator.has_value()) {
+                combinator = maybe_combinator.value();
+            } else if (maybe_combinator != combinator) {
                 return {};
             }
         }
 
         tokens.discard_whitespace();
 
-        if (auto in_parens = parse_supports_in_parens(tokens); in_parens.has_value()) {
-            children.append(in_parens.release_value());
+        if (auto child = parse_boolean_expression_group(tokens, result_for_general_enclosed, parse_test)) {
+            children.append(child.release_nonnull());
         } else {
             return {};
         }
@@ -223,15 +232,24 @@ OwnPtr<Supports::Condition> Parser::parse_supports_condition(TokenStream<Compone
         return {};
 
     transaction.commit();
-    auto condition = make<Supports::Condition>();
-    condition->type = condition_type.value_or(Supports::Condition::Type::Or);
-    condition->children = move(children);
-    return condition;
+    if (children.size() == 1)
+        return children.take_first();
+
+    VERIFY(combinator.has_value());
+    switch (*combinator) {
+    case Combinator::And:
+        return BooleanAndExpression::create(move(children));
+    case Combinator::Or:
+        return BooleanOrExpression::create(move(children));
+    }
+    VERIFY_NOT_REACHED();
 }
 
-Optional<Supports::InParens> Parser::parse_supports_in_parens(TokenStream<ComponentValue>& tokens)
+OwnPtr<BooleanExpression> Parser::parse_boolean_expression_group(TokenStream<ComponentValue>& tokens, MatchResult result_for_general_enclosed, ParseTest parse_test)
 {
-    // `( <supports-condition> )`
+    // <boolean-expr-group> = <test> | ( <boolean-expr[ <test> ]> ) | <general-enclosed>
+
+    // `( <boolean-expr[ <test> ]> )`
     auto const& first_token = tokens.next_token();
     if (first_token.is_block() && first_token.block().is_paren()) {
         auto transaction = tokens.begin_transaction();
@@ -239,69 +257,102 @@ Optional<Supports::InParens> Parser::parse_supports_in_parens(TokenStream<Compon
         tokens.discard_whitespace();
 
         TokenStream child_tokens { first_token.block().value };
-        if (auto condition = parse_supports_condition(child_tokens)) {
+        if (auto expression = parse_boolean_expression(child_tokens, result_for_general_enclosed, parse_test)) {
             if (child_tokens.has_next_token())
                 return {};
             transaction.commit();
-            return Supports::InParens {
-                .value = { condition.release_nonnull() }
-            };
+            return BooleanExpressionInParens::create(expression.release_nonnull());
         }
     }
 
-    // `<supports-feature>`
-    if (auto feature = parse_supports_feature(tokens); feature.has_value()) {
-        return Supports::InParens {
-            .value = { feature.release_value() }
-        };
-    }
+    // `<test>`
+    if (auto test = parse_test(tokens))
+        return test.release_nonnull();
 
     // `<general-enclosed>`
-    if (auto general_enclosed = parse_general_enclosed(tokens); general_enclosed.has_value()) {
-        return Supports::InParens {
-            .value = general_enclosed.release_value()
-        };
-    }
+    if (auto general_enclosed = parse_general_enclosed(tokens, result_for_general_enclosed))
+        return general_enclosed.release_nonnull();
 
     return {};
 }
 
-Optional<Supports::Feature> Parser::parse_supports_feature(TokenStream<ComponentValue>& tokens)
+// https://drafts.csswg.org/css-conditional-5/#typedef-supports-feature
+OwnPtr<BooleanExpression> Parser::parse_supports_feature(TokenStream<ComponentValue>& tokens)
 {
+    // <supports-feature> = <supports-selector-fn> | <supports-font-tech-fn>
+    //                    | <supports-font-format-fn> | <supports-decl>
     auto transaction = tokens.begin_transaction();
     tokens.discard_whitespace();
     auto const& first_token = tokens.consume_a_token();
 
-    // `<supports-decl>`
+    // `<supports-decl> = ( <declaration> )`
     if (first_token.is_block() && first_token.block().is_paren()) {
         TokenStream block_tokens { first_token.block().value };
         // FIXME: Parsing and then converting back to a string is weird.
         if (auto declaration = consume_a_declaration(block_tokens); declaration.has_value()) {
             transaction.commit();
-            return Supports::Feature {
-                Supports::Declaration { declaration->to_string() }
-            };
+            auto supports_declaration = Supports::Declaration::create(
+                declaration->to_string(),
+                convert_to_style_property(*declaration).has_value());
+
+            return BooleanExpressionInParens::create(supports_declaration.release_nonnull<BooleanExpression>());
         }
     }
 
-    // `<supports-selector-fn>`
+    // `<supports-selector-fn> = selector( <complex-selector> )`
     if (first_token.is_function("selector"sv)) {
         // FIXME: Parsing and then converting back to a string is weird.
         StringBuilder builder;
         for (auto const& item : first_token.function().value)
             builder.append(item.to_string());
         transaction.commit();
-        return Supports::Feature {
-            Supports::Selector { builder.to_string().release_value_but_fixme_should_propagate_errors() }
-        };
+        TokenStream selector_tokens { first_token.function().value };
+        auto maybe_selector = parse_complex_selector(selector_tokens, SelectorType::Standalone);
+        // A CSS processor is considered to support a CSS selector if it accepts that all aspects of that selector,
+        // recursively, (rather than considering any of its syntax to be unknown or invalid) and that selector doesn’t
+        // contain unknown -webkit- pseudo-elements.
+        // https://drafts.csswg.org/css-conditional-4/#dfn-support-selector
+        bool matches = !maybe_selector.is_error() && !maybe_selector.value()->contains_unknown_webkit_pseudo_element();
+        return Supports::Selector::create(builder.to_string_without_validation(), matches);
+    }
+
+    // `<supports-font-tech-fn> = font-tech( <font-tech> )`
+    if (first_token.is_function("font-tech"sv)) {
+        TokenStream tech_tokens { first_token.function().value };
+        tech_tokens.discard_whitespace();
+        auto tech_token = tech_tokens.consume_a_token();
+        tech_tokens.discard_whitespace();
+        if (tech_tokens.has_next_token() || !tech_token.is(Token::Type::Ident))
+            return {};
+
+        transaction.commit();
+        auto tech_name = tech_token.token().ident();
+        bool matches = font_tech_is_supported(tech_name);
+        return Supports::FontTech::create(move(tech_name), matches);
+    }
+
+    // `<supports-font-format-fn> = font-format( <font-format> )`
+    if (first_token.is_function("font-format"sv)) {
+        TokenStream format_tokens { first_token.function().value };
+        format_tokens.discard_whitespace();
+        auto format_token = format_tokens.consume_a_token();
+        format_tokens.discard_whitespace();
+        if (format_tokens.has_next_token() || !format_token.is(Token::Type::Ident))
+            return {};
+
+        transaction.commit();
+        auto format_name = format_token.token().ident();
+        bool matches = font_format_is_supported(format_name);
+        return Supports::FontFormat::create(move(format_name), matches);
     }
 
     return {};
 }
 
 // https://www.w3.org/TR/mediaqueries-4/#typedef-general-enclosed
-Optional<GeneralEnclosed> Parser::parse_general_enclosed(TokenStream<ComponentValue>& tokens)
+OwnPtr<GeneralEnclosed> Parser::parse_general_enclosed(TokenStream<ComponentValue>& tokens, MatchResult result)
 {
+    // FIXME: <general-enclosed> syntax changed in MediaQueries-5
     auto transaction = tokens.begin_transaction();
     tokens.discard_whitespace();
     auto const& first_token = tokens.consume_a_token();
@@ -309,13 +360,13 @@ Optional<GeneralEnclosed> Parser::parse_general_enclosed(TokenStream<ComponentVa
     // `[ <function-token> <any-value>? ) ]`
     if (first_token.is_function()) {
         transaction.commit();
-        return GeneralEnclosed { first_token.to_string() };
+        return GeneralEnclosed::create(first_token.to_string(), result);
     }
 
     // `( <any-value>? )`
     if (first_token.is_block() && first_token.block().is_paren()) {
         transaction.commit();
-        return GeneralEnclosed { first_token.to_string() };
+        return GeneralEnclosed::create(first_token.to_string(), result);
     }
 
     return {};
@@ -1269,7 +1320,7 @@ Vector<Vector<ComponentValue>> Parser::parse_a_comma_separated_list_of_component
     return groups;
 }
 
-ElementInlineCSSStyleDeclaration* Parser::parse_as_style_attribute(DOM::Element& element)
+Parser::PropertiesAndCustomProperties Parser::parse_as_style_attribute()
 {
     auto expand_shorthands = [&](Vector<StyleProperty>& properties) -> Vector<StyleProperty> {
         Vector<StyleProperty> expanded_properties;
@@ -1293,9 +1344,9 @@ ElementInlineCSSStyleDeclaration* Parser::parse_as_style_attribute(DOM::Element&
     auto declarations_and_at_rules = parse_a_blocks_contents(m_token_stream);
     m_rule_context.take_last();
 
-    auto [properties, custom_properties] = extract_properties(declarations_and_at_rules);
-    auto expanded_properties = expand_shorthands(properties);
-    return ElementInlineCSSStyleDeclaration::create(element, move(expanded_properties), move(custom_properties));
+    auto properties = extract_properties(declarations_and_at_rules);
+    properties.properties = expand_shorthands(properties.properties);
+    return properties;
 }
 
 bool Parser::is_valid_in_the_current_context(Declaration const&) const
@@ -1444,14 +1495,14 @@ void Parser::extract_property(Declaration const& declaration, PropertiesAndCusto
     }
 }
 
-PropertyOwningCSSStyleDeclaration* Parser::convert_to_style_declaration(Vector<Declaration> const& declarations)
+GC::Ref<CSSStyleProperties> Parser::convert_to_style_declaration(Vector<Declaration> const& declarations)
 {
     PropertiesAndCustomProperties properties;
     PropertiesAndCustomProperties& dest = properties;
     for (auto const& declaration : declarations) {
         extract_property(declaration, dest);
     }
-    return PropertyOwningCSSStyleDeclaration::create(realm(), move(properties.properties), move(properties.custom_properties));
+    return CSSStyleProperties::create(realm(), move(properties.properties), move(properties.custom_properties));
 }
 
 Optional<StyleProperty> Parser::convert_to_style_property(Declaration const& declaration)
@@ -1636,10 +1687,10 @@ LengthOrCalculated Parser::parse_as_sizes_attribute(DOM::Element const& element,
 
         // 5. Parse the remaining component values in unparsed size as a <media-condition>.
         //    If it does not parse correctly, or it does parse correctly but the <media-condition> evaluates to false, continue.
-        TokenStream<ComponentValue> token_stream { unparsed_size };
-        auto media_condition = parse_media_condition(token_stream, MediaCondition::AllowOr::Yes);
+        TokenStream token_stream { unparsed_size };
+        auto media_condition = parse_media_condition(token_stream);
         auto const* context_window = window();
-        if (!media_condition || (context_window && media_condition->evaluate(*context_window) == MatchResult::False)) {
+        if (!media_condition || (context_window && media_condition->evaluate(context_window) == MatchResult::False)) {
             continue;
         }
 

@@ -208,7 +208,7 @@ static ThrowCompletionOr<void> validate_duration_unit_style(VM& vm, PropertyKey 
 }
 
 // 13.5.6 GetDurationUnitOptions ( unit, options, baseStyle, stylesList, digitalBase, prevStyle, twoDigitHours ), https://tc39.es/ecma402/#sec-getdurationunitoptions
-ThrowCompletionOr<DurationUnitOptions> get_duration_unit_options(VM& vm, DurationFormat::Unit unit, Object const& options, DurationFormat::Style base_style, ReadonlySpan<StringView> styles_list, DurationFormat::ValueStyle digital_base, Optional<DurationFormat::ValueStyle> previous_style, bool two_digit_hours)
+ThrowCompletionOr<DurationFormat::DurationUnitOptions> get_duration_unit_options(VM& vm, DurationFormat::Unit unit, Object const& options, DurationFormat::Style base_style, ReadonlySpan<StringView> styles_list, DurationFormat::ValueStyle digital_base, Optional<DurationFormat::ValueStyle> previous_style, bool two_digit_hours)
 {
     auto const& unit_property_key = unit_to_property_key(vm, unit);
 
@@ -251,8 +251,8 @@ ThrowCompletionOr<DurationUnitOptions> get_duration_unit_options(VM& vm, Duratio
         style = DurationFormat::value_style_from_string(style_value.as_string().utf8_string_view());
     }
 
-    // 4. If style is "numeric" and unit is one of "milliseconds", "microseconds", or "nanoseconds", then
-    if (style == DurationFormat::ValueStyle::Numeric && first_is_one_of(unit, DurationFormat::Unit::Milliseconds, DurationFormat::Unit::Microseconds, DurationFormat::Unit::Nanoseconds)) {
+    // 4. If style is "numeric" and IsFractionalSecondUnitName(unit) is true, then
+    if (style == DurationFormat::ValueStyle::Numeric && is_fractional_second_unit_name(unit)) {
         // a. Set style to "fractional".
         style = DurationFormat::ValueStyle::Fractional;
 
@@ -280,8 +280,8 @@ ThrowCompletionOr<DurationUnitOptions> get_duration_unit_options(VM& vm, Duratio
         style = DurationFormat::ValueStyle::TwoDigit;
     }
 
-    // 10. Return the Record { [[Style]]: style, [[Display]]: display  }.
-    return DurationUnitOptions { .style = style, .display = display };
+    // 10. Return the Duration Unit Options Record { [[Style]]: style, [[Display]]: display }.
+    return DurationFormat::DurationUnitOptions { .style = style, .display = display };
 }
 
 // 13.5.7 ComputeFractionalDigits ( durationFormat, duration ), https://tc39.es/ecma402/#sec-computefractionaldigits
@@ -294,25 +294,25 @@ Crypto::BigFraction compute_fractional_digits(DurationFormat const& duration_for
     // 2. Let exponent be 3.
     double exponent = 3;
 
-    // 3. For each row of Table 23, except the header row, in table order, do
+    // 3. For each row of Table 24, except the header row, in table order, do
     for (auto const& duration_instances_component : duration_instances_components) {
-        // a. Let style be the value of durationFormat's internal slot whose name is the Style Slot value of the current row.
-        auto style = (duration_format.*duration_instances_component.get_style_slot)();
 
-        // b. If style is "fractional", then
-        if (style == DurationFormat::ValueStyle::Fractional) {
-            // i. Assert: The Unit value of the current row is "milliseconds", "microseconds", or "nanoseconds".
-            VERIFY(first_is_one_of(duration_instances_component.unit, DurationFormat::Unit::Milliseconds, DurationFormat::Unit::Microseconds, DurationFormat::Unit::Nanoseconds));
+        // a. Let unitOptions be the value of durationFormat's internal slot whose name is the Internal Slot value of the current row.
+        auto unit_options = (duration_format.*duration_instances_component.get_internal_slot)();
 
-            // ii. Let value be the value of duration's field whose name is the Value Field value of the current row.
-            // iii. Set value to value / 10**exponent.
-            Crypto::BigFraction value {
-                Crypto::SignedBigInteger { (duration.*duration_instances_component.value_slot)() },
-                Crypto::UnsignedBigInteger { pow(10, exponent) }
-            };
+        // b. If unitOptions.[[Style]] is "fractional", then
+        if (unit_options.style == DurationFormat::ValueStyle::Fractional) {
+            // i. Let unit be the Unit value of the current row.
+            auto unit = duration_instances_component.unit;
 
-            // iv. Set result to result + value.
-            result = result + value;
+            // ii. Assert: IsFractionalSecondUnitName(unit) is true.
+            VERIFY(is_fractional_second_unit_name(unit));
+
+            // iii. Let value be the value of duration's field whose name is the Value Field value of the current row.
+            auto value = (duration.*duration_instances_component.value_slot)();
+
+            // iv. Set result to result + (value / 10**exponent).
+            result = result + Crypto::BigFraction { Crypto::SignedBigInteger { value }, Crypto::UnsignedBigInteger { pow(10, exponent) } };
 
             // v. Set exponent to exponent + 3.
             exponent += 3;
@@ -326,22 +326,19 @@ Crypto::BigFraction compute_fractional_digits(DurationFormat const& duration_for
 // 13.5.8 NextUnitFractional ( durationFormat, unit ), https://tc39.es/ecma402/#sec-nextunitfractional
 bool next_unit_fractional(DurationFormat const& duration_format, DurationFormat::Unit unit)
 {
-    // 1. Assert: unit is "seconds", "milliseconds", or "microseconds".
-    VERIFY(first_is_one_of(unit, DurationFormat::Unit::Milliseconds, DurationFormat::Unit::Microseconds, DurationFormat::Unit::Nanoseconds));
-
-    // 2. If unit is "seconds" and durationFormat.[[MillisecondsStyle]] is "fractional", return true.
-    if (unit == DurationFormat::Unit::Seconds && duration_format.milliseconds_style() == DurationFormat::ValueStyle::Fractional)
+    // 1. If unit is "seconds" and durationFormat.[[MillisecondsOptions]].[[Style]] is "fractional", return true.
+    if (unit == DurationFormat::Unit::Seconds && duration_format.milliseconds_options().style == DurationFormat::ValueStyle::Fractional)
         return true;
 
-    // 3. Else if unit is "milliseconds" and durationFormat.[[MicrosecondsStyle]] is "fractional", return true.
-    if (unit == DurationFormat::Unit::Milliseconds && duration_format.microseconds_style() == DurationFormat::ValueStyle::Fractional)
+    // 2. If unit is "milliseconds" and durationFormat.[[MicrosecondsOptions]].[[Style]] is "fractional", return true.
+    if (unit == DurationFormat::Unit::Milliseconds && duration_format.microseconds_options().style == DurationFormat::ValueStyle::Fractional)
         return true;
 
-    // 4. Else if unit is "microseconds" and durationFormat.[[NanosecondsStyle]] is "fractional", return true.
-    if (unit == DurationFormat::Unit::Microseconds && duration_format.nanoseconds_style() == DurationFormat::ValueStyle::Fractional)
+    // 3. If unit is "microseconds" and durationFormat.[[NanosecondsOptions]].[[Style]] is "fractional", return true.
+    if (unit == DurationFormat::Unit::Microseconds && duration_format.nanoseconds_options().style == DurationFormat::ValueStyle::Fractional)
         return true;
 
-    // 5. Return false.
+    // 4. Return false.
     return false;
 }
 
@@ -353,8 +350,8 @@ Vector<DurationFormatPart> format_numeric_hours(VM& vm, DurationFormat const& du
     // 1. Let result be a new empty List.
     Vector<DurationFormatPart> result;
 
-    // 2. Let hoursStyle be durationFormat.[[HoursStyle]].
-    auto hours_style = duration_format.hours_style();
+    // 2. Let hoursStyle be durationFormat.[[HoursOptions]].[[Style]].
+    auto hours_style = duration_format.hours_options().style;
 
     // 3. Assert: hoursStyle is "numeric" or hoursStyle is "2-digit".
     VERIFY(hours_style == DurationFormat::ValueStyle::Numeric || hours_style == DurationFormat::ValueStyle::TwoDigit);
@@ -418,8 +415,8 @@ Vector<DurationFormatPart> format_numeric_minutes(VM& vm, DurationFormat const& 
         result.append({ .type = "literal"sv, .value = move(separator), .unit = {} });
     }
 
-    // 3. Let minutesStyle be durationFormat.[[MinutesStyle]].
-    auto minutes_style = duration_format.minutes_style();
+    // 3. Let minutesStyle be durationFormat.[[MinutesOptions]].[[Style]].
+    auto minutes_style = duration_format.minutes_options().style;
 
     // 4. Assert: minutesStyle is "numeric" or minutesStyle is "2-digit".
     VERIFY(minutes_style == DurationFormat::ValueStyle::Numeric || minutes_style == DurationFormat::ValueStyle::TwoDigit);
@@ -483,8 +480,8 @@ Vector<DurationFormatPart> format_numeric_seconds(VM& vm, DurationFormat const& 
         result.append({ .type = "literal"sv, .value = move(separator), .unit = {} });
     }
 
-    // 3. Let secondsStyle be durationFormat.[[SecondsStyle]].
-    auto seconds_style = duration_format.seconds_style();
+    // 3. Let secondsStyle be durationFormat.[[SecondsOptions]].[[Style]].
+    auto seconds_style = duration_format.seconds_options().style;
 
     // 4. Assert: secondsStyle is "numeric" or secondsStyle is "2-digit".
     VERIFY(seconds_style == DurationFormat::ValueStyle::Numeric || seconds_style == DurationFormat::ValueStyle::TwoDigit);
@@ -567,14 +564,14 @@ Vector<DurationFormatPart> format_numeric_units(VM& vm, DurationFormat const& du
     // 3. Let hoursValue be duration.[[Hours]].
     auto hours_value = duration.hours();
 
-    // 4. Let hoursDisplay be durationFormat.[[HoursDisplay]].
-    auto hours_display = duration_format.hours_display();
+    // 4. Let hoursDisplay be durationFormat.[[HoursOptions]].[[Display]].
+    auto hours_display = duration_format.hours_options().display;
 
-    // 5. Let minutesValue be duration.[[Minutes]].
+    // 5. Let minutesDisplay be durationFormat.[[MinutesOptions]].[[Display]].
     auto minutes_value = duration.minutes();
 
     // 6. Let minutesDisplay be durationFormat.[[MinutesDisplay]].
-    auto minutes_display = duration_format.minutes_display();
+    auto minutes_display = duration_format.minutes_options().display;
 
     // 7. Let secondsValue be duration.[[Seconds]].
     Crypto::BigFraction seconds_value { duration.seconds() };
@@ -585,8 +582,8 @@ Vector<DurationFormatPart> format_numeric_units(VM& vm, DurationFormat const& du
         seconds_value = seconds_value + compute_fractional_digits(duration_format, duration);
     }
 
-    // 9. Let secondsDisplay be durationFormat.[[SecondsDisplay]].
-    auto seconds_display = duration_format.seconds_display();
+    // 9. Let secondsDisplay be durationFormat.[[SecondsOptions]].[[Display]].
+    auto seconds_display = duration_format.seconds_options().display;
 
     // 10. Let hoursFormatted be false.
     auto hours_formatted = false;
@@ -682,7 +679,15 @@ Vector<DurationFormatPart> format_numeric_units(VM& vm, DurationFormat const& du
     return numeric_parts_list;
 }
 
-// 13.5.13 ListFormatParts ( durationFormat, partitionedPartsList ), https://tc39.es/ecma402/#sec-listformatparts
+// 13.5.13 IsFractionalSecondUnitName ( unit ), https://tc39.es/ecma402/#sec-isfractionalsecondunitname
+bool is_fractional_second_unit_name(DurationFormat::Unit unit)
+{
+    // 1. If unit is one of "milliseconds", "microseconds", or "nanoseconds", return true.
+    // 2. Return false.
+    return first_is_one_of(unit, DurationFormat::Unit::Milliseconds, DurationFormat::Unit::Microseconds, DurationFormat::Unit::Nanoseconds);
+}
+
+// 13.5.14 ListFormatParts ( durationFormat, partitionedPartsList ), https://tc39.es/ecma402/#sec-listformatparts
 Vector<DurationFormatPart> list_format_parts(VM& vm, DurationFormat const& duration_format, Vector<Vector<DurationFormatPart>>& partitioned_parts_list)
 {
     auto& realm = *vm.current_realm();
@@ -773,7 +778,7 @@ Vector<DurationFormatPart> list_format_parts(VM& vm, DurationFormat const& durat
     return flattened_parts_list;
 }
 
-// 13.5.14 PartitionDurationFormatPattern ( durationFormat, duration ), https://tc39.es/ecma402/#sec-partitiondurationformatpattern
+// 13.5.15 PartitionDurationFormatPattern ( durationFormat, duration ), https://tc39.es/ecma402/#sec-partitiondurationformatpattern
 // 15.9.8 PartitionDurationFormatPattern ( durationFormat, duration ), https://tc39.es/proposal-temporal/#sec-formatnumericunits
 Vector<DurationFormatPart> partition_duration_format_pattern(VM& vm, DurationFormat const& duration_format, Temporal::Duration const& duration)
 {
@@ -788,23 +793,25 @@ Vector<DurationFormatPart> partition_duration_format_pattern(VM& vm, DurationFor
     // 3. Let numericUnitFound be false.
     auto numeric_unit_found = false;
 
-    // 4. While numericUnitFound is false, repeat for each row in Table 23 in table order, except the header row:
+    // 4. While numericUnitFound is false, repeat for each row in Table 24 in table order, except the header row:
     for (size_t i = 0; !numeric_unit_found && i < duration_instances_components.size(); ++i) {
         auto const& duration_instances_component = duration_instances_components[i];
 
         // a. Let value be the value of duration's field whose name is the Value Field value of the current row.
         Crypto::BigFraction value { (duration.*duration_instances_component.value_slot)() };
 
-        // b. Let style be the value of durationFormat's internal slot whose name is the Style Slot value of the current row.
-        auto style = (duration_format.*duration_instances_component.get_style_slot)();
+        // b. Let unitOptions be the value of durationFormat's internal slot whose name is the Internal Slot value of the current row.
+        // c. Let style be unitOptions.[[Style]].
+        // d. Let display be unitOptions.[[Display]].
+        auto [style, display] = (duration_format.*duration_instances_component.get_internal_slot)();
 
-        // c. Let display be the value of durationFormat's internal slot whose name is the Display Slot value of the current row.
-        auto display = (duration_format.*duration_instances_component.get_display_slot)();
-
-        // d. Let unit be the Unit value of the current row.
+        // e. Let unit be the Unit value of the current row.
         auto unit = duration_instances_component.unit;
 
-        // e. If style is "numeric" or "2-digit", then
+        // f. Let numberFormatUnit be the NumberFormat Unit value of the current row.
+        auto const& number_format_unit = unit_to_number_format_property_key(vm, duration_instances_component.unit);
+
+        // g. If style is "numeric" or "2-digit", then
         if (style == DurationFormat::ValueStyle::Numeric || style == DurationFormat::ValueStyle::TwoDigit) {
             // i. Let numericPartsList be FormatNumericUnits(durationFormat, duration, unit, signDisplayed).
             auto numeric_parts_list = format_numeric_units(vm, duration_format, duration, unit, sign_displayed);
@@ -816,13 +823,13 @@ Vector<DurationFormatPart> partition_duration_format_pattern(VM& vm, DurationFor
             // iii. Set numericUnitFound to true.
             numeric_unit_found = true;
         }
-        // f. Else,
+        // h. Else,
         else {
             // i. Let nfOpts be OrdinaryObjectCreate(null).
             auto number_format_options = Object::create(realm, nullptr);
 
-            // ii. If unit is one of "seconds", "milliseconds", or "microseconds", and NextUnitFractional(durationFormat, unit) is true, then
-            if (first_is_one_of(unit, DurationFormat::Unit::Milliseconds, DurationFormat::Unit::Microseconds, DurationFormat::Unit::Nanoseconds) && next_unit_fractional(duration_format, unit)) {
+            // ii. If NextUnitFractional(durationFormat, unit) is true, then
+            if (next_unit_fractional(duration_format, unit)) {
                 // 1. Set value to value + ComputeFractionalDigits(durationFormat, duration).
                 value = value + compute_fractional_digits(duration_format, duration);
 
@@ -875,29 +882,26 @@ Vector<DurationFormatPart> partition_duration_format_pattern(VM& vm, DurationFor
                     MUST(number_format_options->create_data_property_or_throw(vm.names.signDisplay, PrimitiveString::create(vm, "never"sv)));
                 }
 
-                // 4. Let numberFormatUnit be the NumberFormat Unit value of the current row.
-                auto const& number_format_unit = unit_to_number_format_property_key(vm, duration_instances_component.unit);
-
-                // 5. Perform ! CreateDataPropertyOrThrow(nfOpts, "style", "unit").
+                // 3. Perform ! CreateDataPropertyOrThrow(nfOpts, "style", "unit").
                 MUST(number_format_options->create_data_property_or_throw(vm.names.style, PrimitiveString::create(vm, "unit"sv)));
 
-                // 6. Perform ! CreateDataPropertyOrThrow(nfOpts, "unit", numberFormatUnit).
+                // 4. Perform ! CreateDataPropertyOrThrow(nfOpts, "unit", numberFormatUnit).
                 MUST(number_format_options->create_data_property_or_throw(vm.names.unit, PrimitiveString::create(vm, number_format_unit.as_string())));
 
-                // 7. Perform ! CreateDataPropertyOrThrow(nfOpts, "unitDisplay", style).
+                // 5. Perform ! CreateDataPropertyOrThrow(nfOpts, "unitDisplay", style).
                 auto locale_style = Unicode::style_to_string(static_cast<Unicode::Style>(style));
                 MUST(number_format_options->create_data_property_or_throw(vm.names.unitDisplay, PrimitiveString::create(vm, locale_style)));
 
-                // 8. Let nf be ! Construct(%Intl.NumberFormat%, « durationFormat.[[Locale]], nfOpts »).
+                // 6. Let nf be ! Construct(%Intl.NumberFormat%, « durationFormat.[[Locale]], nfOpts »).
                 auto number_format = construct_number_format(vm, duration_format, number_format_options);
 
-                // 9. Let parts be PartitionNumberPattern(nf, value).
+                // 7. Let parts be PartitionNumberPattern(nf, value).
                 auto parts = partition_number_pattern(number_format, value_mv);
 
-                // 10. Let list be a new empty List.
+                // 8. Let list be a new empty List.
                 Vector<DurationFormatPart> list;
 
-                // 11. For each Record { [[Type]], [[Value]] } part of parts, do
+                // 10. For each Record { [[Type]], [[Value]] } part of parts, do
                 list.ensure_capacity(parts.size());
 
                 for (auto& part : parts) {
@@ -905,7 +909,7 @@ Vector<DurationFormatPart> partition_duration_format_pattern(VM& vm, DurationFor
                     list.unchecked_append({ .type = part.type, .value = move(part.value), .unit = number_format_unit.as_string() });
                 }
 
-                // 12. Append list to result.
+                // 11. Append list to result.
                 result.append(list);
             }
         }

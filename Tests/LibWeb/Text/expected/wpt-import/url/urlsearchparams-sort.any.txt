@@ -1,0 +1,22 @@
+Harness status: OK
+
+Found 17 tests
+
+17 Pass
+Pass	Parse and sort: z=b&a=b&z=a&a=a
+Pass	URL parse and sort: z=b&a=b&z=a&a=a
+Pass	Parse and sort: ï¿½=x&ï¿¼&ï¿½=a
+Pass	URL parse and sort: ï¿½=x&ï¿¼&ï¿½=a
+Pass	Parse and sort: ï¬ƒ&í ¼U+df08
+Pass	URL parse and sort: ï¬ƒ&í ¼U+df08
+Pass	Parse and sort: Ã©&eï¿½&eÌ
+Pass	URL parse and sort: Ã©&eï¿½&eÌ
+Pass	Parse and sort: z=z&a=a&z=y&a=b&z=x&a=c&z=w&a=d&z=v&a=e&z=u&a=f&z=t&a=g
+Pass	URL parse and sort: z=z&a=a&z=y&a=b&z=x&a=c&z=w&a=d&z=v&a=e&z=u&a=f&z=t&a=g
+Pass	Parse and sort: bbb&bb&aaa&aa=x&aa=y
+Pass	URL parse and sort: bbb&bb&aaa&aa=x&aa=y
+Pass	Parse and sort: z=z&=f&=t&=x
+Pass	URL parse and sort: z=z&=f&=t&=x
+Pass	Parse and sort: aí ¼U+df08&aí ½U+dca9
+Pass	URL parse and sort: aí ¼U+df08&aí ½U+dca9
+Pass	Sorting non-existent params removes ? from URL

@@ -500,6 +500,8 @@ ResolvedLocale resolve_locale(ReadonlySpan<String> requested_locales, LocaleOpti
     // 12. Let supportedKeywords be a new empty List.
     Vector<Unicode::Keyword> supported_keywords;
 
+    Vector<Unicode::Keyword> icu_keywords;
+
     // 13. For each element key of relevantExtensionKeys, do
     for (auto const& key : relevant_extension_keys) {
         // a. Let keyLocaleData be foundLocaleData.[[<key>]].
@@ -574,8 +576,21 @@ ResolvedLocale resolve_locale(ReadonlySpan<String> requested_locales, LocaleOpti
         if (supported_keyword.has_value())
             supported_keywords.append(supported_keyword.release_value());
 
+        if (auto* value_string = value.get_pointer<String>())
+            icu_keywords.empend(MUST(String::from_utf8(key)), *value_string);
+
         // m. Set result.[[<key>]] to value.
         find_key_in_value(result, key) = move(value);
+    }
+
+    // AD-HOC: For ICU, we need to form a locale with all relevant extension keys present.
+    if (icu_keywords.is_empty()) {
+        result.icu_locale = found_locale;
+    } else {
+        auto locale_id = Unicode::parse_unicode_locale_id(found_locale);
+        VERIFY(locale_id.has_value());
+
+        result.icu_locale = insert_unicode_extension_and_canonicalize(locale_id.release_value(), {}, move(icu_keywords));
     }
 
     // 14. If supportedKeywords is not empty, then

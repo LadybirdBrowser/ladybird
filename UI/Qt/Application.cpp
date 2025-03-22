@@ -9,7 +9,6 @@
 #include <UI/Qt/Application.h>
 #include <UI/Qt/Settings.h>
 #include <UI/Qt/StringUtils.h>
-#include <UI/Qt/TaskManagerWindow.h>
 
 #include <QFileDialog>
 #include <QFileOpenEvent>
@@ -26,10 +25,7 @@ void Application::create_platform_options(WebView::BrowserOptions&, WebView::Web
     web_content_options.config_path = Settings::the()->directory();
 }
 
-Application::~Application()
-{
-    close_task_manager_window();
-}
+Application::~Application() = default;
 
 bool Application::event(QEvent* event)
 {
@@ -50,25 +46,6 @@ bool Application::event(QEvent* event)
     }
 
     return QApplication::event(event);
-}
-
-void Application::show_task_manager_window()
-{
-    if (!m_task_manager_window) {
-        m_task_manager_window = new TaskManagerWindow(nullptr);
-    }
-    m_task_manager_window->show();
-    m_task_manager_window->activateWindow();
-    m_task_manager_window->raise();
-}
-
-void Application::close_task_manager_window()
-{
-    if (m_task_manager_window) {
-        m_task_manager_window->close();
-        delete m_task_manager_window;
-        m_task_manager_window = nullptr;
-    }
 }
 
 BrowserWindow& Application::new_window(Vector<URL::URL> const& initial_urls, BrowserWindow::IsPopupWindow is_popup_window, Tab* parent_tab, Optional<u64> page_index)

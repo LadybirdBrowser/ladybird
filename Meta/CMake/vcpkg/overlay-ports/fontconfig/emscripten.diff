@@ -1,0 +1,13 @@
+diff --git a/meson.build b/meson.build
+index 08d9532..37cc195 100644
+--- a/meson.build
++++ b/meson.build
+@@ -289,7 +289,7 @@ if fc_cachedir in ['yes', 'no', 'default']
+   endif
+ endif
+ 
+-if host_machine.system() != 'windows'
++if host_machine.system() != 'windows' and host_machine.system() != 'emscripten'
+   thread_dep = dependency('threads')
+   conf.set('HAVE_PTHREAD', 1)
+   deps += [thread_dep]

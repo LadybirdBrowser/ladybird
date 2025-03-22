@@ -38,7 +38,7 @@ DigitalFormat digital_format(StringView locale)
     rounding_options.min_significant_digits = 1;
     rounding_options.max_significant_digits = 2;
 
-    auto number_formatter = NumberFormat::create(locale, "latn"sv, {}, rounding_options);
+    auto number_formatter = NumberFormat::create(locale, {}, rounding_options);
 
     auto icu_locale = adopt_own(*locale_data->locale().clone());
     icu_locale->setUnicodeKeywordValue("nu", "latn", status);

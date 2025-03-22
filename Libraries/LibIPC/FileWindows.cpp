@@ -12,13 +12,6 @@
 
 namespace IPC {
 
-ErrorOr<void> File::clear_close_on_exec()
-{
-    if (!SetHandleInformation(to_handle(m_fd), HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT))
-        return Error::from_windows_error();
-    return {};
-}
-
 template<>
 ErrorOr<File> decode(Decoder& decoder)
 {

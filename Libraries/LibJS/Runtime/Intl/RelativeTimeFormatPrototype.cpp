@@ -46,7 +46,7 @@ JS_DEFINE_NATIVE_FUNCTION(RelativeTimeFormatPrototype::resolved_options)
     // 3. Let options be OrdinaryObjectCreate(%Object.prototype%).
     auto options = Object::create(realm, realm.intrinsics().object_prototype());
 
-    // 4. For each row of Table 30, except the header row, in table order, do
+    // 4. For each row of Table 31, except the header row, in table order, do
     //     a. Let p be the Property value of the current row.
     //     b. Let v be the value of relativeTimeFormat's internal slot whose name is the Internal Slot value of the current row.
     //     c. Assert: v is not undefined.

@@ -1,4 +1,0 @@
-pathname => 'foobar                 '
-pathname => 'foobar'
-pathname => 'baz '
-pathname => 'baz'

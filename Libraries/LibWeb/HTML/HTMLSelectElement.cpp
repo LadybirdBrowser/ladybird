@@ -436,7 +436,7 @@ static String strip_newlines(Optional<String> string)
 void HTMLSelectElement::show_the_picker_if_applicable()
 {
     // FIXME: Deduplicate with HTMLInputElement
-    // To show the picker, if applicable for a select element:
+    // To show the picker, if applicable for a select element element:
 
     // 1. If element's relevant global object does not have transient activation, then return.
     auto& relevant_global = as<HTML::Window>(relevant_global_object(*this));
@@ -450,15 +450,21 @@ void HTMLSelectElement::show_the_picker_if_applicable()
     // 3. Consume user activation given element's relevant global object.
     relevant_global.consume_user_activation();
 
-    // 4. If element's type attribute is in the File Upload state, then run these steps in parallel:
-    // Not Applicable to select elements
+    // 4. If element does not support a picker, then return.
+    // NB: Select elements always support a picker.
 
-    // 5. Otherwise, the user agent should show any relevant user interface for selecting a value for element,
-    //    in the way it normally would when the user interacts with the control. (If no such UI applies to element, then this step does nothing.)
-    //    If such a user interface is shown, it must respect the requirements stated in the relevant parts of the specification for how element
-    //    behaves given its type attribute state. (For example, various sections describe restrictions on the resulting value string.)
+    // 5. If element is an input element and element's type attribute is in the File Upload state, then run these steps
+    //    in parallel:
+    // NB: Not applicable to select elements.
+
+    // 6. Otherwise, the user agent should show the relevant user interface for selecting a value for element, in the
+    //    way it normally would when the user interacts with the control.
+    //    When showing such a user interface, it must respect the requirements stated in the relevant parts of the
+    //    specification for how element behaves given its type attribute state. (For example, various sections describe
+    //    restrictions on the resulting value string.)
     //    This step can have side effects, such as closing other pickers that were previously shown by this algorithm.
-    //    (If this closes a file selection picker, then per the above that will lead to firing either input and change events, or a cancel event.)
+    //    (If this closes a file selection picker, then per the above that will lead to firing either input and change
+    //    events, or a cancel event.)
 
     // Populate select items
     m_select_items.clear();

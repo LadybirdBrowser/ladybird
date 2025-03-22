@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 48 tests
 
-36 Pass
-12 Fail
+38 Pass
+10 Fail
 Pass	e.style['grid-row'] = "auto / auto" should set grid-row-end
 Pass	e.style['grid-row'] = "auto / auto" should set grid-row-start
 Pass	e.style['grid-row'] = "auto / auto" should not set unrelated longhands
@@ -29,10 +29,10 @@ Pass	e.style['grid-row'] = "span 2" should set grid-row-end
 Pass	e.style['grid-row'] = "span 2" should set grid-row-start
 Pass	e.style['grid-row'] = "span 2" should not set unrelated longhands
 Pass	e.style['grid-row'] = "3 last / auto" should set grid-row-end
-Fail	e.style['grid-row'] = "3 last / auto" should set grid-row-start
+Pass	e.style['grid-row'] = "3 last / auto" should set grid-row-start
 Pass	e.style['grid-row'] = "3 last / auto" should not set unrelated longhands
 Fail	e.style['grid-row'] = "3 last" should set grid-row-end
-Fail	e.style['grid-row'] = "3 last" should set grid-row-start
+Pass	e.style['grid-row'] = "3 last" should set grid-row-start
 Pass	e.style['grid-row'] = "3 last" should not set unrelated longhands
 Fail	e.style['grid-row'] = "span first / auto" should set grid-row-end
 Fail	e.style['grid-row'] = "span first / auto" should set grid-row-start

@@ -21,25 +21,6 @@ target_compile_options(ladybird_impl PUBLIC
 )
 target_compile_features(ladybird_impl PUBLIC cxx_std_23)
 
-if (ENABLE_SWIFT)
-    target_sources(ladybird_impl PRIVATE
-        Interface/TaskManager.swift
-        Interface/TaskManagerController.swift
-    )
-    target_compile_definitions(ladybird_impl PUBLIC LADYBIRD_USE_SWIFT)
-    set_target_properties(ladybird_impl PROPERTIES Swift_MODULE_NAME "SwiftLadybird")
-
-    get_target_property(LADYBIRD_NATIVE_DIRS ladybird_impl INCLUDE_DIRECTORIES)
-    _swift_generate_cxx_header(ladybird_impl "Ladybird-Swift.h"
-        SEARCH_PATHS ${LADYBIRD_NATIVE_DIRS}
-    )
-else()
-    target_sources(ladybird_impl PRIVATE
-        Interface/TaskManager.mm
-        Interface/TaskManagerController.mm
-    )
-endif()
-
 add_executable(ladybird MACOSX_BUNDLE
    main.mm
 )

@@ -59,9 +59,11 @@ Application::~Application()
 
 void Application::initialize(Main::Arguments const& arguments, URL::URL new_tab_page_url)
 {
+#ifndef AK_OS_WINDOWS
     // Increase the open file limit, as the default limits on Linux cause us to run out of file descriptors with around 15 tabs open.
     if (auto result = Core::System::set_resource_limits(RLIMIT_NOFILE, 8192); result.is_error())
         warnln("Unable to increase open file limit: {}", result.error());
+#endif
 
     Vector<ByteString> raw_urls;
     Vector<ByteString> certificates;
@@ -321,14 +323,17 @@ Optional<Process&> Application::find_process(pid_t pid)
     return m_process_manager.find_process(pid);
 }
 
-void Application::update_process_statistics()
+void Application::send_updated_process_statistics_to_view(ViewImplementation& view)
 {
     m_process_manager.update_all_process_statistics();
-}
+    auto statistics = m_process_manager.serialize_json();
 
-String Application::generate_process_statistics_html()
-{
-    return m_process_manager.generate_html();
+    StringBuilder builder;
+    builder.append("processes.loadProcessStatistics(\""sv);
+    builder.append_escaped_for_json(statistics);
+    builder.append("\");"sv);
+
+    view.run_javascript(MUST(builder.to_string()));
 }
 
 void Application::process_did_exit(Process&& process)
@@ -446,25 +451,31 @@ void Application::inspect_tab(DevTools::TabDescription const& description, OnTab
     view->inspect_dom_tree();
 }
 
-void Application::inspect_dom_node(DevTools::TabDescription const& description, Web::UniqueNodeID node_id, Optional<Web::CSS::Selector::PseudoElement::Type> pseudo_element, OnDOMNodeInspectionComplete on_complete) const
+void Application::listen_for_dom_properties(DevTools::TabDescription const& description, OnDOMNodePropertiesReceived on_dom_node_properties_received) const
 {
     auto view = ViewImplementation::find_view_by_id(description.id);
-    if (!view.has_value()) {
-        on_complete(Error::from_string_literal("Unable to locate tab"));
+    if (!view.has_value())
         return;
-    }
 
-    view->on_received_dom_node_properties = [&view = *view, on_complete = move(on_complete)](ViewImplementation::DOMNodeProperties properties) {
-        view.on_received_dom_node_properties = nullptr;
+    view->on_received_dom_node_properties = move(on_dom_node_properties_received);
+}
 
-        on_complete(DevTools::DOMNodeProperties {
-            .computed_style = move(properties.computed_style),
-            .node_box_sizing = move(properties.node_box_sizing),
-            .fonts = move(properties.fonts),
-        });
-    };
+void Application::stop_listening_for_dom_properties(DevTools::TabDescription const& description) const
+{
+    auto view = ViewImplementation::find_view_by_id(description.id);
+    if (!view.has_value())
+        return;
 
-    view->inspect_dom_node(node_id, pseudo_element);
+    view->on_received_dom_node_properties = nullptr;
+}
+
+void Application::inspect_dom_node(DevTools::TabDescription const& description, DOMNodeProperties::Type property_type, Web::UniqueNodeID node_id, Optional<Web::CSS::Selector::PseudoElement::Type> pseudo_element) const
+{
+    auto view = ViewImplementation::find_view_by_id(description.id);
+    if (!view.has_value())
+        return;
+
+    view->inspect_dom_node(node_id, property_type, pseudo_element);
 }
 
 void Application::clear_inspected_dom_node(DevTools::TabDescription const& description) const

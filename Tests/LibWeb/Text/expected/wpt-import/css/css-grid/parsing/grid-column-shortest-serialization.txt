@@ -2,20 +2,20 @@ Harness status: OK
 
 Found 16 tests
 
-8 Pass
-8 Fail
+12 Pass
+4 Fail
 Pass	Property grid-column value 'auto / auto'
 Pass	Property grid-column value 'auto'
 Pass	Property grid-column value '10 / auto'
 Pass	Property grid-column value '10'
 Pass	Property grid-column value '-10 / auto'
 Pass	Property grid-column value '-10'
-Fail	Property grid-column value 'first / first'
-Fail	Property grid-column value 'first'
+Pass	Property grid-column value 'first / first'
+Pass	Property grid-column value 'first'
 Pass	Property grid-column value 'span 2 / auto'
 Pass	Property grid-column value 'span 2'
-Fail	Property grid-column value '2 first / auto'
-Fail	Property grid-column value '2 first'
+Pass	Property grid-column value '2 first / auto'
+Pass	Property grid-column value '2 first'
 Fail	Property grid-column value 'span first / auto'
 Fail	Property grid-column value 'span first'
 Fail	Property grid-column value 'span 2 first / auto'

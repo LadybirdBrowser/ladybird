@@ -15,6 +15,7 @@
 #include <LibRequests/RequestTimingInfo.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
+#include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
 #include <LibWeb/Cookie/Cookie.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOMURL/DOMURL.h>
@@ -285,7 +286,9 @@ WebIDL::ExceptionOr<GC::Ptr<PendingResponse>> main_fetch(JS::Realm& realm, Infra
     if (request->local_urls_only() && !Infrastructure::is_local_url(request->current_url()))
         response = Infrastructure::Response::network_error(vm, "Request with 'local-URLs-only' flag must have a local URL"sv);
 
-    // FIXME: 4. Run report Content Security Policy violations for request.
+    // 4. Run report Content Security Policy violations for request.
+    ContentSecurityPolicy::report_content_security_policy_violations_for_request(realm, request);
+
     // FIXME: 5. Upgrade request to a potentially trustworthy URL, if appropriate.
 
     // 6. Upgrade a mixed content request to a potentially trustworthy URL, if appropriate.
@@ -295,8 +298,7 @@ WebIDL::ExceptionOr<GC::Ptr<PendingResponse>> main_fetch(JS::Realm& realm, Infra
     //    should request be blocked by Content Security Policy returns blocked, then set response to a network error.
     if (Infrastructure::block_bad_port(request) == Infrastructure::RequestOrResponseBlocking::Blocked
         || MixedContent::should_fetching_request_be_blocked_as_mixed_content(request) == Infrastructure::RequestOrResponseBlocking::Blocked
-        || false // FIXME: "should request be blocked by Content Security Policy returns blocked"
-    ) {
+        || ContentSecurityPolicy::should_request_be_blocked_by_content_security_policy(realm, request) == ContentSecurityPolicy::Directives::Directive::Result::Blocked) {
         response = Infrastructure::Response::network_error(vm, "Request was blocked"sv);
     }
 
@@ -526,8 +528,8 @@ WebIDL::ExceptionOr<GC::Ptr<PendingResponse>> main_fetch(JS::Realm& realm, Infra
             if (!response->is_network_error() && (
                     // - should internalResponse to request be blocked as mixed content
                     MixedContent::should_response_to_request_be_blocked_as_mixed_content(request, internal_response) == Infrastructure::RequestOrResponseBlocking::Blocked
-                    // FIXME: - should internalResponse to request be blocked by Content Security Policy
-                    || false
+                    // - should internalResponse to request be blocked by Content Security Policy
+                    || ContentSecurityPolicy::should_response_to_request_be_blocked_by_content_security_policy(realm, internal_response, request) == ContentSecurityPolicy::Directives::Directive::Result::Blocked
                     // - should internalResponse to request be blocked due to its MIME type
                     || Infrastructure::should_response_to_request_be_blocked_due_to_its_mime_type(internal_response, request) == Infrastructure::RequestOrResponseBlocking::Blocked
                     // - should internalResponse to request be blocked due to nosniff

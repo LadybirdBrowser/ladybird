@@ -2,11 +2,11 @@ Harness status: OK
 
 Found 6 tests
 
-1 Pass
-5 Fail
+3 Pass
+3 Fail
 Fail	.before 1
-Fail	.before 2
+Pass	.before 2
 Fail	.before 3
 Fail	.after 4
 Pass	.after 5
-Fail	.after 6
+Pass	.after 6

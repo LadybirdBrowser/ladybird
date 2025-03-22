@@ -8,7 +8,7 @@
 
 #include <AK/NonnullRefPtr.h>
 #include <LibWeb/CSS/CSSRule.h>
-#include <LibWeb/CSS/CSSStyleDeclaration.h>
+#include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/Percentage.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -21,13 +21,12 @@ class CSSKeyframeRule final : public CSSRule {
     GC_DECLARE_ALLOCATOR(CSSKeyframeRule);
 
 public:
-    static GC::Ref<CSSKeyframeRule> create(JS::Realm&, CSS::Percentage key, PropertyOwningCSSStyleDeclaration&);
+    static GC::Ref<CSSKeyframeRule> create(JS::Realm&, CSS::Percentage key, CSSStyleProperties&);
 
     virtual ~CSSKeyframeRule() = default;
 
     CSS::Percentage key() const { return m_key; }
-    GC::Ref<CSSStyleDeclaration> style() const { return m_declarations; }
-    GC::Ref<PropertyOwningCSSStyleDeclaration> style_as_property_owning_style_declaration() const { return m_declarations; }
+    GC::Ref<CSSStyleProperties> style() const { return m_declarations; }
 
     String key_text() const
     {
@@ -40,14 +39,14 @@ public:
     }
 
 private:
-    CSSKeyframeRule(JS::Realm&, CSS::Percentage, PropertyOwningCSSStyleDeclaration&);
+    CSSKeyframeRule(JS::Realm&, CSS::Percentage, CSSStyleProperties&);
 
     virtual void visit_edges(Visitor&) override;
     virtual void initialize(JS::Realm&) override;
     virtual String serialized() const override;
 
     CSS::Percentage m_key;
-    GC::Ref<PropertyOwningCSSStyleDeclaration> m_declarations;
+    GC::Ref<CSSStyleProperties> m_declarations;
 };
 
 template<>

@@ -134,20 +134,50 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
         return MUST(builder.to_string());
     }
     case PropertyID::BorderRadius: {
-        auto& top_left = longhand(PropertyID::BorderTopLeftRadius)->as_border_radius();
-        auto& top_right = longhand(PropertyID::BorderTopRightRadius)->as_border_radius();
-        auto& bottom_right = longhand(PropertyID::BorderBottomRightRadius)->as_border_radius();
-        auto& bottom_left = longhand(PropertyID::BorderBottomLeftRadius)->as_border_radius();
+        auto top_left = longhand(PropertyID::BorderTopLeftRadius);
+        auto top_right = longhand(PropertyID::BorderTopRightRadius);
+        auto bottom_right = longhand(PropertyID::BorderBottomRightRadius);
+        auto bottom_left = longhand(PropertyID::BorderBottomLeftRadius);
 
-        return MUST(String::formatted("{} {} {} {} / {} {} {} {}",
-            top_left.horizontal_radius().to_string(),
-            top_right.horizontal_radius().to_string(),
-            bottom_right.horizontal_radius().to_string(),
-            bottom_left.horizontal_radius().to_string(),
-            top_left.vertical_radius().to_string(),
-            top_right.vertical_radius().to_string(),
-            bottom_right.vertical_radius().to_string(),
-            bottom_left.vertical_radius().to_string()));
+        auto horizontal_radius = [&](auto& style_value) -> String {
+            if (style_value->is_border_radius())
+                return style_value->as_border_radius().horizontal_radius().to_string();
+            return style_value->to_string(mode);
+        };
+
+        auto top_left_horizontal_string = horizontal_radius(top_left);
+        auto top_right_horizontal_string = horizontal_radius(top_right);
+        auto bottom_right_horizontal_string = horizontal_radius(bottom_right);
+        auto bottom_left_horizontal_string = horizontal_radius(bottom_left);
+
+        auto vertical_radius = [&](auto& style_value) -> String {
+            if (style_value->is_border_radius())
+                return style_value->as_border_radius().vertical_radius().to_string();
+            return style_value->to_string(mode);
+        };
+
+        auto top_left_vertical_string = vertical_radius(top_left);
+        auto top_right_vertical_string = vertical_radius(top_right);
+        auto bottom_right_vertical_string = vertical_radius(bottom_right);
+        auto bottom_left_vertical_string = vertical_radius(bottom_left);
+
+        auto serialize_radius = [](auto top_left, auto const& top_right, auto const& bottom_right, auto const& bottom_left) -> String {
+            if (first_is_equal_to_all_of(top_left, top_right, bottom_right, bottom_left))
+                return top_left;
+            if (top_left == bottom_right && top_right == bottom_left)
+                return MUST(String::formatted("{} {}", top_left, top_right));
+            if (top_right == bottom_left)
+                return MUST(String::formatted("{} {} {}", top_left, top_right, bottom_right));
+
+            return MUST(String::formatted("{} {} {} {}", top_left, top_right, bottom_right, bottom_left));
+        };
+
+        auto first_radius_serialization = serialize_radius(move(top_left_horizontal_string), top_right_horizontal_string, bottom_right_horizontal_string, bottom_left_horizontal_string);
+        auto second_radius_serialization = serialize_radius(move(top_left_vertical_string), top_right_vertical_string, bottom_right_vertical_string, bottom_left_vertical_string);
+        if (first_radius_serialization == second_radius_serialization)
+            return first_radius_serialization;
+
+        return MUST(String::formatted("{} / {}", first_radius_serialization, second_radius_serialization));
     }
     case PropertyID::Columns: {
         auto column_width = longhand(PropertyID::ColumnWidth)->to_string(mode);
@@ -263,6 +293,8 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
             builder.appendff(" / {}", row_end.grid_track_placement().to_string());
         if (!column_end.grid_track_placement().is_auto())
             builder.appendff(" / {}", column_end.grid_track_placement().to_string());
+        if (builder.is_empty())
+            return "auto"_string;
         return MUST(builder.to_string());
     }
         // FIXME: Serialize Grid differently once we support it better!
@@ -300,14 +332,14 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
     case PropertyID::GridColumn: {
         auto start = longhand(PropertyID::GridColumnStart);
         auto end = longhand(PropertyID::GridColumnEnd);
-        if (end->as_grid_track_placement().grid_track_placement().is_auto())
+        if (end->as_grid_track_placement().grid_track_placement().is_auto() || start == end)
             return start->to_string(mode);
         return MUST(String::formatted("{} / {}", start->to_string(mode), end->to_string(mode)));
     }
     case PropertyID::GridRow: {
         auto start = longhand(PropertyID::GridRowStart);
         auto end = longhand(PropertyID::GridRowEnd);
-        if (end->as_grid_track_placement().grid_track_placement().is_auto())
+        if (end->as_grid_track_placement().grid_track_placement().is_auto() || start == end)
             return start->to_string(mode);
         return MUST(String::formatted("{} / {}", start->to_string(mode), end->to_string(mode)));
     }
@@ -366,6 +398,17 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
         return builder.to_string_without_validation();
     }
     default:
+        auto all_properties_same_value = true;
+        auto first_property_value = m_properties.values.first();
+        for (auto i = 1u; i < m_properties.values.size(); ++i) {
+            if (m_properties.values[i] != first_property_value) {
+                all_properties_same_value = false;
+                break;
+            }
+        }
+        if (all_properties_same_value)
+            return first_property_value->to_string(mode);
+
         StringBuilder builder;
         auto first = true;
         for (auto& value : m_properties.values) {

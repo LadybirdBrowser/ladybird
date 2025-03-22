@@ -1,0 +1,19 @@
+--- a/conf.d/link_confs.py	2022-03-24 04:13:59.000982000 +0900
++++ b/conf.d/link_confs.py	2022-03-24 04:14:46.271964000 +0900
+@@ -4,6 +4,7 @@
+ import sys
+ import argparse
+ import platform
++import shutil
+ from pathlib import PurePath
+ 
+ if __name__=='__main__':
+@@ -32,7 +33,7 @@
+         except FileNotFoundError:
+             pass
+         try:
+-            os.symlink(os.path.relpath(src, start=args.confpath), dst)
++            shutil.copyfile(src, dst)
+         except NotImplementedError:
+             # Not supported on this version of Windows
+             break

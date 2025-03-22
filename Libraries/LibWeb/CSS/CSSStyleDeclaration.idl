@@ -1,9 +1,6 @@
-#import <CSS/GeneratedCSSStyleProperties.idl>
-
 // https://drafts.csswg.org/cssom/#cssstyledeclaration
 [Exposed=Window]
 interface CSSStyleDeclaration {
-
     [CEReactions] attribute CSSOMString cssText;
 
     readonly attribute unsigned long length;
@@ -16,9 +13,4 @@ interface CSSStyleDeclaration {
     [CEReactions] CSSOMString removeProperty(CSSOMString property);
 
     readonly attribute CSSRule? parentRule;
-
-    [CEReactions, LegacyNullToEmptyString] attribute CSSOMString cssFloat;
-
 };
-
-CSSStyleDeclaration includes GeneratedCSSStyleProperties;

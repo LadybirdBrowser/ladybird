@@ -13,12 +13,12 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSKeyframeRule);
 
-GC::Ref<CSSKeyframeRule> CSSKeyframeRule::create(JS::Realm& realm, CSS::Percentage key, Web::CSS::PropertyOwningCSSStyleDeclaration& declarations)
+GC::Ref<CSSKeyframeRule> CSSKeyframeRule::create(JS::Realm& realm, Percentage key, CSSStyleProperties& declarations)
 {
     return realm.create<CSSKeyframeRule>(realm, key, declarations);
 }
 
-CSSKeyframeRule::CSSKeyframeRule(JS::Realm& realm, CSS::Percentage key, PropertyOwningCSSStyleDeclaration& declarations)
+CSSKeyframeRule::CSSKeyframeRule(JS::Realm& realm, Percentage key, CSSStyleProperties& declarations)
     : CSSRule(realm, Type::Keyframe)
     , m_key(key)
     , m_declarations(declarations)

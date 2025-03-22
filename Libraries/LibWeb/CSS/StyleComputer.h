@@ -89,7 +89,7 @@ struct MatchingRule {
     bool must_be_hovered { false };
 
     // Helpers to deal with the fact that `rule` might be a CSSStyleRule or a CSSNestedDeclarations
-    PropertyOwningCSSStyleDeclaration const& declaration() const;
+    CSSStyleProperties const& declaration() const;
     SelectorList const& absolutized_selectors() const;
     FlyString const& qualified_layer_name() const;
 };

@@ -26,6 +26,9 @@
   "enabled": {
     "argument": ""
   },
+  "even-less-good-value": {
+    "argument": ""
+  },
   "first-child": {
     "argument": ""
   },
@@ -43,6 +46,9 @@
   },
   "has": {
     "argument": "<relative-selector-list>"
+  },
+  "high-value": {
+    "argument": ""
   },
   "host": {
     "argument": "<compound-selector>?"
@@ -72,6 +78,9 @@
     "argument": ""
   },
   "local-link": {
+    "argument": ""
+  },
+  "low-value": {
     "argument": ""
   },
   "modal": {
@@ -104,6 +113,9 @@
   "open": {
     "argument": ""
   },
+  "optimal-value": {
+    "argument": ""
+  },
   "popover-open": {
     "argument": ""
   },
@@ -132,6 +144,9 @@
     "argument": ""
   },
   "stalled": {
+    "argument": ""
+  },
+  "suboptimal-value": {
     "argument": ""
   },
   "target": {

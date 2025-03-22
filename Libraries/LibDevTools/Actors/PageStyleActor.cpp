@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/JsonArray.h>
+#include <AK/JsonObject.h>
 #include <AK/JsonValue.h>
 #include <LibDevTools/Actors/InspectorActor.h>
 #include <LibDevTools/Actors/PageStyleActor.h>
@@ -14,47 +16,47 @@
 
 namespace DevTools {
 
-static void received_layout(JsonObject& response, JsonObject const& computed_style, JsonObject const& node_box_sizing)
+static void received_layout(JsonObject& response, JsonObject const& node_box_sizing)
 {
     response.set("autoMargins"sv, JsonObject {});
 
-    auto pixel_value = [&](auto const& object, auto key) {
-        return object.get_double_with_precision_loss(key).value_or(0);
+    auto pixel_value = [&](auto key) {
+        return node_box_sizing.get_double_with_precision_loss(key).value_or(0);
     };
-    auto set_pixel_value_from = [&](auto const& object, auto object_key, auto message_key) {
-        response.set(message_key, MUST(String::formatted("{}px", pixel_value(object, object_key))));
+    auto set_pixel_value = [&](auto key) {
+        response.set(key, MUST(String::formatted("{}px", pixel_value(key))));
     };
-    auto set_computed_value_from = [&](auto const& object, auto key) {
-        response.set(key, object.get_string(key).value_or(String {}));
+    auto set_computed_value = [&](auto key) {
+        response.set(key, node_box_sizing.get_string(key).value_or(String {}));
     };
-
-    response.set("width"sv, pixel_value(node_box_sizing, "content_width"sv));
-    response.set("height"sv, pixel_value(node_box_sizing, "content_height"sv));
 
     // FIXME: This response should also contain "top", "right", "bottom", and "left", but our box model metrics in
     //        WebContent do not provide this information.
 
-    set_pixel_value_from(node_box_sizing, "border_top"sv, "border-top-width"sv);
-    set_pixel_value_from(node_box_sizing, "border_right"sv, "border-right-width"sv);
-    set_pixel_value_from(node_box_sizing, "border_bottom"sv, "border-bottom-width"sv);
-    set_pixel_value_from(node_box_sizing, "border_left"sv, "border-left-width"sv);
+    set_computed_value("width"sv);
+    set_computed_value("height"sv);
 
-    set_pixel_value_from(node_box_sizing, "margin_top"sv, "margin-top"sv);
-    set_pixel_value_from(node_box_sizing, "margin_right"sv, "margin-right"sv);
-    set_pixel_value_from(node_box_sizing, "margin_bottom"sv, "margin-bottom"sv);
-    set_pixel_value_from(node_box_sizing, "margin_left"sv, "margin-left"sv);
+    set_pixel_value("border-top-width"sv);
+    set_pixel_value("border-right-width"sv);
+    set_pixel_value("border-bottom-width"sv);
+    set_pixel_value("border-left-width"sv);
 
-    set_pixel_value_from(node_box_sizing, "padding_top"sv, "padding-top"sv);
-    set_pixel_value_from(node_box_sizing, "padding_right"sv, "padding-right"sv);
-    set_pixel_value_from(node_box_sizing, "padding_bottom"sv, "padding-bottom"sv);
-    set_pixel_value_from(node_box_sizing, "padding_left"sv, "padding-left"sv);
+    set_pixel_value("margin-top"sv);
+    set_pixel_value("margin-right"sv);
+    set_pixel_value("margin-bottom"sv);
+    set_pixel_value("margin-left"sv);
 
-    set_computed_value_from(computed_style, "box-sizing"sv);
-    set_computed_value_from(computed_style, "display"sv);
-    set_computed_value_from(computed_style, "float"sv);
-    set_computed_value_from(computed_style, "line-height"sv);
-    set_computed_value_from(computed_style, "position"sv);
-    set_computed_value_from(computed_style, "z-index"sv);
+    set_pixel_value("padding-top"sv);
+    set_pixel_value("padding-right"sv);
+    set_pixel_value("padding-bottom"sv);
+    set_pixel_value("padding-left"sv);
+
+    set_computed_value("box-sizing"sv);
+    set_computed_value("display"sv);
+    set_computed_value("float"sv);
+    set_computed_value("line-height"sv);
+    set_computed_value("position"sv);
+    set_computed_value("z-index"sv);
 }
 
 static void received_computed_style(JsonObject& response, JsonObject const& computed_style)
@@ -111,9 +113,20 @@ PageStyleActor::PageStyleActor(DevToolsServer& devtools, String name, WeakPtr<In
     : Actor(devtools, move(name))
     , m_inspector(move(inspector))
 {
+    if (auto tab = InspectorActor::tab_for(m_inspector)) {
+        devtools.delegate().listen_for_dom_properties(tab->description(),
+            [weak_self = make_weak_ptr<PageStyleActor>()](WebView::DOMNodeProperties const& properties) {
+                if (auto self = weak_self.strong_ref())
+                    self->received_dom_node_properties(properties);
+            });
+    }
 }
 
-PageStyleActor::~PageStyleActor() = default;
+PageStyleActor::~PageStyleActor()
+{
+    if (auto tab = InspectorActor::tab_for(m_inspector))
+        devtools().delegate().stop_listening_for_dom_properties(tab->description());
+}
 
 void PageStyleActor::handle_message(Message const& message)
 {
@@ -134,38 +147,17 @@ void PageStyleActor::handle_message(Message const& message)
     }
 
     if (message.type == "getComputed"sv) {
-        auto node = get_required_parameter<String>(message, "node"sv);
-        if (!node.has_value())
-            return;
-
-        inspect_dom_node(message, *node, [](auto& response, auto const& properties) {
-            received_computed_style(response, properties.computed_style);
-        });
-
+        inspect_dom_node(message, WebView::DOMNodeProperties::Type::ComputedStyle);
         return;
     }
 
     if (message.type == "getLayout"sv) {
-        auto node = get_required_parameter<String>(message, "node"sv);
-        if (!node.has_value())
-            return;
-
-        inspect_dom_node(message, *node, [](auto& response, auto const& properties) {
-            received_layout(response, properties.computed_style, properties.node_box_sizing);
-        });
-
+        inspect_dom_node(message, WebView::DOMNodeProperties::Type::Layout);
         return;
     }
 
     if (message.type == "getUsedFontFaces"sv) {
-        auto node = get_required_parameter<String>(message, "node"sv);
-        if (!node.has_value())
-            return;
-
-        inspect_dom_node(message, *node, [](auto& response, auto const& properties) {
-            received_fonts(response, properties.fonts);
-        });
-
+        inspect_dom_node(message, WebView::DOMNodeProperties::Type::UsedFonts);
         return;
     }
 
@@ -192,19 +184,46 @@ JsonValue PageStyleActor::serialize_style() const
     return style;
 }
 
-template<typename Callback>
-void PageStyleActor::inspect_dom_node(Message const& message, StringView node_actor, Callback&& callback)
+void PageStyleActor::inspect_dom_node(Message const& message, WebView::DOMNodeProperties::Type property_type)
 {
-    auto dom_node = WalkerActor::dom_node_for(InspectorActor::walker_for(m_inspector), node_actor);
+    auto node = get_required_parameter<String>(message, "node"sv);
+    if (!node.has_value())
+        return;
+
+    auto dom_node = WalkerActor::dom_node_for(InspectorActor::walker_for(m_inspector), *node);
     if (!dom_node.has_value()) {
-        send_unknown_actor_error(message, node_actor);
+        send_unknown_actor_error(message, *node);
         return;
     }
 
-    devtools().delegate().inspect_dom_node(dom_node->tab->description(), dom_node->identifier.id, dom_node->identifier.pseudo_element,
-        async_handler(message, [callback = forward<Callback>(callback)](auto&, auto properties, auto& response) {
-            callback(response, properties);
-        }));
+    devtools().delegate().inspect_dom_node(dom_node->tab->description(), property_type, dom_node->identifier.id, dom_node->identifier.pseudo_element);
+    m_pending_inspect_requests.append({ .id = message.id });
+}
+
+void PageStyleActor::received_dom_node_properties(WebView::DOMNodeProperties const& properties)
+{
+    if (m_pending_inspect_requests.is_empty())
+        return;
+
+    JsonObject response;
+
+    switch (properties.type) {
+    case WebView::DOMNodeProperties::Type::ComputedStyle:
+        if (properties.properties.is_object())
+            received_computed_style(response, properties.properties.as_object());
+        break;
+    case WebView::DOMNodeProperties::Type::Layout:
+        if (properties.properties.is_object())
+            received_layout(response, properties.properties.as_object());
+        break;
+    case WebView::DOMNodeProperties::Type::UsedFonts:
+        if (properties.properties.is_array())
+            received_fonts(response, properties.properties.as_array());
+        break;
+    }
+
+    auto message = m_pending_inspect_requests.take_first();
+    send_response(message, move(response));
 }
 
 }

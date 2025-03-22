@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2021-2025, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -26,6 +26,7 @@
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Iterator.h>
 #include <LibJS/Runtime/MathObject.h>
+#include <LibJS/Runtime/ModuleEnvironment.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/ObjectEnvironment.h>
 #include <LibJS/Runtime/Realm.h>
@@ -35,6 +36,30 @@
 #include <LibJS/Runtime/Value.h>
 #include <LibJS/Runtime/ValueInlines.h>
 #include <LibJS/SourceTextModule.h>
+
+namespace JS {
+
+struct PropertyKeyAndEnumerableFlag {
+    JS::PropertyKey key;
+    bool enumerable { false };
+};
+
+}
+
+namespace AK {
+template<>
+struct Traits<JS::PropertyKeyAndEnumerableFlag> : public DefaultTraits<JS::PropertyKeyAndEnumerableFlag> {
+    static unsigned hash(JS::PropertyKeyAndEnumerableFlag const& entry)
+    {
+        return Traits<JS::PropertyKey>::hash(entry.key);
+    }
+
+    static bool equals(JS::PropertyKeyAndEnumerableFlag const& a, JS::PropertyKeyAndEnumerableFlag const& b)
+    {
+        return Traits<JS::PropertyKey>::equals(a.key, b.key);
+    }
+};
+}
 
 namespace JS::Bytecode {
 
@@ -1124,20 +1149,31 @@ inline ThrowCompletionOr<Value> get_global(Interpreter& interpreter, IdentifierT
 
         // OPTIMIZATION: For global lexical bindings, if the global declarative environment hasn't changed,
         //               we can use the cached environment binding index.
-        if (cache.environment_binding_index.has_value())
-            return declarative_record.get_binding_value_direct(vm, cache.environment_binding_index.value());
+        if (cache.has_environment_binding_index) {
+            if (cache.in_module_environment) {
+                auto module = vm.running_execution_context().script_or_module.get_pointer<GC::Ref<Module>>();
+                return (*module)->environment()->get_binding_value_direct(vm, cache.environment_binding_index);
+            }
+            return declarative_record.get_binding_value_direct(vm, cache.environment_binding_index);
+        }
     }
 
     cache.environment_serial_number = declarative_record.environment_serial_number();
 
     auto& identifier = interpreter.current_executable().get_identifier(identifier_index);
 
-    if (vm.running_execution_context().script_or_module.has<GC::Ref<Module>>()) {
+    if (auto* module = vm.running_execution_context().script_or_module.get_pointer<GC::Ref<Module>>()) {
         // NOTE: GetGlobal is used to access variables stored in the module environment and global environment.
         //       The module environment is checked first since it precedes the global environment in the environment chain.
-        auto& module_environment = *vm.running_execution_context().script_or_module.get<GC::Ref<Module>>()->environment();
-        if (TRY(module_environment.has_binding(identifier))) {
-            // TODO: Cache offset of binding value
+        auto& module_environment = *(*module)->environment();
+        Optional<size_t> index;
+        if (TRY(module_environment.has_binding(identifier, &index))) {
+            if (index.has_value()) {
+                cache.environment_binding_index = static_cast<u32>(index.value());
+                cache.has_environment_binding_index = true;
+                cache.in_module_environment = true;
+                return TRY(module_environment.get_binding_value_direct(vm, index.value()));
+            }
             return TRY(module_environment.get_binding_value(vm, identifier, vm.in_strict_mode()));
         }
     }
@@ -1145,6 +1181,8 @@ inline ThrowCompletionOr<Value> get_global(Interpreter& interpreter, IdentifierT
     Optional<size_t> offset;
     if (TRY(declarative_record.has_binding(identifier, &offset))) {
         cache.environment_binding_index = static_cast<u32>(offset.value());
+        cache.has_environment_binding_index = true;
+        cache.in_module_environment = false;
         return TRY(declarative_record.get_binding_value(vm, identifier, vm.in_strict_mode()));
     }
 
@@ -1699,8 +1737,8 @@ inline ThrowCompletionOr<Object*> get_object_property_iterator(VM& vm, Value val
     auto object = TRY(value.to_object(vm));
     // Note: While the spec doesn't explicitly require these to be ordered, it says that the values should be retrieved via OwnPropertyKeys,
     //       so we just keep the order consistent anyway.
-    OrderedHashTable<PropertyKey> properties;
-    OrderedHashTable<PropertyKey> non_enumerable_properties;
+
+    OrderedHashTable<PropertyKeyAndEnumerableFlag> properties;
     HashTable<GC::Ref<Object>> seen_objects;
     // Collect all keys immediately (invariant no. 5)
     for (auto object_to_check = GC::Ptr { object.ptr() }; object_to_check && !seen_objects.contains(*object_to_check); object_to_check = TRY(object_to_check->internal_get_prototype_of())) {
@@ -1708,50 +1746,57 @@ inline ThrowCompletionOr<Object*> get_object_property_iterator(VM& vm, Value val
         for (auto& key : TRY(object_to_check->internal_own_property_keys())) {
             if (key.is_symbol())
                 continue;
-            auto property_key = TRY(PropertyKey::from_value(vm, key));
 
-            // If there is a non-enumerable property higher up the prototype chain with the same key,
-            // we mustn't include this property even if it's enumerable (invariant no. 5 and 6)
-            if (non_enumerable_properties.contains(property_key))
-                continue;
-            if (properties.contains(property_key))
+            // NOTE: If there is a non-enumerable property higher up the prototype chain with the same key,
+            //       we mustn't include this property even if it's enumerable (invariant no. 5 and 6)
+            //       This is achieved with the PropertyKeyAndEnumerableFlag struct, which doesn't consider
+            //       the enumerable flag when comparing keys.
+            PropertyKeyAndEnumerableFlag new_entry {
+                .key = TRY(PropertyKey::from_value(vm, key)),
+                .enumerable = false,
+            };
+
+            if (properties.contains(new_entry))
                 continue;
 
-            auto descriptor = TRY(object_to_check->internal_get_own_property(property_key));
-            if (!*descriptor->enumerable)
-                non_enumerable_properties.set(move(property_key));
-            else
-                properties.set(move(property_key));
+            auto descriptor = TRY(object_to_check->internal_get_own_property(new_entry.key));
+            if (!descriptor.has_value())
+                continue;
+
+            new_entry.enumerable = *descriptor->enumerable;
+            properties.set(move(new_entry), AK::HashSetExistingEntryBehavior::Keep);
         }
     }
-    auto& realm = *vm.current_realm();
-    auto callback = NativeFunction::create(
-        *vm.current_realm(), [items = move(properties)](VM& vm) mutable -> ThrowCompletionOr<Value> {
-            auto& realm = *vm.current_realm();
-            auto iterated_object_value = vm.this_value();
-            if (!iterated_object_value.is_object())
-                return vm.throw_completion<InternalError>("Invalid state for GetObjectPropertyIterator.next"sv);
 
-            auto& iterated_object = iterated_object_value.as_object();
-            auto result_object = Object::create(realm, nullptr);
+    properties.remove_all_matching([&](auto& entry) { return !entry.enumerable; });
+
+    auto& realm = *vm.current_realm();
+
+    auto result_object = Object::create_with_premade_shape(realm.intrinsics().iterator_result_object_shape());
+    auto value_offset = realm.intrinsics().iterator_result_object_value_offset();
+    auto done_offset = realm.intrinsics().iterator_result_object_done_offset();
+
+    auto callback = NativeFunction::create(
+        *vm.current_realm(), [items = move(properties), result_object, value_offset, done_offset](VM& vm) mutable -> ThrowCompletionOr<Value> {
+            auto& iterated_object = vm.this_value().as_object();
             while (true) {
                 if (items.is_empty()) {
-                    result_object->define_direct_property(vm.names.done, JS::Value(true), default_attributes);
+                    result_object->put_direct(done_offset, JS::Value(true));
                     return result_object;
                 }
 
-                auto key = items.take_first();
+                auto key = move(items.take_first().key);
 
                 // If the property is deleted, don't include it (invariant no. 2)
                 if (!TRY(iterated_object.has_property(key)))
                     continue;
 
-                result_object->define_direct_property(vm.names.done, JS::Value(false), default_attributes);
+                result_object->put_direct(done_offset, JS::Value(false));
 
                 if (key.is_number())
-                    result_object->define_direct_property(vm.names.value, PrimitiveString::create(vm, String::number(key.as_number())), default_attributes);
+                    result_object->put_direct(value_offset, PrimitiveString::create(vm, String::number(key.as_number())));
                 else if (key.is_string())
-                    result_object->define_direct_property(vm.names.value, PrimitiveString::create(vm, key.as_string()), default_attributes);
+                    result_object->put_direct(value_offset, PrimitiveString::create(vm, key.as_string()));
                 else
                     VERIFY_NOT_REACHED(); // We should not have non-string/number keys.
 

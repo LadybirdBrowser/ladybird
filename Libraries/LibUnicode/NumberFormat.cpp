@@ -866,23 +866,15 @@ private:
 
 NonnullOwnPtr<NumberFormat> NumberFormat::create(
     StringView locale,
-    StringView numbering_system,
     DisplayOptions const& display_options,
     RoundingOptions const& rounding_options)
 {
-    UErrorCode status = U_ZERO_ERROR;
-
     auto locale_data = LocaleData::for_locale(locale);
     VERIFY(locale_data.has_value());
 
     auto formatter = icu::number::NumberFormatter::withLocale(locale_data->locale());
     apply_display_options(formatter, display_options);
     apply_rounding_options(formatter, rounding_options);
-
-    if (!numbering_system.is_empty()) {
-        if (auto* symbols = icu::NumberingSystem::createInstanceByName(ByteString(numbering_system).characters(), status); symbols && icu_success(status))
-            formatter = formatter.adoptSymbols(symbols);
-    }
 
     bool is_unit = display_options.style == NumberFormatStyle::Unit;
     return adopt_own(*new NumberFormatImpl(locale_data->locale(), move(formatter), is_unit));

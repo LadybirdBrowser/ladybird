@@ -385,7 +385,7 @@ public:
     virtual void page_did_request_file_picker([[maybe_unused]] HTML::FileFilter const& accepted_file_types, Web::HTML::AllowMultipleFiles) { }
     virtual void page_did_request_select_dropdown([[maybe_unused]] Web::CSSPixelPoint content_position, [[maybe_unused]] Web::CSSPixels minimum_width, [[maybe_unused]] Vector<Web::HTML::SelectItem> items) { }
 
-    virtual void page_did_finish_text_test([[maybe_unused]] String const& text) { }
+    virtual void page_did_finish_test([[maybe_unused]] String const& text) { }
     virtual void page_did_set_test_timeout([[maybe_unused]] double milliseconds) { }
 
     virtual void page_did_set_browser_zoom([[maybe_unused]] double factor) { }
@@ -399,6 +399,8 @@ public:
     virtual IPC::File request_worker_agent() { return IPC::File {}; }
 
     virtual void page_did_mutate_dom([[maybe_unused]] FlyString const& type, [[maybe_unused]] DOM::Node const& target, [[maybe_unused]] DOM::NodeList& added_nodes, [[maybe_unused]] DOM::NodeList& removed_nodes, [[maybe_unused]] GC::Ptr<DOM::Node> previous_sibling, [[maybe_unused]] GC::Ptr<DOM::Node> next_sibling, [[maybe_unused]] Optional<String> const& attribute_name) { }
+
+    virtual void update_process_statistics() { }
 
     virtual bool is_ready_to_paint() const = 0;
 

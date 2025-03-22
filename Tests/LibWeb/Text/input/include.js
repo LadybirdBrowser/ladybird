@@ -10,7 +10,7 @@ function __preventMultipleTestFunctions() {
 
 if (globalThis.internals === undefined) {
     internals = {
-        signalTextTestIsDone: function () {},
+        signalTestIsDone: function () {},
         spoofCurrentURL: function (url) {},
     };
 }
@@ -19,7 +19,7 @@ function __finishTest() {
     if (__originalURL) {
         internals.spoofCurrentURL(__originalURL);
     }
-    internals.signalTextTestIsDone(__outputElement.innerText);
+    internals.signalTestIsDone(__outputElement.innerText);
 }
 
 function spoofCurrentURL(url) {

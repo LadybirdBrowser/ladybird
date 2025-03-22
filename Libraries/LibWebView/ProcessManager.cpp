@@ -4,7 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/NumberFormat.h>
+#include <AK/JsonArraySerializer.h>
+#include <AK/JsonObjectSerializer.h>
 #include <AK/String.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/System.h>
@@ -49,6 +50,8 @@ StringView process_name_from_type(ProcessType type)
 ProcessManager::ProcessManager()
     : on_process_exited([](Process&&) { })
 {
+    // FIXME: Handle exiting child processes on Windows
+#ifndef AK_OS_WINDOWS
     m_signal_handle = Core::EventLoop::register_signal(SIGCHLD, [this](int) {
         auto result = Core::System::waitpid(-1, WNOHANG);
         while (!result.is_error() && result.value().pid > 0) {
@@ -60,6 +63,7 @@ ProcessManager::ProcessManager()
             result = Core::System::waitpid(-1, WNOHANG);
         }
     });
+#endif
 
     add_process(Process(WebView::ProcessType::Browser, nullptr, Core::Process::current()));
 
@@ -73,7 +77,10 @@ ProcessManager::ProcessManager()
 
 ProcessManager::~ProcessManager()
 {
+    // FIXME: Handle exiting child processes on Windows
+#ifndef AK_OS_WINDOWS
     Core::EventLoop::unregister_signal(m_signal_handle);
+#endif
 }
 
 Optional<Process&> ProcessManager::find_process(pid_t pid)
@@ -119,87 +126,33 @@ void ProcessManager::update_all_process_statistics()
     (void)update_process_statistics(m_statistics);
 }
 
-String ProcessManager::generate_html()
+String ProcessManager::serialize_json()
 {
     Threading::MutexLocker locker { m_lock };
+
     StringBuilder builder;
-
-    builder.append(R"(
-        <html>
-        <head>
-        <title>Task Manager</title>
-        <style>
-                @media (prefers-color-scheme: dark) {
-                    tr:nth-child(even) {
-                        background: rgb(57, 57, 57);
-                    }
-                }
-
-                @media (prefers-color-scheme: light) {
-                    tr:nth-child(even) {
-                        background: #f7f7f7;
-                    }
-                }
-
-                html {
-                    color-scheme: light dark;
-                }
-
-                table {
-                    width: 100%;
-                    border-collapse: collapse;
-                }
-                th {
-                    text-align: left;
-                    border-bottom: 1px solid #aaa;
-                }
-                td, th {
-                    padding: 4px;
-                    border: 1px solid #aaa;
-                }
-        </style>
-        </head>
-        <body>
-        <table>
-                <thead>
-                <tr>
-                        <th>Name</th>
-                        <th>PID</th>
-                        <th>Memory Usage</th>
-                        <th>CPU %</th>
-                </tr>
-                </thead>
-                <tbody>
-    )"sv);
+    auto serializer = MUST(JsonArraySerializer<>::try_create(builder));
 
     m_statistics.for_each_process([&](auto const& process) {
-        builder.append("<tr>"sv);
-        builder.append("<td>"sv);
-        auto& process_handle = this->find_process(process.pid).value();
-        builder.append(WebView::process_name_from_type(process_handle.type()));
-        if (process_handle.title().has_value())
-            builder.appendff(" - {}", escape_html_entities(*process_handle.title()));
-        builder.append("</td>"sv);
-        builder.append("<td>"sv);
-        builder.append(String::number(process.pid));
-        builder.append("</td>"sv);
-        builder.append("<td>"sv);
-        builder.append(human_readable_size(process.memory_usage_bytes));
-        builder.append("</td>"sv);
-        builder.append("<td>"sv);
-        builder.append(MUST(String::formatted("{:.1f}", process.cpu_percent)));
-        builder.append("</td>"sv);
-        builder.append("</tr>"sv);
+        auto& process_handle = find_process(process.pid).value();
+
+        auto type = WebView::process_name_from_type(process_handle.type());
+        auto const& title = process_handle.title();
+
+        auto process_name = title.has_value()
+            ? MUST(String::formatted("{} - {}", type, *title))
+            : String::from_utf8_without_validation(type.bytes());
+
+        auto object = MUST(serializer.add_object());
+        MUST(object.add("name"sv, move(process_name)));
+        MUST(object.add("pid"sv, process.pid));
+        MUST(object.add("cpu"sv, process.cpu_percent));
+        MUST(object.add("memory"sv, process.memory_usage_bytes));
+        MUST(object.finish());
     });
 
-    builder.append(R"(
-                </tbody>
-                </table>
-                </body>
-                </html>
-    )"sv);
-
-    return builder.to_string_without_validation();
+    MUST(serializer.finish());
+    return MUST(builder.to_string());
 }
 
 }

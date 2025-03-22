@@ -10,7 +10,6 @@ target_sources(ladybird PRIVATE
     SettingsDialog.cpp
     Tab.cpp
     TabBar.cpp
-    TaskManagerWindow.cpp
     TVGIconEngine.cpp
     StringUtils.cpp
     WebContentView.cpp

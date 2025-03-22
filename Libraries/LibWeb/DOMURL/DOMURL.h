@@ -2,7 +2,7 @@
  * Copyright (c) 2021, Idan Horowitz <idan.horowitz@serenityos.org>
  * Copyright (c) 2021, the SerenityOS developers.
  * Copyright (c) 2023, networkException <networkexception@serenityos.org>
- * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
+ * Copyright (c) 2024-2025, Shannon Booth <shannon@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -91,9 +91,6 @@ private:
     URL::URL m_url;
     GC::Ref<URLSearchParams> m_query;
 };
-
-// https://url.spec.whatwg.org/#potentially-strip-trailing-spaces-from-an-opaque-path
-void strip_trailing_spaces_from_an_opaque_path(DOMURL& url);
 
 // https://url.spec.whatwg.org/#concept-url-parser
 Optional<URL::URL> parse(StringView input, Optional<URL::URL const&> base_url = {}, Optional<StringView> encoding = {});

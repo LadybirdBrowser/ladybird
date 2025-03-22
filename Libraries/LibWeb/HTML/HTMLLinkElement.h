@@ -48,6 +48,8 @@ public:
     void set_media(String);
     String media() const;
 
+    GC::Ptr<CSS::CSSStyleSheet> sheet() const;
+
 private:
     HTMLLinkElement(DOM::Document&, DOM::QualifiedName);
 

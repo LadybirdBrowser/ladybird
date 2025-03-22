@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Backgrounds and Borders Module Level 3: parsing border-radius with valid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-backgrounds/#border-radius">
+<meta name="assert" content="border-radius supports CSS Wide keywords and the full grammar '<length-percentage>{1,4} [ / <length-percentage>{1,4} ]?'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value("border-radius", "initial");
+test_valid_value("border-radius", "inherit");
+test_valid_value("border-radius", "unset");
+test_valid_value("border-radius", "revert");
+
+test_valid_value("border-radius", "1px");
+test_valid_value("border-radius", "1px 5%");
+test_valid_value("border-radius", "1px 2% 3px");
+test_valid_value("border-radius", "1px 2% 3px 4%");
+test_valid_value("border-radius", "1px / 2px");
+test_valid_value("border-radius", "5em / 1px 2% 3px 4%");
+test_valid_value("border-radius", "1px 2% / 3px 4px");
+test_valid_value("border-radius", "1px 2px 3em / 1px 2px 3%");
+test_valid_value("border-radius", "1px 2% / 2px 3em 4px 5em");
+test_valid_value("border-radius", "1px 2% 3px 4% / 5em");
+
+test_valid_value("border-radius", "1px 1px 1px 2% / 1px 2% 1px 2%", "1px 1px 1px 2% / 1px 2%");
+test_valid_value("border-radius", "1px 1px 1px 1px / 1px 1px 2% 1px", "1px / 1px 1px 2%");
+test_valid_value("border-radius", "1px 1px 2% 2%");
+test_valid_value("border-radius", "1px 2% 1px 1px");
+test_valid_value("border-radius", "1px 2% 2% 2% / 1px 2% 3px 2%", "1px 2% 2% / 1px 2% 3px");
+
+test_valid_value("border-top-left-radius", "10px");
+test_valid_value("border-top-right-radius", "20%");
+test_valid_value("border-bottom-right-radius", "30px 40%");
+test_valid_value("border-bottom-left-radius", "50% 60px");
+</script>
+</body>
+</html>

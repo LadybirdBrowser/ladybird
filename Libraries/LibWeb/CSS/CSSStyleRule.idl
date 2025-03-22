@@ -1,9 +1,9 @@
 #import <CSS/CSSGroupingRule.idl>
-#import <CSS/CSSStyleDeclaration.idl>
+#import <CSS/CSSStyleProperties.idl>
 
 // https://drafts.csswg.org/cssom/#the-cssstylerule-interface
 [Exposed=Window]
 interface CSSStyleRule : CSSGroupingRule {
     attribute CSSOMString selectorText;
-    [SameObject, PutForwards=cssText] readonly attribute CSSStyleDeclaration style;
+    [SameObject, PutForwards=cssText] readonly attribute CSSStyleProperties style;
 };

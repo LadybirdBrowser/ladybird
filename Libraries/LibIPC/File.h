@@ -63,7 +63,13 @@ public:
         return exchange(m_fd, -1);
     }
 
-    ErrorOr<void> clear_close_on_exec();
+    // FIXME: IPC::Files transferred over the wire are always set O_CLOEXEC during decoding.
+    //        Perhaps we should add an option to IPC::File to allow the receiver to decide whether to
+    //        make it O_CLOEXEC or not. Or an attribute in the .ipc file?
+    ErrorOr<void> clear_close_on_exec()
+    {
+        return Core::System::set_close_on_exec(m_fd, false);
+    }
 
 private:
     explicit File(int fd)

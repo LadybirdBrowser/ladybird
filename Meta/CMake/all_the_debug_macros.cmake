@@ -88,3 +88,6 @@ set(XML_PARSER_DEBUG ON)
 # set(gn_include_dirs_DEBUG ON)
 # set(gn_ldflags_DEBUG ON)
 # set(gn_lib_dirs_DEBUG ON)
+# Third-party: fontconfig overlay
+# set(Fontconfig_LIBRARY_DEBUG ON)
+# set(UUID_LIBRARY_DEBUG ON)

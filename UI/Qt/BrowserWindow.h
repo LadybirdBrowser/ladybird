@@ -25,7 +25,6 @@ namespace Ladybird {
 
 class SettingsDialog;
 class WebContentView;
-class TaskManagerWindow;
 
 class BrowserWindow : public QMainWindow {
     Q_OBJECT

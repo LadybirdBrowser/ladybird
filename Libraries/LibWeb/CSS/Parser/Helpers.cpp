@@ -30,11 +30,11 @@ CSS::CSSStyleSheet* parse_css_stylesheet(CSS::Parser::ParsingParams const& conte
     return style_sheet;
 }
 
-CSS::ElementInlineCSSStyleDeclaration* parse_css_style_attribute(CSS::Parser::ParsingParams const& context, StringView css, DOM::Element& element)
+CSS::Parser::Parser::PropertiesAndCustomProperties parse_css_style_attribute(CSS::Parser::ParsingParams const& context, StringView css)
 {
     if (css.is_empty())
-        return CSS::ElementInlineCSSStyleDeclaration::create(element, {}, {});
-    return CSS::Parser::Parser::create(context, css).parse_as_style_attribute(element);
+        return {};
+    return CSS::Parser::Parser::create(context, css).parse_as_style_attribute();
 }
 
 RefPtr<CSS::CSSStyleValue> parse_css_value(CSS::Parser::ParsingParams const& context, StringView string, CSS::PropertyID property_id)
@@ -85,13 +85,6 @@ RefPtr<CSS::Supports> parse_css_supports(CSS::Parser::ParsingParams const& conte
     if (string.is_empty())
         return {};
     return CSS::Parser::Parser::create(context, string).parse_as_supports();
-}
-
-Optional<CSS::StyleProperty> parse_css_supports_condition(CSS::Parser::ParsingParams const& context, StringView string)
-{
-    if (string.is_empty())
-        return {};
-    return CSS::Parser::Parser::create(context, string).parse_as_supports_condition();
 }
 
 }

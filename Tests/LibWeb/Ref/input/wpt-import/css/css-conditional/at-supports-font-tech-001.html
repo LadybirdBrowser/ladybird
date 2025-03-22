@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<title>CSS Conditional Test: @supports font-tech()</title>
+<link rel="author" title="Jonathan Kew" href="mailto:jkew@mozilla.com">
+<link rel="author" href="https://mozilla.org" title="Mozilla">
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#typedef-supports-font-tech-fn">
+<link rel="match" href="../../../../expected/wpt-import/css/css-conditional/at-supports-001-ref.html">
+<style>
+  div {
+    background: red;
+    height: 10px;
+    width: 100px;
+  }
+  /* assume all browsers support at least features-opentype and color-COLRv0 */
+  @supports font-tech(features-opentype) {
+    #test1 { background: green };
+  }
+  @supports font-tech(color-COLRv0) {
+    #test2 { background: green };
+  }
+  /* forms that should NOT be recognized as supported */
+  @supports not font-tech(features-opentype color-COLRv1) {
+    #test3 { background: green };
+  }
+  @supports not font-tech(features-opentype, color-COLRv0) {
+    #test4 { background: green };
+  }
+  @supports not font-tech(features-opentype, features-opentype) {
+    #test5 { background: green };
+  }
+  @supports not font-tech() {
+    #test6 { background: green };
+  }
+  @supports not font-tech(xyzzy) {
+    #test7 { background: green };
+  }
+  @supports not font-tech("features-opentype") {
+    #test8 { background: green };
+  }
+  @supports not font-tech(feature-opentype) {
+    #test9 { background: green };
+  }
+  @supports not font-tech(colors-COLRv0) {
+    #test10 { background: green };
+  }
+</style>
+<p>Test passes if there is a <strong>filled green square</strong> and <strong>no red</strong>.</p>
+<div id=test1></div>
+<div id=test2></div>
+<div id=test3></div>
+<div id=test4></div>
+<div id=test5></div>
+<div id=test6></div>
+<div id=test7></div>
+<div id=test8></div>
+<div id=test9></div>
+<div id=test10></div>

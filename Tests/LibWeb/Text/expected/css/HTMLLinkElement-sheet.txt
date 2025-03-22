@@ -1,0 +1,2 @@
+sheet property initial value: null
+Sheet property after stylesheet loaded: [object CSSStyleSheet]

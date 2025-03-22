@@ -1,7 +1,3 @@
-#
-# Options common for the Serenity (target) and Lagom (host) builds
-#
-
 # Make relative paths in depfiles be relative to CMAKE_CURRENT_BINARY_DIR rather than to CMAKE_BINARY_DIR
 if (POLICY CMP0116)
     cmake_policy(SET CMP0116 NEW)
@@ -45,3 +41,22 @@ serenity_option(ENABLE_STD_STACKTRACE OFF CACHE BOOL "Force use of std::stacktra
 if (ENABLE_SWIFT)
     include(${CMAKE_CURRENT_LIST_DIR}/Swift/swift-settings.cmake)
 endif()
+
+include(CheckCXXSourceCompiles)
+set(BLOCKS_REQUIRED_LIBRARIES "")
+if (NOT APPLE)
+    find_package(BlocksRuntime)
+    if (BlocksRuntime_FOUND)
+        set(BLOCKS_REQUIRED_LIBRARIES BlocksRuntime::BlocksRuntime)
+        set(CMAKE_REQUIRED_LIBRARIES BlocksRuntime::BlocksRuntime)
+    endif()
+endif()
+check_cxx_source_compiles([=[
+    int main() { __block int x = 0; auto b = ^{++x;}; b(); }
+]=] CXX_COMPILER_SUPPORTS_BLOCKS)
+
+set(CMAKE_REQUIRED_FLAGS "-fobjc-arc")
+check_cxx_source_compiles([=[
+    int main() { auto b = ^{}; auto __weak w = b; w(); }
+]=] CXX_COMPILER_SUPPORTS_OBJC_ARC)
+unset(CMAKE_REQUIRED_FLAGS)

@@ -102,6 +102,9 @@ class DecompressionStream;
 namespace Web::ContentSecurityPolicy {
 class Policy;
 class PolicyList;
+class SecurityPolicyViolationEvent;
+class Violation;
+struct SecurityPolicyViolationEventInit;
 struct SerializedPolicy;
 }
 
@@ -176,6 +179,7 @@ class CSSRGB;
 class CSSRule;
 class CSSRuleList;
 class CSSStyleDeclaration;
+class CSSStyleProperties;
 class CSSStyleRule;
 class CSSStyleSheet;
 class CSSStyleValue;
@@ -186,7 +190,6 @@ class Display;
 class DisplayStyleValue;
 class EasingStyleValue;
 class EdgeStyleValue;
-class ElementInlineCSSStyleDeclaration;
 class ExplicitGridTrack;
 class FilterValueListStyleValue;
 class FitContentStyleValue;
@@ -233,7 +236,6 @@ class Percentage;
 class PercentageOrCalculated;
 class PercentageStyleValue;
 class PositionStyleValue;
-class PropertyOwningCSSStyleDeclaration;
 class RadialGradientStyleValue;
 class Ratio;
 class RatioStyleValue;
@@ -622,6 +624,7 @@ class RequestList;
 
 namespace Web::Internals {
 class Internals;
+class Processes;
 }
 
 namespace Web::IntersectionObserver {

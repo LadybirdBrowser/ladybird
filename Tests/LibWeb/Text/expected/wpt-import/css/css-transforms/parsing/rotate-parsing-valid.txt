@@ -2,22 +2,21 @@ Harness status: OK
 
 Found 17 tests
 
-2 Pass
-15 Fail
+17 Pass
 Pass	e.style['rotate'] = "none" should set the property value
 Pass	e.style['rotate'] = "0deg" should set the property value
-Fail	e.style['rotate'] = "100 200 300 400grad" should set the property value
-Fail	e.style['rotate'] = "400grad 100 200 300" should set the property value
-Fail	e.style['rotate'] = "0 0 0 400grad" should set the property value
-Fail	e.style['rotate'] = "x 400grad" should set the property value
-Fail	e.style['rotate'] = "400grad x" should set the property value
-Fail	e.style['rotate'] = "0.5 0 0 400grad" should set the property value
-Fail	e.style['rotate'] = "1 0 0 400grad" should set the property value
-Fail	e.style['rotate'] = "y 400grad" should set the property value
-Fail	e.style['rotate'] = "400grad y" should set the property value
-Fail	e.style['rotate'] = "0 0.5 0 400grad" should set the property value
-Fail	e.style['rotate'] = "0 1 0 400grad" should set the property value
-Fail	e.style['rotate'] = "400grad" should set the property value
-Fail	e.style['rotate'] = "400grad z" should set the property value
-Fail	e.style['rotate'] = "0 0 0.5 400grad" should set the property value
-Fail	e.style['rotate'] = "0 0 1 400grad" should set the property value
+Pass	e.style['rotate'] = "100 200 300 400grad" should set the property value
+Pass	e.style['rotate'] = "400grad 100 200 300" should set the property value
+Pass	e.style['rotate'] = "0 0 0 400grad" should set the property value
+Pass	e.style['rotate'] = "x 400grad" should set the property value
+Pass	e.style['rotate'] = "400grad x" should set the property value
+Pass	e.style['rotate'] = "0.5 0 0 400grad" should set the property value
+Pass	e.style['rotate'] = "1 0 0 400grad" should set the property value
+Pass	e.style['rotate'] = "y 400grad" should set the property value
+Pass	e.style['rotate'] = "400grad y" should set the property value
+Pass	e.style['rotate'] = "0 0.5 0 400grad" should set the property value
+Pass	e.style['rotate'] = "0 1 0 400grad" should set the property value
+Pass	e.style['rotate'] = "400grad" should set the property value
+Pass	e.style['rotate'] = "400grad z" should set the property value
+Pass	e.style['rotate'] = "0 0 0.5 400grad" should set the property value
+Pass	e.style['rotate'] = "0 0 1 400grad" should set the property value

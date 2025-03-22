@@ -118,11 +118,11 @@ void HTMLProgressElement::create_shadow_tree_if_needed()
     set_shadow_root(shadow_root);
 
     auto progress_bar_element = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
-    progress_bar_element->set_use_pseudo_element(CSS::Selector::PseudoElement::Type::ProgressBar);
+    progress_bar_element->set_use_pseudo_element(CSS::Selector::PseudoElement::Type::Track);
     MUST(shadow_root->append_child(*progress_bar_element));
 
     m_progress_value_element = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
-    m_progress_value_element->set_use_pseudo_element(CSS::Selector::PseudoElement::Type::ProgressValue);
+    m_progress_value_element->set_use_pseudo_element(CSS::Selector::PseudoElement::Type::Fill);
     MUST(progress_bar_element->append_child(*m_progress_value_element));
     update_progress_value_element();
 }
@@ -131,18 +131,6 @@ void HTMLProgressElement::update_progress_value_element()
 {
     if (m_progress_value_element)
         MUST(m_progress_value_element->style_for_bindings()->set_property(CSS::PropertyID::Width, MUST(String::formatted("{}%", position() * 100))));
-}
-
-void HTMLProgressElement::computed_properties_changed()
-{
-    auto accent_color = MUST(String::from_utf8(CSS::string_from_keyword(CSS::Keyword::Accentcolor)));
-
-    auto const& accent_color_property = computed_properties()->property(CSS::PropertyID::AccentColor);
-    if (accent_color_property.has_color())
-        accent_color = accent_color_property.to_string(Web::CSS::CSSStyleValue::SerializationMode::Normal);
-
-    if (m_progress_value_element)
-        MUST(m_progress_value_element->style_for_bindings()->set_property(CSS::PropertyID::BackgroundColor, accent_color));
 }
 
 }

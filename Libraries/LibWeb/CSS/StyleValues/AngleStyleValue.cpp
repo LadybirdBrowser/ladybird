@@ -19,8 +19,10 @@ AngleStyleValue::AngleStyleValue(Angle angle)
 
 AngleStyleValue::~AngleStyleValue() = default;
 
-String AngleStyleValue::to_string(SerializationMode) const
+String AngleStyleValue::to_string(SerializationMode serialization_mode) const
 {
+    if (serialization_mode == SerializationMode::ResolvedValue)
+        return MUST(String::formatted("{}deg", m_angle.to_degrees()));
     return m_angle.to_string();
 }
 

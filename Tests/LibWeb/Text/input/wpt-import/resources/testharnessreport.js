@@ -53,7 +53,7 @@ add_completion_callback(function(tests, harness_status) {
         for (const test of tests) {
             outputLines.push(`${test.format_status()}\t${test.name}`);
         }
-        window.internals.signalTextTestIsDone(outputLines.join('\n'));
+        window.internals.signalTestIsDone(outputLines.join('\n'));
     }
 });
 

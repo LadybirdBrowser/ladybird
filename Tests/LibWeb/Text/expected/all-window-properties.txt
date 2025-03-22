@@ -51,6 +51,7 @@ CSSPropertyRule
 CSSRule
 CSSRuleList
 CSSStyleDeclaration
+CSSStyleProperties
 CSSStyleRule
 CSSStyleSheet
 CSSSupportsRule
@@ -358,6 +359,7 @@ SVGTransformList
 SVGUseElement
 Screen
 ScreenOrientation
+SecurityPolicyViolationEvent
 Selection
 ServiceWorker
 ServiceWorkerContainer

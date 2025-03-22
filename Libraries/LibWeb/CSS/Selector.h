@@ -30,16 +30,11 @@ public:
             FirstLine,
             FirstLetter,
             Marker,
-            MeterBar,
-            MeterEvenLessGoodValue,
-            MeterOptimumValue,
-            MeterSuboptimumValue,
-            ProgressValue,
-            ProgressBar,
+            Track,
+            Fill,
+            Thumb,
             Placeholder,
             Selection,
-            SliderRunnableTrack,
-            SliderThumb,
             Backdrop,
             FileSelectorButton,
             DetailsContent,
@@ -262,6 +257,7 @@ public:
     NonnullRefPtr<Selector> relative_to(SimpleSelector const&) const;
     bool contains_the_nesting_selector() const { return m_contains_the_nesting_selector; }
     bool contains_hover_pseudo_class() const { return m_contains_hover_pseudo_class; }
+    bool contains_unknown_webkit_pseudo_element() const;
     RefPtr<Selector> absolutized(SimpleSelector const& selector_for_nesting) const;
     u32 specificity() const;
     String serialize() const;

@@ -322,19 +322,19 @@ describe("Temporal objects", () => {
     test("Temporal.PlainDate", () => {
         const plainDate1 = new Temporal.PlainDate(1989, 1, 23);
         const plainDate2 = new Temporal.PlainDate(2024, 11, 27);
-        expect(formatter.formatRange(plainDate1, plainDate2)).toBe("1/23/1989 – 11/27/2024");
+        expect(formatter.formatRange(plainDate1, plainDate2)).toBe("1989-01-23 – 2024-11-27");
     });
 
     test("Temporal.PlainYearMonth", () => {
         const plainYearMonth1 = new Temporal.PlainYearMonth(1989, 1);
         const plainYearMonth2 = new Temporal.PlainYearMonth(2024, 11);
-        expect(formatter.formatRange(plainYearMonth1, plainYearMonth2)).toBe("1/1989 – 11/2024");
+        expect(formatter.formatRange(plainYearMonth1, plainYearMonth2)).toBe("1989-01 – 2024-11");
     });
 
     test("Temporal.PlainMonthDay", () => {
         const plainMonthDay1 = new Temporal.PlainMonthDay(1, 23);
         const plainMonthDay2 = new Temporal.PlainMonthDay(11, 27);
-        expect(formatter.formatRange(plainMonthDay1, plainMonthDay2)).toBe("1/23 – 11/27");
+        expect(formatter.formatRange(plainMonthDay1, plainMonthDay2)).toBe("01-23 – 11-27");
     });
 
     test("Temporal.PlainTime", () => {
@@ -347,7 +347,7 @@ describe("Temporal objects", () => {
         const instant1 = new Temporal.Instant(601546251000000000n);
         const instant2 = new Temporal.Instant(1732740069000000000n);
         expect(formatter.formatRange(instant1, instant2)).toBe(
-            "1/23/1989, 8:10:51 AM – 11/27/2024, 8:41:09 PM"
+            "1989-01-23, 8:10:51 AM – 2024-11-27, 8:41:09 PM"
         );
     });
 });

@@ -736,17 +736,17 @@ describe("Temporal objects", () => {
         const plainDate1 = new Temporal.PlainDate(1989, 1, 23);
         const plainDate2 = new Temporal.PlainDate(2024, 11, 27);
         expect(formatter.formatRangeToParts(plainDate1, plainDate2)).toEqual([
-            { type: "month", value: "1", source: "startRange" },
-            { type: "literal", value: "/", source: "startRange" },
-            { type: "day", value: "23", source: "startRange" },
-            { type: "literal", value: "/", source: "startRange" },
             { type: "year", value: "1989", source: "startRange" },
+            { type: "literal", value: "-", source: "startRange" },
+            { type: "month", value: "01", source: "startRange" },
+            { type: "literal", value: "-", source: "startRange" },
+            { type: "day", value: "23", source: "startRange" },
             { type: "literal", value: " – ", source: "shared" },
-            { type: "month", value: "11", source: "endRange" },
-            { type: "literal", value: "/", source: "endRange" },
-            { type: "day", value: "27", source: "endRange" },
-            { type: "literal", value: "/", source: "endRange" },
             { type: "year", value: "2024", source: "endRange" },
+            { type: "literal", value: "-", source: "endRange" },
+            { type: "month", value: "11", source: "endRange" },
+            { type: "literal", value: "-", source: "endRange" },
+            { type: "day", value: "27", source: "endRange" },
         ]);
     });
 
@@ -754,13 +754,13 @@ describe("Temporal objects", () => {
         const plainYearMonth1 = new Temporal.PlainYearMonth(1989, 1);
         const plainYearMonth2 = new Temporal.PlainYearMonth(2024, 11);
         expect(formatter.formatRangeToParts(plainYearMonth1, plainYearMonth2)).toEqual([
-            { type: "month", value: "1", source: "startRange" },
-            { type: "literal", value: "/", source: "startRange" },
             { type: "year", value: "1989", source: "startRange" },
+            { type: "literal", value: "-", source: "startRange" },
+            { type: "month", value: "01", source: "startRange" },
             { type: "literal", value: " – ", source: "shared" },
-            { type: "month", value: "11", source: "endRange" },
-            { type: "literal", value: "/", source: "endRange" },
             { type: "year", value: "2024", source: "endRange" },
+            { type: "literal", value: "-", source: "endRange" },
+            { type: "month", value: "11", source: "endRange" },
         ]);
     });
 
@@ -768,12 +768,12 @@ describe("Temporal objects", () => {
         const plainMonthDay1 = new Temporal.PlainMonthDay(1, 23);
         const plainMonthDay2 = new Temporal.PlainMonthDay(11, 27);
         expect(formatter.formatRangeToParts(plainMonthDay1, plainMonthDay2)).toEqual([
-            { type: "month", value: "1", source: "startRange" },
-            { type: "literal", value: "/", source: "startRange" },
+            { type: "month", value: "01", source: "startRange" },
+            { type: "literal", value: "-", source: "startRange" },
             { type: "day", value: "23", source: "startRange" },
             { type: "literal", value: " – ", source: "shared" },
             { type: "month", value: "11", source: "endRange" },
-            { type: "literal", value: "/", source: "endRange" },
+            { type: "literal", value: "-", source: "endRange" },
             { type: "day", value: "27", source: "endRange" },
         ]);
     });
@@ -804,11 +804,11 @@ describe("Temporal objects", () => {
         const instant1 = new Temporal.Instant(601546251000000000n);
         const instant2 = new Temporal.Instant(1732740069000000000n);
         expect(formatter.formatRangeToParts(instant1, instant2)).toEqual([
-            { type: "month", value: "1", source: "startRange" },
-            { type: "literal", value: "/", source: "startRange" },
-            { type: "day", value: "23", source: "startRange" },
-            { type: "literal", value: "/", source: "startRange" },
             { type: "year", value: "1989", source: "startRange" },
+            { type: "literal", value: "-", source: "startRange" },
+            { type: "month", value: "01", source: "startRange" },
+            { type: "literal", value: "-", source: "startRange" },
+            { type: "day", value: "23", source: "startRange" },
             { type: "literal", value: ", ", source: "startRange" },
             { type: "hour", value: "8", source: "startRange" },
             { type: "literal", value: ":", source: "startRange" },
@@ -818,11 +818,11 @@ describe("Temporal objects", () => {
             { type: "literal", value: " ", source: "startRange" },
             { type: "dayPeriod", value: "AM", source: "startRange" },
             { type: "literal", value: " – ", source: "shared" },
-            { type: "month", value: "11", source: "endRange" },
-            { type: "literal", value: "/", source: "endRange" },
-            { type: "day", value: "27", source: "endRange" },
-            { type: "literal", value: "/", source: "endRange" },
             { type: "year", value: "2024", source: "endRange" },
+            { type: "literal", value: "-", source: "endRange" },
+            { type: "month", value: "11", source: "endRange" },
+            { type: "literal", value: "-", source: "endRange" },
+            { type: "day", value: "27", source: "endRange" },
             { type: "literal", value: ", ", source: "endRange" },
             { type: "hour", value: "8", source: "endRange" },
             { type: "literal", value: ":", source: "endRange" },

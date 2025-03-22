@@ -355,39 +355,52 @@ static void show_the_picker_if_applicable(HTMLInputElement& element)
     if (!element.supports_a_picker())
         return;
 
-    // 5. If element's type attribute is in the File Upload state, then run these steps in parallel:
+    // 5. If element is an input element and element's type attribute is in the File Upload state, then run these steps in parallel:
     if (element.type_state() == HTMLInputElement::TypeAttributeState::FileUpload) {
         // NOTE: These steps cannot be fully implemented here, and must be done in the PageClient when the response comes back from the PageHost
+        //       See: ViewImplementation::on_request_file_picker, Page::did_request_file_picker(), Page::file_picker_closed()
 
         // 1. Optionally, wait until any prior execution of this algorithm has terminated.
-        // 2. Display a prompt to the user requesting that the user specify some files.
-        //    If the multiple attribute is not set on element, there must be no more than one file selected; otherwise, any number may be selected.
-        //    Files can be from the filesystem or created on the fly, e.g., a picture taken from a camera connected to the user's device.
-        // 3. Wait for the user to have made their selection.
-        // 4. If the user dismissed the prompt without changing their selection,
+        // FIXME: 2. Let dismissed be the result of WebDriver BiDi file dialog opened with element.
+        bool dismissed = false;
+        // 3. If dismissed is false:
+        if (!dismissed) {
+            // 1. Display a prompt to the user requesting that the user specify some files.
+            //    If the multiple attribute is not set on element, there must be no more than one file selected;
+            //    otherwise, any number may be selected.
+            //    Files can be from the filesystem or created on the fly, e.g., a picture taken from a camera connected
+            //    to the user's device.
+            // 2. Wait for the user to have made their selection.
+            auto accepted_file_types = element.parse_accept_attribute();
+            auto allow_multiple_files = element.has_attribute(HTML::AttributeNames::multiple) ? AllowMultipleFiles::Yes : AllowMultipleFiles::No;
+            auto weak_element = element.make_weak_ptr<HTMLInputElement>();
+
+            element.set_is_open(true);
+            element.document().browsing_context()->top_level_browsing_context()->page().did_request_file_picker(weak_element, accepted_file_types, allow_multiple_files);
+        }
+        // 4. If dismissed is true or if the user dismissed the prompt without changing their selection,
         //    then queue an element task on the user interaction task source given element to fire an event named cancel at element,
         //    with the bubbles attribute initialized to true.
+        else {
+            // FIXME: Handle the "dismissed is true" case here.
+        }
         // 5. Otherwise, update the file selection for element.
-
-        auto accepted_file_types = element.parse_accept_attribute();
-        auto allow_multiple_files = element.has_attribute(HTML::AttributeNames::multiple) ? AllowMultipleFiles::Yes : AllowMultipleFiles::No;
-        auto weak_element = element.make_weak_ptr<HTMLInputElement>();
-
-        element.set_is_open(true);
-        element.document().browsing_context()->top_level_browsing_context()->page().did_request_file_picker(weak_element, accepted_file_types, allow_multiple_files);
-        return;
     }
 
-    // 6. Otherwise, the user agent should show any relevant user interface for selecting a value for element,
-    //    in the way it normally would when the user interacts with the control. (If no such UI applies to element, then this step does nothing.)
-    //    If such a user interface is shown, it must respect the requirements stated in the relevant parts of the specification for how element
-    //    behaves given its type attribute state. (For example, various sections describe restrictions on the resulting value string.)
+    // 6. Otherwise, the user agent should show the relevant user interface for selecting a value for element, in the
+    //    way it normally would when the user interacts with the control.
+    //    When showing such a user interface, it must respect the requirements stated in the relevant parts of the
+    //    specification for how element behaves given its type attribute state. (For example, various sections describe
+    //    restrictions on the resulting value string.)
     //    This step can have side effects, such as closing other pickers that were previously shown by this algorithm.
-    //    (If this closes a file selection picker, then per the above that will lead to firing either input and change events, or a cancel event.)
-    if (element.type_state() == HTMLInputElement::TypeAttributeState::Color) {
-        auto weak_element = element.make_weak_ptr<HTMLInputElement>();
-        element.set_is_open(true);
-        element.document().browsing_context()->top_level_browsing_context()->page().did_request_color_picker(weak_element, Color::from_string(element.value()).value_or(Color(0, 0, 0)));
+    //    (If this closes a file selection picker, then per the above that will lead to firing either input and change
+    //    events, or a cancel event.)
+    else {
+        if (element.type_state() == HTMLInputElement::TypeAttributeState::Color) {
+            auto weak_element = element.make_weak_ptr<HTMLInputElement>();
+            element.set_is_open(true);
+            element.document().browsing_context()->top_level_browsing_context()->page().did_request_color_picker(weak_element, Color::from_string(element.value()).value_or(Color(0, 0, 0)));
+        }
     }
 }
 
@@ -1170,19 +1183,15 @@ void HTMLInputElement::create_range_input_shadow_tree()
     set_shadow_root(shadow_root);
 
     m_slider_runnable_track = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
-    m_slider_runnable_track->set_use_pseudo_element(CSS::Selector::PseudoElement::Type::SliderRunnableTrack);
+    m_slider_runnable_track->set_use_pseudo_element(CSS::Selector::PseudoElement::Type::Track);
     MUST(shadow_root->append_child(*m_slider_runnable_track));
 
     m_slider_progress_element = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
-    MUST(m_slider_progress_element->set_attribute(HTML::AttributeNames::style, R"~~~(
-        display: block;
-        position: absolute;
-        height: 100%;
-    )~~~"_string));
+    m_slider_progress_element->set_use_pseudo_element(CSS::Selector::PseudoElement::Type::Fill);
     MUST(m_slider_runnable_track->append_child(*m_slider_progress_element));
 
     m_slider_thumb = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
-    m_slider_thumb->set_use_pseudo_element(CSS::Selector::PseudoElement::Type::SliderThumb);
+    m_slider_thumb->set_use_pseudo_element(CSS::Selector::PseudoElement::Type::Thumb);
     MUST(m_slider_runnable_track->append_child(*m_slider_thumb));
 
     update_slider_shadow_tree_elements();
@@ -1265,24 +1274,6 @@ void HTMLInputElement::create_range_input_shadow_tree()
         0, "", &realm());
     auto mousedown_callback = realm().heap().allocate<WebIDL::CallbackType>(*mousedown_callback_function, realm());
     add_event_listener_without_options(UIEvents::EventNames::mousedown, DOM::IDLEventListener::create(realm(), mousedown_callback));
-}
-
-void HTMLInputElement::computed_properties_changed()
-{
-    auto appearance = computed_properties()->appearance();
-    if (appearance == CSS::Appearance::None)
-        return;
-
-    auto accent_color = MUST(String::from_utf8(CSS::string_from_keyword(CSS::Keyword::Accentcolor)));
-
-    auto const& accent_color_property = computed_properties()->property(CSS::PropertyID::AccentColor);
-    if (accent_color_property.has_color())
-        accent_color = accent_color_property.to_string(CSS::CSSStyleValue::SerializationMode::Normal);
-
-    if (m_slider_progress_element)
-        MUST(m_slider_progress_element->style_for_bindings()->set_property(CSS::PropertyID::BackgroundColor, accent_color));
-    if (m_slider_thumb)
-        MUST(m_slider_thumb->style_for_bindings()->set_property(CSS::PropertyID::BackgroundColor, accent_color));
 }
 
 void HTMLInputElement::user_interaction_did_change_input_value()
@@ -2295,6 +2286,29 @@ static String convert_number_to_time_string(double input)
     return MUST(String::formatted("{:02d}:{:02d}", JS::hour_from_time(input), JS::min_from_time(input)));
 }
 
+// https://html.spec.whatwg.org/multipage/input.html#local-date-and-time-state-(type=datetime-local):concept-input-value-number-string
+static String convert_number_to_local_date_and_time_string(double input)
+{
+    // The algorithm to convert a number to a string, given a number input, is as follows: Return a valid
+    // normalized local date and time string that represents the date and time that is input milliseconds
+    // after midnight on the morning of 1970-01-01 (the time represented by the value "1970-01-01T00:00:00.0").
+    auto year = JS::year_from_time(input);
+    auto month = JS::month_from_time(input) + 1; // Adjust for zero-based month
+    auto day = JS::date_from_time(input);
+    auto hour = JS::hour_from_time(input);
+    auto minutes = JS::min_from_time(input);
+    auto seconds = JS::sec_from_time(input);
+    auto milliseconds = JS::ms_from_time(input);
+
+    if (seconds > 0) {
+        if (milliseconds > 0)
+            return MUST(String::formatted("{:04d}-{:02d}-{:02d}T{:02d}:{:02d}:{:02d}.{:03d}", year, month, day, hour, minutes, seconds, milliseconds));
+        return MUST(String::formatted("{:04d}-{:02d}-{:02d}T{:02d}:{:02d}:{:02d}", year, month, day, hour, minutes, seconds));
+    }
+
+    return MUST(String::formatted("{:04d}-{:02d}-{:02d}T{:02d}:{:02d}", year, month, day, hour, minutes));
+}
+
 // https://html.spec.whatwg.org/multipage/input.html#concept-input-value-string-number
 String HTMLInputElement::convert_number_to_string(double input) const
 {
@@ -2317,6 +2331,9 @@ String HTMLInputElement::convert_number_to_string(double input) const
 
     if (type_state() == TypeAttributeState::Time)
         return convert_number_to_time_string(input);
+
+    if (type_state() == TypeAttributeState::LocalDateAndTime)
+        return convert_number_to_local_date_and_time_string(input);
 
     dbgln("HTMLInputElement::convert_number_to_string() not implemented for input type {}", type());
     return {};

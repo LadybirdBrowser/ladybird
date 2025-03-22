@@ -13,5 +13,5 @@ These should all fail:
 @supports (width: yellow) or (height: green): FAIL
 @supports (flogwizzle: purple): FAIL
 @supports selector(.....nope): FAIL
-@supports selector(::-webkit-input-placeholder): PASS
+@supports selector(::-webkit-input-placeholder): FAIL
 @supports selector(32) or selector(thing[foo??????bar]): FAIL

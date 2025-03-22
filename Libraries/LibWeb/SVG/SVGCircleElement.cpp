@@ -61,6 +61,11 @@ void SVGCircleElement::apply_presentational_hints(GC::Ref<CSS::CascadedPropertie
 Gfx::Path SVGCircleElement::get_path(CSSPixelSize viewport_size)
 {
     auto node = layout_node();
+    if (!node) {
+        dbgln("FIXME: Null layout node in SVGCircleElement::get_path");
+        return {};
+    }
+
     auto cx = float(node->computed_values().cx().to_px(*node, viewport_size.width()));
     auto cy = float(node->computed_values().cy().to_px(*node, viewport_size.height()));
     // Percentages refer to the normalized diagonal of the current SVG viewport

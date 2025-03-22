@@ -15,6 +15,7 @@ set +e
 
 for cmd in \
         Meta/check-debug-flags.sh \
+        Meta/check-html-doctype.py \
         Meta/check-idl-files.py \
         Meta/check-newlines-at-eof.py \
         Meta/check-png-sizes.sh \

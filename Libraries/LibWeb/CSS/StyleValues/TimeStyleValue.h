@@ -26,7 +26,12 @@ public:
     virtual double value() const override { return m_time.raw_value(); }
     virtual StringView unit() const override { return m_time.unit_name(); }
 
-    virtual String to_string(SerializationMode) const override { return m_time.to_string(); }
+    virtual String to_string(SerializationMode serialization_mode) const override
+    {
+        if (serialization_mode == SerializationMode::ResolvedValue)
+            return MUST(String::formatted("{}s", m_time.to_seconds()));
+        return m_time.to_string();
+    }
 
     bool equals(CSSStyleValue const& other) const override
     {

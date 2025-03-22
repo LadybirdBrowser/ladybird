@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 12 tests
 
-10 Pass
-2 Fail
+12 Pass
 Pass	empty media query list
 Pass	type - no features
 Pass	type - no features - negation
@@ -11,8 +10,8 @@ Pass	type - no features - character case normalization
 Pass	type - omission of all
 Pass	type - inclusion of negated all
 Pass	features - character case normalization
-Fail	features - preservation of overspecified features
-Fail	features - no lexicographical sorting
+Pass	features - preservation of overspecified features
+Pass	features - no lexicographical sorting
 Pass	media query list
 Pass	one rule
 Pass	many rules

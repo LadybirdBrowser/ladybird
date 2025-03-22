@@ -93,6 +93,8 @@ struct BorderRadiiData {
 
     inline CornerRadii as_corners(PaintContext const& context) const
     {
+        if (!has_any_radius())
+            return {};
         return CornerRadii {
             top_left.as_corner(context),
             top_right.as_corner(context),

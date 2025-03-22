@@ -6,7 +6,6 @@
 
 #include <LibGfx/Color.h>
 #include <LibWeb/CSS/Parser/Parser.h>
-#include <LibWeb/CSS/ResolvedCSSStyleDeclaration.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/CSSColorValue.h>
 #include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
@@ -2670,7 +2669,7 @@ void justify_the_selection(DOM::Document& document, JustifyAlignment alignment)
             element->remove_attribute_ns(Namespace::HTML, HTML::AttributeNames::align);
 
         // 2. Unset the CSS property "text-align" on element, if it's set by a style attribute.
-        auto* inline_style = element->style_for_bindings();
+        auto inline_style = element->style_for_bindings();
         MUST(inline_style->remove_property(CSS::PropertyID::TextAlign));
 
         // 3. If element is a div or span or center with no attributes, remove it, preserving its descendants.
@@ -4757,7 +4756,7 @@ Optional<NonnullRefPtr<CSS::CSSStyleValue const>> resolved_value(GC::Ref<DOM::No
         return {};
 
     // Retrieve resolved style value
-    auto resolved_css_style_declaration = CSS::ResolvedCSSStyleDeclaration::create(static_cast<DOM::Element&>(*element));
+    auto resolved_css_style_declaration = CSS::CSSStyleProperties::create_resolved_style({ static_cast<DOM::Element&>(*element) });
     auto optional_style_property = resolved_css_style_declaration->property(property_id);
     if (!optional_style_property.has_value())
         return {};

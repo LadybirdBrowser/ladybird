@@ -758,25 +758,37 @@ Optional<CSSPixels> FlexFormattingContext::transferred_size_suggestion(FlexItem 
 CSSPixels FlexFormattingContext::content_based_minimum_size(FlexItem const& item) const
 {
     auto unclamped_size = [&] {
-        // The content-based minimum size of a flex item is the smaller of its specified size suggestion
-        // and its content size suggestion if its specified size suggestion exists;
-        if (auto specified_size_suggestion = this->specified_size_suggestion(item); specified_size_suggestion.has_value()) {
-            return min(specified_size_suggestion.value(), content_size_suggestion(item));
-        }
-
-        // otherwise, the smaller of its transferred size suggestion and its content size suggestion
-        // if the element is replaced and its transferred size suggestion exists;
+        // The content-based minimum size of a flex item differs depending on whether the flex item is replaced or not:
+        // -> For replaced elements
         if (item.box->is_replaced_box()) {
+            // Use the smaller of the content size suggestion and the transferred size suggestion (if one exists),
+            // capped by the specified size suggestion (if one exists).
+            auto size = content_size_suggestion(item);
             if (auto transferred_size_suggestion = this->transferred_size_suggestion(item); transferred_size_suggestion.has_value()) {
-                return min(transferred_size_suggestion.value(), content_size_suggestion(item));
+                size = min(size, transferred_size_suggestion.value());
             }
+            if (auto specified_size_suggestion = this->specified_size_suggestion(item); specified_size_suggestion.has_value()) {
+                size = min(size, specified_size_suggestion.value());
+            }
+            return size;
         }
 
-        // otherwise its content size suggestion.
-        return content_size_suggestion(item);
+        // -> For non-replaced elements
+        {
+            // Use the larger of the content size suggestion and the transferred size suggestion (if one exists),
+            // capped by the specified size suggestion (if one exists).
+            auto size = content_size_suggestion(item);
+            if (auto transferred_size_suggestion = this->transferred_size_suggestion(item); transferred_size_suggestion.has_value()) {
+                size = max(size, transferred_size_suggestion.value());
+            }
+            if (auto specified_size_suggestion = this->specified_size_suggestion(item); specified_size_suggestion.has_value()) {
+                size = min(size, specified_size_suggestion.value());
+            }
+            return size;
+        }
     }();
 
-    // In all cases, the size is clamped by the maximum main size if it’s definite.
+    // In either case, the size is clamped by the maximum main size if it’s definite.
     if (has_main_max_size(item.box)) {
         return min(unclamped_size, specified_main_max_size(item.box));
     }
@@ -2241,14 +2253,11 @@ StaticPositionRect FlexFormattingContext::calculate_static_position_rect(Box con
         break;
     }
 
-    auto absolute_position_of_flex_container = absolute_content_rect(flex_container()).location();
-    auto absolute_position_of_abspos_containing_block = absolute_content_rect(*box.containing_block()).location();
-
     auto flex_container_width = is_row_layout() ? inner_main_size(m_flex_container_state) : inner_cross_size(m_flex_container_state);
     auto flex_container_height = is_row_layout() ? inner_cross_size(m_flex_container_state) : inner_main_size(m_flex_container_state);
 
     StaticPositionRect static_position_rect;
-    static_position_rect.rect = { absolute_position_of_flex_container - absolute_position_of_abspos_containing_block, { flex_container_width, flex_container_height } };
+    static_position_rect.rect = { { 0, 0 }, { flex_container_width, flex_container_height } };
     static_position_rect.horizontal_alignment = is_row_layout() ? main_axis_alignment : cross_axis_alignment;
     static_position_rect.vertical_alignment = is_row_layout() ? cross_axis_alignment : main_axis_alignment;
     return static_position_rect;

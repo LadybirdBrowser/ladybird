@@ -1,0 +1,13 @@
+diff --git a/include/freetype/config/ftoption.h b/include/freetype/config/ftoption.h
+index 1976b33af959..b3425e55feec 100644
+--- a/include/freetype/config/ftoption.h
++++ b/include/freetype/config/ftoption.h
+@@ -123,7 +123,7 @@ FT_BEGIN_HEADER
+    * When this macro is not defined, FreeType offers alternative LCD
+    * rendering technology that produces excellent output.
+    */
+-/* #define FT_CONFIG_OPTION_SUBPIXEL_RENDERING */
++#define FT_CONFIG_OPTION_SUBPIXEL_RENDERING
+
+
+   /**************************************************************************

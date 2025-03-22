@@ -142,7 +142,6 @@ class NumberFormat {
 public:
     static NonnullOwnPtr<NumberFormat> create(
         StringView locale,
-        StringView numbering_system,
         DisplayOptions const&,
         RoundingOptions const&);
 

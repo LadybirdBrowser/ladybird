@@ -1,72 +1,113 @@
 /*
- * Copyright (c) 2021-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #pragma once
 
+#include <AK/FlyString.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/RefCounted.h>
 #include <AK/String.h>
-#include <AK/Variant.h>
-#include <AK/Vector.h>
-#include <LibWeb/CSS/GeneralEnclosed.h>
+#include <LibWeb/CSS/BooleanExpression.h>
 
 namespace Web::CSS {
 
 // https://www.w3.org/TR/css-conditional-3/#at-supports
 class Supports final : public RefCounted<Supports> {
-    friend class Parser::Parser;
-
 public:
-    struct Declaration {
-        String declaration;
-        [[nodiscard]] bool evaluate(JS::Realm&) const;
-        String to_string() const;
-        void dump(StringBuilder&, int indent_levels = 0) const;
+    class Declaration final : public BooleanExpression {
+    public:
+        static NonnullOwnPtr<Declaration> create(String declaration, bool matches)
+        {
+            return adopt_own(*new Declaration(move(declaration), matches));
+        }
+        virtual ~Declaration() override = default;
+
+        virtual MatchResult evaluate(HTML::Window const*) const override;
+        virtual String to_string() const override;
+        virtual void dump(StringBuilder&, int indent_levels = 0) const override;
+
+    private:
+        Declaration(String declaration, bool matches)
+            : m_declaration(move(declaration))
+            , m_matches(matches)
+        {
+        }
+        String m_declaration;
+        bool m_matches;
     };
 
-    struct Selector {
-        String selector;
-        [[nodiscard]] bool evaluate(JS::Realm&) const;
-        String to_string() const;
-        void dump(StringBuilder&, int indent_levels = 0) const;
+    class Selector final : public BooleanExpression {
+    public:
+        static NonnullOwnPtr<Selector> create(String selector, bool matches)
+        {
+            return adopt_own(*new Selector(move(selector), matches));
+        }
+        virtual ~Selector() override = default;
+
+        virtual MatchResult evaluate(HTML::Window const*) const override;
+        virtual String to_string() const override;
+        virtual void dump(StringBuilder&, int indent_levels = 0) const override;
+
+    private:
+        Selector(String selector, bool matches)
+            : m_selector(move(selector))
+            , m_matches(matches)
+        {
+        }
+        String m_selector;
+        bool m_matches;
     };
 
-    struct Feature {
-        Variant<Declaration, Selector> value;
-        [[nodiscard]] bool evaluate(JS::Realm&) const;
-        String to_string() const;
-        void dump(StringBuilder&, int indent_levels = 0) const;
+    class FontTech final : public BooleanExpression {
+    public:
+        static NonnullOwnPtr<FontTech> create(FlyString tech, bool matches)
+        {
+            return adopt_own(*new FontTech(move(tech), matches));
+        }
+        virtual ~FontTech() override = default;
+
+        virtual MatchResult evaluate(HTML::Window const*) const override;
+        virtual String to_string() const override;
+        virtual void dump(StringBuilder&, int indent_levels = 0) const override;
+
+    private:
+        FontTech(FlyString tech, bool matches)
+            : m_tech(move(tech))
+            , m_matches(matches)
+        {
+        }
+        FlyString m_tech;
+        bool m_matches;
     };
 
-    struct Condition;
-    struct InParens {
-        Variant<NonnullOwnPtr<Condition>, Feature, GeneralEnclosed> value;
+    class FontFormat final : public BooleanExpression {
+    public:
+        static NonnullOwnPtr<FontFormat> create(FlyString format, bool matches)
+        {
+            return adopt_own(*new FontFormat(move(format), matches));
+        }
+        virtual ~FontFormat() override = default;
 
-        [[nodiscard]] bool evaluate(JS::Realm&) const;
-        String to_string() const;
-        void dump(StringBuilder&, int indent_levels = 0) const;
+        virtual MatchResult evaluate(HTML::Window const*) const override;
+        virtual String to_string() const override;
+        virtual void dump(StringBuilder&, int indent_levels = 0) const override;
+
+    private:
+        FontFormat(FlyString format, bool matches)
+            : m_format(move(format))
+            , m_matches(matches)
+        {
+        }
+        FlyString m_format;
+        bool m_matches;
     };
 
-    struct Condition {
-        enum class Type {
-            Not,
-            And,
-            Or,
-        };
-        Type type;
-        Vector<InParens> children;
-
-        [[nodiscard]] bool evaluate(JS::Realm&) const;
-        String to_string() const;
-        void dump(StringBuilder&, int indent_levels = 0) const;
-    };
-
-    static NonnullRefPtr<Supports> create(JS::Realm& realm, NonnullOwnPtr<Condition>&& condition)
+    static NonnullRefPtr<Supports> create(NonnullOwnPtr<BooleanExpression>&& condition)
     {
-        return adopt_ref(*new Supports(realm, move(condition)));
+        return adopt_ref(*new Supports(move(condition)));
     }
 
     bool matches() const { return m_matches; }
@@ -75,18 +116,10 @@ public:
     void dump(StringBuilder&, int indent_levels = 0) const;
 
 private:
-    Supports(JS::Realm&, NonnullOwnPtr<Condition>&&);
+    Supports(NonnullOwnPtr<BooleanExpression>&&);
 
-    NonnullOwnPtr<Condition> m_condition;
+    NonnullOwnPtr<BooleanExpression> m_condition;
     bool m_matches { false };
 };
 
 }
-
-template<>
-struct AK::Formatter<Web::CSS::Supports::InParens> : AK::Formatter<StringView> {
-    ErrorOr<void> format(FormatBuilder& builder, Web::CSS::Supports::InParens const& in_parens)
-    {
-        return Formatter<StringView>::format(builder, in_parens.to_string());
-    }
-};

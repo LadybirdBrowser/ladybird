@@ -95,6 +95,26 @@ describe("correct behavior", () => {
         expect(en2.resolvedOptions().maximumFractionDigits).toBe(2);
     });
 
+    test("currency digits are not used for non-standard notation", () => {
+        const en1 = new Intl.NumberFormat("en", {
+            style: "currency",
+            currency: "USD",
+            notation: "engineering",
+        });
+        expect(en1.resolvedOptions().style).toBe("currency");
+        expect(en1.resolvedOptions().minimumFractionDigits).toBe(0);
+        expect(en1.resolvedOptions().maximumFractionDigits).toBe(3);
+
+        const en2 = new Intl.NumberFormat("en", {
+            style: "currency",
+            currency: "USD",
+            notation: "compact",
+        });
+        expect(en2.resolvedOptions().style).toBe("currency");
+        expect(en2.resolvedOptions().minimumFractionDigits).toBe(0);
+        expect(en2.resolvedOptions().maximumFractionDigits).toBe(0);
+    });
+
     test("other style options default to min fraction digits of 0 and max fraction digits of 0 or 3", () => {
         const en1 = new Intl.NumberFormat("en", { style: "decimal" });
         expect(en1.resolvedOptions().style).toBe("decimal");

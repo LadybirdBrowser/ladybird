@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2021, Max Wipfli <mail@maxwipfli.ch>
- * Copyright (c) 2023-2024, Shannon Booth <shannon@serenityos.org>
+ * Copyright (c) 2023-2025, Shannon Booth <shannon@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -1558,23 +1558,32 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
                 buffer.clear();
                 state = State::Fragment;
             }
-            // 3. Otherwise:
-            else {
-                // 1. If c is not the EOF code point, not a URL code point, and not U+0025 (%), invalid-URL-unit validation error.
-                if (code_point != end_of_file && !is_url_code_point(code_point) && code_point != '%')
+            // 3. Otherwise, if c is U+0020 SPACE:
+            else if (code_point == ' ') {
+                // 1. If remaining starts with U+003F (?) or U+003F (#), then append "%20" to url’s path.
+                if (auto remaining = get_remaining(); remaining.starts_with('?') || remaining.starts_with('#')) {
+                    buffer.append("%20"sv);
+                }
+                // 2. Otherwise, append U+0020 SPACE to url’s path.
+                else {
+                    buffer.append(' ');
+                }
+            }
+            // 4. Otherwise, if c is not the EOF code point:
+            else if (code_point != end_of_file) {
+                // 1. If c is not a URL code point and not U+0025 (%), invalid-URL-unit validation error.
+                if (!is_url_code_point(code_point) && code_point != '%')
                     report_validation_error();
 
-                // 2. If c is U+0025 (%) and remaining does not start with two ASCII hex digits, validation error.
+                // 2. If c is U+0025 (%) and remaining does not start with two ASCII hex digits, invalid-URL-unit validation error.
                 if (code_point == '%' && !remaining_starts_with_two_ascii_hex_digits())
                     report_validation_error();
 
-                // 3. If c is not the EOF code point, UTF-8 percent-encode c using the C0 control percent-encode set and append the result to url’s path.
-                if (code_point != end_of_file) {
-                    append_percent_encoded_if_necessary(buffer, code_point, PercentEncodeSet::C0Control);
-                } else {
-                    url->m_data->paths[0] = buffer.to_string_without_validation();
-                    buffer.clear();
-                }
+                // 3. UTF-8 percent-encode c using the C0 control percent-encode set and append the result to url’s path.
+                append_percent_encoded_if_necessary(buffer, code_point, PercentEncodeSet::C0Control);
+            } else {
+                url->m_data->paths[0] = buffer.to_string_without_validation();
+                buffer.clear();
             }
             break;
         // -> query state, https://url.spec.whatwg.org/#query-state

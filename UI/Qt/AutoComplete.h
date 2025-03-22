@@ -79,9 +79,9 @@ private:
 
     ErrorOr<void> got_network_response(QNetworkReply* reply);
 
-    ErrorOr<Vector<String>> parse_google_autocomplete(Vector<JsonValue> const&);
-    ErrorOr<Vector<String>> parse_duckduckgo_autocomplete(Vector<JsonValue> const&);
-    ErrorOr<Vector<String>> parse_yahoo_autocomplete(JsonObject const&);
+    ErrorOr<Vector<String>> parse_google_autocomplete(JsonValue const&);
+    ErrorOr<Vector<String>> parse_duckduckgo_autocomplete(JsonValue const&);
+    ErrorOr<Vector<String>> parse_yahoo_autocomplete(JsonValue const&);
 
     QNetworkAccessManager* m_manager;
     AutoCompleteModel* m_auto_complete_model;

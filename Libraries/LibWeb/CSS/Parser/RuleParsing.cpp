@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2018-2022, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2020-2021, the SerenityOS developers.
- * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2021, Tobias Christiansen <tobyase@serenityos.org>
  * Copyright (c) 2022, MacDue <macdue@dueutil.tech>
  * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
@@ -22,6 +22,7 @@
 #include <LibWeb/CSS/CSSNamespaceRule.h>
 #include <LibWeb/CSS/CSSNestedDeclarations.h>
 #include <LibWeb/CSS/CSSPropertyRule.h>
+#include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/CSSSupportsRule.h>
 #include <LibWeb/CSS/Parser/Parser.h>
@@ -102,11 +103,7 @@ GC::Ptr<CSSStyleRule> Parser::convert_to_style_rule(QualifiedRule const& qualifi
     if (nested == Nested::Yes)
         selectors = adapt_nested_relative_selector_list(selectors);
 
-    auto* declaration = convert_to_style_declaration(qualified_rule.declarations);
-    if (!declaration) {
-        dbgln_if(CSS_PARSER_DEBUG, "CSSParser: style rule declaration invalid; discarding.");
-        return {};
-    }
+    auto declaration = convert_to_style_declaration(qualified_rule.declarations);
 
     GC::RootVector<CSSRule*> child_rules { realm().heap() };
     for (auto& child : qualified_rule.child_rules) {
@@ -124,12 +121,7 @@ GC::Ptr<CSSStyleRule> Parser::convert_to_style_rule(QualifiedRule const& qualifi
                 }
             },
             [&](Vector<Declaration> const& declarations) {
-                auto* declaration = convert_to_style_declaration(declarations);
-                if (!declaration) {
-                    dbgln_if(CSS_PARSER_DEBUG, "CSSParser: nested declarations invalid; discarding.");
-                    return;
-                }
-                child_rules.append(CSSNestedDeclarations::create(realm(), *declaration));
+                child_rules.append(CSSNestedDeclarations::create(realm(), *convert_to_style_declaration(declarations)));
             });
     }
     auto nested_rules = CSSRuleList::create(realm(), move(child_rules));
@@ -169,16 +161,35 @@ GC::Ptr<CSSImportRule> Parser::convert_to_import_rule(AtRule const& rule)
     }
 
     tokens.discard_whitespace();
-    // TODO: Support layers and import-conditions
+    // FIXME: Implement layer support.
+    RefPtr<Supports> supports {};
+    if (tokens.next_token().is_function("supports"sv)) {
+        auto component_value = tokens.consume_a_token();
+        TokenStream supports_tokens { component_value.function().value };
+        if (supports_tokens.next_token().is_block()) {
+            supports = parse_a_supports(supports_tokens);
+        } else {
+            m_rule_context.append(ContextType::SupportsCondition);
+            auto declaration = consume_a_declaration(supports_tokens);
+            m_rule_context.take_last();
+            if (declaration.has_value()) {
+                auto supports_declaration = Supports::Declaration::create(declaration->to_string(), convert_to_style_property(*declaration).has_value());
+                supports = Supports::create(supports_declaration.release_nonnull<BooleanExpression>());
+            }
+        }
+    }
+
+    // FIXME: Implement media query support.
+
     if (tokens.has_next_token()) {
         if constexpr (CSS_PARSER_DEBUG) {
-            dbgln("Failed to parse @import rule: Trailing tokens after URL are not yet supported.");
+            dbgln("Failed to parse @import rule:");
             tokens.dump_all_tokens();
         }
         return {};
     }
 
-    return CSSImportRule::create(url.value(), const_cast<DOM::Document&>(*document()));
+    return CSSImportRule::create(url.value(), const_cast<DOM::Document&>(*document()), supports);
 }
 
 Optional<FlyString> Parser::parse_layer_name(TokenStream<ComponentValue>& tokens, AllowBlankLayerName allow_blank_layer_name)
@@ -255,12 +266,7 @@ GC::Ptr<CSSRule> Parser::convert_to_layer_rule(AtRule const& rule, Nested nested
                         child_rules.append(child_rule);
                 },
                 [&](Vector<Declaration> const& declarations) {
-                    auto* declaration = convert_to_style_declaration(declarations);
-                    if (!declaration) {
-                        dbgln_if(CSS_PARSER_DEBUG, "CSSParser: nested declarations invalid; discarding.");
-                        return;
-                    }
-                    child_rules.append(CSSNestedDeclarations::create(realm(), *declaration));
+                    child_rules.append(CSSNestedDeclarations::create(realm(), *convert_to_style_declaration(declarations)));
                 });
         }
         auto rule_list = CSSRuleList::create(realm(), child_rules);
@@ -390,7 +396,7 @@ GC::Ptr<CSSKeyframesRule> Parser::convert_to_keyframes_rule(AtRule const& rule)
         qualified_rule.for_each_as_declaration_list([&](auto const& declaration) {
             extract_property(declaration, properties);
         });
-        auto style = PropertyOwningCSSStyleDeclaration::create(realm(), move(properties.properties), move(properties.custom_properties));
+        auto style = CSSStyleProperties::create(realm(), move(properties.properties), move(properties.custom_properties));
         for (auto& selector : selectors) {
             auto keyframe_rule = CSSKeyframeRule::create(realm(), selector, *style);
             keyframes.append(keyframe_rule);
@@ -477,12 +483,7 @@ GC::Ptr<CSSSupportsRule> Parser::convert_to_supports_rule(AtRule const& rule, Ne
                     child_rules.append(child_rule);
             },
             [&](Vector<Declaration> const& declarations) {
-                auto* declaration = convert_to_style_declaration(declarations);
-                if (!declaration) {
-                    dbgln_if(CSS_PARSER_DEBUG, "CSSParser: nested declarations invalid; discarding.");
-                    return;
-                }
-                child_rules.append(CSSNestedDeclarations::create(realm(), *declaration));
+                child_rules.append(CSSNestedDeclarations::create(realm(), *convert_to_style_declaration(declarations)));
             });
     }
 

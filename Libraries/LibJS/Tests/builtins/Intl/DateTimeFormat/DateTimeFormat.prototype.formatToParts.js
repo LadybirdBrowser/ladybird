@@ -350,28 +350,28 @@ describe("Temporal objects", () => {
     test("Temporal.PlainDate", () => {
         const plainDate = new Temporal.PlainDate(1989, 1, 23);
         expect(formatter.formatToParts(plainDate)).toEqual([
-            { type: "month", value: "1" },
-            { type: "literal", value: "/" },
-            { type: "day", value: "23" },
-            { type: "literal", value: "/" },
             { type: "year", value: "1989" },
+            { type: "literal", value: "-" },
+            { type: "month", value: "01" },
+            { type: "literal", value: "-" },
+            { type: "day", value: "23" },
         ]);
     });
 
     test("Temporal.PlainYearMonth", () => {
         const plainYearMonth = new Temporal.PlainYearMonth(1989, 1);
         expect(formatter.formatToParts(plainYearMonth)).toEqual([
-            { type: "month", value: "1" },
-            { type: "literal", value: "/" },
             { type: "year", value: "1989" },
+            { type: "literal", value: "-" },
+            { type: "month", value: "01" },
         ]);
     });
 
     test("Temporal.PlainMonthDay", () => {
         const plainMonthDay = new Temporal.PlainMonthDay(1, 23);
         expect(formatter.formatToParts(plainMonthDay)).toEqual([
-            { type: "month", value: "1" },
-            { type: "literal", value: "/" },
+            { type: "month", value: "01" },
+            { type: "literal", value: "-" },
             { type: "day", value: "23" },
         ]);
     });
@@ -392,11 +392,11 @@ describe("Temporal objects", () => {
     test("Temporal.Instant", () => {
         const instant = new Temporal.Instant(1732740069000000000n);
         expect(formatter.formatToParts(instant)).toEqual([
-            { type: "month", value: "11" },
-            { type: "literal", value: "/" },
-            { type: "day", value: "27" },
-            { type: "literal", value: "/" },
             { type: "year", value: "2024" },
+            { type: "literal", value: "-" },
+            { type: "month", value: "11" },
+            { type: "literal", value: "-" },
+            { type: "day", value: "27" },
             { type: "literal", value: ", " },
             { type: "hour", value: "8" },
             { type: "literal", value: ":" },

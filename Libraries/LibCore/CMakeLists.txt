@@ -13,10 +13,13 @@ set(SOURCES
 
 if (WIN32)
     list(APPEND SOURCES
+        ProcessWindows.cpp
         SocketpairWindows.cpp
         SystemWindows.cpp)
 else()
-    list(APPEND SOURCES System.cpp)
+    list(APPEND SOURCES
+        Process.cpp
+        System.cpp)
 endif()
 
 serenity_lib(LibCoreMinimal coreminimal)
@@ -52,14 +55,12 @@ set(SOURCES
 if (WIN32)
     # FIXME: Support UDPServer and TCPServer on Windows
     list(APPEND SOURCES
-        ProcessWindows.cpp
         SocketWindows.cpp
         AnonymousBufferWindows.cpp
         EventLoopImplementationWindows.cpp)
 else()
     list(APPEND SOURCES
         Command.cpp
-        Process.cpp
         Socket.cpp
         AnonymousBuffer.cpp
         EventLoopImplementationUnix.cpp
@@ -122,12 +123,20 @@ if (ENABLE_SWIFT)
     else()
         list(APPEND SWIFT_EXCLUDE_HEADERS "EventLoopImplementationWindows.h")
     endif()
+    if (NOT APPLE)
+        list(APPEND SWIFT_EXCLUDE_HEADERS
+            IOSurface.h
+            MachPort.h
+            MachMessageTypes.h
+            ProcessStatisticsMach.h
+        )
+    endif()
 
     generate_clang_module_map(LibCore EXCLUDE_FILES ${SWIFT_EXCLUDE_HEADERS})
     target_sources(LibCore PRIVATE
         EventSwift.mm
         EventLoopExecutor.swift)
-    set_source_files_properties(EventSwift.mm PRIVATE PROPERTIES COMPILE_FLAGS -fobjc-arc)
+    set_source_files_properties(EventSwift.mm PRIVATE PROPERTIES COMPILE_FLAGS -fblocks)
     target_link_libraries(LibCore PRIVATE AK)
     add_swift_target_properties(LibCore LAGOM_LIBRARIES AK)
 endif()

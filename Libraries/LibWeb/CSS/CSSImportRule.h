@@ -21,7 +21,7 @@ class CSSImportRule final
     GC_DECLARE_ALLOCATOR(CSSImportRule);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSImportRule> create(URL::URL, DOM::Document&);
+    [[nodiscard]] static GC::Ref<CSSImportRule> create(URL::URL, DOM::Document&, RefPtr<Supports>);
 
     virtual ~CSSImportRule() = default;
 
@@ -33,8 +33,10 @@ public:
     CSSStyleSheet const* loaded_style_sheet() const { return m_style_sheet; }
     CSSStyleSheet* style_sheet_for_bindings() { return m_style_sheet; }
 
+    Optional<String> supports_text() const;
+
 private:
-    CSSImportRule(URL::URL, DOM::Document&);
+    CSSImportRule(URL::URL, DOM::Document&, RefPtr<Supports>);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
@@ -48,6 +50,7 @@ private:
 
     URL::URL m_url;
     GC::Ptr<DOM::Document> m_document;
+    RefPtr<Supports> m_supports;
     GC::Ptr<CSSStyleSheet> m_style_sheet;
     Optional<DOM::DocumentLoadEventDelayer> m_document_load_event_delayer;
 };

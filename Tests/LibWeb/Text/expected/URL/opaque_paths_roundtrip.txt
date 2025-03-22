@@ -1,0 +1,4 @@
+pathname => 'foobar                %20'
+pathname => 'foobar                %20'
+pathname => 'baz%20'
+pathname => 'baz%20'

@@ -23,6 +23,7 @@
 #include <LibWeb/HTML/HTMLHtmlElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
+#include <LibWeb/HTML/HTMLMeterElement.h>
 #include <LibWeb/HTML/HTMLProgressElement.h>
 #include <LibWeb/HTML/HTMLSelectElement.h>
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
@@ -423,6 +424,13 @@ static inline bool matches_host_pseudo_class(GC::Ref<DOM::Element const> element
     return true;
 }
 
+static bool matches_optimal_value_pseudo_class(DOM::Element const& element, HTML::HTMLMeterElement::ValueState desired_state)
+{
+    if (auto* meter = as_if<HTML::HTMLMeterElement>(element))
+        return meter->value_state() == desired_state;
+    return false;
+}
+
 static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoClassSelector const& pseudo_class, DOM::Element const& element, GC::Ptr<DOM::Element const> shadow_host, MatchContext& context, GC::Ptr<DOM::ParentNode const> scope, SelectorKind selector_kind)
 {
     switch (pseudo_class.type) {
@@ -502,6 +510,20 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
         return element.matches_checked_pseudo_class();
     case CSS::PseudoClass::Indeterminate:
         return matches_indeterminate_pseudo_class(element);
+    case CSS::PseudoClass::HighValue:
+        if (auto* meter = as_if<HTML::HTMLMeterElement>(element))
+            return meter->value() > meter->high();
+        return false;
+    case CSS::PseudoClass::LowValue:
+        if (auto* meter = as_if<HTML::HTMLMeterElement>(element))
+            return meter->value() < meter->low();
+        return false;
+    case CSS::PseudoClass::OptimalValue:
+        return matches_optimal_value_pseudo_class(element, HTML::HTMLMeterElement::ValueState::Optimal);
+    case CSS::PseudoClass::SuboptimalValue:
+        return matches_optimal_value_pseudo_class(element, HTML::HTMLMeterElement::ValueState::Suboptimal);
+    case CSS::PseudoClass::EvenLessGoodValue:
+        return matches_optimal_value_pseudo_class(element, HTML::HTMLMeterElement::ValueState::EvenLessGood);
     case CSS::PseudoClass::Defined:
         return element.is_defined();
     case CSS::PseudoClass::Has:

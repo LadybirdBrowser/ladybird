@@ -265,6 +265,14 @@
 #    define LSAN_UNREGISTER_ROOT_REGION(base, size)
 #endif
 
+#if __has_feature(blocks)
+#    define AK_HAS_BLOCKS
+#endif
+
+#if __has_feature(objc_arc)
+#    define AK_HAS_OBJC_ARC
+#endif
+
 #ifndef AK_OS_SERENITY
 #    ifdef AK_OS_WINDOWS
 // FIXME: No idea where to get this, but it's 4096 anyway :^)

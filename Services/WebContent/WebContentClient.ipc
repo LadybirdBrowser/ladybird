@@ -17,6 +17,7 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWebView/Attribute.h>
 #include <LibWebView/ConsoleOutput.h>
+#include <LibWebView/DOMNodeProperties.h>
 #include <LibWebView/Mutation.h>
 #include <LibWebView/PageInfo.h>
 #include <LibWebView/ProcessHandle.h>
@@ -52,7 +53,7 @@ endpoint WebContentClient
     did_get_source(u64 page_id, URL::URL url, URL::URL base_url, String source) =|
 
     did_inspect_dom_tree(u64 page_id, String dom_tree) =|
-    did_inspect_dom_node(u64 page_id, bool has_style, String computed_style,  String resolved_style,  String custom_properties, String node_box_sizing, String aria_properties_state, String fonts) =|
+    did_inspect_dom_node(u64 page_id, WebView::DOMNodeProperties properties) =|
     did_inspect_accessibility_tree(u64 page_id, String accessibility_tree) =|
     did_get_hovered_node_id(u64 page_id, Web::UniqueNodeID node_id) =|
     did_finish_editing_dom_node(u64 page_id, Optional<Web::UniqueNodeID> node_id) =|
@@ -100,7 +101,7 @@ endpoint WebContentClient
     did_get_styled_js_console_messages(u64 page_id, i32 start_index, Vector<String> message_types, Vector<String> messages) =|
     did_get_unstyled_js_console_messages(u64 page_id, i32 start_index, Vector<WebView::ConsoleOutput> console_output) =|
 
-    did_finish_text_test(u64 page_id, String text) =|
+    did_finish_test(u64 page_id, String text) =|
     did_set_test_timeout(u64 page_id, double milliseconds) =|
 
     did_set_browser_zoom(u64 page_id, double factor) =|
@@ -108,4 +109,6 @@ endpoint WebContentClient
     did_find_in_page(u64 page_id, size_t current_match_index, Optional<size_t> total_match_count) =|
 
     request_worker_agent(u64 page_id) => (IPC::File socket) // FIXME: Add required attributes to select a SharedWorker Agent
+
+    update_process_statistics(u64 page_id) =|
 }

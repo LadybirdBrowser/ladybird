@@ -29,7 +29,7 @@ Angle Angle::percentage_of(Percentage const& percentage) const
 
 String Angle::to_string() const
 {
-    return MUST(String::formatted("{}deg", to_degrees()));
+    return MUST(String::formatted("{}{}", raw_value(), unit_name()));
 }
 
 double Angle::to_degrees() const

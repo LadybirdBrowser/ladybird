@@ -386,9 +386,9 @@ void PageClient::page_did_finish_loading(URL::URL const& url)
     client().async_did_finish_loading(m_id, url);
 }
 
-void PageClient::page_did_finish_text_test(String const& text)
+void PageClient::page_did_finish_test(String const& text)
 {
-    client().async_did_finish_text_test(m_id, text);
+    client().async_did_finish_test(m_id, text);
 }
 
 void PageClient::page_did_set_test_timeout(double milliseconds)
@@ -697,6 +697,11 @@ void PageClient::page_did_mutate_dom(FlyString const& type, Web::DOM::Node const
     auto serialized_target = MUST(builder.to_string());
 
     client().async_did_mutate_dom(m_id, { type.to_string(), target.unique_id(), move(serialized_target), mutation.release_value() });
+}
+
+void PageClient::update_process_statistics()
+{
+    client().async_update_process_statistics(m_id);
 }
 
 ErrorOr<void> PageClient::connect_to_webdriver(ByteString const& webdriver_ipc_path)

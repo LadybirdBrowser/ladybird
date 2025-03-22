@@ -38,11 +38,15 @@ set(SOURCES
     Compression/DecompressionStream.cpp
     ContentSecurityPolicy/Directives/Directive.cpp
     ContentSecurityPolicy/Directives/DirectiveFactory.cpp
+    ContentSecurityPolicy/Directives/DirectiveOperations.cpp
     ContentSecurityPolicy/Directives/Names.cpp
     ContentSecurityPolicy/Directives/SerializedDirective.cpp
+    ContentSecurityPolicy/BlockingAlgorithms.cpp
     ContentSecurityPolicy/Policy.cpp
     ContentSecurityPolicy/PolicyList.cpp
+    ContentSecurityPolicy/SecurityPolicyViolationEvent.cpp
     ContentSecurityPolicy/SerializedPolicy.cpp
+    ContentSecurityPolicy/Violation.cpp
     CredentialManagement/Credential.cpp
     CredentialManagement/CredentialsContainer.cpp
     CredentialManagement/FederatedCredential.cpp
@@ -55,6 +59,7 @@ set(SOURCES
     Crypto/SubtleCrypto.cpp
     CSS/Angle.cpp
     CSS/AnimationEvent.cpp
+    CSS/BooleanExpression.cpp
     CSS/CalculatedOr.cpp
     CSS/Clip.cpp
     CSS/CountersSet.cpp
@@ -76,6 +81,7 @@ set(SOURCES
     CSS/CSSRule.cpp
     CSS/CSSRuleList.cpp
     CSS/CSSStyleDeclaration.cpp
+    CSS/CSSStyleProperties.cpp
     CSS/CSSStyleRule.cpp
     CSS/CSSStyleSheet.cpp
     CSS/CSSStyleValue.cpp
@@ -119,7 +125,6 @@ set(SOURCES
     CSS/PreferredMotion.cpp
     CSS/Ratio.cpp
     CSS/Resolution.cpp
-    CSS/ResolvedCSSStyleDeclaration.cpp
     CSS/Screen.cpp
     CSS/ScreenOrientation.cpp
     CSS/Selector.cpp
@@ -557,6 +562,8 @@ set(SOURCES
     IndexedDB/Internal/RequestList.cpp
     Internals/InternalAnimationTimeline.cpp
     Internals/Internals.cpp
+    Internals/InternalsBase.cpp
+    Internals/Processes.cpp
     IntersectionObserver/IntersectionObserver.cpp
     IntersectionObserver/IntersectionObserverEntry.cpp
     Layout/AudioBox.cpp

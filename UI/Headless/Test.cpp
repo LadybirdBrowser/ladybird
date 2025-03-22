@@ -130,7 +130,7 @@ static ErrorOr<void> collect_crash_tests(Application const& app, Vector<Test>& t
 static void clear_test_callbacks(HeadlessWebView& view)
 {
     view.on_load_finish = {};
-    view.on_text_test_finish = {};
+    view.on_test_finish = {};
     view.on_web_content_crashed = {};
 }
 
@@ -138,7 +138,7 @@ void run_dump_test(HeadlessWebView& view, Test& test, URL::URL const& url, int t
 {
     auto timer = Core::Timer::create_single_shot(timeout_in_milliseconds, [&view, &test]() {
         view.on_load_finish = {};
-        view.on_text_test_finish = {};
+        view.on_test_finish = {};
         view.on_set_test_timeout = {};
         view.reset_zoom();
 
@@ -255,7 +255,7 @@ void run_dump_test(HeadlessWebView& view, Test& test, URL::URL const& url, int t
             }
         };
 
-        view.on_text_test_finish = [&test, on_test_complete](auto const& text) {
+        view.on_test_finish = [&test, on_test_complete](auto const& text) {
             test.text = text;
             test.did_finish_test = true;
 
@@ -286,11 +286,32 @@ void run_dump_test(HeadlessWebView& view, Test& test, URL::URL const& url, int t
     timer->start();
 }
 
+static String wait_for_reftest_completion = R"(
+function hasReftestWaitClass() {
+    return document.documentElement.classList.contains('reftest-wait');
+}
+
+if (!hasReftestWaitClass()) {
+    internals.signalTestIsDone("PASS");
+} else {
+    const observer = new MutationObserver(() => {
+        if (!hasReftestWaitClass()) {
+            internals.signalTestIsDone("PASS");
+        }
+    });
+
+    observer.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['class'],
+    });
+}
+)"_string;
+
 static void run_ref_test(HeadlessWebView& view, Test& test, URL::URL const& url, int timeout_in_milliseconds)
 {
     auto timer = Core::Timer::create_single_shot(timeout_in_milliseconds, [&view, &test]() {
         view.on_load_finish = {};
-        view.on_text_test_finish = {};
+        view.on_test_finish = {};
         view.on_set_test_timeout = {};
         view.reset_zoom();
 
@@ -343,7 +364,11 @@ static void run_ref_test(HeadlessWebView& view, Test& test, URL::URL const& url,
         view.on_test_complete({ test, TestResult::Crashed });
     };
 
-    view.on_load_finish = [&view, &test, on_test_complete = move(on_test_complete)](auto const&) {
+    view.on_load_finish = [&view](auto const&) {
+        view.run_javascript(wait_for_reftest_completion);
+    };
+
+    view.on_test_finish = [&view, &test, on_test_complete = move(on_test_complete)](auto const&) {
         if (test.actual_screenshot) {
             if (view.url().query().has_value() && view.url().query()->equals_ignoring_ascii_case("mismatch"sv)) {
                 test.ref_test_expectation_type = RefTestExpectationType::Mismatch;
@@ -362,10 +387,6 @@ static void run_ref_test(HeadlessWebView& view, Test& test, URL::URL const& url,
                 view.debug_request("load-reference-page");
             });
         }
-    };
-
-    view.on_text_test_finish = [&](auto const&) {
-        dbgln("Unexpected text test finished during ref test for {}", url);
     };
 
     view.on_set_test_timeout = [timer, timeout_in_milliseconds](double milliseconds) {
@@ -398,7 +419,7 @@ static void run_test(HeadlessWebView& view, Test& test, Application& app)
         });
     };
 
-    view.on_text_test_finish = {};
+    view.on_test_finish = {};
 
     promise->when_resolved([&view, &test, &app](auto) {
         auto url = URL::create_with_file_scheme(MUST(FileSystem::real_path(test.input_path)));

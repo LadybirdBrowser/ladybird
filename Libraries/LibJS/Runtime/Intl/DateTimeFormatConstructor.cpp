@@ -149,6 +149,7 @@ ThrowCompletionOr<GC::Ref<DateTimeFormat>> create_date_time_format(VM& vm, Funct
 
     // 18. Set dateTimeFormat.[[Locale]] to r.[[Locale]].
     date_time_format->set_locale(move(result.locale));
+    date_time_format->set_icu_locale(move(result.icu_locale));
 
     // 19. Let resolvedCalendar be r.[[ca]].
     // 20. Set dateTimeFormat.[[Calendar]] to resolvedCalendar.
@@ -355,7 +356,7 @@ ThrowCompletionOr<GC::Ref<DateTimeFormat>> create_date_time_format(VM& vm, Funct
         // d. Let styles be resolvedLocaleData.[[styles]].[[<resolvedCalendar>]].
         // e. Let bestFormat be DateTimeStyleFormat(dateStyle, timeStyle, styles).
         formatter = Unicode::DateTimeFormat::create_for_date_and_time_style(
-            date_time_format->locale(),
+            date_time_format->icu_locale(),
             time_zone,
             format_options.hour_cycle,
             format_options.hour12,
@@ -443,7 +444,7 @@ ThrowCompletionOr<GC::Ref<DateTimeFormat>> create_date_time_format(VM& vm, Funct
         }
 
         formatter = Unicode::DateTimeFormat::create_for_pattern_options(
-            date_time_format->locale(),
+            date_time_format->icu_locale(),
             time_zone,
             best_format);
     }
