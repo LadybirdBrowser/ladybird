@@ -57,6 +57,7 @@ set(SOURCES
     Triangle.cpp
     VectorGraphic.cpp
     SkiaBackendContext.cpp
+    ImageOrientation.cpp
 )
 
 set(SWIFT_EXCLUDE_HEADERS

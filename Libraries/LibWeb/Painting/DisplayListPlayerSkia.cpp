@@ -57,21 +57,6 @@ static SkRRect to_skia_rrect(auto const& rect, CornerRadii const& corner_radii)
     return rrect;
 }
 
-static SkMatrix to_skia_matrix(Gfx::AffineTransform const& affine_transform)
-{
-    SkScalar affine[6];
-    affine[0] = affine_transform.a();
-    affine[1] = affine_transform.b();
-    affine[2] = affine_transform.c();
-    affine[3] = affine_transform.d();
-    affine[4] = affine_transform.e();
-    affine[5] = affine_transform.f();
-
-    SkMatrix matrix;
-    matrix.setAffine(affine);
-    return matrix;
-}
-
 void DisplayListPlayerSkia::flush()
 {
     if (m_context)
@@ -139,13 +124,32 @@ void DisplayListPlayerSkia::draw_painting_surface(DrawPaintingSurface const& com
 
 void DisplayListPlayerSkia::draw_scaled_immutable_bitmap(DrawScaledImmutableBitmap const& command)
 {
-    auto dst_rect = to_skia_rect(command.dst_rect);
+    // Our dst_rect is already correctly rotated, but since we rotate our canvas, our dst_rect now applies to a rotated canvas.
+    // This means our once correct rect now needs to be rotated 90deg *again* for it to be correct.
+    // This is equivalent to swapping the width and height of the rect.
+    // Of course, we don't *always* rotate, so only perform this correction if we are rotating.
+    auto cmd_dst_rect = command.dst_rect;
+    if (command.rect_correction_necessary) {
+        cmd_dst_rect.set_size(cmd_dst_rect.height(), cmd_dst_rect.width());
+    }
+
+    auto dst_rect = to_skia_rect(cmd_dst_rect);
     auto clip_rect = to_skia_rect(command.clip_rect);
+
     auto& canvas = surface().canvas();
-    SkPaint paint;
+    auto skia_transformation_matrix { to_skia_matrix(command.transformation_matrix) };
+
     canvas.save();
+    // We clip first so we don't transform the clip rect.
     canvas.clipRect(clip_rect);
+
+    canvas.translate(dst_rect.x(), dst_rect.y());
+    canvas.concat(skia_transformation_matrix);
+    canvas.translate(-dst_rect.x(), -dst_rect.y());
+
+    SkPaint const paint;
     canvas.drawImageRect(command.bitmap->sk_image(), dst_rect, to_skia_sampling_options(command.scaling_mode), &paint);
+
     canvas.restore();
 }
 
@@ -153,9 +157,13 @@ void DisplayListPlayerSkia::draw_repeated_immutable_bitmap(DrawRepeatedImmutable
 {
     SkMatrix matrix;
     auto dst_rect = command.dst_rect.to_type<float>();
-    auto src_size = command.bitmap->size().to_type<float>();
+    auto src_size = command.src_size.to_type<float>();
     matrix.setScale(dst_rect.width() / src_size.width(), dst_rect.height() / src_size.height());
+
+    auto const skia_transformation_matrix { to_skia_matrix(command.transformation_matrix) };
+    matrix.postConcat(skia_transformation_matrix);
     matrix.postTranslate(dst_rect.x(), dst_rect.y());
+
     auto sampling_options = to_skia_sampling_options(command.scaling_mode);
 
     auto tile_mode_x = command.repeat.x ? SkTileMode::kRepeat : SkTileMode::kDecal;
