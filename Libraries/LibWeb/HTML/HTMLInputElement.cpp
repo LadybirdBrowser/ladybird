@@ -1238,7 +1238,7 @@ void HTMLInputElement::create_range_input_shadow_tree()
         double minimum = *min();
         double maximum = *max();
         // FIXME: Snap new value to input steps
-        MUST(set_value_as_number(clamp(round(((client_x - rect->left()) / rect->width()) * (maximum - minimum) + minimum), minimum, maximum)));
+        MUST(set_value_as_number(clamp(round(((client_x - rect.left().to_double()) / rect.width().to_double()) * (maximum - minimum) + minimum), minimum, maximum)));
         user_interaction_did_change_input_value();
     };
 

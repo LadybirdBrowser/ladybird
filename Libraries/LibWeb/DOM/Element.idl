@@ -84,8 +84,8 @@ interface Element : Node {
     readonly attribute Element? previousElementSibling;
 
     // https://drafts.csswg.org/cssom-view/#extension-to-the-element-interface
-    DOMRectList getClientRects();
-    DOMRect getBoundingClientRect();
+    [ImplementedAs=get_client_rects_for_bindings] DOMRectList getClientRects();
+    [ImplementedAs=get_bounding_client_rect_for_bindings] DOMRect getBoundingClientRect();
 
     boolean checkVisibility(optional CheckVisibilityOptions options = {});
 

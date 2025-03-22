@@ -254,8 +254,11 @@ public:
     bool is_void_element() const;
     bool serializes_as_void() const;
 
-    GC::Ref<Geometry::DOMRect> get_bounding_client_rect() const;
-    GC::Ref<Geometry::DOMRectList> get_client_rects() const;
+    [[nodiscard]] CSSPixelRect get_bounding_client_rect() const;
+    [[nodiscard]] GC::Ref<Geometry::DOMRect> get_bounding_client_rect_for_bindings() const;
+
+    [[nodiscard]] Vector<CSSPixelRect> get_client_rects() const;
+    [[nodiscard]] GC::Ref<Geometry::DOMRectList> get_client_rects_for_bindings() const;
 
     virtual GC::Ptr<Layout::Node> create_layout_node(GC::Ref<CSS::ComputedProperties>);
     virtual void adjust_computed_style(CSS::ComputedProperties&) { }

@@ -283,8 +283,7 @@ CSSPixelRect IntersectionObserver::root_intersection_rectangle() const
 
         // Otherwise,
         //    it’s the result of getting the bounding box for the intersection root.
-        auto bounding_client_rect = element->get_bounding_client_rect();
-        rect = CSSPixelRect(bounding_client_rect->x(), bounding_client_rect->y(), bounding_client_rect->width(), bounding_client_rect->height());
+        rect = element->get_bounding_client_rect();
     }
 
     // When calculating the root intersection rectangle for a same-origin-domain target, the rectangle is then
