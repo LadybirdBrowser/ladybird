@@ -380,7 +380,7 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString method, URL:
     if (host.starts_with("["sv) && host.ends_with("]"sv))
         host = host.substring(1, host.length() - 2);
 
-    m_resolver->dns.lookup(host, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA })
+    m_resolver->dns.lookup(host, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA }, {.validate_dnssec_locally = true})
         ->when_rejected([this, request_id](auto const& error) {
             dbgln("StartRequest: DNS lookup failed: {}", error);
             // FIXME: Implement timing info for DNS lookup failure.
@@ -702,7 +702,7 @@ void ConnectionFromClient::ensure_connection(URL::URL url, ::RequestServer::Cach
     }
 
     if (cache_level == CacheLevel::ResolveOnly) {
-        [[maybe_unused]] auto promise = m_resolver->dns.lookup(url.serialized_host().to_byte_string(), DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA });
+        [[maybe_unused]] auto promise = m_resolver->dns.lookup(url.serialized_host().to_byte_string(), DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA }, {.validate_dnssec_locally = true});
         if constexpr (REQUESTSERVER_DEBUG) {
             Core::ElapsedTimer timer;
             timer.start();
