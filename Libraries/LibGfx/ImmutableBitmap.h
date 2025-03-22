@@ -12,6 +12,7 @@
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ColorSpace.h>
 #include <LibGfx/Forward.h>
+#include <LibGfx/ImageOrientation.h>
 #include <LibGfx/Rect.h>
 
 class SkImage;
@@ -27,10 +28,10 @@ public:
 
     ~ImmutableBitmap();
 
-    int width() const;
-    int height() const;
-    IntRect rect() const;
-    IntSize size() const;
+    int width(ImageOrientation image_orientation) const;
+    int height(ImageOrientation image_orientation) const;
+    IntRect rect(ImageOrientation image_orientation) const;
+    IntSize size(ImageOrientation image_orientation) const;
 
     Gfx::AlphaType alpha_type() const;
 
@@ -39,6 +40,9 @@ public:
     Color get_pixel(int x, int y) const;
 
     RefPtr<Bitmap const> bitmap() const;
+
+    [[nodiscard]]
+    ExifOrientation get_exif_orientation() const;
 
 private:
     NonnullOwnPtr<ImmutableBitmapImpl> m_impl;
