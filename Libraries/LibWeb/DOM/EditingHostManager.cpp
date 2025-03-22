@@ -80,6 +80,8 @@ void EditingHostManager::select_all()
 void EditingHostManager::set_selection_anchor(GC::Ref<DOM::Node> anchor_node, size_t anchor_offset)
 {
     auto selection = m_document->get_selection();
+    if (anchor_offset > anchor_node->length())
+        return;
     MUST(selection->collapse(*anchor_node, anchor_offset));
     m_document->reset_cursor_blink_cycle();
 }
