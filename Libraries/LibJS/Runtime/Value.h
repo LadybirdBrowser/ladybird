@@ -214,6 +214,11 @@ public:
     {
     }
 
+    Value(Cell const* cell)
+        : Value(GC::IS_CELL_BIT << GC::TAG_SHIFT, reinterpret_cast<void const*>(cell))
+    {
+    }
+
     Value(Object const* object)
         : Value(OBJECT_TAG << GC::TAG_SHIFT, reinterpret_cast<void const*>(object))
     {
