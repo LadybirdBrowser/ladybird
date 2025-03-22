@@ -46,8 +46,6 @@ void UnsignedBigIntegerAlgorithms::extended_GCD_without_allocation(
     UnsignedBigInteger& temp_quotient,
     UnsignedBigInteger& temp_1,
     UnsignedBigInteger& temp_2,
-    UnsignedBigInteger& temp_shift_result,
-    UnsignedBigInteger& temp_shift_plus,
     UnsignedBigInteger& temp_shift,
     UnsignedBigInteger& temp_r,
     UnsignedBigInteger& temp_s,
@@ -66,7 +64,7 @@ void UnsignedBigIntegerAlgorithms::extended_GCD_without_allocation(
         divide_without_allocation(gcd, temp_r, temp_quotient, temp_1);
 
         temp_2.set_to(temp_r);
-        multiply_without_allocation(temp_quotient, temp_r, temp_shift_result, temp_shift_plus, temp_shift, temp_1);
+        multiply_without_allocation(temp_quotient, temp_r, temp_shift, temp_1);
         while (gcd < temp_1) {
             add_into_accumulator_without_allocation(gcd, b);
         }
@@ -75,7 +73,7 @@ void UnsignedBigIntegerAlgorithms::extended_GCD_without_allocation(
 
         // (old_s, s) := (s, old_s − quotient × s)
         temp_2.set_to(temp_s);
-        multiply_without_allocation(temp_quotient, temp_s, temp_shift_result, temp_shift_plus, temp_shift, temp_1);
+        multiply_without_allocation(temp_quotient, temp_s, temp_shift, temp_1);
         while (x < temp_1) {
             add_into_accumulator_without_allocation(x, b);
         }
@@ -84,7 +82,7 @@ void UnsignedBigIntegerAlgorithms::extended_GCD_without_allocation(
 
         // (old_t, t) := (t, old_t − quotient × t)
         temp_2.set_to(temp_t);
-        multiply_without_allocation(temp_quotient, temp_t, temp_shift_result, temp_shift_plus, temp_shift, temp_1);
+        multiply_without_allocation(temp_quotient, temp_t, temp_shift, temp_1);
         while (y < temp_1) {
             add_into_accumulator_without_allocation(y, b);
         }

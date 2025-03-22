@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2022, Lucas Chollet <lucas.chollet@free.fr>
+ * Copyright (c) 2025, Manuel Zahariev <manuel@duck.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -8,6 +9,7 @@
 #include <AK/ByteString.h>
 #include <AK/Math.h>
 #include <AK/StringBuilder.h>
+#include <LibCrypto/BigInt/UnsignedBigInteger.h>
 #include <LibCrypto/NumberTheory/ModularFunctions.h>
 
 namespace Crypto {
@@ -134,10 +136,53 @@ BigFraction::BigFraction(double d)
     m_numerator.set_to(negative ? (m_numerator.negated_value()) : m_numerator);
 }
 
+/*
+ * Complexity O(N^2), where N = number of words in the larger of denominator, numerator.
+ *   - shifts: O(N); two copies
+ *   - division: O(N^2): Knuth's D algorithm (UnsignedBigInteger::divided_by)
+ *   - conversion to double: constant (64-bit quotient)
+ */
 double BigFraction::to_double() const
 {
-    // FIXME: very naive implementation
-    return m_numerator.to_double() / m_denominator.to_double();
+    bool const sign = m_numerator.is_negative();
+    if (m_numerator.is_zero())
+        return sign ? -0.0 : +0.0;
+
+    UnsignedBigInteger numerator = m_numerator.unsigned_value(); // copy
+    UnsignedBigInteger const& denominator = m_denominator;
+
+    size_t top_bit_numerator = numerator.one_based_index_of_highest_set_bit();
+    size_t top_bit_denominator = denominator.one_based_index_of_highest_set_bit();
+    size_t shift_left_numerator = 0;
+
+    // 1. Shift numerator so that its most significant bit is exaclty 64 bits left tha than that of the denominator.
+    // NOTE: the precision of the result will be 63 bits (more than 53 bits necessary for the mantissa of a double).
+    if (top_bit_numerator < (top_bit_denominator + 64)) {
+        shift_left_numerator = top_bit_denominator + 64 - top_bit_numerator;
+        numerator = numerator.shift_left(shift_left_numerator); // copy
+    }
+    // NOTE: Do nothing if numerator already has more than 64 bits more than denominator.
+
+    // 2. Divide [potentially shifted] numerator by the denominator.
+    auto division_result = numerator.divided_by(denominator);
+    if (!division_result.remainder.is_zero()) {
+        division_result.quotient = division_result.quotient.shift_left(1).plus(1); // Extend the quotient with a "fake 1".
+        //  NOTE: Since the quotient has at least 63 bits, this will only affect the mantissa
+        //        on rounding, and have the same effect on rounding as any fractional digits (from the remainder).
+        shift_left_numerator++;
+    }
+
+    using Extractor = FloatExtractor<double>;
+    Extractor double_extractor;
+
+    // 3. Convert the quotient to_double using UnsignedBigInteger::to_double.
+    double_extractor.d = division_result.quotient.to_double();
+    double_extractor.sign = sign;
+
+    // 4. Shift the result back by the same number of bits as the numerator.
+    double_extractor.exponent -= shift_left_numerator;
+
+    return double_extractor.d;
 }
 
 bool BigFraction::is_zero() const
@@ -198,11 +243,15 @@ String BigFraction::to_string(unsigned rounding_threshold) const
 
     auto const number_of_digits = [](auto integer) {
         unsigned size = 1;
-        for (auto division_result = integer.divided_by(UnsignedBigInteger { 10 });
-            division_result.remainder == UnsignedBigInteger { 0 } && division_result.quotient != UnsignedBigInteger { 0 };
-            division_result = division_result.quotient.divided_by(UnsignedBigInteger { 10 })) {
+        UnsignedBigInteger const ten { 10 };
+
+        auto division_result = integer.divided_by(ten);
+
+        while (division_result.remainder.is_zero() && !division_result.quotient.is_zero()) {
+            division_result = division_result.quotient.divided_by(ten);
             ++size;
         }
+
         return size;
     };
 
