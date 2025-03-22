@@ -43,6 +43,11 @@ ErrorOr<int> Thread::get_priority() const
     return scheduling_parameters.sched_priority;
 }
 
+void Thread::set_detached_on_start()
+{
+    m_attribute_detached_flag = true;
+}
+
 ByteString Thread::thread_name() const { return m_thread_name; }
 
 pthread_t Thread::tid() const { return m_tid; }
@@ -68,18 +73,21 @@ void Thread::start()
     VERIFY(!is_started());
 
     // Set this first so that the other thread starts out seeing m_state == Running.
-    m_state = Threading::ThreadState::Running;
-
+    m_state = m_attribute_detached_flag ? Threading::ThreadState::Detached : Threading::ThreadState::Running;
+    pthread_attr_init(&m_attribute);
+    if (m_attribute_detached_flag) {
+        pthread_attr_setdetachstate(&m_attribute, PTHREAD_CREATE_DETACHED);
+    }
     int rc = pthread_create(
         &m_tid,
-        // FIXME: Use pthread_attr_t to start a thread detached if that was requested by the user before the call to start().
-        nullptr,
+        &m_attribute,
         [](void* arg) -> void* {
             auto self = adopt_ref(*static_cast<Thread*>(arg));
 
             auto exit_code = self->m_action();
 
             auto expected = Threading::ThreadState::Running;
+
             // This code might race with a call to detach().
             if (!self->m_state.compare_exchange_strong(expected, Threading::ThreadState::Exited)) {
                 // If the original state was Detached, we need to set to DetachedExited instead.
@@ -97,6 +105,7 @@ void Thread::start()
             return reinterpret_cast<void*>(exit_code);
         },
         &NonnullRefPtr(*this).leak_ref());
+    pthread_attr_destroy(&m_attribute);
 
     VERIFY(rc == 0);
 }
