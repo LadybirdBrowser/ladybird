@@ -27,6 +27,7 @@ GC_DEFINE_ALLOCATOR(Location);
 // https://html.spec.whatwg.org/multipage/history.html#the-location-interface
 Location::Location(JS::Realm& realm)
     : PlatformObject(realm, MayInterfereWithIndexedPropertyAccess::Yes)
+    , m_ancestor_origins_list(HTML::DOMStringList::create(realm, {}))
 {
 }
 
@@ -36,6 +37,7 @@ void Location::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_default_properties);
+    visitor.visit(m_ancestor_origins_list);
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#the-location-interface
@@ -71,6 +73,30 @@ void Location::initialize(JS::Realm& realm)
     // 5. Set the value of the [[DefaultProperties]] internal slot of location to location.[[OwnPropertyKeys]]().
     // NOTE: In LibWeb this happens before the ESO is set up, so we must avoid location's custom [[OwnPropertyKeys]].
     m_default_properties.extend(MUST(Object::internal_own_property_keys()));
+
+    // https://html.spec.whatwg.org/multipage/nav-history-apis.html#concept-location-ancestor-origins-list
+    // A Location object has an associated ancestor origins list. When a Location object is created, its ancestor origins list must be set to a DOMStringList object whose associated
+    // list is the list of strings that the following steps would produce:
+    auto following_steps = [&]() -> Vector<String> {
+        // 1. Let output be a new list of strings.
+        Vector<String> output = {};
+
+        // 2. Let current be the Location object's relevant Document.
+        auto current = relevant_document();
+
+        // 3. While current's container document is non-null:
+        while (current->container_document()) {
+            // 1. Set current to current's container document.
+            current = current->container_document();
+
+            // 2. Append the serialization of current's origin to output.
+            output.append(current->origin().serialize());
+        }
+
+        // 4. Return output.
+        return output;
+    };
+    m_ancestor_origins_list = HTML::DOMStringList::create(realm, following_steps());
 }
 
 // https://html.spec.whatwg.org/multipage/history.html#relevant-document
@@ -481,6 +507,20 @@ WebIDL::ExceptionOr<void> Location::assign(String const& url)
 
     return {};
 }
+
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-location-ancestororigins
+WebIDL::ExceptionOr<GC::Ref<DOMStringList>> Location::ancestor_origins() const
+{
+    // The ancestorOrigins getter steps are:
+
+    // AD-HOC: For now, due to privacy concerns, our ancestorOrigins getter steps are:
+    //         1. Throw a "SecurityError" DOMException.
+    //            This could've happened in step 2 of the actual getter steps anyways.
+    //            For more context, see https://github.com/LadybirdBrowser/ladybird/pull/623
+    return WebIDL::SecurityError::create(realm(), "Location.ancestorOrigins() is currently unsupported due to privacy concerns."_string);
+}
+
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#concept-location-ancestor-origins-list
 
 // 7.10.5.1 [[GetPrototypeOf]] ( ), https://html.spec.whatwg.org/multipage/history.html#location-getprototypeof
 JS::ThrowCompletionOr<JS::Object*> Location::internal_get_prototype_of() const
