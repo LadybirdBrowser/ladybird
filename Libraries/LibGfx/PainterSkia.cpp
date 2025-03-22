@@ -142,6 +142,21 @@ void PainterSkia::fill_rect(Gfx::FloatRect const& rect, Color color)
     });
 }
 
+static SkMatrix to_skia_matrix(Gfx::AffineTransform const& affine_transform)
+{
+    SkScalar affine[6];
+    affine[0] = affine_transform.a();
+    affine[1] = affine_transform.b();
+    affine[2] = affine_transform.c();
+    affine[3] = affine_transform.d();
+    affine[4] = affine_transform.e();
+    affine[5] = affine_transform.f();
+
+    SkMatrix matrix;
+    matrix.setAffine(affine);
+    return matrix;
+}
+
 void PainterSkia::draw_bitmap(Gfx::FloatRect const& dst_rect, Gfx::ImmutableBitmap const& src_bitmap, Gfx::IntRect const& src_rect, Gfx::ScalingMode scaling_mode, ReadonlySpan<Gfx::Filter> filters, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator)
 {
     SkPaint paint;
@@ -150,13 +165,24 @@ void PainterSkia::draw_bitmap(Gfx::FloatRect const& dst_rect, Gfx::ImmutableBitm
     paint.setBlender(to_skia_blender(compositing_and_blending_operator));
 
     impl().with_canvas([&](auto& canvas) {
+        auto oriented_dst_rect = dst_rect;
+
+        auto const transformation_matrix = compute_exif_orientation_matrix(src_bitmap.get_exif_orientation(), oriented_dst_rect);
+        auto const skia_transformation_matrix = to_skia_matrix(transformation_matrix);
+
+        canvas.save();
+        canvas.translate(oriented_dst_rect.x(), oriented_dst_rect.y());
+        canvas.concat(skia_transformation_matrix);
+        canvas.translate(-oriented_dst_rect.x(), -oriented_dst_rect.y());
+
         canvas.drawImageRect(
             src_bitmap.sk_image(),
             to_skia_rect(src_rect),
-            to_skia_rect(dst_rect),
+            to_skia_rect(oriented_dst_rect),
             to_skia_sampling_options(scaling_mode),
             &paint,
             SkCanvas::kStrict_SrcRectConstraint);
+        canvas.restore();
     });
 }
 

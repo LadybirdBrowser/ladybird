@@ -194,26 +194,57 @@ void DisplayListRecorder::draw_painting_surface(Gfx::IntRect const& dst_rect, No
     });
 }
 
+[[nodiscard]]
+static bool is_rect_correction_necessary(Gfx::ExifOrientation exif_orientation)
+{
+    switch (exif_orientation) {
+    case Gfx::ExifOrientation::Rotate90Clockwise:
+    case Gfx::ExifOrientation::Rotate90CounterClockwise:
+    case Gfx::ExifOrientation::FlipHorizontallyThenRotate90Clockwise:
+    case Gfx::ExifOrientation::Rotate90ClockwiseThenFlipHorizontally:
+        return true;
+    default:
+        return false;
+    }
+}
+
 void DisplayListRecorder::draw_scaled_immutable_bitmap(Gfx::IntRect const& dst_rect, Gfx::IntRect const& clip_rect, Gfx::ImmutableBitmap const& bitmap, Gfx::ScalingMode scaling_mode)
 {
     if (dst_rect.is_empty())
         return;
+
+    auto const exif_orientation = bitmap.get_exif_orientation();
+    auto const rect_correction_necessary = is_rect_correction_necessary(exif_orientation);
+
+    auto const transformation_matrix = compute_exif_orientation_matrix(exif_orientation, dst_rect);
+
     append(DrawScaledImmutableBitmap {
         .dst_rect = dst_rect,
         .clip_rect = clip_rect,
         .bitmap = bitmap,
         .scaling_mode = scaling_mode,
+        .transformation_matrix = transformation_matrix,
+        .rect_correction_necessary = rect_correction_necessary,
     });
 }
 
 void DisplayListRecorder::draw_repeated_immutable_bitmap(Gfx::IntRect dst_rect, Gfx::IntRect clip_rect, NonnullRefPtr<Gfx::ImmutableBitmap const> bitmap, Gfx::ScalingMode scaling_mode, DrawRepeatedImmutableBitmap::Repeat repeat)
 {
+    if (dst_rect.is_empty())
+        return;
+
+    auto const exif_orientation = bitmap->get_exif_orientation();
+    auto const transformation_matrix = compute_exif_orientation_matrix(exif_orientation, dst_rect);
+    auto const size = bitmap->size();
+
     append(DrawRepeatedImmutableBitmap {
         .dst_rect = dst_rect,
         .clip_rect = clip_rect,
+        .src_size = size,
         .bitmap = move(bitmap),
         .scaling_mode = scaling_mode,
         .repeat = repeat,
+        .transformation_matrix = transformation_matrix,
     });
 }
 

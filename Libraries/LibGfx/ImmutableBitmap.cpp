@@ -23,12 +23,22 @@ struct ImmutableBitmapImpl {
 
 int ImmutableBitmap::width() const
 {
-    return m_impl->sk_image->width();
+    auto const* bitmap = m_impl->source.get_pointer<NonnullRefPtr<Gfx::Bitmap>>();
+
+    if (!bitmap)
+        return m_impl->sk_image->width();
+
+    return (*bitmap)->width();
 }
 
 int ImmutableBitmap::height() const
 {
-    return m_impl->sk_image->height();
+    auto const* bitmap = m_impl->source.get_pointer<NonnullRefPtr<Gfx::Bitmap>>();
+
+    if (!bitmap)
+        return m_impl->sk_image->height();
+
+    return (*bitmap)->height();
 }
 
 IntRect ImmutableBitmap::rect() const
@@ -55,6 +65,14 @@ RefPtr<Gfx::Bitmap const> ImmutableBitmap::bitmap() const
 {
     // FIXME: Implement for PaintingSurface
     return m_impl->source.get<NonnullRefPtr<Gfx::Bitmap>>();
+}
+
+ExifOrientation ImmutableBitmap::get_exif_orientation() const
+{
+    if (auto const* bitmap = m_impl->source.get_pointer<NonnullRefPtr<Gfx::Bitmap>>())
+        return (*bitmap)->exif_orientation();
+
+    return ExifOrientation::Default;
 }
 
 Color ImmutableBitmap::get_pixel(int x, int y) const
