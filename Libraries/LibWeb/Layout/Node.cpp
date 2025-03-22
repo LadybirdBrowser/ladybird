@@ -397,6 +397,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
         auto const& y_positions = computed_style.property(CSS::PropertyID::BackgroundPositionY);
         auto const& repeats = computed_style.property(CSS::PropertyID::BackgroundRepeat);
         auto const& sizes = computed_style.property(CSS::PropertyID::BackgroundSize);
+        auto const& background_blend_modes = computed_style.property(CSS::PropertyID::BackgroundBlendMode);
 
         auto count_layers = [](auto const& maybe_style_value) -> size_t {
             if (maybe_style_value.is_value_list())
@@ -509,6 +510,8 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
                 layer.repeat_x = repeat_value->as_background_repeat().repeat_x();
                 layer.repeat_y = repeat_value->as_background_repeat().repeat_y();
             }
+
+            layer.blend_mode = CSS::keyword_to_mix_blend_mode(value_for_layer(background_blend_modes, layer_index)->to_keyword()).value_or(CSS::MixBlendMode::Normal);
 
             layers.append(move(layer));
         }

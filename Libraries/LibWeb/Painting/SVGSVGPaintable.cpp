@@ -5,6 +5,7 @@
  */
 
 #include <LibWeb/Layout/ImageBox.h>
+#include <LibWeb/Painting/Blending.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/SVGSVGPaintable.h>
 #include <LibWeb/Painting/StackingContext.h>
@@ -60,16 +61,7 @@ void SVGSVGPaintable::paint_svg_box(PaintContext& context, PaintableBox const& s
     auto const& filter = computed_values.filter();
     auto masking_area = svg_box.get_masking_area();
 
-    Gfx::CompositingAndBlendingOperator compositing_and_blending_operator;
-    switch (computed_values.mix_blend_mode()) {
-#undef __ENUMERATE
-#define __ENUMERATE(mix_blend_mode)                                                              \
-    case CSS::MixBlendMode::mix_blend_mode:                                                      \
-        compositing_and_blending_operator = Gfx::CompositingAndBlendingOperator::mix_blend_mode; \
-        break;
-        ENUMERATE_MIX_BLEND_MODES(__ENUMERATE)
-#undef __ENUMERATE
-    }
+    Gfx::CompositingAndBlendingOperator compositing_and_blending_operator = mix_blend_mode_to_compositing_and_blending_operator(computed_values.mix_blend_mode());
 
     auto needs_to_save_state = computed_values.isolation() == CSS::Isolation::Isolate || compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal || svg_box.has_css_transform() || svg_box.get_masking_area().has_value();
 
