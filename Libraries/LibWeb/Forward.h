@@ -415,6 +415,7 @@ namespace Web::HTML {
 class AnimationFrameCallbackDriver;
 class AudioTrack;
 class AudioTrackList;
+class BarProp;
 class BeforeUnloadEvent;
 class BroadcastChannel;
 class BrowsingContext;

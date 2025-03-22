@@ -23,6 +23,7 @@ AudioParam
 AudioScheduledSourceNode
 AudioTrack
 AudioTrackList
+BarProp
 BaseAudioContext
 BeforeUnloadEvent
 BigInt
