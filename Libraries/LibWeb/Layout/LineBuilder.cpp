@@ -327,6 +327,12 @@ void LineBuilder::update_last_line()
                 auto const x_height = CSSPixels::nearest_value_for(m_context.containing_block().first_available_font().pixel_metrics().x_height);
                 return m_current_block_offset + line_box_baseline + ((effective_box_top_offset - effective_box_bottom_offset - x_height - fragment.height()) / 2);
             }
+            case CSS::VerticalAlign::Sub:
+                // https://drafts.csswg.org/css-inline/#valdef-baseline-shift-sub
+                // Lower by the offset appropriate for subscripts of the parent’s box.
+                // The UA may use the parent’s font metrics to find this offset; otherwise it defaults to dropping by one fifth of the parent’s used font-size.
+                // FIXME: Use font metrics to find a more appropriate offset, if possible
+                return alphabetic_baseline + m_context.containing_block().computed_values().font_size() / 5;
             case CSS::VerticalAlign::Super:
                 // https://drafts.csswg.org/css-inline/#valdef-baseline-shift-super
                 // Raise by the offset appropriate for superscripts of the parent’s box.
@@ -334,7 +340,6 @@ void LineBuilder::update_last_line()
                 // FIXME: Use font metrics to find a more appropriate offset, if possible
                 return alphabetic_baseline - m_context.containing_block().computed_values().font_size() / 3;
             case CSS::VerticalAlign::Bottom:
-            case CSS::VerticalAlign::Sub:
             case CSS::VerticalAlign::TextBottom:
             case CSS::VerticalAlign::TextTop:
                 // FIXME: These are all 'baseline'
