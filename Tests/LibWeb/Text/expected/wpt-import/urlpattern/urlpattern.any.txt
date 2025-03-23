@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 350 tests
 
-170 Pass
-180 Fail
+172 Pass
+178 Fail
 Pass	Loading data...
 Fail	Pattern: [{"pathname":"/foo/bar"}] Inputs: [{"pathname":"/foo/bar"}]
 Pass	Pattern: [{"pathname":"/foo/bar"}] Inputs: [{"pathname":"/foo/ba"}]
@@ -234,7 +234,7 @@ Pass	Pattern: ["https://example.com/{bar}?foo"] Inputs: ["https://example.com/ba
 Pass	Pattern: ["https://example.com/{bar}\\?foo"] Inputs: ["https://example.com/bar?foo"]
 Pass	Pattern: ["https://example.com/"] Inputs: ["https://example.com:8080/"]
 Pass	Pattern: ["data:foobar"] Inputs: ["data:foobar"]
-Fail	Pattern: ["data\\:foobar"] Inputs: ["data:foobar"]
+Pass	Pattern: ["data\\:foobar"] Inputs: ["data:foobar"]
 Pass	Pattern: ["https://{sub.}?example.com/foo"] Inputs: ["https://example.com/foo"]
 Fail	Pattern: ["https://{sub.}?example{.com/}foo"] Inputs: ["https://example.com/foo"]
 Pass	Pattern: ["{https://}example.com/foo"] Inputs: ["https://example.com/foo"]
@@ -260,7 +260,7 @@ Pass	Pattern: ["https://foo@example.com"] Inputs: ["https://foo@example.com"]
 Pass	Pattern: ["https://\\:bar@example.com"] Inputs: ["https://:bar@example.com"]
 Pass	Pattern: ["https://:user::pass@example.com"] Inputs: ["https://foo:bar@example.com"]
 Pass	Pattern: ["https\\:foo\\:bar@example.com"] Inputs: ["https:foo:bar@example.com"]
-Fail	Pattern: ["data\\:foo\\:bar@example.com"] Inputs: ["data:foo:bar@example.com"]
+Pass	Pattern: ["data\\:foo\\:bar@example.com"] Inputs: ["data:foo:bar@example.com"]
 Pass	Pattern: ["https://foo{\\:}bar@example.com"] Inputs: ["https://foo:bar@example.com"]
 Pass	Pattern: ["data{\\:}channel.html","https://example.com"] Inputs: ["https://example.com/data:channel.html"]
 Pass	Pattern: ["http://[\\:\\:1]/"] Inputs: ["http://[::1]/"]
