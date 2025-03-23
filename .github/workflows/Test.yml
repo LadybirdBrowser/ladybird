@@ -51,24 +51,30 @@ jobs:
             ~/.ccache
           key: ${{ runner.os }}-ladybird-distcc-${{ hashFiles('**/CMakeLists.txt') }}
 
-      - name: Install distcc
+      - name: Install distcc & ccache
         run: |
           sudo apt update -y
-          sudo apt install -y distcc ccache
+          sudo apt install -y distcc ccache ninja-build
 
       - name: Configure distcc for Maximum Parallelism
         run: |
+          mkdir -p ~/.distcc  # 🟢 Fix: Ensure the .distcc directory exists
           echo "localhost/2 0.0.0.0/0" > ~/.distcc/hosts  # Use 2 local vCPUs + all remote workers
           export PATH="/usr/lib/distcc:$PATH"
           export CC="distcc gcc"
           export CXX="distcc g++"
-          export MAKEFLAGS="-j10"  # 🟢 Force 10 parallel compilation jobs
+          export MAKEFLAGS="-j$(nproc --all)"  # 🟢 Dynamically set parallel jobs
+
+      - name: Verify distcc is Running
+        run: |
+          pgrep distccd || echo "⚠️ Warning: distccd is not running!"
 
       - name: Build Ladybird Using distcc
         run: |
           chmod +x Meta/ladybird.sh
-          export MAKEJOBS=$(nproc)  # 🟢 Use all available CPUs
-          ninja -j "$MAKEJOBS" -C "$BUILD_DIR"
+          BUILD_DIR="Build/release"
+          mkdir -p "$BUILD_DIR"
+          ninja -j "$(nproc --all)" -C "$BUILD_DIR"
 
       - name: Show `distcc` & `ccache` Stats (Check Efficiency)
         run: |
