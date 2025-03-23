@@ -49,17 +49,17 @@ protected:
     explicit PlatformObject(JS::Object& prototype, MayInterfereWithIndexedPropertyAccess = MayInterfereWithIndexedPropertyAccess::No);
 
     struct LegacyPlatformObjectFlags {
-        u16 supports_indexed_properties : 1 = false;
-        u16 supports_named_properties : 1 = false;
-        u16 has_indexed_property_setter : 1 = false;
-        u16 has_named_property_setter : 1 = false;
-        u16 has_named_property_deleter : 1 = false;
-        u16 has_legacy_unenumerable_named_properties_interface_extended_attribute : 1 = false;
-        u16 has_legacy_override_built_ins_interface_extended_attribute : 1 = false;
-        u16 has_global_interface_extended_attribute : 1 = false;
-        u16 indexed_property_setter_has_identifier : 1 = false;
-        u16 named_property_setter_has_identifier : 1 = false;
-        u16 named_property_deleter_has_identifier : 1 = false;
+        u16 supports_indexed_properties BOOL_BITFIELD = false;
+        u16 supports_named_properties BOOL_BITFIELD = false;
+        u16 has_indexed_property_setter BOOL_BITFIELD = false;
+        u16 has_named_property_setter BOOL_BITFIELD = false;
+        u16 has_named_property_deleter BOOL_BITFIELD = false;
+        u16 has_legacy_unenumerable_named_properties_interface_extended_attribute BOOL_BITFIELD = false;
+        u16 has_legacy_override_built_ins_interface_extended_attribute BOOL_BITFIELD = false;
+        u16 has_global_interface_extended_attribute BOOL_BITFIELD = false;
+        u16 indexed_property_setter_has_identifier BOOL_BITFIELD = false;
+        u16 named_property_setter_has_identifier BOOL_BITFIELD = false;
+        u16 named_property_deleter_has_identifier BOOL_BITFIELD = false;
     };
     Optional<LegacyPlatformObjectFlags> m_legacy_platform_object_flags = {};
 
