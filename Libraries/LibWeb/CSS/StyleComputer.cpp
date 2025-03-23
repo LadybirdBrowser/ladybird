@@ -372,6 +372,7 @@ void StyleComputer::for_each_stylesheet(CascadeOrigin cascade_origin, Callback c
 {
     if (cascade_origin == CascadeOrigin::UserAgent) {
         callback(default_stylesheet(document()), {});
+        document().dynamic_view_transition_style_sheet();
         if (document().in_quirks_mode())
             callback(quirks_mode_stylesheet(document()), {});
         callback(mathml_stylesheet(document()), {});

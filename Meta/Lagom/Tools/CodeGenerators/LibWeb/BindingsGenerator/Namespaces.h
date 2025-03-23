@@ -38,6 +38,7 @@ static constexpr Array libweb_interface_namespaces = {
     "ServiceWorker"sv,
     "UIEvents"sv,
     "URLPattern"sv,
+    "ViewTransition"sv,
     "WebAudio"sv,
     "WebGL"sv,
     "WebIDL"sv,
