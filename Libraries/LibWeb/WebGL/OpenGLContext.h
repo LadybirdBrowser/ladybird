@@ -13,14 +13,19 @@ namespace Web::WebGL {
 
 class OpenGLContext {
 public:
-    static OwnPtr<OpenGLContext> create(NonnullRefPtr<Gfx::SkiaBackendContext>);
+    enum class WebGLVersion {
+        WebGL1,
+        WebGL2,
+    };
+
+    static OwnPtr<OpenGLContext> create(NonnullRefPtr<Gfx::SkiaBackendContext>, WebGLVersion);
 
     void notify_content_will_change();
     void clear_buffer_to_default_values();
     void allocate_painting_surface_if_needed();
 
     struct Impl;
-    OpenGLContext(NonnullRefPtr<Gfx::SkiaBackendContext>, Impl);
+    OpenGLContext(NonnullRefPtr<Gfx::SkiaBackendContext>, Impl, WebGLVersion);
 
     ~OpenGLContext();
 
@@ -42,6 +47,7 @@ private:
     RefPtr<Gfx::PaintingSurface> m_painting_surface;
     NonnullOwnPtr<Impl> m_impl;
     Optional<Vector<String>> m_requestable_extensions;
+    WebGLVersion m_webgl_version;
 };
 
 }
