@@ -72,17 +72,17 @@ public:
                 visit_impl(*cell);
         }
 
-        void visit(Cell& cell)
+        void visit(Cell& cell) SWIFT_NAME(visitRef(_:))
         {
             visit_impl(cell);
         }
 
-        void visit(Cell const* cell)
+        void visit(Cell const* cell) SWIFT_NAME(visitConst(_:))
         {
             visit(const_cast<Cell*>(cell));
         }
 
-        void visit(Cell const& cell)
+        void visit(Cell const& cell) SWIFT_NAME(visitConstRef(_:))
         {
             visit(const_cast<Cell&>(cell));
         }
@@ -157,7 +157,7 @@ public:
             }
         }
 
-        void visit(NanBoxedValue const& value);
+        void visit(NanBoxedValue const& value) SWIFT_NAME(visitValue(_:));
 
         // Allow explicitly ignoring a GC-allocated member in a visit_edges implementation instead
         // of just not using it.
