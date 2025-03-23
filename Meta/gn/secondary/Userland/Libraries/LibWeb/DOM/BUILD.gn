@@ -41,6 +41,7 @@ source_set("DOM") {
     "ParentNode.cpp",
     "Position.cpp",
     "ProcessingInstruction.cpp",
+    "PseudoElement.cpp",
     "QualifiedName.cpp",
     "Range.cpp",
     "ShadowRoot.cpp",
