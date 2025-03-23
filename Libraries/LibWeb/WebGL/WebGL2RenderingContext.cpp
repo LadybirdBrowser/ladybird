@@ -41,7 +41,7 @@ JS::ThrowCompletionOr<GC::Ptr<WebGL2RenderingContext>> WebGL2RenderingContext::c
         fire_webgl_context_creation_error(canvas_element);
         return GC::Ptr<WebGL2RenderingContext> { nullptr };
     }
-    auto context = OpenGLContext::create(*skia_backend_context);
+    auto context = OpenGLContext::create(*skia_backend_context, OpenGLContext::WebGLVersion::WebGL2);
     if (!context) {
         fire_webgl_context_creation_error(canvas_element);
         return GC::Ptr<WebGL2RenderingContext> { nullptr };
