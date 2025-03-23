@@ -13,7 +13,10 @@
 #ifdef AK_OS_MACOS
 #    include <EGL/egl.h>
 #    include <EGL/eglext.h>
+#    define EGL_EGLEXT_PROTOTYPES 1
+extern "C" {
 #    include <EGL/eglext_angle.h>
+}
 #    define GL_GLEXT_PROTOTYPES 1
 #    include <GLES2/gl2.h>
 #    include <GLES2/gl2ext.h>
@@ -243,6 +246,28 @@ void OpenGLContext::make_current()
     allocate_painting_surface_if_needed();
     eglMakeCurrent(m_impl->display, m_impl->surface, m_impl->surface, m_impl->context);
 #endif
+}
+
+void OpenGLContext::present(bool preserve_drawing_buffer)
+{
+    make_current();
+
+    // "Before the drawing buffer is presented for compositing the implementation shall ensure that all rendering operations have been flushed to the drawing buffer."
+    // With Metal, glFlush flushes the command buffer, but without waiting for it to be scheduled or completed.
+    // eglWaitUntilWorkScheduledANGLE flushes the command buffer, and waits until it has been scheduled, hence the name.
+    // eglWaitUntilWorkScheduledANGLE only has an effect on CGL and Metal backends, so we only use it on macOS.
+#ifdef AK_OS_MACOS
+    eglWaitUntilWorkScheduledANGLE(m_impl->display);
+#else
+    // FIXME: When enabling WebGL for Linux, we need to use glFlush() here.
+#endif
+
+    // "By default, after compositing the contents of the drawing buffer shall be cleared to their default values, as shown in the table above.
+    // This default behavior can be changed by setting the preserveDrawingBuffer attribute of the WebGLContextAttributes object.
+    // If this flag is true, the contents of the drawing buffer shall be preserved until the author either clears or overwrites them."
+    if (!preserve_drawing_buffer) {
+        clear_buffer_to_default_values();
+    }
 }
 
 RefPtr<Gfx::PaintingSurface> OpenGLContext::surface()

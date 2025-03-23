@@ -31,6 +31,8 @@ public:
 
     void make_current();
 
+    void present(bool preserve_drawing_buffer);
+
     void set_size(Gfx::IntSize const&);
 
     RefPtr<Gfx::PaintingSurface> surface();
