@@ -1,4 +1,4 @@
-name: Build Ladybird Browser
+name: Build Ladybird Browser....
 
 on:
   workflow_dispatch:  # Allows manual trigger from GitHub Actions UI
