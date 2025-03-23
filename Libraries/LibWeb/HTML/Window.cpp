@@ -61,6 +61,7 @@
 #include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/Internals/Internals.h>
 #include <LibWeb/Internals/Processes.h>
+#include <LibWeb/Internals/Settings.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/PaintableBox.h>
@@ -738,9 +739,10 @@ WebIDL::ExceptionOr<void> Window::initialize_web_interfaces(Badge<WindowEnvironm
     if (url.scheme() == "about"sv && url.paths().size() == 1) {
         auto const& path = url.paths().first();
 
-        if (path == "processes"sv) {
+        if (path == "processes"sv)
             define_direct_property("processes", realm.create<Internals::Processes>(realm), JS::default_attributes);
-        }
+        else if (path == "settings"sv)
+            define_direct_property("settings", realm.create<Internals::Settings>(realm), JS::default_attributes);
     }
 
     return {};

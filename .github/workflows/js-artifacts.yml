@@ -1,0 +1,89 @@
+name: Package the js repl as a binary artifact
+
+on:
+  push:
+    branches: [master]
+
+env:
+  LADYBIRD_SOURCE_DIR: ${{ github.workspace }}
+  CCACHE_DIR: ${{ github.workspace }}/.ccache
+  VCPKG_ROOT:  ${{ github.workspace }}/Build/vcpkg
+  VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
+
+jobs:
+  build-and-package:
+    runs-on: ${{ matrix.os }}
+    if: github.repository == 'LadybirdBrowser/ladybird'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04]
+        package_type: [Linux-x86_64]
+        os_name: [Linux]
+        include:
+          - os: macos-14
+            package_type: macOS-universal2
+            os_name: macOS
+
+    concurrency:
+      group: ${{ github.workflow }}-${{ matrix.os_name }}
+      cancel-in-progress: true
+
+    steps:
+      - name: Checkout LadybirdBrowser/ladybird
+        uses: actions/checkout@v4
+
+      - name: "Set up environment"
+        uses: ./.github/actions/setup
+        with:
+          os: ${{ matrix.os_name }}
+          arch: 'Lagom'
+
+      - name: Restore Caches
+        uses: ./.github/actions/cache-restore
+        id: 'cache-restore'
+        with:
+          os: ${{ matrix.os_name }}
+          arch: 'Lagom'
+          cache_key_extra: 'LibJS Artifacts'
+          ccache_path: ${{ env.CCACHE_DIR }}
+          download_cache_path: ${{ github.workspace }}/Build/caches
+
+      - name: Create build directory Ubuntu
+        run: |
+          cmake --preset Distribution_CI \
+            -DCMAKE_C_COMPILER=clang-19 \
+            -DCMAKE_CXX_COMPILER=clang++-19 \
+            -DENABLE_GUI_TARGETS=OFF
+        if: ${{ matrix.os_name == 'Linux' }}
+
+      # FIXME: Add the following flag back when vcpkg supports Universal binaries:
+      #        -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64"
+      #
+      #        See: https://github.com/microsoft/vcpkg/discussions/19454
+      - name: Create build directory macOS
+        run: |
+          cmake --preset Distribution_CI \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET="11.0" \
+            -DENABLE_GUI_TARGETS=OFF
+        if: ${{ matrix.os_name == 'macOS' }}
+
+      - name: Build and package js
+        working-directory: Build/distribution
+        run: |
+          ninja js
+          cpack
+
+      - name: Save Caches
+        uses: ./.github/actions/cache-save
+        with:
+          arch: 'Lagom'
+          ccache_path: ${{ env.CCACHE_DIR }}
+          ccache_primary_key: ${{ steps.cache-restore.outputs.ccache_primary_key }}
+
+      - name: Upload js package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ladybird-js-${{ matrix.package_type }}
+          path: Build/distribution/ladybird-js*.tar.gz
+          retention-days: 7

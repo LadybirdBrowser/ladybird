@@ -81,8 +81,10 @@ ErrorOr<void> JPEGLoadingContext::decode()
     if (jpeg_read_header(&cinfo, TRUE) != JPEG_HEADER_OK)
         return Error::from_string_literal("Failed to read JPEG header");
 
-    if (cinfo.jpeg_color_space == JCS_CMYK || cinfo.jpeg_color_space == JCS_YCCK) {
+    if (cinfo.jpeg_color_space == JCS_CMYK) {
         cinfo.out_color_space = JCS_CMYK;
+    } else if (cinfo.jpeg_color_space == JCS_YCCK) {
+        cinfo.out_color_space = JCS_YCCK;
     } else {
         cinfo.out_color_space = JCS_EXT_BGRX;
     }
@@ -110,6 +112,37 @@ ErrorOr<void> JPEGLoadingContext::decode()
                 dbgln("JPEG Warning: Decoding produced no more scanlines in scanline {}/{}.", cinfo.output_scanline, cinfo.output_height);
                 could_read_all_scanlines = false;
                 break;
+            }
+        }
+
+        // If image is in YCCK color space, we convert it to CMYK
+        // and then CMYK code path will handle the rest
+        if (cinfo.out_color_space == JCS_YCCK) {
+            for (int i = 0; i < cmyk_bitmap->size().height(); ++i) {
+                for (int j = 0; j < cmyk_bitmap->size().width(); ++j) {
+                    auto const& cmyk = cmyk_bitmap->scanline(i)[j];
+
+                    auto y = cmyk.c;
+                    auto cb = cmyk.m;
+                    auto cr = cmyk.y;
+                    auto k = cmyk.k;
+
+                    int r = y + 1.402f * (cr - 128);
+                    int g = y - 0.3441f * (cb - 128) - 0.7141f * (cr - 128);
+                    int b = y + 1.772f * (cb - 128);
+
+                    y = clamp(r, 0, 255);
+                    cb = clamp(g, 0, 255);
+                    cr = clamp(b, 0, 255);
+                    k = 255 - k;
+
+                    cmyk_bitmap->scanline(i)[j] = {
+                        y,
+                        cb,
+                        cr,
+                        k,
+                    };
+                }
             }
         }
     }

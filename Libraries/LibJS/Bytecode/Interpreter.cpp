@@ -1613,7 +1613,7 @@ inline ThrowCompletionOr<GC::Ref<Object>> super_call_with_argument_array(VM& vm,
 
 inline ThrowCompletionOr<GC::Ref<Array>> iterator_to_array(VM& vm, Value iterator)
 {
-    auto& iterator_record = as<IteratorRecord>(iterator.as_object());
+    auto& iterator_record = static_cast<IteratorRecord&>(iterator.as_cell());
 
     auto array = MUST(Array::create(*vm.current_realm(), 0));
     size_t index = 0;
@@ -1719,7 +1719,7 @@ inline ThrowCompletionOr<Value> delete_by_value_with_this(Bytecode::Interpreter&
 }
 
 // 14.7.5.9 EnumerateObjectProperties ( O ), https://tc39.es/ecma262/#sec-enumerate-object-properties
-inline ThrowCompletionOr<Object*> get_object_property_iterator(VM& vm, Value value)
+inline ThrowCompletionOr<Value> get_object_property_iterator(VM& vm, Value value)
 {
     // While the spec does provide an algorithm, it allows us to implement it ourselves so long as we meet the following invariants:
     //    1- Returned property keys do not include keys that are Symbols
@@ -1804,7 +1804,7 @@ inline ThrowCompletionOr<Object*> get_object_property_iterator(VM& vm, Value val
             }
         },
         1, vm.names.next);
-    return realm.create<IteratorRecord>(realm, object, callback, false).ptr();
+    return vm.heap().allocate<IteratorRecord>(object, callback, false);
 }
 
 ByteString Instruction::to_byte_string(Bytecode::Executable const& executable) const
@@ -2915,14 +2915,14 @@ ThrowCompletionOr<void> GetIterator::execute_impl(Bytecode::Interpreter& interpr
 
 ThrowCompletionOr<void> GetObjectFromIteratorRecord::execute_impl(Bytecode::Interpreter& interpreter) const
 {
-    auto& iterator_record = as<IteratorRecord>(interpreter.get(m_iterator_record).as_object());
+    auto& iterator_record = static_cast<IteratorRecord&>(interpreter.get(m_iterator_record).as_cell());
     interpreter.set(m_object, iterator_record.iterator);
     return {};
 }
 
 ThrowCompletionOr<void> GetNextMethodFromIteratorRecord::execute_impl(Bytecode::Interpreter& interpreter) const
 {
-    auto& iterator_record = as<IteratorRecord>(interpreter.get(m_iterator_record).as_object());
+    auto& iterator_record = static_cast<IteratorRecord&>(interpreter.get(m_iterator_record).as_cell());
     interpreter.set(m_next_method, iterator_record.next_method);
     return {};
 }
@@ -2938,14 +2938,15 @@ ThrowCompletionOr<void> GetMethod::execute_impl(Bytecode::Interpreter& interpret
 
 ThrowCompletionOr<void> GetObjectPropertyIterator::execute_impl(Bytecode::Interpreter& interpreter) const
 {
-    interpreter.set(dst(), TRY(get_object_property_iterator(interpreter.vm(), interpreter.get(object()))));
+    auto iterator_record = TRY(get_object_property_iterator(interpreter.vm(), interpreter.get(object())));
+    interpreter.set(dst(), iterator_record);
     return {};
 }
 
 ThrowCompletionOr<void> IteratorClose::execute_impl(Bytecode::Interpreter& interpreter) const
 {
     auto& vm = interpreter.vm();
-    auto& iterator = as<IteratorRecord>(interpreter.get(m_iterator_record).as_object());
+    auto& iterator = static_cast<IteratorRecord&>(interpreter.get(m_iterator_record).as_cell());
 
     // FIXME: Return the value of the resulting completion. (Note that m_completion_value can be empty!)
     TRY(iterator_close(vm, iterator, Completion { m_completion_type, m_completion_value }));
@@ -2955,7 +2956,7 @@ ThrowCompletionOr<void> IteratorClose::execute_impl(Bytecode::Interpreter& inter
 ThrowCompletionOr<void> AsyncIteratorClose::execute_impl(Bytecode::Interpreter& interpreter) const
 {
     auto& vm = interpreter.vm();
-    auto& iterator = as<IteratorRecord>(interpreter.get(m_iterator_record).as_object());
+    auto& iterator = static_cast<IteratorRecord&>(interpreter.get(m_iterator_record).as_cell());
 
     // FIXME: Return the value of the resulting completion. (Note that m_completion_value can be empty!)
     TRY(async_iterator_close(vm, iterator, Completion { m_completion_type, m_completion_value }));
@@ -2965,7 +2966,7 @@ ThrowCompletionOr<void> AsyncIteratorClose::execute_impl(Bytecode::Interpreter& 
 ThrowCompletionOr<void> IteratorNext::execute_impl(Bytecode::Interpreter& interpreter) const
 {
     auto& vm = interpreter.vm();
-    auto& iterator_record = as<IteratorRecord>(interpreter.get(m_iterator_record).as_object());
+    auto& iterator_record = static_cast<IteratorRecord&>(interpreter.get(m_iterator_record).as_cell());
     interpreter.set(dst(), TRY(iterator_next(vm, iterator_record)));
     return {};
 }

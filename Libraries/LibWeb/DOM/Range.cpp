@@ -1180,11 +1180,9 @@ GC::Ref<Geometry::DOMRectList> Range::get_client_rects()
             // areas returned by invoking getClientRects() on the element.
             if (contains_node(*node) && !contains_node(*node->parent())) {
                 auto const& element = static_cast<DOM::Element const&>(*node);
-                GC::Ref<Geometry::DOMRectList> const element_rects = element.get_client_rects();
-                for (u32 i = 0; i < element_rects->length(); i++) {
-                    auto rect = element_rects->item(i);
-                    rects.append(Geometry::DOMRect::create(realm(),
-                        Gfx::FloatRect(rect->x(), rect->y(), rect->width(), rect->height())));
+                auto const element_rects = element.get_client_rects();
+                for (auto& rect : element_rects) {
+                    rects.append(MUST(Geometry::DOMRect::construct_impl(realm(), static_cast<double>(rect.x()), static_cast<double>(rect.y()), static_cast<double>(rect.width()), static_cast<double>(rect.height()))));
                 }
             }
         } else if (node_type == NodeType::TEXT_NODE) {

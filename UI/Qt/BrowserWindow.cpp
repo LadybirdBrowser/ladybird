@@ -207,6 +207,21 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     settings_action->setIcon(load_icon_from_uri("resource://icons/16x16/settings.png"sv));
     settings_action->setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::Preferences));
     edit_menu->addAction(settings_action);
+    QObject::connect(settings_action, &QAction::triggered, this, [this] {
+        new_tab_from_url(URL::URL::about("settings"_string), Web::HTML::ActivateTab::Yes);
+    });
+
+    auto* deprecated_settings_action = new QAction("Qt Settings", this);
+    deprecated_settings_action->setIcon(load_icon_from_uri("resource://icons/16x16/settings.png"sv));
+    edit_menu->addAction(deprecated_settings_action);
+    QObject::connect(deprecated_settings_action, &QAction::triggered, this, [this] {
+        if (!m_settings_dialog) {
+            m_settings_dialog = new SettingsDialog(this);
+        }
+
+        m_settings_dialog->show();
+        m_settings_dialog->setFocus();
+    });
 
     auto* view_menu = m_hamburger_menu->addMenu("&View");
     menuBar()->addMenu(view_menu);
@@ -633,9 +648,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     QObject::connect(quit_action, &QAction::triggered, this, &QMainWindow::close);
 
     QObject::connect(m_new_tab_action, &QAction::triggered, this, [this] {
-        auto url = ak_url_from_qstring(Settings::the()->new_tab_page());
-        VERIFY(url.has_value());
-        auto& tab = new_tab_from_url(url.release_value(), Web::HTML::ActivateTab::Yes);
+        auto& tab = new_tab_from_url(WebView::Application::settings().new_tab_page_url(), Web::HTML::ActivateTab::Yes);
         tab.set_url_is_hidden(true);
         tab.focus_location_editor();
     });
@@ -643,14 +656,6 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
         (void)static_cast<Ladybird::Application*>(QApplication::instance())->new_window({});
     });
     QObject::connect(open_file_action, &QAction::triggered, this, &BrowserWindow::open_file);
-    QObject::connect(settings_action, &QAction::triggered, this, [this] {
-        if (!m_settings_dialog) {
-            m_settings_dialog = new SettingsDialog(this);
-        }
-
-        m_settings_dialog->show();
-        m_settings_dialog->setFocus();
-    });
     QObject::connect(m_tabs_container, &QTabWidget::currentChanged, [this](int index) {
         auto* tab = as<Tab>(m_tabs_container->widget(index));
         if (tab)

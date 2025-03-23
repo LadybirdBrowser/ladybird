@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2023-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -628,15 +628,15 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
         }
         auto* search_selected_text_menu_item = [self.page_context_menu itemWithTag:CONTEXT_MENU_SEARCH_SELECTED_TEXT_TAG];
 
-        auto selected_text = self.observer
+        auto const& search_engine = WebView::Application::settings().search_engine();
+
+        auto selected_text = self.observer && search_engine.has_value()
             ? m_web_view_bridge->selected_text_with_whitespace_collapsed()
             : OptionalNone {};
         TemporaryChange change_url { m_context_menu_search_text, move(selected_text) };
 
         if (m_context_menu_search_text.has_value()) {
-            auto* delegate = (ApplicationDelegate*)[NSApp delegate];
-            auto action_text = WebView::format_search_query_for_display([delegate searchEngine].query_url, *m_context_menu_search_text);
-
+            auto action_text = WebView::format_search_query_for_display(search_engine->query_url, *m_context_menu_search_text);
             [search_selected_text_menu_item setTitle:Ladybird::string_to_ns_string(action_text)];
             [search_selected_text_menu_item setHidden:NO];
         } else {
@@ -963,8 +963,7 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
                 [self.select_dropdown addItem:[NSMenuItem separatorItem]];
         }
 
-        auto device_pixel_ratio = m_web_view_bridge->device_pixel_ratio();
-        auto* event = Ladybird::create_context_menu_mouse_event(self, Gfx::IntPoint { content_position.x() / device_pixel_ratio, content_position.y() / device_pixel_ratio });
+        auto* event = Ladybird::create_context_menu_mouse_event(self, content_position);
         [NSMenu popUpContextMenu:self.select_dropdown withEvent:event forView:self];
     };
 
@@ -1137,9 +1136,11 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
 
 - (void)searchSelectedText:(id)sender
 {
-    auto* delegate = (ApplicationDelegate*)[NSApp delegate];
+    auto const& search_engine = WebView::Application::settings().search_engine();
+    if (!search_engine.has_value())
+        return;
 
-    auto url_string = MUST(String::formatted([delegate searchEngine].query_url, URL::percent_encode(*m_context_menu_search_text)));
+    auto url_string = MUST(String::formatted(search_engine->query_url, URL::percent_encode(*m_context_menu_search_text)));
     auto url = URL::Parser::basic_parse(url_string);
     VERIFY(url.has_value());
     [self.observer onCreateNewTab:url.release_value() activateTab:Web::HTML::ActivateTab::Yes];

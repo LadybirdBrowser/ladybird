@@ -284,6 +284,8 @@ void HTMLSelectElement::set_selected_index(WebIDL::Long index)
     for (auto& option : m_cached_list_of_options)
         option->set_selected_internal(false);
 
+    ScopeGuard guard { [&]() { update_inner_text_element(); } };
+
     if (index < 0 || static_cast<size_t>(index) >= m_cached_list_of_options.size())
         return;
 
@@ -497,8 +499,8 @@ void HTMLSelectElement::show_the_picker_if_applicable()
     // Request select dropdown
     auto weak_element = make_weak_ptr<HTMLSelectElement>();
     auto rect = get_bounding_client_rect();
-    auto position = document().navigable()->to_top_level_position(Web::CSSPixelPoint { rect->x(), rect->y() + rect->height() });
-    document().page().did_request_select_dropdown(weak_element, position, CSSPixels(rect->width()), m_select_items);
+    auto position = document().navigable()->to_top_level_position(Web::CSSPixelPoint { rect.x(), rect.bottom() });
+    document().page().did_request_select_dropdown(weak_element, position, rect.width(), m_select_items);
     set_is_open(true);
 }
 

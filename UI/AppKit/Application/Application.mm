@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2023-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -58,9 +58,8 @@ ApplicationBridge::ApplicationBridge(Badge<WebView::Application>, Main::Argument
 #pragma mark - Public methods
 
 - (void)setupWebViewApplication:(Main::Arguments&)arguments
-                  newTabPageURL:(URL::URL)new_tab_page_url
 {
-    m_application_bridge = Ladybird::ApplicationBridge::create(arguments, move(new_tab_page_url));
+    m_application_bridge = Ladybird::ApplicationBridge::create(arguments);
 }
 
 - (ErrorOr<void>)launchServices

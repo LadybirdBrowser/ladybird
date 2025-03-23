@@ -2,9 +2,9 @@ Harness status: OK
 
 Found 34 tests
 
-26 Pass
-8 Fail
-Fail	e.style['grid-template-rows'] = "none" should set the property value
+27 Pass
+7 Fail
+Pass	e.style['grid-template-rows'] = "none" should set the property value
 Pass	e.style['grid-template-rows'] = "10px" should set the property value
 Pass	e.style['grid-template-rows'] = "20%" should set the property value
 Pass	e.style['grid-template-rows'] = "calc(-0.5em + 10px)" should set the property value

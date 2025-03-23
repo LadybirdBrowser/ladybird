@@ -1,0 +1,175 @@
+:root {
+    --indigo-10: #a5a6f2;
+    --indigo-20: #8a88eb;
+    --indigo-30: #6851d6;
+    --indigo-40: #553fc4;
+    --indigo-50: #4d37b8;
+    --indigo-60: #3c28a1;
+    --indigo-80: #301f82;
+    --indigo-100: #2a1373;
+    --indigo-300: #260f73;
+    --indigo-500: #1d0c59;
+    --indigo-900: #190c4a;
+    --indigo: var(--indigo-100);
+
+    --violet-10: #e0d4ff;
+    --violet-20: #cab5ff;
+    --violet-30: #c3abff;
+    --violet-40: #b496ff;
+    --violet-50: #ab8ef5;
+    --violet-60: #9d7cf2;
+    --violet-80: #936fed;
+    --violet-100: #8a64e5;
+    --violet-300: #8257e6;
+    --violet-500: #7a4ce6;
+    --violet-900: #6a39db;
+    --violet: var(--violet-100);
+
+    --slate-blue-10: #cbe0f7;
+    --slate-blue-20: #c1d9f5;
+    --slate-blue-30: #b6d2f2;
+    --slate-blue-40: #a8c8ed;
+    --slate-blue-50: #97bce6;
+    --slate-blue-60: #86add9;
+    --slate-blue-80: #77a1d1;
+    --slate-blue-100: #8a64e5;
+    --slate-blue-300: #5c8ecc;
+    --slate-blue-500: #5484bf;
+    --slate-blue-900: #4872a3;
+    --slate-blue: var(--slate-blue-100);
+}
+
+@media (prefers-color-scheme: light) {
+    :root {
+        --text-color: #2f3640;
+        --toggle-background-color: #cccccc;
+    }
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --text-color: #e0e0e0;
+        --toggle-background-color: #555555;
+    }
+}
+
+* {
+    color-scheme: light dark;
+    font-family: sans-serif;
+}
+
+body {
+    color: var(--text-color);
+}
+
+/**
+ * Generic form controls.
+ */
+
+button.primary-button {
+    color: white;
+    background-color: var(--violet-100);
+
+    font-size: 14px;
+
+    border: none;
+    border-radius: 4px;
+    padding: 10px 15px;
+
+    cursor: pointer;
+}
+
+button.primary-button:hover {
+    background-color: var(--violet-500);
+    filter: unset;
+}
+
+button.primary-button:active {
+    background-color: var(--violet-900);
+    outline: none;
+}
+
+input[type="search"],
+input[type="text"],
+input[type="url"],
+select {
+    color: var(--text-color);
+
+    font-size: 14px;
+
+    border-radius: 4px;
+    padding: 10px 12px;
+}
+
+input[type="search"]:focus,
+input[type="text"]:focus,
+input[type="url"]:focus,
+select:focus {
+    border-color: var(--violet-100);
+    outline: none;
+}
+
+/**
+ * Create a toggle switch as a checkbox alternative:
+ *
+ * <div class="toggle-container">
+ *     <label for="your-toggle">Toggle Label</label>
+ *     <label class="toggle">
+ *         <input id="your-toggle" type="checkbox" checked />
+ *         <span class="toggle-button"></span>
+ *     </label>
+ * </div>
+ */
+
+.toggle-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.toggle-container .toggle {
+    width: 50px;
+    height: 24px;
+
+    display: inline-block;
+    position: relative;
+}
+
+.toggle-container .toggle input {
+    display: none;
+}
+
+.toggle-container .toggle-button {
+    background-color: var(--toggle-background-color);
+    border-radius: 24px;
+
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+
+    cursor: pointer;
+}
+
+.toggle-container .toggle-button:before {
+    background-color: white;
+    border-radius: 50%;
+
+    content: "";
+
+    width: 18px;
+    height: 18px;
+
+    position: absolute;
+    bottom: 3px;
+    left: 3px;
+}
+
+.toggle-container input:checked + .toggle-button {
+    background-color: var(--violet-100);
+}
+
+.toggle-container input:checked + .toggle-button:before {
+    transform: translateX(26px);
+}

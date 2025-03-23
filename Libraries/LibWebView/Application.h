@@ -22,6 +22,7 @@
 #include <LibWebView/Options.h>
 #include <LibWebView/Process.h>
 #include <LibWebView/ProcessManager.h>
+#include <LibWebView/Settings.h>
 
 namespace WebView {
 
@@ -34,6 +35,8 @@ public:
     int execute();
 
     static Application& the() { return *s_the; }
+
+    static Settings& settings() { return the().m_settings; }
 
     static BrowserOptions const& browser_options() { return the().m_browser_options; }
     static WebContentOptions& web_content_options() { return the().m_web_content_options; }
@@ -58,6 +61,9 @@ public:
 
     void send_updated_process_statistics_to_view(ViewImplementation&);
 
+    void send_current_settings_to_view(ViewImplementation&);
+    void send_available_search_engines_to_view(ViewImplementation&);
+
     ErrorOr<LexicalPath> path_for_downloaded_file(StringView file) const;
 
     enum class DevtoolsState {
@@ -69,10 +75,10 @@ public:
 
 protected:
     template<DerivedFrom<Application> ApplicationType>
-    static NonnullOwnPtr<ApplicationType> create(Main::Arguments& arguments, URL::URL new_tab_page_url)
+    static NonnullOwnPtr<ApplicationType> create(Main::Arguments& arguments)
     {
         auto app = adopt_own(*new ApplicationType { {}, arguments });
-        app->initialize(arguments, move(new_tab_page_url));
+        app->initialize(arguments);
 
         return app;
     }
@@ -87,7 +93,7 @@ protected:
     virtual Optional<ByteString> ask_user_for_download_folder() const { return {}; }
 
 private:
-    void initialize(Main::Arguments const& arguments, URL::URL new_tab_page_url);
+    void initialize(Main::Arguments const& arguments);
 
     void launch_spare_web_content_process();
     ErrorOr<void> launch_request_server();
@@ -127,6 +133,8 @@ private:
 
     static Application* s_the;
 
+    Settings m_settings;
+
     BrowserOptions m_browser_options;
     WebContentOptions m_web_content_options;
 
@@ -150,11 +158,11 @@ private:
 
 }
 
-#define WEB_VIEW_APPLICATION(ApplicationType)                                                           \
-public:                                                                                                 \
-    static NonnullOwnPtr<ApplicationType> create(Main::Arguments& arguments, URL::URL new_tab_page_url) \
-    {                                                                                                   \
-        return WebView::Application::create<ApplicationType>(arguments, move(new_tab_page_url));        \
-    }                                                                                                   \
-                                                                                                        \
+#define WEB_VIEW_APPLICATION(ApplicationType)                                \
+public:                                                                      \
+    static NonnullOwnPtr<ApplicationType> create(Main::Arguments& arguments) \
+    {                                                                        \
+        return WebView::Application::create<ApplicationType>(arguments);     \
+    }                                                                        \
+                                                                             \
     ApplicationType(Badge<WebView::Application>, Main::Arguments&);

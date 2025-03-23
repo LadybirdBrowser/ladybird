@@ -111,4 +111,10 @@ endpoint WebContentClient
     request_worker_agent(u64 page_id) => (IPC::File socket) // FIXME: Add required attributes to select a SharedWorker Agent
 
     update_process_statistics(u64 page_id) =|
+
+    request_current_settings(u64 page_id) =|
+    restore_default_settings(u64 page_id) =|
+    set_new_tab_page_url(u64 page_id, URL::URL new_tab_page_url) =|
+    request_available_search_engines(u64 page_id) =|
+    set_search_engine(u64 page_id, Optional<String> search_engine) =|
 }

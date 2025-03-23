@@ -2,11 +2,11 @@ Harness status: OK
 
 Found 24 tests
 
-18 Pass
-6 Fail
+20 Pass
+4 Fail
 Pass	e.style['grid-template'] = "none" should set grid-template-areas
-Fail	e.style['grid-template'] = "none" should set grid-template-columns
-Fail	e.style['grid-template'] = "none" should set grid-template-rows
+Pass	e.style['grid-template'] = "none" should set grid-template-columns
+Pass	e.style['grid-template'] = "none" should set grid-template-rows
 Pass	e.style['grid-template'] = "none" should not set unrelated longhands
 Pass	e.style['grid-template'] = "10px / 20%" should set grid-template-areas
 Pass	e.style['grid-template'] = "10px / 20%" should set grid-template-columns

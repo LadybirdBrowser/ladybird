@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2023-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -9,7 +9,6 @@
 #include <AK/Error.h>
 #include <LibIPC/Forward.h>
 #include <LibMain/Main.h>
-#include <LibURL/URL.h>
 #include <LibWebView/Forward.h>
 
 #import <Cocoa/Cocoa.h>
@@ -20,9 +19,7 @@ class WebViewBridge;
 
 @interface Application : NSApplication
 
-- (void)setupWebViewApplication:(Main::Arguments&)arguments
-                  newTabPageURL:(URL::URL)new_tab_page_url;
-
+- (void)setupWebViewApplication:(Main::Arguments&)arguments;
 - (ErrorOr<void>)launchServices;
 
 @end

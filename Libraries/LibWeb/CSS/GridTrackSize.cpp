@@ -245,7 +245,7 @@ GridTrackSizeList GridTrackSizeList::make_none()
 String GridTrackSizeList::to_string() const
 {
     if (m_list.is_empty())
-        return "auto"_string;
+        return "none"_string;
 
     StringBuilder builder;
     for (auto const& line_definition_or_name : m_list) {

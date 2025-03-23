@@ -17,7 +17,6 @@ struct SearchEngine {
 };
 
 ReadonlySpan<SearchEngine> search_engines();
-SearchEngine const& default_search_engine();
 Optional<SearchEngine const&> find_search_engine_by_name(StringView name);
 Optional<SearchEngine const&> find_search_engine_by_query_url(StringView query_url);
 String format_search_query_for_display(StringView query_url, StringView query);

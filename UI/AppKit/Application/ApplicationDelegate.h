@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2023-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -13,7 +13,6 @@
 #include <LibWeb/CSS/PreferredContrast.h>
 #include <LibWeb/CSS/PreferredMotion.h>
 #include <LibWeb/HTML/ActivateTab.h>
-#include <LibWebView/Forward.h>
 
 #import <Cocoa/Cocoa.h>
 
@@ -46,6 +45,5 @@
 - (Web::CSS::PreferredColorScheme)preferredColorScheme;
 - (Web::CSS::PreferredContrast)preferredContrast;
 - (Web::CSS::PreferredMotion)preferredMotion;
-- (WebView::SearchEngine const&)searchEngine;
 
 @end

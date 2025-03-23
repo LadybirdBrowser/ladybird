@@ -10,7 +10,6 @@
 
 #include <AK/ByteString.h>
 #include <AK/OwnPtr.h>
-#include <LibWebView/SearchEngine.h>
 
 #include <QPoint>
 #include <QSettings>
@@ -42,12 +41,6 @@ public:
     bool is_maximized();
     void set_is_maximized(bool is_maximized);
 
-    QString new_tab_page();
-    void set_new_tab_page(QString const& page);
-
-    WebView::SearchEngine search_engine() const { return m_search_engine; }
-    void set_search_engine(WebView::SearchEngine engine);
-
     QStringList preferred_languages();
     void set_preferred_languages(QStringList const& languages);
 
@@ -55,15 +48,11 @@ public:
         QString name;
         QString url;
     };
-
     EngineProvider autocomplete_engine();
     void set_autocomplete_engine(EngineProvider const& engine);
 
     bool enable_autocomplete();
     void set_enable_autocomplete(bool enable);
-
-    bool enable_search();
-    void set_enable_search(bool enable);
 
     bool enable_do_not_track();
     void set_enable_do_not_track(bool enable);
@@ -76,8 +65,6 @@ public:
 
 signals:
     void show_menubar_changed(bool show_menubar);
-    void enable_search_changed(bool enable);
-    void search_engine_changed(WebView::SearchEngine engine);
     void preferred_languages_changed(QStringList const& languages);
     void enable_do_not_track_changed(bool enable);
     void enable_autoplay_changed(bool enable);
@@ -87,7 +74,6 @@ protected:
 
 private:
     OwnPtr<QSettings> m_qsettings;
-    WebView::SearchEngine m_search_engine;
 };
 
 }

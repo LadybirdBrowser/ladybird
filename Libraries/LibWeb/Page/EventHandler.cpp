@@ -1236,8 +1236,12 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
 
         if (key == UIEvents::KeyCode::Key_Return) {
             FIRE(input_event(UIEvents::EventNames::beforeinput, UIEvents::InputTypes::insertParagraph, m_navigable, code_point));
-            target->handle_return_key();
+
+            if (target->handle_return_key() != EventResult::Handled)
+                target->handle_insert(String::from_code_point(code_point));
+
             FIRE(input_event(UIEvents::EventNames::input, UIEvents::InputTypes::insertParagraph, m_navigable, code_point));
+            return EventResult::Handled;
         }
 
         // FIXME: Text editing shortcut keys (copy/paste etc.) should be handled here.

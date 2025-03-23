@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Basic User Interface Test: appearance and -webkit-appearance</title>
+<link rel="help" href="https://drafts.csswg.org/css-ui-4/#appearance-switching">
+<meta name="assert" content="The appearance and -webkit-appearance properties are supported.">
+<meta name="assert" content="Initial value is none.">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+ #appearance { appearance: button; }
+ #-webkit-appearance { -webkit-appearance: button; }
+</style>
+<div id="appearance"></div>
+<div id="-webkit-appearance"></div>
+<div id="initial"></div>
+<script>
+for (const prop of ['appearance', '-webkit-appearance']) {
+	test(() => {
+		const actual = getComputedStyle(document.getElementById(prop)).getPropertyValue(prop);
+		assert_equals(actual, 'button');
+	}, `support for ${prop}`);
+
+	test(() => {
+		const actual = getComputedStyle(document.getElementById('initial')).getPropertyValue(prop);
+		assert_equals(actual, 'none');
+	}, `initial value for ${prop}`);
+}
+</script>

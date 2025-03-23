@@ -52,6 +52,16 @@ void HTMLStyleElement::removed_from(Node* old_parent, Node& old_root)
     Base::removed_from(old_parent, old_root);
 }
 
+void HTMLStyleElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
+{
+    Base::attribute_changed(name, old_value, value, namespace_);
+
+    if (name == HTML::AttributeNames::media) {
+        if (auto* sheet = m_style_element_utils.sheet())
+            sheet->set_media(value.value_or({}));
+    }
+}
+
 // https://html.spec.whatwg.org/multipage/semantics.html#dom-style-disabled
 bool HTMLStyleElement::disabled()
 {
@@ -77,18 +87,6 @@ void HTMLStyleElement::set_disabled(bool disabled)
     // 2. If the given value is true, set this's associated CSS style sheet's disabled flag.
     //    Otherwise, unset this's associated CSS style sheet's disabled flag.
     sheet()->set_disabled(disabled);
-}
-
-String HTMLStyleElement::media() const
-{
-    return attribute(HTML::AttributeNames::media).value_or(String {});
-}
-
-void HTMLStyleElement::set_media(String media)
-{
-    (void)set_attribute(HTML::AttributeNames::media, media);
-    if (auto sheet = m_style_element_utils.sheet())
-        sheet->set_media(media);
 }
 
 // https://www.w3.org/TR/cssom/#dom-linkstyle-sheet

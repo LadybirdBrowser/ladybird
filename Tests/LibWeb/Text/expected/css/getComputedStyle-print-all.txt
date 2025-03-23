@@ -65,13 +65,13 @@ align-items: normal
 align-self: auto
 animation-delay: 0s
 animation-direction: normal
-animation-duration: auto
+animation-duration: 0s
 animation-fill-mode: none
 animation-iteration-count: 1
 animation-name: none
 animation-play-state: running
 animation-timing-function: ease
-appearance: auto
+appearance: none
 aspect-ratio: auto
 backdrop-filter: none
 background-attachment: scroll
@@ -146,8 +146,8 @@ grid-column-start: auto
 grid-row-end: auto
 grid-row-start: auto
 grid-template-areas: none
-grid-template-columns: auto
-grid-template-rows: auto
+grid-template-columns: none
+grid-template-rows: none
 height: 2100px
 inline-size: 784px
 inset-block-end: auto
