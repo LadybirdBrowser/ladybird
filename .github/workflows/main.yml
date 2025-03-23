@@ -11,12 +11,14 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Cache Build Files  # ðŸŸ¢ Proper caching to speed up builds
+      - name: Cache Build Files  # 🟢 More caching without changing the key
         uses: actions/cache@v4
         with:
           path: |
-            Build/release/
-            ~/.ccache  # Cache compiler outputs if ccache is used
+            Build/
+            ~/.ccache
+            ~/.distcc  # 🟢 Cache distributed compilation files
+            /usr/local/bin/  # 🟢 Cache installed binaries (if applicable)
           key: ${{ runner.os }}-ladybird-${{ hashFiles('**/CMakeLists.txt') }}
           restore-keys: |
             ${{ runner.os }}-ladybird-
@@ -29,6 +31,14 @@ jobs:
             fonts-liberation2 git libgl1-mesa-dev nasm ninja-build pkg-config \
             qt6-base-dev qt6-tools-dev-tools qt6-wayland tar unzip zip \
             libpulse-dev qt6-multimedia-dev xvfb mesa-utils libegl-dev libglx-dev libosmesa6
+
+      - name: Cache System Packages  # 🟢 Cache APT package downloads to speed up installs
+        uses: actions/cache@v4
+        with:
+          path: /var/cache/apt/archives/
+          key: ${{ runner.os }}-apt-packages-${{ hashFiles('**/CMakeLists.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-apt-packages-
 
       - name: Install CMake 3.25+ from Kitware
         run: |
@@ -59,14 +69,9 @@ jobs:
           chmod +x Meta/ladybird.sh
           ./Meta/ladybird.sh build
 
-      - name: Debug Cached Files (Verify Cache is Working)
-        run: find Build/release/ -type f | tee build-structure.txt
-
-      - name: Upload Important Build Files
+      - name: Upload Entire Build Directory
         uses: actions/upload-artifact@v4
         with:
-          name: Ladybird-Important-Files
-          path: |
-            Build/release/bin/**  # ðŸŸ¢ Upload ALL binaries and libraries
-            build-structure.txt  # ðŸŸ¢ Debugging log to check what was built
-          retention-days: 1
+          name: Ladybird-Full-Build
+          path: Build/
+          retention-days: 14
