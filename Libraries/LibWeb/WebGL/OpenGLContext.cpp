@@ -83,7 +83,13 @@ static EGLConfig get_egl_config(EGLDisplay display)
 OwnPtr<OpenGLContext> OpenGLContext::create(NonnullRefPtr<Gfx::SkiaBackendContext> skia_backend_context, WebGLVersion webgl_version)
 {
 #ifdef AK_OS_MACOS
-    EGLDisplay display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+    EGLAttrib display_attributes[] = {
+        EGL_PLATFORM_ANGLE_TYPE_ANGLE,
+        EGL_PLATFORM_ANGLE_TYPE_METAL_ANGLE,
+        EGL_NONE,
+    };
+
+    EGLDisplay display = eglGetPlatformDisplay(EGL_PLATFORM_ANGLE_ANGLE, reinterpret_cast<void*>(EGL_DEFAULT_DISPLAY), display_attributes);
     if (display == EGL_NO_DISPLAY) {
         dbgln("Failed to get EGL display");
         return {};
