@@ -7,9 +7,9 @@
 #include "TestInterop.h"
 #include "TestHeap.h"
 #include <AK/TypeCasts.h>
-#include <LibGC-Swift.h>
 #include <LibGC/ForeignCell.h>
 #include <LibGC/Heap.h>
+#include <TestGCSwift-Swift.h>
 
 #define COLLECT heap.collect_garbage(GC::Heap::CollectionType::CollectGarbage)
 #define COLLECT_ALL heap.collect_garbage(GC::Heap::CollectionType::CollectEverything)
@@ -20,7 +20,7 @@ void test_interop()
 
     COLLECT_ALL;
 
-    auto string = GC::ForeignRef<GC::HeapString>::allocate(heap, "Hello, World!");
+    auto string = GC::ForeignRef<TestGCSwift::HeapString>::allocate(heap, "Hello, World!");
 
     COLLECT;
 
