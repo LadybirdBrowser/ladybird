@@ -29,6 +29,6 @@ if (ENABLE_SWIFT)
     target_sources(TestLibWebSwift PRIVATE ../Resources/SwiftTestMain.swift)
 
     set_target_properties(TestLibWebSwift PROPERTIES SUFFIX .swift-testing)
-    target_link_libraries(TestLibWebSwift PRIVATE AK LibWeb SwiftTesting::SwiftTesting)
+    target_link_libraries(TestLibWebSwift PRIVATE AK LibWeb LibGC SwiftTesting::SwiftTesting)
     add_test(NAME TestLibWebSwift COMMAND TestLibWebSwift)
 endif()
