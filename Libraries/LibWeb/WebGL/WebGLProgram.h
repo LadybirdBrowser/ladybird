@@ -22,7 +22,7 @@ public:
 
     virtual ~WebGLProgram();
 
-    GC::Ptr<WebGLShader> attached_vertex_shader() const { return m_attached_fragment_shader; }
+    GC::Ptr<WebGLShader> attached_vertex_shader() const { return m_attached_vertex_shader; }
     void set_attached_vertex_shader(GC::Ptr<WebGLShader> shader) { m_attached_vertex_shader = shader; }
 
     GC::Ptr<WebGLShader> attached_fragment_shader() const { return m_attached_fragment_shader; }
