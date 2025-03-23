@@ -108,6 +108,8 @@ OwnPtr<OpenGLContext> OpenGLContext::create(NonnullRefPtr<Gfx::SkiaBackendContex
         webgl_version == WebGLVersion::WebGL1 ? 2 : 3,
         EGL_CONTEXT_WEBGL_COMPATIBILITY_ANGLE,
         EGL_TRUE,
+        EGL_ROBUST_RESOURCE_INITIALIZATION_ANGLE,
+        EGL_TRUE,
         EGL_CONTEXT_OPENGL_BACKWARDS_COMPATIBLE_ANGLE,
         EGL_FALSE,
         EGL_NONE,
