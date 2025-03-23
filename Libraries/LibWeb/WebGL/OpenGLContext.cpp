@@ -49,6 +49,7 @@ OpenGLContext::~OpenGLContext()
     glDeleteFramebuffers(1, &m_impl->framebuffer);
     glDeleteRenderbuffers(1, &m_impl->depth_buffer);
     eglDestroyContext(m_impl->display, m_impl->context);
+    eglReleaseTexImage(m_impl->display, m_impl->surface, EGL_BACK_BUFFER);
     eglDestroySurface(m_impl->display, m_impl->surface);
 #endif
 }
