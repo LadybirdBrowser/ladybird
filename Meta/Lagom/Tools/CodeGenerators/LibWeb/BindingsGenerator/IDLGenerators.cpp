@@ -1796,27 +1796,19 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
     if ((is_optional || type.is_nullable()) && !is<UnionType>(type)) {
         if (type.is_string()) {
             scoped_generator.append(R"~~~(
-    if (!@value@.has_value()) {
-        @result_expression@ JS::js_null();
-    } else {
+    if (@value@.has_value()) {
 )~~~");
         } else if (type.name() == "sequence") {
             scoped_generator.append(R"~~~(
-    if (!@value@.has_value()) {
-        @result_expression@ JS::js_null();
-    } else {
+    if (@value@.has_value()) {
 )~~~");
         } else if (type.is_primitive() || interface.enumerations.contains(type.name()) || interface.dictionaries.contains(type.name())) {
             scoped_generator.append(R"~~~(
-    if (!@value@.has_value()) {
-        @result_expression@ JS::js_null();
-    } else {
+    if (@value@.has_value()) {
 )~~~");
         } else {
             scoped_generator.append(R"~~~(
-    if (!@value@) {
-        @result_expression@ JS::js_null();
-    } else {
+    if (@value@) {
 )~~~");
         }
     }
@@ -2071,6 +2063,8 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
 
     if ((type.is_nullable() || is_optional) && !is<UnionType>(type)) {
         scoped_generator.append(R"~~~(
+    } else {
+        @result_expression@ JS::js_null();
     }
 )~~~");
     }
