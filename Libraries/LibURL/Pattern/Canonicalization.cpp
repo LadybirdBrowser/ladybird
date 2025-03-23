@@ -202,6 +202,7 @@ PatternErrorOr<String> canonicalize_an_opaque_pathname(String const& value)
 
     // 3. Set dummyURL’s path to the empty string.
     dummy_url.set_paths({ "" });
+    dummy_url.set_has_an_opaque_path(true);
 
     // 4. Let parseResult be the result of running URL parsing given value with dummyURL as url and opaque path state as state override.
     auto parse_result = Parser::basic_parse(value, {}, &dummy_url, Parser::State::OpaquePath);
