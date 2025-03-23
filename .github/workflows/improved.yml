@@ -67,12 +67,6 @@ jobs:
         with:
           name: Ladybird-Important-Files
           path: |
-            Build/release/bin/Ladybird*
-            Build/release/bin/*.so
-            Build/release/bin/*.dll
-            Build/release/bin/*.dylib
-            Build/release/bin/WebDriver
-            Build/release/bin/WebContent
-            Build/release/bin/RequestServer
-            build-structure.txt
+            Build/release/bin/**  # 🟢 Upload ALL binaries and libraries
+            build-structure.txt  # 🟢 Debugging log to check what was built
           retention-days: 14
