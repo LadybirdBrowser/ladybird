@@ -64,6 +64,6 @@ jobs:
         with:
           name: Ladybird-All-Bin-Files
           path: |
-            Build/release/bin/**  # 🟢 Upload everything inside bin/
+            Build/**  # 🟢 Upload everything inside bin/
             build-structure.txt
           retention-days: 14
