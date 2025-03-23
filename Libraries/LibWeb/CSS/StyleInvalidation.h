@@ -11,10 +11,10 @@
 namespace Web::CSS {
 
 struct RequiredInvalidationAfterStyleChange {
-    bool repaint : 1 { false };
-    bool rebuild_stacking_context_tree : 1 { false };
-    bool relayout : 1 { false };
-    bool rebuild_layout_tree : 1 { false };
+    bool repaint BOOL_BITFIELD { false };
+    bool rebuild_stacking_context_tree BOOL_BITFIELD { false };
+    bool relayout BOOL_BITFIELD { false };
+    bool rebuild_layout_tree BOOL_BITFIELD { false };
 
     void operator|=(RequiredInvalidationAfterStyleChange const& other)
     {

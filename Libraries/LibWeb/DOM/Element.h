@@ -553,16 +553,16 @@ private:
 
     Array<CSSPixelPoint, 3> m_scroll_offset;
 
-    bool m_in_top_layer : 1 { false };
-    bool m_rendered_in_top_layer : 1 { false };
-    bool m_style_uses_css_custom_properties { false };
-    bool m_affected_by_has_pseudo_class_in_subject_position : 1 { false };
-    bool m_affected_by_has_pseudo_class_in_non_subject_position : 1 { false };
-    bool m_affected_by_direct_sibling_combinator : 1 { false };
-    bool m_affected_by_indirect_sibling_combinator : 1 { false };
-    bool m_affected_by_first_or_last_child_pseudo_class : 1 { false };
-    bool m_affected_by_nth_child_pseudo_class : 1 { false };
-    bool m_affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator : 1 { false };
+    bool m_in_top_layer BOOL_BITFIELD { false };
+    bool m_rendered_in_top_layer BOOL_BITFIELD { false };
+    bool m_style_uses_css_custom_properties BOOL_BITFIELD { false };
+    bool m_affected_by_has_pseudo_class_in_subject_position BOOL_BITFIELD { false };
+    bool m_affected_by_has_pseudo_class_in_non_subject_position BOOL_BITFIELD { false };
+    bool m_affected_by_direct_sibling_combinator BOOL_BITFIELD { false };
+    bool m_affected_by_indirect_sibling_combinator BOOL_BITFIELD { false };
+    bool m_affected_by_first_or_last_child_pseudo_class BOOL_BITFIELD { false };
+    bool m_affected_by_nth_child_pseudo_class BOOL_BITFIELD { false };
+    bool m_affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator BOOL_BITFIELD { false };
 
     size_t m_sibling_invalidation_distance { 0 };
 

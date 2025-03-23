@@ -168,12 +168,12 @@ private:
 
     SelectionState m_selection_state { SelectionState::None };
 
-    bool m_positioned : 1 { false };
-    bool m_fixed_position : 1 { false };
-    bool m_sticky_position : 1 { false };
-    bool m_absolutely_positioned : 1 { false };
-    bool m_floating : 1 { false };
-    bool m_inline : 1 { false };
+    bool m_positioned BOOL_BITFIELD { false };
+    bool m_fixed_position BOOL_BITFIELD { false };
+    bool m_sticky_position BOOL_BITFIELD { false };
+    bool m_absolutely_positioned BOOL_BITFIELD { false };
+    bool m_floating BOOL_BITFIELD { false };
+    bool m_inline BOOL_BITFIELD { false };
 };
 
 inline DOM::Node* HitTestResult::dom_node()
