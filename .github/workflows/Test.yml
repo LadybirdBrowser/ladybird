@@ -1,0 +1,88 @@
+name: Build Ladybird Browser with distcc (1+5 Machines)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install distcc
+        run: |
+          sudo apt update -y
+          sudo apt install -y distcc
+
+      - name: Cache Build Files
+        uses: actions/cache@v4
+        with:
+          path: |
+            Build/
+            ~/.distcc
+            ~/.ccache
+          key: ${{ runner.os }}-ladybird-distcc-${{ hashFiles('**/CMakeLists.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-ladybird-distcc-
+
+  distcc-worker:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        worker: [1, 2, 3, 4, 5]  # 🟢 Now using 5 parallel workers (6 total machines)
+    steps:
+      - name: Install distcc
+        run: |
+          sudo apt update -y
+          sudo apt install -y distcc
+          distccd --daemon --allow 0.0.0.0/0 --log-file=/tmp/distcc.log
+
+  build:
+    needs: [setup, distcc-worker]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Restore Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            Build/
+            ~/.distcc
+            ~/.ccache
+          key: ${{ runner.os }}-ladybird-distcc-${{ hashFiles('**/CMakeLists.txt') }}
+
+      - name: Install distcc
+        run: |
+          sudo apt update -y
+          sudo apt install -y distcc ccache
+
+      - name: Configure distcc for Maximum Parallelism
+        run: |
+          echo "localhost/2 0.0.0.0/0" > ~/.distcc/hosts  # Use 2 local vCPUs + all remote workers
+          export PATH="/usr/lib/distcc:$PATH"
+          export CC="distcc gcc"
+          export CXX="distcc g++"
+          export MAKEFLAGS="-j10"  # 🟢 Force 10 parallel compilation jobs
+
+      - name: Build Ladybird Using distcc
+        run: |
+          chmod +x Meta/ladybird.sh
+          export MAKEJOBS=$(nproc)  # 🟢 Use all available CPUs
+          ninja -j "$MAKEJOBS" -C "$BUILD_DIR"
+
+      - name: Show `distcc` & `ccache` Stats (Check Efficiency)
+        run: |
+          ccache --show-stats
+          tail -n 20 /tmp/distcc.log || echo "No distcc log found."
+
+      - name: Debug Cached Files (Verify Cache is Working)
+        run: find Build/ -type f | tee build-structure.txt
+
+      - name: Upload Everything in `bin/`
+        uses: actions/upload-artifact@v4
+        with:
+          name: Ladybird-All-Bin-Files
+          path: |
+            Build/release/bin/**  # 🟢 Upload everything inside bin/
+            build-structure.txt
+          retention-days: 14
