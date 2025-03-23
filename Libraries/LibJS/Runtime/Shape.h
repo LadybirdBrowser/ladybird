@@ -142,9 +142,9 @@ private:
     PropertyAttributes m_attributes { 0 };
     TransitionType m_transition_type { TransitionType::Invalid };
 
-    bool m_dictionary : 1 { false };
-    bool m_cacheable : 1 { true };
-    bool m_is_prototype_shape : 1 { false };
+    bool m_dictionary BOOL_BITFIELD { false };
+    bool m_cacheable BOOL_BITFIELD { true };
+    bool m_is_prototype_shape BOOL_BITFIELD { false };
 };
 
 }

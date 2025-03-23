@@ -12,6 +12,7 @@
 #include <AK/HashMap.h>
 #include <AK/Noncopyable.h>
 #include <AK/StringView.h>
+#include <AK/Swift.h>
 #include <AK/Weakable.h>
 #include <LibGC/Forward.h>
 #include <LibGC/Internals.h>
@@ -25,6 +26,13 @@ namespace GC {
 #    define IGNORE_GC [[clang::annotate("serenity::ignore_gc")]]
 #else
 #    define IGNORE_GC
+#endif
+
+// https://github.com/swiftlang/swift/issues/80182
+#if defined(LIBGC_WORKAROUND_BOOL_BITFIELD)
+#    define BOOL_BITFIELD
+#else
+#    define BOOL_BITFIELD : 1
 #endif
 
 #define GC_CELL(class_, base_class)                \
@@ -163,7 +171,7 @@ public:
     protected:
         virtual void visit_impl(Cell&) = 0;
         virtual ~Visitor() = default;
-    };
+    } SWIFT_UNSAFE_REFERENCE;
 
     virtual void visit_edges(Visitor&) { }
 
@@ -187,10 +195,10 @@ protected:
     void set_overrides_must_survive_garbage_collection(bool b) { m_overrides_must_survive_garbage_collection = b; }
 
 private:
-    bool m_mark { false };
-    bool m_overrides_must_survive_garbage_collection { false };
-    State m_state { State::Live };
-};
+    bool m_mark BOOL_BITFIELD { false };
+    bool m_overrides_must_survive_garbage_collection BOOL_BITFIELD { false };
+    State m_state BOOL_BITFIELD { State::Live };
+} SWIFT_UNSAFE_REFERENCE;
 
 }
 
