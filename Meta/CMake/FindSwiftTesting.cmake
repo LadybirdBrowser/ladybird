@@ -17,6 +17,7 @@ if (SWIFT_TESTING)
         cmake_path(GET _SWIFT_TESTING_DIR PARENT_PATH _SWIFT_TESTING_TARGETLESS_DIR)
         set_target_properties(SwiftTesting::SwiftTesting PROPERTIES
           INTERFACE_COMPILE_OPTIONS "$<$<COMPILE_LANGUAGE:Swift>:SHELL:-load-plugin-library ${_SWIFT_TESTING_TARGETLESS_DIR}/host/plugins/libTestingMacros.so>"
+          INTERFACE_LINK_OPTIONS "-load-plugin-library;${_SWIFT_TESTING_TARGETLESS_DIR}/host/plugins/libTestingMacros.so"
         )
       endif()
     endif()

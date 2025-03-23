@@ -6,14 +6,28 @@
 
 import AK
 import GC
-import GCTesting
+@_exported import TestGCSwiftCxx
 import Testing
 
-// FIXME: We want a type declared *here* for HeapString, but it gives a compiler warning:
-//  error: type 'GCString' cannot conform to protocol 'HeapAllocatable' because it has requirements that cannot be satisfied
-//  Even using the same exact code from LibGC/Heap+Swift.swift
-//  This is likely because one of the required types for HeapAllocatable is not fully imported from C++ and thus can't
-//  be re-exported by the GC module.
+public struct HeapString: HeapAllocatable {
+    public var string: Swift.String
+
+    public init(cell: GC.Cell) {
+        self.cell = cell
+        self.string = ""
+    }
+
+    public static func create(on heap: GC.Heap, string: Swift.String) -> GC.Cell {
+        // NOTE: GC must be deferred so that a collection during allocation doesn't get tripped
+        //   up looking for the Cell pointer on the stack or in a register when it might only exist in the heap
+        precondition(heap.is_gc_deferred())
+        let heapString = allocate(on: heap)
+        heapString.pointee.string = string
+        return heapString.pointee.cell
+    }
+
+    public var cell: GC.Cell
+}
 
 @Suite(.serialized)
 struct TestGCSwiftBindings {

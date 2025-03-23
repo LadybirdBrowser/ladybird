@@ -15,38 +15,15 @@ extension GC.Heap {
     }
 }
 
-// FIXME: Cell and Cell::Visitor are not imported properly, so we have to treat them as OpaquePointer
 public protocol HeapAllocatable {
     static func allocate(on heap: GC.Heap) -> UnsafeMutablePointer<Self>
 
-    init(cell: OpaquePointer)
+    init(cell: GC.Cell)
 
     func finalize()
-    func visitEdges(_ visitor: OpaquePointer)
+    func visitEdges(_ visitor: GC.Cell.Visitor)
 
-    var cell: OpaquePointer { get }
-}
-
-// FIXME: Figure out why other modules can't conform to HeapAllocatable
-public struct HeapString: HeapAllocatable {
-    public var string: Swift.String
-
-    public init(cell: OpaquePointer) {
-        self.cell = cell
-        self.string = ""
-    }
-
-    // FIXME: HeapAllocatable cannot be exposed to C++ yet, so we're off to void* paradise
-    public static func create(on heap: GC.Heap, string: Swift.String) -> OpaquePointer {
-        // NOTE: GC must be deferred so that a collection during allocation doesn't get tripped
-        //   up looking for the Cell pointer on the stack or in a register when it might only exist in the heap
-        precondition(heap.is_gc_deferred())
-        let heapString = allocate(on: heap)
-        heapString.pointee.string = string
-        return heapString.pointee.cell
-    }
-
-    public var cell: OpaquePointer
+    var cell: GC.Cell { get }
 }
 
 // Here be dragons
@@ -64,7 +41,7 @@ func asHeapAllocatableType(_ typeMetadata: UnsafeMutableRawPointer) -> any HeapA
 }
 
 extension HeapAllocatable {
-    fileprivate static func initializeFromFFI(at this: UnsafeMutableRawPointer, cell: OpaquePointer) {
+    fileprivate static func initializeFromFFI(at this: UnsafeMutableRawPointer, cell: GC.Cell) {
         this.assumingMemoryBound(to: Self.self).initialize(to: Self.self.init(cell: cell))
     }
 
@@ -76,7 +53,7 @@ extension HeapAllocatable {
         this.assumingMemoryBound(to: Self.self).pointee.finalize()
     }
 
-    fileprivate static func visitEdgesFromFFI(at this: UnsafeMutableRawPointer, visitor: OpaquePointer) {
+    fileprivate static func visitEdgesFromFFI(at this: UnsafeMutableRawPointer, visitor: GC.Cell.Visitor) {
         this.assumingMemoryBound(to: Self.self).pointee.visitEdges(visitor)
     }
 
@@ -101,5 +78,5 @@ extension HeapAllocatable {
     }
 
     public func finalize() {}
-    public func visitEdges(_ visitor: OpaquePointer) {}
+    public func visitEdges(_ visitor: GC.Cell.Visitor) {}
 }
