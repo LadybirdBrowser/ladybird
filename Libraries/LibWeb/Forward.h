@@ -1028,6 +1028,12 @@ class PerformanceMeasure;
 
 }
 
+namespace Web::ViewTransition {
+
+class ViewTransition;
+
+}
+
 namespace Web::WebAssembly {
 
 class Global;
