@@ -262,8 +262,13 @@ u32 Selector::specificity() const
                 break;
             }
             case SimpleSelector::Type::TagName:
+                // count the number of type selectors and pseudo-elements in the selector (= C)
+                ++tag_names;
+                break;
             case SimpleSelector::Type::PseudoElement:
                 // count the number of type selectors and pseudo-elements in the selector (= C)
+                // FIXME: This needs special handling for view transition pseudos:
+                //        https://drafts.csswg.org/css-view-transitions-1/#named-view-transition-pseudo
                 ++tag_names;
                 break;
             case SimpleSelector::Type::Universal:

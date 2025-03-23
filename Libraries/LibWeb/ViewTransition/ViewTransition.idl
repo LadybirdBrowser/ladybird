@@ -1,0 +1,11 @@
+// https://drafts.csswg.org/css-view-transitions-1/#callbackdef-viewtransitionupdatecallback
+callback ViewTransitionUpdateCallback = Promise<any> ();
+
+// https://drafts.csswg.org/css-view-transitions-1/#viewtransition
+[Exposed=Window]
+interface ViewTransition {
+    readonly attribute Promise<undefined> updateCallbackDone;
+    readonly attribute Promise<undefined> ready;
+    readonly attribute Promise<undefined> finished;
+    undefined skipTransition();
+};

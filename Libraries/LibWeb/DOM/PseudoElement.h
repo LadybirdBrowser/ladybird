@@ -9,6 +9,7 @@
 #include <AK/OwnPtr.h>
 #include <LibGC/CellAllocator.h>
 #include <LibJS/Heap/Cell.h>
+#include <LibWeb/CSS/CascadedProperties.h>
 #include <LibWeb/CSS/StyleProperty.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
@@ -53,9 +54,9 @@ private:
 };
 
 // https://drafts.csswg.org/css-view-transitions/#pseudo-element-tree
-class PseudoElementTreeNode final
+class PseudoElementTreeNode
     : public PseudoElement
-    , TreeNode<PseudoElementTreeNode> {
+    , public TreeNode<PseudoElementTreeNode> {
     GC_CELL(PseudoElementTreeNode, PseudoElement);
     GC_DECLARE_ALLOCATOR(PseudoElementTreeNode);
 };

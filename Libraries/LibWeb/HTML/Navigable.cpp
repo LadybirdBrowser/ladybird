@@ -2587,6 +2587,22 @@ void Navigable::paste(String const& text)
     m_event_handler.handle_paste(text);
 }
 
+// https://drafts.csswg.org/css-view-transitions-1/#snapshot-containing-block
+CSSPixelRect Navigable::snapshot_containing_block()
+{
+    // The snapshot containing block is a rectangle that covers all areas of the window that could potentially display
+    // page content (and is therefore consistent regardless of root scrollbars or interactive widgets).
+
+    // Within a child navigable, the snapshot containing block is the union of the navigable’s viewport with any scrollbar gutters.
+    // FIXME: Actually get the correct rectangle here.
+    return viewport_rect();
+}
+// https://drafts.csswg.org/css-view-transitions-1/#snapshot-containing-block-size
+CSSPixelSize Navigable::snapshot_containing_block_size()
+{
+    return this->snapshot_containing_block().size();
+}
+
 void Navigable::register_navigation_observer(Badge<NavigationObserver>, NavigationObserver& navigation_observer)
 {
     auto result = m_navigation_observers.set(navigation_observer);

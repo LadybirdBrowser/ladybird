@@ -458,7 +458,10 @@ void EventLoop::update_the_rendering()
 
     // FIXME: 17. For each doc of docs, if the focused area of doc is not a focusable area, then run the focusing steps for doc's viewport, and set doc's relevant global object's navigation API's focus changed during ongoing navigation to false.
 
-    // FIXME: 18. For each doc of docs, perform pending transition operations for doc. [CSSVIEWTRANSITIONS]
+    // 18. For each doc of docs, perform pending transition operations for doc. [CSSVIEWTRANSITIONS]
+    for (auto& document : docs) {
+        document->perform_pending_transition_operations();
+    }
 
     // 19. For each doc of docs, run the update intersection observations steps for doc, passing in the relative high resolution time given now and doc's relevant global object as the timestamp. [INTERSECTIONOBSERVER]
     for (auto& document : docs) {

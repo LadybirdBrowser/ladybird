@@ -948,6 +948,7 @@ set(SOURCES
     URLPattern/URLPattern.cpp
     UserTiming/PerformanceMark.cpp
     UserTiming/PerformanceMeasure.cpp
+    ViewTransition/ViewTransition.cpp
     WebAssembly/Global.cpp
     WebAssembly/Instance.cpp
     WebAssembly/Memory.cpp

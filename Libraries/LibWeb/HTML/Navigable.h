@@ -9,6 +9,7 @@
 
 #include <AK/HashTable.h>
 #include <AK/String.h>
+#include <AK/Tuple.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/Bindings/NavigationPrototype.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
@@ -199,6 +200,11 @@ public:
 
     Web::EventHandler& event_handler() { return m_event_handler; }
     Web::EventHandler const& event_handler() const { return m_event_handler; }
+
+    // https://drafts.csswg.org/css-view-transitions-1/#snapshot-containing-block
+    CSSPixelRect snapshot_containing_block();
+    // https://drafts.csswg.org/css-view-transitions-1/#snapshot-containing-block-size
+    CSSPixelSize snapshot_containing_block_size();
 
     bool has_session_history_entry_and_ready_for_navigation() const { return m_has_session_history_entry_and_ready_for_navigation; }
     void set_has_session_history_entry_and_ready_for_navigation();
