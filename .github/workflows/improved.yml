@@ -1,4 +1,4 @@
-name: Build Ladybird Browser....
+name: (adv.)Build Ladybird Browser
 
 on:
   workflow_dispatch:  # Allows manual trigger from GitHub Actions UI
@@ -11,16 +11,6 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Cache Build Files  # 🟢 Proper caching to speed up builds
-        uses: actions/cache@v4
-        with:
-          path: |
-            Build/release/
-            ~/.ccache  # Cache compiler outputs if ccache is used
-          key: ${{ runner.os }}-ladybird-${{ hashFiles('**/CMakeLists.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-ladybird-
-
       - name: Install Dependencies
         run: |
           sudo apt update -y
@@ -30,17 +20,21 @@ jobs:
             qt6-base-dev qt6-tools-dev-tools qt6-wayland tar unzip zip \
             libpulse-dev qt6-multimedia-dev xvfb mesa-utils libegl-dev libglx-dev libosmesa6
 
-      - name: Install CMake 3.25+ from Kitware
-        run: |
-          wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | sudo tee /usr/share/keyrings/kitware-archive-keyring.gpg >/dev/null
-          echo "deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/kitware.list
-          sudo apt update -y && sudo apt install cmake -y
+      - name: Cache Build Files
+        uses: actions/cache@v4
+        with:
+          path: |
+            Build/
+            ~/.ccache  # 🟢 Cache compiler outputs
+          key: ${{ runner.os }}-ladybird-${{ hashFiles('**/CMakeLists.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-ladybird-
 
-      - name: Install Clang 19 (C++23-capable compiler)
+      - name: Setup `ccache` for Faster Compilation
         run: |
-          sudo wget -O /usr/share/keyrings/llvm-snapshot.gpg.key https://apt.llvm.org/llvm-snapshot.gpg.key
-          echo "deb [signed-by=/usr/share/keyrings/llvm-snapshot.gpg.key] https://apt.llvm.org/$(lsb_release -sc)/ llvm-toolchain-$(lsb_release -sc)-19 main" | sudo tee -a /etc/apt/sources.list.d/llvm.list
-          sudo apt update -y && sudo apt install clang-19 clangd-19 clang-format-19 clang-tidy-19 lld-19 -y
+          ccache --max-size=2G  # 🟢 Increase ccache size to 2GB for better caching
+          echo "CC='ccache gcc'" >> $GITHUB_ENV
+          echo "CXX='ccache g++'" >> $GITHUB_ENV
 
       - name: Setup Virtual Display (Xvfb)
         run: |
@@ -59,14 +53,17 @@ jobs:
           chmod +x Meta/ladybird.sh
           ./Meta/ladybird.sh build
 
-      - name: Debug Cached Files (Verify Cache is Working)
-        run: find Build/release/ -type f | tee build-structure.txt
+      - name: Show `ccache` Stats (Track Cache Efficiency)
+        run: ccache --show-stats  # Keep cumulative stats
 
-      - name: Upload Important Build Files
+      - name: Debug Cached Files (Verify Cache is Working)
+        run: find Build/ -type f | tee build-structure.txt
+
+      - name: Upload Everything in `bin/`
         uses: actions/upload-artifact@v4
         with:
-          name: Ladybird-Important-Files
+          name: Ladybird-All-Bin-Files
           path: |
-            Build/release/bin/**  # 🟢 Upload ALL binaries and libraries
-            build-structure.txt  # 🟢 Debugging log to check what was built
+            Build/release/bin/**  # 🟢 Upload everything inside bin/
+            build-structure.txt
           retention-days: 14
