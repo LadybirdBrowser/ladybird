@@ -2018,9 +2018,6 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
                 auto wrapped_value_name = ByteString::formatted("wrapped_{}", member_value_js_name);
                 dictionary_generator.set("wrapped_value_name", wrapped_value_name);
 
-                dictionary_generator.append(R"~~~(
-        JS::Value @wrapped_value_name@;
-)~~~");
                 // NOTE: This has similar semantics as 'required' in WebIDL. However, the spec does not put 'required' on
                 //       _returned_ dictionary members since with the way the spec is worded it has no normative effect to
                 //      do so. We could implement this without the 'GenerateAsRequired' extended attribute, but it would require
@@ -2028,11 +2025,27 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
                 //      determine whether the type is present or not (e.g through a has_value() on an Optional<T>, or a null
                 //      check on a GC::Ptr<T>). So to save some complexity in the generator, give ourselves a hint of what to do.
                 bool is_optional = !member.extended_attributes.contains("GenerateAsRequired") && !member.default_value.has_value();
+                if (is_optional) {
+                    dictionary_generator.append(R"~~~(
+        Optional<JS::Value> @wrapped_value_name@;
+)~~~");
+                } else {
+                    dictionary_generator.append(R"~~~(
+        JS::Value @wrapped_value_name@;
+)~~~");
+                }
                 generate_wrap_statement(dictionary_generator, ByteString::formatted("{}{}{}", value, type.is_nullable() ? "->" : ".", member.name.to_snakecase()), member.type, interface, ByteString::formatted("{} =", wrapped_value_name), WrappingReference::No, recursion_depth + 1, is_optional);
 
-                dictionary_generator.append(R"~~~(
+                if (is_optional) {
+                    dictionary_generator.append(R"~~~(
+        if (@wrapped_value_name@.has_value())
+            MUST(dictionary_object@recursion_depth@->create_data_property("@member_key@"_fly_string, @wrapped_value_name@.release_value()));
+)~~~");
+                } else {
+                    dictionary_generator.append(R"~~~(
         MUST(dictionary_object@recursion_depth@->create_data_property("@member_key@"_fly_string, @wrapped_value_name@));
 )~~~");
+                }
             }
 
             if (current_dictionary->parent_name.is_empty())
@@ -2061,10 +2074,15 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
         }
     }
 
-    if ((type.is_nullable() || is_optional) && !is<UnionType>(type)) {
+    if (type.is_nullable() && !is<UnionType>(type)) {
         scoped_generator.append(R"~~~(
     } else {
         @result_expression@ JS::js_null();
+    }
+)~~~");
+    } else if (is_optional) {
+        // Optional return values should not be assigned any value (including null) if the value is not present.
+        scoped_generator.append(R"~~~(
     }
 )~~~");
     }
