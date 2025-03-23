@@ -214,10 +214,14 @@ private:
 
     GC::Ptr<DOM::Text> m_character_insertion_node;
     StringBuilder m_character_insertion_builder;
-};
+} SWIFT_UNSAFE_REFERENCE;
 
 RefPtr<CSS::CSSStyleValue> parse_dimension_value(StringView);
 RefPtr<CSS::CSSStyleValue> parse_nonzero_dimension_value(StringView);
 Optional<Color> parse_legacy_color_value(StringView);
+
+// Swift interop
+using HTMLParserGCPtr = GC::Ptr<HTMLParser>;
+using HTMLParserGCRef = GC::Ref<HTMLParser>;
 
 }

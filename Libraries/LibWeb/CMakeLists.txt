@@ -999,7 +999,8 @@ if (ENABLE_SWIFT)
         HTML/Parser/HTMLToken.swift
         HTML/Parser/HTMLTokenizer.swift
         HTML/Parser/HTMLTokenizerHelpers.cpp
+        HTML/Parser/SpeculativeHTMLParser.swift
     )
     target_link_libraries(LibWeb PRIVATE AK Collections)
-    add_swift_target_properties(LibWeb LAGOM_LIBRARIES AK LibGfx)
+    add_swift_target_properties(LibWeb LAGOM_LIBRARIES AK LibGfx LibGC COMPILE_DEFINITIONS LIBGC_WORKAROUND_BOOL_BITFIELD)
 endif()
