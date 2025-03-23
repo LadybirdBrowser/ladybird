@@ -42,6 +42,7 @@
 #include <LibWeb/InvalidateDisplayList.h>
 #include <LibWeb/ResizeObserver/ResizeObserver.h>
 #include <LibWeb/TrustedTypes/InjectionSink.h>
+#include <LibWeb/ViewTransition/ViewTransition.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/ObservableArray.h>
 
@@ -856,6 +857,22 @@ public:
     [[nodiscard]] WebIDL::CallbackType* onvisibilitychange();
     void set_onvisibilitychange(WebIDL::CallbackType*);
 
+    // https://drafts.csswg.org/css-view-transitions-1/#dom-document-startviewtransition
+    GC::Ptr<ViewTransition::ViewTransition> start_view_transition(ViewTransition::ViewTransitionUpdateCallback update_callback);
+    // https://drafts.csswg.org/css-view-transitions-1/#perform-pending-transition-operations
+    void perform_pending_transition_operations();
+    // https://drafts.csswg.org/css-view-transitions-1/#flush-the-update-callback-queue
+    void flush_the_update_callback_queue();
+    // https://drafts.csswg.org/css-view-transitions-1/#view-transition-page-visibility-change-steps
+    void view_transition_page_visibility_change_steps();
+
+    GC::Ptr<ViewTransition::ViewTransition> active_view_transition() const { return m_active_view_transition; }
+    void set_active_view_transition(GC::Ptr<ViewTransition::ViewTransition> view_transition) { m_active_view_transition = view_transition; }
+    void set_rendering_suppression_for_view_transitions(bool value) { m_rendering_suppression_for_view_transitions = value; }
+    GC::Ptr<CSS::CSSStyleSheet> dynamic_view_transition_style_sheet() const { return m_dynamic_view_transition_style_sheet; }
+    void set_show_view_transition_tree(bool value) { m_show_view_transition_tree = value; }
+    Vector<GC::Ptr<ViewTransition::ViewTransition>>& update_callback_queue() { return m_update_callback_queue; }
+
     void reset_cursor_blink_cycle();
 
     GC::Ref<EditingHostManager> editing_host_manager() const { return *m_editing_host_manager; }
@@ -1282,6 +1299,21 @@ private:
 
     // https://html.spec.whatwg.org/multipage/dom.html#render-blocking-element-set
     HashTable<GC::Ref<Element>> m_render_blocking_elements;
+
+    // https://drafts.csswg.org/css-view-transitions-1/#document-active-view-transition
+    GC::Ptr<ViewTransition::ViewTransition> m_active_view_transition;
+
+    // https://drafts.csswg.org/css-view-transitions-1/#document-rendering-suppression-for-view-transitions
+    bool m_rendering_suppression_for_view_transitions { false };
+
+    // https://drafts.csswg.org/css-view-transitions-1/#document-dynamic-view-transition-style-sheet
+    GC::Ptr<CSS::CSSStyleSheet> m_dynamic_view_transition_style_sheet;
+
+    // https://drafts.csswg.org/css-view-transitions-1/#document-show-view-transition-tree
+    bool m_show_view_transition_tree { false };
+
+    // https://drafts.csswg.org/css-view-transitions-1/#document-update-callback-queue
+    Vector<GC::Ptr<ViewTransition::ViewTransition>> m_update_callback_queue = {};
 
     HashTable<WeakPtr<Node>> m_pending_nodes_for_style_invalidation_due_to_presence_of_has;
 

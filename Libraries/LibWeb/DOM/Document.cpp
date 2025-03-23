@@ -135,6 +135,7 @@
 #include <LibWeb/HTML/Scripting/Agent.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
+#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Scripting/WindowEnvironmentSettingsObject.h>
 #include <LibWeb/HTML/SharedResourceRequest.h>
 #include <LibWeb/HTML/Storage.h>
@@ -465,6 +466,7 @@ Document::Document(JS::Realm& realm, URL::URL const& url, TemporaryDocumentForFr
     , m_url(url)
     , m_temporary_document_for_fragment_parsing(temporary_document_for_fragment_parsing)
     , m_editing_host_manager(EditingHostManager::create(realm, *this))
+    , m_dynamic_view_transition_style_sheet(parse_css_stylesheet(CSS::Parser::ParsingParams(realm), ""sv, {}))
     , m_style_invalidator(realm.heap().allocate<StyleInvalidator>())
 {
     m_legacy_platform_object_flags = PlatformObject::LegacyPlatformObjectFlags {
@@ -605,6 +607,12 @@ void Document::visit_edges(Cell::Visitor& visitor)
 
     visitor.visit(m_adopted_style_sheets);
     visitor.visit(m_script_blocking_style_sheet_set);
+
+    visitor.visit(m_active_view_transition);
+    visitor.visit(m_dynamic_view_transition_style_sheet);
+
+    for (auto& view_transition : m_update_callback_queue)
+        visitor.visit(view_transition);
 
     visitor.visit(m_top_layer_elements);
     visitor.visit(m_top_layer_pending_removals);
@@ -3376,7 +3384,8 @@ void Document::update_the_visibility_state(HTML::VisibilityState visibility_stat
 
     // FIXME: 4. Run the screen orientation change steps with document.
 
-    // FIXME: 5. Run the view transition page visibility change steps with document.
+    // 5. Run the view transition page visibility change steps with document.
+    view_transition_page_visibility_change_steps();
 
     // 6. Run any page visibility change steps which may be defined in other specifications, with visibility state and
     //    document.
@@ -5989,6 +5998,10 @@ void Document::for_each_active_css_style_sheet(Function<void(CSS::CSSStyleSheet&
         });
     }
 
+    if (m_dynamic_view_transition_style_sheet) {
+        callback(*m_dynamic_view_transition_style_sheet, {});
+    }
+
     for_each_shadow_root([&](auto& shadow_root) {
         shadow_root.for_each_css_style_sheet([&](auto& style_sheet) {
             if (!style_sheet.disabled())
@@ -6614,6 +6627,98 @@ WebIDL::CallbackType* Document::onvisibilitychange()
 void Document::set_onvisibilitychange(WebIDL::CallbackType* value)
 {
     set_event_handler_attribute(HTML::EventNames::visibilitychange, value);
+}
+
+// https://drafts.csswg.org/css-view-transitions-1/#dom-document-startviewtransition
+// FIXME: Calling document.startViewTransition() without arguments throws TypeError instead of calling this.
+GC::Ptr<ViewTransition::ViewTransition> Document::start_view_transition(ViewTransition::ViewTransitionUpdateCallback update_callback)
+{
+    // The method steps for startViewTransition(updateCallback) are as follows:
+
+    // 1. Let transition be a new ViewTransition object in this’s relevant Realm.
+    auto& realm = this->realm();
+    auto transition = ViewTransition::ViewTransition::create(realm);
+
+    // 2. If updateCallback is provided, set transition’s update callback to updateCallback.
+    if (update_callback != nullptr)
+        transition->set_update_callback(update_callback);
+
+    // 3. Let document be this’s relevant global object’s associated document.
+    auto& document = as<HTML::Window>(relevant_global_object(*this)).associated_document();
+
+    // 4. If document’s visibility state is "hidden", then skip transition with an "InvalidStateError" DOMException,
+    //    and return transition.
+    if (m_visibility_state == HTML::VisibilityState::Hidden) {
+        transition->skip_the_view_transition(WebIDL::InvalidStateError::create(realm, "The document's visibility state is \"hidden\""_utf16));
+        return transition;
+    }
+
+    // 5. If document’s active view transition is not null, then skip that view transition with an "AbortError"
+    //    DOMException in this’s relevant Realm.
+    if (document.m_active_view_transition)
+        document.m_active_view_transition->skip_the_view_transition(WebIDL::AbortError::create(realm, "Document.startViewTransition() was called"_utf16));
+
+    // 6. Set document’s active view transition to transition.
+    m_active_view_transition = transition;
+
+    // 7. Return transition.
+    return transition;
+}
+
+// https://drafts.csswg.org/css-view-transitions-1/#perform-pending-transition-operations
+void Document::perform_pending_transition_operations()
+{
+    // To perform pending transition operations given a Document document, perform the following steps:
+
+    // 1. If document’s active view transition is not null, then:
+    if (m_active_view_transition) {
+        // 1. If document’s active view transition’s phase is "pending-capture", then setup view transition for
+        //    document’s active view transition.
+        if (m_active_view_transition->phase() == ViewTransition::ViewTransition::Phase::PendingCapture)
+            m_active_view_transition->setup_view_transition();
+        // 2. Otherwise, if document’s active view transition’s phase is "animating", then handle transition frame for
+        //    document’s active view transition.
+        else if (m_active_view_transition->phase() == ViewTransition::ViewTransition::Phase::Animating)
+            m_active_view_transition->handle_transition_frame();
+    }
+}
+
+// https://drafts.csswg.org/css-view-transitions-1/#flush-the-update-callback-queue
+void Document::flush_the_update_callback_queue()
+{
+    // To flush the update callback queue given a Document document:
+
+    // 1. For each transition in document’s update callback queue, call the update callback given transition.
+    for (auto& transition : m_update_callback_queue) {
+        transition->call_the_update_callback();
+    }
+
+    // 2. Set document’s update callback queue to an empty list.
+    m_update_callback_queue.clear();
+}
+
+// https://drafts.csswg.org/css-view-transitions-1/#view-transition-page-visibility-change-steps
+void Document::view_transition_page_visibility_change_steps()
+{
+    // The view transition page-visibility change steps given Document document are:
+
+    // 1. Queue a global task on the DOM manipulation task source, given document’s relevant global object, to
+    //    perform the following steps:
+    HTML::queue_global_task(HTML::Task::Source::DOMManipulation, HTML::relevant_global_object(*this), GC::create_function(realm().heap(), [&] {
+        HTML::TemporaryExecutionContext context(realm());
+        // 1. If document’s visibility state is "hidden", then:
+        if (m_visibility_state == HTML::VisibilityState::Hidden) {
+            // 1. If document’s active view transition is not null, then skip document’s active view transition with an
+            //    "InvalidStateError" DOMException.
+            if (m_active_view_transition) {
+                m_active_view_transition->skip_the_view_transition(WebIDL::InvalidStateError::create(realm(), "The document's visibility state is \"hidden\"."_utf16));
+            }
+        }
+        // 2. Otherwise, assert: active view transition is null.
+        else {
+            VERIFY(!m_active_view_transition);
+        }
+    }));
 }
 
 ElementByIdMap& Document::element_by_id() const
