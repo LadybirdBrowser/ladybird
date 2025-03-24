@@ -58,4 +58,4 @@ jobs:
         with:
           name: js-benchmarks-results
           path: js-benchmarks/results.json
-          retention-days: 93
+          retention-days: 90
