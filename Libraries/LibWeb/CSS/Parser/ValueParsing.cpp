@@ -3100,6 +3100,12 @@ Optional<CSS::GridRepeat> Parser::parse_repeat(Vector<ComponentValue> const& com
                 && (track_sizing_function.value().grid_size().is_flexible_length() || token.is_ident("auto"sv))
                 && (is_auto_fill || is_auto_fit))
                 return {};
+            if ((is_auto_fill || is_auto_fit) && track_sizing_function->is_minmax()) {
+                auto const& minmax = track_sizing_function->minmax();
+                if (!minmax.min_grid_size().is_definite() && !minmax.max_grid_size().is_definite()) {
+                    return {};
+                }
+            }
 
             repeat_params.append(track_sizing_function.value());
             part_two_tokens.discard_whitespace();
