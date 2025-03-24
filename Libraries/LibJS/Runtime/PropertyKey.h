@@ -105,6 +105,8 @@ public:
         return StringOrSymbol(as_symbol());
     }
 
+    bool operator==(PropertyKey const&) const = default;
+
 private:
     friend Traits<JS::PropertyKey>;
 
