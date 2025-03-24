@@ -40,7 +40,6 @@ enum __RegexAllFlags {
     __Regex_MatchNotBeginOfLine = __Regex_Global << 6,           // Pattern is not forced to ^ -> search in whole string!
     __Regex_MatchNotEndOfLine = __Regex_Global << 7,             // Don't Force the dollar sign, $, to always match end of the string, instead of end of the line. This option is ignored if the Multiline-flag is set
     __Regex_SkipSubExprResults = __Regex_Global << 8,            // Do not return sub expressions in the result
-    __Regex_StringCopyMatches = __Regex_Global << 9,             // Do explicitly copy results into new allocated string instead of StringView to original string.
     __Regex_SingleLine = __Regex_Global << 10,                   // Dot matches newline characters
     __Regex_Sticky = __Regex_Global << 11,                       // Force the pattern to only match consecutive matches from where the previous match ended.
     __Regex_Multiline = __Regex_Global << 12,                    // Handle newline characters. Match each line, one by one.

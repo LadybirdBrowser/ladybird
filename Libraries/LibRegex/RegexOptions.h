@@ -25,7 +25,6 @@ enum class AllFlags {
     MatchNotBeginOfLine = __Regex_MatchNotBeginOfLine,                   // Pattern is not forced to ^ -> search in whole string!
     MatchNotEndOfLine = __Regex_MatchNotEndOfLine,                       // Don't Force the dollar sign, $, to always match end of the string, instead of end of the line. This option is ignored if the Multiline-flag is set
     SkipSubExprResults = __Regex_SkipSubExprResults,                     // Do not return sub expressions in the result
-    StringCopyMatches = __Regex_StringCopyMatches,                       // Do explicitly copy results into new allocated string instead of StringView to original string.
     SingleLine = __Regex_SingleLine,                                     // Dot matches newline characters
     Sticky = __Regex_Sticky,                                             // Force the pattern to only match consecutive matches from where the previous match ended.
     Multiline = __Regex_Multiline,                                       // Handle newline characters. Match each line, one by one.
@@ -53,7 +52,6 @@ enum class PosixFlags : FlagsUnderlyingType {
     SkipTrimEmptyMatches = (FlagsUnderlyingType)AllFlags::SkipTrimEmptyMatches,
     Multiline = (FlagsUnderlyingType)AllFlags::Multiline,
     SingleMatch = (FlagsUnderlyingType)AllFlags::SingleMatch,
-    StringCopyMatches = (FlagsUnderlyingType)AllFlags::StringCopyMatches,
 };
 
 enum class ECMAScriptFlags : FlagsUnderlyingType {
@@ -67,7 +65,6 @@ enum class ECMAScriptFlags : FlagsUnderlyingType {
     SingleLine = (FlagsUnderlyingType)AllFlags::SingleLine,
     Sticky = (FlagsUnderlyingType)AllFlags::Sticky,
     Multiline = (FlagsUnderlyingType)AllFlags::Multiline,
-    StringCopyMatches = (FlagsUnderlyingType)AllFlags::StringCopyMatches,
     UnicodeSets = (FlagsUnderlyingType)AllFlags::UnicodeSets,
     BrowserExtended = (FlagsUnderlyingType)AllFlags::Internal_BrowserExtended,
 };

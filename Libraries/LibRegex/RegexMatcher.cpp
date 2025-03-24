@@ -197,11 +197,7 @@ RegexResult Matcher<Parser>::match(Vector<RegexStringView> const& views, Optiona
             state.matches.empend();
 
         VERIFY(start_position + state.string_position - start_position <= input.view.length());
-        if (input.regex_options.has_flag_set(AllFlags::StringCopyMatches)) {
-            state.matches.mutable_at(input.match_index) = { input.view.substring_view(start_position, state.string_position - start_position).to_byte_string(), input.line, start_position, input.global_offset + start_position };
-        } else { // let the view point to the original string ...
-            state.matches.mutable_at(input.match_index) = { input.view.substring_view(start_position, state.string_position - start_position), input.line, start_position, input.global_offset + start_position };
-        }
+        state.matches.mutable_at(input.match_index) = { input.view.substring_view(start_position, state.string_position - start_position), input.line, start_position, input.global_offset + start_position };
     };
 
 #if REGEX_DEBUG

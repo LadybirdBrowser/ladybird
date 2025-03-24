@@ -387,13 +387,7 @@ ALWAYS_INLINE ExecutionResult OpCode_SaveRightCaptureGroup::execute(MatchInput c
 
     VERIFY(start_position + length <= input.view.length());
 
-    auto view = input.view.substring_view(start_position, length);
-
-    if (input.regex_options & AllFlags::StringCopyMatches) {
-        match = { view.to_byte_string(), input.line, start_position, input.global_offset + start_position }; // create a copy of the original string
-    } else {
-        match = { view, input.line, start_position, input.global_offset + start_position }; // take view to original string
-    }
+    match = { input.view.substring_view(start_position, length), input.line, start_position, input.global_offset + start_position };
 
     return ExecutionResult::Continue;
 }
@@ -414,11 +408,7 @@ ALWAYS_INLINE ExecutionResult OpCode_SaveRightNamedCaptureGroup::execute(MatchIn
 
     auto view = input.view.substring_view(start_position, length);
 
-    if (input.regex_options & AllFlags::StringCopyMatches) {
-        match = { view.to_byte_string(), name(), input.line, start_position, input.global_offset + start_position }; // create a copy of the original string
-    } else {
-        match = { view, name(), input.line, start_position, input.global_offset + start_position }; // take view to original string
-    }
+    match = { view, name(), input.line, start_position, input.global_offset + start_position };
 
     return ExecutionResult::Continue;
 }
