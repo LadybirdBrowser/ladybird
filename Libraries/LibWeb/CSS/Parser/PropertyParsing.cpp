@@ -2490,81 +2490,37 @@ RefPtr<CSSStyleValue> Parser::parse_font_value(TokenStream<ComponentValue>& toke
         });
 }
 
+// https://drafts.csswg.org/css-fonts-4/#font-family-prop
 RefPtr<CSSStyleValue> Parser::parse_font_family_value(TokenStream<ComponentValue>& tokens)
 {
-    auto next_is_comma_or_eof = [&]() -> bool {
-        return !tokens.has_next_token() || tokens.next_token().is(Token::Type::Comma);
-    };
+    // [ <family-name> | <generic-family> ]#
+    // FIXME: We currently require font-family to always be a list, even with one item.
+    //        Maybe change that?
+    auto result = parse_comma_separated_value_list(tokens, [this](auto& inner_tokens) -> RefPtr<CSSStyleValue> {
+        inner_tokens.discard_whitespace();
 
-    // Note: Font-family names can either be a quoted string, or a keyword, or a series of custom-idents.
-    // eg, these are equivalent:
-    //     font-family: my cool     font\!, serif;
-    //     font-family: "my cool font!", serif;
-    StyleValueVector font_families;
-    Vector<String> current_name_parts;
-    while (tokens.has_next_token()) {
-        auto const& peek = tokens.next_token();
-
-        if (peek.is(Token::Type::String)) {
-            // `font-family: my cool "font";` is invalid.
-            if (!current_name_parts.is_empty())
-                return nullptr;
-            tokens.discard_a_token(); // String
-            if (!next_is_comma_or_eof())
-                return nullptr;
-            font_families.append(StringStyleValue::create(peek.token().string()));
-            tokens.discard_a_token(); // Comma
-            continue;
-        }
-
-        if (peek.is(Token::Type::Ident)) {
-            // If this is a valid identifier, it's NOT a custom-ident and can't be part of a larger name.
-
-            // CSS-wide keywords are not allowed
-            if (auto builtin = parse_builtin_value(tokens))
-                return nullptr;
-
-            auto maybe_keyword = keyword_from_string(peek.token().ident());
-            // Can't have a generic-font-name as a token in an unquoted font name.
+        // <generic-family>
+        if (inner_tokens.next_token().is(Token::Type::Ident)) {
+            auto maybe_keyword = keyword_from_string(inner_tokens.next_token().token().ident());
             if (maybe_keyword.has_value() && keyword_to_generic_font_family(maybe_keyword.value()).has_value()) {
-                if (!current_name_parts.is_empty())
-                    return nullptr;
-                tokens.discard_a_token(); // Ident
-                if (!next_is_comma_or_eof())
-                    return nullptr;
-                font_families.append(CSSKeywordValue::create(maybe_keyword.value()));
-                tokens.discard_a_token(); // Comma
-                continue;
+                inner_tokens.discard_a_token(); // Ident
+                inner_tokens.discard_whitespace();
+                return CSSKeywordValue::create(maybe_keyword.value());
             }
-            current_name_parts.append(tokens.consume_a_token().token().ident().to_string());
-            continue;
         }
 
-        if (peek.is(Token::Type::Comma)) {
-            if (current_name_parts.is_empty())
-                return nullptr;
-            tokens.discard_a_token(); // Comma
-            // This is really a series of custom-idents, not just one. But for the sake of simplicity we'll make it one.
-            font_families.append(CustomIdentStyleValue::create(MUST(String::join(' ', current_name_parts))));
-            current_name_parts.clear();
-            // Can't have a trailing comma
-            if (!tokens.has_next_token())
-                return nullptr;
-            continue;
-        }
+        // <family-name>
+        return parse_family_name_value(inner_tokens);
+    });
 
+    if (!result)
         return nullptr;
-    }
 
-    if (!current_name_parts.is_empty()) {
-        // This is really a series of custom-idents, not just one. But for the sake of simplicity we'll make it one.
-        font_families.append(CustomIdentStyleValue::create(MUST(String::join(' ', current_name_parts))));
-        current_name_parts.clear();
-    }
+    if (result->is_value_list())
+        return result.release_nonnull();
 
-    if (font_families.is_empty())
-        return nullptr;
-    return StyleValueList::create(move(font_families), StyleValueList::Separator::Comma);
+    // It's a single value, so wrap it in a list - see FIXME above.
+    return StyleValueList::create(StyleValueVector { result.release_nonnull() }, StyleValueList::Separator::Comma);
 }
 
 RefPtr<CSSStyleValue> Parser::parse_font_language_override_value(TokenStream<ComponentValue>& tokens)
