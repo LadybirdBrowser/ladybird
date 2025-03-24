@@ -21,6 +21,7 @@ IDBObjectStore::IDBObjectStore(JS::Realm& realm, GC::Ref<ObjectStore> store, GC:
     : PlatformObject(realm)
     , m_store(store)
     , m_transaction(transaction)
+    , m_name(store->name())
 {
 }
 
@@ -57,6 +58,47 @@ JS::Value IDBObjectStore::key_path() const
                 return JS::PrimitiveString::create(realm().vm(), entry);
             });
         });
+}
+
+// https://w3c.github.io/IndexedDB/#dom-idbobjectstore-name
+WebIDL::ExceptionOr<void> IDBObjectStore::set_name(String const& value)
+{
+    auto& realm = this->realm();
+
+    // 1. Let name be the given value.
+    auto const& name = value;
+
+    // 2. Let transaction be this’s transaction.
+    auto& transaction = m_transaction;
+
+    // 3. Let store be this’s object store.
+    auto& store = m_store;
+
+    // FIXME: 4. If store has been deleted, throw an "InvalidStateError" DOMException.
+
+    // 5. If transaction is not an upgrade transaction, throw an "InvalidStateError" DOMException.
+    if (transaction->mode() != Bindings::IDBTransactionMode::Versionchange)
+        return WebIDL::InvalidStateError::create(realm, "Attempted to set name outside of version change"_string);
+
+    // 6. If transaction’s state is not active, throw a "TransactionInactiveError" DOMException.
+    if (transaction->state() != IDBTransaction::TransactionState::Active)
+        return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active"_string);
+
+    // 7. If store’s name is equal to name, terminate these steps.
+    if (store->name() == name)
+        return {};
+
+    // 8. If an object store named name already exists in store’s database, throw a "ConstraintError" DOMException.
+    if (store->database()->has_object_store_named(name))
+        return WebIDL::ConstraintError::create(realm, "Object store with the given name already exists"_string);
+
+    // 9. Set store’s name to name.
+    store->set_name(name);
+
+    // 10. Set this’s name to name.
+    m_name = name;
+
+    return {};
 }
 
 }

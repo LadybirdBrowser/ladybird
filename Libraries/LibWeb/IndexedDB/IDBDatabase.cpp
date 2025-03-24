@@ -132,8 +132,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBObjectStore>> IDBDatabase::create_object_store(St
     //    Set the created object store's name to name.
     //    If autoIncrement is true, then the created object store uses a key generator.
     //    If keyPath is not null, set the created object store's key path to keyPath.
-    auto object_store = ObjectStore::create(realm, name, auto_increment, key_path);
-    database->add_object_store(object_store);
+    auto object_store = ObjectStore::create(realm, database, name, auto_increment, key_path);
 
     // 10. Return a new object store handle associated with store and transaction.
     return IDBObjectStore::create(realm, object_store, *transaction);
