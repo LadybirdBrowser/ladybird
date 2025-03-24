@@ -29,7 +29,6 @@ public:
     [[nodiscard]] static GC::Ref<PrimitiveString> create(VM&, String);
     [[nodiscard]] static GC::Ref<PrimitiveString> create(VM&, FlyString const&);
     [[nodiscard]] static GC::Ref<PrimitiveString> create(VM&, ByteString);
-    [[nodiscard]] static GC::Ref<PrimitiveString> create(VM&, DeprecatedFlyString const&);
     [[nodiscard]] static GC::Ref<PrimitiveString> create(VM&, PrimitiveString&, PrimitiveString&);
     [[nodiscard]] static GC::Ref<PrimitiveString> create(VM&, StringView);
 

@@ -547,9 +547,9 @@ WebIDL::ExceptionOr<void> serialize_bytes(JS::VM& vm, Vector<u32>& vector, Reado
     return {};
 }
 
-WebIDL::ExceptionOr<void> serialize_string(JS::VM& vm, Vector<u32>& vector, DeprecatedFlyString const& string)
+WebIDL::ExceptionOr<void> serialize_string(JS::VM& vm, Vector<u32>& vector, StringView string)
 {
-    return serialize_bytes(vm, vector, string.view().bytes());
+    return serialize_bytes(vm, vector, string.bytes());
 }
 
 WebIDL::ExceptionOr<void> serialize_string(JS::VM& vm, Vector<u32>& vector, String const& string)
