@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const printEvent = event => {
+            println(`event=${event.type} cancelable=${event.cancelable}`);
+        };
+
+        printEvent(new ErrorEvent("test1"));
+        printEvent(new ErrorEvent("test2", { cancelable: true }));
+
+        printEvent(new BufferedChangeEvent("test3"));
+        printEvent(new BufferedChangeEvent("test4", { cancelable: true }));
+    });
+</script>

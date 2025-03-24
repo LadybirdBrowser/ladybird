@@ -2,13 +2,12 @@ Harness status: OK
 
 Found 8 tests
 
-7 Pass
-1 Fail
+8 Pass
 Pass	event exists on window, which is initially set to undefined
 Pass	window.event is only defined during dispatch
 Pass	window.event is undefined if the target is in a shadow tree (event dispatched outside shadow tree)
 Pass	window.event is undefined if the target is in a shadow tree (event dispatched inside shadow tree)
-Fail	window.event is undefined inside window.onerror if the target is in a shadow tree (ErrorEvent dispatched inside shadow tree)
+Pass	window.event is undefined inside window.onerror if the target is in a shadow tree (ErrorEvent dispatched inside shadow tree)
 Pass	window.event is set to the current event during dispatch
 Pass	window.event is set to the current event, which is the event passed to dispatch
 Pass	window.event is set to the current event, which is the event passed to dispatch (2)
