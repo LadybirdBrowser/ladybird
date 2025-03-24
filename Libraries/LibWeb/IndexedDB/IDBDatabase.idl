@@ -11,7 +11,7 @@ interface IDBDatabase : EventTarget {
     [FIXME, NewObject] IDBTransaction transaction((DOMString or sequence<DOMString>) storeNames, optional IDBTransactionMode mode = "readonly", optional IDBTransactionOptions options = {});
     undefined close();
     [NewObject] IDBObjectStore createObjectStore(DOMString name, optional IDBObjectStoreParameters options = {});
-    [FIXME] undefined deleteObjectStore(DOMString name);
+    undefined deleteObjectStore(DOMString name);
 
     // Event handlers:
     attribute EventHandler onabort;

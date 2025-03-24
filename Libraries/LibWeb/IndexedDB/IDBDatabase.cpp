@@ -116,7 +116,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBObjectStore>> IDBDatabase::create_object_store(St
         return WebIDL::SyntaxError::create(realm, "Invalid key path"_string);
 
     // 6. If an object store named name already exists in database throw a "ConstraintError" DOMException.
-    if (database->has_object_store_named(name))
+    if (database->object_store_with_name(name))
         return WebIDL::ConstraintError::create(realm, "Object store already exists"_string);
 
     // 7. Let autoIncrement be options’s autoIncrement member.
@@ -148,6 +148,39 @@ GC::Ref<HTML::DOMStringList> IDBDatabase::object_store_names()
 
     // 2. Return the result (a DOMStringList) of creating a sorted name list with names.
     return create_a_sorted_name_list(realm(), names);
+}
+
+// https://w3c.github.io/IndexedDB/#dom-idbdatabase-deleteobjectstore
+WebIDL::ExceptionOr<void> IDBDatabase::delete_object_store(String const& name)
+{
+    auto& realm = this->realm();
+
+    // 1. Let database be this's associated database.
+    auto database = associated_database();
+
+    // 2. Let transaction be database’s upgrade transaction if it is not null, or throw an "InvalidStateError" DOMException otherwise.
+    auto transaction = database->upgrade_transaction();
+    if (!transaction)
+        return WebIDL::InvalidStateError::create(realm, "Upgrade transaction is null"_string);
+
+    // 3. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
+    if (transaction->state() != IDBTransaction::TransactionState::Active)
+        return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active"_string);
+
+    // 4. Let store be the object store named name in database, or throw a "NotFoundError" DOMException if none.
+    auto store = database->object_store_with_name(name);
+    if (!store)
+        return WebIDL::NotFoundError::create(realm, "Object store not found"_string);
+
+    // 5. Remove store from this's object store set.
+    this->remove_from_object_store_set(*store);
+
+    // FIXME: 6. If there is an object store handle associated with store and transaction, remove all entries from its index set.
+
+    // 7. Destroy store.
+    database->remove_object_store(*store);
+
+    return {};
 }
 
 }

@@ -89,7 +89,7 @@ WebIDL::ExceptionOr<void> IDBObjectStore::set_name(String const& value)
         return {};
 
     // 8. If an object store named name already exists in store’s database, throw a "ConstraintError" DOMException.
-    if (store->database()->has_object_store_named(name))
+    if (store->database()->object_store_with_name(name))
         return WebIDL::ConstraintError::create(realm, "Object store with the given name already exists"_string);
 
     // 9. Set store’s name to name.
