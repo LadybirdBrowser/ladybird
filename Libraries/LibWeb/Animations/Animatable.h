@@ -53,8 +53,8 @@ public:
     GC::Ptr<Animations::Animation> cached_animation_name_animation(Optional<CSS::PseudoElement>) const;
     void set_cached_animation_name_animation(GC::Ptr<Animations::Animation> value, Optional<CSS::PseudoElement>);
 
-    GC::Ptr<CSS::CSSStyleDeclaration const> cached_transition_property_source() const { return m_cached_transition_property_source; }
-    void set_cached_transition_property_source(GC::Ptr<CSS::CSSStyleDeclaration const> value) { m_cached_transition_property_source = value; }
+    GC::Ptr<CSS::CSSStyleDeclaration const> cached_transition_property_source() const;
+    void set_cached_transition_property_source(GC::Ptr<CSS::CSSStyleDeclaration const> value);
 
     void add_transitioned_properties(Vector<Vector<CSS::PropertyID>> properties, CSS::StyleValueVector delays, CSS::StyleValueVector durations, CSS::StyleValueVector timing_functions);
     Optional<TransitionAttributes const&> property_transition_attributes(CSS::PropertyID) const;
@@ -67,16 +67,21 @@ protected:
     void visit_edges(JS::Cell::Visitor&);
 
 private:
-    Vector<GC::Ref<Animation>> m_associated_animations;
-    bool m_is_sorted_by_composite_order { true };
+    struct Impl {
+        Vector<GC::Ref<Animation>> associated_animations;
+        bool is_sorted_by_composite_order { true };
 
-    Array<GC::Ptr<CSS::CSSStyleDeclaration const>, to_underlying(CSS::PseudoElement::KnownPseudoElementCount) + 1> m_cached_animation_name_source;
-    Array<GC::Ptr<Animations::Animation>, to_underlying(CSS::PseudoElement::KnownPseudoElementCount) + 1> m_cached_animation_name_animation;
+        Array<GC::Ptr<CSS::CSSStyleDeclaration const>, to_underlying(CSS::PseudoElement::KnownPseudoElementCount) + 1> cached_animation_name_source;
+        Array<GC::Ptr<Animation>, to_underlying(CSS::PseudoElement::KnownPseudoElementCount) + 1> cached_animation_name_animation;
 
-    HashMap<CSS::PropertyID, size_t> m_transition_attribute_indices;
-    Vector<TransitionAttributes> m_transition_attributes;
-    GC::Ptr<CSS::CSSStyleDeclaration const> m_cached_transition_property_source;
-    HashMap<CSS::PropertyID, GC::Ref<CSS::CSSTransition>> m_associated_transitions;
+        HashMap<CSS::PropertyID, size_t> transition_attribute_indices;
+        Vector<TransitionAttributes> transition_attributes;
+        GC::Ptr<CSS::CSSStyleDeclaration const> cached_transition_property_source;
+        HashMap<CSS::PropertyID, GC::Ref<CSS::CSSTransition>> associated_transitions;
+    };
+    Impl& ensure_impl();
+
+    OwnPtr<Impl> m_impl;
 };
 
 }
