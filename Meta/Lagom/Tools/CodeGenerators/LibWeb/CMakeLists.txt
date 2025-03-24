@@ -1,5 +1,6 @@
 set(SOURCES "") # avoid pulling SOURCES from parent scope
 
+lagom_tool(GenerateCSSDescriptors           SOURCES GenerateCSSDescriptors.cpp LIBS LibMain)
 lagom_tool(GenerateCSSEnums                 SOURCES GenerateCSSEnums.cpp LIBS LibMain)
 lagom_tool(GenerateCSSKeyword               SOURCES GenerateCSSKeyword.cpp LIBS LibMain)
 lagom_tool(GenerateCSSMathFunctions         SOURCES GenerateCSSMathFunctions.cpp LIBS LibMain)

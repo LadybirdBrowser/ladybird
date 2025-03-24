@@ -952,6 +952,7 @@ invoke_generator(
 set(GENERATED_SOURCES
     ARIA/AriaRoles.cpp
     CSS/DefaultStyleSheetSource.cpp
+    CSS/DescriptorID.cpp
     CSS/Enums.cpp
     CSS/GeneratedCSSStyleProperties.cpp
     CSS/GeneratedCSSStyleProperties.idl
