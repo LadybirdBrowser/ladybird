@@ -25,7 +25,7 @@ WebIDL::ExceptionOr<GC::Ref<ErrorEvent>> ErrorEvent::construct_impl(JS::Realm& r
 }
 
 ErrorEvent::ErrorEvent(JS::Realm& realm, FlyString const& event_name, ErrorEventInit const& event_init)
-    : DOM::Event(realm, event_name)
+    : DOM::Event(realm, event_name, event_init)
     , m_message(event_init.message)
     , m_filename(event_init.filename)
     , m_lineno(event_init.lineno)

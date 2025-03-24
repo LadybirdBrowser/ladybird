@@ -17,8 +17,8 @@ WebIDL::ExceptionOr<GC::Ref<BufferedChangeEvent>> BufferedChangeEvent::construct
     return realm.create<BufferedChangeEvent>(realm, type, event_init);
 }
 
-BufferedChangeEvent::BufferedChangeEvent(JS::Realm& realm, AK::FlyString const& type, BufferedChangeEventInit const&)
-    : DOM::Event(realm, type)
+BufferedChangeEvent::BufferedChangeEvent(JS::Realm& realm, AK::FlyString const& type, BufferedChangeEventInit const& event_init)
+    : DOM::Event(realm, type, event_init)
 {
 }
 
