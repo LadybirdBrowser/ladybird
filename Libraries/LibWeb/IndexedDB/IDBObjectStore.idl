@@ -4,7 +4,7 @@
 
 [Exposed=(Window,Worker)]
 interface IDBObjectStore {
-    [FIXME] attribute DOMString name;
+    attribute DOMString name;
     readonly attribute any keyPath;
     [FIXME] readonly attribute DOMStringList indexNames;
     [SameObject] readonly attribute IDBTransaction transaction;

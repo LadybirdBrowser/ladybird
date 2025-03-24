@@ -29,6 +29,8 @@ public:
     // https://w3c.github.io/IndexedDB/#dom-idbobjectstore-autoincrement
     // The autoIncrement getter steps are to return true if this’s object store has a key generator, and false otherwise.
     bool auto_increment() const { return m_store->key_generator().has_value(); }
+    String name() const { return m_name; }
+    WebIDL::ExceptionOr<void> set_name(String const& value);
 
 protected:
     explicit IDBObjectStore(JS::Realm&, GC::Ref<ObjectStore>, GC::Ref<IDBTransaction>);
@@ -39,6 +41,9 @@ private:
     // An object store handle has an associated object store and an associated transaction.
     GC::Ref<ObjectStore> m_store;
     GC::Ref<IDBTransaction> m_transaction;
+
+    // An object store handle has a name, which is initialized to the name of the associated object store when the object store handle is created.
+    String m_name;
 };
 
 }
