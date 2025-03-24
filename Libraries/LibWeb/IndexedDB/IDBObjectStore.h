@@ -26,6 +26,10 @@ public:
     JS::Value key_path() const;
     GC::Ref<IDBTransaction> transaction() const { return m_transaction; }
 
+    // https://w3c.github.io/IndexedDB/#dom-idbobjectstore-autoincrement
+    // The autoIncrement getter steps are to return true if this’s object store has a key generator, and false otherwise.
+    bool auto_increment() const { return m_store->key_generator().has_value(); }
+
 protected:
     explicit IDBObjectStore(JS::Realm&, GC::Ref<ObjectStore>, GC::Ref<IDBTransaction>);
     virtual void initialize(JS::Realm&) override;
