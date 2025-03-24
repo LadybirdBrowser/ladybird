@@ -79,7 +79,7 @@ void WindowEnvironmentSettingsObject::setup(Page& page, URL::URL const& creation
 
     // Non-Standard: We cannot fully initialize window object until *after* the we set up
     //    the realm's [[HostDefined]] internal slot as the internal slot contains the web platform intrinsics
-    MUST(window.initialize_web_interfaces({}, creation_url));
+    MUST(window.initialize_web_interfaces({}));
 }
 
 // https://html.spec.whatwg.org/multipage/window-object.html#script-settings-for-window-objects:responsible-document

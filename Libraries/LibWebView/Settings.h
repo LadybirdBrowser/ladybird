@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Badge.h>
+#include <AK/JsonValue.h>
 #include <AK/Optional.h>
 #include <LibURL/URL.h>
 #include <LibWebView/Forward.h>
@@ -27,7 +28,7 @@ class Settings {
 public:
     static Settings create(Badge<Application>);
 
-    String serialize_json() const;
+    JsonValue serialize_json() const;
 
     void restore_defaults();
 

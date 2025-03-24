@@ -167,13 +167,18 @@
             const searchEngine = document.querySelector("#search-engine");
             const restoreDefaults = document.querySelector("#restore-defaults");
 
-            settings.settings = {};
+            window.settings = {};
+
+            const loadSettings = settings => {
+                window.settings = settings;
+                renderSettings();
+            };
 
             const renderSettings = () => {
                 newTabPageURL.classList.remove("error");
-                newTabPageURL.value = settings.settings.newTabPageURL;
+                newTabPageURL.value = window.settings.newTabPageURL;
 
-                const searchEngineName = settings.settings.searchEngine?.name;
+                const searchEngineName = window.settings.searchEngine?.name;
 
                 if (searchEngineName) {
                     searchEnabled.checked = true;
@@ -183,6 +188,16 @@
                 }
 
                 renderSearchEngine();
+            };
+
+            const loadSearchEngines = engines => {
+                for (const engine of engines) {
+                    const option = document.createElement("option");
+                    option.text = engine;
+                    option.value = engine;
+
+                    searchEngine.add(option);
+                }
             };
 
             const renderSearchEngine = () => {
@@ -198,9 +213,9 @@
 
             const saveSearchEngine = () => {
                 if (searchEnabled.checked && searchEngine.selectedIndex !== 0) {
-                    settings.setSearchEngine(searchEngine.value);
+                    ladybird.sendMessage("setSearchEngine", searchEngine.value);
                 } else if (!searchEnabled.checked) {
-                    settings.setSearchEngine(null);
+                    ladybird.sendMessage("setSearchEngine", null);
                 }
 
                 renderSearchEngine();
@@ -215,7 +230,7 @@
                     return;
                 }
 
-                settings.setNewTabPageURL(newTabPageURL.value);
+                ladybird.sendMessage("setNewTabPageURL", newTabPageURL.value);
                 newTabPageURL.classList.add("success");
 
                 setTimeout(() => {
@@ -227,27 +242,20 @@
             searchEngine.addEventListener("change", saveSearchEngine);
 
             restoreDefaults.addEventListener("click", () => {
-                settings.restoreDefaultSettings();
+                ladybird.sendMessage("restoreDefaultSettings");
             });
 
-            settings.loadSettings = settings => {
-                window.settings.settings = JSON.parse(settings);
-                renderSettings();
-            };
+            document.addEventListener("WebUILoaded", () => {
+                ladybird.sendMessage("loadAvailableSearchEngines");
+                ladybird.sendMessage("loadCurrentSettings");
+            });
 
-            settings.loadSearchEngines = engines => {
-                for (const engine of JSON.parse(engines)) {
-                    const option = document.createElement("option");
-                    option.text = engine;
-                    option.value = engine;
-
-                    searchEngine.add(option);
+            document.addEventListener("WebUIMessage", event => {
+                if (event.detail.name === "loadSettings") {
+                    loadSettings(event.detail.data);
+                } else if (event.detail.name === "loadSearchEngines") {
+                    loadSearchEngines(event.detail.data);
                 }
-            };
-
-            document.addEventListener("DOMContentLoaded", () => {
-                settings.loadAvailableSearchEngines();
-                settings.loadCurrentSettings();
             });
         </script>
     </body>
