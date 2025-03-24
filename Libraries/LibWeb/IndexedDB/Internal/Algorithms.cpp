@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/QuickSort.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
@@ -20,6 +21,7 @@
 #include <LibWeb/IndexedDB/Internal/Algorithms.h>
 #include <LibWeb/IndexedDB/Internal/ConnectionQueueHandler.h>
 #include <LibWeb/IndexedDB/Internal/Database.h>
+#include <LibWeb/Infra/Strings.h>
 #include <LibWeb/StorageAPI/StorageKey.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/Buffers.h>
@@ -619,6 +621,18 @@ bool is_valid_key_path(KeyPath const& path)
 
             return true;
         });
+}
+
+// https://w3c.github.io/IndexedDB/#create-a-sorted-name-list
+GC::Ref<HTML::DOMStringList> create_a_sorted_name_list(JS::Realm& realm, Vector<String> names)
+{
+    // 1. Let sorted be names sorted in ascending order with the code unit less than algorithm.
+    quick_sort(names, [](auto const& a, auto const& b) {
+        return Infra::code_unit_less_than(a, b);
+    });
+
+    // 2. Return a new DOMStringList associated with sorted.
+    return HTML::DOMStringList::create(realm, names);
 }
 
 }
