@@ -2563,7 +2563,7 @@ CSSPixels GridFormattingContext::content_based_minimum_size(GridItem const& item
             spans_only_tracks_with_limited_max_track_sizing_function = false;
             break;
         }
-        sum_of_max_sizing_functions += track.max_track_sizing_function.length_percentage().length().to_px(item.box);
+        sum_of_max_sizing_functions += track.max_track_sizing_function.length_percentage().to_px(item.box, m_available_space->width.to_px_or_zero());
     }
     if (spans_only_tracks_with_limited_max_track_sizing_function) {
         result = min(result, sum_of_max_sizing_functions);
