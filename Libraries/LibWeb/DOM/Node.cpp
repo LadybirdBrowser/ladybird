@@ -1446,7 +1446,7 @@ void Node::set_needs_layout_update(SetNeedsLayoutReason reason)
     if constexpr (UPDATE_LAYOUT_DEBUG) {
         // NOTE: We check some conditions here to avoid debug spam in documents that don't do layout.
         auto navigable = this->navigable();
-        if (navigable && navigable->active_document() == this)
+        if (navigable && navigable->active_document() == &document())
             dbgln_if(UPDATE_LAYOUT_DEBUG, "NEED LAYOUT {}", to_string(reason));
     }
 
