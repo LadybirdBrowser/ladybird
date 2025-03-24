@@ -2907,34 +2907,41 @@ RefPtr<CSSStyleValue> Parser::parse_builtin_value(TokenStream<ComponentValue>& t
 }
 
 // https://www.w3.org/TR/css-values-4/#custom-idents
-RefPtr<CustomIdentStyleValue> Parser::parse_custom_ident_value(TokenStream<ComponentValue>& tokens, ReadonlySpan<StringView> blacklist)
+Optional<FlyString> Parser::parse_custom_ident(TokenStream<ComponentValue>& tokens, ReadonlySpan<StringView> blacklist)
 {
     auto transaction = tokens.begin_transaction();
     tokens.discard_whitespace();
 
     auto const& token = tokens.consume_a_token();
     if (!token.is(Token::Type::Ident))
-        return nullptr;
+        return {};
     auto custom_ident = token.token().ident();
 
     // The CSS-wide keywords are not valid <custom-ident>s.
     if (is_css_wide_keyword(custom_ident))
-        return nullptr;
+        return {};
 
     // The default keyword is reserved and is also not a valid <custom-ident>.
     if (custom_ident.equals_ignoring_ascii_case("default"sv))
-        return nullptr;
+        return {};
 
     // Specifications using <custom-ident> must specify clearly what other keywords are excluded from <custom-ident>,
     // if any—for example by saying that any pre-defined keywords in that property’s value definition are excluded.
     // Excluded keywords are excluded in all ASCII case permutations.
     for (auto& value : blacklist) {
         if (custom_ident.equals_ignoring_ascii_case(value))
-            return nullptr;
+            return {};
     }
 
     transaction.commit();
-    return CustomIdentStyleValue::create(custom_ident);
+    return custom_ident;
+}
+
+RefPtr<CustomIdentStyleValue> Parser::parse_custom_ident_value(TokenStream<ComponentValue>& tokens, ReadonlySpan<StringView> blacklist)
+{
+    if (auto custom_ident = parse_custom_ident(tokens, blacklist); custom_ident.has_value())
+        return CustomIdentStyleValue::create(custom_ident.release_value());
+    return nullptr;
 }
 
 Optional<CSS::GridSize> Parser::parse_grid_size(ComponentValue const& component_value)
