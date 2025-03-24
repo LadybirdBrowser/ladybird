@@ -25,9 +25,6 @@ static constexpr auto search_engine_name_key = "name"sv;
 
 static ErrorOr<JsonObject> read_settings_file(StringView settings_path)
 {
-    // FIXME: Move this to a generic "Ladybird data directory" helper.
-    auto settings_directory = ByteString::formatted("{}/Ladybird", Core::StandardPaths::user_data_directory());
-
     auto settings_file = Core::File::open(settings_path, Core::File::OpenMode::Read);
     if (settings_file.is_error()) {
         if (settings_file.error().is_errno() && settings_file.error().code() == ENOENT)
@@ -56,7 +53,8 @@ static ErrorOr<void> write_settings_file(StringView settings_path, StringView co
 
 Settings Settings::create(Badge<Application>)
 {
-    auto settings_directory = ByteString::formatted("{}/Ladybird", Core::StandardPaths::user_data_directory());
+    // FIXME: Move this to a generic "Ladybird config directory" helper.
+    auto settings_directory = ByteString::formatted("{}/Ladybird", Core::StandardPaths::config_directory());
     auto settings_path = ByteString::formatted("{}/Settings.json", settings_directory);
 
     Settings settings { move(settings_path) };
