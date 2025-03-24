@@ -669,12 +669,6 @@ Messages::WebContentClient::RequestWorkerAgentResponse WebContentClient::request
     return IPC::File {};
 }
 
-void WebContentClient::update_process_statistics(u64 page_id)
-{
-    if (auto view = view_for_page_id(page_id); view.has_value())
-        WebView::Application::the().send_updated_process_statistics_to_view(*view);
-}
-
 void WebContentClient::request_current_settings(u64 page_id)
 {
     if (auto view = view_for_page_id(page_id); view.has_value())

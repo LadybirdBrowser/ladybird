@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/JsonValue.h>
 #include <AK/Types.h>
 #include <LibCore/Platform/ProcessStatistics.h>
 #include <LibThreading/Mutex.h>
@@ -34,7 +35,7 @@ public:
 #endif
 
     void update_all_process_statistics();
-    String serialize_json();
+    JsonValue serialize_json();
 
     Function<void(Process&&)> on_process_exited;
 

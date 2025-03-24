@@ -60,7 +60,6 @@
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/Internals/Internals.h>
-#include <LibWeb/Internals/Processes.h>
 #include <LibWeb/Internals/Settings.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/Page.h>
@@ -740,9 +739,7 @@ WebIDL::ExceptionOr<void> Window::initialize_web_interfaces(Badge<WindowEnvironm
     if (url.scheme() == "about"sv && url.paths().size() == 1) {
         auto const& path = url.paths().first();
 
-        if (path == "processes"sv)
-            define_direct_property("processes"_fly_string, realm.create<Internals::Processes>(realm), JS::default_attributes);
-        else if (path == "settings"sv)
+        if (path == "settings"sv)
             define_direct_property("settings"_fly_string, realm.create<Internals::Settings>(realm), JS::default_attributes);
     }
 

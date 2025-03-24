@@ -97,9 +97,9 @@
                 descending: 2,
             });
 
-            processes.processes = [];
-            processes.sortDirection = Direction.ascending;
-            processes.sortKey = "pid";
+            window.processes = [];
+            window.sortDirection = Direction.ascending;
+            window.sortKey = "pid";
 
             const renderSortedProcesses = () => {
                 document.querySelectorAll("th").forEach(header => {
@@ -107,17 +107,17 @@
                     header.classList.remove("sorted-descending");
                 });
 
-                if (processes.sortDirection === Direction.ascending) {
-                    document.getElementById(processes.sortKey).classList.add("sorted-ascending");
+                if (window.sortDirection === Direction.ascending) {
+                    document.getElementById(window.sortKey).classList.add("sorted-ascending");
                 } else {
-                    document.getElementById(processes.sortKey).classList.add("sorted-descending");
+                    document.getElementById(window.sortKey).classList.add("sorted-descending");
                 }
 
-                const multiplier = processes.sortDirection === Direction.ascending ? 1 : -1;
+                const multiplier = window.sortDirection === Direction.ascending ? 1 : -1;
 
-                processes.processes.sort((lhs, rhs) => {
-                    const lhsValue = lhs[processes.sortKey];
-                    const rhsValue = rhs[processes.sortKey];
+                window.processes.sort((lhs, rhs) => {
+                    const lhsValue = lhs[window.sortKey];
+                    const rhsValue = rhs[window.sortKey];
 
                     if (typeof lhsValue === "string") {
                         return multiplier * lhsValue.localeCompare(rhsValue);
@@ -136,7 +136,7 @@
                     column.innerText = value;
                 };
 
-                processes.processes.forEach(process => {
+                window.processes.forEach(process => {
                     let row = newTable.insertRow();
                     insertColumn(row, process.name);
                     insertColumn(row, process.pid);
@@ -147,28 +147,34 @@
                 oldTable.parentNode.replaceChild(newTable, oldTable);
             };
 
-            processes.loadProcessStatistics = statistics => {
-                processes.processes = JSON.parse(statistics);
+            const loadProcessStatistics = processes => {
+                window.processes = processes;
                 renderSortedProcesses();
             };
 
-            document.addEventListener("DOMContentLoaded", () => {
+            document.addEventListener("WebUILoaded", () => {
                 document.querySelectorAll("th").forEach(header => {
                     header.addEventListener("click", () => {
-                        processes.sortDirection = header.classList.contains("sorted-descending")
+                        window.sortDirection = header.classList.contains("sorted-descending")
                             ? Direction.ascending
                             : Direction.descending;
-                        processes.sortKey = header.getAttribute("id");
+                        window.sortKey = header.getAttribute("id");
 
                         renderSortedProcesses();
                     });
                 });
 
                 setInterval(() => {
-                    processes.updateProcessStatistics();
+                    ladybird.sendMessage("updateProcessStatistics");
                 }, 1000);
 
-                processes.updateProcessStatistics();
+                ladybird.sendMessage("updateProcessStatistics");
+            });
+
+            document.addEventListener("WebUIMessage", event => {
+                if (event.detail.name === "loadProcessStatistics") {
+                    loadProcessStatistics(event.detail.data);
+                }
             });
         </script>
     </body>

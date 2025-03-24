@@ -25,6 +25,7 @@ set(SOURCES
     ViewImplementation.cpp
     WebContentClient.cpp
     WebUI.cpp
+    WebUI/ProcessesUI.cpp
 )
 
 if (APPLE)
