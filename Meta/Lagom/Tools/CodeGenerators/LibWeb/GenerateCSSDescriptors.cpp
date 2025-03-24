@@ -1,0 +1,256 @@
+/*
+ * Copyright (c) 2022-2025, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2024, Luke Wilde <luke@ladybird.org>
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+#include "GeneratorUtil.h"
+
+#include <AK/QuickSort.h>
+#include <AK/SourceGenerator.h>
+#include <LibCore/ArgsParser.h>
+#include <LibMain/Main.h>
+
+ErrorOr<void> generate_header_file(JsonObject const& at_rules_data, Core::File& file);
+ErrorOr<void> generate_implementation_file(JsonObject const& at_rules_data, Core::File& file);
+
+static bool is_legacy_alias(JsonObject const& descriptor)
+{
+    return descriptor.has_string("legacy-alias-for"sv);
+}
+
+ErrorOr<int> serenity_main(Main::Arguments arguments)
+{
+    StringView generated_header_path;
+    StringView generated_implementation_path;
+    StringView json_path;
+
+    Core::ArgsParser args_parser;
+    args_parser.add_option(generated_header_path, "Path to the DescriptorID header file to generate", "generated-header-path", 'h', "generated-header-path");
+    args_parser.add_option(generated_implementation_path, "Path to the DescriptorID implementation file to generate", "generated-implementation-path", 'c', "generated-implementation-path");
+    args_parser.add_option(json_path, "Path to the JSON file to read from", "json-path", 'j', "json-path");
+    args_parser.parse(arguments);
+
+    auto json = TRY(read_entire_file_as_json(json_path));
+    VERIFY(json.is_object());
+    auto data = json.as_object();
+
+    auto generated_header_file = TRY(Core::File::open(generated_header_path, Core::File::OpenMode::Write));
+    auto generated_implementation_file = TRY(Core::File::open(generated_implementation_path, Core::File::OpenMode::Write));
+
+    TRY(generate_header_file(data, *generated_header_file));
+    TRY(generate_implementation_file(data, *generated_implementation_file));
+
+    return 0;
+}
+
+Vector<StringView> all_descriptors;
+
+ErrorOr<void> generate_header_file(JsonObject const& at_rules_data, Core::File& file)
+{
+    StringBuilder builder;
+    SourceGenerator generator { builder };
+
+    // DescriptorID is a set of all descriptor names used by any at-rules, so gather them up.
+    auto at_rule_count = 0u;
+    HashTable<StringView> descriptors_set;
+    at_rules_data.for_each_member([&](auto const&, JsonValue const& value) {
+        auto const& at_rule = value.as_object();
+        ++at_rule_count;
+
+        if (auto descriptors = at_rule.get_object("descriptors"sv); descriptors.has_value()) {
+            descriptors.value().for_each_member([&](auto const& descriptor_name, JsonValue const& descriptor_value) {
+                if (is_legacy_alias(descriptor_value.as_object()))
+                    return;
+                descriptors_set.set(descriptor_name);
+            });
+        }
+    });
+
+    all_descriptors.ensure_capacity(descriptors_set.size());
+    for (auto name : descriptors_set)
+        all_descriptors.unchecked_append(name);
+    quick_sort(all_descriptors);
+
+    generator.set("at_rule_id_underlying_type", underlying_type_for_enum(at_rule_count));
+    generator.set("descriptor_id_underlying_type", underlying_type_for_enum(all_descriptors.size()));
+
+    generator.append(R"~~~(
+#pragma once
+
+#include <AK/FlyString.h>
+#include <AK/Optional.h>
+#include <AK/Types.h>
+
+namespace Web::CSS {
+
+enum class AtRuleID : @at_rule_id_underlying_type@ {
+)~~~");
+    at_rules_data.for_each_member([&](auto const& name, auto const&) {
+        auto member_generator = generator.fork();
+        member_generator.set("name:titlecase", title_casify(name));
+        member_generator.appendln("    @name:titlecase@,");
+    });
+    generator.append(R"~~~(
+};
+
+FlyString to_string(AtRuleID);
+
+enum class DescriptorID : @descriptor_id_underlying_type@ {
+)~~~");
+    for (auto const& descriptor_name : all_descriptors) {
+        auto member_generator = generator.fork();
+        member_generator.set("name:titlecase", title_casify(descriptor_name));
+        member_generator.appendln("    @name:titlecase@,");
+    }
+    generator.append(R"~~~(
+};
+
+Optional<DescriptorID> descriptor_id_from_string(AtRuleID, StringView);
+FlyString to_string(DescriptorID);
+
+bool at_rule_supports_descriptor(AtRuleID, DescriptorID);
+}
+)~~~");
+
+    TRY(file.write_until_depleted(generator.as_string_view().bytes()));
+    return {};
+}
+
+ErrorOr<void> generate_implementation_file(JsonObject const& at_rules_data, Core::File& file)
+{
+    StringBuilder builder;
+    SourceGenerator generator { builder };
+
+    generator.append(R"~~~(
+#include <LibWeb/CSS/DescriptorID.h>
+
+namespace Web::CSS {
+
+FlyString to_string(AtRuleID at_rule_id)
+{
+    switch (at_rule_id) {
+)~~~");
+
+    at_rules_data.for_each_member([&](auto const& at_rule_name, JsonValue const&) {
+        auto at_rule_generator = generator.fork();
+        at_rule_generator.set("at_rule", at_rule_name);
+        at_rule_generator.set("at_rule:titlecase", title_casify(at_rule_name));
+        at_rule_generator.append(R"~~~(
+    case AtRuleID::@at_rule:titlecase@:
+        return "\@@at_rule@"_fly_string;
+)~~~");
+    });
+
+    generator.append(R"~~~(
+    }
+    VERIFY_NOT_REACHED();
+}
+
+Optional<DescriptorID> descriptor_id_from_string(AtRuleID at_rule_id, StringView string)
+{
+    switch (at_rule_id) {
+)~~~");
+    at_rules_data.for_each_member([&](auto const& at_rule_name, JsonValue const& value) {
+        auto const& at_rule = value.as_object();
+
+        auto at_rule_generator = generator.fork();
+        at_rule_generator.set("at_rule:titlecase", title_casify(at_rule_name));
+        at_rule_generator.append(R"~~~(
+    case AtRuleID::@at_rule:titlecase@:
+)~~~");
+
+        auto const& descriptors = at_rule.get_object("descriptors"sv).value();
+
+        descriptors.for_each_member([&](auto const& descriptor_name, JsonValue const& descriptor_value) {
+            auto const& descriptor = descriptor_value.as_object();
+            auto descriptor_generator = at_rule_generator.fork();
+
+            descriptor_generator.set("descriptor", descriptor_name);
+            if (auto alias_for = descriptor.get_string("legacy-alias-for"sv); alias_for.has_value()) {
+                descriptor_generator.set("result:titlecase", title_casify(alias_for.value()));
+            } else {
+                descriptor_generator.set("result:titlecase", title_casify(descriptor_name));
+            }
+            descriptor_generator.append(R"~~~(
+        if (string.equals_ignoring_ascii_case("@descriptor@"sv))
+            return DescriptorID::@result:titlecase@;
+)~~~");
+        });
+
+        at_rule_generator.append(R"~~~(
+        break;
+)~~~");
+    });
+
+    generator.append(R"~~~(
+    }
+    return {};
+}
+
+FlyString to_string(DescriptorID descriptor_id)
+{
+    switch (descriptor_id) {
+)~~~");
+
+    for (auto const& descriptor_name : all_descriptors) {
+        auto member_generator = generator.fork();
+        member_generator.set("name", descriptor_name);
+        member_generator.set("name:titlecase", title_casify(descriptor_name));
+
+        member_generator.append(R"~~~(
+    case DescriptorID::@name:titlecase@:
+        return "@name@"_fly_string;
+)~~~");
+    }
+
+    generator.append(R"~~~(
+    }
+    VERIFY_NOT_REACHED();
+}
+
+bool at_rule_supports_descriptor(AtRuleID at_rule_id, DescriptorID descriptor_id)
+{
+    switch (at_rule_id) {
+)~~~");
+
+    at_rules_data.for_each_member([&](auto const& at_rule_name, JsonValue const& value) {
+        auto const& at_rule = value.as_object();
+
+        auto at_rule_generator = generator.fork();
+        at_rule_generator.set("at_rule:titlecase", title_casify(at_rule_name));
+        at_rule_generator.append(R"~~~(
+    case AtRuleID::@at_rule:titlecase@:
+        switch (descriptor_id) {
+)~~~");
+
+        auto const& descriptors = at_rule.get_object("descriptors"sv).value();
+        descriptors.for_each_member([&](auto const& descriptor_name, JsonValue const& descriptor_value) {
+            if (is_legacy_alias(descriptor_value.as_object()))
+                return;
+
+            auto descriptor_generator = at_rule_generator.fork();
+            descriptor_generator.set("descriptor:titlecase", title_casify(descriptor_name));
+            descriptor_generator.appendln("        case DescriptorID::@descriptor:titlecase@:");
+        });
+
+        at_rule_generator.append(R"~~~(
+            return true;
+        default:
+            return false;
+        }
+)~~~");
+    });
+
+    generator.append(R"~~~(
+    }
+    VERIFY_NOT_REACHED();
+}
+
+}
+)~~~");
+
+    TRY(file.write_until_depleted(generator.as_string_view().bytes()));
+    return {};
+}
