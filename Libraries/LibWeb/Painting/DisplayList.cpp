@@ -43,10 +43,9 @@ void DisplayListPlayer::execute(DisplayList& display_list)
 
     VERIFY(m_surface);
 
-    size_t next_command_index = 0;
-    while (next_command_index < commands.size()) {
-        auto scroll_frame_id = commands[next_command_index].scroll_frame_id;
-        auto command = commands[next_command_index++].command;
+    for (size_t command_index = 0; command_index < commands.size(); command_index++) {
+        auto scroll_frame_id = commands[command_index].scroll_frame_id;
+        auto command = commands[command_index].command;
 
         if (command.has<PaintScrollBar>()) {
             auto& paint_scroll_bar = command.get<PaintScrollBar>();
