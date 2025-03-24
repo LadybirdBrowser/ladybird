@@ -704,31 +704,6 @@ void PageClient::page_did_mutate_dom(FlyString const& type, Web::DOM::Node const
     client().async_did_mutate_dom(m_id, { type.to_string(), target.unique_id(), move(serialized_target), mutation.release_value() });
 }
 
-void PageClient::request_current_settings()
-{
-    client().async_request_current_settings(m_id);
-}
-
-void PageClient::restore_default_settings()
-{
-    client().async_restore_default_settings(m_id);
-}
-
-void PageClient::set_new_tab_page_url(URL::URL const& new_tab_page_url)
-{
-    client().async_set_new_tab_page_url(m_id, new_tab_page_url);
-}
-
-void PageClient::request_available_search_engines()
-{
-    client().async_request_available_search_engines(m_id);
-}
-
-void PageClient::set_search_engine(Optional<String> const& search_engine)
-{
-    client().async_set_search_engine(m_id, search_engine);
-}
-
 ErrorOr<void> PageClient::connect_to_webdriver(ByteString const& webdriver_ipc_path)
 {
     VERIFY(!m_webdriver);

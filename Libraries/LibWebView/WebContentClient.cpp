@@ -669,39 +669,6 @@ Messages::WebContentClient::RequestWorkerAgentResponse WebContentClient::request
     return IPC::File {};
 }
 
-void WebContentClient::request_current_settings(u64 page_id)
-{
-    if (auto view = view_for_page_id(page_id); view.has_value())
-        WebView::Application::the().send_current_settings_to_view(*view);
-}
-
-void WebContentClient::restore_default_settings(u64 page_id)
-{
-    WebView::Application::settings().restore_defaults();
-    request_current_settings(page_id);
-}
-
-void WebContentClient::set_new_tab_page_url(u64 page_id, URL::URL new_tab_page_url)
-{
-    WebView::Application::settings().set_new_tab_page_url(move(new_tab_page_url));
-    request_current_settings(page_id);
-}
-
-void WebContentClient::request_available_search_engines(u64 page_id)
-{
-    if (auto view = view_for_page_id(page_id); view.has_value())
-        WebView::Application::the().send_available_search_engines_to_view(*view);
-}
-
-void WebContentClient::set_search_engine(u64 page_id, Optional<String> search_engine)
-{
-    WebView::Application::settings().set_search_engine(search_engine.map([](auto const& search_engine) {
-        return search_engine.bytes_as_string_view();
-    }));
-
-    request_current_settings(page_id);
-}
-
 Optional<ViewImplementation&> WebContentClient::view_for_page_id(u64 page_id, SourceLocation location)
 {
     // Don't bother logging anything for the spare WebContent process. It will only receive a load notification for about:blank.

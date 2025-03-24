@@ -130,11 +130,6 @@ private:
     virtual void did_update_navigation_buttons_state(u64 page_id, bool back_enabled, bool forward_enabled) override;
     virtual void did_allocate_backing_stores(u64 page_id, i32 front_bitmap_id, Gfx::ShareableBitmap, i32 back_bitmap_id, Gfx::ShareableBitmap) override;
     virtual Messages::WebContentClient::RequestWorkerAgentResponse request_worker_agent(u64 page_id) override;
-    virtual void request_current_settings(u64 page_id) override;
-    virtual void restore_default_settings(u64 page_id) override;
-    virtual void set_new_tab_page_url(u64 page_id, URL::URL new_tab_page_url) override;
-    virtual void request_available_search_engines(u64 page_id) override;
-    virtual void set_search_engine(u64 page_id, Optional<String> search_engine) override;
 
     Optional<ViewImplementation&> view_for_page_id(u64, SourceLocation = SourceLocation::current());
 

@@ -61,9 +61,6 @@ public:
 #endif
     Optional<Process&> find_process(pid_t);
 
-    void send_current_settings_to_view(ViewImplementation&);
-    void send_available_search_engines_to_view(ViewImplementation&);
-
     ErrorOr<LexicalPath> path_for_downloaded_file(StringView file) const;
 
     enum class DevtoolsState {
