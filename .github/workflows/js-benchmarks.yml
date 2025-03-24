@@ -59,3 +59,9 @@ jobs:
           name: js-benchmarks-results
           path: js-benchmarks/results.json
           retention-days: 90
+
+      - name: 'Call webhook'
+        uses: distributhor/workflow-webhook@v3
+        with:
+          webhook_url: ${{ secrets.JS_BENCHMARKS_WEBHOOK_URL }}
+          webhook_secret: ${{ secrets.JS_BENCHMARKS_WEBHOOK_SECRET }}
