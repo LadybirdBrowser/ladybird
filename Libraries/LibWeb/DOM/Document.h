@@ -55,7 +55,6 @@ enum class QuirksMode {
     X(DocumentRequestAnElementToBeRemovedFromTheTopLayer) \
     X(HTMLInputElementSrcAttributeChange)                 \
     X(HTMLObjectElement)                                  \
-    X(SVGGraphicsElementTransformAttributeChange)         \
     X(ShadowRootSetInnerHTML)
 
 enum class InvalidateLayoutTreeReason {
