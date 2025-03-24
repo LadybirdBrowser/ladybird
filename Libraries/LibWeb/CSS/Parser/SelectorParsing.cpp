@@ -401,46 +401,104 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
     if (peek_token_ends_selector())
         return ParseError::SyntaxError;
 
-    bool is_pseudo = false;
+    // Note that we already consumed one colon before we entered this function.
+    // FIXME: Don't do that.
+    bool is_pseudo_element = false;
     if (tokens.next_token().is(Token::Type::Colon)) {
-        is_pseudo = true;
+        is_pseudo_element = true;
         tokens.discard_a_token();
         if (peek_token_ends_selector())
             return ParseError::SyntaxError;
     }
 
-    if (is_pseudo) {
+    if (is_pseudo_element) {
         auto const& name_token = tokens.consume_a_token();
-        if (!name_token.is(Token::Type::Ident)) {
-            dbgln_if(CSS_PARSER_DEBUG, "Expected an ident for pseudo-element, got: '{}'", name_token.to_debug_string());
+        bool is_function = false;
+        FlyString pseudo_name;
+
+        if (name_token.is(Token::Type::Ident)) {
+            pseudo_name = name_token.token().ident();
+        } else if (name_token.is_function()) {
+            pseudo_name = name_token.function().name;
+            is_function = true;
+        } else {
+            dbgln_if(CSS_PARSER_DEBUG, "Expected an ident or function token for pseudo-element, got: '{}'", name_token.to_debug_string());
             return ParseError::SyntaxError;
         }
 
-        auto pseudo_name = name_token.token().ident();
-
-        if (auto pseudo_element = pseudo_element_from_string(pseudo_name); pseudo_element.has_value()) {
-            // :has() is fussy about pseudo-elements inside it
-            if (m_pseudo_class_context.contains_slow(PseudoClass::Has) && !is_has_allowed_pseudo_element(*pseudo_element)) {
-                return ParseError::SyntaxError;
-            }
-
-            return Selector::SimpleSelector {
-                .type = Selector::SimpleSelector::Type::PseudoElement,
-                .value = Selector::PseudoElementSelector { pseudo_element.release_value() }
-            };
+        bool is_aliased_pseudo = false;
+        auto pseudo_element = pseudo_element_from_string(pseudo_name);
+        if (!pseudo_element.has_value()) {
+            pseudo_element = aliased_pseudo_element_from_string(pseudo_name);
+            is_aliased_pseudo = pseudo_element.has_value();
         }
 
-        // Aliased pseudo-elements behave like their target pseudo-element, but serialize as themselves. So store their
-        // name like we do for unknown -webkit pseudos below.
-        if (auto pseudo_element = aliased_pseudo_element_from_string(pseudo_name); pseudo_element.has_value()) {
+        if (pseudo_element.has_value()) {
+            auto metadata = pseudo_element_metadata(*pseudo_element);
+
             // :has() is fussy about pseudo-elements inside it
             if (m_pseudo_class_context.contains_slow(PseudoClass::Has) && !is_has_allowed_pseudo_element(*pseudo_element)) {
                 return ParseError::SyntaxError;
             }
 
+            Selector::PseudoElementSelector::Value value = Empty {};
+            if (is_function) {
+                if (!metadata.is_valid_as_function) {
+                    dbgln_if(CSS_PARSER_DEBUG, "Pseudo-element '::{}()' is not valid as a function.", pseudo_name);
+                    return ParseError::SyntaxError;
+                }
+
+                // Parse arguments
+                TokenStream function_tokens { name_token.function().value };
+                function_tokens.discard_whitespace();
+
+                switch (metadata.parameter_type) {
+                case PseudoElementMetadata::ParameterType::None:
+                    if (function_tokens.has_next_token()) {
+                        dbgln_if(CSS_PARSER_DEBUG, "Pseudo-element '::{}()' invalid: Should have no arguments.", pseudo_name);
+                        return ParseError::SyntaxError;
+                    }
+                    break;
+                case PseudoElementMetadata::ParameterType::PTNameSelector: {
+                    // <pt-name-selector> = '*' | <custom-ident>
+                    // https://drafts.csswg.org/css-view-transitions-1/#typedef-pt-name-selector
+                    if (function_tokens.next_token().is_delim('*')) {
+                        function_tokens.discard_a_token(); // *
+                        value = Selector::PseudoElementSelector::PTNameSelector { .is_universal = true };
+                    } else if (auto custom_ident = parse_custom_ident(function_tokens, {}); custom_ident.has_value()) {
+                        value = Selector::PseudoElementSelector::PTNameSelector { .value = custom_ident.release_value() };
+                    } else {
+                        dbgln_if(CSS_PARSER_DEBUG, "Invalid <pt-name-selector> in :{}() - expected `*` or `<custom-ident>`, got `{}`", pseudo_name, function_tokens.next_token().to_debug_string());
+                        return ParseError::SyntaxError;
+                    }
+                    function_tokens.discard_whitespace();
+                    if (function_tokens.has_next_token()) {
+                        dbgln_if(CSS_PARSER_DEBUG, "Invalid <pt-name-selector> in :{}() - trailing tokens", pseudo_name);
+                        return ParseError::SyntaxError;
+                    }
+                    break;
+                }
+                }
+
+            } else {
+                if (!metadata.is_valid_as_identifier) {
+                    dbgln_if(CSS_PARSER_DEBUG, "Pseudo-element '::{}' is not valid as an identifier.", pseudo_name);
+                    return ParseError::SyntaxError;
+                }
+            }
+
+            // Aliased pseudo-elements behave like their target pseudo-element, but serialize as themselves. So store their
+            // name like we do for unknown -webkit pseudos below.
+            if (is_aliased_pseudo) {
+                return Selector::SimpleSelector {
+                    .type = Selector::SimpleSelector::Type::PseudoElement,
+                    .value = Selector::PseudoElementSelector { pseudo_element.release_value(), pseudo_name.to_string().to_ascii_lowercase(), move(value) }
+                };
+            }
+
             return Selector::SimpleSelector {
                 .type = Selector::SimpleSelector::Type::PseudoElement,
-                .value = Selector::PseudoElementSelector { pseudo_element.release_value(), pseudo_name.to_string().to_ascii_lowercase() }
+                .value = Selector::PseudoElementSelector { pseudo_element.release_value(), move(value) }
             };
         }
 
@@ -449,7 +507,7 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
         // and that are not functional notations must be treated as valid at parse time. (That is, ::-webkit-asdf is
         // valid at parse time, but ::-webkit-jkl() is not.) If they’re not otherwise recognized and supported, they
         // must be treated as matching nothing, and are unknown -webkit- pseudo-elements.
-        if (pseudo_name.starts_with_bytes("-webkit-"sv, CaseSensitivity::CaseInsensitive)) {
+        if (!is_function && pseudo_name.starts_with_bytes("-webkit-"sv, CaseSensitivity::CaseInsensitive)) {
             // :has() only allows a limited set of pseudo-elements inside it, which doesn't include unknown ones.
             if (m_pseudo_class_context.contains_slow(PseudoClass::Has))
                 return ParseError::SyntaxError;

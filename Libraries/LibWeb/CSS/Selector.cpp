@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -285,6 +285,31 @@ u32 Selector::specificity() const
     return *m_specificity;
 }
 
+String Selector::PseudoElementSelector::serialize() const
+{
+    StringBuilder builder;
+    builder.append("::"sv);
+
+    if (!m_name.is_empty()) {
+        builder.append(m_name);
+    } else {
+        builder.append(pseudo_element_name(m_type));
+    }
+
+    m_value.visit(
+        [&builder](PTNameSelector const& pt_name_selector) {
+            builder.append('(');
+            if (pt_name_selector.is_universal)
+                builder.append('*');
+            else
+                builder.append(pt_name_selector.value);
+            builder.append(')');
+        },
+        [](Empty const&) {});
+
+    return builder.to_string_without_validation();
+}
+
 // https://www.w3.org/TR/cssom/#serialize-a-simple-selector
 String Selector::SimpleSelector::serialize() const
 {
@@ -519,8 +544,7 @@ String Selector::serialize() const
             // 4. If this is the last part of the chain of the selector and there is a pseudo-element,
             // append "::" followed by the name of the pseudo-element, to s.
             if (compound_selector.simple_selectors.last().type == Selector::SimpleSelector::Type::PseudoElement) {
-                s.append("::"sv);
-                s.append(compound_selector.simple_selectors.last().pseudo_element().name());
+                s.append(compound_selector.simple_selectors.last().pseudo_element().serialize());
             }
         }
     }

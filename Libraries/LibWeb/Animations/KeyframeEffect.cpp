@@ -778,7 +778,7 @@ Optional<String> KeyframeEffect::pseudo_element() const
 {
     if (!m_target_pseudo_selector.has_value())
         return {};
-    return MUST(String::formatted("::{}", m_target_pseudo_selector->name()));
+    return m_target_pseudo_selector->serialize();
 }
 
 // https://drafts.csswg.org/web-animations-1/#dom-keyframeeffect-pseudoelement

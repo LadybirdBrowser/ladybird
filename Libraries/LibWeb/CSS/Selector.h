@@ -25,15 +25,24 @@ class Selector : public RefCounted<Selector> {
 public:
     class PseudoElementSelector {
     public:
-        explicit PseudoElementSelector(PseudoElement type)
+        struct PTNameSelector {
+            bool is_universal { false };
+            FlyString value {};
+        };
+
+        using Value = Variant<Empty, PTNameSelector>;
+
+        explicit PseudoElementSelector(PseudoElement type, Value value = {})
             : m_type(type)
+            , m_value(move(value))
         {
             VERIFY(is_known_pseudo_element_type(type));
         }
 
-        PseudoElementSelector(PseudoElement type, String name)
+        PseudoElementSelector(PseudoElement type, String name, Value value = {})
             : m_type(type)
             , m_name(move(name))
+            , m_value(move(value))
         {
         }
 
@@ -44,19 +53,16 @@ public:
             return to_underlying(type) < to_underlying(PseudoElement::KnownPseudoElementCount);
         }
 
-        StringView name() const
-        {
-            if (!m_name.is_empty())
-                return m_name;
-
-            return pseudo_element_name(m_type);
-        }
+        String serialize() const;
 
         PseudoElement type() const { return m_type; }
+
+        PTNameSelector const& pt_name_selector() const { return m_value.get<PTNameSelector>(); }
 
     private:
         PseudoElement m_type;
         String m_name;
+        Variant<Empty, PTNameSelector> m_value;
     };
 
     struct SimpleSelector {

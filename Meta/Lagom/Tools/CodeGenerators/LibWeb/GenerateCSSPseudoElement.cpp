@@ -88,6 +88,16 @@ StringView pseudo_element_name(PseudoElement);
 bool is_has_allowed_pseudo_element(PseudoElement);
 bool pseudo_element_supports_property(PseudoElement, PropertyID);
 
+struct PseudoElementMetadata {
+    enum class ParameterType {
+        None,
+        PTNameSelector,
+    } parameter_type;
+    bool is_valid_as_function;
+    bool is_valid_as_identifier;
+};
+PseudoElementMetadata pseudo_element_metadata(PseudoElement);
+
 enum class GeneratedPseudoElement : @generated_pseudo_element_underlying_type@ {
 )~~~");
     pseudo_elements_data.for_each_member([&](auto& name, JsonValue const& value) {
@@ -461,6 +471,65 @@ bool pseudo_element_supports_property(PseudoElement pseudo_element, PropertyID p
     default:
         return true;
     }
+}
+
+PseudoElementMetadata pseudo_element_metadata(PseudoElement pseudo_element)
+{
+    switch (pseudo_element) {
+)~~~");
+    pseudo_elements_data.for_each_member([&](auto& name, JsonValue const& value) {
+        auto& pseudo_element = value.as_object();
+        if (pseudo_element.has("alias-for"sv))
+            return;
+
+        bool is_valid_as_function = false;
+        bool is_valid_as_identifier = false;
+        auto const& type = pseudo_element.get_string("type"sv);
+        if (type == "function"sv) {
+            is_valid_as_function = true;
+        } else if (type == "both"sv) {
+            is_valid_as_function = true;
+            is_valid_as_identifier = true;
+        } else {
+            is_valid_as_identifier = true;
+        }
+
+        String parameter_type = "None"_string;
+        if (is_valid_as_function) {
+            auto const& function_syntax = pseudo_element.get_string("function-syntax"sv).value();
+            if (function_syntax == "<pt-name-selector>"sv) {
+                parameter_type = "PTNameSelector"_string;
+            } else {
+                warnln("Unrecognized pseudo-element parameter type: `{}`", function_syntax);
+                VERIFY_NOT_REACHED();
+            }
+        } else if (pseudo_element.has("function-syntax"sv)) {
+            warnln("Pseudo-element `::{}` has `function-syntax` but is not a function type.", name);
+            VERIFY_NOT_REACHED();
+        }
+
+        auto member_generator = generator.fork();
+        member_generator.set("name:titlecase", title_casify(name));
+        member_generator.set("parameter_type", parameter_type);
+        member_generator.set("is_valid_as_function", is_valid_as_function ? "true"_string : "false"_string);
+        member_generator.set("is_valid_as_identifier", is_valid_as_identifier ? "true"_string : "false"_string);
+
+        member_generator.append(R"~~~(
+    case PseudoElement::@name:titlecase@:
+        return {
+            .parameter_type = PseudoElementMetadata::ParameterType::@parameter_type@,
+            .is_valid_as_function = @is_valid_as_function@,
+            .is_valid_as_identifier = @is_valid_as_identifier@,
+        };
+)~~~");
+    });
+
+    generator.append(R"~~~(
+    case PseudoElement::KnownPseudoElementCount:
+    case PseudoElement::UnknownWebKit:
+        break;
+    }
+    VERIFY_NOT_REACHED();
 }
 
 Optional<GeneratedPseudoElement> to_generated_pseudo_element(PseudoElement pseudo_element)
