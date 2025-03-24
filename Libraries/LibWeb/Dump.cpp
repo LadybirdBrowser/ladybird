@@ -715,7 +715,7 @@ void dump_font_face_rule(StringBuilder& builder, CSS::CSSFontFaceRule const& rul
         if (source.local_or_url.has<URL::URL>())
             builder.appendff("url={}, format={}\n", source.local_or_url.get<URL::URL>(), source.format.value_or("???"_string));
         else
-            builder.appendff("local={}\n", source.local_or_url.get<AK::String>());
+            builder.appendff("local={}\n", source.local_or_url.get<FlyString>());
     }
 
     indent(builder, indent_levels + 1);

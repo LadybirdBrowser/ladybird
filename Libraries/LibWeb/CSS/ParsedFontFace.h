@@ -19,7 +19,7 @@ namespace Web::CSS {
 class ParsedFontFace {
 public:
     struct Source {
-        Variant<String, URL::URL> local_or_url;
+        Variant<FlyString, URL::URL> local_or_url;
         // FIXME: Do we need to keep this around, or is it only needed to discard unwanted formats during parsing?
         Optional<FlyString> format;
     };

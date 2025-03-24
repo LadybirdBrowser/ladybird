@@ -672,7 +672,7 @@ Vector<ParsedFontFace::Source> Parser::parse_font_face_src(TokenStream<T>& compo
             if (first.function().value.is_empty()) {
                 continue;
             }
-            supported_sources.empend(first.function().value.first().to_string(), Optional<FlyString> {});
+            supported_sources.empend(FlyString { first.function().value.first().to_string() }, Optional<FlyString> {});
             continue;
         }
 
