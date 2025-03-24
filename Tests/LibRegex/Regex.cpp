@@ -264,10 +264,10 @@ TEST_CASE(char_utf8)
 
 TEST_CASE(catch_all_newline)
 {
-    Regex<PosixExtended> re("^.*$", PosixFlags::Multiline | PosixFlags::StringCopyMatches);
+    Regex<PosixExtended> re("^.*$", PosixFlags::Multiline);
     RegexResult result;
-    auto lambda = [&result, &re]() {
-        ByteString aaa = "Hello World\nTest\n1234\n";
+    ByteString aaa = "Hello World\nTest\n1234\n";
+    auto lambda = [&]() {
         result = match(aaa, re);
         EXPECT_EQ(result.success, true);
     };
@@ -297,7 +297,7 @@ TEST_CASE(catch_all_newline_2)
 {
     Regex<PosixExtended> re("^.*$");
     RegexResult result;
-    result = match("Hello World\nTest\n1234\n"sv, re, PosixFlags::Multiline | PosixFlags::StringCopyMatches);
+    result = match("Hello World\nTest\n1234\n"sv, re, PosixFlags::Multiline);
     EXPECT_EQ(result.success, true);
     EXPECT_EQ(result.count, 3u);
     EXPECT_EQ(result.matches.at(0).view, "Hello World");
@@ -314,7 +314,7 @@ TEST_CASE(match_all_character_class)
 {
     Regex<PosixExtended> re("[[:alpha:]]");
     ByteString str = "[Window]\nOpacity=255\nAudibleBeep=0\n";
-    RegexResult result = match(str, re, PosixFlags::Global | PosixFlags::StringCopyMatches);
+    RegexResult result = match(str, re, PosixFlags::Global);
 
     EXPECT_EQ(result.success, true);
     EXPECT_EQ(result.count, 24u);
@@ -1005,7 +1005,8 @@ TEST_CASE(case_insensitive_match)
 TEST_CASE(extremely_long_fork_chain)
 {
     Regex<ECMA262> re("(?:aa)*");
-    auto result = re.match(ByteString::repeated('a', 1000));
+    auto input = ByteString::repeated('a', 1000);
+    auto result = re.match(input);
     EXPECT_EQ(result.success, true);
 }
 
@@ -1048,7 +1049,8 @@ BENCHMARK_CASE(fork_performance)
     }
     {
         Regex<ECMA262> re("^(a|a?)+$");
-        auto result = re.match(ByteString::formatted("{}b", g_lots_of_a_s.substring_view(0, 100)));
+        auto input = ByteString::formatted("{}b", g_lots_of_a_s.substring_view(0, 100));
+        auto result = re.match(input);
         EXPECT_EQ(result.success, false);
     }
 }

@@ -59,7 +59,8 @@ public:
     {
     }
 
-    explicit RegexStringView(ByteString&&) = delete;
+    RegexStringView(ByteString&&) = delete;
+    RegexStringView(String&&) = delete;
 
     bool is_string_view() const
     {
