@@ -57,7 +57,7 @@ public:
             double t;
         };
 
-        mutable Vector<CachedSample, 64> m_cached_x_samples {};
+        mutable Vector<CachedSample> m_cached_x_samples {};
 
         bool operator==(CubicBezier const&) const;
 
