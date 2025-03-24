@@ -24,6 +24,7 @@ public:
     [[nodiscard]] static GC::Ref<IDBObjectStore> create(JS::Realm&, GC::Ref<ObjectStore>, GC::Ref<IDBTransaction>);
 
     JS::Value key_path() const;
+    GC::Ref<IDBTransaction> transaction() const { return m_transaction; }
 
 protected:
     explicit IDBObjectStore(JS::Realm&, GC::Ref<ObjectStore>, GC::Ref<IDBTransaction>);
