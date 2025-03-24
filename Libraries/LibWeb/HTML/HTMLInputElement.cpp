@@ -1481,7 +1481,7 @@ WebIDL::ExceptionOr<void> HTMLInputElement::handle_src_attribute(String const& v
             });
 
             m_load_event_delayer.clear();
-            document().invalidate_layout_tree(DOM::InvalidateLayoutTreeReason::HTMLInputElementSrcAttributeChange);
+            set_needs_layout_tree_update(true);
         },
         [this, &realm]() {
             // 2. Otherwise, if the fetching process fails without a response from the remote server, or completes but the
