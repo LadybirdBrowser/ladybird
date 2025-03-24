@@ -8,6 +8,7 @@
 #include <LibCore/System.h>
 #include <LibWebView/WebContentClient.h>
 #include <LibWebView/WebUI.h>
+#include <LibWebView/WebUI/ProcessesUI.h>
 
 namespace WebView {
 
@@ -31,9 +32,12 @@ static ErrorOr<NonnullRefPtr<WebUIType>> create_web_ui(WebContentClient& client,
     return web_ui;
 }
 
-ErrorOr<RefPtr<WebUI>> WebUI::create(WebContentClient&, String)
+ErrorOr<RefPtr<WebUI>> WebUI::create(WebContentClient& client, String host)
 {
     RefPtr<WebUI> web_ui;
+
+    if (host == "processes"sv)
+        web_ui = TRY(create_web_ui<ProcessesUI>(client, move(host)));
 
     if (web_ui)
         web_ui->register_interfaces();

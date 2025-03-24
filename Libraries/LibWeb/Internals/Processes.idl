@@ -1,4 +1,0 @@
-[Exposed=Nobody]
-interface Processes {
-    undefined updateProcessStatistics();
-};

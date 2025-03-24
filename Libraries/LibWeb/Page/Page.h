@@ -402,8 +402,6 @@ public:
 
     virtual void received_message_from_web_ui([[maybe_unused]] String const& name, [[maybe_unused]] JS::Value data) { }
 
-    virtual void update_process_statistics() { }
-
     virtual void request_current_settings() { }
     virtual void restore_default_settings() { }
     virtual void set_new_tab_page_url(URL::URL const&) { }

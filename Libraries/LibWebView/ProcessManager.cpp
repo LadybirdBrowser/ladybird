@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/JsonArraySerializer.h>
-#include <AK/JsonObjectSerializer.h>
+#include <AK/JsonArray.h>
+#include <AK/JsonObject.h>
 #include <AK/String.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/System.h>
@@ -126,12 +126,10 @@ void ProcessManager::update_all_process_statistics()
     (void)update_process_statistics(m_statistics);
 }
 
-String ProcessManager::serialize_json()
+JsonValue ProcessManager::serialize_json()
 {
     Threading::MutexLocker locker { m_lock };
-
-    StringBuilder builder;
-    auto serializer = MUST(JsonArraySerializer<>::try_create(builder));
+    JsonArray serialized;
 
     m_statistics.for_each_process([&](auto const& process) {
         auto& process_handle = find_process(process.pid).value();
@@ -143,16 +141,15 @@ String ProcessManager::serialize_json()
             ? MUST(String::formatted("{} - {}", type, *title))
             : String::from_utf8_without_validation(type.bytes());
 
-        auto object = MUST(serializer.add_object());
-        MUST(object.add("name"sv, move(process_name)));
-        MUST(object.add("pid"sv, process.pid));
-        MUST(object.add("cpu"sv, process.cpu_percent));
-        MUST(object.add("memory"sv, process.memory_usage_bytes));
-        MUST(object.finish());
+        JsonObject object;
+        object.set("name"sv, move(process_name));
+        object.set("pid"sv, process.pid);
+        object.set("cpu"sv, process.cpu_percent);
+        object.set("memory"sv, process.memory_usage_bytes);
+        serialized.must_append(move(object));
     });
 
-    MUST(serializer.finish());
-    return MUST(builder.to_string());
+    return serialized;
 }
 
 }

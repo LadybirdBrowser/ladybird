@@ -324,19 +324,6 @@ Optional<Process&> Application::find_process(pid_t pid)
     return m_process_manager.find_process(pid);
 }
 
-void Application::send_updated_process_statistics_to_view(ViewImplementation& view)
-{
-    m_process_manager.update_all_process_statistics();
-    auto statistics = m_process_manager.serialize_json();
-
-    StringBuilder builder;
-    builder.append("processes.loadProcessStatistics(\""sv);
-    builder.append_escaped_for_json(statistics);
-    builder.append("\");"sv);
-
-    view.run_javascript(MUST(builder.to_string()));
-}
-
 void Application::send_current_settings_to_view(ViewImplementation& view)
 {
     auto settings = m_settings.serialize_json();
