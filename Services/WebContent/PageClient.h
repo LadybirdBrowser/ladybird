@@ -44,6 +44,7 @@ public:
     virtual Web::Page const& page() const override { return *m_page; }
 
     ErrorOr<void> connect_to_webdriver(ByteString const& webdriver_ipc_path);
+    ErrorOr<void> connect_to_web_ui(IPC::File);
 
     virtual void paint_next_frame() override;
     virtual void process_screenshot_requests() override;
@@ -173,6 +174,7 @@ private:
     virtual void page_did_allocate_backing_stores(i32 front_bitmap_id, Gfx::ShareableBitmap front_bitmap, i32 back_bitmap_id, Gfx::ShareableBitmap back_bitmap) override;
     virtual IPC::File request_worker_agent() override;
     virtual void page_did_mutate_dom(FlyString const& type, Web::DOM::Node const& target, Web::DOM::NodeList& added_nodes, Web::DOM::NodeList& removed_nodes, GC::Ptr<Web::DOM::Node> previous_sibling, GC::Ptr<Web::DOM::Node> next_sibling, Optional<String> const& attribute_name) override;
+    virtual void received_message_from_web_ui(String const& name, JS::Value data) override;
     virtual void update_process_statistics() override;
     virtual void request_current_settings() override;
     virtual void restore_default_settings() override;
@@ -211,6 +213,7 @@ private:
     Web::CSS::PreferredMotion m_preferred_motion { Web::CSS::PreferredMotion::NoPreference };
 
     RefPtr<WebDriverConnection> m_webdriver;
+    RefPtr<WebUIConnection> m_web_ui;
 
     BackingStoreManager m_backing_store_manager;
 

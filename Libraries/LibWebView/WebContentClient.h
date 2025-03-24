@@ -47,6 +47,8 @@ public:
     void register_view(u64 page_id, ViewImplementation&);
     void unregister_view(u64 page_id);
 
+    void web_ui_disconnected(Badge<WebUI>);
+
     Function<void()> on_web_content_process_crash;
 
     pid_t pid() const { return m_process_handle.pid; }
@@ -141,6 +143,8 @@ private:
     HashMap<u64, ViewImplementation*> m_views;
 
     ProcessHandle m_process_handle;
+
+    RefPtr<WebUI> m_web_ui;
 
     static HashTable<WebContentClient*> s_clients;
 };

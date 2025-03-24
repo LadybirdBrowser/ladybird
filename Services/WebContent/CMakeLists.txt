@@ -9,6 +9,7 @@ set(SOURCES
     PageHost.cpp
     WebContentConsoleClient.cpp
     WebDriverConnection.cpp
+    WebUIConnection.cpp
 )
 
 if (ANDROID)

@@ -32,6 +32,7 @@
 #include <WebContent/PageHost.h>
 #include <WebContent/WebContentClientEndpoint.h>
 #include <WebContent/WebDriverConnection.h>
+#include <WebContent/WebUIConnection.h>
 
 namespace WebContent {
 
@@ -95,6 +96,8 @@ void PageClient::visit_edges(JS::Cell::Visitor& visitor)
 
     if (m_webdriver)
         m_webdriver->visit_edges(visitor);
+    if (m_web_ui)
+        m_web_ui->visit_edges(visitor);
 }
 
 ConnectionFromClient& PageClient::client() const
@@ -371,6 +374,8 @@ void PageClient::page_did_create_new_document(Web::DOM::Document& document)
 void PageClient::page_did_change_active_document_in_top_level_browsing_context(Web::DOM::Document& document)
 {
     auto& realm = document.realm();
+
+    m_web_ui.clear();
 
     if (auto console_client = document.console_client()) {
         auto& web_content_console_client = as<WebContentConsoleClient>(*console_client);
@@ -737,6 +742,24 @@ ErrorOr<void> PageClient::connect_to_webdriver(ByteString const& webdriver_ipc_p
     return {};
 }
 
+ErrorOr<void> PageClient::connect_to_web_ui(IPC::File web_ui_socket)
+{
+    auto* active_document = page().top_level_browsing_context().active_document();
+    if (!active_document || !active_document->window())
+        return {};
+
+    VERIFY(!m_web_ui);
+    m_web_ui = TRY(WebUIConnection::connect(move(web_ui_socket), *active_document));
+
+    return {};
+}
+
+void PageClient::received_message_from_web_ui(String const& name, JS::Value data)
+{
+    if (m_web_ui)
+        m_web_ui->received_message_from_web_ui(name, data);
+}
+
 void PageClient::initialize_js_console(Web::DOM::Document& document)
 {
     if (document.is_temporary_document_for_fragment_parsing())
@@ -910,4 +933,5 @@ void PageClient::queue_screenshot_task(Optional<Web::UniqueNodeID> node_id)
     m_screenshot_tasks.enqueue({ node_id });
     page().top_level_traversable()->set_needs_repaint();
 }
+
 }

@@ -568,6 +568,7 @@ set(SOURCES
     Internals/InternalsBase.cpp
     Internals/Processes.cpp
     Internals/Settings.cpp
+    Internals/WebUI.cpp
     IntersectionObserver/IntersectionObserver.cpp
     IntersectionObserver/IntersectionObserverEntry.cpp
     Layout/AudioBox.cpp

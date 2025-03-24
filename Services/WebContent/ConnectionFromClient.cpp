@@ -124,6 +124,15 @@ void ConnectionFromClient::connect_to_webdriver(u64 page_id, ByteString webdrive
     }
 }
 
+void ConnectionFromClient::connect_to_web_ui(u64 page_id, IPC::File web_ui_socket)
+{
+    if (auto page = this->page(page_id); page.has_value()) {
+        // FIXME: Propagate this error back to the browser.
+        if (auto result = page->connect_to_web_ui(move(web_ui_socket)); result.is_error())
+            dbgln("Unable to connect to the WebUI host: {}", result.error());
+    }
+}
+
 void ConnectionFromClient::connect_to_image_decoder(IPC::File image_decoder_socket)
 {
     if (on_image_decoder_connection)
