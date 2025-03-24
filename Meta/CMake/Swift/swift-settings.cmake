@@ -17,6 +17,8 @@ endif()
 include(${CMAKE_CURRENT_LIST_DIR}/InitializeSwift.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/GenerateSwiftHeader.cmake)
 
+find_package(SwiftTesting REQUIRED)
+
 # FIXME: https://gitlab.kitware.com/cmake/cmake/-/issues/26174
 if (APPLE)
     set(CMAKE_Swift_COMPILER_TARGET "${SWIFT_TARGET_TRIPLE}")
@@ -59,6 +61,14 @@ function(add_swift_target_properties target_name)
 
     get_target_property(_NATIVE_DIRS ${target_name} INCLUDE_DIRECTORIES)
     list(APPEND _NATIVE_DIRS ${CMAKE_Swift_MODULE_DIRECTORY})
+
+    # Swift-testing in swift.org toolchains on macOS has its .swiftmodule in a testing/ subdirectory of
+    # the swift compiler's built-in lib dirs.
+    get_target_property(DEPENDENCIES ${target_name} LINK_LIBRARIES)
+    if (SwiftTesting::SwiftTesting IN_LIST DEPENDENCIES)
+        get_target_property(SWIFT_TESTING_INCLUDE_DIRS SwiftTesting::SwiftTesting INTERFACE_INCLUDE_DIRECTORIES)
+        list(APPEND _NATIVE_DIRS ${SWIFT_TESTING_INCLUDE_DIRS})
+    endif()
 
     set(EXTRA_COMPILE_DEFINITIONS "")
     foreach (compile_definition IN LISTS SWIFT_TARGET_COMPILE_DEFINITIONS)
