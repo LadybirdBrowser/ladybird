@@ -87,9 +87,12 @@ WebIDL::ExceptionOr<Vector<GC::Ref<Animation>>> Animatable::get_animations_inter
     // 4. If options is passed with subtree set to true, then return the set of relevant animations for a subtree of target.
     //    Otherwise, return the set of relevant animations for target.
     Vector<GC::Ref<Animation>> relevant_animations;
-    for (auto const& animation : m_associated_animations) {
-        if (animation->is_relevant())
-            relevant_animations.append(*animation);
+    if (m_impl) {
+        auto& associated_animations = m_impl->associated_animations;
+        for (auto const& animation : associated_animations) {
+            if (animation->is_relevant())
+                relevant_animations.append(*animation);
+        }
     }
 
     if (options.has_value() && options->subtree) {
@@ -113,124 +116,172 @@ WebIDL::ExceptionOr<Vector<GC::Ref<Animation>>> Animatable::get_animations_inter
 
 void Animatable::associate_with_animation(GC::Ref<Animation> animation)
 {
-    m_associated_animations.append(animation);
-    m_is_sorted_by_composite_order = false;
+    auto& impl = ensure_impl();
+    impl.associated_animations.append(animation);
+    impl.is_sorted_by_composite_order = false;
 }
 
 void Animatable::disassociate_with_animation(GC::Ref<Animation> animation)
 {
-    m_associated_animations.remove_first_matching([&](auto element) { return animation == element; });
+    auto& impl = *m_impl;
+    impl.associated_animations.remove_first_matching([&](auto element) { return animation == element; });
 }
 
 void Animatable::add_transitioned_properties(Vector<Vector<CSS::PropertyID>> properties, CSS::StyleValueVector delays, CSS::StyleValueVector durations, CSS::StyleValueVector timing_functions)
 {
+    auto& impl = ensure_impl();
+
     VERIFY(properties.size() == delays.size());
     VERIFY(properties.size() == durations.size());
     VERIFY(properties.size() == timing_functions.size());
 
     for (size_t i = 0; i < properties.size(); i++) {
-        size_t index_of_this_transition = m_transition_attributes.size();
+        size_t index_of_this_transition = impl.transition_attributes.size();
         auto delay = delays[i]->is_time() ? delays[i]->as_time().time().to_milliseconds() : 0;
         auto duration = durations[i]->is_time() ? durations[i]->as_time().time().to_milliseconds() : 0;
         auto timing_function = timing_functions[i]->is_easing() ? timing_functions[i]->as_easing().function() : CSS::EasingStyleValue::CubicBezier::ease();
         VERIFY(timing_functions[i]->is_easing());
-        m_transition_attributes.empend(delay, duration, timing_function);
+        impl.transition_attributes.empend(delay, duration, timing_function);
 
         for (auto const& property : properties[i])
-            m_transition_attribute_indices.set(property, index_of_this_transition);
+            impl.transition_attribute_indices.set(property, index_of_this_transition);
     }
 }
 
 Optional<Animatable::TransitionAttributes const&> Animatable::property_transition_attributes(CSS::PropertyID property) const
 {
-    if (auto maybe_index = m_transition_attribute_indices.get(property); maybe_index.has_value())
-        return m_transition_attributes[maybe_index.value()];
+    if (!m_impl)
+        return {};
+
+    auto& impl = *m_impl;
+    if (auto maybe_index = impl.transition_attribute_indices.get(property); maybe_index.has_value())
+        return impl.transition_attributes[maybe_index.value()];
     return {};
 }
 
 GC::Ptr<CSS::CSSTransition> Animatable::property_transition(CSS::PropertyID property) const
 {
-    if (auto maybe_animation = m_associated_transitions.get(property); maybe_animation.has_value())
+    if (!m_impl)
+        return {};
+    auto& impl = *m_impl;
+    if (auto maybe_animation = impl.associated_transitions.get(property); maybe_animation.has_value())
         return maybe_animation.value();
     return {};
 }
 
 void Animatable::set_transition(CSS::PropertyID property, GC::Ref<CSS::CSSTransition> animation)
 {
-    VERIFY(!m_associated_transitions.contains(property));
-    m_associated_transitions.set(property, animation);
+    auto& impl = ensure_impl();
+    VERIFY(!impl.associated_transitions.contains(property));
+    impl.associated_transitions.set(property, animation);
 }
 
 void Animatable::remove_transition(CSS::PropertyID property_id)
 {
-    VERIFY(m_associated_transitions.contains(property_id));
-    m_associated_transitions.remove(property_id);
+    auto& impl = *m_impl;
+    VERIFY(impl.associated_transitions.contains(property_id));
+    impl.associated_transitions.remove(property_id);
 }
 
 void Animatable::clear_transitions()
 {
-    m_associated_transitions.clear();
-    m_transition_attribute_indices.clear();
-    m_transition_attributes.clear();
+    if (!m_impl)
+        return;
+    auto& impl = *m_impl;
+    impl.associated_transitions.clear();
+    impl.transition_attribute_indices.clear();
+    impl.transition_attributes.clear();
 }
 
 void Animatable::visit_edges(JS::Cell::Visitor& visitor)
 {
-    visitor.visit(m_associated_animations);
-    for (auto const& cached_animation_source : m_cached_animation_name_source)
+    if (!m_impl)
+        return;
+    auto& impl = *m_impl;
+    visitor.visit(impl.associated_animations);
+    for (auto const& cached_animation_source : impl.cached_animation_name_source)
         visitor.visit(cached_animation_source);
-    for (auto const& cached_animation_name : m_cached_animation_name_animation)
+    for (auto const& cached_animation_name : impl.cached_animation_name_animation)
         visitor.visit(cached_animation_name);
-    visitor.visit(m_cached_transition_property_source);
-    visitor.visit(m_associated_transitions);
+    visitor.visit(impl.cached_transition_property_source);
+    visitor.visit(impl.associated_transitions);
 }
 
 GC::Ptr<CSS::CSSStyleDeclaration const> Animatable::cached_animation_name_source(Optional<CSS::PseudoElement> pseudo_element) const
 {
+    if (!m_impl)
+        return {};
+    auto& impl = *m_impl;
     if (pseudo_element.has_value()) {
         if (!CSS::Selector::PseudoElementSelector::is_known_pseudo_element_type(pseudo_element.value())) {
             return {};
         }
-        return m_cached_animation_name_source[to_underlying(pseudo_element.value()) + 1];
+        return impl.cached_animation_name_source[to_underlying(pseudo_element.value()) + 1];
     }
-    return m_cached_animation_name_source[0];
+    return impl.cached_animation_name_source[0];
 }
 
 void Animatable::set_cached_animation_name_source(GC::Ptr<CSS::CSSStyleDeclaration const> value, Optional<CSS::PseudoElement> pseudo_element)
 {
+    auto& impl = ensure_impl();
     if (pseudo_element.has_value()) {
         if (!CSS::Selector::PseudoElementSelector::is_known_pseudo_element_type(pseudo_element.value())) {
             return;
         }
-        m_cached_animation_name_source[to_underlying(pseudo_element.value()) + 1] = value;
+        impl.cached_animation_name_source[to_underlying(pseudo_element.value()) + 1] = value;
     } else {
-        m_cached_animation_name_source[0] = value;
+        impl.cached_animation_name_source[0] = value;
     }
 }
 
 GC::Ptr<Animations::Animation> Animatable::cached_animation_name_animation(Optional<CSS::PseudoElement> pseudo_element) const
 {
+    if (!m_impl)
+        return {};
+    auto& impl = *m_impl;
+
     if (pseudo_element.has_value()) {
         if (!CSS::Selector::PseudoElementSelector::is_known_pseudo_element_type(pseudo_element.value())) {
             return {};
         }
 
-        return m_cached_animation_name_animation[to_underlying(pseudo_element.value()) + 1];
+        return impl.cached_animation_name_animation[to_underlying(pseudo_element.value()) + 1];
     }
-    return m_cached_animation_name_animation[0];
+    return impl.cached_animation_name_animation[0];
 }
 
 void Animatable::set_cached_animation_name_animation(GC::Ptr<Animations::Animation> value, Optional<CSS::PseudoElement> pseudo_element)
 {
-
+    auto& impl = ensure_impl();
     if (pseudo_element.has_value()) {
         if (!CSS::Selector::PseudoElementSelector::is_known_pseudo_element_type(pseudo_element.value())) {
             return;
         }
 
-        m_cached_animation_name_animation[to_underlying(pseudo_element.value()) + 1] = value;
+        impl.cached_animation_name_animation[to_underlying(pseudo_element.value()) + 1] = value;
     } else {
-        m_cached_animation_name_animation[0] = value;
+        impl.cached_animation_name_animation[0] = value;
     }
 }
+
+GC::Ptr<CSS::CSSStyleDeclaration const> Animatable::cached_transition_property_source() const
+{
+    if (!m_impl)
+        return {};
+    return m_impl->cached_transition_property_source;
+}
+
+void Animatable::set_cached_transition_property_source(GC::Ptr<CSS::CSSStyleDeclaration const> value)
+{
+    ensure_impl();
+    m_impl->cached_transition_property_source = value;
+}
+
+Animatable::Impl& Animatable::ensure_impl()
+{
+    if (!m_impl)
+        m_impl = make<Impl>();
+    return *m_impl;
+}
+
 }
