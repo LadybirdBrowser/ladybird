@@ -26,6 +26,7 @@ void Database::visit_edges(Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_associated_connections);
     visitor.visit(m_upgrade_transaction);
+    visitor.visit(m_object_stores);
 }
 
 Vector<GC::Root<Database>> Database::for_key(StorageAPI::StorageKey const& key)

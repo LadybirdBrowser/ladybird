@@ -619,6 +619,7 @@ class IDBOpenDBRequest;
 class IDBRequest;
 class IDBTransaction;
 class IDBVersionChangeEvent;
+class ObjectStore;
 class RequestList;
 }
 
