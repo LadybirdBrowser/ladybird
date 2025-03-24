@@ -311,6 +311,55 @@ Optional<Ratio> Parser::parse_ratio(TokenStream<ComponentValue>& tokens)
     return Ratio { numerator };
 }
 
+// https://drafts.csswg.org/css-fonts-4/#family-name-syntax
+RefPtr<CSSStyleValue> Parser::parse_family_name_value(TokenStream<ComponentValue>& tokens)
+{
+    auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
+
+    // <family-name> = <string> | <custom-ident>+
+    Vector<String> parts;
+    while (tokens.has_next_token()) {
+        auto const& peek = tokens.next_token();
+
+        if (peek.is(Token::Type::String)) {
+            // `font-family: my cool "font";` is invalid.
+            if (!parts.is_empty())
+                return nullptr;
+            tokens.discard_a_token(); // String
+            tokens.discard_whitespace();
+            transaction.commit();
+            return StringStyleValue::create(peek.token().string());
+        }
+
+        if (peek.is(Token::Type::Ident)) {
+            auto ident = tokens.consume_a_token().token().ident();
+
+            // CSS-wide keywords are not allowed
+            if (is_css_wide_keyword(ident))
+                return nullptr;
+
+            // <generic-family> is a separate type from <family-name>, and so isn't allowed here.
+            auto maybe_keyword = keyword_from_string(ident);
+            if (maybe_keyword.has_value() && keyword_to_generic_font_family(maybe_keyword.value()).has_value()) {
+                return nullptr;
+            }
+
+            parts.append(ident.to_string());
+            tokens.discard_whitespace();
+            continue;
+        }
+
+        break;
+    }
+
+    if (parts.is_empty())
+        return nullptr;
+
+    transaction.commit();
+    return CustomIdentStyleValue::create(MUST(String::join(' ', parts)));
+}
+
 // https://www.w3.org/TR/css-syntax-3/#urange-syntax
 Optional<Gfx::UnicodeRange> Parser::parse_unicode_range(TokenStream<ComponentValue>& tokens)
 {
