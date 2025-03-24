@@ -68,7 +68,7 @@ String CSSFontFaceRule::serialized() const
             if (source.local_or_url.has<URL::URL>()) {
                 serialize_a_url(builder, source.local_or_url.get<URL::URL>().to_string());
             } else {
-                builder.appendff("local({})", source.local_or_url.get<String>());
+                builder.appendff("local({})", source.local_or_url.get<FlyString>());
             }
 
             // NOTE: No spec currently exists for format()
