@@ -33,9 +33,7 @@ public:
     Optional<KeyPath> key_path() const { return m_key_path; }
     bool uses_inline_keys() const { return m_key_path.has_value(); }
     bool uses_out_of_line_keys() const { return !m_key_path.has_value(); }
-
-    // The autoIncrement getter steps are to return true if this’s object store has a key generator, and false otherwise.
-    bool auto_increment() const { return m_key_generator.has_value(); }
+    Optional<KeyGenerator> key_generator() const { return m_key_generator; }
 
 private:
     ObjectStore(String name, bool auto_increment, Optional<KeyPath> const& key_path)

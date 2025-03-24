@@ -8,7 +8,7 @@ interface IDBObjectStore {
     readonly attribute any keyPath;
     [FIXME] readonly attribute DOMStringList indexNames;
     [SameObject] readonly attribute IDBTransaction transaction;
-    [FIXME] readonly attribute boolean autoIncrement;
+    readonly attribute boolean autoIncrement;
     
     [FIXME, NewObject] IDBRequest put(any value, optional any key);
     [FIXME, NewObject] IDBRequest add(any value, optional any key);
