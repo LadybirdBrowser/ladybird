@@ -10,6 +10,7 @@
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/IndexedDB/IDBDatabase.h>
 #include <LibWeb/IndexedDB/IDBRequest.h>
+#include <LibWeb/IndexedDB/Internal/ObjectStore.h>
 #include <LibWeb/StorageAPI/StorageKey.h>
 
 namespace Web::IndexedDB {
@@ -61,8 +62,6 @@ protected:
 private:
     Vector<GC::Ref<IDBDatabase>> m_associated_connections;
 
-    // FIXME: A database has zero or more object stores which hold the data stored in the database.
-
     // A database has a name which identifies it within a specific storage key.
     String m_name;
 
@@ -71,6 +70,9 @@ private:
 
     // A database has at most one associated upgrade transaction, which is either null or an upgrade transaction, and is initially null.
     GC::Ptr<IDBTransaction> m_upgrade_transaction;
+
+    // A database has zero or more object stores which hold the data stored in the database.
+    Vector<GC::Ref<ObjectStore>> m_object_stores;
 };
 
 }
