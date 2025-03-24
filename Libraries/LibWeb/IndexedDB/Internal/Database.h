@@ -41,8 +41,12 @@ public:
     }
 
     ReadonlySpan<GC::Ref<ObjectStore>> object_stores() { return m_object_stores; }
-    bool has_object_store_named(String const& name) const;
+    GC::Ptr<ObjectStore> object_store_with_name(String const& name) const;
     void add_object_store(GC::Ref<ObjectStore> object_store) { m_object_stores.append(object_store); }
+    void remove_object_store(GC::Ref<ObjectStore> object_store)
+    {
+        m_object_stores.remove_first_matching([&](auto& entry) { return entry == object_store; });
+    }
 
     [[nodiscard]] static Vector<GC::Root<Database>> for_key(StorageAPI::StorageKey const&);
     [[nodiscard]] static Optional<GC::Root<Database> const&> for_key_and_name(StorageAPI::StorageKey&, String&);

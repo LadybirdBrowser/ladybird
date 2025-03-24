@@ -29,14 +29,14 @@ void Database::visit_edges(Visitor& visitor)
     visitor.visit(m_object_stores);
 }
 
-bool Database::has_object_store_named(String const& name) const
+GC::Ptr<ObjectStore> Database::object_store_with_name(String const& name) const
 {
     for (auto const& object_store : m_object_stores) {
         if (object_store->name() == name)
-            return true;
+            return object_store;
     }
 
-    return false;
+    return nullptr;
 }
 
 Vector<GC::Root<Database>> Database::for_key(StorageAPI::StorageKey const& key)
