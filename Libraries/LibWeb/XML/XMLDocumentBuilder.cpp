@@ -106,7 +106,7 @@ void XMLDocumentBuilder::element_start(const XML::Name& name, HashMap<XML::Name,
             if (namespaces.find_if([&](auto const& namespace_and_prefix) { return namespace_and_prefix.prefix == prefix; }) != namespaces.end())
                 continue;
 
-            namespaces.append({ MUST(FlyString::from_deprecated_fly_string(namespace_)), prefix });
+            namespaces.append({ FlyString(MUST(String::from_byte_string(namespace_))), prefix });
         }
     }
 
@@ -118,7 +118,7 @@ void XMLDocumentBuilder::element_start(const XML::Name& name, HashMap<XML::Name,
 
     auto namespace_ = namespace_for_element(name);
 
-    auto qualified_name_or_error = DOM::validate_and_extract(m_document->realm(), namespace_, MUST(FlyString::from_deprecated_fly_string(name)));
+    auto qualified_name_or_error = DOM::validate_and_extract(m_document->realm(), namespace_, FlyString(MUST(String::from_byte_string(name))));
 
     if (qualified_name_or_error.is_error()) {
         m_has_error = true;
@@ -157,7 +157,7 @@ void XMLDocumentBuilder::element_start(const XML::Name& name, HashMap<XML::Name,
             auto name = attribute.key;
             if (!name.is_one_of("xmlns:"sv, "xmlns:xmlns"sv)) {
                 // The prefix xmlns is used only to declare namespace bindings and is by definition bound to the namespace name http://www.w3.org/2000/xmlns/.
-                MUST(node->set_attribute_ns(Namespace::XMLNS, MUST(FlyString::from_deprecated_fly_string(name)), MUST(String::from_byte_string(attribute.value))));
+                MUST(node->set_attribute_ns(Namespace::XMLNS, MUST(String::from_byte_string(name)), MUST(String::from_byte_string(attribute.value))));
             } else {
                 m_has_error = true;
             }
@@ -166,7 +166,7 @@ void XMLDocumentBuilder::element_start(const XML::Name& name, HashMap<XML::Name,
                 m_has_error = true;
             }
         }
-        MUST(node->set_attribute(MUST(FlyString::from_deprecated_fly_string(attribute.key)), MUST(String::from_byte_string(attribute.value))));
+        MUST(node->set_attribute(MUST(String::from_byte_string(attribute.key)), MUST(String::from_byte_string(attribute.value))));
     }
 
     m_current_node = node.ptr();

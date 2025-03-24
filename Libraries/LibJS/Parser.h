@@ -338,7 +338,6 @@ private:
     NonnullRefPtr<SourceCode const> m_source_code;
     Vector<Position> m_rule_starts;
     ParserState m_state;
-    DeprecatedFlyString m_filename;
     Vector<ParserState> m_saved_state;
     HashMap<size_t, TokenMemoization> m_token_memoizations;
     Program::Type m_program_type;

@@ -214,7 +214,7 @@ private:
 
     NamedCharacterReferenceMatcher m_named_character_reference_matcher;
 
-    Optional<ByteString> m_last_emitted_start_tag_name;
+    Optional<FlyString> m_last_emitted_start_tag_name;
 
     bool m_explicit_eof_inserted { false };
     bool m_has_emitted_eof { false };
