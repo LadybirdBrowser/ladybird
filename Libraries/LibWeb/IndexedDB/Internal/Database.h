@@ -40,6 +40,7 @@ public:
         return connections;
     }
 
+    ReadonlySpan<GC::Ref<ObjectStore>> object_stores() { return m_object_stores; }
     bool has_object_store_named(String const& name) const;
     void add_object_store(GC::Ref<ObjectStore> object_store) { m_object_stores.append(object_store); }
 
