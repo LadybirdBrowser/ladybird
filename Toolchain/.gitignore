@@ -3,5 +3,3 @@ config-temp
 config.log
 # For caching the entire toolchain (useful on Travis)
 Cache/
-# Nix profiles can be stored here
-nix-profiles/

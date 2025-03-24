@@ -99,41 +99,6 @@ sudo xbps-install -Su # (optional) ensure packages are up to date to avoid "Tran
 sudo xbps-install -S git bash gcc python3 curl cmake zip unzip linux-headers make pkg-config autoconf automake autoconf-archive nasm MesaLib-devel ninja qt6-base-devel qt6-multimedia-devel qt6-tools-devel qt6-wayland-devel
 ```
 
-### NixOS or with Nix:
-
-> [!NOTE]
-> Ladybird's build system uses vcpkg to vendor third-party dependencies, which proves undesirable to use with Nix for [several reasons](https://github.com/LadybirdBrowser/ladybird/issues/371).
-> As a result, using `ladybird.sh` to compile and run Ladybird will fail. Therefore, it is necessary to use system packages provided by the dev-shell.
-
-To build the project, first enter the shell:
-
-```console
-nix develop
-
-# With a custom entrypoint, for example, your favorite shell
-nix develop --command bash
-
-# Using nix-shell
-nix-shell
-
-# Using nix-shell and a custom shell
-nix-shell --command bash
-```
-
-Then invoke `cmake` directly. For example:
-
-```
-cmake -GNinja -BBuild/release
-```
-
-Finally, run `ninja` (or the generator you're using) to start the build:
-
-```
-ninja -C Build/release
-```
-
-For more information, see [Custom CMake build directory](#custom-cmake-build-directory) and [Running manually](#running-manually).
-
 ### macOS:
 
 Xcode 15 or clang from homebrew is required to successfully build ladybird.
