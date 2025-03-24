@@ -1220,7 +1220,21 @@ double to_integer_or_infinity(double number)
 ThrowCompletionOr<Value> Value::get(VM& vm, PropertyKey const& property_key) const
 {
     // 1. Let O be ? ToObject(V).
-    auto object = TRY(to_object(vm));
+    auto object = TRY([&]() -> ThrowCompletionOr<GC::Ref<Object>> {
+        // OPTIMIZATION: For primitive values, we can skip allocation of temporary object and look
+        //               directly into prototype where requested property is located.
+        if (is_string() && property_key != vm.names.length)
+            return vm.current_realm()->intrinsics().string_prototype();
+        if (is_boolean())
+            return vm.current_realm()->intrinsics().boolean_prototype();
+        if (is_number())
+            return vm.current_realm()->intrinsics().number_prototype();
+        if (is_bigint())
+            return vm.current_realm()->intrinsics().bigint_prototype();
+        if (is_symbol())
+            return vm.current_realm()->intrinsics().symbol_prototype();
+        return to_object(vm);
+    }());
 
     // 2. Return ? O.[[Get]](P, V).
     return TRY(object->internal_get(property_key, *this));
