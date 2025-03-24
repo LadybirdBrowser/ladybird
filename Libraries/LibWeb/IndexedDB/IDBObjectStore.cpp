@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, stelar7 <dudedbz@gmail.com>
+ * Copyright (c) 2024-2025, stelar7 <dudedbz@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -15,20 +15,29 @@ GC_DEFINE_ALLOCATOR(IDBObjectStore);
 
 IDBObjectStore::~IDBObjectStore() = default;
 
-IDBObjectStore::IDBObjectStore(JS::Realm& realm)
+IDBObjectStore::IDBObjectStore(JS::Realm& realm, GC::Ref<ObjectStore> store, GC::Ref<IDBTransaction> transaction)
     : PlatformObject(realm)
+    , m_store(store)
+    , m_transaction(transaction)
 {
 }
 
-GC::Ref<IDBObjectStore> IDBObjectStore::create(JS::Realm& realm)
+GC::Ref<IDBObjectStore> IDBObjectStore::create(JS::Realm& realm, GC::Ref<ObjectStore> store, GC::Ref<IDBTransaction> transaction)
 {
-    return realm.create<IDBObjectStore>(realm);
+    return realm.create<IDBObjectStore>(realm, store, transaction);
 }
 
 void IDBObjectStore::initialize(JS::Realm& realm)
 {
     Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(IDBObjectStore);
+}
+
+void IDBObjectStore::visit_edges(Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_store);
+    visitor.visit(m_transaction);
 }
 
 }
