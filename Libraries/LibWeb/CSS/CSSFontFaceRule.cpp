@@ -65,11 +65,15 @@ String CSSFontFaceRule::serialized() const
 
         // 2. The result of invoking serialize a comma-separated list on performing serialize a URL or serialize a LOCAL for each source on the source list.
         serialize_a_comma_separated_list(builder, m_font_face.sources(), [&](StringBuilder& builder, ParsedFontFace::Source source) -> void {
-            if (source.local_or_url.has<URL::URL>()) {
-                serialize_a_url(builder, source.local_or_url.get<URL::URL>().to_string());
-            } else {
-                builder.appendff("local({})", source.local_or_url.get<FlyString>());
-            }
+            source.local_or_url.visit(
+                [&builder](URL::URL const& url) {
+                    serialize_a_url(builder, url.to_string());
+                },
+                [&builder](FlyString const& local) {
+                    // https://drafts.csswg.org/cssom-1/#serialize-a-local
+                    // To serialize a LOCAL means to create a string represented by "local(", followed by the serialization of the LOCAL as a string, followed by ")".
+                    builder.appendff("local({})", serialize_a_string(local));
+                });
 
             // NOTE: No spec currently exists for format()
             if (source.format.has_value()) {

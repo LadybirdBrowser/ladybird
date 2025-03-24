@@ -28,6 +28,7 @@
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyName.h>
 #include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
+#include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/OpenTypeTaggedStyleValue.h>
@@ -669,10 +670,28 @@ Vector<ParsedFontFace::Source> Parser::parse_font_face_src(TokenStream<T>& compo
 
         auto const& first = source_tokens.consume_a_token();
         if (first.is_function("local"sv)) {
+            // local(<family-name>)
             if (first.function().value.is_empty()) {
-                continue;
+                dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @font-face src invalid (`local()` syntax is invalid: no arguments); discarding.");
+                return {};
             }
-            supported_sources.empend(FlyString { first.function().value.first().to_string() }, Optional<FlyString> {});
+
+            TokenStream function_tokens { first.function().value };
+            function_tokens.discard_whitespace();
+            auto font_family = parse_family_name_value(function_tokens);
+            function_tokens.discard_whitespace();
+            if (!font_family || function_tokens.has_next_token()) {
+                dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @font-face src invalid (`local()` syntax is invalid: `{}`); discarding.", first.function().original_source_text());
+                return {};
+            }
+
+            if (font_family->is_string())
+                supported_sources.empend(font_family->as_string().string_value(), Optional<FlyString> {});
+            else if (font_family->is_custom_ident())
+                supported_sources.empend(font_family->as_custom_ident().custom_ident(), Optional<FlyString> {});
+            else
+                VERIFY_NOT_REACHED();
+
             continue;
         }
 
