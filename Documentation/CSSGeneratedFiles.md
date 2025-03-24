@@ -127,13 +127,15 @@ This generated `PsuedoElement.h` and `PseudoElement.cpp`.
 
 Each entry has the following properties:
 
-| Field                | Required | Default | Description                                                                                                                                                            |
-|----------------------|----------|---------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `spec`               | No       | Nothing | Link to the spec definition, for reference. Not used in generated code.                                                                                                |
-| `alias-for`          | No       | Nothing | Use to specify that this should be treated as an alias for the named pseudo-element.                                                                                   |
-| `is-generated`       | No       | `false` | Whether this is a [generated pseudo-element.](https://drafts.csswg.org/css-pseudo-4/#generated-content)                                                                |
-| `is-allowed-in-has`  | No       | `false` | Whether this is a [`:has`-allowed pseudo-element.](https://drafts.csswg.org/selectors/#has-allowed-pseudo-element)                                                     |
-| `property-whitelist` | No       | Nothing | Some pseudo-elements only permit certain properties. If so, name them in an array here. Some special values are allowed here for categories of properties - see below. |
+| Field                | Required | Default        | Description                                                                                                                                                            |
+|----------------------|----------|----------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `alias-for`          | No       | Nothing        | Use to specify that this should be treated as an alias for the named pseudo-element.                                                                                   |
+| `function-syntax`    | No       | Nothing        | Syntax for the function arguments if this is a function-type pseudo-element. Copied directly from the spec.                                                            |
+| `is-generated`       | No       | `false`        | Whether this is a [generated pseudo-element.](https://drafts.csswg.org/css-pseudo-4/#generated-content)                                                                |
+| `is-allowed-in-has`  | No       | `false`        | Whether this is a [`:has`-allowed pseudo-element.](https://drafts.csswg.org/selectors/#has-allowed-pseudo-element)                                                     |
+| `property-whitelist` | No       | Nothing        | Some pseudo-elements only permit certain properties. If so, name them in an array here. Some special values are allowed here for categories of properties - see below. |
+| `spec`               | No       | Nothing        | Link to the spec definition, for reference. Not used in generated code.                                                                                                |
+| `type`               | No       | `"identifier"` | What type of pseudo-element is this. Either "identifier", "function", or "both".                                                                                       |
 
 The generated code provides:
 - A `PseudoElement` enum listing every pseudo-element name

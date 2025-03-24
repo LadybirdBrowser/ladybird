@@ -111,5 +111,28 @@
   },
   "track": {
     "spec": "https://drafts.csswg.org/css-forms-1/#selectordef-track"
+  },
+  "view-transition": {
+    "spec": "https://drafts.csswg.org/css-view-transitions-1/#selectordef-view-transition"
+  },
+  "view-transition-group": {
+    "spec": "https://drafts.csswg.org/css-view-transitions-1/#selectordef-view-transition-group",
+    "type": "function",
+    "function-syntax": "<pt-name-selector>"
+  },
+  "view-transition-image-pair": {
+    "spec": "https://drafts.csswg.org/css-view-transitions-1/#selectordef-view-transition-image-pair",
+    "type": "function",
+    "function-syntax": "<pt-name-selector>"
+  },
+  "view-transition-new": {
+    "spec": "https://drafts.csswg.org/css-view-transitions-1/#selectordef-view-transition-new",
+    "type": "function",
+    "function-syntax": "<pt-name-selector>"
+  },
+  "view-transition-old": {
+    "spec": "https://drafts.csswg.org/css-view-transitions-1/#selectordef-view-transition-old",
+    "type": "function",
+    "function-syntax": "<pt-name-selector>"
   }
 }
