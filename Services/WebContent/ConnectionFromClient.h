@@ -61,6 +61,7 @@ private:
     virtual Messages::WebContentServer::GetWindowHandleResponse get_window_handle(u64 page_id) override;
     virtual void set_window_handle(u64 page_id, String handle) override;
     virtual void connect_to_webdriver(u64 page_id, ByteString webdriver_ipc_path) override;
+    virtual void connect_to_web_ui(u64 page_id, IPC::File web_ui_socket) override;
     virtual void connect_to_image_decoder(IPC::File image_decoder_socket) override;
     virtual void update_system_theme(u64 page_id, Core::AnonymousBuffer) override;
     virtual void update_screen_rects(u64 page_id, Vector<Web::DevicePixelRect>, u32) override;

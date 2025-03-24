@@ -625,6 +625,7 @@ class RequestList;
 namespace Web::Internals {
 class Internals;
 class Processes;
+class WebUI;
 }
 
 namespace Web::IntersectionObserver {

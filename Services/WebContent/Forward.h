@@ -15,5 +15,6 @@ class PageHost;
 class PageClient;
 class WebContentConsoleClient;
 class WebDriverConnection;
+class WebUIConnection;
 
 }

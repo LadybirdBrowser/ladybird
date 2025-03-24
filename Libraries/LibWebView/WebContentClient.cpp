@@ -4,12 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "WebContentClient.h"
-#include "Application.h"
-#include "ViewImplementation.h"
 #include <LibWeb/Cookie/ParsedCookie.h>
+#include <LibWebView/Application.h>
 #include <LibWebView/CookieJar.h>
 #include <LibWebView/HelperProcess.h>
+#include <LibWebView/ViewImplementation.h>
+#include <LibWebView/WebContentClient.h>
+#include <LibWebView/WebUI.h>
 
 namespace WebView {
 
@@ -68,6 +69,11 @@ void WebContentClient::unregister_view(u64 page_id)
     }
 }
 
+void WebContentClient::web_ui_disconnected(Badge<WebUI>)
+{
+    m_web_ui.clear();
+}
+
 void WebContentClient::did_paint(u64 page_id, Gfx::IntRect rect, i32 bitmap_id)
 {
     if (auto view = view_for_page_id(page_id); view.has_value())
@@ -95,6 +101,13 @@ void WebContentClient::did_start_loading(u64 page_id, URL::URL url, bool is_redi
 
 void WebContentClient::did_finish_loading(u64 page_id, URL::URL url)
 {
+    if (url.scheme() == "about"sv && url.paths().size() == 1) {
+        if (auto web_ui = WebUI::create(*this, url.paths().first()); web_ui.is_error())
+            warnln("Could not create WebUI for {}: {}", url, web_ui.error());
+        else
+            m_web_ui = web_ui.release_value();
+    }
+
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         view->set_url({}, url);
 
