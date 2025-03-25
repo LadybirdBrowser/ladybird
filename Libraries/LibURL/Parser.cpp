@@ -1155,7 +1155,7 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
                 continue;
             }
 
-            // 2. Otherwise, if c is U+003A (:) and insideBrackets is false, then:
+            // 2. Otherwise, if c is U+003A (:) and insideBrackets is false:
             if (code_point == ':' && !inside_brackets) {
                 // 1. If buffer is the empty string, host-missing validation error, return failure.
                 if (buffer.is_empty()) {
@@ -1163,9 +1163,9 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
                     return {};
                 }
 
-                // 2. If state override is given and state override is hostname state, then return.
+                // 2. If state override is given and state override is hostname state, then return failure.
                 if (state_override.has_value() && *state_override == State::Hostname)
-                    return *url;
+                    return {};
 
                 // 3. Let host be the result of host parsing buffer with url is not special.
                 auto host = parse_host(buffer.string_view(), !url->is_special());
@@ -1184,7 +1184,7 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
             //    * url is special and c is U+005C (\)
             else if ((code_point == end_of_file || code_point == '/' || code_point == '?' || code_point == '#')
                 || (url->is_special() && code_point == '\\')) {
-                // then decrease pointer by 1, and then:
+                // then decrease pointer by 1, and:
                 // NOTE: pointer decrement is done by the continue below
 
                 // 1. If url is special and buffer is the empty string, host-missing validation error, return failure.
@@ -1193,9 +1193,9 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
                     return {};
                 }
 
-                // 2. Otherwise, if state override is given, buffer is the empty string, and either url includes credentials or url’s port is non-null, return.
+                // 2. Otherwise, if state override is given, buffer is the empty string, and either url includes credentials or url’s port is non-null, then return failure.
                 if (state_override.has_value() && buffer.is_empty() && (url->includes_credentials() || url->port().has_value()))
-                    return *url;
+                    return {};
 
                 // 3. Let host be the result of host parsing buffer with url is not special.
                 auto host = parse_host(buffer.string_view(), !url->is_special());
