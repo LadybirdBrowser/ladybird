@@ -3313,6 +3313,12 @@ RefPtr<CSSStyleValue> Parser::parse_calculated_value(ComponentValue const& compo
                         "conic-gradient"sv, "repeating-conic-gradient"sv)) {
                     return CalculationContext { .percentages_resolve_as = ValueType::Length };
                 }
+                // https://drafts.csswg.org/css-transforms-2/#transform-functions
+                // The scale family of functions treats percentages as numbers.
+                if (function.name.is_one_of_ignoring_ascii_case(
+                        "scale"sv, "scalex"sv, "scaley"sv, "scalez"sv, "scale3d"sv)) {
+                    return CalculationContext { .percentages_resolve_as = ValueType::Number };
+                }
                 // FIXME: Add other functions that provide a context for resolving values
                 return {};
             });

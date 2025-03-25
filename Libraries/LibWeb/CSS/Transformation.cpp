@@ -46,7 +46,15 @@ ErrorOr<Gfx::FloatMatrix4x4> Transformation::to_matrix(Optional<Painting::Painta
             [&](CSS::NumberPercentage const& value) -> ErrorOr<float> {
                 if (value.is_percentage())
                     return value.percentage().as_fraction();
-                return value.number().value();
+                if (value.is_number())
+                    return value.number().value();
+                if (value.is_calculated()) {
+                    if (value.calculated()->resolves_to_number())
+                        return value.calculated()->resolve_number(context).value();
+                    if (value.calculated()->resolves_to_percentage())
+                        return value.calculated()->resolve_percentage(context)->as_fraction();
+                }
+                return Error::from_string_literal("Transform contains non absolute units");
             });
     };
 
