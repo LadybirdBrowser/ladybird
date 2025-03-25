@@ -63,6 +63,7 @@
 #include <LibWeb/DOM/DocumentType.h>
 #include <LibWeb/DOM/EditingHostManager.h>
 #include <LibWeb/DOM/Element.h>
+#include <LibWeb/DOM/ElementByIdMap.h>
 #include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/HTMLCollection.h>
@@ -5345,7 +5346,7 @@ static void insert_in_tree_order(Vector<GC::Ref<DOM::Element>>& elements, DOM::E
         elements.append(element);
 }
 
-void Document::element_id_changed(Badge<DOM::Element>, GC::Ref<DOM::Element> element)
+void Document::element_id_changed(Badge<DOM::Element>, GC::Ref<DOM::Element> element, Optional<FlyString> old_id)
 {
     for (auto* form_associated_element : m_form_associated_elements_with_form_attribute)
         form_associated_element->element_id_changed({});
@@ -5354,6 +5355,14 @@ void Document::element_id_changed(Badge<DOM::Element>, GC::Ref<DOM::Element> ele
         insert_in_tree_order(m_potentially_named_elements, element);
     else
         (void)m_potentially_named_elements.remove_first_matching([element](auto& e) { return e == element; });
+
+    auto new_id = element->id();
+    if (old_id.has_value()) {
+        element->document_or_shadow_root_element_by_id_map().remove(old_id.value(), element);
+    }
+    if (new_id.has_value()) {
+        element->document_or_shadow_root_element_by_id_map().add(new_id.value(), element);
+    }
 }
 
 void Document::element_with_id_was_added(Badge<DOM::Element>, GC::Ref<DOM::Element> element)
@@ -5363,6 +5372,10 @@ void Document::element_with_id_was_added(Badge<DOM::Element>, GC::Ref<DOM::Eleme
 
     if (is_potentially_named_element_by_id(*element))
         insert_in_tree_order(m_potentially_named_elements, element);
+
+    if (auto id = element->id(); id.has_value()) {
+        element->document_or_shadow_root_element_by_id_map().add(id.value(), element);
+    }
 }
 
 void Document::element_with_id_was_removed(Badge<DOM::Element>, GC::Ref<DOM::Element> element)
@@ -5372,6 +5385,10 @@ void Document::element_with_id_was_removed(Badge<DOM::Element>, GC::Ref<DOM::Ele
 
     if (is_potentially_named_element_by_id(*element))
         (void)m_potentially_named_elements.remove_first_matching([element](auto& e) { return e == element; });
+
+    if (auto id = element->id(); id.has_value()) {
+        element->document_or_shadow_root_element_by_id_map().remove(id.value(), element);
+    }
 }
 
 void Document::element_name_changed(Badge<DOM::Element>, GC::Ref<DOM::Element> element)
@@ -6439,6 +6456,22 @@ WebIDL::CallbackType* Document::onvisibilitychange()
 void Document::set_onvisibilitychange(WebIDL::CallbackType* value)
 {
     set_event_handler_attribute(HTML::EventNames::visibilitychange, value);
+}
+
+ElementByIdMap& Document::element_by_id() const
+{
+    if (!m_element_by_id)
+        m_element_by_id = make<ElementByIdMap>();
+    return *m_element_by_id;
+}
+
+GC::Ptr<Element> ElementByIdMap::get(FlyString const& element_id) const
+{
+    if (auto elements = m_map.get(element_id); elements.has_value() && !elements->is_empty()) {
+        if (auto element = elements->first(); element.has_value())
+            return *element;
+    }
+    return {};
 }
 
 StringView to_string(SetNeedsLayoutReason reason)

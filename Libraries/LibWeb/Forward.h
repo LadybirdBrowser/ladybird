@@ -311,6 +311,7 @@ class DOMImplementation;
 class DOMTokenList;
 class EditingHostManager;
 class Element;
+class ElementByIdMap;
 class Event;
 class EventHandler;
 class EventTarget;

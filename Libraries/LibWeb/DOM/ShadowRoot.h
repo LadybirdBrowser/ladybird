@@ -8,6 +8,7 @@
 
 #include <LibWeb/Bindings/ShadowRootPrototype.h>
 #include <LibWeb/DOM/DocumentFragment.h>
+#include <LibWeb/DOM/ElementByIdMap.h>
 #include <LibWeb/WebIDL/ObservableArray.h>
 
 namespace Web::DOM {
@@ -62,6 +63,8 @@ public:
 
     WebIDL::ExceptionOr<Vector<GC::Ref<Animations::Animation>>> get_animations();
 
+    ElementByIdMap& element_by_id() const;
+
     virtual void finalize() override;
 
 protected:
@@ -89,6 +92,8 @@ private:
 
     // https://dom.spec.whatwg.org/#shadowroot-serializable
     bool m_serializable { false };
+
+    mutable OwnPtr<ElementByIdMap> m_element_by_id;
 
     GC::Ptr<CSS::StyleSheetList> m_style_sheets;
     mutable GC::Ptr<WebIDL::ObservableArray> m_adopted_style_sheets;

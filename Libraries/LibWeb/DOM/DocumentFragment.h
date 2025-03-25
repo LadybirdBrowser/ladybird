@@ -7,14 +7,12 @@
 #pragma once
 
 #include <LibWeb/DOM/Element.h>
-#include <LibWeb/DOM/NonElementParentNode.h>
 #include <LibWeb/DOM/ParentNode.h>
 
 namespace Web::DOM {
 
 class DocumentFragment
-    : public ParentNode
-    , public NonElementParentNode<DocumentFragment> {
+    : public ParentNode {
     WEB_PLATFORM_OBJECT(DocumentFragment, ParentNode);
     GC_DECLARE_ALLOCATOR(DocumentFragment);
 

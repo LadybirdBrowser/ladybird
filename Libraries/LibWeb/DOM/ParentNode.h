@@ -38,6 +38,8 @@ public:
 
     GC::Ref<HTMLCollection> get_elements_by_class_name(StringView);
 
+    GC::Ptr<Element> get_element_by_id(FlyString const& id) const;
+
 protected:
     ParentNode(JS::Realm& realm, Document& document, NodeType type)
         : Node(realm, document, type)

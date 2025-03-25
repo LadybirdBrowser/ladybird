@@ -218,6 +218,7 @@ public:
     GC::Ref<CSS::CSSStyleProperties> style_for_bindings();
 
     CSS::StyleSheetList& document_or_shadow_root_style_sheets();
+    ElementByIdMap& document_or_shadow_root_element_by_id_map();
 
     WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> parse_fragment(StringView markup);
 

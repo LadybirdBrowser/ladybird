@@ -3520,8 +3520,12 @@ void Element::attribute_changed(FlyString const& local_name, Optional<String> co
         else
             m_id = value_or_empty;
 
-        if (is_connected())
-            document().element_id_changed({}, *this);
+        if (is_connected()) {
+            Optional<FlyString> old_value_fly_string;
+            if (old_value.has_value())
+                old_value_fly_string = *old_value;
+            document().element_id_changed({}, *this, old_value_fly_string);
+        }
     } else if (local_name == HTML::AttributeNames::name) {
         if (value_or_empty.is_empty())
             m_name = {};
@@ -3589,6 +3593,14 @@ CSS::StyleSheetList& Element::document_or_shadow_root_style_sheets()
         return static_cast<DOM::ShadowRoot&>(root_node).style_sheets();
 
     return document().style_sheets();
+}
+
+ElementByIdMap& Element::document_or_shadow_root_element_by_id_map()
+{
+    auto& root_node = root();
+    if (is<ShadowRoot>(root_node))
+        return static_cast<ShadowRoot&>(root_node).element_by_id();
+    return document().element_by_id();
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-element-gethtml

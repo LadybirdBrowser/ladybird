@@ -260,4 +260,27 @@ GC::Ref<HTMLCollection> ParentNode::get_elements_by_class_name(StringView class_
     });
 }
 
+GC::Ptr<Element> ParentNode::get_element_by_id(FlyString const& id) const
+{
+    // For document and shadow root we have a cache that allows fast lookup.
+    if (is_document()) {
+        auto const& document = static_cast<Document const&>(*this);
+        return document.element_by_id().get(id);
+    }
+    if (is_shadow_root()) {
+        auto const& shadow_root = static_cast<ShadowRoot const&>(*this);
+        return shadow_root.element_by_id().get(id);
+    }
+
+    GC::Ptr<Element> found_element;
+    const_cast<ParentNode&>(*this).for_each_in_inclusive_subtree_of_type<Element>([&](Element& element) {
+        if (element.id() == id) {
+            found_element = &element;
+            return TraversalDecision::Break;
+        }
+        return TraversalDecision::Continue;
+    });
+    return found_element;
+}
+
 }
