@@ -354,8 +354,8 @@ void ECMAScriptFunctionObject::initialize(Realm& realm)
         Object* prototype = nullptr;
         switch (m_kind) {
         case FunctionKind::Normal:
-            prototype = Object::create_prototype(realm, realm.intrinsics().object_prototype());
-            MUST(prototype->define_property_or_throw(vm.names.constructor, { .value = this, .writable = true, .enumerable = false, .configurable = true }));
+            prototype = Object::create_with_premade_shape(realm.intrinsics().normal_function_prototype_shape());
+            prototype->put_direct(realm.intrinsics().normal_function_prototype_constructor_offset(), this);
             break;
         case FunctionKind::Generator:
             // prototype is "g1.prototype" in figure-2 (https://tc39.es/ecma262/img/figure-2.png)
