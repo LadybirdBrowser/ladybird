@@ -1239,15 +1239,15 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
             }
 
             // 2. Otherwise, if one of the following is true:
-            //    * c is the EOF code point, U+002F (/), U+003F (?), or U+0023 (#)
-            //    * url is special and c is U+005C (\)
-            //    * state override is given
+            //    * c is the EOF code point, U+002F (/), U+003F (?), or U+0023 (#);
+            //    * url is special and c is U+005C (\); or
+            //    * state override is given,
             else if ((code_point == end_of_file || code_point == '/' || code_point == '?' || code_point == '#')
                 || (url->is_special() && code_point == '\\')
                 || state_override.has_value()) {
                 // then:
 
-                // 1. If buffer is not the empty string, then:
+                // 1. If buffer is not the empty string:
                 if (!buffer.is_empty()) {
                     // 1. Let port be the mathematical integer value that is represented by buffer in radix-10 using ASCII digits for digits with values 0 through 9.
                     auto port = buffer.string_view().to_number<u16>();
@@ -1267,11 +1267,15 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
 
                     // 4. Set buffer to the empty string.
                     buffer.clear();
+
+                    // 5. If state override is given, then return.
+                    if (state_override.has_value())
+                        return *url;
                 }
 
-                // 2. If state override is given, then return.
+                // 2. If state override is given, then return failure.
                 if (state_override.has_value())
-                    return *url;
+                    return {};
 
                 // 3. Set state to path start state and decrease pointer by 1.
                 state = State::PathStart;
