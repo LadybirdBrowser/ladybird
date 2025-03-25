@@ -925,6 +925,12 @@ GC::Ref<CSS::CSSStyleProperties> Element::style_for_bindings()
     return *m_inline_style;
 }
 
+void Element::set_inline_style(GC::Ptr<CSS::CSSStyleProperties> style)
+{
+    m_inline_style = style;
+    set_needs_style_update(true);
+}
+
 // https://dom.spec.whatwg.org/#element-html-uppercased-qualified-name
 void Element::make_html_uppercased_qualified_name()
 {
