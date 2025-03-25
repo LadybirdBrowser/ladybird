@@ -1,9 +1,9 @@
 Harness status: OK
 
-Found 350 tests
+Found 354 tests
 
-340 Pass
-10 Fail
+346 Pass
+8 Fail
 Pass	Loading data...
 Pass	Pattern: [{"pathname":"/foo/bar"}] Inputs: [{"pathname":"/foo/bar"}]
 Pass	Pattern: [{"pathname":"/foo/bar"}] Inputs: [{"pathname":"/foo/ba"}]
@@ -170,12 +170,16 @@ Pass	Pattern: [{"pathname":":Ì†ΩU+deb2"}] Inputs: undefined
 Pass	Pattern: [{"port":""}] Inputs: [{"protocol":"http","port":"80"}]
 Pass	Pattern: [{"protocol":"http","port":"80"}] Inputs: [{"protocol":"http","port":"80"}]
 Pass	Pattern: [{"protocol":"http","port":"80{20}?"}] Inputs: [{"protocol":"http","port":"80"}]
-Pass	Pattern: [{"protocol":"http","port":"80 "}] Inputs: [{"protocol":"http","port":"80"}]
+Fail	Pattern: [{"protocol":"http","port":"80 "}] Inputs: [{"protocol":"http","port":"80"}]
 Pass	Pattern: [{"protocol":"http","port":"100000"}] Inputs: [{"protocol":"http","port":"100000"}]
 Pass	Pattern: [{"port":"80"}] Inputs: [{"protocol":"http","port":"80"}]
 Pass	Pattern: [{"protocol":"http{s}?","port":"80"}] Inputs: [{"protocol":"http","port":"80"}]
 Pass	Pattern: [{"port":"80"}] Inputs: [{"port":"80"}]
-Fail	Pattern: [{"port":"(.*)"}] Inputs: [{"port":"invalid80"}]
+Pass	Pattern: [{"port":"80"}] Inputs: [{"port":"8\t0"}]
+Pass	Pattern: [{"port":"80"}] Inputs: [{"port":"80x"}]
+Pass	Pattern: [{"port":"80"}] Inputs: [{"port":"80?x"}]
+Pass	Pattern: [{"port":"80"}] Inputs: [{"port":"80\\x"}]
+Pass	Pattern: [{"port":"(.*)"}] Inputs: [{"port":"invalid80"}]
 Pass	Pattern: [{"pathname":"/foo/bar"}] Inputs: [{"pathname":"/foo/./bar"}]
 Pass	Pattern: [{"pathname":"/foo/baz"}] Inputs: [{"pathname":"/foo/bar/../baz"}]
 Pass	Pattern: [{"pathname":"/caf%C3%A9"}] Inputs: [{"pathname":"/caf√©"}]
@@ -236,7 +240,7 @@ Pass	Pattern: ["https://example.com/"] Inputs: ["https://example.com:8080/"]
 Pass	Pattern: ["data:foobar"] Inputs: ["data:foobar"]
 Pass	Pattern: ["data\\:foobar"] Inputs: ["data:foobar"]
 Pass	Pattern: ["https://{sub.}?example.com/foo"] Inputs: ["https://example.com/foo"]
-Fail	Pattern: ["https://{sub.}?example{.com/}foo"] Inputs: ["https://example.com/foo"]
+Pass	Pattern: ["https://{sub.}?example{.com/}foo"] Inputs: ["https://example.com/foo"]
 Pass	Pattern: ["{https://}example.com/foo"] Inputs: ["https://example.com/foo"]
 Pass	Pattern: ["https://(sub.)?example.com/foo"] Inputs: ["https://example.com/foo"]
 Pass	Pattern: ["https://(sub.)?example(.com/)foo"] Inputs: ["https://example.com/foo"]
@@ -293,7 +297,7 @@ Pass	Pattern: [{"hostname":"bad hostname"}] Inputs: undefined
 Pass	Pattern: [{"hostname":"bad#hostname"}] Inputs: [{"hostname":"bad"}]
 Fail	Pattern: [{"hostname":"bad%hostname"}] Inputs: undefined
 Pass	Pattern: [{"hostname":"bad/hostname"}] Inputs: [{"hostname":"bad"}]
-Fail	Pattern: [{"hostname":"bad\\:hostname"}] Inputs: undefined
+Pass	Pattern: [{"hostname":"bad\\:hostname"}] Inputs: undefined
 Pass	Pattern: [{"hostname":"bad<hostname"}] Inputs: undefined
 Pass	Pattern: [{"hostname":"bad>hostname"}] Inputs: undefined
 Pass	Pattern: [{"hostname":"bad?hostname"}] Inputs: undefined
