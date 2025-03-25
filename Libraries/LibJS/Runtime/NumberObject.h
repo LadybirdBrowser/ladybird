@@ -25,7 +25,12 @@ protected:
     NumberObject(double, Object& prototype);
 
 private:
+    virtual bool is_number_object() const final { return true; }
+
     double m_value { 0 };
 };
+
+template<>
+inline bool Object::fast_is<NumberObject>() const { return is_number_object(); }
 
 }

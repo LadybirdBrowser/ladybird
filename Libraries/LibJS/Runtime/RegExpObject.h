@@ -74,6 +74,7 @@ private:
     RegExpObject(Object& prototype);
     RegExpObject(Regex<ECMA262> regex, String pattern, String flags, Object& prototype);
 
+    virtual bool is_regexp_object() const final { return true; }
     virtual void visit_edges(Visitor&) override;
 
     String m_pattern;
@@ -84,6 +85,9 @@ private:
     GC::Ptr<Realm> m_realm; // [[Realm]]
     Optional<Regex<ECMA262>> m_regex;
 };
+
+template<>
+inline bool Object::fast_is<RegExpObject>() const { return is_regexp_object(); }
 
 AK_ENUM_BITWISE_OPERATORS(RegExpObject::Flags);
 

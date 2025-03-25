@@ -190,6 +190,12 @@ public:
 
     virtual bool is_dom_node() const { return false; }
     virtual bool is_function() const { return false; }
+    virtual bool is_error() const { return false; }
+    virtual bool is_date() const { return false; }
+    virtual bool is_number_object() const { return false; }
+    virtual bool is_boolean_object() const { return false; }
+    virtual bool is_regexp_object() const { return false; }
+    virtual bool is_bigint_object() const { return false; }
     virtual bool is_string_object() const { return false; }
     virtual bool is_global_object() const { return false; }
     virtual bool is_proxy_object() const { return false; }

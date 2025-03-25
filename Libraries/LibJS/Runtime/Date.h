@@ -31,8 +31,13 @@ public:
 private:
     Date(double date_value, Object& prototype);
 
+    virtual bool is_date() const final { return true; }
+
     double m_date_value { 0 }; // [[DateValue]]
 };
+
+template<>
+inline bool Object::fast_is<Date>() const { return is_date(); }
 
 // 21.4.1.22 Time Zone Identifier Record, https://tc39.es/ecma262/#sec-time-zone-identifier-record
 struct TimeZoneIdentifier {
