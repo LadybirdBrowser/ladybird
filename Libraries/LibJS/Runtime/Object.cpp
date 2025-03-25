@@ -97,6 +97,12 @@ void Object::initialize(Realm&)
 {
 }
 
+void Object::unsafe_set_shape(Shape& shape)
+{
+    m_shape = shape;
+    m_storage.resize(shape.property_count());
+}
+
 // 7.2 Testing and Comparison Operations, https://tc39.es/ecma262/#sec-testing-and-comparison-operations
 
 // 7.2.5 IsExtensible ( O ), https://tc39.es/ecma262/#sec-isextensible-o

@@ -246,6 +246,8 @@ protected:
     Object(ConstructWithPrototypeTag, Object& prototype, MayInterfereWithIndexedPropertyAccess = MayInterfereWithIndexedPropertyAccess::No);
     explicit Object(Shape&, MayInterfereWithIndexedPropertyAccess = MayInterfereWithIndexedPropertyAccess::No);
 
+    void unsafe_set_shape(Shape&);
+
     // [[Extensible]]
     bool m_is_extensible { true };
 

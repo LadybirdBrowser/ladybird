@@ -203,6 +203,15 @@ void Intrinsics::initialize_intrinsics(Realm& realm)
     m_normal_function_prototype_shape->add_property_without_transition(vm.names.constructor, Attribute::Writable | Attribute::Configurable);
     m_normal_function_prototype_constructor_offset = m_normal_function_prototype_shape->lookup(vm.names.constructor.to_string_or_symbol()).value().offset;
 
+    m_normal_function_shape = heap().allocate<Shape>(realm);
+    m_normal_function_shape->set_prototype_without_transition(m_function_prototype);
+    m_normal_function_shape->add_property_without_transition(vm.names.length, Attribute::Configurable);
+    m_normal_function_shape->add_property_without_transition(vm.names.name, Attribute::Configurable);
+    m_normal_function_shape->add_property_without_transition(vm.names.prototype, Attribute::Writable);
+    m_normal_function_length_offset = m_normal_function_shape->lookup(vm.names.length.to_string_or_symbol()).value().offset;
+    m_normal_function_name_offset = m_normal_function_shape->lookup(vm.names.name.to_string_or_symbol()).value().offset;
+    m_normal_function_prototype_offset = m_normal_function_shape->lookup(vm.names.prototype.to_string_or_symbol()).value().offset;
+
     // Normally Realm::create() takes care of this, but these are allocated via Heap::allocate().
     m_function_prototype->initialize(realm);
     m_object_prototype->initialize(realm);
@@ -372,6 +381,7 @@ void Intrinsics::visit_edges(Visitor& visitor)
     visitor.visit(m_new_object_shape);
     visitor.visit(m_iterator_result_object_shape);
     visitor.visit(m_normal_function_prototype_shape);
+    visitor.visit(m_normal_function_shape);
     visitor.visit(m_proxy_constructor);
     visitor.visit(m_async_from_sync_iterator_prototype);
     visitor.visit(m_async_generator_prototype);
