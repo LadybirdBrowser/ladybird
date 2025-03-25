@@ -309,42 +309,42 @@ struct StyleComputer::MatchingFontCandidate {
     }
 };
 
-static CSSStyleSheet& default_stylesheet(DOM::Document const& document)
+static CSSStyleSheet& default_stylesheet()
 {
     static GC::Root<CSSStyleSheet> sheet;
     if (!sheet.cell()) {
         extern String default_stylesheet_source;
-        sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingParams(document), default_stylesheet_source));
+        sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingParams(internal_css_realm()), default_stylesheet_source));
     }
     return *sheet;
 }
 
-static CSSStyleSheet& quirks_mode_stylesheet(DOM::Document const& document)
+static CSSStyleSheet& quirks_mode_stylesheet()
 {
     static GC::Root<CSSStyleSheet> sheet;
     if (!sheet.cell()) {
         extern String quirks_mode_stylesheet_source;
-        sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingParams(document), quirks_mode_stylesheet_source));
+        sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingParams(internal_css_realm()), quirks_mode_stylesheet_source));
     }
     return *sheet;
 }
 
-static CSSStyleSheet& mathml_stylesheet(DOM::Document const& document)
+static CSSStyleSheet& mathml_stylesheet()
 {
     static GC::Root<CSSStyleSheet> sheet;
     if (!sheet.cell()) {
         extern String mathml_stylesheet_source;
-        sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingParams(document), mathml_stylesheet_source));
+        sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingParams(internal_css_realm()), mathml_stylesheet_source));
     }
     return *sheet;
 }
 
-static CSSStyleSheet& svg_stylesheet(DOM::Document const& document)
+static CSSStyleSheet& svg_stylesheet()
 {
     static GC::Root<CSSStyleSheet> sheet;
     if (!sheet.cell()) {
         extern String svg_stylesheet_source;
-        sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingParams(document), svg_stylesheet_source));
+        sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingParams(internal_css_realm()), svg_stylesheet_source));
     }
     return *sheet;
 }
@@ -371,11 +371,11 @@ template<typename Callback>
 void StyleComputer::for_each_stylesheet(CascadeOrigin cascade_origin, Callback callback) const
 {
     if (cascade_origin == CascadeOrigin::UserAgent) {
-        callback(default_stylesheet(document()), {});
+        callback(default_stylesheet(), {});
         if (document().in_quirks_mode())
-            callback(quirks_mode_stylesheet(document()), {});
-        callback(mathml_stylesheet(document()), {});
-        callback(svg_stylesheet(document()), {});
+            callback(quirks_mode_stylesheet(), {});
+        callback(mathml_stylesheet(), {});
+        callback(svg_stylesheet(), {});
     }
     if (cascade_origin == CascadeOrigin::User) {
         if (m_user_style_sheet)

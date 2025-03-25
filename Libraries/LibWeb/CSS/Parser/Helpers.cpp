@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2018-2025, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2020-2023, the SerenityOS developers.
  * Copyright (c) 2021-2024, Sam Atkins <atkinssj@serenityos.org>
  * Copyright (c) 2021, Tobias Christiansen <tobyase@serenityos.org>
@@ -8,12 +8,39 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/CSS/CSSMediaRule.h>
 #include <LibWeb/CSS/CSSRuleList.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/HTML/Window.h>
 
 namespace Web {
+
+GC::Ref<JS::Realm> internal_css_realm()
+{
+    static GC::Root<JS::Realm> realm;
+    static GC::Root<HTML::Window> window;
+    static OwnPtr<JS::ExecutionContext> execution_context;
+    if (!realm) {
+        execution_context = Bindings::create_a_new_javascript_realm(
+            Bindings::main_thread_vm(),
+            [&](JS::Realm& realm) -> JS::Object* {
+                window = HTML::Window::create(realm);
+                return window;
+            },
+            [&](JS::Realm&) -> JS::Object* {
+                return window;
+            });
+
+        realm = *execution_context->realm;
+        auto intrinsics = realm->create<Bindings::Intrinsics>(*realm);
+        auto host_defined = make<Bindings::HostDefined>(intrinsics);
+        realm->set_host_defined(move(host_defined));
+    }
+    return *realm;
+}
 
 CSS::CSSStyleSheet* parse_css_stylesheet(CSS::Parser::ParsingParams const& context, StringView css, Optional<URL::URL> location)
 {
