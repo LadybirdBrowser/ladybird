@@ -76,6 +76,9 @@ ECMAScriptFunctionObject::ECMAScriptFunctionObject(FlyString name, ByteString so
     , m_is_arrow_function(is_arrow_function)
     , m_kind(kind)
 {
+    if (!m_is_arrow_function && m_kind == FunctionKind::Normal)
+        unsafe_set_shape(m_realm->intrinsics().normal_function_shape());
+
     // NOTE: This logic is from OrdinaryFunctionCreate, https://tc39.es/ecma262/#sec-ordinaryfunctioncreate
 
     // 9. If thisMode is lexical-this, set F.[[ThisMode]] to lexical.
@@ -347,30 +350,38 @@ void ECMAScriptFunctionObject::initialize(Realm& realm)
 
     m_name_string = PrimitiveString::create(vm, m_name);
 
-    MUST(define_property_or_throw(vm.names.length, { .value = Value(m_function_length), .writable = false, .enumerable = false, .configurable = true }));
-    MUST(define_property_or_throw(vm.names.name, { .value = m_name_string, .writable = false, .enumerable = false, .configurable = true }));
+    if (!m_is_arrow_function && m_kind == FunctionKind::Normal) {
+        put_direct(realm.intrinsics().normal_function_length_offset(), Value(m_function_length));
+        put_direct(realm.intrinsics().normal_function_name_offset(), m_name_string);
 
-    if (!m_is_arrow_function) {
-        Object* prototype = nullptr;
-        switch (m_kind) {
-        case FunctionKind::Normal:
-            prototype = Object::create_with_premade_shape(realm.intrinsics().normal_function_prototype_shape());
-            prototype->put_direct(realm.intrinsics().normal_function_prototype_constructor_offset(), this);
-            break;
-        case FunctionKind::Generator:
-            // prototype is "g1.prototype" in figure-2 (https://tc39.es/ecma262/img/figure-2.png)
-            prototype = Object::create_prototype(realm, realm.intrinsics().generator_function_prototype_prototype());
-            break;
-        case FunctionKind::Async:
-            break;
-        case FunctionKind::AsyncGenerator:
-            prototype = Object::create_prototype(realm, realm.intrinsics().async_generator_function_prototype_prototype());
-            break;
+        auto prototype = Object::create_with_premade_shape(realm.intrinsics().normal_function_prototype_shape());
+        prototype->put_direct(realm.intrinsics().normal_function_prototype_constructor_offset(), this);
+        put_direct(realm.intrinsics().normal_function_prototype_offset(), prototype);
+    } else {
+        MUST(define_property_or_throw(vm.names.length, { .value = Value(m_function_length), .writable = false, .enumerable = false, .configurable = true }));
+        MUST(define_property_or_throw(vm.names.name, { .value = m_name_string, .writable = false, .enumerable = false, .configurable = true }));
+
+        if (!m_is_arrow_function) {
+            Object* prototype = nullptr;
+            switch (m_kind) {
+            case FunctionKind::Normal:
+                VERIFY_NOT_REACHED();
+                break;
+            case FunctionKind::Generator:
+                // prototype is "g1.prototype" in figure-2 (https://tc39.es/ecma262/img/figure-2.png)
+                prototype = Object::create_prototype(realm, realm.intrinsics().generator_function_prototype_prototype());
+                break;
+            case FunctionKind::Async:
+                break;
+            case FunctionKind::AsyncGenerator:
+                prototype = Object::create_prototype(realm, realm.intrinsics().async_generator_function_prototype_prototype());
+                break;
+            }
+            // 27.7.4 AsyncFunction Instances, https://tc39.es/ecma262/#sec-async-function-instances
+            // AsyncFunction instances do not have a prototype property as they are not constructible.
+            if (m_kind != FunctionKind::Async)
+                define_direct_property(vm.names.prototype, prototype, Attribute::Writable);
         }
-        // 27.7.4 AsyncFunction Instances, https://tc39.es/ecma262/#sec-async-function-instances
-        // AsyncFunction instances do not have a prototype property as they are not constructible.
-        if (m_kind != FunctionKind::Async)
-            define_direct_property(vm.names.prototype, prototype, Attribute::Writable);
     }
 }
 
