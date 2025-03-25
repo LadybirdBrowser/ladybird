@@ -26,9 +26,14 @@ public:
 private:
     BigIntObject(BigInt&, Object& prototype);
 
+    virtual bool is_bigint_object() const final { return true; }
+
     virtual void visit_edges(Visitor&) override;
 
     GC::Ref<BigInt> m_bigint;
 };
+
+template<>
+inline bool Object::fast_is<BigIntObject>() const { return is_bigint_object(); }
 
 }

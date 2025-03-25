@@ -47,9 +47,14 @@ protected:
     explicit Error(Object& prototype);
 
 private:
+    virtual bool is_error() const final { return true; }
+
     void populate_stack();
     Vector<TracebackFrame, 32> m_traceback;
 };
+
+template<>
+inline bool Object::fast_is<Error>() const { return is_error(); }
 
 // NOTE: Making these inherit from Error is not required by the spec but
 //       our way of implementing the [[ErrorData]] internal slot, which is

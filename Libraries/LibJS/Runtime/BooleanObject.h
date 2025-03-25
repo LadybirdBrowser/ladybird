@@ -25,7 +25,12 @@ protected:
     BooleanObject(bool, Object& prototype);
 
 private:
+    virtual bool is_boolean_object() const final { return true; }
+
     bool m_value { false };
 };
+
+template<>
+inline bool Object::fast_is<BooleanObject>() const { return is_boolean_object(); }
 
 }
