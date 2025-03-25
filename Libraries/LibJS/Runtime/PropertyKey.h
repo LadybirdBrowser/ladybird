@@ -107,11 +107,12 @@ private:
     {
         if (string_may_be_number != StringMayBeNumber::Yes)
             return string;
-        if (string.is_empty())
+        auto view = string.bytes_as_string_view();
+        if (view.is_empty())
             return string;
-        if (string.bytes_as_string_view().starts_with("0"sv) && string.bytes().size() != 1)
+        if (view[0] == '0' && view.length() > 1)
             return string;
-        auto property_index = string.bytes_as_string_view().to_number<u32>(TrimWhitespace::No);
+        auto property_index = view.to_number<u32>(TrimWhitespace::No);
         if (!property_index.has_value() || property_index.value() >= NumericLimits<u32>::max())
             return string;
         return property_index.release_value();
