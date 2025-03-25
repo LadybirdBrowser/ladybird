@@ -2716,9 +2716,16 @@ Optional<Time> CalculatedStyleValue::resolve_time(CalculationResolutionContext c
 Optional<double> CalculatedStyleValue::resolve_number(CalculationResolutionContext const& context) const
 {
     auto result = m_calculation->resolve(context);
-    if (result.type().has_value() && result.type()->matches_number(m_context.percentages_resolve_as))
-        return result.value();
-    return {};
+    if (!result.type().has_value() || !result.type()->matches_number(m_context.percentages_resolve_as))
+        return {};
+
+    // https://drafts.csswg.org/css-values/#calc-ieee
+    // NaN does not escape a top-level calculation; it’s censored into a zero value.
+    auto value = result.value();
+    if (isnan(value))
+        return 0.;
+
+    return value;
 }
 
 Optional<i64> CalculatedStyleValue::resolve_integer(CalculationResolutionContext const& context) const
