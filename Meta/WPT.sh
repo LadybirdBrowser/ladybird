@@ -184,6 +184,11 @@ update_wpt() {
 }
 
 execute_wpt() {
+    # Ensure open files limit is at least 1024, so the WPT runner does not run out of descriptors
+    if [ "$(ulimit -n)" -lt 1024 ]; then
+        ulimit -S -n 1024
+    fi
+
     pushd "${WPT_SOURCE_DIR}" > /dev/null
         for certificate_path in "${WPT_CERTIFICATES[@]}"; do
             if [ ! -f "${certificate_path}" ]; then
