@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2021-2025, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2021, Gunnar Beutner <gbeutner@serenityos.org>
  * Copyright (c) 2021, Marcin Gasperowicz <xnooga@gmail.com>
@@ -17,6 +17,7 @@
 #include <LibJS/Bytecode/StringTable.h>
 #include <LibJS/Runtime/Environment.h>
 #include <LibJS/Runtime/ErrorTypes.h>
+#include <LibJS/Runtime/ValueInlines.h>
 
 namespace JS {
 
@@ -76,6 +77,22 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ExpressionStatement::ge
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
     return m_expression->generate_bytecode(generator);
+}
+
+static ThrowCompletionOr<ScopedOperand> constant_fold_unary_expression(Generator& generator, Value value, UnaryOp op)
+{
+    switch (op) {
+    case UnaryOp::Minus:
+        return generator.add_constant(Value(-TRY(value.to_double(generator.vm()))));
+    case UnaryOp::Plus:
+        return generator.add_constant(Value(+TRY(value.to_double(generator.vm()))));
+    case UnaryOp::BitwiseNot:
+        return generator.add_constant(TRY(bitwise_not(generator.vm(), value)));
+    case UnaryOp::Not:
+        return generator.add_constant(Value(!value.to_boolean()));
+    default:
+        return throw_completion(js_null());
+    }
 }
 
 static ThrowCompletionOr<ScopedOperand> constant_fold_binary_expression(Generator& generator, Value lhs, Value rhs, BinaryOp m_op)
@@ -328,13 +345,6 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> UnaryExpression::genera
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
 
-    // OPTIMIZATION: Turn expressions like `-1` into a constant.
-    if (m_op == UnaryOp::Minus && is<NumericLiteral>(*m_lhs)) {
-        auto& numeric_literal = static_cast<NumericLiteral const&>(*m_lhs);
-        auto value = numeric_literal.value();
-        return generator.add_constant(Value(-value.as_double()));
-    }
-
     if (m_op == UnaryOp::Delete)
         return generator.emit_delete_reference(m_lhs);
 
@@ -344,6 +354,13 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> UnaryExpression::genera
         src = TRY(m_lhs->generate_bytecode(generator)).value();
 
     auto dst = choose_dst(generator, preferred_dst);
+
+    if (src.has_value() && src.value().operand().is_constant()) {
+        // OPTIMIZATION: Do some basic constant folding for unary operations on numbers.
+        auto value = generator.get_constant(*src);
+        if (auto result = constant_fold_unary_expression(generator, value, m_op); !result.is_error())
+            return result.release_value();
+    }
 
     switch (m_op) {
     case UnaryOp::BitwiseNot:
