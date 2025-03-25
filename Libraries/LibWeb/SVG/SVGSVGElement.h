@@ -7,7 +7,6 @@
 #pragma once
 
 #include <LibGfx/Bitmap.h>
-#include <LibWeb/DOM/NonElementParentNode.h>
 #include <LibWeb/Geometry/DOMMatrix.h>
 #include <LibWeb/Geometry/DOMPoint.h>
 #include <LibWeb/SVG/AttributeParser.h>
@@ -22,9 +21,7 @@
 namespace Web::SVG {
 
 class SVGSVGElement final : public SVGGraphicsElement
-    , public SVGViewport
-    // SVGSVGElement is not strictly a NonElementParentNode, but it implements the same get_element_by_id() method.
-    , public DOM::NonElementParentNode<SVGSVGElement> {
+    , public SVGViewport {
     WEB_PLATFORM_OBJECT(SVGSVGElement, SVGGraphicsElement);
     GC_DECLARE_ALLOCATOR(SVGSVGElement);
 

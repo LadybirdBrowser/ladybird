@@ -184,4 +184,11 @@ WebIDL::ExceptionOr<Vector<GC::Ref<Animations::Animation>>> ShadowRoot::get_anim
     return relevant_animations;
 }
 
+ElementByIdMap& ShadowRoot::element_by_id() const
+{
+    if (!m_element_by_id)
+        m_element_by_id = make<ElementByIdMap>();
+    return *m_element_by_id;
+}
+
 }
