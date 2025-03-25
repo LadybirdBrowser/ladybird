@@ -13,6 +13,7 @@
  */
 
 #include <AK/Debug.h>
+#include <LibURL/Parser.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
@@ -1814,6 +1815,8 @@ bool Parser::is_parsing_svg_presentation_attribute() const
 // FIXME: URLs shouldn't be completed during parsing, but when used.
 Optional<URL::URL> Parser::complete_url(StringView relative_url) const
 {
+    if (!m_url.is_valid())
+        return URL::Parser::basic_parse(relative_url);
     return m_url.complete_url(relative_url);
 }
 
