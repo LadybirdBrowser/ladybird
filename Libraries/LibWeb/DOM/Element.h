@@ -464,6 +464,18 @@ public:
     Element const* list_owner() const;
     size_t ordinal_value() const;
 
+    bool captured_in_a_view_transition() const { return m_captured_in_a_view_transition; }
+    void set_captured_in_a_view_transition(bool value) { m_captured_in_a_view_transition = value; }
+
+    // https://drafts.csswg.org/css-images-4/#element-not-rendered
+    bool not_rendered() const;
+
+    // https://drafts.csswg.org/css-view-transitions-1/#document-scoped-view-transition-name
+    Optional<FlyString> document_scoped_view_transition_name();
+
+    // https://drafts.csswg.org/css-view-transitions-1/#capture-the-image
+    RefPtr<Gfx::Bitmap> capture_the_image();
+
 protected:
     Element(Document&, DOM::QualifiedName);
     virtual void initialize(JS::Realm&) override;
@@ -570,6 +582,9 @@ private:
 
     // https://drafts.csswg.org/css-contain/#proximity-to-the-viewport
     ProximityToTheViewport m_proximity_to_the_viewport { ProximityToTheViewport::NotDetermined };
+
+    // https://drafts.csswg.org/css-view-transitions-1/#captured-in-a-view-transition
+    bool m_captured_in_a_view_transition { false };
 };
 
 template<>

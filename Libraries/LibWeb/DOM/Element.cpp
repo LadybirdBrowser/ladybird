@@ -77,6 +77,7 @@
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/PaintableBox.h>
+#include <LibWeb/Painting/StackingContext.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/SVG/SVGAElement.h>
 #include <LibWeb/Selection/Selection.h>
@@ -3779,4 +3780,93 @@ Optional<String> Element::lang() const
         return {};
     return maybe_lang.release_value();
 }
+
+// https://drafts.csswg.org/css-images-4/#element-not-rendered
+bool Element::not_rendered() const
+{
+    // An element is not rendered if it does not have an associated box.
+    if (!layout_node() || !paintable_box())
+        return true;
+
+    return false;
+}
+
+// https://drafts.csswg.org/css-view-transitions-1/#document-scoped-view-transition-name
+Optional<FlyString> Element::document_scoped_view_transition_name()
+{
+    // To get the document-scoped view transition name for an Element element:
+
+    // 1. Let scopedViewTransitionName be the computed value of view-transition-name for element.
+    auto scoped_view_transition_name = computed_properties()->view_transition_name();
+
+    // 2. If scopedViewTransitionName is associated with element’s node document, then return
+    //    scopedViewTransitionName.
+    // FIXME: Properly handle tree-scoping of the name here.
+    //        (see https://drafts.csswg.org/css-view-transitions-1/#propdef-view-transition-name , "Each view transition name is a tree-scoped name.")
+    if (true) {
+        return scoped_view_transition_name;
+    }
+
+    // 3. Otherwise, return none.
+    return {};
+}
+
+// https://drafts.csswg.org/css-view-transitions-1/#capture-the-image
+// To capture the image given an element element, perform the following steps. They return an image.
+RefPtr<Gfx::Bitmap> Element::capture_the_image()
+{
+    // 1. If element is the document element, then:
+    if (is_document_element()) {
+        // 1. Render the region of document (including its canvas background and any top layer content) that
+        //    intersects the snapshot containing block, on a transparent canvas the size of the snapshot containing
+        //    block, following the capture rendering characteristics, and these additional characteristics:
+        //
+        //    - Areas outside element’s scrolling box should be rendered as if they were scrolled to, without
+        //      moving or resizing the layout viewport. This must not trigger events related to scrolling or resizing,
+        //      such as IntersectionObservers.
+        //    - Areas that cannot be scrolled to (i.e. they are out of scrolling bounds), should render the canvas
+        //      background.
+
+        // FIXME: Make this obey all the rules given above.
+        auto snapshot_containing_block_size = document().navigable()->snapshot_containing_block_size();
+        auto size = Gfx::IntSize(snapshot_containing_block_size.get<0>(), snapshot_containing_block_size.get<1>());
+        auto image = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, size));
+        auto painting_surface = Gfx::PaintingSurface::wrap_bitmap(image);
+
+        auto display_list = Painting::DisplayList::create();
+        Painting::DisplayListRecorder display_list_recorder(display_list);
+        PaintContext paint_context { display_list_recorder, document().page().palette(), document().page().client().device_pixels_per_css_pixel() };
+
+        auto viewport_paintable = document().paintable();
+        viewport_paintable->refresh_scroll_state();
+
+        // NOTE: Painting the stacking context is fine here since the fact that this element is captured in a view transition makes it form a stacking context.
+        paintable_box()->stacking_context()->paint(paint_context);
+
+        display_list->set_scroll_state(viewport_paintable->scroll_state());
+
+        Painting::DisplayListPlayerSkia display_list_player;
+        display_list_player.set_surface(painting_surface);
+        display_list_player.execute(display_list);
+
+        // 2. Return this canvas as an image. The natural size of the image is equal to the snapshot containing
+        //    block.
+        return image;
+    }
+
+    // 2. Otherwise:
+    else {
+        // 1. Render element and its descendants, at the same size it appears in its node document, over an infinite
+        //    transparent canvas, following the capture rendering characteristics.
+        // FIXME: Implement this.
+        auto image = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, Gfx::IntSize(0, 0)));
+
+        // 2. Return the portion of this canvas that includes element’s ink overflow rectangle as an image. The
+        //    natural dimensions of this image must be those of its principal border box, and its origin must
+        //    correspond to that border box’s origin, such that the image represents the contents of this border box
+        //    and any captured ink overflow is represented outside these bounds.
+        return image;
+    }
+}
+
 }
