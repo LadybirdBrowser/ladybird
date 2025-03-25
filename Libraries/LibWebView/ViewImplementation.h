@@ -212,8 +212,7 @@ public:
     Function<void(Web::CSS::StyleSheetIdentifier const&, URL::URL const&, String const&)> on_received_style_sheet_source;
     Function<void(JsonValue)> on_received_js_console_result;
     Function<void(i32 message_id)> on_console_message_available;
-    Function<void(i32 start_index, Vector<String> const& message_types, Vector<String> const& messages)> on_received_styled_console_messages;
-    Function<void(i32 start_index, Vector<ConsoleOutput>)> on_received_unstyled_console_messages;
+    Function<void(i32 start_index, Vector<ConsoleOutput>)> on_received_console_messages;
     Function<void(i32 count_waiting)> on_resource_status_change;
     Function<void()> on_restore_window;
     Function<void(Gfx::IntPoint)> on_reposition_window;
