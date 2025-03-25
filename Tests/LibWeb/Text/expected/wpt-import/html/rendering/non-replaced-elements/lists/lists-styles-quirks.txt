@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 2070 tests
 
-2050 Pass
-20 Fail
+2064 Pass
+6 Fail
 Pass	<li> - display
 Pass	<li> - margin-top
 Pass	<li> - margin-right
@@ -18,7 +18,7 @@ Pass	<li> - counter-set
 Pass	<li> - counter-reset
 Pass	<li> - counter-increment
 Pass	<li> - text-align
-Fail	<li> - list-style-position
+Pass	<li> - list-style-position
 Pass	<dir>
    <li> - display
 Pass	<dir>
@@ -1233,7 +1233,7 @@ Pass	<li type="1"> - counter-set
 Pass	<li type="1"> - counter-reset
 Pass	<li type="1"> - counter-increment
 Pass	<li type="1"> - text-align
-Fail	<li type="1"> - list-style-position
+Pass	<li type="1"> - list-style-position
 Pass	<ol type="a" class="type-a"> - display
 Pass	<ol type="a" class="type-a"> - margin-top
 Pass	<ol type="a" class="type-a"> - margin-right
@@ -1278,7 +1278,7 @@ Pass	<li type="a" class="type-a"> - counter-set
 Pass	<li type="a" class="type-a"> - counter-reset
 Pass	<li type="a" class="type-a"> - counter-increment
 Pass	<li type="a" class="type-a"> - text-align
-Fail	<li type="a" class="type-a"> - list-style-position
+Pass	<li type="a" class="type-a"> - list-style-position
 Pass	<ol type="A" class="type-A"> - display
 Pass	<ol type="A" class="type-A"> - margin-top
 Pass	<ol type="A" class="type-A"> - margin-right
@@ -1323,7 +1323,7 @@ Pass	<li type="A" class="type-A"> - counter-set
 Pass	<li type="A" class="type-A"> - counter-reset
 Pass	<li type="A" class="type-A"> - counter-increment
 Pass	<li type="A" class="type-A"> - text-align
-Fail	<li type="A" class="type-A"> - list-style-position
+Pass	<li type="A" class="type-A"> - list-style-position
 Pass	<ol type="i" class="type-i"> - display
 Pass	<ol type="i" class="type-i"> - margin-top
 Pass	<ol type="i" class="type-i"> - margin-right
@@ -1368,7 +1368,7 @@ Pass	<li type="i" class="type-i"> - counter-set
 Pass	<li type="i" class="type-i"> - counter-reset
 Pass	<li type="i" class="type-i"> - counter-increment
 Pass	<li type="i" class="type-i"> - text-align
-Fail	<li type="i" class="type-i"> - list-style-position
+Pass	<li type="i" class="type-i"> - list-style-position
 Pass	<ol type="I" class="type-I"> - display
 Pass	<ol type="I" class="type-I"> - margin-top
 Pass	<ol type="I" class="type-I"> - margin-right
@@ -1413,7 +1413,7 @@ Pass	<li type="I" class="type-I"> - counter-set
 Pass	<li type="I" class="type-I"> - counter-reset
 Pass	<li type="I" class="type-I"> - counter-increment
 Pass	<li type="I" class="type-I"> - text-align
-Fail	<li type="I" class="type-I"> - list-style-position
+Pass	<li type="I" class="type-I"> - list-style-position
 Pass	<ol type="none"> - display
 Pass	<ol type="none"> - margin-top
 Pass	<ol type="none"> - margin-right
@@ -1458,7 +1458,7 @@ Pass	<li type="none"> - counter-set
 Pass	<li type="none"> - counter-reset
 Pass	<li type="none"> - counter-increment
 Pass	<li type="none"> - text-align
-Fail	<li type="none"> - list-style-position
+Pass	<li type="none"> - list-style-position
 Pass	<ol type="NONE"> - display
 Pass	<ol type="NONE"> - margin-top
 Pass	<ol type="NONE"> - margin-right
@@ -1503,7 +1503,7 @@ Pass	<li type="NONE"> - counter-set
 Pass	<li type="NONE"> - counter-reset
 Pass	<li type="NONE"> - counter-increment
 Pass	<li type="NONE"> - text-align
-Fail	<li type="NONE"> - list-style-position
+Pass	<li type="NONE"> - list-style-position
 Pass	<ol type="disc"> - display
 Pass	<ol type="disc"> - margin-top
 Pass	<ol type="disc"> - margin-right
@@ -1548,7 +1548,7 @@ Pass	<li type="disc"> - counter-set
 Pass	<li type="disc"> - counter-reset
 Pass	<li type="disc"> - counter-increment
 Pass	<li type="disc"> - text-align
-Fail	<li type="disc"> - list-style-position
+Pass	<li type="disc"> - list-style-position
 Pass	<ol type="DISC"> - display
 Pass	<ol type="DISC"> - margin-top
 Pass	<ol type="DISC"> - margin-right
@@ -1593,7 +1593,7 @@ Pass	<li type="DISC"> - counter-set
 Pass	<li type="DISC"> - counter-reset
 Pass	<li type="DISC"> - counter-increment
 Pass	<li type="DISC"> - text-align
-Fail	<li type="DISC"> - list-style-position
+Pass	<li type="DISC"> - list-style-position
 Pass	<ol type="circle"> - display
 Pass	<ol type="circle"> - margin-top
 Pass	<ol type="circle"> - margin-right
@@ -1638,7 +1638,7 @@ Pass	<li type="circle"> - counter-set
 Pass	<li type="circle"> - counter-reset
 Pass	<li type="circle"> - counter-increment
 Pass	<li type="circle"> - text-align
-Fail	<li type="circle"> - list-style-position
+Pass	<li type="circle"> - list-style-position
 Pass	<ol type="CIRCLE"> - display
 Pass	<ol type="CIRCLE"> - margin-top
 Pass	<ol type="CIRCLE"> - margin-right
@@ -1683,7 +1683,7 @@ Pass	<li type="CIRCLE"> - counter-set
 Pass	<li type="CIRCLE"> - counter-reset
 Pass	<li type="CIRCLE"> - counter-increment
 Pass	<li type="CIRCLE"> - text-align
-Fail	<li type="CIRCLE"> - list-style-position
+Pass	<li type="CIRCLE"> - list-style-position
 Pass	<ol type="square"> - display
 Pass	<ol type="square"> - margin-top
 Pass	<ol type="square"> - margin-right
@@ -1728,7 +1728,7 @@ Pass	<li type="square"> - counter-set
 Pass	<li type="square"> - counter-reset
 Pass	<li type="square"> - counter-increment
 Pass	<li type="square"> - text-align
-Fail	<li type="square"> - list-style-position
+Pass	<li type="square"> - list-style-position
 Pass	<ol type="SQUARE"> - display
 Pass	<ol type="SQUARE"> - margin-top
 Pass	<ol type="SQUARE"> - margin-right
@@ -1773,7 +1773,7 @@ Pass	<li type="SQUARE"> - counter-set
 Pass	<li type="SQUARE"> - counter-reset
 Pass	<li type="SQUARE"> - counter-increment
 Pass	<li type="SQUARE"> - text-align
-Fail	<li type="SQUARE"> - list-style-position
+Pass	<li type="SQUARE"> - list-style-position
 Pass	<ol>
     <li value="10"> - display
 Pass	<ol>
