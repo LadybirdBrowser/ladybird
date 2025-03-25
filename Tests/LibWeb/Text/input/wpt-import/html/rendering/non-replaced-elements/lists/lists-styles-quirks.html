@@ -1,0 +1,238 @@
+<!-- This file is the same as lists-styles.html except:
+- no doctype
+- different title
+- added quirks mode styles
+-->
+<title>quirks mode - default styles and preshints for ol, ul, menu, li, dir, dl, dt, dd</title>
+<meta name="viewport" content="width=device-width">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../html/rendering/support/test-ua-stylesheet.js"></script>
+<style>
+/* Specify this bogus namespace, so the rules in this stylesheet only apply to the `fakeClone`d elements in #refs, not the HTML elements in #tests. */
+@namespace url(urn:not-html);
+
+dir, dd, dl, dt, menu, ol, ul { display: block; }
+li { display: list-item; text-align: match-parent; }
+
+dir, dl, menu, ol, ul { margin-block-start: 1em; margin-block-end: 1em; }
+
+:is(dir, dl, menu, ol, ul) :is(dir, dl, menu, ol, ul) {
+  margin-block-start: 0; margin-block-end: 0;
+}
+
+dd { margin-inline-start: 40px; }
+dir, menu, ol, ul { padding-inline-start: 40px; }
+
+ol, ul, menu { counter-reset: list-item; }
+ol { list-style-type: decimal; }
+
+dir, menu, ul {
+  list-style-type: disc;
+}
+:is(dir, menu, ol, ul) :is(dir, menu, ul) {
+  list-style-type: circle;
+}
+:is(dir, menu, ol, ul) :is(dir, menu, ol, ul) :is(dir, menu, ul) {
+  list-style-type: square;
+}
+
+/* preshints */
+ol[type="1"], li[type="1"] { list-style-type: decimal; }
+/* use classes due to lack of support for "s" annotation */
+ol[class=type-a], li[class=type-a] { list-style-type: lower-alpha; }
+ol[class=type-A], li[class=type-A] { list-style-type: upper-alpha; }
+ol[class=type-i], li[class=type-i] { list-style-type: lower-roman; }
+ol[class=type-I], li[class=type-I] { list-style-type: upper-roman; }
+ul[type=none i], li[type=none i] { list-style-type: none; }
+ul[type=disc i], li[type=disc i] { list-style-type: disc; }
+ul[type=circle i], li[type=circle i] { list-style-type: circle; }
+ul[type=square i], li[type=square i] { list-style-type: square; }
+
+li[value="10"], li[value="10xyz"], li[value="10e10"] { counter-set: list-item 10; }
+ol[start="10"], ol[start="10xyz"], ol[start="10e10"] { counter-reset: list-item 9; }
+ol[reversed] { counter-reset: reversed(list-item); }
+ol[reversed][start="20"], ol[reversed][start="20xyz"], ol[reversed][start="20e10"] { counter-reset: reversed(list-item) 21; }
+
+/* dir="" */
+[dir=ltr] { direction: ltr; }
+[dir=rtl] { direction: rtl; }
+
+/* quirks mode styles */
+li { list-style-position: inside; }
+li :is(dir, menu, ol, ul) { list-style-position: outside; }
+:is(dir, menu, ol, ul) :is(dir, menu, ol, ul, li) { list-style-position: unset; }
+</style>
+
+<div id="log"></div>
+
+<div id="tests">
+  <li></li>
+  <dir>
+   <li></li>
+  </dir>
+  <dt></dt>
+  <dd></dd>
+  <dl>
+   <dt></dt>
+   <dd></dd>
+  </dl>
+  <menu>
+   <li></li>
+  </menu>
+  <ol>
+   <li></li>
+  </ol>
+  <ul>
+   <li></li>
+  </ul>
+  <dir data-skip><dir></dir></dir>
+  <dir data-skip><menu></menu></dir>
+  <dir data-skip><ul></ul></dir>
+  <menu data-skip><dir></dir></menu>
+  <menu data-skip><menu></menu></menu>
+  <menu data-skip><ul></ul></menu>
+  <ol data-skip><dir></dir></ol>
+  <ol data-skip><menu></menu></ol>
+  <ol data-skip><ul></ul></ol>
+  <ul data-skip><dir></dir></ul>
+  <ul data-skip><menu></menu></ul>
+  <ul data-skip><ul></ul></ul>
+
+  <dir data-skip><dir data-skip><dir></dir></dir></dir>
+  <dir data-skip><dir data-skip><menu></menu></dir></dir>
+  <dir data-skip><dir data-skip><ul></ul></dir></dir>
+  <dir data-skip><menu data-skip><dir></dir></menu></dir>
+  <dir data-skip><menu data-skip><menu></menu></menu></dir>
+  <dir data-skip><menu data-skip><ul></ul></menu></dir>
+  <dir data-skip><ol data-skip><dir></dir></ol></dir>
+  <dir data-skip><ol data-skip><menu></menu></ol></dir>
+  <dir data-skip><ol data-skip><ul></ul></ol></dir>
+  <dir data-skip><ul data-skip><dir></dir></ul></dir>
+  <dir data-skip><ul data-skip><menu></menu></ul></dir>
+  <dir data-skip><ul data-skip><ul></ul></ul></dir>
+
+  <menu data-skip><dir data-skip><dir></dir></dir></menu>
+  <menu data-skip><dir data-skip><menu></menu></dir></menu>
+  <menu data-skip><dir data-skip><ul></ul></dir></menu>
+  <menu data-skip><menu data-skip><dir></dir></menu></menu>
+  <menu data-skip><menu data-skip><menu></menu></menu></menu>
+  <menu data-skip><menu data-skip><ul></ul></menu></menu>
+  <menu data-skip><ol data-skip><dir></dir></ol></menu>
+  <menu data-skip><ol data-skip><menu></menu></ol></menu>
+  <menu data-skip><ol data-skip><ul></ul></ol></menu>
+  <menu data-skip><ul data-skip><dir></dir></ul></menu>
+  <menu data-skip><ul data-skip><menu></menu></ul></menu>
+  <menu data-skip><ul data-skip><ul></ul></ul></menu>
+
+  <ol data-skip><dir data-skip><dir></dir></dir></ol>
+  <ol data-skip><dir data-skip><menu></menu></dir></ol>
+  <ol data-skip><dir data-skip><ul></ul></dir></ol>
+  <ol data-skip><menu data-skip><dir></dir></menu></ol>
+  <ol data-skip><menu data-skip><menu></menu></menu></ol>
+  <ol data-skip><menu data-skip><ul></ul></menu></ol>
+  <ol data-skip><ol data-skip><dir></dir></ol></ol>
+  <ol data-skip><ol data-skip><menu></menu></ol></ol>
+  <ol data-skip><ol data-skip><ul></ul></ol></ol>
+  <ol data-skip><ul data-skip><dir></dir></ul></ol>
+  <ol data-skip><ul data-skip><menu></menu></ul></ol>
+  <ol data-skip><ul data-skip><ul></ul></ul></ol>
+
+  <ul data-skip><dir data-skip><dir></dir></dir></ul>
+  <ul data-skip><dir data-skip><menu></menu></dir></ul>
+  <ul data-skip><dir data-skip><ul></ul></dir></ul>
+  <ul data-skip><menu data-skip><dir></dir></menu></ul>
+  <ul data-skip><menu data-skip><menu></menu></menu></ul>
+  <ul data-skip><menu data-skip><ul></ul></menu></ul>
+  <ul data-skip><ol data-skip><dir></dir></ol></ul>
+  <ul data-skip><ol data-skip><menu></menu></ol></ul>
+  <ul data-skip><ol data-skip><ul></ul></ol></ul>
+  <ul data-skip><ul data-skip><dir></dir></ul></ul>
+  <ul data-skip><ul data-skip><menu></menu></ul></ul>
+  <ul data-skip><ul data-skip><ul></ul></ul></ul>
+
+  <ol type="1"></ol>
+  <ul type="1"></ul>
+  <li type="1"></li>
+  <ol type="a" class="type-a"></ol>
+  <ul type="a" class="type-a"></ul>
+  <li type="a" class="type-a"></li>
+  <ol type="A" class="type-A"></ol>
+  <ul type="A" class="type-A"></ul>
+  <li type="A" class="type-A"></li>
+  <ol type="i" class="type-i"></ol>
+  <ul type="i" class="type-i"></ul>
+  <li type="i" class="type-i"></li>
+  <ol type="I" class="type-I"></ol>
+  <ul type="I" class="type-I"></ul>
+  <li type="I" class="type-I"></li>
+  <ol type="none"></ol>
+  <ul type="none"></ul>
+  <li type="none"></li>
+  <ol type="NONE"></ol>
+  <ul type="NONE"></ul>
+  <li type="NONE"></li>
+  <ol type="disc"></ol>
+  <ul type="disc"></ul>
+  <li type="disc"></li>
+  <ol type="DISC"></ol>
+  <ul type="DISC"></ul>
+  <li type="DISC"></li>
+  <ol type="circle"></ol>
+  <ul type="circle"></ul>
+  <li type="circle"></li>
+  <ol type="CIRCLE"></ol>
+  <ul type="CIRCLE"></ul>
+  <li type="CIRCLE"></li>
+  <ol type="square"></ol>
+  <ul type="square"></ul>
+  <li type="square"></li>
+  <ol type="SQUARE"></ol>
+  <ul type="SQUARE"></ul>
+  <li type="SQUARE"></li>
+
+  <ol>
+    <li value="10"></li>
+    <li value="10xyz"></li>
+    <li value="10e10"></li>
+    <li value="xyz"></li>
+  </ol>
+
+  <ol start="10"><li></li></ol>
+  <ol start="10xyz"><li></li></ol>
+  <ol start="10e10"><li></li></ol>
+  <ol start="xyz"><li></li></ol>
+  <ol reversed><li></li></ol>
+  <ol reversed start="20"><li></li></ol>
+  <ol reversed start="20xyz"><li></li></ol>
+  <ol reversed start="20e10"><li></li></ol>
+  <ol reversed start="xyz"><li></li></ol>
+
+  <ul data-skip dir="rtl"><li dir="ltr"></li></ul>
+  <ul data-skip dir="ltr"><li dir="rtl"></li></ul>
+
+</div>
+
+<div id="refs"></div>
+
+<script>
+  const props = [
+    'display',
+    'margin-top',
+    'margin-right',
+    'margin-bottom',
+    'margin-left',
+    'padding-top',
+    'padding-right',
+    'padding-bottom',
+    'padding-left',
+    'list-style-type',
+    'counter-set',
+    'counter-reset',
+    'counter-increment',
+    'text-align',
+    'list-style-position',
+  ];
+  runUAStyleTests(props);
+
+</script>
