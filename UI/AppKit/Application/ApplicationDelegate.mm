@@ -623,7 +623,7 @@
 
     [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"View Source"
                                                 action:@selector(viewSource:)
-                                         keyEquivalent:@""]];
+                                         keyEquivalent:@"u"]];
 
     self.toggle_devtools_menu_item = [[NSMenuItem alloc] initWithTitle:@"Enable DevTools"
                                                                 action:@selector(toggleDevToolsEnabled:)
