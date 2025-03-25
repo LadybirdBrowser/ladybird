@@ -104,12 +104,11 @@ Gfx::Palette Page::palette() const
 CSSPixelRect Page::web_exposed_screen_area() const
 {
     auto device_pixel_rect = m_client->screen_rect();
-    auto scale = client().device_pixels_per_css_pixel();
     return {
-        device_pixel_rect.x().value() / scale,
-        device_pixel_rect.y().value() / scale,
-        device_pixel_rect.width().value() / scale,
-        device_pixel_rect.height().value() / scale
+        device_pixel_rect.x().value(),
+        device_pixel_rect.y().value(),
+        device_pixel_rect.width().value(),
+        device_pixel_rect.height().value()
     };
 }
 
