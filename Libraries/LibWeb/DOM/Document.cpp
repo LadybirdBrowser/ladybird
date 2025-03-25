@@ -1329,7 +1329,7 @@ void Document::update_layout(UpdateLayoutReason reason)
     });
 
     // Assign each box that establishes a formatting context a list of absolutely positioned children it should take care of during layout
-    m_layout_root->for_each_in_inclusive_subtree([&](auto& child) {
+    m_layout_root->for_each_in_inclusive_subtree_of_type<Layout::Box>([&](auto& child) {
         if (!child.is_absolutely_positioned())
             return TraversalDecision::Continue;
         if (auto* containing_block = child.containing_block()) {
