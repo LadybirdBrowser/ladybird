@@ -89,8 +89,7 @@ private:
     virtual void did_get_internal_page_info(u64 page_id, PageInfoType, String) override;
     virtual void did_execute_js_console_input(u64 page_id, JsonValue) override;
     virtual void did_output_js_console_message(u64 page_id, i32 message_index) override;
-    virtual void did_get_styled_js_console_messages(u64 page_id, i32 start_index, Vector<String> message_types, Vector<String> messages) override;
-    virtual void did_get_unstyled_js_console_messages(u64 page_id, i32 start_index, Vector<ConsoleOutput>) override;
+    virtual void did_get_js_console_messages(u64 page_id, i32 start_index, Vector<ConsoleOutput>) override;
     virtual void did_change_favicon(u64 page_id, Gfx::ShareableBitmap) override;
     virtual void did_request_alert(u64 page_id, String) override;
     virtual void did_request_confirm(u64 page_id, String) override;

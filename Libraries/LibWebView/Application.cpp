@@ -730,7 +730,7 @@ void Application::listen_for_console_messages(DevTools::TabDescription const& de
         return;
 
     view->on_console_message_available = move(on_console_message_available);
-    view->on_received_unstyled_console_messages = move(on_received_console_output);
+    view->on_received_console_messages = move(on_received_console_output);
     view->js_console_request_messages(0);
 }
 
@@ -741,7 +741,7 @@ void Application::stop_listening_for_console_messages(DevTools::TabDescription c
         return;
 
     view->on_console_message_available = nullptr;
-    view->on_received_unstyled_console_messages = nullptr;
+    view->on_received_console_messages = nullptr;
 }
 
 void Application::request_console_messages(DevTools::TabDescription const& description, i32 start_index) const
