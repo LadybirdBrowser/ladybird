@@ -24,17 +24,15 @@ Transformation TransformationStyleValue::to_transformation() const
     Vector<TransformValue> values;
     size_t argument_index = 0;
     for (auto& transformation_value : m_properties.values) {
+        auto const function_type = function_metadata.parameters[argument_index].type;
+
         if (transformation_value->is_calculated()) {
             auto& calculated = transformation_value->as_calculated();
-            if (calculated.resolves_to_length_percentage()) {
+            if (function_type == TransformFunctionParameterType::NumberPercentage
+                && (calculated.resolves_to_number() || calculated.resolves_to_percentage())) {
+                values.append(NumberPercentage { calculated });
+            } else if (calculated.resolves_to_length_percentage()) {
                 values.append(LengthPercentage { calculated });
-            } else if (calculated.resolves_to_percentage()) {
-                // FIXME: Maybe transform this for loop to always check the metadata for the correct types
-                if (function_metadata.parameters[argument_index].type == TransformFunctionParameterType::NumberPercentage) {
-                    values.append(NumberPercentage { calculated });
-                } else {
-                    values.append(LengthPercentage { calculated });
-                }
             } else if (calculated.resolves_to_number()) {
                 values.append(NumberPercentage { calculated });
             } else if (calculated.resolves_to_angle()) {
@@ -45,7 +43,7 @@ Transformation TransformationStyleValue::to_transformation() const
         } else if (transformation_value->is_length()) {
             values.append({ transformation_value->as_length().length() });
         } else if (transformation_value->is_percentage()) {
-            if (function_metadata.parameters[argument_index].type == TransformFunctionParameterType::NumberPercentage) {
+            if (function_type == TransformFunctionParameterType::NumberPercentage) {
                 values.append(NumberPercentage { transformation_value->as_percentage().percentage() });
             } else {
                 values.append(LengthPercentage { transformation_value->as_percentage().percentage() });
