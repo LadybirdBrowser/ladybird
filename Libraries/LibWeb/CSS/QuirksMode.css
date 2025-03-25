@@ -1,3 +1,5 @@
+@namespace "http://www.w3.org/1999/xhtml";
+
 /* 15.3.3 Flow content
  * https://html.spec.whatwg.org/multipage/rendering.html#flow-content-3
  */
@@ -5,6 +7,14 @@
 form {
     margin-bottom: 1em;
 }
+
+/* 15.3.7 Lists
+ * https://html.spec.whatwg.org/multipage/rendering.html#lists:quirks-mode
+ */
+
+li { list-style-position: inside; }
+li :is(dir, menu, ol, ul) { list-style-position: outside; }
+:is(dir, menu, ol, ul) :is(dir, menu, ol, ul, li) { list-style-position: unset; }
 
 /* 15.3.8 Tables
  * https://html.spec.whatwg.org/multipage/rendering.html#tables-2
