@@ -35,6 +35,7 @@ jobs:
         uses: dawidd6/action-download-artifact@v9
         with:
           workflow: js-artifacts.yml
+          commit: ${{ github.sha }}
           name: ladybird-js-Linux-x86_64
           path: js-repl
 
