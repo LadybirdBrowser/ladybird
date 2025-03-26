@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 354 tests
 
-346 Pass
-8 Fail
+351 Pass
+3 Fail
 Pass	Loading data...
 Pass	Pattern: [{"pathname":"/foo/bar"}] Inputs: [{"pathname":"/foo/bar"}]
 Pass	Pattern: [{"pathname":"/foo/bar"}] Inputs: [{"pathname":"/foo/ba"}]
@@ -157,9 +157,9 @@ Pass	Pattern: [{"username":"caf%c3%a9"}] Inputs: [{"username":"caf√©"}]
 Pass	Pattern: [{"password":"caf%C3%A9"}] Inputs: [{"password":"caf√©"}]
 Pass	Pattern: [{"password":"caf√©"}] Inputs: [{"password":"caf√©"}]
 Pass	Pattern: [{"password":"caf%c3%a9"}] Inputs: [{"password":"caf√©"}]
-Fail	Pattern: [{"hostname":"xn--caf-dma.com"}] Inputs: [{"hostname":"caf√©.com"}]
-Fail	Pattern: [{"hostname":"caf√©.com"}] Inputs: [{"hostname":"caf√©.com"}]
-Fail	Pattern: ["http://Ì†ΩU+deb2.com/"] Inputs: ["http://Ì†ΩU+deb2.com/"]
+Pass	Pattern: [{"hostname":"xn--caf-dma.com"}] Inputs: [{"hostname":"caf√©.com"}]
+Pass	Pattern: [{"hostname":"caf√©.com"}] Inputs: [{"hostname":"caf√©.com"}]
+Pass	Pattern: ["http://Ì†ΩU+deb2.com/"] Inputs: ["http://Ì†ΩU+deb2.com/"]
 Pass	Pattern: ["http://\ud83d \udeb2"] Inputs: undefined
 Pass	Pattern: [{"hostname":"\ud83d \udeb2"}] Inputs: undefined
 Pass	Pattern: [{"pathname":"\ud83d \udeb2"}] Inputs: []
@@ -295,7 +295,7 @@ Pass	Pattern: [{"protocol":":name+"}] Inputs: [{"protocol":"foobar"}]
 Pass	Pattern: [{"protocol":":name"}] Inputs: [{"protocol":"foobar"}]
 Pass	Pattern: [{"hostname":"bad hostname"}] Inputs: undefined
 Pass	Pattern: [{"hostname":"bad#hostname"}] Inputs: [{"hostname":"bad"}]
-Fail	Pattern: [{"hostname":"bad%hostname"}] Inputs: undefined
+Pass	Pattern: [{"hostname":"bad%hostname"}] Inputs: undefined
 Pass	Pattern: [{"hostname":"bad/hostname"}] Inputs: [{"hostname":"bad"}]
 Pass	Pattern: [{"hostname":"bad\\:hostname"}] Inputs: undefined
 Pass	Pattern: [{"hostname":"bad<hostname"}] Inputs: undefined
@@ -304,7 +304,7 @@ Pass	Pattern: [{"hostname":"bad?hostname"}] Inputs: undefined
 Pass	Pattern: [{"hostname":"bad@hostname"}] Inputs: undefined
 Pass	Pattern: [{"hostname":"bad[hostname"}] Inputs: undefined
 Pass	Pattern: [{"hostname":"bad]hostname"}] Inputs: undefined
-Fail	Pattern: [{"hostname":"bad\\\\hostname"}] Inputs: [{"hostname":"badhostname"}]
+Pass	Pattern: [{"hostname":"bad\\\\hostname"}] Inputs: [{"hostname":"badhostname"}]
 Pass	Pattern: [{"hostname":"bad^hostname"}] Inputs: undefined
 Pass	Pattern: [{"hostname":"bad|hostname"}] Inputs: undefined
 Pass	Pattern: [{"hostname":"bad\nhostname"}] Inputs: [{"hostname":"badhostname"}]
