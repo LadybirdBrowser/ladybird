@@ -57,7 +57,7 @@ public:
     ALWAYS_INLINE bool is_symbol() const { return is_valid() && (m_bits & 2); }
     ALWAYS_INLINE bool is_string() const { return is_valid() && !(m_bits & 2); }
 
-    ALWAYS_INLINE FlyString as_string() const
+    ALWAYS_INLINE FlyString const& as_string() const
     {
         VERIFY(is_string());
         return m_string;
