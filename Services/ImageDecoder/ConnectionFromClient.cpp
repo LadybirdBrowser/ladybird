@@ -40,11 +40,13 @@ void ConnectionFromClient::die()
     }
 }
 
-Messages::ImageDecoderServer::InitTransportResponse ConnectionFromClient::init_transport([[maybe_unused]] int peer_pid)
+NonnullRefPtr<Messages::ImageDecoderServer::InitTransport::Promise> ConnectionFromClient::init_transport([[maybe_unused]] int peer_pid)
 {
 #ifdef AK_OS_WINDOWS
     m_transport.set_peer_pid(peer_pid);
-    return Core::System::getpid();
+    auto promise = Messages::ImageDecoderServer::InitTransport::Promise::construct();
+    promise.resolve(Messages::ImageDecoderServer::InitTransportResponse { Core::System::getpid() });
+    return promise;
 #endif
     VERIFY_NOT_REACHED();
 }
@@ -69,19 +71,22 @@ ErrorOr<IPC::File> ConnectionFromClient::connect_new_client()
     return IPC::File::adopt_fd(socket_fds[1]);
 }
 
-Messages::ImageDecoderServer::ConnectNewClientsResponse ConnectionFromClient::connect_new_clients(size_t count)
+NonnullRefPtr<Messages::ImageDecoderServer::ConnectNewClients::Promise> ConnectionFromClient::connect_new_clients(size_t count)
 {
     Vector<IPC::File> files;
     files.ensure_capacity(count);
+    auto promise = Messages::ImageDecoderServer::ConnectNewClients::Promise::construct();
     for (size_t i = 0; i < count; ++i) {
         auto file_or_error = connect_new_client();
         if (file_or_error.is_error()) {
             dbgln("Failed to connect new client: {}", file_or_error.error());
-            return Vector<IPC::File> {};
+            promise->resolve(Messages::ImageDecoderServer::ConnectNewClientsResponse { Vector<IPC::File> {} });
+            return promise;
         }
         files.unchecked_append(file_or_error.release_value());
     }
-    return files;
+    promise->resolve(Messages::ImageDecoderServer::ConnectNewClientsResponse { std::move(files) });
+    return promise;
 }
 
 static void decode_image_to_bitmaps_and_durations_with_decoder(Gfx::ImageDecoder const& decoder, Optional<Gfx::IntSize> ideal_size, Vector<RefPtr<Gfx::Bitmap>>& bitmaps, Vector<u32>& durations)
@@ -160,19 +165,20 @@ NonnullRefPtr<ConnectionFromClient::Job> ConnectionFromClient::make_decode_image
         });
 }
 
-Messages::ImageDecoderServer::DecodeImageResponse ConnectionFromClient::decode_image(Core::AnonymousBuffer encoded_buffer, Optional<Gfx::IntSize> ideal_size, Optional<ByteString> mime_type)
+NonnullRefPtr<Messages::ImageDecoderServer::DecodeImage::Promise> ConnectionFromClient::decode_image(Core::AnonymousBuffer encoded_buffer, Optional<Gfx::IntSize> ideal_size, Optional<ByteString> mime_type)
 {
     auto image_id = m_next_image_id++;
-
+    auto promise = Messages::ImageDecoderServer::DecodeImage::Promise::construct();
     if (!encoded_buffer.is_valid()) {
         dbgln_if(IMAGE_DECODER_DEBUG, "Encoded data is invalid");
         async_did_fail_to_decode_image(image_id, "Encoded data is invalid"_string);
-        return image_id;
+        promise->resolve(Messages::ImageDecoderServer::DecodeImageResponse { image_id });
+        return promise;
     }
 
     m_pending_jobs.set(image_id, make_decode_image_job(image_id, move(encoded_buffer), ideal_size, move(mime_type)));
-
-    return image_id;
+    promise->resolve(Messages::ImageDecoderServer::DecodeImageResponse { image_id });
+    return promise;
 }
 
 void ConnectionFromClient::cancel_decoding(i64 image_id)

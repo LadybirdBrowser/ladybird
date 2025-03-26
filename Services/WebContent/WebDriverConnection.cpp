@@ -219,8 +219,9 @@ void WebDriverConnection::visit_edges(JS::Cell::Visitor& visitor)
 }
 
 // https://w3c.github.io/webdriver/#dfn-close-the-session
-void WebDriverConnection::close_session()
+NonnullRefPtr<Messages::WebDriverClient::CloseSession::Promise> WebDriverConnection::close_session()
 {
+    auto promise = Messages::WebDriverClient::CloseSession::Promise::construct();
     // 1. Set the webdriver-active flag to false.
     set_is_webdriver_active(false);
 
@@ -229,6 +230,8 @@ void WebDriverConnection::close_session()
         if (auto traversable = navigable->top_level_traversable())
             traversable->close_top_level_traversable();
     }
+    promise->resolve(Messages::WebDriverClient::CloseSessionResponse {});
+    return promise;
 }
 
 void WebDriverConnection::set_page_load_strategy(Web::WebDriver::PageLoadStrategy page_load_strategy)
@@ -251,43 +254,66 @@ void WebDriverConnection::set_is_webdriver_active(bool is_webdriver_active)
     current_browsing_context().page().set_is_webdriver_active(is_webdriver_active);
 }
 
+#define VALUE_OR_RESOLVE(unwrapped, expr)                                              \
+    auto res##unwrapped = expr;                                                        \
+    if (res##unwrapped.is_error()) {                                                   \
+        promise->resolve(Web::WebDriver::Response { res##unwrapped.release_error() }); \
+        return promise;                                                                \
+    }                                                                                  \
+    auto unwrapped = res##unwrapped.release_value();
+
+#define PROMISE_TRY(expr)                                                              \
+    {                                                                                  \
+        auto err_result = expr;                                                        \
+        if (err_result.is_error()) {                                                   \
+            promise->resolve(Web::WebDriver::Response { err_result.release_error() }); \
+            return promise;                                                            \
+        }                                                                              \
+    }
+
 // 9.1 Get Timeouts, https://w3c.github.io/webdriver/#dfn-get-timeouts
-Messages::WebDriverClient::GetTimeoutsResponse WebDriverConnection::get_timeouts()
+NonnullRefPtr<Messages::WebDriverClient::GetTimeouts::Promise> WebDriverConnection::get_timeouts()
 {
+    auto promise = Messages::WebDriverClient::GetTimeouts::Promise::construct();
     // 1. Let timeouts be the timeouts object for session’s timeouts configuration
     auto timeouts = Web::WebDriver::timeouts_object(m_timeouts_configuration);
-
+    promise->resolve(Messages::WebDriverClient::GetTimeoutsResponse { Web::WebDriver::Response { timeouts } });
     // 2. Return success with data timeouts.
-    return timeouts;
+    return promise;
 }
 
 // 9.2 Set Timeouts, https://w3c.github.io/webdriver/#dfn-set-timeouts
-Messages::WebDriverClient::SetTimeoutsResponse WebDriverConnection::set_timeouts(JsonValue payload)
+NonnullRefPtr<Messages::WebDriverClient::SetTimeouts::Promise> WebDriverConnection::set_timeouts(JsonValue payload)
 {
+    auto promise = Messages::WebDriverClient::SetTimeouts::Promise::construct();
     // FIXME: Spec issue: As written, the spec replaces the timeouts configuration with the newly provided values. But
     //        all other implementations update the existing configuration with any new values instead. WPT relies on
     //        this behavior, and sends us one timeout value at time.
     //        https://github.com/w3c/webdriver/issues/1596
 
     // 1. Let timeouts be the result of trying to JSON deserialize as a timeouts configuration the request’s parameters.
-    TRY(Web::WebDriver::json_deserialize_as_a_timeouts_configuration_into(payload, m_timeouts_configuration));
+    PROMISE_TRY(Web::WebDriver::json_deserialize_as_a_timeouts_configuration_into(payload, m_timeouts_configuration));
 
     // 2. Make the session timeouts the new timeouts.
 
     // 3. Return success with data null.
     // NOTE: We return the current timeouts configuration so the client may store them for new sessions.
-    return Web::WebDriver::timeouts_object(m_timeouts_configuration);
+    promise->resolve(Web::WebDriver::Response { Web::WebDriver::timeouts_object(m_timeouts_configuration) });
+    return promise;
 }
 
 // 10.1 Navigate To, https://w3c.github.io/webdriver/#navigate-to
-Messages::WebDriverClient::NavigateToResponse WebDriverConnection::navigate_to(JsonValue payload)
+NonnullRefPtr<Messages::WebDriverClient::NavigateTo::Promise> WebDriverConnection::navigate_to(JsonValue payload)
 {
+    auto promise = Messages::WebDriverClient::NavigateTo::Promise::construct();
     // 1. If the current top-level browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_top_level_browsing_context_is_open());
+    PROMISE_TRY(ensure_current_top_level_browsing_context_is_open());
 
     // 2. Let url be the result of getting the property url from the parameters argument.
-    if (!payload.is_object() || !payload.as_object().has_string("url"sv))
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "Payload doesn't have a string `url`"sv);
+    if (!payload.is_object() || !payload.as_object().has_string("url"sv)) {
+        promise->resolve(Web::WebDriver::Response { Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "Payload doesn't have a string `url`"sv) });
+        return promise;
+    }
     auto url = URL::Parser::basic_parse(payload.as_object().get_string("url"sv).value());
 
     // FIXME: 3. If url is not an absolute URL or is not an absolute URL with fragment or not a local scheme, return error with error code invalid argument.
@@ -327,14 +353,16 @@ Messages::WebDriverClient::NavigateToResponse WebDriverConnection::navigate_to(J
     });
 
     // 11. Return success with data null.
-    return JsonValue {};
+    promise->resolve(Web::WebDriver::Response {});
+    return promise;
 }
 
 // 10.2 Get Current URL, https://w3c.github.io/webdriver/#get-current-url
-Messages::WebDriverClient::GetCurrentUrlResponse WebDriverConnection::get_current_url()
+NonnullRefPtr<Messages::WebDriverClient::GetCurrentUrl::Promise> WebDriverConnection::get_current_url()
 {
+    auto promise = Messages::WebDriverClient::GetCurrentUrl::Promise::construct();
     // 1. If the current top-level browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_top_level_browsing_context_is_open());
+    PROMISE_TRY(ensure_current_top_level_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
     handle_any_user_prompts([this]() {
@@ -344,15 +372,16 @@ Messages::WebDriverClient::GetCurrentUrlResponse WebDriverConnection::get_curren
         // 4. Return success with data url.
         async_driver_execution_complete({ url.to_string() });
     });
-
-    return JsonValue {};
+    promise->resolve(Web::WebDriver::Response {});
+    return promise;
 }
 
 // 10.3 Back, https://w3c.github.io/webdriver/#dfn-back
-Messages::WebDriverClient::BackResponse WebDriverConnection::back()
+NonnullRefPtr<Messages::WebDriverClient::Back::Promise> WebDriverConnection::back()
 {
+    auto promise = Messages::WebDriverClient::Back::Promise::construct();
     // 1. If session's current top-level browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_top_level_browsing_context_is_open());
+    PROMISE_TRY(ensure_current_top_level_browsing_context_is_open());
 
     // 2. Try to handle any user prompts with session.
     handle_any_user_prompts([this]() {
@@ -414,15 +443,16 @@ Messages::WebDriverClient::BackResponse WebDriverConnection::back()
             }
         }));
     });
-
-    return JsonValue {};
+    promise->resolve(Web::WebDriver::Response {});
+    return promise;
 }
 
 // 10.4 Forward, https://w3c.github.io/webdriver/#dfn-forward
-Messages::WebDriverClient::ForwardResponse WebDriverConnection::forward()
+NonnullRefPtr<Messages::WebDriverClient::Forward::Promise> WebDriverConnection::forward()
 {
+    auto promise = Messages::WebDriverClient::Forward::Promise::construct();
     // 1. If session's current top-level browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_top_level_browsing_context_is_open());
+    PROMISE_TRY(ensure_current_top_level_browsing_context_is_open());
 
     // 2. Try to handle any user prompts with session.
     handle_any_user_prompts([this]() {
@@ -484,15 +514,16 @@ Messages::WebDriverClient::ForwardResponse WebDriverConnection::forward()
             }
         }));
     });
-
-    return JsonValue {};
+    promise->resolve(Web::WebDriver::Response {});
+    return promise;
 }
 
 // 10.5 Refresh, https://w3c.github.io/webdriver/#dfn-refresh
-Messages::WebDriverClient::RefreshResponse WebDriverConnection::refresh()
+NonnullRefPtr<Messages::WebDriverClient::Refresh::Promise> WebDriverConnection::refresh()
 {
+    auto promise = Messages::WebDriverClient::Refresh::Promise::construct();
     // 1. If the current top-level browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_top_level_browsing_context_is_open());
+    PROMISE_TRY(ensure_current_top_level_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
     handle_any_user_prompts([this]() {
@@ -509,15 +540,16 @@ Messages::WebDriverClient::RefreshResponse WebDriverConnection::refresh()
         // 6. Return success with data null.
         async_driver_execution_complete(JsonValue {});
     });
-
-    return JsonValue {};
+    promise->resolve(Web::WebDriver::Response {});
+    return promise;
 }
 
 // 10.6 Get Title, https://w3c.github.io/webdriver/#dfn-get-title
-Messages::WebDriverClient::GetTitleResponse WebDriverConnection::get_title()
+NonnullRefPtr<Messages::WebDriverClient::GetTitle::Promise> WebDriverConnection::get_title()
 {
+    auto promise = Messages::WebDriverClient::GetTitle::Promise::construct();
     // 1. If the current top-level browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_top_level_browsing_context_is_open());
+    PROMISE_TRY(ensure_current_top_level_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
     handle_any_user_prompts([this]() {
@@ -527,25 +559,28 @@ Messages::WebDriverClient::GetTitleResponse WebDriverConnection::get_title()
         // 4. Return success with data title.
         async_driver_execution_complete({ move(title) });
     });
-
-    return JsonValue {};
+    promise->resolve(Web::WebDriver::Response {});
+    return promise;
 }
 
 // 11.1 Get Window Handle, https://w3c.github.io/webdriver/#get-window-handle
-Messages::WebDriverClient::GetWindowHandleResponse WebDriverConnection::get_window_handle()
+NonnullRefPtr<Messages::WebDriverClient::GetWindowHandle::Promise> WebDriverConnection::get_window_handle()
 {
+    auto promise = Messages::WebDriverClient::GetWindowHandle::Promise::construct();
     // 1. If session's current top-level browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_top_level_browsing_context_is_open());
+    PROMISE_TRY(ensure_current_top_level_browsing_context_is_open());
 
     // 2. Return success with data being the window handle associated with session's current top-level browsing context.
-    return JsonValue { current_top_level_browsing_context()->top_level_traversable()->window_handle() };
+    promise->resolve(Web::WebDriver::Response { JsonValue { current_top_level_browsing_context()->top_level_traversable()->window_handle() } });
+    return promise;
 }
 
 // 11.2 Close Window, https://w3c.github.io/webdriver/#dfn-close-window
-Messages::WebDriverClient::CloseWindowResponse WebDriverConnection::close_window()
+NonnullRefPtr<Messages::WebDriverClient::CloseWindow::Promise> WebDriverConnection::close_window()
 {
+    auto promise = Messages::WebDriverClient::CloseWindow::Promise::construct();
     // 1. If the current top-level browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_top_level_browsing_context_is_open());
+    PROMISE_TRY(ensure_current_top_level_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
     handle_any_user_prompts([this]() {
@@ -560,13 +595,14 @@ Messages::WebDriverClient::CloseWindowResponse WebDriverConnection::close_window
 
         async_driver_execution_complete(JsonValue {});
     });
-
-    return JsonValue {};
+    promise->resolve(Web::WebDriver::Response { JsonValue {} });
+    return promise;
 }
 
 // 11.3 Switch to Window, https://w3c.github.io/webdriver/#dfn-switch-to-window
-Messages::WebDriverClient::SwitchToWindowResponse WebDriverConnection::switch_to_window(String handle)
+NonnullRefPtr<Messages::WebDriverClient::SwitchToWindow::Promise> WebDriverConnection::switch_to_window(String handle)
 {
+    auto promise = Messages::WebDriverClient::SwitchToWindow::Promise::construct();
     // 4. If handle is equal to the associated window handle for some top-level browsing context, let context be the that
     //    browsing context, and set the current top-level browsing context with session and context.
     //    Otherwise, return error with error code no such window.
@@ -584,23 +620,26 @@ Messages::WebDriverClient::SwitchToWindowResponse WebDriverConnection::switch_to
         }
     }
 
-    if (!found_matching_context)
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window not found"sv);
+    if (!found_matching_context) {
+        promise->resolve(Web::WebDriver::Response { Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window not found"sv) });
+        return promise;
+    }
 
     // 5. Update any implementation-specific state that would result from the user selecting the current
     //    browsing context for interaction, without altering OS-level focus.
     current_browsing_context().page().client().page_did_request_activate_tab();
-
-    return JsonValue {};
+    promise->resolve(Web::WebDriver::Response { JsonValue {} });
+    return promise;
 }
 
 // 11.5 New Window, https://w3c.github.io/webdriver/#dfn-new-window
-Messages::WebDriverClient::NewWindowResponse WebDriverConnection::new_window(JsonValue payload)
+NonnullRefPtr<Messages::WebDriverClient::NewWindow::Promise> WebDriverConnection::new_window(JsonValue payload)
 {
+    auto promise = Messages::WebDriverClient::NewWindow::Promise::construct();
     // 1. If the implementation does not support creating new top-level browsing contexts, return error with error code unsupported operation.
 
     // 2. If the current top-level browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_top_level_browsing_context_is_open());
+    PROMISE_TRY(ensure_current_top_level_browsing_context_is_open());
 
     // 3. Handle any user prompts and return its value if it is an error.
     handle_any_user_prompts([this, payload = move(payload)]() {
@@ -645,29 +684,34 @@ Messages::WebDriverClient::NewWindowResponse WebDriverConnection::new_window(Jso
         // 9. Return success with data result.
         async_driver_execution_complete({ move(result) });
     });
-
-    return JsonValue {};
+    promise->resolve(Web::WebDriver::Response { JsonValue {} });
+    return promise;
 }
 
 // 11.6 Switch To Frame, https://w3c.github.io/webdriver/#dfn-switch-to-frame
-Messages::WebDriverClient::SwitchToFrameResponse WebDriverConnection::switch_to_frame(JsonValue payload)
+NonnullRefPtr<Messages::WebDriverClient::SwitchToFrame::Promise> WebDriverConnection::switch_to_frame(JsonValue payload)
 {
+    auto promise = Messages::WebDriverClient::SwitchToFrame::Promise::construct();
     // 1. Let id be the result of getting the property "id" from parameters.
-    if (!payload.is_object() || !payload.as_object().has("id"sv))
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "Payload doesn't have property `id`"sv);
+    if (!payload.is_object() || !payload.as_object().has("id"sv)) {
+        promise->resolve(Web::WebDriver::Response { Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "Payload doesn't have property `id`"sv) });
+        return promise;
+    }
 
     auto id = payload.as_object().get("id"sv).release_value();
 
     // 2. If id is not null, a Number object, or an Object that represents a web element, return error with error code invalid argument.
-    if (!id.is_null() && !id.is_number() && !Web::WebDriver::represents_a_web_element(id))
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "Payload property `id` is not null, a number, or a web element"sv);
+    if (!id.is_null() && !id.is_number() && !Web::WebDriver::represents_a_web_element(id)) {
+        promise->resolve(Web::WebDriver::Response { Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "Payload property `id` is not null, a number, or a web element"sv) });
+        return promise;
+    }
 
     // 3. Run the substeps of the first matching condition:
 
     // -> id is null
     if (id.is_null()) {
         // 1. If session's current top-level browsing context is no longer open, return error with error code no such window.
-        TRY(ensure_current_top_level_browsing_context_is_open());
+        PROMISE_TRY(ensure_current_top_level_browsing_context_is_open());
 
         // 2. Try to handle any user prompts with session.
         handle_any_user_prompts([this]() {
@@ -683,11 +727,13 @@ Messages::WebDriverClient::SwitchToFrameResponse WebDriverConnection::switch_to_
         // 1. If id is less than 0 or greater than 2^16 – 1, return error with error code invalid argument.
         auto id_value = id.get_integer<u16>();
 
-        if (!id_value.has_value())
-            return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, MUST(String::formatted("Frame ID {} is invalid", id)));
+        if (!id_value.has_value()) {
+            promise->resolve(Web::WebDriver::Response { Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, MUST(String::formatted("Frame ID {} is invalid", id))) });
+            return promise;
+        }
 
         // 2. If session's current browsing context is no longer open, return error with error code no such window.
-        TRY(ensure_current_browsing_context_is_open());
+        PROMISE_TRY(ensure_current_browsing_context_is_open());
 
         // 3. Try to handle any user prompts with session.
         handle_any_user_prompts([this, id = *id_value]() {
@@ -719,7 +765,7 @@ Messages::WebDriverClient::SwitchToFrameResponse WebDriverConnection::switch_to_
         auto element_id = Web::WebDriver::extract_web_element_reference(id.as_object());
 
         // 1. If session's current browsing context is no longer open, return error with error code no such window.
-        TRY(ensure_current_browsing_context_is_open());
+        PROMISE_TRY(ensure_current_browsing_context_is_open());
 
         // 2. Try to handle any user prompts with session.
         handle_any_user_prompts([this, element_id = move(element_id)]() {
@@ -743,24 +789,27 @@ Messages::WebDriverClient::SwitchToFrameResponse WebDriverConnection::switch_to_
     // FIXME: 4. Update any implementation-specific state that would result from the user selecting session's current browsing context for interaction, without altering OS-level focus.
 
     // 5. Return success with data null
-    return JsonValue {};
+    promise->resolve(Web::WebDriver::Response { JsonValue {} });
+    return promise;
 }
 
 // 11.7 Switch To Parent Frame, https://w3c.github.io/webdriver/#dfn-switch-to-parent-frame
-Messages::WebDriverClient::SwitchToParentFrameResponse WebDriverConnection::switch_to_parent_frame(JsonValue)
+NonnullRefPtr<Messages::WebDriverClient::SwitchToParentFrame::Promise> WebDriverConnection::switch_to_parent_frame(JsonValue)
 {
+    auto promise = Messages::WebDriverClient::SwitchToParentFrame::Promise::construct();
     // 1. If session's current browsing context is already the top-level browsing context:
     if (&current_browsing_context() == current_top_level_browsing_context()) {
         // 1. If session's current browsing context is no longer open, return error with error code no such window.
-        TRY(ensure_current_browsing_context_is_open());
+        PROMISE_TRY(ensure_current_browsing_context_is_open());
 
         // 2. Return success with data null.
         async_driver_execution_complete(JsonValue {});
-        return JsonValue {};
+        promise->resolve(Web::WebDriver::Response { JsonValue {} });
+        return promise;
     }
 
     // 2. If session's current parent browsing context is no longer open, return error with error code no such window.
-    TRY(Web::WebDriver::ensure_browsing_context_is_open(current_parent_browsing_context()));
+    PROMISE_TRY(Web::WebDriver::ensure_browsing_context_is_open(current_parent_browsing_context()));
 
     // 3. Try to handle any user prompts with session.
     handle_any_user_prompts([this]() {
@@ -775,14 +824,16 @@ Messages::WebDriverClient::SwitchToParentFrameResponse WebDriverConnection::swit
         async_driver_execution_complete(JsonValue {});
     });
 
-    return JsonValue {};
+    promise->resolve(Web::WebDriver::Response { JsonValue {} });
+    return promise;
 }
 
 // 11.8.1 Get Window Rect, https://w3c.github.io/webdriver/#dfn-get-window-rect
-Messages::WebDriverClient::GetWindowRectResponse WebDriverConnection::get_window_rect()
+NonnullRefPtr<Messages::WebDriverClient::GetWindowRect::Promise> WebDriverConnection::get_window_rect()
 {
+    auto promise = Messages::WebDriverClient::GetWindowRect::Promise::construct();
     // 1. If the current top-level browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_top_level_browsing_context_is_open());
+    PROMISE_TRY(ensure_current_top_level_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
     handle_any_user_prompts([this]() {
@@ -791,14 +842,18 @@ Messages::WebDriverClient::GetWindowRectResponse WebDriverConnection::get_window
         async_driver_execution_complete(move(serialized_rect));
     });
 
-    return JsonValue {};
+    promise->resolve(Web::WebDriver::Response { JsonValue {} });
+    return promise;
 }
 
 // 11.8.2 Set Window Rect, https://w3c.github.io/webdriver/#dfn-set-window-rect
-Messages::WebDriverClient::SetWindowRectResponse WebDriverConnection::set_window_rect(JsonValue payload)
+NonnullRefPtr<Messages::WebDriverClient::SetWindowRect::Promise> WebDriverConnection::set_window_rect(JsonValue payload)
 {
-    if (!payload.is_object())
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "Payload is not a JSON object"sv);
+    auto promise = Messages::WebDriverClient::SetWindowRect::Promise::construct();
+    if (!payload.is_object()) {
+        promise->resolve(Web::WebDriver::Response { Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "Payload is not a JSON object"sv) });
+        return promise;
+    }
 
     auto const& properties = payload.as_object();
 
@@ -830,17 +885,17 @@ Messages::WebDriverClient::SetWindowRectResponse WebDriverConnection::set_window
     auto y_property = properties.get("y"sv).value_or(JsonValue());
 
     // 5. If width or height is neither null nor a Number from 0 to 2^31 − 1, return error with error code invalid argument.
-    auto width = TRY(resolve_property("width"sv, width_property, 0, NumericLimits<i32>::max()));
-    auto height = TRY(resolve_property("height"sv, height_property, 0, NumericLimits<i32>::max()));
+    VALUE_OR_RESOLVE(width, resolve_property("width"sv, width_property, 0, NumericLimits<i32>::max()));
+    VALUE_OR_RESOLVE(height, resolve_property("height"sv, height_property, 0, NumericLimits<i32>::max()));
 
     // 6. If x or y is neither null nor a Number from −(2^31) to 2^31 − 1, return error with error code invalid argument.
-    auto x = TRY(resolve_property("x"sv, x_property, NumericLimits<i32>::min(), NumericLimits<i32>::max()));
-    auto y = TRY(resolve_property("y"sv, y_property, NumericLimits<i32>::min(), NumericLimits<i32>::max()));
+    VALUE_OR_RESOLVE(x, resolve_property("x"sv, x_property, NumericLimits<i32>::min(), NumericLimits<i32>::max()));
+    VALUE_OR_RESOLVE(y, resolve_property("y"sv, y_property, NumericLimits<i32>::min(), NumericLimits<i32>::max()));
 
     // 7. If the remote end does not support the Set Window Rect command for the current top-level browsing context for any reason, return error with error code unsupported operation.
 
     // 8. If the current top-level browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_top_level_browsing_context_is_open());
+    PROMISE_TRY(ensure_current_top_level_browsing_context_is_open());
 
     // 9. Handle any user prompts and return its value if it is an error.
     handle_any_user_prompts([this, x, y, width, height]() {
@@ -871,16 +926,18 @@ Messages::WebDriverClient::SetWindowRectResponse WebDriverConnection::set_window
     });
 
     // 14. Return success with data set to the WindowRect object for the current top-level browsing context.
-    return JsonValue {};
+    promise->resolve(Web::WebDriver::Response { JsonValue {} });
+    return promise;
 }
 
 // 11.8.3 Maximize Window, https://w3c.github.io/webdriver/#dfn-maximize-window
-Messages::WebDriverClient::MaximizeWindowResponse WebDriverConnection::maximize_window()
+NonnullRefPtr<Messages::WebDriverClient::MaximizeWindow::Promise> WebDriverConnection::maximize_window()
 {
+    auto promise = Messages::WebDriverClient::MaximizeWindow::Promise::construct();
     // 1. If the remote end does not support the Maximize Window command for the current top-level browsing context for any reason, return error with error code unsupported operation.
 
     // 2. If the current top-level browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_top_level_browsing_context_is_open());
+    PROMISE_TRY(ensure_current_top_level_browsing_context_is_open());
 
     // 3. Handle any user prompts and return its value if it is an error.
     handle_any_user_prompts([this]() {
@@ -894,16 +951,18 @@ Messages::WebDriverClient::MaximizeWindowResponse WebDriverConnection::maximize_
     });
 
     // 7. Return success with data set to the WindowRect object for the current top-level browsing context.
-    return JsonValue {};
+    promise->resolve(Web::WebDriver::Response { JsonValue {} });
+    return promise;
 }
 
 // 11.8.4 Minimize Window, https://w3c.github.io/webdriver/#minimize-window
-Messages::WebDriverClient::MinimizeWindowResponse WebDriverConnection::minimize_window()
+NonnullRefPtr<Messages::WebDriverClient::MinimizeWindow::Promise> WebDriverConnection::minimize_window()
 {
+    auto promise = Messages::WebDriverClient::MinimizeWindow::Promise::construct();
     // 1. If the remote end does not support the Minimize Window command for the current top-level browsing context for any reason, return error with error code unsupported operation.
 
     // 2. If the current top-level browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_top_level_browsing_context_is_open());
+    PROMISE_TRY(ensure_current_top_level_browsing_context_is_open());
 
     // 3. Handle any user prompts and return its value if it is an error.
     handle_any_user_prompts([this]() {
@@ -917,16 +976,18 @@ Messages::WebDriverClient::MinimizeWindowResponse WebDriverConnection::minimize_
     });
 
     // 6. Return success with data set to the WindowRect object for the current top-level browsing context.
-    return JsonValue {};
+    promise->resolve(Web::WebDriver::Response { JsonValue {} });
+    return promise;
 }
 
 // 11.8.5 Fullscreen Window, https://w3c.github.io/webdriver/#dfn-fullscreen-window
-Messages::WebDriverClient::FullscreenWindowResponse WebDriverConnection::fullscreen_window()
+NonnullRefPtr<Messages::WebDriverClient::FullscreenWindow::Promise> WebDriverConnection::fullscreen_window()
 {
+    auto promise = Messages::WebDriverClient::FullscreenWindow::Promise::construct();
     // 1. If the remote end does not support fullscreen return error with error code unsupported operation.
 
     // 2. If the current top-level browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_top_level_browsing_context_is_open());
+    PROMISE_TRY(ensure_current_top_level_browsing_context_is_open());
 
     // 3. Handle any user prompts and return its value if it is an error.
     handle_any_user_prompts([this]() {
@@ -941,15 +1002,17 @@ Messages::WebDriverClient::FullscreenWindowResponse WebDriverConnection::fullscr
     });
 
     // 6. Return success with data set to the WindowRect object for the current top-level browsing context.
-    return JsonValue {};
+    promise->resolve(Web::WebDriver::Response { JsonValue {} });
+    return promise;
 }
 
 // Extension Consume User Activation, https://html.spec.whatwg.org/multipage/interaction.html#user-activation-user-agent-automation
-Messages::WebDriverClient::ConsumeUserActivationResponse WebDriverConnection::consume_user_activation()
+NonnullRefPtr<Messages::WebDriverClient::ConsumeUserActivation::Promise> WebDriverConnection::consume_user_activation()
 {
+    auto promise = Messages::WebDriverClient::ConsumeUserActivation::Promise::construct();
     // FIXME: This should probably be in the spec steps
     // If the current top-level browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_top_level_browsing_context_is_open());
+    PROMISE_TRY(ensure_current_top_level_browsing_context_is_open());
 
     // 1. Let window be current browsing context's active window.
     auto* window = current_browsing_context().active_window();
@@ -962,7 +1025,8 @@ Messages::WebDriverClient::ConsumeUserActivationResponse WebDriverConnection::co
         window->consume_user_activation();
 
     // 4. Return success with data consume.
-    return consume;
+    promise->resolve(Web::WebDriver::Response { consume });
+    return promise;
 }
 
 static Web::WebDriver::Response extract_first_element(Web::WebDriver::Response result)
@@ -977,23 +1041,26 @@ static Web::WebDriver::Response extract_first_element(Web::WebDriver::Response r
 }
 
 // 12.3.2 Find Element, https://w3c.github.io/webdriver/#dfn-find-element
-Messages::WebDriverClient::FindElementResponse WebDriverConnection::find_element(JsonValue payload)
+NonnullRefPtr<Messages::WebDriverClient::FindElement::Promise> WebDriverConnection::find_element(JsonValue payload)
 {
+    auto promise = Messages::WebDriverClient::FindElement::Promise::construct();
     // 1. Let location strategy be the result of getting a property named "using" from parameters.
-    auto location_strategy_string = TRY(Web::WebDriver::get_property(payload, "using"sv));
+    VALUE_OR_RESOLVE(location_strategy_string, Web::WebDriver::get_property(payload, "using"sv));
     auto location_strategy = Web::WebDriver::location_strategy_from_string(location_strategy_string);
 
     // 2. If location strategy is not present as a keyword in the table of location strategies, return error with error
     //    code invalid argument.
-    if (!location_strategy.has_value())
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, MUST(String::formatted("Location strategy '{}' is invalid", location_strategy_string)));
+    if (!location_strategy.has_value()) {
+        promise->resolve(Web::WebDriver::Response { Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, MUST(String::formatted("Location strategy '{}' is invalid", location_strategy_string))) });
+        return promise;
+    }
 
     // 3. Let selector be the result of getting a property named "value" from parameters.
     // 4. If selector is undefined, return error with error code invalid argument.
-    auto selector = TRY(Web::WebDriver::get_property(payload, "value"sv));
+    VALUE_OR_RESOLVE(selector, Web::WebDriver::get_property(payload, "value"sv));
 
     // 5. If session's current browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_browsing_context_is_open());
+    PROMISE_TRY(ensure_current_browsing_context_is_open());
 
     // 6. Try to handle any user prompts with session.
     handle_any_user_prompts([this, location_strategy, selector = move(selector)]() mutable {
@@ -1014,28 +1081,31 @@ Messages::WebDriverClient::FindElementResponse WebDriverConnection::find_element
             async_driver_execution_complete(extract_first_element(move(result)));
         }));
     });
-
-    return JsonValue {};
+    promise->resolve(Web::WebDriver::Response { JsonValue {} });
+    return promise;
 }
 
 // 12.3.3 Find Elements, https://w3c.github.io/webdriver/#dfn-find-elements
-Messages::WebDriverClient::FindElementsResponse WebDriverConnection::find_elements(JsonValue payload)
+NonnullRefPtr<Messages::WebDriverClient::FindElements::Promise> WebDriverConnection::find_elements(JsonValue payload)
 {
+    auto promise = Messages::WebDriverClient::FindElements::Promise::construct();
     // 1. Let location strategy be the result of getting a property named "using" from parameters.
-    auto location_strategy_string = TRY(Web::WebDriver::get_property(payload, "using"sv));
+    VALUE_OR_RESOLVE(location_strategy_string, Web::WebDriver::get_property(payload, "using"sv))
     auto location_strategy = Web::WebDriver::location_strategy_from_string(location_strategy_string);
 
     // 2. If location strategy is not present as a keyword in the table of location strategies, return error with error
     //    code invalid argument.
-    if (!location_strategy.has_value())
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, MUST(String::formatted("Location strategy '{}' is invalid", location_strategy_string)));
+    if (!location_strategy.has_value()) {
+        promise->resolve(Web::WebDriver::Response { Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, MUST(String::formatted("Location strategy '{}' is invalid", location_strategy_string))) });
+        return promise;
+    }
 
     // 3. Let selector be the result of getting a property named "value" from parameters.
     // 4. If selector is undefined, return error with error code invalid argument.
-    auto selector = TRY(Web::WebDriver::get_property(payload, "value"sv));
+    VALUE_OR_RESOLVE(selector, Web::WebDriver::get_property(payload, "value"sv));
 
     // 5. If session's current browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_browsing_context_is_open());
+    PROMISE_TRY(ensure_current_browsing_context_is_open());
 
     // 6. Try to handle any user prompts with session.
     handle_any_user_prompts([this, location_strategy, selector = move(selector)]() mutable {
@@ -1055,27 +1125,30 @@ Messages::WebDriverClient::FindElementsResponse WebDriverConnection::find_elemen
             async_driver_execution_complete(move(result));
         }));
     });
-
-    return JsonValue {};
+    promise->resolve(Web::WebDriver::Response { JsonValue {} });
+    return promise;
 }
 
 // 12.3.4 Find Element From Element, https://w3c.github.io/webdriver/#dfn-find-element-from-element
-Messages::WebDriverClient::FindElementFromElementResponse WebDriverConnection::find_element_from_element(JsonValue payload, String element_id)
+NonnullRefPtr<Messages::WebDriverClient::FindElementFromElement::Promise> WebDriverConnection::find_element_from_element(JsonValue payload, String element_id)
 {
+    auto promise = Messages::WebDriverClient::FindElementFromElement::Promise::construct();
     // 1. Let location strategy be the result of getting a property named "using" from parameters.
-    auto location_strategy_string = TRY(Web::WebDriver::get_property(payload, "using"sv));
+    VALUE_OR_RESOLVE(location_strategy_string, Web::WebDriver::get_property(payload, "using"sv));
     auto location_strategy = Web::WebDriver::location_strategy_from_string(location_strategy_string);
 
     // 2. If location strategy is not present as a keyword in the table of location strategies, return error with error code invalid argument.
-    if (!location_strategy.has_value())
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, MUST(String::formatted("Location strategy '{}' is invalid", location_strategy_string)));
+    if (!location_strategy.has_value()) {
+        promise->resolve(Web::WebDriver::Response { Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, MUST(String::formatted("Location strategy '{}' is invalid", location_strategy_string))) });
+        return promise;
+    }
 
     // 3. Let selector be the result of getting a property named "value" from parameters.
     // 4. If selector is undefined, return error with error code invalid argument.
-    auto selector = TRY(Web::WebDriver::get_property(payload, "value"sv));
+    VALUE_OR_RESOLVE(selector, Web::WebDriver::get_property(payload, "value"sv));
 
     // 5. If session's current browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_browsing_context_is_open());
+    PROMISE_TRY(ensure_current_browsing_context_is_open());
 
     // 6. Try to handle any user prompts with session.
     handle_any_user_prompts([this, element_id, location_strategy, selector = move(selector)]() mutable {
@@ -1090,27 +1163,30 @@ Messages::WebDriverClient::FindElementFromElementResponse WebDriverConnection::f
             async_driver_execution_complete(extract_first_element(move(result)));
         }));
     });
-
-    return JsonValue {};
+    promise->resolve(Web::WebDriver::Response { JsonValue {} });
+    return promise;
 }
 
 // 12.3.5 Find Elements From Element, https://w3c.github.io/webdriver/#dfn-find-elements-from-element
-Messages::WebDriverClient::FindElementsFromElementResponse WebDriverConnection::find_elements_from_element(JsonValue payload, String element_id)
+NonnullRefPtr<Messages::WebDriverClient::FindElementsFromElement::Promise> WebDriverConnection::find_elements_from_element(JsonValue payload, String element_id)
 {
+    auto promise = Messages::WebDriverClient::FindElementsFromElement::Promise::construct();
     // 1. Let location strategy be the result of getting a property named "using" from parameters.
-    auto location_strategy_string = TRY(Web::WebDriver::get_property(payload, "using"sv));
+    VALUE_OR_RESOLVE(location_strategy_string, Web::WebDriver::get_property(payload, "using"sv));
     auto location_strategy = Web::WebDriver::location_strategy_from_string(location_strategy_string);
 
     // 2. If location strategy is not present as a keyword in the table of location strategies, return error with error code invalid argument.
-    if (!location_strategy.has_value())
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, MUST(String::formatted("Location strategy '{}' is invalid", location_strategy_string)));
+    if (!location_strategy.has_value()) {
+        promise->resolve(Web::WebDriver::Response { Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, MUST(String::formatted("Location strategy '{}' is invalid", location_strategy_string))) });
+        return promise;
+    }
 
     // 3. Let selector be the result of getting a property named "value" from parameters.
     // 4. If selector is undefined, return error with error code invalid argument.
-    auto selector = TRY(Web::WebDriver::get_property(payload, "value"sv));
+    VALUE_OR_RESOLVE(selector, Web::WebDriver::get_property(payload, "value"sv));
 
     // 5. If session's current browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_browsing_context_is_open());
+    PROMISE_TRY(ensure_current_browsing_context_is_open());
 
     // 6. Try to handle any user prompts with session.
     handle_any_user_prompts([this, element_id, location_strategy, selector = move(selector)]() mutable {
@@ -1125,26 +1201,30 @@ Messages::WebDriverClient::FindElementsFromElementResponse WebDriverConnection::
         }));
     });
 
-    return JsonValue {};
+    promise->resolve(Web::WebDriver::Response { JsonValue {} });
+    return promise;
 }
 
 // 12.3.6 Find Element From Shadow Root, https://w3c.github.io/webdriver/#find-element-from-shadow-root
-Messages::WebDriverClient::FindElementFromShadowRootResponse WebDriverConnection::find_element_from_shadow_root(JsonValue payload, String shadow_id)
+NonnullRefPtr<Messages::WebDriverClient::FindElementFromShadowRoot::Promise> WebDriverConnection::find_element_from_shadow_root(JsonValue payload, String shadow_id)
 {
+    auto promise = Messages::WebDriverClient::FindElementFromShadowRoot::Promise::construct();
     // 1. Let location strategy be the result of getting a property called "using".
-    auto location_strategy_string = TRY(Web::WebDriver::get_property(payload, "using"sv));
+    VALUE_OR_RESOLVE(location_strategy_string, Web::WebDriver::get_property(payload, "using"sv));
     auto location_strategy = Web::WebDriver::location_strategy_from_string(location_strategy_string);
 
     // 2. If location strategy is not present as a keyword in the table of location strategies, return error with error code invalid argument.
-    if (!location_strategy.has_value())
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, MUST(String::formatted("Location strategy '{}' is invalid", location_strategy_string)));
+    if (!location_strategy.has_value()) {
+        promise->resolve(Web::WebDriver::Response { Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, MUST(String::formatted("Location strategy '{}' is invalid", location_strategy_string))) });
+        return promise;
+    }
 
     // 3. Let selector be the result of getting a property called "value".
     // 4. If selector is undefined, return error with error code invalid argument.
-    auto selector = TRY(Web::WebDriver::get_property(payload, "value"sv));
+    VALUE_OR_RESOLVE(selector, Web::WebDriver::get_property(payload, "value"sv));
 
     // 5. If the ssession's current browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_browsing_context_is_open());
+    PROMISE_TRY(ensure_current_browsing_context_is_open());
 
     // 6. Handle any user prompts and return its value if it is an error.
     handle_any_user_prompts([this, shadow_id, location_strategy, selector = move(selector)]() mutable {
@@ -1160,26 +1240,30 @@ Messages::WebDriverClient::FindElementFromShadowRootResponse WebDriverConnection
         }));
     });
 
-    return JsonValue {};
+    promise->resolve(Web::WebDriver::Response { JsonValue {} });
+    return promise;
 }
 
 // 12.3.7 Find Elements From Shadow Root, https://w3c.github.io/webdriver/#find-elements-from-shadow-root
-Messages::WebDriverClient::FindElementsFromShadowRootResponse WebDriverConnection::find_elements_from_shadow_root(JsonValue payload, String shadow_id)
+NonnullRefPtr<Messages::WebDriverClient::FindElementsFromShadowRoot::Promise> WebDriverConnection::find_elements_from_shadow_root(JsonValue payload, String shadow_id)
 {
+    auto promise = Messages::WebDriverClient::FindElementsFromShadowRoot::Promise::construct();
     // 1. Let location strategy be the result of getting a property called "using".
-    auto location_strategy_string = TRY(Web::WebDriver::get_property(payload, "using"sv));
+    VALUE_OR_RESOLVE(location_strategy_string, Web::WebDriver::get_property(payload, "using"sv));
     auto location_strategy = Web::WebDriver::location_strategy_from_string(location_strategy_string);
 
     // 2. If location strategy is not present as a keyword in the table of location strategies, return error with error code invalid argument.
-    if (!location_strategy.has_value())
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, MUST(String::formatted("Location strategy '{}' is invalid", location_strategy_string)));
+    if (!location_strategy.has_value()) {
+        promise->resolve(Web::WebDriver::Response { Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, MUST(String::formatted("Location strategy '{}' is invalid", location_strategy_string))) });
+        return promise;
+    }
 
     // 3. Let selector be the result of getting a property called "value".
     // 4. If selector is undefined, return error with error code invalid argument.
-    auto selector = TRY(Web::WebDriver::get_property(payload, "value"sv));
+    VALUE_OR_RESOLVE(selector, Web::WebDriver::get_property(payload, "value"sv));
 
     // 5. If session's current browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_browsing_context_is_open());
+    PROMISE_TRY(ensure_current_browsing_context_is_open());
 
     // 6. Handle any user prompts and return its value if it is an error.
     handle_any_user_prompts([this, shadow_id, location_strategy, selector = move(selector)]() mutable {
@@ -1194,14 +1278,16 @@ Messages::WebDriverClient::FindElementsFromShadowRootResponse WebDriverConnectio
         }));
     });
 
-    return JsonValue {};
+    promise->resolve(Web::WebDriver::Response { JsonValue {} });
+    return promise;
 }
 
 // 12.3.8 Get Active Element, https://w3c.github.io/webdriver/#get-active-element
-Messages::WebDriverClient::GetActiveElementResponse WebDriverConnection::get_active_element()
+NonnullRefPtr<Messages::WebDriverClient::GetActiveElement::Promise> WebDriverConnection::get_active_element()
 {
+    auto promise = Messages::WebDriverClient::GetActiveElement::Promise::construct();
     // 1. If the current browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_browsing_context_is_open());
+    PROMISE_TRY(ensure_current_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
     handle_any_user_prompts([this]() {
@@ -1219,14 +1305,16 @@ Messages::WebDriverClient::GetActiveElementResponse WebDriverConnection::get_act
         async_driver_execution_complete(Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchElement, "The current document does not have an active element"sv));
     });
 
-    return JsonValue {};
+    promise->resolve(Web::WebDriver::Response { JsonValue {} });
+    return promise;
 }
 
 // 12.3.9 Get Element Shadow Root, https://w3c.github.io/webdriver/#get-element-shadow-root
-Messages::WebDriverClient::GetElementShadowRootResponse WebDriverConnection::get_element_shadow_root(String element_id)
+NonnullRefPtr<Messages::WebDriverClient::GetElementShadowRoot::Promise> WebDriverConnection::get_element_shadow_root(String element_id)
 {
+    auto promise = Messages::WebDriverClient::GetElementShadowRoot::Promise::construct();
     // 1. If session's current browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_browsing_context_is_open());
+    PROMISE_TRY(ensure_current_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
     handle_any_user_prompts([this, element_id = move(element_id)]() {
@@ -1249,14 +1337,16 @@ Messages::WebDriverClient::GetElementShadowRootResponse WebDriverConnection::get
         async_driver_execution_complete({ move(serialized) });
     });
 
-    return JsonValue {};
+    promise->resolve(Web::WebDriver::Response { JsonValue {} });
+    return promise;
 }
 
 // 12.4.1 Is Element Selected, https://w3c.github.io/webdriver/#dfn-is-element-selected
-Messages::WebDriverClient::IsElementSelectedResponse WebDriverConnection::is_element_selected(String element_id)
+NonnullRefPtr<Messages::WebDriverClient::IsElementSelected::Promise> WebDriverConnection::is_element_selected(String element_id)
 {
+    auto promise = Messages::WebDriverClient::IsElementSelected::Promise::construct();
     // 1. If the current browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_browsing_context_is_open());
+    PROMISE_TRY(ensure_current_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
     handle_any_user_prompts([this, element_id = move(element_id)]() {
@@ -1287,14 +1377,16 @@ Messages::WebDriverClient::IsElementSelectedResponse WebDriverConnection::is_ele
         async_driver_execution_complete({ selected });
     });
 
-    return JsonValue {};
+    promise->resolve(Web::WebDriver::Response { JsonValue {} });
+    return promise;
 }
 
 // 12.4.2 Get Element Attribute, https://w3c.github.io/webdriver/#dfn-get-element-attribute
-Messages::WebDriverClient::GetElementAttributeResponse WebDriverConnection::get_element_attribute(String element_id, String name)
+NonnullRefPtr<Messages::WebDriverClient::GetElementAttribute::Promise> WebDriverConnection::get_element_attribute(String element_id, String name)
 {
+    auto promise = Messages::WebDriverClient::GetElementAttribute::Promise::construct();
     // 1. If session's current browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_browsing_context_is_open());
+    PROMISE_TRY(ensure_current_browsing_context_is_open());
 
     // 2. Try to handle any user prompts with session.
     handle_any_user_prompts([this, element_id = move(element_id), name]() {
@@ -1322,14 +1414,16 @@ Messages::WebDriverClient::GetElementAttributeResponse WebDriverConnection::get_
         async_driver_execution_complete({ move(result) });
     });
 
-    return JsonValue {};
+    promise->resolve(Web::WebDriver::Response { JsonValue {} });
+    return promise;
 }
 
 // 12.4.3 Get Element Property, https://w3c.github.io/webdriver/#dfn-get-element-property
-Messages::WebDriverClient::GetElementPropertyResponse WebDriverConnection::get_element_property(String element_id, String name)
+NonnullRefPtr<Messages::WebDriverClient::GetElementProperty::Promise> WebDriverConnection::get_element_property(String element_id, String name)
 {
+    auto promise = Messages::WebDriverClient::GetElementProperty::Promise::construct();
     // 1. If session's current browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_browsing_context_is_open());
+    PROMISE_TRY(ensure_current_browsing_context_is_open());
 
     // 2. Try to handle any user prompts with session.
     handle_any_user_prompts([this, element_id = move(element_id), name]() {
@@ -1354,14 +1448,16 @@ Messages::WebDriverClient::GetElementPropertyResponse WebDriverConnection::get_e
         async_driver_execution_complete(move(result));
     });
 
-    return JsonValue {};
+    promise->resolve(Web::WebDriver::Response { JsonValue {} });
+    return promise;
 }
 
 // 12.4.4 Get Element CSS Value, https://w3c.github.io/webdriver/#dfn-get-element-css-value
-Messages::WebDriverClient::GetElementCssValueResponse WebDriverConnection::get_element_css_value(String element_id, String name)
+NonnullRefPtr<Messages::WebDriverClient::GetElementCssValue::Promise> WebDriverConnection::get_element_css_value(String element_id, String name)
 {
+    auto promise = Messages::WebDriverClient::GetElementCssValue::Promise::construct();
     // 1. If session's current browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_browsing_context_is_open());
+    PROMISE_TRY(ensure_current_browsing_context_is_open());
 
     // 2. Try to handle any user prompts with session.
     handle_any_user_prompts([this, element_id = move(element_id), name]() {
@@ -1388,14 +1484,16 @@ Messages::WebDriverClient::GetElementCssValueResponse WebDriverConnection::get_e
         async_driver_execution_complete({ move(computed_value) });
     });
 
-    return JsonValue {};
+    promise->resolve(Web::WebDriver::Response { JsonValue {} });
+    return promise;
 }
 
 // 12.4.5 Get Element Text, https://w3c.github.io/webdriver/#dfn-get-element-text
-Messages::WebDriverClient::GetElementTextResponse WebDriverConnection::get_element_text(String element_id)
+NonnullRefPtr<Messages::WebDriverClient::GetElementText::Promise> WebDriverConnection::get_element_text(String element_id)
 {
+    auto promise = Messages::WebDriverClient::GetElementText::Promise::construct();
     // 1. If the current browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_browsing_context_is_open());
+    PROMISE_TRY(ensure_current_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
     handle_any_user_prompts([this, element_id = move(element_id)]() {
@@ -1410,14 +1508,16 @@ Messages::WebDriverClient::GetElementTextResponse WebDriverConnection::get_eleme
         async_driver_execution_complete({ move(rendered_text) });
     });
 
-    return JsonValue {};
+    promise->resolve(Web::WebDriver::Response { JsonValue {} });
+    return promise;
 }
 
 // 12.4.6 Get Element Tag Name, https://w3c.github.io/webdriver/#dfn-get-element-tag-name
-Messages::WebDriverClient::GetElementTagNameResponse WebDriverConnection::get_element_tag_name(String element_id)
+NonnullRefPtr<Messages::WebDriverClient::GetElementTagName::Promise> WebDriverConnection::get_element_tag_name(String element_id)
 {
+    auto promise = Messages::WebDriverClient::GetElementTagName::Promise::construct();
     // 1. If session's current browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_browsing_context_is_open());
+    PROMISE_TRY(ensure_current_browsing_context_is_open());
 
     // 2. Try to handle any user prompts with session.
     handle_any_user_prompts([this, element_id = move(element_id)]() {
@@ -1433,14 +1533,16 @@ Messages::WebDriverClient::GetElementTagNameResponse WebDriverConnection::get_el
         async_driver_execution_complete({ qualified_name.to_string() });
     });
 
-    return JsonValue {};
+    promise->resolve(Web::WebDriver::Response { JsonValue {} });
+    return promise;
 }
 
 // 12.4.7 Get Element Rect, https://w3c.github.io/webdriver/#dfn-get-element-rect
-Messages::WebDriverClient::GetElementRectResponse WebDriverConnection::get_element_rect(String element_id)
+NonnullRefPtr<Messages::WebDriverClient::GetElementRect::Promise> WebDriverConnection::get_element_rect(String element_id)
 {
+    auto promise = Messages::WebDriverClient::GetElementRect::Promise::construct();
     // 1. If the current browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_browsing_context_is_open());
+    PROMISE_TRY(ensure_current_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
     handle_any_user_prompts([this, element_id = move(element_id)]() {
@@ -1466,14 +1568,16 @@ Messages::WebDriverClient::GetElementRectResponse WebDriverConnection::get_eleme
         async_driver_execution_complete(move(body));
     });
 
-    return JsonValue {};
+    promise->resolve(Web::WebDriver::Response { JsonValue {} });
+    return promise;
 }
 
 // 12.4.8 Is Element Enabled, https://w3c.github.io/webdriver/#dfn-is-element-enabled
-Messages::WebDriverClient::IsElementEnabledResponse WebDriverConnection::is_element_enabled(String element_id)
+NonnullRefPtr<Messages::WebDriverClient::IsElementEnabled::Promise> WebDriverConnection::is_element_enabled(String element_id)
 {
+    auto promise = Messages::WebDriverClient::IsElementEnabled::Promise::construct();
     // 1. If the current browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_browsing_context_is_open());
+    PROMISE_TRY(ensure_current_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
     handle_any_user_prompts([this, element_id = move(element_id)]() {
@@ -1494,14 +1598,16 @@ Messages::WebDriverClient::IsElementEnabledResponse WebDriverConnection::is_elem
         async_driver_execution_complete({ enabled });
     });
 
-    return JsonValue {};
+    promise->resolve(Web::WebDriver::Response { JsonValue {} });
+    return promise;
 }
 
 // 12.4.9 Get Computed Role, https://w3c.github.io/webdriver/#dfn-get-computed-role
-Messages::WebDriverClient::GetComputedRoleResponse WebDriverConnection::get_computed_role(String element_id)
+NonnullRefPtr<Messages::WebDriverClient::GetComputedRole::Promise> WebDriverConnection::get_computed_role(String element_id)
 {
+    auto promise = Messages::WebDriverClient::GetComputedRole::Promise::construct();
     // 1. If the current top-level browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_top_level_browsing_context_is_open());
+    PROMISE_TRY(ensure_current_top_level_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
     handle_any_user_prompts([this, element_id = move(element_id)]() {
@@ -1519,14 +1625,16 @@ Messages::WebDriverClient::GetComputedRoleResponse WebDriverConnection::get_comp
         async_driver_execution_complete(JsonValue {});
     });
 
-    return JsonValue {};
+    promise->resolve(Web::WebDriver::Response { JsonValue {} });
+    return promise;
 }
 
 // 12.4.10 Get Computed Label, https://w3c.github.io/webdriver/#get-computed-label
-Messages::WebDriverClient::GetComputedLabelResponse WebDriverConnection::get_computed_label(String element_id)
+NonnullRefPtr<Messages::WebDriverClient::GetComputedLabel::Promise> WebDriverConnection::get_computed_label(String element_id)
 {
+    auto promise = Messages::WebDriverClient::GetComputedLabel::Promise::construct();
     // 1. If the current browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_browsing_context_is_open());
+    PROMISE_TRY(ensure_current_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
     handle_any_user_prompts([this, element_id = move(element_id)]() {
@@ -1540,21 +1648,24 @@ Messages::WebDriverClient::GetComputedLabelResponse WebDriverConnection::get_com
         async_driver_execution_complete({ move(label) });
     });
 
-    return JsonValue {};
+    promise->resolve(Web::WebDriver::Response { JsonValue {} });
+    return promise;
 }
 
 // 12.5.1 Element Click, https://w3c.github.io/webdriver/#element-click
-Messages::WebDriverClient::ElementClickResponse WebDriverConnection::element_click(String element_id)
+NonnullRefPtr<Messages::WebDriverClient::ElementClick::Promise> WebDriverConnection::element_click(String element_id)
 {
+    auto promise = Messages::WebDriverClient::ElementClick::Promise::construct();
     // 1. If the current browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_browsing_context_is_open());
+    PROMISE_TRY(ensure_current_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
     handle_any_user_prompts([this, element_id = move(element_id)]() {
         WEBDRIVER_TRY(element_click_impl(element_id));
     });
 
-    return JsonValue {};
+    promise->resolve(Web::WebDriver::Response { JsonValue {} });
+    return promise;
 }
 
 Web::WebDriver::Response WebDriverConnection::element_click_impl(StringView element_id)
@@ -1724,17 +1835,19 @@ Web::WebDriver::Response WebDriverConnection::element_click_impl(StringView elem
 }
 
 // 12.5.2 Element Clear, https://w3c.github.io/webdriver/#dfn-element-clear
-Messages::WebDriverClient::ElementClearResponse WebDriverConnection::element_clear(String element_id)
+NonnullRefPtr<Messages::WebDriverClient::ElementClear::Promise> WebDriverConnection::element_clear(String element_id)
 {
+    auto promise = Messages::WebDriverClient::ElementClear::Promise::construct();
     // 1. If session's current browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_browsing_context_is_open());
+    PROMISE_TRY(ensure_current_browsing_context_is_open());
 
     // 2. Try to handle any user prompts with session.
     handle_any_user_prompts([this, element_id = move(element_id)]() {
         async_driver_execution_complete(element_clear_impl(element_id));
     });
 
-    return JsonValue {};
+    promise->resolve(Web::WebDriver::Response { JsonValue {} });
+    return promise;
 }
 
 Web::WebDriver::Response WebDriverConnection::element_clear_impl(StringView element_id)
@@ -1836,21 +1949,23 @@ Web::WebDriver::Response WebDriverConnection::element_clear_impl(StringView elem
 }
 
 // 12.5.3 Element Send Keys, https://w3c.github.io/webdriver/#dfn-element-send-keys
-Messages::WebDriverClient::ElementSendKeysResponse WebDriverConnection::element_send_keys(String element_id, JsonValue payload)
+NonnullRefPtr<Messages::WebDriverClient::ElementSendKeys::Promise> WebDriverConnection::element_send_keys(String element_id, JsonValue payload)
 {
+    auto promise = Messages::WebDriverClient::ElementSendKeys::Promise::construct();
     // 1. Let text be the result of getting a property named "text" from parameters.
     // 2. If text is not a String, return an error with error code invalid argument.
-    auto text = TRY(Web::WebDriver::get_property(payload, "text"sv));
+    VALUE_OR_RESOLVE(text, Web::WebDriver::get_property(payload, "text"sv));
 
     // 3. If session's current browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_browsing_context_is_open());
+    PROMISE_TRY(ensure_current_browsing_context_is_open());
 
     // 4. Try to handle any user prompts with session.
     handle_any_user_prompts([this, element_id = move(element_id), text = move(text)]() {
         WEBDRIVER_TRY(element_send_keys_impl(element_id, text));
     });
 
-    return JsonValue {};
+    promise->resolve(Web::WebDriver::Response { JsonValue {} });
+    return promise;
 }
 
 Web::WebDriver::Response WebDriverConnection::element_send_keys_impl(StringView element_id, String const& text)
@@ -2020,10 +2135,11 @@ Web::WebDriver::Response WebDriverConnection::element_send_keys_impl(StringView 
 }
 
 // 13.1 Get Page Source, https://w3c.github.io/webdriver/#dfn-get-page-source
-Messages::WebDriverClient::GetSourceResponse WebDriverConnection::get_source()
+NonnullRefPtr<Messages::WebDriverClient::GetSource::Promise> WebDriverConnection::get_source()
 {
+    auto promise = Messages::WebDriverClient::GetSource::Promise::construct();
     // 1. If session's current browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_browsing_context_is_open());
+    PROMISE_TRY(ensure_current_browsing_context_is_open());
 
     // 2. Try to handle any user prompts with session.
     handle_any_user_prompts([this]() {
@@ -2045,20 +2161,23 @@ Messages::WebDriverClient::GetSourceResponse WebDriverConnection::get_source()
         async_driver_execution_complete({ source.release_value() });
     });
 
-    return JsonValue {};
+    promise->resolve(Web::WebDriver::Response { JsonValue {} });
+    return promise;
 }
 
 // 13.2.1 Execute Script, https://w3c.github.io/webdriver/#dfn-execute-script
-Messages::WebDriverClient::ExecuteScriptResponse WebDriverConnection::execute_script(JsonValue payload)
+NonnullRefPtr<Messages::WebDriverClient::ExecuteScript::Promise> WebDriverConnection::execute_script(JsonValue payload)
 {
+    auto promise = Messages::WebDriverClient::ExecuteScript::Promise::construct();
     auto* window = current_browsing_context().active_window();
     auto& vm = window->vm();
 
     // 1. Let body and arguments be the result of trying to extract the script arguments from a request with argument parameters.
-    auto [body, arguments] = TRY(extract_the_script_arguments_from_a_request(vm, payload));
+    VALUE_OR_RESOLVE(script_args, extract_the_script_arguments_from_a_request(vm, payload));
+    auto [body, arguments] = script_args;
 
     // 2. If the current browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_browsing_context_is_open());
+    PROMISE_TRY(ensure_current_browsing_context_is_open());
 
     // 3. Handle any user prompts, and return its value if it is an error.
     handle_any_user_prompts([this, body = move(body), arguments = move(arguments)]() mutable {
@@ -2075,20 +2194,23 @@ Messages::WebDriverClient::ExecuteScriptResponse WebDriverConnection::execute_sc
         }));
     });
 
-    return JsonValue {};
+    promise->resolve(Web::WebDriver::Response { JsonValue {} });
+    return promise;
 }
 
 // 13.2.2 Execute Async Script, https://w3c.github.io/webdriver/#dfn-execute-async-script
-Messages::WebDriverClient::ExecuteAsyncScriptResponse WebDriverConnection::execute_async_script(JsonValue payload)
+NonnullRefPtr<Messages::WebDriverClient::ExecuteAsyncScript::Promise> WebDriverConnection::execute_async_script(JsonValue payload)
 {
+    auto promise = Messages::WebDriverClient::ExecuteAsyncScript::Promise::construct();
     auto* window = current_browsing_context().active_window();
     auto& vm = window->vm();
 
     // 1. Let body and arguments by the result of trying to extract the script arguments from a request with argument parameters.
-    auto [body, arguments] = TRY(extract_the_script_arguments_from_a_request(vm, payload));
+    VALUE_OR_RESOLVE(script_args, extract_the_script_arguments_from_a_request(vm, payload));
+    auto [body, arguments] = script_args;
 
     // 2. If the current browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_browsing_context_is_open());
+    PROMISE_TRY(ensure_current_browsing_context_is_open());
 
     // 3. Handle any user prompts, and return its value if it is an error.
     handle_any_user_prompts([this, body = move(body), arguments = move(arguments)]() mutable {
@@ -2105,7 +2227,8 @@ Messages::WebDriverClient::ExecuteAsyncScriptResponse WebDriverConnection::execu
         }));
     });
 
-    return JsonValue {};
+    promise->resolve(Web::WebDriver::Response { JsonValue {} });
+    return promise;
 }
 
 void WebDriverConnection::handle_script_response(Web::WebDriver::ExecutionResult result, size_t script_execution_id)
@@ -2141,10 +2264,11 @@ void WebDriverConnection::handle_script_response(Web::WebDriver::ExecutionResult
 }
 
 // 14.1 Get All Cookies, https://w3c.github.io/webdriver/#dfn-get-all-cookies
-Messages::WebDriverClient::GetAllCookiesResponse WebDriverConnection::get_all_cookies()
+NonnullRefPtr<Messages::WebDriverClient::GetAllCookies::Promise> WebDriverConnection::get_all_cookies()
 {
+    auto promise = Messages::WebDriverClient::GetAllCookies::Promise::construct();
     // 1. If the current browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_browsing_context_is_open());
+    PROMISE_TRY(ensure_current_browsing_context_is_open());
 
     // 2. Handle any user prompts, and return its value if it is an error.
     handle_any_user_prompts([this]() {
@@ -2166,14 +2290,16 @@ Messages::WebDriverClient::GetAllCookiesResponse WebDriverConnection::get_all_co
         async_driver_execution_complete({ move(cookies) });
     });
 
-    return JsonValue {};
+    promise->resolve(Web::WebDriver::Response { JsonValue {} });
+    return promise;
 }
 
 // 14.2 Get Named Cookie, https://w3c.github.io/webdriver/#dfn-get-named-cookie
-Messages::WebDriverClient::GetNamedCookieResponse WebDriverConnection::get_named_cookie(String name)
+NonnullRefPtr<Messages::WebDriverClient::GetNamedCookie::Promise> WebDriverConnection::get_named_cookie(String name)
 {
+    auto promise = Messages::WebDriverClient::GetNamedCookie::Promise::construct();
     // 1. If the current browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_browsing_context_is_open());
+    PROMISE_TRY(ensure_current_browsing_context_is_open());
 
     // 2. Handle any user prompts, and return its value if it is an error.
     handle_any_user_prompts([this, name]() {
@@ -2190,27 +2316,31 @@ Messages::WebDriverClient::GetNamedCookieResponse WebDriverConnection::get_named
         async_driver_execution_complete(Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchCookie, MUST(String::formatted("Cookie '{}' not found", name))));
     });
 
-    return JsonValue {};
+    promise->resolve(Web::WebDriver::Response { JsonValue {} });
+    return promise;
 }
 
 // 14.3 Add Cookie, https://w3c.github.io/webdriver/#dfn-adding-a-cookie
-Messages::WebDriverClient::AddCookieResponse WebDriverConnection::add_cookie(JsonValue payload)
+NonnullRefPtr<Messages::WebDriverClient::AddCookie::Promise> WebDriverConnection::add_cookie(JsonValue payload)
 {
+    auto promise = Messages::WebDriverClient::AddCookie::Promise::construct();
     // 1. Let data be the result of getting a property named cookie from the parameters argument.
-    auto const& data = *TRY(Web::WebDriver::get_property<JsonObject const*>(payload, "cookie"sv));
+    VALUE_OR_RESOLVE(cookie, Web::WebDriver::get_property<JsonObject const*>(payload, "cookie"sv));
+    auto const& data = *cookie;
 
     // 2. If data is not a JSON Object with all the required (non-optional) JSON keys listed in the table for cookie conversion, return error with error code invalid argument.
     // NOTE: This validation is performed in subsequent steps.
 
     // 3. If the current browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_browsing_context_is_open());
+    PROMISE_TRY(ensure_current_browsing_context_is_open());
 
     // 4. Handle any user prompts, and return its value if it is an error.
     handle_any_user_prompts([this, data = move(const_cast<JsonObject&>(data))]() {
         async_driver_execution_complete(add_cookie_impl(data));
     });
 
-    return JsonValue {};
+    promise->resolve(Web::WebDriver::Response { JsonValue {} });
+    return promise;
 }
 
 Web::WebDriver::Response WebDriverConnection::add_cookie_impl(JsonObject const& data)
@@ -2289,10 +2419,11 @@ Web::WebDriver::Response WebDriverConnection::add_cookie_impl(JsonObject const& 
 }
 
 // 14.4 Delete Cookie, https://w3c.github.io/webdriver/#dfn-delete-cookie
-Messages::WebDriverClient::DeleteCookieResponse WebDriverConnection::delete_cookie(String name)
+NonnullRefPtr<Messages::WebDriverClient::DeleteCookie::Promise> WebDriverConnection::delete_cookie(String name)
 {
+    auto promise = Messages::WebDriverClient::DeleteCookie::Promise::construct();
     // 1. If the current browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_browsing_context_is_open());
+    PROMISE_TRY(ensure_current_browsing_context_is_open());
 
     // 2. Handle any user prompts, and return its value if it is an error.
     handle_any_user_prompts([this, name]() {
@@ -2303,14 +2434,16 @@ Messages::WebDriverClient::DeleteCookieResponse WebDriverConnection::delete_cook
         async_driver_execution_complete(JsonValue {});
     });
 
-    return JsonValue {};
+    promise->resolve(Web::WebDriver::Response { JsonValue {} });
+    return promise;
 }
 
 // 14.5 Delete All Cookies, https://w3c.github.io/webdriver/#dfn-delete-all-cookies
-Messages::WebDriverClient::DeleteAllCookiesResponse WebDriverConnection::delete_all_cookies()
+NonnullRefPtr<Messages::WebDriverClient::DeleteAllCookies::Promise> WebDriverConnection::delete_all_cookies()
 {
+    auto promise = Messages::WebDriverClient::DeleteAllCookies::Promise::construct();
     // 1. If the current browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_browsing_context_is_open());
+    PROMISE_TRY(ensure_current_browsing_context_is_open());
 
     // 2. Handle any user prompts, and return its value if it is an error.
     handle_any_user_prompts([this]() {
@@ -2321,14 +2454,16 @@ Messages::WebDriverClient::DeleteAllCookiesResponse WebDriverConnection::delete_
         async_driver_execution_complete(JsonValue {});
     });
 
-    return JsonValue {};
+    promise->resolve(Web::WebDriver::Response { JsonValue {} });
+    return promise;
 }
 
 // 15.7 Perform Actions, https://w3c.github.io/webdriver/#perform-actions
-Messages::WebDriverClient::PerformActionsResponse WebDriverConnection::perform_actions(JsonValue payload)
+NonnullRefPtr<Messages::WebDriverClient::PerformActions::Promise> WebDriverConnection::perform_actions(JsonValue payload)
 {
+    auto promise = Messages::WebDriverClient::PerformActions::Promise::construct();
     // 1. If session's current browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_browsing_context_is_open());
+    PROMISE_TRY(ensure_current_browsing_context_is_open());
 
     // 2. Try to handle any user prompts with session.
     handle_any_user_prompts([this, payload = move(payload)]() {
@@ -2357,14 +2492,16 @@ Messages::WebDriverClient::PerformActionsResponse WebDriverConnection::perform_a
     });
 
     // 7. Return success with data null.
-    return JsonValue {};
+    promise->resolve(Web::WebDriver::Response { JsonValue {} });
+    return promise;
 }
 
 // 15.8 Release Actions, https://w3c.github.io/webdriver/#release-actions
-Messages::WebDriverClient::ReleaseActionsResponse WebDriverConnection::release_actions()
+NonnullRefPtr<Messages::WebDriverClient::ReleaseActions::Promise> WebDriverConnection::release_actions()
 {
+    auto promise = Messages::WebDriverClient::ReleaseActions::Promise::construct();
     // 1. If session's current browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_browsing_context_is_open());
+    PROMISE_TRY(ensure_current_browsing_context_is_open());
 
     // 2. Try to handle any user prompts with session.
     handle_any_user_prompts([this]() {
@@ -2404,18 +2541,22 @@ Messages::WebDriverClient::ReleaseActionsResponse WebDriverConnection::release_a
     });
 
     // 9. Return success with data null.
-    return JsonValue {};
+    promise->resolve(Web::WebDriver::Response { JsonValue {} });
+    return promise;
 }
 
 // 16.1 Dismiss Alert, https://w3c.github.io/webdriver/#dismiss-alert
-Messages::WebDriverClient::DismissAlertResponse WebDriverConnection::dismiss_alert()
+NonnullRefPtr<Messages::WebDriverClient::DismissAlert::Promise> WebDriverConnection::dismiss_alert()
 {
+    auto promise = Messages::WebDriverClient::DismissAlert::Promise::construct();
     // 1. If the current top-level browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_top_level_browsing_context_is_open());
+    PROMISE_TRY(ensure_current_top_level_browsing_context_is_open());
 
     // 2. If there is no current user prompt, return error with error code no such alert.
-    if (!current_browsing_context().page().has_pending_dialog())
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchAlert, "No user dialog is currently open"sv);
+    if (!current_browsing_context().page().has_pending_dialog()) {
+        promise->resolve(Web::WebDriver::Response { Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchAlert, "No user dialog is currently open"sv) });
+        return promise;
+    }
 
     // 3. Dismiss the current user prompt.
     current_browsing_context().page().dismiss_dialog(GC::create_function(current_browsing_context().heap(), [this]() {
@@ -2423,18 +2564,22 @@ Messages::WebDriverClient::DismissAlertResponse WebDriverConnection::dismiss_ale
     }));
 
     // 4. Return success with data null.
-    return JsonValue {};
+    promise->resolve(Web::WebDriver::Response { JsonValue {} });
+    return promise;
 }
 
 // 16.2 Accept Alert, https://w3c.github.io/webdriver/#accept-alert
-Messages::WebDriverClient::AcceptAlertResponse WebDriverConnection::accept_alert()
+NonnullRefPtr<Messages::WebDriverClient::AcceptAlert::Promise> WebDriverConnection::accept_alert()
 {
+    auto promise = Messages::WebDriverClient::AcceptAlert::Promise::construct();
     // 1. If the current top-level browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_top_level_browsing_context_is_open());
+    PROMISE_TRY(ensure_current_top_level_browsing_context_is_open());
 
     // 2. If there is no current user prompt, return error with error code no such alert.
-    if (!current_browsing_context().page().has_pending_dialog())
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchAlert, "No user dialog is currently open"sv);
+    if (!current_browsing_context().page().has_pending_dialog()) {
+        promise->resolve(Web::WebDriver::Response { Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchAlert, "No user dialog is currently open"sv) });
+        return promise;
+    }
 
     // 3. Accept the current user prompt.
     current_browsing_context().page().accept_dialog(GC::create_function(current_browsing_context().heap(), [this]() {
@@ -2442,50 +2587,63 @@ Messages::WebDriverClient::AcceptAlertResponse WebDriverConnection::accept_alert
     }));
 
     // 4. Return success with data null.
-    return JsonValue {};
+    promise->resolve(Web::WebDriver::Response { JsonValue {} });
+    return promise;
 }
 
 // 16.3 Get Alert Text, https://w3c.github.io/webdriver/#get-alert-text
-Messages::WebDriverClient::GetAlertTextResponse WebDriverConnection::get_alert_text()
+NonnullRefPtr<Messages::WebDriverClient::GetAlertText::Promise> WebDriverConnection::get_alert_text()
 {
+    auto promise = Messages::WebDriverClient::GetAlertText::Promise::construct();
     // 1. If the current top-level browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_top_level_browsing_context_is_open());
+    PROMISE_TRY(ensure_current_top_level_browsing_context_is_open());
 
     // 2. If there is no current user prompt, return error with error code no such alert.
-    if (!current_browsing_context().page().has_pending_dialog())
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchAlert, "No user dialog is currently open"sv);
+    if (!current_browsing_context().page().has_pending_dialog()) {
+        promise->resolve(Web::WebDriver::Response { Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchAlert, "No user dialog is currently open"sv) });
+        return promise;
+    }
 
     // 3. Let message be the text message associated with the current user prompt, or otherwise be null.
     auto const& message = current_browsing_context().page().pending_dialog_text();
 
     // 4. Return success with data message.
-    if (message.has_value())
-        return message.value();
-    return JsonValue {};
+    if (message.has_value()) {
+        promise->resolve(Web::WebDriver::Response { message.value() });
+        return promise;
+    }
+
+    promise->resolve(Web::WebDriver::Response { JsonValue {} });
+    return promise;
 }
 
 // 16.4 Send Alert Text, https://w3c.github.io/webdriver/#send-alert-text
-Messages::WebDriverClient::SendAlertTextResponse WebDriverConnection::send_alert_text(JsonValue payload)
+NonnullRefPtr<Messages::WebDriverClient::SendAlertText::Promise> WebDriverConnection::send_alert_text(JsonValue payload)
 {
+    auto promise = Messages::WebDriverClient::SendAlertText::Promise::construct();
     // 1. Let text be the result of getting the property "text" from parameters.
     // 2. If text is not a String, return error with error code invalid argument.
-    auto text = TRY(Web::WebDriver::get_property(payload, "text"sv));
+    VALUE_OR_RESOLVE(text, Web::WebDriver::get_property(payload, "text"sv));
 
     // 3. If the current top-level browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_top_level_browsing_context_is_open());
+    PROMISE_TRY(ensure_current_top_level_browsing_context_is_open());
 
     // 4. If there is no current user prompt, return error with error code no such alert.
-    if (!current_browsing_context().page().has_pending_dialog())
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchAlert, "No user dialog is currently open"sv);
+    if (!current_browsing_context().page().has_pending_dialog()) {
+        promise->resolve(Web::WebDriver::Response { Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchAlert, "No user dialog is currently open"sv) });
+        return promise;
+    }
 
     // 5. Run the substeps of the first matching current user prompt:
     switch (current_browsing_context().page().pending_dialog()) {
     // -> alert
     // -> confirm
     case Web::Page::PendingDialog::Alert:
-    case Web::Page::PendingDialog::Confirm:
+    case Web::Page::PendingDialog::Confirm: {
         // Return error with error code element not interactable.
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::ElementNotInteractable, "Only prompt dialogs may receive text"sv);
+        promise->resolve(Web::WebDriver::Response { Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::ElementNotInteractable, "Only prompt dialogs may receive text"sv) });
+        return promise;
+    }
 
     // -> prompt
     case Web::Page::PendingDialog::Prompt:
@@ -2493,23 +2651,27 @@ Messages::WebDriverClient::SendAlertTextResponse WebDriverConnection::send_alert
         break;
 
     // -> Otherwise
-    default:
+    default: {
         // Return error with error code unsupported operation.
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnsupportedOperation, "Unknown dialog type"sv);
+        promise->resolve(Web::WebDriver::Response { Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnsupportedOperation, "Unknown dialog type"sv) });
+        return promise;
+    }
     }
 
     // 6. Perform user agent dependent steps to set the value of current user prompt’s text field to text.
     current_browsing_context().page().client().page_did_request_set_prompt_text(text);
 
     // 7. Return success with data null.
-    return JsonValue {};
+    promise->resolve(Web::WebDriver::Response { JsonValue {} });
+    return promise;
 }
 
 // 17.1 Take Screenshot, https://w3c.github.io/webdriver/#take-screenshot
-Messages::WebDriverClient::TakeScreenshotResponse WebDriverConnection::take_screenshot()
+NonnullRefPtr<Messages::WebDriverClient::TakeScreenshot::Promise> WebDriverConnection::take_screenshot()
 {
+    auto promise = Messages::WebDriverClient::TakeScreenshot::Promise::construct();
     // 1. If session's current top-level browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_top_level_browsing_context_is_open());
+    PROMISE_TRY(ensure_current_top_level_browsing_context_is_open());
 
     // FIXME: Spec issue: We must handle user prompts in this endpoint, just like we do in Take Element Screenshot.
     // https://github.com/w3c/webdriver/issues/1678
@@ -2535,14 +2697,16 @@ Messages::WebDriverClient::TakeScreenshotResponse WebDriverConnection::take_scre
         }));
     });
 
-    return JsonValue {};
+    promise->resolve(Web::WebDriver::Response { JsonValue {} });
+    return promise;
 }
 
 // 17.2 Take Element Screenshot, https://w3c.github.io/webdriver/#dfn-take-element-screenshot
-Messages::WebDriverClient::TakeElementScreenshotResponse WebDriverConnection::take_element_screenshot(String element_id)
+NonnullRefPtr<Messages::WebDriverClient::TakeElementScreenshot::Promise> WebDriverConnection::take_element_screenshot(String element_id)
 {
+    auto promise = Messages::WebDriverClient::TakeElementScreenshot::Promise::construct();
     // 1. If session's current browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_browsing_context_is_open());
+    PROMISE_TRY(ensure_current_browsing_context_is_open());
 
     // 2. Try to handle any user prompts with session.
     handle_any_user_prompts([this, element_id]() {
@@ -2573,14 +2737,17 @@ Messages::WebDriverClient::TakeElementScreenshotResponse WebDriverConnection::ta
         }));
     });
 
-    return JsonValue {};
+    promise->resolve(Web::WebDriver::Response { JsonValue {} });
+    return promise;
 }
 
 // 18.1 Print Page, https://w3c.github.io/webdriver/#dfn-print-page
-Messages::WebDriverClient::PrintPageResponse WebDriverConnection::print_page(JsonValue payload)
+NonnullRefPtr<Messages::WebDriverClient::PrintPage::Promise> WebDriverConnection::print_page(JsonValue payload)
 {
+    auto promise = Messages::WebDriverClient::PrintPage::Promise::construct();
     dbgln("FIXME: WebDriverConnection::print_page({})", payload);
-    return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnsupportedOperation, "Print not implemented"sv);
+    promise->resolve(Web::WebDriver::Response { Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnsupportedOperation, "Print not implemented"sv) });
+    return promise;
 }
 
 // https://w3c.github.io/webdriver/#dfn-set-the-current-browsing-context
@@ -2620,10 +2787,12 @@ void WebDriverConnection::set_current_top_level_browsing_context(Web::HTML::Brow
     set_current_browsing_context(browsing_context);
 }
 
-Messages::WebDriverClient::EnsureTopLevelBrowsingContextIsOpenResponse WebDriverConnection::ensure_top_level_browsing_context_is_open()
+NonnullRefPtr<Messages::WebDriverClient::EnsureTopLevelBrowsingContextIsOpen::Promise> WebDriverConnection::ensure_top_level_browsing_context_is_open()
 {
-    TRY(ensure_current_top_level_browsing_context_is_open());
-    return JsonValue {};
+    auto promise = Messages::WebDriverClient::EnsureTopLevelBrowsingContextIsOpen::Promise::construct();
+    PROMISE_TRY(ensure_current_top_level_browsing_context_is_open());
+    promise->resolve(Web::WebDriver::Response { JsonValue {} });
+    return promise;
 }
 
 ErrorOr<void, Web::WebDriver::Error> WebDriverConnection::ensure_current_browsing_context_is_open()

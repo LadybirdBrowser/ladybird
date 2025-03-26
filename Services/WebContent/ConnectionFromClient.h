@@ -56,9 +56,9 @@ private:
     Optional<PageClient&> page(u64 index, SourceLocation = SourceLocation::current());
     Optional<PageClient const&> page(u64 index, SourceLocation = SourceLocation::current()) const;
 
-    virtual Messages::WebContentServer::InitTransportResponse init_transport(int peer_pid) override;
+    virtual NonnullRefPtr<Messages::WebContentServer::InitTransport::Promise> init_transport(int peer_pid) override;
     virtual void close_server() override;
-    virtual Messages::WebContentServer::GetWindowHandleResponse get_window_handle(u64 page_id) override;
+    virtual NonnullRefPtr<Messages::WebContentServer::GetWindowHandle::Promise> get_window_handle(u64 page_id) override;
     virtual void set_window_handle(u64 page_id, String handle) override;
     virtual void connect_to_webdriver(u64 page_id, ByteString webdriver_ipc_path) override;
     virtual void connect_to_web_ui(u64 page_id, IPC::File web_ui_socket) override;
@@ -143,10 +143,10 @@ private:
 
     virtual void request_internal_page_info(u64 page_id, WebView::PageInfoType) override;
 
-    virtual Messages::WebContentServer::GetLocalStorageEntriesResponse get_local_storage_entries(u64 page_id) override;
-    virtual Messages::WebContentServer::GetSessionStorageEntriesResponse get_session_storage_entries(u64 page_id) override;
+    virtual NonnullRefPtr<Messages::WebContentServer::GetLocalStorageEntries::Promise> get_local_storage_entries(u64 page_id) override;
+    virtual NonnullRefPtr<Messages::WebContentServer::GetSessionStorageEntries::Promise> get_session_storage_entries(u64 page_id) override;
 
-    virtual Messages::WebContentServer::GetSelectedTextResponse get_selected_text(u64 page_id) override;
+    virtual NonnullRefPtr<Messages::WebContentServer::GetSelectedText::Promise> get_selected_text(u64 page_id) override;
     virtual void select_all(u64 page_id) override;
 
     virtual void find_in_page(u64 page_id, String query, CaseSensitivity) override;
