@@ -66,7 +66,12 @@ public:
 
     void operator delete(void* ptr)
     {
-        free(ptr);
+        if (is_constant_evaluated()) {
+            if (reinterpret_cast<uintptr_t>(ptr) != UINTPTR_MAX)
+                free(ptr);
+        } else {
+            free(ptr);
+        }
     }
 
     ~StringData()
