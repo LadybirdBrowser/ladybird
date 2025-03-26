@@ -32,6 +32,7 @@ public:
     Vector<LineBoxFragment> const& fragments() const { return m_fragments; }
     Vector<LineBoxFragment>& fragments() { return m_fragments; }
 
+    CSSPixels get_trailing_whitespace_width() const;
     void trim_trailing_whitespace();
 
     bool is_empty_or_ends_in_whitespace() const;
@@ -43,6 +44,13 @@ private:
     friend class BlockContainer;
     friend class InlineFormattingContext;
     friend class LineBuilder;
+
+    enum class RemoveTrailingWhitespace : u8 {
+        Yes,
+        No,
+    };
+
+    CSSPixels calculate_or_trim_trailing_whitespace(RemoveTrailingWhitespace);
 
     Vector<LineBoxFragment> m_fragments;
     CSSPixels m_inline_length { 0 };
