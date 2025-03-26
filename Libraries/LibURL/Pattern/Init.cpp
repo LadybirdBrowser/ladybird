@@ -134,7 +134,7 @@ static PatternErrorOr<String> process_pathname_for_init(String const& pathname_v
 }
 
 // https://urlpattern.spec.whatwg.org/#process-search-for-init
-static PatternErrorOr<String> process_search_for_init(String const& value, PatternProcessType type)
+static String process_search_for_init(String const& value, PatternProcessType type)
 {
     // 1. Let strippedValue be the given value with a single leading U+003F (?) removed, if any.
     auto stripped_value = value;
@@ -150,7 +150,7 @@ static PatternErrorOr<String> process_search_for_init(String const& value, Patte
 }
 
 // https://urlpattern.spec.whatwg.org/#process-hash-for-init
-static PatternErrorOr<String> process_hash_for_init(String const& value, PatternProcessType type)
+static String process_hash_for_init(String const& value, PatternProcessType type)
 {
     // 1. Let strippedValue be the given value with a single leading U+0023 (#) removed, if any.
     auto stripped_value = value;
@@ -346,11 +346,11 @@ PatternErrorOr<Init> process_a_url_pattern_init(Init const& init, PatternProcess
 
     // 18. If init["search"] exists then set result["search"] to the result of process search for init given init["search"] and type.
     if (init.search.has_value())
-        result.search = TRY(process_search_for_init(init.search.value(), type));
+        result.search = process_search_for_init(init.search.value(), type);
 
     // 19. If init["hash"] exists then set result["hash"] to the result of process hash for init given init["hash"] and type.
     if (init.hash.has_value())
-        result.hash = TRY(process_hash_for_init(init.hash.value(), type));
+        result.hash = process_hash_for_init(init.hash.value(), type);
 
     // 20. Return result.
     return result;
