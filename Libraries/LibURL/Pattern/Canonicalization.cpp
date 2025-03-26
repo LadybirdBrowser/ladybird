@@ -9,6 +9,14 @@
 
 namespace URL::Pattern {
 
+// https://urlpattern.spec.whatwg.org/#url-pattern-create-a-dummy-url
+static URL create_a_dummy_url()
+{
+    // 1. Let dummyInput be "https://dummy.invalid/".
+    // 2. Return the result of running the basic URL parser on dummyInput.
+    return Parser::basic_parse("https://dummy.invalid/"sv).release_value();
+}
+
 // https://urlpattern.spec.whatwg.org/#canonicalize-a-protocol
 PatternErrorOr<String> canonicalize_a_protocol(String const& value)
 {
@@ -16,21 +24,17 @@ PatternErrorOr<String> canonicalize_a_protocol(String const& value)
     if (value.is_empty())
         return value;
 
-    // 2. Let dummyURL be a new URL record.
-    URL dummy_url;
-
-    // 3. Let parseResult be the result of running the basic URL parser given value followed by "://dummy.test", with dummyURL as url.
-    //
+    // 2. Let parseResult be the result of running the basic URL parser given value followed by "://dummy.invalid/".
     // NOTE: Note, state override is not used here because it enforces restrictions that are only appropriate for the
     //       protocol setter. Instead we use the protocol to parse a dummy URL using the normal parsing entry point.
-    auto parse_result = Parser::basic_parse(MUST(String::formatted("{}://dummy.test"sv, value)), {}, &dummy_url);
+    auto parse_result = Parser::basic_parse(MUST(String::formatted("{}://dummy.invalid"sv, value)));
 
     // 4. If parseResult is failure, then throw a TypeError.
     if (!parse_result.has_value())
         return ErrorInfo { "Failed to canonicalize URL protocol string"_string };
 
-    // 5. Return dummyURL’s scheme.
-    return dummy_url.scheme();
+    // 5. Return parseResult’s scheme.
+    return parse_result->scheme();
 }
 
 // https://urlpattern.spec.whatwg.org/#canonicalize-a-username
@@ -40,8 +44,8 @@ String canonicalize_a_username(String const& value)
     if (value.is_empty())
         return value;
 
-    // 2. Let dummyURL be a new URL record.
-    URL dummy_url;
+    // 2. Let dummyURL be the result of creating a dummy URL.
+    auto dummy_url = create_a_dummy_url();
 
     // 3. Set the username given dummyURL and value.
     dummy_url.set_username(value);
@@ -57,8 +61,8 @@ String canonicalize_a_password(String const& value)
     if (value.is_empty())
         return value;
 
-    // 2. Let dummyURL be a new URL record.
-    URL dummy_url;
+    // 2. Let dummyURL be the result of creating a dummy URL.
+    auto dummy_url = create_a_dummy_url();
 
     // 3. Set the password given dummyURL and value.
     dummy_url.set_password(value);
@@ -74,8 +78,8 @@ PatternErrorOr<String> canonicalize_a_hostname(String const& value)
     if (value.is_empty())
         return value;
 
-    // 2. Let dummyURL be a new URL record.
-    URL dummy_url;
+    // 2. Let dummyURL be the result of creating a dummy URL.
+    auto dummy_url = create_a_dummy_url();
 
     // 3. Let parseResult be the result of running the basic URL parser given value with dummyURL
     //    as url and hostname state as state override.
@@ -127,8 +131,8 @@ PatternErrorOr<String> canonicalize_a_port(String const& port_value, Optional<St
     if (port_value.is_empty())
         return port_value;
 
-    // 2. Let dummyURL be a new URL record.
-    URL dummy_url;
+    // 2. Let dummyURL be the result of creating a dummy URL.
+    auto dummy_url = create_a_dummy_url();
 
     // 3. If protocolValue was given, then set dummyURL’s scheme to protocolValue.
     // NOTE: Note, we set the URL record's scheme in order for the basic URL parser to
@@ -168,20 +172,23 @@ String canonicalize_a_pathname(String const& value)
     // 4. Append value to the end of modified value.
     modified_value.append(value);
 
-    // 5. Let dummyURL be a new URL record.
-    URL dummy_url;
+    // 5. Let dummyURL be the result of creating a dummy URL.
+    auto dummy_url = create_a_dummy_url();
 
-    // 6. Run basic URL parser given modified value with dummyURL as url and path start state as state override.
+    // 6. Empty dummyURL’s path.
+    dummy_url.set_paths({});
+
+    // 7. Run basic URL parser given modified value with dummyURL as url and path start state as state override.
     (void)Parser::basic_parse(modified_value.string_view(), {}, &dummy_url, Parser::State::PathStart);
 
-    // 7. Let result be the result of URL path serializing dummyURL.
+    // 8. Let result be the result of URL path serializing dummyURL.
     auto result = dummy_url.serialize_path();
 
-    // 8. If leading slash is false, then set result to the code point substring from 2 to the end of the string within result.
+    // 9. If leading slash is false, then set result to the code point substring from 2 to the end of the string within result.
     if (!leading_slash)
         result = MUST(String::from_utf8(result.code_points().unicode_substring_view(2).as_string()));
 
-    // 9. Return result.
+    // 10. Return result.
     return result;
 }
 
@@ -192,8 +199,8 @@ PatternErrorOr<String> canonicalize_an_opaque_pathname(String const& value)
     if (value.is_empty())
         return value;
 
-    // 2. Let dummyURL be a new URL record.
-    URL dummy_url;
+    // 2. Let dummyURL be the result of creating a dummy URL.
+    auto dummy_url = create_a_dummy_url();
 
     // 3. Set dummyURL’s path to the empty string.
     dummy_url.set_paths({ "" });
@@ -217,8 +224,8 @@ String canonicalize_a_search(String const& value)
     if (value.is_empty())
         return value;
 
-    // 2. Let dummyURL be a new URL record.
-    URL dummy_url;
+    // 2. Let dummyURL be the result of creating a dummy URL.
+    auto dummy_url = create_a_dummy_url();
 
     // 3. Set dummyURL’s query to the empty string.
     dummy_url.set_query(String {});
@@ -238,8 +245,8 @@ String canonicalize_a_hash(String const& value)
     if (value.is_empty())
         return value;
 
-    // 2. Let dummyURL be a new URL record.
-    URL dummy_url;
+    // 2. Let dummyURL be the result of creating a dummy URL.
+    auto dummy_url = create_a_dummy_url();
 
     // 3. Set dummyURL’s fragment to the empty string.
     dummy_url.set_fragment(String {});
