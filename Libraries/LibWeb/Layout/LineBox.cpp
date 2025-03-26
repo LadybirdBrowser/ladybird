@@ -5,7 +5,6 @@
  */
 
 #include <AK/CharacterTypes.h>
-#include <AK/TypeCasts.h>
 #include <AK/Utf8View.h>
 #include <LibWeb/DOM/Position.h>
 #include <LibWeb/Layout/Box.h>
@@ -54,50 +53,70 @@ void LineBox::add_fragment(Node const& layout_node, int start, int length, CSSPi
     m_block_length = max(m_block_length, content_height + border_box_top + border_box_bottom);
 }
 
-void LineBox::trim_trailing_whitespace()
+CSSPixels LineBox::calculate_or_trim_trailing_whitespace(RemoveTrailingWhitespace should_remove)
 {
     auto should_trim = [](LineBoxFragment* fragment) {
         auto ws = fragment->layout_node().computed_values().white_space();
         return ws == CSS::WhiteSpace::Normal || ws == CSS::WhiteSpace::Nowrap || ws == CSS::WhiteSpace::PreLine;
     };
 
+    CSSPixels whitespace_width = 0;
     LineBoxFragment* last_fragment = nullptr;
+    size_t fragment_index = m_fragments.size();
     for (;;) {
-        if (m_fragments.is_empty())
-            return;
-        // last_fragment cannot be null from here on down, as m_fragments is not empty.
-        last_fragment = &m_fragments.last();
+        if (fragment_index == 0)
+            return whitespace_width;
+
+        last_fragment = &m_fragments[--fragment_index];
         auto const* dom_node = last_fragment->layout_node().dom_node();
         if (dom_node) {
             auto cursor_position = dom_node->document().cursor_position();
             if (cursor_position && cursor_position->node() == dom_node)
-                return;
+                return whitespace_width;
         }
         if (!should_trim(last_fragment))
-            return;
-        if (last_fragment->is_justifiable_whitespace()) {
-            m_inline_length -= last_fragment->inline_length();
-            m_fragments.remove(m_fragments.size() - 1);
-        } else {
+            return whitespace_width;
+        if (!last_fragment->is_justifiable_whitespace())
             break;
+
+        whitespace_width += last_fragment->inline_length();
+        if (should_remove == RemoveTrailingWhitespace::Yes) {
+            m_inline_length -= last_fragment->inline_length();
+            m_fragments.remove(fragment_index);
         }
     }
 
     auto last_text = last_fragment->text();
     if (last_text.is_null())
-        return;
+        return whitespace_width;
 
-    while (last_fragment->length()) {
-        auto last_character = last_text[last_fragment->length() - 1];
+    size_t last_fragment_length = last_fragment->length();
+    while (last_fragment_length) {
+        auto last_character = last_text[--last_fragment_length];
         if (!is_ascii_space(last_character))
             break;
 
         auto const& font = last_fragment->glyph_run() ? last_fragment->glyph_run()->font() : last_fragment->layout_node().first_available_font();
         int last_character_width = font.glyph_width(last_character);
-        last_fragment->m_length -= 1;
-        last_fragment->set_inline_length(last_fragment->inline_length() - last_character_width);
-        m_inline_length -= last_character_width;
+        whitespace_width += last_character_width;
+        if (should_remove == RemoveTrailingWhitespace::Yes) {
+            last_fragment->m_length -= 1;
+            last_fragment->set_inline_length(last_fragment->inline_length() - last_character_width);
+            m_inline_length -= last_character_width;
+        }
     }
+
+    return whitespace_width;
+}
+
+CSSPixels LineBox::get_trailing_whitespace_width() const
+{
+    return const_cast<LineBox&>(*this).calculate_or_trim_trailing_whitespace(RemoveTrailingWhitespace::No);
+}
+
+void LineBox::trim_trailing_whitespace()
+{
+    calculate_or_trim_trailing_whitespace(RemoveTrailingWhitespace::Yes);
 }
 
 bool LineBox::is_empty_or_ends_in_whitespace() const
