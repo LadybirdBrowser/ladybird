@@ -151,7 +151,7 @@ PatternErrorOr<String> canonicalize_a_port(String const& port_value, Optional<St
 }
 
 // https://urlpattern.spec.whatwg.org/#canonicalize-a-pathname
-PatternErrorOr<String> canonicalize_a_pathname(String const& value)
+String canonicalize_a_pathname(String const& value)
 {
     // 1. If value is the empty string, then return value.
     if (value.is_empty())
@@ -171,22 +171,17 @@ PatternErrorOr<String> canonicalize_a_pathname(String const& value)
     // 5. Let dummyURL be a new URL record.
     URL dummy_url;
 
-    // 6. Let parseResult be the result of running basic URL parser given modified value with dummyURL
-    //    as url and path start state as state override.
-    auto parse_result = Parser::basic_parse(modified_value.string_view(), {}, &dummy_url, Parser::State::PathStart);
+    // 6. Run basic URL parser given modified value with dummyURL as url and path start state as state override.
+    (void)Parser::basic_parse(modified_value.string_view(), {}, &dummy_url, Parser::State::PathStart);
 
-    // 7. If parseResult is failure, then throw a TypeError.
-    if (!parse_result.has_value())
-        return ErrorInfo { "Failed to canonicalize pathname string"_string };
-
-    // 8. Let result be the result of URL path serializing dummyURL.
+    // 7. Let result be the result of URL path serializing dummyURL.
     auto result = dummy_url.serialize_path();
 
-    // 9. If leading slash is false, then set result to the code point substring from 2 to the end of the string within result.
+    // 8. If leading slash is false, then set result to the code point substring from 2 to the end of the string within result.
     if (!leading_slash)
         result = MUST(String::from_utf8(result.code_points().unicode_substring_view(2).as_string()));
 
-    // 10. Return result.
+    // 9. Return result.
     return result;
 }
 
@@ -216,7 +211,7 @@ PatternErrorOr<String> canonicalize_an_opaque_pathname(String const& value)
 }
 
 // https://urlpattern.spec.whatwg.org/#canonicalize-a-search
-PatternErrorOr<String> canonicalize_a_search(String const& value)
+String canonicalize_a_search(String const& value)
 {
     // 1. If value is the empty string, return value.
     if (value.is_empty())
@@ -228,20 +223,16 @@ PatternErrorOr<String> canonicalize_a_search(String const& value)
     // 3. Set dummyURL’s query to the empty string.
     dummy_url.set_query(String {});
 
-    // 4. Let parseResult be the result of running basic URL parser given value with dummyURL as url and query state as state override.
-    auto parse_result = Parser::basic_parse(value, {}, &dummy_url, Parser::State::Query);
+    // 4. Run basic URL parser given value with dummyURL as url and query state as state override.
+    (void)Parser::basic_parse(value, {}, &dummy_url, Parser::State::Query);
 
-    // 5. If parseResult is failure, then throw a TypeError.
-    if (!parse_result.has_value())
-        return ErrorInfo { "Failed to canonicalize query string"_string };
-
-    // 6. Return dummyURL’s query.
+    // 5. Return dummyURL’s query.
     VERIFY(dummy_url.query().has_value());
     return *dummy_url.query();
 }
 
 // https://urlpattern.spec.whatwg.org/#canonicalize-a-hash
-PatternErrorOr<String> canonicalize_a_hash(String const& value)
+String canonicalize_a_hash(String const& value)
 {
     // 1. If value is the empty string, return value.
     if (value.is_empty())
@@ -253,14 +244,10 @@ PatternErrorOr<String> canonicalize_a_hash(String const& value)
     // 3. Set dummyURL’s fragment to the empty string.
     dummy_url.set_fragment(String {});
 
-    // 4. Let parseResult be the result of running basic URL parser given value with dummyURL as url and fragment state as state override.
-    auto parse_result = Parser::basic_parse(value, {}, &dummy_url, Parser::State::Fragment);
+    // 4. Run basic URL parser given value with dummyURL as url and fragment state as state override.
+    (void)Parser::basic_parse(value, {}, &dummy_url, Parser::State::Fragment);
 
-    // 5. If parseResult is failure, then throw a TypeError.
-    if (!parse_result.has_value())
-        return ErrorInfo { "Failed to canonicalize query string"_string };
-
-    // 6. Return dummyURL’s fragment.
+    // 5. Return dummyURL’s fragment.
     VERIFY(dummy_url.fragment().has_value());
     return *dummy_url.fragment();
 }
