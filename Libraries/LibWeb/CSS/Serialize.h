@@ -12,6 +12,7 @@
 #include <AK/Vector.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/Font/UnicodeRange.h>
+#include <LibWeb/CSS/StyleProperty.h>
 
 namespace Web::CSS {
 
@@ -43,5 +44,7 @@ void serialize_a_comma_separated_list(StringBuilder& builder, Vector<T> const& i
         }
     }
 }
+
+String serialize_a_css_declaration(StringView property, StringView value, Important = Important::No);
 
 }
