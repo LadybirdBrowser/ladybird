@@ -224,6 +224,11 @@ private:
 
     using ShortString = Detail::ShortString;
 
+    bool is_invalid() const
+    {
+        return raw(Badge<String> {}) == 0;
+    }
+
     explicit constexpr String(StringBase&& base)
         : StringBase(move(base))
     {
