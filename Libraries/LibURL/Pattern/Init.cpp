@@ -302,12 +302,14 @@ PatternErrorOr<Init> process_a_url_pattern_init(Init const& init, PatternProcess
     if (init.hostname.has_value())
         result.hostname = TRY(process_hostname_for_init(init.hostname.value(), type));
 
-    // 16. If init["port"] exists, then set result["port"] to the result of process port for init given init["port"], result["protocol"], and type.
-    // FIXME: Spec bug, does not handle null protocol: https://github.com/whatwg/urlpattern/issues/257
-    if (init.port.has_value())
-        result.port = TRY(process_port_for_init(init.port.value(), result.protocol.value_or(String {}), type));
+    // 16. Let resultProtocolString be result["protocol"] if it exists; otherwise the empty string.
+    auto result_protocol_string = result.protocol.value_or(String {});
 
-    // 17. If init["pathname"] exists:
+    // 17. If init["port"] exists, then set result["port"] to the result of process port for init given init["port"], resultProtocolString, and type.
+    if (init.port.has_value())
+        result.port = TRY(process_port_for_init(init.port.value(), result_protocol_string, type));
+
+    // 18. If init["pathname"] exists:
     if (init.pathname.has_value()) {
         // 1. Set result["pathname"] to init["pathname"].
         result.pathname = init.pathname.value();
@@ -339,20 +341,19 @@ PatternErrorOr<Init> process_a_url_pattern_init(Init const& init, PatternProcess
             }
         }
 
-        // 3. Set result["pathname"] to the result of process pathname for init given result["pathname"], result["protocol"], and type.
-        // FIXME: Spec bug, does not handle a null protocol: https://github.com/whatwg/urlpattern/issues/257
-        result.pathname = TRY(process_pathname_for_init(result.pathname.value(), result.protocol.value_or(String {}), type));
+        // 3. Set result["pathname"] to the result of process pathname for init given result["pathname"], resultProtocolString, and type.
+        result.pathname = TRY(process_pathname_for_init(result.pathname.value(), result_protocol_string, type));
     }
 
-    // 18. If init["search"] exists then set result["search"] to the result of process search for init given init["search"] and type.
+    // 19. If init["search"] exists then set result["search"] to the result of process search for init given init["search"] and type.
     if (init.search.has_value())
         result.search = process_search_for_init(init.search.value(), type);
 
-    // 19. If init["hash"] exists then set result["hash"] to the result of process hash for init given init["hash"] and type.
+    // 20. If init["hash"] exists then set result["hash"] to the result of process hash for init given init["hash"] and type.
     if (init.hash.has_value())
         result.hash = process_hash_for_init(init.hash.value(), type);
 
-    // 20. Return result.
+    // 21. Return result.
     return result;
 }
 
