@@ -138,10 +138,10 @@ public:
     [[nodiscard]] Utf8View code_points() const&& = delete;
 
     // Returns true if the String is zero-length.
-    [[nodiscard]] bool is_empty() const;
+    [[nodiscard]] bool is_empty() const { return byte_count() == 0; }
 
     // Returns a StringView covering the full length of the string. Note that iterating this will go byte-at-a-time, not code-point-at-a-time.
-    [[nodiscard]] StringView bytes_as_string_view() const&;
+    [[nodiscard]] StringView bytes_as_string_view() const& { return StringView(bytes()); }
     [[nodiscard]] StringView bytes_as_string_view() const&& = delete;
 
     [[nodiscard]] size_t count(StringView needle) const { return StringUtils::count(bytes_as_string_view(), needle); }

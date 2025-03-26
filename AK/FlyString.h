@@ -32,19 +32,19 @@ public:
     FlyString(String const&);
     FlyString& operator=(String const&);
 
-    [[nodiscard]] bool is_empty() const;
-    [[nodiscard]] unsigned hash() const;
+    [[nodiscard]] bool is_empty() const { return m_data.byte_count() == 0; }
+    [[nodiscard]] unsigned hash() const { return m_data.hash(); }
     [[nodiscard]] u32 ascii_case_insensitive_hash() const;
 
     explicit operator String() const;
     String to_string() const;
 
     [[nodiscard]] Utf8View code_points() const;
-    [[nodiscard]] ReadonlyBytes bytes() const;
-    [[nodiscard]] StringView bytes_as_string_view() const;
+    [[nodiscard]] ReadonlyBytes bytes() const { return m_data.bytes(); }
+    [[nodiscard]] StringView bytes_as_string_view() const { return m_data.bytes(); }
 
     [[nodiscard]] ALWAYS_INLINE bool operator==(FlyString const& other) const { return m_data.raw({}) == other.m_data.raw({}); }
-    [[nodiscard]] bool operator==(String const&) const;
+    [[nodiscard]] bool operator==(String const& other) const { return m_data == other; }
     [[nodiscard]] bool operator==(StringView) const;
     [[nodiscard]] bool operator==(char const*) const;
 
