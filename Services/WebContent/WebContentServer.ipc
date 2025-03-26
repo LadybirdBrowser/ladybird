@@ -1,3 +1,4 @@
+#include <LibGfx/Color.h>
 #include <LibGfx/Rect.h>
 #include <LibIPC/File.h>
 #include <LibURL/URL.h>

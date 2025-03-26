@@ -17,13 +17,15 @@ class BufferStream;
 
 namespace IPC {
 
+class ConnectionBase;
+
 class Stub {
 public:
     virtual ~Stub() = default;
 
     virtual u32 magic() const = 0;
     virtual ByteString name() const = 0;
-    virtual ErrorOr<OwnPtr<MessageBuffer>> handle(NonnullOwnPtr<Message>) = 0;
+    virtual void handle_ipc_message(NonnullRefPtr<IPC::ConnectionBase> conn, NonnullOwnPtr<IPC::Message> message) = 0;
 
 protected:
     Stub() = default;
