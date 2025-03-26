@@ -1321,6 +1321,9 @@ void Document::update_layout(UpdateLayoutReason reason)
     }
 
     m_layout_root->for_each_in_inclusive_subtree_of_type<Layout::Box>([&](auto& child) {
+        if (auto dom_node = child.dom_node(); dom_node && dom_node->is_element()) {
+            child.set_has_size_containment(as<Element>(*dom_node).has_size_containment());
+        }
         bool needs_layout_update = child.dom_node() && child.dom_node()->needs_layout_update();
         if (needs_layout_update || child.is_anonymous()) {
             child.reset_cached_intrinsic_sizes();
