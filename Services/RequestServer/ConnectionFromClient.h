@@ -10,7 +10,6 @@
 #include <LibDNS/Resolver.h>
 #include <LibIPC/ConnectionFromClient.h>
 #include <LibWebSocket/WebSocket.h>
-#include <RequestServer/Forward.h>
 #include <RequestServer/RequestClientEndpoint.h>
 #include <RequestServer/RequestServerEndpoint.h>
 
