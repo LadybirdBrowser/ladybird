@@ -123,7 +123,7 @@ If you do run into such an error, the rest of this section explains how to deal 
            endif()
       -    add_cxx_compile_options(-Og)
       +    add_cxx_compile_options(-O0)
-       else()
+       elseif (CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
            add_cxx_compile_options(-O2)
            if (NOT MSVC)
       EOF
