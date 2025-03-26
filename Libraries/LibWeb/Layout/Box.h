@@ -40,6 +40,9 @@ public:
     bool has_natural_height() const { return natural_height().has_value(); }
     bool has_natural_aspect_ratio() const { return natural_aspect_ratio().has_value(); }
 
+    bool has_size_containment() const { return m_has_size_containment; }
+    void set_has_size_containment(bool value) { m_has_size_containment = value; }
+
     void set_natural_width(Optional<CSSPixels> width) { m_natural_width = width; }
     void set_natural_height(Optional<CSSPixels> height) { m_natural_height = height; }
     void set_natural_aspect_ratio(Optional<CSSPixelFraction> ratio) { m_natural_aspect_ratio = ratio; }
@@ -78,6 +81,8 @@ private:
     Optional<CSSPixels> m_natural_width;
     Optional<CSSPixels> m_natural_height;
     Optional<CSSPixelFraction> m_natural_aspect_ratio;
+
+    bool m_has_size_containment { false };
 
     Vector<GC::Ref<Node>> m_contained_abspos_children;
 
