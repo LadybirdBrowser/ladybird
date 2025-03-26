@@ -19,7 +19,7 @@ macro(add_cxx_link_options)
   foreach(arg ${ARGN})
     string(APPEND args ${arg}$<SEMICOLON>)
   endforeach()
-  add_link_options($<$<LINK_LANGUAGE:C,CXX>:${args}>) 
+  add_link_options($<$<LINK_LANGUAGE:C,CXX>:${args}>)
 endmacro()
 
 macro(add_swift_compile_options)
@@ -27,7 +27,7 @@ macro(add_swift_compile_options)
   foreach(arg ${ARGN})
     string(APPEND args ${arg}$<SEMICOLON>)
   endforeach()
-  add_compile_options($<$<COMPILE_LANGUAGE:Swift>:${args}>) 
+  add_compile_options($<$<COMPILE_LANGUAGE:Swift>:${args}>)
 endmacro()
 
 macro(add_swift_link_options)
@@ -35,7 +35,7 @@ macro(add_swift_link_options)
   foreach(arg ${ARGN})
     string(APPEND args ${arg}$<SEMICOLON>)
   endforeach()
-  add_link_options($<$<LINK_LANGUAGE:Swift>:${args}>) 
+  add_link_options($<$<LINK_LANGUAGE:Swift>:${args}>)
 endmacro()
 
 # FIXME: Rework these flags to remove the suspicious ones.
@@ -96,6 +96,7 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     # Only ignore expansion-to-defined for g++, clang's implementation doesn't complain about function-like macros
     add_cxx_compile_options(-Wno-expansion-to-defined)
     add_cxx_compile_options(-Wno-literal-suffix)
+    add_cxx_compile_options(-Wno-unqualified-std-cast-call)
     add_cxx_compile_options(-Wvla)
 
     # FIXME: This warning seems useful but has too many false positives with GCC 13.
