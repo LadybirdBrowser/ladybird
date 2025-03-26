@@ -7,14 +7,17 @@
 #pragma once
 
 #include <AK/Error.h>
-#include <AK/FlyString.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefCounted.h>
-#include <AK/StringBase.h>
 #include <AK/StringBuilder.h>
-#include <AK/kmalloc.h>
 
 namespace AK::Detail {
+
+static constexpr size_t MAX_SHORT_STRING_BYTE_COUNT = sizeof(StringData*) - sizeof(u8);
+
+class StringData;
+
+void did_destroy_fly_string_data(Badge<StringData>, StringData const&);
 
 class StringData final : public RefCounted<StringData> {
 public:
@@ -63,7 +66,7 @@ public:
 
     void operator delete(void* ptr)
     {
-        kfree_sized(ptr, static_cast<StringData const*>(ptr)->m_capacity);
+        free(ptr);
     }
 
     ~StringData()
@@ -71,7 +74,7 @@ public:
         if (m_substring)
             substring_data().superstring->unref();
         if (m_is_fly_string)
-            FlyString::did_destroy_fly_string_data({}, *this);
+            Detail::did_destroy_fly_string_data({}, *this);
     }
 
     SubstringData const& substring_data() const

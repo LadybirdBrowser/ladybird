@@ -11,89 +11,6 @@
 
 namespace AK::Detail {
 
-ReadonlyBytes ShortString::bytes() const
-{
-    return { storage, byte_count() };
-}
-
-size_t ShortString::byte_count() const
-{
-    return byte_count_and_short_string_flag >> StringBase::SHORT_STRING_BYTE_COUNT_SHIFT_COUNT;
-}
-
-StringBase::StringBase(NonnullRefPtr<Detail::StringData const> data)
-    : m_data(&data.leak_ref())
-{
-}
-
-StringBase::StringBase(StringBase const& other)
-    : m_data(other.m_data)
-{
-    if (!is_short_string())
-        m_data->ref();
-}
-
-StringBase& StringBase::operator=(StringBase&& other)
-{
-    if (!is_short_string())
-        m_data->unref();
-
-    m_data = exchange(other.m_data, nullptr);
-    other.m_short_string.byte_count_and_short_string_flag = SHORT_STRING_FLAG;
-    return *this;
-}
-
-StringBase& StringBase::operator=(StringBase const& other)
-{
-    if (&other != this) {
-        if (!is_short_string())
-            m_data->unref();
-
-        m_data = other.m_data;
-        if (!is_short_string())
-            m_data->ref();
-    }
-    return *this;
-}
-
-ReadonlyBytes StringBase::bytes() const
-{
-    ASSERT(!is_invalid());
-    if (is_short_string())
-        return m_short_string.bytes();
-    return m_data->bytes();
-}
-
-u32 StringBase::hash() const
-{
-    ASSERT(!is_invalid());
-    if (is_short_string()) {
-        auto bytes = this->bytes();
-        return string_hash(reinterpret_cast<char const*>(bytes.data()), bytes.size());
-    }
-    return m_data->hash();
-}
-
-size_t StringBase::byte_count() const
-{
-    ASSERT(!is_invalid());
-    if (is_short_string())
-        return m_short_string.byte_count_and_short_string_flag >> StringBase::SHORT_STRING_BYTE_COUNT_SHIFT_COUNT;
-    return m_data->byte_count();
-}
-
-bool StringBase::operator==(StringBase const& other) const
-{
-    ASSERT(!is_invalid());
-    if (is_short_string())
-        return m_data == other.m_data;
-    if (other.is_short_string())
-        return false;
-    if (m_data->is_fly_string() && other.m_data->is_fly_string())
-        return m_data == other.m_data;
-    return bytes() == other.bytes();
-}
-
 void StringBase::replace_with_string_builder(StringBuilder& builder)
 {
     ASSERT(!is_invalid());
@@ -133,12 +50,6 @@ ErrorOr<StringBase> StringBase::substring_from_byte_offset_with_shared_superstri
         return result;
     }
     return StringBase { TRY(Detail::StringData::create_substring(*m_data, start, length)) };
-}
-
-void StringBase::destroy_string()
-{
-    if (!is_short_string())
-        m_data->unref();
 }
 
 }
