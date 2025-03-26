@@ -27,6 +27,8 @@
 
 namespace WebContent {
 
+namespace IPCMessages = Messages::WebDriverClient;
+
 class ElementLocator;
 
 class WebDriverConnection final
@@ -46,70 +48,71 @@ private:
 
     virtual void die() override { }
 
-    virtual void close_session() override;
+    virtual void close_session(IPCMessages::CloseSession::Resolver resolver) override;
     virtual void set_page_load_strategy(Web::WebDriver::PageLoadStrategy page_load_strategy) override;
     virtual void set_user_prompt_handler(Web::WebDriver::UserPromptHandler user_prompt_handler) override;
     virtual void set_strict_file_interactability(bool strict_file_interactability) override;
     virtual void set_is_webdriver_active(bool) override;
-    virtual Messages::WebDriverClient::GetTimeoutsResponse get_timeouts() override;
-    virtual Messages::WebDriverClient::SetTimeoutsResponse set_timeouts(JsonValue payload) override;
-    virtual Messages::WebDriverClient::NavigateToResponse navigate_to(JsonValue payload) override;
-    virtual Messages::WebDriverClient::GetCurrentUrlResponse get_current_url() override;
-    virtual Messages::WebDriverClient::BackResponse back() override;
-    virtual Messages::WebDriverClient::ForwardResponse forward() override;
-    virtual Messages::WebDriverClient::RefreshResponse refresh() override;
-    virtual Messages::WebDriverClient::GetTitleResponse get_title() override;
-    virtual Messages::WebDriverClient::GetWindowHandleResponse get_window_handle() override;
-    virtual Messages::WebDriverClient::CloseWindowResponse close_window() override;
-    virtual Messages::WebDriverClient::SwitchToWindowResponse switch_to_window(String handle) override;
-    virtual Messages::WebDriverClient::NewWindowResponse new_window(JsonValue payload) override;
-    virtual Messages::WebDriverClient::SwitchToFrameResponse switch_to_frame(JsonValue payload) override;
-    virtual Messages::WebDriverClient::SwitchToParentFrameResponse switch_to_parent_frame(JsonValue payload) override;
-    virtual Messages::WebDriverClient::GetWindowRectResponse get_window_rect() override;
-    virtual Messages::WebDriverClient::SetWindowRectResponse set_window_rect(JsonValue payload) override;
-    virtual Messages::WebDriverClient::MaximizeWindowResponse maximize_window() override;
-    virtual Messages::WebDriverClient::MinimizeWindowResponse minimize_window() override;
-    virtual Messages::WebDriverClient::FullscreenWindowResponse fullscreen_window() override;
-    virtual Messages::WebDriverClient::ConsumeUserActivationResponse consume_user_activation() override;
-    virtual Messages::WebDriverClient::FindElementResponse find_element(JsonValue payload) override;
-    virtual Messages::WebDriverClient::FindElementsResponse find_elements(JsonValue payload) override;
-    virtual Messages::WebDriverClient::FindElementFromElementResponse find_element_from_element(JsonValue payload, String element_id) override;
-    virtual Messages::WebDriverClient::FindElementsFromElementResponse find_elements_from_element(JsonValue payload, String element_id) override;
-    virtual Messages::WebDriverClient::FindElementFromShadowRootResponse find_element_from_shadow_root(JsonValue payload, String shadow_id) override;
-    virtual Messages::WebDriverClient::FindElementsFromShadowRootResponse find_elements_from_shadow_root(JsonValue payload, String shadow_id) override;
-    virtual Messages::WebDriverClient::GetActiveElementResponse get_active_element() override;
-    virtual Messages::WebDriverClient::GetElementShadowRootResponse get_element_shadow_root(String element_id) override;
-    virtual Messages::WebDriverClient::IsElementSelectedResponse is_element_selected(String element_id) override;
-    virtual Messages::WebDriverClient::GetElementAttributeResponse get_element_attribute(String element_id, String name) override;
-    virtual Messages::WebDriverClient::GetElementPropertyResponse get_element_property(String element_id, String name) override;
-    virtual Messages::WebDriverClient::GetElementCssValueResponse get_element_css_value(String element_id, String name) override;
-    virtual Messages::WebDriverClient::GetElementTextResponse get_element_text(String element_id) override;
-    virtual Messages::WebDriverClient::GetElementTagNameResponse get_element_tag_name(String element_id) override;
-    virtual Messages::WebDriverClient::GetElementRectResponse get_element_rect(String element_id) override;
-    virtual Messages::WebDriverClient::IsElementEnabledResponse is_element_enabled(String element_id) override;
-    virtual Messages::WebDriverClient::GetComputedRoleResponse get_computed_role(String element_id) override;
-    virtual Messages::WebDriverClient::GetComputedLabelResponse get_computed_label(String element_id) override;
-    virtual Messages::WebDriverClient::ElementClickResponse element_click(String element_id) override;
-    virtual Messages::WebDriverClient::ElementClearResponse element_clear(String element_id) override;
-    virtual Messages::WebDriverClient::ElementSendKeysResponse element_send_keys(String element_id, JsonValue payload) override;
-    virtual Messages::WebDriverClient::GetSourceResponse get_source() override;
-    virtual Messages::WebDriverClient::ExecuteScriptResponse execute_script(JsonValue payload) override;
-    virtual Messages::WebDriverClient::ExecuteAsyncScriptResponse execute_async_script(JsonValue payload) override;
-    virtual Messages::WebDriverClient::GetAllCookiesResponse get_all_cookies() override;
-    virtual Messages::WebDriverClient::GetNamedCookieResponse get_named_cookie(String name) override;
-    virtual Messages::WebDriverClient::AddCookieResponse add_cookie(JsonValue payload) override;
-    virtual Messages::WebDriverClient::DeleteCookieResponse delete_cookie(String name) override;
-    virtual Messages::WebDriverClient::DeleteAllCookiesResponse delete_all_cookies() override;
-    virtual Messages::WebDriverClient::PerformActionsResponse perform_actions(JsonValue payload) override;
-    virtual Messages::WebDriverClient::ReleaseActionsResponse release_actions() override;
-    virtual Messages::WebDriverClient::DismissAlertResponse dismiss_alert() override;
-    virtual Messages::WebDriverClient::AcceptAlertResponse accept_alert() override;
-    virtual Messages::WebDriverClient::GetAlertTextResponse get_alert_text() override;
-    virtual Messages::WebDriverClient::SendAlertTextResponse send_alert_text(JsonValue payload) override;
-    virtual Messages::WebDriverClient::TakeScreenshotResponse take_screenshot() override;
-    virtual Messages::WebDriverClient::TakeElementScreenshotResponse take_element_screenshot(String element_id) override;
-    virtual Messages::WebDriverClient::PrintPageResponse print_page(JsonValue payload) override;
-    virtual Messages::WebDriverClient::EnsureTopLevelBrowsingContextIsOpenResponse ensure_top_level_browsing_context_is_open() override;
+    virtual void get_timeouts(IPCMessages::GetTimeouts::Resolver resolver) override;
+    virtual void set_timeouts(JsonValue payload, IPCMessages::SetTimeouts::Resolver resolver) override;
+    virtual void navigate_to(JsonValue payload, IPCMessages::NavigateTo::Resolver resolver) override;
+    virtual void get_current_url(IPCMessages::GetCurrentUrl::Resolver resolver) override;
+    virtual void back(IPCMessages::Back::Resolver resolver) override;
+    virtual void forward(IPCMessages::Forward::Resolver resolver) override;
+    virtual void refresh(IPCMessages::Refresh::Resolver resolver) override;
+    virtual void get_title(IPCMessages::GetTitle::Resolver resolver) override;
+    virtual void get_window_handle(IPCMessages::GetWindowHandle::Resolver resolver) override;
+    virtual void close_window(IPCMessages::CloseWindow::Resolver resolver) override;
+    virtual void switch_to_window(String handle, IPCMessages::SwitchToWindow::Resolver resolver) override;
+    virtual void new_window(JsonValue payload, IPCMessages::NewWindow::Resolver resolver) override;
+    virtual void switch_to_frame(JsonValue payload, IPCMessages::SwitchToFrame::Resolver resolver) override;
+    virtual void switch_to_parent_frame(JsonValue payload, IPCMessages::SwitchToParentFrame::Resolver resolver) override;
+    virtual void get_window_rect(IPCMessages::GetWindowRect::Resolver resolver) override;
+    virtual void set_window_rect(JsonValue payload, IPCMessages::SetWindowRect::Resolver resolver) override;
+    virtual void maximize_window(IPCMessages::MaximizeWindow::Resolver resolver) override;
+    virtual void minimize_window(IPCMessages::MinimizeWindow::Resolver resolver) override;
+    virtual void fullscreen_window(IPCMessages::FullscreenWindow::Resolver resolver) override;
+    virtual void consume_user_activation(IPCMessages::ConsumeUserActivation::Resolver resolver) override;
+    virtual void find_element(JsonValue payload, IPCMessages::FindElement::Resolver resolver) override;
+    virtual void find_elements(JsonValue payload, IPCMessages::FindElements::Resolver resolver) override;
+    virtual void find_element_from_element(JsonValue payload, String element_id, IPCMessages::FindElementFromElement::Resolver resolver) override;
+    virtual void find_elements_from_element(JsonValue payload, String element_id, IPCMessages::FindElementsFromElement::Resolver resolver) override;
+    virtual void find_element_from_shadow_root(JsonValue payload, String shadow_id, IPCMessages::FindElementFromShadowRoot::Resolver resolver) override;
+    virtual void find_elements_from_shadow_root(JsonValue payload, String shadow_id, IPCMessages::FindElementsFromShadowRoot::Resolver resolver) override;
+    virtual void get_active_element(IPCMessages::GetActiveElement::Resolver resolver) override;
+    virtual void get_element_shadow_root(String element_id, IPCMessages::GetElementShadowRoot::Resolver resolver) override;
+    virtual void is_element_selected(String element_id, IPCMessages::IsElementSelected::Resolver resolver) override;
+    virtual void get_element_attribute(String element_id, String name, IPCMessages::GetElementAttribute::Resolver resolver) override;
+    virtual void get_element_property(String element_id, String name, IPCMessages::GetElementProperty::Resolver resolver) override;
+    virtual void get_element_css_value(String element_id, String name, IPCMessages::GetElementCssValue::Resolver resolver) override;
+    virtual void get_element_text(String element_id, IPCMessages::GetElementText::Resolver resolver) override;
+    virtual void get_element_tag_name(String element_id, IPCMessages::GetElementTagName::Resolver resolver) override;
+    virtual void get_element_rect(String element_id, IPCMessages::GetElementRect::Resolver resolver) override;
+    virtual void is_element_enabled(String element_id, IPCMessages::IsElementEnabled::Resolver resolver) override;
+    virtual void get_computed_role(String element_id, IPCMessages::GetComputedRole::Resolver resolver) override;
+    virtual void get_computed_label(String element_id, IPCMessages::GetComputedLabel::Resolver resolver) override;
+    virtual void element_click(String element_id, IPCMessages::ElementClick::Resolver resolver) override;
+    virtual void element_clear(String element_id, IPCMessages::ElementClear::Resolver resolver) override;
+    virtual void element_send_keys(String element_id, JsonValue payload, IPCMessages::ElementSendKeys::Resolver resolver) override;
+    virtual void get_source(IPCMessages::GetSource::Resolver resolver) override;
+    virtual void execute_script(JsonValue payload, IPCMessages::ExecuteScript::Resolver resolver) override;
+    virtual void execute_async_script(JsonValue payload, IPCMessages::ExecuteAsyncScript::Resolver resolver) override;
+    virtual void get_all_cookies(IPCMessages::GetAllCookies::Resolver resolver) override;
+    virtual void get_named_cookie(String name, IPCMessages::GetNamedCookie::Resolver resolver) override;
+    virtual void add_cookie(JsonValue payload, IPCMessages::AddCookie::Resolver resolver) override;
+    virtual void delete_cookie(String name, IPCMessages::DeleteCookie::Resolver resolver) override;
+    virtual void delete_all_cookies(IPCMessages::DeleteAllCookies::Resolver resolver) override;
+    virtual void perform_actions(JsonValue payload, IPCMessages::PerformActions::Resolver resolver) override;
+    virtual void release_actions(IPCMessages::ReleaseActions::Resolver resolver) override;
+    virtual void dismiss_alert(IPCMessages::DismissAlert::Resolver resolver) override;
+    virtual void accept_alert(IPCMessages::AcceptAlert::Resolver resolver) override;
+    virtual void get_alert_text(IPCMessages::GetAlertText::Resolver resolver) override;
+    virtual void send_alert_text(JsonValue payload, IPCMessages::SendAlertText::Resolver resolver) override;
+    virtual void take_screenshot(IPCMessages::TakeScreenshot::Resolver resolver) override;
+    virtual void take_element_screenshot(String element_id, IPCMessages::TakeElementScreenshot::Resolver resolver) override;
+    virtual void print_page(JsonValue payload, IPCMessages::PrintPage::Resolver resolver) override;
+    virtual void ensure_top_level_browsing_context_is_open(IPCMessages::EnsureTopLevelBrowsingContextIsOpen::Resolver resolver) override;
+
 
     void set_current_browsing_context(Web::HTML::BrowsingContext&);
     Web::HTML::BrowsingContext& current_browsing_context() { return *m_current_browsing_context; }

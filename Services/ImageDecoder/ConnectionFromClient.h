@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include "LibIPC/Message.h"
+#include "LibIPC/Stub.h"
 #include <AK/HashMap.h>
 #include <ImageDecoder/Forward.h>
 #include <ImageDecoder/ImageDecoderClientEndpoint.h>
@@ -16,6 +18,8 @@
 #include <LibThreading/BackgroundAction.h>
 
 namespace ImageDecoder {
+
+using namespace Messages::ImageDecoderServer;
 
 class ConnectionFromClient final
     : public IPC::ConnectionFromClient<ImageDecoderClientEndpoint, ImageDecoderServerEndpoint> {
@@ -40,10 +44,10 @@ private:
 
     explicit ConnectionFromClient(IPC::Transport);
 
-    virtual Messages::ImageDecoderServer::DecodeImageResponse decode_image(Core::AnonymousBuffer, Optional<Gfx::IntSize> ideal_size, Optional<ByteString> mime_type) override;
+    virtual void decode_image(Core::AnonymousBuffer, Optional<Gfx::IntSize> ideal_size, Optional<ByteString> mime_type, DecodeImage::Resolver resolver) override;
     virtual void cancel_decoding(i64 image_id) override;
-    virtual Messages::ImageDecoderServer::ConnectNewClientsResponse connect_new_clients(size_t count) override;
-    virtual Messages::ImageDecoderServer::InitTransportResponse init_transport(int peer_pid) override;
+    virtual void connect_new_clients(size_t count, ConnectNewClients::Resolver resolver) override;
+    virtual void init_transport(int peer_pid, InitTransport::Resolver resolver) override;
 
     ErrorOr<IPC::File> connect_new_client();
 

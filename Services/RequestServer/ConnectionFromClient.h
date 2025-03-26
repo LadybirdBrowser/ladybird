@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "LibIPC/Stub.h"
 #include <AK/HashMap.h>
 #include <LibDNS/Resolver.h>
 #include <LibIPC/ConnectionFromClient.h>
@@ -15,6 +16,8 @@
 #include <RequestServer/RequestServerEndpoint.h>
 
 namespace RequestServer {
+
+using namespace Messages::RequestServer;
 
 struct Resolver : public RefCounted<Resolver>
     , Weakable<Resolver> {
@@ -38,19 +41,19 @@ public:
 private:
     explicit ConnectionFromClient(IPC::Transport);
 
-    virtual Messages::RequestServer::InitTransportResponse init_transport(int peer_pid) override;
-    virtual Messages::RequestServer::ConnectNewClientResponse connect_new_client() override;
-    virtual Messages::RequestServer::IsSupportedProtocolResponse is_supported_protocol(ByteString) override;
+    virtual void init_transport(int peer_pid, InitTransport::Resolver resolve) override;
+    virtual void connect_new_client(ConnectNewClient::Resolver resolve) override;
+    virtual void is_supported_protocol(ByteString, IsSupportedProtocol::Resolver resolve) override;
     virtual void set_dns_server(ByteString host_or_address, u16 port, bool use_tls) override;
     virtual void start_request(i32 request_id, ByteString, URL::URL, HTTP::HeaderMap, ByteBuffer, Core::ProxyData) override;
-    virtual Messages::RequestServer::StopRequestResponse stop_request(i32) override;
-    virtual Messages::RequestServer::SetCertificateResponse set_certificate(i32, ByteString, ByteString) override;
+    virtual void stop_request(i32, StopRequest::Resolver resolve) override;
+    virtual void set_certificate(i32, ByteString, ByteString, SetCertificate::Resolver resolve) override;
     virtual void ensure_connection(URL::URL url, ::RequestServer::CacheLevel cache_level) override;
 
     virtual void websocket_connect(i64 websocket_id, URL::URL, ByteString, Vector<ByteString>, Vector<ByteString>, HTTP::HeaderMap) override;
     virtual void websocket_send(i64 websocket_id, bool, ByteBuffer) override;
     virtual void websocket_close(i64 websocket_id, u16, ByteString) override;
-    virtual Messages::RequestServer::WebsocketSetCertificateResponse websocket_set_certificate(i64, ByteString, ByteString) override;
+    virtual void websocket_set_certificate(i64, ByteString, ByteString, WebsocketSetCertificate::Resolver resolve) override;
 
     HashMap<i32, RefPtr<WebSocket::WebSocket>> m_websockets;
 
@@ -69,7 +72,7 @@ private:
     RefPtr<Core::Timer> m_timer;
     HashMap<int, NonnullRefPtr<Core::Notifier>> m_read_notifiers;
     HashMap<int, NonnullRefPtr<Core::Notifier>> m_write_notifiers;
-    NonnullRefPtr<Resolver> m_resolver;
+    NonnullRefPtr<RequestServer::Resolver> m_resolver;
 };
 
 // FIXME: Find a good home for this

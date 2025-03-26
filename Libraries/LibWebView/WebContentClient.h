@@ -22,6 +22,8 @@
 
 namespace WebView {
 
+using namespace Messages::WebContentClient;
+
 class ViewImplementation;
 
 class WebContentClient final
@@ -98,13 +100,13 @@ private:
     virtual void did_request_set_prompt_text(u64 page_id, String message) override;
     virtual void did_request_accept_dialog(u64 page_id) override;
     virtual void did_request_dismiss_dialog(u64 page_id) override;
-    virtual Messages::WebContentClient::DidRequestAllCookiesResponse did_request_all_cookies(URL::URL) override;
-    virtual Messages::WebContentClient::DidRequestNamedCookieResponse did_request_named_cookie(URL::URL, String) override;
-    virtual Messages::WebContentClient::DidRequestCookieResponse did_request_cookie(URL::URL, Web::Cookie::Source) override;
-    virtual void did_set_cookie(URL::URL, Web::Cookie::ParsedCookie, Web::Cookie::Source) override;
+    virtual void did_request_all_cookies(URL::URL, DidRequestAllCookies::Resolver resolver) override;
+    virtual void did_request_named_cookie(URL::URL, String, DidRequestNamedCookie::Resolver resolver) override;
+    virtual void did_request_cookie(URL::URL, Web::Cookie::Source, DidRequestCookie::Resolver resolver) override;
+    virtual void did_set_cookie(URL::URL, Web::Cookie::ParsedCookie, Web::Cookie::Source, DidSetCookie::Resolver resolver) override;
     virtual void did_update_cookie(Web::Cookie::Cookie) override;
     virtual void did_expire_cookies_with_time_offset(AK::Duration) override;
-    virtual Messages::WebContentClient::DidRequestNewWebViewResponse did_request_new_web_view(u64 page_id, Web::HTML::ActivateTab, Web::HTML::WebViewHints, Optional<u64> page_index) override;
+    virtual void did_request_new_web_view(u64 page_id, Web::HTML::ActivateTab, Web::HTML::WebViewHints, Optional<u64> page_index, DidRequestNewWebView::Resolver resolver) override;
     virtual void did_request_activate_tab(u64 page_id) override;
     virtual void did_close_browsing_context(u64 page_id) override;
     virtual void did_update_resource_count(u64 page_id, i32 count_waiting) override;
@@ -128,13 +130,14 @@ private:
     virtual void did_change_audio_play_state(u64 page_id, Web::HTML::AudioPlayState) override;
     virtual void did_update_navigation_buttons_state(u64 page_id, bool back_enabled, bool forward_enabled) override;
     virtual void did_allocate_backing_stores(u64 page_id, i32 front_bitmap_id, Gfx::ShareableBitmap, i32 back_bitmap_id, Gfx::ShareableBitmap) override;
-    virtual Messages::WebContentClient::RequestWorkerAgentResponse request_worker_agent(u64 page_id) override;
+    virtual void request_worker_agent(u64 page_id, RequestWorkerAgent::Resolver resolver) override;
     virtual void update_process_statistics(u64 page_id) override;
     virtual void request_current_settings(u64 page_id) override;
     virtual void restore_default_settings(u64 page_id) override;
     virtual void set_new_tab_page_url(u64 page_id, URL::URL new_tab_page_url) override;
     virtual void request_available_search_engines(u64 page_id) override;
     virtual void set_search_engine(u64 page_id, Optional<String> search_engine) override;
+
 
     Optional<ViewImplementation&> view_for_page_id(u64, SourceLocation = SourceLocation::current());
 

@@ -9,6 +9,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include "LibIPC/Stub.h"
+#include "WebContent/WebContentServerEndpoint.h"
 #include <AK/JsonObject.h>
 #include <AK/QuickSort.h>
 #include <LibCore/EventLoop.h>
@@ -70,11 +72,11 @@ void ConnectionFromClient::die()
     Web::Platform::EventLoopPlugin::the().quit();
 }
 
-Messages::WebContentServer::InitTransportResponse ConnectionFromClient::init_transport([[maybe_unused]] int peer_pid)
+void ConnectionFromClient::init_transport([[maybe_unused]] int peer_pid, [[maybe_unused]] InitTransport::Resolver resolve)
 {
 #ifdef AK_OS_WINDOWS
     m_transport.set_peer_pid(peer_pid);
-    return Core::System::getpid();
+    return resolve(Core::System::getpid());
 #endif
     VERIFY_NOT_REACHED();
 }
@@ -102,11 +104,11 @@ void ConnectionFromClient::close_server()
     shutdown();
 }
 
-Messages::WebContentServer::GetWindowHandleResponse ConnectionFromClient::get_window_handle(u64 page_id)
+void ConnectionFromClient::get_window_handle(u64 page_id, GetWindowHandle::Resolver resolve)
 {
     if (auto page = this->page(page_id); page.has_value())
-        return page->page().top_level_traversable()->window_handle();
-    return String {};
+        return resolve(page->page().top_level_traversable()->window_handle());
+    resolve(String{});
 }
 
 void ConnectionFromClient::set_window_handle(u64 page_id, String handle)
@@ -994,11 +996,11 @@ void ConnectionFromClient::request_internal_page_info(u64 page_id, WebView::Page
     async_did_get_internal_page_info(page_id, type, MUST(builder.to_string()));
 }
 
-Messages::WebContentServer::GetSelectedTextResponse ConnectionFromClient::get_selected_text(u64 page_id)
+void ConnectionFromClient::get_selected_text(u64 page_id, GetSelectedText::Resolver resolve)
 {
     if (auto page = this->page(page_id); page.has_value())
-        return page->page().focused_navigable().selected_text().to_byte_string();
-    return ByteString {};
+        return resolve(page->page().focused_navigable().selected_text().to_byte_string());
+    return resolve(ByteString {});
 }
 
 void ConnectionFromClient::select_all(u64 page_id)
@@ -1144,26 +1146,26 @@ void ConnectionFromClient::did_update_window_rect(u64 page_id)
         page->page().did_update_window_rect();
 }
 
-Messages::WebContentServer::GetLocalStorageEntriesResponse ConnectionFromClient::get_local_storage_entries(u64 page_id)
+void ConnectionFromClient::get_local_storage_entries(u64 page_id, GetLocalStorageEntries::Resolver resolve)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
-        return OrderedHashMap<String, String> {};
+        return resolve(OrderedHashMap<String, String> {});
 
     auto* document = page->page().top_level_browsing_context().active_document();
     auto local_storage = document->window()->local_storage().release_value_but_fixme_should_propagate_errors();
-    return local_storage->map();
+    return resolve(local_storage->map());
 }
 
-Messages::WebContentServer::GetSessionStorageEntriesResponse ConnectionFromClient::get_session_storage_entries(u64 page_id)
+void ConnectionFromClient::get_session_storage_entries(u64 page_id, GetSessionStorageEntries::Resolver resolve)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
-        return OrderedHashMap<String, String> {};
+        return resolve(OrderedHashMap<String, String> {});
 
     auto* document = page->page().top_level_browsing_context().active_document();
     auto session_storage = document->window()->session_storage().release_value_but_fixme_should_propagate_errors();
-    return session_storage->map();
+    return resolve(session_storage->map());
 }
 
 void ConnectionFromClient::handle_file_return(u64, i32 error, Optional<IPC::File> file, i32 request_id)
