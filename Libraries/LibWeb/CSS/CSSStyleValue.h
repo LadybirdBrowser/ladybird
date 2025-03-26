@@ -18,6 +18,7 @@
 #include <AK/Vector.h>
 #include <AK/WeakPtr.h>
 #include <LibGfx/Color.h>
+#include <LibJS/Heap/Cell.h>
 #include <LibURL/URL.h>
 #include <LibWeb/CSS/Keyword.h>
 #include <LibWeb/CSS/Length.h>
@@ -368,6 +369,8 @@ public:
     [[nodiscard]] int to_font_weight() const;
     [[nodiscard]] int to_font_slope() const;
     [[nodiscard]] int to_font_width() const;
+
+    virtual void visit_edges(JS::Cell::Visitor&) const { }
 
     virtual bool equals(CSSStyleValue const& other) const = 0;
 

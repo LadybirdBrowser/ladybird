@@ -85,8 +85,7 @@ void CSSStyleProperties::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
     for (auto& property : m_properties) {
-        if (property.value->is_image())
-            property.value->as_image().visit_edges(visitor);
+        property.value->visit_edges(visitor);
     }
 }
 

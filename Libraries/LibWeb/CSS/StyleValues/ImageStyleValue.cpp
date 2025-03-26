@@ -30,6 +30,7 @@ ImageStyleValue::~ImageStyleValue() = default;
 
 void ImageStyleValue::visit_edges(JS::Cell::Visitor& visitor) const
 {
+    Base::visit_edges(visitor);
     // FIXME: visit_edges in non-GC allocated classes is confusing pattern.
     //        Consider making CSSStyleValue to be GC allocated instead.
     visitor.visit(m_resource_request);
