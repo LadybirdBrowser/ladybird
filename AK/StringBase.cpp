@@ -13,7 +13,6 @@ namespace AK::Detail {
 
 void StringBase::replace_with_string_builder(StringBuilder& builder)
 {
-    ASSERT(!is_invalid());
     if (builder.length() <= MAX_SHORT_STRING_BYTE_COUNT) {
         return replace_with_new_short_string(builder.length(), [&](Bytes buffer) {
             builder.string_view().bytes().copy_to(buffer);
@@ -22,24 +21,22 @@ void StringBase::replace_with_string_builder(StringBuilder& builder)
 
     destroy_string();
 
-    m_data = &StringData::create_from_string_builder(builder).leak_ref();
+    m_impl = { .data = &StringData::create_from_string_builder(builder).leak_ref() };
 }
 
 ErrorOr<Bytes> StringBase::replace_with_uninitialized_buffer(size_t byte_count)
 {
-    ASSERT(!is_invalid());
     if (byte_count <= MAX_SHORT_STRING_BYTE_COUNT)
         return replace_with_uninitialized_short_string(byte_count);
 
     u8* buffer = nullptr;
     destroy_string();
-    m_data = &TRY(StringData::create_uninitialized(byte_count, buffer)).leak_ref();
+    m_impl = { .data = &TRY(StringData::create_uninitialized(byte_count, buffer)).leak_ref() };
     return Bytes { buffer, byte_count };
 }
 
 ErrorOr<StringBase> StringBase::substring_from_byte_offset_with_shared_superstring(size_t start, size_t length) const
 {
-    ASSERT(!is_invalid());
     VERIFY(start + length <= byte_count());
 
     if (length == 0)
@@ -49,7 +46,6 @@ ErrorOr<StringBase> StringBase::substring_from_byte_offset_with_shared_superstri
         bytes().slice(start, length).copy_to(result.replace_with_uninitialized_short_string(length));
         return result;
     }
-    return StringBase { TRY(Detail::StringData::create_substring(*m_data, start, length)) };
+    return StringBase { TRY(Detail::StringData::create_substring(*m_impl.data, start, length)) };
 }
-
 }

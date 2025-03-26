@@ -40,10 +40,9 @@ public:
     StringBase(StringBase const&);
 
     constexpr StringBase(StringBase&& other)
-        : m_short_string(other.m_short_string)
+        : m_impl(other.m_impl)
     {
-        other.m_short_string = ShortString {};
-        other.m_short_string.byte_count_and_short_string_flag = SHORT_STRING_FLAG;
+        other.m_impl = { .short_string = { .byte_count_and_short_string_flag = SHORT_STRING_FLAG } };
     }
 
     StringBase& operator=(StringBase&&);
@@ -58,7 +57,9 @@ public:
     // NOTE: This is primarily interesting to unit tests.
     [[nodiscard]] constexpr bool is_short_string() const
     {
-        return (m_short_string.byte_count_and_short_string_flag & SHORT_STRING_FLAG) != 0;
+        if (is_constant_evaluated())
+            return (m_impl.short_string.byte_count_and_short_string_flag & SHORT_STRING_FLAG) != 0;
+        return (short_string_without_union_member_assertion().byte_count_and_short_string_flag & SHORT_STRING_FLAG) != 0;
     }
 
     // Returns the underlying UTF-8 encoded bytes.
@@ -69,11 +70,10 @@ public:
 
     [[nodiscard]] bool operator==(StringBase const&) const;
 
-    [[nodiscard]] ALWAYS_INLINE FlatPtr raw(Badge<FlyString>) const { return bit_cast<FlatPtr>(m_data); }
+    [[nodiscard]] ALWAYS_INLINE FlatPtr raw(Badge<FlyString>) const { return bit_cast<FlatPtr>(m_impl); }
+    [[nodiscard]] ALWAYS_INLINE FlatPtr raw(Badge<String>) const { return bit_cast<FlatPtr>(m_impl); }
 
 protected:
-    bool is_invalid() const { return m_invalid_tag == UINTPTR_MAX; }
-
     template<typename Func>
     ErrorOr<void> replace_with_new_string(size_t byte_count, Func&& callback)
     {
@@ -109,12 +109,12 @@ private:
     explicit StringBase(NonnullRefPtr<Detail::StringData const>);
 
     explicit constexpr StringBase(nullptr_t)
-        : m_invalid_tag(UINTPTR_MAX)
+        : m_impl { .data = nullptr }
     {
     }
 
     explicit constexpr StringBase(ShortString short_string)
-        : m_short_string(short_string)
+        : m_impl { .short_string = short_string }
     {
     }
 
@@ -125,18 +125,45 @@ private:
         VERIFY(is_short_string());
         VERIFY(byte_count <= MAX_SHORT_STRING_BYTE_COUNT);
 
-        m_short_string = ShortString {};
-        m_short_string.byte_count_and_short_string_flag = (byte_count << SHORT_STRING_BYTE_COUNT_SHIFT_COUNT) | SHORT_STRING_FLAG;
-        return { m_short_string.storage, byte_count };
+        m_impl = { .short_string = {} };
+        m_impl.short_string.byte_count_and_short_string_flag = (byte_count << SHORT_STRING_BYTE_COUNT_SHIFT_COUNT) | SHORT_STRING_FLAG;
+        return { m_impl.short_string.storage, byte_count };
     }
 
     void destroy_string();
 
+// from the union member that is not active; note that this guarantees nothing and just checks whatever state we're in - not all.
+#ifdef AK_STRINGBASE_VERIFY_LAUNDER_DEBUG
+    ShortString short_string_without_union_member_assertion() const
+    {
+        auto laundered_value = *__builtin_launder(&m_impl.short_string);
+        auto bitcast_value1 = bit_cast<FlatPtr>(*__builtin_launder(&m_impl.data));
+        auto bitcast_value2 = bit_cast<FlatPtr>(*__builtin_launder(&m_impl.short_string)); // one of these is the active one :P
+        VERIFY(bit_cast<FlatPtr>(laundered_value) == bitcast_value1 && bit_cast<FlatPtr>(laundered_value) == bitcast_value2);
+        return *__builtin_launder(&laundered_value);
+    }
+    StringData const* data_without_union_member_assertion() const
+    {
+        auto laundered_value = *__builtin_launder(&m_impl.data);
+        auto bitcast_value1 = bit_cast<FlatPtr>(*__builtin_launder(&m_impl.data));
+        auto bitcast_value2 = bit_cast<FlatPtr>(*__builtin_launder(&m_impl.short_string)); // one of these is the active one :P
+        VERIFY(bit_cast<FlatPtr>(laundered_value) == bitcast_value1 && bit_cast<FlatPtr>(laundered_value) == bitcast_value2);
+        return *__builtin_launder(&laundered_value);
+    }
+#else
+    // This is technically **invalid**!
+    // Inactive union members are not required to exist at all, and at this point there might not be any real object at this address.
+    // Empirically though, they point at the same address, so we can tell the compiler to _trust me bro_, and launder the pointer despite
+    // the launder itself being possibly-invalid.
+    // The block above asserts that we're reading the right value (:tm:), but this here is for schpeed.
+    ALWAYS_INLINE ShortString short_string_without_union_member_assertion() const { return *__builtin_launder(&m_impl.short_string); }
+    ALWAYS_INLINE StringData const* data_without_union_member_assertion() const { return *__builtin_launder(&m_impl.data); }
+#endif
+
     union {
-        ShortString m_short_string;
-        Detail::StringData const* m_data { nullptr };
-        uintptr_t m_invalid_tag;
-    };
+        ShortString short_string;
+        StringData const* data;
+    } m_impl;
 };
 
 inline ReadonlyBytes ShortString::bytes() const
@@ -151,81 +178,84 @@ inline size_t ShortString::byte_count() const
 
 inline ReadonlyBytes StringBase::bytes() const
 {
-    ASSERT(!is_invalid());
     if (is_short_string())
-        return m_short_string.bytes();
-    return m_data->bytes();
+        return m_impl.short_string.bytes();
+    if (!m_impl.data)
+        return {};
+    return data_without_union_member_assertion()->bytes();
 }
 
 inline u32 StringBase::hash() const
 {
-    ASSERT(!is_invalid());
     if (is_short_string()) {
         auto bytes = this->bytes();
         return string_hash(reinterpret_cast<char const*>(bytes.data()), bytes.size());
     }
-    return m_data->hash();
+    if (!m_impl.data)
+        return string_hash(nullptr, 0);
+    return data_without_union_member_assertion()->hash();
 }
 
 inline size_t StringBase::byte_count() const
 {
-    ASSERT(!is_invalid());
     if (is_short_string())
-        return m_short_string.byte_count_and_short_string_flag >> StringBase::SHORT_STRING_BYTE_COUNT_SHIFT_COUNT;
-    return m_data->byte_count();
+        return m_impl.short_string.byte_count_and_short_string_flag >> StringBase::SHORT_STRING_BYTE_COUNT_SHIFT_COUNT;
+
+    if (!m_impl.data)
+        return 0;
+    return data_without_union_member_assertion()->byte_count();
 }
 
 inline void StringBase::destroy_string()
 {
-    if (!is_short_string())
-        m_data->unref();
+    if (!is_short_string() && m_impl.data)
+        data_without_union_member_assertion()->unref();
 }
 
 inline StringBase::StringBase(NonnullRefPtr<Detail::StringData const> data)
-    : m_data(&data.leak_ref())
+    : m_impl { .data = &data.leak_ref() }
 {
 }
 
 inline StringBase::StringBase(StringBase const& other)
-    : m_data(other.m_data)
+    : m_impl(other.m_impl)
 {
-    if (!is_short_string())
-        m_data->ref();
+    if (!is_short_string() && m_impl.data)
+        data_without_union_member_assertion()->ref();
 }
 
 inline StringBase& StringBase::operator=(StringBase&& other)
 {
-    if (!is_short_string())
-        m_data->unref();
+    if (!is_short_string() && m_impl.data)
+        data_without_union_member_assertion()->unref();
 
-    m_data = exchange(other.m_data, nullptr);
-    other.m_short_string.byte_count_and_short_string_flag = SHORT_STRING_FLAG;
+    m_impl = exchange(other.m_impl, { .short_string = { .byte_count_and_short_string_flag = SHORT_STRING_FLAG } });
     return *this;
 }
 
 inline StringBase& StringBase::operator=(StringBase const& other)
 {
     if (&other != this) {
-        if (!is_short_string())
-            m_data->unref();
+        if (!is_short_string() && m_impl.data)
+            data_without_union_member_assertion()->unref();
 
-        m_data = other.m_data;
-        if (!is_short_string())
-            m_data->ref();
+        m_impl = other.m_impl;
+        if (!is_short_string() && m_impl.data)
+            data_without_union_member_assertion()->ref();
     }
     return *this;
 }
 
 inline bool StringBase::operator==(StringBase const& other) const
 {
-    ASSERT(!is_invalid());
     if (is_short_string())
-        return m_data == other.m_data;
+        return bit_cast<FlatPtr>(m_impl) == bit_cast<FlatPtr>(other.m_impl);
     if (other.is_short_string())
         return false;
-    if (m_data->is_fly_string() && other.m_data->is_fly_string())
-        return m_data == other.m_data;
+    if (m_impl.data == nullptr || other.m_impl.data == nullptr)
+        return m_impl.data == other.m_impl.data;
+    if (data_without_union_member_assertion()->is_fly_string() && other.data_without_union_member_assertion()->is_fly_string())
+        return m_impl.data == other.m_impl.data;
     return bytes() == other.bytes();
 }
-
 }

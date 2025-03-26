@@ -57,19 +57,19 @@ FlyString::FlyString(String const& string)
         return;
     }
 
-    if (string.m_data->is_fly_string()) {
+    if (string.m_impl.data->is_fly_string()) {
         m_data = string;
         return;
     }
 
-    auto it = all_fly_strings().find(string.m_data);
+    auto it = all_fly_strings().find(string.m_impl.data);
     if (it == all_fly_strings().end()) {
         m_data = string;
-        all_fly_strings().set(string.m_data);
-        string.m_data->set_fly_string(true);
+        all_fly_strings().set(string.m_impl.data);
+        string.m_impl.data->set_fly_string(true);
     } else {
-        m_data.m_data = *it;
-        m_data.m_data->ref();
+        m_data.m_impl.data = *it;
+        m_data.m_impl.data->ref();
     }
 }
 

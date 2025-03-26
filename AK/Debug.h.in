@@ -6,6 +6,10 @@
 
 #pragma once
 
+#ifndef AK_STRINGBASE_VERIFY_LAUNDER_DEBUG
+#    cmakedefine01 AK_STRINGBASE_VERIFY_LAUNDER_DEBUG
+#endif
+
 #ifndef AUDIO_DEBUG
 #    cmakedefine01 AUDIO_DEBUG
 #endif

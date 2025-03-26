@@ -43,7 +43,7 @@ public:
     [[nodiscard]] ReadonlyBytes bytes() const { return m_data.bytes(); }
     [[nodiscard]] StringView bytes_as_string_view() const { return m_data.bytes(); }
 
-    [[nodiscard]] ALWAYS_INLINE bool operator==(FlyString const& other) const { return m_data.raw({}) == other.m_data.raw({}); }
+    [[nodiscard]] ALWAYS_INLINE bool operator==(FlyString const& other) const { return m_data.raw(Badge<FlyString> {}) == other.m_data.raw(Badge<FlyString> {}); }
     [[nodiscard]] bool operator==(String const& other) const { return m_data == other; }
     [[nodiscard]] bool operator==(StringView) const;
     [[nodiscard]] bool operator==(char const*) const;
@@ -89,7 +89,7 @@ private:
     friend class Optional<FlyString>;
 
     explicit FlyString(nullptr_t)
-        : m_data(Detail::StringBase(nullptr))
+        : m_data(nullptr)
     {
     }
 
@@ -100,7 +100,7 @@ private:
 
     Detail::StringBase m_data;
 
-    bool is_invalid() const { return m_data.is_invalid(); }
+    bool is_invalid() const { return m_data.raw(Badge<FlyString> {}) == 0; }
 };
 
 void did_destroy_fly_string_data(Badge<Detail::StringData>, Detail::StringData const&);
