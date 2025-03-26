@@ -40,6 +40,13 @@ class MessageBuffer {
 public:
     MessageBuffer();
 
+    // Do not copy message buffers.
+    MessageBuffer(MessageBuffer const&) = delete;
+    MessageBuffer& operator=(MessageBuffer const&) = delete;
+
+    MessageBuffer(MessageBuffer&&) noexcept = default;
+    MessageBuffer& operator=(MessageBuffer&&) noexcept = default;
+
     ErrorOr<void> extend_data_capacity(size_t capacity);
     ErrorOr<void> append_data(u8 const* values, size_t count);
 
@@ -62,6 +69,25 @@ enum class ErrorCode : u32 {
 template<typename Value>
 using IPCErrorOr = ErrorOr<Value, ErrorCode>;
 
+
+class MessageResolverState : public RefCounted<MessageResolverState>
+{
+public:
+    static RefPtr<MessageResolverState> create(u64 request_id);
+
+    ~MessageResolverState() {
+        VERIFY(!can_resolve());
+    }
+
+    u64 request_id() const { return m_request_id; }
+    void set_resolved() { m_resolved = true; }
+    bool can_resolve() const { return !m_resolved; }
+private:
+    MessageResolverState(u64 request_id) : m_request_id(request_id) {}
+    u64 m_request_id;
+    bool m_resolved { false };
+};
+
 class Message {
 public:
     virtual ~Message() = default;
@@ -70,9 +96,16 @@ public:
     virtual int message_id() const = 0;
     virtual char const* message_name() const = 0;
     virtual ErrorOr<MessageBuffer> encode() const = 0;
+    u64 ipc_request_id() const { return m_request_id; }
+    constexpr bool is_response() const { return (message_id() % 2) == 0; }
 
 protected:
-    Message() = default;
-};
+    explicit Message(u64 request_id)
+        : m_request_id(request_id)
+    {
+    }
 
+private:
+    u64 m_request_id;
+};
 }
