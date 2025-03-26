@@ -1001,10 +1001,10 @@ void WindowOrWorkerGlobalScopeMixin::report_an_exception(JS::Value exception, Om
             // FIXME: 3. If notHandled is true, then report exception for workerObject's relevant global object with
             //    omitError set to true.
         }
-    }
-    // 8. Otherwise, the user agent may report exception to a developer console.
-    else {
-        report_exception_to_console(exception, realm, ErrorInPromise::No);
+        // 3. Otherwise, the user agent may report exception to a developer console.
+        else {
+            report_exception_to_console(exception, realm, ErrorInPromise::No);
+        }
     }
 }
 
