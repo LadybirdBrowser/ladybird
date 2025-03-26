@@ -933,7 +933,8 @@ BlockFormattingContext::DidIntroduceClearance BlockFormattingContext::clear_floa
                 m_y_offset_of_current_block_container = clearance_y_in_containing_block;
             }
 
-            float_side.clear();
+            if (!child_box.is_floating())
+                float_side.clear();
         }
     };
 
@@ -1053,7 +1054,7 @@ void BlockFormattingContext::layout_floating_box(Box const& box, BlockContainer 
     }
 
     // Then we float it to the left or right.
-    auto float_box = [&](FloatSide side, FloatSideData& side_data, FloatSideData& other_side_data) {
+    auto float_box = [&](FloatSide side, FloatSideData& side_data) {
         CSSPixels offset_from_edge = 0;
         auto float_to_edge = [&] {
             if (side == FloatSide::Left)
@@ -1165,18 +1166,13 @@ void BlockFormattingContext::layout_floating_box(Box const& box, BlockContainer 
         // NOTE: We don't set the X position here, that happens later, once we know the root block width.
         //       See parent_context_did_dimension_child_root_box() for that logic.
         box_state.set_content_y(y);
-
-        // If the new box was inserted below the bottom of the opposite side,
-        // we reset the other side back to its edge.
-        if (top_margin_edge > other_side_data.y_offset)
-            other_side_data.clear();
     };
 
     // Next, float to the left and/or right
     if (box.computed_values().float_() == CSS::Float::Left) {
-        float_box(FloatSide::Left, m_left_floats, m_right_floats);
+        float_box(FloatSide::Left, m_left_floats);
     } else if (box.computed_values().float_() == CSS::Float::Right) {
-        float_box(FloatSide::Right, m_right_floats, m_left_floats);
+        float_box(FloatSide::Right, m_right_floats);
     }
 
     m_state.get_mutable(root()).add_floating_descendant(box);

@@ -314,11 +314,9 @@ void InlineFormattingContext::generate_line_boxes()
 
         case InlineLevelIterator::Item::Type::FloatingElement:
             if (is<Box>(*item.node)) {
-                [[maybe_unused]] auto introduce_clearance = parent().clear_floating_boxes(*item.node, *this);
-                // Even if this introduces clearance, we do NOT reset
-                // the margin state, because that is clearance between
-                // floats and does not contribute to the height of the
-                // Inline Formatting Context.
+                (void)parent().clear_floating_boxes(*item.node, *this);
+                // Even if this introduces clearance, we do NOT reset the margin state, because that is clearance
+                // between floats and does not contribute to the height of the Inline Formatting Context.
                 parent().layout_floating_box(static_cast<Layout::Box const&>(*item.node), containing_block(), *m_available_space, 0, &line_builder);
             }
             break;
