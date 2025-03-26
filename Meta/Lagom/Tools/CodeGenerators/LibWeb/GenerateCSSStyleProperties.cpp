@@ -43,27 +43,6 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     return 0;
 }
 
-static String get_snake_case_function_name_for_css_property_name(StringView name)
-{
-    auto snake_case_name = snake_casify(name);
-    if (snake_case_name.starts_with('_'))
-        return MUST(snake_case_name.substring_from_byte_offset(1));
-
-    return snake_case_name;
-}
-
-static String make_name_acceptable_cpp(String const& name)
-{
-    if (name.is_one_of("float")) {
-        StringBuilder builder;
-        builder.append(name);
-        builder.append('_');
-        return MUST(builder.to_string());
-    }
-
-    return name;
-}
-
 ErrorOr<void> generate_header_file(JsonObject& properties, Core::File& file)
 {
     StringBuilder builder;
@@ -83,7 +62,7 @@ public:
 
     properties.for_each_member([&](auto& name, auto&) {
         auto declaration_generator = generator.fork();
-        auto snake_case_name = get_snake_case_function_name_for_css_property_name(name);
+        auto snake_case_name = snake_casify(name, TrimLeadingUnderscores::Yes);
         declaration_generator.set("name:acceptable_cpp", make_name_acceptable_cpp(snake_case_name));
 
         declaration_generator.append(R"~~~(
@@ -125,7 +104,7 @@ namespace Web::Bindings {
         auto definition_generator = generator.fork();
         definition_generator.set("name", name);
 
-        auto snake_case_name = get_snake_case_function_name_for_css_property_name(name);
+        auto snake_case_name = snake_casify(name, TrimLeadingUnderscores::Yes);
         definition_generator.set("name:acceptable_cpp", make_name_acceptable_cpp(snake_case_name));
 
         definition_generator.append(R"~~~(
@@ -163,7 +142,7 @@ interface mixin GeneratedCSSStyleProperties {
 
         member_generator.set("name", name);
 
-        auto snake_case_name = get_snake_case_function_name_for_css_property_name(name);
+        auto snake_case_name = snake_casify(name, TrimLeadingUnderscores::Yes);
         member_generator.set("name:snakecase", snake_case_name);
         member_generator.set("name:acceptable_cpp", make_name_acceptable_cpp(snake_case_name));
 

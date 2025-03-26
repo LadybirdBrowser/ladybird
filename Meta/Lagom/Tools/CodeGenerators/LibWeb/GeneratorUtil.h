@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2019-2021, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2022-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2022-2025, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2024, Luke Wilde <luke@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -49,11 +50,33 @@ inline String camel_casify(StringView dashy_name)
     return MUST(builder.to_string());
 }
 
-inline String snake_casify(StringView dashy_name)
+enum class TrimLeadingUnderscores : u8 {
+    No,
+    Yes,
+};
+inline String snake_casify(StringView dashy_name, TrimLeadingUnderscores trim_leading_underscores = TrimLeadingUnderscores::No)
 {
     // FIXME: We don't really need to convert dashy_name to a String first, but currently
     //        all the `replace` functions that take a StringView return ByteString.
-    return MUST(MUST(String::from_utf8(dashy_name)).replace("-"sv, "_"sv, ReplaceMode::All));
+    auto snake_case = MUST(MUST(String::from_utf8(dashy_name)).replace("-"sv, "_"sv, ReplaceMode::All));
+
+    if (trim_leading_underscores == TrimLeadingUnderscores::Yes && snake_case.starts_with('_')) {
+        return MUST(snake_case.trim("_"sv, TrimMode::Left));
+    }
+
+    return snake_case;
+}
+
+inline String make_name_acceptable_cpp(String const& name)
+{
+    if (name.is_one_of("float")) {
+        StringBuilder builder;
+        builder.append(name);
+        builder.append('_');
+        return MUST(builder.to_string());
+    }
+
+    return name;
 }
 
 inline ErrorOr<JsonValue> read_entire_file_as_json(StringView filename)
