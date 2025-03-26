@@ -156,16 +156,6 @@ ErrorOr<String> String::repeated(u32 code_point, size_t count)
     return result;
 }
 
-StringView String::bytes_as_string_view() const&
-{
-    return StringView(bytes());
-}
-
-bool String::is_empty() const
-{
-    return bytes().size() == 0;
-}
-
 ErrorOr<String> String::vformatted(StringView fmtstr, TypeErasedFormatParams& params)
 {
     StringBuilder builder;

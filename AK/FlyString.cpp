@@ -79,16 +79,6 @@ FlyString& FlyString::operator=(String const& string)
     return *this;
 }
 
-bool FlyString::is_empty() const
-{
-    return bytes_as_string_view().is_empty();
-}
-
-unsigned FlyString::hash() const
-{
-    return m_data.hash();
-}
-
 u32 FlyString::ascii_case_insensitive_hash() const
 {
     return case_insensitive_string_hash(reinterpret_cast<char const*>(bytes().data()), bytes().size());
@@ -108,21 +98,6 @@ String FlyString::to_string() const
 Utf8View FlyString::code_points() const
 {
     return Utf8View { bytes_as_string_view() };
-}
-
-ReadonlyBytes FlyString::bytes() const
-{
-    return bytes_as_string_view().bytes();
-}
-
-StringView FlyString::bytes_as_string_view() const
-{
-    return m_data.bytes();
-}
-
-bool FlyString::operator==(String const& other) const
-{
-    return m_data == other;
 }
 
 bool FlyString::operator==(StringView string) const
