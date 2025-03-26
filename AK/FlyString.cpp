@@ -110,11 +110,6 @@ bool FlyString::operator==(char const* string) const
     return bytes_as_string_view() == string;
 }
 
-void FlyString::did_destroy_fly_string_data(Badge<Detail::StringData>, Detail::StringData const& string_data)
-{
-    all_fly_strings().remove(&string_data);
-}
-
 Detail::StringBase FlyString::data(Badge<String>) const
 {
     return m_data;
@@ -218,6 +213,15 @@ bool FlyString::starts_with_bytes(StringView bytes, CaseSensitivity case_sensiti
 bool FlyString::ends_with_bytes(StringView bytes, CaseSensitivity case_sensitivity) const
 {
     return bytes_as_string_view().ends_with(bytes, case_sensitivity);
+}
+
+namespace Detail {
+
+void did_destroy_fly_string_data(Badge<Detail::StringData>, Detail::StringData const& string_data)
+{
+    all_fly_strings().remove(&string_data);
+}
+
 }
 
 }

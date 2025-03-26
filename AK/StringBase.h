@@ -9,12 +9,9 @@
 #include <AK/Badge.h>
 #include <AK/Endian.h>
 #include <AK/Forward.h>
+#include <AK/StringData.h>
 
 namespace AK::Detail {
-
-class StringData;
-
-static constexpr size_t MAX_SHORT_STRING_BYTE_COUNT = sizeof(StringData*) - sizeof(u8);
 
 struct ShortString {
     ReadonlyBytes bytes() const;
@@ -141,5 +138,94 @@ private:
         uintptr_t m_invalid_tag;
     };
 };
+
+inline ReadonlyBytes ShortString::bytes() const
+{
+    return { storage, byte_count() };
+}
+
+inline size_t ShortString::byte_count() const
+{
+    return byte_count_and_short_string_flag >> StringBase::SHORT_STRING_BYTE_COUNT_SHIFT_COUNT;
+}
+
+inline ReadonlyBytes StringBase::bytes() const
+{
+    ASSERT(!is_invalid());
+    if (is_short_string())
+        return m_short_string.bytes();
+    return m_data->bytes();
+}
+
+inline u32 StringBase::hash() const
+{
+    ASSERT(!is_invalid());
+    if (is_short_string()) {
+        auto bytes = this->bytes();
+        return string_hash(reinterpret_cast<char const*>(bytes.data()), bytes.size());
+    }
+    return m_data->hash();
+}
+
+inline size_t StringBase::byte_count() const
+{
+    ASSERT(!is_invalid());
+    if (is_short_string())
+        return m_short_string.byte_count_and_short_string_flag >> StringBase::SHORT_STRING_BYTE_COUNT_SHIFT_COUNT;
+    return m_data->byte_count();
+}
+
+inline void StringBase::destroy_string()
+{
+    if (!is_short_string())
+        m_data->unref();
+}
+
+inline StringBase::StringBase(NonnullRefPtr<Detail::StringData const> data)
+    : m_data(&data.leak_ref())
+{
+}
+
+inline StringBase::StringBase(StringBase const& other)
+    : m_data(other.m_data)
+{
+    if (!is_short_string())
+        m_data->ref();
+}
+
+inline StringBase& StringBase::operator=(StringBase&& other)
+{
+    if (!is_short_string())
+        m_data->unref();
+
+    m_data = exchange(other.m_data, nullptr);
+    other.m_short_string.byte_count_and_short_string_flag = SHORT_STRING_FLAG;
+    return *this;
+}
+
+inline StringBase& StringBase::operator=(StringBase const& other)
+{
+    if (&other != this) {
+        if (!is_short_string())
+            m_data->unref();
+
+        m_data = other.m_data;
+        if (!is_short_string())
+            m_data->ref();
+    }
+    return *this;
+}
+
+inline bool StringBase::operator==(StringBase const& other) const
+{
+    ASSERT(!is_invalid());
+    if (is_short_string())
+        return m_data == other.m_data;
+    if (other.is_short_string())
+        return false;
+    if (m_data->is_fly_string() && other.m_data->is_fly_string())
+        return m_data == other.m_data;
+    return bytes() == other.bytes();
+}
 
 }
