@@ -21,6 +21,9 @@ namespace Web::CSS {
 class ImageStyleValue final
     : public AbstractImageStyleValue
     , public Weakable<ImageStyleValue> {
+
+    using Base = AbstractImageStyleValue;
+
 public:
     static ValueComparingNonnullRefPtr<ImageStyleValue> create(URL::URL const& url)
     {
@@ -28,7 +31,7 @@ public:
     }
     virtual ~ImageStyleValue() override;
 
-    void visit_edges(JS::Cell::Visitor& visitor) const;
+    virtual void visit_edges(JS::Cell::Visitor& visitor) const override;
 
     virtual String to_string(SerializationMode) const override;
     virtual bool equals(CSSStyleValue const& other) const override;
