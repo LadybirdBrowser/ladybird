@@ -223,4 +223,32 @@ String serialize_a_srgb_value(Color color)
     return MUST(builder.to_string());
 }
 
+// https://drafts.csswg.org/cssom/#serialize-a-css-declaration
+String serialize_a_css_declaration(StringView property, StringView value, Important important)
+{
+    // 1. Let s be the empty string.
+    StringBuilder builder;
+
+    // 2. Append property to s.
+    builder.append(property);
+
+    // 3. Append ": " (U+003A U+0020) to s.
+    builder.append(": "sv);
+
+    // 4. If value contains any non-whitespace characters, append value to s.
+    if (!value.is_whitespace())
+        builder.append(value);
+
+    // 5. If the important flag is set, append " !important" (U+0020 U+0021 U+0069 U+006D U+0070 U+006F U+0072 U+0074
+    //    U+0061 U+006E U+0074) to s.
+    if (important == Important::Yes)
+        builder.append(" !important"sv);
+
+    // 6. Append ";" (U+003B) to s.
+    builder.append(';');
+
+    // 7. Return s.
+    return MUST(builder.to_string());
+}
+
 }

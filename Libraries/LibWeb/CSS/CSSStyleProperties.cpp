@@ -1042,32 +1042,6 @@ WebIDL::ExceptionOr<void> CSSStyleProperties::set_css_float(StringView value)
     return set_property("float"sv, value, ""sv);
 }
 
-// https://www.w3.org/TR/cssom/#serialize-a-css-declaration
-static String serialize_a_css_declaration(CSS::PropertyID property, StringView value, Important important)
-{
-    StringBuilder builder;
-
-    // 1. Let s be the empty string.
-    // 2. Append property to s.
-    builder.append(string_from_property_id(property));
-
-    // 3. Append ": " (U+003A U+0020) to s.
-    builder.append(": "sv);
-
-    // 4. Append value to s.
-    builder.append(value);
-
-    // 5. If the important flag is set, append " !important" (U+0020 U+0021 U+0069 U+006D U+0070 U+006F U+0072 U+0074 U+0061 U+006E U+0074) to s.
-    if (important == Important::Yes)
-        builder.append(" !important"sv);
-
-    // 6. Append ";" (U+003B) to s.
-    builder.append(';');
-
-    // 7. Return s.
-    return MUST(builder.to_string());
-}
-
 // https://www.w3.org/TR/cssom/#serialize-a-css-declaration-block
 String CSSStyleProperties::serialized() const
 {
@@ -1099,30 +1073,7 @@ String CSSStyleProperties::serialized() const
         // 6. Let serialized declaration be the result of invoking serialize a CSS declaration with property name property, value value,
         //    and the important flag set if declaration has its important flag set.
         // NB: We have to inline this here as the actual implementation does not accept custom properties.
-        String serialized_declaration = [&] {
-            // https://www.w3.org/TR/cssom/#serialize-a-css-declaration
-            StringBuilder builder;
-
-            // 1. Let s be the empty string.
-            // 2. Append property to s.
-            builder.append(property);
-
-            // 3. Append ": " (U+003A U+0020) to s.
-            builder.append(": "sv);
-
-            // 4. Append value to s.
-            builder.append(value);
-
-            // 5. If the important flag is set, append " !important" (U+0020 U+0021 U+0069 U+006D U+0070 U+006F U+0072 U+0074 U+0061 U+006E U+0074) to s.
-            if (declaration.value.important == Important::Yes)
-                builder.append(" !important"sv);
-
-            // 6. Append ";" (U+003B) to s.
-            builder.append(';');
-
-            // 7. Return s.
-            return MUST(builder.to_string());
-        }();
+        String serialized_declaration = serialize_a_css_declaration(property, value, declaration.value.important);
 
         // 7. Append serialized declaration to list.
         list.append(move(serialized_declaration));
@@ -1149,7 +1100,7 @@ String CSSStyleProperties::serialized() const
 
         // 6. Let serialized declaration be the result of invoking serialize a CSS declaration with property name property, value value,
         //    and the important flag set if declaration has its important flag set.
-        auto serialized_declaration = serialize_a_css_declaration(property, move(value), declaration.important);
+        auto serialized_declaration = serialize_a_css_declaration(string_from_property_id(property), move(value), declaration.important);
 
         // 7. Append serialized declaration to list.
         list.append(move(serialized_declaration));
