@@ -56,6 +56,7 @@
 #include <LibWeb/CSS/StyleValues/StringStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/URLStyleValue.h>
+#include <LibWeb/CSS/StyleValues/UnicodeRangeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/Dump.h>
@@ -619,6 +620,13 @@ Vector<Gfx::UnicodeRange> Parser::parse_unicode_ranges(TokenStream<ComponentValu
         unicode_ranges.append(maybe_unicode_range.release_value());
     }
     return unicode_ranges;
+}
+
+RefPtr<UnicodeRangeStyleValue> Parser::parse_unicode_range_value(TokenStream<ComponentValue>& tokens)
+{
+    if (auto range = parse_unicode_range(tokens); range.has_value())
+        return UnicodeRangeStyleValue::create(range.release_value());
+    return nullptr;
 }
 
 RefPtr<CSSStyleValue> Parser::parse_integer_value(TokenStream<ComponentValue>& tokens)

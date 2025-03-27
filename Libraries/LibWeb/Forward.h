@@ -265,6 +265,7 @@ class TimeStyleValue;
 class Transformation;
 class TransformationStyleValue;
 class TransitionStyleValue;
+class UnicodeRangeStyleValue;
 class UnresolvedStyleValue;
 class URLStyleValue;
 class VisualViewport;
