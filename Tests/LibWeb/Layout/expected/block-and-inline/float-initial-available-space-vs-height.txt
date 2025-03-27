@@ -1,0 +1,25 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x413 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x5 children: not-inline
+      BlockContainer <div.a> at (8,8) content-size 100x5 children: inline
+        frag 0 from TextNode start: 1, length: 1, rect: [8,8 4.328125x5] baseline: 4
+            "H"
+        TextNode <#text>
+        BlockContainer <div.b.l> at (8,13) content-size 100x100 floating [BFC] children: not-inline
+        TextNode <#text>
+        BlockContainer <div.c.l> at (8,113) content-size 30x300 floating [BFC] children: not-inline
+        TextNode <#text>
+        BlockContainer <div.c.r> at (78,113) content-size 30x300 floating [BFC] children: not-inline
+        TextNode <#text>
+      BlockContainer <(anonymous)> at (8,13) content-size 784x0 children: inline
+        TextNode <#text>
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x413]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x5]
+      PaintableWithLines (BlockContainer<DIV>.a) [8,8 100x5]
+        TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer<DIV>.b.l) [8,13 100x100]
+        PaintableWithLines (BlockContainer<DIV>.c.l) [8,113 30x300]
+        PaintableWithLines (BlockContainer<DIV>.c.r) [78,113 30x300]
+      PaintableWithLines (BlockContainer(anonymous)) [8,13 784x0]
