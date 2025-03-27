@@ -250,8 +250,8 @@ ECMAScriptFunctionObject::ECMAScriptFunctionObject(FlyString name, ByteString so
                     // 3. Perform ! env.InitializeBinding(n, undefined).
                     m_var_names_to_initialize_binding.append({
                         .identifier = id,
-                        .parameter_binding = parameter_bindings.contains(id.string()),
-                        .function_name = function_names.contains(id.string()),
+                        // NOTE: We don't have to set parameter_binding or function_name here
+                        //       since those are only relevant in the hasParameterExpressions==true path.
                     });
 
                     if (!id.is_local())
