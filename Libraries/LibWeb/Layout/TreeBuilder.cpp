@@ -222,7 +222,7 @@ void TreeBuilder::create_pseudo_element_if_needed(DOM::Element& element, CSS::Ps
             marker_style);
         static_cast<ListItemBox&>(*pseudo_element_node).set_marker(list_item_marker);
         element.set_pseudo_element_node({}, CSS::PseudoElement::Marker, list_item_marker);
-        pseudo_element_node->append_child(*list_item_marker);
+        pseudo_element_node->prepend_child(*list_item_marker);
     }
 
     auto generated_for = CSS::to_generated_pseudo_element(pseudo_element).release_value();
@@ -702,7 +702,7 @@ void TreeBuilder::update_layout_tree_after_children(DOM::Node& dom_node, GC::Ref
         auto list_item_marker = document.heap().allocate<ListItemMarkerBox>(document, layout_node->computed_values().list_style_type(), layout_node->computed_values().list_style_position(), element, marker_style);
         static_cast<ListItemBox&>(*layout_node).set_marker(list_item_marker);
         element.set_pseudo_element_node({}, CSS::PseudoElement::Marker, list_item_marker);
-        layout_node->append_child(*list_item_marker);
+        layout_node->prepend_child(*list_item_marker);
     }
 
     if (is<SVG::SVGGraphicsElement>(dom_node)) {

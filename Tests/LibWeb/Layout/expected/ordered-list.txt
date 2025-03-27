@@ -7,22 +7,22 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
         ListItemBox <li> at (48,16) content-size 744x17 children: inline
           frag 0 from TextNode start: 0, length: 7, rect: [48,16 58.78125x17] baseline: 13.296875
               "Item 20"
-          TextNode <#text>
           ListItemMarkerBox <(anonymous)> at (13.25,16) content-size 22.75x17 children: not-inline
+          TextNode <#text>
         BlockContainer <(anonymous)> at (48,33) content-size 744x0 children: inline
           TextNode <#text>
         ListItemBox <li> at (48,33) content-size 744x17 children: inline
           frag 0 from TextNode start: 0, length: 7, rect: [48,33 55.53125x17] baseline: 13.296875
               "Item 21"
-          TextNode <#text>
           ListItemMarkerBox <(anonymous)> at (16.5,33) content-size 19.5x17 children: not-inline
+          TextNode <#text>
         BlockContainer <(anonymous)> at (48,50) content-size 744x0 children: inline
           TextNode <#text>
         ListItemBox <li> at (48,50) content-size 744x17 children: inline
           frag 0 from TextNode start: 0, length: 7, rect: [48,50 58x17] baseline: 13.296875
               "Item 22"
-          TextNode <#text>
           ListItemMarkerBox <(anonymous)> at (14.03125,50) content-size 21.96875x17 children: not-inline
+          TextNode <#text>
         BlockContainer <(anonymous)> at (48,67) content-size 744x0 children: inline
           TextNode <#text>
       BlockContainer <(anonymous)> at (8,83) content-size 784x0 children: inline
@@ -33,29 +33,29 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
         ListItemBox <li> at (48,83) content-size 744x17 children: inline
           frag 0 from TextNode start: 0, length: 6, rect: [48,83 46.71875x17] baseline: 13.296875
               "Item 1"
-          TextNode <#text>
           ListItemMarkerBox <(anonymous)> at (25.3125,83) content-size 10.6875x17 children: not-inline
+          TextNode <#text>
         BlockContainer <(anonymous)> at (48,100) content-size 744x0 children: inline
           TextNode <#text>
         ListItemBox <li> at (48,100) content-size 744x17 children: inline
           frag 0 from TextNode start: 0, length: 6, rect: [48,100 48.828125x17] baseline: 13.296875
               "Item 5"
-          TextNode <#text>
           ListItemMarkerBox <(anonymous)> at (23.203125,100) content-size 12.796875x17 children: not-inline
+          TextNode <#text>
         BlockContainer <(anonymous)> at (48,117) content-size 744x0 children: inline
           TextNode <#text>
         ListItemBox <li> at (48,117) content-size 744x17 children: inline
           frag 0 from TextNode start: 0, length: 6, rect: [48,117 49.109375x17] baseline: 13.296875
               "Item 6"
-          TextNode <#text>
           ListItemMarkerBox <(anonymous)> at (22.921875,117) content-size 13.078125x17 children: not-inline
+          TextNode <#text>
         BlockContainer <(anonymous)> at (48,134) content-size 744x0 children: inline
           TextNode <#text>
         ListItemBox <li> at (48,134) content-size 744x17 children: inline
           frag 0 from TextNode start: 0, length: 6, rect: [48,134 49.09375x17] baseline: 13.296875
               "Item 7"
-          TextNode <#text>
           ListItemMarkerBox <(anonymous)> at (22.9375,134) content-size 13.0625x17 children: not-inline
+          TextNode <#text>
         BlockContainer <(anonymous)> at (48,151) content-size 744x0 children: inline
           TextNode <#text>
       BlockContainer <(anonymous)> at (8,167) content-size 784x0 children: inline
@@ -67,34 +67,34 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
       PaintableWithLines (BlockContainer<OL>) [8,16 784x51]
         PaintableWithLines (BlockContainer(anonymous)) [48,16 744x0]
         PaintableWithLines (ListItemBox<LI>) [48,16 744x17]
-          TextPaintable (TextNode<#text>)
           MarkerPaintable (ListItemMarkerBox(anonymous)) [13.25,16 22.75x17]
+          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer(anonymous)) [48,33 744x0]
         PaintableWithLines (ListItemBox<LI>) [48,33 744x17]
-          TextPaintable (TextNode<#text>)
           MarkerPaintable (ListItemMarkerBox(anonymous)) [16.5,33 19.5x17]
+          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer(anonymous)) [48,50 744x0]
         PaintableWithLines (ListItemBox<LI>) [48,50 744x17]
-          TextPaintable (TextNode<#text>)
           MarkerPaintable (ListItemMarkerBox(anonymous)) [14.03125,50 21.96875x17]
+          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer(anonymous)) [48,67 744x0]
       PaintableWithLines (BlockContainer(anonymous)) [8,83 784x0]
       PaintableWithLines (BlockContainer<OL>) [8,83 784x68]
         PaintableWithLines (BlockContainer(anonymous)) [48,83 744x0]
         PaintableWithLines (ListItemBox<LI>) [48,83 744x17]
-          TextPaintable (TextNode<#text>)
           MarkerPaintable (ListItemMarkerBox(anonymous)) [25.3125,83 10.6875x17]
+          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer(anonymous)) [48,100 744x0]
         PaintableWithLines (ListItemBox<LI>) [48,100 744x17]
-          TextPaintable (TextNode<#text>)
           MarkerPaintable (ListItemMarkerBox(anonymous)) [23.203125,100 12.796875x17]
+          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer(anonymous)) [48,117 744x0]
         PaintableWithLines (ListItemBox<LI>) [48,117 744x17]
-          TextPaintable (TextNode<#text>)
           MarkerPaintable (ListItemMarkerBox(anonymous)) [22.921875,117 13.078125x17]
+          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer(anonymous)) [48,134 744x0]
         PaintableWithLines (ListItemBox<LI>) [48,134 744x17]
-          TextPaintable (TextNode<#text>)
           MarkerPaintable (ListItemMarkerBox(anonymous)) [22.9375,134 13.0625x17]
+          TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer(anonymous)) [48,151 744x0]
       PaintableWithLines (BlockContainer(anonymous)) [8,167 784x0]
