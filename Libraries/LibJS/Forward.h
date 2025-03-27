@@ -179,6 +179,7 @@ class ForStatement;
 class FunctionEnvironment;
 class FunctionNode;
 struct FunctionParameter;
+class FunctionParameters;
 class GlobalEnvironment;
 class GlobalObject;
 struct GraphLoadingState;

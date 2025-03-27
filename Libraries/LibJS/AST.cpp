@@ -241,7 +241,7 @@ ThrowCompletionOr<ClassElement::ClassValue> ClassField::class_element_evaluation
         FunctionParsingInsights parsing_insights;
         parsing_insights.uses_this_from_environment = true;
         parsing_insights.uses_this = true;
-        initializer = ECMAScriptFunctionObject::create(realm, "field"_string, ByteString::empty(), *function_code, {}, 0, {}, vm.lexical_environment(), vm.running_execution_context().private_environment, FunctionKind::Normal, true, parsing_insights, false, property_key_or_private_name);
+        initializer = ECMAScriptFunctionObject::create(realm, "field"_string, ByteString::empty(), *function_code, FunctionParameters::empty(), 0, {}, vm.lexical_environment(), vm.running_execution_context().private_environment, FunctionKind::Normal, true, parsing_insights, false, property_key_or_private_name);
         initializer->make_method(target);
     }
 
@@ -288,7 +288,7 @@ ThrowCompletionOr<ClassElement::ClassValue> StaticInitializer::class_element_eva
     FunctionParsingInsights parsing_insights;
     parsing_insights.uses_this_from_environment = true;
     parsing_insights.uses_this = true;
-    auto body_function = ECMAScriptFunctionObject::create(realm, ""_string, ByteString::empty(), *m_function_body, {}, 0, m_function_body->local_variables_names(), lexical_environment, private_environment, FunctionKind::Normal, true, parsing_insights, false);
+    auto body_function = ECMAScriptFunctionObject::create(realm, ""_string, ByteString::empty(), *m_function_body, FunctionParameters::empty(), 0, m_function_body->local_variables_names(), lexical_environment, private_environment, FunctionKind::Normal, true, parsing_insights, false);
 
     // 6. Perform MakeMethod(bodyFunction, homeObject).
     body_function->make_method(home_object);
@@ -833,11 +833,11 @@ void FunctionNode::dump(int indent, ByteString const& class_name) const
         print_indent(indent + 1);
         outln("\033[31;1m(direct eval)\033[0m");
     }
-    if (!m_parameters.is_empty()) {
+    if (!m_parameters->is_empty()) {
         print_indent(indent + 1);
         outln("(Parameters)");
 
-        for (auto& parameter : m_parameters) {
+        for (auto& parameter : m_parameters->parameters()) {
             parameter.binding.visit(
                 [&](Identifier const& identifier) {
                     if (parameter.is_rest) {
@@ -1878,6 +1878,12 @@ NonnullRefPtr<CallExpression> CallExpression::create(SourceRange source_range, N
 NonnullRefPtr<NewExpression> NewExpression::create(SourceRange source_range, NonnullRefPtr<Expression const> callee, ReadonlySpan<Argument> arguments, InvocationStyleEnum invocation_style, InsideParenthesesEnum inside_parens)
 {
     return ASTNodeWithTailArray::create<NewExpression>(arguments.size(), move(source_range), move(callee), arguments, invocation_style, inside_parens);
+}
+
+NonnullRefPtr<FunctionParameters> FunctionParameters::empty()
+{
+    static auto empty = adopt_ref(*new FunctionParameters({}));
+    return empty;
 }
 
 }

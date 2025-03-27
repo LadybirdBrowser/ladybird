@@ -40,7 +40,7 @@ public:
 
     virtual Vector<FlyString> const& local_variables_names() const { VERIFY_NOT_REACHED(); }
 
-    virtual Vector<FunctionParameter> const& formal_parameters() const { VERIFY_NOT_REACHED(); }
+    virtual NonnullRefPtr<FunctionParameters const> const& formal_parameters() const { VERIFY_NOT_REACHED(); }
 
 protected:
     explicit FunctionObject(Realm&, Object* prototype, MayInterfereWithIndexedPropertyAccess = MayInterfereWithIndexedPropertyAccess::No);

@@ -692,6 +692,28 @@ struct FunctionParameter {
     GC::Root<Bytecode::Executable> bytecode_executable {};
 };
 
+class FunctionParameters : public RefCounted<FunctionParameters> {
+public:
+    static NonnullRefPtr<FunctionParameters> create(Vector<FunctionParameter> parameters)
+    {
+        return adopt_ref(*new FunctionParameters(move(parameters)));
+    }
+
+    static NonnullRefPtr<FunctionParameters> empty();
+
+    bool is_empty() const { return m_parameters.is_empty(); }
+    size_t size() const { return m_parameters.size(); }
+    Vector<FunctionParameter> const& parameters() const { return m_parameters; }
+
+private:
+    FunctionParameters(Vector<FunctionParameter> parameters)
+        : m_parameters(move(parameters))
+    {
+    }
+
+    Vector<FunctionParameter> m_parameters;
+};
+
 struct FunctionParsingInsights {
     bool uses_this { false };
     bool uses_this_from_environment { false };
@@ -705,7 +727,8 @@ public:
     RefPtr<Identifier const> name_identifier() const { return m_name; }
     ByteString const& source_text() const { return m_source_text; }
     Statement const& body() const { return *m_body; }
-    Vector<FunctionParameter> const& parameters() const { return m_parameters; }
+    auto const& body_ptr() const { return m_body; }
+    auto const& parameters() const { return m_parameters; }
     i32 function_length() const { return m_function_length; }
     Vector<FlyString> const& local_variables_names() const { return m_local_variables_names; }
     bool is_strict_mode() const { return m_is_strict_mode; }
@@ -722,7 +745,7 @@ public:
     virtual ~FunctionNode() { }
 
 protected:
-    FunctionNode(RefPtr<Identifier const> name, ByteString source_text, NonnullRefPtr<Statement const> body, Vector<FunctionParameter> parameters, i32 function_length, FunctionKind kind, bool is_strict_mode, FunctionParsingInsights parsing_insights, bool is_arrow_function, Vector<FlyString> local_variables_names)
+    FunctionNode(RefPtr<Identifier const> name, ByteString source_text, NonnullRefPtr<Statement const> body, NonnullRefPtr<FunctionParameters const> parameters, i32 function_length, FunctionKind kind, bool is_strict_mode, FunctionParsingInsights parsing_insights, bool is_arrow_function, Vector<FlyString> local_variables_names)
         : m_name(move(name))
         , m_source_text(move(source_text))
         , m_body(move(body))
@@ -745,7 +768,7 @@ protected:
 private:
     ByteString m_source_text;
     NonnullRefPtr<Statement const> m_body;
-    Vector<FunctionParameter> const m_parameters;
+    NonnullRefPtr<FunctionParameters const> m_parameters;
     i32 const m_function_length;
     FunctionKind m_kind;
     bool m_is_strict_mode : 1 { false };
@@ -761,7 +784,7 @@ class FunctionDeclaration final
 public:
     static bool must_have_name() { return true; }
 
-    FunctionDeclaration(SourceRange source_range, RefPtr<Identifier const> name, ByteString source_text, NonnullRefPtr<Statement const> body, Vector<FunctionParameter> parameters, i32 function_length, FunctionKind kind, bool is_strict_mode, FunctionParsingInsights insights, Vector<FlyString> local_variables_names)
+    FunctionDeclaration(SourceRange source_range, RefPtr<Identifier const> name, ByteString source_text, NonnullRefPtr<Statement const> body, NonnullRefPtr<FunctionParameters const> parameters, i32 function_length, FunctionKind kind, bool is_strict_mode, FunctionParsingInsights insights, Vector<FlyString> local_variables_names)
         : Declaration(move(source_range))
         , FunctionNode(move(name), move(source_text), move(body), move(parameters), function_length, kind, is_strict_mode, insights, false, move(local_variables_names))
     {
@@ -791,7 +814,7 @@ class FunctionExpression final
 public:
     static bool must_have_name() { return false; }
 
-    FunctionExpression(SourceRange source_range, RefPtr<Identifier const> name, ByteString source_text, NonnullRefPtr<Statement const> body, Vector<FunctionParameter> parameters, i32 function_length, FunctionKind kind, bool is_strict_mode, FunctionParsingInsights insights, Vector<FlyString> local_variables_names, bool is_arrow_function = false)
+    FunctionExpression(SourceRange source_range, RefPtr<Identifier const> name, ByteString source_text, NonnullRefPtr<Statement const> body, NonnullRefPtr<FunctionParameters const> parameters, i32 function_length, FunctionKind kind, bool is_strict_mode, FunctionParsingInsights insights, Vector<FlyString> local_variables_names, bool is_arrow_function = false)
         : Expression(move(source_range))
         , FunctionNode(move(name), move(source_text), move(body), move(parameters), function_length, kind, is_strict_mode, insights, is_arrow_function, move(local_variables_names))
     {
