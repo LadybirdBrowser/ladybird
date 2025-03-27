@@ -16,9 +16,9 @@
 #include <unistd.h>
 
 #ifdef AK_OS_MACOS
-constexpr int TIMEOUT_PER_STEP_IN_MS = 500;
+constexpr int TIMEOUT_PER_STEP_IN_MS = 350;
 #else
-constexpr int TIMEOUT_PER_STEP_IN_MS = 50;
+constexpr int TIMEOUT_PER_STEP_IN_MS = 75;
 #endif
 
 TEST_CASE(file_watcher_child_events)
