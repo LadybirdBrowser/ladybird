@@ -17,7 +17,9 @@ void ElementByIdMap::add(FlyString const& element_id, Element& element)
         return !element.has_value();
     });
 
-    VERIFY(!elements_with_id.contains_slow(element));
+    elements_with_id.remove_first_matching([&](auto const& another_element) {
+        return &element == another_element.ptr();
+    });
     elements_with_id.insert_before_matching(element, [&](auto& another_element) {
         return element.is_before(*another_element);
     });
