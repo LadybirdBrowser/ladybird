@@ -51,6 +51,7 @@ private:
 
     Web::Page::PendingDialog m_pending_dialog { Web::Page::PendingDialog::None };
     Optional<String> m_pending_prompt_text;
+    Web::DevicePixelRect m_cached_dims;
 };
 
 }
