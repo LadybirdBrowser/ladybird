@@ -21,7 +21,7 @@ IDBDatabase::IDBDatabase(JS::Realm& realm, Database& db)
     , m_associated_database(db)
 {
     db.associate(*this);
-    db.object_stores().copy_to(m_object_store_set);
+    m_object_store_set = Vector<GC::Ref<ObjectStore>> { db.object_stores() };
 }
 
 IDBDatabase::~IDBDatabase() = default;
