@@ -564,6 +564,10 @@ void BlockFormattingContext::layout_inline_children(BlockContainer const& block_
         block_container_state.set_content_width(used_width_px);
         block_container_state.set_content_height(context.automatic_content_height());
     }
+
+    // If we end up with remaining vertical clearance, we should make sure the next block is moved down accordingly.
+    if (context.vertical_float_clearance() > 0)
+        m_y_offset_of_current_block_container = context.vertical_float_clearance();
 }
 
 CSSPixels BlockFormattingContext::compute_auto_height_for_block_level_element(Box const& box, AvailableSpace const& available_space)
@@ -704,9 +708,8 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
         && box.computed_values().height().is_auto();
 
     // NOTE: In quirks mode, the html element's height matches the viewport so it can be treated as definite
-    if (box_state.has_definite_height() || box_is_html_element_in_quirks_mode) {
+    if (box_state.has_definite_height() || box_is_html_element_in_quirks_mode)
         resolve_used_height_if_treated_as_auto(box, available_space);
-    }
 
     auto independent_formatting_context = create_independent_formatting_context_if_needed(m_state, m_layout_mode, box);
 
@@ -817,7 +820,9 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
         if (!m_margin_state.box_last_in_flow_child_margin_bottom_collapsed) {
             m_margin_state.reset();
         }
-        m_y_offset_of_current_block_container = box_state.offset.y() + box_state.content_height() + box_state.border_box_bottom();
+        auto box_height = box_state.offset.y() + box_state.content_height() + box_state.border_box_bottom();
+        if (!m_y_offset_of_current_block_container.has_value() || box_height > m_y_offset_of_current_block_container.value())
+            m_y_offset_of_current_block_container = box_height;
     }
     m_margin_state.box_last_in_flow_child_margin_bottom_collapsed = false;
 
