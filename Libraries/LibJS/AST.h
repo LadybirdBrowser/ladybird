@@ -696,6 +696,8 @@ class FunctionParameters : public RefCounted<FunctionParameters> {
 public:
     static NonnullRefPtr<FunctionParameters> create(Vector<FunctionParameter> parameters)
     {
+        if (parameters.is_empty())
+            return empty();
         return adopt_ref(*new FunctionParameters(move(parameters)));
     }
 
