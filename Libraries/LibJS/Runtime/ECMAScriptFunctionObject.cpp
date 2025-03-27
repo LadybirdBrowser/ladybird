@@ -33,7 +33,7 @@ namespace JS {
 
 GC_DEFINE_ALLOCATOR(ECMAScriptFunctionObject);
 
-GC::Ref<ECMAScriptFunctionObject> ECMAScriptFunctionObject::create(Realm& realm, FlyString name, ByteString source_text, Statement const& ecmascript_code, Vector<FunctionParameter> parameters, i32 m_function_length, Vector<FlyString> local_variables_names, Environment* parent_environment, PrivateEnvironment* private_environment, FunctionKind kind, bool is_strict, FunctionParsingInsights parsing_insights, bool is_arrow_function, Variant<PropertyKey, PrivateName, Empty> class_field_initializer_name)
+GC::Ref<ECMAScriptFunctionObject> ECMAScriptFunctionObject::create(Realm& realm, FlyString name, ByteString source_text, Statement const& ecmascript_code, NonnullRefPtr<FunctionParameters const> parameters, i32 m_function_length, Vector<FlyString> local_variables_names, Environment* parent_environment, PrivateEnvironment* private_environment, FunctionKind kind, bool is_strict, FunctionParsingInsights parsing_insights, bool is_arrow_function, Variant<PropertyKey, PrivateName, Empty> class_field_initializer_name)
 {
     Object* prototype = nullptr;
     switch (kind) {
@@ -53,12 +53,12 @@ GC::Ref<ECMAScriptFunctionObject> ECMAScriptFunctionObject::create(Realm& realm,
     return realm.create<ECMAScriptFunctionObject>(move(name), move(source_text), ecmascript_code, move(parameters), m_function_length, move(local_variables_names), parent_environment, private_environment, *prototype, kind, is_strict, parsing_insights, is_arrow_function, move(class_field_initializer_name));
 }
 
-GC::Ref<ECMAScriptFunctionObject> ECMAScriptFunctionObject::create(Realm& realm, FlyString name, Object& prototype, ByteString source_text, Statement const& ecmascript_code, Vector<FunctionParameter> parameters, i32 m_function_length, Vector<FlyString> local_variables_names, Environment* parent_environment, PrivateEnvironment* private_environment, FunctionKind kind, bool is_strict, FunctionParsingInsights parsing_insights, bool is_arrow_function, Variant<PropertyKey, PrivateName, Empty> class_field_initializer_name)
+GC::Ref<ECMAScriptFunctionObject> ECMAScriptFunctionObject::create(Realm& realm, FlyString name, Object& prototype, ByteString source_text, Statement const& ecmascript_code, NonnullRefPtr<FunctionParameters const> parameters, i32 m_function_length, Vector<FlyString> local_variables_names, Environment* parent_environment, PrivateEnvironment* private_environment, FunctionKind kind, bool is_strict, FunctionParsingInsights parsing_insights, bool is_arrow_function, Variant<PropertyKey, PrivateName, Empty> class_field_initializer_name)
 {
     return realm.create<ECMAScriptFunctionObject>(move(name), move(source_text), ecmascript_code, move(parameters), m_function_length, move(local_variables_names), parent_environment, private_environment, prototype, kind, is_strict, parsing_insights, is_arrow_function, move(class_field_initializer_name));
 }
 
-ECMAScriptFunctionObject::ECMAScriptFunctionObject(FlyString name, ByteString source_text, Statement const& ecmascript_code, Vector<FunctionParameter> formal_parameters, i32 function_length, Vector<FlyString> local_variables_names, Environment* parent_environment, PrivateEnvironment* private_environment, Object& prototype, FunctionKind kind, bool strict, FunctionParsingInsights parsing_insights, bool is_arrow_function, Variant<PropertyKey, PrivateName, Empty> class_field_initializer_name)
+ECMAScriptFunctionObject::ECMAScriptFunctionObject(FlyString name, ByteString source_text, Statement const& ecmascript_code, NonnullRefPtr<FunctionParameters const> formal_parameters, i32 function_length, Vector<FlyString> local_variables_names, Environment* parent_environment, PrivateEnvironment* private_environment, Object& prototype, FunctionKind kind, bool strict, FunctionParsingInsights parsing_insights, bool is_arrow_function, Variant<PropertyKey, PrivateName, Empty> class_field_initializer_name)
     : FunctionObject(prototype)
     , m_name(move(name))
     , m_function_length(function_length)
@@ -92,7 +92,7 @@ ECMAScriptFunctionObject::ECMAScriptFunctionObject(FlyString name, ByteString so
     m_script_or_module = vm().get_active_script_or_module();
 
     // 15.1.3 Static Semantics: IsSimpleParameterList, https://tc39.es/ecma262/#sec-static-semantics-issimpleparameterlist
-    m_has_simple_parameter_list = all_of(m_formal_parameters, [&](auto& parameter) {
+    m_has_simple_parameter_list = all_of(m_formal_parameters->parameters(), [&](auto& parameter) {
         if (parameter.is_rest)
             return false;
         if (parameter.default_value)
@@ -121,7 +121,7 @@ ECMAScriptFunctionObject::ECMAScriptFunctionObject(FlyString name, ByteString so
     size_t parameters_in_environment = 0;
 
     // NOTE: This loop performs step 5, 6, and 8.
-    for (auto const& parameter : formals) {
+    for (auto const& parameter : formals->parameters()) {
         if (parameter.default_value)
             m_has_parameter_expressions = true;
 
@@ -385,11 +385,11 @@ ThrowCompletionOr<Value> ECMAScriptFunctionObject::internal_call(Value this_argu
     auto callee_context = ExecutionContext::create();
 
     // Non-standard
-    callee_context->arguments.ensure_capacity(max(arguments_list.size(), m_formal_parameters.size()));
+    callee_context->arguments.ensure_capacity(max(arguments_list.size(), m_formal_parameters->size()));
     callee_context->arguments.append(arguments_list.data(), arguments_list.size());
     callee_context->passed_argument_count = arguments_list.size();
-    if (arguments_list.size() < m_formal_parameters.size()) {
-        for (size_t i = arguments_list.size(); i < m_formal_parameters.size(); ++i)
+    if (arguments_list.size() < m_formal_parameters->size()) {
+        for (size_t i = arguments_list.size(); i < m_formal_parameters->size(); ++i)
             callee_context->arguments.append(js_undefined());
     }
 
@@ -442,11 +442,11 @@ ThrowCompletionOr<GC::Ref<Object>> ECMAScriptFunctionObject::internal_construct(
     auto callee_context = ExecutionContext::create();
 
     // Non-standard
-    callee_context->arguments.ensure_capacity(max(arguments_list.size(), m_formal_parameters.size()));
+    callee_context->arguments.ensure_capacity(max(arguments_list.size(), m_formal_parameters->size()));
     callee_context->arguments.append(arguments_list.data(), arguments_list.size());
     callee_context->passed_argument_count = arguments_list.size();
-    if (arguments_list.size() < m_formal_parameters.size()) {
-        for (size_t i = arguments_list.size(); i < m_formal_parameters.size(); ++i)
+    if (arguments_list.size() < m_formal_parameters->size()) {
+        for (size_t i = arguments_list.size(); i < m_formal_parameters->size(); ++i)
             callee_context->arguments.append(js_undefined());
     }
 

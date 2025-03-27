@@ -68,8 +68,8 @@ CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(E
     }
 
     auto const& formal_parameters = function.formal_parameters();
-    for (u32 param_index = 0; param_index < formal_parameters.size(); ++param_index) {
-        auto const& parameter = formal_parameters[param_index];
+    for (u32 param_index = 0; param_index < formal_parameters->size(); ++param_index) {
+        auto const& parameter = formal_parameters->parameters()[param_index];
 
         if (parameter.is_rest) {
             auto argument_reg = allocate_register();

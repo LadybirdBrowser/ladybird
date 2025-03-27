@@ -770,7 +770,7 @@ ThrowCompletionOr<void> SourceTextModule::execute_module(VM& vm, GC::Ptr<Promise
         parsing_insights.uses_this = true;
         auto module_wrapper_function = ECMAScriptFunctionObject::create(
             realm(), "module code with top-level await"_fly_string, StringView {}, this->m_ecmascript_code,
-            {}, 0, {}, environment(), nullptr, FunctionKind::Async, true, parsing_insights);
+            FunctionParameters::empty(), 0, {}, environment(), nullptr, FunctionKind::Async, true, parsing_insights);
         module_wrapper_function->set_is_module_wrapper(true);
 
         vm.pop_execution_context();
