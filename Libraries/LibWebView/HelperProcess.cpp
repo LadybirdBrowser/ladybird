@@ -171,9 +171,13 @@ ErrorOr<NonnullRefPtr<Web::HTML::WebWorkerClient>> launch_web_worker_process()
 {
     Vector<ByteString> arguments;
 
-    auto socket = TRY(connect_new_request_server_client());
+    auto request_server_socket = TRY(connect_new_request_server_client());
     arguments.append("--request-server-socket"sv);
-    arguments.append(ByteString::number(socket.fd()));
+    arguments.append(ByteString::number(request_server_socket.fd()));
+
+    auto image_decoder_socket = TRY(connect_new_image_decoder_client());
+    arguments.append("--image-decoder-socket"sv);
+    arguments.append(ByteString::number(image_decoder_socket.fd()));
 
     return launch_server_process<Web::HTML::WebWorkerClient>("WebWorker"sv, move(arguments));
 }
