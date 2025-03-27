@@ -127,6 +127,18 @@ public:
         emit_with_extra_slots<OpType, Value>(extra_operand_slots, forward<Args>(args)...);
     }
 
+    void emit_mov(ScopedOperand const& dst, ScopedOperand const& src)
+    {
+        // Optimize away when the source is the destination
+        if (dst != src)
+            emit<Op::Mov>(dst, src);
+    }
+
+    void emit_mov(Operand const& dst, Operand const& src)
+    {
+        emit<Op::Mov>(dst, src);
+    }
+
     void emit_jump_if(ScopedOperand const& condition, Label true_target, Label false_target);
 
     struct ReferenceOperands {
