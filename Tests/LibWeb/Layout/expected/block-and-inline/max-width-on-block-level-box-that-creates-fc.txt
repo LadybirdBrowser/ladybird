@@ -1,0 +1,25 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x16 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x0 children: not-inline
+      BlockContainer <div.a> at (8,8) content-size 100x85 positioned [BFC] children: not-inline
+        Box <div.b> at (8,8) content-size 100x85 flex-container(row) [FFC] children: not-inline
+          BlockContainer <(anonymous)> at (8,8) content-size 105.5625x85 flex-item [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 11, rect: [8,8 98x17] baseline: 13.296875
+                "foo bar baz"
+            frag 1 from TextNode start: 12, length: 11, rect: [8,25 97.640625x17] baseline: 13.296875
+                "lorem ipsum"
+            frag 2 from TextNode start: 24, length: 9, rect: [8,42 70.40625x17] baseline: 13.296875
+                "dolor sit"
+            frag 3 from TextNode start: 34, length: 4, rect: [8,59 37.125x17] baseline: 13.296875
+                "amet"
+            frag 4 from TextNode start: 39, length: 12, rect: [8,76 105.5625x17] baseline: 13.296875
+                "consectetuer"
+            TextNode <#text>
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x16]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x0]
+      PaintableWithLines (BlockContainer<DIV>.a) [8,8 100x85] overflow: [8,8 105.5625x85]
+        PaintableBox (Box<DIV>.b) [8,8 100x85] overflow: [8,8 105.5625x85]
+          PaintableWithLines (BlockContainer(anonymous)) [8,8 105.5625x85]
+            TextPaintable (TextNode<#text>)

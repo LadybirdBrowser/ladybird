@@ -265,6 +265,12 @@ void BlockFormattingContext::compute_width(Box const& box, AvailableSpace const&
                     } else {
                         width = zero_value;
                     }
+                } else if (available_space.width.is_min_content()) {
+                    width = CSS::Length::make_px(calculate_min_content_width(box));
+                } else if (available_space.width.is_max_content()) {
+                    width = CSS::Length::make_px(calculate_max_content_width(box));
+                } else {
+                    VERIFY_NOT_REACHED();
                 }
             } else {
                 if (!margin_left.is_auto() && !margin_right.is_auto()) {
@@ -304,8 +310,7 @@ void BlockFormattingContext::compute_width(Box const& box, AvailableSpace const&
     //    but this time using the computed value of 'max-width' as the computed value for 'width'.
     if (!should_treat_max_width_as_none(box, available_space.width)) {
         auto max_width = calculate_inner_width(box, remaining_available_space.width, computed_values.max_width());
-        auto used_width_px = used_width.is_auto() ? CSSPixels { 0 } : used_width.to_px(box);
-        if (used_width_px > max_width) {
+        if (used_width.to_px(box) > max_width) {
             used_width = try_compute_width(CSS::Length::make_px(max_width));
         }
     }
