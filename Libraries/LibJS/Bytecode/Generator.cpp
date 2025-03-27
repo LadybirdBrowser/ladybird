@@ -207,11 +207,14 @@ CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(E
     }
 
     for (auto const& declaration : function.m_functions_to_initialize) {
-        auto function = allocate_register();
-        emit<Op::NewFunction>(function, declaration, OptionalNone {});
-        if (declaration.name_identifier()->is_local()) {
-            emit<Op::Mov>(local(declaration.name_identifier()->local_variable_index()), function);
+        auto const& identifier = *declaration.name_identifier();
+        if (identifier.is_local()) {
+            auto local_index = identifier.local_variable_index();
+            emit<Op::NewFunction>(local(local_index), declaration, OptionalNone {});
+            set_local_initialized(local_index);
         } else {
+            auto function = allocate_register();
+            emit<Op::NewFunction>(function, declaration, OptionalNone {});
             emit<Op::SetVariableBinding>(intern_identifier(declaration.name()), function);
         }
     }
