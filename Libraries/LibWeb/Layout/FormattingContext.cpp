@@ -1895,11 +1895,9 @@ bool box_is_sized_as_replaced_element(Box const& box)
         // However, it is suggested that, if the containing block’s width does not itself depend on the replaced element’s width,
         // then the used value of width is calculated from the constraint equation used for block-level, non-replaced elements in normal flow.
 
-        // AD-HOC: For inline-level boxes, we don't want to end up in a situation where we apply stretch-fit sizing,
-        //         since that would not match other browsers. Because of that, we specifically reject this case here
-        //         instead of allowing it to proceed.
-        if (box.display().is_inline_outside()
-            && box.computed_values().height().is_auto()
+        // AD-HOC: If box has preferred aspect ratio but width and height are not specified, then we should
+        //         size it as a normal box to match other browsers.
+        if (box.computed_values().height().is_auto()
             && box.computed_values().width().is_auto()
             && !box.has_natural_width()
             && !box.has_natural_height()) {
