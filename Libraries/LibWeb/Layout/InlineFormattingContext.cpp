@@ -84,9 +84,8 @@ void InlineFormattingContext::run(AvailableSpace const& available_space)
 
     CSSPixels content_height = 0;
 
-    for (auto& line_box : m_containing_block_used_values.line_boxes) {
+    for (auto& line_box : m_containing_block_used_values.line_boxes)
         content_height += line_box.height();
-    }
 
     // NOTE: We ask the parent BFC to calculate the automatic content width of this IFC.
     //       This ensures that any floated boxes are taken into account.
