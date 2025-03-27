@@ -274,8 +274,6 @@ public:
     void emit_return(ScopedOperand value)
     requires(IsOneOf<OpType, Op::Return, Op::Yield>)
     {
-        // FIXME: Tell the call sites about the `saved_return_value` destination
-        //        And take that into account in the movs below.
         perform_needed_unwinds<OpType>();
         if (must_enter_finalizer()) {
             VERIFY(m_current_basic_block->finalizer() != nullptr);
@@ -289,8 +287,6 @@ public:
             else
                 emit<Bytecode::Op::Mov>(Operand(Register::saved_return_value()), value);
             emit<Bytecode::Op::Mov>(Operand(Register::exception()), add_constant(Value {}));
-            // FIXME: Do we really need to clear the return value register here?
-            emit<Bytecode::Op::Mov>(Operand(Register::return_value()), add_constant(Value {}));
             emit<Bytecode::Op::Jump>(Label { *m_current_basic_block->finalizer() });
             return;
         }
