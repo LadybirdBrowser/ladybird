@@ -1,0 +1,1117 @@
+Harness status: OK
+
+Found 1111 tests
+
+1080 Pass
+31 Fail
+Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to button with reference target
+Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to button with reference target
+Pass	button.form has reflection behavior IsNull when pointing to button with reference target
+Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to input with reference target
+Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to input with reference target
+Pass	button.form has reflection behavior IsNull when pointing to input with reference target
+Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to meter with reference target
+Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to meter with reference target
+Pass	button.form has reflection behavior IsNull when pointing to meter with reference target
+Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to output with reference target
+Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to output with reference target
+Pass	button.form has reflection behavior IsNull when pointing to output with reference target
+Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to progress with reference target
+Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to progress with reference target
+Pass	button.form has reflection behavior IsNull when pointing to progress with reference target
+Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to select with reference target
+Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to select with reference target
+Pass	button.form has reflection behavior IsNull when pointing to select with reference target
+Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to textarea with reference target
+Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to textarea with reference target
+Pass	button.form has reflection behavior IsNull when pointing to textarea with reference target
+Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to div with reference target
+Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to div with reference target
+Pass	button.form has reflection behavior IsNull when pointing to div with reference target
+Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to object with reference target
+Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to object with reference target
+Pass	button.form has reflection behavior IsNull when pointing to object with reference target
+Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to label with reference target
+Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to label with reference target
+Pass	button.form has reflection behavior IsNull when pointing to label with reference target
+Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to fieldset with reference target
+Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to fieldset with reference target
+Pass	button.form has reflection behavior IsNull when pointing to fieldset with reference target
+Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to legend with reference target
+Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to legend with reference target
+Pass	button.form has reflection behavior IsNull when pointing to legend with reference target
+Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to option with reference target
+Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to option with reference target
+Pass	button.form has reflection behavior IsNull when pointing to option with reference target
+Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to datalist with reference target
+Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to datalist with reference target
+Pass	button.form has reflection behavior IsNull when pointing to datalist with reference target
+Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to form with reference target
+Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to form with reference target
+Fail	button.form has reflection behavior ReflectsHost when pointing to form with reference target
+Pass	input.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to button with reference target
+Pass	input.popoverTargetElement has reflection behavior ReflectsHost when pointing to button with reference target
+Pass	input.form has reflection behavior IsNull when pointing to button with reference target
+Pass	input.list has reflection behavior IsNull when pointing to button with reference target
+Pass	input.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to input with reference target
+Pass	input.popoverTargetElement has reflection behavior ReflectsHost when pointing to input with reference target
+Pass	input.form has reflection behavior IsNull when pointing to input with reference target
+Pass	input.list has reflection behavior IsNull when pointing to input with reference target
+Pass	input.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to meter with reference target
+Pass	input.popoverTargetElement has reflection behavior ReflectsHost when pointing to meter with reference target
+Pass	input.form has reflection behavior IsNull when pointing to meter with reference target
+Pass	input.list has reflection behavior IsNull when pointing to meter with reference target
+Pass	input.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to output with reference target
+Pass	input.popoverTargetElement has reflection behavior ReflectsHost when pointing to output with reference target
+Pass	input.form has reflection behavior IsNull when pointing to output with reference target
+Pass	input.list has reflection behavior IsNull when pointing to output with reference target
+Pass	input.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to progress with reference target
+Pass	input.popoverTargetElement has reflection behavior ReflectsHost when pointing to progress with reference target
+Pass	input.form has reflection behavior IsNull when pointing to progress with reference target
+Pass	input.list has reflection behavior IsNull when pointing to progress with reference target
+Pass	input.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to select with reference target
+Pass	input.popoverTargetElement has reflection behavior ReflectsHost when pointing to select with reference target
+Pass	input.form has reflection behavior IsNull when pointing to select with reference target
+Pass	input.list has reflection behavior IsNull when pointing to select with reference target
+Pass	input.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to textarea with reference target
+Pass	input.popoverTargetElement has reflection behavior ReflectsHost when pointing to textarea with reference target
+Pass	input.form has reflection behavior IsNull when pointing to textarea with reference target
+Pass	input.list has reflection behavior IsNull when pointing to textarea with reference target
+Pass	input.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to div with reference target
+Pass	input.popoverTargetElement has reflection behavior ReflectsHost when pointing to div with reference target
+Pass	input.form has reflection behavior IsNull when pointing to div with reference target
+Pass	input.list has reflection behavior IsNull when pointing to div with reference target
+Pass	input.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to object with reference target
+Pass	input.popoverTargetElement has reflection behavior ReflectsHost when pointing to object with reference target
+Pass	input.form has reflection behavior IsNull when pointing to object with reference target
+Pass	input.list has reflection behavior IsNull when pointing to object with reference target
+Pass	input.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to label with reference target
+Pass	input.popoverTargetElement has reflection behavior ReflectsHost when pointing to label with reference target
+Pass	input.form has reflection behavior IsNull when pointing to label with reference target
+Pass	input.list has reflection behavior IsNull when pointing to label with reference target
+Pass	input.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to fieldset with reference target
+Pass	input.popoverTargetElement has reflection behavior ReflectsHost when pointing to fieldset with reference target
+Pass	input.form has reflection behavior IsNull when pointing to fieldset with reference target
+Pass	input.list has reflection behavior IsNull when pointing to fieldset with reference target
+Pass	input.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to legend with reference target
+Pass	input.popoverTargetElement has reflection behavior ReflectsHost when pointing to legend with reference target
+Pass	input.form has reflection behavior IsNull when pointing to legend with reference target
+Pass	input.list has reflection behavior IsNull when pointing to legend with reference target
+Pass	input.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to option with reference target
+Pass	input.popoverTargetElement has reflection behavior ReflectsHost when pointing to option with reference target
+Pass	input.form has reflection behavior IsNull when pointing to option with reference target
+Pass	input.list has reflection behavior IsNull when pointing to option with reference target
+Pass	input.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to datalist with reference target
+Pass	input.popoverTargetElement has reflection behavior ReflectsHost when pointing to datalist with reference target
+Pass	input.form has reflection behavior IsNull when pointing to datalist with reference target
+Fail	input.list has reflection behavior ReflectsHost when pointing to datalist with reference target
+Pass	input.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to form with reference target
+Pass	input.popoverTargetElement has reflection behavior ReflectsHost when pointing to form with reference target
+Fail	input.form has reflection behavior ReflectsHost when pointing to form with reference target
+Pass	input.list has reflection behavior IsNull when pointing to form with reference target
+Pass	meter.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to button with reference target
+Pass	meter.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to input with reference target
+Pass	meter.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to meter with reference target
+Pass	meter.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to output with reference target
+Pass	meter.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to progress with reference target
+Pass	meter.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to select with reference target
+Pass	meter.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to textarea with reference target
+Pass	meter.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to div with reference target
+Pass	meter.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to object with reference target
+Pass	meter.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to label with reference target
+Pass	meter.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to fieldset with reference target
+Pass	meter.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to legend with reference target
+Pass	meter.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to option with reference target
+Pass	meter.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to datalist with reference target
+Pass	meter.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to form with reference target
+Pass	output.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to button with reference target
+Pass	output.htmlFor has reflection behavior ReflectsHostIDInDOMTokenList when pointing to button with reference target
+Pass	output.form has reflection behavior IsNull when pointing to button with reference target
+Pass	output.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to input with reference target
+Pass	output.htmlFor has reflection behavior ReflectsHostIDInDOMTokenList when pointing to input with reference target
+Pass	output.form has reflection behavior IsNull when pointing to input with reference target
+Pass	output.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to meter with reference target
+Pass	output.htmlFor has reflection behavior ReflectsHostIDInDOMTokenList when pointing to meter with reference target
+Pass	output.form has reflection behavior IsNull when pointing to meter with reference target
+Pass	output.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to output with reference target
+Pass	output.htmlFor has reflection behavior ReflectsHostIDInDOMTokenList when pointing to output with reference target
+Pass	output.form has reflection behavior IsNull when pointing to output with reference target
+Pass	output.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to progress with reference target
+Pass	output.htmlFor has reflection behavior ReflectsHostIDInDOMTokenList when pointing to progress with reference target
+Pass	output.form has reflection behavior IsNull when pointing to progress with reference target
+Pass	output.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to select with reference target
+Pass	output.htmlFor has reflection behavior ReflectsHostIDInDOMTokenList when pointing to select with reference target
+Pass	output.form has reflection behavior IsNull when pointing to select with reference target
+Pass	output.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to textarea with reference target
+Pass	output.htmlFor has reflection behavior ReflectsHostIDInDOMTokenList when pointing to textarea with reference target
+Pass	output.form has reflection behavior IsNull when pointing to textarea with reference target
+Pass	output.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to div with reference target
+Pass	output.htmlFor has reflection behavior ReflectsHostIDInDOMTokenList when pointing to div with reference target
+Pass	output.form has reflection behavior IsNull when pointing to div with reference target
+Pass	output.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to object with reference target
+Pass	output.htmlFor has reflection behavior ReflectsHostIDInDOMTokenList when pointing to object with reference target
+Pass	output.form has reflection behavior IsNull when pointing to object with reference target
+Pass	output.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to label with reference target
+Pass	output.htmlFor has reflection behavior ReflectsHostIDInDOMTokenList when pointing to label with reference target
+Pass	output.form has reflection behavior IsNull when pointing to label with reference target
+Pass	output.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to fieldset with reference target
+Pass	output.htmlFor has reflection behavior ReflectsHostIDInDOMTokenList when pointing to fieldset with reference target
+Pass	output.form has reflection behavior IsNull when pointing to fieldset with reference target
+Pass	output.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to legend with reference target
+Pass	output.htmlFor has reflection behavior ReflectsHostIDInDOMTokenList when pointing to legend with reference target
+Pass	output.form has reflection behavior IsNull when pointing to legend with reference target
+Pass	output.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to option with reference target
+Pass	output.htmlFor has reflection behavior ReflectsHostIDInDOMTokenList when pointing to option with reference target
+Pass	output.form has reflection behavior IsNull when pointing to option with reference target
+Pass	output.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to datalist with reference target
+Pass	output.htmlFor has reflection behavior ReflectsHostIDInDOMTokenList when pointing to datalist with reference target
+Pass	output.form has reflection behavior IsNull when pointing to datalist with reference target
+Pass	output.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to form with reference target
+Pass	output.htmlFor has reflection behavior ReflectsHostIDInDOMTokenList when pointing to form with reference target
+Fail	output.form has reflection behavior ReflectsHost when pointing to form with reference target
+Pass	progress.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to button with reference target
+Pass	progress.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to input with reference target
+Pass	progress.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to meter with reference target
+Pass	progress.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to output with reference target
+Pass	progress.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to progress with reference target
+Pass	progress.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to select with reference target
+Pass	progress.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to textarea with reference target
+Pass	progress.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to div with reference target
+Pass	progress.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to object with reference target
+Pass	progress.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to label with reference target
+Pass	progress.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to fieldset with reference target
+Pass	progress.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to legend with reference target
+Pass	progress.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to option with reference target
+Pass	progress.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to datalist with reference target
+Pass	progress.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to form with reference target
+Pass	select.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to button with reference target
+Pass	select.form has reflection behavior IsNull when pointing to button with reference target
+Pass	select.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to input with reference target
+Pass	select.form has reflection behavior IsNull when pointing to input with reference target
+Pass	select.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to meter with reference target
+Pass	select.form has reflection behavior IsNull when pointing to meter with reference target
+Pass	select.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to output with reference target
+Pass	select.form has reflection behavior IsNull when pointing to output with reference target
+Pass	select.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to progress with reference target
+Pass	select.form has reflection behavior IsNull when pointing to progress with reference target
+Pass	select.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to select with reference target
+Pass	select.form has reflection behavior IsNull when pointing to select with reference target
+Pass	select.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to textarea with reference target
+Pass	select.form has reflection behavior IsNull when pointing to textarea with reference target
+Pass	select.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to div with reference target
+Pass	select.form has reflection behavior IsNull when pointing to div with reference target
+Pass	select.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to object with reference target
+Pass	select.form has reflection behavior IsNull when pointing to object with reference target
+Pass	select.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to label with reference target
+Pass	select.form has reflection behavior IsNull when pointing to label with reference target
+Pass	select.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to fieldset with reference target
+Pass	select.form has reflection behavior IsNull when pointing to fieldset with reference target
+Pass	select.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to legend with reference target
+Pass	select.form has reflection behavior IsNull when pointing to legend with reference target
+Pass	select.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to option with reference target
+Pass	select.form has reflection behavior IsNull when pointing to option with reference target
+Pass	select.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to datalist with reference target
+Pass	select.form has reflection behavior IsNull when pointing to datalist with reference target
+Pass	select.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to form with reference target
+Fail	select.form has reflection behavior ReflectsHost when pointing to form with reference target
+Pass	textarea.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to button with reference target
+Pass	textarea.form has reflection behavior IsNull when pointing to button with reference target
+Pass	textarea.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to input with reference target
+Pass	textarea.form has reflection behavior IsNull when pointing to input with reference target
+Pass	textarea.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to meter with reference target
+Pass	textarea.form has reflection behavior IsNull when pointing to meter with reference target
+Pass	textarea.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to output with reference target
+Pass	textarea.form has reflection behavior IsNull when pointing to output with reference target
+Pass	textarea.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to progress with reference target
+Pass	textarea.form has reflection behavior IsNull when pointing to progress with reference target
+Pass	textarea.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to select with reference target
+Pass	textarea.form has reflection behavior IsNull when pointing to select with reference target
+Pass	textarea.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to textarea with reference target
+Pass	textarea.form has reflection behavior IsNull when pointing to textarea with reference target
+Pass	textarea.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to div with reference target
+Pass	textarea.form has reflection behavior IsNull when pointing to div with reference target
+Pass	textarea.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to object with reference target
+Pass	textarea.form has reflection behavior IsNull when pointing to object with reference target
+Pass	textarea.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to label with reference target
+Pass	textarea.form has reflection behavior IsNull when pointing to label with reference target
+Pass	textarea.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to fieldset with reference target
+Pass	textarea.form has reflection behavior IsNull when pointing to fieldset with reference target
+Pass	textarea.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to legend with reference target
+Pass	textarea.form has reflection behavior IsNull when pointing to legend with reference target
+Pass	textarea.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to option with reference target
+Pass	textarea.form has reflection behavior IsNull when pointing to option with reference target
+Pass	textarea.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to datalist with reference target
+Pass	textarea.form has reflection behavior IsNull when pointing to datalist with reference target
+Pass	textarea.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to form with reference target
+Fail	textarea.form has reflection behavior ReflectsHost when pointing to form with reference target
+Pass	div.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to button with reference target
+Pass	div.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to input with reference target
+Pass	div.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to meter with reference target
+Pass	div.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to output with reference target
+Pass	div.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to progress with reference target
+Pass	div.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to select with reference target
+Pass	div.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to textarea with reference target
+Pass	div.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to div with reference target
+Pass	div.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to object with reference target
+Pass	div.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to label with reference target
+Pass	div.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to fieldset with reference target
+Pass	div.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to legend with reference target
+Pass	div.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to option with reference target
+Pass	div.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to datalist with reference target
+Pass	div.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to form with reference target
+Pass	object.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to button with reference target
+Pass	object.form has reflection behavior IsNull when pointing to button with reference target
+Pass	object.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to input with reference target
+Pass	object.form has reflection behavior IsNull when pointing to input with reference target
+Pass	object.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to meter with reference target
+Pass	object.form has reflection behavior IsNull when pointing to meter with reference target
+Pass	object.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to output with reference target
+Pass	object.form has reflection behavior IsNull when pointing to output with reference target
+Pass	object.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to progress with reference target
+Pass	object.form has reflection behavior IsNull when pointing to progress with reference target
+Pass	object.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to select with reference target
+Pass	object.form has reflection behavior IsNull when pointing to select with reference target
+Pass	object.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to textarea with reference target
+Pass	object.form has reflection behavior IsNull when pointing to textarea with reference target
+Pass	object.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to div with reference target
+Pass	object.form has reflection behavior IsNull when pointing to div with reference target
+Pass	object.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to object with reference target
+Pass	object.form has reflection behavior IsNull when pointing to object with reference target
+Pass	object.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to label with reference target
+Pass	object.form has reflection behavior IsNull when pointing to label with reference target
+Pass	object.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to fieldset with reference target
+Pass	object.form has reflection behavior IsNull when pointing to fieldset with reference target
+Pass	object.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to legend with reference target
+Pass	object.form has reflection behavior IsNull when pointing to legend with reference target
+Pass	object.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to option with reference target
+Pass	object.form has reflection behavior IsNull when pointing to option with reference target
+Pass	object.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to datalist with reference target
+Pass	object.form has reflection behavior IsNull when pointing to datalist with reference target
+Pass	object.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to form with reference target
+Fail	object.form has reflection behavior ReflectsHost when pointing to form with reference target
+Pass	label.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to button with reference target
+Pass	label.htmlFor has reflection behavior ReflectsHostID when pointing to button with reference target
+Pass	label.form has reflection behavior IsNull when pointing to button with reference target
+Fail	label.control has reflection behavior ReflectsHost when pointing to button with reference target
+Pass	label.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to input with reference target
+Pass	label.htmlFor has reflection behavior ReflectsHostID when pointing to input with reference target
+Pass	label.form has reflection behavior IsNull when pointing to input with reference target
+Fail	label.control has reflection behavior ReflectsHost when pointing to input with reference target
+Pass	label.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to meter with reference target
+Pass	label.htmlFor has reflection behavior ReflectsHostID when pointing to meter with reference target
+Pass	label.form has reflection behavior IsNull when pointing to meter with reference target
+Fail	label.control has reflection behavior ReflectsHost when pointing to meter with reference target
+Pass	label.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to output with reference target
+Pass	label.htmlFor has reflection behavior ReflectsHostID when pointing to output with reference target
+Pass	label.form has reflection behavior IsNull when pointing to output with reference target
+Fail	label.control has reflection behavior ReflectsHost when pointing to output with reference target
+Pass	label.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to progress with reference target
+Pass	label.htmlFor has reflection behavior ReflectsHostID when pointing to progress with reference target
+Pass	label.form has reflection behavior IsNull when pointing to progress with reference target
+Fail	label.control has reflection behavior ReflectsHost when pointing to progress with reference target
+Pass	label.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to select with reference target
+Pass	label.htmlFor has reflection behavior ReflectsHostID when pointing to select with reference target
+Pass	label.form has reflection behavior IsNull when pointing to select with reference target
+Fail	label.control has reflection behavior ReflectsHost when pointing to select with reference target
+Pass	label.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to textarea with reference target
+Pass	label.htmlFor has reflection behavior ReflectsHostID when pointing to textarea with reference target
+Pass	label.form has reflection behavior IsNull when pointing to textarea with reference target
+Fail	label.control has reflection behavior ReflectsHost when pointing to textarea with reference target
+Pass	label.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to div with reference target
+Pass	label.htmlFor has reflection behavior ReflectsHostID when pointing to div with reference target
+Pass	label.form has reflection behavior IsNull when pointing to div with reference target
+Pass	label.control has reflection behavior IsNull when pointing to div with reference target
+Pass	label.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to object with reference target
+Pass	label.htmlFor has reflection behavior ReflectsHostID when pointing to object with reference target
+Pass	label.form has reflection behavior IsNull when pointing to object with reference target
+Pass	label.control has reflection behavior IsNull when pointing to object with reference target
+Pass	label.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to label with reference target
+Pass	label.htmlFor has reflection behavior ReflectsHostID when pointing to label with reference target
+Pass	label.form has reflection behavior IsNull when pointing to label with reference target
+Pass	label.control has reflection behavior IsNull when pointing to label with reference target
+Pass	label.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to fieldset with reference target
+Pass	label.htmlFor has reflection behavior ReflectsHostID when pointing to fieldset with reference target
+Pass	label.form has reflection behavior IsNull when pointing to fieldset with reference target
+Pass	label.control has reflection behavior IsNull when pointing to fieldset with reference target
+Pass	label.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to legend with reference target
+Pass	label.htmlFor has reflection behavior ReflectsHostID when pointing to legend with reference target
+Pass	label.form has reflection behavior IsNull when pointing to legend with reference target
+Pass	label.control has reflection behavior IsNull when pointing to legend with reference target
+Pass	label.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to option with reference target
+Pass	label.htmlFor has reflection behavior ReflectsHostID when pointing to option with reference target
+Pass	label.form has reflection behavior IsNull when pointing to option with reference target
+Pass	label.control has reflection behavior IsNull when pointing to option with reference target
+Pass	label.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to datalist with reference target
+Pass	label.htmlFor has reflection behavior ReflectsHostID when pointing to datalist with reference target
+Pass	label.form has reflection behavior IsNull when pointing to datalist with reference target
+Pass	label.control has reflection behavior IsNull when pointing to datalist with reference target
+Pass	label.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to form with reference target
+Pass	label.htmlFor has reflection behavior ReflectsHostID when pointing to form with reference target
+Pass	label.form has reflection behavior IsNull when pointing to form with reference target
+Pass	label.control has reflection behavior IsNull when pointing to form with reference target
+Pass	fieldset.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to button with reference target
+Pass	fieldset.form has reflection behavior IsNull when pointing to button with reference target
+Pass	fieldset.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to input with reference target
+Pass	fieldset.form has reflection behavior IsNull when pointing to input with reference target
+Pass	fieldset.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to meter with reference target
+Pass	fieldset.form has reflection behavior IsNull when pointing to meter with reference target
+Pass	fieldset.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to output with reference target
+Pass	fieldset.form has reflection behavior IsNull when pointing to output with reference target
+Pass	fieldset.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to progress with reference target
+Pass	fieldset.form has reflection behavior IsNull when pointing to progress with reference target
+Pass	fieldset.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to select with reference target
+Pass	fieldset.form has reflection behavior IsNull when pointing to select with reference target
+Pass	fieldset.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to textarea with reference target
+Pass	fieldset.form has reflection behavior IsNull when pointing to textarea with reference target
+Pass	fieldset.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to div with reference target
+Pass	fieldset.form has reflection behavior IsNull when pointing to div with reference target
+Pass	fieldset.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to object with reference target
+Pass	fieldset.form has reflection behavior IsNull when pointing to object with reference target
+Pass	fieldset.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to label with reference target
+Pass	fieldset.form has reflection behavior IsNull when pointing to label with reference target
+Pass	fieldset.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to fieldset with reference target
+Pass	fieldset.form has reflection behavior IsNull when pointing to fieldset with reference target
+Pass	fieldset.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to legend with reference target
+Pass	fieldset.form has reflection behavior IsNull when pointing to legend with reference target
+Pass	fieldset.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to option with reference target
+Pass	fieldset.form has reflection behavior IsNull when pointing to option with reference target
+Pass	fieldset.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to datalist with reference target
+Pass	fieldset.form has reflection behavior IsNull when pointing to datalist with reference target
+Pass	fieldset.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to form with reference target
+Fail	fieldset.form has reflection behavior ReflectsHost when pointing to form with reference target
+Pass	legend.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to button with reference target
+Pass	legend.form has reflection behavior IsNull when pointing to button with reference target
+Pass	legend.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to input with reference target
+Pass	legend.form has reflection behavior IsNull when pointing to input with reference target
+Pass	legend.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to meter with reference target
+Pass	legend.form has reflection behavior IsNull when pointing to meter with reference target
+Pass	legend.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to output with reference target
+Pass	legend.form has reflection behavior IsNull when pointing to output with reference target
+Pass	legend.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to progress with reference target
+Pass	legend.form has reflection behavior IsNull when pointing to progress with reference target
+Pass	legend.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to select with reference target
+Pass	legend.form has reflection behavior IsNull when pointing to select with reference target
+Pass	legend.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to textarea with reference target
+Pass	legend.form has reflection behavior IsNull when pointing to textarea with reference target
+Pass	legend.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to div with reference target
+Pass	legend.form has reflection behavior IsNull when pointing to div with reference target
+Pass	legend.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to object with reference target
+Pass	legend.form has reflection behavior IsNull when pointing to object with reference target
+Pass	legend.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to label with reference target
+Pass	legend.form has reflection behavior IsNull when pointing to label with reference target
+Pass	legend.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to fieldset with reference target
+Pass	legend.form has reflection behavior IsNull when pointing to fieldset with reference target
+Pass	legend.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to legend with reference target
+Pass	legend.form has reflection behavior IsNull when pointing to legend with reference target
+Pass	legend.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to option with reference target
+Pass	legend.form has reflection behavior IsNull when pointing to option with reference target
+Pass	legend.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to datalist with reference target
+Pass	legend.form has reflection behavior IsNull when pointing to datalist with reference target
+Pass	legend.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to form with reference target
+Pass	legend.form has reflection behavior IsNull when pointing to form with reference target
+Pass	option.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to button with reference target
+Pass	option.form has reflection behavior IsNull when pointing to button with reference target
+Pass	option.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to input with reference target
+Pass	option.form has reflection behavior IsNull when pointing to input with reference target
+Pass	option.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to meter with reference target
+Pass	option.form has reflection behavior IsNull when pointing to meter with reference target
+Pass	option.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to output with reference target
+Pass	option.form has reflection behavior IsNull when pointing to output with reference target
+Pass	option.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to progress with reference target
+Pass	option.form has reflection behavior IsNull when pointing to progress with reference target
+Pass	option.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to select with reference target
+Pass	option.form has reflection behavior IsNull when pointing to select with reference target
+Pass	option.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to textarea with reference target
+Pass	option.form has reflection behavior IsNull when pointing to textarea with reference target
+Pass	option.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to div with reference target
+Pass	option.form has reflection behavior IsNull when pointing to div with reference target
+Pass	option.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to object with reference target
+Pass	option.form has reflection behavior IsNull when pointing to object with reference target
+Pass	option.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to label with reference target
+Pass	option.form has reflection behavior IsNull when pointing to label with reference target
+Pass	option.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to fieldset with reference target
+Pass	option.form has reflection behavior IsNull when pointing to fieldset with reference target
+Pass	option.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to legend with reference target
+Pass	option.form has reflection behavior IsNull when pointing to legend with reference target
+Pass	option.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to option with reference target
+Pass	option.form has reflection behavior IsNull when pointing to option with reference target
+Pass	option.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to datalist with reference target
+Pass	option.form has reflection behavior IsNull when pointing to datalist with reference target
+Pass	option.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to form with reference target
+Pass	option.form has reflection behavior IsNull when pointing to form with reference target
+Pass	datalist.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to button with reference target
+Pass	datalist.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to input with reference target
+Pass	datalist.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to meter with reference target
+Pass	datalist.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to output with reference target
+Pass	datalist.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to progress with reference target
+Pass	datalist.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to select with reference target
+Pass	datalist.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to textarea with reference target
+Pass	datalist.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to div with reference target
+Pass	datalist.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to object with reference target
+Pass	datalist.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to label with reference target
+Pass	datalist.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to fieldset with reference target
+Pass	datalist.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to legend with reference target
+Pass	datalist.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to option with reference target
+Pass	datalist.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to datalist with reference target
+Pass	datalist.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to form with reference target
+Pass	form.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to button with reference target
+Pass	form.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to input with reference target
+Pass	form.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to meter with reference target
+Pass	form.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to output with reference target
+Pass	form.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to progress with reference target
+Pass	form.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to select with reference target
+Pass	form.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to textarea with reference target
+Pass	form.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to div with reference target
+Pass	form.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to object with reference target
+Pass	form.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to label with reference target
+Pass	form.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to fieldset with reference target
+Pass	form.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to legend with reference target
+Pass	form.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to option with reference target
+Pass	form.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to datalist with reference target
+Pass	form.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to form with reference target
+Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to button with reference target via options
+Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to button with reference target via options
+Pass	button.form has reflection behavior IsNull when pointing to button with reference target via options
+Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to input with reference target via options
+Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to input with reference target via options
+Pass	button.form has reflection behavior IsNull when pointing to input with reference target via options
+Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to meter with reference target via options
+Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to meter with reference target via options
+Pass	button.form has reflection behavior IsNull when pointing to meter with reference target via options
+Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to output with reference target via options
+Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to output with reference target via options
+Pass	button.form has reflection behavior IsNull when pointing to output with reference target via options
+Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to progress with reference target via options
+Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to progress with reference target via options
+Pass	button.form has reflection behavior IsNull when pointing to progress with reference target via options
+Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to select with reference target via options
+Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to select with reference target via options
+Pass	button.form has reflection behavior IsNull when pointing to select with reference target via options
+Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to textarea with reference target via options
+Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to textarea with reference target via options
+Pass	button.form has reflection behavior IsNull when pointing to textarea with reference target via options
+Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to div with reference target via options
+Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to div with reference target via options
+Pass	button.form has reflection behavior IsNull when pointing to div with reference target via options
+Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to object with reference target via options
+Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to object with reference target via options
+Pass	button.form has reflection behavior IsNull when pointing to object with reference target via options
+Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to label with reference target via options
+Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to label with reference target via options
+Pass	button.form has reflection behavior IsNull when pointing to label with reference target via options
+Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to fieldset with reference target via options
+Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to fieldset with reference target via options
+Pass	button.form has reflection behavior IsNull when pointing to fieldset with reference target via options
+Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to legend with reference target via options
+Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to legend with reference target via options
+Pass	button.form has reflection behavior IsNull when pointing to legend with reference target via options
+Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to option with reference target via options
+Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to option with reference target via options
+Pass	button.form has reflection behavior IsNull when pointing to option with reference target via options
+Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to datalist with reference target via options
+Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to datalist with reference target via options
+Pass	button.form has reflection behavior IsNull when pointing to datalist with reference target via options
+Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to form with reference target via options
+Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to form with reference target via options
+Fail	button.form has reflection behavior ReflectsHost when pointing to form with reference target via options
+Pass	input.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to button with reference target via options
+Pass	input.popoverTargetElement has reflection behavior ReflectsHost when pointing to button with reference target via options
+Pass	input.form has reflection behavior IsNull when pointing to button with reference target via options
+Pass	input.list has reflection behavior IsNull when pointing to button with reference target via options
+Pass	input.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to input with reference target via options
+Pass	input.popoverTargetElement has reflection behavior ReflectsHost when pointing to input with reference target via options
+Pass	input.form has reflection behavior IsNull when pointing to input with reference target via options
+Pass	input.list has reflection behavior IsNull when pointing to input with reference target via options
+Pass	input.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to meter with reference target via options
+Pass	input.popoverTargetElement has reflection behavior ReflectsHost when pointing to meter with reference target via options
+Pass	input.form has reflection behavior IsNull when pointing to meter with reference target via options
+Pass	input.list has reflection behavior IsNull when pointing to meter with reference target via options
+Pass	input.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to output with reference target via options
+Pass	input.popoverTargetElement has reflection behavior ReflectsHost when pointing to output with reference target via options
+Pass	input.form has reflection behavior IsNull when pointing to output with reference target via options
+Pass	input.list has reflection behavior IsNull when pointing to output with reference target via options
+Pass	input.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to progress with reference target via options
+Pass	input.popoverTargetElement has reflection behavior ReflectsHost when pointing to progress with reference target via options
+Pass	input.form has reflection behavior IsNull when pointing to progress with reference target via options
+Pass	input.list has reflection behavior IsNull when pointing to progress with reference target via options
+Pass	input.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to select with reference target via options
+Pass	input.popoverTargetElement has reflection behavior ReflectsHost when pointing to select with reference target via options
+Pass	input.form has reflection behavior IsNull when pointing to select with reference target via options
+Pass	input.list has reflection behavior IsNull when pointing to select with reference target via options
+Pass	input.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to textarea with reference target via options
+Pass	input.popoverTargetElement has reflection behavior ReflectsHost when pointing to textarea with reference target via options
+Pass	input.form has reflection behavior IsNull when pointing to textarea with reference target via options
+Pass	input.list has reflection behavior IsNull when pointing to textarea with reference target via options
+Pass	input.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to div with reference target via options
+Pass	input.popoverTargetElement has reflection behavior ReflectsHost when pointing to div with reference target via options
+Pass	input.form has reflection behavior IsNull when pointing to div with reference target via options
+Pass	input.list has reflection behavior IsNull when pointing to div with reference target via options
+Pass	input.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to object with reference target via options
+Pass	input.popoverTargetElement has reflection behavior ReflectsHost when pointing to object with reference target via options
+Pass	input.form has reflection behavior IsNull when pointing to object with reference target via options
+Pass	input.list has reflection behavior IsNull when pointing to object with reference target via options
+Pass	input.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to label with reference target via options
+Pass	input.popoverTargetElement has reflection behavior ReflectsHost when pointing to label with reference target via options
+Pass	input.form has reflection behavior IsNull when pointing to label with reference target via options
+Pass	input.list has reflection behavior IsNull when pointing to label with reference target via options
+Pass	input.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to fieldset with reference target via options
+Pass	input.popoverTargetElement has reflection behavior ReflectsHost when pointing to fieldset with reference target via options
+Pass	input.form has reflection behavior IsNull when pointing to fieldset with reference target via options
+Pass	input.list has reflection behavior IsNull when pointing to fieldset with reference target via options
+Pass	input.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to legend with reference target via options
+Pass	input.popoverTargetElement has reflection behavior ReflectsHost when pointing to legend with reference target via options
+Pass	input.form has reflection behavior IsNull when pointing to legend with reference target via options
+Pass	input.list has reflection behavior IsNull when pointing to legend with reference target via options
+Pass	input.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to option with reference target via options
+Pass	input.popoverTargetElement has reflection behavior ReflectsHost when pointing to option with reference target via options
+Pass	input.form has reflection behavior IsNull when pointing to option with reference target via options
+Pass	input.list has reflection behavior IsNull when pointing to option with reference target via options
+Pass	input.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to datalist with reference target via options
+Pass	input.popoverTargetElement has reflection behavior ReflectsHost when pointing to datalist with reference target via options
+Pass	input.form has reflection behavior IsNull when pointing to datalist with reference target via options
+Fail	input.list has reflection behavior ReflectsHost when pointing to datalist with reference target via options
+Pass	input.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to form with reference target via options
+Pass	input.popoverTargetElement has reflection behavior ReflectsHost when pointing to form with reference target via options
+Fail	input.form has reflection behavior ReflectsHost when pointing to form with reference target via options
+Pass	input.list has reflection behavior IsNull when pointing to form with reference target via options
+Pass	meter.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to button with reference target via options
+Pass	meter.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to input with reference target via options
+Pass	meter.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to meter with reference target via options
+Pass	meter.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to output with reference target via options
+Pass	meter.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to progress with reference target via options
+Pass	meter.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to select with reference target via options
+Pass	meter.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to textarea with reference target via options
+Pass	meter.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to div with reference target via options
+Pass	meter.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to object with reference target via options
+Pass	meter.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to label with reference target via options
+Pass	meter.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to fieldset with reference target via options
+Pass	meter.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to legend with reference target via options
+Pass	meter.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to option with reference target via options
+Pass	meter.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to datalist with reference target via options
+Pass	meter.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to form with reference target via options
+Pass	output.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to button with reference target via options
+Pass	output.htmlFor has reflection behavior ReflectsHostIDInDOMTokenList when pointing to button with reference target via options
+Pass	output.form has reflection behavior IsNull when pointing to button with reference target via options
+Pass	output.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to input with reference target via options
+Pass	output.htmlFor has reflection behavior ReflectsHostIDInDOMTokenList when pointing to input with reference target via options
+Pass	output.form has reflection behavior IsNull when pointing to input with reference target via options
+Pass	output.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to meter with reference target via options
+Pass	output.htmlFor has reflection behavior ReflectsHostIDInDOMTokenList when pointing to meter with reference target via options
+Pass	output.form has reflection behavior IsNull when pointing to meter with reference target via options
+Pass	output.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to output with reference target via options
+Pass	output.htmlFor has reflection behavior ReflectsHostIDInDOMTokenList when pointing to output with reference target via options
+Pass	output.form has reflection behavior IsNull when pointing to output with reference target via options
+Pass	output.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to progress with reference target via options
+Pass	output.htmlFor has reflection behavior ReflectsHostIDInDOMTokenList when pointing to progress with reference target via options
+Pass	output.form has reflection behavior IsNull when pointing to progress with reference target via options
+Pass	output.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to select with reference target via options
+Pass	output.htmlFor has reflection behavior ReflectsHostIDInDOMTokenList when pointing to select with reference target via options
+Pass	output.form has reflection behavior IsNull when pointing to select with reference target via options
+Pass	output.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to textarea with reference target via options
+Pass	output.htmlFor has reflection behavior ReflectsHostIDInDOMTokenList when pointing to textarea with reference target via options
+Pass	output.form has reflection behavior IsNull when pointing to textarea with reference target via options
+Pass	output.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to div with reference target via options
+Pass	output.htmlFor has reflection behavior ReflectsHostIDInDOMTokenList when pointing to div with reference target via options
+Pass	output.form has reflection behavior IsNull when pointing to div with reference target via options
+Pass	output.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to object with reference target via options
+Pass	output.htmlFor has reflection behavior ReflectsHostIDInDOMTokenList when pointing to object with reference target via options
+Pass	output.form has reflection behavior IsNull when pointing to object with reference target via options
+Pass	output.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to label with reference target via options
+Pass	output.htmlFor has reflection behavior ReflectsHostIDInDOMTokenList when pointing to label with reference target via options
+Pass	output.form has reflection behavior IsNull when pointing to label with reference target via options
+Pass	output.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to fieldset with reference target via options
+Pass	output.htmlFor has reflection behavior ReflectsHostIDInDOMTokenList when pointing to fieldset with reference target via options
+Pass	output.form has reflection behavior IsNull when pointing to fieldset with reference target via options
+Pass	output.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to legend with reference target via options
+Pass	output.htmlFor has reflection behavior ReflectsHostIDInDOMTokenList when pointing to legend with reference target via options
+Pass	output.form has reflection behavior IsNull when pointing to legend with reference target via options
+Pass	output.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to option with reference target via options
+Pass	output.htmlFor has reflection behavior ReflectsHostIDInDOMTokenList when pointing to option with reference target via options
+Pass	output.form has reflection behavior IsNull when pointing to option with reference target via options
+Pass	output.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to datalist with reference target via options
+Pass	output.htmlFor has reflection behavior ReflectsHostIDInDOMTokenList when pointing to datalist with reference target via options
+Pass	output.form has reflection behavior IsNull when pointing to datalist with reference target via options
+Pass	output.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to form with reference target via options
+Pass	output.htmlFor has reflection behavior ReflectsHostIDInDOMTokenList when pointing to form with reference target via options
+Fail	output.form has reflection behavior ReflectsHost when pointing to form with reference target via options
+Pass	progress.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to button with reference target via options
+Pass	progress.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to input with reference target via options
+Pass	progress.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to meter with reference target via options
+Pass	progress.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to output with reference target via options
+Pass	progress.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to progress with reference target via options
+Pass	progress.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to select with reference target via options
+Pass	progress.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to textarea with reference target via options
+Pass	progress.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to div with reference target via options
+Pass	progress.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to object with reference target via options
+Pass	progress.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to label with reference target via options
+Pass	progress.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to fieldset with reference target via options
+Pass	progress.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to legend with reference target via options
+Pass	progress.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to option with reference target via options
+Pass	progress.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to datalist with reference target via options
+Pass	progress.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to form with reference target via options
+Pass	select.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to button with reference target via options
+Pass	select.form has reflection behavior IsNull when pointing to button with reference target via options
+Pass	select.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to input with reference target via options
+Pass	select.form has reflection behavior IsNull when pointing to input with reference target via options
+Pass	select.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to meter with reference target via options
+Pass	select.form has reflection behavior IsNull when pointing to meter with reference target via options
+Pass	select.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to output with reference target via options
+Pass	select.form has reflection behavior IsNull when pointing to output with reference target via options
+Pass	select.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to progress with reference target via options
+Pass	select.form has reflection behavior IsNull when pointing to progress with reference target via options
+Pass	select.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to select with reference target via options
+Pass	select.form has reflection behavior IsNull when pointing to select with reference target via options
+Pass	select.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to textarea with reference target via options
+Pass	select.form has reflection behavior IsNull when pointing to textarea with reference target via options
+Pass	select.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to div with reference target via options
+Pass	select.form has reflection behavior IsNull when pointing to div with reference target via options
+Pass	select.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to object with reference target via options
+Pass	select.form has reflection behavior IsNull when pointing to object with reference target via options
+Pass	select.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to label with reference target via options
+Pass	select.form has reflection behavior IsNull when pointing to label with reference target via options
+Pass	select.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to fieldset with reference target via options
+Pass	select.form has reflection behavior IsNull when pointing to fieldset with reference target via options
+Pass	select.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to legend with reference target via options
+Pass	select.form has reflection behavior IsNull when pointing to legend with reference target via options
+Pass	select.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to option with reference target via options
+Pass	select.form has reflection behavior IsNull when pointing to option with reference target via options
+Pass	select.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to datalist with reference target via options
+Pass	select.form has reflection behavior IsNull when pointing to datalist with reference target via options
+Pass	select.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to form with reference target via options
+Fail	select.form has reflection behavior ReflectsHost when pointing to form with reference target via options
+Pass	textarea.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to button with reference target via options
+Pass	textarea.form has reflection behavior IsNull when pointing to button with reference target via options
+Pass	textarea.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to input with reference target via options
+Pass	textarea.form has reflection behavior IsNull when pointing to input with reference target via options
+Pass	textarea.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to meter with reference target via options
+Pass	textarea.form has reflection behavior IsNull when pointing to meter with reference target via options
+Pass	textarea.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to output with reference target via options
+Pass	textarea.form has reflection behavior IsNull when pointing to output with reference target via options
+Pass	textarea.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to progress with reference target via options
+Pass	textarea.form has reflection behavior IsNull when pointing to progress with reference target via options
+Pass	textarea.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to select with reference target via options
+Pass	textarea.form has reflection behavior IsNull when pointing to select with reference target via options
+Pass	textarea.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to textarea with reference target via options
+Pass	textarea.form has reflection behavior IsNull when pointing to textarea with reference target via options
+Pass	textarea.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to div with reference target via options
+Pass	textarea.form has reflection behavior IsNull when pointing to div with reference target via options
+Pass	textarea.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to object with reference target via options
+Pass	textarea.form has reflection behavior IsNull when pointing to object with reference target via options
+Pass	textarea.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to label with reference target via options
+Pass	textarea.form has reflection behavior IsNull when pointing to label with reference target via options
+Pass	textarea.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to fieldset with reference target via options
+Pass	textarea.form has reflection behavior IsNull when pointing to fieldset with reference target via options
+Pass	textarea.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to legend with reference target via options
+Pass	textarea.form has reflection behavior IsNull when pointing to legend with reference target via options
+Pass	textarea.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to option with reference target via options
+Pass	textarea.form has reflection behavior IsNull when pointing to option with reference target via options
+Pass	textarea.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to datalist with reference target via options
+Pass	textarea.form has reflection behavior IsNull when pointing to datalist with reference target via options
+Pass	textarea.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to form with reference target via options
+Fail	textarea.form has reflection behavior ReflectsHost when pointing to form with reference target via options
+Pass	div.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to button with reference target via options
+Pass	div.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to input with reference target via options
+Pass	div.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to meter with reference target via options
+Pass	div.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to output with reference target via options
+Pass	div.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to progress with reference target via options
+Pass	div.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to select with reference target via options
+Pass	div.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to textarea with reference target via options
+Pass	div.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to div with reference target via options
+Pass	div.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to object with reference target via options
+Pass	div.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to label with reference target via options
+Pass	div.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to fieldset with reference target via options
+Pass	div.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to legend with reference target via options
+Pass	div.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to option with reference target via options
+Pass	div.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to datalist with reference target via options
+Pass	div.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to form with reference target via options
+Pass	object.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to button with reference target via options
+Pass	object.form has reflection behavior IsNull when pointing to button with reference target via options
+Pass	object.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to input with reference target via options
+Pass	object.form has reflection behavior IsNull when pointing to input with reference target via options
+Pass	object.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to meter with reference target via options
+Pass	object.form has reflection behavior IsNull when pointing to meter with reference target via options
+Pass	object.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to output with reference target via options
+Pass	object.form has reflection behavior IsNull when pointing to output with reference target via options
+Pass	object.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to progress with reference target via options
+Pass	object.form has reflection behavior IsNull when pointing to progress with reference target via options
+Pass	object.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to select with reference target via options
+Pass	object.form has reflection behavior IsNull when pointing to select with reference target via options
+Pass	object.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to textarea with reference target via options
+Pass	object.form has reflection behavior IsNull when pointing to textarea with reference target via options
+Pass	object.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to div with reference target via options
+Pass	object.form has reflection behavior IsNull when pointing to div with reference target via options
+Pass	object.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to object with reference target via options
+Pass	object.form has reflection behavior IsNull when pointing to object with reference target via options
+Pass	object.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to label with reference target via options
+Pass	object.form has reflection behavior IsNull when pointing to label with reference target via options
+Pass	object.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to fieldset with reference target via options
+Pass	object.form has reflection behavior IsNull when pointing to fieldset with reference target via options
+Pass	object.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to legend with reference target via options
+Pass	object.form has reflection behavior IsNull when pointing to legend with reference target via options
+Pass	object.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to option with reference target via options
+Pass	object.form has reflection behavior IsNull when pointing to option with reference target via options
+Pass	object.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to datalist with reference target via options
+Pass	object.form has reflection behavior IsNull when pointing to datalist with reference target via options
+Pass	object.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to form with reference target via options
+Fail	object.form has reflection behavior ReflectsHost when pointing to form with reference target via options
+Pass	label.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to button with reference target via options
+Pass	label.htmlFor has reflection behavior ReflectsHostID when pointing to button with reference target via options
+Pass	label.form has reflection behavior IsNull when pointing to button with reference target via options
+Fail	label.control has reflection behavior ReflectsHost when pointing to button with reference target via options
+Pass	label.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to input with reference target via options
+Pass	label.htmlFor has reflection behavior ReflectsHostID when pointing to input with reference target via options
+Pass	label.form has reflection behavior IsNull when pointing to input with reference target via options
+Fail	label.control has reflection behavior ReflectsHost when pointing to input with reference target via options
+Pass	label.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to meter with reference target via options
+Pass	label.htmlFor has reflection behavior ReflectsHostID when pointing to meter with reference target via options
+Pass	label.form has reflection behavior IsNull when pointing to meter with reference target via options
+Fail	label.control has reflection behavior ReflectsHost when pointing to meter with reference target via options
+Pass	label.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to output with reference target via options
+Pass	label.htmlFor has reflection behavior ReflectsHostID when pointing to output with reference target via options
+Pass	label.form has reflection behavior IsNull when pointing to output with reference target via options
+Fail	label.control has reflection behavior ReflectsHost when pointing to output with reference target via options
+Pass	label.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to progress with reference target via options
+Pass	label.htmlFor has reflection behavior ReflectsHostID when pointing to progress with reference target via options
+Pass	label.form has reflection behavior IsNull when pointing to progress with reference target via options
+Fail	label.control has reflection behavior ReflectsHost when pointing to progress with reference target via options
+Pass	label.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to select with reference target via options
+Pass	label.htmlFor has reflection behavior ReflectsHostID when pointing to select with reference target via options
+Pass	label.form has reflection behavior IsNull when pointing to select with reference target via options
+Fail	label.control has reflection behavior ReflectsHost when pointing to select with reference target via options
+Pass	label.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to textarea with reference target via options
+Pass	label.htmlFor has reflection behavior ReflectsHostID when pointing to textarea with reference target via options
+Pass	label.form has reflection behavior IsNull when pointing to textarea with reference target via options
+Fail	label.control has reflection behavior ReflectsHost when pointing to textarea with reference target via options
+Pass	label.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to div with reference target via options
+Pass	label.htmlFor has reflection behavior ReflectsHostID when pointing to div with reference target via options
+Pass	label.form has reflection behavior IsNull when pointing to div with reference target via options
+Pass	label.control has reflection behavior IsNull when pointing to div with reference target via options
+Pass	label.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to object with reference target via options
+Pass	label.htmlFor has reflection behavior ReflectsHostID when pointing to object with reference target via options
+Pass	label.form has reflection behavior IsNull when pointing to object with reference target via options
+Pass	label.control has reflection behavior IsNull when pointing to object with reference target via options
+Pass	label.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to label with reference target via options
+Pass	label.htmlFor has reflection behavior ReflectsHostID when pointing to label with reference target via options
+Pass	label.form has reflection behavior IsNull when pointing to label with reference target via options
+Pass	label.control has reflection behavior IsNull when pointing to label with reference target via options
+Pass	label.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to fieldset with reference target via options
+Pass	label.htmlFor has reflection behavior ReflectsHostID when pointing to fieldset with reference target via options
+Pass	label.form has reflection behavior IsNull when pointing to fieldset with reference target via options
+Pass	label.control has reflection behavior IsNull when pointing to fieldset with reference target via options
+Pass	label.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to legend with reference target via options
+Pass	label.htmlFor has reflection behavior ReflectsHostID when pointing to legend with reference target via options
+Pass	label.form has reflection behavior IsNull when pointing to legend with reference target via options
+Pass	label.control has reflection behavior IsNull when pointing to legend with reference target via options
+Pass	label.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to option with reference target via options
+Pass	label.htmlFor has reflection behavior ReflectsHostID when pointing to option with reference target via options
+Pass	label.form has reflection behavior IsNull when pointing to option with reference target via options
+Pass	label.control has reflection behavior IsNull when pointing to option with reference target via options
+Pass	label.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to datalist with reference target via options
+Pass	label.htmlFor has reflection behavior ReflectsHostID when pointing to datalist with reference target via options
+Pass	label.form has reflection behavior IsNull when pointing to datalist with reference target via options
+Pass	label.control has reflection behavior IsNull when pointing to datalist with reference target via options
+Pass	label.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to form with reference target via options
+Pass	label.htmlFor has reflection behavior ReflectsHostID when pointing to form with reference target via options
+Pass	label.form has reflection behavior IsNull when pointing to form with reference target via options
+Pass	label.control has reflection behavior IsNull when pointing to form with reference target via options
+Pass	fieldset.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to button with reference target via options
+Pass	fieldset.form has reflection behavior IsNull when pointing to button with reference target via options
+Pass	fieldset.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to input with reference target via options
+Pass	fieldset.form has reflection behavior IsNull when pointing to input with reference target via options
+Pass	fieldset.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to meter with reference target via options
+Pass	fieldset.form has reflection behavior IsNull when pointing to meter with reference target via options
+Pass	fieldset.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to output with reference target via options
+Pass	fieldset.form has reflection behavior IsNull when pointing to output with reference target via options
+Pass	fieldset.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to progress with reference target via options
+Pass	fieldset.form has reflection behavior IsNull when pointing to progress with reference target via options
+Pass	fieldset.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to select with reference target via options
+Pass	fieldset.form has reflection behavior IsNull when pointing to select with reference target via options
+Pass	fieldset.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to textarea with reference target via options
+Pass	fieldset.form has reflection behavior IsNull when pointing to textarea with reference target via options
+Pass	fieldset.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to div with reference target via options
+Pass	fieldset.form has reflection behavior IsNull when pointing to div with reference target via options
+Pass	fieldset.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to object with reference target via options
+Pass	fieldset.form has reflection behavior IsNull when pointing to object with reference target via options
+Pass	fieldset.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to label with reference target via options
+Pass	fieldset.form has reflection behavior IsNull when pointing to label with reference target via options
+Pass	fieldset.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to fieldset with reference target via options
+Pass	fieldset.form has reflection behavior IsNull when pointing to fieldset with reference target via options
+Pass	fieldset.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to legend with reference target via options
+Pass	fieldset.form has reflection behavior IsNull when pointing to legend with reference target via options
+Pass	fieldset.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to option with reference target via options
+Pass	fieldset.form has reflection behavior IsNull when pointing to option with reference target via options
+Pass	fieldset.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to datalist with reference target via options
+Pass	fieldset.form has reflection behavior IsNull when pointing to datalist with reference target via options
+Pass	fieldset.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to form with reference target via options
+Fail	fieldset.form has reflection behavior ReflectsHost when pointing to form with reference target via options
+Pass	legend.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to button with reference target via options
+Pass	legend.form has reflection behavior IsNull when pointing to button with reference target via options
+Pass	legend.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to input with reference target via options
+Pass	legend.form has reflection behavior IsNull when pointing to input with reference target via options
+Pass	legend.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to meter with reference target via options
+Pass	legend.form has reflection behavior IsNull when pointing to meter with reference target via options
+Pass	legend.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to output with reference target via options
+Pass	legend.form has reflection behavior IsNull when pointing to output with reference target via options
+Pass	legend.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to progress with reference target via options
+Pass	legend.form has reflection behavior IsNull when pointing to progress with reference target via options
+Pass	legend.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to select with reference target via options
+Pass	legend.form has reflection behavior IsNull when pointing to select with reference target via options
+Pass	legend.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to textarea with reference target via options
+Pass	legend.form has reflection behavior IsNull when pointing to textarea with reference target via options
+Pass	legend.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to div with reference target via options
+Pass	legend.form has reflection behavior IsNull when pointing to div with reference target via options
+Pass	legend.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to object with reference target via options
+Pass	legend.form has reflection behavior IsNull when pointing to object with reference target via options
+Pass	legend.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to label with reference target via options
+Pass	legend.form has reflection behavior IsNull when pointing to label with reference target via options
+Pass	legend.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to fieldset with reference target via options
+Pass	legend.form has reflection behavior IsNull when pointing to fieldset with reference target via options
+Pass	legend.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to legend with reference target via options
+Pass	legend.form has reflection behavior IsNull when pointing to legend with reference target via options
+Pass	legend.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to option with reference target via options
+Pass	legend.form has reflection behavior IsNull when pointing to option with reference target via options
+Pass	legend.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to datalist with reference target via options
+Pass	legend.form has reflection behavior IsNull when pointing to datalist with reference target via options
+Pass	legend.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to form with reference target via options
+Pass	legend.form has reflection behavior IsNull when pointing to form with reference target via options
+Pass	option.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to button with reference target via options
+Pass	option.form has reflection behavior IsNull when pointing to button with reference target via options
+Pass	option.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to input with reference target via options
+Pass	option.form has reflection behavior IsNull when pointing to input with reference target via options
+Pass	option.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to meter with reference target via options
+Pass	option.form has reflection behavior IsNull when pointing to meter with reference target via options
+Pass	option.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to output with reference target via options
+Pass	option.form has reflection behavior IsNull when pointing to output with reference target via options
+Pass	option.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to progress with reference target via options
+Pass	option.form has reflection behavior IsNull when pointing to progress with reference target via options
+Pass	option.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to select with reference target via options
+Pass	option.form has reflection behavior IsNull when pointing to select with reference target via options
+Pass	option.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to textarea with reference target via options
+Pass	option.form has reflection behavior IsNull when pointing to textarea with reference target via options
+Pass	option.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to div with reference target via options
+Pass	option.form has reflection behavior IsNull when pointing to div with reference target via options
+Pass	option.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to object with reference target via options
+Pass	option.form has reflection behavior IsNull when pointing to object with reference target via options
+Pass	option.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to label with reference target via options
+Pass	option.form has reflection behavior IsNull when pointing to label with reference target via options
+Pass	option.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to fieldset with reference target via options
+Pass	option.form has reflection behavior IsNull when pointing to fieldset with reference target via options
+Pass	option.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to legend with reference target via options
+Pass	option.form has reflection behavior IsNull when pointing to legend with reference target via options
+Pass	option.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to option with reference target via options
+Pass	option.form has reflection behavior IsNull when pointing to option with reference target via options
+Pass	option.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to datalist with reference target via options
+Pass	option.form has reflection behavior IsNull when pointing to datalist with reference target via options
+Pass	option.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to form with reference target via options
+Pass	option.form has reflection behavior IsNull when pointing to form with reference target via options
+Pass	datalist.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to button with reference target via options
+Pass	datalist.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to input with reference target via options
+Pass	datalist.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to meter with reference target via options
+Pass	datalist.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to output with reference target via options
+Pass	datalist.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to progress with reference target via options
+Pass	datalist.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to select with reference target via options
+Pass	datalist.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to textarea with reference target via options
+Pass	datalist.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to div with reference target via options
+Pass	datalist.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to object with reference target via options
+Pass	datalist.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to label with reference target via options
+Pass	datalist.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to fieldset with reference target via options
+Pass	datalist.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to legend with reference target via options
+Pass	datalist.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to option with reference target via options
+Pass	datalist.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to datalist with reference target via options
+Pass	datalist.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to form with reference target via options
+Pass	form.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to button with reference target via options
+Pass	form.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to input with reference target via options
+Pass	form.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to meter with reference target via options
+Pass	form.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to output with reference target via options
+Pass	form.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to progress with reference target via options
+Pass	form.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to select with reference target via options
+Pass	form.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to textarea with reference target via options
+Pass	form.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to div with reference target via options
+Pass	form.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to object with reference target via options
+Pass	form.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to label with reference target via options
+Pass	form.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to fieldset with reference target via options
+Pass	form.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to legend with reference target via options
+Pass	form.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to option with reference target via options
+Pass	form.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to datalist with reference target via options
+Pass	form.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to form with reference target via options
+Pass	button.form has reflection behavior IsNull when pointing to button with reference targetundefined
+Pass	button.form has reflection behavior IsNull when pointing to input with reference targetundefined
+Pass	button.form has reflection behavior IsNull when pointing to meter with reference targetundefined
+Pass	button.form has reflection behavior IsNull when pointing to output with reference targetundefined
+Pass	button.form has reflection behavior IsNull when pointing to progress with reference targetundefined
+Pass	button.form has reflection behavior IsNull when pointing to select with reference targetundefined
+Pass	button.form has reflection behavior IsNull when pointing to textarea with reference targetundefined
+Pass	button.form has reflection behavior IsNull when pointing to div with reference targetundefined
+Pass	button.form has reflection behavior IsNull when pointing to object with reference targetundefined
+Pass	button.form has reflection behavior IsNull when pointing to label with reference targetundefined
+Pass	button.form has reflection behavior IsNull when pointing to fieldset with reference targetundefined
+Pass	button.form has reflection behavior IsNull when pointing to legend with reference targetundefined
+Pass	button.form has reflection behavior IsNull when pointing to option with reference targetundefined
+Pass	button.form has reflection behavior IsNull when pointing to datalist with reference targetundefined
+Pass	button.form has reflection behavior IsNull when pointing to form with reference targetundefined
+Pass	input.form has reflection behavior IsNull when pointing to button with reference targetundefined
+Pass	input.list has reflection behavior IsNull when pointing to button with reference targetundefined
+Pass	input.form has reflection behavior IsNull when pointing to input with reference targetundefined
+Pass	input.list has reflection behavior IsNull when pointing to input with reference targetundefined
+Pass	input.form has reflection behavior IsNull when pointing to meter with reference targetundefined
+Pass	input.list has reflection behavior IsNull when pointing to meter with reference targetundefined
+Pass	input.form has reflection behavior IsNull when pointing to output with reference targetundefined
+Pass	input.list has reflection behavior IsNull when pointing to output with reference targetundefined
+Pass	input.form has reflection behavior IsNull when pointing to progress with reference targetundefined
+Pass	input.list has reflection behavior IsNull when pointing to progress with reference targetundefined
+Pass	input.form has reflection behavior IsNull when pointing to select with reference targetundefined
+Pass	input.list has reflection behavior IsNull when pointing to select with reference targetundefined
+Pass	input.form has reflection behavior IsNull when pointing to textarea with reference targetundefined
+Pass	input.list has reflection behavior IsNull when pointing to textarea with reference targetundefined
+Pass	input.form has reflection behavior IsNull when pointing to div with reference targetundefined
+Pass	input.list has reflection behavior IsNull when pointing to div with reference targetundefined
+Pass	input.form has reflection behavior IsNull when pointing to object with reference targetundefined
+Pass	input.list has reflection behavior IsNull when pointing to object with reference targetundefined
+Pass	input.form has reflection behavior IsNull when pointing to label with reference targetundefined
+Pass	input.list has reflection behavior IsNull when pointing to label with reference targetundefined
+Pass	input.form has reflection behavior IsNull when pointing to fieldset with reference targetundefined
+Pass	input.list has reflection behavior IsNull when pointing to fieldset with reference targetundefined
+Pass	input.form has reflection behavior IsNull when pointing to legend with reference targetundefined
+Pass	input.list has reflection behavior IsNull when pointing to legend with reference targetundefined
+Pass	input.form has reflection behavior IsNull when pointing to option with reference targetundefined
+Pass	input.list has reflection behavior IsNull when pointing to option with reference targetundefined
+Pass	input.form has reflection behavior IsNull when pointing to datalist with reference targetundefined
+Pass	input.list has reflection behavior IsNull when pointing to datalist with reference targetundefined
+Pass	input.form has reflection behavior IsNull when pointing to form with reference targetundefined
+Pass	input.list has reflection behavior IsNull when pointing to form with reference targetundefined
+Pass	output.form has reflection behavior IsNull when pointing to button with reference targetundefined
+Pass	output.form has reflection behavior IsNull when pointing to input with reference targetundefined
+Pass	output.form has reflection behavior IsNull when pointing to meter with reference targetundefined
+Pass	output.form has reflection behavior IsNull when pointing to output with reference targetundefined
+Pass	output.form has reflection behavior IsNull when pointing to progress with reference targetundefined
+Pass	output.form has reflection behavior IsNull when pointing to select with reference targetundefined
+Pass	output.form has reflection behavior IsNull when pointing to textarea with reference targetundefined
+Pass	output.form has reflection behavior IsNull when pointing to div with reference targetundefined
+Pass	output.form has reflection behavior IsNull when pointing to object with reference targetundefined
+Pass	output.form has reflection behavior IsNull when pointing to label with reference targetundefined
+Pass	output.form has reflection behavior IsNull when pointing to fieldset with reference targetundefined
+Pass	output.form has reflection behavior IsNull when pointing to legend with reference targetundefined
+Pass	output.form has reflection behavior IsNull when pointing to option with reference targetundefined
+Pass	output.form has reflection behavior IsNull when pointing to datalist with reference targetundefined
+Pass	output.form has reflection behavior IsNull when pointing to form with reference targetundefined
+Pass	select.form has reflection behavior IsNull when pointing to button with reference targetundefined
+Pass	select.form has reflection behavior IsNull when pointing to input with reference targetundefined
+Pass	select.form has reflection behavior IsNull when pointing to meter with reference targetundefined
+Pass	select.form has reflection behavior IsNull when pointing to output with reference targetundefined
+Pass	select.form has reflection behavior IsNull when pointing to progress with reference targetundefined
+Pass	select.form has reflection behavior IsNull when pointing to select with reference targetundefined
+Pass	select.form has reflection behavior IsNull when pointing to textarea with reference targetundefined
+Pass	select.form has reflection behavior IsNull when pointing to div with reference targetundefined
+Pass	select.form has reflection behavior IsNull when pointing to object with reference targetundefined
+Pass	select.form has reflection behavior IsNull when pointing to label with reference targetundefined
+Pass	select.form has reflection behavior IsNull when pointing to fieldset with reference targetundefined
+Pass	select.form has reflection behavior IsNull when pointing to legend with reference targetundefined
+Pass	select.form has reflection behavior IsNull when pointing to option with reference targetundefined
+Pass	select.form has reflection behavior IsNull when pointing to datalist with reference targetundefined
+Pass	select.form has reflection behavior IsNull when pointing to form with reference targetundefined
+Pass	textarea.form has reflection behavior IsNull when pointing to button with reference targetundefined
+Pass	textarea.form has reflection behavior IsNull when pointing to input with reference targetundefined
+Pass	textarea.form has reflection behavior IsNull when pointing to meter with reference targetundefined
+Pass	textarea.form has reflection behavior IsNull when pointing to output with reference targetundefined
+Pass	textarea.form has reflection behavior IsNull when pointing to progress with reference targetundefined
+Pass	textarea.form has reflection behavior IsNull when pointing to select with reference targetundefined
+Pass	textarea.form has reflection behavior IsNull when pointing to textarea with reference targetundefined
+Pass	textarea.form has reflection behavior IsNull when pointing to div with reference targetundefined
+Pass	textarea.form has reflection behavior IsNull when pointing to object with reference targetundefined
+Pass	textarea.form has reflection behavior IsNull when pointing to label with reference targetundefined
+Pass	textarea.form has reflection behavior IsNull when pointing to fieldset with reference targetundefined
+Pass	textarea.form has reflection behavior IsNull when pointing to legend with reference targetundefined
+Pass	textarea.form has reflection behavior IsNull when pointing to option with reference targetundefined
+Pass	textarea.form has reflection behavior IsNull when pointing to datalist with reference targetundefined
+Pass	textarea.form has reflection behavior IsNull when pointing to form with reference targetundefined
+Pass	object.form has reflection behavior IsNull when pointing to button with reference targetundefined
+Pass	object.form has reflection behavior IsNull when pointing to input with reference targetundefined
+Pass	object.form has reflection behavior IsNull when pointing to meter with reference targetundefined
+Pass	object.form has reflection behavior IsNull when pointing to output with reference targetundefined
+Pass	object.form has reflection behavior IsNull when pointing to progress with reference targetundefined
+Pass	object.form has reflection behavior IsNull when pointing to select with reference targetundefined
+Pass	object.form has reflection behavior IsNull when pointing to textarea with reference targetundefined
+Pass	object.form has reflection behavior IsNull when pointing to div with reference targetundefined
+Pass	object.form has reflection behavior IsNull when pointing to object with reference targetundefined
+Pass	object.form has reflection behavior IsNull when pointing to label with reference targetundefined
+Pass	object.form has reflection behavior IsNull when pointing to fieldset with reference targetundefined
+Pass	object.form has reflection behavior IsNull when pointing to legend with reference targetundefined
+Pass	object.form has reflection behavior IsNull when pointing to option with reference targetundefined
+Pass	object.form has reflection behavior IsNull when pointing to datalist with reference targetundefined
+Pass	object.form has reflection behavior IsNull when pointing to form with reference targetundefined
+Pass	label.form has reflection behavior IsNull when pointing to button with reference targetundefined
+Pass	label.control has reflection behavior IsNull when pointing to button with reference targetundefined
+Pass	label.form has reflection behavior IsNull when pointing to input with reference targetundefined
+Pass	label.control has reflection behavior IsNull when pointing to input with reference targetundefined
+Pass	label.form has reflection behavior IsNull when pointing to meter with reference targetundefined
+Pass	label.control has reflection behavior IsNull when pointing to meter with reference targetundefined
+Pass	label.form has reflection behavior IsNull when pointing to output with reference targetundefined
+Pass	label.control has reflection behavior IsNull when pointing to output with reference targetundefined
+Pass	label.form has reflection behavior IsNull when pointing to progress with reference targetundefined
+Pass	label.control has reflection behavior IsNull when pointing to progress with reference targetundefined
+Pass	label.form has reflection behavior IsNull when pointing to select with reference targetundefined
+Pass	label.control has reflection behavior IsNull when pointing to select with reference targetundefined
+Pass	label.form has reflection behavior IsNull when pointing to textarea with reference targetundefined
+Pass	label.control has reflection behavior IsNull when pointing to textarea with reference targetundefined
+Pass	label.form has reflection behavior IsNull when pointing to div with reference targetundefined
+Pass	label.control has reflection behavior IsNull when pointing to div with reference targetundefined
+Pass	label.form has reflection behavior IsNull when pointing to object with reference targetundefined
+Pass	label.control has reflection behavior IsNull when pointing to object with reference targetundefined
+Pass	label.form has reflection behavior IsNull when pointing to label with reference targetundefined
+Pass	label.control has reflection behavior IsNull when pointing to label with reference targetundefined
+Pass	label.form has reflection behavior IsNull when pointing to fieldset with reference targetundefined
+Pass	label.control has reflection behavior IsNull when pointing to fieldset with reference targetundefined
+Pass	label.form has reflection behavior IsNull when pointing to legend with reference targetundefined
+Pass	label.control has reflection behavior IsNull when pointing to legend with reference targetundefined
+Pass	label.form has reflection behavior IsNull when pointing to option with reference targetundefined
+Pass	label.control has reflection behavior IsNull when pointing to option with reference targetundefined
+Pass	label.form has reflection behavior IsNull when pointing to datalist with reference targetundefined
+Pass	label.control has reflection behavior IsNull when pointing to datalist with reference targetundefined
+Pass	label.form has reflection behavior IsNull when pointing to form with reference targetundefined
+Pass	label.control has reflection behavior IsNull when pointing to form with reference targetundefined
+Pass	fieldset.form has reflection behavior IsNull when pointing to button with reference targetundefined
+Pass	fieldset.form has reflection behavior IsNull when pointing to input with reference targetundefined
+Pass	fieldset.form has reflection behavior IsNull when pointing to meter with reference targetundefined
+Pass	fieldset.form has reflection behavior IsNull when pointing to output with reference targetundefined
+Pass	fieldset.form has reflection behavior IsNull when pointing to progress with reference targetundefined
+Pass	fieldset.form has reflection behavior IsNull when pointing to select with reference targetundefined
+Pass	fieldset.form has reflection behavior IsNull when pointing to textarea with reference targetundefined
+Pass	fieldset.form has reflection behavior IsNull when pointing to div with reference targetundefined
+Pass	fieldset.form has reflection behavior IsNull when pointing to object with reference targetundefined
+Pass	fieldset.form has reflection behavior IsNull when pointing to label with reference targetundefined
+Pass	fieldset.form has reflection behavior IsNull when pointing to fieldset with reference targetundefined
+Pass	fieldset.form has reflection behavior IsNull when pointing to legend with reference targetundefined
+Pass	fieldset.form has reflection behavior IsNull when pointing to option with reference targetundefined
+Pass	fieldset.form has reflection behavior IsNull when pointing to datalist with reference targetundefined
+Pass	fieldset.form has reflection behavior IsNull when pointing to form with reference targetundefined
+Pass	legend.form has reflection behavior IsNull when pointing to button with reference targetundefined
+Pass	legend.form has reflection behavior IsNull when pointing to input with reference targetundefined
+Pass	legend.form has reflection behavior IsNull when pointing to meter with reference targetundefined
+Pass	legend.form has reflection behavior IsNull when pointing to output with reference targetundefined
+Pass	legend.form has reflection behavior IsNull when pointing to progress with reference targetundefined
+Pass	legend.form has reflection behavior IsNull when pointing to select with reference targetundefined
+Pass	legend.form has reflection behavior IsNull when pointing to textarea with reference targetundefined
+Pass	legend.form has reflection behavior IsNull when pointing to div with reference targetundefined
+Pass	legend.form has reflection behavior IsNull when pointing to object with reference targetundefined
+Pass	legend.form has reflection behavior IsNull when pointing to label with reference targetundefined
+Pass	legend.form has reflection behavior IsNull when pointing to fieldset with reference targetundefined
+Pass	legend.form has reflection behavior IsNull when pointing to legend with reference targetundefined
+Pass	legend.form has reflection behavior IsNull when pointing to option with reference targetundefined
+Pass	legend.form has reflection behavior IsNull when pointing to datalist with reference targetundefined
+Pass	legend.form has reflection behavior IsNull when pointing to form with reference targetundefined
+Pass	option.form has reflection behavior IsNull when pointing to button with reference targetundefined
+Pass	option.form has reflection behavior IsNull when pointing to input with reference targetundefined
+Pass	option.form has reflection behavior IsNull when pointing to meter with reference targetundefined
+Pass	option.form has reflection behavior IsNull when pointing to output with reference targetundefined
+Pass	option.form has reflection behavior IsNull when pointing to progress with reference targetundefined
+Pass	option.form has reflection behavior IsNull when pointing to select with reference targetundefined
+Pass	option.form has reflection behavior IsNull when pointing to textarea with reference targetundefined
+Pass	option.form has reflection behavior IsNull when pointing to div with reference targetundefined
+Pass	option.form has reflection behavior IsNull when pointing to object with reference targetundefined
+Pass	option.form has reflection behavior IsNull when pointing to label with reference targetundefined
+Pass	option.form has reflection behavior IsNull when pointing to fieldset with reference targetundefined
+Pass	option.form has reflection behavior IsNull when pointing to legend with reference targetundefined
+Pass	option.form has reflection behavior IsNull when pointing to option with reference targetundefined
+Pass	option.form has reflection behavior IsNull when pointing to datalist with reference targetundefined
+Pass	option.form has reflection behavior IsNull when pointing to form with reference targetundefined
+Fail	The .labels property of the referenced input element should point to the referencing label element
