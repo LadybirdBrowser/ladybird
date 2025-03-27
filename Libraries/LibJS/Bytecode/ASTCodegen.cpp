@@ -1129,7 +1129,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ObjectExpression::gener
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
 
-    auto object = generator.allocate_register();
+    auto object = choose_dst(generator, preferred_dst);
 
     generator.emit<Bytecode::Op::NewObject>(object);
     if (m_properties.is_empty())
