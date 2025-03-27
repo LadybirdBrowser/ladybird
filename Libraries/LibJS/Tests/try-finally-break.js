@@ -490,3 +490,17 @@ test("Break with nested mixed try-catch/finally", () => {
 
     expect(executionOrder).toEqual([1, 2]);
 });
+
+test("Break in finally return in try", () => {
+    function foo() {
+        do {
+            try {
+                return "bar";
+            } finally {
+                break;
+            }
+        } while (expect.fail("Continued after do-while loop"));
+    }
+
+    expect(foo()).toEqual(undefined);
+});

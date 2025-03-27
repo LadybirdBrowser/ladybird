@@ -778,8 +778,6 @@ Interpreter::ResultAndReturnRegister Interpreter::run_executable(Executable& exe
     auto return_value = js_undefined();
     if (!reg(Register::return_value()).is_empty())
         return_value = reg(Register::return_value());
-    else if (!reg(Register::saved_return_value()).is_empty())
-        return_value = reg(Register::saved_return_value());
     auto exception = reg(Register::exception());
 
     vm().run_queued_promise_jobs();
