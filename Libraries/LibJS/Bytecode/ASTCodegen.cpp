@@ -298,7 +298,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> LogicalExpression::gene
     auto dst = choose_dst(generator, preferred_dst);
     auto lhs = TRY(m_lhs->generate_bytecode(generator, preferred_dst)).value();
     // FIXME: Only mov lhs into dst in case lhs is the value taken.
-    generator.emit<Bytecode::Op::Mov>(dst, lhs);
+    generator.emit_mov(dst, lhs);
 
     // lhs
     // jump op (true) end (false) rhs
@@ -333,9 +333,10 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> LogicalExpression::gene
     }
 
     generator.switch_to_basic_block(rhs_block);
+
     auto rhs = TRY(m_rhs->generate_bytecode(generator)).value();
 
-    generator.emit<Bytecode::Op::Mov>(dst, rhs);
+    generator.emit_mov(dst, rhs);
     generator.emit<Bytecode::Op::Jump>(Bytecode::Label { end_block });
     generator.switch_to_basic_block(end_block);
     return dst;
@@ -494,7 +495,7 @@ static Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> arguments_to_arr
         VERIFY(!it->is_spread);
         auto reg = generator.allocate_register();
         auto value = TRY(it->value->generate_bytecode(generator)).value();
-        generator.emit<Bytecode::Op::Mov>(reg, value);
+        generator.emit_mov(reg, value);
         args.append(move(reg));
     }
 
@@ -763,7 +764,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> AssignmentExpression::g
     case AssignmentOp::AndAssignment:
     case AssignmentOp::OrAssignment:
     case AssignmentOp::NullishAssignment:
-        generator.emit<Bytecode::Op::Mov>(dst, rhs);
+        generator.emit_mov(dst, rhs);
         break;
     default:
         return Bytecode::CodeGenerationError {
@@ -783,7 +784,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> AssignmentExpression::g
 
     if (lhs_block_ptr) {
         generator.switch_to_basic_block(*lhs_block_ptr);
-        generator.emit<Bytecode::Op::Mov>(dst, lhs);
+        generator.emit_mov(dst, lhs);
         generator.emit<Bytecode::Op::Jump>(Bytecode::Label { *end_block_ptr });
     }
 
@@ -882,7 +883,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> WhileStatement::generat
     Optional<ScopedOperand> completion;
     if (generator.must_propagate_completion()) {
         completion = generator.allocate_register();
-        generator.emit<Bytecode::Op::Mov>(*completion, generator.add_constant(js_undefined()));
+        generator.emit_mov(*completion, generator.add_constant(js_undefined()));
     }
 
     generator.emit<Bytecode::Op::Jump>(Bytecode::Label { test_block });
@@ -904,7 +905,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> WhileStatement::generat
     if (!generator.is_current_block_terminated()) {
         if (generator.must_propagate_completion()) {
             if (body.has_value())
-                generator.emit<Bytecode::Op::Mov>(*completion, body.value());
+                generator.emit_mov(*completion, body.value());
         }
         generator.emit<Bytecode::Op::Jump>(Bytecode::Label { test_block });
     }
@@ -936,7 +937,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> DoWhileStatement::gener
     Optional<ScopedOperand> completion;
     if (generator.must_propagate_completion()) {
         completion = generator.allocate_register();
-        generator.emit<Bytecode::Op::Mov>(*completion, generator.add_constant(js_undefined()));
+        generator.emit_mov(*completion, generator.add_constant(js_undefined()));
     }
 
     // jump to the body block
@@ -959,7 +960,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> DoWhileStatement::gener
     if (!generator.is_current_block_terminated()) {
         if (generator.must_propagate_completion()) {
             if (body_result.has_value())
-                generator.emit<Bytecode::Op::Mov>(*completion, body_result.value());
+                generator.emit_mov(*completion, body_result.value());
         }
         generator.emit<Bytecode::Op::Jump>(Bytecode::Label { test_block });
     }
@@ -1369,7 +1370,7 @@ static Bytecode::CodeGenerationErrorOr<void> generate_object_binding_pattern_byt
             } else {
                 default_value = TRY(initializer->generate_bytecode(generator)).value();
             }
-            generator.emit<Bytecode::Op::Mov>(value, *default_value);
+            generator.emit_mov(value, *default_value);
             generator.emit<Bytecode::Op::Jump>(Bytecode::Label { if_not_undefined_block });
 
             generator.switch_to_basic_block(if_not_undefined_block);
@@ -1429,7 +1430,7 @@ static Bytecode::CodeGenerationErrorOr<void> generate_array_binding_pattern_byte
      */
 
     auto is_iterator_exhausted = generator.allocate_register();
-    generator.emit<Bytecode::Op::Mov>(is_iterator_exhausted, generator.add_constant(Value(false)));
+    generator.emit_mov(is_iterator_exhausted, generator.add_constant(Value(false)));
 
     auto iterator = generator.allocate_register();
     generator.emit<Bytecode::Op::GetIterator>(iterator, input_array);
@@ -1531,7 +1532,7 @@ static Bytecode::CodeGenerationErrorOr<void> generate_array_binding_pattern_byte
 
         // The iterator is exhausted, so we just load undefined and continue binding
         generator.switch_to_basic_block(iterator_is_exhausted_block);
-        generator.emit<Bytecode::Op::Mov>(value, generator.add_constant(js_undefined()));
+        generator.emit_mov(value, generator.add_constant(js_undefined()));
         generator.emit<Bytecode::Op::Jump>(Bytecode::Label { create_binding_block });
 
         generator.switch_to_basic_block(create_binding_block);
@@ -1555,7 +1556,7 @@ static Bytecode::CodeGenerationErrorOr<void> generate_array_binding_pattern_byte
             } else {
                 default_value = TRY(initializer->generate_bytecode(generator)).value();
             }
-            generator.emit<Bytecode::Op::Mov>(value, *default_value);
+            generator.emit_mov(value, *default_value);
             generator.emit<Bytecode::Op::Jump>(Bytecode::Label { value_is_not_undefined_block });
 
             generator.switch_to_basic_block(value_is_not_undefined_block);
@@ -1922,7 +1923,7 @@ static void generate_yield(Bytecode::Generator& generator,
     generator.emit<Bytecode::Op::Yield>(Bytecode::Label { unwrap_yield_resumption_block }, argument);
     generator.switch_to_basic_block(unwrap_yield_resumption_block);
 
-    generator.emit<Bytecode::Op::Mov>(received_completion, generator.accumulator());
+    generator.emit_mov(received_completion, generator.accumulator());
     get_received_completion_type_and_value(generator, received_completion, received_completion_type, received_completion_value, type_identifier, value_identifier);
 
     // 27.6.3.7 AsyncGeneratorUnwrapYieldResumption ( resumptionValue ), https://tc39.es/ecma262/#sec-asyncgeneratorunwrapyieldresumption
@@ -2011,9 +2012,9 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> YieldExpression::genera
 
         // 6. Let received be NormalCompletion(undefined).
         // See get_received_completion_type_and_value above.
-        generator.emit<Bytecode::Op::Mov>(received_completion_type, generator.add_constant(Value(to_underlying(Completion::Type::Normal))));
+        generator.emit_mov(received_completion_type, generator.add_constant(Value(to_underlying(Completion::Type::Normal))));
 
-        generator.emit<Bytecode::Op::Mov>(received_completion_value, generator.add_constant(js_undefined()));
+        generator.emit_mov(received_completion_value, generator.add_constant(js_undefined()));
 
         // 7. Repeat,
         auto& loop_block = generator.make_block();
@@ -2048,7 +2049,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> YieldExpression::genera
         // ii. If generatorKind is async, set innerResult to ? Await(innerResult).
         if (generator.is_in_async_generator_function()) {
             auto new_inner_result = generate_await(generator, inner_result, received_completion, received_completion_type, received_completion_value, type_identifier, value_identifier);
-            generator.emit<Bytecode::Op::Mov>(inner_result, new_inner_result);
+            generator.emit_mov(inner_result, new_inner_result);
         }
 
         // iii. If innerResult is not an Object, throw a TypeError exception.
@@ -2086,7 +2087,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> YieldExpression::genera
 
             if (is_in_finalizer) {
                 saved_exception = generator.allocate_register();
-                generator.emit<Bytecode::Op::Mov>(Bytecode::Operand(*saved_exception), Bytecode::Operand(Bytecode::Register::exception()));
+                generator.emit_mov(Bytecode::Operand(*saved_exception), Bytecode::Operand(Bytecode::Register::exception()));
             }
 
             generate_yield(generator,
@@ -2139,7 +2140,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> YieldExpression::genera
         // 2. If generatorKind is async, set innerResult to ? Await(innerResult).
         if (generator.is_in_async_generator_function()) {
             auto new_result = generate_await(generator, inner_result, received_completion, received_completion_type, received_completion_value, type_identifier, value_identifier);
-            generator.emit<Bytecode::Op::Mov>(inner_result, new_result);
+            generator.emit_mov(inner_result, new_result);
         }
 
         // 3. NOTE: Exceptions from the inner iterator throw method are propagated. Normal completions from an inner throw method are processed similarly to an inner next.
@@ -2236,7 +2237,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> YieldExpression::genera
         // v. If generatorKind is async, set innerReturnResult to ? Await(innerReturnResult).
         if (generator.is_in_async_generator_function()) {
             auto new_value = generate_await(generator, inner_return_result, received_completion, received_completion_type, received_completion_value, type_identifier, value_identifier);
-            generator.emit<Bytecode::Op::Mov>(inner_return_result, new_value);
+            generator.emit_mov(inner_return_result, new_value);
         }
 
         // vi. If innerReturnResult is not an Object, throw a TypeError exception.
@@ -2276,9 +2277,9 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> YieldExpression::genera
         generator.switch_to_basic_block(continuation_block);
 
         if (is_in_finalizer)
-            generator.emit<Bytecode::Op::Mov>(Bytecode::Operand(Bytecode::Register::exception()), Bytecode::Operand(*saved_exception));
+            generator.emit_mov(Bytecode::Operand(Bytecode::Register::exception()), Bytecode::Operand(*saved_exception));
 
-        generator.emit<Bytecode::Op::Mov>(received_completion, generator.accumulator());
+        generator.emit_mov(received_completion, generator.accumulator());
         get_received_completion_type_and_value(generator, received_completion, received_completion_type, received_completion_value, type_identifier, value_identifier);
         generator.emit<Bytecode::Op::Jump>(Bytecode::Label { loop_block });
 
@@ -2296,16 +2297,16 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> YieldExpression::genera
 
     if (is_in_finalizer) {
         saved_exception = generator.allocate_register();
-        generator.emit<Bytecode::Op::Mov>(Bytecode::Operand(*saved_exception), Bytecode::Operand(Bytecode::Register::exception()));
+        generator.emit_mov(Bytecode::Operand(*saved_exception), Bytecode::Operand(Bytecode::Register::exception()));
     }
 
     generate_yield(generator, Bytecode::Label { continuation_block }, *argument, received_completion, received_completion_type, received_completion_value, type_identifier, value_identifier, AwaitBeforeYield::Yes);
     generator.switch_to_basic_block(continuation_block);
 
     if (is_in_finalizer)
-        generator.emit<Bytecode::Op::Mov>(Bytecode::Operand(Bytecode::Register::exception()), Bytecode::Operand(*saved_exception));
+        generator.emit_mov(Bytecode::Operand(Bytecode::Register::exception()), Bytecode::Operand(*saved_exception));
 
-    generator.emit<Bytecode::Op::Mov>(received_completion, generator.accumulator());
+    generator.emit_mov(received_completion, generator.accumulator());
 
     get_received_completion_type_and_value(generator, received_completion, received_completion_type, received_completion_value, type_identifier, value_identifier);
 
@@ -2368,7 +2369,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> IfStatement::generate_b
     Optional<ScopedOperand> completion;
     if (generator.must_propagate_completion()) {
         completion = choose_dst(generator, preferred_dst);
-        generator.emit<Bytecode::Op::Mov>(*completion, generator.add_constant(js_undefined()));
+        generator.emit_mov(*completion, generator.add_constant(js_undefined()));
     }
 
     auto predicate = TRY(m_predicate->generate_bytecode(generator)).value();
@@ -2381,7 +2382,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> IfStatement::generate_b
     auto consequent = TRY(m_consequent->generate_bytecode(generator, completion));
     if (!generator.is_current_block_terminated()) {
         if (generator.must_propagate_completion() && consequent.has_value())
-            generator.emit<Bytecode::Op::Mov>(*completion, *consequent);
+            generator.emit_mov(*completion, *consequent);
         generator.emit<Bytecode::Op::Jump>(Bytecode::Label { end_block });
     }
 
@@ -2390,7 +2391,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> IfStatement::generate_b
         auto alternate = TRY(m_alternate->generate_bytecode(generator, completion));
         if (!generator.is_current_block_terminated()) {
             if (generator.must_propagate_completion() && alternate.has_value())
-                generator.emit<Bytecode::Op::Mov>(*completion, *alternate);
+                generator.emit_mov(*completion, *alternate);
             generator.emit<Bytecode::Op::Jump>(Bytecode::Label { end_block });
         }
     }
@@ -2442,13 +2443,13 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ConditionalExpression::
 
     generator.switch_to_basic_block(true_block);
     auto consequent = TRY(m_consequent->generate_bytecode(generator)).value();
-    generator.emit<Bytecode::Op::Mov>(dst, consequent);
+    generator.emit_mov(dst, consequent);
 
     generator.emit<Bytecode::Op::Jump>(Bytecode::Label { end_block });
 
     generator.switch_to_basic_block(false_block);
     auto alternate = TRY(m_alternate->generate_bytecode(generator)).value();
-    generator.emit<Bytecode::Op::Mov>(dst, alternate);
+    generator.emit_mov(dst, alternate);
     generator.emit<Bytecode::Op::Jump>(Bytecode::Label { end_block });
 
     generator.switch_to_basic_block(end_block);
@@ -2475,7 +2476,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> TemplateLiteral::genera
     for (size_t i = 0; i < m_expressions.size(); i++) {
         auto value = TRY(m_expressions[i]->generate_bytecode(generator)).value();
         if (i == 0) {
-            generator.emit<Bytecode::Op::Mov>(dst, value);
+            generator.emit_mov(dst, value);
         } else {
             generator.emit<Bytecode::Op::ConcatString>(dst, value);
         }
@@ -2520,10 +2521,10 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> TaggedTemplateLiteral::
         //       12.9.6.1 Static Semantics: TV, https://tc39.es/ecma262/#sec-static-semantics-tv
         auto string_reg = generator.allocate_register();
         if (is<NullLiteral>(expressions[i])) {
-            generator.emit<Bytecode::Op::Mov>(string_reg, generator.add_constant(js_undefined()));
+            generator.emit_mov(string_reg, generator.add_constant(js_undefined()));
         } else {
             auto value = TRY(expressions[i]->generate_bytecode(generator)).value();
-            generator.emit<Bytecode::Op::Mov>(string_reg, value);
+            generator.emit_mov(string_reg, value);
         }
         string_regs.append(move(string_reg));
     }
@@ -2541,7 +2542,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> TaggedTemplateLiteral::
     for (size_t i = 1; i < expressions.size(); i += 2) {
         auto string_reg = generator.allocate_register();
         auto string = TRY(expressions[i]->generate_bytecode(generator)).value();
-        generator.emit<Bytecode::Op::Mov>(string_reg, string);
+        generator.emit_mov(string_reg, string);
         argument_regs.append(move(string_reg));
     }
 
@@ -2699,7 +2700,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> TryStatement::generate_
         if (generator.must_propagate_completion()) {
             if (handler_result.has_value() && !generator.is_current_block_terminated()) {
                 completion = generator.allocate_register();
-                generator.emit<Bytecode::Op::Mov>(*completion, *handler_result);
+                generator.emit_mov(*completion, *handler_result);
             }
         }
         handler_target = Bytecode::Label { handler_block };
@@ -2745,7 +2746,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> TryStatement::generate_
         if (generator.must_propagate_completion()) {
             if (block_result.has_value()) {
                 completion = generator.allocate_register();
-                generator.emit<Bytecode::Op::Mov>(*completion, *block_result);
+                generator.emit_mov(*completion, *block_result);
             }
         }
 
@@ -2786,7 +2787,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> SwitchStatement::genera
     Optional<ScopedOperand> completion;
     if (generator.must_propagate_completion()) {
         completion = generator.allocate_register();
-        generator.emit<Bytecode::Op::Mov>(*completion, generator.add_constant(js_undefined()));
+        generator.emit_mov(*completion, generator.add_constant(js_undefined()));
     }
 
     auto discriminant = TRY(m_discriminant->generate_bytecode(generator)).value();
@@ -2842,9 +2843,9 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> SwitchStatement::genera
                 break;
             if (generator.must_propagate_completion()) {
                 if (result.has_value())
-                    generator.emit<Bytecode::Op::Mov>(*completion, *result);
+                    generator.emit_mov(*completion, *result);
                 else
-                    generator.emit<Bytecode::Op::Mov>(*completion, generator.add_constant(js_undefined()));
+                    generator.emit_mov(*completion, generator.add_constant(js_undefined()));
             }
         }
         if (!generator.is_current_block_terminated()) {
@@ -2969,7 +2970,7 @@ static ScopedOperand generate_await(
     // FIXME: It's really magical that we can just assume that the completion value is in register 0.
     //        It ends up there because we "return" from the Await instruction above via the synthetic
     //        generator function that actually drives async execution.
-    generator.emit<Bytecode::Op::Mov>(received_completion, generator.accumulator());
+    generator.emit_mov(received_completion, generator.accumulator());
     get_received_completion_type_and_value(generator, received_completion, received_completion_type, received_completion_value, type_identifier, value_identifier);
 
     auto& normal_completion_continuation_block = generator.make_block();
@@ -3004,7 +3005,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> AwaitExpression::genera
     auto received_completion_type = generator.allocate_register();
     auto received_completion_value = generator.allocate_register();
 
-    generator.emit<Bytecode::Op::Mov>(received_completion, generator.accumulator());
+    generator.emit_mov(received_completion, generator.accumulator());
 
     auto type_identifier = generator.intern_identifier("type"_fly_string);
     auto value_identifier = generator.intern_identifier("value"_fly_string);
@@ -3172,7 +3173,7 @@ static Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> for_in_of_body_e
     Optional<ScopedOperand> completion;
     if (generator.must_propagate_completion()) {
         completion = generator.allocate_register();
-        generator.emit<Bytecode::Op::Mov>(*completion, generator.add_constant(js_undefined()));
+        generator.emit_mov(*completion, generator.add_constant(js_undefined()));
     }
 
     // 4. Let destructuring be IsDestructuring of lhs.
@@ -3206,9 +3207,9 @@ static Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> for_in_of_body_e
         auto type_identifier = generator.intern_identifier("type"_fly_string);
         auto value_identifier = generator.intern_identifier("value"_fly_string);
 
-        generator.emit<Bytecode::Op::Mov>(received_completion, generator.accumulator());
+        generator.emit_mov(received_completion, generator.accumulator());
         auto new_result = generate_await(generator, next_result, received_completion, received_completion_type, received_completion_value, type_identifier, value_identifier);
-        generator.emit<Bytecode::Op::Mov>(next_result, new_result);
+        generator.emit_mov(next_result, new_result);
     }
 
     // c. If Type(nextResult) is not Object, throw a TypeError exception.
@@ -3377,7 +3378,7 @@ static Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> for_in_of_body_e
     if (!generator.is_current_block_terminated()) {
         if (generator.must_propagate_completion()) {
             if (result.has_value())
-                generator.emit<Bytecode::Op::Mov>(*completion, *result);
+                generator.emit_mov(*completion, *result);
         }
 
         generator.emit<Bytecode::Op::Jump>(Bytecode::Label { loop_update });
@@ -3474,7 +3475,7 @@ static Bytecode::CodeGenerationErrorOr<void> generate_optional_chain(Bytecode::G
         auto& member_expression = static_cast<MemberExpression const&>(optional_chain.base());
         auto base_and_value = TRY(get_base_and_value_from_member_expression(generator, member_expression));
         new_current_value = base_and_value.value;
-        generator.emit<Bytecode::Op::Mov>(current_base, base_and_value.base);
+        generator.emit_mov(current_base, base_and_value.base);
     } else if (is<OptionalChain>(optional_chain.base())) {
         auto& sub_optional_chain = static_cast<OptionalChain const&>(optional_chain.base());
         TRY(generate_optional_chain(generator, sub_optional_chain, current_value, current_base));
@@ -3483,7 +3484,7 @@ static Bytecode::CodeGenerationErrorOr<void> generate_optional_chain(Bytecode::G
         new_current_value = TRY(optional_chain.base().generate_bytecode(generator)).value();
     }
 
-    generator.emit<Bytecode::Op::Mov>(current_value, *new_current_value);
+    generator.emit_mov(current_value, *new_current_value);
 
     auto& load_undefined_and_jump_to_end_block = generator.make_block();
     auto& end_block = generator.make_block();
@@ -3503,22 +3504,22 @@ static Bytecode::CodeGenerationErrorOr<void> generate_optional_chain(Bytecode::G
             [&](OptionalChain::Call const& call) -> Bytecode::CodeGenerationErrorOr<void> {
                 auto arguments = TRY(arguments_to_array_for_call(generator, call.arguments)).value();
                 generator.emit<Bytecode::Op::CallWithArgumentArray>(Bytecode::Op::CallType::Call, current_value, current_value, current_base, arguments);
-                generator.emit<Bytecode::Op::Mov>(current_base, generator.add_constant(js_undefined()));
+                generator.emit_mov(current_base, generator.add_constant(js_undefined()));
                 return {};
             },
             [&](OptionalChain::ComputedReference const& ref) -> Bytecode::CodeGenerationErrorOr<void> {
-                generator.emit<Bytecode::Op::Mov>(current_base, current_value);
+                generator.emit_mov(current_base, current_value);
                 auto property = TRY(ref.expression->generate_bytecode(generator)).value();
                 generator.emit<Bytecode::Op::GetByValue>(current_value, current_value, property);
                 return {};
             },
             [&](OptionalChain::MemberReference const& ref) -> Bytecode::CodeGenerationErrorOr<void> {
-                generator.emit<Bytecode::Op::Mov>(current_base, current_value);
+                generator.emit_mov(current_base, current_value);
                 generator.emit_get_by_id(current_value, current_value, generator.intern_identifier(ref.identifier->string()));
                 return {};
             },
             [&](OptionalChain::PrivateMemberReference const& ref) -> Bytecode::CodeGenerationErrorOr<void> {
-                generator.emit<Bytecode::Op::Mov>(current_base, current_value);
+                generator.emit_mov(current_base, current_value);
                 generator.emit<Bytecode::Op::GetPrivateById>(current_value, current_value, generator.intern_identifier(ref.private_identifier->string()));
 
                 return {};
@@ -3528,7 +3529,7 @@ static Bytecode::CodeGenerationErrorOr<void> generate_optional_chain(Bytecode::G
     generator.emit<Bytecode::Op::Jump>(Bytecode::Label { end_block });
 
     generator.switch_to_basic_block(load_undefined_and_jump_to_end_block);
-    generator.emit<Bytecode::Op::Mov>(current_value, generator.add_constant(js_undefined()));
+    generator.emit_mov(current_value, generator.add_constant(js_undefined()));
     generator.emit<Bytecode::Op::Jump>(Bytecode::Label { end_block });
 
     generator.switch_to_basic_block(end_block);
@@ -3540,7 +3541,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> OptionalChain::generate
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
     auto current_base = generator.allocate_register();
     auto current_value = choose_dst(generator, preferred_dst);
-    generator.emit<Bytecode::Op::Mov>(current_base, generator.add_constant(js_undefined()));
+    generator.emit_mov(current_base, generator.add_constant(js_undefined()));
     TRY(generate_optional_chain(generator, *this, current_value, current_base));
     return current_value;
 }
