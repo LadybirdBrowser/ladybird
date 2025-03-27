@@ -1,6 +1,7 @@
 /*
- * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2023-2025, Tim Flynn <trflynn89@serenityos.org>
  * Copyright (c) 2023, Cameron Youell <cameronyouell@gmail.com>
+ * Copyright (c) 2025, Manuel Zahariev <manuel@duck.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -12,42 +13,64 @@
 
 namespace WebView {
 
-Optional<URL::URL> sanitize_url(StringView url, Optional<StringView> search_engine, AppendTLD append_tld)
+Optional<URL::URL> sanitize_url(StringView location, Optional<StringView> search_engine, AppendTLD append_tld)
 {
-    if (FileSystem::exists(url.trim_whitespace())) {
-        auto path = FileSystem::real_path(url.trim_whitespace());
-        if (path.is_error())
-            return {};
-
-        return URL::create_with_file_scheme(path.value());
-    }
-
-    auto format_search_engine = [&]() -> Optional<URL::URL> {
+    auto search_url_or_error = [&]() -> Optional<URL::URL> {
         if (!search_engine.has_value())
             return {};
 
-        return URL::Parser::basic_parse(MUST(String::formatted(*search_engine, URL::percent_decode(url))));
+        return URL::Parser::basic_parse(MUST(String::formatted(*search_engine, URL::percent_encode(location))));
     };
 
-    ByteString url_with_scheme = url;
-    if (!(url_with_scheme.starts_with("about:"sv) || url_with_scheme.contains("://"sv) || url_with_scheme.starts_with("data:"sv)))
-        url_with_scheme = ByteString::formatted("https://{}"sv, url_with_scheme);
+    location = location.trim_whitespace();
 
-    auto result = URL::create_with_url_or_path(url_with_scheme);
+    if (FileSystem::exists(location)) {
+        auto path = FileSystem::real_path(location);
+        if (!path.is_error())
+            return URL::create_with_file_scheme(path.value());
+        return search_url_or_error();
+    }
 
-    if (result.is_valid() && append_tld == AppendTLD::Yes) {
-        if (auto maybe_host = result.host(); maybe_host.has_value()) {
-            auto serialized_host = maybe_host->serialize();
-            auto maybe_public_suffix = URL::get_public_suffix(serialized_host);
-            if (!maybe_public_suffix.has_value() || *maybe_public_suffix == serialized_host)
-                result.set_host(MUST(String::formatted("{}.com", serialized_host)));
+    bool https_scheme_was_guessed = false;
+
+    auto url = URL::create_with_url_or_path(location);
+
+    if (!url.is_valid()) {
+        url = URL::create_with_url_or_path(ByteString::formatted("https://{}", location));
+
+        if (!url.is_valid())
+            return search_url_or_error();
+
+        https_scheme_was_guessed = true;
+    }
+
+    static constexpr Array SUPPORTED_SCHEMES { "about"sv, "data"sv, "file"sv, "http"sv, "https"sv, "resource"sv };
+    if (!any_of(SUPPORTED_SCHEMES, [&](StringView const& scheme) { return scheme == url.scheme(); }))
+        return search_url_or_error();
+    // FIXME: Add support for other schemes, e.g. "mailto:". Firefox and Chrome open mailto: locations.
+
+    auto const& host = url.host();
+    if (host.has_value() && host->is_domain()) {
+        auto const& domain = host->get<String>();
+
+        if (domain.contains('"'))
+            return search_url_or_error();
+
+        // https://datatracker.ietf.org/doc/html/rfc2606
+        static constexpr Array RESERVED_TLDS { ".test"sv, ".example"sv, ".invalid"sv, ".localhost"sv };
+        if (any_of(RESERVED_TLDS, [&](StringView const& tld) { return domain.byte_count() > tld.length() && domain.ends_with_bytes(tld); }))
+            return url;
+
+        auto public_suffix = URL::get_public_suffix(domain);
+        if (!public_suffix.has_value() || *public_suffix == domain) {
+            if (append_tld == AppendTLD::Yes)
+                url.set_host(MUST(String::formatted("{}.com", domain)));
+            else if (https_scheme_was_guessed && domain != "localhost"sv)
+                return search_url_or_error();
         }
     }
 
-    if (!result.is_valid())
-        return format_search_engine();
-
-    return result;
+    return url;
 }
 
 Vector<URL::URL> sanitize_urls(ReadonlySpan<ByteString> raw_urls, URL::URL const& new_tab_page_url)
