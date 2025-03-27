@@ -6,33 +6,33 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
         ListItemBox <li> at (48,16) content-size 744x17 children: inline
           frag 0 from TextNode start: 0, length: 1, rect: [328,16 9.34375x17] baseline: 13.296875
               "a"
-          TextNode <#text>
           ListItemMarkerBox <(anonymous)> at (304,16) content-size 12x17 children: not-inline
+          TextNode <#text>
         ListItemBox <li> at (48,33) content-size 744x17 children: inline
           frag 0 from TextNode start: 0, length: 1, rect: [328,33 9.34375x17] baseline: 13.296875
               "a"
-          TextNode <#text>
           ListItemMarkerBox <(anonymous)> at (304,33) content-size 12x17 children: not-inline
+          TextNode <#text>
         ListItemBox <li> at (48,50) content-size 744x17 children: inline
           frag 0 from TextNode start: 0, length: 1, rect: [328,50 9.34375x17] baseline: 13.296875
               "a"
-          TextNode <#text>
           ListItemMarkerBox <(anonymous)> at (304,50) content-size 12x17 children: not-inline
+          TextNode <#text>
         ListItemBox <li> at (48,67) content-size 744x17 children: inline
           frag 0 from TextNode start: 0, length: 1, rect: [328,67 9.34375x17] baseline: 13.296875
               "a"
-          TextNode <#text>
           ListItemMarkerBox <(anonymous)> at (304,67) content-size 12x17 children: not-inline
+          TextNode <#text>
         ListItemBox <li> at (48,84) content-size 744x17 children: inline
           frag 0 from TextNode start: 0, length: 1, rect: [328,84 9.34375x17] baseline: 13.296875
               "a"
-          TextNode <#text>
           ListItemMarkerBox <(anonymous)> at (304,84) content-size 12x17 children: not-inline
+          TextNode <#text>
         ListItemBox <li> at (48,101) content-size 744x17 children: inline
           frag 0 from TextNode start: 0, length: 1, rect: [328,101 9.34375x17] baseline: 13.296875
               "a"
-          TextNode <#text>
           ListItemMarkerBox <(anonymous)> at (304,101) content-size 12x17 children: not-inline
+          TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x136]
@@ -40,20 +40,20 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
       PaintableWithLines (BlockContainer<DIV>.box) [8,16 220x120]
       PaintableWithLines (BlockContainer<UL>) [8,16 784x102]
         PaintableWithLines (ListItemBox<LI>) [48,16 744x17]
-          TextPaintable (TextNode<#text>)
           MarkerPaintable (ListItemMarkerBox(anonymous)) [304,16 12x17]
+          TextPaintable (TextNode<#text>)
         PaintableWithLines (ListItemBox<LI>) [48,33 744x17]
-          TextPaintable (TextNode<#text>)
           MarkerPaintable (ListItemMarkerBox(anonymous)) [304,33 12x17]
+          TextPaintable (TextNode<#text>)
         PaintableWithLines (ListItemBox<LI>) [48,50 744x17]
-          TextPaintable (TextNode<#text>)
           MarkerPaintable (ListItemMarkerBox(anonymous)) [304,50 12x17]
+          TextPaintable (TextNode<#text>)
         PaintableWithLines (ListItemBox<LI>) [48,67 744x17]
-          TextPaintable (TextNode<#text>)
           MarkerPaintable (ListItemMarkerBox(anonymous)) [304,67 12x17]
+          TextPaintable (TextNode<#text>)
         PaintableWithLines (ListItemBox<LI>) [48,84 744x17]
-          TextPaintable (TextNode<#text>)
           MarkerPaintable (ListItemMarkerBox(anonymous)) [304,84 12x17]
-        PaintableWithLines (ListItemBox<LI>) [48,101 744x17]
           TextPaintable (TextNode<#text>)
+        PaintableWithLines (ListItemBox<LI>) [48,101 744x17]
           MarkerPaintable (ListItemMarkerBox(anonymous)) [304,101 12x17]
+          TextPaintable (TextNode<#text>)
