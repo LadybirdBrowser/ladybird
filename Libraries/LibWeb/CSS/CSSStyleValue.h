@@ -133,6 +133,7 @@ public:
         Time,
         Transformation,
         Transition,
+        UnicodeRange,
         Unresolved,
         URL,
         ValueList,
@@ -330,6 +331,10 @@ public:
     bool is_transition() const { return type() == Type::Transition; }
     TransitionStyleValue const& as_transition() const;
     TransitionStyleValue& as_transition() { return const_cast<TransitionStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_transition()); }
+
+    bool is_unicode_range() const { return type() == Type::UnicodeRange; }
+    UnicodeRangeStyleValue const& as_unicode_range() const;
+    UnicodeRangeStyleValue& as_unicode_range() { return const_cast<UnicodeRangeStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_unicode_range()); }
 
     bool is_unresolved() const { return type() == Type::Unresolved; }
     UnresolvedStyleValue const& as_unresolved() const;

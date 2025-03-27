@@ -60,6 +60,7 @@
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TransitionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/URLStyleValue.h>
+#include <LibWeb/CSS/StyleValues/UnicodeRangeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
 
 namespace Web::CSS {
@@ -349,6 +350,12 @@ TransitionStyleValue const& CSSStyleValue::as_transition() const
 {
     VERIFY(is_transition());
     return static_cast<TransitionStyleValue const&>(*this);
+}
+
+UnicodeRangeStyleValue const& CSSStyleValue::as_unicode_range() const
+{
+    VERIFY(is_unicode_range());
+    return static_cast<UnicodeRangeStyleValue const&>(*this);
 }
 
 UnresolvedStyleValue const& CSSStyleValue::as_unresolved() const
