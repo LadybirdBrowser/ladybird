@@ -27,7 +27,6 @@ jobs:
 
     concurrency:
       group: ${{ github.workflow }}-${{ matrix.os_name }}
-      cancel-in-progress: true
 
     steps:
       - name: Checkout LadybirdBrowser/ladybird
