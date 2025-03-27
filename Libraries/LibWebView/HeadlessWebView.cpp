@@ -50,6 +50,7 @@ HeadlessWebView::HeadlessWebView(Core::AnonymousBuffer theme, Web::DevicePixelSi
     };
 
     on_reposition_window = [this](auto position) {
+        m_previous_dimensions.set_location(position.template to_type<Web::DevicePixels>());
         client().async_set_window_position(m_client_state.page_index, position.template to_type<Web::DevicePixels>());
 
         client().async_did_update_window_rect(m_client_state.page_index);
@@ -74,6 +75,7 @@ HeadlessWebView::HeadlessWebView(Core::AnonymousBuffer theme, Web::DevicePixelSi
 
     on_maximize_window = [this]() {
         m_viewport_size = screen_rect.size();
+        m_previous_dimensions = screen_rect;
 
         client().async_set_window_position(m_client_state.page_index, screen_rect.location());
         client().async_set_window_size(m_client_state.page_index, screen_rect.size());
@@ -83,11 +85,21 @@ HeadlessWebView::HeadlessWebView(Core::AnonymousBuffer theme, Web::DevicePixelSi
     };
 
     on_fullscreen_window = [this]() {
+        m_previous_dimensions.set_size(m_viewport_size);
         m_viewport_size = screen_rect.size();
 
         client().async_set_window_position(m_client_state.page_index, screen_rect.location());
         client().async_set_window_size(m_client_state.page_index, screen_rect.size());
         client().async_set_viewport(m_client_state.page_index, screen_rect.size(), m_device_pixel_ratio);
+
+        client().async_did_update_window_rect(m_client_state.page_index);
+    };
+
+    on_exit_fullscreen_window = [this]() {
+        m_viewport_size = m_previous_dimensions.size();
+        client().async_set_window_position(m_client_state.page_index, m_previous_dimensions.location());
+        client().async_set_window_size(m_client_state.page_index, m_previous_dimensions.size());
+        client().async_set_viewport(m_client_state.page_index, m_previous_dimensions.size(), m_device_pixel_ratio);
 
         client().async_did_update_window_rect(m_client_state.page_index);
     };

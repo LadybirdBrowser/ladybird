@@ -131,6 +131,7 @@ private:
     virtual void did_request_maximize_window(u64 page_id) override;
     virtual void did_request_minimize_window(u64 page_id) override;
     virtual void did_request_fullscreen_window(u64 page_id) override;
+    virtual void did_request_exit_fullscreen(u64 page_id) override;
     virtual void did_request_file(u64 page_id, ByteString path, i32) override;
     virtual void did_request_color_picker(u64 page_id, Color current_color) override;
     virtual void did_request_file_picker(u64 page_id, Web::HTML::FileFilter accepted_file_types, Web::HTML::AllowMultipleFiles) override;

@@ -47,6 +47,9 @@ protected:
     Web::Page::PendingDialog m_pending_dialog { Web::Page::PendingDialog::None };
     Optional<String> m_pending_prompt_text;
 
+    // When restoring from fullscreen, we need to know to what dimension.
+    Web::DevicePixelRect m_previous_dimensions;
+
     Vector<NonnullOwnPtr<HeadlessWebView>> m_child_web_views;
 };
 
