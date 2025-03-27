@@ -35,6 +35,12 @@ public:
         return MUST(String::formatted("U+{:x}-{:x}", m_min_code_point, m_max_code_point));
     }
 
+    bool operator==(UnicodeRange const& other) const
+    {
+        return m_min_code_point == other.m_min_code_point
+            && m_max_code_point == other.m_max_code_point;
+    }
+
 private:
     u32 m_min_code_point;
     u32 m_max_code_point;
