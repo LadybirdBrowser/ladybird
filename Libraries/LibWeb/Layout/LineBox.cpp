@@ -8,7 +8,6 @@
 #include <AK/Utf8View.h>
 #include <LibWeb/DOM/Position.h>
 #include <LibWeb/Layout/Box.h>
-#include <LibWeb/Layout/BreakNode.h>
 #include <LibWeb/Layout/LineBox.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/TextNode.h>

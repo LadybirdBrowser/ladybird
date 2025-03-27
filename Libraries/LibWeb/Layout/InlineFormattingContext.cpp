@@ -13,8 +13,6 @@
 #include <LibWeb/Layout/InlineFormattingContext.h>
 #include <LibWeb/Layout/InlineLevelIterator.h>
 #include <LibWeb/Layout/LineBuilder.h>
-#include <LibWeb/Layout/ReplacedBox.h>
-#include <LibWeb/Layout/SVGSVGBox.h>
 
 namespace Web::Layout {
 
@@ -285,8 +283,10 @@ void InlineFormattingContext::generate_line_boxes()
             line_builder.break_line(LineBuilder::ForcedBreak::Yes);
             if (item.node) {
                 auto introduce_clearance = parent().clear_floating_boxes(*item.node, *this);
-                if (introduce_clearance == BlockFormattingContext::DidIntroduceClearance::Yes)
+                if (introduce_clearance == BlockFormattingContext::DidIntroduceClearance::Yes) {
+                    line_builder.set_current_block_offset(vertical_float_clearance());
                     parent().reset_margin_state();
+                }
             }
             break;
         }
@@ -392,9 +392,8 @@ void InlineFormattingContext::generate_line_boxes()
         }
     }
 
-    for (auto& line_box : line_boxes) {
+    for (auto& line_box : line_boxes)
         line_box.trim_trailing_whitespace();
-    }
 
     line_builder.remove_last_line_if_empty();
 
