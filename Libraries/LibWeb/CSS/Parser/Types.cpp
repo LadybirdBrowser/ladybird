@@ -51,6 +51,17 @@ String SimpleBlock::original_source_text() const
     return builder.to_string_without_validation();
 }
 
+bool SimpleBlock::contains_arbitrary_substitution_function() const
+{
+    for (auto const& component_value : value) {
+        if (component_value.is_function() && component_value.function().contains_arbitrary_substitution_function())
+            return true;
+        if (component_value.is_block() && component_value.block().contains_arbitrary_substitution_function())
+            return true;
+    }
+    return false;
+}
+
 String Function::to_string() const
 {
     StringBuilder builder;
@@ -73,6 +84,19 @@ String Function::original_source_text() const
     }
     builder.append(end_token.original_source_text());
     return builder.to_string_without_validation();
+}
+
+bool Function::contains_arbitrary_substitution_function() const
+{
+    if (name.equals_ignoring_ascii_case("var"sv) || name.equals_ignoring_ascii_case("attr"sv))
+        return true;
+    for (auto const& component_value : value) {
+        if (component_value.is_function() && component_value.function().contains_arbitrary_substitution_function())
+            return true;
+        if (component_value.is_block() && component_value.block().contains_arbitrary_substitution_function())
+            return true;
+    }
+    return false;
 }
 
 void AtRule::for_each(AtRuleVisitor&& visit_at_rule, QualifiedRuleVisitor&& visit_qualified_rule, DeclarationVisitor&& visit_declaration) const

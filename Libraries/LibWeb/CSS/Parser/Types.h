@@ -72,6 +72,7 @@ struct SimpleBlock {
 
     String to_string() const;
     String original_source_text() const;
+    bool contains_arbitrary_substitution_function() const;
 };
 
 // https://drafts.csswg.org/css-syntax/#function
@@ -83,6 +84,7 @@ struct Function {
 
     String to_string() const;
     String original_source_text() const;
+    bool contains_arbitrary_substitution_function() const;
 };
 
 }
