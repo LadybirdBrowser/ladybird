@@ -71,6 +71,8 @@ public slots:
     void open_previous_tab();
     void open_file();
     void show_find_in_page();
+    void enter_fullscreen();
+    void exit_fullscreen();
 
 protected:
     bool eventFilter(QObject* obj, QEvent* event) override;

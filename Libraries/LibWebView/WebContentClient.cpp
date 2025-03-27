@@ -695,6 +695,14 @@ void WebContentClient::did_request_fullscreen_window(u64 page_id)
     }
 }
 
+void WebContentClient::did_request_exit_fullscreen(u64 page_id)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
+        if (view->on_exit_fullscreen_window)
+            view->on_exit_fullscreen_window();
+    }
+}
+
 void WebContentClient::did_request_file(u64 page_id, ByteString path, i32 request_id)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {

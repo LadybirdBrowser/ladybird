@@ -577,6 +577,20 @@ void BrowserWindow::set_window_rect(Optional<Web::DevicePixels> x, Optional<Web:
     setGeometry(x.value().value(), y.value().value(), width.value().value(), height.value().value());
 }
 
+void BrowserWindow::enter_fullscreen()
+{
+    m_tabs_container->tabBar()->hide();
+    m_tabs_container->cornerWidget()->hide();
+    showFullScreen();
+}
+
+void BrowserWindow::exit_fullscreen()
+{
+    m_tabs_container->tabBar()->show();
+    m_tabs_container->cornerWidget()->show();
+    showNormal();
+}
+
 bool BrowserWindow::event(QEvent* event)
 {
 #if QT_VERSION >= QT_VERSION_CHECK(6, 6, 0)
