@@ -28,7 +28,6 @@ private:
     void draw_repeated_immutable_bitmap(DrawRepeatedImmutableBitmap const&) override;
     void add_clip_rect(AddClipRect const&) override;
     void save(Save const&) override;
-    void save_layer(SaveLayer const&) override;
     void restore(Restore const&) override;
     void translate(Translate const&) override;
     void push_stacking_context(PushStackingContext const&) override;

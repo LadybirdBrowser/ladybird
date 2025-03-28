@@ -40,7 +40,6 @@ private:
     virtual void draw_scaled_immutable_bitmap(DrawScaledImmutableBitmap const&) = 0;
     virtual void draw_repeated_immutable_bitmap(DrawRepeatedImmutableBitmap const&) = 0;
     virtual void save(Save const&) = 0;
-    virtual void save_layer(SaveLayer const&) = 0;
     virtual void restore(Restore const&) = 0;
     virtual void translate(Translate const&) = 0;
     virtual void add_clip_rect(AddClipRect const&) = 0;
