@@ -75,7 +75,6 @@ appearance: none
 aspect-ratio: auto
 backdrop-filter: none
 background-attachment: scroll
-background-blend-mode: normal
 background-clip: border-box
 background-color: rgba(0, 0, 0, 0)
 background-image: none
@@ -84,7 +83,7 @@ background-position-x: 0%
 background-position-y: 0%
 background-repeat: repeat
 background-size: auto auto
-block-size: 1204px
+block-size: 1190px
 border-block-end-color: rgb(0, 0, 0)
 border-block-end-style: none
 border-block-end-width: medium
@@ -149,7 +148,7 @@ grid-row-start: auto
 grid-template-areas: none
 grid-template-columns: none
 grid-template-rows: none
-height: 2114px
+height: 2100px
 inline-size: 784px
 inset-block-end: auto
 inset-block-start: auto
