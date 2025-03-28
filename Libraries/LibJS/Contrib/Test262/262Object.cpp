@@ -87,7 +87,7 @@ JS_DEFINE_NATIVE_FUNCTION($262Object::detach_array_buffer)
 
 JS_DEFINE_NATIVE_FUNCTION($262Object::eval_script)
 {
-    auto source_text = TRY(vm.argument(0).to_byte_string(vm));
+    auto source_text = TRY(vm.argument(0).to_string(vm));
 
     // 1. Let hostDefined be any host-defined values for the provided sourceText (obtained in an implementation dependent manner)
 
