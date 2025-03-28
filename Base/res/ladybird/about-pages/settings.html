@@ -80,6 +80,18 @@
                 margin-bottom: 0;
             }
 
+            .permission-container {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 10px;
+            }
+
+            .forcibly-enabled {
+                font-size: 14px;
+                opacity: 0.6;
+            }
+
             label {
                 display: block;
                 margin-bottom: 8px;
@@ -87,6 +99,7 @@
                 font-size: 14px;
             }
 
+            input[type="text"],
             input[type="url"],
             select {
                 background-color: var(--input-background-color);
@@ -95,12 +108,143 @@
                 border: 1px solid var(--border-color);
             }
 
+            input[type="text"].success,
             input[type="url"].success {
                 border: 1px solid green;
             }
 
+            input[type="text"].error,
             input[type="url"].error {
                 border: 1px solid red;
+            }
+
+            dialog {
+                background-color: var(--card-background-color);
+                box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+
+                width: 90%;
+                max-width: 500px;
+
+                margin: auto;
+                padding: 0;
+
+                border: none;
+                border-radius: 8px;
+                outline: none;
+            }
+
+            dialog::backdrop {
+                /* FIXME: This doesn't work in Ladybird. */
+                background-color: rgba(0, 0, 0, 0.5);
+            }
+
+            dialog .dialog-header {
+                background-color: var(--card-header-background-color);
+
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+
+                padding: 15px 20px;
+            }
+
+            dialog .dialog-body {
+                height: 450px;
+
+                border-top: 1px solid var(--border-color);
+                border-bottom: 1px solid var(--border-color);
+
+                display: flex;
+                flex-direction: column;
+
+                padding: 15px 20px;
+            }
+
+            dialog .dialog-body label {
+                font-size: 16px;
+            }
+
+            dialog .dialog-body hr {
+                height: 1px;
+                background-color: var(--border-color);
+                border: none;
+
+                margin: 8px 4px 10px 4px;
+            }
+
+            dialog .dialog-footer {
+                display: flex;
+                justify-content: flex-end;
+
+                padding: 15px 20px;
+                gap: 10px;
+            }
+
+            dialog .dialog-title {
+                font-size: 18px;
+                font-weight: 500;
+            }
+
+            dialog .dialog-close {
+                background: none;
+                border: none;
+                outline: none;
+
+                padding: 0;
+
+                font-size: 22px;
+                opacity: 0.8;
+
+                cursor: pointer;
+            }
+
+            dialog .dialog-close:hover {
+                opacity: 1;
+            }
+
+            dialog .dialog-site-list {
+                outline: 1px solid var(--border-color);
+                border-radius: 4px;
+
+                margin: 10px 0;
+
+                font-size: 14px;
+
+                overflow-y: auto;
+                flex-grow: 1;
+            }
+
+            dialog .dialog-site-item {
+                padding: 10px;
+
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+
+            dialog .dialog-site-item:hover {
+                background-color: var(--card-header-background-color);
+            }
+
+            dialog .dialog-site-item-placeholder {
+                padding: 10px;
+                opacity: 0.6;
+            }
+
+            dialog .dialog-site-item .filter {
+                flex-grow: 1;
+            }
+
+            dialog .dialog-add-site {
+                display: flex;
+                justify-content: flex-end;
+
+                margin-top: auto;
+                gap: 10px;
+            }
+
+            dialog .dialog-add-site input {
+                flex-grow: 1;
             }
 
             .button-container {
@@ -146,7 +290,7 @@
                         </label>
                     </div>
                 </div>
-                <div id="search-engine-list" class="card-group" style="display: none">
+                <div id="search-engine-list" class="card-group hidden">
                     <label for="search-engine">Default Search Engine</label>
                     <select id="search-engine">
                         <option value="">Please Select a Search Engine</option>
@@ -156,15 +300,65 @@
             </div>
         </div>
 
-        <div class="button-container">
-            <button id="restore-defaults" class="primary-button">Restore Defaults</button>
+        <div class="card">
+            <div class="card-header">Permissions</div>
+            <div class="card-body">
+                <div class="card-group permission-container">
+                    <span>Autoplay</span>
+                    <span id="autoplay-forcibly-enabled" class="forcibly-enabled hidden">
+                        This setting is controlled via the command line
+                    </span>
+                    <button id="autoplay-settings" class="secondary-button">Settings...</button>
+                </div>
+            </div>
         </div>
+
+        <div class="button-container">
+            <button id="restore-defaults" class="primary-button">Restore&nbsp;Defaults</button>
+        </div>
+
+        <dialog id="site-settings">
+            <div class="dialog-header">
+                <h3 id="site-settings-title" class="dialog-title"></h3>
+                <button id="site-settings-close" class="close-button dialog-close">&times;</button>
+            </div>
+            <div class="dialog-body">
+                <div class="toggle-container">
+                    <label for="site-settings-global">Enable on all sites</label>
+                    <label class="toggle">
+                        <input id="site-settings-global" type="checkbox" />
+                        <span class="toggle-button"></span>
+                    </label>
+                </div>
+                <hr />
+                <label>Allowlist</label>
+                <div id="site-settings-list" class="dialog-site-list"></div>
+                <div class="dialog-add-site">
+                    <input id="site-settings-input" type="text" placeholder="example.com" />
+                    <button id="site-settings-add" class="primary-button">Add&nbsp;Site</button>
+                </div>
+            </div>
+            <div class="dialog-footer">
+                <button id="site-settings-remove-all" class="secondary-button">
+                    Remove All Sites
+                </button>
+            </div>
+        </dialog>
 
         <script>
             const newTabPageURL = document.querySelector("#new-tab-page-url");
             const searchEngineList = document.querySelector("#search-engine-list");
             const searchEnabled = document.querySelector("#search-enabled");
             const searchEngine = document.querySelector("#search-engine");
+            const autoplaySettings = document.querySelector("#autoplay-settings");
+            const siteSettings = document.querySelector("#site-settings");
+            const siteSettingsAdd = document.querySelector("#site-settings-add");
+            const siteSettingsClose = document.querySelector("#site-settings-close");
+            const siteSettingsGlobal = document.querySelector("#site-settings-global");
+            const siteSettingsList = document.querySelector("#site-settings-list");
+            const siteSettingsInput = document.querySelector("#site-settings-input");
+            const siteSettingsRemoveAll = document.querySelector("#site-settings-remove-all");
+            const siteSettingsTitle = document.querySelector("#site-settings-title");
             const restoreDefaults = document.querySelector("#restore-defaults");
 
             window.settings = {};
@@ -188,6 +382,12 @@
                 }
 
                 renderSearchEngine();
+
+                const siteSetting = currentSiteSetting();
+
+                if (siteSetting === "autoplay") {
+                    showSiteSettings("Autoplay", window.settings.autoplay);
+                }
             };
 
             const loadSearchEngines = engines => {
@@ -201,7 +401,11 @@
             };
 
             const renderSearchEngine = () => {
-                searchEngineList.style.display = searchEnabled.checked ? "block" : "none";
+                if (searchEnabled.checked) {
+                    searchEngineList.classList.remove("hidden");
+                } else {
+                    searchEngineList.classList.add("hidden");
+                }
 
                 if (searchEnabled.checked && searchEngine.selectedIndex !== 0) {
                     searchEngine.item(0).disabled = true;
@@ -241,13 +445,140 @@
             searchEnabled.addEventListener("change", saveSearchEngine);
             searchEngine.addEventListener("change", saveSearchEngine);
 
+            const forciblyEnableSiteSettings = settings => {
+                settings.forEach(setting => {
+                    const label = document.querySelector(`#${setting}-forcibly-enabled`);
+                    label.classList.remove("hidden");
+
+                    const button = document.querySelector(`#${setting}-settings`);
+                    button.classList.add("hidden");
+                });
+            };
+
+            const currentSiteSetting = () => {
+                if (!siteSettings.open) {
+                    return null;
+                }
+
+                return siteSettingsTitle.innerText.toLowerCase();
+            };
+
+            const showSiteSettings = (title, settings) => {
+                siteSettingsTitle.innerText = title;
+                siteSettingsGlobal.checked = settings.enabledGlobally;
+                siteSettingsList.innerHTML = "";
+
+                siteSettingsGlobal.onchange = () => {
+                    ladybird.sendMessage("setSiteSettingEnabledGlobally", {
+                        setting: currentSiteSetting(),
+                        enabled: siteSettingsGlobal.checked,
+                    });
+                };
+
+                if (settings.siteFilters.length === 0) {
+                    const placeholder = document.createElement("div");
+                    placeholder.className = "dialog-site-item-placeholder";
+                    placeholder.textContent = "No sites added";
+
+                    siteSettingsList.appendChild(placeholder);
+                }
+
+                settings.siteFilters.forEach(site => {
+                    const filter = document.createElement("span");
+                    filter.className = "filter";
+                    filter.textContent = site;
+
+                    const remove = document.createElement("button");
+                    remove.className = "dialog-close";
+                    remove.innerHTML = "&times;";
+                    remove.title = `Remove ${site}`;
+
+                    remove.addEventListener("click", () => {
+                        ladybird.sendMessage("removeSiteSettingFilter", {
+                            setting: currentSiteSetting(),
+                            filter: site,
+                        });
+                    });
+
+                    const item = document.createElement("div");
+                    item.className = "dialog-site-item";
+                    item.appendChild(filter);
+                    item.appendChild(remove);
+
+                    siteSettingsList.appendChild(item);
+                });
+
+                if (!siteSettings.open) {
+                    setTimeout(() => siteSettingsInput.focus());
+                    siteSettings.showModal();
+                }
+            };
+
+            const addSiteSettingFilter = () => {
+                ladybird.sendMessage("addSiteSettingFilter", {
+                    setting: currentSiteSetting(),
+                    filter: siteSettingsInput.value,
+                });
+
+                siteSettingsInput.classList.add("success");
+                siteSettingsInput.value = "";
+
+                setTimeout(() => {
+                    siteSettingsInput.classList.remove("success");
+                }, 1000);
+
+                setTimeout(() => siteSettingsInput.focus());
+            };
+
+            siteSettingsAdd.addEventListener("click", addSiteSettingFilter);
+
+            siteSettingsInput.addEventListener("keydown", event => {
+                if (event.key === "Enter") {
+                    addSiteSettingFilter();
+                }
+            });
+
+            siteSettingsClose.addEventListener("click", () => {
+                siteSettings.close();
+            });
+
+            siteSettingsRemoveAll.addEventListener("click", () => {
+                ladybird.sendMessage("removeAllSiteSettingFilters", {
+                    setting: currentSiteSetting(),
+                });
+            });
+
+            autoplaySettings.addEventListener("click", event => {
+                showSiteSettings("Autoplay", window.settings.autoplay);
+                event.stopPropagation();
+            });
+
             restoreDefaults.addEventListener("click", () => {
                 ladybird.sendMessage("restoreDefaultSettings");
+            });
+
+            // FIXME: Once we support `dialog::backdrop`, this event listener should be on `siteSettings`.
+            document.addEventListener("click", event => {
+                if (!siteSettings.open) {
+                    return;
+                }
+
+                const rect = siteSettings.getBoundingClientRect();
+
+                if (
+                    event.clientX < rect.left ||
+                    event.clientX > rect.right ||
+                    event.clientY < rect.top ||
+                    event.clientY > rect.bottom
+                ) {
+                    siteSettings.close();
+                }
             });
 
             document.addEventListener("WebUILoaded", () => {
                 ladybird.sendMessage("loadAvailableSearchEngines");
                 ladybird.sendMessage("loadCurrentSettings");
+                ladybird.sendMessage("loadForciblyEnabledSiteSettings");
             });
 
             document.addEventListener("WebUIMessage", event => {
@@ -255,6 +586,8 @@
                     loadSettings(event.detail.data);
                 } else if (event.detail.name === "loadSearchEngines") {
                     loadSearchEngines(event.detail.data);
+                } else if (event.detail.name === "forciblyEnableSiteSettings") {
+                    forciblyEnableSiteSettings(event.detail.data);
                 }
             });
         </script>
