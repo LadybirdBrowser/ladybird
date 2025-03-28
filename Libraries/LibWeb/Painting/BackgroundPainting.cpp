@@ -78,10 +78,16 @@ void paint_background(PaintContext& context, PaintableBox const& paintable_box, 
 {
     auto& display_list_recorder = context.display_list_recorder();
 
-    // https://drafts.fxtf.org/compositing/#background-blend-mode
-    // Background layers must not blend with the content that is behind the element,
-    // instead they must act as if they are rendered into an isolated group.
-    display_list_recorder.save_layer();
+    auto has_any_layers_with_non_normal_blending = any_of(resolved_background.layers, [](auto& layer) {
+        return mix_blend_mode_to_compositing_and_blending_operator(layer.blend_mode) != Gfx::CompositingAndBlendingOperator::Normal;
+    });
+
+    if (has_any_layers_with_non_normal_blending) {
+        // https://drafts.fxtf.org/compositing/#background-blend-mode
+        // Background layers must not blend with the content that is behind the element,
+        // instead they must act as if they are rendered into an isolated group.
+        display_list_recorder.save_layer();
+    }
 
     DisplayListRecorderStateSaver state { display_list_recorder };
     if (resolved_background.needs_text_clip) {
@@ -306,7 +312,9 @@ void paint_background(PaintContext& context, PaintableBox const& paintable_box, 
         }
     }
 
-    display_list_recorder.restore();
+    if (has_any_layers_with_non_normal_blending) {
+        display_list_recorder.restore();
+    }
 }
 
 ResolvedBackground resolve_background_layers(Vector<CSS::BackgroundLayerData> const& layers, PaintableBox const& paintable_box, Color background_color, CSSPixelRect const& border_rect, BorderRadiiData const& border_radii)
