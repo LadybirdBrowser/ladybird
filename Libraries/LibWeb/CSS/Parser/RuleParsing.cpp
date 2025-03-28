@@ -25,6 +25,7 @@
 #include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/CSSSupportsRule.h>
+#include <LibWeb/CSS/FontFace.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyName.h>
 #include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
@@ -592,15 +593,6 @@ GC::Ptr<CSSPropertyRule> Parser::convert_to_property_rule(AtRule const& rule)
 template<typename T>
 Vector<ParsedFontFace::Source> Parser::parse_font_face_src(TokenStream<T>& component_values)
 {
-    // FIXME: Get this information from the system somehow?
-    // Format-name table: https://www.w3.org/TR/css-fonts-4/#font-format-definitions
-    auto font_format_is_supported = [](StringView name) {
-        // The spec requires us to treat opentype and truetype as synonymous.
-        if (name.is_one_of_ignoring_ascii_case("opentype"sv, "truetype"sv, "woff"sv, "woff2"sv))
-            return true;
-        return false;
-    };
-
     Vector<ParsedFontFace::Source> supported_sources;
 
     auto list_of_source_token_lists = parse_a_comma_separated_list_of_component_values(component_values);
@@ -637,7 +629,7 @@ Vector<ParsedFontFace::Source> Parser::parse_font_face_src(TokenStream<T>& compo
                 TokenStream format_tokens { function.value };
                 format_tokens.discard_whitespace();
                 auto const& format_name_token = format_tokens.consume_a_token();
-                StringView format_name;
+                FlyString format_name;
                 if (format_name_token.is(Token::Type::Ident)) {
                     format_name = format_name_token.token().ident();
                 } else if (format_name_token.is(Token::Type::String)) {
@@ -652,7 +644,7 @@ Vector<ParsedFontFace::Source> Parser::parse_font_face_src(TokenStream<T>& compo
                     continue;
                 }
 
-                format = FlyString::from_utf8(format_name).release_value_but_fixme_should_propagate_errors();
+                format = move(format_name);
             } else {
                 dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @font-face src invalid (unrecognized function token `{}`); discarding.", function.name);
                 return {};
