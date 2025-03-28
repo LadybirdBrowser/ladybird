@@ -92,7 +92,7 @@ JS_DEFINE_NATIVE_FUNCTION(NumberPrototype::to_exponential)
 
     // 4. If x is not finite, return Number::toString(x).
     if (!number_value.is_finite_number())
-        return PrimitiveString::create(vm, MUST(number_value.to_byte_string(vm)));
+        return PrimitiveString::create(vm, MUST(number_value.to_string(vm)));
 
     // 5. If f < 0 or f > 100, throw a RangeError exception.
     if (fraction_digits < 0 || fraction_digits > 100)
@@ -220,7 +220,7 @@ JS_DEFINE_NATIVE_FUNCTION(NumberPrototype::to_fixed)
 
     // 6. If x is not finite, return Number::toString(x).
     if (!number_value.is_finite_number())
-        return PrimitiveString::create(vm, TRY(number_value.to_byte_string(vm)));
+        return PrimitiveString::create(vm, TRY(number_value.to_string(vm)));
 
     // 7. Set x to ℝ(x).
     auto number = number_value.as_double();
@@ -236,7 +236,7 @@ JS_DEFINE_NATIVE_FUNCTION(NumberPrototype::to_fixed)
     // 10. If x ≥ 10^21, then
     //     a. Let m be ! ToString(𝔽(x)).
     if (number >= 1e+21)
-        return PrimitiveString::create(vm, MUST(number_value.to_byte_string(vm)));
+        return PrimitiveString::create(vm, MUST(number_value.to_string(vm)));
 
     // 11. Else,
     //     a. Let n be an integer for which n / (10^f) - x is as close to zero as possible. If there are two such n, pick the larger n.
@@ -289,14 +289,14 @@ JS_DEFINE_NATIVE_FUNCTION(NumberPrototype::to_precision)
 
     // 2. If precision is undefined, return ! ToString(x).
     if (precision_value.is_undefined())
-        return PrimitiveString::create(vm, MUST(number_value.to_byte_string(vm)));
+        return PrimitiveString::create(vm, MUST(number_value.to_string(vm)));
 
     // 3. Let p be ? ToIntegerOrInfinity(precision).
     auto precision = TRY(precision_value.to_integer_or_infinity(vm));
 
     // 4. If x is not finite, return Number::toString(x).
     if (!number_value.is_finite_number())
-        return PrimitiveString::create(vm, MUST(number_value.to_byte_string(vm)));
+        return PrimitiveString::create(vm, MUST(number_value.to_string(vm)));
 
     // 5. If p < 1 or p > 100, throw a RangeError exception.
     if ((precision < 1) || (precision > 100))
@@ -428,7 +428,7 @@ JS_DEFINE_NATIVE_FUNCTION(NumberPrototype::to_string)
 
     // 5. If radixMV = 10, return ! ToString(x).
     if (radix_mv == 10)
-        return PrimitiveString::create(vm, MUST(number_value.to_byte_string(vm)));
+        return PrimitiveString::create(vm, MUST(number_value.to_string(vm)));
 
     // 6. Return the String representation of this Number value using the radix specified by radixMV. Letters a-z are used for digits with values 10 through 35. The precise algorithm is implementation-defined, however the algorithm should be a generalization of that specified in 6.1.6.1.20.
     if (number_value.is_positive_infinity())

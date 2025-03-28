@@ -481,7 +481,6 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::exec)
 // 22.2.6.4 get RegExp.prototype.flags, https://tc39.es/ecma262/#sec-get-regexp.prototype.flags
 JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::flags)
 {
-
     // 1. Let R be the this value.
     // 2. If Type(R) is not Object, throw a TypeError exception.
     auto regexp_object = TRY(this_object(vm));
@@ -513,7 +512,7 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::flags)
 #undef __JS_ENUMERATE
 
     // 20. Return result.
-    return PrimitiveString::create(vm, builder.to_byte_string());
+    return PrimitiveString::create(vm, builder.to_string_without_validation());
 }
 
 // 22.2.6.8 RegExp.prototype [ @@match ] ( string ), https://tc39.es/ecma262/#sec-regexp.prototype-@@match
@@ -530,7 +529,7 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_match)
 
     // 4. Let flags be ? ToString(? Get(rx, "flags")).
     auto flags_value = TRY(regexp_object->get(vm.names.flags));
-    auto flags = TRY(flags_value.to_byte_string(vm));
+    auto flags = TRY(flags_value.to_string(vm));
 
     // 5. If flags does not contain "g", then
     if (!flags.contains('g')) {
@@ -573,7 +572,7 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_match)
 
         // 1. Let matchStr be ? ToString(? Get(result, "0")).
         auto match_value = TRY(result.get(0));
-        auto match_str = TRY(match_value.to_byte_string(vm));
+        auto match_str = TRY(match_value.to_string(vm));
 
         // 2. Perform ! CreateDataPropertyOrThrow(A, ! ToString(𝔽(n)), matchStr).
         MUST(array->create_data_property_or_throw(n, PrimitiveString::create(vm, match_str)));
@@ -606,7 +605,7 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_match_all)
 
     // 5. Let flags be ? ToString(? Get(R, "flags")).
     auto flags_value = TRY(regexp_object->get(vm.names.flags));
-    auto flags = TRY(flags_value.to_byte_string(vm));
+    auto flags = TRY(flags_value.to_string(vm));
 
     // Steps 9-12 are performed early so that flags can be moved.
 
@@ -651,13 +650,13 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_replace)
     // 6. If functionalReplace is false, then
     if (!replace_value.is_function()) {
         // a. Set replaceValue to ? ToString(replaceValue).
-        auto replace_string = TRY(replace_value.to_byte_string(vm));
+        auto replace_string = TRY(replace_value.to_string(vm));
         replace_value = PrimitiveString::create(vm, move(replace_string));
     }
 
     // 7. Let flags be ? ToString(? Get(rx, "flags")).
     auto flags_value = TRY(regexp_object->get(vm.names.flags));
-    auto flags = TRY(flags_value.to_byte_string(vm));
+    auto flags = TRY(flags_value.to_string(vm));
 
     // 8. If flags contains "g", let global be true. Otherwise, let global be false.
     bool global = flags.contains('g');
@@ -694,7 +693,7 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_replace)
 
         // 1. Let matchStr be ? ToString(? Get(result, "0")).
         auto match_value = TRY(result.get(vm, 0));
-        auto match_str = TRY(match_value.to_byte_string(vm));
+        auto match_str = TRY(match_value.to_string(vm));
 
         // 2. If matchStr is the empty String, then
         if (match_str.is_empty()) {
@@ -746,7 +745,7 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_replace)
             // ii. If capN is not undefined, then
             if (!capture.is_undefined()) {
                 // 1. Set capN to ? ToString(capN).
-                capture = PrimitiveString::create(vm, TRY(capture.to_byte_string(vm)));
+                capture = PrimitiveString::create(vm, TRY(capture.to_string(vm)));
             }
 
             // iii. Append capN as the last element of captures.
@@ -810,13 +809,13 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_replace)
 
     // 16. If nextSourcePosition ≥ lengthS, return accumulatedResult.
     if (next_source_position >= string.length_in_code_units())
-        return PrimitiveString::create(vm, accumulated_result.to_byte_string());
+        return PrimitiveString::create(vm, accumulated_result.to_string_without_validation());
 
     // 17. Return the string-concatenation of accumulatedResult and the substring of S from nextSourcePosition.
     auto substring = string.substring_view(next_source_position);
     accumulated_result.append(substring);
 
-    return PrimitiveString::create(vm, accumulated_result.to_byte_string());
+    return PrimitiveString::create(vm, accumulated_result.to_string_without_validation());
 }
 
 // 22.2.6.12 RegExp.prototype [ @@search ] ( string ), https://tc39.es/ecma262/#sec-regexp.prototype-@@search
@@ -901,7 +900,7 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_split)
 
     // 5. Let flags be ? ToString(? Get(rx, "flags")).
     auto flags_value = TRY(regexp_object->get(vm.names.flags));
-    auto flags = TRY(flags_value.to_byte_string(vm));
+    auto flags = TRY(flags_value.to_string(vm));
 
     // 6. If flags contains "u" or flags contains "v", let unicodeMatching be true.
     // 7. Else, let unicodeMatching be false.
@@ -909,7 +908,7 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_split)
 
     // 8. If flags contains "y", let newFlags be flags.
     // 9. Else, let newFlags be the string-concatenation of flags and "y".
-    auto new_flags = flags.find('y').has_value() ? move(flags) : ByteString::formatted("{}y", flags);
+    auto new_flags = flags.bytes_as_string_view().find('y').has_value() ? move(flags) : MUST(String::formatted("{}y", flags));
 
     // 10. Let splitter be ? Construct(C, « rx, newFlags »).
     auto splitter = TRY(construct(vm, *constructor, regexp_object, PrimitiveString::create(vm, move(new_flags))));
@@ -1066,11 +1065,11 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::to_string)
 
     // 3. Let pattern be ? ToString(? Get(R, "source")).
     auto source_attr = TRY(regexp_object->get(vm.names.source));
-    auto pattern = TRY(source_attr.to_byte_string(vm));
+    auto pattern = TRY(source_attr.to_string(vm));
 
     // 4. Let flags be ? ToString(? Get(R, "flags")).
     auto flags_attr = TRY(regexp_object->get(vm.names.flags));
-    auto flags = TRY(flags_attr.to_byte_string(vm));
+    auto flags = TRY(flags_attr.to_string(vm));
 
     // 5. Let result be the string-concatenation of "/", pattern, "/", and flags.
     // 6. Return result.

@@ -283,14 +283,14 @@ void WebAssemblyModule::initialize(JS::Realm& realm)
 
 JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::get_export)
 {
-    auto name = TRY(vm.argument(0).to_byte_string(vm));
+    auto name = TRY(vm.argument(0).to_string(vm));
     auto this_value = vm.this_value();
     auto object = TRY(this_value.to_object(vm));
     if (!is<WebAssemblyModule>(*object))
         return vm.throw_completion<JS::TypeError>("Not a WebAssemblyModule"sv);
     auto& instance = static_cast<WebAssemblyModule&>(*object);
     for (auto& entry : instance.module_instance().exports()) {
-        if (entry.name() == name) {
+        if (entry.name() == name.to_byte_string()) {
             auto& value = entry.value();
             if (auto ptr = value.get_pointer<Wasm::FunctionAddress>())
                 return JS::Value(static_cast<unsigned long>(ptr->value()));

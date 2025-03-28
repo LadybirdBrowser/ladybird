@@ -55,7 +55,7 @@ ThrowCompletionOr<GC::Ref<Object>> AggregateErrorConstructor::construct(Function
     // 3. If message is not undefined, then
     if (!message.is_undefined()) {
         // a. Let msg be ? ToString(message).
-        auto msg = TRY(message.to_byte_string(vm));
+        auto msg = TRY(message.to_string(vm));
 
         // b. Perform CreateNonEnumerableDataPropertyOrThrow(O, "message", msg).
         aggregate_error->create_non_enumerable_data_property_or_throw(vm.names.message, PrimitiveString::create(vm, msg));
