@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include "LibIPC/Stub.h"
+#include "RequestServer/RequestServerEndpoint.h"
 #include "WebSocketImplCurl.h"
 
 #include <AK/Badge.h>
@@ -37,8 +39,8 @@ static struct {
     bool use_dns_over_tls = true;
 } g_dns_info;
 
-static WeakPtr<Resolver> s_resolver {};
-static NonnullRefPtr<Resolver> default_resolver()
+static WeakPtr<RequestServer::Resolver> s_resolver {};
+static NonnullRefPtr<RequestServer::Resolver> default_resolver()
 {
     if (auto resolver = s_resolver.strong_ref())
         return *resolver;
@@ -307,23 +309,23 @@ void ConnectionFromClient::die()
         Core::EventLoop::current().quit(0);
 }
 
-Messages::RequestServer::InitTransportResponse ConnectionFromClient::init_transport([[maybe_unused]] int peer_pid)
+void ConnectionFromClient::init_transport([[maybe_unused]] int peer_pid, [[maybe_unused]] InitTransport::Resolver resolve)
 {
 #ifdef AK_OS_WINDOWS
     m_transport.set_peer_pid(peer_pid);
-    return Core::System::getpid();
+    resolve(Core::System::getpid());
 #endif
     VERIFY_NOT_REACHED();
 }
 
-Messages::RequestServer::ConnectNewClientResponse ConnectionFromClient::connect_new_client()
+void ConnectionFromClient::connect_new_client(ConnectNewClient::Resolver resolve)
 {
     static_assert(IsSame<IPC::Transport, IPC::TransportSocket>, "Need to handle other IPC transports here");
 
     int socket_fds[2] {};
     if (auto err = Core::System::socketpair(AF_LOCAL, SOCK_STREAM, 0, socket_fds); err.is_error()) {
         dbgln("Failed to create client socketpair: {}", err.error());
-        return IPC::File {};
+        return resolve(IPC::File {});
     }
 
     auto client_socket_or_error = Core::LocalSocket::adopt_fd(socket_fds[0]);
@@ -331,18 +333,17 @@ Messages::RequestServer::ConnectNewClientResponse ConnectionFromClient::connect_
         close(socket_fds[0]);
         close(socket_fds[1]);
         dbgln("Failed to adopt client socket: {}", client_socket_or_error.error());
-        return IPC::File {};
+        return resolve(IPC::File {});
     }
     auto client_socket = client_socket_or_error.release_value();
     // Note: A ref is stored in the static s_connections map
     auto client = adopt_ref(*new ConnectionFromClient(IPC::Transport(move(client_socket))));
-
-    return IPC::File::adopt_fd(socket_fds[1]);
+    return resolve(IPC::File::adopt_fd(socket_fds[1]));
 }
 
-Messages::RequestServer::IsSupportedProtocolResponse ConnectionFromClient::is_supported_protocol(ByteString protocol)
+void ConnectionFromClient::is_supported_protocol(ByteString protocol, IsSupportedProtocol::Resolver resolve)
 {
-    return protocol == "http"sv || protocol == "https"sv;
+    return resolve(protocol == "http"sv || protocol == "https"sv);
 }
 
 void ConnectionFromClient::set_dns_server(ByteString host_or_address, u16 port, bool use_tls)
@@ -642,22 +643,22 @@ void ConnectionFromClient::check_active_requests()
     }
 }
 
-Messages::RequestServer::StopRequestResponse ConnectionFromClient::stop_request(i32 request_id)
+void ConnectionFromClient::stop_request(i32 request_id, StopRequest::Resolver resolve)
 {
     auto request = m_active_requests.take(request_id);
     if (!request.has_value()) {
         dbgln("StopRequest: Request ID {} not found", request_id);
-        return false;
+        return resolve(false);
     }
-
-    return true;
+    return resolve(true);
 }
 
-Messages::RequestServer::SetCertificateResponse ConnectionFromClient::set_certificate(i32 request_id, ByteString certificate, ByteString key)
+void ConnectionFromClient::set_certificate(i32 request_id, ByteString certificate, ByteString key, SetCertificate::Resolver resolve)
 {
     (void)request_id;
     (void)certificate;
     (void)key;
+    (void)resolve;
     TODO();
 }
 
@@ -781,7 +782,7 @@ void ConnectionFromClient::websocket_close(i64 websocket_id, u16 code, ByteStrin
         connection->close(code, reason);
 }
 
-Messages::RequestServer::WebsocketSetCertificateResponse ConnectionFromClient::websocket_set_certificate(i64 websocket_id, ByteString, ByteString)
+void ConnectionFromClient::websocket_set_certificate(i64 websocket_id, ByteString, ByteString, WebsocketSetCertificate::Resolver resolve)
 {
     auto success = false;
     if (auto connection = m_websockets.get(websocket_id).value_or({}); connection) {
@@ -789,7 +790,7 @@ Messages::RequestServer::WebsocketSetCertificateResponse ConnectionFromClient::w
         // connection->set_certificate(certificate, key);
         success = true;
     }
-    return success;
+    return resolve(success);
 }
 
 }

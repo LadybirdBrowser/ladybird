@@ -59,4 +59,9 @@ ErrorOr<void> MessageBuffer::transfer_message(Transport& transport)
     return {};
 }
 
+/* static */
+RefPtr<MessageResolverState> MessageResolverState::create(u64 request_id)
+{
+    return RefPtr<MessageResolverState> { new MessageResolverState { request_id } };
+}
 }

@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "LibIPC/Stub.h"
 #include <AK/Error.h>
 #include <AK/Function.h>
 #include <AK/OwnPtr.h>
@@ -18,6 +19,8 @@
 #include <LibWebView/UIProcessServerEndpoint.h>
 
 namespace WebView {
+
+using namespace Messages::UIProcessServer;
 
 class UIProcessConnectionFromClient final
     : public IPC::ConnectionFromClient<UIProcessClientEndpoint, UIProcessServerEndpoint> {
@@ -34,8 +37,8 @@ public:
 private:
     UIProcessConnectionFromClient(IPC::Transport, int client_id);
 
-    virtual void create_new_tab(Vector<ByteString> urls) override;
-    virtual void create_new_window(Vector<ByteString> urls) override;
+    virtual void create_new_tab(Vector<ByteString> urls, CreateNewTab::Resolver resolver) override;
+    virtual void create_new_window(Vector<ByteString> urls, CreateNewWindow::Resolver resolver) override;
 };
 
 class BrowserProcess {

@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include "LibIPC/Stub.h"
 #include <AK/HashMap.h>
 #include <AK/Queue.h>
 #include <AK/SourceLocation.h>
@@ -31,6 +32,8 @@
 #include <WebContent/WebContentServerEndpoint.h>
 
 namespace WebContent {
+
+using namespace Messages::WebContentServer;
 
 class ConnectionFromClient final
     : public IPC::ConnectionFromClient<WebContentClientEndpoint, WebContentServerEndpoint> {
@@ -56,9 +59,9 @@ private:
     Optional<PageClient&> page(u64 index, SourceLocation = SourceLocation::current());
     Optional<PageClient const&> page(u64 index, SourceLocation = SourceLocation::current()) const;
 
-    virtual Messages::WebContentServer::InitTransportResponse init_transport(int peer_pid) override;
+    virtual void init_transport(int peer_pid, InitTransport::Resolver resolve) override;
     virtual void close_server() override;
-    virtual Messages::WebContentServer::GetWindowHandleResponse get_window_handle(u64 page_id) override;
+    virtual void get_window_handle(u64 page_id, GetWindowHandle::Resolver resolve) override;
     virtual void set_window_handle(u64 page_id, String handle) override;
     virtual void connect_to_webdriver(u64 page_id, ByteString webdriver_ipc_path) override;
     virtual void connect_to_image_decoder(IPC::File image_decoder_socket) override;
@@ -142,10 +145,10 @@ private:
 
     virtual void request_internal_page_info(u64 page_id, WebView::PageInfoType) override;
 
-    virtual Messages::WebContentServer::GetLocalStorageEntriesResponse get_local_storage_entries(u64 page_id) override;
-    virtual Messages::WebContentServer::GetSessionStorageEntriesResponse get_session_storage_entries(u64 page_id) override;
+    virtual void get_local_storage_entries(u64 page_id, GetLocalStorageEntries::Resolver resolve) override;
+    virtual void get_session_storage_entries(u64 page_id, GetSessionStorageEntries::Resolver resolve) override;
 
-    virtual Messages::WebContentServer::GetSelectedTextResponse get_selected_text(u64 page_id) override;
+    virtual void get_selected_text(u64 page_id, GetSelectedText::Resolver resolve) override;
     virtual void select_all(u64 page_id) override;
 
     virtual void find_in_page(u64 page_id, String query, CaseSensitivity) override;

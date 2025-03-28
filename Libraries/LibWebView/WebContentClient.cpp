@@ -7,6 +7,7 @@
 #include "WebContentClient.h"
 #include "Application.h"
 #include "ViewImplementation.h"
+#include "WebContent/WebContentClientEndpoint.h"
 #include <LibWeb/Cookie/ParsedCookie.h>
 #include <LibWebView/CookieJar.h>
 #include <LibWebView/HelperProcess.h>
@@ -462,24 +463,25 @@ void WebContentClient::did_change_favicon(u64 page_id, Gfx::ShareableBitmap favi
     }
 }
 
-Messages::WebContentClient::DidRequestAllCookiesResponse WebContentClient::did_request_all_cookies(URL::URL url)
+void WebContentClient::did_request_all_cookies(URL::URL url, DidRequestAllCookies::Resolver resolve)
 {
-    return Application::cookie_jar().get_all_cookies(url);
+    resolve(Application::cookie_jar().get_all_cookies(url));
 }
 
-Messages::WebContentClient::DidRequestNamedCookieResponse WebContentClient::did_request_named_cookie(URL::URL url, String name)
+void WebContentClient::did_request_named_cookie(URL::URL url, String name, DidRequestNamedCookie::Resolver resolve)
 {
-    return Application::cookie_jar().get_named_cookie(url, name);
+    resolve(Application::cookie_jar().get_named_cookie(url, name));
 }
 
-Messages::WebContentClient::DidRequestCookieResponse WebContentClient::did_request_cookie(URL::URL url, Web::Cookie::Source source)
+void WebContentClient::did_request_cookie(URL::URL url, Web::Cookie::Source source, DidRequestCookie::Resolver resolve)
 {
-    return Application::cookie_jar().get_cookie(url, source);
+    resolve(Application::cookie_jar().get_cookie(url, source));
 }
 
-void WebContentClient::did_set_cookie(URL::URL url, Web::Cookie::ParsedCookie cookie, Web::Cookie::Source source)
+void WebContentClient::did_set_cookie(URL::URL url, Web::Cookie::ParsedCookie cookie, Web::Cookie::Source source, DidSetCookie::Resolver resolve)
 {
     Application::cookie_jar().set_cookie(url, cookie, source);
+    return resolve();
 }
 
 void WebContentClient::did_update_cookie(Web::Cookie::Cookie cookie)
@@ -492,14 +494,14 @@ void WebContentClient::did_expire_cookies_with_time_offset(AK::Duration offset)
     Application::cookie_jar().expire_cookies_with_time_offset(offset);
 }
 
-Messages::WebContentClient::DidRequestNewWebViewResponse WebContentClient::did_request_new_web_view(u64 page_id, Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints, Optional<u64> page_index)
+void WebContentClient::did_request_new_web_view(u64 page_id, Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints, Optional<u64> page_index, DidRequestNewWebView::Resolver resolve)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (view->on_new_web_view)
-            return view->on_new_web_view(activate_tab, hints, page_index);
+        if (view->on_new_web_view) {
+            return resolve(view->on_new_web_view(activate_tab, hints, page_index));
+        }
     }
-
-    return String {};
+    return resolve(String{});
 }
 
 void WebContentClient::did_request_activate_tab(u64 page_id)
@@ -646,14 +648,14 @@ void WebContentClient::did_allocate_backing_stores(u64 page_id, i32 front_bitmap
         view->did_allocate_backing_stores({}, front_bitmap_id, front_bitmap, back_bitmap_id, back_bitmap);
 }
 
-Messages::WebContentClient::RequestWorkerAgentResponse WebContentClient::request_worker_agent(u64 page_id)
+void WebContentClient::request_worker_agent(u64 page_id, RequestWorkerAgent::Resolver resolve)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         auto worker_client = MUST(WebView::launch_web_worker_process());
-        return worker_client->clone_transport();
+        return resolve(worker_client->clone_transport());
     }
 
-    return IPC::File {};
+    return resolve(IPC::File {});
 }
 
 void WebContentClient::update_process_statistics(u64 page_id)

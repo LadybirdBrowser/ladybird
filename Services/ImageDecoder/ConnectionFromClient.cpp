@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include "LibIPC/Message.h"
+#include "LibIPC/Stub.h"
 #include <AK/Debug.h>
 #include <AK/IDAllocator.h>
 #include <ImageDecoder/ConnectionFromClient.h>
@@ -40,12 +42,13 @@ void ConnectionFromClient::die()
     }
 }
 
-Messages::ImageDecoderServer::InitTransportResponse ConnectionFromClient::init_transport([[maybe_unused]] int peer_pid)
+void ConnectionFromClient::init_transport([[maybe_unused]] int peer_pid, InitTransport::Resolver resolve)
 {
 #ifdef AK_OS_WINDOWS
     m_transport.set_peer_pid(peer_pid);
-    return Core::System::getpid();
+    return resolve(Core::System::getpid());
 #endif
+    (void)resolve;
     VERIFY_NOT_REACHED();
 }
 
@@ -69,7 +72,7 @@ ErrorOr<IPC::File> ConnectionFromClient::connect_new_client()
     return IPC::File::adopt_fd(socket_fds[1]);
 }
 
-Messages::ImageDecoderServer::ConnectNewClientsResponse ConnectionFromClient::connect_new_clients(size_t count)
+void ConnectionFromClient::connect_new_clients(size_t count, ConnectNewClients::Resolver resolve)
 {
     Vector<IPC::File> files;
     files.ensure_capacity(count);
@@ -77,11 +80,11 @@ Messages::ImageDecoderServer::ConnectNewClientsResponse ConnectionFromClient::co
         auto file_or_error = connect_new_client();
         if (file_or_error.is_error()) {
             dbgln("Failed to connect new client: {}", file_or_error.error());
-            return Vector<IPC::File> {};
+            return resolve(Vector<IPC::File> {});
         }
         files.unchecked_append(file_or_error.release_value());
     }
-    return files;
+    return resolve(files);
 }
 
 static void decode_image_to_bitmaps_and_durations_with_decoder(Gfx::ImageDecoder const& decoder, Optional<Gfx::IntSize> ideal_size, Vector<RefPtr<Gfx::Bitmap>>& bitmaps, Vector<u32>& durations)
@@ -160,19 +163,18 @@ NonnullRefPtr<ConnectionFromClient::Job> ConnectionFromClient::make_decode_image
         });
 }
 
-Messages::ImageDecoderServer::DecodeImageResponse ConnectionFromClient::decode_image(Core::AnonymousBuffer encoded_buffer, Optional<Gfx::IntSize> ideal_size, Optional<ByteString> mime_type)
+void ConnectionFromClient::decode_image(Core::AnonymousBuffer encoded_buffer, Optional<Gfx::IntSize> ideal_size, Optional<ByteString> mime_type, DecodeImage::Resolver resolve)
 {
     auto image_id = m_next_image_id++;
 
     if (!encoded_buffer.is_valid()) {
         dbgln_if(IMAGE_DECODER_DEBUG, "Encoded data is invalid");
         async_did_fail_to_decode_image(image_id, "Encoded data is invalid"_string);
-        return image_id;
+        return resolve(image_id);
     }
 
     m_pending_jobs.set(image_id, make_decode_image_job(image_id, move(encoded_buffer), ideal_size, move(mime_type)));
-
-    return image_id;
+    return resolve(image_id);
 }
 
 void ConnectionFromClient::cancel_decoding(i64 image_id)

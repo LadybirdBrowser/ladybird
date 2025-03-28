@@ -228,7 +228,7 @@ ErrorOr<IPC::File> connect_new_request_server_client()
 
 ErrorOr<IPC::File> connect_new_image_decoder_client()
 {
-    auto new_socket = Application::image_decoder_client().send_sync_but_allow_failure<Messages::ImageDecoderServer::ConnectNewClients>(1);
+    auto new_socket = Application::image_decoder_client().send_sync_but_allow_failure<Messages::ImageDecoderServer::ConnectNewClients>(1ull);
     if (!new_socket)
         return Error::from_string_literal("Failed to connect to ImageDecoder");
 
