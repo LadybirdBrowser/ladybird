@@ -21,6 +21,10 @@ private:
     void set_new_tab_page_url(JsonValue const&);
     void load_available_search_engines();
     void set_search_engine(JsonValue const&);
+    void set_site_setting_enabled_globally(JsonValue const&);
+    void add_site_setting_filter(JsonValue const&);
+    void remove_site_setting_filter(JsonValue const&);
+    void remove_all_site_setting_filters(JsonValue const&);
 };
 
 }
