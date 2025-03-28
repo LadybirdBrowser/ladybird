@@ -147,53 +147,53 @@ JS_DEFINE_NATIVE_FUNCTION(ObjectPrototype::to_string)
     // 4. Let isArray be ? IsArray(O).
     auto is_array = TRY(Value(object).is_array(vm));
 
-    ByteString builtin_tag;
+    StringView builtin_tag;
 
     // 5. If isArray is true, let builtinTag be "Array".
     if (is_array)
-        builtin_tag = "Array";
+        builtin_tag = "Array"sv;
     // 6. Else if O has a [[ParameterMap]] internal slot, let builtinTag be "Arguments".
     else if (object->has_parameter_map())
-        builtin_tag = "Arguments";
+        builtin_tag = "Arguments"sv;
     // 7. Else if O has a [[Call]] internal method, let builtinTag be "Function".
     else if (object->is_function())
-        builtin_tag = "Function";
+        builtin_tag = "Function"sv;
     // 8. Else if O has an [[ErrorData]] internal slot, let builtinTag be "Error".
     else if (is<Error>(*object))
-        builtin_tag = "Error";
+        builtin_tag = "Error"sv;
     // 9. Else if O has a [[BooleanData]] internal slot, let builtinTag be "Boolean".
     else if (is<BooleanObject>(*object))
-        builtin_tag = "Boolean";
+        builtin_tag = "Boolean"sv;
     // 10. Else if O has a [[NumberData]] internal slot, let builtinTag be "Number".
     else if (is<NumberObject>(*object))
-        builtin_tag = "Number";
+        builtin_tag = "Number"sv;
     // 11. Else if O has a [[StringData]] internal slot, let builtinTag be "String".
     else if (is<StringObject>(*object))
-        builtin_tag = "String";
+        builtin_tag = "String"sv;
     // 12. Else if O has a [[DateValue]] internal slot, let builtinTag be "Date".
     else if (is<Date>(*object))
-        builtin_tag = "Date";
+        builtin_tag = "Date"sv;
     // 13. Else if O has a [[RegExpMatcher]] internal slot, let builtinTag be "RegExp".
     else if (is<RegExpObject>(*object))
-        builtin_tag = "RegExp";
+        builtin_tag = "RegExp"sv;
     // 14. Else, let builtinTag be "Object".
     else
-        builtin_tag = "Object";
+        builtin_tag = "Object"sv;
 
     // 15. Let tag be ? Get(O, @@toStringTag).
     auto to_string_tag = TRY(object->get(vm.well_known_symbol_to_string_tag()));
 
     // Optimization: Instead of creating another PrimitiveString from builtin_tag, we separate tag and to_string_tag and add an additional branch to step 16.
-    ByteString tag;
+    StringView tag;
 
     // 16. If Type(tag) is not String, set tag to builtinTag.
     if (!to_string_tag.is_string())
-        tag = move(builtin_tag);
+        tag = builtin_tag;
     else
-        tag = to_string_tag.as_string().byte_string();
+        tag = to_string_tag.as_string().utf8_string_view();
 
     // 17. Return the string-concatenation of "[object ", tag, and "]".
-    return PrimitiveString::create(vm, ByteString::formatted("[object {}]", tag));
+    return PrimitiveString::create(vm, MUST(String::formatted("[object {}]", tag)));
 }
 
 // 20.1.3.7 Object.prototype.valueOf ( ), https://tc39.es/ecma262/#sec-object.prototype.valueof

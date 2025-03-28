@@ -85,7 +85,7 @@ private:
 String module_type_from_module_request(JS::ModuleRequest const&);
 WebIDL::ExceptionOr<URL::URL> resolve_module_specifier(Optional<Script&> referring_script, String const& specifier);
 WebIDL::ExceptionOr<Optional<URL::URL>> resolve_imports_match(ByteString const& normalized_specifier, Optional<URL::URL> as_url, ModuleSpecifierMap const&);
-Optional<URL::URL> resolve_url_like_module_specifier(ByteString const& specifier, URL::URL const& base_url);
+Optional<URL::URL> resolve_url_like_module_specifier(StringView specifier, URL::URL const& base_url);
 ScriptFetchOptions get_descendant_script_fetch_options(ScriptFetchOptions const& original_options, URL::URL const& url, EnvironmentSettingsObject& settings_object);
 String resolve_a_module_integrity_metadata(URL::URL const& url, EnvironmentSettingsObject& settings_object);
 WebIDL::ExceptionOr<void> fetch_classic_script(GC::Ref<HTMLScriptElement>, URL::URL const&, EnvironmentSettingsObject& settings_object, ScriptFetchOptions options, CORSSettingAttribute cors_setting, String character_encoding, OnFetchScriptComplete on_complete);

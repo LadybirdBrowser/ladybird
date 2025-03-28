@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2020-2025, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2022, Linus Groh <linusg@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -7,7 +7,6 @@
 
 #pragma once
 
-#include <AK/ByteString.h>
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <AK/StringView.h>
@@ -28,7 +27,6 @@ public:
     [[nodiscard]] static GC::Ref<PrimitiveString> create(VM&, Utf16String);
     [[nodiscard]] static GC::Ref<PrimitiveString> create(VM&, String);
     [[nodiscard]] static GC::Ref<PrimitiveString> create(VM&, FlyString const&);
-    [[nodiscard]] static GC::Ref<PrimitiveString> create(VM&, ByteString);
     [[nodiscard]] static GC::Ref<PrimitiveString> create(VM&, PrimitiveString&, PrimitiveString&);
     [[nodiscard]] static GC::Ref<PrimitiveString> create(VM&, StringView);
 
@@ -43,9 +41,6 @@ public:
     [[nodiscard]] StringView utf8_string_view() const;
     bool has_utf8_string() const { return m_utf8_string.has_value(); }
 
-    [[nodiscard]] ByteString byte_string() const;
-    bool has_byte_string() const { return m_byte_string.has_value(); }
-
     [[nodiscard]] Utf16String utf16_string() const;
     [[nodiscard]] Utf16View utf16_string_view() const;
     bool has_utf16_string() const { return m_utf16_string.has_value(); }
@@ -55,7 +50,6 @@ public:
 private:
     explicit PrimitiveString(PrimitiveString&, PrimitiveString&);
     explicit PrimitiveString(String);
-    explicit PrimitiveString(ByteString);
     explicit PrimitiveString(Utf16String);
 
     virtual void visit_edges(Cell::Visitor&) override;
@@ -72,7 +66,6 @@ private:
     mutable GC::Ptr<PrimitiveString> m_rhs;
 
     mutable Optional<String> m_utf8_string;
-    mutable Optional<ByteString> m_byte_string;
     mutable Optional<Utf16String> m_utf16_string;
 };
 

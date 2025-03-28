@@ -75,14 +75,14 @@ VM::VM(OwnPtr<CustomData> custom_data, ErrorMessages error_messages)
     m_empty_string = m_heap.allocate<PrimitiveString>(String {});
 
     typeof_strings = {
-        .number = m_heap.allocate<PrimitiveString>("number"),
-        .undefined = m_heap.allocate<PrimitiveString>("undefined"),
-        .object = m_heap.allocate<PrimitiveString>("object"),
-        .string = m_heap.allocate<PrimitiveString>("string"),
-        .symbol = m_heap.allocate<PrimitiveString>("symbol"),
-        .boolean = m_heap.allocate<PrimitiveString>("boolean"),
-        .bigint = m_heap.allocate<PrimitiveString>("bigint"),
-        .function = m_heap.allocate<PrimitiveString>("function"),
+        .number = m_heap.allocate<PrimitiveString>("number"_string),
+        .undefined = m_heap.allocate<PrimitiveString>("undefined"_string),
+        .object = m_heap.allocate<PrimitiveString>("object"_string),
+        .string = m_heap.allocate<PrimitiveString>("string"_string),
+        .symbol = m_heap.allocate<PrimitiveString>("symbol"_string),
+        .boolean = m_heap.allocate<PrimitiveString>("boolean"_string),
+        .bigint = m_heap.allocate<PrimitiveString>("bigint"_string),
+        .function = m_heap.allocate<PrimitiveString>("function"_string),
     };
 
     for (size_t i = 0; i < single_ascii_character_strings.size(); ++i)
