@@ -43,6 +43,9 @@
     :root {
         --text-color: #2f3640;
         --toggle-background-color: #cccccc;
+        --secondary-button-color: #dddddd;
+        --secondary-button-hover: #e1e1e1;
+        --secondary-button-active: #e9e9e9;
     }
 }
 
@@ -50,26 +53,35 @@
     :root {
         --text-color: #e0e0e0;
         --toggle-background-color: #555555;
+        --secondary-button-color: #555555;
+        --secondary-button-hover: #505050;
+        --secondary-button-active: #444444;
     }
 }
 
 * {
     color-scheme: light dark;
     font-family: sans-serif;
+
+    margin: 0;
+    padding: 0;
 }
 
 body {
     color: var(--text-color);
 }
 
+.hidden {
+    display: none;
+    opacity: 0;
+}
+
 /**
  * Generic form controls.
  */
 
-button.primary-button {
-    color: white;
-    background-color: var(--violet-100);
-
+button.primary-button,
+button.secondary-button {
     font-size: 14px;
 
     border: none;
@@ -79,14 +91,39 @@ button.primary-button {
     cursor: pointer;
 }
 
+button.primary-button:hover,
+button.secondary-button:hover {
+    filter: unset;
+}
+
+button.primary-button:active,
+button.secondary-button:active {
+    outline: none;
+}
+
+button.primary-button {
+    color: white;
+    background-color: var(--violet-100);
+}
+
 button.primary-button:hover {
     background-color: var(--violet-500);
-    filter: unset;
 }
 
 button.primary-button:active {
     background-color: var(--violet-900);
-    outline: none;
+}
+
+button.secondary-button {
+    background-color: var(--secondary-button-color);
+}
+
+button.secondary-button:hover {
+    background-color: var(--secondary-button-hover);
+}
+
+button.secondary-button:active {
+    background-color: var(--secondary-button-active);
 }
 
 input[type="search"],

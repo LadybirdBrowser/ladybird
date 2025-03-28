@@ -5,6 +5,7 @@
  */
 
 #include <AK/ByteString.h>
+#include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
 #include <AK/JsonValue.h>
 #include <AK/LexicalPath.h>
@@ -19,8 +20,14 @@
 namespace WebView {
 
 static constexpr auto new_tab_page_url_key = "newTabPageURL"sv;
+
 static constexpr auto search_engine_key = "searchEngine"sv;
 static constexpr auto search_engine_name_key = "name"sv;
+
+static constexpr auto site_setting_enabled_globally_key = "enabledGlobally"sv;
+static constexpr auto site_setting_site_filters_key = "siteFilters"sv;
+
+static constexpr auto autoplay_key = "autoplay"sv;
 
 static ErrorOr<JsonObject> read_settings_file(StringView settings_path)
 {
@@ -74,6 +81,26 @@ Settings Settings::create(Badge<Application>)
             settings.m_search_engine = find_search_engine_by_name(*search_engine_name);
     }
 
+    auto load_site_setting = [&](SiteSetting& site_setting, StringView key) {
+        auto saved_settings = settings_json.value().get_object(key);
+        if (!saved_settings.has_value())
+            return;
+
+        if (auto enabled_globally = saved_settings->get_bool(site_setting_enabled_globally_key); enabled_globally.has_value())
+            site_setting.enabled_globally = *enabled_globally;
+
+        if (auto site_filters = saved_settings->get_array(site_setting_site_filters_key); site_filters.has_value()) {
+            site_setting.site_filters.clear();
+
+            site_filters->for_each([&](auto const& site_filter) {
+                if (site_filter.is_string())
+                    site_setting.site_filters.set(site_filter.as_string());
+            });
+        }
+    };
+
+    load_site_setting(settings.m_autoplay, autoplay_key);
+
     return settings;
 }
 
@@ -95,6 +122,22 @@ JsonValue Settings::serialize_json() const
         settings.set(search_engine_key, move(search_engine));
     }
 
+    auto save_site_setting = [&](SiteSetting const& site_setting, StringView key) {
+        JsonArray site_filters;
+        site_filters.ensure_capacity(site_setting.site_filters.size());
+
+        for (auto const& site_filter : site_setting.site_filters)
+            site_filters.must_append(site_filter);
+
+        JsonObject setting;
+        setting.set("enabledGlobally"sv, site_setting.enabled_globally);
+        setting.set("siteFilters"sv, move(site_filters));
+
+        settings.set(key, move(setting));
+    };
+
+    save_site_setting(m_autoplay, autoplay_key);
+
     return settings;
 }
 
@@ -102,6 +145,7 @@ void Settings::restore_defaults()
 {
     m_new_tab_page_url = URL::about_newtab();
     m_search_engine.clear();
+    m_autoplay = SiteSetting {};
 
     persist_settings();
 
@@ -129,6 +173,46 @@ void Settings::set_search_engine(Optional<StringView> search_engine_name)
 
     for (auto& observer : m_observers)
         observer.search_engine_changed();
+}
+
+void Settings::set_autoplay_enabled_globally(bool enabled_globally)
+{
+    m_autoplay.enabled_globally = enabled_globally;
+    persist_settings();
+
+    for (auto& observer : m_observers)
+        observer.autoplay_settings_changed();
+}
+
+void Settings::add_autoplay_site_filter(String const& site_filter)
+{
+    auto trimmed_site_filter = MUST(site_filter.trim_whitespace());
+    if (trimmed_site_filter.is_empty())
+        return;
+
+    m_autoplay.site_filters.set(move(trimmed_site_filter));
+    persist_settings();
+
+    for (auto& observer : m_observers)
+        observer.autoplay_settings_changed();
+}
+
+void Settings::remove_autoplay_site_filter(String const& site_filter)
+{
+    m_autoplay.site_filters.remove(site_filter);
+    persist_settings();
+
+    for (auto& observer : m_observers)
+        observer.autoplay_settings_changed();
+}
+
+void Settings::remove_all_autoplay_site_filters()
+{
+    m_autoplay.site_filters.clear();
+    persist_settings();
+
+    for (auto& observer : m_observers)
+        observer.autoplay_settings_changed();
 }
 
 void Settings::persist_settings()
@@ -160,6 +244,11 @@ SettingsObserver::SettingsObserver()
 SettingsObserver::~SettingsObserver()
 {
     Settings::remove_observer({}, *this);
+}
+
+SiteSetting::SiteSetting()
+{
+    site_filters.set("file://"_string);
 }
 
 }
