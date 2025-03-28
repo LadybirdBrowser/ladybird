@@ -16,7 +16,8 @@
 
 namespace WebContent {
 
-class WebContentConsoleClient : public JS::ConsoleClient {
+class WebContentConsoleClient : public JS::ConsoleClient
+    , public Weakable<WebContentConsoleClient> {
     GC_CELL(WebContentConsoleClient, JS::ConsoleClient);
     GC_DECLARE_ALLOCATOR(WebContentConsoleClient);
 

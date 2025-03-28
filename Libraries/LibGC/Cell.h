@@ -36,7 +36,7 @@ public:                                            \
     }                                              \
     friend class GC::Heap;
 
-class Cell : public Weakable<Cell> {
+class Cell {
     AK_MAKE_NONCOPYABLE(Cell);
     AK_MAKE_NONMOVABLE(Cell);
 
