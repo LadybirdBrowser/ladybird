@@ -51,7 +51,7 @@ JS_DEFINE_NATIVE_FUNCTION(ShadowRealmPrototype::evaluate)
     auto& eval_realm = object->shadow_realm();
 
     // 6. Return ? PerformShadowRealmEval(sourceText, callerRealm, evalRealm).
-    return perform_shadow_realm_eval(vm, source_text.as_string().byte_string(), *caller_realm, eval_realm);
+    return perform_shadow_realm_eval(vm, source_text.as_string().utf8_string_view(), *caller_realm, eval_realm);
 }
 
 // 3.4.2 ShadowRealm.prototype.importValue ( specifier, exportName ), https://tc39.es/proposal-shadowrealm/#sec-shadowrealm.prototype.importvalue

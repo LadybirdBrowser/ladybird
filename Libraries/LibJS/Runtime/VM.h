@@ -77,11 +77,6 @@ public:
         return m_string_cache;
     }
 
-    HashMap<ByteString, GC::Ptr<PrimitiveString>>& byte_string_cache()
-    {
-        return m_byte_string_cache;
-    }
-
     HashMap<Utf16String, GC::Ptr<PrimitiveString>>& utf16_string_cache()
     {
         return m_utf16_string_cache;
@@ -310,7 +305,6 @@ private:
     void set_well_known_symbols(WellKnownSymbols well_known_symbols) { m_well_known_symbols = move(well_known_symbols); }
 
     HashMap<String, GC::Ptr<PrimitiveString>> m_string_cache;
-    HashMap<ByteString, GC::Ptr<PrimitiveString>> m_byte_string_cache;
     HashMap<Utf16String, GC::Ptr<PrimitiveString>> m_utf16_string_cache;
 
     GC::Heap m_heap;

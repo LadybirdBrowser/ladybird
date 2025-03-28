@@ -147,7 +147,7 @@ WebIDL::ExceptionOr<ModuleSpecifierMap> sort_and_normalise_module_specifier_map(
         }
 
         // 4. Let addressURL be the result of resolving a URL-like module specifier given value and baseURL.
-        auto address_url = resolve_url_like_module_specifier(value.as_string().byte_string(), base_url);
+        auto address_url = resolve_url_like_module_specifier(value.as_string().utf8_string_view(), base_url);
 
         // 5. If addressURL is null, then:
         if (!address_url.has_value()) {

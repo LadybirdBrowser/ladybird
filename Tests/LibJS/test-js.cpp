@@ -69,14 +69,14 @@ TESTJS_GLOBAL_FUNCTION(mark_as_garbage, markAsGarbage)
         return execution_context->lexical_environment != nullptr;
     });
     if (!outer_environment.has_value())
-        return vm.throw_completion<JS::ReferenceError>(JS::ErrorType::UnknownIdentifier, variable_name.byte_string());
+        return vm.throw_completion<JS::ReferenceError>(JS::ErrorType::UnknownIdentifier, variable_name.utf8_string_view());
 
     auto reference = TRY(vm.resolve_binding(variable_name.utf8_string(), outer_environment.value()->lexical_environment));
 
     auto value = TRY(reference.get_value(vm));
 
     if (!can_be_held_weakly(value))
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::CannotBeHeldWeakly, ByteString::formatted("Variable with name {}", variable_name.byte_string()));
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::CannotBeHeldWeakly, ByteString::formatted("Variable with name {}", variable_name.utf8_string_view()));
 
     vm.heap().uproot_cell(&value.as_cell());
     TRY(reference.delete_(vm));

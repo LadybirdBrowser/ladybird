@@ -1213,11 +1213,11 @@ JS_DEFINE_NATIVE_FUNCTION(DatePrototype::symbol_to_primitive)
     auto hint_value = vm.argument(0);
     if (!hint_value.is_string())
         return vm.throw_completion<TypeError>(ErrorType::InvalidHint, hint_value.to_string_without_side_effects());
-    auto hint = hint_value.as_string().byte_string();
+    auto hint = hint_value.as_string().utf8_string_view();
     Value::PreferredType try_first;
-    if (hint == "string" || hint == "default")
+    if (hint == "string"sv || hint == "default"sv)
         try_first = Value::PreferredType::String;
-    else if (hint == "number")
+    else if (hint == "number"sv)
         try_first = Value::PreferredType::Number;
     else
         return vm.throw_completion<TypeError>(ErrorType::InvalidHint, hint);
