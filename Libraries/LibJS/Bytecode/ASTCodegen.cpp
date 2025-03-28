@@ -334,7 +334,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> LogicalExpression::gene
 
     generator.switch_to_basic_block(rhs_block);
 
-    auto rhs = TRY(m_rhs->generate_bytecode(generator)).value();
+    auto rhs = TRY(m_rhs->generate_bytecode(generator, dst)).value();
 
     generator.emit_mov(dst, rhs);
     generator.emit<Bytecode::Op::Jump>(Bytecode::Label { end_block });
