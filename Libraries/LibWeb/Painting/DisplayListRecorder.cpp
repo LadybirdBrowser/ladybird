@@ -280,11 +280,6 @@ void DisplayListRecorder::save()
     append(Save {});
 }
 
-void DisplayListRecorder::save_layer()
-{
-    append(SaveLayer {});
-}
-
 void DisplayListRecorder::restore()
 {
     append(Restore {});

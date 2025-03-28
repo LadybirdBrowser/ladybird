@@ -100,7 +100,6 @@ struct DrawRepeatedImmutableBitmap {
 };
 
 struct Save { };
-struct SaveLayer { };
 struct Restore { };
 
 struct Translate {
@@ -454,7 +453,6 @@ using Command = Variant<
     DrawScaledImmutableBitmap,
     DrawRepeatedImmutableBitmap,
     Save,
-    SaveLayer,
     Restore,
     Translate,
     AddClipRect,

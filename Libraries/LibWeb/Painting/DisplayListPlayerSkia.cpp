@@ -177,12 +177,6 @@ void DisplayListPlayerSkia::save(Save const&)
     canvas.save();
 }
 
-void DisplayListPlayerSkia::save_layer(SaveLayer const&)
-{
-    auto& canvas = surface().canvas();
-    canvas.saveLayer(nullptr, nullptr);
-}
-
 void DisplayListPlayerSkia::restore(Restore const&)
 {
     auto& canvas = surface().canvas();

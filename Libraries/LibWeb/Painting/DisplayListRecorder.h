@@ -114,7 +114,6 @@ public:
     void pop_scroll_frame_id();
 
     void save();
-    void save_layer();
     void restore();
 
     struct PushStackingContextParams {
