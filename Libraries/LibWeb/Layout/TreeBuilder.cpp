@@ -448,6 +448,10 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
             dom_node.for_each_in_inclusive_subtree([&](auto& node) {
                 node.set_needs_layout_tree_update(false);
                 node.set_child_needs_layout_tree_update(false);
+                auto layout_node = node.layout_node();
+                if (layout_node && layout_node->parent()) {
+                    layout_node->remove();
+                }
                 node.detach_layout_node({});
                 node.clear_paintable();
                 if (is<DOM::Element>(node))
