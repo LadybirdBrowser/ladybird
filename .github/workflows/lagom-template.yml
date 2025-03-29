@@ -65,7 +65,12 @@ jobs:
       - name: Assign Build Parameters
         id: 'build-parameters'
         run: |
-          if ${{ inputs.os_name == 'Linux' }} ; then
+          CMAKE_OPTIONS="-DENABLE_QT=ON"
+          if ${{ inputs.toolchain == 'Swift' }} ; then
+            echo "host_cc=$(swiftly use --print-location)/usr/bin/clang" >> "$GITHUB_OUTPUT"
+            echo "host_cxx=$(swiftly use --print-location)/usr/bin/clang++" >> "$GITHUB_OUTPUT"
+            CMAKE_OPTIONS="$CMAKE_OPTIONS -DENABLE_SWIFT=ON"
+          elif ${{ inputs.os_name == 'Linux' }} ; then
             if ${{ inputs.toolchain == 'Clang' }} ; then
               echo "host_cc=clang-19" >> "$GITHUB_OUTPUT"
               echo "host_cxx=clang++-19" >> "$GITHUB_OUTPUT"
@@ -80,18 +85,20 @@ jobs:
 
           if ${{ inputs.clang_plugins }} ; then
             echo "ccache_key=${{ inputs.build_preset }}-CLANG_PLUGINS" >> "$GITHUB_OUTPUT"
-            echo "cmake_options=-DENABLE_CLANG_PLUGINS=ON" >> "$GITHUB_OUTPUT"
+            CMAKE_OPTIONS="$CMAKE_OPTIONS -DENABLE_CLANG_PLUGINS=ON"
           else
             echo "ccache_key=${{ inputs.build_preset }}" >> "$GITHUB_OUTPUT"
             if ${{ inputs.os_name == 'Linux' && inputs.arch == 'arm64' }} ; then
                 # FIXME: https://github.com/WebAssembly/wabt/issues/2533
                 #        wabt doesn't have binary releases for arm64 Linux
                 PKGCONFIG=$(which pkg-config)
-                echo "cmake_options=-DPKG_CONFIG_EXECUTABLE=$PKGCONFIG" >> "$GITHUB_OUTPUT"
+                CMAKE_OPTIONS="$CMAKE_OPTIONS -DPKG_CONFIG_EXECUTABLE=$PKGCONFIG"
             else
-              echo "cmake_options=-DINCLUDE_WASM_SPEC_TESTS=ON -DWASM_SPEC_TEST_SKIP_FORMATTING=ON" >> "$GITHUB_OUTPUT"
+              CMAKE_OPTIONS="$CMAKE_OPTIONS -DINCLUDE_WASM_SPEC_TESTS=ON -DWASM_SPEC_TEST_SKIP_FORMATTING=ON"
             fi
           fi
+
+          echo "cmake_options=$CMAKE_OPTIONS" >> "$GITHUB_OUTPUT"
 
       - name: Restore Caches
         uses: ./.github/actions/cache-restore
@@ -157,23 +164,12 @@ jobs:
           cmake --build .
           cmake --install . --strip --prefix ${{ github.workspace }}/Install
 
-      - name: Enable the Ladybird Qt chrome
+      - name: Enable the Ladybird AppKit chrome
         if: ${{ inputs.os_name == 'macOS' && inputs.build_preset == 'Sanitizer_CI' }}
         working-directory: ${{ github.workspace }}
-        run: cmake -B Build -DENABLE_QT=ON
+        run: cmake -B Build -DENABLE_QT=OFF
 
-      - name: Build the Ladybird Qt chrome
-        if: ${{ inputs.os_name == 'macOS' && inputs.build_preset == 'Sanitizer_CI' }}
-        working-directory: ${{ github.workspace }}/Build
-        run: cmake --build .
-
-      - name: Enable the AppKit chrome with Swift files
-        if: ${{ inputs.os_name == 'macOS' && inputs.build_preset == 'Sanitizer_CI' }}
-        working-directory: ${{ github.workspace }}
-        # FIXME: Don't force release build after https://github.com/LadybirdBrowser/ladybird/issues/1101 is fixed
-        run: cmake -B Build -DENABLE_QT=OFF -DENABLE_SWIFT=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo
-
-      - name: Build the AppKit chrome with Swift files
+      - name: Build the Ladybird AppKit chrome
         if: ${{ inputs.os_name == 'macOS' && inputs.build_preset == 'Sanitizer_CI' }}
         working-directory: ${{ github.workspace }}/Build
         run: cmake --build .
