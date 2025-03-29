@@ -39,7 +39,6 @@
 - (NSMenuItem*)createFileMenu;
 - (NSMenuItem*)createEditMenu;
 - (NSMenuItem*)createViewMenu;
-- (NSMenuItem*)createSettingsMenu;
 - (NSMenuItem*)createHistoryMenu;
 - (NSMenuItem*)createInspectMenu;
 - (NSMenuItem*)createDebugMenu;
@@ -59,7 +58,6 @@
         [[NSApp mainMenu] addItem:[self createFileMenu]];
         [[NSApp mainMenu] addItem:[self createEditMenu]];
         [[NSApp mainMenu] addItem:[self createViewMenu]];
-        [[NSApp mainMenu] addItem:[self createSettingsMenu]];
         [[NSApp mainMenu] addItem:[self createHistoryMenu]];
         [[NSApp mainMenu] addItem:[self createInspectMenu]];
         [[NSApp mainMenu] addItem:[self createDebugMenu]];
@@ -572,19 +570,6 @@
     [submenu addItem:motion_menu_item];
     [submenu addItem:zoom_menu_item];
     [submenu addItem:[NSMenuItem separatorItem]];
-
-    [menu setSubmenu:submenu];
-    return menu;
-}
-
-- (NSMenuItem*)createSettingsMenu
-{
-    auto* menu = [[NSMenuItem alloc] init];
-    auto* submenu = [[NSMenu alloc] initWithTitle:@"Settings"];
-
-    [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Enable Autoplay"
-                                                action:@selector(toggleAutoplay:)
-                                         keyEquivalent:@""]];
 
     [menu setSubmenu:submenu];
     return menu;

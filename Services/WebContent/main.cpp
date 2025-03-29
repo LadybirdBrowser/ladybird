@@ -25,7 +25,6 @@
 #include <LibWeb/Loader/GeneratedPagesLoader.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Painting/PaintableBox.h>
-#include <LibWeb/PermissionsPolicy/AutoplayAllowlist.h>
 #include <LibWeb/Platform/AudioCodecPluginAgnostic.h>
 #include <LibWeb/Platform/EventLoopPluginSerenity.h>
 #include <LibWebView/Plugins/FontPlugin.h>
@@ -50,7 +49,6 @@
 #endif
 
 static ErrorOr<void> load_content_filters(StringView config_path);
-static ErrorOr<void> load_autoplay_allowlist(StringView config_path);
 static ErrorOr<void> initialize_resource_loader(GC::Heap&, int request_server_socket);
 static ErrorOr<void> initialize_image_decoder(int image_decoder_socket);
 static ErrorOr<void> reinitialize_image_decoder(IPC::File const& image_decoder_socket);
@@ -212,10 +210,6 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     if (maybe_content_filter_error.is_error())
         dbgln("Failed to load content filters: {}", maybe_content_filter_error.error());
 
-    auto maybe_autoplay_allowlist_error = load_autoplay_allowlist(config_path);
-    if (maybe_autoplay_allowlist_error.is_error())
-        dbgln("Failed to load autoplay allowlist: {}", maybe_autoplay_allowlist_error.error());
-
     static_assert(IsSame<IPC::Transport, IPC::TransportSocket>, "Need to handle other IPC transports here");
 
     auto webcontent_socket = TRY(Core::take_over_socket_from_system_server("WebContent"sv));
@@ -250,30 +244,6 @@ static ErrorOr<void> load_content_filters(StringView config_path)
 
     auto& content_filter = Web::ContentFilter::the();
     TRY(content_filter.set_patterns(patterns));
-
-    return {};
-}
-
-static ErrorOr<void> load_autoplay_allowlist(StringView config_path)
-{
-    auto buffer = TRY(ByteBuffer::create_uninitialized(4096));
-
-    auto file = TRY(Core::File::open(ByteString::formatted("{}/BrowserAutoplayAllowlist.txt", config_path), Core::File::OpenMode::Read));
-    auto allowlist = TRY(Core::InputBufferedFile::create(move(file)));
-
-    Vector<String> origins;
-
-    while (TRY(allowlist->can_read_line())) {
-        auto line = TRY(allowlist->read_line(buffer));
-        if (line.is_empty())
-            continue;
-
-        auto domain = TRY(String::from_utf8(line));
-        TRY(origins.try_append(move(domain)));
-    }
-
-    auto& autoplay_allowlist = Web::PermissionsPolicy::AutoplayAllowlist::the();
-    TRY(autoplay_allowlist.enable_for_origins(origins));
 
     return {};
 }

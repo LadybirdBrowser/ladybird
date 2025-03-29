@@ -49,28 +49,12 @@ SettingsDialog::SettingsDialog(QMainWindow* window)
         Settings::the()->set_enable_do_not_track(state == Qt::Checked);
     });
 
-    m_enable_autoplay = new QCheckBox(this);
-    if (WebView::Application::web_content_options().enable_autoplay == WebView::EnableAutoplay::Yes) {
-        m_enable_autoplay->setChecked(true);
-    } else {
-        m_enable_autoplay->setChecked(Settings::the()->enable_autoplay());
-    }
-
-#if (QT_VERSION > QT_VERSION_CHECK(6, 7, 0))
-    QObject::connect(m_enable_autoplay, &QCheckBox::checkStateChanged, this, [&](int state) {
-#else
-    QObject::connect(m_enable_autoplay, &QCheckBox::stateChanged, this, [&](int state) {
-#endif
-        Settings::the()->set_enable_autoplay(state == Qt::Checked);
-    });
-
     setup_autocomplete_engine();
 
     m_layout->addRow(new QLabel("Preferred Language(s)", this), m_preferred_languages);
     m_layout->addRow(new QLabel("Enable Autocomplete", this), m_enable_autocomplete);
     m_layout->addRow(new QLabel("Autocomplete Engine", this), m_autocomplete_engine_dropdown);
     m_layout->addRow(new QLabel("Send web sites a \"Do Not Track\" request", this), m_enable_do_not_track);
-    m_layout->addRow(new QLabel("Enable autoplay on all websites", this), m_enable_autoplay);
 
     setWindowTitle("Settings");
     setLayout(m_layout);
