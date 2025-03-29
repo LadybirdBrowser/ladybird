@@ -176,7 +176,7 @@ var validSelectors = [
   // - :nth-of-type(n)       (Level 3)
   {name: ":nth-of-type selector, matching the third em element",                                        selector: "#pseudo-nth-p1 em:nth-of-type(3)",      expect: ["pseudo-nth-em3"],                                                                                 level: 3, testType: TEST_QSA | TEST_MATCH},
   {name: ":nth-of-type selector, matching every second element of their type",                          selector: "#pseudo-nth-p1 :nth-of-type(2n)",       expect: ["pseudo-nth-em2", "pseudo-nth-span2", "pseudo-nth-span4", "pseudo-nth-strong2", "pseudo-nth-em4"], level: 3, testType: TEST_QSA | TEST_MATCH},
-  {name: ":nth-of-type selector, matching every second elemetn of their type, starting from the first", selector: "#pseudo-nth-p1 span:nth-of-type(2n-1)", expect: ["pseudo-nth-span1", "pseudo-nth-span3"],                                                           level: 3, testType: TEST_QSA | TEST_MATCH},
+  {name: ":nth-of-type selector, matching every second element of their type, starting from the first", selector: "#pseudo-nth-p1 span:nth-of-type(2n-1)", expect: ["pseudo-nth-span1", "pseudo-nth-span3"],                                                           level: 3, testType: TEST_QSA | TEST_MATCH},
 
   // - :nth-last-of-type(n)  (Level 3)
   {name: ":nth-last-of-type selector, matching the third last em element", selector: "#pseudo-nth-p1 em:nth-last-of-type(3)",      expect: ["pseudo-nth-em2"],                                                                                 level: 3, testType: TEST_QSA | TEST_MATCH},
@@ -557,7 +557,7 @@ var scopedSelectors = [
   // - :nth-of-type(n)       (Level 3)
   {name: ":nth-of-type selector, matching the third em element",                                        selector: "em:nth-of-type(3)",      ctx: "#pseudo-nth-p1", expect: ["pseudo-nth-em3"],                                                                                 level: 3, testType: TEST_FIND | TEST_MATCH},
   {name: ":nth-of-type selector, matching every second element of their type",                          selector: ":nth-of-type(2n)",       ctx: "#pseudo-nth-p1", expect: ["pseudo-nth-em2", "pseudo-nth-span2", "pseudo-nth-span4", "pseudo-nth-strong2", "pseudo-nth-em4"], level: 3, testType: TEST_FIND | TEST_MATCH},
-  {name: ":nth-of-type selector, matching every second elemetn of their type, starting from the first", selector: "span:nth-of-type(2n-1)", ctx: "#pseudo-nth-p1", expect: ["pseudo-nth-span1", "pseudo-nth-span3"],                                                           level: 3, testType: TEST_FIND | TEST_MATCH},
+  {name: ":nth-of-type selector, matching every second element of their type, starting from the first", selector: "span:nth-of-type(2n-1)", ctx: "#pseudo-nth-p1", expect: ["pseudo-nth-span1", "pseudo-nth-span3"],                                                           level: 3, testType: TEST_FIND | TEST_MATCH},
 
   // - :nth-last-of-type(n)  (Level 3)
   {name: ":nth-last-of-type selector, matching the third last em element",                                       selector: "em:nth-last-of-type(3)",      ctx: "#pseudo-nth-p1", expect: ["pseudo-nth-em2"],                                                                                 level: 3, testType: TEST_FIND | TEST_MATCH},

@@ -52,7 +52,7 @@ struct NavigationAPIMethodTracker final : public JS::Cell {
         Optional<String> key,
         JS::Value info,
         Optional<SerializationRecord> serialized_state,
-        GC::Ptr<NavigationHistoryEntry> commited_to_entry,
+        GC::Ptr<NavigationHistoryEntry> committed_to_entry,
         GC::Ref<WebIDL::Promise> committed_promise,
         GC::Ref<WebIDL::Promise> finished_promise);
 
@@ -62,7 +62,7 @@ struct NavigationAPIMethodTracker final : public JS::Cell {
     Optional<String> key;
     JS::Value info;
     Optional<SerializationRecord> serialized_state;
-    GC::Ptr<NavigationHistoryEntry> commited_to_entry;
+    GC::Ptr<NavigationHistoryEntry> committed_to_entry;
     GC::Ref<WebIDL::Promise> committed_promise;
     GC::Ref<WebIDL::Promise> finished_promise;
 };
