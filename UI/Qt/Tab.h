@@ -92,8 +92,6 @@ public:
 
     void set_enable_do_not_track(bool);
 
-    void set_enable_autoplay(bool);
-
     bool url_is_hidden() const { return m_location_edit->url_is_hidden(); }
     void set_url_is_hidden(bool url_is_hidden) { m_location_edit->set_url_is_hidden(url_is_hidden); }
 

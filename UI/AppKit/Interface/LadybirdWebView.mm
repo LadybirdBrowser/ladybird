@@ -275,11 +275,6 @@ struct HideCursor {
     m_web_view_bridge->debug_request(request, argument);
 }
 
-- (void)setEnableAutoplay:(BOOL)enabled
-{
-    m_web_view_bridge->set_enable_autoplay(enabled);
-}
-
 - (void)viewSource
 {
     m_web_view_bridge->get_source();

@@ -88,8 +88,6 @@
 
 - (void)debugRequest:(ByteString const&)request argument:(ByteString const&)argument;
 
-- (void)setEnableAutoplay:(BOOL)enabled;
-
 - (void)viewSource;
 
 @end
