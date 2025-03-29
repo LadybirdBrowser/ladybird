@@ -1,0 +1,22 @@
+<!doctype html>
+  <head>
+    <style>
+      .right {
+        float: right;
+      }
+      .none {
+        float: none;
+      }
+    </style>
+    <script>
+      function onBodyLoad(){
+        // Confirms that a change to body.style.cssFloat (body contains an image) after the body was loaded no longer results in a Vector index overflow.
+        const r = document.getElementById("red_dot").getBoundingClientRect(); // For some reason, without this line, the script terminates before crashing most of the time.
+        document.body.classList.add("none"); // Regression: Vector index overflow.
+      }
+    </script>
+  </head>
+  <body class="right" onload="onBodyLoad()">
+    <img id="red_dot" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg'><circle style='fill:red' cx='20' cy='20' r='20'/></svg>"/>
+  </body>
+</html>
