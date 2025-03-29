@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 5 tests
+
+3 Pass
+2 Fail
+Pass	Forms
+Pass	Calling stepDown() on input - number - where value < min should not modify value.
+Fail	Calling stepDown() on input - date - where value < min should not modify value.
+Fail	Calling stepDown() on input - datetime-local - where value < min should not modify value.
+Pass	Calling stepDown() on input - time - where value < min should not modify value.
