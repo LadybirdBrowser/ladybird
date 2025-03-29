@@ -153,10 +153,7 @@
         "vcpkg_ci",
         "Sanitizer"
       ],
-      "displayName": "Sanitizer CI Config",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": ""
-      }
+      "displayName": "Sanitizer CI Config"
     },
     {
       "name": "Fuzzers",
@@ -166,7 +163,6 @@
       "binaryDir": "${fileDir}/Build/fuzzers",
       "cacheVariables": {
         "BUILD_SHARED_LIBS": "OFF",
-        "CMAKE_BUILD_TYPE": "",
         "ENABLE_QT": "OFF",
         "VCPKG_OVERLAY_TRIPLETS": "${fileDir}/Meta/CMake/vcpkg/distribution-triplets",
         "ENABLE_FUZZERS_LIBFUZZER": "ON",
