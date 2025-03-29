@@ -13,43 +13,39 @@
 #include <LibURL/Pattern/Component.h>
 #include <LibURL/Pattern/Init.h>
 #include <LibURL/Pattern/PatternError.h>
+#include <LibURL/URL.h>
 
 namespace URL::Pattern {
 
 // https://urlpattern.spec.whatwg.org/#typedefdef-urlpatterninput
 using Input = Variant<String, Init>;
 
-// https://urlpattern.spec.whatwg.org/#dictdef-urlpatternoptions
-struct Options {
-    bool ignore_case { false };
-};
-
-// https://urlpattern.spec.whatwg.org/#dictdef-urlpatterncomponentresult
-struct ComponentResult {
-    String input;
-    OrderedHashMap<String, Variant<String, Empty>> groups;
-};
-
 // https://urlpattern.spec.whatwg.org/#dictdef-urlpatternresult
 struct Result {
     Vector<Input> inputs;
 
-    ComponentResult protocol;
-    ComponentResult username;
-    ComponentResult password;
-    ComponentResult hostname;
-    ComponentResult port;
-    ComponentResult pathname;
-    ComponentResult search;
-    ComponentResult hash;
+    Component::Result protocol;
+    Component::Result username;
+    Component::Result password;
+    Component::Result hostname;
+    Component::Result port;
+    Component::Result pathname;
+    Component::Result search;
+    Component::Result hash;
+};
+
+// https://urlpattern.spec.whatwg.org/#dictdef-urlpatternoptions
+enum class IgnoreCase {
+    Yes,
+    No,
 };
 
 // https://urlpattern.spec.whatwg.org/#url-pattern
 class Pattern {
 public:
-    static PatternErrorOr<Pattern> create(Input const&, Optional<String> const& base_url = {}, Options const& = {});
+    static PatternErrorOr<Pattern> create(Input const&, Optional<String> const& base_url = {}, IgnoreCase = IgnoreCase::No);
 
-    PatternErrorOr<Optional<Result>> match(Input const&, Optional<String> const& base_url_string) const;
+    PatternErrorOr<Optional<Result>> match(Variant<String, Init, URL> const&, Optional<String> const& base_url_string) const;
 
     bool has_regexp_groups() const;
 

@@ -303,7 +303,7 @@ TEST_CASE(complete_url)
     EXPECT_EQ(url->serialized_host(), "serenityos.org");
     EXPECT_EQ(url->serialize_path(), "/test.html");
     EXPECT(!url->query().has_value());
-    EXPECT_EQ(url->cannot_be_a_base_url(), false);
+    EXPECT_EQ(url->has_an_opaque_path(), false);
 
     EXPECT(base_url->complete_url("../index.html#fragment"sv)->equals(*base_url));
 }
