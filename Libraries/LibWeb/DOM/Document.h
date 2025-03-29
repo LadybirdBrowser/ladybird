@@ -52,6 +52,10 @@ enum class QuirksMode {
 #define ENUMERATE_INVALIDATE_LAYOUT_TREE_REASONS(X)       \
     X(DocumentAddAnElementToTheTopLayer)                  \
     X(DocumentRequestAnElementToBeRemovedFromTheTopLayer) \
+    X(DocumentRemoveAnElementFromTheTopLayerImmediately)  \
+    X(HTMLInputElementSrcAttributeChange)                 \
+    X(HTMLObjectElement)                                  \
+    X(SVGGraphicsElementTransformAttributeChange)         \
     X(ShadowRootSetInnerHTML)
 
 enum class InvalidateLayoutTreeReason {
