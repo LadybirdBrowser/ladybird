@@ -186,17 +186,24 @@ public:
     FillRule fill_rule() const;
     ClipRule clip_rule() const;
 
-    Gfx::Font const& first_available_computed_font() const { return m_font_list->first(); }
-
     Gfx::FontCascadeList const& computed_font_list() const
     {
         VERIFY(m_font_list);
         return *m_font_list;
     }
 
+    Gfx::Font const& first_available_computed_font() const
+    {
+        VERIFY(m_first_available_computed_font);
+        return *m_first_available_computed_font;
+    }
+
     void set_computed_font_list(NonnullRefPtr<Gfx::FontCascadeList> font_list) const
     {
         m_font_list = move(font_list);
+        // https://drafts.csswg.org/css-fonts/#first-available-font
+        // First font for which the character U+0020 (space) is not excluded by a unicode-range
+        m_first_available_computed_font = m_font_list->font_for_code_point(' ');
     }
 
     [[nodiscard]] CSSPixels compute_line_height(CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const;
@@ -245,6 +252,7 @@ private:
 
     int m_math_depth { InitialValues::math_depth() };
     mutable RefPtr<Gfx::FontCascadeList> m_font_list;
+    mutable RefPtr<Gfx::Font> m_first_available_computed_font;
 
     Optional<CSSPixels> m_line_height;
 
