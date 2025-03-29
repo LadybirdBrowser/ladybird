@@ -8,8 +8,12 @@ inputs:
     default: 'Linux'
   arch:
     description: 'Target Architecture to set up'
-    required: false
+    required: true
     default: 'x86_64'
+  toolchain:
+    description: 'Toolchain to set up'
+    required: true
+    default: 'Clang'
 runs:
   using: "composite"
   steps:
@@ -31,12 +35,15 @@ runs:
         sudo add-apt-repository 'deb http://apt.llvm.org/noble/ llvm-toolchain-noble-19 main'
 
         sudo apt-get update -y
-        sudo apt-get install -y autoconf autoconf-archive automake build-essential ccache clang-19 clang++-19 cmake curl fonts-liberation2 \
-            gcc-13 g++-13 libegl1-mesa-dev libgl1-mesa-dev libpulse-dev libssl-dev \
+        sudo apt-get install -y autoconf autoconf-archive automake build-essential ccache cmake curl fonts-liberation2 \
+            gcc-13 g++-13 libcurl4-openssl-dev libegl1-mesa-dev libgl1-mesa-dev libpulse-dev libssl-dev \
             libstdc++-13-dev lld-19 nasm ninja-build qt6-base-dev qt6-tools-dev-tools tar unzip zip
 
-        sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-19 100
-        sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-19 100
+        if ${{ inputs.toolchain == 'Clang' }} ; then
+          sudo apt-get install -y clang-19 clang++-19
+          sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-19 100
+          sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-19 100
+        fi
         sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 100
         sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-13 100
 
@@ -52,6 +59,50 @@ runs:
       uses: maxim-lobanov/setup-xcode@v1
       with:
         xcode-version: 16.2
+
+    - name: 'Install Swift toolchain'
+      if: ${{ inputs.toolchain == 'Swift' }}
+      shell: bash
+      run: |
+        set -e
+
+        export SWIFTLY_HOME_DIR=${{ github.workspace }}/.swiftly/share
+        export SWIFTLY_BIN_DIR=${{ github.workspace }}/.swiftly/bin
+
+        echo "$SWIFTLY_BIN_DIR" >> $GITHUB_PATH
+        echo "SWIFTLY_HOME_DIR=$SWIFTLY_HOME_DIR" >> $GITHUB_ENV
+        echo "SWIFTLY_BIN_DIR=$SWIFTLY_BIN_DIR" >> $GITHUB_ENV
+
+        export PATH=$SWIFTLY_BIN_DIR:$PATH
+
+        mkdir -p $SWIFTLY_HOME_DIR
+        mkdir -p $SWIFTLY_BIN_DIR
+
+        if ${{ inputs.os == 'Linux' }} ; then
+          curl -O https://download.swift.org/swiftly/linux/swiftly-${{ inputs.arch }}.tar.gz
+          file swiftly-${{ inputs.arch }}.tar.gz
+          tar -xzf swiftly-${{ inputs.arch }}.tar.gz -C $SWIFTLY_BIN_DIR
+          rm swiftly-${{ inputs.arch }}.tar.gz
+        else
+          # FIXME: https://github.com/swiftlang/swiftly/issues/271
+          #    Why does this drop files in $HOME? That's not very CI-friendly
+          curl -O https://download.swift.org/swiftly/darwin/swiftly.pkg
+          installer -pkg swiftly.pkg -target CurrentUserHomeDirectory
+          cp ~/.swiftly/bin/swiftly $SWIFTLY_BIN_DIR
+          rm swiftly.pkg
+        fi
+
+        swiftly init \
+          --no-modify-profile \
+          --quiet-shell-followup \
+          --assume-yes \
+          --skip-install \
+          --verbose
+
+        echo "swiftly version: $(swiftly --version)" >&2
+
+        swiftly install --use main-snapshot-2025-04-02
+        swiftly list
 
     - name: 'Install Dependencies'
       if: ${{ inputs.os == 'macOS' || inputs.os == 'Android' }}

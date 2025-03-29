@@ -58,6 +58,7 @@ jobs:
         with:
           os: ${{ inputs.os_name }}
           arch: ${{ inputs.arch }}
+          toolchain: ${{ inputs.toolchain }}
 
       # === PREPARE FOR BUILDING ===
 
