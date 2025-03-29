@@ -16,7 +16,8 @@
 
 namespace Web::HTML {
 
-class BrowsingContext final : public JS::Cell {
+class BrowsingContext final : public JS::Cell
+    , public Weakable<BrowsingContext> {
     GC_CELL(BrowsingContext, JS::Cell);
     GC_DECLARE_ALLOCATOR(BrowsingContext);
 
