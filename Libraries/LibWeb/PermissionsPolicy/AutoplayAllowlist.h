@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2023-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -9,6 +9,7 @@
 #include <AK/Forward.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
+#include <LibURL/Forward.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/PermissionsPolicy/Decision.h>
 
