@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2023-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -66,27 +66,25 @@ void AutoplayAllowlist::enable_globally()
     m_allowlist = Global {};
 }
 
-ErrorOr<void> AutoplayAllowlist::enable_for_origins(ReadonlySpan<String> origins)
+void AutoplayAllowlist::enable_for_origins(ReadonlySpan<String> origins)
 {
     m_allowlist = Patterns {};
 
     auto& allowlist = m_allowlist->get<Patterns>();
-    TRY(allowlist.try_ensure_capacity(origins.size()));
+    allowlist.ensure_capacity(origins.size());
 
     for (auto const& origin : origins) {
         auto url = URL::Parser::basic_parse(origin);
 
         if (!url.has_value())
-            url = URL::Parser::basic_parse(TRY(String::formatted("https://{}", origin)));
+            url = URL::Parser::basic_parse(MUST(String::formatted("https://{}", origin)));
         if (!url.has_value()) {
             dbgln("Invalid origin for autoplay allowlist: {}", origin);
             continue;
         }
 
-        TRY(allowlist.try_append(url->origin()));
+        allowlist.append(url->origin());
     }
-
-    return {};
 }
 
 }
