@@ -11,6 +11,7 @@
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Painting/BackgroundPainting.h>
+#include <LibWeb/Painting/Blending.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/PaintableBox.h>
 
@@ -76,6 +77,18 @@ static BackgroundBox get_box(CSS::BackgroundBox box_clip, BackgroundBox border_b
 void paint_background(PaintContext& context, PaintableBox const& paintable_box, CSS::ImageRendering image_rendering, ResolvedBackground resolved_background, BorderRadiiData const& border_radii)
 {
     auto& display_list_recorder = context.display_list_recorder();
+
+    // https://drafts.fxtf.org/compositing/#background-blend-mode
+    // Background layers must not blend with the content that is behind the element,
+    // instead they must act as if they are rendered into an isolated group.
+    // OPTIMIZATION: It is only required to render the element into an isolated group,
+    //               if a background blend mode other than normal are used.
+    auto paint_into_isolated_group = any_of(resolved_background.layers, [](auto const& layer) {
+        return layer.blend_mode != CSS::MixBlendMode::Normal;
+    });
+    if (paint_into_isolated_group) {
+        display_list_recorder.save_layer();
+    }
 
     DisplayListRecorderStateSaver state { display_list_recorder };
     if (resolved_background.needs_text_clip) {
@@ -267,6 +280,11 @@ void paint_background(PaintContext& context, PaintableBox const& paintable_box, 
             }
         };
 
+        Gfx::CompositingAndBlendingOperator compositing_and_blending_operator = mix_blend_mode_to_compositing_and_blending_operator(layer.blend_mode);
+        if (compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal) {
+            display_list_recorder.apply_compositing_and_blending_operator(compositing_and_blending_operator);
+        }
+
         if (auto color = image.color_if_single_pixel_bitmap(); color.has_value()) {
             // OPTIMIZATION: If the image is a single pixel, we can just fill the whole area with it.
             //               However, we must first figure out the real coverage area, taking repeat etc into account.
@@ -289,6 +307,14 @@ void paint_background(PaintContext& context, PaintableBox const& paintable_box, 
                 image.paint(context, image_device_rect, image_rendering);
             });
         }
+
+        if (compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal) {
+            display_list_recorder.restore();
+        }
+    }
+
+    if (paint_into_isolated_group) {
+        display_list_recorder.restore();
     }
 }
 
@@ -404,7 +430,8 @@ ResolvedBackground resolve_background_layers(Vector<CSS::BackgroundLayerData> co
             .background_positioning_area = background_positioning_area,
             .image_rect = image_rect,
             .repeat_x = layer.repeat_x,
-            .repeat_y = layer.repeat_y });
+            .repeat_y = layer.repeat_y,
+            .blend_mode = layer.blend_mode });
     }
 
     return ResolvedBackground {
