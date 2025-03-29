@@ -51,7 +51,7 @@ runs:
       if: ${{ inputs.os == 'macOS' || inputs.os == 'Android' }}
       uses: maxim-lobanov/setup-xcode@v1
       with:
-        xcode-version: 16.1
+        xcode-version: 16.2
 
     - name: 'Install Dependencies'
       if: ${{ inputs.os == 'macOS' || inputs.os == 'Android' }}

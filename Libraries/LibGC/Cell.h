@@ -12,6 +12,7 @@
 #include <AK/HashMap.h>
 #include <AK/Noncopyable.h>
 #include <AK/StringView.h>
+#include <AK/Swift.h>
 #include <AK/Weakable.h>
 #include <LibGC/Forward.h>
 #include <LibGC/Internals.h>
@@ -25,6 +26,13 @@ namespace GC {
 #    define IGNORE_GC [[clang::annotate("serenity::ignore_gc")]]
 #else
 #    define IGNORE_GC
+#endif
+
+// https://github.com/swiftlang/swift/issues/80182
+#if defined(LIBGC_WORKAROUND_BOOL_BITFIELD)
+#    define BOOL_BITFIELD
+#else
+#    define BOOL_BITFIELD : 1
 #endif
 
 #define GC_CELL(class_, base_class)                \
@@ -64,17 +72,17 @@ public:
                 visit_impl(*cell);
         }
 
-        void visit(Cell& cell)
+        void visit(Cell& cell) SWIFT_NAME(visitRef(_:))
         {
             visit_impl(cell);
         }
 
-        void visit(Cell const* cell)
+        void visit(Cell const* cell) SWIFT_NAME(visitConst(_:))
         {
             visit(const_cast<Cell*>(cell));
         }
 
-        void visit(Cell const& cell)
+        void visit(Cell const& cell) SWIFT_NAME(visitConstRef(_:))
         {
             visit(const_cast<Cell&>(cell));
         }
@@ -149,7 +157,7 @@ public:
             }
         }
 
-        void visit(NanBoxedValue const& value);
+        void visit(NanBoxedValue const& value) SWIFT_NAME(visitValue(_:));
 
         // Allow explicitly ignoring a GC-allocated member in a visit_edges implementation instead
         // of just not using it.
@@ -163,7 +171,7 @@ public:
     protected:
         virtual void visit_impl(Cell&) = 0;
         virtual ~Visitor() = default;
-    };
+    } SWIFT_UNSAFE_REFERENCE;
 
     virtual void visit_edges(Visitor&) { }
 
@@ -187,10 +195,10 @@ protected:
     void set_overrides_must_survive_garbage_collection(bool b) { m_overrides_must_survive_garbage_collection = b; }
 
 private:
-    bool m_mark : 1 { false };
-    bool m_overrides_must_survive_garbage_collection : 1 { false };
-    State m_state : 1 { State::Live };
-};
+    bool m_mark BOOL_BITFIELD { false };
+    bool m_overrides_must_survive_garbage_collection BOOL_BITFIELD { false };
+    State m_state BOOL_BITFIELD { State::Live };
+} SWIFT_UNSAFE_REFERENCE;
 
 }
 

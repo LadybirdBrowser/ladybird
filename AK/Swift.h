@@ -37,3 +37,11 @@
 #    define SWIFT_RETURNS_RETAINED
 #    define SWIFT_RETURNS_UNRETAINED
 #endif
+
+// FIXME: This needs to be in the global namespace for reasons
+//  https://github.com/swiftlang/swift/issues/80231
+template<class From, class To>
+To cxxCast(From i)
+{
+    return static_cast<To>(i);
+}
