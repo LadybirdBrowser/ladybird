@@ -27,6 +27,7 @@ output/
 .vim/
 .exrc
 .helix/
+.swift-version
 
 # Environments
 .venv/
