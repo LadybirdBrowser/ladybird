@@ -46,6 +46,20 @@ jobs:
             toolchain: 'Clang'
             clang_plugins: false
 
+          - os_name: 'Linux'
+            os: ubuntu-24.04
+            arch: 'x86_64'
+            build_preset: 'Sanitizer_CI'
+            toolchain: 'Swift'
+            clang_plugins: false
+
+          - os_name: 'macOS'
+            os: macos-15
+            arch: 'arm64'
+            build_preset: 'Sanitizer_CI'
+            toolchain: 'Swift'
+            clang_plugins: false
+
     uses: ./.github/workflows/lagom-template.yml
     with:
       toolchain: ${{ matrix.toolchain }}
