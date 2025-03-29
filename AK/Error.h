@@ -169,6 +169,12 @@ public:
         return m_value_or_error.template get<T>();
     }
     T const& value() const { return m_value_or_error.template get<T>(); }
+    [[nodiscard]] ALWAYS_INLINE T const& value_or(T const& fallback) const
+    {
+        if (is_error())
+            return fallback;
+        return m_value_or_error.template get<T>();
+    }
 
     ErrorType& error() { return m_value_or_error.template get<ErrorType>(); }
     ErrorType const& error() const { return m_value_or_error.template get<ErrorType>(); }
