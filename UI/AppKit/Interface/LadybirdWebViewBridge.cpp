@@ -93,11 +93,6 @@ void WebViewBridge::enqueue_input_event(Web::KeyEvent event)
     ViewImplementation::enqueue_input_event(move(event));
 }
 
-void WebViewBridge::set_enable_autoplay(bool enabled)
-{
-    ViewImplementation::set_enable_autoplay(enabled);
-}
-
 Optional<WebViewBridge::Paintable> WebViewBridge::paintable()
 {
     Gfx::Bitmap* bitmap = nullptr;

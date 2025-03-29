@@ -262,15 +262,6 @@ void ViewImplementation::set_enable_do_not_track(bool enable)
     client().async_set_enable_do_not_track(page_id(), enable);
 }
 
-void ViewImplementation::set_enable_autoplay(bool enable)
-{
-    if (enable) {
-        client().async_set_autoplay_allowed_on_all_websites(page_id());
-    } else {
-        client().async_set_autoplay_allowlist(page_id(), {});
-    }
-}
-
 ByteString ViewImplementation::selected_text()
 {
     return client().get_selected_text(page_id());
@@ -612,6 +603,8 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client)
 
     if (auto const& user_agent_preset = Application::web_content_options().user_agent_preset; user_agent_preset.has_value())
         client().async_debug_request(m_client_state.page_index, "spoof-user-agent"sv, *user_agents.get(*user_agent_preset));
+
+    autoplay_settings_changed();
 }
 
 void ViewImplementation::handle_web_content_process_crash(LoadErrorPage load_error_page)
@@ -657,6 +650,17 @@ void ViewImplementation::handle_web_content_process_crash(LoadErrorPage load_err
         builder.append("</body></html>"sv);
         load_html(builder.to_byte_string());
     }
+}
+
+void ViewImplementation::autoplay_settings_changed()
+{
+    auto const& autoplay_settings = Application::settings().autoplay_settings();
+    auto const& web_content_options = Application::web_content_options();
+
+    if (autoplay_settings.enabled_globally || web_content_options.enable_autoplay == EnableAutoplay::Yes)
+        client().async_set_autoplay_allowed_on_all_websites(page_id());
+    else
+        client().async_set_autoplay_allowlist(page_id(), autoplay_settings.site_filters.values());
 }
 
 static ErrorOr<LexicalPath> save_screenshot(Gfx::ShareableBitmap const& bitmap)

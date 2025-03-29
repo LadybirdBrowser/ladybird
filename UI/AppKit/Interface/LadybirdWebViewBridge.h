@@ -41,8 +41,6 @@ public:
     void enqueue_input_event(Web::DragEvent);
     void enqueue_input_event(Web::KeyEvent);
 
-    void set_enable_autoplay(bool enabled);
-
     struct Paintable {
         Gfx::Bitmap& bitmap;
         Gfx::IntSize bitmap_size;

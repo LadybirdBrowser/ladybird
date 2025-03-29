@@ -948,9 +948,4 @@ void Tab::set_enable_do_not_track(bool enable)
     m_view->set_enable_do_not_track(enable);
 }
 
-void Tab::set_enable_autoplay(bool enable)
-{
-    m_view->set_enable_autoplay(enable);
-}
-
 }

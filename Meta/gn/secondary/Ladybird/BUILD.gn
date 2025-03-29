@@ -284,7 +284,6 @@ web_templates = [
 cacert = [ "$root_build_dir/cacert.pem" ]
 
 config_resources = [
-  "//Base/res/ladybird/default-config/BrowserAutoplayAllowlist.txt",
   "//Base/res/ladybird/default-config/BrowserContentFilters.txt",
   "//Base/res/ladybird/default-config/bookmarks.json",
 ]

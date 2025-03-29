@@ -102,7 +102,6 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
         m_settings = {
             .scripting_enabled = WebView::Application::browser_options().disable_scripting == WebView::DisableScripting::Yes ? NO : YES,
             .block_popups = WebView::Application::browser_options().allow_popups == WebView::AllowPopups::Yes ? NO : YES,
-            .autoplay_enabled = WebView::Application::web_content_options().enable_autoplay == WebView::EnableAutoplay::Yes ? YES : NO,
         };
 
         if (auto const& user_agent_preset = WebView::Application::web_content_options().user_agent_preset; user_agent_preset.has_value())
@@ -165,7 +164,6 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 {
     [self setPopupBlocking:m_settings.block_popups];
     [self setScripting:m_settings.scripting_enabled];
-    [self setAutoplay:m_settings.autoplay_enabled];
 }
 
 - (void)zoomIn:(id)sender
@@ -390,17 +388,6 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 - (void)setPopupBlocking:(BOOL)block_popups
 {
     [self debugRequest:"block-pop-ups" argument:block_popups ? "on" : "off"];
-}
-
-- (void)toggleAutoplay:(id)sender
-{
-    m_settings.autoplay_enabled = !m_settings.autoplay_enabled;
-    [self setAutoplay:m_settings.autoplay_enabled];
-}
-
-- (void)setAutoplay:(BOOL)enabled
-{
-    [[[self tab] web_view] setEnableAutoplay:m_settings.autoplay_enabled];
 }
 
 - (void)toggleSameOriginPolicy:(id)sender
@@ -646,8 +633,6 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
         [item setState:(m_settings.user_agent_name == [[item title] UTF8String]) ? NSControlStateValueOn : NSControlStateValueOff];
     } else if ([item action] == @selector(setNavigatorCompatibilityMode:)) {
         [item setState:(m_settings.navigator_compatibility_mode == [[[item title] lowercaseString] UTF8String]) ? NSControlStateValueOn : NSControlStateValueOff];
-    } else if ([item action] == @selector(toggleAutoplay:)) {
-        [item setState:m_settings.autoplay_enabled ? NSControlStateValueOn : NSControlStateValueOff];
     }
 
     return YES;
