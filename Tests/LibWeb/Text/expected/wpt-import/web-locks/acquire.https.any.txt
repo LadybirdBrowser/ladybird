@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 11 tests
+
+10 Pass
+1 Fail
+Fail	navigator.locks.request requires a name and a callback
+Pass	mode must be "shared" or "exclusive"
+Pass	The 'steal' and 'ifAvailable' options are mutually exclusive
+Pass	The 'steal' option must be used with exclusive locks
+Pass	The 'signal' and 'steal' options are mutually exclusive
+Pass	The 'signal' and 'ifAvailable' options are mutually exclusive
+Pass	callback must be a function
+Pass	navigator.locks.request's returned promise resolves after lock is released
+Pass	Returned Promise rejects if callback throws synchronously
+Pass	Returned Promise rejects if callback throws asynchronously
+Pass	If callback throws a thenable, its then() should not be invoked
