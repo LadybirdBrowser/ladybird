@@ -7,15 +7,11 @@
 
 #include <LibCore/File.h>
 #include <LibCore/System.h>
-#include <fcntl.h>
 
 #if !defined(AK_OS_WINDOWS)
 #    include <unistd.h>
 #else
-#    include <WinSock2.h>
-#    define STDIN_FILENO _fileno(stdin)
-#    define STDOUT_FILENO _fileno(stdout)
-#    define STDERR_FILENO _fileno(stderr)
+#    include <AK/Windows.h>
 #endif
 
 namespace Core {
