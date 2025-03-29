@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/ContentSecurityPolicy/Directives/Names.h>
+#include <LibWeb/ContentSecurityPolicy/PolicyList.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/HTML/Navigable.h>
@@ -33,17 +35,27 @@ void NonFetchSchemeNavigationParams::visit_edges(Visitor& visitor)
 }
 
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#check-a-navigation-response's-adherence-to-x-frame-options
-// FIXME: Add the cspList parameter
-bool check_a_navigation_responses_adherence_to_x_frame_options(GC::Ptr<Fetch::Infrastructure::Response> response, Navigable* navigable, URL::Origin destination_origin)
+bool check_a_navigation_responses_adherence_to_x_frame_options(GC::Ptr<Fetch::Infrastructure::Response> response, Navigable* navigable, GC::Ref<ContentSecurityPolicy::PolicyList const> csp_list, URL::Origin destination_origin)
 {
     // 1. If navigable is not a child navigable, then return true.
     if (!navigable->parent()) {
         return true;
     }
 
-    // FIXME: 2. For each policy of cspList:
-    //          1. If policy's disposition is not "enforce", then continue.
-    //          2. If policy's directive set contains a frame-ancestors directive, then return true.
+    // 2. For each policy of cspList:
+    for (auto const policy : csp_list->policies()) {
+        // 1. If policy's disposition is not "enforce", then continue.
+        if (policy->disposition() != ContentSecurityPolicy::Policy::Disposition::Enforce)
+            continue;
+
+        // 2. If policy's directive set contains a frame-ancestors directive, then return true.
+        auto maybe_frame_ancestors = policy->directives().find_if([](auto const& directive) {
+            return directive->name() == ContentSecurityPolicy::Directives::Names::FrameAncestors;
+        });
+
+        if (!maybe_frame_ancestors.is_end())
+            return true;
+    }
 
     // 3. Let rawXFrameOptions be the result of getting, decoding, and splitting `X-Frame-Options` from response's header list.
     auto raw_x_frame_options = response->header_list()->get_decode_and_split("X-Frame-Options"sv.bytes());
