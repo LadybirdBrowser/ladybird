@@ -46,6 +46,28 @@ FontPlugin::FontPlugin(bool is_layout_test_mode, Gfx::SystemFontProvider* font_p
 
     auto default_fixed_width_font_name = generic_font_name(Web::Platform::GenericFont::UiMonospace);
     m_default_fixed_width_font = Gfx::FontDatabase::the().get(default_fixed_width_font_name, 12.0, 400, Gfx::FontWidth::Normal, 0);
+
+    if (!m_default_fixed_width_font) {
+        // Try fallback monospace fonts.
+        for (auto const& fallback : { "Courier New"_fly_string, "Courier"_fly_string, "FreeMono"_fly_string, "Liberation Mono"_fly_string }) {
+            m_default_fixed_width_font = Gfx::FontDatabase::the().get(fallback, 12.0, 400, Gfx::FontWidth::Normal, 0);
+            if (m_default_fixed_width_font)
+                break;
+        }
+        
+        // If still no font found, try to get any monospace font to avoid crashing.
+        if (!m_default_fixed_width_font) {
+            auto& database = Gfx::FontDatabase::the();
+            for (auto const& font_name : database.font_families()) {
+                auto font = database.get(font_name, 12.0, 400, Gfx::FontWidth::Normal, 0);
+                if (font && font->is_fixed_width()) {
+                    m_default_fixed_width_font = move(font);
+                    break;
+                }
+            }
+        }
+    }
+
     VERIFY(m_default_fixed_width_font);
 }
 
