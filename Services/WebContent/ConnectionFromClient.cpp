@@ -1066,7 +1066,7 @@ void ConnectionFromClient::set_autoplay_allowed_on_all_websites(u64)
 void ConnectionFromClient::set_autoplay_allowlist(u64, Vector<String> allowlist)
 {
     auto& autoplay_allowlist = Web::PermissionsPolicy::AutoplayAllowlist::the();
-    autoplay_allowlist.enable_for_origins(allowlist).release_value_but_fixme_should_propagate_errors();
+    autoplay_allowlist.enable_for_origins(allowlist);
 }
 
 void ConnectionFromClient::set_proxy_mappings(u64, Vector<ByteString> proxies, HashMap<ByteString, size_t> mappings)

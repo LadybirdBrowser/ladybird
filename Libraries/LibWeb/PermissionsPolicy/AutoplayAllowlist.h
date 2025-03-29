@@ -22,7 +22,7 @@ public:
     Decision is_allowed_for_origin(DOM::Document const&, URL::Origin const&) const;
 
     void enable_globally();
-    ErrorOr<void> enable_for_origins(ReadonlySpan<String>);
+    void enable_for_origins(ReadonlySpan<String>);
 
 private:
     AutoplayAllowlist();
