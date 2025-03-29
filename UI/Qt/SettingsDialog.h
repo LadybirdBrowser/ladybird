@@ -31,7 +31,6 @@ private:
     QCheckBox* m_enable_autocomplete { nullptr };
     QPushButton* m_autocomplete_engine_dropdown { nullptr };
     QCheckBox* m_enable_do_not_track { nullptr };
-    QCheckBox* m_enable_autoplay { nullptr };
 };
 
 }

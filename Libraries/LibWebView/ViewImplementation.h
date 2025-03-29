@@ -28,11 +28,12 @@
 #include <LibWebView/DOMNodeProperties.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/PageInfo.h>
+#include <LibWebView/Settings.h>
 #include <LibWebView/WebContentClient.h>
 
 namespace WebView {
 
-class ViewImplementation {
+class ViewImplementation : public SettingsObserver {
 public:
     virtual ~ViewImplementation();
 
@@ -82,8 +83,6 @@ public:
     void set_preferred_languages(ReadonlySpan<String>);
 
     void set_enable_do_not_track(bool);
-
-    void set_enable_autoplay(bool);
 
     ByteString selected_text();
     Optional<String> selected_text_with_whitespace_collapsed();
@@ -264,6 +263,8 @@ protected:
         Yes,
     };
     void handle_web_content_process_crash(LoadErrorPage = LoadErrorPage::Yes);
+
+    virtual void autoplay_settings_changed() override;
 
     struct SharedBitmap {
         i32 id { -1 };

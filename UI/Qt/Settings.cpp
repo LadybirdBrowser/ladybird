@@ -100,17 +100,6 @@ void Settings::set_enable_do_not_track(bool enable)
     emit enable_do_not_track_changed(enable);
 }
 
-bool Settings::enable_autoplay()
-{
-    return m_qsettings->value("enable_autoplay", false).toBool();
-}
-
-void Settings::set_enable_autoplay(bool enable)
-{
-    m_qsettings->setValue("enable_autoplay", enable);
-    emit enable_autoplay_changed(enable);
-}
-
 bool Settings::show_menubar()
 {
     return m_qsettings->value("show_menubar", false).toBool();
