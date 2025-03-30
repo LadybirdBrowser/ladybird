@@ -20,13 +20,16 @@
 namespace JS {
 
 GC_DEFINE_ALLOCATOR(PrimitiveString);
+GC_DEFINE_ALLOCATOR(RopeString);
 
-PrimitiveString::PrimitiveString(PrimitiveString& lhs, PrimitiveString& rhs)
-    : m_is_rope(true)
-    , m_lhs(&lhs)
-    , m_rhs(&rhs)
+RopeString::RopeString(GC::Ref<PrimitiveString> lhs, GC::Ref<PrimitiveString> rhs)
+    : PrimitiveString(RopeTag::Rope)
+    , m_lhs(lhs)
+    , m_rhs(rhs)
 {
 }
+
+RopeString::~RopeString() = default;
 
 PrimitiveString::PrimitiveString(String string)
     : m_utf8_string(move(string))
@@ -46,13 +49,11 @@ PrimitiveString::~PrimitiveString()
         vm().utf16_string_cache().remove(*m_utf16_string);
 }
 
-void PrimitiveString::visit_edges(Cell::Visitor& visitor)
+void RopeString::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    if (m_is_rope) {
-        visitor.visit(m_lhs);
-        visitor.visit(m_rhs);
-    }
+    visitor.visit(m_lhs);
+    visitor.visit(m_rhs);
 }
 
 bool PrimitiveString::is_empty() const
@@ -192,13 +193,20 @@ GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, PrimitiveString& lhs, P
     if (rhs_empty)
         return lhs;
 
-    return vm.heap().allocate<PrimitiveString>(lhs, rhs);
+    return vm.heap().allocate<RopeString>(lhs, rhs);
 }
 
 void PrimitiveString::resolve_rope_if_needed(EncodingPreference preference) const
 {
     if (!m_is_rope)
         return;
+
+    auto const& rope_string = static_cast<RopeString const&>(*this);
+    return rope_string.resolve(preference);
+}
+
+void RopeString::resolve(EncodingPreference preference) const
+{
 
     // This vector will hold all the pieces of the rope that need to be assembled
     // into the resolved string.
@@ -213,8 +221,9 @@ void PrimitiveString::resolve_rope_if_needed(EncodingPreference preference) cons
     while (!stack.is_empty()) {
         auto const* current = stack.take_last();
         if (current->m_is_rope) {
-            stack.append(current->m_rhs);
-            stack.append(current->m_lhs);
+            auto& current_rope_string = static_cast<RopeString const&>(*current);
+            stack.append(current_rope_string.m_rhs);
+            stack.append(current_rope_string.m_lhs);
             continue;
         }
 
