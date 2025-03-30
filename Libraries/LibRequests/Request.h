@@ -14,7 +14,7 @@
 #include <AK/WeakPtr.h>
 #include <LibCore/Notifier.h>
 #include <LibHTTP/HeaderMap.h>
-#include <LibRequests/NetworkErrorEnum.h>
+#include <LibRequests/NetworkError.h>
 #include <LibRequests/RequestTimingInfo.h>
 
 namespace Requests {

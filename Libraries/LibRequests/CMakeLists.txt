@@ -1,5 +1,5 @@
 set(SOURCES
-    NetworkErrorEnum.h
+    NetworkError.h
     Request.cpp
     RequestClient.cpp
     WebSocket.cpp

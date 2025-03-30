@@ -13,7 +13,7 @@
 #include <LibCore/EventLoop.h>
 #include <LibCore/Proxy.h>
 #include <LibCore/Socket.h>
-#include <LibRequests/NetworkErrorEnum.h>
+#include <LibRequests/NetworkError.h>
 #include <LibRequests/RequestTimingInfo.h>
 #include <LibRequests/WebSocket.h>
 #include <LibTLS/TLSv12.h>
