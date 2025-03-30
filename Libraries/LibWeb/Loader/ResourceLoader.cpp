@@ -182,30 +182,6 @@ static void log_filtered_request(LoadRequest const& request)
     dbgln("ResourceLoader: Filtered request to: \"{}\"", url_for_logging);
 }
 
-static StringView network_error_to_string_view(Requests::NetworkError const& network_error)
-{
-    switch (network_error) {
-    case Requests::NetworkError::UnableToResolveProxy:
-        return "Unable to resolve proxy"sv;
-    case Requests::NetworkError::UnableToResolveHost:
-        return "Unable to resolve host"sv;
-    case Requests::NetworkError::UnableToConnect:
-        return "Unable to connect"sv;
-    case Requests::NetworkError::TimeoutReached:
-        return "Timeout reached"sv;
-    case Requests::NetworkError::TooManyRedirects:
-        return "Too many redirects"sv;
-    case Requests::NetworkError::SSLHandshakeFailed:
-        return "SSL handshake failed"sv;
-    case Requests::NetworkError::SSLVerificationFailed:
-        return "SSL verification failed"sv;
-    case Requests::NetworkError::MalformedUrl:
-        return "The URL is not formatted properly"sv;
-    default:
-        return "An unexpected network error occurred"sv;
-    }
-}
-
 static bool should_block_request(LoadRequest const& request)
 {
     auto const& url = request.url();
@@ -462,7 +438,7 @@ void ResourceLoader::load(LoadRequest& request, GC::Root<SuccessCallback> succes
             if (network_error.has_value() || (status_code.has_value() && *status_code >= 400 && *status_code <= 599 && (payload.is_empty() || !request.is_main_resource()))) {
                 StringBuilder error_builder;
                 if (network_error.has_value())
-                    error_builder.appendff("{}", network_error_to_string_view(*network_error));
+                    error_builder.appendff("{}", Requests::network_error_to_string(*network_error));
                 else
                     error_builder.append("Load failed"sv);
 
