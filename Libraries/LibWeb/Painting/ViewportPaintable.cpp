@@ -8,6 +8,7 @@
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>
+#include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/StackingContext.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/Selection/Selection.h>
@@ -63,7 +64,9 @@ void ViewportPaintable::build_stacking_context_tree()
 void ViewportPaintable::paint_all_phases(PaintContext& context)
 {
     build_stacking_context_tree_if_needed();
+    context.display_list_recorder().save_layer();
     stacking_context()->paint(context);
+    context.display_list_recorder().restore();
 }
 
 void ViewportPaintable::assign_scroll_frames()
