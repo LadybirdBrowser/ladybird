@@ -14,6 +14,7 @@
 #include <QContextMenuEvent>
 #include <QEvent>
 #include <QPushButton>
+#include <QStyleOption>
 #include <QStylePainter>
 
 namespace Ladybird {
