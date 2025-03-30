@@ -44,16 +44,6 @@ public:
     QStringList preferred_languages();
     void set_preferred_languages(QStringList const& languages);
 
-    struct EngineProvider {
-        QString name;
-        QString url;
-    };
-    EngineProvider autocomplete_engine();
-    void set_autocomplete_engine(EngineProvider const& engine);
-
-    bool enable_autocomplete();
-    void set_enable_autocomplete(bool enable);
-
     bool enable_do_not_track();
     void set_enable_do_not_track(bool enable);
 

@@ -7,8 +7,8 @@
 #include <LibURL/URL.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/URL.h>
+#include <UI/Qt/Autocomplete.h>
 #include <UI/Qt/LocationEdit.h>
-#include <UI/Qt/Settings.h>
 #include <UI/Qt/StringUtils.h>
 
 #include <QApplication>
@@ -20,13 +20,13 @@ namespace Ladybird {
 
 LocationEdit::LocationEdit(QWidget* parent)
     : QLineEdit(parent)
+    , m_autocomplete(new Autocomplete(this))
 {
     update_placeholder();
 
-    m_autocomplete = make<AutoComplete>(this);
-    this->setCompleter(m_autocomplete);
+    setCompleter(m_autocomplete);
 
-    connect(m_autocomplete, &AutoComplete::activated, [&](QModelIndex const&) {
+    connect(m_autocomplete, QOverload<QModelIndex const&>::of(&QCompleter::activated), [&](QModelIndex const&) {
         emit returnPressed();
     });
 
@@ -50,15 +50,7 @@ LocationEdit::LocationEdit(QWidget* parent)
     });
 
     connect(this, &QLineEdit::textEdited, [this] {
-        if (!Settings::the()->enable_autocomplete()) {
-            m_autocomplete->clear_suggestions();
-            return;
-        }
-
-        auto cursor_position = cursorPosition();
-
-        m_autocomplete->get_search_suggestions(ak_string_from_qstring(text()));
-        setCursorPosition(cursor_position);
+        m_autocomplete->query_autocomplete_engine(ak_string_from_qstring(text()));
     });
 
     connect(this, &QLineEdit::textChanged, this, &LocationEdit::highlight_location);
@@ -68,12 +60,15 @@ void LocationEdit::focusInEvent(QFocusEvent* event)
 {
     QLineEdit::focusInEvent(event);
     highlight_location();
-    QTimer::singleShot(0, this, &QLineEdit::selectAll);
+
+    if (event->reason() != Qt::PopupFocusReason)
+        QTimer::singleShot(0, this, &QLineEdit::selectAll);
 }
 
 void LocationEdit::focusOutEvent(QFocusEvent* event)
 {
     QLineEdit::focusOutEvent(event);
+
     if (m_url_is_hidden) {
         m_url_is_hidden = false;
         if (text().isEmpty())
@@ -142,13 +137,14 @@ void LocationEdit::highlight_location()
     QCoreApplication::sendEvent(this, &event);
 }
 
-void LocationEdit::set_url(URL::URL const& url)
+void LocationEdit::set_url(URL::URL url)
 {
-    m_url = url;
+    m_url = AK::move(url);
+
     if (m_url_is_hidden) {
         clear();
     } else {
-        setText(qstring_from_ak_string(url.serialize()));
+        setText(qstring_from_ak_string(m_url.serialize()));
         setCursorPosition(0);
     }
 }
