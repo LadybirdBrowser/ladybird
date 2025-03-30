@@ -75,12 +75,12 @@ void BlockFormattingContext::run(AvailableSpace const& available_space)
         return;
     }
 
-    if (is<FieldSetBox>(root())) {
-        if (root().children_are_inline())
-            layout_inline_children(root(), available_space);
-        else
-            layout_block_level_children(root(), available_space);
+    if (root().children_are_inline())
+        layout_inline_children(root(), available_space);
+    else
+        layout_block_level_children(root(), available_space);
 
+    if (is<FieldSetBox>(root())) {
         auto const& fieldset_box = as<FieldSetBox>(root());
         if (!(fieldset_box.has_rendered_legend())) {
             return;
@@ -106,11 +106,6 @@ void BlockFormattingContext::run(AvailableSpace const& available_space)
 
         return;
     }
-
-    if (root().children_are_inline())
-        layout_inline_children(root(), available_space);
-    else
-        layout_block_level_children(root(), available_space);
 
     // Assign collapsed margin left after children layout of formatting context to the last child box
     if (m_margin_state.current_collapsed_margin() != 0) {
