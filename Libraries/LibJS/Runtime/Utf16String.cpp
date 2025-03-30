@@ -84,6 +84,12 @@ Utf16String Utf16String::create(Utf16View const& string)
     return Utf16String { Detail::Utf16StringImpl::create(string) };
 }
 
+Utf16String Utf16String::invalid()
+{
+    static auto invalid = Utf16String {};
+    return invalid;
+}
+
 Utf16String::Utf16String(NonnullRefPtr<Detail::Utf16StringImpl> string)
     : m_string(move(string))
 {
