@@ -39,7 +39,6 @@ link_qt("ladybird_qt_components") {
     "Core",
     "Gui",
     "Widgets",
-    "Network",
   ]
 }
 

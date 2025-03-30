@@ -23,13 +23,9 @@ public:
     explicit SettingsDialog(QMainWindow* window);
 
 private:
-    void setup_autocomplete_engine();
-
     QFormLayout* m_layout;
     QMainWindow* m_window { nullptr };
     QLineEdit* m_preferred_languages { nullptr };
-    QCheckBox* m_enable_autocomplete { nullptr };
-    QPushButton* m_autocomplete_engine_dropdown { nullptr };
     QCheckBox* m_enable_do_not_track { nullptr };
 };
 

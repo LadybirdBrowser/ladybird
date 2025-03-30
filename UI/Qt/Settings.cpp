@@ -65,30 +65,6 @@ void Settings::set_preferred_languages(QStringList const& languages)
     emit preferred_languages_changed(languages);
 }
 
-Settings::EngineProvider Settings::autocomplete_engine()
-{
-    EngineProvider engine_provider;
-    engine_provider.name = m_qsettings->value("autocomplete_engine_name", "Google").toString();
-    engine_provider.url = m_qsettings->value("autocomplete_engine", "https://www.google.com/complete/search?client=chrome&q={}").toString();
-    return engine_provider;
-}
-
-void Settings::set_autocomplete_engine(EngineProvider const& engine_provider)
-{
-    m_qsettings->setValue("autocomplete_engine_name", engine_provider.name);
-    m_qsettings->setValue("autocomplete_engine", engine_provider.url);
-}
-
-bool Settings::enable_autocomplete()
-{
-    return m_qsettings->value("enable_autocomplete", false).toBool();
-}
-
-void Settings::set_enable_autocomplete(bool enable)
-{
-    m_qsettings->setValue("enable_autocomplete", enable);
-}
-
 bool Settings::enable_do_not_track()
 {
     return m_qsettings->value("enable_do_not_track", false).toBool();
