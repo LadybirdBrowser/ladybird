@@ -11,7 +11,6 @@
 #include "RegexLexer.h"
 #include "RegexOptions.h"
 
-#include <AK/DeprecatedFlyString.h>
 #include <AK/Forward.h>
 #include <AK/HashMap.h>
 #include <AK/Types.h>

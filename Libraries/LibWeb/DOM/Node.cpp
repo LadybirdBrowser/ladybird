@@ -2206,7 +2206,7 @@ GC::Ref<Node> Node::get_root_node(GetRootNodeOptions const& options)
 String Node::debug_description() const
 {
     StringBuilder builder;
-    builder.append(node_name().to_deprecated_fly_string().to_lowercase());
+    builder.append(node_name().to_ascii_lowercase());
     if (is_element()) {
         auto const& element = static_cast<DOM::Element const&>(*this);
         if (element.id().has_value())

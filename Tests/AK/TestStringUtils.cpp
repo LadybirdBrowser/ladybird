@@ -23,11 +23,7 @@ TEST_CASE(hash_compatible)
     static_assert(AK::Concepts::HashCompatible<FlyString, StringView>);
 
     static_assert(AK::Concepts::HashCompatible<ByteString, StringView>);
-    static_assert(AK::Concepts::HashCompatible<ByteString, DeprecatedFlyString>);
     static_assert(AK::Concepts::HashCompatible<StringView, ByteString>);
-    static_assert(AK::Concepts::HashCompatible<StringView, DeprecatedFlyString>);
-    static_assert(AK::Concepts::HashCompatible<DeprecatedFlyString, ByteString>);
-    static_assert(AK::Concepts::HashCompatible<DeprecatedFlyString, StringView>);
 
     static_assert(AK::Concepts::HashCompatible<StringView, ByteBuffer>);
     static_assert(AK::Concepts::HashCompatible<ByteBuffer, StringView>);
