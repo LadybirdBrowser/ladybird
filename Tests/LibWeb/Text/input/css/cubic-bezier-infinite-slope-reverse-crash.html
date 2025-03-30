@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<style>
+    #foo {
+        animation-name: move;
+        animation-duration: 2s;
+        animation-timing-function: cubic-bezier(0.8, 0, 1, 1);
+        animation-iteration-count: 0.1;
+        animation-direction: reverse;
+    }
+
+    @keyframes move {}
+</style>
+<div id="foo"></div>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async (done) => {
+        const foo = document.getElementById("foo");
+        const anim = foo.getAnimations()[0];
+        anim.onfinish = function () {
+            println("PASS! (Didn't crash)");
+            done();
+        };
+        anim.play();
+    });
+</script>
