@@ -35,7 +35,6 @@
 #include <QPlainTextEdit>
 #include <QShortcut>
 #include <QStatusBar>
-#include <QTabBar>
 #include <QWindow>
 
 namespace Ladybird {

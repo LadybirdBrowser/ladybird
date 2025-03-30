@@ -18,6 +18,7 @@
 #include <QLineEdit>
 #include <QMainWindow>
 #include <QMenuBar>
+#include <QTabBar>
 #include <QTabWidget>
 #include <QToolBar>
 
