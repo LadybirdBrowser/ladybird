@@ -11,6 +11,7 @@
 #include <AK/JsonValue.h>
 #include <AK/Optional.h>
 #include <LibURL/URL.h>
+#include <LibWebView/Autocomplete.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/SearchEngine.h>
 
@@ -30,6 +31,7 @@ public:
 
     virtual void new_tab_page_url_changed() { }
     virtual void search_engine_changed() { }
+    virtual void autocomplete_engine_changed() { }
     virtual void autoplay_settings_changed() { }
 };
 
@@ -46,6 +48,9 @@ public:
 
     Optional<SearchEngine> const& search_engine() const { return m_search_engine; }
     void set_search_engine(Optional<StringView> search_engine_name);
+
+    Optional<AutocompleteEngine> const& autocomplete_engine() const { return m_autocomplete_engine; }
+    void set_autocomplete_engine(Optional<StringView> autocomplete_engine_name);
 
     SiteSetting const& autoplay_settings() const { return m_autoplay; }
     void set_autoplay_enabled_globally(bool);
@@ -65,6 +70,7 @@ private:
 
     URL::URL m_new_tab_page_url;
     Optional<SearchEngine> m_search_engine;
+    Optional<AutocompleteEngine> m_autocomplete_engine;
     SiteSetting m_autoplay;
 
     Vector<SettingsObserver&> m_observers;
