@@ -30,6 +30,10 @@ bool Request::stop()
 
 void Request::set_request_fd(Badge<Requests::RequestClient>, int fd)
 {
+    // If the request was stopped while this IPC was in-flight, just bail.
+    if (!m_internal_stream_data)
+        return;
+
     VERIFY(m_fd == -1);
     m_fd = fd;
 
@@ -117,6 +121,10 @@ void Request::set_up_internal_stream_data(DataReceived on_data_available)
 
     auto user_on_finish = move(on_finish);
     on_finish = [this](auto total_size, auto const& timing_info, auto network_error) {
+        // If the request was stopped while this IPC was in-flight, just bail.
+        if (!m_internal_stream_data)
+            return;
+
         m_internal_stream_data->total_size = total_size;
         m_internal_stream_data->network_error = network_error;
         m_internal_stream_data->timing_info = timing_info;
@@ -125,6 +133,10 @@ void Request::set_up_internal_stream_data(DataReceived on_data_available)
     };
 
     m_internal_stream_data->on_finish = [this, user_on_finish = move(user_on_finish)]() {
+        // If the request was stopped while this IPC was in-flight, just bail.
+        if (!m_internal_stream_data)
+            return;
+
         if (!m_internal_stream_data->user_finish_called && (!m_internal_stream_data->read_stream || m_internal_stream_data->read_stream->is_eof())) {
             m_internal_stream_data->user_finish_called = true;
             user_on_finish(m_internal_stream_data->total_size, m_internal_stream_data->timing_info, m_internal_stream_data->network_error);
@@ -134,6 +146,10 @@ void Request::set_up_internal_stream_data(DataReceived on_data_available)
     m_internal_stream_data->read_notifier->on_activation = [this, on_data_available = move(on_data_available)]() {
         static constexpr size_t buffer_size = 256 * KiB;
         static char buffer[buffer_size];
+
+        // If the request was stopped while this IPC was in-flight, just bail.
+        if (!m_internal_stream_data)
+            return;
 
         do {
             auto result = m_internal_stream_data->read_stream->read_some({ buffer, buffer_size });
