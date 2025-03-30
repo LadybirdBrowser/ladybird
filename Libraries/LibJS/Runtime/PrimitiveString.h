@@ -19,7 +19,7 @@
 
 namespace JS {
 
-class PrimitiveString final : public Cell {
+class PrimitiveString : public Cell {
     GC_CELL(PrimitiveString, Cell);
     GC_DECLARE_ALLOCATOR(PrimitiveString);
 
@@ -47,26 +47,50 @@ public:
 
     ThrowCompletionOr<Optional<Value>> get(VM&, PropertyKey const&) const;
 
-private:
-    explicit PrimitiveString(PrimitiveString&, PrimitiveString&);
-    explicit PrimitiveString(String);
-    explicit PrimitiveString(Utf16String);
+protected:
+    enum class RopeTag { Rope };
+    explicit PrimitiveString(RopeTag)
+        : m_is_rope(true)
+    {
+    }
 
-    virtual void visit_edges(Cell::Visitor&) override;
+    mutable bool m_is_rope { false };
+
+    mutable Optional<String> m_utf8_string;
+    mutable Optional<Utf16String> m_utf16_string;
 
     enum class EncodingPreference {
         UTF8,
         UTF16,
     };
-    void resolve_rope_if_needed(EncodingPreference) const;
 
-    mutable bool m_is_rope { false };
+private:
+    friend class RopeString;
+
+    explicit PrimitiveString(String);
+    explicit PrimitiveString(Utf16String);
+
+    void resolve_rope_if_needed(EncodingPreference) const;
+};
+
+class RopeString final : public PrimitiveString {
+    GC_CELL(RopeString, PrimitiveString);
+    GC_DECLARE_ALLOCATOR(RopeString);
+
+public:
+    virtual ~RopeString() override;
+
+private:
+    friend class PrimitiveString;
+
+    explicit RopeString(GC::Ref<PrimitiveString>, GC::Ref<PrimitiveString>);
+
+    virtual void visit_edges(Visitor&) override;
+
+    void resolve(EncodingPreference) const;
 
     mutable GC::Ptr<PrimitiveString> m_lhs;
     mutable GC::Ptr<PrimitiveString> m_rhs;
-
-    mutable Optional<String> m_utf8_string;
-    mutable Optional<Utf16String> m_utf16_string;
 };
 
 }
