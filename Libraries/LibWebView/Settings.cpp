@@ -24,6 +24,9 @@ static constexpr auto new_tab_page_url_key = "newTabPageURL"sv;
 static constexpr auto search_engine_key = "searchEngine"sv;
 static constexpr auto search_engine_name_key = "name"sv;
 
+static constexpr auto autocomplete_engine_key = "autocompleteEngine"sv;
+static constexpr auto autocomplete_engine_name_key = "name"sv;
+
 static constexpr auto site_setting_enabled_globally_key = "enabledGlobally"sv;
 static constexpr auto site_setting_site_filters_key = "siteFilters"sv;
 
@@ -81,6 +84,11 @@ Settings Settings::create(Badge<Application>)
             settings.m_search_engine = find_search_engine_by_name(*search_engine_name);
     }
 
+    if (auto autocomplete_engine = settings_json.value().get_object(autocomplete_engine_key); autocomplete_engine.has_value()) {
+        if (auto autocomplete_engine_name = autocomplete_engine->get_string(autocomplete_engine_name_key); autocomplete_engine_name.has_value())
+            settings.m_autocomplete_engine = find_autocomplete_engine_by_name(*autocomplete_engine_name);
+    }
+
     auto load_site_setting = [&](SiteSetting& site_setting, StringView key) {
         auto saved_settings = settings_json.value().get_object(key);
         if (!saved_settings.has_value())
@@ -122,6 +130,13 @@ JsonValue Settings::serialize_json() const
         settings.set(search_engine_key, move(search_engine));
     }
 
+    if (m_autocomplete_engine.has_value()) {
+        JsonObject autocomplete_engine;
+        autocomplete_engine.set(autocomplete_engine_name_key, m_autocomplete_engine->name);
+
+        settings.set(autocomplete_engine_key, move(autocomplete_engine));
+    }
+
     auto save_site_setting = [&](SiteSetting const& site_setting, StringView key) {
         JsonArray site_filters;
         site_filters.ensure_capacity(site_setting.site_filters.size());
@@ -145,6 +160,7 @@ void Settings::restore_defaults()
 {
     m_new_tab_page_url = URL::about_newtab();
     m_search_engine.clear();
+    m_autocomplete_engine.clear();
     m_autoplay = SiteSetting {};
 
     persist_settings();
@@ -173,6 +189,19 @@ void Settings::set_search_engine(Optional<StringView> search_engine_name)
 
     for (auto& observer : m_observers)
         observer.search_engine_changed();
+}
+
+void Settings::set_autocomplete_engine(Optional<StringView> autocomplete_engine_name)
+{
+    if (autocomplete_engine_name.has_value())
+        m_autocomplete_engine = find_autocomplete_engine_by_name(*autocomplete_engine_name);
+    else
+        m_autocomplete_engine.clear();
+
+    persist_settings();
+
+    for (auto& observer : m_observers)
+        observer.autocomplete_engine_changed();
 }
 
 void Settings::set_autoplay_enabled_globally(bool enabled_globally)

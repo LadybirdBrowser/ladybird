@@ -3,6 +3,7 @@ include(fontconfig)
 set(SOURCES
     Application.cpp
     Attribute.cpp
+    Autocomplete.cpp
     BrowserProcess.cpp
     ConsoleOutput.cpp
     CookieJar.cpp

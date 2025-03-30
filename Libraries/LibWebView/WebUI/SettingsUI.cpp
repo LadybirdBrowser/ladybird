@@ -20,15 +20,21 @@ void SettingsUI::register_interfaces()
     register_interface("restoreDefaultSettings"sv, [this](auto const&) {
         restore_default_settings();
     });
+
     register_interface("setNewTabPageURL"sv, [this](auto const& data) {
         set_new_tab_page_url(data);
     });
-    register_interface("loadAvailableSearchEngines"sv, [this](auto const&) {
-        load_available_search_engines();
+
+    register_interface("loadAvailableEngines"sv, [this](auto const&) {
+        load_available_engines();
     });
     register_interface("setSearchEngine"sv, [this](auto const& data) {
         set_search_engine(data);
     });
+    register_interface("setAutocompleteEngine"sv, [this](auto const& data) {
+        set_autocomplete_engine(data);
+    });
+
     register_interface("loadForciblyEnabledSiteSettings"sv, [this](auto const&) {
         load_forcibly_enabled_site_settings();
     });
@@ -70,13 +76,21 @@ void SettingsUI::set_new_tab_page_url(JsonValue const& new_tab_page_url)
     WebView::Application::settings().set_new_tab_page_url(parsed_new_tab_page_url.release_value());
 }
 
-void SettingsUI::load_available_search_engines()
+void SettingsUI::load_available_engines()
 {
-    JsonArray engines;
-    for (auto const& engine : search_engines())
-        engines.must_append(engine.name);
+    JsonArray search_engines;
+    for (auto const& engine : WebView::search_engines())
+        search_engines.must_append(engine.name);
 
-    async_send_message("loadSearchEngines"sv, move(engines));
+    JsonArray autocomplete_engines;
+    for (auto const& engine : WebView::autocomplete_engines())
+        autocomplete_engines.must_append(engine.name);
+
+    JsonObject engines;
+    engines.set("search"sv, move(search_engines));
+    engines.set("autocomplete"sv, move(autocomplete_engines));
+
+    async_send_message("loadEngines"sv, move(engines));
 }
 
 void SettingsUI::set_search_engine(JsonValue const& search_engine)
@@ -85,6 +99,14 @@ void SettingsUI::set_search_engine(JsonValue const& search_engine)
         WebView::Application::settings().set_search_engine({});
     else if (search_engine.is_string())
         WebView::Application::settings().set_search_engine(search_engine.as_string());
+}
+
+void SettingsUI::set_autocomplete_engine(JsonValue const& autocomplete_engine)
+{
+    if (autocomplete_engine.is_null())
+        WebView::Application::settings().set_autocomplete_engine({});
+    else if (autocomplete_engine.is_string())
+        WebView::Application::settings().set_autocomplete_engine(autocomplete_engine.as_string());
 }
 
 enum class SiteSettingType {

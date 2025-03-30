@@ -52,6 +52,12 @@
                 float: left;
             }
 
+            hr {
+                height: 1px;
+                background-color: var(--border-color);
+                border: none;
+            }
+
             .card {
                 background-color: var(--card-background-color);
 
@@ -70,6 +76,10 @@
 
             .card-body {
                 padding: 20px;
+            }
+
+            .card-body > hr {
+                margin: 0 8px 16px 8px;
             }
 
             .card-group {
@@ -165,10 +175,6 @@
             }
 
             dialog .dialog-body hr {
-                height: 1px;
-                background-color: var(--border-color);
-                border: none;
-
                 margin: 8px 4px 10px 4px;
             }
 
@@ -283,17 +289,36 @@
             <div class="card-body">
                 <div class="card-group">
                     <div class="toggle-container">
-                        <label for="search-enabled">Enable Search</label>
+                        <label for="search-toggle">Enable Search</label>
                         <label class="toggle">
-                            <input id="search-enabled" type="checkbox" />
+                            <input id="search-toggle" type="checkbox" />
                             <span class="toggle-button"></span>
                         </label>
                     </div>
                 </div>
-                <div id="search-engine-list" class="card-group hidden">
+                <div class="card-group hidden">
                     <label for="search-engine">Default Search Engine</label>
                     <select id="search-engine">
-                        <option value="">Please Select a Search Engine</option>
+                        <option value="">Please select a search engine</option>
+                        <hr />
+                    </select>
+                </div>
+
+                <hr />
+
+                <div class="card-group">
+                    <div class="toggle-container">
+                        <label for="autocomplete-toggle">Enable Autocomplete</label>
+                        <label class="toggle">
+                            <input id="autocomplete-toggle" type="checkbox" />
+                            <span class="toggle-button"></span>
+                        </label>
+                    </div>
+                </div>
+                <div class="card-group hidden">
+                    <label for="autocomplete-engine">Default Autocomplete Engine</label>
+                    <select id="autocomplete-engine">
+                        <option value="">Please select an autocomplete engine</option>
                         <hr />
                     </select>
                 </div>
@@ -347,9 +372,10 @@
 
         <script>
             const newTabPageURL = document.querySelector("#new-tab-page-url");
-            const searchEngineList = document.querySelector("#search-engine-list");
-            const searchEnabled = document.querySelector("#search-enabled");
+            const searchToggle = document.querySelector("#search-toggle");
             const searchEngine = document.querySelector("#search-engine");
+            const autocompleteToggle = document.querySelector("#autocomplete-toggle");
+            const autocompleteEngine = document.querySelector("#autocomplete-engine");
             const autoplaySettings = document.querySelector("#autoplay-settings");
             const siteSettings = document.querySelector("#site-settings");
             const siteSettingsAdd = document.querySelector("#site-settings-add");
@@ -372,57 +398,27 @@
                 newTabPageURL.classList.remove("error");
                 newTabPageURL.value = window.settings.newTabPageURL;
 
-                const searchEngineName = window.settings.searchEngine?.name;
+                const renderEngineSettings = (type, setting) => {
+                    const [name, toggle, engine] = engineForType(type);
 
-                if (searchEngineName) {
-                    searchEnabled.checked = true;
-                    searchEngine.value = searchEngineName;
-                } else {
-                    searchEnabled.checked = false;
-                }
+                    if (setting?.name) {
+                        toggle.checked = true;
+                        engine.value = setting?.name;
+                    } else {
+                        toggle.checked = false;
+                    }
 
-                renderSearchEngine();
+                    renderEngine(type);
+                };
+
+                renderEngineSettings(Engine.search, window.settings.searchEngine);
+                renderEngineSettings(Engine.autocomplete, window.settings.autocompleteEngine);
 
                 const siteSetting = currentSiteSetting();
 
                 if (siteSetting === "autoplay") {
                     showSiteSettings("Autoplay", window.settings.autoplay);
                 }
-            };
-
-            const loadSearchEngines = engines => {
-                for (const engine of engines) {
-                    const option = document.createElement("option");
-                    option.text = engine;
-                    option.value = engine;
-
-                    searchEngine.add(option);
-                }
-            };
-
-            const renderSearchEngine = () => {
-                if (searchEnabled.checked) {
-                    searchEngineList.classList.remove("hidden");
-                } else {
-                    searchEngineList.classList.add("hidden");
-                }
-
-                if (searchEnabled.checked && searchEngine.selectedIndex !== 0) {
-                    searchEngine.item(0).disabled = true;
-                } else if (!searchEnabled.checked) {
-                    searchEngine.item(0).disabled = false;
-                    searchEngine.selectedIndex = 0;
-                }
-            };
-
-            const saveSearchEngine = () => {
-                if (searchEnabled.checked && searchEngine.selectedIndex !== 0) {
-                    ladybird.sendMessage("setSearchEngine", searchEngine.value);
-                } else if (!searchEnabled.checked) {
-                    ladybird.sendMessage("setSearchEngine", null);
-                }
-
-                renderSearchEngine();
             };
 
             newTabPageURL.addEventListener("change", () => {
@@ -442,8 +438,75 @@
                 }, 1000);
             });
 
-            searchEnabled.addEventListener("change", saveSearchEngine);
-            searchEngine.addEventListener("change", saveSearchEngine);
+            const Engine = Object.freeze({
+                search: 1,
+                autocomplete: 2,
+            });
+
+            const engineForType = engine => {
+                if (engine === Engine.search) {
+                    return ["Search", searchToggle, searchEngine];
+                }
+                if (engine === Engine.autocomplete) {
+                    return ["Autocomplete", autocompleteToggle, autocompleteEngine];
+                }
+                throw Error(`Unrecognized engine type ${engine}`);
+            };
+
+            const loadEngines = (type, engines) => {
+                const [name, toggle, engine] = engineForType(type);
+
+                for (const engineName of engines) {
+                    const option = document.createElement("option");
+                    option.text = engineName;
+                    option.value = engineName;
+
+                    engine.add(option);
+                }
+            };
+
+            const renderEngine = type => {
+                const [name, toggle, engine] = engineForType(type);
+
+                if (toggle.checked) {
+                    engine.parentElement.classList.remove("hidden");
+                } else {
+                    engine.parentElement.classList.add("hidden");
+                }
+
+                if (toggle.checked && engine.selectedIndex !== 0) {
+                    engine.item(0).disabled = true;
+                } else if (!toggle.checked) {
+                    engine.item(0).disabled = false;
+                    engine.selectedIndex = 0;
+                }
+            };
+
+            const saveEngine = type => {
+                const [name, toggle, engine] = engineForType(type);
+
+                if (toggle.checked && engine.selectedIndex !== 0) {
+                    ladybird.sendMessage(`set${name}Engine`, engine.value);
+                } else if (!toggle.checked) {
+                    ladybird.sendMessage(`set${name}Engine`, null);
+                }
+
+                renderEngine(type);
+            };
+
+            const setSaveEngineListeners = type => {
+                const [name, toggle, engine] = engineForType(type);
+
+                toggle.addEventListener("change", () => {
+                    saveEngine(type);
+                });
+                engine.addEventListener("change", () => {
+                    saveEngine(type);
+                });
+            };
+
+            setSaveEngineListeners(Engine.search);
+            setSaveEngineListeners(Engine.autocomplete);
 
             const forciblyEnableSiteSettings = settings => {
                 settings.forEach(setting => {
@@ -576,7 +639,7 @@
             });
 
             document.addEventListener("WebUILoaded", () => {
-                ladybird.sendMessage("loadAvailableSearchEngines");
+                ladybird.sendMessage("loadAvailableEngines");
                 ladybird.sendMessage("loadCurrentSettings");
                 ladybird.sendMessage("loadForciblyEnabledSiteSettings");
             });
@@ -584,8 +647,9 @@
             document.addEventListener("WebUIMessage", event => {
                 if (event.detail.name === "loadSettings") {
                     loadSettings(event.detail.data);
-                } else if (event.detail.name === "loadSearchEngines") {
-                    loadSearchEngines(event.detail.data);
+                } else if (event.detail.name === "loadEngines") {
+                    loadEngines(Engine.search, event.detail.data.search);
+                    loadEngines(Engine.autocomplete, event.detail.data.autocomplete);
                 } else if (event.detail.name === "forciblyEnableSiteSettings") {
                     forciblyEnableSiteSettings(event.detail.data);
                 }
