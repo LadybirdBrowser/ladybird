@@ -40,7 +40,7 @@ public:
     }
     static Error from_string_view(StringView string_literal) { return Error(string_literal); }
 
-    template<OneOf<ByteString, DeprecatedFlyString, String, FlyString> T>
+    template<OneOf<ByteString, String, FlyString> T>
     static Error from_string_view(T)
     {
         // `Error::from_string_view(ByteString::formatted(...))` is a somewhat common mistake, which leads to a UAF situation.
