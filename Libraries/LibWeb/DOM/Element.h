@@ -232,6 +232,13 @@ public:
 
     WebIDL::ExceptionOr<void> insert_adjacent_html(String const& position, String const&);
 
+    bool element_ready_check() const;
+    GC::Ref<WebIDL::Promise> request_fullscreen();
+    void removing_steps_fullscreen();
+
+    void set_fullscreen_flag(bool is_fullscreen) { m_fullscreen_flag = is_fullscreen; }
+    bool is_fullscreen_element() const { return m_fullscreen_flag; }
+
     GC::Ptr<WebIDL::CallbackType> onfullscreenchange();
     void set_onfullscreenchange(GC::Ptr<WebIDL::CallbackType>);
 
@@ -477,8 +484,6 @@ public:
     void release_pointer_capture(WebIDL::Long pointer_id);
     bool has_pointer_capture(WebIDL::Long pointer_id);
 
-    bool is_fullscreen_element() const;
-
 protected:
     Element(Document&, DOM::QualifiedName);
     virtual void initialize(JS::Realm&) override;
@@ -576,6 +581,7 @@ private:
     bool m_affected_by_first_or_last_child_pseudo_class : 1 { false };
     bool m_affected_by_nth_child_pseudo_class : 1 { false };
     bool m_affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator : 1 { false };
+    bool m_fullscreen_flag : 1 { false };
 
     size_t m_sibling_invalidation_distance { 0 };
 
