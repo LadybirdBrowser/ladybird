@@ -28,6 +28,7 @@ enum class PromptType {
     BeforeUnload,
     Confirm,
     Default,
+    File,
     Prompt,
     FallbackDefault,
 };
