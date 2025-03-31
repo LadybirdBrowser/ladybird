@@ -20,7 +20,7 @@ static UserPromptHandler s_user_prompt_handler;
 static constexpr Array known_prompt_handlers { "dismiss"sv, "accept"sv, "dismiss and notify"sv, "accept and notify"sv, "ignore"sv };
 
 // https://w3c.github.io/webdriver/#dfn-valid-prompt-types
-static constexpr Array valid_prompt_types { "alert"sv, "beforeUnload"sv, "confirm"sv, "default"sv, "prompt"sv };
+static constexpr Array valid_prompt_types { "alert"sv, "beforeUnload"sv, "confirm"sv, "default"sv, "file"sv, "prompt"sv };
 
 static constexpr PromptHandler prompt_handler_from_string(StringView prompt_handler)
 {
@@ -44,6 +44,8 @@ static constexpr StringView prompt_type_to_string(PromptType prompt_type)
         return "confirm"sv;
     case PromptType::Default:
         return "default"sv;
+    case PromptType::File:
+        return "file"sv;
     case PromptType::Prompt:
         return "prompt"sv;
     case PromptType::FallbackDefault:
@@ -62,6 +64,8 @@ static constexpr PromptType prompt_type_from_string(StringView prompt_type)
         return PromptType::Confirm;
     if (prompt_type == "default"sv)
         return PromptType::Default;
+    if (prompt_type == "file"sv)
+        return PromptType::File;
     if (prompt_type == "prompt"sv)
         return PromptType::Prompt;
     if (prompt_type == "fallbackDefault"sv)
