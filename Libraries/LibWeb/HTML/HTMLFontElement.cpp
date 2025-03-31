@@ -125,12 +125,12 @@ bool HTMLFontElement::is_presentational_hint(FlyString const& name) const
 void HTMLFontElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
 {
     for_each_attribute([&](auto& name, auto& value) {
-        if (name.equals_ignoring_ascii_case("color"sv)) {
+        if (name == AttributeNames::color) {
             // https://html.spec.whatwg.org/multipage/rendering.html#phrasing-content-3:rules-for-parsing-a-legacy-colour-value
             auto color = parse_legacy_color_value(value);
             if (color.has_value())
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::Color, CSS::CSSColorValue::create_from_color(color.value(), CSS::ColorSyntax::Legacy));
-        } else if (name.equals_ignoring_ascii_case("size"sv)) {
+        } else if (name == AttributeNames::size) {
             // When a font element has a size attribute, the user agent is expected to use the following steps, known as the rules for parsing a legacy font size, to treat the attribute as a presentational hint setting the element's 'font-size' property:
             auto font_size_or_empty = parse_legacy_font_size(value);
             if (font_size_or_empty.has_value()) {
@@ -138,6 +138,10 @@ void HTMLFontElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties
                 if (auto parsed_value = parse_css_value(CSS::Parser::ParsingParams { document() }, font_size, CSS::PropertyID::FontSize))
                     cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::FontSize, parsed_value.release_nonnull());
             }
+        } else if (name == AttributeNames::face) {
+            // When a font element has a face attribute, the user agent is expected to treat the attribute as a presentational hint setting the element's 'font-family' property to the attribute's value.
+            if (auto parsed_value = parse_css_value(CSS::Parser::ParsingParams { document() }, value, CSS::PropertyID::FontFamily))
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::FontFamily, parsed_value.release_nonnull());
         }
     });
 }

@@ -1,2 +1,2 @@
-foo<font face="monospace" style="font-family: monospace;">bar</font>
-<font face="sans-serif" style="font-family: sans-serif;">foo</font><font face="sans-serif" style="font-family: sans-serif;"><font style="">bar</font></font>
+foo<font face="monospace">bar</font>
+<font face="sans-serif">foobar</font>
