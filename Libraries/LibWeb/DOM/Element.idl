@@ -127,6 +127,7 @@ interface Element : Node {
     boolean hasPointerCapture(long pointerId);
 
     // partial interface for https://fullscreen.spec.whatwg.org/#api
+    Promise<undefined> requestFullscreen();
     attribute EventHandler onfullscreenchange;
     attribute EventHandler onfullscreenerror;
 };
