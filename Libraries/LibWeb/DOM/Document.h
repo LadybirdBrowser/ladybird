@@ -977,6 +977,13 @@ public:
     void run_fullscreen_steps();
     void append_pending_fullscreen_change(PendingFullscreenEvent::Type type, GC::Ref<Element> element);
 
+    void fullscreen_element_within_doc(GC::Ref<Element> element);
+    GC::Ptr<Element> fullscreen_element() const;
+    GC::Ptr<Element> fullscreen_element_for_bindings() const;
+
+    bool fullscreen() const;
+    bool fullscreen_enabled() const;
+
     auto& script_blocking_style_sheet_set() { return m_script_blocking_style_sheet_set; }
     auto const& script_blocking_style_sheet_set() const { return m_script_blocking_style_sheet_set; }
 
