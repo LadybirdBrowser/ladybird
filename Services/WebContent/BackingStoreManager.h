@@ -25,14 +25,25 @@ public:
     void reallocate_backing_stores(Gfx::IntSize);
     void restart_resize_timer();
 
-    Web::Painting::BackingStore* back_store() { return m_back_store.ptr(); }
-    i32 front_id() const { return m_front_bitmap_id; }
+    struct BackingStore {
+        i32 bitmap_id { -1 };
+        Web::Painting::BackingStore* store { nullptr };
+    };
 
-    void swap_back_and_front();
+    BackingStore acquire_store_for_next_frame()
+    {
+        BackingStore backing_store;
+        backing_store.bitmap_id = m_back_bitmap_id;
+        backing_store.store = m_back_store.ptr();
+        swap_back_and_front();
+        return backing_store;
+    }
 
     BackingStoreManager(PageClient&);
 
 private:
+    void swap_back_and_front();
+
     // FIXME: We should come up with an ownership model for this class that makes the GC-checker happy
     IGNORE_GC PageClient& m_page_client;
 
