@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/AtomicRefCounted.h>
 #include <AK/Noncopyable.h>
 #include <LibGfx/Size.h>
 
@@ -15,7 +16,7 @@
 
 namespace Web::Painting {
 
-class BackingStore {
+class BackingStore : public AtomicRefCounted<BackingStore> {
     AK_MAKE_NONCOPYABLE(BackingStore);
 
 public:
@@ -28,19 +29,27 @@ public:
 
 class BitmapBackingStore final : public BackingStore {
 public:
-    BitmapBackingStore(RefPtr<Gfx::Bitmap>);
+    static NonnullRefPtr<BitmapBackingStore> create(RefPtr<Gfx::Bitmap> bitmap)
+    {
+        return adopt_ref(*new BitmapBackingStore(move(bitmap)));
+    }
 
     Gfx::IntSize size() const override { return m_bitmap->size(); }
     Gfx::Bitmap& bitmap() const override { return *m_bitmap; }
 
 private:
+    BitmapBackingStore(RefPtr<Gfx::Bitmap>);
+
     RefPtr<Gfx::Bitmap> m_bitmap;
 };
 
 #ifdef AK_OS_MACOS
 class IOSurfaceBackingStore final : public BackingStore {
 public:
-    IOSurfaceBackingStore(Core::IOSurfaceHandle&&);
+    static NonnullRefPtr<IOSurfaceBackingStore> create(Core::IOSurfaceHandle&& iosurface_handle)
+    {
+        return adopt_ref(*new IOSurfaceBackingStore(move(iosurface_handle)));
+    }
 
     Gfx::IntSize size() const override;
 
@@ -48,6 +57,8 @@ public:
     Gfx::Bitmap& bitmap() const override { return *m_bitmap_wrapper; }
 
 private:
+    IOSurfaceBackingStore(Core::IOSurfaceHandle&&);
+
     Core::IOSurfaceHandle m_iosurface_handle;
     RefPtr<Gfx::Bitmap> m_bitmap_wrapper;
 };

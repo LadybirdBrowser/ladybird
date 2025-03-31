@@ -205,16 +205,16 @@ void PageClient::process_screenshot_requests()
             }
             auto rect = page().enclosing_device_rect(dom_node->paintable_box()->absolute_border_box_rect());
             auto bitmap = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, rect.size().to_type<int>()).release_value_but_fixme_should_propagate_errors();
-            auto backing_store = Web::Painting::BitmapBackingStore(*bitmap);
-            start_display_list_rendering(rect, backing_store, { .paint_overlay = Web::PaintOptions::PaintOverlay::No }, [this, bitmap] {
-                client().async_did_take_screenshot(m_id, bitmap->to_shareable_bitmap());
+            auto backing_store = Web::Painting::BitmapBackingStore::create(*bitmap);
+            start_display_list_rendering(rect, backing_store, { .paint_overlay = Web::PaintOptions::PaintOverlay::No }, [this, backing_store] {
+                client().async_did_take_screenshot(m_id, backing_store->bitmap().to_shareable_bitmap());
             });
         } else {
             Web::DevicePixelRect rect { { 0, 0 }, content_size() };
             auto bitmap = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, rect.size().to_type<int>()).release_value_but_fixme_should_propagate_errors();
-            auto backing_store = Web::Painting::BitmapBackingStore(*bitmap);
-            start_display_list_rendering(rect, backing_store, {}, [this, bitmap] {
-                client().async_did_take_screenshot(m_id, bitmap->to_shareable_bitmap());
+            auto backing_store = Web::Painting::BitmapBackingStore::create(*bitmap);
+            start_display_list_rendering(rect, backing_store, {}, [this, backing_store] {
+                client().async_did_take_screenshot(m_id, backing_store->bitmap().to_shareable_bitmap());
             });
         }
     }

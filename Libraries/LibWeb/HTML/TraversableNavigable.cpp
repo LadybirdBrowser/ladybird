@@ -1414,7 +1414,7 @@ NonnullRefPtr<Gfx::PaintingSurface> TraversableNavigable::painting_surface_for_b
 #ifdef USE_VULKAN
         // Vulkan: Try to create an accelerated surface.
         new_surface = Gfx::PaintingSurface::create_with_size(m_skia_backend_context, backing_store.size(), Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
-        new_surface->on_flush = [&bitmap = bitmap](auto& surface) { surface.read_into_bitmap(bitmap); };
+        new_surface->on_flush = [backing_store = static_cast<NonnullRefPtr<Painting::BackingStore>>(backing_store)](auto& surface) { surface.read_into_bitmap(backing_store->bitmap()); };
 #endif
 #ifdef AK_OS_MACOS
         // macOS: Wrap an IOSurface if available.
