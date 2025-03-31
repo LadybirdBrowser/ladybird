@@ -418,14 +418,18 @@ static ErrorOr<void, WebDriver::Error> process_pointer_move_action(JsonObject co
     fields.origin = origin.release_value();
 
     // 8. Let x be the result of getting the property x from action item.
-    // 9. If x is not an Integer, return error with error code invalid argument.
+    // 9. If x is not a Number, return error with error code invalid argument.
+    auto x = TRY(get_property<double>(action_item, "x"sv));
+
     // 10. Set the x property of action to x.
-    fields.position.set_x(TRY(get_property<i32>(action_item, "x"sv)));
+    fields.position.set_x(CSSPixels { x });
 
     // 11. Let y be the result of getting the property y from action item.
-    // 12. If y is not an Integer, return error with error code invalid argument.
+    // 12. If y is not a Number, return error with error code invalid argument.
+    auto y = TRY(get_property<double>(action_item, "y"sv));
+
     // 13. Set the y property of action to y.
-    fields.position.set_y(TRY(get_property<i32>(action_item, "y"sv)));
+    fields.position.set_y(CSSPixels { y });
 
     return process_pointer_action_common(action_item, fields);
 }
