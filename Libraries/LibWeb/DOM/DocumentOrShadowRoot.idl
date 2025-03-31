@@ -8,4 +8,9 @@ interface mixin DocumentOrShadowRoot {
 
     // https://www.w3.org/TR/web-animations-1/#extensions-to-the-documentorshadowroot-interface-mixin
     sequence<Animation> getAnimations();
+
+    // https://fullscreen.spec.whatwg.org/#fullscreen-an-element
+    // FIXME: [LegacyLenientSetter] not implemented
+    [ImplementedAs=fullscreen_element_for_bindings]
+    readonly attribute Element? fullscreenElement;
 };
