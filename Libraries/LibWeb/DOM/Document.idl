@@ -163,6 +163,10 @@ interface Document : Node {
     // https://fullscreen.spec.whatwg.org/#api
     attribute EventHandler onfullscreenchange;
     attribute EventHandler onfullscreenerror;
+    // FIXME: [LegacyLenientSetter]
+    readonly attribute boolean fullscreenEnabled;
+    // FIXME: [LegacyLenientSetter, Unscopable]
+    readonly attribute boolean fullscreen; // historical
 };
 
 dictionary ElementCreationOptions {
