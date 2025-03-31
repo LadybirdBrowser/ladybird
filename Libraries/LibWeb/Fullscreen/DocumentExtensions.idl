@@ -2,6 +2,9 @@
 
 // https://fullscreen.spec.whatwg.org/#ref-for-document
 partial interface Document {
+    [LegacyLenientSetter] readonly attribute boolean fullscreenEnabled;
+    [LegacyLenientSetter, Unscopable] readonly attribute boolean fullscreen; // historical
+
     attribute EventHandler onfullscreenchange;
     attribute EventHandler onfullscreenerror;
 };

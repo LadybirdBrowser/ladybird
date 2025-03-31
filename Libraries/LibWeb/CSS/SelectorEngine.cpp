@@ -559,8 +559,7 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
         return focused_area && element.is_inclusive_ancestor_of(*focused_area);
     }
     case CSS::PseudoClass::Fullscreen: {
-        // FIXME: Add fullscreen support
-        return false;
+        return element.is_fullscreen_element();
     }
     case CSS::PseudoClass::FirstChild:
         if (context.collect_per_element_selector_involvement_metadata) {

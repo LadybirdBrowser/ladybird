@@ -687,12 +687,13 @@ void WebContentClient::did_request_minimize_window(u64 page_id)
     }
 }
 
-void WebContentClient::did_request_fullscreen_window(u64 page_id)
+Messages::WebContentClient::DidRequestFullscreenWindowResponse WebContentClient::did_request_fullscreen_window(u64 page_id)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_fullscreen_window)
             view->on_fullscreen_window();
     }
+    return true;
 }
 
 void WebContentClient::did_request_exit_fullscreen(u64 page_id)

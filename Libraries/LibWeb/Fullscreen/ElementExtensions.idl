@@ -2,6 +2,8 @@
 
 // https://fullscreen.spec.whatwg.org/#ref-for-element
 partial interface Element {
+    Promise<undefined> requestFullscreen();
+
     attribute EventHandler onfullscreenchange;
     attribute EventHandler onfullscreenerror;
 };
