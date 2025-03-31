@@ -5,6 +5,7 @@
  * Copyright (c) 2021-2026, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2024, Matthew Olsson <mattco@serenityos.org>
  * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
+ * Copyright (c) 2025, Simon Farre <simon.farre.cx@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -6795,6 +6796,95 @@ void Document::run_fullscreen_steps()
 void Document::append_pending_fullscreen_change(PendingFullscreenEvent::Type type, GC::Ref<Element> element)
 {
     m_pending_fullscreen_events.append(PendingFullscreenEvent { type, element });
+}
+
+// https://fullscreen.spec.whatwg.org/#fullscreen-an-element
+void Document::fullscreen_element_within_doc(GC::Ref<Element> element)
+{
+    auto const get_hide_until = [&](auto const& popover_list) {
+        return HTML::HTMLElement::topmost_popover_ancestor(element, popover_list, nullptr, HTML::IsPopover::No);
+    };
+
+    // 1. Let hideUntil be the result of running topmost popover ancestor given
+    // element, null, and false.
+    auto hide_until = get_hide_until(showing_hint_popover_list());
+
+    // Finding topmost popover ancestor algorithm takes different parameters than those
+    // described by the fullscreen spec. Since the new algorithm takes 4 parameters, with the new "popover list"
+    // we must also account for the auto popover list.
+    // More can be read about this "spec bug" in https://github.com/whatwg/fullscreen/issues/245
+    if (hide_until == nullptr)
+        hide_until = get_hide_until(showing_auto_popover_list());
+
+    // Our hide_all_popovers_until takes a variant. topmost_popover_ancestor produces a Ptr<HTMLElement>
+    Variant<GC::Ptr<HTML::HTMLElement>, GC::Ptr<Document>> hide_until_argument { hide_until };
+
+    // 2. If hideUntil is null, then set hideUntil to element’s node document.
+    if (hide_until == nullptr)
+        hide_until_argument = element->owner_document();
+
+    // 3. Run hide all popovers until given hideUntil, false, and true.
+    HTML::HTMLElement::hide_all_popovers_until(hide_until_argument, HTML::FocusPreviousElement::No, HTML::FireEvents::Yes);
+
+    // 4. Set element’s fullscreen flag.
+    element->set_fullscreen_flag(true);
+
+    // 5. Remove from the top layer immediately given element.
+    remove_an_element_from_the_top_layer_immediately(element);
+
+    // 6. Add to the top layer given element.
+    add_an_element_to_the_top_layer(element);
+    element->invalidate_style(StyleInvalidationReason::Fullscreen);
+}
+
+// https://fullscreen.spec.whatwg.org/#fullscreen-element
+GC::Ptr<Element> Document::fullscreen_element() const
+{
+    // All documents have an associated fullscreen element. The fullscreen element is the topmost element in the
+    // document’s top layer whose fullscreen flag is set, if any, and null otherwise.
+    for (auto const& el : top_layer_elements().in_reverse()) {
+        if (el->is_fullscreen_element())
+            return el;
+    }
+    return nullptr;
+}
+
+// https://fullscreen.spec.whatwg.org/#dom-document-fullscreenelement
+GC::Ptr<Element> Document::fullscreen_element_for_bindings() const
+{
+    GC::Ptr<Element> fullscreen_element = this->fullscreen_element();
+
+    if (!fullscreen_element) {
+        return nullptr;
+    }
+
+    // 1. If this is a shadow root and its host is not connected, then return null.
+    // Note: We're not a shadow root. See ShadowRoot::fullscreen_element_for_bindings() instead.
+    // 2. Let candidate be the result of retargeting fullscreen element against this.
+    auto* candidate = retarget(fullscreen_element.ptr(), const_cast<Document*>(this));
+    if (!candidate) {
+        return nullptr;
+    }
+    // 3. If candidate and this are in the same tree, then return candidate.
+    if (auto* retargeted_element = as<Element>(candidate); retargeted_element && &retargeted_element->root() == &root()) {
+        return retargeted_element;
+    }
+    // 4. Return null.
+    return nullptr;
+}
+
+// https://fullscreen.spec.whatwg.org/#dom-document-fullscreen
+bool Document::fullscreen() const
+{
+    // The fullscreen getter steps are to return false if this's fullscreen element is null, and true otherwise.
+    return fullscreen_element() != nullptr;
+}
+
+// https://fullscreen.spec.whatwg.org/#dom-document-fullscreenenabled
+bool Document::fullscreen_enabled() const
+{
+    // FIXME: Implement check policy check and "is supported" check.
+    return is_allowed_to_use_feature(PolicyControlledFeature::Fullscreen);
 }
 
 // https://dom.spec.whatwg.org/#document-allow-declarative-shadow-roots

@@ -13,6 +13,7 @@
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/SlotRegistry.h>
+#include <LibWeb/DOM/Utils.h>
 #include <LibWeb/HTML/HTMLSlotElement.h>
 #include <LibWeb/HTML/HTMLTemplateElement.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
@@ -38,6 +39,30 @@ void ShadowRoot::finalize()
 {
     Base::finalize();
     document().unregister_shadow_root({}, *this);
+}
+
+// https://fullscreen.spec.whatwg.org/#dom-document-fullscreenelement
+GC::Ptr<Element> ShadowRoot::fullscreen_element_for_bindings() const
+{
+    // 1. If this is a shadow root and its host is not connected, then return null.
+    if (!host() || !host()->is_connected())
+        return nullptr;
+
+    // 2. Let candidate be the result of retargeting fullscreen element against this.
+    // Note: ShadowRoot does not have it's own top layer. But the algorithm says to get the fullscreen
+    // element from the top layer, so it's grabbed from this' document.
+
+    auto* candidate = retarget(const_cast<ShadowRoot*>(this)->document().fullscreen_element().ptr(), const_cast<ShadowRoot*>(this));
+
+    if (!candidate)
+        return nullptr;
+
+    // 3. If candidate and this are in the same tree, then return candidate.
+    if (auto* retargeted_element = as<Element>(candidate); &retargeted_element->root() == &root())
+        return retargeted_element;
+
+    // 4. Return null.
+    return nullptr;
 }
 
 void ShadowRoot::initialize(JS::Realm& realm)

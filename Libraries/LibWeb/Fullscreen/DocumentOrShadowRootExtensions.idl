@@ -1,0 +1,6 @@
+#import <DOM/Element.idl>
+
+// https://fullscreen.spec.whatwg.org/#ref-for-documentorshadowroot
+partial interface mixin DocumentOrShadowRoot {
+    [LegacyLenientSetter, ImplementedAs=fullscreen_element_for_bindings] readonly attribute Element? fullscreenElement;
+};
