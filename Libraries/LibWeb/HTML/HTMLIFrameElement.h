@@ -35,6 +35,9 @@ public:
 
     virtual void visit_edges(Cell::Visitor&) override;
 
+    void set_iframe_fullscreen_flag(bool iframe_fullscreen_flag) { m_iframe_fullscreen_flag = iframe_fullscreen_flag; }
+    bool iframe_fullscreen_flag() const { return m_iframe_fullscreen_flag; }
+
 private:
     HTMLIFrameElement(DOM::Document&, DOM::QualifiedName);
 
@@ -64,8 +67,14 @@ private:
     Optional<HighResolutionTime::DOMHighResTimeStamp> m_pending_resource_start_time = {};
 
     GC::Ptr<DOM::DOMTokenList> m_sandbox;
+    bool m_iframe_fullscreen_flag : 1 { false };
 };
 
 void run_iframe_load_event_steps(HTML::HTMLIFrameElement&);
 
+}
+
+namespace Web::DOM {
+template<>
+inline bool Node::fast_is<HTML::HTMLIFrameElement>() const { return is_html_iframe_element(); }
 }

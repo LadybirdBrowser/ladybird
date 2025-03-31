@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include "AK/Assertions.h"
 #include <AK/AnyOf.h>
 #include <AK/Debug.h>
 #include <AK/StringBuilder.h>
@@ -45,9 +46,11 @@
 #include <LibWeb/HTML/HTMLAreaElement.h>
 #include <LibWeb/HTML/HTMLBodyElement.h>
 #include <LibWeb/HTML/HTMLButtonElement.h>
+#include <LibWeb/HTML/HTMLDialogElement.h>
 #include <LibWeb/HTML/HTMLFieldSetElement.h>
 #include <LibWeb/HTML/HTMLFrameSetElement.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
+#include <LibWeb/HTML/HTMLIFrameElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLLIElement.h>
 #include <LibWeb/HTML/HTMLMenuElement.h>
@@ -74,6 +77,7 @@
 #include <LibWeb/Layout/ListItemBox.h>
 #include <LibWeb/Layout/TreeBuilder.h>
 #include <LibWeb/Layout/Viewport.h>
+#include <LibWeb/MathML/MathMLElement.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/PaintableBox.h>
@@ -1906,6 +1910,185 @@ WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, 
     return {};
 }
 
+enum class RequestFullscreenError {
+    False,
+    ElementReadyCheckFailed,
+    UnsupportedElement,
+    NoTransientUserActivation,
+    ElementNodeDocIsNotPendingDoc
+};
+
+static constexpr AK::String to_string(RequestFullscreenError error)
+{
+    switch (error) {
+    // This should never be called with this value
+    case RequestFullscreenError::False:
+        return "false"_string;
+    case RequestFullscreenError::ElementReadyCheckFailed:
+        return "Element ready check failed"_string;
+    case RequestFullscreenError::UnsupportedElement:
+        return "Not supported element"_string;
+    case RequestFullscreenError::NoTransientUserActivation:
+        return "No transient user activation available to consume"_string;
+    case RequestFullscreenError::ElementNodeDocIsNotPendingDoc:
+        return "Element's node document is not pending doc"_string;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+// step 5 of requestFullscreen:
+static RequestFullscreenError
+fullscreen_has_error_check(Element const& element)
+{
+    // This’s namespace is the HTML namespace or this is an SVG svg or MathML math element. [SVG] [MATHML]
+    if (!(element.namespace_uri() == Namespace::HTML || element.is_svg_element() || is<MathML::MathMLElement>(element)))
+        return RequestFullscreenError::UnsupportedElement;
+
+    // This is not a dialog element
+    if (is<HTML::HTMLDialogElement>(element))
+        return RequestFullscreenError::UnsupportedElement;
+    // The fullscreen element ready check for this returns true.
+    if (!element.element_ready_check())
+        return RequestFullscreenError::ElementReadyCheckFailed;
+    // FIXME: Implement 'Fullscreen is supported.' check
+
+    // This’s relevant global object has transient activation or
+    // FIXME: the algorithm is triggered by a user generated orientation change.
+    HTML::Window* window = as_if<HTML::Window>(&HTML::relevant_global_object(element));
+
+    // is_connected, in element_ready_check has returned true, there should be a window.
+    ASSERT(window);
+
+    if (!window->has_transient_activation())
+        return RequestFullscreenError::NoTransientUserActivation;
+
+    return RequestFullscreenError::False;
+}
+
+// https://fullscreen.spec.whatwg.org/#fullscreen-element-ready-check
+bool Element::element_ready_check() const
+{
+    // element is connected.
+    if (!is_connected())
+        return false;
+
+    // element’s node document is allowed to use the "fullscreen" feature.
+    if (!m_document->is_allowed_to_use_feature(PolicyControlledFeature::Fullscreen))
+        return false;
+
+    // element namespace is not the HTML namespace or element’s popover visibility state is hidden.
+    if (namespace_uri() != Namespace::HTML)
+        return true;
+
+    auto html_element = as_if<const HTML::HTMLElement>(this);
+    return html_element ? (html_element->popover_visibility_state() == HTML::HTMLElement::PopoverVisibilityState::Hidden) : false;
+}
+
+// https://fullscreen.spec.whatwg.org/#dom-element-requestfullscreen
+GC::Ref<WebIDL::Promise> Element::request_fullscreen()
+{
+    // 1. Let pendingDoc be this’s node document.
+    auto pending_doc = m_document;
+    auto* realm = vm().current_realm();
+
+    // 2. Let promise be a new promise.
+    auto promise = WebIDL::create_promise(*realm);
+
+    // 3. If pendingDoc is not fully active, then reject promise with a TypeError exception and return promise.
+    if (!pending_doc->is_fully_active()) {
+        WebIDL::reject_promise(*realm, promise, JS::TypeError::create(*realm, "Document not fully active."_string));
+        return promise;
+    }
+
+    // 4. Let error be false.
+    // 5. If any of conditions are false, set error to true
+    RequestFullscreenError error = fullscreen_has_error_check(*this);
+
+    // 6. If error is false, then consume user activation given pendingDoc’s relevant global object.
+    if (error == RequestFullscreenError::False) {
+        auto& relevant_global = as<HTML::Window>(relevant_global_object(*pending_doc));
+        relevant_global.consume_user_activation();
+    }
+
+    // 7. Return promise, and run the remaining steps in parallel.
+    HTML::queue_global_task(HTML::Task::Source::UserInteraction, realm->global_object(), GC::create_function(heap(), [realm, err = error, pending_doc, element = GC::Ref<Element> { *this }, promise]() {
+        HTML::TemporaryExecutionContext context(*realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+        RequestFullscreenError error = err;
+        // 8. If error is false, then resize pendingDoc’s node navigable’s top-level traversable’s
+        // active document’s viewport’s dimensions, optionally taking into account options["navigationUI"]:
+        // FIXME: When async IPC lands, instead of queue_global_task here, we would send a "go fullscreen" message
+        // and upon it's return then execute the in-parallell part (i.e. post this global task). Until then
+        // there's really no point, so just fire-and-forget. By also having this IPC message async,
+        // one can (either implicitly or explicitly) encode a "parallel queue" for these steps, so that at any one time
+        // only one execution of the "parallel steps" is happening at any one time - simply by sending an IPC message
+        // and resume the remaining steps only when it returns.
+        // See https://html.spec.whatwg.org/multipage/infrastructure.html#parallel-queue. This parallel queue could be called
+        // "Fullscreen Service" or "Fullscreen Parallel Queue".
+        // N.B: Fullscreen API is affected by site-isolation and will required additional work once site-isolation is implemented.
+        if (error == RequestFullscreenError::False)
+            pending_doc->page().client().page_did_request_fullscreen_window();
+
+        // 9. If any of the following conditions are false, then set error to true:
+        //      This’s node document is pendingDoc.
+        //      The fullscreen element ready check for this returns true.
+        if (pending_doc != element->owner_document())
+            error = RequestFullscreenError::ElementNodeDocIsNotPendingDoc;
+        if (!element->element_ready_check())
+            error = RequestFullscreenError::ElementReadyCheckFailed;
+
+        // 10. If error is true:
+        //      Append (fullscreenerror, this) to pendingDoc’s list of pending fullscreen events.
+        //      Reject promise with a TypeError exception and terminate these steps.
+        if (error != RequestFullscreenError::False) {
+            pending_doc->append_pending_fullscreen_change(PendingFullscreenEvent::Type::Error, element);
+            WebIDL::reject_promise(*realm, promise, JS::TypeError::create(*realm, to_string(error)));
+            return;
+        }
+
+        // 11. Let fullscreenElements be an ordered set initially consisting of this.
+        Vector<GC::Ref<Element>> fullscreen_elements;
+
+        fullscreen_elements.append(element);
+        // 12. While true:
+        //      1. Let last be the last item of fullscreenElements.
+        //      2. Let container be last’s node navigable’s container.
+        //      3. If container is null, then break.
+        //      4. Append container to fullscreenElements.
+        for (auto last = fullscreen_elements.last();; last = fullscreen_elements.last()) {
+            auto container = last->navigable()->container();
+            if (!container) {
+                break;
+            }
+            fullscreen_elements.append(*container);
+        }
+
+        // 13. For each element in fullscreenElements:
+        for (GC::Ref<Element>& el : fullscreen_elements) {
+            // 1. Let doc be element’s node document.
+            Document& doc = el->document();
+            // 2. If element is doc’s fullscreen element, continue.
+            if (doc.fullscreen_element() == el) {
+                // Spec note: No need to notify observers when nothing has changed.
+                continue;
+            }
+            // 4. If element is this and this is an iframe element, then set element’s iframe fullscreen flag.
+            if (el == element && element->is_html_iframe_element()) {
+                auto& iframe_element = static_cast<HTML::HTMLIFrameElement&>(*el);
+                iframe_element.set_iframe_fullscreen_flag(true);
+            }
+            // 5. Fullscreen element within doc.
+            doc.fullscreen_element_within_doc(el);
+            // 6. Append (fullscreenchange, element) to doc’s list of pending fullscreen events.
+            doc.append_pending_fullscreen_change(PendingFullscreenEvent::Type::Change, el);
+        }
+
+        // 14. Resolve promise with undefined
+        WebIDL::resolve_promise(*realm, promise, JS::js_undefined());
+    }));
+
+    return promise;
+}
+
 GC::Ptr<WebIDL::CallbackType> Element::onfullscreenchange()
 {
     return event_handler_attribute(HTML::EventNames::fullscreenchange);
@@ -3251,11 +3434,6 @@ size_t Element::ordinal_value() const
 
     // FIXME: 9. Go to the step labeled loop.
     return numbering;
-}
-
-bool Element::is_fullscreen_element() const
-{
-    return false;
 }
 
 bool Element::id_reference_exists(String const& id_reference) const

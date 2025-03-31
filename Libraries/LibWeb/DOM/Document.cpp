@@ -6207,6 +6207,76 @@ void Document::set_onfullscreenerror(WebIDL::CallbackType* value)
     set_event_handler_attribute(HTML::EventNames::fullscreenerror, value);
 }
 
+// https://fullscreen.spec.whatwg.org/#fullscreen-an-element
+void Document::fullscreen_element_within_doc(GC::Ref<Element> element)
+{
+    using HTML::HTMLElement;
+    auto const get_hide_until = [&](auto const& popover_list) {
+        return HTMLElement::topmost_popover_ancestor(element, popover_list, nullptr, HTML::IsPopover::No);
+    };
+
+    // 1. Let hideUntil be the result of running topmost popover ancestor given element, null, and false.
+    // 2. If hideUntil is null, then set hideUntil to element’s node document.
+    auto hide_until = get_hide_until(showing_hint_popover_list());
+    if (hide_until == nullptr) {
+        hide_until = get_hide_until(showing_auto_popover_list());
+    }
+
+    // 3. Run hide all popovers until given hideUntil, false, and true.
+    if (hide_until) {
+        HTMLElement::hide_all_popovers_until(hide_until, HTML::FocusPreviousElement::No, HTML::FireEvents::Yes);
+    } else {
+        HTMLElement::hide_all_popovers_until(element->owner_document(), HTML::FocusPreviousElement::No, HTML::FireEvents::Yes);
+    }
+
+    // 4. Set element’s fullscreen flag.
+    element->set_fullscreen_flag(true);
+    // 5. Remove from the top layer immediately given element.
+    remove_an_element_from_the_top_layer_immediately(element);
+    // 6. Add to the top layer given element.
+    add_an_element_to_the_top_layer(element);
+    element->invalidate_style(StyleInvalidationReason::Fullscreen);
+}
+
+GC::Ptr<Element> Document::fullscreen_element() const
+{
+    GC::Ptr<Element> fullscreen_elem { nullptr };
+
+    for (auto const& el : top_layer_elements().in_reverse()) {
+        if (el->is_fullscreen_element()) {
+            fullscreen_elem = el;
+            break;
+        }
+    }
+    if (!fullscreen_elem) {
+        return nullptr;
+    }
+    // 1. If this is a shadow root and its host is not connected, then return null.
+    // - We're not a shadow root
+    // 2. Let candidate be the result of retargeting fullscreen element against this.
+    auto* candidate = retarget(fullscreen_elem.ptr(), const_cast<Document*>(this));
+    if (!candidate) {
+        return nullptr;
+    }
+    // 3. If candidate and this are in the same tree, then return candidate.
+    if (auto* retargeted_element = as<Element>(candidate); retargeted_element && &retargeted_element->root() == &root()) {
+        return retargeted_element;
+    }
+    // 4. Return null.
+    return nullptr;
+}
+
+bool Document::fullscreen() const
+{
+    return fullscreen_element();
+}
+
+bool Document::fullscreen_enabled() const
+{
+    // FIXME: Implement check policy check and "is supported" check.
+    return true;
+}
+
 // https://dom.spec.whatwg.org/#document-allow-declarative-shadow-roots
 void Document::set_allow_declarative_shadow_roots(bool allow)
 {

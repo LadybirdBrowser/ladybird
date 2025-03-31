@@ -914,6 +914,15 @@ public:
     [[nodiscard]] WebIDL::CallbackType* onfullscreenerror();
     void set_onfullscreenerror(WebIDL::CallbackType*);
 
+    // https://fullscreen.spec.whatwg.org/#fullscreen-an-element
+    void fullscreen_element_within_doc(GC::Ref<Element> element);
+    // https://fullscreen.spec.whatwg.org/#fullscreen-element
+    GC::Ptr<Element> fullscreen_element() const;
+    // https://fullscreen.spec.whatwg.org/#dom-document-fullscreen
+    bool fullscreen() const;
+    // https://fullscreen.spec.whatwg.org/#dom-document-fullscreenenabled
+    bool fullscreen_enabled() const;
+
 protected:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
