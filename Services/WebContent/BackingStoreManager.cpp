@@ -83,8 +83,8 @@ void BackingStoreManager::reallocate_backing_stores(Gfx::IntSize size)
             VERIFY_NOT_REACHED();
         }
 
-        m_front_store = make<Web::Painting::IOSurfaceBackingStore>(move(front_iosurface));
-        m_back_store = make<Web::Painting::IOSurfaceBackingStore>(move(back_iosurface));
+        m_front_store = Web::Painting::IOSurfaceBackingStore::create(move(front_iosurface));
+        m_back_store = Web::Painting::IOSurfaceBackingStore::create(move(back_iosurface));
 
         return;
     }
@@ -96,8 +96,8 @@ void BackingStoreManager::reallocate_backing_stores(Gfx::IntSize size)
     auto front_bitmap = Gfx::Bitmap::create_shareable(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, size).release_value();
     auto back_bitmap = Gfx::Bitmap::create_shareable(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, size).release_value();
 
-    m_front_store = make<Web::Painting::BitmapBackingStore>(front_bitmap);
-    m_back_store = make<Web::Painting::BitmapBackingStore>(back_bitmap);
+    m_front_store = Web::Painting::BitmapBackingStore::create(front_bitmap);
+    m_back_store = Web::Painting::BitmapBackingStore::create(back_bitmap);
 
     m_page_client.page_did_allocate_backing_stores(m_front_bitmap_id, front_bitmap->to_shareable_bitmap(), m_back_bitmap_id, back_bitmap->to_shareable_bitmap());
 }

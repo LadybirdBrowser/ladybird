@@ -56,7 +56,7 @@ ErrorOr<GC::Ref<HTML::HTMLCanvasElement>, WebDriver::Error> draw_bounding_box_fr
     Gfx::IntRect paint_rect { rect.x(), rect.y(), paint_width, paint_height };
 
     auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, canvas.surface()->size()));
-    auto backing_store = Web::Painting::BitmapBackingStore(bitmap);
+    auto backing_store = Painting::BitmapBackingStore::create(bitmap);
     IGNORE_USE_IN_ESCAPING_LAMBDA bool did_paint = false;
     browsing_context.page().client().start_display_list_rendering(paint_rect.to_type<Web::DevicePixels>(), backing_store, {}, [&did_paint] {
         did_paint = true;
