@@ -6,12 +6,15 @@
 
 #include <LibWeb/Loader/UserAgent.h>
 #include <LibWebView/Application.h>
+#include <LibWebView/Autocomplete.h>
 #include <LibWebView/SearchEngine.h>
 #include <LibWebView/URL.h>
 #include <LibWebView/UserAgent.h>
 #include <LibWebView/ViewImplementation.h>
 
 #import <Application/ApplicationDelegate.h>
+#import <Interface/Autocomplete.h>
+#import <Interface/Event.h>
 #import <Interface/LadybirdWebView.h>
 #import <Interface/Tab.h>
 #import <Interface/TabController.h>
@@ -48,13 +51,15 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 
 @end
 
-@interface TabController () <NSToolbarDelegate, NSSearchFieldDelegate>
+@interface TabController () <NSToolbarDelegate, NSSearchFieldDelegate, AutocompleteObserver>
 {
     u64 m_page_index;
 
     ByteString m_title;
 
     TabSettings m_settings;
+
+    OwnPtr<WebView::Autocomplete> m_autocomplete;
 
     bool m_can_navigate_back;
     bool m_can_navigate_forward;
@@ -72,6 +77,8 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 @property (nonatomic, strong) NSToolbarItem* zoom_toolbar_item;
 @property (nonatomic, strong) NSToolbarItem* new_tab_toolbar_item;
 @property (nonatomic, strong) NSToolbarItem* tab_overview_toolbar_item;
+
+@property (nonatomic, strong) Autocomplete* autocomplete;
 
 @property (nonatomic, assign) NSLayoutConstraint* location_toolbar_item_width;
 
@@ -91,6 +98,8 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 - (instancetype)init
 {
     if (self = [super init]) {
+        __weak TabController* weak_self = self;
+
         self.toolbar = [[NSToolbar alloc] initWithIdentifier:TOOLBAR_IDENTIFIER];
         [self.toolbar setDelegate:self];
         [self.toolbar setDisplayMode:NSToolbarDisplayModeIconOnly];
@@ -106,6 +115,18 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 
         if (auto const& user_agent_preset = WebView::Application::web_content_options().user_agent_preset; user_agent_preset.has_value())
             m_settings.user_agent_name = *user_agent_preset;
+
+        self.autocomplete = [[Autocomplete alloc] init:self withToolbarItem:self.location_toolbar_item];
+        m_autocomplete = make<WebView::Autocomplete>();
+
+        m_autocomplete->on_autocomplete_query_complete = [weak_self](auto suggestions) {
+            TabController* self = weak_self;
+            if (self == nil) {
+                return;
+            }
+
+            [self.autocomplete showWithSuggestions:move(suggestions)];
+        };
 
         m_can_navigate_back = false;
         m_can_navigate_forward = false;
@@ -276,6 +297,22 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 
     auto* location_search_field = (LocationSearchField*)[self.location_toolbar_item view];
     [location_search_field setAttributedStringValue:attributed_url];
+}
+
+- (BOOL)navigateToLocation:(String)location
+{
+    Optional<StringView> search_engine_url;
+    if (auto const& search_engine = WebView::Application::settings().search_engine(); search_engine.has_value())
+        search_engine_url = search_engine->query_url;
+
+    if (auto url = WebView::sanitize_url(location, search_engine_url); url.has_value()) {
+        [self loadURL:*url];
+    }
+
+    [self.window makeFirstResponder:nil];
+    [self.autocomplete close];
+
+    return YES;
 }
 
 - (void)updateNavigationButtonStates
@@ -685,21 +722,30 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
                textView:(NSTextView*)text_view
     doCommandBySelector:(SEL)selector
 {
+    if (selector == @selector(cancelOperation:)) {
+        if ([self.autocomplete close])
+            return YES;
+    }
+
+    if (selector == @selector(moveDown:)) {
+        if ([self.autocomplete selectNextSuggestion])
+            return YES;
+    }
+
+    if (selector == @selector(moveUp:)) {
+        if ([self.autocomplete selectPreviousSuggestion])
+            return YES;
+    }
+
     if (selector != @selector(insertNewline:)) {
         return NO;
     }
 
-    auto url_string = Ladybird::ns_string_to_string([[text_view textStorage] string]);
+    auto location = [self.autocomplete selectedSuggestion].value_or_lazy_evaluated([&]() {
+        return Ladybird::ns_string_to_string([[text_view textStorage] string]);
+    });
 
-    Optional<StringView> search_engine_url;
-    if (auto const& search_engine = WebView::Application::settings().search_engine(); search_engine.has_value())
-        search_engine_url = search_engine->query_url;
-
-    if (auto url = WebView::sanitize_url(url_string, search_engine_url); url.has_value()) {
-        [self loadURL:*url];
-    }
-
-    [self.window makeFirstResponder:nil];
+    [self navigateToLocation:move(location)];
     return YES;
 }
 
@@ -709,6 +755,21 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 
     auto url_string = Ladybird::ns_string_to_string([location_search_field stringValue]);
     [self setLocationFieldText:url_string];
+}
+
+- (void)controlTextDidChange:(NSNotification*)notification
+{
+    auto* location_search_field = (LocationSearchField*)[self.location_toolbar_item view];
+
+    auto url_string = Ladybird::ns_string_to_string([location_search_field stringValue]);
+    m_autocomplete->query_autocomplete_engine(move(url_string));
+}
+
+#pragma mark - AutocompleteObserver
+
+- (void)onSelectedSuggestion:(String)suggestion
+{
+    [self navigateToLocation:move(suggestion)];
 }
 
 @end

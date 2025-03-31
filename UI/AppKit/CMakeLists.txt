@@ -2,6 +2,7 @@ add_library(ladybird_impl STATIC
     ${LADYBIRD_SOURCES}
     Application/Application.mm
     Application/ApplicationDelegate.mm
+    Interface/Autocomplete.mm
     Interface/Event.mm
     Interface/InfoBar.mm
     Interface/LadybirdWebView.mm
