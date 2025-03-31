@@ -962,6 +962,58 @@ private:
     u32 m_cache_index { 0 };
 };
 
+class GetCompletionFields final : public Instruction {
+public:
+    GetCompletionFields(Operand type_dst, Operand value_dst, Operand completion)
+        : Instruction(Type::GetCompletionFields)
+        , m_type_dst(type_dst)
+        , m_value_dst(value_dst)
+        , m_completion(completion)
+    {
+    }
+
+    void execute_impl(Bytecode::Interpreter&) const;
+    ByteString to_byte_string_impl(Bytecode::Executable const&) const;
+    void visit_operands_impl(Function<void(Operand&)> visitor)
+    {
+        visitor(m_type_dst);
+        visitor(m_value_dst);
+        visitor(m_completion);
+    }
+
+    Operand type_dst() const { return m_type_dst; }
+    Operand value_dst() const { return m_value_dst; }
+    Operand completion() const { return m_completion; }
+
+private:
+    Operand m_type_dst;
+    Operand m_value_dst;
+    Operand m_completion;
+};
+
+class SetCompletionType final : public Instruction {
+public:
+    SetCompletionType(Operand completion, Completion::Type type)
+        : Instruction(Type::SetCompletionType)
+        , m_completion(completion)
+        , m_type(type)
+    {
+    }
+
+    void execute_impl(Bytecode::Interpreter&) const;
+    ByteString to_byte_string_impl(Bytecode::Executable const&) const;
+    void visit_operands_impl(Function<void(Operand&)> visitor)
+    {
+        visitor(m_completion);
+    }
+
+    Operand completion() const { return m_completion; }
+
+private:
+    Operand m_completion;
+    Completion::Type m_type;
+};
+
 class GetByIdWithThis final : public Instruction {
 public:
     GetByIdWithThis(Operand dst, Operand base, IdentifierTableIndex property, Operand this_value, u32 cache_index)

@@ -57,6 +57,7 @@
     O(GetByValue)                      \
     O(GetByValueWithThis)              \
     O(GetCalleeAndThisFromEnvironment) \
+    O(GetCompletionFields)             \
     O(GetGlobal)                       \
     O(GetImportMeta)                   \
     O(GetIterator)                     \
@@ -131,6 +132,7 @@
     O(RightShift)                      \
     O(ScheduleJump)                    \
     O(SetArgument)                     \
+    O(SetCompletionType)               \
     O(SetLexicalBinding)               \
     O(SetVariableBinding)              \
     O(StrictlyEquals)                  \

@@ -8,7 +8,9 @@
 #include <LibJS/Runtime/AsyncGenerator.h>
 #include <LibJS/Runtime/AsyncGeneratorPrototype.h>
 #include <LibJS/Runtime/AsyncGeneratorRequest.h>
+#include <LibJS/Runtime/CompletionCell.h>
 #include <LibJS/Runtime/ECMAScriptFunctionObject.h>
+#include <LibJS/Runtime/GeneratorResult.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/PromiseConstructor.h>
 
@@ -155,15 +157,15 @@ void AsyncGenerator::execute(VM& vm, Completion completion)
         // Loosely based on step 4 of https://tc39.es/ecma262/#sec-asyncgeneratorstart
         VERIFY(completion.value().has_value());
 
-        auto generated_value = [&vm](Value value) -> Value {
-            if (value.is_object())
-                return value.as_object().get_without_side_effects(vm.names.result);
+        auto generated_value = [](Value value) -> Value {
+            if (value.is_cell())
+                return static_cast<GeneratorResult const&>(value.as_cell()).result();
             return value.is_empty() ? js_undefined() : value;
         };
 
         auto generated_continuation = [&](Value value) -> Optional<size_t> {
-            if (value.is_object()) {
-                auto number_value = value.as_object().get_without_side_effects(vm.names.continuation);
+            if (value.is_cell()) {
+                auto number_value = static_cast<GeneratorResult const&>(value.as_cell()).continuation();
                 if (number_value.is_null())
                     return {};
                 return static_cast<size_t>(number_value.as_double());
@@ -171,16 +173,13 @@ void AsyncGenerator::execute(VM& vm, Completion completion)
             return {};
         };
 
-        auto generated_is_await = [&vm](Value value) -> bool {
-            if (value.is_object())
-                return value.as_object().get_without_side_effects(vm.names.isAwait).as_bool();
+        auto generated_is_await = [](Value value) -> bool {
+            if (value.is_cell())
+                return static_cast<GeneratorResult const&>(value.as_cell()).is_await();
             return false;
         };
 
-        auto& realm = *vm.current_realm();
-        auto completion_object = Object::create(realm, nullptr);
-        completion_object->define_direct_property(vm.names.type, Value(to_underlying(completion.type())), default_attributes);
-        completion_object->define_direct_property(vm.names.value, completion.value().value(), default_attributes);
+        auto completion_cell = heap().allocate<CompletionCell>(completion);
 
         auto& bytecode_interpreter = vm.bytecode_interpreter();
 
@@ -189,7 +188,7 @@ void AsyncGenerator::execute(VM& vm, Completion completion)
         // We should never enter `execute` again after the generator is complete.
         VERIFY(continuation_address.has_value());
 
-        auto next_result = bytecode_interpreter.run_executable(*m_generating_function->bytecode_executable(), continuation_address, completion_object);
+        auto next_result = bytecode_interpreter.run_executable(*m_generating_function->bytecode_executable(), continuation_address, completion_cell);
 
         auto result_value = move(next_result.value);
         if (!result_value.is_throw_completion()) {
