@@ -156,6 +156,8 @@ public:
     virtual bool is_valid_invoker_command(String&) { return false; }
     virtual void invoker_command_steps(DOM::Element&, String&) { }
 
+    bool is_form_associated_custom_element();
+
 protected:
     HTMLElement(DOM::Document&, DOM::QualifiedName);
 
