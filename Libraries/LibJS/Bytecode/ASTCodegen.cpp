@@ -1836,9 +1836,7 @@ static ScopedOperand generate_await(
     ScopedOperand argument,
     ScopedOperand received_completion,
     ScopedOperand received_completion_type,
-    ScopedOperand received_completion_value,
-    Bytecode::IdentifierTableIndex type_identifier,
-    Bytecode::IdentifierTableIndex value_identifier);
+    ScopedOperand received_completion_value);
 
 // https://tc39.es/ecma262/#sec-return-statement-runtime-semantics-evaluation
 Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ReturnStatement::generate_bytecode(Bytecode::Generator& generator, Optional<ScopedOperand>) const
@@ -1863,10 +1861,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ReturnStatement::genera
             auto received_completion = generator.allocate_register();
             auto received_completion_type = generator.allocate_register();
             auto received_completion_value = generator.allocate_register();
-
-            auto type_identifier = generator.intern_identifier("type"_fly_string);
-            auto value_identifier = generator.intern_identifier("value"_fly_string);
-            return_value = generate_await(generator, *return_value, received_completion, received_completion_type, received_completion_value, type_identifier, value_identifier);
+            return_value = generate_await(generator, *return_value, received_completion, received_completion_type, received_completion_value);
         }
 
         //     4. Return Completion Record { [[Type]]: return, [[Value]]: exprValue, [[Target]]: empty }.
@@ -1888,12 +1883,9 @@ static void get_received_completion_type_and_value(
     Bytecode::Generator& generator,
     ScopedOperand received_completion,
     ScopedOperand received_completion_type,
-    ScopedOperand received_completion_value,
-    Bytecode::IdentifierTableIndex type_identifier,
-    Bytecode::IdentifierTableIndex value_identifier)
+    ScopedOperand received_completion_value)
 {
-    generator.emit_get_by_id(received_completion_type, received_completion, type_identifier);
-    generator.emit_get_by_id(received_completion_value, received_completion, value_identifier);
+    generator.emit<Op::GetCompletionFields>(received_completion_type, received_completion_value, received_completion);
 }
 
 enum class AwaitBeforeYield {
@@ -1907,8 +1899,6 @@ static void generate_yield(Bytecode::Generator& generator,
     ScopedOperand received_completion,
     ScopedOperand received_completion_type,
     ScopedOperand received_completion_value,
-    Bytecode::IdentifierTableIndex type_identifier,
-    Bytecode::IdentifierTableIndex value_identifier,
     AwaitBeforeYield await_before_yield)
 {
     if (!generator.is_in_async_generator_function()) {
@@ -1917,14 +1907,14 @@ static void generate_yield(Bytecode::Generator& generator,
     }
 
     if (await_before_yield == AwaitBeforeYield::Yes)
-        argument = generate_await(generator, argument, received_completion, received_completion_type, received_completion_value, type_identifier, value_identifier);
+        argument = generate_await(generator, argument, received_completion, received_completion_type, received_completion_value);
 
     auto& unwrap_yield_resumption_block = generator.make_block();
     generator.emit<Bytecode::Op::Yield>(Bytecode::Label { unwrap_yield_resumption_block }, argument);
     generator.switch_to_basic_block(unwrap_yield_resumption_block);
 
     generator.emit_mov(received_completion, generator.accumulator());
-    get_received_completion_type_and_value(generator, received_completion, received_completion_type, received_completion_value, type_identifier, value_identifier);
+    get_received_completion_type_and_value(generator, received_completion, received_completion_type, received_completion_value);
 
     // 27.6.3.7 AsyncGeneratorUnwrapYieldResumption ( resumptionValue ), https://tc39.es/ecma262/#sec-asyncgeneratorunwrapyieldresumption
     // 1. If resumptionValue.[[Type]] is not return, return ? resumptionValue.
@@ -1942,7 +1932,7 @@ static void generate_yield(Bytecode::Generator& generator,
     generator.switch_to_basic_block(resumption_value_type_is_return_block);
 
     // 2. Let awaited be Completion(Await(resumptionValue.[[Value]])).
-    generate_await(generator, received_completion_value, received_completion, received_completion_type, received_completion_value, type_identifier, value_identifier);
+    generate_await(generator, received_completion_value, received_completion, received_completion_type, received_completion_value);
 
     // 3. If awaited.[[Type]] is throw, return ? awaited.
     auto& awaited_type_is_normal_block = generator.make_block();
@@ -1960,12 +1950,7 @@ static void generate_yield(Bytecode::Generator& generator,
     generator.switch_to_basic_block(awaited_type_is_normal_block);
 
     // 5. Return Completion Record { [[Type]]: return, [[Value]]: awaited.[[Value]], [[Target]]: empty }.
-    generator.emit<Bytecode::Op::PutById>(
-        received_completion,
-        type_identifier,
-        generator.add_constant(Value(to_underlying(Completion::Type::Return))),
-        Bytecode::Op::PropertyKind::KeyValue,
-        generator.next_property_lookup_cache());
+    generator.emit<Bytecode::Op::SetCompletionType>(received_completion, Completion::Type::Return);
     generator.emit<Bytecode::Op::Jump>(continuation_label);
 }
 
@@ -1983,9 +1968,6 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> YieldExpression::genera
     auto received_completion = generator.allocate_register();
     auto received_completion_type = generator.allocate_register();
     auto received_completion_value = generator.allocate_register();
-
-    auto type_identifier = generator.intern_identifier("type"_fly_string);
-    auto value_identifier = generator.intern_identifier("value"_fly_string);
 
     if (m_is_yield_from) {
         // 15.5.5 Runtime Semantics: Evaluation, https://tc39.es/ecma262/#sec-generator-function-definitions-runtime-semantics-evaluation
@@ -2048,7 +2030,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> YieldExpression::genera
 
         // ii. If generatorKind is async, set innerResult to ? Await(innerResult).
         if (generator.is_in_async_generator_function()) {
-            auto new_inner_result = generate_await(generator, inner_result, received_completion, received_completion_type, received_completion_value, type_identifier, value_identifier);
+            auto new_inner_result = generate_await(generator, inner_result, received_completion, received_completion_type, received_completion_value);
             generator.emit_mov(inner_result, new_inner_result);
         }
 
@@ -2096,8 +2078,6 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> YieldExpression::genera
                 received_completion,
                 received_completion_type,
                 received_completion_value,
-                type_identifier,
-                value_identifier,
                 AwaitBeforeYield::No);
         }
 
@@ -2139,7 +2119,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> YieldExpression::genera
 
         // 2. If generatorKind is async, set innerResult to ? Await(innerResult).
         if (generator.is_in_async_generator_function()) {
-            auto new_result = generate_await(generator, inner_result, received_completion, received_completion_type, received_completion_value, type_identifier, value_identifier);
+            auto new_result = generate_await(generator, inner_result, received_completion, received_completion_type, received_completion_value);
             generator.emit_mov(inner_result, new_result);
         }
 
@@ -2174,7 +2154,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> YieldExpression::genera
             //        This only matters for non-async generators.
             auto yield_value = generator.allocate_register();
             generator.emit_iterator_value(yield_value, inner_result);
-            generate_yield(generator, Bytecode::Label { continuation_block }, yield_value, received_completion, received_completion_type, received_completion_value, type_identifier, value_identifier, AwaitBeforeYield::No);
+            generate_yield(generator, Bytecode::Label { continuation_block }, yield_value, received_completion, received_completion_type, received_completion_value, AwaitBeforeYield::No);
         }
 
         generator.switch_to_basic_block(throw_method_is_undefined_block);
@@ -2219,7 +2199,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> YieldExpression::genera
 
         // 1. If generatorKind is async, set received.[[Value]] to ? Await(received.[[Value]]).
         if (generator.is_in_async_generator_function()) {
-            generate_await(generator, received_completion_value, received_completion, received_completion_type, received_completion_value, type_identifier, value_identifier);
+            generate_await(generator, received_completion_value, received_completion, received_completion_type, received_completion_value);
         }
 
         // 2. Return ? received.
@@ -2236,7 +2216,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> YieldExpression::genera
 
         // v. If generatorKind is async, set innerReturnResult to ? Await(innerReturnResult).
         if (generator.is_in_async_generator_function()) {
-            auto new_value = generate_await(generator, inner_return_result, received_completion, received_completion_type, received_completion_value, type_identifier, value_identifier);
+            auto new_value = generate_await(generator, inner_return_result, received_completion, received_completion_type, received_completion_value);
             generator.emit_mov(inner_return_result, new_value);
         }
 
@@ -2272,7 +2252,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> YieldExpression::genera
         auto received = generator.allocate_register();
         generator.emit_iterator_value(received, inner_return_result);
 
-        generate_yield(generator, Bytecode::Label { continuation_block }, received, received_completion, received_completion_type, received_completion_value, type_identifier, value_identifier, AwaitBeforeYield::No);
+        generate_yield(generator, Bytecode::Label { continuation_block }, received, received_completion, received_completion_type, received_completion_value, AwaitBeforeYield::No);
 
         generator.switch_to_basic_block(continuation_block);
 
@@ -2280,7 +2260,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> YieldExpression::genera
             generator.emit_mov(Bytecode::Operand(Bytecode::Register::exception()), Bytecode::Operand(*saved_exception));
 
         generator.emit_mov(received_completion, generator.accumulator());
-        get_received_completion_type_and_value(generator, received_completion, received_completion_type, received_completion_value, type_identifier, value_identifier);
+        get_received_completion_type_and_value(generator, received_completion, received_completion_type, received_completion_value);
         generator.emit<Bytecode::Op::Jump>(Bytecode::Label { loop_block });
 
         generator.switch_to_basic_block(loop_end_block);
@@ -2300,7 +2280,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> YieldExpression::genera
         generator.emit_mov(Bytecode::Operand(*saved_exception), Bytecode::Operand(Bytecode::Register::exception()));
     }
 
-    generate_yield(generator, Bytecode::Label { continuation_block }, *argument, received_completion, received_completion_type, received_completion_value, type_identifier, value_identifier, AwaitBeforeYield::Yes);
+    generate_yield(generator, Bytecode::Label { continuation_block }, *argument, received_completion, received_completion_type, received_completion_value, AwaitBeforeYield::Yes);
     generator.switch_to_basic_block(continuation_block);
 
     if (is_in_finalizer)
@@ -2308,7 +2288,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> YieldExpression::genera
 
     generator.emit_mov(received_completion, generator.accumulator());
 
-    get_received_completion_type_and_value(generator, received_completion, received_completion_type, received_completion_value, type_identifier, value_identifier);
+    get_received_completion_type_and_value(generator, received_completion, received_completion_type, received_completion_value);
 
     auto& normal_completion_continuation_block = generator.make_block();
     auto& throw_completion_continuation_block = generator.make_block();
@@ -2957,9 +2937,7 @@ static ScopedOperand generate_await(
     ScopedOperand argument,
     ScopedOperand received_completion,
     ScopedOperand received_completion_type,
-    ScopedOperand received_completion_value,
-    Bytecode::IdentifierTableIndex type_identifier,
-    Bytecode::IdentifierTableIndex value_identifier)
+    ScopedOperand received_completion_value)
 {
     VERIFY(generator.is_in_async_function());
 
@@ -2971,7 +2949,7 @@ static ScopedOperand generate_await(
     //        It ends up there because we "return" from the Await instruction above via the synthetic
     //        generator function that actually drives async execution.
     generator.emit_mov(received_completion, generator.accumulator());
-    get_received_completion_type_and_value(generator, received_completion, received_completion_type, received_completion_value, type_identifier, value_identifier);
+    get_received_completion_type_and_value(generator, received_completion, received_completion_type, received_completion_value);
 
     auto& normal_completion_continuation_block = generator.make_block();
     auto& throw_value_block = generator.make_block();
@@ -3007,10 +2985,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> AwaitExpression::genera
 
     generator.emit_mov(received_completion, generator.accumulator());
 
-    auto type_identifier = generator.intern_identifier("type"_fly_string);
-    auto value_identifier = generator.intern_identifier("value"_fly_string);
-
-    return generate_await(generator, argument, received_completion, received_completion_type, received_completion_value, type_identifier, value_identifier);
+    return generate_await(generator, argument, received_completion, received_completion_type, received_completion_value);
 }
 
 Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> WithStatement::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
@@ -3204,11 +3179,8 @@ static Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> for_in_of_body_e
         auto received_completion_type = generator.allocate_register();
         auto received_completion_value = generator.allocate_register();
 
-        auto type_identifier = generator.intern_identifier("type"_fly_string);
-        auto value_identifier = generator.intern_identifier("value"_fly_string);
-
         generator.emit_mov(received_completion, generator.accumulator());
-        auto new_result = generate_await(generator, next_result, received_completion, received_completion_type, received_completion_value, type_identifier, value_identifier);
+        auto new_result = generate_await(generator, next_result, received_completion, received_completion_type, received_completion_value);
         generator.emit_mov(next_result, new_result);
     }
 

@@ -64,6 +64,7 @@ set(SOURCES
     Runtime/BooleanPrototype.cpp
     Runtime/BoundFunction.cpp
     Runtime/Completion.cpp
+    Runtime/CompletionCell.cpp
     Runtime/ConsoleObjectPrototype.cpp
     Runtime/ConsoleObject.cpp
     Runtime/DataView.cpp
@@ -94,6 +95,7 @@ set(SOURCES
     Runtime/GeneratorFunctionPrototype.cpp
     Runtime/GeneratorObject.cpp
     Runtime/GeneratorPrototype.cpp
+    Runtime/GeneratorResult.cpp
     Runtime/GlobalEnvironment.cpp
     Runtime/GlobalObject.cpp
     Runtime/IndexedProperties.cpp

@@ -18,10 +18,12 @@
 #include <LibJS/Runtime/Accessor.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/BigInt.h>
+#include <LibJS/Runtime/CompletionCell.h>
 #include <LibJS/Runtime/DeclarativeEnvironment.h>
 #include <LibJS/Runtime/ECMAScriptFunctionObject.h>
 #include <LibJS/Runtime/Environment.h>
 #include <LibJS/Runtime/FunctionEnvironment.h>
+#include <LibJS/Runtime/GeneratorResult.h>
 #include <LibJS/Runtime/GlobalEnvironment.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Iterator.h>
@@ -192,18 +194,10 @@ ALWAYS_INLINE void Interpreter::set(Operand op, Value value)
 
 ALWAYS_INLINE Value Interpreter::do_yield(Value value, Optional<Label> continuation)
 {
-    auto object = Object::create(realm(), nullptr);
-    object->define_direct_property(m_vm.names.result, value, JS::default_attributes);
-
-    if (continuation.has_value())
-        // FIXME: If we get a pointer, which is not accurately representable as a double
-        //        will cause this to explode
-        object->define_direct_property(m_vm.names.continuation, Value(continuation->address()), JS::default_attributes);
-    else
-        object->define_direct_property(m_vm.names.continuation, js_null(), JS::default_attributes);
-
-    object->define_direct_property(m_vm.names.isAwait, Value(false), JS::default_attributes);
-    return object;
+    // FIXME: If we get a pointer, which is not accurately representable as a double
+    //        will cause this to explode
+    auto continuation_value = continuation.has_value() ? Value(continuation->address()) : js_null();
+    return vm().heap().allocate<GeneratorResult>(value, continuation_value, false).ptr();
 }
 
 // 16.1.6 ScriptEvaluation ( scriptRecord ), https://tc39.es/ecma262/#sec-runtime-semantics-scriptevaluation
@@ -624,6 +618,7 @@ FLATTEN_ON_CLANG void Interpreter::run_bytecode(size_t entry_point)
             HANDLE_INSTRUCTION(GetByValue);
             HANDLE_INSTRUCTION(GetByValueWithThis);
             HANDLE_INSTRUCTION(GetCalleeAndThisFromEnvironment);
+            HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(GetCompletionFields);
             HANDLE_INSTRUCTION(GetGlobal);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(GetImportMeta);
             HANDLE_INSTRUCTION(GetIterator);
@@ -680,6 +675,7 @@ FLATTEN_ON_CLANG void Interpreter::run_bytecode(size_t entry_point)
             HANDLE_INSTRUCTION(ResolveThisBinding);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(RestoreScheduledJump);
             HANDLE_INSTRUCTION(RightShift);
+            HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(SetCompletionType);
             HANDLE_INSTRUCTION(SetLexicalBinding);
             HANDLE_INSTRUCTION(SetVariableBinding);
             HANDLE_INSTRUCTION(StrictlyEquals);
@@ -2840,15 +2836,12 @@ void PrepareYield::execute_impl(Bytecode::Interpreter& interpreter) const
 
 void Await::execute_impl(Bytecode::Interpreter& interpreter) const
 {
-    auto& vm = interpreter.vm();
     auto yielded_value = interpreter.get(m_argument).value_or(js_undefined());
-    auto object = Object::create(interpreter.realm(), nullptr);
-    object->define_direct_property(vm.names.result, yielded_value, JS::default_attributes);
     // FIXME: If we get a pointer, which is not accurately representable as a double
     //        will cause this to explode
-    object->define_direct_property(vm.names.continuation, Value(m_continuation_label.address()), JS::default_attributes);
-    object->define_direct_property(vm.names.isAwait, Value(true), JS::default_attributes);
-    interpreter.do_return(object);
+    auto continuation_value = Value(m_continuation_label.address());
+    auto result = interpreter.vm().heap().allocate<GeneratorResult>(yielded_value, continuation_value, true);
+    interpreter.do_return(result);
 }
 
 ThrowCompletionOr<void> GetByValue::execute_impl(Bytecode::Interpreter& interpreter) const
@@ -3834,6 +3827,35 @@ ByteString Dump::to_byte_string_impl(Bytecode::Executable const& executable) con
 {
     return ByteString::formatted("Dump '{}', {}", m_text,
         format_operand("value"sv, m_value, executable));
+}
+
+void GetCompletionFields::execute_impl(Bytecode::Interpreter& interpreter) const
+{
+    auto const& completion_cell = static_cast<CompletionCell const&>(interpreter.get(m_completion).as_cell());
+    interpreter.set(m_value_dst, completion_cell.completion().value().value_or(js_undefined()));
+    interpreter.set(m_type_dst, Value(to_underlying(completion_cell.completion().type())));
+}
+
+ByteString GetCompletionFields::to_byte_string_impl(Bytecode::Executable const& executable) const
+{
+    return ByteString::formatted("GetCompletionFields {}, {}, {}",
+        format_operand("value_dst"sv, m_value_dst, executable),
+        format_operand("type_dst"sv, m_type_dst, executable),
+        format_operand("completion"sv, m_completion, executable));
+}
+
+void SetCompletionType::execute_impl(Bytecode::Interpreter& interpreter) const
+{
+    auto& completion_cell = static_cast<CompletionCell&>(interpreter.get(m_completion).as_cell());
+    auto completion = completion_cell.completion();
+    completion_cell.set_completion(Completion { completion.type(), completion.value() });
+}
+
+ByteString SetCompletionType::to_byte_string_impl(Bytecode::Executable const& executable) const
+{
+    return ByteString::formatted("SetCompletionType {}, type={}",
+        format_operand("completion"sv, m_completion, executable),
+        to_underlying(m_type));
 }
 
 }
