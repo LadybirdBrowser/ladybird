@@ -190,12 +190,7 @@ private:
     bool m_should_show_line_box_borders { false };
     bool m_has_focus { false };
 
-    enum class PaintState {
-        Ready,
-        WaitingForClient,
-    };
-
-    PaintState m_paint_state { PaintState::Ready };
+    i32 m_number_of_queued_rasterization_tasks { 0 };
 
     struct ScreenshotTask {
         Optional<Web::UniqueNodeID> node_id;
