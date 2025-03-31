@@ -151,6 +151,8 @@ public:
 
     bool is_inert() const { return m_inert; }
 
+    bool form_associated();
+
 protected:
     HTMLElement(DOM::Document&, DOM::QualifiedName);
 

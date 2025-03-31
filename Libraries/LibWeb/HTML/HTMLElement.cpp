@@ -832,6 +832,12 @@ void HTMLElement::click()
     m_click_in_progress = false;
 }
 
+bool HTMLElement::form_associated()
+{
+    auto definition = document().lookup_custom_element_definition(namespace_uri(), local_name(), is_value());
+    return definition->form_associated();
+}
+
 Optional<ARIA::Role> HTMLElement::default_role() const
 {
     // https://www.w3.org/TR/html-aria/#el-address
@@ -1022,7 +1028,7 @@ WebIDL::ExceptionOr<GC::Ref<ElementInternals>> HTMLElement::attach_internals()
 {
     // 1. If this's is value is not null, then throw a "NotSupportedError" DOMException.
     if (is_value().has_value())
-        return WebIDL::NotSupportedError::create(realm(), "ElementInternals cannot be attached to a customized build-in element"_string);
+        return WebIDL::NotSupportedError::create(realm(), "ElementInternals cannot be attached to a customized built-in element"_string);
 
     // 2. Let definition be the result of looking up a custom element definition given this's node document, its namespace, its local name, and null as the is value.
     auto definition = document().lookup_custom_element_definition(namespace_uri(), local_name(), is_value());
