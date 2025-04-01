@@ -64,6 +64,8 @@ def should_check_file(filename):
         return False
     if filename.startswith('Base/'):
         return False
+    if filename.startswith('Meta/CMake/vcpkg/overlay-ports/'):
+        return False
     return True
 
 
