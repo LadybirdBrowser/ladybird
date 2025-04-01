@@ -45,6 +45,16 @@ void IDBObjectStore::visit_edges(Visitor& visitor)
     visitor.visit(m_indexes);
 }
 
+GC::Ptr<Index> IDBObjectStore::index_with_name(String const& name) const
+{
+    for (auto const& index : m_indexes) {
+        if (index->name() == name)
+            return index;
+    }
+
+    return nullptr;
+}
+
 // https://w3c.github.io/IndexedDB/#dom-idbobjectstore-keypath
 JS::Value IDBObjectStore::key_path() const
 {
@@ -165,6 +175,30 @@ GC::Ref<HTML::DOMStringList> IDBObjectStore::index_names()
 
     // 2. Return the result (a DOMStringList) of creating a sorted name list with names.
     return create_a_sorted_name_list(realm(), names);
+}
+
+// https://w3c.github.io/IndexedDB/#dom-idbobjectstore-index
+WebIDL::ExceptionOr<GC::Ref<IDBIndex>> IDBObjectStore::index(String const& name)
+{
+    // 1. Let transaction be this’s transaction.
+    auto transaction = this->transaction();
+
+    // 2. Let store be this’s object store.
+    [[maybe_unused]] auto store = this->store();
+
+    // FIXME: 3. If store has been deleted, throw an "InvalidStateError" DOMException.
+
+    // 4. If transaction’s state is finished, then throw an "InvalidStateError" DOMException.
+    if (transaction->state() == IDBTransaction::TransactionState::Finished)
+        return WebIDL::InvalidStateError::create(realm(), "Transaction is finished"_string);
+
+    // 5. Let index be the index named name in this’s index set if one exists, or throw a "NotFoundError" DOMException otherwise.
+    auto index = index_with_name(name);
+    if (!index)
+        return WebIDL::NotFoundError::create(realm(), "Index not found"_string);
+
+    // 6. Return an index handle associated with index and this.
+    return IDBIndex::create(realm(), *index, *this);
 }
 
 }
