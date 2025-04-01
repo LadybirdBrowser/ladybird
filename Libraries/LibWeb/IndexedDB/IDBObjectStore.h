@@ -40,6 +40,7 @@ public:
     AK::HashMap<String, GC::Ref<Index>>& index_set() { return m_indexes; }
 
     WebIDL::ExceptionOr<GC::Ref<IDBIndex>> create_index(String const&, KeyPath, IDBIndexParameters options);
+    [[nodiscard]] GC::Ref<HTML::DOMStringList> index_names();
 
 protected:
     explicit IDBObjectStore(JS::Realm&, GC::Ref<ObjectStore>, GC::Ref<IDBTransaction>);
