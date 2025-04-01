@@ -58,12 +58,11 @@ CSSPixels InlineFormattingContext::leftmost_inline_offset_at(CSSPixels y) const
 
 AvailableSize InlineFormattingContext::available_space_for_line(CSSPixels y) const
 {
-    auto intrusions = parent().intrusion_by_floats_into_box(m_containing_block_used_values, y);
-    if (m_available_space->width.is_definite()) {
-        return AvailableSize::make_definite(m_available_space->width.to_px_or_zero() - (intrusions.left + intrusions.right));
-    } else {
+    if (!m_available_space->width.is_definite())
         return m_available_space->width;
-    }
+
+    auto intrusions = parent().intrusion_by_floats_into_box(m_containing_block_used_values, y);
+    return AvailableSize::make_definite(m_available_space->width.to_px_or_zero() - intrusions.left - intrusions.right);
 }
 
 CSSPixels InlineFormattingContext::automatic_content_width() const
