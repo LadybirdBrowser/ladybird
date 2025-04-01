@@ -26,7 +26,7 @@ public:
         auto& bytecode = regex.parser_result.bytecode;
         size_t index { 0 };
         for (auto& value : bytecode) {
-            outln(m_file, "OpCode i={:3} [{:#02X}]", index, (u32)value);
+            outln(m_file, "OpCode i={:3} [{:#02X}]", index, value);
             ++index;
         }
     }
