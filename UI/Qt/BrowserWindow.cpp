@@ -4,10 +4,12 @@
  * Copyright (c) 2022, Filiph Sandström <filiph.sandstrom@filfatstudios.com>
  * Copyright (c) 2023, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2024-2025, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2025, Simon Farre <simon.farre.cx@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/RefPtr.h>
 #include <AK/TypeCasts.h>
 #include <LibWebView/Application.h>
 #include <UI/Qt/Application.h>
@@ -25,13 +27,127 @@
 #include <QInputDialog>
 #include <QMessageBox>
 #include <QMouseEvent>
+#include <QPropertyAnimation>
+#include <QPushButton>
 #include <QScreen>
 #include <QShortcut>
 #include <QStatusBar>
+#include <QTabBar>
+#include <QTimer>
 #include <QWheelEvent>
+#include <QWidget>
 #include <QWindow>
 
 namespace Ladybird {
+
+FullscreenMode::FullscreenMode(BrowserWindow* window, ExitFullscreenButton* exit_button)
+    : QObject(window)
+    , m_window(window)
+    , m_exit_button(exit_button)
+{
+    connect(m_exit_button, &QPushButton::clicked, this, [this]() {
+        exit();
+    });
+}
+
+void FullscreenMode::exit()
+{
+    // If there's a document tree in fullscreen, exit fully on root document.
+    if (is_api_fullscreen()) {
+        qApp->removeEventFilter(this);
+        if (m_window->tab_index(m_fullscreen_tab) != -1) {
+            m_fullscreen_tab->view().exit_fullscreen();
+        }
+        emit on_exit_fullscreen();
+    }
+    m_fullscreen_tab = nullptr;
+}
+
+void FullscreenMode::enter(Tab* tab)
+{
+    qApp->installEventFilter(this);
+    m_fullscreen_tab = tab;
+    m_window->enter_fullscreen();
+}
+
+void FullscreenMode::entered_fullscreen()
+{
+    m_debounce = true;
+    m_exit_button->animate_show();
+    // Let button float in place 3 * time it takes to animate it in place
+    QTimer::singleShot(button_animation_time() * 3, [this]() { m_debounce = false; });
+}
+
+bool FullscreenMode::is_api_fullscreen() const
+{
+    return m_fullscreen_tab;
+}
+
+bool FullscreenMode::debounce() const
+{
+    return m_debounce;
+}
+
+void FullscreenMode::maybe_animate_show_exit_button(QPointF pos)
+{
+    u64 const mouse_y = static_cast<u64>(pos.y());
+    u64 const threshold = static_cast<u64>(m_window->height() * 0.01);
+
+    if (debounce()) {
+        return;
+    }
+
+    // Display the button if the mouse is 1% from the top
+    if (mouse_y <= threshold) {
+        if (!m_exit_button->isVisible()) {
+            m_debounce = true;
+            m_exit_button->animate_show();
+            QTimer::singleShot(button_animation_time() * 3, [this]() { m_debounce = false; });
+        }
+    } else if (mouse_y > (threshold * 10) && m_exit_button->isVisible()) {
+        // if the button has floated in, we want to hide it when leaving the top 10%
+        m_exit_button->hide();
+    }
+}
+
+bool FullscreenMode::eventFilter(QObject* obj, QEvent* event)
+{
+    ASSERT(is_api_fullscreen());
+    if (event->type() == QEvent::MouseMove) {
+        QMouseEvent* mouse_event = static_cast<QMouseEvent*>(event);
+        maybe_animate_show_exit_button(mouse_event->pos());
+    }
+
+    return QObject::eventFilter(obj, event);
+}
+
+ExitFullscreenButton::ExitFullscreenButton(QWidget* parent)
+    : QPushButton("Exit fullscreen", parent)
+{
+    setStyleSheet("background-color:rgb(55, 99, 129); color: white; padding: 10px; border-radius: 5px;");
+    adjustSize();
+    hide();
+    m_widget_animation = new QPropertyAnimation(this, "pos");
+}
+
+void ExitFullscreenButton::animate_show()
+{
+    if (isVisible())
+        return;
+
+    show();
+    QScreen* current_screen = screen();
+    QRect screen_geometry = current_screen->geometry();
+
+    int const destination_x = (screen_geometry.width() - width()) / 2;
+    int const destination_y = static_cast<int>(static_cast<float>(screen_geometry.height()) * 0.05);
+
+    m_widget_animation->setDuration(FullscreenMode::button_animation_time());
+    m_widget_animation->setStartValue(QPoint(destination_x, -height()));
+    m_widget_animation->setEndValue(QPoint(destination_x, destination_y));
+    m_widget_animation->setEasingCurve(QEasingCurve::OutBounce);
+    m_widget_animation->start();
+}
 
 static QIcon const& app_icon()
 {
@@ -230,12 +346,19 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
         (void)Application::the().new_window({});
     });
     QObject::connect(open_file_action, &QAction::triggered, this, &BrowserWindow::open_file);
+
+    m_exit_button = new ExitFullscreenButton { this };
+    m_fullscreen_mode = new FullscreenMode { this, m_exit_button };
+    connect(m_fullscreen_mode, &FullscreenMode::on_exit_fullscreen, this, &BrowserWindow::exit_fullscreen);
+    connect(m_fullscreen_mode, &FullscreenMode::on_exit_fullscreen, m_exit_button, &ExitFullscreenButton::hide);
+
     QObject::connect(m_tabs_container, &QTabWidget::currentChanged, [this](int index) {
         auto* tab = as<Tab>(m_tabs_container->widget(index));
         if (tab)
             setWindowTitle(QString("%1 - Ladybird").arg(tab->title()));
 
         set_current_tab(tab);
+        fullscreen_mode().exit();
     });
     QObject::connect(m_tabs_container, &QTabWidget::tabCloseRequested, this, &BrowserWindow::request_to_close_tab);
     QObject::connect(close_current_tab_action, &QAction::triggered, this, &BrowserWindow::request_to_close_current_tab);
@@ -326,6 +449,11 @@ Tab& BrowserWindow::create_new_tab(Web::HTML::ActivateTab activate_tab, Tab& par
 
     initialize_tab(tab);
     return *tab;
+}
+
+FullscreenMode& BrowserWindow::fullscreen_mode()
+{
+    return *m_fullscreen_mode;
 }
 
 Tab& BrowserWindow::create_new_tab(Web::HTML::ActivateTab activate_tab)
@@ -581,6 +709,7 @@ void BrowserWindow::enter_fullscreen()
 {
     m_tabs_container->tabBar()->hide();
     m_tabs_container->cornerWidget()->hide();
+    m_restore_to_maximized = isMaximized();
     showFullScreen();
 }
 
@@ -588,7 +717,10 @@ void BrowserWindow::exit_fullscreen()
 {
     m_tabs_container->tabBar()->show();
     m_tabs_container->cornerWidget()->show();
-    showNormal();
+    if (m_restore_to_maximized)
+        showMaximized();
+    else
+        showNormal();
 }
 
 bool BrowserWindow::event(QEvent* event)
@@ -613,6 +745,17 @@ void BrowserWindow::resizeEvent(QResizeEvent* event)
     for_each_tab([&](auto& tab) {
         tab.view().set_window_size({ width(), height() });
     });
+}
+
+void BrowserWindow::changeEvent(QEvent* event)
+{
+    if (event->type() == QEvent::WindowStateChange) {
+        QWindowStateChangeEvent* stateChangeEvent = static_cast<QWindowStateChangeEvent*>(event);
+        if (windowState() & Qt::WindowFullScreen && !(stateChangeEvent->oldState() & Qt::WindowFullScreen)) {
+            m_fullscreen_mode->entered_fullscreen();
+        }
+    }
+    QWidget::changeEvent(event);
 }
 
 void BrowserWindow::moveEvent(QMoveEvent* event)
