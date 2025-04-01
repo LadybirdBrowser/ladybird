@@ -119,6 +119,12 @@
       "platform": "!android"
     },
     {
+      "name": "tiff",
+      "features": [
+        "zstd"
+      ]
+    }, 
+    {
       "name": "vulkan-headers",
       "platform": "!android"
     },
