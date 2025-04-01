@@ -4,10 +4,10 @@
 
 [Exposed=(Window,Worker)]
 interface IDBTransaction : EventTarget {
-    [FIXME] readonly attribute DOMStringList objectStoreNames;
+    readonly attribute DOMStringList objectStoreNames;
     readonly attribute IDBTransactionMode mode;
     readonly attribute IDBTransactionDurability durability;
-    [FIXME, SameObject] readonly attribute IDBDatabase db;
+    [SameObject, ImplementedAs=connection] readonly attribute IDBDatabase db;
     readonly attribute DOMException? error;
     [FIXME] IDBObjectStore objectStore(DOMString name);
     [FIXME] undefined commit();

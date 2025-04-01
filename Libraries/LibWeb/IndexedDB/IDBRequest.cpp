@@ -9,6 +9,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/IndexedDB/IDBRequest.h>
+#include <LibWeb/IndexedDB/IDBTransaction.h>
 
 namespace Web::IndexedDB {
 
