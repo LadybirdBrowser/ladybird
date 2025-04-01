@@ -25,7 +25,7 @@ Index::Index(GC::Ref<ObjectStore> store, String name, KeyPath const& key_path, b
     , m_multi_entry(multi_entry)
     , m_key_path(key_path)
 {
-    store->add_index(*this);
+    store->index_set().set(name, *this);
 }
 
 void Index::visit_edges(Visitor& visitor)
@@ -37,6 +37,15 @@ void Index::visit_edges(Visitor& visitor)
         visitor.visit(record.key);
         visitor.visit(record.value);
     }
+}
+
+void Index::set_name(String name)
+{
+    // NOTE: Update the key in the map so it still matches the name
+    auto old_value = m_object_store->index_set().take(m_name).release_value();
+    m_object_store->index_set().set(name, old_value);
+
+    m_name = move(name);
 }
 
 }
