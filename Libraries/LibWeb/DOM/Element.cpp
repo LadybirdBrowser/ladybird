@@ -1581,6 +1581,7 @@ void Element::removed_from(Node* old_parent, Node& old_root)
     }
 
     play_or_cancel_animations_after_display_property_change();
+    removing_steps_fullscreen();
 }
 
 void Element::moved_from(GC::Ptr<Node> old_parent)
@@ -2603,6 +2604,38 @@ GC::Ref<WebIDL::Promise> Element::request_fullscreen()
     }));
 
     return promise;
+}
+
+// https://fullscreen.spec.whatwg.org/#removing-steps
+void Element::removing_steps_fullscreen()
+{
+    // 1. Let document be removedNode’s node document.
+    auto& document = this->document();
+
+    // 2. Let nodes be removedNode’s shadow-including inclusive descendants that have their fullscreen flag set, in shadow-including tree order.
+    // 3. For each node in nodes:
+    for_each_shadow_including_inclusive_descendant([&](Node& node) {
+        auto* element = as_if<Element>(node);
+        if (!element)
+            return TraversalDecision::Continue;
+
+        if (!element->is_fullscreen_element())
+            return TraversalDecision::Continue;
+
+        if (document.fullscreen_element() == element) {
+            // 1. If node is document’s fullscreen element, exit fullscreen document.
+            document.exit_fullscreen();
+        } else {
+            // 2. Otherwise, unfullscreen node.
+            document.unfullscreen_element(*element);
+        }
+
+        // 3. If document’s top layer contains node, remove from the top layer immediately given node
+        if (element->in_top_layer())
+            document.remove_an_element_from_the_top_layer_immediately(*element);
+
+        return TraversalDecision::Continue;
+    });
 }
 
 GC::Ptr<WebIDL::CallbackType> Element::onfullscreenchange()
