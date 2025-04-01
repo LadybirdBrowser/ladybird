@@ -49,8 +49,7 @@ void RenderingThread::rendering_thread_loop()
             break;
         }
 
-        m_skia_player->set_surface(task->painting_surface);
-        m_skia_player->execute(*task->display_list);
+        m_skia_player->execute(*task->display_list, task->painting_surface);
         m_main_thread_event_loop.deferred_invoke([callback = move(task->callback)] {
             callback();
         });

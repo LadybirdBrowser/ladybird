@@ -100,8 +100,7 @@ RefPtr<Gfx::ImmutableBitmap> SVGMaskable::calculate_mask_of_svg(PaintContext& co
         StackingContext::paint_svg(paint_context, paintable, PaintPhase::Foreground);
         auto painting_surface = Gfx::PaintingSurface::wrap_bitmap(*mask_bitmap);
         DisplayListPlayerSkia display_list_player;
-        display_list_player.set_surface(painting_surface);
-        display_list_player.execute(display_list);
+        display_list_player.execute(display_list, painting_surface);
         return mask_bitmap;
     };
     RefPtr<Gfx::Bitmap> mask_bitmap = {};
