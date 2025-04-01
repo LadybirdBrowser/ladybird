@@ -669,9 +669,14 @@ ThrowCompletionOr<void> Object::define_field(ClassFieldDefinition const& field)
     auto init_value = js_undefined();
 
     // 3. If initializer is not empty, then
-    if (initializer) {
-        // a. Let initValue be ? Call(initializer, receiver).
-        init_value = TRY(call(vm, initializer, this));
+    if (!initializer.has<Empty>()) {
+        // OPTIMIZATION: If the initializer is a value (from a literal), we can skip the call.
+        if (auto const* initializer_value = initializer.get_pointer<Value>()) {
+            init_value = *initializer_value;
+        } else {
+            // a. Let initValue be ? Call(initializer, receiver).
+            init_value = TRY(call(vm, *initializer.get<GC::Ref<ECMAScriptFunctionObject>>(), this));
+        }
     }
     // 4. Else, let initValue be undefined.
 

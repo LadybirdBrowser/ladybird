@@ -17,8 +17,8 @@ using ClassElementName = Variant<PropertyKey, PrivateName>;
 
 // 6.2.10 The ClassFieldDefinition Record Specification Type, https://tc39.es/ecma262/#sec-classfielddefinition-record-specification-type
 struct ClassFieldDefinition {
-    ClassElementName name;                         // [[Name]]
-    GC::Ptr<ECMAScriptFunctionObject> initializer; // [[Initializer]]
+    ClassElementName name;                                                // [[Name]]
+    Variant<GC::Ref<ECMAScriptFunctionObject>, Value, Empty> initializer; // [[Initializer]]
 };
 
 }
