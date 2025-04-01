@@ -153,4 +153,16 @@ WebIDL::ExceptionOr<GC::Ref<IDBIndex>> IDBObjectStore::create_index(String const
     return IDBIndex::create(realm, index, *this);
 }
 
+// https://w3c.github.io/IndexedDB/#dom-idbobjectstore-indexnames
+GC::Ref<HTML::DOMStringList> IDBObjectStore::index_names()
+{
+    // 1. Let names be a list of the names of the indexes in this's index set.
+    Vector<String> names;
+    for (auto const& [name, index] : m_indexes)
+        names.append(name);
+
+    // 2. Return the result (a DOMStringList) of creating a sorted name list with names.
+    return create_a_sorted_name_list(realm(), names);
+}
+
 }
