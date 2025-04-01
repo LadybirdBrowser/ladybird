@@ -999,6 +999,8 @@ void Optimizer::append_alternation(ByteCode& target, Span<ByteCode> alternatives
     if (alternatives.size() == 0)
         return;
 
+    target.merge_string_tables_from(alternatives);
+
     if (alternatives.size() == 1)
         return target.extend(move(alternatives[0]));
 

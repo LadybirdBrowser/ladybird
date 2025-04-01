@@ -161,6 +161,7 @@ static bool restore_string_position(MatchInput const& input, MatchState& state)
 OwnPtr<OpCode> ByteCode::s_opcodes[(size_t)OpCodeId::Last + 1];
 bool ByteCode::s_opcodes_initialized { false };
 size_t ByteCode::s_next_checkpoint_serial_id { 0 };
+u32 StringTable::next_serial { 0 };
 
 void ByteCode::ensure_opcodes_initialized()
 {

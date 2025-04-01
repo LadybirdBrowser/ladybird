@@ -11,7 +11,7 @@
 #include "RegexLexer.h"
 #include "RegexOptions.h"
 
-#include <AK/DeprecatedFlyString.h>
+#include <AK/FlyString.h>
 #include <AK/Forward.h>
 #include <AK/HashMap.h>
 #include <AK/Types.h>
@@ -59,7 +59,7 @@ public:
         size_t match_length_minimum;
         Error error;
         Token error_token;
-        Vector<DeprecatedFlyString> capture_groups;
+        Vector<FlyString> capture_groups;
         AllOptions options;
 
         struct {
@@ -117,7 +117,7 @@ protected:
         size_t repetition_mark_count { 0 };
         AllOptions regex_options;
         HashMap<size_t, size_t> capture_group_minimum_lengths;
-        HashMap<DeprecatedFlyString, Vector<NamedCaptureGroup>> named_capture_groups;
+        HashMap<FlyString, Vector<NamedCaptureGroup>> named_capture_groups;
 
         explicit ParserState(Lexer& lexer)
             : lexer(lexer)
@@ -240,7 +240,7 @@ private:
     };
     StringView read_digits_as_string(ReadDigitsInitialZeroState initial_zero = ReadDigitsInitialZeroState::Allow, bool hex = false, int max_count = -1, int min_count = -1);
     Optional<unsigned> read_digits(ReadDigitsInitialZeroState initial_zero = ReadDigitsInitialZeroState::Allow, bool hex = false, int max_count = -1, int min_count = -1);
-    DeprecatedFlyString read_capture_group_specifier(bool take_starting_angle_bracket = false);
+    FlyString read_capture_group_specifier(bool take_starting_angle_bracket = false);
 
     struct Script {
         Unicode::Script script {};
@@ -282,7 +282,7 @@ private:
     bool parse_invalid_braced_quantifier(); // Note: This function either parses and *fails*, or doesn't parse anything and returns false.
     Optional<u8> parse_legacy_octal_escape();
 
-    bool has_duplicate_in_current_alternative(DeprecatedFlyString const& name);
+    bool has_duplicate_in_current_alternative(FlyString const& name);
 
     size_t ensure_total_number_of_capturing_parenthesis();
 
