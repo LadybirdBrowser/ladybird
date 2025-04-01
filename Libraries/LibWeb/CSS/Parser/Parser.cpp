@@ -119,7 +119,7 @@ Vector<Rule> Parser::parse_a_stylesheets_contents(TokenStream<T>& input)
 }
 
 // https://drafts.csswg.org/css-syntax/#parse-a-css-stylesheet
-CSSStyleSheet* Parser::parse_as_css_stylesheet(Optional<URL::URL> location)
+CSSStyleSheet* Parser::parse_as_css_stylesheet(Optional<URL::URL> location, Vector<NonnullRefPtr<MediaQuery>> media_query_list)
 {
     // To parse a CSS stylesheet, first parse a stylesheet.
     auto const& style_sheet = parse_a_stylesheet(m_token_stream, {});
@@ -138,7 +138,7 @@ CSSStyleSheet* Parser::parse_as_css_stylesheet(Optional<URL::URL> location)
     }
 
     auto rule_list = CSSRuleList::create(realm(), rules);
-    auto media_list = MediaList::create(realm(), {});
+    auto media_list = MediaList::create(realm(), move(media_query_list));
     return CSSStyleSheet::create(realm(), rule_list, media_list, move(location));
 }
 

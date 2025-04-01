@@ -42,7 +42,7 @@ GC::Ref<JS::Realm> internal_css_realm()
     return *realm;
 }
 
-CSS::CSSStyleSheet* parse_css_stylesheet(CSS::Parser::ParsingParams const& context, StringView css, Optional<URL::URL> location)
+CSS::CSSStyleSheet* parse_css_stylesheet(CSS::Parser::ParsingParams const& context, StringView css, Optional<URL::URL> location, Vector<NonnullRefPtr<CSS::MediaQuery>> media_query_list)
 {
     if (css.is_empty()) {
         auto rule_list = CSS::CSSRuleList::create_empty(*context.realm);
@@ -51,7 +51,7 @@ CSS::CSSStyleSheet* parse_css_stylesheet(CSS::Parser::ParsingParams const& conte
         style_sheet->set_source_text({});
         return style_sheet;
     }
-    auto* style_sheet = CSS::Parser::Parser::create(context, css).parse_as_css_stylesheet(location);
+    auto* style_sheet = CSS::Parser::Parser::create(context, css).parse_as_css_stylesheet(location, move(media_query_list));
     // FIXME: Avoid this copy
     style_sheet->set_source_text(MUST(String::from_utf8(css)));
     return style_sheet;

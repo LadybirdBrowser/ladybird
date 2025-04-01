@@ -180,7 +180,7 @@ GC::Ptr<CSSImportRule> Parser::convert_to_import_rule(AtRule const& rule)
         }
     }
 
-    // FIXME: Implement media query support.
+    auto media_query_list = parse_a_media_query_list(tokens);
 
     if (tokens.has_next_token()) {
         if constexpr (CSS_PARSER_DEBUG) {
@@ -190,7 +190,7 @@ GC::Ptr<CSSImportRule> Parser::convert_to_import_rule(AtRule const& rule)
         return {};
     }
 
-    return CSSImportRule::create(url.value(), const_cast<DOM::Document&>(*document()), supports);
+    return CSSImportRule::create(url.value(), const_cast<DOM::Document&>(*document()), supports, move(media_query_list));
 }
 
 Optional<FlyString> Parser::parse_layer_name(TokenStream<ComponentValue>& tokens, AllowBlankLayerName allow_blank_layer_name)

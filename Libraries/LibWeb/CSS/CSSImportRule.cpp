@@ -23,17 +23,18 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSImportRule);
 
-GC::Ref<CSSImportRule> CSSImportRule::create(URL::URL url, DOM::Document& document, RefPtr<Supports> supports)
+GC::Ref<CSSImportRule> CSSImportRule::create(URL::URL url, DOM::Document& document, RefPtr<Supports> supports, Vector<NonnullRefPtr<MediaQuery>> media_query_list)
 {
     auto& realm = document.realm();
-    return realm.create<CSSImportRule>(move(url), document, supports);
+    return realm.create<CSSImportRule>(move(url), document, supports, move(media_query_list));
 }
 
-CSSImportRule::CSSImportRule(URL::URL url, DOM::Document& document, RefPtr<Supports> supports)
+CSSImportRule::CSSImportRule(URL::URL url, DOM::Document& document, RefPtr<Supports> supports, Vector<NonnullRefPtr<MediaQuery>> media_query_list)
     : CSSRule(document.realm(), Type::Import)
     , m_url(move(url))
     , m_document(document)
     , m_supports(supports)
+    , m_media_query_list(move(media_query_list))
 {
 }
 
@@ -76,7 +77,9 @@ String CSSImportRule::serialized() const
     if (m_supports)
         builder.appendff(" supports({})", m_supports->to_string());
 
-    // FIXME: 3. If the rule’s associated media list is not empty, a single SPACE (U+0020) followed by the result of performing serialize a media query list on the media list.
+    // 3. If the rule’s associated media list is not empty, a single SPACE (U+0020) followed by the result of performing serialize a media query list on the media list.
+    if (!m_media_query_list.is_empty())
+        builder.appendff(" {}", serialize_a_media_query_list(m_media_query_list));
 
     // 4. The string ";", i.e., SEMICOLON (U+003B).
     builder.append(';');
@@ -148,7 +151,7 @@ void CSSImportRule::fetch()
             }
             auto decoded = decoded_or_error.release_value();
 
-            auto* imported_style_sheet = parse_css_stylesheet(Parser::ParsingParams(*strong_this->m_document, strong_this->url()), decoded, strong_this->url());
+            auto* imported_style_sheet = parse_css_stylesheet(Parser::ParsingParams(*strong_this->m_document, strong_this->url()), decoded, strong_this->url(), strong_this->m_media_query_list);
 
             // 5. Set importedStylesheet’s origin-clean flag to parentStylesheet’s origin-clean flag.
             imported_style_sheet->set_origin_clean(parent_style_sheet->is_origin_clean());
