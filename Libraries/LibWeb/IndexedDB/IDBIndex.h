@@ -8,6 +8,8 @@
 
 #include <LibGC/Heap.h>
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/IndexedDB/IDBObjectStore.h>
+#include <LibWeb/IndexedDB/Internal/Index.h>
 
 namespace Web::IndexedDB {
 
@@ -18,11 +20,32 @@ class IDBIndex : public Bindings::PlatformObject {
 
 public:
     virtual ~IDBIndex() override;
-    [[nodiscard]] static GC::Ref<IDBIndex> create(JS::Realm&);
+    [[nodiscard]] static GC::Ref<IDBIndex> create(JS::Realm&, GC::Ref<Index>, GC::Ref<IDBObjectStore>);
+
+    WebIDL::ExceptionOr<void> set_name(String const& value);
+    String name() const { return m_name; }
+    GC::Ref<IDBObjectStore> object_store() { return m_object_store_handle; }
+    JS::Value key_path() const;
+    bool multi_entry() const { return m_index->multi_entry(); }
+    bool unique() const { return m_index->unique(); }
+
+    // The transaction of an index handle is the transaction of its associated object store handle.
+    GC::Ref<IDBTransaction> transaction() { return m_object_store_handle->transaction(); }
+    GC::Ref<Index> index() { return m_index; }
+    GC::Ref<IDBObjectStore> store() { return m_object_store_handle; }
 
 protected:
-    explicit IDBIndex(JS::Realm&);
+    explicit IDBIndex(JS::Realm&, GC::Ref<Index>, GC::Ref<IDBObjectStore>);
     virtual void initialize(JS::Realm&) override;
+    virtual void visit_edges(Visitor& visitor) override;
+
+private:
+    // An index handle has an associated index and an associated object store handle.
+    GC::Ref<Index> m_index;
+    GC::Ref<IDBObjectStore> m_object_store_handle;
+
+    // An index handle has a name, which is initialized to the name of the associated index when the index handle is created.
+    String m_name;
 };
 
 }
