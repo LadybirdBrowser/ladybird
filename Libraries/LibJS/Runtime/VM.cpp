@@ -659,7 +659,7 @@ void VM::load_imported_module(ImportedModuleReferrer referrer, ModuleRequest con
         });
 
     LexicalPath base_path { base_filename };
-    auto filename = LexicalPath::absolute_path(base_path.dirname(), module_request.module_specifier.to_deprecated_fly_string());
+    auto filename = LexicalPath::absolute_path(base_path.dirname(), module_request.module_specifier);
 
     dbgln_if(JS_MODULE_DEBUG, "[JS MODULE] base path: '{}'", base_path);
     dbgln_if(JS_MODULE_DEBUG, "[JS MODULE] initial filename: '{}'", filename);
