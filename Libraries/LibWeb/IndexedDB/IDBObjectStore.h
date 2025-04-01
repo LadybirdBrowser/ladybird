@@ -13,6 +13,11 @@
 
 namespace Web::IndexedDB {
 
+struct IDBIndexParameters {
+    bool unique { false };
+    bool multi_entry { false };
+};
+
 // https://w3c.github.io/IndexedDB/#object-store-interface
 // https://w3c.github.io/IndexedDB/#object-store-handle-construct
 class IDBObjectStore : public Bindings::PlatformObject {
@@ -23,14 +28,18 @@ public:
     virtual ~IDBObjectStore() override;
     [[nodiscard]] static GC::Ref<IDBObjectStore> create(JS::Realm&, GC::Ref<ObjectStore>, GC::Ref<IDBTransaction>);
 
-    JS::Value key_path() const;
-    GC::Ref<IDBTransaction> transaction() const { return m_transaction; }
-
     // https://w3c.github.io/IndexedDB/#dom-idbobjectstore-autoincrement
     // The autoIncrement getter steps are to return true if this’s object store has a key generator, and false otherwise.
     bool auto_increment() const { return m_store->key_generator().has_value(); }
+    JS::Value key_path() const;
     String name() const { return m_name; }
     WebIDL::ExceptionOr<void> set_name(String const& value);
+    GC::Ref<IDBTransaction> transaction() const { return m_transaction; }
+    GC::Ref<ObjectStore> store() const { return m_store; }
+    AK::ReadonlySpan<GC::Ref<Index>> index_set() const { return m_indexes; }
+    void add_index(GC::Ref<Index> index) { m_indexes.append(index); }
+
+    WebIDL::ExceptionOr<GC::Ref<IDBIndex>> create_index(String const&, KeyPath, IDBIndexParameters options = {});
 
 protected:
     explicit IDBObjectStore(JS::Realm&, GC::Ref<ObjectStore>, GC::Ref<IDBTransaction>);
@@ -44,6 +53,9 @@ private:
 
     // An object store handle has a name, which is initialized to the name of the associated object store when the object store handle is created.
     String m_name;
+
+    // An object store handle has an index set
+    Vector<GC::Ref<Index>> m_indexes;
 };
 
 }
