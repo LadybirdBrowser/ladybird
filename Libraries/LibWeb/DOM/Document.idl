@@ -167,6 +167,7 @@ interface Document : Node {
     readonly attribute boolean fullscreenEnabled;
     // FIXME: [LegacyLenientSetter, Unscopable]
     readonly attribute boolean fullscreen; // historical
+    Promise<undefined> exitFullscreen();
 };
 
 dictionary ElementCreationOptions {

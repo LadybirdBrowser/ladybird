@@ -158,6 +158,7 @@ private:
     virtual void paste(u64 page_id, String text) override;
 
     virtual void system_time_zone_changed() override;
+    virtual void exit_fullscreen(u64 page_id) override;
 
     NonnullOwnPtr<PageHost> m_page_host;
 
