@@ -924,6 +924,13 @@ public:
     // https://fullscreen.spec.whatwg.org/#dom-document-fullscreenenabled
     bool fullscreen_enabled() const;
 
+    // https://fullscreen.spec.whatwg.org/#fully-exit-fullscreen
+    void exit_fullscreen_fully();
+    // https://fullscreen.spec.whatwg.org/#exit-fullscreen
+    GC::Ref<WebIDL::Promise> exit_fullscreen();
+
+    void unfullscreen_element(GC::Ref<Element> element);
+
 protected:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
@@ -943,6 +950,10 @@ private:
     void run_unloading_cleanup_steps();
 
     void evaluate_media_rules();
+
+    // https://fullscreen.spec.whatwg.org/#simple-fullscreen-document
+    bool is_simple_fullscreen_document() const;
+    Vector<GC::Ptr<Document>> collect_documents_to_unfullscreen() const;
 
     enum class AddLineFeed {
         Yes,
