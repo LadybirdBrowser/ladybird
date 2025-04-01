@@ -39,9 +39,12 @@ public:
     Optional<KeyGenerator> key_generator() const { return m_key_generator; }
 
     GC::Ref<Database> database() const { return m_database; }
-
-    void add_index(GC::Ref<Index> index) { m_indexes.append(index); }
     ReadonlySpan<GC::Ref<Index>> index_set() const { return m_indexes; }
+    void add_index(GC::Ref<Index> index) { m_indexes.append(index); }
+    void remove_index(GC::Ref<Index> index)
+    {
+        m_indexes.remove_first_matching([&](auto& entry) { return entry == index; });
+    }
 
 protected:
     virtual void visit_edges(Visitor&) override;

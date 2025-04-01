@@ -39,10 +39,15 @@ public:
     AK::ReadonlySpan<GC::Ref<Index>> index_set() const { return m_indexes; }
     void add_index(GC::Ref<Index> index) { m_indexes.append(index); }
     GC::Ptr<Index> index_with_name(String const& name) const;
+    void remove_index(GC::Ref<Index> index)
+    {
+        m_indexes.remove_first_matching([&](auto& entry) { return entry == index; });
+    }
 
     WebIDL::ExceptionOr<GC::Ref<IDBIndex>> create_index(String const&, KeyPath, IDBIndexParameters options = {});
     [[nodiscard]] GC::Ref<HTML::DOMStringList> index_names();
     WebIDL::ExceptionOr<GC::Ref<IDBIndex>> index(String const&);
+    WebIDL::ExceptionOr<void> delete_index(String const&);
 
 protected:
     explicit IDBObjectStore(JS::Realm&, GC::Ref<ObjectStore>, GC::Ref<IDBTransaction>);
