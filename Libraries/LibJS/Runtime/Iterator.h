@@ -23,19 +23,21 @@ class IteratorRecord final : public Cell {
 
 public:
     IteratorRecord(GC::Ptr<Object> iterator, Value next_method, bool done)
-        : iterator(iterator)
+        : done(done)
+        , iterator(iterator)
         , next_method(next_method)
-        , done(done)
     {
     }
 
+    bool done { false };      // [[Done]]
     GC::Ptr<Object> iterator; // [[Iterator]]
     Value next_method;        // [[NextMethod]]
-    bool done { false };      // [[Done]]
 
 private:
     virtual void visit_edges(Cell::Visitor&) override;
 };
+
+static_assert(sizeof(IteratorRecord) == 32);
 
 class Iterator : public Object {
     JS_OBJECT(Iterator, Object);
