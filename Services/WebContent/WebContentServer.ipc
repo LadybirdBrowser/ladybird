@@ -130,4 +130,6 @@ endpoint WebContentServer
 
     system_time_zone_changed() =|
     cookies_changed(Vector<Web::Cookie::Cookie> cookies) =|
+    
+    exit_fullscreen(u64 page_id) =|
 }
