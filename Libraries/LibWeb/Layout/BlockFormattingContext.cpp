@@ -1051,7 +1051,7 @@ void BlockFormattingContext::layout_floating_box(Box const& box, BlockContainer 
     // First we place the box normally (to get the right y coordinate.)
     // If we have a LineBuilder, we're in the middle of inline layout, otherwise this is block layout.
     if (line_builder) {
-        auto y = max(line_builder->y_for_float_to_be_inserted_here(box), line_builder->inline_formatting_context().vertical_float_clearance());
+        auto y = line_builder->y_for_float_to_be_inserted_here(box);
         box_state.set_content_y(y + box_state.margin_box_top());
     } else {
         place_block_level_element_in_normal_flow_vertically(box, y + box_state.margin_top);

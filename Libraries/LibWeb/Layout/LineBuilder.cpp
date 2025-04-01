@@ -162,7 +162,7 @@ CSSPixels LineBuilder::y_for_float_to_be_inserted_here(Box const& box)
         candidate_block_offset = highest_intersection_bottom.value();
     }
 
-    return candidate_block_offset;
+    return max(candidate_block_offset, m_context.vertical_float_clearance());
 }
 
 bool LineBuilder::should_break(CSSPixels next_item_width)
