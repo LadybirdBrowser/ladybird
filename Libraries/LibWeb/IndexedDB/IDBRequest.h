@@ -10,7 +10,7 @@
 
 #include <LibWeb/Bindings/IDBRequestPrototype.h>
 #include <LibWeb/DOM/EventTarget.h>
-#include <LibWeb/IndexedDB/IDBTransaction.h>
+#include <LibWeb/IndexedDB/Internal/RequestList.h>
 
 namespace Web::IndexedDB {
 

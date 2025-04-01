@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, stelar7 <dudedbz@gmail.com>
+ * Copyright (c) 2024-2025, stelar7 <dudedbz@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -312,9 +312,8 @@ GC::Ref<IDBTransaction> upgrade_a_database(JS::Realm& realm, GC::Ref<IDBDatabase
     auto db = connection->associated_database();
 
     // 2. Let transaction be a new upgrade transaction with connection used as connection.
-    auto transaction = IDBTransaction::create(realm, connection);
-
-    // FIXME: 3. Set transaction’s scope to connection’s object store set.
+    // 3. Set transaction’s scope to connection’s object store set.
+    auto transaction = IDBTransaction::create(realm, connection, Bindings::IDBTransactionMode::Versionchange, Bindings::IDBTransactionDurability::Default, Vector<GC::Ref<ObjectStore>> { connection->object_store_set() });
 
     // 4. Set db’s upgrade transaction to transaction.
     db->set_upgrade_transaction(transaction);
