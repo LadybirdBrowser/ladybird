@@ -133,14 +133,12 @@ CSSPixels LineBuilder::y_for_float_to_be_inserted_here(Box const& box)
     HashMap<CSSPixels, AvailableSize> available_space_cache;
     for (;;) {
         Optional<CSSPixels> highest_intersection_bottom;
-
-        auto candidate_block_top_in_root = box_in_root_rect.y() + candidate_block_offset;
-        auto candidate_block_bottom_in_root = candidate_block_top_in_root + height;
+        auto candidate_block_bottom = candidate_block_offset + height;
 
         m_context.parent().for_each_floating_box([&](auto const& float_box) {
-            auto float_box_top = float_box.margin_box_rect_in_root_coordinate_space.top();
-            auto float_box_bottom = float_box.margin_box_rect_in_root_coordinate_space.bottom();
-            if (float_box_bottom <= candidate_block_top_in_root)
+            auto float_box_top = float_box.margin_box_rect_in_root_coordinate_space.top() - box_in_root_rect.y();
+            auto float_box_bottom = float_box.margin_box_rect_in_root_coordinate_space.bottom() - box_in_root_rect.y();
+            if (float_box_bottom <= candidate_block_offset)
                 return IterationDecision::Continue;
 
             auto intersection_test = [&](auto y_coordinate, auto top, auto bottom) {
@@ -149,16 +147,14 @@ CSSPixels LineBuilder::y_for_float_to_be_inserted_here(Box const& box)
                 auto available_space = available_space_cache.ensure(y_coordinate, [&]() {
                     return m_context.available_space_for_line(y_coordinate);
                 });
-                if (width > available_space) {
-                    auto bottom_relative = float_box_bottom - box_in_root_rect.y();
-                    highest_intersection_bottom = min(highest_intersection_bottom.value_or(bottom_relative), bottom_relative);
-                }
+                if (width > available_space)
+                    highest_intersection_bottom = min(highest_intersection_bottom.value_or(float_box_bottom), float_box_bottom);
             };
 
-            intersection_test(float_box_top, candidate_block_top_in_root, candidate_block_bottom_in_root);
-            intersection_test(float_box_bottom, candidate_block_top_in_root, candidate_block_bottom_in_root);
-            intersection_test(candidate_block_top_in_root, float_box_top, float_box_bottom);
-            intersection_test(candidate_block_bottom_in_root, float_box_top, float_box_bottom);
+            intersection_test(float_box_top, candidate_block_offset, candidate_block_bottom);
+            intersection_test(float_box_bottom, candidate_block_offset, candidate_block_bottom);
+            intersection_test(candidate_block_offset, float_box_top, float_box_bottom);
+            intersection_test(candidate_block_bottom, float_box_top, float_box_bottom);
 
             return IterationDecision::Continue;
         });
