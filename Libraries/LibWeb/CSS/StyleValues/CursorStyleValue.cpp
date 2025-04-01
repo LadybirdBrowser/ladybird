@@ -94,8 +94,7 @@ Optional<Gfx::ImageCursor> CursorStyleValue::make_image_cursor(Layout::NodeWithS
         case DisplayListPlayerType::SkiaCPU: {
             auto painting_surface = Gfx::PaintingSurface::wrap_bitmap(bitmap);
             Painting::DisplayListPlayerSkia display_list_player;
-            display_list_player.set_surface(painting_surface);
-            display_list_player.execute(*display_list);
+            display_list_player.execute(*display_list, painting_surface);
             break;
         }
         }

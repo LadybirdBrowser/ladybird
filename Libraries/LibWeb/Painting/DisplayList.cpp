@@ -35,13 +35,20 @@ static bool command_is_clip_or_mask(Command const& command)
         });
 }
 
-void DisplayListPlayer::execute(DisplayList& display_list)
+void DisplayListPlayer::execute(DisplayList& display_list, RefPtr<Gfx::PaintingSurface> surface)
 {
+    if (surface)
+        m_surfaces.append(*surface);
+    ScopeGuard guard = [&surfaces = m_surfaces, pop_surface_from_stack = !!surface] {
+        if (pop_surface_from_stack)
+            (void)surfaces.take_last();
+    };
+
     auto const& commands = display_list.commands();
     auto const& scroll_state = display_list.scroll_state();
     auto device_pixels_per_css_pixel = display_list.device_pixels_per_css_pixel();
 
-    VERIFY(m_surface);
+    VERIFY(!m_surfaces.is_empty());
 
     for (size_t command_index = 0; command_index < commands.size(); command_index++) {
         auto scroll_frame_id = commands[command_index].scroll_frame_id;
