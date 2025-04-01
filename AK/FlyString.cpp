@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/DeprecatedFlyString.h>
 #include <AK/FlyString.h>
 #include <AK/HashTable.h>
 #include <AK/Singleton.h>
@@ -117,6 +118,16 @@ Detail::StringBase FlyString::data(Badge<String>) const
 size_t FlyString::number_of_fly_strings()
 {
     return all_fly_strings().size();
+}
+
+DeprecatedFlyString FlyString::to_deprecated_fly_string() const
+{
+    return DeprecatedFlyString(bytes_as_string_view());
+}
+
+ErrorOr<FlyString> FlyString::from_deprecated_fly_string(DeprecatedFlyString const& deprecated_fly_string)
+{
+    return FlyString::from_utf8(deprecated_fly_string.view());
 }
 
 unsigned Traits<FlyString>::hash(FlyString const& fly_string)

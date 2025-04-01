@@ -2100,7 +2100,7 @@ WebIDL::ExceptionOr<GC::Ref<Element>> Document::create_element(String const& a_l
         namespace_ = Namespace::HTML;
 
     // 6. Return the result of creating an element given this, localName, namespace, null, is, and with the synchronous custom elements flag set.
-    return TRY(DOM::create_element(*this, FlyString::from_utf8_without_validation(local_name.bytes()), move(namespace_), {}, move(is_value), true));
+    return TRY(DOM::create_element(*this, MUST(FlyString::from_deprecated_fly_string(local_name)), move(namespace_), {}, move(is_value), true));
 }
 
 // https://dom.spec.whatwg.org/#dom-document-createelementns

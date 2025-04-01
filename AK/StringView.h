@@ -51,13 +51,15 @@ public:
     StringView(String const&);
     StringView(FlyString const&);
     StringView(ByteString const&);
+    StringView(DeprecatedFlyString const&);
 
     explicit StringView(ByteBuffer&&) = delete;
     explicit StringView(String&&) = delete;
     explicit StringView(FlyString&&) = delete;
     explicit StringView(ByteString&&) = delete;
+    explicit StringView(DeprecatedFlyString&&) = delete;
 
-    template<OneOf<String, FlyString, ByteString, ByteBuffer> StringType>
+    template<OneOf<String, FlyString, ByteString, DeprecatedFlyString, ByteBuffer> StringType>
     StringView& operator=(StringType&&) = delete;
 
     [[nodiscard]] constexpr bool is_null() const

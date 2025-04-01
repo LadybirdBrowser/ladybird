@@ -795,7 +795,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
                 for (auto const& name : global_environment.declarative_record().bindings()) {
                     if (name.bytes_as_string_view().starts_with(variable_name)) {
-                        results.empend(name);
+                        results.empend(name.to_deprecated_fly_string());
                         results.last().invariant_offset = variable_name.bytes().size();
                     }
                 }

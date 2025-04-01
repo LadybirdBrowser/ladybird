@@ -61,6 +61,8 @@ shared_library("AK") {
     "DateConstants.h",
     "DefaultDelete.h",
     "Demangle.h",
+    "DeprecatedFlyString.cpp",
+    "DeprecatedFlyString.h",
     "Diagnostics.h",
     "DisjointChunks.h",
     "DistinctNumeric.h",
