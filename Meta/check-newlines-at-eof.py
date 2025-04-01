@@ -18,6 +18,8 @@ def should_check_file(filename):
         return False
     if filename.startswith('Tests/LibWeb/Text/'):
         return False
+    if filename.startswith('Meta/CMake/vcpkg/overlay-ports/'):
+        return False
     if filename.endswith('.txt'):
         return 'CMake' in filename
     return True
