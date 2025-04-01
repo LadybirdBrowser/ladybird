@@ -5,7 +5,6 @@
  */
 
 #include <AK/CharacterTypes.h>
-#include <AK/DeprecatedFlyString.h>
 #include <AK/StringHash.h>
 #include <AK/StringImpl.h>
 #include <AK/kmalloc.h>
@@ -28,11 +27,7 @@ StringImpl::StringImpl(ConstructWithInlineBufferTag, size_t length)
 {
 }
 
-StringImpl::~StringImpl()
-{
-    if (m_fly)
-        DeprecatedFlyString::did_destroy_impl({}, *this);
-}
+StringImpl::~StringImpl() = default;
 
 NonnullRefPtr<StringImpl const> StringImpl::create_uninitialized(size_t length, char*& buffer)
 {
