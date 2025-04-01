@@ -21,7 +21,7 @@ interface IDBObjectStore {
     [FIXME, NewObject] IDBRequest count(optional any query);
     [FIXME, NewObject] IDBRequest openCursor(optional any query, optional IDBCursorDirection direction = "next");
     [FIXME, NewObject] IDBRequest openKeyCursor(optional any query, optional IDBCursorDirection direction = "next");
-    [FIXME] IDBIndex index(DOMString name);
+    IDBIndex index(DOMString name);
     [NewObject] IDBIndex createIndex(DOMString name, (DOMString or sequence<DOMString>) keyPath, optional IDBIndexParameters options = {});
     [FIXME] undefined deleteIndex(DOMString name);
 };
