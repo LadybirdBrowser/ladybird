@@ -165,4 +165,28 @@ GC::Ref<HTML::DOMStringList> IDBObjectStore::index_names()
     return create_a_sorted_name_list(realm(), names);
 }
 
+// https://w3c.github.io/IndexedDB/#dom-idbobjectstore-index
+WebIDL::ExceptionOr<GC::Ref<IDBIndex>> IDBObjectStore::index(String const& name)
+{
+    // 1. Let transaction be this’s transaction.
+    auto transaction = this->transaction();
+
+    // 2. Let store be this’s object store.
+    [[maybe_unused]] auto store = this->store();
+
+    // FIXME: 3. If store has been deleted, throw an "InvalidStateError" DOMException.
+
+    // 4. If transaction’s state is finished, then throw an "InvalidStateError" DOMException.
+    if (transaction->state() == IDBTransaction::TransactionState::Finished)
+        return WebIDL::InvalidStateError::create(realm(), "Transaction is finished"_string);
+
+    // 5. Let index be the index named name in this’s index set if one exists, or throw a "NotFoundError" DOMException otherwise.
+    auto index = m_indexes.get(name);
+    if (!index.has_value())
+        return WebIDL::NotFoundError::create(realm(), "Index not found"_string);
+
+    // 6. Return an index handle associated with index and this.
+    return IDBIndex::create(realm(), *index, *this);
+}
+
 }
