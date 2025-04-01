@@ -168,6 +168,8 @@ private:
 
     virtual void request_close(u64 page_id) override;
 
+    virtual void exit_fullscreen(u64 page_id) override;
+
     NonnullOwnPtr<PageHost> m_page_host;
 
     HashMap<int, Web::FileRequest> m_requested_files {};

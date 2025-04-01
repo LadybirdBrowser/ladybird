@@ -5,6 +5,8 @@ partial interface Document {
     [LegacyLenientSetter] readonly attribute boolean fullscreenEnabled;
     [LegacyLenientSetter, Unscopable] readonly attribute boolean fullscreen; // historical
 
+    Promise<undefined> exitFullscreen();
+
     attribute EventHandler onfullscreenchange;
     attribute EventHandler onfullscreenerror;
 };

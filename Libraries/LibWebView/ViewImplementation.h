@@ -133,6 +133,7 @@ public:
 
     void run_javascript(String const&);
     void js_console_input(String const&);
+    void exit_fullscreen();
 
     void alert_closed();
     void confirm_closed(bool accepted);

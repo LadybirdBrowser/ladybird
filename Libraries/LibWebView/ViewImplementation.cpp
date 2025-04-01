@@ -475,6 +475,11 @@ void ViewImplementation::js_console_input(String const& js_source)
     client().async_js_console_input(page_id(), js_source);
 }
 
+void ViewImplementation::exit_fullscreen()
+{
+    client().async_exit_fullscreen(page_id());
+}
+
 void ViewImplementation::alert_closed()
 {
     client().async_alert_closed(page_id());

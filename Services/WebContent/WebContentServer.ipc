@@ -140,4 +140,6 @@ endpoint WebContentServer
     cookies_changed(u64 page_id, Vector<HTTP::Cookie::Cookie> cookies) =|
 
     request_close(u64 page_id) =|
+    
+    exit_fullscreen(u64 page_id) =|
 }
