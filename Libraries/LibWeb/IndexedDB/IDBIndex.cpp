@@ -71,13 +71,15 @@ WebIDL::ExceptionOr<void> IDBIndex::set_name(String const& value)
         return {};
 
     // 8. If an index named name already exists in index’s object store, throw a "ConstraintError" DOMException.
-    for (auto const& existing_index : m_object_store_handle->index_set()) {
-        if (existing_index->name() == name)
-            return WebIDL::ConstraintError::create(realm, "An index with the given name already exists"_string);
-    }
+    if (index->object_store()->index_set().contains(name))
+        return WebIDL::ConstraintError::create(realm, "An index with the given name already exists"_string);
 
     // 9. Set index’s name to name.
     index->set_name(name);
+
+    // NOTE: Update the key in the map so it still matches the name
+    auto old_value = m_object_store_handle->index_set().take(m_name).release_value();
+    m_object_store_handle->index_set().set(name, old_value);
 
     // 10. Set this’s name to name.
     m_name = name;

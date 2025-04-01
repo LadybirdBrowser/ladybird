@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/HashMap.h>
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <AK/Variant.h>
@@ -37,11 +38,9 @@ public:
     bool uses_inline_keys() const { return m_key_path.has_value(); }
     bool uses_out_of_line_keys() const { return !m_key_path.has_value(); }
     Optional<KeyGenerator> key_generator() const { return m_key_generator; }
+    AK::HashMap<String, GC::Ref<Index>>& index_set() { return m_indexes; }
 
     GC::Ref<Database> database() const { return m_database; }
-
-    void add_index(GC::Ref<Index> index) { m_indexes.append(index); }
-    ReadonlySpan<GC::Ref<Index>> index_set() const { return m_indexes; }
 
 protected:
     virtual void visit_edges(Visitor&) override;
@@ -53,7 +52,7 @@ private:
     GC::Ref<Database> m_database;
 
     // AD-HOC: An Index has referenced ObjectStores, we also need the reverse mapping
-    Vector<GC::Ref<Index>> m_indexes;
+    AK::HashMap<String, GC::Ref<Index>> m_indexes;
 
     // An object store has a name, which is a name. At any one time, the name is unique within the database to which it belongs.
     String m_name;

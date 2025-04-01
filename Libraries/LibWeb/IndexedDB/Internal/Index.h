@@ -31,7 +31,7 @@ public:
     [[nodiscard]] static GC::Ref<Index> create(JS::Realm&, GC::Ref<ObjectStore>, String, KeyPath const&, bool, bool);
     virtual ~Index();
 
-    void set_name(String name) { m_name = move(name); }
+    void set_name(String name);
     [[nodiscard]] String name() const { return m_name; }
     [[nodiscard]] bool unique() const { return m_unique; }
     [[nodiscard]] bool multi_entry() const { return m_multi_entry; }
