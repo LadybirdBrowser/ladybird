@@ -75,9 +75,8 @@ void LineBuilder::begin_new_line(bool increment_y, bool is_first_break_in_sequen
     m_last_line_needs_update = true;
 
     // FIXME: Support text-indent with "each-line".
-    if (m_containing_block_used_values.line_boxes.size() <= 1) {
+    if (m_containing_block_used_values.line_boxes.size() <= 1)
         ensure_last_line_box().m_inline_length += m_text_indent;
-    }
 }
 
 LineBox& LineBuilder::ensure_last_line_box()
@@ -415,6 +414,24 @@ void LineBuilder::recalculate_available_space()
     m_available_width_for_current_line = min(available_at_bottom_of_line_box, available_at_top_of_line_box);
     if (!m_containing_block_used_values.line_boxes.is_empty())
         m_containing_block_used_values.line_boxes.last().m_original_available_width = m_available_width_for_current_line;
+}
+
+void LineBuilder::did_introduce_clearance(CSSPixels clearance)
+{
+    // If clearance was introduced but our current line box starts beyond it, we don't need to do anything.
+    if (clearance <= m_current_block_offset)
+        return;
+
+    // Increase the height of the previous line box so it matches the clearance, because the element's height is first
+    // determined by the bottom of the last line box (after trimming empty/whitespace boxes).
+    auto& line_boxes = m_containing_block_used_values.line_boxes;
+    if (line_boxes.size() > 1) {
+        auto& previous_line_box = line_boxes[line_boxes.size() - 2];
+        previous_line_box.m_bottom = clearance;
+    }
+
+    // The current line box will start directly after any cleared floats.
+    m_current_block_offset = clearance;
 }
 
 }

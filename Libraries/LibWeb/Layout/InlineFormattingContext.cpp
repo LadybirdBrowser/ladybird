@@ -282,8 +282,7 @@ void InlineFormattingContext::generate_line_boxes()
             if (item.node) {
                 auto introduce_clearance = parent().clear_floating_boxes(*item.node, *this);
                 if (introduce_clearance == BlockFormattingContext::DidIntroduceClearance::Yes) {
-                    if (vertical_float_clearance() > line_builder.current_block_offset())
-                        line_builder.set_current_block_offset(vertical_float_clearance());
+                    line_builder.did_introduce_clearance(vertical_float_clearance());
                     parent().reset_margin_state();
                 }
             }

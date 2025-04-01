@@ -42,12 +42,13 @@ public:
     void remove_last_line_if_empty();
 
     CSSPixels current_block_offset() const { return m_current_block_offset; }
-    void set_current_block_offset(CSSPixels block_offset) { m_current_block_offset = block_offset; }
 
     void recalculate_available_space();
     CSSPixels y_for_float_to_be_inserted_here(Box const&);
 
     auto& inline_formatting_context() { return m_context; }
+
+    void did_introduce_clearance(CSSPixels);
 
 private:
     void begin_new_line(bool increment_y, bool is_first_break_in_sequence = true);
