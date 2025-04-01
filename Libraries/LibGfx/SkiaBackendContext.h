@@ -8,6 +8,7 @@
 
 #include <AK/Noncopyable.h>
 #include <AK/RefCounted.h>
+#include <LibThreading/Mutex.h>
 
 #ifdef USE_VULKAN
 #    include <LibGfx/VulkanContext.h>
@@ -44,6 +45,12 @@ public:
     virtual GrDirectContext* sk_context() const = 0;
 
     virtual MetalContext& metal_context() = 0;
+
+    void lock() { m_mutex.lock(); }
+    void unlock() { m_mutex.unlock(); }
+
+private:
+    Threading::Mutex m_mutex;
 };
 
 }
