@@ -793,14 +793,55 @@ JS_DEFINE_NATIVE_FUNCTION(MathObject::pow)
     return pow_impl(vm, vm.argument(0), vm.argument(1));
 }
 
+class XorShift128PlusPlusRNG {
+public:
+    XorShift128PlusPlusRNG()
+    {
+        u64 seed = get_random<u32>();
+        m_low = splitmix64(seed);
+        m_high = splitmix64(seed);
+    }
+
+    double get()
+    {
+        u64 value = advance() & ((1ULL << 53) - 1);
+        return value * (1.0 / (1ULL << 53));
+    }
+
+private:
+    u64 splitmix64(u64& state)
+    {
+        u64 z = (state += 0x9e3779b97f4a7c15ULL);
+        z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9ULL;
+        z = (z ^ (z >> 27)) * 0x94d049bb133111ebULL;
+        return z ^ (z >> 31);
+    }
+
+    u64 advance()
+    {
+        u64 s1 = m_low;
+        u64 const s0 = m_high;
+        u64 const result = s0 + s1;
+        m_low = s0;
+        s1 ^= s1 << 23;
+        s1 ^= s1 >> 17;
+        s1 ^= s0 ^ (s0 >> 26);
+        m_high = s1;
+        return result + s1;
+    }
+
+    u64 m_low { 0 };
+    u64 m_high { 0 };
+};
+
 // 21.3.2.27 Math.random ( ), https://tc39.es/ecma262/#sec-math.random
 JS_DEFINE_NATIVE_FUNCTION(MathObject::random)
 {
     // This function returns a Number value with positive sign, greater than or equal to +0𝔽 but strictly less than 1𝔽,
     // chosen randomly or pseudo randomly with approximately uniform distribution over that range, using an
     // implementation-defined algorithm or strategy.
-    double r = (double)get_random<u32>() / (double)UINT32_MAX;
-    return Value(r);
+    static XorShift128PlusPlusRNG rng;
+    return rng.get();
 }
 
 // 21.3.2.28 Math.round ( x ), https://tc39.es/ecma262/#sec-math.round
