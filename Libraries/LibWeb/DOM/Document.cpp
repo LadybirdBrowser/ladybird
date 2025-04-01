@@ -3972,6 +3972,7 @@ void Document::run_unloading_cleanup_steps()
     }
 
     FileAPI::run_unloading_cleanup_steps(*this);
+    exit_fullscreen_fully();
 }
 
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#destroy-a-document
