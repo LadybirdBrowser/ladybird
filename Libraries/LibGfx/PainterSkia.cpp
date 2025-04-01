@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2024, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2024-2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  * Copyright (c) 2024, Lucien Fiorini <lucienfiorini@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -33,9 +33,13 @@ struct PainterSkia::Impl {
     {
     }
 
-    SkCanvas* canvas() const
+    template<typename Callback>
+    void with_canvas(Callback&& callback)
     {
-        return &painting_surface->canvas();
+        painting_surface->lock_context();
+        auto& canvas = painting_surface->canvas();
+        callback(canvas);
+        painting_surface->unlock_context();
     }
 };
 
@@ -122,14 +126,18 @@ void PainterSkia::clear_rect(Gfx::FloatRect const& rect, Gfx::Color color)
     SkPaint paint;
     paint.setColor(to_skia_color(color));
     paint.setBlendMode(SkBlendMode::kClear);
-    impl().canvas()->drawRect(to_skia_rect(rect), paint);
+    impl().with_canvas([&](auto& canvas) {
+        canvas.drawRect(to_skia_rect(rect), paint);
+    });
 }
 
 void PainterSkia::fill_rect(Gfx::FloatRect const& rect, Color color)
 {
     SkPaint paint;
     paint.setColor(to_skia_color(color));
-    impl().canvas()->drawRect(to_skia_rect(rect), paint);
+    impl().with_canvas([&](auto& canvas) {
+        canvas.drawRect(to_skia_rect(rect), paint);
+    });
 }
 
 void PainterSkia::draw_bitmap(Gfx::FloatRect const& dst_rect, Gfx::ImmutableBitmap const& src_bitmap, Gfx::IntRect const& src_rect, Gfx::ScalingMode scaling_mode, ReadonlySpan<Gfx::Filter> filters, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator)
@@ -139,13 +147,15 @@ void PainterSkia::draw_bitmap(Gfx::FloatRect const& dst_rect, Gfx::ImmutableBitm
     paint.setAlpha(static_cast<u8>(global_alpha * 255));
     paint.setBlender(to_skia_blender(compositing_and_blending_operator));
 
-    impl().canvas()->drawImageRect(
-        src_bitmap.sk_image(),
-        to_skia_rect(src_rect),
-        to_skia_rect(dst_rect),
-        to_skia_sampling_options(scaling_mode),
-        &paint,
-        SkCanvas::kStrict_SrcRectConstraint);
+    impl().with_canvas([&](auto& canvas) {
+        canvas.drawImageRect(
+            src_bitmap.sk_image(),
+            to_skia_rect(src_rect),
+            to_skia_rect(dst_rect),
+            to_skia_sampling_options(scaling_mode),
+            &paint,
+            SkCanvas::kStrict_SrcRectConstraint);
+    });
 }
 
 void PainterSkia::set_transform(Gfx::AffineTransform const& transform)
@@ -155,7 +165,9 @@ void PainterSkia::set_transform(Gfx::AffineTransform const& transform)
         transform.b(), transform.d(), transform.f(),
         0, 0, 1);
 
-    impl().canvas()->setMatrix(matrix);
+    impl().with_canvas([&](auto& canvas) {
+        canvas.setMatrix(matrix);
+    });
 }
 
 void PainterSkia::stroke_path(Gfx::Path const& path, Gfx::Color color, float thickness)
@@ -170,7 +182,9 @@ void PainterSkia::stroke_path(Gfx::Path const& path, Gfx::Color color, float thi
     paint.setStrokeWidth(thickness);
     paint.setColor(to_skia_color(color));
     auto sk_path = to_skia_path(path);
-    impl().canvas()->drawPath(sk_path, paint);
+    impl().with_canvas([&](auto& canvas) {
+        canvas.drawPath(sk_path, paint);
+    });
 }
 
 void PainterSkia::stroke_path(Gfx::Path const& path, Gfx::Color color, float thickness, float blur_radius, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator)
@@ -187,7 +201,9 @@ void PainterSkia::stroke_path(Gfx::Path const& path, Gfx::Color color, float thi
     paint.setColor(to_skia_color(color));
     paint.setBlender(to_skia_blender(compositing_and_blending_operator));
     auto sk_path = to_skia_path(path);
-    impl().canvas()->drawPath(sk_path, paint);
+    impl().with_canvas([&](auto& canvas) {
+        canvas.drawPath(sk_path, paint);
+    });
 }
 
 void PainterSkia::stroke_path(Gfx::Path const& path, Gfx::PaintStyle const& paint_style, ReadonlySpan<Gfx::Filter> filters, float thickness, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator)
@@ -204,7 +220,9 @@ void PainterSkia::stroke_path(Gfx::Path const& path, Gfx::PaintStyle const& pain
     paint.setStyle(SkPaint::Style::kStroke_Style);
     paint.setStrokeWidth(thickness);
     paint.setBlender(to_skia_blender(compositing_and_blending_operator));
-    impl().canvas()->drawPath(sk_path, paint);
+    impl().with_canvas([&](auto& canvas) {
+        canvas.drawPath(sk_path, paint);
+    });
 }
 
 void PainterSkia::stroke_path(Gfx::Path const& path, Gfx::PaintStyle const& paint_style, ReadonlySpan<Gfx::Filter> filters, float thickness, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Gfx::Path::CapStyle const& cap_style, Gfx::Path::JoinStyle const& join_style)
@@ -223,7 +241,9 @@ void PainterSkia::stroke_path(Gfx::Path const& path, Gfx::PaintStyle const& pain
     paint.setStrokeCap(to_skia_cap(cap_style));
     paint.setStrokeJoin(to_skia_join(join_style));
     paint.setBlender(to_skia_blender(compositing_and_blending_operator));
-    impl().canvas()->drawPath(sk_path, paint);
+    impl().with_canvas([&](auto& canvas) {
+        canvas.drawPath(sk_path, paint);
+    });
 }
 
 void PainterSkia::fill_path(Gfx::Path const& path, Gfx::Color color, Gfx::WindingRule winding_rule)
@@ -233,7 +253,9 @@ void PainterSkia::fill_path(Gfx::Path const& path, Gfx::Color color, Gfx::Windin
     paint.setColor(to_skia_color(color));
     auto sk_path = to_skia_path(path);
     sk_path.setFillType(to_skia_path_fill_type(winding_rule));
-    impl().canvas()->drawPath(sk_path, paint);
+    impl().with_canvas([&](auto& canvas) {
+        canvas.drawPath(sk_path, paint);
+    });
 }
 
 void PainterSkia::fill_path(Gfx::Path const& path, Gfx::Color color, Gfx::WindingRule winding_rule, float blur_radius, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator)
@@ -245,7 +267,9 @@ void PainterSkia::fill_path(Gfx::Path const& path, Gfx::Color color, Gfx::Windin
     paint.setBlender(to_skia_blender(compositing_and_blending_operator));
     auto sk_path = to_skia_path(path);
     sk_path.setFillType(to_skia_path_fill_type(winding_rule));
-    impl().canvas()->drawPath(sk_path, paint);
+    impl().with_canvas([&](auto& canvas) {
+        canvas.drawPath(sk_path, paint);
+    });
 }
 
 void PainterSkia::fill_path(Gfx::Path const& path, Gfx::PaintStyle const& paint_style, ReadonlySpan<Gfx::Filter> filters, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Gfx::WindingRule winding_rule)
@@ -257,24 +281,32 @@ void PainterSkia::fill_path(Gfx::Path const& path, Gfx::PaintStyle const& paint_
     float alpha = paint.getAlphaf();
     paint.setAlphaf(alpha * global_alpha);
     paint.setBlender(to_skia_blender(compositing_and_blending_operator));
-    impl().canvas()->drawPath(sk_path, paint);
+    impl().with_canvas([&](auto& canvas) {
+        canvas.drawPath(sk_path, paint);
+    });
 }
 
 void PainterSkia::save()
 {
-    impl().canvas()->save();
+    impl().with_canvas([&](auto& canvas) {
+        canvas.save();
+    });
 }
 
 void PainterSkia::restore()
 {
-    impl().canvas()->restore();
+    impl().with_canvas([&](auto& canvas) {
+        canvas.restore();
+    });
 }
 
 void PainterSkia::clip(Gfx::Path const& path, Gfx::WindingRule winding_rule)
 {
     auto sk_path = to_skia_path(path);
     sk_path.setFillType(to_skia_path_fill_type(winding_rule));
-    impl().canvas()->clipPath(sk_path, SkClipOp::kIntersect, true);
+    impl().with_canvas([&](auto& canvas) {
+        canvas.clipPath(sk_path, SkClipOp::kIntersect, true);
+    });
 }
 
 }

@@ -30,6 +30,7 @@ public:
 
 protected:
     Gfx::PaintingSurface& surface() const { return m_surfaces.last(); }
+    void execute_impl(DisplayList&, RefPtr<Gfx::PaintingSurface>);
 
 private:
     virtual void flush() = 0;

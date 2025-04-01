@@ -37,6 +37,17 @@ static bool command_is_clip_or_mask(Command const& command)
 
 void DisplayListPlayer::execute(DisplayList& display_list, RefPtr<Gfx::PaintingSurface> surface)
 {
+    if (surface) {
+        surface->lock_context();
+    }
+    execute_impl(display_list, surface);
+    if (surface) {
+        surface->unlock_context();
+    }
+}
+
+void DisplayListPlayer::execute_impl(DisplayList& display_list, RefPtr<Gfx::PaintingSurface> surface)
+{
     if (surface)
         m_surfaces.append(*surface);
     ScopeGuard guard = [&surfaces = m_surfaces, pop_surface_from_stack = !!surface] {
