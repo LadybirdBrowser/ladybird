@@ -17,6 +17,7 @@
 #include <AK/Vector.h>
 #include <AK/WeakPtr.h>
 #include <LibCore/Forward.h>
+#include <LibGC/HeapVector.h>
 #include <LibJS/Console.h>
 #include <LibJS/Forward.h>
 #include <LibURL/Origin.h>
@@ -984,6 +985,11 @@ public:
     bool fullscreen() const;
     bool fullscreen_enabled() const;
 
+    void fully_exit_fullscreen();
+    GC::Ref<WebIDL::Promise> exit_fullscreen();
+
+    void unfullscreen_element(GC::Ref<Element> element);
+
     auto& script_blocking_style_sheet_set() { return m_script_blocking_style_sheet_set; }
     auto const& script_blocking_style_sheet_set() const { return m_script_blocking_style_sheet_set; }
 
@@ -1029,6 +1035,9 @@ private:
 
     void evaluate_media_rules();
 
+    bool is_simple_fullscreen_document() const;
+    GC::Ref<GC::HeapVector<GC::Ref<Document>>> collect_documents_to_unfullscreen();
+
     enum class AddLineFeed {
         Yes,
         No,
@@ -1061,6 +1070,8 @@ private:
     void run_csp_initialization() const;
 
     void build_registered_properties_cache();
+
+    void unfullscreen();
 
     GC::Ref<Page> m_page;
     GC::Ptr<CSS::StyleComputer> m_style_computer;
