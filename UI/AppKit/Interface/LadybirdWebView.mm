@@ -1684,6 +1684,13 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
     m_modifier_flags = event.modifierFlags;
 }
 
+- (void)cursorUpdate:(NSEvent*)event
+{
+    // The NSApp will override the custom cursor set from on_cursor_change when the view hierarchy changes in some way
+    // (such as when we show self.status_label on link hover). Overriding this method with an empty implementation will
+    // prevent this from happening. See: https://stackoverflow.com/a/20197686
+}
+
 #pragma mark - NSDraggingDestination
 
 - (NSDragOperation)draggingEntered:(id<NSDraggingInfo>)event
