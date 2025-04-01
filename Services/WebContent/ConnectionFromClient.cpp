@@ -1299,4 +1299,10 @@ void ConnectionFromClient::system_time_zone_changed()
     Unicode::clear_system_time_zone_cache();
 }
 
+void ConnectionFromClient::exit_fullscreen(u64 page_id)
+{
+    if (auto page = this->page(page_id); page.has_value()) {
+        page.value().page().top_level_browsing_context().active_document()->exit_fullscreen_fully();
+    }
+}
 }
