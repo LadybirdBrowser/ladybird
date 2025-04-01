@@ -17,13 +17,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        os_name: ['Linux']
         os: [ubuntu-24.04]
+        arch: ['x86_64']
         package_type: [Linux-x86_64]
-        os_name: [Linux]
+
         include:
-          - os: macos-14
+          - os_name: 'macOS'
+            os: macos-15
+            arch: 'arm64'
             package_type: macOS-universal2
-            os_name: macOS
 
     concurrency:
       group: ${{ github.workflow }}-${{ matrix.os_name }}
@@ -36,14 +39,14 @@ jobs:
         uses: ./.github/actions/setup
         with:
           os: ${{ matrix.os_name }}
-          arch: 'Lagom'
+          arch: ${{ matrix.arch }}
 
       - name: Restore Caches
         uses: ./.github/actions/cache-restore
         id: 'cache-restore'
         with:
           os: ${{ matrix.os_name }}
-          arch: 'Lagom'
+          arch: ${{ matrix.arch }}
           cache_key_extra: 'LibJS Artifacts'
           ccache_path: ${{ env.CCACHE_DIR }}
           download_cache_path: ${{ github.workspace }}/Build/caches
