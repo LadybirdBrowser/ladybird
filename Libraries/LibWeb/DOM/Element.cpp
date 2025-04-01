@@ -1184,6 +1184,7 @@ void Element::removed_from(Node* old_parent, Node& old_root)
         if (m_name.has_value())
             document().element_with_name_was_removed({}, *this);
     }
+    removing_steps_fullscreen();
 }
 
 void Element::children_changed(ChildrenChangedMetadata const* metadata)
@@ -2087,6 +2088,32 @@ GC::Ref<WebIDL::Promise> Element::request_fullscreen()
     }));
 
     return promise;
+}
+
+void Element::removing_steps_fullscreen()
+{
+    // 1. Let document be removedNode’s node document.
+    auto& doc = document();
+    // 2. Let nodes be removedNode’s shadow-including inclusive descendants that have their fullscreen flag set, in shadow-including tree order.
+    // 3. For each node in nodes:
+    for_each_shadow_including_inclusive_descendant([&](Node& node) {
+        if (!is<Element>(node)) {
+            return TraversalDecision::Continue;
+        }
+
+        Element* element = static_cast<Element*>(&node);
+        if (element->is_fullscreen_element()) {
+            if (doc.fullscreen_element() == element) {
+                // 1. If node is document’s fullscreen element, exit fullscreen document.
+                doc.exit_fullscreen();
+            } else {
+                // 2. Otherwise, unfullscreen node.
+                doc.unfullscreen_element(*element);
+            }
+            // 3. If document’s top layer contains node, remove from the top layer immediately given node (handled above)
+        }
+        return TraversalDecision::Continue;
+    });
 }
 
 GC::Ptr<WebIDL::CallbackType> Element::onfullscreenchange()
