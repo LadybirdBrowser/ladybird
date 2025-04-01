@@ -1,9 +1,0 @@
-fontconfig is compatible with built-in CMake targets:
-
-  find_package(Fontconfig REQUIRED) # since CMake 3.14
-  target_link_libraries(main PRIVATE Fontconfig::Fontconfig)
-
-fontconfig provides pkg-config modules:
-
-  # Font configuration and customization library
-  fontconfig
