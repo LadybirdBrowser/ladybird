@@ -52,6 +52,7 @@ enum class QuirksMode {
 
 #define ENUMERATE_INVALIDATE_LAYOUT_TREE_REASONS(X)       \
     X(DocumentAddAnElementToTheTopLayer)                  \
+    X(DocumentRemoveAnElementFromTheTopLayer)             \
     X(DocumentRequestAnElementToBeRemovedFromTheTopLayer) \
     X(ShadowRootSetInnerHTML)
 
@@ -924,6 +925,11 @@ public:
     bool fullscreen() const;
     bool fullscreen_enabled() const;
 
+    void fully_exit_fullscreen();
+    GC::Ref<WebIDL::Promise> exit_fullscreen();
+
+    void unfullscreen_element(GC::Ref<Element> element);
+
     auto& script_blocking_style_sheet_set() { return m_script_blocking_style_sheet_set; }
     auto const& script_blocking_style_sheet_set() const { return m_script_blocking_style_sheet_set; }
 
@@ -950,6 +956,9 @@ private:
     void run_unloading_cleanup_steps();
 
     void evaluate_media_rules();
+
+    bool is_simple_fullscreen_document() const;
+    GC::RootVector<GC::Ref<Document>> collect_documents_to_unfullscreen() const;
 
     enum class AddLineFeed {
         Yes,
