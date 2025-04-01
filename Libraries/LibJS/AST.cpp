@@ -225,24 +225,35 @@ ThrowCompletionOr<ClassElement::ClassValue> ClassField::class_element_evaluation
     auto& realm = *vm.current_realm();
 
     auto property_key_or_private_name = TRY(class_key_to_property_name(vm, *m_key, property_key));
-    GC::Ptr<ECMAScriptFunctionObject> initializer;
+    Variant<GC::Ref<ECMAScriptFunctionObject>, Value, Empty> initializer;
     if (m_initializer) {
-        auto copy_initializer = m_initializer;
-        auto name = property_key_or_private_name.visit(
-            [&](PropertyKey const& property_key) -> String {
-                return property_key.is_number() ? property_key.to_string() : property_key.to_string_or_symbol().to_display_string();
-            },
-            [&](PrivateName const& private_name) -> String {
-                return private_name.description.to_string();
-            });
+        if (auto const* literal = as_if<NumericLiteral>(*m_initializer)) {
+            initializer = literal->value();
+        } else if (auto const* literal = as_if<BooleanLiteral>(*m_initializer)) {
+            initializer = literal->value();
+        } else if (auto const* literal = as_if<NullLiteral>(*m_initializer)) {
+            initializer = literal->value();
+        } else if (auto const* literal = as_if<StringLiteral>(*m_initializer)) {
+            initializer = Value(PrimitiveString::create(vm, literal->value()));
+        } else {
+            auto copy_initializer = m_initializer;
+            auto name = property_key_or_private_name.visit(
+                [&](PropertyKey const& property_key) -> String {
+                    return property_key.is_number() ? property_key.to_string() : property_key.to_string_or_symbol().to_display_string();
+                },
+                [&](PrivateName const& private_name) -> String {
+                    return private_name.description.to_string();
+                });
 
-        // FIXME: A potential optimization is not creating the functions here since these are never directly accessible.
-        auto function_code = create_ast_node<ClassFieldInitializerStatement>(m_initializer->source_range(), copy_initializer.release_nonnull(), name);
-        FunctionParsingInsights parsing_insights;
-        parsing_insights.uses_this_from_environment = true;
-        parsing_insights.uses_this = true;
-        initializer = ECMAScriptFunctionObject::create(realm, "field"_string, ByteString::empty(), *function_code, FunctionParameters::empty(), 0, {}, vm.lexical_environment(), vm.running_execution_context().private_environment, FunctionKind::Normal, true, parsing_insights, false, property_key_or_private_name);
-        initializer->make_method(target);
+            // FIXME: A potential optimization is not creating the functions here since these are never directly accessible.
+            auto function_code = create_ast_node<ClassFieldInitializerStatement>(m_initializer->source_range(), copy_initializer.release_nonnull(), name);
+            FunctionParsingInsights parsing_insights;
+            parsing_insights.uses_this_from_environment = true;
+            parsing_insights.uses_this = true;
+            auto function = ECMAScriptFunctionObject::create(realm, "field"_string, ByteString::empty(), *function_code, FunctionParameters::empty(), 0, {}, vm.lexical_environment(), vm.running_execution_context().private_environment, FunctionKind::Normal, true, parsing_insights, false, property_key_or_private_name);
+            function->make_method(target);
+            initializer = function;
+        }
     }
 
     return ClassValue {

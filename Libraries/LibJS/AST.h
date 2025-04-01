@@ -94,6 +94,8 @@ public:
     virtual bool is_object_expression() const { return false; }
     virtual bool is_numeric_literal() const { return false; }
     virtual bool is_string_literal() const { return false; }
+    virtual bool is_boolean_literal() const { return false; }
+    virtual bool is_null_literal() const { return false; }
     virtual bool is_update_expression() const { return false; }
     virtual bool is_call_expression() const { return false; }
     virtual bool is_labelled_statement() const { return false; }
@@ -1214,6 +1216,8 @@ public:
     virtual Value value() const override { return Value(m_value); }
 
 private:
+    virtual bool is_boolean_literal() const override { return true; }
+
     bool m_value { false };
 };
 
@@ -1281,6 +1285,9 @@ public:
     virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_bytecode(Bytecode::Generator&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const override;
 
     virtual Value value() const override { return js_null(); }
+
+private:
+    virtual bool is_null_literal() const override { return true; }
 };
 
 class RegExpLiteral final : public Expression {
@@ -2266,6 +2273,15 @@ inline bool ASTNode::fast_is<ObjectExpression>() const { return is_object_expres
 
 template<>
 inline bool ASTNode::fast_is<ImportCall>() const { return is_import_call(); }
+
+template<>
+inline bool ASTNode::fast_is<NumericLiteral>() const { return is_numeric_literal(); }
+
+template<>
+inline bool ASTNode::fast_is<BooleanLiteral>() const { return is_boolean_literal(); }
+
+template<>
+inline bool ASTNode::fast_is<NullLiteral>() const { return is_null_literal(); }
 
 template<>
 inline bool ASTNode::fast_is<StringLiteral>() const { return is_string_literal(); }
