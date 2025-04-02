@@ -56,7 +56,14 @@ void HTMLLinkElement::removed_from(Node* old_parent, Node& old_root)
 {
     Base::removed_from(old_parent, old_root);
     if (m_loaded_style_sheet) {
-        document_or_shadow_root_style_sheets().remove_a_css_style_sheet(*m_loaded_style_sheet);
+        auto& style_sheet_list = [&old_root] -> CSS::StyleSheetList& {
+            if (auto* shadow_root = as_if<DOM::ShadowRoot>(old_root); shadow_root)
+                return shadow_root->style_sheets();
+
+            return as<DOM::Document>(old_root).style_sheets();
+        }();
+
+        style_sheet_list.remove_a_css_style_sheet(*m_loaded_style_sheet);
         m_loaded_style_sheet = nullptr;
     }
 }
@@ -487,7 +494,7 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
                     if (!response.url_list().is_empty())
                         location = response.url_list().first().to_string();
 
-                    document().style_sheets().create_a_css_style_sheet(
+                    document_or_shadow_root_style_sheets().create_a_css_style_sheet(
                         "text/css"_string,
                         this,
                         attribute(HTML::AttributeNames::media).value_or({}),
