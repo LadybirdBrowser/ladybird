@@ -327,8 +327,8 @@ void URLSearchParams::sort()
     // 1. Sort all name-value pairs, if any, by their names. Sorting must be done by comparison of code units. The relative order between name-value pairs with equal names must be preserved.
     insertion_sort(m_list, [](auto& a, auto& b) {
         // FIXME: There should be a way to do this without converting to utf16
-        auto a_utf16 = MUST(utf8_to_utf16(a.name));
-        auto b_utf16 = MUST(utf8_to_utf16(b.name));
+        auto a_utf16 = MUST(utf8_to_utf16(a.name)).data;
+        auto b_utf16 = MUST(utf8_to_utf16(b.name)).data;
 
         auto common_length = min(a_utf16.size(), b_utf16.size());
 
