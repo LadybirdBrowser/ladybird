@@ -358,7 +358,7 @@ private:
     RefPtr<CSSStyleValue> parse_time_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_time_percentage_value(TokenStream<ComponentValue>&);
 
-    template<typename ParseFunction>
+    using ParseFunction = AK::Function<RefPtr<CSSStyleValue>(TokenStream<ComponentValue>&)>;
     RefPtr<CSSStyleValue> parse_comma_separated_value_list(TokenStream<ComponentValue>&, ParseFunction);
     RefPtr<CSSStyleValue> parse_simple_comma_separated_value_list(PropertyID, TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_all_as_single_keyword_value(TokenStream<ComponentValue>&, Keyword);

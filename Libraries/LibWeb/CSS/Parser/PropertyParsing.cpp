@@ -80,30 +80,6 @@ RefPtr<CSSStyleValue> Parser::parse_all_as_single_keyword_value(TokenStream<Comp
     return keyword_value;
 }
 
-template<typename ParseFunction>
-RefPtr<CSSStyleValue> Parser::parse_comma_separated_value_list(TokenStream<ComponentValue>& tokens, ParseFunction parse_one_value)
-{
-    auto first = parse_one_value(tokens);
-    if (!first || !tokens.has_next_token())
-        return first;
-
-    StyleValueVector values;
-    values.append(first.release_nonnull());
-
-    while (tokens.has_next_token()) {
-        if (!tokens.consume_a_token().is(Token::Type::Comma))
-            return nullptr;
-
-        if (auto maybe_value = parse_one_value(tokens)) {
-            values.append(maybe_value.release_nonnull());
-            continue;
-        }
-        return nullptr;
-    }
-
-    return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
-}
-
 RefPtr<CSSStyleValue> Parser::parse_simple_comma_separated_value_list(PropertyID property_id, TokenStream<ComponentValue>& tokens)
 {
     return parse_comma_separated_value_list(tokens, [this, property_id](auto& tokens) -> RefPtr<CSSStyleValue> {
