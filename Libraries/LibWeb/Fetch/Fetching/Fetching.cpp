@@ -284,7 +284,7 @@ WebIDL::ExceptionOr<GC::Ptr<PendingResponse>> main_fetch(JS::Realm& realm, Infra
     // 3. If request’s local-URLs-only flag is set and request’s current URL is not local, then set response to a
     //    network error.
     if (request->local_urls_only() && !Infrastructure::is_local_url(request->current_url()))
-        response = Infrastructure::Response::network_error(vm, "Request with 'local-URLs-only' flag must have a local URL"sv);
+        response = Infrastructure::Response::network_error(vm, "Request with 'local-URLs-only' flag must have a local URL"_string);
 
     // 4. Run report Content Security Policy violations for request.
     ContentSecurityPolicy::report_content_security_policy_violations_for_request(realm, request);
@@ -299,7 +299,7 @@ WebIDL::ExceptionOr<GC::Ptr<PendingResponse>> main_fetch(JS::Realm& realm, Infra
     if (Infrastructure::block_bad_port(request) == Infrastructure::RequestOrResponseBlocking::Blocked
         || MixedContent::should_fetching_request_be_blocked_as_mixed_content(request) == Infrastructure::RequestOrResponseBlocking::Blocked
         || ContentSecurityPolicy::should_request_be_blocked_by_content_security_policy(realm, request) == ContentSecurityPolicy::Directives::Directive::Result::Blocked) {
-        response = Infrastructure::Response::network_error(vm, "Request was blocked"sv);
+        response = Infrastructure::Response::network_error(vm, "Request was blocked"_string);
     }
 
     // 8. If request’s referrer policy is the empty string, then set request’s referrer policy to request’s policy
@@ -374,13 +374,13 @@ WebIDL::ExceptionOr<GC::Ptr<PendingResponse>> main_fetch(JS::Realm& realm, Infra
         // -> request’s mode is "same-origin"
         else if (request->mode() == Infrastructure::Request::Mode::SameOrigin) {
             // Return a network error.
-            return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request with 'same-origin' mode must have same URL and request origin"sv));
+            return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request with 'same-origin' mode must have same URL and request origin"_string));
         }
         // -> request’s mode is "no-cors"
         else if (request->mode() == Infrastructure::Request::Mode::NoCORS) {
             // 1. If request’s redirect mode is not "follow", then return a network error.
             if (request->redirect_mode() != Infrastructure::Request::RedirectMode::Follow)
-                return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request with 'no-cors' mode must have redirect mode set to 'follow'"sv));
+                return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request with 'no-cors' mode must have redirect mode set to 'follow'"_string));
 
             // 2. Set request’s response tainting to "opaque".
             request->set_response_tainting(Infrastructure::Request::ResponseTainting::Opaque);
@@ -394,7 +394,7 @@ WebIDL::ExceptionOr<GC::Ptr<PendingResponse>> main_fetch(JS::Realm& realm, Infra
             VERIFY(request->mode() == Infrastructure::Request::Mode::CORS);
 
             // Return a network error.
-            return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request with 'cors' mode must have URL with HTTP or HTTPS scheme"sv));
+            return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request with 'cors' mode must have URL with HTTP or HTTPS scheme"_string));
         }
         // -> request’s use-CORS-preflight flag is set
         // -> request’s unsafe-request flag is set and either request’s method is not a CORS-safelisted method or
@@ -563,7 +563,7 @@ WebIDL::ExceptionOr<GC::Ptr<PendingResponse>> main_fetch(JS::Realm& realm, Infra
                 // 1. Let processBodyError be this step: run fetch response handover given fetchParams and a network
                 //    error.
                 auto process_body_error = GC::create_function(vm.heap(), [&realm, &vm, &fetch_params](JS::Value) {
-                    fetch_response_handover(realm, fetch_params, Infrastructure::Response::network_error(vm, "Response body could not be processed"sv));
+                    fetch_response_handover(realm, fetch_params, Infrastructure::Response::network_error(vm, "Response body could not be processed"_string));
                 });
 
                 // 2. If response’s body is null, then run processBodyError and abort these steps.
@@ -842,7 +842,7 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> scheme_fetch(JS::Realm& realm, Inf
         if (request->method() != "GET"sv.bytes() || !blob_url_entry.has_value()) {
             // FIXME: Handle "blobURLEntry’s object is not a Blob object". It could be a MediaSource object, but we
             //        have not yet implemented the Media Source Extensions spec.
-            return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request has an invalid 'blob:' URL"sv));
+            return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request has an invalid 'blob:' URL"_string));
         }
 
         // 3. Let requestEnvironment be the result of determining the environment given request.
@@ -853,7 +853,7 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> scheme_fetch(JS::Realm& realm, Inf
 
         // 5. If isTopLevelNavigation is false and requestEnvironment is null, then return a network error.
         if (!is_top_level_navigation && !request_environment)
-            return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request is missing fetch client"sv));
+            return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request is missing fetch client"_string));
 
         // 6. Let navigationOrEnvironment be the string "navigation" if isTopLevelNavigation is true; otherwise, requestEnvironment.
         auto navigation_or_environment = [&]() -> Variant<FileAPI::NavigationEnvironment, GC::Ref<HTML::Environment>> {
@@ -868,7 +868,7 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> scheme_fetch(JS::Realm& realm, Inf
         // 8. If blob is not a Blob object, then return a network error.
         // FIXME: This should probably check for a MediaSource object as well, once we implement that.
         if (!blob_object.has_value())
-            return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Failed to obtain a Blob object from 'blob:' URL"sv));
+            return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Failed to obtain a Blob object from 'blob:' URL"_string));
         auto const blob = FileAPI::Blob::create(realm, blob_object->data, blob_object->type);
 
         // 9. Let response be a new response.
@@ -914,7 +914,7 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> scheme_fetch(JS::Realm& realm, Inf
 
             // 4. If rangeValue is failure, then return a network error.
             if (!maybe_range_value.has_value())
-                return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Failed to parse single range header value"sv));
+                return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Failed to parse single range header value"_string));
 
             // 5. Let (rangeStart, rangeEnd) be rangeValue.
             auto& [range_start, range_end] = maybe_range_value.value();
@@ -933,7 +933,7 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> scheme_fetch(JS::Realm& realm, Inf
             else {
                 // 1. If rangeStart is greater than or equal to fullLength, then return a network error.
                 if (*range_start >= full_length)
-                    return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "rangeStart is greater than or equal to fullLength"sv));
+                    return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "rangeStart is greater than or equal to fullLength"_string));
 
                 // 2. If rangeEnd is null or rangeEnd is greater than or equal to fullLength, then set rangeEnd to fullLength − 1.
                 if (!range_end.has_value() || *range_end >= full_length)
@@ -986,7 +986,7 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> scheme_fetch(JS::Realm& realm, Inf
 
         // 2. If dataURLStruct is failure, then return a network error.
         if (data_url_struct.is_error())
-            return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Failed to process 'data:' URL"sv));
+            return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Failed to process 'data:' URL"_string));
 
         // 3. Let mimeType be dataURLStruct’s MIME type, serialized.
         auto const& mime_type = data_url_struct.value().mime_type.serialized();
@@ -1010,7 +1010,7 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> scheme_fetch(JS::Realm& realm, Inf
         if (request->origin().has<URL::Origin>() && (request->origin().get<URL::Origin>().is_opaque() || request->origin().get<URL::Origin>().scheme() == "file"sv || request->origin().get<URL::Origin>().scheme() == "resource"sv))
             return TRY(nonstandard_resource_loader_file_or_http_network_fetch(realm, fetch_params));
         else
-            return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request with 'file:' or 'resource:' URL blocked"sv));
+            return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request with 'file:' or 'resource:' URL blocked"_string));
     }
     // -> HTTP(S) scheme
     else if (Infrastructure::is_http_or_https_scheme(request->current_url().scheme())) {
@@ -1090,7 +1090,7 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> http_fetch(JS::Realm& realm, Infra
                 // - request’s redirect mode is not "follow" and response’s URL list has more than one item.
                 || (request->redirect_mode() != Infrastructure::Request::RedirectMode::Follow && response->url_list().size() > 1)) {
                 // then return a network error.
-                return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Invalid request/response state combination"sv));
+                return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Invalid request/response state combination"_string));
             }
         }
     }
@@ -1269,17 +1269,17 @@ WebIDL::ExceptionOr<GC::Ptr<PendingResponse>> http_redirect_fetch(JS::Realm& rea
 
     // 5. If locationURL is failure, then return a network error.
     if (location_url_or_error.is_error())
-        return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request redirect URL is invalid"sv));
+        return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request redirect URL is invalid"_string));
 
     auto location_url = location_url_or_error.release_value().release_value();
 
     // 6. If locationURL’s scheme is not an HTTP(S) scheme, then return a network error.
     if (!Infrastructure::is_http_or_https_scheme(location_url.scheme()))
-        return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request redirect URL must have HTTP or HTTPS scheme"sv));
+        return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request redirect URL must have HTTP or HTTPS scheme"_string));
 
     // 7. If request’s redirect count is 20, then return a network error.
     if (request->redirect_count() == 20)
-        return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request has reached maximum redirect count of 20"sv));
+        return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request has reached maximum redirect count of 20"_string));
 
     // 8. Increase request’s redirect count by 1.
     request->set_redirect_count(request->redirect_count() + 1);
@@ -1290,20 +1290,20 @@ WebIDL::ExceptionOr<GC::Ptr<PendingResponse>> http_redirect_fetch(JS::Realm& rea
         && location_url.includes_credentials()
         && request->origin().has<URL::Origin>()
         && !request->origin().get<URL::Origin>().is_same_origin(location_url.origin())) {
-        return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request with 'cors' mode and different URL and request origin must not include credentials in redirect URL"sv));
+        return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request with 'cors' mode and different URL and request origin must not include credentials in redirect URL"_string));
     }
 
     // 10. If request’s response tainting is "cors" and locationURL includes credentials, then return a network error.
     // NOTE: This catches a cross-origin resource redirecting to a same-origin URL.
     if (request->response_tainting() == Infrastructure::Request::ResponseTainting::CORS && location_url.includes_credentials())
-        return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request with 'cors' response tainting must not include credentials in redirect URL"sv));
+        return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request with 'cors' response tainting must not include credentials in redirect URL"_string));
 
     // 11. If internalResponse’s status is not 303, request’s body is non-null, and request’s body’s source is null, then
     //     return a network error.
     if (internal_response->status() != 303
         && !request->body().has<Empty>()
         && request->body().get<GC::Ref<Infrastructure::Body>>()->source().has<Empty>()) {
-        return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request has body but no body source"sv));
+        return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request has body but no body source"_string));
     }
 
     // 12. If one of the following is true
@@ -1811,7 +1811,7 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> http_network_or_cache_fetch(JS::Re
 
             // 5. If the sum of contentLength and inflightKeepaliveBytes is greater than 64 kibibytes, then return a network error.
             if ((content_length.value() + inflight_keep_alive_bytes) > keepalive_maximum_size)
-                return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Keepalive request exceeded maximum allowed size of 64 KiB"sv));
+                return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Keepalive request exceeded maximum allowed size of 64 KiB"_string));
 
             // NOTE: The above limit ensures that requests that are allowed to outlive the environment settings object
             //       and contain a body, have a bounded size and are not allowed to stay alive indefinitely.
@@ -2053,7 +2053,7 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> http_network_or_cache_fetch(JS::Re
     if (!response) {
         // 1. If httpRequest’s cache mode is "only-if-cached", then return a network error.
         if (http_request->cache_mode() == Infrastructure::Request::CacheMode::OnlyIfCached)
-            return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request with 'only-if-cached' cache mode doesn't have a cached response"sv));
+            return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request with 'only-if-cached' cache mode doesn't have a cached response"_string));
 
         // 2. Let forwardResponse be the result of running HTTP-network fetch given httpFetchParams, includeCredentials,
         //    and isNewConnectionFetch.
@@ -2598,7 +2598,7 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> cors_preflight_fetch(JS::Realm& re
             //    is "include" or methods does not contain `*`, then return a network error.
             if (!methods.contains_slow(request.method()) && !Infrastructure::is_cors_safelisted_method(request.method())) {
                 if (request.credentials_mode() == Infrastructure::Request::CredentialsMode::Include) {
-                    returned_pending_response->resolve(Infrastructure::Response::network_error(vm, TRY_OR_IGNORE(String::formatted("Non-CORS-safelisted method '{}' not found in the CORS-preflight response's Access-Control-Allow-Methods header (the header may be missing). '*' is not allowed as the main request includes credentials."sv, StringView { request.method() }))));
+                    returned_pending_response->resolve(Infrastructure::Response::network_error(vm, TRY_OR_IGNORE(String::formatted("Non-CORS-safelisted method '{}' not found in the CORS-preflight response's Access-Control-Allow-Methods header (the header may be missing). '*' is not allowed as the main request includes credentials."_string, StringView { request.method() }))));
                     return;
                 }
 

@@ -42,7 +42,7 @@ class Navigable : public JS::Cell
 public:
     virtual ~Navigable() override;
 
-    using NullOrError = Optional<StringView>;
+    using NullOrError = Optional<String>;
     using NavigationParamsVariant = Variant<NullOrError, GC::Ref<NavigationParams>, GC::Ref<NonFetchSchemeNavigationParams>>;
 
     ErrorOr<void> initialize_navigable(GC::Ref<DocumentState> document_state, GC::Ptr<Navigable> parent);

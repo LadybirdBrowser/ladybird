@@ -47,14 +47,14 @@ GC::Ref<Response> Response::create(JS::VM& vm)
 
 GC::Ref<Response> Response::aborted_network_error(JS::VM& vm)
 {
-    auto response = network_error(vm, "Fetch has been aborted"sv);
+    auto response = network_error(vm, "Fetch has been aborted"_string);
     response->set_aborted(true);
     return response;
 }
 
-GC::Ref<Response> Response::network_error(JS::VM& vm, Variant<String, StringView> message)
+GC::Ref<Response> Response::network_error(JS::VM& vm, String message)
 {
-    dbgln_if(WEB_FETCH_DEBUG, "Fetch: Creating network error response with message: {}", message.visit([](auto const& s) -> StringView { return s; }));
+    dbgln_if(WEB_FETCH_DEBUG, "Fetch: Creating network error response with message: {}", message);
     auto response = Response::create(vm);
     response->set_status(0);
     response->set_type(Type::Error);
@@ -72,7 +72,7 @@ GC::Ref<Response> Response::appropriate_network_error(JS::VM& vm, FetchParams co
     // 2. Return an aborted network error if fetchParams is aborted; otherwise return a network error.
     return fetch_params.is_aborted()
         ? aborted_network_error(vm)
-        : network_error(vm, "Fetch has been terminated"sv);
+        : network_error(vm, "Fetch has been terminated"_string);
 }
 
 // https://fetch.spec.whatwg.org/#concept-aborted-network-error
@@ -341,12 +341,6 @@ u64 Response::stale_while_revalidate_lifetime() const
 }
 
 // Non-standard
-Optional<StringView> Response::network_error_message() const
-{
-    if (!m_network_error_message.has_value())
-        return {};
-    return m_network_error_message->visit([](auto const& s) -> StringView { return s; });
-}
 
 FilteredResponse::FilteredResponse(GC::Ref<Response> internal_response, GC::Ref<HeaderList> header_list)
     : Response(header_list)

@@ -63,7 +63,7 @@ WebIDL::ExceptionOr<GC::Ref<XMLHttpRequest>> XMLHttpRequest::construct_impl(JS::
 {
     auto upload_object = realm.create<XMLHttpRequestUpload>(realm);
     auto author_request_headers = Fetch::Infrastructure::HeaderList::create(realm.vm());
-    auto response = Fetch::Infrastructure::Response::network_error(realm.vm(), "Not sent yet"sv);
+    auto response = Fetch::Infrastructure::Response::network_error(realm.vm(), "Not sent yet"_string);
     auto fetch_controller = Fetch::Infrastructure::FetchController::create(realm.vm());
     return realm.create<XMLHttpRequest>(realm, *upload_object, *author_request_headers, *response, *fetch_controller);
 }
@@ -529,7 +529,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::open(String const& method_string, Stri
     // Empty this’s author request headers.
     m_author_request_headers->clear();
     // Set this’s response to a network error.
-    m_response = Fetch::Infrastructure::Response::network_error(realm().vm(), "Not yet sent"sv);
+    m_response = Fetch::Infrastructure::Response::network_error(realm().vm(), "Not yet sent"_string);
     // Set this’s received bytes to the empty byte sequence.
     m_received_bytes = {};
     // Set this’s response object to null.
@@ -845,7 +845,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
             auto process_body_error = GC::create_function(heap(), [this](JS::Value) {
                 auto& vm = this->vm();
                 // 1. Set this’s response to a network error.
-                m_response = Fetch::Infrastructure::Response::network_error(vm, "A network error occurred processing body."sv);
+                m_response = Fetch::Infrastructure::Response::network_error(vm, "A network error occurred processing body."_string);
                 // 2. Run handle errors for this.
                 // NOTE: This cannot throw, as `handle_errors` only throws in a synchronous context.
                 // FIXME: However, we can receive allocation failures, but we can't propagate them anywhere currently.
@@ -1140,7 +1140,7 @@ void XMLHttpRequest::abort()
     // Spec Note: No readystatechange event is dispatched.
     if (m_state == State::Done) {
         m_state = State::Unsent;
-        m_response = Fetch::Infrastructure::Response::network_error(vm(), "Not yet sent"sv);
+        m_response = Fetch::Infrastructure::Response::network_error(vm(), "Not yet sent"_string);
     }
 }
 
@@ -1245,7 +1245,7 @@ JS::ThrowCompletionOr<void> XMLHttpRequest::request_error_steps(FlyString const&
     m_send = false;
 
     // 3. Set xhr’s response to a network error.
-    m_response = Fetch::Infrastructure::Response::network_error(realm().vm(), "Failed to load"sv);
+    m_response = Fetch::Infrastructure::Response::network_error(realm().vm(), "Failed to load"_string);
 
     // 4. If xhr’s synchronous flag is set, then throw exception.
     if (m_synchronous) {

@@ -58,7 +58,7 @@ public:
 
     [[nodiscard]] static GC::Ref<Response> create(JS::VM&);
     [[nodiscard]] static GC::Ref<Response> aborted_network_error(JS::VM&);
-    [[nodiscard]] static GC::Ref<Response> network_error(JS::VM&, Variant<String, StringView> message);
+    [[nodiscard]] static GC::Ref<Response> network_error(JS::VM&, String message);
     [[nodiscard]] static GC::Ref<Response> appropriate_network_error(JS::VM&, FetchParams const&);
 
     virtual ~Response() = default;
@@ -124,7 +124,7 @@ public:
     [[nodiscard]] bool is_stale() const;
 
     // Non-standard
-    [[nodiscard]] Optional<StringView> network_error_message() const;
+    [[nodiscard]] Optional<String> const& network_error_message() const { return m_network_error_message; }
     MonotonicTime response_time() const { return m_response_time; }
 
 protected:
@@ -201,7 +201,7 @@ private:
     ByteBuffer m_method;
     MonotonicTime m_response_time;
 
-    Optional<Variant<String, StringView>> m_network_error_message;
+    Optional<String> m_network_error_message;
 
 public:
     [[nodiscard]] ByteBuffer const& method() const { return m_method; }
