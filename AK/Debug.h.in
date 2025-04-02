@@ -114,6 +114,10 @@
 #    cmakedefine01 ICO_DEBUG
 #endif
 
+#ifndef IDB_DEBUG
+#    cmakedefine01 IDB_DEBUG
+#endif
+
 #ifndef IDL_DEBUG
 #    cmakedefine01 IDL_DEBUG
 #endif
