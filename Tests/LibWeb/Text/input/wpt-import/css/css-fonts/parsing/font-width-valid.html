@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Fonts Module Level 4: parsing font-width with valid values</title>
+<link rel="help" href="https://www.w3.org/TR/css-fonts-4/#font-width-prop">
+<meta name="assert" content="font-width supports the full grammar 'normal | <percentage [0,∞]> | ultra-condensed | extra-condensed | condensed | semi-condensed | semi-expanded | expanded | extra-expanded | ultra-expanded'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+for (const property of ['font-width','font-stretch']) {
+    test_valid_value(property, 'normal');
+    test_valid_value(property, 'ultra-condensed');
+    test_valid_value(property, 'extra-condensed');
+    test_valid_value(property, 'condensed');
+    test_valid_value(property, 'semi-condensed');
+    test_valid_value(property, 'semi-expanded');
+    test_valid_value(property, 'expanded');
+    test_valid_value(property, 'extra-expanded');
+    test_valid_value(property, 'ultra-expanded');
+
+    test_valid_value(property, '234.5%');
+    test_valid_value(property, 'calc(100%)');
+    test_valid_value(property, 'calc(0%)');
+    test_valid_value(property, 'calc(-100%)');
+    test_valid_value(property, 'calc(100% + 100%)', 'calc(200%)');
+    test_valid_value(property, 'calc(100% + (sign(20cqw - 10px) * 5%))', 'calc(100% + (5% * sign(20cqw - 10px)))');
+}
+</script>
+</body>
+</html>
