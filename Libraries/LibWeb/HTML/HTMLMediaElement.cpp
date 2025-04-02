@@ -1032,8 +1032,8 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::fetch_resource(URL::URL const& url_r
             // 4. If the result of verifying response given the current media resource and byteRange is false, then abort these steps.
             // NOTE: We do this step before creating the updateMedia task so that we can invoke the failure callback.
             if (!verify_response(response, byte_range)) {
-                auto error_message = response->network_error_message().value_or("Failed to fetch media resource"sv);
-                failure_callback(String::from_utf8(error_message).release_value_but_fixme_should_propagate_errors());
+                auto error_message = response->network_error_message().value_or("Failed to fetch media resource"_string);
+                failure_callback(error_message);
                 return;
             }
 

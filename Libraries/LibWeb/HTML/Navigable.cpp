@@ -980,7 +980,7 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
 
         // 3. If the result of should navigation request of type be blocked by Content Security Policy? given request and cspNavigationType is "Blocked", then set response to a network error and break. [CSP]
         if (ContentSecurityPolicy::should_navigation_request_of_type_be_blocked_by_content_security_policy(request, csp_navigation_type) == ContentSecurityPolicy::Directives::Directive::Result::Blocked) {
-            response_holder->set_response(Fetch::Infrastructure::Response::network_error(vm, "Blocked by Content Security Policy"sv));
+            response_holder->set_response(Fetch::Infrastructure::Response::network_error(vm, "Blocked by Content Security Policy"_string));
             break;
         }
 
@@ -1144,7 +1144,7 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
     //     then return null.
     if (response_holder->response()->is_network_error()) {
         // AD-HOC: We pass the error message if we have one in NullWithError
-        if (response_holder->response()->network_error_message().has_value() && !response_holder->response()->network_error_message().value().is_null())
+        if (response_holder->response()->network_error_message().has_value())
             return response_holder->response()->network_error_message().value();
         else
             return Navigable::NullOrError {};
@@ -1312,7 +1312,7 @@ WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
                 },
                 [](GC::Ref<NonFetchSchemeNavigationParams>) { return false; })) {
             // 1. Set entry's document state's document to the result of creating a document for inline content that doesn't have a DOM, given navigable, null, navTimingType, and userInvolvement. The inline content should indicate to the user the sort of error that occurred.
-            auto error_message = navigation_params.has<NullOrError>() ? navigation_params.get<NullOrError>().value_or("Unknown error"sv) : "The request was denied."sv;
+            auto error_message = navigation_params.has<NullOrError>() ? navigation_params.get<NullOrError>().value_or("Unknown error"_string) : "The request was denied."_string;
 
             auto error_html = load_error_page(entry->url(), error_message).release_value_but_fixme_should_propagate_errors();
             entry->document_state()->set_document(create_document_for_inline_content(this, navigation_id, user_involvement, [this, error_html](auto& document) {

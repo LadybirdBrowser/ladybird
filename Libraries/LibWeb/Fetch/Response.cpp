@@ -173,7 +173,7 @@ GC::Ref<Response> Response::error(JS::VM& vm)
 {
     // The static error() method steps are to return the result of creating a Response object, given a new network error, "immutable", and this’s relevant Realm.
     // FIXME: How can we reliably get 'this', i.e. the object the function was called on, in IDL-defined functions?
-    return Response::create(*vm.current_realm(), Infrastructure::Response::network_error(vm, "Response created via `Response.error()`"sv), Headers::Guard::Immutable);
+    return Response::create(*vm.current_realm(), Infrastructure::Response::network_error(vm, "Response created via `Response.error()`"_string), Headers::Guard::Immutable);
 }
 
 // https://fetch.spec.whatwg.org/#dom-response-redirect

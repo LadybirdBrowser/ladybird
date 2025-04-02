@@ -124,7 +124,7 @@ void DedicatedWorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataHo
             // 3. If the Run CSP initialization for a global object algorithm returns "Blocked" when executed upon worker
             //    global scope, set response to a network error. [CSP]
             if (worker_global_scope->run_csp_initialization() == Web::ContentSecurityPolicy::Directives::Directive::Result::Blocked) {
-                response = Web::Fetch::Infrastructure::Response::network_error(vm, "Blocked by Content Security Policy"sv);
+                response = Web::Fetch::Infrastructure::Response::network_error(vm, "Blocked by Content Security Policy"_string);
             }
 
             // FIXME: 4. If worker global scope's embedder policy's value is compatible with cross-origin isolation and is shared is true,
