@@ -82,8 +82,6 @@ public:
 
     void set_preferred_languages(ReadonlySpan<String>);
 
-    void set_enable_do_not_track(bool);
-
     ByteString selected_text();
     Optional<String> selected_text_with_whitespace_collapsed();
     void select_all();

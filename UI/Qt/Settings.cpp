@@ -65,17 +65,6 @@ void Settings::set_preferred_languages(QStringList const& languages)
     emit preferred_languages_changed(languages);
 }
 
-bool Settings::enable_do_not_track()
-{
-    return m_qsettings->value("enable_do_not_track", false).toBool();
-}
-
-void Settings::set_enable_do_not_track(bool enable)
-{
-    m_qsettings->setValue("enable_do_not_track", enable);
-    emit enable_do_not_track_changed(enable);
-}
-
 bool Settings::show_menubar()
 {
     return m_qsettings->value("show_menubar", false).toBool();

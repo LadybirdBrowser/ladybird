@@ -44,9 +44,6 @@ public:
     QStringList preferred_languages();
     void set_preferred_languages(QStringList const& languages);
 
-    bool enable_do_not_track();
-    void set_enable_do_not_track(bool enable);
-
     bool show_menubar();
     void set_show_menubar(bool show_menubar);
 

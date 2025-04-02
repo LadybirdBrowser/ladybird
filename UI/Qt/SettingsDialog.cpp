@@ -32,18 +32,7 @@ SettingsDialog::SettingsDialog(QMainWindow* window)
         close();
     });
 
-    m_enable_do_not_track = new QCheckBox(this);
-    m_enable_do_not_track->setChecked(Settings::the()->enable_do_not_track());
-#if (QT_VERSION > QT_VERSION_CHECK(6, 7, 0))
-    QObject::connect(m_enable_do_not_track, &QCheckBox::checkStateChanged, this, [&](int state) {
-#else
-    QObject::connect(m_enable_do_not_track, &QCheckBox::stateChanged, this, [&](int state) {
-#endif
-        Settings::the()->set_enable_do_not_track(state == Qt::Checked);
-    });
-
     m_layout->addRow(new QLabel("Preferred Language(s)", this), m_preferred_languages);
-    m_layout->addRow(new QLabel("Send web sites a \"Do Not Track\" request", this), m_enable_do_not_track);
 
     setWindowTitle("Settings");
     setLayout(m_layout);
