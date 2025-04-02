@@ -16,6 +16,7 @@
 #include <AK/GenericLexer.h>
 #include <AK/TemporaryChange.h>
 #include <LibURL/URL.h>
+#include <LibWeb/CSS/FontFace.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyName.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
@@ -39,6 +40,7 @@
 #include <LibWeb/CSS/StyleValues/EdgeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FitContentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FlexStyleValue.h>
+#include <LibWeb/CSS/StyleValues/FontSourceStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FrequencyStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTrackPlacementStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTrackSizeListStyleValue.h>
@@ -3653,6 +3655,67 @@ RefPtr<StringStyleValue> Parser::parse_opentype_tag_value(TokenStream<ComponentV
 
     transaction.commit();
     return string_value;
+}
+
+RefPtr<FontSourceStyleValue> Parser::parse_font_source_value(TokenStream<ComponentValue>& tokens)
+{
+    // <font-src> = <url> [ format(<font-format>)]? [ tech( <font-tech>#)]? | local(<family-name>)
+    auto transaction = tokens.begin_transaction();
+
+    tokens.discard_whitespace();
+
+    // local(<family-name>)
+    if (tokens.next_token().is_function("local"sv)) {
+        auto const& function = tokens.consume_a_token().function();
+        TokenStream function_tokens { function.value };
+        if (auto family_name = parse_family_name_value(function_tokens)) {
+            transaction.commit();
+            return FontSourceStyleValue::create(FontSourceStyleValue::Local { family_name.release_nonnull() }, {});
+        }
+        return nullptr;
+    }
+
+    // <url> [ format(<font-format>)]? [ tech( <font-tech>#)]?
+    auto url = parse_url_function(tokens);
+    if (!url.has_value() || !url->is_valid())
+        return nullptr;
+
+    Optional<FlyString> format;
+
+    tokens.discard_whitespace();
+
+    // [ format(<font-format>)]?
+    if (tokens.next_token().is_function("format"sv)) {
+        auto const& function = tokens.consume_a_token().function();
+        auto context_guard = push_temporary_value_parsing_context(FunctionContext { function.name });
+
+        TokenStream format_tokens { function.value };
+        format_tokens.discard_whitespace();
+        auto const& format_name_token = format_tokens.consume_a_token();
+        FlyString format_name;
+        if (format_name_token.is(Token::Type::Ident)) {
+            format_name = format_name_token.token().ident();
+        } else if (format_name_token.is(Token::Type::String)) {
+            format_name = format_name_token.token().string();
+        } else {
+            dbgln_if(CSS_PARSER_DEBUG, "CSSParser: font source invalid (`format()` parameter not an ident or string; is: {}); discarding.", format_name_token.to_debug_string());
+            return nullptr;
+        }
+
+        if (!font_format_is_supported(format_name)) {
+            dbgln_if(CSS_PARSER_DEBUG, "CSSParser: font source format({}) not supported; skipping.", format_name);
+            return nullptr;
+        }
+
+        format = move(format_name);
+    }
+
+    tokens.discard_whitespace();
+
+    // FIXME: [ tech( <font-tech>#)]?
+
+    transaction.commit();
+    return FontSourceStyleValue::create(url.release_value(), move(format));
 }
 
 NonnullRefPtr<CSSStyleValue> Parser::resolve_unresolved_style_value(ParsingParams const& context, DOM::Element& element, Optional<PseudoElement> pseudo_element, PropertyID property_id, UnresolvedStyleValue const& unresolved)

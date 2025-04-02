@@ -341,6 +341,7 @@ private:
     RefPtr<PositionStyleValue> parse_position_value(TokenStream<ComponentValue>&, PositionParsingMode = PositionParsingMode::Normal);
     RefPtr<CSSStyleValue> parse_filter_value_list_value(TokenStream<ComponentValue>&);
     RefPtr<StringStyleValue> parse_opentype_tag_value(TokenStream<ComponentValue>&);
+    RefPtr<FontSourceStyleValue> parse_font_source_value(TokenStream<ComponentValue>&);
 
     RefPtr<CSSStyleValue> parse_angle_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_angle_percentage_value(TokenStream<ComponentValue>&);
