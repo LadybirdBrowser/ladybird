@@ -4249,7 +4249,8 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
     auto value = vm.argument(0);
 
     auto receiver = TRY(throw_dom_exception_if_needed(vm, [&]() { return impl->@attribute.cpp_name@(); }));
-    TRY(receiver->set(JS::PropertyKey { "@put_forwards_identifier@"_fly_string, JS::PropertyKey::StringMayBeNumber::No }, value, JS::Object::ShouldThrowExceptions::Yes));
+    if (receiver != JS::js_null())
+        TRY(receiver->set(JS::PropertyKey { "@put_forwards_identifier@"_fly_string, JS::PropertyKey::StringMayBeNumber::No }, value, JS::Object::ShouldThrowExceptions::Yes));
 
     return JS::js_undefined();
 }
