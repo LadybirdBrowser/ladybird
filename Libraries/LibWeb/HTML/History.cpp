@@ -180,8 +180,9 @@ WebIDL::ExceptionOr<void> History::shared_history_push_replace_state(JS::Value d
     if (!document->is_fully_active())
         return WebIDL::SecurityError::create(realm(), "Cannot perform pushState or replaceState on a document that isn't fully active."_string);
 
-    // 3. Optionally, return. (For example, the user agent might disallow calls to these methods that are invoked on a timer,
-    //    or from event listeners that are not triggered in response to a clear user action, or that are invoked in rapid succession.)
+    // 3. Optionally, throw a "SecurityError" DOMException. (For example, the user agent might disallow calls to these
+    //    methods that are invoked on a timer, or from event listeners that are not triggered in response to a clear
+    //    user action, or that are invoked in rapid succession.)
 
     // 4. Let serializedData be StructuredSerializeForStorage(data). Rethrow any exceptions.
     //    FIXME: Actually rethrow exceptions here once we start using the serialized data.
