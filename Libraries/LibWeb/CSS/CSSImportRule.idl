@@ -6,7 +6,7 @@
 [Exposed=Window]
 interface CSSImportRule : CSSRule {
     readonly attribute USVString href;
-    // FIXME: [SameObject, PutForwards=mediaText] readonly attribute MediaList media;
+    [SameObject, PutForwards=mediaText] readonly attribute MediaList media;
     [SameObject, ImplementedAs=style_sheet_for_bindings] readonly attribute CSSStyleSheet? styleSheet;
     [FIXME] readonly attribute CSSOMString? layerName;
     readonly attribute CSSOMString? supportsText;
