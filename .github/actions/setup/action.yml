@@ -31,7 +31,7 @@ runs:
         sudo add-apt-repository 'deb http://apt.llvm.org/noble/ llvm-toolchain-noble-19 main'
 
         sudo apt-get update -y
-        sudo apt-get install -y autoconf autoconf-archive automake build-essential ccache clang-19 clang++-19 curl fonts-liberation2 \
+        sudo apt-get install -y autoconf autoconf-archive automake build-essential ccache clang-19 clang++-19 cmake curl fonts-liberation2 \
             gcc-13 g++-13 libegl1-mesa-dev libgl1-mesa-dev libpulse-dev libssl-dev \
             libstdc++-13-dev lld-19 nasm ninja-build qt6-base-dev qt6-tools-dev-tools tar unzip zip
 
@@ -60,34 +60,6 @@ runs:
         set -e
         brew update
         brew install autoconf autoconf-archive automake bash ccache coreutils llvm@19 nasm ninja qt unzip wabt
-
-    # FIXME: GitHub Actions now bundles CMake 4.0, which breaks many vcpkg dependencies. See:
-    #        https://github.com/microsoft/vcpkg/issues/44726
-    - name: 'Install CMake 3.x'
-      shell: bash
-      run: |
-        set -e
-
-        if ${{ inputs.os == 'Linux' }} ; then
-          cmake_os="linux"
-          cmake_bin="bin"
-
-          if ${{ inputs.arch == 'x86_64' }} ; then
-            cmake_arch="x86_64"
-          elif ${{ inputs.arch == 'arm64' }} ; then
-            cmake_arch="aarch64"
-          fi
-        elif ${{ inputs.os == 'macOS' || inputs.os == 'Android' }} ; then
-          cmake_os="macos"
-          cmake_arch="universal"
-          cmake_bin="CMake.app/Contents/bin"
-        fi
-
-        wget https://github.com/Kitware/CMake/releases/download/v3.31.6/cmake-3.31.6-${cmake_os}-${cmake_arch}.tar.gz
-        tar -xzf ./cmake-3.31.6-${cmake_os}-${cmake_arch}.tar.gz
-        rm ./cmake-3.31.6-${cmake_os}-${cmake_arch}.tar.gz
-
-        echo "${{ github.workspace }}/cmake-3.31.6-${cmake_os}-${cmake_arch}/${cmake_bin}" >> $GITHUB_PATH
 
     - name: 'Set required environment variables'
       if: ${{ inputs.os == 'Linux' && inputs.arch == 'arm64' }}
