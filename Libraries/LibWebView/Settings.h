@@ -25,7 +25,7 @@ struct WEBVIEW_API SiteSetting {
     OrderedHashTable<String> site_filters;
 };
 
-enum class DoNotTrack {
+enum class GlobalPrivacyControl {
     No,
     Yes,
 };
@@ -41,7 +41,7 @@ public:
     virtual void search_engine_changed() { }
     virtual void autocomplete_engine_changed() { }
     virtual void autoplay_settings_changed() { }
-    virtual void do_not_track_changed() { }
+    virtual void global_privacy_control_changed() { }
     virtual void dns_settings_changed() { }
 };
 
@@ -79,8 +79,8 @@ public:
     void remove_autoplay_site_filter(String const&);
     void remove_all_autoplay_site_filters();
 
-    DoNotTrack do_not_track() const { return m_do_not_track; }
-    void set_do_not_track(DoNotTrack);
+    GlobalPrivacyControl global_privacy_control() const { return m_global_privacy_control; }
+    void set_global_privacy_control(GlobalPrivacyControl);
 
     static DNSSettings parse_dns_settings(JsonValue const&);
     DNSSettings const& dns_settings() const { return m_dns_settings; }
@@ -105,7 +105,7 @@ private:
     Vector<SearchEngine> m_custom_search_engines;
     Optional<AutocompleteEngine> m_autocomplete_engine;
     SiteSetting m_autoplay;
-    DoNotTrack m_do_not_track { DoNotTrack::No };
+    GlobalPrivacyControl m_global_privacy_control { GlobalPrivacyControl::No };
     DNSSettings m_dns_settings { SystemDNS() };
     bool m_dns_override_by_command_line { false };
 

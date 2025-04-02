@@ -66,8 +66,8 @@ public:
     NavigatorCompatibilityMode navigator_compatibility_mode() { return m_navigator_compatibility_mode; }
     void set_navigator_compatibility_mode(NavigatorCompatibilityMode mode) { m_navigator_compatibility_mode = mode; }
 
-    bool enable_do_not_track() const { return m_enable_do_not_track; }
-    void set_enable_do_not_track(bool enable) { m_enable_do_not_track = enable; }
+    bool enable_global_privacy_control() const { return m_enable_global_privacy_control; }
+    void set_enable_global_privacy_control(bool enable) { m_enable_global_privacy_control = enable; }
 
     void clear_cache();
     void evict_from_cache(LoadRequest const&);
@@ -91,7 +91,7 @@ private:
     String m_platform;
     Vector<String> m_preferred_languages = { "en"_string };
     NavigatorCompatibilityMode m_navigator_compatibility_mode;
-    bool m_enable_do_not_track { false };
+    bool m_enable_global_privacy_control { false };
 };
 
 }

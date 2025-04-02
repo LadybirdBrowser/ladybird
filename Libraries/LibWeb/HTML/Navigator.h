@@ -8,6 +8,7 @@
 
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/EncryptedMediaExtensions/NavigatorEncryptedMediaExtensionsPartial.h>
+#include <LibWeb/GPC/GlobalPrivacyControl.h>
 #include <LibWeb/Gamepad/NavigatorGamepad.h>
 #include <LibWeb/HTML/MimeTypeArray.h>
 #include <LibWeb/HTML/NavigatorBeacon.h>
@@ -24,11 +25,13 @@
 
 namespace Web::HTML {
 
-class Navigator : public Bindings::PlatformObject
+class Navigator
+    : public Bindings::PlatformObject
     , public NavigatorBeaconPartial
     , public NavigatorConcurrentHardwareMixin
     , public NavigatorDeviceMemoryMixin
     , public Gamepad::NavigatorGamepadPartial
+    , public GlobalPrivacyControl::GlobalPrivacyControlMixin
     , public EncryptedMediaExtensions::NavigatorEncryptedMediaExtensionsPartial
     , public NavigatorIDMixin
     , public NavigatorLanguageMixin
@@ -62,8 +65,6 @@ public:
     [[nodiscard]] GC::Ref<Serial::Serial> serial();
     [[nodiscard]] GC::Ref<UserActivation> user_activation();
     [[nodiscard]] GC::Ref<CredentialManagement::CredentialsContainer> credentials();
-
-    Optional<FlyString> do_not_track() const;
 
     GC::Ref<ServiceWorker::ServiceWorkerContainer> service_worker();
 

@@ -1,3 +1,4 @@
+#import <GPC/GlobalPrivacyControl.idl>
 #import <HTML/NavigatorConcurrentHardware.idl>
 #import <HTML/NavigatorDeviceMemory.idl>
 #import <HTML/NavigatorID.idl>
@@ -20,6 +21,7 @@ interface WorkerNavigator {
     [SecureContext, SameObject] readonly attribute ServiceWorkerContainer serviceWorker;
 };
 
+Navigator includes GlobalPrivacyControl;
 WorkerNavigator includes NavigatorID;
 WorkerNavigator includes NavigatorLanguage;
 WorkerNavigator includes NavigatorOnLine;
