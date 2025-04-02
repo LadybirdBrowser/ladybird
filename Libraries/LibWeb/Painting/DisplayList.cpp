@@ -150,7 +150,8 @@ void DisplayListPlayer::execute_impl(DisplayList& display_list, RefPtr<Gfx::Pain
         // clang-format on
     }
 
-    flush();
+    if (surface)
+        flush();
 }
 
 }
