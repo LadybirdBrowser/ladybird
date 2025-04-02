@@ -37,35 +37,40 @@ static constexpr u16 host_code_unit(u16 code_unit, Endianness endianness)
 }
 
 template<OneOf<Utf8View, Utf32View> UtfViewType>
-static ErrorOr<Utf16Data> to_utf16_slow(UtfViewType const& view, Endianness endianness)
+static ErrorOr<Utf16ConversionResult> to_utf16_slow(UtfViewType const& view, Endianness endianness)
 {
     Utf16Data utf16_data;
     TRY(utf16_data.try_ensure_capacity(view.length()));
 
-    for (auto code_point : view)
+    size_t code_point_count = 0;
+    for (auto code_point : view) {
         TRY(code_point_to_utf16(utf16_data, code_point, endianness));
+        code_point_count++;
+    }
 
-    return utf16_data;
+    return Utf16ConversionResult { move(utf16_data), code_point_count };
 }
 
-ErrorOr<Utf16Data> utf8_to_utf16(StringView utf8_view, Endianness endianness)
+ErrorOr<Utf16ConversionResult> utf8_to_utf16(StringView utf8_view, Endianness endianness)
 {
     return utf8_to_utf16(Utf8View { utf8_view }, endianness);
 }
 
-ErrorOr<Utf16Data> utf8_to_utf16(Utf8View const& utf8_view, Endianness endianness)
+ErrorOr<Utf16ConversionResult> utf8_to_utf16(Utf8View const& utf8_view, Endianness endianness)
 {
     // All callers want to allow lonely surrogates, which simdutf does not permit.
     if (!utf8_view.validate(Utf8View::AllowSurrogates::No)) [[unlikely]]
         return to_utf16_slow(utf8_view, endianness);
     if (utf8_view.is_empty())
-        return Utf16Data {};
+        return Utf16ConversionResult { Utf16Data {}, 0 };
 
     auto const* data = reinterpret_cast<char const*>(utf8_view.bytes());
     auto length = utf8_view.byte_length();
 
     Utf16Data utf16_data;
     TRY(utf16_data.try_resize(simdutf::utf16_length_from_utf8(data, length)));
+    // FIXME: simdutf _could_ be telling us about this, but it doesn't -- so we have to compute it again.
+    auto code_point_length = simdutf::count_utf8(data, length);
 
     [[maybe_unused]] auto result = [&]() {
         switch (endianness) {
@@ -80,13 +85,13 @@ ErrorOr<Utf16Data> utf8_to_utf16(Utf8View const& utf8_view, Endianness endiannes
     }();
     ASSERT(result == utf16_data.size());
 
-    return utf16_data;
+    return Utf16ConversionResult { utf16_data, code_point_length };
 }
 
-ErrorOr<Utf16Data> utf32_to_utf16(Utf32View const& utf32_view, Endianness endianness)
+ErrorOr<Utf16ConversionResult> utf32_to_utf16(Utf32View const& utf32_view, Endianness endianness)
 {
     if (utf32_view.is_empty())
-        return Utf16Data {};
+        return Utf16ConversionResult { Utf16Data {}, 0 };
 
     auto const* data = reinterpret_cast<char32_t const*>(utf32_view.code_points());
     auto length = utf32_view.length();
@@ -107,7 +112,7 @@ ErrorOr<Utf16Data> utf32_to_utf16(Utf32View const& utf32_view, Endianness endian
     }();
     ASSERT(result == utf16_data.size());
 
-    return utf16_data;
+    return Utf16ConversionResult { utf16_data, length };
 }
 
 ErrorOr<void> code_point_to_utf16(Utf16Data& string, u32 code_point, Endianness endianness)
@@ -207,6 +212,9 @@ u32 Utf16View::code_point_at(size_t index) const
 
 size_t Utf16View::code_point_offset_of(size_t code_unit_offset) const
 {
+    if (m_length_in_code_points == m_code_units.size()) // Fast path: all code points are one code unit.
+        return code_unit_offset;
+
     size_t code_point_offset = 0;
 
     for (auto it = begin(); it != end(); ++it) {
@@ -222,6 +230,9 @@ size_t Utf16View::code_point_offset_of(size_t code_unit_offset) const
 
 size_t Utf16View::code_unit_offset_of(size_t code_point_offset) const
 {
+    if (m_length_in_code_points == m_code_units.size()) // Fast path: all code points are one code unit.
+        return code_point_offset;
+
     size_t code_unit_offset = 0;
 
     for (auto it = begin(); it != end(); ++it) {
@@ -255,6 +266,9 @@ Utf16View Utf16View::unicode_substring_view(size_t code_point_offset, size_t cod
 {
     if (code_point_length == 0)
         return {};
+
+    if (m_length_in_code_points == m_code_units.size()) // Fast path: all code points are one code unit.
+        return substring_view(code_point_offset, code_point_length);
 
     auto code_unit_offset_of = [&](Utf16CodePointIterator const& it) { return it.m_ptr - begin_ptr(); };
     size_t code_point_index = 0;

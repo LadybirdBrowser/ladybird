@@ -46,8 +46,8 @@ WebIDL::ExceptionOr<String> CharacterData::substring_data(size_t offset, size_t 
 {
     // 1. Let length be node’s length.
     // FIXME: This is very inefficient!
-    auto utf16_data = MUST(AK::utf8_to_utf16(m_data));
-    Utf16View utf16_view { utf16_data };
+    auto utf16_result = MUST(AK::utf8_to_utf16(m_data));
+    Utf16View utf16_view { utf16_result };
     auto length = utf16_view.length_in_code_units();
 
     // 2. If offset is greater than length, then throw an "IndexSizeError" DOMException.
@@ -84,12 +84,12 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
     // 6. Let delete offset be offset + data’s length.
     // 7. Starting from delete offset code units, remove count code units from node’s data.
     auto before_data = utf16_view.substring_view(0, offset);
-    auto inserted_data = MUST(AK::utf8_to_utf16(data));
+    auto inserted_data_result = MUST(AK::utf8_to_utf16(data));
     auto after_data = utf16_view.substring_view(offset + count);
     Utf16Data full_data;
-    full_data.ensure_capacity(before_data.length_in_code_units() + inserted_data.size() + after_data.length_in_code_units());
+    full_data.ensure_capacity(before_data.length_in_code_units() + inserted_data_result.data.size() + after_data.length_in_code_units());
     full_data.append(before_data.data(), before_data.length_in_code_units());
-    full_data.extend(inserted_data);
+    full_data.extend(inserted_data_result.data);
     full_data.append(after_data.data(), after_data.length_in_code_units());
     Utf16View full_view { full_data };
 
@@ -120,14 +120,14 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
     // 10. For each live range whose start node is node and start offset is greater than offset plus count, increase its start offset by data’s length and decrease it by count.
     for (auto& range : Range::live_ranges()) {
         if (range->start_container() == this && range->start_offset() > (offset + count))
-            TRY(range->set_start(*range->start_container(), range->start_offset() + inserted_data.size() - count));
+            TRY(range->set_start(*range->start_container(), range->start_offset() + inserted_data_result.data.size() - count));
     }
 
     // 11. For each live range whose end node is node and end offset is greater than offset plus count, increase its end offset by data’s length and decrease it by count.
     for (auto& range : Range::live_ranges()) {
         if (range->end_container() == this && range->end_offset() > (offset + count)) {
             // AD-HOC: Clamp offset to the end of the data if it's too large.
-            auto new_offset = min(range->end_offset() + inserted_data.size() - count, length_in_utf16_code_units());
+            auto new_offset = min(range->end_offset() + inserted_data_result.data.size() - count, length_in_utf16_code_units());
             TRY(range->set_end(*range->end_container(), new_offset));
         }
     }
