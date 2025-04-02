@@ -70,11 +70,13 @@ void ConnectionFromClient::die()
     Web::Platform::EventLoopPlugin::the().quit();
 }
 
-Messages::WebContentServer::InitTransportResponse ConnectionFromClient::init_transport([[maybe_unused]] int peer_pid)
+NonnullRefPtr<Messages::WebContentServer::InitTransport::Promise> ConnectionFromClient::init_transport([[maybe_unused]] int peer_pid)
 {
 #ifdef AK_OS_WINDOWS
+    auto promise = Messages::WebContentServer::InitTransport::Promise::construct();
+    promise->resolve(Messages::WebContentServer::InitTransportResponse { peer_pid });
     m_transport.set_peer_pid(peer_pid);
-    return Core::System::getpid();
+    return promise;
 #endif
     VERIFY_NOT_REACHED();
 }
@@ -102,11 +104,15 @@ void ConnectionFromClient::close_server()
     shutdown();
 }
 
-Messages::WebContentServer::GetWindowHandleResponse ConnectionFromClient::get_window_handle(u64 page_id)
+NonnullRefPtr<Messages::WebContentServer::GetWindowHandle::Promise> ConnectionFromClient::get_window_handle(u64 page_id)
 {
-    if (auto page = this->page(page_id); page.has_value())
-        return page->page().top_level_traversable()->window_handle();
-    return String {};
+    auto promise = Messages::WebContentServer::GetWindowHandle::Promise::construct();
+    if (auto page = this->page(page_id); page.has_value()) {
+        promise->resolve(page->page().top_level_traversable()->window_handle());
+        return promise;
+    }
+    promise->resolve(String {});
+    return promise;
 }
 
 void ConnectionFromClient::set_window_handle(u64 page_id, String handle)
@@ -1003,11 +1009,15 @@ void ConnectionFromClient::request_internal_page_info(u64 page_id, WebView::Page
     async_did_get_internal_page_info(page_id, type, MUST(builder.to_string()));
 }
 
-Messages::WebContentServer::GetSelectedTextResponse ConnectionFromClient::get_selected_text(u64 page_id)
+NonnullRefPtr<Messages::WebContentServer::GetSelectedText::Promise> ConnectionFromClient::get_selected_text(u64 page_id)
 {
-    if (auto page = this->page(page_id); page.has_value())
-        return page->page().focused_navigable().selected_text().to_byte_string();
-    return ByteString {};
+    auto promise = Messages::WebContentServer::GetSelectedText::Promise::construct();
+    if (auto page = this->page(page_id); page.has_value()) {
+        promise->resolve(page->page().focused_navigable().selected_text().to_byte_string());
+        return promise;
+    }
+    promise->resolve(ByteString {});
+    return promise;
 }
 
 void ConnectionFromClient::select_all(u64 page_id)
@@ -1153,26 +1163,34 @@ void ConnectionFromClient::did_update_window_rect(u64 page_id)
         page->page().did_update_window_rect();
 }
 
-Messages::WebContentServer::GetLocalStorageEntriesResponse ConnectionFromClient::get_local_storage_entries(u64 page_id)
+NonnullRefPtr<Messages::WebContentServer::GetLocalStorageEntries::Promise> ConnectionFromClient::get_local_storage_entries(u64 page_id)
 {
+    auto promise = Messages::WebContentServer::GetLocalStorageEntries::Promise::construct();
     auto page = this->page(page_id);
-    if (!page.has_value())
-        return OrderedHashMap<String, String> {};
+    if (!page.has_value()) {
+        promise->resolve(OrderedHashMap<String, String> {});
+        return promise;
+    }
 
     auto* document = page->page().top_level_browsing_context().active_document();
     auto local_storage = document->window()->local_storage().release_value_but_fixme_should_propagate_errors();
-    return local_storage->map();
+    promise->resolve(local_storage->map());
+    return promise;
 }
 
-Messages::WebContentServer::GetSessionStorageEntriesResponse ConnectionFromClient::get_session_storage_entries(u64 page_id)
+NonnullRefPtr<Messages::WebContentServer::GetSessionStorageEntries::Promise> ConnectionFromClient::get_session_storage_entries(u64 page_id)
 {
+    auto promise = Messages::WebContentServer::GetSessionStorageEntries::Promise::construct();
     auto page = this->page(page_id);
-    if (!page.has_value())
-        return OrderedHashMap<String, String> {};
+    if (!page.has_value()) {
+        promise->resolve(OrderedHashMap<String, String> {});
+        return promise;
+    }
 
     auto* document = page->page().top_level_browsing_context().active_document();
     auto session_storage = document->window()->session_storage().release_value_but_fixme_should_propagate_errors();
-    return session_storage->map();
+    promise->resolve(session_storage->map());
+    return promise;
 }
 
 void ConnectionFromClient::handle_file_return(u64, i32 error, Optional<IPC::File> file, i32 request_id)

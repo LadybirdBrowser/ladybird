@@ -37,19 +37,19 @@ public:
 private:
     explicit ConnectionFromClient(IPC::Transport);
 
-    virtual Messages::RequestServer::InitTransportResponse init_transport(int peer_pid) override;
-    virtual Messages::RequestServer::ConnectNewClientResponse connect_new_client() override;
-    virtual Messages::RequestServer::IsSupportedProtocolResponse is_supported_protocol(ByteString) override;
+    virtual NonnullRefPtr<Messages::RequestServer::InitTransport::Promise> init_transport(int peer_pid) override;
+    virtual NonnullRefPtr<Messages::RequestServer::ConnectNewClient::Promise> connect_new_client() override;
+    virtual NonnullRefPtr<Messages::RequestServer::IsSupportedProtocol::Promise> is_supported_protocol(ByteString) override;
     virtual void set_dns_server(ByteString host_or_address, u16 port, bool use_tls) override;
     virtual void start_request(i32 request_id, ByteString, URL::URL, HTTP::HeaderMap, ByteBuffer, Core::ProxyData) override;
-    virtual Messages::RequestServer::StopRequestResponse stop_request(i32) override;
-    virtual Messages::RequestServer::SetCertificateResponse set_certificate(i32, ByteString, ByteString) override;
+    virtual NonnullRefPtr<Messages::RequestServer::StopRequest::Promise> stop_request(i32) override;
+    virtual NonnullRefPtr<Messages::RequestServer::SetCertificate::Promise> set_certificate(i32, ByteString, ByteString) override;
     virtual void ensure_connection(URL::URL url, ::RequestServer::CacheLevel cache_level) override;
 
     virtual void websocket_connect(i64 websocket_id, URL::URL, ByteString, Vector<ByteString>, Vector<ByteString>, HTTP::HeaderMap) override;
     virtual void websocket_send(i64 websocket_id, bool, ByteBuffer) override;
     virtual void websocket_close(i64 websocket_id, u16, ByteString) override;
-    virtual Messages::RequestServer::WebsocketSetCertificateResponse websocket_set_certificate(i64, ByteString, ByteString) override;
+    virtual NonnullRefPtr<Messages::RequestServer::WebsocketSetCertificate::Promise> websocket_set_certificate(i64, ByteString, ByteString) override;
 
     HashMap<i32, RefPtr<WebSocket::WebSocket>> m_websockets;
 
@@ -68,7 +68,7 @@ private:
     RefPtr<Core::Timer> m_timer;
     HashMap<int, NonnullRefPtr<Core::Notifier>> m_read_notifiers;
     HashMap<int, NonnullRefPtr<Core::Notifier>> m_write_notifiers;
-    NonnullRefPtr<Resolver> m_resolver;
+    NonnullRefPtr<RequestServer::Resolver> m_resolver;
 };
 
 // FIXME: Find a good home for this

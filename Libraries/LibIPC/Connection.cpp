@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2021-2024, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2025, Simon Farre <simon.farre.cx@gmail.com>
  * Copyright (c) 2022, the SerenityOS developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -9,7 +10,6 @@
 #include <LibCore/Socket.h>
 #include <LibCore/Timer.h>
 #include <LibIPC/Connection.h>
-#include <LibIPC/Message.h>
 #include <LibIPC/Stub.h>
 
 namespace IPC {
@@ -18,6 +18,7 @@ ConnectionBase::ConnectionBase(IPC::Stub& local_stub, Transport transport, u32 l
     : m_local_stub(local_stub)
     , m_transport(move(transport))
     , m_local_endpoint_magic(local_endpoint_magic)
+    , m_event_loop(Core::EventLoop::current())
 {
     m_responsiveness_timer = Core::Timer::create_single_shot(3000, [this] { may_have_become_unresponsive(); });
 
@@ -25,7 +26,7 @@ ConnectionBase::ConnectionBase(IPC::Stub& local_stub, Transport transport, u32 l
         NonnullRefPtr protect = *this;
         // FIXME: Do something about errors.
         (void)drain_messages_from_peer();
-        handle_messages();
+        process_messages();
     });
 
     m_send_queue = adopt_ref(*new SendQueue);
@@ -102,26 +103,6 @@ void ConnectionBase::shutdown_with_error(Error const& error)
     shutdown();
 }
 
-void ConnectionBase::handle_messages()
-{
-    auto messages = move(m_unprocessed_messages);
-    for (auto& message : messages) {
-        if (message->endpoint_magic() == m_local_endpoint_magic) {
-            auto handler_result = m_local_stub.handle(move(message));
-            if (handler_result.is_error()) {
-                dbgln("IPC::ConnectionBase::handle_messages: {}", handler_result.error());
-                continue;
-            }
-
-            if (auto response = handler_result.release_value()) {
-                if (auto post_result = post_message(*response); post_result.is_error()) {
-                    dbgln("IPC::ConnectionBase::handle_messages: {}", post_result.error());
-                }
-            }
-        }
-    }
-}
-
 void ConnectionBase::wait_for_transport_to_become_readable()
 {
     m_transport.wait_until_readable();
@@ -160,6 +141,33 @@ ErrorOr<Vector<u8>> ConnectionBase::read_as_much_as_possible_from_transport_with
     return bytes;
 }
 
+void ConnectionBase::process_messages()
+{
+    if (m_unprocessed_messages.is_empty()) {
+        return;
+    }
+    Vector<NonnullOwnPtr<Message>> messages;
+    swap(m_unprocessed_messages, messages);
+
+    for (auto& message : messages) {
+        if (message->is_response()) {
+            auto it = find_if(m_resolvers.begin(), m_resolvers.end(), [id = message->ipc_request_id()](auto const& res) { return res.request_id == id; });
+            if (it == m_resolvers.end()) {
+                continue;
+            }
+            it->promise_completer(move(message));
+            m_resolvers.remove(std::distance(m_resolvers.begin(), it));
+        } else {
+            // Handle message on thread this connection was created on.
+            // We don't necessarily need to defer invoke here, but in a future where we may want
+            // to have a dedicated IO thread, it needs to post the work back to the thread it needs to run on.
+            m_event_loop.deferred_invoke([this, msg = move(message)]() mutable {
+                m_local_stub.handle_ipc_message(NonnullRefPtr<IPC::ConnectionBase> { *this }, move(msg));
+            });
+        }
+    }
+}
+
 ErrorOr<void> ConnectionBase::drain_messages_from_peer()
 {
     auto bytes = TRY(read_as_much_as_possible_from_transport_without_blocking());
@@ -181,13 +189,13 @@ ErrorOr<void> ConnectionBase::drain_messages_from_peer()
 
     if (!m_unprocessed_messages.is_empty()) {
         deferred_invoke([this] {
-            handle_messages();
+            process_messages();
         });
     }
     return {};
 }
 
-OwnPtr<IPC::Message> ConnectionBase::wait_for_specific_endpoint_message_impl(u32 endpoint_magic, int message_id)
+OwnPtr<IPC::Message> ConnectionBase::wait_for_specific_endpoint_message_impl(u64 request_id, u32 endpoint_magic, int message_id)
 {
     for (;;) {
         // Double check we don't already have the event waiting for us.
@@ -196,7 +204,7 @@ OwnPtr<IPC::Message> ConnectionBase::wait_for_specific_endpoint_message_impl(u32
             auto& message = m_unprocessed_messages[i];
             if (message->endpoint_magic() != endpoint_magic)
                 continue;
-            if (message->message_id() == message_id)
+            if (message->message_id() == message_id && message->ipc_request_id() == request_id)
                 return m_unprocessed_messages.take(i);
         }
 

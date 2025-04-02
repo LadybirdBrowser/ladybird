@@ -19,6 +19,8 @@
 
 namespace WebView {
 
+using namespace Messages::UIProcessServer;
+
 class UIProcessConnectionFromClient final
     : public IPC::ConnectionFromClient<UIProcessClientEndpoint, UIProcessServerEndpoint> {
     C_OBJECT(UIProcessConnectionFromClient);
@@ -34,8 +36,8 @@ public:
 private:
     UIProcessConnectionFromClient(IPC::Transport, int client_id);
 
-    virtual void create_new_tab(Vector<ByteString> urls) override;
-    virtual void create_new_window(Vector<ByteString> urls) override;
+    virtual NonnullRefPtr<Messages::UIProcessServer::CreateNewTab::Promise> create_new_tab(Vector<ByteString> urls) override;
+    virtual NonnullRefPtr<Messages::UIProcessServer::CreateNewWindow::Promise> create_new_window(Vector<ByteString> urls) override;
 };
 
 class BrowserProcess {

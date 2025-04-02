@@ -475,24 +475,33 @@ void WebContentClient::did_change_favicon(u64 page_id, Gfx::ShareableBitmap favi
     }
 }
 
-Messages::WebContentClient::DidRequestAllCookiesResponse WebContentClient::did_request_all_cookies(URL::URL url)
+NonnullRefPtr<Messages::WebContentClient::DidRequestAllCookies::Promise> WebContentClient::did_request_all_cookies(URL::URL url)
 {
-    return Application::cookie_jar().get_all_cookies(url);
+    auto promise = Messages::WebContentClient::DidRequestAllCookies::Promise::construct();
+    promise->resolve(Messages::WebContentClient::DidRequestAllCookiesResponse { Application::cookie_jar().get_all_cookies(url) });
+    return promise;
 }
 
-Messages::WebContentClient::DidRequestNamedCookieResponse WebContentClient::did_request_named_cookie(URL::URL url, String name)
+NonnullRefPtr<Messages::WebContentClient::DidRequestNamedCookie::Promise> WebContentClient::did_request_named_cookie(URL::URL url, String name)
 {
-    return Application::cookie_jar().get_named_cookie(url, name);
+    auto promise = Messages::WebContentClient::DidRequestNamedCookie::Promise::construct();
+    promise->resolve(Messages::WebContentClient::DidRequestNamedCookieResponse { Application::cookie_jar().get_named_cookie(url, name) });
+    return promise;
 }
 
-Messages::WebContentClient::DidRequestCookieResponse WebContentClient::did_request_cookie(URL::URL url, Web::Cookie::Source source)
+NonnullRefPtr<Messages::WebContentClient::DidRequestCookie::Promise> WebContentClient::did_request_cookie(URL::URL url, Web::Cookie::Source source)
 {
-    return Application::cookie_jar().get_cookie(url, source);
+    auto promise = Messages::WebContentClient::DidRequestCookie::Promise::construct();
+    promise->resolve(Messages::WebContentClient::DidRequestCookieResponse { Application::cookie_jar().get_cookie(url, source) });
+    return promise;
 }
 
-void WebContentClient::did_set_cookie(URL::URL url, Web::Cookie::ParsedCookie cookie, Web::Cookie::Source source)
+NonnullRefPtr<Messages::WebContentClient::DidSetCookie::Promise> WebContentClient::did_set_cookie(URL::URL url, Web::Cookie::ParsedCookie cookie, Web::Cookie::Source source)
 {
+    auto promise = Messages::WebContentClient::DidSetCookie::Promise::construct();
     Application::cookie_jar().set_cookie(url, cookie, source);
+    promise->resolve(Messages::WebContentClient::DidSetCookieResponse {});
+    return promise;
 }
 
 void WebContentClient::did_update_cookie(Web::Cookie::Cookie cookie)
@@ -505,14 +514,17 @@ void WebContentClient::did_expire_cookies_with_time_offset(AK::Duration offset)
     Application::cookie_jar().expire_cookies_with_time_offset(offset);
 }
 
-Messages::WebContentClient::DidRequestNewWebViewResponse WebContentClient::did_request_new_web_view(u64 page_id, Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints, Optional<u64> page_index)
+NonnullRefPtr<Messages::WebContentClient::DidRequestNewWebView::Promise> WebContentClient::did_request_new_web_view(u64 page_id, Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints, Optional<u64> page_index)
 {
+    auto promise = Messages::WebContentClient::DidRequestNewWebView::Promise::construct();
     if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (view->on_new_web_view)
-            return view->on_new_web_view(activate_tab, hints, page_index);
+        if (view->on_new_web_view) {
+            promise->resolve(Messages::WebContentClient::DidRequestNewWebViewResponse { view->on_new_web_view(activate_tab, hints, page_index) });
+            return promise;
+        }
     }
-
-    return String {};
+    promise->resolve(Messages::WebContentClient::DidRequestNewWebViewResponse { String {} });
+    return promise;
 }
 
 void WebContentClient::did_request_activate_tab(u64 page_id)
@@ -659,14 +671,16 @@ void WebContentClient::did_allocate_backing_stores(u64 page_id, i32 front_bitmap
         view->did_allocate_backing_stores({}, front_bitmap_id, front_bitmap, back_bitmap_id, back_bitmap);
 }
 
-Messages::WebContentClient::RequestWorkerAgentResponse WebContentClient::request_worker_agent(u64 page_id)
+NonnullRefPtr<Messages::WebContentClient::RequestWorkerAgent::Promise> WebContentClient::request_worker_agent(u64 page_id)
 {
+    auto promise = Messages::WebContentClient::RequestWorkerAgent::Promise::construct();
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         auto worker_client = MUST(WebView::launch_web_worker_process());
-        return worker_client->clone_transport();
+        promise->resolve(Messages::WebContentClient::RequestWorkerAgentResponse { worker_client->clone_transport() });
+        return promise;
     }
-
-    return IPC::File {};
+    promise->resolve(Messages::WebContentClient::RequestWorkerAgentResponse { IPC::File {} });
+    return promise;
 }
 
 Optional<ViewImplementation&> WebContentClient::view_for_page_id(u64 page_id, SourceLocation location)

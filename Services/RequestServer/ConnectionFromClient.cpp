@@ -37,8 +37,8 @@ static struct {
     bool use_dns_over_tls = true;
 } g_dns_info;
 
-static WeakPtr<Resolver> s_resolver {};
-static NonnullRefPtr<Resolver> default_resolver()
+static WeakPtr<RequestServer::Resolver> s_resolver {};
+static NonnullRefPtr<RequestServer::Resolver> default_resolver()
 {
     if (auto resolver = s_resolver.strong_ref())
         return *resolver;
@@ -307,23 +307,26 @@ void ConnectionFromClient::die()
         Core::EventLoop::current().quit(0);
 }
 
-Messages::RequestServer::InitTransportResponse ConnectionFromClient::init_transport([[maybe_unused]] int peer_pid)
+NonnullRefPtr<Messages::RequestServer::InitTransport::Promise> ConnectionFromClient::init_transport([[maybe_unused]] int peer_pid)
 {
 #ifdef AK_OS_WINDOWS
+    auto promise = Messages::RequestServer::InitTransport::Promise::construct();
+    promise->resolve(Messages::RequestServer::InitTransportResponse { peer_id });
     m_transport.set_peer_pid(peer_pid);
-    return Core::System::getpid();
+    return promise;
 #endif
     VERIFY_NOT_REACHED();
 }
 
-Messages::RequestServer::ConnectNewClientResponse ConnectionFromClient::connect_new_client()
+NonnullRefPtr<Messages::RequestServer::ConnectNewClient::Promise> ConnectionFromClient::connect_new_client()
 {
     static_assert(IsSame<IPC::Transport, IPC::TransportSocket>, "Need to handle other IPC transports here");
-
+    auto promise = Messages::RequestServer::ConnectNewClient::Promise::construct();
     int socket_fds[2] {};
     if (auto err = Core::System::socketpair(AF_LOCAL, SOCK_STREAM, 0, socket_fds); err.is_error()) {
         dbgln("Failed to create client socketpair: {}", err.error());
-        return IPC::File {};
+        promise->resolve(Messages::RequestServer::ConnectNewClientResponse { IPC::File {} });
+        return promise;
     }
 
     auto client_socket_or_error = Core::LocalSocket::adopt_fd(socket_fds[0]);
@@ -331,18 +334,21 @@ Messages::RequestServer::ConnectNewClientResponse ConnectionFromClient::connect_
         close(socket_fds[0]);
         close(socket_fds[1]);
         dbgln("Failed to adopt client socket: {}", client_socket_or_error.error());
-        return IPC::File {};
+        promise->resolve(Messages::RequestServer::ConnectNewClientResponse { IPC::File {} });
+        return promise;
     }
     auto client_socket = client_socket_or_error.release_value();
     // Note: A ref is stored in the static s_connections map
     auto client = adopt_ref(*new ConnectionFromClient(IPC::Transport(move(client_socket))));
-
-    return IPC::File::adopt_fd(socket_fds[1]);
+    promise->resolve(IPC::File::adopt_fd(socket_fds[1]));
+    return promise;
 }
 
-Messages::RequestServer::IsSupportedProtocolResponse ConnectionFromClient::is_supported_protocol(ByteString protocol)
+NonnullRefPtr<Messages::RequestServer::IsSupportedProtocol::Promise> ConnectionFromClient::is_supported_protocol(ByteString protocol)
 {
-    return protocol == "http"sv || protocol == "https"sv;
+    auto promise = Messages::RequestServer::IsSupportedProtocol::Promise::construct();
+    promise->resolve(Messages::RequestServer::IsSupportedProtocolResponse { protocol == "http"sv || protocol == "https"sv });
+    return promise;
 }
 
 void ConnectionFromClient::set_dns_server(ByteString host_or_address, u16 port, bool use_tls)
@@ -642,18 +648,20 @@ void ConnectionFromClient::check_active_requests()
     }
 }
 
-Messages::RequestServer::StopRequestResponse ConnectionFromClient::stop_request(i32 request_id)
+NonnullRefPtr<Messages::RequestServer::StopRequest::Promise> ConnectionFromClient::stop_request(i32 request_id)
 {
+    auto promise = Messages::RequestServer::StopRequest::Promise::construct();
     auto request = m_active_requests.take(request_id);
     if (!request.has_value()) {
         dbgln("StopRequest: Request ID {} not found", request_id);
-        return false;
+        promise->resolve(Messages::RequestServer::StopRequestResponse { false });
+        return promise;
     }
-
-    return true;
+    promise->resolve(true);
+    return promise;
 }
 
-Messages::RequestServer::SetCertificateResponse ConnectionFromClient::set_certificate(i32 request_id, ByteString certificate, ByteString key)
+NonnullRefPtr<Messages::RequestServer::SetCertificate::Promise> ConnectionFromClient::set_certificate(i32 request_id, ByteString certificate, ByteString key)
 {
     (void)request_id;
     (void)certificate;
@@ -781,15 +789,16 @@ void ConnectionFromClient::websocket_close(i64 websocket_id, u16 code, ByteStrin
         connection->close(code, reason);
 }
 
-Messages::RequestServer::WebsocketSetCertificateResponse ConnectionFromClient::websocket_set_certificate(i64 websocket_id, ByteString, ByteString)
+NonnullRefPtr<Messages::RequestServer::WebsocketSetCertificate::Promise> ConnectionFromClient::websocket_set_certificate(i64 websocket_id, ByteString, ByteString)
 {
+    auto promise = Messages::RequestServer::WebsocketSetCertificate::Promise::construct();
     auto success = false;
     if (auto connection = m_websockets.get(websocket_id).value_or({}); connection) {
         // NO OP here
         // connection->set_certificate(certificate, key);
         success = true;
     }
-    return success;
+    promise->resolve(Messages::RequestServer::WebsocketSetCertificateResponse { success });
+    return promise;
 }
-
 }

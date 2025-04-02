@@ -40,6 +40,13 @@ class MessageBuffer {
 public:
     MessageBuffer();
 
+    // Do not copy message buffers.
+    MessageBuffer(MessageBuffer const&) = delete;
+    MessageBuffer& operator=(MessageBuffer const&) = delete;
+
+    MessageBuffer(MessageBuffer&&) noexcept = default;
+    MessageBuffer& operator=(MessageBuffer&&) noexcept = default;
+
     ErrorOr<void> extend_data_capacity(size_t capacity);
     ErrorOr<void> append_data(u8 const* values, size_t count);
 
@@ -70,9 +77,17 @@ public:
     virtual int message_id() const = 0;
     virtual char const* message_name() const = 0;
     virtual ErrorOr<MessageBuffer> encode() const = 0;
+    u64 ipc_request_id() const { return m_request_id; }
+    void set_ipc_request_id(u64 request_id) { m_request_id = request_id; }
+    constexpr bool is_response() const { return (message_id() % 2) == 0; }
 
 protected:
-    Message() = default;
-};
+    explicit Message(u64 request_id)
+        : m_request_id(request_id)
+    {
+    }
 
+private:
+    u64 m_request_id;
+};
 }

@@ -52,10 +52,10 @@ ErrorOr<void> BrowserProcess::connect_as_client(ByteString const& socket_path, V
     auto client = UIProcessClient::construct(IPC::Transport(move(socket)));
 
     if (new_window == NewWindow::Yes) {
-        if (!client->send_sync_but_allow_failure<Messages::UIProcessServer::CreateNewWindow>(raw_urls))
+        if (!client->send_sync_but_allow_failure<CreateNewWindow>(raw_urls))
             dbgln("Failed to send CreateNewWindow message to UIProcess");
     } else {
-        if (!client->send_sync_but_allow_failure<Messages::UIProcessServer::CreateNewTab>(raw_urls))
+        if (!client->send_sync_but_allow_failure<CreateNewTab>(raw_urls))
             dbgln("Failed to send CreateNewTab message to UIProcess");
     }
 
@@ -114,16 +114,24 @@ void UIProcessConnectionFromClient::die()
     s_connections.remove(client_id());
 }
 
-void UIProcessConnectionFromClient::create_new_tab(Vector<ByteString> urls)
+NonnullRefPtr<Messages::UIProcessServer::CreateNewTab::Promise> UIProcessConnectionFromClient::create_new_tab(Vector<ByteString> urls)
 {
+    auto promise = Messages::UIProcessServer::CreateNewTab::Promise::construct();
     if (on_new_tab)
         on_new_tab(sanitize_urls(urls, Application::settings().new_tab_page_url()));
+
+    promise->resolve(Messages::UIProcessServer::CreateNewTabResponse {});
+    return promise;
 }
 
-void UIProcessConnectionFromClient::create_new_window(Vector<ByteString> urls)
+NonnullRefPtr<Messages::UIProcessServer::CreateNewWindow::Promise> UIProcessConnectionFromClient::create_new_window(Vector<ByteString> urls)
 {
+    auto promise = Messages::UIProcessServer::CreateNewWindow::Promise::construct();
     if (on_new_window)
         on_new_window(sanitize_urls(urls, Application::settings().new_tab_page_url()));
+
+    promise->resolve(Messages::UIProcessServer::CreateNewWindowResponse {});
+    return promise;
 }
 
 }
