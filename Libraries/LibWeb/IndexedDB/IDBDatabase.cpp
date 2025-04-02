@@ -136,6 +136,9 @@ WebIDL::ExceptionOr<GC::Ref<IDBObjectStore>> IDBDatabase::create_object_store(St
     //    If keyPath is not null, set the created object store's key path to keyPath.
     auto object_store = ObjectStore::create(realm, database, name, auto_increment, key_path);
 
+    // AD-HOC: Add newly created object store to this's object store set.
+    add_to_object_store_set(object_store);
+
     // 10. Return a new object store handle associated with store and transaction.
     return IDBObjectStore::create(realm, object_store, *transaction);
 }
