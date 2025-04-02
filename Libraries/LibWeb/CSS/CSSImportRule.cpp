@@ -174,6 +174,15 @@ void CSSImportRule::set_style_sheet(GC::Ref<CSSStyleSheet> style_sheet)
     m_document->invalidate_style(DOM::StyleInvalidationReason::CSSImportRule);
 }
 
+// https://drafts.csswg.org/cssom/#dom-cssimportrule-media
+GC::Ptr<MediaList> CSSImportRule::media() const
+{
+    // The media attribute must return the value of the media attribute of the associated CSS style sheet.
+    if (!m_style_sheet)
+        return nullptr;
+    return m_style_sheet->media();
+}
+
 Optional<String> CSSImportRule::supports_text() const
 {
     if (!m_supports)

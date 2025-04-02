@@ -31,6 +31,7 @@ public:
 
     CSSStyleSheet* loaded_style_sheet() { return m_style_sheet; }
     CSSStyleSheet const* loaded_style_sheet() const { return m_style_sheet; }
+    GC::Ptr<MediaList> media() const;
     CSSStyleSheet* style_sheet_for_bindings() { return m_style_sheet; }
 
     Optional<String> supports_text() const;
