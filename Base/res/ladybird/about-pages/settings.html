@@ -168,7 +168,6 @@
                 height: 450px;
 
                 border-top: 1px solid var(--border-color);
-                border-bottom: 1px solid var(--border-color);
 
                 display: flex;
                 flex-direction: column;
@@ -188,6 +187,8 @@
                 display: flex;
                 justify-content: flex-end;
 
+                border-top: 1px solid var(--border-color);
+
                 padding: 15px 20px;
                 gap: 10px;
             }
@@ -197,7 +198,7 @@
                 font-weight: 500;
             }
 
-            dialog .dialog-close {
+            dialog .dialog-button {
                 background: none;
                 border: none;
                 outline: none;
@@ -210,11 +211,11 @@
                 cursor: pointer;
             }
 
-            dialog .dialog-close:hover {
+            dialog .dialog-button:hover {
                 opacity: 1;
             }
 
-            dialog .dialog-site-list {
+            dialog .dialog-list {
                 outline: 1px solid var(--border-color);
                 border-radius: 4px;
 
@@ -226,7 +227,7 @@
                 flex-grow: 1;
             }
 
-            dialog .dialog-site-item {
+            dialog .dialog-list-item {
                 padding: 10px;
 
                 display: flex;
@@ -234,20 +235,20 @@
                 align-items: center;
             }
 
-            dialog .dialog-site-item:hover {
+            dialog .dialog-list-item:hover {
                 background-color: var(--card-header-background-color);
             }
 
-            dialog .dialog-site-item-placeholder {
+            dialog .dialog-list-item-placeholder {
                 padding: 10px;
                 opacity: 0.6;
             }
 
-            dialog .dialog-site-item .filter {
+            dialog .dialog-list-item-label {
                 flex-grow: 1;
             }
 
-            dialog .dialog-add-site {
+            dialog .dialog-controls {
                 display: flex;
                 justify-content: flex-end;
 
@@ -255,7 +256,7 @@
                 gap: 10px;
             }
 
-            dialog .dialog-add-site input {
+            dialog .dialog-controls input {
                 flex-grow: 1;
             }
 
@@ -351,7 +352,7 @@
         <dialog id="site-settings">
             <div class="dialog-header">
                 <h3 id="site-settings-title" class="dialog-title"></h3>
-                <button id="site-settings-close" class="close-button dialog-close">&times;</button>
+                <button id="site-settings-close" class="close-button dialog-button">&times;</button>
             </div>
             <div class="dialog-body">
                 <div class="toggle-container">
@@ -360,8 +361,8 @@
                 </div>
                 <hr />
                 <label>Allowlist</label>
-                <div id="site-settings-list" class="dialog-site-list"></div>
-                <div class="dialog-add-site">
+                <div id="site-settings-list" class="dialog-list"></div>
+                <div class="dialog-controls">
                     <input id="site-settings-input" type="text" placeholder="example.com" />
                     <button id="site-settings-add" class="primary-button">Add&nbsp;Site</button>
                 </div>
@@ -546,7 +547,7 @@
 
                 if (settings.siteFilters.length === 0) {
                     const placeholder = document.createElement("div");
-                    placeholder.className = "dialog-site-item-placeholder";
+                    placeholder.className = "dialog-list-item-placeholder";
                     placeholder.textContent = "No sites added";
 
                     siteSettingsList.appendChild(placeholder);
@@ -554,11 +555,11 @@
 
                 settings.siteFilters.forEach(site => {
                     const filter = document.createElement("span");
-                    filter.className = "filter";
+                    filter.className = "dialog-list-item-label";
                     filter.textContent = site;
 
                     const remove = document.createElement("button");
-                    remove.className = "dialog-close";
+                    remove.className = "dialog-button";
                     remove.innerHTML = "&times;";
                     remove.title = `Remove ${site}`;
 
@@ -570,7 +571,7 @@
                     });
 
                     const item = document.createElement("div");
-                    item.className = "dialog-site-item";
+                    item.className = "dialog-list-item";
                     item.appendChild(filter);
                     item.appendChild(remove);
 
