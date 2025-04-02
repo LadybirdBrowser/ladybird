@@ -146,67 +146,27 @@ select:focus {
     outline: none;
 }
 
-/**
- * Create a toggle switch as a checkbox alternative:
- *
- * <div class="toggle-container">
- *     <label for="your-toggle">Toggle Label</label>
- *     <label class="toggle">
- *         <input id="your-toggle" type="checkbox" checked />
- *         <span class="toggle-button"></span>
- *     </label>
- * </div>
- */
-
-.toggle-container {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
-
-.toggle-container .toggle {
+input[type="checkbox"][switch] {
     width: 50px;
     height: 24px;
 
-    display: inline-block;
-    position: relative;
-}
-
-.toggle-container .toggle input {
-    display: none;
-}
-
-.toggle-container .toggle-button {
     background-color: var(--toggle-background-color);
-    border-radius: 24px;
-
-    position: absolute;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    left: 0;
-
     cursor: pointer;
+
+    outline: none;
 }
 
-.toggle-container .toggle-button:before {
-    background-color: white;
-    border-radius: 50%;
-
-    content: "";
-
-    width: 18px;
-    height: 18px;
-
-    position: absolute;
-    bottom: 3px;
-    left: 3px;
-}
-
-.toggle-container input:checked + .toggle-button {
+input[type="checkbox"][switch]:checked {
     background-color: var(--violet-100);
 }
 
-.toggle-container input:checked + .toggle-button:before {
-    transform: translateX(26px);
+input[type="checkbox"][switch]::before {
+    background-color: white;
+    border: 0.6em solid white;
+
+    left: 3px;
+}
+
+input[type="checkbox"][switch]:checked::before {
+    left: calc(100% - 1.3em);
 }
