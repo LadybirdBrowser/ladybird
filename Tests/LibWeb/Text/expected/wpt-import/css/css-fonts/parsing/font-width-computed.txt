@@ -1,9 +1,24 @@
 Harness status: OK
 
-Found 15 tests
+Found 30 tests
 
-4 Pass
-11 Fail
+8 Pass
+22 Fail
+Fail	Property font-width value 'ultra-condensed'
+Fail	Property font-width value 'extra-condensed'
+Fail	Property font-width value 'condensed'
+Fail	Property font-width value 'semi-condensed'
+Fail	Property font-width value 'normal'
+Fail	Property font-width value 'semi-expanded'
+Fail	Property font-width value 'expanded'
+Fail	Property font-width value 'extra-expanded'
+Fail	Property font-width value 'ultra-expanded'
+Pass	Property font-width value '234.5%'
+Pass	Property font-width value 'calc(100%)'
+Pass	Property font-width value 'calc(0%)'
+Fail	Property font-width value 'calc(-100%)'
+Pass	Property font-width value 'calc(100% + 100%)'
+Fail	Property font-width value 'calc(100% + (sign(20cqw - 10px) * 5%))'
 Fail	Property font-stretch value 'ultra-condensed'
 Fail	Property font-stretch value 'extra-condensed'
 Fail	Property font-stretch value 'condensed'

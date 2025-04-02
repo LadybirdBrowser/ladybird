@@ -1,9 +1,24 @@
 Harness status: OK
 
-Found 15 tests
+Found 30 tests
 
-14 Pass
-1 Fail
+28 Pass
+2 Fail
+Pass	e.style['font-width'] = "normal" should set the property value
+Pass	e.style['font-width'] = "ultra-condensed" should set the property value
+Pass	e.style['font-width'] = "extra-condensed" should set the property value
+Pass	e.style['font-width'] = "condensed" should set the property value
+Pass	e.style['font-width'] = "semi-condensed" should set the property value
+Pass	e.style['font-width'] = "semi-expanded" should set the property value
+Pass	e.style['font-width'] = "expanded" should set the property value
+Pass	e.style['font-width'] = "extra-expanded" should set the property value
+Pass	e.style['font-width'] = "ultra-expanded" should set the property value
+Pass	e.style['font-width'] = "234.5%" should set the property value
+Pass	e.style['font-width'] = "calc(100%)" should set the property value
+Pass	e.style['font-width'] = "calc(0%)" should set the property value
+Pass	e.style['font-width'] = "calc(-100%)" should set the property value
+Pass	e.style['font-width'] = "calc(100% + 100%)" should set the property value
+Fail	e.style['font-width'] = "calc(100% + (sign(20cqw - 10px) * 5%))" should set the property value
 Pass	e.style['font-stretch'] = "normal" should set the property value
 Pass	e.style['font-stretch'] = "ultra-condensed" should set the property value
 Pass	e.style['font-stretch'] = "extra-condensed" should set the property value
