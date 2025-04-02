@@ -90,6 +90,12 @@
                 margin-bottom: 0;
             }
 
+            .toggle-container {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+            }
+
             .permission-container {
                 display: flex;
                 align-items: center;
@@ -287,14 +293,9 @@
         <div class="card">
             <div class="card-header">Search</div>
             <div class="card-body">
-                <div class="card-group">
-                    <div class="toggle-container">
-                        <label for="search-toggle">Enable Search</label>
-                        <label class="toggle">
-                            <input id="search-toggle" type="checkbox" />
-                            <span class="toggle-button"></span>
-                        </label>
-                    </div>
+                <div class="card-group toggle-container">
+                    <label for="search-toggle">Enable Search</label>
+                    <input id="search-toggle" type="checkbox" switch />
                 </div>
                 <div class="card-group hidden">
                     <label for="search-engine">Default Search Engine</label>
@@ -306,14 +307,9 @@
 
                 <hr />
 
-                <div class="card-group">
-                    <div class="toggle-container">
-                        <label for="autocomplete-toggle">Enable Autocomplete</label>
-                        <label class="toggle">
-                            <input id="autocomplete-toggle" type="checkbox" />
-                            <span class="toggle-button"></span>
-                        </label>
-                    </div>
+                <div class="card-group toggle-container">
+                    <label for="autocomplete-toggle">Enable Autocomplete</label>
+                    <input id="autocomplete-toggle" type="checkbox" switch />
                 </div>
                 <div class="card-group hidden">
                     <label for="autocomplete-engine">Default Autocomplete Engine</label>
@@ -350,10 +346,7 @@
             <div class="dialog-body">
                 <div class="toggle-container">
                     <label for="site-settings-global">Enable on all sites</label>
-                    <label class="toggle">
-                        <input id="site-settings-global" type="checkbox" />
-                        <span class="toggle-button"></span>
-                    </label>
+                    <input id="site-settings-global" type="checkbox" switch />
                 </div>
                 <hr />
                 <label>Allowlist</label>
