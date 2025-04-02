@@ -5,6 +5,7 @@
  */
 
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/IndexedDB/IDBTransaction.h>
 #include <LibWeb/IndexedDB/Internal/Algorithms.h>
@@ -22,6 +23,7 @@ IDBTransaction::IDBTransaction(JS::Realm& realm, GC::Ref<IDBDatabase> connection
     , m_durability(durability)
     , m_scope(move(scopes))
 {
+    m_uuid = MUST(Crypto::generate_random_uuid());
 }
 
 GC::Ref<IDBTransaction> IDBTransaction::create(JS::Realm& realm, GC::Ref<IDBDatabase> connection, Bindings::IDBTransactionMode mode, Bindings::IDBTransactionDurability durability = Bindings::IDBTransactionDurability::Default, Vector<GC::Ref<ObjectStore>> scopes = {})

@@ -46,6 +46,7 @@ public:
     void set_close_pending(bool close_pending) { m_close_pending = close_pending; }
     void set_state(ConnectionState state) { m_state = state; }
 
+    [[nodiscard]] String uuid() const { return m_uuid; }
     [[nodiscard]] String name() const { return m_name; }
     [[nodiscard]] u64 version() const { return m_version; }
     [[nodiscard]] bool close_pending() const { return m_close_pending; }
@@ -95,6 +96,9 @@ private:
     // NOTE: There is an associated database in the spec, but there is no mention where it is assigned, nor where its from
     //       So we stash the one we have when opening a connection.
     GC::Ref<Database> m_associated_database;
+
+    // NOTE: Used for debug purposes
+    String m_uuid;
 };
 
 }
