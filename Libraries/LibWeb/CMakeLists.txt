@@ -89,6 +89,7 @@ set(SOURCES
     CSS/CSSTransition.cpp
     CSS/CascadedProperties.cpp
     CSS/ComputedProperties.cpp
+    CSS/Descriptor.cpp
     CSS/Display.cpp
     CSS/EdgeRect.cpp
     CSS/Fetch.cpp
@@ -108,6 +109,7 @@ set(SOURCES
     CSS/MediaQueryListEvent.cpp
     CSS/Number.cpp
     CSS/Parser/ComponentValue.cpp
+    CSS/Parser/DescriptorParsing.cpp
     CSS/Parser/GradientParsing.cpp
     CSS/Parser/Helpers.cpp
     CSS/Parser/MediaParsing.cpp
