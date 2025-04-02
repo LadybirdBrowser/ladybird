@@ -187,9 +187,9 @@ protected:
     void set_overrides_must_survive_garbage_collection(bool b) { m_overrides_must_survive_garbage_collection = b; }
 
 private:
-    bool m_mark : 1 { false };
-    bool m_overrides_must_survive_garbage_collection : 1 { false };
-    State m_state : 1 { State::Live };
+    bool m_mark { false };
+    bool m_overrides_must_survive_garbage_collection { false };
+    State m_state { State::Live };
 };
 
 }
