@@ -56,7 +56,7 @@ void RenderingThread::rendering_thread_loop()
     }
 }
 
-void RenderingThread::enqueue_rendering_task(RefPtr<Painting::DisplayList> display_list, NonnullRefPtr<Gfx::PaintingSurface> painting_surface, Function<void()>&& callback)
+void RenderingThread::enqueue_rendering_task(NonnullRefPtr<Painting::DisplayList> display_list, NonnullRefPtr<Gfx::PaintingSurface> painting_surface, Function<void()>&& callback)
 {
     Threading::MutexLocker const locker { m_rendering_task_mutex };
     m_rendering_tasks.enqueue(Task { move(display_list), move(painting_surface), move(callback) });

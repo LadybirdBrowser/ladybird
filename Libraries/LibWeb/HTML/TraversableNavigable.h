@@ -98,7 +98,7 @@ public:
     [[nodiscard]] GC::Ptr<DOM::Node> currently_focused_area();
 
     RefPtr<Painting::DisplayList> record_display_list(DevicePixelRect const&, PaintOptions);
-    void start_display_list_rendering(RefPtr<Painting::DisplayList> display_list, NonnullRefPtr<Gfx::PaintingSurface> painting_surface, Function<void()>&& callback);
+    void start_display_list_rendering(NonnullRefPtr<Painting::DisplayList> display_list, NonnullRefPtr<Gfx::PaintingSurface> painting_surface, Function<void()>&& callback);
 
     enum class CheckIfUnloadingIsCanceledResult {
         CanceledByBeforeUnload,
