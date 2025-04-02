@@ -54,6 +54,7 @@
 #include <LibWeb/CSS/StyleValues/RectStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ResolutionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StringStyleValue.h>
+#include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/URLStyleValue.h>
 #include <LibWeb/CSS/StyleValues/UnicodeRangeStyleValue.h>
@@ -63,6 +64,29 @@
 #include <LibWeb/Infra/CharacterTypes.h>
 
 namespace Web::CSS::Parser {
+
+RefPtr<CSSStyleValue> Parser::parse_comma_separated_value_list(TokenStream<ComponentValue>& tokens, ParseFunction parse_one_value)
+{
+    auto first = parse_one_value(tokens);
+    if (!first || !tokens.has_next_token())
+        return first;
+
+    StyleValueVector values;
+    values.append(first.release_nonnull());
+
+    while (tokens.has_next_token()) {
+        if (!tokens.consume_a_token().is(Token::Type::Comma))
+            return nullptr;
+
+        if (auto maybe_value = parse_one_value(tokens)) {
+            values.append(maybe_value.release_nonnull());
+            continue;
+        }
+        return nullptr;
+    }
+
+    return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
+}
 
 Optional<Dimension> Parser::parse_dimension(ComponentValue const& component_value)
 {
