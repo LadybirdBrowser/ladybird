@@ -26,7 +26,6 @@ private:
     QFormLayout* m_layout;
     QMainWindow* m_window { nullptr };
     QLineEdit* m_preferred_languages { nullptr };
-    QCheckBox* m_enable_do_not_track { nullptr };
 };
 
 }

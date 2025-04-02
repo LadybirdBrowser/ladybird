@@ -943,9 +943,4 @@ void Tab::set_preferred_languages(ReadonlySpan<String> preferred_languages)
     m_view->set_preferred_languages(preferred_languages);
 }
 
-void Tab::set_enable_do_not_track(bool enable)
-{
-    m_view->set_enable_do_not_track(enable);
-}
-
 }

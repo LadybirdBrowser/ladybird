@@ -257,11 +257,6 @@ void ViewImplementation::set_preferred_languages(ReadonlySpan<String> preferred_
     client().async_set_preferred_languages(page_id(), preferred_languages);
 }
 
-void ViewImplementation::set_enable_do_not_track(bool enable)
-{
-    client().async_set_enable_do_not_track(page_id(), enable);
-}
-
 ByteString ViewImplementation::selected_text()
 {
     return client().get_selected_text(page_id());

@@ -97,12 +97,6 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
         });
     }
 
-    QObject::connect(Settings::the(), &Settings::enable_do_not_track_changed, this, [this](bool enable) {
-        for_each_tab([enable](auto& tab) {
-            tab.set_enable_do_not_track(enable);
-        });
-    });
-
     QObject::connect(Settings::the(), &Settings::preferred_languages_changed, this, [this](QStringList languages) {
         Vector<String> preferred_languages;
         preferred_languages.ensure_capacity(languages.length());
@@ -873,7 +867,6 @@ void BrowserWindow::initialize_tab(Tab* tab)
     tab->set_user_agent_string(user_agent_string());
     tab->set_preferred_languages(preferred_languages);
     tab->set_navigator_compatibility_mode(navigator_compatibility_mode());
-    tab->set_enable_do_not_track(Settings::the()->enable_do_not_track());
     tab->view().set_preferred_color_scheme(m_preferred_color_scheme);
 }
 
