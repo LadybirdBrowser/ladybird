@@ -25,7 +25,7 @@ public:
 
     void start();
     void set_skia_player(OwnPtr<Painting::DisplayListPlayerSkia>&& player) { m_skia_player = move(player); }
-    void enqueue_rendering_task(RefPtr<Painting::DisplayList>, NonnullRefPtr<Gfx::PaintingSurface>, Function<void()>&& callback);
+    void enqueue_rendering_task(NonnullRefPtr<Painting::DisplayList>, NonnullRefPtr<Gfx::PaintingSurface>, Function<void()>&& callback);
 
 private:
     void rendering_thread_loop();
@@ -38,7 +38,7 @@ private:
     Atomic<bool> m_exit { false };
 
     struct Task {
-        RefPtr<Painting::DisplayList> display_list;
+        NonnullRefPtr<Painting::DisplayList> display_list;
         NonnullRefPtr<Gfx::PaintingSurface> painting_surface;
         Function<void()> callback;
     };

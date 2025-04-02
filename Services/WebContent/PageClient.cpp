@@ -242,8 +242,12 @@ void PageClient::start_display_list_rendering(Web::DevicePixelRect const& conten
     paint_options.has_focus = m_has_focus;
     auto& traversable = *page().top_level_traversable();
     auto display_list = traversable.record_display_list(content_rect, paint_options);
+    if (!display_list) {
+        callback();
+        return;
+    }
     auto painting_surface = traversable.painting_surface_for_backing_store(target);
-    traversable.start_display_list_rendering(display_list, painting_surface, move(callback));
+    traversable.start_display_list_rendering(*display_list, painting_surface, move(callback));
 }
 
 Queue<Web::QueuedInputEvent>& PageClient::input_event_queue()

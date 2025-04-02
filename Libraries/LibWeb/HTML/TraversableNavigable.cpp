@@ -1454,7 +1454,7 @@ RefPtr<Painting::DisplayList> TraversableNavigable::record_display_list(DevicePi
     return document->record_display_list(paint_config);
 }
 
-void TraversableNavigable::start_display_list_rendering(RefPtr<Painting::DisplayList> display_list, NonnullRefPtr<Gfx::PaintingSurface> painting_surface, Function<void()>&& callback)
+void TraversableNavigable::start_display_list_rendering(NonnullRefPtr<Painting::DisplayList> display_list, NonnullRefPtr<Gfx::PaintingSurface> painting_surface, Function<void()>&& callback)
 {
     m_rendering_thread.enqueue_rendering_task(move(display_list), move(painting_surface), move(callback));
 }
