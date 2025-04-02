@@ -1931,8 +1931,10 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> http_network_or_cache_fetch(JS::Re
         // NOTE: `Accept` and `Accept-Language` are already included (unless fetch() is used, which does not include
         //       the latter by default), and `Accept-Charset` is a waste of bytes. See HTTP header layer division for
         //       more details.
-        if (ResourceLoader::the().enable_do_not_track() && !http_request->header_list()->contains("DNT"sv.bytes())) {
-            auto header = Infrastructure::Header::from_string_pair("DNT"sv, "1"sv);
+        //
+        // https://w3c.github.io/gpc/#the-sec-gpc-header-field-for-http-requests
+        if (ResourceLoader::the().enable_global_privacy_control() && !http_request->header_list()->contains("Sec-GPC"sv.bytes())) {
+            auto header = Infrastructure::Header::from_string_pair("Sec-GPC"sv, "1"sv);
             http_request->header_list()->append(move(header));
         }
 

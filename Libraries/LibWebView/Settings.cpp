@@ -42,7 +42,7 @@ static constexpr auto site_setting_site_filters_key = "siteFilters"sv;
 
 static constexpr auto autoplay_key = "autoplay"sv;
 
-static constexpr auto do_not_track_key = "doNotTrack"sv;
+static constexpr auto global_privacy_control_key = "globalPrivacyControl"sv;
 
 static constexpr auto dns_settings_key = "dnsSettings"sv;
 
@@ -141,8 +141,8 @@ Settings Settings::create(Badge<Application>)
 
     load_site_setting(settings.m_autoplay, autoplay_key);
 
-    if (auto do_not_track = settings_json.value().get_bool(do_not_track_key); do_not_track.has_value())
-        settings.m_do_not_track = *do_not_track ? DoNotTrack::Yes : DoNotTrack::No;
+    if (auto global_privacy_control = settings_json.value().get_bool(global_privacy_control_key); global_privacy_control.has_value())
+        settings.m_global_privacy_control = *global_privacy_control ? GlobalPrivacyControl::Yes : GlobalPrivacyControl::No;
 
     if (auto dns_settings = settings_json.value().get(dns_settings_key); dns_settings.has_value())
         settings.m_dns_settings = parse_dns_settings(*dns_settings);
@@ -215,7 +215,7 @@ JsonValue Settings::serialize_json() const
 
     save_site_setting(m_autoplay, autoplay_key);
 
-    settings.set(do_not_track_key, m_do_not_track == DoNotTrack::Yes);
+    settings.set(global_privacy_control_key, m_global_privacy_control == GlobalPrivacyControl::Yes);
 
     // dnsSettings :: { mode: "system" } | { mode: "custom", server: string, port: u16, type: "udp" | "tls", forciblyEnabled: bool, dnssec: bool }
     JsonObject dns_settings;
@@ -253,7 +253,7 @@ void Settings::restore_defaults()
     m_custom_search_engines.clear();
     m_autocomplete_engine.clear();
     m_autoplay = SiteSetting {};
-    m_do_not_track = DoNotTrack::No;
+    m_global_privacy_control = GlobalPrivacyControl::No;
     m_dns_settings = SystemDNS {};
 
     persist_settings();
@@ -265,7 +265,7 @@ void Settings::restore_defaults()
         observer.search_engine_changed();
         observer.autocomplete_engine_changed();
         observer.autoplay_settings_changed();
-        observer.do_not_track_changed();
+        observer.global_privacy_control_changed();
         observer.dns_settings_changed();
     }
 }
@@ -438,13 +438,13 @@ void Settings::remove_all_autoplay_site_filters()
         observer.autoplay_settings_changed();
 }
 
-void Settings::set_do_not_track(DoNotTrack do_not_track)
+void Settings::set_global_privacy_control(GlobalPrivacyControl global_privacy_control)
 {
-    m_do_not_track = do_not_track;
+    m_global_privacy_control = global_privacy_control;
     persist_settings();
 
     for (auto& observer : m_observers)
-        observer.do_not_track_changed();
+        observer.global_privacy_control_changed();
 }
 
 DNSSettings Settings::parse_dns_settings(JsonValue const& dns_settings)

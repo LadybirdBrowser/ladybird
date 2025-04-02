@@ -1,11 +1,11 @@
-const doNotTrackToggle = document.querySelector("#do-not-track-toggle");
+const globalPrivacyControlToggle = document.querySelector("#global-privacy-control-toggle");
 
 function loadSettings(settings) {
-    doNotTrackToggle.checked = settings.doNotTrack;
+    globalPrivacyControlToggle.checked = settings.globalPrivacyControl;
 }
 
-doNotTrackToggle.addEventListener("change", () => {
-    ladybird.sendMessage("setDoNotTrack", doNotTrackToggle.checked);
+globalPrivacyControlToggle.addEventListener("change", () => {
+    ladybird.sendMessage("setGlobalPrivacyControl", globalPrivacyControlToggle.checked);
 });
 
 document.addEventListener("WebUIMessage", event => {
