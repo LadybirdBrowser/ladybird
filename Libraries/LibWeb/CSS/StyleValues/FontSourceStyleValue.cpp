@@ -1,0 +1,67 @@
+/*
+ * Copyright (c) 2025, Sam Atkins <sam@ladybird.org>
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+#include <LibWeb/CSS/Serialize.h>
+#include <LibWeb/CSS/StyleValues/FontSourceStyleValue.h>
+
+namespace Web::CSS {
+
+FontSourceStyleValue::FontSourceStyleValue(Source source, Optional<FlyString> format)
+    : StyleValueWithDefaultOperators(Type::FontSource)
+    , m_source(move(source))
+    , m_format(move(format))
+{
+}
+
+FontSourceStyleValue::~FontSourceStyleValue() = default;
+
+String FontSourceStyleValue::to_string(SerializationMode) const
+{
+    // <font-src> = <url> [ format(<font-format>)]? [ tech( <font-tech>#)]? | local(<family-name>)
+    return m_source.visit(
+        [](Local const& local) {
+            // local(<family-name>)
+            StringBuilder builder;
+            serialize_a_local(builder, local.name->to_string(SerializationMode::Normal));
+            return builder.to_string_without_validation();
+        },
+        [this](URL::URL const& url) {
+            // <url> [ format(<font-format>)]? [ tech( <font-tech>#)]?
+            // FIXME: tech()
+            StringBuilder builder;
+            serialize_a_url(builder, url.to_string());
+
+            if (m_format.has_value()) {
+                builder.append(" format("sv);
+                serialize_an_identifier(builder, *m_format);
+                builder.append(")"sv);
+            }
+
+            return builder.to_string_without_validation();
+        });
+}
+
+bool FontSourceStyleValue::properties_equal(FontSourceStyleValue const& other) const
+{
+    bool sources_equal = m_source.visit(
+        [&other](Local const& local) {
+            if (auto* other_local = other.m_source.get_pointer<Local>()) {
+                return local.name == other_local->name;
+            }
+            return false;
+        },
+        [&other](URL::URL const& url) {
+            if (auto* other_url = other.m_source.get_pointer<URL::URL>()) {
+                return url == *other_url;
+            }
+            return false;
+        });
+
+    return sources_equal
+        && m_format == other.m_format;
+}
+
+}
