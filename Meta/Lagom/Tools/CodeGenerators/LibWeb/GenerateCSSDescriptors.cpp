@@ -82,6 +82,8 @@ ErrorOr<void> generate_header_file(JsonObject const& at_rules_data, Core::File& 
 #include <AK/FlyString.h>
 #include <AK/Optional.h>
 #include <AK/Types.h>
+#include <LibWeb/CSS/Keyword.h>
+#include <LibWeb/CSS/PropertyID.h>
 
 namespace Web::CSS {
 
@@ -111,6 +113,22 @@ Optional<DescriptorID> descriptor_id_from_string(AtRuleID, StringView);
 FlyString to_string(DescriptorID);
 
 bool at_rule_supports_descriptor(AtRuleID, DescriptorID);
+
+struct DescriptorMetadata {
+    enum class ValueType {
+        // FIXME: Parse the grammar instead of hard-coding all the options!
+        FamilyName,
+        FontSrcList,
+        OptionalDeclarationValue,
+        PositivePercentage,
+        String,
+        UnicodeRangeTokens,
+    };
+    Vector<Variant<Keyword, PropertyID, ValueType>> syntax;
+};
+
+DescriptorMetadata get_descriptor_metadata(AtRuleID, DescriptorID);
+
 }
 )~~~");
 
@@ -239,6 +257,93 @@ bool at_rule_supports_descriptor(AtRuleID at_rule_id, DescriptorID descriptor_id
             return true;
         default:
             return false;
+        }
+)~~~");
+    });
+
+    generator.append(R"~~~(
+    }
+    VERIFY_NOT_REACHED();
+}
+
+DescriptorMetadata get_descriptor_metadata(AtRuleID at_rule_id, DescriptorID descriptor_id)
+{
+    switch (at_rule_id) {
+)~~~");
+
+    at_rules_data.for_each_member([&](auto const& at_rule_name, JsonValue const& value) {
+        auto const& at_rule = value.as_object();
+
+        auto at_rule_generator = generator.fork();
+        at_rule_generator.set("at_rule:titlecase", title_casify(at_rule_name));
+        at_rule_generator.append(R"~~~(
+    case AtRuleID::@at_rule:titlecase@:
+        switch (descriptor_id) {
+)~~~");
+
+        auto const& descriptors = at_rule.get_object("descriptors"sv).value();
+        descriptors.for_each_member([&](auto const& descriptor_name, JsonValue const& descriptor_value) {
+            auto const& descriptor = descriptor_value.as_object();
+            if (is_legacy_alias(descriptor))
+                return;
+
+            auto descriptor_generator = at_rule_generator.fork();
+            descriptor_generator.set("descriptor:titlecase", title_casify(descriptor_name));
+            descriptor_generator.append(R"~~~(
+        case DescriptorID::@descriptor:titlecase@: {
+            DescriptorMetadata metadata;
+)~~~");
+            auto const& syntax = descriptor.get_array("syntax"sv).value();
+            for (auto const& entry : syntax.values()) {
+                auto option_generator = descriptor_generator.fork();
+                auto const& syntax_string = entry.as_string();
+
+                if (syntax_string.starts_with_bytes("<'"sv)) {
+                    // Property
+                    option_generator.set("property:titlecase"sv, title_casify(MUST(syntax_string.substring_from_byte_offset_with_shared_superstring(2, syntax_string.byte_count() - 4))));
+                    option_generator.append(R"~~~(
+            metadata.syntax.empend(PropertyID::@property:titlecase@);
+)~~~");
+                } else if (syntax_string.starts_with('<')) {
+                    // Value type
+                    // FIXME: Actually parse the grammar, instead of hard-coding the options!
+                    auto value_type = [&syntax_string] {
+                        if (syntax_string == "<family-name>"sv)
+                            return "FamilyName"_string;
+                        if (syntax_string == "<font-src-list>"sv)
+                            return "FontSrcList"_string;
+                        if (syntax_string == "<declaration-value>?"sv)
+                            return "OptionalDeclarationValue"_string;
+                        if (syntax_string == "<percentage [0,∞]>"sv)
+                            return "PositivePercentage"_string;
+                        if (syntax_string == "<string>"sv)
+                            return "String"_string;
+                        if (syntax_string == "<unicode-range-token>#"sv)
+                            return "UnicodeRangeTokens"_string;
+                        VERIFY_NOT_REACHED();
+                    }();
+                    option_generator.set("value_type"sv, value_type);
+                    option_generator.append(R"~~~(
+            metadata.syntax.empend(DescriptorMetadata::ValueType::@value_type@);
+)~~~");
+
+                } else {
+                    // Keyword
+                    option_generator.set("keyword:titlecase"sv, title_casify(syntax_string));
+                    option_generator.append(R"~~~(
+            metadata.syntax.empend(Keyword::@keyword:titlecase@);
+)~~~");
+                }
+            }
+            descriptor_generator.append(R"~~~(
+            return metadata;
+        }
+)~~~");
+        });
+
+        at_rule_generator.append(R"~~~(
+        default:
+            VERIFY_NOT_REACHED();
         }
 )~~~");
     });

@@ -16,6 +16,8 @@
 #include <LibWeb/CSS/BooleanExpression.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/CSSStyleValue.h>
+#include <LibWeb/CSS/Descriptor.h>
+#include <LibWeb/CSS/DescriptorID.h>
 #include <LibWeb/CSS/MediaQuery.h>
 #include <LibWeb/CSS/ParsedFontFace.h>
 #include <LibWeb/CSS/Parser/ComponentValue.h>
@@ -94,6 +96,7 @@ public:
         HashMap<FlyString, StyleProperty> custom_properties;
     };
     PropertiesAndCustomProperties parse_as_style_attribute();
+    Vector<Descriptor> parse_as_list_of_descriptors(AtRuleID);
     CSSRule* parse_as_css_rule();
     Optional<StyleProperty> parse_as_supports_condition();
 
@@ -116,6 +119,7 @@ public:
     RefPtr<Supports> parse_as_supports();
 
     RefPtr<CSSStyleValue> parse_as_css_value(PropertyID);
+    RefPtr<CSSStyleValue> parse_as_descriptor_value(AtRuleID, DescriptorID);
 
     Optional<ComponentValue> parse_as_component_value();
 
@@ -248,6 +252,8 @@ private:
     GC::Ref<CSSStyleProperties> convert_to_style_declaration(Vector<Declaration> const&);
     Optional<StyleProperty> convert_to_style_property(Declaration const&);
 
+    Optional<Descriptor> convert_to_descriptor(AtRuleID, Declaration const&);
+
     Optional<Dimension> parse_dimension(ComponentValue const&);
     Optional<AngleOrCalculated> parse_angle(TokenStream<ComponentValue>&);
     Optional<AnglePercentage> parse_angle_percentage(TokenStream<ComponentValue>&);
@@ -294,6 +300,7 @@ private:
     RefPtr<RadialGradientStyleValue> parse_radial_gradient_function(TokenStream<ComponentValue>&);
 
     ParseErrorOr<NonnullRefPtr<CSSStyleValue>> parse_css_value(PropertyID, TokenStream<ComponentValue>&, Optional<String> original_source_text = {});
+    ParseErrorOr<NonnullRefPtr<CSSStyleValue>> parse_descriptor_value(AtRuleID, DescriptorID, TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_css_value_for_property(PropertyID, TokenStream<ComponentValue>&);
     struct PropertyAndValue {
         PropertyID property;
@@ -482,7 +489,11 @@ private:
     struct FunctionContext {
         StringView name;
     };
-    using ValueParsingContext = Variant<PropertyID, FunctionContext>;
+    struct DescriptorContext {
+        AtRuleID at_rule;
+        DescriptorID descriptor;
+    };
+    using ValueParsingContext = Variant<PropertyID, FunctionContext, DescriptorContext>;
     Vector<ValueParsingContext> m_value_context;
     auto push_temporary_value_parsing_context(ValueParsingContext&& context)
     {
@@ -515,7 +526,9 @@ namespace Web {
 
 CSS::CSSStyleSheet* parse_css_stylesheet(CSS::Parser::ParsingParams const&, StringView, Optional<URL::URL> location = {}, Vector<NonnullRefPtr<CSS::MediaQuery>> = {});
 CSS::Parser::Parser::PropertiesAndCustomProperties parse_css_style_attribute(CSS::Parser::ParsingParams const&, StringView);
+Vector<CSS::Descriptor> parse_css_list_of_descriptors(CSS::Parser::ParsingParams const&, CSS::AtRuleID, StringView);
 RefPtr<CSS::CSSStyleValue> parse_css_value(CSS::Parser::ParsingParams const&, StringView, CSS::PropertyID property_id = CSS::PropertyID::Invalid);
+RefPtr<CSS::CSSStyleValue> parse_css_descriptor(CSS::Parser::ParsingParams const&, CSS::AtRuleID, CSS::DescriptorID, StringView);
 Optional<CSS::SelectorList> parse_selector(CSS::Parser::ParsingParams const&, StringView);
 Optional<CSS::SelectorList> parse_selector_for_nested_style_rule(CSS::Parser::ParsingParams const&, StringView);
 Optional<CSS::Selector::PseudoElementSelector> parse_pseudo_element_selector(CSS::Parser::ParsingParams const&, StringView);

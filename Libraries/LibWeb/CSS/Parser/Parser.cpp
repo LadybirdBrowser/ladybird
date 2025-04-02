@@ -1350,6 +1350,36 @@ Parser::PropertiesAndCustomProperties Parser::parse_as_style_attribute()
     return properties;
 }
 
+Vector<Descriptor> Parser::parse_as_list_of_descriptors(AtRuleID at_rule_id)
+{
+    auto context_type = [at_rule_id] {
+        switch (at_rule_id) {
+        case AtRuleID::FontFace:
+            return ContextType::AtFontFace;
+        case AtRuleID::Property:
+            return ContextType::AtProperty;
+        }
+        VERIFY_NOT_REACHED();
+    }();
+
+    m_rule_context.append(context_type);
+    auto declarations_and_at_rules = parse_a_blocks_contents(m_token_stream);
+    m_rule_context.take_last();
+
+    Vector<Descriptor> descriptors;
+    for (auto const& rule_or_list : declarations_and_at_rules) {
+        if (rule_or_list.has<Rule>())
+            continue;
+
+        auto& declarations = rule_or_list.get<Vector<Declaration>>();
+        for (auto const& declaration : declarations) {
+            if (auto descriptor = convert_to_descriptor(at_rule_id, declaration); descriptor.has_value())
+                descriptors.append(descriptor.release_value());
+        }
+    }
+    return descriptors;
+}
+
 bool Parser::is_valid_in_the_current_context(Declaration const&) const
 {
     // TODO: Determine if this *particular* declaration is valid here, not just declarations in general.
@@ -1574,9 +1604,10 @@ bool Parser::context_allows_quirky_length() const
     for (auto i = 1u; i < m_value_context.size() && unitless_length_allowed; i++) {
         unitless_length_allowed = m_value_context[i].visit(
             [](PropertyID const& property_id) { return property_has_quirk(property_id, Quirk::UnitlessLength); },
-            [top_level_property](Parser::FunctionContext const& function_context) {
+            [top_level_property](FunctionContext const& function_context) {
                 return function_context.name == "rect"sv && top_level_property == PropertyID::Clip;
-            });
+            },
+            [](DescriptorContext const&) { return false; });
     }
 
     return unitless_length_allowed;
@@ -1597,6 +1628,16 @@ RefPtr<CSSStyleValue> Parser::parse_as_css_value(PropertyID property_id)
     auto component_values = parse_a_list_of_component_values(m_token_stream);
     auto tokens = TokenStream(component_values);
     auto parsed_value = parse_css_value(property_id, tokens);
+    if (parsed_value.is_error())
+        return nullptr;
+    return parsed_value.release_value();
+}
+
+RefPtr<CSSStyleValue> Parser::parse_as_descriptor_value(AtRuleID at_rule_id, DescriptorID descriptor_id)
+{
+    auto component_values = parse_a_list_of_component_values(m_token_stream);
+    auto tokens = TokenStream(component_values);
+    auto parsed_value = parse_descriptor_value(at_rule_id, descriptor_id, tokens);
     if (parsed_value.is_error())
         return nullptr;
     return parsed_value.release_value();

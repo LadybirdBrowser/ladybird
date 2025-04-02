@@ -64,11 +64,25 @@ CSS::Parser::Parser::PropertiesAndCustomProperties parse_css_style_attribute(CSS
     return CSS::Parser::Parser::create(context, css).parse_as_style_attribute();
 }
 
+Vector<CSS::Descriptor> parse_css_list_of_descriptors(CSS::Parser::ParsingParams const& parsing_params, CSS::AtRuleID at_rule_id, StringView css)
+{
+    if (css.is_empty())
+        return {};
+    return CSS::Parser::Parser::create(parsing_params, css).parse_as_list_of_descriptors(at_rule_id);
+}
+
 RefPtr<CSS::CSSStyleValue> parse_css_value(CSS::Parser::ParsingParams const& context, StringView string, CSS::PropertyID property_id)
 {
     if (string.is_empty())
         return nullptr;
     return CSS::Parser::Parser::create(context, string).parse_as_css_value(property_id);
+}
+
+RefPtr<CSS::CSSStyleValue> parse_css_descriptor(CSS::Parser::ParsingParams const& parsing_params, CSS::AtRuleID at_rule_id, CSS::DescriptorID descriptor_id, StringView string)
+{
+    if (string.is_empty())
+        return nullptr;
+    return CSS::Parser::Parser::create(parsing_params, string).parse_as_descriptor_value(at_rule_id, descriptor_id);
 }
 
 CSS::CSSRule* parse_css_rule(CSS::Parser::ParsingParams const& context, StringView css_text)
