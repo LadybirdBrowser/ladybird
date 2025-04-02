@@ -45,6 +45,7 @@ public:
     [[nodiscard]] bool aborted() const { return m_aborted; }
     [[nodiscard]] GC::Ref<HTML::DOMStringList> object_store_names();
     [[nodiscard]] ReadonlySpan<GC::Ref<ObjectStore>> scope() const { return m_scope; }
+    [[nodiscard]] String uuid() const { return m_uuid; }
 
     void set_mode(Bindings::IDBTransactionMode mode) { m_mode = mode; }
     void set_state(TransactionState state) { m_state = state; }
@@ -100,5 +101,8 @@ private:
 
     // A transaction optionally has a cleanup event loop which is an event loop.
     GC::Ptr<HTML::EventLoop> m_cleanup_event_loop;
+
+    // NOTE: Used for debug purposes
+    String m_uuid;
 };
 }

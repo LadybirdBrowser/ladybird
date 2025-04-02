@@ -6,6 +6,7 @@
 
 #include <LibWeb/Bindings/IDBDatabasePrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/IndexedDB/IDBDatabase.h>
 #include <LibWeb/IndexedDB/IDBObjectStore.h>
@@ -20,6 +21,7 @@ IDBDatabase::IDBDatabase(JS::Realm& realm, Database& db)
     , m_name(db.name())
     , m_associated_database(db)
 {
+    m_uuid = MUST(Crypto::generate_random_uuid());
     db.associate(*this);
     m_object_store_set = Vector<GC::Ref<ObjectStore>> { db.object_stores() };
 }

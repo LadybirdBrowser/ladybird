@@ -7,6 +7,7 @@
  */
 
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/IndexedDB/IDBRequest.h>
 #include <LibWeb/IndexedDB/IDBTransaction.h>
@@ -21,6 +22,7 @@ IDBRequest::IDBRequest(JS::Realm& realm, IDBRequestSource source)
     : EventTarget(realm)
     , m_source(source)
 {
+    m_uuid = MUST(Crypto::generate_random_uuid());
 }
 
 void IDBRequest::initialize(JS::Realm& realm)
