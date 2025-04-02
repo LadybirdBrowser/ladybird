@@ -53,6 +53,7 @@ public:
     [[nodiscard]] ConnectionState state() const { return m_state; }
     [[nodiscard]] GC::Ref<Database> associated_database() { return m_associated_database; }
     [[nodiscard]] ReadonlySpan<GC::Ref<ObjectStore>> object_store_set() { return m_object_store_set; }
+    void add_to_object_store_set(GC::Ref<ObjectStore> object_store) { m_object_store_set.append(object_store); }
     void remove_from_object_store_set(GC::Ref<ObjectStore> object_store)
     {
         m_object_store_set.remove_first_matching([&](auto& entry) { return entry == object_store; });
