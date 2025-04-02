@@ -32,6 +32,8 @@ static constexpr auto site_setting_site_filters_key = "siteFilters"sv;
 
 static constexpr auto autoplay_key = "autoplay"sv;
 
+static constexpr auto do_not_track_key = "doNotTrack"sv;
+
 static ErrorOr<JsonObject> read_settings_file(StringView settings_path)
 {
     auto settings_file = Core::File::open(settings_path, Core::File::OpenMode::Read);
@@ -109,6 +111,9 @@ Settings Settings::create(Badge<Application>)
 
     load_site_setting(settings.m_autoplay, autoplay_key);
 
+    if (auto do_not_track = settings_json.value().get_bool(do_not_track_key); do_not_track.has_value())
+        settings.m_do_not_track = *do_not_track ? DoNotTrack::Yes : DoNotTrack::No;
+
     return settings;
 }
 
@@ -153,6 +158,8 @@ JsonValue Settings::serialize_json() const
 
     save_site_setting(m_autoplay, autoplay_key);
 
+    settings.set(do_not_track_key, m_do_not_track == DoNotTrack::Yes);
+
     return settings;
 }
 
@@ -162,6 +169,7 @@ void Settings::restore_defaults()
     m_search_engine.clear();
     m_autocomplete_engine.clear();
     m_autoplay = SiteSetting {};
+    m_do_not_track = DoNotTrack::No;
 
     persist_settings();
 
@@ -242,6 +250,15 @@ void Settings::remove_all_autoplay_site_filters()
 
     for (auto& observer : m_observers)
         observer.autoplay_settings_changed();
+}
+
+void Settings::set_do_not_track(DoNotTrack do_not_track)
+{
+    m_do_not_track = do_not_track;
+    persist_settings();
+
+    for (auto& observer : m_observers)
+        observer.do_not_track_changed();
 }
 
 void Settings::persist_settings()

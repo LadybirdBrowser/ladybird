@@ -50,6 +50,10 @@ void SettingsUI::register_interfaces()
     register_interface("removeAllSiteSettingFilters"sv, [this](auto const& data) {
         remove_all_site_setting_filters(data);
     });
+
+    register_interface("setDoNotTrack"sv, [this](auto const& data) {
+        set_do_not_track(data);
+    });
 }
 
 void SettingsUI::load_current_settings()
@@ -216,6 +220,14 @@ void SettingsUI::remove_all_site_setting_filters(JsonValue const& site_setting)
     }
 
     load_current_settings();
+}
+
+void SettingsUI::set_do_not_track(JsonValue const& do_not_track)
+{
+    if (!do_not_track.is_bool())
+        return;
+
+    WebView::Application::settings().set_do_not_track(do_not_track.as_bool() ? DoNotTrack::Yes : DoNotTrack::No);
 }
 
 }
