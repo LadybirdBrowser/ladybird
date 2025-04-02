@@ -14,8 +14,6 @@ interface SVGAElement : SVGGraphicsElement {
     [Reflect] attribute DOMString hreflang;
     [Reflect] attribute DOMString type;
 
-    [FIXME] attribute DOMString text;
-
     [FIXME] attribute DOMString referrerPolicy;
 
 };
