@@ -545,7 +545,7 @@ void abort_a_transaction(GC::Ref<IDBTransaction> transaction, GC::Ptr<WebIDL::DO
             request->set_result(JS::js_undefined());
 
             // 4. Set request’s processed flag to false.
-            request->set_processed(false);
+            // FIXME: request->set_processed(false);
 
             // 5. Set request’s done flag to false.
             request->set_done(false);
