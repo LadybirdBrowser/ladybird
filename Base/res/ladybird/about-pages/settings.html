@@ -334,6 +334,16 @@
             </div>
         </div>
 
+        <div class="card">
+            <div class="card-header">Privacy</div>
+            <div class="card-body">
+                <div class="card-group toggle-container">
+                    <label for="do-not-track-toggle">Send web sites a "Do Not Track" request</label>
+                    <input id="do-not-track-toggle" type="checkbox" switch />
+                </div>
+            </div>
+        </div>
+
         <div class="button-container">
             <button id="restore-defaults" class="primary-button">Restore&nbsp;Defaults</button>
         </div>
@@ -378,6 +388,7 @@
             const siteSettingsInput = document.querySelector("#site-settings-input");
             const siteSettingsRemoveAll = document.querySelector("#site-settings-remove-all");
             const siteSettingsTitle = document.querySelector("#site-settings-title");
+            const doNotTrackToggle = document.querySelector("#do-not-track-toggle");
             const restoreDefaults = document.querySelector("#restore-defaults");
 
             window.settings = {};
@@ -412,6 +423,8 @@
                 if (siteSetting === "autoplay") {
                     showSiteSettings("Autoplay", window.settings.autoplay);
                 }
+
+                doNotTrackToggle.checked = window.settings.doNotTrack;
             };
 
             newTabPageURL.addEventListener("change", () => {
@@ -607,6 +620,10 @@
             autoplaySettings.addEventListener("click", event => {
                 showSiteSettings("Autoplay", window.settings.autoplay);
                 event.stopPropagation();
+            });
+
+            doNotTrackToggle.addEventListener("change", () => {
+                ladybird.sendMessage("setDoNotTrack", doNotTrackToggle.checked);
             });
 
             restoreDefaults.addEventListener("click", () => {

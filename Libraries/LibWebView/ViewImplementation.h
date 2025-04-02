@@ -265,6 +265,7 @@ protected:
     void handle_web_content_process_crash(LoadErrorPage = LoadErrorPage::Yes);
 
     virtual void autoplay_settings_changed() override;
+    virtual void do_not_track_changed() override;
 
     struct SharedBitmap {
         i32 id { -1 };

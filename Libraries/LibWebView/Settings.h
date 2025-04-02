@@ -24,6 +24,11 @@ struct SiteSetting {
     OrderedHashTable<String> site_filters;
 };
 
+enum class DoNotTrack {
+    No,
+    Yes,
+};
+
 class SettingsObserver {
 public:
     SettingsObserver();
@@ -33,6 +38,7 @@ public:
     virtual void search_engine_changed() { }
     virtual void autocomplete_engine_changed() { }
     virtual void autoplay_settings_changed() { }
+    virtual void do_not_track_changed() { }
 };
 
 class Settings {
@@ -58,6 +64,9 @@ public:
     void remove_autoplay_site_filter(String const&);
     void remove_all_autoplay_site_filters();
 
+    DoNotTrack do_not_track() const { return m_do_not_track; }
+    void set_do_not_track(DoNotTrack);
+
     static void add_observer(Badge<SettingsObserver>, SettingsObserver&);
     static void remove_observer(Badge<SettingsObserver>, SettingsObserver&);
 
@@ -72,6 +81,7 @@ private:
     Optional<SearchEngine> m_search_engine;
     Optional<AutocompleteEngine> m_autocomplete_engine;
     SiteSetting m_autoplay;
+    DoNotTrack m_do_not_track { DoNotTrack::No };
 
     Vector<SettingsObserver&> m_observers;
 };

@@ -605,6 +605,7 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client)
         client().async_debug_request(m_client_state.page_index, "spoof-user-agent"sv, *user_agents.get(*user_agent_preset));
 
     autoplay_settings_changed();
+    do_not_track_changed();
 }
 
 void ViewImplementation::handle_web_content_process_crash(LoadErrorPage load_error_page)
@@ -661,6 +662,12 @@ void ViewImplementation::autoplay_settings_changed()
         client().async_set_autoplay_allowed_on_all_websites(page_id());
     else
         client().async_set_autoplay_allowlist(page_id(), autoplay_settings.site_filters.values());
+}
+
+void ViewImplementation::do_not_track_changed()
+{
+    auto do_not_track = Application::settings().do_not_track();
+    client().async_set_enable_do_not_track(page_id(), do_not_track == DoNotTrack::Yes);
 }
 
 static ErrorOr<LexicalPath> save_screenshot(Gfx::ShareableBitmap const& bitmap)
