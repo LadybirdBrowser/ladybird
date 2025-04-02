@@ -21,9 +21,13 @@ namespace AK {
 
 using Utf16Data = Vector<u16, 1>;
 
-ErrorOr<Utf16Data> utf8_to_utf16(StringView, Endianness = Endianness::Host);
-ErrorOr<Utf16Data> utf8_to_utf16(Utf8View const&, Endianness = Endianness::Host);
-ErrorOr<Utf16Data> utf32_to_utf16(Utf32View const&, Endianness = Endianness::Host);
+struct Utf16ConversionResult {
+    Utf16Data data;
+    size_t code_point_count;
+};
+ErrorOr<Utf16ConversionResult> utf8_to_utf16(StringView, Endianness = Endianness::Host);
+ErrorOr<Utf16ConversionResult> utf8_to_utf16(Utf8View const&, Endianness = Endianness::Host);
+ErrorOr<Utf16ConversionResult> utf32_to_utf16(Utf32View const&, Endianness = Endianness::Host);
 ErrorOr<void> code_point_to_utf16(Utf16Data&, u32, Endianness = Endianness::Host);
 
 [[nodiscard]] bool validate_utf16_le(ReadonlyBytes);
@@ -77,6 +81,13 @@ public:
     {
     }
 
+    Utf16View(Utf16ConversionResult&&) = delete;
+    explicit Utf16View(Utf16ConversionResult const& conversion_result)
+        : m_code_units(conversion_result.data)
+        , m_length_in_code_points(conversion_result.code_point_count)
+    {
+    }
+
     template<size_t Size>
     Utf16View(char16_t const (&code_units)[Size])
         : m_code_units(
@@ -94,6 +105,8 @@ public:
 
     ErrorOr<ByteString> to_byte_string(AllowInvalidCodeUnits = AllowInvalidCodeUnits::No) const;
     ErrorOr<String> to_utf8(AllowInvalidCodeUnits = AllowInvalidCodeUnits::No) const;
+
+    void unsafe_set_code_point_length(size_t length) const { m_length_in_code_points = length; }
 
     bool is_null() const { return m_code_units.is_null(); }
     bool is_empty() const { return m_code_units.is_empty(); }

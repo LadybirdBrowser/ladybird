@@ -160,16 +160,16 @@ TEST_CASE(out_of_bounds)
         auto segmenter = Unicode::Segmenter::create(Unicode::SegmenterGranularity::Word);
         segmenter->set_segmented_text(Utf16View { text });
 
-        auto result = segmenter->previous_boundary(text.size() + 1);
+        auto result = segmenter->previous_boundary(text.data.size() + 1);
         EXPECT(result.has_value());
 
-        result = segmenter->next_boundary(text.size() + 1);
+        result = segmenter->next_boundary(text.data.size() + 1);
         EXPECT(!result.has_value());
 
-        result = segmenter->previous_boundary(text.size());
+        result = segmenter->previous_boundary(text.data.size());
         EXPECT(result.has_value());
 
-        result = segmenter->next_boundary(text.size());
+        result = segmenter->next_boundary(text.data.size());
         EXPECT(!result.has_value());
 
         result = segmenter->next_boundary(0);

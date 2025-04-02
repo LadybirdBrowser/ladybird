@@ -113,16 +113,19 @@ public:
     RegexStringView construct_as_same(Span<u32> data, Optional<ByteString>& optional_string_storage, Utf16Data& optional_utf16_storage) const
     {
         auto view = m_view.visit(
-            [&]<typename T>(T const&) {
+            [&optional_string_storage, data]<typename T>(T const&) {
                 StringBuilder builder;
                 for (auto ch : data)
                     builder.append(ch); // Note: The type conversion is intentional.
                 optional_string_storage = builder.to_byte_string();
                 return RegexStringView { T { *optional_string_storage } };
             },
-            [&](Utf16View) {
-                optional_utf16_storage = AK::utf32_to_utf16(Utf32View { data.data(), data.size() }).release_value_but_fixme_should_propagate_errors();
-                return RegexStringView { Utf16View { optional_utf16_storage } };
+            [&optional_utf16_storage, data](Utf16View) {
+                auto conversion_result = utf32_to_utf16(Utf32View { data.data(), data.size() }).release_value_but_fixme_should_propagate_errors();
+                optional_utf16_storage = conversion_result.data;
+                auto view = Utf16View { optional_utf16_storage };
+                view.unsafe_set_code_point_length(conversion_result.code_point_count);
+                return RegexStringView { view };
             });
 
         view.set_unicode(unicode());
