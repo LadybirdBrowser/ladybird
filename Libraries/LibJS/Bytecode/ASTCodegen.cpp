@@ -1349,7 +1349,7 @@ static Bytecode::CodeGenerationErrorOr<void> generate_object_binding_pattern_byt
                 excluded_property_names.append(excluded_name);
             }
 
-            generator.emit<Bytecode::Op::GetByValue>(value, object, property_name);
+            generator.emit_get_by_value(value, object, property_name);
         }
 
         if (initializer) {
@@ -1683,7 +1683,7 @@ static Bytecode::CodeGenerationErrorOr<BaseAndValue> get_base_and_value_from_mem
         if (computed_property.has_value()) {
             // 5. Let propertyKey be ? ToPropertyKey(propertyNameValue).
             // FIXME: This does ToPropertyKey out of order, which is observable by Symbol.toPrimitive!
-            generator.emit<Bytecode::Op::GetByValueWithThis>(value, super_base, *computed_property, this_value);
+            generator.emit_get_by_value_with_this(value, super_base, *computed_property, this_value);
         } else {
             // 3. Let propertyKey be StringValue of IdentifierName.
             auto identifier_table_ref = generator.intern_identifier(as<Identifier>(member_expression.property()).string());
@@ -1697,7 +1697,7 @@ static Bytecode::CodeGenerationErrorOr<BaseAndValue> get_base_and_value_from_mem
     auto value = generator.allocate_register();
     if (member_expression.is_computed()) {
         auto property = TRY(member_expression.property().generate_bytecode(generator)).value();
-        generator.emit<Bytecode::Op::GetByValue>(value, base, property);
+        generator.emit_get_by_value(value, base, property);
     } else if (is<PrivateIdentifier>(member_expression.property())) {
         generator.emit<Bytecode::Op::GetPrivateById>(
             value,
@@ -3482,7 +3482,7 @@ static Bytecode::CodeGenerationErrorOr<void> generate_optional_chain(Bytecode::G
             [&](OptionalChain::ComputedReference const& ref) -> Bytecode::CodeGenerationErrorOr<void> {
                 generator.emit_mov(current_base, current_value);
                 auto property = TRY(ref.expression->generate_bytecode(generator)).value();
-                generator.emit<Bytecode::Op::GetByValue>(current_value, current_value, property);
+                generator.emit_get_by_value(current_value, current_value, property);
                 return {};
             },
             [&](OptionalChain::MemberReference const& ref) -> Bytecode::CodeGenerationErrorOr<void> {
