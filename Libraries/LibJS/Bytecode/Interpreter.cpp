@@ -2597,6 +2597,8 @@ static ThrowCompletionOr<Value> dispatch_builtin_call(Bytecode::Interpreter& int
         return TRY(MathObject::ceil_impl(interpreter.vm(), interpreter.get(arguments[0])));
     case Builtin::MathFloor:
         return TRY(MathObject::floor_impl(interpreter.vm(), interpreter.get(arguments[0])));
+    case Builtin::MathImul:
+        return TRY(MathObject::imul_impl(interpreter.vm(), interpreter.get(arguments[0]), interpreter.get(arguments[1])));
     case Builtin::MathRound:
         return TRY(MathObject::round_impl(interpreter.vm(), interpreter.get(arguments[0])));
     case Builtin::MathSqrt:
