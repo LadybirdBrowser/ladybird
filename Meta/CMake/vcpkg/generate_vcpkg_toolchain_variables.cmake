@@ -17,11 +17,6 @@ if (LINUX AND NOT LAGOM_USE_LINKER)
     string(APPEND EXTRA_VCPKG_VARIABLES "set(ENV{LDFLAGS} -Wl,-z,noseparate-code)\n")
 endif()
 
-# Temporary workaround until a version of vcpkg with https://github.com/microsoft/vcpkg/pull/44712 is released
-if (CMAKE_VERSION VERSION_GREATER_EQUAL "4.0")
-    string(APPEND EXTRA_VCPKG_VARIABLES "set(ENV{CMAKE_POLICY_VERSION_MINIMUM} 3.5)\n")
-endif()
-
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/build-vcpkg-variables.cmake" "${EXTRA_VCPKG_VARIABLES}")
 
 # Munge the VCPKG_TRIPLET to correspond to the right one for our presets
