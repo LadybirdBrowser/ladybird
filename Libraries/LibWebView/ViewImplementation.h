@@ -80,8 +80,6 @@ public:
     void set_preferred_contrast(Web::CSS::PreferredContrast);
     void set_preferred_motion(Web::CSS::PreferredMotion);
 
-    void set_preferred_languages(ReadonlySpan<String>);
-
     ByteString selected_text();
     Optional<String> selected_text_with_whitespace_collapsed();
     void select_all();
@@ -262,6 +260,7 @@ protected:
     };
     void handle_web_content_process_crash(LoadErrorPage = LoadErrorPage::Yes);
 
+    virtual void languages_changed() override;
     virtual void autoplay_settings_changed() override;
     virtual void do_not_track_changed() override;
 

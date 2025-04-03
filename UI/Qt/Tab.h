@@ -88,8 +88,6 @@ public:
     void set_user_agent_string(ByteString const&);
     void set_navigator_compatibility_mode(ByteString const&);
 
-    void set_preferred_languages(ReadonlySpan<String> preferred_languages);
-
     bool url_is_hidden() const { return m_location_edit->url_is_hidden(); }
     void set_url_is_hidden(bool url_is_hidden) { m_location_edit->set_url_is_hidden(url_is_hidden); }
 

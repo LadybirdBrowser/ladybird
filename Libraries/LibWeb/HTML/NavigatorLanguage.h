@@ -7,8 +7,8 @@
 
 #pragma once
 
+#include <AK/Span.h>
 #include <AK/String.h>
-#include <AK/Vector.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 
 namespace Web::HTML {
@@ -16,10 +16,10 @@ namespace Web::HTML {
 class NavigatorLanguageMixin {
 public:
     // https://html.spec.whatwg.org/multipage/system-state.html#dom-navigator-language
-    String language() const { return ResourceLoader::the().preferred_languages()[0]; }
+    String const& language() const { return ResourceLoader::the().preferred_languages()[0]; }
 
     // https://html.spec.whatwg.org/multipage/system-state.html#dom-navigator-languages
-    Vector<String> languages() const { return ResourceLoader::the().preferred_languages(); }
+    ReadonlySpan<String> languages() const { return ResourceLoader::the().preferred_languages(); }
 };
 
 }

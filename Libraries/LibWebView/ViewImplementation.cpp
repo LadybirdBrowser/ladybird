@@ -252,11 +252,6 @@ void ViewImplementation::set_preferred_motion(Web::CSS::PreferredMotion motion)
     client().async_set_preferred_motion(page_id(), motion);
 }
 
-void ViewImplementation::set_preferred_languages(ReadonlySpan<String> preferred_languages)
-{
-    client().async_set_preferred_languages(page_id(), preferred_languages);
-}
-
 ByteString ViewImplementation::selected_text()
 {
     return client().get_selected_text(page_id());
@@ -599,6 +594,7 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client)
     if (auto const& user_agent_preset = Application::web_content_options().user_agent_preset; user_agent_preset.has_value())
         client().async_debug_request(m_client_state.page_index, "spoof-user-agent"sv, *user_agents.get(*user_agent_preset));
 
+    languages_changed();
     autoplay_settings_changed();
     do_not_track_changed();
 }
@@ -646,6 +642,12 @@ void ViewImplementation::handle_web_content_process_crash(LoadErrorPage load_err
         builder.append("</body></html>"sv);
         load_html(builder.to_byte_string());
     }
+}
+
+void ViewImplementation::languages_changed()
+{
+    auto const& languages = Application::settings().languages();
+    client().async_set_preferred_languages(page_id(), languages);
 }
 
 void ViewImplementation::autoplay_settings_changed()

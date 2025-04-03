@@ -7,7 +7,6 @@ target_sources(ladybird PRIVATE
     Icon.cpp
     LocationEdit.cpp
     Settings.cpp
-    SettingsDialog.cpp
     Tab.cpp
     TabBar.cpp
     TVGIconEngine.cpp

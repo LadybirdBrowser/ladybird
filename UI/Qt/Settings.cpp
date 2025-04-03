@@ -54,17 +54,6 @@ void Settings::set_is_maximized(bool is_maximized)
     m_qsettings->setValue("is_maximized", is_maximized);
 }
 
-QStringList Settings::preferred_languages()
-{
-    return m_qsettings->value("preferred_languages").toStringList();
-}
-
-void Settings::set_preferred_languages(QStringList const& languages)
-{
-    m_qsettings->setValue("preferred_languages", languages);
-    emit preferred_languages_changed(languages);
-}
-
 bool Settings::show_menubar()
 {
     return m_qsettings->value("show_menubar", false).toBool();
