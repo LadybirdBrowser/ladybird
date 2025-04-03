@@ -602,6 +602,17 @@ ThrowCompletionOr<GC::Ref<Object>> Value::to_object(VM& vm) const
 // 7.1.3 ToNumeric ( value ), https://tc39.es/ecma262/#sec-tonumeric
 FLATTEN ThrowCompletionOr<Value> Value::to_numeric_slow_case(VM& vm) const
 {
+    // OPTIMIZATION: Fast paths for some trivial common cases.
+    if (is_boolean()) {
+        return Value(as_bool() ? 1 : 0);
+    }
+    if (is_null()) {
+        return Value(0);
+    }
+    if (is_undefined()) {
+        return js_nan();
+    }
+
     // 1. Let primValue be ? ToPrimitive(value, number).
     auto primitive_value = TRY(to_primitive(vm, Value::PreferredType::Number));
 
