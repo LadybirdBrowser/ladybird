@@ -87,6 +87,7 @@ void HTMLButtonElement::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
     PopoverInvokerElement::visit_edges(visitor);
+    visitor.visit(m_command_for_element);
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-tabindex
