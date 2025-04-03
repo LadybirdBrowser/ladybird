@@ -687,7 +687,7 @@ CodeGenerationErrorOr<Generator::ReferenceOperands> Generator::emit_load_from_re
         if (super_reference.referenced_name.has_value()) {
             // 5. Let propertyKey be ? ToPropertyKey(propertyNameValue).
             // FIXME: This does ToPropertyKey out of order, which is observable by Symbol.toPrimitive!
-            emit<Bytecode::Op::GetByValueWithThis>(dst, *super_reference.base, *super_reference.referenced_name, *super_reference.this_value);
+            emit_get_by_value_with_this(dst, *super_reference.base, *super_reference.referenced_name, *super_reference.this_value);
         } else {
             // 3. Let propertyKey be StringValue of IdentifierName.
             auto identifier_table_ref = intern_identifier(as<Identifier>(expression.property()).string());
@@ -706,7 +706,7 @@ CodeGenerationErrorOr<Generator::ReferenceOperands> Generator::emit_load_from_re
         auto saved_property = allocate_register();
         emit<Bytecode::Op::Mov>(saved_property, property);
         auto dst = preferred_dst.has_value() ? preferred_dst.value() : allocate_register();
-        emit<Bytecode::Op::GetByValue>(dst, base, property, move(base_identifier));
+        emit_get_by_value(dst, base, property, move(base_identifier));
         return ReferenceOperands {
             .base = base,
             .referenced_name = saved_property,
@@ -1120,6 +1120,30 @@ void Generator::emit_get_by_id_with_this(ScopedOperand dst, ScopedOperand base, 
         return;
     }
     emit<Op::GetByIdWithThis>(dst, base, id, this_value, m_next_property_lookup_cache++);
+}
+
+void Generator::emit_get_by_value(ScopedOperand dst, ScopedOperand base, ScopedOperand property, Optional<IdentifierTableIndex> base_identifier)
+{
+    if (property.operand().is_constant() && get_constant(property).is_string()) {
+        auto property_key = MUST(get_constant(property).to_property_key(vm()));
+        if (property_key.is_string()) {
+            emit_get_by_id(dst, base, intern_identifier(property_key.as_string()), base_identifier);
+            return;
+        }
+    }
+    emit<Op::GetByValue>(dst, base, property, base_identifier);
+}
+
+void Generator::emit_get_by_value_with_this(ScopedOperand dst, ScopedOperand base, ScopedOperand property, ScopedOperand this_value)
+{
+    if (property.operand().is_constant() && get_constant(property).is_string()) {
+        auto property_key = MUST(get_constant(property).to_property_key(vm()));
+        if (property_key.is_string()) {
+            emit_get_by_id_with_this(dst, base, intern_identifier(property_key.as_string()), this_value);
+            return;
+        }
+    }
+    emit<Op::GetByValueWithThis>(dst, base, property, this_value);
 }
 
 void Generator::emit_iterator_value(ScopedOperand dst, ScopedOperand result)

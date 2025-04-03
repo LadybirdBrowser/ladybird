@@ -324,6 +324,9 @@ public:
 
     void emit_get_by_id_with_this(ScopedOperand dst, ScopedOperand base, IdentifierTableIndex, ScopedOperand this_value);
 
+    void emit_get_by_value(ScopedOperand dst, ScopedOperand base, ScopedOperand property, Optional<IdentifierTableIndex> base_identifier = {});
+    void emit_get_by_value_with_this(ScopedOperand dst, ScopedOperand base, ScopedOperand property, ScopedOperand this_value);
+
     void emit_iterator_value(ScopedOperand dst, ScopedOperand result);
     void emit_iterator_complete(ScopedOperand dst, ScopedOperand result);
 
