@@ -62,7 +62,8 @@ TraversableNavigable::TraversableNavigable(GC::Ref<Page> page)
     }
 
     m_rendering_thread.set_skia_player(move(skia_player));
-    m_rendering_thread.start();
+    m_rendering_thread.set_skia_backend_context(m_skia_backend_context);
+    m_rendering_thread.start(display_list_player_type);
 }
 
 TraversableNavigable::~TraversableNavigable() = default;
@@ -1399,38 +1400,7 @@ void TraversableNavigable::set_viewport_size(CSSPixelSize size)
     Navigable::set_viewport_size(size);
 
     // Invalidate the surface cache if the traversable changed size.
-    m_bitmap_to_surface.clear();
-}
-
-NonnullRefPtr<Gfx::PaintingSurface> TraversableNavigable::painting_surface_for_backing_store(Painting::BackingStore& backing_store)
-{
-    auto& bitmap = backing_store.bitmap();
-    auto cached_surface = m_bitmap_to_surface.find(&bitmap);
-    if (cached_surface != m_bitmap_to_surface.end())
-        return cached_surface->value;
-
-    RefPtr<Gfx::PaintingSurface> new_surface;
-    if (page().client().display_list_player_type() == DisplayListPlayerType::SkiaGPUIfAvailable && m_skia_backend_context) {
-#ifdef USE_VULKAN
-        // Vulkan: Try to create an accelerated surface.
-        new_surface = Gfx::PaintingSurface::create_with_size(m_skia_backend_context, backing_store.size(), Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
-        new_surface->on_flush = [backing_store = static_cast<NonnullRefPtr<Painting::BackingStore>>(backing_store)](auto& surface) { surface.read_into_bitmap(backing_store->bitmap()); };
-#endif
-#ifdef AK_OS_MACOS
-        // macOS: Wrap an IOSurface if available.
-        if (is<Painting::IOSurfaceBackingStore>(backing_store)) {
-            auto& iosurface_backing_store = static_cast<Painting::IOSurfaceBackingStore&>(backing_store);
-            new_surface = Gfx::PaintingSurface::wrap_iosurface(iosurface_backing_store.iosurface_handle(), *m_skia_backend_context);
-        }
-#endif
-    }
-
-    // CPU and fallback: wrap the backing store bitmap directly.
-    if (!new_surface)
-        new_surface = Gfx::PaintingSurface::wrap_bitmap(bitmap);
-
-    m_bitmap_to_surface.set(&bitmap, *new_surface);
-    return *new_surface;
+    m_rendering_thread.clear_bitmap_to_surface_cache();
 }
 
 RefPtr<Painting::DisplayList> TraversableNavigable::record_display_list(DevicePixelRect const& content_rect, PaintOptions paint_options)
@@ -1454,9 +1424,9 @@ RefPtr<Painting::DisplayList> TraversableNavigable::record_display_list(DevicePi
     return document->record_display_list(paint_config);
 }
 
-void TraversableNavigable::start_display_list_rendering(NonnullRefPtr<Painting::DisplayList> display_list, NonnullRefPtr<Gfx::PaintingSurface> painting_surface, Function<void()>&& callback)
+void TraversableNavigable::start_display_list_rendering(NonnullRefPtr<Painting::DisplayList> display_list, NonnullRefPtr<Painting::BackingStore> backing_store, Function<void()>&& callback)
 {
-    m_rendering_thread.enqueue_rendering_task(move(display_list), move(painting_surface), move(callback));
+    m_rendering_thread.enqueue_rendering_task(move(display_list), move(backing_store), move(callback));
 }
 
 }

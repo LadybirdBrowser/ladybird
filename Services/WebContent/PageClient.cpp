@@ -246,8 +246,7 @@ void PageClient::start_display_list_rendering(Web::DevicePixelRect const& conten
         callback();
         return;
     }
-    auto painting_surface = traversable.painting_surface_for_backing_store(target);
-    traversable.start_display_list_rendering(*display_list, painting_surface, move(callback));
+    traversable.start_display_list_rendering(*display_list, target, move(callback));
 }
 
 Queue<Web::QueuedInputEvent>& PageClient::input_event_queue()
