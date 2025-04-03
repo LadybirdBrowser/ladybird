@@ -114,6 +114,10 @@ button.primary-button:active {
     background-color: var(--violet-900);
 }
 
+button.primary-button:disabled {
+    background-color: var(--violet-60);
+}
+
 button.secondary-button {
     background-color: var(--secondary-button-color);
 }

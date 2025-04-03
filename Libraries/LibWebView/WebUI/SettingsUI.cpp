@@ -24,6 +24,9 @@ void SettingsUI::register_interfaces()
     register_interface("setNewTabPageURL"sv, [this](auto const& data) {
         set_new_tab_page_url(data);
     });
+    register_interface("setLanguages"sv, [this](auto const& data) {
+        set_languages(data);
+    });
 
     register_interface("loadAvailableEngines"sv, [this](auto const&) {
         load_available_engines();
@@ -78,6 +81,14 @@ void SettingsUI::set_new_tab_page_url(JsonValue const& new_tab_page_url)
         return;
 
     WebView::Application::settings().set_new_tab_page_url(parsed_new_tab_page_url.release_value());
+}
+
+void SettingsUI::set_languages(JsonValue const& languages)
+{
+    auto parsed_languages = Settings::parse_json_languages(languages);
+    WebView::Application::settings().set_languages(move(parsed_languages));
+
+    load_current_settings();
 }
 
 void SettingsUI::load_available_engines()
