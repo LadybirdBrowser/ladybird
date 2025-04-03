@@ -173,8 +173,13 @@ void Settings::restore_defaults()
 
     persist_settings();
 
-    for (auto& observer : m_observers)
+    for (auto& observer : m_observers) {
         observer.new_tab_page_url_changed();
+        observer.search_engine_changed();
+        observer.autocomplete_engine_changed();
+        observer.autoplay_settings_changed();
+        observer.do_not_track_changed();
+    }
 }
 
 void Settings::set_new_tab_page_url(URL::URL new_tab_page_url)
