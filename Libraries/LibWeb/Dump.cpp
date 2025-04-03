@@ -703,6 +703,9 @@ void dump_font_face_rule(StringBuilder& builder, CSS::CSSFontFaceRule const& rul
 {
     auto const font_face = rule.font_face();
     indent(builder, indent_levels + 1);
+    builder.appendff("VALID: {}\n", rule.is_valid());
+
+    indent(builder, indent_levels + 1);
     builder.appendff("font-family: {}\n", font_face.font_family());
 
     if (font_face.weight().has_value()) {

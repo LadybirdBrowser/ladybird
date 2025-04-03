@@ -22,6 +22,7 @@ public:
 
     virtual ~CSSFontFaceRule() override = default;
 
+    bool is_valid() const;
     ParsedFontFace font_face() const;
     CSSStyleDeclaration* style() { return m_style; }
 
