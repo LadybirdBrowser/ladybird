@@ -45,16 +45,17 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue>> Parser::parse_descriptor_valu
                 return parse_all_as_single_keyword_value(tokens, keyword);
             },
             [&](PropertyID property_id) -> RefPtr<CSSStyleValue> {
-                auto value_for_property = parse_css_value_for_property(property_id, tokens);
-                if (!value_for_property)
+                auto value_or_error = parse_css_value(property_id, tokens);
+                if (value_or_error.is_error())
                     return nullptr;
+                auto value_for_property = value_or_error.release_value();
                 // Descriptors don't accept the following, which properties do:
                 // - CSS-wide keywords
                 // - Shorthands
                 // - Arbitrary substitution functions (so, UnresolvedStyleValue)
                 if (value_for_property->is_css_wide_keyword() || value_for_property->is_shorthand() || value_for_property->is_unresolved())
                     return nullptr;
-                return value_for_property.release_nonnull();
+                return value_for_property;
             },
             [&](DescriptorMetadata::ValueType value_type) -> RefPtr<CSSStyleValue> {
                 switch (value_type) {
