@@ -21,6 +21,7 @@ static constexpr auto builtin_search_engines = Array {
     SearchEngine { "Startpage"sv, "https://startpage.com/search?q={}"sv },
     SearchEngine { "Yahoo"sv, "https://search.yahoo.com/search?p={}"sv },
     SearchEngine { "Yandex"sv, "https://yandex.com/search/?text={}"sv },
+    SearchEngine { "4get"sv, "https://4get.ca/web?s={}"sv },
 };
 
 ReadonlySpan<SearchEngine> search_engines()
