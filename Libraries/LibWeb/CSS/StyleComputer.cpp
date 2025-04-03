@@ -3061,8 +3061,10 @@ void StyleComputer::load_fonts_from_sheet(CSSStyleSheet& sheet)
     for (auto const& rule : sheet.rules()) {
         if (!is<CSSFontFaceRule>(*rule))
             continue;
-        auto font_loader = load_font_face(static_cast<CSSFontFaceRule const&>(*rule).font_face());
-        if (font_loader.has_value()) {
+        auto const& font_face_rule = static_cast<CSSFontFaceRule const&>(*rule);
+        if (!font_face_rule.is_valid())
+            continue;
+        if (auto font_loader = load_font_face(font_face_rule.font_face()); font_loader.has_value()) {
             sheet.add_associated_font_loader(font_loader.value());
         }
     }

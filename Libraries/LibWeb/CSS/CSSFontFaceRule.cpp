@@ -34,6 +34,15 @@ void CSSFontFaceRule::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSFontFaceRule);
 }
 
+bool CSSFontFaceRule::is_valid() const
+{
+    // @font-face rules require a font-family and src descriptor; if either of these are missing, the @font-face rule
+    // must not be considered when performing the font matching algorithm.
+    // https://drafts.csswg.org/css-fonts-4/#font-face-rule
+    return !m_style->descriptor(DescriptorID::FontFamily).is_null()
+        && !m_style->descriptor(DescriptorID::Src).is_null();
+}
+
 ParsedFontFace CSSFontFaceRule::font_face() const
 {
     return ParsedFontFace::from_descriptors(m_style);
