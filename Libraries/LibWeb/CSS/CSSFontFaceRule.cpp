@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2022-2025, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2022-2023, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -17,14 +17,14 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSFontFaceRule);
 
-GC::Ref<CSSFontFaceRule> CSSFontFaceRule::create(JS::Realm& realm, ParsedFontFace&& font_face)
+GC::Ref<CSSFontFaceRule> CSSFontFaceRule::create(JS::Realm& realm, GC::Ref<CSSFontFaceDescriptors> style)
 {
-    return realm.create<CSSFontFaceRule>(realm, move(font_face));
+    return realm.create<CSSFontFaceRule>(realm, style);
 }
 
-CSSFontFaceRule::CSSFontFaceRule(JS::Realm& realm, ParsedFontFace&& font_face)
+CSSFontFaceRule::CSSFontFaceRule(JS::Realm& realm, GC::Ref<CSSFontFaceDescriptors> style)
     : CSSRule(realm, Type::FontFace)
-    , m_font_face(move(font_face))
+    , m_style(style)
 {
 }
 
@@ -34,15 +34,15 @@ void CSSFontFaceRule::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSFontFaceRule);
 }
 
-CSSStyleDeclaration* CSSFontFaceRule::style()
+ParsedFontFace CSSFontFaceRule::font_face() const
 {
-    // FIXME: Return a CSSStyleDeclaration subclass that directs changes to the ParsedFontFace.
-    return nullptr;
+    return ParsedFontFace::from_descriptors(m_style);
 }
 
 // https://www.w3.org/TR/cssom/#ref-for-cssfontfacerule
 String CSSFontFaceRule::serialized() const
 {
+    auto font_face = this->font_face();
     StringBuilder builder;
     // The result of concatenating the following:
 
@@ -53,18 +53,18 @@ String CSSFontFaceRule::serialized() const
     builder.append("font-family: "sv);
 
     // 3. The result of performing serialize a string on the rule’s font family name.
-    serialize_a_string(builder, m_font_face.font_family());
+    serialize_a_string(builder, font_face.font_family());
 
     // 4. The string ";", i.e., SEMICOLON (U+003B).
     builder.append(';');
 
     // 5. If the rule’s associated source list is not empty, follow these substeps:
-    if (!m_font_face.sources().is_empty()) {
+    if (!font_face.sources().is_empty()) {
         // 1. A single SPACE (U+0020), followed by the string "src:", followed by a single SPACE (U+0020).
         builder.append(" src: "sv);
 
         // 2. The result of invoking serialize a comma-separated list on performing serialize a URL or serialize a LOCAL for each source on the source list.
-        serialize_a_comma_separated_list(builder, m_font_face.sources(), [&](StringBuilder& builder, ParsedFontFace::Source source) -> void {
+        serialize_a_comma_separated_list(builder, font_face.sources(), [&](StringBuilder& builder, ParsedFontFace::Source source) -> void {
             source.local_or_url.visit(
                 [&builder](URL::URL const& url) {
                     serialize_a_url(builder, url.to_string());
@@ -89,7 +89,7 @@ String CSSFontFaceRule::serialized() const
 
     // 6. If rule’s associated unicode-range descriptor is present, a single SPACE (U+0020), followed by the string "unicode-range:", followed by a single SPACE (U+0020), followed by the result of performing serialize a <'unicode-range'>, followed by the string ";", i.e., SEMICOLON (U+003B).
     builder.append(" unicode-range: "sv);
-    serialize_unicode_ranges(builder, m_font_face.unicode_ranges());
+    serialize_unicode_ranges(builder, font_face.unicode_ranges());
     builder.append(';');
 
     // FIXME: 7. If rule’s associated font-variant descriptor is present, a single SPACE (U+0020),
@@ -101,8 +101,8 @@ String CSSFontFaceRule::serialized() const
     //    followed by the string "font-feature-settings:", followed by a single SPACE (U+0020),
     //    followed by the result of performing serialize a <'font-feature-settings'>,
     //    followed by the string ";", i.e., SEMICOLON (U+003B).
-    if (m_font_face.font_feature_settings().has_value()) {
-        auto const& feature_settings = m_font_face.font_feature_settings().value();
+    if (font_face.font_feature_settings().has_value()) {
+        auto const& feature_settings = font_face.font_feature_settings().value();
         builder.append(" font-feature-settings: "sv);
         // NOTE: We sort the tags during parsing, so they're already in the correct order.
         bool first = true;
@@ -126,12 +126,12 @@ String CSSFontFaceRule::serialized() const
     //    followed by the result of performing serialize a <'font-stretch'>,
     //    followed by the string ";", i.e., SEMICOLON (U+003B).
     // NOTE: font-stretch is now an alias for font-width, so we use that instead.
-    if (m_font_face.width().has_value()) {
+    if (font_face.width().has_value()) {
         builder.append(" font-width: "sv);
         // NOTE: font-width is supposed to always be serialized as a percentage.
         //       Right now, it's stored as a Gfx::FontWidth value, so we have to lossily convert it back.
         float percentage = 100.0f;
-        switch (m_font_face.width().value()) {
+        switch (font_face.width().value()) {
         case Gfx::FontWidth::UltraCondensed:
             percentage = 50.0f;
             break;
@@ -170,8 +170,8 @@ String CSSFontFaceRule::serialized() const
     //     followed by the string "font-weight:", followed by a single SPACE (U+0020),
     //     followed by the result of performing serialize a <'font-weight'>,
     //     followed by the string ";", i.e., SEMICOLON (U+003B).
-    if (m_font_face.weight().has_value()) {
-        auto weight = m_font_face.weight().value();
+    if (font_face.weight().has_value()) {
+        auto weight = font_face.weight().value();
         builder.append(" font-weight: "sv);
         if (weight == 400)
             builder.append("normal"sv);
@@ -186,8 +186,8 @@ String CSSFontFaceRule::serialized() const
     //     followed by the string "font-style:", followed by a single SPACE (U+0020),
     //     followed by the result of performing serialize a <'font-style'>,
     //     followed by the string ";", i.e., SEMICOLON (U+003B).
-    if (m_font_face.slope().has_value()) {
-        auto slope = m_font_face.slope().value();
+    if (font_face.slope().has_value()) {
+        auto slope = font_face.slope().value();
         builder.append(" font-style: "sv);
         if (slope == Gfx::name_to_slope("Normal"sv))
             builder.append("normal"sv);
@@ -204,6 +204,12 @@ String CSSFontFaceRule::serialized() const
     builder.append(" }"sv);
 
     return MUST(builder.to_string());
+}
+
+void CSSFontFaceRule::visit_edges(Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_style);
 }
 
 }

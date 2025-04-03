@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2022-2025, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2022, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <LibWeb/CSS/CSSFontFaceDescriptors.h>
 #include <LibWeb/CSS/CSSRule.h>
 #include <LibWeb/CSS/ParsedFontFace.h>
 
@@ -17,20 +18,21 @@ class CSSFontFaceRule final : public CSSRule {
     GC_DECLARE_ALLOCATOR(CSSFontFaceRule);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSFontFaceRule> create(JS::Realm&, ParsedFontFace&&);
+    [[nodiscard]] static GC::Ref<CSSFontFaceRule> create(JS::Realm&, GC::Ref<CSSFontFaceDescriptors>);
 
     virtual ~CSSFontFaceRule() override = default;
 
-    ParsedFontFace const& font_face() const { return m_font_face; }
-    CSSStyleDeclaration* style();
+    ParsedFontFace font_face() const;
+    CSSStyleDeclaration* style() { return m_style; }
 
 private:
-    CSSFontFaceRule(JS::Realm&, ParsedFontFace&&);
+    CSSFontFaceRule(JS::Realm&, GC::Ref<CSSFontFaceDescriptors>);
 
     virtual void initialize(JS::Realm&) override;
     virtual String serialized() const override;
+    virtual void visit_edges(Visitor&) override;
 
-    ParsedFontFace m_font_face;
+    GC::Ref<CSSFontFaceDescriptors> m_style;
 };
 
 template<>

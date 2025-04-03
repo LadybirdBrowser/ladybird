@@ -701,7 +701,7 @@ void dump_rule(StringBuilder& builder, CSS::CSSRule const& rule, int indent_leve
 
 void dump_font_face_rule(StringBuilder& builder, CSS::CSSFontFaceRule const& rule, int indent_levels)
 {
-    auto& font_face = rule.font_face();
+    auto const font_face = rule.font_face();
     indent(builder, indent_levels + 1);
     builder.appendff("font-family: {}\n", font_face.font_family());
 
