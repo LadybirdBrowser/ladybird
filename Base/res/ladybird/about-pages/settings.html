@@ -215,6 +215,17 @@
                 opacity: 1;
             }
 
+            dialog .dialog-button:disabled {
+                opacity: 0.3;
+            }
+
+            dialog .dialog-description {
+                margin-bottom: 10px;
+
+                font-size: 14px;
+                opacity: 0.7;
+            }
+
             dialog .dialog-list {
                 outline: 1px solid var(--border-color);
                 border-radius: 4px;
@@ -256,7 +267,13 @@
                 gap: 10px;
             }
 
-            dialog .dialog-controls input {
+            dialog .dialog-controls button svg {
+                width: 16px;
+                height: 16px;
+            }
+
+            dialog .dialog-controls input,
+            dialog .dialog-controls select {
                 flex-grow: 1;
             }
 
@@ -287,6 +304,13 @@
                 <div class="card-group">
                     <label for="new-tab-page-url">New Tab Page URL</label>
                     <input id="new-tab-page-url" type="url" placeholder="about:newtab" />
+                </div>
+
+                <hr />
+
+                <div class="card-group permission-container">
+                    <span>Languages</span>
+                    <button id="languages-settings" class="secondary-button">Settings...</button>
                 </div>
             </div>
         </div>
@@ -349,6 +373,25 @@
             <button id="restore-defaults" class="primary-button">Restore&nbsp;Defaults</button>
         </div>
 
+        <dialog id="languages-dialog">
+            <div class="dialog-header">
+                <h3 class="dialog-title">Languages</h3>
+                <button id="languages-close" class="close-button dialog-button">&times;</button>
+            </div>
+            <div class="dialog-body">
+                <p class="dialog-description">
+                    Choose languages for websites in order of preference
+                </p>
+                <div id="languages-list" class="dialog-list"></div>
+                <div class="dialog-controls">
+                    <select id="languages-select">
+                        <option value="">Select a language to add...</option>
+                    </select>
+                    <button id="languages-add" class="primary-button" disabled>Add</button>
+                </div>
+            </div>
+        </dialog>
+
         <dialog id="site-settings">
             <div class="dialog-header">
                 <h3 id="site-settings-title" class="dialog-title"></h3>
@@ -374,8 +417,16 @@
             </div>
         </dialog>
 
+        <script src="resource://ladybird/about-pages/settings/languages.js"></script>
+
         <script>
             const newTabPageURL = document.querySelector("#new-tab-page-url");
+            const languagesAdd = document.querySelector("#languages-add");
+            const languagesClose = document.querySelector("#languages-close");
+            const languagesDialog = document.querySelector("#languages-dialog");
+            const languagesList = document.querySelector("#languages-list");
+            const languagesSelect = document.querySelector("#languages-select");
+            const languagesSettings = document.querySelector("#languages-settings");
             const searchToggle = document.querySelector("#search-toggle");
             const searchEngine = document.querySelector("#search-engine");
             const autocompleteToggle = document.querySelector("#autocomplete-toggle");
@@ -392,6 +443,13 @@
             const doNotTrackToggle = document.querySelector("#do-not-track-toggle");
             const restoreDefaults = document.querySelector("#restore-defaults");
 
+            // FIXME: When we support per-glyph font fallbacks, replace these SVGs with analogous code points.
+            //        https://github.com/LadybirdBrowser/ladybird/issues/864
+            const upwardArrowSVG =
+                '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>';
+            const downwardArrowSVG =
+                '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>';
+
             window.settings = {};
 
             const loadSettings = settings => {
@@ -402,6 +460,10 @@
             const renderSettings = () => {
                 newTabPageURL.classList.remove("error");
                 newTabPageURL.value = window.settings.newTabPageURL;
+
+                if (languagesDialog.open) {
+                    showLanguages();
+                }
 
                 const renderEngineSettings = (type, setting) => {
                     const [name, toggle, engine] = engineForType(type);
@@ -443,6 +505,137 @@
                 setTimeout(() => {
                     newTabPageURL.classList.remove("success");
                 }, 1000);
+            });
+
+            const languageDisplayName = language => {
+                const item = window.languages.find(item => item.language === language);
+                return item.displayName;
+            };
+
+            const saveLanguages = () => {
+                ladybird.sendMessage("setLanguages", window.settings.languages);
+            };
+
+            const moveLanguage = (from, to) => {
+                [window.settings.languages[from], window.settings.languages[to]] = [
+                    window.settings.languages[to],
+                    window.settings.languages[from],
+                ];
+
+                saveLanguages();
+            };
+
+            const removeLanguage = index => {
+                window.settings.languages.splice(index, 1);
+                saveLanguages();
+            };
+
+            const loadLanguages = () => {
+                for (const language of window.languages) {
+                    const option = document.createElement("option");
+                    option.text = language.displayName;
+                    option.value = language.language;
+
+                    languagesSelect.add(option);
+                }
+            };
+
+            const showLanguages = () => {
+                languagesList.innerHTML = "";
+
+                window.settings.languages.forEach((language, index) => {
+                    const name = document.createElement("span");
+                    name.className = "dialog-list-item-label";
+                    name.textContent = languageDisplayName(language);
+
+                    const moveUp = document.createElement("button");
+                    moveUp.className = "dialog-button";
+                    moveUp.innerHTML = upwardArrowSVG;
+                    moveUp.title = "Move up";
+
+                    if (index === 0) {
+                        moveUp.disabled = true;
+                    } else {
+                        moveUp.addEventListener("click", () => {
+                            moveLanguage(index, index - 1);
+                        });
+                    }
+
+                    const moveDown = document.createElement("button");
+                    moveDown.className = "dialog-button";
+                    moveDown.innerHTML = downwardArrowSVG;
+                    moveDown.title = "Move down";
+
+                    if (index === window.settings.languages.length - 1) {
+                        moveDown.disabled = true;
+                    } else {
+                        moveDown.addEventListener("click", () => {
+                            moveLanguage(index, index + 1);
+                        });
+                    }
+
+                    const remove = document.createElement("button");
+                    remove.className = "dialog-button";
+                    remove.innerHTML = "&times;";
+                    remove.title = "Remove";
+
+                    if (window.settings.languages.length <= 1) {
+                        remove.disabled = true;
+                    } else {
+                        remove.addEventListener("click", () => {
+                            removeLanguage(index);
+                        });
+                    }
+
+                    const controls = document.createElement("div");
+                    controls.className = "dialog-controls";
+                    controls.appendChild(moveUp);
+                    controls.appendChild(moveDown);
+                    controls.appendChild(remove);
+
+                    const item = document.createElement("div");
+                    item.className = "dialog-list-item";
+                    item.appendChild(name);
+                    item.appendChild(controls);
+
+                    languagesList.appendChild(item);
+                });
+
+                for (const language of languagesSelect.options) {
+                    language.disabled = window.settings.languages.includes(language.value);
+                }
+
+                if (!languagesDialog.open) {
+                    setTimeout(() => languagesSelect.focus());
+                    languagesDialog.showModal();
+                }
+            };
+
+            languagesAdd.addEventListener("click", () => {
+                const language = languagesSelect.value;
+
+                languagesAdd.disabled = true;
+                languagesSelect.selectedIndex = 0;
+
+                if (!language || window.settings.languages.includes(language)) {
+                    return;
+                }
+
+                window.settings.languages.push(language);
+                saveLanguages();
+            });
+
+            languagesClose.addEventListener("click", () => {
+                languagesDialog.close();
+            });
+
+            languagesSelect.addEventListener("change", () => {
+                languagesAdd.disabled = !languagesSelect.value;
+            });
+
+            languagesSettings.addEventListener("click", event => {
+                showLanguages();
+                event.stopPropagation();
             });
 
             const Engine = Object.freeze({
@@ -633,26 +826,32 @@
 
             // FIXME: Once we support `dialog::backdrop`, this event listener should be on `siteSettings`.
             document.addEventListener("click", event => {
-                if (!siteSettings.open) {
-                    return;
-                }
+                const close = dialog => {
+                    if (!dialog.open) {
+                        return;
+                    }
 
-                const rect = siteSettings.getBoundingClientRect();
+                    const rect = dialog.getBoundingClientRect();
 
-                if (
-                    event.clientX < rect.left ||
-                    event.clientX > rect.right ||
-                    event.clientY < rect.top ||
-                    event.clientY > rect.bottom
-                ) {
-                    siteSettings.close();
-                }
+                    if (
+                        event.clientX < rect.left ||
+                        event.clientX > rect.right ||
+                        event.clientY < rect.top ||
+                        event.clientY > rect.bottom
+                    ) {
+                        dialog.close();
+                    }
+                };
+
+                close(languagesDialog);
+                close(siteSettings);
             });
 
             document.addEventListener("WebUILoaded", () => {
                 ladybird.sendMessage("loadAvailableEngines");
                 ladybird.sendMessage("loadCurrentSettings");
                 ladybird.sendMessage("loadForciblyEnabledSiteSettings");
+                loadLanguages();
             });
 
             document.addEventListener("WebUIMessage", event => {

@@ -14,12 +14,16 @@
 #include <LibCore/File.h>
 #include <LibCore/StandardPaths.h>
 #include <LibURL/Parser.h>
+#include <LibUnicode/Locale.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/Settings.h>
 
 namespace WebView {
 
 static constexpr auto new_tab_page_url_key = "newTabPageURL"sv;
+
+static constexpr auto languages_key = "languages"sv;
+static auto default_language = "en"_string;
 
 static constexpr auto search_engine_key = "searchEngine"sv;
 static constexpr auto search_engine_name_key = "name"sv;
@@ -81,6 +85,9 @@ Settings Settings::create(Badge<Application>)
             settings.m_new_tab_page_url = parsed_new_tab_page_url.release_value();
     }
 
+    if (auto languages = settings_json.value().get(languages_key); languages.has_value())
+        settings.m_languages = parse_json_languages(*languages);
+
     if (auto search_engine = settings_json.value().get_object(search_engine_key); search_engine.has_value()) {
         if (auto search_engine_name = search_engine->get_string(search_engine_name_key); search_engine_name.has_value())
             settings.m_search_engine = find_search_engine_by_name(*search_engine_name);
@@ -120,6 +127,7 @@ Settings Settings::create(Badge<Application>)
 Settings::Settings(ByteString settings_path)
     : m_settings_path(move(settings_path))
     , m_new_tab_page_url(URL::about_newtab())
+    , m_languages({ default_language })
 {
 }
 
@@ -127,6 +135,14 @@ JsonValue Settings::serialize_json() const
 {
     JsonObject settings;
     settings.set(new_tab_page_url_key, m_new_tab_page_url.serialize());
+
+    JsonArray languages;
+    languages.ensure_capacity(m_languages.size());
+
+    for (auto const& language : m_languages)
+        languages.must_append(language);
+
+    settings.set(languages_key, move(languages));
 
     if (m_search_engine.has_value()) {
         JsonObject search_engine;
@@ -166,6 +182,7 @@ JsonValue Settings::serialize_json() const
 void Settings::restore_defaults()
 {
     m_new_tab_page_url = URL::about_newtab();
+    m_languages = { default_language };
     m_search_engine.clear();
     m_autocomplete_engine.clear();
     m_autoplay = SiteSetting {};
@@ -175,6 +192,7 @@ void Settings::restore_defaults()
 
     for (auto& observer : m_observers) {
         observer.new_tab_page_url_changed();
+        observer.languages_changed();
         observer.search_engine_changed();
         observer.autocomplete_engine_changed();
         observer.autoplay_settings_changed();
@@ -189,6 +207,34 @@ void Settings::set_new_tab_page_url(URL::URL new_tab_page_url)
 
     for (auto& observer : m_observers)
         observer.new_tab_page_url_changed();
+}
+
+Vector<String> Settings::parse_json_languages(JsonValue const& languages)
+{
+    if (!languages.is_array())
+        return { default_language };
+
+    Vector<String> parsed_languages;
+    parsed_languages.ensure_capacity(languages.as_array().size());
+
+    languages.as_array().for_each([&](JsonValue const& language) {
+        if (language.is_string() && Unicode::is_locale_available(language.as_string()))
+            parsed_languages.append(language.as_string());
+    });
+
+    if (parsed_languages.is_empty())
+        return { default_language };
+
+    return parsed_languages;
+}
+
+void Settings::set_languages(Vector<String> languages)
+{
+    m_languages = move(languages);
+    persist_settings();
+
+    for (auto& observer : m_observers)
+        observer.languages_changed();
 }
 
 void Settings::set_search_engine(Optional<StringView> search_engine_name)

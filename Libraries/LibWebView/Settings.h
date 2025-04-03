@@ -35,6 +35,7 @@ public:
     virtual ~SettingsObserver();
 
     virtual void new_tab_page_url_changed() { }
+    virtual void languages_changed() { }
     virtual void search_engine_changed() { }
     virtual void autocomplete_engine_changed() { }
     virtual void autoplay_settings_changed() { }
@@ -51,6 +52,10 @@ public:
 
     URL::URL const& new_tab_page_url() const { return m_new_tab_page_url; }
     void set_new_tab_page_url(URL::URL);
+
+    static Vector<String> parse_json_languages(JsonValue const&);
+    Vector<String> const& languages() const { return m_languages; }
+    void set_languages(Vector<String>);
 
     Optional<SearchEngine> const& search_engine() const { return m_search_engine; }
     void set_search_engine(Optional<StringView> search_engine_name);
@@ -78,6 +83,7 @@ private:
     ByteString m_settings_path;
 
     URL::URL m_new_tab_page_url;
+    Vector<String> m_languages;
     Optional<SearchEngine> m_search_engine;
     Optional<AutocompleteEngine> m_autocomplete_engine;
     SiteSetting m_autoplay;
