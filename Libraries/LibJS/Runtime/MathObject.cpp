@@ -32,7 +32,7 @@ void MathObject::initialize(Realm& realm)
     Base::initialize(realm);
     u8 attr = Attribute::Writable | Attribute::Configurable;
     define_native_function(realm, vm.names.abs, abs, 1, attr, Bytecode::Builtin::MathAbs);
-    define_native_function(realm, vm.names.random, random, 0, attr);
+    define_native_function(realm, vm.names.random, random, 0, attr, Bytecode::Builtin::MathRandom);
     define_native_function(realm, vm.names.sqrt, sqrt, 1, attr, Bytecode::Builtin::MathSqrt);
     define_native_function(realm, vm.names.floor, floor, 1, attr, Bytecode::Builtin::MathFloor);
     define_native_function(realm, vm.names.ceil, ceil, 1, attr, Bytecode::Builtin::MathCeil);
@@ -840,14 +840,19 @@ private:
     u64 m_high { 0 };
 };
 
-// 21.3.2.27 Math.random ( ), https://tc39.es/ecma262/#sec-math.random
-JS_DEFINE_NATIVE_FUNCTION(MathObject::random)
+Value MathObject::random_impl()
 {
     // This function returns a Number value with positive sign, greater than or equal to +0𝔽 but strictly less than 1𝔽,
     // chosen randomly or pseudo randomly with approximately uniform distribution over that range, using an
     // implementation-defined algorithm or strategy.
     static XorShift128PlusPlusRNG rng;
-    return rng.get();
+    return Value(rng.get());
+}
+
+// 21.3.2.27 Math.random ( ), https://tc39.es/ecma262/#sec-math.random
+JS_DEFINE_NATIVE_FUNCTION(MathObject::random)
+{
+    return random_impl();
 }
 
 // 21.3.2.28 Math.round ( x ), https://tc39.es/ecma262/#sec-math.round
