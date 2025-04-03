@@ -62,7 +62,7 @@ class LinkedResourceFinder(HTMLParser):
 
     def handle_starttag(self, tag, attrs):
         self._tag_stack_.append(tag)
-        if tag in ["script", "img"]:
+        if tag in ["script", "img", "iframe"]:
             attr_dict = dict(attrs)
             if "src" in attr_dict:
                 self._resources.append(attr_dict["src"])
