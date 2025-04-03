@@ -70,15 +70,20 @@ bool ConnectionBase::is_open() const
 
 ErrorOr<void> ConnectionBase::post_message(Message const& message)
 {
-    return post_message(TRY(message.encode()));
+    return post_message(message.endpoint_magic(), TRY(message.encode()));
 }
 
-ErrorOr<void> ConnectionBase::post_message(MessageBuffer buffer)
+ErrorOr<void> ConnectionBase::post_message(u32 endpoint_magic, MessageBuffer buffer)
 {
     // NOTE: If this connection is being shut down, but has not yet been destroyed,
     //       the socket will be closed. Don't try to send more messages.
     if (!m_transport.is_open())
         return Error::from_string_literal("Trying to post_message during IPC shutdown");
+
+    if (buffer.data().size() > TransportSocket::SOCKET_BUFFER_SIZE) {
+        auto wrapper = LargeMessageWrapper::create(endpoint_magic, buffer);
+        buffer = MUST(wrapper->encode());
+    }
 
     {
         Threading::MutexLocker locker(m_send_queue->mutex);
@@ -114,7 +119,7 @@ void ConnectionBase::handle_messages()
             }
 
             if (auto response = handler_result.release_value()) {
-                if (auto post_result = post_message(*response); post_result.is_error()) {
+                if (auto post_result = post_message(m_local_endpoint_magic, *response); post_result.is_error()) {
                     dbgln("IPC::ConnectionBase::handle_messages: {}", post_result.error());
                 }
             }
@@ -221,6 +226,15 @@ void ConnectionBase::try_parse_messages(Vector<u8> const& bytes, size_t& index)
         auto remaining_bytes = ReadonlyBytes { bytes.data() + index, message_size };
 
         if (auto message = try_parse_message(remaining_bytes, m_unprocessed_fds)) {
+            if (message->message_id() == LargeMessageWrapper::MESSAGE_ID) {
+                LargeMessageWrapper* wrapper = static_cast<LargeMessageWrapper*>(message.ptr());
+                auto wrapped_message = wrapper->wrapped_message_data();
+                m_unprocessed_fds.return_fds_to_front_of_queue(wrapper->take_fds());
+                auto parsed_message = try_parse_message(wrapped_message, m_unprocessed_fds);
+                VERIFY(parsed_message);
+                m_unprocessed_messages.append(parsed_message.release_nonnull());
+                continue;
+            }
             m_unprocessed_messages.append(message.release_nonnull());
             continue;
         }

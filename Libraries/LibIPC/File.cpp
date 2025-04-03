@@ -14,7 +14,7 @@ namespace IPC {
 template<>
 ErrorOr<File> decode(Decoder& decoder)
 {
-    auto file = TRY(decoder.files().try_dequeue());
+    auto file = decoder.files().dequeue();
     TRY(Core::System::set_close_on_exec(file.fd(), true));
     return file;
 }

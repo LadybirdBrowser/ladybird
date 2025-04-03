@@ -12,6 +12,7 @@
 #include <LibCore/Socket.h>
 #include <LibIPC/File.h>
 #include <LibIPC/Transport.h>
+#include <LibIPC/UnprocessedFileDescriptors.h>
 #include <LibWeb/Bindings/Transferable.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Forward.h>
@@ -98,7 +99,7 @@ private:
         Error,
     } m_socket_state { SocketState::Header };
     size_t m_socket_incoming_message_size { 0 };
-    Queue<IPC::File> m_unprocessed_fds;
+    IPC::UnprocessedFileDescriptors m_unprocessed_fds;
     Vector<u8> m_buffered_data;
 
     GC::Ptr<DOM::EventTarget> m_worker_event_target;
