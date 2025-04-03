@@ -327,6 +327,9 @@ public:
     void emit_get_by_value(ScopedOperand dst, ScopedOperand base, ScopedOperand property, Optional<IdentifierTableIndex> base_identifier = {});
     void emit_get_by_value_with_this(ScopedOperand dst, ScopedOperand base, ScopedOperand property, ScopedOperand this_value);
 
+    void emit_put_by_value(ScopedOperand base, ScopedOperand property, ScopedOperand src, Bytecode::Op::PropertyKind, Optional<IdentifierTableIndex> base_identifier);
+    void emit_put_by_value_with_this(ScopedOperand base, ScopedOperand property, ScopedOperand this_value, ScopedOperand src, Bytecode::Op::PropertyKind);
+
     void emit_iterator_value(ScopedOperand dst, ScopedOperand result);
     void emit_iterator_complete(ScopedOperand dst, ScopedOperand result);
 
