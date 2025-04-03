@@ -15,6 +15,8 @@ class TransportSocket {
     AK_MAKE_DEFAULT_MOVABLE(TransportSocket);
 
 public:
+    static constexpr socklen_t SOCKET_BUFFER_SIZE = 128 * KiB;
+
     explicit TransportSocket(NonnullOwnPtr<Core::LocalSocket> socket);
     ~TransportSocket();
 
