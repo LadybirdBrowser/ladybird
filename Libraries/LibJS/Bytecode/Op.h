@@ -313,6 +313,7 @@ public:
     {
         return round_up_to_power_of_two(alignof(void*), sizeof(*this) + sizeof(Operand) * m_excluded_names_count);
     }
+    size_t length() const { return length_impl(); }
 
     Operand dst() const { return m_dst; }
     Operand from_object() const { return m_from_object; }
@@ -362,6 +363,7 @@ public:
     {
         return round_up_to_power_of_two(alignof(void*), sizeof(*this) + sizeof(Operand) * m_element_count);
     }
+    size_t length() const { return length_impl(); }
 
     size_t element_count() const { return m_element_count; }
 
@@ -388,6 +390,7 @@ public:
     {
         return round_up_to_power_of_two(alignof(void*), sizeof(*this) + sizeof(Value) * m_element_count);
     }
+    size_t length() const { return length_impl(); }
 
     void execute_impl(Bytecode::Interpreter&) const;
     ByteString to_byte_string_impl(Bytecode::Executable const&) const;
@@ -1816,6 +1819,7 @@ public:
     {
         return round_up_to_power_of_two(alignof(void*), sizeof(*this) + sizeof(Operand) * m_argument_count);
     }
+    size_t length() const { return length_impl(); }
 
     Operand dst() const { return m_dst; }
     Operand callee() const { return m_callee; }
@@ -1865,6 +1869,7 @@ public:
     {
         return round_up_to_power_of_two(alignof(void*), sizeof(*this) + sizeof(Operand) * m_argument_count);
     }
+    size_t length() const { return length_impl(); }
 
     Operand dst() const { return m_dst; }
     Operand callee() const { return m_callee; }
@@ -1916,6 +1921,7 @@ public:
     {
         return round_up_to_power_of_two(alignof(void*), sizeof(*this) + sizeof(Operand) * m_argument_count);
     }
+    size_t length() const { return length_impl(); }
 
     Operand dst() const { return m_dst; }
     Operand callee() const { return m_callee; }
@@ -1964,6 +1970,7 @@ public:
     {
         return round_up_to_power_of_two(alignof(void*), sizeof(*this) + sizeof(Operand) * m_argument_count);
     }
+    size_t length() const { return length_impl(); }
 
     Operand dst() const { return m_dst; }
     Operand callee() const { return m_callee; }
@@ -2081,6 +2088,7 @@ public:
     {
         return round_up_to_power_of_two(alignof(void*), sizeof(*this) + sizeof(Optional<Operand>) * m_element_keys_count);
     }
+    size_t length() const { return length_impl(); }
 
     ThrowCompletionOr<void> execute_impl(Bytecode::Interpreter&) const;
     ByteString to_byte_string_impl(Bytecode::Executable const&) const;

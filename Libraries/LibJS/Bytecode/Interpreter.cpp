@@ -386,7 +386,7 @@ FLATTEN_ON_CLANG void Interpreter::run_bytecode(size_t entry_point)
 #define DISPATCH_NEXT(name)                                                                         \
     do {                                                                                            \
         if constexpr (Op::name::IsVariableLength)                                                   \
-            program_counter += instruction.length();                                                \
+            program_counter += static_cast<Op::name const&>(instruction).length();                  \
         else                                                                                        \
             program_counter += sizeof(Op::name);                                                    \
         auto& next_instruction = *reinterpret_cast<Instruction const*>(&bytecode[program_counter]); \
