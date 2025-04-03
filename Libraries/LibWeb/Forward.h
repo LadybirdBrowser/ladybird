@@ -159,6 +159,7 @@ class CounterStyleValue;
 class CSSAnimation;
 class CSSColorValue;
 class CSSConditionRule;
+class CSSFontFaceDescriptors;
 class CSSFontFaceRule;
 class CSSGroupingRule;
 class CSSHSL;
