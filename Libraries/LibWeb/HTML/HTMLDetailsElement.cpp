@@ -74,7 +74,7 @@ void HTMLDetailsElement::attribute_changed(FlyString const& local_name, Optional
     else if (local_name == HTML::AttributeNames::open) {
         // 1. If one of oldValue or value is null and the other is not null, run the following steps, which are known as
         //    the details notification task steps, for this details element:
-        {
+        if (old_value.has_value() != value.has_value()) {
             // 1. If oldValue is null, queue a details toggle event task given the details element, "closed", and "open".
             if (!old_value.has_value()) {
                 queue_a_details_toggle_event_task("closed"_string, "open"_string);
