@@ -30,7 +30,7 @@ public:
         if (!slot)
             return Error::from_errno(ENOMEM);
 
-        auto new_string_data = adopt_ref(*new (slot) StringData(byte_count, capacity));
+        auto new_string_data = adopt_ref(*new (slot) StringData(byte_count));
         buffer = const_cast<u8*>(new_string_data->bytes().data());
         return new_string_data;
     }
@@ -43,7 +43,7 @@ public:
         auto buffer = builder.leak_buffer_for_string_construction({});
         VERIFY(buffer.has_value()); // We should only arrive here if the buffer is outlined.
 
-        return adopt_ref(*new (buffer->buffer.data()) StringData(byte_count, buffer->capacity));
+        return adopt_ref(*new (buffer->buffer.data()) StringData(byte_count));
     }
 
     static ErrorOr<NonnullRefPtr<StringData>> create_substring(StringData const& superstring, size_t start, size_t byte_count)
@@ -56,7 +56,7 @@ public:
         if (!slot)
             return Error::from_errno(ENOMEM);
 
-        return adopt_ref(*new (slot) StringData(superstring, start, byte_count, capacity));
+        return adopt_ref(*new (slot) StringData(superstring, start, byte_count));
     }
 
     struct SubstringData {
@@ -117,15 +117,13 @@ private:
         return sizeof(StringData) + (sizeof(char) * length);
     }
 
-    StringData(size_t byte_count, size_t capacity)
+    explicit StringData(size_t byte_count)
         : m_byte_count(byte_count)
-        , m_capacity(capacity)
     {
     }
 
-    StringData(StringData const& superstring, size_t start, size_t byte_count, size_t capacity)
+    StringData(StringData const& superstring, size_t start, size_t byte_count)
         : m_byte_count(byte_count)
-        , m_capacity(capacity)
         , m_substring(true)
     {
         auto& data = const_cast<SubstringData&>(substring_data());
@@ -145,7 +143,6 @@ private:
     }
 
     u32 m_byte_count { 0 };
-    u32 m_capacity { 0 };
 
     mutable unsigned m_hash { 0 };
     mutable bool m_has_hash { false };
