@@ -60,7 +60,7 @@ void MathObject::initialize(Realm& realm)
     define_native_function(realm, vm.names.fround, fround, 1, attr);
     define_native_function(realm, vm.names.f16round, f16round, 1, attr);
     define_native_function(realm, vm.names.hypot, hypot, 2, attr);
-    define_native_function(realm, vm.names.imul, imul, 2, attr);
+    define_native_function(realm, vm.names.imul, imul, 2, attr, Bytecode::Builtin::MathImul);
     define_native_function(realm, vm.names.log, log, 1, attr, Bytecode::Builtin::MathLog);
     define_native_function(realm, vm.names.log2, log2, 1, attr);
     define_native_function(realm, vm.names.log10, log10, 1, attr);
@@ -587,17 +587,23 @@ JS_DEFINE_NATIVE_FUNCTION(MathObject::hypot)
 }
 
 // 21.3.2.19 Math.imul ( x, y ), https://tc39.es/ecma262/#sec-math.imul
-JS_DEFINE_NATIVE_FUNCTION(MathObject::imul)
+ThrowCompletionOr<Value> MathObject::imul_impl(VM& vm, Value arg_a, Value arg_b)
 {
     // 1. Let a be ℝ(? ToUint32(x)).
-    auto a = TRY(vm.argument(0).to_u32(vm));
+    auto const a = TRY(arg_a.to_u32(vm));
 
     // 2. Let b be ℝ(? ToUint32(y)).
-    auto b = TRY(vm.argument(1).to_u32(vm));
+    auto const b = TRY(arg_b.to_u32(vm));
 
     // 3. Let product be (a × b) modulo 2^32.
     // 4. If product ≥ 2^31, return 𝔽(product - 2^32); otherwise return 𝔽(product).
     return Value(static_cast<i32>(a * b));
+}
+
+// 21.3.2.19 Math.imul ( x, y ), https://tc39.es/ecma262/#sec-math.imul
+JS_DEFINE_NATIVE_FUNCTION(MathObject::imul)
+{
+    return imul_impl(vm, vm.argument(0), vm.argument(1));
 }
 
 // 21.3.2.20 Math.log ( x ), https://tc39.es/ecma262/#sec-math.log
