@@ -329,6 +329,7 @@ void CSSStyleSheet::remove_owning_document_or_shadow_root(DOM::Node& document_or
 
 void CSSStyleSheet::invalidate_owners(DOM::StyleInvalidationReason reason)
 {
+    m_did_match = {};
     for (auto& document_or_shadow_root : m_owning_documents_or_shadow_roots) {
         document_or_shadow_root->invalidate_style(reason);
         document_or_shadow_root->document().style_computer().invalidate_rule_cache();
