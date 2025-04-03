@@ -1427,14 +1427,18 @@ bool Parser::is_valid_in_the_current_context(AtRule const& at_rule) const
     if (m_rule_context.is_empty())
         return true;
 
+    // Only grouping rules can be nested within style rules
+    if (m_rule_context.contains_slow(ContextType::Style))
+        return first_is_one_of(at_rule.name, "layer", "media", "supports");
+
     switch (m_rule_context.last()) {
     case ContextType::Unknown:
         // If the context is an unknown type, we don't accept anything.
         return false;
 
     case ContextType::Style:
-        // Style rules can contain grouping rules
-        return first_is_one_of(at_rule.name, "layer", "media", "supports");
+        // Already handled above
+        VERIFY_NOT_REACHED();
 
     case ContextType::AtLayer:
     case ContextType::AtMedia:
