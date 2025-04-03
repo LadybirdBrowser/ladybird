@@ -17,6 +17,9 @@ inline bool Value::to_boolean() const
     if (is_boolean())
         return as_bool();
 
+    if (is_int32())
+        return as_i32() != 0;
+
     return to_boolean_slow_case();
 }
 
