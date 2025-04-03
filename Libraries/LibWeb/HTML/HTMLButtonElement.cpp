@@ -173,4 +173,50 @@ bool HTMLButtonElement::is_focusable() const
     return enabled();
 }
 
+// https://html.spec.whatwg.org/multipage/form-elements.html#dom-button-command
+String HTMLButtonElement::command() const
+{
+    // 1. Let command be this's command attribute.
+    auto command = get_attribute(AttributeNames::command);
+
+    // https://html.spec.whatwg.org/multipage/form-elements.html#attr-button-command
+    // The command attribute is an enumerated attribute with the following keywords and states:
+    // Keyword                  State          Brief description
+    // toggle-popover           Toggle Popover Shows or hides the targeted popover element.
+    // show-popover             Show Popover   Shows the targeted popover element.
+    // hide-popover             Hide Popover   Hides the targeted popover element.
+    // close                    Close          Closes the targeted dialog element.
+    // show-modal               Show Modal     Opens the targeted dialog element as modal.
+    // A custom command keyword Custom         Only dispatches the command event on the targeted element.
+    Array valid_values { "toggle-popover"_string, "show-popover"_string, "hide-popover"_string, "close"_string, "show-modal"_string };
+
+    // 2. If command is in the Custom state, then return command's value.
+    //    A custom command keyword is a string that starts with "--".
+    if (command.has_value() && command.value().starts_with_bytes("--"sv)) {
+        return command.value();
+    }
+
+    // NOTE: Steps are re-ordered a bit.
+
+    // 4. Return the keword corresponding to the value of command.return
+    if (command.has_value()) {
+        auto command_value = command.value();
+        for (auto const& value : valid_values) {
+            if (value.equals_ignoring_ascii_case(command_value)) {
+                return value;
+            }
+        }
+    }
+
+    // 3. If command is in the Unknown state, then return the empty string.
+    //    The attribute's missing value default and invalid value default are both the Unknown state.
+    return {};
+}
+
+// https://html.spec.whatwg.org/multipage/form-elements.html#the-button-element:dom-button-command-2
+WebIDL::ExceptionOr<void> HTMLButtonElement::set_command(String const& value)
+{
+    return set_attribute(AttributeNames::command, value);
+}
+
 }

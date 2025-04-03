@@ -80,6 +80,9 @@ public:
     virtual bool has_activation_behavior() const override;
     virtual void activation_behavior(DOM::Event const&) override;
 
+    String command() const;
+    WebIDL::ExceptionOr<void> set_command(String const& command);
+
 private:
     virtual void visit_edges(Visitor&) override;
 
