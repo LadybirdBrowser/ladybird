@@ -8,6 +8,7 @@
 
 #include <AK/FlyString.h>
 #include <LibWeb/CSS/CSSStyleValue.h>
+#include <LibWeb/CSS/Serialize.h>
 
 namespace Web::CSS {
 
