@@ -625,9 +625,9 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> AssignmentExpression::g
 
                     if (expression.is_computed()) {
                         if (!lhs_is_super_expression)
-                            generator.emit<Bytecode::Op::PutByValue>(*base, *computed_property, rval, Bytecode::Op::PropertyKind::KeyValue, move(base_identifier));
+                            generator.emit_put_by_value(*base, *computed_property, rval, Bytecode::Op::PropertyKind::KeyValue, move(base_identifier));
                         else
-                            generator.emit<Bytecode::Op::PutByValueWithThis>(*base, *computed_property, *this_value, rval);
+                            generator.emit_put_by_value_with_this(*base, *computed_property, *this_value, rval, Op::PropertyKind::KeyValue);
                     } else if (expression.property().is_identifier()) {
                         auto identifier_table_ref = generator.intern_identifier(as<Identifier>(expression.property()).string());
                         if (!lhs_is_super_expression)
@@ -1180,7 +1180,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ObjectExpression::gener
             auto property_name = TRY(property->key().generate_bytecode(generator)).value();
             auto value = TRY(property->value().generate_bytecode(generator)).value();
 
-            generator.emit<Bytecode::Op::PutByValue>(object, property_name, value, property_kind);
+            generator.emit_put_by_value(object, property_name, value, property_kind, {});
         }
     }
 
