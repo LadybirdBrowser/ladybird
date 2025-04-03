@@ -24,7 +24,6 @@
 
 namespace Ladybird {
 
-class SettingsDialog;
 class WebContentView;
 
 class BrowserWindow : public QMainWindow {
@@ -209,8 +208,6 @@ private:
 
     ByteString m_user_agent_string {};
     ByteString m_navigator_compatibility_mode {};
-
-    SettingsDialog* m_settings_dialog { nullptr };
 
     IsPopupWindow m_is_popup_window { IsPopupWindow::No };
 };

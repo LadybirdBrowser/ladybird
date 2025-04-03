@@ -20,7 +20,6 @@
 #include <UI/Qt/BrowserWindow.h>
 #include <UI/Qt/Icon.h>
 #include <UI/Qt/Settings.h>
-#include <UI/Qt/SettingsDialog.h>
 #include <UI/Qt/StringUtils.h>
 #include <UI/Qt/TabBar.h>
 #include <UI/Qt/WebContentView.h>
@@ -96,18 +95,6 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
             QObject::connect(m_current_screen, &QScreen::logicalDotsPerInchChanged, this, &BrowserWindow::device_pixel_ratio_changed);
         });
     }
-
-    QObject::connect(Settings::the(), &Settings::preferred_languages_changed, this, [this](QStringList languages) {
-        Vector<String> preferred_languages;
-        preferred_languages.ensure_capacity(languages.length());
-        for (auto& language : languages) {
-            preferred_languages.append(ak_string_from_qstring(language));
-        }
-
-        for_each_tab([preferred_languages](auto& tab) {
-            tab.set_preferred_languages(preferred_languages);
-        });
-    });
 
     m_hamburger_menu = new HamburgerMenu(this);
 
@@ -196,18 +183,6 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     edit_menu->addAction(settings_action);
     QObject::connect(settings_action, &QAction::triggered, this, [this] {
         new_tab_from_url(URL::URL::about("settings"_string), Web::HTML::ActivateTab::Yes);
-    });
-
-    auto* deprecated_settings_action = new QAction("Qt Settings", this);
-    deprecated_settings_action->setIcon(load_icon_from_uri("resource://icons/16x16/settings.png"sv));
-    edit_menu->addAction(deprecated_settings_action);
-    QObject::connect(deprecated_settings_action, &QAction::triggered, this, [this] {
-        if (!m_settings_dialog) {
-            m_settings_dialog = new SettingsDialog(this);
-        }
-
-        m_settings_dialog->show();
-        m_settings_dialog->setFocus();
     });
 
     auto* view_menu = m_hamburger_menu->addMenu("&View");
@@ -853,19 +828,12 @@ void BrowserWindow::initialize_tab(Tab* tab)
     m_tabs_container->setTabIcon(m_tabs_container->indexOf(tab), tab->favicon());
     create_close_button_for_tab(tab);
 
-    Vector<String> preferred_languages;
-    preferred_languages.ensure_capacity(Settings::the()->preferred_languages().length());
-    for (auto& language : Settings::the()->preferred_languages()) {
-        preferred_languages.append(ak_string_from_qstring(language));
-    }
-
     tab->set_line_box_borders(m_show_line_box_borders_action->isChecked());
     tab->set_scripting(m_enable_scripting_action->isChecked());
     tab->set_content_filtering(m_enable_content_filtering_action->isChecked());
     tab->set_block_popups(m_block_pop_ups_action->isChecked());
     tab->set_same_origin_policy(m_enable_same_origin_policy_action->isChecked());
     tab->set_user_agent_string(user_agent_string());
-    tab->set_preferred_languages(preferred_languages);
     tab->set_navigator_compatibility_mode(navigator_compatibility_mode());
     tab->view().set_preferred_color_scheme(m_preferred_color_scheme);
 }

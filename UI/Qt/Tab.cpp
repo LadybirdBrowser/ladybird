@@ -938,9 +938,4 @@ void Tab::set_navigator_compatibility_mode(ByteString const& compatibility_mode)
     debug_request("navigator-compatibility-mode", compatibility_mode);
 }
 
-void Tab::set_preferred_languages(ReadonlySpan<String> preferred_languages)
-{
-    m_view->set_preferred_languages(preferred_languages);
-}
-
 }

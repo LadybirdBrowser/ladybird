@@ -41,15 +41,11 @@ public:
     bool is_maximized();
     void set_is_maximized(bool is_maximized);
 
-    QStringList preferred_languages();
-    void set_preferred_languages(QStringList const& languages);
-
     bool show_menubar();
     void set_show_menubar(bool show_menubar);
 
 signals:
     void show_menubar_changed(bool show_menubar);
-    void preferred_languages_changed(QStringList const& languages);
     void enable_do_not_track_changed(bool enable);
 
 protected:
