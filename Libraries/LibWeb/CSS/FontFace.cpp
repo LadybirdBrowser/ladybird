@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2024, Andrew Kaster <akaster@serenityos.org>
+ * Copyright (c) 2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -206,9 +207,13 @@ GC::Ref<WebIDL::Promise> FontFace::loaded() const
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-family
 WebIDL::ExceptionOr<void> FontFace::set_family(String const& string)
 {
-    auto property = parse_css_value(Parser::ParsingParams(), string, CSS::PropertyID::FontFamily);
+    // On setting, parse the string according to the grammar for the corresponding @font-face descriptor.
+    // If it does not match the grammar, throw a SyntaxError; otherwise, set the attribute to the serialization of the
+    // parsed value.
+
+    auto property = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorID::FontFamily, string);
     if (!property)
-        return WebIDL::SyntaxError::create(realm(), "FontFace.family setter: Invalid font descriptor"_string);
+        return WebIDL::SyntaxError::create(realm(), "FontFace.family setter: Invalid descriptor value"_string);
 
     if (m_is_css_connected) {
         // FIXME: Propagate to the CSSFontFaceRule and update the font-family property
@@ -222,9 +227,13 @@ WebIDL::ExceptionOr<void> FontFace::set_family(String const& string)
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-style
 WebIDL::ExceptionOr<void> FontFace::set_style(String const& string)
 {
-    auto property = parse_css_value(Parser::ParsingParams(), string, CSS::PropertyID::FontStyle);
+    // On setting, parse the string according to the grammar for the corresponding @font-face descriptor.
+    // If it does not match the grammar, throw a SyntaxError; otherwise, set the attribute to the serialization of the
+    // parsed value.
+
+    auto property = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorID::FontStyle, string);
     if (!property)
-        return WebIDL::SyntaxError::create(realm(), "FontFace.style setter: Invalid font descriptor"_string);
+        return WebIDL::SyntaxError::create(realm(), "FontFace.style setter: Invalid descriptor value"_string);
 
     if (m_is_css_connected) {
         // FIXME: Propagate to the CSSFontFaceRule and update the font-style property
@@ -238,9 +247,13 @@ WebIDL::ExceptionOr<void> FontFace::set_style(String const& string)
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-weight
 WebIDL::ExceptionOr<void> FontFace::set_weight(String const& string)
 {
-    auto property = parse_css_value(Parser::ParsingParams(), string, CSS::PropertyID::FontWeight);
+    // On setting, parse the string according to the grammar for the corresponding @font-face descriptor.
+    // If it does not match the grammar, throw a SyntaxError; otherwise, set the attribute to the serialization of the
+    // parsed value.
+
+    auto property = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorID::FontWeight, string);
     if (!property)
-        return WebIDL::SyntaxError::create(realm(), "FontFace.weight setter: Invalid font descriptor"_string);
+        return WebIDL::SyntaxError::create(realm(), "FontFace.weight setter: Invalid descriptor value"_string);
 
     if (m_is_css_connected) {
         // FIXME: Propagate to the CSSFontFaceRule and update the font-weight property
@@ -254,10 +267,14 @@ WebIDL::ExceptionOr<void> FontFace::set_weight(String const& string)
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-stretch
 WebIDL::ExceptionOr<void> FontFace::set_stretch(String const& string)
 {
+    // On setting, parse the string according to the grammar for the corresponding @font-face descriptor.
+    // If it does not match the grammar, throw a SyntaxError; otherwise, set the attribute to the serialization of the
+    // parsed value.
+
     // NOTE: font-stretch is now an alias for font-width
-    auto property = parse_css_value(Parser::ParsingParams(), string, CSS::PropertyID::FontWidth);
+    auto property = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorID::FontWidth, string);
     if (!property)
-        return WebIDL::SyntaxError::create(realm(), "FontFace.stretch setter: Invalid font descriptor"_string);
+        return WebIDL::SyntaxError::create(realm(), "FontFace.stretch setter: Invalid descriptor value"_string);
 
     if (m_is_css_connected) {
         // FIXME: Propagate to the CSSFontFaceRule and update the font-width property
@@ -269,47 +286,143 @@ WebIDL::ExceptionOr<void> FontFace::set_stretch(String const& string)
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-unicoderange
-WebIDL::ExceptionOr<void> FontFace::set_unicode_range(String const&)
+WebIDL::ExceptionOr<void> FontFace::set_unicode_range(String const& string)
 {
-    // FIXME: This *should* work, but the <urange> production is hard to parse
-    //        from just a value string in our implementation
-    return WebIDL::NotSupportedError::create(realm(), "unicode range is not yet implemented"_string);
+    // On setting, parse the string according to the grammar for the corresponding @font-face descriptor.
+    // If it does not match the grammar, throw a SyntaxError; otherwise, set the attribute to the serialization of the
+    // parsed value.
+
+    auto property = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorID::UnicodeRange, string);
+    if (!property)
+        return WebIDL::SyntaxError::create(realm(), "FontFace.unicodeRange setter: Invalid descriptor value"_string);
+
+    if (m_is_css_connected) {
+        // FIXME: Propagate to the CSSFontFaceRule and update the font-width property
+    }
+
+    m_unicode_range = property->to_string(CSSStyleValue::SerializationMode::Normal);
+
+    return {};
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-featuresettings
-WebIDL::ExceptionOr<void> FontFace::set_feature_settings(String const&)
+WebIDL::ExceptionOr<void> FontFace::set_feature_settings(String const& string)
 {
-    return WebIDL::NotSupportedError::create(realm(), "feature settings is not yet implemented"_string);
+    // On setting, parse the string according to the grammar for the corresponding @font-face descriptor.
+    // If it does not match the grammar, throw a SyntaxError; otherwise, set the attribute to the serialization of the
+    // parsed value.
+
+    auto property = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorID::FontFeatureSettings, string);
+    if (!property)
+        return WebIDL::SyntaxError::create(realm(), "FontFace.featureSettings setter: Invalid descriptor value"_string);
+
+    if (m_is_css_connected) {
+        // FIXME: Propagate to the CSSFontFaceRule and update the font-width property
+    }
+
+    m_feature_settings = property->to_string(CSSStyleValue::SerializationMode::Normal);
+
+    return {};
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-variationsettings
-WebIDL::ExceptionOr<void> FontFace::set_variation_settings(String const&)
+WebIDL::ExceptionOr<void> FontFace::set_variation_settings(String const& string)
 {
-    return WebIDL::NotSupportedError::create(realm(), "variation settings is not yet implemented"_string);
+    // On setting, parse the string according to the grammar for the corresponding @font-face descriptor.
+    // If it does not match the grammar, throw a SyntaxError; otherwise, set the attribute to the serialization of the
+    // parsed value.
+
+    auto property = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorID::FontVariationSettings, string);
+    if (!property)
+        return WebIDL::SyntaxError::create(realm(), "FontFace.variationSettings setter: Invalid descriptor value"_string);
+
+    if (m_is_css_connected) {
+        // FIXME: Propagate to the CSSFontFaceRule and update the font-width property
+    }
+
+    m_variation_settings = property->to_string(CSSStyleValue::SerializationMode::Normal);
+
+    return {};
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-display
-WebIDL::ExceptionOr<void> FontFace::set_display(String const&)
+WebIDL::ExceptionOr<void> FontFace::set_display(String const& string)
 {
-    return WebIDL::NotSupportedError::create(realm(), "display is not yet implemented"_string);
+    // On setting, parse the string according to the grammar for the corresponding @font-face descriptor.
+    // If it does not match the grammar, throw a SyntaxError; otherwise, set the attribute to the serialization of the
+    // parsed value.
+
+    auto property = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorID::FontDisplay, string);
+    if (!property)
+        return WebIDL::SyntaxError::create(realm(), "FontFace.display setter: Invalid descriptor value"_string);
+
+    if (m_is_css_connected) {
+        // FIXME: Propagate to the CSSFontFaceRule and update the font-width property
+    }
+
+    m_display = property->to_string(CSSStyleValue::SerializationMode::Normal);
+
+    return {};
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-ascentoverride
-WebIDL::ExceptionOr<void> FontFace::set_ascent_override(String const&)
+WebIDL::ExceptionOr<void> FontFace::set_ascent_override(String const& string)
 {
-    return WebIDL::NotSupportedError::create(realm(), "ascent override is not yet implemented"_string);
+    // On setting, parse the string according to the grammar for the corresponding @font-face descriptor.
+    // If it does not match the grammar, throw a SyntaxError; otherwise, set the attribute to the serialization of the
+    // parsed value.
+
+    auto property = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorID::AscentOverride, string);
+    if (!property)
+        return WebIDL::SyntaxError::create(realm(), "FontFace.ascentOverride setter: Invalid descriptor value"_string);
+
+    if (m_is_css_connected) {
+        // FIXME: Propagate to the CSSFontFaceRule and update the font-width property
+    }
+
+    m_ascent_override = property->to_string(CSSStyleValue::SerializationMode::Normal);
+
+    return {};
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-descentoverride
-WebIDL::ExceptionOr<void> FontFace::set_descent_override(String const&)
+WebIDL::ExceptionOr<void> FontFace::set_descent_override(String const& string)
 {
-    return WebIDL::NotSupportedError::create(realm(), "descent override is not yet implemented"_string);
+    // On setting, parse the string according to the grammar for the corresponding @font-face descriptor.
+    // If it does not match the grammar, throw a SyntaxError; otherwise, set the attribute to the serialization of the
+    // parsed value.
+
+    auto property = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorID::DescentOverride, string);
+    if (!property)
+        return WebIDL::SyntaxError::create(realm(), "FontFace.descentOverride setter: Invalid descriptor value"_string);
+
+    if (m_is_css_connected) {
+        // FIXME: Propagate to the CSSFontFaceRule and update the font-width property
+    }
+
+    m_descent_override = property->to_string(CSSStyleValue::SerializationMode::Normal);
+
+    return {};
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-linegapoverride
-WebIDL::ExceptionOr<void> FontFace::set_line_gap_override(String const&)
+WebIDL::ExceptionOr<void> FontFace::set_line_gap_override(String const& string)
 {
-    return WebIDL::NotSupportedError::create(realm(), "line gap override is not yet implemented"_string);
+    // On setting, parse the string according to the grammar for the corresponding @font-face descriptor.
+    // If it does not match the grammar, throw a SyntaxError; otherwise, set the attribute to the serialization of the
+    // parsed value.
+
+    auto property = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorID::LineGapOverride, string);
+    if (!property)
+        return WebIDL::SyntaxError::create(realm(), "FontFace.lineGapOverride setter: Invalid descriptor value"_string);
+
+    if (m_is_css_connected) {
+        // FIXME: Propagate to the CSSFontFaceRule and update the font-width property
+    }
+
+    m_line_gap_override = property->to_string(CSSStyleValue::SerializationMode::Normal);
+
+    return {};
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-load
