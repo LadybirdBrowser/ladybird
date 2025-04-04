@@ -14,6 +14,14 @@
 #include <LibWeb/HTML/Parser/StackOfOpenElements.h>
 #include <LibWeb/MimeSniff/MimeType.h>
 
+#ifdef LIBWEB_USE_SWIFT
+#    include <LibGC/ForeignCell.h>
+
+namespace Web {
+class SpeculativeHTMLParser;
+}
+#endif
+
 namespace Web::HTML {
 
 #define ENUMERATE_INSERTION_MODES               \
@@ -96,6 +104,7 @@ private:
     HTMLParser(DOM::Document&);
 
     virtual void visit_edges(Cell::Visitor&) override;
+    virtual void initialize(JS::Realm&) override;
 
     char const* insertion_mode_name() const;
 
@@ -209,6 +218,10 @@ private:
     GC::Ptr<HTMLHeadElement> m_head_element;
     GC::Ptr<HTMLFormElement> m_form_element;
     GC::Ptr<DOM::Element> m_context_element;
+
+#ifdef LIBWEB_USE_SWIFT
+    GC::ForeignPtr<Web::SpeculativeHTMLParser> m_speculative_parser;
+#endif
 
     Vector<HTMLToken> m_pending_table_character_tokens;
 
