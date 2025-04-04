@@ -31,8 +31,8 @@ public:
     String to_string() const
     {
         if (m_min_code_point == m_max_code_point)
-            return MUST(String::formatted("U+{:x}", m_min_code_point));
-        return MUST(String::formatted("U+{:x}-{:x}", m_min_code_point, m_max_code_point));
+            return MUST(String::formatted("U+{:X}", m_min_code_point));
+        return MUST(String::formatted("U+{:X}-{:X}", m_min_code_point, m_max_code_point));
     }
 
     bool operator==(UnicodeRange const& other) const
