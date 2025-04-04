@@ -56,7 +56,7 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorHelperPrototype::return_)
         // b. NOTE: Once a generator enters the completed state it never leaves it and its associated execution context is never resumed. Any execution state associated with O can be discarded at this point.
 
         // c. Perform ? IteratorClose(O.[[UnderlyingIterator]], NormalCompletion(unused)).
-        TRY(iterator_close(vm, iterator->underlying_iterator(), normal_completion({})));
+        TRY(iterator_close(vm, iterator->underlying_iterator(), normal_completion(js_undefined())));
 
         // d. Return CreateIterResultObject(undefined, true).
         return create_iterator_result_object(vm, js_undefined(), true);

@@ -779,7 +779,7 @@ ThrowCompletionOr<void> SourceTextModule::execute_module(VM& vm, GC::Ptr<Promise
 
         // AD-HOC: This is basically analogous to what AsyncBlockStart would do.
         if (result.is_throw_completion()) {
-            MUST(call(vm, *capability->reject(), js_undefined(), result.throw_completion().value().value()));
+            MUST(call(vm, *capability->reject(), js_undefined(), result.throw_completion().value()));
         } else {
             MUST(call(vm, *capability->resolve(), js_undefined(), result.value()));
         }

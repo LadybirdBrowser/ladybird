@@ -57,8 +57,7 @@ void ImportMapParseResult::visit_edges(Visitor& visitor)
                 visitor.visit(exception);
             },
             [&](JS::Completion const& completion) {
-                if (completion.value().has_value())
-                    visitor.visit(completion.value().value());
+                visitor.visit(completion.value());
             });
     }
 }

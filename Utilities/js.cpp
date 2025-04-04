@@ -266,8 +266,7 @@ static ErrorOr<bool> parse_and_run(JS::Realm& realm, StringView source, StringVi
         g_last_value = GC::make_root(result.value());
 
     if (result.is_error()) {
-        VERIFY(result.throw_completion().value().has_value());
-        TRY(handle_exception(*result.release_error().value()));
+        TRY(handle_exception(result.release_error().value()));
         return false;
     }
 

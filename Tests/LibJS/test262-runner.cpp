@@ -84,7 +84,7 @@ static ErrorOr<void, TestError> run_program(InterpreterT& interpreter, ScriptOrM
         });
 
     if (result.is_error()) {
-        auto error_value = *result.throw_completion().value();
+        auto error_value = result.throw_completion().value();
         TestError error;
         error.phase = NegativePhase::Runtime;
         if (error_value.is_object()) {

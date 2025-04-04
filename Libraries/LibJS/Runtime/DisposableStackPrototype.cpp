@@ -115,7 +115,7 @@ JS_DEFINE_NATIVE_FUNCTION(DisposableStackPrototype::dispose)
     disposable_stack->set_disposed();
 
     // 5. Return DisposeResources(disposableStack.[[DisposeCapability]], NormalCompletion(undefined)).
-    return *TRY(dispose_resources(vm, disposable_stack->dispose_capability(), normal_completion(js_undefined())));
+    return TRY(dispose_resources(vm, disposable_stack->dispose_capability(), normal_completion(js_undefined())));
 }
 
 // 12.3.3.4 get DisposableStack.prototype.disposed, https://tc39.es/proposal-explicit-resource-management/#sec-get-disposablestack.prototype.disposed

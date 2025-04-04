@@ -376,7 +376,7 @@ JS_DEFINE_NATIVE_FUNCTION(SetPrototype::is_disjoint_from)
                 // 1. If SetDataHas(O.[[SetData]], next) is true, then
                 if (set_data_has(set, *next)) {
                     // a. Perform ? IteratorClose(keysIter, NormalCompletion(UNUSED)).
-                    TRY(iterator_close(vm, keys_iterator, normal_completion({})));
+                    TRY(iterator_close(vm, keys_iterator, normal_completion(js_undefined())));
 
                     // b. Return false.
                     return false;
@@ -455,7 +455,7 @@ JS_DEFINE_NATIVE_FUNCTION(SetPrototype::is_superset_of)
             // i. If SetDataHas(O.[[SetData]], next) is false, then
             if (!set_data_has(set, *next)) {
                 // 1. Perform ? IteratorClose(keysIter, NormalCompletion(UNUSED)).
-                TRY(iterator_close(vm, keys_iterator, normal_completion({})));
+                TRY(iterator_close(vm, keys_iterator, normal_completion(js_undefined())));
 
                 // 2. Return false.
                 return false;

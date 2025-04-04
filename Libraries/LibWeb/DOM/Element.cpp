@@ -2516,9 +2516,7 @@ JS::ThrowCompletionOr<void> Element::upgrade_element(GC::Ref<HTML::CustomElement
         set_custom_element_state(CustomElementState::Precustomized);
 
         // 3. Let constructResult be the result of constructing C, with no arguments.
-        auto construct_result_optional = TRY(WebIDL::construct(constructor));
-        VERIFY(construct_result_optional.has_value());
-        auto construct_result = construct_result_optional.release_value();
+        auto construct_result = TRY(WebIDL::construct(constructor));
 
         // 4. If SameValue(constructResult, element) is false, then throw a TypeError.
         if (!JS::same_value(construct_result, this))

@@ -56,8 +56,7 @@ void report_exception_to_console(JS::Value value, JS::Realm& realm, ErrorInPromi
 void report_exception(JS::Completion const& throw_completion, JS::Realm& realm)
 {
     VERIFY(throw_completion.type() == JS::Completion::Type::Throw);
-    VERIFY(throw_completion.value().has_value());
-    report_exception_to_console(*throw_completion.value(), realm, ErrorInPromise::No);
+    report_exception_to_console(throw_completion.value(), realm, ErrorInPromise::No);
 }
 
 }

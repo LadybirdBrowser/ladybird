@@ -1631,10 +1631,10 @@ Completion dispose_resources(VM& vm, DisposeCapability& dispose_capability, Comp
                 // 1. If completion is a throw completion, then
                 if (completion.type() == Completion::Type::Throw) {
                     // a. Set result to result.[[Value]].
-                    auto result_value = result.error().value().value();
+                    auto result_value = result.error().value();
 
                     // b. Let suppressed be completion.[[Value]].
-                    auto suppressed = completion.value().value();
+                    auto suppressed = completion.value();
 
                     // c. Let error be a newly created SuppressedError object.
                     auto error = SuppressedError::create(*vm.current_realm());

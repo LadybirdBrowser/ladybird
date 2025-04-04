@@ -283,7 +283,7 @@ JS::ThrowCompletionOr<NodeFilter::Result> TreeWalker::filter(Node& node)
     m_active = false;
 
     // 8. Return result.
-    auto result_value = TRY(result.value()->to_i32(vm()));
+    auto result_value = TRY(result.value().to_i32(vm()));
     return static_cast<NodeFilter::Result>(result_value);
 }
 

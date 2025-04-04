@@ -436,7 +436,7 @@ ThrowCompletionOr<Value> ECMAScriptFunctionObject::internal_call(Value this_argu
 
     // 8. If result.[[Type]] is return, return result.[[Value]].
     if (result.type() == Completion::Type::Return)
-        return *result.value();
+        return result.value();
 
     // 9. Assert: result is a throw completion.
     VERIFY(result.type() == Completion::Type::Throw);
@@ -520,15 +520,15 @@ ThrowCompletionOr<GC::Ref<Object>> ECMAScriptFunctionObject::internal_construct(
     VERIFY(result.type() == Completion::Type::Return);
 
     // 12. If Type(result.[[Value]]) is Object, return result.[[Value]].
-    if (result.value()->is_object())
-        return result.value()->as_object();
+    if (result.value().is_object())
+        return result.value().as_object();
 
     // 13. If kind is base, return thisArgument.
     if (kind == ConstructorKind::Base)
         return *this_argument;
 
     // 14. If result.[[Value]] is not undefined, throw a TypeError exception.
-    if (!result.value()->is_undefined())
+    if (!result.value().is_undefined())
         return vm.throw_completion<TypeError>(ErrorType::DerivedConstructorReturningInvalidValue);
 
     // 15. Let thisBinding be ? constructorEnv.GetThisBinding().
@@ -771,7 +771,7 @@ void async_block_start(VM& vm, T const& async_body, PromiseCapability const& pro
         // g. Else if result is a return completion, then
         else if (result.type() == Completion::Type::Return) {
             // i. Perform ! Call(promiseCapability.[[Resolve]], undefined, « result.[[Value]] »).
-            MUST(call(vm, *promise_capability.resolve(), js_undefined(), *result.value()));
+            MUST(call(vm, *promise_capability.resolve(), js_undefined(), result.value()));
         }
         // h. Else,
         else {
@@ -779,7 +779,7 @@ void async_block_start(VM& vm, T const& async_body, PromiseCapability const& pro
             VERIFY(result.type() == Completion::Type::Throw);
 
             // ii. Perform ! Call(promiseCapability.[[Reject]], undefined, « result.[[Value]] »).
-            MUST(call(vm, *promise_capability.reject(), js_undefined(), *result.value()));
+            MUST(call(vm, *promise_capability.reject(), js_undefined(), result.value()));
         }
         // i. Return unused.
         // NOTE: We don't support returning an empty/optional/unused value here.

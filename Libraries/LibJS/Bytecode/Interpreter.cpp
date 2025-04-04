@@ -244,7 +244,7 @@ ThrowCompletionOr<Value> Interpreter::run(Script& script_record, GC::Ptr<Environ
 
     // 12. Let result be Completion(GlobalDeclarationInstantiation(script, globalEnv)).
     auto instantiation_result = script.global_declaration_instantiation(vm, global_environment);
-    Completion result = instantiation_result.is_throw_completion() ? instantiation_result.throw_completion() : normal_completion({});
+    Completion result = instantiation_result.is_throw_completion() ? instantiation_result.throw_completion() : normal_completion(js_undefined());
 
     // 13. If result.[[Type]] is normal, then
     if (result.type() == Completion::Type::Normal) {
@@ -269,11 +269,11 @@ ThrowCompletionOr<Value> Interpreter::run(Script& script_record, GC::Ptr<Environ
             if (result_or_error.value.is_error())
                 result = result_or_error.value.release_error();
             else
-                result = result_or_error.return_register_value;
+                result = result_or_error.return_register_value.value_or(js_undefined());
         }
 
         // b. If result is a normal completion and result.[[Value]] is empty, then
-        if (result.type() == Completion::Type::Normal && !result.value().has_value()) {
+        if (result.type() == Completion::Type::Normal && result.value().is_empty()) {
             // i. Set result to NormalCompletion(undefined).
             result = normal_completion(js_undefined());
         }
@@ -300,11 +300,12 @@ ThrowCompletionOr<Value> Interpreter::run(Script& script_record, GC::Ptr<Environ
     // 17. Return ? result.
     if (result.is_abrupt()) {
         VERIFY(result.type() == Completion::Type::Throw);
-        return result.release_error();
+        auto error = result.release_error();
+        VERIFY(!error.value().is_empty());
+        return error;
     }
 
-    VERIFY(result.value().has_value());
-    return *result.value();
+    return result.value();
 }
 
 ThrowCompletionOr<Value> Interpreter::run(SourceTextModule& module)
@@ -359,7 +360,7 @@ Interpreter::HandleExceptionResponse Interpreter::handle_exception(size_t& progr
 FLATTEN_ON_CLANG void Interpreter::run_bytecode(size_t entry_point)
 {
     if (vm().did_reach_stack_space_limit()) {
-        reg(Register::exception()) = vm().throw_completion<InternalError>(ErrorType::CallStackSizeExceeded).release_value().value();
+        reg(Register::exception()) = vm().throw_completion<InternalError>(ErrorType::CallStackSizeExceeded).value();
         return;
     }
 
@@ -2940,7 +2941,7 @@ ThrowCompletionOr<void> IteratorClose::execute_impl(Bytecode::Interpreter& inter
     auto& iterator = static_cast<IteratorRecord&>(interpreter.get(m_iterator_record).as_cell());
 
     // FIXME: Return the value of the resulting completion. (Note that m_completion_value can be empty!)
-    TRY(iterator_close(vm, iterator, Completion { m_completion_type, m_completion_value }));
+    TRY(iterator_close(vm, iterator, Completion { m_completion_type, m_completion_value.value_or(js_undefined()) }));
     return {};
 }
 
@@ -2950,7 +2951,7 @@ ThrowCompletionOr<void> AsyncIteratorClose::execute_impl(Bytecode::Interpreter& 
     auto& iterator = static_cast<IteratorRecord&>(interpreter.get(m_iterator_record).as_cell());
 
     // FIXME: Return the value of the resulting completion. (Note that m_completion_value can be empty!)
-    TRY(async_iterator_close(vm, iterator, Completion { m_completion_type, m_completion_value }));
+    TRY(async_iterator_close(vm, iterator, Completion { m_completion_type, m_completion_value.value_or(js_undefined()) }));
     return {};
 }
 

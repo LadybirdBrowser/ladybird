@@ -132,7 +132,7 @@ inline JS::Completion clean_up_on_return(JS::Realm& stored_realm, JS::Realm& rel
         return completion;
 
     // 5. Let rejectedPromise be ! Call(%Promise.reject%, %Promise%, «completion.[[Value]]»).
-    auto rejected_promise = create_rejected_promise(relevant_realm, *completion.release_value());
+    auto rejected_promise = create_rejected_promise(relevant_realm, completion.release_value());
 
     // 6. Return the result of converting rejectedPromise to the operation’s return type.
     // Note: The operation must return a promise, so no conversion is necessary
@@ -308,7 +308,7 @@ JS::Completion invoke_callback(WebIDL::CallbackType& callback, Optional<JS::Valu
 
         // 5. If exceptionBehavior is "rethrow", throw completion.[[Value]].
         if (exception_behavior == ExceptionBehavior::Rethrow) {
-            TRY(JS::throw_completion(*completion.release_value()));
+            TRY(JS::throw_completion(completion.release_value()));
         }
         // 6. Otherwise, if exceptionBehavior is "report":
         else if (exception_behavior == ExceptionBehavior::Report) {
@@ -316,7 +316,7 @@ JS::Completion invoke_callback(WebIDL::CallbackType& callback, Optional<JS::Valu
 
             // 2. Report an exception completion.[[Value]] for relevant realm’s global object.
             auto& window_or_worker = as<HTML::WindowOrWorkerGlobalScopeMixin>(relevant_realm.global_object());
-            window_or_worker.report_an_exception(*completion.release_value());
+            window_or_worker.report_an_exception(completion.release_value());
 
             // 3. Return the unique undefined IDL value.
             return JS::js_undefined();
@@ -326,7 +326,7 @@ JS::Completion invoke_callback(WebIDL::CallbackType& callback, Optional<JS::Valu
         VERIFY(callback.operation_returns_promise == OperationReturnsPromise::Yes);
 
         // 8. Let rejectedPromise be ! Call(%Promise.reject%, %Promise%, «completion.[[Value]]»).
-        auto rejected_promise = create_rejected_promise(relevant_realm, *completion.release_value());
+        auto rejected_promise = create_rejected_promise(relevant_realm, completion.release_value());
 
         // 9. Return the result of converting rejectedPromise to the callback function’s return type.
         return JS::Value { rejected_promise->promise() };

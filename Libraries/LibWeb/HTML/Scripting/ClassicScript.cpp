@@ -82,7 +82,7 @@ JS::Completion ClassicScript::run(RethrowErrors rethrow_errors, GC::Ptr<JS::Envi
 
     // 2. Check if we can run script with realm. If this returns "do not run" then return NormalCompletion(empty).
     if (can_run_script(realm) == RunScriptDecision::DoNotRun)
-        return JS::normal_completion({});
+        return JS::normal_completion(JS::js_undefined());
 
     // 3. Prepare to run script given realm.
     prepare_to_run_script(realm);
@@ -112,7 +112,7 @@ JS::Completion ClassicScript::run(RethrowErrors rethrow_errors, GC::Ptr<JS::Envi
             clean_up_after_running_script(realm);
 
             // 2. Rethrow evaluationStatus.[[Value]].
-            return JS::throw_completion(*evaluation_status.value());
+            return JS::throw_completion(evaluation_status.value());
         }
 
         // 2. If rethrow errors is true and script's muted errors is true, then:
@@ -129,7 +129,7 @@ JS::Completion ClassicScript::run(RethrowErrors rethrow_errors, GC::Ptr<JS::Envi
 
         // 1. Report an exception given by evaluationStatus.[[Value]] for realms's global object.
         auto& window_or_worker = as<WindowOrWorkerGlobalScopeMixin>(realm.global_object());
-        window_or_worker.report_an_exception(*evaluation_status.value());
+        window_or_worker.report_an_exception(evaluation_status.value());
 
         // 2. Clean up after running script with realm.
         clean_up_after_running_script(realm);

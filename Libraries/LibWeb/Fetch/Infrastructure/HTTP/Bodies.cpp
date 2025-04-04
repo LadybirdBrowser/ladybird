@@ -94,7 +94,7 @@ void Body::fully_read(JS::Realm& realm, Web::Fetch::Infrastructure::Body::Proces
 
     if (reader.is_exception()) {
         auto throw_completion = Bindings::exception_to_throw_completion(realm.vm(), reader.release_error());
-        error_steps(throw_completion.release_value().value());
+        error_steps(throw_completion.release_value());
         return;
     }
 

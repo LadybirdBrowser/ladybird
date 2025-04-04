@@ -469,13 +469,13 @@ public:
                     auto completion = Bindings::exception_to_throw_completion(m_realm->vm(), clone_result.release_error());
 
                     // 1. Perform ! ReadableStreamDefaultControllerError(branch1.[[controller]], cloneResult.[[Value]]).
-                    readable_stream_default_controller_error(controller1, completion.value().value());
+                    readable_stream_default_controller_error(controller1, completion.value());
 
                     // 2. Perform ! ReadableStreamDefaultControllerError(branch2.[[controller]], cloneResult.[[Value]]).
-                    readable_stream_default_controller_error(controller2, completion.value().value());
+                    readable_stream_default_controller_error(controller2, completion.value());
 
                     // 3. Resolve cancelPromise with ! ReadableStreamCancel(stream, cloneResult.[[Value]]).
-                    auto cancel_result = readable_stream_cancel(m_stream, completion.value().value());
+                    auto cancel_result = readable_stream_cancel(m_stream, completion.value());
 
                     // Note: We need to manually convert the result to an ECMAScript value here, by extracting its [[Promise]] slot.
                     WebIDL::resolve_promise(m_realm, m_cancel_promise, cancel_result->promise());
@@ -780,13 +780,13 @@ public:
                     auto completion = Bindings::exception_to_throw_completion(m_realm->vm(), clone_result.release_error());
 
                     // 1. Perform ! ReadableByteStreamControllerError(branch1.[[controller]], cloneResult.[[Value]]).
-                    readable_byte_stream_controller_error(controller1, completion.value().value());
+                    readable_byte_stream_controller_error(controller1, completion.value());
 
                     // 2. Perform ! ReadableByteStreamControllerError(branch2.[[controller]], cloneResult.[[Value]]).
-                    readable_byte_stream_controller_error(controller2, completion.value().value());
+                    readable_byte_stream_controller_error(controller2, completion.value());
 
                     // 3. Resolve cancelPromise with ! ReadableStreamCancel(stream, cloneResult.[[Value]]).
-                    auto cancel_result = readable_stream_cancel(m_stream, completion.value().value());
+                    auto cancel_result = readable_stream_cancel(m_stream, completion.value());
 
                     WebIDL::resolve_promise(m_realm, m_cancel_promise, cancel_result->promise());
 
@@ -944,13 +944,13 @@ public:
                     auto completion = Bindings::exception_to_throw_completion(m_realm->vm(), clone_result.release_error());
 
                     // 1. Perform ! ReadableByteStreamControllerError(byobBranch.[[controller]], cloneResult.[[Value]]).
-                    readable_byte_stream_controller_error(byob_controller, completion.value().value());
+                    readable_byte_stream_controller_error(byob_controller, completion.value());
 
                     // 2. Perform ! ReadableByteStreamControllerError(otherBranch.[[controller]], cloneResult.[[Value]]).
-                    readable_byte_stream_controller_error(other_controller, completion.value().value());
+                    readable_byte_stream_controller_error(other_controller, completion.value());
 
                     // 3. Resolve cancelPromise with ! ReadableStreamCancel(stream, cloneResult.[[Value]]).
-                    auto cancel_result = readable_stream_cancel(m_stream, completion.value().value());
+                    auto cancel_result = readable_stream_cancel(m_stream, completion.value());
 
                     WebIDL::resolve_promise(m_realm, m_cancel_promise, cancel_result->promise());
 
@@ -1448,7 +1448,7 @@ WebIDL::ExceptionOr<GC::Ref<ReadableStream>> readable_stream_from_iterable(JS::V
 
         // 2. If nextResult is an abrupt completion, return a promise rejected with nextResult.[[Value]].
         if (next_result.is_error())
-            return WebIDL::create_rejected_promise(realm, *next_result.throw_completion().release_value());
+            return WebIDL::create_rejected_promise(realm, next_result.throw_completion().release_value());
 
         // 3. Let nextPromise be a promise resolved with nextResult.[[Value]].
         auto next_promise = WebIDL::create_resolved_promise(realm, next_result.release_value());
@@ -1494,7 +1494,7 @@ WebIDL::ExceptionOr<GC::Ref<ReadableStream>> readable_stream_from_iterable(JS::V
 
         // 3. If returnMethod is an abrupt completion, return a promise rejected with returnMethod.[[Value]].
         if (return_method.is_error())
-            return WebIDL::create_rejected_promise(realm, *return_method.throw_completion().release_value());
+            return WebIDL::create_rejected_promise(realm, return_method.throw_completion().release_value());
 
         // 4. If returnMethod.[[Value]] is undefined, return a promise resolved with undefined.
         if (return_method.value().is_undefined())
@@ -1505,7 +1505,7 @@ WebIDL::ExceptionOr<GC::Ref<ReadableStream>> readable_stream_from_iterable(JS::V
 
         // 6. If returnResult is an abrupt completion, return a promise rejected with returnResult.[[Value]].
         if (return_result.is_error())
-            return WebIDL::create_rejected_promise(realm, *return_result.throw_completion().release_value());
+            return WebIDL::create_rejected_promise(realm, return_result.throw_completion().release_value());
 
         // 7. Let returnPromise be a promise resolved with returnResult.[[Value]].
         auto return_promise = WebIDL::create_resolved_promise(realm, return_result.release_value());
@@ -1910,7 +1910,7 @@ void readable_byte_stream_controller_pull_into(ReadableByteStreamController& con
     if (buffer_result.is_exception()) {
         // 1. Perform readIntoRequest’s error steps, given bufferResult.[[Value]].
         auto throw_completion = Bindings::exception_to_throw_completion(vm, buffer_result.exception());
-        read_into_request.on_error(*throw_completion.release_value());
+        read_into_request.on_error(throw_completion.release_value());
 
         // 2. Return.
         return;
@@ -2143,14 +2143,14 @@ WebIDL::ExceptionOr<void> readable_stream_default_controller_enqueue(ReadableStr
         // 2. If result is an abrupt completion,
         if (result.is_abrupt()) {
             // 1. Perform ! ReadableStreamDefaultControllerError(controller, result.[[Value]]).
-            readable_stream_default_controller_error(controller, result.value().value());
+            readable_stream_default_controller_error(controller, result.value());
 
             // 2. Return result.
             return result;
         }
 
         // 3. Let chunkSize be result.[[Value]].
-        auto chunk_size = result.release_value().release_value();
+        auto chunk_size = result.release_value();
 
         // 4. Let enqueueResult be EnqueueValueWithSize(controller, chunk, chunkSize).
         auto enqueue_result = enqueue_value_with_size(controller, chunk, chunk_size);
@@ -2160,7 +2160,7 @@ WebIDL::ExceptionOr<void> readable_stream_default_controller_enqueue(ReadableStr
             auto throw_completion = Bindings::throw_dom_exception_if_needed(vm, [&] { return enqueue_result; }).throw_completion();
 
             // 1. Perform ! ReadableStreamDefaultControllerError(controller, enqueueResult.[[Value]]).
-            readable_stream_default_controller_error(controller, throw_completion.value().value());
+            readable_stream_default_controller_error(controller, throw_completion.value());
 
             // 2. Return enqueueResult.
             // Note: We need to return the throw_completion object here, as enqueue needs to throw the same object that the controller is errored with
@@ -2683,7 +2683,7 @@ WebIDL::ExceptionOr<void> set_up_readable_stream_default_controller_from_underly
     if (underlying_source.start) {
         start_algorithm = GC::create_function(realm.heap(), [controller, underlying_source_value, callback = underlying_source.start]() -> WebIDL::ExceptionOr<JS::Value> {
             // Note: callback does not return a promise, so invoke_callback may return an abrupt completion
-            return TRY(WebIDL::invoke_callback(*callback, underlying_source_value, controller)).release_value();
+            return TRY(WebIDL::invoke_callback(*callback, underlying_source_value, controller));
         });
     }
 
@@ -2691,7 +2691,7 @@ WebIDL::ExceptionOr<void> set_up_readable_stream_default_controller_from_underly
     if (underlying_source.pull) {
         pull_algorithm = GC::create_function(realm.heap(), [&realm, controller, underlying_source_value, callback = underlying_source.pull]() {
             // Note: callback returns a promise, so invoke_callback will never return an abrupt completion
-            auto result = MUST(WebIDL::invoke_callback(*callback, underlying_source_value, controller)).release_value();
+            auto result = MUST(WebIDL::invoke_callback(*callback, underlying_source_value, controller));
             return WebIDL::create_resolved_promise(realm, result);
         });
     }
@@ -2700,7 +2700,7 @@ WebIDL::ExceptionOr<void> set_up_readable_stream_default_controller_from_underly
     if (underlying_source.cancel) {
         cancel_algorithm = GC::create_function(realm.heap(), [&realm, underlying_source_value, callback = underlying_source.cancel](JS::Value reason) {
             // Note: callback returns a promise, so invoke_callback will never return an abrupt completion
-            auto result = MUST(WebIDL::invoke_callback(*callback, underlying_source_value, reason)).release_value();
+            auto result = MUST(WebIDL::invoke_callback(*callback, underlying_source_value, reason));
             return WebIDL::create_resolved_promise(realm, result);
         });
     }
@@ -3552,7 +3552,7 @@ WebIDL::ExceptionOr<void> readable_byte_stream_controller_enqueue_cloned_chunk_t
         auto throw_completion = Bindings::throw_dom_exception_if_needed(vm, [&] { return clone_result; }).throw_completion();
 
         // 1. Perform ! ReadableByteStreamControllerError(controller, cloneResult.[[Value]]).
-        readable_byte_stream_controller_error(controller, throw_completion.value().value());
+        readable_byte_stream_controller_error(controller, throw_completion.value());
 
         // 2. Return cloneResult.
         // Note: We need to return the throw_completion object here, as enqueue needs to throw the same object that the controller is errored with
@@ -4349,7 +4349,7 @@ WebIDL::ExceptionOr<void> set_up_writable_stream_default_controller_from_underly
     if (underlying_sink.start) {
         start_algorithm = GC::create_function(realm.heap(), [controller, underlying_sink_value, callback = underlying_sink.start]() -> WebIDL::ExceptionOr<JS::Value> {
             // Note: callback does not return a promise, so invoke_callback may return an abrupt completion
-            return TRY(WebIDL::invoke_callback(*callback, underlying_sink_value, controller)).release_value();
+            return TRY(WebIDL::invoke_callback(*callback, underlying_sink_value, controller));
         });
     }
 
@@ -4357,7 +4357,7 @@ WebIDL::ExceptionOr<void> set_up_writable_stream_default_controller_from_underly
     if (underlying_sink.write) {
         write_algorithm = GC::create_function(realm.heap(), [&realm, controller, underlying_sink_value, callback = underlying_sink.write](JS::Value chunk) {
             // Note: callback returns a promise, so invoke_callback will never return an abrupt completion
-            auto result = MUST(WebIDL::invoke_callback(*callback, underlying_sink_value, chunk, controller)).release_value();
+            auto result = MUST(WebIDL::invoke_callback(*callback, underlying_sink_value, chunk, controller));
             return WebIDL::create_resolved_promise(realm, result);
         });
     }
@@ -4366,7 +4366,7 @@ WebIDL::ExceptionOr<void> set_up_writable_stream_default_controller_from_underly
     if (underlying_sink.close) {
         close_algorithm = GC::create_function(realm.heap(), [&realm, underlying_sink_value, callback = underlying_sink.close]() {
             // Note: callback returns a promise, so invoke_callback will never return an abrupt completion
-            auto result = MUST(WebIDL::invoke_callback(*callback, underlying_sink_value)).release_value();
+            auto result = MUST(WebIDL::invoke_callback(*callback, underlying_sink_value));
             return WebIDL::create_resolved_promise(realm, result);
         });
     }
@@ -4375,7 +4375,7 @@ WebIDL::ExceptionOr<void> set_up_writable_stream_default_controller_from_underly
     if (underlying_sink.abort) {
         abort_algorithm = GC::create_function(realm.heap(), [&realm, underlying_sink_value, callback = underlying_sink.abort](JS::Value reason) {
             // Note: callback returns a promise, so invoke_callback will never return an abrupt completion
-            auto result = MUST(WebIDL::invoke_callback(*callback, underlying_sink_value, reason)).release_value();
+            auto result = MUST(WebIDL::invoke_callback(*callback, underlying_sink_value, reason));
             return WebIDL::create_resolved_promise(realm, result);
         });
     }
@@ -4510,14 +4510,14 @@ JS::Value writable_stream_default_controller_get_chunk_size(WritableStreamDefaul
     // 3. If returnValue is an abrupt completion,
     if (return_value.is_abrupt()) {
         // 1. Perform ! WritableStreamDefaultControllerErrorIfNeeded(controller, returnValue.[[Value]]).
-        writable_stream_default_controller_error_if_needed(controller, *return_value.release_value());
+        writable_stream_default_controller_error_if_needed(controller, return_value.release_value());
 
         // 2. Return 1.
         return JS::Value { 1.0 };
     }
 
     // 4. Return returnValue.[[Value]].
-    return *return_value.release_value();
+    return return_value.release_value();
 }
 
 // https://streams.spec.whatwg.org/#writable-stream-default-controller-get-desired-size
@@ -4632,7 +4632,7 @@ void writable_stream_default_controller_write(WritableStreamDefaultController& c
         auto throw_completion = Bindings::throw_dom_exception_if_needed(vm, [&] { return enqueue_result; }).throw_completion();
 
         // 1. Perform ! WritableStreamDefaultControllerErrorIfNeeded(controller, enqueueResult.[[Value]]).
-        writable_stream_default_controller_error_if_needed(controller, *throw_completion.release_value());
+        writable_stream_default_controller_error_if_needed(controller, throw_completion.release_value());
 
         // 2. Return.
         return;
@@ -4755,7 +4755,7 @@ void set_up_transform_stream_default_controller_from_transformer(TransformStream
         // 2. If result is an abrupt completion, return a promise rejected with result.[[Value]].
         if (result.is_error()) {
             auto throw_completion = Bindings::exception_to_throw_completion(vm, result.exception());
-            return WebIDL::create_rejected_promise(realm, *throw_completion.release_value());
+            return WebIDL::create_rejected_promise(realm, throw_completion.release_value());
         }
 
         // 3. Otherwise, return a promise resolved with undefined.
@@ -4778,7 +4778,7 @@ void set_up_transform_stream_default_controller_from_transformer(TransformStream
     if (transformer_dict.transform) {
         transform_algorithm = GC::create_function(realm.heap(), [controller, &realm, transformer, callback = transformer_dict.transform](JS::Value chunk) {
             // Note: callback returns a promise, so invoke_callback will never return an abrupt completion
-            auto result = MUST(WebIDL::invoke_callback(*callback, transformer, chunk, controller)).release_value();
+            auto result = MUST(WebIDL::invoke_callback(*callback, transformer, chunk, controller));
             return WebIDL::create_resolved_promise(realm, result);
         });
     }
@@ -4788,7 +4788,7 @@ void set_up_transform_stream_default_controller_from_transformer(TransformStream
     if (transformer_dict.flush) {
         flush_algorithm = GC::create_function(realm.heap(), [&realm, transformer, callback = transformer_dict.flush, controller]() {
             // Note: callback returns a promise, so invoke_callback will never return an abrupt completion
-            auto result = MUST(WebIDL::invoke_callback(*callback, transformer, controller)).release_value();
+            auto result = MUST(WebIDL::invoke_callback(*callback, transformer, controller));
             return WebIDL::create_resolved_promise(realm, result);
         });
     }
@@ -4798,7 +4798,7 @@ void set_up_transform_stream_default_controller_from_transformer(TransformStream
     if (transformer_dict.cancel) {
         cancel_algorithm = GC::create_function(realm.heap(), [&realm, transformer, callback = transformer_dict.cancel](JS::Value reason) {
             // Note: callback returns a promise, so invoke_callback will never return an abrupt completion
-            auto result = MUST(WebIDL::invoke_callback(*callback, transformer, reason)).release_value();
+            auto result = MUST(WebIDL::invoke_callback(*callback, transformer, reason));
             return WebIDL::create_resolved_promise(realm, result);
         });
     }
@@ -4845,7 +4845,7 @@ WebIDL::ExceptionOr<void> transform_stream_default_controller_enqueue(TransformS
         auto throw_completion = Bindings::exception_to_throw_completion(vm, enqueue_result.exception());
 
         // 1. Perform ! TransformStreamErrorWritableAndUnblockWrite(stream, enqueueResult.[[Value]]).
-        transform_stream_error_writable_and_unblock_write(*stream, throw_completion.value().value());
+        transform_stream_error_writable_and_unblock_write(*stream, throw_completion.value());
 
         // 2. Throw stream.[[readable]].[[storedError]].
         return JS::throw_completion(stream->readable()->stored_error());
@@ -5324,7 +5324,7 @@ WebIDL::ExceptionOr<void> set_up_readable_byte_stream_controller_from_underlying
     if (underlying_source_dict.start) {
         start_algorithm = GC::create_function(realm.heap(), [controller, underlying_source, callback = underlying_source_dict.start]() -> WebIDL::ExceptionOr<JS::Value> {
             // Note: callback does not return a promise, so invoke_callback may return an abrupt completion
-            return TRY(WebIDL::invoke_callback(*callback, underlying_source, controller)).release_value();
+            return TRY(WebIDL::invoke_callback(*callback, underlying_source, controller));
         });
     }
 
@@ -5332,7 +5332,7 @@ WebIDL::ExceptionOr<void> set_up_readable_byte_stream_controller_from_underlying
     if (underlying_source_dict.pull) {
         pull_algorithm = GC::create_function(realm.heap(), [&realm, controller, underlying_source, callback = underlying_source_dict.pull]() {
             // Note: callback returns a promise, so invoke_callback will never return an abrupt completion
-            auto result = MUST(WebIDL::invoke_callback(*callback, underlying_source, controller)).release_value();
+            auto result = MUST(WebIDL::invoke_callback(*callback, underlying_source, controller));
             return WebIDL::create_resolved_promise(realm, result);
         });
     }
@@ -5341,7 +5341,7 @@ WebIDL::ExceptionOr<void> set_up_readable_byte_stream_controller_from_underlying
     if (underlying_source_dict.cancel) {
         cancel_algorithm = GC::create_function(realm.heap(), [&realm, underlying_source, callback = underlying_source_dict.cancel](JS::Value reason) {
             // Note: callback returns a promise, so invoke_callback will never return an abrupt completion
-            auto result = MUST(WebIDL::invoke_callback(*callback, underlying_source, reason)).release_value();
+            auto result = MUST(WebIDL::invoke_callback(*callback, underlying_source, reason));
             return WebIDL::create_resolved_promise(realm, result);
         });
     }

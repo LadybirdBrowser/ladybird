@@ -141,7 +141,7 @@ JS_DEFINE_NATIVE_FUNCTION(AsyncDisposableStackPrototype::dispose_async)
     auto result = TRY_OR_REJECT(vm, promise_capability, dispose_resources(vm, async_disposable_stack.dispose_capability(), normal_completion(js_undefined())));
 
     // 8. Perform ! Call(promiseCapability.[[Resolve]], undefined, « result »).
-    MUST(call(vm, *promise_capability->resolve(), js_undefined(), *result));
+    MUST(call(vm, *promise_capability->resolve(), js_undefined(), result));
 
     // 9. Return promiseCapability.[[Promise]].
     return promise_capability->promise();

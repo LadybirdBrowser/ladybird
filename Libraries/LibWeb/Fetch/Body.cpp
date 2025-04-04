@@ -212,7 +212,7 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> consume_body(JS::Realm& realm, Bod
         if (value_or_error.is_error()) {
             // We can't call error_steps here without moving it into success_steps, causing a double move when we pause error_steps
             // to fully_read, so just reject the promise like error_steps does.
-            WebIDL::reject_promise(realm, promise, value_or_error.release_error().value().value());
+            WebIDL::reject_promise(realm, promise, value_or_error.release_error().value());
             return;
         }
 

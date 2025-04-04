@@ -573,7 +573,7 @@ void TypedArrayBase::visit_edges(Visitor& visitor)
         auto array_length_or_error = first_argument.to_index(vm);                                                           \
         if (array_length_or_error.is_error()) {                                                                             \
             auto error = array_length_or_error.release_error();                                                             \
-            if (error.value()->is_object() && is<RangeError>(error.value()->as_object())) {                                 \
+            if (error.value().is_object() && is<RangeError>(error.value().as_object())) {                                   \
                 /* Re-throw more specific RangeError */                                                                     \
                 return vm.throw_completion<RangeError>(ErrorType::InvalidLength, "typed array");                            \
             }                                                                                                               \

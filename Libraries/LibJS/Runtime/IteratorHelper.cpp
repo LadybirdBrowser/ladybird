@@ -43,7 +43,7 @@ Value IteratorHelper::result(Value value)
 ThrowCompletionOr<Value> IteratorHelper::close_result(VM& vm, Completion completion)
 {
     set_generator_state(GeneratorState::Completed);
-    return *TRY(iterator_close(vm, underlying_iterator(), move(completion)));
+    return TRY(iterator_close(vm, underlying_iterator(), move(completion)));
 }
 
 ThrowCompletionOr<Value> IteratorHelper::execute(VM& vm, JS::Completion const& completion)

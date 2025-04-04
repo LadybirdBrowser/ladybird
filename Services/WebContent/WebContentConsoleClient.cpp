@@ -48,9 +48,9 @@ void WebContentConsoleClient::handle_input(StringView js_source)
     // FIXME: Add parse error printouts back once ClassicScript can report parse errors.
     auto result = script->run(Web::HTML::ClassicScript::RethrowErrors::No, with_scope);
 
-    if (result.value().has_value()) {
-        m_console_global_environment_extensions->set_most_recent_result(*result.value());
-        handle_result(*result.value());
+    if (!result.is_error()) {
+        m_console_global_environment_extensions->set_most_recent_result(result.value());
+        handle_result(result.value());
     }
 }
 

@@ -121,7 +121,7 @@ static ErrorOr<ResultType, WebDriver::Error> clone_an_object(HTML::BrowsingConte
         auto source_property_value = value.get(name);
         if (source_property_value.is_error()) {
             error = WebDriver::Error::from_code(ErrorCode::JavascriptError, "Script returned an error"sv);
-            return JS::normal_completion({});
+            return JS::normal_completion(JS::js_undefined());
         }
 
         // 3. Let cloned property result be the result of calling the clone algorithm with session, source property
@@ -143,7 +143,7 @@ static ErrorOr<ResultType, WebDriver::Error> clone_an_object(HTML::BrowsingConte
         // 5. Otherwise, return cloned property result.
         else {
             error = cloned_property_result.release_error();
-            return JS::normal_completion({});
+            return JS::normal_completion(JS::js_undefined());
         }
 
         return {};

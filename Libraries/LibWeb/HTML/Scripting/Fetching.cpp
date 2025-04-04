@@ -843,7 +843,7 @@ void fetch_descendants_of_and_link_a_module_script(JS::Realm& realm,
 
         // If this throws an exception, set result's error to rethrow to that exception.
         if (linking_result.is_throw_completion())
-            module_script.set_error_to_rethrow(linking_result.release_error().value().value());
+            module_script.set_error_to_rethrow(linking_result.release_error().value());
 
         // 2. Run onComplete given moduleScript.
         on_complete->function()(module_script);

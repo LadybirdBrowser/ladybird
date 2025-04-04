@@ -82,8 +82,6 @@ ThrowCompletionOr<Value> GeneratorObject::execute(VM& vm, Completion const& comp
 {
     // Loosely based on step 4 of https://tc39.es/ecma262/#sec-generatorstart mixed with https://tc39.es/ecma262/#sec-generatoryield at the end.
 
-    VERIFY(completion.value().has_value());
-
     auto generated_value = [](Value value) -> Value {
         if (value.is_cell())
             return static_cast<GeneratorResult const&>(value.as_cell()).result();
@@ -167,9 +165,6 @@ ThrowCompletionOr<Value> GeneratorObject::resume(VM& vm, Value value, Optional<S
 // 27.5.3.4 GeneratorResumeAbrupt ( generator, abruptCompletion, generatorBrand ), https://tc39.es/ecma262/#sec-generatorresumeabrupt
 ThrowCompletionOr<Value> GeneratorObject::resume_abrupt(JS::VM& vm, JS::Completion abrupt_completion, Optional<StringView> const& generator_brand)
 {
-    // Not part of the spec, but the spec assumes abruptCompletion.[[Value]] is not empty.
-    VERIFY(abrupt_completion.value().has_value());
-
     // 1. Let state be ? GeneratorValidate(generator, generatorBrand).
     auto state = TRY(validate(vm, generator_brand));
 
@@ -190,7 +185,7 @@ ThrowCompletionOr<Value> GeneratorObject::resume_abrupt(JS::VM& vm, JS::Completi
         // a. If abruptCompletion.[[Type]] is return, then
         if (abrupt_completion.type() == Completion::Type::Return) {
             // i. Return CreateIterResultObject(abruptCompletion.[[Value]], true).
-            return create_iterator_result_object(vm, abrupt_completion.value().value(), true);
+            return create_iterator_result_object(vm, abrupt_completion.value(), true);
         }
 
         // b. Return ? abruptCompletion.

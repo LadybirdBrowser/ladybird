@@ -178,7 +178,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::encrypt(AlgorithmIdentifier const& algori
         // 10. Let ciphertext be the result of performing the encrypt operation specified by normalizedAlgorithm using algorithm and key and with data as plaintext.
         auto cipher_text = normalized_algorithm.methods->encrypt(*normalized_algorithm.parameter, key, data);
         if (cipher_text.is_error()) {
-            WebIDL::reject_promise(realm, promise, Bindings::exception_to_throw_completion(realm.vm(), cipher_text.release_error()).release_value().value());
+            WebIDL::reject_promise(realm, promise, Bindings::exception_to_throw_completion(realm.vm(), cipher_text.release_error()).release_value());
             return;
         }
 
@@ -235,7 +235,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::decrypt(AlgorithmIdentifier const& algori
         // 10. Let plaintext be the result of performing the decrypt operation specified by normalizedAlgorithm using algorithm and key and with data as ciphertext.
         auto plain_text = normalized_algorithm.methods->decrypt(*normalized_algorithm.parameter, key, data);
         if (plain_text.is_error()) {
-            WebIDL::reject_promise(realm, promise, Bindings::exception_to_throw_completion(realm.vm(), plain_text.release_error()).release_value().value());
+            WebIDL::reject_promise(realm, promise, Bindings::exception_to_throw_completion(realm.vm(), plain_text.release_error()).release_value());
             return;
         }
 
@@ -283,7 +283,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::digest(AlgorithmIdentifier const& algorit
         auto result = algorithm_object.methods->digest(*algorithm_object.parameter, data_buffer);
 
         if (result.is_exception()) {
-            WebIDL::reject_promise(realm, promise, Bindings::exception_to_throw_completion(realm.vm(), result.release_error()).release_value().value());
+            WebIDL::reject_promise(realm, promise, Bindings::exception_to_throw_completion(realm.vm(), result.release_error()).release_value());
             return;
         }
 
@@ -324,7 +324,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::generate_key(AlgorithmIdentifier algorith
         auto result_or_error = normalized_algorithm.methods->generate_key(*normalized_algorithm.parameter, extractable, key_usages);
 
         if (result_or_error.is_error()) {
-            WebIDL::reject_promise(realm, promise, Bindings::exception_to_throw_completion(realm.vm(), result_or_error.release_error()).release_value().value());
+            WebIDL::reject_promise(realm, promise, Bindings::exception_to_throw_completion(realm.vm(), result_or_error.release_error()).release_value());
             return;
         }
         auto result = result_or_error.release_value();
@@ -405,7 +405,7 @@ JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> SubtleCrypto::import_key(Binding
         // specified by normalizedAlgorithm using keyData, algorithm, format, extractable and usages.
         auto maybe_result = normalized_algorithm.methods->import_key(*normalized_algorithm.parameter, format, real_key_data.downcast<CryptoKey::InternalKeyData>(), extractable, key_usages);
         if (maybe_result.is_error()) {
-            WebIDL::reject_promise(realm, promise, Bindings::exception_to_throw_completion(realm.vm(), maybe_result.release_error()).release_value().value());
+            WebIDL::reject_promise(realm, promise, Bindings::exception_to_throw_completion(realm.vm(), maybe_result.release_error()).release_value());
             return;
         }
         auto result = maybe_result.release_value();
@@ -451,7 +451,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::export_key(Bindings::KeyFormat format, GC
         // FIXME: Stash the AlgorithmMethods on the KeyAlgorithm
         auto normalized_algorithm_or_error = normalize_an_algorithm(realm, algorithm.name(), "exportKey"_string);
         if (normalized_algorithm_or_error.is_error()) {
-            WebIDL::reject_promise(realm, promise, Bindings::exception_to_throw_completion(realm.vm(), normalized_algorithm_or_error.release_error()).release_value().value());
+            WebIDL::reject_promise(realm, promise, Bindings::exception_to_throw_completion(realm.vm(), normalized_algorithm_or_error.release_error()).release_value());
             return;
         }
         auto normalized_algorithm = normalized_algorithm_or_error.release_value();
@@ -465,7 +465,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::export_key(Bindings::KeyFormat format, GC
         // 7. Let result be the result of performing the export key operation specified by the [[algorithm]] internal slot of key using key and format.
         auto result_or_error = normalized_algorithm.methods->export_key(format, key);
         if (result_or_error.is_error()) {
-            WebIDL::reject_promise(realm, promise, Bindings::exception_to_throw_completion(realm.vm(), result_or_error.release_error()).release_value().value());
+            WebIDL::reject_promise(realm, promise, Bindings::exception_to_throw_completion(realm.vm(), result_or_error.release_error()).release_value());
             return;
         }
 
@@ -522,7 +522,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::sign(AlgorithmIdentifier const& algorithm
         // 10. Let result be the result of performing the sign operation specified by normalizedAlgorithm using key and algorithm and with data as message.
         auto result = normalized_algorithm.methods->sign(*normalized_algorithm.parameter, key, data);
         if (result.is_error()) {
-            WebIDL::reject_promise(realm, promise, Bindings::exception_to_throw_completion(realm.vm(), result.release_error()).release_value().value());
+            WebIDL::reject_promise(realm, promise, Bindings::exception_to_throw_completion(realm.vm(), result.release_error()).release_value());
             return;
         }
 
@@ -586,7 +586,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::verify(AlgorithmIdentifier const& algorit
         // 11. Let result be the result of performing the verify operation specified by normalizedAlgorithm using key, algorithm and signature and with data as message.
         auto result = normalized_algorithm.methods->verify(*normalized_algorithm.parameter, key, signature, data);
         if (result.is_error()) {
-            WebIDL::reject_promise(realm, promise, Bindings::exception_to_throw_completion(realm.vm(), result.release_error()).release_value().value());
+            WebIDL::reject_promise(realm, promise, Bindings::exception_to_throw_completion(realm.vm(), result.release_error()).release_value());
             return;
         }
 
@@ -633,7 +633,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::derive_bits(AlgorithmIdentifier algorithm
         // 9. Let result be the result of creating an ArrayBuffer containing the result of performing the derive bits operation specified by normalizedAlgorithm using baseKey, algorithm and length.
         auto result = normalized_algorithm.methods->derive_bits(*normalized_algorithm.parameter, base_key, length_optional);
         if (result.is_error()) {
-            WebIDL::reject_promise(realm, promise, Bindings::exception_to_throw_completion(realm.vm(), result.release_error()).release_value().value());
+            WebIDL::reject_promise(realm, promise, Bindings::exception_to_throw_completion(realm.vm(), result.release_error()).release_value());
             return;
         }
 
@@ -695,7 +695,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::derive_key(AlgorithmIdentifier algorithm,
         // 13. Let length be the result of performing the get key length algorithm specified by normalizedDerivedKeyAlgorithmLength using derivedKeyType.
         auto length_result = normalized_derived_key_algorithm_length.methods->get_key_length(*normalized_derived_key_algorithm_length.parameter);
         if (length_result.is_error()) {
-            WebIDL::reject_promise(realm, promise, Bindings::exception_to_throw_completion(realm.vm(), length_result.release_error()).release_value().value());
+            WebIDL::reject_promise(realm, promise, Bindings::exception_to_throw_completion(realm.vm(), length_result.release_error()).release_value());
             return;
         }
 
@@ -704,7 +704,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::derive_key(AlgorithmIdentifier algorithm,
         if (length_raw_value.is_number()) {
             auto maybe_length = length_raw_value.to_u32(vm);
             if (!maybe_length.has_value()) {
-                WebIDL::reject_promise(realm, promise, maybe_length.release_error().release_value().value());
+                WebIDL::reject_promise(realm, promise, maybe_length.release_error().release_value());
                 return;
             }
 
@@ -714,14 +714,14 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::derive_key(AlgorithmIdentifier algorithm,
         // 14. Let secret be the result of performing the derive bits operation specified by normalizedAlgorithm using key, algorithm and length.
         auto secret = normalized_algorithm.methods->derive_bits(*normalized_algorithm.parameter, base_key, length);
         if (secret.is_error()) {
-            WebIDL::reject_promise(realm, promise, Bindings::exception_to_throw_completion(realm.vm(), secret.release_error()).release_value().value());
+            WebIDL::reject_promise(realm, promise, Bindings::exception_to_throw_completion(realm.vm(), secret.release_error()).release_value());
             return;
         }
 
         // 15. Let result be the result of performing the import key operation specified by normalizedDerivedKeyAlgorithmImport using "raw" as format, secret as keyData, derivedKeyType as algorithm and using extractable and usages.
         auto result_or_error = normalized_derived_key_algorithm_import.methods->import_key(*normalized_derived_key_algorithm_import.parameter, Bindings::KeyFormat::Raw, secret.release_value()->buffer(), extractable, key_usages);
         if (result_or_error.is_error()) {
-            WebIDL::reject_promise(realm, promise, Bindings::exception_to_throw_completion(realm.vm(), result_or_error.release_error()).release_value().value());
+            WebIDL::reject_promise(realm, promise, Bindings::exception_to_throw_completion(realm.vm(), result_or_error.release_error()).release_value());
             return;
         }
         auto result = result_or_error.release_value();
@@ -811,13 +811,13 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::wrap_key(Bindings::KeyFormat format, GC::
         auto& key_algorithm = as<KeyAlgorithm>(*key->algorithm());
         auto normalized_key_algorithm = normalize_an_algorithm(realm, key_algorithm.name(), "exportKey"_string);
         if (normalized_key_algorithm.is_error()) {
-            WebIDL::reject_promise(realm, promise, Bindings::exception_to_throw_completion(realm.vm(), normalized_key_algorithm.release_error()).release_value().value());
+            WebIDL::reject_promise(realm, promise, Bindings::exception_to_throw_completion(realm.vm(), normalized_key_algorithm.release_error()).release_value());
             return;
         }
 
         auto key_data_or_error = normalized_key_algorithm.release_value().methods->export_key(format, key);
         if (key_data_or_error.is_error()) {
-            WebIDL::reject_promise(realm, promise, Bindings::exception_to_throw_completion(realm.vm(), key_data_or_error.release_error()).release_value().value());
+            WebIDL::reject_promise(realm, promise, Bindings::exception_to_throw_completion(realm.vm(), key_data_or_error.release_error()).release_value());
             return;
         }
 
@@ -838,7 +838,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::wrap_key(Bindings::KeyFormat format, GC::
             //    for example, by executing the JSON.stringify algorithm specified in [ECMA-262] in the context of a new global object.
             auto maybe_json = JS::JSONObject::stringify_impl(realm.vm(), key_data, JS::Value {}, JS::Value {});
             if (maybe_json.is_error()) {
-                WebIDL::reject_promise(realm, promise, maybe_json.release_error().release_value().value());
+                WebIDL::reject_promise(realm, promise, maybe_json.release_error().release_value());
                 return;
             }
 
@@ -855,7 +855,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::wrap_key(Bindings::KeyFormat format, GC::
             // using algorithm, wrappingKey as key and bytes as plaintext.
             auto result_or_error = normalized_algorithm.methods->wrap_key(*normalized_algorithm.parameter, wrapping_key, bytes);
             if (result_or_error.is_error()) {
-                WebIDL::reject_promise(realm, promise, Bindings::exception_to_throw_completion(realm.vm(), result_or_error.release_error()).release_value().value());
+                WebIDL::reject_promise(realm, promise, Bindings::exception_to_throw_completion(realm.vm(), result_or_error.release_error()).release_value());
                 return;
             }
 
@@ -868,7 +868,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::wrap_key(Bindings::KeyFormat format, GC::
             // using algorithm, wrappingKey as key and bytes as plaintext.
             auto result_or_error = normalized_algorithm.methods->encrypt(*normalized_algorithm.parameter, wrapping_key, bytes);
             if (result_or_error.is_error()) {
-                WebIDL::reject_promise(realm, promise, Bindings::exception_to_throw_completion(realm.vm(), result_or_error.release_error()).release_value().value());
+                WebIDL::reject_promise(realm, promise, Bindings::exception_to_throw_completion(realm.vm(), result_or_error.release_error()).release_value());
                 return;
             }
 
@@ -975,7 +975,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::unwrap_key(Bindings::KeyFormat format, Ke
             }
         }();
         if (key_or_error.is_error()) {
-            WebIDL::reject_promise(realm, promise, Bindings::exception_to_throw_completion(realm.vm(), key_or_error.release_error()).release_value().value());
+            WebIDL::reject_promise(realm, promise, Bindings::exception_to_throw_completion(realm.vm(), key_or_error.release_error()).release_value());
             return;
         }
 
@@ -994,7 +994,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::unwrap_key(Bindings::KeyFormat format, Ke
             // Let bytes be the result of executing the parse a JWK algorithm, with key as the data to be parsed.
             auto maybe_parsed = Bindings::JsonWebKey::parse(realm, key->buffer());
             if (maybe_parsed.is_error()) {
-                WebIDL::reject_promise(realm, promise, maybe_parsed.release_error().release_value().value());
+                WebIDL::reject_promise(realm, promise, maybe_parsed.release_error().release_value());
                 return;
             }
 
@@ -1007,7 +1007,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::unwrap_key(Bindings::KeyFormat format, Ke
         //    using unwrappedKeyAlgorithm as algorithm, format, usages and extractable and with bytes as keyData.
         auto result_or_error = normalized_key_algorithm.methods->import_key(*normalized_key_algorithm.parameter, format, bytes.downcast<CryptoKey::InternalKeyData>(), extractable, key_usages);
         if (result_or_error.is_error()) {
-            WebIDL::reject_promise(realm, promise, Bindings::exception_to_throw_completion(realm.vm(), result_or_error.release_error()).release_value().value());
+            WebIDL::reject_promise(realm, promise, Bindings::exception_to_throw_completion(realm.vm(), result_or_error.release_error()).release_value());
             return;
         }
 

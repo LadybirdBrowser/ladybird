@@ -715,7 +715,7 @@ JS::ThrowCompletionOr<void> EventTarget::process_event_handler_for_event(FlyStri
         return return_value_or_error.release_error();
 
     // FIXME: Ideally, invoke_callback would convert JS::Value to the appropriate return type for us as per the spec, but it doesn't currently.
-    auto return_value = *return_value_or_error.value();
+    auto return_value = return_value_or_error.value();
 
     auto is_beforeunload = event.type() == HTML::EventNames::beforeunload;
 
