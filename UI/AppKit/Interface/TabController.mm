@@ -301,11 +301,7 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 
 - (BOOL)navigateToLocation:(String)location
 {
-    Optional<StringView> search_engine_url;
-    if (auto const& search_engine = WebView::Application::settings().search_engine(); search_engine.has_value())
-        search_engine_url = search_engine->query_url;
-
-    if (auto url = WebView::sanitize_url(location, search_engine_url); url.has_value()) {
+    if (auto url = WebView::sanitize_url(location, WebView::Application::settings().search_engine()); url.has_value()) {
         [self loadURL:*url];
     }
 

@@ -36,16 +36,12 @@ LocationEdit::LocationEdit(QWidget* parent)
 
         clearFocus();
 
-        Optional<StringView> search_engine_url;
-        if (auto const& search_engine = WebView::Application::settings().search_engine(); search_engine.has_value())
-            search_engine_url = search_engine->query_url;
-
         auto query = ak_string_from_qstring(text());
 
         auto ctrl_held = QApplication::keyboardModifiers() & Qt::ControlModifier;
         auto append_tld = ctrl_held ? WebView::AppendTLD::Yes : WebView::AppendTLD::No;
 
-        if (auto url = WebView::sanitize_url(query, search_engine_url, append_tld); url.has_value())
+        if (auto url = WebView::sanitize_url(query, WebView::Application::settings().search_engine(), append_tld); url.has_value())
             set_url(url.release_value());
     });
 

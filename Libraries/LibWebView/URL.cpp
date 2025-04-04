@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2023-2025, Tim Flynn <trflynn89@ladybird.org>
  * Copyright (c) 2023, Cameron Youell <cameronyouell@gmail.com>
  * Copyright (c) 2025, Manuel Zahariev <manuel@duck.com>
  *
@@ -13,13 +13,13 @@
 
 namespace WebView {
 
-Optional<URL::URL> sanitize_url(StringView location, Optional<StringView> search_engine, AppendTLD append_tld)
+Optional<URL::URL> sanitize_url(StringView location, Optional<SearchEngine> const& search_engine, AppendTLD append_tld)
 {
     auto search_url_or_error = [&]() -> Optional<URL::URL> {
         if (!search_engine.has_value())
             return {};
 
-        return URL::Parser::basic_parse(MUST(String::formatted(*search_engine, URL::percent_encode(location))));
+        return URL::Parser::basic_parse(search_engine->format_search_query_for_navigation(location));
     };
 
     location = location.trim_whitespace();

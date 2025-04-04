@@ -13,13 +13,14 @@
 namespace WebView {
 
 struct SearchEngine {
+    String format_search_query_for_display(StringView query) const;
+    String format_search_query_for_navigation(StringView query) const;
+
     String name;
     String query_url;
 };
 
 ReadonlySpan<SearchEngine> search_engines();
 Optional<SearchEngine> find_search_engine_by_name(StringView name);
-Optional<SearchEngine const&> find_search_engine_by_query_url(StringView query_url);
-String format_search_query_for_display(StringView query_url, StringView query);
 
 }
