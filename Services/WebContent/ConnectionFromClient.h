@@ -51,7 +51,7 @@ public:
     Queue<Web::QueuedInputEvent>& input_event_queue() { return m_input_event_queue; }
 
 private:
-    explicit ConnectionFromClient(GC::Heap&, IPC::Transport);
+    explicit ConnectionFromClient(IPC::Transport);
 
     Optional<PageClient&> page(u64 index, SourceLocation = SourceLocation::current());
     Optional<PageClient const&> page(u64 index, SourceLocation = SourceLocation::current()) const;
@@ -157,7 +157,6 @@ private:
 
     virtual void system_time_zone_changed() override;
 
-    GC::Heap& m_heap;
     NonnullOwnPtr<PageHost> m_page_host;
 
     HashMap<int, Web::FileRequest> m_requested_files {};
