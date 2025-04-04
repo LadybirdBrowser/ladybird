@@ -945,20 +945,20 @@ RefPtr<CSSStyleValue const> CSSStyleProperties::style_value_for_computed_propert
         //    The resolved value is the computed value.
         //    NOTE: This is handled inside the `default` case.
     case PropertyID::BorderBottomWidth: {
-        auto border_bottom_width = layout_node.computed_values().border_bottom();
-        return LengthStyleValue::create(Length::make_px(border_bottom_width.width));
+        auto border_bottom_width = layout_node.computed_values().border_bottom().width;
+        return LengthStyleValue::create(Length::make_px(border_bottom_width));
     }
     case PropertyID::BorderLeftWidth: {
-        auto border_left_width = layout_node.computed_values().border_left();
-        return LengthStyleValue::create(Length::make_px(border_left_width.width));
+        auto border_left_width = layout_node.computed_values().border_left().width;
+        return LengthStyleValue::create(Length::make_px(border_left_width));
     }
     case PropertyID::BorderRightWidth: {
-        auto border_right_width = layout_node.computed_values().border_right();
-        return LengthStyleValue::create(Length::make_px(border_right_width.width));
+        auto border_right_width = layout_node.computed_values().border_right().width;
+        return LengthStyleValue::create(Length::make_px(border_right_width));
     }
     case PropertyID::BorderTopWidth: {
-        auto border_top_width = layout_node.computed_values().border_top();
-        return LengthStyleValue::create(Length::make_px(border_top_width.width));
+        auto border_top_width = layout_node.computed_values().border_top().width;
+        return LengthStyleValue::create(Length::make_px(border_top_width));
     }
     case PropertyID::OutlineWidth: {
         auto outline_width = layout_node.computed_values().outline_width();
