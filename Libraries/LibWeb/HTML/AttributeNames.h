@@ -151,6 +151,7 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(onchange, "onchange")                                     \
     __ENUMERATE_HTML_ATTRIBUTE(onclick, "onclick")                                       \
     __ENUMERATE_HTML_ATTRIBUTE(onclose, "onclose")                                       \
+    __ENUMERATE_HTML_ATTRIBUTE(oncommand, "oncommand")                                   \
     __ENUMERATE_HTML_ATTRIBUTE(oncontextlost, "oncontextlost")                           \
     __ENUMERATE_HTML_ATTRIBUTE(oncontextmenu, "oncontextmenu")                           \
     __ENUMERATE_HTML_ATTRIBUTE(oncontextrestored, "oncontextrestored")                   \
