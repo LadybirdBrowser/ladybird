@@ -443,4 +443,39 @@ void HTMLDialogElement::set_is_modal(bool is_modal)
     invalidate_style(DOM::StyleInvalidationReason::NodeRemove);
 }
 
+// https://html.spec.whatwg.org/multipage/interactive-elements.html#the-dialog-element:is-valid-invoker-command-steps
+bool HTMLDialogElement::is_valid_invoker_command(String& command)
+{
+    // 1. If command is in the Close state or in the Show Modal state, then return true.
+    if (command == "close" || command == "show-modal")
+        return true;
+
+    // 2. Return false.
+    return false;
+}
+
+// https://html.spec.whatwg.org/multipage/interactive-elements.html#the-dialog-element:invoker-command-steps
+void HTMLDialogElement::invoker_command_steps(DOM::Element& invoker, String& command)
+{
+    // 1. If element is in the popover showing state, then return.
+    if (popover_visibility_state() == PopoverVisibilityState::Showing) {
+        return;
+    }
+
+    // 2. If command is in the Close state and element has an open attribute:
+    if (command == "close" && has_attribute(AttributeNames::open)) {
+        // 1. Let value be invoker's value.
+        //    FIXME: This assumes invoker is a button.
+        auto value = invoker.get_attribute(AttributeNames::value);
+
+        // 2. Close the dialog element with value.
+        close_the_dialog(value);
+    }
+
+    // 3. If command is the Show Modal state and element does not have an open attribute, then show a modal dialog given element.
+    if (command == "show-modal" && !has_attribute(AttributeNames::open)) {
+        MUST(show_a_modal_dialog(*this));
+    }
+}
+
 }
