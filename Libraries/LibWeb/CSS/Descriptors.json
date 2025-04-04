@@ -98,7 +98,6 @@
       },
       "unicode-range": {
         "initial": "U+0-10FFFF",
-        "NOTE": "unicode-range has special parsing rules so it's parsed manually.",
         "syntax": [
           "<unicode-range-token>#"
         ]
