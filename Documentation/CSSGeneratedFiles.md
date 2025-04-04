@@ -74,6 +74,44 @@ For numeric types, we use the [bracketed range notation](https://www.w3.org/TR/c
 for example `width` can take any non-negative length, so it has `"length [0,∞]"` in its `valid-types` array.
 For `<custom-ident>`s, the excluded identifiers are placed within `![]`, for example `"custom-ident ![all,none]"`.
 
+## Descriptors.json
+
+Descriptors are basically properties, but for at-rules instead of style. The overall structure is a JSON object, with
+keys being at-rule names and the values being data about those at-rules. The main part is the data about the descriptors
+that the at-rule can have.
+
+The generated code provides:
+- An `AtRuleID` enum, mostly used as a parameter for parsing descriptors, as multiple at-rules may have descriptors with 
+  the same name.
+- `FlyString to_string(AtRuleID)`, mostly for debug logging.
+- A `DescriptorID` enum, listing every descriptor.
+- `Optional<DescriptorID> descriptor_id_from_string(AtRuleID, StringView)` for getting a DescriptorID from a string, if
+  it exists in that at-rule.
+- `FlyString to_string(DescriptorID)` for serializing descriptor names.
+- `bool at_rule_supports_descriptor(AtRuleID, DescriptorID)` to query if the given at-rule allows the descriptor.
+- `RefPtr<CSSStyleValue> descriptor_initial_value(AtRuleID, DescriptorID)` for getting a descriptor's initial value.
+- `DescriptorMetadata get_descriptor_metadata(AtRuleID, DescriptorID)` returns data used for parsing the descriptor.
+
+### At-rule fields
+
+Each at-rule object has the following fields. Both are required.
+
+| Field         | Description                                                                                       |
+|---------------|---------------------------------------------------------------------------------------------------|
+| `spec`        | String. URL to the spec that defines this at-rule.                                                |
+| `descriptors` | Object, with keys being descriptor names and values being objects of their properties. See below. |
+
+### Descriptor fields
+
+Each descriptor object can have the following fields:
+
+| Field              | Required | Description                                                           |
+|--------------------|----------|-----------------------------------------------------------------------|
+| `initial`          | No       | String. The descriptor's initial value if none is provided.           |
+| `legacy-alias-for` | No       | String. The name of a different descriptor that this is an alias for. |
+| `syntax`           | Yes      | Array of strings. Each string is one option, taken from the spec.     |
+| `FIXME` or `NOTE`  | No       | Strings, for when you want to leave a note.                           |
+
 ## Keywords.json
 
 This is a single JSON array of strings, each of which is a CSS keyword, for example `auto`, `none`, `medium`, or `currentcolor`.
