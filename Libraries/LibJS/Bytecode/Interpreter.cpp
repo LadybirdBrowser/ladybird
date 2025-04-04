@@ -601,8 +601,8 @@ FLATTEN_ON_CLANG void Interpreter::run_bytecode(size_t entry_point)
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(CreateVariableEnvironment);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(CreatePrivateEnvironment);
             HANDLE_INSTRUCTION(CreateVariable);
-            HANDLE_INSTRUCTION(CreateRestParams);
-            HANDLE_INSTRUCTION(CreateArguments);
+            HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(CreateRestParams);
+            HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(CreateArguments);
             HANDLE_INSTRUCTION(Decrement);
             HANDLE_INSTRUCTION(DeleteById);
             HANDLE_INSTRUCTION(DeleteByIdWithThis);
@@ -626,8 +626,8 @@ FLATTEN_ON_CLANG void Interpreter::run_bytecode(size_t entry_point)
             HANDLE_INSTRUCTION(GetLengthWithThis);
             HANDLE_INSTRUCTION(GetMethod);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(GetNewTarget);
-            HANDLE_INSTRUCTION(GetNextMethodFromIteratorRecord);
-            HANDLE_INSTRUCTION(GetObjectFromIteratorRecord);
+            HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(GetNextMethodFromIteratorRecord);
+            HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(GetObjectFromIteratorRecord);
             HANDLE_INSTRUCTION(GetObjectPropertyIterator);
             HANDLE_INSTRUCTION(GetPrivateById);
             HANDLE_INSTRUCTION(GetBinding);
@@ -2315,7 +2315,7 @@ ThrowCompletionOr<void> CreateVariable::execute_impl(Bytecode::Interpreter& inte
     return create_variable(interpreter.vm(), name, m_mode, m_is_global, m_is_immutable, m_is_strict);
 }
 
-ThrowCompletionOr<void> CreateRestParams::execute_impl(Bytecode::Interpreter& interpreter) const
+void CreateRestParams::execute_impl(Bytecode::Interpreter& interpreter) const
 {
     auto const& arguments = interpreter.running_execution_context().arguments;
     auto arguments_count = interpreter.running_execution_context().passed_argument_count;
@@ -2323,10 +2323,9 @@ ThrowCompletionOr<void> CreateRestParams::execute_impl(Bytecode::Interpreter& in
     for (size_t rest_index = m_rest_index; rest_index < arguments_count; ++rest_index)
         array->indexed_properties().append(arguments[rest_index]);
     interpreter.set(m_dst, array);
-    return {};
 }
 
-ThrowCompletionOr<void> CreateArguments::execute_impl(Bytecode::Interpreter& interpreter) const
+void CreateArguments::execute_impl(Bytecode::Interpreter& interpreter) const
 {
     auto const& function = interpreter.running_execution_context().function;
     auto const& arguments = interpreter.running_execution_context().arguments;
@@ -2342,7 +2341,7 @@ ThrowCompletionOr<void> CreateArguments::execute_impl(Bytecode::Interpreter& int
 
     if (m_dst.has_value()) {
         interpreter.set(*m_dst, arguments_object);
-        return {};
+        return;
     }
 
     if (m_is_immutable) {
@@ -2351,8 +2350,6 @@ ThrowCompletionOr<void> CreateArguments::execute_impl(Bytecode::Interpreter& int
         MUST(environment->create_mutable_binding(interpreter.vm(), interpreter.vm().names.arguments.as_string(), false));
     }
     MUST(environment->initialize_binding(interpreter.vm(), interpreter.vm().names.arguments.as_string(), arguments_object, Environment::InitializeBindingHint::Normal));
-
-    return {};
 }
 
 template<EnvironmentMode environment_mode, BindingInitializationMode initialization_mode>
@@ -2909,18 +2906,16 @@ ThrowCompletionOr<void> GetIterator::execute_impl(Bytecode::Interpreter& interpr
     return {};
 }
 
-ThrowCompletionOr<void> GetObjectFromIteratorRecord::execute_impl(Bytecode::Interpreter& interpreter) const
+void GetObjectFromIteratorRecord::execute_impl(Bytecode::Interpreter& interpreter) const
 {
     auto& iterator_record = static_cast<IteratorRecord&>(interpreter.get(m_iterator_record).as_cell());
     interpreter.set(m_object, iterator_record.iterator);
-    return {};
 }
 
-ThrowCompletionOr<void> GetNextMethodFromIteratorRecord::execute_impl(Bytecode::Interpreter& interpreter) const
+void GetNextMethodFromIteratorRecord::execute_impl(Bytecode::Interpreter& interpreter) const
 {
     auto& iterator_record = static_cast<IteratorRecord&>(interpreter.get(m_iterator_record).as_cell());
     interpreter.set(m_next_method, iterator_record.next_method);
-    return {};
 }
 
 ThrowCompletionOr<void> GetMethod::execute_impl(Bytecode::Interpreter& interpreter) const
