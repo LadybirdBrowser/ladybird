@@ -1,21 +1,21 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (1,1) content-size 798x89 [BFC] children: not-inline
-    Box <body> at (2,2) content-size 796x87 flex-container(column) [FFC] children: not-inline
-      BlockContainer <main> at (3,3) content-size 400x85 flex-item [BFC] children: inline
-        frag 0 from TextNode start: 0, length: 41, rect: [3,3 346.984375x17] baseline: 13.296875
+  BlockContainer <html> at (1,1) content-size 798x94 [BFC] children: not-inline
+    Box <body> at (2,2) content-size 796x92 flex-container(column) [FFC] children: not-inline
+      BlockContainer <main> at (3,3) content-size 400x90 flex-item [BFC] children: inline
+        frag 0 from TextNode start: 0, length: 41, rect: [3,3 346.984375x18] baseline: 13.796875
             "For my day job I'm currently working as a"
-        frag 1 from TextNode start: 42, length: 39, rect: [3,20 337.59375x17] baseline: 13.296875
+        frag 1 from TextNode start: 42, length: 39, rect: [3,21 337.59375x18] baseline: 13.796875
             "Software Engineer at For my day job I'm"
-        frag 2 from TextNode start: 82, length: 43, rect: [3,37 368.203125x17] baseline: 13.296875
+        frag 2 from TextNode start: 82, length: 43, rect: [3,39 368.203125x18] baseline: 13.796875
             "currently working as a Software Engineer at"
-        frag 3 from TextNode start: 126, length: 41, rect: [3,54 346.984375x17] baseline: 13.296875
+        frag 3 from TextNode start: 126, length: 41, rect: [3,57 346.984375x18] baseline: 13.796875
             "For my day job I'm currently working as a"
-        frag 4 from TextNode start: 168, length: 20, rect: [3,71 175.40625x17] baseline: 13.296875
+        frag 4 from TextNode start: 168, length: 20, rect: [3,75 175.40625x18] baseline: 13.796875
             "Software Engineer at"
         TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x91]
-    PaintableBox (Box<BODY>) [1,1 798x89]
-      PaintableWithLines (BlockContainer<MAIN>) [2,2 402x87]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x96]
+    PaintableBox (Box<BODY>) [1,1 798x94]
+      PaintableWithLines (BlockContainer<MAIN>) [2,2 402x92]
         TextPaintable (TextNode<#text>)

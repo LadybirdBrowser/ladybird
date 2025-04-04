@@ -1,19 +1,19 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x33 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x17 children: inline
+  BlockContainer <html> at (0,0) content-size 800x34 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x18 children: inline
       InlineNode <div>
-        frag 0 from TextNode start: 1, length: 9, rect: [28,8 82.125x17] baseline: 13.296875
+        frag 0 from TextNode start: 1, length: 9, rect: [28,8 82.125x18] baseline: 13.796875
             "Download "
         TextNode <#text>
       InlineNode <div>
-        frag 0 from TextNode start: 1, length: 4, rect: [150.125,8 39.5625x17] baseline: 13.296875
+        frag 0 from TextNode start: 1, length: 4, rect: [150.125,8 39.5625x18] baseline: 13.796875
             "News"
         TextNode <#text>
       TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x33]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x17]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x34]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x18]
       PaintableWithLines (InlineNode<DIV>)
         TextPaintable (TextNode<#text>)
       PaintableWithLines (InlineNode<DIV>)

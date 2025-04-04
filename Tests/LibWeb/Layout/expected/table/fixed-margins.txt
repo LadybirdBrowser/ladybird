@@ -1,25 +1,25 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x50 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x34 children: not-inline
-      BlockContainer <div.wrapper> at (8,8) content-size 784x34 children: not-inline
-        TableWrapper <(anonymous)> at (108,8) content-size 584x34 [BFC] children: not-inline
-          Box <div.box> at (108,8) content-size 584x34 table-box [TFC] children: not-inline
-            Box <(anonymous)> at (108,8) content-size 584x34 table-row children: not-inline
-              BlockContainer <div.cell> at (108,8) content-size 584x34 table-cell [BFC] children: not-inline
-                BlockContainer <(anonymous)> at (108,8) content-size 584x34 children: inline
-                  frag 0 from TextNode start: 0, length: 58, rect: [108,8 569.859375x17] baseline: 13.296875
+  BlockContainer <html> at (0,0) content-size 800x52 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x36 children: not-inline
+      BlockContainer <div.wrapper> at (8,8) content-size 784x36 children: not-inline
+        TableWrapper <(anonymous)> at (108,8) content-size 584x36 [BFC] children: not-inline
+          Box <div.box> at (108,8) content-size 584x36 table-box [TFC] children: not-inline
+            Box <(anonymous)> at (108,8) content-size 584x36 table-row children: not-inline
+              BlockContainer <div.cell> at (108,8) content-size 584x36 table-cell [BFC] children: not-inline
+                BlockContainer <(anonymous)> at (108,8) content-size 584x36 children: inline
+                  frag 0 from TextNode start: 0, length: 58, rect: [108,8 569.859375x18] baseline: 13.796875
                       "DaTa DisplaYiNg CSS WeBpaGE ScReEn OF aR AddITioN COmmOnLY"
-                  frag 1 from TextNode start: 59, length: 40, rect: [108,25 399.9375x17] baseline: 13.296875
+                  frag 1 from TextNode start: 59, length: 40, rect: [108,26 399.9375x18] baseline: 13.796875
                       "To AdJuSt PRiCiNG sTYLiNG ceLL oF TAbLeS"
                   TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x50]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x34]
-      PaintableWithLines (BlockContainer<DIV>.wrapper) [8,8 784x34]
-        PaintableWithLines (TableWrapper(anonymous)) [108,8 584x34]
-          PaintableBox (Box<DIV>.box) [108,8 584x34]
-            PaintableBox (Box(anonymous)) [108,8 584x34]
-              PaintableWithLines (BlockContainer<DIV>.cell) [108,8 584x34]
-                PaintableWithLines (BlockContainer(anonymous)) [108,8 584x34]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x52]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x36]
+      PaintableWithLines (BlockContainer<DIV>.wrapper) [8,8 784x36]
+        PaintableWithLines (TableWrapper(anonymous)) [108,8 584x36]
+          PaintableBox (Box<DIV>.box) [108,8 584x36]
+            PaintableBox (Box(anonymous)) [108,8 584x36]
+              PaintableWithLines (BlockContainer<DIV>.cell) [108,8 584x36]
+                PaintableWithLines (BlockContainer(anonymous)) [108,8 584x36]
                   TextPaintable (TextNode<#text>)

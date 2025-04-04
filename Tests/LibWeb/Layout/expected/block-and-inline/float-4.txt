@@ -5,22 +5,22 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
     BlockContainer <body> at (8,8) content-size 780x0 children: inline
       TextNode <#text>
       BlockContainer <div.left> at (9,9) content-size 50x50 floating [BFC] children: inline
-        frag 0 from TextNode start: 0, length: 5, rect: [14.390625,9 39.21875x17] baseline: 13.296875
+        frag 0 from TextNode start: 0, length: 5, rect: [14.390625,9 39.21875x18] baseline: 13.796875
             "Left1"
         TextNode <#text>
       TextNode <#text>
       BlockContainer <div.right> at (737,9) content-size 50x50 floating [BFC] children: inline
-        frag 0 from TextNode start: 0, length: 6, rect: [737.84375,9 48.3125x17] baseline: 13.296875
+        frag 0 from TextNode start: 0, length: 6, rect: [737.84375,9 48.3125x18] baseline: 13.796875
             "Right1"
         TextNode <#text>
       TextNode <#text>
       BlockContainer <div.left> at (61,9) content-size 50x50 floating [BFC] children: inline
-        frag 0 from TextNode start: 0, length: 5, rect: [65.15625,9 41.6875x17] baseline: 13.296875
+        frag 0 from TextNode start: 0, length: 5, rect: [65.15625,9 41.6875x18] baseline: 13.796875
             "Left2"
         TextNode <#text>
       TextNode <#text>
       BlockContainer <div.right> at (685,9) content-size 50x50 floating [BFC] children: inline
-        frag 0 from TextNode start: 0, length: 6, rect: [685,9 50.78125x17] baseline: 13.296875
+        frag 0 from TextNode start: 0, length: 6, rect: [685,9 50.78125x18] baseline: 13.796875
             "Right2"
         TextNode <#text>
       TextNode <#text>

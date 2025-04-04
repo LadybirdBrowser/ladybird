@@ -1,15 +1,15 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x53 [BFC] children: not-inline
-    BlockContainer <body.outer> at (18,18) content-size 280.84375x17 children: not-inline
-      Box <div.inner> at (18,18) content-size 280.84375x17 flex-container(row) [FFC] children: not-inline
-        BlockContainer <(anonymous)> at (18,18) content-size 280.84375x17 flex-item [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 35, rect: [18,18 280.84375x17] baseline: 13.296875
+  BlockContainer <html> at (0,0) content-size 800x54 [BFC] children: not-inline
+    BlockContainer <body.outer> at (18,18) content-size 280.84375x18 children: not-inline
+      Box <div.inner> at (18,18) content-size 280.84375x18 flex-container(row) [FFC] children: not-inline
+        BlockContainer <(anonymous)> at (18,18) content-size 280.84375x18 flex-item [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 35, rect: [18,18 280.84375x18] baseline: 13.796875
               "this text should be all on one line"
           TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x53]
-    PaintableWithLines (BlockContainer<BODY>.outer) [8,8 300.84375x37]
-      PaintableBox (Box<DIV>.inner) [18,18 280.84375x17]
-        PaintableWithLines (BlockContainer(anonymous)) [18,18 280.84375x17]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x54]
+    PaintableWithLines (BlockContainer<BODY>.outer) [8,8 300.84375x38]
+      PaintableBox (Box<DIV>.inner) [18,18 280.84375x18]
+        PaintableWithLines (BlockContainer(anonymous)) [18,18 280.84375x18]
           TextPaintable (TextNode<#text>)

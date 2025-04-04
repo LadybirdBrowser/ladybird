@@ -1,21 +1,21 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (1,1) content-size 798x334 [BFC] children: not-inline
-    Box <body.hero> at (2,2) content-size 600x332 flex-container(column) [FFC] children: not-inline
-      BlockContainer <div.header> at (102,3) content-size 400x330 flex-item [BFC] children: inline
-        frag 0 from TextNode start: 0, length: 11, rect: [102,3 340.5x66] baseline: 50.984375
+  BlockContainer <html> at (1,1) content-size 798x349 [BFC] children: not-inline
+    Box <body.hero> at (2,2) content-size 600x347 flex-container(column) [FFC] children: not-inline
+      BlockContainer <div.header> at (102,3) content-size 400x345 flex-item [BFC] children: inline
+        frag 0 from TextNode start: 0, length: 11, rect: [102,3 340.5x69] baseline: 52.484375
             "This entire"
-        frag 1 from TextNode start: 12, length: 11, rect: [102,69 341.25x66] baseline: 50.984375
+        frag 1 from TextNode start: 12, length: 11, rect: [102,72 341.25x69] baseline: 52.484375
             "text should"
-        frag 2 from TextNode start: 24, length: 8, rect: [102,135 274.171875x66] baseline: 50.984375
+        frag 2 from TextNode start: 24, length: 8, rect: [102,141 274.171875x69] baseline: 52.484375
             "be on an"
-        frag 3 from TextNode start: 33, length: 6, rect: [102,201 204.09375x66] baseline: 50.984375
+        frag 3 from TextNode start: 33, length: 6, rect: [102,210 204.09375x69] baseline: 52.484375
             "orange"
-        frag 4 from TextNode start: 40, length: 11, rect: [102,267 351.59375x66] baseline: 50.984375
+        frag 4 from TextNode start: 40, length: 11, rect: [102,279 351.59375x69] baseline: 52.484375
             "background."
         TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x336]
-    PaintableBox (Box<BODY>.hero) [1,1 602x334]
-      PaintableWithLines (BlockContainer<DIV>.header) [101,2 402x332]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x351]
+    PaintableBox (Box<BODY>.hero) [1,1 602x349]
+      PaintableWithLines (BlockContainer<DIV>.header) [101,2 402x347]
         TextPaintable (TextNode<#text>)

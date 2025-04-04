@@ -1,29 +1,29 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
   BlockContainer <html> at (0,0) content-size 800x66 [BFC] children: not-inline
     BlockContainer <body> at (8,8) content-size 784x50 children: inline
-      frag 0 from BlockContainer start: 0, length: 0, rect: [11,11 240x44] baseline: 20
-      frag 1 from TextNode start: 0, length: 1, rect: [254,11 10x22] baseline: 17
+      frag 0 from BlockContainer start: 0, length: 0, rect: [11,11 240x44] baseline: 20.5
+      frag 1 from TextNode start: 0, length: 1, rect: [254,11 10x23] baseline: 17.5
           " "
-      frag 2 from BlockContainer start: 0, length: 0, rect: [267,11 240x44] baseline: 20
-      frag 3 from BlockContainer start: 0, length: 0, rect: [513,11 240x44] baseline: 20
+      frag 2 from BlockContainer start: 0, length: 0, rect: [267,11 240x44] baseline: 20.5
+      frag 3 from BlockContainer start: 0, length: 0, rect: [513,11 240x44] baseline: 20.5
       TextNode <#text>
       BlockContainer <textarea> at (11,11) content-size 240x44 inline-block [BFC] children: not-inline
-        BlockContainer <div> at (11,11) content-size 240x22 children: not-inline
-          BlockContainer <div> at (11,11) content-size 240x22 children: inline
-            frag 0 from TextNode start: 0, length: 17, rect: [11,11 190.28125x22] baseline: 17
+        BlockContainer <div> at (11,11) content-size 240x23 children: not-inline
+          BlockContainer <div> at (11,11) content-size 240x23 children: inline
+            frag 0 from TextNode start: 0, length: 17, rect: [11,11 190.28125x23] baseline: 17.5
                 "Bonjour mon amis!"
             TextNode <#text>
       TextNode <#text>
       BlockContainer <textarea> at (267,11) content-size 240x44 inline-block [BFC] children: not-inline
-        BlockContainer <div> at (267,11) content-size 240x22 children: not-inline
-          BlockContainer <div> at (267,11) content-size 240x22 children: inline
-            frag 0 from TextNode start: 0, length: 19, rect: [267,11 177.734375x22] baseline: 17
+        BlockContainer <div> at (267,11) content-size 240x23 children: not-inline
+          BlockContainer <div> at (267,11) content-size 240x23 children: inline
+            frag 0 from TextNode start: 0, length: 19, rect: [267,11 177.734375x23] baseline: 17.5
                 "Well hello friends!"
             TextNode <#text>
       BlockContainer <textarea> at (513,11) content-size 240x44 inline-block [BFC] children: not-inline
-        BlockContainer <div> at (513,11) content-size 240x22 children: not-inline
-          BlockContainer <div> at (513,11) content-size 240x22 children: inline
-            frag 0 from TextNode start: 0, length: 16, rect: [513,11 154.078125x22] baseline: 17
+        BlockContainer <div> at (513,11) content-size 240x23 children: not-inline
+          BlockContainer <div> at (513,11) content-size 240x23 children: inline
+            frag 0 from TextNode start: 0, length: 16, rect: [513,11 154.078125x23] baseline: 17.5
                 "Tja hej vänner!"
             TextNode <#text>
       TextNode <#text>
@@ -32,15 +32,15 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x66]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x50]
       PaintableWithLines (BlockContainer<TEXTAREA>) [8,8 246x50]
-        PaintableWithLines (BlockContainer<DIV>) [11,11 240x22]
-          PaintableWithLines (BlockContainer<DIV>) [11,11 240x22]
+        PaintableWithLines (BlockContainer<DIV>) [11,11 240x23]
+          PaintableWithLines (BlockContainer<DIV>) [11,11 240x23]
             TextPaintable (TextNode<#text>)
       TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer<TEXTAREA>) [264,8 246x50]
-        PaintableWithLines (BlockContainer<DIV>) [267,11 240x22]
-          PaintableWithLines (BlockContainer<DIV>) [267,11 240x22]
+        PaintableWithLines (BlockContainer<DIV>) [267,11 240x23]
+          PaintableWithLines (BlockContainer<DIV>) [267,11 240x23]
             TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer<TEXTAREA>) [510,8 246x50]
-        PaintableWithLines (BlockContainer<DIV>) [513,11 240x22]
-          PaintableWithLines (BlockContainer<DIV>) [513,11 240x22]
+        PaintableWithLines (BlockContainer<DIV>) [513,11 240x23]
+          PaintableWithLines (BlockContainer<DIV>) [513,11 240x23]
             TextPaintable (TextNode<#text>)

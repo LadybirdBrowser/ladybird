@@ -1,15 +1,15 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (1,1) content-size 798x39 [BFC] children: not-inline
-    BlockContainer <body> at (10,10) content-size 41.953125x21 floating [BFC] children: not-inline
-      Box <div.grid> at (11,11) content-size 39.953125x19 [GFC] children: not-inline
-        BlockContainer <div.whee> at (12,12) content-size 37.953125x17 [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 4, rect: [12,12 37.953125x17] baseline: 13.296875
+  BlockContainer <html> at (1,1) content-size 798x40 [BFC] children: not-inline
+    BlockContainer <body> at (10,10) content-size 41.953125x22 floating [BFC] children: not-inline
+      Box <div.grid> at (11,11) content-size 39.953125x20 [GFC] children: not-inline
+        BlockContainer <div.whee> at (12,12) content-size 37.953125x18 [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 4, rect: [12,12 37.953125x18] baseline: 13.796875
               "whee"
           TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x41]
-    PaintableWithLines (BlockContainer<BODY>) [9,9 43.953125x23]
-      PaintableBox (Box<DIV>.grid) [10,10 41.953125x21]
-        PaintableWithLines (BlockContainer<DIV>.whee) [11,11 39.953125x19]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x42]
+    PaintableWithLines (BlockContainer<BODY>) [9,9 43.953125x24]
+      PaintableBox (Box<DIV>.grid) [10,10 41.953125x22]
+        PaintableWithLines (BlockContainer<DIV>.whee) [11,11 39.953125x20]
           TextPaintable (TextNode<#text>)

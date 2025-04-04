@@ -3,11 +3,11 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
     BlockContainer <body> at (8,8) content-size 784x0 children: inline
       TextNode <#text>
   BlockContainer <(anonymous)> at (0,0) content-size 800x600 positioned [BFC] children: not-inline
-  Box <dialog#modal> at (358.84375,291.5) content-size 82.3125x17 positioned flex-container(row) [FFC] children: not-inline
+  Box <dialog#modal> at (358.84375,291) content-size 82.3125x18 positioned flex-container(row) [FFC] children: not-inline
     BlockContainer <(anonymous)> (not painted) [BFC] children: inline
       TextNode <#text>
-    BlockContainer <span> at (358.84375,291.5) content-size 82.3125x17 flex-item [BFC] children: inline
-      frag 0 from TextNode start: 0, length: 10, rect: [358.84375,291.5 82.3125x17] baseline: 13.296875
+    BlockContainer <span> at (358.84375,291) content-size 82.3125x18 flex-item [BFC] children: inline
+      frag 0 from TextNode start: 0, length: 10, rect: [358.84375,291 82.3125x18] baseline: 13.796875
           "I'm a node"
       TextNode <#text>
     BlockContainer <(anonymous)> (not painted) [BFC] children: inline
@@ -17,6 +17,6 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x600]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x0]
   PaintableWithLines (BlockContainer(anonymous)) [0,0 800x600]
-  PaintableBox (Box<DIALOG>#modal) [339.84375,272.5 120.3125x55]
-    PaintableWithLines (BlockContainer<SPAN>) [358.84375,291.5 82.3125x17]
+  PaintableBox (Box<DIALOG>#modal) [339.84375,272 120.3125x56]
+    PaintableWithLines (BlockContainer<SPAN>) [358.84375,291 82.3125x18]
       TextPaintable (TextNode<#text>)

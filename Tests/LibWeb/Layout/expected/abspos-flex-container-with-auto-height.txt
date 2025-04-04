@@ -1,13 +1,13 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
   BlockContainer <html> at (1,1) content-size 798x0 [BFC] children: not-inline
-    Box <body> at (9,9) content-size 512.859375x19 positioned flex-container(column) [FFC] children: not-inline
-      BlockContainer <div> at (10,10) content-size 510.859375x17 flex-item [BFC] children: inline
-        frag 0 from TextNode start: 0, length: 60, rect: [10,10 510.859375x17] baseline: 13.296875
+    Box <body> at (9,9) content-size 512.859375x20 positioned flex-container(column) [FFC] children: not-inline
+      BlockContainer <div> at (10,10) content-size 510.859375x18 flex-item [BFC] children: inline
+        frag 0 from TextNode start: 0, length: 60, rect: [10,10 510.859375x18] baseline: 13.796875
             "Diese Website nutzt Cookies und vergleichbare Funktionen zur"
         TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x2]
-    PaintableBox (Box<BODY>) [8,8 514.859375x21]
-      PaintableWithLines (BlockContainer<DIV>) [9,9 512.859375x19]
+    PaintableBox (Box<BODY>) [8,8 514.859375x22]
+      PaintableWithLines (BlockContainer<DIV>) [9,9 512.859375x20]
         TextPaintable (TextNode<#text>)

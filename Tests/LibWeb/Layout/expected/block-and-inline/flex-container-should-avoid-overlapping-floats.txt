@@ -1,20 +1,20 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
   BlockContainer <html> at (0,0) content-size 800x66 [BFC] children: not-inline
     BlockContainer <body> at (8,8) content-size 400x50 children: not-inline
-      BlockContainer <div.right> at (370.890625,8) content-size 37.109375x17 floating [BFC] children: inline
-        frag 0 from TextNode start: 0, length: 5, rect: [370.890625,8 37.109375x17] baseline: 13.296875
+      BlockContainer <div.right> at (370.890625,8) content-size 37.109375x18 floating [BFC] children: inline
+        frag 0 from TextNode start: 0, length: 5, rect: [370.890625,8 37.109375x18] baseline: 13.796875
             "right"
         TextNode <#text>
       Box <div.flex> at (8,8) content-size 362.890625x50 flex-container(row) [FFC] children: not-inline
         BlockContainer <div.item> at (8,8) content-size 32.34375x50 flex-item [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 4, rect: [8,8 32.34375x17] baseline: 13.296875
+          frag 0 from TextNode start: 0, length: 4, rect: [8,8 32.34375x18] baseline: 13.796875
               "item"
           TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x66]
     PaintableWithLines (BlockContainer<BODY>) [8,8 400x50]
-      PaintableWithLines (BlockContainer<DIV>.right) [370.890625,8 37.109375x17]
+      PaintableWithLines (BlockContainer<DIV>.right) [370.890625,8 37.109375x18]
         TextPaintable (TextNode<#text>)
       PaintableBox (Box<DIV>.flex) [8,8 362.890625x50]
         PaintableWithLines (BlockContainer<DIV>.item) [8,8 32.34375x50]

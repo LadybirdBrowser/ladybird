@@ -1,43 +1,43 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x33 [BFC] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x34 [BFC] children: not-inline
     BlockContainer <(anonymous)> at (0,0) content-size 800x0 children: inline
       TextNode <#text>
-    BlockContainer <body> at (8,8) content-size 784x17 children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x18 children: not-inline
       BlockContainer <(anonymous)> at (8,8) content-size 784x0 children: inline
         TextNode <#text>
-      BlockContainer <div.ab> at (108,8) content-size 684x17 children: not-inline
+      BlockContainer <div.ab> at (108,8) content-size 684x18 children: not-inline
         BlockContainer <(anonymous)> at (108,8) content-size 684x0 children: inline
           TextNode <#text>
         BlockContainer <div> at (108,8) content-size 684x0 children: inline
           TextNode <#text>
-          BlockContainer <div.a> at (108,8) content-size 14.265625x17 floating [BFC] children: inline
-            frag 0 from TextNode start: 0, length: 1, rect: [108,8 14.265625x17] baseline: 13.296875
+          BlockContainer <div.a> at (108,8) content-size 14.265625x18 floating [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 1, rect: [108,8 14.265625x18] baseline: 13.796875
                 "A"
             TextNode <#text>
           TextNode <#text>
         BlockContainer <(anonymous)> at (108,8) content-size 684x0 children: inline
           TextNode <#text>
-        BlockContainer <div.b> at (122.265625,8) content-size 669.734375x17 [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [122.265625,8 9.34375x17] baseline: 13.296875
+        BlockContainer <div.b> at (122.265625,8) content-size 669.734375x18 [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [122.265625,8 9.34375x18] baseline: 13.796875
               "B"
           TextNode <#text>
-        BlockContainer <(anonymous)> at (108,25) content-size 684x0 children: inline
+        BlockContainer <(anonymous)> at (108,26) content-size 684x0 children: inline
           TextNode <#text>
-      BlockContainer <(anonymous)> at (8,25) content-size 784x0 children: inline
+      BlockContainer <(anonymous)> at (8,26) content-size 784x0 children: inline
         TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x33]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x34]
     PaintableWithLines (BlockContainer(anonymous)) [0,0 800x0]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x17]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x18]
       PaintableWithLines (BlockContainer(anonymous)) [8,8 784x0]
-      PaintableWithLines (BlockContainer<DIV>.ab) [108,8 684x17]
+      PaintableWithLines (BlockContainer<DIV>.ab) [108,8 684x18]
         PaintableWithLines (BlockContainer(anonymous)) [108,8 684x0]
         PaintableWithLines (BlockContainer<DIV>) [108,8 684x0]
-          PaintableWithLines (BlockContainer<DIV>.a) [108,8 14.265625x17]
+          PaintableWithLines (BlockContainer<DIV>.a) [108,8 14.265625x18]
             TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer(anonymous)) [108,8 684x0]
-        PaintableWithLines (BlockContainer<DIV>.b) [122.265625,8 669.734375x17]
+        PaintableWithLines (BlockContainer<DIV>.b) [122.265625,8 669.734375x18]
           TextPaintable (TextNode<#text>)
-        PaintableWithLines (BlockContainer(anonymous)) [108,25 684x0]
-      PaintableWithLines (BlockContainer(anonymous)) [8,25 784x0]
+        PaintableWithLines (BlockContainer(anonymous)) [108,26 684x0]
+      PaintableWithLines (BlockContainer(anonymous)) [8,26 784x0]

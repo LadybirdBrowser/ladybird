@@ -23,25 +23,25 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text>
         BlockContainer <header> at (8,8) content-size 784x30 [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 6, rect: [8,8 55.703125x17] baseline: 13.296875
+          frag 0 from TextNode start: 0, length: 6, rect: [8,8 55.703125x18] baseline: 13.796875
               "Header"
           TextNode <#text>
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text>
         BlockContainer <nav> at (8,38) content-size 120x170 [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 10, rect: [8,38 80.6875x17] baseline: 13.296875
+          frag 0 from TextNode start: 0, length: 10, rect: [8,38 80.6875x18] baseline: 13.796875
               "Navigation"
           TextNode <#text>
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text>
         BlockContainer <main> at (128,38) content-size 664x140 [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 9, rect: [128,38 79.515625x17] baseline: 13.296875
+          frag 0 from TextNode start: 0, length: 9, rect: [128,38 79.515625x18] baseline: 13.796875
               "Main area"
           TextNode <#text>
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text>
         BlockContainer <footer> at (128,178) content-size 664x30 [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 6, rect: [128,178 57.671875x17] baseline: 13.296875
+          frag 0 from TextNode start: 0, length: 6, rect: [128,178 57.671875x18] baseline: 13.796875
               "Footer"
           TextNode <#text>
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline

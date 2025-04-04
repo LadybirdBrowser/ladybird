@@ -1,8 +1,8 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x59 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x43 children: inline
+  BlockContainer <html> at (0,0) content-size 800x60 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x44 children: inline
       frag 0 from AudioBox start: 0, length: 0, rect: [8,8 300x40] baseline: 40
-      frag 1 from TextNode start: 0, length: 1, rect: [308,34 8x17] baseline: 13.296875
+      frag 1 from TextNode start: 0, length: 1, rect: [308,34 8x18] baseline: 13.796875
           " "
       frag 2 from AudioBox start: 0, length: 0, rect: [316,48 0x0] baseline: 0
       AudioBox <audio> at (8,8) content-size 300x40 children: not-inline
@@ -10,8 +10,8 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
       AudioBox <audio> at (316,48) content-size 0x0 children: not-inline
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x59]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x43]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x60]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x44]
       AudioPaintable (AudioBox<AUDIO>) [8,8 300x40]
       TextPaintable (TextNode<#text>)
       AudioPaintable (AudioBox<AUDIO>) [316,48 0x0]

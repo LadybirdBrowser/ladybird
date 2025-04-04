@@ -5,15 +5,15 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text>
         BlockContainer <div> at (18,117) content-size 200x150 [BFC] children: inline
-          frag 0 from TextNode start: 1, length: 1, rect: [18,117 11.5625x17] baseline: 13.296875
+          frag 0 from TextNode start: 1, length: 1, rect: [18,117 11.5625x18] baseline: 13.796875
               "X"
-          frag 1 from TextNode start: 0, length: 2, rect: [18,134 23.125x17] baseline: 13.296875
+          frag 1 from TextNode start: 0, length: 2, rect: [18,135 23.125x18] baseline: 13.796875
               "XX"
           TextNode <#text>
           BreakNode <br>
           TextNode <#text>
-          BlockContainer <div.abspos> at (41.125,134) content-size 23.125x17 positioned [BFC] children: inline
-            frag 0 from TextNode start: 0, length: 2, rect: [41.125,134 23.125x17] baseline: 13.296875
+          BlockContainer <div.abspos> at (41.125,135) content-size 23.125x18 positioned [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 2, rect: [41.125,135 23.125x18] baseline: 13.796875
                 "XX"
             TextNode <#text>
           TextNode <#text>
@@ -29,6 +29,6 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
         PaintableWithLines (BlockContainer<DIV>) [18,117 200x150]
           TextPaintable (TextNode<#text>)
           TextPaintable (TextNode<#text>)
-          PaintableWithLines (BlockContainer<DIV>.abspos) [41.125,134 23.125x17]
+          PaintableWithLines (BlockContainer<DIV>.abspos) [41.125,135 23.125x18]
             TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [8,532 784x0]

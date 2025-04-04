@@ -5,19 +5,19 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text>
         BlockContainer <div.box> at (10,10) content-size 164.671875x100 flex-item [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [10,10 6.34375x17] baseline: 13.296875
+          frag 0 from TextNode start: 0, length: 1, rect: [10,10 6.34375x18] baseline: 13.796875
               "1"
           TextNode <#text>
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text>
         BlockContainer <div.box> at (176.671875,10) content-size 164.671875x100 flex-item [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [176.671875,10 8.8125x17] baseline: 13.296875
+          frag 0 from TextNode start: 0, length: 1, rect: [176.671875,10 8.8125x18] baseline: 13.796875
               "2"
           TextNode <#text>
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text>
         BlockContainer <div.box> at (343.34375,10) content-size 164.671875x100 flex-item [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [343.34375,10 9.09375x17] baseline: 13.296875
+          frag 0 from TextNode start: 0, length: 1, rect: [343.34375,10 9.09375x18] baseline: 13.796875
               "3"
           TextNode <#text>
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline

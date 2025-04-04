@@ -3,7 +3,7 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
     BlockContainer <body> at (8,8) content-size 784x120 children: not-inline
       Box <div.grid> at (13,13) content-size 50x50 [GFC] children: not-inline
         BlockContainer <div#a> at (13,13) content-size 0x25 [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 10, rect: [13,13 115.625x17] baseline: 13.296875
+          frag 0 from TextNode start: 0, length: 10, rect: [13,13 115.625x18] baseline: 13.796875
               "XXXXXXXXXX"
           TextNode <#text>
         BlockContainer <div#b> at (13,38) content-size 0x25 [BFC] children: not-inline
@@ -19,7 +19,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x136]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x120]
       PaintableBox (Box<DIV>.grid) [8,8 60x60]
-        PaintableWithLines (BlockContainer<DIV>#a) [13,13 0x25] overflow: [13,13 115.625x17]
+        PaintableWithLines (BlockContainer<DIV>#a) [13,13 0x25] overflow: [13,13 115.625x18]
           TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<DIV>#b) [13,38 0x25]
       PaintableWithLines (BlockContainer(anonymous)) [8,68 784x0]

@@ -1,54 +1,54 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x234 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x218 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x240 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x224 children: not-inline
       BlockContainer <(anonymous)> at (8,8) content-size 784x0 children: inline
         TextNode <#text>
-      Box <div.wrapper> at (8,8) content-size 784x218 [GFC] children: not-inline
+      Box <div.wrapper> at (8,8) content-size 784x224 [GFC] children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text>
-        BlockContainer <div.box.a> at (28,28) content-size 170x26 [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [28,28 21.40625x26] baseline: 20.1875
+        BlockContainer <div.box.a> at (28,28) content-size 170x28 [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [28,28 21.40625x28] baseline: 21.1875
               "A"
           TextNode <#text>
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text>
-        BlockContainer <div.box.b> at (248,28) content-size 170x26 [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [248,28 14.015625x26] baseline: 20.1875
+        BlockContainer <div.box.b> at (248,28) content-size 170x28 [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [248,28 14.015625x28] baseline: 21.1875
               "B"
           TextNode <#text>
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text>
-        BlockContainer <div.box.c> at (28,104) content-size 60x26 [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [28,104 15.46875x26] baseline: 20.1875
+        BlockContainer <div.box.c> at (28,106) content-size 60x28 [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [28,106 15.46875x28] baseline: 21.1875
               "C"
           TextNode <#text>
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text>
-        BlockContainer <div.box.d> at (138,104) content-size 280x26 [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [138,104 16.71875x26] baseline: 20.1875
+        BlockContainer <div.box.d> at (138,106) content-size 280x28 [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [138,106 16.71875x28] baseline: 21.1875
               "D"
           TextNode <#text>
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text>
-        BlockContainer <div.box.e> at (28,180) content-size 390x26 [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [28,180 17.796875x26] baseline: 20.1875
+        BlockContainer <div.box.e> at (28,184) content-size 390x28 [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [28,184 17.796875x28] baseline: 21.1875
               "E"
           TextNode <#text>
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x234]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x218]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x240]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x224]
       PaintableWithLines (BlockContainer(anonymous)) [8,8 784x0]
-      PaintableBox (Box<DIV>.wrapper) [8,8 784x218]
-        PaintableWithLines (BlockContainer<DIV>.box.a) [8,8 210x66]
+      PaintableBox (Box<DIV>.wrapper) [8,8 784x224]
+        PaintableWithLines (BlockContainer<DIV>.box.a) [8,8 210x68]
           TextPaintable (TextNode<#text>)
-        PaintableWithLines (BlockContainer<DIV>.box.b) [228,8 210x66]
+        PaintableWithLines (BlockContainer<DIV>.box.b) [228,8 210x68]
           TextPaintable (TextNode<#text>)
-        PaintableWithLines (BlockContainer<DIV>.box.c) [8,84 100x66]
+        PaintableWithLines (BlockContainer<DIV>.box.c) [8,86 100x68]
           TextPaintable (TextNode<#text>)
-        PaintableWithLines (BlockContainer<DIV>.box.d) [118,84 320x66]
+        PaintableWithLines (BlockContainer<DIV>.box.d) [118,86 320x68]
           TextPaintable (TextNode<#text>)
-        PaintableWithLines (BlockContainer<DIV>.box.e) [8,160 430x66]
+        PaintableWithLines (BlockContainer<DIV>.box.e) [8,164 430x68]
           TextPaintable (TextNode<#text>)

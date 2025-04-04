@@ -1,14 +1,14 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
   BlockContainer <html> at (0,0) content-size 800x600 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x21 children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x22 children: not-inline
       BlockContainer <div#begin> at (8,8) content-size 784x2 children: not-inline
-      BlockContainer <(anonymous)> at (8,10) content-size 784x17 children: inline
+      BlockContainer <(anonymous)> at (8,10) content-size 784x18 children: inline
         BreakNode <br>
-      BlockContainer <div#end> at (8,27) content-size 784x2 children: not-inline
+      BlockContainer <div#end> at (8,28) content-size 784x2 children: not-inline
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x600]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x21]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x22]
       PaintableWithLines (BlockContainer<DIV>#begin) [8,8 784x2]
-      PaintableWithLines (BlockContainer(anonymous)) [8,10 784x17]
-      PaintableWithLines (BlockContainer<DIV>#end) [8,27 784x2]
+      PaintableWithLines (BlockContainer(anonymous)) [8,10 784x18]
+      PaintableWithLines (BlockContainer<DIV>#end) [8,28 784x2]

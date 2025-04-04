@@ -285,7 +285,7 @@ CSSPixels ComputedProperties::compute_line_height(CSSPixelRect const& viewport_r
     auto const& line_height = property(PropertyID::LineHeight);
 
     if (line_height.is_keyword() && line_height.to_keyword() == Keyword::Normal)
-        return font_metrics.line_height;
+        return CSSPixels { round_to<i32>(font_metrics.font_size * normal_line_height_scale) };
 
     if (line_height.is_length()) {
         auto line_height_length = line_height.as_length().length();

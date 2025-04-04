@@ -4,16 +4,16 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
       Box <div.outer> at (8,8) content-size 200x100 flex-container(column) flex-item [FFC] children: not-inline
         BlockContainer <div.upper> at (8,8) content-size 200x200 flex-item [BFC] children: not-inline
           BlockContainer <div.spacer> at (8,8) content-size 200x200 children: not-inline
-        BlockContainer <div.lower> at (8,208) content-size 200x17 flex-item [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 3, rect: [8,208 26.953125x17] baseline: 13.296875
+        BlockContainer <div.lower> at (8,208) content-size 200x18 flex-item [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 3, rect: [8,208 26.953125x18] baseline: 13.796875
               "whf"
           TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x116] overflow: [0,0 800x225]
-    PaintableBox (Box<BODY>) [8,8 400x100] overflow: [8,8 400x217]
-      PaintableBox (Box<DIV>.outer) [8,8 200x100] overflow: [8,8 200x217]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x116] overflow: [0,0 800x226]
+    PaintableBox (Box<BODY>) [8,8 400x100] overflow: [8,8 400x218]
+      PaintableBox (Box<DIV>.outer) [8,8 200x100] overflow: [8,8 200x218]
         PaintableWithLines (BlockContainer<DIV>.upper) [8,8 200x200]
           PaintableWithLines (BlockContainer<DIV>.spacer) [8,8 200x200]
-        PaintableWithLines (BlockContainer<DIV>.lower) [8,208 200x17]
+        PaintableWithLines (BlockContainer<DIV>.lower) [8,208 200x18]
           TextPaintable (TextNode<#text>)

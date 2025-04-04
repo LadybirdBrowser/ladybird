@@ -2,17 +2,17 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
   BlockContainer <html> at (0,0) content-size 800x700 [BFC] children: not-inline
     BlockContainer <body> at (50,50) content-size 700x600 children: inline
       frag 0 from SVGSVGBox start: 0, length: 0, rect: [50,150 200x100] baseline: 100
-      frag 1 from TextNode start: 0, length: 1, rect: [250,236 8x17] baseline: 13.296875
+      frag 1 from TextNode start: 0, length: 1, rect: [250,236 8x18] baseline: 13.796875
           " "
       frag 2 from SVGSVGBox start: 0, length: 0, rect: [258,50 200x200] baseline: 200
-      frag 3 from TextNode start: 0, length: 1, rect: [458,236 8x17] baseline: 13.296875
+      frag 3 from TextNode start: 0, length: 1, rect: [458,236 8x18] baseline: 13.796875
           " "
       frag 4 from SVGSVGBox start: 0, length: 0, rect: [466,50 200x200] baseline: 200
       frag 5 from SVGSVGBox start: 0, length: 0, rect: [50,250 200x200] baseline: 200
-      frag 6 from TextNode start: 0, length: 1, rect: [250,436 8x17] baseline: 13.296875
+      frag 6 from TextNode start: 0, length: 1, rect: [250,436 8x18] baseline: 13.796875
           " "
       frag 7 from SVGSVGBox start: 0, length: 0, rect: [258,250 200x200] baseline: 200
-      frag 8 from TextNode start: 0, length: 1, rect: [458,436 8x17] baseline: 13.296875
+      frag 8 from TextNode start: 0, length: 1, rect: [458,436 8x18] baseline: 13.796875
           " "
       frag 9 from SVGSVGBox start: 0, length: 0, rect: [466,250 200x200] baseline: 200
       frag 10 from SVGSVGBox start: 0, length: 0, rect: [50,450 200x200] baseline: 200

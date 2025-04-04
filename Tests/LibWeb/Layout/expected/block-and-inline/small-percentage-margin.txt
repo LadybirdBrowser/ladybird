@@ -2,19 +2,19 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
   BlockContainer <html> at (0,0) content-size 800x208 [BFC] children: not-inline
     BlockContainer <body> at (8,8) content-size 784x0 children: not-inline
       BlockContainer <div> at (15.828125,8) content-size 376.3125x100 floating [BFC] children: inline
-        frag 0 from TextNode start: 0, length: 3, rect: [15.828125,8 27.703125x17] baseline: 13.296875
+        frag 0 from TextNode start: 0, length: 3, rect: [15.828125,8 27.703125x18] baseline: 13.796875
             "abc"
         TextNode <#text>
       BlockContainer <div> at (407.796875,8) content-size 376.3125x100 floating [BFC] children: inline
-        frag 0 from TextNode start: 0, length: 3, rect: [407.796875,8 23.015625x17] baseline: 13.296875
+        frag 0 from TextNode start: 0, length: 3, rect: [407.796875,8 23.015625x18] baseline: 13.796875
             "def"
         TextNode <#text>
       BlockContainer <div> at (15.828125,108) content-size 376.3125x100 floating [BFC] children: inline
-        frag 0 from TextNode start: 0, length: 3, rect: [15.828125,108 21.421875x17] baseline: 13.296875
+        frag 0 from TextNode start: 0, length: 3, rect: [15.828125,108 21.421875x18] baseline: 13.796875
             "ghi"
         TextNode <#text>
       BlockContainer <div> at (407.796875,108) content-size 376.3125x100 floating [BFC] children: inline
-        frag 0 from TextNode start: 0, length: 3, rect: [407.796875,108 18.40625x17] baseline: 13.296875
+        frag 0 from TextNode start: 0, length: 3, rect: [407.796875,108 18.40625x18] baseline: 13.796875
             "jkl"
         TextNode <#text>
 

@@ -1,17 +1,17 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (1,1) content-size 798x121 [BFC] children: inline
-    frag 0 from BlockContainer start: 0, length: 0, rect: [2,2 168.96875x119] baseline: 16.296875
-    BlockContainer <body> at (2,2) content-size 168.96875x119 inline-block [BFC] children: not-inline
-      BlockContainer <div.hmm> at (3,3) content-size 166.96875x17 children: inline
-        frag 0 from TextNode start: 0, length: 21, rect: [3,3 166.96875x17] baseline: 13.296875
+  BlockContainer <html> at (1,1) content-size 798x122 [BFC] children: inline
+    frag 0 from BlockContainer start: 0, length: 0, rect: [2,2 168.96875x120] baseline: 16.796875
+    BlockContainer <body> at (2,2) content-size 168.96875x120 inline-block [BFC] children: not-inline
+      BlockContainer <div.hmm> at (3,3) content-size 166.96875x18 children: inline
+        frag 0 from TextNode start: 0, length: 21, rect: [3,3 166.96875x18] baseline: 13.796875
             "suspiciously tall box"
         TextNode <#text>
-      BlockContainer <(anonymous)> at (2,121) content-size 168.96875x0 children: inline
+      BlockContainer <(anonymous)> at (2,122) content-size 168.96875x0 children: inline
         TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x123]
-    PaintableWithLines (BlockContainer<BODY>) [1,1 170.96875x121]
-      PaintableWithLines (BlockContainer<DIV>.hmm) [2,2 168.96875x19]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x124]
+    PaintableWithLines (BlockContainer<BODY>) [1,1 170.96875x122]
+      PaintableWithLines (BlockContainer<DIV>.hmm) [2,2 168.96875x20]
         TextPaintable (TextNode<#text>)
-      PaintableWithLines (BlockContainer(anonymous)) [2,121 168.96875x0]
+      PaintableWithLines (BlockContainer(anonymous)) [2,122 168.96875x0]

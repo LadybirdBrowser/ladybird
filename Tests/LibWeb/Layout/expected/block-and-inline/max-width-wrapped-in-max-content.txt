@@ -1,29 +1,29 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x118 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x102 children: not-inline
-      BlockContainer <div.wrapper> at (8,8) content-size 270x102 children: not-inline
-        BlockContainer <div.constrained> at (8,8) content-size 270x102 children: not-inline
-          BlockContainer <(anonymous)> at (8,8) content-size 270x102 children: inline
-            frag 0 from TextNode start: 1, length: 35, rect: [8,8 261.0625x17] baseline: 13.296875
+  BlockContainer <html> at (0,0) content-size 800x124 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x108 children: not-inline
+      BlockContainer <div.wrapper> at (8,8) content-size 270x108 children: not-inline
+        BlockContainer <div.constrained> at (8,8) content-size 270x108 children: not-inline
+          BlockContainer <(anonymous)> at (8,8) content-size 270x108 children: inline
+            frag 0 from TextNode start: 1, length: 35, rect: [8,8 261.0625x18] baseline: 13.796875
                 "hello hello hello hello hello hello"
-            frag 1 from TextNode start: 37, length: 35, rect: [8,25 261.0625x17] baseline: 13.296875
+            frag 1 from TextNode start: 37, length: 35, rect: [8,26 261.0625x18] baseline: 13.796875
                 "hello hello hello hello hello hello"
-            frag 2 from TextNode start: 73, length: 35, rect: [8,42 261.0625x17] baseline: 13.296875
+            frag 2 from TextNode start: 73, length: 35, rect: [8,44 261.0625x18] baseline: 13.796875
                 "hello hello hello hello hello hello"
-            frag 3 from TextNode start: 109, length: 35, rect: [8,59 261.0625x17] baseline: 13.296875
+            frag 3 from TextNode start: 109, length: 35, rect: [8,62 261.0625x18] baseline: 13.796875
                 "hello hello hello hello hello hello"
-            frag 4 from TextNode start: 145, length: 35, rect: [8,76 261.0625x17] baseline: 13.296875
+            frag 4 from TextNode start: 145, length: 35, rect: [8,80 261.0625x18] baseline: 13.796875
                 "hello hello hello hello hello hello"
-            frag 5 from TextNode start: 181, length: 11, rect: [8,93 81.6875x17] baseline: 13.296875
+            frag 5 from TextNode start: 181, length: 11, rect: [8,98 81.6875x18] baseline: 13.796875
                 "hello hello"
             TextNode <#text>
-          BlockContainer <div> at (8,110) content-size 270x0 children: not-inline
+          BlockContainer <div> at (8,116) content-size 270x0 children: not-inline
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x118]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x102]
-      PaintableWithLines (BlockContainer<DIV>.wrapper) [8,8 270x102]
-        PaintableWithLines (BlockContainer<DIV>.constrained) [8,8 270x102]
-          PaintableWithLines (BlockContainer(anonymous)) [8,8 270x102]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x124]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x108]
+      PaintableWithLines (BlockContainer<DIV>.wrapper) [8,8 270x108]
+        PaintableWithLines (BlockContainer<DIV>.constrained) [8,8 270x108]
+          PaintableWithLines (BlockContainer(anonymous)) [8,8 270x108]
             TextPaintable (TextNode<#text>)
-          PaintableWithLines (BlockContainer<DIV>) [8,110 270x0]
+          PaintableWithLines (BlockContainer<DIV>) [8,116 270x0]
