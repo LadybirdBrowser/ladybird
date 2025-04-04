@@ -24,8 +24,14 @@ String FontSourceStyleValue::to_string(SerializationMode) const
     return m_source.visit(
         [](Local const& local) {
             // local(<family-name>)
+
+            // https://www.w3.org/TR/cssom-1/#serialize-a-local
+            // To serialize a LOCAL means to create a string represented by "local(",
+            // followed by the serialization of the LOCAL as a string, followed by ")".
             StringBuilder builder;
-            serialize_a_local(builder, local.name->to_string(SerializationMode::Normal));
+            builder.append("local("sv);
+            builder.append(local.name->to_string(SerializationMode::Normal));
+            builder.append(')');
             return builder.to_string_without_validation();
         },
         [this](URL::URL const& url) {
