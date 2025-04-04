@@ -45,23 +45,23 @@ ParsedFontFace ParsedFontFace::from_descriptors(CSSFontFaceDescriptors const& de
     };
 
     FlyString font_family;
-    if (auto value = descriptors.descriptor(DescriptorID::FontFamily))
+    if (auto value = descriptors.descriptor_or_initial_value(DescriptorID::FontFamily))
         font_family = extract_font_name(*value);
 
     Optional<int> weight;
-    if (auto value = descriptors.descriptor(DescriptorID::FontWeight))
+    if (auto value = descriptors.descriptor_or_initial_value(DescriptorID::FontWeight))
         weight = value->to_font_weight();
 
     Optional<int> slope;
-    if (auto value = descriptors.descriptor(DescriptorID::FontStyle))
+    if (auto value = descriptors.descriptor_or_initial_value(DescriptorID::FontStyle))
         slope = value->to_font_slope();
 
     Optional<int> width;
-    if (auto value = descriptors.descriptor(DescriptorID::FontWidth))
+    if (auto value = descriptors.descriptor_or_initial_value(DescriptorID::FontWidth))
         width = value->to_font_width();
 
     Vector<Source> sources;
-    if (auto value = descriptors.descriptor(DescriptorID::Src)) {
+    if (auto value = descriptors.descriptor_or_initial_value(DescriptorID::Src)) {
         auto add_source = [&sources, extract_font_name](FontSourceStyleValue const& font_source) {
             font_source.source().visit(
                 [&](FontSourceStyleValue::Local const& local) {
@@ -82,7 +82,7 @@ ParsedFontFace ParsedFontFace::from_descriptors(CSSFontFaceDescriptors const& de
     }
 
     Vector<Gfx::UnicodeRange> unicode_ranges;
-    if (auto value = descriptors.descriptor(DescriptorID::UnicodeRange)) {
+    if (auto value = descriptors.descriptor_or_initial_value(DescriptorID::UnicodeRange)) {
         if (value->is_unicode_range()) {
             unicode_ranges.append(value->as_unicode_range().unicode_range());
         } else if (value->is_value_list()) {
@@ -90,39 +90,37 @@ ParsedFontFace ParsedFontFace::from_descriptors(CSSFontFaceDescriptors const& de
                 unicode_ranges.append(range->as_unicode_range().unicode_range());
         }
     }
-    if (unicode_ranges.is_empty())
-        unicode_ranges.empend(0x0u, 0x10FFFFu);
 
     Optional<Percentage> ascent_override;
-    if (auto value = descriptors.descriptor(DescriptorID::AscentOverride))
+    if (auto value = descriptors.descriptor_or_initial_value(DescriptorID::AscentOverride))
         ascent_override = extract_percentage_or_normal(*value);
 
     Optional<Percentage> descent_override;
-    if (auto value = descriptors.descriptor(DescriptorID::DescentOverride))
+    if (auto value = descriptors.descriptor_or_initial_value(DescriptorID::DescentOverride))
         descent_override = extract_percentage_or_normal(*value);
 
     Optional<Percentage> line_gap_override;
-    if (auto value = descriptors.descriptor(DescriptorID::LineGapOverride))
+    if (auto value = descriptors.descriptor_or_initial_value(DescriptorID::LineGapOverride))
         line_gap_override = extract_percentage_or_normal(*value);
 
     FontDisplay font_display;
-    if (auto value = descriptors.descriptor(DescriptorID::FontDisplay))
+    if (auto value = descriptors.descriptor_or_initial_value(DescriptorID::FontDisplay))
         font_display = keyword_to_font_display(value->to_keyword()).value_or(FontDisplay::Auto);
 
     Optional<FlyString> font_named_instance;
-    if (auto value = descriptors.descriptor(DescriptorID::FontNamedInstance)) {
+    if (auto value = descriptors.descriptor_or_initial_value(DescriptorID::FontNamedInstance)) {
         if (value->is_string())
             font_named_instance = value->as_string().string_value();
     }
 
     Optional<FlyString> font_language_override;
-    if (auto value = descriptors.descriptor(DescriptorID::FontLanguageOverride)) {
+    if (auto value = descriptors.descriptor_or_initial_value(DescriptorID::FontLanguageOverride)) {
         if (value->is_string())
             font_language_override = value->as_string().string_value();
     }
 
     Optional<OrderedHashMap<FlyString, i64>> font_feature_settings;
-    if (auto value = descriptors.descriptor(DescriptorID::FontFeatureSettings)) {
+    if (auto value = descriptors.descriptor_or_initial_value(DescriptorID::FontFeatureSettings)) {
         if (value->to_keyword() == Keyword::Normal) {
             font_feature_settings.clear();
         } else if (value->is_value_list()) {
@@ -144,7 +142,7 @@ ParsedFontFace ParsedFontFace::from_descriptors(CSSFontFaceDescriptors const& de
     }
 
     Optional<OrderedHashMap<FlyString, double>> font_variation_settings;
-    if (auto value = descriptors.descriptor(DescriptorID::FontVariationSettings)) {
+    if (auto value = descriptors.descriptor_or_initial_value(DescriptorID::FontVariationSettings)) {
         if (value->to_keyword() == Keyword::Normal) {
             font_variation_settings.clear();
         } else if (value->is_value_list()) {

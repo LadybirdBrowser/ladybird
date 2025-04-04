@@ -263,6 +263,14 @@ RefPtr<CSSStyleValue const> CSSFontFaceDescriptors::descriptor(DescriptorID desc
     return nullptr;
 }
 
+RefPtr<CSSStyleValue const> CSSFontFaceDescriptors::descriptor_or_initial_value(DescriptorID descriptor_id) const
+{
+    if (auto value = descriptor(descriptor_id))
+        return value.release_nonnull();
+
+    return descriptor_initial_value(AtRuleID::FontFace, descriptor_id);
+}
+
 WebIDL::ExceptionOr<void> CSSFontFaceDescriptors::set_ascent_override(StringView value)
 {
     return set_property("ascent-override"sv, value, ""sv);
