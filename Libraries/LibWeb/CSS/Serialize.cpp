@@ -117,16 +117,6 @@ void serialize_a_url(StringBuilder& builder, StringView url)
     builder.append(')');
 }
 
-// https://www.w3.org/TR/cssom-1/#serialize-a-local
-void serialize_a_local(StringBuilder& builder, StringView path)
-{
-    // To serialize a LOCAL means to create a string represented by "local(",
-    // followed by the serialization of the LOCAL as a string, followed by ")".
-    builder.append("local("sv);
-    serialize_a_string(builder, path);
-    builder.append(')');
-}
-
 // NOTE: No spec currently exists for serializing a <'unicode-range'>.
 void serialize_unicode_ranges(StringBuilder& builder, Vector<Gfx::UnicodeRange> const& unicode_ranges)
 {

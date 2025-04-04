@@ -2563,7 +2563,7 @@ RefPtr<CSSStyleValue> Parser::parse_font_feature_settings_value(TokenStream<Comp
         if (!opentype_tag || !value || tag_tokens.has_next_token())
             return nullptr;
 
-        feature_tags_map.set(opentype_tag->string_value(), OpenTypeTaggedStyleValue::create(opentype_tag->string_value(), value.release_nonnull()));
+        feature_tags_map.set(opentype_tag->string_value(), OpenTypeTaggedStyleValue::create(OpenTypeTaggedStyleValue::Mode::FontFeatureSettings, opentype_tag->string_value(), value.release_nonnull()));
     }
 
     // "The computed value contains the de-duplicated feature tags, sorted in ascending order by code unit."
@@ -2609,7 +2609,7 @@ RefPtr<CSSStyleValue> Parser::parse_font_variation_settings_value(TokenStream<Co
         if (!opentype_tag || !number || tag_tokens.has_next_token())
             return nullptr;
 
-        axis_tags_map.set(opentype_tag->string_value(), OpenTypeTaggedStyleValue::create(opentype_tag->string_value(), number.release_nonnull()));
+        axis_tags_map.set(opentype_tag->string_value(), OpenTypeTaggedStyleValue::create(OpenTypeTaggedStyleValue::Mode::FontVariationSettings, opentype_tag->string_value(), number.release_nonnull()));
     }
 
     // "The computed value contains the de-duplicated axis names, sorted in ascending order by code unit."

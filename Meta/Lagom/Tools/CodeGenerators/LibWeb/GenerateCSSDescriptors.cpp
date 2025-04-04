@@ -46,6 +46,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 }
 
 Vector<StringView> all_descriptors;
+auto at_rule_count = 0u;
 
 ErrorOr<void> generate_header_file(JsonObject const& at_rules_data, Core::File& file)
 {
@@ -53,7 +54,6 @@ ErrorOr<void> generate_header_file(JsonObject const& at_rules_data, Core::File& 
     SourceGenerator generator { builder };
 
     // DescriptorID is a set of all descriptor names used by any at-rules, so gather them up.
-    auto at_rule_count = 0u;
     HashTable<StringView> descriptors_set;
     at_rules_data.for_each_member([&](auto const&, JsonValue const& value) {
         auto const& at_rule = value.as_object();
@@ -113,6 +113,7 @@ Optional<DescriptorID> descriptor_id_from_string(AtRuleID, StringView);
 FlyString to_string(DescriptorID);
 
 bool at_rule_supports_descriptor(AtRuleID, DescriptorID);
+RefPtr<CSSStyleValue> descriptor_initial_value(AtRuleID, DescriptorID);
 
 struct DescriptorMetadata {
     enum class ValueType {
@@ -141,8 +142,13 @@ ErrorOr<void> generate_implementation_file(JsonObject const& at_rules_data, Core
     StringBuilder builder;
     SourceGenerator generator { builder };
 
+    generator.set("at_rule_count", String::number(at_rule_count));
+    generator.set("descriptor_count", String::number(all_descriptors.size()));
+
     generator.append(R"~~~(
 #include <LibWeb/CSS/DescriptorID.h>
+#include <LibWeb/CSS/CSSStyleValue.h>
+#include <LibWeb/CSS/Parser/Parser.h>
 
 namespace Web::CSS {
 
@@ -257,6 +263,72 @@ bool at_rule_supports_descriptor(AtRuleID at_rule_id, DescriptorID descriptor_id
             return true;
         default:
             return false;
+        }
+)~~~");
+    });
+
+    generator.append(R"~~~(
+    }
+    VERIFY_NOT_REACHED();
+}
+
+
+RefPtr<CSSStyleValue> descriptor_initial_value(AtRuleID at_rule_id, DescriptorID descriptor_id)
+{
+    if (!at_rule_supports_descriptor(at_rule_id, descriptor_id))
+        return nullptr;
+
+    static Array<Array<RefPtr<CSSStyleValue>, @descriptor_count@>, @at_rule_count@> initial_values;
+    if (auto initial_value = initial_values[to_underlying(at_rule_id)][to_underlying(descriptor_id)])
+        return initial_value.release_nonnull();
+
+    // Lazily parse initial values as needed.
+
+    Parser::ParsingParams parsing_params;
+    switch (at_rule_id) {
+)~~~");
+
+    at_rules_data.for_each_member([&](auto const& at_rule_name, JsonValue const& value) {
+        auto const& at_rule = value.as_object();
+
+        auto at_rule_generator = generator.fork();
+        at_rule_generator.set("at_rule:titlecase", title_casify(at_rule_name));
+        at_rule_generator.append(R"~~~(
+    case AtRuleID::@at_rule:titlecase@:
+        switch (descriptor_id) {
+)~~~");
+
+        auto const& descriptors = at_rule.get_object("descriptors"sv).value();
+        descriptors.for_each_member([&](auto const& descriptor_name, JsonValue const& descriptor_value) {
+            auto const& descriptor = descriptor_value.as_object();
+            if (is_legacy_alias(descriptor))
+                return;
+
+            auto descriptor_generator = at_rule_generator.fork();
+            descriptor_generator.set("descriptor:titlecase", title_casify(descriptor_name));
+
+            if (auto initial_value = descriptor.get_string("initial"sv); initial_value.has_value()) {
+                descriptor_generator.set("initial_value_string", initial_value.value());
+                descriptor_generator.append(R"~~~(
+        case DescriptorID::@descriptor:titlecase@: {
+            auto parsed_value = parse_css_descriptor(parsing_params, AtRuleID::@at_rule:titlecase@, DescriptorID::@descriptor:titlecase@, "@initial_value_string@"sv);
+            VERIFY(!parsed_value.is_null());
+            auto initial_value = parsed_value.release_nonnull();
+            initial_values[to_underlying(at_rule_id)][to_underlying(descriptor_id)] = initial_value;
+            return initial_value;
+        }
+)~~~");
+            } else {
+                descriptor_generator.append(R"~~~(
+        case DescriptorID::@descriptor:titlecase@:
+            return nullptr;
+)~~~");
+            }
+        });
+
+        at_rule_generator.append(R"~~~(
+        default:
+            VERIFY_NOT_REACHED();
         }
 )~~~");
     });
