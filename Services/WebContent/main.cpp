@@ -213,7 +213,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     static_assert(IsSame<IPC::Transport, IPC::TransportSocket>, "Need to handle other IPC transports here");
 
     auto webcontent_socket = TRY(Core::take_over_socket_from_system_server("WebContent"sv));
-    auto webcontent_client = TRY(WebContent::ConnectionFromClient::try_create(Web::Bindings::main_thread_vm().heap(), IPC::Transport(move(webcontent_socket))));
+    auto webcontent_client = TRY(WebContent::ConnectionFromClient::try_create(IPC::Transport(move(webcontent_socket))));
 
     webcontent_client->on_image_decoder_connection = [&](auto& socket_file) {
         auto maybe_error = reinitialize_image_decoder(socket_file);

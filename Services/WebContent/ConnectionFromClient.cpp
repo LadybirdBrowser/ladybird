@@ -56,9 +56,8 @@
 
 namespace WebContent {
 
-ConnectionFromClient::ConnectionFromClient(GC::Heap& heap, IPC::Transport transport)
+ConnectionFromClient::ConnectionFromClient(IPC::Transport transport)
     : IPC::ConnectionFromClient<WebContentClientEndpoint, WebContentServerEndpoint>(*this, move(transport), 1)
-    , m_heap(heap)
     , m_page_host(PageHost::create(*this))
 {
 }
