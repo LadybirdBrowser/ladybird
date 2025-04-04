@@ -80,10 +80,11 @@ public:
     GC::Ref<WebIDL::Promise> font_status_promise() { return m_font_status_promise; }
 
 private:
-    FontFace(JS::Realm&, GC::Ref<WebIDL::Promise> font_status_promise, Vector<ParsedFontFace::Source> urls, ByteBuffer data, String family, FontFaceDescriptors const& descriptors);
+    FontFace(JS::Realm&, GC::Ref<WebIDL::Promise> font_status_promise);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Visitor&) override;
+    void reject_status_promise(JS::Value reason);
 
     // FIXME: Should we be storing StyleValues instead?
     String m_family;
@@ -104,7 +105,7 @@ private:
 
     GC::Ref<WebIDL::Promise> m_font_status_promise; // [[FontStatusPromise]]
     Vector<ParsedFontFace::Source> m_urls;          // [[Urls]]
-    ByteBuffer m_binary_data;                       // [[Data]]
+    ByteBuffer m_binary_data {};                    // [[Data]]
 
     RefPtr<Gfx::Typeface> m_parsed_font;
     RefPtr<Core::Promise<NonnullRefPtr<Gfx::Typeface>>> m_font_load_promise;
