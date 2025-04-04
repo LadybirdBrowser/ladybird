@@ -60,6 +60,10 @@ public:
     Optional<SearchEngine> const& search_engine() const { return m_search_engine; }
     void set_search_engine(Optional<StringView> search_engine_name);
 
+    static Optional<SearchEngine> parse_custom_search_engine(JsonValue const&);
+    void add_custom_search_engine(SearchEngine);
+    void remove_custom_search_engine(SearchEngine const&);
+
     Optional<AutocompleteEngine> const& autocomplete_engine() const { return m_autocomplete_engine; }
     void set_autocomplete_engine(Optional<StringView> autocomplete_engine_name);
 
@@ -80,11 +84,14 @@ private:
 
     void persist_settings();
 
+    Optional<SearchEngine> find_search_engine_by_name(StringView name);
+
     ByteString m_settings_path;
 
     URL::URL m_new_tab_page_url;
     Vector<String> m_languages;
     Optional<SearchEngine> m_search_engine;
+    Vector<SearchEngine> m_custom_search_engines;
     Optional<AutocompleteEngine> m_autocomplete_engine;
     SiteSetting m_autoplay;
     DoNotTrack m_do_not_track { DoNotTrack::No };

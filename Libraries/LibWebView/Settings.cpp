@@ -5,6 +5,7 @@
  */
 
 #include <AK/ByteString.h>
+#include <AK/Find.h>
 #include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
 #include <AK/JsonValue.h>
@@ -26,7 +27,9 @@ static constexpr auto languages_key = "languages"sv;
 static auto default_language = "en"_string;
 
 static constexpr auto search_engine_key = "searchEngine"sv;
+static constexpr auto search_engine_custom_key = "custom"sv;
 static constexpr auto search_engine_name_key = "name"sv;
+static constexpr auto search_engine_url_key = "url"sv;
 
 static constexpr auto autocomplete_engine_key = "autocompleteEngine"sv;
 static constexpr auto autocomplete_engine_name_key = "name"sv;
@@ -89,8 +92,18 @@ Settings Settings::create(Badge<Application>)
         settings.m_languages = parse_json_languages(*languages);
 
     if (auto search_engine = settings_json.value().get_object(search_engine_key); search_engine.has_value()) {
+        if (auto custom_engines = search_engine->get_array(search_engine_custom_key); custom_engines.has_value()) {
+            custom_engines->for_each([&](JsonValue const& engine) {
+                auto custom_engine = parse_custom_search_engine(engine);
+                if (!custom_engine.has_value() || settings.find_search_engine_by_name(custom_engine->name).has_value())
+                    return;
+
+                settings.m_custom_search_engines.append(custom_engine.release_value());
+            });
+        }
+
         if (auto search_engine_name = search_engine->get_string(search_engine_name_key); search_engine_name.has_value())
-            settings.m_search_engine = find_search_engine_by_name(*search_engine_name);
+            settings.m_search_engine = settings.find_search_engine_by_name(*search_engine_name);
     }
 
     if (auto autocomplete_engine = settings_json.value().get_object(autocomplete_engine_key); autocomplete_engine.has_value()) {
@@ -144,12 +157,25 @@ JsonValue Settings::serialize_json() const
 
     settings.set(languages_key, move(languages));
 
-    if (m_search_engine.has_value()) {
+    JsonArray custom_search_engines;
+    custom_search_engines.ensure_capacity(m_custom_search_engines.size());
+
+    for (auto const& engine : m_custom_search_engines) {
         JsonObject search_engine;
+        search_engine.set(search_engine_name_key, engine.name);
+        search_engine.set(search_engine_url_key, engine.query_url);
+
+        custom_search_engines.must_append(move(search_engine));
+    }
+
+    JsonObject search_engine;
+    if (!custom_search_engines.is_empty())
+        search_engine.set(search_engine_custom_key, move(custom_search_engines));
+    if (m_search_engine.has_value())
         search_engine.set(search_engine_name_key, m_search_engine->name);
 
+    if (!search_engine.is_empty())
         settings.set(search_engine_key, move(search_engine));
-    }
 
     if (m_autocomplete_engine.has_value()) {
         JsonObject autocomplete_engine;
@@ -184,6 +210,7 @@ void Settings::restore_defaults()
     m_new_tab_page_url = URL::about_newtab();
     m_languages = { default_language };
     m_search_engine.clear();
+    m_custom_search_engines.clear();
     m_autocomplete_engine.clear();
     m_autoplay = SiteSetting {};
     m_do_not_track = DoNotTrack::No;
@@ -248,6 +275,62 @@ void Settings::set_search_engine(Optional<StringView> search_engine_name)
 
     for (auto& observer : m_observers)
         observer.search_engine_changed();
+}
+
+Optional<SearchEngine> Settings::parse_custom_search_engine(JsonValue const& search_engine)
+{
+    if (!search_engine.is_object())
+        return {};
+
+    auto name = search_engine.as_object().get_string(search_engine_name_key);
+    auto url = search_engine.as_object().get_string(search_engine_url_key);
+    if (!name.has_value() || !url.has_value())
+        return {};
+
+    auto parsed_url = URL::Parser::basic_parse(*url);
+    if (!parsed_url.has_value())
+        return {};
+
+    return SearchEngine { .name = name.release_value(), .query_url = url.release_value() };
+}
+
+void Settings::add_custom_search_engine(SearchEngine search_engine)
+{
+    if (find_search_engine_by_name(search_engine.name).has_value())
+        return;
+
+    m_custom_search_engines.append(move(search_engine));
+    persist_settings();
+}
+
+void Settings::remove_custom_search_engine(SearchEngine const& search_engine)
+{
+    auto reset_default_search_engine = m_search_engine.has_value() && m_search_engine->name == search_engine.name;
+    if (reset_default_search_engine)
+        m_search_engine.clear();
+
+    m_custom_search_engines.remove_all_matching([&](auto const& engine) {
+        return engine.name == search_engine.name;
+    });
+
+    persist_settings();
+
+    if (reset_default_search_engine) {
+        for (auto& observer : m_observers)
+            observer.search_engine_changed();
+    }
+}
+
+Optional<SearchEngine> Settings::find_search_engine_by_name(StringView name)
+{
+    auto comparator = [&](auto const& engine) { return engine.name == name; };
+
+    if (auto result = find_value(builtin_search_engines(), comparator); result.has_value())
+        return result.copy();
+    if (auto result = find_value(m_custom_search_engines, comparator); result.has_value())
+        return result.copy();
+
+    return {};
 }
 
 void Settings::set_autocomplete_engine(Optional<StringView> autocomplete_engine_name)

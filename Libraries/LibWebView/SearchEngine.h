@@ -20,7 +20,6 @@ struct SearchEngine {
     String query_url;
 };
 
-ReadonlySpan<SearchEngine> search_engines();
-Optional<SearchEngine> find_search_engine_by_name(StringView name);
+ReadonlySpan<SearchEngine> builtin_search_engines();
 
 }

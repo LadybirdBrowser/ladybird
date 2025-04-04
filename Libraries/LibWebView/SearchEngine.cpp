@@ -4,13 +4,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Find.h>
 #include <LibURL/URL.h>
 #include <LibWebView/SearchEngine.h>
 
 namespace WebView {
 
-static auto builtin_search_engines = to_array<SearchEngine>({
+static auto s_builtin_search_engines = to_array<SearchEngine>({
     { "Bing"_string, "https://www.bing.com/search?q=%s"_string },
     { "Brave"_string, "https://search.brave.com/search?q=%s"_string },
     { "DuckDuckGo"_string, "https://duckduckgo.com/?q=%s"_string },
@@ -23,16 +22,9 @@ static auto builtin_search_engines = to_array<SearchEngine>({
     { "Yandex"_string, "https://yandex.com/search/?text=%s"_string },
 });
 
-ReadonlySpan<SearchEngine> search_engines()
+ReadonlySpan<SearchEngine> builtin_search_engines()
 {
-    return builtin_search_engines;
-}
-
-Optional<SearchEngine> find_search_engine_by_name(StringView name)
-{
-    return find_value(builtin_search_engines, [&](auto const& engine) {
-        return engine.name == name;
-    });
+    return s_builtin_search_engines;
 }
 
 String SearchEngine::format_search_query_for_display(StringView query) const
