@@ -82,7 +82,6 @@ public:
 
     [[nodiscard]] CSSPixelRect absolute_content_rect(Box const&) const;
     [[nodiscard]] CSSPixelRect margin_box_rect_in_ancestor_coordinate_space(Box const&, Box const& ancestor_box) const;
-    [[nodiscard]] CSSPixelRect margin_box_rect(LayoutState::UsedValues const&) const;
     [[nodiscard]] CSSPixelRect margin_box_rect_in_ancestor_coordinate_space(LayoutState::UsedValues const&, Box const& ancestor_box) const;
     [[nodiscard]] CSSPixelRect content_box_rect(Box const&) const;
     [[nodiscard]] CSSPixelRect content_box_rect(LayoutState::UsedValues const&) const;

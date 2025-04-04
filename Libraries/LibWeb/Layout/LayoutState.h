@@ -67,6 +67,8 @@ struct LayoutState {
         void set_content_width(CSSPixels);
         void set_content_height(CSSPixels);
 
+        CSSPixelSize content_size() const { return { content_width(), content_height() }; }
+
         void set_indefinite_content_width();
         void set_indefinite_content_height();
 

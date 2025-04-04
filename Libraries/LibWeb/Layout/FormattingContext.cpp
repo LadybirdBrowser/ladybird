@@ -1182,10 +1182,9 @@ void FormattingContext::compute_height_for_absolutely_positioned_non_replaced_el
 
 CSSPixelRect FormattingContext::content_box_rect_in_static_position_ancestor_coordinate_space(Box const& box, Box const& ancestor_box) const
 {
-    auto rect = content_box_rect(box);
-    if (&box == &ancestor_box)
-        return rect;
-    for (auto const* current = box.static_position_containing_block(); current; current = current->static_position_containing_block()) {
+    auto box_used_values = m_state.get(box);
+    CSSPixelRect rect = { { 0, 0 }, box_used_values.content_size() };
+    for (auto const* current = &box; current; current = current->static_position_containing_block()) {
         if (current == &ancestor_box)
             return rect;
         auto const& current_state = m_state.get(*current);
@@ -1761,7 +1760,7 @@ bool FormattingContext::can_skip_is_anonymous_text_run(Box& box)
 CSSPixelRect FormattingContext::absolute_content_rect(Box const& box) const
 {
     auto const& box_state = m_state.get(box);
-    CSSPixelRect rect { box_state.offset, { box_state.content_width(), box_state.content_height() } };
+    CSSPixelRect rect { box_state.offset, box_state.content_size() };
     for (auto* block = box_state.containing_block_used_values(); block; block = block->containing_block_used_values())
         rect.translate_by(block->offset);
     return rect;
@@ -1825,10 +1824,13 @@ CSSPixels FormattingContext::box_baseline(Box const& box) const
     return box_state.margin_box_height();
 }
 
-CSSPixelRect FormattingContext::margin_box_rect(LayoutState::UsedValues const& used_values) const
+[[nodiscard]] static CSSPixelRect margin_box_rect(LayoutState::UsedValues const& used_values)
 {
     return {
-        used_values.offset.translated(-used_values.margin_box_left(), -used_values.margin_box_top()),
+        {
+            -used_values.margin_box_left(),
+            -used_values.margin_box_top(),
+        },
         {
             used_values.margin_box_left() + used_values.content_width() + used_values.margin_box_right(),
             used_values.margin_box_top() + used_values.content_height() + used_values.margin_box_bottom(),
@@ -1843,15 +1845,13 @@ CSSPixelRect FormattingContext::content_box_rect(Box const& box) const
 
 CSSPixelRect FormattingContext::content_box_rect(LayoutState::UsedValues const& used_values) const
 {
-    return CSSPixelRect { used_values.offset, { used_values.content_width(), used_values.content_height() } };
+    return CSSPixelRect { used_values.offset, used_values.content_size() };
 }
 
 CSSPixelRect FormattingContext::content_box_rect_in_ancestor_coordinate_space(LayoutState::UsedValues const& used_values, Box const& ancestor_box) const
 {
-    auto rect = content_box_rect(used_values);
-    if (&used_values.node() == &ancestor_box)
-        return rect;
-    for (auto const* current = used_values.containing_block_used_values(); current; current = current->containing_block_used_values()) {
+    CSSPixelRect rect = { { 0, 0 }, used_values.content_size() };
+    for (auto const* current = &used_values; current; current = current->containing_block_used_values()) {
         if (&current->node() == &ancestor_box)
             return rect;
         rect.translate_by(current->offset);
@@ -1863,9 +1863,7 @@ CSSPixelRect FormattingContext::content_box_rect_in_ancestor_coordinate_space(La
 CSSPixelRect FormattingContext::margin_box_rect_in_ancestor_coordinate_space(LayoutState::UsedValues const& used_values, Box const& ancestor_box) const
 {
     auto rect = margin_box_rect(used_values);
-    if (&used_values.node() == &ancestor_box)
-        return rect;
-    for (auto const* current = used_values.containing_block_used_values(); current; current = current->containing_block_used_values()) {
+    for (auto const* current = &used_values; current; current = current->containing_block_used_values()) {
         if (&current->node() == &ancestor_box)
             return rect;
         rect.translate_by(current->offset);
