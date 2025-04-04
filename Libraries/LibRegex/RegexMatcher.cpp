@@ -49,6 +49,20 @@ static size_t s_cached_bytecode_size = 0;
 static constexpr auto MaxRegexCachedBytecodeSize = 1 * MiB;
 
 template<class Parser>
+static void cache_parse_result(regex::Parser::Result const& result, CacheKey<Parser> const& key)
+{
+    auto bytecode_size = result.bytecode.size() * sizeof(ByteCodeValueType);
+    if (bytecode_size > MaxRegexCachedBytecodeSize)
+        return;
+
+    while (bytecode_size + s_cached_bytecode_size<Parser> > MaxRegexCachedBytecodeSize)
+        s_cached_bytecode_size<Parser> -= s_parser_cache<Parser>.take_first().bytecode.size() * sizeof(ByteCodeValueType);
+
+    s_parser_cache<Parser>.set(key, result);
+    s_cached_bytecode_size<Parser> += bytecode_size;
+}
+
+template<class Parser>
 Regex<Parser>::Regex(ByteString pattern, typename ParserTraits<Parser>::OptionsType regex_options)
     : pattern_value(move(pattern))
 {
@@ -61,12 +75,9 @@ Regex<Parser>::Regex(ByteString pattern, typename ParserTraits<Parser>::OptionsT
         parser_result = parser.parse();
 
         run_optimization_passes();
-        if (parser_result.error == regex::Error::NoError) {
-            while (parser_result.bytecode.size() * sizeof(ByteCodeValueType) + s_cached_bytecode_size<Parser> > MaxRegexCachedBytecodeSize)
-                s_cached_bytecode_size<Parser> -= s_parser_cache<Parser>.take_first().bytecode.size() * sizeof(ByteCodeValueType);
-            s_parser_cache<Parser>.set({ pattern_value, regex_options }, parser_result);
-            s_cached_bytecode_size<Parser> += parser_result.bytecode.size() * sizeof(ByteCodeValueType);
-        }
+
+        if (parser_result.error == regex::Error::NoError)
+            cache_parse_result<Parser>(parser_result, { pattern_value, regex_options });
     }
 
     if (parser_result.error == regex::Error::NoError)

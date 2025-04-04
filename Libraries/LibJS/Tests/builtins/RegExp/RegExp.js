@@ -77,3 +77,7 @@ test("v flag should enable unicode mode", () => {
     const re = new RegExp("a\\u{10FFFF}", "v");
     expect(re.test("a\u{10FFFF}")).toBe(true);
 });
+
+test("parsing a large bytestring shouldn't crash", () => {
+    RegExp(new Uint8Array(0x40000));
+});
