@@ -103,8 +103,8 @@ void DevToolsConsoleClient::report_exception(JS::Error const& exception, bool in
 {
     auto& vm = exception.vm();
 
-    auto name = exception.get_without_side_effects(vm.names.name).value_or(JS::js_undefined());
-    auto message = exception.get_without_side_effects(vm.names.message).value_or(JS::js_undefined());
+    auto name = exception.get_without_side_effects(vm.names.name);
+    auto message = exception.get_without_side_effects(vm.names.message);
 
     Vector<WebView::StackFrame> trace;
     trace.ensure_capacity(exception.traceback().size());

@@ -436,8 +436,8 @@ inline JSFileResult TestRunner::run_file_test(ByteString const& test_path)
             StringBuilder detail_builder;
 
             auto& error_object = error.as_object();
-            auto name = error_object.get_without_side_effects(g_vm->names.name).value_or(JS::js_undefined());
-            auto message = error_object.get_without_side_effects(g_vm->names.message).value_or(JS::js_undefined());
+            auto name = error_object.get_without_side_effects(g_vm->names.name);
+            auto message = error_object.get_without_side_effects(g_vm->names.message);
 
             if (name.is_accessor() || message.is_accessor()) {
                 detail_builder.append(error.to_string_without_side_effects());

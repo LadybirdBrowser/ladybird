@@ -1201,7 +1201,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ArrayExpression::genera
         // If all elements are constant primitives, we can just emit a single instruction to initialize the array,
         // instead of emitting instructions to manually evaluate them one-by-one
         Vector<Value> values;
-        values.resize(m_elements.size());
+        values.resize_with_default_value(m_elements.size(), js_special_empty_value());
         for (auto i = 0u; i < m_elements.size(); ++i) {
             if (!m_elements[i])
                 continue;
@@ -1221,7 +1221,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ArrayExpression::genera
             auto value = TRY((*it)->generate_bytecode(generator)).value();
             args.append(generator.copy_if_needed_to_preserve_evaluation_order(value));
         } else {
-            args.append(generator.add_constant(Value()));
+            args.append(generator.add_constant(js_special_empty_value()));
         }
     }
 
@@ -1235,7 +1235,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ArrayExpression::genera
     if (first_spread != m_elements.end()) {
         for (auto it = first_spread; it != m_elements.end(); ++it) {
             if (!*it) {
-                generator.emit<Bytecode::Op::ArrayAppend>(dst, generator.add_constant(Value()), false);
+                generator.emit<Bytecode::Op::ArrayAppend>(dst, generator.add_constant(js_special_empty_value()), false);
             } else {
                 auto value = TRY((*it)->generate_bytecode(generator)).value();
                 generator.emit<Bytecode::Op::ArrayAppend>(dst, value, *it && is<SpreadExpression>(**it));

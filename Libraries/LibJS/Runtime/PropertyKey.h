@@ -25,7 +25,7 @@ public:
 
     static ThrowCompletionOr<PropertyKey> from_value(VM& vm, Value value)
     {
-        VERIFY(!value.is_empty());
+        VERIFY(!value.is_special_empty_value());
         if (value.is_symbol())
             return PropertyKey { value.as_symbol() };
         if (value.is_integral_number() && value.as_double() >= 0 && value.as_double() < NumericLimits<u32>::max())

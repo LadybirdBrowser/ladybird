@@ -699,9 +699,7 @@ ThrowCompletionOr<Value> perform_eval(VM& vm, Value x, CallerMode strict_caller,
     if (result_or_error.value.is_error())
         return result_or_error.value.release_error();
 
-    auto& result = result_or_error.return_register_value;
-    if (!result.is_empty())
-        eval_result = result;
+    eval_result = result_or_error.return_register_value;
 
     // 30. If result.[[Type]] is normal and result.[[Value]] is empty, then
     //     a. Set result to NormalCompletion(undefined).

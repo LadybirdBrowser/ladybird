@@ -166,7 +166,7 @@ void AsyncFunctionDriverWrapper::continue_async_execution(VM& vm, Value value, b
     }();
 
     if (result.is_throw_completion()) {
-        m_top_level_promise->reject(result.throw_completion().value().value_or(js_undefined()));
+        m_top_level_promise->reject(result.throw_completion().value());
     }
 }
 

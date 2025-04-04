@@ -22,8 +22,8 @@ void report_exception_to_console(JS::Value value, JS::Realm& realm, ErrorInPromi
     if (value.is_object()) {
         auto& object = value.as_object();
         auto& vm = object.vm();
-        auto name = object.get_without_side_effects(vm.names.name).value_or(JS::js_undefined());
-        auto message = object.get_without_side_effects(vm.names.message).value_or(JS::js_undefined());
+        auto name = object.get_without_side_effects(vm.names.name);
+        auto message = object.get_without_side_effects(vm.names.message);
         if (name.is_accessor() || message.is_accessor()) {
             // The result is not going to be useful, let's just print the value. This affects DOMExceptions, for example.
             if (is<WebIDL::DOMException>(object)) {

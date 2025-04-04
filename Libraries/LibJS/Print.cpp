@@ -272,8 +272,8 @@ ErrorOr<void> print_date(JS::PrintContext& print_context, JS::Date const& date, 
 
 ErrorOr<void> print_error(JS::PrintContext& print_context, JS::Object const& object, HashTable<JS::Object*>& seen_objects)
 {
-    auto name = object.get_without_side_effects(print_context.vm.names.name).value_or(JS::js_undefined());
-    auto message = object.get_without_side_effects(print_context.vm.names.message).value_or(JS::js_undefined());
+    auto name = object.get_without_side_effects(print_context.vm.names.name);
+    auto message = object.get_without_side_effects(print_context.vm.names.message);
     if (name.is_accessor() || message.is_accessor()) {
         TRY(print_value(print_context, &object, seen_objects));
     } else {
@@ -917,7 +917,7 @@ ErrorOr<void> print_string_object(JS::PrintContext& print_context, JS::StringObj
 
 ErrorOr<void> print_value(JS::PrintContext& print_context, JS::Value value, HashTable<JS::Object*>& seen_objects)
 {
-    if (value.is_empty()) {
+    if (value.is_special_empty_value()) {
         TRY(js_out(print_context, "\033[34;1m<empty>\033[0m"));
         return {};
     }

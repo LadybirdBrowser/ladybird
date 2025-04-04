@@ -34,7 +34,7 @@ public:
     Value new_target() const { return m_new_target; }
     void set_new_target(Value new_target)
     {
-        VERIFY(!new_target.is_empty());
+        VERIFY(!new_target.is_special_empty_value());
         m_new_target = new_target;
     }
 

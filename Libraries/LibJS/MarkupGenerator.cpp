@@ -46,7 +46,7 @@ ErrorOr<String> MarkupGenerator::html_from_error(Error const& object, bool in_pr
 
 ErrorOr<void> MarkupGenerator::value_to_html(Value value, StringBuilder& output_html, HashTable<Object*>& seen_objects)
 {
-    if (value.is_empty()) {
+    if (value.is_special_empty_value()) {
         TRY(output_html.try_append("&lt;empty&gt;"sv));
         return {};
     }
@@ -166,8 +166,8 @@ ErrorOr<void> MarkupGenerator::trace_to_html(TracebackFrame const& traceback_fra
 ErrorOr<void> MarkupGenerator::error_to_html(Error const& error, StringBuilder& html_output, bool in_promise)
 {
     auto& vm = error.vm();
-    auto name = error.get_without_side_effects(vm.names.name).value_or(js_undefined());
-    auto message = error.get_without_side_effects(vm.names.message).value_or(js_undefined());
+    auto name = error.get_without_side_effects(vm.names.name);
+    auto message = error.get_without_side_effects(vm.names.message);
     auto name_string = name.to_string_without_side_effects();
     auto message_string = message.to_string_without_side_effects();
     auto uncaught_message = TRY(String::formatted("Uncaught {}[{}]: ", in_promise ? "(in promise) " : "", name_string));

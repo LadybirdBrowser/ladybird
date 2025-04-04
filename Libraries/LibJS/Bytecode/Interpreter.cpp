@@ -86,7 +86,7 @@ static ByteString format_operand(StringView name, Operand operand, Bytecode::Exe
     case Operand::Type::Constant: {
         builder.append("\033[36m"sv);
         auto value = executable.constants[operand.index() - executable.number_of_registers];
-        if (value.is_empty())
+        if (value.is_special_empty_value())
             builder.append("<Empty>"sv);
         else if (value.is_boolean())
             builder.appendff("Bool({})", value.as_bool() ? "true"sv : "false"sv);
@@ -268,12 +268,13 @@ ThrowCompletionOr<Value> Interpreter::run(Script& script_record, GC::Ptr<Environ
             auto result_or_error = run_executable(*executable, {}, {});
             if (result_or_error.value.is_error())
                 result = result_or_error.value.release_error();
-            else
-                result = result_or_error.return_register_value.value_or(js_undefined());
+            else {
+                result = result_or_error.return_register_value.is_special_empty_value() ? normal_completion(js_undefined()) : result_or_error.return_register_value;
+            }
         }
 
         // b. If result is a normal completion and result.[[Value]] is empty, then
-        if (result.type() == Completion::Type::Normal && result.value().is_empty()) {
+        if (result.type() == Completion::Type::Normal && result.value().is_special_empty_value()) {
             // i. Set result to NormalCompletion(undefined).
             result = normal_completion(js_undefined());
         }
@@ -300,9 +301,7 @@ ThrowCompletionOr<Value> Interpreter::run(Script& script_record, GC::Ptr<Environ
     // 17. Return ? result.
     if (result.is_abrupt()) {
         VERIFY(result.type() == Completion::Type::Throw);
-        auto error = result.release_error();
-        VERIFY(!error.value().is_empty());
-        return error;
+        return result.release_error();
     }
 
     return result.value();
@@ -515,12 +514,12 @@ FLATTEN_ON_CLANG void Interpreter::run_bytecode(size_t entry_point)
 
         handle_ContinuePendingUnwind: {
             auto& instruction = *reinterpret_cast<Op::ContinuePendingUnwind const*>(&bytecode[program_counter]);
-            if (auto exception = reg(Register::exception()); !exception.is_empty()) {
+            if (auto exception = reg(Register::exception()); !exception.is_special_empty_value()) {
                 if (handle_exception(program_counter, exception) == HandleExceptionResponse::ExitFromExecutable)
                     return;
                 goto start;
             }
-            if (!saved_return_value().is_empty()) {
+            if (!saved_return_value().is_special_empty_value()) {
                 do_return(saved_return_value());
                 if (auto handlers = executable.exception_handlers_for_offset(program_counter); handlers.has_value()) {
                     if (auto finalizer = handlers.value().finalizer_offset; finalizer.has_value()) {
@@ -528,7 +527,7 @@ FLATTEN_ON_CLANG void Interpreter::run_bytecode(size_t entry_point)
                         auto& unwind_context = running_execution_context.unwind_contexts.last();
                         VERIFY(unwind_context.executable == m_current_executable);
                         reg(Register::saved_return_value()) = reg(Register::return_value());
-                        reg(Register::return_value()) = {};
+                        reg(Register::return_value()) = js_special_empty_value();
                         program_counter = finalizer.value();
                         // the unwind_context will be pop'ed when entering the finally block
                         goto start;
@@ -734,21 +733,21 @@ Interpreter::ResultAndReturnRegister Interpreter::run_executable(Executable& exe
     auto& running_execution_context = vm().running_execution_context();
     u32 registers_and_constants_and_locals_count = executable.number_of_registers + executable.constants.size() + executable.local_variable_names.size();
     if (running_execution_context.registers_and_constants_and_locals.size() < registers_and_constants_and_locals_count)
-        running_execution_context.registers_and_constants_and_locals.resize(registers_and_constants_and_locals_count);
+        running_execution_context.registers_and_constants_and_locals.resize_with_default_value(registers_and_constants_and_locals_count, js_special_empty_value());
 
     TemporaryChange restore_running_execution_context { m_running_execution_context, &running_execution_context };
     TemporaryChange restore_arguments { m_arguments, running_execution_context.arguments.span() };
     TemporaryChange restore_registers_and_constants_and_locals { m_registers_and_constants_and_locals, running_execution_context.registers_and_constants_and_locals.span() };
 
     reg(Register::accumulator()) = initial_accumulator_value;
-    reg(Register::return_value()) = {};
+    reg(Register::return_value()) = js_special_empty_value();
 
     // NOTE: We only copy the `this` value from ExecutionContext if it's not already set.
     //       If we are re-entering an async/generator context, the `this` value
     //       may have already been cached by a ResolveThisBinding instruction,
     //       and subsequent instructions expect this value to be set.
-    if (reg(Register::this_value()).is_empty())
-        reg(Register::this_value()) = running_execution_context.this_value;
+    if (reg(Register::this_value()).is_special_empty_value())
+        reg(Register::this_value()) = running_execution_context.this_value.value_or(js_special_empty_value());
 
     running_execution_context.executable = &executable;
 
@@ -764,7 +763,7 @@ Interpreter::ResultAndReturnRegister Interpreter::run_executable(Executable& exe
         auto const& registers_and_constants_and_locals = running_execution_context.registers_and_constants_and_locals;
         for (size_t i = 0; i < executable.number_of_registers; ++i) {
             String value_string;
-            if (registers_and_constants_and_locals[i].is_empty())
+            if (registers_and_constants_and_locals[i].is_special_empty_value())
                 value_string = "(empty)"_string;
             else
                 value_string = registers_and_constants_and_locals[i].to_string_without_side_effects();
@@ -773,14 +772,14 @@ Interpreter::ResultAndReturnRegister Interpreter::run_executable(Executable& exe
     }
 
     auto return_value = js_undefined();
-    if (!reg(Register::return_value()).is_empty())
+    if (!reg(Register::return_value()).is_special_empty_value())
         return_value = reg(Register::return_value());
     auto exception = reg(Register::exception());
 
     vm().run_queued_promise_jobs();
     vm().finish_execution_generation();
 
-    if (!exception.is_empty())
+    if (!exception.is_special_empty_value())
         return { throw_completion(exception), running_execution_context.registers_and_constants_and_locals[0] };
     return { return_value, running_execution_context.registers_and_constants_and_locals[0] };
 }
@@ -802,7 +801,7 @@ void Interpreter::leave_unwind_context()
 void Interpreter::catch_exception(Operand dst)
 {
     set(dst, reg(Register::exception()));
-    reg(Register::exception()) = {};
+    reg(Register::exception()) = js_special_empty_value();
     auto& context = running_execution_context().unwind_contexts.last();
     VERIFY(!context.handler_called);
     VERIFY(context.executable == &current_executable());
@@ -817,7 +816,7 @@ void Interpreter::restore_scheduled_jump()
 
 void Interpreter::leave_finally()
 {
-    reg(Register::exception()) = {};
+    reg(Register::exception()) = js_special_empty_value();
     m_scheduled_jump = running_execution_context().previously_scheduled_jumps.take_last();
 }
 
@@ -1265,7 +1264,7 @@ inline ThrowCompletionOr<Value> perform_call(Interpreter& interpreter, Value thi
     Value return_value;
     if (call_type == Op::CallType::DirectEval) {
         if (callee == interpreter.realm().intrinsics().eval_function())
-            return_value = TRY(perform_eval(vm, !argument_values.is_empty() ? argument_values[0].value_or(JS::js_undefined()) : js_undefined(), vm.in_strict_mode() ? CallerMode::Strict : CallerMode::NonStrict, EvalMode::Direct));
+            return_value = TRY(perform_eval(vm, !argument_values.is_empty() ? argument_values[0] : js_undefined(), vm.in_strict_mode() ? CallerMode::Strict : CallerMode::NonStrict, EvalMode::Direct));
         else
             return_value = TRY(JS::call(vm, function, this_value, argument_values));
     } else if (call_type == Op::CallType::Call)
@@ -2539,13 +2538,13 @@ ThrowCompletionOr<void> DeleteByIdWithThis::execute_impl(Bytecode::Interpreter& 
 ThrowCompletionOr<void> ResolveThisBinding::execute_impl(Bytecode::Interpreter& interpreter) const
 {
     auto& cached_this_value = interpreter.reg(Register::this_value());
-    if (!cached_this_value.is_empty())
+    if (!cached_this_value.is_special_empty_value())
         return {};
     // OPTIMIZATION: Because the value of 'this' cannot be reassigned during a function execution, it's
     //               resolved once and then saved for subsequent use.
     auto& running_execution_context = interpreter.running_execution_context();
     if (auto function = running_execution_context.function; function && is<ECMAScriptFunctionObject>(*function) && !static_cast<ECMAScriptFunctionObject&>(*function).allocates_function_environment()) {
-        cached_this_value = running_execution_context.this_value;
+        cached_this_value = running_execution_context.this_value.value();
     } else {
         auto& vm = interpreter.vm();
         cached_this_value = TRY(vm.resolve_this_binding());
@@ -2801,7 +2800,7 @@ ThrowCompletionOr<void> ThrowIfTDZ::execute_impl(Bytecode::Interpreter& interpre
 {
     auto& vm = interpreter.vm();
     auto value = interpreter.get(m_src);
-    if (value.is_empty())
+    if (value.is_special_empty_value())
         return vm.throw_completion<ReferenceError>(ErrorType::BindingNotInitialized, value.to_string_without_side_effects());
     return {};
 }
@@ -2825,20 +2824,20 @@ void LeaveUnwindContext::execute_impl(Bytecode::Interpreter& interpreter) const
 
 void Yield::execute_impl(Bytecode::Interpreter& interpreter) const
 {
-    auto yielded_value = interpreter.get(m_value).value_or(js_undefined());
+    auto yielded_value = interpreter.get(m_value).is_special_empty_value() ? js_undefined() : interpreter.get(m_value);
     interpreter.do_return(
         interpreter.do_yield(yielded_value, m_continuation_label));
 }
 
 void PrepareYield::execute_impl(Bytecode::Interpreter& interpreter) const
 {
-    auto value = interpreter.get(m_value).value_or(js_undefined());
+    auto value = interpreter.get(m_value).is_special_empty_value() ? js_undefined() : interpreter.get(m_value);
     interpreter.set(m_dest, interpreter.do_yield(value, {}));
 }
 
 void Await::execute_impl(Bytecode::Interpreter& interpreter) const
 {
-    auto yielded_value = interpreter.get(m_argument).value_or(js_undefined());
+    auto yielded_value = interpreter.get(m_argument).is_special_empty_value() ? js_undefined() : interpreter.get(m_argument);
     // FIXME: If we get a pointer, which is not accurately representable as a double
     //        will cause this to explode
     auto continuation_value = Value(m_continuation_label.address());
@@ -3832,7 +3831,7 @@ ByteString Dump::to_byte_string_impl(Bytecode::Executable const& executable) con
 void GetCompletionFields::execute_impl(Bytecode::Interpreter& interpreter) const
 {
     auto const& completion_cell = static_cast<CompletionCell const&>(interpreter.get(m_completion).as_cell());
-    interpreter.set(m_value_dst, completion_cell.completion().value().value_or(js_undefined()));
+    interpreter.set(m_value_dst, completion_cell.completion().value());
     interpreter.set(m_type_dst, Value(to_underlying(completion_cell.completion().type())));
 }
 

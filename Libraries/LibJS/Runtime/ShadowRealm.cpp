@@ -158,13 +158,13 @@ ThrowCompletionOr<Value> perform_shadow_realm_eval(VM& vm, StringView source_tex
                 result = result_and_return_register.value.release_error();
             } else {
                 // Resulting value is in the accumulator.
-                result = result_and_return_register.return_register_value.value_or(js_undefined());
+                result = result_and_return_register.return_register_value.is_special_empty_value() ? js_undefined() : result_and_return_register.return_register_value;
             }
         }
     }
 
     // 12. If result.[[Type]] is normal and result.[[Value]] is empty, then
-    if (result.type() == Completion::Type::Normal && result.value().is_empty()) {
+    if (result.type() == Completion::Type::Normal && result.value().is_special_empty_value()) {
         // a. Set result to NormalCompletion(undefined).
         result = normal_completion(js_undefined());
     }

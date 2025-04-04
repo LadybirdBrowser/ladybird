@@ -82,7 +82,8 @@ void ExecutionContext::visit_edges(Cell::Visitor& visitor)
     visitor.visit(lexical_environment);
     visitor.visit(private_environment);
     visitor.visit(context_owner);
-    visitor.visit(this_value);
+    if (this_value.has_value())
+        visitor.visit(*this_value);
     visitor.visit(executable);
     visitor.visit(function_name);
     visitor.visit(arguments);

@@ -157,7 +157,7 @@ void AsyncGenerator::execute(VM& vm, Completion completion)
         auto generated_value = [](Value value) -> Value {
             if (value.is_cell())
                 return static_cast<GeneratorResult const&>(value.as_cell()).result();
-            return value.is_empty() ? js_undefined() : value;
+            return value.is_special_empty_value() ? js_undefined() : value;
         };
 
         auto generated_continuation = [&](Value value) -> Optional<size_t> {

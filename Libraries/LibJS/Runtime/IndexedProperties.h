@@ -80,7 +80,7 @@ public:
 
     [[nodiscard]] bool inline_has_index(u32 index) const
     {
-        return index < m_array_size && !m_packed_elements.data()[index].is_empty();
+        return index < m_array_size && !m_packed_elements.data()[index].is_special_empty_value();
     }
 
     [[nodiscard]] Optional<ValueAndAttributes> inline_get(u32 index) const

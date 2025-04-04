@@ -128,7 +128,7 @@ ThrowCompletionOr<void> Object::set(PropertyKey const& property_key, Value value
 {
     auto& vm = this->vm();
 
-    VERIFY(!value.is_empty());
+    VERIFY(!value.is_special_empty_value());
 
     // 1. Let success be ? O.[[Set]](P, V, O).
     auto success = TRY(internal_set(property_key, value, this));
@@ -161,7 +161,7 @@ ThrowCompletionOr<bool> Object::create_data_property(PropertyKey const& property
 // 7.3.6 CreateMethodProperty ( O, P, V ), https://tc39.es/ecma262/#sec-createmethodproperty
 void Object::create_method_property(PropertyKey const& property_key, Value value)
 {
-    VERIFY(!value.is_empty());
+    VERIFY(!value.is_special_empty_value());
 
     // 1. Assert: O is an ordinary, extensible object with no non-configurable properties.
 
@@ -184,7 +184,7 @@ ThrowCompletionOr<bool> Object::create_data_property_or_throw(PropertyKey const&
 {
     auto& vm = this->vm();
 
-    VERIFY(!value.is_empty());
+    VERIFY(!value.is_special_empty_value());
 
     // 1. Let success be ? CreateDataProperty(O, P, V).
     auto success = TRY(create_data_property(property_key, value));
@@ -202,7 +202,7 @@ ThrowCompletionOr<bool> Object::create_data_property_or_throw(PropertyKey const&
 // 7.3.8 CreateNonEnumerableDataPropertyOrThrow ( O, P, V ), https://tc39.es/ecma262/#sec-createnonenumerabledatapropertyorthrow
 void Object::create_non_enumerable_data_property_or_throw(PropertyKey const& property_key, Value value)
 {
-    VERIFY(!value.is_empty());
+    VERIFY(!value.is_special_empty_value());
 
     // 1. Assert: O is an ordinary, extensible object with no non-configurable properties.
 
@@ -812,7 +812,7 @@ ThrowCompletionOr<Optional<PropertyDescriptor>> Object::internal_get_own_propert
     // 4. If X is a data property, then
     if (!value.is_accessor()) {
         // a. Set D.[[Value]] to the value of X's [[Value]] attribute.
-        descriptor.value = value.value_or(js_undefined());
+        descriptor.value = value;
 
         // b. Set D.[[Writable]] to the value of X's [[Writable]] attribute.
         descriptor.writable = attributes.is_writable();
@@ -883,7 +883,7 @@ ThrowCompletionOr<bool> Object::internal_has_property(PropertyKey const& propert
 // 10.1.8.1 OrdinaryGet ( O, P, Receiver ), https://tc39.es/ecma262/#sec-ordinaryget
 ThrowCompletionOr<Value> Object::internal_get(PropertyKey const& property_key, Value receiver, CacheablePropertyMetadata* cacheable_metadata, PropertyLookupPhase phase) const
 {
-    VERIFY(!receiver.is_empty());
+    VERIFY(!receiver.is_special_empty_value());
 
     auto& vm = this->vm();
 
@@ -950,8 +950,8 @@ ThrowCompletionOr<Value> Object::internal_get(PropertyKey const& property_key, V
 // 10.1.9.1 OrdinarySet ( O, P, V, Receiver ), https://tc39.es/ecma262/#sec-ordinaryset
 ThrowCompletionOr<bool> Object::internal_set(PropertyKey const& property_key, Value value, Value receiver, CacheablePropertyMetadata* cacheable_metadata)
 {
-    VERIFY(!value.is_empty());
-    VERIFY(!receiver.is_empty());
+    VERIFY(!value.is_special_empty_value());
+    VERIFY(!receiver.is_special_empty_value());
 
     // 2. Let ownDesc be ? O.[[GetOwnProperty]](P).
     auto own_descriptor = TRY(internal_get_own_property(property_key));
@@ -963,8 +963,8 @@ ThrowCompletionOr<bool> Object::internal_set(PropertyKey const& property_key, Va
 // 10.1.9.2 OrdinarySetWithOwnDescriptor ( O, P, V, Receiver, ownDesc ), https://tc39.es/ecma262/#sec-ordinarysetwithowndescriptor
 ThrowCompletionOr<bool> Object::ordinary_set_with_own_descriptor(PropertyKey const& property_key, Value value, Value receiver, Optional<PropertyDescriptor> own_descriptor, CacheablePropertyMetadata* cacheable_metadata)
 {
-    VERIFY(!value.is_empty());
-    VERIFY(!receiver.is_empty());
+    VERIFY(!value.is_special_empty_value());
+    VERIFY(!receiver.is_special_empty_value());
 
     auto& vm = this->vm();
 

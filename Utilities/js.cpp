@@ -778,7 +778,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
                 if (value_or_error.is_error())
                     return {};
                 auto variable = value_or_error.value();
-                VERIFY(!variable.is_empty());
+                VERIFY(!variable.is_special_empty_value());
 
                 if (!variable.is_object())
                     break;

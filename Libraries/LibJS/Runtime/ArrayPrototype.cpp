@@ -602,7 +602,7 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayPrototype::find_last_index)
 // 23.1.3.13.1 FlattenIntoArray ( target, source, sourceLen, start, depth [ , mapperFunction [ , thisArg ] ] ), https://tc39.es/ecma262/#sec-flattenintoarray
 static ThrowCompletionOr<size_t> flatten_into_array(VM& vm, Object& new_array, Object& array, size_t array_length, size_t target_index, double depth, FunctionObject* mapper_func = {}, Value this_arg = {})
 {
-    VERIFY(!mapper_func || (!this_arg.is_empty() && depth == 1));
+    VERIFY(!mapper_func || (!this_arg.is_special_empty_value() && depth == 1));
 
     for (size_t j = 0; j < array_length; ++j) {
         auto value_exists = TRY(array.has_property(j));
@@ -1258,7 +1258,7 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayPrototype::slice)
 
     double relative_end;
 
-    if (vm.argument(1).is_undefined() || vm.argument(1).is_empty())
+    if (vm.argument(1).is_undefined())
         relative_end = (double)initial_length;
     else
         relative_end = TRY(vm.argument(1).to_integer_or_infinity(vm));

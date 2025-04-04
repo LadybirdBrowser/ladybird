@@ -793,7 +793,7 @@ void async_block_start(VM& vm, T const& async_body, PromiseCapability const& pro
         return;
 
     // 5. Resume the suspended evaluation of asyncContext. Let result be the value returned by the resumed computation.
-    auto result = call(vm, *closure, async_context.this_value.is_empty() ? js_undefined() : async_context.this_value);
+    auto result = call(vm, *closure, *async_context.this_value);
 
     // 6. Assert: When we return here, asyncContext has already been removed from the execution context stack and runningContext is the currently running execution context.
     VERIFY(&vm.running_execution_context() == &running_context);
@@ -828,7 +828,7 @@ Completion ECMAScriptFunctionObject::ordinary_call_evaluate_body()
         m_bytecode_executable = m_ecmascript_code->bytecode_executable();
     }
 
-    vm.running_execution_context().registers_and_constants_and_locals.resize(m_local_variables_names.size() + m_bytecode_executable->number_of_registers + m_bytecode_executable->constants.size());
+    vm.running_execution_context().registers_and_constants_and_locals.resize_with_default_value(m_local_variables_names.size() + m_bytecode_executable->number_of_registers + m_bytecode_executable->constants.size(), js_special_empty_value());
 
     auto result_and_frame = vm.bytecode_interpreter().run_executable(*m_bytecode_executable, {});
 
@@ -840,7 +840,7 @@ Completion ECMAScriptFunctionObject::ordinary_call_evaluate_body()
     // NOTE: Running the bytecode should eventually return a completion.
     // Until it does, we assume "return" and include the undefined fallback from the call site.
     if (m_kind == FunctionKind::Normal)
-        return { Completion::Type::Return, result.value_or(js_undefined()) };
+        return { Completion::Type::Return, result };
 
     if (m_kind == FunctionKind::AsyncGenerator) {
         auto async_generator_object = TRY(AsyncGenerator::create(realm, result, this, vm.running_execution_context().copy()));

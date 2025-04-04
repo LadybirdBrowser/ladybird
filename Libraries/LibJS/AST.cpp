@@ -137,7 +137,7 @@ static ThrowCompletionOr<ClassElementName> class_key_to_property_name(VM& vm, Ex
         return ClassElementName { private_environment->resolve_private_identifier(private_identifier.string()) };
     }
 
-    VERIFY(!prop_key.is_empty());
+    VERIFY(!prop_key.is_special_empty_value());
 
     if (prop_key.is_object())
         prop_key = TRY(prop_key.to_primitive(vm, Value::PreferredType::String));

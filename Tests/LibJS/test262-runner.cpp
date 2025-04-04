@@ -91,7 +91,7 @@ static ErrorOr<void, TestError> run_program(InterpreterT& interpreter, ScriptOrM
             auto& object = error_value.as_object();
 
             auto name = object.get_without_side_effects("name"_fly_string);
-            if (!name.is_empty() && !name.is_accessor()) {
+            if (!name.is_undefined() && !name.is_accessor()) {
                 error.type = name.to_string_without_side_effects();
             } else {
                 auto constructor = object.get_without_side_effects("constructor"_fly_string);
@@ -103,7 +103,7 @@ static ErrorOr<void, TestError> run_program(InterpreterT& interpreter, ScriptOrM
             }
 
             auto message = object.get_without_side_effects("message"_fly_string);
-            if (!message.is_empty() && !message.is_accessor())
+            if (!message.is_undefined() && !message.is_accessor())
                 error.details = message.to_string_without_side_effects();
         }
         if (error.type.is_empty())

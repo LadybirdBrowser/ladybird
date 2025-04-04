@@ -86,7 +86,7 @@ TEST_CASE(non_canon_nans)
         EXPECT(!val.is_integral_number());     \
         EXPECT(!val.is_finite_number());       \
         EXPECT(!val.is_infinity());            \
-        EXPECT(!val.is_empty());               \
+        EXPECT(!val.is_special_empty_value()); \
         EXPECT(!val.is_nullish());             \
     }
 
