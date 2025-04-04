@@ -301,12 +301,6 @@ public:
         return Completion { Completion::Type::Throw, error.error };
     }
 
-    ValueType release_allocated_value_but_fixme_should_propagate_errors()
-    {
-        VERIFY(!is_error());
-        return release_value();
-    }
-
 private:
     Variant<ValueType, ErrorValue> m_value_or_error;
 };
