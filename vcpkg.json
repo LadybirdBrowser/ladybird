@@ -138,7 +138,7 @@
     },
     {
       "name": "curl",
-      "version": "8.11.1#0"
+      "version": "8.13.0#0"
     },
     {
       "name": "dirent",
