@@ -64,8 +64,8 @@ public:
         : m_type(type)
         , m_value(value)
     {
-        VERIFY(type != Type::Empty);
-        VERIFY(!value.is_special_empty_value());
+        ASSERT(type != Type::Empty);
+        ASSERT(!value.is_special_empty_value());
     }
 
     Completion(ThrowCompletionOr<Value> const&);
