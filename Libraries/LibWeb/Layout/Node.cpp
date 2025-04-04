@@ -728,6 +728,29 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
         computed_values.set_transition_delay(transition_delay.resolve_time({ .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(*this) }).value());
     }
 
+    auto resolve_border_width = [&](CSS::PropertyID width_property) -> CSSPixels {
+        auto const& value = computed_style.property(width_property);
+        if (value.is_calculated())
+            return max(CSSPixels { 0 },
+                value.as_calculated().resolve_length({ .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(*this) })->to_px(*this));
+        if (value.is_length())
+            return value.as_length().length().to_px(*this);
+        if (value.is_keyword()) {
+            // https://www.w3.org/TR/css-backgrounds-3/#valdef-line-width-thin
+            switch (value.to_keyword()) {
+            case CSS::Keyword::Thin:
+                return 1;
+            case CSS::Keyword::Medium:
+                return 3;
+            case CSS::Keyword::Thick:
+                return 5;
+            default:
+                VERIFY_NOT_REACHED();
+            }
+        }
+        VERIFY_NOT_REACHED();
+    };
+
     auto do_border_style = [&](CSS::BorderData& border, CSS::PropertyID width_property, CSS::PropertyID color_property, CSS::PropertyID style_property) {
         // FIXME: The default border color value is `currentcolor`, but since we can't resolve that easily,
         //        we just manually grab the value from `color`. This makes it dependent on `color` being
@@ -743,30 +766,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
         if (border.line_style == CSS::LineStyle::None || border.line_style == CSS::LineStyle::Hidden) {
             border.width = 0;
         } else {
-            auto resolve_border_width = [&]() -> CSSPixels {
-                auto const& value = computed_style.property(width_property);
-                if (value.is_calculated())
-                    return max(CSSPixels { 0 },
-                        value.as_calculated().resolve_length({ .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(*this) })->to_px(*this));
-                if (value.is_length())
-                    return value.as_length().length().to_px(*this);
-                if (value.is_keyword()) {
-                    // https://www.w3.org/TR/css-backgrounds-3/#valdef-line-width-thin
-                    switch (value.to_keyword()) {
-                    case CSS::Keyword::Thin:
-                        return 1;
-                    case CSS::Keyword::Medium:
-                        return 3;
-                    case CSS::Keyword::Thick:
-                        return 5;
-                    default:
-                        VERIFY_NOT_REACHED();
-                    }
-                }
-                VERIFY_NOT_REACHED();
-            };
-
-            border.width = snap_a_length_as_a_border_width(document().page().client().device_pixels_per_css_pixel(), resolve_border_width());
+            border.width = snap_a_length_as_a_border_width(document().page().client().device_pixels_per_css_pixel(), resolve_border_width(width_property));
         }
     };
 
@@ -780,8 +780,13 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     if (auto const& outline_offset = computed_style.property(CSS::PropertyID::OutlineOffset); outline_offset.is_length())
         computed_values.set_outline_offset(outline_offset.as_length().length());
     computed_values.set_outline_style(computed_style.outline_style());
-    if (auto const& outline_width = computed_style.property(CSS::PropertyID::OutlineWidth); outline_width.is_length())
-        computed_values.set_outline_width(outline_width.as_length().length());
+
+    CSSPixels resolved_outline_width = 0;
+    if (computed_values.outline_style() != CSS::OutlineStyle::None)
+        resolved_outline_width = max(CSSPixels { 0 }, resolve_border_width(CSS::PropertyID::OutlineWidth));
+
+    auto snapped_outline_width = snap_a_length_as_a_border_width(document().page().client().device_pixels_per_css_pixel(), resolved_outline_width);
+    computed_values.set_outline_width(CSS::Length::make_px(snapped_outline_width));
 
     computed_values.set_grid_auto_columns(computed_style.grid_auto_columns());
     computed_values.set_grid_auto_rows(computed_style.grid_auto_rows());
