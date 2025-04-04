@@ -32,23 +32,19 @@ float FilterOperation::HueRotate::angle_degrees(Layout::Node const& node) const
 
 float FilterOperation::Color::resolved_amount() const
 {
-    // Default value when omitted is 1.
-    if (!amount.has_value())
-        return 1;
+    if (amount.is_number())
+        return amount.number().value();
 
-    if (amount->is_number())
-        return amount->number().value();
+    if (amount.is_percentage())
+        return amount.percentage().as_fraction();
 
-    if (amount->is_percentage())
-        return amount->percentage().as_fraction();
-
-    if (amount->is_calculated()) {
+    if (amount.is_calculated()) {
         CalculationResolutionContext context {};
-        if (amount->calculated()->resolves_to_number())
-            return amount->calculated()->resolve_number(context).value();
+        if (amount.calculated()->resolves_to_number())
+            return amount.calculated()->resolve_number(context).value();
 
-        if (amount->calculated()->resolves_to_percentage())
-            return amount->calculated()->resolve_percentage(context)->as_fraction();
+        if (amount.calculated()->resolves_to_percentage())
+            return amount.calculated()->resolve_percentage(context)->as_fraction();
     }
 
     VERIFY_NOT_REACHED();
@@ -111,8 +107,8 @@ String FilterValueListStyleValue::to_string(SerializationMode) const
                             VERIFY_NOT_REACHED();
                         }
                     }());
-                if (color.amount.has_value())
-                    builder.append(color.amount->to_string());
+
+                builder.append(color.amount.to_string());
             });
         builder.append(')');
         first = false;
