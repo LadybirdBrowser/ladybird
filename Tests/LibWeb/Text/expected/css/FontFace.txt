@@ -13,7 +13,7 @@ face.family: Another font family
 face.style: italic
 face.weight: bold
 face.stretch: condensed
-face.family = 1: SyntaxError: FontFace.family setter: Invalid font descriptor
-face.style = 1: SyntaxError: FontFace.style setter: Invalid font descriptor
-face.weight = 500kg: SyntaxError: FontFace.weight setter: Invalid font descriptor
-face.stretch = super stretched: SyntaxError: FontFace.stretch setter: Invalid font descriptor
+face.family = 1: SyntaxError: FontFace.family setter: Invalid descriptor value
+face.style = 1: SyntaxError: FontFace.style setter: Invalid descriptor value
+face.weight = 500kg: SyntaxError: FontFace.weight setter: Invalid descriptor value
+face.stretch = super stretched: SyntaxError: FontFace.stretch setter: Invalid descriptor value
