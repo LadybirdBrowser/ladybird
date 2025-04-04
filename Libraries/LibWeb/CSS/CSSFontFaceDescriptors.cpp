@@ -4,11 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "Parser/Parser.h"
-
 #include <LibWeb/Bindings/CSSFontFaceDescriptorsPrototype.h>
 #include <LibWeb/CSS/CSSFontFaceDescriptors.h>
 #include <LibWeb/CSS/CSSStyleValue.h>
+#include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/Infra/Strings.h>
 
