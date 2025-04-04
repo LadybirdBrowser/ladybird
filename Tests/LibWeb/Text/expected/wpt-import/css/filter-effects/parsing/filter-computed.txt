@@ -2,11 +2,11 @@ Harness status: OK
 
 Found 34 tests
 
-17 Pass
-17 Fail
+18 Pass
+16 Fail
 Pass	Property filter value 'none'
 Pass	Property filter value 'blur(100px)'
-Fail	Property filter value 'blur()'
+Pass	Property filter value 'blur()'
 Pass	Property filter value 'brightness(0)'
 Fail	Property filter value 'brightness(300%)'
 Pass	Property filter value 'brightness()'
