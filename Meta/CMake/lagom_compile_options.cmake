@@ -18,7 +18,7 @@ if (NOT WIN32)
 endif()
 
 if (LINUX)
-    add_compile_definitions(_FILE_OFFSET_BITS=64)
+    add_cxx_compile_definitions(_FILE_OFFSET_BITS=64)
 endif()
 
 if (APPLE)
