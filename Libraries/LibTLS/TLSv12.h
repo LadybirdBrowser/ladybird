@@ -65,7 +65,7 @@ public:
     ~TLSv12() override;
 
 private:
-    explicit TLSv12(NonnullOwnPtr<Core::TCPSocket>, SSL_CTX*, SSL*, BIO*);
+    explicit TLSv12(NonnullOwnPtr<Core::TCPSocket>, SSL_CTX*, SSL*);
 
     static ErrorOr<NonnullOwnPtr<TLSv12>> connect_internal(NonnullOwnPtr<Core::TCPSocket>, ByteString const&, Options);
 
@@ -73,7 +73,6 @@ private:
 
     SSL_CTX* m_ssl_ctx { nullptr };
     SSL* m_ssl { nullptr };
-    BIO* m_bio { nullptr };
 
     // Keep this around or the socket will be closed
     NonnullOwnPtr<Core::TCPSocket> m_socket;

@@ -152,7 +152,7 @@ DecoderErrorOr<ColorConverter> ColorConverter::create(u8 bit_depth, CodingIndepe
     bool should_skip_color_remapping = output_cicp.color_primaries() == input_cicp.color_primaries() && output_cicp.transfer_characteristics() == input_cicp.transfer_characteristics();
     FloatMatrix4x4 input_conversion_matrix = color_conversion_matrix * range_scaling_matrix * integer_scaling_matrix;
 
-    return ColorConverter(bit_depth, input_cicp, should_skip_color_remapping, should_tonemap, input_conversion_matrix, to_linear_lookup_table, color_primaries_matrix_4x4, to_non_linear_lookup_table);
+    return ColorConverter(input_cicp, should_skip_color_remapping, should_tonemap, input_conversion_matrix, to_linear_lookup_table, color_primaries_matrix_4x4, to_non_linear_lookup_table);
 }
 
 }

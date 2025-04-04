@@ -1397,11 +1397,10 @@ private:
 
 class ClassField final : public ClassElement {
 public:
-    ClassField(SourceRange source_range, NonnullRefPtr<Expression const> key, RefPtr<Expression const> init, bool contains_direct_call_to_eval, bool is_static)
+    ClassField(SourceRange source_range, NonnullRefPtr<Expression const> key, RefPtr<Expression const> init, bool is_static)
         : ClassElement(move(source_range), is_static)
         , m_key(move(key))
         , m_initializer(move(init))
-        , m_contains_direct_call_to_eval(contains_direct_call_to_eval)
     {
     }
 
@@ -1418,15 +1417,13 @@ public:
 private:
     NonnullRefPtr<Expression const> m_key;
     RefPtr<Expression const> m_initializer;
-    bool m_contains_direct_call_to_eval { false };
 };
 
 class StaticInitializer final : public ClassElement {
 public:
-    StaticInitializer(SourceRange source_range, NonnullRefPtr<FunctionBody> function_body, bool contains_direct_call_to_eval)
+    StaticInitializer(SourceRange source_range, NonnullRefPtr<FunctionBody> function_body)
         : ClassElement(move(source_range), true)
         , m_function_body(move(function_body))
-        , m_contains_direct_call_to_eval(contains_direct_call_to_eval)
     {
     }
 
@@ -1437,7 +1434,6 @@ public:
 
 private:
     NonnullRefPtr<FunctionBody> m_function_body;
-    bool m_contains_direct_call_to_eval { false };
 };
 
 class SuperExpression final : public Expression {

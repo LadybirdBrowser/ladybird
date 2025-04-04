@@ -247,9 +247,8 @@ private:
     static constexpr size_t to_linear_size = 64;
     static constexpr size_t to_non_linear_size = 64;
 
-    ColorConverter(u8 bit_depth, CodingIndependentCodePoints cicp, bool should_skip_color_remapping, bool should_tonemap, FloatMatrix4x4 input_conversion_matrix, InterpolatedLookupTable<to_linear_size> to_linear_lookup, FloatMatrix4x4 color_space_conversion_matrix, InterpolatedLookupTable<to_non_linear_size> to_non_linear_lookup)
-        : m_bit_depth(bit_depth)
-        , m_cicp(cicp)
+    ColorConverter(CodingIndependentCodePoints cicp, bool should_skip_color_remapping, bool should_tonemap, FloatMatrix4x4 input_conversion_matrix, InterpolatedLookupTable<to_linear_size> to_linear_lookup, FloatMatrix4x4 color_space_conversion_matrix, InterpolatedLookupTable<to_non_linear_size> to_non_linear_lookup)
+        : m_cicp(cicp)
         , m_should_skip_color_remapping(should_skip_color_remapping)
         , m_should_tonemap(should_tonemap)
         , m_input_conversion_matrix(input_conversion_matrix)
@@ -259,7 +258,6 @@ private:
     {
     }
 
-    u8 m_bit_depth;
     CodingIndependentCodePoints m_cicp;
     bool m_should_skip_color_remapping;
     bool m_should_tonemap;

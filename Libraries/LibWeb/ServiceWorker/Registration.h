@@ -68,8 +68,9 @@ private:
     // FIXME: Spec bug: A service worker registration has an associated NavigationPreloadManager object.
     //        This can't possibly be true. The association is the other way around.
 
-    bool m_navigation_preload_enabled = { false }; // https://w3c.github.io/ServiceWorker/#service-worker-registration-navigation-preload-enabled-flag
-    ByteString m_navigation_preload_header_value;  // https://w3c.github.io/ServiceWorker/#service-worker-registration-navigation-preload-header-value
+    // FIXME: Investigate if this is implemented.
+    [[maybe_unused]] bool m_navigation_preload_enabled = { false }; // https://w3c.github.io/ServiceWorker/#service-worker-registration-navigation-preload-enabled-flag
+    ByteString m_navigation_preload_header_value;                   // https://w3c.github.io/ServiceWorker/#service-worker-registration-navigation-preload-header-value
 };
 
 struct RegistrationKey {

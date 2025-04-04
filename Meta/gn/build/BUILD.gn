@@ -126,7 +126,6 @@ config("compiler_defaults") {
       "-Wstring-conversion",
       "-Wno-user-defined-literals",
       "-fconstexpr-steps=16777216",
-      "-Wno-unused-private-field",
       "-Wno-implicit-const-int-float-conversion",
       "-Wno-vla-cxx-extension",
       "-Wno-unqualified-std-cast-call",

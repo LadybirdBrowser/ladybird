@@ -67,7 +67,6 @@ public:
 
 private:
     Vector<u8, 1024> m_data;
-    bool m_fds_taken { false };
     Vector<NonnullRefPtr<AutoCloseFileDescriptor>, 1> m_fds;
 #ifdef AK_OS_WINDOWS
     Vector<size_t> m_handle_offsets;

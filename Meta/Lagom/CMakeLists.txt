@@ -136,10 +136,6 @@ add_library(GenericClangPlugin INTERFACE)
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang$")
     add_cxx_compile_options(-Wno-overloaded-virtual)
-    # FIXME: Re-enable this check when the warning stops triggering, or document why we can't stop it from triggering.
-    # For now, there is a lot of unused private fields in LibWeb that trigger this that could be removed.
-    # See issue #14137 for details
-    add_cxx_compile_options(-Wno-unused-private-field)
 
     if (ENABLE_FUZZERS_LIBFUZZER)
         add_cxx_compile_options(-fsanitize=fuzzer)

@@ -179,7 +179,6 @@ private:
     VideoFrameQueue m_frame_queue;
 
     RefPtr<Core::Timer> m_state_update_timer;
-    unsigned m_decoding_buffer_time_ms = 16;
 
     RefPtr<Threading::Thread> m_decode_thread;
     NonnullOwnPtr<VideoDecoder> m_decoder;
