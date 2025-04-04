@@ -125,7 +125,7 @@ Promise::ResolvingFunctions Promise::create_resolving_functions()
         if (then.is_throw_completion()) {
             // a. Perform RejectPromise(promise, then.[[Value]]).
             dbgln_if(PROMISE_DEBUG, "[Promise @ {} / PromiseResolvingFunction]: Exception while getting 'then' property, rejecting with error", &promise);
-            promise.reject(*then.throw_completion().value());
+            promise.reject(then.throw_completion().value());
 
             // b. Return undefined.
             return js_undefined();

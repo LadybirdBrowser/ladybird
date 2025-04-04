@@ -690,7 +690,7 @@ ErrorOr<void> print_intl_date_time_format(JS::PrintContext& print_context, JS::I
         return {};
     });
 
-    if (result.is_throw_completion() && result.throw_completion().value()->is_null())
+    if (result.is_throw_completion() && result.throw_completion().value().is_null())
         return Error::from_errno(ENOMEM); // probably
 
     return {};

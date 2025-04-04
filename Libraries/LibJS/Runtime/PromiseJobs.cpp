@@ -62,8 +62,6 @@ static ThrowCompletionOr<Value> run_reaction_job(VM& vm, PromiseReaction& reacti
 
         // ii. Return empty.
         dbgln_if(PROMISE_DEBUG, "run_reaction_job: Reaction has no PromiseCapability, returning empty value");
-        // TODO: This can't return an empty value at the moment, because the implicit conversion to Completion would fail.
-        //       Change it back when this is using completions (`return normal_completion({})`)
         return js_undefined();
     }
 
@@ -74,14 +72,14 @@ static ThrowCompletionOr<Value> run_reaction_job(VM& vm, PromiseReaction& reacti
         // i. Return ? Call(promiseCapability.[[Reject]], undefined, « handlerResult.[[Value]] »).
         auto reject_function = promise_capability->reject();
         dbgln_if(PROMISE_DEBUG, "run_reaction_job: Calling PromiseCapability's reject function @ {}", reject_function.ptr());
-        return call(vm, *reject_function, js_undefined(), *handler_result.value());
+        return call(vm, *reject_function, js_undefined(), handler_result.value());
     }
     // i. Else,
     else {
         // i. Return ? Call(promiseCapability.[[Resolve]], undefined, « handlerResult.[[Value]] »).
         auto resolve_function = promise_capability->resolve();
         dbgln_if(PROMISE_DEBUG, "[PromiseReactionJob]: Calling PromiseCapability's resolve function @ {}", resolve_function.ptr());
-        return call(vm, *resolve_function, js_undefined(), *handler_result.value());
+        return call(vm, *resolve_function, js_undefined(), handler_result.value());
     }
 }
 
@@ -134,8 +132,8 @@ static ThrowCompletionOr<Value> run_resolve_thenable_job(VM& vm, Promise& promis
     // c. If thenCallResult is an abrupt completion, then
     if (then_call_result.is_error()) {
         // i. Return ? Call(resolvingFunctions.[[Reject]], undefined, « thenCallResult.[[Value]] »).
-        dbgln_if(PROMISE_DEBUG, "run_resolve_thenable_job: then_call_result is an abrupt completion, calling reject function with value {}", *then_call_result.throw_completion().value());
-        return call(vm, *reject_function, js_undefined(), *then_call_result.throw_completion().value());
+        dbgln_if(PROMISE_DEBUG, "run_resolve_thenable_job: then_call_result is an abrupt completion, calling reject function with value {}", then_call_result.throw_completion().value());
+        return call(vm, *reject_function, js_undefined(), then_call_result.throw_completion().value());
     }
 
     // d. Return ? thenCallResult.

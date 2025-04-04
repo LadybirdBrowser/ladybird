@@ -113,8 +113,7 @@ ThrowCompletionOr<Promise*> SyntheticModule::evaluate(VM& vm)
     // Note: Because we expect it to return a promise we convert this here.
     auto promise = Promise::create(realm());
     if (result.is_error()) {
-        VERIFY(result.throw_completion().value().has_value());
-        promise->reject(*result.throw_completion().value());
+        promise->reject(result.throw_completion().value());
     } else {
         // Note: This value probably isn't visible to JS code? But undefined is fine anyway.
         promise->fulfill(js_undefined());

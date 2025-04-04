@@ -122,7 +122,7 @@ void execute_script(HTML::BrowsingContext const& browsing_context, String body, 
 
         // 3. Upon rejection of scriptPromise with value r, reject promise with value r.
         if (script_result.is_throw_completion()) {
-            WebIDL::reject_promise(realm, promise, *script_result.throw_completion().value());
+            WebIDL::reject_promise(realm, promise, script_result.throw_completion().value());
         }
     }));
 
@@ -184,7 +184,7 @@ void execute_async_script(HTML::BrowsingContext const& browsing_context, String 
         //       In order to preserve legacy behavior, the return value only influences the command if it is a
         //       "thenable"  object or if determining this produces an exception.
         if (script_result.is_throw_completion()) {
-            promise->reject(*script_result.throw_completion().value());
+            promise->reject(script_result.throw_completion().value());
             return;
         }
 
@@ -197,7 +197,7 @@ void execute_async_script(HTML::BrowsingContext const& browsing_context, String 
 
         // 7. If then.[[Type]] is not normal, then reject promise with value then.[[Value]], and abort these steps.
         if (then.is_throw_completion()) {
-            promise->reject(*then.throw_completion().value());
+            promise->reject(then.throw_completion().value());
             return;
         }
 

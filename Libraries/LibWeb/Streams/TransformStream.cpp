@@ -63,7 +63,7 @@ WebIDL::ExceptionOr<GC::Ref<TransformStream>> TransformStream::construct_impl(JS
     // 12. If transformerDict["start"] exists, then resolve startPromise with the result of invoking
     //     transformerDict["start"] with argument list « this.[[controller]] » and callback this value transformer.
     if (transformer_dict.start) {
-        auto result = TRY(WebIDL::invoke_callback(*transformer_dict.start, transformer, stream->controller())).release_value();
+        auto result = TRY(WebIDL::invoke_callback(*transformer_dict.start, transformer, stream->controller()));
         WebIDL::resolve_promise(realm, start_promise, result);
     }
     // 13. Otherwise, resolve startPromise with undefined.

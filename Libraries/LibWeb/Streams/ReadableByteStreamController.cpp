@@ -149,7 +149,7 @@ void ReadableByteStreamController::pull_steps(GC::Ref<ReadRequest> read_request)
         // 2. If buffer is an abrupt completion,
         if (buffer.is_throw_completion()) {
             // 1. Perform readRequest’s error steps, given buffer.[[Value]].
-            read_request->on_error(*buffer.throw_completion().value());
+            read_request->on_error(buffer.throw_completion().value());
 
             // 2. Return.
             return;

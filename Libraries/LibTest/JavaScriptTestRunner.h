@@ -431,7 +431,7 @@ inline JSFileResult TestRunner::run_file_test(ByteString const& test_path)
         suite.most_severe_test_result = Result::Crashed;
 
         Test::Case test_case { "<top-level>"_string, Test::Result::Fail, {}, 0 };
-        auto error = top_level_result.release_error().release_value().release_value();
+        auto error = top_level_result.release_error().release_value();
         if (error.is_object()) {
             StringBuilder detail_builder;
 

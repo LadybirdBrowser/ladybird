@@ -161,7 +161,7 @@ void continue_module_loading(GraphLoadingState& state, ThrowCompletionOr<GC::Ref
         auto value = module_completion.throw_completion().value();
 
         // b. Perform ! Call(state.[[PromiseCapability]].[[Reject]], undefined, « moduleCompletion.[[Value]] »).
-        MUST(call(state.vm(), *state.promise_capability->reject(), js_undefined(), *value));
+        MUST(call(state.vm(), *state.promise_capability->reject(), js_undefined(), value));
     }
 
     // 4. Return UNUSED.
@@ -389,10 +389,10 @@ ThrowCompletionOr<Promise*> CyclicModule::evaluate(VM& vm)
 
         // c. Assert: module.[[EvaluationError]] is result.
         VERIFY(m_evaluation_error.is_error());
-        VERIFY(same_value(*m_evaluation_error.throw_completion().value(), *result.throw_completion().value()));
+        VERIFY(same_value(m_evaluation_error.throw_completion().value(), result.throw_completion().value()));
 
         // d. Perform ! Call(capability.[[Reject]], undefined, « result.[[Value]] »).
-        MUST(call(vm, *m_top_level_capability->reject(), js_undefined(), *result.throw_completion().value()));
+        MUST(call(vm, *m_top_level_capability->reject(), js_undefined(), result.throw_completion().value()));
     }
     // 10. Else,
     else {
@@ -741,7 +741,7 @@ void CyclicModule::async_module_execution_fulfilled(VM& vm)
             // ii. If result is an abrupt completion, then
             if (result.is_throw_completion()) {
                 // 1. Perform AsyncModuleExecutionRejected(m, result.[[Value]]).
-                module->async_module_execution_rejected(vm, *result.throw_completion().value());
+                module->async_module_execution_rejected(vm, result.throw_completion().value());
             }
             // iii. Else,
             else {
@@ -838,7 +838,7 @@ void continue_dynamic_import(GC::Ref<PromiseCapability> promise_capability, Thro
     // 1. If moduleCompletion is an abrupt completion, then
     if (module_completion.is_throw_completion()) {
         // a. Perform ! Call(promiseCapability.[[Reject]], undefined, « moduleCompletion.[[Value]] »).
-        MUST(call(vm, *promise_capability->reject(), js_undefined(), *module_completion.throw_completion().value()));
+        MUST(call(vm, *promise_capability->reject(), js_undefined(), module_completion.throw_completion().value()));
 
         // b. Return unused.
         return;
@@ -874,7 +874,7 @@ void continue_dynamic_import(GC::Ref<PromiseCapability> promise_capability, Thro
         // b. If link is an abrupt completion, then
         if (link.is_throw_completion()) {
             // i. Perform ! Call(promiseCapability.[[Reject]], undefined, « link.[[Value]] »).
-            MUST(call(vm, *promise_capability->reject(), js_undefined(), *link.throw_completion().value()));
+            MUST(call(vm, *promise_capability->reject(), js_undefined(), link.throw_completion().value()));
 
             // ii. Return unused.
             return js_undefined();

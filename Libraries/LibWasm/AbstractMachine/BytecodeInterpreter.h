@@ -27,7 +27,7 @@ struct BytecodeInterpreter : public Interpreter {
         return m_trap.visit(
             [](Empty) -> ByteString { VERIFY_NOT_REACHED(); },
             [](Trap const& trap) { return trap.reason; },
-            [](JS::Completion const& completion) { return completion.value()->to_string_without_side_effects().to_byte_string(); });
+            [](JS::Completion const& completion) { return completion.value().to_string_without_side_effects().to_byte_string(); });
     }
     virtual void clear_trap() final { m_trap = Empty {}; }
 

@@ -194,7 +194,7 @@ ThrowCompletionOr<ClassElement::ClassValue> ClassMethod::class_element_evaluatio
             VERIFY_NOT_REACHED();
         }
 
-        return ClassValue { normal_completion({}) };
+        return ClassValue { normal_completion(js_undefined()) };
     } else {
         auto& private_name = property_key_or_private_name.get<PrivateName>();
         switch (kind()) {
@@ -417,8 +417,7 @@ ThrowCompletionOr<ECMAScriptFunctionObject*> ClassExpression::create_class_const
                 instance_fields.append(move(*class_field_definition_ptr));
         } else if (element->class_element_kind() == ClassElement::ElementKind::StaticInitializer) {
             // We use Completion to hold the ClassStaticBlockDefinition Record.
-            VERIFY(element_value.has<Completion>() && element_value.get<Completion>().value().has_value());
-            auto& element_object = element_value.get<Completion>().value()->as_object();
+            auto& element_object = element_value.get<Completion>().value().as_object();
             VERIFY(is<ECMAScriptFunctionObject>(element_object));
             static_elements.append(GC::Ref { static_cast<ECMAScriptFunctionObject&>(element_object) });
         }

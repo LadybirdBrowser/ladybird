@@ -91,7 +91,7 @@ GC::Ref<FontFace> FontFace::construct_impl(JS::Realm& realm, String family, Font
         if (maybe_buffer.is_error()) {
             VERIFY(maybe_buffer.error().code() == ENOMEM);
             auto throw_completion = vm.throw_completion<JS::InternalError>(vm.error_message(JS::VM::ErrorMessage::OutOfMemory));
-            WebIDL::reject_promise(realm, promise, *throw_completion.value());
+            WebIDL::reject_promise(realm, promise, throw_completion.value());
         } else {
             buffer = maybe_buffer.release_value();
         }

@@ -42,8 +42,7 @@ void AsyncGenerator::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     for (auto const& request : m_async_generator_queue) {
-        if (request.completion.value().has_value())
-            visitor.visit(*request.completion.value());
+        visitor.visit(request.completion.value());
         visitor.visit(request.capability);
     }
     visitor.visit(m_generating_function);
@@ -155,8 +154,6 @@ void AsyncGenerator::execute(VM& vm, Completion completion)
 {
     while (true) {
         // Loosely based on step 4 of https://tc39.es/ecma262/#sec-asyncgeneratorstart
-        VERIFY(completion.value().has_value());
-
         auto generated_value = [](Value value) -> Value {
             if (value.is_cell())
                 return static_cast<GeneratorResult const&>(value.as_cell()).result();
@@ -349,7 +346,7 @@ void AsyncGenerator::await_return()
     VERIFY(completion.type() == Completion::Type::Return);
 
     // 6. Let promiseCompletion be Completion(PromiseResolve(%Promise%, _completion_.[[Value]])).
-    auto promise_completion = promise_resolve(vm, realm.intrinsics().promise_constructor(), completion.value().value());
+    auto promise_completion = promise_resolve(vm, realm.intrinsics().promise_constructor(), completion.value());
 
     // 7. If promiseCompletion is an abrupt completion, then
     if (promise_completion.is_throw_completion()) {
@@ -442,7 +439,7 @@ void AsyncGenerator::complete_step(Completion completion, bool done, Realm* real
     auto promise_capability = next.capability;
 
     // 5. Let value be completion.[[Value]].
-    auto value = completion.value().value();
+    auto value = completion.value();
 
     // 6. If completion.[[Type]] is throw, then
     if (completion.type() == Completion::Type::Throw) {

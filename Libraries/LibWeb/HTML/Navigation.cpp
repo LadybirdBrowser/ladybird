@@ -1143,7 +1143,7 @@ bool Navigation::inner_navigate_event_firing_algorithm(
             // 1. Append the result of invoking handler with an empty arguments list to promisesList.
             auto result = WebIDL::invoke_callback(handler, {});
             // This *should* be equivalent to converting a promise to a promise capability
-            promises_list.append(WebIDL::create_resolved_promise(realm, result.value().value()));
+            promises_list.append(WebIDL::create_resolved_promise(realm, result.value()));
         }
 
         // 3. If promisesList's size is 0, then set promisesList to « a promise resolved with undefined ».

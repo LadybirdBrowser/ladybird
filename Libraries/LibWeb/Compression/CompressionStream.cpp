@@ -57,7 +57,7 @@ WebIDL::ExceptionOr<GC::Ref<CompressionStream>> CompressionStream::construct_imp
 
         if (auto result = stream->compress_and_enqueue_chunk(chunk); result.is_error()) {
             auto throw_completion = Bindings::exception_to_throw_completion(vm, result.exception());
-            return WebIDL::create_rejected_promise(realm, *throw_completion.release_value());
+            return WebIDL::create_rejected_promise(realm, throw_completion.release_value());
         }
 
         return WebIDL::create_resolved_promise(realm, JS::js_undefined());
@@ -70,7 +70,7 @@ WebIDL::ExceptionOr<GC::Ref<CompressionStream>> CompressionStream::construct_imp
 
         if (auto result = stream->compress_flush_and_enqueue(); result.is_error()) {
             auto throw_completion = Bindings::exception_to_throw_completion(vm, result.exception());
-            return WebIDL::create_rejected_promise(realm, *throw_completion.release_value());
+            return WebIDL::create_rejected_promise(realm, throw_completion.release_value());
         }
 
         return WebIDL::create_resolved_promise(realm, JS::js_undefined());

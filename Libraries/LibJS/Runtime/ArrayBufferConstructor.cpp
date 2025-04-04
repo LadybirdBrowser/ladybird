@@ -60,7 +60,7 @@ ThrowCompletionOr<GC::Ref<Object>> ArrayBufferConstructor::construct(FunctionObj
 
     if (byte_length_or_error.is_error()) {
         auto error = byte_length_or_error.release_error();
-        if (error.value()->is_object() && is<RangeError>(error.value()->as_object())) {
+        if (error.value().is_object() && is<RangeError>(error.value().as_object())) {
             // Re-throw more specific RangeError
             return vm.throw_completion<RangeError>(ErrorType::InvalidLength, "array buffer");
         }

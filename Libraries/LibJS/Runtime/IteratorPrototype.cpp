@@ -175,11 +175,11 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::every)
 
         // d. IfAbruptCloseIterator(result, iterated).
         if (result.is_error())
-            return *TRY(iterator_close(vm, iterated, result.release_error()));
+            return TRY(iterator_close(vm, iterated, result.release_error()));
 
         // e. If ToBoolean(result) is false, return ? IteratorClose(iterated, NormalCompletion(false)).
         if (!result.value().to_boolean())
-            return *TRY(iterator_close(vm, iterated, normal_completion(Value { false })));
+            return TRY(iterator_close(vm, iterated, normal_completion(Value { false })));
 
         // f. Set counter to counter + 1.
         ++counter;
@@ -280,11 +280,11 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::find)
 
         // d. IfAbruptCloseIterator(result, iterated).
         if (result.is_error())
-            return *TRY(iterator_close(vm, iterated, result.release_error()));
+            return TRY(iterator_close(vm, iterated, result.release_error()));
 
         // e. If ToBoolean(result) is true, return ? IteratorClose(iterated, NormalCompletion(value)).
         if (result.value().to_boolean())
-            return *TRY(iterator_close(vm, iterated, normal_completion(value)));
+            return TRY(iterator_close(vm, iterated, normal_completion(*value)));
 
         // f. Set counter to counter + 1.
         ++counter;
@@ -466,7 +466,7 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::for_each)
 
         // d. IfAbruptCloseIterator(result, iterated).
         if (result.is_error())
-            return *TRY(iterator_close(vm, iterated, result.release_error()));
+            return TRY(iterator_close(vm, iterated, result.release_error()));
 
         // e. Set counter to counter + 1.
         ++counter;
@@ -585,7 +585,7 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::reduce)
 
         // d. IfAbruptCloseIterator(result, iterated).
         if (result.is_error())
-            return *TRY(iterator_close(vm, iterated, result.release_error()));
+            return TRY(iterator_close(vm, iterated, result.release_error()));
 
         // e. Set accumulator to result.[[Value]].
         accumulator = result.release_value();
@@ -628,11 +628,11 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::some)
 
         // d. IfAbruptCloseIterator(result, iterated).
         if (result.is_error())
-            return *TRY(iterator_close(vm, iterated, result.release_error()));
+            return TRY(iterator_close(vm, iterated, result.release_error()));
 
         // e. If ToBoolean(result) is true, return ? IteratorClose(iterated, NormalCompletion(true)).
         if (result.value().to_boolean())
-            return *TRY(iterator_close(vm, iterated, normal_completion(Value { true })));
+            return TRY(iterator_close(vm, iterated, normal_completion(Value { true })));
 
         // f. Set counter to counter + 1.
         ++counter;

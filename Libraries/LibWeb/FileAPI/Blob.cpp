@@ -350,7 +350,7 @@ GC::Ref<Streams::ReadableStream> Blob::get_stream()
                 });
 
                 if (maybe_error.is_error()) {
-                    readable_stream_error(*stream, maybe_error.release_error().value().value());
+                    readable_stream_error(*stream, maybe_error.release_error().value());
                     return;
                 }
 

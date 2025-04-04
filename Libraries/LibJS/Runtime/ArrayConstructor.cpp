@@ -191,7 +191,7 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayConstructor::from)
                 auto error = vm.throw_completion<TypeError>(ErrorType::ArrayMaxSize);
 
                 // 2. Return ? IteratorClose(iteratorRecord, error).
-                return *TRY(iterator_close(vm, iterator, move(error)));
+                return TRY(iterator_close(vm, iterator, move(error)));
             }
 
             // ii. Let Pk be ! ToString(𝔽(k)).
@@ -218,7 +218,7 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayConstructor::from)
 
                 // 2. IfAbruptCloseIterator(mappedValue, iteratorRecord).
                 if (mapped_value_or_error.is_error())
-                    return *TRY(iterator_close(vm, iterator, mapped_value_or_error.release_error()));
+                    return TRY(iterator_close(vm, iterator, mapped_value_or_error.release_error()));
                 mapped_value = mapped_value_or_error.release_value();
             }
             // vi. Else, let mappedValue be nextValue.
@@ -231,7 +231,7 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayConstructor::from)
 
             // viii. IfAbruptCloseIterator(defineStatus, iteratorRecord).
             if (result_or_error.is_error())
-                return *TRY(iterator_close(vm, iterator, result_or_error.release_error()));
+                return TRY(iterator_close(vm, iterator, result_or_error.release_error()));
 
             // ix. Set k to k + 1.
         }
@@ -374,7 +374,7 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayConstructor::from_async)
                     auto error = vm.throw_completion<TypeError>(ErrorType::ArrayMaxSize);
 
                     // b. Return ? AsyncIteratorClose(iteratorRecord, error).
-                    return *TRY(async_iterator_close(vm, *iterator_record, move(error)));
+                    return TRY(async_iterator_close(vm, *iterator_record, move(error)));
                 }
 
                 // 2. Let Pk be ! ToString(𝔽(k)).
@@ -443,7 +443,7 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayConstructor::from_async)
 
                 // 12. If defineStatus is an abrupt completion, return ? AsyncIteratorClose(iteratorRecord, defineStatus).
                 if (define_status.is_error())
-                    return *TRY(iterator_close(vm, *iterator_record, define_status.release_error()));
+                    return TRY(iterator_close(vm, *iterator_record, define_status.release_error()));
 
                 // 13. Set k to k + 1.
             }

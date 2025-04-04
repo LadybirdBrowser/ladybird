@@ -166,7 +166,7 @@ struct Formatter<Web::WebIDL::Exception> : Formatter<FormatString> {
             },
             [&](JS::Completion const& completion) -> ErrorOr<void> {
                 VERIFY(completion.is_error());
-                auto value = *completion.value();
+                auto value = completion.value();
 
                 if (value.is_object()) {
                     auto& object = value.as_object();

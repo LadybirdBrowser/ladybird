@@ -734,7 +734,7 @@ GC::Ref<WebIDL::Promise> compile_potential_webassembly_response(JS::VM& vm, GC::
 
         // 1. Let response be unwrappedSource’s response.
         if (!unwrapped_source.is_object() || !is<Fetch::Response>(unwrapped_source.as_object())) {
-            WebIDL::reject_promise(realm, return_value, *vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "Response").value());
+            WebIDL::reject_promise(realm, return_value, vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "Response").value());
             return JS::js_undefined();
         }
         auto& response_object = static_cast<Fetch::Response&>(unwrapped_source.as_object());
@@ -747,19 +747,19 @@ GC::Ref<WebIDL::Promise> compile_potential_webassembly_response(JS::VM& vm, GC::
         // Note: extra parameters are not allowed, including the empty `application/wasm;`.
         // FIXME: Validate these extra constraints that are not checked by extract_mime_type()
         if (auto mime = response->header_list()->extract_mime_type(); !mime.has_value() || mime.value().essence() != "application/wasm"sv) {
-            WebIDL::reject_promise(realm, return_value, *vm.throw_completion<JS::TypeError>("Response does not match the application/wasm MIME type"sv).value());
+            WebIDL::reject_promise(realm, return_value, vm.throw_completion<JS::TypeError>("Response does not match the application/wasm MIME type"sv).value());
             return JS::js_undefined();
         }
 
         // 6. If response is not CORS-same-origin, reject returnValue with a TypeError and abort these substeps.
         if (!response->is_cors_same_origin()) {
-            WebIDL::reject_promise(realm, return_value, *vm.throw_completion<JS::TypeError>("Response is not CORS-same-origin"sv).value());
+            WebIDL::reject_promise(realm, return_value, vm.throw_completion<JS::TypeError>("Response is not CORS-same-origin"sv).value());
             return JS::js_undefined();
         }
 
         // 7. If response’s status is not an ok status, reject returnValue with a TypeError and abort these substeps.
         if (!response_object.ok()) {
-            WebIDL::reject_promise(realm, return_value, *vm.throw_completion<JS::TypeError>("Response does not represent an ok status"sv).value());
+            WebIDL::reject_promise(realm, return_value, vm.throw_completion<JS::TypeError>("Response does not represent an ok status"sv).value());
             return JS::js_undefined();
         }
 
@@ -767,7 +767,7 @@ GC::Ref<WebIDL::Promise> compile_potential_webassembly_response(JS::VM& vm, GC::
         auto body_promise_or_error = response_object.array_buffer();
         if (body_promise_or_error.is_error()) {
             auto throw_completion = Bindings::exception_to_throw_completion(realm.vm(), body_promise_or_error.release_error());
-            WebIDL::reject_promise(realm, return_value, *throw_completion.value());
+            WebIDL::reject_promise(realm, return_value, throw_completion.value());
             return JS::js_undefined();
         }
         auto body_promise = body_promise_or_error.release_value();
@@ -779,7 +779,7 @@ GC::Ref<WebIDL::Promise> compile_potential_webassembly_response(JS::VM& vm, GC::
             auto stable_bytes = WebIDL::get_buffer_source_copy(body_array_buffer.as_object());
             if (stable_bytes.is_error()) {
                 VERIFY(stable_bytes.error().code() == ENOMEM);
-                WebIDL::reject_promise(HTML::relevant_realm(*return_value->promise()), return_value, *vm.throw_completion<JS::InternalError>(vm.error_message(JS::VM::ErrorMessage::OutOfMemory)).value());
+                WebIDL::reject_promise(HTML::relevant_realm(*return_value->promise()), return_value, vm.throw_completion<JS::InternalError>(vm.error_message(JS::VM::ErrorMessage::OutOfMemory)).value());
                 return JS::js_undefined();
             }
 
