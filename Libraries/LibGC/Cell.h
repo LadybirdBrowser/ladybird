@@ -28,13 +28,6 @@ namespace GC {
 #    define IGNORE_GC
 #endif
 
-// https://github.com/swiftlang/swift/issues/80182
-#if defined(LIBGC_WORKAROUND_BOOL_BITFIELD)
-#    define BOOL_BITFIELD
-#else
-#    define BOOL_BITFIELD : 1
-#endif
-
 #define GC_CELL(class_, base_class)                \
 public:                                            \
     using Base = base_class;                       \
@@ -195,9 +188,9 @@ protected:
     void set_overrides_must_survive_garbage_collection(bool b) { m_overrides_must_survive_garbage_collection = b; }
 
 private:
-    bool m_mark BOOL_BITFIELD { false };
-    bool m_overrides_must_survive_garbage_collection BOOL_BITFIELD { false };
-    State m_state BOOL_BITFIELD { State::Live };
+    bool m_mark : 1 { false };
+    bool m_overrides_must_survive_garbage_collection : 1 { false };
+    State m_state : 1 { State::Live };
 } SWIFT_UNSAFE_REFERENCE;
 
 }
