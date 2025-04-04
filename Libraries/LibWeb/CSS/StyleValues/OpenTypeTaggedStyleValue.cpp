@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2024-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -13,8 +13,18 @@ String OpenTypeTaggedStyleValue::to_string(SerializationMode mode) const
 {
     StringBuilder builder;
     serialize_a_string(builder, m_tag);
-    // FIXME: For font-feature-settings, a 1 value is implicit, so we shouldn't output it.
-    builder.appendff(" {}", m_value->to_string(mode));
+    switch (m_mode) {
+    case Mode::FontFeatureSettings: {
+        // For font-feature-settings, a 1 value is implicit, so we shouldn't output it.
+        auto value_string = m_value->to_string(mode);
+        if (value_string != "1"sv)
+            builder.appendff(" {}", value_string);
+        break;
+    }
+    case Mode::FontVariationSettings:
+        builder.appendff(" {}", m_value->to_string(mode));
+        break;
+    }
 
     return builder.to_string_without_validation();
 }
