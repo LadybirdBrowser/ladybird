@@ -4432,6 +4432,12 @@ RefPtr<CSSStyleValue> Parser::parse_filter_value_list_value(TokenStream<Componen
                     return {};
                 if (amount->is_number() && amount->number().value() < 0)
                     return {};
+                if (first_is_one_of(filter_token, FilterToken::Grayscale, FilterToken::Invert, FilterToken::Opacity, FilterToken::Sepia)) {
+                    if (amount->is_percentage() && amount->percentage().value() > 100)
+                        amount = Percentage { 100 };
+                    if (amount->is_number() && amount->number().value() > 1)
+                        amount = Number { Number::Type::Integer, 1.0 };
+                }
             }
             return if_no_more_tokens_return(FilterOperation::Color { filter_token_to_operation(filter_token), amount.value_or(Number { Number::Type::Integer, 1 }) });
         }
