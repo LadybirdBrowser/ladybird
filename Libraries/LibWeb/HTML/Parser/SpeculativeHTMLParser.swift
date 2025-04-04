@@ -57,4 +57,8 @@ public final class SpeculativeHTMLParser: HeapAllocatable {
     public func visitEdges(_ visitor: GC.Cell.Visitor) {
         visitor.visit(parser)
     }
+
+    public func poke() {
+        print("Hello from SpeculativeHTMLParser")
+    }
 }
