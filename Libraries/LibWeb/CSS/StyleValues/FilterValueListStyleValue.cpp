@@ -15,11 +15,7 @@ namespace Web::CSS {
 
 float FilterOperation::Blur::resolved_radius(Layout::Node const& node) const
 {
-    if (radius.has_value())
-        return radius->resolved({ .length_resolution_context = Length::ResolutionContext::for_layout_node(node) })->to_px(node).to_float();
-
-    // Default value when omitted is 0px.
-    return 0;
+    return radius.resolved({ .length_resolution_context = Length::ResolutionContext::for_layout_node(node) })->to_px(node).to_float();
 }
 
 float FilterOperation::HueRotate::angle_degrees(Layout::Node const& node) const
@@ -56,9 +52,7 @@ String FilterValueListStyleValue::to_string(SerializationMode) const
             builder.append(' ');
         filter_function.visit(
             [&](FilterOperation::Blur const& blur) {
-                builder.append("blur("sv);
-                if (blur.radius.has_value())
-                    builder.append(blur.radius->to_string());
+                builder.appendff("blur({}"sv, blur.radius.to_string());
             },
             [&](FilterOperation::DropShadow const& drop_shadow) {
                 builder.appendff("drop-shadow("sv);

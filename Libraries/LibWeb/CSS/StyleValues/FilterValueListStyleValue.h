@@ -21,7 +21,7 @@ namespace Web::CSS {
 namespace FilterOperation {
 
 struct Blur {
-    Optional<LengthOrCalculated> radius;
+    LengthOrCalculated radius { Length::make_px(0) };
     float resolved_radius(Layout::Node const&) const;
     bool operator==(Blur const&) const = default;
 };
