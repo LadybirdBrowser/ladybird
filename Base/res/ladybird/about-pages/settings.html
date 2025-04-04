@@ -185,6 +185,19 @@
                 margin: 8px 4px 10px 4px;
             }
 
+            dialog .dialog-form {
+                border-top: 1px solid var(--border-color);
+
+                display: flex;
+                flex-direction: column;
+
+                padding: 15px 20px;
+            }
+
+            dialog .form-group {
+                margin-bottom: 20px;
+            }
+
             dialog .dialog-footer {
                 display: flex;
                 justify-content: flex-end;
@@ -318,10 +331,13 @@
                 </div>
                 <div class="card-group hidden">
                     <label for="search-engine">Default Search Engine</label>
-                    <select id="search-engine">
-                        <option value="">Please select a search engine</option>
-                        <hr />
-                    </select>
+                    <div class="inline-container">
+                        <select id="search-engine">
+                            <option value="">Please select a search engine</option>
+                            <hr />
+                        </select>
+                        <button id="search-settings" class="secondary-button">Settings...</button>
+                    </div>
                 </div>
 
                 <hr />
@@ -386,6 +402,35 @@
             </div>
         </dialog>
 
+        <dialog id="search-dialog">
+            <div class="dialog-header">
+                <h3 class="dialog-title">Search Settings</h3>
+                <button id="search-close" class="close-button dialog-button">&times;</button>
+            </div>
+            <div class="dialog-body" style="height: 300px">
+                <p class="dialog-description">Manage custom search engines</p>
+                <div id="search-list" class="dialog-list"></div>
+            </div>
+            <div class="dialog-form">
+                <div class="form-group">
+                    <label for="search-custom-name">Search Engine Name</label>
+                    <input id="search-custom-name" type="text" placeholder="Example" />
+                </div>
+                <div class="form-group">
+                    <label for="search-custom-url">Search URL</label>
+                    <p class="dialog-description">Use %s as a placeholder for the search query</p>
+                    <input
+                        id="search-custom-url"
+                        type="url"
+                        placeholder="https://example.com/search?q=%s"
+                    />
+                </div>
+                <div class="dialog-controls">
+                    <button id="search-custom-add" class="primary-button">Add&nbsp;Engine</button>
+                </div>
+            </div>
+        </dialog>
+
         <dialog id="site-settings">
             <div class="dialog-header">
                 <h3 id="site-settings-title" class="dialog-title"></h3>
@@ -421,10 +466,17 @@
             const languagesList = document.querySelector("#languages-list");
             const languagesSelect = document.querySelector("#languages-select");
             const languagesSettings = document.querySelector("#languages-settings");
-            const searchToggle = document.querySelector("#search-toggle");
+            const searchClose = document.querySelector("#search-close");
+            const searchCustomAdd = document.querySelector("#search-custom-add");
+            const searchCustomName = document.querySelector("#search-custom-name");
+            const searchCustomURL = document.querySelector("#search-custom-url");
+            const searchDialog = document.querySelector("#search-dialog");
             const searchEngine = document.querySelector("#search-engine");
-            const autocompleteToggle = document.querySelector("#autocomplete-toggle");
+            const searchList = document.querySelector("#search-list");
+            const searchSettings = document.querySelector("#search-settings");
+            const searchToggle = document.querySelector("#search-toggle");
             const autocompleteEngine = document.querySelector("#autocomplete-engine");
+            const autocompleteToggle = document.querySelector("#autocomplete-toggle");
             const autoplaySettings = document.querySelector("#autoplay-settings");
             const siteSettings = document.querySelector("#site-settings");
             const siteSettingsAdd = document.querySelector("#site-settings-add");
@@ -445,6 +497,7 @@
                 '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>';
 
             window.settings = {};
+            window.nativeSearchEngineCount = 0;
 
             const loadSettings = settings => {
                 window.settings = settings;
@@ -472,8 +525,13 @@
                     renderEngine(type);
                 };
 
+                loadCustomSearchEngines();
                 renderEngineSettings(Engine.search, window.settings.searchEngine);
                 renderEngineSettings(Engine.autocomplete, window.settings.autocompleteEngine);
+
+                if (searchDialog.open) {
+                    showSearchEngineSettings();
+                }
 
                 const siteSetting = currentSiteSetting();
 
@@ -484,11 +542,15 @@
                 doNotTrackToggle.checked = window.settings.doNotTrack;
             };
 
+            const containsValidURL = input => {
+                return input.value.length !== 0 && input.checkValidity();
+            };
+
             newTabPageURL.addEventListener("change", () => {
                 newTabPageURL.classList.remove("success");
                 newTabPageURL.classList.remove("error");
 
-                if (!newTabPageURL.checkValidity()) {
+                if (!containsValidURL(newTabPageURL)) {
                     newTabPageURL.classList.add("error");
                     return;
                 }
@@ -657,15 +719,20 @@
 
                     engine.add(option);
                 }
+
+                if (type === Engine.search) {
+                    window.nativeSearchEngineCount = engine.length;
+                    engine.appendChild(document.createElement("hr"));
+                }
             };
 
             const renderEngine = type => {
                 const [name, toggle, engine] = engineForType(type);
 
                 if (toggle.checked) {
-                    engine.parentElement.classList.remove("hidden");
+                    engine.closest(".card-group").classList.remove("hidden");
                 } else {
-                    engine.parentElement.classList.add("hidden");
+                    engine.closest(".card-group").classList.add("hidden");
                 }
 
                 if (toggle.checked && engine.selectedIndex !== 0) {
@@ -701,6 +768,124 @@
 
             setSaveEngineListeners(Engine.search);
             setSaveEngineListeners(Engine.autocomplete);
+
+            const loadCustomSearchEngines = () => {
+                while (searchEngine.length > window.nativeSearchEngineCount) {
+                    searchEngine.remove(window.nativeSearchEngineCount);
+                }
+
+                const custom = window.settings.searchEngine?.custom || [];
+
+                custom.forEach(custom => {
+                    const option = document.createElement("option");
+                    option.text = custom.name;
+                    option.value = custom.name;
+
+                    searchEngine.add(option);
+                });
+            };
+
+            const showSearchEngineSettings = () => {
+                searchCustomName.classList.remove("error");
+                searchCustomURL.classList.remove("error");
+                searchList.innerHTML = "";
+
+                const custom = window.settings.searchEngine?.custom || [];
+
+                if (custom.length === 0) {
+                    const placeholder = document.createElement("div");
+                    placeholder.className = "dialog-list-item-placeholder";
+                    placeholder.textContent = "No custom search engines added";
+
+                    searchList.appendChild(placeholder);
+                }
+
+                custom.forEach(custom => {
+                    const name = document.createElement("span");
+                    name.textContent = custom.name;
+
+                    const url = document.createElement("span");
+                    url.className = "dialog-list-item-placeholder";
+                    url.style = "padding-left: 0";
+                    url.textContent = ` — ${custom.url}`;
+
+                    const engine = document.createElement("span");
+                    engine.className = "dialog-list-item-label";
+                    engine.appendChild(name);
+                    engine.appendChild(url);
+
+                    const remove = document.createElement("button");
+                    remove.className = "dialog-button";
+                    remove.innerHTML = "&times;";
+                    remove.title = `Remove ${custom.name}`;
+
+                    remove.addEventListener("click", () => {
+                        ladybird.sendMessage("removeCustomSearchEngine", custom);
+                    });
+
+                    const item = document.createElement("div");
+                    item.className = "dialog-list-item";
+                    item.appendChild(engine);
+                    item.appendChild(remove);
+
+                    searchList.appendChild(item);
+                });
+
+                if (!searchDialog.open) {
+                    setTimeout(() => searchCustomName.focus());
+                    searchDialog.showModal();
+                }
+            };
+
+            const addCustomSearchEngine = () => {
+                searchCustomName.classList.remove("error");
+                searchCustomURL.classList.remove("error");
+
+                for (const i = 0; i < searchEngine.length; ++i) {
+                    if (searchCustomName.value === searchEngine.item(i).value) {
+                        searchCustomName.classList.add("error");
+                        return;
+                    }
+                }
+
+                if (!containsValidURL(searchCustomURL)) {
+                    searchCustomURL.classList.add("error");
+                    return;
+                }
+
+                ladybird.sendMessage("addCustomSearchEngine", {
+                    name: searchCustomName.value,
+                    url: searchCustomURL.value,
+                });
+
+                searchCustomName.value = "";
+                searchCustomURL.value = "";
+
+                setTimeout(() => searchCustomName.focus());
+            };
+
+            searchCustomAdd.addEventListener("click", addCustomSearchEngine);
+
+            searchCustomName.addEventListener("keydown", event => {
+                if (event.key === "Enter") {
+                    addCustomSearchEngine();
+                }
+            });
+
+            searchCustomURL.addEventListener("keydown", event => {
+                if (event.key === "Enter") {
+                    addCustomSearchEngine();
+                }
+            });
+
+            searchClose.addEventListener("click", () => {
+                searchDialog.close();
+            });
+
+            searchSettings.addEventListener("click", event => {
+                showSearchEngineSettings();
+                event.stopPropagation();
+            });
 
             const forciblyEnableSiteSettings = settings => {
                 settings.forEach(setting => {
@@ -837,8 +1022,7 @@
                     }
                 };
 
-                close(languagesDialog);
-                close(siteSettings);
+                document.querySelectorAll("dialog").forEach(close);
             });
 
             document.addEventListener("WebUILoaded", () => {
