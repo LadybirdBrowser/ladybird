@@ -1,58 +1,58 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (1,1) content-size 798x261 [BFC] children: not-inline
-    BlockContainer <body> at (10,10) content-size 780x243 children: not-inline
+  BlockContainer <html> at (1,1) content-size 798x264 [BFC] children: not-inline
+    BlockContainer <body> at (10,10) content-size 780x246 children: not-inline
       BlockContainer <(anonymous)> at (10,10) content-size 780x0 children: inline
         TextNode <#text>
-      Box <div.grid> at (31,31) content-size 738x39 [GFC] children: not-inline
-        BlockContainer <div.start> at (32,32) content-size 355.765625x17 [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 6, rect: [32,32 50.203125x17] baseline: 13.296875
+      Box <div.grid> at (31,31) content-size 738x40 [GFC] children: not-inline
+        BlockContainer <div.start> at (32,32) content-size 355.765625x18 [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 6, rect: [32,32 50.203125x18] baseline: 13.796875
               "Start1"
           TextNode <#text>
-        BlockContainer <div.item-padding> at (399.765625,42) content-size 358.234375x17 [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 6, rect: [399.765625,42 52.671875x17] baseline: 13.296875
+        BlockContainer <div.item-padding> at (399.765625,42) content-size 358.234375x18 [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 6, rect: [399.765625,42 52.671875x18] baseline: 13.796875
               "Start2"
           TextNode <#text>
-      BlockContainer <(anonymous)> at (10,91) content-size 780x0 children: inline
+      BlockContainer <(anonymous)> at (10,92) content-size 780x0 children: inline
         TextNode <#text>
-      Box <div.grid> at (31,112) content-size 738x39 [GFC] children: not-inline
-        BlockContainer <div.center> at (32,123) content-size 355.765625x17 [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 7, rect: [32,123 59.390625x17] baseline: 13.296875
+      Box <div.grid> at (31,113) content-size 738x40 [GFC] children: not-inline
+        BlockContainer <div.center> at (32,124) content-size 355.765625x18 [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 7, rect: [32,124 59.390625x18] baseline: 13.796875
               "Center1"
           TextNode <#text>
-        BlockContainer <div.item-padding> at (399.765625,123) content-size 358.234375x17 [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 7, rect: [399.765625,123 61.859375x17] baseline: 13.296875
+        BlockContainer <div.item-padding> at (399.765625,124) content-size 358.234375x18 [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 7, rect: [399.765625,124 61.859375x18] baseline: 13.796875
               "Center2"
           TextNode <#text>
-      BlockContainer <(anonymous)> at (10,172) content-size 780x0 children: inline
+      BlockContainer <(anonymous)> at (10,174) content-size 780x0 children: inline
         TextNode <#text>
-      Box <div.grid> at (31,193) content-size 738x39 [GFC] children: not-inline
-        BlockContainer <div.end> at (32,214) content-size 355.765625x17 [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 4, rect: [32,214 35.671875x17] baseline: 13.296875
+      Box <div.grid> at (31,195) content-size 738x40 [GFC] children: not-inline
+        BlockContainer <div.end> at (32,216) content-size 355.765625x18 [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 4, rect: [32,216 35.671875x18] baseline: 13.796875
               "End1"
           TextNode <#text>
-        BlockContainer <div.item-padding> at (399.765625,204) content-size 358.234375x17 [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 4, rect: [399.765625,204 38.140625x17] baseline: 13.296875
+        BlockContainer <div.item-padding> at (399.765625,206) content-size 358.234375x18 [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 4, rect: [399.765625,206 38.140625x18] baseline: 13.796875
               "End2"
           TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x263]
-    PaintableWithLines (BlockContainer<BODY>) [9,9 782x245]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x266]
+    PaintableWithLines (BlockContainer<BODY>) [9,9 782x248]
       PaintableWithLines (BlockContainer(anonymous)) [10,10 780x0]
-      PaintableBox (Box<DIV>.grid) [10,10 780x81]
-        PaintableWithLines (BlockContainer<DIV>.start) [31,31 357.765625x19]
+      PaintableBox (Box<DIV>.grid) [10,10 780x82]
+        PaintableWithLines (BlockContainer<DIV>.start) [31,31 357.765625x20]
           TextPaintable (TextNode<#text>)
-        PaintableWithLines (BlockContainer<DIV>.item-padding) [388.765625,31 380.234375x39]
+        PaintableWithLines (BlockContainer<DIV>.item-padding) [388.765625,31 380.234375x40]
           TextPaintable (TextNode<#text>)
-      PaintableWithLines (BlockContainer(anonymous)) [10,91 780x0]
-      PaintableBox (Box<DIV>.grid) [10,91 780x81]
-        PaintableWithLines (BlockContainer<DIV>.center) [31,122 357.765625x19]
+      PaintableWithLines (BlockContainer(anonymous)) [10,92 780x0]
+      PaintableBox (Box<DIV>.grid) [10,92 780x82]
+        PaintableWithLines (BlockContainer<DIV>.center) [31,123 357.765625x20]
           TextPaintable (TextNode<#text>)
-        PaintableWithLines (BlockContainer<DIV>.item-padding) [388.765625,112 380.234375x39]
+        PaintableWithLines (BlockContainer<DIV>.item-padding) [388.765625,113 380.234375x40]
           TextPaintable (TextNode<#text>)
-      PaintableWithLines (BlockContainer(anonymous)) [10,172 780x0]
-      PaintableBox (Box<DIV>.grid) [10,172 780x81]
-        PaintableWithLines (BlockContainer<DIV>.end) [31,213 357.765625x19]
+      PaintableWithLines (BlockContainer(anonymous)) [10,174 780x0]
+      PaintableBox (Box<DIV>.grid) [10,174 780x82]
+        PaintableWithLines (BlockContainer<DIV>.end) [31,215 357.765625x20]
           TextPaintable (TextNode<#text>)
-        PaintableWithLines (BlockContainer<DIV>.item-padding) [388.765625,193 380.234375x39]
+        PaintableWithLines (BlockContainer<DIV>.item-padding) [388.765625,195 380.234375x40]
           TextPaintable (TextNode<#text>)

@@ -1,21 +1,21 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
   BlockContainer <html> at (0,0) content-size 800x600 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x17 children: not-inline
-      Box <div#grid> at (8,8) content-size 784x17 [GFC] children: not-inline
-        BlockContainer <div#title> at (8,8) content-size 88.171875x17 [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 10, rect: [8,8 88.171875x17] baseline: 13.296875
+    BlockContainer <body> at (8,8) content-size 784x18 children: not-inline
+      Box <div#grid> at (8,8) content-size 784x18 [GFC] children: not-inline
+        BlockContainer <div#title> at (8,8) content-size 88.171875x18 [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 10, rect: [8,8 88.171875x18] baseline: 13.796875
               "Game Title"
           TextNode <#text>
-        BlockContainer <div#board> at (96.171875,8) content-size 695.828125x17 [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 5, rect: [96.171875,8 45.734375x17] baseline: 13.296875
+        BlockContainer <div#board> at (96.171875,8) content-size 695.828125x18 [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 5, rect: [96.171875,8 45.734375x18] baseline: 13.796875
               "Board"
           TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x600]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x17]
-      PaintableBox (Box<DIV>#grid) [8,8 784x17]
-        PaintableWithLines (BlockContainer<DIV>#title) [8,8 88.171875x17]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x18]
+      PaintableBox (Box<DIV>#grid) [8,8 784x18]
+        PaintableWithLines (BlockContainer<DIV>#title) [8,8 88.171875x18]
           TextPaintable (TextNode<#text>)
-        PaintableWithLines (BlockContainer<DIV>#board) [96.171875,8 695.828125x17]
+        PaintableWithLines (BlockContainer<DIV>#board) [96.171875,8 695.828125x18]
           TextPaintable (TextNode<#text>)

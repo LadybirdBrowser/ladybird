@@ -7,14 +7,14 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
       BlockContainer <(anonymous)> (not painted) [BFC] children: inline
         TextNode <#text>
       BlockContainer <div.buttons> at (394.625,11) content-size 114.375x50 flex-item [BFC] children: inline
-        frag 0 from BlockContainer start: 0, length: 0, rect: [395.625,12 57.046875x17] baseline: 14.296875
-        frag 1 from BlockContainer start: 0, length: 0, rect: [454.671875,12 53.328125x17] baseline: 14.296875
-        BlockContainer <div.button> at (395.625,12) content-size 57.046875x17 inline-block [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 6, rect: [395.625,12 57.046875x17] baseline: 13.296875
+        frag 0 from BlockContainer start: 0, length: 0, rect: [395.625,12 57.046875x18] baseline: 14.796875
+        frag 1 from BlockContainer start: 0, length: 0, rect: [454.671875,12 53.328125x18] baseline: 14.796875
+        BlockContainer <div.button> at (395.625,12) content-size 57.046875x18 inline-block [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 6, rect: [395.625,12 57.046875x18] baseline: 13.796875
               "Accept"
           TextNode <#text>
-        BlockContainer <div.button> at (454.671875,12) content-size 53.328125x17 inline-block [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 6, rect: [454.671875,12 53.328125x17] baseline: 13.296875
+        BlockContainer <div.button> at (454.671875,12) content-size 53.328125x18 inline-block [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 6, rect: [454.671875,12 53.328125x18] baseline: 13.796875
               "Reject"
           TextNode <#text>
 
@@ -23,7 +23,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
     PaintableBox (Box<BODY>) [9,9 502x54]
       PaintableWithLines (BlockContainer<DIV>.big) [10,10 383.625x52]
       PaintableWithLines (BlockContainer<DIV>.buttons) [393.625,10 116.375x52]
-        PaintableWithLines (BlockContainer<DIV>.button) [394.625,11 59.046875x19]
+        PaintableWithLines (BlockContainer<DIV>.button) [394.625,11 59.046875x20]
           TextPaintable (TextNode<#text>)
-        PaintableWithLines (BlockContainer<DIV>.button) [453.671875,11 55.328125x19]
+        PaintableWithLines (BlockContainer<DIV>.button) [453.671875,11 55.328125x20]
           TextPaintable (TextNode<#text>)

@@ -4,11 +4,11 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
       BlockContainer <div#page> at (50,50) content-size 750x0 children: not-inline
         BlockContainer <div#content_box> at (50,50) content-size 400x150 floating [BFC] children: inline
           BlockContainer <article.first> at (50,50) content-size 300x100 floating [BFC] children: inline
-            frag 0 from TextNode start: 0, length: 5, rect: [50,50 36.03125x17] baseline: 13.296875
+            frag 0 from TextNode start: 0, length: 5, rect: [50,50 36.03125x18] baseline: 13.796875
                 "first"
             TextNode <#text>
           BlockContainer <article.second> at (50,150) content-size 200x50 floating [BFC] children: inline
-            frag 0 from TextNode start: 0, length: 6, rect: [50,150 54.78125x17] baseline: 13.296875
+            frag 0 from TextNode start: 0, length: 6, rect: [50,150 54.78125x18] baseline: 13.796875
                 "second"
             TextNode <#text>
           TextNode <#text>

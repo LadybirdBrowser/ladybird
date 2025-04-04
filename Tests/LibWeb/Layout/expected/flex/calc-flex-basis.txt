@@ -3,19 +3,19 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
     BlockContainer <body> at (10,10) content-size 780x62 children: not-inline
       Box <div.flex-container> at (11,11) content-size 778x60 flex-container(row) [FFC] children: not-inline
         BlockContainer <div.flex-item> at (12,12) content-size 386x28 flex-item [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 6, rect: [12,12 58.421875x22] baseline: 17
+          frag 0 from TextNode start: 0, length: 6, rect: [12,12 58.421875x23] baseline: 17.5
               "Item 1"
           TextNode <#text>
         BlockContainer <div.flex-item> at (401,12) content-size 386x28 flex-item [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 6, rect: [401,12 61.5x22] baseline: 17
+          frag 0 from TextNode start: 0, length: 6, rect: [401,12 61.5x23] baseline: 17.5
               "Item 2"
           TextNode <#text>
         BlockContainer <div.flex-item> at (12,42) content-size 386x28 flex-item [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 6, rect: [12,42 61.859375x22] baseline: 17
+          frag 0 from TextNode start: 0, length: 6, rect: [12,42 61.859375x23] baseline: 17.5
               "Item 3"
           TextNode <#text>
         BlockContainer <div.flex-item> at (401,42) content-size 386x28 flex-item [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 6, rect: [401,42 60.171875x22] baseline: 17
+          frag 0 from TextNode start: 0, length: 6, rect: [401,42 60.171875x23] baseline: 17.5
               "Item 4"
           TextNode <#text>
 

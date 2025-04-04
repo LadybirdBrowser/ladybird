@@ -3,15 +3,15 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
     BlockContainer <body> at (8,8) content-size 784x220 children: not-inline
       Box <div.grid-container> at (8,8) content-size 784x220 [GFC] children: not-inline
         BlockContainer <div.item2> at (405,8) content-size 387x100 [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 6, rect: [405,8 49.1875x17] baseline: 13.296875
+          frag 0 from TextNode start: 0, length: 6, rect: [405,8 49.1875x18] baseline: 13.796875
               "Item 2"
           TextNode <#text>
         BlockContainer <div.item1> at (8,8) content-size 387x210 [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 6, rect: [8,8 46.71875x17] baseline: 13.296875
+          frag 0 from TextNode start: 0, length: 6, rect: [8,8 46.71875x18] baseline: 13.796875
               "Item 1"
           TextNode <#text>
         BlockContainer <div.item3> at (405,118) content-size 387x100 [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 6, rect: [405,118 49.1875x17] baseline: 13.296875
+          frag 0 from TextNode start: 0, length: 6, rect: [405,118 49.1875x18] baseline: 13.796875
               "Item 2"
           TextNode <#text>
 

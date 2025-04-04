@@ -5,7 +5,7 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
         BlockContainer <div.ref> at (186,10) content-size 16x16 positioned [BFC] children: not-inline
         TextNode <#text>
       BlockContainer <div.test> at (8,8) content-size 784x23 children: inline
-        frag 0 from TextNode start: 0, length: 1, rect: [8,17 148x14] baseline: 10.890625
+        frag 0 from TextNode start: 0, length: 1, rect: [8,16 148x15] baseline: 11.390625
             "	"
         frag 1 from BlockContainer start: 0, length: 0, rect: [156,8 20x20] baseline: 20
         TextNode <#text>

@@ -1,14 +1,14 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x33 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x17 children: inline
+  BlockContainer <html> at (0,0) content-size 800x34 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x18 children: inline
       frag 0 from BlockContainer start: 0, length: 0, rect: [13,19 0x0] baseline: 4
       BlockContainer <button> at (13,19) content-size 0x0 inline-block [BFC] children: not-inline
         BlockContainer <(anonymous)> at (13,19) content-size 0x0 flex-container(column) [FFC] children: not-inline
           BlockContainer <(anonymous)> at (13,19) content-size 0x0 [BFC] children: not-inline
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x33]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x17]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x34]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x18]
       PaintableWithLines (BlockContainer<BUTTON>) [8,17 10x4]
         PaintableWithLines (BlockContainer(anonymous)) [13,19 0x0]
           PaintableWithLines (BlockContainer(anonymous)) [13,19 0x0]

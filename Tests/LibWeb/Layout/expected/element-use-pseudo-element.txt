@@ -1,6 +1,6 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
   BlockContainer <html> at (0,0) content-size 800x600 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x22 children: inline
+    BlockContainer <body> at (8,8) content-size 784x23 children: inline
       frag 0 from BlockContainer start: 0, length: 0, rect: [8,13 300x12] baseline: 12
       BlockContainer <progress#a> at (8,13) content-size 300x12 inline-block [BFC] children: not-inline
         BlockContainer <div> at (9,14) content-size 298x12 children: not-inline
@@ -10,7 +10,7 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x600]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x22]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x23]
       PaintableWithLines (BlockContainer<PROGRESS>#a) [8,13 300x12] overflow: [8,13 300x14]
         PaintableWithLines (BlockContainer<DIV>) [8,13 300x14]
           PaintableWithLines (BlockContainer<DIV>) [9,14 298x12]

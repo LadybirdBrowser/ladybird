@@ -3,15 +3,15 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
     BlockContainer <body> at (8,8) content-size 784x54 children: not-inline
       Box <div.container> at (9,9) content-size 600x52 flex-container(row) [FFC] children: not-inline
         BlockContainer <div.box> at (20,10) content-size 150x50 flex-item [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 11, rect: [20,10 86.359375x17] baseline: 13.296875
+          frag 0 from TextNode start: 0, length: 11, rect: [20,10 86.359375x18] baseline: 13.796875
               "left margin"
           TextNode <#text>
         BlockContainer <div.box> at (172,10) content-size 150x50 flex-item [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 18, rect: [172,10 141.28125x17] baseline: 13.296875
+          frag 0 from TextNode start: 0, length: 18, rect: [172,10 141.28125x18] baseline: 13.796875
               "follow immediately"
           TextNode <#text>
         BlockContainer <div.box> at (458,10) content-size 150x50 flex-item [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 17, rect: [458,10 138.296875x17] baseline: 13.296875
+          frag 0 from TextNode start: 0, length: 17, rect: [458,10 138.296875x18] baseline: 13.796875
               "over at the right"
           TextNode <#text>
       BlockContainer <(anonymous)> at (8,62) content-size 784x0 children: inline

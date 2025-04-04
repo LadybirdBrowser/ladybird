@@ -1,15 +1,15 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (1,1) content-size 798x39 [BFC] children: not-inline
-    Box <body.outer> at (10,10) content-size 780x21 flex-container(row) [FFC] children: not-inline
-      BlockContainer <div.middle> at (11,11) content-size 202x19 flex-item [BFC] children: not-inline
-        BlockContainer <div.inner> at (12,12) content-size 200x17 children: inline
-          frag 0 from TextNode start: 0, length: 4, rect: [12,12 45.15625x17] baseline: 13.296875
+  BlockContainer <html> at (1,1) content-size 798x40 [BFC] children: not-inline
+    Box <body.outer> at (10,10) content-size 780x22 flex-container(row) [FFC] children: not-inline
+      BlockContainer <div.middle> at (11,11) content-size 202x20 flex-item [BFC] children: not-inline
+        BlockContainer <div.inner> at (12,12) content-size 200x18 children: inline
+          frag 0 from TextNode start: 0, length: 4, rect: [12,12 45.15625x18] baseline: 13.796875
               "OPEN"
           TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x41]
-    PaintableBox (Box<BODY>.outer) [9,9 782x23]
-      PaintableWithLines (BlockContainer<DIV>.middle) [10,10 204x21]
-        PaintableWithLines (BlockContainer<DIV>.inner) [11,11 202x19]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x42]
+    PaintableBox (Box<BODY>.outer) [9,9 782x24]
+      PaintableWithLines (BlockContainer<DIV>.middle) [10,10 204x22]
+        PaintableWithLines (BlockContainer<DIV>.inner) [11,11 202x20]
           TextPaintable (TextNode<#text>)

@@ -1,19 +1,19 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x102.875 [BFC] children: not-inline
-    BlockContainer <body> at (8,21.4375) content-size 784x73.4375 children: not-inline
-      BlockContainer <h1> at (8,21.4375) content-size 784x35 children: inline
-        frag 0 from TextNode start: 0, length: 6, rect: [8,21.4375 105.53125x35] baseline: 27.09375
+  BlockContainer <html> at (0,0) content-size 800x105.875 [BFC] children: not-inline
+    BlockContainer <body> at (8,21.4375) content-size 784x76.4375 children: not-inline
+      BlockContainer <h1> at (8,21.4375) content-size 784x37 children: inline
+        frag 0 from TextNode start: 0, length: 6, rect: [8,21.4375 105.53125x37] baseline: 28.09375
             "header"
         TextNode <#text>
-      BlockContainer <(anonymous)> at (8,77.875) content-size 784x17 children: inline
-        frag 0 from TextNode start: 0, length: 24, rect: [8,77.875 212.125x17] baseline: 13.296875
+      BlockContainer <(anonymous)> at (8,79.875) content-size 784x18 children: inline
+        frag 0 from TextNode start: 0, length: 24, rect: [8,79.875 212.125x18] baseline: 13.796875
             "anonymously wrapped text"
         TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x102.875]
-    PaintableWithLines (BlockContainer<BODY>) [8,21.4375 784x73.4375]
-      PaintableWithLines (BlockContainer<H1>) [8,21.4375 784x35]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x105.875]
+    PaintableWithLines (BlockContainer<BODY>) [8,21.4375 784x76.4375]
+      PaintableWithLines (BlockContainer<H1>) [8,21.4375 784x37]
         TextPaintable (TextNode<#text>)
-      PaintableWithLines (BlockContainer(anonymous)) [8,77.875 784x17]
+      PaintableWithLines (BlockContainer(anonymous)) [8,79.875 784x18]
         TextPaintable (TextNode<#text>)

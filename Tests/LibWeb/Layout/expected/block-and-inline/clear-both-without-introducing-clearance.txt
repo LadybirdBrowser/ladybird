@@ -1,21 +1,21 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x125 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x109 children: not-inline
-      BlockContainer <div.upper> at (8,8) content-size 784x17 children: inline
-        frag 0 from TextNode start: 0, length: 5, rect: [8,8 46.15625x17] baseline: 13.296875
+  BlockContainer <html> at (0,0) content-size 800x127 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x111 children: not-inline
+      BlockContainer <div.upper> at (8,8) content-size 784x18 children: inline
+        frag 0 from TextNode start: 0, length: 5, rect: [8,8 46.15625x18] baseline: 13.796875
             "upper"
         TextNode <#text>
-      BlockContainer <div.mystery> at (8,100) content-size 784x0 children: not-inline
-      BlockContainer <div.lower> at (8,100) content-size 784x17 children: inline
-        frag 0 from TextNode start: 0, length: 5, rect: [8,100 43.359375x17] baseline: 13.296875
+      BlockContainer <div.mystery> at (8,101) content-size 784x0 children: not-inline
+      BlockContainer <div.lower> at (8,101) content-size 784x18 children: inline
+        frag 0 from TextNode start: 0, length: 5, rect: [8,101 43.359375x18] baseline: 13.796875
             "lower"
         TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x125]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x109]
-      PaintableWithLines (BlockContainer<DIV>.upper) [8,8 784x17]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x127]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x111]
+      PaintableWithLines (BlockContainer<DIV>.upper) [8,8 784x18]
         TextPaintable (TextNode<#text>)
-      PaintableWithLines (BlockContainer<DIV>.mystery) [8,100 784x0]
-      PaintableWithLines (BlockContainer<DIV>.lower) [8,100 784x17]
+      PaintableWithLines (BlockContainer<DIV>.mystery) [8,101 784x0]
+      PaintableWithLines (BlockContainer<DIV>.lower) [8,101 784x18]
         TextPaintable (TextNode<#text>)

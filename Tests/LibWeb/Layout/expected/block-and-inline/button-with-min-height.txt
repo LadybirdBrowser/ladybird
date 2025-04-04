@@ -4,8 +4,8 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
       frag 0 from BlockContainer start: 0, length: 0, rect: [13,10 143.515625x100] baseline: 56.796875
       BlockContainer <button> at (13,10) content-size 143.515625x100 inline-block [BFC] children: not-inline
         BlockContainer <(anonymous)> at (13,10) content-size 143.515625x100 flex-container(column) [FFC] children: not-inline
-          BlockContainer <(anonymous)> at (13,51.5) content-size 143.515625x17 flex-item [BFC] children: inline
-            frag 0 from TextNode start: 0, length: 19, rect: [13,51.5 143.515625x17] baseline: 13.296875
+          BlockContainer <(anonymous)> at (13,51) content-size 143.515625x18 flex-item [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 19, rect: [13,51 143.515625x18] baseline: 13.796875
                 "Middle-aligned text"
             TextNode <#text>
       TextNode <#text>
@@ -15,5 +15,5 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x104]
       PaintableWithLines (BlockContainer<BUTTON>) [8,8 153.515625x104]
         PaintableWithLines (BlockContainer(anonymous)) [13,10 143.515625x100]
-          PaintableWithLines (BlockContainer(anonymous)) [13,51.5 143.515625x17]
+          PaintableWithLines (BlockContainer(anonymous)) [13,51 143.515625x18]
             TextPaintable (TextNode<#text>)

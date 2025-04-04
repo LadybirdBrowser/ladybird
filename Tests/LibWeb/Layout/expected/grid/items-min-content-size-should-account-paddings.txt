@@ -1,17 +1,17 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x133 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x117 children: not-inline
-      Box <div.cta-banner> at (8,8) content-size 784x117 flex-container(row) [FFC] children: not-inline
-        Box <div.w-layout-grid> at (8,8) content-size 470.4375x117 flex-item [GFC] children: not-inline
-          BlockContainer <div.button> at (58,58) content-size 135.21875x17 [BFC] children: inline
-            frag 0 from TextNode start: 0, length: 16, rect: [58,58 135.21875x17] baseline: 13.296875
+  BlockContainer <html> at (0,0) content-size 800x134 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x118 children: not-inline
+      Box <div.cta-banner> at (8,8) content-size 784x118 flex-container(row) [FFC] children: not-inline
+        Box <div.w-layout-grid> at (8,8) content-size 470.4375x118 flex-item [GFC] children: not-inline
+          BlockContainer <div.button> at (58,58) content-size 135.21875x18 [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 16, rect: [58,58 135.21875x18] baseline: 13.796875
                 "Sign up for free"
             TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x133]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x117]
-      PaintableBox (Box<DIV>.cta-banner) [8,8 784x117]
-        PaintableBox (Box<DIV>.w-layout-grid) [8,8 470.4375x117]
-          PaintableWithLines (BlockContainer<DIV>.button) [8,8 235.21875x117]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x134]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x118]
+      PaintableBox (Box<DIV>.cta-banner) [8,8 784x118]
+        PaintableBox (Box<DIV>.w-layout-grid) [8,8 470.4375x118]
+          PaintableWithLines (BlockContainer<DIV>.button) [8,8 235.21875x118]
             TextPaintable (TextNode<#text>)

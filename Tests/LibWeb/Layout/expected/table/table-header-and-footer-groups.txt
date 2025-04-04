@@ -4,14 +4,14 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
       Box <body.table> at (10,10) content-size 300x200 table-box [TFC] children: not-inline
         Box <div.bottom> at (10,10) content-size 300x100 table-footer-group children: inline
           Box <(anonymous)> at (10,10) content-size 300x100 table-row children: inline
-            BlockContainer <(anonymous)> at (10,10) content-size 300x17 table-cell [BFC] children: inline
-              frag 0 from TextNode start: 0, length: 6, rect: [10,10 56.109375x17] baseline: 13.296875
+            BlockContainer <(anonymous)> at (10,10) content-size 300x18 table-cell [BFC] children: inline
+              frag 0 from TextNode start: 0, length: 6, rect: [10,10 56.109375x18] baseline: 13.796875
                   "bottom"
               TextNode <#text>
         Box <div.top> at (10,110) content-size 300x100 table-header-group children: inline
           Box <(anonymous)> at (10,110) content-size 300x100 table-row children: inline
-            BlockContainer <(anonymous)> at (10,110) content-size 300x17 table-cell [BFC] children: inline
-              frag 0 from TextNode start: 0, length: 3, rect: [10,110 26.640625x17] baseline: 13.296875
+            BlockContainer <(anonymous)> at (10,110) content-size 300x18 table-cell [BFC] children: inline
+              frag 0 from TextNode start: 0, length: 3, rect: [10,110 26.640625x18] baseline: 13.796875
                   "top"
               TextNode <#text>
 

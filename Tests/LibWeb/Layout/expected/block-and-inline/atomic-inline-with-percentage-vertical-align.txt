@@ -1,6 +1,6 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (1,1) content-size 798x62.59375 [BFC] children: not-inline
-    BlockContainer <body> at (2,2) content-size 796x60.59375 children: inline
+  BlockContainer <html> at (1,1) content-size 798x62.40625 [BFC] children: not-inline
+    BlockContainer <body> at (2,2) content-size 796x60.40625 children: inline
       frag 0 from BlockContainer start: 0, length: 0, rect: [4,3 30x30] baseline: 32
       frag 1 from BlockContainer start: 0, length: 0, rect: [3,35 30x30] baseline: 32
       BlockContainer <div.clump> at (4,3) content-size 30x30 inline-block [BFC] children: not-inline
@@ -8,7 +8,7 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
       BlockContainer <div.clump> at (3,35) content-size 30x30 inline-block [BFC] children: not-inline
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x64.59375] overflow: [1,1 798x64]
-    PaintableWithLines (BlockContainer<BODY>) [1,1 798x62.59375] overflow: [2,2 796x63]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x64.40625] overflow: [1,1 798x64]
+    PaintableWithLines (BlockContainer<BODY>) [1,1 798x62.40625] overflow: [2,2 796x63]
       PaintableWithLines (BlockContainer<DIV>.clump) [3,2 32x32]
       PaintableWithLines (BlockContainer<DIV>.clump) [2,34 32x32]

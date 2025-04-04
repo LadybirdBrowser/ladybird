@@ -1,19 +1,19 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x63 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x47 children: not-inline
-      BlockContainer <main> at (8,8) content-size 784x47 children: inline
-        frag 0 from BlockContainer start: 0, length: 0, rect: [23,23 343.96875x17] baseline: 28.296875
-        BlockContainer <div> at (23,23) content-size 343.96875x17 inline-block [BFC] children: inline
+  BlockContainer <html> at (0,0) content-size 800x64 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x48 children: not-inline
+      BlockContainer <main> at (8,8) content-size 784x48 children: inline
+        frag 0 from BlockContainer start: 0, length: 0, rect: [23,23 343.96875x18] baseline: 28.796875
+        BlockContainer <div> at (23,23) content-size 343.96875x18 inline-block [BFC] children: inline
           InlineNode <span>
-            frag 0 from TextNode start: 0, length: 42, rect: [23,23 343.96875x17] baseline: 13.296875
+            frag 0 from TextNode start: 0, length: 42, rect: [23,23 343.96875x18] baseline: 13.796875
                 "hello :host and :host(<compound-selector>)"
             TextNode <#text>
           TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x63]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x47]
-      PaintableWithLines (BlockContainer<MAIN>) [8,8 784x47]
-        PaintableWithLines (BlockContainer<DIV>) [8,8 373.96875x47]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x64]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x48]
+      PaintableWithLines (BlockContainer<MAIN>) [8,8 784x48]
+        PaintableWithLines (BlockContainer<DIV>) [8,8 373.96875x48]
           PaintableWithLines (InlineNode<SPAN>)
             TextPaintable (TextNode<#text>)

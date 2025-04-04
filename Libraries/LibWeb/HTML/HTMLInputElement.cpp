@@ -145,13 +145,15 @@ void HTMLInputElement::adjust_computed_style(CSS::ComputedProperties& style)
             style.set_property(CSS::PropertyID::Width, CSS::LengthStyleValue::create(CSS::Length(size(), CSS::Length::Type::Ch)));
     }
 
-    // NOTE: The following line-height check is done for web compatibility and usability reasons.
-    // FIXME: The "normal" line-height value should be calculated but assume 1.0 for now.
-    double normal_line_height = 1.0;
-    double current_line_height = style.line_height().to_double();
+    // NOTE: Other browsers apply a minimum height of a single line's line-height to single-line input elements.
+    if (is_single_line() && style.property(CSS::PropertyID::Height).has_auto()) {
+        auto current_line_height = style.line_height().to_double();
+        auto minimum_line_height = style.first_available_computed_font().pixel_size() * CSS::ComputedProperties::normal_line_height_scale;
 
-    if (is_single_line() && current_line_height < normal_line_height)
-        style.set_property(CSS::PropertyID::LineHeight, CSS::CSSKeywordValue::create(CSS::Keyword::Normal));
+        // FIXME: Instead of overriding line-height, we should set height here instead.
+        if (current_line_height < minimum_line_height)
+            style.set_property(CSS::PropertyID::LineHeight, CSS::CSSKeywordValue::create(CSS::Keyword::Normal));
+    }
 }
 
 void HTMLInputElement::set_checked(bool checked)

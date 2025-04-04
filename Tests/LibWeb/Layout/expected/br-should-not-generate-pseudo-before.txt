@@ -1,26 +1,26 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x91 [BFC] children: not-inline
-    BlockContainer <body> at (8,16) content-size 784x67 children: not-inline
-      BlockContainer <p> at (8,16) content-size 784x17 children: inline
-        frag 0 from TextNode start: 0, length: 36, rect: [18.625,16 300x17] baseline: 13.296875
+  BlockContainer <html> at (0,0) content-size 800x94 [BFC] children: not-inline
+    BlockContainer <body> at (8,16) content-size 784x70 children: not-inline
+      BlockContainer <p> at (8,16) content-size 784x18 children: inline
+        frag 0 from TextNode start: 0, length: 36, rect: [18.625,16 300x18] baseline: 13.796875
             "P should generate a ::before pseudo."
         InlineNode <(anonymous)>
-          frag 0 from TextNode start: 0, length: 1, rect: [8,16 10.625x17] baseline: 13.296875
+          frag 0 from TextNode start: 0, length: 1, rect: [8,16 10.625x18] baseline: 13.796875
               "+"
           TextNode <#text>
         TextNode <#text>
-      BlockContainer <(anonymous)> at (8,49) content-size 784x34 children: inline
-        frag 0 from TextNode start: 0, length: 14, rect: [8,66 120.578125x17] baseline: 13.296875
+      BlockContainer <(anonymous)> at (8,50) content-size 784x36 children: inline
+        frag 0 from TextNode start: 0, length: 14, rect: [8,68 120.578125x18] baseline: 13.796875
             "BR should not!"
         BreakNode <br>
         TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x91]
-    PaintableWithLines (BlockContainer<BODY>) [8,16 784x67]
-      PaintableWithLines (BlockContainer<P>) [8,16 784x17]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x94]
+    PaintableWithLines (BlockContainer<BODY>) [8,16 784x70]
+      PaintableWithLines (BlockContainer<P>) [8,16 784x18]
         PaintableWithLines (InlineNode(anonymous))
           TextPaintable (TextNode<#text>)
         TextPaintable (TextNode<#text>)
-      PaintableWithLines (BlockContainer(anonymous)) [8,49 784x34]
+      PaintableWithLines (BlockContainer(anonymous)) [8,50 784x36]
         TextPaintable (TextNode<#text>)

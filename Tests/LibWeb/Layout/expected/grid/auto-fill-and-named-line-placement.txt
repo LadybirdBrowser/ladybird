@@ -1,15 +1,15 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x73 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x57 children: not-inline
-      Box <div.grid-container> at (8,8) content-size 784x57 [GFC] children: not-inline
-        BlockContainer <div.grid-item> at (28,28) content-size 744x17 [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [396.828125,28 6.34375x17] baseline: 13.296875
+  BlockContainer <html> at (0,0) content-size 800x74 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x58 children: not-inline
+      Box <div.grid-container> at (8,8) content-size 784x58 [GFC] children: not-inline
+        BlockContainer <div.grid-item> at (28,28) content-size 744x18 [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [396.828125,28 6.34375x18] baseline: 13.796875
               "1"
           TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x73]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x57]
-      PaintableBox (Box<DIV>.grid-container) [8,8 784x57]
-        PaintableWithLines (BlockContainer<DIV>.grid-item) [8,8 784x57]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x74]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x58]
+      PaintableBox (Box<DIV>.grid-container) [8,8 784x58]
+        PaintableWithLines (BlockContainer<DIV>.grid-item) [8,8 784x58]
           TextPaintable (TextNode<#text>)

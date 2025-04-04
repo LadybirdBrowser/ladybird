@@ -1,23 +1,23 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x101 [BFC] children: not-inline
-    Box <body> at (8,8) content-size 784x85 [GFC] children: not-inline
-      Box <div> at (8,8) content-size 784x85 [GFC] children: not-inline
-        BlockContainer <(anonymous)> at (8,8) content-size 65.328125x85 [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 6, rect: [8,8 50.5625x17] baseline: 13.296875
+  BlockContainer <html> at (0,0) content-size 800x106 [BFC] children: not-inline
+    Box <body> at (8,8) content-size 784x90 [GFC] children: not-inline
+      Box <div> at (8,8) content-size 784x90 [GFC] children: not-inline
+        BlockContainer <(anonymous)> at (8,8) content-size 65.328125x90 [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 6, rect: [8,8 50.5625x18] baseline: 13.796875
               "Making"
-          frag 1 from TextNode start: 7, length: 8, rect: [8,25 80.234375x17] baseline: 13.296875
+          frag 1 from TextNode start: 7, length: 8, rect: [8,26 80.234375x18] baseline: 13.796875
               "Commerce"
-          frag 2 from TextNode start: 16, length: 6, rect: [8,42 49.328125x17] baseline: 13.296875
+          frag 2 from TextNode start: 16, length: 6, rect: [8,44 49.328125x18] baseline: 13.796875
               "Better"
-          frag 3 from TextNode start: 23, length: 3, rect: [8,59 25.625x17] baseline: 13.296875
+          frag 3 from TextNode start: 23, length: 3, rect: [8,62 25.625x18] baseline: 13.796875
               "for"
-          frag 4 from TextNode start: 27, length: 8, rect: [8,76 73.46875x17] baseline: 13.296875
+          frag 4 from TextNode start: 27, length: 8, rect: [8,80 73.46875x18] baseline: 13.796875
               "Everyone"
           TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x101]
-    PaintableBox (Box<BODY>) [8,8 784x85]
-      PaintableBox (Box<DIV>) [8,8 784x85]
-        PaintableWithLines (BlockContainer(anonymous)) [8,8 65.328125x85] overflow: [8,8 80.234375x85]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x106]
+    PaintableBox (Box<BODY>) [8,8 784x90]
+      PaintableBox (Box<DIV>) [8,8 784x90]
+        PaintableWithLines (BlockContainer(anonymous)) [8,8 65.328125x90] overflow: [8,8 80.234375x90]
           TextPaintable (TextNode<#text>)

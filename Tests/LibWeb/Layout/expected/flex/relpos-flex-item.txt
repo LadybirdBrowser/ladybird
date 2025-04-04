@@ -1,19 +1,19 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (2,2) content-size 796x41 [BFC] children: not-inline
-    Box <body> at (12,12) content-size 600x21 flex-container(row) [FFC] children: not-inline
-      BlockContainer <div.exekiller> at (14,14) content-size 200x17 positioned flex-item [BFC] children: inline
-        frag 0 from TextNode start: 0, length: 9, rect: [14,14 65.4375x17] baseline: 13.296875
+  BlockContainer <html> at (2,2) content-size 796x42 [BFC] children: not-inline
+    Box <body> at (12,12) content-size 600x22 flex-container(row) [FFC] children: not-inline
+      BlockContainer <div.exekiller> at (14,14) content-size 200x18 positioned flex-item [BFC] children: inline
+        frag 0 from TextNode start: 0, length: 9, rect: [14,14 65.4375x18] baseline: 13.796875
             "exekiller"
         TextNode <#text>
-      BlockContainer <div.athena> at (18,18) content-size 200x17 positioned flex-item [BFC] children: inline
-        frag 0 from TextNode start: 0, length: 6, rect: [18,18 53.171875x17] baseline: 13.296875
+      BlockContainer <div.athena> at (18,18) content-size 200x18 positioned flex-item [BFC] children: inline
+        frag 0 from TextNode start: 0, length: 6, rect: [18,18 53.171875x18] baseline: 13.796875
             "athena"
         TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x45]
-    PaintableBox (Box<BODY>) [10,10 604x25] overflow: [12,12 600x25]
-      PaintableWithLines (BlockContainer<DIV>.exekiller) [12,12 204x21]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x46]
+    PaintableBox (Box<BODY>) [10,10 604x26] overflow: [12,12 600x26]
+      PaintableWithLines (BlockContainer<DIV>.exekiller) [12,12 204x22]
         TextPaintable (TextNode<#text>)
-      PaintableWithLines (BlockContainer<DIV>.athena) [16,16 204x21]
+      PaintableWithLines (BlockContainer<DIV>.athena) [16,16 204x22]
         TextPaintable (TextNode<#text>)

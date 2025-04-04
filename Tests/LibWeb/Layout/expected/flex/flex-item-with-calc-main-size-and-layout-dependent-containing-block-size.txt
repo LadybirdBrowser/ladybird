@@ -1,19 +1,19 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x67 [BFC] children: not-inline
-    Box <body.pink> at (8,8) content-size 784x51 flex-container(row) [FFC] children: not-inline
-      Box <div.orange> at (8,8) content-size 194.71875x51 flex-container(row) flex-item [FFC] children: not-inline
-        BlockContainer <div.lime> at (8,8) content-size 87.359375x51 flex-item [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 9, rect: [8,8 74.75x17] baseline: 13.296875
+  BlockContainer <html> at (0,0) content-size 800x70 [BFC] children: not-inline
+    Box <body.pink> at (8,8) content-size 784x54 flex-container(row) [FFC] children: not-inline
+      Box <div.orange> at (8,8) content-size 194.71875x54 flex-container(row) flex-item [FFC] children: not-inline
+        BlockContainer <div.lime> at (8,8) content-size 87.359375x54 flex-item [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 9, rect: [8,8 74.75x18] baseline: 13.796875
               "This is a"
-          frag 1 from TextNode start: 10, length: 8, rect: [8,25 71.828125x17] baseline: 13.296875
+          frag 1 from TextNode start: 10, length: 8, rect: [8,26 71.828125x18] baseline: 13.796875
               "bunch of"
-          frag 2 from TextNode start: 19, length: 4, rect: [8,42 32.140625x17] baseline: 13.296875
+          frag 2 from TextNode start: 19, length: 4, rect: [8,44 32.140625x18] baseline: 13.796875
               "text"
           TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x67]
-    PaintableBox (Box<BODY>.pink) [8,8 784x51]
-      PaintableBox (Box<DIV>.orange) [8,8 194.71875x51]
-        PaintableWithLines (BlockContainer<DIV>.lime) [8,8 87.359375x51]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x70]
+    PaintableBox (Box<BODY>.pink) [8,8 784x54]
+      PaintableBox (Box<DIV>.orange) [8,8 194.71875x54]
+        PaintableWithLines (BlockContainer<DIV>.lime) [8,8 87.359375x54]
           TextPaintable (TextNode<#text>)

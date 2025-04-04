@@ -3,10 +3,10 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
     BlockContainer <body> at (8,8) content-size 784x300 children: not-inline
       BlockContainer <input.btn> at (13,10) content-size 290x296 children: not-inline
         BlockContainer <(anonymous)> at (13,10) content-size 290x296 flex-container(column) [FFC] children: not-inline
-          BlockContainer <(anonymous)> at (13,150) content-size 290x16 flex-item [BFC] children: inline
-            frag 0 from BlockContainer start: 0, length: 0, rect: [36.75,150 242.5x16] baseline: 12.5
-            BlockContainer <span> at (36.75,150) content-size 242.5x16 inline-block [BFC] children: inline
-              frag 0 from TextNode start: 0, length: 31, rect: [36.75,150 242.5x16] baseline: 12.5
+          BlockContainer <(anonymous)> at (13,149.5) content-size 290x17 flex-item [BFC] children: inline
+            frag 0 from BlockContainer start: 0, length: 0, rect: [36.75,149.5 242.5x17] baseline: 13
+            BlockContainer <span> at (36.75,149.5) content-size 242.5x17 inline-block [BFC] children: inline
+              frag 0 from TextNode start: 0, length: 31, rect: [36.75,149.5 242.5x17] baseline: 13
                   "Should be located in the center"
               TextNode <#text>
       BlockContainer <(anonymous)> at (8,308) content-size 784x0 children: inline
@@ -17,7 +17,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x300]
       PaintableWithLines (BlockContainer<INPUT>.btn) [8,8 300x300]
         PaintableWithLines (BlockContainer(anonymous)) [13,10 290x296]
-          PaintableWithLines (BlockContainer(anonymous)) [13,150 290x16]
-            PaintableWithLines (BlockContainer<SPAN>) [36.75,150 242.5x16]
+          PaintableWithLines (BlockContainer(anonymous)) [13,149.5 290x17]
+            PaintableWithLines (BlockContainer<SPAN>) [36.75,149.5 242.5x17]
               TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [8,308 784x0]

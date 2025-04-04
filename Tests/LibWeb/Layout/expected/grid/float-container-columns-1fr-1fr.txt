@@ -1,33 +1,33 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
   BlockContainer <html> at (0,0) content-size 800x600 [BFC] children: not-inline
     BlockContainer <body> at (8,8) content-size 784x0 children: not-inline
-      Box <div.container> at (8,8) content-size 203.28125x34 floating [GFC] children: not-inline
-        BlockContainer <div.item> at (8,8) content-size 101.640625x17 [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 9, rect: [8,8 79.25x17] baseline: 13.296875
+      Box <div.container> at (8,8) content-size 203.28125x36 floating [GFC] children: not-inline
+        BlockContainer <div.item> at (8,8) content-size 101.640625x18 [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 9, rect: [8,8 79.25x18] baseline: 13.796875
               "some-text"
           TextNode <#text>
-        BlockContainer <div.item> at (109.640625,8) content-size 101.640625x17 [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 9, rect: [109.640625,8 78.03125x17] baseline: 13.296875
+        BlockContainer <div.item> at (109.640625,8) content-size 101.640625x18 [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 9, rect: [109.640625,8 78.03125x18] baseline: 13.796875
               "goes-here"
           TextNode <#text>
-        BlockContainer <div.item> at (8,25) content-size 101.640625x17 [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 12, rect: [8,25 101.640625x17] baseline: 13.296875
+        BlockContainer <div.item> at (8,26) content-size 101.640625x18 [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 12, rect: [8,26 101.640625x18] baseline: 13.796875
               "another-text"
           TextNode <#text>
-        BlockContainer <div.item> at (109.640625,25) content-size 101.640625x17 [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 10, rect: [109.640625,25 84.890625x17] baseline: 13.296875
+        BlockContainer <div.item> at (109.640625,26) content-size 101.640625x18 [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 10, rect: [109.640625,26 84.890625x18] baseline: 13.796875
               "goes-there"
           TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x600]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x0] overflow: [8,8 203.28125x34]
-      PaintableBox (Box<DIV>.container) [8,8 203.28125x34]
-        PaintableWithLines (BlockContainer<DIV>.item) [8,8 101.640625x17]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x0] overflow: [8,8 203.28125x36]
+      PaintableBox (Box<DIV>.container) [8,8 203.28125x36]
+        PaintableWithLines (BlockContainer<DIV>.item) [8,8 101.640625x18]
           TextPaintable (TextNode<#text>)
-        PaintableWithLines (BlockContainer<DIV>.item) [109.640625,8 101.640625x17]
+        PaintableWithLines (BlockContainer<DIV>.item) [109.640625,8 101.640625x18]
           TextPaintable (TextNode<#text>)
-        PaintableWithLines (BlockContainer<DIV>.item) [8,25 101.640625x17]
+        PaintableWithLines (BlockContainer<DIV>.item) [8,26 101.640625x18]
           TextPaintable (TextNode<#text>)
-        PaintableWithLines (BlockContainer<DIV>.item) [109.640625,25 101.640625x17]
+        PaintableWithLines (BlockContainer<DIV>.item) [109.640625,26 101.640625x18]
           TextPaintable (TextNode<#text>)

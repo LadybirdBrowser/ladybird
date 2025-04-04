@@ -1,13 +1,13 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x33 [BFC] children: not-inline
-    Box <body> at (8,8) content-size 784x17 flex-container(column) [FFC] children: not-inline
-      BlockContainer <main> at (8,8) content-size 784x17 flex-item [BFC] children: inline
-        frag 0 from TextNode start: 0, length: 13, rect: [8,8 153.984375x17] baseline: 13.296875
+  BlockContainer <html> at (0,0) content-size 800x34 [BFC] children: not-inline
+    Box <body> at (8,8) content-size 784x18 flex-container(column) [FFC] children: not-inline
+      BlockContainer <main> at (8,8) content-size 784x18 flex-item [BFC] children: inline
+        frag 0 from TextNode start: 0, length: 13, rect: [8,8 153.984375x18] baseline: 13.796875
             "hmmMMMMmmmmmm"
         TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x33]
-    PaintableBox (Box<BODY>) [8,8 784x17]
-      PaintableWithLines (BlockContainer<MAIN>) [8,8 784x17]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x34]
+    PaintableBox (Box<BODY>) [8,8 784x18]
+      PaintableWithLines (BlockContainer<MAIN>) [8,8 784x18]
         TextPaintable (TextNode<#text>)

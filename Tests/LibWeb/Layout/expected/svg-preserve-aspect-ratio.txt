@@ -1,39 +1,39 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
   BlockContainer <html> at (0,0) content-size 800x600 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x257 children: inline
+    BlockContainer <body> at (8,8) content-size 784x258 children: inline
       frag 0 from SVGSVGBox start: 0, length: 0, rect: [9,84 100x50] baseline: 52
-      frag 1 from TextNode start: 0, length: 1, rect: [110,121 8x17] baseline: 13.296875
+      frag 1 from TextNode start: 0, length: 1, rect: [110,121 8x18] baseline: 13.796875
           " "
       frag 2 from SVGSVGBox start: 0, length: 0, rect: [119,84 100x50] baseline: 52
-      frag 3 from TextNode start: 0, length: 1, rect: [220,121 8x17] baseline: 13.296875
+      frag 3 from TextNode start: 0, length: 1, rect: [220,121 8x18] baseline: 13.796875
           " "
       frag 4 from SVGSVGBox start: 0, length: 0, rect: [229,84 100x50] baseline: 52
-      frag 5 from TextNode start: 0, length: 1, rect: [330,121 8x17] baseline: 13.296875
+      frag 5 from TextNode start: 0, length: 1, rect: [330,121 8x18] baseline: 13.796875
           " "
       frag 6 from SVGSVGBox start: 0, length: 0, rect: [339,84 100x50] baseline: 52
-      frag 7 from TextNode start: 0, length: 1, rect: [440,121 8x17] baseline: 13.296875
+      frag 7 from TextNode start: 0, length: 1, rect: [440,121 8x18] baseline: 13.796875
           " "
       frag 8 from SVGSVGBox start: 0, length: 0, rect: [449,84 100x50] baseline: 52
-      frag 9 from TextNode start: 0, length: 1, rect: [550,121 8x17] baseline: 13.296875
+      frag 9 from TextNode start: 0, length: 1, rect: [550,121 8x18] baseline: 13.796875
           " "
       frag 10 from SVGSVGBox start: 0, length: 0, rect: [559,84 100x50] baseline: 52
-      frag 11 from TextNode start: 0, length: 1, rect: [660,121 8x17] baseline: 13.296875
+      frag 11 from TextNode start: 0, length: 1, rect: [660,121 8x18] baseline: 13.796875
           " "
       frag 12 from SVGSVGBox start: 0, length: 0, rect: [669,9 50x125] baseline: 127
-      frag 13 from TextNode start: 0, length: 1, rect: [720,121 8x17] baseline: 13.296875
+      frag 13 from TextNode start: 0, length: 1, rect: [720,121 8x18] baseline: 13.796875
           " "
       frag 14 from SVGSVGBox start: 0, length: 0, rect: [729,9 50x125] baseline: 127
       frag 15 from SVGSVGBox start: 0, length: 0, rect: [9,136 50x125] baseline: 127
-      frag 16 from TextNode start: 0, length: 1, rect: [60,248 8x17] baseline: 13.296875
+      frag 16 from TextNode start: 0, length: 1, rect: [60,248 8x18] baseline: 13.796875
           " "
       frag 17 from SVGSVGBox start: 0, length: 0, rect: [69,136 50x125] baseline: 127
-      frag 18 from TextNode start: 0, length: 1, rect: [120,248 8x17] baseline: 13.296875
+      frag 18 from TextNode start: 0, length: 1, rect: [120,248 8x18] baseline: 13.796875
           " "
       frag 19 from SVGSVGBox start: 0, length: 0, rect: [129,136 50x125] baseline: 127
-      frag 20 from TextNode start: 0, length: 1, rect: [180,248 8x17] baseline: 13.296875
+      frag 20 from TextNode start: 0, length: 1, rect: [180,248 8x18] baseline: 13.796875
           " "
       frag 21 from SVGSVGBox start: 0, length: 0, rect: [189,136 50x125] baseline: 127
-      frag 22 from TextNode start: 0, length: 1, rect: [240,248 8x17] baseline: 13.296875
+      frag 22 from TextNode start: 0, length: 1, rect: [240,248 8x18] baseline: 13.796875
           " "
       frag 23 from SVGSVGBox start: 0, length: 0, rect: [249,201 160x60] baseline: 62
       SVGSVGBox <svg> at (9,84) content-size 100x50 [SVG] children: inline
@@ -104,7 +104,7 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x600]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x257]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x258]
       SVGSVGPaintable (SVGSVGBox<svg>) [8,83 102x52]
         SVGPathPaintable (SVGGeometryBox<circle>) [34,84 50x50]
       TextPaintable (TextNode<#text>)

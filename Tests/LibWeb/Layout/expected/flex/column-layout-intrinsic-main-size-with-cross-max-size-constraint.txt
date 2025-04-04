@@ -2,7 +2,7 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
   BlockContainer <html> at (0,0) content-size 800x116 [BFC] children: not-inline
     Box <body> at (8,8) content-size 784x100 flex-container(column) [FFC] children: not-inline
       BlockContainer <div> at (8,8) content-size 784x100 flex-item [BFC] children: inline
-        frag 0 from TextNode start: 0, length: 16, rect: [8,8 126.390625x17] baseline: 13.296875
+        frag 0 from TextNode start: 0, length: 16, rect: [8,8 126.390625x18] baseline: 13.796875
             "Start free trial"
         TextNode <#text>
 

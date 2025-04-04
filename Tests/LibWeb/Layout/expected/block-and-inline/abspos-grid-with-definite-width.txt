@@ -1,21 +1,21 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
   BlockContainer <html> at (1,1) content-size 798x18 [BFC] children: not-inline
     BlockContainer <body> at (10,10) content-size 780x0 children: not-inline
-      Box <div.box> at (1,11) content-size 200x68 positioned [GFC] children: not-inline
-        BlockContainer <(anonymous)> at (1,11) content-size 200x68 [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 21, rect: [1,11 181.78125x17] baseline: 13.296875
+      Box <div.box> at (1,11) content-size 200x72 positioned [GFC] children: not-inline
+        BlockContainer <(anonymous)> at (1,11) content-size 200x72 [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 21, rect: [1,11 181.78125x18] baseline: 13.796875
               "Giveaways in Channels"
-          frag 1 from TextNode start: 22, length: 16, rect: [1,28 149.4375x17] baseline: 13.296875
+          frag 1 from TextNode start: 22, length: 16, rect: [1,29 149.4375x18] baseline: 13.796875
               "and Free Premium"
-          frag 2 from TextNode start: 39, length: 21, rect: [1,45 181.78125x17] baseline: 13.296875
+          frag 2 from TextNode start: 39, length: 21, rect: [1,47 181.78125x18] baseline: 13.796875
               "Giveaways in Channels"
-          frag 3 from TextNode start: 61, length: 16, rect: [1,62 149.4375x17] baseline: 13.296875
+          frag 3 from TextNode start: 61, length: 16, rect: [1,65 149.4375x18] baseline: 13.796875
               "and Free Premium"
           TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x20]
     PaintableWithLines (BlockContainer<BODY>) [9,9 782x2]
-      PaintableBox (Box<DIV>.box) [0,10 202x70]
-        PaintableWithLines (BlockContainer(anonymous)) [1,11 200x68]
+      PaintableBox (Box<DIV>.box) [0,10 202x74]
+        PaintableWithLines (BlockContainer(anonymous)) [1,11 200x72]
           TextPaintable (TextNode<#text>)

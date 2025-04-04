@@ -3,7 +3,7 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
     BlockContainer <body> at (8,8) content-size 784x600 children: not-inline
       BlockContainer <div.container> at (8,108) content-size 784x500 children: not-inline
         BlockContainer <div.hmm> at (18,118) content-size 764x250 children: inline
-          frag 0 from TextNode start: 0, length: 5, rect: [18,118 36.84375x17] baseline: 13.296875
+          frag 0 from TextNode start: 0, length: 5, rect: [18,118 36.84375x18] baseline: 13.796875
               "hello"
           TextNode <#text>
 

@@ -3,19 +3,19 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
     BlockContainer <body> at (8,8) content-size 784x500 children: not-inline
       Box <div.grid> at (8,8) content-size 500x500 [GFC] children: not-inline
         BlockContainer <div#a> at (8,8) content-size 100x300 [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [8,8 6.34375x17] baseline: 13.296875
+          frag 0 from TextNode start: 0, length: 1, rect: [8,8 6.34375x18] baseline: 13.796875
               "1"
           TextNode <#text>
         BlockContainer <div#b> at (108,8) content-size 100x100 [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [108,8 8.8125x17] baseline: 13.296875
+          frag 0 from TextNode start: 0, length: 1, rect: [108,8 8.8125x18] baseline: 13.796875
               "2"
           TextNode <#text>
         BlockContainer <div#c> at (108,108) content-size 100x100 [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [108,108 9.09375x17] baseline: 13.296875
+          frag 0 from TextNode start: 0, length: 1, rect: [108,108 9.09375x18] baseline: 13.796875
               "3"
           TextNode <#text>
         BlockContainer <div#d> at (108,208) content-size 100x100 [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [108,208 7.75x17] baseline: 13.296875
+          frag 0 from TextNode start: 0, length: 1, rect: [108,208 7.75x18] baseline: 13.796875
               "4"
           TextNode <#text>
 

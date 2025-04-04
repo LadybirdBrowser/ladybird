@@ -1,21 +1,21 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
   BlockContainer <html> at (0,0) content-size 800x600 [BFC] children: not-inline
     BlockContainer <body> at (8,8) content-size 784x0 children: not-inline
-      BlockContainer <div> at (8,8) content-size 23.609375x17 floating [BFC] children: not-inline
-        BlockContainer <span> at (8,8) content-size 14.265625x17 floating [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [8,8 14.265625x17] baseline: 13.296875
+      BlockContainer <div> at (8,8) content-size 23.609375x18 floating [BFC] children: not-inline
+        BlockContainer <span> at (8,8) content-size 14.265625x18 floating [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [8,8 14.265625x18] baseline: 13.796875
               "A"
           TextNode <#text>
-        BlockContainer <span> at (22.265625,8) content-size 9.34375x17 floating [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [22.265625,8 9.34375x17] baseline: 13.296875
+        BlockContainer <span> at (22.265625,8) content-size 9.34375x18 floating [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [22.265625,8 9.34375x18] baseline: 13.796875
               "B"
           TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x600]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x0] overflow: [8,8 23.609375x17]
-      PaintableWithLines (BlockContainer<DIV>) [8,8 23.609375x17]
-        PaintableWithLines (BlockContainer<SPAN>) [8,8 14.265625x17]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x0] overflow: [8,8 23.609375x18]
+      PaintableWithLines (BlockContainer<DIV>) [8,8 23.609375x18]
+        PaintableWithLines (BlockContainer<SPAN>) [8,8 14.265625x18]
           TextPaintable (TextNode<#text>)
-        PaintableWithLines (BlockContainer<SPAN>) [22.265625,8 9.34375x17]
+        PaintableWithLines (BlockContainer<SPAN>) [22.265625,8 9.34375x18]
           TextPaintable (TextNode<#text>)

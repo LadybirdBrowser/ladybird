@@ -3,18 +3,18 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
     BlockContainer <body> at (8,8) content-size 784x0 children: not-inline
       BlockContainer <div> at (8,8) content-size 784x0 children: inline
         TextNode <#text>
-        BlockContainer <h1.left> at (8,29.4375) content-size 28.53125x35 floating [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [8,29.4375 28.53125x35] baseline: 27.09375
+        BlockContainer <h1.left> at (8,29.4375) content-size 28.53125x37 floating [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [8,29.4375 28.53125x37] baseline: 28.09375
               "A"
           TextNode <#text>
         TextNode <#text>
-        BlockContainer <h1.right> at (773.3125,29.4375) content-size 18.6875x35 floating [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [773.3125,29.4375 18.6875x35] baseline: 27.09375
+        BlockContainer <h1.right> at (773.3125,29.4375) content-size 18.6875x37 floating [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [773.3125,29.4375 18.6875x37] baseline: 28.09375
               "B"
           TextNode <#text>
         TextNode <#text>
-        BlockContainer <div.c> at (8,155.875) content-size 11.5625x17 floating [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [8,155.875 11.5625x17] baseline: 13.296875
+        BlockContainer <div.c> at (8,157.875) content-size 11.5625x18 floating [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [8,157.875 11.5625x18] baseline: 13.796875
               "X"
           TextNode <#text>
         TextNode <#text>
@@ -23,9 +23,9 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x600]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x0]
       PaintableWithLines (BlockContainer<DIV>) [8,8 784x0]
-        PaintableWithLines (BlockContainer<H1>.left) [8,29.4375 28.53125x35]
+        PaintableWithLines (BlockContainer<H1>.left) [8,29.4375 28.53125x37]
           TextPaintable (TextNode<#text>)
-        PaintableWithLines (BlockContainer<H1>.right) [773.3125,29.4375 18.6875x35]
+        PaintableWithLines (BlockContainer<H1>.right) [773.3125,29.4375 18.6875x37]
           TextPaintable (TextNode<#text>)
-        PaintableWithLines (BlockContainer<DIV>.c) [8,155.875 11.5625x17]
+        PaintableWithLines (BlockContainer<DIV>.c) [8,157.875 11.5625x18]
           TextPaintable (TextNode<#text>)

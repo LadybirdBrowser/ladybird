@@ -1,13 +1,13 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
   BlockContainer <html> at (0,0) content-size 800x600 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x51 children: not-inline
-      Box <div> at (8,8) content-size 784x51 flex-container(row) [FFC] children: not-inline
-        BlockContainer <(anonymous)> at (8,8) content-size 55.359375x51 flex-item [BFC] children: inline
-          frag 0 from TextNode start: 1, length: 4, rect: [8,8 28.40625x17] baseline: 13.296875
+    BlockContainer <body> at (8,8) content-size 784x54 children: not-inline
+      Box <div> at (8,8) content-size 784x54 flex-container(row) [FFC] children: not-inline
+        BlockContainer <(anonymous)> at (8,8) content-size 55.359375x54 flex-item [BFC] children: inline
+          frag 0 from TextNode start: 1, length: 4, rect: [8,8 28.40625x18] baseline: 13.796875
               "well"
-          frag 1 from TextNode start: 1, length: 5, rect: [8,25 36.84375x17] baseline: 13.296875
+          frag 1 from TextNode start: 1, length: 5, rect: [8,26 36.84375x18] baseline: 13.796875
               "hello"
-          frag 2 from TextNode start: 1, length: 7, rect: [8,42 55.359375x17] baseline: 13.296875
+          frag 2 from TextNode start: 1, length: 7, rect: [8,44 55.359375x18] baseline: 13.796875
               "friends"
           TextNode <#text>
           BreakNode <br>
@@ -17,9 +17,9 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x600]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x51]
-      PaintableBox (Box<DIV>) [8,8 784x51]
-        PaintableWithLines (BlockContainer(anonymous)) [8,8 55.359375x51]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x54]
+      PaintableBox (Box<DIV>) [8,8 784x54]
+        PaintableWithLines (BlockContainer(anonymous)) [8,8 55.359375x54]
           TextPaintable (TextNode<#text>)
           TextPaintable (TextNode<#text>)
           TextPaintable (TextNode<#text>)

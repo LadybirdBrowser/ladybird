@@ -3,9 +3,9 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
     BlockContainer <body> at (8,8) content-size 784x0 children: inline
       TextNode <#text>
   BlockContainer <(anonymous)> at (0,0) content-size 800x600 positioned [BFC] children: not-inline
-  BlockContainer <dialog#dialog> at (196.671875,275.5) content-size 406.65625x49 positioned [BFC] children: not-inline
-    BlockContainer <p> at (196.671875,291.5) content-size 406.65625x17 children: inline
-      frag 0 from TextNode start: 0, length: 50, rect: [196.671875,291.5 406.65625x17] baseline: 13.296875
+  BlockContainer <dialog#dialog> at (196.671875,275) content-size 406.65625x50 positioned [BFC] children: not-inline
+    BlockContainer <p> at (196.671875,291) content-size 406.65625x18 children: inline
+      frag 0 from TextNode start: 0, length: 50, rect: [196.671875,291 406.65625x18] baseline: 13.796875
           "Dialog's layout node should be a child of viewport"
       TextNode <#text>
 
@@ -13,6 +13,6 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x16]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x0]
   PaintableWithLines (BlockContainer(anonymous)) [0,0 800x600]
-  PaintableWithLines (BlockContainer<DIALOG>#dialog) [177.671875,256.5 444.65625x87]
-    PaintableWithLines (BlockContainer<P>) [196.671875,291.5 406.65625x17]
+  PaintableWithLines (BlockContainer<DIALOG>#dialog) [177.671875,256 444.65625x88]
+    PaintableWithLines (BlockContainer<P>) [196.671875,291 406.65625x18]
       TextPaintable (TextNode<#text>)
