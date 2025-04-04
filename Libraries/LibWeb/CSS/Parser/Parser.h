@@ -123,8 +123,6 @@ public:
 
     Optional<ComponentValue> parse_as_component_value();
 
-    Vector<ParsedFontFace::Source> parse_as_font_face_src();
-
     Vector<ComponentValue> parse_as_list_of_component_values();
 
     static NonnullRefPtr<CSSStyleValue> resolve_unresolved_style_value(ParsingParams const&, DOM::Element&, Optional<PseudoElement>, PropertyID, UnresolvedStyleValue const&);
@@ -225,9 +223,6 @@ private:
     // TODO: consume_a_unicode_range_value()
 
     OwnPtr<GeneralEnclosed> parse_general_enclosed(TokenStream<ComponentValue>&, MatchResult);
-
-    template<typename T>
-    Vector<ParsedFontFace::Source> parse_font_face_src(TokenStream<T>&);
 
     enum class AllowBlankLayerName {
         No,

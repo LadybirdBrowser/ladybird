@@ -1617,11 +1617,6 @@ bool Parser::context_allows_quirky_length() const
     return unitless_length_allowed;
 }
 
-Vector<ParsedFontFace::Source> Parser::parse_as_font_face_src()
-{
-    return parse_font_face_src(m_token_stream);
-}
-
 Vector<ComponentValue> Parser::parse_as_list_of_component_values()
 {
     return parse_a_list_of_component_values(m_token_stream);
