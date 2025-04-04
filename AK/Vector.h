@@ -686,6 +686,22 @@ public:
         return {};
     }
 
+    ErrorOr<void> try_resize_with_default_value(size_t new_size, T const& default_value, bool keep_capacity)
+    requires(!contains_reference)
+    {
+        if (new_size <= size()) {
+            shrink(new_size, keep_capacity);
+            return {};
+        }
+
+        TRY(try_ensure_capacity(new_size));
+
+        for (size_t i = size(); i < new_size; ++i)
+            new (slot(i)) StorageType { default_value };
+        m_size = new_size;
+        return {};
+    }
+
     ErrorOr<void> try_resize_and_keep_capacity(size_t new_size)
     requires(!contains_reference)
     {
@@ -731,6 +747,24 @@ public:
     requires(!contains_reference)
     {
         MUST(try_resize_and_keep_capacity(new_size));
+    }
+
+    void resize_with_default_value_and_keep_capacity(size_t new_size, T const& default_value)
+    requires(!contains_reference)
+    {
+        MUST(try_resize_with_default_value(new_size, default_value, true));
+    }
+
+    void resize_with_default_value(size_t new_size, T const& default_value, bool keep_capacity = false)
+    requires(!contains_reference)
+    {
+        MUST(try_resize_with_default_value(new_size, default_value, keep_capacity));
+    }
+
+    void fill(T const& value)
+    {
+        for (size_t i = 0; i < size(); ++i)
+            at(i) = value;
     }
 
     void shrink_to_fit()

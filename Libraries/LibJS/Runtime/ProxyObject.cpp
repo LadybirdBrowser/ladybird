@@ -486,11 +486,9 @@ ThrowCompletionOr<Value> ProxyObject::internal_get(PropertyKey const& property_k
 
     // NOTE: We don't return any cacheable metadata for proxy lookups.
 
-    VERIFY(!receiver.is_empty());
+    VERIFY(!receiver.is_special_empty_value());
 
     auto& vm = this->vm();
-
-    VERIFY(!receiver.is_empty());
 
     // 1. Let handler be O.[[ProxyHandler]].
 
@@ -559,8 +557,8 @@ ThrowCompletionOr<bool> ProxyObject::internal_set(PropertyKey const& property_ke
 
     auto& vm = this->vm();
 
-    VERIFY(!value.is_empty());
-    VERIFY(!receiver.is_empty());
+    VERIFY(!value.is_special_empty_value());
+    VERIFY(!receiver.is_special_empty_value());
 
     // 1. Let handler be O.[[ProxyHandler]].
 

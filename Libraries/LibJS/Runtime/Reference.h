@@ -30,7 +30,7 @@ public:
     {
     }
 
-    Reference(Value base, PropertyKey name, Value this_value, bool strict = false)
+    Reference(Value base, PropertyKey name, Optional<Value> this_value, bool strict = false)
         : m_base_type(BaseType::Value)
         , m_base_value(base)
         , m_name(move(name))
@@ -90,14 +90,14 @@ public:
     {
         VERIFY(is_property_reference());
         if (is_super_reference())
-            return m_this_value;
+            return m_this_value.value();
         return m_base_value;
     }
 
     // 6.2.4.3 IsSuperReference ( V ), https://tc39.es/ecma262/#sec-issuperreference
     bool is_super_reference() const
     {
-        return !m_this_value.is_empty();
+        return m_this_value.has_value();
     }
 
     // 6.2.4.4 IsPrivateReference ( V ), https://tc39.es/ecma262/#sec-isprivatereference
@@ -131,7 +131,7 @@ private:
         mutable Environment* m_base_environment;
     };
     Variant<PropertyKey, PrivateName> m_name;
-    Value m_this_value;
+    Optional<Value> m_this_value;
     bool m_strict { false };
 
     Optional<EnvironmentCoordinate> m_environment_coordinate;

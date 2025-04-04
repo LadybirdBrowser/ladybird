@@ -727,7 +727,7 @@ ThrowCompletionOr<void> SourceTextModule::execute_module(VM& vm, GC::Ptr<Promise
                 result = result_and_return_register.value.release_error();
             } else {
                 // Resulting value is in the accumulator.
-                result = result_and_return_register.return_register_value.value_or(js_undefined());
+                result = result_and_return_register.return_register_value.is_special_empty_value() ? js_undefined() : result_and_return_register.return_register_value;
             }
         }
 

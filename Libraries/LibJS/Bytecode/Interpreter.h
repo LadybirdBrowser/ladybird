@@ -33,7 +33,7 @@ public:
     ThrowCompletionOr<Value> run(Script&, GC::Ptr<Environment> lexical_environment_override = nullptr);
     ThrowCompletionOr<Value> run(SourceTextModule&);
 
-    ThrowCompletionOr<Value> run(Bytecode::Executable& executable, Optional<size_t> entry_point = {}, Value initial_accumulator_value = {})
+    ThrowCompletionOr<Value> run(Bytecode::Executable& executable, Optional<size_t> entry_point = {}, Value initial_accumulator_value = js_special_empty_value())
     {
         auto result_and_return_register = run_executable(executable, entry_point, initial_accumulator_value);
         return move(result_and_return_register.value);
@@ -43,7 +43,7 @@ public:
         ThrowCompletionOr<Value> value;
         Value return_register_value;
     };
-    ResultAndReturnRegister run_executable(Bytecode::Executable&, Optional<size_t> entry_point, Value initial_accumulator_value = {});
+    ResultAndReturnRegister run_executable(Bytecode::Executable&, Optional<size_t> entry_point, Value initial_accumulator_value = js_special_empty_value());
 
     ALWAYS_INLINE Value& accumulator() { return reg(Register::accumulator()); }
     ALWAYS_INLINE Value& saved_return_value() { return reg(Register::saved_return_value()); }
@@ -63,7 +63,7 @@ public:
     void do_return(Value value)
     {
         reg(Register::return_value()) = value;
-        reg(Register::exception()) = {};
+        reg(Register::exception()) = js_special_empty_value();
     }
 
     void enter_unwind_context();

@@ -16,7 +16,7 @@ namespace JS {
 struct ValueTraits : public Traits<Value> {
     static unsigned hash(Value value)
     {
-        VERIFY(!value.is_empty());
+        VERIFY(!value.is_special_empty_value());
         if (value.is_string())
             return value.as_string().utf8_string().hash();
 

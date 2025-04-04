@@ -51,14 +51,14 @@ static JS::Value create_close_sentinel()
 {
     // The close sentinel is a unique value enqueued into [[queue]], in lieu of a chunk, to signal that the stream is closed. It is only used internally, and is never exposed to web developers.
     // Note: We use the empty Value to signal this as, similarly to the note above, the empty value is not exposed to nor creatable by web developers.
-    return {};
+    return JS::js_special_empty_value();
 }
 
 // https://streams.spec.whatwg.org/#close-sentinel
 // Non-standard function that implements the "If value is a close sentinel" check.
 static bool is_close_sentinel(JS::Value value)
 {
-    return value.is_empty();
+    return value.is_special_empty_value();
 }
 
 // NON-STANDARD: Can be used instead of CreateReadableStream in cases where we need to set up a newly allocated

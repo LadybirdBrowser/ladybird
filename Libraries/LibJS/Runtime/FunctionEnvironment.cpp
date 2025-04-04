@@ -79,7 +79,7 @@ ThrowCompletionOr<Value> FunctionEnvironment::get_this_binding(VM& vm) const
 // 9.1.1.3.1 BindThisValue ( V ), https://tc39.es/ecma262/#sec-bindthisvalue
 ThrowCompletionOr<Value> FunctionEnvironment::bind_this_value(VM& vm, Value this_value)
 {
-    VERIFY(!this_value.is_empty());
+    VERIFY(!this_value.is_special_empty_value());
 
     // 1. Assert: envRec.[[ThisBindingStatus]] is not lexical.
     VERIFY(m_this_binding_status != ThisBindingStatus::Lexical);

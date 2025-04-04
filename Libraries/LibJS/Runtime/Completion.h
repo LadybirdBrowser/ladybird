@@ -65,7 +65,7 @@ public:
         , m_value(value)
     {
         VERIFY(type != Type::Empty);
-        VERIFY(!value.is_empty());
+        VERIFY(!value.is_special_empty_value());
     }
 
     Completion(ThrowCompletionOr<Value> const&);
@@ -245,7 +245,7 @@ public:
         : m_value_or_error(move(value))
     {
         if constexpr (IsSame<ValueType, Value>)
-            VERIFY(!m_value_or_error.template get<ValueType>().is_empty());
+            VERIFY(!m_value_or_error.template get<ValueType>().is_special_empty_value());
     }
 
     ALWAYS_INLINE ThrowCompletionOr(ThrowCompletionOr const&) = default;

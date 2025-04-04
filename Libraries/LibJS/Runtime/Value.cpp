@@ -559,7 +559,7 @@ ThrowCompletionOr<Value> Value::to_primitive_slow_case(VM& vm, PreferredType pre
 ThrowCompletionOr<GC::Ref<Object>> Value::to_object(VM& vm) const
 {
     auto& realm = *vm.current_realm();
-    VERIFY(!is_empty());
+    VERIFY(!is_special_empty_value());
 
     // Number
     if (is_number()) {
@@ -712,7 +712,7 @@ double string_to_number(StringView string)
 // 7.1.4 ToNumber ( argument ), https://tc39.es/ecma262/#sec-tonumber
 ThrowCompletionOr<Value> Value::to_number_slow_case(VM& vm) const
 {
-    VERIFY(!is_empty());
+    VERIFY(!is_special_empty_value());
 
     // 1. If argument is a Number, return argument.
     if (is_number())

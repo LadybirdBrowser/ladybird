@@ -161,7 +161,7 @@ inline Value typed_array_get_element(TypedArrayBase const& typed_array, Canonica
 template<typename T>
 inline ThrowCompletionOr<void> typed_array_set_element(TypedArrayBase& typed_array, CanonicalIndex property_index, Value value)
 {
-    VERIFY(!value.is_empty());
+    VERIFY(!value.is_special_empty_value());
     auto& vm = typed_array.vm();
 
     Value num_value;
@@ -329,7 +329,7 @@ public:
     // 10.4.5.5 [[Get]] ( P, Receiver ), https://tc39.es/ecma262/#sec-typedarray-get
     virtual ThrowCompletionOr<Value> internal_get(PropertyKey const& property_key, Value receiver, CacheablePropertyMetadata* cacheable_metadata, PropertyLookupPhase phase) const override
     {
-        VERIFY(!receiver.is_empty());
+        VERIFY(!receiver.is_special_empty_value());
 
         // NOTE: If the property name is a number type (An implementation-defined optimized
         // property key type), it can be treated as a string property that will transparently be
@@ -354,8 +354,8 @@ public:
     // 10.4.5.6 [[Set]] ( P, V, Receiver ), https://tc39.es/ecma262/#sec-integer-indexed-exotic-objects-set-p-v-receiver
     virtual ThrowCompletionOr<bool> internal_set(PropertyKey const& property_key, Value value, Value receiver, CacheablePropertyMetadata*) override
     {
-        VERIFY(!value.is_empty());
-        VERIFY(!receiver.is_empty());
+        VERIFY(!value.is_special_empty_value());
+        VERIFY(!receiver.is_special_empty_value());
 
         // NOTE: If the property name is a number type (An implementation-defined optimized
         // property key type), it can be treated as a string property that will transparently be

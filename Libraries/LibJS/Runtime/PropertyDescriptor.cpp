@@ -196,7 +196,7 @@ void PropertyDescriptor::complete()
 {
     if (is_generic_descriptor() || is_data_descriptor()) {
         if (!value.has_value())
-            value = Value {};
+            value = js_undefined();
         if (!writable.has_value())
             writable = false;
     } else {

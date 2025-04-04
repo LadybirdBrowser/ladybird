@@ -21,7 +21,7 @@ FinalizationRegistry::FinalizationRegistry(Realm& realm, GC::Ref<JobCallback> cl
 
 void FinalizationRegistry::add_finalization_record(Cell& target, Value held_value, Cell* unregister_token)
 {
-    VERIFY(!held_value.is_empty());
+    VERIFY(!held_value.is_special_empty_value());
     m_records.append({ &target, held_value, unregister_token });
 }
 

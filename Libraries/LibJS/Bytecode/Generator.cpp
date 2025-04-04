@@ -1304,7 +1304,7 @@ ScopedOperand Generator::add_constant(Value value)
             m_null_constant = append_new_constant();
         return m_null_constant.value();
     }
-    if (value.is_empty()) {
+    if (value.is_special_empty_value()) {
         if (!m_empty_constant.has_value())
             m_empty_constant = append_new_constant();
         return m_empty_constant.value();

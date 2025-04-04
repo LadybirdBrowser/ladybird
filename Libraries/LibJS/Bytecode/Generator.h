@@ -298,7 +298,7 @@ public:
                 emit<Bytecode::Op::PrepareYield>(Operand(Register::saved_return_value()), value);
             else
                 emit<Bytecode::Op::Mov>(Operand(Register::saved_return_value()), value);
-            emit<Bytecode::Op::Mov>(Operand(Register::exception()), add_constant(Value {}));
+            emit<Bytecode::Op::Mov>(Operand(Register::exception()), add_constant(js_special_empty_value()));
             emit<Bytecode::Op::Jump>(Label { *m_current_basic_block->finalizer() });
             return;
         }

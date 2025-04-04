@@ -95,7 +95,7 @@ public:
 
     [[nodiscard]] u16 tag() const { return m_value.tag; }
 
-    bool is_empty() const { return m_value.tag == EMPTY_TAG; }
+    bool is_special_empty_value() const { return m_value.tag == EMPTY_TAG; }
     bool is_undefined() const { return m_value.tag == UNDEFINED_TAG; }
     bool is_null() const { return m_value.tag == NULL_TAG; }
     bool is_number() const { return is_double() || is_int32(); }
@@ -155,7 +155,7 @@ public:
     }
 
     Value()
-        : Value(EMPTY_TAG << GC::TAG_SHIFT, (u64)0)
+        : Value(UNDEFINED_TAG << GC::TAG_SHIFT, (u64)0)
     {
     }
 
@@ -379,12 +379,14 @@ public:
 
     [[nodiscard]] String to_string_without_side_effects() const;
 
+#if 0
     Value value_or(Value fallback) const
     {
-        if (is_empty())
+        if (is_special_empty_value())
             return fallback;
         return *this;
     }
+#endif
 
     [[nodiscard]] GC::Ref<PrimitiveString> typeof_(VM&) const;
 
@@ -424,6 +426,13 @@ private:
     ThrowCompletionOr<Value> to_numeric_slow_case(VM&) const;
     ThrowCompletionOr<Value> to_primitive_slow_case(VM&, PreferredType) const;
 
+    enum class EmptyTag { Empty };
+
+    Value(EmptyTag)
+        : Value(EMPTY_TAG << GC::TAG_SHIFT, (u64)0)
+    {
+    }
+
     Value(u64 tag, u64 val)
     {
         ASSERT(!(tag & val));
@@ -460,6 +469,7 @@ private:
 
     friend Value js_undefined();
     friend Value js_null();
+    friend Value js_special_empty_value();
     friend ThrowCompletionOr<Value> greater_than(VM&, Value lhs, Value rhs);
     friend ThrowCompletionOr<Value> greater_than_equals(VM&, Value lhs, Value rhs);
     friend ThrowCompletionOr<Value> less_than(VM&, Value lhs, Value rhs);
@@ -476,6 +486,11 @@ inline Value js_undefined()
 inline Value js_null()
 {
     return Value(NULL_TAG << GC::TAG_SHIFT, (u64)0);
+}
+
+inline Value js_special_empty_value()
+{
+    return Value(Value::EmptyTag::Empty);
 }
 
 inline Value js_nan()
@@ -600,12 +615,12 @@ public:
 
     void clear()
     {
-        m_value = {};
+        m_value = JS::js_special_empty_value();
     }
 
     [[nodiscard]] bool has_value() const
     {
-        return !m_value.is_empty();
+        return !m_value.is_special_empty_value();
     }
 
     [[nodiscard]] JS::Value& value() &
@@ -634,7 +649,7 @@ public:
     }
 
 private:
-    JS::Value m_value;
+    JS::Value m_value { JS::js_special_empty_value() };
 };
 
 }
@@ -690,7 +705,7 @@ template<>
 struct Formatter<JS::Value> : Formatter<StringView> {
     ErrorOr<void> format(FormatBuilder& builder, JS::Value value)
     {
-        if (value.is_empty())
+        if (value.is_special_empty_value())
             return Formatter<StringView>::format(builder, "<empty>"sv);
         return Formatter<StringView>::format(builder, value.to_string_without_side_effects());
     }
