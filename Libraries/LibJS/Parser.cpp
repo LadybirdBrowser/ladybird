@@ -1539,7 +1539,7 @@ NonnullRefPtr<ClassExpression const> Parser::parse_class_expression(bool expect_
                 parse_statement_list(static_init_block);
 
                 consume(TokenType::CurlyClose);
-                elements.append(create_ast_node<StaticInitializer>({ m_source_code, static_start.position(), position() }, move(static_init_block), static_init_scope.contains_direct_call_to_eval()));
+                elements.append(create_ast_node<StaticInitializer>({ m_source_code, static_start.position(), position() }, move(static_init_block)));
                 continue;
             } else {
                 expected("property key");
@@ -1591,7 +1591,6 @@ NonnullRefPtr<ClassExpression const> Parser::parse_class_expression(bool expect_
                 syntax_error("Class cannot have field named 'constructor'"_string);
 
             RefPtr<Expression const> initializer;
-            bool contains_direct_call_to_eval = false;
 
             if (match(TokenType::Equals)) {
                 consume();
@@ -1602,10 +1601,9 @@ NonnullRefPtr<ClassExpression const> Parser::parse_class_expression(bool expect_
                 auto class_scope_node = create_ast_node<BlockStatement>({ m_source_code, rule_start.position(), position() });
                 auto class_field_scope = ScopePusher::class_field_scope(*this, *class_scope_node);
                 initializer = parse_expression(2);
-                contains_direct_call_to_eval = class_field_scope.contains_direct_call_to_eval();
             }
 
-            elements.append(create_ast_node<ClassField>({ m_source_code, rule_start.position(), position() }, property_key.release_nonnull(), move(initializer), contains_direct_call_to_eval, is_static));
+            elements.append(create_ast_node<ClassField>({ m_source_code, rule_start.position(), position() }, property_key.release_nonnull(), move(initializer), is_static));
             consume_or_insert_semicolon();
         }
     }
