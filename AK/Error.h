@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Assertions.h>
 #include <AK/StringView.h>
 #include <AK/Variant.h>
 #include <errno.h>
@@ -17,6 +18,13 @@ public:
     ALWAYS_INLINE Error(Error&&) = default;
     ALWAYS_INLINE Error& operator=(Error&&) = default;
 
+    enum class Kind : u8 {
+        Errno,
+        Syscall,
+        Windows,
+        StringLiteral
+    };
+
     static Error from_errno(int code)
     {
         VERIFY(code != 0);
@@ -24,7 +32,7 @@ public:
     }
 
 #ifdef AK_OS_WINDOWS
-    static Error from_windows_error(u64 code);
+    static Error from_windows_error(u32 windows_error);
     static Error from_windows_error();
 #endif
 
@@ -75,39 +83,53 @@ public:
 
     bool operator==(Error const& other) const
     {
-        return m_code == other.m_code && m_string_literal == other.m_string_literal && m_syscall == other.m_syscall;
+        return m_code == other.m_code && m_string_literal == other.m_string_literal && m_kind == other.m_kind;
     }
 
     int code() const { return m_code; }
     bool is_errno() const
     {
-        return m_code != 0;
+        return m_kind == Kind::Errno;
     }
     bool is_syscall() const
     {
-        return m_syscall;
+        return m_kind == Kind::Syscall;
+    }
+    bool is_windows_error() const
+    {
+        return m_kind == Kind::Windows;
+    }
+    bool is_string_literal() const
+    {
+        return m_kind == Kind::StringLiteral;
     }
     StringView string_literal() const
     {
         return m_string_literal;
     }
+    Kind kind() const
+    {
+        return m_kind;
+    }
 
 protected:
-    Error(int code)
+    Error(int code, Kind kind = Kind::Errno)
         : m_code(code)
+        , m_kind(kind)
     {
     }
 
 private:
     Error(StringView string_literal)
         : m_string_literal(string_literal)
+        , m_kind(Kind::StringLiteral)
     {
     }
 
     Error(StringView syscall_name, int rc)
         : m_string_literal(syscall_name)
         , m_code(-rc)
-        , m_syscall(true)
+        , m_kind(Kind::Syscall)
     {
     }
 
@@ -118,7 +140,7 @@ private:
 
     int m_code { 0 };
 
-    bool m_syscall { false };
+    Kind m_kind {};
 };
 
 template<typename T, typename E>
