@@ -1,0 +1,27 @@
+Harness status: OK
+
+Found 22 tests
+
+22 Pass
+Pass	command is a readonly defaulting to ''
+Pass	source is readonly defaulting to null
+Pass	command reflects initialized attribute
+Pass	command set to undefined
+Pass	command set to null
+Pass	command set to false
+Pass	command explicitly set to empty string
+Pass	command set to true
+Pass	command set to a number
+Pass	command set to []
+Pass	command set to [1, 2, 3]
+Pass	command set to an object
+Pass	command set to an object with a toString function
+Pass	CommandEventInit properties set value
+Pass	CommandEventInit properties set value 2
+Pass	CommandEventInit properties set value 3
+Pass	source set to undefined
+Pass	source set to null
+Pass	source set to false
+Pass	source set to true
+Pass	source set to {}
+Pass	source set to non-Element EventTarget
