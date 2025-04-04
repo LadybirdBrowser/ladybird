@@ -19,7 +19,6 @@ if (ENABLE_SWIFT)
 
     add_swift_target_properties(TestGCSwift
         LAGOM_LIBRARIES AK LibGC
-        COMPILE_DEFINITIONS LIBGC_WORKAROUND_BOOL_BITFIELD
         COMPILE_OPTIONS ${testing_compile_options} -enable-experimental-feature Extern
     )
     add_test(NAME TestGCSwift COMMAND TestGCSwift)
