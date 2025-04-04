@@ -944,6 +944,22 @@ RefPtr<CSSStyleValue const> CSSStyleProperties::style_value_for_computed_propert
         // -> Any other property
         //    The resolved value is the computed value.
         //    NOTE: This is handled inside the `default` case.
+    case PropertyID::BorderBottomWidth: {
+        auto border_bottom_width = layout_node.computed_values().border_bottom();
+        return LengthStyleValue::create(Length::make_px(border_bottom_width.width));
+    }
+    case PropertyID::BorderLeftWidth: {
+        auto border_left_width = layout_node.computed_values().border_left();
+        return LengthStyleValue::create(Length::make_px(border_left_width.width));
+    }
+    case PropertyID::BorderRightWidth: {
+        auto border_right_width = layout_node.computed_values().border_right();
+        return LengthStyleValue::create(Length::make_px(border_right_width.width));
+    }
+    case PropertyID::BorderTopWidth: {
+        auto border_top_width = layout_node.computed_values().border_top();
+        return LengthStyleValue::create(Length::make_px(border_top_width.width));
+    }
     case PropertyID::WebkitTextFillColor:
         return CSSColorValue::create_from_color(layout_node.computed_values().webkit_text_fill_color(), ColorSyntax::Modern);
     case PropertyID::Invalid:

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>CSS Borders: CSSOM for border-*-width: thin, medium, thick</title>
+<link rel="help" href="https://drafts.csswg.org/css-backgrounds-3/#border-width">
+<meta name="assert" content="getComputedStyle() for 'border-*-width' with values thin, medium, thick, returns 1px, 3px, and 5px, respectively." />
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+.thin { border: solid thin; }
+.medium { border: solid medium; }
+.thick { border: solid thick; }
+</style>
+</head>
+<body>
+  <div class=thin data-expected=1px></div>
+  <div class=medium data-expected=3px></div>
+  <div class=thick data-expected=5px></div>
+  <script>
+    let divs = document.querySelectorAll('div');
+    let props = ['border-top-width', 'border-right-width', 'border-bottom-width', 'border-left-width'];
+    for (let div of divs) {
+      let style = getComputedStyle(div);
+      for (let prop of props) {
+        test(() => {
+          assert_equals(style.getPropertyValue(prop), div.dataset.expected);
+        }, `${prop}: ${div.className} is ${div.dataset.expected}`);
+      }
+    }
+  </script>
+</body>
+</html>

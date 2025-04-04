@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 12 tests
+
+12 Pass
+Pass	border-top-width: thin is 1px
+Pass	border-right-width: thin is 1px
+Pass	border-bottom-width: thin is 1px
+Pass	border-left-width: thin is 1px
+Pass	border-top-width: medium is 3px
+Pass	border-right-width: medium is 3px
+Pass	border-bottom-width: medium is 3px
+Pass	border-left-width: medium is 3px
+Pass	border-top-width: thick is 5px
+Pass	border-right-width: thick is 5px
+Pass	border-bottom-width: thick is 5px
+Pass	border-left-width: thick is 5px
