@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Filter Effects Module Level 1: getComputedStyle().filter</title>
+<link rel="author" title="Eric Willigers" href="mailto:ericwilligers@chromium.org">
+<link rel="help" href="https://drafts.fxtf.org/filter-effects/#FilterProperty">
+<meta name="assert" content="filter supports omitted arguments'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<style>
+  #target {
+    color: lime;
+  }
+</style>
+<div id="target"></div>
+<script>
+test_computed_value("filter", "none");
+
+test_computed_value("filter", "blur(100px)");
+test_computed_value("filter", "blur()", "blur(0px)");
+
+test_computed_value("filter", "brightness(0)");
+test_computed_value("filter", "brightness(300%)", "brightness(3)");
+test_computed_value("filter", "brightness()", "brightness(1)");
+
+test_computed_value("filter", "contrast(0)");
+test_computed_value("filter", "contrast(300%)", "contrast(3)");
+test_computed_value("filter", "contrast()", "contrast(1)");
+
+test_computed_value("filter", "drop-shadow(1px 2px)", "drop-shadow(rgb(0, 255, 0) 1px 2px 0px)");
+test_computed_value("filter", "drop-shadow(rgb(4, 5, 6) 1px 2px 0px)");
+
+test_computed_value("filter", "grayscale(50%)", "grayscale(0.5)");
+test_computed_value("filter", "grayscale(calc(50%))", "grayscale(0.5)");
+test_computed_value("filter", "grayscale(2)", "grayscale(1)");
+test_computed_value("filter", "grayscale(calc(2))", "grayscale(1)");
+test_computed_value("filter", "grayscale()", "grayscale(1)");
+
+test_computed_value("filter", "hue-rotate(90deg)");
+test_computed_value("filter", "hue-rotate()", "hue-rotate(0deg)");
+
+test_computed_value("filter", "invert(0)");
+test_computed_value("filter", "invert(100%)", "invert(1)");
+test_computed_value("filter", "invert(2)", "invert(1)");
+test_computed_value("filter", "invert()", "invert(1)");
+
+test_computed_value("filter", "opacity(0)");
+test_computed_value("filter", "opacity(100%)", "opacity(1)");
+test_computed_value("filter", "opacity(2)", "opacity(1)");
+test_computed_value("filter", "opacity()", "opacity(1)");
+
+test_computed_value("filter", "saturate(0)");
+test_computed_value("filter", "saturate(300%)", "saturate(3)");
+test_computed_value("filter", "saturate()", "saturate(1)");
+
+test_computed_value("filter", "sepia(0)");
+test_computed_value("filter", "sepia(100%)", "sepia(1)");
+test_computed_value("filter", "sepia(2)", "sepia(1)");
+test_computed_value("filter", "sepia()", "sepia(1)");
+
+test_computed_value("filter", 'blur(10px) url("https://www.example.com/picture.svg#f") contrast(20) brightness(30)');
+</script>
+</body>
+</html>
