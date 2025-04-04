@@ -95,7 +95,7 @@ border-bottom-color: rgb(0, 0, 0)
 border-bottom-left-radius: 0px
 border-bottom-right-radius: 0px
 border-bottom-style: none
-border-bottom-width: medium
+border-bottom-width: 0px
 border-inline-end-color: rgb(0, 0, 0)
 border-inline-end-style: none
 border-inline-end-width: medium
@@ -104,15 +104,15 @@ border-inline-start-style: none
 border-inline-start-width: medium
 border-left-color: rgb(0, 0, 0)
 border-left-style: none
-border-left-width: medium
+border-left-width: 0px
 border-right-color: rgb(0, 0, 0)
 border-right-style: none
-border-right-width: medium
+border-right-width: 0px
 border-top-color: rgb(0, 0, 0)
 border-top-left-radius: 0px
 border-top-right-radius: 0px
 border-top-style: none
-border-top-width: medium
+border-top-width: 0px
 bottom: auto
 box-shadow: none
 box-sizing: content-box
