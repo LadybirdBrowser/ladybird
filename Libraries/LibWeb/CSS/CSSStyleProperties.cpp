@@ -960,6 +960,10 @@ RefPtr<CSSStyleValue const> CSSStyleProperties::style_value_for_computed_propert
         auto border_top_width = layout_node.computed_values().border_top();
         return LengthStyleValue::create(Length::make_px(border_top_width.width));
     }
+    case PropertyID::OutlineWidth: {
+        auto outline_width = layout_node.computed_values().outline_width();
+        return LengthStyleValue::create(outline_width);
+    }
     case PropertyID::WebkitTextFillColor:
         return CSSColorValue::create_from_color(layout_node.computed_values().webkit_text_fill_color(), ColorSyntax::Modern);
     case PropertyID::Invalid:
