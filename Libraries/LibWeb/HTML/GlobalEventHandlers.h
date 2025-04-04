@@ -22,6 +22,7 @@
     E(onchange, HTML::EventNames::change)                                     \
     E(onclick, UIEvents::EventNames::click)                                   \
     E(onclose, HTML::EventNames::close)                                       \
+    E(oncommand, HTML::EventNames::command)                                   \
     E(oncontextlost, HTML::EventNames::contextlost)                           \
     E(oncontextmenu, HTML::EventNames::contextmenu)                           \
     E(oncontextrestored, HTML::EventNames::contextrestored)                   \

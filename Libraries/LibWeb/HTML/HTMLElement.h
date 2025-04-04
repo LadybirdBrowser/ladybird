@@ -151,6 +151,9 @@ public:
 
     bool is_inert() const { return m_inert; }
 
+    virtual bool is_valid_invoker_command(String&) { return false; }
+    virtual void invoker_command_steps(DOM::Element&, String&) { }
+
 protected:
     HTMLElement(DOM::Document&, DOM::QualifiedName);
 
