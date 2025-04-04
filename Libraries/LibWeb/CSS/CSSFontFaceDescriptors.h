@@ -33,6 +33,7 @@ public:
     virtual StringView get_property_priority(StringView property) const override;
 
     RefPtr<CSSStyleValue const> descriptor(DescriptorID) const;
+    RefPtr<CSSStyleValue const> descriptor_or_initial_value(DescriptorID) const;
 
     WebIDL::ExceptionOr<void> set_ascent_override(StringView value);
     String ascent_override() const;
