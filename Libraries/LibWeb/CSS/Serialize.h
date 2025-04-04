@@ -21,7 +21,6 @@ void escape_a_character_as_code_point(StringBuilder&, u32 character);
 void serialize_an_identifier(StringBuilder&, StringView ident);
 void serialize_a_string(StringBuilder&, StringView string);
 void serialize_a_url(StringBuilder&, StringView url);
-void serialize_a_local(StringBuilder&, StringView path);
 void serialize_unicode_ranges(StringBuilder&, Vector<Gfx::UnicodeRange> const& unicode_ranges);
 void serialize_a_srgb_value(StringBuilder&, Color color);
 

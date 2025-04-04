@@ -51,7 +51,8 @@ ParsedFontFace CSSFontFaceRule::font_face() const
 // https://www.w3.org/TR/cssom/#ref-for-cssfontfacerule
 String CSSFontFaceRule::serialized() const
 {
-    auto font_face = this->font_face();
+    auto& descriptors = *m_style;
+
     StringBuilder builder;
     // The result of concatenating the following:
 
@@ -62,44 +63,29 @@ String CSSFontFaceRule::serialized() const
     builder.append("font-family: "sv);
 
     // 3. The result of performing serialize a string on the rule’s font family name.
-    serialize_a_string(builder, font_face.font_family());
+    builder.append(descriptors.descriptor(DescriptorID::FontFamily)->to_string(CSSStyleValue::SerializationMode::Normal));
 
     // 4. The string ";", i.e., SEMICOLON (U+003B).
     builder.append(';');
 
     // 5. If the rule’s associated source list is not empty, follow these substeps:
-    if (!font_face.sources().is_empty()) {
+    if (auto sources = descriptors.descriptor(DescriptorID::Src)) {
         // 1. A single SPACE (U+0020), followed by the string "src:", followed by a single SPACE (U+0020).
         builder.append(" src: "sv);
 
         // 2. The result of invoking serialize a comma-separated list on performing serialize a URL or serialize a LOCAL for each source on the source list.
-        serialize_a_comma_separated_list(builder, font_face.sources(), [&](StringBuilder& builder, ParsedFontFace::Source source) -> void {
-            source.local_or_url.visit(
-                [&builder](URL::URL const& url) {
-                    serialize_a_url(builder, url.to_string());
-                },
-                [&builder](FlyString const& local) {
-                    // https://drafts.csswg.org/cssom-1/#serialize-a-local
-                    // To serialize a LOCAL means to create a string represented by "local(", followed by the serialization of the LOCAL as a string, followed by ")".
-                    builder.appendff("local({})", serialize_a_string(local));
-                });
-
-            // NOTE: No spec currently exists for format()
-            if (source.format.has_value()) {
-                builder.append(" format("sv);
-                serialize_a_string(builder, source.format.value());
-                builder.append(")"sv);
-            }
-        });
+        builder.append(sources->to_string(CSSStyleValue::SerializationMode::Normal));
 
         // 3. The string ";", i.e., SEMICOLON (U+003B).
         builder.append(';');
     }
 
     // 6. If rule’s associated unicode-range descriptor is present, a single SPACE (U+0020), followed by the string "unicode-range:", followed by a single SPACE (U+0020), followed by the result of performing serialize a <'unicode-range'>, followed by the string ";", i.e., SEMICOLON (U+003B).
-    builder.append(" unicode-range: "sv);
-    serialize_unicode_ranges(builder, font_face.unicode_ranges());
-    builder.append(';');
+    if (auto unicode_range = descriptors.descriptor(DescriptorID::UnicodeRange)) {
+        builder.append(" unicode-range: "sv);
+        builder.append(unicode_range->to_string(CSSStyleValue::SerializationMode::Normal));
+        builder.append(';');
+    }
 
     // FIXME: 7. If rule’s associated font-variant descriptor is present, a single SPACE (U+0020),
     // followed by the string "font-variant:", followed by a single SPACE (U+0020),
@@ -110,23 +96,9 @@ String CSSFontFaceRule::serialized() const
     //    followed by the string "font-feature-settings:", followed by a single SPACE (U+0020),
     //    followed by the result of performing serialize a <'font-feature-settings'>,
     //    followed by the string ";", i.e., SEMICOLON (U+003B).
-    if (font_face.font_feature_settings().has_value()) {
-        auto const& feature_settings = font_face.font_feature_settings().value();
+    if (auto font_feature_settings = descriptors.descriptor(DescriptorID::FontFeatureSettings)) {
         builder.append(" font-feature-settings: "sv);
-        // NOTE: We sort the tags during parsing, so they're already in the correct order.
-        bool first = true;
-        for (auto const& [key, value] : feature_settings) {
-            if (first) {
-                first = false;
-            } else {
-                builder.append(", "sv);
-            }
-
-            serialize_a_string(builder, key);
-            // NOTE: 1 is the default value, so don't serialize it.
-            if (value != 1)
-                builder.appendff(" {}", value);
-        }
+        builder.append(font_feature_settings->to_string(CSSStyleValue::SerializationMode::Normal));
         builder.append(";"sv);
     }
 
@@ -135,43 +107,9 @@ String CSSFontFaceRule::serialized() const
     //    followed by the result of performing serialize a <'font-stretch'>,
     //    followed by the string ";", i.e., SEMICOLON (U+003B).
     // NOTE: font-stretch is now an alias for font-width, so we use that instead.
-    if (font_face.width().has_value()) {
-        builder.append(" font-width: "sv);
-        // NOTE: font-width is supposed to always be serialized as a percentage.
-        //       Right now, it's stored as a Gfx::FontWidth value, so we have to lossily convert it back.
-        float percentage = 100.0f;
-        switch (font_face.width().value()) {
-        case Gfx::FontWidth::UltraCondensed:
-            percentage = 50.0f;
-            break;
-        case Gfx::FontWidth::ExtraCondensed:
-            percentage = 62.5f;
-            break;
-        case Gfx::FontWidth::Condensed:
-            percentage = 75.0f;
-            break;
-        case Gfx::FontWidth::SemiCondensed:
-            percentage = 87.5f;
-            break;
-        case Gfx::FontWidth::Normal:
-            percentage = 100.0f;
-            break;
-        case Gfx::FontWidth::SemiExpanded:
-            percentage = 112.5f;
-            break;
-        case Gfx::FontWidth::Expanded:
-            percentage = 125.0f;
-            break;
-        case Gfx::FontWidth::ExtraExpanded:
-            percentage = 150.0f;
-            break;
-        case Gfx::FontWidth::UltraExpanded:
-            percentage = 200.0f;
-            break;
-        default:
-            break;
-        }
-        builder.appendff("{}%", percentage);
+    if (auto font_width = descriptors.descriptor(DescriptorID::FontWidth)) {
+        builder.append(" font-stretch: "sv);
+        builder.append(font_width->to_string(CSSStyleValue::SerializationMode::Normal));
         builder.append(";"sv);
     }
 
@@ -179,15 +117,9 @@ String CSSFontFaceRule::serialized() const
     //     followed by the string "font-weight:", followed by a single SPACE (U+0020),
     //     followed by the result of performing serialize a <'font-weight'>,
     //     followed by the string ";", i.e., SEMICOLON (U+003B).
-    if (font_face.weight().has_value()) {
-        auto weight = font_face.weight().value();
+    if (auto font_weight = descriptors.descriptor(DescriptorID::FontWeight)) {
         builder.append(" font-weight: "sv);
-        if (weight == 400)
-            builder.append("normal"sv);
-        else if (weight == 700)
-            builder.append("bold"sv);
-        else
-            builder.appendff("{}", weight);
+        builder.append(font_weight->to_string(CSSStyleValue::SerializationMode::Normal));
         builder.append(";"sv);
     }
 
@@ -195,17 +127,9 @@ String CSSFontFaceRule::serialized() const
     //     followed by the string "font-style:", followed by a single SPACE (U+0020),
     //     followed by the result of performing serialize a <'font-style'>,
     //     followed by the string ";", i.e., SEMICOLON (U+003B).
-    if (font_face.slope().has_value()) {
-        auto slope = font_face.slope().value();
+    if (auto font_style = descriptors.descriptor(DescriptorID::FontStyle)) {
         builder.append(" font-style: "sv);
-        if (slope == Gfx::name_to_slope("Normal"sv))
-            builder.append("normal"sv);
-        else if (slope == Gfx::name_to_slope("Italic"sv))
-            builder.append("italic"sv);
-        else {
-            dbgln("FIXME: CSSFontFaceRule::serialized() does not support slope {}", slope);
-            builder.append("italic"sv);
-        }
+        builder.append(font_style->to_string(CSSStyleValue::SerializationMode::Normal));
         builder.append(";"sv);
     }
 
