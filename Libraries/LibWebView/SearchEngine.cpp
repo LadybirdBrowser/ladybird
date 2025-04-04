@@ -1,34 +1,33 @@
 /*
- * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2023-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <AK/Find.h>
-#include <AK/String.h>
 #include <LibWebView/SearchEngine.h>
 
 namespace WebView {
 
-static constexpr auto builtin_search_engines = Array {
-    SearchEngine { "Bing"sv, "https://www.bing.com/search?q={}"sv },
-    SearchEngine { "Brave"sv, "https://search.brave.com/search?q={}"sv },
-    SearchEngine { "DuckDuckGo"sv, "https://duckduckgo.com/?q={}"sv },
-    SearchEngine { "Ecosia"sv, "https://ecosia.org/search?q={}"sv },
-    SearchEngine { "Google"sv, "https://www.google.com/search?q={}"sv },
-    SearchEngine { "Kagi"sv, "https://kagi.com/search?q={}"sv },
-    SearchEngine { "Mojeek"sv, "https://www.mojeek.com/search?q={}"sv },
-    SearchEngine { "Startpage"sv, "https://startpage.com/search?q={}"sv },
-    SearchEngine { "Yahoo"sv, "https://search.yahoo.com/search?p={}"sv },
-    SearchEngine { "Yandex"sv, "https://yandex.com/search/?text={}"sv },
-};
+static auto builtin_search_engines = to_array<SearchEngine>({
+    { "Bing"_string, "https://www.bing.com/search?q={}"_string },
+    { "Brave"_string, "https://search.brave.com/search?q={}"_string },
+    { "DuckDuckGo"_string, "https://duckduckgo.com/?q={}"_string },
+    { "Ecosia"_string, "https://ecosia.org/search?q={}"_string },
+    { "Google"_string, "https://www.google.com/search?q={}"_string },
+    { "Kagi"_string, "https://kagi.com/search?q={}"_string },
+    { "Mojeek"_string, "https://www.mojeek.com/search?q={}"_string },
+    { "Startpage"_string, "https://startpage.com/search?q={}"_string },
+    { "Yahoo"_string, "https://search.yahoo.com/search?p={}"_string },
+    { "Yandex"_string, "https://yandex.com/search/?text={}"_string },
+});
 
 ReadonlySpan<SearchEngine> search_engines()
 {
     return builtin_search_engines;
 }
 
-Optional<SearchEngine const&> find_search_engine_by_name(StringView name)
+Optional<SearchEngine> find_search_engine_by_name(StringView name)
 {
     return find_value(builtin_search_engines, [&](auto const& engine) {
         return engine.name == name;
