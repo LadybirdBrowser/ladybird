@@ -39,7 +39,7 @@ struct HueRotate {
         bool operator==(Zero const&) const = default;
     };
     using AngleOrZero = Variant<AngleOrCalculated, Zero>;
-    Optional<AngleOrZero> angle;
+    AngleOrZero angle { Angle::make_degrees(0) };
     float angle_degrees(Layout::Node const&) const;
     bool operator==(HueRotate const&) const = default;
 };

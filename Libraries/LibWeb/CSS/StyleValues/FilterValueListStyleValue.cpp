@@ -24,10 +24,7 @@ float FilterOperation::Blur::resolved_radius(Layout::Node const& node) const
 
 float FilterOperation::HueRotate::angle_degrees(Layout::Node const& node) const
 {
-    // Default value when omitted is 0deg.
-    if (!angle.has_value())
-        return 0.0f;
-    return angle->visit([&](AngleOrCalculated const& a) { return a.resolved({ .length_resolution_context = Length::ResolutionContext::for_layout_node(node) })->to_degrees(); }, [&](Zero) { return 0.0; });
+    return angle.visit([&](AngleOrCalculated const& a) { return a.resolved({ .length_resolution_context = Length::ResolutionContext::for_layout_node(node) })->to_degrees(); }, [&](Zero) { return 0.0; });
 }
 
 float FilterOperation::Color::resolved_amount() const
@@ -75,15 +72,13 @@ String FilterValueListStyleValue::to_string(SerializationMode) const
             },
             [&](FilterOperation::HueRotate const& hue_rotate) {
                 builder.append("hue-rotate("sv);
-                if (hue_rotate.angle.has_value()) {
-                    hue_rotate.angle->visit(
-                        [&](Angle const& angle) {
-                            return builder.append(angle.to_string());
-                        },
-                        [&](auto&) {
-                            return builder.append('0');
-                        });
-                }
+                hue_rotate.angle.visit(
+                    [&](Angle const& angle) {
+                        builder.append(angle.to_string());
+                    },
+                    [&](auto&) {
+                        builder.append("0deg"sv);
+                    });
             },
             [&](FilterOperation::Color const& color) {
                 builder.appendff("{}(",
