@@ -80,6 +80,12 @@ public:
     virtual bool has_activation_behavior() const override;
     virtual void activation_behavior(DOM::Event const&) override;
 
+    String command() const;
+    WebIDL::ExceptionOr<void> set_command(String const&);
+
+    GC::Ptr<DOM::Element> command_for_element() { return m_command_for_element; }
+    void set_command_for_element(GC::Ptr<DOM::Element> value) { m_command_for_element = value; }
+
 private:
     virtual void visit_edges(Visitor&) override;
 
@@ -89,6 +95,8 @@ private:
 
     // ^DOM::Element
     virtual i32 default_tab_index_value() const override;
+
+    GC::Ptr<DOM::Element> m_command_for_element;
 };
 
 }

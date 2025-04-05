@@ -38,6 +38,9 @@ public:
 
     bool is_modal() const { return m_is_modal; }
 
+    bool is_valid_invoker_command(String&) override;
+    void invoker_command_steps(DOM::Element&, String&) override;
+
 private:
     HTMLDialogElement(DOM::Document&, DOM::QualifiedName);
 

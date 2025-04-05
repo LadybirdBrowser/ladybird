@@ -31,6 +31,7 @@ namespace Web::HTML::EventNames {
     __ENUMERATE_HTML_EVENT(change)                   \
     __ENUMERATE_HTML_EVENT(click)                    \
     __ENUMERATE_HTML_EVENT(close)                    \
+    __ENUMERATE_HTML_EVENT(command)                  \
     __ENUMERATE_HTML_EVENT(complete)                 \
     __ENUMERATE_HTML_EVENT(connect)                  \
     __ENUMERATE_HTML_EVENT(contextlost)              \
