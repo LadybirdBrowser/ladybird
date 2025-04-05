@@ -90,17 +90,19 @@
                 margin-bottom: 0;
             }
 
-            .toggle-container {
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-            }
-
-            .permission-container {
+            .inline-container {
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
                 gap: 10px;
+            }
+
+            .button-container {
+                display: flex;
+                justify-content: flex-end;
+                gap: 10px;
+
+                margin-top: 20px;
             }
 
             .forcibly-enabled {
@@ -276,14 +278,6 @@
             dialog .dialog-controls select {
                 flex-grow: 1;
             }
-
-            .button-container {
-                display: flex;
-                justify-content: flex-end;
-
-                margin-top: 20px;
-                gap: 10px;
-            }
         </style>
     </head>
     <body>
@@ -308,7 +302,7 @@
 
                 <hr />
 
-                <div class="card-group permission-container">
+                <div class="card-group inline-container">
                     <span>Languages</span>
                     <button id="languages-settings" class="secondary-button">Settings...</button>
                 </div>
@@ -318,7 +312,7 @@
         <div class="card">
             <div class="card-header">Search</div>
             <div class="card-body">
-                <div class="card-group toggle-container">
+                <div class="card-group inline-container">
                     <label for="search-toggle">Enable Search</label>
                     <input id="search-toggle" type="checkbox" switch />
                 </div>
@@ -332,7 +326,7 @@
 
                 <hr />
 
-                <div class="card-group toggle-container">
+                <div class="card-group inline-container">
                     <label for="autocomplete-toggle">Enable Autocomplete</label>
                     <input id="autocomplete-toggle" type="checkbox" switch />
                 </div>
@@ -349,7 +343,7 @@
         <div class="card">
             <div class="card-header">Permissions</div>
             <div class="card-body">
-                <div class="card-group permission-container">
+                <div class="card-group inline-container">
                     <span>Autoplay</span>
                     <span id="autoplay-forcibly-enabled" class="forcibly-enabled hidden">
                         This setting is controlled via the command line
@@ -362,7 +356,7 @@
         <div class="card">
             <div class="card-header">Privacy</div>
             <div class="card-body">
-                <div class="card-group toggle-container">
+                <div class="card-group inline-container">
                     <label for="do-not-track-toggle">Send websites a "Do Not Track" request</label>
                     <input id="do-not-track-toggle" type="checkbox" switch />
                 </div>
@@ -398,7 +392,7 @@
                 <button id="site-settings-close" class="close-button dialog-button">&times;</button>
             </div>
             <div class="dialog-body">
-                <div class="toggle-container">
+                <div class="inline-container">
                     <label for="site-settings-global">Enable on all sites</label>
                     <input id="site-settings-global" type="checkbox" switch />
                 </div>
