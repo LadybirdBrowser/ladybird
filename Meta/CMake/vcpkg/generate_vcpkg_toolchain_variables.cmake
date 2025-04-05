@@ -17,12 +17,17 @@ if (LINUX AND NOT LAGOM_USE_LINKER)
     string(APPEND EXTRA_VCPKG_VARIABLES "set(ENV{LDFLAGS} -Wl,-z,noseparate-code)\n")
 endif()
 
+string(APPEND EXTRA_VCPKG_VARIABLES [=[
+if (POLICY CMP0057)
+  cmake_policy(SET CMP0057 NEW)
+endif()
+]=])
+
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/build-vcpkg-variables.cmake" "${EXTRA_VCPKG_VARIABLES}")
 
 # Munge the VCPKG_TRIPLET to correspond to the right one for our presets
-# Just make sure not to override if the developer is trying to cross-compile
-# or the developer set it manually, or if this is not the first run of CMake
-if (NOT DEFINED CACHE{VCPKG_TARGET_TRIPLET} AND NOT DEFINED CACHE{VCPKG_HOST_TRIPLET} AND NOT DEFINED VCPKG_CHAINLOAD_TOOLCHAIN_FILE)
+# Just make sure not to override if the developer set it manually, or if this is not the first run of CMake
+if (NOT DEFINED CACHE{VCPKG_TARGET_TRIPLET} AND NOT DEFINED CACHE{VCPKG_HOST_TRIPLET})
     # Only tweak settings if there's custom triplets defined
     if (NOT DEFINED CACHE{VCPKG_OVERLAY_TRIPLETS})
         return()
@@ -74,6 +79,8 @@ if (NOT DEFINED CACHE{VCPKG_TARGET_TRIPLET} AND NOT DEFINED CACHE{VCPKG_HOST_TRI
     endif()
 
     message(STATUS "Determined host VCPKG_TARGET_TRIPLET: ${full_triplet}")
-    set(VCPKG_TARGET_TRIPLET ${full_triplet} CACHE STRING "")
+    if (NOT VCPKG_CHAINLOAD_TOOLCHAIN_FILE)
+        set(VCPKG_TARGET_TRIPLET ${full_triplet} CACHE STRING "")
+    endif()
     set(VCPKG_HOST_TRIPLET ${full_triplet} CACHE STRING "")
 endif()

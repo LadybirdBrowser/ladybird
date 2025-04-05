@@ -1,0 +1,57 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index ecfbb83..420c578 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -34,13 +34,6 @@ endif()
+ # Find Brotli dependencies
+ set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+-find_package(BrotliDec)
+-if (NOT BROTLIDEC_FOUND)
+-    message(FATAL_ERROR "librotlidec is needed to build woff2.")
+-endif ()
+-find_package(BrotliEnc)
+-if (NOT BROTLIENC_FOUND)
+-    message(FATAL_ERROR "librotlienc is needed to build woff2.")
+-endif ()
++  find_package(unofficial-brotli REQUIRED)
+ 
+ # Set compiler flags
+ if (NOT CANONICAL_PREFIXES)
+@@ -63,9 +73,8 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${COMMON_FLAG}")
+ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMMON_FLAG}")
+ set(CMAKE_CXX_STANDARD 11)
+ 
+-# Set search path for our private/public headers as well as Brotli headers
+-include_directories("src" "include"
+-                    "${BROTLIDEC_INCLUDE_DIRS}" "${BROTLIENC_INCLUDE_DIRS}")
++# Set search path for our private/public headers
++include_directories("src" "include")
+ 
+ # Common part used by decoder and encoder
+ add_library(woff2common
+@@ -77,7 +86,7 @@ add_library(woff2common
+ add_library(woff2dec
+             src/woff2_dec.cc
+             src/woff2_out.cc)
+-target_link_libraries(woff2dec woff2common "${BROTLIDEC_LIBRARIES}")
++target_link_libraries(woff2dec woff2common unofficial::brotli::brotlidec)
+ add_executable(woff2_decompress src/woff2_decompress.cc)
+ target_link_libraries(woff2_decompress woff2dec)
+ 
+@@ -88,7 +97,7 @@ add_library(woff2enc
+             src/normalize.cc
+             src/transform.cc
+             src/woff2_enc.cc)
+-target_link_libraries(woff2enc woff2common "${BROTLIENC_LIBRARIES}")
++target_link_libraries(woff2enc woff2common unofficial::brotli::brotlienc)
+ add_executable(woff2_compress src/woff2_compress.cc)
+ target_link_libraries(woff2_compress woff2enc)
+ 
+@@ -264,6 +273,7 @@ if (NOT BUILD_SHARED_LIBS)
+   install(
+     TARGETS woff2_decompress woff2_compress woff2_info
+     RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
++    BUNDLE DESTINATION "${CMAKE_INSTALL_BINDIR}"
+   )
+ endif()
+ 
