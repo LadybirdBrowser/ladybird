@@ -1280,7 +1280,7 @@ static inline Completion throw_type_error_for_callee(Bytecode::Interpreter& inte
     auto& vm = interpreter.vm();
 
     if (expression_string.has_value())
-        return vm.throw_completion<TypeError>(ErrorType::IsNotAEvaluatedFrom, callee.to_string_without_side_effects(), callee_type, interpreter.current_executable().get_string(expression_string->value()));
+        return vm.throw_completion<TypeError>(ErrorType::IsNotAEvaluatedFrom, callee.to_string_without_side_effects(), callee_type, interpreter.current_executable().get_string(*expression_string));
 
     return vm.throw_completion<TypeError>(ErrorType::IsNotA, callee.to_string_without_side_effects(), callee_type);
 }
@@ -3078,9 +3078,10 @@ ByteString NewObject::to_byte_string_impl(Bytecode::Executable const& executable
 
 ByteString NewRegExp::to_byte_string_impl(Bytecode::Executable const& executable) const
 {
-    return ByteString::formatted("NewRegExp {}, source:{} (\"{}\") flags:{} (\"{}\")",
+    return ByteString::formatted("NewRegExp {}, source:\"{}\" flags:\"{}\"",
         format_operand("dst"sv, dst(), executable),
-        m_source_index, executable.get_string(m_source_index), m_flags_index, executable.get_string(m_flags_index));
+        executable.get_string(m_source_index),
+        executable.get_string(m_flags_index));
 }
 
 ByteString CopyObjectExcludingProperties::to_byte_string_impl(Bytecode::Executable const& executable) const
