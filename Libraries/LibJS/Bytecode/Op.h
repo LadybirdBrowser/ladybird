@@ -322,7 +322,7 @@ public:
 private:
     Operand m_dst;
     Operand m_from_object;
-    size_t m_excluded_names_count { 0 };
+    u32 m_excluded_names_count { 0 };
     Operand m_excluded_names[];
 };
 
@@ -367,7 +367,7 @@ public:
 
 private:
     Operand m_dst;
-    size_t m_element_count { 0 };
+    u32 m_element_count { 0 };
     Operand m_elements[];
 };
 
@@ -401,7 +401,7 @@ public:
 
 private:
     Operand m_dst;
-    size_t m_element_count { 0 };
+    u32 m_element_count { 0 };
     Value m_elements[];
 };
 
@@ -2105,7 +2105,7 @@ private:
     Optional<Operand> m_super_class;
     ClassExpression const& m_class_expression;
     Optional<IdentifierTableIndex> m_lhs_name;
-    size_t m_element_keys_count { 0 };
+    u32 m_element_keys_count { 0 };
     Optional<Operand> m_element_keys[];
 };
 
