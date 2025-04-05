@@ -316,9 +316,9 @@ GridFormattingContext::PlacementPosition GridFormattingContext::resolve_grid_pos
             result.end = m_occupation_grid.column_count() + result.end + 2;
     }
 
-    if (placement_start.has_line_number() && placement_end.is_span())
+    if (placement_end.is_span())
         result.span = placement_end.span();
-    if (placement_end.has_line_number() && placement_start.is_span()) {
+    if (placement_start.is_span()) {
         result.span = placement_start.span();
         result.start = result.end - result.span;
         // FIXME: Remove me once have implemented spans overflowing into negative indexes, e.g., grid-row: span 2 / 1
@@ -328,9 +328,10 @@ GridFormattingContext::PlacementPosition GridFormattingContext::resolve_grid_pos
 
     if (placement_end.has_identifier()) {
         auto area_end_line_name = MUST(String::formatted("{}-end", placement_end.identifier()));
-        if (auto area_end_line_index = get_line_index_by_line_name(dimension, area_end_line_name); area_end_line_index.has_value()) {
+        auto line_number = placement_end.has_line_number() ? placement_end.line_number() : 1;
+        if (auto area_end_line_index = get_nth_line_index_by_line_name(dimension, area_end_line_name, line_number); area_end_line_index.has_value()) {
             result.end = area_end_line_index.value();
-        } else if (auto line_name_index = get_line_index_by_line_name(dimension, placement_end.identifier()); line_name_index.has_value()) {
+        } else if (auto line_name_index = get_nth_line_index_by_line_name(dimension, placement_end.identifier(), line_number); line_name_index.has_value()) {
             result.end = line_name_index.value();
         } else {
             result.end = 1;
@@ -340,9 +341,10 @@ GridFormattingContext::PlacementPosition GridFormattingContext::resolve_grid_pos
 
     if (placement_start.has_identifier()) {
         auto area_start_line_name = MUST(String::formatted("{}-start", placement_start.identifier()));
-        if (auto area_start_line_index = get_line_index_by_line_name(dimension, area_start_line_name); area_start_line_index.has_value()) {
+        auto line_number = placement_start.has_line_number() ? placement_start.line_number() : 1;
+        if (auto area_start_line_index = get_nth_line_index_by_line_name(dimension, area_start_line_name, line_number); area_start_line_index.has_value()) {
             result.start = area_start_line_index.value();
-        } else if (auto line_name_index = get_line_index_by_line_name(dimension, placement_start.identifier()); line_name_index.has_value()) {
+        } else if (auto line_name_index = get_nth_line_index_by_line_name(dimension, placement_start.identifier(), line_number); line_name_index.has_value()) {
             result.start = line_name_index.value();
         } else {
             result.start = 0;
@@ -2266,13 +2268,23 @@ AvailableSize GridFormattingContext::get_free_space(AvailableSpace const& availa
     return available_size;
 }
 
-Optional<int> GridFormattingContext::get_line_index_by_line_name(GridDimension dimension, String const& line_name)
+Optional<int> GridFormattingContext::get_nth_line_index_by_line_name(GridDimension dimension, String const& line_name, int nth_line)
 {
     auto const& lines = dimension == GridDimension::Column ? m_column_lines : m_row_lines;
-    for (size_t line_index = 0; line_index < lines.size(); line_index++) {
-        for (auto const& name : lines[line_index].names) {
-            if (name == line_name)
-                return static_cast<int>(line_index);
+    size_t line_index = nth_line < 0 ? lines.size() + nth_line : nth_line - 1;
+    // FIXME: If not enough lines with the name exist, all implicit grid lines on the side
+    // of the explicit grid corresponding to the search direction are assumed to have that name for the purpose of counting this span.
+    // Source: https://drafts.csswg.org/css-grid/#line-placement
+    for (size_t actual_line_index = 0; actual_line_index < lines.size(); actual_line_index++) {
+        for (auto const& name : lines[actual_line_index].names) {
+            if (name == line_name) {
+                // https://drafts.csswg.org/css-grid/#line-placement
+                // Contributes the nth grid line to the grid item’s placement.
+                if (line_index == 0)
+                    return static_cast<int>(actual_line_index);
+                else
+                    line_index--;
+            }
         }
     }
     return {};
