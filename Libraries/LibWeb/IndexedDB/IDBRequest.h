@@ -10,7 +10,7 @@
 
 #include <LibWeb/Bindings/IDBRequestPrototype.h>
 #include <LibWeb/DOM/EventTarget.h>
-#include <LibWeb/IndexedDB/IDBTransaction.h>
+#include <LibWeb/IndexedDB/Internal/RequestList.h>
 
 namespace Web::IndexedDB {
 
@@ -30,6 +30,7 @@ public:
     [[nodiscard]] bool processed() const { return m_processed; }
     [[nodiscard]] IDBRequestSource source() const { return m_source; }
     [[nodiscard]] GC::Ptr<IDBTransaction> transaction() const { return m_transaction; }
+    [[nodiscard]] String uuid() const { return m_uuid; }
 
     [[nodiscard]] Bindings::IDBRequestReadyState ready_state() const;
     [[nodiscard]] WebIDL::ExceptionOr<GC::Ptr<WebIDL::DOMException>> error() const;
@@ -56,15 +57,22 @@ protected:
 private:
     // A request has a processed flag which is initially false.
     bool m_processed { false };
+
     // A request has a done flag which is initially false.
     bool m_done { false };
+
     // A request has a result and an error
     JS::Value m_result;
     GC::Ptr<WebIDL::DOMException> m_error;
+
     // A request has a source object.
     IDBRequestSource m_source;
+
     // A request has a transaction which is initially null.
     GC::Ptr<IDBTransaction> m_transaction;
+
+    // NOTE: Used for debug purposes
+    String m_uuid;
 };
 
 }

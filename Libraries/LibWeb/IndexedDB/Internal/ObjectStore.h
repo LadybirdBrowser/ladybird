@@ -15,6 +15,7 @@
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/IndexedDB/Internal/Algorithms.h>
 #include <LibWeb/IndexedDB/Internal/Database.h>
+#include <LibWeb/IndexedDB/Internal/Index.h>
 #include <LibWeb/IndexedDB/Internal/KeyGenerator.h>
 
 namespace Web::IndexedDB {
@@ -38,6 +39,12 @@ public:
     Optional<KeyGenerator> key_generator() const { return m_key_generator; }
 
     GC::Ref<Database> database() const { return m_database; }
+    ReadonlySpan<GC::Ref<Index>> index_set() const { return m_indexes; }
+    void add_index(GC::Ref<Index> index) { m_indexes.append(index); }
+    void remove_index(GC::Ref<Index> index)
+    {
+        m_indexes.remove_first_matching([&](auto& entry) { return entry == index; });
+    }
 
 protected:
     virtual void visit_edges(Visitor&) override;
@@ -47,6 +54,9 @@ private:
 
     // AD-HOC: An ObjectStore needs to know what Database it belongs to...
     GC::Ref<Database> m_database;
+
+    // AD-HOC: An Index has referenced ObjectStores, we also need the reverse mapping
+    Vector<GC::Ref<Index>> m_indexes;
 
     // An object store has a name, which is a name. At any one time, the name is unique within the database to which it belongs.
     String m_name;
