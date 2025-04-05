@@ -3847,7 +3847,7 @@ void SetCompletionType::execute_impl(Bytecode::Interpreter& interpreter) const
 {
     auto& completion_cell = static_cast<CompletionCell&>(interpreter.get(m_completion).as_cell());
     auto completion = completion_cell.completion();
-    completion_cell.set_completion(Completion { completion.type(), completion.value() });
+    completion_cell.set_completion(Completion { m_type, completion.value() });
 }
 
 ByteString SetCompletionType::to_byte_string_impl(Bytecode::Executable const& executable) const
