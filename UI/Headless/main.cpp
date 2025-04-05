@@ -61,6 +61,8 @@ static ErrorOr<NonnullRefPtr<Core::Timer>> load_page_for_screenshot_and_exit(Cor
 
 ErrorOr<int> serenity_main(Main::Arguments arguments)
 {
+    AK::set_rich_debug_enabled(true);
+
     WebView::platform_init();
 
     auto app = Ladybird::Application::create(arguments);

@@ -276,4 +276,9 @@ ErrorOr<void> set_close_on_exec(int handle, bool enabled)
     return {};
 }
 
+ErrorOr<bool> isatty(int handle)
+{
+    return GetFileType(to_handle(handle)) == FILE_TYPE_CHAR;
+}
+
 }
