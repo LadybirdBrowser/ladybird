@@ -298,9 +298,41 @@ private:
 };
 
 template<>
-class [[nodiscard]] ThrowCompletionOr<void> : public ThrowCompletionOr<Empty> {
+class [[nodiscard]] ThrowCompletionOr<void> {
 public:
-    using ThrowCompletionOr<Empty>::ThrowCompletionOr;
+    ALWAYS_INLINE ThrowCompletionOr()
+        : m_value(js_special_empty_value())
+    {
+    }
+
+    ALWAYS_INLINE ThrowCompletionOr(Empty)
+        : m_value(js_special_empty_value())
+    {
+    }
+
+    // Not `explicit` on purpose so that `return vm.throw_completion<Error>(...);` is possible.
+    ALWAYS_INLINE ThrowCompletionOr(Completion throw_completion)
+        : m_value(throw_completion.release_error().value())
+    {
+    }
+
+    ALWAYS_INLINE ThrowCompletionOr(ThrowCompletionOr const&) = default;
+    ALWAYS_INLINE ThrowCompletionOr& operator=(ThrowCompletionOr const&) = default;
+    ALWAYS_INLINE ThrowCompletionOr(ThrowCompletionOr&&) = default;
+    ALWAYS_INLINE ThrowCompletionOr& operator=(ThrowCompletionOr&&) = default;
+
+    [[nodiscard]] bool is_throw_completion() const { return !m_value.is_special_empty_value(); }
+    [[nodiscard]] Completion throw_completion() const { return error(); }
+    [[nodiscard]] Value error_value() const { return m_value; }
+
+    // These are for compatibility with the TRY() macro in AK.
+    [[nodiscard]] bool is_error() const { return !m_value.is_special_empty_value(); }
+    Empty release_value() { return {}; }
+    Completion error() const { return Completion { Completion::Type::Throw, m_value }; }
+    Completion release_error() { return error(); }
+
+private:
+    Value m_value;
 };
 
 ThrowCompletionOr<Value> await(VM&, Value);
