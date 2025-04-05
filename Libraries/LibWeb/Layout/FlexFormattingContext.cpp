@@ -825,7 +825,7 @@ void FlexFormattingContext::collect_flex_items_into_flex_lines()
     CSSPixels line_main_size = 0;
     for (auto& item : m_flex_items) {
         auto const outer_hypothetical_main_size = item.outer_hypothetical_main_size();
-        if (!line.items.is_empty() && (line_main_size + outer_hypothetical_main_size) > m_available_space_for_items->main) {
+        if (!line.items.is_empty() && (line_main_size + outer_hypothetical_main_size) > m_available_space_for_items->main.to_px_or_zero()) {
             m_flex_lines.append(move(line));
             line = {};
             line_main_size = 0;
