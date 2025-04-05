@@ -12,6 +12,7 @@
 #include <LibCore/EventReceiver.h>
 #include <LibIPC/File.h>
 #include <LibIPC/Forward.h>
+#include <LibIPC/Message.h>
 #include <LibIPC/Transport.h>
 #include <LibIPC/UnprocessedFileDescriptors.h>
 #include <LibThreading/ConditionVariable.h>
@@ -26,9 +27,14 @@ class ConnectionBase : public Core::EventReceiver {
 public:
     virtual ~ConnectionBase() override;
 
+    enum class MessageNeedsAcknowledgement {
+        No,
+        Yes,
+    };
+
     [[nodiscard]] bool is_open() const;
     ErrorOr<void> post_message(Message const&);
-    ErrorOr<void> post_message(u32 endpoint_magic, MessageBuffer);
+    ErrorOr<void> post_message(u32 endpoint_magic, MessageBuffer, MessageNeedsAcknowledgement = MessageNeedsAcknowledgement::Yes);
 
     void shutdown();
     virtual void die() { }
@@ -36,7 +42,7 @@ public:
     Transport& transport() { return m_transport; }
 
 protected:
-    explicit ConnectionBase(IPC::Stub&, Transport, u32 local_endpoint_magic);
+    explicit ConnectionBase(IPC::Stub&, Transport, u32 local_endpoint_magic, u32 peer_endpoint_magic);
 
     virtual void may_have_become_unresponsive() { }
     virtual void did_become_responsive() { }
@@ -62,23 +68,38 @@ protected:
     ByteBuffer m_unprocessed_bytes;
 
     u32 m_local_endpoint_magic { 0 };
+    u32 m_peer_endpoint_magic { 0 };
+
+    struct MessageToSend {
+        MessageBuffer buffer;
+        MessageNeedsAcknowledgement needs_acknowledgement { MessageNeedsAcknowledgement::Yes };
+    };
 
     struct SendQueue : public AtomicRefCounted<SendQueue> {
-        AK::SinglyLinkedList<MessageBuffer> messages;
+        AK::SinglyLinkedList<MessageToSend> messages;
         Threading::Mutex mutex;
         Threading::ConditionVariable condition { mutex };
         bool running { true };
     };
 
+    // After a message is sent, it is moved to the acknowledgement wait queue until an acknowledgement is received from the peer.
+    // This is necessary to handle a specific behavior of the macOS kernel, which may prematurely garbage-collect the file
+    // descriptor contained in the message before the peer receives it. https://openradar.me/9477351
+    struct AcknowledgementWaitQueue : public AtomicRefCounted<AcknowledgementWaitQueue> {
+        AK::SinglyLinkedList<MessageBuffer> messages;
+        Threading::Mutex mutex;
+    };
+
     RefPtr<Threading::Thread> m_send_thread;
     RefPtr<SendQueue> m_send_queue;
+    RefPtr<AcknowledgementWaitQueue> m_acknowledgement_wait_queue;
 };
 
 template<typename LocalEndpoint, typename PeerEndpoint>
 class Connection : public ConnectionBase {
 public:
     Connection(IPC::Stub& local_stub, Transport transport)
-        : ConnectionBase(local_stub, move(transport), LocalEndpoint::static_magic())
+        : ConnectionBase(local_stub, move(transport), LocalEndpoint::static_magic(), PeerEndpoint::static_magic())
     {
     }
 

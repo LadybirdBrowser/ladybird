@@ -119,4 +119,28 @@ private:
     Vector<File> m_wrapped_fds;
 };
 
+class Acknowledgement : public Message {
+public:
+    ~Acknowledgement() override = default;
+
+    static constexpr int MESSAGE_ID = 0xFFFFFFFF;
+
+    static NonnullOwnPtr<Acknowledgement> create(u32 endpoint_magic, u32 ack_count);
+
+    u32 endpoint_magic() const override { return m_endpoint_magic; }
+    int message_id() const override { return MESSAGE_ID; }
+    char const* message_name() const override { return "Acknowledgement"; }
+    ErrorOr<MessageBuffer> encode() const override;
+
+    static ErrorOr<NonnullOwnPtr<Acknowledgement>> decode(u32 endpoint_magic, Stream& stream, UnprocessedFileDescriptors& files);
+
+    u32 ack_count() const { return m_ack_count; }
+
+    Acknowledgement(u32 endpoint_magic, u32 number_of_acknowledged_messages);
+
+private:
+    u32 m_endpoint_magic { 0 };
+    u32 m_ack_count { 0 };
+};
+
 }
