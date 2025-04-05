@@ -361,17 +361,6 @@ RefPtr<CSSStyleValue> Parser::parse_family_name_value(TokenStream<ComponentValue
 
         if (peek.is(Token::Type::Ident)) {
             auto ident = tokens.consume_a_token().token().ident();
-
-            // CSS-wide keywords are not allowed
-            if (is_css_wide_keyword(ident))
-                return nullptr;
-
-            // <generic-family> is a separate type from <family-name>, and so isn't allowed here.
-            auto maybe_keyword = keyword_from_string(ident);
-            if (maybe_keyword.has_value() && keyword_to_generic_font_family(maybe_keyword.value()).has_value()) {
-                return nullptr;
-            }
-
             parts.append(ident.to_string());
             tokens.discard_whitespace();
             continue;
@@ -383,8 +372,19 @@ RefPtr<CSSStyleValue> Parser::parse_family_name_value(TokenStream<ComponentValue
     if (parts.is_empty())
         return nullptr;
 
+    if (parts.size() == 1) {
+        // <generic-family> is a separate type from <family-name>, and so isn't allowed here.
+        auto maybe_keyword = keyword_from_string(parts.first());
+        if (is_css_wide_keyword(parts.first()) || parts.first().equals_ignoring_ascii_case("default"sv))
+            return nullptr;
+        if (maybe_keyword.has_value() && keyword_to_generic_font_family(maybe_keyword.value()).has_value())
+            return nullptr;
+    }
+
+    auto complete_name = MUST(String::join(' ', parts));
+
     transaction.commit();
-    return CustomIdentStyleValue::create(MUST(String::join(' ', parts)));
+    return CustomIdentStyleValue::create(complete_name);
 }
 
 // https://www.w3.org/TR/css-syntax-3/#urange-syntax
