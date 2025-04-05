@@ -29,14 +29,9 @@ ReadonlySpan<AutocompleteEngine> autocomplete_engines()
 
 Optional<AutocompleteEngine const&> find_autocomplete_engine_by_name(StringView name)
 {
-    auto it = AK::find_if(builtin_autocomplete_engines.begin(), builtin_autocomplete_engines.end(),
-        [&](auto const& engine) {
-            return engine.name == name;
-        });
-
-    if (it == builtin_autocomplete_engines.end())
-        return {};
-    return *it;
+    return find_value(builtin_autocomplete_engines, [&](auto const& engine) {
+        return engine.name == name;
+    });
 }
 
 Autocomplete::Autocomplete() = default;

@@ -631,7 +631,7 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
         TemporaryChange change_url { m_context_menu_search_text, move(selected_text) };
 
         if (m_context_menu_search_text.has_value()) {
-            auto action_text = WebView::format_search_query_for_display(search_engine->query_url, *m_context_menu_search_text);
+            auto action_text = search_engine->format_search_query_for_display(*m_context_menu_search_text);
             [search_selected_text_menu_item setTitle:Ladybird::string_to_ns_string(action_text)];
             [search_selected_text_menu_item setHidden:NO];
         } else {
@@ -1135,7 +1135,7 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
     if (!search_engine.has_value())
         return;
 
-    auto url_string = MUST(String::formatted(search_engine->query_url, URL::percent_encode(*m_context_menu_search_text)));
+    auto url_string = search_engine->format_search_query_for_navigation(*m_context_menu_search_text);
     auto url = URL::Parser::basic_parse(url_string);
     VERIFY(url.has_value());
     [self.observer onCreateNewTab:url.release_value() activateTab:Web::HTML::ActivateTab::Yes];

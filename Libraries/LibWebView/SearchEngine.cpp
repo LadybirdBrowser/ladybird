@@ -1,75 +1,46 @@
 /*
- * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2023-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Find.h>
-#include <AK/String.h>
+#include <LibURL/URL.h>
 #include <LibWebView/SearchEngine.h>
 
 namespace WebView {
 
-static constexpr auto builtin_search_engines = Array {
-    SearchEngine { "Bing"sv, "https://www.bing.com/search?q={}"sv },
-    SearchEngine { "Brave"sv, "https://search.brave.com/search?q={}"sv },
-    SearchEngine { "DuckDuckGo"sv, "https://duckduckgo.com/?q={}"sv },
-    SearchEngine { "Ecosia"sv, "https://ecosia.org/search?q={}"sv },
-    SearchEngine { "Google"sv, "https://www.google.com/search?q={}"sv },
-    SearchEngine { "Kagi"sv, "https://kagi.com/search?q={}"sv },
-    SearchEngine { "Mojeek"sv, "https://www.mojeek.com/search?q={}"sv },
-    SearchEngine { "Startpage"sv, "https://startpage.com/search?q={}"sv },
-    SearchEngine { "Yahoo"sv, "https://search.yahoo.com/search?p={}"sv },
-    SearchEngine { "Yandex"sv, "https://yandex.com/search/?text={}"sv },
-};
+static auto s_builtin_search_engines = to_array<SearchEngine>({
+    { "Bing"_string, "https://www.bing.com/search?q=%s"_string },
+    { "Brave"_string, "https://search.brave.com/search?q=%s"_string },
+    { "DuckDuckGo"_string, "https://duckduckgo.com/?q=%s"_string },
+    { "Ecosia"_string, "https://ecosia.org/search?q=%s"_string },
+    { "Google"_string, "https://www.google.com/search?q=%s"_string },
+    { "Kagi"_string, "https://kagi.com/search?q=%s"_string },
+    { "Mojeek"_string, "https://www.mojeek.com/search?q=%s"_string },
+    { "Startpage"_string, "https://startpage.com/search?q=%s"_string },
+    { "Yahoo"_string, "https://search.yahoo.com/search?p=%s"_string },
+    { "Yandex"_string, "https://yandex.com/search/?text=%s"_string },
+});
 
-ReadonlySpan<SearchEngine> search_engines()
+ReadonlySpan<SearchEngine> builtin_search_engines()
 {
-    return builtin_search_engines;
+    return s_builtin_search_engines;
 }
 
-Optional<SearchEngine const&> find_search_engine_by_name(StringView name)
-{
-    auto it = AK::find_if(builtin_search_engines.begin(), builtin_search_engines.end(),
-        [&](auto const& engine) {
-            return engine.name == name;
-        });
-
-    if (it == builtin_search_engines.end())
-        return {};
-
-    return *it;
-}
-
-Optional<SearchEngine const&> find_search_engine_by_query_url(StringView query_url)
-{
-    auto it = AK::find_if(builtin_search_engines.begin(), builtin_search_engines.end(),
-        [&](auto const& engine) {
-            return engine.query_url == query_url;
-        });
-
-    if (it == builtin_search_engines.end())
-        return {};
-
-    return *it;
-}
-
-String format_search_query_for_display(StringView query_url, StringView query)
+String SearchEngine::format_search_query_for_display(StringView query) const
 {
     static constexpr auto MAX_SEARCH_STRING_LENGTH = 32;
 
-    if (auto search_engine = find_search_engine_by_query_url(query_url); search_engine.has_value()) {
-        return MUST(String::formatted("Search {} for \"{:.{}}{}\"",
-            search_engine->name,
-            query,
-            MAX_SEARCH_STRING_LENGTH,
-            query.length() > MAX_SEARCH_STRING_LENGTH ? "..."sv : ""sv));
-    }
-
-    return MUST(String::formatted("Search for \"{:.{}}{}\"",
+    return MUST(String::formatted("Search {} for \"{:.{}}{}\"",
+        name,
         query,
         MAX_SEARCH_STRING_LENGTH,
         query.length() > MAX_SEARCH_STRING_LENGTH ? "..."sv : ""sv));
+}
+
+String SearchEngine::format_search_query_for_navigation(StringView query) const
+{
+    return MUST(query_url.replace("%s"sv, URL::percent_encode(query), ReplaceMode::All));
 }
 
 }

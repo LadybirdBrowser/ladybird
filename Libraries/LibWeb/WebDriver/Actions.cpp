@@ -901,13 +901,11 @@ static KeyCodeData key_code_data(u32 code_point)
         { 0xE027, {}, UIEvents::KeyCode::Key_Minus, UIEvents::KeyModifier::Mod_Keypad },
     });
 
-    auto it = find_if(key_code_data.begin(), key_code_data.end(), [&](auto const& data) {
+    auto data = find_value(key_code_data, [&](auto const& data) {
         return data.key == code_point || data.alternate_key == code_point;
     });
 
-    if (it == key_code_data.end())
-        return { .key = code_point };
-    return *it;
+    return data.value_or({ .key = code_point });
 }
 
 // https://w3c.github.io/webdriver/#dfn-shifted-character

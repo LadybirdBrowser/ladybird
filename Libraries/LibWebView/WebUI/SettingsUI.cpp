@@ -34,6 +34,12 @@ void SettingsUI::register_interfaces()
     register_interface("setSearchEngine"sv, [this](auto const& data) {
         set_search_engine(data);
     });
+    register_interface("addCustomSearchEngine"sv, [this](auto const& data) {
+        add_custom_search_engine(data);
+    });
+    register_interface("removeCustomSearchEngine"sv, [this](auto const& data) {
+        remove_custom_search_engine(data);
+    });
     register_interface("setAutocompleteEngine"sv, [this](auto const& data) {
         set_autocomplete_engine(data);
     });
@@ -94,7 +100,7 @@ void SettingsUI::set_languages(JsonValue const& languages)
 void SettingsUI::load_available_engines()
 {
     JsonArray search_engines;
-    for (auto const& engine : WebView::search_engines())
+    for (auto const& engine : WebView::builtin_search_engines())
         search_engines.must_append(engine.name);
 
     JsonArray autocomplete_engines;
@@ -114,6 +120,22 @@ void SettingsUI::set_search_engine(JsonValue const& search_engine)
         WebView::Application::settings().set_search_engine({});
     else if (search_engine.is_string())
         WebView::Application::settings().set_search_engine(search_engine.as_string());
+}
+
+void SettingsUI::add_custom_search_engine(JsonValue const& search_engine)
+{
+    if (auto custom_engine = Settings::parse_custom_search_engine(search_engine); custom_engine.has_value())
+        WebView::Application::settings().add_custom_search_engine(custom_engine.release_value());
+
+    load_current_settings();
+}
+
+void SettingsUI::remove_custom_search_engine(JsonValue const& search_engine)
+{
+    if (auto custom_engine = Settings::parse_custom_search_engine(search_engine); custom_engine.has_value())
+        WebView::Application::settings().remove_custom_search_engine(*custom_engine);
+
+    load_current_settings();
 }
 
 void SettingsUI::set_autocomplete_engine(JsonValue const& autocomplete_engine)
