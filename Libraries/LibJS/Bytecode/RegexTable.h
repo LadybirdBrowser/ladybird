@@ -13,7 +13,7 @@
 
 namespace JS::Bytecode {
 
-AK_TYPEDEF_DISTINCT_NUMERIC_GENERAL(size_t, RegexTableIndex, Comparison);
+AK_TYPEDEF_DISTINCT_NUMERIC_GENERAL(u32, RegexTableIndex, Comparison);
 
 struct ParsedRegex {
     regex::Parser::Result regex;
