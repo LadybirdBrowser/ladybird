@@ -1,0 +1,23 @@
+Harness status: OK
+
+Found 17 tests
+
+16 Pass
+1 Fail
+Pass	empty value
+Pass	datetime-local input value set to 2014-01-01T11:11:11.111 without min/max
+Pass	datetime-local input value set to 2014-01-01 11:11:11.111 without min/max
+Pass	datetime-local input value set to 2014-01-01 11:11 without min/max
+Fail	datetime-local input value set to 2014-01-01 00:00:00.000 without min/max
+Pass	datetime-local input value set to 2014-01-0 11:11 without min/max
+Pass	datetime-local input value set to 2014-01-01 11:1 without min/max
+Pass	invalid datetime-local input value 1
+Pass	invalid datetime-local input value 2
+Pass	invalid datetime-local input value 3
+Pass	invalid datetime-local input value 4
+Pass	invalid datetime-local input value 5
+Pass	invalid datetime-local input value 6
+Pass	Value >= min attribute
+Pass	Value < min attribute
+Pass	Value <= max attribute
+Pass	Value > max attribute
