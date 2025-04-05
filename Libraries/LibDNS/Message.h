@@ -91,6 +91,16 @@ struct DomainName {
     static ErrorOr<DomainName> from_raw(ParseContext&);
     ErrorOr<void> to_raw(ByteBuffer&) const;
     String to_string() const;
+    String to_canonical_string() const;
+    DomainName parent() const
+    {
+        auto copy = *this;
+        copy.labels.take_first();
+        return copy;
+    }
+
+    bool operator==(DomainName const&) const& = default;
+    bool operator!=(DomainName const&) const& = default;
 };
 
 // Listing from IANA https://www.iana.org/assignments/dns-parameters/dns-parameters.xhtml#dns-parameters-4.
@@ -278,6 +288,8 @@ static inline StringView to_string(Algorithm algorithm)
         return "ED25519"sv;
     case Algorithm::Unknown:
         return "Unknown"sv;
+    default:
+        return "Invalid"sv;
     }
     VERIFY_NOT_REACHED();
 }
@@ -364,7 +376,7 @@ struct A {
 
     static constexpr ResourceType type = ResourceType::A;
     static ErrorOr<A> from_raw(ParseContext&);
-    ErrorOr<void> to_raw(ByteBuffer&) const { return Error::from_string_literal("Not implemented"); }
+    ErrorOr<void> to_raw(ByteBuffer&) const;
     ErrorOr<String> to_string() const { return address.to_string(); }
 };
 struct AAAA {
@@ -372,7 +384,7 @@ struct AAAA {
 
     static constexpr ResourceType type = ResourceType::AAAA;
     static ErrorOr<AAAA> from_raw(ParseContext&);
-    ErrorOr<void> to_raw(ByteBuffer&) const { return Error::from_string_literal("Not implemented"); }
+    ErrorOr<void> to_raw(ByteBuffer&) const;
     ErrorOr<String> to_string() const { return address.to_string(); }
 };
 struct TXT {
@@ -380,7 +392,7 @@ struct TXT {
 
     static constexpr ResourceType type = ResourceType::TXT;
     static ErrorOr<TXT> from_raw(ParseContext&);
-    ErrorOr<void> to_raw(ByteBuffer&) const { return Error::from_string_literal("Not implemented"); }
+    ErrorOr<void> to_raw(ByteBuffer&) const;
     ErrorOr<String> to_string() const { return String::formatted("Text: '{}'", StringView { content }); }
 };
 struct CNAME {
@@ -388,7 +400,7 @@ struct CNAME {
 
     static constexpr ResourceType type = ResourceType::CNAME;
     static ErrorOr<CNAME> from_raw(ParseContext&);
-    ErrorOr<void> to_raw(ByteBuffer&) const { return Error::from_string_literal("Not implemented"); }
+    ErrorOr<void> to_raw(ByteBuffer&) const;
     ErrorOr<String> to_string() const { return names.to_string(); }
 };
 struct NS {
@@ -396,7 +408,7 @@ struct NS {
 
     static constexpr ResourceType type = ResourceType::NS;
     static ErrorOr<NS> from_raw(ParseContext&);
-    ErrorOr<void> to_raw(ByteBuffer&) const { return Error::from_string_literal("Not implemented"); }
+    ErrorOr<void> to_raw(ByteBuffer&) const { return Error::from_string_literal("Not implemented: NS::to_raw"); }
     ErrorOr<String> to_string() const { return name.to_string(); }
 };
 struct SOA {
@@ -410,7 +422,7 @@ struct SOA {
 
     static constexpr ResourceType type = ResourceType::SOA;
     static ErrorOr<SOA> from_raw(ParseContext&);
-    ErrorOr<void> to_raw(ByteBuffer&) const { return Error::from_string_literal("Not implemented"); }
+    ErrorOr<void> to_raw(ByteBuffer&) const;
     ErrorOr<String> to_string() const
     {
         return String::formatted("SOA MName: '{}', RName: '{}', Serial: {}, Refresh: {}, Retry: {}, Expire: {}, Minimum: {}", mname.to_string(), rname.to_string(), serial, refresh, retry, expire, minimum);
@@ -422,7 +434,7 @@ struct MX {
 
     static constexpr ResourceType type = ResourceType::MX;
     static ErrorOr<MX> from_raw(ParseContext&);
-    ErrorOr<void> to_raw(ByteBuffer&) const { return Error::from_string_literal("Not implemented"); }
+    ErrorOr<void> to_raw(ByteBuffer&) const { return Error::from_string_literal("Not implemented: MX::to_raw"); }
     ErrorOr<String> to_string() const { return String::formatted("MX Preference: {}, Exchange: '{}'", preference, exchange.to_string()); }
 };
 struct PTR {
@@ -430,7 +442,7 @@ struct PTR {
 
     static constexpr ResourceType type = ResourceType::PTR;
     static ErrorOr<PTR> from_raw(ParseContext&);
-    ErrorOr<void> to_raw(ByteBuffer&) const { return Error::from_string_literal("Not implemented"); }
+    ErrorOr<void> to_raw(ByteBuffer&) const { return Error::from_string_literal("Not implemented: PTR::to_raw"); }
     ErrorOr<String> to_string() const { return name.to_string(); }
 };
 struct SRV {
@@ -441,7 +453,7 @@ struct SRV {
 
     static constexpr ResourceType type = ResourceType::SRV;
     static ErrorOr<SRV> from_raw(ParseContext&);
-    ErrorOr<void> to_raw(ByteBuffer&) const { return Error::from_string_literal("Not implemented"); }
+    ErrorOr<void> to_raw(ByteBuffer&) const { return Error::from_string_literal("Not implemented: SRV::to_raw"); }
     ErrorOr<String> to_string() const { return String::formatted("SRV Priority: {}, Weight: {}, Port: {}, Target: '{}'", priority, weight, port, target.to_string()); }
 };
 struct DNSKEY {
@@ -449,6 +461,17 @@ struct DNSKEY {
     u8 protocol;
     DNSSEC::Algorithm algorithm;
     ByteBuffer public_key;
+    // Extra: calculated key tag
+    u16 calculated_key_tag;
+    // Extra: public key components (pointing into public_key) ONLY for RSA.
+    u16 public_key_rsa_exponent_length() const
+    {
+        if (public_key[0] != 0)
+            return public_key[0];
+        return static_cast<u16>(public_key[1]) | static_cast<u16>(public_key[2]) << 8;
+    }
+    ReadonlyBytes public_key_rsa_exponent() const { return public_key.bytes().slice(1, public_key_rsa_exponent_length()); }
+    ReadonlyBytes public_key_rsa_modulus() const { return public_key.bytes().slice(1 + public_key_rsa_exponent_length()); }
 
     constexpr static inline u16 FlagSecureEntryPoint = 0b1000000000000000;
     constexpr static inline u16 FlagZoneKey = 0b0100000000000000;
@@ -461,10 +484,10 @@ struct DNSKEY {
 
     static constexpr ResourceType type = ResourceType::DNSKEY;
     static ErrorOr<DNSKEY> from_raw(ParseContext&);
-    ErrorOr<void> to_raw(ByteBuffer&) const { return Error::from_string_literal("Not implemented"); }
+    ErrorOr<void> to_raw(ByteBuffer&) const;
     ErrorOr<String> to_string() const
     {
-        return String::formatted("DNSKEY Flags: {}{}{}{}({}), Protocol: {}, Algorithm: {}, Public Key: {}",
+        return String::formatted("DNSKEY Flags: {}{}{}{}({}), Protocol: {}, Algorithm: {}, Public Key: {}, Tag: {}",
             is_secure_entry_point() ? "sep "sv : ""sv,
             is_zone_key() ? "zone "sv : ""sv,
             is_revoked() ? "revoked "sv : ""sv,
@@ -472,7 +495,8 @@ struct DNSKEY {
             flags,
             protocol,
             DNSSEC::to_string(algorithm),
-            TRY(encode_base64(public_key)));
+            TRY(encode_base64(public_key)),
+            calculated_key_tag);
     }
 };
 struct CDNSKEY : public DNSKEY {
@@ -493,8 +517,15 @@ struct DS {
 
     static constexpr ResourceType type = ResourceType::DS;
     static ErrorOr<DS> from_raw(ParseContext&);
-    ErrorOr<void> to_raw(ByteBuffer&) const { return Error::from_string_literal("Not implemented"); }
-    ErrorOr<String> to_string() const { return "DS"_string; }
+    ErrorOr<void> to_raw(ByteBuffer&) const;
+    ErrorOr<String> to_string() const
+    {
+        return String::formatted("DS Key Tag: {}, Algorithm: {}, Digest Type: {}, Digest: {}",
+            key_tag,
+            DNSSEC::to_string(algorithm),
+            DNSSEC::to_string(digest_type),
+            TRY(encode_base64(digest)));
+    }
 };
 struct CDS : public DS {
     template<typename... Ts>
@@ -518,7 +549,8 @@ struct SIG {
 
     static constexpr ResourceType type = ResourceType::SIG;
     static ErrorOr<SIG> from_raw(ParseContext&);
-    ErrorOr<void> to_raw(ByteBuffer&) const { return Error::from_string_literal("Not implemented"); }
+    ErrorOr<void> to_raw(ByteBuffer&) const;
+    ErrorOr<void> to_raw_excluding_signature(ByteBuffer&) const;
     ErrorOr<String> to_string() const;
 };
 struct RRSIG : public SIG {
@@ -530,6 +562,7 @@ struct RRSIG : public SIG {
 
     static constexpr ResourceType type = ResourceType::RRSIG;
     static ErrorOr<RRSIG> from_raw(ParseContext& raw) { return SIG::from_raw(raw); }
+    ErrorOr<void> to_raw_excluding_signature(ByteBuffer& buffer) const { return SIG::to_raw_excluding_signature(buffer); }
 };
 struct NSEC {
     DomainName next_domain_name;
@@ -537,7 +570,7 @@ struct NSEC {
 
     static constexpr ResourceType type = ResourceType::NSEC;
     static ErrorOr<NSEC> from_raw(ParseContext&);
-    ErrorOr<void> to_raw(ByteBuffer&) const { return Error::from_string_literal("Not implemented"); }
+    ErrorOr<void> to_raw(ByteBuffer&) const { return Error::from_string_literal("Not implemented: NSC::to_raw"); }
     ErrorOr<String> to_string() const { return "NSEC"_string; }
 };
 struct NSEC3 {
@@ -550,7 +583,7 @@ struct NSEC3 {
 
     static constexpr ResourceType type = ResourceType::NSEC3;
     static ErrorOr<NSEC3> from_raw(ParseContext&);
-    ErrorOr<void> to_raw(ByteBuffer&) const { return Error::from_string_literal("Not implemented"); }
+    ErrorOr<void> to_raw(ByteBuffer&) const { return Error::from_string_literal("Not implemented: NSEC3::to_raw"); }
     ErrorOr<String> to_string() const { return "NSEC3"_string; }
 };
 struct NSEC3PARAM {
@@ -565,7 +598,7 @@ struct NSEC3PARAM {
 
     static constexpr ResourceType type = ResourceType::NSEC3PARAM;
     static ErrorOr<NSEC3PARAM> from_raw(ParseContext&);
-    ErrorOr<void> to_raw(ByteBuffer&) const { return Error::from_string_literal("Not implemented"); }
+    ErrorOr<void> to_raw(ByteBuffer&) const { return Error::from_string_literal("Not implemented: NSEC3PARAM::to_raw"); }
     ErrorOr<String> to_string() const { return "NSEC3PARAM"_string; }
 };
 struct TLSA {
@@ -575,7 +608,7 @@ struct TLSA {
     ByteBuffer certificate_association_data;
 
     static ErrorOr<TLSA> from_raw(ParseContext&);
-    ErrorOr<void> to_raw(ByteBuffer&) const { return Error::from_string_literal("Not implemented"); }
+    ErrorOr<void> to_raw(ByteBuffer&) const { return Error::from_string_literal("Not implemented: TLSA::to_raw"); }
     ErrorOr<String> to_string() const { return "TLSA"_string; }
 };
 struct HINFO {
@@ -584,7 +617,7 @@ struct HINFO {
 
     static constexpr ResourceType type = ResourceType::HINFO;
     static ErrorOr<HINFO> from_raw(ParseContext&);
-    ErrorOr<void> to_raw(ByteBuffer&) const { return Error::from_string_literal("Not implemented"); }
+    ErrorOr<void> to_raw(ByteBuffer&) const;
     ErrorOr<String> to_string() const { return String::formatted("HINFO CPU: '{}', OS: '{}'", StringView { cpu }, StringView { os }); }
 };
 struct OPT {

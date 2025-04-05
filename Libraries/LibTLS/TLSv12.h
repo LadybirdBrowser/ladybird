@@ -55,7 +55,7 @@ public:
     virtual void close() override;
 
     virtual ErrorOr<size_t> pending_bytes() const override;
-    virtual ErrorOr<bool> can_read_without_blocking(int = 0) const override;
+    virtual ErrorOr<bool> can_read_without_blocking(int timeout = 0) const override;
     virtual ErrorOr<void> set_blocking(bool block) override;
     virtual ErrorOr<void> set_close_on_exec(bool enabled) override;
 
