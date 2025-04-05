@@ -176,6 +176,7 @@ public:
     bool is_color() const { return type() == Type::Color; }
     CSSColorValue const& as_color() const;
     CSSColorValue& as_color() { return const_cast<CSSColorValue&>(const_cast<CSSStyleValue const&>(*this).as_color()); }
+    virtual bool is_color_function() const { return false; }
 
     bool is_color_scheme() const { return type() == Type::ColorScheme; }
     ColorSchemeStyleValue const& as_color_scheme() const;
