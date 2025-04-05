@@ -11,12 +11,12 @@ namespace JS::Bytecode {
 StringTableIndex StringTable::insert(String string)
 {
     m_strings.append(move(string));
-    return m_strings.size() - 1;
+    return { static_cast<u32>(m_strings.size() - 1) };
 }
 
 String const& StringTable::get(StringTableIndex index) const
 {
-    return m_strings[index.value()];
+    return m_strings[index.value];
 }
 
 void StringTable::dump() const
