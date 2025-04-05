@@ -199,14 +199,15 @@ JS::ThrowCompletionOr<void> CustomElementRegistry::define(String const& name, We
         auto& prototype = prototype_value.as_object();
 
         // 3. Let lifecycleCallbacks be the ordered map «[ "connectedCallback" → null, "disconnectedCallback" → null, "adoptedCallback" → null,
-        //    "attributeChangedCallback" → null ]».
+        //    "connectedMoveCallback" → null, "attributeChangedCallback" → null ]».
         lifecycle_callbacks.set(CustomElementReactionNames::connectedCallback, {});
         lifecycle_callbacks.set(CustomElementReactionNames::disconnectedCallback, {});
         lifecycle_callbacks.set(CustomElementReactionNames::adoptedCallback, {});
+        lifecycle_callbacks.set(CustomElementReactionNames::connectedMoveCallback, {});
         lifecycle_callbacks.set(CustomElementReactionNames::attributeChangedCallback, {});
 
         // 4. For each callbackName of the keys of lifecycleCallbacks:
-        for (auto const& callback_name : { CustomElementReactionNames::connectedCallback, CustomElementReactionNames::disconnectedCallback, CustomElementReactionNames::adoptedCallback, CustomElementReactionNames::attributeChangedCallback }) {
+        for (auto const& callback_name : { CustomElementReactionNames::connectedCallback, CustomElementReactionNames::disconnectedCallback, CustomElementReactionNames::adoptedCallback, CustomElementReactionNames::connectedMoveCallback, CustomElementReactionNames::attributeChangedCallback }) {
             // 1. Let callbackValue be ? Get(prototype, callbackName).
             auto callback_value = TRY(prototype.get(callback_name));
 

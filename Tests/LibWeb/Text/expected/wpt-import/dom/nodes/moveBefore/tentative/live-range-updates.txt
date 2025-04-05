@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	moveBefore still results in range startContainer snapping up to parent when startContainer is moved
+Pass	moveBefore still causes range startContainer to snap up to parent, when startContainer ancestor is moved
+Pass	moveBefore still causes range endContainer to snap up to parent, when endContainer ancestor is moved

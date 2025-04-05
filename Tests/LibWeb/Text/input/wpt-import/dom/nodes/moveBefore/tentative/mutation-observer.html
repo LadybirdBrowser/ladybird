@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<title>slotchanged event</title>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<body>
+
+<div id=oldParent>
+  <p id=target></p>
+</div>
+<div id=newParent></div>
+
+<script>
+async function runTest(oldParent, target, newParent) {
+  const observations = [];
+  const observer = new MutationObserver(mutationList => observations.push(mutationList));
+
+  observer.observe(oldParent, {childList: true});
+  observer.observe(target, {childList: true});
+  observer.observe(newParent, {childList: true});
+
+  newParent.moveBefore(target, null);
+
+  // Wait for microtasks to settle.
+  await new Promise(resolve => queueMicrotask(resolve));
+
+  assert_equals(observations.length, 1, "MutationObserver has emitted a single mutation list");
+  assert_equals(observations[0].length, 2, "Mutation list has two MutationRecords");
+
+  const removalRecord = observations[0][0];
+  const insertionRecord = observations[0][1];
+  assert_equals(removalRecord.target, oldParent, "removalRecord target is correct");
+  assert_equals(removalRecord.removedNodes[0], target, "removedNodes contains the moved node");
+  assert_equals(insertionRecord.target, newParent, "insertionRecord target is correct");
+  assert_equals(insertionRecord.addedNodes[0], target, "addedNodes contains the moved node");
+  observer.disconnect();
+}
+
+promise_test(async t => {
+  await runTest(oldParent, target, newParent);
+}, "[Connected move] MutationObserver removal + insertion is tracked by moveBefore()");
+
+promise_test(async t => {
+  const oldParent = document.createElement('div');
+  const target = document.createElement('p');
+  const newParent = document.createElement('div');
+  // We must append `newParent` as well, since the origin and destination nodes
+  // must share the same shadow-including root.
+  oldParent.append(target, newParent);
+
+  await runTest(oldParent, target, newParent);
+}, "[Disconnected move] MutationObserver removal + insertion is tracked by moveBefore()");
+</script>

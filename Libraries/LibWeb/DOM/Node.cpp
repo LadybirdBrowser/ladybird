@@ -3,6 +3,7 @@
  * Copyright (c) 2021-2022, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2021, Luke Wilde <lukew@serenityos.org>
  * Copyright (c) 2024, Jelle Raaijmakers <jelle@ladybird.org>
+ * Copyright (c) 2025, Shannon Booth <shannon@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -858,13 +859,13 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::append_child(GC::Ref<Node> node)
     return pre_insert(node, nullptr);
 }
 
-// https://dom.spec.whatwg.org/#concept-node-remove
-void Node::remove(bool suppress_observers)
+// https://dom.spec.whatwg.org/#live-range-pre-remove-steps
+void Node::live_range_pre_remove()
 {
-    // 1. Let parent be node’s parent
+    // 1. Let parent be node’s parent.
     auto* parent = this->parent();
 
-    // 2. Assert: parent is non-null.
+    // 2. Assert: parent is not null.
     VERIFY(parent);
 
     // 3. Let index be node’s index.
@@ -893,16 +894,29 @@ void Node::remove(bool suppress_observers)
         if (range->end_container() == parent && range->end_offset() > index)
             range->decrease_end_offset({}, 1);
     }
+}
 
-    // 8. For each NodeIterator object iterator whose root’s node document is node’s node document, run the NodeIterator pre-removing steps given node and iterator.
+// https://dom.spec.whatwg.org/#concept-node-remove
+void Node::remove(bool suppress_observers)
+{
+    // 1. Let parent be node’s parent
+    auto* parent = this->parent();
+
+    // 2. Assert: parent is non-null.
+    VERIFY(parent);
+
+    // 3. Run the live range pre-remove steps, given node.
+    live_range_pre_remove();
+
+    // 4. For each NodeIterator object iterator whose root’s node document is node’s node document, run the NodeIterator pre-removing steps given node and iterator.
     document().for_each_node_iterator([&](NodeIterator& node_iterator) {
         node_iterator.run_pre_removing_steps(*this);
     });
 
-    // 9. Let oldPreviousSibling be node’s previous sibling.
+    // 5. Let oldPreviousSibling be node’s previous sibling.
     GC::Ptr<Node> old_previous_sibling = previous_sibling();
 
-    // 10. Let oldNextSibling be node’s next sibling.
+    // 6. Let oldNextSibling be node’s next sibling.
     GC::Ptr<Node> old_next_sibling = next_sibling();
 
     if (is_connected()) {
@@ -916,17 +930,17 @@ void Node::remove(bool suppress_observers)
             parent->set_needs_layout_tree_update(true);
     }
 
-    // 11. Remove node from its parent’s children.
+    // 7. Remove node from its parent’s children.
     parent->remove_child_impl(*this);
 
-    // 12. If node is assigned, then run assign slottables for node’s assigned slot.
+    // 8. If node is assigned, then run assign slottables for node’s assigned slot.
     if (auto assigned_slot = assigned_slot_for_node(*this))
         assign_slottables(*assigned_slot);
 
     auto& parent_root = parent->root();
 
-    // 13. If parent’s root is a shadow root, and parent is a slot whose assigned nodes is the empty list, then run
-    //     signal a slot change for parent.
+    // 9. If parent’s root is a shadow root, and parent is a slot whose assigned nodes is the empty list, then run
+    //    signal a slot change for parent.
     if (parent_root.is_shadow_root() && is<HTML::HTMLSlotElement>(parent)) {
         auto& slot = static_cast<HTML::HTMLSlotElement&>(*parent);
 
@@ -934,7 +948,7 @@ void Node::remove(bool suppress_observers)
             signal_a_slot_change(slot);
     }
 
-    // 14. If node has an inclusive descendant that is a slot, then:
+    // 10. If node has an inclusive descendant that is a slot, then:
     auto has_descendent_slot = false;
 
     for_each_in_inclusive_subtree_of_type<HTML::HTMLSlotElement>([&](auto const&) {
@@ -950,13 +964,13 @@ void Node::remove(bool suppress_observers)
         assign_slottables_for_a_tree(*this);
     }
 
-    // 15. Run the removing steps with node and parent.
+    // 11. Run the removing steps with node and parent.
     removed_from(parent, parent_root);
 
-    // 16. Let isParentConnected be parent’s connected.
+    // 12. Let isParentConnected be parent’s connected.
     bool is_parent_connected = parent->is_connected();
 
-    // 17. If node is custom and isParentConnected is true, then enqueue a custom element callback reaction with node,
+    // 13. If node is custom and isParentConnected is true, then enqueue a custom element callback reaction with node,
     //     callback name "disconnectedCallback", and an empty argument list.
     // Spec Note: It is intentional for now that custom elements do not get parent passed.
     //            This might change in the future if there is a need.
@@ -969,7 +983,7 @@ void Node::remove(bool suppress_observers)
         }
     }
 
-    // 18. For each shadow-including descendant descendant of node, in shadow-including tree order, then:
+    // 14. For each shadow-including descendant descendant of node, in shadow-including tree order, then:
     for_each_shadow_including_descendant([&](Node& descendant) {
         // 1. Run the removing steps with descendant
         descendant.removed_from(nullptr, parent_root);
@@ -988,7 +1002,7 @@ void Node::remove(bool suppress_observers)
         return TraversalDecision::Continue;
     });
 
-    // 19. For each inclusive ancestor inclusiveAncestor of parent, and then for each registered of inclusiveAncestor’s registered observer list,
+    // 15. For each inclusive ancestor inclusiveAncestor of parent, and then for each registered of inclusiveAncestor’s registered observer list,
     //     if registered’s options["subtree"] is true, then append a new transient registered observer
     //     whose observer is registered’s observer, options is registered’s options, and source is registered to node’s registered observer list.
     for (auto* inclusive_ancestor = parent; inclusive_ancestor; inclusive_ancestor = inclusive_ancestor->parent()) {
@@ -1002,12 +1016,12 @@ void Node::remove(bool suppress_observers)
         }
     }
 
-    // 20. If suppress observers flag is unset, then queue a tree mutation record for parent with « », « node », oldPreviousSibling, and oldNextSibling.
+    // 16. If suppress observers flag is unset, then queue a tree mutation record for parent with « », « node », oldPreviousSibling, and oldNextSibling.
     if (!suppress_observers) {
         parent->queue_tree_mutation_record({}, { *this }, old_previous_sibling.ptr(), old_next_sibling.ptr());
     }
 
-    // 21. Run the children changed steps for parent.
+    // 17. Run the children changed steps for parent.
     parent->children_changed(nullptr);
 
     document().bump_dom_tree_version();
@@ -1160,6 +1174,190 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_node(Document* document, bool sub
 
     // 7. Return copy.
     return GC::Ref { *copy };
+}
+
+// https://dom.spec.whatwg.org/#move
+WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
+{
+    // 1. If newParent’s shadow-including root is not the same as node’s shadow-including root, then throw a "HierarchyRequestError" DOMException.
+    if (&new_parent.shadow_including_root() != &shadow_including_root())
+        return WebIDL::HierarchyRequestError::create(realm(), "New parent is not in the same shadow tree"_string);
+
+    // NOTE: This has the side effect of ensuring that a move is only performed if newParent’s connected is node’s connected.
+
+    // 2. If node is a host-including inclusive ancestor of newParent, then throw a "HierarchyRequestError" DOMException.
+    if (is_host_including_inclusive_ancestor_of(new_parent))
+        return WebIDL::HierarchyRequestError::create(realm(), "New parent is an ancestor of this node"_string);
+
+    // 3. If child is non-null and its parent is not newParent, then throw a "NotFoundError" DOMException.
+    if (child && child->parent() != &new_parent)
+        return WebIDL::NotFoundError::create(realm(), "Child does not belong to the new parent"_string);
+
+    // 4. If node is not an Element or a CharacterData node, then throw a "HierarchyRequestError" DOMException.
+    if (!is<Element>(*this) && !is<CharacterData>(*this))
+        return WebIDL::HierarchyRequestError::create(realm(), "Invalid node type for insertion"_string);
+
+    // 5. If node is a Text node and newParent is a document, then throw a "HierarchyRequestError" DOMException.
+    if (is<Text>(*this) && is<Document>(new_parent))
+        return WebIDL::HierarchyRequestError::create(realm(), "Invalid node type for insertion"_string);
+
+    // 6. If newParent is a document, node is an Element node, and either newParent has an element child, child is a doctype,
+    //    or child is non-null and a doctype is following child then throw a "HierarchyRequestError" DOMException.
+    if (is<Document>(new_parent) && is<Element>(*this)) {
+        if (new_parent.has_child_of_type<Element>() || is<DocumentType>(child) || (child && child->has_following_node_of_type_in_tree_order<DocumentType>()))
+            return WebIDL::HierarchyRequestError::create(realm(), "Invalid node type for insertion"_string);
+    }
+
+    // 7. Let oldParent be node’s parent.
+    auto* old_parent = this->parent();
+
+    // 8. Assert: oldParent is non-null.
+    VERIFY(old_parent);
+
+    // 9. Run the live range pre-remove steps, given node.
+    live_range_pre_remove();
+
+    // 10. For each NodeIterator object iterator whose root’s node document is node’s node document, run the NodeIterator pre-remove steps given node and iterator.
+    document().for_each_node_iterator([&](NodeIterator& node_iterator) {
+        node_iterator.run_pre_removing_steps(*this);
+    });
+
+    // 11. Let oldPreviousSibling be node’s previous sibling.
+    auto* old_previous_sibling = previous_sibling();
+
+    // 12. Let oldNextSibling be node’s next sibling.
+    auto* old_next_sibling = next_sibling();
+
+    if (old_parent->is_connected()) {
+        // Since the tree structure is about to change, we need to invalidate both style and layout.
+        // In the future, we should find a way to only invalidate the parts that actually need it.
+        old_parent->invalidate_style(StyleInvalidationReason::NodeRemove);
+
+        // NOTE: If we didn't have a layout node before, rebuilding the layout tree isn't gonna give us one
+        //       after we've been removed from the DOM.
+        if (layout_node())
+            old_parent->set_needs_layout_tree_update(true);
+    }
+
+    // 13. Remove node from oldParent’s children.
+    old_parent->remove_child_impl(*this);
+
+    // 14. If node is assigned, then run assign slottables for node’s assigned slot.
+    if (auto assigned_slot = assigned_slot_for_node(*this))
+        assign_slottables(*assigned_slot);
+
+    // 15. If oldParent’s root is a shadow root, and oldParent is a slot whose assigned nodes is empty, then run signal a slot change for oldParent.
+    auto& old_parent_root = old_parent->root();
+    if (old_parent_root.is_shadow_root() && is<HTML::HTMLSlotElement>(*old_parent)) {
+        auto& old_parent_slot = static_cast<HTML::HTMLSlotElement&>(*old_parent);
+        if (old_parent_slot.assigned_nodes_internal().is_empty())
+            signal_a_slot_change(old_parent_slot);
+    }
+
+    // 16. If node has an inclusive descendant that is a slot:
+    auto has_descendent_slot = false;
+
+    for_each_in_inclusive_subtree_of_type<HTML::HTMLSlotElement>([&](auto const&) {
+        has_descendent_slot = true;
+        return TraversalDecision::Break;
+    });
+
+    if (has_descendent_slot) {
+        // 1. Run assign slottables for a tree with oldParent’s root.
+        assign_slottables_for_a_tree(old_parent_root);
+
+        // 2. Run assign slottables for a tree with node.
+        assign_slottables_for_a_tree(*this);
+    }
+
+    // 17. If child is non-null:
+    if (child) {
+        // 1. For each live range whose start node is newParent and start offset is greater than child’s index, increase its start offset by 1.
+        for (auto& range : Range::live_ranges()) {
+            if (range->start_container() == &new_parent && range->start_offset() > child->index())
+                range->increase_start_offset({}, 1);
+        }
+
+        // 2. For each live range whose end node is newParent and end offset is greater than child’s index, increase its end offset by 1.
+        for (auto& range : Range::live_ranges()) {
+            if (range->end_container() == &new_parent && range->end_offset() > child->index())
+                range->increase_end_offset({}, 1);
+        }
+    }
+
+    // 18. Let newPreviousSibling be child’s previous sibling if child is non-null, and newParent’s last child otherwise.
+    auto* new_previous_sibling = child ? child->previous_sibling() : new_parent.last_child();
+
+    // 19. If child is null, then append node to newParent’s children.
+    if (!child) {
+        new_parent.append_child_impl(*this);
+    }
+    // 20. Otherwise, insert node into newParent’s children before child’s index.
+    else {
+        new_parent.insert_before_impl(*this, child);
+    }
+
+    new_parent.invalidate_style(StyleInvalidationReason::NodeInsertBefore);
+    if (is_connected()) {
+        new_parent.set_needs_layout_tree_update(true);
+    }
+
+    // 21. If newParent is a shadow host whose shadow root’s slot assignment is "named" and node is a slottable, then assign a slot for node.
+    if (is<Element>(new_parent) && is<Element>(*this)) {
+        auto& this_element = static_cast<Element&>(*this);
+        auto& new_parent_element = static_cast<Element&>(new_parent);
+
+        auto is_named_shadow_host = new_parent_element.is_shadow_host()
+            && new_parent_element.shadow_root()->slot_assignment() == Bindings::SlotAssignmentMode::Named;
+
+        if (is_named_shadow_host && this_element.is_slottable())
+            assign_a_slot(this_element.as_slottable());
+    }
+
+    // 22. If newParent’s root is a shadow root, and newParent is a slot whose assigned nodes is empty, then run signal a slot change for newParent.
+    if (new_parent.root().is_shadow_root() && is<HTML::HTMLSlotElement>(new_parent)) {
+        auto& new_parent_slot = static_cast<HTML::HTMLSlotElement&>(new_parent);
+        if (new_parent_slot.assigned_nodes_internal().is_empty())
+            signal_a_slot_change(new_parent_slot);
+    }
+
+    // 23. Run assign slottables for a tree with node’s root.
+    assign_slottables_for_a_tree(root());
+
+    // 24. For each shadow-including inclusive descendant inclusiveDescendant of node, in shadow-including tree order:
+    for_each_shadow_including_inclusive_descendant([this, &new_parent, old_parent](Node& inclusive_descendant) {
+        // 1. If inclusiveDescendant is node, then run the moving steps with inclusiveDescendant and oldParent. Otherwise, run the moving
+        //    steps with inclusiveDescendant and null.
+        if (&inclusive_descendant == this)
+            inclusive_descendant.moved_from(*old_parent);
+        else
+            inclusive_descendant.moved_from(nullptr);
+
+        // NOTE: Because the move algorithm is a separate primitive from insert and remove, it does not invoke the traditional insertion steps or
+        //       removing steps for inclusiveDescendant.
+
+        // 2. If inclusiveDescendant is custom and newParent is connected, then enqueue a custom element callback reaction with inclusiveDescendant,
+        //    callback name "connectedMoveCallback", and « ».
+        if (is<DOM::Element>(inclusive_descendant)) {
+            auto& element = static_cast<DOM::Element&>(inclusive_descendant);
+
+            if (element.is_custom() && new_parent.is_connected()) {
+                GC::RootVector<JS::Value> empty_arguments { vm().heap() };
+                element.enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::connectedMoveCallback, move(empty_arguments));
+            }
+        }
+        return TraversalDecision::Continue;
+    });
+
+    // 25. Queue a tree mutation record for oldParent with « », « node », oldPreviousSibling, and oldNextSibling.
+    old_parent->queue_tree_mutation_record({}, { *this }, old_previous_sibling, old_next_sibling);
+
+    // 26. Queue a tree mutation record for newParent with « node », « », newPreviousSibling, and child.
+    new_parent.queue_tree_mutation_record({ *this }, {}, new_previous_sibling, child);
+
+    document().bump_dom_tree_version();
+
+    return {};
 }
 
 // https://dom.spec.whatwg.org/#clone-a-single-node
@@ -1476,6 +1674,11 @@ void Node::removed_from(Node*, Node&)
     m_paintable = nullptr;
 
     play_or_cancel_animations_after_display_property_change();
+}
+
+// https://dom.spec.whatwg.org/#concept-node-move-ext
+void Node::moved_from(GC::Ptr<Node>)
+{
 }
 
 ParentNode* Node::parent_or_shadow_host()
