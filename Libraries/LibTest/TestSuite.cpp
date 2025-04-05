@@ -25,9 +25,9 @@ public:
 
     void restart() { m_started = UnixDateTime::now(); }
 
-    u64 elapsed_milliseconds()
+    AK::Duration elapsed() const
     {
-        return (UnixDateTime::now() - m_started).to_milliseconds();
+        return UnixDateTime::now() - m_started;
     }
 
 private:
@@ -187,17 +187,18 @@ int TestSuite::run(Vector<NonnullRefPtr<TestCase>> const& tests)
         m_current_test_result = TestResult::NotRun;
         enable_reporting();
 
-        u64 total_time = 0;
+        AK::Duration total_time;
         u64 sum_of_squared_times = 0;
-        u64 min_time = NumericLimits<u64>::max();
-        u64 max_time = 0;
+        AK::Duration min_time = AK::Duration::max();
+        AK::Duration max_time;
 
         for (u64 i = 0; i < repetitions; ++i) {
             TestElapsedTimer timer;
             t->func()();
-            auto const iteration_time = timer.elapsed_milliseconds();
+            auto const iteration_time = timer.elapsed();
+            auto const iteration_ms = iteration_time.to_milliseconds();
             total_time += iteration_time;
-            sum_of_squared_times += iteration_time * iteration_time;
+            sum_of_squared_times += iteration_ms * iteration_ms;
             min_time = min(min_time, iteration_time);
             max_time = max(max_time, iteration_time);
 
@@ -206,20 +207,26 @@ int TestSuite::run(Vector<NonnullRefPtr<TestCase>> const& tests)
                 m_current_test_result = TestResult::Passed;
         }
 
+        auto const total_time_ms = total_time.to_milliseconds();
+
         if (repetitions != 1) {
-            double average = total_time / double(repetitions);
+            double average = total_time_ms / static_cast<double>(repetitions);
             double average_squared = average * average;
-            double standard_deviation = sqrt((sum_of_squared_times + repetitions * average_squared - 2 * total_time * average) / (repetitions - 1));
+            double standard_deviation = sqrt((sum_of_squared_times + repetitions * average_squared - 2 * total_time_ms * average) / (repetitions - 1));
 
             dbgln("{} {} '{}' on average in {:.1f}±{:.1f}ms (min={}ms, max={}ms, total={}ms)",
                 test_result_to_string(m_current_test_result), test_type, t->name(),
-                average, standard_deviation, min_time, max_time, total_time);
+                average,
+                standard_deviation,
+                min_time.to_milliseconds(),
+                max_time.to_milliseconds(),
+                total_time_ms);
         } else {
-            dbgln("{} {} '{}' in {}ms", test_result_to_string(m_current_test_result), test_type, t->name(), total_time);
+            dbgln("{} {} '{}' in {}ms", test_result_to_string(m_current_test_result), test_type, t->name(), total_time_ms);
         }
 
         if (t->is_benchmark()) {
-            m_benchtime += total_time;
+            m_bench_time += total_time;
             benchmark_count++;
 
             switch (m_current_test_result) {
@@ -233,7 +240,7 @@ int TestSuite::run(Vector<NonnullRefPtr<TestCase>> const& tests)
                 break;
             }
         } else {
-            m_testtime += total_time;
+            m_test_time += total_time;
             test_count++;
 
             switch (m_current_test_result) {
@@ -249,13 +256,16 @@ int TestSuite::run(Vector<NonnullRefPtr<TestCase>> const& tests)
         }
     }
 
+    auto const runtime = m_test_time + m_bench_time;
+    auto const elapsed = global_timer.elapsed() - runtime;
+
     dbgln("Finished {} tests and {} benchmarks in {}ms ({}ms tests, {}ms benchmarks, {}ms other).",
         test_count,
         benchmark_count,
-        global_timer.elapsed_milliseconds(),
-        m_testtime,
-        m_benchtime,
-        global_timer.elapsed_milliseconds() - (m_testtime + m_benchtime));
+        elapsed.to_truncated_milliseconds(),
+        m_test_time.to_truncated_milliseconds(),
+        m_bench_time.to_truncated_milliseconds(),
+        (elapsed - runtime).to_truncated_milliseconds());
 
     if (test_count != 0) {
         if (test_passed_count == test_count) {
