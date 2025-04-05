@@ -257,7 +257,7 @@ ThrowCompletionOr<Value> Interpreter::run(Script& script_record, GC::Ptr<Environ
             else if (error_string = String::formatted("TODO({})", error_string.value()); error_string.is_error())
                 result = vm.template throw_completion<JS::InternalError>(vm.error_message(JS::VM::ErrorMessage::OutOfMemory));
             else
-                result = JS::throw_completion(JS::InternalError::create(realm(), error_string.release_value()));
+                result = vm.template throw_completion<JS::InternalError>(error_string.release_value());
         } else {
             auto executable = executable_result.release_value();
 
