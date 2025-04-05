@@ -154,8 +154,6 @@ shared_library("AK") {
     "Singleton.h",
     "SinglyLinkedList.h",
     "SinglyLinkedListSizePolicy.h",
-    "SipHash.cpp",
-    "SipHash.h",
     "SourceGenerator.h",
     "SourceLocation.h",
     "Span.h",

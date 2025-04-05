@@ -7,7 +7,6 @@
 #include <LibTest/TestCase.h>
 
 #include <AK/HashFunctions.h>
-#include <AK/SipHash.h>
 #include <AK/Types.h>
 
 TEST_CASE(int_hash)
@@ -55,28 +54,6 @@ TEST_CASE(constexpr_ptr_hash)
     static_assert(ptr_hash(FlatPtr(42)));
 }
 
-// Testing concrete hash results is not possible due to SipHash's non-determinism.
-// We instead perform some sanity checks and try to hit any asserts caused by programming errors.
-TEST_CASE(sip_hash)
-{
-    EXPECT_EQ(standard_sip_hash(42), standard_sip_hash(42));
-    EXPECT_EQ(secure_sip_hash(42), secure_sip_hash(42));
-    EXPECT_NE(standard_sip_hash(42), secure_sip_hash(42));
-}
-
-TEST_CASE(sip_hash_bytes)
-{
-    constexpr Array<u8, 8> short_test_array { 1, 2, 3, 4, 5, 6, 7, 8 };
-    constexpr Array<u8, 16> common_prefix_array { 1, 2, 3, 4, 5, 6, 7, 8, 0, 0, 0, 0, 0, 0, 0, 0 };
-    EXPECT_EQ((sip_hash_bytes<1, 3>(short_test_array.span())), (sip_hash_bytes<1, 3>(short_test_array.span())));
-    EXPECT_NE((sip_hash_bytes<1, 3>(short_test_array.span())), (sip_hash_bytes<1, 3>(common_prefix_array.span())));
-
-    for (size_t prefix_length = 1; prefix_length < 8; ++prefix_length) {
-        EXPECT_NE((sip_hash_bytes<1, 3>(short_test_array.span().trim(prefix_length))), (sip_hash_bytes<1, 3>(short_test_array.span())));
-        EXPECT_EQ((sip_hash_bytes<1, 3>(short_test_array.span().trim(prefix_length))), (sip_hash_bytes<1, 3>(common_prefix_array.span().trim(prefix_length))));
-    }
-}
-
 template<typename HashFunction>
 requires(IsCallableWithArguments<HashFunction, unsigned, u64>)
 static void run_benchmark(HashFunction hash_function)
@@ -93,14 +70,4 @@ static void run_benchmark(HashFunction hash_function)
 BENCHMARK_CASE(deterministic_hash)
 {
     run_benchmark(u64_hash);
-}
-
-BENCHMARK_CASE(fast_sip_hash)
-{
-    run_benchmark(standard_sip_hash);
-}
-
-BENCHMARK_CASE(secure_sip_hash)
-{
-    run_benchmark(secure_sip_hash);
 }

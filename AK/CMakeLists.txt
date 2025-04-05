@@ -20,7 +20,6 @@ set(SOURCES
     NumberFormat.cpp
     OptionParser.cpp
     Random.cpp
-    SipHash.cpp
     StackInfo.cpp
     Stream.cpp
     String.cpp

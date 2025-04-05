@@ -10,7 +10,6 @@
 #include <AK/Endian.h>
 #include <AK/Format.h>
 #include <AK/Optional.h>
-#include <AK/SipHash.h>
 #include <AK/String.h>
 #include <AK/StringView.h>
 #include <AK/Vector.h>
@@ -143,11 +142,6 @@ private:
 };
 
 static_assert(sizeof(IPv4Address) == 4);
-
-template<>
-struct Traits<IPv4Address> : public DefaultTraits<IPv4Address> {
-    static unsigned hash(IPv4Address const& address) { return secure_sip_hash(static_cast<u64>(address.to_u32())); }
-};
 
 template<>
 struct Formatter<IPv4Address> : Formatter<StringView> {
