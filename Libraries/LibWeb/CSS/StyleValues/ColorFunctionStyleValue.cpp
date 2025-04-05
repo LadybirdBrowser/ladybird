@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "CSSColor.h"
+#include "ColorFunctionStyleValue.h"
 #include <AK/TypeCasts.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
@@ -58,30 +58,30 @@ StringView string_view_from_color_type(CSSColorValue::ColorType color_type)
 
 }
 
-ValueComparingNonnullRefPtr<CSSColor> CSSColor::create(StringView color_space, ValueComparingNonnullRefPtr<CSSStyleValue> c1, ValueComparingNonnullRefPtr<CSSStyleValue> c2, ValueComparingNonnullRefPtr<CSSStyleValue> c3, ValueComparingRefPtr<CSSStyleValue> alpha)
+ValueComparingNonnullRefPtr<ColorFunctionStyleValue> ColorFunctionStyleValue::create(StringView color_space, ValueComparingNonnullRefPtr<CSSStyleValue> c1, ValueComparingNonnullRefPtr<CSSStyleValue> c2, ValueComparingNonnullRefPtr<CSSStyleValue> c3, ValueComparingRefPtr<CSSStyleValue> alpha)
 {
     VERIFY(any_of(s_supported_color_space, [=](auto supported) { return color_space == supported; }));
 
     if (!alpha)
         alpha = NumberStyleValue::create(1);
 
-    return adopt_ref(*new (nothrow) CSSColor(color_type_from_string_view(color_space), move(c1), move(c2), move(c3), alpha.release_nonnull()));
+    return adopt_ref(*new (nothrow) ColorFunctionStyleValue(color_type_from_string_view(color_space), move(c1), move(c2), move(c3), alpha.release_nonnull()));
 
     VERIFY_NOT_REACHED();
 }
 
-bool CSSColor::equals(CSSStyleValue const& other) const
+bool ColorFunctionStyleValue::equals(CSSStyleValue const& other) const
 {
     if (type() != other.type())
         return false;
     auto const& other_color = other.as_color();
     if (color_type() != other_color.color_type())
         return false;
-    auto const& other_lab_like = as<CSSColor>(other_color);
+    auto const& other_lab_like = as<ColorFunctionStyleValue>(other_color);
     return m_properties == other_lab_like.m_properties;
 }
 
-CSSColor::Resolved CSSColor::resolve_properties() const
+ColorFunctionStyleValue::Resolved ColorFunctionStyleValue::resolve_properties() const
 {
     float const c1 = resolve_with_reference_value(m_properties.channels[0], 1).value_or(0);
     float const c2 = resolve_with_reference_value(m_properties.channels[1], 1).value_or(0);
@@ -91,7 +91,7 @@ CSSColor::Resolved CSSColor::resolve_properties() const
 }
 
 // https://www.w3.org/TR/css-color-4/#serializing-color-function-values
-String CSSColor::to_string(SerializationMode mode) const
+String ColorFunctionStyleValue::to_string(SerializationMode mode) const
 {
     if (mode == SerializationMode::Normal) {
         auto convert_percentage = [](ValueComparingNonnullRefPtr<CSSStyleValue> const& value) -> RemoveReference<decltype(value)> {
@@ -144,7 +144,7 @@ String CSSColor::to_string(SerializationMode mode) const
         resolved.alpha));
 }
 
-Color CSSColor::to_color(Optional<Layout::NodeWithStyle const&>) const
+Color ColorFunctionStyleValue::to_color(Optional<Layout::NodeWithStyle const&>) const
 {
     auto [channels, alpha_val] = resolve_properties();
     auto c1 = channels[0];
