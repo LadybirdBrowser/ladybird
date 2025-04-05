@@ -585,6 +585,9 @@ ALWAYS_INLINE ExecutionResult OpCode_Compare::execute(MatchInput const& input, M
         }
         case CharacterCompareType::Reference: {
             auto reference_number = (size_t)m_bytecode->at(offset++);
+            if (input.match_index >= state.capture_group_matches.size())
+                return ExecutionResult::Failed_ExecuteLowPrioForks;
+
             auto& groups = state.capture_group_matches.at(input.match_index);
             if (groups.size() <= reference_number)
                 return ExecutionResult::Failed_ExecuteLowPrioForks;
