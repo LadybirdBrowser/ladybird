@@ -51,3 +51,14 @@ TEST_CASE(should_return_index_to_first_predicate_matching_value_in_container)
 
     EXPECT(4 == AK::find_index(a.begin(), a.end(), 0));
 }
+
+TEST_CASE(find_value)
+{
+    static constexpr Array array { 1, 2, 3, 4, 0, 6, 7, 8, 0, 0 };
+
+    auto value = find_value(array, [](auto value) { return value > 5; });
+    EXPECT_EQ(value, 6);
+
+    value = find_value(array, [](auto value) { return value == 12389; });
+    EXPECT(!value.has_value());
+}

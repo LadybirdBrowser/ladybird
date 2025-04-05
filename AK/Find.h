@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Concepts.h>
+#include <AK/Optional.h>
 #include <AK/Traits.h>
 #include <AK/Types.h>
 
@@ -36,10 +37,21 @@ requires(requires(TIterator it) { it.index(); })
     return find_if(first, last, [&]<typename T>(T const& entry) { return Traits<T>::equals(entry, value); }).index();
 }
 
+template<IterableContainer Container, typename TUnaryPredicate>
+[[nodiscard]] constexpr auto find_value(Container const& container, TUnaryPredicate&& pred)
+    -> Optional<decltype(*container.begin())>
+{
+    auto it = find_if(container.begin(), container.end(), forward<TUnaryPredicate>(pred));
+    if (it != container.end())
+        return *it;
+    return {};
+}
+
 }
 
 #if USING_AK_GLOBALLY
 using AK::find;
 using AK::find_if;
 using AK::find_index;
+using AK::find_value;
 #endif

@@ -30,28 +30,16 @@ ReadonlySpan<SearchEngine> search_engines()
 
 Optional<SearchEngine const&> find_search_engine_by_name(StringView name)
 {
-    auto it = AK::find_if(builtin_search_engines.begin(), builtin_search_engines.end(),
-        [&](auto const& engine) {
-            return engine.name == name;
-        });
-
-    if (it == builtin_search_engines.end())
-        return {};
-
-    return *it;
+    return find_value(builtin_search_engines, [&](auto const& engine) {
+        return engine.name == name;
+    });
 }
 
 Optional<SearchEngine const&> find_search_engine_by_query_url(StringView query_url)
 {
-    auto it = AK::find_if(builtin_search_engines.begin(), builtin_search_engines.end(),
-        [&](auto const& engine) {
-            return engine.query_url == query_url;
-        });
-
-    if (it == builtin_search_engines.end())
-        return {};
-
-    return *it;
+    return find_value(builtin_search_engines, [&](auto const& engine) {
+        return engine.query_url == query_url;
+    });
 }
 
 String format_search_query_for_display(StringView query_url, StringView query)
