@@ -16,7 +16,7 @@
 #elif defined(AK_OS_LINUX)
 #    include <linux/fs.h>
 #elif defined(AK_OS_WINDOWS)
-#    include <windows.h>
+#    include <AK/Windows.h>
 #endif
 
 // On Linux distros that use glibc `basename` is defined as a macro that expands to `__xpg_basename`, so we undefine it
