@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<body>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+test(() => {
+  class NotFormAssociatedElement extends HTMLElement {}
+  customElements.define('my-element1', NotFormAssociatedElement);
+  const element = new NotFormAssociatedElement();
+  const i = element.attachInternals();
+
+  assert_throws_dom('NotSupportedError', () => i.setFormValue(''));
+  assert_throws_dom('NotSupportedError', () => i.form);
+  assert_throws_dom('NotSupportedError', () => i.setValidity({}));
+  assert_throws_dom('NotSupportedError', () => i.willValidate);
+  assert_throws_dom('NotSupportedError', () => i.validity);
+  assert_throws_dom('NotSupportedError', () => i.validationMessage);
+  assert_throws_dom('NotSupportedError', () => i.checkValidity());
+  assert_throws_dom('NotSupportedError', () => i.reportValidity());
+  assert_throws_dom('NotSupportedError', () => i.labels);
+}, 'Form-related operations and attributes should throw NotSupportedErrors' +
+     ' for non-form-associated custom elements.');
+</script>
+</body>
