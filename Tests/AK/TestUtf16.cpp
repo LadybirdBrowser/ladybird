@@ -388,7 +388,7 @@ TEST_CASE(big_endian)
         MUST(code_point_to_utf16(data, 'k', AK::Endianness::Big));
         MUST(code_point_to_utf16(data, 0x1f600, AK::Endianness::Big));
         EXPECT_EQ(data, to_array<u16>({ 0x7300, 0xe400, 0x6b00, 0x3dd8, 0x00de }));
-        EXPECT_EQ(data, string);
+        EXPECT_EQ(data, string.data);
     }
 }
 
@@ -422,6 +422,6 @@ TEST_CASE(little_endian)
         MUST(code_point_to_utf16(data, 'k', AK::Endianness::Little));
         MUST(code_point_to_utf16(data, 0x1f600, AK::Endianness::Little));
         EXPECT_EQ(data, to_array<u16>({ 0x73, 0xe4, 0x6b, 0xd83d, 0xde00 }));
-        EXPECT_EQ(data, string);
+        EXPECT_EQ(data, string.data);
     }
 }
