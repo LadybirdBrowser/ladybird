@@ -13,7 +13,7 @@ namespace JS::Bytecode {
 
 class Operand {
 public:
-    enum class Type {
+    enum class Type : u8 {
         Invalid,
         Register,
         Local,
@@ -26,6 +26,7 @@ public:
         : m_type(type)
         , m_index(index)
     {
+        VERIFY((index & 0x3fffffff) == index);
     }
 
     explicit Operand(Register);
@@ -42,9 +43,11 @@ public:
     void offset_index_by(u32 offset) { m_index += offset; }
 
 private:
-    Type m_type {};
-    u32 m_index { 0 };
+    Type m_type : 2 {};
+    u32 m_index : 30 { 0 };
 };
+
+static_assert(sizeof(Operand) == 4);
 
 }
 
