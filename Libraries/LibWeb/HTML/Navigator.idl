@@ -6,6 +6,7 @@
 #import <HTML/NavigatorDeviceMemory.idl>
 #import <HTML/NavigatorID.idl>
 #import <HTML/NavigatorLanguage.idl>
+#import <HTML/NavigatorLocks.idl>
 #import <HTML/NavigatorOnLine.idl>
 #import <HTML/PluginArray.idl>
 #import <HTML/UserActivation.idl>
@@ -78,3 +79,4 @@ Navigator includes NavigatorConcurrentHardware;
 Navigator includes NavigatorAutomationInformation;
 Navigator includes NavigatorStorage;
 Navigator includes NavigatorDeviceMemory;
+Navigator includes NavigatorLocks;
