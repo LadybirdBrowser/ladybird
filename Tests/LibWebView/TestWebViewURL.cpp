@@ -77,6 +77,17 @@ TEST_CASE(invalid_url)
     EXPECT(!WebView::break_url_into_parts("https:"sv).has_value());
     EXPECT(!WebView::break_url_into_parts("https:/"sv).has_value());
     EXPECT(!WebView::break_url_into_parts("https://"sv).has_value());
+
+    EXPECT(!WebView::break_url_into_parts("a"sv).has_value());
+    EXPECT(!WebView::break_url_into_parts("ab"sv).has_value());
+    EXPECT(!WebView::break_url_into_parts("abo"sv).has_value());
+    EXPECT(!WebView::break_url_into_parts("abou"sv).has_value());
+    EXPECT(!WebView::break_url_into_parts("about"sv).has_value());
+
+    EXPECT(!WebView::break_url_into_parts("d"sv).has_value());
+    EXPECT(!WebView::break_url_into_parts("da"sv).has_value());
+    EXPECT(!WebView::break_url_into_parts("dat"sv).has_value());
+    EXPECT(!WebView::break_url_into_parts("data"sv).has_value());
 }
 
 TEST_CASE(file_url)
@@ -112,6 +123,12 @@ TEST_CASE(http_url)
 
 TEST_CASE(about_url)
 {
+    compare_url_parts("about:"sv, { "about:"sv, {}, {} });
+    compare_url_parts("about:a"sv, { "about:"sv, "a"sv, {} });
+    compare_url_parts("about:ab"sv, { "about:"sv, "ab"sv, {} });
+    compare_url_parts("about:abc"sv, { "about:"sv, "abc"sv, {} });
+    compare_url_parts("about:abc/def"sv, { "about:"sv, "abc/def"sv, {} });
+
     EXPECT(!is_sanitized_url_the_same("about"sv));
     EXPECT(!is_sanitized_url_the_same("about blabla:"sv));
     EXPECT(!is_sanitized_url_the_same("blabla about:"sv));
@@ -122,6 +139,12 @@ TEST_CASE(about_url)
 
 TEST_CASE(data_url)
 {
+    compare_url_parts("data:"sv, { "data:"sv, {}, {} });
+    compare_url_parts("data:a"sv, { "data:"sv, "a"sv, {} });
+    compare_url_parts("data:ab"sv, { "data:"sv, "ab"sv, {} });
+    compare_url_parts("data:abc"sv, { "data:"sv, "abc"sv, {} });
+    compare_url_parts("data:abc/def"sv, { "data:"sv, "abc/def"sv, {} });
+
     EXPECT(is_sanitized_url_the_same("data:text/html"sv));
 
     EXPECT(!is_sanitized_url_the_same("data text/html"sv));

@@ -89,6 +89,14 @@ Vector<URL::URL> sanitize_urls(ReadonlySpan<ByteString> raw_urls, URL::URL const
     return sanitized_urls;
 }
 
+static URLParts break_internal_url_into_parts(URL::URL const& url, StringView url_string)
+{
+    auto scheme = url_string.substring_view(0, url.scheme().bytes_as_string_view().length() + ":"sv.length());
+    auto path = url_string.substring_view(scheme.length());
+
+    return URLParts { scheme, path, {} };
+}
+
 static URLParts break_file_url_into_parts(URL::URL const& url, StringView url_string)
 {
     auto scheme = url_string.substring_view(0, url.scheme().bytes_as_string_view().length() + "://"sv.length());
@@ -141,13 +149,18 @@ Optional<URLParts> break_url_into_parts(StringView url_string)
 
     if (!url_string.starts_with(scheme))
         return {};
-    if (!url_string.substring_view(scheme_length).starts_with("://"sv))
-        return {};
 
-    if (url.scheme() == "file"sv)
-        return break_file_url_into_parts(url, url_string);
-    if (url.scheme().is_one_of("http"sv, "https"sv))
-        return break_web_url_into_parts(url, url_string);
+    auto schemeless_url = url_string.substring_view(scheme_length);
+
+    if (schemeless_url.starts_with("://"sv)) {
+        if (url.scheme() == "file"sv)
+            return break_file_url_into_parts(url, url_string);
+        if (url.scheme().is_one_of("http"sv, "https"sv))
+            return break_web_url_into_parts(url, url_string);
+    } else if (schemeless_url.starts_with(':')) {
+        if (url.scheme().is_one_of("about"sv, "data"sv))
+            return break_internal_url_into_parts(url, url_string);
+    }
 
     return {};
 }
