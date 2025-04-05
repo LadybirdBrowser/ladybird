@@ -2,23 +2,22 @@ Harness status: OK
 
 Found 18 tests
 
-6 Pass
-12 Fail
+18 Pass
 Pass	Check that src: local(A) dummy() is invalid
 Pass	Check that src: dummy() local(A) is invalid
 Pass	Check that src: local(  A  ) is valid
 Pass	Check that src: local(A B) is valid
 Pass	Check that src: local(A    B) is valid
 Pass	Check that src: local(   A  B   ) is valid
-Fail	Check that src: local(default) is invalid
-Fail	Check that src: local(inherit) is invalid
-Fail	Check that src: local(revert) is invalid
-Fail	Check that src: local(unset) is invalid
-Fail	Check that src: local(default A) is valid
-Fail	Check that src: local(inherit A) is valid
-Fail	Check that src: local(revert A) is valid
-Fail	Check that src: local(unset A) is valid
-Fail	Check that src: local("default") is valid
-Fail	Check that src: local("inherit") is valid
-Fail	Check that src: local("revert") is valid
-Fail	Check that src: local("unset") is valid
+Pass	Check that src: local(default) is invalid
+Pass	Check that src: local(inherit) is invalid
+Pass	Check that src: local(revert) is invalid
+Pass	Check that src: local(unset) is invalid
+Pass	Check that src: local(default A) is valid
+Pass	Check that src: local(inherit A) is valid
+Pass	Check that src: local(revert A) is valid
+Pass	Check that src: local(unset A) is valid
+Pass	Check that src: local("default") is valid
+Pass	Check that src: local("inherit") is valid
+Pass	Check that src: local("revert") is valid
+Pass	Check that src: local("unset") is valid
