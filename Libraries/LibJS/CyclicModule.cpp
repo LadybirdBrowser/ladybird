@@ -34,6 +34,8 @@ void CyclicModule::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_async_parent_modules);
     for (auto const& loaded_module : m_loaded_modules)
         visitor.visit(loaded_module.module);
+    if (m_evaluation_error.is_error())
+        visitor.visit(m_evaluation_error.error_value());
 }
 
 void GraphLoadingState::visit_edges(Cell::Visitor& visitor)
