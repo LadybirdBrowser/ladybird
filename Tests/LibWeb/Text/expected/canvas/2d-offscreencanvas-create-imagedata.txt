@@ -1,0 +1,1 @@
+FAIL: NotSupportedError: (STUBBED) OffscreenCanvasRenderingContext2D::create_image_data(int, int)
