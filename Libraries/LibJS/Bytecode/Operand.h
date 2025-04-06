@@ -13,7 +13,11 @@ namespace JS::Bytecode {
 
 class Operand {
 public:
-    enum class Type : u8 {
+    enum class Type
+#if ARCH(AARCH64)
+        : u8
+#endif
+    {
         Invalid,
         Register,
         Local,
