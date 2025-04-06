@@ -504,20 +504,6 @@ ByteString to_titlecase(StringView str)
     return builder.to_byte_string();
 }
 
-ByteString invert_case(StringView str)
-{
-    StringBuilder builder(str.length());
-
-    for (auto ch : str) {
-        if (is_ascii_lower_alpha(ch))
-            builder.append(to_ascii_uppercase(ch));
-        else
-            builder.append(to_ascii_lowercase(ch));
-    }
-
-    return builder.to_byte_string();
-}
-
 // Finishes the replacing algorithm once it is known that ita least one
 // replacemnet is going to be done. Otherwise the caller may want to follow a
 // different route to construct its output.
