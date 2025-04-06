@@ -31,9 +31,6 @@ public:
     static RefPtr<StringImpl const> create_lowercased(char const* cstring, size_t length);
     static RefPtr<StringImpl const> create_uppercased(char const* cstring, size_t length);
 
-    NonnullRefPtr<StringImpl const> to_lowercase() const;
-    NonnullRefPtr<StringImpl const> to_uppercase() const;
-
     void operator delete(void* ptr)
     {
         kfree_sized(ptr, allocation_size_for_stringimpl(static_cast<StringImpl*>(ptr)->m_length));

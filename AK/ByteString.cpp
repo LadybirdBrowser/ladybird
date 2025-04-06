@@ -6,6 +6,7 @@
 
 #include <AK/ByteBuffer.h>
 #include <AK/ByteString.h>
+#include <AK/Enumerate.h>
 #include <AK/FlyString.h>
 #include <AK/Format.h>
 #include <AK/Function.h>
@@ -339,12 +340,30 @@ ByteString::ByteString(FlyString const& string)
 
 ByteString ByteString::to_lowercase() const
 {
-    return m_impl->to_lowercase();
+    if (!any_of(bytes(), is_ascii_upper_alpha))
+        return *this;
+
+    char* buffer = nullptr;
+    auto impl = StringImpl::create_uninitialized(length(), buffer);
+
+    for (auto [i, character] : enumerate(view()))
+        buffer[i] = static_cast<char>(to_ascii_lowercase(character));
+
+    return *impl;
 }
 
 ByteString ByteString::to_uppercase() const
 {
-    return m_impl->to_uppercase();
+    if (!any_of(bytes(), is_ascii_lower_alpha))
+        return *this;
+
+    char* buffer = nullptr;
+    auto impl = StringImpl::create_uninitialized(length(), buffer);
+
+    for (auto [i, character] : enumerate(view()))
+        buffer[i] = static_cast<char>(to_ascii_uppercase(character));
+
+    return *impl;
 }
 
 ByteString ByteString::to_snakecase() const
