@@ -1806,7 +1806,6 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> CallExpression::generat
                 argument_operands.size(),
                 dst,
                 callee,
-                this_value,
                 argument_operands,
                 expression_string_index);
         } else if (call_type == Op::CallType::DirectEval) {

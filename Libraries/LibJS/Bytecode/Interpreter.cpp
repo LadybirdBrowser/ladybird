@@ -2630,7 +2630,7 @@ ThrowCompletionOr<void> CallConstruct::execute_impl(Bytecode::Interpreter& inter
     auto argument_values = interpreter.allocate_argument_values(m_argument_count);
     for (size_t i = 0; i < m_argument_count; ++i)
         argument_values[i] = interpreter.get(m_arguments[i]);
-    interpreter.set(dst(), TRY(perform_call(interpreter, interpreter.get(m_this_value), CallType::Construct, callee, argument_values)));
+    interpreter.set(dst(), TRY(perform_call(interpreter, Value(), CallType::Construct, callee, argument_values)));
     return {};
 }
 
@@ -3424,10 +3424,9 @@ ByteString Call::to_byte_string_impl(Bytecode::Executable const& executable) con
 ByteString CallConstruct::to_byte_string_impl(Bytecode::Executable const& executable) const
 {
     StringBuilder builder;
-    builder.appendff("CallConstruct {}, {}, {}, "sv,
+    builder.appendff("CallConstruct {}, {}, "sv,
         format_operand("dst"sv, m_dst, executable),
-        format_operand("callee"sv, m_callee, executable),
-        format_operand("this"sv, m_this_value, executable));
+        format_operand("callee"sv, m_callee, executable));
 
     builder.append(format_operand_list("args"sv, { m_arguments, m_argument_count }, executable));
 

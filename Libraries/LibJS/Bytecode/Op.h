@@ -1900,11 +1900,10 @@ class CallConstruct final : public Instruction {
 public:
     static constexpr bool IsVariableLength = true;
 
-    CallConstruct(Operand dst, Operand callee, Operand this_value, ReadonlySpan<ScopedOperand> arguments, Optional<StringTableIndex> expression_string = {})
+    CallConstruct(Operand dst, Operand callee, ReadonlySpan<ScopedOperand> arguments, Optional<StringTableIndex> expression_string = {})
         : Instruction(Type::CallConstruct)
         , m_dst(dst)
         , m_callee(callee)
-        , m_this_value(this_value)
         , m_argument_count(arguments.size())
         , m_expression_string(expression_string)
     {
@@ -1919,7 +1918,6 @@ public:
 
     Operand dst() const { return m_dst; }
     Operand callee() const { return m_callee; }
-    Operand this_value() const { return m_this_value; }
     Optional<StringTableIndex> const& expression_string() const { return m_expression_string; }
 
     u32 argument_count() const { return m_argument_count; }
@@ -1930,7 +1928,6 @@ public:
     {
         visitor(m_dst);
         visitor(m_callee);
-        visitor(m_this_value);
         for (size_t i = 0; i < m_argument_count; i++)
             visitor(m_arguments[i]);
     }
@@ -1938,7 +1935,6 @@ public:
 private:
     Operand m_dst;
     Operand m_callee;
-    Operand m_this_value;
     u32 m_argument_count { 0 };
     Optional<StringTableIndex> m_expression_string;
     Operand m_arguments[];
