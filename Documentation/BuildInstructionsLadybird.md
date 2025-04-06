@@ -279,6 +279,17 @@ cmake --build --preset default MyBuildDir
 ninja -C MyBuildDir run-ladybird
 ```
 
+### Building with limited system memory
+
+The default build mode will run as many build steps in parallel as possible, which includes link steps;
+this may be an issue for users with limited system memory (or users building with fat LTO in general).
+If you wish to reduce the number of parallel link jobs, you may use the LAGOM_LINK_POOL_SIZE cmake option
+to set a maximum limit for the number of parallel link jobs.
+
+```
+cmake --preset default -B MyBuildDir -DLAGOM_LINK_POOL_SIZE=2
+```
+
 ### Running manually
 
 The Meta/ladybird.sh script will execute the `run-ladybird` and `debug-ladybird` custom targets.

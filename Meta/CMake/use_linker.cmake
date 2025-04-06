@@ -30,3 +30,8 @@ if (LAGOM_USE_LINKER)
         set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} ${LINKER_FLAG}")
     endif()
 endif()
+
+if (LAGOM_LINK_POOL_SIZE)
+    set_property(GLOBAL PROPERTY JOB_POOLS link_pool=${LAGOM_LINK_POOL_SIZE})
+    set(CMAKE_JOB_POOL_LINK link_pool CACHE STRING "Linking job pool")
+endif()
