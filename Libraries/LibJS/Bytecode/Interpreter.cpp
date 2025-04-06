@@ -1485,24 +1485,23 @@ inline Value new_regexp(VM& vm, ParsedRegex const& parsed_regex, String const& p
 }
 
 // 13.3.8.1 https://tc39.es/ecma262/#sec-runtime-semantics-argumentlistevaluation
-inline GC::RootVector<Value> argument_list_evaluation(VM& vm, Value arguments)
+inline Span<Value> argument_list_evaluation(Interpreter& interpreter, Value arguments)
 {
     // Note: Any spreading and actual evaluation is handled in preceding opcodes
     // Note: The spec uses the concept of a list, while we create a temporary array
     //       in the preceding opcodes, so we have to convert in a manner that is not
     //       visible to the user
-    GC::RootVector<Value> argument_values { vm.heap() };
 
     auto& argument_array = arguments.as_array();
     auto array_length = argument_array.indexed_properties().array_like_size();
 
-    argument_values.ensure_capacity(array_length);
+    auto argument_values = interpreter.allocate_argument_values(array_length);
 
     for (size_t i = 0; i < array_length; ++i) {
         if (auto maybe_value = argument_array.indexed_properties().get(i); maybe_value.has_value())
-            argument_values.append(maybe_value.release_value().value);
+            argument_values[i] = maybe_value.release_value().value;
         else
-            argument_values.append(js_undefined());
+            argument_values[i] = js_undefined();
     }
 
     return argument_values;
@@ -1556,8 +1555,10 @@ inline ThrowCompletionOr<ECMAScriptFunctionObject*> new_class(VM& vm, Value supe
 }
 
 // 13.3.7.1 Runtime Semantics: Evaluation, https://tc39.es/ecma262/#sec-super-keyword-runtime-semantics-evaluation
-inline ThrowCompletionOr<GC::Ref<Object>> super_call_with_argument_array(VM& vm, Value argument_array, bool is_synthetic)
+inline ThrowCompletionOr<GC::Ref<Object>> super_call_with_argument_array(Interpreter& interpreter, Value argument_array, bool is_synthetic)
 {
+    auto& vm = interpreter.vm();
+
     // 1. Let newTarget be GetNewTarget().
     auto new_target = vm.get_new_target();
 
@@ -1568,15 +1569,16 @@ inline ThrowCompletionOr<GC::Ref<Object>> super_call_with_argument_array(VM& vm,
     auto* func = get_super_constructor(vm);
 
     // 4. Let argList be ? ArgumentListEvaluation of Arguments.
-    GC::RootVector<Value> arg_list { vm.heap() };
+    Span<Value> arg_list;
     if (is_synthetic) {
         VERIFY(argument_array.is_object() && is<Array>(argument_array.as_object()));
         auto const& array_value = static_cast<Array const&>(argument_array.as_object());
         auto length = MUST(length_of_array_like(vm, array_value));
+        arg_list = interpreter.allocate_argument_values(length);
         for (size_t i = 0; i < length; ++i)
-            arg_list.append(array_value.get_without_side_effects(PropertyKey { i }));
+            arg_list[i] = array_value.get_without_side_effects(PropertyKey { i });
     } else {
-        arg_list = argument_list_evaluation(vm, argument_array);
+        arg_list = argument_list_evaluation(interpreter, argument_array);
     }
 
     // 5. If IsConstructor(func) is false, throw a TypeError exception.
@@ -1584,7 +1586,7 @@ inline ThrowCompletionOr<GC::Ref<Object>> super_call_with_argument_array(VM& vm,
         return vm.throw_completion<TypeError>(ErrorType::NotAConstructor, "Super constructor");
 
     // 6. Let result be ? Construct(func, argList, newTarget).
-    auto result = TRY(construct(vm, static_cast<FunctionObject&>(*func), arg_list.span(), &new_target.as_function()));
+    auto result = TRY(construct(vm, static_cast<FunctionObject&>(*func), arg_list, &new_target.as_function()));
 
     // 7. Let thisER be GetThisEnvironment().
     auto& this_environment = as<FunctionEnvironment>(*get_this_environment(vm));
@@ -2670,7 +2672,7 @@ ThrowCompletionOr<void> CallWithArgumentArray::execute_impl(Bytecode::Interprete
 {
     auto callee = interpreter.get(m_callee);
     TRY(throw_if_needed_for_call(interpreter, callee, call_type(), expression_string()));
-    auto argument_values = argument_list_evaluation(interpreter.vm(), interpreter.get(arguments()));
+    auto argument_values = argument_list_evaluation(interpreter, interpreter.get(arguments()));
     interpreter.set(dst(), TRY(perform_call(interpreter, interpreter.get(m_this_value), call_type(), callee, move(argument_values))));
     return {};
 }
@@ -2678,7 +2680,7 @@ ThrowCompletionOr<void> CallWithArgumentArray::execute_impl(Bytecode::Interprete
 // 13.3.7.1 Runtime Semantics: Evaluation, https://tc39.es/ecma262/#sec-super-keyword-runtime-semantics-evaluation
 ThrowCompletionOr<void> SuperCallWithArgumentArray::execute_impl(Bytecode::Interpreter& interpreter) const
 {
-    interpreter.set(dst(), TRY(super_call_with_argument_array(interpreter.vm(), interpreter.get(arguments()), m_is_synthetic)));
+    interpreter.set(dst(), TRY(super_call_with_argument_array(interpreter, interpreter.get(arguments()), m_is_synthetic)));
     return {};
 }
 
