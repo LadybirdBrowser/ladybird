@@ -481,7 +481,7 @@ FLATTEN_ON_CLANG void Interpreter::run_bytecode(size_t entry_point)
             goto start;                                                                                                 \
         }                                                                                                               \
         auto result = op_snake_case(vm(), get(instruction.lhs()), get(instruction.rhs()));                              \
-        if (result.is_error()) {                                                                                        \
+        if (result.is_error()) [[unlikely]] {                                                                           \
             if (handle_exception(program_counter, result.error_value()) == HandleExceptionResponse::ExitFromExecutable) \
                 return;                                                                                                 \
             goto start;                                                                                                 \
@@ -563,7 +563,7 @@ FLATTEN_ON_CLANG void Interpreter::run_bytecode(size_t entry_point)
         auto& instruction = *reinterpret_cast<Op::name const*>(&bytecode[program_counter]);                                 \
         {                                                                                                                   \
             auto result = instruction.execute_impl(*this);                                                                  \
-            if (result.is_error()) {                                                                                        \
+            if (result.is_error()) [[unlikely]] {                                                                           \
                 if (handle_exception(program_counter, result.error_value()) == HandleExceptionResponse::ExitFromExecutable) \
                     return;                                                                                                 \
                 goto start;                                                                                                 \
