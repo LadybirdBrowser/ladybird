@@ -1960,11 +1960,11 @@
   },
   "list-style": {
     "inherited": true,
-    "initial": "outside disc",
+    "initial": "outside none disc",
     "longhands": [
-      "list-style-type",
       "list-style-position",
-      "list-style-image"
+      "list-style-image",
+      "list-style-type"
     ]
   },
   "list-style-image": {
