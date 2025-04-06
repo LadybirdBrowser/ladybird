@@ -14,6 +14,7 @@ serenity_option(LAGOM_TOOLS_ONLY OFF CACHE BOOL "Don't build libraries, utilitie
 serenity_option(ENABLE_LAGOM_CCACHE ON CACHE BOOL "Enable ccache for Lagom builds")
 serenity_option(LAGOM_USE_LINKER "" CACHE STRING "The linker to use (e.g. lld, mold) instead of the system default")
 serenity_option(LAGOM_LINK_POOL_SIZE "" CACHE STRING "The maximum number of parallel jobs to use for linking")
+serenity_option(ENABLE_LTO_FOR_RELEASE ON CACHE BOOL "Enable link-time optimization for release builds")
 serenity_option(ENABLE_LAGOM_COVERAGE_COLLECTION OFF CACHE STRING "Enable code coverage instrumentation for lagom binaries in clang")
 
 if (ANDROID OR APPLE)
