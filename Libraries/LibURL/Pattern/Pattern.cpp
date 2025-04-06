@@ -95,7 +95,7 @@ PatternErrorOr<Pattern> Pattern::create(Input const& input, Optional<String> con
     // 6. If processedInit["protocol"] is a special scheme and processedInit["port"] is a string which represents its
     //    corresponding default port in radix-10 using ASCII digits then set processedInit["port"] to the empty string.
     if (is_special_scheme(processed_init.protocol.value())) {
-        auto maybe_port = processed_init.port->to_number<u16>();
+        auto maybe_port = processed_init.port->to_number<u16>(TrimWhitespace::No);
         if (maybe_port.has_value() && *maybe_port == default_port_for_scheme(*processed_init.protocol).value())
             processed_init.port = String {};
     }

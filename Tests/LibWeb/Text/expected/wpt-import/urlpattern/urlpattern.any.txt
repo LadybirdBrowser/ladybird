@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 354 tests
 
-351 Pass
-3 Fail
+352 Pass
+2 Fail
 Pass	Loading data...
 Pass	Pattern: [{"pathname":"/foo/bar"}] Inputs: [{"pathname":"/foo/bar"}]
 Pass	Pattern: [{"pathname":"/foo/bar"}] Inputs: [{"pathname":"/foo/ba"}]
@@ -170,7 +170,7 @@ Pass	Pattern: [{"pathname":":í ½U+deb2"}] Inputs: undefined
 Pass	Pattern: [{"port":""}] Inputs: [{"protocol":"http","port":"80"}]
 Pass	Pattern: [{"protocol":"http","port":"80"}] Inputs: [{"protocol":"http","port":"80"}]
 Pass	Pattern: [{"protocol":"http","port":"80{20}?"}] Inputs: [{"protocol":"http","port":"80"}]
-Fail	Pattern: [{"protocol":"http","port":"80 "}] Inputs: [{"protocol":"http","port":"80"}]
+Pass	Pattern: [{"protocol":"http","port":"80 "}] Inputs: [{"protocol":"http","port":"80"}]
 Pass	Pattern: [{"protocol":"http","port":"100000"}] Inputs: [{"protocol":"http","port":"100000"}]
 Pass	Pattern: [{"port":"80"}] Inputs: [{"protocol":"http","port":"80"}]
 Pass	Pattern: [{"protocol":"http{s}?","port":"80"}] Inputs: [{"protocol":"http","port":"80"}]
