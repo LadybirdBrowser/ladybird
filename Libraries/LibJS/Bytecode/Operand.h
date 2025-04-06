@@ -26,7 +26,9 @@ public:
         : m_type(type)
         , m_index(index)
     {
+#if ARCH(AARCH64)
         VERIFY((index & 0x3fffffff) == index);
+#endif
     }
 
     explicit Operand(Register);
@@ -43,11 +45,23 @@ public:
     void offset_index_by(u32 offset) { m_index += offset; }
 
 private:
+    // NOTE: aarch64 gets much faster with bitfields here, while x86_64 gets slower.
+    //       Because this type is absolutely essential to the interpreter, we allow
+    //       ourselves this little ifdef.
+#if ARCH(AARCH64)
     Type m_type : 2 {};
     u32 m_index : 30 { 0 };
+#else
+    Type m_type { Type::Invalid };
+    u32 m_index { 0 };
+#endif
 };
 
+#if ARCH(AARCH64)
 static_assert(sizeof(Operand) == 4);
+#else
+static_assert(sizeof(Operand) == 8);
+#endif
 
 }
 
