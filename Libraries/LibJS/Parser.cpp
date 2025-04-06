@@ -1863,9 +1863,9 @@ NonnullRefPtr<RegExpLiteral const> Parser::parse_regexp_literal()
     return create_ast_node<RegExpLiteral>(move(range), move(parsed_regex), move(parsed_pattern), move(parsed_flags), move(pattern), move(flags));
 }
 
-static bool is_simple_assignment_target(Expression const& expression, bool allow_web_reality_call_expression = true)
+static bool is_simple_assignment_target(Expression const& expression)
 {
-    return is<Identifier>(expression) || is<MemberExpression>(expression) || (allow_web_reality_call_expression && is<CallExpression>(expression));
+    return is<Identifier>(expression) || is<MemberExpression>(expression);
 }
 
 NonnullRefPtr<Expression const> Parser::parse_unary_prefixed_expression()
@@ -2617,13 +2617,7 @@ NonnullRefPtr<AssignmentExpression const> Parser::parse_assignment_expression(As
         }
     }
 
-    // Note: The web reality is that all but &&=, ||= and ??= do allow left hand side CallExpresions.
-    //       These are the exception as they are newer.
-    auto has_web_reality_assignment_target_exceptions = assignment_op != AssignmentOp::AndAssignment
-        && assignment_op != AssignmentOp::OrAssignment
-        && assignment_op != AssignmentOp::NullishAssignment;
-
-    if (!is_simple_assignment_target(*lhs, has_web_reality_assignment_target_exceptions)) {
+    if (!is_simple_assignment_target(*lhs)) {
         syntax_error("Invalid left-hand side in assignment"_string);
     } else if (m_state.strict_mode && is<Identifier>(*lhs)) {
         auto const& name = static_cast<Identifier const&>(*lhs).string();
