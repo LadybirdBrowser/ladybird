@@ -108,6 +108,11 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     add_cxx_compile_options(-Wno-unqualified-std-cast-call)
     add_cxx_compile_options(-Wvla)
 
+    # FIXME: These warnings trigger on Function and ByteBuffer in GCC (only when LTO is disabled...)
+    #        investigate this and maybe reenable them if they're not false positives/invalid.
+    add_cxx_compile_options(-Wno-array-bounds)
+    add_cxx_compile_options(-Wno-stringop-overflow)
+
     # FIXME: This warning seems useful but has too many false positives with GCC 13.
     add_cxx_compile_options(-Wno-dangling-reference)
 elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang$" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC")
