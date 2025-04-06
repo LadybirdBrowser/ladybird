@@ -279,6 +279,13 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
             return "normal"_string;
         return MUST(String::join(' ', values));
     }
+    case PropertyID::Gap: {
+        auto row_gap = longhand(PropertyID::RowGap);
+        auto column_gap = longhand(PropertyID::ColumnGap);
+        if (row_gap == column_gap)
+            return row_gap->to_string(mode);
+        return MUST(String::formatted("{} {}", row_gap->to_string(mode), column_gap->to_string(mode)));
+    }
     case PropertyID::GridArea: {
         auto& row_start = longhand(PropertyID::GridRowStart)->as_grid_track_placement();
         auto& column_start = longhand(PropertyID::GridColumnStart)->as_grid_track_placement();
@@ -411,13 +418,21 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
 
         StringBuilder builder;
         auto first = true;
-        for (auto& value : m_properties.values) {
+        for (size_t i = 0; i < m_properties.values.size(); ++i) {
+            auto value = m_properties.values[i];
+            auto value_string = value->to_string(mode);
+            auto initial_value_string = property_initial_value(m_properties.sub_properties[i])->to_string(mode);
+            if (value_string == initial_value_string)
+                continue;
             if (first)
                 first = false;
             else
                 builder.append(' ');
             builder.append(value->to_string(mode));
         }
+        if (builder.is_empty())
+            return m_properties.values.first()->to_string(mode);
+
         return MUST(builder.to_string());
     }
 }
