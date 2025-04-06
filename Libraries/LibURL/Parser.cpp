@@ -140,11 +140,11 @@ static Optional<ParsedIPv4Number> parse_ipv4_number(StringView input)
     // 8. Let output be the mathematical integer value that is represented by input in radix-R notation, using ASCII hex digits for digits with values 0 through 15.
     Optional<u32> maybe_output;
     if (radix == 8)
-        maybe_output = AK::StringUtils::convert_to_uint_from_octal(input);
+        maybe_output = AK::StringUtils::convert_to_uint_from_octal(input, TrimWhitespace::No);
     else if (radix == 10)
-        maybe_output = input.to_number<u32>();
+        maybe_output = input.to_number<u32>(TrimWhitespace::No);
     else if (radix == 16)
-        maybe_output = AK::StringUtils::convert_to_uint_from_hex(input);
+        maybe_output = AK::StringUtils::convert_to_uint_from_hex(input, TrimWhitespace::No);
     else
         VERIFY_NOT_REACHED();
 
@@ -1250,7 +1250,7 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
                 // 1. If buffer is not the empty string:
                 if (!buffer.is_empty()) {
                     // 1. Let port be the mathematical integer value that is represented by buffer in radix-10 using ASCII digits for digits with values 0 through 9.
-                    auto port = buffer.string_view().to_number<u16>();
+                    auto port = buffer.string_view().to_number<u16>(TrimWhitespace::No);
 
                     // 2. If port is greater than 2^16 − 1, port-out-of-range validation error, return failure.
                     // NOTE: This is done by to_number.
