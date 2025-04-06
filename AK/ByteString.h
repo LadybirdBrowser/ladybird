@@ -46,7 +46,7 @@ public:
     }
 
     ByteString(StringView view)
-        : m_impl(*StringImpl::create(view.characters_without_null_termination(), view.length()))
+        : m_impl(StringImpl::create(view.characters_without_null_termination(), view.length()))
     {
     }
 
@@ -62,17 +62,17 @@ public:
     }
 
     ByteString(char const* cstring, ShouldChomp shouldChomp = NoChomp)
-        : m_impl(*StringImpl::create(cstring, shouldChomp))
+        : m_impl(StringImpl::create(cstring, shouldChomp))
     {
     }
 
     ByteString(char const* cstring, size_t length, ShouldChomp shouldChomp = NoChomp)
-        : m_impl(*StringImpl::create(cstring, length, shouldChomp))
+        : m_impl(StringImpl::create(cstring, length, shouldChomp))
     {
     }
 
     explicit ByteString(ReadonlyBytes bytes, ShouldChomp shouldChomp = NoChomp)
-        : m_impl(*StringImpl::create(bytes, shouldChomp))
+        : m_impl(StringImpl::create(bytes, shouldChomp))
     {
     }
 
@@ -82,7 +82,7 @@ public:
     }
 
     ByteString(NonnullRefPtr<StringImpl const>&& impl)
-        : m_impl(*move(impl))
+        : m_impl(move(impl))
     {
     }
 
@@ -264,7 +264,7 @@ public:
     template<OneOf<ReadonlyBytes, Bytes> T>
     ByteString& operator=(T bytes)
     {
-        m_impl = *StringImpl::create(bytes);
+        m_impl = StringImpl::create(bytes);
         return *this;
     }
 
