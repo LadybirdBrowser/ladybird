@@ -194,8 +194,6 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
     }
     case PropertyID::Flex:
         return MUST(String::formatted("{} {} {}", longhand(PropertyID::FlexGrow)->to_string(mode), longhand(PropertyID::FlexShrink)->to_string(mode), longhand(PropertyID::FlexBasis)->to_string(mode)));
-    case PropertyID::FlexFlow:
-        return MUST(String::formatted("{} {}", longhand(PropertyID::FlexDirection)->to_string(mode), longhand(PropertyID::FlexWrap)->to_string(mode)));
     case PropertyID::Font: {
         auto font_style = longhand(PropertyID::FontStyle);
         auto font_variant = longhand(PropertyID::FontVariant);
@@ -350,8 +348,6 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
             return start->to_string(mode);
         return MUST(String::formatted("{} / {}", start->to_string(mode), end->to_string(mode)));
     }
-    case PropertyID::ListStyle:
-        return MUST(String::formatted("{} {} {}", longhand(PropertyID::ListStylePosition)->to_string(mode), longhand(PropertyID::ListStyleImage)->to_string(mode), longhand(PropertyID::ListStyleType)->to_string(mode)));
     case PropertyID::Overflow: {
         auto overflow_x = longhand(PropertyID::OverflowX);
         auto overflow_y = longhand(PropertyID::OverflowY);

@@ -1,0 +1,23 @@
+Harness status: OK
+
+Found 17 tests
+
+16 Pass
+1 Fail
+Pass	e.style['list-style'] = "none" should set the property value
+Pass	e.style['list-style'] = "disc outside none" should set the property value
+Pass	e.style['list-style'] = "inside" should set the property value
+Pass	e.style['list-style'] = "inside disc" should set the property value
+Pass	e.style['list-style'] = "inside none" should set the property value
+Pass	e.style['list-style'] = "inside none none" should set the property value
+Pass	e.style['list-style'] = "none inside none" should set the property value
+Pass	e.style['list-style'] = "none none inside" should set the property value
+Pass	e.style['list-style'] = "none inside" should set the property value
+Pass	e.style['list-style'] = "url(\"https://example.com/\")" should set the property value
+Pass	e.style['list-style'] = "none url(\"https://example.com/\")" should set the property value
+Pass	e.style['list-style'] = "url(\"https://example.com/\") disc" should set the property value
+Pass	e.style['list-style'] = "url(\"https://example.com/\") disc outside" should set the property value
+Pass	e.style['list-style'] = "square" should set the property value
+Pass	e.style['list-style'] = "square url(\"https://example.com/\") inside" should set the property value
+Pass	e.style['list-style'] = "square linear-gradient(red,blue) inside" should set the property value
+Fail	e.style['list-style'] = "disc radial-gradient(circle, #006, #00a 90%, #0000af 100%,white 100%) inside" should set the property value
