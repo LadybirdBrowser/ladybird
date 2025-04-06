@@ -14,7 +14,7 @@ namespace URL::Pattern {
 String escape_a_pattern_string(String const& input)
 {
     // 1. Assert: input is an ASCII string.
-    VERIFY(all_of(input.code_points(), is_ascii));
+    VERIFY(input.is_ascii());
 
     // 2. Let result be the empty string.
     StringBuilder result;
@@ -51,7 +51,7 @@ String escape_a_pattern_string(String const& input)
 String escape_a_regexp_string(String const& input)
 {
     // 1. Assert: input is an ASCII string.
-    VERIFY(all_of(input.code_points(), is_ascii));
+    VERIFY(input.is_ascii());
 
     // 2. Let result be the empty string.
     StringBuilder builder;

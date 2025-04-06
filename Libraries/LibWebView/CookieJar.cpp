@@ -333,10 +333,8 @@ void CookieJar::store_cookie(Web::Cookie::ParsedCookie const& parsed_cookie, con
 
     // 8. If the domain-attribute contains a character that is not in the range of [USASCII] characters, abort these
     //    steps and ignore the cookie entirely.
-    for (auto code_point : domain_attribute.code_points()) {
-        if (!is_ascii(code_point))
-            return;
-    }
+    if (!domain_attribute.is_ascii())
+        return;
 
     // 9. If the user agent is configured to reject "public suffixes" and the domain-attribute is a public suffix:
     if (URL::is_public_suffix(domain_attribute)) {

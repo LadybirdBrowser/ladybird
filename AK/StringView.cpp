@@ -15,6 +15,8 @@
 #include <AK/StringView.h>
 #include <AK/Vector.h>
 
+#include <simdutf.h>
+
 namespace AK {
 
 StringView::StringView(String const& string)
@@ -193,6 +195,13 @@ bool StringView::contains(StringView needle, CaseSensitivity case_sensitivity) c
 bool StringView::equals_ignoring_ascii_case(StringView other) const
 {
     return StringUtils::equals_ignoring_ascii_case(*this, other);
+}
+
+bool StringView::is_ascii() const
+{
+    if (is_empty())
+        return true;
+    return simdutf::validate_ascii(characters_without_null_termination(), length());
 }
 
 ByteString StringView::to_lowercase_string() const

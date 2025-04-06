@@ -196,7 +196,7 @@ Optional<String> Host::public_suffix() const
     auto public_suffix = get_public_suffix(host_string.bytes_as_string_view()).value_or("*"_string);
 
     // 4. Assert: publicSuffix is an ASCII string that does not end with ".".
-    VERIFY(all_of(public_suffix.code_points(), is_ascii));
+    VERIFY(public_suffix.is_ascii());
     VERIFY(!public_suffix.ends_with('.'));
 
     // 5. Return publicSuffix and trailingDot concatenated.
@@ -223,7 +223,7 @@ Optional<String> Host::registrable_domain() const
     auto registrable_domain = get_registrable_domain(host_string).value_or("*"_string);
 
     // 4. Assert: registrableDomain is an ASCII string that does not end with ".".
-    VERIFY(all_of(registrable_domain.code_points(), is_ascii));
+    VERIFY(registrable_domain.is_ascii());
     VERIFY(!registrable_domain.ends_with('.'));
 
     // 5. Return registrableDomain and trailingDot concatenated.
