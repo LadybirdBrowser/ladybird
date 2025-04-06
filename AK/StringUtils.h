@@ -106,7 +106,6 @@ Optional<size_t> find_any_of(StringView haystack, StringView needles, SearchDire
 
 ByteString to_snakecase(StringView);
 ByteString to_titlecase(StringView);
-ByteString invert_case(StringView);
 
 ByteString replace(StringView, StringView needle, StringView replacement, ReplaceMode);
 ErrorOr<String> replace(String const&, StringView needle, StringView replacement, ReplaceMode);

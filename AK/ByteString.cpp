@@ -371,16 +371,6 @@ ByteString ByteString::to_snakecase() const
     return StringUtils::to_snakecase(*this);
 }
 
-ByteString ByteString::to_titlecase() const
-{
-    return StringUtils::to_titlecase(*this);
-}
-
-ByteString ByteString::invert_case() const
-{
-    return StringUtils::invert_case(*this);
-}
-
 bool ByteString::operator==(char const* cstring) const
 {
     if (!cstring)

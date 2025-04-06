@@ -136,8 +136,6 @@ public:
     [[nodiscard]] ByteString to_lowercase() const;
     [[nodiscard]] ByteString to_uppercase() const;
     [[nodiscard]] ByteString to_snakecase() const;
-    [[nodiscard]] ByteString to_titlecase() const;
-    [[nodiscard]] ByteString invert_case() const;
 
     [[nodiscard]] bool is_whitespace() const { return StringUtils::is_whitespace(*this); }
 
