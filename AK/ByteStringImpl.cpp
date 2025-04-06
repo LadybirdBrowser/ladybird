@@ -4,43 +4,43 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/ByteStringImpl.h>
 #include <AK/CharacterTypes.h>
 #include <AK/StringHash.h>
-#include <AK/StringImpl.h>
 #include <AK/kmalloc.h>
 
 namespace AK {
 
-static StringImpl* s_the_empty_stringimpl = nullptr;
+static ByteStringImpl* s_the_empty_stringimpl = nullptr;
 
-StringImpl& StringImpl::the_empty_stringimpl()
+ByteStringImpl& ByteStringImpl::the_empty_stringimpl()
 {
     if (!s_the_empty_stringimpl) {
-        void* slot = kmalloc(sizeof(StringImpl) + sizeof(char));
-        s_the_empty_stringimpl = new (slot) StringImpl(ConstructTheEmptyStringImpl);
+        void* slot = kmalloc(sizeof(ByteStringImpl) + sizeof(char));
+        s_the_empty_stringimpl = new (slot) ByteStringImpl(ConstructTheEmptyStringImpl);
     }
     return *s_the_empty_stringimpl;
 }
 
-StringImpl::StringImpl(ConstructWithInlineBufferTag, size_t length)
+ByteStringImpl::ByteStringImpl(ConstructWithInlineBufferTag, size_t length)
     : m_length(length)
 {
 }
 
-StringImpl::~StringImpl() = default;
+ByteStringImpl::~ByteStringImpl() = default;
 
-NonnullRefPtr<StringImpl const> StringImpl::create_uninitialized(size_t length, char*& buffer)
+NonnullRefPtr<ByteStringImpl const> ByteStringImpl::create_uninitialized(size_t length, char*& buffer)
 {
     VERIFY(length);
     void* slot = kmalloc(allocation_size_for_stringimpl(length));
     VERIFY(slot);
-    auto new_stringimpl = adopt_ref(*new (slot) StringImpl(ConstructWithInlineBuffer, length));
+    auto new_stringimpl = adopt_ref(*new (slot) ByteStringImpl(ConstructWithInlineBuffer, length));
     buffer = const_cast<char*>(new_stringimpl->characters());
     buffer[length] = '\0';
     return new_stringimpl;
 }
 
-NonnullRefPtr<StringImpl const> StringImpl::create(char const* cstring, size_t length, ShouldChomp should_chomp)
+NonnullRefPtr<ByteStringImpl const> ByteStringImpl::create(char const* cstring, size_t length, ShouldChomp should_chomp)
 {
     if (should_chomp) {
         while (length) {
@@ -62,7 +62,7 @@ NonnullRefPtr<StringImpl const> StringImpl::create(char const* cstring, size_t l
     return new_stringimpl;
 }
 
-NonnullRefPtr<StringImpl const> StringImpl::create(char const* cstring, ShouldChomp shouldChomp)
+NonnullRefPtr<ByteStringImpl const> ByteStringImpl::create(char const* cstring, ShouldChomp shouldChomp)
 {
     if (!cstring || !*cstring)
         return the_empty_stringimpl();
@@ -70,17 +70,17 @@ NonnullRefPtr<StringImpl const> StringImpl::create(char const* cstring, ShouldCh
     return create(cstring, strlen(cstring), shouldChomp);
 }
 
-NonnullRefPtr<StringImpl const> StringImpl::create(ReadonlyBytes bytes, ShouldChomp shouldChomp)
+NonnullRefPtr<ByteStringImpl const> ByteStringImpl::create(ReadonlyBytes bytes, ShouldChomp shouldChomp)
 {
-    return StringImpl::create(reinterpret_cast<char const*>(bytes.data()), bytes.size(), shouldChomp);
+    return ByteStringImpl::create(reinterpret_cast<char const*>(bytes.data()), bytes.size(), shouldChomp);
 }
 
-unsigned StringImpl::case_insensitive_hash() const
+unsigned ByteStringImpl::case_insensitive_hash() const
 {
     return case_insensitive_string_hash(characters(), length());
 }
 
-void StringImpl::compute_hash() const
+void ByteStringImpl::compute_hash() const
 {
     if (!length())
         m_hash = 0;

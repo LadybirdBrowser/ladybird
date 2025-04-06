@@ -25,11 +25,11 @@ enum class TrailingCodePointTransformation : u8;
 class BigEndianInputBitStream;
 class BigEndianOutputBitStream;
 class Bitmap;
-using ByteBuffer = Detail::ByteBuffer<32>;
+class ByteString;
+class ByteStringImpl;
 class CircularBuffer;
 class ConstrainedStream;
 class CountingStream;
-class ByteString;
 class Duration;
 class Error;
 class FlyString;
@@ -48,7 +48,6 @@ class StackInfo;
 class Stream;
 class String;
 class StringBuilder;
-class StringImpl;
 class StringView;
 class UnixDateTime;
 class Utf16View;
@@ -56,6 +55,8 @@ class Utf32CodePointIterator;
 class Utf32View;
 class Utf8CodePointIterator;
 class Utf8View;
+
+using ByteBuffer = Detail::ByteBuffer<32>;
 
 template<typename T>
 class Span;
@@ -191,7 +192,6 @@ using AK::StackInfo;
 using AK::Stream;
 using AK::String;
 using AK::StringBuilder;
-using AK::StringImpl;
 using AK::StringView;
 using AK::TrailingCodePointTransformation;
 using AK::Traits;

@@ -57,7 +57,7 @@ ByteString ByteString::isolated_copy() const
     if (m_impl->length() == 0)
         return empty();
     char* buffer;
-    auto impl = StringImpl::create_uninitialized(length(), buffer);
+    auto impl = ByteStringImpl::create_uninitialized(length(), buffer);
     memcpy(buffer, m_impl->characters(), m_impl->length());
     return impl;
 }
@@ -183,7 +183,7 @@ ByteString ByteString::repeated(char ch, size_t count)
     if (!count)
         return empty();
     char* buffer;
-    auto impl = StringImpl::create_uninitialized(count, buffer);
+    auto impl = ByteStringImpl::create_uninitialized(count, buffer);
     memset(buffer, ch, count);
     return impl;
 }
@@ -193,7 +193,7 @@ ByteString ByteString::repeated(StringView string, size_t count)
     if (!count || string.is_empty())
         return empty();
     char* buffer;
-    auto impl = StringImpl::create_uninitialized(count * string.length(), buffer);
+    auto impl = ByteStringImpl::create_uninitialized(count * string.length(), buffer);
     for (size_t i = 0; i < count; i++)
         __builtin_memcpy(buffer + i * string.length(), string.characters_without_null_termination(), string.length());
     return impl;
@@ -334,7 +334,7 @@ ByteString escape_html_entities(StringView html)
 }
 
 ByteString::ByteString(FlyString const& string)
-    : m_impl(StringImpl::create(string.bytes()))
+    : m_impl(ByteStringImpl::create(string.bytes()))
 {
 }
 
@@ -344,7 +344,7 @@ ByteString ByteString::to_lowercase() const
         return *this;
 
     char* buffer = nullptr;
-    auto impl = StringImpl::create_uninitialized(length(), buffer);
+    auto impl = ByteStringImpl::create_uninitialized(length(), buffer);
 
     for (auto [i, character] : enumerate(view()))
         buffer[i] = static_cast<char>(to_ascii_lowercase(character));
@@ -358,7 +358,7 @@ ByteString ByteString::to_uppercase() const
         return *this;
 
     char* buffer = nullptr;
-    auto impl = StringImpl::create_uninitialized(length(), buffer);
+    auto impl = ByteStringImpl::create_uninitialized(length(), buffer);
 
     for (auto [i, character] : enumerate(view()))
         buffer[i] = static_cast<char>(to_ascii_uppercase(character));
@@ -400,7 +400,7 @@ ErrorOr<ByteString> ByteString::from_utf8(ReadonlyBytes bytes)
 {
     if (!Utf8View(bytes).validate())
         return Error::from_string_literal("ByteString::from_utf8: Input was not valid UTF-8");
-    return StringImpl::create(bytes);
+    return ByteStringImpl::create(bytes);
 }
 
 }
