@@ -12,7 +12,6 @@
 #include <AK/Function.h>
 #include <AK/StdLibExtras.h>
 #include <AK/StringView.h>
-#include <AK/Utf8View.h>
 #include <AK/Vector.h>
 
 namespace AK {
@@ -50,16 +49,6 @@ bool ByteString::copy_characters_to_buffer(char* buffer, size_t buffer_size) con
     buffer[characters_to_copy] = 0;
 
     return characters_to_copy == length();
-}
-
-ByteString ByteString::isolated_copy() const
-{
-    if (m_impl->length() == 0)
-        return empty();
-    char* buffer;
-    auto impl = ByteStringImpl::create_uninitialized(length(), buffer);
-    memcpy(buffer, m_impl->characters(), m_impl->length());
-    return impl;
 }
 
 ByteString ByteString::substring(size_t start, size_t length) const
@@ -199,88 +188,6 @@ ByteString ByteString::repeated(StringView string, size_t count)
     return impl;
 }
 
-ByteString ByteString::bijective_base_from(size_t value, unsigned base, StringView map)
-{
-    value++;
-    if (map.is_null())
-        map = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"sv;
-
-    VERIFY(base >= 2 && base <= map.length());
-
-    // The '8 bits per byte' assumption may need to go?
-    Array<char, round_up_to_power_of_two(sizeof(size_t) * 8 + 1, 2)> buffer;
-    size_t i = 0;
-    do {
-        auto remainder = value % base;
-        auto new_value = value / base;
-        if (remainder == 0) {
-            new_value--;
-            remainder = map.length();
-        }
-
-        buffer[i++] = map[remainder - 1];
-        value = new_value;
-    } while (value > 0);
-
-    for (size_t j = 0; j < i / 2; ++j)
-        swap(buffer[j], buffer[i - j - 1]);
-
-    return ByteString { ReadonlyBytes(buffer.data(), i) };
-}
-
-ByteString ByteString::roman_number_from(size_t value)
-{
-    if (value > 3999)
-        return ByteString::number(value);
-
-    StringBuilder builder;
-
-    while (value > 0) {
-        if (value >= 1000) {
-            builder.append('M');
-            value -= 1000;
-        } else if (value >= 900) {
-            builder.append("CM"sv);
-            value -= 900;
-        } else if (value >= 500) {
-            builder.append('D');
-            value -= 500;
-        } else if (value >= 400) {
-            builder.append("CD"sv);
-            value -= 400;
-        } else if (value >= 100) {
-            builder.append('C');
-            value -= 100;
-        } else if (value >= 90) {
-            builder.append("XC"sv);
-            value -= 90;
-        } else if (value >= 50) {
-            builder.append('L');
-            value -= 50;
-        } else if (value >= 40) {
-            builder.append("XL"sv);
-            value -= 40;
-        } else if (value >= 10) {
-            builder.append('X');
-            value -= 10;
-        } else if (value == 9) {
-            builder.append("IX"sv);
-            value -= 9;
-        } else if (value >= 5 && value <= 8) {
-            builder.append('V');
-            value -= 5;
-        } else if (value == 4) {
-            builder.append("IV"sv);
-            value -= 4;
-        } else if (value <= 3) {
-            builder.append('I');
-            value -= 1;
-        }
-    }
-
-    return builder.to_byte_string();
-}
-
 bool ByteString::matches(StringView mask, Vector<MaskSpan>& mask_spans, CaseSensitivity case_sensitivity) const
 {
     return StringUtils::matches(*this, mask, case_sensitivity, &mask_spans);
@@ -389,18 +296,6 @@ ByteString ByteString::vformatted(StringView fmtstr, TypeErasedFormatParams& par
 Vector<size_t> ByteString::find_all(StringView needle) const
 {
     return StringUtils::find_all(*this, needle);
-}
-
-Utf8CodePointIterator ByteString::code_points() const&
-{
-    return Utf8CodePointIterator { reinterpret_cast<u8 const*>(characters()), length() };
-}
-
-ErrorOr<ByteString> ByteString::from_utf8(ReadonlyBytes bytes)
-{
-    if (!Utf8View(bytes).validate())
-        return Error::from_string_literal("ByteString::from_utf8: Input was not valid UTF-8");
-    return ByteStringImpl::create(bytes);
 }
 
 }

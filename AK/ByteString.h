@@ -88,11 +88,6 @@ public:
 
     ByteString(FlyString const&);
 
-    static ErrorOr<ByteString> from_utf8(ReadonlyBytes);
-    static ErrorOr<ByteString> from_utf8(StringView string) { return from_utf8(string.bytes()); }
-    static ByteString must_from_utf8(StringView string) { return MUST(from_utf8(string)); }
-    static ByteString from_utf8_without_validation(StringView string) { return ByteString { string }; }
-
     template<
         typename F,
         typename PossiblyErrorOr = decltype(declval<F>()(declval<Bytes>())),
@@ -113,9 +108,6 @@ public:
     [[nodiscard]] static ByteString repeated(char, size_t count);
     [[nodiscard]] static ByteString repeated(StringView, size_t count);
 
-    [[nodiscard]] static ByteString bijective_base_from(size_t value, unsigned base = 26, StringView map = {});
-    [[nodiscard]] static ByteString roman_number_from(size_t value);
-
     template<class SeparatorType, class CollectionType>
     [[nodiscard]] static ByteString join(SeparatorType const& separator, CollectionType const& collection, StringView fmtstr = "{}"sv)
     {
@@ -128,6 +120,12 @@ public:
     [[nodiscard]] bool matches(StringView mask, Vector<MaskSpan>&, CaseSensitivity = CaseSensitivity::CaseInsensitive) const;
 
     template<Arithmetic T>
+    [[nodiscard]] static ByteString number(T value)
+    {
+        return formatted("{}", value);
+    }
+
+    template<Arithmetic T>
     Optional<T> to_number(TrimWhitespace trim_whitespace = TrimWhitespace::Yes) const
     {
         return view().to_number<T>(trim_whitespace);
@@ -138,9 +136,6 @@ public:
     [[nodiscard]] ByteString to_snakecase() const;
 
     [[nodiscard]] bool is_whitespace() const { return StringUtils::is_whitespace(*this); }
-
-    [[nodiscard]] Utf8CodePointIterator code_points() const&;
-    [[nodiscard]] Utf8CodePointIterator code_points() const&& = delete;
 
     [[nodiscard]] ByteString trim(StringView characters, TrimMode mode = TrimMode::Both) const
     {
@@ -236,8 +231,6 @@ public:
 
     bool operator==(char const* cstring) const;
 
-    [[nodiscard]] ByteString isolated_copy() const;
-
     [[nodiscard]] static ByteString empty()
     {
         return ByteStringImpl::the_empty_stringimpl();
@@ -288,12 +281,6 @@ public:
     {
         VariadicFormatParams<AllowDebugOnlyFormatters::No, Parameters...> variadic_format_parameters { parameters... };
         return vformatted(fmtstr.view(), variadic_format_parameters);
-    }
-
-    template<Arithmetic T>
-    [[nodiscard]] static ByteString number(T value)
-    {
-        return formatted("{}", value);
     }
 
     [[nodiscard]] StringView view() const& { return { characters(), length() }; }

@@ -258,36 +258,3 @@ TEST_CASE(find_with_empty_needle)
     EXPECT_EQ(string.find(""sv), 0u);
     EXPECT_EQ(string.find_all(""sv), (Vector<size_t> { 0u, 1u, 2u, 3u }));
 }
-
-TEST_CASE(bijective_base)
-{
-    EXPECT_EQ(ByteString::bijective_base_from(0), "A");
-    EXPECT_EQ(ByteString::bijective_base_from(25), "Z");
-    EXPECT_EQ(ByteString::bijective_base_from(26), "AA");
-    EXPECT_EQ(ByteString::bijective_base_from(52), "BA");
-    EXPECT_EQ(ByteString::bijective_base_from(701), "ZZ");
-    EXPECT_EQ(ByteString::bijective_base_from(702), "AAA");
-    EXPECT_EQ(ByteString::bijective_base_from(730), "ABC");
-    EXPECT_EQ(ByteString::bijective_base_from(18277), "ZZZ");
-}
-
-TEST_CASE(roman_numerals)
-{
-    auto zero = ByteString::roman_number_from(0);
-    EXPECT_EQ(zero, "");
-
-    auto one = ByteString::roman_number_from(1);
-    EXPECT_EQ(one, "I");
-
-    auto nine = ByteString::roman_number_from(9);
-    EXPECT_EQ(nine, "IX");
-
-    auto fourty_eight = ByteString::roman_number_from(48);
-    EXPECT_EQ(fourty_eight, "XLVIII");
-
-    auto one_thousand_nine_hundred_ninety_eight = ByteString::roman_number_from(1998);
-    EXPECT_EQ(one_thousand_nine_hundred_ninety_eight, "MCMXCVIII");
-
-    auto four_thousand = ByteString::roman_number_from(4000);
-    EXPECT_EQ(four_thousand, "4000");
-}

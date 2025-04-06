@@ -1528,3 +1528,36 @@ TEST_CASE(is_ascii)
     EXPECT(!"😀"_string.is_ascii());
     EXPECT(!"abcdefghijklmnopqrstuvwxyz😀ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789😀!@#$%^&*()"_string.is_ascii());
 }
+
+TEST_CASE(bijective_base)
+{
+    EXPECT_EQ(String::bijective_base_from(0, String::Case::Upper), "A"sv);
+    EXPECT_EQ(String::bijective_base_from(25, String::Case::Upper), "Z"sv);
+    EXPECT_EQ(String::bijective_base_from(26, String::Case::Upper), "AA"sv);
+    EXPECT_EQ(String::bijective_base_from(52, String::Case::Upper), "BA"sv);
+    EXPECT_EQ(String::bijective_base_from(701, String::Case::Upper), "ZZ"sv);
+    EXPECT_EQ(String::bijective_base_from(702, String::Case::Upper), "AAA"sv);
+    EXPECT_EQ(String::bijective_base_from(730, String::Case::Upper), "ABC"sv);
+    EXPECT_EQ(String::bijective_base_from(18277, String::Case::Upper), "ZZZ"sv);
+}
+
+TEST_CASE(roman_numerals)
+{
+    auto zero = String::roman_number_from(0, String::Case::Upper);
+    EXPECT_EQ(zero, ""sv);
+
+    auto one = String::roman_number_from(1, String::Case::Upper);
+    EXPECT_EQ(one, "I"sv);
+
+    auto nine = String::roman_number_from(9, String::Case::Upper);
+    EXPECT_EQ(nine, "IX"sv);
+
+    auto fourty_eight = String::roman_number_from(48, String::Case::Upper);
+    EXPECT_EQ(fourty_eight, "XLVIII"sv);
+
+    auto one_thousand_nine_hundred_ninety_eight = String::roman_number_from(1998, String::Case::Upper);
+    EXPECT_EQ(one_thousand_nine_hundred_ninety_eight, "MCMXCVIII"sv);
+
+    auto four_thousand = String::roman_number_from(4000, String::Case::Upper);
+    EXPECT_EQ(four_thousand, "4000"sv);
+}
