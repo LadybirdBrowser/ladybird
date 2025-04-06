@@ -73,6 +73,12 @@ public:
     [[nodiscard]] ALWAYS_INLINE FlatPtr raw(Badge<FlyString>) const { return bit_cast<FlatPtr>(m_impl); }
     [[nodiscard]] ALWAYS_INLINE FlatPtr raw(Badge<String>) const { return bit_cast<FlatPtr>(m_impl); }
 
+    template<typename Func>
+    ALWAYS_INLINE ErrorOr<void> replace_with_new_string(Badge<StringView>, size_t byte_count, Func&& callback)
+    {
+        return replace_with_new_string(byte_count, forward<Func>(callback));
+    }
+
 protected:
     template<typename Func>
     ErrorOr<void> replace_with_new_string(size_t byte_count, Func&& callback)

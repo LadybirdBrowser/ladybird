@@ -28,8 +28,6 @@ public:
     static NonnullRefPtr<StringImpl const> create(char const* cstring, ShouldChomp = NoChomp);
     static NonnullRefPtr<StringImpl const> create(char const* cstring, size_t length, ShouldChomp = NoChomp);
     static NonnullRefPtr<StringImpl const> create(ReadonlyBytes, ShouldChomp = NoChomp);
-    static NonnullRefPtr<StringImpl const> create_lowercased(char const* cstring, size_t length);
-    static NonnullRefPtr<StringImpl const> create_uppercased(char const* cstring, size_t length);
 
     void operator delete(void* ptr)
     {
