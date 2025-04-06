@@ -22,21 +22,21 @@ enum ShouldChomp {
 
 size_t allocation_size_for_stringimpl(size_t length);
 
-class StringImpl : public RefCounted<StringImpl> {
+class ByteStringImpl : public RefCounted<ByteStringImpl> {
 public:
-    static NonnullRefPtr<StringImpl const> create_uninitialized(size_t length, char*& buffer);
-    static NonnullRefPtr<StringImpl const> create(char const* cstring, ShouldChomp = NoChomp);
-    static NonnullRefPtr<StringImpl const> create(char const* cstring, size_t length, ShouldChomp = NoChomp);
-    static NonnullRefPtr<StringImpl const> create(ReadonlyBytes, ShouldChomp = NoChomp);
+    static NonnullRefPtr<ByteStringImpl const> create_uninitialized(size_t length, char*& buffer);
+    static NonnullRefPtr<ByteStringImpl const> create(char const* cstring, ShouldChomp = NoChomp);
+    static NonnullRefPtr<ByteStringImpl const> create(char const* cstring, size_t length, ShouldChomp = NoChomp);
+    static NonnullRefPtr<ByteStringImpl const> create(ReadonlyBytes, ShouldChomp = NoChomp);
 
     void operator delete(void* ptr)
     {
-        kfree_sized(ptr, allocation_size_for_stringimpl(static_cast<StringImpl*>(ptr)->m_length));
+        kfree_sized(ptr, allocation_size_for_stringimpl(static_cast<ByteStringImpl*>(ptr)->m_length));
     }
 
-    static StringImpl& the_empty_stringimpl();
+    static ByteStringImpl& the_empty_stringimpl();
 
-    ~StringImpl();
+    ~ByteStringImpl();
 
     size_t length() const { return m_length; }
     // Includes NUL-terminator.
@@ -51,7 +51,7 @@ public:
         return characters()[i];
     }
 
-    bool operator==(StringImpl const& other) const
+    bool operator==(ByteStringImpl const& other) const
     {
         if (length() != other.length())
             return false;
@@ -76,7 +76,7 @@ private:
     enum ConstructTheEmptyStringImplTag {
         ConstructTheEmptyStringImpl
     };
-    explicit StringImpl(ConstructTheEmptyStringImplTag)
+    explicit ByteStringImpl(ConstructTheEmptyStringImplTag)
     {
         m_inline_buffer[0] = '\0';
     }
@@ -84,7 +84,7 @@ private:
     enum ConstructWithInlineBufferTag {
         ConstructWithInlineBuffer
     };
-    StringImpl(ConstructWithInlineBufferTag, size_t length);
+    ByteStringImpl(ConstructWithInlineBufferTag, size_t length);
 
     void compute_hash() const;
 
@@ -96,12 +96,12 @@ private:
 
 inline size_t allocation_size_for_stringimpl(size_t length)
 {
-    return sizeof(StringImpl) + (sizeof(char) * length) + sizeof(char);
+    return sizeof(ByteStringImpl) + (sizeof(char) * length) + sizeof(char);
 }
 
 template<>
-struct Formatter<StringImpl> : Formatter<StringView> {
-    ErrorOr<void> format(FormatBuilder& builder, StringImpl const& value)
+struct Formatter<ByteStringImpl> : Formatter<StringView> {
+    ErrorOr<void> format(FormatBuilder& builder, ByteStringImpl const& value)
     {
         return Formatter<StringView>::format(builder, { value.characters(), value.length() });
     }
@@ -112,5 +112,4 @@ struct Formatter<StringImpl> : Formatter<StringView> {
 #if USING_AK_GLOBALLY
 using AK::Chomp;
 using AK::NoChomp;
-using AK::StringImpl;
 #endif

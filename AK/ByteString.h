@@ -6,11 +6,11 @@
 
 #pragma once
 
+#include <AK/ByteStringImpl.h>
 #include <AK/Format.h>
 #include <AK/Forward.h>
 #include <AK/RefPtr.h>
 #include <AK/StringBuilder.h>
-#include <AK/StringImpl.h>
 #include <AK/StringUtils.h>
 #include <AK/Traits.h>
 
@@ -41,12 +41,12 @@ public:
     ~ByteString() = default;
 
     ByteString()
-        : m_impl(StringImpl::the_empty_stringimpl())
+        : m_impl(ByteStringImpl::the_empty_stringimpl())
     {
     }
 
     ByteString(StringView view)
-        : m_impl(StringImpl::create(view.characters_without_null_termination(), view.length()))
+        : m_impl(ByteStringImpl::create(view.characters_without_null_termination(), view.length()))
     {
     }
 
@@ -58,30 +58,30 @@ public:
     ByteString(ByteString&& other)
         : m_impl(move(other.m_impl))
     {
-        other.m_impl = StringImpl::the_empty_stringimpl();
+        other.m_impl = ByteStringImpl::the_empty_stringimpl();
     }
 
     ByteString(char const* cstring, ShouldChomp shouldChomp = NoChomp)
-        : m_impl(StringImpl::create(cstring, shouldChomp))
+        : m_impl(ByteStringImpl::create(cstring, shouldChomp))
     {
     }
 
     ByteString(char const* cstring, size_t length, ShouldChomp shouldChomp = NoChomp)
-        : m_impl(StringImpl::create(cstring, length, shouldChomp))
+        : m_impl(ByteStringImpl::create(cstring, length, shouldChomp))
     {
     }
 
     explicit ByteString(ReadonlyBytes bytes, ShouldChomp shouldChomp = NoChomp)
-        : m_impl(StringImpl::create(bytes, shouldChomp))
+        : m_impl(ByteStringImpl::create(bytes, shouldChomp))
     {
     }
 
-    ByteString(StringImpl const& impl)
+    ByteString(ByteStringImpl const& impl)
         : m_impl(impl)
     {
     }
 
-    ByteString(NonnullRefPtr<StringImpl const>&& impl)
+    ByteString(NonnullRefPtr<ByteStringImpl const>&& impl)
         : m_impl(move(impl))
     {
     }
@@ -101,7 +101,7 @@ public:
     static ReturnType create_and_overwrite(size_t length, F&& fill_function)
     {
         char* buffer;
-        auto impl = StringImpl::create_uninitialized(length, buffer);
+        auto impl = ByteStringImpl::create_uninitialized(length, buffer);
 
         if constexpr (is_error_or)
             TRY(fill_function(Bytes { buffer, length }));
@@ -240,10 +240,10 @@ public:
 
     [[nodiscard]] static ByteString empty()
     {
-        return StringImpl::the_empty_stringimpl();
+        return ByteStringImpl::the_empty_stringimpl();
     }
 
-    [[nodiscard]] NonnullRefPtr<StringImpl const> impl() const { return m_impl; }
+    [[nodiscard]] NonnullRefPtr<ByteStringImpl const> impl() const { return m_impl; }
 
     ByteString& operator=(ByteString&& other)
     {
@@ -262,7 +262,7 @@ public:
     template<OneOf<ReadonlyBytes, Bytes> T>
     ByteString& operator=(T bytes)
     {
-        m_impl = StringImpl::create(bytes);
+        m_impl = ByteStringImpl::create(bytes);
         return *this;
     }
 
@@ -322,7 +322,7 @@ public:
     }
 
 private:
-    NonnullRefPtr<StringImpl const> m_impl;
+    NonnullRefPtr<ByteStringImpl const> m_impl;
 };
 
 template<>

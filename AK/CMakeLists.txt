@@ -1,11 +1,12 @@
 set(SOURCES
     Assertions.cpp
     Base64.cpp
+    ByteString.cpp
+    ByteStringImpl.cpp
     CircularBuffer.cpp
     ConstrainedStream.cpp
     CountingStream.cpp
     DOSPackedTime.cpp
-    ByteString.cpp
     Error.cpp
     FloatingPointStringConversions.cpp
     FlyString.cpp
@@ -26,7 +27,6 @@ set(SOURCES
     StringBase.cpp
     StringBuilder.cpp
     StringFloatingPointConversions.cpp
-    StringImpl.cpp
     StringUtils.cpp
     StringView.cpp
     Time.cpp
