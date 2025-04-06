@@ -7,8 +7,8 @@
 #pragma once
 
 #include <AK/Badge.h>
+#include <AK/NonnullRefPtr.h>
 #include <AK/RefCounted.h>
-#include <AK/RefPtr.h>
 #include <AK/Span.h>
 #include <AK/Types.h>
 #include <AK/kmalloc.h>
@@ -25,11 +25,11 @@ size_t allocation_size_for_stringimpl(size_t length);
 class StringImpl : public RefCounted<StringImpl> {
 public:
     static NonnullRefPtr<StringImpl const> create_uninitialized(size_t length, char*& buffer);
-    static RefPtr<StringImpl const> create(char const* cstring, ShouldChomp = NoChomp);
-    static RefPtr<StringImpl const> create(char const* cstring, size_t length, ShouldChomp = NoChomp);
-    static RefPtr<StringImpl const> create(ReadonlyBytes, ShouldChomp = NoChomp);
-    static RefPtr<StringImpl const> create_lowercased(char const* cstring, size_t length);
-    static RefPtr<StringImpl const> create_uppercased(char const* cstring, size_t length);
+    static NonnullRefPtr<StringImpl const> create(char const* cstring, ShouldChomp = NoChomp);
+    static NonnullRefPtr<StringImpl const> create(char const* cstring, size_t length, ShouldChomp = NoChomp);
+    static NonnullRefPtr<StringImpl const> create(ReadonlyBytes, ShouldChomp = NoChomp);
+    static NonnullRefPtr<StringImpl const> create_lowercased(char const* cstring, size_t length);
+    static NonnullRefPtr<StringImpl const> create_uppercased(char const* cstring, size_t length);
 
     void operator delete(void* ptr)
     {

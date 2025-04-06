@@ -59,7 +59,7 @@ ByteString ByteString::isolated_copy() const
     char* buffer;
     auto impl = StringImpl::create_uninitialized(length(), buffer);
     memcpy(buffer, m_impl->characters(), m_impl->length());
-    return ByteString(move(*impl));
+    return impl;
 }
 
 ByteString ByteString::substring(size_t start, size_t length) const
@@ -185,7 +185,7 @@ ByteString ByteString::repeated(char ch, size_t count)
     char* buffer;
     auto impl = StringImpl::create_uninitialized(count, buffer);
     memset(buffer, ch, count);
-    return *impl;
+    return impl;
 }
 
 ByteString ByteString::repeated(StringView string, size_t count)
@@ -196,7 +196,7 @@ ByteString ByteString::repeated(StringView string, size_t count)
     auto impl = StringImpl::create_uninitialized(count * string.length(), buffer);
     for (size_t i = 0; i < count; i++)
         __builtin_memcpy(buffer + i * string.length(), string.characters_without_null_termination(), string.length());
-    return *impl;
+    return impl;
 }
 
 ByteString ByteString::bijective_base_from(size_t value, unsigned base, StringView map)
@@ -334,7 +334,7 @@ ByteString escape_html_entities(StringView html)
 }
 
 ByteString::ByteString(FlyString const& string)
-    : m_impl(*StringImpl::create(string.bytes()))
+    : m_impl(StringImpl::create(string.bytes()))
 {
 }
 
@@ -349,7 +349,7 @@ ByteString ByteString::to_lowercase() const
     for (auto [i, character] : enumerate(view()))
         buffer[i] = static_cast<char>(to_ascii_lowercase(character));
 
-    return *impl;
+    return impl;
 }
 
 ByteString ByteString::to_uppercase() const
@@ -363,7 +363,7 @@ ByteString ByteString::to_uppercase() const
     for (auto [i, character] : enumerate(view()))
         buffer[i] = static_cast<char>(to_ascii_uppercase(character));
 
-    return *impl;
+    return impl;
 }
 
 ByteString ByteString::to_snakecase() const
@@ -410,7 +410,7 @@ ErrorOr<ByteString> ByteString::from_utf8(ReadonlyBytes bytes)
 {
     if (!Utf8View(bytes).validate())
         return Error::from_string_literal("ByteString::from_utf8: Input was not valid UTF-8");
-    return ByteString { *StringImpl::create(bytes) };
+    return StringImpl::create(bytes);
 }
 
 }
