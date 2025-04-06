@@ -514,7 +514,7 @@ static ErrorOr<String> domain_to_ascii(StringView domain, bool be_strict)
     // OPTIMIZATION: If beStrict is false, domain is an ASCII string, and strictly splitting domain on U+002E (.)
     //               does not produce any item that starts with an ASCII case-insensitive match for "xn--", this
     //               step is equivalent to ASCII lowercasing domain.
-    if (!be_strict && all_of(domain, is_ascii)) {
+    if (!be_strict && domain.is_ascii()) {
         // 3. If result is the empty string, domain-to-ASCII validation error, return failure.
         if (domain.is_empty())
             return Error::from_string_literal("Empty domain");

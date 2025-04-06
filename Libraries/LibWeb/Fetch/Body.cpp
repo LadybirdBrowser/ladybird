@@ -436,7 +436,7 @@ MultipartParsingErrorOr<Vector<XHR::FormDataEntry>> parse_multipart_form_data(JS
                 header.content_type = "text/plain"_string;
 
             // 2. If contentType is not an ASCII string, set contentType to the empty string.
-            if (!all_of(header.content_type->code_points(), is_ascii)) {
+            if (!header.content_type->is_ascii()) {
                 header.content_type = ""_string;
             }
 

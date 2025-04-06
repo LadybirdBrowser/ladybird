@@ -112,6 +112,7 @@ public:
 
     [[nodiscard]] String to_ascii_lowercase() const;
     [[nodiscard]] String to_ascii_uppercase() const;
+    [[nodiscard]] bool is_ascii() const { return bytes_as_string_view().is_ascii(); }
 
     // Compare this String against another string with caseless matching. Using this method requires linking LibUnicode into your application.
     [[nodiscard]] bool equals_ignoring_case(String const&) const;

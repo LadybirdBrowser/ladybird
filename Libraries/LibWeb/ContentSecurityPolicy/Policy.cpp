@@ -47,7 +47,7 @@ GC::Ref<Policy> Policy::parse_a_serialized_csp(JS::Realm& realm, Variant<ByteBuf
         auto stripped_token_view = stripped_token.bytes_as_string_view();
 
         // 2. If token is an empty string, or if token is not an ASCII string, continue.
-        if (stripped_token.is_empty() || !all_of(stripped_token_view, is_ascii))
+        if (stripped_token.is_empty() || !stripped_token_view.is_ascii())
             continue;
 
         // 3. Let directive name be the result of collecting a sequence of code points from token which are not

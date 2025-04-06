@@ -1516,3 +1516,15 @@ TEST_CASE(to_ascii_uppercase)
     auto uppercased = long_string.to_ascii_uppercase();
     EXPECT_EQ(long_string.bytes().data(), uppercased.bytes().data());
 }
+
+TEST_CASE(is_ascii)
+{
+    EXPECT(String {}.is_ascii());
+    EXPECT(" "_string.is_ascii());
+    EXPECT("abc"_string.is_ascii());
+    EXPECT("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()"_string.is_ascii());
+
+    EXPECT(!"€"_string.is_ascii());
+    EXPECT(!"😀"_string.is_ascii());
+    EXPECT(!"abcdefghijklmnopqrstuvwxyz😀ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789😀!@#$%^&*()"_string.is_ascii());
+}
