@@ -95,9 +95,9 @@ public:
 
     [[nodiscard]] u16 tag() const { return m_value.tag; }
 
-    bool is_special_empty_value() const { return m_value.tag == EMPTY_TAG; }
-    bool is_undefined() const { return m_value.tag == UNDEFINED_TAG; }
-    bool is_null() const { return m_value.tag == NULL_TAG; }
+    bool is_special_empty_value() const { return m_value.encoded == (EMPTY_TAG << GC::TAG_SHIFT); }
+    bool is_undefined() const { return m_value.encoded == (UNDEFINED_TAG << GC::TAG_SHIFT); }
+    bool is_null() const { return m_value.encoded == (NULL_TAG << GC::TAG_SHIFT); }
     bool is_number() const { return is_double() || is_int32(); }
     bool is_string() const { return m_value.tag == STRING_TAG; }
     bool is_object() const { return m_value.tag == OBJECT_TAG; }
