@@ -288,7 +288,7 @@ static void generate_get_parameter(SourceGenerator& generator, int webgl_version
         return JS::@type_name@::create(m_realm, @element_count@, array_buffer);
 )~~~");
         } else if (type_name == "WebGLProgram"sv || type_name == "WebGLBuffer"sv || type_name == "WebGLTexture"sv || type_name == "WebGLFramebuffer"sv || type_name == "WebGLRenderbuffer"sv) {
-            impl_generator.set("stored_name", name_and_type.name.to_lowercase_string());
+            impl_generator.set("stored_name", name_and_type.name.to_ascii_lowercase_string());
             impl_generator.append(R"~~~(
         if (!m_@stored_name@)
             return JS::js_null();

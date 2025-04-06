@@ -527,10 +527,8 @@ static ErrorOr<String> domain_to_ascii(StringView domain, bool be_strict)
             }
         }
 
-        if (!slow_path) {
-            auto lowercase_domain = domain.to_lowercase_string();
-            return String::from_utf8_without_validation(lowercase_domain.bytes());
-        }
+        if (!slow_path)
+            return domain.to_ascii_lowercase_string();
     }
 
     Unicode::IDNA::ToAsciiOptions const options {

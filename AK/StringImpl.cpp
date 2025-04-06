@@ -75,28 +75,6 @@ NonnullRefPtr<StringImpl const> StringImpl::create(ReadonlyBytes bytes, ShouldCh
     return StringImpl::create(reinterpret_cast<char const*>(bytes.data()), bytes.size(), shouldChomp);
 }
 
-NonnullRefPtr<StringImpl const> StringImpl::create_lowercased(char const* cstring, size_t length)
-{
-    if (!length)
-        return the_empty_stringimpl();
-    char* buffer;
-    auto impl = create_uninitialized(length, buffer);
-    for (size_t i = 0; i < length; ++i)
-        buffer[i] = (char)to_ascii_lowercase(cstring[i]);
-    return impl;
-}
-
-NonnullRefPtr<StringImpl const> StringImpl::create_uppercased(char const* cstring, size_t length)
-{
-    if (!length)
-        return the_empty_stringimpl();
-    char* buffer;
-    auto impl = create_uninitialized(length, buffer);
-    for (size_t i = 0; i < length; ++i)
-        buffer[i] = (char)to_ascii_uppercase(cstring[i]);
-    return impl;
-}
-
 unsigned StringImpl::case_insensitive_hash() const
 {
     return case_insensitive_string_hash(characters(), length());

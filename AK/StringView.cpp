@@ -7,12 +7,14 @@
 #include <AK/AnyOf.h>
 #include <AK/ByteBuffer.h>
 #include <AK/ByteString.h>
+#include <AK/Enumerate.h>
 #include <AK/Find.h>
 #include <AK/FlyString.h>
 #include <AK/Function.h>
 #include <AK/String.h>
 #include <AK/StringBuilder.h>
 #include <AK/StringView.h>
+#include <AK/Utf8View.h>
 #include <AK/Vector.h>
 
 #include <simdutf.h>
@@ -204,17 +206,37 @@ bool StringView::is_ascii() const
     return simdutf::validate_ascii(characters_without_null_termination(), length());
 }
 
-ByteString StringView::to_lowercase_string() const
+String StringView::to_ascii_lowercase_string() const
 {
-    return StringImpl::create_lowercased(characters_without_null_termination(), length()).release_nonnull();
+    VERIFY(Utf8View { *this }.validate());
+
+    String result;
+
+    MUST(result.replace_with_new_string({}, length(), [&](Bytes buffer) -> ErrorOr<void> {
+        for (auto [i, character] : enumerate(bytes()))
+            buffer[i] = static_cast<u8>(AK::to_ascii_lowercase(character));
+        return {};
+    }));
+
+    return result;
 }
 
-ByteString StringView::to_uppercase_string() const
+String StringView::to_ascii_uppercase_string() const
 {
-    return StringImpl::create_uppercased(characters_without_null_termination(), length()).release_nonnull();
+    VERIFY(Utf8View { *this }.validate());
+
+    String result;
+
+    MUST(result.replace_with_new_string({}, length(), [&](Bytes buffer) -> ErrorOr<void> {
+        for (auto [i, character] : enumerate(bytes()))
+            buffer[i] = static_cast<u8>(AK::to_ascii_uppercase(character));
+        return {};
+    }));
+
+    return result;
 }
 
-ByteString StringView::to_titlecase_string() const
+String StringView::to_ascii_titlecase_string() const
 {
     return StringUtils::to_titlecase(*this);
 }

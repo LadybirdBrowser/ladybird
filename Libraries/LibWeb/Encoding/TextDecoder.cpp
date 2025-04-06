@@ -32,7 +32,7 @@ WebIDL::ExceptionOr<GC::Ref<TextDecoder>> TextDecoder::construct_impl(JS::Realm&
     // 3. Set this’s encoding to encoding.
     // https://encoding.spec.whatwg.org/#dom-textdecoder-encoding
     // The encoding getter steps are to return this’s encoding’s name, ASCII lowercased.
-    auto lowercase_encoding_name = MUST(String::from_byte_string(encoding.value().to_lowercase_string()));
+    auto lowercase_encoding_name = encoding.value().to_ascii_lowercase_string();
 
     // 4. If options["fatal"] is true, then set this’s error mode to "fatal".
     auto fatal = options.value_or({}).fatal;

@@ -68,7 +68,7 @@ TokenizedFeature::Map tokenize_open_features(StringView features)
         lexer.ignore_while(is_feature_separator);
 
         // 4. Collect a sequence of code points that are not feature separators from features given position. Set name to the collected characters, converted to ASCII lowercase.
-        name = MUST(String::from_byte_string(lexer.consume_until(is_feature_separator).to_lowercase_string()));
+        name = lexer.consume_until(is_feature_separator).to_ascii_lowercase_string();
 
         // 5. Set name to the result of normalizing the feature name name.
         name = normalize_feature_name(name);
@@ -85,7 +85,7 @@ TokenizedFeature::Map tokenize_open_features(StringView features)
         lexer.ignore_while([](auto character) { return Infra::is_ascii_whitespace(character) || character == '='; });
 
         // 2. Collect a sequence of code points that are not feature separators code points from features given position. Set value to the collected code points, converted to ASCII lowercase.
-        value = MUST(String::from_byte_string(lexer.consume_until(is_feature_separator).to_lowercase_string()));
+        value = lexer.consume_until(is_feature_separator).to_ascii_lowercase_string();
 
         // 8. If name is not the empty string, then set tokenizedFeatures[name] to value.
         if (!name.is_empty())

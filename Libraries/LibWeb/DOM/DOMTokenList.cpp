@@ -227,7 +227,7 @@ WebIDL::ExceptionOr<bool> DOMTokenList::supports(StringView token)
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Attribute {} does not define any supported tokens", m_associated_attribute)) };
 
     // 2. Let lowercase token be a copy of token, in ASCII lowercase.
-    auto lowercase_token = token.to_lowercase_string();
+    auto lowercase_token = token.to_ascii_lowercase_string();
 
     // 3. If lowercase token is present in supported tokens, return true.
     if (supported_tokens->contains_slow(lowercase_token))

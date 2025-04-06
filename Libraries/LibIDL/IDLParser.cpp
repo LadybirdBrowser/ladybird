@@ -89,7 +89,7 @@ static ByteString convert_enumeration_value_to_cpp_enum_member(ByteString const&
 
         auto word = lexer.consume_while([](auto c) { return is_ascii_alphanumeric(c); });
         if (!word.is_empty()) {
-            builder.append(word.to_titlecase_string());
+            builder.append(word.to_ascii_titlecase_string());
         } else {
             auto non_alnum_string = lexer.consume_while([](auto c) { return !is_ascii_alphanumeric(c); });
             if (!non_alnum_string.is_empty())

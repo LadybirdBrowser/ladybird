@@ -2072,17 +2072,16 @@ HTML::EnvironmentSettingsObject& Document::relevant_settings_object() const
 }
 
 // https://dom.spec.whatwg.org/#dom-document-createelement
-WebIDL::ExceptionOr<GC::Ref<Element>> Document::create_element(String const& a_local_name, Variant<String, ElementCreationOptions> const& options)
+WebIDL::ExceptionOr<GC::Ref<Element>> Document::create_element(String const& local_name, Variant<String, ElementCreationOptions> const& options)
 {
-    auto local_name = a_local_name.to_byte_string();
-
     // 1. If localName does not match the Name production, then throw an "InvalidCharacterError" DOMException.
-    if (!is_valid_name(a_local_name))
+    if (!is_valid_name(local_name))
         return WebIDL::InvalidCharacterError::create(realm(), "Invalid character in tag name."_string);
 
     // 2. If this is an HTML document, then set localName to localName in ASCII lowercase.
-    if (document_type() == Type::HTML)
-        local_name = local_name.to_lowercase();
+    auto local_name_lower = document_type() == Type::HTML
+        ? local_name.to_ascii_lowercase()
+        : local_name;
 
     // 3. Let is be null.
     Optional<String> is_value;
@@ -2100,7 +2099,7 @@ WebIDL::ExceptionOr<GC::Ref<Element>> Document::create_element(String const& a_l
         namespace_ = Namespace::HTML;
 
     // 6. Return the result of creating an element given this, localName, namespace, null, is, and with the synchronous custom elements flag set.
-    return TRY(DOM::create_element(*this, FlyString::from_utf8_without_validation(local_name.bytes()), move(namespace_), {}, move(is_value), true));
+    return TRY(DOM::create_element(*this, FlyString::from_utf8_without_validation(local_name_lower.bytes()), move(namespace_), {}, move(is_value), true));
 }
 
 // https://dom.spec.whatwg.org/#dom-document-createelementns
