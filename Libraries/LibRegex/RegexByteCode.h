@@ -261,6 +261,7 @@ public:
     }
 
     FlyString get_string(size_t index) const { return m_string_table.get(index); }
+    auto const& string_table() const { return m_string_table; }
 
     void last_chunk() const = delete;
     void first_chunk() const = delete;
@@ -279,6 +280,8 @@ public:
                 }
                 m_string_table.m_table.set(entry.key, entry.value);
             }
+            for (auto const& entry : other.m_string_table.m_inverse_table)
+                m_string_table.m_inverse_table.set(entry.key, entry.value);
         }
     }
 
