@@ -1852,12 +1852,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ReturnStatement::genera
         return_value = TRY(m_argument->generate_bytecode(generator)).value();
 
         //     3. If GetGeneratorKind() is async, set exprValue to ? Await(exprValue).
-        // Spec Issue?: The spec doesn't seem to do implicit await on explicit return for async functions, but does for
-        //              async generators. However, the major engines do so, and this is observable via constructor lookups
-        //              on Promise objects and custom thenables.
-        //              See: https://tc39.es/ecma262/#sec-asyncblockstart
-        //              c. Assert: If we return here, the async function either threw an exception or performed an implicit or explicit return; all awaiting is done.
-        if (generator.is_in_async_function()) {
+        if (generator.is_in_async_generator_function()) {
             auto received_completion = generator.allocate_register();
             auto received_completion_type = generator.allocate_register();
             auto received_completion_value = generator.allocate_register();
