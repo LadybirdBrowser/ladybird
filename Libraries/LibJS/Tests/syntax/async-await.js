@@ -257,7 +257,7 @@ describe("await thenables", () => {
     });
 });
 
-describe("await observably looks up constructor of Promise objects", () => {
+describe("await observably looks up constructor of Promise objects increasing call count", () => {
     let calls = 0;
     function makeConstructorObservable(promise) {
         Object.defineProperty(promise, "constructor", {
@@ -276,9 +276,6 @@ describe("await observably looks up constructor of Promise objects", () => {
                 resolve();
             })
         );
-        await makeConstructorObservable(new Boolean(true));
-        await makeConstructorObservable({});
-        await makeConstructorObservable(new Number(2));
         try {
             await makeConstructorObservable(Promise.reject(3));
         } catch {}
@@ -291,4 +288,26 @@ describe("await observably looks up constructor of Promise objects", () => {
     test();
     runQueuedPromiseJobs();
     expect(calls).toBe(4);
+});
+
+describe("await observably looks up constructor of Promise objects not increasing call count", () => {
+    let calls = 0;
+    function makeConstructorObservable(promise) {
+        Object.defineProperty(promise, "constructor", {
+            get() {
+                calls++;
+                return Promise;
+            },
+        });
+        return promise;
+    }
+
+    async function test() {
+        await makeConstructorObservable(new Boolean(true));
+        await makeConstructorObservable({});
+        await makeConstructorObservable(new Number(2));
+    }
+    test();
+    runQueuedPromiseJobs();
+    expect(calls).toBe(0);
 });
