@@ -54,69 +54,45 @@ ThrowCompletionOr<GC::Ref<Object>> RelativeTimeFormatConstructor::construct(Func
     // 2. Let relativeTimeFormat be ? OrdinaryCreateFromConstructor(NewTarget, "%Intl.RelativeTimeFormat.prototype%", « [[InitializedRelativeTimeFormat]], [[Locale]], [[LocaleData]], [[Style]], [[Numeric]], [[NumberFormat]], [[NumberingSystem]], [[PluralRules]] »).
     auto relative_time_format = TRY(ordinary_create_from_constructor<RelativeTimeFormat>(vm, new_target, &Intrinsics::intl_relative_time_format_prototype));
 
-    // 3. Let requestedLocales be ? CanonicalizeLocaleList(locales).
-    auto requested_locales = TRY(canonicalize_locale_list(vm, locales_value));
+    // 3. Let optionsResolution be ? ResolveOptions(%Intl.RelativeTimeFormat%, %Intl.RelativeTimeFormat%.[[LocaleData]], locales, options, « COERCE-OPTIONS »).
+    // 4. Set options to optionsResolution.[[Options]].
+    // 5. Let r be optionsResolution.[[ResolvedLocale]].
+    auto [options, result, _] = TRY(resolve_options(vm, relative_time_format, locales_value, options_value, SpecialBehaviors::CoerceOptions));
 
-    // 4. Set options to ? CoerceOptionsToObject(options).
-    auto* options = TRY(coerce_options_to_object(vm, options_value));
-
-    // 5. Let opt be a new Record.
-    LocaleOptions opt {};
-
-    // 6. Let matcher be ? GetOption(options, "localeMatcher", STRING, « "lookup", "best fit" », "best fit").
-    auto matcher = TRY(get_option(vm, *options, vm.names.localeMatcher, OptionType::String, AK::Array { "lookup"sv, "best fit"sv }, "best fit"sv));
-
-    // 7. Set opt.[[LocaleMatcher]] to matcher.
-    opt.locale_matcher = matcher;
-
-    // 8. Let numberingSystem be ? GetOption(options, "numberingSystem", STRING, EMPTY, undefined).
-    auto numbering_system = TRY(get_option(vm, *options, vm.names.numberingSystem, OptionType::String, {}, Empty {}));
-
-    // 9. If numberingSystem is not undefined, then
-    if (!numbering_system.is_undefined()) {
-        // a. If numberingSystem cannot be matched by the type Unicode locale nonterminal, throw a RangeError exception.
-        if (!Unicode::is_type_identifier(numbering_system.as_string().utf8_string_view()))
-            return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, numbering_system, "numberingSystem"sv);
-    }
-
-    // 10. Set opt.[[nu]] to numberingSystem.
-    opt.nu = locale_key_from_value(numbering_system);
-
-    // 11. Let r be ResolveLocale(%Intl.RelativeTimeFormat%.[[AvailableLocales]], requestedLocales, opt, %Intl.RelativeTimeFormat%.[[RelevantExtensionKeys]], %Intl.RelativeTimeFormat%.[[LocaleData]]).
-    auto result = resolve_locale(requested_locales, opt, relative_time_format->relevant_extension_keys());
-
-    // 12. Let locale be r.[[Locale]].
+    // 6. Let locale be r.[[Locale]].
     auto locale = move(result.locale);
 
-    // 13. Set relativeTimeFormat.[[Locale]] to locale.
+    // 7. Set relativeTimeFormat.[[Locale]] to locale.
     relative_time_format->set_locale(locale);
 
-    // 14. Set relativeTimeFormat.[[LocaleData]] to r.[[LocaleData]].
+    // 8. Set relativeTimeFormat.[[LocaleData]] to r.[[LocaleData]].
 
-    // 15. Set relativeTimeFormat.[[NumberingSystem]] to r.[[nu]].
+    // 9. Set relativeTimeFormat.[[NumberingSystem]] to r.[[nu]].
     if (auto* resolved_numbering_system = result.nu.get_pointer<String>())
         relative_time_format->set_numbering_system(move(*resolved_numbering_system));
 
-    // 16. Let style be ? GetOption(options, "style", STRING, « "long", "short", "narrow" », "long").
+    // 10. Let style be ? GetOption(options, "style", STRING, « "long", "short", "narrow" », "long").
     auto style = TRY(get_option(vm, *options, vm.names.style, OptionType::String, { "long"sv, "short"sv, "narrow"sv }, "long"sv));
 
-    // 17. Set relativeTimeFormat.[[Style]] to style.
+    // 11. Set relativeTimeFormat.[[Style]] to style.
     relative_time_format->set_style(style.as_string().utf8_string_view());
 
-    // 18. Let numeric be ? GetOption(options, "numeric", STRING, « "always", "auto" », "always").
+    // 12. Let numeric be ? GetOption(options, "numeric", STRING, « "always", "auto" », "always").
     auto numeric = TRY(get_option(vm, *options, vm.names.numeric, OptionType::String, { "always"sv, "auto"sv }, "always"sv));
 
-    // 19. Set relativeTimeFormat.[[Numeric]] to numeric.
+    // 13. Set relativeTimeFormat.[[Numeric]] to numeric.
     relative_time_format->set_numeric(numeric.as_string().utf8_string_view());
 
-    // 20. Let relativeTimeFormat.[[NumberFormat]] be ! Construct(%Intl.NumberFormat%, « locale »).
-    // 21. Let relativeTimeFormat.[[PluralRules]] be ! Construct(%Intl.PluralRules%, « locale »).
+    // 14. Let nfOptions be OrdinaryObjectCreate(null).
+    // 15. Perform ! CreateDataPropertyOrThrow(nfOptions, "numberingSystem", relativeTimeFormat.[[NumberingSystem]]).
+    // 16. Let relativeTimeFormat.[[NumberFormat]] be ! Construct(%Intl.NumberFormat%, « locale, nfOptions »).
+    // 17. Let relativeTimeFormat.[[PluralRules]] be ! Construct(%Intl.PluralRules%, « locale »).
     auto formatter = Unicode::RelativeTimeFormat::create(
         result.icu_locale,
         relative_time_format->style());
     relative_time_format->set_formatter(move(formatter));
 
-    // 22. Return relativeTimeFormat.
+    // 18. Return relativeTimeFormat.
     return relative_time_format;
 }
 

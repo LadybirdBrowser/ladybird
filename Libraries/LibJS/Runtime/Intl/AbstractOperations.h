@@ -20,7 +20,6 @@
 namespace JS::Intl {
 
 using LocaleKey = Variant<Empty, String>;
-Optional<LocaleKey> locale_key_from_value(Value);
 
 struct LocaleOptions {
     Value locale_matcher;

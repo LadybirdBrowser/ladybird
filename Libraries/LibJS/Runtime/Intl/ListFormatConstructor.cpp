@@ -48,55 +48,42 @@ ThrowCompletionOr<GC::Ref<Object>> ListFormatConstructor::construct(FunctionObje
 {
     auto& vm = this->vm();
 
-    auto locale_value = vm.argument(0);
+    auto locales_value = vm.argument(0);
     auto options_value = vm.argument(1);
 
     // 2. Let listFormat be ? OrdinaryCreateFromConstructor(NewTarget, "%Intl.ListFormat.prototype%", « [[InitializedListFormat]], [[Locale]], [[Type]], [[Style]], [[Templates]] »).
     auto list_format = TRY(ordinary_create_from_constructor<ListFormat>(vm, new_target, &Intrinsics::intl_list_format_prototype));
 
-    // 3. Let requestedLocales be ? CanonicalizeLocaleList(locales).
-    auto requested_locales = TRY(canonicalize_locale_list(vm, locale_value));
+    // 3. Let optionsResolution be ? ResolveOptions(%Intl.ListFormat%, %Intl.ListFormat%.[[LocaleData]], locales, options).
+    // 4. Set options to optionsResolution.[[Options]].
+    // 5. Let r be optionsResolution.[[ResolvedLocale]].
+    auto [options, result, _] = TRY(resolve_options(vm, list_format, locales_value, options_value));
 
-    // 4. Set options to ? GetOptionsObject(options).
-    auto options = TRY(get_options_object(vm, options_value));
-
-    // 5. Let opt be a new Record.
-    LocaleOptions opt {};
-
-    // 6. Let matcher be ? GetOption(options, "localeMatcher", string, « "lookup", "best fit" », "best fit").
-    auto matcher = TRY(get_option(vm, *options, vm.names.localeMatcher, OptionType::String, { "lookup"sv, "best fit"sv }, "best fit"sv));
-
-    // 7. Set opt.[[localeMatcher]] to matcher.
-    opt.locale_matcher = matcher;
-
-    // 8. Let r be ResolveLocale(%Intl.ListFormat%.[[AvailableLocales]], requestedLocales, opt, %Intl.ListFormat%.[[RelevantExtensionKeys]], %Intl.ListFormat%.[[LocaleData]]).
-    auto result = resolve_locale(requested_locales, opt, list_format->relevant_extension_keys());
-
-    // 9. Set listFormat.[[Locale]] to r.[[Locale]].
+    // 6. Set listFormat.[[Locale]] to r.[[Locale]].
     list_format->set_locale(move(result.locale));
 
-    // 10. Let type be ? GetOption(options, "type", string, « "conjunction", "disjunction", "unit" », "conjunction").
+    // 7. Let type be ? GetOption(options, "type", string, « "conjunction", "disjunction", "unit" », "conjunction").
     auto type = TRY(get_option(vm, *options, vm.names.type, OptionType::String, { "conjunction"sv, "disjunction"sv, "unit"sv }, "conjunction"sv));
 
-    // 11. Set listFormat.[[Type]] to type.
+    // 8. Set listFormat.[[Type]] to type.
     list_format->set_type(type.as_string().utf8_string_view());
 
-    // 12. Let style be ? GetOption(options, "style", string, « "long", "short", "narrow" », "long").
+    // 9. Let style be ? GetOption(options, "style", string, « "long", "short", "narrow" », "long").
     auto style = TRY(get_option(vm, *options, vm.names.style, OptionType::String, { "long"sv, "short"sv, "narrow"sv }, "long"sv));
 
-    // 14. Set listFormat.[[Style]] to style.
+    // 10. Set listFormat.[[Style]] to style.
     list_format->set_style(style.as_string().utf8_string_view());
 
-    // 14. Let resolvedLocaleData be r.[[LocaleData]].
-    // 15. Let dataLocaleTypes be resolvedLocaleData.[[<type>]].
-    // 16. Set listFormat.[[Templates]] to dataLocaleTypes.[[<style>]].
+    // 11. Let resolvedLocaleData be r.[[LocaleData]].
+    // 12. Let dataLocaleTypes be resolvedLocaleData.[[<type>]].
+    // 13. Set listFormat.[[Templates]] to dataLocaleTypes.[[<style>]].
     auto formatter = Unicode::ListFormat::create(
         list_format->locale(),
         list_format->type(),
         list_format->style());
     list_format->set_formatter(move(formatter));
 
-    // 17. Return listFormat.
+    // 14. Return listFormat.
     return list_format;
 }
 
