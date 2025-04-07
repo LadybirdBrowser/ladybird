@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2018-2024, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  * Copyright (c) 2022, the SerenityOS developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -51,9 +52,7 @@ protected:
 
     OwnPtr<IPC::Message> wait_for_specific_endpoint_message_impl(u32 endpoint_magic, int message_id);
     void wait_for_transport_to_become_readable();
-    ErrorOr<Vector<u8>> read_as_much_as_possible_from_transport_without_blocking();
     ErrorOr<void> drain_messages_from_peer();
-    void try_parse_messages(Vector<u8> const& bytes, size_t& index);
 
     void handle_messages();
 
@@ -64,8 +63,6 @@ protected:
     RefPtr<Core::Timer> m_responsiveness_timer;
 
     Vector<NonnullOwnPtr<Message>> m_unprocessed_messages;
-    UnprocessedFileDescriptors m_unprocessed_fds;
-    ByteBuffer m_unprocessed_bytes;
 
     u32 m_local_endpoint_magic { 0 };
     u32 m_peer_endpoint_magic { 0 };
