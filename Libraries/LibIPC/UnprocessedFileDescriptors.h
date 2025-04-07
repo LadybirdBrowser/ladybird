@@ -27,6 +27,8 @@ public:
         m_fds.prepend(move(fds));
     }
 
+    size_t size() const { return m_fds.size(); }
+
 private:
     Vector<File> m_fds;
 };
