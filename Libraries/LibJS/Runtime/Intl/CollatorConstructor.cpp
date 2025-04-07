@@ -63,10 +63,10 @@ ThrowCompletionOr<GC::Ref<Object>> CollatorConstructor::construct(FunctionObject
     auto requested_locales = TRY(canonicalize_locale_list(vm, locales_value));
 
     // 6. Set options to ? CoerceOptionsToObject(options).
-    auto* options = TRY(coerce_options_to_object(vm, options_value));
+    auto options = TRY(coerce_options_to_object(vm, options_value));
 
     // 7. Let usage be ? GetOption(options, "usage", string, « "sort", "search" », "sort").
-    auto usage = TRY(get_option(vm, *options, vm.names.usage, OptionType::String, { "sort"sv, "search"sv }, "sort"sv));
+    auto usage = TRY(get_option(vm, options, vm.names.usage, OptionType::String, { "sort"sv, "search"sv }, "sort"sv));
 
     // 8. Set collator.[[Usage]] to usage.
     collator->set_usage(usage.as_string().utf8_string_view());
@@ -109,7 +109,7 @@ ThrowCompletionOr<GC::Ref<Object>> CollatorConstructor::construct(FunctionObject
     auto default_sensitivity = collator->usage() == Unicode::Usage::Sort ? "variant"sv : OptionDefault {};
 
     // 20. Set collator.[[Sensitivity]] to ? GetOption(options, "sensitivity", string, « "base", "accent", "case", "variant" », defaultSensitivity).
-    auto sensitivity_value = TRY(get_option(vm, *options, vm.names.sensitivity, OptionType::String, { "base"sv, "accent"sv, "case"sv, "variant"sv }, default_sensitivity));
+    auto sensitivity_value = TRY(get_option(vm, options, vm.names.sensitivity, OptionType::String, { "base"sv, "accent"sv, "case"sv, "variant"sv }, default_sensitivity));
 
     Optional<Unicode::Sensitivity> sensitivity;
     if (!sensitivity_value.is_undefined())
@@ -120,7 +120,7 @@ ThrowCompletionOr<GC::Ref<Object>> CollatorConstructor::construct(FunctionObject
     //       default value if an override was not provided here.
 
     // 22. Set collator.[[IgnorePunctuation]] to ? GetOption(options, "ignorePunctuation", boolean, empty, defaultIgnorePunctuation).
-    auto ignore_punctuation_value = TRY(get_option(vm, *options, vm.names.ignorePunctuation, OptionType::Boolean, {}, Empty {}));
+    auto ignore_punctuation_value = TRY(get_option(vm, options, vm.names.ignorePunctuation, OptionType::Boolean, {}, Empty {}));
 
     Optional<bool> ignore_punctuation;
     if (!ignore_punctuation_value.is_undefined())

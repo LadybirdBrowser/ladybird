@@ -282,10 +282,10 @@ ThrowCompletionOr<GC::Ref<Object>> LocaleConstructor::construct(FunctionObject& 
     }
 
     // 10. Set options to ? CoerceOptionsToObject(options).
-    auto* options = TRY(coerce_options_to_object(vm, options_value));
+    auto options = TRY(coerce_options_to_object(vm, options_value));
 
     // 11. Set tag to ? ApplyOptionsToTag(tag, options).
-    tag = TRY(apply_options_to_tag(vm, tag, *options));
+    tag = TRY(apply_options_to_tag(vm, tag, options));
 
     // 12. Let opt be a new Record.
     LocaleAndKeys opt {};
@@ -294,16 +294,16 @@ ThrowCompletionOr<GC::Ref<Object>> LocaleConstructor::construct(FunctionObject& 
     // 14. If calendar is not undefined, then
     //     a. If calendar does not match the Unicode Locale Identifier type nonterminal, throw a RangeError exception.
     // 15. Set opt.[[ca]] to calendar.
-    opt.ca = TRY(get_string_option(vm, *options, vm.names.calendar, Unicode::is_type_identifier));
+    opt.ca = TRY(get_string_option(vm, options, vm.names.calendar, Unicode::is_type_identifier));
 
     // 16. Let collation be ? GetOption(options, "collation", string, empty, undefined).
     // 17. If collation is not undefined, then
     //     a. If collation does not match the Unicode Locale Identifier type nonterminal, throw a RangeError exception.
     // 18. Set opt.[[co]] to collation.
-    opt.co = TRY(get_string_option(vm, *options, vm.names.collation, Unicode::is_type_identifier));
+    opt.co = TRY(get_string_option(vm, options, vm.names.collation, Unicode::is_type_identifier));
 
     // 19. Let fw be ? Let fw be ? GetOption(options, "firstDayOfWeek", "string", undefined, undefined).
-    auto first_day_of_week = TRY(get_string_option(vm, *options, vm.names.firstDayOfWeek, nullptr));
+    auto first_day_of_week = TRY(get_string_option(vm, options, vm.names.firstDayOfWeek, nullptr));
 
     // 20. If fw is not undefined, then
     if (first_day_of_week.has_value()) {
@@ -320,14 +320,14 @@ ThrowCompletionOr<GC::Ref<Object>> LocaleConstructor::construct(FunctionObject& 
 
     // 22. Let hc be ? GetOption(options, "hourCycle", string, « "h11", "h12", "h23", "h24" », undefined).
     // 23. Set opt.[[hc]] to hc.
-    opt.hc = TRY(get_string_option(vm, *options, vm.names.hourCycle, nullptr, AK::Array { "h11"sv, "h12"sv, "h23"sv, "h24"sv }));
+    opt.hc = TRY(get_string_option(vm, options, vm.names.hourCycle, nullptr, AK::Array { "h11"sv, "h12"sv, "h23"sv, "h24"sv }));
 
     // 24. Let kf be ? GetOption(options, "caseFirst", string, « "upper", "lower", "false" », undefined).
     // 25. Set opt.[[kf]] to kf.
-    opt.kf = TRY(get_string_option(vm, *options, vm.names.caseFirst, nullptr, AK::Array { "upper"sv, "lower"sv, "false"sv }));
+    opt.kf = TRY(get_string_option(vm, options, vm.names.caseFirst, nullptr, AK::Array { "upper"sv, "lower"sv, "false"sv }));
 
     // 26. Let kn be ? GetOption(options, "numeric", boolean, empty, undefined).
-    auto kn = TRY(get_option(vm, *options, vm.names.numeric, OptionType::Boolean, {}, Empty {}));
+    auto kn = TRY(get_option(vm, options, vm.names.numeric, OptionType::Boolean, {}, Empty {}));
 
     // 27. If kn is not undefined, set kn to ! ToString(kn).
     // 28. Set opt.[[kn]] to kn.
@@ -338,7 +338,7 @@ ThrowCompletionOr<GC::Ref<Object>> LocaleConstructor::construct(FunctionObject& 
     // 30. If numberingSystem is not undefined, then
     //     a. If numberingSystem does not match the Unicode Locale Identifier type nonterminal, throw a RangeError exception.
     // 31. Set opt.[[nu]] to numberingSystem.
-    opt.nu = TRY(get_string_option(vm, *options, vm.names.numberingSystem, Unicode::is_type_identifier));
+    opt.nu = TRY(get_string_option(vm, options, vm.names.numberingSystem, Unicode::is_type_identifier));
 
     // 32. Let r be ! ApplyUnicodeExtensionToTag(tag, opt, localeExtensionKeys).
     auto result = apply_unicode_extension_to_tag(tag, move(opt), locale_extension_keys);
