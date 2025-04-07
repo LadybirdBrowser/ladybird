@@ -24,7 +24,7 @@ GC_DEFINE_ALLOCATOR(DateTimeFormat);
 
 // 11 DateTimeFormat Objects, https://tc39.es/ecma402/#datetimeformat-objects
 DateTimeFormat::DateTimeFormat(Object& prototype)
-    : Object(ConstructWithPrototypeTag::Tag, prototype)
+    : IntlObject(ConstructWithPrototypeTag::Tag, prototype)
 {
 }
 
@@ -32,6 +32,30 @@ void DateTimeFormat::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_bound_format);
+}
+
+// 11.2.3 Internal slots, https://tc39.es/ecma402/#sec-intl.datetimeformat-internal-slots
+ReadonlySpan<StringView> DateTimeFormat::relevant_extension_keys() const
+{
+    // The value of the [[RelevantExtensionKeys]] internal slot is « "ca", "hc", "nu" ».
+    static constexpr AK::Array keys { "ca"sv, "hc"sv, "nu"sv };
+    return keys;
+}
+
+// 11.2.3 Internal slots, https://tc39.es/ecma402/#sec-intl.datetimeformat-internal-slots
+ReadonlySpan<ResolutionOptionDescriptor> DateTimeFormat::resolution_option_descriptors(VM& vm) const
+{
+    // The value of the [[ResolutionOptionDescriptors]] internal slot is « { [[Key]]: "ca", [[Property]]: "calendar" }, { [[Key]]: "nu", [[Property]]: "numberingSystem" }, { [[Key]]: "hour12", [[Property]]: "hour12", [[Type]]: boolean }, { [[Key]]: "hc", [[Property]]: "hourCycle", [[Values]]: « "h11", "h12", "h23", "h24" » } ».
+    static constexpr AK::Array hour_cycle_values { "h11"sv, "h12"sv, "h23"sv, "h24"sv };
+
+    static auto descriptors = to_array<ResolutionOptionDescriptor>({
+        { .key = "ca"sv, .property = vm.names.calendar },
+        { .key = "nu"sv, .property = vm.names.numberingSystem },
+        { .key = "hour12"sv, .property = vm.names.hour12, .type = OptionType::Boolean },
+        { .key = "hc"sv, .property = vm.names.hourCycle, .values = hour_cycle_values },
+    });
+
+    return descriptors;
 }
 
 static Optional<Unicode::DateTimeFormat const&> get_or_create_formatter(StringView locale, StringView time_zone, OwnPtr<Unicode::DateTimeFormat>& formatter, Optional<Unicode::CalendarPattern> const& format)

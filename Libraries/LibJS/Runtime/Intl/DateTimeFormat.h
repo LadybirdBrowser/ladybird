@@ -13,27 +13,23 @@
 #include <AK/Vector.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/Intl/DateTimeFormatConstructor.h>
-#include <LibJS/Runtime/Object.h>
+#include <LibJS/Runtime/Intl/IntlObject.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibUnicode/DateTimeFormat.h>
 
 namespace JS::Intl {
 
-class DateTimeFormat final : public Object {
-    JS_OBJECT(DateTimeFormat, Object);
+class DateTimeFormat final : public IntlObject {
+    JS_OBJECT(DateTimeFormat, IntlObject);
     GC_DECLARE_ALLOCATOR(DateTimeFormat);
 
     using Patterns = Unicode::CalendarPattern;
 
 public:
-    static constexpr auto relevant_extension_keys()
-    {
-        // 11.2.3 Internal slots, https://tc39.es/ecma402/#sec-intl.datetimeformat-internal-slots
-        // The value of the [[RelevantExtensionKeys]] internal slot is « "ca", "hc", "nu" ».
-        return AK::Array { "ca"sv, "hc"sv, "nu"sv };
-    }
-
     virtual ~DateTimeFormat() override = default;
+
+    virtual ReadonlySpan<StringView> relevant_extension_keys() const override;
+    virtual ReadonlySpan<ResolutionOptionDescriptor> resolution_option_descriptors(VM&) const override;
 
     String const& locale() const { return m_locale; }
     void set_locale(String locale) { m_locale = move(locale); }
@@ -90,7 +86,7 @@ public:
     void set_temporal_time_zone(String temporal_time_zone) { m_temporal_time_zone = move(temporal_time_zone); }
 
 private:
-    DateTimeFormat(Object& prototype);
+    explicit DateTimeFormat(Object& prototype);
 
     virtual void visit_edges(Visitor&) override;
 

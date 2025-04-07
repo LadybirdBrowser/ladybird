@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2022, Idan Horowitz <idan.horowitz@serenityos.org>
- * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2023-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -8,17 +8,20 @@
 #pragma once
 
 #include <AK/String.h>
-#include <LibJS/Runtime/Object.h>
+#include <LibJS/Runtime/Intl/IntlObject.h>
 #include <LibUnicode/Segmenter.h>
 
 namespace JS::Intl {
 
-class Segmenter final : public Object {
-    JS_OBJECT(Segmenter, Object);
+class Segmenter final : public IntlObject {
+    JS_OBJECT(Segmenter, IntlObject);
     GC_DECLARE_ALLOCATOR(Segmenter);
 
 public:
     virtual ~Segmenter() override = default;
+
+    virtual ReadonlySpan<StringView> relevant_extension_keys() const override;
+    virtual ReadonlySpan<ResolutionOptionDescriptor> resolution_option_descriptors(VM&) const override;
 
     String const& locale() const { return m_locale; }
     void set_locale(String locale) { m_locale = move(locale); }

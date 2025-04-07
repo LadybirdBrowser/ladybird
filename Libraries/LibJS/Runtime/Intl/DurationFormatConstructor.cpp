@@ -81,7 +81,7 @@ ThrowCompletionOr<GC::Ref<Object>> DurationFormatConstructor::construct(Function
     opt.nu = locale_key_from_value(numbering_system);
 
     // 9. Let r be ResolveLocale(%Intl.DurationFormat%.[[AvailableLocales]], requestedLocales, opt, %Intl.DurationFormat%.[[RelevantExtensionKeys]], %Intl.DurationFormat%.[[LocaleData]]).
-    auto result = resolve_locale(requested_locales, opt, DurationFormat::relevant_extension_keys());
+    auto result = resolve_locale(requested_locales, opt, duration_format->relevant_extension_keys());
 
     // 10. Set durationFormat.[[Locale]] to r.[[Locale]].
     duration_format->set_locale(move(result.locale));

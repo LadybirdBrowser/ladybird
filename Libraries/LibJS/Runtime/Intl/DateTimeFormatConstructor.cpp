@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2021-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -145,7 +145,7 @@ ThrowCompletionOr<GC::Ref<DateTimeFormat>> create_date_time_format(VM& vm, Funct
     opt.hc = locale_key_from_value(hour_cycle);
 
     // 17. Let r be ResolveLocale(%Intl.DateTimeFormat%.[[AvailableLocales]], requestedLocales, opt, %Intl.DateTimeFormat%.[[RelevantExtensionKeys]], %Intl.DateTimeFormat%.[[LocaleData]]).
-    auto result = resolve_locale(requested_locales, opt, DateTimeFormat::relevant_extension_keys());
+    auto result = resolve_locale(requested_locales, opt, date_time_format->relevant_extension_keys());
 
     // 18. Set dateTimeFormat.[[Locale]] to r.[[Locale]].
     date_time_format->set_locale(move(result.locale));

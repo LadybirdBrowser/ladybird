@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2022-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -20,6 +20,9 @@ class PluralRules final : public NumberFormatBase {
 
 public:
     virtual ~PluralRules() override = default;
+
+    virtual ReadonlySpan<StringView> relevant_extension_keys() const override;
+    virtual ReadonlySpan<ResolutionOptionDescriptor> resolution_option_descriptors(VM&) const override;
 
     Unicode::PluralForm type() const { return m_type; }
     StringView type_string() const { return Unicode::plural_form_to_string(m_type); }

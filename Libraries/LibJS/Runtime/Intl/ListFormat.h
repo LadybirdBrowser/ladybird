@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -9,15 +9,14 @@
 #include <AK/String.h>
 #include <AK/StringView.h>
 #include <AK/Vector.h>
-#include <LibJS/Runtime/Intl/AbstractOperations.h>
-#include <LibJS/Runtime/Object.h>
+#include <LibJS/Runtime/Intl/IntlObject.h>
 #include <LibUnicode/ListFormat.h>
 #include <LibUnicode/Locale.h>
 
 namespace JS::Intl {
 
-class ListFormat final : public Object {
-    JS_OBJECT(ListFormat, Object);
+class ListFormat final : public IntlObject {
+    JS_OBJECT(ListFormat, IntlObject);
     GC_DECLARE_ALLOCATOR(ListFormat);
 
 public:
@@ -29,6 +28,9 @@ public:
     };
 
     virtual ~ListFormat() override = default;
+
+    virtual ReadonlySpan<StringView> relevant_extension_keys() const override;
+    virtual ReadonlySpan<ResolutionOptionDescriptor> resolution_option_descriptors(VM&) const override;
 
     String const& locale() const { return m_locale; }
     void set_locale(String locale) { m_locale = move(locale); }

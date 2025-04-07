@@ -83,7 +83,7 @@ ThrowCompletionOr<GC::Ref<Object>> RelativeTimeFormatConstructor::construct(Func
     opt.nu = locale_key_from_value(numbering_system);
 
     // 11. Let r be ResolveLocale(%Intl.RelativeTimeFormat%.[[AvailableLocales]], requestedLocales, opt, %Intl.RelativeTimeFormat%.[[RelevantExtensionKeys]], %Intl.RelativeTimeFormat%.[[LocaleData]]).
-    auto result = resolve_locale(requested_locales, opt, RelativeTimeFormat::relevant_extension_keys());
+    auto result = resolve_locale(requested_locales, opt, relative_time_format->relevant_extension_keys());
 
     // 12. Let locale be r.[[Locale]].
     auto locale = move(result.locale);

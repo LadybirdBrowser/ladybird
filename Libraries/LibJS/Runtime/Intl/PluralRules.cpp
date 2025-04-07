@@ -17,6 +17,20 @@ PluralRules::PluralRules(Object& prototype)
 {
 }
 
+// 17.2.3 Internal slots, https://tc39.es/ecma402/#sec-intl.pluralrules-internal-slots
+ReadonlySpan<StringView> PluralRules::relevant_extension_keys() const
+{
+    // The value of the [[RelevantExtensionKeys]] internal slot is « ».
+    return {};
+}
+
+// 17.2.3 Internal slots, https://tc39.es/ecma402/#sec-intl.pluralrules-internal-slots
+ReadonlySpan<ResolutionOptionDescriptor> PluralRules::resolution_option_descriptors(VM&) const
+{
+    // The value of the [[ResolutionOptionDescriptors]] internal slot is « ».
+    return {};
+}
+
 // 17.5.2 ResolvePlural ( pluralRules, n ), https://tc39.es/ecma402/#sec-resolveplural
 Unicode::PluralCategory resolve_plural(PluralRules const& plural_rules, Value number)
 {

@@ -71,7 +71,7 @@ ThrowCompletionOr<GC::Ref<Object>> PluralRulesConstructor::construct(FunctionObj
     opt.locale_matcher = matcher;
 
     // 8. Let r be ResolveLocale(%Intl.PluralRules%.[[AvailableLocales]], requestedLocales, opt, %Intl.PluralRules%.[[RelevantExtensionKeys]], %Intl.PluralRules%.[[LocaleData]]).
-    auto result = resolve_locale(requested_locales, opt, {});
+    auto result = resolve_locale(requested_locales, opt, plural_rules->relevant_extension_keys());
 
     // 9. Set pluralRules.[[Locale]] to r.[[locale]].
     plural_rules->set_locale(move(result.locale));

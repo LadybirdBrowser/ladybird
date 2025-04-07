@@ -1,33 +1,28 @@
 /*
- * Copyright (c) 2022-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2022-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #pragma once
 
-#include <AK/Array.h>
 #include <AK/String.h>
 #include <AK/StringView.h>
 #include <LibJS/Runtime/Intl/CollatorCompareFunction.h>
-#include <LibJS/Runtime/Object.h>
+#include <LibJS/Runtime/Intl/IntlObject.h>
 #include <LibUnicode/Collator.h>
 
 namespace JS::Intl {
 
-class Collator final : public Object {
-    JS_OBJECT(Collator, Object);
+class Collator final : public IntlObject {
+    JS_OBJECT(Collator, IntlObject);
     GC_DECLARE_ALLOCATOR(Collator);
 
 public:
-    static constexpr auto relevant_extension_keys()
-    {
-        // 10.2.3 Internal slots, https://tc39.es/ecma402/#sec-intl-collator-internal-slots
-        // The value of the [[RelevantExtensionKeys]] internal slot is a List that must include the element "co", may include any or all of the elements "kf" and "kn", and must not include any other elements.
-        return AK::Array { "co"sv, "kf"sv, "kn"sv };
-    }
-
     virtual ~Collator() override = default;
+
+    virtual ReadonlySpan<StringView> relevant_extension_keys() const override;
+    virtual ReadonlySpan<ResolutionOptionDescriptor> resolution_option_descriptors(VM&) const override;
 
     String const& locale() const { return m_locale; }
     void set_locale(String locale) { m_locale = move(locale); }

@@ -4,11 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/StringBuilder.h>
 #include <LibJS/Runtime/Array.h>
-#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Intl/ListFormat.h>
 #include <LibJS/Runtime/Iterator.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibUnicode/ListFormat.h>
 
 namespace JS::Intl {
@@ -17,8 +16,22 @@ GC_DEFINE_ALLOCATOR(ListFormat);
 
 // 14 ListFormat Objects, https://tc39.es/ecma402/#listformat-objects
 ListFormat::ListFormat(Object& prototype)
-    : Object(ConstructWithPrototypeTag::Tag, prototype)
+    : IntlObject(ConstructWithPrototypeTag::Tag, prototype)
 {
+}
+
+// 14.2.3 Internal slots, https://tc39.es/ecma402/#sec-Intl.ListFormat-internal-slots
+ReadonlySpan<StringView> ListFormat::relevant_extension_keys() const
+{
+    // The value of the [[RelevantExtensionKeys]] internal slot is « ».
+    return {};
+}
+
+// 14.2.3 Internal slots, https://tc39.es/ecma402/#sec-Intl.ListFormat-internal-slots
+ReadonlySpan<ResolutionOptionDescriptor> ListFormat::resolution_option_descriptors(VM&) const
+{
+    // The value of the [[ResolutionOptionDescriptors]] internal slot is « ».
+    return {};
 }
 
 // 14.5.2 CreatePartsFromList ( listFormat, list ), https://tc39.es/ecma402/#sec-createpartsfromlist

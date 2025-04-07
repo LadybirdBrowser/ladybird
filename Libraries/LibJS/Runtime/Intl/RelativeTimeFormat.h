@@ -6,31 +6,24 @@
 
 #pragma once
 
-#include <AK/Array.h>
 #include <AK/String.h>
 #include <AK/StringView.h>
 #include <LibJS/Runtime/Completion.h>
-#include <LibJS/Runtime/Intl/AbstractOperations.h>
-#include <LibJS/Runtime/Object.h>
+#include <LibJS/Runtime/Intl/IntlObject.h>
 #include <LibUnicode/Locale.h>
-#include <LibUnicode/NumberFormat.h>
 #include <LibUnicode/RelativeTimeFormat.h>
 
 namespace JS::Intl {
 
-class RelativeTimeFormat final : public Object {
-    JS_OBJECT(RelativeTimeFormat, Object);
+class RelativeTimeFormat final : public IntlObject {
+    JS_OBJECT(RelativeTimeFormat, IntlObject);
     GC_DECLARE_ALLOCATOR(RelativeTimeFormat);
 
 public:
-    static constexpr auto relevant_extension_keys()
-    {
-        // 18.2.3 Internal slots, https://tc39.es/ecma402/#sec-Intl.RelativeTimeFormat-internal-slots
-        // The value of the [[RelevantExtensionKeys]] internal slot is « "nu" ».
-        return AK::Array { "nu"sv };
-    }
-
     virtual ~RelativeTimeFormat() override = default;
+
+    virtual ReadonlySpan<StringView> relevant_extension_keys() const override;
+    virtual ReadonlySpan<ResolutionOptionDescriptor> resolution_option_descriptors(VM&) const override;
 
     String const& locale() const { return m_locale; }
     void set_locale(String locale) { m_locale = move(locale); }

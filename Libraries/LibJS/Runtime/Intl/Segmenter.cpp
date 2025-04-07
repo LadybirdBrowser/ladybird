@@ -6,8 +6,8 @@
  */
 
 #include <AK/Utf16View.h>
-#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Intl/Segmenter.h>
+#include <LibJS/Runtime/VM.h>
 
 namespace JS::Intl {
 
@@ -15,8 +15,22 @@ GC_DEFINE_ALLOCATOR(Segmenter);
 
 // 19 Segmenter Objects, https://tc39.es/ecma402/#segmenter-objects
 Segmenter::Segmenter(Object& prototype)
-    : Object(ConstructWithPrototypeTag::Tag, prototype)
+    : IntlObject(ConstructWithPrototypeTag::Tag, prototype)
 {
+}
+
+// 19.2.3 Internal slots, https://tc39.es/ecma402/#sec-intl.segmenter-internal-slots
+ReadonlySpan<StringView> Segmenter::relevant_extension_keys() const
+{
+    // The value of the [[RelevantExtensionKeys]] internal slot is « ».
+    return {};
+}
+
+// 19.2.3 Internal slots, https://tc39.es/ecma402/#sec-intl.segmenter-internal-slots
+ReadonlySpan<ResolutionOptionDescriptor> Segmenter::resolution_option_descriptors(VM&) const
+{
+    // The value of the [[ResolutionOptionDescriptors]] internal slot is « ».
+    return {};
 }
 
 // 19.7.1 CreateSegmentDataObject ( segmenter, string, startIndex, endIndex ), https://tc39.es/ecma402/#sec-createsegmentdataobject

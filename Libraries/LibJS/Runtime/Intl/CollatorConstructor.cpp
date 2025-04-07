@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2022-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -113,7 +113,7 @@ ThrowCompletionOr<GC::Ref<Object>> CollatorConstructor::construct(FunctionObject
     opt.kf = locale_key_from_value(case_first);
 
     // 21. Let r be ResolveLocale(%Intl.Collator%.[[AvailableLocales]], requestedLocales, opt, %Intl.Collator%.[[RelevantExtensionKeys]], localeData).
-    auto result = resolve_locale(requested_locales, opt, Collator::relevant_extension_keys());
+    auto result = resolve_locale(requested_locales, opt, collator->relevant_extension_keys());
 
     // 22. Set collator.[[Locale]] to r.[[Locale]].
     collator->set_locale(move(result.locale));

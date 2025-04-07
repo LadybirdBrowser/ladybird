@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -9,14 +9,14 @@
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <AK/StringView.h>
-#include <LibJS/Runtime/Object.h>
+#include <LibJS/Runtime/Intl/IntlObject.h>
 #include <LibUnicode/DisplayNames.h>
 #include <LibUnicode/Locale.h>
 
 namespace JS::Intl {
 
-class DisplayNames final : public Object {
-    JS_OBJECT(DisplayNames, Object);
+class DisplayNames final : public IntlObject {
+    JS_OBJECT(DisplayNames, IntlObject);
     GC_DECLARE_ALLOCATOR(DisplayNames);
 
     enum class Type {
@@ -37,6 +37,9 @@ class DisplayNames final : public Object {
 
 public:
     virtual ~DisplayNames() override = default;
+
+    virtual ReadonlySpan<StringView> relevant_extension_keys() const override;
+    virtual ReadonlySpan<ResolutionOptionDescriptor> resolution_option_descriptors(VM&) const override;
 
     String const& locale() const { return m_locale; }
     void set_locale(String locale) { m_locale = move(locale); }
@@ -59,7 +62,7 @@ public:
     StringView language_display_string() const { return Unicode::language_display_to_string(*m_language_display); }
 
 private:
-    DisplayNames(Object& prototype);
+    explicit DisplayNames(Object& prototype);
 
     String m_locale;                                       // [[Locale]]
     Unicode::Style m_style { Unicode::Style::Long };       // [[Style]]

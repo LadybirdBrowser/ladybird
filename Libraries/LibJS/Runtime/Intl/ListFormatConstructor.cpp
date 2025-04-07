@@ -70,7 +70,7 @@ ThrowCompletionOr<GC::Ref<Object>> ListFormatConstructor::construct(FunctionObje
     opt.locale_matcher = matcher;
 
     // 8. Let r be ResolveLocale(%Intl.ListFormat%.[[AvailableLocales]], requestedLocales, opt, %Intl.ListFormat%.[[RelevantExtensionKeys]], %Intl.ListFormat%.[[LocaleData]]).
-    auto result = resolve_locale(requested_locales, opt, {});
+    auto result = resolve_locale(requested_locales, opt, list_format->relevant_extension_keys());
 
     // 9. Set listFormat.[[Locale]] to r.[[Locale]].
     list_format->set_locale(move(result.locale));

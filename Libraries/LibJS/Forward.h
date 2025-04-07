@@ -274,11 +274,14 @@ JS_ENUMERATE_INTL_OBJECTS
 #undef __JS_ENUMERATE
 
 class Intl;
+class IntlObject;
 class MathematicalValue;
 
 // Not included in JS_ENUMERATE_INTL_OBJECTS due to missing distinct constructor
 class Segments;
 class SegmentsPrototype;
+
+struct ResolutionOptionDescriptor;
 };
 
 namespace Temporal {

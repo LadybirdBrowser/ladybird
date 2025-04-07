@@ -4,22 +4,15 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Checked.h>
-#include <AK/StringBuilder.h>
-#include <AK/Utf8View.h>
 #include <LibCrypto/BigInt/SignedBigInteger.h>
-#include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/BigInt.h>
-#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Intl/NumberFormat.h>
-#include <LibJS/Runtime/Intl/NumberFormatFunction.h>
-#include <LibJS/Runtime/Intl/PluralRules.h>
+#include <LibJS/Runtime/NativeFunction.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibJS/Runtime/ValueInlines.h>
 #include <LibUnicode/CurrencyCode.h>
-#include <LibUnicode/DisplayNames.h>
 #include <math.h>
-#include <stdlib.h>
 
 namespace JS::Intl {
 
@@ -27,7 +20,7 @@ GC_DEFINE_ALLOCATOR(NumberFormatBase);
 GC_DEFINE_ALLOCATOR(NumberFormat);
 
 NumberFormatBase::NumberFormatBase(Object& prototype)
-    : Object(ConstructWithPrototypeTag::Tag, prototype)
+    : IntlObject(ConstructWithPrototypeTag::Tag, prototype)
 {
 }
 
@@ -42,6 +35,25 @@ void NumberFormat::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     if (m_bound_format)
         visitor.visit(m_bound_format);
+}
+
+// 16.2.3 Internal slots, https://tc39.es/ecma402/#sec-intl.numberformat-internal-slots
+ReadonlySpan<StringView> NumberFormat::relevant_extension_keys() const
+{
+    // The value of the [[RelevantExtensionKeys]] internal slot is « "nu" ».
+    static constexpr AK::Array keys { "nu"sv };
+    return keys;
+}
+
+// 16.2.3 Internal slots, https://tc39.es/ecma402/#sec-intl.numberformat-internal-slots
+ReadonlySpan<ResolutionOptionDescriptor> NumberFormat::resolution_option_descriptors(VM& vm) const
+{
+    // The value of the [[ResolutionOptionDescriptors]] internal slot is « { [[Key]]: "nu", [[Property]]: "numberingSystem" } ».
+    static auto descriptors = to_array<ResolutionOptionDescriptor>({
+        { .key = "nu"sv, .property = vm.names.numberingSystem },
+    });
+
+    return descriptors;
 }
 
 StringView NumberFormatBase::computed_rounding_priority_string() const
