@@ -612,9 +612,9 @@ ThrowCompletionOr<ResolvedOptions> resolve_options(VM& vm, IntlObject& object, V
 
     // 3. If specialBehaviours is present and contains COERCE-OPTIONS, set options to ? CoerceOptionsToObject(options).
     //    Otherwise, set options to ? GetOptionsObject(options).
-    GC::Ref<Object> options = has_flag(special_behaviours, SpecialBehaviors::CoerceOptions)
-        ? *TRY(coerce_options_to_object(vm, options_value))
-        : *TRY(get_options_object(vm, options_value));
+    auto options = has_flag(special_behaviours, SpecialBehaviors::CoerceOptions)
+        ? TRY(coerce_options_to_object(vm, options_value))
+        : TRY(get_options_object(vm, options_value));
 
     // 4. Let matcher be ? GetOption(options, "localeMatcher", STRING, « "lookup", "best fit" », "best fit").
     auto matcher = TRY(get_option(vm, options, vm.names.localeMatcher, OptionType::String, { "lookup"sv, "best fit"sv }, "best fit"sv));
@@ -669,15 +669,15 @@ ThrowCompletionOr<ResolvedOptions> resolve_options(VM& vm, IntlObject& object, V
 }
 
 // 9.2.9 FilterLocales ( availableLocales, requestedLocales, options ), https://tc39.es/ecma402/#sec-lookupsupportedlocales
-ThrowCompletionOr<Array*> filter_locales(VM& vm, ReadonlySpan<String> requested_locales, Value options)
+ThrowCompletionOr<GC::Ref<Array>> filter_locales(VM& vm, ReadonlySpan<String> requested_locales, Value options_value)
 {
     auto& realm = *vm.current_realm();
 
     // 1. Set options to ? CoerceOptionsToObject(options).
-    auto* options_object = TRY(coerce_options_to_object(vm, options));
+    auto options = TRY(coerce_options_to_object(vm, options_value));
 
     // 2. Let matcher be ? GetOption(options, "localeMatcher", string, « "lookup", "best fit" », "best fit").
-    auto matcher = TRY(get_option(vm, *options_object, vm.names.localeMatcher, OptionType::String, { "lookup"sv, "best fit"sv }, "best fit"sv));
+    auto matcher = TRY(get_option(vm, options, vm.names.localeMatcher, OptionType::String, { "lookup"sv, "best fit"sv }, "best fit"sv));
 
     // 3. Let subset be a new empty List.
     Vector<String> subset;
@@ -703,22 +703,22 @@ ThrowCompletionOr<Array*> filter_locales(VM& vm, ReadonlySpan<String> requested_
     }
 
     // 5. Return CreateArrayFromList(subset).
-    return Array::create_from<String>(realm, subset, [&vm](auto& locale) { return PrimitiveString::create(vm, move(locale)); }).ptr();
+    return Array::create_from<String>(realm, subset, [&vm](auto& locale) { return PrimitiveString::create(vm, move(locale)); });
 }
 
 // 9.2.11 CoerceOptionsToObject ( options ), https://tc39.es/ecma402/#sec-coerceoptionstoobject
-ThrowCompletionOr<Object*> coerce_options_to_object(VM& vm, Value options)
+ThrowCompletionOr<GC::Ref<Object>> coerce_options_to_object(VM& vm, Value options)
 {
     auto& realm = *vm.current_realm();
 
     // 1. If options is undefined, then
     if (options.is_undefined()) {
         // a. Return OrdinaryObjectCreate(null).
-        return Object::create(realm, nullptr).ptr();
+        return Object::create(realm, nullptr);
     }
 
     // 2. Return ? ToObject(options).
-    return TRY(options.to_object(vm)).ptr();
+    return TRY(options.to_object(vm));
 }
 
 // NOTE: 9.2.12 GetOption has been removed and is being pulled in from ECMA-262 in the Temporal proposal.
