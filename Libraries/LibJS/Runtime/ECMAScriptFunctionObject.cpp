@@ -58,6 +58,47 @@ GC::Ref<ECMAScriptFunctionObject> ECMAScriptFunctionObject::create(Realm& realm,
     return realm.create<ECMAScriptFunctionObject>(move(name), move(source_text), ecmascript_code, move(parameters), m_function_length, move(local_variables_names), parent_environment, private_environment, prototype, kind, is_strict, parsing_insights, is_arrow_function, move(class_field_initializer_name));
 }
 
+GC::Ref<ECMAScriptFunctionObject> ECMAScriptFunctionObject::create_from_function_node(
+    FunctionNode const& function_node,
+    FlyString name,
+    GC::Ref<Realm> realm,
+    GC::Ptr<Environment> parent_environment,
+    GC::Ptr<PrivateEnvironment> private_environment)
+{
+    GC::Ptr<Object> prototype = nullptr;
+    switch (function_node.kind()) {
+    case FunctionKind::Normal:
+        prototype = realm->intrinsics().function_prototype();
+        break;
+    case FunctionKind::Generator:
+        prototype = realm->intrinsics().generator_function_prototype();
+        break;
+    case FunctionKind::Async:
+        prototype = realm->intrinsics().async_function_prototype();
+        break;
+    case FunctionKind::AsyncGenerator:
+        prototype = realm->intrinsics().async_generator_function_prototype();
+        break;
+    }
+
+    return create(
+        *realm,
+        move(name),
+        *prototype,
+        function_node.source_text(),
+        *function_node.body_ptr(),
+        function_node.parameters(),
+        function_node.function_length(),
+        function_node.local_variables_names(),
+        parent_environment,
+        private_environment,
+        function_node.kind(),
+        function_node.is_strict_mode(),
+        function_node.parsing_insights(),
+        function_node.is_arrow_function(),
+        Variant<PropertyKey, PrivateName, Empty> {});
+}
+
 ECMAScriptFunctionObject::ECMAScriptFunctionObject(FlyString name, ByteString source_text, Statement const& ecmascript_code, NonnullRefPtr<FunctionParameters const> formal_parameters, i32 function_length, Vector<FlyString> local_variables_names, Environment* parent_environment, PrivateEnvironment* private_environment, Object& prototype, FunctionKind kind, bool strict, FunctionParsingInsights parsing_insights, bool is_arrow_function, Variant<PropertyKey, PrivateName, Empty> class_field_initializer_name)
     : FunctionObject(prototype)
     , m_name(move(name))
