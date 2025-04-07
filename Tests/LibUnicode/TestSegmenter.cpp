@@ -136,10 +136,22 @@ TEST_CASE(out_of_bounds)
         auto segmenter = Unicode::Segmenter::create(Unicode::SegmenterGranularity::Word);
         segmenter->set_segmented_text(text);
 
-        auto result = segmenter->previous_boundary(text.byte_count());
+        auto result = segmenter->previous_boundary(text.byte_count() + 1);
+        EXPECT(result.has_value());
+
+        result = segmenter->next_boundary(text.byte_count() + 1);
         EXPECT(!result.has_value());
 
+        result = segmenter->previous_boundary(text.byte_count());
+        EXPECT(result.has_value());
+
         result = segmenter->next_boundary(text.byte_count());
+        EXPECT(!result.has_value());
+
+        result = segmenter->next_boundary(0);
+        EXPECT(result.has_value());
+
+        result = segmenter->previous_boundary(0);
         EXPECT(!result.has_value());
     }
     {
@@ -148,10 +160,22 @@ TEST_CASE(out_of_bounds)
         auto segmenter = Unicode::Segmenter::create(Unicode::SegmenterGranularity::Word);
         segmenter->set_segmented_text(Utf16View { text });
 
-        auto result = segmenter->previous_boundary(text.size());
+        auto result = segmenter->previous_boundary(text.size() + 1);
+        EXPECT(result.has_value());
+
+        result = segmenter->next_boundary(text.size() + 1);
         EXPECT(!result.has_value());
 
+        result = segmenter->previous_boundary(text.size());
+        EXPECT(result.has_value());
+
         result = segmenter->next_boundary(text.size());
+        EXPECT(!result.has_value());
+
+        result = segmenter->next_boundary(0);
+        EXPECT(result.has_value());
+
+        result = segmenter->previous_boundary(0);
         EXPECT(!result.has_value());
     }
 }
