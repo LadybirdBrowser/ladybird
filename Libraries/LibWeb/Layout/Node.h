@@ -48,6 +48,7 @@ public:
     bool is_generated() const { return m_generated_for.has_value(); }
     bool is_generated_for_before_pseudo_element() const { return m_generated_for == CSS::GeneratedPseudoElement::Before; }
     bool is_generated_for_after_pseudo_element() const { return m_generated_for == CSS::GeneratedPseudoElement::After; }
+    bool is_generated_for_backdrop_pseudo_element() const { return m_generated_for == CSS::GeneratedPseudoElement::Backdrop; }
     void set_generated_for(CSS::GeneratedPseudoElement type, DOM::Element& element)
     {
         m_generated_for = type;

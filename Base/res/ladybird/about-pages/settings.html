@@ -1002,13 +1002,9 @@
                 ladybird.sendMessage("restoreDefaultSettings");
             });
 
-            // FIXME: Once we support `dialog::backdrop`, this event listener should be on `siteSettings`.
-            document.addEventListener("click", event => {
-                const close = dialog => {
-                    if (!dialog.open) {
-                        return;
-                    }
-
+            // FIXME: This should be replaced once we support popover light dismissal.
+            document.querySelectorAll("dialog").forEach((dialog) =>
+                dialog.addEventListener("click", event => {
                     const rect = dialog.getBoundingClientRect();
 
                     if (
@@ -1019,10 +1015,8 @@
                     ) {
                         dialog.close();
                     }
-                };
-
-                document.querySelectorAll("dialog").forEach(close);
-            });
+                }
+            ));
 
             document.addEventListener("WebUILoaded", () => {
                 ladybird.sendMessage("loadAvailableEngines");

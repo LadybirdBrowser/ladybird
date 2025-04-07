@@ -66,6 +66,12 @@ static DOM::Node* input_control_associated_with_ancestor_label_element(Painting:
 
 static bool parent_element_for_event_dispatch(Painting::Paintable& paintable, GC::Ptr<DOM::Node>& node, Layout::Node*& layout_node)
 {
+    layout_node = &paintable.layout_node();
+    if (layout_node->is_generated_for_backdrop_pseudo_element()) {
+        node = layout_node->pseudo_element_generator();
+        layout_node = node->layout_node();
+    }
+
     auto* current_ancestor_node = node.ptr();
     do {
         if (is<HTML::FormAssociatedElement>(current_ancestor_node) && !dynamic_cast<HTML::FormAssociatedElement*>(current_ancestor_node)->enabled()) {
@@ -73,7 +79,6 @@ static bool parent_element_for_event_dispatch(Painting::Paintable& paintable, GC
         }
     } while ((current_ancestor_node = current_ancestor_node->parent()));
 
-    layout_node = &paintable.layout_node();
     while (layout_node && node && !node->is_element() && layout_node->parent()) {
         layout_node = layout_node->parent();
         if (layout_node->is_anonymous())
