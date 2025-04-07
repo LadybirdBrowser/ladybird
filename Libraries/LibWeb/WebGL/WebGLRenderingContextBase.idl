@@ -333,7 +333,7 @@ interface mixin WebGLRenderingContextBase {
     const GLenum SAMPLE_COVERAGE_VALUE = 0x80AA;
     const GLenum SAMPLE_COVERAGE_INVERT = 0x80AB;
 
-    // GetTexureParameter
+    // GetTextureParameter
     const GLenum COMPRESSED_TEXTURE_FORMATS = 0x86A3;
 
     // HintMode
