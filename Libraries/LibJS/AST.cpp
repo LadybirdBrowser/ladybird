@@ -346,9 +346,6 @@ ThrowCompletionOr<ECMAScriptFunctionObject*> ClassExpression::create_class_const
 
     // FIXME: Step 14.a is done in the parser. By using a synthetic super(...args) which does not call @@iterator of %Array.prototype%
     auto const& constructor = *m_constructor;
-    auto parsing_insights = constructor.parsing_insights();
-    parsing_insights.uses_this_from_environment = true;
-    parsing_insights.uses_this = true;
     auto class_constructor = ECMAScriptFunctionObject::create(
         realm,
         constructor.name(),
@@ -361,7 +358,7 @@ ThrowCompletionOr<ECMAScriptFunctionObject*> ClassExpression::create_class_const
         vm.running_execution_context().private_environment,
         constructor.kind(),
         constructor.is_strict_mode(),
-        parsing_insights,
+        constructor.parsing_insights(),
         constructor.is_arrow_function());
 
     class_constructor->set_name(class_name);
