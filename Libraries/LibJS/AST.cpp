@@ -35,6 +35,7 @@
 #include <LibJS/Runtime/RegExpObject.h>
 #include <LibJS/Runtime/Shape.h>
 #include <LibJS/Runtime/ValueInlines.h>
+#include <memory>
 #include <typeinfo>
 
 namespace JS {
@@ -363,7 +364,7 @@ ThrowCompletionOr<ECMAScriptFunctionObject*> ClassExpression::create_class_const
     TRY(class_constructor->internal_set_prototype_of(constructor_parent));
 
     if (!m_super_class.is_null())
-        class_constructor->set_constructor_kind(ECMAScriptFunctionObject::ConstructorKind::Derived);
+        class_constructor->set_constructor_kind(ConstructorKind::Derived);
 
     prototype->define_direct_property(vm.names.constructor, class_constructor, Attribute::Writable | Attribute::Configurable);
 
@@ -823,6 +824,34 @@ void BindingPattern::dump(int indent) const
             entry.initializer->dump(indent + 3);
         }
     }
+}
+
+FunctionNode::FunctionNode(RefPtr<Identifier const> name, ByteString source_text, NonnullRefPtr<Statement const> body, NonnullRefPtr<FunctionParameters const> parameters, i32 function_length, FunctionKind kind, bool is_strict_mode, FunctionParsingInsights parsing_insights, bool is_arrow_function, Vector<FlyString> local_variables_names)
+    : m_name(move(name))
+    , m_source_text(move(source_text))
+    , m_body(move(body))
+    , m_parameters(move(parameters))
+    , m_function_length(function_length)
+    , m_kind(kind)
+    , m_is_strict_mode(is_strict_mode)
+    , m_is_arrow_function(is_arrow_function)
+    , m_parsing_insights(parsing_insights)
+    , m_local_variables_names(move(local_variables_names))
+{
+    if (m_is_arrow_function)
+        VERIFY(!parsing_insights.might_need_arguments_object);
+}
+
+FunctionNode::~FunctionNode() = default;
+
+void FunctionNode::set_shared_data(RefPtr<SharedFunctionInstanceData> shared_data) const
+{
+    m_shared_data = move(shared_data);
+}
+
+RefPtr<SharedFunctionInstanceData> FunctionNode::shared_data() const
+{
+    return m_shared_data;
 }
 
 void FunctionNode::dump(int indent, ByteString const& class_name) const
