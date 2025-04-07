@@ -41,6 +41,7 @@ class FunctionDeclaration;
 class Identifier;
 class MemberExpression;
 class VariableDeclaration;
+class SharedFunctionInstanceData;
 
 template<class T, class... Args>
 static inline NonnullRefPtr<T>
@@ -746,25 +747,13 @@ public:
     virtual bool has_name() const = 0;
     virtual Value instantiate_ordinary_function_expression(VM&, FlyString given_name) const = 0;
 
-    virtual ~FunctionNode() { }
+    RefPtr<SharedFunctionInstanceData> shared_data() const;
+    void set_shared_data(RefPtr<SharedFunctionInstanceData>) const;
+
+    virtual ~FunctionNode();
 
 protected:
-    FunctionNode(RefPtr<Identifier const> name, ByteString source_text, NonnullRefPtr<Statement const> body, NonnullRefPtr<FunctionParameters const> parameters, i32 function_length, FunctionKind kind, bool is_strict_mode, FunctionParsingInsights parsing_insights, bool is_arrow_function, Vector<FlyString> local_variables_names)
-        : m_name(move(name))
-        , m_source_text(move(source_text))
-        , m_body(move(body))
-        , m_parameters(move(parameters))
-        , m_function_length(function_length)
-        , m_kind(kind)
-        , m_is_strict_mode(is_strict_mode)
-        , m_is_arrow_function(is_arrow_function)
-        , m_parsing_insights(parsing_insights)
-        , m_local_variables_names(move(local_variables_names))
-    {
-        if (m_is_arrow_function)
-            VERIFY(!parsing_insights.might_need_arguments_object);
-    }
-
+    FunctionNode(RefPtr<Identifier const> name, ByteString source_text, NonnullRefPtr<Statement const> body, NonnullRefPtr<FunctionParameters const> parameters, i32 function_length, FunctionKind kind, bool is_strict_mode, FunctionParsingInsights parsing_insights, bool is_arrow_function, Vector<FlyString> local_variables_names);
     void dump(int indent, ByteString const& class_name) const;
 
     RefPtr<Identifier const> m_name { nullptr };
@@ -780,6 +769,8 @@ private:
     FunctionParsingInsights m_parsing_insights;
 
     Vector<FlyString> m_local_variables_names;
+
+    mutable RefPtr<SharedFunctionInstanceData> m_shared_data;
 };
 
 class FunctionDeclaration final

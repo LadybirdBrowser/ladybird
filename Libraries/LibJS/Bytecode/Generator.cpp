@@ -32,10 +32,10 @@ Generator::Generator(VM& vm, GC::Ptr<ECMAScriptFunctionObject const> function, M
 
 CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(ECMAScriptFunctionObject const& function)
 {
-    if (function.m_has_parameter_expressions) {
+    if (function.shared_data().m_has_parameter_expressions) {
         bool has_non_local_parameters = false;
-        for (auto const& parameter_name : function.m_parameter_names) {
-            if (parameter_name.value == ECMAScriptFunctionObject::ParameterIsLocal::No) {
+        for (auto const& parameter_name : function.shared_data().m_parameter_names) {
+            if (parameter_name.value == SharedFunctionInstanceData::ParameterIsLocal::No) {
                 has_non_local_parameters = true;
                 break;
             }
@@ -44,32 +44,32 @@ CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(E
             emit<Op::CreateLexicalEnvironment>();
     }
 
-    for (auto const& parameter_name : function.m_parameter_names) {
-        if (parameter_name.value == ECMAScriptFunctionObject::ParameterIsLocal::No) {
+    for (auto const& parameter_name : function.shared_data().m_parameter_names) {
+        if (parameter_name.value == SharedFunctionInstanceData::ParameterIsLocal::No) {
             auto id = intern_identifier(parameter_name.key);
             emit<Op::CreateVariable>(id, Op::EnvironmentMode::Lexical, false);
-            if (function.m_has_duplicates) {
+            if (function.shared_data().m_has_duplicates) {
                 emit<Op::InitializeLexicalBinding>(id, add_constant(js_undefined()));
             }
         }
     }
 
-    if (function.m_arguments_object_needed) {
+    if (function.shared_data().m_arguments_object_needed) {
         Optional<Operand> dst;
-        auto local_var_index = function.m_local_variables_names.find_first_index("arguments"_fly_string);
+        auto local_var_index = function.shared_data().m_local_variables_names.find_first_index("arguments"_fly_string);
         if (local_var_index.has_value())
             dst = local(local_var_index.value());
 
-        if (function.m_strict || !function.has_simple_parameter_list()) {
-            emit<Op::CreateArguments>(dst, Op::CreateArguments::Kind::Unmapped, function.m_strict);
+        if (function.is_strict_mode() || !function.has_simple_parameter_list()) {
+            emit<Op::CreateArguments>(dst, Op::CreateArguments::Kind::Unmapped, function.is_strict_mode());
         } else {
-            emit<Op::CreateArguments>(dst, Op::CreateArguments::Kind::Mapped, function.m_strict);
+            emit<Op::CreateArguments>(dst, Op::CreateArguments::Kind::Mapped, function.is_strict_mode());
         }
     }
 
     auto const& formal_parameters = function.formal_parameters();
-    for (u32 param_index = 0; param_index < formal_parameters->size(); ++param_index) {
-        auto const& parameter = formal_parameters->parameters()[param_index];
+    for (u32 param_index = 0; param_index < formal_parameters.size(); ++param_index) {
+        auto const& parameter = formal_parameters.parameters()[param_index];
 
         if (parameter.is_rest) {
             auto argument_reg = allocate_register();
@@ -104,7 +104,7 @@ CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(E
                 auto id = intern_identifier((*identifier)->string());
                 auto argument_reg = allocate_register();
                 emit<Op::GetArgument>(argument_reg.operand(), param_index);
-                if (function.m_has_duplicates) {
+                if (function.shared_data().m_has_duplicates) {
                     emit<Op::SetLexicalBinding>(id, argument_reg.operand());
                 } else {
                     emit<Op::InitializeLexicalBinding>(id, argument_reg.operand());
@@ -113,18 +113,18 @@ CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(E
         } else if (auto const* binding_pattern = parameter.binding.get_pointer<NonnullRefPtr<BindingPattern const>>(); binding_pattern) {
             auto input_operand = allocate_register();
             emit<Op::GetArgument>(input_operand.operand(), param_index);
-            auto init_mode = function.m_has_duplicates ? Op::BindingInitializationMode::Set : Bytecode::Op::BindingInitializationMode::Initialize;
+            auto init_mode = function.shared_data().m_has_duplicates ? Op::BindingInitializationMode::Set : Bytecode::Op::BindingInitializationMode::Initialize;
             TRY((*binding_pattern)->generate_bytecode(*this, init_mode, input_operand, false));
         }
     }
 
     ScopeNode const* scope_body = nullptr;
-    if (is<ScopeNode>(*function.m_ecmascript_code))
-        scope_body = static_cast<ScopeNode const*>(function.m_ecmascript_code.ptr());
+    if (is<ScopeNode>(function.ecmascript_code()))
+        scope_body = &static_cast<ScopeNode const&>(function.ecmascript_code());
 
-    if (!function.m_has_parameter_expressions) {
+    if (!function.shared_data().m_has_parameter_expressions) {
         if (scope_body) {
-            for (auto const& variable_to_initialize : function.m_var_names_to_initialize_binding) {
+            for (auto const& variable_to_initialize : function.shared_data().m_var_names_to_initialize_binding) {
                 auto const& id = variable_to_initialize.identifier;
                 if (id.is_local()) {
                     emit<Op::Mov>(local(id.local_variable_index()), add_constant(js_undefined()));
@@ -138,7 +138,7 @@ CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(E
     } else {
         bool has_non_local_parameters = false;
         if (scope_body) {
-            for (auto const& variable_to_initialize : function.m_var_names_to_initialize_binding) {
+            for (auto const& variable_to_initialize : function.shared_data().m_var_names_to_initialize_binding) {
                 auto const& id = variable_to_initialize.identifier;
                 if (!id.is_local()) {
                     has_non_local_parameters = true;
@@ -148,10 +148,10 @@ CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(E
         }
 
         if (has_non_local_parameters)
-            emit<Op::CreateVariableEnvironment>(function.m_var_environment_bindings_count);
+            emit<Op::CreateVariableEnvironment>(function.shared_data().m_var_environment_bindings_count);
 
         if (scope_body) {
-            for (auto const& variable_to_initialize : function.m_var_names_to_initialize_binding) {
+            for (auto const& variable_to_initialize : function.shared_data().m_var_names_to_initialize_binding) {
                 auto const& id = variable_to_initialize.identifier;
                 auto initial_value = allocate_register();
                 if (!variable_to_initialize.parameter_binding || variable_to_initialize.function_name) {
@@ -175,18 +175,18 @@ CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(E
         }
     }
 
-    if (!function.m_strict && scope_body) {
-        for (auto const& function_name : function.m_function_names_to_initialize_binding) {
+    if (!function.is_strict_mode() && scope_body) {
+        for (auto const& function_name : function.shared_data().m_function_names_to_initialize_binding) {
             auto intern_id = intern_identifier(function_name);
             emit<Op::CreateVariable>(intern_id, Op::EnvironmentMode::Var, false);
             emit<Op::InitializeVariableBinding>(intern_id, add_constant(js_undefined()));
         }
     }
 
-    if (!function.m_strict) {
+    if (!function.is_strict_mode()) {
         bool can_elide_lexical_environment = !scope_body || !scope_body->has_non_local_lexical_declarations();
         if (!can_elide_lexical_environment) {
-            emit<Op::CreateLexicalEnvironment>(function.m_lex_environment_bindings_count);
+            emit<Op::CreateLexicalEnvironment>(function.shared_data().m_lex_environment_bindings_count);
         }
     }
 
@@ -206,7 +206,7 @@ CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(E
         }));
     }
 
-    for (auto const& declaration : function.m_functions_to_initialize) {
+    for (auto const& declaration : function.shared_data().m_functions_to_initialize) {
         auto const& identifier = *declaration.name_identifier();
         if (identifier.is_local()) {
             auto local_index = identifier.local_variable_index();

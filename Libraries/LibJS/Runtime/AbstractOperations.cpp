@@ -426,7 +426,7 @@ GC::Ref<FunctionEnvironment> new_function_environment(ECMAScriptFunctionObject& 
     env->set_function_object(function);
 
     // 3. If F.[[ThisMode]] is lexical, set env.[[ThisBindingStatus]] to lexical.
-    if (function.this_mode() == ECMAScriptFunctionObject::ThisMode::Lexical)
+    if (function.this_mode() == ThisMode::Lexical)
         env->set_this_binding_status(FunctionEnvironment::ThisBindingStatus::Lexical);
     // 4. Else, set env.[[ThisBindingStatus]] to uninitialized.
     else
@@ -555,7 +555,7 @@ ThrowCompletionOr<Value> perform_eval(VM& vm, Value x, CallerMode strict_caller,
             in_method = this_function_environment_record.has_super_binding();
 
             // iv. If F.[[ConstructorKind]] is derived, set inDerivedConstructor to true.
-            if (function.constructor_kind() == ECMAScriptFunctionObject::ConstructorKind::Derived)
+            if (function.constructor_kind() == ConstructorKind::Derived)
                 in_derived_constructor = true;
 
             // v. Let classFieldInitializerName be F.[[ClassFieldInitializerName]].
