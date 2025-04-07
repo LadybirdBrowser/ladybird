@@ -34,7 +34,8 @@
     "is-generated": true
   },
   "backdrop": {
-    "spec": "https://drafts.csswg.org/css-position-4/#selectordef-backdrop"
+    "spec": "https://drafts.csswg.org/css-position-4/#selectordef-backdrop",
+    "is-generated": true
   },
   "before": {
     "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-before",

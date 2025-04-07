@@ -584,6 +584,7 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
                                 return;
 
                             top_layer_element->set_pseudo_element_node({}, CSS::PseudoElement::Backdrop, pseudo_element_node);
+                            pseudo_element_node->set_generated_for(CSS::GeneratedPseudoElement::Backdrop, top_layer_element);
                             insert_node_into_inline_or_block_ancestor(*pseudo_element_node, pseudo_element_display, AppendOrPrepend::Append);
                         }();
                         update_layout_tree(top_layer_element, context, should_create_layout_node ? MustCreateSubtree::Yes : MustCreateSubtree::No);
