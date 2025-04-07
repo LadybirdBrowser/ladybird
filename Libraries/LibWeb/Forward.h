@@ -925,6 +925,7 @@ class WebGLVertexArrayObject;
 
 namespace Web::WebGL::Extensions {
 class ANGLEInstancedArrays;
+class EXTBlendMinMax;
 class EXTColorBufferFloat;
 class OESVertexArrayObject;
 class WebGLCompressedTextureS3tc;
