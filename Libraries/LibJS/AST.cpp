@@ -105,8 +105,7 @@ Value FunctionExpression::instantiate_ordinary_function_expression(VM& vm, FlySt
 
     auto private_environment = vm.running_execution_context().private_environment;
 
-    auto closure = ECMAScriptFunctionObject::create(realm, used_name, source_text(), body(), parameters(), function_length(), local_variables_names(), environment, private_environment, kind(), is_strict_mode(),
-        parsing_insights(), is_arrow_function());
+    auto closure = ECMAScriptFunctionObject::create_from_function_node(*this, used_name, realm, environment, private_environment);
 
     // FIXME: 6. Perform SetFunctionName(closure, name).
     // FIXME: 7. Perform MakeConstructor(closure).
@@ -151,8 +150,12 @@ ThrowCompletionOr<ClassElement::ClassValue> ClassMethod::class_element_evaluatio
 {
     auto property_key_or_private_name = TRY(class_key_to_property_name(vm, *m_key, property_key));
 
-    auto& method_function = *ECMAScriptFunctionObject::create(*vm.current_realm(), m_function->name(), m_function->source_text(), m_function->body(), m_function->parameters(), m_function->function_length(), m_function->local_variables_names(), vm.lexical_environment(), vm.running_execution_context().private_environment, m_function->kind(), m_function->is_strict_mode(),
-        m_function->parsing_insights(), m_function->is_arrow_function());
+    auto& method_function = *ECMAScriptFunctionObject::create_from_function_node(
+        *m_function,
+        m_function->name(),
+        *vm.current_realm(),
+        vm.lexical_environment(),
+        vm.running_execution_context().private_environment);
 
     auto method_value = Value(&method_function);
     method_function.make_method(target);
@@ -346,20 +349,12 @@ ThrowCompletionOr<ECMAScriptFunctionObject*> ClassExpression::create_class_const
 
     // FIXME: Step 14.a is done in the parser. By using a synthetic super(...args) which does not call @@iterator of %Array.prototype%
     auto const& constructor = *m_constructor;
-    auto class_constructor = ECMAScriptFunctionObject::create(
-        realm,
+    auto class_constructor = ECMAScriptFunctionObject::create_from_function_node(
+        constructor,
         constructor.name(),
-        constructor.source_text(),
-        constructor.body(),
-        constructor.parameters(),
-        constructor.function_length(),
-        constructor.local_variables_names(),
+        realm,
         vm.lexical_environment(),
-        vm.running_execution_context().private_environment,
-        constructor.kind(),
-        constructor.is_strict_mode(),
-        constructor.parsing_insights(),
-        constructor.is_arrow_function());
+        vm.running_execution_context().private_environment);
 
     class_constructor->set_name(class_name);
     class_constructor->set_home_object(prototype);
@@ -1634,8 +1629,12 @@ void ScopeNode::block_declaration_instantiation(VM& vm, Environment* environment
             auto& function_declaration = static_cast<FunctionDeclaration const&>(declaration);
 
             // ii. Let fo be InstantiateFunctionObject of d with arguments env and privateEnv.
-            auto function = ECMAScriptFunctionObject::create(realm, function_declaration.name(), function_declaration.source_text(), function_declaration.body(), function_declaration.parameters(), function_declaration.function_length(), function_declaration.local_variables_names(), environment, private_environment, function_declaration.kind(), function_declaration.is_strict_mode(),
-                function_declaration.parsing_insights());
+            auto function = ECMAScriptFunctionObject::create_from_function_node(
+                function_declaration,
+                function_declaration.name(),
+                realm,
+                environment,
+                private_environment);
 
             // iii. Perform ! env.InitializeBinding(fn, fo). NOTE: This step is replaced in section B.3.2.6.
             if (function_declaration.name_identifier()->is_local()) {
@@ -1842,8 +1841,12 @@ ThrowCompletionOr<void> Program::global_declaration_instantiation(VM& vm, Global
     for (auto& declaration : functions_to_initialize.in_reverse()) {
         // a. Let fn be the sole element of the BoundNames of f.
         // b. Let fo be InstantiateFunctionObject of f with arguments env and privateEnv.
-        auto function = ECMAScriptFunctionObject::create(realm, declaration.name(), declaration.source_text(), declaration.body(), declaration.parameters(), declaration.function_length(), declaration.local_variables_names(), &global_environment, private_environment, declaration.kind(), declaration.is_strict_mode(),
-            declaration.parsing_insights());
+        auto function = ECMAScriptFunctionObject::create_from_function_node(
+            declaration,
+            declaration.name(),
+            realm,
+            &global_environment,
+            private_environment);
 
         // c. Perform ? env.CreateGlobalFunctionBinding(fn, fo, false).
         TRY(global_environment.create_global_function_binding(declaration.name(), function, false));

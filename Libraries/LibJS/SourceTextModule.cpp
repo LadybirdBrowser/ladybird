@@ -500,8 +500,12 @@ ThrowCompletionOr<void> SourceTextModule::initialize_environment(VM& vm)
                 FlyString function_name = function_declaration.name();
                 if (function_name == ExportStatement::local_name_for_default)
                     function_name = "default"_fly_string;
-                auto function = ECMAScriptFunctionObject::create(realm(), function_name, function_declaration.source_text(), function_declaration.body(), function_declaration.parameters(), function_declaration.function_length(), function_declaration.local_variables_names(), environment, private_environment, function_declaration.kind(), function_declaration.is_strict_mode(),
-                    function_declaration.parsing_insights());
+                auto function = ECMAScriptFunctionObject::create_from_function_node(
+                    function_declaration,
+                    function_name,
+                    realm(),
+                    environment,
+                    private_environment);
 
                 // 2. Perform ! env.InitializeBinding(dn, fo, normal).
                 MUST(environment->initialize_binding(vm, name, function, Environment::InitializeBindingHint::Normal));
