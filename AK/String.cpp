@@ -8,6 +8,7 @@
 #include <AK/Array.h>
 #include <AK/Checked.h>
 #include <AK/Endian.h>
+#include <AK/Enumerate.h>
 #include <AK/FlyString.h>
 #include <AK/Format.h>
 #include <AK/MemMem.h>
@@ -377,13 +378,15 @@ String String::to_ascii_lowercase() const
     if (!any_of(bytes(), is_ascii_upper_alpha))
         return *this;
 
-    Vector<u8> lowercase_bytes;
-    lowercase_bytes.ensure_capacity(bytes().size());
+    String result;
 
-    for (auto character : bytes_as_string_view())
-        lowercase_bytes.unchecked_append(AK::to_ascii_lowercase(character));
+    MUST(result.replace_with_new_string(byte_count(), [&](Bytes buffer) -> ErrorOr<void> {
+        for (auto [i, byte] : enumerate(bytes()))
+            buffer[i] = static_cast<u8>(AK::to_ascii_lowercase(byte));
+        return {};
+    }));
 
-    return String::from_utf8_without_validation(lowercase_bytes);
+    return result;
 }
 
 String String::to_ascii_uppercase() const
@@ -391,13 +394,15 @@ String String::to_ascii_uppercase() const
     if (!any_of(bytes(), is_ascii_lower_alpha))
         return *this;
 
-    Vector<u8> uppercase_bytes;
-    uppercase_bytes.ensure_capacity(bytes().size());
+    String result;
 
-    for (auto character : bytes_as_string_view())
-        uppercase_bytes.unchecked_append(AK::to_ascii_uppercase(character));
+    MUST(result.replace_with_new_string(byte_count(), [&](Bytes buffer) -> ErrorOr<void> {
+        for (auto [i, byte] : enumerate(bytes()))
+            buffer[i] = static_cast<u8>(AK::to_ascii_uppercase(byte));
+        return {};
+    }));
 
-    return String::from_utf8_without_validation(uppercase_bytes);
+    return result;
 }
 
 bool String::equals_ignoring_ascii_case(String const& other) const
