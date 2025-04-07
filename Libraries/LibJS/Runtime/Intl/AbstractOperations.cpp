@@ -23,17 +23,6 @@
 
 namespace JS::Intl {
 
-Optional<LocaleKey> locale_key_from_value(Value value)
-{
-    if (value.is_undefined())
-        return OptionalNone {};
-    if (value.is_null())
-        return Empty {};
-    if (value.is_string())
-        return value.as_string().utf8_string();
-    VERIFY_NOT_REACHED();
-}
-
 // 6.2.1 IsStructurallyValidLanguageTag ( locale ), https://tc39.es/ecma402/#sec-isstructurallyvalidlanguagetag
 bool is_structurally_valid_language_tag(StringView locale)
 {

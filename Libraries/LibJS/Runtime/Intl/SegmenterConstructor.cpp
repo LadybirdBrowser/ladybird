@@ -48,44 +48,31 @@ ThrowCompletionOr<GC::Ref<Object>> SegmenterConstructor::construct(FunctionObjec
 {
     auto& vm = this->vm();
 
-    auto locales = vm.argument(0);
+    auto locales_value = vm.argument(0);
     auto options_value = vm.argument(1);
 
     // 2. Let internalSlotsList be « [[InitializedSegmenter]], [[Locale]], [[SegmenterGranularity]] ».
     // 3. Let segmenter be ? OrdinaryCreateFromConstructor(NewTarget, "%Intl.Segmenter.prototype%", internalSlotsList).
     auto segmenter = TRY(ordinary_create_from_constructor<Segmenter>(vm, new_target, &Intrinsics::intl_segmenter_prototype));
 
-    // 4. Let requestedLocales be ? CanonicalizeLocaleList(locales).
-    auto requested_locales = TRY(canonicalize_locale_list(vm, locales));
+    // 4. Let optionsResolution be ? ResolveOptions(%Intl.Segmenter%, %Intl.Segmenter%.[[LocaleData]], locales, options).
+    // 5. Set options to optionsResolution.[[Options]].
+    // 6. Let r be optionsResolution.[[ResolvedLocale]].
+    auto [options, result, _] = TRY(resolve_options(vm, segmenter, locales_value, options_value));
 
-    // 5. Set options to ? GetOptionsObject(options).
-    auto options = TRY(get_options_object(vm, options_value));
-
-    // 6. Let opt be a new Record.
-    LocaleOptions opt {};
-
-    // 7. Let matcher be ? GetOption(options, "localeMatcher", string, « "lookup", "best fit" », "best fit").
-    auto matcher = TRY(get_option(vm, *options, vm.names.localeMatcher, OptionType::String, { "lookup"sv, "best fit"sv }, "best fit"sv));
-
-    // 8. Set opt.[[localeMatcher]] to matcher.
-    opt.locale_matcher = matcher;
-
-    // 9. Let r be ResolveLocale(%Intl.Segmenter%.[[AvailableLocales]], requestedLocales, opt, %Intl.Segmenter%.[[RelevantExtensionKeys]], %Intl.Segmenter%.[[LocaleData]]).
-    auto result = resolve_locale(requested_locales, opt, segmenter->relevant_extension_keys());
-
-    // 10. Set segmenter.[[Locale]] to r.[[locale]].
+    // 7. Set segmenter.[[Locale]] to r.[[locale]].
     segmenter->set_locale(move(result.locale));
 
-    // 11. Let granularity be ? GetOption(options, "granularity", string, « "grapheme", "word", "sentence" », "grapheme").
+    // 8. Let granularity be ? GetOption(options, "granularity", string, « "grapheme", "word", "sentence" », "grapheme").
     auto granularity = TRY(get_option(vm, *options, vm.names.granularity, OptionType::String, { "grapheme"sv, "word"sv, "sentence"sv }, "grapheme"sv));
 
-    // 12. Set segmenter.[[SegmenterGranularity]] to granularity.
+    // 9. Set segmenter.[[SegmenterGranularity]] to granularity.
     segmenter->set_segmenter_granularity(granularity.as_string().utf8_string_view());
 
     auto locale_segmenter = Unicode::Segmenter::create(segmenter->locale(), segmenter->segmenter_granularity());
     segmenter->set_segmenter(move(locale_segmenter));
 
-    // 13. Return segmenter.
+    // 10. Return segmenter.
     return segmenter;
 }
 

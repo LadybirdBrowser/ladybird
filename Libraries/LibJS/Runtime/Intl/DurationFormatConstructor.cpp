@@ -50,67 +50,45 @@ ThrowCompletionOr<GC::Ref<Object>> DurationFormatConstructor::construct(Function
 {
     auto& vm = this->vm();
 
-    auto locales = vm.argument(0);
+    auto locales_value = vm.argument(0);
     auto options_value = vm.argument(1);
 
     // 2. Let durationFormat be ? OrdinaryCreateFromConstructor(NewTarget, "%Intl.DurationFormatPrototype%", « [[InitializedDurationFormat]], [[Locale]], [[NumberingSystem]], [[Style]], [[YearsOptions]], [[MonthsOptions]], [[WeeksOptions]], [[DaysOptions]], [[HoursOptions]], [[MinutesOptions]], [[SecondsOptions]], [[MillisecondsOptions]], [[MicrosecondsOptions]], [[NanosecondsOptions]], [[HourMinuteSeparator]], [[MinuteSecondSeparator]], [[FractionalDigits]] »).
     auto duration_format = TRY(ordinary_create_from_constructor<DurationFormat>(vm, new_target, &Intrinsics::intl_duration_format_prototype));
 
-    // 3. Let requestedLocales be ? CanonicalizeLocaleList(locales).
-    auto requested_locales = TRY(canonicalize_locale_list(vm, locales));
+    // 3. Let optionsResolution be ? ResolveOptions(%Intl.DurationFormat%, %Intl.DurationFormat%.[[LocaleData]], locales, options).
+    // 4. Set options to optionsResolution.[[Options]].
+    // 5. Let r be optionsResolution.[[ResolvedLocale]].
+    auto [options, result, _] = TRY(resolve_options(vm, duration_format, locales_value, options_value));
 
-    // 4. Let options be ? GetOptionsObject(options).
-    auto options = TRY(get_options_object(vm, options_value));
-
-    // 5. Let matcher be ? GetOption(options, "localeMatcher", STRING, « "lookup", "best fit" », "best fit").
-    auto matcher = TRY(get_option(vm, *options, vm.names.localeMatcher, OptionType::String, { "lookup"sv, "best fit"sv }, "best fit"sv));
-
-    // 6. Let numberingSystem be ? GetOption(options, "numberingSystem", STRING, EMPTY, undefined).
-    auto numbering_system = TRY(get_option(vm, *options, vm.names.numberingSystem, OptionType::String, {}, Empty {}));
-
-    // 7. If numberingSystem is not undefined, then
-    if (!numbering_system.is_undefined()) {
-        // a. If numberingSystem cannot be matched by the type Unicode locale nonterminal, throw a RangeError exception.
-        if (!Unicode::is_type_identifier(numbering_system.as_string().utf8_string_view()))
-            return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, numbering_system, "numberingSystem"sv);
-    }
-
-    // 8. Let opt be the Record { [[localeMatcher]]: matcher, [[nu]]: numberingSystem }.
-    LocaleOptions opt {};
-    opt.locale_matcher = matcher;
-    opt.nu = locale_key_from_value(numbering_system);
-
-    // 9. Let r be ResolveLocale(%Intl.DurationFormat%.[[AvailableLocales]], requestedLocales, opt, %Intl.DurationFormat%.[[RelevantExtensionKeys]], %Intl.DurationFormat%.[[LocaleData]]).
-    auto result = resolve_locale(requested_locales, opt, duration_format->relevant_extension_keys());
-
-    // 10. Set durationFormat.[[Locale]] to r.[[Locale]].
+    // 6. Set durationFormat.[[Locale]] to r.[[Locale]].
     duration_format->set_locale(move(result.locale));
 
-    // 11. Let resolvedLocaleData be r.[[LocaleData]].
+    // 7. Let resolvedLocaleData be r.[[LocaleData]].
 
-    // 12. Let digitalFormat be resolvedLocaleData.[[DigitalFormat]].
+    // 8. Let digitalFormat be resolvedLocaleData.[[DigitalFormat]].
     auto digital_format = Unicode::digital_format(result.icu_locale);
 
-    // 13. Set durationFormat.[[HourMinuteSeparator]] to digitalFormat.[[HourMinuteSeparator]].
+    // 9. Set durationFormat.[[HourMinuteSeparator]] to digitalFormat.[[HourMinuteSeparator]].
     duration_format->set_hour_minute_separator(move(digital_format.hours_minutes_separator));
 
-    // 14. Set durationFormat.[[MinuteSecondSeparator]] to digitalFormat.[[MinuteSecondSeparator]].
+    // 10. Set durationFormat.[[MinuteSecondSeparator]] to digitalFormat.[[MinuteSecondSeparator]].
     duration_format->set_minute_second_separator(move(digital_format.minutes_seconds_separator));
 
-    // 15. Set durationFormat.[[NumberingSystem]] to r.[[nu]].
+    // 11. Set durationFormat.[[NumberingSystem]] to r.[[nu]].
     if (auto* resolved_numbering_system = result.nu.get_pointer<String>())
         duration_format->set_numbering_system(move(*resolved_numbering_system));
 
-    // 16. Let style be ? GetOption(options, "style", STRING, « "long", "short", "narrow", "digital" », "short").
+    // 12. Let style be ? GetOption(options, "style", STRING, « "long", "short", "narrow", "digital" », "short").
     auto style = TRY(get_option(vm, *options, vm.names.style, OptionType::String, { "long"sv, "short"sv, "narrow"sv, "digital"sv }, "short"sv));
 
-    // 17. Set durationFormat.[[Style]] to style.
+    // 13. Set durationFormat.[[Style]] to style.
     duration_format->set_style(style.as_string().utf8_string_view());
 
-    // 18. Let prevStyle be the empty String.
+    // 14. Let prevStyle be the empty String.
     Optional<DurationFormat::ValueStyle> previous_style;
 
-    // 19. For each row of Table 20, except the header row, in table order, do
+    // 15. For each row of Table 20, except the header row, in table order, do
     for (auto const& duration_instances_component : duration_instances_components) {
         // a. Let slot be the Internal Slot value of the current row.
         auto slot = duration_instances_component.set_internal_slot;
@@ -137,10 +115,10 @@ ThrowCompletionOr<GC::Ref<Object>> DurationFormatConstructor::construct(Function
         }
     }
 
-    // 20. Set durationFormat.[[FractionalDigits]] to ? GetNumberOption(options, "fractionalDigits", 0, 9, undefined).
+    // 16. Set durationFormat.[[FractionalDigits]] to ? GetNumberOption(options, "fractionalDigits", 0, 9, undefined).
     duration_format->set_fractional_digits(Optional<u8>(TRY(get_number_option(vm, *options, vm.names.fractionalDigits, 0, 9, {}))));
 
-    // 21. Return durationFormat.
+    // 17. Return durationFormat.
     return duration_format;
 }
 
