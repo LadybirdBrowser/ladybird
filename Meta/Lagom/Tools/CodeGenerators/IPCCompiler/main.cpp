@@ -760,8 +760,6 @@ public:
     generator.append(R"~~~(
         case (int)IPC::LargeMessageWrapper::MESSAGE_ID:
             return TRY(IPC::LargeMessageWrapper::decode(message_endpoint_magic, stream, files));
-        case (int)IPC::Acknowledgement::MESSAGE_ID:
-            return TRY(IPC::Acknowledgement::decode(message_endpoint_magic, stream, files));
 )~~~");
 
     generator.append(R"~~~(

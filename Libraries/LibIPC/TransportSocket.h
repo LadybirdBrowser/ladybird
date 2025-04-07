@@ -7,7 +7,9 @@
 
 #pragma once
 
+#include <AK/Queue.h>
 #include <LibIPC/UnprocessedFileDescriptors.h>
+#include <LibThreading/MutexProtected.h>
 
 namespace IPC {
 
@@ -48,8 +50,14 @@ private:
     ErrorOr<void> transfer(ReadonlyBytes, Vector<int, 1> const& unowned_fds);
 
     NonnullOwnPtr<Core::LocalSocket> m_socket;
+    NonnullOwnPtr<Threading::Mutex> m_socket_write_mutex;
     ByteBuffer m_unprocessed_bytes;
     UnprocessedFileDescriptors m_unprocessed_fds;
+
+    // After file descriptor is sent, it is moved to the wait queue until an acknowledgement is received from the peer.
+    // This is necessary to handle a specific behavior of the macOS kernel, which may prematurely garbage-collect the file
+    // descriptor contained in the message before the peer receives it. https://openradar.me/9477351
+    NonnullOwnPtr<Threading::MutexProtected<Queue<File>>> m_fds_retained_until_received_by_peer;
 };
 
 }

@@ -15,6 +15,8 @@ namespace IPC {
 
 TransportSocket::TransportSocket(NonnullOwnPtr<Core::LocalSocket> socket)
     : m_socket(move(socket))
+    , m_socket_write_mutex(make<Threading::Mutex>())
+    , m_fds_retained_until_received_by_peer(make<Threading::MutexProtected<Queue<File>>>())
 {
     (void)Core::System::setsockopt(m_socket->fd().value(), SOL_SOCKET, SO_SNDBUF, &SOCKET_BUFFER_SIZE, sizeof(SOCKET_BUFFER_SIZE));
     (void)Core::System::setsockopt(m_socket->fd().value(), SOL_SOCKET, SO_RCVBUF, &SOCKET_BUFFER_SIZE, sizeof(SOCKET_BUFFER_SIZE));
@@ -51,7 +53,12 @@ void TransportSocket::wait_until_readable()
 }
 
 struct MessageHeader {
-    u32 size { 0 };
+    enum class Type : u8 {
+        Payload = 0,
+        FileDescriptorAcknowledgement = 1,
+    };
+    Type type { Type::Payload };
+    u32 payload_size { 0 };
     u32 fd_count { 0 };
 };
 
@@ -60,8 +67,9 @@ ErrorOr<void> TransportSocket::transfer_message(ReadonlyBytes bytes_to_write, Ve
     Vector<u8> message_buffer;
     message_buffer.resize(sizeof(MessageHeader) + bytes_to_write.size());
     MessageHeader header;
-    header.size = bytes_to_write.size();
+    header.payload_size = bytes_to_write.size();
     header.fd_count = unowned_fds.size();
+    header.type = MessageHeader::Type::Payload;
     memcpy(message_buffer.data(), &header, sizeof(MessageHeader));
     memcpy(message_buffer.data() + sizeof(MessageHeader), bytes_to_write.data(), bytes_to_write.size());
     return transfer(message_buffer.span(), unowned_fds);
@@ -69,6 +77,13 @@ ErrorOr<void> TransportSocket::transfer_message(ReadonlyBytes bytes_to_write, Ve
 
 ErrorOr<void> TransportSocket::transfer(ReadonlyBytes bytes_to_write, Vector<int, 1> const& unowned_fds)
 {
+    m_fds_retained_until_received_by_peer->with_locked([&unowned_fds](auto& queue) {
+        for (auto const& fd : unowned_fds)
+            queue.enqueue(MUST(File::clone_fd(fd)));
+    });
+
+    Threading::MutexLocker lock(*m_socket_write_mutex);
+
     auto num_fds_to_transfer = unowned_fds.size();
     while (!bytes_to_write.is_empty()) {
         ErrorOr<ssize_t> maybe_nwritten = 0;
@@ -118,7 +133,7 @@ ErrorOr<void> TransportSocket::transfer(ReadonlyBytes bytes_to_write, Vector<int
 
 TransportSocket::ShouldShutdown TransportSocket::read_as_many_messages_as_possible_without_blocking(Function<void(Message)>&& callback)
 {
-    auto should_shutdown = ShouldShutdown::No;
+    bool should_shutdown = false;
     while (is_open()) {
         u8 buffer[4096];
         auto received_fds = Vector<int> {};
@@ -130,7 +145,7 @@ TransportSocket::ShouldShutdown TransportSocket::read_as_many_messages_as_possib
             }
 
             if (error.is_syscall() && error.code() == ECONNRESET) {
-                should_shutdown = ShouldShutdown::Yes;
+                should_shutdown = true;
                 break;
             }
 
@@ -141,7 +156,7 @@ TransportSocket::ShouldShutdown TransportSocket::read_as_many_messages_as_possib
 
         auto bytes_read = maybe_bytes_read.release_value();
         if (bytes_read.is_empty()) {
-            should_shutdown = ShouldShutdown::Yes;
+            should_shutdown = true;
             break;
         }
 
@@ -151,20 +166,50 @@ TransportSocket::ShouldShutdown TransportSocket::read_as_many_messages_as_possib
         }
     }
 
+    u32 received_fd_count = 0;
+    u32 acknowledged_fd_count = 0;
     size_t index = 0;
     while (index + sizeof(MessageHeader) <= m_unprocessed_bytes.size()) {
         MessageHeader header;
         memcpy(&header, m_unprocessed_bytes.data() + index, sizeof(MessageHeader));
-        if (header.size + sizeof(MessageHeader) > m_unprocessed_bytes.size() - index)
-            break;
-        if (header.fd_count > m_unprocessed_fds.size())
-            break;
-        Message message;
-        for (size_t i = 0; i < header.fd_count; ++i)
-            message.fds.append(m_unprocessed_fds.dequeue());
-        message.bytes.append(m_unprocessed_bytes.data() + index + sizeof(MessageHeader), header.size);
-        callback(move(message));
-        index += header.size + sizeof(MessageHeader);
+        if (header.type == MessageHeader::Type::Payload) {
+            if (header.payload_size + sizeof(MessageHeader) > m_unprocessed_bytes.size() - index)
+                break;
+            if (header.fd_count > m_unprocessed_fds.size())
+                break;
+            Message message;
+            received_fd_count += header.fd_count;
+            for (size_t i = 0; i < header.fd_count; ++i)
+                message.fds.append(m_unprocessed_fds.dequeue());
+            message.bytes.append(m_unprocessed_bytes.data() + index + sizeof(MessageHeader), header.payload_size);
+            callback(move(message));
+        } else if (header.type == MessageHeader::Type::FileDescriptorAcknowledgement) {
+            VERIFY(header.payload_size == 0);
+            acknowledged_fd_count += header.fd_count;
+        } else {
+            VERIFY_NOT_REACHED();
+        }
+        index += header.payload_size + sizeof(MessageHeader);
+    }
+
+    if (should_shutdown)
+        return ShouldShutdown::Yes;
+
+    if (acknowledged_fd_count > 0) {
+        m_fds_retained_until_received_by_peer->with_locked([&acknowledged_fd_count](auto& queue) {
+            while (acknowledged_fd_count > 0) {
+                queue.dequeue();
+                --acknowledged_fd_count;
+            }
+        });
+    }
+
+    if (received_fd_count > 0) {
+        MessageHeader header;
+        header.payload_size = 0;
+        header.fd_count = received_fd_count;
+        header.type = MessageHeader::Type::FileDescriptorAcknowledgement;
+        MUST(transfer({ &header, sizeof(MessageHeader) }, {}));
     }
 
     if (index < m_unprocessed_bytes.size()) {
@@ -174,7 +219,7 @@ TransportSocket::ShouldShutdown TransportSocket::read_as_many_messages_as_possib
         m_unprocessed_bytes.clear();
     }
 
-    return should_shutdown;
+    return ShouldShutdown::No;
 }
 
 ErrorOr<int> TransportSocket::release_underlying_transport_for_transfer()

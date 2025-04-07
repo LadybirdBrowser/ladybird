@@ -105,32 +105,4 @@ ErrorOr<NonnullOwnPtr<LargeMessageWrapper>> LargeMessageWrapper::decode(u32 endp
     return make<LargeMessageWrapper>(endpoint_magic, wrapped_message_data, move(wrapped_fds));
 }
 
-Acknowledgement::Acknowledgement(u32 endpoint_magic, u32 ack_count)
-    : m_endpoint_magic(endpoint_magic)
-    , m_ack_count(ack_count)
-{
-}
-
-NonnullOwnPtr<Acknowledgement> Acknowledgement::create(u32 endpoint_magic, u32 ack_count)
-{
-    return make<Acknowledgement>(endpoint_magic, ack_count);
-}
-
-ErrorOr<MessageBuffer> Acknowledgement::encode() const
-{
-    MessageBuffer buffer;
-    Encoder stream { buffer };
-    TRY(stream.encode(m_endpoint_magic));
-    TRY(stream.encode(MESSAGE_ID));
-    TRY(stream.encode(m_ack_count));
-    return buffer;
-}
-
-ErrorOr<NonnullOwnPtr<Acknowledgement>> Acknowledgement::decode(u32 endpoint_magic, Stream& stream, UnprocessedFileDescriptors& files)
-{
-    Decoder decoder { stream, files };
-    auto ack_count = TRY(decoder.decode<u32>());
-    return make<Acknowledgement>(endpoint_magic, ack_count);
-}
-
 }
