@@ -251,14 +251,14 @@ ThrowCompletionOr<GC::Ref<Object>> LocaleConstructor::construct(FunctionObject& 
     auto tag_value = vm.argument(0);
     auto options_value = vm.argument(1);
 
-    // 2. Let relevantExtensionKeys be %Locale%.[[RelevantExtensionKeys]].
-    auto relevant_extension_keys = Locale::relevant_extension_keys();
+    // 2. Let localeExtensionKeys be %Intl.Locale%.[[LocaleExtensionKeys]].
+    auto locale_extension_keys = Locale::locale_extension_keys();
 
     // 3. Let internalSlotsList be « [[InitializedLocale]], [[Locale]], [[Calendar]], [[Collation]], [[FirstDayOfWeek]], [[HourCycle]], [[NumberingSystem]] ».
-    // 4. If relevantExtensionKeys contains "kf", then
-    //     a. Append [[CaseFirst]] as the last element of internalSlotsList.
-    // 5. If relevantExtensionKeys contains "kn", then
-    //     a. Append [[Numeric]] as the last element of internalSlotsList.
+    // 4. If localeExtensionKeys contains "kf", then
+    //     a. Append [[CaseFirst]] to internalSlotsList.
+    // 5. If localeExtensionKeys contains "kn", then
+    //     a. Append [[Numeric]] to internalSlotsList.
 
     // 6. Let locale be ? OrdinaryCreateFromConstructor(NewTarget, "%Intl.Locale.prototype%", internalSlotsList).
     auto locale = TRY(ordinary_create_from_constructor<Locale>(vm, new_target, &Intrinsics::intl_locale_prototype));
@@ -340,8 +340,8 @@ ThrowCompletionOr<GC::Ref<Object>> LocaleConstructor::construct(FunctionObject& 
     // 31. Set opt.[[nu]] to numberingSystem.
     opt.nu = TRY(get_string_option(vm, *options, vm.names.numberingSystem, Unicode::is_type_identifier));
 
-    // 32. Let r be ! ApplyUnicodeExtensionToTag(tag, opt, relevantExtensionKeys).
-    auto result = apply_unicode_extension_to_tag(tag, move(opt), relevant_extension_keys);
+    // 32. Let r be ! ApplyUnicodeExtensionToTag(tag, opt, localeExtensionKeys).
+    auto result = apply_unicode_extension_to_tag(tag, move(opt), locale_extension_keys);
 
     // 33. Set locale.[[Locale]] to r.[[locale]].
     locale->set_locale(move(result.locale));
@@ -362,15 +362,15 @@ ThrowCompletionOr<GC::Ref<Object>> LocaleConstructor::construct(FunctionObject& 
     if (result.hc.has_value())
         locale->set_hour_cycle(result.hc.release_value());
 
-    // 38. If relevantExtensionKeys contains "kf", then
-    if (relevant_extension_keys.span().contains_slow("kf"sv)) {
+    // 38. If localeExtensionKeys contains "kf", then
+    if (locale_extension_keys.span().contains_slow("kf"sv)) {
         // a. Set locale.[[CaseFirst]] to r.[[kf]].
         if (result.kf.has_value())
             locale->set_case_first(result.kf.release_value());
     }
 
-    // 39. If relevantExtensionKeys contains "kn", then
-    if (relevant_extension_keys.span().contains_slow("kn"sv)) {
+    // 39. If localeExtensionKeys contains "kn", then
+    if (locale_extension_keys.span().contains_slow("kn"sv)) {
         // a. If SameValue(r.[[kn]], "true") is true or r.[[kn]] is the empty String, then
         if (result.kn.has_value() && (result.kn == "true"sv || result.kn->is_empty())) {
             // i. Set locale.[[Numeric]] to true.
