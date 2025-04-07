@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Intl/AbstractOperations.h>
 #include <LibJS/Runtime/Intl/DisplayNames.h>
+#include <LibJS/Runtime/VM.h>
 
 namespace JS::Intl {
 
@@ -14,8 +14,22 @@ GC_DEFINE_ALLOCATOR(DisplayNames);
 
 // 12 DisplayNames Objects, https://tc39.es/ecma402/#intl-displaynames-objects
 DisplayNames::DisplayNames(Object& prototype)
-    : Object(ConstructWithPrototypeTag::Tag, prototype)
+    : IntlObject(ConstructWithPrototypeTag::Tag, prototype)
 {
+}
+
+// 12.2.3 Internal slots, https://tc39.es/ecma402/#sec-Intl.DisplayNames-internal-slots
+ReadonlySpan<StringView> DisplayNames::relevant_extension_keys() const
+{
+    // The value of the [[RelevantExtensionKeys]] internal slot is « ».
+    return {};
+}
+
+// 12.2.3 Internal slots, https://tc39.es/ecma402/#sec-Intl.DisplayNames-internal-slots
+ReadonlySpan<ResolutionOptionDescriptor> DisplayNames::resolution_option_descriptors(VM&) const
+{
+    // The value of the [[ResolutionOptionDescriptors]] internal slot is « ».
+    return {};
 }
 
 void DisplayNames::set_type(StringView type)

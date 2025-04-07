@@ -71,7 +71,7 @@ ThrowCompletionOr<GC::Ref<Object>> SegmenterConstructor::construct(FunctionObjec
     opt.locale_matcher = matcher;
 
     // 9. Let r be ResolveLocale(%Intl.Segmenter%.[[AvailableLocales]], requestedLocales, opt, %Intl.Segmenter%.[[RelevantExtensionKeys]], %Intl.Segmenter%.[[LocaleData]]).
-    auto result = resolve_locale(requested_locales, opt, {});
+    auto result = resolve_locale(requested_locales, opt, segmenter->relevant_extension_keys());
 
     // 10. Set segmenter.[[Locale]] to r.[[locale]].
     segmenter->set_locale(move(result.locale));

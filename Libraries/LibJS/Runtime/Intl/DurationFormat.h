@@ -10,15 +10,14 @@
 #include <AK/Array.h>
 #include <AK/String.h>
 #include <LibCrypto/BigFraction/BigFraction.h>
-#include <LibJS/Runtime/Intl/AbstractOperations.h>
-#include <LibJS/Runtime/Object.h>
+#include <LibJS/Runtime/Intl/IntlObject.h>
 #include <LibJS/Runtime/Temporal/Duration.h>
 #include <LibUnicode/Locale.h>
 
 namespace JS::Intl {
 
-class DurationFormat final : public Object {
-    JS_OBJECT(DurationFormat, Object);
+class DurationFormat final : public IntlObject {
+    JS_OBJECT(DurationFormat, IntlObject);
     GC_DECLARE_ALLOCATOR(DurationFormat);
 
 public:
@@ -72,14 +71,10 @@ public:
         Display display { Display::Auto };
     };
 
-    static constexpr auto relevant_extension_keys()
-    {
-        // 13.2.3 Internal slots, https://tc39.es/ecma402/#sec-Intl.DurationFormat-internal-slots
-        // The value of the [[RelevantExtensionKeys]] internal slot is « "nu" ».
-        return AK::Array { "nu"sv };
-    }
-
     virtual ~DurationFormat() override = default;
+
+    virtual ReadonlySpan<StringView> relevant_extension_keys() const override;
+    virtual ReadonlySpan<ResolutionOptionDescriptor> resolution_option_descriptors(VM&) const override;
 
     void set_locale(String locale) { m_locale = move(locale); }
     String const& locale() const { return m_locale; }

@@ -6,19 +6,18 @@
 
 #pragma once
 
-#include <AK/Array.h>
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <LibJS/Runtime/Intl/AbstractOperations.h>
+#include <LibJS/Runtime/Intl/IntlObject.h>
 #include <LibJS/Runtime/Intl/MathematicalValue.h>
-#include <LibJS/Runtime/Object.h>
 #include <LibUnicode/Locale.h>
 #include <LibUnicode/NumberFormat.h>
 
 namespace JS::Intl {
 
-class NumberFormatBase : public Object {
-    JS_OBJECT(NumberFormatBase, Object);
+class NumberFormatBase : public IntlObject {
+    JS_OBJECT(NumberFormatBase, IntlObject);
     GC_DECLARE_ALLOCATOR(NumberFormatBase);
 
 public:
@@ -102,14 +101,10 @@ class NumberFormat final : public NumberFormatBase {
     GC_DECLARE_ALLOCATOR(NumberFormat);
 
 public:
-    static constexpr auto relevant_extension_keys()
-    {
-        // 16.2.3 Internal slots, https://tc39.es/ecma402/#sec-intl.numberformat-internal-slots
-        // The value of the [[RelevantExtensionKeys]] internal slot is « "nu" ».
-        return AK::Array { "nu"sv };
-    }
-
     virtual ~NumberFormat() override = default;
+
+    virtual ReadonlySpan<StringView> relevant_extension_keys() const override;
+    virtual ReadonlySpan<ResolutionOptionDescriptor> resolution_option_descriptors(VM&) const override;
 
     String const& numbering_system() const { return m_numbering_system; }
     void set_numbering_system(String numbering_system) { m_numbering_system = move(numbering_system); }

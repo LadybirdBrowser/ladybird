@@ -83,7 +83,7 @@ ThrowCompletionOr<GC::Ref<Object>> NumberFormatConstructor::construct(FunctionOb
     opt.nu = locale_key_from_value(numbering_system);
 
     // 11. Let r be ResolveLocale(%Intl.NumberFormat%.[[AvailableLocales]], requestedLocales, opt, %Intl.NumberFormat%.[[RelevantExtensionKeys]], %Intl.NumberFormat%.[[LocaleData]]).
-    auto result = resolve_locale(requested_locales, opt, NumberFormat::relevant_extension_keys());
+    auto result = resolve_locale(requested_locales, opt, number_format->relevant_extension_keys());
 
     // 12. Set numberFormat.[[Locale]] to r.[[Locale]].
     number_format->set_locale(move(result.locale));

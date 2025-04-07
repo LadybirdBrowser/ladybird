@@ -5,14 +5,9 @@
  */
 
 #include <AK/Enumerate.h>
-#include <AK/StringBuilder.h>
-#include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
-#include <LibJS/Runtime/GlobalObject.h>
-#include <LibJS/Runtime/Intl/NumberFormat.h>
-#include <LibJS/Runtime/Intl/NumberFormatConstructor.h>
-#include <LibJS/Runtime/Intl/PluralRules.h>
 #include <LibJS/Runtime/Intl/RelativeTimeFormat.h>
+#include <LibJS/Runtime/VM.h>
 
 namespace JS::Intl {
 
@@ -20,8 +15,27 @@ GC_DEFINE_ALLOCATOR(RelativeTimeFormat);
 
 // 18 RelativeTimeFormat Objects, https://tc39.es/ecma402/#relativetimeformat-objects
 RelativeTimeFormat::RelativeTimeFormat(Object& prototype)
-    : Object(ConstructWithPrototypeTag::Tag, prototype)
+    : IntlObject(ConstructWithPrototypeTag::Tag, prototype)
 {
+}
+
+// 18.2.3 Internal slots, https://tc39.es/ecma402/#sec-Intl.RelativeTimeFormat-internal-slots
+ReadonlySpan<StringView> RelativeTimeFormat::relevant_extension_keys() const
+{
+    // The value of the [[RelevantExtensionKeys]] internal slot is « "nu" ».
+    static constexpr AK::Array keys { "nu"sv };
+    return keys;
+}
+
+// 18.2.3 Internal slots, https://tc39.es/ecma402/#sec-Intl.RelativeTimeFormat-internal-slots
+ReadonlySpan<ResolutionOptionDescriptor> RelativeTimeFormat::resolution_option_descriptors(VM& vm) const
+{
+    // The value of the [[ResolutionOptionDescriptors]] internal slot is « { [[Key]]: "nu", [[Property]]: "numberingSystem" } ».
+    static auto descriptors = to_array<ResolutionOptionDescriptor>({
+        { .key = "nu"sv, .property = vm.names.numberingSystem },
+    });
+
+    return descriptors;
 }
 
 // 18.5.1 SingularRelativeTimeUnit ( unit ), https://tc39.es/ecma402/#sec-singularrelativetimeunit
