@@ -15,7 +15,6 @@ using MessageSizeType = u32;
 
 MessageBuffer::MessageBuffer()
 {
-    m_data.resize(sizeof(MessageSizeType));
 }
 
 ErrorOr<void> MessageBuffer::extend_data_capacity(size_t capacity)
@@ -40,13 +39,9 @@ ErrorOr<void> MessageBuffer::append_file_descriptor(int fd)
 ErrorOr<void> MessageBuffer::transfer_message(Transport& transport)
 {
     Checked<MessageSizeType> checked_message_size { m_data.size() };
-    checked_message_size -= sizeof(MessageSizeType);
-
-    if (checked_message_size.has_overflow())
+    if (checked_message_size.has_overflow()) {
         return Error::from_string_literal("Message is too large for IPC encoding");
-
-    MessageSizeType const message_size = checked_message_size.value();
-    m_data.span().overwrite(0, reinterpret_cast<u8 const*>(&message_size), sizeof(message_size));
+    }
 
     auto raw_fds = Vector<int, 1> {};
     auto num_fds_to_transfer = m_fds.size();
@@ -57,16 +52,15 @@ ErrorOr<void> MessageBuffer::transfer_message(Transport& transport)
         }
     }
 
-    TRY(transport.transfer(m_data.span(), raw_fds));
+    TRY(transport.transfer_message(m_data.span(), raw_fds));
     return {};
 }
 
 NonnullOwnPtr<LargeMessageWrapper> LargeMessageWrapper::create(u32 endpoint_magic, MessageBuffer& buffer_to_wrap)
 {
-    auto size = buffer_to_wrap.data().size() - sizeof(MessageSizeType);
-    u8 const* data = buffer_to_wrap.data().data() + sizeof(MessageSizeType);
+    auto size = buffer_to_wrap.data().size();
     auto wrapped_message_data = MUST(Core::AnonymousBuffer::create_with_size(size));
-    memcpy(wrapped_message_data.data<void>(), data, size);
+    memcpy(wrapped_message_data.data<void>(), buffer_to_wrap.data().data(), size);
     Vector<File> files;
     for (auto& owned_fd : buffer_to_wrap.take_fds()) {
         files.append(File::adopt_fd(owned_fd->take_fd()));

@@ -1,12 +1,13 @@
 /*
  * Copyright (c) 2024, Andrew Kaster <andrew@ladybird.org>
+ * Copyright (c) 2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #pragma once
 
-#include <LibCore/File.h>
+#include <LibIPC/UnprocessedFileDescriptors.h>
 
 namespace IPC {
 
@@ -26,13 +27,17 @@ public:
 
     void wait_until_readable();
 
-    ErrorOr<void> transfer(ReadonlyBytes, Vector<int, 1> const& unowned_fds);
+    ErrorOr<void> transfer_message(ReadonlyBytes, Vector<int, 1> const& unowned_fds);
 
-    struct [[nodiscard]] ReadResult {
-        Vector<u8> bytes;
-        Vector<int> fds;
+    enum class ShouldShutdown {
+        No,
+        Yes,
     };
-    ReadResult read_as_much_as_possible_without_blocking(Function<void()> schedule_shutdown);
+    struct Message {
+        Vector<u8> bytes;
+        Vector<File> fds;
+    };
+    ShouldShutdown read_as_many_messages_as_possible_without_blocking(Function<void(Message)>&& schedule_shutdown);
 
     // Obnoxious name to make it clear that this is a dangerous operation.
     ErrorOr<int> release_underlying_transport_for_transfer();
@@ -40,7 +45,11 @@ public:
     ErrorOr<IPC::File> clone_for_transfer();
 
 private:
+    ErrorOr<void> transfer(ReadonlyBytes, Vector<int, 1> const& unowned_fds);
+
     NonnullOwnPtr<Core::LocalSocket> m_socket;
+    ByteBuffer m_unprocessed_bytes;
+    UnprocessedFileDescriptors m_unprocessed_fds;
 };
 
 }

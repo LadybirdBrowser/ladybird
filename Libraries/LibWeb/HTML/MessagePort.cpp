@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2021, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2023, Andrew Kaster <akaster@serenityos.org>
+ * Copyright (c) 2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -285,75 +286,27 @@ void MessagePort::post_port_message(SerializedTransferRecord serialize_with_tran
     }
 }
 
-ErrorOr<MessagePort::ParseDecision> MessagePort::parse_message()
+void MessagePort::read_from_transport()
 {
-    static constexpr size_t HEADER_SIZE = sizeof(u32);
+    auto schedule_shutdown = m_transport->read_as_many_messages_as_possible_without_blocking([this](auto&& unparsed_message) {
+        auto& bytes = unparsed_message.bytes;
+        IPC::UnprocessedFileDescriptors unprocessed_fds;
+        unprocessed_fds.return_fds_to_front_of_queue(move(unparsed_message.fds));
 
-    auto num_bytes_ready = m_buffered_data.size();
-    switch (m_socket_state) {
-    case SocketState::Header: {
-        if (num_bytes_ready < HEADER_SIZE)
-            return ParseDecision::NotEnoughData;
+        FixedMemoryStream stream { bytes.span(), FixedMemoryStream::Mode::ReadOnly };
+        IPC::Decoder decoder { stream, unprocessed_fds };
 
-        m_socket_incoming_message_size = ByteReader::load32(m_buffered_data.data());
-        // NOTE: We don't decrement the number of ready bytes because we want to remove the entire
-        //       message + header from the buffer in one go on success
-        m_socket_state = SocketState::Data;
-        [[fallthrough]];
-    }
-    case SocketState::Data: {
-        if (num_bytes_ready < HEADER_SIZE + m_socket_incoming_message_size)
-            return ParseDecision::NotEnoughData;
+        auto serialized_transfer_record = MUST(decoder.decode<SerializedTransferRecord>());
 
-        auto payload = m_buffered_data.span().slice(HEADER_SIZE, m_socket_incoming_message_size);
-
-        FixedMemoryStream stream { payload, FixedMemoryStream::Mode::ReadOnly };
-        IPC::Decoder decoder { stream, m_unprocessed_fds };
-
-        auto serialized_transfer_record = TRY(decoder.decode<SerializedTransferRecord>());
-
-        // Make sure to advance our state machine before dispatching the MessageEvent,
-        // as dispatching events can run arbitrary JS (and cause us to receive another message!)
-        m_socket_state = SocketState::Header;
-
-        m_buffered_data.remove(0, HEADER_SIZE + m_socket_incoming_message_size);
-
-        // Note: this is step 7 of message_port_post_message_steps:
-        // 7. Add a task that runs the following steps to the port message queue of targetPort:
         queue_global_task(Task::Source::PostedMessage, relevant_global_object(*this), GC::create_function(heap(), [this, serialized_transfer_record = move(serialized_transfer_record)]() mutable {
             this->post_message_task_steps(serialized_transfer_record);
         }));
+    });
 
-        break;
-    }
-    case SocketState::Error:
-        return Error::from_errno(ENOMSG);
-    }
-
-    return ParseDecision::ParseNextMessage;
-}
-
-void MessagePort::read_from_transport()
-{
-    auto&& [bytes, fds] = m_transport->read_as_much_as_possible_without_blocking([this] {
+    if (schedule_shutdown == IPC::TransportSocket::ShouldShutdown::Yes) {
         queue_global_task(Task::Source::PostedMessage, relevant_global_object(*this), GC::create_function(heap(), [this] {
             this->close();
         }));
-    });
-
-    m_buffered_data.append(bytes.data(), bytes.size());
-
-    for (auto fd : fds)
-        m_unprocessed_fds.enqueue(IPC::File::adopt_fd(fd));
-
-    while (true) {
-        auto parse_decision_or_error = parse_message();
-        if (parse_decision_or_error.is_error()) {
-            dbgln("MessagePort::read_from_socket(): Failed to parse message: {}", parse_decision_or_error.error());
-            return;
-        }
-        if (parse_decision_or_error.value() == ParseDecision::NotEnoughData)
-            break;
     }
 }
 

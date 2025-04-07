@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2024, Andrew Kaster <andrew@ladybird.org>
+ * Copyright (c) 2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -47,6 +48,23 @@ void TransportSocket::wait_until_readable()
     }
 
     VERIFY(maybe_did_become_readable.value());
+}
+
+struct MessageHeader {
+    u32 size { 0 };
+    u32 fd_count { 0 };
+};
+
+ErrorOr<void> TransportSocket::transfer_message(ReadonlyBytes bytes_to_write, Vector<int, 1> const& unowned_fds)
+{
+    Vector<u8> message_buffer;
+    message_buffer.resize(sizeof(MessageHeader) + bytes_to_write.size());
+    MessageHeader header;
+    header.size = bytes_to_write.size();
+    header.fd_count = unowned_fds.size();
+    memcpy(message_buffer.data(), &header, sizeof(MessageHeader));
+    memcpy(message_buffer.data() + sizeof(MessageHeader), bytes_to_write.data(), bytes_to_write.size());
+    return transfer(message_buffer.span(), unowned_fds);
 }
 
 ErrorOr<void> TransportSocket::transfer(ReadonlyBytes bytes_to_write, Vector<int, 1> const& unowned_fds)
@@ -98,15 +116,12 @@ ErrorOr<void> TransportSocket::transfer(ReadonlyBytes bytes_to_write, Vector<int
     return {};
 }
 
-TransportSocket::ReadResult TransportSocket::read_as_much_as_possible_without_blocking(Function<void()> schedule_shutdown)
+TransportSocket::ShouldShutdown TransportSocket::read_as_many_messages_as_possible_without_blocking(Function<void(Message)>&& callback)
 {
-    u8 buffer[4096];
-
-    ReadResult result;
-    auto received_fds = Vector<int> {};
-    auto& bytes = result.bytes;
-
+    auto should_shutdown = ShouldShutdown::No;
     while (is_open()) {
+        u8 buffer[4096];
+        auto received_fds = Vector<int> {};
         auto maybe_bytes_read = m_socket->receive_message({ buffer, 4096 }, MSG_DONTWAIT, received_fds);
         if (maybe_bytes_read.is_error()) {
             auto error = maybe_bytes_read.release_error();
@@ -115,7 +130,7 @@ TransportSocket::ReadResult TransportSocket::read_as_much_as_possible_without_bl
             }
 
             if (error.is_syscall() && error.code() == ECONNRESET) {
-                schedule_shutdown();
+                should_shutdown = ShouldShutdown::Yes;
                 break;
             }
 
@@ -126,15 +141,36 @@ TransportSocket::ReadResult TransportSocket::read_as_much_as_possible_without_bl
 
         auto bytes_read = maybe_bytes_read.release_value();
         if (bytes_read.is_empty()) {
-            schedule_shutdown();
+            should_shutdown = ShouldShutdown::Yes;
             break;
         }
 
-        bytes.append(bytes_read.data(), bytes_read.size());
-        result.fds.append(received_fds.data(), received_fds.size());
+        m_unprocessed_bytes.append(bytes_read.data(), bytes_read.size());
+        for (auto const& fd : received_fds) {
+            m_unprocessed_fds.enqueue(File::adopt_fd(fd));
+        }
     }
 
-    return result;
+    size_t index = 0;
+    while (index + sizeof(MessageHeader) < m_unprocessed_bytes.size()) {
+        MessageHeader header;
+        memcpy(&header, m_unprocessed_bytes.data() + index, sizeof(MessageHeader));
+        Message message;
+        for (size_t i = 0; i < header.fd_count; ++i)
+            message.fds.append(m_unprocessed_fds.dequeue());
+        message.bytes.append(m_unprocessed_bytes.data() + index + sizeof(MessageHeader), header.size);
+        callback(move(message));
+        index += header.size + sizeof(MessageHeader);
+    }
+
+    if (index < m_unprocessed_bytes.size()) {
+        auto remaining_bytes = MUST(ByteBuffer::copy(m_unprocessed_bytes.span().slice(index)));
+        m_unprocessed_bytes = move(remaining_bytes);
+    } else {
+        m_unprocessed_bytes.clear();
+    }
+
+    return should_shutdown;
 }
 
 ErrorOr<int> TransportSocket::release_underlying_transport_for_transfer()
