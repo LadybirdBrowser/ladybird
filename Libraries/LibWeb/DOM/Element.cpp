@@ -566,6 +566,8 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style()
 
     recompute_pseudo_element_style(CSS::PseudoElement::Before);
     recompute_pseudo_element_style(CSS::PseudoElement::After);
+    if (m_rendered_in_top_layer)
+        recompute_pseudo_element_style(CSS::PseudoElement::Backdrop);
     if (had_list_marker || m_computed_properties->display().is_list_item())
         recompute_pseudo_element_style(CSS::PseudoElement::Marker);
 
