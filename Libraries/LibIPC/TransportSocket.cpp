@@ -152,9 +152,13 @@ TransportSocket::ShouldShutdown TransportSocket::read_as_many_messages_as_possib
     }
 
     size_t index = 0;
-    while (index + sizeof(MessageHeader) < m_unprocessed_bytes.size()) {
+    while (index + sizeof(MessageHeader) <= m_unprocessed_bytes.size()) {
         MessageHeader header;
         memcpy(&header, m_unprocessed_bytes.data() + index, sizeof(MessageHeader));
+        if (header.size + sizeof(MessageHeader) > m_unprocessed_bytes.size() - index)
+            break;
+        if (header.fd_count > m_unprocessed_fds.size())
+            break;
         Message message;
         for (size_t i = 0; i < header.fd_count; ++i)
             message.fds.append(m_unprocessed_fds.dequeue());
