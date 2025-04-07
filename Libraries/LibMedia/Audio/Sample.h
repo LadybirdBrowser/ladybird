@@ -18,6 +18,8 @@ using AK::Exponentials::log;
 constexpr float DYNAMIC_RANGE = 1000;
 constexpr float VOLUME_A = 1 / DYNAMIC_RANGE;
 float const VOLUME_B = log(DYNAMIC_RANGE);
+float const VOLUME_CUTOFF = 0.1;
+float const VOLUME_LINEAR_SLOPE = VOLUME_A * 10 * exp(0.1 * VOLUME_B);
 
 // A single sample in an audio buffer.
 // Values are floating point, and should range from -1.0 to +1.0
@@ -80,13 +82,17 @@ struct Sample {
 
     ALWAYS_INLINE float linear_to_log(float const change) const
     {
-        // TODO: Add linear slope around 0
+        if (change < VOLUME_CUTOFF) {
+            return change * VOLUME_LINEAR_SLOPE;
+        }
         return VOLUME_A * exp(VOLUME_B * change);
     }
 
     ALWAYS_INLINE float log_to_linear(float const val) const
     {
-        // TODO: Add linear slope around 0
+        if (val / VOLUME_LINEAR_SLOPE < VOLUME_CUTOFF) {
+            return val / VOLUME_LINEAR_SLOPE;
+        }
         return log(val / VOLUME_A) / VOLUME_B;
     }
 
