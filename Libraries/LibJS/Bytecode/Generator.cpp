@@ -1116,6 +1116,7 @@ void Generator::emit_get_by_id(ScopedOperand dst, ScopedOperand base, Identifier
 void Generator::emit_get_by_id_with_this(ScopedOperand dst, ScopedOperand base, IdentifierTableIndex id, ScopedOperand this_value)
 {
     if (m_identifier_table->get(id) == "length"sv) {
+        m_length_identifier = id;
         emit<Op::GetLengthWithThis>(dst, base, this_value, m_next_property_lookup_cache++);
         return;
     }
