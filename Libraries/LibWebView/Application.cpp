@@ -512,8 +512,8 @@ static void edit_dom_node(DevTools::TabDescription const& description, Applicati
         return;
     }
 
-    view->on_finshed_editing_dom_node = [&view = *view, on_complete = move(on_complete)](auto node_id) {
-        view.on_finshed_editing_dom_node = nullptr;
+    view->on_finished_editing_dom_node = [&view = *view, on_complete = move(on_complete)](auto node_id) {
+        view.on_finished_editing_dom_node = nullptr;
 
         if (node_id.has_value())
             on_complete(*node_id);

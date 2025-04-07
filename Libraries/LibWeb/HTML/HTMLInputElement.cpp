@@ -145,7 +145,7 @@ void HTMLInputElement::adjust_computed_style(CSS::ComputedProperties& style)
             style.set_property(CSS::PropertyID::Width, CSS::LengthStyleValue::create(CSS::Length(size(), CSS::Length::Type::Ch)));
     }
 
-    // NOTE: The following line-height check is done for web compatability and usability reasons.
+    // NOTE: The following line-height check is done for web compatibility and usability reasons.
     // FIXME: The "normal" line-height value should be calculated but assume 1.0 for now.
     double normal_line_height = 1.0;
     double current_line_height = style.line_height().to_double();
@@ -2404,7 +2404,7 @@ WebIDL::ExceptionOr<GC::Ptr<JS::Date>> HTMLInputElement::convert_string_to_date(
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#concept-input-value-date-string
-String HTMLInputElement::covert_date_to_string(GC::Ref<JS::Date> input) const
+String HTMLInputElement::convert_date_to_string(GC::Ref<JS::Date> input) const
 {
     // https://html.spec.whatwg.org/multipage/input.html#date-state-(type=date):concept-input-value-date-string
     if (type_state() == TypeAttributeState::Date) {
@@ -2420,7 +2420,7 @@ String HTMLInputElement::covert_date_to_string(GC::Ref<JS::Date> input) const
         return convert_number_to_time_string(input->date_value());
     }
 
-    dbgln("HTMLInputElement::covert_date_to_string() not implemented for input type {}", type());
+    dbgln("HTMLInputElement::convert_date_to_string() not implemented for input type {}", type());
     return {};
 }
 
@@ -2589,7 +2589,7 @@ WebIDL::ExceptionOr<void> HTMLInputElement::set_value_as_date(Optional<GC::Root<
     }
 
     // otherwise, run the algorithm to convert a Date object to a string, as defined for that state, on the new value, and set the value of the element to the resulting string.
-    TRY(set_value(covert_date_to_string(date)));
+    TRY(set_value(convert_date_to_string(date)));
     return {};
 }
 

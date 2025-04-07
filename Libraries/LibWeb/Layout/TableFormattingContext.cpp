@@ -295,15 +295,15 @@ void TableFormattingContext::compute_intrinsic_percentage(size_t max_cell_span)
                 //    that the cell spans. If this gives a negative result, change it to 0%.
                 // 3. Multiply by the ratio of the column’s non-spanning max-content width to the sum of the non-spanning max-content widths of all
                 //    columns spanned by the cell that have an intrinsic percentage width of the column based on cells of span up to N-1 equal to 0%.
-                CSSPixels ajusted_cell_contribution;
+                CSSPixels adjusted_cell_contribution;
                 if (width_sum_of_columns_with_zero_intrinsic_percentage != 0) {
-                    ajusted_cell_contribution = cell_contribution.scaled(rows_or_columns[rc_index].max_size / static_cast<double>(width_sum_of_columns_with_zero_intrinsic_percentage));
+                    adjusted_cell_contribution = cell_contribution.scaled(rows_or_columns[rc_index].max_size / static_cast<double>(width_sum_of_columns_with_zero_intrinsic_percentage));
                 } else {
                     // However, if this ratio is undefined because the denominator is zero, instead use the 1 divided by the number of columns
                     // spanned by the cell that have an intrinsic percentage width of the column based on cells of span up to N-1 equal to zero.
-                    ajusted_cell_contribution = cell_contribution * 1 / number_of_columns_with_zero_intrinsic_percentage;
+                    adjusted_cell_contribution = cell_contribution * 1 / number_of_columns_with_zero_intrinsic_percentage;
                 }
-                intrinsic_percentage_contribution_by_index[rc_index] = max(static_cast<double>(ajusted_cell_contribution), intrinsic_percentage_contribution_by_index[rc_index]);
+                intrinsic_percentage_contribution_by_index[rc_index] = max(static_cast<double>(adjusted_cell_contribution), intrinsic_percentage_contribution_by_index[rc_index]);
             }
         }
         for (size_t rc_index = 0; rc_index < rows_or_columns.size(); ++rc_index) {
