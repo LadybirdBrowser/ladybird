@@ -538,49 +538,30 @@ GC::Ptr<CSSPropertyRule> Parser::convert_to_property_rule(AtRule const& rule)
     Optional<String> initial_value_maybe;
 
     rule.for_each_as_declaration_list([&](auto& declaration) {
-        if (declaration.name.equals_ignoring_ascii_case("syntax"sv)) {
-            TokenStream token_stream { declaration.value };
-            token_stream.discard_whitespace();
-
-            auto const& syntax_token = token_stream.consume_a_token();
-            if (syntax_token.is(Token::Type::String)) {
-                token_stream.discard_whitespace();
-                if (token_stream.has_next_token()) {
-                    dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Unexpected trailing tokens in syntax");
-                } else {
-                    syntax_maybe = syntax_token.token().string();
+        if (auto descriptor = convert_to_descriptor(AtRuleID::Property, declaration); descriptor.has_value()) {
+            if (descriptor->descriptor_id == DescriptorID::Syntax) {
+                if (descriptor->value->is_string())
+                    syntax_maybe = descriptor->value->as_string().string_value();
+                return;
+            }
+            if (descriptor->descriptor_id == DescriptorID::Inherits) {
+                switch (descriptor->value->to_keyword()) {
+                case Keyword::True:
+                    inherits_maybe = true;
+                    break;
+                case Keyword::False:
+                    inherits_maybe = false;
+                    break;
+                default:
+                    break;
                 }
-            } else {
-                dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Unexpected value for @property \"syntax\": {}; discarding.", declaration.to_string());
+                return;
             }
-            return;
-        }
-        if (declaration.name.equals_ignoring_ascii_case("inherits"sv)) {
-            TokenStream token_stream { declaration.value };
-            token_stream.discard_whitespace();
-
-            auto const& inherits_token = token_stream.consume_a_token();
-            if (inherits_token.is_ident("true"sv) || inherits_token.is_ident("false"sv)) {
-                auto const& ident = inherits_token.token().ident();
-                token_stream.discard_whitespace();
-                if (token_stream.has_next_token()) {
-                    dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Unexpected trailing tokens in inherits");
-                } else {
-                    inherits_maybe = (ident == "true");
-                }
-            } else {
-                dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Expected true/false for @property \"inherits\" value, got: {}; discarding.", inherits_token.to_debug_string());
+            if (descriptor->descriptor_id == DescriptorID::InitialValue) {
+                if (descriptor->value->is_string())
+                    initial_value_maybe = descriptor->value->as_string().string_value().to_string();
+                return;
             }
-            return;
-        }
-        if (declaration.name.equals_ignoring_ascii_case("initial-value"sv)) {
-            // FIXME: Ensure that the initial value matches the syntax, and parse the correct CSSValue out
-            StringBuilder initial_value_sb;
-            for (auto const& component : declaration.value) {
-                initial_value_sb.append(component.to_string());
-            }
-            initial_value_maybe = MUST(initial_value_sb.to_string());
-            return;
         }
     });
 
