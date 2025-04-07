@@ -567,8 +567,27 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
                 // generate boxes as if they were siblings of the root element.
                 TemporaryChange<bool> layout_mask(context.layout_top_layer, true);
                 for (auto const& top_layer_element : document.top_layer_elements()) {
-                    if (top_layer_element->rendered_in_top_layer())
+                    if (top_layer_element->rendered_in_top_layer()) {
+                        // Each element rendered in the top layer has a ::backdrop pseudo-element, for which it is the originating element.
+                        [&]() {
+                            if (top_layer_element->has_inclusive_ancestor_with_display_none())
+                                return;
+
+                            auto pseudo_element_style = top_layer_element->pseudo_element_computed_properties(CSS::PseudoElement::Backdrop);
+                            if (!pseudo_element_style)
+                                return;
+
+                            auto pseudo_element_display = pseudo_element_style->display();
+
+                            auto pseudo_element_node = DOM::Element::create_layout_node_for_display_type(document, pseudo_element_display, *pseudo_element_style, nullptr);
+                            if (!pseudo_element_node)
+                                return;
+
+                            top_layer_element->set_pseudo_element_node({}, CSS::PseudoElement::Backdrop, pseudo_element_node);
+                            insert_node_into_inline_or_block_ancestor(*pseudo_element_node, pseudo_element_display, AppendOrPrepend::Append);
+                        }();
                         update_layout_tree(top_layer_element, context, should_create_layout_node ? MustCreateSubtree::Yes : MustCreateSubtree::No);
+                    }
                 }
             }
             pop_parent();

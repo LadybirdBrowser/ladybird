@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<link rel="match" href="../../../../../../expected/wpt-import/html/semantics/interactive-elements/the-dialog-element/dialogs-with-no-backdrop-ref.html">
+<link rel="help" href="https://fullscreen.spec.whatwg.org/#new-stacking-layer">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/#the-dialog-element">
+<style>
+dialog::backdrop {
+    position: absolute;
+    top: 100px;
+    left: 100px;
+    height: 100px;
+    width: 100px;
+    background: red;
+}
+
+#display-none-backdrop::backdrop {
+    display: none;
+}
+</style>
+<body>
+Test that ::backdrop is not shown for non-open or non-modal dialogs.
+The test passes if there is no red shown.
+<dialog id="never-opened-dialog"></dialog>
+<dialog id="display-none-dialog" style="display: none"></dialog>
+<dialog id="non-modal-dialog" style="visibility: hidden"></dialog>
+<dialog id="display-none-backdrop" style="visibility: hidden"></dialog>
+<dialog id="closed-dialog"></dialog>
+<dialog id="removed-dialog"></dialog>
+<script>
+document.getElementById('display-none-dialog').showModal();
+document.getElementById('non-modal-dialog').show();
+document.getElementById('display-none-backdrop').showModal();
+
+var closedDialog = document.getElementById('closed-dialog');
+closedDialog.showModal();
+closedDialog.close();
+
+var removedDialog = document.getElementById('removed-dialog');
+removedDialog.showModal();
+removedDialog.parentNode.removeChild(removedDialog);
+</script>
+</body>

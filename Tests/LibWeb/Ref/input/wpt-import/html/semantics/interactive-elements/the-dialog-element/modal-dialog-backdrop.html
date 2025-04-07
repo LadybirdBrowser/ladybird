@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<link rel="match" href="../../../../../../expected/wpt-import/html/semantics/interactive-elements/the-dialog-element/modal-dialog-backdrop-ref.html">
+<link rel="help" href="https://fullscreen.spec.whatwg.org/#user-agent-level-style-sheet-defaults">
+<style>
+dialog {
+    top: 100px;
+    height: 100px;
+    width: 100px;
+    background: green;
+    outline: none;
+}
+</style>
+<body>
+Test for the default user agent style of dialog::backdrop. The test passes if
+there is a green box, above a very lightly translucent gray box spanning the
+viewport.
+<dialog></dialog>
+<script>
+document.querySelector('dialog').showModal();
+</script>
+</body>

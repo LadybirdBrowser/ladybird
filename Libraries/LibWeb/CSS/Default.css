@@ -285,6 +285,14 @@ dialog:popover-open {
     background-color: transparent;
 }
 
+/* 4.2. The ::backdrop Pseudo-Element
+ * https://drafts.csswg.org/css-position-4/#backdrop
+ */
+::backdrop {
+    position: fixed;
+    inset: 0;
+}
+
 slot {
     display: contents;
 }
