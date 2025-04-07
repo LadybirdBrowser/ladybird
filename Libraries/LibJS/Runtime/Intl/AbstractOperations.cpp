@@ -13,6 +13,7 @@
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Intl/AbstractOperations.h>
+#include <LibJS/Runtime/Intl/IntlObject.h>
 #include <LibJS/Runtime/Intl/Locale.h>
 #include <LibJS/Runtime/Intl/SingleUnitIdentifiers.h>
 #include <LibJS/Runtime/VM.h>
@@ -610,7 +611,75 @@ ResolvedLocale resolve_locale(ReadonlySpan<String> requested_locales, LocaleOpti
     return result;
 }
 
-// 9.2.8 FilterLocales ( availableLocales, requestedLocales, options ), https://tc39.es/ecma402/#sec-lookupsupportedlocales
+// 9.2.8 ResolveOptions ( constructor, localeData, locales, options [ , specialBehaviours [ , modifyResolutionOptions ] ] ), https://tc39.es/ecma402/#sec-resolveoptions
+ThrowCompletionOr<ResolvedOptions> resolve_options(VM& vm, IntlObject& object, Value locales, Value options_value, SpecialBehaviors special_behaviours, Function<void(LocaleOptions&)> modify_resolution_options)
+{
+    // 1. Let requestedLocales be ? CanonicalizeLocaleList(locales).
+    auto requested_locales = TRY(canonicalize_locale_list(vm, locales));
+
+    // 2. If specialBehaviours is present and contains REQUIRE-OPTIONS and options is undefined, throw a TypeError exception.
+    if (has_flag(special_behaviours, SpecialBehaviors::RequireOptions) && options_value.is_undefined())
+        return vm.throw_completion<TypeError>(ErrorType::IsUndefined, "options"sv);
+
+    // 3. If specialBehaviours is present and contains COERCE-OPTIONS, set options to ? CoerceOptionsToObject(options).
+    //    Otherwise, set options to ? GetOptionsObject(options).
+    GC::Ref<Object> options = has_flag(special_behaviours, SpecialBehaviors::CoerceOptions)
+        ? *TRY(coerce_options_to_object(vm, options_value))
+        : *TRY(get_options_object(vm, options_value));
+
+    // 4. Let matcher be ? GetOption(options, "localeMatcher", STRING, « "lookup", "best fit" », "best fit").
+    auto matcher = TRY(get_option(vm, options, vm.names.localeMatcher, OptionType::String, { "lookup"sv, "best fit"sv }, "best fit"sv));
+
+    // 5. Let opt be the Record { [[localeMatcher]]: matcher }.
+    LocaleOptions opt {};
+    opt.locale_matcher = matcher;
+
+    // 6. For each Resolution Option Descriptor desc of constructor.[[ResolutionOptionDescriptors]], do
+    for (auto const& descriptor : object.resolution_option_descriptors(vm)) {
+        // a. If desc has a [[Type]] field, let type be desc.[[Type]]. Otherwise, let type be STRING.
+        auto type = descriptor.type;
+
+        // b. If desc has a [[Values]] field, let values be desc.[[Values]]. Otherwise, let values be EMPTY.
+        auto values = descriptor.values;
+
+        // c. Let value be ? GetOption(options, desc.[[Property]], type, values, undefined).
+        auto value = TRY(get_option(vm, options, descriptor.property, type, values, Empty {}));
+        Optional<LocaleKey> locale_key;
+
+        // d. If value is not undefined, then
+        if (!value.is_undefined()) {
+            // i. Set value to ! ToString(value).
+            auto value_string = MUST(value.to_string(vm));
+
+            // ii. If value cannot be matched by the type Unicode locale nonterminal, throw a RangeError exception.
+            if (!Unicode::is_type_identifier(value_string))
+                return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, value_string, descriptor.property);
+
+            locale_key = move(value_string);
+        }
+
+        // e. Let key be desc.[[Key]].
+        auto key = descriptor.key;
+
+        // f. Set opt.[[<key>]] to value.
+        if (descriptor.property == vm.names.hour12)
+            opt.hour12 = value;
+        else
+            find_key_in_value(opt, key) = move(locale_key);
+    }
+
+    // 7. If modifyResolutionOptions is present, perform ! modifyResolutionOptions(opt).
+    if (modify_resolution_options)
+        modify_resolution_options(opt);
+
+    // 8. Let resolution be ResolveLocale(constructor.[[AvailableLocales]], requestedLocales, opt, constructor.[[RelevantExtensionKeys]], localeData).
+    auto resolution = resolve_locale(requested_locales, opt, object.relevant_extension_keys());
+
+    // 9. Return the Record { [[Options]]: options, [[ResolvedLocale]]: resolution, [[ResolutionOptions]]: opt }.
+    return ResolvedOptions { .options = options, .resolved_locale = move(resolution), .resolution_options = move(opt) };
+}
+
+// 9.2.9 FilterLocales ( availableLocales, requestedLocales, options ), https://tc39.es/ecma402/#sec-lookupsupportedlocales
 ThrowCompletionOr<Array*> filter_locales(VM& vm, ReadonlySpan<String> requested_locales, Value options)
 {
     auto& realm = *vm.current_realm();
@@ -648,7 +717,7 @@ ThrowCompletionOr<Array*> filter_locales(VM& vm, ReadonlySpan<String> requested_
     return Array::create_from<String>(realm, subset, [&vm](auto& locale) { return PrimitiveString::create(vm, move(locale)); }).ptr();
 }
 
-// 9.2.10 CoerceOptionsToObject ( options ), https://tc39.es/ecma402/#sec-coerceoptionstoobject
+// 9.2.11 CoerceOptionsToObject ( options ), https://tc39.es/ecma402/#sec-coerceoptionstoobject
 ThrowCompletionOr<Object*> coerce_options_to_object(VM& vm, Value options)
 {
     auto& realm = *vm.current_realm();
@@ -663,9 +732,9 @@ ThrowCompletionOr<Object*> coerce_options_to_object(VM& vm, Value options)
     return TRY(options.to_object(vm)).ptr();
 }
 
-// NOTE: 9.2.11 GetOption has been removed and is being pulled in from ECMA-262 in the Temporal proposal.
+// NOTE: 9.2.12 GetOption has been removed and is being pulled in from ECMA-262 in the Temporal proposal.
 
-// 9.2.12 GetBooleanOrStringNumberFormatOption ( options, property, stringValues, fallback ), https://tc39.es/ecma402/#sec-getbooleanorstringnumberformatoption
+// 9.2.13 GetBooleanOrStringNumberFormatOption ( options, property, stringValues, fallback ), https://tc39.es/ecma402/#sec-getbooleanorstringnumberformatoption
 ThrowCompletionOr<StringOrBoolean> get_boolean_or_string_number_format_option(VM& vm, Object const& options, PropertyKey const& property, ReadonlySpan<StringView> string_values, StringOrBoolean fallback)
 {
     // 1. Let value be ? Get(options, property).
@@ -695,7 +764,7 @@ ThrowCompletionOr<StringOrBoolean> get_boolean_or_string_number_format_option(VM
     return StringOrBoolean { *it };
 }
 
-// 9.2.13 DefaultNumberOption ( value, minimum, maximum, fallback ), https://tc39.es/ecma402/#sec-defaultnumberoption
+// 9.2.14 DefaultNumberOption ( value, minimum, maximum, fallback ), https://tc39.es/ecma402/#sec-defaultnumberoption
 ThrowCompletionOr<Optional<int>> default_number_option(VM& vm, Value value, int minimum, int maximum, Optional<int> fallback)
 {
     // 1. If value is undefined, return fallback.
@@ -713,7 +782,7 @@ ThrowCompletionOr<Optional<int>> default_number_option(VM& vm, Value value, int 
     return floor(value.as_double());
 }
 
-// 9.2.14 GetNumberOption ( options, property, minimum, maximum, fallback ), https://tc39.es/ecma402/#sec-getnumberoption
+// 9.2.15 GetNumberOption ( options, property, minimum, maximum, fallback ), https://tc39.es/ecma402/#sec-getnumberoption
 ThrowCompletionOr<Optional<int>> get_number_option(VM& vm, Object const& options, PropertyKey const& property, int minimum, int maximum, Optional<int> fallback)
 {
     // 1. Assert: Type(options) is Object.

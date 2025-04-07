@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/EnumBits.h>
 #include <AK/Span.h>
 #include <AK/String.h>
 #include <AK/Variant.h>
@@ -29,6 +30,7 @@ struct LocaleOptions {
     Optional<LocaleKey> kf; // [[CaseFirst]]
     Optional<LocaleKey> kn; // [[Numeric]]
     Optional<LocaleKey> nu; // [[NumberingSystem]]
+    Value hour12;
 };
 
 struct MatchedLocale {
@@ -47,6 +49,19 @@ struct ResolvedLocale {
     LocaleKey nu; // [[NumberingSystem]]
 };
 
+struct ResolvedOptions {
+    GC::Ref<Object> options;
+    ResolvedLocale resolved_locale;
+    LocaleOptions resolution_options;
+};
+
+enum class SpecialBehaviors : u8 {
+    None = 0,
+    RequireOptions = 1 << 1,
+    CoerceOptions = 1 << 2,
+};
+AK_ENUM_BITWISE_OPERATORS(SpecialBehaviors);
+
 using StringOrBoolean = Variant<StringView, bool>;
 
 bool is_structurally_valid_language_tag(StringView locale);
@@ -60,6 +75,7 @@ Optional<MatchedLocale> lookup_matching_locale_by_prefix(ReadonlySpan<String> re
 Optional<MatchedLocale> lookup_matching_locale_by_best_fit(ReadonlySpan<String> requested_locales);
 String insert_unicode_extension_and_canonicalize(Unicode::LocaleID locale_id, Vector<String> attributes, Vector<Unicode::Keyword> keywords);
 ResolvedLocale resolve_locale(ReadonlySpan<String> requested_locales, LocaleOptions const& options, ReadonlySpan<StringView> relevant_extension_keys);
+ThrowCompletionOr<ResolvedOptions> resolve_options(VM& vm, IntlObject& object, Value locales, Value options_value, SpecialBehaviors special_behaviours = SpecialBehaviors::None, Function<void(LocaleOptions&)> modify_resolution_options = {});
 ThrowCompletionOr<Array*> filter_locales(VM& vm, ReadonlySpan<String> requested_locales, Value options);
 ThrowCompletionOr<Object*> coerce_options_to_object(VM&, Value options);
 ThrowCompletionOr<StringOrBoolean> get_boolean_or_string_number_format_option(VM& vm, Object const& options, PropertyKey const& property, ReadonlySpan<StringView> string_values, StringOrBoolean fallback);
