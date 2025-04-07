@@ -56,8 +56,10 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ScopeNode::generate_byt
     Optional<ScopedOperand> last_result;
     for (auto& child : children()) {
         auto result = TRY(child->generate_bytecode(generator));
-        if (result.has_value())
-            last_result = result;
+        if (generator.must_propagate_completion()) {
+            if (result.has_value())
+                last_result = result;
+        }
         if (generator.is_current_block_terminated())
             break;
     }
