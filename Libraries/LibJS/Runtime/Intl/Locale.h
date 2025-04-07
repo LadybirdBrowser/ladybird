@@ -25,15 +25,13 @@ class Locale final : public Object {
 public:
     static GC::Ref<Locale> create(Realm&, GC::Ref<Locale> source_locale, String);
 
-    static constexpr auto relevant_extension_keys()
+    static constexpr auto locale_extension_keys()
     {
         // 15.2.2 Internal slots, https://tc39.es/ecma402/#sec-intl.locale-internal-slots
         // 1.3.2 Internal slots, https://tc39.es/proposal-intl-locale-info/#sec-intl.locale-internal-slots
-        // The value of the [[RelevantExtensionKeys]] internal slot is « "ca", "co", "fw", "hc", "kf", "kn", "nu" ».
-        // If %Collator%.[[RelevantExtensionKeys]] does not contain "kf", then remove "kf" from %Locale%.[[RelevantExtensionKeys]].
-        // If %Collator%.[[RelevantExtensionKeys]] does not contain "kn", then remove "kn" from %Locale%.[[RelevantExtensionKeys]].
-
-        // FIXME: We do not yet have an Intl.Collator object. For now, we behave as if "kf" and "kn" exist, as test262 depends on it.
+        // The value of the [[LocaleExtensionKeys]] internal slot is « "ca", "co", "fw", "hc", "kf", "kn", "nu" ».
+        // If %Intl.Collator%.[[RelevantExtensionKeys]] does not contain "kf", then remove "kf" from %Intl.Locale%.[[LocaleExtensionKeys]].
+        // If %Intl.Collator%.[[RelevantExtensionKeys]] does not contain "kn", then remove "kn" from %Intl.Locale%.[[LocaleExtensionKeys]].
         return AK::Array { "ca"sv, "co"sv, "fw"sv, "hc"sv, "kf"sv, "kn"sv, "nu"sv };
     }
 
