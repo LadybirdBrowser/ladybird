@@ -39,6 +39,7 @@ struct FunctionNodeParseOptions {
         IsGeneratorFunction = 1 << 6,
         IsAsyncFunction = 1 << 7,
         HasDefaultExportName = 1 << 8,
+        IsConstructor = 1 << 9,
     };
 };
 
