@@ -864,6 +864,7 @@ set(SOURCES
     WebDriver/TimeoutsConfiguration.cpp
     WebDriver/UserPrompt.cpp
     WebGL/Extensions/ANGLEInstancedArrays.cpp
+    WebGL/Extensions/EXTBlendMinMax.cpp
     WebGL/Extensions/EXTColorBufferFloat.cpp
     WebGL/Extensions/OESVertexArrayObject.cpp
     WebGL/Extensions/WebGLCompressedTextureS3tc.cpp

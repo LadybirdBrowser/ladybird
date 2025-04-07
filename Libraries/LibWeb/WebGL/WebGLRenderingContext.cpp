@@ -15,6 +15,7 @@
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/WebGL/EventNames.h>
 #include <LibWeb/WebGL/Extensions/ANGLEInstancedArrays.h>
+#include <LibWeb/WebGL/Extensions/EXTBlendMinMax.h>
 #include <LibWeb/WebGL/Extensions/OESVertexArrayObject.h>
 #include <LibWeb/WebGL/Extensions/WebGLCompressedTextureS3tc.h>
 #include <LibWeb/WebGL/Extensions/WebGLDrawBuffers.h>
@@ -93,6 +94,7 @@ void WebGLRenderingContext::visit_edges(Cell::Visitor& visitor)
     WebGLRenderingContextImpl::visit_edges(visitor);
     visitor.visit(m_canvas_element);
     visitor.visit(m_angle_instanced_arrays_extension);
+    visitor.visit(m_ext_blend_min_max_extension);
     visitor.visit(m_oes_vertex_array_object_extension);
     visitor.visit(m_webgl_compressed_texture_s3tc_extension);
     visitor.visit(m_webgl_draw_buffers_extension);
@@ -200,6 +202,15 @@ JS::Object* WebGLRenderingContext::get_extension(String const& name)
 
         VERIFY(m_angle_instanced_arrays_extension);
         return m_angle_instanced_arrays_extension;
+    }
+
+    if (Infra::is_ascii_case_insensitive_match(name, "EXT_blend_minmax"sv)) {
+        if (!m_ext_blend_min_max_extension) {
+            m_ext_blend_min_max_extension = MUST(Extensions::EXTBlendMinMax::create(realm(), *this));
+        }
+
+        VERIFY(m_ext_blend_min_max_extension);
+        return m_ext_blend_min_max_extension;
     }
 
     if (Infra::is_ascii_case_insensitive_match(name, "OES_vertex_array_object"sv)) {

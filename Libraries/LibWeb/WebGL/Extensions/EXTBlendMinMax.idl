@@ -1,0 +1,13 @@
+#import <WebGL/Types.idl>
+
+// https://registry.khronos.org/webgl/extensions/EXT_blend_minmax/
+// NOTE: Original EXT_blend_minmax name is changed to title case,
+//       so it matches corresponding C++ class name, and does not require
+//       IDL generator to handle snake_case to TitleCase conversion.
+//       Having a different name is totally fine, because LegacyNoInterfaceObject
+//       prevents the name from being exposed to JavaScript.
+[Exposed=(Window,Worker), LegacyNoInterfaceObject]
+interface EXTBlendMinMax {
+    const GLenum MIN_EXT = 0x8007;
+    const GLenum MAX_EXT = 0x8008;
+};
