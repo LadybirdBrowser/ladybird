@@ -311,7 +311,7 @@ PatternErrorOr<Vector<Part>> PatternParser::parse(Utf8View const& input, Options
                 prefix = char_token->value;
 
             // 3. If prefix is not the empty string and not options’s prefix code point:
-            if (!prefix.is_empty() && options.prefix_code_point.has_value() && prefix != String::from_code_point(*options.prefix_code_point)) {
+            if (!prefix.is_empty() && (!options.prefix_code_point.has_value() || prefix != String::from_code_point(*options.prefix_code_point))) {
                 // 1. Append prefix to the end of parser’s pending fixed value.
                 parser.m_pending_fixed_value.append(prefix);
 

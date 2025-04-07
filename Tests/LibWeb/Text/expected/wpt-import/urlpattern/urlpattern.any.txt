@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 354 tests
 
-352 Pass
-2 Fail
+353 Pass
+1 Fail
 Pass	Loading data...
 Pass	Pattern: [{"pathname":"/foo/bar"}] Inputs: [{"pathname":"/foo/bar"}]
 Pass	Pattern: [{"pathname":"/foo/bar"}] Inputs: [{"pathname":"/foo/ba"}]
@@ -282,7 +282,7 @@ Pass	Pattern: [{"hostname":"[*\\:1]"}] Inputs: [{"hostname":"[::ab:1]"}]
 Pass	Pattern: [{"hostname":"*\\:1]"}] Inputs: undefined
 Pass	Pattern: ["https://foo{{@}}example.com"] Inputs: ["https://foo@example.com"]
 Pass	Pattern: ["https://foo{@example.com"] Inputs: ["https://foo@example.com"]
-Fail	Pattern: ["data\\:text/javascript,let x = 100/:tens?5;"] Inputs: ["data:text/javascript,let x = 100/5;"]
+Pass	Pattern: ["data\\:text/javascript,let x = 100/:tens?5;"] Inputs: ["data:text/javascript,let x = 100/5;"]
 Pass	Pattern: [{"pathname":"/:id/:id"}] Inputs: undefined
 Pass	Pattern: [{"pathname":"/foo","baseURL":""}] Inputs: undefined
 Pass	Pattern: ["/foo",""] Inputs: undefined
