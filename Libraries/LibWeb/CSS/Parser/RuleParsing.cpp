@@ -535,7 +535,7 @@ GC::Ptr<CSSPropertyRule> Parser::convert_to_property_rule(AtRule const& rule)
 
     Optional<FlyString> syntax_maybe;
     Optional<bool> inherits_maybe;
-    Optional<String> initial_value_maybe;
+    RefPtr<CSSStyleValue> initial_value_maybe;
 
     rule.for_each_as_declaration_list([&](auto& declaration) {
         if (auto descriptor = convert_to_descriptor(AtRuleID::Property, declaration); descriptor.has_value()) {
@@ -558,15 +558,16 @@ GC::Ptr<CSSPropertyRule> Parser::convert_to_property_rule(AtRule const& rule)
                 return;
             }
             if (descriptor->descriptor_id == DescriptorID::InitialValue) {
-                if (descriptor->value->is_string())
-                    initial_value_maybe = descriptor->value->as_string().string_value().to_string();
+                initial_value_maybe = *descriptor->value;
                 return;
             }
         }
     });
 
+    // TODO: Parse the initial value using the syntax, if it's provided.
+
     if (syntax_maybe.has_value() && inherits_maybe.has_value()) {
-        return CSSPropertyRule::create(realm(), name, syntax_maybe.value(), inherits_maybe.value(), std::move(initial_value_maybe));
+        return CSSPropertyRule::create(realm(), name, syntax_maybe.value(), inherits_maybe.value(), move(initial_value_maybe));
     }
     return {};
 }

@@ -13,18 +13,25 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSPropertyRule);
 
-GC::Ref<CSSPropertyRule> CSSPropertyRule::create(JS::Realm& realm, FlyString name, FlyString syntax, bool inherits, Optional<String> initial_value)
+GC::Ref<CSSPropertyRule> CSSPropertyRule::create(JS::Realm& realm, FlyString name, FlyString syntax, bool inherits, RefPtr<CSSStyleValue> initial_value)
 {
     return realm.create<CSSPropertyRule>(realm, move(name), move(syntax), inherits, move(initial_value));
 }
 
-CSSPropertyRule::CSSPropertyRule(JS::Realm& realm, FlyString name, FlyString syntax, bool inherits, Optional<String> initial_value)
+CSSPropertyRule::CSSPropertyRule(JS::Realm& realm, FlyString name, FlyString syntax, bool inherits, RefPtr<CSSStyleValue> initial_value)
     : CSSRule(realm, Type::Property)
     , m_name(move(name))
     , m_syntax(move(syntax))
     , m_inherits(inherits)
     , m_initial_value(move(initial_value))
 {
+}
+
+Optional<String> CSSPropertyRule::initial_value() const
+{
+    if (m_initial_value)
+        return m_initial_value->to_string(CSSStyleValue::SerializationMode::Normal);
+    return {};
 }
 
 void CSSPropertyRule::initialize(JS::Realm& realm)
@@ -63,8 +70,8 @@ String CSSPropertyRule::serialized() const
     // 8. If the rule’s initial-value is present, follow these substeps:
     if (initial_value().has_value()) {
         // 1. The string "initial-value:".
-        // 2. The result of performing serialize a CSS value in the rule’s initial-value followed by a single SEMICOLON (U+003B), followed by a SPACE (U+0020).
-        // FIXME: Follow the spec for serializing the value whenever we actually have a CSS value here.
+        // 2. The result of performing serialize a CSS value in the rule’s initial-value followed by a single SEMICOLON
+        //    (U+003B), followed by a SPACE (U+0020).
         builder.appendff("initial-value: {}; ", initial_value());
     }
     // 9. A single RIGHT CURLY BRACKET (U+007D).

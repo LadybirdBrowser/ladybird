@@ -65,13 +65,11 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue>> Parser::parse_descriptor_valu
                     return parse_comma_separated_value_list(tokens, [this](auto& tokens) -> RefPtr<CSSStyleValue> {
                         return parse_font_source_value(tokens);
                     });
-                case DescriptorMetadata::ValueType::OptionalDeclarationValue: {
-                    // FIXME: This is for an @property's initial value. Figure out what this should actually do once we need it.
-                    StringBuilder initial_value_sb;
+                case DescriptorMetadata::ValueType::OptionalDeclarationValue:
+                    // `component_values` already has what we want. Just skip through its tokens so code below knows we consumed them.
                     while (tokens.has_next_token())
-                        initial_value_sb.append(tokens.consume_a_token().to_string());
-                    return StringStyleValue::create(initial_value_sb.to_fly_string_without_validation());
-                }
+                        tokens.discard_a_token();
+                    return UnresolvedStyleValue::create(move(component_values), false, {});
                 case DescriptorMetadata::ValueType::PositivePercentage:
                     if (auto percentage_value = parse_percentage_value(tokens)) {
                         if (percentage_value->is_percentage()) {
