@@ -137,33 +137,23 @@ ThrowCompletionOr<GC::Ref<Object>> CollatorConstructor::construct(FunctionObject
 
     // 28. Let resolvedLocaleData be r.[[LocaleData]].
 
-    // 29. Let sensitivity be ? GetOption(options, "sensitivity", string, « "base", "accent", "case", "variant" », undefined).
-    auto sensitivity_value = TRY(get_option(vm, *options, vm.names.sensitivity, OptionType::String, { "base"sv, "accent"sv, "case"sv, "variant"sv }, Empty {}));
+    // 29. If usage is "sort", let defaultSensitivity be "variant". Otherwise, let defaultSensitivity be resolvedLocaleData.[[sensitivity]].
+    // NOTE: We do not acquire resolvedLocaleData.[[sensitivity]] here. Instead, we let LibUnicode fill in the
+    //       default value if an override was not provided here.
+    auto default_sensitivity = collator->usage() == Unicode::Usage::Sort ? "variant"sv : OptionDefault {};
 
-    // 30. If sensitivity is undefined, then
-    if (sensitivity_value.is_undefined()) {
-        // a. If usage is "sort", then
-        if (collator->usage() == Unicode::Usage::Sort) {
-            // i. Set sensitivity to "variant".
-            sensitivity_value = PrimitiveString::create(vm, "variant"_string);
-        }
-        // b. Else,
-        else {
-            // i. Set sensitivity to resolvedLocaleData.[[sensitivity]].
-            // NOTE: We do not acquire the default [[sensitivity]] here. Instead, we default the option to null,
-            //       and let LibUnicode fill in the default value if an override was not provided here.
-        }
-    }
+    // 30. Set collator.[[Sensitivity]] to ? GetOption(options, "sensitivity", string, « "base", "accent", "case", "variant" », defaultSensitivity).
+    auto sensitivity_value = TRY(get_option(vm, *options, vm.names.sensitivity, OptionType::String, { "base"sv, "accent"sv, "case"sv, "variant"sv }, default_sensitivity));
 
     Optional<Unicode::Sensitivity> sensitivity;
     if (!sensitivity_value.is_undefined())
         sensitivity = Unicode::sensitivity_from_string(sensitivity_value.as_string().utf8_string_view());
 
-    // 32. Let defaultIgnorePunctuation be resolvedLocaleData.[[ignorePunctuation]].
-    // NOTE: We do not acquire the default [[ignorePunctuation]] here. Instead, we default the option to null,
-    //       and let LibUnicode fill in the default value if an override was not provided here.
+    // 31. Let defaultIgnorePunctuation be resolvedLocaleData.[[ignorePunctuation]].
+    // NOTE: We do not acquire resolvedLocaleData.[[ignorePunctuation]] here. Instead, we let LibUnicode fill in the
+    //       default value if an override was not provided here.
 
-    // 33. Let ignorePunctuation be ? GetOption(options, "ignorePunctuation", boolean, empty, defaultIgnorePunctuation).
+    // 32. Set collator.[[IgnorePunctuation]] to ? GetOption(options, "ignorePunctuation", boolean, empty, defaultIgnorePunctuation).
     auto ignore_punctuation_value = TRY(get_option(vm, *options, vm.names.ignorePunctuation, OptionType::Boolean, {}, Empty {}));
 
     Optional<bool> ignore_punctuation;
@@ -181,13 +171,10 @@ ThrowCompletionOr<GC::Ref<Object>> CollatorConstructor::construct(FunctionObject
         ignore_punctuation);
     collator->set_collator(move(icu_collator));
 
-    // 31. Set collator.[[Sensitivity]] to sensitivity.
     collator->set_sensitivity(collator->collator().sensitivity());
-
-    // 34. Set collator.[[IgnorePunctuation]] to ignorePunctuation.
     collator->set_ignore_punctuation(collator->collator().ignore_punctuation());
 
-    // 35. Return collator.
+    // 33. Return collator.
     return collator;
 }
 
