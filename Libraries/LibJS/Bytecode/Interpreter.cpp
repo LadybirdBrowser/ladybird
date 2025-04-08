@@ -3413,7 +3413,7 @@ static StringView call_type_to_string(CallType type)
 ByteString Call::to_byte_string_impl(Bytecode::Executable const& executable) const
 {
     StringBuilder builder;
-    builder.appendff("Call {}, {}, {}, "sv,
+    builder.appendff("Call {}, {}, {}, ",
         format_operand("dst"sv, m_dst, executable),
         format_operand("callee"sv, m_callee, executable),
         format_operand("this"sv, m_this_value, executable));
@@ -3430,7 +3430,7 @@ ByteString Call::to_byte_string_impl(Bytecode::Executable const& executable) con
 ByteString CallConstruct::to_byte_string_impl(Bytecode::Executable const& executable) const
 {
     StringBuilder builder;
-    builder.appendff("CallConstruct {}, {}, "sv,
+    builder.appendff("CallConstruct {}, {}, ",
         format_operand("dst"sv, m_dst, executable),
         format_operand("callee"sv, m_callee, executable));
 
@@ -3446,7 +3446,7 @@ ByteString CallConstruct::to_byte_string_impl(Bytecode::Executable const& execut
 ByteString CallDirectEval::to_byte_string_impl(Bytecode::Executable const& executable) const
 {
     StringBuilder builder;
-    builder.appendff("CallDirectEval {}, {}, {}, "sv,
+    builder.appendff("CallDirectEval {}, {}, {}, ",
         format_operand("dst"sv, m_dst, executable),
         format_operand("callee"sv, m_callee, executable),
         format_operand("this"sv, m_this_value, executable));
@@ -3463,7 +3463,7 @@ ByteString CallDirectEval::to_byte_string_impl(Bytecode::Executable const& execu
 ByteString CallBuiltin::to_byte_string_impl(Bytecode::Executable const& executable) const
 {
     StringBuilder builder;
-    builder.appendff("CallBuiltin {}, {}, {}, "sv,
+    builder.appendff("CallBuiltin {}, {}, {}, ",
         format_operand("dst"sv, m_dst, executable),
         format_operand("callee"sv, m_callee, executable),
         format_operand("this"sv, m_this_value, executable));
@@ -3508,11 +3508,11 @@ ByteString NewFunction::to_byte_string_impl(Bytecode::Executable const& executab
     builder.appendff("NewFunction {}",
         format_operand("dst"sv, m_dst, executable));
     if (m_function_node.has_name())
-        builder.appendff(" name:{}"sv, m_function_node.name());
+        builder.appendff(" name:{}", m_function_node.name());
     if (m_lhs_name.has_value())
-        builder.appendff(" lhs_name:{}"sv, executable.get_identifier(m_lhs_name.value()));
+        builder.appendff(" lhs_name:{}", executable.get_identifier(m_lhs_name.value()));
     if (m_home_object.has_value())
-        builder.appendff(", {}"sv, format_operand("home_object"sv, m_home_object.value(), executable));
+        builder.appendff(", {}", format_operand("home_object"sv, m_home_object.value(), executable));
     return builder.to_byte_string();
 }
 
@@ -3527,7 +3527,7 @@ ByteString NewClass::to_byte_string_impl(Bytecode::Executable const& executable)
     if (!name.is_empty())
         builder.appendff(", {}", name);
     if (m_lhs_name.has_value())
-        builder.appendff(", lhs_name:{}"sv, executable.get_identifier(m_lhs_name.value()));
+        builder.appendff(", lhs_name:{}", executable.get_identifier(m_lhs_name.value()));
     return builder.to_byte_string();
 }
 
