@@ -37,13 +37,13 @@ WebIDL::ExceptionOr<GC::Ref<CSSStyleSheet>> CSSStyleSheet::construct_impl(JS::Re
 
     // 2. Set sheet’s location to the base URL of the associated Document for the current principal global object.
     auto associated_document = as<HTML::Window>(HTML::current_principal_global_object()).document();
-    sheet->set_location(associated_document->base_url().to_string());
+    sheet->set_location(associated_document->base_url());
 
     // 3. Set sheet’s stylesheet base URL to the baseURL attribute value from options.
     if (options.has_value() && options->base_url.has_value()) {
         Optional<URL::URL> sheet_location_url;
         if (sheet->location().has_value())
-            sheet_location_url = URL::Parser::basic_parse(sheet->location().release_value());
+            sheet_location_url = sheet->location().release_value();
 
         // AD-HOC: This isn't explicitly mentioned in the specification, but multiple modern browsers do this.
         Optional<URL::URL> url = sheet->location().has_value() ? sheet_location_url->complete_url(options->base_url.value()) : URL::Parser::basic_parse(options->base_url.value());
@@ -100,7 +100,7 @@ CSSStyleSheet::CSSStyleSheet(JS::Realm& realm, CSSRuleList& rules, MediaList& me
     , m_rules(&rules)
 {
     if (location.has_value())
-        set_location(location->to_string());
+        set_location(move(location));
 
     for (auto& rule : *m_rules)
         rule->set_parent_style_sheet(this);
