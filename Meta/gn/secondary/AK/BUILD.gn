@@ -58,8 +58,6 @@ shared_library("AK") {
     "CopyOnWrite.h",
     "CountingStream.cpp",
     "CountingStream.h",
-    "DOSPackedTime.cpp",
-    "DOSPackedTime.h",
     "DateConstants.h",
     "DefaultDelete.h",
     "Demangle.h",

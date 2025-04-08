@@ -6,7 +6,6 @@ set(SOURCES
     CircularBuffer.cpp
     ConstrainedStream.cpp
     CountingStream.cpp
-    DOSPackedTime.cpp
     Error.cpp
     FloatingPointStringConversions.cpp
     FlyString.cpp
