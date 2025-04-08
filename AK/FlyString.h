@@ -217,7 +217,8 @@ struct ASCIICaseInsensitiveFlyStringTraits : public Traits<String> {
 
 [[nodiscard]] ALWAYS_INLINE AK::FlyString operator""_fly_string(char const* cstring, size_t length)
 {
-    return AK::FlyString::from_utf8(AK::StringView(cstring, length)).release_value();
+    ASSERT(Utf8View(AK::StringView(cstring, length)).validate());
+    return AK::FlyString::from_utf8_without_validation({ cstring, length });
 }
 
 #if USING_AK_GLOBALLY

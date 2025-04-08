@@ -354,5 +354,6 @@ struct ASCIICaseInsensitiveStringTraits : public Traits<String> {
 
 [[nodiscard]] ALWAYS_INLINE AK::String operator""_string(char const* cstring, size_t length)
 {
-    return AK::String::from_utf8(AK::StringView(cstring, length)).release_value();
+    ASSERT(Utf8View(AK::StringView(cstring, length)).validate());
+    return AK::String::from_utf8_without_validation({ cstring, length });
 }
