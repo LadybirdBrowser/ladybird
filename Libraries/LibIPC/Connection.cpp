@@ -29,41 +29,9 @@ ConnectionBase::ConnectionBase(IPC::Stub& local_stub, Transport transport, u32 l
         (void)drain_messages_from_peer();
         handle_messages();
     });
-
-    m_send_queue = adopt_ref(*new SendQueue);
-    m_send_thread = Threading::Thread::construct([this, send_queue = m_send_queue]() -> intptr_t {
-        for (;;) {
-            send_queue->mutex.lock();
-            while (send_queue->messages.is_empty() && send_queue->running)
-                send_queue->condition.wait();
-
-            if (!send_queue->running) {
-                send_queue->mutex.unlock();
-                break;
-            }
-
-            auto message_buffer = send_queue->messages.take_first();
-            send_queue->mutex.unlock();
-
-            if (auto result = message_buffer.transfer_message(m_transport); result.is_error()) {
-                dbgln("ConnectionBase::send_thread: {}", result.error());
-                continue;
-            }
-        }
-        return 0;
-    });
-    m_send_thread->start();
 }
 
-ConnectionBase::~ConnectionBase()
-{
-    {
-        Threading::MutexLocker locker(m_send_queue->mutex);
-        m_send_queue->running = false;
-        m_send_queue->condition.signal();
-    }
-    (void)m_send_thread->join();
-}
+ConnectionBase::~ConnectionBase() = default;
 
 bool ConnectionBase::is_open() const
 {
@@ -87,11 +55,7 @@ ErrorOr<void> ConnectionBase::post_message(u32 endpoint_magic, MessageBuffer buf
         buffer = MUST(wrapper->encode());
     }
 
-    {
-        Threading::MutexLocker locker(m_send_queue->mutex);
-        m_send_queue->messages.append(move(buffer));
-        m_send_queue->condition.signal();
-    }
+    MUST(buffer.transfer_message(m_transport));
 
     m_responsiveness_timer->start();
     return {};
