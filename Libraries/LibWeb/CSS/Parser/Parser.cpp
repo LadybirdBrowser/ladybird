@@ -122,7 +122,7 @@ Vector<Rule> Parser::parse_a_stylesheets_contents(TokenStream<T>& input)
 CSSStyleSheet* Parser::parse_as_css_stylesheet(Optional<::URL::URL> location, Vector<NonnullRefPtr<MediaQuery>> media_query_list)
 {
     // To parse a CSS stylesheet, first parse a stylesheet.
-    auto const& style_sheet = parse_a_stylesheet(m_token_stream, {});
+    auto const& style_sheet = parse_a_stylesheet(m_token_stream, location);
 
     // Interpret all of the resulting top-level qualified rules as style rules, defined below.
     GC::RootVector<CSSRule*> rules(realm().heap());
