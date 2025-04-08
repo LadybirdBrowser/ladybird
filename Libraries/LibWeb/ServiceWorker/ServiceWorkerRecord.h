@@ -29,6 +29,10 @@ struct ServiceWorkerRecord {
     // A service worker has an associated type which is either "classic" or "module". Unless stated otherwise, it is "classic".
     Bindings::WorkerType worker_type = Bindings::WorkerType::Classic;
 
+    // https://w3c.github.io/ServiceWorker/#dfn-classic-scripts-imported-flag
+    // A service worker has an associated classic scripts imported flag. It is initially unset.
+    bool classic_scripts_imported { false };
+
     // FIXME: A lot more fields after this...
 };
 
