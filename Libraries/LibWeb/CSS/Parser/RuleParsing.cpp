@@ -153,12 +153,19 @@ GC::Ptr<CSSImportRule> Parser::convert_to_import_rule(AtRule const& rule)
     TokenStream tokens { rule.prelude };
     tokens.discard_whitespace();
 
-    Optional<::URL::URL> url = parse_url_function(tokens);
+    Optional<URL> url = parse_url_function(tokens);
     if (!url.has_value() && tokens.next_token().is(Token::Type::String))
-        url = complete_url(tokens.consume_a_token().token().string());
+        url = URL { tokens.consume_a_token().token().string().to_string() };
 
     if (!url.has_value()) {
         dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @import rule: Unable to parse `{}` as URL.", tokens.next_token().to_debug_string());
+        return {};
+    }
+
+    // FIXME: Stop completing the URL here
+    auto resolved_url = complete_url(url->url());
+    if (!resolved_url.has_value()) {
+        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @import rule: Unable to complete `{}` as URL.", url->url());
         return {};
     }
 
@@ -191,7 +198,7 @@ GC::Ptr<CSSImportRule> Parser::convert_to_import_rule(AtRule const& rule)
         return {};
     }
 
-    return CSSImportRule::create(url.value(), const_cast<DOM::Document&>(*document()), supports, move(media_query_list));
+    return CSSImportRule::create(resolved_url.release_value(), const_cast<DOM::Document&>(*document()), supports, move(media_query_list));
 }
 
 Optional<FlyString> Parser::parse_layer_name(TokenStream<ComponentValue>& tokens, AllowBlankLayerName allow_blank_layer_name)
@@ -435,7 +442,10 @@ GC::Ptr<CSSNamespaceRule> Parser::convert_to_namespace_rule(AtRule const& rule)
 
     FlyString namespace_uri;
     if (auto url = parse_url_function(tokens); url.has_value()) {
-        namespace_uri = url.value().to_string();
+        // "A URI string parsed from the URI syntax must be treated as a literal string: as with the STRING syntax, no
+        // URI-specific normalization is applied."
+        // https://drafts.csswg.org/css-namespaces/#syntax
+        namespace_uri = url->url();
     } else if (auto& url_token = tokens.consume_a_token(); url_token.is(Token::Type::String)) {
         namespace_uri = url_token.token().string();
     } else {
