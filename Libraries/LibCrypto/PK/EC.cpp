@@ -81,7 +81,7 @@ ErrorOr<EC::KeyPairType> EC::parse_ec_key(ReadonlyBytes der, bool is_private, Ve
         //      publicKey   [1] BIT STRING OPTIONAL
         // }
 
-        ENTER_TYPED_SCOPE(Sequence, "ECPrivateKey"sv);
+        ENTER_TYPED_SCOPE(Sequence, "ECPrivateKey");
 
         PUSH_SCOPE("version");
         READ_OBJECT(Integer, Crypto::UnsignedBigInteger, version);
@@ -98,7 +98,7 @@ ErrorOr<EC::KeyPairType> EC::parse_ec_key(ReadonlyBytes der, bool is_private, Ve
             auto tag = TRY(decoder.peek());
             if (static_cast<u8>(tag.kind) == 0) {
                 REWRITE_TAG(Sequence);
-                ENTER_TYPED_SCOPE(Sequence, "parameters"sv);
+                ENTER_TYPED_SCOPE(Sequence, "parameters");
                 parameters = TRY(Crypto::Certificate::parse_ec_parameters(decoder, {}));
                 EXIT_SCOPE();
             }
@@ -109,7 +109,7 @@ ErrorOr<EC::KeyPairType> EC::parse_ec_key(ReadonlyBytes der, bool is_private, Ve
             auto tag = TRY(decoder.peek());
             if (static_cast<u8>(tag.kind) == 1) {
                 REWRITE_TAG(Sequence);
-                ENTER_TYPED_SCOPE(Sequence, "publicKey"sv);
+                ENTER_TYPED_SCOPE(Sequence, "publicKey");
                 READ_OBJECT(BitString, Crypto::ASN1::BitStringView, public_key_bits);
 
                 auto public_key_bytes = TRY(public_key_bits.raw_bytes());

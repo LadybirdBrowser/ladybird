@@ -1114,7 +1114,7 @@ bool is_animatable_property(JsonObject& properties, StringView property_name)
     }
 
     if (!property.value().has("longhands"sv)) {
-        dbgln("Property '{}' must specify either 'animation-type' or 'longhands'"sv, property_name);
+        dbgln("Property '{}' must specify either 'animation-type' or 'longhands'", property_name);
         VERIFY_NOT_REACHED();
     }
 

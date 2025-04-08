@@ -51,7 +51,7 @@ String LinearGradientStyleValue::to_string(SerializationMode mode) const
     if (has_direction) {
         m_properties.direction.visit(
             [&](SideOrCorner side_or_corner) {
-                builder.appendff("{}{}"sv, m_properties.gradient_type == GradientType::Standard ? "to "sv : ""sv, side_or_corner_to_string(side_or_corner));
+                builder.appendff("{}{}", m_properties.gradient_type == GradientType::Standard ? "to "sv : ""sv, side_or_corner_to_string(side_or_corner));
             },
             [&](Angle const& angle) {
                 builder.append(angle.to_string());

@@ -51,7 +51,7 @@ static ErrorOr<AlgorithmIdentifier> parse_algorithm_identifier(ASN1::Decoder& de
     //     algorithm ALGORITHM.&id({SupportedAlgorithms}),
     //     parameters ALGORITHM.&Type({SupportedAlgorithms}{@algorithm}) OPTIONAL,
     // ... }
-    ENTER_TYPED_SCOPE(Sequence, "AlgorithmIdentifier"sv);
+    ENTER_TYPED_SCOPE(Sequence, "AlgorithmIdentifier");
     PUSH_SCOPE("algorithm"sv);
     READ_OBJECT(ObjectIdentifier, Vector<int>, algorithm);
     POP_SCOPE();
@@ -192,7 +192,7 @@ ErrorOr<SubjectPublicKey> parse_subject_public_key_info(ASN1::Decoder& decoder, 
     // }
 
     SubjectPublicKey public_key;
-    ENTER_TYPED_SCOPE(Sequence, "SubjectPublicKeyInfo"sv);
+    ENTER_TYPED_SCOPE(Sequence, "SubjectPublicKeyInfo");
 
     public_key.algorithm = TRY(parse_algorithm_identifier(decoder, current_scope));
 
@@ -258,7 +258,7 @@ ErrorOr<PrivateKey> parse_private_key_info(ASN1::Decoder& decoder, Vector<String
     //  }
 
     PrivateKey private_key;
-    ENTER_TYPED_SCOPE(Sequence, "PrivateKeyInfo"sv);
+    ENTER_TYPED_SCOPE(Sequence, "PrivateKeyInfo");
 
     READ_OBJECT(Integer, Crypto::UnsignedBigInteger, version);
     if (version != 0) {

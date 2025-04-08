@@ -451,7 +451,7 @@ struct AK::Formatter<Gfx::TIFF::Value> : Formatter<FormatString> {{
         String content;
         value.visit(
             [&](ByteBuffer const& buffer) {{
-                content = MUST(String::formatted("Buffer of size: {{}}"sv, buffer.size()));
+                content = MUST(String::formatted("Buffer of size: {{}}", buffer.size()));
             }},
             [&](auto const& other) {{
                 content = MUST(String::formatted("{{}}", other));

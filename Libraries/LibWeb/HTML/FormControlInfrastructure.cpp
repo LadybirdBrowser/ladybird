@@ -264,7 +264,7 @@ ErrorOr<SerializedFormData> serialize_to_multipart_form_data(Vector<XHR::FormDat
     StringBuilder builder;
     // 1. For each entry of entry list:
     for (auto const& entry : entry_list) {
-        TRY(builder.try_append(TRY(String::formatted("--{}\r\n"sv, boundary))));
+        TRY(builder.try_append(TRY(String::formatted("--{}\r\n", boundary))));
 
         // Replace every occurrence of U+000D (CR) not followed by U+000A (LF), and every occurrence of U+000A (LF) not preceded by U+000D (CR) by a string consisting of a U+000D (CR) and U+000A (LF).
         auto normalized_name = TRY(normalize_line_breaks(entry.name));

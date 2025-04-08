@@ -216,7 +216,7 @@ PatternErrorOr<Init> process_a_url_pattern_init(Init const& init, PatternProcess
 
         // 2. If baseURL is failure, then throw a TypeError.
         if (!base_url.has_value())
-            return ErrorInfo { MUST(String::formatted("Invalid base URL '{}' provided for URLPattern"sv, init.base_url.value())) };
+            return ErrorInfo { MUST(String::formatted("Invalid base URL '{}' provided for URLPattern", init.base_url.value())) };
 
         // 3. If init["protocol"] does not exist, then set result["protocol"] to the result of processing a base URL
         //    string given baseURL’s scheme and type.

@@ -265,7 +265,7 @@ TESTJS_GLOBAL_FUNCTION(test_simd_vector, testSIMDVector)
                     return false;
                 continue;
             }
-            return vm.throw_completion<JS::TypeError>(ByteString::formatted("Bad SIMD float expectation: {}"sv, string));
+            return vm.throw_completion<JS::TypeError>(ByteString::formatted("Bad SIMD float expectation: {}", string));
         }
         u64 expect_value = expect.is_bigint() ? TRY(expect.to_bigint_uint64(vm)) : (u64)TRY(expect.to_index(vm));
         if (got != expect_value)

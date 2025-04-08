@@ -63,9 +63,9 @@ ErrorOr<String> load_file_directory_page(URL::URL const& url)
 
             contents.append("<tr>"sv);
             contents.appendff("<td><span class=\"{}\"></span></td>", is_directory ? "folder" : "file");
-            contents.appendff("<td><a href=\"file://{}\">{}</a></td><td>&nbsp;</td>"sv, path, name);
+            contents.appendff("<td><a href=\"file://{}\">{}</a></td><td>&nbsp;</td>", path, name);
             contents.appendff("<td>{:10}</td><td>&nbsp;</td>", is_directory ? "-"_string : human_readable_size(st.st_size));
-            contents.appendff("<td>{}</td>"sv, Core::DateTime::from_timestamp(st.st_mtime).to_byte_string());
+            contents.appendff("<td>{}</td>", Core::DateTime::from_timestamp(st.st_mtime).to_byte_string());
             contents.append("</tr>\n"sv);
         }
     }

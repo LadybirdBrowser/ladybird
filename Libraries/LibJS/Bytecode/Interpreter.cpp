@@ -3052,14 +3052,14 @@ ByteString NewArray::to_byte_string_impl(Bytecode::Executable const& executable)
 
 ByteString NewPrimitiveArray::to_byte_string_impl(Bytecode::Executable const& executable) const
 {
-    return ByteString::formatted("NewPrimitiveArray {}, {}"sv,
+    return ByteString::formatted("NewPrimitiveArray {}, {}",
         format_operand("dst"sv, dst(), executable),
         format_value_list("elements"sv, elements()));
 }
 
 ByteString AddPrivateName::to_byte_string_impl(Bytecode::Executable const& executable) const
 {
-    return ByteString::formatted("AddPrivateName {}"sv, executable.identifier_table->get(m_name));
+    return ByteString::formatted("AddPrivateName {}", executable.identifier_table->get(m_name));
 }
 
 ByteString ArrayAppend::to_byte_string_impl(Bytecode::Executable const& executable) const

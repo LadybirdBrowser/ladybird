@@ -2654,7 +2654,7 @@ static void generate_html_constructor(SourceGenerator& generator, IDL::Construct
 
         // 2. If valid local names does not contain definition's local name, then throw a TypeError.
         if (!valid_local_names.contains_slow(definition->local_name()))
-            return vm.throw_completion<JS::TypeError>(MUST(String::formatted("Local name '{}' of customized built-in element is not a valid local name for @name@"sv, definition->local_name())));
+            return vm.throw_completion<JS::TypeError>(MUST(String::formatted("Local name '{}' of customized built-in element is not a valid local name for @name@", definition->local_name())));
 
         // 3. Set isValue to definition's name.
         is_value = definition->name();

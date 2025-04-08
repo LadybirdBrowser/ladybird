@@ -178,11 +178,11 @@ void serialize_a_srgb_value(StringBuilder& builder, Color color)
     // (depending on whether the alpha is exactly 1, or not), with lowercase letters for the function name.
     // NOTE: Since we use Gfx::Color, having an "alpha of 1" means its value is 255.
     if (color.alpha() == 0)
-        builder.appendff("rgba({}, {}, {}, 0)"sv, color.red(), color.green(), color.blue());
+        builder.appendff("rgba({}, {}, {}, 0)", color.red(), color.green(), color.blue());
     else if (color.alpha() == 255)
-        builder.appendff("rgb({}, {}, {})"sv, color.red(), color.green(), color.blue());
+        builder.appendff("rgb({}, {}, {})", color.red(), color.green(), color.blue());
     else
-        builder.appendff("rgba({}, {}, {}, 0.{})"sv, color.red(), color.green(), color.blue(), format_to_8bit_compatible(color.alpha()).data());
+        builder.appendff("rgba({}, {}, {}, 0.{})", color.red(), color.green(), color.blue(), format_to_8bit_compatible(color.alpha()).data());
 }
 
 String serialize_an_identifier(StringView ident)
