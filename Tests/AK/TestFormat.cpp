@@ -133,8 +133,7 @@ TEST_CASE(replacement_field)
 
 TEST_CASE(replacement_field_regression)
 {
-    // FIXME: Compiletime check bypass: cannot parse '}}' correctly.
-    EXPECT_EQ(ByteString::formatted("{:{}}"sv, "", static_cast<unsigned long>(6)), "      ");
+    EXPECT_EQ(ByteString::formatted("{:{}}", "", static_cast<unsigned long>(6)), "      ");
 }
 
 TEST_CASE(complex_string_specifiers)
