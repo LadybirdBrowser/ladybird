@@ -33,7 +33,7 @@ void NativeFunction::visit_edges(Cell::Visitor& visitor)
 
 // 10.3.3 CreateBuiltinFunction ( behaviour, length, name, additionalInternalSlotsList [ , realm [ , prototype [ , prefix ] ] ] ), https://tc39.es/ecma262/#sec-createbuiltinfunction
 // NOTE: This doesn't consider additionalInternalSlotsList, which is rarely used, and can either be implemented using only the `function` lambda, or needs a NativeFunction subclass.
-GC::Ref<NativeFunction> NativeFunction::create(Realm& allocating_realm, Function<ThrowCompletionOr<Value>(VM&)> behaviour, i32 length, PropertyKey const& name, Optional<Realm*> realm, Optional<Object*> prototype, Optional<StringView> const& prefix)
+GC::Ref<NativeFunction> NativeFunction::create(Realm& allocating_realm, Function<ThrowCompletionOr<Value>(VM&)> behaviour, i32 length, PropertyKey const& name, Optional<Realm*> realm, Optional<StringView> const& prefix)
 {
     auto& vm = allocating_realm.vm();
 
@@ -42,8 +42,7 @@ GC::Ref<NativeFunction> NativeFunction::create(Realm& allocating_realm, Function
         realm = vm.current_realm();
 
     // 2. If prototype is not present, set prototype to realm.[[Intrinsics]].[[%Function.prototype%]].
-    if (!prototype.has_value())
-        prototype = realm.value()->intrinsics().function_prototype();
+    auto prototype = realm.value()->intrinsics().function_prototype();
 
     // 3. Let internalSlotsList be a List containing the names of all the internal slots that 10.3 requires for the built-in function object that is about to be created.
     // 4. Append to internalSlotsList the elements of additionalInternalSlotsList.
@@ -53,7 +52,7 @@ GC::Ref<NativeFunction> NativeFunction::create(Realm& allocating_realm, Function
     // 7. Set func.[[Extensible]] to true.
     // 8. Set func.[[Realm]] to realm.
     // 9. Set func.[[InitialName]] to null.
-    auto function = allocating_realm.create<NativeFunction>(GC::create_function(vm.heap(), move(behaviour)), prototype.value(), *realm.value());
+    auto function = allocating_realm.create<NativeFunction>(GC::create_function(vm.heap(), move(behaviour)), prototype, *realm.value());
 
     // 10. Perform SetFunctionLength(func, length).
     function->set_function_length(length);
