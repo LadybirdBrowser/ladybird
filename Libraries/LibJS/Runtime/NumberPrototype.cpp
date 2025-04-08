@@ -256,8 +256,7 @@ JS_DEFINE_NATIVE_FUNCTION(NumberPrototype::to_fixed)
     //       `number` double. Instead of generating a huge, unwieldy `n`, we format
     //       the double using our existing formatting code.
 
-    auto number_format_string = ByteString::formatted("{{}}{{:.{}f}}", fraction_digits);
-    return PrimitiveString::create(vm, ByteString::formatted(number_format_string, s, number));
+    return PrimitiveString::create(vm, MUST(String::formatted("{}{:.{}f}", s, number, static_cast<u32>(fraction_digits))));
 }
 
 // 20.2.1 Number.prototype.toLocaleString ( [ locales [ , options ] ] ), https://tc39.es/ecma402/#sup-number.prototype.tolocalestring
