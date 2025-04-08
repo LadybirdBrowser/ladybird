@@ -649,21 +649,23 @@ void ECMAScriptFunctionObject::visit_edges(Visitor& visitor)
 
     visitor.visit(m_bytecode_executable);
 
-    for (auto& field : m_fields) {
-        field.initializer.visit(
-            [&visitor](GC::Ref<ECMAScriptFunctionObject>& initializer) {
-                visitor.visit(initializer);
-            },
-            [&visitor](Value initializer) {
-                visitor.visit(initializer);
-            },
-            [](Empty) {});
-        if (auto* property_key_ptr = field.name.get_pointer<PropertyKey>(); property_key_ptr && property_key_ptr->is_symbol())
-            visitor.visit(property_key_ptr->as_symbol());
-    }
+    if (m_class_data) {
+        for (auto& field : m_class_data->fields) {
+            field.initializer.visit(
+                [&visitor](GC::Ref<ECMAScriptFunctionObject>& initializer) {
+                    visitor.visit(initializer);
+                },
+                [&visitor](Value initializer) {
+                    visitor.visit(initializer);
+                },
+                [](Empty) {});
+            if (auto* property_key_ptr = field.name.get_pointer<PropertyKey>(); property_key_ptr && property_key_ptr->is_symbol())
+                visitor.visit(property_key_ptr->as_symbol());
+        }
 
-    for (auto& private_element : m_private_methods)
-        visitor.visit(private_element.value);
+        for (auto& private_element : m_class_data->private_methods)
+            visitor.visit(private_element.value);
+    }
 
     m_script_or_module.visit(
         [](Empty) {},
@@ -960,4 +962,12 @@ void ECMAScriptFunctionObject::set_name(FlyString const& name)
     m_name_string = PrimitiveString::create(vm, name);
     MUST(define_property_or_throw(vm.names.name, { .value = m_name_string, .writable = false, .enumerable = false, .configurable = true }));
 }
+
+ECMAScriptFunctionObject::ClassData& ECMAScriptFunctionObject::ensure_class_data() const
+{
+    if (!m_class_data)
+        m_class_data = make<ClassData>();
+    return *m_class_data;
+}
+
 }

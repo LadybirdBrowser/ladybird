@@ -699,6 +699,10 @@ ThrowCompletionOr<void> Object::define_field(ClassFieldDefinition const& field)
 // 7.3.34 InitializeInstanceElements ( O, constructor ), https://tc39.es/ecma262/#sec-initializeinstanceelements
 ThrowCompletionOr<void> Object::initialize_instance_elements(ECMAScriptFunctionObject& constructor)
 {
+    // AD-HOC: Avoid lazy instantiation of ECMAScriptFunctionObject::ClassData.
+    if (!constructor.has_class_data())
+        return {};
+
     // 1. Let methods be the value of constructor.[[PrivateMethods]].
     // 2. For each PrivateElement method of methods, do
     for (auto const& method : constructor.private_methods()) {

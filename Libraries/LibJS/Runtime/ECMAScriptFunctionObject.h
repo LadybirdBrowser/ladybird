@@ -152,11 +152,13 @@ public:
     [[nodiscard]] ByteString const& source_text() const { return shared_data().m_source_text; }
     void set_source_text(ByteString source_text) { const_cast<SharedFunctionInstanceData&>(shared_data()).m_source_text = move(source_text); }
 
-    Vector<ClassFieldDefinition> const& fields() const { return m_fields; }
-    void add_field(ClassFieldDefinition field) { m_fields.append(move(field)); }
+    Vector<ClassFieldDefinition> const& fields() const { return ensure_class_data().fields; }
+    void add_field(ClassFieldDefinition field) { ensure_class_data().fields.append(move(field)); }
 
-    Vector<PrivateElement> const& private_methods() const { return m_private_methods; }
-    void add_private_method(PrivateElement method) { m_private_methods.append(move(method)); }
+    Vector<PrivateElement> const& private_methods() const { return ensure_class_data().private_methods; }
+    void add_private_method(PrivateElement method) { ensure_class_data().private_methods.append(move(method)); }
+
+    [[nodiscard]] bool has_class_data() const { return m_class_data; }
 
     // This is for IsSimpleParameterList (static semantics)
     bool has_simple_parameter_list() const { return shared_data().m_has_simple_parameter_list; }
@@ -211,8 +213,12 @@ private:
     GC::Ptr<Realm> m_realm;                            // [[Realm]]
     ScriptOrModule m_script_or_module;                 // [[ScriptOrModule]]
     GC::Ptr<Object> m_home_object;                     // [[HomeObject]]
-    Vector<ClassFieldDefinition> m_fields;             // [[Fields]]
-    Vector<PrivateElement> m_private_methods;          // [[PrivateMethods]]
+    struct ClassData {
+        Vector<ClassFieldDefinition> fields;    // [[Fields]]
+        Vector<PrivateElement> private_methods; // [[PrivateMethods]]
+    };
+    ClassData& ensure_class_data() const;
+    mutable OwnPtr<ClassData> m_class_data;
 };
 
 template<>
