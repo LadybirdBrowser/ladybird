@@ -23,11 +23,11 @@
         let channel2 = new MessageChannel();
 
         channel2.port2.onmessage = (event) => {
-            println("Port3: " + JSON.stringify(event.data))
+            println("Port3: " + JSON.stringify(event.data));
+            channel.port2.postMessage("DONE");
         }
 
         channel.port2.postMessage("Hello");
         channel.port2.postMessage({ foo: channel2.port1 }, { transfer: [channel2.port1] });
-        channel.port2.postMessage("DONE");
     });
 </script>
