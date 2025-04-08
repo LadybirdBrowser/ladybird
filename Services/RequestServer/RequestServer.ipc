@@ -10,6 +10,7 @@ endpoint RequestServer
 
     // use_tls: enable DNS over TLS
     set_dns_server(ByteString host_or_address, u16 port, bool use_tls) =|
+    set_use_system_dns() =|
 
     // Test if a specific protocol is supported, e.g "http"
     is_supported_protocol(ByteString protocol) => (bool supported)

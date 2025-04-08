@@ -164,12 +164,15 @@ void Application::initialize(Main::Arguments const& arguments)
         .debug_helper_process = move(debug_process_type),
         .profile_helper_process = move(profile_process_type),
         .dns_settings = (dns_server_address.has_value()
-                ? (use_dns_over_tls
+                ? Optional<DNSSettings> { use_dns_over_tls
                           ? DNSSettings(DNSOverTLS(dns_server_address.release_value(), *dns_server_port))
-                          : DNSSettings(DNSOverUDP(dns_server_address.release_value(), *dns_server_port)))
-                : SystemDNS {}),
+                          : DNSSettings(DNSOverUDP(dns_server_address.release_value(), *dns_server_port)) }
+                : OptionalNone()),
         .devtools_port = devtools_port,
     };
+
+    if (m_browser_options.dns_settings.has_value())
+        m_settings.set_dns_settings(m_browser_options.dns_settings.value(), true);
 
     if (webdriver_content_ipc_path.has_value())
         m_browser_options.webdriver_content_ipc_path = *webdriver_content_ipc_path;

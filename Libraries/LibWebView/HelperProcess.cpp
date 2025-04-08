@@ -200,7 +200,7 @@ ErrorOr<NonnullRefPtr<Requests::RequestClient>> launch_request_server_process()
     }
 
     auto client = TRY(launch_server_process<Requests::RequestClient>("RequestServer"sv, move(arguments)));
-    WebView::Application::browser_options().dns_settings.visit(
+    WebView::Application::settings().dns_settings().visit(
         [](WebView::SystemDNS) {},
         [&](WebView::DNSOverTLS const& dns_over_tls) {
             dbgln("Setting DNS server to {}:{} with TLS", dns_over_tls.server_address, dns_over_tls.port);

@@ -13,6 +13,7 @@
 #include <LibURL/URL.h>
 #include <LibWebView/Autocomplete.h>
 #include <LibWebView/Forward.h>
+#include <LibWebView/Options.h>
 #include <LibWebView/SearchEngine.h>
 
 namespace WebView {
@@ -40,6 +41,7 @@ public:
     virtual void autocomplete_engine_changed() { }
     virtual void autoplay_settings_changed() { }
     virtual void do_not_track_changed() { }
+    virtual void dns_settings_changed() { }
 };
 
 class Settings {
@@ -76,6 +78,9 @@ public:
     DoNotTrack do_not_track() const { return m_do_not_track; }
     void set_do_not_track(DoNotTrack);
 
+    DNSSettings const& dns_settings() const { return m_dns_settings; }
+    void set_dns_settings(DNSSettings const&, bool override_by_command_line = false);
+
     static void add_observer(Badge<SettingsObserver>, SettingsObserver&);
     static void remove_observer(Badge<SettingsObserver>, SettingsObserver&);
 
@@ -95,6 +100,8 @@ private:
     Optional<AutocompleteEngine> m_autocomplete_engine;
     SiteSetting m_autoplay;
     DoNotTrack m_do_not_track { DoNotTrack::No };
+    DNSSettings m_dns_settings { SystemDNS() };
+    bool m_dns_override_by_command_line { false };
 
     Vector<SettingsObserver&> m_observers;
 };
