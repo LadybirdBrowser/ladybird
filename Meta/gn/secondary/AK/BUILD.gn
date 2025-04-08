@@ -138,7 +138,6 @@ shared_library("AK") {
     "QuickSort.h",
     "Random.cpp",
     "Random.h",
-    "RecursionDecision.h",
     "RedBlackTree.h",
     "RefCounted.h",
     "RefPtr.h",
