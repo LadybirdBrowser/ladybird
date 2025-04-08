@@ -32,7 +32,7 @@ public:
     Function<void(Vector<URL::URL> const&)> on_new_window;
 
 private:
-    UIProcessConnectionFromClient(IPC::Transport, int client_id);
+    UIProcessConnectionFromClient(NonnullOwnPtr<IPC::Transport>, int client_id);
 
     virtual void create_new_tab(Vector<ByteString> urls) override;
     virtual void create_new_window(Vector<ByteString> urls) override;

@@ -47,7 +47,7 @@ ErrorOr<Process::ProcessAndIPCTransport> Process::spawn_and_connect_to_process(C
     guard_fd_0.disarm();
     TRY(ipc_socket->set_blocking(true));
 
-    return ProcessAndIPCTransport { move(process), IPC::Transport(move(ipc_socket)) };
+    return ProcessAndIPCTransport { move(process), make<IPC::Transport>(move(ipc_socket)) };
 }
 
 #ifdef AK_OS_WINDOWS

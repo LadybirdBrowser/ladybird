@@ -10,7 +10,7 @@
 
 namespace Requests {
 
-RequestClient::RequestClient(IPC::Transport transport)
+RequestClient::RequestClient(NonnullOwnPtr<IPC::Transport> transport)
     : IPC::ConnectionToServer<RequestClientEndpoint, RequestServerEndpoint>(*this, move(transport))
 {
 }

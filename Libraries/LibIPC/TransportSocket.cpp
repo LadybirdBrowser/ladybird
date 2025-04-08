@@ -15,10 +15,9 @@ namespace IPC {
 
 TransportSocket::TransportSocket(NonnullOwnPtr<Core::LocalSocket> socket)
     : m_socket(move(socket))
-    , m_fds_retained_until_received_by_peer(make<Queue<NonnullRefPtr<AutoCloseFileDescriptor>>>())
 {
     m_send_queue = adopt_ref(*new SendQueue);
-    m_send_thread = Threading::Thread::construct([&socket = *m_socket, send_queue = m_send_queue]() -> intptr_t {
+    m_send_thread = Threading::Thread::construct([this, send_queue = m_send_queue]() -> intptr_t {
         for (;;) {
             send_queue->mutex.lock();
             while (send_queue->messages.is_empty() && send_queue->running)
@@ -32,7 +31,7 @@ TransportSocket::TransportSocket(NonnullOwnPtr<Core::LocalSocket> socket)
             auto [bytes, fds] = send_queue->messages.take_first();
             send_queue->mutex.unlock();
 
-            if (auto result = send_message(socket, bytes, fds); result.is_error()) {
+            if (auto result = send_message(*m_socket, bytes, fds); result.is_error()) {
                 dbgln("TransportSocket::send_thread: {}", result.error());
             }
         }
@@ -46,14 +45,12 @@ TransportSocket::TransportSocket(NonnullOwnPtr<Core::LocalSocket> socket)
 
 TransportSocket::~TransportSocket()
 {
-    if (m_send_thread) {
-        {
-            Threading::MutexLocker locker(m_send_queue->mutex);
-            m_send_queue->running = false;
-            m_send_queue->condition.signal();
-        }
-        (void)m_send_thread->join();
+    {
+        Threading::MutexLocker locker(m_send_queue->mutex);
+        m_send_queue->running = false;
+        m_send_queue->condition.signal();
     }
+    (void)m_send_thread->join();
 }
 
 void TransportSocket::set_up_read_hook(Function<void()> hook)
@@ -94,7 +91,7 @@ struct MessageHeader {
     u32 fd_count { 0 };
 };
 
-void TransportSocket::post_message(Vector<u8> const& bytes_to_write, Vector<NonnullRefPtr<AutoCloseFileDescriptor>> const& fds) const
+void TransportSocket::post_message(Vector<u8> const& bytes_to_write, Vector<NonnullRefPtr<AutoCloseFileDescriptor>> const& fds)
 {
     Vector<u8> message_buffer;
     message_buffer.resize(sizeof(MessageHeader) + bytes_to_write.size());
@@ -106,7 +103,7 @@ void TransportSocket::post_message(Vector<u8> const& bytes_to_write, Vector<Nonn
     memcpy(message_buffer.data() + sizeof(MessageHeader), bytes_to_write.data(), bytes_to_write.size());
 
     for (auto const& fd : fds)
-        m_fds_retained_until_received_by_peer->enqueue(fd);
+        m_fds_retained_until_received_by_peer.enqueue(fd);
 
     auto raw_fds = Vector<int, 1> {};
     auto num_fds_to_transfer = fds.size();
@@ -242,7 +239,7 @@ TransportSocket::ShouldShutdown TransportSocket::read_as_many_messages_as_possib
 
     if (acknowledged_fd_count > 0) {
         while (acknowledged_fd_count > 0) {
-            (void)m_fds_retained_until_received_by_peer->dequeue();
+            (void)m_fds_retained_until_received_by_peer.dequeue();
             --acknowledged_fd_count;
         }
     }

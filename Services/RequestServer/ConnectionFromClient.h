@@ -35,7 +35,7 @@ public:
     virtual void die() override;
 
 private:
-    explicit ConnectionFromClient(IPC::Transport);
+    explicit ConnectionFromClient(NonnullOwnPtr<IPC::Transport>);
 
     virtual Messages::RequestServer::InitTransportResponse init_transport(int peer_pid) override;
     virtual Messages::RequestServer::ConnectNewClientResponse connect_new_client() override;

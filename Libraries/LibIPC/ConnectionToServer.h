@@ -18,7 +18,7 @@ public:
     using ClientStub = typename ClientEndpoint::Stub;
     using IPCProxy = typename ServerEndpoint::template Proxy<ClientEndpoint>;
 
-    ConnectionToServer(ClientStub& local_endpoint, Transport transport)
+    ConnectionToServer(ClientStub& local_endpoint, NonnullOwnPtr<Transport> transport)
         : Connection<ClientEndpoint, ServerEndpoint>(local_endpoint, move(transport))
         , ServerEndpoint::template Proxy<ClientEndpoint>(*this, {})
     {

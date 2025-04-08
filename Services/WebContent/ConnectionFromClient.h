@@ -51,7 +51,7 @@ public:
     Queue<Web::QueuedInputEvent>& input_event_queue() { return m_input_event_queue; }
 
 private:
-    explicit ConnectionFromClient(IPC::Transport);
+    explicit ConnectionFromClient(NonnullOwnPtr<IPC::Transport>);
 
     Optional<PageClient&> page(u64 index, SourceLocation = SourceLocation::current());
     Optional<PageClient const&> page(u64 index, SourceLocation = SourceLocation::current()) const;

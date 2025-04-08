@@ -26,7 +26,7 @@ public:
     using ServerStub = typename ServerEndpoint::Stub;
     using IPCProxy = typename ClientEndpoint::template Proxy<ServerEndpoint>;
 
-    ConnectionFromClient(ServerStub& stub, Transport transport, int client_id)
+    ConnectionFromClient(ServerStub& stub, NonnullOwnPtr<Transport> transport, int client_id)
         : IPC::Connection<ServerEndpoint, ClientEndpoint>(stub, move(transport))
         , ClientEndpoint::template Proxy<ServerEndpoint>(*this, {})
         , m_client_id(client_id)

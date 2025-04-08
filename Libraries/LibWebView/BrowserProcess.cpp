@@ -22,7 +22,7 @@ class UIProcessClient final
     C_OBJECT(UIProcessClient);
 
 private:
-    explicit UIProcessClient(IPC::Transport);
+    explicit UIProcessClient(NonnullOwnPtr<IPC::Transport>);
 };
 
 ErrorOr<BrowserProcess::ProcessDisposition> BrowserProcess::connect(Vector<ByteString> const& raw_urls, NewWindow new_window)
@@ -49,7 +49,7 @@ ErrorOr<void> BrowserProcess::connect_as_client(ByteString const& socket_path, V
 {
     // TODO: Mach IPC
     auto socket = TRY(Core::LocalSocket::connect(socket_path));
-    auto client = UIProcessClient::construct(IPC::Transport(move(socket)));
+    auto client = UIProcessClient::construct(make<IPC::Transport>(move(socket)));
 
     if (new_window == NewWindow::Yes) {
         if (!client->send_sync_but_allow_failure<Messages::UIProcessServer::CreateNewWindow>(raw_urls))
@@ -98,12 +98,12 @@ BrowserProcess::~BrowserProcess()
         MUST(Core::System::unlink(m_socket_path));
 }
 
-UIProcessClient::UIProcessClient(IPC::Transport transport)
+UIProcessClient::UIProcessClient(NonnullOwnPtr<IPC::Transport> transport)
     : IPC::ConnectionToServer<UIProcessClientEndpoint, UIProcessServerEndpoint>(*this, move(transport))
 {
 }
 
-UIProcessConnectionFromClient::UIProcessConnectionFromClient(IPC::Transport transport, int client_id)
+UIProcessConnectionFromClient::UIProcessConnectionFromClient(NonnullOwnPtr<IPC::Transport> transport, int client_id)
     : IPC::ConnectionFromClient<UIProcessClientEndpoint, UIProcessServerEndpoint>(*this, move(transport), client_id)
 {
     s_connections.set(client_id, *this);

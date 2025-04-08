@@ -27,7 +27,7 @@ class RequestClient final
 public:
     using InitTransport = Messages::RequestServer::InitTransport;
 
-    explicit RequestClient(IPC::Transport);
+    explicit RequestClient(NonnullOwnPtr<IPC::Transport>);
     virtual ~RequestClient() override;
 
     RefPtr<Request> start_request(ByteString const& method, URL::URL const&, HTTP::HeaderMap const& request_headers = {}, ReadonlyBytes request_body = {}, Core::ProxyData const& = {});

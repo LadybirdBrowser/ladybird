@@ -18,7 +18,7 @@ class WebWorkerClient final
     C_OBJECT_ABSTRACT(WebWorkerClient);
 
 public:
-    explicit WebWorkerClient(IPC::Transport);
+    explicit WebWorkerClient(NonnullOwnPtr<IPC::Transport>);
 
     virtual void did_close_worker() override;
 

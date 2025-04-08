@@ -206,7 +206,7 @@ ErrorOr<NonnullRefPtr<Core::LocalServer>> Session::create_server(NonnullRefPtr<S
     server->listen(*m_web_content_socket_path);
 
     server->on_accept = [this, promise](auto client_socket) {
-        auto maybe_connection = adopt_nonnull_ref_or_enomem(new (nothrow) WebContentConnection(IPC::Transport(move(client_socket))));
+        auto maybe_connection = adopt_nonnull_ref_or_enomem(new (nothrow) WebContentConnection(make<IPC::Transport>(move(client_socket))));
         if (maybe_connection.is_error()) {
             promise->resolve(maybe_connection.release_error());
             return;

@@ -19,7 +19,7 @@ class WebContentConnection
     : public IPC::ConnectionFromClient<WebDriverClientEndpoint, WebDriverServerEndpoint> {
     C_OBJECT_ABSTRACT(WebContentConnection)
 public:
-    explicit WebContentConnection(IPC::Transport transport);
+    explicit WebContentConnection(NonnullOwnPtr<IPC::Transport> transport);
 
     Function<void()> on_close;
     Function<void(Web::WebDriver::Response)> on_driver_execution_complete;

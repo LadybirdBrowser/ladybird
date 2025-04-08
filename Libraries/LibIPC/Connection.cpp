@@ -16,14 +16,14 @@
 
 namespace IPC {
 
-ConnectionBase::ConnectionBase(IPC::Stub& local_stub, Transport transport, u32 local_endpoint_magic)
+ConnectionBase::ConnectionBase(IPC::Stub& local_stub, NonnullOwnPtr<Transport> transport, u32 local_endpoint_magic)
     : m_local_stub(local_stub)
     , m_transport(move(transport))
     , m_local_endpoint_magic(local_endpoint_magic)
 {
     m_responsiveness_timer = Core::Timer::create_single_shot(3000, [this] { may_have_become_unresponsive(); });
 
-    m_transport.set_up_read_hook([this] {
+    m_transport->set_up_read_hook([this] {
         NonnullRefPtr protect = *this;
         // FIXME: Do something about errors.
         (void)drain_messages_from_peer();
@@ -35,7 +35,7 @@ ConnectionBase::~ConnectionBase() = default;
 
 bool ConnectionBase::is_open() const
 {
-    return m_transport.is_open();
+    return m_transport->is_open();
 }
 
 ErrorOr<void> ConnectionBase::post_message(Message const& message)
@@ -47,7 +47,7 @@ ErrorOr<void> ConnectionBase::post_message(u32 endpoint_magic, MessageBuffer buf
 {
     // NOTE: If this connection is being shut down, but has not yet been destroyed,
     //       the socket will be closed. Don't try to send more messages.
-    if (!m_transport.is_open())
+    if (!m_transport->is_open())
         return Error::from_string_literal("Trying to post_message during IPC shutdown");
 
     if (buffer.data().size() > TransportSocket::SOCKET_BUFFER_SIZE) {
@@ -55,7 +55,7 @@ ErrorOr<void> ConnectionBase::post_message(u32 endpoint_magic, MessageBuffer buf
         buffer = MUST(wrapper->encode());
     }
 
-    MUST(buffer.transfer_message(m_transport));
+    MUST(buffer.transfer_message(*m_transport));
 
     m_responsiveness_timer->start();
     return {};
@@ -63,7 +63,7 @@ ErrorOr<void> ConnectionBase::post_message(u32 endpoint_magic, MessageBuffer buf
 
 void ConnectionBase::shutdown()
 {
-    m_transport.close();
+    m_transport->close();
     die();
 }
 
@@ -95,12 +95,12 @@ void ConnectionBase::handle_messages()
 
 void ConnectionBase::wait_for_transport_to_become_readable()
 {
-    m_transport.wait_until_readable();
+    m_transport->wait_until_readable();
 }
 
 ErrorOr<void> ConnectionBase::drain_messages_from_peer()
 {
-    auto schedule_shutdown = m_transport.read_as_many_messages_as_possible_without_blocking([&](auto&& unparsed_message) {
+    auto schedule_shutdown = m_transport->read_as_many_messages_as_possible_without_blocking([&](auto&& unparsed_message) {
         auto const& bytes = unparsed_message.bytes;
         UnprocessedFileDescriptors unprocessed_fds;
         unprocessed_fds.return_fds_to_front_of_queue(move(unparsed_message.fds));

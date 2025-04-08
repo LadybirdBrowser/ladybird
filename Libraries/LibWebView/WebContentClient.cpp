@@ -25,14 +25,14 @@ Optional<ViewImplementation&> WebContentClient::view_for_pid_and_page_id(pid_t p
     return {};
 }
 
-WebContentClient::WebContentClient(IPC::Transport transport, ViewImplementation& view)
+WebContentClient::WebContentClient(NonnullOwnPtr<IPC::Transport> transport, ViewImplementation& view)
     : IPC::ConnectionToServer<WebContentClientEndpoint, WebContentServerEndpoint>(*this, move(transport))
 {
     s_clients.set(this);
     m_views.set(0, &view);
 }
 
-WebContentClient::WebContentClient(IPC::Transport transport)
+WebContentClient::WebContentClient(NonnullOwnPtr<IPC::Transport> transport)
     : IPC::ConnectionToServer<WebContentClientEndpoint, WebContentServerEndpoint>(*this, move(transport))
 {
     s_clients.set(this);

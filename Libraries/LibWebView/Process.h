@@ -54,7 +54,7 @@ public:
 private:
     struct ProcessAndIPCTransport {
         Core::Process process;
-        IPC::Transport transport;
+        NonnullOwnPtr<IPC::Transport> transport;
     };
     static ErrorOr<ProcessAndIPCTransport> spawn_and_connect_to_process(Core::ProcessSpawnOptions const& options);
 

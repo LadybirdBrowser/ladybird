@@ -38,7 +38,7 @@ public:
 private:
     using Job = Threading::BackgroundAction<DecodeResult>;
 
-    explicit ConnectionFromClient(IPC::Transport);
+    explicit ConnectionFromClient(NonnullOwnPtr<IPC::Transport>);
 
     virtual Messages::ImageDecoderServer::DecodeImageResponse decode_image(Core::AnonymousBuffer, Optional<Gfx::IntSize> ideal_size, Optional<ByteString> mime_type) override;
     virtual void cancel_decoding(i64 image_id) override;
