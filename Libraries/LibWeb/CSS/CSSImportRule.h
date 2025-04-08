@@ -21,7 +21,7 @@ class CSSImportRule final
     GC_DECLARE_ALLOCATOR(CSSImportRule);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSImportRule> create(::URL::URL, DOM::Document&, RefPtr<Supports>, Vector<NonnullRefPtr<MediaQuery>>);
+    [[nodiscard]] static GC::Ref<CSSImportRule> create(JS::Realm&, ::URL::URL, GC::Ptr<DOM::Document>, RefPtr<Supports>, Vector<NonnullRefPtr<MediaQuery>>);
 
     virtual ~CSSImportRule() = default;
 
@@ -37,7 +37,7 @@ public:
     Optional<String> supports_text() const;
 
 private:
-    CSSImportRule(::URL::URL, DOM::Document&, RefPtr<Supports>, Vector<NonnullRefPtr<MediaQuery>>);
+    CSSImportRule(JS::Realm&, ::URL::URL, GC::Ptr<DOM::Document>, RefPtr<Supports>, Vector<NonnullRefPtr<MediaQuery>>);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
