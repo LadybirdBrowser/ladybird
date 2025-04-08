@@ -349,7 +349,31 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
                 state->set_has_updated_resources(true);
             }
 
-            // FIXME: 21. If hasUpdatedResources is false and newestWorker’s classic scripts imported flag is set, then:
+            // 21. If hasUpdatedResources is false and newestWorker’s classic scripts imported flag is set, then:
+            if (!state->has_updated_resources()) {
+                VERIFY(newest_worker);
+                if (newest_worker->classic_scripts_imported) {
+                    // 1. For each importUrl → storedResponse of newestWorker’s script resource map:
+                    if (false) {
+                        // FIXME: 1. If importUrl is url, then continue.
+                        // FIXME 2. Let importRequest be a new request whose url is importUrl, client is job’s client, destination is "script", parser metadata
+                        //    is "not parser-inserted", and whose use-URL-credentials flag is set.
+                        // FIXME: 3. Set importRequest’s cache mode to "no-cache" if any of the following are true:
+                        //     * registration’s update via cache mode is "none".
+                        //     * job’s force bypass cache flag is set.
+                        //     * registration is stale.
+                        // FIXME: 4. Let fetchedResponse be the result of fetching importRequest.
+                        // FIXME: 5. Set updatedResourceMap[importRequest’s url] to fetchedResponse.
+                        // FIXME: 6. Set fetchedResponse to fetchedResponse’s unsafe response.
+                        // FIXME: 7. If fetchedResponse’s cache state is not "local", set registration’s last update check time to the current time.
+                        // FIXME: 8. If fetchedResponse is a bad import script response, continue.
+                        // NOTE: Bad responses for importScripts() are ignored for the purpose of the byte-to-byte check. Only good responses for the incumbent worker
+                        //       and good responses for the potential update worker are considered. See issue #1374 for some rationale
+                        // FIXME: 9. If fetchedResponse’s body is not byte-for-byte identical with storedResponse’s unsafe response’s body, set hasUpdatedResources to true.
+                        // NOTE: The control does not break the loop in this step to continue with all the imported scripts to populate the cache.
+                    }
+                }
+            }
 
             // 22. Asynchronously complete these steps with response.
             process_response_completion_result = WebIDL::ExceptionOr<void> {};
