@@ -162,13 +162,6 @@ GC::Ptr<CSSImportRule> Parser::convert_to_import_rule(AtRule const& rule)
         return {};
     }
 
-    // FIXME: Stop completing the URL here
-    auto resolved_url = complete_url(url->url());
-    if (!resolved_url.has_value()) {
-        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @import rule: Unable to complete `{}` as URL.", url->url());
-        return {};
-    }
-
     tokens.discard_whitespace();
     // FIXME: Implement layer support.
     RefPtr<Supports> supports {};
@@ -198,7 +191,7 @@ GC::Ptr<CSSImportRule> Parser::convert_to_import_rule(AtRule const& rule)
         return {};
     }
 
-    return CSSImportRule::create(realm(), resolved_url.release_value(), const_cast<DOM::Document*>(m_document.ptr()), supports, move(media_query_list));
+    return CSSImportRule::create(realm(), url.release_value(), const_cast<DOM::Document*>(m_document.ptr()), supports, move(media_query_list));
 }
 
 Optional<FlyString> Parser::parse_layer_name(TokenStream<ComponentValue>& tokens, AllowBlankLayerName allow_blank_layer_name)
