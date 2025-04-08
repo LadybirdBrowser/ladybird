@@ -3,6 +3,7 @@
  * Copyright (c) 2022-2023, Sam Atkins <atkinssj@serenityos.org>
  * Copyright (c) 2022, MacDue <macdue@dueutil.tech>
  * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
+ * Copyright (c) 2025, Aziz B. Yesilyurt <abyesilyurt@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -283,10 +284,10 @@ void TreeBuilder::restructure_block_node_in_inline_parent(NodeWithStyleAndBoxMod
     VERIFY(!parent.children_are_inline());
     parent.set_children_are_inline(true);
 
-    // Find nearest non-inline, content supporting ancestor that is not an anonymous block.
+    // Find nearest ancestor that establishes a BFC (block container) and is not display: contents or anonymous.
     auto& nearest_block_ancestor = [&] -> NodeWithStyle& {
         for (auto* ancestor = parent.parent(); ancestor; ancestor = ancestor->parent()) {
-            if (!ancestor->is_inline() && !ancestor->display().is_contents() && !ancestor->is_anonymous())
+            if (is<BlockContainer>(*ancestor) && !ancestor->display().is_contents() && !ancestor->is_anonymous())
                 return *ancestor;
         }
         VERIFY_NOT_REACHED();
@@ -310,6 +311,7 @@ void TreeBuilder::restructure_block_node_in_inline_parent(NodeWithStyleAndBoxMod
         before_wrapper = last_child;
     } else {
         before_wrapper = nearest_block_ancestor.create_anonymous_wrapper();
+
         before_wrapper->set_children_are_inline(true);
         nearest_block_ancestor.append_child(*before_wrapper);
     }
