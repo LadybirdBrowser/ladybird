@@ -137,13 +137,13 @@ void Printer::print(Wasm::DataSection::Data const& data)
             [this](DataSection::Data::Passive const& value) {
                 print_indent();
                 print("(passive init {}xu8 (", value.init.size());
-                print(ByteString::join(' ', value.init, "{:x}"sv));
+                print("{}", ByteString::join(' ', value.init, "{:x}"sv));
                 print(")\n");
             },
             [this](DataSection::Data::Active const& value) {
                 print_indent();
                 print("(active init {}xu8 (", value.init.size());
-                print(ByteString::join(' ', value.init, "{:x}"sv));
+                print("{}", ByteString::join(' ', value.init, "{:x}"sv));
                 print("\n");
                 {
                     TemporaryChange change { m_indent, m_indent + 1 };
@@ -659,26 +659,26 @@ void Printer::print(Wasm::Value const& value, Wasm::ValueType const& type)
     print_indent();
     switch (type.kind()) {
     case ValueType::I32:
-        print(ByteString::formatted("{}", value.to<i32>()));
+        print("{}", value.to<i32>());
         break;
     case ValueType::I64:
-        print(ByteString::formatted("{}", value.to<i64>()));
+        print("{}", value.to<i64>());
         break;
     case ValueType::F32:
-        print(ByteString::formatted("{}", value.to<f32>()));
+        print("{}", value.to<f32>());
         break;
     case ValueType::F64:
-        print(ByteString::formatted("{}", value.to<f64>()));
+        print("{}", value.to<f64>());
         break;
     case ValueType::V128:
-        print(ByteString::formatted("v128({:x})", value.value()));
+        print("v128({:x})", value.value());
         break;
     case ValueType::FunctionReference:
     case ValueType::ExternReference:
-        print(ByteString::formatted("addr({})",
+        print("addr({})",
             value.to<Reference>().ref().visit(
                 [](Wasm::Reference::Null const&) { return ByteString("null"); },
-                [](auto const& ref) { return ByteString::number(ref.address.value()); })));
+                [](auto const& ref) { return ByteString::number(ref.address.value()); }));
         break;
     }
     TemporaryChange<size_t> change { m_indent, 0 };
