@@ -715,10 +715,6 @@ void ConnectionFromClient::websocket_connect(i64 websocket_id, URL::URL url, Byt
 {
     auto host = url.serialized_host().to_byte_string();
 
-    // Check if host has the bracket notation for IPV6 addresses and remove them
-    if (host.starts_with("["sv) && host.ends_with("]"sv))
-        host = host.substring(1, host.length() - 2);
-
     m_resolver->dns.lookup(host, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA })
         ->when_rejected([this, websocket_id](auto const& error) {
             dbgln("WebSocketConnect: DNS lookup failed: {}", error);
