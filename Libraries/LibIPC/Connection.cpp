@@ -69,7 +69,7 @@ ConnectionBase::~ConnectionBase()
         m_send_queue->running = false;
         m_send_queue->condition.signal();
     }
-    m_send_thread->detach();
+    (void)m_send_thread->join();
 }
 
 bool ConnectionBase::is_open() const
