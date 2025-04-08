@@ -28,7 +28,7 @@ public:
     void received_message_from_web_ui(String const& name, JS::Value data);
 
 private:
-    WebUIConnection(IPC::Transport, Web::DOM::Document&);
+    WebUIConnection(NonnullOwnPtr<IPC::Transport>, Web::DOM::Document&);
 
     virtual void die() override { }
     virtual void send_message(String name, JsonValue data) override;

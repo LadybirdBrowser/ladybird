@@ -45,7 +45,7 @@ void ConnectionFromClient::request_file(Web::FileRequest request)
         handle_file_return(0, IPC::File::adopt_file(file.release_value()), request_id);
 }
 
-ConnectionFromClient::ConnectionFromClient(IPC::Transport transport)
+ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transport)
     : IPC::ConnectionFromClient<WebWorkerClientEndpoint, WebWorkerServerEndpoint>(*this, move(transport), 1)
     , m_page_host(PageHost::create(Web::Bindings::main_thread_vm(), *this))
 {

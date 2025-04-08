@@ -9,7 +9,7 @@
 
 namespace WebDriver {
 
-WebContentConnection::WebContentConnection(IPC::Transport transport)
+WebContentConnection::WebContentConnection(NonnullOwnPtr<IPC::Transport> transport)
     : IPC::ConnectionFromClient<WebDriverClientEndpoint, WebDriverServerEndpoint>(*this, move(transport), 1)
 {
 }

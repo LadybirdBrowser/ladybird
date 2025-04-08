@@ -78,7 +78,7 @@ void MessagePort::visit_edges(Cell::Visitor& visitor)
 
 bool MessagePort::is_entangled() const
 {
-    return m_transport.has_value();
+    return m_transport;
 }
 
 void MessagePort::set_worker_event_target(GC::Ref<DOM::EventTarget> target)
@@ -103,7 +103,7 @@ WebIDL::ExceptionOr<void> MessagePort::transfer_steps(HTML::TransferDataHolder& 
         // 2. Set dataHolder.[[RemotePort]] to remotePort.
         // TODO: Mach IPC
         auto fd = MUST(m_transport->release_underlying_transport_for_transfer());
-        m_transport = {};
+        m_transport.clear();
         data_holder.fds.append(IPC::File::adopt_fd(fd));
         data_holder.data.append(IPC_FILE_TAG);
     }
@@ -131,7 +131,7 @@ WebIDL::ExceptionOr<void> MessagePort::transfer_receiving_steps(HTML::TransferDa
     if (fd_tag == IPC_FILE_TAG) {
         // TODO: Mach IPC
         auto fd = data_holder.fds.take_first();
-        m_transport = IPC::Transport(MUST(Core::LocalSocket::adopt_fd(fd.take_fd())));
+        m_transport = make<IPC::Transport>(MUST(Core::LocalSocket::adopt_fd(fd.take_fd())));
 
         m_transport->set_up_read_hook([strong_this = GC::make_root(this)]() {
             strong_this->read_from_transport();
@@ -150,7 +150,7 @@ void MessagePort::disentangle()
         m_remote_port->m_remote_port = nullptr;
     m_remote_port = nullptr;
 
-    m_transport = {};
+    m_transport.clear();
 
     m_worker_event_target = nullptr;
 }
@@ -187,8 +187,8 @@ void MessagePort::entangle_with(MessagePort& remote_port)
     };
 
     auto sockets = create_paired_sockets();
-    m_transport = IPC::Transport(move(sockets[0]));
-    m_remote_port->m_transport = IPC::Transport(move(sockets[1]));
+    m_transport = make<IPC::Transport>(move(sockets[0]));
+    m_remote_port->m_transport = make<IPC::Transport>(move(sockets[1]));
 
     m_transport->set_up_read_hook([strong_this = GC::make_root(this)]() {
         strong_this->read_from_transport();
@@ -256,7 +256,7 @@ WebIDL::ExceptionOr<void> MessagePort::message_port_post_message_steps(GC::Ptr<M
     // 6. If targetPort is null, or if doomed is true, then return.
     // IMPLEMENTATION DEFINED: Actually check the socket here, not the target port.
     //     If there's no target message port in the same realm, we still want to send the message over IPC
-    if (!m_transport.has_value() || doomed) {
+    if (!m_transport || doomed) {
         return {};
     }
 
@@ -278,7 +278,7 @@ ErrorOr<void> MessagePort::send_message_on_transport(SerializedTransferRecord co
 
 void MessagePort::post_port_message(SerializedTransferRecord serialize_with_transfer_result)
 {
-    if (!m_transport.has_value() || !m_transport->is_open())
+    if (!m_transport || !m_transport->is_open())
         return;
     if (auto result = send_message_on_transport(serialize_with_transfer_result); result.is_error()) {
         dbgln("Failed to post message: {}", result.error());
@@ -369,7 +369,7 @@ void MessagePort::start()
     if (!is_entangled())
         return;
 
-    VERIFY(m_transport.has_value());
+    VERIFY(m_transport);
 
     // TODO: The start() method steps are to enable this's port message queue, if it is not already enabled.
 }

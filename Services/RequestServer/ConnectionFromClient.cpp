@@ -264,7 +264,7 @@ int ConnectionFromClient::on_timeout_callback(void*, long timeout_ms, void* user
     return 0;
 }
 
-ConnectionFromClient::ConnectionFromClient(IPC::Transport transport)
+ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transport)
     : IPC::ConnectionFromClient<RequestClientEndpoint, RequestServerEndpoint>(*this, move(transport), s_client_ids.allocate())
     , m_resolver(default_resolver())
 {
@@ -335,7 +335,7 @@ Messages::RequestServer::ConnectNewClientResponse ConnectionFromClient::connect_
     }
     auto client_socket = client_socket_or_error.release_value();
     // Note: A ref is stored in the static s_connections map
-    auto client = adopt_ref(*new ConnectionFromClient(IPC::Transport(move(client_socket))));
+    auto client = adopt_ref(*new ConnectionFromClient(make<IPC::Transport>(move(client_socket))));
 
     return IPC::File::adopt_fd(socket_fds[1]);
 }

@@ -42,7 +42,7 @@ public:
     void page_did_open_dialog(Badge<PageClient>);
 
 private:
-    WebDriverConnection(IPC::Transport transport, Web::PageClient& page_client);
+    WebDriverConnection(NonnullOwnPtr<IPC::Transport> transport, Web::PageClient& page_client);
 
     virtual void die() override { }
 

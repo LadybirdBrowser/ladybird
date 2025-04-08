@@ -44,7 +44,7 @@ private:
 
 class TransportSocket {
     AK_MAKE_NONCOPYABLE(TransportSocket);
-    AK_MAKE_DEFAULT_MOVABLE(TransportSocket);
+    AK_MAKE_NONMOVABLE(TransportSocket);
 
 public:
     static constexpr socklen_t SOCKET_BUFFER_SIZE = 128 * KiB;
@@ -58,7 +58,7 @@ public:
 
     void wait_until_readable();
 
-    void post_message(Vector<u8> const&, Vector<NonnullRefPtr<AutoCloseFileDescriptor>> const&) const;
+    void post_message(Vector<u8> const&, Vector<NonnullRefPtr<AutoCloseFileDescriptor>> const&);
 
     enum class ShouldShutdown {
         No,
@@ -85,7 +85,7 @@ private:
     // After file descriptor is sent, it is moved to the wait queue until an acknowledgement is received from the peer.
     // This is necessary to handle a specific behavior of the macOS kernel, which may prematurely garbage-collect the file
     // descriptor contained in the message before the peer receives it. https://openradar.me/9477351
-    NonnullOwnPtr<Queue<NonnullRefPtr<AutoCloseFileDescriptor>>> m_fds_retained_until_received_by_peer;
+    Queue<NonnullRefPtr<AutoCloseFileDescriptor>> m_fds_retained_until_received_by_peer;
 
     struct MessageToSend {
         Vector<u8> bytes;

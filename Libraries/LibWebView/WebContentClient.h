@@ -39,8 +39,8 @@ public:
 
     static size_t client_count() { return s_clients.size(); }
 
-    explicit WebContentClient(IPC::Transport);
-    WebContentClient(IPC::Transport, ViewImplementation&);
+    explicit WebContentClient(NonnullOwnPtr<IPC::Transport>);
+    WebContentClient(NonnullOwnPtr<IPC::Transport>, ViewImplementation&);
     ~WebContentClient();
 
     void assign_view(Badge<Application>, ViewImplementation&);

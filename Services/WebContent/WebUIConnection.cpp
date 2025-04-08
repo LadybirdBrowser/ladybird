@@ -26,10 +26,10 @@ ErrorOr<NonnullRefPtr<WebUIConnection>> WebUIConnection::connect(IPC::File web_u
     auto socket = TRY(Core::LocalSocket::adopt_fd(web_ui_socket.take_fd()));
     TRY(socket->set_blocking(true));
 
-    return adopt_ref(*new WebUIConnection(IPC::Transport { move(socket) }, document));
+    return adopt_ref(*new WebUIConnection(make<IPC::Transport>(move(socket)), document));
 }
 
-WebUIConnection::WebUIConnection(IPC::Transport transport, Web::DOM::Document& document)
+WebUIConnection::WebUIConnection(NonnullOwnPtr<IPC::Transport> transport, Web::DOM::Document& document)
     : IPC::ConnectionFromClient<WebUIClientEndpoint, WebUIServerEndpoint>(*this, move(transport), 1)
     , m_document(document)
 {

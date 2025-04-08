@@ -40,7 +40,7 @@ void WorkerAgent::initialize(JS::Realm& realm)
     MUST(worker_socket->set_blocking(true));
 
     // TODO: Mach IPC
-    auto transport = IPC::Transport(move(worker_socket));
+    auto transport = make<IPC::Transport>(move(worker_socket));
 
     m_worker_ipc = make_ref_counted<WebWorkerClient>(move(transport));
 

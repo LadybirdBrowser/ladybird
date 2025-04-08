@@ -35,10 +35,10 @@ public:
     void shutdown();
     virtual void die() { }
 
-    Transport& transport() { return m_transport; }
+    Transport& transport() const { return *m_transport; }
 
 protected:
-    explicit ConnectionBase(IPC::Stub&, Transport, u32 local_endpoint_magic);
+    explicit ConnectionBase(IPC::Stub&, NonnullOwnPtr<Transport>, u32 local_endpoint_magic);
 
     virtual void may_have_become_unresponsive() { }
     virtual void did_become_responsive() { }
@@ -53,7 +53,7 @@ protected:
 
     IPC::Stub& m_local_stub;
 
-    Transport m_transport;
+    NonnullOwnPtr<Transport> m_transport;
 
     RefPtr<Core::Timer> m_responsiveness_timer;
 
@@ -65,7 +65,7 @@ protected:
 template<typename LocalEndpoint, typename PeerEndpoint>
 class Connection : public ConnectionBase {
 public:
-    Connection(IPC::Stub& local_stub, Transport transport)
+    Connection(IPC::Stub& local_stub, NonnullOwnPtr<Transport> transport)
         : ConnectionBase(local_stub, move(transport), LocalEndpoint::static_magic())
     {
     }

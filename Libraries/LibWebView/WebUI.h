@@ -30,7 +30,7 @@ public:
     String const& host() const { return m_host; }
 
 protected:
-    WebUI(WebContentClient&, IPC::Transport, String host);
+    WebUI(WebContentClient&, NonnullOwnPtr<IPC::Transport>, String host);
 
     using Interface = Function<void(JsonValue)>;
 
@@ -47,17 +47,17 @@ private:
     HashMap<StringView, Interface> m_interfaces;
 };
 
-#define WEB_UI(WebUIType)                                                                                   \
-public:                                                                                                     \
-    static NonnullRefPtr<WebUIType> create(WebContentClient& client, IPC::Transport transport, String host) \
-    {                                                                                                       \
-        return adopt_ref(*new WebUIType(client, move(transport), move(host)));                              \
-    }                                                                                                       \
-                                                                                                            \
-private:                                                                                                    \
-    WebUIType(WebContentClient& client, IPC::Transport transport, String host)                              \
-        : WebView::WebUI(client, move(transport), move(host))                                               \
-    {                                                                                                       \
+#define WEB_UI(WebUIType)                                                                                                  \
+public:                                                                                                                    \
+    static NonnullRefPtr<WebUIType> create(WebContentClient& client, NonnullOwnPtr<IPC::Transport> transport, String host) \
+    {                                                                                                                      \
+        return adopt_ref(*new WebUIType(client, move(transport), move(host)));                                             \
+    }                                                                                                                      \
+                                                                                                                           \
+private:                                                                                                                   \
+    WebUIType(WebContentClient& client, NonnullOwnPtr<IPC::Transport> transport, String host)                              \
+        : WebView::WebUI(client, move(transport), move(host))                                                              \
+    {                                                                                                                      \
     }
 
 }

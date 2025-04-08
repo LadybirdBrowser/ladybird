@@ -27,7 +27,7 @@ static ErrorOr<NonnullRefPtr<WebUIType>> create_web_ui(WebContentClient& client,
         return client_socket.release_error();
     }
 
-    auto web_ui = WebUIType::create(client, IPC::Transport { client_socket.release_value() }, move(host));
+    auto web_ui = WebUIType::create(client, make<IPC::Transport>(client_socket.release_value()), move(host));
     client.async_connect_to_web_ui(0, IPC::File::adopt_fd(socket_fds[1]));
 
     return web_ui;
@@ -48,7 +48,7 @@ ErrorOr<RefPtr<WebUI>> WebUI::create(WebContentClient& client, String host)
     return web_ui;
 }
 
-WebUI::WebUI(WebContentClient& client, IPC::Transport transport, String host)
+WebUI::WebUI(WebContentClient& client, NonnullOwnPtr<IPC::Transport> transport, String host)
     : IPC::ConnectionToServer<WebUIClientEndpoint, WebUIServerEndpoint>(*this, move(transport))
     , m_client(client)
     , m_host(move(host))
