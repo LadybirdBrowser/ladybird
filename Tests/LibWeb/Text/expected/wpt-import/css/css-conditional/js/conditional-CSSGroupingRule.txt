@@ -2,14 +2,14 @@ Harness status: OK
 
 Found 34 tests
 
-30 Pass
-4 Fail
+26 Pass
+8 Fail
 Pass	@media is CSSGroupingRule
 Pass	@media rule type
 Pass	Empty @media rule length
 Fail	insertRule of @import into @media
-Pass	insertRule into empty @media at bad index
-Pass	insertRule into @media updates length
+Fail	insertRule into empty @media at bad index
+Fail	insertRule into @media updates length
 Pass	insertRule of valid @media into @media
 Pass	insertRule of valid style rule into @media
 Fail	insertRule of invalid @media into @media
@@ -25,8 +25,8 @@ Pass	@supports is CSSGroupingRule
 Pass	@supports rule type
 Pass	Empty @supports rule length
 Fail	insertRule of @import into @supports
-Pass	insertRule into empty @supports at bad index
-Pass	insertRule into @supports updates length
+Fail	insertRule into empty @supports at bad index
+Fail	insertRule into @supports updates length
 Pass	insertRule of valid @media into @supports
 Pass	insertRule of valid style rule into @supports
 Fail	insertRule of invalid @media into @supports

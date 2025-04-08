@@ -790,7 +790,7 @@ void dump_font_face_rule(StringBuilder& builder, CSS::CSSFontFaceRule const& rul
 void dump_import_rule(StringBuilder& builder, CSS::CSSImportRule const& rule, int indent_levels)
 {
     indent(builder, indent_levels);
-    builder.appendff("  Document URL: {}\n", rule.url());
+    builder.appendff("  Document URL: {}\n", rule.url().to_string());
 }
 
 void dump_layer_block_rule(StringBuilder& builder, CSS::CSSLayerBlockRule const& layer_block, int indent_levels)
