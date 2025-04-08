@@ -43,16 +43,7 @@ ErrorOr<void> MessageBuffer::transfer_message(Transport& transport)
         return Error::from_string_literal("Message is too large for IPC encoding");
     }
 
-    auto raw_fds = Vector<int, 1> {};
-    auto num_fds_to_transfer = m_fds.size();
-    if (num_fds_to_transfer > 0) {
-        raw_fds.ensure_capacity(num_fds_to_transfer);
-        for (auto& owned_fd : m_fds) {
-            raw_fds.unchecked_append(owned_fd->value());
-        }
-    }
-
-    TRY(transport.transfer_message(m_data.span(), raw_fds));
+    transport.post_message(m_data, m_fds);
     return {};
 }
 

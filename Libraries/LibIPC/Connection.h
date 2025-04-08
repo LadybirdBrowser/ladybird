@@ -60,16 +60,6 @@ protected:
     Vector<NonnullOwnPtr<Message>> m_unprocessed_messages;
 
     u32 m_local_endpoint_magic { 0 };
-
-    struct SendQueue : public AtomicRefCounted<SendQueue> {
-        AK::SinglyLinkedList<MessageBuffer> messages;
-        Threading::Mutex mutex;
-        Threading::ConditionVariable condition { mutex };
-        bool running { true };
-    };
-
-    RefPtr<Threading::Thread> m_send_thread;
-    RefPtr<SendQueue> m_send_queue;
 };
 
 template<typename LocalEndpoint, typename PeerEndpoint>
