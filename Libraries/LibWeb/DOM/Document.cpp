@@ -5879,7 +5879,7 @@ void Document::for_each_active_css_style_sheet(Function<void(CSS::CSSStyleSheet&
 
 static Optional<CSS::CSSStyleSheet&> find_style_sheet_with_url(String const& url, CSS::CSSStyleSheet& style_sheet)
 {
-    if (style_sheet.location() == url)
+    if (style_sheet.href() == url)
         return style_sheet;
 
     for (auto& import_rule : style_sheet.import_rules()) {

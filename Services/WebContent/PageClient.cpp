@@ -834,8 +834,8 @@ static void gather_style_sheets(Vector<Web::CSS::StyleSheetIdentifier>& results,
     }
 
     if (valid) {
-        if (auto location = sheet.location(); location.has_value())
-            identifier.url = location.release_value();
+        if (auto sheet_url = sheet.href(); sheet_url.has_value())
+            identifier.url = sheet_url.release_value();
 
         identifier.rule_count = sheet.rules().length();
         results.append(move(identifier));

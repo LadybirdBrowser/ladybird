@@ -13,6 +13,7 @@
 
 namespace Web::CSS {
 
+// https://drafts.csswg.org/cssom-1/#the-stylesheet-interface
 class StyleSheet : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(StyleSheet, Bindings::PlatformObject);
 
@@ -24,10 +25,10 @@ public:
     DOM::Element* owner_node() { return m_owner_node; }
     void set_owner_node(DOM::Element*);
 
-    Optional<String> href() const { return m_location; }
+    Optional<String> href() const;
 
-    Optional<String> location() const { return m_location; }
-    void set_location(Optional<String> location) { m_location = move(location); }
+    Optional<URL::URL> location() const { return m_location; }
+    void set_location(Optional<URL::URL> location) { m_location = move(location); }
 
     String title() const { return m_title; }
     Optional<String> title_for_bindings() const;
@@ -67,7 +68,7 @@ private:
     GC::Ptr<DOM::Element> m_owner_node;
     GC::Ptr<CSSStyleSheet> m_parent_style_sheet;
 
-    Optional<String> m_location;
+    Optional<URL::URL> m_location;
     String m_title;
     String m_type_string;
 
