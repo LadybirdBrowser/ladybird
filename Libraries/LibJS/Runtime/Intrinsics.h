@@ -36,6 +36,10 @@ public:
     [[nodiscard]] u32 normal_function_name_offset() const { return m_normal_function_name_offset; }
     [[nodiscard]] u32 normal_function_prototype_offset() const { return m_normal_function_prototype_offset; }
 
+    [[nodiscard]] GC::Ref<Shape> native_function_shape() { return *m_native_function_shape; }
+    [[nodiscard]] u32 native_function_length_offset() const { return m_native_function_length_offset; }
+    [[nodiscard]] u32 native_function_name_offset() const { return m_native_function_name_offset; }
+
     // Not included in JS_ENUMERATE_NATIVE_OBJECTS due to missing distinct prototype
     GC::Ref<ProxyConstructor> proxy_constructor() { return *m_proxy_constructor; }
 
@@ -148,6 +152,10 @@ private:
     u32 m_normal_function_length_offset { 0 };
     u32 m_normal_function_name_offset { 0 };
     u32 m_normal_function_prototype_offset { 0 };
+
+    GC::Ptr<Shape> m_native_function_shape;
+    u32 m_native_function_length_offset { 0 };
+    u32 m_native_function_name_offset { 0 };
 
     // Not included in JS_ENUMERATE_NATIVE_OBJECTS due to missing distinct prototype
     GC::Ptr<ProxyConstructor> m_proxy_constructor;
