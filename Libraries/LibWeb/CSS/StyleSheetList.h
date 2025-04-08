@@ -21,7 +21,7 @@ public:
 
     void add_a_css_style_sheet(CSS::CSSStyleSheet&);
     void remove_a_css_style_sheet(CSS::CSSStyleSheet&);
-    void create_a_css_style_sheet(String type, DOM::Element* owner_node, String media, String title, bool alternate, bool origin_clean, Optional<String> location, CSS::CSSStyleSheet* parent_style_sheet, CSS::CSSRule* owner_rule, CSS::CSSStyleSheet&);
+    void create_a_css_style_sheet(String type, DOM::Element* owner_node, String media, String title, bool alternate, bool origin_clean, Optional<::URL::URL> location, CSS::CSSStyleSheet* parent_style_sheet, CSS::CSSRule* owner_rule, CSS::CSSStyleSheet&);
 
     Vector<GC::Ref<CSSStyleSheet>> const& sheets() const { return m_sheets; }
     Vector<GC::Ref<CSSStyleSheet>>& sheets() { return m_sheets; }

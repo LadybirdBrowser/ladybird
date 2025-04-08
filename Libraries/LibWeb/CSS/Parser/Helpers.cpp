@@ -42,7 +42,7 @@ GC::Ref<JS::Realm> internal_css_realm()
     return *realm;
 }
 
-CSS::CSSStyleSheet* parse_css_stylesheet(CSS::Parser::ParsingParams const& context, StringView css, Optional<URL::URL> location, Vector<NonnullRefPtr<CSS::MediaQuery>> media_query_list)
+CSS::CSSStyleSheet* parse_css_stylesheet(CSS::Parser::ParsingParams const& context, StringView css, Optional<::URL::URL> location, Vector<NonnullRefPtr<CSS::MediaQuery>> media_query_list)
 {
     if (css.is_empty()) {
         auto rule_list = CSS::CSSRuleList::create_empty(*context.realm);

@@ -21,11 +21,11 @@ class CSSImportRule final
     GC_DECLARE_ALLOCATOR(CSSImportRule);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSImportRule> create(URL::URL, DOM::Document&, RefPtr<Supports>, Vector<NonnullRefPtr<MediaQuery>>);
+    [[nodiscard]] static GC::Ref<CSSImportRule> create(::URL::URL, DOM::Document&, RefPtr<Supports>, Vector<NonnullRefPtr<MediaQuery>>);
 
     virtual ~CSSImportRule() = default;
 
-    URL::URL const& url() const { return m_url; }
+    ::URL::URL const& url() const { return m_url; }
     // FIXME: This should return only the specified part of the url. eg, "stuff/foo.css", not "https://example.com/stuff/foo.css".
     String href() const { return m_url.to_string(); }
 
@@ -37,7 +37,7 @@ public:
     Optional<String> supports_text() const;
 
 private:
-    CSSImportRule(URL::URL, DOM::Document&, RefPtr<Supports>, Vector<NonnullRefPtr<MediaQuery>>);
+    CSSImportRule(::URL::URL, DOM::Document&, RefPtr<Supports>, Vector<NonnullRefPtr<MediaQuery>>);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
@@ -49,7 +49,7 @@ private:
     void fetch();
     void set_style_sheet(GC::Ref<CSSStyleSheet>);
 
-    URL::URL m_url;
+    ::URL::URL m_url;
     GC::Ptr<DOM::Document> m_document;
     RefPtr<Supports> m_supports;
     Vector<NonnullRefPtr<MediaQuery>> m_media_query_list;

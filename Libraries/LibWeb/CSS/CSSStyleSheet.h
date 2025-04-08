@@ -27,12 +27,13 @@ struct CSSStyleSheetInit {
     bool disabled { false };
 };
 
+// https://drafts.csswg.org/cssom-1/#cssstylesheet
 class CSSStyleSheet final : public StyleSheet {
     WEB_PLATFORM_OBJECT(CSSStyleSheet, StyleSheet);
     GC_DECLARE_ALLOCATOR(CSSStyleSheet);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSStyleSheet> create(JS::Realm&, CSSRuleList&, MediaList&, Optional<URL::URL> location);
+    [[nodiscard]] static GC::Ref<CSSStyleSheet> create(JS::Realm&, CSSRuleList&, MediaList&, Optional<::URL::URL> location);
     static WebIDL::ExceptionOr<GC::Ref<CSSStyleSheet>> construct_impl(JS::Realm&, Optional<CSSStyleSheetInit> const& options = {});
 
     virtual ~CSSStyleSheet() override = default;
@@ -74,8 +75,8 @@ public:
 
     Vector<GC::Ref<CSSImportRule>> const& import_rules() const { return m_import_rules; }
 
-    Optional<URL::URL> base_url() const { return m_base_url; }
-    void set_base_url(Optional<URL::URL> base_url) { m_base_url = move(base_url); }
+    Optional<::URL::URL> base_url() const { return m_base_url; }
+    void set_base_url(Optional<::URL::URL> base_url) { m_base_url = move(base_url); }
 
     bool constructed() const { return m_constructed; }
 
@@ -94,7 +95,7 @@ public:
     bool has_associated_font_loader(FontLoader& font_loader) const;
 
 private:
-    CSSStyleSheet(JS::Realm&, CSSRuleList&, MediaList&, Optional<URL::URL> location);
+    CSSStyleSheet(JS::Realm&, CSSRuleList&, MediaList&, Optional<::URL::URL> location);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
@@ -113,7 +114,7 @@ private:
 
     GC::Ptr<CSSRule> m_owner_css_rule;
 
-    Optional<URL::URL> m_base_url;
+    Optional<::URL::URL> m_base_url;
     GC::Ptr<DOM::Document const> m_constructor_document;
     HashTable<GC::Ptr<DOM::Node>> m_owning_documents_or_shadow_roots;
     bool m_constructed { false };

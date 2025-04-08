@@ -490,7 +490,7 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
                 m_loaded_style_sheet = parse_css_stylesheet(CSS::Parser::ParsingParams(document(), *response.url()), decoded_string);
 
                 if (m_loaded_style_sheet) {
-                    Optional<String> location;
+                    Optional<::URL::URL> location;
                     if (!response.url_list().is_empty())
                         location = response.url_list().first();
 

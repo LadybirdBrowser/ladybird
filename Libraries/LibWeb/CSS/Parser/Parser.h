@@ -69,13 +69,13 @@ enum class ParsingMode {
 struct ParsingParams {
     explicit ParsingParams(ParsingMode = ParsingMode::Normal);
     explicit ParsingParams(JS::Realm&, ParsingMode = ParsingMode::Normal);
-    explicit ParsingParams(JS::Realm&, URL::URL, ParsingMode = ParsingMode::Normal);
-    explicit ParsingParams(DOM::Document const&, URL::URL, ParsingMode = ParsingMode::Normal);
+    explicit ParsingParams(JS::Realm&, ::URL::URL, ParsingMode = ParsingMode::Normal);
+    explicit ParsingParams(DOM::Document const&, ::URL::URL, ParsingMode = ParsingMode::Normal);
     explicit ParsingParams(DOM::Document const&, ParsingMode = ParsingMode::Normal);
 
     GC::Ptr<JS::Realm> realm;
     GC::Ptr<DOM::Document const> document;
-    URL::URL url;
+    ::URL::URL url;
     ParsingMode mode { ParsingMode::Normal };
 };
 
@@ -89,7 +89,7 @@ class Parser {
 public:
     static Parser create(ParsingParams const&, StringView input, StringView encoding = "utf-8"sv);
 
-    CSSStyleSheet* parse_as_css_stylesheet(Optional<URL::URL> location, Vector<NonnullRefPtr<MediaQuery>> media_query_list = {});
+    CSSStyleSheet* parse_as_css_stylesheet(Optional<::URL::URL> location, Vector<NonnullRefPtr<MediaQuery>> media_query_list = {});
 
     struct PropertiesAndCustomProperties {
         Vector<StyleProperty> properties;
@@ -142,11 +142,11 @@ private:
 
     // "Parse a stylesheet" is intended to be the normal parser entry point, for parsing stylesheets.
     struct ParsedStyleSheet {
-        Optional<URL::URL> location;
+        Optional<::URL::URL> location;
         Vector<Rule> rules;
     };
     template<typename T>
-    ParsedStyleSheet parse_a_stylesheet(TokenStream<T>&, Optional<URL::URL> location);
+    ParsedStyleSheet parse_a_stylesheet(TokenStream<T>&, Optional<::URL::URL> location);
 
     // "Parse a stylesheet’s contents" is intended for use by the CSSStyleSheet replace() method, and similar, which parse text into the contents of an existing stylesheet.
     template<typename T>
@@ -276,7 +276,7 @@ private:
     Optional<GridRepeat> parse_repeat(Vector<ComponentValue> const&);
     Optional<ExplicitGridTrack> parse_track_sizing_function(ComponentValue const&);
 
-    Optional<URL::URL> parse_url_function(TokenStream<ComponentValue>&);
+    Optional<::URL::URL> parse_url_function(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_url_value(TokenStream<ComponentValue>&);
 
     Optional<ShapeRadius> parse_shape_radius(TokenStream<ComponentValue>&);
@@ -471,11 +471,11 @@ private:
     JS::Realm& realm() const;
     bool in_quirks_mode() const;
     bool is_parsing_svg_presentation_attribute() const;
-    Optional<URL::URL> complete_url(StringView) const;
+    Optional<::URL::URL> complete_url(StringView) const;
 
     GC::Ptr<DOM::Document const> m_document;
     GC::Ptr<JS::Realm> m_realm;
-    URL::URL m_url;
+    ::URL::URL m_url;
     ParsingMode m_parsing_mode { ParsingMode::Normal };
 
     Vector<Token> m_tokens;
@@ -519,7 +519,7 @@ private:
 
 namespace Web {
 
-CSS::CSSStyleSheet* parse_css_stylesheet(CSS::Parser::ParsingParams const&, StringView, Optional<URL::URL> location = {}, Vector<NonnullRefPtr<CSS::MediaQuery>> = {});
+CSS::CSSStyleSheet* parse_css_stylesheet(CSS::Parser::ParsingParams const&, StringView, Optional<::URL::URL> location = {}, Vector<NonnullRefPtr<CSS::MediaQuery>> = {});
 CSS::Parser::Parser::PropertiesAndCustomProperties parse_css_style_attribute(CSS::Parser::ParsingParams const&, StringView);
 Vector<CSS::Descriptor> parse_css_list_of_descriptors(CSS::Parser::ParsingParams const&, CSS::AtRuleID, StringView);
 RefPtr<CSS::CSSStyleValue> parse_css_value(CSS::Parser::ParsingParams const&, StringView, CSS::PropertyID property_id = CSS::PropertyID::Invalid);

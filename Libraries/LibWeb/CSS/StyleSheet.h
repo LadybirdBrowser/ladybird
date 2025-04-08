@@ -27,8 +27,8 @@ public:
 
     Optional<String> href() const;
 
-    Optional<URL::URL> location() const { return m_location; }
-    void set_location(Optional<URL::URL> location) { m_location = move(location); }
+    Optional<::URL::URL> location() const { return m_location; }
+    void set_location(Optional<::URL::URL> location) { m_location = move(location); }
 
     String title() const { return m_title; }
     Optional<String> title_for_bindings() const;
@@ -68,7 +68,7 @@ private:
     GC::Ptr<DOM::Element> m_owner_node;
     GC::Ptr<CSSStyleSheet> m_parent_style_sheet;
 
-    Optional<URL::URL> m_location;
+    Optional<::URL::URL> m_location;
     String m_title;
     String m_type_string;
 

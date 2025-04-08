@@ -25,7 +25,7 @@ class ImageStyleValue final
     using Base = AbstractImageStyleValue;
 
 public:
-    static ValueComparingNonnullRefPtr<ImageStyleValue> create(URL::URL const& url)
+    static ValueComparingNonnullRefPtr<ImageStyleValue> create(::URL::URL const& url)
     {
         return adopt_ref(*new (nothrow) ImageStyleValue(url));
     }
@@ -53,14 +53,14 @@ public:
     GC::Ptr<HTML::DecodedImageData> image_data() const;
 
 private:
-    ImageStyleValue(URL::URL const&);
+    ImageStyleValue(::URL::URL const&);
 
     GC::Ptr<HTML::SharedResourceRequest> m_resource_request;
 
     void animate();
     Gfx::ImmutableBitmap const* bitmap(size_t frame_index, Gfx::IntSize = {}) const;
 
-    URL::URL m_url;
+    ::URL::URL m_url;
     WeakPtr<DOM::Document> m_document;
 
     size_t m_current_frame_index { 0 };

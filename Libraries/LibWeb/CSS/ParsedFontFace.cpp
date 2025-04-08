@@ -38,7 +38,7 @@ Vector<ParsedFontFace::Source> ParsedFontFace::sources_from_style_value(CSSStyle
             [&](FontSourceStyleValue::Local const& local) {
                 sources.empend(extract_font_name(local.name), OptionalNone {});
             },
-            [&](URL::URL const& url) {
+            [&](::URL::URL const& url) {
                 // FIXME: tech()
                 sources.empend(url, font_source.format());
             });

@@ -2014,7 +2014,7 @@ RefPtr<AbstractImageStyleValue> Parser::parse_image_value(TokenStream<ComponentV
     if (url.has_value()) {
         // If the value is a 'url(..)' parse as image, but if it is just a reference 'url(#xx)', leave it alone,
         // so we can parse as URL further on. These URLs are used as references inside SVG documents for masks.
-        if (!url.value().equals(m_url, URL::ExcludeFragment::Yes)) {
+        if (!url.value().equals(m_url, ::URL::ExcludeFragment::Yes)) {
             tokens.discard_a_mark();
             return ImageStyleValue::create(url.value());
         }
@@ -2562,12 +2562,12 @@ RefPtr<CSSStyleValue> Parser::parse_easing_value(TokenStream<ComponentValue>& to
     return nullptr;
 }
 
-Optional<URL::URL> Parser::parse_url_function(TokenStream<ComponentValue>& tokens)
+Optional<::URL::URL> Parser::parse_url_function(TokenStream<ComponentValue>& tokens)
 {
     auto transaction = tokens.begin_transaction();
     auto& component_value = tokens.consume_a_token();
 
-    auto convert_string_to_url = [&](StringView url_string) -> Optional<URL::URL> {
+    auto convert_string_to_url = [&](StringView url_string) -> Optional<::URL::URL> {
         auto url = complete_url(url_string);
         if (url.has_value()) {
             transaction.commit();

@@ -60,7 +60,7 @@ void StyleSheetList::add_a_css_style_sheet(CSS::CSSStyleSheet& sheet)
 }
 
 // https://www.w3.org/TR/cssom/#create-a-css-style-sheet
-void StyleSheetList::create_a_css_style_sheet(String type, DOM::Element* owner_node, String media, String title, bool alternate, bool origin_clean, Optional<URL::URL> location, CSS::CSSStyleSheet* parent_style_sheet, CSS::CSSRule* owner_rule, CSS::CSSStyleSheet& sheet)
+void StyleSheetList::create_a_css_style_sheet(String type, DOM::Element* owner_node, String media, String title, bool alternate, bool origin_clean, Optional<::URL::URL> location, CSS::CSSStyleSheet* parent_style_sheet, CSS::CSSRule* owner_rule, CSS::CSSStyleSheet& sheet)
 {
     // 1. Create a new CSS style sheet object and set its properties as specified.
     // FIXME: We receive `sheet` from the caller already. This is weird.
