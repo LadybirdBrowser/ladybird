@@ -235,8 +235,8 @@ public:
     void for_each_child_of_type(Callback callback)
     {
         for (auto* node = first_child(); node; node = node->next_sibling()) {
-            if (is<U>(node)) {
-                if (callback(as<U>(*node)) == IterationDecision::Break)
+            if (auto* node_of_type = as_if<U>(node)) {
+                if (callback(*node_of_type) == IterationDecision::Break)
                     return;
             }
         }
@@ -258,8 +258,8 @@ public:
     inline U* next_sibling_of_type()
     {
         for (auto* sibling = next_sibling(); sibling; sibling = sibling->next_sibling()) {
-            if (is<U>(*sibling))
-                return &as<U>(*sibling);
+            if (auto* sibling_of_type = as_if<U>(*sibling))
+                return sibling_of_type;
         }
         return nullptr;
     }
@@ -274,8 +274,8 @@ public:
     U* previous_sibling_of_type()
     {
         for (auto* sibling = previous_sibling(); sibling; sibling = sibling->previous_sibling()) {
-            if (is<U>(*sibling))
-                return &as<U>(*sibling);
+            if (auto* sibling_of_type = as_if<U>(*sibling))
+                return sibling_of_type;
         }
         return nullptr;
     }
@@ -296,8 +296,8 @@ public:
     U* first_child_of_type()
     {
         for (auto* child = first_child(); child; child = child->next_sibling()) {
-            if (is<U>(*child))
-                return &as<U>(*child);
+            if (auto* child_of_type = as_if<U>(*child))
+                return child_of_type;
         }
         return nullptr;
     }
@@ -306,8 +306,8 @@ public:
     U* last_child_of_type()
     {
         for (auto* child = last_child(); child; child = child->previous_sibling()) {
-            if (is<U>(*child))
-                return &as<U>(*child);
+            if (auto* child_of_type = as_if<U>(*child))
+                return child_of_type;
         }
         return nullptr;
     }
@@ -322,8 +322,8 @@ public:
     U* first_ancestor_of_type()
     {
         for (auto* ancestor = parent(); ancestor; ancestor = ancestor->parent()) {
-            if (is<U>(*ancestor))
-                return &as<U>(*ancestor);
+            if (auto* ancestor_of_type = as_if<U>(*ancestor))
+                return ancestor_of_type;
         }
         return nullptr;
     }
