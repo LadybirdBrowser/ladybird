@@ -154,7 +154,7 @@ ErrorOr<void> print_type(JS::PrintContext& print_context, StringView name)
 
 ErrorOr<void> print_separator(JS::PrintContext& print_context, bool& first)
 {
-    TRY(js_out(print_context, first ? " "sv : ", "sv));
+    TRY(js_out(print_context, "{}", first ? " "sv : ", "sv));
     first = false;
     return {};
 }
