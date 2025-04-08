@@ -140,8 +140,7 @@ WebIDL::ExceptionOr<unsigned> CSSStyleSheet::insert_rule(StringView rule, unsign
         return WebIDL::NotAllowedError::create(realm(), "Can't call insert_rule() on non-modifiable stylesheets."_string);
 
     // 3. Let parsed rule be the return value of invoking parse a rule with rule.
-    auto context = !m_owning_documents_or_shadow_roots.is_empty() ? Parser::ParsingParams { (*m_owning_documents_or_shadow_roots.begin())->document() } : Parser::ParsingParams { realm() };
-    auto parsed_rule = parse_css_rule(context, rule);
+    auto parsed_rule = parse_css_rule(make_parsing_params(), rule);
 
     // 4. If parsed rule is a syntax error, return parsed rule.
     if (!parsed_rule)
@@ -208,8 +207,7 @@ GC::Ref<WebIDL::Promise> CSSStyleSheet::replace(String text)
         HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
         // 1. Let rules be the result of running parse a stylesheet’s contents from text.
-        auto context = !m_owning_documents_or_shadow_roots.is_empty() ? Parser::ParsingParams { (*m_owning_documents_or_shadow_roots.begin())->document() } : CSS::Parser::ParsingParams { realm };
-        auto* parsed_stylesheet = parse_css_stylesheet(context, text);
+        auto* parsed_stylesheet = parse_css_stylesheet(make_parsing_params(), text);
         auto& rules = parsed_stylesheet->rules();
 
         // 2. If rules contains one or more @import rules, remove those rules from rules.
@@ -242,8 +240,7 @@ WebIDL::ExceptionOr<void> CSSStyleSheet::replace_sync(StringView text)
         return WebIDL::NotAllowedError::create(realm(), "Can't call replaceSync() on non-modifiable stylesheets"_string);
 
     // 2. Let rules be the result of running parse a stylesheet’s contents from text.
-    auto context = !m_owning_documents_or_shadow_roots.is_empty() ? Parser::ParsingParams { (*m_owning_documents_or_shadow_roots.begin())->document() } : CSS::Parser::ParsingParams { realm() };
-    auto* parsed_stylesheet = parse_css_stylesheet(context, text);
+    auto* parsed_stylesheet = parse_css_stylesheet(make_parsing_params(), text);
     auto& rules = parsed_stylesheet->rules();
 
     // 3. If rules contains one or more @import rules, remove those rules from rules.
@@ -424,6 +421,13 @@ bool CSSStyleSheet::has_associated_font_loader(FontLoader& font_loader) const
             return true;
     }
     return false;
+}
+
+Parser::ParsingParams CSSStyleSheet::make_parsing_params() const
+{
+    if (!m_owning_documents_or_shadow_roots.is_empty())
+        return Parser::ParsingParams { (*m_owning_documents_or_shadow_roots.begin())->document() };
+    return Parser::ParsingParams { realm() };
 }
 
 }

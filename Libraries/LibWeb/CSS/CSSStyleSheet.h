@@ -12,6 +12,7 @@
 #include <LibWeb/CSS/CSSRule.h>
 #include <LibWeb/CSS/CSSRuleList.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
+#include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleSheet.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/WebIDL/Types.h>
@@ -104,6 +105,8 @@ private:
 
     void set_constructed(bool constructed) { m_constructed = constructed; }
     void set_disallow_modification(bool disallow_modification) { m_disallow_modification = disallow_modification; }
+
+    Parser::ParsingParams make_parsing_params() const;
 
     Optional<String> m_source_text;
 
