@@ -153,7 +153,7 @@ GC::Ptr<CSSImportRule> Parser::convert_to_import_rule(AtRule const& rule)
     TokenStream tokens { rule.prelude };
     tokens.discard_whitespace();
 
-    Optional<URL::URL> url = parse_url_function(tokens);
+    Optional<::URL::URL> url = parse_url_function(tokens);
     if (!url.has_value() && tokens.next_token().is(Token::Type::String))
         url = complete_url(tokens.consume_a_token().token().string());
 

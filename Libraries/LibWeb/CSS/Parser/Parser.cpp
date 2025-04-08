@@ -45,14 +45,14 @@ ParsingParams::ParsingParams(JS::Realm& realm, ParsingMode mode)
 {
 }
 
-ParsingParams::ParsingParams(JS::Realm& realm, URL::URL url, ParsingMode mode)
+ParsingParams::ParsingParams(JS::Realm& realm, ::URL::URL url, ParsingMode mode)
     : realm(realm)
     , url(move(url))
     , mode(mode)
 {
 }
 
-ParsingParams::ParsingParams(DOM::Document const& document, URL::URL url, ParsingMode mode)
+ParsingParams::ParsingParams(DOM::Document const& document, ::URL::URL url, ParsingMode mode)
     : realm(const_cast<JS::Realm&>(document.realm()))
     , document(&document)
     , url(move(url))
@@ -86,7 +86,7 @@ Parser::Parser(ParsingParams const& context, Vector<Token> tokens)
 
 // https://drafts.csswg.org/css-syntax/#parse-stylesheet
 template<typename T>
-Parser::ParsedStyleSheet Parser::parse_a_stylesheet(TokenStream<T>& input, Optional<URL::URL> location)
+Parser::ParsedStyleSheet Parser::parse_a_stylesheet(TokenStream<T>& input, Optional<::URL::URL> location)
 {
     // To parse a stylesheet from an input given an optional url location:
 
@@ -119,7 +119,7 @@ Vector<Rule> Parser::parse_a_stylesheets_contents(TokenStream<T>& input)
 }
 
 // https://drafts.csswg.org/css-syntax/#parse-a-css-stylesheet
-CSSStyleSheet* Parser::parse_as_css_stylesheet(Optional<URL::URL> location, Vector<NonnullRefPtr<MediaQuery>> media_query_list)
+CSSStyleSheet* Parser::parse_as_css_stylesheet(Optional<::URL::URL> location, Vector<NonnullRefPtr<MediaQuery>> media_query_list)
 {
     // To parse a CSS stylesheet, first parse a stylesheet.
     auto const& style_sheet = parse_a_stylesheet(m_token_stream, {});
@@ -1772,8 +1772,8 @@ Parser::ContextType Parser::context_type_for_at_rule(FlyString const& name)
     return ContextType::Unknown;
 }
 
-template Parser::ParsedStyleSheet Parser::parse_a_stylesheet(TokenStream<Token>&, Optional<URL::URL>);
-template Parser::ParsedStyleSheet Parser::parse_a_stylesheet(TokenStream<ComponentValue>&, Optional<URL::URL>);
+template Parser::ParsedStyleSheet Parser::parse_a_stylesheet(TokenStream<Token>&, Optional<::URL::URL>);
+template Parser::ParsedStyleSheet Parser::parse_a_stylesheet(TokenStream<ComponentValue>&, Optional<::URL::URL>);
 
 template Vector<Rule> Parser::parse_a_stylesheets_contents(TokenStream<Token>& input);
 template Vector<Rule> Parser::parse_a_stylesheets_contents(TokenStream<ComponentValue>& input);
@@ -1853,10 +1853,10 @@ bool Parser::is_parsing_svg_presentation_attribute() const
 
 // https://www.w3.org/TR/css-values-4/#relative-urls
 // FIXME: URLs shouldn't be completed during parsing, but when used.
-Optional<URL::URL> Parser::complete_url(StringView relative_url) const
+Optional<::URL::URL> Parser::complete_url(StringView relative_url) const
 {
     if (!m_url.is_valid())
-        return URL::Parser::basic_parse(relative_url);
+        return ::URL::Parser::basic_parse(relative_url);
     return m_url.complete_url(relative_url);
 }
 

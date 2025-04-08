@@ -23,13 +23,13 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSImportRule);
 
-GC::Ref<CSSImportRule> CSSImportRule::create(URL::URL url, DOM::Document& document, RefPtr<Supports> supports, Vector<NonnullRefPtr<MediaQuery>> media_query_list)
+GC::Ref<CSSImportRule> CSSImportRule::create(::URL::URL url, DOM::Document& document, RefPtr<Supports> supports, Vector<NonnullRefPtr<MediaQuery>> media_query_list)
 {
     auto& realm = document.realm();
     return realm.create<CSSImportRule>(move(url), document, supports, move(media_query_list));
 }
 
-CSSImportRule::CSSImportRule(URL::URL url, DOM::Document& document, RefPtr<Supports> supports, Vector<NonnullRefPtr<MediaQuery>> media_query_list)
+CSSImportRule::CSSImportRule(::URL::URL url, DOM::Document& document, RefPtr<Supports> supports, Vector<NonnullRefPtr<MediaQuery>> media_query_list)
     : CSSRule(document.realm(), Type::Import)
     , m_url(move(url))
     , m_document(document)

@@ -23,7 +23,7 @@ void fetch_a_style_resource(String const& url_value, CSSStyleSheet const& sheet,
     auto base = sheet.base_url().value_or(environment_settings.api_base_url());
 
     // 3. Let parsedUrl be the result of the URL parser steps with urlValue’s url and base. If the algorithm returns an error, return.
-    auto parsed_url = URL::Parser::basic_parse(url_value, base);
+    auto parsed_url = ::URL::Parser::basic_parse(url_value, base);
     if (!parsed_url.has_value())
         return;
 

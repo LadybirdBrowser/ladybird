@@ -185,7 +185,7 @@ StyleComputer::StyleComputer(DOM::Document& document)
 
 StyleComputer::~StyleComputer() = default;
 
-FontLoader::FontLoader(StyleComputer& style_computer, FlyString family_name, Vector<Gfx::UnicodeRange> unicode_ranges, Vector<URL::URL> urls, Function<void(FontLoader const&)> on_load, Function<void()> on_fail)
+FontLoader::FontLoader(StyleComputer& style_computer, FlyString family_name, Vector<Gfx::UnicodeRange> unicode_ranges, Vector<::URL::URL> urls, Function<void(FontLoader const&)> on_load, Function<void()> on_fail)
     : m_style_computer(style_computer)
     , m_family_name(move(family_name))
     , m_unicode_ranges(move(unicode_ranges))
@@ -3028,11 +3028,11 @@ Optional<FontLoader&> StyleComputer::load_font_face(ParsedFontFace const& font_f
         .slope = font_face.slope().value_or(0),
     };
 
-    Vector<URL::URL> urls;
+    Vector<::URL::URL> urls;
     for (auto const& source : font_face.sources()) {
         // FIXME: These should be loaded relative to the stylesheet URL instead of the document URL.
-        if (source.local_or_url.has<URL::URL>())
-            urls.append(*m_document->encoding_parse_url(source.local_or_url.get<URL::URL>().to_string()));
+        if (source.local_or_url.has<::URL::URL>())
+            urls.append(*m_document->encoding_parse_url(source.local_or_url.get<::URL::URL>().to_string()));
         // FIXME: Handle local()
     }
 
