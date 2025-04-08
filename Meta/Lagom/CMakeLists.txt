@@ -319,13 +319,9 @@ add_lagom_library_install_rules(GenericClangPlugin)
 add_lagom_library_install_rules(JSClangPlugin)
 
 # Create mostly empty targets for system libraries we don't need to build for Lagom
-add_library(LibCrypt INTERFACE)
-if (NOT APPLE AND NOT ANDROID AND NOT EMSCRIPTEN AND NOT ${CMAKE_SYSTEM_NAME} MATCHES "OpenBSD" AND NOT HAIKU AND NOT WIN32)
-    target_link_libraries(LibCrypt INTERFACE crypt) # LibCore::Account uses crypt() but it's not in libcrypt on macOS
-endif()
 add_library(NoCoverage INTERFACE)
 # "install" these special targets to placate CMake
-install(TARGETS LibCrypt NoCoverage EXPORT LagomTargets)
+install(TARGETS NoCoverage EXPORT LagomTargets)
 
 # AK
 add_serenity_subdirectory(AK)
