@@ -269,6 +269,7 @@ class TransformationStyleValue;
 class TransitionStyleValue;
 class UnicodeRangeStyleValue;
 class UnresolvedStyleValue;
+class URL;
 class URLStyleValue;
 class VisualViewport;
 

@@ -32,6 +32,7 @@
 #include <LibWeb/CSS/StyleValues/BasicShapeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/Supports.h>
+#include <LibWeb/CSS/URL.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::CSS::Parser {
@@ -276,7 +277,7 @@ private:
     Optional<GridRepeat> parse_repeat(Vector<ComponentValue> const&);
     Optional<ExplicitGridTrack> parse_track_sizing_function(ComponentValue const&);
 
-    Optional<::URL::URL> parse_url_function(TokenStream<ComponentValue>&);
+    Optional<URL> parse_url_function(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_url_value(TokenStream<ComponentValue>&);
 
     Optional<ShapeRadius> parse_shape_radius(TokenStream<ComponentValue>&);

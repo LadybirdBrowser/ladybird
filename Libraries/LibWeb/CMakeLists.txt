@@ -195,6 +195,7 @@ set(SOURCES
     CSS/Time.cpp
     CSS/Transformation.cpp
     CSS/TransitionEvent.cpp
+    CSS/URL.cpp
     CSS/VisualViewport.cpp
     Cookie/Cookie.cpp
     Cookie/ParsedCookie.cpp
