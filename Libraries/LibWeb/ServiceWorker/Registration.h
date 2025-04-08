@@ -41,6 +41,7 @@ public:
     StorageAPI::StorageKey const& storage_key() const { return m_storage_key; }
     URL::URL const& scope_url() const { return m_scope_url; }
     Bindings::ServiceWorkerUpdateViaCache update_via_cache() const { return m_update_via_cache_mode; }
+    void set_update_via_cache(Bindings::ServiceWorkerUpdateViaCache update_visa_cache_mode) { m_update_via_cache_mode = update_visa_cache_mode; }
 
     void set_last_update_check_time(MonotonicTime time) { m_last_update_check_time = time; }
 
