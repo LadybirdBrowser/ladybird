@@ -171,7 +171,7 @@ private:
     bool m_has_updated_resources { false };
 };
 
-// https://w3c.github.io/ServiceWorker/#update
+// https://w3c.github.io/ServiceWorker/#update-algorithm
 static void update(JS::VM& vm, GC::Ref<Job> job)
 {
     // 1. Let registration be the result of running Get Registration given job’s storage key and job’s scope url.
@@ -375,7 +375,7 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
 
     // When the algorithm asynchronously completes, continue the rest of these steps, with script being the asynchronous completion value.
     auto on_fetch_complete = HTML::create_on_fetch_script_complete(vm.heap(), [job, newest_worker, state, &registration = *registration, &vm](GC::Ptr<HTML::Script> script) -> void {
-        // If script is null or Is Async Module with script’s record, script’s base URL, and « » is true, then:
+        // 8. If script is null or Is Async Module with script’s record, script’s base URL, and « » is true, then:
         // FIXME: Reject async modules
         if (!script) {
             // 1. Invoke Reject Job Promise with job and TypeError.
@@ -384,6 +384,19 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
             // 2. If newestWorker is null, then remove registration map[(registration’s storage key, serialized scopeURL)].
             if (newest_worker == nullptr)
                 Registration::remove(registration.storage_key(), registration.scope_url());
+
+            // 3. Invoke Finish Job with job and abort these steps.
+            finish_job(vm, job);
+            return;
+        }
+
+        // 9. If hasUpdatedResources is false, then:
+        if (!state->has_updated_resources()) {
+            // 1. Set registration’s update via cache mode to job’s update via cache mode.
+            registration.set_update_via_cache(job->update_via_cache);
+
+            // 2. Invoke Resolve Job Promise with job and registration.
+            resolve_job_promise(job, registration);
 
             // 3. Invoke Finish Job with job and abort these steps.
             finish_job(vm, job);
