@@ -99,7 +99,7 @@ struct Formatter<Core::DateTime> : StandardFormatter {
     ErrorOr<void> format(FormatBuilder& builder, Core::DateTime const& value)
     {
         // Can't use DateTime::to_string() here: It doesn't propagate allocation failure.
-        return builder.builder().try_appendff("{:04d}-{:02d}-{:02d} {:02d}:{:02d}:{:02d}"sv,
+        return builder.builder().try_appendff("{:04d}-{:02d}-{:02d} {:02d}:{:02d}:{:02d}",
             value.year(), value.month(), value.day(),
             value.hour(), value.minute(), value.second());
     }

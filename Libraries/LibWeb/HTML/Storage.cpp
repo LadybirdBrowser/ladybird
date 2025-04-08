@@ -128,7 +128,7 @@ WebIDL::ExceptionOr<void> Storage::set_item(String const& key, String const& val
     // 4. If value cannot be stored, then throw a "QuotaExceededError" DOMException exception.
     new_size += value.bytes().size() - old_value.value_or(String {}).bytes().size();
     if (m_storage_bottle->quota.has_value() && new_size > *m_storage_bottle->quota)
-        return WebIDL::QuotaExceededError::create(realm, MUST(String::formatted("Unable to store more than {} bytes in storage"sv, *m_storage_bottle->quota)));
+        return WebIDL::QuotaExceededError::create(realm, MUST(String::formatted("Unable to store more than {} bytes in storage", *m_storage_bottle->quota)));
 
     // 5. Set this's map[key] to value.
     map().set(key, value);

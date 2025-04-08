@@ -117,7 +117,7 @@ struct AK::Formatter<Diff::HunkLocation> : Formatter<FormatString> {
     static ErrorOr<void> format(FormatBuilder& format_builder, Diff::HunkLocation const& location)
     {
         auto& builder = format_builder.builder();
-        TRY(builder.try_appendff("@@ -{}"sv, location.old_range.start_line));
+        TRY(builder.try_appendff("@@ -{}", location.old_range.start_line));
 
         if (location.old_range.number_of_lines != 1)
             TRY(builder.try_appendff(",{}", location.old_range.number_of_lines));

@@ -29,7 +29,7 @@ String ConicGradientStyleValue::to_string(SerializationMode mode) const
     if (has_at_position) {
         if (has_from_angle)
             builder.append(' ');
-        builder.appendff("at {}"sv, m_properties.position->to_string(mode));
+        builder.appendff("at {}", m_properties.position->to_string(mode));
     }
     if (has_color_space) {
         if (has_from_angle || has_at_position)

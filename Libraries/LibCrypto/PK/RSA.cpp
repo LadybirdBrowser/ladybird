@@ -43,7 +43,7 @@ ErrorOr<RSA::KeyPairType> RSA::parse_rsa_key(ReadonlyBytes der, bool is_private,
         //      otherPrimeInfos     OtherPrimeInfos OPTIONAL
         // }
 
-        ENTER_TYPED_SCOPE(Sequence, "RSAPrivateKey"sv);
+        ENTER_TYPED_SCOPE(Sequence, "RSAPrivateKey");
 
         PUSH_SCOPE("version");
         READ_OBJECT(Integer, Crypto::UnsignedBigInteger, version);
@@ -104,7 +104,7 @@ ErrorOr<RSA::KeyPairType> RSA::parse_rsa_key(ReadonlyBytes der, bool is_private,
         //      publicExponent  INTEGER
         // }
 
-        ENTER_TYPED_SCOPE(Sequence, "RSAPublicKey"sv);
+        ENTER_TYPED_SCOPE(Sequence, "RSAPublicKey");
 
         PUSH_SCOPE("modulus");
         READ_OBJECT(Integer, Crypto::UnsignedBigInteger, modulus);

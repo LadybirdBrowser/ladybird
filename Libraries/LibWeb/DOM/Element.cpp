@@ -1942,7 +1942,7 @@ WebIDL::ExceptionOr<GC::Ptr<Node>> Element::insert_adjacent(StringView where, GC
 
     // -> Otherwise
     // Throw a "SyntaxError" DOMException.
-    return WebIDL::SyntaxError::create(realm(), MUST(String::formatted("Unknown position '{}'. Must be one of 'beforebegin', 'afterbegin', 'beforeend' or 'afterend'"sv, where)));
+    return WebIDL::SyntaxError::create(realm(), MUST(String::formatted("Unknown position '{}'. Must be one of 'beforebegin', 'afterbegin', 'beforeend' or 'afterend'", where)));
 }
 
 // https://dom.spec.whatwg.org/#dom-element-insertadjacentelement

@@ -52,10 +52,10 @@ String FilterValueListStyleValue::to_string(SerializationMode) const
             builder.append(' ');
         filter_function.visit(
             [&](FilterOperation::Blur const& blur) {
-                builder.appendff("blur({}"sv, blur.radius.to_string());
+                builder.appendff("blur({}", blur.radius.to_string());
             },
             [&](FilterOperation::DropShadow const& drop_shadow) {
-                builder.appendff("drop-shadow("sv);
+                builder.append("drop-shadow("sv);
                 if (drop_shadow.color.has_value()) {
                     serialize_a_srgb_value(builder, *drop_shadow.color);
                     builder.append(' ');

@@ -27,7 +27,7 @@ PatternErrorOr<String> canonicalize_a_protocol(String const& value)
     // 2. Let parseResult be the result of running the basic URL parser given value followed by "://dummy.invalid/".
     // NOTE: Note, state override is not used here because it enforces restrictions that are only appropriate for the
     //       protocol setter. Instead we use the protocol to parse a dummy URL using the normal parsing entry point.
-    auto parse_result = Parser::basic_parse(MUST(String::formatted("{}://dummy.invalid"sv, value)));
+    auto parse_result = Parser::basic_parse(MUST(String::formatted("{}://dummy.invalid", value)));
 
     // 4. If parseResult is failure, then throw a TypeError.
     if (!parse_result.has_value())

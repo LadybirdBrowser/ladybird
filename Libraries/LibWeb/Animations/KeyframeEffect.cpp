@@ -515,7 +515,7 @@ static WebIDL::ExceptionOr<Vector<BaseKeyframe>> process_a_keyframes_argument(JS
 
         auto offset = keyframe.offset.value();
         if (offset < 0.0 || offset > 1.0)
-            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Keyframe {} has invalid offset value {}"sv, i, offset)) };
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Keyframe {} has invalid offset value {}", i, offset)) };
     }
 
     // 8. For each frame in processed keyframes, perform the following steps:

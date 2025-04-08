@@ -718,7 +718,7 @@ DecodeResult from_base64(VM& vm, StringView string, Alphabet alphabet, LastChunk
             // i. If char is either "+" or "/", then
             if (ch == '+' || ch == '/') {
                 // 1. Let error be a new SyntaxError exception.
-                auto error = vm.throw_completion<SyntaxError>(MUST(String::formatted("Invalid character '{}'"sv, ch)));
+                auto error = vm.throw_completion<SyntaxError>(MUST(String::formatted("Invalid character '{}'", ch)));
 
                 // 2. Return the Record { [[Read]]: read, [[Bytes]]: bytes, [[Error]]: error }.
                 return { .read = read, .bytes = move(bytes), .error = move(error) };
@@ -740,7 +740,7 @@ DecodeResult from_base64(VM& vm, StringView string, Alphabet alphabet, LastChunk
 
         if (!standard_base64_alphabet.contains(ch)) {
             // i. Let error be a new SyntaxError exception.
-            auto error = vm.throw_completion<SyntaxError>(MUST(String::formatted("Invalid character '{}'"sv, ch)));
+            auto error = vm.throw_completion<SyntaxError>(MUST(String::formatted("Invalid character '{}'", ch)));
 
             // ii. Return the Record { [[Read]]: read, [[Bytes]]: bytes, [[Error]]: error }.
             return { .read = read, .bytes = move(bytes), .error = move(error) };
