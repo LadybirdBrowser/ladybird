@@ -376,6 +376,13 @@ void ConnectionFromClient::set_dns_server(ByteString host_or_address, u16 port, 
         default_resolver()->dns.reset_connection();
 }
 
+void ConnectionFromClient::set_use_system_dns()
+{
+    g_dns_info.server_hostname = {};
+    g_dns_info.server_address = {};
+    default_resolver()->dns.reset_connection();
+}
+
 #ifdef AK_OS_WINDOWS
 void ConnectionFromClient::start_request(i32, ByteString, URL::URL, HTTP::HeaderMap, ByteBuffer, Core::ProxyData)
 {

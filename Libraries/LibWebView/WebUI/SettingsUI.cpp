@@ -63,6 +63,10 @@ void SettingsUI::register_interfaces()
     register_interface("setDoNotTrack"sv, [this](auto const& data) {
         set_do_not_track(data);
     });
+
+    register_interface("setDNSSettings"sv, [this](auto const& data) {
+        set_dns_settings(data);
+    });
 }
 
 void SettingsUI::load_current_settings()
@@ -263,4 +267,9 @@ void SettingsUI::set_do_not_track(JsonValue const& do_not_track)
     WebView::Application::settings().set_do_not_track(do_not_track.as_bool() ? DoNotTrack::Yes : DoNotTrack::No);
 }
 
+void SettingsUI::set_dns_settings(JsonValue const& dns_settings)
+{
+    Application::settings().set_dns_settings(Settings::parse_dns_settings(dns_settings));
+    load_current_settings();
+}
 }

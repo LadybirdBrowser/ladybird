@@ -27,7 +27,8 @@ namespace WebView {
 Application* Application::s_the = nullptr;
 
 Application::Application()
-    : m_settings(Settings::create({}))
+    : SettingsObserver(AddToObservers::No) // Application::the() is not set yet.
+    , m_settings(Settings::create({}))
 {
     VERIFY(!s_the);
     s_the = this;
@@ -51,10 +52,13 @@ Application::Application()
     m_process_manager.on_process_exited = [this](Process&& process) {
         process_did_exit(move(process));
     };
+
+    SettingsObserver::complete_delayed_registration();
 }
 
 Application::~Application()
 {
+    SettingsObserver::complete_delayed_unregistration();
     s_the = nullptr;
 }
 
@@ -164,12 +168,15 @@ void Application::initialize(Main::Arguments const& arguments)
         .debug_helper_process = move(debug_process_type),
         .profile_helper_process = move(profile_process_type),
         .dns_settings = (dns_server_address.has_value()
-                ? (use_dns_over_tls
+                ? Optional<DNSSettings> { use_dns_over_tls
                           ? DNSSettings(DNSOverTLS(dns_server_address.release_value(), *dns_server_port))
-                          : DNSSettings(DNSOverUDP(dns_server_address.release_value(), *dns_server_port)))
-                : SystemDNS {}),
+                          : DNSSettings(DNSOverUDP(dns_server_address.release_value(), *dns_server_port)) }
+                : OptionalNone()),
         .devtools_port = devtools_port,
     };
+
+    if (m_browser_options.dns_settings.has_value())
+        m_settings.set_dns_settings(m_browser_options.dns_settings.value(), true);
 
     if (webdriver_content_ipc_path.has_value())
         m_browser_options.webdriver_content_ipc_path = *webdriver_content_ipc_path;
@@ -710,4 +717,23 @@ void Application::request_console_messages(DevTools::TabDescription const& descr
     view->js_console_request_messages(start_index);
 }
 
+void Application::dns_settings_changed()
+{
+    if (!m_request_server_client)
+        return;
+    auto dns_settings = settings().dns_settings();
+    auto& rs_client = *m_request_server_client;
+    dns_settings.visit(
+        [&](SystemDNS) {
+            rs_client.async_set_use_system_dns();
+        },
+        [&](DNSOverTLS const& dns_over_tls) {
+            dbgln("Setting DNS server to {}:{} with TLS", dns_over_tls.server_address, dns_over_tls.port);
+            rs_client.async_set_dns_server(dns_over_tls.server_address, dns_over_tls.port, true);
+        },
+        [&](DNSOverUDP const& dns_over_udp) {
+            dbgln("Setting DNS server to {}:{}", dns_over_udp.server_address, dns_over_udp.port);
+            rs_client.async_set_dns_server(dns_over_udp.server_address, dns_over_udp.port, false);
+        });
+}
 }
