@@ -54,14 +54,16 @@ GC::Ref<NativeFunction> NativeFunction::create(Realm& allocating_realm, Function
     // 9. Set func.[[InitialName]] to null.
     auto function = allocating_realm.create<NativeFunction>(GC::create_function(vm.heap(), move(behaviour)), prototype, *realm.value());
 
+    function->unsafe_set_shape(realm.value()->intrinsics().native_function_shape());
+
     // 10. Perform SetFunctionLength(func, length).
-    function->set_function_length(length);
+    function->put_direct(realm.value()->intrinsics().native_function_length_offset(), Value { length });
 
     // 11. If prefix is not present, then
     //     a. Perform SetFunctionName(func, name).
     // 12. Else,
     //     a. Perform SetFunctionName(func, name, prefix).
-    function->set_function_name(name, prefix);
+    function->put_direct(realm.value()->intrinsics().native_function_name_offset(), function->make_function_name(name, prefix));
 
     // 13. Return func.
     return function;

@@ -24,13 +24,9 @@ FunctionObject::FunctionObject(Object& prototype, MayInterfereWithIndexedPropert
 }
 
 // 10.2.9 SetFunctionName ( F, name [ , prefix ] ), https://tc39.es/ecma262/#sec-setfunctionname
-void FunctionObject::set_function_name(Variant<PropertyKey, PrivateName> const& name_arg, Optional<StringView> const& prefix)
+GC::Ref<PrimitiveString> FunctionObject::make_function_name(Variant<PropertyKey, PrivateName> const& name_arg, Optional<StringView> const& prefix)
 {
     auto& vm = this->vm();
-
-    // 1. Assert: F is an extensible object that does not have a "name" own property.
-    VERIFY(m_is_extensible);
-    VERIFY(!storage_has(vm.names.name));
 
     String name;
 
@@ -74,8 +70,22 @@ void FunctionObject::set_function_name(Variant<PropertyKey, PrivateName> const& 
         }
     }
 
+    return PrimitiveString::create(vm, move(name));
+}
+
+// 10.2.9 SetFunctionName ( F, name [ , prefix ] ), https://tc39.es/ecma262/#sec-setfunctionname
+void FunctionObject::set_function_name(Variant<PropertyKey, PrivateName> const& name_arg, Optional<StringView> const& prefix)
+{
+    auto& vm = this->vm();
+
+    // 1. Assert: F is an extensible object that does not have a "name" own property.
+    VERIFY(m_is_extensible);
+    VERIFY(!storage_has(vm.names.name));
+
+    auto name = make_function_name(name_arg, prefix);
+
     // 6. Perform ! DefinePropertyOrThrow(F, "name", PropertyDescriptor { [[Value]]: name, [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: true }).
-    MUST(define_property_or_throw(vm.names.name, PropertyDescriptor { .value = PrimitiveString::create(vm, move(name)), .writable = false, .enumerable = false, .configurable = true }));
+    MUST(define_property_or_throw(vm.names.name, PropertyDescriptor { .value = name, .writable = false, .enumerable = false, .configurable = true }));
 
     // 7. Return unused.
 }
