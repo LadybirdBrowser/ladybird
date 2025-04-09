@@ -15,6 +15,7 @@ class Color;
 
 class Emoji;
 class Font;
+struct FontDescription;
 class ImageDecoder;
 struct FontPixelMetrics;
 class ScaledFont;

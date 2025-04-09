@@ -16,6 +16,7 @@
 #include <LibWebView/Plugins/FontPlugin.h>
 
 #ifdef USE_FONTCONFIG
+#    include <LibGfx/Font/FontconfigFontProvider.h>
 #    include <fontconfig/fontconfig.h>
 #endif
 
@@ -26,13 +27,13 @@ FontPlugin::FontPlugin(bool is_layout_test_mode, Gfx::SystemFontProvider* font_p
 {
 #ifdef USE_FONTCONFIG
     {
-        auto fontconfig_initialized = FcInit();
-        VERIFY(fontconfig_initialized);
+        if (!font_provider)
+            font_provider = &Gfx::FontDatabase::the().install_system_font_provider(make<Gfx::FontconfigFontProvider>());
     }
 #endif
 
     if (!font_provider)
-        font_provider = &static_cast<Gfx::PathFontProvider&>(Gfx::FontDatabase::the().install_system_font_provider(make<Gfx::PathFontProvider>()));
+        font_provider = &Gfx::FontDatabase::the().install_system_font_provider(make<Gfx::PathFontProvider>());
     if (is<Gfx::PathFontProvider>(*font_provider)) {
         auto& path_font_provider = static_cast<Gfx::PathFontProvider&>(*font_provider);
         // Load anything we can find in the system's font directories

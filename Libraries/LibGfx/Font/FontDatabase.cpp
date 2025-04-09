@@ -39,7 +39,7 @@ RefPtr<Gfx::Font> FontDatabase::get(FlyString const& family, float point_size, u
     return m_system_font_provider->get_font(family, point_size, weight, width, slope);
 }
 
-void FontDatabase::for_each_typeface_with_family_name(FlyString const& family_name, Function<void(Typeface const&)> callback)
+void FontDatabase::for_each_typeface_with_family_name(FlyString const& family_name, Function<void(FontDescription)> callback)
 {
     m_system_font_provider->for_each_typeface_with_family_name(family_name, move(callback));
 }

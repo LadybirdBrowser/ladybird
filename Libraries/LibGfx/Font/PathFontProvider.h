@@ -27,7 +27,7 @@ public:
     void load_all_fonts_from_uri(StringView);
 
     virtual RefPtr<Gfx::Font> get_font(FlyString const& family, float point_size, unsigned weight, unsigned width, unsigned slope) override;
-    virtual void for_each_typeface_with_family_name(FlyString const& family_name, Function<void(Typeface const&)>) override;
+    virtual void for_each_typeface_with_family_name(FlyString const& family_name, Function<void(FontDescription)>) override;
     virtual StringView name() const override { return m_name.bytes_as_string_view(); }
 
 private:

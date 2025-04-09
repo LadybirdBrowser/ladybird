@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/FlyString.h>
 #include <AK/RefCounted.h>
 #include <AK/RefPtr.h>
 #include <AK/String.h>
@@ -46,9 +47,26 @@ enum FontWidth {
     UltraExpanded = 9
 };
 
+enum class FontSlant : u8 {
+    Upright,
+    Italic,
+    Oblique
+};
+
 constexpr float text_shaping_resolution = 64;
 
 class Typeface;
+
+struct FontDescription {
+    FlyString family;
+
+    // These fields correspond to SkFontStyle
+    u16 weight { 400 }; // Normal
+    FontWidth width { Normal };
+    FontSlant slant { FontSlant::Upright };
+
+    Function<RefPtr<Typeface>()> load_typeface;
+};
 
 class Font : public RefCounted<Font> {
 public:

@@ -20,7 +20,7 @@ public:
 
     virtual StringView name() const = 0;
     virtual RefPtr<Gfx::Font> get_font(FlyString const& family, float point_size, unsigned weight, unsigned width, unsigned slope) = 0;
-    virtual void for_each_typeface_with_family_name(FlyString const& family_name, Function<void(Typeface const&)>) = 0;
+    virtual void for_each_typeface_with_family_name(FlyString const& family_name, Function<void(FontDescription)>) = 0;
 };
 
 class FontDatabase {
@@ -29,7 +29,7 @@ public:
     SystemFontProvider& install_system_font_provider(NonnullOwnPtr<SystemFontProvider>);
 
     RefPtr<Gfx::Font> get(FlyString const& family, float point_size, unsigned weight, unsigned width, unsigned slope);
-    void for_each_typeface_with_family_name(FlyString const& family_name, Function<void(Typeface const&)>);
+    void for_each_typeface_with_family_name(FlyString const& family_name, Function<void(FontDescription)>);
     [[nodiscard]] StringView system_font_provider_name() const;
 
 private:

@@ -48,6 +48,10 @@
 #    include <LibCore/Platform/ProcessStatisticsMach.h>
 #endif
 
+#if USE_FONTCONFIG
+#    include <LibGfx/Font/FontconfigFontProvider.h>
+#endif
+
 static ErrorOr<void> load_content_filters(StringView config_path);
 static ErrorOr<void> initialize_resource_loader(GC::Heap&, int request_server_socket);
 static ErrorOr<void> initialize_image_decoder(int image_decoder_socket);
@@ -137,11 +141,16 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
         Core::Process::wait_for_debugger_and_break();
     }
 
+#if USE_FONTCONFIG
+    auto& font_provider = static_cast<Gfx::FontconfigFontProvider&>(Gfx::FontDatabase::the().install_system_font_provider(make<Gfx::FontconfigFontProvider>()));
+    font_provider.add_uri_to_config("resource://fonts"sv);
+#else
     auto& font_provider = static_cast<Gfx::PathFontProvider&>(Gfx::FontDatabase::the().install_system_font_provider(make<Gfx::PathFontProvider>()));
     if (force_fontconfig) {
         font_provider.set_name_but_fixme_should_create_custom_system_font_provider("FontConfig"_string);
     }
     font_provider.load_all_fonts_from_uri("resource://fonts"sv);
+#endif
 
     // Layout test mode implies internals object is exposed and the Skia CPU backend is used
     if (is_layout_test_mode) {
