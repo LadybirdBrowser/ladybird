@@ -42,6 +42,31 @@ private:
     int m_fd;
 };
 
+class SendQueue : public AtomicRefCounted<SendQueue> {
+public:
+    enum class Running {
+        No,
+        Yes,
+    };
+    Running block_until_message_enqueued();
+    void stop();
+
+    void enqueue_message(Vector<u8>&& bytes, Vector<int>&& fds);
+    struct BytesAndFds {
+        Vector<u8> bytes;
+        Vector<int> fds;
+    };
+    BytesAndFds dequeue(size_t max_bytes);
+    void return_unsent_data_to_front_of_queue(ReadonlyBytes const& bytes, Vector<int> const& fds);
+
+private:
+    Vector<u8> m_bytes;
+    Vector<int> m_fds;
+    Threading::Mutex m_mutex;
+    Threading::ConditionVariable m_condition { m_mutex };
+    bool m_running { true };
+};
+
 class TransportSocket {
     AK_MAKE_NONCOPYABLE(TransportSocket);
     AK_MAKE_NONMOVABLE(TransportSocket);
@@ -76,7 +101,7 @@ public:
     ErrorOr<IPC::File> clone_for_transfer();
 
 private:
-    static ErrorOr<void> send_message(Core::LocalSocket&, ReadonlyBytes&&, Vector<int, 1> const& unowned_fds);
+    static ErrorOr<void> send_message(Core::LocalSocket&, ReadonlyBytes& bytes, Vector<int>& unowned_fds);
 
     NonnullOwnPtr<Core::LocalSocket> m_socket;
     ByteBuffer m_unprocessed_bytes;
@@ -87,19 +112,8 @@ private:
     // descriptor contained in the message before the peer receives it. https://openradar.me/9477351
     Queue<NonnullRefPtr<AutoCloseFileDescriptor>> m_fds_retained_until_received_by_peer;
 
-    struct MessageToSend {
-        Vector<u8> bytes;
-        Vector<int, 1> fds;
-    };
-    struct SendQueue : public AtomicRefCounted<SendQueue> {
-        AK::SinglyLinkedList<MessageToSend> messages;
-        Threading::Mutex mutex;
-        Threading::ConditionVariable condition { mutex };
-        bool running { true };
-    };
     RefPtr<Threading::Thread> m_send_thread;
     RefPtr<SendQueue> m_send_queue;
-    void queue_message_on_send_thread(MessageToSend&&) const;
 };
 
 }
