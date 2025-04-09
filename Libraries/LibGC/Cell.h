@@ -107,8 +107,8 @@ public:
                 visit(value);
         }
 
-        template<typename T>
-        void visit(Vector<T> const& vector)
+        template<typename T, size_t inline_capacity>
+        void visit(Vector<T, inline_capacity> const& vector)
         {
             for (auto& value : vector)
                 visit(value);
