@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	e.style['transition-property'] = "none" should set the property value
+Pass	e.style['transition-property'] = "all" should set the property value
+Pass	e.style['transition-property'] = "one" should set the property value
+Pass	e.style['transition-property'] = "one-two-three" should set the property value
+Pass	e.style['transition-property'] = "one, two, three" should set the property value
+Pass	e.style['transition-property'] = "width, all" should set the property value
