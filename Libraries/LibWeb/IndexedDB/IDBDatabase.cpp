@@ -44,6 +44,7 @@ void IDBDatabase::visit_edges(Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_object_store_set);
     visitor.visit(m_associated_database);
+    visitor.visit(m_transactions);
 }
 
 void IDBDatabase::set_onabort(WebIDL::CallbackType* event_handler)

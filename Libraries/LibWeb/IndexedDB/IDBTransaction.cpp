@@ -24,6 +24,7 @@ IDBTransaction::IDBTransaction(JS::Realm& realm, GC::Ref<IDBDatabase> connection
     , m_scope(move(scopes))
 {
     m_uuid = MUST(Crypto::generate_random_uuid());
+    connection->add_transaction(*this);
 }
 
 GC::Ref<IDBTransaction> IDBTransaction::create(JS::Realm& realm, GC::Ref<IDBDatabase> connection, Bindings::IDBTransactionMode mode, Bindings::IDBTransactionDurability durability = Bindings::IDBTransactionDurability::Default, Vector<GC::Ref<ObjectStore>> scopes = {})
