@@ -584,7 +584,8 @@ void Document::visit_edges(Cell::Visitor& visitor)
 
     visitor.visit(m_adopted_style_sheets);
 
-    visitor.visit(m_shadow_roots);
+    for (auto& shadow_root : m_shadow_roots)
+        visitor.visit(shadow_root);
 
     visitor.visit(m_top_layer_elements);
     visitor.visit(m_top_layer_pending_removals);
@@ -5953,9 +5954,7 @@ void Document::register_shadow_root(Badge<DOM::ShadowRoot>, DOM::ShadowRoot& sha
 
 void Document::unregister_shadow_root(Badge<DOM::ShadowRoot>, DOM::ShadowRoot& shadow_root)
 {
-    m_shadow_roots.remove_all_matching([&](auto& item) {
-        return item.ptr() == &shadow_root;
-    });
+    m_shadow_roots.remove(shadow_root);
 }
 
 void Document::for_each_shadow_root(Function<void(DOM::ShadowRoot&)>&& callback)
@@ -5967,7 +5966,7 @@ void Document::for_each_shadow_root(Function<void(DOM::ShadowRoot&)>&& callback)
 void Document::for_each_shadow_root(Function<void(DOM::ShadowRoot&)>&& callback) const
 {
     for (auto& shadow_root : m_shadow_roots)
-        callback(shadow_root);
+        callback(const_cast<ShadowRoot&>(shadow_root));
 }
 
 bool Document::is_decoded_svg() const
