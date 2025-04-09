@@ -198,7 +198,7 @@ public:
         return *m_first_available_computed_font;
     }
 
-    void set_computed_font_list(NonnullRefPtr<Gfx::FontCascadeList> font_list) const
+    void set_computed_font_list(NonnullRefPtr<Gfx::FontCascadeList> font_list)
     {
         m_font_list = move(font_list);
         // https://drafts.csswg.org/css-fonts/#first-available-font
@@ -251,8 +251,8 @@ private:
     HashMap<PropertyID, NonnullRefPtr<CSSStyleValue const>> m_animated_property_values;
 
     int m_math_depth { InitialValues::math_depth() };
-    mutable RefPtr<Gfx::FontCascadeList> m_font_list;
-    mutable RefPtr<Gfx::Font> m_first_available_computed_font;
+    RefPtr<Gfx::FontCascadeList> m_font_list;
+    RefPtr<Gfx::Font> m_first_available_computed_font;
 
     Optional<CSSPixels> m_line_height;
 
