@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<meta charset="UTF-8">
+<title>clip-path-interpolation</title>
+<link rel="help" href="https://drafts.fxtf.org/css-masking-1/#the-clip-path">
+<meta name="assert" content="clip-path supports animation">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<style>
+.parent {
+  clip-path: inset(10px);
+  padding: 10px;
+}
+
+.target {
+  display: inline-block;
+  width: 100px;
+  height: 100px;
+  background-color: black;
+  clip-path: inset(10px);
+}
+
+.expected {
+  background-color: green;
+}
+</style>
+<body>
+<script>
+test_interpolation({
+  property: 'clip-path',
+  from: neutralKeyframe,
+  to: 'inset(20px)',
+}, [
+  {at: -0.3, expect: 'inset(7px)'},
+  {at: 0, expect: 'inset(10px)'},
+  {at: 0.3, expect: 'inset(13px)'},
+  {at: 0.6, expect: 'inset(16px)'},
+  {at: 1, expect: 'inset(20px)'},
+  {at: 1.5, expect: 'inset(25px)'},
+]);
+
+test_no_interpolation({
+  property: 'clip-path',
+  from: 'initial',
+  to: 'inset(20px)',
+});
+
+test_interpolation({
+  property: 'clip-path',
+  from: 'inherit',
+  to: 'inset(20px)',
+}, [
+  {at: -0.3, expect: 'inset(7px)'},
+  {at: 0, expect: 'inset(10px)'},
+  {at: 0.3, expect: 'inset(13px)'},
+  {at: 0.6, expect: 'inset(16px)'},
+  {at: 1, expect: 'inset(20px)'},
+  {at: 1.5, expect: 'inset(25px)'},
+]);
+
+test_no_interpolation({
+  property: 'clip-path',
+  from: 'unset',
+  to: 'inset(20px)',
+});
+
+test_no_interpolation({
+  property: 'clip-path',
+  from: 'none',
+  to: 'circle(3px at 1px 2px)',
+});
+
+test_interpolation({
+  property: 'clip-path',
+  from: 'circle(10px at 25px 75%)',
+  to: 'circle(50px at 50px center)'
+}, [
+  {at: -0.3, expect: 'circle(0px at 17.5px 82.5%)'}, // radius can't be negative
+  {at: 0, expect: 'circle(10px at 25px 75%)'},
+  {at: 0.3, expect: 'circle(22px at 32.5px 67.5%)'},
+  {at: 0.6, expect: 'circle(34px at 40px 60%)'},
+  {at: 1, expect: 'circle(50px at 50px 50%)'},
+  {at: 1.5, expect: 'circle(70px at 62.5px 37.5%)'},
+]);
+
+test_no_interpolation({
+  property: 'clip-path',
+  from: 'circle(farthest-side at 25px 75%)',
+  to: 'circle(farthest-side at 50px center)'
+});
+
+test_no_interpolation({
+  property: 'clip-path',
+  from: 'circle(closest-side at 10px 20px)',
+  to: 'circle(farthest-side at 30px 40px)',
+});
+
+test_no_interpolation({
+  property: 'clip-path',
+  from: 'circle(50px at 10px 20px)',
+  to: 'circle(farthest-side at 30px 40px)',
+});
+
+test_interpolation({
+  property: 'clip-path',
+  from: 'ellipse(10px 20px at 25px 75px)',
+  to: 'ellipse(50px 100px at 50px 50px)',
+}, [
+  {at: -0.3, expect: 'ellipse(0px 0px at 17.5px 82.5px)'}, // radius can't be negative
+  {at: 0, expect: 'ellipse(10px 20px at 25px 75px)'},
+  {at: 0.3, expect: 'ellipse(22px 44px at 32.5px 67.5px)'},
+  {at: 0.6, expect: 'ellipse(34px 68px at 40px 60px)'},
+  {at: 1, expect: 'ellipse(50px 100px at 50px 50px)'},
+  {at: 1.5, expect: 'ellipse(70px 140px at 62.5px 37.5px)'},
+]);
+
+test_no_interpolation({
+  property: 'clip-path',
+  from: 'ellipse(closest-side farthest-side at 25px 75%)',
+  to: 'ellipse(closest-side farthest-side at 50px center)',
+});
+
+test_no_interpolation({
+  property: 'clip-path',
+  from: 'ellipse(closest-side farthest-side at 10px 20px)',
+  to: 'ellipse(farthest-side closest-side at 30px 40px)',
+});
+
+test_no_interpolation({
+  property: 'clip-path',
+  from: 'ellipse(50px closest-side at 10px 20px)',
+  to: 'ellipse(150px farthest-side at 30px 40px)',
+});
+
+test_interpolation({
+  property: 'clip-path',
+  from: 'inset(20px)',
+  to: 'inset(40%)',
+}, [
+  {at: -0.3, expect: 'inset(calc(26px + -12%))'},
+  {at: 0, expect: 'inset(calc(20px + 0%))'},
+  {at: 0.3, expect: 'inset(calc(14px + 12%))'},
+  {at: 0.6, expect: 'inset(calc(8px + 24%))'},
+  {at: 1, expect: 'inset(40%)'},
+  {at: 1.5, expect: 'inset(calc(-10px + 60%))'},
+]);
+
+test_interpolation({
+  property: 'clip-path',
+  from: 'inset(1px 2px 3px 4px round 10px 20px 30px 40px / 50px 60px 70px 80px)',
+  to: 'inset(101px 102px 103px 104px round 110px 120px 130px 140px / 150px 160px 170px 180px)',
+}, [
+  {at: -0.3, expect: 'inset(-29px -28px -27px -26px round 0px 0px 0px 10px / 20px 30px 40px 50px)'},
+  {at: 0, expect: 'inset(1px 2px 3px 4px round 10px 20px 30px 40px / 50px 60px 70px 80px)'},
+  {at: 0.3, expect: 'inset(31px 32px 33px 34px round 40px 50px 60px 70px / 80px 90px 100px 110px)'},
+  {at: 0.6, expect: 'inset(61px 62px 63px 64px round 70px 80px 90px 100px / 110px 120px 130px 140px)'},
+  {at: 1, expect: 'inset(101px 102px 103px 104px round 110px 120px 130px 140px / 150px 160px 170px 180px)'},
+  {at: 1.5, expect: 'inset(151px 152px 153px 154px round 160px 170px 180px 190px / 200px 210px 220px 230px)'},
+]);
+
+test_interpolation({
+  property: 'clip-path',
+  from: 'inset(1px 2px round 100px 200px)',
+  to: 'inset(101px 102px 101px 102px)',
+}, [
+  {at: -0.3, expect: 'inset(-29px -28px round 130px 260px)'},
+  {at: 0, expect: 'inset(1px 2px round 100px 200px)'},
+  {at: 0.3, expect: 'inset(31px 32px round 70px 140px)'},
+  {at: 0.6, expect: 'inset(61px 62px round 40px 80px)'},
+  {at: 1, expect: 'inset(101px 102px)'},
+  {at: 1.5, expect: 'inset(151px 152px)'}, // border radius can't be negative
+]);
+
+test_interpolation({
+  property: 'clip-path',
+  from: 'polygon(10px 20%, 30px 40%)',
+  to: 'polygon(110px 120%, 130px 140%)',
+}, [
+  {at: -0.3, expect: 'polygon(-20px -10%, 0px 10%)'},
+  {at: 0, expect: 'polygon(10px 20%, 30px 40%)'},
+  {at: 0.3, expect: 'polygon(40px 50%, 60px 70%)'},
+  {at: 0.6, expect: 'polygon(70px 80%, 90px 100%)'},
+  {at: 1, expect: 'polygon(110px 120%, 130px 140%)'},
+  {at: 1.5, expect: 'polygon(160px 170%, 180px 190%)'},
+]);
+
+test_interpolation({
+  property: 'clip-path',
+  from: 'polygon(evenodd, 10px 20px)',
+  to: 'polygon(evenodd, 110px 120px)',
+}, [
+  {at: -0.3, expect: 'polygon(evenodd, -20px -10px)'},
+  {at: 0, expect: 'polygon(evenodd, 10px 20px)'},
+  {at: 0.3, expect: 'polygon(evenodd, 40px 50px)'},
+  {at: 0.6, expect: 'polygon(evenodd, 70px 80px)'},
+  {at: 1, expect: 'polygon(evenodd, 110px 120px)'},
+  {at: 1.5, expect: 'polygon(evenodd, 160px 170px)'},
+]);
+
+test_no_interpolation({
+  property: 'clip-path',
+  from: 'polygon(evenodd, 10px 20px)',
+  to: 'polygon(nonzero, 110px 120px)',
+});
+
+test_no_interpolation({
+  property: 'clip-path',
+  from: 'polygon(evenodd, 10px 20px)',
+  to: 'polygon(110px 120px)',
+});
+
+test_no_interpolation({
+  property: 'clip-path',
+  from: 'polygon(10px 20px, 30px 40px)',
+  to: 'polygon(110px 120px)',
+});
+</script>
+</body>
