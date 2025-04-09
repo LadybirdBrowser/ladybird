@@ -149,14 +149,13 @@ WebIDL::ExceptionOr<GC::Ref<IDBDatabase>> open_a_database_connection(JS::Realm& 
         auto upgrade_transaction = upgrade_a_database(realm, connection, version, request);
 
         // 7. If connection was closed, return a newly created "AbortError" DOMException and abort these steps.
-        if (connection->state() == IDBDatabase::ConnectionState::Closed) {
+        if (connection->state() == IDBDatabase::ConnectionState::Closed)
             return WebIDL::AbortError::create(realm, "Connection was closed"_string);
-        }
 
         // 8. If the upgrade transaction was aborted, run the steps to close a database connection with connection,
         //    return a newly created "AbortError" DOMException and abort these steps.
         if (upgrade_transaction->aborted()) {
-            close_a_database_connection(*connection, true);
+            close_a_database_connection(*connection);
             return WebIDL::AbortError::create(realm, "Upgrade transaction was aborted"_string);
         }
     }
