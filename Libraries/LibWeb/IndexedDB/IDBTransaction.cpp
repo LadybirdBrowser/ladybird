@@ -141,7 +141,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBObjectStore>> IDBTransaction::object_store(String
     // 2. Let store be the object store named name in this's scope, or throw a "NotFoundError" DOMException if none.
     auto store = object_store_named(name);
     if (!store)
-        return WebIDL::NotFoundError::create(realm, "Object store not found"_string);
+        return WebIDL::NotFoundError::create(realm, "Object store not found in transactions scope"_string);
 
     // 3. Return an object store handle associated with store and this.
     return IDBObjectStore::create(realm, *store, *this);
