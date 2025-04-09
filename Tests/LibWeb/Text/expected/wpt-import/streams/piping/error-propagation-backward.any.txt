@@ -1,0 +1,40 @@
+Harness status: OK
+
+Found 35 tests
+
+35 Pass
+Pass	Errors must be propagated backward: starts errored; preventCancel omitted; fulfilled cancel promise
+Pass	Errors must be propagated backward: becomes errored before piping due to write; preventCancel omitted; fulfilled cancel promise
+Pass	Errors must be propagated backward: becomes errored before piping due to write; preventCancel omitted; rejected cancel promise
+Pass	Errors must be propagated backward: becomes errored before piping due to write; preventCancel = undefined (falsy); fulfilled cancel promise
+Pass	Errors must be propagated backward: becomes errored before piping due to write; preventCancel = null (falsy); fulfilled cancel promise
+Pass	Errors must be propagated backward: becomes errored before piping due to write; preventCancel = false (falsy); fulfilled cancel promise
+Pass	Errors must be propagated backward: becomes errored before piping due to write; preventCancel = 0 (falsy); fulfilled cancel promise
+Pass	Errors must be propagated backward: becomes errored before piping due to write; preventCancel = -0 (falsy); fulfilled cancel promise
+Pass	Errors must be propagated backward: becomes errored before piping due to write; preventCancel = NaN (falsy); fulfilled cancel promise
+Pass	Errors must be propagated backward: becomes errored before piping due to write; preventCancel =  (falsy); fulfilled cancel promise
+Pass	Errors must be propagated backward: becomes errored before piping due to write; preventCancel = true (truthy)
+Pass	Errors must be propagated backward: becomes errored before piping due to write; preventCancel = a (truthy)
+Pass	Errors must be propagated backward: becomes errored before piping due to write; preventCancel = 1 (truthy)
+Pass	Errors must be propagated backward: becomes errored before piping due to write; preventCancel = Symbol() (truthy)
+Pass	Errors must be propagated backward: becomes errored before piping due to write; preventCancel = [object Object] (truthy)
+Pass	Errors must be propagated backward: becomes errored before piping due to write, preventCancel = true; preventAbort = true
+Pass	Errors must be propagated backward: becomes errored before piping due to write; preventCancel = true, preventAbort = true, preventClose = true
+Pass	Errors must be propagated backward: becomes errored during piping due to write; preventCancel omitted; fulfilled cancel promise
+Pass	Errors must be propagated backward: becomes errored during piping due to write; preventCancel omitted; rejected cancel promise
+Pass	Errors must be propagated backward: becomes errored during piping due to write; preventCancel = true
+Pass	Errors must be propagated backward: becomes errored during piping due to write, but async; preventCancel = false; fulfilled cancel promise
+Pass	Errors must be propagated backward: becomes errored during piping due to write, but async; preventCancel = false; rejected cancel promise
+Pass	Errors must be propagated backward: becomes errored during piping due to write, but async; preventCancel = true
+Pass	Errors must be propagated backward: becomes errored after piping; preventCancel omitted; fulfilled cancel promise
+Pass	Errors must be propagated backward: becomes errored after piping; preventCancel omitted; rejected cancel promise
+Pass	Errors must be propagated backward: becomes errored after piping; preventCancel = true
+Pass	Errors must be propagated backward: becomes errored after piping due to last write; source is closed; preventCancel omitted (but cancel is never called)
+Pass	Errors must be propagated backward: becomes errored after piping due to last write; source is closed; preventCancel = true
+Pass	Errors must be propagated backward: becomes errored after piping; dest never desires chunks; preventCancel = false; fulfilled cancel promise
+Pass	Errors must be propagated backward: becomes errored after piping; dest never desires chunks; preventCancel = false; rejected cancel promise
+Pass	Errors must be propagated backward: becomes errored after piping; dest never desires chunks; preventCancel = true
+Pass	Errors must be propagated backward: becomes errored before piping via abort; preventCancel omitted; fulfilled cancel promise
+Pass	Errors must be propagated backward: becomes errored before piping via abort; preventCancel omitted; rejected cancel promise
+Pass	Errors must be propagated backward: becomes errored before piping via abort; preventCancel = true
+Pass	Errors must be propagated backward: erroring via the controller errors once pending write completes

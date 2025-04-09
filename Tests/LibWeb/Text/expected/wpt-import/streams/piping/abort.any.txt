@@ -1,0 +1,38 @@
+Harness status: OK
+
+Found 33 tests
+
+33 Pass
+Pass	a signal argument 'null' should cause pipeTo() to reject
+Pass	a signal argument 'AbortSignal' should cause pipeTo() to reject
+Pass	a signal argument 'true' should cause pipeTo() to reject
+Pass	a signal argument '-1' should cause pipeTo() to reject
+Pass	a signal argument '[object AbortSignal]' should cause pipeTo() to reject
+Pass	an aborted signal should cause the writable stream to reject with an AbortError
+Pass	(reason: 'null') all the error objects should be the same object
+Pass	(reason: 'undefined') all the error objects should be the same object
+Pass	(reason: 'error1: error1') all the error objects should be the same object
+Pass	preventCancel should prevent canceling the readable
+Pass	preventAbort should prevent aborting the readable
+Pass	preventCancel and preventAbort should prevent canceling the readable and aborting the readable
+Pass	(reason: 'null') abort should prevent further reads
+Pass	(reason: 'undefined') abort should prevent further reads
+Pass	(reason: 'error1: error1') abort should prevent further reads
+Pass	(reason: 'null') all pending writes should complete on abort
+Pass	(reason: 'undefined') all pending writes should complete on abort
+Pass	(reason: 'error1: error1') all pending writes should complete on abort
+Pass	(reason: 'null') underlyingSource.cancel() should called when abort, even with pending pull
+Pass	(reason: 'undefined') underlyingSource.cancel() should called when abort, even with pending pull
+Pass	(reason: 'error1: error1') underlyingSource.cancel() should called when abort, even with pending pull
+Pass	a rejection from underlyingSource.cancel() should be returned by pipeTo()
+Pass	a rejection from underlyingSink.abort() should be returned by pipeTo()
+Pass	a rejection from underlyingSink.abort() should be preferred to one from underlyingSource.cancel()
+Pass	abort signal takes priority over closed readable
+Pass	abort signal takes priority over errored readable
+Pass	abort signal takes priority over closed writable
+Pass	abort signal takes priority over errored writable
+Pass	abort should do nothing after the readable is closed
+Pass	abort should do nothing after the readable is errored
+Pass	abort should do nothing after the readable is errored, even with pending writes
+Pass	abort should do nothing after the writable is errored
+Pass	pipeTo on a teed readable byte stream should only be aborted when both branches are aborted

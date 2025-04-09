@@ -175,8 +175,14 @@ GC::Ref<Promise> upon_rejection(Promise const& promise, GC::Ref<ReactionSteps> s
 void mark_promise_as_handled(Promise const& promise)
 {
     // To mark as handled a Promise<T> promise, set promise.[[Promise]].[[PromiseIsHandled]] to true.
-    auto promise_object = as<JS::Promise>(promise.promise().ptr());
-    promise_object->set_is_handled();
+    auto& promise_object = as<JS::Promise>(*promise.promise());
+    promise_object.set_is_handled();
+}
+
+bool is_promise_fulfilled(Promise const& promise)
+{
+    auto const& promise_object = as<JS::Promise>(*promise.promise());
+    return promise_object.state() == JS::Promise::State::Fulfilled;
 }
 
 struct WaitForAllResults : JS::Cell {
