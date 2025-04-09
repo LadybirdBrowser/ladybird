@@ -4092,6 +4092,35 @@ GC::Ref<WebIDL::Promise> writable_stream_default_writer_close(WritableStreamDefa
     return writable_stream_close(*stream);
 }
 
+// https://streams.spec.whatwg.org/#writable-stream-default-writer-close-with-error-propagation
+GC::Ref<WebIDL::Promise> writable_stream_default_writer_close_with_error_propagation(WritableStreamDefaultWriter& writer)
+{
+    auto& realm = writer.realm();
+
+    // 1. Let stream be writer.[[stream]].
+    auto stream = writer.stream();
+
+    // 2. Assert: stream is not undefined.
+    VERIFY(stream);
+
+    // 3. Let state be stream.[[state]].
+    auto state = stream->state();
+
+    // 4. If ! WritableStreamCloseQueuedOrInFlight(stream) is true or state is "closed", return a promise resolved with undefined.
+    if (writable_stream_close_queued_or_in_flight(*stream) || state == WritableStream::State::Closed)
+        return WebIDL::create_resolved_promise(realm, JS::js_undefined());
+
+    // 5. If state is "errored", return a promise rejected with stream.[[storedError]].
+    if (state == WritableStream::State::Errored)
+        return WebIDL::create_rejected_promise(realm, stream->stored_error());
+
+    // 6. Assert: state is "writable" or "erroring".
+    VERIFY(state == WritableStream::State::Writable || state == WritableStream::State::Erroring);
+
+    // 7. Return ! WritableStreamDefaultWriterClose(writer).
+    return writable_stream_default_writer_close(writer);
+}
+
 // https://streams.spec.whatwg.org/#writable-stream-default-writer-ensure-closed-promise-rejected
 void writable_stream_default_writer_ensure_closed_promise_rejected(WritableStreamDefaultWriter& writer, JS::Value error)
 {
