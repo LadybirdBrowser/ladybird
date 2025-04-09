@@ -176,7 +176,7 @@ WebIDL::ExceptionOr<void> IDBDatabase::delete_object_store(String const& name)
     // 4. Let store be the object store named name in database, or throw a "NotFoundError" DOMException if none.
     auto store = database->object_store_with_name(name);
     if (!store)
-        return WebIDL::NotFoundError::create(realm, "Object store not found"_string);
+        return WebIDL::NotFoundError::create(realm, "Object store not found while trying to delete"_string);
 
     // 5. Remove store from this's object store set.
     this->remove_from_object_store_set(*store);
