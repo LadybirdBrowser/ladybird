@@ -49,10 +49,10 @@ public:
     [[nodiscard]] String uuid() const { return m_uuid; }
 
     void set_mode(Bindings::IDBTransactionMode mode) { m_mode = mode; }
-    void set_state(TransactionState state) { m_state = state; }
     void set_error(GC::Ptr<WebIDL::DOMException> error) { m_error = error; }
     void set_associated_request(GC::Ptr<IDBRequest> request) { m_associated_request = request; }
     void set_aborted(bool aborted) { m_aborted = aborted; }
+    void set_state(TransactionState state) { m_state = state; }
 
     [[nodiscard]] bool is_upgrade_transaction() const { return m_mode == Bindings::IDBTransactionMode::Versionchange; }
     [[nodiscard]] bool is_readonly() const { return m_mode == Bindings::IDBTransactionMode::Readonly; }
