@@ -56,7 +56,10 @@ void CSSImportRule::set_parent_style_sheet(CSSStyleSheet* parent_style_sheet)
     // Crude detection of whether we're already fetching.
     if (m_style_sheet || m_document_load_event_delayer.has_value())
         return;
-    fetch();
+
+    // Only try to fetch if we now have a parent
+    if (parent_style_sheet)
+        fetch();
 }
 
 // https://www.w3.org/TR/cssom/#serialize-a-css-rule
