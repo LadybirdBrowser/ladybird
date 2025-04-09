@@ -401,21 +401,25 @@ GC::Ref<IDBTransaction> upgrade_a_database(JS::Realm& realm, GC::Ref<IDBDatabase
         // 5. Let didThrow be the result of firing a version change event named upgradeneeded at request with old version and version.
         auto did_throw = fire_a_version_change_event(realm, HTML::EventNames::upgradeneeded, request, old_version, version);
 
-        // 6. Set transaction’s state to inactive.
-        transaction->set_state(IDBTransaction::TransactionState::Inactive);
+        // AD-HOC: If the transaction was aborted by the event, then DONT set the transaction back to inactive.
+        // https://github.com/w3c/IndexedDB/issues/436#issuecomment-2791113467
+        if (transaction->state() != IDBTransaction::TransactionState::Finished) {
 
-        // 7. If didThrow is true, run abort a transaction with transaction and a newly created "AbortError" DOMException.
-        if (did_throw)
-            abort_a_transaction(*transaction, WebIDL::AbortError::create(realm, "Version change event threw an exception"_string));
+            // 6. Set transaction’s state to inactive.
+            transaction->set_state(IDBTransaction::TransactionState::Inactive);
 
-        // AD-HOC:
-        // https://github.com/w3c/IndexedDB/issues/436
-        // The implementation must attempt to commit a transaction when all requests placed against the transaction have completed
-        // and their returned results handled,
-        // no new requests have been placed against the transaction,
-        // and the transaction has not been aborted.
-        if (transaction->state() == IDBTransaction::TransactionState::Inactive && transaction->request_list().is_empty() && !transaction->aborted())
-            commit_a_transaction(realm, transaction);
+            // 7. If didThrow is true, run abort a transaction with transaction and a newly created "AbortError" DOMException.
+            if (did_throw)
+                abort_a_transaction(transaction, WebIDL::AbortError::create(realm, "Version change event threw an exception"_string));
+
+            // AD-HOC:
+            // The implementation must attempt to commit a transaction when all requests placed against the transaction have completed
+            // and their returned results handled,
+            // no new requests have been placed against the transaction,
+            // and the transaction has not been aborted.
+            if (transaction->state() == IDBTransaction::TransactionState::Inactive && transaction->request_list().is_empty() && !transaction->aborted())
+                commit_a_transaction(realm, transaction);
+        }
     }));
 
     // 11. Wait for transaction to finish.
