@@ -4378,15 +4378,19 @@ WebIDL::ExceptionOr<void> set_up_writable_stream_default_controller_from_underly
         return WebIDL::create_resolved_promise(realm, JS::js_undefined());
     });
 
-    // 6. If underlyingSinkDict["start"] exists, then set startAlgorithm to an algorithm which returns the result of invoking underlyingSinkDict["start"] with argument list « controller » and callback this value underlyingSink.
+    // 6. If underlyingSinkDict["start"] exists, then set startAlgorithm to an algorithm which returns the result of
+    //    invoking underlyingSinkDict["start"] with argument list « controller », exception behavior "rethrow", and
+    //    callback this value underlyingSink.
     if (underlying_sink.start) {
         start_algorithm = GC::create_function(realm.heap(), [controller, underlying_sink_value, callback = underlying_sink.start]() -> WebIDL::ExceptionOr<JS::Value> {
             // Note: callback does not return a promise, so invoke_callback may return an abrupt completion
-            return TRY(WebIDL::invoke_callback(*callback, underlying_sink_value, controller));
+            return TRY(WebIDL::invoke_callback(*callback, underlying_sink_value, WebIDL::ExceptionBehavior::Rethrow, controller));
         });
     }
 
-    // 7. If underlyingSinkDict["write"] exists, then set writeAlgorithm to an algorithm which takes an argument chunk and returns the result of invoking underlyingSinkDict["write"] with argument list « chunk, controller » and callback this value underlyingSink.
+    // 7. If underlyingSinkDict["write"] exists, then set writeAlgorithm to an algorithm which takes an argument chunk
+    //    and returns the result of invoking underlyingSinkDict["write"] with argument list « chunk, controller » and
+    //    callback this value underlyingSink.
     if (underlying_sink.write) {
         write_algorithm = GC::create_function(realm.heap(), [&realm, controller, underlying_sink_value, callback = underlying_sink.write](JS::Value chunk) {
             // Note: callback returns a promise, so invoke_callback will never return an abrupt completion
@@ -4395,7 +4399,8 @@ WebIDL::ExceptionOr<void> set_up_writable_stream_default_controller_from_underly
         });
     }
 
-    // 8. If underlyingSinkDict["close"] exists, then set closeAlgorithm to an algorithm which returns the result of invoking underlyingSinkDict["close"] with argument list «» and callback this value underlyingSink.
+    // 8. If underlyingSinkDict["close"] exists, then set closeAlgorithm to an algorithm which returns the result of
+    //    invoking underlyingSinkDict["close"] with argument list «» and callback this value underlyingSink.
     if (underlying_sink.close) {
         close_algorithm = GC::create_function(realm.heap(), [&realm, underlying_sink_value, callback = underlying_sink.close]() {
             // Note: callback returns a promise, so invoke_callback will never return an abrupt completion
@@ -4404,7 +4409,9 @@ WebIDL::ExceptionOr<void> set_up_writable_stream_default_controller_from_underly
         });
     }
 
-    // 9. If underlyingSinkDict["abort"] exists, then set abortAlgorithm to an algorithm which takes an argument reason and returns the result of invoking underlyingSinkDict["abort"] with argument list « reason » and callback this value underlyingSink.
+    // 9. If underlyingSinkDict["abort"] exists, then set abortAlgorithm to an algorithm which takes an argument reason
+    //    and returns the result of invoking underlyingSinkDict["abort"] with argument list « reason » and callback this
+    //    value underlyingSink.
     if (underlying_sink.abort) {
         abort_algorithm = GC::create_function(realm.heap(), [&realm, underlying_sink_value, callback = underlying_sink.abort](JS::Value reason) {
             // Note: callback returns a promise, so invoke_callback will never return an abrupt completion
