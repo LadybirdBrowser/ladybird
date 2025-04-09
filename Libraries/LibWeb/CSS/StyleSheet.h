@@ -36,7 +36,7 @@ public:
 
     void set_type(String type) { m_type_string = move(type); }
 
-    MediaList* media() const
+    GC::Ref<MediaList> media() const
     {
         return m_media;
     }
