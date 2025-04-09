@@ -328,7 +328,7 @@ public:
             }
 
             if (m_type == ScopeType::Function && m_bound_names.contains(identifier_group_name)) {
-                // NOTE: Currently parser can't determine that named function expression assigment creates scope with binding for funciton name so function names are not considered as candidates to be optmized in global variables access
+                // NOTE: Currently parser can't determine that named function expression assignment creates scope with binding for function name so function names are not considered as candidates to be optimized in global variables access
                 identifier_group.might_be_variable_in_lexical_scope_in_named_function_assignment = true;
             }
 
