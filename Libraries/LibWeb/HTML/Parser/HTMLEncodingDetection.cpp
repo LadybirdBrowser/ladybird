@@ -384,7 +384,7 @@ ByteString run_encoding_sniffing_algorithm(DOM::Document& document, ByteBuffer c
             return maybe_transport_encoding;
     }
 
-    // 5. Optionally prescan the byte stream to determine its encoding, with the end condition being when the user agent decides that scanning further bytes would not
+    // 5. Optionally, prescan the byte stream to determine its encoding, with the end condition being when the user agent decides that scanning further bytes would not
     //    be efficient. User agents are encouraged to only prescan the first 1024 bytes. User agents may decide that scanning any bytes is not efficient, in which case
     //    these substeps are entirely skipped.
     //    The aforementioned algorithm returns either a character encoding or failure. If it returns a character encoding, then return the same encoding, with confidence tentative.

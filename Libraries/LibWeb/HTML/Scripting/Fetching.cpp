@@ -152,7 +152,7 @@ WebIDL::ExceptionOr<URL::URL> resolve_module_specifier(Optional<Script&> referri
         }
     }
 
-    // 11. If result is null, set result be the result of resolving an imports match given normalizedSpecifier, asURL, and importMap's imports.
+    // 11. If result is null, set result to the result of resolving an imports match given normalizedSpecifier, asURL, and importMap's imports.
     if (!result.has_value())
         result = TRY(resolve_imports_match(normalized_specifier.to_byte_string(), as_url, import_map.imports()));
 
