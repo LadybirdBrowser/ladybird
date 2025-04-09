@@ -127,7 +127,7 @@ public:
     Statement const& ecmascript_code() const { return *shared_data().m_ecmascript_code; }
     [[nodiscard]] virtual FunctionParameters const& formal_parameters() const override { return *shared_data().m_formal_parameters; }
 
-    virtual FlyString const& name() const override { return shared_data().m_name; }
+    FlyString const& name() const { return shared_data().m_name; }
     void set_name(FlyString const& name);
 
     void set_is_class_constructor() { const_cast<SharedFunctionInstanceData&>(shared_data()).m_is_class_constructor = true; }

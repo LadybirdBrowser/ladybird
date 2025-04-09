@@ -69,7 +69,7 @@ static void update_function_name(Value value, FlyString const& name)
     if (!value.is_function())
         return;
     auto& function = value.as_function();
-    if (is<ECMAScriptFunctionObject>(function) && function.name().is_empty())
+    if (is<ECMAScriptFunctionObject>(function) && static_cast<ECMAScriptFunctionObject const&>(function).name().is_empty())
         static_cast<ECMAScriptFunctionObject&>(function).set_name(name);
 }
 
