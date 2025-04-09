@@ -547,12 +547,28 @@ void abort_a_transaction(GC::Ref<IDBTransaction> transaction, GC::Ptr<WebIDL::DO
     if (error)
         transaction->set_error(error);
 
-    // FIXME: 5. For each request of transaction’s request list, abort the steps to asynchronously execute a request for request,
-    //           set request’s processed flag to true, and queue a task to run these steps:
-    // FIXME: 1. Set request’s done flag to true.
-    // FIXME: 2. Set request’s result to undefined.
-    // FIXME: 3. Set request’s error to a newly created "AbortError" DOMException.
-    // FIXME: 4. Fire an event named error at request with its bubbles and cancelable attributes initialized to true.
+    // 5. For each request of transaction’s request list,
+    for (auto const& request : transaction->request_list()) {
+        // FIXME: abort the steps to asynchronously execute a request for request,
+
+        // set request’s processed flag to true
+        request->set_processed(true);
+
+        // and queue a task to run these steps:
+        HTML::queue_a_task(HTML::Task::Source::DatabaseAccess, nullptr, nullptr, GC::create_function(transaction->realm().vm().heap(), [request]() {
+            // 1. Set request’s done flag to true.
+            request->set_done(true);
+
+            // 2. Set request’s result to undefined.
+            request->set_result(JS::js_undefined());
+
+            // 3. Set request’s error to a newly created "AbortError" DOMException.
+            request->set_error(WebIDL::AbortError::create(request->realm(), "Transaction was aborted"_string));
+
+            // 4. Fire an event named error at request with its bubbles and cancelable attributes initialized to true.
+            request->dispatch_event(DOM::Event::create(request->realm(), HTML::EventNames::error, { .bubbles = true, .cancelable = true }));
+        }));
+    }
 
     // 6. Queue a task to run these steps:
     HTML::queue_a_task(HTML::Task::Source::DatabaseAccess, nullptr, nullptr, GC::create_function(transaction->realm().vm().heap(), [transaction]() {
