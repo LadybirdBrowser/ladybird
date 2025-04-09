@@ -7,11 +7,13 @@
 #include <AK/Function.h>
 #include <AK/TypeCasts.h>
 #include <LibGC/Function.h>
+#include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/PromiseCapability.h>
 #include <LibJS/Runtime/PromiseConstructor.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
+#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::WebIDL {
@@ -288,6 +290,36 @@ void wait_for_all(JS::Realm& realm, Vector<GC::Ref<Promise>> const& promises, Fu
         // 5. Set index to index + 1.
         ++index;
     }
+}
+
+// https://webidl.spec.whatwg.org/#waiting-for-all-promise
+GC::Ref<Promise> get_promise_for_wait_for_all(JS::Realm& realm, Vector<GC::Ref<Promise>> const& promises)
+{
+    // 1. Let promise be a new promise of type Promise<sequence<T>> in realm.
+    auto promise = create_promise(realm);
+
+    // 2. Let successSteps be the following steps, given results:
+    auto success_steps = [&realm, promise](Vector<JS::Value> const& results) {
+        HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+
+        // 1. Resolve promise with results.
+        auto sequence = JS::Array::create_from(realm, results);
+        resolve_promise(realm, promise, sequence);
+    };
+
+    // 3. Let failureSteps be the following steps, given reason:
+    auto failure_steps = [&realm, promise](JS::Value reason) {
+        HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+
+        // 1. Reject promise with reason.
+        reject_promise(realm, promise, reason);
+    };
+
+    // 4. Wait for all with promises, given successSteps and failureSteps.
+    wait_for_all(realm, promises, move(success_steps), move(failure_steps));
+
+    // 5. Return promise.
+    return promise;
 }
 
 GC::Ref<Promise> create_rejected_promise_from_exception(JS::Realm& realm, Exception exception)
