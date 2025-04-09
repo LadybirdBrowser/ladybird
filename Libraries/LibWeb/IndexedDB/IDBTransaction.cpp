@@ -7,6 +7,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/IndexedDB/IDBObjectStore.h>
 #include <LibWeb/IndexedDB/IDBTransaction.h>
 #include <LibWeb/IndexedDB/Internal/Algorithms.h>
 
@@ -116,6 +117,34 @@ WebIDL::ExceptionOr<void> IDBTransaction::commit()
     commit_a_transaction(realm, *this);
 
     return {};
+}
+
+GC::Ptr<ObjectStore> IDBTransaction::object_store_named(String const& name) const
+{
+    for (auto const& store : m_scope) {
+        if (store->name() == name)
+            return store;
+    }
+
+    return nullptr;
+}
+
+// https://w3c.github.io/IndexedDB/#dom-idbtransaction-objectstore
+WebIDL::ExceptionOr<GC::Ref<IDBObjectStore>> IDBTransaction::object_store(String const& name)
+{
+    auto& realm = this->realm();
+
+    // 1. If this's state is finished, then throw an "InvalidStateError" DOMException.
+    if (m_state == TransactionState::Finished)
+        return WebIDL::InvalidStateError::create(realm, "Transaction is finished"_string);
+
+    // 2. Let store be the object store named name in this's scope, or throw a "NotFoundError" DOMException if none.
+    auto store = object_store_named(name);
+    if (!store)
+        return WebIDL::NotFoundError::create(realm, "Object store not found"_string);
+
+    // 3. Return an object store handle associated with store and this.
+    return IDBObjectStore::create(realm, *store, *this);
 }
 
 }

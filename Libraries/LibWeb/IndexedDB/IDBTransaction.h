@@ -59,8 +59,11 @@ public:
     [[nodiscard]] bool is_readwrite() const { return m_mode == Bindings::IDBTransactionMode::Readwrite; }
     [[nodiscard]] bool is_finished() const { return m_state == TransactionState::Finished; }
 
+    GC::Ptr<ObjectStore> object_store_named(String const& name) const;
+
     WebIDL::ExceptionOr<void> abort();
     WebIDL::ExceptionOr<void> commit();
+    WebIDL::ExceptionOr<GC::Ref<IDBObjectStore>> object_store(String const& name);
 
     void set_onabort(WebIDL::CallbackType*);
     WebIDL::CallbackType* onabort();
