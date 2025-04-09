@@ -34,7 +34,7 @@ public:
     virtual ThrowCompletionOr<Value> call();
     virtual ThrowCompletionOr<GC::Ref<Object>> construct(FunctionObject& new_target);
 
-    virtual FlyString const& name() const override { return m_name; }
+    FlyString const& name() const { return m_name; }
     virtual bool is_strict_mode() const override;
     virtual bool has_constructor() const override { return false; }
     virtual Realm* realm() const override { return m_realm; }
