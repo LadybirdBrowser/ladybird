@@ -1,0 +1,21 @@
+Harness status: OK
+
+Found 16 tests
+
+16 Pass
+Pass	Closing must be propagated backward: starts closed; preventCancel omitted; fulfilled cancel promise
+Pass	Closing must be propagated backward: starts closed; preventCancel omitted; rejected cancel promise
+Pass	Closing must be propagated backward: starts closed; preventCancel = undefined (falsy); fulfilled cancel promise
+Pass	Closing must be propagated backward: starts closed; preventCancel = null (falsy); fulfilled cancel promise
+Pass	Closing must be propagated backward: starts closed; preventCancel = false (falsy); fulfilled cancel promise
+Pass	Closing must be propagated backward: starts closed; preventCancel = 0 (falsy); fulfilled cancel promise
+Pass	Closing must be propagated backward: starts closed; preventCancel = -0 (falsy); fulfilled cancel promise
+Pass	Closing must be propagated backward: starts closed; preventCancel = NaN (falsy); fulfilled cancel promise
+Pass	Closing must be propagated backward: starts closed; preventCancel =  (falsy); fulfilled cancel promise
+Pass	Closing must be propagated backward: starts closed; preventCancel = true (truthy)
+Pass	Closing must be propagated backward: starts closed; preventCancel = a (truthy)
+Pass	Closing must be propagated backward: starts closed; preventCancel = 1 (truthy)
+Pass	Closing must be propagated backward: starts closed; preventCancel = Symbol() (truthy)
+Pass	Closing must be propagated backward: starts closed; preventCancel = [object Object] (truthy)
+Pass	Closing must be propagated backward: starts closed; preventCancel = true, preventAbort = true
+Pass	Closing must be propagated backward: starts closed; preventCancel = true, preventAbort = true, preventClose = true
