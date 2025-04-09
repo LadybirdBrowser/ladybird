@@ -44,6 +44,7 @@ public:
     [[nodiscard]] GC::Ptr<IDBRequest> associated_request() const { return m_associated_request; }
     [[nodiscard]] bool aborted() const { return m_aborted; }
     [[nodiscard]] GC::Ref<HTML::DOMStringList> object_store_names();
+    [[nodiscard]] RequestList& request_list() { return m_request_list; }
     [[nodiscard]] ReadonlySpan<GC::Ref<ObjectStore>> scope() const { return m_scope; }
     [[nodiscard]] String uuid() const { return m_uuid; }
 
@@ -59,6 +60,7 @@ public:
     [[nodiscard]] bool is_finished() const { return m_state == TransactionState::Finished; }
 
     WebIDL::ExceptionOr<void> abort();
+    WebIDL::ExceptionOr<void> commit();
 
     void set_onabort(WebIDL::CallbackType*);
     WebIDL::CallbackType* onabort();
