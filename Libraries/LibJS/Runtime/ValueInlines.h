@@ -48,24 +48,4 @@ inline ThrowCompletionOr<Value> Value::to_primitive(VM& vm, PreferredType prefer
     return to_primitive_slow_case(vm, preferred_type);
 }
 
-// 7.1.6 ToInt32 ( argument ), https://tc39.es/ecma262/#sec-toint32
-inline ThrowCompletionOr<i32> Value::to_i32(VM& vm) const
-{
-    if (is_int32())
-        return as_i32();
-
-#if __has_builtin(__builtin_arm_jcvt)
-    if (is_double())
-        return __builtin_arm_jcvt(m_value.as_double);
-#endif
-
-    return to_i32_slow_case(vm);
-}
-
-// 7.1.7 ToUint32 ( argument ), https://tc39.es/ecma262/#sec-touint32
-inline ThrowCompletionOr<u32> Value::to_u32(VM& vm) const
-{
-    return static_cast<u32>(TRY(to_i32(vm)));
-}
-
 }
