@@ -1009,7 +1009,7 @@
     ]
   },
   "clip-path": {
-    "animation-type": "none",
+    "animation-type": "by-computed-value",
     "affects-layout": false,
     "affects-stacking-context": true,
     "inherited": false,
