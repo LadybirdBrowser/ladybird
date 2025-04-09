@@ -448,7 +448,7 @@ GC::Ptr<DOM::Document> load_document(HTML::NavigationParams const& navigation_pa
         //        sourceSnapshotParams, and initiatorOrigin.
     }
 
-    // -> A supported image, video, or audio type
+    // -> a supported image, video, or audio type
     if (type.is_image()
         || type.is_audio_or_video()) {
         // Return the result of loading a media document given navigationParams and type.

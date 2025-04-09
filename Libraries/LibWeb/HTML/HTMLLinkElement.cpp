@@ -280,7 +280,7 @@ HTMLLinkElement::LinkProcessingOptions HTMLLinkElement::create_link_options()
     options.policy_container = document.policy_container();
     // document                         document
     options.document = &document;
-    // FIXME: cryptographic nonce metadata     The current value of el's [[CryptographicNonce]] internal slot
+    // FIXME: cryptographic nonce metadata     the current value of el's [[CryptographicNonce]] internal slot
     // fetch priority                   the state of el's fetchpriority content attribute
     options.fetch_priority = Fetch::Infrastructure::request_priority_from_string(get_attribute_value(HTML::AttributeNames::fetchpriority)).value_or(Fetch::Infrastructure::Request::Priority::Auto);
 

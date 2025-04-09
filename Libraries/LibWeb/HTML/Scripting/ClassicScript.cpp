@@ -80,7 +80,7 @@ JS::Completion ClassicScript::run(RethrowErrors rethrow_errors, GC::Ptr<JS::Envi
     // 1. Let realm be the realm of script.
     auto& realm = this->realm();
 
-    // 2. Check if we can run script with realm. If this returns "do not run" then return NormalCompletion(empty).
+    // 2. Check if we can run script with realm. If this returns "do not run", then return NormalCompletion(empty).
     if (can_run_script(realm) == RunScriptDecision::DoNotRun)
         return JS::normal_completion(JS::js_undefined());
 

@@ -233,7 +233,7 @@ static Optional<YearAndMonth> parse_a_month_component(GenericLexer& input)
 {
     // 1. Collect a sequence of code points that are ASCII digits from input given position. If the collected sequence is
     //    not at least four characters long, then fail. Otherwise, interpret the resulting sequence as a base-ten integer.
-    //    Let that number be the year.
+    //    Let year be that number.
     auto year_string = input.consume_while(is_ascii_digit);
     if (year_string.length() < 4)
         return {};
@@ -252,8 +252,8 @@ static Optional<YearAndMonth> parse_a_month_component(GenericLexer& input)
         return {};
 
     // 4. Collect a sequence of code points that are ASCII digits from input given position. If the collected sequence is not
-    //    exactly two characters long, then fail. Otherwise, interpret the resulting sequence as a base-ten integer. Let that
-    //    number be the month.
+    //    exactly two characters long, then fail. Otherwise, interpret the resulting sequence as a base-ten integer. Let month
+    //    be that number.
     auto month_string = input.consume_while(is_ascii_digit);
     if (month_string.length() != 2)
         return {};
@@ -301,7 +301,7 @@ Optional<WeekYearAndWeek> parse_a_week_string(StringView input_view)
 
     // 3. Collect a sequence of code points that are ASCII digits from input given position. If the collected sequence is
     //    not at least four characters long, then fail. Otherwise, interpret the resulting sequence as a base-ten integer.
-    //    Let that number be the year.
+    //    Let year be that number.
     auto year_string = input.consume_while(is_ascii_digit);
     if (year_string.length() < 4)
         return {};
@@ -325,8 +325,8 @@ Optional<WeekYearAndWeek> parse_a_week_string(StringView input_view)
         return {};
 
     // 7. Collect a sequence of code points that are ASCII digits from input given position. If the collected sequence is not
-    //    exactly two characters long, then fail. Otherwise, interpret the resulting sequence as a base-ten integer. Let that
-    //    number be the week.
+    //    exactly two characters long, then fail. Otherwise, interpret the resulting sequence as a base-ten integer. Let week
+    //    be that number.
     auto week_string = input.consume_while(is_ascii_digit);
     if (week_string.length() != 2)
         return {};
@@ -365,8 +365,8 @@ static Optional<YearMonthDay> parse_a_date_component(GenericLexer& input)
         return {};
 
     // 4. Collect a sequence of code points that are ASCII digits from input given position. If the collected sequence is not
-    //    exactly two characters long, then fail. Otherwise, interpret the resulting sequence as a base-ten integer. Let that
-    //    number be the day.
+    //    exactly two characters long, then fail. Otherwise, interpret the resulting sequence as a base-ten integer. Let day
+    //    be that number.
     auto day_string = input.consume_while(is_ascii_digit);
     if (day_string.length() != 2)
         return {};
@@ -406,7 +406,7 @@ static Optional<HourMinuteSecond> parse_a_time_component(GenericLexer& input)
 {
     // 1. Collect a sequence of code points that are ASCII digits from input given position. If the collected sequence
     //    is not exactly two characters long, then fail.  Otherwise, interpret the resulting sequence as a base-ten
-    //    integer. Let that number be the hour.
+    //    integer. Let hour be that number.
     auto hour_string = input.consume_while(is_ascii_digit);
     if (hour_string.length() != 2)
         return {};
@@ -426,7 +426,7 @@ static Optional<HourMinuteSecond> parse_a_time_component(GenericLexer& input)
 
     // 4. Collect a sequence of code points that are ASCII digits from input given position. If the collected sequence
     //    is not exactly two characters long, then fail. Otherwise, interpret the resulting sequence as a base-ten integer.
-    //    Let that number be the minute.
+    //    Let minute be that number.
     auto minute_string = input.consume_while(is_ascii_digit);
     if (minute_string.length() != 2)
         return {};

@@ -1008,7 +1008,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::fetch_resource(URL::URL const& url_r
         // 6. Let byteRange, which is "entire resource" or a (number, number or "until end") tuple, be the byte range required to satisfy missing data in
         //    media data. This value is implementation-defined and may rely on codec, network conditions or other heuristics. The user-agent may determine
         //    to fetch the resource in full, in which case byteRange would be "entire resource", to fetch from a byte offset until the end, in which case
-        //    byteRange would be (number, "until end"), or to fetch a range between two byte offsets, im which case byteRange would be a (number, number)
+        //    byteRange would be (number, "until end"), or to fetch a range between two byte offsets, in which case byteRange would be a (number, number)
         //    tuple representing the two offsets.
         ByteRange byte_range = EntireResource {};
 
