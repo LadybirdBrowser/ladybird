@@ -423,6 +423,7 @@ private:
     RefPtr<CSSStyleValue const> parse_transform_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_transform_origin_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_transition_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_transition_property_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_translate_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_scale_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_grid_track_size_list(TokenStream<ComponentValue>&, bool allow_separate_line_name_blocks = false);

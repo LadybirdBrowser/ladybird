@@ -670,6 +670,10 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue const>> Parser::parse_css_value
         if (auto parsed_value = parse_transition_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
+    case PropertyID::TransitionProperty:
+        if (auto parsed_value = parse_transition_property_value(tokens); parsed_value && !tokens.has_next_token())
+            return parsed_value.release_nonnull();
+        return ParseError::SyntaxError;
     case PropertyID::Translate:
         if (auto parsed_value = parse_translate_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
@@ -3773,6 +3777,33 @@ RefPtr<CSSStyleValue const> Parser::parse_transition_value(TokenStream<Component
 
     transaction.commit();
     return TransitionStyleValue::create(move(transitions));
+}
+
+RefPtr<CSSStyleValue const> Parser::parse_transition_property_value(TokenStream<ComponentValue>& tokens)
+{
+    // https://drafts.csswg.org/css-transitions/#transition-property-property
+    // none | <single-transition-property>#
+
+    // none
+    if (auto none = parse_all_as_single_keyword_value(tokens, Keyword::None))
+        return none;
+
+    // <single-transition-property>#
+    // <single-transition-property> = all | <custom-ident>
+    auto transaction = tokens.begin_transaction();
+    auto transition_property_values = parse_a_comma_separated_list_of_component_values(tokens);
+
+    StyleValueVector transition_properties;
+    for (auto const& value : transition_property_values) {
+        TokenStream transition_property_tokens { value };
+        auto custom_ident = parse_custom_ident_value(transition_property_tokens, { { "none"sv } });
+        if (!custom_ident || transition_property_tokens.has_next_token())
+            return nullptr;
+
+        transition_properties.append(custom_ident.release_nonnull());
+    }
+    transaction.commit();
+    return StyleValueList::create(move(transition_properties), StyleValueList::Separator::Comma);
 }
 
 RefPtr<CSSStyleValue const> Parser::parse_translate_value(TokenStream<ComponentValue>& tokens)
