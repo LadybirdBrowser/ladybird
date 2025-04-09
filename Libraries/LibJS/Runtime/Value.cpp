@@ -934,6 +934,9 @@ ThrowCompletionOr<i32> Value::to_i32_slow_case(VM& vm) const
     // 1. Let number be ? ToNumber(argument).
     double number = TRY(to_number(vm)).as_double();
 
+#if __has_builtin(__builtin_arm_jcvt)
+    return __builtin_arm_jcvt(number);
+#else
     // 2. If number is not finite or number is either +0𝔽 or -0𝔽, return +0𝔽.
     if (!isfinite(number) || number == 0)
         return 0;
@@ -951,6 +954,7 @@ ThrowCompletionOr<i32> Value::to_i32_slow_case(VM& vm) const
     if (int32bit >= 2147483648.0)
         int32bit -= 4294967296.0;
     return static_cast<i32>(int32bit);
+#endif
 }
 
 // 7.1.8 ToInt16 ( argument ), https://tc39.es/ecma262/#sec-toint16
