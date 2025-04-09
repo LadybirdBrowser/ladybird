@@ -135,7 +135,7 @@ WebIDL::ExceptionOr<GC::Ref<ReadableStream>> ReadableStream::pipe_through(Readab
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Failed to execute 'pipeThrough' on 'ReadableStream': parameter 1's 'writable' is locked"sv };
 
     // 3. Let signal be options["signal"] if it exists, or undefined otherwise.
-    auto signal = options.signal ? JS::Value(options.signal) : JS::js_undefined();
+    auto signal = options.signal;
 
     // 4. Let promise be ! ReadableStreamPipeTo(this, transform["writable"], options["preventClose"], options["preventAbort"], options["preventCancel"], signal).
     auto promise = readable_stream_pipe_to(*this, *transform.writable, options.prevent_close, options.prevent_abort, options.prevent_cancel, signal);
@@ -164,7 +164,7 @@ GC::Ref<WebIDL::Promise> ReadableStream::pipe_to(WritableStream& destination, St
     }
 
     // 3. Let signal be options["signal"] if it exists, or undefined otherwise.
-    auto signal = options.signal ? JS::Value(options.signal) : JS::js_undefined();
+    auto signal = options.signal;
 
     // 4. Return ! ReadableStreamPipeTo(this, destination, options["preventClose"], options["preventAbort"], options["preventCancel"], signal).
     return readable_stream_pipe_to(*this, destination, options.prevent_close, options.prevent_abort, options.prevent_cancel, signal);
@@ -427,7 +427,7 @@ void ReadableStream::set_up_with_byte_reading_support(GC::Ptr<PullAlgorithm> pul
 }
 
 // https://streams.spec.whatwg.org/#readablestream-pipe-through
-GC::Ref<ReadableStream> ReadableStream::piped_through(GC::Ref<TransformStream> transform, bool prevent_close, bool prevent_abort, bool prevent_cancel, JS::Value signal)
+GC::Ref<ReadableStream> ReadableStream::piped_through(GC::Ref<TransformStream> transform, bool prevent_close, bool prevent_abort, bool prevent_cancel, GC::Ptr<DOM::AbortSignal> signal)
 {
     // 1. Assert: ! IsReadableStreamLocked(readable) is false.
     VERIFY(!is_readable_stream_locked(*this));
