@@ -56,6 +56,7 @@ public:
     [[nodiscard]] bool is_upgrade_transaction() const { return m_mode == Bindings::IDBTransactionMode::Versionchange; }
     [[nodiscard]] bool is_readonly() const { return m_mode == Bindings::IDBTransactionMode::Readonly; }
     [[nodiscard]] bool is_readwrite() const { return m_mode == Bindings::IDBTransactionMode::Readwrite; }
+    [[nodiscard]] bool is_finished() const { return m_state == TransactionState::Finished; }
 
     WebIDL::ExceptionOr<void> abort();
 
