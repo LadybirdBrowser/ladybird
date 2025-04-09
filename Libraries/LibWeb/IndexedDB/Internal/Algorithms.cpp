@@ -383,8 +383,7 @@ GC::Ref<IDBTransaction> upgrade_a_database(JS::Realm& realm, GC::Ref<IDBDatabase
     request->set_processed(true);
 
     // 10. Queue a task to run these steps:
-    IGNORE_USE_IN_ESCAPING_LAMBDA bool wait_for_transaction = true;
-    HTML::queue_a_task(HTML::Task::Source::DatabaseAccess, nullptr, nullptr, GC::create_function(realm.vm().heap(), [&realm, request, connection, transaction, old_version, version, &wait_for_transaction]() {
+    HTML::queue_a_task(HTML::Task::Source::DatabaseAccess, nullptr, nullptr, GC::create_function(realm.vm().heap(), [&realm, request, connection, transaction, old_version, version]() {
         // 1. Set request’s result to connection.
         request->set_result(connection);
 
@@ -417,14 +416,12 @@ GC::Ref<IDBTransaction> upgrade_a_database(JS::Realm& realm, GC::Ref<IDBDatabase
         // and the transaction has not been aborted.
         if (transaction->state() == IDBTransaction::TransactionState::Inactive && transaction->request_list().is_empty() && !transaction->aborted())
             commit_a_transaction(realm, transaction);
-
-        wait_for_transaction = false;
     }));
 
     // 11. Wait for transaction to finish.
-    HTML::main_thread_event_loop().spin_until(GC::create_function(realm.vm().heap(), [&wait_for_transaction]() {
+    HTML::main_thread_event_loop().spin_until(GC::create_function(realm.vm().heap(), [transaction]() {
         dbgln_if(IDB_DEBUG, "upgrade_a_database: waiting for step 11");
-        return !wait_for_transaction;
+        return transaction->is_finished();
     }));
 
     return transaction;
