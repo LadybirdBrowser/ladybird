@@ -409,6 +409,15 @@ GC::Ref<IDBTransaction> upgrade_a_database(JS::Realm& realm, GC::Ref<IDBDatabase
         if (did_throw)
             abort_a_transaction(*transaction, WebIDL::AbortError::create(realm, "Version change event threw an exception"_string));
 
+        // AD-HOC:
+        // https://github.com/w3c/IndexedDB/issues/436
+        // The implementation must attempt to commit a transaction when all requests placed against the transaction have completed
+        // and their returned results handled,
+        // no new requests have been placed against the transaction,
+        // and the transaction has not been aborted.
+        if (transaction->state() == IDBTransaction::TransactionState::Inactive && transaction->request_list().is_empty() && !transaction->aborted())
+            commit_a_transaction(realm, transaction);
+
         wait_for_transaction = false;
     }));
 
