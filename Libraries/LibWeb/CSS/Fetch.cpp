@@ -44,9 +44,8 @@ void fetch_a_style_resource(String const& url_value, CSSStyleSheet const& sheet,
     // FIXME: No specs seem to define these yet. When they do, implement them.
 
     // 6. If req’s mode is "cors", set req’s referrer to sheet’s location. [CSSOM]
-    if (request->mode() == Fetch::Infrastructure::Request::Mode::CORS) {
-        // FIXME: sheet's location is an optional string, what do we do here?
-    }
+    if (request->mode() == Fetch::Infrastructure::Request::Mode::CORS)
+        request->set_referrer(sheet.location().value());
 
     // 7. If sheet’s origin-clean flag is set, set req’s initiator type to "css". [CSSOM]
     if (sheet.is_origin_clean())
