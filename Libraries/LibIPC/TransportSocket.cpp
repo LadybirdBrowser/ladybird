@@ -63,16 +63,16 @@ TransportSocket::TransportSocket(NonnullOwnPtr<Core::LocalSocket> socket)
                 break;
 
             auto [bytes, fds] = send_queue->dequeue(4096);
-            ReadonlyBytes bytes_to_send = bytes;
+            ReadonlyBytes remaining_to_send_bytes = bytes;
 
-            auto result = send_message(*m_socket, bytes_to_send, fds);
+            auto result = send_message(*m_socket, remaining_to_send_bytes, fds);
             if (result.is_error()) {
                 dbgln("TransportSocket::send_thread: {}", result.error());
                 VERIFY_NOT_REACHED();
             }
 
-            if (!bytes.is_empty() || !fds.is_empty()) {
-                send_queue->return_unsent_data_to_front_of_queue(bytes_to_send, fds);
+            if (!remaining_to_send_bytes.is_empty() || !fds.is_empty()) {
+                send_queue->return_unsent_data_to_front_of_queue(remaining_to_send_bytes, fds);
             }
 
             {
