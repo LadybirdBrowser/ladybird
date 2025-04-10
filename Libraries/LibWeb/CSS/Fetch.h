@@ -20,7 +20,10 @@ enum class CorsMode {
 
 using StyleResourceURL = Variant<::URL::URL, CSS::URL>;
 
+// AD-HOC: See comment inside fetch_a_style_resource() implementation.
+using StyleSheetOrDocument = Variant<GC::Ref<CSSStyleSheet>, GC::Ref<DOM::Document>>;
+
 // https://drafts.csswg.org/css-values-4/#fetch-a-style-resource
-void fetch_a_style_resource(StyleResourceURL const& url, CSSStyleSheet const&, Fetch::Infrastructure::Request::Destination, CorsMode, Fetch::Infrastructure::FetchAlgorithms::ProcessResponseConsumeBodyFunction process_response);
+void fetch_a_style_resource(StyleResourceURL const& url, StyleSheetOrDocument, Fetch::Infrastructure::Request::Destination, CorsMode, Fetch::Infrastructure::FetchAlgorithms::ProcessResponseConsumeBodyFunction process_response);
 
 }

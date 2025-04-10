@@ -7,20 +7,26 @@
 #include <LibURL/Parser.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/Fetch.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 
 namespace Web::CSS {
 
 // https://drafts.csswg.org/css-values-4/#fetch-a-style-resource
-void fetch_a_style_resource(StyleResourceURL const& url_value, CSSStyleSheet const& sheet, Fetch::Infrastructure::Request::Destination destination, CorsMode cors_mode, Fetch::Infrastructure::FetchAlgorithms::ProcessResponseConsumeBodyFunction process_response)
+void fetch_a_style_resource(StyleResourceURL const& url_value, StyleSheetOrDocument sheet_or_document, Fetch::Infrastructure::Request::Destination destination, CorsMode cors_mode, Fetch::Infrastructure::FetchAlgorithms::ProcessResponseConsumeBodyFunction process_response)
 {
-    auto& vm = sheet.vm();
+    // AD-HOC: Not every caller has a CSSStyleSheet, so allow passing a Document in instead for URL completion.
+    //         Spec issue: https://github.com/w3c/csswg-drafts/issues/12065
+
+    auto& vm = sheet_or_document.visit([](auto& it) -> JS::VM& { return it->vm(); });
 
     // 1. Let environmentSettings be sheet’s relevant settings object.
-    auto& environment_settings = HTML::relevant_settings_object(sheet);
+    auto& environment_settings = HTML::relevant_settings_object(sheet_or_document.visit([](auto& it) -> JS::Object& { return it; }));
 
     // 2. Let base be sheet’s stylesheet base URL if it is not null, otherwise environmentSettings’s API base URL. [CSSOM]
-    auto base = sheet.base_url().value_or(environment_settings.api_base_url());
+    auto base = sheet_or_document.visit(
+        [&](GC::Ref<CSSStyleSheet> const& sheet) { return sheet->base_url().value_or(environment_settings.api_base_url()); },
+        [](GC::Ref<DOM::Document> const& document) { return document->base_url(); });
 
     // 3. Let parsedUrl be the result of the URL parser steps with urlValue’s url and base. If the algorithm returns an error, return.
     auto url_string = url_value.visit(
@@ -47,11 +53,15 @@ void fetch_a_style_resource(StyleResourceURL const& url_value, CSSStyleSheet con
     // FIXME: No specs seem to define these yet. When they do, implement them.
 
     // 6. If req’s mode is "cors", set req’s referrer to sheet’s location. [CSSOM]
-    if (request->mode() == Fetch::Infrastructure::Request::Mode::CORS)
-        request->set_referrer(sheet.location().value());
+    if (request->mode() == Fetch::Infrastructure::Request::Mode::CORS) {
+        auto location = sheet_or_document.visit(
+            [](GC::Ref<CSSStyleSheet> const& sheet) { return sheet->location().value(); },
+            [](GC::Ref<DOM::Document> const& document) { return document->url(); });
+        request->set_referrer(move(location));
+    }
 
     // 7. If sheet’s origin-clean flag is set, set req’s initiator type to "css". [CSSOM]
-    if (sheet.is_origin_clean())
+    if (auto* sheet = sheet_or_document.get_pointer<GC::Ref<CSSStyleSheet>>(); sheet && (*sheet)->is_origin_clean())
         request->set_initiator_type(Fetch::Infrastructure::Request::InitiatorType::CSS);
 
     // 8. Fetch req, with processresponseconsumebody set to processResponse.
