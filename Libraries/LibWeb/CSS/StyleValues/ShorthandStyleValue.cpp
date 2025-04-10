@@ -433,4 +433,11 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
     }
 }
 
+void ShorthandStyleValue::set_style_sheet(GC::Ptr<CSSStyleSheet> style_sheet)
+{
+    Base::set_style_sheet(style_sheet);
+    for (auto& value : m_properties.values)
+        const_cast<CSSStyleValue&>(*value).set_style_sheet(style_sheet);
+}
+
 }
