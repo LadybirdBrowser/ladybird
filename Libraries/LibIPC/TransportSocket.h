@@ -12,6 +12,7 @@
 #include <LibIPC/UnprocessedFileDescriptors.h>
 #include <LibThreading/ConditionVariable.h>
 #include <LibThreading/MutexProtected.h>
+#include <LibThreading/RWLock.h>
 #include <LibThreading/Thread.h>
 
 namespace IPC {
@@ -104,6 +105,7 @@ private:
     static ErrorOr<void> send_message(Core::LocalSocket&, ReadonlyBytes& bytes, Vector<int>& unowned_fds);
 
     NonnullOwnPtr<Core::LocalSocket> m_socket;
+    mutable Threading::RWLock m_socket_rw_lock;
     ByteBuffer m_unprocessed_bytes;
     UnprocessedFileDescriptors m_unprocessed_fds;
 
