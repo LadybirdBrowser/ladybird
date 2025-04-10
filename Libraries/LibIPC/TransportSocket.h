@@ -92,7 +92,7 @@ public:
         Vector<u8> bytes;
         Queue<File> fds;
     };
-    ShouldShutdown read_as_many_messages_as_possible_without_blocking(Function<void(Message&&)>&& schedule_shutdown);
+    ShouldShutdown read_as_many_messages_as_possible_without_blocking(Function<void(Message&&)>&&);
 
     // Obnoxious name to make it clear that this is a dangerous operation.
     ErrorOr<int> release_underlying_transport_for_transfer();
