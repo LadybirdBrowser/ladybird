@@ -15,6 +15,10 @@
 #include <LibIPC/Forward.h>
 #include <LibIPC/Message.h>
 #include <LibIPC/Transport.h>
+#include <LibIPC/UnprocessedFileDescriptors.h>
+#include <LibThreading/ConditionVariable.h>
+#include <LibThreading/MutexProtected.h>
+#include <LibThreading/Thread.h>
 
 namespace IPC {
 
@@ -26,7 +30,7 @@ public:
 
     [[nodiscard]] bool is_open() const;
     ErrorOr<void> post_message(Message const&);
-    ErrorOr<void> post_message(MessageBuffer);
+    ErrorOr<void> post_message(u32 endpoint_magic, MessageBuffer);
 
     void shutdown();
     virtual void die() { }
@@ -39,7 +43,7 @@ protected:
     virtual void may_have_become_unresponsive() { }
     virtual void did_become_responsive() { }
     virtual void shutdown_with_error(Error const&);
-    virtual OwnPtr<Message> try_parse_message(ReadonlyBytes, Queue<File>&) = 0;
+    virtual OwnPtr<Message> try_parse_message(ReadonlyBytes, UnprocessedFileDescriptors&) = 0;
 
     OwnPtr<IPC::Message> wait_for_specific_endpoint_message_impl(u32 endpoint_magic, int message_id);
     void wait_for_transport_to_become_readable();
@@ -98,7 +102,7 @@ protected:
         return {};
     }
 
-    virtual OwnPtr<Message> try_parse_message(ReadonlyBytes bytes, Queue<File>& fds) override
+    virtual OwnPtr<Message> try_parse_message(ReadonlyBytes bytes, UnprocessedFileDescriptors& fds) override
     {
         auto local_message = LocalEndpoint::decode_message(bytes, fds);
         if (!local_message.is_error())
