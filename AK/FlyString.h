@@ -85,19 +85,19 @@ public:
 private:
     friend class Optional<FlyString>;
 
-    explicit FlyString(nullptr_t)
+    explicit constexpr FlyString(nullptr_t)
         : m_data(nullptr)
     {
     }
 
-    explicit FlyString(Detail::StringBase data)
+    explicit constexpr FlyString(Detail::StringBase data)
         : m_data(move(data))
     {
     }
 
     Detail::StringBase m_data;
 
-    bool is_invalid() const { return m_data.raw(Badge<FlyString> {}) == 0; }
+    constexpr bool is_invalid() const { return m_data.raw(Badge<FlyString> {}) == 0; }
 };
 
 void did_destroy_fly_string_data(Badge<Detail::StringData>, Detail::StringData const&);
@@ -110,38 +110,38 @@ class Optional<FlyString> : public OptionalBase<FlyString> {
 public:
     using ValueType = FlyString;
 
-    Optional() = default;
+    constexpr Optional() = default;
 
     template<SameAs<OptionalNone> V>
-    Optional(V) { }
+    constexpr Optional(V) { }
 
-    Optional(Optional<FlyString> const& other)
+    constexpr Optional(Optional<FlyString> const& other)
     {
         if (other.has_value())
             m_value = other.m_value;
     }
 
-    Optional(Optional&& other)
-        : m_value(other.m_value)
+    constexpr Optional(Optional&& other)
+        : m_value(move(other.m_value))
     {
     }
 
     template<typename U = FlyString>
     requires(!IsSame<OptionalNone, RemoveCVReference<U>>)
-    explicit(!IsConvertible<U&&, FlyString>) Optional(U&& value)
+    explicit(!IsConvertible<U&&, FlyString>) constexpr Optional(U&& value)
     requires(!IsSame<RemoveCVReference<U>, Optional<FlyString>> && IsConstructible<FlyString, U &&>)
         : m_value(forward<U>(value))
     {
     }
 
     template<SameAs<OptionalNone> V>
-    Optional& operator=(V)
+    constexpr Optional& operator=(V)
     {
         clear();
         return *this;
     }
 
-    Optional& operator=(Optional const& other)
+    constexpr Optional& operator=(Optional const& other)
     {
         if (this != &other) {
             clear();
@@ -150,7 +150,7 @@ public:
         return *this;
     }
 
-    Optional& operator=(Optional&& other)
+    constexpr Optional& operator=(Optional&& other)
     {
         if (this != &other) {
             clear();
@@ -159,37 +159,37 @@ public:
         return *this;
     }
 
-    void clear()
+    constexpr void clear()
     {
         m_value = FlyString(nullptr);
     }
 
-    [[nodiscard]] bool has_value() const
+    [[nodiscard]] constexpr bool has_value() const
     {
         return !m_value.is_invalid();
     }
 
-    [[nodiscard]] FlyString& value() &
+    [[nodiscard]] constexpr FlyString& value() &
     {
         VERIFY(has_value());
         return m_value;
     }
 
-    [[nodiscard]] FlyString const& value() const&
+    [[nodiscard]] constexpr FlyString const& value() const&
     {
         VERIFY(has_value());
         return m_value;
     }
 
-    [[nodiscard]] FlyString value() &&
+    [[nodiscard]] constexpr FlyString value() &&
     {
         return release_value();
     }
 
-    [[nodiscard]] FlyString release_value()
+    [[nodiscard]] constexpr FlyString release_value()
     {
         VERIFY(has_value());
-        FlyString released_value = m_value;
+        FlyString released_value = move(m_value);
         clear();
         return released_value;
     }
