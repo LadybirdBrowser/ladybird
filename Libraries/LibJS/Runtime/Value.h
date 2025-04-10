@@ -154,7 +154,7 @@ public:
         return !is_nan() && !is_infinity();
     }
 
-    Value()
+    constexpr Value()
         : Value(UNDEFINED_TAG << GC::TAG_SHIFT, (u64)0)
     {
     }
@@ -428,12 +428,12 @@ private:
 
     enum class EmptyTag { Empty };
 
-    Value(EmptyTag)
+    constexpr Value(EmptyTag)
         : Value(EMPTY_TAG << GC::TAG_SHIFT, (u64)0)
     {
     }
 
-    Value(u64 tag, u64 val)
+    constexpr Value(u64 tag, u64 val)
     {
         ASSERT(!(tag & val));
         m_value.encoded = tag | val;
@@ -467,9 +467,9 @@ private:
 
     ThrowCompletionOr<i32> to_i32_slow_case(VM&) const;
 
-    friend Value js_undefined();
-    friend Value js_null();
-    friend Value js_special_empty_value();
+    friend constexpr Value js_undefined();
+    friend constexpr Value js_null();
+    friend constexpr Value js_special_empty_value();
     friend ThrowCompletionOr<Value> greater_than(VM&, Value lhs, Value rhs);
     friend ThrowCompletionOr<Value> greater_than_equals(VM&, Value lhs, Value rhs);
     friend ThrowCompletionOr<Value> less_than(VM&, Value lhs, Value rhs);
@@ -478,17 +478,17 @@ private:
     friend bool same_value_non_number(Value lhs, Value rhs);
 };
 
-inline Value js_undefined()
+inline constexpr Value js_undefined()
 {
     return Value(UNDEFINED_TAG << GC::TAG_SHIFT, (u64)0);
 }
 
-inline Value js_null()
+inline constexpr Value js_null()
 {
     return Value(NULL_TAG << GC::TAG_SHIFT, (u64)0);
 }
 
-inline Value js_special_empty_value()
+inline constexpr Value js_special_empty_value()
 {
     return Value(Value::EmptyTag::Empty);
 }
@@ -564,38 +564,38 @@ class Optional<JS::Value> : public OptionalBase<JS::Value> {
 public:
     using ValueType = JS::Value;
 
-    Optional() = default;
+    constexpr Optional() = default;
 
     template<SameAs<OptionalNone> V>
-    Optional(V) { }
+    constexpr Optional(V) { }
 
-    Optional(Optional<JS::Value> const& other)
+    constexpr Optional(Optional<JS::Value> const& other)
     {
         if (other.has_value())
             m_value = other.m_value;
     }
 
-    Optional(Optional&& other)
+    constexpr Optional(Optional&& other)
         : m_value(other.m_value)
     {
     }
 
     template<typename U = JS::Value>
     requires(!IsSame<OptionalNone, RemoveCVReference<U>>)
-    explicit(!IsConvertible<U&&, JS::Value>) Optional(U&& value)
+    explicit(!IsConvertible<U&&, JS::Value>) constexpr Optional(U&& value)
     requires(!IsSame<RemoveCVReference<U>, Optional<JS::Value>> && IsConstructible<JS::Value, U &&>)
         : m_value(forward<U>(value))
     {
     }
 
     template<SameAs<OptionalNone> V>
-    Optional& operator=(V)
+    constexpr Optional& operator=(V)
     {
         clear();
         return *this;
     }
 
-    Optional& operator=(Optional const& other)
+    constexpr Optional& operator=(Optional const& other)
     {
         if (this != &other) {
             clear();
@@ -604,7 +604,7 @@ public:
         return *this;
     }
 
-    Optional& operator=(Optional&& other)
+    constexpr Optional& operator=(Optional&& other)
     {
         if (this != &other) {
             clear();
@@ -613,34 +613,34 @@ public:
         return *this;
     }
 
-    void clear()
+    constexpr void clear()
     {
         m_value = JS::js_special_empty_value();
     }
 
-    [[nodiscard]] bool has_value() const
+    [[nodiscard]] constexpr bool has_value() const
     {
         return !m_value.is_special_empty_value();
     }
 
-    [[nodiscard]] JS::Value& value() &
+    [[nodiscard]] constexpr JS::Value& value() &
     {
         VERIFY(has_value());
         return m_value;
     }
 
-    [[nodiscard]] JS::Value const& value() const&
+    [[nodiscard]] constexpr JS::Value const& value() const&
     {
         VERIFY(has_value());
         return m_value;
     }
 
-    [[nodiscard]] JS::Value value() &&
+    [[nodiscard]] constexpr JS::Value value() &&
     {
         return release_value();
     }
 
-    [[nodiscard]] JS::Value release_value()
+    [[nodiscard]] constexpr JS::Value release_value()
     {
         VERIFY(has_value());
         JS::Value released_value = m_value;
