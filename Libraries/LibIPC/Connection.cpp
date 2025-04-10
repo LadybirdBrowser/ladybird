@@ -12,7 +12,6 @@
 #include <LibIPC/Connection.h>
 #include <LibIPC/Message.h>
 #include <LibIPC/Stub.h>
-#include <LibIPC/UnprocessedFileDescriptors.h>
 
 namespace IPC {
 
@@ -40,20 +39,15 @@ bool ConnectionBase::is_open() const
 
 ErrorOr<void> ConnectionBase::post_message(Message const& message)
 {
-    return post_message(message.endpoint_magic(), TRY(message.encode()));
+    return post_message(TRY(message.encode()));
 }
 
-ErrorOr<void> ConnectionBase::post_message(u32 endpoint_magic, MessageBuffer buffer)
+ErrorOr<void> ConnectionBase::post_message(MessageBuffer buffer)
 {
     // NOTE: If this connection is being shut down, but has not yet been destroyed,
     //       the socket will be closed. Don't try to send more messages.
     if (!m_transport->is_open())
         return Error::from_string_literal("Trying to post_message during IPC shutdown");
-
-    if (buffer.data().size() > TransportSocket::SOCKET_BUFFER_SIZE) {
-        auto wrapper = LargeMessageWrapper::create(endpoint_magic, buffer);
-        buffer = MUST(wrapper->encode());
-    }
 
     MUST(buffer.transfer_message(*m_transport));
 
@@ -85,7 +79,7 @@ void ConnectionBase::handle_messages()
             }
 
             if (auto response = handler_result.release_value()) {
-                if (auto post_result = post_message(m_local_endpoint_magic, *response); post_result.is_error()) {
+                if (auto post_result = post_message(*response); post_result.is_error()) {
                     dbgln("IPC::ConnectionBase::handle_messages: {}", post_result.error());
                 }
             }
@@ -100,24 +94,11 @@ void ConnectionBase::wait_for_transport_to_become_readable()
 
 ErrorOr<void> ConnectionBase::drain_messages_from_peer()
 {
-    auto schedule_shutdown = m_transport->read_as_many_messages_as_possible_without_blocking([&](auto&& unparsed_message) {
-        auto const& bytes = unparsed_message.bytes;
-        UnprocessedFileDescriptors unprocessed_fds;
-        unprocessed_fds.return_fds_to_front_of_queue(move(unparsed_message.fds));
-        if (auto message = try_parse_message(bytes, unprocessed_fds)) {
-            if (message->message_id() == LargeMessageWrapper::MESSAGE_ID) {
-                LargeMessageWrapper* wrapper = static_cast<LargeMessageWrapper*>(message.ptr());
-                auto wrapped_message = wrapper->wrapped_message_data();
-                unprocessed_fds.return_fds_to_front_of_queue(wrapper->take_fds());
-                auto parsed_message = try_parse_message(wrapped_message, unprocessed_fds);
-                VERIFY(parsed_message);
-                m_unprocessed_messages.append(parsed_message.release_nonnull());
-                return;
-            }
-
+    auto schedule_shutdown = m_transport->read_as_many_messages_as_possible_without_blocking([&](auto&& raw_message) {
+        if (auto message = try_parse_message(raw_message.bytes, raw_message.fds)) {
             m_unprocessed_messages.append(message.release_nonnull());
         } else {
-            dbgln("Failed to parse IPC message {:hex-dump}", bytes);
+            dbgln("Failed to parse IPC message {:hex-dump}", raw_message.bytes);
             VERIFY_NOT_REACHED();
         }
     });
