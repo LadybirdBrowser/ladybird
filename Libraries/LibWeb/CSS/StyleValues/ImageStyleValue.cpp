@@ -14,6 +14,7 @@
 #include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/HTML/ImageRequest.h>
 #include <LibWeb/HTML/PotentialCORSRequest.h>
+#include <LibWeb/HTML/SharedResourceRequest.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/PaintContext.h>
 #include <LibWeb/Platform/Timer.h>
