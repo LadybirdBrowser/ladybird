@@ -1089,8 +1089,7 @@ void BlockFormattingContext::layout_floating_box(Box const& box, BlockContainer 
             // Walk all currently tracked floats on the side we're floating towards.
             // We're looking for the innermost preceding float that intersects vertically with `box`.
             for (auto& preceding_float : side_data.current_boxes.in_reverse()) {
-                auto const preceding_float_rect = margin_box_rect_in_ancestor_coordinate_space(preceding_float.used_values, root());
-                if (!preceding_float_rect.contains_vertically(y_in_root))
+                if (!preceding_float.margin_box_rect_in_root_coordinate_space.contains_vertically(y_in_root))
                     continue;
                 // We found a preceding float that intersects vertically with the current float.
                 // Now we need to find out if there's enough inline-axis space to stack them next to each other.
