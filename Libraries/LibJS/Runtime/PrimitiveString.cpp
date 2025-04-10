@@ -106,6 +106,17 @@ Utf16View PrimitiveString::utf16_string_view() const
     return m_utf16_string->view();
 }
 
+bool PrimitiveString::operator==(PrimitiveString const& other) const
+{
+    if (this == &other)
+        return true;
+    if (m_utf8_string.has_value() && other.m_utf8_string.has_value())
+        return m_utf8_string->bytes_as_string_view() == other.m_utf8_string->bytes_as_string_view();
+    if (m_utf16_string.has_value() && other.m_utf16_string.has_value())
+        return m_utf16_string->string() == other.m_utf16_string->string();
+    return utf8_string_view() == other.utf8_string_view();
+}
+
 ThrowCompletionOr<Optional<Value>> PrimitiveString::get(VM& vm, PropertyKey const& property_key) const
 {
     if (property_key.is_symbol())
