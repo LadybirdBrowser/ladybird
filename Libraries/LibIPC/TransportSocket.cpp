@@ -77,8 +77,7 @@ TransportSocket::TransportSocket(NonnullOwnPtr<Core::LocalSocket> socket)
 
             {
                 Vector<struct pollfd, 1> pollfds;
-                if (pollfds.is_empty())
-                    pollfds.append({ .fd = m_socket->fd().value(), .events = POLLOUT, .revents = 0 });
+                pollfds.append({ .fd = m_socket->fd().value(), .events = POLLOUT, .revents = 0 });
 
                 ErrorOr<int> result { 0 };
                 do {
