@@ -198,6 +198,7 @@ public:
     virtual bool is_regexp_object() const { return false; }
     virtual bool is_bigint_object() const { return false; }
     virtual bool is_string_object() const { return false; }
+    virtual bool is_array_exotic_object() const { return false; }
     virtual bool is_global_object() const { return false; }
     virtual bool is_proxy_object() const { return false; }
     virtual bool is_native_function() const { return false; }
