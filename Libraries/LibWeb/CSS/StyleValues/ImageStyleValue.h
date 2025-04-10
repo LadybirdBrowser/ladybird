@@ -14,7 +14,7 @@
 #include <LibURL/URL.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
-#include <LibWeb/HTML/SharedResourceRequest.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::CSS {
 
