@@ -38,8 +38,8 @@ public:
     bool started() const { return m_started; }
     void set_started(bool value) { m_started = value; }
 
-    size_t strategy_hwm() const { return m_strategy_hwm; }
-    void set_strategy_hwm(size_t value) { m_strategy_hwm = value; }
+    double strategy_hwm() const { return m_strategy_hwm; }
+    void set_strategy_hwm(double value) { m_strategy_hwm = value; }
 
     GC::Ptr<SizeAlgorithm> strategy_size_algorithm() { return m_strategy_size_algorithm; }
     void set_strategy_size_algorithm(GC::Ptr<SizeAlgorithm> value) { m_strategy_size_algorithm = value; }
@@ -86,7 +86,7 @@ private:
 
     // https://streams.spec.whatwg.org/#writablestreamdefaultcontroller-strategyhwm
     // A number supplied by the creator of the stream as part of the stream’s queuing strategy, indicating the point at which the stream will apply backpressure to its underlying sink
-    size_t m_strategy_hwm { 0 };
+    double m_strategy_hwm { 0 };
 
     // https://streams.spec.whatwg.org/#writablestreamdefaultcontroller-strategysizealgorithm
     // An algorithm to calculate the size of enqueued chunks, as part of the stream’s queuing strategy
