@@ -170,10 +170,6 @@ ErrorOr<void> TransportSocket::send_message(Core::LocalSocket& socket, ReadonlyB
         ErrorOr<ssize_t> maybe_nwritten = 0;
         if (num_fds_to_transfer > 0) {
             maybe_nwritten = socket.send_message(bytes_to_write, 0, unowned_fds);
-            if (!maybe_nwritten.is_error()) {
-                num_fds_to_transfer = 0;
-                unowned_fds.clear();
-            }
         } else {
             maybe_nwritten = socket.write_some(bytes_to_write);
         }
@@ -187,6 +183,8 @@ ErrorOr<void> TransportSocket::send_message(Core::LocalSocket& socket, ReadonlyB
         }
 
         bytes_to_write = bytes_to_write.slice(maybe_nwritten.value());
+        unowned_fds.clear();
+        num_fds_to_transfer = 0;
     }
     return {};
 }
