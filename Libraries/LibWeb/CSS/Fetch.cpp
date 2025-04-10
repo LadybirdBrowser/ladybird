@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2024-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -12,7 +12,7 @@
 namespace Web::CSS {
 
 // https://drafts.csswg.org/css-values-4/#fetch-a-style-resource
-void fetch_a_style_resource(String const& url_value, CSSStyleSheet const& sheet, Fetch::Infrastructure::Request::Destination destination, CorsMode cors_mode, Fetch::Infrastructure::FetchAlgorithms::ProcessResponseConsumeBodyFunction process_response)
+void fetch_a_style_resource(StyleResourceURL const& url_value, CSSStyleSheet const& sheet, Fetch::Infrastructure::Request::Destination destination, CorsMode cors_mode, Fetch::Infrastructure::FetchAlgorithms::ProcessResponseConsumeBodyFunction process_response)
 {
     auto& vm = sheet.vm();
 
@@ -23,7 +23,10 @@ void fetch_a_style_resource(String const& url_value, CSSStyleSheet const& sheet,
     auto base = sheet.base_url().value_or(environment_settings.api_base_url());
 
     // 3. Let parsedUrl be the result of the URL parser steps with urlValue’s url and base. If the algorithm returns an error, return.
-    auto parsed_url = ::URL::Parser::basic_parse(url_value, base);
+    auto url_string = url_value.visit(
+        [](::URL::URL const& url) { return url.to_string(); },
+        [](CSS::URL const& url) { return url.url(); });
+    auto parsed_url = ::URL::Parser::basic_parse(url_string, base);
     if (!parsed_url.has_value())
         return;
 
