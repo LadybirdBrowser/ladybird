@@ -9,6 +9,7 @@
 
 #include <AK/Queue.h>
 #include <LibCore/Socket.h>
+#include <LibIPC/UnprocessedFileDescriptors.h>
 #include <LibThreading/ConditionVariable.h>
 #include <LibThreading/MutexProtected.h>
 #include <LibThreading/Thread.h>
@@ -65,9 +66,9 @@ public:
     };
     struct Message {
         Vector<u8> bytes;
-        Queue<File> fds;
+        Vector<File> fds;
     };
-    ShouldShutdown read_as_many_messages_as_possible_without_blocking(Function<void(Message&&)>&& schedule_shutdown);
+    ShouldShutdown read_as_many_messages_as_possible_without_blocking(Function<void(Message)>&& schedule_shutdown);
 
     // Obnoxious name to make it clear that this is a dangerous operation.
     ErrorOr<int> release_underlying_transport_for_transfer();
@@ -79,7 +80,7 @@ private:
 
     NonnullOwnPtr<Core::LocalSocket> m_socket;
     ByteBuffer m_unprocessed_bytes;
-    Queue<File> m_unprocessed_fds;
+    UnprocessedFileDescriptors m_unprocessed_fds;
 
     // After file descriptor is sent, it is moved to the wait queue until an acknowledgement is received from the peer.
     // This is necessary to handle a specific behavior of the macOS kernel, which may prematurely garbage-collect the file

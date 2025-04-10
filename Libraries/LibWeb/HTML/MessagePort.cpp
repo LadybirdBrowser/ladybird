@@ -288,9 +288,13 @@ void MessagePort::post_port_message(SerializedTransferRecord serialize_with_tran
 
 void MessagePort::read_from_transport()
 {
-    auto schedule_shutdown = m_transport->read_as_many_messages_as_possible_without_blocking([this](auto&& raw_message) {
-        FixedMemoryStream stream { raw_message.bytes.span(), FixedMemoryStream::Mode::ReadOnly };
-        IPC::Decoder decoder { stream, raw_message.fds };
+    auto schedule_shutdown = m_transport->read_as_many_messages_as_possible_without_blocking([this](auto&& unparsed_message) {
+        auto& bytes = unparsed_message.bytes;
+        IPC::UnprocessedFileDescriptors unprocessed_fds;
+        unprocessed_fds.return_fds_to_front_of_queue(move(unparsed_message.fds));
+
+        FixedMemoryStream stream { bytes.span(), FixedMemoryStream::Mode::ReadOnly };
+        IPC::Decoder decoder { stream, unprocessed_fds };
 
         auto serialized_transfer_record = MUST(decoder.decode<SerializedTransferRecord>());
 

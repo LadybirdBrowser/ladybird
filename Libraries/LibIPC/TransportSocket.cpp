@@ -173,7 +173,7 @@ ErrorOr<void> TransportSocket::send_message(Core::LocalSocket& socket, ReadonlyB
     return {};
 }
 
-TransportSocket::ShouldShutdown TransportSocket::read_as_many_messages_as_possible_without_blocking(Function<void(Message&&)>&& callback)
+TransportSocket::ShouldShutdown TransportSocket::read_as_many_messages_as_possible_without_blocking(Function<void(Message)>&& callback)
 {
     bool should_shutdown = false;
     while (is_open()) {
@@ -222,7 +222,7 @@ TransportSocket::ShouldShutdown TransportSocket::read_as_many_messages_as_possib
             Message message;
             received_fd_count += header.fd_count;
             for (size_t i = 0; i < header.fd_count; ++i)
-                message.fds.enqueue(m_unprocessed_fds.dequeue());
+                message.fds.append(m_unprocessed_fds.dequeue());
             message.bytes.append(m_unprocessed_bytes.data() + index + sizeof(MessageHeader), header.payload_size);
             callback(move(message));
         } else if (header.type == MessageHeader::Type::FileDescriptorAcknowledgement) {

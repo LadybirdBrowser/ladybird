@@ -404,7 +404,7 @@ public:)~~~");
     static i32 static_message_id() { return (int)MessageID::@message.pascal_name@; }
     virtual const char* message_name() const override { return "@endpoint.name@::@message.pascal_name@"; }
 
-    static ErrorOr<NonnullOwnPtr<@message.pascal_name@>> decode(Stream& stream, Queue<IPC::File>& files)
+    static ErrorOr<NonnullOwnPtr<@message.pascal_name@>> decode(Stream& stream, IPC::UnprocessedFileDescriptors& files)
     {
         IPC::Decoder decoder { stream, files };)~~~");
 
@@ -649,7 +649,7 @@ void generate_proxy_method(SourceGenerator& message_generator, Endpoint const& e
         }
     } else {
         message_generator.append(R"~~~());
-        MUST(m_connection.post_message(move(message_buffer))); )~~~");
+        MUST(m_connection.post_message(@endpoint.magic@, move(message_buffer))); )~~~");
     }
 
     message_generator.appendln(R"~~~(
@@ -720,7 +720,7 @@ public:
 
     static u32 static_magic() { return @endpoint.magic@; }
 
-    static ErrorOr<NonnullOwnPtr<IPC::Message>> decode_message(ReadonlyBytes buffer, [[maybe_unused]] Queue<IPC::File>& files)
+    static ErrorOr<NonnullOwnPtr<IPC::Message>> decode_message(ReadonlyBytes buffer, [[maybe_unused]] IPC::UnprocessedFileDescriptors& files)
     {
         FixedMemoryStream stream { buffer };
         auto message_endpoint_magic = TRY(stream.read_value<u32>());)~~~");
@@ -756,6 +756,11 @@ public:
         if (message.is_synchronous)
             do_decode_message(message.response_name());
     }
+
+    generator.append(R"~~~(
+        case (int)IPC::LargeMessageWrapper::MESSAGE_ID:
+            return TRY(IPC::LargeMessageWrapper::decode(message_endpoint_magic, stream, files));
+)~~~");
 
     generator.append(R"~~~(
         default:)~~~");
@@ -898,6 +903,7 @@ void build(StringBuilder& builder, Vector<Endpoint> const& endpoints)
 #include <LibIPC/File.h>
 #include <LibIPC/Message.h>
 #include <LibIPC/Stub.h>
+#include <LibIPC/UnprocessedFileDescriptors.h>
 
 #if defined(AK_COMPILER_CLANG)
 #pragma clang diagnostic push
