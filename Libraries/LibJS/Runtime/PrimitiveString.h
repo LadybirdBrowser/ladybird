@@ -47,6 +47,8 @@ public:
 
     ThrowCompletionOr<Optional<Value>> get(VM&, PropertyKey const&) const;
 
+    [[nodiscard]] bool operator==(PrimitiveString const&) const;
+
 protected:
     enum class RopeTag { Rope };
     explicit PrimitiveString(RopeTag)
