@@ -10,6 +10,7 @@
 #include <LibWeb/CSS/URL.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::CSS {
 
@@ -25,5 +26,8 @@ using StyleSheetOrDocument = Variant<GC::Ref<CSSStyleSheet>, GC::Ref<DOM::Docume
 
 // https://drafts.csswg.org/css-values-4/#fetch-a-style-resource
 void fetch_a_style_resource(StyleResourceURL const& url, StyleSheetOrDocument, Fetch::Infrastructure::Request::Destination, CorsMode, Fetch::Infrastructure::FetchAlgorithms::ProcessResponseConsumeBodyFunction process_response);
+
+// https://drafts.csswg.org/css-images-4/#fetch-an-external-image-for-a-stylesheet
+GC::Ptr<HTML::SharedResourceRequest> fetch_an_external_image_for_a_stylesheet(StyleResourceURL const&, StyleSheetOrDocument);
 
 }

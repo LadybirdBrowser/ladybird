@@ -9,11 +9,12 @@
 #include <LibWeb/CSS/Fetch.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
+#include <LibWeb/HTML/SharedResourceRequest.h>
 
 namespace Web::CSS {
 
 // https://drafts.csswg.org/css-values-4/#fetch-a-style-resource
-void fetch_a_style_resource(StyleResourceURL const& url_value, StyleSheetOrDocument sheet_or_document, Fetch::Infrastructure::Request::Destination destination, CorsMode cors_mode, Fetch::Infrastructure::FetchAlgorithms::ProcessResponseConsumeBodyFunction process_response)
+static GC::Ptr<Fetch::Infrastructure::Request> fetch_a_style_resource_impl(StyleResourceURL const& url_value, StyleSheetOrDocument sheet_or_document, Fetch::Infrastructure::Request::Destination destination, CorsMode cors_mode)
 {
     // AD-HOC: Not every caller has a CSSStyleSheet, so allow passing a Document in instead for URL completion.
     //         Spec issue: https://github.com/w3c/csswg-drafts/issues/12065
@@ -39,7 +40,7 @@ void fetch_a_style_resource(StyleResourceURL const& url_value, StyleSheetOrDocum
         [](CSS::URL const& url) { return url.url(); });
     auto parsed_url = ::URL::Parser::basic_parse(url_string, base);
     if (!parsed_url.has_value())
-        return;
+        return {};
 
     // 4. Let req be a new request whose url is parsedUrl, whose destination is destination, mode is corsMode,
     //    origin is environmentSettings’s origin, credentials mode is "same-origin", use-url-credentials flag is set,
@@ -70,10 +71,65 @@ void fetch_a_style_resource(StyleResourceURL const& url_value, StyleSheetOrDocum
         request->set_initiator_type(Fetch::Infrastructure::Request::InitiatorType::CSS);
 
     // 8. Fetch req, with processresponseconsumebody set to processResponse.
-    Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
-    fetch_algorithms_input.process_response_consume_body = move(process_response);
+    // NB: Implemented by caller.
+    return request;
+}
 
-    (void)Fetch::Fetching::fetch(environment_settings.realm(), request, Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input)));
+// https://drafts.csswg.org/css-values-4/#fetch-a-style-resource
+void fetch_a_style_resource(StyleResourceURL const& url_value, StyleSheetOrDocument sheet_or_document, Fetch::Infrastructure::Request::Destination destination, CorsMode cors_mode, Fetch::Infrastructure::FetchAlgorithms::ProcessResponseConsumeBodyFunction process_response)
+{
+    if (auto request = fetch_a_style_resource_impl(url_value, sheet_or_document, destination, cors_mode)) {
+        auto& environment_settings = HTML::relevant_settings_object(sheet_or_document.visit([](auto& it) -> JS::Object& { return it; }));
+        auto& vm = environment_settings.vm();
+
+        Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
+        fetch_algorithms_input.process_response_consume_body = move(process_response);
+
+        (void)Fetch::Fetching::fetch(environment_settings.realm(), *request, Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input)));
+    }
+}
+
+// https://drafts.csswg.org/css-images-4/#fetch-an-external-image-for-a-stylesheet
+GC::Ptr<HTML::SharedResourceRequest> fetch_an_external_image_for_a_stylesheet(StyleResourceURL const& url_value, StyleSheetOrDocument sheet_or_document)
+{
+    // To fetch an external image for a stylesheet, given a <url> url and CSSStyleSheet sheet, fetch a style resource
+    // given url, with stylesheet CSSStyleSheet, destination "image", CORS mode "no-cors", and processResponse being
+    // the following steps given response res and null, failure or a byte stream byteStream: If byteStream is a byte
+    // stream, load the image from the byte stream.
+
+    // NB: We can't directly call fetch_a_style_resource() because we want to make use of SharedResourceRequest to
+    //     deduplicate image requests.
+
+    if (auto request = fetch_a_style_resource_impl(url_value, sheet_or_document, Fetch::Infrastructure::Request::Destination::Image, CorsMode::NoCors)) {
+
+        auto document = sheet_or_document.visit(
+            [&](GC::Ref<CSSStyleSheet> const& sheet) -> GC::Ref<DOM::Document> { return *sheet->owning_document(); },
+            [](GC::Ref<DOM::Document> const& document) -> GC::Ref<DOM::Document> { return document; });
+        auto& realm = document->realm();
+
+        auto shared_resource_request = HTML::SharedResourceRequest::get_or_create(realm, document->page(), request->url());
+        shared_resource_request->add_callbacks(
+            [document, weak_document = document->make_weak_ptr<DOM::Document>()] {
+                if (!weak_document)
+                    return;
+
+                if (auto navigable = document->navigable()) {
+                    // Once the image has loaded, we need to re-resolve CSS properties that depend on the image's dimensions.
+                    document->set_needs_to_resolve_paint_only_properties();
+
+                    // FIXME: Do less than a full repaint if possible?
+                    document->set_needs_display();
+                }
+            },
+            nullptr);
+
+        if (shared_resource_request->needs_fetching())
+            shared_resource_request->fetch_resource(realm, *request);
+
+        return shared_resource_request;
+    }
+
+    return nullptr;
 }
 
 }
