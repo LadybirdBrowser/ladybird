@@ -13,6 +13,7 @@
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/HTML/PotentialCORSRequest.h>
+#include <LibWeb/HTML/SharedResourceRequest.h>
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/SVGGraphicsBox.h>
 #include <LibWeb/Namespace.h>
