@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/HashMap.h>
 #include <AK/RefCounted.h>
 #include <AK/Weakable.h>
 #include <LibGC/Function.h>
@@ -26,7 +27,9 @@ public:
 
     virtual ~AbortSignal() override = default;
 
-    void add_abort_algorithm(ESCAPING Function<void()>);
+    using AbortAlgorithmID = u64;
+    Optional<AbortAlgorithmID> add_abort_algorithm(Function<void()>);
+    void remove_abort_algorithm(AbortAlgorithmID);
 
     // https://dom.spec.whatwg.org/#dom-abortsignal-aborted
     // An AbortSignal object is aborted when its abort reason is not undefined.
@@ -68,8 +71,8 @@ private:
     JS::Value m_abort_reason { JS::js_undefined() };
 
     // https://dom.spec.whatwg.org/#abortsignal-abort-algorithms
-    // FIXME: This should be a set.
-    Vector<GC::Ref<GC::Function<void()>>> m_abort_algorithms;
+    OrderedHashMap<AbortAlgorithmID, GC::Ref<GC::Function<void()>>> m_abort_algorithms;
+    AbortAlgorithmID m_next_abort_algorithm_id { 0 };
 
     // https://dom.spec.whatwg.org/#abortsignal-source-signals
     // An AbortSignal object has associated source signals (a weak set of AbortSignal objects that the object is dependent on for its aborted state), which is initially empty.
