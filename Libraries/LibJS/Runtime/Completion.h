@@ -60,7 +60,7 @@ public:
         Throw,
     };
 
-    ALWAYS_INLINE Completion(Type type, Value value)
+    ALWAYS_INLINE constexpr Completion(Type type, Value value)
         : m_type(type)
         , m_value(value)
     {
@@ -72,12 +72,12 @@ public:
 
     // 5.2.3.1 Implicit Completion Values, https://tc39.es/ecma262/#sec-implicit-completion-values
     // Not `explicit` on purpose.
-    ALWAYS_INLINE Completion(Value value)
+    ALWAYS_INLINE constexpr Completion(Value value)
         : Completion(Type::Normal, value)
     {
     }
 
-    ALWAYS_INLINE Completion()
+    ALWAYS_INLINE constexpr Completion()
         : Completion(js_undefined())
     {
     }
@@ -87,21 +87,21 @@ public:
     Completion(Completion&&) = default;
     Completion& operator=(Completion&&) = default;
 
-    [[nodiscard]] Type type() const
+    [[nodiscard]] constexpr Type type() const
     {
         VERIFY(m_type != Type::Empty);
         return m_type;
     }
-    [[nodiscard]] Value& value() { return m_value; }
-    [[nodiscard]] Value const& value() const { return m_value; }
+    [[nodiscard]] constexpr Value& value() { return m_value; }
+    [[nodiscard]] constexpr Value const& value() const { return m_value; }
 
     // "abrupt completion refers to any completion with a [[Type]] value other than normal"
-    [[nodiscard]] bool is_abrupt() const { return m_type != Type::Normal; }
+    [[nodiscard]] constexpr bool is_abrupt() const { return m_type != Type::Normal; }
 
     // These are for compatibility with the TRY() macro in AK.
-    [[nodiscard]] bool is_error() const { return m_type == Type::Throw; }
-    [[nodiscard]] Value release_value() { return m_value; }
-    Completion release_error()
+    [[nodiscard]] constexpr bool is_error() const { return m_type == Type::Throw; }
+    [[nodiscard]] constexpr Value release_value() { return m_value; }
+    constexpr Completion release_error()
     {
         VERIFY(is_error());
         return { m_type, release_value() };
@@ -112,12 +112,12 @@ private:
     };
     friend AK::Optional<Completion>;
 
-    Completion(EmptyTag)
+    constexpr Completion(EmptyTag)
         : m_type(Type::Empty)
     {
     }
 
-    bool is_empty() const
+    constexpr bool is_empty() const
     {
         return m_type == Type::Empty;
     }
@@ -139,27 +139,27 @@ class Optional<JS::Completion> : public OptionalBase<JS::Completion> {
 public:
     using ValueType = JS::Completion;
 
-    Optional() = default;
+    constexpr Optional() = default;
 
-    Optional(Optional<JS::Completion> const& other)
+    constexpr Optional(Optional<JS::Completion> const& other)
     {
         if (other.has_value())
             m_value = other.m_value;
     }
 
-    Optional(Optional&& other)
+    constexpr Optional(Optional&& other)
         : m_value(move(other.m_value))
     {
     }
 
     template<typename U = JS::Completion>
-    explicit(!IsConvertible<U&&, JS::Completion>) Optional(U&& value)
+    explicit(!IsConvertible<U&&, JS::Completion>) constexpr Optional(U&& value)
     requires(!IsSame<RemoveCVReference<U>, Optional<JS::Completion>> && IsConstructible<JS::Completion, U &&>)
         : m_value(forward<U>(value))
     {
     }
 
-    Optional& operator=(Optional const& other)
+    constexpr Optional& operator=(Optional const& other)
     {
         if (this != &other) {
             clear();
@@ -168,7 +168,7 @@ public:
         return *this;
     }
 
-    Optional& operator=(Optional&& other)
+    constexpr Optional& operator=(Optional&& other)
     {
         if (this != &other) {
             clear();
@@ -177,34 +177,34 @@ public:
         return *this;
     }
 
-    void clear()
+    constexpr void clear()
     {
         m_value = JS::Completion(JS::Completion::EmptyTag {});
     }
 
-    [[nodiscard]] bool has_value() const
+    [[nodiscard]] constexpr bool has_value() const
     {
         return !m_value.is_empty();
     }
 
-    [[nodiscard]] JS::Completion& value() &
+    [[nodiscard]] constexpr JS::Completion& value() &
     {
         VERIFY(has_value());
         return m_value;
     }
 
-    [[nodiscard]] JS::Completion const& value() const&
+    [[nodiscard]] constexpr JS::Completion const& value() const&
     {
         VERIFY(has_value());
         return m_value;
     }
 
-    [[nodiscard]] JS::Completion value() &&
+    [[nodiscard]] constexpr JS::Completion value() &&
     {
         return release_value();
     }
 
-    [[nodiscard]] JS::Completion release_value()
+    [[nodiscard]] constexpr JS::Completion release_value()
     {
         VERIFY(has_value());
         JS::Completion released_value = m_value;
