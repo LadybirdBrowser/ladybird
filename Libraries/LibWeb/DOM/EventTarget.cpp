@@ -231,7 +231,7 @@ void EventTarget::add_an_event_listener(DOMEventListener& listener)
     // 6. If listener’s signal is not null, then add the following abort steps to it:
     if (listener.signal) {
         // NOTE: `this` and `listener` are protected by AbortSignal using GC::HeapFunction.
-        listener.signal->add_abort_algorithm([this, &listener] {
+        (void)listener.signal->add_abort_algorithm([this, &listener] {
             // 1. Remove an event listener with eventTarget and listener.
             remove_an_event_listener(listener);
         });
