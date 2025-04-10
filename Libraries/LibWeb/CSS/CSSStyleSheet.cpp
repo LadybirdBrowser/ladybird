@@ -333,6 +333,22 @@ void CSSStyleSheet::invalidate_owners(DOM::StyleInvalidationReason reason)
     }
 }
 
+GC::Ptr<DOM::Document> CSSStyleSheet::owning_document() const
+{
+    if (!m_owning_documents_or_shadow_roots.is_empty())
+        return (*m_owning_documents_or_shadow_roots.begin())->document();
+
+    if (m_owner_css_rule && m_owner_css_rule->parent_style_sheet()) {
+        if (auto document = m_owner_css_rule->parent_style_sheet()->owning_document())
+            return document;
+    }
+
+    if (auto* element = const_cast<CSSStyleSheet*>(this)->owner_node())
+        return element->document();
+
+    return nullptr;
+}
+
 bool CSSStyleSheet::evaluate_media_queries(HTML::Window const& window)
 {
     bool any_media_queries_changed_match_state = false;
@@ -425,8 +441,8 @@ bool CSSStyleSheet::has_associated_font_loader(FontLoader& font_loader) const
 
 Parser::ParsingParams CSSStyleSheet::make_parsing_params() const
 {
-    if (!m_owning_documents_or_shadow_roots.is_empty())
-        return Parser::ParsingParams { (*m_owning_documents_or_shadow_roots.begin())->document() };
+    if (auto document = owning_document())
+        return Parser::ParsingParams { *document };
     return Parser::ParsingParams { realm() };
 }
 
