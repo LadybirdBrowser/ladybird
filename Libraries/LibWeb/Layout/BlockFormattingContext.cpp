@@ -95,7 +95,7 @@ void BlockFormattingContext::run(AvailableSpace const& available_space)
         // FIXME: this should take writing modes into consideration.
         auto legend_height = legend_state.border_box_height();
         auto new_y = -((legend_height) / 2) - fieldset_state.padding_top;
-        legend_state.set_content_offset({ legend_state.offset.x(), new_y });
+        legend_state.set_content_y(new_y);
 
         // If the computed value of 'inline-size' is 'auto',
         // then the used value is the fit-content inline size.
@@ -955,7 +955,7 @@ void BlockFormattingContext::place_block_level_element_in_normal_flow_vertically
 {
     auto& box_state = m_state.get_mutable(child_box);
     y += box_state.border_box_top();
-    box_state.set_content_offset(CSSPixelPoint { box_state.offset.x(), y });
+    box_state.set_content_y(y);
     for (auto const& float_box : m_left_floats.all_boxes)
         float_box->margin_box_rect_in_root_coordinate_space = margin_box_rect_in_ancestor_coordinate_space(float_box->used_values, root());
 
@@ -1004,7 +1004,7 @@ void BlockFormattingContext::place_block_level_element_in_normal_flow_horizontal
         x += box_state.margin_box_left();
     }
 
-    box_state.set_content_offset({ x, box_state.offset.y() });
+    box_state.set_content_x(x);
 }
 
 void BlockFormattingContext::layout_viewport(AvailableSpace const& available_space)
