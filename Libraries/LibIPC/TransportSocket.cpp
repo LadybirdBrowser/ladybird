@@ -166,7 +166,7 @@ void TransportSocket::post_message(Vector<u8> const& bytes_to_write, Vector<Nonn
 ErrorOr<void> TransportSocket::send_message(Core::LocalSocket& socket, ReadonlyBytes& bytes_to_write, Vector<int>& unowned_fds)
 {
     auto num_fds_to_transfer = unowned_fds.size();
-    while (!bytes_to_write.is_empty()) {
+    while (!bytes_to_write.is_empty() || !unowned_fds.is_empty()) {
         ErrorOr<ssize_t> maybe_nwritten = 0;
         if (num_fds_to_transfer > 0) {
             maybe_nwritten = socket.send_message(bytes_to_write, 0, unowned_fds);
