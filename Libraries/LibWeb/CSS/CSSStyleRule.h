@@ -42,6 +42,8 @@ private:
     virtual void clear_caches() override;
     virtual String serialized() const override;
 
+    virtual void set_parent_style_sheet(CSSStyleSheet*) override;
+
     CSSStyleRule const* parent_style_rule() const;
 
     SelectorList m_selectors;
