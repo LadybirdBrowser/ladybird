@@ -18,38 +18,7 @@
 
 namespace AK {
 
-inline void fill_with_random([[maybe_unused]] Bytes bytes)
-{
-#if defined(AK_OS_SERENITY) || defined(AK_OS_ANDROID) || defined(AK_OS_BSD_GENERIC) || defined(AK_OS_HAIKU) || AK_LIBC_GLIBC_PREREQ(2, 36)
-    arc4random_buf(bytes.data(), bytes.size());
-#elif defined(OSS_FUZZ)
-#else
-    auto fill_with_random_fallback = [&]() {
-        for (auto& byte : bytes)
-            byte = rand();
-    };
-
-#    if defined(__unix__)
-    // The maximum permitted value for the getentropy length argument.
-    static constexpr size_t getentropy_length_limit = 256;
-    auto iterations = bytes.size() / getentropy_length_limit;
-
-    for (size_t i = 0; i < iterations; ++i) {
-        if (getentropy(bytes.data(), getentropy_length_limit) != 0) {
-            fill_with_random_fallback();
-            return;
-        }
-
-        bytes = bytes.slice(getentropy_length_limit);
-    }
-
-    if (bytes.is_empty() || getentropy(bytes.data(), bytes.size()) == 0)
-        return;
-#    endif
-
-    fill_with_random_fallback();
-#endif
-}
+void fill_with_random([[maybe_unused]] Bytes bytes);
 
 template<typename T>
 inline T get_random()
