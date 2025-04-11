@@ -324,4 +324,11 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::add(JS::Value value, Op
     return add_or_put(*this, value, key, true);
 }
 
+// https://w3c.github.io/IndexedDB/#dom-idbobjectstore-put
+WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::put(JS::Value value, Optional<JS::Value> const& key)
+{
+    // The put(value, key) method steps are to return the result of running add or put with this, value, key and the no-overwrite flag false.
+    return add_or_put(*this, value, key, false);
+}
+
 }
