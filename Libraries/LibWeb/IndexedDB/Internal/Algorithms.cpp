@@ -976,4 +976,18 @@ WebIDL::ExceptionOr<ErrorOr<JS::Value>> evaluate_key_path_on_a_value(JS::Realm& 
     return value;
 }
 
+// https://w3c.github.io/IndexedDB/#extract-a-key-from-a-value-using-a-key-path
+WebIDL::ExceptionOr<ErrorOr<GC::Ref<Key>>> extract_a_key_from_a_value_using_a_key_path(JS::Realm& realm, JS::Value value, KeyPath const& key_path, bool multi_entry)
+{
+    // 1. Let r be the result of evaluating a key path on a value with value and keyPath. Rethrow any exceptions.
+    // 2. If r is failure, return failure.
+    auto r = TRY(TRY(evaluate_key_path_on_a_value(realm, value, key_path)));
+
+    // 3. Let key be the result of converting a value to a key with r if the multiEntry flag is false,
+    //    and the result of converting a value to a multiEntry key with r otherwise. Rethrow any exceptions.
+    // 4. If key is invalid, return invalid.
+    // 5. Return key.
+    return multi_entry ? TRY(convert_a_value_to_a_multi_entry_key(realm, r)) : TRY(convert_a_value_to_a_key(realm, r));
+}
+
 }
