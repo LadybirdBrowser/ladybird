@@ -616,6 +616,11 @@ NonnullRefPtr<CSSStyleValue const> interpolate_value(DOM::Element& element, Calc
         auto from_ratio = from.as_ratio().ratio();
         auto to_ratio = to.as_ratio().ratio();
 
+        // https://drafts.csswg.org/css-values/#combine-ratio
+        // If either <ratio> is degenerate, the values cannot be interpolated.
+        if (from_ratio.is_degenerate() || to_ratio.is_degenerate())
+            return delta >= 0.5f ? to : from;
+
         // The interpolation of a <ratio> is defined by converting each <ratio> to a number by dividing the first value
         // by the second (so a ratio of 3 / 2 would become 1.5), taking the logarithm of that result (so the 1.5 would
         // become approximately 0.176), then interpolating those values. The result during the interpolation is
