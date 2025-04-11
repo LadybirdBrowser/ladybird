@@ -464,6 +464,84 @@ static void dump_qualified_name(StringBuilder& builder, CSS::Selector::SimpleSel
     builder.appendff("NamespaceType={}, Namespace='{}', Name='{}'", namespace_type, qualified_name.namespace_, qualified_name.name.name);
 }
 
+static void dump_simple_selector_pseudo_class(StringBuilder& builder, CSS::Selector::SimpleSelector::PseudoClassSelector const& pseudo_class, int indent_levels)
+{
+    builder.appendff(" pseudo_class={}", CSS::pseudo_class_name(pseudo_class.type));
+    auto pseudo_class_metadata = CSS::pseudo_class_metadata(pseudo_class.type);
+
+    switch (pseudo_class_metadata.parameter_type) {
+    case CSS::PseudoClassMetadata::ParameterType::None:
+        break;
+    case CSS::PseudoClassMetadata::ParameterType::ANPlusB:
+    case CSS::PseudoClassMetadata::ParameterType::ANPlusBOf: {
+        builder.appendff("(step={}, offset={}", pseudo_class.nth_child_pattern.step_size, pseudo_class.nth_child_pattern.offset);
+        if (!pseudo_class.argument_selector_list.is_empty()) {
+            builder.append(", selectors=[\n"sv);
+            for (auto const& child_selector : pseudo_class.argument_selector_list)
+                dump_selector(builder, child_selector, indent_levels + 2);
+            indent(builder, indent_levels + 1);
+            builder.append("]"sv);
+        }
+        builder.append(")"sv);
+        break;
+    }
+    case CSS::PseudoClassMetadata::ParameterType::CompoundSelector:
+    case CSS::PseudoClassMetadata::ParameterType::ForgivingSelectorList:
+    case CSS::PseudoClassMetadata::ParameterType::ForgivingRelativeSelectorList:
+    case CSS::PseudoClassMetadata::ParameterType::RelativeSelectorList:
+    case CSS::PseudoClassMetadata::ParameterType::SelectorList: {
+        builder.append("([\n"sv);
+        for (auto& child_selector : pseudo_class.argument_selector_list)
+            dump_selector(builder, child_selector, indent_levels + 2);
+        indent(builder, indent_levels + 1);
+        builder.append("])"sv);
+        break;
+    }
+    case CSS::PseudoClassMetadata::ParameterType::Ident:
+        builder.appendff("(keyword={})", string_from_keyword(pseudo_class.keyword.value()));
+        break;
+    case CSS::PseudoClassMetadata::ParameterType::LanguageRanges: {
+        builder.append('(');
+        builder.join(',', pseudo_class.languages);
+        builder.append(')');
+        break;
+    }
+    }
+}
+
+static void dump_simple_selector_attribute(StringBuilder& builder, CSS::Selector::SimpleSelector::Attribute const& attribute)
+{
+    char const* attribute_match_type_description = "";
+
+    switch (attribute.match_type) {
+    case CSS::Selector::SimpleSelector::Attribute::MatchType::HasAttribute:
+        attribute_match_type_description = "HasAttribute";
+        break;
+    case CSS::Selector::SimpleSelector::Attribute::MatchType::ExactValueMatch:
+        attribute_match_type_description = "ExactValueMatch";
+        break;
+    case CSS::Selector::SimpleSelector::Attribute::MatchType::ContainsWord:
+        attribute_match_type_description = "ContainsWord";
+        break;
+    case CSS::Selector::SimpleSelector::Attribute::MatchType::ContainsString:
+        attribute_match_type_description = "ContainsString";
+        break;
+    case CSS::Selector::SimpleSelector::Attribute::MatchType::StartsWithSegment:
+        attribute_match_type_description = "StartsWithSegment";
+        break;
+    case CSS::Selector::SimpleSelector::Attribute::MatchType::StartsWithString:
+        attribute_match_type_description = "StartsWithString";
+        break;
+    case CSS::Selector::SimpleSelector::Attribute::MatchType::EndsWithString:
+        attribute_match_type_description = "EndsWithString";
+        break;
+    }
+
+    builder.appendff(" [{}, ", attribute_match_type_description);
+    dump_qualified_name(builder, attribute.qualified_name);
+    builder.appendff(", value='{}']", attribute.value);
+}
+
 void dump_selector(StringBuilder& builder, CSS::Selector const& selector, int indent_levels)
 {
     indent(builder, indent_levels);
@@ -532,60 +610,18 @@ void dump_selector(StringBuilder& builder, CSS::Selector const& selector, int in
 
             builder.appendff("{}:", type_description);
 
-            // FIXME: This is goofy
             if (simple_selector.value.has<CSS::Selector::SimpleSelector::Name>()) {
                 builder.append(simple_selector.name());
             } else if (simple_selector.value.has<CSS::Selector::SimpleSelector::QualifiedName>()) {
                 dump_qualified_name(builder, simple_selector.qualified_name());
             }
 
-            if (simple_selector.type == CSS::Selector::SimpleSelector::Type::PseudoClass) {
+            switch (simple_selector.type) {
+            case CSS::Selector::SimpleSelector::Type::PseudoClass: {
                 auto const& pseudo_class = simple_selector.pseudo_class();
-
-                builder.appendff(" pseudo_class={}", CSS::pseudo_class_name(pseudo_class.type));
-                auto pseudo_class_metadata = CSS::pseudo_class_metadata(pseudo_class.type);
-
-                switch (pseudo_class_metadata.parameter_type) {
-                case CSS::PseudoClassMetadata::ParameterType::None:
-                    break;
-                case CSS::PseudoClassMetadata::ParameterType::ANPlusB:
-                case CSS::PseudoClassMetadata::ParameterType::ANPlusBOf: {
-                    builder.appendff("(step={}, offset={}", pseudo_class.nth_child_pattern.step_size, pseudo_class.nth_child_pattern.offset);
-                    if (!pseudo_class.argument_selector_list.is_empty()) {
-                        builder.append(", selectors=[\n"sv);
-                        for (auto const& child_selector : pseudo_class.argument_selector_list)
-                            dump_selector(builder, child_selector, indent_levels + 2);
-                        indent(builder, indent_levels + 1);
-                        builder.append("]"sv);
-                    }
-                    builder.append(")"sv);
-                    break;
-                }
-                case CSS::PseudoClassMetadata::ParameterType::CompoundSelector:
-                case CSS::PseudoClassMetadata::ParameterType::ForgivingSelectorList:
-                case CSS::PseudoClassMetadata::ParameterType::ForgivingRelativeSelectorList:
-                case CSS::PseudoClassMetadata::ParameterType::RelativeSelectorList:
-                case CSS::PseudoClassMetadata::ParameterType::SelectorList: {
-                    builder.append("([\n"sv);
-                    for (auto& child_selector : pseudo_class.argument_selector_list)
-                        dump_selector(builder, child_selector, indent_levels + 2);
-                    indent(builder, indent_levels + 1);
-                    builder.append("])"sv);
-                    break;
-                }
-                case CSS::PseudoClassMetadata::ParameterType::Ident:
-                    builder.appendff("(keyword={})", string_from_keyword(pseudo_class.keyword.value()));
-                    break;
-                case CSS::PseudoClassMetadata::ParameterType::LanguageRanges: {
-                    builder.append('(');
-                    builder.join(',', pseudo_class.languages);
-                    builder.append(')');
-                    break;
-                }
-                }
-            }
-
-            if (simple_selector.type == CSS::Selector::SimpleSelector::Type::PseudoElement) {
+                dump_simple_selector_pseudo_class(builder, pseudo_class, indent_levels);
+            } break;
+            case CSS::Selector::SimpleSelector::Type::PseudoElement: {
                 auto const& pseudo_element = simple_selector.pseudo_element();
                 builder.appendff(" pseudo_element={}", CSS::pseudo_element_name(pseudo_element.type()));
                 auto pseudo_element_metadata = CSS::pseudo_element_metadata(pseudo_element.type());
@@ -599,47 +635,20 @@ void dump_selector(StringBuilder& builder, CSS::Selector const& selector, int in
                     break;
                 }
                 }
-            }
-
-            if (simple_selector.type == CSS::Selector::SimpleSelector::Type::Attribute) {
+            } break;
+            case CSS::Selector::SimpleSelector::Type::Attribute: {
                 auto const& attribute = simple_selector.attribute();
-                char const* attribute_match_type_description = "";
-
-                switch (attribute.match_type) {
-                case CSS::Selector::SimpleSelector::Attribute::MatchType::HasAttribute:
-                    attribute_match_type_description = "HasAttribute";
-                    break;
-                case CSS::Selector::SimpleSelector::Attribute::MatchType::ExactValueMatch:
-                    attribute_match_type_description = "ExactValueMatch";
-                    break;
-                case CSS::Selector::SimpleSelector::Attribute::MatchType::ContainsWord:
-                    attribute_match_type_description = "ContainsWord";
-                    break;
-                case CSS::Selector::SimpleSelector::Attribute::MatchType::ContainsString:
-                    attribute_match_type_description = "ContainsString";
-                    break;
-                case CSS::Selector::SimpleSelector::Attribute::MatchType::StartsWithSegment:
-                    attribute_match_type_description = "StartsWithSegment";
-                    break;
-                case CSS::Selector::SimpleSelector::Attribute::MatchType::StartsWithString:
-                    attribute_match_type_description = "StartsWithString";
-                    break;
-                case CSS::Selector::SimpleSelector::Attribute::MatchType::EndsWithString:
-                    attribute_match_type_description = "EndsWithString";
-                    break;
-                }
-
-                builder.appendff(" [{}, ", attribute_match_type_description);
-                dump_qualified_name(builder, attribute.qualified_name);
-                builder.appendff(", value='{}']", attribute.value);
-            }
-
-            if (simple_selector.type == CSS::Selector::SimpleSelector::Type::Invalid) {
+                dump_simple_selector_attribute(builder, attribute);
+            } break;
+            case CSS::Selector::SimpleSelector::Type::Invalid: {
                 auto invalid = simple_selector.value.get<CSS::Selector::SimpleSelector::Invalid>();
                 builder.append(" '"sv);
                 for (auto const& component_value : invalid.component_values)
                     builder.append(component_value.to_string());
                 builder.append("'"sv);
+            } break;
+            default:
+                break;
             }
 
             if (i != relative_selector.simple_selectors.size() - 1)
