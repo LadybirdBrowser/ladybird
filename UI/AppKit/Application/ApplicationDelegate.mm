@@ -764,6 +764,23 @@
 
         tab = (Tab*)[controller window];
     }
+
+    [NSEvent addLocalMonitorForEventsMatchingMask:NSEventMaskKeyDown
+                                          handler:^NSEvent*(NSEvent* event) {
+                                              if ((event.modifierFlags & NSEventModifierFlagCommand) && event.characters.length == 1) {
+                                                  unichar c = [event.characters characterAtIndex:0];
+                                                  if (c >= '1' && c <= '9') {
+                                                      NSInteger index = c - '1';
+                                                      if (index < (NSInteger)self.managed_tabs.count) {
+                                                          TabController* controller = self.managed_tabs[index];
+                                                          [[controller window] makeKeyAndOrderFront:nil];
+                                                          [self setActiveTab:(Tab*)[controller window]];
+                                                      }
+                                                      return nil;
+                                                  }
+                                              }
+                                              return event;
+                                          }];
 }
 
 - (void)applicationWillTerminate:(NSNotification*)notification
