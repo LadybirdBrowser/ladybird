@@ -28,5 +28,6 @@ JS::Value convert_a_key_to_a_value(JS::Realm&, GC::Ref<Key>);
 bool is_valid_key_path(KeyPath const&);
 GC::Ref<HTML::DOMStringList> create_a_sorted_name_list(JS::Realm&, Vector<String>);
 void commit_a_transaction(JS::Realm&, GC::Ref<IDBTransaction>);
+WebIDL::ExceptionOr<JS::Value> clone_in_realm(JS::Realm&, JS::Value, GC::Ref<IDBTransaction>);
 
 }
