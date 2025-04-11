@@ -49,6 +49,8 @@ public:
     GC::Ref<Database> database() const { return m_database; }
 
     void remove_records_in_range(GC::Ref<IDBKeyRange> range);
+    bool has_record_with_key(GC::Ref<Key> key);
+    void store_a_record(Record const& record);
 
 protected:
     virtual void visit_edges(Visitor&) override;

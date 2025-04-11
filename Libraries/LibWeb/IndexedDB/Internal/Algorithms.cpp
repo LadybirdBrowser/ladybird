@@ -1319,4 +1319,117 @@ void delete_records_from_an_object_store(GC::Ref<ObjectStore> store, GC::Ref<IDB
     // 3. Return undefined.
 }
 
+// https://w3c.github.io/IndexedDB/#store-a-record-into-an-object-store
+WebIDL::ExceptionOr<GC::Ptr<Key>> store_a_record_into_an_object_store(JS::Realm& realm, GC::Ref<ObjectStore> store, JS::Value value, GC::Ptr<Key> key, bool no_overwrite)
+{
+    // 1. If store uses a key generator, then:
+    if (store->key_generator().has_value()) {
+        // 1. If key is undefined, then:
+        if (key == nullptr) {
+            // 1. Let key be the result of generating a key for store.
+            auto maybe_key = generate_a_key(store);
+
+            // 2. If key is failure, then this operation failed with a "ConstraintError" DOMException. Abort this algorithm without taking any further steps.
+            if (maybe_key.is_error())
+                return WebIDL::ConstraintError::create(realm, String::from_utf8_without_validation(maybe_key.error().string_literal().bytes()));
+
+            key = Key::create_number(realm, static_cast<double>(maybe_key.value()));
+
+            // 3. If store also uses in-line keys, then run inject a key into a value using a key path with value, key and store’s key path.
+            if (store->uses_inline_keys())
+                inject_a_key_into_a_value_using_a_key_path(realm, value, GC::Ref(*key), store->key_path().value());
+        }
+
+        // 2. Otherwise, run possibly update the key generator for store with key.
+        else {
+            possibly_update_the_key_generator(store, GC::Ref(*key));
+        }
+    }
+
+    // 2. If the no-overwrite flag was given to these steps and is true, and a record already exists in store with its key equal to key,
+    //    then this operation failed with a "ConstraintError" DOMException. Abort this algorithm without taking any further steps.
+    auto has_record = store->has_record_with_key(*key);
+    if (no_overwrite && has_record)
+        return WebIDL::ConstraintError::create(realm, "Record already exists"_string);
+
+    // 3. If a record already exists in store with its key equal to key, then remove the record from store using delete records from an object store.
+    if (has_record) {
+        auto key_range = IDBKeyRange::create(realm, key, key, false, false);
+        delete_records_from_an_object_store(store, key_range);
+    }
+
+    // 4. Store a record in store containing key as its key and ! StructuredSerializeForStorage(value) as its value.
+    //    The record is stored in the object store’s list of records such that the list is sorted according to the key of the records in ascending order.
+    Record record = {
+        .key = *key,
+        .value = MUST(HTML::structured_serialize_for_storage(realm.vm(), value)),
+    };
+    store->store_a_record(record);
+
+    // 5. For each index which references store:
+    for (auto const& [name, index] : store->index_set()) {
+        // 1. Let index key be the result of extracting a key from a value using a key path with value, index’s key path, and index’s multiEntry flag.
+        auto index_key = TRY(extract_a_key_from_a_value_using_a_key_path(realm, value, index->key_path(), index->multi_entry()));
+
+        // 2. If index key is an exception, or invalid, or failure, take no further actions for index, and continue these steps for the next index.
+        if (index_key.is_error())
+            continue;
+
+        auto index_key_value = index_key.value();
+        auto index_multi_entry = index->multi_entry();
+        auto index_key_is_array = index_key_value->type() == Key::KeyType::Array;
+        auto index_is_unique = index->unique();
+
+        // 3. If index’s multiEntry flag is false, or if index key is not an array key,
+        //    and if index already contains a record with key equal to index key,
+        //    and index’s unique flag is true,
+        //    then this operation failed with a "ConstraintError" DOMException.
+        //    Abort this algorithm without taking any further steps.
+        if ((!index_multi_entry || !index_key_is_array) && index_is_unique && index->has_record_with_key(index_key_value))
+            return WebIDL::ConstraintError::create(realm, "Record already exists in index"_string);
+
+        // 4. If index’s multiEntry flag is true and index key is an array key,
+        //    and if index already contains a record with key equal to any of the subkeys of index key,
+        //    and index’s unique flag is true,
+        //    then this operation failed with a "ConstraintError" DOMException.
+        //    Abort this algorithm without taking any further steps.
+        if (index_multi_entry && index_key_is_array && index_is_unique) {
+            for (auto const& subkey : index_key_value->subkeys()) {
+                if (index->has_record_with_key(*subkey))
+                    return WebIDL::ConstraintError::create(realm, "Record already exists in index"_string);
+            }
+        }
+
+        // 5. If index’s multiEntry flag is false, or if index key is not an array key
+        //    then store a record in index containing index key as its key and key as its value.
+        //    The record is stored in index’s list of records such that the list is sorted primarily on the records keys,
+        //    and secondarily on the records values, in ascending order.
+        if (!index_multi_entry || !index_key_is_array) {
+            // FIXME:
+            // Record index_record = {
+            //     .key = index_key_value,
+            //     .value = MUST(HTML::structured_serialize_for_storage(realm.vm(), key)),
+            // };
+            // index->store_a_record(index_record);
+        }
+
+        // 6. If index’s multiEntry flag is true and index key is an array key,
+        //    then for each subkey of the subkeys of index key store a record in index containing subkey as its key and key as its value.
+        if (index_multi_entry && index_key_is_array) {
+            for (auto const& subkey : index_key_value->subkeys()) {
+                (void)subkey;
+                // FIXME:
+                // Record index_record = {
+                //     .key = *subkey,
+                //     .value = MUST(HTML::structured_serialize_for_storage(realm.vm(), key)),
+                // };
+                // index->store_a_record(index_record);
+            }
+        }
+    }
+
+    // 6. Return key.
+    return key;
+}
+
 }
