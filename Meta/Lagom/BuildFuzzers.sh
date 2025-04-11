@@ -52,10 +52,15 @@ fi
 
 # FIXME: Replace these CMake invocations with a CMake superbuild?
 echo "Building Lagom Tools..."
-cmake -GNinja -B Build/tools \
+pick_clang
+cmake -GNinja --preset=Distribution -B Build/tools \
     -DLAGOM_TOOLS_ONLY=ON \
+    -DINSTALL_LAGOM_TOOLS=ON \
     -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
     -DCMAKE_INSTALL_PREFIX=Build/tool-install \
+    -DCMAKE_C_COMPILER=$BEST_CLANG_CANDIDATE \
+    -DCMAKE_CXX_COMPILER="${BEST_CLANG_CANDIDATE/clang/clang++}" \
+    -DCMAKE_OSX_SYSROOT=macosx \
     -Dpackage=LagomTools
 ninja -C Build/tools install
 
@@ -87,13 +92,10 @@ elif [ "$#" -gt "0" ] && [ "--standalone" = "$1" ] ; then
     ninja -C Build/lagom-fuzzers-standalone
 else
     echo "Building for local fuzz configuration..."
-    pick_clang
-    cmake -GNinja -B Build/lagom-fuzzers \
-        -DENABLE_FUZZERS_LIBFUZZER=ON \
-        -DENABLE_ADDRESS_SANITIZER=ON \
-        -DENABLE_UNDEFINED_SANITIZER=ON \
+    cmake -GNinja --preset Fuzzers -B Build/lagom-fuzzers \
         -DCMAKE_PREFIX_PATH=Build/tool-install \
         -DCMAKE_C_COMPILER=$BEST_CLANG_CANDIDATE \
-        -DCMAKE_CXX_COMPILER="${BEST_CLANG_CANDIDATE/clang/clang++}"
+        -DCMAKE_CXX_COMPILER="${BEST_CLANG_CANDIDATE/clang/clang++}" \
+        -DCMAKE_OSX_SYSROOT=macosx
     ninja -C Build/lagom-fuzzers
 fi
