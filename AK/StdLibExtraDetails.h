@@ -407,6 +407,9 @@ inline constexpr bool IsArithmetic = IsIntegral<T> || IsFloatingPoint<T>;
 template<typename T>
 inline constexpr bool IsFundamental = IsArithmetic<T> || IsVoid<T> || IsNullPointer<T>;
 
+template<typename T>
+inline constexpr bool IsScalar = IsArithmetic<T> || IsEnum<T> || IsPointer<T> || IsNullPointer<T> || IsMemberPointer<T>;
+
 template<typename T, T... Ts>
 struct IntegerSequence {
     using Type = T;
@@ -697,6 +700,7 @@ using AK::Detail::IsPointer;
 using AK::Detail::IsRvalueReference;
 using AK::Detail::IsSame;
 using AK::Detail::IsSameIgnoringCV;
+using AK::Detail::IsScalar;
 using AK::Detail::IsSigned;
 using AK::Detail::IsSpecializationOf;
 using AK::Detail::IsTemplateBaseOf;
