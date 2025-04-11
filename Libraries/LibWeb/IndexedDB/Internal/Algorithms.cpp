@@ -1070,4 +1070,42 @@ void fire_an_error_event(JS::Realm& realm, GC::Ref<IDBRequest> request)
     }
 }
 
+// https://w3c.github.io/IndexedDB/#fire-a-success-event
+void fire_a_success_event(JS::Realm& realm, GC::Ref<IDBRequest> request)
+{
+    // 1. Let event be the result of creating an event using Event.
+    // 2. Set event’s type attribute to "success".
+    // 3. Set event’s bubbles and cancelable attributes to false.
+    auto event = DOM::Event::create(realm, HTML::EventNames::success, { .bubbles = false, .cancelable = false });
+
+    // 4. Let transaction be request’s transaction.
+    auto transaction = request->transaction();
+
+    // 5. Let legacyOutputDidListenersThrowFlag be initially false.
+    bool legacy_output_did_listeners_throw_flag = false;
+
+    // 6. If transaction’s state is inactive, then set transaction’s state to active.
+    if (transaction->state() == IDBTransaction::TransactionState::Inactive)
+        transaction->set_state(IDBTransaction::TransactionState::Active);
+
+    // 7. Dispatch event at request with legacyOutputDidListenersThrowFlag.
+    DOM::EventDispatcher::dispatch(request, *event, false, legacy_output_did_listeners_throw_flag);
+
+    // 8. If transaction’s state is active, then:
+    if (transaction->state() == IDBTransaction::TransactionState::Active) {
+        // 1. Set transaction’s state to inactive.
+        transaction->set_state(IDBTransaction::TransactionState::Inactive);
+
+        // 2. If legacyOutputDidListenersThrowFlag is true, then run abort a transaction with transaction and a newly created "AbortError" DOMException.
+        if (legacy_output_did_listeners_throw_flag) {
+            abort_a_transaction(*transaction, WebIDL::AbortError::create(realm, "An error occurred"_string));
+            return;
+        }
+
+        // 3. If transaction’s request list is empty, then run commit a transaction with transaction.
+        if (transaction->request_list().is_empty())
+            commit_a_transaction(realm, *transaction);
+    }
+}
+
 }
