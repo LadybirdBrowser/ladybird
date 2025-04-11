@@ -1400,32 +1400,13 @@ WebIDL::ExceptionOr<GC::Ptr<Key>> store_a_record_into_an_object_store(JS::Realm&
             }
         }
 
-        // 5. If index’s multiEntry flag is false, or if index key is not an array key
+        // FIXME: 5. If index’s multiEntry flag is false, or if index key is not an array key
         //    then store a record in index containing index key as its key and key as its value.
         //    The record is stored in index’s list of records such that the list is sorted primarily on the records keys,
         //    and secondarily on the records values, in ascending order.
-        if (!index_multi_entry || !index_key_is_array) {
-            // FIXME:
-            // Record index_record = {
-            //     .key = index_key_value,
-            //     .value = MUST(HTML::structured_serialize_for_storage(realm.vm(), key)),
-            // };
-            // index->store_a_record(index_record);
-        }
 
-        // 6. If index’s multiEntry flag is true and index key is an array key,
+        // // FIXME: 6. If index’s multiEntry flag is true and index key is an array key,
         //    then for each subkey of the subkeys of index key store a record in index containing subkey as its key and key as its value.
-        if (index_multi_entry && index_key_is_array) {
-            for (auto const& subkey : index_key_value->subkeys()) {
-                (void)subkey;
-                // FIXME:
-                // Record index_record = {
-                //     .key = *subkey,
-                //     .value = MUST(HTML::structured_serialize_for_storage(realm.vm(), key)),
-                // };
-                // index->store_a_record(index_record);
-            }
-        }
     }
 
     // 6. Return key.
