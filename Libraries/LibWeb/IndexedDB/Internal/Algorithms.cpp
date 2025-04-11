@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Math.h>
 #include <AK/QuickSort.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
@@ -36,6 +37,12 @@
 #include <LibWeb/WebIDL/Buffers.h>
 
 namespace Web::IndexedDB {
+
+#if defined(AK_COMPILER_CLANG)
+#    define MAX_KEY_GENERATOR_VALUE AK::exp2(53.)
+#else
+constexpr double const MAX_KEY_GENERATOR_VALUE { __builtin_exp2(53) };
+#endif
 
 // https://w3c.github.io/IndexedDB/#open-a-database-connection
 WebIDL::ExceptionOr<GC::Ref<IDBDatabase>> open_a_database_connection(JS::Realm& realm, StorageAPI::StorageKey storage_key, String name, Optional<u64> maybe_version, GC::Ref<IDBRequest> request)
@@ -1206,6 +1213,26 @@ GC::Ref<IDBRequest> asynchronously_execute_a_request(JS::Realm& realm, IDBReques
 
     // 6. Return request.
     return request;
+}
+
+// https://w3c.github.io/IndexedDB/#generate-a-key
+ErrorOr<u64> generate_a_key(GC::Ref<ObjectStore> store)
+{
+    // 1. Let generator be store’s key generator.
+    auto generator = store->key_generator().value();
+
+    // 2. Let key be generator’s current number.
+    auto key = generator.current_number();
+
+    // 3. If key is greater than 2^53 (9007199254740992), then return failure.
+    if (key > static_cast<u64>(MAX_KEY_GENERATOR_VALUE))
+        return Error::from_string_literal("Key is greater than 2^53");
+
+    // 4. Increase generator’s current number by 1.
+    generator.increment(1);
+
+    // 5. Return key.
+    return key;
 }
 
 }
