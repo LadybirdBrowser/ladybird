@@ -990,4 +990,39 @@ WebIDL::ExceptionOr<ErrorOr<GC::Ref<Key>>> extract_a_key_from_a_value_using_a_ke
     return multi_entry ? TRY(convert_a_value_to_a_multi_entry_key(realm, r)) : TRY(convert_a_value_to_a_key(realm, r));
 }
 
+// https://w3c.github.io/IndexedDB/#check-that-a-key-could-be-injected-into-a-value
+bool check_that_a_key_could_be_injected_into_a_value(JS::Realm& realm, JS::Value value, KeyPath const& key_path)
+{
+    // NOTE: The key paths used in this section are always strings and never sequences
+
+    // 1. Let identifiers be the result of strictly splitting keyPath on U+002E FULL STOP characters (.).
+    auto identifiers = MUST(key_path.get<String>().split('.'));
+
+    // 2. Assert: identifiers is not empty.
+    VERIFY(!identifiers.is_empty());
+
+    // 3. Remove the last item of identifiers.
+    identifiers.take_last();
+
+    // 4. For each remaining identifier of identifiers, if any:
+    for (auto const& identifier : identifiers) {
+        // 1. If value is not an Object or an Array, return false.
+        if (!(value.is_object() || MUST(value.is_array(realm.vm()))))
+            return false;
+
+        // 2. Let hop be ! HasOwnProperty(value, identifier).
+        auto hop = MUST(value.as_object().has_own_property(identifier));
+
+        // 3. If hop is false, return true.
+        if (!hop)
+            return true;
+
+        // 4. Let value be ! Get(value, identifier).
+        value = MUST(value.as_object().get(identifier));
+    }
+
+    // 5. Return true if value is an Object or an Array, or false otherwise.
+    return value.is_object() || MUST(value.is_array(realm.vm()));
+}
+
 }
