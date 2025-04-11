@@ -4,11 +4,66 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Platform.h>
 #include <AK/Random.h>
 #include <AK/UFixedBigInt.h>
 #include <AK/UFixedBigIntDivision.h>
 
+#if defined(AK_OS_WINDOWS)
+#    include <AK/NumericLimits.h>
+#    include <AK/Windows.h>
+#    include <bcrypt.h>
+#    include <ntstatus.h>
+#endif
+
 namespace AK {
+
+// NOTE: This function is supposed to always give a random number. If possible it is of good quality, but it can fall
+//       back to rand() if it fails on some systems. For high speed you should probably use a different generator.
+//       See MathObject::random() from LibJS. Where cryptographic security is needed use LibCrypto/SecureRandom.h.
+void fill_with_random([[maybe_unused]] Bytes bytes)
+{
+#if defined(AK_OS_SERENITY) || defined(AK_OS_ANDROID) || defined(AK_OS_BSD_GENERIC) || defined(AK_OS_HAIKU) || AK_LIBC_GLIBC_PREREQ(2, 36)
+    arc4random_buf(bytes.data(), bytes.size());
+#elif defined(OSS_FUZZ)
+#else
+    auto fill_with_random_fallback = [&]() {
+        for (auto& byte : bytes)
+            byte = rand();
+    };
+
+#    if defined(__unix__)
+    // The maximum permitted value for the getentropy length argument.
+    static constexpr size_t getentropy_length_limit = 256;
+    auto iterations = bytes.size() / getentropy_length_limit;
+
+    for (size_t i = 0; i < iterations; ++i) {
+        if (getentropy(bytes.data(), getentropy_length_limit) != 0) {
+            fill_with_random_fallback();
+            return;
+        }
+
+        bytes = bytes.slice(getentropy_length_limit);
+    }
+
+    if (bytes.is_empty() || getentropy(bytes.data(), bytes.size()) == 0)
+        return;
+#    elif defined(AK_OS_WINDOWS)
+
+    if (bytes.size() > NumericLimits<u32>::max()) [[unlikely]] {
+        fill_with_random_fallback();
+        return;
+    }
+
+    // NOTE: This is more secure than needed. But on modern hardware it be should more than fast enough.
+    NTSTATUS result = ::BCryptGenRandom(NULL, bytes.data(), bytes.size(), BCRYPT_USE_SYSTEM_PREFERRED_RNG);
+    if (result == STATUS_SUCCESS)
+        return;
+#    endif
+
+    fill_with_random_fallback();
+#endif
+}
 
 u32 get_random_uniform(u32 max_bounds)
 {
