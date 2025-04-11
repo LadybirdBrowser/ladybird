@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 280 tests
 
-68 Pass
-212 Fail
+80 Pass
+200 Fail
 Fail	CSS Transitions: property <background-position> from neutral to [left 20px top 20px] at (0) should be [10px 10px]
 Fail	CSS Transitions: property <background-position> from neutral to [left 20px top 20px] at (0.25) should be [12.5px 12.5px]
 Fail	CSS Transitions: property <background-position> from neutral to [left 20px top 20px] at (0.5) should be [15px 15px]
@@ -55,14 +55,14 @@ Fail	CSS Transitions with transition: all: property <background-position> from [
 Fail	CSS Transitions with transition: all: property <background-position> from [inherit] to [left 20px top 20px] at (0.75) should be [35px 35px]
 Pass	CSS Transitions with transition: all: property <background-position> from [inherit] to [left 20px top 20px] at (1) should be [20px 20px]
 Pass	CSS Animations: property <background-position> from [inherit] to [left 20px top 20px] at (0) should be [80px 80px]
-Fail	CSS Animations: property <background-position> from [inherit] to [left 20px top 20px] at (0.25) should be [65px 65px]
-Fail	CSS Animations: property <background-position> from [inherit] to [left 20px top 20px] at (0.5) should be [50px 50px]
-Fail	CSS Animations: property <background-position> from [inherit] to [left 20px top 20px] at (0.75) should be [35px 35px]
+Pass	CSS Animations: property <background-position> from [inherit] to [left 20px top 20px] at (0.25) should be [65px 65px]
+Pass	CSS Animations: property <background-position> from [inherit] to [left 20px top 20px] at (0.5) should be [50px 50px]
+Pass	CSS Animations: property <background-position> from [inherit] to [left 20px top 20px] at (0.75) should be [35px 35px]
 Pass	CSS Animations: property <background-position> from [inherit] to [left 20px top 20px] at (1) should be [20px 20px]
 Pass	Web Animations: property <background-position> from [inherit] to [left 20px top 20px] at (0) should be [80px 80px]
-Fail	Web Animations: property <background-position> from [inherit] to [left 20px top 20px] at (0.25) should be [65px 65px]
-Fail	Web Animations: property <background-position> from [inherit] to [left 20px top 20px] at (0.5) should be [50px 50px]
-Fail	Web Animations: property <background-position> from [inherit] to [left 20px top 20px] at (0.75) should be [35px 35px]
+Pass	Web Animations: property <background-position> from [inherit] to [left 20px top 20px] at (0.25) should be [65px 65px]
+Pass	Web Animations: property <background-position> from [inherit] to [left 20px top 20px] at (0.5) should be [50px 50px]
+Pass	Web Animations: property <background-position> from [inherit] to [left 20px top 20px] at (0.75) should be [35px 35px]
 Pass	Web Animations: property <background-position> from [inherit] to [left 20px top 20px] at (1) should be [20px 20px]
 Fail	CSS Transitions: property <background-position> from [unset] to [left 20px top 20px] at (0) should be [0% 0%]
 Fail	CSS Transitions: property <background-position> from [unset] to [left 20px top 20px] at (0.25) should be [calc(0% + 5px) calc(0% + 5px)]
@@ -275,12 +275,12 @@ Fail	CSS Transitions with transition: all: property <background-position> from [
 Fail	CSS Transitions with transition: all: property <background-position> from [center] to [bottom] at (0.75) should be [50% 87.5%]
 Pass	CSS Transitions with transition: all: property <background-position> from [center] to [bottom] at (1) should be [50% 100%]
 Pass	CSS Animations: property <background-position> from [center] to [bottom] at (0) should be [50% 50%]
-Fail	CSS Animations: property <background-position> from [center] to [bottom] at (0.25) should be [50% 62.5%]
-Fail	CSS Animations: property <background-position> from [center] to [bottom] at (0.5) should be [50% 75%]
-Fail	CSS Animations: property <background-position> from [center] to [bottom] at (0.75) should be [50% 87.5%]
+Pass	CSS Animations: property <background-position> from [center] to [bottom] at (0.25) should be [50% 62.5%]
+Pass	CSS Animations: property <background-position> from [center] to [bottom] at (0.5) should be [50% 75%]
+Pass	CSS Animations: property <background-position> from [center] to [bottom] at (0.75) should be [50% 87.5%]
 Pass	CSS Animations: property <background-position> from [center] to [bottom] at (1) should be [50% 100%]
 Pass	Web Animations: property <background-position> from [center] to [bottom] at (0) should be [50% 50%]
-Fail	Web Animations: property <background-position> from [center] to [bottom] at (0.25) should be [50% 62.5%]
-Fail	Web Animations: property <background-position> from [center] to [bottom] at (0.5) should be [50% 75%]
-Fail	Web Animations: property <background-position> from [center] to [bottom] at (0.75) should be [50% 87.5%]
+Pass	Web Animations: property <background-position> from [center] to [bottom] at (0.25) should be [50% 62.5%]
+Pass	Web Animations: property <background-position> from [center] to [bottom] at (0.5) should be [50% 75%]
+Pass	Web Animations: property <background-position> from [center] to [bottom] at (0.75) should be [50% 87.5%]
 Pass	Web Animations: property <background-position> from [center] to [bottom] at (1) should be [50% 100%]
