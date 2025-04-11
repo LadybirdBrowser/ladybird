@@ -93,8 +93,8 @@ public:
 
     AK::SegmentedVector<CommandListItem, 512> const& commands() const { return m_commands; }
 
-    void set_scroll_state(ScrollState scroll_state) { m_scroll_state = move(scroll_state); }
-    ScrollState const& scroll_state() const { return m_scroll_state; }
+    void set_scroll_state_snapshot(ScrollStateSnapshot&& scroll_state) { m_scroll_state_snapshot = move(scroll_state); }
+    ScrollStateSnapshot const& scroll_state_snapshot() const { return m_scroll_state_snapshot; }
 
     void set_device_pixels_per_css_pixel(double device_pixels_per_css_pixel) { m_device_pixels_per_css_pixel = device_pixels_per_css_pixel; }
     double device_pixels_per_css_pixel() const { return m_device_pixels_per_css_pixel; }
@@ -103,7 +103,7 @@ private:
     DisplayList() = default;
 
     AK::SegmentedVector<CommandListItem, 512> m_commands;
-    ScrollState m_scroll_state;
+    ScrollStateSnapshot m_scroll_state_snapshot;
     double m_device_pixels_per_css_pixel;
 };
 
