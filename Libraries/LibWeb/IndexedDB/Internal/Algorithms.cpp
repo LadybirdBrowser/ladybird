@@ -1219,4 +1219,24 @@ GC::Ref<IDBRequest> asynchronously_execute_a_request(JS::Realm& realm, IDBReques
     return request;
 }
 
+// https://w3c.github.io/IndexedDB/#generate-a-key
+WebIDL::ExceptionOr<u64> generate_a_key(JS::Realm& realm, GC::Ref<ObjectStore> store)
+{
+    // 1. Let generator be store’s key generator.
+    auto generator = store->key_generator().value();
+
+    // 2. Let key be generator’s current number.
+    auto key = generator.current_number();
+
+    // 3. If key is greater than 2^53 (9007199254740992), then return failure.
+    if (key > 9007199254740992)
+        return WebIDL::ConstraintError::create(realm, "Key is greater than 2^53"_string);
+
+    // 4. Increase generator’s current number by 1.
+    generator.increment(1);
+
+    // 5. Return key.
+    return key;
+}
+
 }
