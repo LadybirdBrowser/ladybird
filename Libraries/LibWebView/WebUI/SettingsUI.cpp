@@ -63,6 +63,13 @@ void SettingsUI::register_interfaces()
     register_interface("setDoNotTrack"sv, [this](auto const& data) {
         set_do_not_track(data);
     });
+
+    register_interface("setDNSSettings"sv, [this](auto const& data) {
+        set_dns_settings(data);
+    });
+    register_interface("loadDNSSettings"sv, [this](auto const&) {
+        load_dns_settings();
+    });
 }
 
 void SettingsUI::load_current_settings()
@@ -263,4 +270,40 @@ void SettingsUI::set_do_not_track(JsonValue const& do_not_track)
     WebView::Application::settings().set_do_not_track(do_not_track.as_bool() ? DoNotTrack::Yes : DoNotTrack::No);
 }
 
+void SettingsUI::set_dns_settings(JsonValue const& dns_settings)
+{
+    // dnsSettings :: { mode: "system" } | { mode: "custom", server: string, port: u16, type: "udp" | "tls", forciblyEnabled: bool }
+    if (!dns_settings.is_object())
+        return;
+
+    auto& obj = dns_settings.as_object();
+    auto mode = obj.get_string("mode"sv);
+    if (!mode.has_value())
+        return;
+
+    if (*mode == "system") {
+        WebView::Application::settings().set_dns_settings(SystemDNS {});
+    } else if (*mode == "custom") {
+        auto server = obj.get_string("server"sv).map([](auto const& name) { return name.to_byte_string(); });
+        auto port_value = obj.get("port"sv);
+        auto type = obj.get_string("type"sv);
+        if (!server.has_value() || !port_value.has_value() || !type.has_value())
+            return;
+        auto const port = port_value->get_integer<u16>().value_or(0);
+        if (*type == "udp"sv) {
+            WebView::Application::settings().set_dns_settings(DNSOverUDP { .server_address = *server, .port = port });
+        } else if (*type == "tls"sv) {
+            WebView::Application::settings().set_dns_settings(DNSOverTLS { .server_address = *server, .port = port });
+        }
+    }
+
+    load_current_settings();
+}
+
+void SettingsUI::load_dns_settings()
+{
+    // FIXME: Don't serialize the whole thing just to get the DNS settings.
+    auto settings = WebView::Application::settings().serialize_json();
+    async_send_message("loadDNSSettings"sv, settings.as_object().get_object("dnsSettings"sv).release_value());
+}
 }

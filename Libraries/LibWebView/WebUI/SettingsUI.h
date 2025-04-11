@@ -35,6 +35,9 @@ private:
     void remove_all_site_setting_filters(JsonValue const&);
 
     void set_do_not_track(JsonValue const&);
+
+    void set_dns_settings(JsonValue const&);
+    void load_dns_settings();
 };
 
 }

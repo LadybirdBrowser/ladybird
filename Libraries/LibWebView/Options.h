@@ -71,7 +71,7 @@ struct BrowserOptions {
     Optional<ProcessType> debug_helper_process {};
     Optional<ProcessType> profile_helper_process {};
     Optional<ByteString> webdriver_content_ipc_path {};
-    DNSSettings dns_settings { SystemDNS {} };
+    Optional<DNSSettings> dns_settings {};
     u16 devtools_port { default_devtools_port };
 };
 

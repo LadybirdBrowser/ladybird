@@ -372,6 +372,13 @@ void ConnectionFromClient::set_dns_server(ByteString host_or_address, u16 port, 
         default_resolver()->dns.reset_connection();
 }
 
+void ConnectionFromClient::set_use_system_dns()
+{
+    g_dns_info.server_hostname = {};
+    g_dns_info.server_address = {};
+    default_resolver()->dns.reset_connection();
+}
+
 void ConnectionFromClient::start_request(i32 request_id, ByteString method, URL::URL url, HTTP::HeaderMap request_headers, ByteBuffer request_body, Core::ProxyData proxy_data)
 {
     auto host = url.serialized_host().to_byte_string();

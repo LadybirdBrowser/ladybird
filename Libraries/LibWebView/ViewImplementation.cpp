@@ -667,6 +667,24 @@ void ViewImplementation::do_not_track_changed()
     client().async_set_enable_do_not_track(page_id(), do_not_track == DoNotTrack::Yes);
 }
 
+void ViewImplementation::dns_settings_changed()
+{
+    auto dns_settings = Application::settings().dns_settings();
+    auto& rs_client = Application::request_server_client();
+    dns_settings.visit(
+        [&](SystemDNS) {
+            rs_client.async_set_use_system_dns();
+        },
+        [&](DNSOverTLS const& dns_over_tls) {
+            dbgln("Setting DNS server to {}:{} with TLS", dns_over_tls.server_address, dns_over_tls.port);
+            rs_client.async_set_dns_server(dns_over_tls.server_address, dns_over_tls.port, true);
+        },
+        [&](DNSOverUDP const& dns_over_udp) {
+            dbgln("Setting DNS server to {}:{}", dns_over_udp.server_address, dns_over_udp.port);
+            rs_client.async_set_dns_server(dns_over_udp.server_address, dns_over_udp.port, false);
+        });
+}
+
 static ErrorOr<LexicalPath> save_screenshot(Gfx::ShareableBitmap const& bitmap)
 {
     if (!bitmap.is_valid())

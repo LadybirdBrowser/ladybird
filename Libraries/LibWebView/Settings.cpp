@@ -41,6 +41,8 @@ static constexpr auto autoplay_key = "autoplay"sv;
 
 static constexpr auto do_not_track_key = "doNotTrack"sv;
 
+static constexpr auto dns_settings_key = "dnsSettings"sv;
+
 static ErrorOr<JsonObject> read_settings_file(StringView settings_path)
 {
     auto settings_file = Core::File::open(settings_path, Core::File::OpenMode::Read);
@@ -134,6 +136,32 @@ Settings Settings::create(Badge<Application>)
     if (auto do_not_track = settings_json.value().get_bool(do_not_track_key); do_not_track.has_value())
         settings.m_do_not_track = *do_not_track ? DoNotTrack::Yes : DoNotTrack::No;
 
+    auto load_dns_settings = [&](DNSSettings& dns_settings, StringView key) {
+        auto dns_settings_object = settings_json.value().get_object(key);
+        if (!dns_settings_object.has_value())
+            return;
+
+        auto mode = dns_settings_object->get_string("mode"sv);
+        if (mode.has_value()) {
+            if (*mode == "system"sv)
+                dns_settings = SystemDNS {};
+            else if (*mode == "custom"sv) {
+                auto server = dns_settings_object->get_string("server"sv);
+                auto port = dns_settings_object->get_u16("port"sv);
+                auto type = dns_settings_object->get_string("type"sv);
+
+                if (server.has_value() && port.has_value() && type.has_value()) {
+                    if (*type == "tls"sv)
+                        dns_settings = DNSOverTLS { .server_address = server->to_byte_string(), .port = *port };
+                    else if (*type == "udp"sv)
+                        dns_settings = DNSOverUDP { .server_address = server->to_byte_string(), .port = *port };
+                }
+            }
+        }
+    };
+
+    load_dns_settings(settings.m_dns_settings, dns_settings_key);
+
     return settings;
 }
 
@@ -202,6 +230,30 @@ JsonValue Settings::serialize_json() const
 
     settings.set(do_not_track_key, m_do_not_track == DoNotTrack::Yes);
 
+    // dnsSettings :: { mode: "system" } | { mode: "custom", server: string, port: u16, type: "udp" | "tls", forciblyEnabled: bool }
+    JsonObject dns_settings;
+    m_dns_settings.visit(
+        [&](SystemDNS) {
+            dns_settings.set("mode"sv, "system"sv);
+        },
+        [&](DNSOverTLS const& dot) {
+            dns_settings.set("mode"sv, "custom"sv);
+            dns_settings.set("server"sv, dot.server_address.view());
+            dns_settings.set("port"sv, dot.port);
+            dns_settings.set("type"sv, "tls"sv);
+            dns_settings.set("local_dnssec"sv, false);
+            dns_settings.set("forciblyEnabled"sv, m_dns_override_by_command_line);
+        },
+        [&](DNSOverUDP const& dns) {
+            dns_settings.set("mode"sv, "custom"sv);
+            dns_settings.set("server"sv, dns.server_address.view());
+            dns_settings.set("port"sv, dns.port);
+            dns_settings.set("type"sv, "udp"sv);
+            dns_settings.set("local_dnssec"sv, false);
+            dns_settings.set("forciblyEnabled"sv, m_dns_override_by_command_line);
+        });
+    settings.set(dns_settings_key, move(dns_settings));
+
     return settings;
 }
 
@@ -214,6 +266,7 @@ void Settings::restore_defaults()
     m_autocomplete_engine.clear();
     m_autoplay = SiteSetting {};
     m_do_not_track = DoNotTrack::No;
+    m_dns_settings = SystemDNS {};
 
     persist_settings();
 
@@ -224,6 +277,7 @@ void Settings::restore_defaults()
         observer.autocomplete_engine_changed();
         observer.autoplay_settings_changed();
         observer.do_not_track_changed();
+        observer.dns_settings_changed();
     }
 }
 
@@ -393,6 +447,18 @@ void Settings::set_do_not_track(DoNotTrack do_not_track)
 
     for (auto& observer : m_observers)
         observer.do_not_track_changed();
+}
+
+void Settings::set_dns_settings(DNSSettings const& dns_settings, bool override_by_command_line)
+{
+    m_dns_settings = dns_settings;
+    m_dns_override_by_command_line = override_by_command_line;
+
+    if (!override_by_command_line)
+        persist_settings();
+
+    for (auto& observer : m_observers)
+        observer.dns_settings_changed();
 }
 
 void Settings::persist_settings()
