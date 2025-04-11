@@ -20,7 +20,7 @@ class History final : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(History);
 
 public:
-    [[nodiscard]] static GC::Ref<History> create(JS::Realm&, DOM::Document&);
+    [[nodiscard]] static GC::Ref<History> create(JS::Realm&);
 
     virtual ~History() override;
 
@@ -41,14 +41,14 @@ public:
     void set_state(JS::Value s) { m_state = s; }
 
 private:
-    History(JS::Realm&, DOM::Document&);
+    History(JS::Realm&);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
+    WebIDL::ExceptionOr<void> delta_traverse(WebIDL::Long delta);
 
     WebIDL::ExceptionOr<void> shared_history_push_replace_state(JS::Value data, Optional<String> const& url, HistoryHandlingBehavior);
 
-    GC::Ref<DOM::Document> m_associated_document;
     JS::Value m_state { JS::js_null() };
 };
 
