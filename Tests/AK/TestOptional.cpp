@@ -67,7 +67,6 @@ TEST_CASE(move_optional)
     y = move(x);
     EXPECT_EQ(y.has_value(), true);
     EXPECT_EQ(y.value(), 3);
-    EXPECT_EQ(x.has_value(), false);
 }
 
 TEST_CASE(optional_rvalue_ref_qualified_getters)
@@ -194,17 +193,44 @@ TEST_CASE(test_constexpr)
     static_assert(!(Optional<int> { 1 } = {}).has_value(), "Assigning a `{}` should clear the Optional, even for scalar types^^");
 }
 
+TEST_CASE(non_trivial_destructor_is_called_on_move_assignment)
+{
+    static int foo_destruction_count = 0;
+
+    struct Foo {
+        Foo() { }
+        Foo(Foo&&) = default;
+        ~Foo()
+        {
+            ++foo_destruction_count;
+        }
+
+        Foo& operator=(Foo&&) = default;
+    };
+    static_assert(!IsTriviallyMoveAssignable<Optional<Foo>>);
+
+    Optional<Foo> foo = Foo {}; // 1. The immediate value needs to be destroyed
+    Optional<Foo> foo2;
+    foo = AK::move(foo2); // 2. The move releases the value, which destroys the moved-from stored value
+
+    EXPECT_EQ(foo_destruction_count, 2);
+
+    // As Optional<Foo> does not trivially move, moved-from values are empty
+    // Ignoring the fact that we are touching a moved from value here
+    EXPECT_EQ(foo.has_value(), false);
+}
+
 TEST_CASE(test_copy_ctor_and_dtor_called)
 {
-#ifdef AK_HAVE_CONDITIONALLY_TRIVIAL
     static_assert(IsTriviallyDestructible<Optional<u8>>);
     static_assert(IsTriviallyCopyable<Optional<u8>>);
     static_assert(IsTriviallyCopyConstructible<Optional<u8>>);
     static_assert(IsTriviallyCopyAssignable<Optional<u8>>);
-    // These can't be trivial as we have to clear the original object.
-    static_assert(!IsTriviallyMoveConstructible<Optional<u8>>);
-    static_assert(!IsTriviallyMoveAssignable<Optional<u8>>);
-#endif
+    static_assert(IsTriviallyMoveConstructible<Optional<u8>>);
+    static_assert(IsTriviallyMoveAssignable<Optional<u8>>);
+    static_assert(IsTriviallyCopyConstructible<Optional<int&>>);
+    static_assert(IsTriviallyCopyAssignable<Optional<int&>>);
+    static_assert(IsTriviallyDestructible<Optional<int&>>);
 
     struct DestructionChecker {
         explicit DestructionChecker(bool& was_destroyed)
@@ -278,12 +304,10 @@ TEST_CASE(test_copy_ctor_and_dtor_called)
     Optional<MoveChecker> move2 = move(move1);
     EXPECT(was_moved);
 
-#ifdef AK_HAVE_CONDITIONALLY_TRIVIAL
     struct NonDestructible {
         ~NonDestructible() = delete;
     };
     static_assert(!IsDestructible<Optional<NonDestructible>>);
-#endif
 }
 
 TEST_CASE(basic_optional_reference)

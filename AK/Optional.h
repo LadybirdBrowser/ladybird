@@ -186,7 +186,7 @@ public:
     }
 
     AK_MAKE_CONDITIONALLY_COPYABLE(Optional, <T>);
-    AK_MAKE_CONDITIONALLY_NONMOVABLE(Optional, <T>);
+    AK_MAKE_CONDITIONALLY_MOVABLE(Optional, <T>);
     AK_MAKE_CONDITIONALLY_DESTRUCTIBLE(Optional, <T>);
 
     ALWAYS_INLINE constexpr Optional(Optional const& other)
@@ -250,13 +250,58 @@ public:
         return *this;
     }
 
+    Optional& operator=(Optional&& other)
+    requires(!IsMoveConstructible<T> || !IsDestructible<T>)
+    = delete;
+
+    // Note: This overload is optional. It exists purely to match the SerenityOS and `std::optional` behaviour.
+    // The only (observable) difference between this overload and the next one is that this one calls the move assignment operator when both `this` and `other` have a value.
+    // The other overload just unconditionally calls the move constructor.
     ALWAYS_INLINE constexpr Optional& operator=(Optional&& other)
+    requires(IsMoveAssignable<T> && IsMoveConstructible<T> && (!IsTriviallyMoveAssignable<T> || !IsTriviallyMoveConstructible<T> || !IsTriviallyDestructible<T>))
+    {
+        if (this != &other) {
+            if (has_value() && other.has_value()) {
+                value() = other.release_value();
+            } else if (has_value()) {
+                value().~T();
+                m_has_value = false;
+            } else if (other.has_value()) {
+                m_has_value = true;
+                construct_at<RemoveConst<T>>(&m_storage, other.release_value());
+            }
+        }
+        return *this;
+    }
+
+    // Allow for move constructible but non-move assignable types, such as those containing const or reference fields,
+    // Note: This overload can also handle move assignable types perfectly fine, but the behaviour would be slightly different.
+    ALWAYS_INLINE constexpr Optional& operator=(Optional&& other)
+    requires(!IsMoveAssignable<T> && IsMoveConstructible<T> && (!IsTriviallyMoveConstructible<T> || !IsTriviallyDestructible<T>))
     {
         if (this != &other) {
             clear();
             m_has_value = other.m_has_value;
             if (other.has_value())
                 construct_at<RemoveConst<T>>(&m_storage, other.release_value());
+        }
+        return *this;
+    }
+
+    template<class U = T>
+    requires(!IsOneOfIgnoringCVReference<U, Optional<T>, OptionalNone> && !(IsSame<U, T> && IsScalar<U>))
+    // Note: We restrict this to `!IsScalar<U>` to prevent undesired overload resolution for `= {}`.
+    ALWAYS_INLINE constexpr Optional<T>& operator=(U&& value)
+    requires(IsConstructible<T, U &&>)
+    {
+        if constexpr (IsAssignable<AddLvalueReference<T>, AddRvalueReference<U>>) {
+            if (m_has_value)
+                m_storage = forward<U>(value);
+            else
+                construct_at<RemoveConst<T>>(&m_storage, forward<U>(value));
+            m_has_value = true;
+        } else {
+            emplace(forward<U>(value));
         }
         return *this;
     }
