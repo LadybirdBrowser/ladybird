@@ -1160,9 +1160,7 @@ bool Navigation::inner_navigate_event_firing_algorithm(
         // 4. Wait for all of promisesList, with the following success steps:
         WebIDL::wait_for_all(
             realm, promises_list, [event, this, api_method_tracker](auto const&) -> void {
-
-                // FIXME: Spec issue: Event's relevant global objects' *associated document*
-                // 1. If event's relevant global object is not fully active, then abort these steps.
+                // 1. If event's relevant global object's associated Document is not fully active, then abort these steps.
                 auto& relevant_global_object = as<HTML::Window>(HTML::relevant_global_object(*event));
                 auto& realm = event->realm();
                 if (!relevant_global_object.associated_document().is_fully_active())
@@ -1197,8 +1195,7 @@ bool Navigation::inner_navigate_event_firing_algorithm(
                 m_transition = nullptr; },
             // and the following failure steps given reason rejectionReason:
             [event, this, api_method_tracker](JS::Value rejection_reason) -> void {
-                // FIXME: Spec issue: Event's relevant global objects' *associated document*
-                // 1. If event's relevant global object is not fully active, then abort these steps.
+                // 1. If event's relevant global object's associated Document is not fully active, then abort these steps.
                 auto& relevant_global_object = as<HTML::Window>(HTML::relevant_global_object(*event));
                 auto& realm = event->realm();
                 if (!relevant_global_object.associated_document().is_fully_active())
