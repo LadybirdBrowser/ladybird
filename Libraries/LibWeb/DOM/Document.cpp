@@ -3797,7 +3797,7 @@ CSS::StyleSheetList const& Document::style_sheets() const
 GC::Ref<HTML::History> Document::history()
 {
     if (!m_history)
-        m_history = HTML::History::create(realm(), *this);
+        m_history = HTML::History::create(realm());
     return *m_history;
 }
 
