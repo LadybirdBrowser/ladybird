@@ -104,6 +104,22 @@ static JS::ThrowCompletionOr<JS::Value> execute_a_function_body(HTML::BrowsingCo
     return completion;
 }
 
+static void fire_completion_when_resolved(GC::Ref<WebIDL::Promise> promise, GC::Ref<HeapTimer> timer, GC::Ref<OnScriptComplete> on_complete)
+{
+    auto reaction_steps = GC::create_function(promise->heap(), [promise, timer, on_complete](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
+        if (timer->is_timed_out())
+            return JS::js_undefined();
+        timer->stop();
+
+        auto const& underlying_promise = as<JS::Promise>(*promise->promise());
+        on_complete->function()({ underlying_promise.state(), underlying_promise.result() });
+
+        return JS::js_undefined();
+    });
+
+    WebIDL::react_to_promise(promise, reaction_steps, reaction_steps);
+}
+
 void execute_script(HTML::BrowsingContext const& browsing_context, String body, GC::RootVector<JS::Value> arguments, Optional<u64> const& timeout_ms, GC::Ref<OnScriptComplete> on_complete)
 {
     auto const* document = browsing_context.active_document();
@@ -151,18 +167,7 @@ void execute_script(HTML::BrowsingContext const& browsing_context, String body, 
     }));
 
     // 9. Wait until promise is resolved, or timer's timeout fired flag is set, whichever occurs first.
-    auto reaction_steps = GC::create_function(vm.heap(), [promise, timer, on_complete](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
-        if (timer->is_timed_out())
-            return JS::js_undefined();
-        timer->stop();
-
-        auto const& underlying_promise = as<JS::Promise>(*promise->promise());
-        on_complete->function()({ underlying_promise.state(), underlying_promise.result() });
-
-        return JS::js_undefined();
-    });
-
-    WebIDL::react_to_promise(promise, reaction_steps, reaction_steps);
+    fire_completion_when_resolved(promise, timer, on_complete);
 }
 
 // https://w3c.github.io/webdriver/#execute-async-script
@@ -187,15 +192,14 @@ void execute_async_script(HTML::BrowsingContext const& browsing_context, String 
     HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
     // 7. Let promise be a new Promise.
-    auto promise_capability = WebIDL::create_promise(realm);
-    GC::Ref promise { as<JS::Promise>(*promise_capability->promise()) };
+    auto promise = WebIDL::create_promise(realm);
 
     // 8. Run the following substeps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&vm, &realm, &browsing_context, timer, promise_capability, promise, body = move(body), arguments = move(arguments)]() mutable {
-        HTML::TemporaryExecutionContext execution_context { realm };
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&vm, &realm, &browsing_context, promise, body = move(body), arguments = move(arguments)]() mutable {
+        HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
         // 1. Let resolvingFunctions be CreateResolvingFunctions(promise).
-        auto resolving_functions = promise->create_resolving_functions();
+        auto resolving_functions = as<JS::Promise>(*promise->promise()).create_resolving_functions();
 
         // 2. Append resolvingFunctions.[[Resolve]] to arguments.
         arguments.append(resolving_functions.resolve);
@@ -208,7 +212,7 @@ void execute_async_script(HTML::BrowsingContext const& browsing_context, String 
         //       In order to preserve legacy behavior, the return value only influences the command if it is a
         //       "thenable"  object or if determining this produces an exception.
         if (script_result.is_throw_completion()) {
-            promise->reject(script_result.throw_completion().value());
+            WebIDL::reject_promise(realm, promise, script_result.error_value());
             return;
         }
 
@@ -221,7 +225,7 @@ void execute_async_script(HTML::BrowsingContext const& browsing_context, String 
 
         // 7. If then.[[Type]] is not normal, then reject promise with value then.[[Value]], and abort these steps.
         if (then.is_throw_completion()) {
-            promise->reject(then.throw_completion().value());
+            WebIDL::reject_promise(realm, promise, then.error_value());
             return;
         }
 
@@ -230,35 +234,26 @@ void execute_async_script(HTML::BrowsingContext const& browsing_context, String 
             return;
 
         // 9. Let scriptPromise be PromiseResolve(Promise, scriptResult.[[Value]]).
-        auto script_promise_or_error = JS::promise_resolve(vm, realm.intrinsics().promise_constructor(), script_result.value());
-        if (script_promise_or_error.is_throw_completion())
-            return;
-        auto& script_promise = static_cast<JS::Promise&>(*script_promise_or_error.value());
+        auto script_promise = WebIDL::create_resolved_promise(realm, script_result.value());
 
-        vm.custom_data()->spin_event_loop_until(GC::create_function(vm.heap(), [timer, &script_promise]() {
-            return timer->is_timed_out() || script_promise.state() != JS::Promise::State::Pending;
-        }));
+        WebIDL::react_to_promise(script_promise,
+            // 10. Upon fulfillment of scriptPromise with value v, resolve promise with value v.
+            GC::create_function(realm.heap(), [&realm, promise](JS::Value value) -> WebIDL::ExceptionOr<JS::Value> {
+                HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+                WebIDL::resolve_promise(realm, promise, value);
+                return JS::js_undefined();
+            }),
 
-        // 10. Upon fulfillment of scriptPromise with value v, resolve promise with value v.
-        if (script_promise.state() == JS::Promise::State::Fulfilled)
-            WebIDL::resolve_promise(realm, promise_capability, script_promise.result());
-
-        // 11. Upon rejection of scriptPromise with value r, reject promise with value r.
-        if (script_promise.state() == JS::Promise::State::Rejected)
-            WebIDL::reject_promise(realm, promise_capability, script_promise.result());
+            // 11. Upon rejection of scriptPromise with value r, reject promise with value r.
+            GC::create_function(realm.heap(), [&realm, promise](JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
+                HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+                WebIDL::reject_promise(realm, promise, reason);
+                return JS::js_undefined();
+            }));
     }));
 
     // 9. Wait until promise is resolved, or timer's timeout fired flag is set, whichever occurs first.
-    auto reaction_steps = GC::create_function(vm.heap(), [promise, timer, on_complete](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
-        if (timer->is_timed_out())
-            return JS::js_undefined();
-        timer->stop();
-
-        on_complete->function()({ promise->state(), promise->result() });
-        return JS::js_undefined();
-    });
-
-    WebIDL::react_to_promise(promise_capability, reaction_steps, reaction_steps);
+    fire_completion_when_resolved(promise, timer, on_complete);
 }
 
 }
