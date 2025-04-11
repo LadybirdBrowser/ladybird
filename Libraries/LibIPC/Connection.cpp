@@ -46,8 +46,10 @@ ErrorOr<void> ConnectionBase::post_message(MessageBuffer buffer)
 {
     // NOTE: If this connection is being shut down, but has not yet been destroyed,
     //       the socket will be closed. Don't try to send more messages.
-    if (!m_transport->is_open())
-        return Error::from_string_literal("Trying to post_message during IPC shutdown");
+    if (!m_transport->is_open()) {
+        dbgln("Trying to post_message during IPC shutdown");
+        return {};
+    }
 
     MUST(buffer.transfer_message(*m_transport));
 
