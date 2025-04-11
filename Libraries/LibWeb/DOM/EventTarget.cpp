@@ -3,6 +3,7 @@
  * Copyright (c) 2022, Luke Wilde <lukew@serenityos.org>
  * Copyright (c) 2024, Glenn Skrzypczak <glenn.skrzypczak@gmail.com>
  * Copyright (c) 2025, Felipe Muñoz Mazur <felipe.munoz.mazur@protonmail.com>
+ * Copyright (c) 2025, Simon Farre <simon.farre.cx@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -39,6 +40,7 @@
 #include <LibWeb/UIEvents/EventNames.h>
 #include <LibWeb/UIEvents/KeyCode.h>
 #include <LibWeb/UIEvents/KeyboardEvent.h>
+#include <LibWeb/UIEvents/PointerEvent.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 
 namespace Web::DOM {
@@ -822,10 +824,19 @@ bool EventTarget::dispatch_event(Event& event)
         if (event.type() == UIEvents::EventNames::mousedown)
             return true;
 
-        // FIXME:
         // pointerdown, provided the event's pointerType is "mouse".
+        if (event.type() == UIEvents::EventNames::pointerdown) {
+            if (auto* pointer_event = as_if<UIEvents::PointerEvent>(&event))
+                return pointer_event->pointer_type() == "mouse";
+        }
+
         // pointerup, provided the event's pointerType is not "mouse".
-        // touchend.
+        if (event.type() == UIEvents::EventNames::pointerup) {
+            if (auto* pointer_event = as_if<UIEvents::PointerEvent>(&event))
+                return pointer_event->pointer_type() != "mouse";
+        }
+
+        // FIXME: touchend
 
         return false;
     };
@@ -848,16 +859,22 @@ bool EventTarget::dispatch_event(Event& event)
         auto unsafe_shared_time = HighResolutionTime::unsafe_shared_current_time();
         auto current_time = HighResolutionTime::relative_high_resolution_time(unsafe_shared_time, realm().global_object());
 
-        if (is<HTML::Window>(this)) {
-            auto* window = static_cast<HTML::Window*>(this);
+        GC::Ptr<HTML::Window> window = [&]() {
+            if (is<HTML::Window>(this))
+                return GC::Ptr { static_cast<HTML::Window*>(this) };
+
+            if (is<DOM::Element>(this))
+                return static_cast<DOM::Element const*>(this)->document().window();
+
+            if (is<DOM::Document>(this))
+                return static_cast<DOM::Document const*>(this)->window();
+
+            return GC::Ptr<HTML::Window> { nullptr };
+        }();
+
+        if (window) {
             window->set_last_activation_timestamp(current_time);
             window->close_watcher_manager()->notify_about_user_activation();
-        } else if (is<DOM::Element>(this)) {
-            auto const* element = static_cast<DOM::Element const*>(this);
-            if (auto window = element->document().window()) {
-                window->set_last_activation_timestamp(current_time);
-                window->close_watcher_manager()->notify_about_user_activation();
-            }
         }
     }
 
