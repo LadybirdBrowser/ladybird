@@ -2013,13 +2013,10 @@ RefPtr<AbstractImageStyleValue> Parser::parse_image_value(TokenStream<ComponentV
     if (url.has_value()) {
         // If the value is a 'url(..)' parse as image, but if it is just a reference 'url(#xx)', leave it alone,
         // so we can parse as URL further on. These URLs are used as references inside SVG documents for masks.
+        // FIXME: Remove this special case once mask-image accepts `<image>`.
         if (!url->url().starts_with('#')) {
-            // FIXME: Stop completing the URL here
-            auto completed_url = complete_url(url->url());
-            if (completed_url.has_value()) {
-                tokens.discard_a_mark();
-                return ImageStyleValue::create(completed_url.release_value());
-            }
+            tokens.discard_a_mark();
+            return ImageStyleValue::create(url.release_value());
         }
         tokens.restore_a_mark();
         return nullptr;

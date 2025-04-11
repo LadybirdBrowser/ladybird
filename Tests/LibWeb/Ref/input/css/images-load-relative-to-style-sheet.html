@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/css/images-load-relative-to-style-sheet-ref.html" />
+<style>
+     @import url("../../data/checkerboard-background.css");
+     #checkerboard {
+          width: 20px;
+          height: 20px;
+          background-size: cover;
+     }
+</style>
+<!-- FIXME: Workaround to ensure CSS background-image is loaded before taking screenshot: https://github.com/LadybirdBrowser/ladybird/issues/3448 -->
+<img style="display:none" src="../../data/2x2checkerboard.png">
+<div id="checkerboard"></div>
