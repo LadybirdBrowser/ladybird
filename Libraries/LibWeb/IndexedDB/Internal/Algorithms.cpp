@@ -1025,4 +1025,49 @@ bool check_that_a_key_could_be_injected_into_a_value(JS::Realm& realm, JS::Value
     return value.is_object() || MUST(value.is_array(realm.vm()));
 }
 
+// https://w3c.github.io/IndexedDB/#fire-an-error-event
+void fire_an_error_event(JS::Realm& realm, GC::Ref<IDBRequest> request)
+{
+    // 1. Let event be the result of creating an event using Event.
+    // 2. Set event’s type attribute to "error".
+    // 3. Set event’s bubbles and cancelable attributes to true.
+    auto event = DOM::Event::create(realm, HTML::EventNames::error, { .bubbles = true, .cancelable = true });
+
+    // 4. Let transaction be request’s transaction.
+    auto transaction = request->transaction();
+
+    // 5. Let legacyOutputDidListenersThrowFlag be initially false.
+    bool legacy_output_did_listeners_throw_flag = false;
+
+    // 6. If transaction’s state is inactive, then set transaction’s state to active.
+    if (transaction->state() == IDBTransaction::TransactionState::Inactive)
+        transaction->set_state(IDBTransaction::TransactionState::Active);
+
+    // 7. Dispatch event at request with legacyOutputDidListenersThrowFlag.
+    DOM::EventDispatcher::dispatch(request, *event, false, legacy_output_did_listeners_throw_flag);
+
+    // 8. If transaction’s state is active, then:
+    if (transaction->state() == IDBTransaction::TransactionState::Active) {
+        // 1. Set transaction’s state to inactive.
+        transaction->set_state(IDBTransaction::TransactionState::Inactive);
+
+        // 2. If legacyOutputDidListenersThrowFlag is true, then run abort a transaction with transaction and a newly created "AbortError" DOMException and terminate these steps.
+        //    This is done even if event’s canceled flag is false.
+        if (legacy_output_did_listeners_throw_flag) {
+            abort_a_transaction(*transaction, WebIDL::AbortError::create(realm, "Error event interrupted by exception"_string));
+            return;
+        }
+
+        // 3. If event’s canceled flag is false, then run abort a transaction using transaction and request's error, and terminate these steps.
+        if (!event->cancelled()) {
+            abort_a_transaction(*transaction, request->error());
+            return;
+        }
+
+        // 4. If transaction’s request list is empty, then run commit a transaction with transaction.
+        if (transaction->request_list().is_empty())
+            commit_a_transaction(realm, *transaction);
+    }
+}
+
 }
