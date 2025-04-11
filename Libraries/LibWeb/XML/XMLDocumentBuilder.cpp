@@ -116,7 +116,7 @@ void XMLDocumentBuilder::element_start(const XML::Name& name, HashMap<XML::Name,
         m_namespace_stack.last().depth += 1;
     }
 
-    auto namespace_ = namespace_for_element(name);
+    auto namespace_ = namespace_for_name(name);
 
     auto qualified_name_or_error = DOM::validate_and_extract(m_document->realm(), namespace_, FlyString(MUST(String::from_byte_string(name))));
 
@@ -152,21 +152,27 @@ void XMLDocumentBuilder::element_start(const XML::Name& name, HashMap<XML::Name,
     }
 
     for (auto const& attribute : attributes) {
-        // https://www.w3.org/TR/2006/REC-xml-names11-20060816/#ns-decl
         if (attribute.key == "xmlns" || attribute.key.starts_with("xmlns:"sv)) {
-            auto name = attribute.key;
-            if (!name.is_one_of("xmlns:"sv, "xmlns:xmlns"sv)) {
-                // The prefix xmlns is used only to declare namespace bindings and is by definition bound to the namespace name http://www.w3.org/2000/xmlns/.
-                MUST(node->set_attribute_ns(Namespace::XMLNS, MUST(String::from_byte_string(name)), MUST(String::from_byte_string(attribute.value))));
-            } else {
-                m_has_error = true;
+            // The prefix xmlns is used only to declare namespace bindings and is by definition bound to the namespace name http://www.w3.org/2000/xmlns/.
+            if (!attribute.key.is_one_of("xmlns:"sv, "xmlns:xmlns"sv)) {
+                if (!node->set_attribute_ns(Namespace::XMLNS, MUST(String::from_byte_string(attribute.key)), MUST(String::from_byte_string(attribute.value))).is_error())
+                    continue;
             }
-        } else if (attribute.key.contains(":"sv)) {
-            if (!attribute.key.starts_with("xml:"sv)) {
-                m_has_error = true;
+            m_has_error = true;
+        } else if (attribute.key.contains(':')) {
+            if (auto ns = namespace_for_name(attribute.key); ns.has_value()) {
+                if (!node->set_attribute_ns(ns.value(), MUST(String::from_byte_string(attribute.key)), MUST(String::from_byte_string(attribute.value))).is_error())
+                    continue;
+            } else if (attribute.key.starts_with("xml:"sv)) {
+                if (auto maybe_error = node->set_attribute_ns(Namespace::XML, MUST(String::from_byte_string(attribute.key)), MUST(String::from_byte_string(attribute.value))); !maybe_error.is_error())
+                    continue;
             }
+            m_has_error = true;
+        } else {
+            if (!node->set_attribute(MUST(String::from_byte_string(attribute.key)), MUST(String::from_byte_string(attribute.value))).is_error())
+                continue;
+            m_has_error = true;
         }
-        MUST(node->set_attribute(MUST(String::from_byte_string(attribute.key)), MUST(String::from_byte_string(attribute.value))));
     }
 
     m_current_node = node.ptr();
@@ -358,10 +364,17 @@ void XMLDocumentBuilder::document_end()
     m_document->set_ready_for_post_load_tasks(true);
 }
 
-Optional<FlyString> XMLDocumentBuilder::namespace_for_element(XML::Name const& element_name)
+Optional<FlyString> XMLDocumentBuilder::namespace_for_name(XML::Name const& name)
 {
-    Optional<ByteString> prefix;
-    if (auto parts = element_name.split_limit(':', 2); parts.size() == 2) {
+    Optional<StringView> prefix;
+
+    auto parts = name.split_limit(':', 3);
+    if (parts.size() > 2)
+        return {};
+
+    if (parts.size() == 2) {
+        if (parts[0].is_empty() || parts[1].is_empty())
+            return {};
         prefix = parts[0];
     }
 
