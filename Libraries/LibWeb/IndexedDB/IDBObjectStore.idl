@@ -11,7 +11,7 @@ interface IDBObjectStore {
     readonly attribute boolean autoIncrement;
     
     [FIXME, NewObject] IDBRequest put(any value, optional any key);
-    [FIXME, NewObject] IDBRequest add(any value, optional any key);
+    [NewObject] IDBRequest add(any value, optional any key);
     [FIXME, NewObject] IDBRequest delete(any query);
     [FIXME, NewObject] IDBRequest clear();
     [FIXME, NewObject] IDBRequest get(any query);
