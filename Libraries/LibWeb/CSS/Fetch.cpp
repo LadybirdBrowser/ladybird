@@ -24,8 +24,13 @@ void fetch_a_style_resource(StyleResourceURL const& url_value, StyleSheetOrDocum
     auto& environment_settings = HTML::relevant_settings_object(sheet_or_document.visit([](auto& it) -> JS::Object& { return it; }));
 
     // 2. Let base be sheet’s stylesheet base URL if it is not null, otherwise environmentSettings’s API base URL. [CSSOM]
+    // AD-HOC: We use the sheet's location if it has no base url. https://github.com/w3c/csswg-drafts/issues/12068
     auto base = sheet_or_document.visit(
-        [&](GC::Ref<CSSStyleSheet> const& sheet) { return sheet->base_url().value_or(environment_settings.api_base_url()); },
+        [&](GC::Ref<CSSStyleSheet> const& sheet) {
+            return sheet->base_url()
+                .value_or_lazy_evaluated_optional([&sheet] { return sheet->location(); })
+                .value_or_lazy_evaluated([&environment_settings] { return environment_settings.api_base_url(); });
+        },
         [](GC::Ref<DOM::Document> const& document) { return document->base_url(); });
 
     // 3. Let parsedUrl be the result of the URL parser steps with urlValue’s url and base. If the algorithm returns an error, return.
