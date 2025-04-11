@@ -3,17 +3,17 @@
  * Copyright (c) 2020, Nico Weber <thakis@chromium.org>
  * Copyright (c) 2021, Petróczi Zoltán <petroczizoltan@tutanota.com>
  * Copyright (c) 2022-2024, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2025, Manuel Zahariev <manuel@duck.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/CharacterTypes.h>
-#include <AK/GenericLexer.h>
 #include <AK/Time.h>
 #include <LibCore/DateTime.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/DateConstructor.h>
+#include <LibJS/Runtime/DateParser.h>
 #include <LibJS/Runtime/DatePrototype.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Temporal/Now.h>
@@ -24,189 +24,13 @@ namespace JS {
 
 GC_DEFINE_ALLOCATOR(DateConstructor);
 
-// 21.4.3.2 Date.parse ( string ), https://tc39.es/ecma262/#sec-date.parse
-static Optional<double> parse_simplified_iso8601(StringView iso_8601)
-{
-    // 21.4.1.15 Date Time String Format, https://tc39.es/ecma262/#sec-date-time-string-format
-    GenericLexer lexer(iso_8601);
-    auto lex_n_digits = [&](size_t n, Optional<int>& out) {
-        if (lexer.tell_remaining() < n)
-            return false;
-        int r = 0;
-        for (size_t i = 0; i < n; ++i) {
-            char ch = lexer.consume();
-            if (!is_ascii_digit(ch))
-                return false;
-            r = 10 * r + ch - '0';
-        }
-        out = r;
-        return true;
-    };
-
-    Optional<int> year;
-    Optional<int> month;
-    Optional<int> day;
-    Optional<int> hours;
-    Optional<int> minutes;
-    Optional<int> seconds;
-    Optional<int> milliseconds;
-    Optional<char> timezone;
-    Optional<int> timezone_hours;
-    Optional<int> timezone_minutes;
-
-    auto lex_year = [&]() {
-        if (lexer.consume_specific('+'))
-            return lex_n_digits(6, year);
-        if (lexer.consume_specific('-')) {
-            Optional<int> absolute_year;
-            if (!lex_n_digits(6, absolute_year))
-                return false;
-            // The representation of the year 0 as -000000 is invalid.
-            if (absolute_year.value() == 0)
-                return false;
-            year = -absolute_year.value();
-            return true;
-        }
-        return lex_n_digits(4, year);
-    };
-    auto lex_month = [&]() { return lex_n_digits(2, month) && *month >= 1 && *month <= 12; };
-    auto lex_day = [&]() { return lex_n_digits(2, day) && *day >= 1 && *day <= 31; };
-    auto lex_date = [&]() { return lex_year() && (!lexer.consume_specific('-') || (lex_month() && (!lexer.consume_specific('-') || lex_day()))); };
-
-    auto lex_hours_minutes = [&](Optional<int>& out_h, Optional<int>& out_m) {
-        Optional<int> h;
-        Optional<int> m;
-        if (lex_n_digits(2, h) && *h >= 0 && *h <= 24 && lexer.consume_specific(':') && lex_n_digits(2, m) && *m >= 0 && *m <= 59) {
-            out_h = move(h);
-            out_m = move(m);
-            return true;
-        }
-        return false;
-    };
-    auto lex_seconds = [&]() { return lex_n_digits(2, seconds) && *seconds >= 0 && *seconds <= 59; };
-    auto lex_milliseconds = [&]() {
-        // Date.parse() is allowed to accept an arbitrary number of implementation-defined formats.
-        // Milliseconds are parsed slightly different as other engines allow effectively any number of digits here.
-        // We require at least one digit and only use the first three.
-
-        auto digits_read = 0;
-        int result = 0;
-        while (!lexer.is_eof() && is_ascii_digit(lexer.peek())) {
-            char ch = lexer.consume();
-            if (digits_read < 3)
-                result = 10 * result + ch - '0';
-
-            ++digits_read;
-        }
-
-        if (digits_read == 0)
-            return false;
-
-        // If we got less than three digits pretend we have trailing zeros.
-        while (digits_read < 3) {
-            result *= 10;
-            ++digits_read;
-        }
-
-        milliseconds = result;
-        return true;
-    };
-    auto lex_seconds_milliseconds = [&]() { return lex_seconds() && (!lexer.consume_specific('.') || lex_milliseconds()); };
-    auto lex_timezone = [&]() {
-        if (lexer.consume_specific('+')) {
-            timezone = '+';
-            return lex_hours_minutes(timezone_hours, timezone_minutes);
-        }
-        if (lexer.consume_specific('-')) {
-            timezone = '-';
-            return lex_hours_minutes(timezone_hours, timezone_minutes);
-        }
-        if (lexer.consume_specific('Z'))
-            timezone = 'Z';
-        return true;
-    };
-    auto lex_time = [&]() { return lex_hours_minutes(hours, minutes) && (!lexer.consume_specific(':') || lex_seconds_milliseconds()) && lex_timezone(); };
-
-    if (!lex_date() || (lexer.consume_specific('T') && !lex_time()) || !lexer.is_eof())
-        return {};
-
-    // We parsed a valid date simplified ISO 8601 string.
-    VERIFY(year.has_value()); // A valid date string always has at least a year.
-    auto time = AK::UnixDateTime::from_unix_time_parts(*year, month.value_or(1), day.value_or(1), hours.value_or(0), minutes.value_or(0), seconds.value_or(0), milliseconds.value_or(0));
-    auto time_ms = static_cast<double>(time.milliseconds_since_epoch());
-
-    // https://tc39.es/ecma262/#sec-date.parse:
-    // "When the UTC offset representation is absent, date-only forms are interpreted as a UTC time and date-time forms are interpreted as a local time."
-    if (!timezone.has_value() && hours.has_value())
-        time_ms = utc_time(time_ms);
-
-    if (timezone == '-')
-        time_ms += *timezone_hours * 3'600'000 + *timezone_minutes * 60'000;
-    else if (timezone == '+')
-        time_ms -= *timezone_hours * 3'600'000 + *timezone_minutes * 60'000;
-
-    return time_clip(time_ms);
-}
-
 static double parse_date_string(VM& vm, StringView date_string)
 {
-    if (date_string.is_empty())
-        return NAN;
+    double result = DateParser::parse(date_string);
+    if (result == NAN)
+        vm.host_unrecognized_date_string(date_string);
 
-    if (auto time = parse_simplified_iso8601(date_string); time.has_value())
-        return *time;
-
-    // Date.parse() is allowed to accept an arbitrary number of implementation-defined formats.
-    // FIXME: Exactly what timezone and which additional formats we should support is unclear.
-    //        Both Chrome and Firefox seem to support "4/17/2019 11:08 PM +0000" with most parts
-    //        being optional, however this is not clearly documented anywhere.
-    static constexpr auto extra_formats = AK::Array {
-        "%a%t%b%t%d%t%Y%t%T%tGMT%z%t(%+)"sv,   // "Tue Nov 07 2023 10:05:55 GMT-0500 (Eastern Standard Time)"
-        "%a,%t%d%t%b%t%Y%t%T%t%Z"sv,           // "Tue, 07 Nov 2023 15:05:55 GMT"
-        "%a%t%b%t%e%t%T%t%z%t%Y"sv,            // "Wed Apr 17 23:08:53 +0000 2019"
-        "%m/%e/%Y"sv,                          // "4/17/2019"
-        "%m/%e/%Y%t%R%t%z"sv,                  // "12/05/2022 10:00 -0800"
-        "%Y/%m/%e%t%R"sv,                      // "2014/11/14 13:05"
-        "%Y-%m-%e%t%R"sv,                      // "2014-11-14 13:05"
-        "%B%t%e,%t%Y"sv,                       // "June 5, 2023"
-        "%B%t%e,%t%Y%t%T"sv,                   // "June 5, 2023 17:00:00"
-        "%b%t%d%t%Y%t%Z"sv,                    // "Jan 01 1970 GMT"
-        "%a%t%b%t%e%t%T%t%Y%t%z"sv,            // "Wed Apr 17 23:08:53 2019 +0000"
-        "%Y-%m-%e%t%R%z"sv,                    // "2021-07-01 03:00Z"
-        "%a,%t%e%t%b%t%Y%t%T%t%z"sv,           // "Wed, 17 Jan 2024 11:36:34 +0000"
-        "%a,%t%d%t%b%t%Y%t%T"sv,               // "Thu, 09 Jan 2025 23:00:00"
-        "%a%t%b%t%e%t%Y%t%T%tGMT%t%x%t(%+)"sv, // "Sun Jan 21 2024 21:11:31 GMT 0100 (Central European Standard Time)"
-        "%Y-%m-%e%t%T"sv,                      // "2024-01-15 00:00:01"
-        "%a%t%b%t%e%t%Y%t%T%t%Z"sv,            // "Tue Nov 07 2023 10:05:55  UTC"
-        "%a%t%b%t%e%t%T%t%Y"sv,                // "Wed Apr 17 23:08:53 2019"
-        "%a%t%b%t%e%t%Y%t%T"sv,                // "Wed Apr 17 2019 23:08:53"
-        "%Y-%m-%eT%T%X%z"sv,                   // "2024-01-26T22:10:11.306+0000"
-        "%m/%e/%Y,%t%T%t%p"sv,                 // "1/27/2024, 9:28:30 AM"
-        "%Y-%m-%e"sv,                          // "2024-1-15"
-        "%Y-%m-%e%t%T%tGMT%z"sv,               // "2024-07-05 00:00:00 GMT-0800"
-        "%d%t%B%t%Y"sv,                        // "01 February 2013"
-        "%d%t%B%t%Y%t%R"sv,                    // "01 February 2013 08:00"
-        "%d%t%b%t%Y"sv,                        // "01 Jan 2000"
-        "%d%t%b%t%Y%t%R"sv,                    // "01 Jan 2000 08:00"
-        "%A,%t%B%t%e,%t%Y,%t%R%t%Z"sv,         // "Tuesday, October 29, 2024, 18:00 UTC"
-        "%A,%t%h%t%d,%t%Y"sv,                  // "Wednesday, Jan 15, 2025"
-        "%B%t%d%t%Y%t%T%t%z"sv,                // "November 19 2024 00:00:00 +0900"
-        "%a%t%b%t%e%t%Y"sv,                    // "Wed Nov 20 2024"
-        "%Y-%m-%d%t%H:%M:%S%z"sv,              // "2024-12-30 03:00:00+0000"
-        "%Y-%m-%d%t%H:%M:%S%X"sv,              // "2025-01-13 00:00:00.000"
-        "%Y-%m-%eT%T%z"sv,                     // "2021-04-21T15:00:00+0000"
-        "%d%t%b%t%Y%t%T%t%Z"sv,                // "1 Jan 2001 00:00:00 GMT"
-        "%b%t%d,%t%Y"sv,                       // "Jan 15, 2025"
-    };
-
-    for (auto const& format : extra_formats) {
-        auto maybe_datetime = Core::DateTime::parse(format, date_string);
-        if (maybe_datetime.has_value())
-            return 1000.0 * maybe_datetime->timestamp();
-    }
-
-    vm.host_unrecognized_date_string(date_string);
-    return NAN;
+    return result;
 }
 
 DateConstructor::DateConstructor(Realm& realm)
