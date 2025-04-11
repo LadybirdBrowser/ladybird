@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>z-index interpolation</title>
+<link rel="help" href="https://www.w3.org/TR/CSS2/visuren.html#z-index">
+<meta name="assert" content="z-index supports animation">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<style>
+body {
+  margin-top: 20px;
+}
+.layer-reference {
+  position: fixed;
+  top: 0px;
+  height: 100vh;
+  width: 50px;
+  background-color: rgba(255, 255, 255, 0.75);
+  font-family: sans-serif;
+  text-align: center;
+  padding-top: 5px;
+  border: 1px solid;
+}
+.parent {
+  z-index: 15;
+}
+.target {
+  position: relative;
+  width: 350px;
+  height: 10px;
+  z-index: -2;
+}
+.actual {
+  background-color: black;
+}
+.expected {
+  background-color: green;
+}
+</style>
+
+<body></body>
+
+<script>
+test_interpolation({
+  property: 'z-index',
+  from: neutralKeyframe,
+  to: '5',
+}, [
+  {at: -0.3, expect: '-4'},
+  {at: 0, expect: '-2'},
+  {at: 0.3, expect: '0'},
+  {at: 0.6, expect: '2'},
+  {at: 1, expect: '5'},
+  {at: 1.5, expect: '9'},
+]);
+
+test_no_interpolation({
+  property: 'z-index',
+  from: 'initial',
+  to: '5',
+});
+
+// We fail to inherit correctly due to style overadjustment: crbug.com/375982
+test_interpolation({
+  property: 'z-index',
+  from: 'inherit',
+  to: '5',
+}, [
+  {at: -0.3, expect: '18'},
+  {at: 0, expect: '15'},
+  {at: 0.3, expect: '12'},
+  {at: 0.6, expect: '9'},
+  {at: 1, expect: '5'},
+  {at: 1.5, expect: '0'},
+]);
+
+test_no_interpolation({
+  property: 'z-index',
+  from: 'unset',
+  to: '5',
+});
+
+test_interpolation({
+  property: 'z-index',
+  from: '-5',
+  to: '5'
+}, [
+  {at: -0.3, expect: '-8'},
+  {at: 0, expect: '-5'},
+  {at: 0.3, expect: '-2'},
+  {at: 0.6, expect: '1'},
+  {at: 1, expect: '5'},
+  {at: 1.5, expect: '10'},
+]);
+
+test_interpolation({
+  property: 'z-index',
+  from: '2',
+  to: '4'
+}, [
+  {at: -0.3, expect: '1'},
+  {at: 0, expect: '2'},
+  {at: 0.3, expect: '3'},
+  {at: 0.6, expect: '3'},
+  {at: 1, expect: '4'},
+  {at: 1.5, expect: '5'},
+]);
+
+test_interpolation({
+  property: 'z-index',
+  from: '-2',
+  to: '-4'
+}, [
+  {at: -0.3, expect: '-1'},
+  {at: 0, expect: '-2'},
+  {at: 0.1, expect: '-2'},
+  {at: 0.3, expect: '-3'},
+  {at: 0.6, expect: '-3'},
+  {at: 1, expect: '-4'},
+  {at: 1.5, expect: '-5'},
+]);
+
+test_no_interpolation({
+  property: 'z-index',
+  from: 'auto',
+  to: '10',
+});
+</script>
