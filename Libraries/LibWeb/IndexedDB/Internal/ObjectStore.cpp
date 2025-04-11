@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/IndexedDB/IDBKeyRange.h>
 #include <LibWeb/IndexedDB/Internal/ObjectStore.h>
 
 namespace Web::IndexedDB {
@@ -33,6 +34,17 @@ void ObjectStore::visit_edges(Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_database);
     visitor.visit(m_indexes);
+
+    for (auto& record : m_records) {
+        visitor.visit(record.key);
+    }
+}
+
+void ObjectStore::remove_records_in_range(GC::Ref<IDBKeyRange> range)
+{
+    m_records.remove_all_matching([&](auto const& record) {
+        return range->is_in_range(record.key);
+    });
 }
 
 }
