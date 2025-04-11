@@ -56,7 +56,7 @@ void DisplayListPlayer::execute_impl(DisplayList& display_list, RefPtr<Gfx::Pain
     };
 
     auto const& commands = display_list.commands();
-    auto const& scroll_state = display_list.scroll_state();
+    auto const& scroll_state = display_list.scroll_state_snapshot();
     auto device_pixels_per_css_pixel = display_list.device_pixels_per_css_pixel();
 
     VERIFY(!m_surfaces.is_empty());
