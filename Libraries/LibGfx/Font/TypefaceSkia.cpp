@@ -56,6 +56,8 @@ ErrorOr<NonnullRefPtr<TypefaceSkia>> TypefaceSkia::load_from_buffer(AK::Readonly
     return adopt_ref(*new TypefaceSkia { make<TypefaceSkia::Impl>(skia_typeface), buffer, ttc_index });
 }
 
+TypefaceSkia::~TypefaceSkia() = default;
+
 SkTypeface const* TypefaceSkia::sk_typeface() const
 {
     return impl().skia_typeface.get();

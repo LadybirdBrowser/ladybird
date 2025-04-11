@@ -291,12 +291,12 @@ ErrorOr<NonnullRefPtr<Gfx::Typeface>> FontLoader::try_load_font()
 
 struct StyleComputer::MatchingFontCandidate {
     FontFaceKey key;
-    Variant<FontLoaderList*, Gfx::Typeface const*> loader_or_typeface;
+    Variant<FontLoaderList*, Gfx::FontDescription> loader_or_description;
 
     [[nodiscard]] RefPtr<Gfx::FontCascadeList const> font_with_point_size(float point_size) const
     {
         RefPtr<Gfx::FontCascadeList> font_list = Gfx::FontCascadeList::create();
-        if (auto* loader_list = loader_or_typeface.get_pointer<FontLoaderList*>(); loader_list) {
+        if (auto const* loader_list = loader_or_description.get_pointer<FontLoaderList*>(); loader_list) {
             for (auto const& loader : **loader_list) {
                 if (auto font = loader->font_with_point_size(point_size); font)
                     font_list->add(*font, loader->unicode_ranges());
@@ -304,7 +304,8 @@ struct StyleComputer::MatchingFontCandidate {
             return font_list;
         }
 
-        font_list->add(loader_or_typeface.get<Gfx::Typeface const*>()->scaled_font(point_size));
+        if (auto typeface = loader_or_description.get<Gfx::FontDescription>().load_typeface(); typeface)
+            font_list->add(typeface->scaled_font(point_size));
         return font_list;
     }
 };
@@ -1790,14 +1791,14 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::font_matching_algorithm(FlyStr
         if (font_key_and_loader.key.family_name.equals_ignoring_ascii_case(family_name))
             matching_family_fonts.empend(font_key_and_loader.key, const_cast<FontLoaderList*>(&font_key_and_loader.value));
     }
-    Gfx::FontDatabase::the().for_each_typeface_with_family_name(family_name, [&](Gfx::Typeface const& typeface) {
+    Gfx::FontDatabase::the().for_each_typeface_with_family_name(family_name, [&](Gfx::FontDescription description) {
         matching_family_fonts.empend(
             FontFaceKey {
-                .family_name = typeface.family(),
-                .weight = static_cast<int>(typeface.weight()),
-                .slope = typeface.slope(),
+                .family_name = description.family,
+                .weight = description.weight,
+                .slope = static_cast<int>(description.slant),
             },
-            &typeface);
+            move(description));
     });
     quick_sort(matching_family_fonts, [](auto const& a, auto const& b) {
         return a.key.weight < b.key.weight;

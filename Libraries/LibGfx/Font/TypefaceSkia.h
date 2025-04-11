@@ -15,6 +15,7 @@ class TypefaceSkia : public Gfx::Typeface {
 
 public:
     static ErrorOr<NonnullRefPtr<TypefaceSkia>> load_from_buffer(ReadonlyBytes, int index = 0);
+    ~TypefaceSkia() override;
 
     virtual u32 glyph_count() const override;
     virtual u16 units_per_em() const override;

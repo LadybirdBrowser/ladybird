@@ -1,4 +1,5 @@
 include(audio)
+include(fontconfig)
 
 set(SOURCES
     BackingStoreManager.cpp

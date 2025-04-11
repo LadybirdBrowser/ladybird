@@ -65,13 +65,21 @@ RefPtr<Gfx::Font> PathFontProvider::get_font(FlyString const& family, float poin
     return nullptr;
 }
 
-void PathFontProvider::for_each_typeface_with_family_name(FlyString const& family_name, Function<void(Typeface const&)> callback)
+void PathFontProvider::for_each_typeface_with_family_name(FlyString const& family_name, Function<void(FontDescription)> callback)
 {
     auto it = m_typeface_by_family.find(family_name);
     if (it == m_typeface_by_family.end())
         return;
     for (auto const& typeface : it->value) {
-        callback(*typeface);
+        callback(FontDescription {
+            .family = typeface->family(),
+            .weight = typeface->weight(),
+            .width = static_cast<FontWidth>(typeface->width()),
+            .slant = static_cast<FontSlant>(typeface->slope()),
+            .load_typeface = [typeface] {
+                return typeface;
+            },
+        });
     }
 }
 

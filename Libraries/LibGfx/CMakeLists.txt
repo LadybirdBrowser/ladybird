@@ -1,5 +1,6 @@
 include(skia)
 include(vulkan)
+include(fontconfig)
 
 set(SOURCES
     AffineTransform.cpp
@@ -123,6 +124,11 @@ else()
     find_package(libjxl REQUIRED)
     find_package(hwy REQUIRED)
     target_link_libraries(LibGfx PRIVATE libjxl::libjxl hwy::hwy)
+endif()
+
+if (HAS_FONTCONFIG)
+    target_sources(LibGfx PRIVATE Font/FontconfigFontProvider.cpp)
+    target_link_libraries(LibGfx PRIVATE Fontconfig::Fontconfig)
 endif()
 
 if (ENABLE_SWIFT)
