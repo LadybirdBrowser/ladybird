@@ -1,0 +1,41 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x600 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x17 children: inline
+      frag 0 from TextNode start: 0, length: 4, rect: [8,8 35.15625x17] baseline: 13.296875
+          "foo "
+      frag 1 from BlockContainer start: 0, length: 0, rect: [43.15625,8 27.640625x17] baseline: 13.296875
+      frag 2 from TextNode start: 0, length: 4, rect: [70.796875,8 35.203125x17] baseline: 13.296875
+          " baz"
+      TextNode <#text>
+      BlockContainer <div> at (43.15625,8) content-size 27.640625x17 inline-block [BFC] children: inline
+        frag 0 from BlockContainer start: 0, length: 0, rect: [43.15625,21 0x0] baseline: 0
+        frag 1 from BlockContainer start: 0, length: 0, rect: [43.15625,8 27.640625x17] baseline: 13.296875
+        frag 2 from BlockContainer start: 0, length: 0, rect: [70.796875,21 0x0] baseline: 0
+        BlockContainer <(anonymous)> at (43.15625,21) content-size 0x0 inline-block [BFC] children: inline
+          TextNode <#text>
+          InlineNode <span>
+            TextNode <#text>
+        BlockContainer <(anonymous)> at (43.15625,8) content-size 27.640625x17 inline-block [BFC] children: not-inline continuation
+          BlockContainer <div> at (43.15625,8) content-size 27.640625x17 children: inline
+            frag 0 from TextNode start: 0, length: 3, rect: [43.15625,8 27.640625x17] baseline: 13.296875
+                "bar"
+            TextNode <#text>
+        BlockContainer <(anonymous)> at (70.796875,21) content-size 0x0 inline-block [BFC] children: inline
+          InlineNode <span> continuation
+            TextNode <#text>
+        TextNode <#text>
+      TextNode <#text>
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x600]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x17]
+      TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer<DIV>) [43.15625,8 27.640625x17]
+        PaintableWithLines (BlockContainer(anonymous)) [43.15625,21 0x0]
+          PaintableWithLines (InlineNode<SPAN>)
+        PaintableWithLines (BlockContainer(anonymous)) [43.15625,8 27.640625x17]
+          PaintableWithLines (BlockContainer<DIV>) [43.15625,8 27.640625x17]
+            TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer(anonymous)) [70.796875,21 0x0]
+          PaintableWithLines (InlineNode<SPAN>)
+      TextPaintable (TextNode<#text>)
