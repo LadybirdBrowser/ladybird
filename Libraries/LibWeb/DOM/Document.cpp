@@ -6296,8 +6296,9 @@ void Document::invalidate_display_list()
 
 RefPtr<Painting::DisplayList> Document::record_display_list(PaintConfig config)
 {
-    if (m_cached_display_list && m_cached_display_list_paint_config == config)
+    if (m_cached_display_list && m_cached_display_list_paint_config == config) {
         return m_cached_display_list;
+    }
 
     auto display_list = Painting::DisplayList::create();
     Painting::DisplayListRecorder display_list_recorder(display_list);
@@ -6354,7 +6355,6 @@ RefPtr<Painting::DisplayList> Document::record_display_list(PaintConfig config)
     viewport_paintable.paint_all_phases(context);
 
     display_list->set_device_pixels_per_css_pixel(page().client().device_pixels_per_css_pixel());
-    display_list->set_scroll_state(viewport_paintable.scroll_state());
 
     m_cached_display_list = display_list;
     m_cached_display_list_paint_config = config;

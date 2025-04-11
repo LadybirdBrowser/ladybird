@@ -1,14 +1,41 @@
 /*
- * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2024-2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #pragma once
 
+#include <AK/NonnullOwnPtr.h>
 #include <LibWeb/Painting/ScrollFrame.h>
 
 namespace Web::Painting {
+
+class ScrollStateSnapshot {
+public:
+    static ScrollStateSnapshot create(Vector<NonnullRefPtr<ScrollFrame>> const& scroll_frames);
+
+    CSSPixelPoint cumulative_offset_for_frame_with_id(size_t id) const
+    {
+        if (id >= entries.size())
+            return {};
+        return entries[id].cumulative_offset;
+    }
+
+    CSSPixelPoint own_offset_for_frame_with_id(size_t id) const
+    {
+        if (id >= entries.size())
+            return {};
+        return entries[id].own_offset;
+    }
+
+private:
+    struct Entry {
+        CSSPixelPoint cumulative_offset;
+        CSSPixelPoint own_offset;
+    };
+    Vector<Entry> entries;
+};
 
 class ScrollState {
 public:
@@ -54,6 +81,11 @@ public:
                 continue;
             callback(scroll_frame);
         }
+    }
+
+    ScrollStateSnapshot snapshot() const
+    {
+        return ScrollStateSnapshot::create(m_scroll_frames);
     }
 
 private:

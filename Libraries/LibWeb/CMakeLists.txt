@@ -691,6 +691,7 @@ set(SOURCES
     Painting/SVGPaintable.cpp
     Painting/SVGSVGPaintable.cpp
     Painting/ScrollFrame.cpp
+    Painting/ScrollState.cpp
     Painting/ShadowPainting.cpp
     Painting/StackingContext.cpp
     Painting/TableBordersPainting.cpp
