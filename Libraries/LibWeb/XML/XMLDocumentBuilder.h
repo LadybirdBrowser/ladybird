@@ -38,7 +38,7 @@ private:
     virtual void comment(StringView data) override;
     virtual void document_end() override;
 
-    Optional<FlyString> namespace_for_element(XML::Name const& element_name);
+    Optional<FlyString> namespace_for_name(XML::Name const&);
 
     GC::Ref<DOM::Document> m_document;
     GC::Ptr<DOM::Node> m_current_node;

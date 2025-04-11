@@ -116,7 +116,7 @@ void XMLDocumentBuilder::element_start(const XML::Name& name, HashMap<XML::Name,
         m_namespace_stack.last().depth += 1;
     }
 
-    auto namespace_ = namespace_for_element(name);
+    auto namespace_ = namespace_for_name(name);
 
     auto qualified_name_or_error = DOM::validate_and_extract(m_document->realm(), namespace_, FlyString(MUST(String::from_byte_string(name))));
 
@@ -358,10 +358,17 @@ void XMLDocumentBuilder::document_end()
     m_document->set_ready_for_post_load_tasks(true);
 }
 
-Optional<FlyString> XMLDocumentBuilder::namespace_for_element(XML::Name const& element_name)
+Optional<FlyString> XMLDocumentBuilder::namespace_for_name(XML::Name const& name)
 {
-    Optional<ByteString> prefix;
-    if (auto parts = element_name.split_limit(':', 2); parts.size() == 2) {
+    Optional<StringView> prefix;
+
+    auto parts = name.split_limit(':', 3);
+    if (parts.size() > 2)
+        return {};
+
+    if (parts.size() == 2) {
+        if (parts[0].is_empty() || parts[1].is_empty())
+            return {};
         prefix = parts[0];
     }
 
