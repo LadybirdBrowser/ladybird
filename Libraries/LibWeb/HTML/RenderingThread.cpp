@@ -57,17 +57,17 @@ void RenderingThread::rendering_thread_loop()
         }
 
         auto painting_surface = painting_surface_for_backing_store(task->backing_store);
-        m_skia_player->execute(*task->display_list, painting_surface);
+        m_skia_player->execute(*task->display_list, task->scroll_state_snapshot, painting_surface);
         m_main_thread_event_loop.deferred_invoke([callback = move(task->callback)] {
             callback();
         });
     }
 }
 
-void RenderingThread::enqueue_rendering_task(NonnullRefPtr<Painting::DisplayList> display_list, NonnullRefPtr<Painting::BackingStore> backing_store, Function<void()>&& callback)
+void RenderingThread::enqueue_rendering_task(NonnullRefPtr<Painting::DisplayList> display_list, Painting::ScrollStateSnapshot&& scroll_state_snapshot, NonnullRefPtr<Painting::BackingStore> backing_store, Function<void()>&& callback)
 {
     Threading::MutexLocker const locker { m_rendering_task_mutex };
-    m_rendering_tasks.enqueue(Task { move(display_list), move(backing_store), move(callback) });
+    m_rendering_tasks.enqueue(Task { move(display_list), move(scroll_state_snapshot), move(backing_store), move(callback) });
     m_rendering_task_ready_wake_condition.signal();
 }
 

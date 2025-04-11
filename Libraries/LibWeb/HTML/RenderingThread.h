@@ -28,7 +28,7 @@ public:
     void start(DisplayListPlayerType);
     void set_skia_player(OwnPtr<Painting::DisplayListPlayerSkia>&& player) { m_skia_player = move(player); }
     void set_skia_backend_context(RefPtr<Gfx::SkiaBackendContext> context) { m_skia_backend_context = move(context); }
-    void enqueue_rendering_task(NonnullRefPtr<Painting::DisplayList>, NonnullRefPtr<Painting::BackingStore>, Function<void()>&& callback);
+    void enqueue_rendering_task(NonnullRefPtr<Painting::DisplayList>, Painting::ScrollStateSnapshot&&, NonnullRefPtr<Painting::BackingStore>, Function<void()>&& callback);
     void clear_bitmap_to_surface_cache();
 
 private:
@@ -46,6 +46,7 @@ private:
 
     struct Task {
         NonnullRefPtr<Painting::DisplayList> display_list;
+        Painting::ScrollStateSnapshot scroll_state_snapshot;
         NonnullRefPtr<Painting::BackingStore> backing_store;
         Function<void()> callback;
     };

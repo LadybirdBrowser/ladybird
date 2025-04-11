@@ -1426,7 +1426,8 @@ RefPtr<Painting::DisplayList> TraversableNavigable::record_display_list(DevicePi
 
 void TraversableNavigable::start_display_list_rendering(NonnullRefPtr<Painting::DisplayList> display_list, NonnullRefPtr<Painting::BackingStore> backing_store, Function<void()>&& callback)
 {
-    m_rendering_thread.enqueue_rendering_task(move(display_list), move(backing_store), move(callback));
+    auto scroll_state_snapshot = active_document()->paintable()->scroll_state().snapshot();
+    m_rendering_thread.enqueue_rendering_task(move(display_list), move(scroll_state_snapshot), move(backing_store), move(callback));
 }
 
 }

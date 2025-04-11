@@ -972,7 +972,8 @@ void DisplayListPlayerSkia::add_mask(AddMask const& command)
 
     auto mask_surface = Gfx::PaintingSurface::create_with_size(m_context, rect.size(), Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
 
-    execute_impl(*command.display_list, mask_surface);
+    ScrollStateSnapshot scroll_state_snapshot;
+    execute_impl(*command.display_list, scroll_state_snapshot, mask_surface);
 
     SkMatrix mask_matrix;
     mask_matrix.setTranslate(rect.x(), rect.y());
@@ -985,7 +986,7 @@ void DisplayListPlayerSkia::paint_nested_display_list(PaintNestedDisplayList con
 {
     auto& canvas = surface().canvas();
     canvas.translate(command.rect.x(), command.rect.y());
-    execute_impl(*command.display_list, {});
+    execute_impl(*command.display_list, command.scroll_state_snapshot, {});
 }
 
 void DisplayListPlayerSkia::paint_scrollbar(PaintScrollBar const& command)
