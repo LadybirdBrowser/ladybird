@@ -800,4 +800,59 @@ WebIDL::ExceptionOr<JS::Value> clone_in_realm(JS::Realm& target_realm, JS::Value
     return clone;
 }
 
+// https://w3c.github.io/IndexedDB/#convert-a-value-to-a-multientry-key
+WebIDL::ExceptionOr<ErrorOr<GC::Ref<Key>>> convert_a_value_to_a_multi_entry_key(JS::Realm& realm, JS::Value value)
+{
+    // 1. If input is an Array exotic object, then:
+    if (value.is_object() && is<JS::Array>(value.as_object())) {
+
+        // 1. Let len be ? ToLength( ? Get(input, "length")).
+        auto len = TRY(length_of_array_like(realm.vm(), value.as_object()));
+
+        // 2. Let seen be a new set containing only input.
+        Vector<JS::Value> seen { value };
+
+        // 3. Let keys be a new empty list.
+        Vector<GC::Root<Key>> keys;
+
+        // 4. Let index be 0.
+        u64 index = 0;
+
+        // 5. While index is less than len:
+        while (index < len) {
+
+            // 1. Let entry be Get(input, index).
+            auto maybe_entry = value.as_object().get(index);
+
+            // 2. If entry is not an abrupt completion, then:
+            if (!maybe_entry.is_error()) {
+
+                // 1. Let key be the result of converting a value to a key with arguments entry and seen.
+                auto completion_key = convert_a_value_to_a_key(realm, maybe_entry.release_value(), seen);
+
+                // 2. If key is not invalid or an abrupt completion, and there is no item in keys equal to key, then append key to keys.
+                if (!completion_key.is_error()) {
+                    auto maybe_key = completion_key.release_value();
+
+                    if (!maybe_key.is_error()) {
+                        auto key = maybe_key.release_value();
+
+                        if (!keys.contains_slow(key))
+                            keys.append(key);
+                    }
+                }
+            }
+
+            // 3. Increase index by 1.
+            index++;
+        }
+
+        // 6. Return a new array key with value set to keys.
+        return Key::create_array(realm, keys);
+    }
+
+    // 2. Otherwise, return the result of converting a value to a key with argument input. Rethrow any exceptions.
+    return convert_a_value_to_a_key(realm, value);
+}
+
 }
