@@ -3490,10 +3490,7 @@ bool Document::allow_focus() const
     if (is_allowed_to_use_feature(PolicyControlledFeature::FocusWithoutUserActivation))
         return true;
 
-    // FIXME: 2. If any of the following are true:
-    //    - target's relevant global object has transient user activation; or
-    //    - target's node navigable's container, if any, is marked as locked for focus,
-    //    then return true.
+    // FIXME: 2. If target's relevant global object has transient activation, then return true.
 
     // 3. Return false.
     return false;
