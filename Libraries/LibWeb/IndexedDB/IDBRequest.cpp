@@ -76,7 +76,7 @@ WebIDL::CallbackType* IDBRequest::onerror()
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbrequest-error
-[[nodiscard]] WebIDL::ExceptionOr<GC::Ptr<WebIDL::DOMException>> IDBRequest::error() const
+[[nodiscard]] GC::Ptr<WebIDL::DOMException> IDBRequest::error() const
 {
     // 1. If this's done flag is false, then throw an "InvalidStateError" DOMException.
     if (!m_done)

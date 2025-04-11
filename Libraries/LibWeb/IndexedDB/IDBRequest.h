@@ -33,7 +33,7 @@ public:
     [[nodiscard]] String uuid() const { return m_uuid; }
 
     [[nodiscard]] Bindings::IDBRequestReadyState ready_state() const;
-    [[nodiscard]] WebIDL::ExceptionOr<GC::Ptr<WebIDL::DOMException>> error() const;
+    [[nodiscard]] GC::Ptr<WebIDL::DOMException> error() const;
     [[nodiscard]] WebIDL::ExceptionOr<JS::Value> result() const;
 
     void set_done(bool done) { m_done = done; }
