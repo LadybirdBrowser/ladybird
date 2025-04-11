@@ -67,6 +67,8 @@ public:
 
     virtual void finalize() override;
 
+    GC::Ptr<Element> fullscreen_element() const;
+
 protected:
     virtual void visit_edges(Cell::Visitor&) override;
 
@@ -99,6 +101,7 @@ private:
     mutable GC::Ptr<WebIDL::ObservableArray> m_adopted_style_sheets;
 
     IntrusiveListNode<ShadowRoot> m_list_node;
+    GC::Ptr<Element> m_fullscreen_element { nullptr };
 
 public:
     using DocumentShadowRootList = IntrusiveList<&ShadowRoot::m_list_node>;
