@@ -21,6 +21,19 @@
 
 namespace Web::WebDriver {
 
+// https://w3ctag.github.io/promises-guide/#should-promise-call
+static GC::Ref<WebIDL::Promise> promise_call(JS::Realm& realm, JS::ThrowCompletionOr<JS::Value> result)
+{
+    // If the developer supplies you with a function that you expect to return a promise, you should also allow it to
+    // return a thenable or non-promise value, or even throw an exception, and treat all these cases as if they had
+    // returned an analogous promise. This should be done by converting the returned value to a promise, as if by using
+    // Promise.resolve(), and catching thrown exceptions and converting those into a promise as if by using
+    // Promise.reject(). We call this "promise-calling" the function.
+    if (result.is_error())
+        return WebIDL::create_rejected_promise(realm, result.error_value());
+    return WebIDL::create_resolved_promise(realm, result.release_value());
+}
+
 // https://w3c.github.io/webdriver/#dfn-execute-a-function-body
 static JS::ThrowCompletionOr<JS::Value> execute_a_function_body(HTML::BrowsingContext const& browsing_context, StringView body, ReadonlySpan<JS::Value> parameters)
 {
@@ -116,21 +129,25 @@ void execute_script(HTML::BrowsingContext const& browsing_context, String body, 
 
     // 8. Run the following substeps in parallel:
     Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, &browsing_context, promise, body = move(body), arguments = move(arguments)]() mutable {
-        HTML::TemporaryExecutionContext execution_context { realm };
+        HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
         // 1. Let scriptPromise be the result of promise-calling execute a function body, with arguments body and arguments.
-        auto script_result = execute_a_function_body(browsing_context, body, move(arguments));
+        auto script_promise = promise_call(realm, execute_a_function_body(browsing_context, body, arguments));
 
-        // FIXME: This isn't right, we should be reacting to this using WebIDL::react_to_promise()
-        // 2. Upon fulfillment of scriptPromise with value v, resolve promise with value v.
-        if (script_result.has_value()) {
-            WebIDL::resolve_promise(realm, promise, script_result.release_value());
-        }
+        WebIDL::react_to_promise(script_promise,
+            // 2. Upon fulfillment of scriptPromise with value v, resolve promise with value v.
+            GC::create_function(realm.heap(), [&realm, promise](JS::Value value) -> WebIDL::ExceptionOr<JS::Value> {
+                HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+                WebIDL::resolve_promise(realm, promise, value);
+                return JS::js_undefined();
+            }),
 
-        // 3. Upon rejection of scriptPromise with value r, reject promise with value r.
-        if (script_result.is_throw_completion()) {
-            WebIDL::reject_promise(realm, promise, script_result.throw_completion().value());
-        }
+            // 3. Upon rejection of scriptPromise with value r, reject promise with value r.
+            GC::create_function(realm.heap(), [&realm, promise](JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
+                HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+                WebIDL::reject_promise(realm, promise, reason);
+                return JS::js_undefined();
+            }));
     }));
 
     // 9. Wait until promise is resolved, or timer's timeout fired flag is set, whichever occurs first.
@@ -139,8 +156,8 @@ void execute_script(HTML::BrowsingContext const& browsing_context, String body, 
             return JS::js_undefined();
         timer->stop();
 
-        auto promise_promise = GC::Ref { as<JS::Promise>(*promise->promise()) };
-        on_complete->function()({ promise_promise->state(), promise_promise->result() });
+        auto const& underlying_promise = as<JS::Promise>(*promise->promise());
+        on_complete->function()({ underlying_promise.state(), underlying_promise.result() });
 
         return JS::js_undefined();
     });
