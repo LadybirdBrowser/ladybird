@@ -19,7 +19,10 @@
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
+#include <LibWeb/IndexedDB/IDBCursor.h>
 #include <LibWeb/IndexedDB/IDBDatabase.h>
+#include <LibWeb/IndexedDB/IDBIndex.h>
+#include <LibWeb/IndexedDB/IDBObjectStore.h>
 #include <LibWeb/IndexedDB/IDBRequest.h>
 #include <LibWeb/IndexedDB/IDBTransaction.h>
 #include <LibWeb/IndexedDB/IDBVersionChangeEvent.h>
@@ -1106,6 +1109,103 @@ void fire_a_success_event(JS::Realm& realm, GC::Ref<IDBRequest> request)
         if (transaction->request_list().is_empty())
             commit_a_transaction(realm, *transaction);
     }
+}
+
+// https://w3c.github.io/IndexedDB/#asynchronously-execute-a-request
+GC::Ref<IDBRequest> asynchronously_execute_a_request(JS::Realm& realm, IDBRequestSource source, GC::Ref<GC::Function<WebIDL::ExceptionOr<JS::Value>()>> operation, GC::Ptr<IDBRequest> request_input)
+{
+    // 1. Let transaction be the transaction associated with source.
+    auto transaction = source.visit(
+        [](Empty) -> GC::Ptr<IDBTransaction> {
+            VERIFY_NOT_REACHED();
+        },
+        [](GC::Ref<IDBObjectStore> object_store) -> GC::Ptr<IDBTransaction> {
+            return object_store->transaction();
+        },
+        [](GC::Ref<IDBIndex> index) -> GC::Ptr<IDBTransaction> {
+            return index->transaction();
+        },
+        [](GC::Ref<IDBCursor> cursor) -> GC::Ptr<IDBTransaction> {
+            return cursor->transaction();
+        });
+
+    // 2. Assert: transaction’s state is active.
+    VERIFY(transaction->state() == IDBTransaction::TransactionState::Active);
+
+    // 3. If request was not given, let request be a new request with source as source.
+    GC::Ref<IDBRequest> request = request_input ? GC::Ref(*request_input) : IDBRequest::create(realm, source);
+
+    // 4. Add request to the end of transaction’s request list.
+    transaction->request_list().append(request);
+
+    // Set the two-way binding. (Missing spec step)
+    // FIXME: https://github.com/w3c/IndexedDB/issues/433
+    request->set_transaction(transaction);
+
+    // 5. Run these steps in parallel:
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, transaction, operation, request]() {
+        HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+
+        // 1. Wait until request is the first item in transaction’s request list that is not processed.
+        HTML::main_thread_event_loop().spin_until(GC::create_function(realm.vm().heap(), [transaction, request]() {
+            if constexpr (IDB_DEBUG) {
+                dbgln("asynchronously_execute_a_request: waiting for step 5.1");
+                dbgln("requests in queue:");
+                for (auto const& item : transaction->request_list()) {
+                    dbgln("[{}] - {} = {}", item == request ? "x"sv : " "sv, item->uuid(), item->processed() ? "processed"sv : "not processed"sv);
+                }
+            }
+
+            return transaction->request_list().all_previous_requests_processed(request);
+        }));
+
+        // 2. Let result be the result of performing operation.
+        auto result = operation->function()();
+
+        // 3. If result is an error and transaction’s state is committing, then run abort a transaction with transaction and result, and terminate these steps.
+        if (result.is_error() && transaction->state() == IDBTransaction::TransactionState::Committing) {
+            abort_a_transaction(*transaction, result.exception().get<GC::Ref<WebIDL::DOMException>>());
+            return;
+        }
+
+        // FIXME: 4. If result is an error, then revert all changes made by operation.
+
+        // 5. Set request’s processed flag to true.
+        request->set_processed(true);
+
+        // 6. Queue a task to run these steps:
+        HTML::queue_a_task(HTML::Task::Source::DatabaseAccess, nullptr, nullptr, GC::create_function(realm.vm().heap(), [&realm, request, result, transaction]() mutable {
+            // 1. Remove request from transaction’s request list.
+            transaction->request_list().remove_first_matching([&request](auto& entry) { return entry.ptr() == request.ptr(); });
+
+            // 2. Set request’s done flag to true.
+            request->set_done(true);
+
+            // 3. If result is an error, then:
+            if (result.is_error()) {
+                // 1. Set request’s result to undefined.
+                request->set_result(JS::js_undefined());
+
+                // 2. Set request’s error to result.
+                request->set_error(result.exception().get<GC::Ref<WebIDL::DOMException>>());
+
+                // 3. Fire an error event at request.
+                fire_an_error_event(realm, request);
+            } else {
+                // 1. Set request’s result to result.
+                request->set_result(result.release_value());
+
+                // 2. Set request’s error to undefined.
+                request->set_error(nullptr);
+
+                // 3. Fire a success event at request.
+                fire_a_success_event(realm, request);
+            }
+        }));
+    }));
+
+    // 6. Return request.
+    return request;
 }
 
 }
