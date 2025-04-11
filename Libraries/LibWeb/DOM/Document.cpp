@@ -2415,13 +2415,13 @@ String const& Document::compat_mode() const
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-documentorshadowroot-activeelement
 void Document::update_active_element()
 {
-    // 1. Let candidate be the DOM anchor of the focused area of this DocumentOrShadowRoot's node document.
+    // 1. Let candidate be this's node document's focused area's DOM anchor.
     Node* candidate = focused_element();
 
-    // 2. Set candidate to the result of retargeting candidate against this DocumentOrShadowRoot.
+    // 2. Set candidate to the result of retargeting candidate against this.
     candidate = as<Node>(retarget(candidate, this));
 
-    // 3. If candidate's root is not this DocumentOrShadowRoot, then return null.
+    // 3. If candidate's root is not this, then return null.
     if (&candidate->root() != this) {
         set_active_element(nullptr);
         return;
@@ -2449,7 +2449,6 @@ void Document::update_active_element()
 
     // 7. Return null.
     set_active_element(nullptr);
-    return;
 }
 
 void Document::set_focused_element(GC::Ptr<Element> element)
@@ -3475,9 +3474,17 @@ DOMImplementation* Document::implementation()
     return m_implementation;
 }
 
+// https://html.spec.whatwg.org/multipage/interaction.html#dom-document-hasfocus
+bool Document::has_focus_for_bindings() const
+{
+    // The Document hasFocus() method steps are to return the result of running the has focus steps given this.
+    return has_focus();
+}
+
+// https://html.spec.whatwg.org/multipage/interaction.html#has-focus-steps
 bool Document::has_focus() const
 {
-    // FIXME: Return whether we actually have focus.
+    // FIXME: Implement this algorithm.
     return true;
 }
 

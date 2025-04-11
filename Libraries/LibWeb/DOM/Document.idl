@@ -33,7 +33,7 @@
 interface Document : Node {
     constructor();
 
-    boolean hasFocus();
+    [ImplementedAs=has_focus_for_bindings] boolean hasFocus();
 
     [PutForwards=href, LegacyUnforgeable] readonly attribute Location? location;
     attribute USVString domain;
