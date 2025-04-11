@@ -426,10 +426,9 @@ ECMAScriptFunctionObject::ECMAScriptFunctionObject(
     , m_shared_data(move(shared_data))
     , m_environment(parent_environment)
     , m_private_environment(private_environment)
-    , m_realm(&prototype.shape().realm())
 {
     if (!is_arrow_function() && kind() == FunctionKind::Normal)
-        unsafe_set_shape(m_realm->intrinsics().normal_function_shape());
+        unsafe_set_shape(realm()->intrinsics().normal_function_shape());
 
     // 15. Set F.[[ScriptOrModule]] to GetActiveScriptOrModule().
     m_script_or_module = vm().get_active_script_or_module();
@@ -643,7 +642,6 @@ void ECMAScriptFunctionObject::visit_edges(Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_environment);
     visitor.visit(m_private_environment);
-    visitor.visit(m_realm);
     visitor.visit(m_home_object);
     visitor.visit(m_name_string);
 
@@ -694,27 +692,13 @@ ThrowCompletionOr<void> ECMAScriptFunctionObject::prepare_for_ordinary_call(Exec
     // 1. Let callerContext be the running execution context.
     // 2. Let calleeContext be a new ECMAScript code execution context.
 
-    // NOTE: In the specification, PrepareForOrdinaryCall "returns" a new callee execution context.
-    // To avoid heap allocations, we put our ExecutionContext objects on the C++ stack instead.
-    // Whoever calls us should put an ExecutionContext on their stack and pass that as the `callee_context`.
-
     // 3. Set the Function of calleeContext to F.
     callee_context.function = this;
     callee_context.function_name = m_name_string;
 
     // 4. Let calleeRealm be F.[[Realm]].
-    auto callee_realm = m_realm;
-    // NOTE: This non-standard fallback is needed until we can guarantee that literally
-    // every function has a realm - especially in LibWeb that's sometimes not the case
-    // when a function is created while no JS is running, as we currently need to rely on
-    // that (:acid2:, I know - see set_event_handler_attribute() for an example).
-    // If there's no 'current realm' either, we can't continue and crash.
-    if (!callee_realm)
-        callee_realm = vm.current_realm();
-    VERIFY(callee_realm);
-
     // 5. Set the Realm of calleeContext to calleeRealm.
-    callee_context.realm = callee_realm;
+    callee_context.realm = realm();
 
     // 6. Set the ScriptOrModule of calleeContext to F.[[ScriptOrModule]].
     callee_context.script_or_module = m_script_or_module;
@@ -758,15 +742,7 @@ void ECMAScriptFunctionObject::ordinary_call_bind_this(ExecutionContext& callee_
         return;
 
     // 3. Let calleeRealm be F.[[Realm]].
-    auto callee_realm = m_realm;
-    // NOTE: This non-standard fallback is needed until we can guarantee that literally
-    // every function has a realm - especially in LibWeb that's sometimes not the case
-    // when a function is created while no JS is running, as we currently need to rely on
-    // that (:acid2:, I know - see set_event_handler_attribute() for an example).
-    // If there's no 'current realm' either, we can't continue and crash.
-    if (!callee_realm)
-        callee_realm = vm.current_realm();
-    VERIFY(callee_realm);
+    auto callee_realm = realm();
 
     // 4. Let localEnv be the LexicalEnvironment of calleeContext.
     auto local_env = callee_context.lexical_environment;
