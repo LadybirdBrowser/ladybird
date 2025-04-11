@@ -30,25 +30,15 @@ void HTMLOrSVGElement<ElementBase>::focus()
     if (!static_cast<ElementBase*>(this)->document().allow_focus())
         return;
 
-    // 2. If the element is marked as locked for focus, then return.
-    if (m_locked_for_focus)
-        return;
-
-    // 3. Mark the element as locked for focus.
-    m_locked_for_focus = true;
-
-    // 4. Run the focusing steps for the element.
+    // 2. Run the focusing steps for the element.
     run_focusing_steps(static_cast<ElementBase*>(this));
 
-    // FIXME: 5. If the value of the focusVisible dictionary member of options is true, or is not present but in an implementation-defined way the user agent determines it would be best to do so, then indicate focus.
+    // FIXME: 3. If the value of the focusVisible dictionary member of options is true, or is not present but in an implementation-defined way the user agent determines it would be best to do so, then indicate focus.
 
-    // FIXME: 6. If the value of the preventScroll dictionary member of options is false,
+    // FIXME: 4. If the value of the preventScroll dictionary member of options is false,
     //           then scroll the element into view with scroll behavior "auto",
     //           block flow direction position set to an implementation-defined value,
     //           and inline base direction position set to an implementation-defined value.
-
-    // 7. Unmark the element as locked for focus.
-    m_locked_for_focus = false;
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-blur
