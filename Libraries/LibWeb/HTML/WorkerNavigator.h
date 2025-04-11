@@ -12,6 +12,7 @@
 #include <LibWeb/HTML/NavigatorDeviceMemory.h>
 #include <LibWeb/HTML/NavigatorID.h>
 #include <LibWeb/HTML/NavigatorLanguage.h>
+#include <LibWeb/HTML/NavigatorLocks.h>
 #include <LibWeb/HTML/NavigatorOnLine.h>
 #include <LibWeb/MediaCapabilitiesAPI/MediaCapabilities.h>
 #include <LibWeb/ServiceWorker/ServiceWorkerContainer.h>
@@ -24,6 +25,7 @@ class WorkerNavigator : public Bindings::PlatformObject
     , public NavigatorDeviceMemoryMixin
     , public NavigatorIDMixin
     , public NavigatorLanguageMixin
+    , public NavigatorLocksMixin
     , public NavigatorOnLineMixin
     , public StorageAPI::NavigatorStorage {
     WEB_PLATFORM_OBJECT(WorkerNavigator, Bindings::PlatformObject);
@@ -46,6 +48,9 @@ private:
 
     // ^StorageAPI::NavigatorStorage
     virtual Bindings::PlatformObject const& this_navigator_storage_object() const override { return *this; }
+
+    // ^NavigatorLocksMixin
+    virtual Bindings::PlatformObject const& this_navigator_locks_object() const override { return *this; }
 
     // https://w3c.github.io/media-capabilities/#dom-workernavigator-mediacapabilities
     GC::Ptr<MediaCapabilitiesAPI::MediaCapabilities> m_media_capabilities;
