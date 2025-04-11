@@ -547,6 +547,7 @@ public:
     void unregister_viewport_client(ViewportClient&);
     void inform_all_viewport_clients_about_the_current_viewport_rect();
 
+    bool has_focus_for_bindings() const;
     bool has_focus() const;
 
     bool allow_focus() const;

@@ -35,9 +35,6 @@ protected:
 
     // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#cryptographicnonce
     String m_cryptographic_nonce;
-
-    // https://html.spec.whatwg.org/multipage/interaction.html#locked-for-focus
-    bool m_locked_for_focus { false };
 };
 
 }
