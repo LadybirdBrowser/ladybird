@@ -759,13 +759,6 @@ void VM::pop_execution_context()
         on_call_stack_emptied();
 }
 
-#if ARCH(X86_64)
-struct [[gnu::packed]] NativeStackFrame {
-    NativeStackFrame* prev;
-    FlatPtr return_address;
-};
-#endif
-
 static RefPtr<CachedSourceRange> get_source_range(ExecutionContext const* context)
 {
     // native function

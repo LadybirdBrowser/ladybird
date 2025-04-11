@@ -2225,7 +2225,7 @@ bool same_value_non_number(Value lhs, Value rhs)
     // 5. If x is a String, then
     if (lhs.is_string()) {
         // a. If x and y are exactly the same sequence of code units (same length and same code units at corresponding indices), return true; otherwise, return false.
-        return lhs.as_string().utf8_string_view() == rhs.as_string().utf8_string_view();
+        return lhs.as_string() == rhs.as_string();
     }
 
     // 3. If x is undefined, return true.

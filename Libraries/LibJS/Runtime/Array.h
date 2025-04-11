@@ -58,10 +58,15 @@ protected:
     explicit Array(Object& prototype);
 
 private:
+    virtual bool is_array_exotic_object() const final { return true; }
+
     ThrowCompletionOr<bool> set_length(PropertyDescriptor const&);
 
     bool m_length_writable { true };
 };
+
+template<>
+inline bool Object::fast_is<Array>() const { return is_array_exotic_object(); }
 
 enum class Holes {
     SkipHoles,
