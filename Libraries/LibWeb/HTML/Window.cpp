@@ -900,7 +900,7 @@ void Window::stop()
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-window-focus
 void Window::focus()
 {
-    // 1. Let current be this Window object's navigable.
+    // 1. Let current be this's navigable.
     auto current = navigable();
 
     // 2. If current is null, then return.
@@ -923,7 +923,7 @@ void Window::focus()
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-window-blur
 void Window::blur()
 {
-    // The blur() method steps are to do nothing.
+    // The Window blur() method steps are to do nothing.
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-window-locationbar
