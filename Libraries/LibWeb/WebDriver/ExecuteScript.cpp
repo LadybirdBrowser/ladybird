@@ -34,6 +34,8 @@ static JS::ThrowCompletionOr<JS::Value> execute_a_function_body(HTML::BrowsingCo
     auto& realm = environment_settings.realm();
     auto& global_scope = realm.global_environment();
 
+    // FIXME: This does not handle scripts which contain `await` statements. It is not as as simple as declaring this
+    //        function async, unfortunately. See: https://github.com/w3c/webdriver/issues/1436
     auto source_text = ByteString::formatted(
         R"~~~(function() {{
             {}
