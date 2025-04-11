@@ -1259,4 +1259,53 @@ void possibly_update_the_key_generator(GC::Ref<ObjectStore> store, GC::Ref<Key> 
         generator.set(value + 1);
 }
 
+// https://w3c.github.io/IndexedDB/#inject-a-key-into-a-value-using-a-key-path
+void inject_a_key_into_a_value_using_a_key_path(JS::Realm& realm, JS::Value value, GC::Ref<Key> key, KeyPath const& key_path)
+{
+    // 1. Let identifiers be the result of strictly splitting keyPath on U+002E FULL STOP characters (.).
+    auto identifiers = MUST(key_path.get<String>().split('.'));
+
+    // 2. Assert: identifiers is not empty.
+    VERIFY(!identifiers.is_empty());
+
+    // 3. Let last be the last item of identifiers and remove it from the list.
+    auto last = identifiers.take_last();
+
+    // 4. For each remaining identifier of identifiers:
+    for (auto const& identifier : identifiers) {
+        // 1. Assert: value is an Object or an Array.
+        VERIFY(value.is_object() || MUST(value.is_array(realm.vm())));
+
+        // 2. Let hop be ! HasOwnProperty(value, identifier).
+        auto hop = MUST(value.as_object().has_own_property(identifier));
+
+        // 3. If hop is false, then:
+        if (!hop) {
+            // 1. Let o be a new Object created as if by the expression ({}).
+            auto o = JS::Object::create(realm, realm.intrinsics().object_prototype());
+
+            // 2. Let status be CreateDataProperty(value, identifier, o).
+            auto status = MUST(value.as_object().create_data_property(identifier, o));
+
+            // 3. Assert: status is true.
+            VERIFY(status);
+        }
+
+        // 4. Let value be ! Get(value, identifier).
+        value = MUST(value.as_object().get(identifier));
+    }
+
+    // 5. Assert: value is an Object or an Array.
+    VERIFY(value.is_object() || MUST(value.is_array(realm.vm())));
+
+    // 6. Let keyValue be the result of converting a key to a value with key.
+    auto key_value = convert_a_key_to_a_value(realm, key);
+
+    // 7. Let status be CreateDataProperty(value, last, keyValue).
+    auto status = MUST(value.as_object().create_data_property(last, key_value));
+
+    // 8. Assert: status is true.
+    VERIFY(status);
+}
+
 }
