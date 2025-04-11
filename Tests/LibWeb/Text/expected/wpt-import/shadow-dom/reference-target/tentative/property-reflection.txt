@@ -1,52 +1,67 @@
 Harness status: OK
 
-Found 1111 tests
+Found 1141 tests
 
-1080 Pass
+1110 Pass
 31 Fail
 Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to button with reference target
+Pass	button.commandForElement has reflection behavior ReflectsHost when pointing to button with reference target
 Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to button with reference target
 Pass	button.form has reflection behavior IsNull when pointing to button with reference target
 Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to input with reference target
+Pass	button.commandForElement has reflection behavior ReflectsHost when pointing to input with reference target
 Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to input with reference target
 Pass	button.form has reflection behavior IsNull when pointing to input with reference target
 Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to meter with reference target
+Pass	button.commandForElement has reflection behavior ReflectsHost when pointing to meter with reference target
 Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to meter with reference target
 Pass	button.form has reflection behavior IsNull when pointing to meter with reference target
 Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to output with reference target
+Pass	button.commandForElement has reflection behavior ReflectsHost when pointing to output with reference target
 Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to output with reference target
 Pass	button.form has reflection behavior IsNull when pointing to output with reference target
 Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to progress with reference target
+Pass	button.commandForElement has reflection behavior ReflectsHost when pointing to progress with reference target
 Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to progress with reference target
 Pass	button.form has reflection behavior IsNull when pointing to progress with reference target
 Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to select with reference target
+Pass	button.commandForElement has reflection behavior ReflectsHost when pointing to select with reference target
 Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to select with reference target
 Pass	button.form has reflection behavior IsNull when pointing to select with reference target
 Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to textarea with reference target
+Pass	button.commandForElement has reflection behavior ReflectsHost when pointing to textarea with reference target
 Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to textarea with reference target
 Pass	button.form has reflection behavior IsNull when pointing to textarea with reference target
 Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to div with reference target
+Pass	button.commandForElement has reflection behavior ReflectsHost when pointing to div with reference target
 Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to div with reference target
 Pass	button.form has reflection behavior IsNull when pointing to div with reference target
 Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to object with reference target
+Pass	button.commandForElement has reflection behavior ReflectsHost when pointing to object with reference target
 Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to object with reference target
 Pass	button.form has reflection behavior IsNull when pointing to object with reference target
 Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to label with reference target
+Pass	button.commandForElement has reflection behavior ReflectsHost when pointing to label with reference target
 Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to label with reference target
 Pass	button.form has reflection behavior IsNull when pointing to label with reference target
 Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to fieldset with reference target
+Pass	button.commandForElement has reflection behavior ReflectsHost when pointing to fieldset with reference target
 Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to fieldset with reference target
 Pass	button.form has reflection behavior IsNull when pointing to fieldset with reference target
 Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to legend with reference target
+Pass	button.commandForElement has reflection behavior ReflectsHost when pointing to legend with reference target
 Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to legend with reference target
 Pass	button.form has reflection behavior IsNull when pointing to legend with reference target
 Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to option with reference target
+Pass	button.commandForElement has reflection behavior ReflectsHost when pointing to option with reference target
 Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to option with reference target
 Pass	button.form has reflection behavior IsNull when pointing to option with reference target
 Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to datalist with reference target
+Pass	button.commandForElement has reflection behavior ReflectsHost when pointing to datalist with reference target
 Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to datalist with reference target
 Pass	button.form has reflection behavior IsNull when pointing to datalist with reference target
 Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to form with reference target
+Pass	button.commandForElement has reflection behavior ReflectsHost when pointing to form with reference target
 Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to form with reference target
 Fail	button.form has reflection behavior ReflectsHost when pointing to form with reference target
 Pass	input.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to button with reference target
@@ -470,48 +485,63 @@ Pass	form.ariaActiveDescendantElement has reflection behavior ReflectsHost when 
 Pass	form.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to datalist with reference target
 Pass	form.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to form with reference target
 Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to button with reference target via options
+Pass	button.commandForElement has reflection behavior ReflectsHost when pointing to button with reference target via options
 Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to button with reference target via options
 Pass	button.form has reflection behavior IsNull when pointing to button with reference target via options
 Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to input with reference target via options
+Pass	button.commandForElement has reflection behavior ReflectsHost when pointing to input with reference target via options
 Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to input with reference target via options
 Pass	button.form has reflection behavior IsNull when pointing to input with reference target via options
 Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to meter with reference target via options
+Pass	button.commandForElement has reflection behavior ReflectsHost when pointing to meter with reference target via options
 Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to meter with reference target via options
 Pass	button.form has reflection behavior IsNull when pointing to meter with reference target via options
 Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to output with reference target via options
+Pass	button.commandForElement has reflection behavior ReflectsHost when pointing to output with reference target via options
 Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to output with reference target via options
 Pass	button.form has reflection behavior IsNull when pointing to output with reference target via options
 Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to progress with reference target via options
+Pass	button.commandForElement has reflection behavior ReflectsHost when pointing to progress with reference target via options
 Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to progress with reference target via options
 Pass	button.form has reflection behavior IsNull when pointing to progress with reference target via options
 Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to select with reference target via options
+Pass	button.commandForElement has reflection behavior ReflectsHost when pointing to select with reference target via options
 Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to select with reference target via options
 Pass	button.form has reflection behavior IsNull when pointing to select with reference target via options
 Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to textarea with reference target via options
+Pass	button.commandForElement has reflection behavior ReflectsHost when pointing to textarea with reference target via options
 Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to textarea with reference target via options
 Pass	button.form has reflection behavior IsNull when pointing to textarea with reference target via options
 Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to div with reference target via options
+Pass	button.commandForElement has reflection behavior ReflectsHost when pointing to div with reference target via options
 Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to div with reference target via options
 Pass	button.form has reflection behavior IsNull when pointing to div with reference target via options
 Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to object with reference target via options
+Pass	button.commandForElement has reflection behavior ReflectsHost when pointing to object with reference target via options
 Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to object with reference target via options
 Pass	button.form has reflection behavior IsNull when pointing to object with reference target via options
 Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to label with reference target via options
+Pass	button.commandForElement has reflection behavior ReflectsHost when pointing to label with reference target via options
 Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to label with reference target via options
 Pass	button.form has reflection behavior IsNull when pointing to label with reference target via options
 Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to fieldset with reference target via options
+Pass	button.commandForElement has reflection behavior ReflectsHost when pointing to fieldset with reference target via options
 Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to fieldset with reference target via options
 Pass	button.form has reflection behavior IsNull when pointing to fieldset with reference target via options
 Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to legend with reference target via options
+Pass	button.commandForElement has reflection behavior ReflectsHost when pointing to legend with reference target via options
 Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to legend with reference target via options
 Pass	button.form has reflection behavior IsNull when pointing to legend with reference target via options
 Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to option with reference target via options
+Pass	button.commandForElement has reflection behavior ReflectsHost when pointing to option with reference target via options
 Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to option with reference target via options
 Pass	button.form has reflection behavior IsNull when pointing to option with reference target via options
 Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to datalist with reference target via options
+Pass	button.commandForElement has reflection behavior ReflectsHost when pointing to datalist with reference target via options
 Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to datalist with reference target via options
 Pass	button.form has reflection behavior IsNull when pointing to datalist with reference target via options
 Pass	button.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to form with reference target via options
+Pass	button.commandForElement has reflection behavior ReflectsHost when pointing to form with reference target via options
 Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to form with reference target via options
 Fail	button.form has reflection behavior ReflectsHost when pointing to form with reference target via options
 Pass	input.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to button with reference target via options
