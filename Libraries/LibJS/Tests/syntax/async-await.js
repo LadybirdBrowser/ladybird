@@ -202,7 +202,7 @@ describe("await cannot be used in class static init blocks", () => {
 });
 
 describe("await thenables", () => {
-    test("async returning a thanable variable without fulfilling", () => {
+    test("async returning a thenable variable without fulfilling", () => {
         let isCalled = false;
         const obj = {
             then() {
@@ -216,7 +216,7 @@ describe("await thenables", () => {
         expect(isCalled).toBe(true);
     });
 
-    test("async returning a thanable variable that fulfills", () => {
+    test("async returning a thenable variable that fulfills", () => {
         let isCalled = false;
         const obj = {
             then(fulfill) {
@@ -240,7 +240,7 @@ describe("await thenables", () => {
         });
         f();
         runQueuedPromiseJobs();
-        expect(isCalled).toBe(true);
+        expect(isCalled).toBe(false);
     });
 
     test("async returning a thenable directly that fulfills", () => {
@@ -253,11 +253,11 @@ describe("await thenables", () => {
         });
         f();
         runQueuedPromiseJobs();
-        expect(isCalled).toBe(true);
+        expect(isCalled).toBe(false);
     });
 });
 
-describe("await observably looks up constructor of Promise objects", () => {
+describe("await observably looks up constructor of Promise objects increasing call count", () => {
     let calls = 0;
     function makeConstructorObservable(promise) {
         Object.defineProperty(promise, "constructor", {
@@ -276,12 +276,31 @@ describe("await observably looks up constructor of Promise objects", () => {
                 resolve();
             })
         );
-        await makeConstructorObservable(new Boolean(true));
-        await makeConstructorObservable({});
-        await makeConstructorObservable(new Number(2));
         try {
             await makeConstructorObservable(Promise.reject(3));
         } catch {}
+    }
+    test();
+    runQueuedPromiseJobs();
+    expect(calls).toBe(3);
+});
+
+describe("await observably looks up constructor of Promise objects not increasing call count", () => {
+    let calls = 0;
+    function makeConstructorObservable(promise) {
+        Object.defineProperty(promise, "constructor", {
+            get() {
+                calls++;
+                return Promise;
+            },
+        });
+        return promise;
+    }
+
+    async function test() {
+        await makeConstructorObservable(new Boolean(true));
+        await makeConstructorObservable({});
+        await makeConstructorObservable(new Number(2));
         try {
             return makeConstructorObservable(Promise.reject(1));
         } catch {
@@ -290,5 +309,5 @@ describe("await observably looks up constructor of Promise objects", () => {
     }
     test();
     runQueuedPromiseJobs();
-    expect(calls).toBe(4);
+    expect(calls).toBe(0);
 });
