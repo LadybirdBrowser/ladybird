@@ -577,6 +577,14 @@ NonnullRefPtr<CSSStyleValue const> interpolate_value(DOM::Element& element, Calc
         return delta >= 0.5f ? to : from;
     }
 
+    static auto interpolate_length_percentage = [](LengthPercentage const& from, LengthPercentage const& to, float delta) -> Optional<LengthPercentage> {
+        if (from.is_length() && to.is_length())
+            return Length::make_px(interpolate_raw(from.length().raw_value(), to.length().raw_value(), delta));
+        if (from.is_percentage() && to.is_percentage())
+            return Percentage(interpolate_raw(from.percentage().value(), to.percentage().value(), delta));
+        return {};
+    };
+
     switch (from.type()) {
     case CSSStyleValue::Type::Angle:
         return AngleStyleValue::create(Angle::make_degrees(interpolate_raw(from.as_angle().angle().to_degrees(), to.as_angle().angle().to_degrees(), delta)));
@@ -585,6 +593,17 @@ NonnullRefPtr<CSSStyleValue const> interpolate_value(DOM::Element& element, Calc
         if (auto node = element.layout_node())
             layout_node = *node;
         return CSSColorValue::create_from_color(interpolate_color(from.to_color(layout_node), to.to_color(layout_node), delta), ColorSyntax::Modern);
+    }
+    case CSSStyleValue::Type::Edge: {
+        auto resolved_from = from.as_edge().resolved_value(calculation_context);
+        auto resolved_to = to.as_edge().resolved_value(calculation_context);
+        auto const& edge = delta >= 0.5f ? resolved_to->edge() : resolved_from->edge();
+        auto const& from_offset = resolved_from->offset();
+        auto const& to_offset = resolved_to->offset();
+        if (auto interpolated_value = interpolate_length_percentage(from_offset, to_offset, delta); interpolated_value.has_value())
+            return EdgeStyleValue::create(edge, *interpolated_value);
+
+        return delta >= 0.5f ? to : from;
     }
     case CSSStyleValue::Type::Integer: {
         // https://drafts.csswg.org/css-values/#combine-integers
