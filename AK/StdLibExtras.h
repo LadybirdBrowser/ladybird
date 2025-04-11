@@ -10,6 +10,7 @@
 #include <AK/Platform.h>
 #include <AK/StdLibExtraDetails.h>
 
+#include <memory>
 #include <utility>
 
 namespace AK {
@@ -31,6 +32,7 @@ requires(AK::Detail::IsIntegral<T>)
 template<typename... Args>
 void compiletime_fail(Args...);
 
+using std::construct_at;
 using std::forward;
 using std::move;
 }

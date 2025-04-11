@@ -18,7 +18,7 @@ class NonCopyable {
     AK_MAKE_DEFAULT_MOVABLE(NonCopyable);
 
 public:
-    NonCopyable() { }
+    constexpr NonCopyable() { }
     ~NonCopyable() = default;
 
     int x { 13 };
@@ -29,7 +29,7 @@ class NonTriviallyCopyable {
     AK_MAKE_DEFAULT_MOVABLE(NonTriviallyCopyable);
 
 public:
-    NonTriviallyCopyable() = default;
+    constexpr NonTriviallyCopyable() = default;
     ~NonTriviallyCopyable() = default;
 
     ByteString x { "13" };
@@ -40,7 +40,7 @@ class TriviallyCopyable {
     AK_MAKE_DEFAULT_MOVABLE(TriviallyCopyable);
 
 public:
-    TriviallyCopyable() = default;
+    constexpr TriviallyCopyable() = default;
     ~TriviallyCopyable() = default;
 
     int x { 13 };
@@ -142,6 +142,56 @@ TEST_CASE(comparison_with_numeric_types)
     EXPECT_EQ(opt1, 7.0);
     EXPECT_EQ(opt1, 7u);
     EXPECT_NE(opt1, -2);
+}
+
+TEST_CASE(test_constexpr)
+{
+    int i = 13;
+    NonCopyable dcm {};
+
+    EXPECT_CONSTEVAL(Optional<int> {});
+    EXPECT_CONSTEVAL(Optional<NonCopyable> {});
+    EXPECT_CONSTEVAL(Optional<int const> {});
+    EXPECT_CONSTEVAL(Optional<NonCopyable const> {});
+    EXPECT_CONSTEVAL(Optional<int&> {});
+    EXPECT_CONSTEVAL(Optional<NonCopyable&> {});
+    EXPECT_CONSTEVAL(Optional<int const&> {});
+    EXPECT_CONSTEVAL(Optional<NonCopyable const&> {});
+
+    EXPECT_CONSTEVAL(Optional<int> { 13 });
+    EXPECT_CONSTEVAL(Optional<NonCopyable> { NonCopyable {} });
+    EXPECT_CONSTEVAL(Optional<int const> { 13 });
+    EXPECT_CONSTEVAL(Optional<NonCopyable const> { NonCopyable {} });
+    EXPECT_CONSTEVAL(Optional<int&> { i });
+    EXPECT_CONSTEVAL(Optional<NonCopyable&> { dcm });
+    EXPECT_CONSTEVAL(Optional<int const&> { 13 });
+    EXPECT_CONSTEVAL(Optional<NonCopyable const&> { NonCopyable {} });
+
+    static_assert(!Optional<int> {}.has_value());
+    static_assert(!Optional<NonCopyable> {}.has_value());
+    static_assert(!Optional<int const> {}.has_value());
+    static_assert(!Optional<NonCopyable const> {}.has_value());
+    static_assert(!Optional<int&> {}.has_value());
+    static_assert(!Optional<NonCopyable&> {}.has_value());
+    static_assert(!Optional<int const&> {}.has_value());
+    static_assert(!Optional<NonCopyable const&> {}.has_value());
+
+    static_assert(Optional<int> { 13 }.has_value());
+    static_assert(Optional<NonCopyable> { NonCopyable {} }.has_value());
+    static_assert(Optional<int const> { 13 }.has_value());
+    static_assert(Optional<NonCopyable const> { NonCopyable {} }.has_value());
+    static_assert(Optional<int&> { i }.has_value());
+    static_assert(Optional<NonCopyable&> { dcm }.has_value());
+    static_assert(Optional<int const&> { 13 }.has_value());
+    static_assert(Optional<NonCopyable const&> { NonCopyable {} }.has_value());
+
+    static_assert(Optional<int> { 13 }.value() == 13);
+    static_assert(Optional<NonCopyable> { NonCopyable {} }.value().x == 13);
+    static_assert(Optional<int const> { 13 }.value() == 13);
+    static_assert(Optional<int const&> { 13 }.value() == 13);
+    static_assert(Optional<NonCopyable const&> { NonCopyable {} }.value().x == 13);
+
+    static_assert(!(Optional<int> { 1 } = {}).has_value(), "Assigning a `{}` should clear the Optional, even for scalar types^^");
 }
 
 TEST_CASE(test_copy_ctor_and_dtor_called)
@@ -292,6 +342,63 @@ TEST_CASE(comparison_reference)
     EXPECT_EQ(opt1, opt2);
     EXPECT_NE(opt1, opt3);
 }
+
+TEST_CASE(uninitialized_constructor)
+{
+    static bool was_constructed = false;
+    struct Internal {
+        Internal() { was_constructed = true; }
+    };
+
+    struct ShouldNotBeDefaultConstructed {
+        bool m_default_constructed { true };
+        Internal m_internal;
+        ShouldNotBeDefaultConstructed() = default;
+        ShouldNotBeDefaultConstructed(bool)
+            : m_default_constructed(false)
+        {
+        }
+    };
+    static_assert(IsConstructible<ShouldNotBeDefaultConstructed>);
+
+    Optional<ShouldNotBeDefaultConstructed> opt;
+    EXPECT(!was_constructed);
+    EXPECT(!opt.has_value());
+
+    opt = ShouldNotBeDefaultConstructed { true };
+    EXPECT(was_constructed);
+    EXPECT(opt.has_value());
+    EXPECT(!opt.value().m_default_constructed);
+}
+
+consteval bool test_constexpr()
+{
+    Optional<int> none;
+    if (none.has_value())
+        return false;
+
+    Optional<int> x;
+    x = 3;
+    if (!x.has_value())
+        return false;
+
+    if (x.value() != 3)
+        return false;
+
+    Optional<int> y;
+    y = x.release_value();
+    if (!y.has_value())
+        return false;
+
+    if (y.value() != 3)
+        return false;
+
+    if (x.has_value())
+        return false;
+
+    return true;
+}
+static_assert(test_constexpr());
 
 template<typename To, typename From>
 struct CheckAssignments;
