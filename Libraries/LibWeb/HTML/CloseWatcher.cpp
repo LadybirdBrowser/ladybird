@@ -65,7 +65,7 @@ WebIDL::ExceptionOr<GC::Ref<CloseWatcher>> CloseWatcher::construct_impl(JS::Real
         }
 
         // 3.2 Add the following steps to options["signal"]:
-        signal->add_abort_algorithm([close_watcher] {
+        (void)signal->add_abort_algorithm([close_watcher] {
             // 3.2.1 Destroy closeWatcher.
             close_watcher->destroy();
         });

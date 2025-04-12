@@ -13,7 +13,6 @@
 #include <LibCore/Socket.h>
 #include <LibIPC/File.h>
 #include <LibIPC/Transport.h>
-#include <LibIPC/UnprocessedFileDescriptors.h>
 #include <LibWeb/Bindings/Transferable.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Forward.h>

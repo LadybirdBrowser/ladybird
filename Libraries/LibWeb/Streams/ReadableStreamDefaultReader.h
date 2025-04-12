@@ -20,6 +20,8 @@ struct ReadableStreamReadResult {
     bool done;
 };
 
+class ReadableStreamPipeTo;
+
 class ReadRequest : public JS::Cell {
     GC_CELL(ReadRequest, JS::Cell);
 
@@ -91,12 +93,13 @@ public:
 
     void read_a_chunk(Fetch::Infrastructure::IncrementalReadLoopReadRequest& read_request);
     void read_all_bytes(GC::Ref<ReadLoopReadRequest::SuccessSteps>, GC::Ref<ReadLoopReadRequest::FailureSteps>);
-    void read_all_chunks(GC::Ref<ReadAllOnChunkSteps>, GC::Ref<ReadAllOnSuccessSteps>, GC::Ref<ReadAllOnFailureSteps>);
     GC::Ref<WebIDL::Promise> read_all_bytes_deprecated();
 
     void release_lock();
 
     SinglyLinkedList<GC::Ref<ReadRequest>>& read_requests() { return m_read_requests; }
+
+    void set_readable_stream_pipe_to_operation(Badge<ReadableStreamPipeTo>, GC::Ptr<JS::Cell> readable_stream_pipe_to_operation) { m_readable_stream_pipe_to_operation = readable_stream_pipe_to_operation; }
 
 private:
     explicit ReadableStreamDefaultReader(JS::Realm&);
@@ -106,6 +109,8 @@ private:
     virtual void visit_edges(Cell::Visitor&) override;
 
     SinglyLinkedList<GC::Ref<ReadRequest>> m_read_requests;
+
+    GC::Ptr<JS::Cell> m_readable_stream_pipe_to_operation;
 };
 
 }

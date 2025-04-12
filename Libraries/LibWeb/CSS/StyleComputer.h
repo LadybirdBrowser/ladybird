@@ -315,7 +315,7 @@ private:
 
 class FontLoader : public ResourceClient {
 public:
-    FontLoader(StyleComputer& style_computer, FlyString family_name, Vector<Gfx::UnicodeRange> unicode_ranges, Vector<URL::URL> urls, ESCAPING Function<void(FontLoader const&)> on_load = {}, ESCAPING Function<void()> on_fail = {});
+    FontLoader(StyleComputer& style_computer, FlyString family_name, Vector<Gfx::UnicodeRange> unicode_ranges, Vector<::URL::URL> urls, ESCAPING Function<void(FontLoader const&)> on_load = {}, ESCAPING Function<void()> on_fail = {});
 
     virtual ~FontLoader() override;
 
@@ -340,7 +340,7 @@ private:
     FlyString m_family_name;
     Vector<Gfx::UnicodeRange> m_unicode_ranges;
     RefPtr<Gfx::Typeface> m_vector_font;
-    Vector<URL::URL> m_urls;
+    Vector<::URL::URL> m_urls;
     Function<void(FontLoader const&)> m_on_load;
     Function<void()> m_on_fail;
 };

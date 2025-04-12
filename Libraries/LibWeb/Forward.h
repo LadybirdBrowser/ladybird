@@ -269,6 +269,7 @@ class TransformationStyleValue;
 class TransitionStyleValue;
 class UnicodeRangeStyleValue;
 class UnresolvedStyleValue;
+class URL;
 class URLStyleValue;
 class VisualViewport;
 
@@ -624,6 +625,7 @@ class IDBOpenDBRequest;
 class IDBRequest;
 class IDBTransaction;
 class IDBVersionChangeEvent;
+class Index;
 class ObjectStore;
 class RequestList;
 }

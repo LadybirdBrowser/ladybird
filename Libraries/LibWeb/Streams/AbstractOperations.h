@@ -40,7 +40,7 @@ size_t readable_stream_get_num_read_requests(ReadableStream const&);
 bool readable_stream_has_byob_reader(ReadableStream const&);
 bool readable_stream_has_default_reader(ReadableStream const&);
 
-GC::Ref<WebIDL::Promise> readable_stream_pipe_to(ReadableStream& source, WritableStream& dest, bool prevent_close, bool prevent_abort, bool prevent_cancel, JS::Value signal = JS::js_undefined());
+GC::Ref<WebIDL::Promise> readable_stream_pipe_to(ReadableStream& source, WritableStream& dest, bool prevent_close, bool prevent_abort, bool prevent_cancel, GC::Ptr<DOM::AbortSignal> signal = {});
 
 WebIDL::ExceptionOr<ReadableStreamPair> readable_stream_tee(JS::Realm&, ReadableStream&, bool clone_for_branch2);
 WebIDL::ExceptionOr<ReadableStreamPair> readable_stream_default_tee(JS::Realm& realm, ReadableStream& stream, bool clone_for_branch2);
@@ -135,6 +135,7 @@ void writable_stream_update_backpressure(WritableStream&, bool backpressure);
 
 GC::Ref<WebIDL::Promise> writable_stream_default_writer_abort(WritableStreamDefaultWriter&, JS::Value reason);
 GC::Ref<WebIDL::Promise> writable_stream_default_writer_close(WritableStreamDefaultWriter&);
+GC::Ref<WebIDL::Promise> writable_stream_default_writer_close_with_error_propagation(WritableStreamDefaultWriter&);
 void writable_stream_default_writer_ensure_closed_promise_rejected(WritableStreamDefaultWriter&, JS::Value error);
 void writable_stream_default_writer_ensure_ready_promise_rejected(WritableStreamDefaultWriter&, JS::Value error);
 Optional<double> writable_stream_default_writer_get_desired_size(WritableStreamDefaultWriter const&);

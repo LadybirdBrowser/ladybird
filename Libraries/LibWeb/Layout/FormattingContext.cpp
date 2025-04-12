@@ -1828,12 +1828,12 @@ CSSPixels FormattingContext::box_baseline(Box const& box) const
 {
     return {
         {
-            -used_values.margin_box_left(),
-            -used_values.margin_box_top(),
+            -max(used_values.margin_box_left(), 0),
+            -max(used_values.margin_box_top(), 0),
         },
         {
-            used_values.margin_box_left() + used_values.content_width() + used_values.margin_box_right(),
-            used_values.margin_box_top() + used_values.content_height() + used_values.margin_box_bottom(),
+            max(used_values.margin_box_left(), 0) + used_values.content_width() + max(used_values.margin_box_right(), 0),
+            max(used_values.margin_box_top(), 0) + used_values.content_height() + max(used_values.margin_box_bottom(), 0),
         },
     };
 }

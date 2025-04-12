@@ -897,10 +897,4 @@ void ProxyObject::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_handler);
 }
 
-FlyString const& ProxyObject::name() const
-{
-    VERIFY(is_function());
-    return static_cast<FunctionObject&>(*m_target).name();
-}
-
 }

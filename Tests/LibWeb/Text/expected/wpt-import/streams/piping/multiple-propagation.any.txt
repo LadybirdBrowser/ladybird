@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 9 tests
+
+9 Pass
+Pass	Piping from an errored readable stream to an erroring writable stream
+Pass	Piping from an errored readable stream to an errored writable stream
+Pass	Piping from an errored readable stream to an erroring writable stream; preventAbort = true
+Pass	Piping from an errored readable stream to an errored writable stream; preventAbort = true
+Pass	Piping from an errored readable stream to a closing writable stream
+Pass	Piping from an errored readable stream to a closed writable stream
+Pass	Piping from a closed readable stream to an erroring writable stream
+Pass	Piping from a closed readable stream to an errored writable stream
+Pass	Piping from a closed readable stream to a closed writable stream

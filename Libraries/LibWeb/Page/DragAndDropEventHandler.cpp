@@ -568,8 +568,8 @@ GC::Ref<HTML::DragEvent> DragAndDropEventHandler::fire_a_drag_and_drop_event(
     if (!name.is_one_of(HTML::EventNames::dragleave, HTML::EventNames::dragend))
         event_init.cancelable = true;
 
-    // 11. Initialize event's mouse and key attributes initialized according to the state of the input devices as they
-    //     would be for user interaction events.
+    // 11. Initialize event's mouse and key attributes according to the state of the input devices as they would be for
+    //     user interaction events.
     event_init.ctrl_key = (modifiers & UIEvents::Mod_Ctrl) != 0;
     event_init.shift_key = (modifiers & UIEvents::Mod_Shift) != 0;
     event_init.alt_key = (modifiers & UIEvents::Mod_Alt) != 0;

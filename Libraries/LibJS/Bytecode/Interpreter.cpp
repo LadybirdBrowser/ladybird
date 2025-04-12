@@ -1212,14 +1212,14 @@ inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value thi
     switch (kind) {
     case Op::PropertyKind::Getter: {
         auto& function = value.as_function();
-        if (function.name().is_empty() && is<ECMAScriptFunctionObject>(function))
+        if (is<ECMAScriptFunctionObject>(function) && static_cast<ECMAScriptFunctionObject const&>(function).name().is_empty())
             static_cast<ECMAScriptFunctionObject*>(&function)->set_name(MUST(String::formatted("get {}", name)));
         object->define_direct_accessor(name, &function, nullptr, Attribute::Configurable | Attribute::Enumerable);
         break;
     }
     case Op::PropertyKind::Setter: {
         auto& function = value.as_function();
-        if (function.name().is_empty() && is<ECMAScriptFunctionObject>(function))
+        if (is<ECMAScriptFunctionObject>(function) && static_cast<ECMAScriptFunctionObject const&>(function).name().is_empty())
             static_cast<ECMAScriptFunctionObject*>(&function)->set_name(MUST(String::formatted("set {}", name)));
         object->define_direct_accessor(name, nullptr, &function, Attribute::Configurable | Attribute::Enumerable);
         break;

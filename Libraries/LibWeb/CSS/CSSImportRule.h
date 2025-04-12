@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2021, the SerenityOS developers.
- * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2022, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -8,9 +8,9 @@
 
 #pragma once
 
-#include <LibURL/URL.h>
 #include <LibWeb/CSS/CSSRule.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
+#include <LibWeb/CSS/URL.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
 
 namespace Web::CSS {
@@ -21,13 +21,12 @@ class CSSImportRule final
     GC_DECLARE_ALLOCATOR(CSSImportRule);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSImportRule> create(URL::URL, DOM::Document&, RefPtr<Supports>, Vector<NonnullRefPtr<MediaQuery>>);
+    [[nodiscard]] static GC::Ref<CSSImportRule> create(JS::Realm&, URL, GC::Ptr<DOM::Document>, RefPtr<Supports>, Vector<NonnullRefPtr<MediaQuery>>);
 
     virtual ~CSSImportRule() = default;
 
-    URL::URL const& url() const { return m_url; }
-    // FIXME: This should return only the specified part of the url. eg, "stuff/foo.css", not "https://example.com/stuff/foo.css".
-    String href() const { return m_url.to_string(); }
+    URL const& url() const { return m_url; }
+    String href() const { return m_url.url(); }
 
     CSSStyleSheet* loaded_style_sheet() { return m_style_sheet; }
     CSSStyleSheet const* loaded_style_sheet() const { return m_style_sheet; }
@@ -37,7 +36,7 @@ public:
     Optional<String> supports_text() const;
 
 private:
-    CSSImportRule(URL::URL, DOM::Document&, RefPtr<Supports>, Vector<NonnullRefPtr<MediaQuery>>);
+    CSSImportRule(JS::Realm&, URL, GC::Ptr<DOM::Document>, RefPtr<Supports>, Vector<NonnullRefPtr<MediaQuery>>);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
@@ -49,7 +48,7 @@ private:
     void fetch();
     void set_style_sheet(GC::Ref<CSSStyleSheet>);
 
-    URL::URL m_url;
+    URL m_url;
     GC::Ptr<DOM::Document> m_document;
     RefPtr<Supports> m_supports;
     Vector<NonnullRefPtr<MediaQuery>> m_media_query_list;

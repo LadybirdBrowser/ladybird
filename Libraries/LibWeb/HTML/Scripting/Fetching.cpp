@@ -152,7 +152,7 @@ WebIDL::ExceptionOr<URL::URL> resolve_module_specifier(Optional<Script&> referri
         }
     }
 
-    // 11. If result is null, set result be the result of resolving an imports match given normalizedSpecifier, asURL, and importMap's imports.
+    // 11. If result is null, set result to the result of resolving an imports match given normalizedSpecifier, asURL, and importMap's imports.
     if (!result.has_value())
         result = TRY(resolve_imports_match(normalized_specifier.to_byte_string(), as_url, import_map.imports()));
 
@@ -836,37 +836,38 @@ void fetch_descendants_of_and_link_a_module_script(JS::Realm& realm,
     // 5. Let loadingPromise be record.LoadRequestedModules(state).
     auto& loading_promise = record->load_requested_modules(state);
 
-    // 6. Upon fulfillment of loadingPromise, run the following steps:
-    WebIDL::upon_fulfillment(loading_promise, GC::create_function(realm.heap(), [&realm, record, &module_script, on_complete](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
-        // 1. Perform record.Link().
-        auto linking_result = record->link(realm.vm());
+    WebIDL::react_to_promise(loading_promise,
+        // 6. Upon fulfillment of loadingPromise, run the following steps:
+        GC::create_function(realm.heap(), [&realm, record, &module_script, on_complete](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
+            // 1. Perform record.Link().
+            auto linking_result = record->link(realm.vm());
 
-        // If this throws an exception, set result's error to rethrow to that exception.
-        if (linking_result.is_throw_completion())
-            module_script.set_error_to_rethrow(linking_result.release_error().value());
+            // If this throws an exception, set result's error to rethrow to that exception.
+            if (linking_result.is_throw_completion())
+                module_script.set_error_to_rethrow(linking_result.release_error().value());
 
-        // 2. Run onComplete given moduleScript.
-        on_complete->function()(module_script);
-
-        return JS::js_undefined();
-    }));
-
-    // 7. Upon rejection of loadingPromise, run the following steps:
-    WebIDL::upon_rejection(loading_promise, GC::create_function(realm.heap(), [state, &module_script, on_complete](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
-        // 1. If state.[[ParseError]] is not null, set moduleScript's error to rethrow to state.[[ParseError]] and run
-        //    onComplete given moduleScript.
-        if (!state->parse_error.is_null()) {
-            module_script.set_error_to_rethrow(state->parse_error);
-
+            // 2. Run onComplete given moduleScript.
             on_complete->function()(module_script);
-        }
-        // 2. Otherwise, run onComplete given null.
-        else {
-            on_complete->function()(nullptr);
-        }
 
-        return JS::js_undefined();
-    }));
+            return JS::js_undefined();
+        }),
+
+        // 7. Upon rejection of loadingPromise, run the following steps:
+        GC::create_function(realm.heap(), [state, &module_script, on_complete](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
+            // 1. If state.[[ParseError]] is not null, set moduleScript's error to rethrow to state.[[ParseError]] and run
+            //    onComplete given moduleScript.
+            if (!state->parse_error.is_null()) {
+                module_script.set_error_to_rethrow(state->parse_error);
+
+                on_complete->function()(module_script);
+            }
+            // 2. Otherwise, run onComplete given null.
+            else {
+                on_complete->function()(nullptr);
+            }
+
+            return JS::js_undefined();
+        }));
 
     clean_up_after_running_callback(realm);
 

@@ -35,18 +35,18 @@ static bool command_is_clip_or_mask(Command const& command)
         });
 }
 
-void DisplayListPlayer::execute(DisplayList& display_list, RefPtr<Gfx::PaintingSurface> surface)
+void DisplayListPlayer::execute(DisplayList& display_list, ScrollStateSnapshot const& scroll_state, RefPtr<Gfx::PaintingSurface> surface)
 {
     if (surface) {
         surface->lock_context();
     }
-    execute_impl(display_list, surface);
+    execute_impl(display_list, scroll_state, surface);
     if (surface) {
         surface->unlock_context();
     }
 }
 
-void DisplayListPlayer::execute_impl(DisplayList& display_list, RefPtr<Gfx::PaintingSurface> surface)
+void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnapshot const& scroll_state, RefPtr<Gfx::PaintingSurface> surface)
 {
     if (surface)
         m_surfaces.append(*surface);
@@ -56,7 +56,6 @@ void DisplayListPlayer::execute_impl(DisplayList& display_list, RefPtr<Gfx::Pain
     };
 
     auto const& commands = display_list.commands();
-    auto const& scroll_state = display_list.scroll_state();
     auto device_pixels_per_css_pixel = display_list.device_pixels_per_css_pixel();
 
     VERIFY(!m_surfaces.is_empty());

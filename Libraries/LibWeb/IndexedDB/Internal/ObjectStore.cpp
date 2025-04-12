@@ -32,6 +32,7 @@ void ObjectStore::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_database);
+    visitor.visit(m_indexes);
 }
 
 }

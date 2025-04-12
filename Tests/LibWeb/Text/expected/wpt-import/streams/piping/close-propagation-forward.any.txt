@@ -1,0 +1,35 @@
+Harness status: OK
+
+Found 30 tests
+
+30 Pass
+Pass	Closing must be propagated forward: starts closed; preventClose omitted; fulfilled close promise
+Pass	Closing must be propagated forward: starts closed; preventClose omitted; rejected close promise
+Pass	Closing must be propagated forward: starts closed; preventClose = undefined (falsy); fulfilled close promise
+Pass	Closing must be propagated forward: starts closed; preventClose = null (falsy); fulfilled close promise
+Pass	Closing must be propagated forward: starts closed; preventClose = false (falsy); fulfilled close promise
+Pass	Closing must be propagated forward: starts closed; preventClose = 0 (falsy); fulfilled close promise
+Pass	Closing must be propagated forward: starts closed; preventClose = -0 (falsy); fulfilled close promise
+Pass	Closing must be propagated forward: starts closed; preventClose = NaN (falsy); fulfilled close promise
+Pass	Closing must be propagated forward: starts closed; preventClose =  (falsy); fulfilled close promise
+Pass	Closing must be propagated forward: starts closed; preventClose = true (truthy)
+Pass	Closing must be propagated forward: starts closed; preventClose = a (truthy)
+Pass	Closing must be propagated forward: starts closed; preventClose = 1 (truthy)
+Pass	Closing must be propagated forward: starts closed; preventClose = Symbol() (truthy)
+Pass	Closing must be propagated forward: starts closed; preventClose = [object Object] (truthy)
+Pass	Closing must be propagated forward: starts closed; preventClose = true, preventAbort = true
+Pass	Closing must be propagated forward: starts closed; preventClose = true, preventAbort = true, preventCancel = true
+Pass	Closing must be propagated forward: becomes closed asynchronously; preventClose omitted; fulfilled close promise
+Pass	Closing must be propagated forward: becomes closed asynchronously; preventClose omitted; rejected close promise
+Pass	Closing must be propagated forward: becomes closed asynchronously; preventClose = true
+Pass	Closing must be propagated forward: becomes closed asynchronously; dest never desires chunks; preventClose omitted; fulfilled close promise
+Pass	Closing must be propagated forward: becomes closed asynchronously; dest never desires chunks; preventClose omitted; rejected close promise
+Pass	Closing must be propagated forward: becomes closed asynchronously; dest never desires chunks; preventClose = true
+Pass	Closing must be propagated forward: becomes closed after one chunk; preventClose omitted; fulfilled close promise
+Pass	Closing must be propagated forward: becomes closed after one chunk; preventClose omitted; rejected close promise
+Pass	Closing must be propagated forward: becomes closed after one chunk; preventClose = true
+Pass	Closing must be propagated forward: shutdown must not occur until the final write completes
+Pass	Closing must be propagated forward: shutdown must not occur until the final write completes; preventClose = true
+Pass	Closing must be propagated forward: shutdown must not occur until the final write completes; becomes closed after first write
+Pass	Closing must be propagated forward: shutdown must not occur until the final write completes; becomes closed after first write; preventClose = true
+Pass	Closing must be propagated forward: erroring the writable while flushing pending writes should error pipeTo

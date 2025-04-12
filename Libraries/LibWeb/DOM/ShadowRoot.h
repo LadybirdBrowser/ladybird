@@ -97,6 +97,11 @@ private:
 
     GC::Ptr<CSS::StyleSheetList> m_style_sheets;
     mutable GC::Ptr<WebIDL::ObservableArray> m_adopted_style_sheets;
+
+    IntrusiveListNode<ShadowRoot> m_list_node;
+
+public:
+    using DocumentShadowRootList = IntrusiveList<&ShadowRoot::m_list_node>;
 };
 
 template<>

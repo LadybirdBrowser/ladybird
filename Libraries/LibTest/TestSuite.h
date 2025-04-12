@@ -9,6 +9,7 @@
 
 #include <AK/ByteString.h>
 #include <AK/Function.h>
+#include <AK/Time.h>
 #include <AK/Vector.h>
 #include <LibTest/Macros.h>
 #include <LibTest/Randomized/RandomnessSource.h>
@@ -65,8 +66,8 @@ public:
 private:
     static TestSuite* s_global;
     Vector<NonnullRefPtr<TestCase>> m_cases;
-    u64 m_testtime = 0;
-    u64 m_benchtime = 0;
+    AK::Duration m_test_time;
+    AK::Duration m_bench_time;
     ByteString m_suite_name;
     u64 m_benchmark_repetitions = 1;
     u64 m_randomized_runs = 100;

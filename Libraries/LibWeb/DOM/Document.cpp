@@ -584,7 +584,8 @@ void Document::visit_edges(Cell::Visitor& visitor)
 
     visitor.visit(m_adopted_style_sheets);
 
-    visitor.visit(m_shadow_roots);
+    for (auto& shadow_root : m_shadow_roots)
+        visitor.visit(shadow_root);
 
     visitor.visit(m_top_layer_elements);
     visitor.visit(m_top_layer_pending_removals);
@@ -5879,7 +5880,7 @@ void Document::for_each_active_css_style_sheet(Function<void(CSS::CSSStyleSheet&
 
 static Optional<CSS::CSSStyleSheet&> find_style_sheet_with_url(String const& url, CSS::CSSStyleSheet& style_sheet)
 {
-    if (style_sheet.location() == url)
+    if (style_sheet.href() == url)
         return style_sheet;
 
     for (auto& import_rule : style_sheet.import_rules()) {
@@ -5953,9 +5954,7 @@ void Document::register_shadow_root(Badge<DOM::ShadowRoot>, DOM::ShadowRoot& sha
 
 void Document::unregister_shadow_root(Badge<DOM::ShadowRoot>, DOM::ShadowRoot& shadow_root)
 {
-    m_shadow_roots.remove_all_matching([&](auto& item) {
-        return item.ptr() == &shadow_root;
-    });
+    m_shadow_roots.remove(shadow_root);
 }
 
 void Document::for_each_shadow_root(Function<void(DOM::ShadowRoot&)>&& callback)
@@ -5967,7 +5966,7 @@ void Document::for_each_shadow_root(Function<void(DOM::ShadowRoot&)>&& callback)
 void Document::for_each_shadow_root(Function<void(DOM::ShadowRoot&)>&& callback) const
 {
     for (auto& shadow_root : m_shadow_roots)
-        callback(shadow_root);
+        callback(const_cast<ShadowRoot&>(shadow_root));
 }
 
 bool Document::is_decoded_svg() const
@@ -6297,8 +6296,9 @@ void Document::invalidate_display_list()
 
 RefPtr<Painting::DisplayList> Document::record_display_list(PaintConfig config)
 {
-    if (m_cached_display_list && m_cached_display_list_paint_config == config)
+    if (m_cached_display_list && m_cached_display_list_paint_config == config) {
         return m_cached_display_list;
+    }
 
     auto display_list = Painting::DisplayList::create();
     Painting::DisplayListRecorder display_list_recorder(display_list);
@@ -6355,7 +6355,6 @@ RefPtr<Painting::DisplayList> Document::record_display_list(PaintConfig config)
     viewport_paintable.paint_all_phases(context);
 
     display_list->set_device_pixels_per_css_pixel(page().client().device_pixels_per_css_pixel());
-    display_list->set_scroll_state(viewport_paintable.scroll_state());
 
     m_cached_display_list = display_list;
     m_cached_display_list_paint_config = config;

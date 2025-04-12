@@ -197,11 +197,11 @@ void HTMLMeterElement::create_shadow_tree_if_needed()
     set_shadow_root(shadow_root);
 
     auto meter_bar_element = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
-    meter_bar_element->set_use_pseudo_element(CSS::PseudoElement::Track);
+    meter_bar_element->set_use_pseudo_element(CSS::PseudoElement::SliderTrack);
     MUST(shadow_root->append_child(*meter_bar_element));
 
     m_meter_value_element = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
-    m_meter_value_element->set_use_pseudo_element(CSS::PseudoElement::Fill);
+    m_meter_value_element->set_use_pseudo_element(CSS::PseudoElement::SliderFill);
     MUST(meter_bar_element->append_child(*m_meter_value_element));
     update_meter_value_element();
 }

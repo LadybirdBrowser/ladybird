@@ -1121,7 +1121,7 @@ WebIDL::ExceptionOr<bool> HTMLElement::check_popover_validity(ExpectedToBeShowin
     // - ignoreDomState is false and element is not connected;
     // - element's node document is not fully active;
     // - ignoreDomState is false and expectedDocument is not null and element's node document is not expectedDocument;
-    // - element is a dialog element and its is modal flage is set to true; or
+    // - element is a dialog element and its is modal flag is set to true; or
     // - FIXME: element's fullscreen flag is set,
     // then:
     // 3.1 If throwExceptions is true, then throw an "InvalidStateError" DOMException.

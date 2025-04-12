@@ -6,6 +6,7 @@
 
 #include <LibWeb/Bindings/IDBDatabasePrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/IndexedDB/IDBDatabase.h>
 #include <LibWeb/IndexedDB/IDBObjectStore.h>
@@ -20,6 +21,7 @@ IDBDatabase::IDBDatabase(JS::Realm& realm, Database& db)
     , m_name(db.name())
     , m_associated_database(db)
 {
+    m_uuid = MUST(Crypto::generate_random_uuid());
     db.associate(*this);
     m_object_store_set = Vector<GC::Ref<ObjectStore>> { db.object_stores() };
 }
@@ -42,6 +44,7 @@ void IDBDatabase::visit_edges(Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_object_store_set);
     visitor.visit(m_associated_database);
+    visitor.visit(m_transactions);
 }
 
 void IDBDatabase::set_onabort(WebIDL::CallbackType* event_handler)
@@ -134,6 +137,9 @@ WebIDL::ExceptionOr<GC::Ref<IDBObjectStore>> IDBDatabase::create_object_store(St
     //    If keyPath is not null, set the created object store's key path to keyPath.
     auto object_store = ObjectStore::create(realm, database, name, auto_increment, key_path);
 
+    // AD-HOC: Add newly created object store to this's object store set.
+    add_to_object_store_set(object_store);
+
     // 10. Return a new object store handle associated with store and transaction.
     return IDBObjectStore::create(realm, object_store, *transaction);
 }
@@ -170,7 +176,7 @@ WebIDL::ExceptionOr<void> IDBDatabase::delete_object_store(String const& name)
     // 4. Let store be the object store named name in database, or throw a "NotFoundError" DOMException if none.
     auto store = database->object_store_with_name(name);
     if (!store)
-        return WebIDL::NotFoundError::create(realm, "Object store not found"_string);
+        return WebIDL::NotFoundError::create(realm, "Object store not found while trying to delete"_string);
 
     // 5. Remove store from this's object store set.
     this->remove_from_object_store_set(*store);

@@ -24,7 +24,7 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSStyleSheet);
 
-GC::Ref<CSSStyleSheet> CSSStyleSheet::create(JS::Realm& realm, CSSRuleList& rules, MediaList& media, Optional<URL::URL> location)
+GC::Ref<CSSStyleSheet> CSSStyleSheet::create(JS::Realm& realm, CSSRuleList& rules, MediaList& media, Optional<::URL::URL> location)
 {
     return realm.create<CSSStyleSheet>(realm, rules, media, move(location));
 }
@@ -37,16 +37,16 @@ WebIDL::ExceptionOr<GC::Ref<CSSStyleSheet>> CSSStyleSheet::construct_impl(JS::Re
 
     // 2. Set sheet’s location to the base URL of the associated Document for the current principal global object.
     auto associated_document = as<HTML::Window>(HTML::current_principal_global_object()).document();
-    sheet->set_location(associated_document->base_url().to_string());
+    sheet->set_location(associated_document->base_url());
 
     // 3. Set sheet’s stylesheet base URL to the baseURL attribute value from options.
     if (options.has_value() && options->base_url.has_value()) {
-        Optional<URL::URL> sheet_location_url;
+        Optional<::URL::URL> sheet_location_url;
         if (sheet->location().has_value())
-            sheet_location_url = URL::Parser::basic_parse(sheet->location().release_value());
+            sheet_location_url = sheet->location().release_value();
 
         // AD-HOC: This isn't explicitly mentioned in the specification, but multiple modern browsers do this.
-        Optional<URL::URL> url = sheet->location().has_value() ? sheet_location_url->complete_url(options->base_url.value()) : URL::Parser::basic_parse(options->base_url.value());
+        Optional<::URL::URL> url = sheet->location().has_value() ? sheet_location_url->complete_url(options->base_url.value()) : ::URL::Parser::basic_parse(options->base_url.value());
         if (!url.has_value())
             return WebIDL::NotAllowedError::create(realm, "Constructed style sheets must have a valid base URL"_string);
 
@@ -95,12 +95,12 @@ WebIDL::ExceptionOr<GC::Ref<CSSStyleSheet>> CSSStyleSheet::construct_impl(JS::Re
     return sheet;
 }
 
-CSSStyleSheet::CSSStyleSheet(JS::Realm& realm, CSSRuleList& rules, MediaList& media, Optional<URL::URL> location)
+CSSStyleSheet::CSSStyleSheet(JS::Realm& realm, CSSRuleList& rules, MediaList& media, Optional<::URL::URL> location)
     : StyleSheet(realm, media)
     , m_rules(&rules)
 {
     if (location.has_value())
-        set_location(location->to_string());
+        set_location(move(location));
 
     for (auto& rule : *m_rules)
         rule->set_parent_style_sheet(this);
@@ -140,8 +140,7 @@ WebIDL::ExceptionOr<unsigned> CSSStyleSheet::insert_rule(StringView rule, unsign
         return WebIDL::NotAllowedError::create(realm(), "Can't call insert_rule() on non-modifiable stylesheets."_string);
 
     // 3. Let parsed rule be the return value of invoking parse a rule with rule.
-    auto context = !m_owning_documents_or_shadow_roots.is_empty() ? Parser::ParsingParams { (*m_owning_documents_or_shadow_roots.begin())->document() } : Parser::ParsingParams { realm() };
-    auto parsed_rule = parse_css_rule(context, rule);
+    auto parsed_rule = parse_css_rule(make_parsing_params(), rule);
 
     // 4. If parsed rule is a syntax error, return parsed rule.
     if (!parsed_rule)
@@ -208,8 +207,7 @@ GC::Ref<WebIDL::Promise> CSSStyleSheet::replace(String text)
         HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
         // 1. Let rules be the result of running parse a stylesheet’s contents from text.
-        auto context = !m_owning_documents_or_shadow_roots.is_empty() ? Parser::ParsingParams { (*m_owning_documents_or_shadow_roots.begin())->document() } : CSS::Parser::ParsingParams { realm };
-        auto* parsed_stylesheet = parse_css_stylesheet(context, text);
+        auto* parsed_stylesheet = parse_css_stylesheet(make_parsing_params(), text);
         auto& rules = parsed_stylesheet->rules();
 
         // 2. If rules contains one or more @import rules, remove those rules from rules.
@@ -242,8 +240,7 @@ WebIDL::ExceptionOr<void> CSSStyleSheet::replace_sync(StringView text)
         return WebIDL::NotAllowedError::create(realm(), "Can't call replaceSync() on non-modifiable stylesheets"_string);
 
     // 2. Let rules be the result of running parse a stylesheet’s contents from text.
-    auto context = !m_owning_documents_or_shadow_roots.is_empty() ? Parser::ParsingParams { (*m_owning_documents_or_shadow_roots.begin())->document() } : CSS::Parser::ParsingParams { realm() };
-    auto* parsed_stylesheet = parse_css_stylesheet(context, text);
+    auto* parsed_stylesheet = parse_css_stylesheet(make_parsing_params(), text);
     auto& rules = parsed_stylesheet->rules();
 
     // 3. If rules contains one or more @import rules, remove those rules from rules.
@@ -424,6 +421,13 @@ bool CSSStyleSheet::has_associated_font_loader(FontLoader& font_loader) const
             return true;
     }
     return false;
+}
+
+Parser::ParsingParams CSSStyleSheet::make_parsing_params() const
+{
+    if (!m_owning_documents_or_shadow_roots.is_empty())
+        return Parser::ParsingParams { (*m_owning_documents_or_shadow_roots.begin())->document() };
+    return Parser::ParsingParams { realm() };
 }
 
 }

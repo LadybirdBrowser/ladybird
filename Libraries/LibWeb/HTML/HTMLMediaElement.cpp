@@ -637,11 +637,11 @@ public:
     {
         // 2. ⌛ Process candidate: If candidate does not have a src attribute, or if its src attribute's value is the
         //    empty string, then end the synchronous section, and jump down to the failed with elements step below.
-        String candiate_src;
+        String candidate_src;
         if (auto maybe_src = m_candidate->get_attribute(HTML::AttributeNames::src); maybe_src.has_value())
-            candiate_src = *maybe_src;
+            candidate_src = *maybe_src;
 
-        if (candiate_src.is_empty()) {
+        if (candidate_src.is_empty()) {
             TRY(failed_with_elements());
             return {};
         }
@@ -649,7 +649,7 @@ public:
         // 3. ⌛ Let urlString and urlRecord be the resulting URL string and the resulting URL record, respectively, that
         //    would have resulted from parsing the URL specified by candidate's src attribute's value relative to the
         //    candidate's node document when the src attribute was last changed.
-        auto url_record = m_candidate->document().parse_url(candiate_src);
+        auto url_record = m_candidate->document().parse_url(candidate_src);
 
         // 4. ⌛ If urlString was not obtained successfully, then end the synchronous section, and jump down to the failed
         //    with elements step below.
@@ -1008,7 +1008,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::fetch_resource(URL::URL const& url_r
         // 6. Let byteRange, which is "entire resource" or a (number, number or "until end") tuple, be the byte range required to satisfy missing data in
         //    media data. This value is implementation-defined and may rely on codec, network conditions or other heuristics. The user-agent may determine
         //    to fetch the resource in full, in which case byteRange would be "entire resource", to fetch from a byte offset until the end, in which case
-        //    byteRange would be (number, "until end"), or to fetch a range between two byte offsets, im which case byteRange would be a (number, number)
+        //    byteRange would be (number, "until end"), or to fetch a range between two byte offsets, in which case byteRange would be a (number, number)
         //    tuple representing the two offsets.
         ByteRange byte_range = EntireResource {};
 

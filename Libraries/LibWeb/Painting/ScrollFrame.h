@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/WeakPtr.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/PixelUnits.h>
 

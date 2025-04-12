@@ -246,6 +246,18 @@ String URL::serialize_path() const
     return output.to_string_without_validation();
 }
 
+// This function is used whenever a path is needed to access the actual file on disk.
+// On Windows serialize_path can produce a path like /C:/path/to/tst.htm, so the leading slash needs to be removed to obtain a valid path.
+ByteString URL::file_path() const
+{
+    ByteString path = percent_decode(serialize_path());
+#ifdef AK_OS_WINDOWS
+    if (path.starts_with('/'))
+        path = path.substring(1);
+#endif
+    return path;
+}
+
 // https://url.spec.whatwg.org/#concept-url-serializer
 String URL::serialize(ExcludeFragment exclude_fragment) const
 {

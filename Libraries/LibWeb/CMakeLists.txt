@@ -195,6 +195,7 @@ set(SOURCES
     CSS/Time.cpp
     CSS/Transformation.cpp
     CSS/TransitionEvent.cpp
+    CSS/URL.cpp
     CSS/VisualViewport.cpp
     Cookie/Cookie.cpp
     Cookie/ParsedCookie.cpp
@@ -566,6 +567,7 @@ set(SOURCES
     IndexedDB/IDBVersionChangeEvent.cpp
     IndexedDB/Internal/Algorithms.cpp
     IndexedDB/Internal/Database.cpp
+    IndexedDB/Internal/Index.cpp
     IndexedDB/Internal/Key.cpp
     IndexedDB/Internal/ObjectStore.cpp
     IndexedDB/Internal/RequestList.cpp
@@ -689,6 +691,7 @@ set(SOURCES
     Painting/SVGPaintable.cpp
     Painting/SVGSVGPaintable.cpp
     Painting/ScrollFrame.cpp
+    Painting/ScrollState.cpp
     Painting/ShadowPainting.cpp
     Painting/StackingContext.cpp
     Painting/TableBordersPainting.cpp

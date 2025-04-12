@@ -1,33 +1,33 @@
 {
   "-moz-meter-bar": {
-    "alias-for": "fill"
+    "alias-for": "slider-fill"
   },
   "-moz-progress-bar": {
-    "alias-for": "fill"
+    "alias-for": "slider-fill"
   },
   "-moz-range-progress": {
-    "alias-for": "fill"
+    "alias-for": "slider-fill"
   },
   "-moz-range-track": {
-    "alias-for": "track"
+    "alias-for": "slider-track"
   },
   "-moz-range-thumb": {
-    "alias-for": "thumb"
+    "alias-for": "slider-thumb"
   },
   "-webkit-meter-bar": {
-    "alias-for": "track"
+    "alias-for": "slider-track"
   },
   "-webkit-progress-bar": {
-    "alias-for": "track"
+    "alias-for": "slider-track"
   },
   "-webkit-progress-value": {
-    "alias-for": "fill"
+    "alias-for": "slider-fill"
   },
   "-webkit-slider-runnable-track": {
-    "alias-for": "track"
+    "alias-for": "slider-track"
   },
   "-webkit-slider-thumb": {
-    "alias-for": "thumb"
+    "alias-for": "slider-thumb"
   },
   "after": {
     "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-after",
@@ -46,9 +46,6 @@
   },
   "file-selector-button": {
     "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-file-selector-button"
-  },
-  "fill": {
-    "spec": "https://drafts.csswg.org/css-forms-1/#selectordef-fill"
   },
   "first-letter": {
     "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-first-letter",
@@ -107,11 +104,14 @@
       "#custom-properties"
     ]
   },
-  "thumb": {
-    "spec": "https://drafts.csswg.org/css-forms-1/#selectordef-thumb"
+  "slider-fill": {
+    "spec": "https://drafts.csswg.org/css-forms-1/#selectordef-slider-fill"
   },
-  "track": {
-    "spec": "https://drafts.csswg.org/css-forms-1/#selectordef-track"
+  "slider-thumb": {
+    "spec": "https://drafts.csswg.org/css-forms-1/#selectordef-slider-thumb"
+  },
+  "slider-track": {
+    "spec": "https://drafts.csswg.org/css-forms-1/#selectordef-slider-track"
   },
   "view-transition": {
     "spec": "https://drafts.csswg.org/css-view-transitions-1/#selectordef-view-transition"

@@ -26,6 +26,7 @@
 #include <LibWeb/CSS/StyleSheetList.h>
 #include <LibWeb/Cookie/Cookie.h>
 #include <LibWeb/DOM/ParentNode.h>
+#include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/CrossOrigin/OpenerPolicy.h>
 #include <LibWeb/HTML/DocumentReadyState.h>
@@ -1180,7 +1181,7 @@ private:
 
     mutable GC::Ptr<WebIDL::ObservableArray> m_adopted_style_sheets;
 
-    Vector<GC::Ref<DOM::ShadowRoot>> m_shadow_roots;
+    ShadowRoot::DocumentShadowRootList m_shadow_roots;
 
     Optional<Core::DateTime> m_last_modified;
 

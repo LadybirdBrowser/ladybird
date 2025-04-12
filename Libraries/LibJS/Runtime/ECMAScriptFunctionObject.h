@@ -127,7 +127,7 @@ public:
     Statement const& ecmascript_code() const { return *shared_data().m_ecmascript_code; }
     [[nodiscard]] virtual FunctionParameters const& formal_parameters() const override { return *shared_data().m_formal_parameters; }
 
-    virtual FlyString const& name() const override { return shared_data().m_name; }
+    FlyString const& name() const { return shared_data().m_name; }
     void set_name(FlyString const& name);
 
     void set_is_class_constructor() { const_cast<SharedFunctionInstanceData&>(shared_data()).m_is_class_constructor = true; }
@@ -135,7 +135,7 @@ public:
     auto& bytecode_executable() const { return m_bytecode_executable; }
 
     Environment* environment() { return m_environment; }
-    virtual Realm* realm() const override { return m_realm; }
+    virtual Realm* realm() const override { return &shape().realm(); }
 
     [[nodiscard]] ConstructorKind constructor_kind() const { return shared_data().m_constructor_kind; }
     void set_constructor_kind(ConstructorKind constructor_kind) { const_cast<SharedFunctionInstanceData&>(shared_data()).m_constructor_kind = constructor_kind; }
@@ -210,7 +210,6 @@ private:
     // Internal Slots of ECMAScript Function Objects, https://tc39.es/ecma262/#table-internal-slots-of-ecmascript-function-objects
     GC::Ptr<Environment> m_environment;                // [[Environment]]
     GC::Ptr<PrivateEnvironment> m_private_environment; // [[PrivateEnvironment]]
-    GC::Ptr<Realm> m_realm;                            // [[Realm]]
     ScriptOrModule m_script_or_module;                 // [[ScriptOrModule]]
     GC::Ptr<Object> m_home_object;                     // [[HomeObject]]
     struct ClassData {

@@ -27,6 +27,13 @@ void StyleSheet::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_media);
 }
 
+Optional<String> StyleSheet::href() const
+{
+    if (m_location.has_value())
+        return m_location->to_string();
+    return {};
+}
+
 void StyleSheet::set_owner_node(DOM::Element* element)
 {
     m_owner_node = element;

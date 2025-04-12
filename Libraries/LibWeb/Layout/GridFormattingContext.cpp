@@ -1160,7 +1160,7 @@ void GridFormattingContext::expand_flexible_tracks(GridDimension dimension)
     auto& tracks_and_gaps = dimension == GridDimension::Column ? m_grid_columns_and_gaps : m_grid_rows_and_gaps;
     auto& tracks = dimension == GridDimension::Column ? m_grid_columns : m_grid_rows;
     auto& available_size = dimension == GridDimension::Column ? m_available_space->width : m_available_space->height;
-    // FIXME: This should idealy take a Span, as that is more idomatic, but Span does not yet support holding references
+    // FIXME: This should ideally take a Span, as that is more idomatic, but Span does not yet support holding references
     auto find_the_size_of_an_fr = [&](Vector<GridTrack&> const& tracks, CSSPixels space_to_fill) -> CSSPixelFraction {
         // https://www.w3.org/TR/css-grid-2/#algo-find-fr-size
         auto treat_track_as_inflexiable = MUST(AK::Bitmap::create(tracks.size(), false));
@@ -2398,23 +2398,23 @@ CSSPixels GridFormattingContext::calculate_min_content_contribution(GridItem con
         return should_treat_height_as_auto(item.box, available_space_for_item);
     }();
 
-    auto maxium_size = CSSPixels::max();
+    auto maximum_size = CSSPixels::max();
     if (auto const& css_maximum_size = item.maximum_size(dimension); css_maximum_size.is_length()) {
-        maxium_size = css_maximum_size.length().to_px(item.box);
+        maximum_size = css_maximum_size.length().to_px(item.box);
     }
 
     if (should_treat_preferred_size_as_auto) {
         auto result = item.add_margin_box_sizes(calculate_min_content_size(item, dimension), dimension);
-        return min(result, maxium_size);
+        return min(result, maximum_size);
     }
 
     auto preferred_size = item.preferred_size(dimension);
     if (dimension == GridDimension::Column) {
         auto width = calculate_inner_width(item.box, m_available_space->width, preferred_size);
-        return min(item.add_margin_box_sizes(width, dimension), maxium_size);
+        return min(item.add_margin_box_sizes(width, dimension), maximum_size);
     }
     auto height = calculate_inner_height(item.box, *m_available_space, preferred_size);
-    return min(item.add_margin_box_sizes(height, dimension), maxium_size);
+    return min(item.add_margin_box_sizes(height, dimension), maximum_size);
 }
 
 CSSPixels GridFormattingContext::calculate_max_content_contribution(GridItem const& item, GridDimension dimension) const
@@ -2427,21 +2427,21 @@ CSSPixels GridFormattingContext::calculate_max_content_contribution(GridItem con
         return should_treat_height_as_auto(item.box, available_space_for_item);
     }();
 
-    auto maxium_size = CSSPixels::max();
+    auto maximum_size = CSSPixels::max();
     if (auto const& css_maximum_size = item.maximum_size(dimension); css_maximum_size.is_length()) {
-        maxium_size = css_maximum_size.length().to_px(item.box);
+        maximum_size = css_maximum_size.length().to_px(item.box);
     }
 
     auto preferred_size = item.preferred_size(dimension);
     if (should_treat_preferred_size_as_auto || preferred_size.is_fit_content()) {
         auto fit_content_size = dimension == GridDimension::Column ? calculate_fit_content_width(item.box, available_space_for_item) : calculate_fit_content_height(item.box, available_space_for_item);
         auto result = item.add_margin_box_sizes(fit_content_size, dimension);
-        return min(result, maxium_size);
+        return min(result, maximum_size);
     }
 
     auto containing_block_size = containing_block_size_for_item(item, dimension);
     auto result = item.add_margin_box_sizes(preferred_size.to_px(grid_container(), containing_block_size), dimension);
-    return min(result, maxium_size);
+    return min(result, maximum_size);
 }
 
 CSSPixels GridFormattingContext::calculate_limited_min_content_contribution(GridItem const& item, GridDimension dimension) const

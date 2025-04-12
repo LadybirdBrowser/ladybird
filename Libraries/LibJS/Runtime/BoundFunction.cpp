@@ -39,8 +39,6 @@ BoundFunction::BoundFunction(Realm& realm, FunctionObject& bound_target_function
     , m_bound_target_function(&bound_target_function)
     , m_bound_this(bound_this)
     , m_bound_arguments(move(bound_arguments))
-    // FIXME: Non-standard and redundant, remove.
-    , m_name(MUST(String::formatted("bound {}", bound_target_function.name())))
 {
 }
 

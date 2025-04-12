@@ -9,9 +9,9 @@
 
 #include <AK/Queue.h>
 #include <LibCore/Socket.h>
-#include <LibIPC/UnprocessedFileDescriptors.h>
 #include <LibThreading/ConditionVariable.h>
 #include <LibThreading/MutexProtected.h>
+#include <LibThreading/RWLock.h>
 #include <LibThreading/Thread.h>
 
 namespace IPC {
@@ -42,6 +42,31 @@ private:
     int m_fd;
 };
 
+class SendQueue : public AtomicRefCounted<SendQueue> {
+public:
+    enum class Running {
+        No,
+        Yes,
+    };
+    Running block_until_message_enqueued();
+    void stop();
+
+    void enqueue_message(Vector<u8>&& bytes, Vector<int>&& fds);
+    struct BytesAndFds {
+        Vector<u8> bytes;
+        Vector<int> fds;
+    };
+    BytesAndFds dequeue(size_t max_bytes);
+    void return_unsent_data_to_front_of_queue(ReadonlyBytes const& bytes, Vector<int> const& fds);
+
+private:
+    Vector<u8> m_bytes;
+    Vector<int> m_fds;
+    Threading::Mutex m_mutex;
+    Threading::ConditionVariable m_condition { m_mutex };
+    bool m_running { true };
+};
+
 class TransportSocket {
     AK_MAKE_NONCOPYABLE(TransportSocket);
     AK_MAKE_NONMOVABLE(TransportSocket);
@@ -66,9 +91,9 @@ public:
     };
     struct Message {
         Vector<u8> bytes;
-        Vector<File> fds;
+        Queue<File> fds;
     };
-    ShouldShutdown read_as_many_messages_as_possible_without_blocking(Function<void(Message)>&& schedule_shutdown);
+    ShouldShutdown read_as_many_messages_as_possible_without_blocking(Function<void(Message&&)>&&);
 
     // Obnoxious name to make it clear that this is a dangerous operation.
     ErrorOr<int> release_underlying_transport_for_transfer();
@@ -76,30 +101,20 @@ public:
     ErrorOr<IPC::File> clone_for_transfer();
 
 private:
-    static ErrorOr<void> send_message(Core::LocalSocket&, ReadonlyBytes&&, Vector<int, 1> const& unowned_fds);
+    static ErrorOr<void> send_message(Core::LocalSocket&, ReadonlyBytes& bytes, Vector<int>& unowned_fds);
 
     NonnullOwnPtr<Core::LocalSocket> m_socket;
+    mutable Threading::RWLock m_socket_rw_lock;
     ByteBuffer m_unprocessed_bytes;
-    UnprocessedFileDescriptors m_unprocessed_fds;
+    Queue<File> m_unprocessed_fds;
 
     // After file descriptor is sent, it is moved to the wait queue until an acknowledgement is received from the peer.
     // This is necessary to handle a specific behavior of the macOS kernel, which may prematurely garbage-collect the file
     // descriptor contained in the message before the peer receives it. https://openradar.me/9477351
     Queue<NonnullRefPtr<AutoCloseFileDescriptor>> m_fds_retained_until_received_by_peer;
 
-    struct MessageToSend {
-        Vector<u8> bytes;
-        Vector<int, 1> fds;
-    };
-    struct SendQueue : public AtomicRefCounted<SendQueue> {
-        AK::SinglyLinkedList<MessageToSend> messages;
-        Threading::Mutex mutex;
-        Threading::ConditionVariable condition { mutex };
-        bool running { true };
-    };
     RefPtr<Threading::Thread> m_send_thread;
     RefPtr<SendQueue> m_send_queue;
-    void queue_message_on_send_thread(MessageToSend&&) const;
 };
 
 }

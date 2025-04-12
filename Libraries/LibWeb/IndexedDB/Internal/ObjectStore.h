@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/HashMap.h>
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <AK/Variant.h>
@@ -15,6 +16,7 @@
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/IndexedDB/Internal/Algorithms.h>
 #include <LibWeb/IndexedDB/Internal/Database.h>
+#include <LibWeb/IndexedDB/Internal/Index.h>
 #include <LibWeb/IndexedDB/Internal/KeyGenerator.h>
 
 namespace Web::IndexedDB {
@@ -36,6 +38,7 @@ public:
     bool uses_inline_keys() const { return m_key_path.has_value(); }
     bool uses_out_of_line_keys() const { return !m_key_path.has_value(); }
     Optional<KeyGenerator> key_generator() const { return m_key_generator; }
+    AK::HashMap<String, GC::Ref<Index>>& index_set() { return m_indexes; }
 
     GC::Ref<Database> database() const { return m_database; }
 
@@ -47,6 +50,9 @@ private:
 
     // AD-HOC: An ObjectStore needs to know what Database it belongs to...
     GC::Ref<Database> m_database;
+
+    // AD-HOC: An Index has referenced ObjectStores, we also need the reverse mapping
+    AK::HashMap<String, GC::Ref<Index>> m_indexes;
 
     // An object store has a name, which is a name. At any one time, the name is unique within the database to which it belongs.
     String m_name;

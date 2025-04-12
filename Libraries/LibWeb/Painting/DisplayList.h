@@ -26,11 +26,11 @@ class DisplayListPlayer {
 public:
     virtual ~DisplayListPlayer() = default;
 
-    void execute(DisplayList&, RefPtr<Gfx::PaintingSurface>);
+    void execute(DisplayList&, ScrollStateSnapshot const&, RefPtr<Gfx::PaintingSurface>);
 
 protected:
     Gfx::PaintingSurface& surface() const { return m_surfaces.last(); }
-    void execute_impl(DisplayList&, RefPtr<Gfx::PaintingSurface>);
+    void execute_impl(DisplayList&, ScrollStateSnapshot const& scroll_state, RefPtr<Gfx::PaintingSurface>);
 
 private:
     virtual void flush() = 0;
@@ -93,9 +93,6 @@ public:
 
     AK::SegmentedVector<CommandListItem, 512> const& commands() const { return m_commands; }
 
-    void set_scroll_state(ScrollState scroll_state) { m_scroll_state = move(scroll_state); }
-    ScrollState const& scroll_state() const { return m_scroll_state; }
-
     void set_device_pixels_per_css_pixel(double device_pixels_per_css_pixel) { m_device_pixels_per_css_pixel = device_pixels_per_css_pixel; }
     double device_pixels_per_css_pixel() const { return m_device_pixels_per_css_pixel; }
 
@@ -103,7 +100,6 @@ private:
     DisplayList() = default;
 
     AK::SegmentedVector<CommandListItem, 512> m_commands;
-    ScrollState m_scroll_state;
     double m_device_pixels_per_css_pixel;
 };
 

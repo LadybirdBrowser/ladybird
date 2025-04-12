@@ -389,7 +389,7 @@ void EventSource::process_field(StringView field, StringView value)
 {
     // -> If the field name is "event"
     if (field == "event"sv) {
-        // Set the event type buffer to field value.
+        // Set the event type buffer to the field value.
         m_event_type = MUST(String::from_utf8(value));
     }
     // -> If the field name is "data"

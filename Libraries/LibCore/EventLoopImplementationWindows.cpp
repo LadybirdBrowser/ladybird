@@ -9,6 +9,7 @@
 #include <LibCore/EventLoopImplementationWindows.h>
 #include <LibCore/Notifier.h>
 #include <LibCore/ThreadEventQueue.h>
+#include <LibCore/Timer.h>
 
 #include <AK/Windows.h>
 
@@ -55,10 +56,12 @@ struct EventLoopTimer {
 };
 
 struct ThreadData {
-    static ThreadData& the()
+    static ThreadData* the()
     {
         thread_local OwnPtr<ThreadData> thread_data = make<ThreadData>();
-        return *thread_data;
+        if (thread_data)
+            return &*thread_data;
+        return nullptr;
     }
 
     ThreadData()
@@ -76,7 +79,7 @@ struct ThreadData {
 };
 
 EventLoopImplementationWindows::EventLoopImplementationWindows()
-    : m_wake_event(ThreadData::the().wake_event.handle)
+    : m_wake_event(ThreadData::the()->wake_event.handle)
 {
 }
 
@@ -92,9 +95,10 @@ int EventLoopImplementationWindows::exec()
 
 size_t EventLoopImplementationWindows::pump(PumpMode)
 {
-    auto& thread_data = ThreadData::the();
-    auto& notifiers = thread_data.notifiers;
-    auto& timers = thread_data.timers;
+    auto& event_queue = ThreadEventQueue::current();
+    auto* thread_data = ThreadData::the();
+    auto& notifiers = thread_data->notifiers;
+    auto& timers = thread_data->timers;
 
     size_t event_count = 1 + notifiers.size() + timers.size();
     // If 64 events limit proves to be insufficient RegisterWaitForSingleObject or other methods
@@ -103,30 +107,41 @@ size_t EventLoopImplementationWindows::pump(PumpMode)
     VERIFY(event_count <= MAXIMUM_WAIT_OBJECTS);
 
     Vector<HANDLE, MAXIMUM_WAIT_OBJECTS> event_handles;
-    event_handles.append(thread_data.wake_event.handle);
+    event_handles.append(thread_data->wake_event.handle);
 
     for (auto& entry : notifiers)
         event_handles.append(entry.key.handle);
     for (auto& entry : timers)
         event_handles.append(entry.key.handle);
 
-    DWORD result = WaitForMultipleObjects(event_count, event_handles.data(), FALSE, INFINITE);
-    size_t index = result - WAIT_OBJECT_0;
-    VERIFY(index < event_count);
-
-    if (index != 0) {
-        if (index <= notifiers.size()) {
-            Notifier* notifier = *notifiers.get(event_handles[index]);
-            ThreadEventQueue::current().post_event(*notifier, make<NotifierActivationEvent>(notifier->fd(), notifier->type()));
-        } else {
-            auto& timer = *timers.get(event_handles[index]);
-            if (auto strong_owner = timer.owner.strong_ref())
-                if (timer.fire_when_not_visible == TimerShouldFireWhenNotVisible::Yes || strong_owner->is_visible_for_timer_purposes())
-                    ThreadEventQueue::current().post_event(*strong_owner, make<TimerEvent>());
+    bool has_pending_events = event_queue.has_pending_events();
+    int timeout = has_pending_events ? 0 : INFINITE;
+    DWORD result = WaitForMultipleObjects(event_count, event_handles.data(), FALSE, timeout);
+    if (result == WAIT_TIMEOUT) {
+        // FIXME: This verification sometimes fails with ERROR_INVALID_HANDLE, but when I check
+        //        the handles they all seem to be valid.
+        // VERIFY(GetLastError() == ERROR_SUCCESS || GetLastError() == ERROR_IO_PENDING);
+    } else {
+        size_t const index = result - WAIT_OBJECT_0;
+        VERIFY(index < event_count);
+        // : 1 - skip wake event
+        for (size_t i = index ? index : 1; i < event_count; i++) {
+            // i == index already checked by WaitForMultipleObjects
+            if (i == index || WaitForSingleObject(event_handles[i], 0) == WAIT_OBJECT_0) {
+                if (i <= notifiers.size()) {
+                    Notifier* notifier = *notifiers.get(event_handles[i]);
+                    event_queue.post_event(*notifier, make<NotifierActivationEvent>(notifier->fd(), notifier->type()));
+                } else {
+                    auto& timer = *timers.get(event_handles[i]);
+                    if (auto strong_owner = timer.owner.strong_ref())
+                        if (timer.fire_when_not_visible == TimerShouldFireWhenNotVisible::Yes || strong_owner->is_visible_for_timer_purposes())
+                            event_queue.post_event(*strong_owner, make<TimerEvent>());
+                }
+            }
         }
     }
 
-    return ThreadEventQueue::current().process();
+    return event_queue.process();
 }
 
 void EventLoopImplementationWindows::quit(int code)
@@ -167,7 +182,7 @@ void EventLoopManagerWindows::register_notifier(Notifier& notifier)
     int rc = WSAEventSelect(notifier.fd(), event, notifier_type_to_network_event(notifier.type()));
     VERIFY(!rc);
 
-    auto& notifiers = ThreadData::the().notifiers;
+    auto& notifiers = ThreadData::the()->notifiers;
     VERIFY(!notifiers.get(event).has_value());
     notifiers.set(Handle(event), &notifier);
 }
@@ -175,13 +190,16 @@ void EventLoopManagerWindows::register_notifier(Notifier& notifier)
 void EventLoopManagerWindows::unregister_notifier(Notifier& notifier)
 {
     // remove_first_matching would be clearer, but currently there is no such method in HashMap
-    ThreadData::the().notifiers.remove_all_matching([&](auto&, auto value) { return value == &notifier; });
+    if (ThreadData::the())
+        ThreadData::the()->notifiers.remove_all_matching([&](auto&, auto value) { return value == &notifier; });
 }
 
 intptr_t EventLoopManagerWindows::register_timer(EventReceiver& object, int milliseconds, bool should_reload, TimerShouldFireWhenNotVisible fire_when_not_visible)
 {
     VERIFY(milliseconds >= 0);
-    HANDLE timer = CreateWaitableTimer(NULL, FALSE, NULL);
+    // FIXME: This is a temporary fix for issue #3641
+    bool manual_reset = static_cast<Timer&>(object).is_single_shot();
+    HANDLE timer = CreateWaitableTimer(NULL, manual_reset, NULL);
     VERIFY(timer);
 
     LARGE_INTEGER first_time = {};
@@ -190,15 +208,16 @@ intptr_t EventLoopManagerWindows::register_timer(EventReceiver& object, int mill
     BOOL rc = SetWaitableTimer(timer, &first_time, should_reload ? milliseconds : 0, NULL, NULL, FALSE);
     VERIFY(rc);
 
-    auto& timers = ThreadData::the().timers;
+    auto& timers = ThreadData::the()->timers;
     VERIFY(!timers.get(timer).has_value());
     timers.set(Handle(timer), { object, fire_when_not_visible });
-    return (intptr_t)timer;
+    return reinterpret_cast<intptr_t>(timer);
 }
 
 void EventLoopManagerWindows::unregister_timer(intptr_t timer_id)
 {
-    ThreadData::the().timers.remove((HANDLE)timer_id);
+    if (ThreadData::the())
+        ThreadData::the()->timers.remove(reinterpret_cast<HANDLE>(timer_id));
 }
 
 int EventLoopManagerWindows::register_signal([[maybe_unused]] int signal_number, [[maybe_unused]] Function<void(int)> handler)

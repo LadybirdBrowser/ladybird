@@ -79,7 +79,7 @@ input[type=range] {
     width: 20ch;
     height: 16px;
 
-    &::track {
+    &::slider-track {
         display: block;
         position: relative;
         height: 4px;
@@ -89,14 +89,14 @@ input[type=range] {
         border: 1px solid rgba(0, 0, 0, 0.5);
     }
 
-    &::fill {
+    &::slider-fill {
         display: block;
         position: absolute;
         height: 100%;
         background-color: AccentColor;
     }
 
-    &::thumb {
+    &::slider-thumb {
         display: block;
         margin-top: -6px;
         width: 16px;
@@ -115,27 +115,27 @@ meter {
     width: 300px;
     height: 12px;
 
-    &::track {
+    &::slider-track {
         display: block;
         height: 100%;
         background-color: hsl(0, 0%, 96%);
         border: 1px solid rgba(0, 0, 0, 0.5);
     }
 
-    &::fill {
+    &::slider-fill {
         display: block;
         height: 100%;
     }
 
-    &:optimal-value::fill {
+    &:optimal-value::slider-fill {
         background-color: hsl(141, 53%, 53%);
     }
 
-    &:suboptimal-value::fill {
+    &:suboptimal-value::slider-fill {
         background-color: hsl(48, 100%, 67%);
     }
 
-    &:even-less-good-value::fill {
+    &:even-less-good-value::slider-fill {
         background-color: hsl(348, 100%, 61%);
     }
 }
@@ -146,14 +146,14 @@ progress {
     width: 300px;
     height: 12px;
 
-    &::track {
+    &::slider-track {
         display: block;
         height: 100%;
         background-color: AccentColorText;
         border: 1px solid rgba(0, 0, 0, 0.5);
     }
 
-    &::fill {
+    &::slider-fill {
         display: block;
         height: 100%;
         background-color: AccentColor;

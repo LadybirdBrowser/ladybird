@@ -1158,6 +1158,13 @@ WebIDL::ExceptionOr<void> CSSStyleProperties::set_css_text(StringView css_text)
     // 4. Update style attribute for the CSS declaration block.
     update_style_attribute();
 
+    // Non-standard: Invalidate style for the owners of our containing sheet, if any.
+    if (auto rule = parent_rule()) {
+        if (auto sheet = rule->parent_style_sheet()) {
+            sheet->invalidate_owners(DOM::StyleInvalidationReason::CSSStylePropertiesTextChange);
+        }
+    }
+
     return {};
 }
 

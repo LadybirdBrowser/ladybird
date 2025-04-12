@@ -25,7 +25,7 @@ struct StorageEndpoint {
 
     // https://storage.spec.whatwg.org/#storage-endpoint-types
     // A storage endpoint also has types, which is a set of storage types.
-    // NOTE: We do not implement this as a set as it is not neccessary in the current implementation.
+    // NOTE: We do not implement this as a set as it is not necessary in the current implementation.
     StorageType type;
 
     // https://storage.spec.whatwg.org/#storage-endpoint-quota

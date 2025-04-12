@@ -280,7 +280,7 @@ HTMLLinkElement::LinkProcessingOptions HTMLLinkElement::create_link_options()
     options.policy_container = document.policy_container();
     // document                         document
     options.document = &document;
-    // FIXME: cryptographic nonce metadata     The current value of el's [[CryptographicNonce]] internal slot
+    // FIXME: cryptographic nonce metadata     the current value of el's [[CryptographicNonce]] internal slot
     // fetch priority                   the state of el's fetchpriority content attribute
     options.fetch_priority = Fetch::Infrastructure::request_priority_from_string(get_attribute_value(HTML::AttributeNames::fetchpriority)).value_or(Fetch::Infrastructure::Request::Priority::Auto);
 
@@ -490,9 +490,9 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
                 m_loaded_style_sheet = parse_css_stylesheet(CSS::Parser::ParsingParams(document(), *response.url()), decoded_string);
 
                 if (m_loaded_style_sheet) {
-                    Optional<String> location;
+                    Optional<::URL::URL> location;
                     if (!response.url_list().is_empty())
-                        location = response.url_list().first().to_string();
+                        location = response.url_list().first();
 
                     document_or_shadow_root_style_sheets().create_a_css_style_sheet(
                         "text/css"_string,

@@ -927,6 +927,26 @@ ThrowCompletionOr<PropertyKey> Value::to_property_key(VM& vm) const
 }
 
 // 7.1.6 ToInt32 ( argument ), https://tc39.es/ecma262/#sec-toint32
+ThrowCompletionOr<i32> Value::to_i32(VM& vm) const
+{
+    if (is_int32())
+        return as_i32();
+
+#if __has_builtin(__builtin_arm_jcvt)
+    if (is_double())
+        return __builtin_arm_jcvt(m_value.as_double);
+#endif
+
+    return to_i32_slow_case(vm);
+}
+
+// 7.1.7 ToUint32 ( argument ), https://tc39.es/ecma262/#sec-touint32
+ThrowCompletionOr<u32> Value::to_u32(VM& vm) const
+{
+    return static_cast<u32>(TRY(to_i32(vm)));
+}
+
+// 7.1.6 ToInt32 ( argument ), https://tc39.es/ecma262/#sec-toint32
 ThrowCompletionOr<i32> Value::to_i32_slow_case(VM& vm) const
 {
     VERIFY(!is_int32());
@@ -934,6 +954,9 @@ ThrowCompletionOr<i32> Value::to_i32_slow_case(VM& vm) const
     // 1. Let number be ? ToNumber(argument).
     double number = TRY(to_number(vm)).as_double();
 
+#if __has_builtin(__builtin_arm_jcvt)
+    return __builtin_arm_jcvt(number);
+#else
     // 2. If number is not finite or number is either +0𝔽 or -0𝔽, return +0𝔽.
     if (!isfinite(number) || number == 0)
         return 0;
@@ -951,42 +974,7 @@ ThrowCompletionOr<i32> Value::to_i32_slow_case(VM& vm) const
     if (int32bit >= 2147483648.0)
         int32bit -= 4294967296.0;
     return static_cast<i32>(int32bit);
-}
-
-// 7.1.6 ToInt32 ( argument ), https://tc39.es/ecma262/#sec-toint32
-ThrowCompletionOr<i32> Value::to_i32(VM& vm) const
-{
-    if (is_int32())
-        return as_i32();
-    return to_i32_slow_case(vm);
-}
-
-// 7.1.7 ToUint32 ( argument ), https://tc39.es/ecma262/#sec-touint32
-ThrowCompletionOr<u32> Value::to_u32(VM& vm) const
-{
-    // OPTIMIZATION: If this value is encoded as a positive i32, return it directly.
-    if (is_int32() && as_i32() >= 0)
-        return as_i32();
-
-    // 1. Let number be ? ToNumber(argument).
-    double number = TRY(to_number(vm)).as_double();
-
-    // 2. If number is not finite or number is either +0𝔽 or -0𝔽, return +0𝔽.
-    if (!isfinite(number) || number == 0)
-        return 0;
-
-    // 3. Let int be the mathematical value whose sign is the sign of number and whose magnitude is floor(abs(ℝ(number))).
-    auto int_val = floor(fabs(number));
-    if (signbit(number))
-        int_val = -int_val;
-
-    // 4. Let int32bit be int modulo 2^32.
-    auto int32bit = modulo(int_val, NumericLimits<u32>::max() + 1.0);
-
-    // 5. Return 𝔽(int32bit).
-    // Cast to i64 here to ensure that the double --> u32 cast doesn't invoke undefined behavior
-    // Otherwise, negative numbers cause a UBSAN warning.
-    return static_cast<u32>(static_cast<i64>(int32bit));
+#endif
 }
 
 // 7.1.8 ToInt16 ( argument ), https://tc39.es/ecma262/#sec-toint16
@@ -2237,7 +2225,7 @@ bool same_value_non_number(Value lhs, Value rhs)
     // 5. If x is a String, then
     if (lhs.is_string()) {
         // a. If x and y are exactly the same sequence of code units (same length and same code units at corresponding indices), return true; otherwise, return false.
-        return lhs.as_string().utf8_string_view() == rhs.as_string().utf8_string_view();
+        return lhs.as_string() == rhs.as_string();
     }
 
     // 3. If x is undefined, return true.

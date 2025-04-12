@@ -35,14 +35,22 @@ void AbortSignal::initialize(JS::Realm& realm)
 }
 
 // https://dom.spec.whatwg.org/#abortsignal-add
-void AbortSignal::add_abort_algorithm(Function<void()> abort_algorithm)
+Optional<AbortSignal::AbortAlgorithmID> AbortSignal::add_abort_algorithm(Function<void()> abort_algorithm)
 {
     // 1. If signal is aborted, then return.
     if (aborted())
-        return;
+        return {};
 
     // 2. Append algorithm to signal’s abort algorithms.
-    m_abort_algorithms.append(GC::create_function(vm().heap(), move(abort_algorithm)));
+    m_abort_algorithms.set(++m_next_abort_algorithm_id, GC::create_function(vm().heap(), move(abort_algorithm)));
+    return m_next_abort_algorithm_id;
+}
+
+// https://dom.spec.whatwg.org/#abortsignal-remove
+void AbortSignal::remove_abort_algorithm(AbortAlgorithmID id)
+{
+    // To remove an algorithm algorithm from an AbortSignal signal, remove algorithm from signal’s abort algorithms.
+    m_abort_algorithms.remove(id);
 }
 
 // https://dom.spec.whatwg.org/#abortsignal-signal-abort
@@ -76,8 +84,8 @@ void AbortSignal::signal_abort(JS::Value reason)
     // https://dom.spec.whatwg.org/#run-the-abort-steps
     auto run_the_abort_steps = [](auto& signal) {
         // 1. For each algorithm in signal’s abort algorithms: run algorithm.
-        for (auto& algorithm : signal.m_abort_algorithms)
-            algorithm->function()();
+        for (auto const& algorithm : signal.m_abort_algorithms)
+            algorithm.value->function()();
 
         // 2. Empty signal’s abort algorithms.
         signal.m_abort_algorithms.clear();

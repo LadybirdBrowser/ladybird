@@ -120,6 +120,10 @@ interface Element : Node {
     // FIXME: [CEReactions] undefined insertAdjacentHTML(DOMString position, (TrustedHTML or DOMString) string);
     [CEReactions] undefined insertAdjacentHTML(DOMString position, DOMString text);
 
+    // https://w3c.github.io/pointerevents/#extensions-to-the-element-interface
+    [FIXME] undefined setPointerCapture(long pointerId);
+    [FIXME] undefined releasePointerCapture(long pointerId);
+    [FIXME] boolean hasPointerCapture(long pointerId);
 };
 
 dictionary GetHTMLOptions {

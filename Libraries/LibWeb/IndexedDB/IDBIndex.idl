@@ -2,11 +2,11 @@
 
 [Exposed=(Window,Worker)]
 interface IDBIndex {
-    [FIXME] attribute DOMString name;
-    [FIXME, SameObject] readonly attribute IDBObjectStore objectStore;
-    [FIXME] readonly attribute any keyPath;
-    [FIXME] readonly attribute boolean multiEntry;
-    [FIXME] readonly attribute boolean unique;
+    attribute DOMString name;
+    [SameObject] readonly attribute IDBObjectStore objectStore;
+    readonly attribute any keyPath;
+    readonly attribute boolean multiEntry;
+    readonly attribute boolean unique;
     [FIXME, NewObject] IDBRequest get(any query);
     [FIXME, NewObject] IDBRequest getKey(any query);
     [FIXME, NewObject] IDBRequest getAll(optional any query, optional [EnforceRange] unsigned long count);
