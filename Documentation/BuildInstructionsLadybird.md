@@ -4,7 +4,7 @@
 
 Qt6 development packages, nasm, additional build tools, and a C++23 capable compiler like g++-13 or clang-17 are required.
 
-CMake 3.25 or newer must be available in $PATH.
+CMake 3.25 and Git 2.36 or newer versions of each must be available in $PATH.
 
 > [!NOTE]
 > In all of the below lists of packages, the Qt6 multimedia package is not needed if your Linux system supports PulseAudio.
