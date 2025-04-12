@@ -530,10 +530,50 @@ void Parser::parse_iterable(Interface& interface)
         interface.value_iterator_type = move(first_type);
     }
 
+    if (interface.async_value_iterator_type.has_value())
+        report_parsing_error("Interfaces with an async iterable declaration must not have an iterable declaration."sv, filename, input, lexer.tell());
     if (interface.set_entry_type.has_value())
         report_parsing_error("Interfaces with an iterable declaration must not have a setlike declaration."sv, filename, input, lexer.tell());
 
     assert_specific('>');
+    assert_specific(';');
+}
+
+// https://webidl.spec.whatwg.org/#idl-async-iterable-declaration
+void Parser::parse_async_iterable(Interface& interface)
+{
+    if (interface.async_value_iterator_type.has_value())
+        report_parsing_error("Interfaces must not have more than one async iterable declaration."sv, filename, input, lexer.tell());
+    if (interface.set_entry_type.has_value())
+        report_parsing_error("Interfaces with an async iterable declaration must not have a setlike declaration."sv, filename, input, lexer.tell());
+    if (interface.value_iterator_type.has_value())
+        report_parsing_error("Interfaces with an async iterable declaration must not have an iterable declaration."sv, filename, input, lexer.tell());
+    if (interface.supports_indexed_properties())
+        report_parsing_error("Interfaces with an async iterable declaration must not support indexed properties."sv, filename, input, lexer.tell());
+    // FIXME: Reject interfaces that have a maplike declaration when we support that type.
+
+    assert_string("async"sv);
+    consume_whitespace();
+    assert_string("iterable"sv);
+    assert_specific('<');
+
+    auto first_type = parse_type();
+
+    if (lexer.next_is(',')) {
+        // https://webidl.spec.whatwg.org/#pair-asynchronously-iterable-declaration
+        report_parsing_error("FIXME: Support paired async iterable declarations."sv, filename, input, lexer.tell());
+    } else {
+        interface.async_value_iterator_type = move(first_type);
+    }
+
+    assert_specific('>');
+
+    if (lexer.next_is('(')) {
+        assert_specific('(');
+        interface.async_value_iterator_parameters = parse_parameters();
+        assert_specific(')');
+    }
+
     assert_specific(';');
 }
 
@@ -688,6 +728,11 @@ void Parser::parse_interface(Interface& interface)
             extended_attributes = parse_extended_attributes();
             if (!interface.has_unscopable_member && extended_attributes.contains("Unscopable"))
                 interface.has_unscopable_member = true;
+        }
+
+        if (lexer.next_is("async")) {
+            parse_async_iterable(interface);
+            continue;
         }
 
         if (lexer.next_is("constructor")) {

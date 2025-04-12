@@ -25,6 +25,8 @@ void generate_prototype_header(IDL::Interface const&, StringBuilder&);
 void generate_prototype_implementation(IDL::Interface const&, StringBuilder&);
 void generate_iterator_prototype_header(IDL::Interface const&, StringBuilder&);
 void generate_iterator_prototype_implementation(IDL::Interface const&, StringBuilder&);
+void generate_async_iterator_prototype_header(IDL::Interface const&, StringBuilder&);
+void generate_async_iterator_prototype_implementation(IDL::Interface const&, StringBuilder&);
 void generate_global_mixin_header(IDL::Interface const&, StringBuilder&);
 void generate_global_mixin_implementation(IDL::Interface const&, StringBuilder&);
 

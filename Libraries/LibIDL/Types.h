@@ -285,6 +285,10 @@ public:
 
     Optional<NonnullRefPtr<Type const>> value_iterator_type;
     Optional<Tuple<NonnullRefPtr<Type const>, NonnullRefPtr<Type const>>> pair_iterator_types;
+
+    Optional<NonnullRefPtr<Type const>> async_value_iterator_type;
+    Vector<Parameter> async_value_iterator_parameters;
+
     Optional<NonnullRefPtr<Type const>> set_entry_type;
     bool is_set_readonly { false };
 
