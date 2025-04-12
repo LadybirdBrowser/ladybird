@@ -346,7 +346,7 @@ static void generate_include_for(auto& generator, auto& path)
 )~~~");
 }
 
-static void emit_includes_for_all_imports(auto& interface, auto& generator, bool is_iterator = false)
+static void emit_includes_for_all_imports(auto& interface, auto& generator, bool is_iterator = false, bool is_async_iterator = false)
 {
     Queue<RemoveCVReference<decltype(interface)> const*> interfaces;
     HashTable<ByteString> paths_imported;
@@ -372,6 +372,10 @@ static void emit_includes_for_all_imports(auto& interface, auto& generator, bool
 
     if (is_iterator) {
         auto iterator_path = ByteString::formatted("{}Iterator", interface.fully_qualified_name.replace("::"sv, "/"sv, ReplaceMode::All));
+        generate_include_for_iterator(generator, iterator_path);
+    }
+    if (is_async_iterator) {
+        auto iterator_path = ByteString::formatted("{}AsyncIterator", interface.fully_qualified_name.replace("::"sv, "/"sv, ReplaceMode::All));
         generate_include_for_iterator(generator, iterator_path);
     }
 }
@@ -2963,6 +2967,13 @@ static void generate_prototype_or_global_mixin_declarations(IDL::Interface const
         )~~~");
     }
 
+    if (interface.async_value_iterator_type.has_value()) {
+        auto iterator_generator = generator.fork();
+        iterator_generator.append(R"~~~(
+    JS_DECLARE_NATIVE_FUNCTION(values);
+        )~~~");
+    }
+
     if (interface.set_entry_type.has_value()) {
         auto setlike_generator = generator.fork();
 
@@ -3588,6 +3599,16 @@ void @class_name@::initialize(JS::Realm& realm)
     @define_native_function@(realm, vm.names.values, values, 0, default_attributes);
 
     @define_direct_property@(vm.well_known_symbol_iterator(), get_without_side_effects(vm.names.entries), JS::Attribute::Configurable | JS::Attribute::Writable);
+)~~~");
+    }
+
+    // https://webidl.spec.whatwg.org/#define-the-asynchronous-iteration-methods
+    if (interface.async_value_iterator_type.has_value() && generate_unforgeables == GenerateUnforgeables::No) {
+        auto iterator_generator = generator.fork();
+        iterator_generator.append(R"~~~(
+    @define_native_function@(realm, vm.names.values, values, 0, default_attributes);
+
+    @define_direct_property@(vm.well_known_symbol_async_iterator(), get_without_side_effects(vm.names.values), JS::Attribute::Configurable | JS::Attribute::Writable);
 )~~~");
     }
 
@@ -4403,6 +4424,34 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::values)
 )~~~");
     }
 
+    // https://webidl.spec.whatwg.org/#js-asynchronous-iterable
+    if (interface.async_value_iterator_type.has_value()) {
+        auto iterator_generator = generator.fork();
+        iterator_generator.set("iterator_name"sv, MUST(String::formatted("{}AsyncIterator", interface.name)));
+        iterator_generator.append(R"~~~(
+JS_DEFINE_NATIVE_FUNCTION(@class_name@::values)
+{
+    WebIDL::log_trace(vm, "@class_name@::values");
+    auto& realm = *vm.current_realm();
+    auto* impl = TRY(impl_from(vm));
+)~~~");
+
+        StringBuilder arguments_builder;
+        generate_arguments(generator, interface.async_value_iterator_parameters, arguments_builder, interface);
+
+        iterator_generator.append(R"~~~(
+    return TRY(throw_dom_exception_if_needed(vm, [&] { return @iterator_name@::create(realm, Object::PropertyKind::Value, *impl)~~~");
+
+        if (!arguments_builder.is_empty()) {
+            iterator_generator.set("iterator_arguments"sv, MUST(arguments_builder.to_string()));
+            iterator_generator.append(", @iterator_arguments@");
+        }
+
+        iterator_generator.append(R"~~~(); }));
+}
+)~~~");
+    }
+
     if (interface.set_entry_type.has_value()) {
         auto setlike_generator = generator.fork();
         setlike_generator.set("value_type", interface.set_entry_type.value()->name());
@@ -4687,7 +4736,7 @@ void generate_namespace_implementation(IDL::Interface const& interface, StringBu
 
 )~~~");
 
-    emit_includes_for_all_imports(interface, generator, interface.pair_iterator_types.has_value());
+    emit_includes_for_all_imports(interface, generator, interface.pair_iterator_types.has_value(), interface.async_value_iterator_type.has_value());
 
     generate_using_namespace_definitions(generator);
 
@@ -4919,7 +4968,7 @@ void generate_constructor_implementation(IDL::Interface const& interface, String
         }
     }
 
-    emit_includes_for_all_imports(interface, generator, interface.pair_iterator_types.has_value());
+    emit_includes_for_all_imports(interface, generator, interface.pair_iterator_types.has_value(), interface.async_value_iterator_type.has_value());
 
     generate_using_namespace_definitions(generator);
 
@@ -5176,7 +5225,7 @@ void generate_prototype_implementation(IDL::Interface const& interface, StringBu
 )~~~");
     }
 
-    emit_includes_for_all_imports(interface, generator, interface.pair_iterator_types.has_value());
+    emit_includes_for_all_imports(interface, generator, interface.pair_iterator_types.has_value(), interface.async_value_iterator_type.has_value());
 
     generate_using_namespace_definitions(generator);
 
@@ -5349,6 +5398,140 @@ JS_DEFINE_NATIVE_FUNCTION(@prototype_class@::next)
 )~~~");
 }
 
+void generate_async_iterator_prototype_header(IDL::Interface const& interface, StringBuilder& builder)
+{
+    VERIFY(interface.async_value_iterator_type.has_value());
+    SourceGenerator generator { builder };
+
+    generator.set("prototype_class", ByteString::formatted("{}AsyncIteratorPrototype", interface.name));
+
+    generator.append(R"~~~(
+#pragma once
+
+#include <LibJS/Runtime/Object.h>
+
+namespace Web::Bindings {
+
+class @prototype_class@ : public JS::Object {
+    JS_OBJECT(@prototype_class@, JS::Object);
+    GC_DECLARE_ALLOCATOR(@prototype_class@);
+
+public:
+    explicit @prototype_class@(JS::Realm&);
+    virtual void initialize(JS::Realm&) override;
+    virtual ~@prototype_class@() override;
+
+private:
+    JS_DECLARE_NATIVE_FUNCTION(next);
+    )~~~");
+
+    if (interface.extended_attributes.contains("DefinesAsyncIteratorReturn")) {
+        generator.append(R"~~~(
+    JS_DECLARE_NATIVE_FUNCTION(return_);
+)~~~");
+    }
+
+    generator.append(R"~~~(
+};
+
+} // namespace Web::Bindings
+    )~~~");
+}
+
+void generate_async_iterator_prototype_implementation(IDL::Interface const& interface, StringBuilder& builder)
+{
+    VERIFY(interface.async_value_iterator_type.has_value());
+    SourceGenerator generator { builder };
+
+    generator.set("name", ByteString::formatted("{}AsyncIterator", interface.name));
+    generator.set("parent_name", interface.parent_name);
+    generator.set("prototype_class", ByteString::formatted("{}AsyncIteratorPrototype", interface.name));
+    generator.set("to_string_tag", ByteString::formatted("{} AsyncIterator", interface.name));
+    generator.set("prototype_base_class", interface.prototype_base_class);
+    generator.set("fully_qualified_name", ByteString::formatted("{}AsyncIterator", interface.fully_qualified_name));
+    generator.set("possible_include_path", ByteString::formatted("{}AsyncIterator", interface.name.replace("::"sv, "/"sv, ReplaceMode::All)));
+
+    generator.append(R"~~~(
+#include <AK/Function.h>
+#include <AK/TypeCasts.h>
+#include <LibJS/Runtime/Array.h>
+#include <LibJS/Runtime/Error.h>
+#include <LibJS/Runtime/FunctionObject.h>
+#include <LibJS/Runtime/GlobalObject.h>
+#include <LibJS/Runtime/TypedArray.h>
+#include <LibWeb/Bindings/@prototype_class@.h>
+#include <LibWeb/Bindings/ExceptionOrUtils.h>
+#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/WebIDL/AsyncIterator.h>
+#include <LibWeb/WebIDL/Tracing.h>
+)~~~");
+
+    emit_includes_for_all_imports(interface, generator, false, true);
+
+    generate_using_namespace_definitions(generator);
+
+    generator.append(R"~~~(
+namespace Web::Bindings {
+
+GC_DEFINE_ALLOCATOR(@prototype_class@);
+
+@prototype_class@::@prototype_class@(JS::Realm& realm)
+    : Object(ConstructWithPrototypeTag::Tag, realm.intrinsics().async_iterator_prototype())
+{
+}
+
+@prototype_class@::~@prototype_class@()
+{
+}
+
+void @prototype_class@::initialize(JS::Realm& realm)
+{
+    auto& vm = this->vm();
+    Base::initialize(realm);
+    define_direct_property(vm.well_known_symbol_to_string_tag(), JS::PrimitiveString::create(vm, "@to_string_tag@"_string), JS::Attribute::Configurable);
+
+    define_native_function(realm, vm.names.next, next, 0, JS::default_attributes);)~~~");
+
+    if (interface.extended_attributes.contains("DefinesAsyncIteratorReturn")) {
+        generator.append(R"~~~(
+    define_native_function(realm, vm.names.return_, return_, 1, JS::default_attributes);)~~~");
+    }
+
+    generator.append(R"~~~(
+}
+
+JS_DEFINE_NATIVE_FUNCTION(@prototype_class@::next)
+{
+    WebIDL::log_trace(vm, "@prototype_class@::next");
+    auto& realm = *vm.current_realm();
+
+    return TRY(throw_dom_exception_if_needed(vm, [&] {
+        return WebIDL::AsyncIterator::next<@fully_qualified_name@>(realm, "@name@"sv);
+    }));
+}
+)~~~");
+
+    if (interface.extended_attributes.contains("DefinesAsyncIteratorReturn")) {
+        generator.append(R"~~~(
+JS_DEFINE_NATIVE_FUNCTION(@prototype_class@::return_)
+{
+    WebIDL::log_trace(vm, "@prototype_class@::return");
+    auto& realm = *vm.current_realm();
+
+    auto value = vm.argument(0);
+
+    return TRY(throw_dom_exception_if_needed(vm, [&] {
+        return WebIDL::AsyncIterator::return_<@fully_qualified_name@>(realm, "@name@"sv, value);
+    }));
+}
+)~~~");
+    }
+
+    generator.append(R"~~~(
+} // namespace Web::Bindings
+)~~~");
+}
+
 void generate_global_mixin_header(IDL::Interface const& interface, StringBuilder& builder)
 {
     SourceGenerator generator { builder };
@@ -5418,7 +5601,7 @@ void generate_global_mixin_implementation(IDL::Interface const& interface, Strin
 
 )~~~");
 
-    emit_includes_for_all_imports(interface, generator, interface.pair_iterator_types.has_value());
+    emit_includes_for_all_imports(interface, generator, interface.pair_iterator_types.has_value(), interface.async_value_iterator_type.has_value());
 
     generate_using_namespace_definitions(generator);
 

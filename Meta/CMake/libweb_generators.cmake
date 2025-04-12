@@ -179,7 +179,7 @@ function (generate_js_bindings target)
     set(generated_idl_targets ${LIBWEB_ALL_GENERATED_IDL})
     list(TRANSFORM generated_idl_targets PREPEND "generate_")
     function(libweb_js_bindings class)
-        cmake_parse_arguments(PARSE_ARGV 1 LIBWEB_BINDINGS "NAMESPACE;ITERABLE;GLOBAL" "" "")
+        cmake_parse_arguments(PARSE_ARGV 1 LIBWEB_BINDINGS "NAMESPACE;ITERABLE;ASYNC_ITERABLE;GLOBAL" "" "")
         get_filename_component(basename "${class}" NAME)
 
         if (LIBWEB_BINDINGS_NAMESPACE)
@@ -200,6 +200,13 @@ function (generate_js_bindings target)
             list(APPEND BINDINGS_SOURCES
                 "Bindings/${basename}IteratorPrototype.h"
                 "Bindings/${basename}IteratorPrototype.cpp"
+            )
+        endif()
+
+        if(LIBWEB_BINDINGS_ASYNC_ITERABLE)
+            list(APPEND BINDINGS_SOURCES
+                "Bindings/${basename}AsyncIteratorPrototype.h"
+                "Bindings/${basename}AsyncIteratorPrototype.cpp"
             )
         endif()
 

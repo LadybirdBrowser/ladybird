@@ -895,6 +895,7 @@ set(SOURCES
     WebGL/WebGLUniformLocation.cpp
     WebGL/WebGLVertexArrayObject.cpp
     WebIDL/AbstractOperations.cpp
+    WebIDL/AsyncIterator.cpp
     WebIDL/Buffers.cpp
     WebIDL/CallbackType.cpp
     WebIDL/DOMException.cpp
