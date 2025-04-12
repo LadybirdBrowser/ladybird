@@ -53,6 +53,7 @@ enum class ShouldComputeRole {
     X(AdoptedStyleSheetsList)                       \
     X(CSSFontLoaded)                                \
     X(CSSImportRule)                                \
+    X(CSSStylePropertiesTextChange)                 \
     X(CustomElementStateChange)                     \
     X(DidLoseFocus)                                 \
     X(DidReceiveFocus)                              \
