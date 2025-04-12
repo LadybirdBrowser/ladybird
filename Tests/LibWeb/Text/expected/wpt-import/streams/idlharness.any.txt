@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 229 tests
 
-228 Pass
-1 Fail
+229 Pass
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	ReadableStreamDefaultReader includes ReadableStreamGenericReader: member names are unique
@@ -21,7 +20,7 @@ Pass	ReadableStream interface: operation getReader(optional ReadableStreamGetRea
 Pass	ReadableStream interface: operation pipeThrough(ReadableWritablePair, optional StreamPipeOptions)
 Pass	ReadableStream interface: operation pipeTo(WritableStream, optional StreamPipeOptions)
 Pass	ReadableStream interface: operation tee()
-Fail	ReadableStream interface: async iterable<any>
+Pass	ReadableStream interface: async iterable<any>
 Pass	ReadableStream must be primary interface of new ReadableStream()
 Pass	Stringification of new ReadableStream()
 Pass	ReadableStream interface: new ReadableStream() must inherit property "from(any)" with the proper type

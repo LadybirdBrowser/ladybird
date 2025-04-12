@@ -786,6 +786,7 @@ class ByteLengthQueuingStrategy;
 class CountQueuingStrategy;
 class ReadableByteStreamController;
 class ReadableStream;
+class ReadableStreamAsyncIterator;
 class ReadableStreamBYOBReader;
 class ReadableStreamBYOBRequest;
 class ReadableStreamDefaultController;
