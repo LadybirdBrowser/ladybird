@@ -517,7 +517,7 @@ void Parser::parse_iterable(Interface& interface)
     auto first_type = parse_type();
     if (lexer.next_is(',')) {
         if (interface.supports_indexed_properties())
-            report_parsing_error("Interfaces with a pair iterator must not supported indexed properties."sv, filename, input, lexer.tell());
+            report_parsing_error("Interfaces with a pair iterator must not support indexed properties."sv, filename, input, lexer.tell());
 
         assert_specific(',');
         consume_whitespace();
@@ -525,7 +525,7 @@ void Parser::parse_iterable(Interface& interface)
         interface.pair_iterator_types = Tuple { move(first_type), move(second_type) };
     } else {
         if (!interface.supports_indexed_properties())
-            report_parsing_error("Interfaces with a value iterator must supported indexed properties."sv, filename, input, lexer.tell());
+            report_parsing_error("Interfaces with a value iterator must support indexed properties."sv, filename, input, lexer.tell());
 
         interface.value_iterator_type = move(first_type);
     }
@@ -540,7 +540,7 @@ void Parser::parse_iterable(Interface& interface)
 void Parser::parse_setlike(Interface& interface, bool is_readonly)
 {
     if (interface.supports_indexed_properties())
-        report_parsing_error("Interfaces with a setlike declaration must not supported indexed properties."sv, filename, input, lexer.tell());
+        report_parsing_error("Interfaces with a setlike declaration must not support indexed properties."sv, filename, input, lexer.tell());
 
     if (interface.value_iterator_type.has_value() || interface.pair_iterator_types.has_value())
         report_parsing_error("Interfaces with a setlike declaration must not must not be iterable."sv, filename, input, lexer.tell());
