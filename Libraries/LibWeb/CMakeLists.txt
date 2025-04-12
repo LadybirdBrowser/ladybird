@@ -743,6 +743,7 @@ set(SOURCES
     Streams/GenericTransformStream.cpp
     Streams/ReadableByteStreamController.cpp
     Streams/ReadableStream.cpp
+    Streams/ReadableStreamAsyncIterator.cpp
     Streams/ReadableStreamBYOBReader.cpp
     Streams/ReadableStreamBYOBRequest.cpp
     Streams/ReadableStreamDefaultController.cpp
