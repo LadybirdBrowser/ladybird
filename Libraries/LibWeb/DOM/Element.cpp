@@ -539,8 +539,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style()
     auto old_display_is_none = m_computed_properties ? m_computed_properties->display().is_none() : true;
     auto new_display_is_none = new_computed_properties->display().is_none();
 
-    if (!invalidation.is_none())
-        set_computed_properties(move(new_computed_properties));
+    set_computed_properties(move(new_computed_properties));
 
     if (old_display_is_none != new_display_is_none) {
         play_or_cancel_animations_after_display_property_change();

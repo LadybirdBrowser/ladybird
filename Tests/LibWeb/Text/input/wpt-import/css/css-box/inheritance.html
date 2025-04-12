@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Inheritance of CSS Box Model properties</title>
+<link rel="help" href="https://drafts.csswg.org/css-box-3/#property-index">
+<link rel="help" href="https://www.w3.org/TR/CSS2/">
+<meta name="assert" content="Properties do not inherit.">
+<meta name="assert" content="length-percentage properties have initial value 0.">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/support/inheritance-testcommon.js"></script>
+</head>
+<body>
+<div id="container">
+  <div id="target"></div>
+</div>
+<script>
+assert_not_inherited('clear', 'none', 'right');
+assert_not_inherited('float', 'none', 'right');
+
+assert_not_inherited('margin-bottom', '0px', '10px');
+assert_not_inherited('margin-left', '0px', '10px');
+assert_not_inherited('margin-right', '0px', '10px');
+assert_not_inherited('margin-top', '0px', '10px');
+assert_not_inherited('margin-trim', 'none', 'block');
+assert_not_inherited('padding-bottom', '0px', '10px');
+assert_not_inherited('padding-left', '0px', '10px');
+assert_not_inherited('padding-right', '0px', '10px');
+assert_not_inherited('padding-top', '0px', '10px');
+
+assert_inherited('visibility', 'visible', 'collapse');
+</script>
+</body>
+</html>
