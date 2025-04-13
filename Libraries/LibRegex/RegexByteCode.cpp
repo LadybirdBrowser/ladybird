@@ -409,7 +409,7 @@ ALWAYS_INLINE ExecutionResult OpCode_SaveRightNamedCaptureGroup::execute(MatchIn
 
     auto view = input.view.substring_view(start_position, length);
 
-    match = { view, name(), input.line, start_position, input.global_offset + start_position };
+    match = { view, name_string_table_index(), input.line, start_position, input.global_offset + start_position };
 
     return ExecutionResult::Continue;
 }
