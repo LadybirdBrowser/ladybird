@@ -357,6 +357,12 @@ public:
         return true;
     }
 
+    [[nodiscard]] ReadonlySpan<T> flat_data() const
+    {
+        VERIFY(m_chunks.size() <= 1);
+        return m_chunks.is_empty() ? ReadonlySpan<T> {} : m_chunks.first().span();
+    }
+
     DisjointChunks release_slice(size_t start, size_t length) & { return move(*this).slice(start, length); }
     DisjointChunks release_slice(size_t start) & { return move(*this).slice(start); }
 
