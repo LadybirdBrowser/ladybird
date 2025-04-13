@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="container" style="height:200px; display:none">
+    <div id="nested"></div>
+</div>
+<script>
+    asyncTest(done => {
+        let observer = new IntersectionObserver(entries => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    println('#nested is visible');
+                    done();
+                }
+            });
+        });
+        observer.observe(document.getElementById('nested'));
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                println('flip #container to visible');
+                document.getElementById('container').style.display = 'block';
+            });
+        });
+    });
+</script>
