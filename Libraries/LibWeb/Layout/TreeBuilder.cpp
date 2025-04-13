@@ -570,6 +570,9 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
                     if (top_layer_element->rendered_in_top_layer()) {
                         // Each element rendered in the top layer has a ::backdrop pseudo-element, for which it is the originating element.
                         [&]() {
+                            if (!should_create_layout_node && !top_layer_element->needs_layout_tree_update())
+                                return;
+
                             if (top_layer_element->has_inclusive_ancestor_with_display_none())
                                 return;
 
