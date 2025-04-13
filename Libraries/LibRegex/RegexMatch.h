@@ -594,3 +594,8 @@ struct AK::Formatter<regex::RegexStringView> : Formatter<StringView> {
         return Formatter<StringView>::format(builder, string);
     }
 };
+
+template<>
+struct AK::Traits<regex::Match> : public AK::DefaultTraits<regex::Match> {
+    constexpr static bool is_trivial() { return true; }
+};
