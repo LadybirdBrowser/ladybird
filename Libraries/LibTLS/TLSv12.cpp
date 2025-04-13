@@ -58,6 +58,9 @@ ErrorOr<Bytes> TLSv12::read_some(Bytes bytes)
     if (ret <= 0) {
         switch (SSL_get_error(m_ssl, ret)) {
         case SSL_ERROR_ZERO_RETURN:
+            if (auto const pending = TRY(pending_bytes()); pending > 0)
+                return Error::from_errno(EAGAIN);
+            close();
             return Bytes { bytes.data(), 0 };
         case SSL_ERROR_WANT_READ:
         case SSL_ERROR_WANT_WRITE:
