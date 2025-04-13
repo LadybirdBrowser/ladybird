@@ -32,6 +32,7 @@
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/HTMLLabelElement.h>
 #include <LibWeb/HTML/HTMLParagraphElement.h>
+#include <LibWeb/HTML/PopoverInvokerElement.h>
 #include <LibWeb/HTML/ToggleEvent.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Infra/CharacterTypes.h>
@@ -1771,6 +1772,34 @@ GC::Ptr<HTMLElement> HTMLElement::nearest_inclusive_open_popover()
     return {};
 }
 
+// https://html.spec.whatwg.org/multipage/popover.html#nearest-inclusive-target-popover-for-invoker
+GC::Ptr<HTMLElement> HTMLElement::nearest_inclusive_target_popover_for_invoker()
+{
+    // To find the nearest inclusive target popover for invoker given a Node node:
+
+    // 1. Let currentNode be node.
+    auto* current_node = this;
+
+    // 2. While currentNode is not null:
+    while (current_node) {
+        // 1. Let targetPopover be currentNode's popover target element.
+        auto target_popover = PopoverInvokerElement::get_the_popover_target_element(*current_node);
+
+        // AD-HOC: This also allows hint popovers.
+        // See nearest_inclusive_open_popover above.
+        // 2. If targetPopover is not null and targetPopover's popover attribute is in the auto state and targetPopover's popover visibility state is showing, then return targetPopover.
+        if (target_popover) {
+            if (target_popover->popover().has_value() && target_popover->popover().value().is_one_of("auto", "hint") && target_popover->popover_visibility_state() == PopoverVisibilityState::Showing)
+                return target_popover;
+        }
+
+        // 3. Set currentNode to currentNode's ancestor in the flat tree.
+        current_node = current_node->shadow_including_first_ancestor_of_type<HTMLElement>();
+    }
+
+    return {};
+}
+
 // https://html.spec.whatwg.org/multipage/popover.html#queue-a-popover-toggle-event-task
 void HTMLElement::queue_a_popover_toggle_event_task(String old_state, String new_state)
 {
@@ -1807,6 +1836,108 @@ void HTMLElement::queue_a_popover_toggle_event_task(String old_state, String new
         .task_id = task_id,
         .old_state = move(old_state),
     };
+}
+
+// https://html.spec.whatwg.org/multipage/popover.html#light-dismiss-open-popovers
+void HTMLElement::light_dismiss_open_popovers(UIEvents::PointerEvent const& event, GC::Ptr<DOM::Node> const target)
+{
+    // To light dismiss open popovers, given a PointerEvent event:
+
+    // 1. Assert: event's isTrusted attribute is true.
+    VERIFY(event.is_trusted());
+
+    // 2. Let target be event's target.
+    // FIXME: The event's target hasn't been initialized yet, so it's passed as an argument
+
+    // 3. Let document be target's node document.
+    auto& document = target->document();
+
+    // 4. Let topmostPopover be the result of running topmost auto popover given document.
+    auto topmost_popover = document.topmost_auto_or_hint_popover();
+
+    // 5. If topmostPopover is null, then return.
+    if (!topmost_popover)
+        return;
+
+    // 6. If event's type is "pointerdown", then: set document's popover pointerdown target to the result of running topmost clicked popover given target.
+    if (event.type() == UIEvents::EventNames::pointerdown)
+        document.set_popover_pointerdown_target(topmost_clicked_popover(target));
+
+    // 7. If event's type is "pointerup", then:
+    if (event.type() == UIEvents::EventNames::pointerup) {
+        // 1. Let ancestor be the result of running topmost clicked popover given target.
+        auto const ancestor = topmost_clicked_popover(target);
+
+        // 2. Let sameTarget be true if ancestor is document's popover pointerdown target.
+        bool const same_target = ancestor == document.popover_pointerdown_target();
+
+        // 3. Set document's popover pointerdown target to null.
+        document.set_popover_pointerdown_target({});
+
+        // 4. If ancestor is null, then set ancestor to document.
+        Variant<GC::Ptr<HTMLElement>, GC::Ptr<DOM::Document>> ancestor_or_document = ancestor;
+        if (!ancestor)
+            ancestor_or_document = GC::Ptr(document);
+
+        // 5. If sameTarget is true, then run hide all popovers until given ancestor, false, and true.
+        if (same_target)
+            hide_all_popovers_until(ancestor_or_document, FocusPreviousElement::No, FireEvents::Yes);
+    }
+}
+
+// https://html.spec.whatwg.org/multipage/popover.html#get-the-popover-stack-position
+size_t HTMLElement::popover_stack_position()
+{
+    // To get the popover stack position, given an HTML element popover:
+
+    // 1. Let hintList be popover's node document's showing hint popover list.
+    auto const& hint_list = document().showing_hint_popover_list();
+
+    // 2. Let autoList be popover's node document's showing auto popover list.
+    auto const& auto_list = document().showing_auto_popover_list();
+
+    // 3. If popover is in hintList, then return the index of popover in hintList + the size of autoList + 1.
+    if (hint_list.contains_slow(GC::Ref(*this)))
+        return hint_list.find_first_index(GC::Ref(*this)).value() + auto_list.size() + 1;
+
+    // 4. If popover is in autoList, then return the index of popover in autoList + 1.
+    if (auto_list.contains_slow(GC::Ref(*this)))
+        return auto_list.find_first_index(GC::Ref(*this)).value() + 1;
+
+    // 5. Return 0.
+    return 0;
+}
+
+// https://html.spec.whatwg.org/multipage/popover.html#topmost-clicked-popover
+GC::Ptr<HTMLElement> HTMLElement::topmost_clicked_popover(GC::Ptr<DOM::Node> node)
+{
+    // To find the topmost clicked popover, given a Node node:
+
+    GC::Ptr<HTMLElement> nearest_element = as_if<HTMLElement>(*node);
+    if (!nearest_element)
+        nearest_element = node->shadow_including_first_ancestor_of_type<HTMLElement>();
+
+    if (!nearest_element)
+        return {};
+
+    // 1. Let clickedPopover be the result of running nearest inclusive open popover given node.
+    auto clicked_popover = nearest_element->nearest_inclusive_open_popover();
+
+    // 2. Let invokerPopover be the result of running nearest inclusive target popover for invoker given node.
+    auto invoker_popover = nearest_element->nearest_inclusive_target_popover_for_invoker();
+
+    if (!clicked_popover)
+        return invoker_popover;
+
+    if (!invoker_popover)
+        return clicked_popover;
+
+    // 3. If the result of getting the popover stack position given clickedPopover is greater than the result of getting the popover stack position given invokerPopover, then return clickedPopover.
+    if (clicked_popover->popover_stack_position() > invoker_popover->popover_stack_position())
+        return clicked_popover;
+
+    // 4. Return invokerPopover.
+    return invoker_popover;
 }
 
 void HTMLElement::did_receive_focus()

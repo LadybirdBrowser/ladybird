@@ -339,6 +339,17 @@ static void set_user_selection(GC::Ptr<DOM::Node> anchor_node, unsigned anchor_o
     (void)selection->set_base_and_extent(*anchor_node, anchor_offset, *focus_node, focus_offset);
 }
 
+// https://html.spec.whatwg.org/multipage/interactive-elements.html#run-light-dismiss-activities
+static void light_dismiss_activities(UIEvents::PointerEvent const& event, const GC::Ptr<DOM::Node> target)
+{
+    // To run light dismiss activities, given a PointerEvent event:
+
+    // 1. Run light dismiss open popovers with event.
+    HTML::HTMLElement::light_dismiss_open_popovers(event, target);
+
+    // FIXME: 2. Run light dismiss open dialogs with event.
+}
+
 EventHandler::EventHandler(Badge<HTML::Navigable>, HTML::Navigable& navigable)
     : m_navigable(navigable)
     , m_drag_and_drop_event_handler(make<DragAndDropEventHandler>())
@@ -481,7 +492,9 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint viewport_position, CSSPix
 
             auto page_offset = compute_mouse_event_page_offset(viewport_position);
             auto offset = compute_mouse_event_offset(page_offset, *layout_node->first_paintable());
-            node->dispatch_event(UIEvents::PointerEvent::create_from_platform_event(node->realm(), UIEvents::EventNames::pointerup, screen_position, page_offset, viewport_position, offset, {}, button, buttons, modifiers).release_value_but_fixme_should_propagate_errors());
+            auto pointer_event = UIEvents::PointerEvent::create_from_platform_event(node->realm(), UIEvents::EventNames::pointerup, screen_position, page_offset, viewport_position, offset, {}, button, buttons, modifiers).release_value_but_fixme_should_propagate_errors();
+            light_dismiss_activities(pointer_event, node);
+            node->dispatch_event(pointer_event);
             node->dispatch_event(UIEvents::MouseEvent::create_from_platform_event(node->realm(), UIEvents::EventNames::mouseup, screen_position, page_offset, viewport_position, offset, {}, button, buttons, modifiers).release_value_but_fixme_should_propagate_errors());
             handled_event = EventResult::Handled;
 
@@ -629,7 +642,9 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint viewport_position, CSSP
         m_mousedown_target = node.ptr();
         auto page_offset = compute_mouse_event_page_offset(viewport_position);
         auto offset = compute_mouse_event_offset(page_offset, *layout_node->first_paintable());
-        node->dispatch_event(UIEvents::PointerEvent::create_from_platform_event(node->realm(), UIEvents::EventNames::pointerdown, screen_position, page_offset, viewport_position, offset, {}, button, buttons, modifiers).release_value_but_fixme_should_propagate_errors());
+        auto pointer_event = UIEvents::PointerEvent::create_from_platform_event(node->realm(), UIEvents::EventNames::pointerdown, screen_position, page_offset, viewport_position, offset, {}, button, buttons, modifiers).release_value_but_fixme_should_propagate_errors();
+        light_dismiss_activities(pointer_event, node);
+        node->dispatch_event(pointer_event);
         node->dispatch_event(UIEvents::MouseEvent::create_from_platform_event(node->realm(), UIEvents::EventNames::mousedown, screen_position, page_offset, viewport_position, offset, {}, button, buttons, modifiers).release_value_but_fixme_should_propagate_errors());
     }
 
