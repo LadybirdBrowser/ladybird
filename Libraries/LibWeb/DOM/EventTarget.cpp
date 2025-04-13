@@ -3,6 +3,7 @@
  * Copyright (c) 2022, Luke Wilde <lukew@serenityos.org>
  * Copyright (c) 2024, Glenn Skrzypczak <glenn.skrzypczak@gmail.com>
  * Copyright (c) 2025, Felipe Muñoz Mazur <felipe.munoz.mazur@protonmail.com>
+ * Copyright (c) 2025, Simon Farre <simon.farre.cx@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -39,6 +40,7 @@
 #include <LibWeb/UIEvents/EventNames.h>
 #include <LibWeb/UIEvents/KeyCode.h>
 #include <LibWeb/UIEvents/KeyboardEvent.h>
+#include <LibWeb/UIEvents/PointerEvent.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 
 namespace Web::DOM {
@@ -822,10 +824,19 @@ bool EventTarget::dispatch_event(Event& event)
         if (event.type() == UIEvents::EventNames::mousedown)
             return true;
 
-        // FIXME:
         // pointerdown, provided the event's pointerType is "mouse".
+        if (event.type() == UIEvents::EventNames::pointerdown) {
+            if (auto* pointer_event = as_if<UIEvents::PointerEvent>(&event))
+                return pointer_event->pointer_type() == "mouse"sv;
+        }
+
         // pointerup, provided the event's pointerType is not "mouse".
-        // touchend.
+        if (event.type() == UIEvents::EventNames::pointerup) {
+            if (auto* pointer_event = as_if<UIEvents::PointerEvent>(&event))
+                return pointer_event->pointer_type() != "mouse"sv;
+        }
+
+        // FIXME: touchend
 
         return false;
     };
