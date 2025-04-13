@@ -65,7 +65,7 @@ HTML::TransferType ImageBitmap::primary_interface() const
 {
     // FIXME: Implement this
     dbgln("(STUBBED) ImageBitmap::primary_interface()");
-    return {};
+    return TransferType::Unknown;
 }
 
 // https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#dom-imagebitmap-width
