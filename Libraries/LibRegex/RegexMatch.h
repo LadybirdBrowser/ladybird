@@ -476,9 +476,6 @@ private:
 };
 
 class Match final {
-private:
-    Optional<FlyString> string;
-
 public:
     Match() = default;
     ~Match() = default;
@@ -489,15 +486,6 @@ public:
         , column(column_)
         , global_offset(global_offset_)
         , left_column(column_)
-    {
-    }
-
-    Match(String string_, size_t const line_, size_t const column_, size_t const global_offset_)
-        : string(move(string_))
-        , view(string.value().bytes_as_string_view())
-        , line(line_)
-        , column(column_)
-        , global_offset(global_offset_)
     {
     }
 
