@@ -839,7 +839,8 @@ public:
     ExecutionResult execute(MatchInput const& input, MatchState& state) const override;
     ALWAYS_INLINE OpCodeId opcode_id() const override { return OpCodeId::SaveRightNamedCaptureGroup; }
     ALWAYS_INLINE size_t size() const override { return 3; }
-    ALWAYS_INLINE FlyString name() const { return m_bytecode->get_string(argument(0)); }
+    ALWAYS_INLINE FlyString name() const { return m_bytecode->get_string(name_string_table_index()); }
+    ALWAYS_INLINE size_t name_string_table_index() const { return argument(0); }
     ALWAYS_INLINE size_t length() const { return name().bytes_as_string_view().length(); }
     ALWAYS_INLINE size_t id() const { return argument(1); }
     ByteString arguments_string() const override

@@ -489,9 +489,9 @@ public:
     {
     }
 
-    Match(RegexStringView const view_, StringView capture_group_name_, size_t const line_, size_t const column_, size_t const global_offset_)
+    Match(RegexStringView const view_, size_t capture_group_name_, size_t const line_, size_t const column_, size_t const global_offset_)
         : view(view_)
-        , capture_group_name(MUST(FlyString::from_utf8(capture_group_name_)))
+        , capture_group_name(capture_group_name_)
         , line(line_)
         , column(column_)
         , global_offset(global_offset_)
@@ -510,7 +510,7 @@ public:
     }
 
     RegexStringView view {};
-    Optional<FlyString> capture_group_name {};
+    Optional<size_t> capture_group_name {}; // This is a string table index.
     size_t line { 0 };
     size_t column { 0 };
     size_t global_offset { 0 };
