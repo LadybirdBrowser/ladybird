@@ -796,6 +796,11 @@ public:
     Vector<GC::Ref<HTML::HTMLElement>> const& showing_auto_popover_list() const { return m_showing_auto_popover_list; }
     Vector<GC::Ref<HTML::HTMLElement>> const& showing_hint_popover_list() const { return m_showing_hint_popover_list; }
 
+    GC::Ptr<HTML::HTMLElement> topmost_auto_or_hint_popover();
+
+    void set_popover_pointerdown_target(GC::Ptr<HTML::HTMLElement> target) { m_popover_pointerdown_target = target; }
+    GC::Ptr<HTML::HTMLElement> popover_pointerdown_target() { return m_popover_pointerdown_target; }
+
     size_t transition_generation() const { return m_transition_generation; }
 
     // Does document represent an embedded svg img
@@ -1203,6 +1208,7 @@ private:
     Vector<GC::Ref<HTML::HTMLElement>> m_showing_auto_popover_list;
     Vector<GC::Ref<HTML::HTMLElement>> m_showing_hint_popover_list;
 
+    GC::Ptr<HTML::HTMLElement> m_popover_pointerdown_target;
     // https://dom.spec.whatwg.org/#document-allow-declarative-shadow-roots
     bool m_allow_declarative_shadow_roots { false };
 

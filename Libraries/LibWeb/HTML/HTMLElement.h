@@ -149,6 +149,8 @@ public:
     static void hide_all_popovers_until(Variant<GC::Ptr<HTMLElement>, GC::Ptr<DOM::Document>> endpoint, FocusPreviousElement focus_previous_element, FireEvents fire_events);
     static GC::Ptr<HTMLElement> topmost_popover_ancestor(GC::Ptr<DOM::Node> new_popover_or_top_layer_element, Vector<GC::Ref<HTMLElement>> const& popover_list, GC::Ptr<HTMLElement> invoker, IsPopover is_popover);
 
+    static void light_dismiss_open_popovers(UIEvents::PointerEvent const&, GC::Ptr<DOM::Node>);
+
     bool is_inert() const { return m_inert; }
 
     virtual bool is_valid_invoker_command(String&) { return false; }
@@ -197,7 +199,10 @@ private:
     static Optional<String> popover_value_to_state(Optional<String> value);
     void hide_popover_stack_until(Vector<GC::Ref<HTMLElement>> const& popover_list, FocusPreviousElement focus_previous_element, FireEvents fire_events);
     GC::Ptr<HTMLElement> nearest_inclusive_open_popover();
+    GC::Ptr<HTMLElement> nearest_inclusive_target_popover_for_invoker();
     static void close_entire_popover_list(Vector<GC::Ref<HTMLElement>> const& popover_list, FocusPreviousElement focus_previous_element, FireEvents fire_events);
+    static GC::Ptr<HTMLElement> topmost_clicked_popover(GC::Ptr<DOM::Node> node);
+    size_t popover_stack_position();
 
     // https://html.spec.whatwg.org/multipage/custom-elements.html#attached-internals
     GC::Ptr<ElementInternals> m_attached_internals;

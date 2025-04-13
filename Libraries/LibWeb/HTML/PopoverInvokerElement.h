@@ -21,6 +21,8 @@ public:
 
     void set_popover_target_element(GC::Ptr<DOM::Element> value) { m_popover_target_element = value; }
 
+    static GC::Ptr<HTMLElement> get_the_popover_target_element(GC::Ref<DOM::Node> node);
+
     static void popover_target_activation_behaviour(GC::Ref<DOM::Node> node, GC::Ref<DOM::Node> event_target);
 
 protected:
@@ -29,8 +31,6 @@ protected:
 
 private:
     GC::Ptr<DOM::Element> m_popover_target_element;
-
-    static GC::Ptr<HTMLElement> get_the_popover_target_element(GC::Ref<DOM::Node> node);
 };
 
 }

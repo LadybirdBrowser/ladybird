@@ -78,8 +78,9 @@ GC::Ptr<HTMLElement> PopoverInvokerElement::get_the_popover_target_element(GC::R
 {
     // To get the popover target element given a Node node, perform the following steps. They return an HTML element or null.
 
-    auto const* form_associated_element = dynamic_cast<FormAssociatedElement const*>(node.ptr());
-    VERIFY(form_associated_element);
+    auto const* form_associated_element = as_if<FormAssociatedElement>(*node);
+    if (!form_associated_element)
+        return {};
 
     // 1. If node is not a button, then return null.
     if (!form_associated_element->is_button())
