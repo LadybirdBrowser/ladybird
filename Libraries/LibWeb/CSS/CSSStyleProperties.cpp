@@ -1216,6 +1216,8 @@ void CSSStyleProperties::set_declarations_from_text(StringView css_text)
     auto parsing_params = owner_node().has_value()
         ? Parser::ParsingParams(owner_node()->element().document())
         : Parser::ParsingParams();
+    parsing_params.rule_context.append(Parser::RuleContext::Style);
+
     auto style = parse_css_property_declaration_block(parsing_params, css_text);
     set_the_declarations(style.properties, style.custom_properties);
 }

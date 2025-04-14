@@ -11,6 +11,7 @@
 #include <AK/Function.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/CSS/CSSRule.h>
+#include <LibWeb/CSS/Parser/RuleContext.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/TraversalOrder.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -62,6 +63,7 @@ public:
     // Returns whether the match state of any media queries changed after evaluation.
     bool evaluate_media_queries(HTML::Window const&);
 
+    void set_owner_rule(GC::Ref<CSSRule> owner_rule) { m_owner_rule = owner_rule; }
     void set_rules(Badge<CSSStyleSheet>, Vector<GC::Ref<CSSRule>> rules) { m_rules = move(rules); }
 
     Function<void()> on_change;
@@ -72,7 +74,10 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
+    Vector<Parser::RuleContext> rule_context() const;
+
     Vector<GC::Ref<CSSRule>> m_rules;
+    GC::Ptr<CSSRule> m_owner_rule;
 };
 
 }
