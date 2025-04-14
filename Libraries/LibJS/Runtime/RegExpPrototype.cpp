@@ -328,9 +328,9 @@ static ThrowCompletionOr<Value> regexp_builtin_exec(VM& vm, RegExpObject& regexp
         MUST(array->create_data_property_or_throw(i, captured_value));
 
         // e. If the ith capture of R was defined with a GroupName, then
-        if (capture.capture_group_name.has_value()) {
+        if (capture.capture_group_name >= 0) {
             // i. Let s be the CapturingGroupName of the corresponding RegExpIdentifierName.
-            auto group_name = regex.parser_result.bytecode.get_string(capture.capture_group_name.release_value());
+            auto group_name = regex.parser_result.bytecode.get_string(capture.capture_group_name);
 
             // ii. Perform ! CreateDataPropertyOrThrow(groups, s, capturedValue).
             MUST(groups_object->create_data_property_or_throw(group_name, captured_value));
