@@ -1045,11 +1045,11 @@ Object* create_unmapped_arguments_object(VM& vm, ReadonlySpan<Value> arguments)
 
     // 2. Let obj be OrdinaryObjectCreate(%Object.prototype%, « [[ParameterMap]] »).
     // 3. Set obj.[[ParameterMap]] to undefined.
-    auto object = Object::create(realm, realm.intrinsics().object_prototype());
+    auto object = Object::create_with_premade_shape(realm.intrinsics().unmapped_arguments_object_shape());
     object->set_has_parameter_map();
 
     // 4. Perform ! DefinePropertyOrThrow(obj, "length", PropertyDescriptor { [[Value]]: 𝔽(len), [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true }).
-    MUST(object->define_property_or_throw(vm.names.length, { .value = Value(length), .writable = true, .enumerable = false, .configurable = true }));
+    object->put_direct(realm.intrinsics().unmapped_arguments_object_length_offset(), Value(length));
 
     // 5. Let index be 0.
     // 6. Repeat, while index < len,
@@ -1058,18 +1058,17 @@ Object* create_unmapped_arguments_object(VM& vm, ReadonlySpan<Value> arguments)
         auto value = arguments[index];
 
         // b. Perform ! CreateDataPropertyOrThrow(obj, ! ToString(𝔽(index)), val).
-        MUST(object->create_data_property_or_throw(index, value));
+        object->indexed_properties().put(index, value);
 
         // c. Set index to index + 1.
     }
 
     // 7. Perform ! DefinePropertyOrThrow(obj, @@iterator, PropertyDescriptor { [[Value]]: %Array.prototype.values%, [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true }).
     auto array_prototype_values = realm.intrinsics().array_prototype_values_function();
-    MUST(object->define_property_or_throw(vm.well_known_symbol_iterator(), { .value = array_prototype_values, .writable = true, .enumerable = false, .configurable = true }));
+    object->put_direct(realm.intrinsics().unmapped_arguments_object_well_known_symbol_iterator_offset(), array_prototype_values);
 
     // 8. Perform ! DefinePropertyOrThrow(obj, "callee", PropertyDescriptor { [[Get]]: %ThrowTypeError%, [[Set]]: %ThrowTypeError%, [[Enumerable]]: false, [[Configurable]]: false }).
-    auto throw_type_error = realm.intrinsics().throw_type_error_function();
-    MUST(object->define_property_or_throw(vm.names.callee, { .get = throw_type_error, .set = throw_type_error, .enumerable = false, .configurable = false }));
+    object->put_direct(realm.intrinsics().unmapped_arguments_object_callee_offset(), realm.intrinsics().throw_type_error_accessor());
 
     // 9. Return obj.
     return object;
