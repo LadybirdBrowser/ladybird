@@ -30,6 +30,7 @@
 #include <LibWeb/HTML/TagNames.h>
 #include <LibWeb/IntersectionObserver/IntersectionObserver.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
+#include <LibWeb/WebIDL/Types.h>
 
 namespace Web::DOM {
 
@@ -465,6 +466,10 @@ public:
     size_t number_of_owned_list_items() const;
     Element const* list_owner() const;
     size_t ordinal_value() const;
+
+    void set_pointer_capture(WebIDL::Long pointer_id);
+    void release_pointer_capture(WebIDL::Long pointer_id);
+    bool has_pointer_capture(WebIDL::Long pointer_id);
 
 protected:
     Element(Document&, DOM::QualifiedName);
