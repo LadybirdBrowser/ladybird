@@ -141,7 +141,7 @@ GC::Ref<CSS::CSSStyleSheet> Parser::parse_as_css_stylesheet(Optional<::URL::URL>
     auto const& style_sheet = parse_a_stylesheet(m_token_stream, location);
 
     // Interpret all of the resulting top-level qualified rules as style rules, defined below.
-    GC::RootVector<CSSRule*> rules(realm().heap());
+    GC::RootVector<GC::Ref<CSSRule>> rules(realm().heap());
     for (auto const& raw_rule : style_sheet.rules) {
         auto rule = convert_to_rule(raw_rule, Nested::No);
         // If any style rule is invalid, or any at-rule is not recognized or is invalid according to its grammar or context, it’s a parse error.
@@ -150,7 +150,7 @@ GC::Ref<CSS::CSSStyleSheet> Parser::parse_as_css_stylesheet(Optional<::URL::URL>
             log_parse_error();
             continue;
         }
-        rules.append(rule);
+        rules.append(*rule);
     }
 
     auto rule_list = CSSRuleList::create(realm(), rules);
