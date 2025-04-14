@@ -23,8 +23,7 @@ class CSSRuleList : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(CSSRuleList);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSRuleList> create(JS::Realm&, GC::RootVector<CSSRule*> const&);
-    [[nodiscard]] static GC::Ref<CSSRuleList> create_empty(JS::Realm&);
+    [[nodiscard]] static GC::Ref<CSSRuleList> create(JS::Realm&, ReadonlySpan<GC::Ref<CSSRule>> = {});
 
     ~CSSRuleList() = default;
 

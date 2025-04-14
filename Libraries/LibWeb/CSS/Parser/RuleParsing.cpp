@@ -107,7 +107,7 @@ GC::Ptr<CSSStyleRule> Parser::convert_to_style_rule(QualifiedRule const& qualifi
 
     auto declaration = convert_to_style_declaration(qualified_rule.declarations);
 
-    GC::RootVector<CSSRule*> child_rules { realm().heap() };
+    GC::RootVector<GC::Ref<CSSRule>> child_rules { realm().heap() };
     for (auto& child : qualified_rule.child_rules) {
         child.visit(
             [&](Rule const& rule) {
@@ -116,7 +116,7 @@ GC::Ptr<CSSStyleRule> Parser::convert_to_style_rule(QualifiedRule const& qualifi
                 // https://drafts.csswg.org/css-nesting-1/#nested-group-rules
                 if (auto converted_rule = convert_to_rule(rule, Nested::Yes)) {
                     if (is<CSSGroupingRule>(*converted_rule)) {
-                        child_rules.append(converted_rule);
+                        child_rules.append(*converted_rule);
                     } else {
                         dbgln_if(CSS_PARSER_DEBUG, "CSSParser: nested {} is not allowed inside style rule; discarding.", converted_rule->class_name());
                     }
@@ -126,7 +126,7 @@ GC::Ptr<CSSStyleRule> Parser::convert_to_style_rule(QualifiedRule const& qualifi
                 child_rules.append(CSSNestedDeclarations::create(realm(), *convert_to_style_declaration(declarations)));
             });
     }
-    auto nested_rules = CSSRuleList::create(realm(), move(child_rules));
+    auto nested_rules = CSSRuleList::create(realm(), child_rules);
     return CSSStyleRule::create(realm(), move(selectors), *declaration, *nested_rules);
 }
 
@@ -260,12 +260,12 @@ GC::Ptr<CSSRule> Parser::convert_to_layer_rule(AtRule const& rule, Nested nested
         }
 
         // Then the rules
-        GC::RootVector<CSSRule*> child_rules { realm().heap() };
+        GC::RootVector<GC::Ref<CSSRule>> child_rules { realm().heap() };
         for (auto const& child : rule.child_rules_and_lists_of_declarations) {
             child.visit(
                 [&](Rule const& rule) {
                     if (auto child_rule = convert_to_rule(rule, nested))
-                        child_rules.append(child_rule);
+                        child_rules.append(*child_rule);
                 },
                 [&](Vector<Declaration> const& declarations) {
                     child_rules.append(CSSNestedDeclarations::create(realm(), *convert_to_style_declaration(declarations)));
@@ -350,7 +350,7 @@ GC::Ptr<CSSKeyframesRule> Parser::convert_to_keyframes_rule(AtRule const& rule)
 
     auto name = name_token.to_string();
 
-    GC::RootVector<CSSRule*> keyframes(realm().heap());
+    GC::RootVector<GC::Ref<CSSRule>> keyframes(realm().heap());
     rule.for_each_as_qualified_rule_list([&](auto& qualified_rule) {
         if (!qualified_rule.child_rules.is_empty()) {
             dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @keyframes keyframe rule contains at-rules; discarding them.");
@@ -405,7 +405,7 @@ GC::Ptr<CSSKeyframesRule> Parser::convert_to_keyframes_rule(AtRule const& rule)
         }
     });
 
-    return CSSKeyframesRule::create(realm(), name, CSSRuleList::create(realm(), move(keyframes)));
+    return CSSKeyframesRule::create(realm(), name, CSSRuleList::create(realm(), keyframes));
 }
 
 GC::Ptr<CSSNamespaceRule> Parser::convert_to_namespace_rule(AtRule const& rule)
@@ -480,12 +480,12 @@ GC::Ptr<CSSSupportsRule> Parser::convert_to_supports_rule(AtRule const& rule, Ne
         return {};
     }
 
-    GC::RootVector<CSSRule*> child_rules { realm().heap() };
+    GC::RootVector<GC::Ref<CSSRule>> child_rules { realm().heap() };
     for (auto const& child : rule.child_rules_and_lists_of_declarations) {
         child.visit(
             [&](Rule const& rule) {
                 if (auto child_rule = convert_to_rule(rule, nested))
-                    child_rules.append(child_rule);
+                    child_rules.append(*child_rule);
             },
             [&](Vector<Declaration> const& declarations) {
                 child_rules.append(CSSNestedDeclarations::create(realm(), *convert_to_style_declaration(declarations)));

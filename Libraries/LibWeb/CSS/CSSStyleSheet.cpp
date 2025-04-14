@@ -33,7 +33,7 @@ GC::Ref<CSSStyleSheet> CSSStyleSheet::create(JS::Realm& realm, CSSRuleList& rule
 WebIDL::ExceptionOr<GC::Ref<CSSStyleSheet>> CSSStyleSheet::construct_impl(JS::Realm& realm, Optional<CSSStyleSheetInit> const& options)
 {
     // 1. Construct a new CSSStyleSheet object sheet.
-    auto sheet = create(realm, CSSRuleList::create_empty(realm), CSS::MediaList::create(realm, {}), {});
+    auto sheet = create(realm, CSSRuleList::create(realm), CSS::MediaList::create(realm, {}), {});
 
     // 2. Set sheet’s location to the base URL of the associated Document for the current principal global object.
     auto associated_document = as<HTML::Window>(HTML::current_principal_global_object()).document();

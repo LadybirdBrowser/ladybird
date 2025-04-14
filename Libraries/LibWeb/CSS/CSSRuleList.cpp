@@ -22,11 +22,11 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSRuleList);
 
-GC::Ref<CSSRuleList> CSSRuleList::create(JS::Realm& realm, GC::RootVector<CSSRule*> const& rules)
+GC::Ref<CSSRuleList> CSSRuleList::create(JS::Realm& realm, ReadonlySpan<GC::Ref<CSSRule>> rules)
 {
     auto rule_list = realm.create<CSSRuleList>(realm);
-    for (auto* rule : rules)
-        rule_list->m_rules.append(*rule);
+    for (auto rule : rules)
+        rule_list->m_rules.append(rule);
     return rule_list;
 }
 
@@ -34,11 +34,6 @@ CSSRuleList::CSSRuleList(JS::Realm& realm)
     : Bindings::PlatformObject(realm)
 {
     m_legacy_platform_object_flags = LegacyPlatformObjectFlags { .supports_indexed_properties = 1 };
-}
-
-GC::Ref<CSSRuleList> CSSRuleList::create_empty(JS::Realm& realm)
-{
-    return realm.create<CSSRuleList>(realm);
 }
 
 void CSSRuleList::initialize(JS::Realm& realm)
