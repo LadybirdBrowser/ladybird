@@ -2853,12 +2853,12 @@ void readable_byte_stream_controller_respond_in_closed_state(ReadableByteStreamC
 
             // 2. Append pullIntoDescriptor to filledPullIntos.
             filled_pull_intos.append(pull_into_descriptor);
+        }
 
-            // 3. For each filledPullInto of filledPullIntos,
-            for (auto& filled_pull_into : filled_pull_intos) {
-                // 1. Perform ! ReadableByteStreamControllerCommitPullIntoDescriptor(stream, filledPullInto).
-                readable_byte_stream_controller_commit_pull_into_descriptor(stream, *filled_pull_into);
-            }
+        // 3. For each filledPullInto of filledPullIntos,
+        for (auto& filled_pull_into : filled_pull_intos) {
+            // 1. Perform ! ReadableByteStreamControllerCommitPullIntoDescriptor(stream, filledPullInto).
+            readable_byte_stream_controller_commit_pull_into_descriptor(stream, *filled_pull_into);
         }
     }
 }
