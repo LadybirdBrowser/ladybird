@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/Runtime/Accessor.h>
 #include <LibJS/Runtime/AggregateErrorConstructor.h>
 #include <LibJS/Runtime/AggregateErrorPrototype.h>
 #include <LibJS/Runtime/ArrayBufferConstructor.h>
@@ -219,6 +220,15 @@ void Intrinsics::initialize_intrinsics(Realm& realm)
     m_native_function_length_offset = m_native_function_shape->lookup(vm.names.length.to_string_or_symbol()).value().offset;
     m_native_function_name_offset = m_native_function_shape->lookup(vm.names.name.to_string_or_symbol()).value().offset;
 
+    m_unmapped_arguments_object_shape = heap().allocate<Shape>(realm);
+    m_unmapped_arguments_object_shape->set_prototype_without_transition(m_object_prototype);
+    m_unmapped_arguments_object_shape->add_property_without_transition(vm.names.length, Attribute::Writable | Attribute::Configurable);
+    m_unmapped_arguments_object_shape->add_property_without_transition(vm.well_known_symbol_iterator(), Attribute::Writable | Attribute::Configurable);
+    m_unmapped_arguments_object_shape->add_property_without_transition(vm.names.callee, 0);
+    m_unmapped_arguments_object_length_offset = m_unmapped_arguments_object_shape->lookup(vm.names.length.to_string_or_symbol()).value().offset;
+    m_unmapped_arguments_object_well_known_symbol_iterator_offset = m_unmapped_arguments_object_shape->lookup(StringOrSymbol(vm.well_known_symbol_iterator())).value().offset;
+    m_unmapped_arguments_object_callee_offset = m_unmapped_arguments_object_shape->lookup(vm.names.callee.to_string_or_symbol()).value().offset;
+
     // Normally Realm::create() takes care of this, but these are allocated via Heap::allocate().
     m_function_prototype->initialize(realm);
     m_object_prototype->initialize(realm);
@@ -271,6 +281,11 @@ void Intrinsics::initialize_intrinsics(Realm& realm)
     m_throw_type_error_function->define_direct_property(vm.names.length, Value(0), 0);
     m_throw_type_error_function->define_direct_property(vm.names.name, PrimitiveString::create(vm, String {}), 0);
     MUST(m_throw_type_error_function->internal_prevent_extensions());
+
+    m_throw_type_error_accessor = Accessor::create(
+        vm,
+        m_throw_type_error_function,
+        m_throw_type_error_function);
 
     initialize_constructor(vm, vm.names.Error, *m_error_constructor, m_error_prototype);
     initialize_constructor(vm, vm.names.Function, *m_function_constructor, m_function_prototype);
@@ -390,6 +405,7 @@ void Intrinsics::visit_edges(Visitor& visitor)
     visitor.visit(m_normal_function_prototype_shape);
     visitor.visit(m_normal_function_shape);
     visitor.visit(m_native_function_shape);
+    visitor.visit(m_unmapped_arguments_object_shape);
     visitor.visit(m_proxy_constructor);
     visitor.visit(m_async_from_sync_iterator_prototype);
     visitor.visit(m_async_generator_prototype);
@@ -414,6 +430,7 @@ void Intrinsics::visit_edges(Visitor& visitor)
     visitor.visit(m_json_stringify_function);
     visitor.visit(m_object_prototype_to_string_function);
     visitor.visit(m_throw_type_error_function);
+    visitor.visit(m_throw_type_error_accessor);
 
 #define __JS_ENUMERATE(ClassName, snake_name, PrototypeName, ConstructorName, ArrayType) \
     visitor.visit(m_##snake_name##_constructor);                                         \
