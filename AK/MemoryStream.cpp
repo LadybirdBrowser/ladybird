@@ -124,6 +124,22 @@ size_t FixedMemoryStream::remaining() const
     return m_bytes.size() - m_offset;
 }
 
+void AllocatingMemoryStream::peek_some(Bytes bytes) const
+{
+    size_t read_bytes = 0;
+
+    auto peek_offset = m_read_offset;
+    while (read_bytes < bytes.size()) {
+        auto range = MUST(next_read_range(peek_offset));
+        if (range.size() == 0)
+            break;
+
+        auto copied_bytes = range.copy_trimmed_to(bytes.slice(read_bytes));
+        read_bytes += copied_bytes;
+        peek_offset += copied_bytes;
+    }
+}
+
 ErrorOr<Bytes> AllocatingMemoryStream::read_some(Bytes bytes)
 {
     size_t read_bytes = 0;
@@ -131,7 +147,7 @@ ErrorOr<Bytes> AllocatingMemoryStream::read_some(Bytes bytes)
     while (read_bytes < bytes.size()) {
         VERIFY(m_write_offset >= m_read_offset);
 
-        auto range = TRY(next_read_range());
+        auto range = TRY(next_read_range(m_read_offset));
         if (range.size() == 0)
             break;
 
@@ -231,13 +247,13 @@ ErrorOr<Optional<size_t>> AllocatingMemoryStream::offset_of(ReadonlyBytes needle
     return AK::memmem(search_spans.begin(), search_spans.end(), needle);
 }
 
-ErrorOr<ReadonlyBytes> AllocatingMemoryStream::next_read_range()
+ErrorOr<ReadonlyBytes> AllocatingMemoryStream::next_read_range(size_t read_offset) const
 {
-    VERIFY(m_write_offset >= m_read_offset);
+    VERIFY(m_write_offset >= read_offset);
 
-    size_t const chunk_index = m_read_offset / CHUNK_SIZE;
-    size_t const chunk_offset = m_read_offset % CHUNK_SIZE;
-    size_t const read_size = min(CHUNK_SIZE - m_read_offset % CHUNK_SIZE, m_write_offset - m_read_offset);
+    size_t const chunk_index = read_offset / CHUNK_SIZE;
+    size_t const chunk_offset = read_offset % CHUNK_SIZE;
+    size_t const read_size = min(CHUNK_SIZE - read_offset % CHUNK_SIZE, m_write_offset - read_offset);
 
     if (read_size == 0)
         return ReadonlyBytes { static_cast<u8*>(nullptr), 0 };
