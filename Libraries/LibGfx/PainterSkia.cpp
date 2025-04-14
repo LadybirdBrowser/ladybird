@@ -20,7 +20,9 @@
 #include <core/SkBlender.h>
 #include <core/SkCanvas.h>
 #include <core/SkPath.h>
+#include <core/SkPathEffect.h>
 #include <effects/SkBlurMaskFilter.h>
+#include <effects/SkDashPathEffect.h>
 #include <effects/SkGradientShader.h>
 
 namespace Gfx {
@@ -225,7 +227,7 @@ void PainterSkia::stroke_path(Gfx::Path const& path, Gfx::PaintStyle const& pain
     });
 }
 
-void PainterSkia::stroke_path(Gfx::Path const& path, Gfx::PaintStyle const& paint_style, ReadonlySpan<Gfx::Filter> filters, float thickness, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Gfx::Path::CapStyle const& cap_style, Gfx::Path::JoinStyle const& join_style, float miter_limit)
+void PainterSkia::stroke_path(Gfx::Path const& path, Gfx::PaintStyle const& paint_style, ReadonlySpan<Gfx::Filter> filters, float thickness, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Gfx::Path::CapStyle const& cap_style, Gfx::Path::JoinStyle const& join_style, float miter_limit, Vector<float> const& dash_array, float dash_offset)
 {
     // Skia treats zero thickness as a special case and will draw a hairline, while we want to draw nothing.
     if (thickness <= 0)
@@ -241,6 +243,7 @@ void PainterSkia::stroke_path(Gfx::Path const& path, Gfx::PaintStyle const& pain
     paint.setStrokeCap(to_skia_cap(cap_style));
     paint.setStrokeJoin(to_skia_join(join_style));
     paint.setStrokeMiter(miter_limit);
+    paint.setPathEffect(SkDashPathEffect::Make(dash_array.data(), dash_array.size(), dash_offset));
     paint.setBlender(to_skia_blender(compositing_and_blending_operator));
     impl().with_canvas([&](auto& canvas) {
         canvas.drawPath(sk_path, paint);
