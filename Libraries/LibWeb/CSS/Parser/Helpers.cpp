@@ -57,18 +57,18 @@ GC::Ref<CSS::CSSStyleSheet> parse_css_stylesheet(CSS::Parser::ParsingParams cons
     return style_sheet;
 }
 
-CSS::Parser::Parser::PropertiesAndCustomProperties parse_css_style_attribute(CSS::Parser::ParsingParams const& context, StringView css)
+CSS::Parser::Parser::PropertiesAndCustomProperties parse_css_property_declaration_block(CSS::Parser::ParsingParams const& context, StringView css)
 {
     if (css.is_empty())
         return {};
-    return CSS::Parser::Parser::create(context, css).parse_as_style_attribute();
+    return CSS::Parser::Parser::create(context, css).parse_as_property_declaration_block();
 }
 
-Vector<CSS::Descriptor> parse_css_list_of_descriptors(CSS::Parser::ParsingParams const& parsing_params, CSS::AtRuleID at_rule_id, StringView css)
+Vector<CSS::Descriptor> parse_css_descriptor_declaration_block(CSS::Parser::ParsingParams const& parsing_params, CSS::AtRuleID at_rule_id, StringView css)
 {
     if (css.is_empty())
         return {};
-    return CSS::Parser::Parser::create(parsing_params, css).parse_as_list_of_descriptors(at_rule_id);
+    return CSS::Parser::Parser::create(parsing_params, css).parse_as_descriptor_declaration_block(at_rule_id);
 }
 
 RefPtr<CSS::CSSStyleValue const> parse_css_value(CSS::Parser::ParsingParams const& context, StringView string, CSS::PropertyID property_id)

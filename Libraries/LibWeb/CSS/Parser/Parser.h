@@ -96,8 +96,8 @@ public:
         Vector<StyleProperty> properties;
         HashMap<FlyString, StyleProperty> custom_properties;
     };
-    PropertiesAndCustomProperties parse_as_style_attribute();
-    Vector<Descriptor> parse_as_list_of_descriptors(AtRuleID);
+    PropertiesAndCustomProperties parse_as_property_declaration_block();
+    Vector<Descriptor> parse_as_descriptor_declaration_block(AtRuleID);
     CSSRule* parse_as_css_rule();
     Optional<StyleProperty> parse_as_supports_condition();
     GC::RootVector<GC::Ref<CSSRule>> parse_as_stylesheet_contents();
@@ -466,7 +466,6 @@ private:
 
     static bool has_ignored_vendor_prefix(StringView);
 
-    PropertiesAndCustomProperties extract_properties(Vector<RuleOrListOfDeclarations> const&);
     void extract_property(Declaration const&, Parser::PropertiesAndCustomProperties&);
 
     DOM::Document const* document() const;
@@ -523,8 +522,8 @@ private:
 namespace Web {
 
 GC::Ref<CSS::CSSStyleSheet> parse_css_stylesheet(CSS::Parser::ParsingParams const&, StringView, Optional<::URL::URL> location = {}, Vector<NonnullRefPtr<CSS::MediaQuery>> = {});
-CSS::Parser::Parser::PropertiesAndCustomProperties parse_css_style_attribute(CSS::Parser::ParsingParams const&, StringView);
-Vector<CSS::Descriptor> parse_css_list_of_descriptors(CSS::Parser::ParsingParams const&, CSS::AtRuleID, StringView);
+CSS::Parser::Parser::PropertiesAndCustomProperties parse_css_property_declaration_block(CSS::Parser::ParsingParams const&, StringView);
+Vector<CSS::Descriptor> parse_css_descriptor_declaration_block(CSS::Parser::ParsingParams const&, CSS::AtRuleID, StringView);
 RefPtr<CSS::CSSStyleValue const> parse_css_value(CSS::Parser::ParsingParams const&, StringView, CSS::PropertyID property_id = CSS::PropertyID::Invalid);
 RefPtr<CSS::CSSStyleValue const> parse_css_descriptor(CSS::Parser::ParsingParams const&, CSS::AtRuleID, CSS::DescriptorID, StringView);
 Optional<CSS::SelectorList> parse_selector(CSS::Parser::ParsingParams const&, StringView);
