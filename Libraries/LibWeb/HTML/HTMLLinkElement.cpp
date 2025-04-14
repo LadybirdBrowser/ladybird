@@ -486,26 +486,18 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
                 dbgln("Style sheet {} claimed to be '{}' but decoding failed", response.url().value_or(URL::URL()), encoding);
                 dispatch_event(*DOM::Event::create(realm(), HTML::EventNames::error));
             } else {
-                auto const decoded_string = maybe_decoded_string.release_value();
                 VERIFY(!response.url_list().is_empty());
-                auto location = response.url_list().first();
-                m_loaded_style_sheet = parse_css_stylesheet(CSS::Parser::ParsingParams(document(), location), decoded_string, location);
-
-                if (m_loaded_style_sheet) {
-                    document_or_shadow_root_style_sheets().create_a_css_style_sheet(
-                        "text/css"_string,
-                        this,
-                        attribute(HTML::AttributeNames::media).value_or({}),
-                        in_a_document_tree() ? attribute(HTML::AttributeNames::title).value_or({}) : String {},
-                        m_relationship & Relationship::Alternate && !m_explicitly_enabled,
-                        true,
-                        move(location),
-                        nullptr,
-                        nullptr,
-                        *m_loaded_style_sheet);
-                } else {
-                    dbgln_if(CSS_LOADER_DEBUG, "HTMLLinkElement: Failed to parse stylesheet: {}", resource()->url());
-                }
+                m_loaded_style_sheet = document_or_shadow_root_style_sheets().create_a_css_style_sheet(
+                    maybe_decoded_string.release_value(),
+                    "text/css"_string,
+                    this,
+                    attribute(HTML::AttributeNames::media).value_or({}),
+                    in_a_document_tree() ? attribute(HTML::AttributeNames::title).value_or({}) : String {},
+                    (m_relationship & Relationship::Alternate && !m_explicitly_enabled) ? CSS::StyleSheetList::Alternate::Yes : CSS::StyleSheetList::Alternate::No,
+                    CSS::StyleSheetList::OriginClean::Yes,
+                    response.url_list().first(),
+                    nullptr,
+                    nullptr);
 
                 // 2. Fire an event named load at el.
                 dispatch_event(*DOM::Event::create(realm(), HTML::EventNames::load));

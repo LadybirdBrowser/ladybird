@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2020-2024, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2023, Luke Wilde <lukew@serenityos.org>
+ * Copyright (c) 2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -19,9 +20,17 @@ class StyleSheetList final : public Bindings::PlatformObject {
 public:
     [[nodiscard]] static GC::Ref<StyleSheetList> create(GC::Ref<DOM::Node> document_or_shadow_root);
 
-    void add_a_css_style_sheet(CSS::CSSStyleSheet&);
-    void remove_a_css_style_sheet(CSS::CSSStyleSheet&);
-    void create_a_css_style_sheet(String type, DOM::Element* owner_node, String media, String title, bool alternate, bool origin_clean, Optional<::URL::URL> location, CSS::CSSStyleSheet* parent_style_sheet, CSS::CSSRule* owner_rule, CSS::CSSStyleSheet&);
+    void add_a_css_style_sheet(CSSStyleSheet&);
+    void remove_a_css_style_sheet(CSSStyleSheet&);
+    enum class Alternate : u8 {
+        No,
+        Yes,
+    };
+    enum class OriginClean : u8 {
+        No,
+        Yes,
+    };
+    GC::Ptr<CSSStyleSheet> create_a_css_style_sheet(String const& css_text, String type, DOM::Element* owner_node, String media, String title, Alternate, OriginClean, Optional<::URL::URL> location, CSSStyleSheet* parent_style_sheet, CSSRule* owner_rule);
 
     Vector<GC::Ref<CSSStyleSheet>> const& sheets() const { return m_sheets; }
     Vector<GC::Ref<CSSStyleSheet>>& sheets() { return m_sheets; }
