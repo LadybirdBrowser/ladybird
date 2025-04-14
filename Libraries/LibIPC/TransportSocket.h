@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/MemoryStream.h>
 #include <AK/Queue.h>
 #include <LibCore/Socket.h>
 #include <LibThreading/ConditionVariable.h>
@@ -56,11 +57,11 @@ public:
         Vector<u8> bytes;
         Vector<int> fds;
     };
-    BytesAndFds dequeue(size_t max_bytes);
-    void return_unsent_data_to_front_of_queue(ReadonlyBytes const& bytes, Vector<int> const& fds);
+    BytesAndFds peek(size_t max_bytes);
+    void discard(size_t bytes_count, size_t fds_count);
 
 private:
-    Vector<u8> m_bytes;
+    AllocatingMemoryStream m_stream;
     Vector<int> m_fds;
     Threading::Mutex m_mutex;
     Threading::ConditionVariable m_condition { m_mutex };
