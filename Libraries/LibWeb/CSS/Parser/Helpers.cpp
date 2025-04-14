@@ -45,7 +45,7 @@ GC::Ref<JS::Realm> internal_css_realm()
 GC::Ref<CSS::CSSStyleSheet> parse_css_stylesheet(CSS::Parser::ParsingParams const& context, StringView css, Optional<::URL::URL> location, Vector<NonnullRefPtr<CSS::MediaQuery>> media_query_list)
 {
     if (css.is_empty()) {
-        auto rule_list = CSS::CSSRuleList::create_empty(*context.realm);
+        auto rule_list = CSS::CSSRuleList::create(*context.realm);
         auto media_list = CSS::MediaList::create(*context.realm, {});
         auto style_sheet = CSS::CSSStyleSheet::create(*context.realm, rule_list, media_list, location);
         style_sheet->set_source_text({});
