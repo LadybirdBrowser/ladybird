@@ -169,7 +169,7 @@ private:
     IntrusiveListStorage<T, Container>* m_storage = nullptr;
     SubstitutedIntrusiveListNode<T, Container>* m_next = nullptr;
     SubstitutedIntrusiveListNode<T, Container>* m_prev = nullptr;
-    [[no_unique_address]] SelfReferenceIfNeeded<Container, IsRaw> m_self;
+    NO_UNIQUE_ADDRESS SelfReferenceIfNeeded<Container, IsRaw> m_self;
 };
 
 template<class T, typename Container, SubstitutedIntrusiveListNode<T, Container> T::* member>

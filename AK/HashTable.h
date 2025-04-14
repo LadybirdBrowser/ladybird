@@ -789,7 +789,7 @@ private:
 
     BucketType* m_buckets { nullptr };
 
-    [[no_unique_address]] CollectionDataType m_collection_data;
+    NO_UNIQUE_ADDRESS CollectionDataType m_collection_data;
     size_t m_size { 0 };
     size_t m_capacity { 0 };
 };
