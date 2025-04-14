@@ -41,10 +41,14 @@ void CSSGroupingRule::clear_caches()
         rule->clear_caches();
 }
 
+// https://drafts.csswg.org/cssom/#dom-cssgroupingrule-insertrule
 WebIDL::ExceptionOr<u32> CSSGroupingRule::insert_rule(StringView rule, u32 index)
 {
-    TRY(m_rules->insert_a_css_rule(rule, index));
-    // NOTE: The spec doesn't say where to set the parent rule, so we'll do it here.
+    // The insertRule(rule, index) method must return the result of invoking insert a CSS rule rule into the child CSS
+    // rules at index, with the nested flag set.
+    TRY(m_rules->insert_a_css_rule(rule, index, CSSRuleList::Nested::Yes));
+
+    // AD-HOC: The spec doesn't say where to set the parent rule, so we'll do it here.
     m_rules->item(index)->set_parent_rule(this);
     return index;
 }
