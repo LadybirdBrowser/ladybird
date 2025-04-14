@@ -18,15 +18,15 @@ jobs:
       fail-fast: false
       matrix:
         os_name: ['Linux']
-        os: [ubuntu-24.04]
+        os: ['ubuntu-24.04']
         arch: ['x86_64']
-        package_type: [Linux-x86_64]
+        package_type: ['Linux-x86_64']
 
         include:
           - os_name: 'macOS'
-            os: macos-15
+            os: 'macos-15'
             arch: 'arm64'
-            package_type: macOS-universal2
+            package_type: 'macOS-universal2'
 
     concurrency:
       group: ${{ github.workflow }}-${{ matrix.os_name }}

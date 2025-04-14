@@ -9,11 +9,24 @@ on:
 
 jobs:
   js-benchmarks:
-    runs-on: js-benchmarks-runner
+    runs-on: ['js-benchmarks', 'self-hosted', '${{ matrix.os }}']
     if: ${{ github.repository == 'LadybirdBrowser/ladybird' && github.event.workflow_run.conclusion == 'success' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os_name: ['Linux']
+        os: ['ubuntu-24.04-internal']
+        arch: ['x86_64']
+        package_type: ['Linux-x86_64']
+
+        include:
+          - os_name: 'macOS'
+            os: 'macos-15'
+            arch: 'arm64'
+            package_type: 'macOS-universal2'
 
     concurrency:
-      group: js-benchmarks
+      group: ${{ github.workflow }}-${{ matrix.os_name }}
 
     steps:
       - name: 'Checkout LadybirdBrowser/js-benchmarks'
@@ -23,6 +36,7 @@ jobs:
           path: js-benchmarks
 
       - name: 'Install dependencies'
+        if: ${{ matrix.os_name == 'Linux' }}
         shell: bash
         run: |
           sudo apt-get update
@@ -36,14 +50,14 @@ jobs:
         with:
           workflow: js-artifacts.yml
           commit: ${{ github.sha }}
-          name: ladybird-js-Linux-x86_64
+          name: ladybird-js-${{ matrix.package_type }}
           path: js-repl
 
       - name: 'Extract JS repl'
         shell: bash
         run: |
           cd js-repl
-          tar -xvzf ladybird-js-Linux-x86_64.tar.gz
+          tar -xvzf ladybird-js-${{ matrix.os_name }}-${{ matrix.arch }}.tar.gz
 
       - name: 'Run the JS benchmarks'
         shell: bash
@@ -57,7 +71,7 @@ jobs:
       - name: 'Save results as an artifact'
         uses: actions/upload-artifact@v4
         with:
-          name: js-benchmarks-results
+          name: js-benchmarks-results-${{ matrix.os_name }}-${{ matrix.arch }}
           path: js-benchmarks/results.json
           retention-days: 90
 
@@ -66,6 +80,8 @@ jobs:
         run: |
           echo -n '{                                                                       \
               "commit": "${{ github.sha }}",                                               \
+              "os_name": "${{ matrix.os_name }}",                                          \
+              "artifact": "js-benchmarks-results-${{ matrix.os_name }}-${{ matrix.arch }}" \
           }' > request.json
           curl \
               --fail \
