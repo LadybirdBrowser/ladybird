@@ -4974,8 +4974,8 @@ JS::Value writable_stream_default_controller_get_chunk_size(WritableStreamDefaul
 {
     // 1. If controller.[[strategySizeAlgorithm]] is undefined, then:
     if (!controller.strategy_size_algorithm()) {
-        // 1. Assert: controller.[[stream]].[[state]] is "erroring" or "errored".
-        VERIFY(controller.stream()->state() == WritableStream::State::Erroring || controller.stream()->state() == WritableStream::State::Errored);
+        // 1. Assert: controller.[[stream]].[[state]] is not "writable".
+        VERIFY(controller.stream()->state() != WritableStream::State::Writable);
 
         // 2. Return 1.
         return JS::Value { 1.0 };
