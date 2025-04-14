@@ -22,6 +22,7 @@
 #include <LibWeb/CSS/ParsedFontFace.h>
 #include <LibWeb/CSS/Parser/ComponentValue.h>
 #include <LibWeb/CSS/Parser/Dimension.h>
+#include <LibWeb/CSS/Parser/RuleContext.h>
 #include <LibWeb/CSS/Parser/TokenStream.h>
 #include <LibWeb/CSS/Parser/Tokenizer.h>
 #include <LibWeb/CSS/Parser/Types.h>
@@ -78,6 +79,8 @@ struct ParsingParams {
     GC::Ptr<DOM::Document const> document;
     ::URL::URL url;
     ParsingMode mode { ParsingMode::Normal };
+
+    Vector<RuleContext> rule_context;
 };
 
 // The very large CSS Parser implementation code is broken up among several .cpp files:
@@ -499,20 +502,7 @@ private:
     }
     bool context_allows_quirky_length() const;
 
-    enum class ContextType {
-        Unknown,
-        Style,
-        AtMedia,
-        AtFontFace,
-        AtKeyframes,
-        Keyframe,
-        AtSupports,
-        SupportsCondition,
-        AtLayer,
-        AtProperty,
-    };
-    static ContextType context_type_for_at_rule(FlyString const&);
-    Vector<ContextType> m_rule_context;
+    Vector<RuleContext> m_rule_context;
 
     Vector<PseudoClass> m_pseudo_class_context; // Stack of pseudo-class functions we're currently inside
 };

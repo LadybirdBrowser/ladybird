@@ -81,6 +81,7 @@ Parser::Parser(ParsingParams const& context, Vector<Token> tokens)
     , m_parsing_mode(context.mode)
     , m_tokens(move(tokens))
     , m_token_stream(m_tokens)
+    , m_rule_context(move(context.rule_context))
 {
 }
 
@@ -168,7 +169,7 @@ RefPtr<Supports> Parser::parse_a_supports(TokenStream<T>& tokens)
 {
     auto component_values = parse_a_list_of_component_values(tokens);
     TokenStream<ComponentValue> token_stream { component_values };
-    m_rule_context.append(ContextType::SupportsCondition);
+    m_rule_context.append(RuleContext::SupportsCondition);
     auto maybe_condition = parse_boolean_expression(token_stream, MatchResult::False, [this](auto& tokens) { return parse_supports_feature(tokens); });
     m_rule_context.take_last();
     token_stream.discard_whitespace();
@@ -492,7 +493,7 @@ Optional<AtRule> Parser::consume_an_at_rule(TokenStream<T>& input, Nested nested
         // <{-token>
         if (token.is(Token::Type::OpenCurly)) {
             // Consume a block from input, and assign the result to rule’s child rules.
-            m_rule_context.append(context_type_for_at_rule(rule.name));
+            m_rule_context.append(rule_context_type_for_at_rule(rule.name));
             rule.child_rules_and_lists_of_declarations = consume_a_block(input);
             m_rule_context.take_last();
 
@@ -525,9 +526,9 @@ Variant<Empty, QualifiedRule, Parser::InvalidRuleError> Parser::consume_a_qualif
 
     // NOTE: Qualified rules inside @keyframes are a keyframe rule.
     //       We'll assume all others are style rules.
-    auto type_of_qualified_rule = (!m_rule_context.is_empty() && m_rule_context.last() == ContextType::AtKeyframes)
-        ? ContextType::Keyframe
-        : ContextType::Style;
+    auto type_of_qualified_rule = (!m_rule_context.is_empty() && m_rule_context.last() == RuleContext::AtKeyframes)
+        ? RuleContext::Keyframe
+        : RuleContext::Style;
 
     // Process input:
     for (;;) {
@@ -1236,7 +1237,7 @@ Vector<RuleOrListOfDeclarations> Parser::parse_a_blocks_contents(TokenStream<T>&
 
 Optional<StyleProperty> Parser::parse_as_supports_condition()
 {
-    m_rule_context.append(ContextType::SupportsCondition);
+    m_rule_context.append(RuleContext::SupportsCondition);
     auto maybe_declaration = parse_a_declaration(m_token_stream);
     m_rule_context.take_last();
     if (maybe_declaration.has_value())
@@ -1359,7 +1360,7 @@ Parser::PropertiesAndCustomProperties Parser::parse_as_property_declaration_bloc
     };
 
     // 1. Let declarations be the returned declarations from invoking parse a block’s contents with string.
-    m_rule_context.append(ContextType::Style);
+    m_rule_context.append(RuleContext::Style);
     auto declarations_and_at_rules = parse_a_blocks_contents(m_token_stream);
     m_rule_context.take_last();
 
@@ -1392,9 +1393,9 @@ Vector<Descriptor> Parser::parse_as_descriptor_declaration_block(AtRuleID at_rul
     auto context_type = [at_rule_id] {
         switch (at_rule_id) {
         case AtRuleID::FontFace:
-            return ContextType::AtFontFace;
+            return RuleContext::AtFontFace;
         case AtRuleID::Property:
-            return ContextType::AtProperty;
+            return RuleContext::AtProperty;
         }
         VERIFY_NOT_REACHED();
     }();
@@ -1436,31 +1437,31 @@ bool Parser::is_valid_in_the_current_context(Declaration const&) const
         return false;
 
     switch (m_rule_context.last()) {
-    case ContextType::Unknown:
+    case RuleContext::Unknown:
         // If the context is an unknown type, we don't accept anything.
         return false;
 
-    case ContextType::Style:
-    case ContextType::Keyframe:
+    case RuleContext::Style:
+    case RuleContext::Keyframe:
         // Style and keyframe rules contain property declarations
         return true;
 
-    case ContextType::AtLayer:
-    case ContextType::AtMedia:
-    case ContextType::AtSupports:
+    case RuleContext::AtLayer:
+    case RuleContext::AtMedia:
+    case RuleContext::AtSupports:
         // Grouping rules can contain declarations if they are themselves inside a style rule
-        return m_rule_context.contains_slow(ContextType::Style);
+        return m_rule_context.contains_slow(RuleContext::Style);
 
-    case ContextType::AtFontFace:
-    case ContextType::AtProperty:
+    case RuleContext::AtFontFace:
+    case RuleContext::AtProperty:
         // @font-face and @property have descriptor declarations
         return true;
 
-    case ContextType::AtKeyframes:
+    case RuleContext::AtKeyframes:
         // @keyframes can only contain keyframe rules
         return false;
 
-    case ContextType::SupportsCondition:
+    case RuleContext::SupportsCondition:
         // @supports conditions accept all declarations
         return true;
     }
@@ -1475,32 +1476,32 @@ bool Parser::is_valid_in_the_current_context(AtRule const& at_rule) const
         return true;
 
     // Only grouping rules can be nested within style rules
-    if (m_rule_context.contains_slow(ContextType::Style))
+    if (m_rule_context.contains_slow(RuleContext::Style))
         return first_is_one_of(at_rule.name, "layer", "media", "supports");
 
     switch (m_rule_context.last()) {
-    case ContextType::Unknown:
+    case RuleContext::Unknown:
         // If the context is an unknown type, we don't accept anything.
         return false;
 
-    case ContextType::Style:
+    case RuleContext::Style:
         // Already handled above
         VERIFY_NOT_REACHED();
 
-    case ContextType::AtLayer:
-    case ContextType::AtMedia:
-    case ContextType::AtSupports:
+    case RuleContext::AtLayer:
+    case RuleContext::AtMedia:
+    case RuleContext::AtSupports:
         // Grouping rules can contain anything except @import or @namespace
         return !first_is_one_of(at_rule.name, "import", "namespace");
 
-    case ContextType::SupportsCondition:
+    case RuleContext::SupportsCondition:
         // @supports cannot check for at-rules
         return false;
 
-    case ContextType::AtFontFace:
-    case ContextType::AtKeyframes:
-    case ContextType::Keyframe:
-    case ContextType::AtProperty:
+    case RuleContext::AtFontFace:
+    case RuleContext::AtKeyframes:
+    case RuleContext::Keyframe:
+    case RuleContext::AtProperty:
         // These can't contain any at-rules
         return false;
     }
@@ -1517,31 +1518,31 @@ bool Parser::is_valid_in_the_current_context(QualifiedRule const&) const
         return true;
 
     switch (m_rule_context.last()) {
-    case ContextType::Unknown:
+    case RuleContext::Unknown:
         // If the context is an unknown type, we don't accept anything.
         return false;
 
-    case ContextType::Style:
+    case RuleContext::Style:
         // Style rules can contain style rules
         return true;
 
-    case ContextType::AtLayer:
-    case ContextType::AtMedia:
-    case ContextType::AtSupports:
+    case RuleContext::AtLayer:
+    case RuleContext::AtMedia:
+    case RuleContext::AtSupports:
         // Grouping rules can contain style rules
         return true;
 
-    case ContextType::AtKeyframes:
+    case RuleContext::AtKeyframes:
         // @keyframes can contain keyframe rules
         return true;
 
-    case ContextType::SupportsCondition:
+    case RuleContext::SupportsCondition:
         // @supports cannot check qualified rules
         return false;
 
-    case ContextType::AtFontFace:
-    case ContextType::AtProperty:
-    case ContextType::Keyframe:
+    case RuleContext::AtFontFace:
+    case RuleContext::AtProperty:
+    case RuleContext::Keyframe:
         // These can't contain qualified rules
         return false;
     }
@@ -1784,23 +1785,6 @@ bool Parser::has_ignored_vendor_prefix(StringView string)
     if (string.starts_with("-libweb-"sv))
         return false;
     return true;
-}
-
-Parser::ContextType Parser::context_type_for_at_rule(FlyString const& name)
-{
-    if (name == "media")
-        return ContextType::AtMedia;
-    if (name == "font-face")
-        return ContextType::AtFontFace;
-    if (name == "keyframes")
-        return ContextType::AtKeyframes;
-    if (name == "supports")
-        return ContextType::AtSupports;
-    if (name == "layer")
-        return ContextType::AtLayer;
-    if (name == "property")
-        return ContextType::AtProperty;
-    return ContextType::Unknown;
 }
 
 template Parser::ParsedStyleSheet Parser::parse_a_stylesheet(TokenStream<Token>&, Optional<::URL::URL>);
