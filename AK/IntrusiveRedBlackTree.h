@@ -212,7 +212,7 @@ private:
 #endif
 
     bool m_in_tree { false };
-    [[no_unique_address]] SelfReferenceIfNeeded<Container, IsRaw> m_self;
+    NO_UNIQUE_ADDRESS SelfReferenceIfNeeded<Container, IsRaw> m_self;
 };
 
 // Specialise IntrusiveRedBlackTree for NonnullRefPtr

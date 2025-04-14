@@ -138,7 +138,7 @@ private:
     size_t calculate_length_in_code_points() const;
 
     ReadonlySpan<u16> m_code_units;
-    [[no_unique_address]] mutable Optional<size_t> m_length_in_code_points;
+    NO_UNIQUE_ADDRESS mutable Optional<size_t> m_length_in_code_points;
     Endianness m_endianness { Endianness::Host };
 };
 
