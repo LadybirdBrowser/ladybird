@@ -2310,17 +2310,15 @@ void readable_byte_stream_controller_pull_into(ReadableByteStreamController& con
     size_t element_size = 1;
 
     // 3. Let ctor be %DataView%.
-    JS::NativeFunction* ctor = realm.intrinsics().data_view_constructor();
+    GC::Ref<JS::NativeFunction> ctor = realm.intrinsics().data_view_constructor();
 
     // 4. If view has a [[TypedArrayName]] internal slot (i.e., it is not a DataView),
-    if (view.bufferable_object().has<GC::Ref<JS::TypedArrayBase>>()) {
-        auto const& typed_array = *view.bufferable_object().get<GC::Ref<JS::TypedArrayBase>>();
-
+    if (auto const* typed_array = view.bufferable_object().get_pointer<GC::Ref<JS::TypedArrayBase>>()) {
         // 1. Set elementSize to the element size specified in the typed array constructors table for view.[[TypedArrayName]].
-        element_size = typed_array.element_size();
+        element_size = (*typed_array)->element_size();
 
         // 2. Set ctor to the constructor specified in the typed array constructors table for view.[[TypedArrayName]].
-        switch (typed_array.kind()) {
+        switch ((*typed_array)->kind()) {
 #define __JS_ENUMERATE(ClassName, snake_name, PrototypeName, ConstructorName, Type) \
     case JS::TypedArrayBase::Kind::ClassName:                                       \
         ctor = realm.intrinsics().snake_name##_constructor();                       \
@@ -2361,8 +2359,26 @@ void readable_byte_stream_controller_pull_into(ReadableByteStreamController& con
     // 9. Let buffer be bufferResult.[[Value]].
     auto buffer = buffer_result.value();
 
-    // 10. Let pullIntoDescriptor be a new pull-into descriptor with buffer buffer, buffer byte length buffer.[[ArrayBufferByteLength]],
-    //     byte offset byteOffset, byte length byteLength, bytes filled 0, element size elementSize, view constructor ctor, and reader type "byob".
+    // 10. Let pullIntoDescriptor be a new pull-into descriptor with
+    //
+    //     buffer
+    //         buffer
+    //     buffer byte length
+    //         buffer.[[ArrayBufferByteLength]]
+    //     byte offset
+    //         byteOffset
+    //     byte length
+    //         byteLength
+    //     bytes filled
+    //         0
+    //     minimum fill
+    //         minimumFill
+    //     element size
+    //         elementSize
+    //     view constructor
+    //         ctor
+    //     reader type
+    //         "byob"
     auto pull_into_descriptor = vm.heap().allocate<PullIntoDescriptor>(
         buffer,
         buffer->byte_length(),
@@ -2457,9 +2473,9 @@ void readable_stream_byob_reader_read(ReadableStreamBYOBReader& reader, WebIDL::
     if (stream->is_errored()) {
         read_into_request.on_error(stream->stored_error());
     }
-    // 5. Otherwise, perform ! ReadableByteStreamControllerPullInto(stream.[[controller]], view, readIntoRequest).
+    // 5. Otherwise, perform ! ReadableByteStreamControllerPullInto(stream.[[controller]], view, min, readIntoRequest).
     else {
-        readable_byte_stream_controller_pull_into(*stream->controller()->get<GC::Ref<ReadableByteStreamController>>(), view, min, read_into_request);
+        readable_byte_stream_controller_pull_into(stream->controller()->get<GC::Ref<ReadableByteStreamController>>(), view, min, read_into_request);
     }
 }
 
