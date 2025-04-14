@@ -329,10 +329,16 @@ void CanvasRenderingContext2D::stroke_internal(Gfx::Path const& path)
 
     auto& state = drawing_state();
 
-    // FIXME: Honor state's dash_list, and line_dash_offset.
     auto line_cap = to_gfx_cap(state.line_cap);
     auto line_join = to_gfx_join(state.line_join);
-    painter->stroke_path(path, state.stroke_style.to_gfx_paint_style(), state.filters, state.line_width, state.global_alpha, state.current_compositing_and_blending_operator, line_cap, line_join, state.miter_limit);
+    // FIXME: Need a Vector<float> for rendering dash_array, but state.dash_list is Vector<double>.
+    // Maybe possible to avoid creating copies?
+    auto dash_array = Vector<float> {};
+    dash_array.ensure_capacity(state.dash_list.size());
+    for (auto const& dash : state.dash_list) {
+        dash_array.append(static_cast<float>(dash));
+    }
+    painter->stroke_path(path, state.stroke_style.to_gfx_paint_style(), state.filters, state.line_width, state.global_alpha, state.current_compositing_and_blending_operator, line_cap, line_join, state.miter_limit, dash_array, state.line_dash_offset);
 
     did_draw(path.bounding_box());
 }

@@ -663,7 +663,6 @@ void DisplayListPlayerSkia::stroke_path_using_color(StrokePathUsingColor const& 
     if (!command.thickness)
         return;
 
-    // FIXME: Use .dash_array, .dash_offset.
     auto& canvas = surface().canvas();
     SkPaint paint;
     paint.setAntiAlias(true);
@@ -673,6 +672,7 @@ void DisplayListPlayerSkia::stroke_path_using_color(StrokePathUsingColor const& 
     paint.setStrokeJoin(to_skia_join(command.join_style));
     paint.setColor(to_skia_color(command.color));
     paint.setStrokeMiter(command.miter_limit);
+    paint.setPathEffect(SkDashPathEffect::Make(command.dash_array.data(), command.dash_array.size(), command.dash_offset));
     auto path = to_skia_path(command.path);
     path.offset(command.aa_translation.x(), command.aa_translation.y());
     canvas.drawPath(path, paint);
@@ -684,7 +684,6 @@ void DisplayListPlayerSkia::stroke_path_using_paint_style(StrokePathUsingPaintSt
     if (!command.thickness)
         return;
 
-    // FIXME: Use .dash_array, .dash_offset.
     auto path = to_skia_path(command.path);
     path.offset(command.aa_translation.x(), command.aa_translation.y());
     auto paint = paint_style_to_skia_paint(*command.paint_style, command.bounding_rect().to_type<float>());
@@ -695,6 +694,7 @@ void DisplayListPlayerSkia::stroke_path_using_paint_style(StrokePathUsingPaintSt
     paint.setStrokeCap(to_skia_cap(command.cap_style));
     paint.setStrokeJoin(to_skia_join(command.join_style));
     paint.setStrokeMiter(command.miter_limit);
+    paint.setPathEffect(SkDashPathEffect::Make(command.dash_array.data(), command.dash_array.size(), command.dash_offset));
     surface().canvas().drawPath(path, paint);
 }
 
