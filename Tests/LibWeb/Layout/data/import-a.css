@@ -1,0 +1,5 @@
+@import "import-b.css";
+
+#target {
+    width: 50px;
+}

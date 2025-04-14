@@ -487,13 +487,11 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
                 dispatch_event(*DOM::Event::create(realm(), HTML::EventNames::error));
             } else {
                 auto const decoded_string = maybe_decoded_string.release_value();
-                m_loaded_style_sheet = parse_css_stylesheet(CSS::Parser::ParsingParams(document(), *response.url()), decoded_string);
+                VERIFY(!response.url_list().is_empty());
+                auto location = response.url_list().first();
+                m_loaded_style_sheet = parse_css_stylesheet(CSS::Parser::ParsingParams(document(), location), decoded_string, location);
 
                 if (m_loaded_style_sheet) {
-                    Optional<::URL::URL> location;
-                    if (!response.url_list().is_empty())
-                        location = response.url_list().first();
-
                     document_or_shadow_root_style_sheets().create_a_css_style_sheet(
                         "text/css"_string,
                         this,
