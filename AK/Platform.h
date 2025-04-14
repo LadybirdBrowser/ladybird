@@ -247,6 +247,19 @@
 #    define DISALLOW(message) __attribute__((error(message)))
 #endif
 
+#ifdef NO_UNIQUE_ADDRESS
+#    undef NO_UNIQUE_ADDRESS
+#endif
+#if defined(AK_DISABLE_NO_UNIQUE_ADDRESS)
+#    define NO_UNIQUE_ADDRESS
+#else
+#    if defined(AK_OS_WINDOWS)
+#        define NO_UNIQUE_ADDRESS [[msvc::no_unique_address]]
+#    else
+#        define NO_UNIQUE_ADDRESS [[no_unique_address]]
+#    endif
+#endif
+
 // GCC doesn't have __has_feature but clang does
 #ifndef __has_feature
 #    define __has_feature(...) 0
