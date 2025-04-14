@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -11,6 +11,7 @@
 #include <LibWeb/CSS/CSSKeyframesRule.h>
 #include <LibWeb/CSS/CSSLayerBlockRule.h>
 #include <LibWeb/CSS/CSSMediaRule.h>
+#include <LibWeb/CSS/CSSNestedDeclarations.h>
 #include <LibWeb/CSS/CSSRule.h>
 #include <LibWeb/CSS/CSSRuleList.h>
 #include <LibWeb/CSS/CSSSupportsRule.h>
@@ -52,8 +53,8 @@ void CSSRuleList::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_rules);
 }
 
-// https://www.w3.org/TR/cssom/#insert-a-css-rule
-WebIDL::ExceptionOr<unsigned> CSSRuleList::insert_a_css_rule(Variant<StringView, CSSRule*> rule, u32 index)
+// https://drafts.csswg.org/cssom/#insert-a-css-rule
+WebIDL::ExceptionOr<unsigned> CSSRuleList::insert_a_css_rule(Variant<StringView, CSSRule*> rule, u32 index, Nested nested)
 {
     // 1. Set length to the number of items in list.
     auto length = m_rules.size();
@@ -69,24 +70,37 @@ WebIDL::ExceptionOr<unsigned> CSSRuleList::insert_a_css_rule(Variant<StringView,
     CSSRule* new_rule = nullptr;
     if (rule.has<StringView>()) {
         new_rule = parse_css_rule(
-            CSS::Parser::ParsingParams { realm() },
+            Parser::ParsingParams { realm() },
             rule.get<StringView>());
     } else {
         new_rule = rule.get<CSSRule*>();
     }
 
-    // 4. If new rule is a syntax error, throw a SyntaxError exception.
+    // 4. If new rule is a syntax error, and nested is set, perform the following substeps:
+    if (!new_rule && nested == Nested::Yes) {
+        // - Set declarations to the results of performing parse a CSS declaration block, on argument rule.
+        auto declarations = parse_css_property_declaration_block(Parser::ParsingParams { realm() }, rule.get<StringView>());
+
+        // - If declarations is empty, throw a SyntaxError exception.
+        if (declarations.custom_properties.is_empty() && declarations.properties.is_empty())
+            return WebIDL::SyntaxError::create(realm(), "Unable to parse CSS declarations block."_string);
+
+        // - Otherwise, set new rule to a new nested declarations rule with declarations as it contents.
+        new_rule = CSSNestedDeclarations::create(realm(), CSSStyleProperties::create(realm(), move(declarations.properties), move(declarations.custom_properties)));
+    }
+
+    // 5. If new rule is a syntax error, throw a SyntaxError exception.
     if (!new_rule)
         return WebIDL::SyntaxError::create(realm(), "Unable to parse CSS rule."_string);
 
-    // FIXME: 5. If new rule cannot be inserted into list at the zero-index position index due to constraints specified by CSS, then throw a HierarchyRequestError exception. [CSS21]
+    // FIXME: 6. If new rule cannot be inserted into list at the zero-index position index due to constraints specified by CSS, then throw a HierarchyRequestError exception. [CSS21]
 
-    // FIXME: 6. If new rule is an @namespace at-rule, and list contains anything other than @import at-rules, and @namespace at-rules, throw an InvalidStateError exception.
+    // FIXME: 7. If new rule is an @namespace at-rule, and list contains anything other than @import at-rules, and @namespace at-rules, throw an InvalidStateError exception.
 
-    // 7. Insert new rule into list at the zero-indexed position index.
+    // 8. Insert new rule into list at the zero-indexed position index.
     m_rules.insert(index, *new_rule);
 
-    // 8. Return index.
+    // 9. Return index.
     if (on_change)
         on_change();
     return index;

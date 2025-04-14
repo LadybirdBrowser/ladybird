@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2022, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2023, Luke Wilde <lukew@serenityos.org>
  *
@@ -9,8 +9,6 @@
 #pragma once
 
 #include <AK/Function.h>
-#include <AK/Iterator.h>
-#include <AK/RefPtr.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/CSS/CSSRule.h>
 #include <LibWeb/Forward.h>
@@ -55,7 +53,11 @@ public:
     virtual Optional<JS::Value> item_value(size_t index) const override;
 
     WebIDL::ExceptionOr<void> remove_a_css_rule(u32 index);
-    WebIDL::ExceptionOr<unsigned> insert_a_css_rule(Variant<StringView, CSSRule*>, u32 index);
+    enum class Nested {
+        No,
+        Yes,
+    };
+    WebIDL::ExceptionOr<unsigned> insert_a_css_rule(Variant<StringView, CSSRule*>, u32 index, Nested = Nested::No);
 
     void for_each_effective_rule(TraversalOrder, Function<void(CSSRule const&)> const& callback) const;
     // Returns whether the match state of any media queries changed after evaluation.
