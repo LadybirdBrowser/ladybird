@@ -1,4 +1,4 @@
-name: 'Run the JS benchmarks'
+name: 'JS benchmarks'
 
 on:
   workflow_run:
