@@ -22,13 +22,22 @@ args = parser.parse_args()
 SINGLE_PAGE_HTML_SPEC_LINK = re.compile('//.*https://html\\.spec\\.whatwg\\.org/#')
 
 
+def should_check_file(filename):
+    if not filename.endswith(".idl"):
+        return False
+    if filename.startswith('Tests/LibWeb/'):
+        return False
+    return True
+
+
 def find_files_here_or_argv():
     if args.filenames:
         raw_list = args.filenames
     else:
         process = subprocess.run(["git", "ls-files"], check=True, capture_output=True)
         raw_list = process.stdout.decode().strip("\n").split("\n")
-    return filter(lambda filename: filename.endswith(".idl"), raw_list)
+
+    return filter(should_check_file, raw_list)
 
 
 def run():
