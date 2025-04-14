@@ -74,7 +74,7 @@ VM::VM(OwnPtr<CustomData> custom_data, ErrorMessages error_messages)
 
     m_empty_string = m_heap.allocate<PrimitiveString>(String {});
 
-    typeof_strings = {
+    cached_strings = {
         .number = m_heap.allocate<PrimitiveString>("number"_string),
         .undefined = m_heap.allocate<PrimitiveString>("undefined"_string),
         .object = m_heap.allocate<PrimitiveString>("object"_string),
@@ -83,6 +83,7 @@ VM::VM(OwnPtr<CustomData> custom_data, ErrorMessages error_messages)
         .boolean = m_heap.allocate<PrimitiveString>("boolean"_string),
         .bigint = m_heap.allocate<PrimitiveString>("bigint"_string),
         .function = m_heap.allocate<PrimitiveString>("function"_string),
+        .object_Object = m_heap.allocate<PrimitiveString>("[object Object]"_string),
     };
 
     for (size_t i = 0; i < single_ascii_character_strings.size(); ++i)
@@ -239,14 +240,15 @@ void VM::gather_roots(HashMap<GC::Cell*, GC::HeapRoot>& roots)
     for (auto string : m_single_ascii_character_strings)
         roots.set(string, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
 
-    roots.set(typeof_strings.number, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
-    roots.set(typeof_strings.undefined, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
-    roots.set(typeof_strings.object, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
-    roots.set(typeof_strings.string, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
-    roots.set(typeof_strings.symbol, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
-    roots.set(typeof_strings.boolean, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
-    roots.set(typeof_strings.bigint, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
-    roots.set(typeof_strings.function, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
+    roots.set(cached_strings.number, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
+    roots.set(cached_strings.undefined, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
+    roots.set(cached_strings.object, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
+    roots.set(cached_strings.string, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
+    roots.set(cached_strings.symbol, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
+    roots.set(cached_strings.boolean, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
+    roots.set(cached_strings.bigint, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
+    roots.set(cached_strings.function, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
+    roots.set(cached_strings.object_Object, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
 
 #define __JS_ENUMERATE(SymbolName, snake_name) \
     roots.set(m_well_known_symbols.snake_name, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
