@@ -502,7 +502,7 @@ public:
     void reset()
     {
         view = view.typed_null_view();
-        capture_group_name.clear();
+        capture_group_name = -1;
         line = 0;
         column = 0;
         global_offset = 0;
@@ -510,7 +510,10 @@ public:
     }
 
     RegexStringView view {};
-    Optional<size_t> capture_group_name {}; // This is a string table index.
+
+    // This is a string table index. -1 if none. Not using Optional to keep the struct trivially copyable.
+    ssize_t capture_group_name { -1 };
+
     size_t line { 0 };
     size_t column { 0 };
     size_t global_offset { 0 };
