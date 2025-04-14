@@ -3729,8 +3729,19 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.getter_callback@)
 {
     WebIDL::log_trace(vm, "@class_name@::@attribute.getter_callback@");
     [[maybe_unused]] auto& realm = *vm.current_realm();
+)~~~");
+
+        // NOTE: Create a wrapper lambda so that if the function steps return an exception, we can return that in a rejected promise.
+        if (attribute.type->name() == "Promise"sv) {
+            attribute_generator.append(R"~~~(
+    auto steps = [&]() -> JS::ThrowCompletionOr<GC::Ptr<WebIDL::Promise>> {
+)~~~");
+        }
+
+        attribute_generator.append(R"~~~(
     [[maybe_unused]] auto* impl = TRY(impl_from(vm));
 )~~~");
+
         if (attribute.extended_attributes.contains("CEReactions")) {
             // 1. Push a new element queue onto this object's relevant agent's custom element reactions stack.
             attribute_generator.append(R"~~~(
@@ -4067,6 +4078,23 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.getter_callback@)
     auto retval = retval_or_exception.release_value();
 )~~~");
             }
+        }
+
+        if (attribute.type->name() == "Promise"sv) {
+            attribute_generator.append(R"~~~(
+        return retval;
+    };
+
+    auto maybe_retval = steps();
+
+    // And then, if an exception E was thrown:
+    // 1. If attribute’s type is a promise type, then return ! Call(%Promise.reject%, %Promise%, «E»).
+    // 2. Otherwise, end these steps and allow the exception to propagate.
+    if (maybe_retval.is_throw_completion())
+        return WebIDL::create_rejected_promise(realm, maybe_retval.error_value())->promise();
+
+    auto retval = maybe_retval.release_value();
+)~~~");
         }
 
         generate_return_statement(generator, *attribute.type, interface);

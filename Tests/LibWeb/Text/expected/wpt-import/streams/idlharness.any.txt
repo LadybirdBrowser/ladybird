@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 229 tests
 
-224 Pass
-5 Fail
+228 Pass
+1 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	ReadableStreamDefaultReader includes ReadableStreamGenericReader: member names are unique
@@ -44,7 +44,7 @@ Pass	ReadableStreamDefaultReader interface: existence and properties of interfac
 Pass	ReadableStreamDefaultReader interface: existence and properties of interface prototype object's @@unscopables property
 Pass	ReadableStreamDefaultReader interface: operation read()
 Pass	ReadableStreamDefaultReader interface: operation releaseLock()
-Fail	ReadableStreamDefaultReader interface: attribute closed
+Pass	ReadableStreamDefaultReader interface: attribute closed
 Pass	ReadableStreamDefaultReader interface: operation cancel(optional any)
 Pass	ReadableStreamDefaultReader must be primary interface of (new ReadableStream()).getReader()
 Pass	Stringification of (new ReadableStream()).getReader()
@@ -61,7 +61,7 @@ Pass	ReadableStreamBYOBReader interface: existence and properties of interface p
 Pass	ReadableStreamBYOBReader interface: existence and properties of interface prototype object's @@unscopables property
 Pass	ReadableStreamBYOBReader interface: operation read(ArrayBufferView, optional ReadableStreamBYOBReaderReadOptions)
 Pass	ReadableStreamBYOBReader interface: operation releaseLock()
-Fail	ReadableStreamBYOBReader interface: attribute closed
+Pass	ReadableStreamBYOBReader interface: attribute closed
 Pass	ReadableStreamBYOBReader interface: operation cancel(optional any)
 Pass	ReadableStreamBYOBReader must be primary interface of (new ReadableStream({ type: 'bytes' })).getReader({ mode: 'byob' })
 Pass	Stringification of (new ReadableStream({ type: 'bytes' })).getReader({ mode: 'byob' })
@@ -148,9 +148,9 @@ Pass	WritableStreamDefaultWriter interface object name
 Pass	WritableStreamDefaultWriter interface: existence and properties of interface prototype object
 Pass	WritableStreamDefaultWriter interface: existence and properties of interface prototype object's "constructor" property
 Pass	WritableStreamDefaultWriter interface: existence and properties of interface prototype object's @@unscopables property
-Fail	WritableStreamDefaultWriter interface: attribute closed
+Pass	WritableStreamDefaultWriter interface: attribute closed
 Pass	WritableStreamDefaultWriter interface: attribute desiredSize
-Fail	WritableStreamDefaultWriter interface: attribute ready
+Pass	WritableStreamDefaultWriter interface: attribute ready
 Pass	WritableStreamDefaultWriter interface: operation abort(optional any)
 Pass	WritableStreamDefaultWriter interface: operation close()
 Pass	WritableStreamDefaultWriter interface: operation releaseLock()
