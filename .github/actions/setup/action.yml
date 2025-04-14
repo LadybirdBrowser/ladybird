@@ -110,7 +110,7 @@ runs:
       run: |
         set -e
         brew update
-        brew install autoconf autoconf-archive automake bash ccache coreutils llvm@19 nasm ninja qt unzip wabt
+        brew install autoconf autoconf-archive automake bash ccache coreutils llvm@19 nasm ninja pkg-config qt unzip wabt
 
     - name: 'Set required environment variables'
       if: ${{ inputs.os == 'Linux' && inputs.arch == 'arm64' }}
