@@ -497,8 +497,15 @@ private:
 
         auto on_chunk = GC::create_function(heap(), [this](JS::Value chunk) {
             m_unwritten_chunks.append(chunk);
-            write_chunk();
-            process();
+
+            if (check_for_error_and_close_states())
+                return;
+
+            HTML::queue_a_microtask(nullptr, GC::create_function(m_realm->heap(), [this]() {
+                HTML::TemporaryExecutionContext execution_context { m_realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+                write_chunk();
+                process();
+            }));
         });
 
         auto on_complete = GC::create_function(heap(), [this]() {
