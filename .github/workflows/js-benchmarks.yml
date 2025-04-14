@@ -88,6 +88,6 @@ jobs:
               --silent \
               --show-error \
               --header 'Content-Type: application/json' \
-              --header "X-Hub-Signature-256: sha256=$(openssl dgst -sha256 -hmac '${{ secrets.JS_BENCHMARKS_WEBHOOK_SECRET }}' request.json)" \
+              --header "X-Hub-Signature-256: sha256=$(openssl dgst -sha256 -hmac '${{ secrets.JS_BENCHMARKS_WEBHOOK_SECRET }}' request.json | cut -d' ' -f2)" \
               --data-binary '@request.json' \
               '${{ secrets.JS_BENCHMARKS_WEBHOOK_URL }}'
