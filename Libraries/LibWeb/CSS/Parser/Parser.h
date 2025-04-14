@@ -90,7 +90,7 @@ class Parser {
 public:
     static Parser create(ParsingParams const&, StringView input, StringView encoding = "utf-8"sv);
 
-    CSSStyleSheet* parse_as_css_stylesheet(Optional<::URL::URL> location, Vector<NonnullRefPtr<MediaQuery>> media_query_list = {});
+    GC::Ref<CSS::CSSStyleSheet> parse_as_css_stylesheet(Optional<::URL::URL> location, Vector<NonnullRefPtr<MediaQuery>> media_query_list = {});
 
     struct PropertiesAndCustomProperties {
         Vector<StyleProperty> properties;
@@ -520,7 +520,7 @@ private:
 
 namespace Web {
 
-CSS::CSSStyleSheet* parse_css_stylesheet(CSS::Parser::ParsingParams const&, StringView, Optional<::URL::URL> location = {}, Vector<NonnullRefPtr<CSS::MediaQuery>> = {});
+GC::Ref<CSS::CSSStyleSheet> parse_css_stylesheet(CSS::Parser::ParsingParams const&, StringView, Optional<::URL::URL> location = {}, Vector<NonnullRefPtr<CSS::MediaQuery>> = {});
 CSS::Parser::Parser::PropertiesAndCustomProperties parse_css_style_attribute(CSS::Parser::ParsingParams const&, StringView);
 Vector<CSS::Descriptor> parse_css_list_of_descriptors(CSS::Parser::ParsingParams const&, CSS::AtRuleID, StringView);
 RefPtr<CSS::CSSStyleValue> parse_css_value(CSS::Parser::ParsingParams const&, StringView, CSS::PropertyID property_id = CSS::PropertyID::Invalid);

@@ -207,7 +207,7 @@ GC::Ref<WebIDL::Promise> CSSStyleSheet::replace(String text)
         HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
         // 1. Let rules be the result of running parse a stylesheet’s contents from text.
-        auto* parsed_stylesheet = parse_css_stylesheet(make_parsing_params(), text);
+        auto parsed_stylesheet = parse_css_stylesheet(make_parsing_params(), text);
         auto& rules = parsed_stylesheet->rules();
 
         // 2. If rules contains one or more @import rules, remove those rules from rules.
@@ -240,7 +240,7 @@ WebIDL::ExceptionOr<void> CSSStyleSheet::replace_sync(StringView text)
         return WebIDL::NotAllowedError::create(realm(), "Can't call replaceSync() on non-modifiable stylesheets"_string);
 
     // 2. Let rules be the result of running parse a stylesheet’s contents from text.
-    auto* parsed_stylesheet = parse_css_stylesheet(make_parsing_params(), text);
+    auto parsed_stylesheet = parse_css_stylesheet(make_parsing_params(), text);
     auto& rules = parsed_stylesheet->rules();
 
     // 3. If rules contains one or more @import rules, remove those rules from rules.

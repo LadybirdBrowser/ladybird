@@ -61,20 +61,13 @@ void StyleSheetList::add_a_css_style_sheet(CSS::CSSStyleSheet& sheet)
 }
 
 // https://www.w3.org/TR/cssom/#create-a-css-style-sheet
-GC::Ptr<CSSStyleSheet> StyleSheetList::create_a_css_style_sheet(String const& css_text, String type, DOM::Element* owner_node, String media, String title, Alternate alternate, OriginClean origin_clean, Optional<::URL::URL> location, CSSStyleSheet* parent_style_sheet, CSSRule* owner_rule)
+GC::Ref<CSSStyleSheet> StyleSheetList::create_a_css_style_sheet(String const& css_text, String type, DOM::Element* owner_node, String media, String title, Alternate alternate, OriginClean origin_clean, Optional<::URL::URL> location, CSSStyleSheet* parent_style_sheet, CSSRule* owner_rule)
 {
     // 1. Create a new CSS style sheet object and set its properties as specified.
     // AD-HOC: The spec never tells us when to parse this style sheet, but the most logical place is here.
     // AD-HOC: Are we supposed to use the document's URL for the stylesheet's location during parsing? Not doing it breaks things.
     auto location_url = location.value_or(document().url());
-    auto* sheet = parse_css_stylesheet(Parser::ParsingParams { document(), location_url }, css_text, location_url);
-
-    // AD-HOC: Exit out if parsing failed.
-    // FIXME: What should we actually do here?
-    if (!sheet) {
-        dbgln_if(CSS_LOADER_DEBUG, "StyleSheetList::create_a_css_style_sheet(): Failed to parse stylesheet at {}", location_url);
-        return nullptr;
-    }
+    auto sheet = parse_css_stylesheet(Parser::ParsingParams { document(), location_url }, css_text, location_url);
 
     sheet->set_parent_css_style_sheet(parent_style_sheet);
     sheet->set_owner_css_rule(owner_rule);
