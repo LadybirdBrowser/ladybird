@@ -3796,4 +3796,24 @@ Optional<String> Element::lang() const
         return {};
     return maybe_lang.release_value();
 }
+
+void Element::set_pointer_capture(WebIDL::Long pointer_id)
+{
+    (void)pointer_id;
+    dbgln("FIXME: Implement Element::setPointerCapture()");
+}
+
+void Element::release_pointer_capture(WebIDL::Long pointer_id)
+{
+    (void)pointer_id;
+    dbgln("FIXME: Implement Element::releasePointerCapture()");
+}
+
+bool Element::has_pointer_capture(WebIDL::Long pointer_id)
+{
+    (void)pointer_id;
+    dbgln("FIXME: Implement Element::hasPointerCapture()");
+    return false;
+}
+
 }
