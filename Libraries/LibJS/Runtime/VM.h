@@ -229,7 +229,8 @@ public:
         GC::Ptr<PrimitiveString> boolean;
         GC::Ptr<PrimitiveString> bigint;
         GC::Ptr<PrimitiveString> function;
-    } typeof_strings;
+        GC::Ptr<PrimitiveString> object_Object;
+    } cached_strings;
 
     void run_queued_promise_jobs();
     void enqueue_promise_job(GC::Ref<GC::Function<ThrowCompletionOr<Value>()>> job, Realm*);

@@ -193,6 +193,10 @@ JS_DEFINE_NATIVE_FUNCTION(ObjectPrototype::to_string)
         tag = to_string_tag.as_string().utf8_string_view();
 
     // 17. Return the string-concatenation of "[object ", tag, and "]".
+
+    // OPTIMIZATION: The VM has a cache for the extremely common "[object Object]" string.
+    if (tag == "Object"sv)
+        return vm.cached_strings.object_Object;
     return PrimitiveString::create(vm, MUST(String::formatted("[object {}]", tag)));
 }
 
