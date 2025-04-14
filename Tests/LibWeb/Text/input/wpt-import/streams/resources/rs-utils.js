@@ -215,15 +215,7 @@
   }
 
   function transferArrayBufferView(view) {
-    const noopByteStream = new ReadableStream({
-      type: 'bytes',
-      pull(c) {
-        c.byobRequest.respond(c.byobRequest.view.byteLength);
-        c.close();
-      }
-    });
-    const reader = noopByteStream.getReader({ mode: 'byob' });
-    return reader.read(view).then((result) => result.value);
+    return structuredClone(view, { transfer: [view.buffer] });
   }
 
   self.RandomPushSource = RandomPushSource;
