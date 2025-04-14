@@ -1344,9 +1344,7 @@ Parser::PropertiesAndCustomProperties Parser::parse_as_property_declaration_bloc
     };
 
     // 1. Let declarations be the returned declarations from invoking parse a block’s contents with string.
-    m_rule_context.append(RuleContext::Style);
     auto declarations_and_at_rules = parse_a_blocks_contents(m_token_stream);
-    m_rule_context.take_last();
 
     // 2. Let parsed declarations be a new empty list.
     PropertiesAndCustomProperties parsed_declarations;

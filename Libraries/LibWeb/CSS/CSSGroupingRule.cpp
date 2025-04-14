@@ -18,6 +18,7 @@ CSSGroupingRule::CSSGroupingRule(JS::Realm& realm, CSSRuleList& rules, Type type
     : CSSRule(realm, type)
     , m_rules(rules)
 {
+    m_rules->set_owner_rule(*this);
     for (auto& rule : *m_rules)
         rule->set_parent_rule(this);
 }

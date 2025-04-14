@@ -46,6 +46,7 @@ void CSSRuleList::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_rules);
+    visitor.visit(m_owner_rule);
 }
 
 // https://drafts.csswg.org/cssom/#insert-a-css-rule
@@ -62,11 +63,12 @@ WebIDL::ExceptionOr<unsigned> CSSRuleList::insert_a_css_rule(Variant<StringView,
     // NOTE: The insert-a-css-rule spec expects `rule` to be a string, but the CSSStyleSheet.insertRule()
     //       spec calls this algorithm with an already-parsed CSSRule. So, we use a Variant and skip step 3
     //       if that variant holds a CSSRule already.
+    Parser::ParsingParams parsing_params { realm() };
+    parsing_params.rule_context = rule_context();
+
     CSSRule* new_rule = nullptr;
     if (rule.has<StringView>()) {
-        new_rule = parse_css_rule(
-            Parser::ParsingParams { realm() },
-            rule.get<StringView>());
+        new_rule = parse_css_rule(parsing_params, rule.get<StringView>());
     } else {
         new_rule = rule.get<CSSRule*>();
     }
@@ -74,7 +76,7 @@ WebIDL::ExceptionOr<unsigned> CSSRuleList::insert_a_css_rule(Variant<StringView,
     // 4. If new rule is a syntax error, and nested is set, perform the following substeps:
     if (!new_rule && nested == Nested::Yes) {
         // - Set declarations to the results of performing parse a CSS declaration block, on argument rule.
-        auto declarations = parse_css_property_declaration_block(Parser::ParsingParams { realm() }, rule.get<StringView>());
+        auto declarations = parse_css_property_declaration_block(parsing_params, rule.get<StringView>());
 
         // - If declarations is empty, throw a SyntaxError exception.
         if (declarations.custom_properties.is_empty() && declarations.properties.is_empty())
@@ -223,6 +225,15 @@ Optional<JS::Value> CSSRuleList::item_value(size_t index) const
     if (auto value = item(index))
         return value;
     return {};
+}
+
+Vector<Parser::RuleContext> CSSRuleList::rule_context() const
+{
+    Vector<Parser::RuleContext> context;
+    for (auto* rule = m_owner_rule.ptr(); rule; rule = rule->parent_rule())
+        context.append(Parser::rule_context_type_for_rule(rule->type()));
+    context.reverse();
+    return context;
 }
 
 }
