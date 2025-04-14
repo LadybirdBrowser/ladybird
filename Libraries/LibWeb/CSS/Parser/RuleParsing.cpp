@@ -171,7 +171,7 @@ GC::Ptr<CSSImportRule> Parser::convert_to_import_rule(AtRule const& rule)
         if (supports_tokens.next_token().is_block()) {
             supports = parse_a_supports(supports_tokens);
         } else {
-            m_rule_context.append(ContextType::SupportsCondition);
+            m_rule_context.append(RuleContext::SupportsCondition);
             auto declaration = consume_a_declaration(supports_tokens);
             m_rule_context.take_last();
             if (declaration.has_value()) {
