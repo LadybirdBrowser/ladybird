@@ -1337,7 +1337,8 @@ Vector<Vector<ComponentValue>> Parser::parse_a_comma_separated_list_of_component
     return groups;
 }
 
-Parser::PropertiesAndCustomProperties Parser::parse_as_style_attribute()
+// https://drafts.csswg.org/cssom/#parse-a-css-declaration-block
+Parser::PropertiesAndCustomProperties Parser::parse_as_property_declaration_block()
 {
     auto expand_shorthands = [&](Vector<StyleProperty>& properties) -> Vector<StyleProperty> {
         Vector<StyleProperty> expanded_properties;
@@ -1357,16 +1358,36 @@ Parser::PropertiesAndCustomProperties Parser::parse_as_style_attribute()
         return expanded_properties;
     };
 
+    // 1. Let declarations be the returned declarations from invoking parse a block’s contents with string.
     m_rule_context.append(ContextType::Style);
     auto declarations_and_at_rules = parse_a_blocks_contents(m_token_stream);
     m_rule_context.take_last();
 
-    auto properties = extract_properties(declarations_and_at_rules);
-    properties.properties = expand_shorthands(properties.properties);
-    return properties;
+    // 2. Let parsed declarations be a new empty list.
+    PropertiesAndCustomProperties parsed_declarations;
+
+    // 3. For each item declaration in declarations, follow these substeps:
+    for (auto const& rule_or_list : declarations_and_at_rules) {
+        if (rule_or_list.has<Rule>())
+            continue;
+
+        auto& rule_declarations = rule_or_list.get<Vector<Declaration>>();
+        for (auto const& declaration : rule_declarations) {
+            // 1. Let parsed declaration be the result of parsing declaration according to the appropriate CSS
+            //    specifications, dropping parts that are said to be ignored. If the whole declaration is dropped, let
+            //    parsed declaration be null.
+            // 2. If parsed declaration is not null, append it to parsed declarations.
+            extract_property(declaration, parsed_declarations);
+        }
+    }
+    parsed_declarations.properties = expand_shorthands(parsed_declarations.properties);
+
+    // 4. Return parsed declarations.
+    return parsed_declarations;
 }
 
-Vector<Descriptor> Parser::parse_as_list_of_descriptors(AtRuleID at_rule_id)
+// https://drafts.csswg.org/cssom/#parse-a-css-declaration-block
+Vector<Descriptor> Parser::parse_as_descriptor_declaration_block(AtRuleID at_rule_id)
 {
     auto context_type = [at_rule_id] {
         switch (at_rule_id) {
@@ -1378,22 +1399,32 @@ Vector<Descriptor> Parser::parse_as_list_of_descriptors(AtRuleID at_rule_id)
         VERIFY_NOT_REACHED();
     }();
 
+    // 1. Let declarations be the returned declarations from invoking parse a block’s contents with string.
     m_rule_context.append(context_type);
     auto declarations_and_at_rules = parse_a_blocks_contents(m_token_stream);
     m_rule_context.take_last();
 
-    Vector<Descriptor> descriptors;
+    // 2. Let parsed declarations be a new empty list.
+    Vector<Descriptor> parsed_declarations;
+
+    // 3. For each item declaration in declarations, follow these substeps:
     for (auto const& rule_or_list : declarations_and_at_rules) {
         if (rule_or_list.has<Rule>())
             continue;
 
-        auto& declarations = rule_or_list.get<Vector<Declaration>>();
-        for (auto const& declaration : declarations) {
-            if (auto descriptor = convert_to_descriptor(at_rule_id, declaration); descriptor.has_value())
-                descriptors.append(descriptor.release_value());
+        auto& rule_declarations = rule_or_list.get<Vector<Declaration>>();
+        for (auto const& declaration : rule_declarations) {
+            // 1. Let parsed declaration be the result of parsing declaration according to the appropriate CSS
+            //    specifications, dropping parts that are said to be ignored. If the whole declaration is dropped, let
+            //    parsed declaration be null.
+            // 2. If parsed declaration is not null, append it to parsed declarations.
+            if (auto parsed_declaration = convert_to_descriptor(at_rule_id, declaration); parsed_declaration.has_value())
+                parsed_declarations.append(parsed_declaration.release_value());
         }
     }
-    return descriptors;
+
+    // 4. Return parsed declarations.
+    return parsed_declarations;
 }
 
 bool Parser::is_valid_in_the_current_context(Declaration const&) const
@@ -1516,22 +1547,6 @@ bool Parser::is_valid_in_the_current_context(QualifiedRule const&) const
     }
 
     VERIFY_NOT_REACHED();
-}
-
-Parser::PropertiesAndCustomProperties Parser::extract_properties(Vector<RuleOrListOfDeclarations> const& rules_and_lists_of_declarations)
-{
-    PropertiesAndCustomProperties result;
-    for (auto const& rule_or_list : rules_and_lists_of_declarations) {
-        if (rule_or_list.has<Rule>())
-            continue;
-
-        auto& declarations = rule_or_list.get<Vector<Declaration>>();
-        PropertiesAndCustomProperties& dest = result;
-        for (auto const& declaration : declarations) {
-            extract_property(declaration, dest);
-        }
-    }
-    return result;
 }
 
 void Parser::extract_property(Declaration const& declaration, PropertiesAndCustomProperties& dest)

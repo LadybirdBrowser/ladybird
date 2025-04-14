@@ -234,7 +234,7 @@ WebIDL::ExceptionOr<void> CSSFontFaceDescriptors::set_css_text(StringView value)
 
     // 3. Parse the given value and, if the return value is not the empty list, insert the items in the list into the
     //    declarations, in specified order.
-    auto descriptors = parse_css_list_of_descriptors(Parser::ParsingParams {}, AtRuleID::FontFace, value);
+    auto descriptors = parse_css_descriptor_declaration_block(Parser::ParsingParams {}, AtRuleID::FontFace, value);
     if (!descriptors.is_empty())
         m_descriptors = move(descriptors);
 
