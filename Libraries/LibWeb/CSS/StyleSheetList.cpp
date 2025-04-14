@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2020-2024, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -60,23 +61,35 @@ void StyleSheetList::add_a_css_style_sheet(CSS::CSSStyleSheet& sheet)
 }
 
 // https://www.w3.org/TR/cssom/#create-a-css-style-sheet
-void StyleSheetList::create_a_css_style_sheet(String type, DOM::Element* owner_node, String media, String title, bool alternate, bool origin_clean, Optional<::URL::URL> location, CSS::CSSStyleSheet* parent_style_sheet, CSS::CSSRule* owner_rule, CSS::CSSStyleSheet& sheet)
+GC::Ptr<CSSStyleSheet> StyleSheetList::create_a_css_style_sheet(String const& css_text, String type, DOM::Element* owner_node, String media, String title, Alternate alternate, OriginClean origin_clean, Optional<::URL::URL> location, CSSStyleSheet* parent_style_sheet, CSSRule* owner_rule)
 {
     // 1. Create a new CSS style sheet object and set its properties as specified.
-    // FIXME: We receive `sheet` from the caller already. This is weird.
+    // AD-HOC: The spec never tells us when to parse this style sheet, but the most logical place is here.
+    // AD-HOC: Are we supposed to use the document's URL for the stylesheet's location during parsing? Not doing it breaks things.
+    auto location_url = location.value_or(document().url());
+    auto* sheet = parse_css_stylesheet(Parser::ParsingParams { document(), location_url }, css_text, location_url);
 
-    sheet.set_parent_css_style_sheet(parent_style_sheet);
-    sheet.set_owner_css_rule(owner_rule);
-    sheet.set_owner_node(owner_node);
-    sheet.set_type(move(type));
-    sheet.set_media(move(media));
-    sheet.set_title(move(title));
-    sheet.set_alternate(alternate);
-    sheet.set_origin_clean(origin_clean);
-    sheet.set_location(move(location));
+    // AD-HOC: Exit out if parsing failed.
+    // FIXME: What should we actually do here?
+    if (!sheet) {
+        dbgln_if(CSS_LOADER_DEBUG, "StyleSheetList::create_a_css_style_sheet(): Failed to parse stylesheet at {}", location_url);
+        return nullptr;
+    }
+
+    sheet->set_parent_css_style_sheet(parent_style_sheet);
+    sheet->set_owner_css_rule(owner_rule);
+    sheet->set_owner_node(owner_node);
+    sheet->set_type(move(type));
+    sheet->set_media(move(media));
+    sheet->set_title(move(title));
+    sheet->set_alternate(alternate == Alternate::Yes);
+    sheet->set_origin_clean(origin_clean == OriginClean::Yes);
+    sheet->set_location(move(location));
 
     // 2. Then run the add a CSS style sheet steps for the newly created CSS style sheet.
-    add_a_css_style_sheet(sheet);
+    add_a_css_style_sheet(*sheet);
+
+    return sheet;
 }
 
 void StyleSheetList::add_sheet(CSSStyleSheet& sheet)
