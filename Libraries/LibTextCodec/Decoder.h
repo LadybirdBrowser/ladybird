@@ -17,12 +17,12 @@ namespace TextCodec {
 
 class Decoder {
 public:
-    virtual ErrorOr<void> process(StringView, Function<ErrorOr<void>(u32)> on_code_point) = 0;
     virtual bool validate(StringView);
     virtual ErrorOr<String> to_utf8(StringView);
 
 protected:
     virtual ~Decoder() = default;
+    virtual ErrorOr<void> process(StringView, Function<ErrorOr<void>(u32)> on_code_point) = 0;
 };
 
 class UTF8Decoder final : public Decoder {
@@ -34,16 +34,20 @@ public:
 
 class UTF16BEDecoder final : public Decoder {
 public:
-    virtual ErrorOr<void> process(StringView, Function<ErrorOr<void>(u32)> on_code_point) override;
     virtual bool validate(StringView) override;
     virtual ErrorOr<String> to_utf8(StringView) override;
+
+private:
+    virtual ErrorOr<void> process(StringView, Function<ErrorOr<void>(u32)>) override { VERIFY_NOT_REACHED(); }
 };
 
 class UTF16LEDecoder final : public Decoder {
 public:
-    virtual ErrorOr<void> process(StringView, Function<ErrorOr<void>(u32)> on_code_point) override;
     virtual bool validate(StringView) override;
     virtual ErrorOr<String> to_utf8(StringView) override;
+
+private:
+    virtual ErrorOr<void> process(StringView, Function<ErrorOr<void>(u32)>) override { VERIFY_NOT_REACHED(); }
 };
 
 template<Integral ArrayType = u32>
