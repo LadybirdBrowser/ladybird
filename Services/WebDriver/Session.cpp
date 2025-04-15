@@ -130,7 +130,7 @@ Session::~Session() = default;
 
 ErrorOr<NonnullRefPtr<Session>, Web::WebDriver::Error> Session::find_session(StringView session_id, Web::WebDriver::SessionFlags session_flags, AllowInvalidWindowHandle allow_invalid_window_handle)
 {
-    auto const& sessions = has_flag(session_flags, Web::WebDriver::SessionFlags::Http) ? s_http_sessions : s_sessions;
+    auto& sessions = has_flag(session_flags, Web::WebDriver::SessionFlags::Http) ? s_http_sessions : s_sessions;
 
     if (auto session = sessions.get(session_id); session.has_value()) {
         if (allow_invalid_window_handle == AllowInvalidWindowHandle::No)
