@@ -3141,29 +3141,28 @@ WebIDL::ExceptionOr<void> set_up_readable_stream_default_controller_from_underly
         return WebIDL::create_resolved_promise(realm, JS::js_undefined());
     });
 
-    // 5. If underlyingSourceDict["start"] exists, then set startAlgorithm to an algorithm which returns the result of invoking underlyingSourceDict["start"] with argument list « controller » and callback this value underlyingSource.
+    // 5. If underlyingSourceDict["start"] exists, then set startAlgorithm to an algorithm which returns the result of
+    //    invoking underlyingSourceDict["start"] with argument list « controller » and callback this value underlyingSource.
     if (underlying_source.start) {
         start_algorithm = GC::create_function(realm.heap(), [controller, underlying_source_value, callback = underlying_source.start]() -> WebIDL::ExceptionOr<JS::Value> {
-            // Note: callback does not return a promise, so invoke_callback may return an abrupt completion
             return TRY(WebIDL::invoke_callback(*callback, underlying_source_value, controller));
         });
     }
 
-    // 6. If underlyingSourceDict["pull"] exists, then set pullAlgorithm to an algorithm which returns the result of invoking underlyingSourceDict["pull"] with argument list « controller » and callback this value underlyingSource.
+    // 6. If underlyingSourceDict["pull"] exists, then set pullAlgorithm to an algorithm which returns the result of
+    //    invoking underlyingSourceDict["pull"] with argument list « controller » and callback this value underlyingSource.
     if (underlying_source.pull) {
-        pull_algorithm = GC::create_function(realm.heap(), [&realm, controller, underlying_source_value, callback = underlying_source.pull]() {
-            // Note: callback returns a promise, so invoke_callback will never return an abrupt completion
-            auto result = MUST(WebIDL::invoke_callback(*callback, underlying_source_value, controller));
-            return WebIDL::create_resolved_promise(realm, result);
+        pull_algorithm = GC::create_function(realm.heap(), [controller, underlying_source_value, callback = underlying_source.pull]() {
+            return WebIDL::invoke_promise_callback(*callback, underlying_source_value, controller);
         });
     }
 
-    // 7. If underlyingSourceDict["cancel"] exists, then set cancelAlgorithm to an algorithm which takes an argument reason and returns the result of invoking underlyingSourceDict["cancel"] with argument list « reason » and callback this value underlyingSource.
+    // 7. If underlyingSourceDict["cancel"] exists, then set cancelAlgorithm to an algorithm which takes an argument
+    //    reason and returns the result of invoking underlyingSourceDict["cancel"] with argument list « reason » and
+    //    callback this value underlyingSource.
     if (underlying_source.cancel) {
-        cancel_algorithm = GC::create_function(realm.heap(), [&realm, underlying_source_value, callback = underlying_source.cancel](JS::Value reason) {
-            // Note: callback returns a promise, so invoke_callback will never return an abrupt completion
-            auto result = MUST(WebIDL::invoke_callback(*callback, underlying_source_value, reason));
-            return WebIDL::create_resolved_promise(realm, result);
+        cancel_algorithm = GC::create_function(realm.heap(), [underlying_source_value, callback = underlying_source.cancel](JS::Value reason) {
+            return WebIDL::invoke_promise_callback(*callback, underlying_source_value, reason);
         });
     }
 
@@ -4847,7 +4846,6 @@ WebIDL::ExceptionOr<void> set_up_writable_stream_default_controller_from_underly
     //    callback this value underlyingSink.
     if (underlying_sink.start) {
         start_algorithm = GC::create_function(realm.heap(), [controller, underlying_sink_value, callback = underlying_sink.start]() -> WebIDL::ExceptionOr<JS::Value> {
-            // Note: callback does not return a promise, so invoke_callback may return an abrupt completion
             return TRY(WebIDL::invoke_callback(*callback, underlying_sink_value, WebIDL::ExceptionBehavior::Rethrow, controller));
         });
     }
@@ -4856,20 +4854,16 @@ WebIDL::ExceptionOr<void> set_up_writable_stream_default_controller_from_underly
     //    and returns the result of invoking underlyingSinkDict["write"] with argument list « chunk, controller » and
     //    callback this value underlyingSink.
     if (underlying_sink.write) {
-        write_algorithm = GC::create_function(realm.heap(), [&realm, controller, underlying_sink_value, callback = underlying_sink.write](JS::Value chunk) {
-            // Note: callback returns a promise, so invoke_callback will never return an abrupt completion
-            auto result = MUST(WebIDL::invoke_callback(*callback, underlying_sink_value, chunk, controller));
-            return WebIDL::create_resolved_promise(realm, result);
+        write_algorithm = GC::create_function(realm.heap(), [controller, underlying_sink_value, callback = underlying_sink.write](JS::Value chunk) {
+            return WebIDL::invoke_promise_callback(*callback, underlying_sink_value, chunk, controller);
         });
     }
 
     // 8. If underlyingSinkDict["close"] exists, then set closeAlgorithm to an algorithm which returns the result of
     //    invoking underlyingSinkDict["close"] with argument list «» and callback this value underlyingSink.
     if (underlying_sink.close) {
-        close_algorithm = GC::create_function(realm.heap(), [&realm, underlying_sink_value, callback = underlying_sink.close]() {
-            // Note: callback returns a promise, so invoke_callback will never return an abrupt completion
-            auto result = MUST(WebIDL::invoke_callback(*callback, underlying_sink_value));
-            return WebIDL::create_resolved_promise(realm, result);
+        close_algorithm = GC::create_function(realm.heap(), [underlying_sink_value, callback = underlying_sink.close]() {
+            return WebIDL::invoke_promise_callback(*callback, underlying_sink_value);
         });
     }
 
@@ -4877,10 +4871,8 @@ WebIDL::ExceptionOr<void> set_up_writable_stream_default_controller_from_underly
     //    and returns the result of invoking underlyingSinkDict["abort"] with argument list « reason » and callback this
     //    value underlyingSink.
     if (underlying_sink.abort) {
-        abort_algorithm = GC::create_function(realm.heap(), [&realm, underlying_sink_value, callback = underlying_sink.abort](JS::Value reason) {
-            // Note: callback returns a promise, so invoke_callback will never return an abrupt completion
-            auto result = MUST(WebIDL::invoke_callback(*callback, underlying_sink_value, reason));
-            return WebIDL::create_resolved_promise(realm, result);
+        abort_algorithm = GC::create_function(realm.heap(), [underlying_sink_value, callback = underlying_sink.abort](JS::Value reason) {
+            return WebIDL::invoke_promise_callback(*callback, underlying_sink_value, reason);
         });
     }
 
@@ -5282,30 +5274,24 @@ void set_up_transform_stream_default_controller_from_transformer(TransformStream
     //    and returns the result of invoking transformerDict["transform"] with argument list « chunk, controller » and
     //    callback this value transformer.
     if (transformer_dict.transform) {
-        transform_algorithm = GC::create_function(realm.heap(), [controller, &realm, transformer, callback = transformer_dict.transform](JS::Value chunk) {
-            // Note: callback returns a promise, so invoke_callback will never return an abrupt completion
-            auto result = MUST(WebIDL::invoke_callback(*callback, transformer, chunk, controller));
-            return WebIDL::create_resolved_promise(realm, result);
+        transform_algorithm = GC::create_function(realm.heap(), [controller, transformer, callback = transformer_dict.transform](JS::Value chunk) {
+            return WebIDL::invoke_promise_callback(*callback, transformer, chunk, controller);
         });
     }
 
     // 6. If transformerDict["flush"] exists, set flushAlgorithm to an algorithm which returns the result of invoking
     //    transformerDict["flush"] with argument list « controller » and callback this value transformer.
     if (transformer_dict.flush) {
-        flush_algorithm = GC::create_function(realm.heap(), [&realm, transformer, callback = transformer_dict.flush, controller]() {
-            // Note: callback returns a promise, so invoke_callback will never return an abrupt completion
-            auto result = MUST(WebIDL::invoke_callback(*callback, transformer, controller));
-            return WebIDL::create_resolved_promise(realm, result);
+        flush_algorithm = GC::create_function(realm.heap(), [transformer, callback = transformer_dict.flush, controller]() {
+            return WebIDL::invoke_promise_callback(*callback, transformer, controller);
         });
     }
 
     // 7. If transformerDict["cancel"] exists, set cancelAlgorithm to an algorithm which takes an argument reason and returns
     // the result of invoking transformerDict["cancel"] with argument list « reason » and callback this value transformer.
     if (transformer_dict.cancel) {
-        cancel_algorithm = GC::create_function(realm.heap(), [&realm, transformer, callback = transformer_dict.cancel](JS::Value reason) {
-            // Note: callback returns a promise, so invoke_callback will never return an abrupt completion
-            auto result = MUST(WebIDL::invoke_callback(*callback, transformer, reason));
-            return WebIDL::create_resolved_promise(realm, result);
+        cancel_algorithm = GC::create_function(realm.heap(), [transformer, callback = transformer_dict.cancel](JS::Value reason) {
+            return WebIDL::invoke_promise_callback(*callback, transformer, reason);
         });
     }
 
@@ -5826,29 +5812,28 @@ WebIDL::ExceptionOr<void> set_up_readable_byte_stream_controller_from_underlying
         return WebIDL::create_resolved_promise(realm, JS::js_undefined());
     });
 
-    // 5. If underlyingSourceDict["start"] exists, then set startAlgorithm to an algorithm which returns the result of invoking underlyingSourceDict["start"] with argument list « controller » and callback this value underlyingSource.
+    // 5. If underlyingSourceDict["start"] exists, then set startAlgorithm to an algorithm which returns the result of
+    //    invoking underlyingSourceDict["start"] with argument list « controller » and callback this value underlyingSource.
     if (underlying_source_dict.start) {
         start_algorithm = GC::create_function(realm.heap(), [controller, underlying_source, callback = underlying_source_dict.start]() -> WebIDL::ExceptionOr<JS::Value> {
-            // Note: callback does not return a promise, so invoke_callback may return an abrupt completion
             return TRY(WebIDL::invoke_callback(*callback, underlying_source, controller));
         });
     }
 
-    // 6. If underlyingSourceDict["pull"] exists, then set pullAlgorithm to an algorithm which returns the result of invoking underlyingSourceDict["pull"] with argument list « controller » and callback this value underlyingSource.
+    // 6. If underlyingSourceDict["pull"] exists, then set pullAlgorithm to an algorithm which returns the result of
+    //    invoking underlyingSourceDict["pull"] with argument list « controller » and callback this value underlyingSource.
     if (underlying_source_dict.pull) {
-        pull_algorithm = GC::create_function(realm.heap(), [&realm, controller, underlying_source, callback = underlying_source_dict.pull]() {
-            // Note: callback returns a promise, so invoke_callback will never return an abrupt completion
-            auto result = MUST(WebIDL::invoke_callback(*callback, underlying_source, controller));
-            return WebIDL::create_resolved_promise(realm, result);
+        pull_algorithm = GC::create_function(realm.heap(), [controller, underlying_source, callback = underlying_source_dict.pull]() {
+            return WebIDL::invoke_promise_callback(*callback, underlying_source, controller);
         });
     }
 
-    // 7. If underlyingSourceDict["cancel"] exists, then set cancelAlgorithm to an algorithm which takes an argument reason and returns the result of invoking underlyingSourceDict["cancel"] with argument list « reason » and callback this value underlyingSource.
+    // 7. If underlyingSourceDict["cancel"] exists, then set cancelAlgorithm to an algorithm which takes an argument
+    //    reason and returns the result of invoking underlyingSourceDict["cancel"] with argument list « reason » and
+    //    callback this value underlyingSource.
     if (underlying_source_dict.cancel) {
-        cancel_algorithm = GC::create_function(realm.heap(), [&realm, underlying_source, callback = underlying_source_dict.cancel](JS::Value reason) {
-            // Note: callback returns a promise, so invoke_callback will never return an abrupt completion
-            auto result = MUST(WebIDL::invoke_callback(*callback, underlying_source, reason));
-            return WebIDL::create_resolved_promise(realm, result);
+        cancel_algorithm = GC::create_function(realm.heap(), [underlying_source, callback = underlying_source_dict.cancel](JS::Value reason) {
+            return WebIDL::invoke_promise_callback(*callback, underlying_source, reason);
         });
     }
 
