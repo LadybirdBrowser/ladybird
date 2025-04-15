@@ -476,7 +476,7 @@ WebIDL::ExceptionOr<GC::Ptr<ImageData>> CanvasRenderingContext2D::get_image_data
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-putimagedata-short
-void CanvasRenderingContext2D::put_image_data(ImageData const& image_data, float x, float y)
+void CanvasRenderingContext2D::put_image_data(ImageData& image_data, float x, float y)
 {
     // The putImageData(imageData, dx, dy) method steps are to put pixels from an ImageData onto a bitmap,
     // given imageData, this's output bitmap, dx, dy, 0, 0, imageData's width, and imageData's height.
