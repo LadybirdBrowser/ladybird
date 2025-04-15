@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 35 tests
 
-21 Pass
-14 Fail
+30 Pass
+5 Fail
 Pass	Check that src: url("foo.ttf") is valid
 Pass	Check that src: url("foo.ttf"), url("bar.ttf") is valid
 Pass	Check that src: url("foo.ttf") format() is invalid
@@ -30,12 +30,12 @@ Pass	Check that src: url("foo.ttf") format(initial) is invalid
 Pass	Check that src: url("foo.ttf") format(none) is invalid
 Pass	Check that src: url("foo.ttf") format(normal) is invalid
 Pass	Check that src: url("foo.ttf") format(xyzzy) is invalid
-Fail	Check that src: url("foo.ttf") format("embedded-opentype"), url("bar.html") is valid
-Fail	Check that src: url("foo.ttf") format(embedded-opentype), url("bar.html") is valid
-Fail	Check that src: url("foo.ttf") format("svg"), url("bar.html") is valid
-Fail	Check that src: url("foo.ttf") format(svg), url("bar.html") is valid
-Fail	Check that src: url("foo.ttf") format(xyzz 200px), url("bar.html") is valid
-Fail	Check that src: url("foo.ttf") format(xyzz), url("bar.html") is valid
-Fail	Check that src: url("foo.ttf") dummy(xyzzy), url("bar.html") is valid
-Fail	Check that src: url("foo.ttf") format(), url("bar.html") is valid
-Fail	Check that src: url("foo.ttf") format(none), url("bar.html") is valid
+Pass	Check that src: url("foo.ttf") format("embedded-opentype"), url("bar.html") is valid
+Pass	Check that src: url("foo.ttf") format(embedded-opentype), url("bar.html") is valid
+Pass	Check that src: url("foo.ttf") format("svg"), url("bar.html") is valid
+Pass	Check that src: url("foo.ttf") format(svg), url("bar.html") is valid
+Pass	Check that src: url("foo.ttf") format(xyzz 200px), url("bar.html") is valid
+Pass	Check that src: url("foo.ttf") format(xyzz), url("bar.html") is valid
+Pass	Check that src: url("foo.ttf") dummy(xyzzy), url("bar.html") is valid
+Pass	Check that src: url("foo.ttf") format(), url("bar.html") is valid
+Pass	Check that src: url("foo.ttf") format(none), url("bar.html") is valid
