@@ -555,7 +555,7 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint viewport_position, CSSPix
             }
 
             if (auto* input_control = input_control_associated_with_ancestor_label_element(*paintable)) {
-                if (button == UIEvents::MouseButton::Primary) {
+                if (button == UIEvents::MouseButton::Primary && input_control != node) {
                     input_control->dispatch_event(UIEvents::MouseEvent::create_from_platform_event(node->realm(), UIEvents::EventNames::click, screen_position, page_offset, viewport_position, offset, {}, button, buttons, modifiers).release_value_but_fixme_should_propagate_errors());
                 }
             }

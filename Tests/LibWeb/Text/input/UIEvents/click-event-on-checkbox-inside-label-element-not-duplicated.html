@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<style>
+    * {
+        margin: 0;
+    }
+
+    .box {
+        display: inline-block;
+        width: 100px;
+        height: 100px;
+        background-color: purple;
+    }
+
+    label {
+        display: block;
+        width: 200px;
+        height: 200px;
+        border: 1px solid black;
+    }
+</style>
+<script src="../include.js"></script>
+<body>
+    <form>
+        <label>
+            <input type="checkbox" id="radio1" class="target">
+        </label>
+        <label>
+            <input type="checkbox" id="radio2" class="target">
+        </label>
+        <input type="checkbox" id="done">
+    </form>
+</body>
+<script>
+    asyncTest(done => {
+        document.querySelectorAll('.target').forEach(function (element) {
+            element.addEventListener('click', function (event) {
+                println(`click event on input#${event.target.id}`);
+            });
+        });
+
+        document.getElementById('done').addEventListener('click', function (event) {
+            done();
+        });
+
+        internals.click(5, 10);
+        internals.click(5, 210);
+        internals.click(5, 410);
+    });
+</script>
+</html>
