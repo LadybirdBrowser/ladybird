@@ -205,7 +205,6 @@ public:
     }
 
     UnrealizedSourceRange source_range() const;
-    RefPtr<SourceCode> source_code() const;
 
     Executable const* executable() const { return m_executable; }
 
