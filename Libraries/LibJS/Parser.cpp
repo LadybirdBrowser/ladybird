@@ -253,7 +253,7 @@ public:
         for (auto& parameter : m_function_parameters->parameters()) {
             parameter.binding.visit(
                 [&](Identifier const& identifier) {
-                    register_identifier(identifier);
+                    register_identifier(fixme_launder_const_through_pointer_cast(identifier));
                     m_function_parameters_candidates_for_local_variables.set(identifier.string());
                     m_forbidden_lexical_names.set(identifier.string());
                 },
@@ -1044,7 +1044,8 @@ RefPtr<FunctionExpression const> Parser::try_parse_arrow_function_expression(boo
             auto previous_syntax_errors = m_state.errors.size();
             TemporaryChange in_async_context(m_state.await_expression_is_valid, is_async || m_state.await_expression_is_valid);
 
-            parameters = parse_formal_parameters(function_length, FunctionNodeParseOptions::IsArrowFunction | (is_async ? FunctionNodeParseOptions::IsAsyncFunction : 0));
+            auto const_correct_parameters = parse_formal_parameters(function_length, FunctionNodeParseOptions::IsArrowFunction | (is_async ? FunctionNodeParseOptions::IsAsyncFunction : 0));
+            parameters = fixme_launder_const_through_pointer_cast(const_correct_parameters);
             if (m_state.errors.size() > previous_syntax_errors && m_state.errors[previous_syntax_errors].message.bytes_as_string_view().starts_with("Unexpected token"sv))
                 return nullptr;
             if (!match(TokenType::ParenClose))
@@ -1700,7 +1701,7 @@ Parser::PrimaryExpressionParseResult Parser::parse_primary_expression()
         auto expression = parse_expression(0);
         consume(TokenType::ParenClose);
         if (is<NewExpression>(*expression)) {
-            auto& new_expression = static_cast<NewExpression&>(*static_cast<NonnullRefPtr<Expression>>(expression));
+            auto& new_expression = static_cast<NewExpression&>(*fixme_launder_const_through_pointer_cast(expression));
             new_expression.set_inside_parens();
         } else if (is<FunctionExpression>(*expression)) {
             auto& function = static_cast<FunctionExpression const&>(*expression);
