@@ -35,7 +35,7 @@ public:
 #endif
 
 #ifdef AK_OS_MACOS
-    static RefPtr<SkiaBackendContext> create_metal_context(MetalContext&);
+    static RefPtr<SkiaBackendContext> create_metal_context(NonnullRefPtr<MetalContext>);
 #endif
 
     SkiaBackendContext() { }
