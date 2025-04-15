@@ -8,12 +8,12 @@
 
 namespace Gfx {
 
-void FontCascadeList::add(NonnullRefPtr<Font> font)
+void FontCascadeList::add(NonnullRefPtr<Font const> font)
 {
     m_fonts.append({ move(font), {} });
 }
 
-void FontCascadeList::add(NonnullRefPtr<Font> font, Vector<UnicodeRange> unicode_ranges)
+void FontCascadeList::add(NonnullRefPtr<Font const> font, Vector<UnicodeRange> unicode_ranges)
 {
     m_fonts.append({ move(font), move(unicode_ranges) });
 }

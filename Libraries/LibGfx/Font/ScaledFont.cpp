@@ -16,7 +16,7 @@
 
 namespace Gfx {
 
-ScaledFont::ScaledFont(NonnullRefPtr<Typeface> typeface, float point_width, float point_height, unsigned dpi_x, unsigned dpi_y)
+ScaledFont::ScaledFont(NonnullRefPtr<Typeface const> typeface, float point_width, float point_height, unsigned dpi_x, unsigned dpi_y)
     : m_typeface(move(typeface))
     , m_point_width(point_width)
     , m_point_height(point_height)

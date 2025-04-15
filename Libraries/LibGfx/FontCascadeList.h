@@ -29,8 +29,8 @@ public:
             callback(font);
     }
 
-    void add(NonnullRefPtr<Font> font);
-    void add(NonnullRefPtr<Font> font, Vector<UnicodeRange> unicode_ranges);
+    void add(NonnullRefPtr<Font const> font);
+    void add(NonnullRefPtr<Font const> font, Vector<UnicodeRange> unicode_ranges);
 
     void extend(FontCascadeList const& other);
 
@@ -39,7 +39,7 @@ public:
     bool equals(FontCascadeList const& other) const;
 
     struct Entry {
-        NonnullRefPtr<Font> font;
+        NonnullRefPtr<Font const> font;
         Optional<Vector<UnicodeRange>> unicode_ranges;
     };
 

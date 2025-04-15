@@ -30,7 +30,7 @@ public:
 
     struct Chunk {
         Utf8View view;
-        NonnullRefPtr<Gfx::Font> font;
+        NonnullRefPtr<Gfx::Font const> font;
         size_t start { 0 };
         size_t length { 0 };
         bool has_breaking_newline { false };

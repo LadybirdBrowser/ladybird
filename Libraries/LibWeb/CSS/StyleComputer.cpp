@@ -229,7 +229,7 @@ void FontLoader::resource_did_load_or_fail()
     m_style_computer.did_load_font(m_family_name);
 }
 
-RefPtr<Gfx::Font> FontLoader::font_with_point_size(float point_size)
+RefPtr<Gfx::Font const> FontLoader::font_with_point_size(float point_size)
 {
     if (!m_vector_font) {
         if (!resource())
@@ -261,7 +261,7 @@ void FontLoader::start_loading_next_url()
     set_resource(ResourceLoader::the().load_resource(Resource::Type::Generic, request));
 }
 
-ErrorOr<NonnullRefPtr<Gfx::Typeface>> FontLoader::try_load_font()
+ErrorOr<NonnullRefPtr<Gfx::Typeface const>> FontLoader::try_load_font()
 {
     // FIXME: This could maybe use the format() provided in @font-face as well, since often the mime type is just application/octet-stream and we have to try every format
     auto mime_type = MimeSniff::MimeType::parse(resource()->mime_type());
@@ -295,7 +295,7 @@ struct StyleComputer::MatchingFontCandidate {
 
     [[nodiscard]] RefPtr<Gfx::FontCascadeList const> font_with_point_size(float point_size) const
     {
-        RefPtr<Gfx::FontCascadeList> font_list = Gfx::FontCascadeList::create();
+        auto font_list = Gfx::FontCascadeList::create();
         if (auto* loader_list = loader_or_typeface.get_pointer<FontLoaderList*>(); loader_list) {
             for (auto const& loader : **loader_list) {
                 if (auto font = loader->font_with_point_size(point_size); font)
