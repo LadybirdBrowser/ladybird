@@ -78,11 +78,11 @@ jobs:
       - name: 'Call webhook'
         shell: bash
         run: |
-          echo -n '{                                                                       \
-              "commit": "${{ github.sha }}",                                               \
-              "os": "${{ matrix.os_name }}",                                               \
-              "arch": "${{ matrix.arch }}",                                                \
-              "artifact": "js-benchmarks-results-${{ matrix.os_name }}-${{ matrix.arch }}" \
+          echo '{
+              "commit": "${{ github.sha }}",
+              "os": "${{ matrix.os_name }}",
+              "arch": "${{ matrix.arch }}",
+              "artifact": "js-benchmarks-results-${{ matrix.os_name }}-${{ matrix.arch }}"
           }' > request.json
           curl \
               --fail \
