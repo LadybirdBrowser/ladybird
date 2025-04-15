@@ -34,7 +34,7 @@ public:
     ErrorOr<void> launch_test_fixtures();
 
     HeadlessWebView& create_web_view(Core::AnonymousBuffer theme, Web::DevicePixelSize window_size);
-    HeadlessWebView& create_child_web_view(HeadlessWebView const&, u64 page_index);
+    HeadlessWebView& create_child_web_view(HeadlessWebView&, u64 page_index);
     void destroy_web_views();
 
     template<typename Callback>

@@ -147,7 +147,7 @@ void WebViewBridge::initialize_client(CreateNewClient create_new_client)
     }
 }
 
-void WebViewBridge::initialize_client_as_child(WebViewBridge const& parent, u64 page_index)
+void WebViewBridge::initialize_client_as_child(WebViewBridge& parent, u64 page_index)
 {
     m_client_state.client = parent.client();
     m_client_state.page_index = page_index;
