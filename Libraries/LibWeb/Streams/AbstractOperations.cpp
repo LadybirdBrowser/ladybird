@@ -2017,7 +2017,9 @@ GC::Ref<WebIDL::Promise> readable_stream_reader_generic_cancel(ReadableStreamGen
 // https://streams.spec.whatwg.org/#readable-stream-reader-generic-initialize
 void readable_stream_reader_generic_initialize(ReadableStreamReader reader, ReadableStream& stream)
 {
-    auto& realm = stream.realm();
+    // FIXME: Exactly when we should effectively be using the relevant realm of `this` is to be clarified by the spec.
+    //        For now, we do so as needed by WPT tests. See: https://github.com/whatwg/streams/issues/1213
+    auto& realm = HTML::relevant_realm(reader.visit([](auto& reader) -> JS::Object& { return reader; }));
 
     // 1. Set reader.[[stream]] to stream.
     reader.visit([&](auto& reader) { reader->set_stream(stream); });
@@ -3574,7 +3576,9 @@ bool is_writable_stream_locked(WritableStream const& stream)
 // https://streams.spec.whatwg.org/#set-up-writable-stream-default-writer
 WebIDL::ExceptionOr<void> set_up_writable_stream_default_writer(WritableStreamDefaultWriter& writer, WritableStream& stream)
 {
-    auto& realm = writer.realm();
+    // FIXME: Exactly when we should effectively be using the relevant realm of `this` is to be clarified by the spec.
+    //        For now, we do so as needed by WPT tests. See: https://github.com/whatwg/streams/issues/1213
+    auto& realm = HTML::relevant_realm(writer);
 
     // 1. If ! IsWritableStreamLocked(stream) is true, throw a TypeError exception.
     if (is_writable_stream_locked(stream))
