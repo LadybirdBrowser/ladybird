@@ -66,6 +66,19 @@ JS::Completion invoke_callback(WebIDL::CallbackType& callback, Optional<JS::Valu
     return invoke_callback(callback, move(this_argument), ExceptionBehavior::NotSpecified, forward<Args>(args)...);
 }
 
+GC::Ref<WebIDL::Promise> invoke_promise_callback(WebIDL::CallbackType& callback, Optional<JS::Value> this_argument, GC::RootVector<JS::Value> args);
+
+template<typename... Args>
+GC::Ref<WebIDL::Promise> invoke_promise_callback(WebIDL::CallbackType& callback, Optional<JS::Value> this_argument, Args&&... args)
+{
+    auto& function_object = callback.callback;
+
+    GC::RootVector<JS::Value> arguments_list { function_object->heap() };
+    (arguments_list.append(forward<Args>(args)), ...);
+
+    return invoke_promise_callback(callback, move(this_argument), move(arguments_list));
+}
+
 JS::Completion construct(WebIDL::CallbackType& callback, GC::RootVector<JS::Value> args);
 
 // https://webidl.spec.whatwg.org/#construct-a-callback-function
