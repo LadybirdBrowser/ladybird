@@ -602,7 +602,7 @@ bool Selector::contains_unknown_webkit_pseudo_element() const
 RefPtr<Selector> Selector::absolutized(Selector::SimpleSelector const& selector_for_nesting) const
 {
     if (!contains_the_nesting_selector())
-        return *this;
+        return fixme_launder_const_through_pointer_cast(*this);
 
     Vector<CompoundSelector> absolutized_compound_selectors;
     absolutized_compound_selectors.ensure_capacity(m_compound_selectors.size());
