@@ -46,7 +46,7 @@ jobs:
         uses: dawidd6/action-download-artifact@v9
         with:
           workflow: js-artifacts.yml
-          commit: ${{ github.sha }}
+          commit: ${{ github.event.head_sha }}
           name: ladybird-js-${{ matrix.package_type }}
           path: js-repl
 
@@ -76,7 +76,7 @@ jobs:
         shell: bash
         run: |
           echo '{
-              "commit": "${{ github.sha }}",
+              "commit": "${{ github.event.head_sha }}",
               "os": "${{ matrix.os_name }}",
               "arch": "${{ matrix.arch }}",
               "artifact": "js-benchmarks-results-${{ matrix.os_name }}-${{ matrix.arch }}"
