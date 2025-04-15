@@ -177,9 +177,9 @@ ErrorOr<String> Utf16View::to_utf8(AllowInvalidCodeUnits allow_invalid_code_unit
 
 size_t Utf16View::length_in_code_points() const
 {
-    if (!m_length_in_code_points.has_value())
+    if (m_length_in_code_points == NumericLimits<size_t>::max())
         m_length_in_code_points = calculate_length_in_code_points();
-    return *m_length_in_code_points;
+    return m_length_in_code_points;
 }
 
 u16 Utf16View::code_unit_at(size_t index) const
