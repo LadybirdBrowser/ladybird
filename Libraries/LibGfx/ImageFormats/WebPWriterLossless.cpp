@@ -333,7 +333,7 @@ static ARGB32 sub_argb32(ARGB32 a, ARGB32 b)
         .value();
 }
 
-static ErrorOr<NonnullRefPtr<Bitmap>> maybe_write_color_indexing_transform(LittleEndianOutputBitStream& bit_stream, NonnullRefPtr<Bitmap> bitmap, IsOpaque& is_fully_opaque)
+static ErrorOr<NonnullRefPtr<Bitmap const>> maybe_write_color_indexing_transform(LittleEndianOutputBitStream& bit_stream, NonnullRefPtr<Bitmap const> bitmap, IsOpaque& is_fully_opaque)
 {
     // https://developers.google.com/speed/webp/docs/webp_lossless_bitstream_specification#44_color_indexing_transform
     unsigned color_table_size = 0;
@@ -427,7 +427,7 @@ static ErrorOr<NonnullRefPtr<Bitmap>> maybe_write_color_indexing_transform(Littl
     return new_bitmap;
 }
 
-static ErrorOr<void> write_VP8L_image_data(Stream& stream, NonnullRefPtr<Bitmap> bitmap, VP8LEncoderOptions const& options, IsOpaque& is_fully_opaque)
+static ErrorOr<void> write_VP8L_image_data(Stream& stream, NonnullRefPtr<Bitmap const> bitmap, VP8LEncoderOptions const& options, IsOpaque& is_fully_opaque)
 {
     LittleEndianOutputBitStream bit_stream { MaybeOwned<Stream>(stream) };
 

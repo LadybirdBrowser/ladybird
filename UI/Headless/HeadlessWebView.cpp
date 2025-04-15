@@ -164,11 +164,11 @@ void HeadlessWebView::clear_content_filters()
     client().async_set_content_filters(m_client_state.page_index, {});
 }
 
-NonnullRefPtr<Core::Promise<RefPtr<Gfx::Bitmap>>> HeadlessWebView::take_screenshot()
+NonnullRefPtr<Core::Promise<RefPtr<Gfx::Bitmap const>>> HeadlessWebView::take_screenshot()
 {
     VERIFY(!m_pending_screenshot);
 
-    m_pending_screenshot = Core::Promise<RefPtr<Gfx::Bitmap>>::construct();
+    m_pending_screenshot = Core::Promise<RefPtr<Gfx::Bitmap const>>::construct();
     client().async_take_document_screenshot(0);
 
     return *m_pending_screenshot;

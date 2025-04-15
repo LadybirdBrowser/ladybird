@@ -328,7 +328,7 @@ static void run_ref_test(HeadlessWebView& view, Test& test, URL::URL const& url,
         if (Application::the().dump_failed_ref_tests) {
             warnln("\033[33;1mRef test {} failed; dumping screenshots\033[0m", test.relative_path);
 
-            auto dump_screenshot = [&](Gfx::Bitmap& bitmap, StringView path) -> ErrorOr<void> {
+            auto dump_screenshot = [&](Gfx::Bitmap const& bitmap, StringView path) -> ErrorOr<void> {
                 auto screenshot_file = TRY(Core::File::open(path, Core::File::OpenMode::Write));
                 auto encoded_data = TRY(Gfx::PNGWriter::encode(bitmap));
                 TRY(screenshot_file->write_until_depleted(encoded_data));
@@ -375,13 +375,13 @@ static void run_ref_test(HeadlessWebView& view, Test& test, URL::URL const& url,
             } else {
                 test.ref_test_expectation_type = RefTestExpectationType::Match;
             }
-            view.take_screenshot()->when_resolved([&view, &test, on_test_complete = move(on_test_complete)](RefPtr<Gfx::Bitmap> screenshot) {
+            view.take_screenshot()->when_resolved([&view, &test, on_test_complete = move(on_test_complete)](RefPtr<Gfx::Bitmap const> screenshot) {
                 test.expectation_screenshot = move(screenshot);
                 view.reset_zoom();
                 on_test_complete();
             });
         } else {
-            view.take_screenshot()->when_resolved([&view, &test](RefPtr<Gfx::Bitmap> screenshot) {
+            view.take_screenshot()->when_resolved([&view, &test](RefPtr<Gfx::Bitmap const> screenshot) {
                 test.actual_screenshot = move(screenshot);
                 view.reset_zoom();
                 view.debug_request("load-reference-page");

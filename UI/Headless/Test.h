@@ -77,8 +77,8 @@ struct Test {
 
     Optional<RefTestExpectationType> ref_test_expectation_type {};
 
-    RefPtr<Gfx::Bitmap> actual_screenshot {};
-    RefPtr<Gfx::Bitmap> expectation_screenshot {};
+    RefPtr<Gfx::Bitmap const> actual_screenshot {};
+    RefPtr<Gfx::Bitmap const> expectation_screenshot {};
 };
 
 struct TestCompletion {
