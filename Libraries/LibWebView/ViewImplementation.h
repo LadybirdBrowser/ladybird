@@ -267,7 +267,7 @@ protected:
     struct SharedBitmap {
         i32 id { -1 };
         Web::DevicePixelSize last_painted_size;
-        RefPtr<Gfx::Bitmap> bitmap;
+        RefPtr<Gfx::Bitmap const> bitmap;
     };
 
     struct ClientState {
@@ -289,7 +289,7 @@ protected:
 
     RefPtr<Core::Timer> m_backing_store_shrink_timer;
 
-    RefPtr<Gfx::Bitmap> m_backup_bitmap;
+    RefPtr<Gfx::Bitmap const> m_backup_bitmap;
     Web::DevicePixelSize m_backup_bitmap_size;
 
     size_t m_crash_count = 0;

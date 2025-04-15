@@ -95,7 +95,7 @@ void WebViewBridge::enqueue_input_event(Web::KeyEvent event)
 
 Optional<WebViewBridge::Paintable> WebViewBridge::paintable()
 {
-    Gfx::Bitmap* bitmap = nullptr;
+    Gfx::Bitmap const* bitmap = nullptr;
     Gfx::IntSize bitmap_size;
 
     if (m_client_state.has_usable_bitmap) {

@@ -42,7 +42,7 @@ public:
     void enqueue_input_event(Web::KeyEvent);
 
     struct Paintable {
-        Gfx::Bitmap& bitmap;
+        Gfx::Bitmap const& bitmap;
         Gfx::IntSize bitmap_size;
     };
     Optional<Paintable> paintable();
