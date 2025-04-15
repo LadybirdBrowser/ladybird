@@ -9,6 +9,7 @@
 #include <LibWeb/CSS/StyleValues/FontSourceStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StringStyleValue.h>
+#include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/CSS/StyleValues/UnicodeRangeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
 
@@ -61,10 +62,27 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue>> Parser::parse_descriptor_valu
                 switch (value_type) {
                 case DescriptorMetadata::ValueType::FamilyName:
                     return parse_family_name_value(tokens);
-                case DescriptorMetadata::ValueType::FontSrcList:
-                    return parse_comma_separated_value_list(tokens, [this](auto& tokens) -> RefPtr<CSSStyleValue> {
-                        return parse_font_source_value(tokens);
-                    });
+                case DescriptorMetadata::ValueType::FontSrcList: {
+                    // "If a component value is parsed correctly and is of a font format or font tech that the UA
+                    // supports, add it to the list of supported sources. If parsing a component value results in a
+                    // parsing error or its format or tech are unsupported, do not add it to the list of supported
+                    // sources.
+                    // If there are no supported entries at the end of this process, the value for the src descriptor
+                    // is a parse error.
+                    // These parsing rules allow for graceful fallback of fonts for user agents which don’t support a
+                    // particular font tech or font format."
+                    // https://drafts.csswg.org/css-fonts-4/#font-face-src-parsing
+                    auto source_lists = parse_a_comma_separated_list_of_component_values(tokens);
+                    StyleValueVector valid_sources;
+                    for (auto const& source_list : source_lists) {
+                        TokenStream source_tokens { source_list };
+                        if (auto font_source = parse_font_source_value(source_tokens); font_source && !source_tokens.has_next_token())
+                            valid_sources.append(font_source.release_nonnull());
+                    }
+                    if (valid_sources.is_empty())
+                        return nullptr;
+                    return StyleValueList::create(move(valid_sources), StyleValueList::Separator::Comma);
+                }
                 case DescriptorMetadata::ValueType::OptionalDeclarationValue:
                     // `component_values` already has what we want. Just skip through its tokens so code below knows we consumed them.
                     while (tokens.has_next_token())
