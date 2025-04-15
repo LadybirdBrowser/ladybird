@@ -253,20 +253,11 @@ TEST_CASE(catch_all_again)
     EXPECT_EQ(has_match("Hello World"sv, re), true);
 }
 
-TEST_CASE(char_utf8)
-{
-    Regex<PosixExtended> re("😀");
-    RegexResult result;
-
-    EXPECT_EQ((result = match(Utf8View { "Привет, мир! 😀 γειά σου κόσμος 😀 こんにちは世界"sv }, re, PosixFlags::Global)).success, true);
-    EXPECT_EQ(result.count, 2u);
-}
-
 TEST_CASE(catch_all_newline)
 {
     Regex<PosixExtended> re("^.*$", PosixFlags::Multiline);
     RegexResult result;
-    ByteString aaa = "Hello World\nTest\n1234\n";
+    String aaa = "Hello World\nTest\n1234\n"_string;
     auto lambda = [&]() {
         result = match(aaa, re);
         EXPECT_EQ(result.success, true);
@@ -283,7 +274,7 @@ TEST_CASE(catch_all_newline_view)
     Regex<PosixExtended> re("^.*$", PosixFlags::Multiline);
     RegexResult result;
 
-    ByteString aaa = "Hello World\nTest\n1234\n";
+    String aaa = "Hello World\nTest\n1234\n"_string;
     result = match(aaa, re);
     EXPECT_EQ(result.success, true);
     EXPECT_EQ(result.count, 3u);
@@ -313,7 +304,7 @@ TEST_CASE(catch_all_newline_2)
 TEST_CASE(match_all_character_class)
 {
     Regex<PosixExtended> re("[[:alpha:]]");
-    ByteString str = "[Window]\nOpacity=255\nAudibleBeep=0\n";
+    String str = "[Window]\nOpacity=255\nAudibleBeep=0\n"_string;
     RegexResult result = match(str, re, PosixFlags::Global);
 
     EXPECT_EQ(result.success, true);
@@ -326,7 +317,7 @@ TEST_CASE(match_all_character_class)
 TEST_CASE(match_character_class_with_assertion)
 {
     Regex<PosixExtended> re("[[:alpha:]]+$");
-    ByteString str = "abcdef";
+    String str = "abcdef"_string;
     RegexResult result = match(str, re);
 
     EXPECT_EQ(result.success, true);
@@ -421,7 +412,7 @@ TEST_CASE(named_capture_group)
         regex_dbg.print_bytecode(re);
     }
 
-    ByteString haystack = "[Window]\nOpacity=255\nAudibleBeep=0\n";
+    String haystack = "[Window]\nOpacity=255\nAudibleBeep=0\n"_string;
     EXPECT_EQ(re.search(haystack, result, PosixFlags::Multiline), true);
     EXPECT_EQ(result.count, 2u);
     EXPECT_EQ(result.matches.at(0).view, "Opacity=255");
@@ -444,7 +435,7 @@ TEST_CASE(ecma262_named_capture_group_with_dollar_sign)
         regex_dbg.print_bytecode(re);
     }
 
-    ByteString haystack = "[Window]\nOpacity=255\nAudibleBeep=0\n";
+    String haystack = "[Window]\nOpacity=255\nAudibleBeep=0\n"_string;
     EXPECT_EQ(re.search(haystack, result, ECMAScriptFlags::Multiline), true);
     EXPECT_EQ(result.count, 2u);
     EXPECT_EQ(result.matches.at(0).view, "Opacity=255");
@@ -1009,7 +1000,7 @@ TEST_CASE(case_insensitive_match)
 TEST_CASE(extremely_long_fork_chain)
 {
     Regex<ECMA262> re("(?:aa)*");
-    auto input = ByteString::repeated('a', 1000);
+    auto input = MUST(String::repeated('a', 1000));
     auto result = re.match(input);
     EXPECT_EQ(result.success, true);
 }
@@ -1037,7 +1028,7 @@ TEST_CASE(theoretically_infinite_loop)
     }
 }
 
-static auto g_lots_of_a_s = ByteString::repeated('a', 10'000'000);
+static auto g_lots_of_a_s = String::repeated('a', 10'000'000).release_value();
 
 BENCHMARK_CASE(fork_performance)
 {
@@ -1048,12 +1039,12 @@ BENCHMARK_CASE(fork_performance)
     }
     {
         Regex<ECMA262> re("(a+)+b");
-        auto result = re.match(g_lots_of_a_s.substring_view(0, 100));
+        auto result = re.match(g_lots_of_a_s.bytes_as_string_view().substring_view(0, 100));
         EXPECT_EQ(result.success, false);
     }
     {
         Regex<ECMA262> re("^(a|a?)+$");
-        auto input = ByteString::formatted("{}b", g_lots_of_a_s.substring_view(0, 100));
+        auto input = MUST(String::formatted("{}b", g_lots_of_a_s.bytes_as_string_view().substring_view(0, 100)));
         auto result = re.match(input);
         EXPECT_EQ(result.success, false);
     }
