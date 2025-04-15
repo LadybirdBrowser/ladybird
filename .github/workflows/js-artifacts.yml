@@ -28,9 +28,6 @@ jobs:
             arch: 'arm64'
             package_type: 'macOS-universal2'
 
-    concurrency:
-      group: ${{ github.workflow }}-${{ matrix.os_name }}
-
     steps:
       - name: Checkout LadybirdBrowser/ladybird
         uses: actions/checkout@v4
