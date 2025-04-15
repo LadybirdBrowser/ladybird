@@ -80,7 +80,8 @@ jobs:
         run: |
           echo -n '{                                                                       \
               "commit": "${{ github.sha }}",                                               \
-              "os_name": "${{ matrix.os_name }}",                                          \
+              "os": "${{ matrix.os_name }}",                                               \
+              "arch": "${{ matrix.arch }}",                                                \
               "artifact": "js-benchmarks-results-${{ matrix.os_name }}-${{ matrix.arch }}" \
           }' > request.json
           curl \
