@@ -62,7 +62,7 @@ private:
     QString pixmap_cache_key(QSize const& size, QIcon::Mode mode, QIcon::State state);
 
     Vector<NonnullRefPtr<Filter>> m_filters;
-    NonnullRefPtr<Gfx::TinyVGDecodedImageData> m_image_data;
+    NonnullRefPtr<Gfx::TinyVGDecodedImageData const> m_image_data;
     unsigned m_cache_id { next_cache_id() };
 };
 
