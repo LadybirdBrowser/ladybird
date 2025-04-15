@@ -26,6 +26,9 @@ ErrorOr<Utf16Data> utf8_to_utf16(Utf8View const&, Endianness = Endianness::Host)
 ErrorOr<Utf16Data> utf32_to_utf16(Utf32View const&, Endianness = Endianness::Host);
 ErrorOr<void> code_point_to_utf16(Utf16Data&, u32, Endianness = Endianness::Host);
 
+[[nodiscard]] bool validate_utf16_le(ReadonlyBytes);
+[[nodiscard]] bool validate_utf16_be(ReadonlyBytes);
+
 size_t utf16_code_unit_length_from_utf8(StringView);
 
 class Utf16View;

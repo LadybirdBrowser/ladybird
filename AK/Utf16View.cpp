@@ -421,4 +421,14 @@ size_t Utf16CodePointIterator::length_in_code_units() const
     return *(*this) < first_supplementary_plane_code_point ? 1 : 2;
 }
 
+bool validate_utf16_le(ReadonlyBytes bytes)
+{
+    return simdutf::validate_utf16le(reinterpret_cast<char16_t const*>(bytes.data()), bytes.size() / 2);
+}
+
+bool validate_utf16_be(ReadonlyBytes bytes)
+{
+    return simdutf::validate_utf16be(reinterpret_cast<char16_t const*>(bytes.data()), bytes.size() / 2);
+}
+
 }

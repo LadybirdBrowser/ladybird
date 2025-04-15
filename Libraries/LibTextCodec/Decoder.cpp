@@ -369,25 +369,9 @@ ErrorOr<String> UTF8Decoder::to_utf8(StringView input)
     return String::from_utf8_with_replacement_character(input);
 }
 
-static Utf16View as_utf16(StringView view, AK::Endianness endianness)
-{
-    return Utf16View {
-        { reinterpret_cast<u16 const*>(view.bytes().data()), view.length() / 2 },
-        endianness
-    };
-}
-
-ErrorOr<void> UTF16BEDecoder::process(StringView input, Function<ErrorOr<void>(u32)> on_code_point)
-{
-    for (auto code_point : as_utf16(input, AK::Endianness::Big))
-        TRY(on_code_point(code_point));
-
-    return {};
-}
-
 bool UTF16BEDecoder::validate(StringView input)
 {
-    return as_utf16(input, AK::Endianness::Big).validate();
+    return AK::validate_utf16_be(input.bytes());
 }
 
 ErrorOr<String> UTF16BEDecoder::to_utf8(StringView input)
@@ -396,20 +380,12 @@ ErrorOr<String> UTF16BEDecoder::to_utf8(StringView input)
     if (auto bytes = input.bytes(); bytes.size() >= 2 && bytes[0] == 0xFE && bytes[1] == 0xFF)
         input = input.substring_view(2);
 
-    return String::from_utf16(as_utf16(input, AK::Endianness::Big));
-}
-
-ErrorOr<void> UTF16LEDecoder::process(StringView input, Function<ErrorOr<void>(u32)> on_code_point)
-{
-    for (auto code_point : as_utf16(input, AK::Endianness::Little))
-        TRY(on_code_point(code_point));
-
-    return {};
+    return String::from_utf16_be(input.bytes());
 }
 
 bool UTF16LEDecoder::validate(StringView input)
 {
-    return as_utf16(input, AK::Endianness::Little).validate();
+    return AK::validate_utf16_le(input.bytes());
 }
 
 ErrorOr<String> UTF16LEDecoder::to_utf8(StringView input)
@@ -418,7 +394,7 @@ ErrorOr<String> UTF16LEDecoder::to_utf8(StringView input)
     if (auto bytes = input.bytes(); bytes.size() >= 2 && bytes[0] == 0xFF && bytes[1] == 0xFE)
         input = input.substring_view(2);
 
-    return String::from_utf16(as_utf16(input, AK::Endianness::Little));
+    return String::from_utf16_le(input.bytes());
 }
 
 ErrorOr<void> Latin1Decoder::process(StringView input, Function<ErrorOr<void>(u32)> on_code_point)
