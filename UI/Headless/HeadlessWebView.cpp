@@ -138,7 +138,7 @@ NonnullOwnPtr<HeadlessWebView> HeadlessWebView::create(Core::AnonymousBuffer the
     return view;
 }
 
-NonnullOwnPtr<HeadlessWebView> HeadlessWebView::create_child(HeadlessWebView const& parent, u64 page_index)
+NonnullOwnPtr<HeadlessWebView> HeadlessWebView::create_child(HeadlessWebView& parent, u64 page_index)
 {
     auto view = adopt_own(*new HeadlessWebView(parent.m_theme, parent.m_viewport_size));
 

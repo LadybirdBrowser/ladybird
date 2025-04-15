@@ -110,7 +110,7 @@ HeadlessWebView& Application::create_web_view(Core::AnonymousBuffer theme, Web::
     return *m_web_views.last();
 }
 
-HeadlessWebView& Application::create_child_web_view(HeadlessWebView const& parent, u64 page_index)
+HeadlessWebView& Application::create_child_web_view(HeadlessWebView& parent, u64 page_index)
 {
     auto web_view = HeadlessWebView::create_child(parent, page_index);
     m_web_views.append(move(web_view));

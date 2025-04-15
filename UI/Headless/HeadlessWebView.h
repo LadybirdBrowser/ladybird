@@ -21,7 +21,7 @@ namespace Ladybird {
 class HeadlessWebView final : public WebView::ViewImplementation {
 public:
     static NonnullOwnPtr<HeadlessWebView> create(Core::AnonymousBuffer theme, Web::DevicePixelSize window_size);
-    static NonnullOwnPtr<HeadlessWebView> create_child(HeadlessWebView const&, u64 page_index);
+    static NonnullOwnPtr<HeadlessWebView> create_child(HeadlessWebView&, u64 page_index);
 
     void clear_content_filters();
 
