@@ -259,17 +259,7 @@ ErrorOr<void> StringBuilder::try_append(Utf16View const& utf16_view)
         auto uninitialized_data_pointer = static_cast<char*>(m_buffer.end_pointer());
 
         // Fast path.
-        auto result = [&]() {
-            switch (remaining_view.endianness()) {
-            case Endianness::Host:
-                return simdutf::convert_utf16_to_utf8_with_errors(remaining_view.char_data(), remaining_view.length_in_code_units(), uninitialized_data_pointer);
-            case Endianness::Big:
-                return simdutf::convert_utf16be_to_utf8_with_errors(remaining_view.char_data(), remaining_view.length_in_code_units(), uninitialized_data_pointer);
-            case Endianness::Little:
-                return simdutf::convert_utf16le_to_utf8_with_errors(remaining_view.char_data(), remaining_view.length_in_code_units(), uninitialized_data_pointer);
-            }
-            VERIFY_NOT_REACHED();
-        }();
+        auto result = simdutf::convert_utf16_to_utf8_with_errors(remaining_view.char_data(), remaining_view.length_in_code_units(), uninitialized_data_pointer);
         if (result.error == simdutf::SUCCESS) {
             auto bytes_just_written = result.count;
             m_buffer.set_size(m_buffer.size() + bytes_just_written);
@@ -281,17 +271,7 @@ ErrorOr<void> StringBuilder::try_append(Utf16View const& utf16_view)
         ASSERT(first_invalid_code_unit < remaining_view.length_in_code_units());
 
         // Unfortunately, `simdutf` does not tell us how many bytes it just wrote in case of an error, so we have to calculate it ourselves.
-        auto bytes_just_written = [&]() {
-            switch (remaining_view.endianness()) {
-            case Endianness::Host:
-                return simdutf::utf8_length_from_utf16(remaining_view.char_data(), first_invalid_code_unit);
-            case Endianness::Big:
-                return simdutf::utf8_length_from_utf16be(remaining_view.char_data(), first_invalid_code_unit);
-            case Endianness::Little:
-                return simdutf::utf8_length_from_utf16le(remaining_view.char_data(), first_invalid_code_unit);
-            }
-            VERIFY_NOT_REACHED();
-        }();
+        auto bytes_just_written = simdutf::utf8_length_from_utf16(remaining_view.char_data(), first_invalid_code_unit);
 
         do {
             auto code_unit = remaining_view.code_unit_at(first_invalid_code_unit++);
