@@ -51,7 +51,7 @@ public:
     };
     struct Func {
         FunctionAddress address;
-        RefPtr<Module> source_module; // null if host function.
+        RefPtr<Module const> source_module; // null if host function.
     };
     struct Extern {
         ExternAddress address;
