@@ -454,26 +454,6 @@ private:
 template<class Parser>
 bool Matcher<Parser>::execute(MatchInput const& input, MatchState& state, size_t& operations) const
 {
-    if (m_pattern->parser_result.optimization_data.pure_substring_search.has_value() && input.view.is_string_view()) {
-        // Yay, we can do a simple substring search!
-        auto& needle = m_pattern->parser_result.optimization_data.pure_substring_search.value();
-        if (needle.length() + state.string_position > input.view.length())
-            return false;
-
-        auto haystack = input.view.string_view().substring_view(state.string_position);
-        if (input.regex_options.has_flag_set(AllFlags::Insensitive)) {
-            if (!haystack.substring_view(0, needle.length()).equals_ignoring_ascii_case(needle))
-                return false;
-        } else {
-            if (!haystack.starts_with(needle))
-                return false;
-        }
-
-        state.string_position += needle.length();
-        state.string_position_in_code_units += needle.length();
-        return true;
-    }
-
     BumpAllocatedLinkedList<MatchState> states_to_try_next;
     HashTable<u64> seen_state_hashes;
 #if REGEX_DEBUG

@@ -45,16 +45,6 @@ public:
 
     RegexStringView(String&&) = delete;
 
-    bool is_string_view() const
-    {
-        return m_view.has<StringView>();
-    }
-
-    StringView string_view() const
-    {
-        return m_view.get<StringView>();
-    }
-
     Utf16View const& u16_view() const
     {
         return m_view.get<Utf16View>();
