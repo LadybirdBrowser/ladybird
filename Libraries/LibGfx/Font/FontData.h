@@ -19,10 +19,10 @@ public:
     ReadonlyBytes bytes() const;
 
 private:
-    FontData(ByteBuffer&& byte_buffer);
-    FontData(NonnullRefPtr<Core::Resource> resource);
+    explicit FontData(ByteBuffer&& byte_buffer);
+    explicit FontData(NonnullRefPtr<Core::Resource const> resource);
 
-    Variant<ByteBuffer, NonnullRefPtr<Core::Resource>> m_data;
+    Variant<ByteBuffer, NonnullRefPtr<Core::Resource const>> m_data;
 };
 
 }
