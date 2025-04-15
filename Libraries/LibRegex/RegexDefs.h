@@ -43,12 +43,11 @@ enum __RegexAllFlags {
     __Regex_SingleLine = __Regex_Global << 10,                   // Dot matches newline characters
     __Regex_Sticky = __Regex_Global << 11,                       // Force the pattern to only match consecutive matches from where the previous match ended.
     __Regex_Multiline = __Regex_Global << 12,                    // Handle newline characters. Match each line, one by one.
-    __Regex_SkipTrimEmptyMatches = __Regex_Global << 13,         // Do not remove empty capture group results.
-    __Regex_SingleMatch = __Regex_Global << 14,                  // Stop after acquiring a single match.
-    __Regex_UnicodeSets = __Regex_Global << 15,                  // ECMA262 Parser specific: Allow set operations in char classes.
-    __Regex_Internal_Stateful = __Regex_Global << 16,            // Internal flag; enables stateful matches.
-    __Regex_Internal_BrowserExtended = __Regex_Global << 17,     // Internal flag; enable browser-specific ECMA262 extensions.
-    __Regex_Internal_ConsiderNewline = __Regex_Global << 18,     // Internal flag; allow matchers to consider newlines as line separators.
-    __Regex_Internal_ECMA262DotSemantics = __Regex_Global << 19, // Internal flag; use ECMA262 semantics for dot ('.') - disallow CR/LF/LS/PS instead of just CR.
+    __Regex_SingleMatch = __Regex_Global << 13,                  // Stop after acquiring a single match.
+    __Regex_UnicodeSets = __Regex_Global << 14,                  // ECMA262 Parser specific: Allow set operations in char classes.
+    __Regex_Internal_Stateful = __Regex_Global << 15,            // Internal flag; enables stateful matches.
+    __Regex_Internal_BrowserExtended = __Regex_Global << 16,     // Internal flag; enable browser-specific ECMA262 extensions.
+    __Regex_Internal_ConsiderNewline = __Regex_Global << 17,     // Internal flag; allow matchers to consider newlines as line separators.
+    __Regex_Internal_ECMA262DotSemantics = __Regex_Global << 18, // Internal flag; use ECMA262 semantics for dot ('.') - disallow CR/LF/LS/PS instead of just CR.
     __Regex_Last = __Regex_Internal_ECMA262DotSemantics,
 };

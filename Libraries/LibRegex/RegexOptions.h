@@ -28,7 +28,6 @@ enum class AllFlags {
     SingleLine = __Regex_SingleLine,                                     // Dot matches newline characters
     Sticky = __Regex_Sticky,                                             // Force the pattern to only match consecutive matches from where the previous match ended.
     Multiline = __Regex_Multiline,                                       // Handle newline characters. Match each line, one by one.
-    SkipTrimEmptyMatches = __Regex_SkipTrimEmptyMatches,                 // Do not remove empty capture group results.
     SingleMatch = __Regex_SingleMatch,                                   // Stop after acquiring a single match.
     UnicodeSets = __Regex_UnicodeSets,                                   // Only for ECMA262, Allow set operations in character classes.
     Internal_Stateful = __Regex_Internal_Stateful,                       // Make global matches match one result at a time, and further match() calls on the same instance continue where the previous one left off.
@@ -49,7 +48,6 @@ enum class PosixFlags : FlagsUnderlyingType {
     MatchNotBeginOfLine = (FlagsUnderlyingType)AllFlags::MatchNotBeginOfLine,
     MatchNotEndOfLine = (FlagsUnderlyingType)AllFlags::MatchNotEndOfLine,
     SkipSubExprResults = (FlagsUnderlyingType)AllFlags::SkipSubExprResults,
-    SkipTrimEmptyMatches = (FlagsUnderlyingType)AllFlags::SkipTrimEmptyMatches,
     Multiline = (FlagsUnderlyingType)AllFlags::Multiline,
     SingleMatch = (FlagsUnderlyingType)AllFlags::SingleMatch,
 };

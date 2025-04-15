@@ -228,7 +228,6 @@ PatternErrorOr<Component> Component::compile(Utf8View const& input, PatternParse
     auto flags = regex::RegexOptions<ECMAScriptFlags> {
         (regex::ECMAScriptFlags)regex::AllFlags::SingleMatch
         | (regex::ECMAScriptFlags)regex::AllFlags::Global
-        | (regex::ECMAScriptFlags)regex::AllFlags::SkipTrimEmptyMatches
         | regex::ECMAScriptFlags::BrowserExtended
     };
 
@@ -288,7 +287,7 @@ Component::Result Component::create_match_result(String const& input, regex::Reg
     // 4. Let index be 1.
     // 5. While index is less than Get(execResult, "length"):
     for (size_t index = 1; index <= exec_result.n_capture_groups; ++index) {
-        auto const& capture = exec_result.capture_group_matches[0][index];
+        auto const& capture = exec_result.capture_group_matches[0][index - 1];
 
         // 1. Let name be component’s group name list[index − 1].
         auto name = group_name_list[index - 1];

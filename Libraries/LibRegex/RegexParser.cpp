@@ -857,7 +857,7 @@ ALWAYS_INLINE bool PosixExtendedParser::parse_sub_expression(ByteCode& stack, si
 
             auto current_capture_group = m_parser_state.capture_groups_count;
             if (!(m_parser_state.regex_options & AllFlags::SkipSubExprResults || prevent_capture_group)) {
-                bytecode.insert_bytecode_group_capture_left(current_capture_group);
+                bytecode.insert_bytecode_group_capture_left(current_capture_group + 1);
                 m_parser_state.capture_groups_count++;
             }
 
@@ -888,9 +888,9 @@ ALWAYS_INLINE bool PosixExtendedParser::parse_sub_expression(ByteCode& stack, si
 
             if (!(m_parser_state.regex_options & AllFlags::SkipSubExprResults || prevent_capture_group)) {
                 if (capture_group_name.has_value())
-                    bytecode.insert_bytecode_group_capture_right(current_capture_group, capture_group_name.value());
+                    bytecode.insert_bytecode_group_capture_right(current_capture_group + 1, capture_group_name.value());
                 else
-                    bytecode.insert_bytecode_group_capture_right(current_capture_group);
+                    bytecode.insert_bytecode_group_capture_right(current_capture_group + 1);
             }
             should_parse_repetition_symbol = true;
             break;

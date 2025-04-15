@@ -369,6 +369,7 @@ struct MatchInput {
 };
 
 struct MatchState {
+    size_t capture_group_count;
     size_t string_position_before_match { 0 };
     size_t string_position { 0 };
     size_t string_position_in_code_units { 0 };
@@ -377,9 +378,37 @@ struct MatchState {
     size_t forks_since_last_save { 0 };
     Optional<size_t> initiating_fork;
     COWVector<Match> matches;
-    COWVector<Vector<Match>> capture_group_matches;
+    COWVector<Match> flat_capture_group_matches; // Vector<Vector<Match>> indexed by match index, then by capture group id; flattened for performance
     COWVector<u64> repetition_marks;
     Vector<u64, 64> checkpoints;
+
+    explicit MatchState(size_t capture_group_count)
+        : capture_group_count(capture_group_count)
+    {
+    }
+
+    MatchState(MatchState const&) = default;
+    MatchState(MatchState&&) = default;
+
+    MatchState& operator=(MatchState const&) = default;
+    MatchState& operator=(MatchState&&) = default;
+
+    static MatchState only_for_enumeration() { return MatchState { 0 }; }
+
+    size_t capture_group_matches_size() const
+    {
+        return flat_capture_group_matches.size() / capture_group_count;
+    }
+
+    Span<Match const> capture_group_matches(size_t match_index) const
+    {
+        return flat_capture_group_matches.span().slice(match_index * capture_group_count, capture_group_count);
+    }
+
+    Span<Match> mutable_capture_group_matches(size_t match_index)
+    {
+        return flat_capture_group_matches.mutable_span().slice(match_index * capture_group_count, capture_group_count);
+    }
 
     // For size_t in {0..100}, ips in {0..500} and repetitions in {0..30}, there are zero collisions.
     // For the full range, zero collisions were found in 8 million random samples.
