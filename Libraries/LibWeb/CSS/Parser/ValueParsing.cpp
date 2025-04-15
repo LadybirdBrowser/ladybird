@@ -3711,6 +3711,12 @@ RefPtr<FontSourceStyleValue> Parser::parse_font_source_value(TokenStream<Compone
             return nullptr;
         }
 
+        format_tokens.discard_whitespace();
+        if (format_tokens.has_next_token()) {
+            dbgln_if(CSS_PARSER_DEBUG, "CSSParser: font source invalid (`format()` has trailing tokens); discarding.");
+            return nullptr;
+        }
+
         format = move(format_name);
     }
 
