@@ -508,7 +508,7 @@ NonnullRefPtr<CSSStyleValue const> interpolate_value(DOM::Element& element, Calc
 
         struct NumericBaseTypeAndDefault {
             CSSNumericType::BaseType base_type;
-            ValueComparingNonnullRefPtr<CSSStyleValue> default_value;
+            ValueComparingNonnullRefPtr<CSSStyleValue const> default_value;
         };
         static constexpr auto numeric_base_type_and_default = [](CSSStyleValue const& value) -> Optional<NumericBaseTypeAndDefault> {
             switch (value.type()) {

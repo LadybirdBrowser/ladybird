@@ -15,7 +15,7 @@ class ColorFunctionStyleValue final : public CSSColorValue {
 public:
     virtual ~ColorFunctionStyleValue() override = default;
 
-    static ValueComparingNonnullRefPtr<ColorFunctionStyleValue> create(StringView color_space, ValueComparingNonnullRefPtr<CSSStyleValue> c1, ValueComparingNonnullRefPtr<CSSStyleValue> c2, ValueComparingNonnullRefPtr<CSSStyleValue> c3, ValueComparingRefPtr<CSSStyleValue> alpha = {});
+    static ValueComparingNonnullRefPtr<ColorFunctionStyleValue const> create(StringView color_space, ValueComparingNonnullRefPtr<CSSStyleValue const> c1, ValueComparingNonnullRefPtr<CSSStyleValue const> c2, ValueComparingNonnullRefPtr<CSSStyleValue const> c3, ValueComparingRefPtr<CSSStyleValue const> alpha = {});
 
     virtual bool equals(CSSStyleValue const&) const override;
     virtual Color to_color(Optional<Layout::NodeWithStyle const&>) const override;
@@ -26,15 +26,15 @@ public:
     static constexpr Array s_supported_color_space = { "a98-rgb"sv, "display-p3"sv, "srgb"sv, "srgb-linear"sv, "prophoto-rgb"sv, "rec2020"sv, "xyz"sv, "xyz-d50"sv, "xyz-d65"sv };
 
 private:
-    ColorFunctionStyleValue(ColorType color_type, ValueComparingNonnullRefPtr<CSSStyleValue> c1, ValueComparingNonnullRefPtr<CSSStyleValue> c2, ValueComparingNonnullRefPtr<CSSStyleValue> c3, ValueComparingNonnullRefPtr<CSSStyleValue> alpha)
+    ColorFunctionStyleValue(ColorType color_type, ValueComparingNonnullRefPtr<CSSStyleValue const> c1, ValueComparingNonnullRefPtr<CSSStyleValue const> c2, ValueComparingNonnullRefPtr<CSSStyleValue const> c3, ValueComparingNonnullRefPtr<CSSStyleValue const> alpha)
         : CSSColorValue(color_type, ColorSyntax::Modern)
         , m_properties { .channels = { move(c1), move(c2), move(c3) }, .alpha = move(alpha) }
     {
     }
 
     struct Properties {
-        Array<ValueComparingNonnullRefPtr<CSSStyleValue>, 3> channels;
-        ValueComparingNonnullRefPtr<CSSStyleValue> alpha;
+        Array<ValueComparingNonnullRefPtr<CSSStyleValue const>, 3> channels;
+        ValueComparingNonnullRefPtr<CSSStyleValue const> alpha;
         bool operator==(Properties const&) const = default;
     };
 

@@ -17,7 +17,7 @@ namespace Web::CSS {
 
 class ConicGradientStyleValue final : public AbstractImageStyleValue {
 public:
-    static ValueComparingNonnullRefPtr<ConicGradientStyleValue> create(Angle from_angle, ValueComparingNonnullRefPtr<PositionStyleValue> position, Vector<AngularColorStopListElement> color_stop_list, GradientRepeating repeating, Optional<InterpolationMethod> interpolation_method)
+    static ValueComparingNonnullRefPtr<ConicGradientStyleValue const> create(Angle from_angle, ValueComparingNonnullRefPtr<PositionStyleValue const> position, Vector<AngularColorStopListElement> color_stop_list, GradientRepeating repeating, Optional<InterpolationMethod> interpolation_method)
     {
         VERIFY(!color_stop_list.is_empty());
         bool any_non_legacy = color_stop_list.find_first_index_if([](auto const& stop) { return !stop.color_stop.color->is_keyword() && stop.color_stop.color->as_color().color_syntax() == ColorSyntax::Modern; }).has_value();
@@ -54,7 +54,7 @@ public:
     bool is_repeating() const { return m_properties.repeating == GradientRepeating::Yes; }
 
 private:
-    ConicGradientStyleValue(Angle from_angle, ValueComparingNonnullRefPtr<PositionStyleValue> position, Vector<AngularColorStopListElement> color_stop_list, GradientRepeating repeating, Optional<InterpolationMethod> interpolation_method, ColorSyntax color_syntax)
+    ConicGradientStyleValue(Angle from_angle, ValueComparingNonnullRefPtr<PositionStyleValue const> position, Vector<AngularColorStopListElement> color_stop_list, GradientRepeating repeating, Optional<InterpolationMethod> interpolation_method, ColorSyntax color_syntax)
         : AbstractImageStyleValue(Type::ConicGradient)
         , m_properties { .from_angle = from_angle, .position = move(position), .color_stop_list = move(color_stop_list), .repeating = repeating, .interpolation_method = interpolation_method, .color_syntax = color_syntax }
     {
@@ -62,7 +62,7 @@ private:
 
     struct Properties {
         Angle from_angle;
-        ValueComparingNonnullRefPtr<PositionStyleValue> position;
+        ValueComparingNonnullRefPtr<PositionStyleValue const> position;
         Vector<AngularColorStopListElement> color_stop_list;
         GradientRepeating repeating;
         Optional<InterpolationMethod> interpolation_method;

@@ -13,7 +13,7 @@ namespace Web::CSS {
 
 class ResolutionStyleValue : public CSSUnitValue {
 public:
-    static ValueComparingNonnullRefPtr<ResolutionStyleValue> create(Resolution resolution)
+    static ValueComparingNonnullRefPtr<ResolutionStyleValue const> create(Resolution resolution)
     {
         return adopt_ref(*new (nothrow) ResolutionStyleValue(move(resolution)));
     }

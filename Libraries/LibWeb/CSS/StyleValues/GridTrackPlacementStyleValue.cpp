@@ -11,7 +11,7 @@
 
 namespace Web::CSS {
 
-ValueComparingNonnullRefPtr<GridTrackPlacementStyleValue> GridTrackPlacementStyleValue::create(CSS::GridTrackPlacement grid_track_placement)
+ValueComparingNonnullRefPtr<GridTrackPlacementStyleValue const> GridTrackPlacementStyleValue::create(CSS::GridTrackPlacement grid_track_placement)
 {
     return adopt_ref(*new (nothrow) GridTrackPlacementStyleValue(grid_track_placement));
 }

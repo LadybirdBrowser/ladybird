@@ -13,7 +13,7 @@ namespace Web::CSS {
 
 class FlexStyleValue final : public CSSUnitValue {
 public:
-    static ValueComparingNonnullRefPtr<FlexStyleValue> create(Flex flex)
+    static ValueComparingNonnullRefPtr<FlexStyleValue const> create(Flex flex)
     {
         return adopt_ref(*new (nothrow) FlexStyleValue(move(flex)));
     }

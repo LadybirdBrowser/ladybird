@@ -12,11 +12,11 @@ namespace Web::CSS {
 
 class ColorSchemeStyleValue final : public StyleValueWithDefaultOperators<ColorSchemeStyleValue> {
 public:
-    static ValueComparingNonnullRefPtr<ColorSchemeStyleValue> create(Vector<String> schemes, bool only)
+    static ValueComparingNonnullRefPtr<ColorSchemeStyleValue const> create(Vector<String> schemes, bool only)
     {
         return adopt_ref(*new (nothrow) ColorSchemeStyleValue(move(schemes), only));
     }
-    static ValueComparingNonnullRefPtr<ColorSchemeStyleValue> normal()
+    static ValueComparingNonnullRefPtr<ColorSchemeStyleValue const> normal()
     {
         return adopt_ref(*new (nothrow) ColorSchemeStyleValue({}, false));
     }

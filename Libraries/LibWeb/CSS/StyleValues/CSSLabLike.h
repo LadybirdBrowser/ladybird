@@ -14,7 +14,7 @@ namespace Web::CSS {
 class CSSLabLike : public CSSColorValue {
 public:
     template<typename T>
-    static ValueComparingNonnullRefPtr<T> create(ValueComparingNonnullRefPtr<CSSStyleValue> l, ValueComparingNonnullRefPtr<CSSStyleValue> a, ValueComparingNonnullRefPtr<CSSStyleValue> b, ValueComparingRefPtr<CSSStyleValue> alpha = {})
+    static ValueComparingNonnullRefPtr<T const> create(ValueComparingNonnullRefPtr<CSSStyleValue const> l, ValueComparingNonnullRefPtr<CSSStyleValue const> a, ValueComparingNonnullRefPtr<CSSStyleValue const> b, ValueComparingRefPtr<CSSStyleValue const> alpha = {})
     {
         // alpha defaults to 1
         if (!alpha)
@@ -33,17 +33,17 @@ public:
     virtual bool equals(CSSStyleValue const& other) const override;
 
 protected:
-    CSSLabLike(ColorType color_type, ValueComparingNonnullRefPtr<CSSStyleValue> l, ValueComparingNonnullRefPtr<CSSStyleValue> a, ValueComparingNonnullRefPtr<CSSStyleValue> b, ValueComparingNonnullRefPtr<CSSStyleValue> alpha)
+    CSSLabLike(ColorType color_type, ValueComparingNonnullRefPtr<CSSStyleValue const> l, ValueComparingNonnullRefPtr<CSSStyleValue const> a, ValueComparingNonnullRefPtr<CSSStyleValue const> b, ValueComparingNonnullRefPtr<CSSStyleValue const> alpha)
         : CSSColorValue(color_type, ColorSyntax::Modern)
         , m_properties { .l = move(l), .a = move(a), .b = move(b), .alpha = move(alpha) }
     {
     }
 
     struct Properties {
-        ValueComparingNonnullRefPtr<CSSStyleValue> l;
-        ValueComparingNonnullRefPtr<CSSStyleValue> a;
-        ValueComparingNonnullRefPtr<CSSStyleValue> b;
-        ValueComparingNonnullRefPtr<CSSStyleValue> alpha;
+        ValueComparingNonnullRefPtr<CSSStyleValue const> l;
+        ValueComparingNonnullRefPtr<CSSStyleValue const> a;
+        ValueComparingNonnullRefPtr<CSSStyleValue const> b;
+        ValueComparingNonnullRefPtr<CSSStyleValue const> alpha;
         bool operator==(Properties const&) const = default;
     } m_properties;
 };
@@ -54,7 +54,7 @@ public:
     virtual Color to_color(Optional<Layout::NodeWithStyle const&>) const override;
     virtual String to_string(SerializationMode) const override;
 
-    CSSOKLab(Badge<CSSLabLike>, ValueComparingNonnullRefPtr<CSSStyleValue> l, ValueComparingNonnullRefPtr<CSSStyleValue> a, ValueComparingNonnullRefPtr<CSSStyleValue> b, ValueComparingNonnullRefPtr<CSSStyleValue> alpha)
+    CSSOKLab(Badge<CSSLabLike>, ValueComparingNonnullRefPtr<CSSStyleValue const> l, ValueComparingNonnullRefPtr<CSSStyleValue const> a, ValueComparingNonnullRefPtr<CSSStyleValue const> b, ValueComparingNonnullRefPtr<CSSStyleValue const> alpha)
         : CSSLabLike(ColorType::OKLab, move(l), move(a), move(b), move(alpha))
     {
     }
@@ -66,7 +66,7 @@ public:
     virtual Color to_color(Optional<Layout::NodeWithStyle const&>) const override;
     virtual String to_string(SerializationMode) const override;
 
-    CSSLab(Badge<CSSLabLike>, ValueComparingNonnullRefPtr<CSSStyleValue> l, ValueComparingNonnullRefPtr<CSSStyleValue> a, ValueComparingNonnullRefPtr<CSSStyleValue> b, ValueComparingNonnullRefPtr<CSSStyleValue> alpha)
+    CSSLab(Badge<CSSLabLike>, ValueComparingNonnullRefPtr<CSSStyleValue const> l, ValueComparingNonnullRefPtr<CSSStyleValue const> a, ValueComparingNonnullRefPtr<CSSStyleValue const> b, ValueComparingNonnullRefPtr<CSSStyleValue const> alpha)
         : CSSLabLike(ColorType::Lab, move(l), move(a), move(b), move(alpha))
     {
     }

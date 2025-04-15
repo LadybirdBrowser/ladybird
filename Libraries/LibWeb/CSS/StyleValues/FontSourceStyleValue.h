@@ -14,11 +14,11 @@ namespace Web::CSS {
 class FontSourceStyleValue final : public StyleValueWithDefaultOperators<FontSourceStyleValue> {
 public:
     struct Local {
-        NonnullRefPtr<CSSStyleValue> name;
+        NonnullRefPtr<CSSStyleValue const> name;
     };
     using Source = Variant<Local, ::URL::URL>;
 
-    static ValueComparingNonnullRefPtr<FontSourceStyleValue> create(Source source, Optional<FlyString> format)
+    static ValueComparingNonnullRefPtr<FontSourceStyleValue const> create(Source source, Optional<FlyString> format)
     {
         return adopt_ref(*new (nothrow) FontSourceStyleValue(move(source), move(format)));
     }

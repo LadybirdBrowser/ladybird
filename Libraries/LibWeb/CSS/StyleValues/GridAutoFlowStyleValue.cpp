@@ -8,7 +8,7 @@
 
 namespace Web::CSS {
 
-ValueComparingNonnullRefPtr<GridAutoFlowStyleValue> GridAutoFlowStyleValue::create(Axis axis, Dense dense)
+ValueComparingNonnullRefPtr<GridAutoFlowStyleValue const> GridAutoFlowStyleValue::create(Axis axis, Dense dense)
 {
     return adopt_ref(*new GridAutoFlowStyleValue(axis, dense));
 }

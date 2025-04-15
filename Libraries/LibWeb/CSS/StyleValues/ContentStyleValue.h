@@ -15,7 +15,7 @@ namespace Web::CSS {
 
 class ContentStyleValue final : public StyleValueWithDefaultOperators<ContentStyleValue> {
 public:
-    static ValueComparingNonnullRefPtr<ContentStyleValue> create(ValueComparingNonnullRefPtr<StyleValueList> content, ValueComparingRefPtr<StyleValueList> alt_text)
+    static ValueComparingNonnullRefPtr<ContentStyleValue const> create(ValueComparingNonnullRefPtr<StyleValueList const> content, ValueComparingRefPtr<StyleValueList const> alt_text)
     {
         return adopt_ref(*new (nothrow) ContentStyleValue(move(content), move(alt_text)));
     }
@@ -30,15 +30,15 @@ public:
     bool properties_equal(ContentStyleValue const& other) const { return m_properties == other.m_properties; }
 
 private:
-    ContentStyleValue(ValueComparingNonnullRefPtr<StyleValueList> content, ValueComparingRefPtr<StyleValueList> alt_text)
+    ContentStyleValue(ValueComparingNonnullRefPtr<StyleValueList const> content, ValueComparingRefPtr<StyleValueList const> alt_text)
         : StyleValueWithDefaultOperators(Type::Content)
         , m_properties { .content = move(content), .alt_text = move(alt_text) }
     {
     }
 
     struct Properties {
-        ValueComparingNonnullRefPtr<StyleValueList> content;
-        ValueComparingRefPtr<StyleValueList> alt_text;
+        ValueComparingNonnullRefPtr<StyleValueList const> content;
+        ValueComparingRefPtr<StyleValueList const> alt_text;
         bool operator==(Properties const&) const = default;
     } m_properties;
 };

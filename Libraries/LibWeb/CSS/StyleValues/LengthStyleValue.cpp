@@ -11,7 +11,7 @@
 
 namespace Web::CSS {
 
-ValueComparingNonnullRefPtr<LengthStyleValue> LengthStyleValue::create(Length const& length)
+ValueComparingNonnullRefPtr<LengthStyleValue const> LengthStyleValue::create(Length const& length)
 {
     VERIFY(!length.is_auto());
     if (length.is_px()) {

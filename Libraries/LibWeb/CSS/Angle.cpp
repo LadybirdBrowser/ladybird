@@ -84,7 +84,7 @@ Optional<Angle::Type> Angle::unit_from_name(StringView name)
     return {};
 }
 
-Angle Angle::resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const& calculated, Layout::Node const& layout_node, Angle const& reference_value)
+Angle Angle::resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const& calculated, Layout::Node const& layout_node, Angle const& reference_value)
 {
     return calculated->resolve_angle(
                          {

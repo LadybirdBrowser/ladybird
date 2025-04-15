@@ -16,7 +16,7 @@ namespace Web::CSS {
 
 class PercentageStyleValue final : public CSSUnitValue {
 public:
-    static ValueComparingNonnullRefPtr<PercentageStyleValue> create(Percentage percentage)
+    static ValueComparingNonnullRefPtr<PercentageStyleValue const> create(Percentage percentage)
     {
         return adopt_ref(*new (nothrow) PercentageStyleValue(move(percentage)));
     }

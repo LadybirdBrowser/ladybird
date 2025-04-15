@@ -15,7 +15,7 @@ namespace Web::CSS {
 
 class GridTemplateAreaStyleValue final : public StyleValueWithDefaultOperators<GridTemplateAreaStyleValue> {
 public:
-    static ValueComparingNonnullRefPtr<GridTemplateAreaStyleValue> create(Vector<Vector<String>> grid_template_area);
+    static ValueComparingNonnullRefPtr<GridTemplateAreaStyleValue const> create(Vector<Vector<String>> grid_template_area);
     virtual ~GridTemplateAreaStyleValue() override = default;
 
     Vector<Vector<String>> const& grid_template_area() const { return m_grid_template_area; }

@@ -12,7 +12,7 @@ namespace Web::CSS {
 
 class ScrollbarGutterStyleValue final : public StyleValueWithDefaultOperators<ScrollbarGutterStyleValue> {
 public:
-    static ValueComparingNonnullRefPtr<ScrollbarGutterStyleValue> create(ScrollbarGutter value)
+    static ValueComparingNonnullRefPtr<ScrollbarGutterStyleValue const> create(ScrollbarGutter value)
     {
         return adopt_ref(*new (nothrow) ScrollbarGutterStyleValue(value));
     }

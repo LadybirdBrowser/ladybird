@@ -20,12 +20,12 @@
 
 namespace Web::CSS {
 
-ValueComparingNonnullRefPtr<ImageStyleValue> ImageStyleValue::create(URL const& url)
+ValueComparingNonnullRefPtr<ImageStyleValue const> ImageStyleValue::create(URL const& url)
 {
     return adopt_ref(*new (nothrow) ImageStyleValue(url));
 }
 
-ValueComparingNonnullRefPtr<ImageStyleValue> ImageStyleValue::create(::URL::URL const& url)
+ValueComparingNonnullRefPtr<ImageStyleValue const> ImageStyleValue::create(::URL::URL const& url)
 {
     return adopt_ref(*new (nothrow) ImageStyleValue(URL { url.to_string() }));
 }

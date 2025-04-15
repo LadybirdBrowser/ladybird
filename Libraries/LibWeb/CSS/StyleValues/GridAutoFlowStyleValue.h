@@ -20,7 +20,7 @@ public:
         No,
         Yes,
     };
-    static ValueComparingNonnullRefPtr<GridAutoFlowStyleValue> create(Axis, Dense);
+    static ValueComparingNonnullRefPtr<GridAutoFlowStyleValue const> create(Axis, Dense);
     virtual ~GridAutoFlowStyleValue() override = default;
 
     [[nodiscard]] bool is_row() const { return m_row; }

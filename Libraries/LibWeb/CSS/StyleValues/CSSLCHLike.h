@@ -14,7 +14,7 @@ namespace Web::CSS {
 class CSSLCHLike : public CSSColorValue {
 public:
     template<DerivedFrom<CSSLCHLike> T>
-    static ValueComparingNonnullRefPtr<T> create(ValueComparingNonnullRefPtr<CSSStyleValue> l, ValueComparingNonnullRefPtr<CSSStyleValue> c, ValueComparingNonnullRefPtr<CSSStyleValue> h, ValueComparingRefPtr<CSSStyleValue> alpha = {})
+    static ValueComparingNonnullRefPtr<T const> create(ValueComparingNonnullRefPtr<CSSStyleValue const> l, ValueComparingNonnullRefPtr<CSSStyleValue const> c, ValueComparingNonnullRefPtr<CSSStyleValue const> h, ValueComparingRefPtr<CSSStyleValue const> alpha = {})
     {
         // alpha defaults to 1
         if (!alpha)
@@ -32,17 +32,17 @@ public:
     virtual bool equals(CSSStyleValue const& other) const override;
 
 protected:
-    CSSLCHLike(ColorType color_type, ValueComparingNonnullRefPtr<CSSStyleValue> l, ValueComparingNonnullRefPtr<CSSStyleValue> c, ValueComparingNonnullRefPtr<CSSStyleValue> h, ValueComparingNonnullRefPtr<CSSStyleValue> alpha)
+    CSSLCHLike(ColorType color_type, ValueComparingNonnullRefPtr<CSSStyleValue const> l, ValueComparingNonnullRefPtr<CSSStyleValue const> c, ValueComparingNonnullRefPtr<CSSStyleValue const> h, ValueComparingNonnullRefPtr<CSSStyleValue const> alpha)
         : CSSColorValue(color_type, ColorSyntax::Modern)
         , m_properties { .l = move(l), .c = move(c), .h = move(h), .alpha = move(alpha) }
     {
     }
 
     struct Properties {
-        ValueComparingNonnullRefPtr<CSSStyleValue> l;
-        ValueComparingNonnullRefPtr<CSSStyleValue> c;
-        ValueComparingNonnullRefPtr<CSSStyleValue> h;
-        ValueComparingNonnullRefPtr<CSSStyleValue> alpha;
+        ValueComparingNonnullRefPtr<CSSStyleValue const> l;
+        ValueComparingNonnullRefPtr<CSSStyleValue const> c;
+        ValueComparingNonnullRefPtr<CSSStyleValue const> h;
+        ValueComparingNonnullRefPtr<CSSStyleValue const> alpha;
         bool operator==(Properties const&) const = default;
     } m_properties;
 };
@@ -50,7 +50,7 @@ protected:
 // https://drafts.css-houdini.org/css-typed-om-1/#csslch
 class CSSLCH final : public CSSLCHLike {
 public:
-    CSSLCH(Badge<CSSLCHLike>, ValueComparingNonnullRefPtr<CSSStyleValue> l, ValueComparingNonnullRefPtr<CSSStyleValue> c, ValueComparingNonnullRefPtr<CSSStyleValue> h, ValueComparingNonnullRefPtr<CSSStyleValue> alpha)
+    CSSLCH(Badge<CSSLCHLike>, ValueComparingNonnullRefPtr<CSSStyleValue const> l, ValueComparingNonnullRefPtr<CSSStyleValue const> c, ValueComparingNonnullRefPtr<CSSStyleValue const> h, ValueComparingNonnullRefPtr<CSSStyleValue const> alpha)
         : CSSLCHLike(ColorType::LCH, move(l), move(c), move(h), move(alpha))
     {
     }
@@ -64,7 +64,7 @@ public:
 // https://drafts.css-houdini.org/css-typed-om-1/#cssoklch
 class CSSOKLCH final : public CSSLCHLike {
 public:
-    CSSOKLCH(Badge<CSSLCHLike>, ValueComparingNonnullRefPtr<CSSStyleValue> l, ValueComparingNonnullRefPtr<CSSStyleValue> c, ValueComparingNonnullRefPtr<CSSStyleValue> h, ValueComparingNonnullRefPtr<CSSStyleValue> alpha)
+    CSSOKLCH(Badge<CSSLCHLike>, ValueComparingNonnullRefPtr<CSSStyleValue const> l, ValueComparingNonnullRefPtr<CSSStyleValue const> c, ValueComparingNonnullRefPtr<CSSStyleValue const> h, ValueComparingNonnullRefPtr<CSSStyleValue const> alpha)
         : CSSLCHLike(ColorType::OKLCH, move(l), move(c), move(h), move(alpha))
     {
     }

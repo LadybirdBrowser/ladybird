@@ -17,7 +17,7 @@ namespace Web::CSS {
 
 class UnresolvedStyleValue final : public CSSStyleValue {
 public:
-    static ValueComparingNonnullRefPtr<UnresolvedStyleValue> create(Vector<Parser::ComponentValue>&& values, bool contains_var_or_attr, Optional<String> original_source_text)
+    static ValueComparingNonnullRefPtr<UnresolvedStyleValue const> create(Vector<Parser::ComponentValue>&& values, bool contains_var_or_attr, Optional<String> original_source_text)
     {
         return adopt_ref(*new (nothrow) UnresolvedStyleValue(move(values), contains_var_or_attr, move(original_source_text)));
     }

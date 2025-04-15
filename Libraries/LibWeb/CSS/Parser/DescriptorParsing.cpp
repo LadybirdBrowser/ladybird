@@ -15,7 +15,7 @@
 
 namespace Web::CSS::Parser {
 
-Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue>> Parser::parse_descriptor_value(AtRuleID at_rule_id, DescriptorID descriptor_id, TokenStream<ComponentValue>& unprocessed_tokens)
+Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue const>> Parser::parse_descriptor_value(AtRuleID at_rule_id, DescriptorID descriptor_id, TokenStream<ComponentValue>& unprocessed_tokens)
 {
     if (!at_rule_supports_descriptor(at_rule_id, descriptor_id)) {
         dbgln_if(CSS_PARSER_DEBUG, "Unsupported descriptor '{}' in '{}'", to_string(descriptor_id), to_string(at_rule_id));
@@ -45,7 +45,7 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue>> Parser::parse_descriptor_valu
             [&](Keyword keyword) {
                 return parse_all_as_single_keyword_value(tokens, keyword);
             },
-            [&](PropertyID property_id) -> RefPtr<CSSStyleValue> {
+            [&](PropertyID property_id) -> RefPtr<CSSStyleValue const> {
                 auto value_or_error = parse_css_value(property_id, tokens);
                 if (value_or_error.is_error())
                     return nullptr;
@@ -58,7 +58,7 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue>> Parser::parse_descriptor_valu
                     return nullptr;
                 return value_for_property;
             },
-            [&](DescriptorMetadata::ValueType value_type) -> RefPtr<CSSStyleValue> {
+            [&](DescriptorMetadata::ValueType value_type) -> RefPtr<CSSStyleValue const> {
                 switch (value_type) {
                 case DescriptorMetadata::ValueType::FamilyName:
                     return parse_family_name_value(tokens);
@@ -107,7 +107,7 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue>> Parser::parse_descriptor_valu
                 case DescriptorMetadata::ValueType::String:
                     return parse_string_value(tokens);
                 case DescriptorMetadata::ValueType::UnicodeRangeTokens:
-                    return parse_comma_separated_value_list(tokens, [this](auto& tokens) -> RefPtr<CSSStyleValue> {
+                    return parse_comma_separated_value_list(tokens, [this](auto& tokens) -> RefPtr<CSSStyleValue const> {
                         return parse_unicode_range_value(tokens);
                     });
                 }

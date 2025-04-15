@@ -67,7 +67,7 @@ public:
         Optional<CSSNumericType> m_type;
     };
 
-    static ValueComparingNonnullRefPtr<CalculatedStyleValue> create(NonnullRefPtr<CalculationNode> calculation, CSSNumericType resolved_type, CalculationContext context)
+    static ValueComparingNonnullRefPtr<CalculatedStyleValue const> create(NonnullRefPtr<CalculationNode> calculation, CSSNumericType resolved_type, CalculationContext context)
     {
         return adopt_ref(*new (nothrow) CalculatedStyleValue(move(calculation), move(resolved_type), move(context)));
     }
@@ -262,7 +262,7 @@ public:
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
     virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override { return *this; }
 
-    RefPtr<CSSStyleValue> to_style_value(CalculationContext const&) const;
+    RefPtr<CSSStyleValue const> to_style_value(CalculationContext const&) const;
 
     virtual Vector<NonnullRefPtr<CalculationNode>> children() const override { return {}; }
     NumericValue const& value() const { return m_value; }

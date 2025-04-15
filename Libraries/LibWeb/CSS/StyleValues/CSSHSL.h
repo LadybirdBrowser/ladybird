@@ -14,7 +14,7 @@ namespace Web::CSS {
 // https://drafts.css-houdini.org/css-typed-om-1/#csshsl
 class CSSHSL final : public CSSColorValue {
 public:
-    static ValueComparingNonnullRefPtr<CSSHSL> create(ValueComparingNonnullRefPtr<CSSStyleValue> h, ValueComparingNonnullRefPtr<CSSStyleValue> s, ValueComparingNonnullRefPtr<CSSStyleValue> l, ValueComparingRefPtr<CSSStyleValue> alpha, ColorSyntax color_syntax)
+    static ValueComparingNonnullRefPtr<CSSHSL const> create(ValueComparingNonnullRefPtr<CSSStyleValue const> h, ValueComparingNonnullRefPtr<CSSStyleValue const> s, ValueComparingNonnullRefPtr<CSSStyleValue const> l, ValueComparingRefPtr<CSSStyleValue const> alpha, ColorSyntax color_syntax)
     {
         // alpha defaults to 1
         if (!alpha)
@@ -36,17 +36,17 @@ public:
     virtual bool equals(CSSStyleValue const& other) const override;
 
 private:
-    CSSHSL(ValueComparingNonnullRefPtr<CSSStyleValue> h, ValueComparingNonnullRefPtr<CSSStyleValue> s, ValueComparingNonnullRefPtr<CSSStyleValue> l, ValueComparingNonnullRefPtr<CSSStyleValue> alpha, ColorSyntax color_syntax)
+    CSSHSL(ValueComparingNonnullRefPtr<CSSStyleValue const> h, ValueComparingNonnullRefPtr<CSSStyleValue const> s, ValueComparingNonnullRefPtr<CSSStyleValue const> l, ValueComparingNonnullRefPtr<CSSStyleValue const> alpha, ColorSyntax color_syntax)
         : CSSColorValue(ColorType::HSL, color_syntax)
         , m_properties { .h = move(h), .s = move(s), .l = move(l), .alpha = move(alpha) }
     {
     }
 
     struct Properties {
-        ValueComparingNonnullRefPtr<CSSStyleValue> h;
-        ValueComparingNonnullRefPtr<CSSStyleValue> s;
-        ValueComparingNonnullRefPtr<CSSStyleValue> l;
-        ValueComparingNonnullRefPtr<CSSStyleValue> alpha;
+        ValueComparingNonnullRefPtr<CSSStyleValue const> h;
+        ValueComparingNonnullRefPtr<CSSStyleValue const> s;
+        ValueComparingNonnullRefPtr<CSSStyleValue const> l;
+        ValueComparingNonnullRefPtr<CSSStyleValue const> alpha;
         bool operator==(Properties const&) const = default;
     } m_properties;
 };

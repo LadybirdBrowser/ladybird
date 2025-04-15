@@ -1006,7 +1006,7 @@ void StyleComputer::set_all_properties(
             continue;
         }
 
-        NonnullRefPtr<CSSStyleValue> property_value = value;
+        NonnullRefPtr<CSSStyleValue const> property_value = value;
         if (property_value->is_unresolved())
             property_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { document }, element, pseudo_element, property_id, property_value->as_unresolved());
         if (!property_value->is_unresolved())
@@ -2486,7 +2486,7 @@ static bool is_monospace(CSSStyleValue const& value)
 //       instead of the default font size (16px).
 //       See this blog post for a lot more details about this weirdness:
 //       https://manishearth.github.io/blog/2017/08/10/font-size-an-unexpectedly-complex-css-property/
-RefPtr<CSSStyleValue> StyleComputer::recascade_font_size_if_needed(
+RefPtr<CSSStyleValue const> StyleComputer::recascade_font_size_if_needed(
     DOM::Element& element,
     Optional<CSS::PseudoElement> pseudo_element,
     CascadedProperties& cascaded_properties) const
@@ -2510,7 +2510,7 @@ RefPtr<CSSStyleValue> StyleComputer::recascade_font_size_if_needed(
     for (auto* ancestor = element.parent_element(); ancestor; ancestor = ancestor->parent_element())
         ancestors.append(*ancestor);
 
-    NonnullRefPtr<CSSStyleValue> new_font_size = CSS::LengthStyleValue::create(CSS::Length::make_px(default_monospace_font_size_in_px));
+    NonnullRefPtr<CSSStyleValue const> new_font_size = CSS::LengthStyleValue::create(CSS::Length::make_px(default_monospace_font_size_in_px));
     CSSPixels current_size_in_px = default_monospace_font_size_in_px;
 
     for (auto& ancestor : ancestors.in_reverse()) {

@@ -13,11 +13,11 @@ namespace Web::CSS {
 
 class FitContentStyleValue final : public CSSStyleValue {
 public:
-    static ValueComparingNonnullRefPtr<FitContentStyleValue> create()
+    static ValueComparingNonnullRefPtr<FitContentStyleValue const> create()
     {
         return adopt_ref(*new (nothrow) FitContentStyleValue(LengthPercentage { Length::make_auto() }));
     }
-    static ValueComparingNonnullRefPtr<FitContentStyleValue> create(LengthPercentage length_percentage)
+    static ValueComparingNonnullRefPtr<FitContentStyleValue const> create(LengthPercentage length_percentage)
     {
         return adopt_ref(*new (nothrow) FitContentStyleValue(move(length_percentage)));
     }

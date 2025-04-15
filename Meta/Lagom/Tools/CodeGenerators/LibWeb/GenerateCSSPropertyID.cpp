@@ -220,7 +220,7 @@ Optional<PropertyID> property_id_from_string(StringView);
 [[nodiscard]] FlyString const& string_from_property_id(PropertyID);
 [[nodiscard]] FlyString const& camel_case_string_from_property_id(PropertyID);
 bool is_inherited_property(PropertyID);
-NonnullRefPtr<CSSStyleValue> property_initial_value(PropertyID);
+NonnullRefPtr<CSSStyleValue const> property_initial_value(PropertyID);
 
 enum class ValueType {
     Angle,
@@ -665,9 +665,9 @@ bool property_affects_stacking_context(PropertyID property_id)
     }
 }
 
-NonnullRefPtr<CSSStyleValue> property_initial_value(PropertyID property_id)
+NonnullRefPtr<CSSStyleValue const> property_initial_value(PropertyID property_id)
 {
-    static Array<RefPtr<CSSStyleValue>, to_underlying(last_property_id) + 1> initial_values;
+    static Array<RefPtr<CSSStyleValue const>, to_underlying(last_property_id) + 1> initial_values;
     if (auto initial_value = initial_values[to_underlying(property_id)])
         return initial_value.release_nonnull();
 

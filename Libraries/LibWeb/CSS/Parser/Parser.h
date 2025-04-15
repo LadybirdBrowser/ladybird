@@ -119,14 +119,14 @@ public:
 
     RefPtr<Supports> parse_as_supports();
 
-    RefPtr<CSSStyleValue> parse_as_css_value(PropertyID);
-    RefPtr<CSSStyleValue> parse_as_descriptor_value(AtRuleID, DescriptorID);
+    RefPtr<CSSStyleValue const> parse_as_css_value(PropertyID);
+    RefPtr<CSSStyleValue const> parse_as_descriptor_value(AtRuleID, DescriptorID);
 
     Optional<ComponentValue> parse_as_component_value();
 
     Vector<ComponentValue> parse_as_list_of_component_values();
 
-    static NonnullRefPtr<CSSStyleValue> resolve_unresolved_style_value(ParsingParams const&, DOM::Element&, Optional<PseudoElement>, PropertyID, UnresolvedStyleValue const&);
+    static NonnullRefPtr<CSSStyleValue const> resolve_unresolved_style_value(ParsingParams const&, DOM::Element&, Optional<PseudoElement>, PropertyID, UnresolvedStyleValue const&);
 
     [[nodiscard]] LengthOrCalculated parse_as_sizes_attribute(DOM::Element const& element, HTML::HTMLImageElement const* img = nullptr);
 
@@ -270,7 +270,7 @@ private:
     Optional<Gfx::UnicodeRange> parse_unicode_range(TokenStream<ComponentValue>&);
     Optional<Gfx::UnicodeRange> parse_unicode_range(StringView);
     Vector<Gfx::UnicodeRange> parse_unicode_ranges(TokenStream<ComponentValue>&);
-    RefPtr<UnicodeRangeStyleValue> parse_unicode_range_value(TokenStream<ComponentValue>&);
+    RefPtr<UnicodeRangeStyleValue const> parse_unicode_range_value(TokenStream<ComponentValue>&);
     Optional<GridSize> parse_grid_size(ComponentValue const&);
     Optional<GridFitContent> parse_grid_fit_content(Vector<ComponentValue> const&);
     Optional<GridMinMax> parse_min_max(Vector<ComponentValue> const&);
@@ -278,12 +278,12 @@ private:
     Optional<ExplicitGridTrack> parse_track_sizing_function(ComponentValue const&);
 
     Optional<URL> parse_url_function(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_url_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_url_value(TokenStream<ComponentValue>&);
 
     Optional<ShapeRadius> parse_shape_radius(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_basic_shape_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_basic_shape_value(TokenStream<ComponentValue>&);
 
-    RefPtr<FitContentStyleValue> parse_fit_content_value(TokenStream<ComponentValue>&);
+    RefPtr<FitContentStyleValue const> parse_fit_content_value(TokenStream<ComponentValue>&);
 
     template<typename TElement>
     Optional<Vector<TElement>> parse_color_stop_list(TokenStream<ComponentValue>& tokens, auto parse_position);
@@ -291,144 +291,144 @@ private:
     Optional<Vector<AngularColorStopListElement>> parse_angular_color_stop_list(TokenStream<ComponentValue>&);
     Optional<InterpolationMethod> parse_interpolation_method(TokenStream<ComponentValue>&);
 
-    RefPtr<LinearGradientStyleValue> parse_linear_gradient_function(TokenStream<ComponentValue>&);
-    RefPtr<ConicGradientStyleValue> parse_conic_gradient_function(TokenStream<ComponentValue>&);
-    RefPtr<RadialGradientStyleValue> parse_radial_gradient_function(TokenStream<ComponentValue>&);
+    RefPtr<LinearGradientStyleValue const> parse_linear_gradient_function(TokenStream<ComponentValue>&);
+    RefPtr<ConicGradientStyleValue const> parse_conic_gradient_function(TokenStream<ComponentValue>&);
+    RefPtr<RadialGradientStyleValue const> parse_radial_gradient_function(TokenStream<ComponentValue>&);
 
-    ParseErrorOr<NonnullRefPtr<CSSStyleValue>> parse_css_value(PropertyID, TokenStream<ComponentValue>&, Optional<String> original_source_text = {});
-    ParseErrorOr<NonnullRefPtr<CSSStyleValue>> parse_descriptor_value(AtRuleID, DescriptorID, TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_css_value_for_property(PropertyID, TokenStream<ComponentValue>&);
+    ParseErrorOr<NonnullRefPtr<CSSStyleValue const>> parse_css_value(PropertyID, TokenStream<ComponentValue>&, Optional<String> original_source_text = {});
+    ParseErrorOr<NonnullRefPtr<CSSStyleValue const>> parse_descriptor_value(AtRuleID, DescriptorID, TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_css_value_for_property(PropertyID, TokenStream<ComponentValue>&);
     struct PropertyAndValue {
         PropertyID property;
-        RefPtr<CSSStyleValue> style_value;
+        RefPtr<CSSStyleValue const> style_value;
     };
     Optional<PropertyAndValue> parse_css_value_for_properties(ReadonlySpan<PropertyID>, TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_builtin_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_calculated_value(ComponentValue const&);
+    RefPtr<CSSStyleValue const> parse_builtin_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_calculated_value(ComponentValue const&);
     Optional<FlyString> parse_custom_ident(TokenStream<ComponentValue>&, ReadonlySpan<StringView> blacklist);
-    RefPtr<CustomIdentStyleValue> parse_custom_ident_value(TokenStream<ComponentValue>&, ReadonlySpan<StringView> blacklist);
+    RefPtr<CustomIdentStyleValue const> parse_custom_ident_value(TokenStream<ComponentValue>&, ReadonlySpan<StringView> blacklist);
     // NOTE: Implemented in generated code. (GenerateCSSMathFunctions.cpp)
     RefPtr<CalculationNode> parse_math_function(Function const&, CalculationContext const&);
     RefPtr<CalculationNode> parse_a_calc_function_node(Function const&, CalculationContext const&);
-    RefPtr<CSSStyleValue> parse_keyword_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_hue_none_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_solidus_and_alpha_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_rgb_color_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_hsl_color_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_hwb_color_value(TokenStream<ComponentValue>&);
-    Optional<Array<RefPtr<CSSStyleValue>, 4>> parse_lab_like_color_value(TokenStream<ComponentValue>&, StringView);
-    RefPtr<CSSStyleValue> parse_lab_color_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_oklab_color_value(TokenStream<ComponentValue>&);
-    Optional<Array<RefPtr<CSSStyleValue>, 4>> parse_lch_like_color_value(TokenStream<ComponentValue>&, StringView);
-    RefPtr<CSSStyleValue> parse_lch_color_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_oklch_color_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_color_function(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_light_dark_color_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_color_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_color_scheme_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_counter_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_keyword_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_hue_none_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_solidus_and_alpha_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_rgb_color_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_hsl_color_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_hwb_color_value(TokenStream<ComponentValue>&);
+    Optional<Array<RefPtr<CSSStyleValue const>, 4>> parse_lab_like_color_value(TokenStream<ComponentValue>&, StringView);
+    RefPtr<CSSStyleValue const> parse_lab_color_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_oklab_color_value(TokenStream<ComponentValue>&);
+    Optional<Array<RefPtr<CSSStyleValue const>, 4>> parse_lch_like_color_value(TokenStream<ComponentValue>&, StringView);
+    RefPtr<CSSStyleValue const> parse_lch_color_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_oklch_color_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_color_function(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_light_dark_color_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_color_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_color_scheme_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_counter_value(TokenStream<ComponentValue>&);
     enum class AllowReversed {
         No,
         Yes,
     };
-    RefPtr<CSSStyleValue> parse_counter_definitions_value(TokenStream<ComponentValue>&, AllowReversed, i32 default_value_if_not_reversed);
-    RefPtr<CSSStyleValue> parse_rect_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_ratio_value(TokenStream<ComponentValue>&);
-    RefPtr<StringStyleValue> parse_string_value(TokenStream<ComponentValue>&);
-    RefPtr<AbstractImageStyleValue> parse_image_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_paint_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_counter_definitions_value(TokenStream<ComponentValue>&, AllowReversed, i32 default_value_if_not_reversed);
+    RefPtr<CSSStyleValue const> parse_rect_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_ratio_value(TokenStream<ComponentValue>&);
+    RefPtr<StringStyleValue const> parse_string_value(TokenStream<ComponentValue>&);
+    RefPtr<AbstractImageStyleValue const> parse_image_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_paint_value(TokenStream<ComponentValue>&);
     enum class PositionParsingMode {
         Normal,
         BackgroundPosition,
     };
-    RefPtr<PositionStyleValue> parse_position_value(TokenStream<ComponentValue>&, PositionParsingMode = PositionParsingMode::Normal);
-    RefPtr<CSSStyleValue> parse_filter_value_list_value(TokenStream<ComponentValue>&);
-    RefPtr<StringStyleValue> parse_opentype_tag_value(TokenStream<ComponentValue>&);
-    RefPtr<FontSourceStyleValue> parse_font_source_value(TokenStream<ComponentValue>&);
+    RefPtr<PositionStyleValue const> parse_position_value(TokenStream<ComponentValue>&, PositionParsingMode = PositionParsingMode::Normal);
+    RefPtr<CSSStyleValue const> parse_filter_value_list_value(TokenStream<ComponentValue>&);
+    RefPtr<StringStyleValue const> parse_opentype_tag_value(TokenStream<ComponentValue>&);
+    RefPtr<FontSourceStyleValue const> parse_font_source_value(TokenStream<ComponentValue>&);
 
-    RefPtr<CSSStyleValue> parse_angle_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_angle_percentage_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_flex_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_frequency_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_frequency_percentage_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_integer_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_length_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_length_percentage_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_number_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_number_percentage_value(TokenStream<ComponentValue>& tokens);
-    RefPtr<CSSStyleValue> parse_number_percentage_none_value(TokenStream<ComponentValue>& tokens);
-    RefPtr<CSSStyleValue> parse_percentage_value(TokenStream<ComponentValue>& tokens);
-    RefPtr<CSSStyleValue> parse_resolution_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_time_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_time_percentage_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_angle_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_angle_percentage_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_flex_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_frequency_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_frequency_percentage_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_integer_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_length_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_length_percentage_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_number_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_number_percentage_value(TokenStream<ComponentValue>& tokens);
+    RefPtr<CSSStyleValue const> parse_number_percentage_none_value(TokenStream<ComponentValue>& tokens);
+    RefPtr<CSSStyleValue const> parse_percentage_value(TokenStream<ComponentValue>& tokens);
+    RefPtr<CSSStyleValue const> parse_resolution_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_time_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_time_percentage_value(TokenStream<ComponentValue>&);
 
-    using ParseFunction = AK::Function<RefPtr<CSSStyleValue>(TokenStream<ComponentValue>&)>;
-    RefPtr<CSSStyleValue> parse_comma_separated_value_list(TokenStream<ComponentValue>&, ParseFunction);
-    RefPtr<CSSStyleValue> parse_simple_comma_separated_value_list(PropertyID, TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_all_as_single_keyword_value(TokenStream<ComponentValue>&, Keyword);
+    using ParseFunction = AK::Function<RefPtr<CSSStyleValue const>(TokenStream<ComponentValue>&)>;
+    RefPtr<CSSStyleValue const> parse_comma_separated_value_list(TokenStream<ComponentValue>&, ParseFunction);
+    RefPtr<CSSStyleValue const> parse_simple_comma_separated_value_list(PropertyID, TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_all_as_single_keyword_value(TokenStream<ComponentValue>&, Keyword);
 
-    RefPtr<CSSStyleValue> parse_aspect_ratio_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_background_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_single_background_position_x_or_y_value(TokenStream<ComponentValue>&, PropertyID);
-    RefPtr<CSSStyleValue> parse_single_background_repeat_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_single_background_size_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_border_value(PropertyID, TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_border_radius_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_border_radius_shorthand_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_columns_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_content_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_counter_increment_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_counter_reset_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_counter_set_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_cursor_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_display_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_flex_shorthand_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_flex_flow_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_font_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_family_name_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_font_family_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_font_language_override_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_font_feature_settings_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_font_variation_settings_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_font_variant(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_font_variant_alternates_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_font_variant_east_asian_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_font_variant_emoji(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_font_variant_ligatures_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_font_variant_numeric_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_list_style_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_math_depth_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_overflow_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_place_content_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_place_items_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_place_self_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_quotes_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_scrollbar_gutter_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_aspect_ratio_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_background_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_single_background_position_x_or_y_value(TokenStream<ComponentValue>&, PropertyID);
+    RefPtr<CSSStyleValue const> parse_single_background_repeat_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_single_background_size_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_border_value(PropertyID, TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_border_radius_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_border_radius_shorthand_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_columns_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_content_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_counter_increment_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_counter_reset_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_counter_set_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_cursor_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_display_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_flex_shorthand_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_flex_flow_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_font_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_family_name_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_font_family_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_font_language_override_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_font_feature_settings_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_font_variation_settings_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_font_variant(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_font_variant_alternates_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_font_variant_east_asian_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_font_variant_emoji(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_font_variant_ligatures_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_font_variant_numeric_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_list_style_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_math_depth_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_overflow_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_place_content_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_place_items_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_place_self_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_quotes_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_scrollbar_gutter_value(TokenStream<ComponentValue>&);
     enum class AllowInsetKeyword {
         No,
         Yes,
     };
-    RefPtr<CSSStyleValue> parse_shadow_value(TokenStream<ComponentValue>&, AllowInsetKeyword);
-    RefPtr<CSSStyleValue> parse_single_shadow_value(TokenStream<ComponentValue>&, AllowInsetKeyword);
-    RefPtr<CSSStyleValue> parse_text_decoration_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_text_decoration_line_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_rotate_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_stroke_dasharray_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_easing_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_transform_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_transform_origin_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_transition_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_translate_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_scale_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_grid_track_size_list(TokenStream<ComponentValue>&, bool allow_separate_line_name_blocks = false);
-    RefPtr<CSSStyleValue> parse_grid_auto_track_sizes(TokenStream<ComponentValue>&);
-    RefPtr<GridAutoFlowStyleValue> parse_grid_auto_flow_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_grid_track_size_list_shorthand_value(PropertyID, TokenStream<ComponentValue>&);
-    RefPtr<GridTrackPlacementStyleValue> parse_grid_track_placement(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_grid_track_placement_shorthand_value(PropertyID, TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_grid_template_areas_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_grid_area_shorthand_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_grid_shorthand_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_shadow_value(TokenStream<ComponentValue>&, AllowInsetKeyword);
+    RefPtr<CSSStyleValue const> parse_single_shadow_value(TokenStream<ComponentValue>&, AllowInsetKeyword);
+    RefPtr<CSSStyleValue const> parse_text_decoration_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_text_decoration_line_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_rotate_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_stroke_dasharray_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_easing_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_transform_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_transform_origin_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_transition_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_translate_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_scale_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_grid_track_size_list(TokenStream<ComponentValue>&, bool allow_separate_line_name_blocks = false);
+    RefPtr<CSSStyleValue const> parse_grid_auto_track_sizes(TokenStream<ComponentValue>&);
+    RefPtr<GridAutoFlowStyleValue const> parse_grid_auto_flow_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_grid_track_size_list_shorthand_value(PropertyID, TokenStream<ComponentValue>&);
+    RefPtr<GridTrackPlacementStyleValue const> parse_grid_track_placement(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_grid_track_placement_shorthand_value(PropertyID, TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_grid_template_areas_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_grid_area_shorthand_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_grid_shorthand_value(TokenStream<ComponentValue>&);
 
     RefPtr<CalculationNode> convert_to_calculation_node(CalcParsing::Node const&, CalculationContext const&);
     RefPtr<CalculationNode> parse_a_calculation(Vector<ComponentValue> const&, CalculationContext const&);
@@ -457,7 +457,7 @@ private:
 
     OwnPtr<BooleanExpression> parse_supports_feature(TokenStream<ComponentValue>&);
 
-    NonnullRefPtr<CSSStyleValue> resolve_unresolved_style_value(DOM::Element&, Optional<PseudoElement>, PropertyID, UnresolvedStyleValue const&);
+    NonnullRefPtr<CSSStyleValue const> resolve_unresolved_style_value(DOM::Element&, Optional<PseudoElement>, PropertyID, UnresolvedStyleValue const&);
     bool expand_variables(DOM::Element&, Optional<PseudoElement>, FlyString const& property_name, HashMap<FlyString, NonnullRefPtr<PropertyDependencyNode>>& dependencies, TokenStream<ComponentValue>& source, Vector<ComponentValue>& dest);
     bool expand_unresolved_values(DOM::Element&, FlyString const& property_name, TokenStream<ComponentValue>& source, Vector<ComponentValue>& dest);
     bool substitute_attr_function(DOM::Element& element, FlyString const& property_name, Function const& attr_function, Vector<ComponentValue>& dest);
@@ -523,8 +523,8 @@ namespace Web {
 GC::Ref<CSS::CSSStyleSheet> parse_css_stylesheet(CSS::Parser::ParsingParams const&, StringView, Optional<::URL::URL> location = {}, Vector<NonnullRefPtr<CSS::MediaQuery>> = {});
 CSS::Parser::Parser::PropertiesAndCustomProperties parse_css_style_attribute(CSS::Parser::ParsingParams const&, StringView);
 Vector<CSS::Descriptor> parse_css_list_of_descriptors(CSS::Parser::ParsingParams const&, CSS::AtRuleID, StringView);
-RefPtr<CSS::CSSStyleValue> parse_css_value(CSS::Parser::ParsingParams const&, StringView, CSS::PropertyID property_id = CSS::PropertyID::Invalid);
-RefPtr<CSS::CSSStyleValue> parse_css_descriptor(CSS::Parser::ParsingParams const&, CSS::AtRuleID, CSS::DescriptorID, StringView);
+RefPtr<CSS::CSSStyleValue const> parse_css_value(CSS::Parser::ParsingParams const&, StringView, CSS::PropertyID property_id = CSS::PropertyID::Invalid);
+RefPtr<CSS::CSSStyleValue const> parse_css_descriptor(CSS::Parser::ParsingParams const&, CSS::AtRuleID, CSS::DescriptorID, StringView);
 Optional<CSS::SelectorList> parse_selector(CSS::Parser::ParsingParams const&, StringView);
 Optional<CSS::SelectorList> parse_selector_for_nested_style_rule(CSS::Parser::ParsingParams const&, StringView);
 Optional<CSS::Selector::PseudoElementSelector> parse_pseudo_element_selector(CSS::Parser::ParsingParams const&, StringView);

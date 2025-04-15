@@ -11,7 +11,7 @@
 
 namespace Web::CSS {
 
-ValueComparingNonnullRefPtr<RectStyleValue> RectStyleValue::create(EdgeRect rect)
+ValueComparingNonnullRefPtr<RectStyleValue const> RectStyleValue::create(EdgeRect rect)
 {
     return adopt_ref(*new (nothrow) RectStyleValue(move(rect)));
 }

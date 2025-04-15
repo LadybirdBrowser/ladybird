@@ -18,7 +18,7 @@
 
 namespace Web::CSS {
 
-ValueComparingNonnullRefPtr<CSSColorValue> CSSColorValue::create_from_color(Color color, ColorSyntax color_syntax, Optional<FlyString> name)
+ValueComparingNonnullRefPtr<CSSColorValue const> CSSColorValue::create_from_color(Color color, ColorSyntax color_syntax, Optional<FlyString> name)
 {
     return CSSRGB::create(
         NumberStyleValue::create(color.red()),

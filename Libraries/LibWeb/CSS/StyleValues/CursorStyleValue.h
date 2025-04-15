@@ -18,14 +18,14 @@ namespace Web::CSS {
 
 class CursorStyleValue final : public StyleValueWithDefaultOperators<CursorStyleValue> {
 public:
-    static ValueComparingNonnullRefPtr<CursorStyleValue> create(ValueComparingNonnullRefPtr<AbstractImageStyleValue> image, Optional<NumberOrCalculated> x, Optional<NumberOrCalculated> y)
+    static ValueComparingNonnullRefPtr<CursorStyleValue const> create(ValueComparingNonnullRefPtr<AbstractImageStyleValue const> image, Optional<NumberOrCalculated> x, Optional<NumberOrCalculated> y)
     {
         VERIFY(x.has_value() == y.has_value());
         return adopt_ref(*new (nothrow) CursorStyleValue(move(image), move(x), move(y)));
     }
     virtual ~CursorStyleValue() override = default;
 
-    ValueComparingNonnullRefPtr<AbstractImageStyleValue> image() const { return m_properties.image; }
+    ValueComparingNonnullRefPtr<AbstractImageStyleValue const> image() const { return m_properties.image; }
     Optional<NumberOrCalculated> const& x() const { return m_properties.x; }
     Optional<NumberOrCalculated> const& y() const { return m_properties.y; }
 
@@ -36,7 +36,7 @@ public:
     bool properties_equal(CursorStyleValue const& other) const { return m_properties == other.m_properties; }
 
 private:
-    CursorStyleValue(ValueComparingNonnullRefPtr<AbstractImageStyleValue> image,
+    CursorStyleValue(ValueComparingNonnullRefPtr<AbstractImageStyleValue const> image,
         Optional<NumberOrCalculated> x,
         Optional<NumberOrCalculated> y)
         : StyleValueWithDefaultOperators(Type::Cursor)
@@ -45,7 +45,7 @@ private:
     }
 
     struct Properties {
-        ValueComparingNonnullRefPtr<AbstractImageStyleValue> image;
+        ValueComparingNonnullRefPtr<AbstractImageStyleValue const> image;
         Optional<NumberOrCalculated> x;
         Optional<NumberOrCalculated> y;
         bool operator==(Properties const&) const = default;

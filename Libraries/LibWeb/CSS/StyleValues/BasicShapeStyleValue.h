@@ -59,7 +59,7 @@ struct Circle {
     bool operator==(Circle const&) const = default;
 
     ShapeRadius radius;
-    ValueComparingNonnullRefPtr<PositionStyleValue> position;
+    ValueComparingNonnullRefPtr<PositionStyleValue const> position;
 };
 
 struct Ellipse {
@@ -70,7 +70,7 @@ struct Ellipse {
 
     ShapeRadius radius_x;
     ShapeRadius radius_y;
-    ValueComparingNonnullRefPtr<PositionStyleValue> position;
+    ValueComparingNonnullRefPtr<PositionStyleValue const> position;
 };
 
 struct Polygon {
@@ -94,7 +94,7 @@ using BasicShape = Variant<Inset, Xywh, Rect, Circle, Ellipse, Polygon>;
 
 class BasicShapeStyleValue : public StyleValueWithDefaultOperators<BasicShapeStyleValue> {
 public:
-    static ValueComparingNonnullRefPtr<BasicShapeStyleValue> create(BasicShape basic_shape)
+    static ValueComparingNonnullRefPtr<BasicShapeStyleValue const> create(BasicShape basic_shape)
     {
         return adopt_ref(*new (nothrow) BasicShapeStyleValue(move(basic_shape)));
     }

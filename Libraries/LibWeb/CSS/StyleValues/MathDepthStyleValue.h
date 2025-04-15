@@ -12,9 +12,9 @@ namespace Web::CSS {
 
 class MathDepthStyleValue : public StyleValueWithDefaultOperators<MathDepthStyleValue> {
 public:
-    static ValueComparingNonnullRefPtr<MathDepthStyleValue> create_auto_add();
-    static ValueComparingNonnullRefPtr<MathDepthStyleValue> create_add(ValueComparingNonnullRefPtr<CSSStyleValue const> integer_value);
-    static ValueComparingNonnullRefPtr<MathDepthStyleValue> create_integer(ValueComparingNonnullRefPtr<CSSStyleValue const> integer_value);
+    static ValueComparingNonnullRefPtr<MathDepthStyleValue const> create_auto_add();
+    static ValueComparingNonnullRefPtr<MathDepthStyleValue const> create_add(ValueComparingNonnullRefPtr<CSSStyleValue const> integer_value);
+    static ValueComparingNonnullRefPtr<MathDepthStyleValue const> create_integer(ValueComparingNonnullRefPtr<CSSStyleValue const> integer_value);
     virtual ~MathDepthStyleValue() override = default;
 
     bool is_auto_add() const { return m_type == MathDepthType::AutoAdd; }

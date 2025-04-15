@@ -13,7 +13,7 @@ namespace Web::CSS {
 
 class RatioStyleValue final : public StyleValueWithDefaultOperators<RatioStyleValue> {
 public:
-    static ValueComparingNonnullRefPtr<RatioStyleValue> create(Ratio ratio)
+    static ValueComparingNonnullRefPtr<RatioStyleValue const> create(Ratio ratio)
     {
         return adopt_ref(*new (nothrow) RatioStyleValue(move(ratio)));
     }

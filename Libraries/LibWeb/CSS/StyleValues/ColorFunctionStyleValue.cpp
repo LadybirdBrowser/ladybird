@@ -58,7 +58,7 @@ StringView string_view_from_color_type(CSSColorValue::ColorType color_type)
 
 }
 
-ValueComparingNonnullRefPtr<ColorFunctionStyleValue> ColorFunctionStyleValue::create(StringView color_space, ValueComparingNonnullRefPtr<CSSStyleValue> c1, ValueComparingNonnullRefPtr<CSSStyleValue> c2, ValueComparingNonnullRefPtr<CSSStyleValue> c3, ValueComparingRefPtr<CSSStyleValue> alpha)
+ValueComparingNonnullRefPtr<ColorFunctionStyleValue const> ColorFunctionStyleValue::create(StringView color_space, ValueComparingNonnullRefPtr<CSSStyleValue const> c1, ValueComparingNonnullRefPtr<CSSStyleValue const> c2, ValueComparingNonnullRefPtr<CSSStyleValue const> c3, ValueComparingRefPtr<CSSStyleValue const> alpha)
 {
     VERIFY(any_of(s_supported_color_space, [=](auto supported) { return color_space == supported; }));
 
@@ -93,7 +93,7 @@ ColorFunctionStyleValue::Resolved ColorFunctionStyleValue::resolve_properties() 
 // https://www.w3.org/TR/css-color-4/#serializing-color-function-values
 String ColorFunctionStyleValue::to_string(SerializationMode mode) const
 {
-    auto convert_percentage = [](ValueComparingNonnullRefPtr<CSSStyleValue> const& value) -> RemoveReference<decltype(value)> {
+    auto convert_percentage = [](ValueComparingNonnullRefPtr<CSSStyleValue const> const& value) -> RemoveReference<decltype(value)> {
         if (value->is_percentage())
             return NumberStyleValue::create(value->as_percentage().value() / 100);
         return value;

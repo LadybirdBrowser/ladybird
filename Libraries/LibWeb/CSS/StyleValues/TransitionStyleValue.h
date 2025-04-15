@@ -17,15 +17,15 @@ namespace Web::CSS {
 class TransitionStyleValue final : public StyleValueWithDefaultOperators<TransitionStyleValue> {
 public:
     struct Transition {
-        ValueComparingRefPtr<CustomIdentStyleValue> property_name;
+        ValueComparingRefPtr<CustomIdentStyleValue const> property_name;
         TimeOrCalculated duration { CSS::Time::make_seconds(0.0) };
         TimeOrCalculated delay { CSS::Time::make_seconds(0.0) };
-        ValueComparingRefPtr<EasingStyleValue> easing;
+        ValueComparingRefPtr<EasingStyleValue const> easing;
 
         bool operator==(Transition const&) const = default;
     };
 
-    static ValueComparingNonnullRefPtr<TransitionStyleValue> create(Vector<Transition> transitions)
+    static ValueComparingNonnullRefPtr<TransitionStyleValue const> create(Vector<Transition> transitions)
     {
         return adopt_ref(*new (nothrow) TransitionStyleValue(move(transitions)));
     }

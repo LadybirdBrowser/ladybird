@@ -22,7 +22,7 @@ enum class ShadowPlacement {
 
 class ShadowStyleValue final : public StyleValueWithDefaultOperators<ShadowStyleValue> {
 public:
-    static ValueComparingNonnullRefPtr<ShadowStyleValue> create(
+    static ValueComparingNonnullRefPtr<ShadowStyleValue const> create(
         ValueComparingNonnullRefPtr<CSSStyleValue const> color,
         ValueComparingNonnullRefPtr<CSSStyleValue const> offset_x,
         ValueComparingNonnullRefPtr<CSSStyleValue const> offset_y,

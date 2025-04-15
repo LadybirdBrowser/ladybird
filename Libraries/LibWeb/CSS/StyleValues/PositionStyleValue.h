@@ -18,11 +18,11 @@ namespace Web::CSS {
 
 class PositionStyleValue final : public StyleValueWithDefaultOperators<PositionStyleValue> {
 public:
-    static ValueComparingNonnullRefPtr<PositionStyleValue> create(ValueComparingNonnullRefPtr<EdgeStyleValue> edge_x, ValueComparingNonnullRefPtr<EdgeStyleValue> edge_y)
+    static ValueComparingNonnullRefPtr<PositionStyleValue const> create(ValueComparingNonnullRefPtr<EdgeStyleValue const> edge_x, ValueComparingNonnullRefPtr<EdgeStyleValue const> edge_y)
     {
         return adopt_ref(*new (nothrow) PositionStyleValue(move(edge_x), move(edge_y)));
     }
-    static ValueComparingNonnullRefPtr<PositionStyleValue> create_center()
+    static ValueComparingNonnullRefPtr<PositionStyleValue const> create_center()
     {
         return adopt_ref(*new (nothrow) PositionStyleValue(
             EdgeStyleValue::create(PositionEdge::Center, {}),
@@ -30,8 +30,8 @@ public:
     }
     virtual ~PositionStyleValue() override = default;
 
-    ValueComparingNonnullRefPtr<EdgeStyleValue> edge_x() const { return m_properties.edge_x; }
-    ValueComparingNonnullRefPtr<EdgeStyleValue> edge_y() const { return m_properties.edge_y; }
+    ValueComparingNonnullRefPtr<EdgeStyleValue const> edge_x() const { return m_properties.edge_x; }
+    ValueComparingNonnullRefPtr<EdgeStyleValue const> edge_y() const { return m_properties.edge_y; }
     bool is_center() const;
     CSSPixelPoint resolved(Layout::Node const&, CSSPixelRect const&) const;
 
@@ -40,15 +40,15 @@ public:
     bool properties_equal(PositionStyleValue const& other) const { return m_properties == other.m_properties; }
 
 private:
-    PositionStyleValue(ValueComparingNonnullRefPtr<EdgeStyleValue> edge_x, ValueComparingNonnullRefPtr<EdgeStyleValue> edge_y)
+    PositionStyleValue(ValueComparingNonnullRefPtr<EdgeStyleValue const> edge_x, ValueComparingNonnullRefPtr<EdgeStyleValue const> edge_y)
         : StyleValueWithDefaultOperators(Type::Position)
-        , m_properties { .edge_x = edge_x, .edge_y = edge_y }
+        , m_properties { .edge_x = move(edge_x), .edge_y = move(edge_y) }
     {
     }
 
     struct Properties {
-        ValueComparingNonnullRefPtr<EdgeStyleValue> edge_x;
-        ValueComparingNonnullRefPtr<EdgeStyleValue> edge_y;
+        ValueComparingNonnullRefPtr<EdgeStyleValue const> edge_x;
+        ValueComparingNonnullRefPtr<EdgeStyleValue const> edge_y;
         bool operator==(Properties const&) const = default;
     } m_properties;
 };

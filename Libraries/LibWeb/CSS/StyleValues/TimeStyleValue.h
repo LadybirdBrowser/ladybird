@@ -16,7 +16,7 @@ namespace Web::CSS {
 
 class TimeStyleValue : public CSSUnitValue {
 public:
-    static ValueComparingNonnullRefPtr<TimeStyleValue> create(Time time)
+    static ValueComparingNonnullRefPtr<TimeStyleValue const> create(Time time)
     {
         return adopt_ref(*new (nothrow) TimeStyleValue(move(time)));
     }

@@ -100,7 +100,7 @@ WebIDL::ExceptionOr<void> CSSFontFaceDescriptors::set_property(StringView proper
         return {};
 
     // 5. Let component value list be the result of parsing value for property property.
-    RefPtr<CSSStyleValue> component_value_list = parse_css_descriptor(Parser::ParsingParams {}, AtRuleID::FontFace, *descriptor_id, value);
+    RefPtr<CSSStyleValue const> component_value_list = parse_css_descriptor(Parser::ParsingParams {}, AtRuleID::FontFace, *descriptor_id, value);
 
     // 6. If component value list is null, then return.
     if (!component_value_list)

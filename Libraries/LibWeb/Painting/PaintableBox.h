@@ -239,11 +239,11 @@ public:
 
     [[nodiscard]] bool could_be_scrolled_by_wheel_event() const;
 
-    void set_used_values_for_grid_template_columns(RefPtr<CSS::GridTrackSizeListStyleValue> style_value) { m_used_values_for_grid_template_columns = move(style_value); }
-    RefPtr<CSS::GridTrackSizeListStyleValue> const& used_values_for_grid_template_columns() const { return m_used_values_for_grid_template_columns; }
+    void set_used_values_for_grid_template_columns(RefPtr<CSS::GridTrackSizeListStyleValue const> style_value) { m_used_values_for_grid_template_columns = move(style_value); }
+    RefPtr<CSS::GridTrackSizeListStyleValue const> const& used_values_for_grid_template_columns() const { return m_used_values_for_grid_template_columns; }
 
-    void set_used_values_for_grid_template_rows(RefPtr<CSS::GridTrackSizeListStyleValue> style_value) { m_used_values_for_grid_template_rows = move(style_value); }
-    RefPtr<CSS::GridTrackSizeListStyleValue> const& used_values_for_grid_template_rows() const { return m_used_values_for_grid_template_rows; }
+    void set_used_values_for_grid_template_rows(RefPtr<CSS::GridTrackSizeListStyleValue const> style_value) { m_used_values_for_grid_template_rows = move(style_value); }
+    RefPtr<CSS::GridTrackSizeListStyleValue const> const& used_values_for_grid_template_rows() const { return m_used_values_for_grid_template_rows; }
 
 protected:
     explicit PaintableBox(Layout::Box const&);
@@ -309,8 +309,8 @@ private:
 
     OwnPtr<StickyInsets> m_sticky_insets;
 
-    RefPtr<CSS::GridTrackSizeListStyleValue> m_used_values_for_grid_template_columns;
-    RefPtr<CSS::GridTrackSizeListStyleValue> m_used_values_for_grid_template_rows;
+    RefPtr<CSS::GridTrackSizeListStyleValue const> m_used_values_for_grid_template_columns;
+    RefPtr<CSS::GridTrackSizeListStyleValue const> m_used_values_for_grid_template_rows;
 
     BoxModelMetrics m_box_model;
 };

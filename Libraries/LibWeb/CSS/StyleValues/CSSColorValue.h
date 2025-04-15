@@ -23,7 +23,7 @@ enum class ColorSyntax : u8 {
 // https://drafts.css-houdini.org/css-typed-om-1/#csscolorvalue
 class CSSColorValue : public CSSStyleValue {
 public:
-    static ValueComparingNonnullRefPtr<CSSColorValue> create_from_color(Color color, ColorSyntax color_syntax, Optional<FlyString> name = {});
+    static ValueComparingNonnullRefPtr<CSSColorValue const> create_from_color(Color color, ColorSyntax color_syntax, Optional<FlyString> name = {});
     virtual ~CSSColorValue() override = default;
 
     virtual bool has_color() const override { return true; }

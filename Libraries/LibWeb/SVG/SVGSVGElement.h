@@ -78,8 +78,8 @@ public:
     void unsuspend_redraw_all() const { }
     void force_redraw() const { }
 
-    [[nodiscard]] RefPtr<CSS::CSSStyleValue> width_style_value_from_attribute() const;
-    [[nodiscard]] RefPtr<CSS::CSSStyleValue> height_style_value_from_attribute() const;
+    [[nodiscard]] RefPtr<CSS::CSSStyleValue const> width_style_value_from_attribute() const;
+    [[nodiscard]] RefPtr<CSS::CSSStyleValue const> height_style_value_from_attribute() const;
 
     struct NaturalMetrics {
         Optional<CSSPixels> width;

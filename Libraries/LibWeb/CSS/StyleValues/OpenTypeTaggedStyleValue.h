@@ -20,21 +20,21 @@ public:
         FontFeatureSettings,
         FontVariationSettings,
     };
-    static ValueComparingNonnullRefPtr<OpenTypeTaggedStyleValue> create(Mode mode, FlyString tag, ValueComparingNonnullRefPtr<CSSStyleValue> value)
+    static ValueComparingNonnullRefPtr<OpenTypeTaggedStyleValue const> create(Mode mode, FlyString tag, ValueComparingNonnullRefPtr<CSSStyleValue const> value)
     {
         return adopt_ref(*new (nothrow) OpenTypeTaggedStyleValue(mode, move(tag), move(value)));
     }
     virtual ~OpenTypeTaggedStyleValue() override = default;
 
     FlyString const& tag() const { return m_tag; }
-    ValueComparingNonnullRefPtr<CSSStyleValue> const& value() const { return m_value; }
+    ValueComparingNonnullRefPtr<CSSStyleValue const> const& value() const { return m_value; }
 
     virtual String to_string(SerializationMode) const override;
 
     bool properties_equal(OpenTypeTaggedStyleValue const&) const;
 
 private:
-    explicit OpenTypeTaggedStyleValue(Mode mode, FlyString tag, ValueComparingNonnullRefPtr<CSSStyleValue> value)
+    explicit OpenTypeTaggedStyleValue(Mode mode, FlyString tag, ValueComparingNonnullRefPtr<CSSStyleValue const> value)
         : StyleValueWithDefaultOperators(Type::OpenTypeTagged)
         , m_mode(mode)
         , m_tag(move(tag))
@@ -44,7 +44,7 @@ private:
 
     Mode m_mode;
     FlyString m_tag;
-    ValueComparingNonnullRefPtr<CSSStyleValue> m_value;
+    ValueComparingNonnullRefPtr<CSSStyleValue const> m_value;
 };
 
 }
