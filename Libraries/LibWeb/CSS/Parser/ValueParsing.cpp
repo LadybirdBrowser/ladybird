@@ -3373,7 +3373,7 @@ RefPtr<CSSStyleValue const> Parser::parse_calculated_value(ComponentValue const&
     return CalculatedStyleValue::create(function_node.release_nonnull(), function_type.release_value(), context);
 }
 
-RefPtr<CalculationNode> Parser::parse_a_calc_function_node(Function const& function, CalculationContext const& context)
+RefPtr<CalculationNode const> Parser::parse_a_calc_function_node(Function const& function, CalculationContext const& context)
 {
     auto context_guard = push_temporary_value_parsing_context(FunctionContext { function.name });
 
@@ -3386,11 +3386,11 @@ RefPtr<CalculationNode> Parser::parse_a_calc_function_node(Function const& funct
     return nullptr;
 }
 
-RefPtr<CalculationNode> Parser::convert_to_calculation_node(CalcParsing::Node const& node, CalculationContext const& context)
+RefPtr<CalculationNode const> Parser::convert_to_calculation_node(CalcParsing::Node const& node, CalculationContext const& context)
 {
     return node.visit(
-        [this, &context](NonnullOwnPtr<CalcParsing::ProductNode> const& product_node) -> RefPtr<CalculationNode> {
-            Vector<NonnullRefPtr<CalculationNode>> children;
+        [this, &context](NonnullOwnPtr<CalcParsing::ProductNode> const& product_node) -> RefPtr<CalculationNode const> {
+            Vector<NonnullRefPtr<CalculationNode const>> children;
             children.ensure_capacity(product_node->children.size());
 
             for (auto const& child : product_node->children) {
@@ -3403,8 +3403,8 @@ RefPtr<CalculationNode> Parser::convert_to_calculation_node(CalcParsing::Node co
 
             return ProductCalculationNode::create(move(children));
         },
-        [this, &context](NonnullOwnPtr<CalcParsing::SumNode> const& sum_node) -> RefPtr<CalculationNode> {
-            Vector<NonnullRefPtr<CalculationNode>> children;
+        [this, &context](NonnullOwnPtr<CalcParsing::SumNode> const& sum_node) -> RefPtr<CalculationNode const> {
+            Vector<NonnullRefPtr<CalculationNode const>> children;
             children.ensure_capacity(sum_node->children.size());
 
             for (auto const& child : sum_node->children) {
@@ -3417,17 +3417,17 @@ RefPtr<CalculationNode> Parser::convert_to_calculation_node(CalcParsing::Node co
 
             return SumCalculationNode::create(move(children));
         },
-        [this, &context](NonnullOwnPtr<CalcParsing::InvertNode> const& invert_node) -> RefPtr<CalculationNode> {
+        [this, &context](NonnullOwnPtr<CalcParsing::InvertNode> const& invert_node) -> RefPtr<CalculationNode const> {
             if (auto child_as_node = convert_to_calculation_node(invert_node->child, context))
                 return InvertCalculationNode::create(child_as_node.release_nonnull());
             return nullptr;
         },
-        [this, &context](NonnullOwnPtr<CalcParsing::NegateNode> const& negate_node) -> RefPtr<CalculationNode> {
+        [this, &context](NonnullOwnPtr<CalcParsing::NegateNode> const& negate_node) -> RefPtr<CalculationNode const> {
             if (auto child_as_node = convert_to_calculation_node(negate_node->child, context))
                 return NegateCalculationNode::create(child_as_node.release_nonnull());
             return nullptr;
         },
-        [this, &context](NonnullRawPtr<ComponentValue const> const& component_value) -> RefPtr<CalculationNode> {
+        [this, &context](NonnullRawPtr<ComponentValue const> const& component_value) -> RefPtr<CalculationNode const> {
             // NOTE: This is the "process the leaf nodes" part of step 5 of https://drafts.csswg.org/css-values-4/#parse-a-calculation
             //       We divert a little from the spec: Rather than modify an existing tree of values, we construct a new one from that source tree.
             //       This lets us make CalculationNodes immutable.
@@ -3504,14 +3504,14 @@ RefPtr<CalculationNode> Parser::convert_to_calculation_node(CalcParsing::Node co
             dbgln_if(CSS_PARSER_DEBUG, "Leftover ComponentValue in calc tree! That probably means the syntax is invalid, but maybe we just didn't implement `{}` yet.", component_value->to_debug_string());
             return nullptr;
         },
-        [](CalcParsing::Operator const& op) -> RefPtr<CalculationNode> {
+        [](CalcParsing::Operator const& op) -> RefPtr<CalculationNode const> {
             dbgln_if(CSS_PARSER_DEBUG, "Leftover Operator {} in calc tree!", op.delim);
             return nullptr;
         });
 }
 
 // https://drafts.csswg.org/css-values-4/#parse-a-calculation
-RefPtr<CalculationNode> Parser::parse_a_calculation(Vector<ComponentValue> const& original_values, CalculationContext const& context)
+RefPtr<CalculationNode const> Parser::parse_a_calculation(Vector<ComponentValue> const& original_values, CalculationContext const& context)
 {
     // 1. Discard any <whitespace-token>s from values.
     // 2. An item in values is an “operator” if it’s a <delim-token> with the value "+", "-", "*", or "/". Otherwise, it’s a “value”.

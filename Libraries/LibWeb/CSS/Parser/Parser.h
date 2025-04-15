@@ -308,8 +308,8 @@ private:
     Optional<FlyString> parse_custom_ident(TokenStream<ComponentValue>&, ReadonlySpan<StringView> blacklist);
     RefPtr<CustomIdentStyleValue const> parse_custom_ident_value(TokenStream<ComponentValue>&, ReadonlySpan<StringView> blacklist);
     // NOTE: Implemented in generated code. (GenerateCSSMathFunctions.cpp)
-    RefPtr<CalculationNode> parse_math_function(Function const&, CalculationContext const&);
-    RefPtr<CalculationNode> parse_a_calc_function_node(Function const&, CalculationContext const&);
+    RefPtr<CalculationNode const> parse_math_function(Function const&, CalculationContext const&);
+    RefPtr<CalculationNode const> parse_a_calc_function_node(Function const&, CalculationContext const&);
     RefPtr<CSSStyleValue const> parse_keyword_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_hue_none_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_solidus_and_alpha_value(TokenStream<ComponentValue>&);
@@ -430,8 +430,8 @@ private:
     RefPtr<CSSStyleValue const> parse_grid_area_shorthand_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_grid_shorthand_value(TokenStream<ComponentValue>&);
 
-    RefPtr<CalculationNode> convert_to_calculation_node(CalcParsing::Node const&, CalculationContext const&);
-    RefPtr<CalculationNode> parse_a_calculation(Vector<ComponentValue> const&, CalculationContext const&);
+    RefPtr<CalculationNode const> convert_to_calculation_node(CalcParsing::Node const&, CalculationContext const&);
+    RefPtr<CalculationNode const> parse_a_calculation(Vector<ComponentValue> const&, CalculationContext const&);
 
     ParseErrorOr<NonnullRefPtr<Selector>> parse_complex_selector(TokenStream<ComponentValue>&, SelectorType);
     ParseErrorOr<Optional<Selector::CompoundSelector>> parse_compound_selector(TokenStream<ComponentValue>&);
