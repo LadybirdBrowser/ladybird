@@ -90,7 +90,7 @@ class SkiaMetalBackendContext final : public SkiaBackendContext {
     AK_MAKE_NONMOVABLE(SkiaMetalBackendContext);
 
 public:
-    SkiaMetalBackendContext(sk_sp<GrDirectContext> context, MetalContext& metal_context)
+    SkiaMetalBackendContext(sk_sp<GrDirectContext> context, NonnullRefPtr<MetalContext> metal_context)
         : m_context(move(context))
         , m_metal_context(move(metal_context))
     {
@@ -114,13 +114,13 @@ private:
     NonnullRefPtr<MetalContext> m_metal_context;
 };
 
-RefPtr<SkiaBackendContext> SkiaBackendContext::create_metal_context(MetalContext& metal_context)
+RefPtr<SkiaBackendContext> SkiaBackendContext::create_metal_context(NonnullRefPtr<MetalContext> metal_context)
 {
     GrMtlBackendContext backend_context;
-    backend_context.fDevice.retain(metal_context.device());
-    backend_context.fQueue.retain(metal_context.queue());
+    backend_context.fDevice.retain(metal_context->device());
+    backend_context.fQueue.retain(metal_context->queue());
     sk_sp<GrDirectContext> ctx = GrDirectContexts::MakeMetal(backend_context);
-    return adopt_ref(*new SkiaMetalBackendContext(ctx, metal_context));
+    return adopt_ref(*new SkiaMetalBackendContext(move(ctx), move(metal_context)));
 }
 #endif
 
