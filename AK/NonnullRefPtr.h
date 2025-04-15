@@ -46,16 +46,16 @@ public:
 
     enum AdoptTag { Adopt };
 
-    ALWAYS_INLINE NonnullRefPtr(T const& object)
-        : m_ptr(const_cast<T*>(&object))
+    ALWAYS_INLINE NonnullRefPtr(T& object)
+        : m_ptr(&object)
     {
         m_ptr->ref();
     }
 
     template<typename U>
     requires(IsConvertible<U*, T*>)
-    ALWAYS_INLINE NonnullRefPtr(U const& object)
-        : m_ptr(const_cast<T*>(static_cast<T const*>(&object)))
+    ALWAYS_INLINE NonnullRefPtr(U& object)
+        : m_ptr(static_cast<T*>(&object))
     {
         m_ptr->ref();
     }
@@ -78,7 +78,7 @@ public:
     }
 
     ALWAYS_INLINE NonnullRefPtr(NonnullRefPtr const& other)
-        : m_ptr(const_cast<T*>(other.ptr()))
+        : m_ptr(other.ptr())
     {
         m_ptr->ref();
     }
@@ -86,7 +86,7 @@ public:
     template<typename U>
     requires(IsConvertible<U*, T*>)
     ALWAYS_INLINE NonnullRefPtr(NonnullRefPtr<U> const& other)
-        : m_ptr(const_cast<T*>(static_cast<T const*>(other.ptr())))
+        : m_ptr(static_cast<T*>(other.ptr()))
     {
         m_ptr->ref();
     }
@@ -144,7 +144,7 @@ public:
         return *this;
     }
 
-    NonnullRefPtr& operator=(T const& object)
+    NonnullRefPtr& operator=(T& object)
     {
         NonnullRefPtr tmp { object };
         swap(tmp);
