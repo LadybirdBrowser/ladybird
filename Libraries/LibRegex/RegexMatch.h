@@ -14,7 +14,6 @@
 #include <AK/COWVector.h>
 #include <AK/FlyString.h>
 #include <AK/MemMem.h>
-#include <AK/RedBlackTree.h>
 #include <AK/StringBuilder.h>
 #include <AK/StringView.h>
 #include <AK/Utf16View.h>
@@ -29,11 +28,6 @@ class RegexStringView {
 public:
     RegexStringView() = default;
 
-    RegexStringView(ByteString const& string)
-        : m_view(string.view())
-    {
-    }
-
     RegexStringView(String const& string)
         : m_view(string.bytes_as_string_view())
     {
@@ -44,22 +38,11 @@ public:
     {
     }
 
-    RegexStringView(Utf32View view)
-        : m_view(view)
-    {
-    }
-
     RegexStringView(Utf16View view)
         : m_view(view)
     {
     }
 
-    RegexStringView(Utf8View view)
-        : m_view(view)
-    {
-    }
-
-    RegexStringView(ByteString&&) = delete;
     RegexStringView(String&&) = delete;
 
     bool is_string_view() const
@@ -72,19 +55,9 @@ public:
         return m_view.get<StringView>();
     }
 
-    Utf32View const& u32_view() const
-    {
-        return m_view.get<Utf32View>();
-    }
-
     Utf16View const& u16_view() const
     {
         return m_view.get<Utf16View>();
-    }
-
-    Utf8View const& u8_view() const
-    {
-        return m_view.get<Utf8View>();
     }
 
     bool unicode() const { return m_unicode; }
@@ -115,14 +88,12 @@ public:
     {
         return m_view.visit(
             [](Utf16View const& view) { return view.length_in_code_units(); },
-            [](Utf8View const& view) { return view.byte_length(); },
             [](auto const& view) { return view.length(); });
     }
 
     size_t length_of_code_point(u32 code_point) const
     {
         return m_view.visit(
-            [](Utf32View const&) { return 1; },
             [&](Utf16View const&) {
                 if (code_point < 0x10000)
                     return 1;
@@ -159,9 +130,6 @@ public:
                 optional_string_storage = builder.to_byte_string();
                 return RegexStringView { T { *optional_string_storage } };
             },
-            [&](Utf32View) {
-                return RegexStringView { Utf32View { data.data(), data.size() } };
-            },
             [&](Utf16View) {
                 optional_utf16_storage = AK::utf32_to_utf16(Utf32View { data.data(), data.size() }).release_value_but_fixme_should_propagate_errors();
                 return RegexStringView { Utf16View { optional_utf16_storage } };
@@ -181,24 +149,6 @@ public:
                     new_views.empend(view);
                 return new_views;
             },
-            [](Utf32View view) {
-                if (view.is_empty())
-                    return Vector<RegexStringView> { view };
-
-                Vector<RegexStringView> views;
-                u32 newline = '\n';
-                while (!view.is_empty()) {
-                    auto position = AK::memmem_optional(view.code_points(), view.length() * sizeof(u32), &newline, sizeof(u32));
-                    if (!position.has_value())
-                        break;
-                    auto offset = position.value() / sizeof(u32);
-                    views.empend(view.substring_view(0, offset));
-                    view = view.substring_view(offset + 1, view.length() - offset - 1);
-                }
-                if (!view.is_empty())
-                    views.empend(view);
-                return views;
-            },
             [](Utf16View view) {
                 if (view.is_empty())
                     return Vector<RegexStringView> { view };
@@ -216,34 +166,6 @@ public:
                 if (!view.is_empty())
                     views.empend(view);
                 return views;
-            },
-            [](Utf8View const& view) {
-                if (view.is_empty())
-                    return Vector<RegexStringView> { view };
-
-                Vector<RegexStringView> views;
-                auto it = view.begin();
-                auto previous_newline_position_it = it;
-                for (;;) {
-                    if (*it == '\n') {
-                        auto previous_offset = view.byte_offset_of(previous_newline_position_it);
-                        auto new_offset = view.byte_offset_of(it);
-                        auto slice = view.substring_view(previous_offset, new_offset - previous_offset);
-                        views.empend(slice);
-                        ++it;
-                        previous_newline_position_it = it;
-                    }
-                    if (it.done())
-                        break;
-                    ++it;
-                }
-                if (it != previous_newline_position_it) {
-                    auto previous_offset = view.byte_offset_of(previous_newline_position_it);
-                    auto new_offset = view.byte_offset_of(it);
-                    auto slice = view.substring_view(previous_offset, new_offset - previous_offset);
-                    views.empend(slice);
-                }
-                return views;
             });
     }
 
@@ -252,8 +174,7 @@ public:
         if (unicode()) {
             auto view = m_view.visit(
                 [&](auto view) { return RegexStringView { view.substring_view(offset, length) }; },
-                [&](Utf16View const& view) { return RegexStringView { view.unicode_substring_view(offset, length) }; },
-                [&](Utf8View const& view) { return RegexStringView { view.unicode_substring_view(offset, length) }; });
+                [&](Utf16View const& view) { return RegexStringView { view.unicode_substring_view(offset, length) }; });
 
             view.set_unicode(unicode());
             return view;
@@ -302,13 +223,7 @@ public:
                     return ch;
                 }
             },
-            [&](Utf32View const& view) -> u32 { return view[index]; },
-            [&](Utf16View const& view) -> u32 { return view.code_point_at(index); },
-            [&](Utf8View const& view) -> u32 {
-                auto it = view.iterator_at_byte_offset(index);
-                VERIFY(it != view.end());
-                return *it;
-            });
+            [&](Utf16View const& view) -> u32 { return view.code_point_at(index); });
     }
 
     u32 code_unit_at(size_t code_unit_index) const
@@ -325,13 +240,7 @@ public:
                     return ch;
                 }
             },
-            [&](Utf32View const& view) -> u32 { return view[code_unit_index]; },
-            [&](Utf16View const& view) -> u32 { return view.code_unit_at(code_unit_index); },
-            [&](Utf8View const& view) -> u32 {
-                auto it = view.iterator_at_byte_offset(code_unit_index);
-                VERIFY(it != view.end());
-                return *it;
-            });
+            [&](Utf16View const& view) -> u32 { return view.code_unit_at(code_unit_index); });
     }
 
     size_t code_unit_offset_of(size_t code_point_index) const
@@ -341,69 +250,30 @@ public:
                 Utf8View utf8_view { view };
                 return utf8_view.byte_offset_of(code_point_index);
             },
-            [&](Utf32View const&) -> u32 { return code_point_index; },
             [&](Utf16View const& view) -> u32 {
                 return view.code_unit_offset_of(code_point_index);
-            },
-            [&](Utf8View const& view) -> u32 {
-                return view.byte_offset_of(code_point_index);
             });
     }
 
     bool operator==(char const* cstring) const
     {
         return m_view.visit(
-            [&](Utf32View) { return to_byte_string() == cstring; },
             [&](Utf16View) { return to_byte_string() == cstring; },
-            [&](Utf8View const& view) { return view.as_string() == cstring; },
             [&](StringView view) { return view == cstring; });
-    }
-
-    bool operator==(ByteString const& string) const
-    {
-        return m_view.visit(
-            [&](Utf32View) { return to_byte_string() == string; },
-            [&](Utf16View) { return to_byte_string() == string; },
-            [&](Utf8View const& view) { return view.as_string() == string; },
-            [&](StringView view) { return view == string; });
     }
 
     bool operator==(StringView string) const
     {
         return m_view.visit(
-            [&](Utf32View) { return to_byte_string() == string; },
             [&](Utf16View) { return to_byte_string() == string; },
-            [&](Utf8View const& view) { return view.as_string() == string; },
             [&](StringView view) { return view == string; });
-    }
-
-    bool operator==(Utf32View const& other) const
-    {
-        return m_view.visit(
-            [&](Utf32View view) {
-                return view.length() == other.length() && __builtin_memcmp(view.code_points(), other.code_points(), view.length() * sizeof(u32)) == 0;
-            },
-            [&](Utf16View) { return to_byte_string() == RegexStringView { other }.to_byte_string(); },
-            [&](Utf8View const& view) { return view.as_string() == RegexStringView { other }.to_byte_string(); },
-            [&](StringView view) { return view == RegexStringView { other }.to_byte_string(); });
     }
 
     bool operator==(Utf16View const& other) const
     {
         return m_view.visit(
-            [&](Utf32View) { return to_byte_string() == RegexStringView { other }.to_byte_string(); },
             [&](Utf16View const& view) { return view == other; },
-            [&](Utf8View const& view) { return view.as_string() == RegexStringView { other }.to_byte_string(); },
             [&](StringView view) { return view == RegexStringView { other }.to_byte_string(); });
-    }
-
-    bool operator==(Utf8View const& other) const
-    {
-        return m_view.visit(
-            [&](Utf32View) { return to_byte_string() == other.as_string(); },
-            [&](Utf16View) { return to_byte_string() == other.as_string(); },
-            [&](Utf8View const& view) { return view.as_string() == other.as_string(); },
-            [&](StringView view) { return other.as_string() == view; });
     }
 
     bool equals(RegexStringView other) const
@@ -431,48 +301,15 @@ public:
     bool starts_with(StringView str) const
     {
         return m_view.visit(
-            [&](Utf32View) -> bool {
-                TODO();
-            },
             [&](Utf16View) -> bool {
                 TODO();
             },
-            [&](Utf8View const& view) { return view.as_string().starts_with(str); },
             [&](StringView view) { return view.starts_with(str); });
     }
 
-    bool starts_with(Utf32View const& str) const
-    {
-        return m_view.visit(
-            [&](Utf32View view) -> bool {
-                if (str.length() > view.length())
-                    return false;
-                if (str.length() == view.length())
-                    return operator==(str);
-                for (size_t i = 0; i < str.length(); ++i) {
-                    if (str.at(i) != view.at(i))
-                        return false;
-                }
-                return true;
-            },
-            [&](Utf16View) -> bool { TODO(); },
-            [&](Utf8View const& view) {
-                auto it = view.begin();
-                for (auto code_point : str) {
-                    if (it.done())
-                        return false;
-                    if (code_point != *it)
-                        return false;
-                    ++it;
-                }
-                return true;
-            },
-            [&](StringView) -> bool { TODO(); });
-    }
-
 private:
-    Variant<StringView, Utf8View, Utf16View, Utf32View> m_view { StringView {} };
-    bool m_unicode { false };
+    [[no_unique_address]] Variant<StringView, Utf16View> m_view { StringView {} };
+    [[no_unique_address]] bool m_unicode { false };
 };
 
 class Match final {
