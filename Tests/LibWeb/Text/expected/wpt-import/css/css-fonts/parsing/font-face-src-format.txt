@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 35 tests
 
-30 Pass
-5 Fail
+33 Pass
+2 Fail
 Pass	Check that src: url("foo.ttf") is valid
 Pass	Check that src: url("foo.ttf"), url("bar.ttf") is valid
 Pass	Check that src: url("foo.ttf") format() is invalid
@@ -15,14 +15,14 @@ Pass	Check that src: url("foo.ttf") format("opentype") is valid
 Pass	Check that src: url("foo.ttf") format("truetype") is valid
 Pass	Check that src: url("foo.ttf") format("woff") is valid
 Pass	Check that src: url("foo.ttf") format("woff2") is valid
-Fail	Check that src: url("foo.ttf") format("opentype", "truetype") is invalid
+Pass	Check that src: url("foo.ttf") format("opentype", "truetype") is invalid
 Fail	Check that src: url("foo.ttf") format(collection) is valid
 Pass	Check that src: url("foo.ttf") format(opentype) is valid
 Pass	Check that src: url("foo.ttf") format(truetype) is valid
 Pass	Check that src: url("foo.ttf") format(woff) is valid
 Pass	Check that src: url("foo.ttf") format(woff2) is valid
-Fail	Check that src: url("foo.ttf") format(opentype, truetype) is invalid
-Fail	Check that src: url("foo.ttf") format(opentype truetype) is invalid
+Pass	Check that src: url("foo.ttf") format(opentype, truetype) is invalid
+Pass	Check that src: url("foo.ttf") format(opentype truetype) is invalid
 Pass	Check that src: url("foo.ttf") format(auto) is invalid
 Pass	Check that src: url("foo.ttf") format(default) is invalid
 Pass	Check that src: url("foo.ttf") format(inherit) is invalid
