@@ -100,6 +100,7 @@ public:
     Vector<Descriptor> parse_as_list_of_descriptors(AtRuleID);
     CSSRule* parse_as_css_rule();
     Optional<StyleProperty> parse_as_supports_condition();
+    GC::RootVector<GC::Ref<CSSRule>> parse_as_stylesheet_contents();
 
     enum class SelectorParsingMode {
         Standard,

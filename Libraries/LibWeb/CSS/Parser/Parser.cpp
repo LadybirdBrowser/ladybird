@@ -118,6 +118,22 @@ Vector<Rule> Parser::parse_a_stylesheets_contents(TokenStream<T>& input)
     return consume_a_stylesheets_contents(input);
 }
 
+GC::RootVector<GC::Ref<CSSRule>> Parser::parse_as_stylesheet_contents()
+{
+    auto raw_rules = parse_a_stylesheets_contents(m_token_stream);
+    GC::RootVector<GC::Ref<CSSRule>> rules(realm().heap());
+    for (auto const& raw_rule : raw_rules) {
+        auto rule = convert_to_rule(raw_rule, Nested::No);
+        if (!rule) {
+            log_parse_error();
+            continue;
+        }
+        rules.append(*rule);
+    }
+
+    return rules;
+}
+
 // https://drafts.csswg.org/css-syntax/#parse-a-css-stylesheet
 GC::Ref<CSS::CSSStyleSheet> Parser::parse_as_css_stylesheet(Optional<::URL::URL> location, Vector<NonnullRefPtr<MediaQuery>> media_query_list)
 {
