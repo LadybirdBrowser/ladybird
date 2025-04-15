@@ -80,7 +80,7 @@ struct Containment {
     bool is_empty() const { return !(size_containment || inline_size_containment || layout_containment || style_containment || paint_containment); }
 };
 
-using CursorData = Variant<NonnullRefPtr<CursorStyleValue>, Cursor>;
+using CursorData = Variant<NonnullRefPtr<CursorStyleValue const>, Cursor>;
 
 using ListStyleType = Variant<CounterStyleNameKeyword, String>;
 
@@ -720,7 +720,7 @@ protected:
         Optional<MaskReference> mask;
         CSS::MaskType mask_type { InitialValues::mask_type() };
         Optional<ClipPathReference> clip_path;
-        RefPtr<CSS::AbstractImageStyleValue> mask_image;
+        RefPtr<CSS::AbstractImageStyleValue const> mask_image;
 
         LengthPercentage cx { InitialValues::cx() };
         LengthPercentage cy { InitialValues::cy() };

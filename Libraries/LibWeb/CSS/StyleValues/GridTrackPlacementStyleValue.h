@@ -16,7 +16,7 @@ namespace Web::CSS {
 
 class GridTrackPlacementStyleValue final : public StyleValueWithDefaultOperators<GridTrackPlacementStyleValue> {
 public:
-    static ValueComparingNonnullRefPtr<GridTrackPlacementStyleValue> create(GridTrackPlacement grid_track_placement);
+    static ValueComparingNonnullRefPtr<GridTrackPlacementStyleValue const> create(GridTrackPlacement grid_track_placement);
     virtual ~GridTrackPlacementStyleValue() override = default;
 
     GridTrackPlacement const& grid_track_placement() const { return m_grid_track_placement; }

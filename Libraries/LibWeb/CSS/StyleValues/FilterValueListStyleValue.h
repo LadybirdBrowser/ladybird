@@ -57,7 +57,7 @@ using FilterFunction = Variant<FilterOperation::Blur, FilterOperation::DropShado
 
 class FilterValueListStyleValue final : public StyleValueWithDefaultOperators<FilterValueListStyleValue> {
 public:
-    static ValueComparingNonnullRefPtr<FilterValueListStyleValue> create(
+    static ValueComparingNonnullRefPtr<FilterValueListStyleValue const> create(
         Vector<FilterFunction> filter_value_list)
     {
         VERIFY(filter_value_list.size() >= 1);

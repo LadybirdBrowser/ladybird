@@ -8,17 +8,17 @@
 
 namespace Web::CSS {
 
-ValueComparingNonnullRefPtr<MathDepthStyleValue> MathDepthStyleValue::create_auto_add()
+ValueComparingNonnullRefPtr<MathDepthStyleValue const> MathDepthStyleValue::create_auto_add()
 {
     return adopt_ref(*new (nothrow) MathDepthStyleValue(MathDepthType::AutoAdd));
 }
 
-ValueComparingNonnullRefPtr<MathDepthStyleValue> MathDepthStyleValue::create_add(ValueComparingNonnullRefPtr<CSSStyleValue const> integer_value)
+ValueComparingNonnullRefPtr<MathDepthStyleValue const> MathDepthStyleValue::create_add(ValueComparingNonnullRefPtr<CSSStyleValue const> integer_value)
 {
     return adopt_ref(*new (nothrow) MathDepthStyleValue(MathDepthType::Add, move(integer_value)));
 }
 
-ValueComparingNonnullRefPtr<MathDepthStyleValue> MathDepthStyleValue::create_integer(ValueComparingNonnullRefPtr<CSSStyleValue const> integer_value)
+ValueComparingNonnullRefPtr<MathDepthStyleValue const> MathDepthStyleValue::create_integer(ValueComparingNonnullRefPtr<CSSStyleValue const> integer_value)
 {
     return adopt_ref(*new (nothrow) MathDepthStyleValue(MathDepthType::Integer, move(integer_value)));
 }

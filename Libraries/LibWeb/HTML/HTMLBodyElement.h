@@ -44,7 +44,7 @@ private:
     // ^HTML::WindowEventHandlers
     virtual GC::Ptr<DOM::EventTarget> window_event_handlers_to_event_target() override;
 
-    RefPtr<CSS::ImageStyleValue> m_background_style_value;
+    RefPtr<CSS::ImageStyleValue const> m_background_style_value;
 };
 
 }

@@ -17,28 +17,28 @@ namespace Web::CSS {
 // https://drafts.css-houdini.org/css-typed-om-1/#csskeywordvalue
 class CSSKeywordValue : public StyleValueWithDefaultOperators<CSSKeywordValue> {
 public:
-    static ValueComparingNonnullRefPtr<CSSKeywordValue> create(Keyword keyword)
+    static ValueComparingNonnullRefPtr<CSSKeywordValue const> create(Keyword keyword)
     {
         // NOTE: We'll have to be much more careful with caching once we expose CSSKeywordValue to JS, as it's mutable.
         switch (keyword) {
         case Keyword::Inherit: {
-            static ValueComparingNonnullRefPtr<CSSKeywordValue> const inherit_instance = adopt_ref(*new (nothrow) CSSKeywordValue(Keyword::Inherit));
+            static ValueComparingNonnullRefPtr<CSSKeywordValue const> const inherit_instance = adopt_ref(*new (nothrow) CSSKeywordValue(Keyword::Inherit));
             return inherit_instance;
         }
         case Keyword::Initial: {
-            static ValueComparingNonnullRefPtr<CSSKeywordValue> const initial_instance = adopt_ref(*new (nothrow) CSSKeywordValue(Keyword::Initial));
+            static ValueComparingNonnullRefPtr<CSSKeywordValue const> const initial_instance = adopt_ref(*new (nothrow) CSSKeywordValue(Keyword::Initial));
             return initial_instance;
         }
         case Keyword::Revert: {
-            static ValueComparingNonnullRefPtr<CSSKeywordValue> const revert_instance = adopt_ref(*new (nothrow) CSSKeywordValue(Keyword::Revert));
+            static ValueComparingNonnullRefPtr<CSSKeywordValue const> const revert_instance = adopt_ref(*new (nothrow) CSSKeywordValue(Keyword::Revert));
             return revert_instance;
         }
         case Keyword::RevertLayer: {
-            static ValueComparingNonnullRefPtr<CSSKeywordValue> const revert_layer_instance = adopt_ref(*new (nothrow) CSSKeywordValue(Keyword::RevertLayer));
+            static ValueComparingNonnullRefPtr<CSSKeywordValue const> const revert_layer_instance = adopt_ref(*new (nothrow) CSSKeywordValue(Keyword::RevertLayer));
             return revert_layer_instance;
         }
         case Keyword::Unset: {
-            static ValueComparingNonnullRefPtr<CSSKeywordValue> const unset_instance = adopt_ref(*new (nothrow) CSSKeywordValue(Keyword::Unset));
+            static ValueComparingNonnullRefPtr<CSSKeywordValue const> const unset_instance = adopt_ref(*new (nothrow) CSSKeywordValue(Keyword::Unset));
             return unset_instance;
         }
         default:

@@ -410,7 +410,7 @@ Length Length::absolutized(CSSPixelRect const& viewport_rect, FontMetrics const&
     return absolutize(viewport_rect, font_metrics, root_font_metrics).value_or(*this);
 }
 
-Length Length::resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const& calculated, Layout::Node const& layout_node, Length const& reference_value)
+Length Length::resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const& calculated, Layout::Node const& layout_node, Length const& reference_value)
 {
     return calculated->resolve_length(
                          {
@@ -420,7 +420,7 @@ Length Length::resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const& cal
         .value();
 }
 
-Length Length::resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const& calculated, Layout::Node const& layout_node, CSSPixels reference_value)
+Length Length::resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const& calculated, Layout::Node const& layout_node, CSSPixels reference_value)
 {
     return calculated->resolve_length(
                          {

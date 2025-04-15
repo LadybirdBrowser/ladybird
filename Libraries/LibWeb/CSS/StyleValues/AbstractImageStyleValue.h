@@ -165,7 +165,7 @@ struct ColorStopListElement {
 
     Optional<ColorHint> transition_hint;
     struct ColorStop {
-        RefPtr<CSSStyleValue> color;
+        RefPtr<CSSStyleValue const> color;
         Optional<TPosition> position;
         Optional<TPosition> second_position = {};
         inline bool operator==(ColorStop const&) const = default;

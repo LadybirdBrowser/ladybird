@@ -12,7 +12,7 @@ namespace Web::CSS {
 
 class IntegerStyleValue final : public CSSUnitValue {
 public:
-    static ValueComparingNonnullRefPtr<IntegerStyleValue> create(i64 value)
+    static ValueComparingNonnullRefPtr<IntegerStyleValue const> create(i64 value)
     {
         return adopt_ref(*new (nothrow) IntegerStyleValue(value));
     }

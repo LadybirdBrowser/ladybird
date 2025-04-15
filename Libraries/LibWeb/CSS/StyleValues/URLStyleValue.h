@@ -14,7 +14,7 @@ namespace Web::CSS {
 
 class URLStyleValue final : public StyleValueWithDefaultOperators<URLStyleValue> {
 public:
-    static ValueComparingNonnullRefPtr<URLStyleValue> create(::URL::URL const& url)
+    static ValueComparingNonnullRefPtr<URLStyleValue const> create(::URL::URL const& url)
     {
         return adopt_ref(*new (nothrow) URLStyleValue(url));
     }

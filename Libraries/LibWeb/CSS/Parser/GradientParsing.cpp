@@ -32,7 +32,7 @@ Optional<Vector<TElement>> Parser::parse_color_stop_list(TokenStream<ComponentVa
         if (!tokens.has_next_token())
             return ElementType::Garbage;
 
-        RefPtr<CSSStyleValue> color;
+        RefPtr<CSSStyleValue const> color;
         Optional<typename TElement::PositionType> position;
         Optional<typename TElement::PositionType> second_position;
         if (position = parse_position(tokens); position.has_value()) {
@@ -223,7 +223,7 @@ Optional<InterpolationMethod> Parser::parse_interpolation_method(TokenStream<Com
     return interpolation_method;
 }
 
-RefPtr<LinearGradientStyleValue> Parser::parse_linear_gradient_function(TokenStream<ComponentValue>& outer_tokens)
+RefPtr<LinearGradientStyleValue const> Parser::parse_linear_gradient_function(TokenStream<ComponentValue>& outer_tokens)
 {
     using GradientType = LinearGradientStyleValue::GradientType;
 
@@ -370,7 +370,7 @@ RefPtr<LinearGradientStyleValue> Parser::parse_linear_gradient_function(TokenStr
     return LinearGradientStyleValue::create(gradient_direction, move(*color_stops), gradient_type, repeating_gradient, maybe_interpolation_method);
 }
 
-RefPtr<ConicGradientStyleValue> Parser::parse_conic_gradient_function(TokenStream<ComponentValue>& outer_tokens)
+RefPtr<ConicGradientStyleValue const> Parser::parse_conic_gradient_function(TokenStream<ComponentValue>& outer_tokens)
 {
     auto transaction = outer_tokens.begin_transaction();
     auto& component_value = outer_tokens.consume_a_token();
@@ -397,7 +397,7 @@ RefPtr<ConicGradientStyleValue> Parser::parse_conic_gradient_function(TokenStrea
         return nullptr;
 
     Angle from_angle(0, Angle::Type::Deg);
-    RefPtr<PositionStyleValue> at_position;
+    RefPtr<PositionStyleValue const> at_position;
     Optional<InterpolationMethod> maybe_interpolation_method;
 
     // conic-gradient( [ [ [ from [ <angle> | <zero> ] ]? [ at <position> ]? ] || <color-interpolation-method> ]? , <angular-color-stop-list> )
@@ -483,7 +483,7 @@ RefPtr<ConicGradientStyleValue> Parser::parse_conic_gradient_function(TokenStrea
     return ConicGradientStyleValue::create(from_angle, at_position.release_nonnull(), move(*color_stops), repeating_gradient, maybe_interpolation_method);
 }
 
-RefPtr<RadialGradientStyleValue> Parser::parse_radial_gradient_function(TokenStream<ComponentValue>& outer_tokens)
+RefPtr<RadialGradientStyleValue const> Parser::parse_radial_gradient_function(TokenStream<ComponentValue>& outer_tokens)
 {
     using EndingShape = RadialGradientStyleValue::EndingShape;
     using Extent = RadialGradientStyleValue::Extent;
@@ -526,7 +526,7 @@ RefPtr<RadialGradientStyleValue> Parser::parse_radial_gradient_function(TokenStr
 
     Size size = Extent::FarthestCorner;
     EndingShape ending_shape = EndingShape::Circle;
-    RefPtr<PositionStyleValue> at_position;
+    RefPtr<PositionStyleValue const> at_position;
 
     auto parse_ending_shape = [&]() -> Optional<EndingShape> {
         auto transaction = tokens.begin_transaction();

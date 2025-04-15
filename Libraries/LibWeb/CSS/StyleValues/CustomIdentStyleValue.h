@@ -14,7 +14,7 @@ namespace Web::CSS {
 // https://www.w3.org/TR/css-values-4/#custom-idents
 class CustomIdentStyleValue final : public StyleValueWithDefaultOperators<CustomIdentStyleValue> {
 public:
-    static ValueComparingNonnullRefPtr<CustomIdentStyleValue> create(FlyString custom_ident)
+    static ValueComparingNonnullRefPtr<CustomIdentStyleValue const> create(FlyString custom_ident)
     {
         return adopt_ref(*new (nothrow) CustomIdentStyleValue(move(custom_ident)));
     }

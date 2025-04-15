@@ -98,7 +98,7 @@ public:
         Bindings::ImageSmoothingQuality image_smoothing_quality { Bindings::ImageSmoothingQuality::Low };
         float global_alpha = { 1 };
         Gfx::CompositingAndBlendingOperator current_compositing_and_blending_operator = Gfx::CompositingAndBlendingOperator::SourceOver;
-        RefPtr<CSS::CSSStyleValue> font_style_value { nullptr };
+        RefPtr<CSS::CSSStyleValue const> font_style_value { nullptr };
         RefPtr<Gfx::Font const> current_font { nullptr };
         Bindings::CanvasTextAlign text_align { Bindings::CanvasTextAlign::Start };
         Bindings::CanvasTextBaseline text_baseline { Bindings::CanvasTextBaseline::Alphabetic };

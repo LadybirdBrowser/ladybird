@@ -63,7 +63,7 @@ Optional<Frequency::Type> Frequency::unit_from_name(StringView name)
     return {};
 }
 
-Frequency Frequency::resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const& calculated, Layout::Node const& layout_node, Frequency const& reference_value)
+Frequency Frequency::resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const& calculated, Layout::Node const& layout_node, Frequency const& reference_value)
 {
     return calculated->resolve_frequency(
                          {

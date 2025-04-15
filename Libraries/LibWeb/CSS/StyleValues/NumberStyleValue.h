@@ -15,7 +15,7 @@ namespace Web::CSS {
 
 class NumberStyleValue final : public CSSUnitValue {
 public:
-    static ValueComparingNonnullRefPtr<NumberStyleValue> create(double value)
+    static ValueComparingNonnullRefPtr<NumberStyleValue const> create(double value)
     {
         return adopt_ref(*new (nothrow) NumberStyleValue(value));
     }

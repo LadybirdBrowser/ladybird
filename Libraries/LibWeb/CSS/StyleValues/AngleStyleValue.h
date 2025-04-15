@@ -16,7 +16,7 @@ namespace Web::CSS {
 
 class AngleStyleValue : public CSSUnitValue {
 public:
-    static ValueComparingNonnullRefPtr<AngleStyleValue> create(Angle angle)
+    static ValueComparingNonnullRefPtr<AngleStyleValue const> create(Angle angle)
     {
         return adopt_ref(*new (nothrow) AngleStyleValue(move(angle)));
     }

@@ -43,7 +43,7 @@ public:
 
     using Size = Variant<Extent, CircleSize, EllipseSize>;
 
-    static ValueComparingNonnullRefPtr<RadialGradientStyleValue> create(EndingShape ending_shape, Size size, ValueComparingNonnullRefPtr<PositionStyleValue> position, Vector<LinearColorStopListElement> color_stop_list, GradientRepeating repeating, Optional<InterpolationMethod> interpolation_method)
+    static ValueComparingNonnullRefPtr<RadialGradientStyleValue const> create(EndingShape ending_shape, Size size, ValueComparingNonnullRefPtr<PositionStyleValue const> position, Vector<LinearColorStopListElement> color_stop_list, GradientRepeating repeating, Optional<InterpolationMethod> interpolation_method)
     {
         VERIFY(!color_stop_list.is_empty());
         bool any_non_legacy = color_stop_list.find_first_index_if([](auto const& stop) { return !stop.color_stop.color->is_keyword() && stop.color_stop.color->as_color().color_syntax() == ColorSyntax::Modern; }).has_value();
@@ -80,7 +80,7 @@ public:
     virtual ~RadialGradientStyleValue() override = default;
 
 private:
-    RadialGradientStyleValue(EndingShape ending_shape, Size size, ValueComparingNonnullRefPtr<PositionStyleValue> position, Vector<LinearColorStopListElement> color_stop_list, GradientRepeating repeating, Optional<InterpolationMethod> interpolation_method, ColorSyntax color_syntax)
+    RadialGradientStyleValue(EndingShape ending_shape, Size size, ValueComparingNonnullRefPtr<PositionStyleValue const> position, Vector<LinearColorStopListElement> color_stop_list, GradientRepeating repeating, Optional<InterpolationMethod> interpolation_method, ColorSyntax color_syntax)
         : AbstractImageStyleValue(Type::RadialGradient)
         , m_properties { .ending_shape = ending_shape, .size = size, .position = move(position), .color_stop_list = move(color_stop_list), .repeating = repeating, .interpolation_method = interpolation_method, .color_syntax = color_syntax }
     {
@@ -89,7 +89,7 @@ private:
     struct Properties {
         EndingShape ending_shape;
         Size size;
-        ValueComparingNonnullRefPtr<PositionStyleValue> position;
+        ValueComparingNonnullRefPtr<PositionStyleValue const> position;
         Vector<LinearColorStopListElement> color_stop_list;
         GradientRepeating repeating;
         Optional<InterpolationMethod> interpolation_method;

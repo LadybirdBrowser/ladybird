@@ -16,7 +16,7 @@ namespace Web::CSS {
 
 class TransformationStyleValue final : public StyleValueWithDefaultOperators<TransformationStyleValue> {
 public:
-    static ValueComparingNonnullRefPtr<TransformationStyleValue> create(PropertyID property, TransformFunction transform_function, StyleValueVector&& values)
+    static ValueComparingNonnullRefPtr<TransformationStyleValue const> create(PropertyID property, TransformFunction transform_function, StyleValueVector&& values)
     {
         return adopt_ref(*new (nothrow) TransformationStyleValue(property, transform_function, move(values)));
     }

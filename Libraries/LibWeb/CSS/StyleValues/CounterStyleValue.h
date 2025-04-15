@@ -19,11 +19,11 @@ public:
         Counters,
     };
 
-    static ValueComparingNonnullRefPtr<CounterStyleValue> create_counter(FlyString counter_name, ValueComparingNonnullRefPtr<CSSStyleValue const> counter_style)
+    static ValueComparingNonnullRefPtr<CounterStyleValue const> create_counter(FlyString counter_name, ValueComparingNonnullRefPtr<CSSStyleValue const> counter_style)
     {
         return adopt_ref(*new (nothrow) CounterStyleValue(CounterFunction::Counter, move(counter_name), move(counter_style), {}));
     }
-    static ValueComparingNonnullRefPtr<CounterStyleValue> create_counters(FlyString counter_name, FlyString join_string, ValueComparingNonnullRefPtr<CSSStyleValue const> counter_style)
+    static ValueComparingNonnullRefPtr<CounterStyleValue const> create_counters(FlyString counter_name, FlyString join_string, ValueComparingNonnullRefPtr<CSSStyleValue const> counter_style)
     {
         return adopt_ref(*new (nothrow) CounterStyleValue(CounterFunction::Counters, move(counter_name), move(counter_style), move(join_string)));
     }

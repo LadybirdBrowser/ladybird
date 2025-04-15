@@ -74,7 +74,7 @@ Optional<Time::Type> Time::unit_from_name(StringView name)
     return {};
 }
 
-Time Time::resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const& calculated, Layout::Node const& layout_node, Time const& reference_value)
+Time Time::resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const& calculated, Layout::Node const& layout_node, Time const& reference_value)
 {
     return calculated->resolve_time(
                          {

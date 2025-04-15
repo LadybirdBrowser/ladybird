@@ -428,10 +428,10 @@ static Optional<StyleProperty> style_property_for_sided_shorthand(PropertyID pro
     if (top->important != right->important || top->important != bottom->important || top->important != left->important)
         return {};
 
-    ValueComparingNonnullRefPtr<CSSStyleValue> const top_value { top->value };
-    ValueComparingNonnullRefPtr<CSSStyleValue> const right_value { right->value };
-    ValueComparingNonnullRefPtr<CSSStyleValue> const bottom_value { bottom->value };
-    ValueComparingNonnullRefPtr<CSSStyleValue> const left_value { left->value };
+    ValueComparingNonnullRefPtr<CSSStyleValue const> const top_value { top->value };
+    ValueComparingNonnullRefPtr<CSSStyleValue const> const right_value { right->value };
+    ValueComparingNonnullRefPtr<CSSStyleValue const> const bottom_value { bottom->value };
+    ValueComparingNonnullRefPtr<CSSStyleValue const> const left_value { left->value };
 
     bool const top_and_bottom_same = top_value == bottom_value;
     bool const left_and_right_same = left_value == right_value;

@@ -14,7 +14,7 @@ namespace Web::CSS {
 // https://drafts.css-houdini.org/css-typed-om-1/#cssrgb
 class CSSRGB final : public CSSColorValue {
 public:
-    static ValueComparingNonnullRefPtr<CSSRGB> create(ValueComparingNonnullRefPtr<CSSStyleValue> r, ValueComparingNonnullRefPtr<CSSStyleValue> g, ValueComparingNonnullRefPtr<CSSStyleValue> b, ValueComparingRefPtr<CSSStyleValue> alpha, ColorSyntax color_syntax, Optional<FlyString> name = {})
+    static ValueComparingNonnullRefPtr<CSSRGB const> create(ValueComparingNonnullRefPtr<CSSStyleValue const> r, ValueComparingNonnullRefPtr<CSSStyleValue const> g, ValueComparingNonnullRefPtr<CSSStyleValue const> b, ValueComparingRefPtr<CSSStyleValue const> alpha, ColorSyntax color_syntax, Optional<FlyString> name = {})
     {
         // alpha defaults to 1
         if (!alpha)
@@ -36,17 +36,17 @@ public:
     virtual bool equals(CSSStyleValue const& other) const override;
 
 private:
-    CSSRGB(ValueComparingNonnullRefPtr<CSSStyleValue> r, ValueComparingNonnullRefPtr<CSSStyleValue> g, ValueComparingNonnullRefPtr<CSSStyleValue> b, ValueComparingNonnullRefPtr<CSSStyleValue> alpha, ColorSyntax color_syntax, Optional<FlyString> name = {})
+    CSSRGB(ValueComparingNonnullRefPtr<CSSStyleValue const> r, ValueComparingNonnullRefPtr<CSSStyleValue const> g, ValueComparingNonnullRefPtr<CSSStyleValue const> b, ValueComparingNonnullRefPtr<CSSStyleValue const> alpha, ColorSyntax color_syntax, Optional<FlyString> name = {})
         : CSSColorValue(ColorType::RGB, color_syntax)
         , m_properties { .r = move(r), .g = move(g), .b = move(b), .alpha = move(alpha), .name = name }
     {
     }
 
     struct Properties {
-        ValueComparingNonnullRefPtr<CSSStyleValue> r;
-        ValueComparingNonnullRefPtr<CSSStyleValue> g;
-        ValueComparingNonnullRefPtr<CSSStyleValue> b;
-        ValueComparingNonnullRefPtr<CSSStyleValue> alpha;
+        ValueComparingNonnullRefPtr<CSSStyleValue const> r;
+        ValueComparingNonnullRefPtr<CSSStyleValue const> g;
+        ValueComparingNonnullRefPtr<CSSStyleValue const> b;
+        ValueComparingNonnullRefPtr<CSSStyleValue const> alpha;
         Optional<FlyString> name;
         bool operator==(Properties const&) const = default;
     } m_properties;

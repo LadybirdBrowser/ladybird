@@ -16,7 +16,7 @@ namespace Web::CSS {
 
 class FrequencyStyleValue final : public CSSUnitValue {
 public:
-    static ValueComparingNonnullRefPtr<FrequencyStyleValue> create(Frequency frequency)
+    static ValueComparingNonnullRefPtr<FrequencyStyleValue const> create(Frequency frequency)
     {
         return adopt_ref(*new (nothrow) FrequencyStyleValue(move(frequency)));
     }

@@ -24,9 +24,8 @@ class ImageStyleValue final
     using Base = AbstractImageStyleValue;
 
 public:
-    static ValueComparingNonnullRefPtr<ImageStyleValue> create(URL const&);
-    static ValueComparingNonnullRefPtr<ImageStyleValue> create(::URL::URL const&);
-
+    static ValueComparingNonnullRefPtr<ImageStyleValue const> create(URL const&);
+    static ValueComparingNonnullRefPtr<ImageStyleValue const> create(::URL::URL const&);
     virtual ~ImageStyleValue() override;
 
     virtual void visit_edges(JS::Cell::Visitor& visitor) const override;
@@ -46,7 +45,7 @@ public:
     virtual Optional<Gfx::Color> color_if_single_pixel_bitmap() const override;
     Gfx::ImmutableBitmap const* current_frame_bitmap(DevicePixelRect const& dest_rect) const;
 
-    Function<void()> on_animate;
+    mutable Function<void()> on_animate;
 
     GC::Ptr<HTML::DecodedImageData> image_data() const;
 

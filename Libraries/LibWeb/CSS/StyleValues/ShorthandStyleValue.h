@@ -12,7 +12,7 @@ namespace Web::CSS {
 
 class ShorthandStyleValue final : public StyleValueWithDefaultOperators<ShorthandStyleValue> {
 public:
-    static ValueComparingNonnullRefPtr<ShorthandStyleValue> create(PropertyID shorthand, Vector<PropertyID> sub_properties, Vector<ValueComparingNonnullRefPtr<CSSStyleValue const>> values)
+    static ValueComparingNonnullRefPtr<ShorthandStyleValue const> create(PropertyID shorthand, Vector<PropertyID> sub_properties, Vector<ValueComparingNonnullRefPtr<CSSStyleValue const>> values)
     {
         return adopt_ref(*new ShorthandStyleValue(shorthand, move(sub_properties), move(values)));
     }

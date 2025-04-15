@@ -13,7 +13,7 @@ namespace Web::CSS {
 
 class UnicodeRangeStyleValue final : public StyleValueWithDefaultOperators<UnicodeRangeStyleValue> {
 public:
-    static ValueComparingNonnullRefPtr<UnicodeRangeStyleValue> create(Gfx::UnicodeRange unicode_range)
+    static ValueComparingNonnullRefPtr<UnicodeRangeStyleValue const> create(Gfx::UnicodeRange unicode_range)
     {
         return adopt_ref(*new (nothrow) UnicodeRangeStyleValue(unicode_range));
     }

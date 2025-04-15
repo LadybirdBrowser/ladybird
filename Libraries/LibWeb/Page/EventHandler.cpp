@@ -152,7 +152,7 @@ static Gfx::Cursor resolve_cursor(Layout::NodeWithStyle const& layout_node, Vect
                     return Gfx::StandardCursor::None;
                 }
             },
-            [&layout_node](NonnullRefPtr<CSS::CursorStyleValue> const& cursor_style_value) -> Optional<Gfx::Cursor> {
+            [&layout_node](NonnullRefPtr<CSS::CursorStyleValue const> const& cursor_style_value) -> Optional<Gfx::Cursor> {
                 if (auto image_cursor = cursor_style_value->make_image_cursor(layout_node); image_cursor.has_value())
                     return image_cursor.release_value();
                 return {};

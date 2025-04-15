@@ -13,7 +13,7 @@ namespace Web::CSS {
 
 class DisplayStyleValue : public StyleValueWithDefaultOperators<DisplayStyleValue> {
 public:
-    static ValueComparingNonnullRefPtr<DisplayStyleValue> create(Display const&);
+    static ValueComparingNonnullRefPtr<DisplayStyleValue const> create(Display const&);
     virtual ~DisplayStyleValue() override = default;
 
     virtual String to_string(SerializationMode) const override { return m_display.to_string(); }

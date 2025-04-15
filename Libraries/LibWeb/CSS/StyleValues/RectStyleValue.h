@@ -16,7 +16,7 @@ namespace Web::CSS {
 
 class RectStyleValue : public StyleValueWithDefaultOperators<RectStyleValue> {
 public:
-    static ValueComparingNonnullRefPtr<RectStyleValue> create(EdgeRect rect);
+    static ValueComparingNonnullRefPtr<RectStyleValue const> create(EdgeRect rect);
     virtual ~RectStyleValue() override = default;
 
     EdgeRect rect() const { return m_rect; }

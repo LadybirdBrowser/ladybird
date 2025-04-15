@@ -23,7 +23,7 @@ struct CounterDefinition {
  */
 class CounterDefinitionsStyleValue : public StyleValueWithDefaultOperators<CounterDefinitionsStyleValue> {
 public:
-    static ValueComparingNonnullRefPtr<CounterDefinitionsStyleValue> create(Vector<CounterDefinition> counter_definitions)
+    static ValueComparingNonnullRefPtr<CounterDefinitionsStyleValue const> create(Vector<CounterDefinition> counter_definitions)
     {
         return adopt_ref(*new (nothrow) CounterDefinitionsStyleValue(move(counter_definitions)));
     }

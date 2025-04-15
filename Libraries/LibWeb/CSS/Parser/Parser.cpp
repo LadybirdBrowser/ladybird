@@ -1622,7 +1622,7 @@ Vector<ComponentValue> Parser::parse_as_list_of_component_values()
     return parse_a_list_of_component_values(m_token_stream);
 }
 
-RefPtr<CSSStyleValue> Parser::parse_as_css_value(PropertyID property_id)
+RefPtr<CSSStyleValue const> Parser::parse_as_css_value(PropertyID property_id)
 {
     auto component_values = parse_a_list_of_component_values(m_token_stream);
     auto tokens = TokenStream(component_values);
@@ -1632,7 +1632,7 @@ RefPtr<CSSStyleValue> Parser::parse_as_css_value(PropertyID property_id)
     return parsed_value.release_value();
 }
 
-RefPtr<CSSStyleValue> Parser::parse_as_descriptor_value(AtRuleID at_rule_id, DescriptorID descriptor_id)
+RefPtr<CSSStyleValue const> Parser::parse_as_descriptor_value(AtRuleID at_rule_id, DescriptorID descriptor_id)
 {
     auto component_values = parse_a_list_of_component_values(m_token_stream);
     auto tokens = TokenStream(component_values);

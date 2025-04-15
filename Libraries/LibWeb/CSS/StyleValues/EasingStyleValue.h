@@ -94,7 +94,7 @@ public:
         String to_string() const;
     };
 
-    static ValueComparingNonnullRefPtr<EasingStyleValue> create(Function const& function)
+    static ValueComparingNonnullRefPtr<EasingStyleValue const> create(Function const& function)
     {
         return adopt_ref(*new (nothrow) EasingStyleValue(function));
     }

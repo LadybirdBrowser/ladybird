@@ -148,10 +148,10 @@ struct LayoutState {
         void set_computed_svg_transforms(Painting::SVGGraphicsPaintable::ComputedTransforms const& computed_transforms) { m_computed_svg_transforms = computed_transforms; }
         auto const& computed_svg_transforms() const { return m_computed_svg_transforms; }
 
-        void set_grid_template_columns(RefPtr<CSS::GridTrackSizeListStyleValue> used_values_for_grid_template_columns) { m_grid_template_columns = move(used_values_for_grid_template_columns); }
+        void set_grid_template_columns(RefPtr<CSS::GridTrackSizeListStyleValue const> used_values_for_grid_template_columns) { m_grid_template_columns = move(used_values_for_grid_template_columns); }
         auto const& grid_template_columns() const { return m_grid_template_columns; }
 
-        void set_grid_template_rows(RefPtr<CSS::GridTrackSizeListStyleValue> used_values_for_grid_template_rows) { m_grid_template_rows = move(used_values_for_grid_template_rows); }
+        void set_grid_template_rows(RefPtr<CSS::GridTrackSizeListStyleValue const> used_values_for_grid_template_rows) { m_grid_template_rows = move(used_values_for_grid_template_rows); }
         auto const& grid_template_rows() const { return m_grid_template_rows; }
 
         void set_static_position_rect(StaticPositionRect const& static_position_rect) { m_static_position_rect = static_position_rect; }
@@ -191,8 +191,8 @@ struct LayoutState {
         Optional<Gfx::Path> m_computed_svg_path;
         Optional<Painting::SVGGraphicsPaintable::ComputedTransforms> m_computed_svg_transforms;
 
-        RefPtr<CSS::GridTrackSizeListStyleValue> m_grid_template_columns;
-        RefPtr<CSS::GridTrackSizeListStyleValue> m_grid_template_rows;
+        RefPtr<CSS::GridTrackSizeListStyleValue const> m_grid_template_columns;
+        RefPtr<CSS::GridTrackSizeListStyleValue const> m_grid_template_rows;
 
         Optional<StaticPositionRect> m_static_position_rect;
     };
