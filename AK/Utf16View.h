@@ -135,7 +135,7 @@ private:
     size_t calculate_length_in_code_points() const;
 
     ReadonlySpan<u16> m_code_units;
-    NO_UNIQUE_ADDRESS mutable Optional<size_t> m_length_in_code_points;
+    mutable size_t m_length_in_code_points { NumericLimits<size_t>::max() };
 };
 
 }
