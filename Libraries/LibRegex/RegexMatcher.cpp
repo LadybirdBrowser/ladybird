@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/BinarySearch.h>
 #include <AK/BumpAllocator.h>
 #include <AK/ByteString.h>
 #include <AK/Debug.h>
@@ -208,6 +209,23 @@ RegexResult Matcher<Parser>::match(Vector<RegexStringView> const& views, Optiona
     auto single_match_only = input.regex_options.has_flag_set(AllFlags::SingleMatch);
     auto only_start_of_line = m_pattern->parser_result.optimization_data.only_start_of_line && !input.regex_options.has_flag_set(AllFlags::Multiline);
 
+    auto compare_range = [insensitive = input.regex_options & AllFlags::Insensitive](auto needle, CharRange range) {
+        auto upper_case_needle = needle;
+        auto lower_case_needle = needle;
+        if (insensitive) {
+            upper_case_needle = to_ascii_uppercase(needle);
+            lower_case_needle = to_ascii_lowercase(needle);
+        }
+
+        if (lower_case_needle >= range.from && lower_case_needle <= range.to)
+            return 0;
+        if (upper_case_needle >= range.from && upper_case_needle <= range.to)
+            return 0;
+        if (lower_case_needle > range.to || upper_case_needle > range.to)
+            return 1;
+        return -1;
+    };
+
     for (auto const& view : views) {
         if (lines_to_skip != 0) {
             ++input.line;
@@ -253,18 +271,25 @@ RegexResult Matcher<Parser>::match(Vector<RegexStringView> const& views, Optiona
         }
 
         for (; view_index <= view_length; ++view_index) {
-            if (view_index == view_length && input.regex_options.has_flag_set(AllFlags::Multiline))
-                break;
+            if (view_index == view_length) {
+                if (input.regex_options.has_flag_set(AllFlags::Multiline))
+                    break;
+            }
 
-            auto& match_length_minimum = m_pattern->parser_result.match_length_minimum;
             // FIXME: More performant would be to know the remaining minimum string
             //        length needed to match from the current position onwards within
             //        the vm. Add new OpCode for MinMatchLengthFromSp with the value of
             //        the remaining string length from the current path. The value though
             //        has to be filled in reverse. That implies a second run over bytecode
             //        after generation has finished.
+            auto const match_length_minimum = m_pattern->parser_result.match_length_minimum;
             if (match_length_minimum && match_length_minimum > view_length - view_index)
                 break;
+
+            if (auto& starting_ranges = m_pattern->parser_result.optimization_data.starting_ranges; !starting_ranges.is_empty()) {
+                if (!binary_search(starting_ranges, input.view.code_unit_at(view_index), nullptr, compare_range))
+                    goto done_matching;
+            }
 
             input.column = match_count;
             input.match_index = match_count;
@@ -274,8 +299,7 @@ RegexResult Matcher<Parser>::match(Vector<RegexStringView> const& views, Optiona
             state.instruction_position = 0;
             state.repetition_marks.clear();
 
-            auto success = execute(input, state, operations);
-            if (success) {
+            if (execute(input, state, operations)) {
                 succeeded = true;
 
                 if (input.regex_options.has_flag_set(AllFlags::MatchNotEndOfLine) && state.string_position == input.view.length()) {
@@ -315,6 +339,7 @@ RegexResult Matcher<Parser>::match(Vector<RegexStringView> const& views, Optiona
                 break;
             }
 
+        done_matching:
             if (!continue_search || only_start_of_line)
                 break;
         }
