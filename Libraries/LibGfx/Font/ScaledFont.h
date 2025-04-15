@@ -17,7 +17,7 @@ namespace Gfx {
 
 class ScaledFont final : public Gfx::Font {
 public:
-    ScaledFont(NonnullRefPtr<Typeface>, float point_width, float point_height, unsigned dpi_x = DEFAULT_DPI, unsigned dpi_y = DEFAULT_DPI);
+    ScaledFont(NonnullRefPtr<Typeface const>, float point_width, float point_height, unsigned dpi_x = DEFAULT_DPI, unsigned dpi_y = DEFAULT_DPI);
     ScaledFontMetrics metrics() const;
 
     // ^Gfx::Font
@@ -45,7 +45,7 @@ public:
     SkFont skia_font(float scale) const;
 
 private:
-    NonnullRefPtr<Typeface> m_typeface;
+    NonnullRefPtr<Typeface const> m_typeface;
     float m_x_scale { 0.0f };
     float m_y_scale { 0.0f };
     float m_point_width { 0.0f };

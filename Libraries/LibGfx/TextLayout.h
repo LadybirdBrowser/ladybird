@@ -44,7 +44,7 @@ public:
         Rtl,
     };
 
-    GlyphRun(Vector<DrawGlyph>&& glyphs, NonnullRefPtr<Font> font, TextType text_type, float width)
+    GlyphRun(Vector<DrawGlyph>&& glyphs, NonnullRefPtr<Font const> font, TextType text_type, float width)
         : m_glyphs(move(glyphs))
         , m_font(move(font))
         , m_text_type(text_type)
@@ -63,7 +63,7 @@ public:
 
 private:
     Vector<DrawGlyph> m_glyphs;
-    NonnullRefPtr<Font> m_font;
+    NonnullRefPtr<Font const> m_font;
     TextType m_text_type;
     float m_width { 0 };
 };

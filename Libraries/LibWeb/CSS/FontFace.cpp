@@ -27,9 +27,9 @@
 
 namespace Web::CSS {
 
-static NonnullRefPtr<Core::Promise<NonnullRefPtr<Gfx::Typeface>>> load_vector_font(JS::Realm& realm, ByteBuffer const& data)
+static NonnullRefPtr<Core::Promise<NonnullRefPtr<Gfx::Typeface const>>> load_vector_font(JS::Realm& realm, ByteBuffer const& data)
 {
-    auto promise = Core::Promise<NonnullRefPtr<Gfx::Typeface>>::construct();
+    auto promise = Core::Promise<NonnullRefPtr<Gfx::Typeface const>>::construct();
 
     // FIXME: 'Asynchronously' shouldn't mean 'later on the main thread'.
     //        Can we defer this to a background thread?

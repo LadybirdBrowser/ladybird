@@ -320,9 +320,9 @@ public:
     virtual ~FontLoader() override;
 
     Vector<Gfx::UnicodeRange> const& unicode_ranges() const { return m_unicode_ranges; }
-    RefPtr<Gfx::Typeface> vector_font() const { return m_vector_font; }
+    RefPtr<Gfx::Typeface const> vector_font() const { return m_vector_font; }
 
-    RefPtr<Gfx::Font> font_with_point_size(float point_size);
+    RefPtr<Gfx::Font const> font_with_point_size(float point_size);
     void start_loading_next_url();
 
     bool is_loading() const { return resource() && resource()->is_pending(); }
@@ -334,12 +334,12 @@ private:
 
     void resource_did_load_or_fail();
 
-    ErrorOr<NonnullRefPtr<Gfx::Typeface>> try_load_font();
+    ErrorOr<NonnullRefPtr<Gfx::Typeface const>> try_load_font();
 
     StyleComputer& m_style_computer;
     FlyString m_family_name;
     Vector<Gfx::UnicodeRange> m_unicode_ranges;
-    RefPtr<Gfx::Typeface> m_vector_font;
+    RefPtr<Gfx::Typeface const> m_vector_font;
     Vector<::URL::URL> m_urls;
     Function<void(FontLoader const&)> m_on_load;
     Function<void()> m_on_fail;

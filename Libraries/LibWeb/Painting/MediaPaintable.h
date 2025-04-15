@@ -31,7 +31,7 @@ private:
         DevicePixelRect timeline_rect;
 
         String timestamp;
-        RefPtr<Gfx::Font> timestamp_font;
+        RefPtr<Gfx::Font const> timestamp_font;
         DevicePixelRect timestamp_rect;
 
         DevicePixelRect speaker_button_rect;
