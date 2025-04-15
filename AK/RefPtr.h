@@ -312,6 +312,24 @@ inline RefPtr<T> static_ptr_cast(RefPtr<U> const& ptr)
     return RefPtr<T>(static_cast<T const*>(ptr.ptr()));
 }
 
+template<typename T>
+inline NonnullRefPtr<T> fixme_launder_const_through_pointer_cast(NonnullRefPtr<T const> const& ptr)
+{
+    return NonnullRefPtr<T>(const_cast<T&>(*ptr));
+}
+
+template<typename T>
+inline RefPtr<T> fixme_launder_const_through_pointer_cast(RefPtr<T const> const& ptr)
+{
+    return RefPtr<T>(const_cast<T*>(ptr.ptr()));
+}
+
+template<typename T>
+inline NonnullRefPtr<T> fixme_launder_const_through_pointer_cast(T const& ptr)
+{
+    return NonnullRefPtr<T>(const_cast<T&>(ptr));
+}
+
 template<typename T, typename U>
 requires(IsConvertible<U*, T*>)
 inline void swap(RefPtr<T>& a, RefPtr<U>& b)
