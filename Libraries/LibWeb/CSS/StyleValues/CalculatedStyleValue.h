@@ -67,7 +67,7 @@ public:
         Optional<CSSNumericType> m_type;
     };
 
-    static ValueComparingNonnullRefPtr<CalculatedStyleValue const> create(NonnullRefPtr<CalculationNode> calculation, CSSNumericType resolved_type, CalculationContext context)
+    static ValueComparingNonnullRefPtr<CalculatedStyleValue const> create(NonnullRefPtr<CalculationNode const> calculation, CSSNumericType resolved_type, CalculationContext context)
     {
         return adopt_ref(*new (nothrow) CalculatedStyleValue(move(calculation), move(resolved_type), move(context)));
     }
@@ -111,7 +111,7 @@ public:
     String dump() const;
 
 private:
-    explicit CalculatedStyleValue(NonnullRefPtr<CalculationNode> calculation, CSSNumericType resolved_type, CalculationContext context)
+    explicit CalculatedStyleValue(NonnullRefPtr<CalculationNode const> calculation, CSSNumericType resolved_type, CalculationContext context)
         : CSSStyleValue(Type::Calculated)
         , m_resolved_type(move(resolved_type))
         , m_calculation(move(calculation))
@@ -122,7 +122,7 @@ private:
     Optional<ValueType> percentage_resolved_type() const;
 
     CSSNumericType m_resolved_type;
-    NonnullRefPtr<CalculationNode> m_calculation;
+    NonnullRefPtr<CalculationNode const> m_calculation;
     CalculationContext m_context;
 };
 
@@ -225,13 +225,13 @@ public:
     }
 
     StringView name() const;
-    virtual Vector<NonnullRefPtr<CalculationNode>> children() const = 0;
+    virtual Vector<NonnullRefPtr<CalculationNode const>> children() const = 0;
 
     Optional<CSSNumericType> const& numeric_type() const { return m_numeric_type; }
     virtual bool contains_percentage() const = 0;
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const = 0;
-    virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const = 0;
-    // Step 4 of simplify_a_calculation_tree(). Only valid for math-function nodes.
+    virtual NonnullRefPtr<CalculationNode const> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const = 0;
+    // Step 4 of simpliRfy_a_calculation_tree(). Only valid for math-function nodes.
     virtual Optional<CalculatedStyleValue::CalculationResult> run_operation_if_possible(CalculationContext const&, CalculationResolutionContext const&) const { VERIFY_NOT_REACHED(); }
 
     virtual void dump(StringBuilder&, int indent) const = 0;
@@ -253,24 +253,24 @@ enum class NonFiniteValue {
 
 class NumericCalculationNode final : public CalculationNode {
 public:
-    static NonnullRefPtr<NumericCalculationNode> create(NumericValue, CalculationContext const&);
-    static RefPtr<NumericCalculationNode> from_keyword(Keyword, CalculationContext const&);
+    static NonnullRefPtr<NumericCalculationNode const> create(NumericValue, CalculationContext const&);
+    static RefPtr<NumericCalculationNode const> from_keyword(Keyword, CalculationContext const&);
     ~NumericCalculationNode();
 
     virtual bool contains_percentage() const override;
     bool is_in_canonical_unit() const;
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
-    virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override { return *this; }
+    virtual NonnullRefPtr<CalculationNode const> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override { return *this; }
 
     RefPtr<CSSStyleValue const> to_style_value(CalculationContext const&) const;
 
-    virtual Vector<NonnullRefPtr<CalculationNode>> children() const override { return {}; }
+    virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return {}; }
     NumericValue const& value() const { return m_value; }
     String value_to_string() const;
 
     Optional<NonFiniteValue> infinite_or_nan_value() const;
     bool is_negative() const;
-    NonnullRefPtr<NumericCalculationNode> negated(CalculationContext const&) const;
+    NonnullRefPtr<NumericCalculationNode const> negated(CalculationContext const&) const;
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
@@ -282,494 +282,494 @@ private:
 
 class SumCalculationNode final : public CalculationNode {
 public:
-    static NonnullRefPtr<SumCalculationNode> create(Vector<NonnullRefPtr<CalculationNode>>);
+    static NonnullRefPtr<SumCalculationNode const> create(Vector<NonnullRefPtr<CalculationNode const>>);
     ~SumCalculationNode();
 
     virtual bool contains_percentage() const override;
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
-    virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
+    virtual NonnullRefPtr<CalculationNode const> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
 
-    virtual Vector<NonnullRefPtr<CalculationNode>> children() const override { return m_values; }
+    virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return m_values; }
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    SumCalculationNode(Vector<NonnullRefPtr<CalculationNode>>, Optional<CSSNumericType>);
-    Vector<NonnullRefPtr<CalculationNode>> m_values;
+    SumCalculationNode(Vector<NonnullRefPtr<CalculationNode const>>, Optional<CSSNumericType>);
+    Vector<NonnullRefPtr<CalculationNode const>> m_values;
 };
 
 class ProductCalculationNode final : public CalculationNode {
 public:
-    static NonnullRefPtr<ProductCalculationNode> create(Vector<NonnullRefPtr<CalculationNode>>);
+    static NonnullRefPtr<ProductCalculationNode const> create(Vector<NonnullRefPtr<CalculationNode const>>);
     ~ProductCalculationNode();
 
     virtual bool contains_percentage() const override;
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
-    virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
+    virtual NonnullRefPtr<CalculationNode const> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
 
-    virtual Vector<NonnullRefPtr<CalculationNode>> children() const override { return m_values; }
+    virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return m_values; }
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    ProductCalculationNode(Vector<NonnullRefPtr<CalculationNode>>, Optional<CSSNumericType>);
-    Vector<NonnullRefPtr<CalculationNode>> m_values;
+    ProductCalculationNode(Vector<NonnullRefPtr<CalculationNode const>>, Optional<CSSNumericType>);
+    Vector<NonnullRefPtr<CalculationNode const>> m_values;
 };
 
 class NegateCalculationNode final : public CalculationNode {
 public:
-    static NonnullRefPtr<NegateCalculationNode> create(NonnullRefPtr<CalculationNode>);
+    static NonnullRefPtr<NegateCalculationNode const> create(NonnullRefPtr<CalculationNode const>);
     ~NegateCalculationNode();
 
     virtual bool contains_percentage() const override;
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
-    virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
+    virtual NonnullRefPtr<CalculationNode const> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
 
-    virtual Vector<NonnullRefPtr<CalculationNode>> children() const override { return { { m_value } }; }
+    virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return { { m_value } }; }
     CalculationNode const& child() const { return m_value; }
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    NegateCalculationNode(NonnullRefPtr<CalculationNode>);
-    NonnullRefPtr<CalculationNode> m_value;
+    explicit NegateCalculationNode(NonnullRefPtr<CalculationNode const>);
+    NonnullRefPtr<CalculationNode const> m_value;
 };
 
 class InvertCalculationNode final : public CalculationNode {
 public:
-    static NonnullRefPtr<InvertCalculationNode> create(NonnullRefPtr<CalculationNode>);
+    static NonnullRefPtr<InvertCalculationNode const> create(NonnullRefPtr<CalculationNode const>);
     ~InvertCalculationNode();
 
     virtual bool contains_percentage() const override;
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
-    virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
+    virtual NonnullRefPtr<CalculationNode const> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
 
-    virtual Vector<NonnullRefPtr<CalculationNode>> children() const override { return { { m_value } }; }
+    virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return { { m_value } }; }
     CalculationNode const& child() const { return m_value; }
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    InvertCalculationNode(NonnullRefPtr<CalculationNode>, Optional<CSSNumericType>);
-    NonnullRefPtr<CalculationNode> m_value;
+    InvertCalculationNode(NonnullRefPtr<CalculationNode const>, Optional<CSSNumericType>);
+    NonnullRefPtr<CalculationNode const> m_value;
 };
 
 class MinCalculationNode final : public CalculationNode {
 public:
-    static NonnullRefPtr<MinCalculationNode> create(Vector<NonnullRefPtr<CalculationNode>>);
+    static NonnullRefPtr<MinCalculationNode const> create(Vector<NonnullRefPtr<CalculationNode const>>);
     ~MinCalculationNode();
 
     virtual bool contains_percentage() const override;
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
-    virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
+    virtual NonnullRefPtr<CalculationNode const> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
     virtual Optional<CalculatedStyleValue::CalculationResult> run_operation_if_possible(CalculationContext const&, CalculationResolutionContext const&) const override;
 
-    virtual Vector<NonnullRefPtr<CalculationNode>> children() const override { return m_values; }
+    virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return m_values; }
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    MinCalculationNode(Vector<NonnullRefPtr<CalculationNode>>, Optional<CSSNumericType>);
-    Vector<NonnullRefPtr<CalculationNode>> m_values;
+    MinCalculationNode(Vector<NonnullRefPtr<CalculationNode const>>, Optional<CSSNumericType>);
+    Vector<NonnullRefPtr<CalculationNode const>> m_values;
 };
 
 class MaxCalculationNode final : public CalculationNode {
 public:
-    static NonnullRefPtr<MaxCalculationNode> create(Vector<NonnullRefPtr<CalculationNode>>);
+    static NonnullRefPtr<MaxCalculationNode const> create(Vector<NonnullRefPtr<CalculationNode const>>);
     ~MaxCalculationNode();
 
     virtual bool contains_percentage() const override;
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
-    virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
+    virtual NonnullRefPtr<CalculationNode const> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
     virtual Optional<CalculatedStyleValue::CalculationResult> run_operation_if_possible(CalculationContext const&, CalculationResolutionContext const&) const override;
 
-    virtual Vector<NonnullRefPtr<CalculationNode>> children() const override { return m_values; }
+    virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return m_values; }
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    MaxCalculationNode(Vector<NonnullRefPtr<CalculationNode>>, Optional<CSSNumericType>);
-    Vector<NonnullRefPtr<CalculationNode>> m_values;
+    MaxCalculationNode(Vector<NonnullRefPtr<CalculationNode const>>, Optional<CSSNumericType>);
+    Vector<NonnullRefPtr<CalculationNode const>> m_values;
 };
 
 class ClampCalculationNode final : public CalculationNode {
 public:
-    static NonnullRefPtr<ClampCalculationNode> create(NonnullRefPtr<CalculationNode>, NonnullRefPtr<CalculationNode>, NonnullRefPtr<CalculationNode>);
+    static NonnullRefPtr<ClampCalculationNode const> create(NonnullRefPtr<CalculationNode const>, NonnullRefPtr<CalculationNode const>, NonnullRefPtr<CalculationNode const>);
     ~ClampCalculationNode();
 
     virtual bool contains_percentage() const override;
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
-    virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
+    virtual NonnullRefPtr<CalculationNode const> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
     virtual Optional<CalculatedStyleValue::CalculationResult> run_operation_if_possible(CalculationContext const&, CalculationResolutionContext const&) const override;
 
-    virtual Vector<NonnullRefPtr<CalculationNode>> children() const override { return { { m_min_value, m_center_value, m_max_value } }; }
+    virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return { { m_min_value, m_center_value, m_max_value } }; }
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    ClampCalculationNode(NonnullRefPtr<CalculationNode>, NonnullRefPtr<CalculationNode>, NonnullRefPtr<CalculationNode>, Optional<CSSNumericType>);
-    NonnullRefPtr<CalculationNode> m_min_value;
-    NonnullRefPtr<CalculationNode> m_center_value;
-    NonnullRefPtr<CalculationNode> m_max_value;
+    ClampCalculationNode(NonnullRefPtr<CalculationNode const>, NonnullRefPtr<CalculationNode const>, NonnullRefPtr<CalculationNode const>, Optional<CSSNumericType>);
+    NonnullRefPtr<CalculationNode const> m_min_value;
+    NonnullRefPtr<CalculationNode const> m_center_value;
+    NonnullRefPtr<CalculationNode const> m_max_value;
 };
 
 class AbsCalculationNode final : public CalculationNode {
 public:
-    static NonnullRefPtr<AbsCalculationNode> create(NonnullRefPtr<CalculationNode>);
+    static NonnullRefPtr<AbsCalculationNode const> create(NonnullRefPtr<CalculationNode const>);
     ~AbsCalculationNode();
 
     virtual bool contains_percentage() const override;
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
-    virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
+    virtual NonnullRefPtr<CalculationNode const> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
     virtual Optional<CalculatedStyleValue::CalculationResult> run_operation_if_possible(CalculationContext const&, CalculationResolutionContext const&) const override;
 
-    virtual Vector<NonnullRefPtr<CalculationNode>> children() const override { return { { m_value } }; }
+    virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return { { m_value } }; }
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    AbsCalculationNode(NonnullRefPtr<CalculationNode>);
-    NonnullRefPtr<CalculationNode> m_value;
+    explicit AbsCalculationNode(NonnullRefPtr<CalculationNode const>);
+    NonnullRefPtr<CalculationNode const> m_value;
 };
 
 class SignCalculationNode final : public CalculationNode {
 public:
-    static NonnullRefPtr<SignCalculationNode> create(NonnullRefPtr<CalculationNode>);
+    static NonnullRefPtr<SignCalculationNode const> create(NonnullRefPtr<CalculationNode const>);
     ~SignCalculationNode();
 
     virtual bool contains_percentage() const override;
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
-    virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
+    virtual NonnullRefPtr<CalculationNode const> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
     virtual Optional<CalculatedStyleValue::CalculationResult> run_operation_if_possible(CalculationContext const&, CalculationResolutionContext const&) const override;
 
-    virtual Vector<NonnullRefPtr<CalculationNode>> children() const override { return { { m_value } }; }
+    virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return { { m_value } }; }
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    SignCalculationNode(NonnullRefPtr<CalculationNode>);
-    NonnullRefPtr<CalculationNode> m_value;
+    explicit SignCalculationNode(NonnullRefPtr<CalculationNode const>);
+    NonnullRefPtr<CalculationNode const> m_value;
 };
 
 class SinCalculationNode final : public CalculationNode {
 public:
-    static NonnullRefPtr<SinCalculationNode> create(NonnullRefPtr<CalculationNode>);
+    static NonnullRefPtr<SinCalculationNode const> create(NonnullRefPtr<CalculationNode const>);
     ~SinCalculationNode();
 
     virtual bool contains_percentage() const override;
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
-    virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
+    virtual NonnullRefPtr<CalculationNode const> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
     virtual Optional<CalculatedStyleValue::CalculationResult> run_operation_if_possible(CalculationContext const&, CalculationResolutionContext const&) const override;
 
-    virtual Vector<NonnullRefPtr<CalculationNode>> children() const override { return { { m_value } }; }
+    virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return { { m_value } }; }
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    SinCalculationNode(NonnullRefPtr<CalculationNode>);
-    NonnullRefPtr<CalculationNode> m_value;
+    explicit SinCalculationNode(NonnullRefPtr<CalculationNode const>);
+    NonnullRefPtr<CalculationNode const> m_value;
 };
 
 class CosCalculationNode final : public CalculationNode {
 public:
-    static NonnullRefPtr<CosCalculationNode> create(NonnullRefPtr<CalculationNode>);
+    static NonnullRefPtr<CosCalculationNode const> create(NonnullRefPtr<CalculationNode const>);
     ~CosCalculationNode();
 
     virtual bool contains_percentage() const override;
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
-    virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
+    virtual NonnullRefPtr<CalculationNode const> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
     virtual Optional<CalculatedStyleValue::CalculationResult> run_operation_if_possible(CalculationContext const&, CalculationResolutionContext const&) const override;
 
-    virtual Vector<NonnullRefPtr<CalculationNode>> children() const override { return { { m_value } }; }
+    virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return { { m_value } }; }
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    CosCalculationNode(NonnullRefPtr<CalculationNode>);
-    NonnullRefPtr<CalculationNode> m_value;
+    explicit CosCalculationNode(NonnullRefPtr<CalculationNode const>);
+    NonnullRefPtr<CalculationNode const> m_value;
 };
 
 class TanCalculationNode final : public CalculationNode {
 public:
-    static NonnullRefPtr<TanCalculationNode> create(NonnullRefPtr<CalculationNode>);
+    static NonnullRefPtr<TanCalculationNode const> create(NonnullRefPtr<CalculationNode const>);
     ~TanCalculationNode();
 
     virtual bool contains_percentage() const override;
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
-    virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
+    virtual NonnullRefPtr<CalculationNode const> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
     virtual Optional<CalculatedStyleValue::CalculationResult> run_operation_if_possible(CalculationContext const&, CalculationResolutionContext const&) const override;
 
-    virtual Vector<NonnullRefPtr<CalculationNode>> children() const override { return { { m_value } }; }
+    virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return { { m_value } }; }
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    TanCalculationNode(NonnullRefPtr<CalculationNode>);
-    NonnullRefPtr<CalculationNode> m_value;
+    explicit TanCalculationNode(NonnullRefPtr<CalculationNode const>);
+    NonnullRefPtr<CalculationNode const> m_value;
 };
 
 class AsinCalculationNode final : public CalculationNode {
 public:
-    static NonnullRefPtr<AsinCalculationNode> create(NonnullRefPtr<CalculationNode>);
+    static NonnullRefPtr<AsinCalculationNode const> create(NonnullRefPtr<CalculationNode const>);
     ~AsinCalculationNode();
 
     virtual bool contains_percentage() const override;
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
-    virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
+    virtual NonnullRefPtr<CalculationNode const> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
     virtual Optional<CalculatedStyleValue::CalculationResult> run_operation_if_possible(CalculationContext const&, CalculationResolutionContext const&) const override;
 
-    virtual Vector<NonnullRefPtr<CalculationNode>> children() const override { return { { m_value } }; }
+    virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return { { m_value } }; }
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    AsinCalculationNode(NonnullRefPtr<CalculationNode>);
-    NonnullRefPtr<CalculationNode> m_value;
+    explicit AsinCalculationNode(NonnullRefPtr<CalculationNode const>);
+    NonnullRefPtr<CalculationNode const> m_value;
 };
 
 class AcosCalculationNode final : public CalculationNode {
 public:
-    static NonnullRefPtr<AcosCalculationNode> create(NonnullRefPtr<CalculationNode>);
+    static NonnullRefPtr<AcosCalculationNode const> create(NonnullRefPtr<CalculationNode const>);
     ~AcosCalculationNode();
 
     virtual bool contains_percentage() const override;
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
-    virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
+    virtual NonnullRefPtr<CalculationNode const> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
     virtual Optional<CalculatedStyleValue::CalculationResult> run_operation_if_possible(CalculationContext const&, CalculationResolutionContext const&) const override;
 
-    virtual Vector<NonnullRefPtr<CalculationNode>> children() const override { return { { m_value } }; }
+    virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return { { m_value } }; }
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    AcosCalculationNode(NonnullRefPtr<CalculationNode>);
-    NonnullRefPtr<CalculationNode> m_value;
+    explicit AcosCalculationNode(NonnullRefPtr<CalculationNode const>);
+    NonnullRefPtr<CalculationNode const> m_value;
 };
 
 class AtanCalculationNode final : public CalculationNode {
 public:
-    static NonnullRefPtr<AtanCalculationNode> create(NonnullRefPtr<CalculationNode>);
+    static NonnullRefPtr<AtanCalculationNode const> create(NonnullRefPtr<CalculationNode const>);
     ~AtanCalculationNode();
 
     virtual bool contains_percentage() const override;
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
-    virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
+    virtual NonnullRefPtr<CalculationNode const> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
     virtual Optional<CalculatedStyleValue::CalculationResult> run_operation_if_possible(CalculationContext const&, CalculationResolutionContext const&) const override;
 
-    virtual Vector<NonnullRefPtr<CalculationNode>> children() const override { return { { m_value } }; }
+    virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return { { m_value } }; }
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    AtanCalculationNode(NonnullRefPtr<CalculationNode>);
-    NonnullRefPtr<CalculationNode> m_value;
+    explicit AtanCalculationNode(NonnullRefPtr<CalculationNode const>);
+    NonnullRefPtr<CalculationNode const> m_value;
 };
 
 class Atan2CalculationNode final : public CalculationNode {
 public:
-    static NonnullRefPtr<Atan2CalculationNode> create(NonnullRefPtr<CalculationNode>, NonnullRefPtr<CalculationNode>);
+    static NonnullRefPtr<Atan2CalculationNode const> create(NonnullRefPtr<CalculationNode const>, NonnullRefPtr<CalculationNode const>);
     ~Atan2CalculationNode();
 
     virtual bool contains_percentage() const override;
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
-    virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
+    virtual NonnullRefPtr<CalculationNode const> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
     virtual Optional<CalculatedStyleValue::CalculationResult> run_operation_if_possible(CalculationContext const&, CalculationResolutionContext const&) const override;
 
-    virtual Vector<NonnullRefPtr<CalculationNode>> children() const override { return { { m_y, m_x } }; }
+    virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return { { m_y, m_x } }; }
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    Atan2CalculationNode(NonnullRefPtr<CalculationNode>, NonnullRefPtr<CalculationNode>);
-    NonnullRefPtr<CalculationNode> m_y;
-    NonnullRefPtr<CalculationNode> m_x;
+    Atan2CalculationNode(NonnullRefPtr<CalculationNode const>, NonnullRefPtr<CalculationNode const>);
+    NonnullRefPtr<CalculationNode const> m_y;
+    NonnullRefPtr<CalculationNode const> m_x;
 };
 
 class PowCalculationNode final : public CalculationNode {
 public:
-    static NonnullRefPtr<PowCalculationNode> create(NonnullRefPtr<CalculationNode>, NonnullRefPtr<CalculationNode>);
+    static NonnullRefPtr<PowCalculationNode const> create(NonnullRefPtr<CalculationNode const>, NonnullRefPtr<CalculationNode const>);
     ~PowCalculationNode();
 
     virtual bool contains_percentage() const override { return false; }
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
-    virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
+    virtual NonnullRefPtr<CalculationNode const> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
     virtual Optional<CalculatedStyleValue::CalculationResult> run_operation_if_possible(CalculationContext const&, CalculationResolutionContext const&) const override;
 
-    virtual Vector<NonnullRefPtr<CalculationNode>> children() const override { return { { m_x, m_y } }; }
+    virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return { { m_x, m_y } }; }
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    PowCalculationNode(NonnullRefPtr<CalculationNode>, NonnullRefPtr<CalculationNode>);
-    NonnullRefPtr<CalculationNode> m_x;
-    NonnullRefPtr<CalculationNode> m_y;
+    PowCalculationNode(NonnullRefPtr<CalculationNode const>, NonnullRefPtr<CalculationNode const>);
+    NonnullRefPtr<CalculationNode const> m_x;
+    NonnullRefPtr<CalculationNode const> m_y;
 };
 
 class SqrtCalculationNode final : public CalculationNode {
 public:
-    static NonnullRefPtr<SqrtCalculationNode> create(NonnullRefPtr<CalculationNode>);
+    static NonnullRefPtr<SqrtCalculationNode const> create(NonnullRefPtr<CalculationNode const>);
     ~SqrtCalculationNode();
 
     virtual bool contains_percentage() const override { return false; }
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
-    virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
+    virtual NonnullRefPtr<CalculationNode const> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
     virtual Optional<CalculatedStyleValue::CalculationResult> run_operation_if_possible(CalculationContext const&, CalculationResolutionContext const&) const override;
 
-    virtual Vector<NonnullRefPtr<CalculationNode>> children() const override { return { { m_value } }; }
+    virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return { { m_value } }; }
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    SqrtCalculationNode(NonnullRefPtr<CalculationNode>);
-    NonnullRefPtr<CalculationNode> m_value;
+    explicit SqrtCalculationNode(NonnullRefPtr<CalculationNode const>);
+    NonnullRefPtr<CalculationNode const> m_value;
 };
 
 class HypotCalculationNode final : public CalculationNode {
 public:
-    static NonnullRefPtr<HypotCalculationNode> create(Vector<NonnullRefPtr<CalculationNode>>);
+    static NonnullRefPtr<HypotCalculationNode const> create(Vector<NonnullRefPtr<CalculationNode const>>);
     ~HypotCalculationNode();
 
     virtual bool contains_percentage() const override;
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
-    virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
+    virtual NonnullRefPtr<CalculationNode const> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
     virtual Optional<CalculatedStyleValue::CalculationResult> run_operation_if_possible(CalculationContext const&, CalculationResolutionContext const&) const override;
 
-    virtual Vector<NonnullRefPtr<CalculationNode>> children() const override { return m_values; }
+    virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return m_values; }
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    HypotCalculationNode(Vector<NonnullRefPtr<CalculationNode>>, Optional<CSSNumericType>);
-    Vector<NonnullRefPtr<CalculationNode>> m_values;
+    HypotCalculationNode(Vector<NonnullRefPtr<CalculationNode const>>, Optional<CSSNumericType>);
+    Vector<NonnullRefPtr<CalculationNode const>> m_values;
 };
 
 class LogCalculationNode final : public CalculationNode {
 public:
-    static NonnullRefPtr<LogCalculationNode> create(NonnullRefPtr<CalculationNode>, NonnullRefPtr<CalculationNode>);
+    static NonnullRefPtr<LogCalculationNode const> create(NonnullRefPtr<CalculationNode const>, NonnullRefPtr<CalculationNode const>);
     ~LogCalculationNode();
 
     virtual bool contains_percentage() const override { return false; }
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
-    virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
+    virtual NonnullRefPtr<CalculationNode const> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
     virtual Optional<CalculatedStyleValue::CalculationResult> run_operation_if_possible(CalculationContext const&, CalculationResolutionContext const&) const override;
 
-    virtual Vector<NonnullRefPtr<CalculationNode>> children() const override { return { { m_x, m_y } }; }
+    virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return { { m_x, m_y } }; }
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    LogCalculationNode(NonnullRefPtr<CalculationNode>, NonnullRefPtr<CalculationNode>);
-    NonnullRefPtr<CalculationNode> m_x;
-    NonnullRefPtr<CalculationNode> m_y;
+    LogCalculationNode(NonnullRefPtr<CalculationNode const>, NonnullRefPtr<CalculationNode const>);
+    NonnullRefPtr<CalculationNode const> m_x;
+    NonnullRefPtr<CalculationNode const> m_y;
 };
 
 class ExpCalculationNode final : public CalculationNode {
 public:
-    static NonnullRefPtr<ExpCalculationNode> create(NonnullRefPtr<CalculationNode>);
+    static NonnullRefPtr<ExpCalculationNode const> create(NonnullRefPtr<CalculationNode const>);
     ~ExpCalculationNode();
 
     virtual bool contains_percentage() const override { return false; }
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
-    virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
+    virtual NonnullRefPtr<CalculationNode const> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
     virtual Optional<CalculatedStyleValue::CalculationResult> run_operation_if_possible(CalculationContext const&, CalculationResolutionContext const&) const override;
 
-    virtual Vector<NonnullRefPtr<CalculationNode>> children() const override { return { { m_value } }; }
+    virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return { { m_value } }; }
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    ExpCalculationNode(NonnullRefPtr<CalculationNode>);
-    NonnullRefPtr<CalculationNode> m_value;
+    explicit ExpCalculationNode(NonnullRefPtr<CalculationNode const>);
+    NonnullRefPtr<CalculationNode const> m_value;
 };
 
 class RoundCalculationNode final : public CalculationNode {
 public:
-    static NonnullRefPtr<RoundCalculationNode> create(RoundingStrategy, NonnullRefPtr<CalculationNode>, NonnullRefPtr<CalculationNode>);
+    static NonnullRefPtr<RoundCalculationNode const> create(RoundingStrategy, NonnullRefPtr<CalculationNode const>, NonnullRefPtr<CalculationNode const>);
     ~RoundCalculationNode();
 
     virtual bool contains_percentage() const override;
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
-    virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
+    virtual NonnullRefPtr<CalculationNode const> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
     virtual Optional<CalculatedStyleValue::CalculationResult> run_operation_if_possible(CalculationContext const&, CalculationResolutionContext const&) const override;
 
     // NOTE: This excludes the rounding strategy!
     RoundingStrategy rounding_strategy() const { return m_strategy; }
-    virtual Vector<NonnullRefPtr<CalculationNode>> children() const override { return { { m_x, m_y } }; }
+    virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return { { m_x, m_y } }; }
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    RoundCalculationNode(RoundingStrategy, NonnullRefPtr<CalculationNode>, NonnullRefPtr<CalculationNode>, Optional<CSSNumericType>);
+    RoundCalculationNode(RoundingStrategy, NonnullRefPtr<CalculationNode const>, NonnullRefPtr<CalculationNode const>, Optional<CSSNumericType>);
     RoundingStrategy m_strategy;
-    NonnullRefPtr<CalculationNode> m_x;
-    NonnullRefPtr<CalculationNode> m_y;
+    NonnullRefPtr<CalculationNode const> m_x;
+    NonnullRefPtr<CalculationNode const> m_y;
 };
 
 class ModCalculationNode final : public CalculationNode {
 public:
-    static NonnullRefPtr<ModCalculationNode> create(NonnullRefPtr<CalculationNode>, NonnullRefPtr<CalculationNode>);
+    static NonnullRefPtr<ModCalculationNode const> create(NonnullRefPtr<CalculationNode const>, NonnullRefPtr<CalculationNode const>);
     ~ModCalculationNode();
 
     virtual bool contains_percentage() const override;
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
-    virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
+    virtual NonnullRefPtr<CalculationNode const> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
     virtual Optional<CalculatedStyleValue::CalculationResult> run_operation_if_possible(CalculationContext const&, CalculationResolutionContext const&) const override;
 
-    virtual Vector<NonnullRefPtr<CalculationNode>> children() const override { return { { m_x, m_y } }; }
+    virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return { { m_x, m_y } }; }
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    ModCalculationNode(NonnullRefPtr<CalculationNode>, NonnullRefPtr<CalculationNode>, Optional<CSSNumericType>);
-    NonnullRefPtr<CalculationNode> m_x;
-    NonnullRefPtr<CalculationNode> m_y;
+    ModCalculationNode(NonnullRefPtr<CalculationNode const>, NonnullRefPtr<CalculationNode const>, Optional<CSSNumericType>);
+    NonnullRefPtr<CalculationNode const> m_x;
+    NonnullRefPtr<CalculationNode const> m_y;
 };
 
 class RemCalculationNode final : public CalculationNode {
 public:
-    static NonnullRefPtr<RemCalculationNode> create(NonnullRefPtr<CalculationNode>, NonnullRefPtr<CalculationNode>);
+    static NonnullRefPtr<RemCalculationNode const> create(NonnullRefPtr<CalculationNode const>, NonnullRefPtr<CalculationNode const>);
     ~RemCalculationNode();
 
     virtual bool contains_percentage() const override;
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
-    virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
+    virtual NonnullRefPtr<CalculationNode const> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
     virtual Optional<CalculatedStyleValue::CalculationResult> run_operation_if_possible(CalculationContext const&, CalculationResolutionContext const&) const override;
 
-    virtual Vector<NonnullRefPtr<CalculationNode>> children() const override { return { { m_x, m_y } }; }
+    virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return { { m_x, m_y } }; }
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    RemCalculationNode(NonnullRefPtr<CalculationNode>, NonnullRefPtr<CalculationNode>, Optional<CSSNumericType>);
-    NonnullRefPtr<CalculationNode> m_x;
-    NonnullRefPtr<CalculationNode> m_y;
+    RemCalculationNode(NonnullRefPtr<CalculationNode const>, NonnullRefPtr<CalculationNode const>, Optional<CSSNumericType>);
+    NonnullRefPtr<CalculationNode const> m_x;
+    NonnullRefPtr<CalculationNode const> m_y;
 };
 
 // https://drafts.csswg.org/css-values-4/#calc-simplification
-NonnullRefPtr<CalculationNode> simplify_a_calculation_tree(CalculationNode const& root, CalculationContext const& context, CalculationResolutionContext const& resolution_context);
+NonnullRefPtr<CalculationNode const> simplify_a_calculation_tree(CalculationNode const& root, CalculationContext const& context, CalculationResolutionContext const& resolution_context);
 
 }
