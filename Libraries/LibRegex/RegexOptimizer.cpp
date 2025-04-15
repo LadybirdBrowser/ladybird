@@ -37,7 +37,7 @@ void Regex<Parser>::run_optimization_passes()
     attempt_rewrite_loops_as_atomic_groups(blocks);
 
     // FIXME: "There are a few more conditions this can be true in (e.g. within an arbitrarily nested capture group)"
-    MatchState state;
+    auto state = MatchState::only_for_enumeration();
     auto& opcode = parser_result.bytecode.get_opcode(state);
     if (opcode.opcode_id() == OpCodeId::CheckBegin)
         parser_result.optimization_data.only_start_of_line = true;
@@ -53,7 +53,7 @@ typename Regex<Parser>::BasicBlockList Regex<Parser>::split_basic_blocks(ByteCod
 
     auto bytecode_size = bytecode.size();
 
-    MatchState state;
+    auto state = MatchState::only_for_enumeration();
     state.instruction_position = 0;
     auto check_jump = [&]<typename T>(OpCode const& opcode) {
         auto& op = static_cast<T const&>(opcode);
@@ -512,7 +512,7 @@ enum class AtomicRewritePreconditionResult {
 static AtomicRewritePreconditionResult block_satisfies_atomic_rewrite_precondition(ByteCode const& bytecode, Block repeated_block, Block following_block, auto const& all_blocks)
 {
     Vector<Vector<CompareTypeAndValuePair>> repeated_values;
-    MatchState state;
+    auto state = MatchState::only_for_enumeration();
     auto has_seen_actionable_opcode = false;
     for (state.instruction_position = repeated_block.start; state.instruction_position < repeated_block.end;) {
         auto& opcode = bytecode.get_opcode(state);
@@ -680,7 +680,7 @@ bool Regex<Parser>::attempt_rewrite_entire_match_as_substring_search(BasicBlockL
 
     // We have a single basic block, let's see if it's a series of character or string compares.
     StringBuilder final_string;
-    MatchState state;
+    auto state = MatchState::only_for_enumeration();
     while (state.instruction_position < bytecode.size()) {
         auto& opcode = bytecode.get_opcode(state);
         switch (opcode.opcode_id()) {
@@ -796,7 +796,7 @@ void Regex<Parser>::attempt_rewrite_loops_as_atomic_groups(BasicBlockList const&
         Optional<Block> fork_fallback_block;
         if (i + 1 < basic_blocks.size())
             fork_fallback_block = basic_blocks[i + 1];
-        MatchState state;
+        auto state = MatchState::only_for_enumeration();
         // Check if the last instruction in this block is a jump to the block itself:
         {
             state.instruction_position = forking_block.end;
@@ -913,7 +913,7 @@ void Regex<Parser>::attempt_rewrite_loops_as_atomic_groups(BasicBlockList const&
     }
 
     if (!needed_patches.is_empty()) {
-        MatchState state;
+        auto state = MatchState::only_for_enumeration();
         auto bytecode_size = bytecode.size();
         state.instruction_position = 0;
         struct Patch {
@@ -1039,7 +1039,7 @@ void Optimizer::append_alternation(ByteCode& target, Span<ByteCode> alternatives
 
     auto has_any_backwards_jump = false;
 
-    MatchState state;
+    auto state = MatchState::only_for_enumeration();
 
     for (size_t i = 0; i < alternatives.size(); ++i) {
         auto& alternative = alternatives[i];
@@ -1144,7 +1144,7 @@ void Optimizer::append_alternation(ByteCode& target, Span<ByteCode> alternatives
                     node.metadata_value().size(),
                     node.metadata_value().size() == 1 ? "" : "s");
 
-                MatchState state;
+                auto state = MatchState::only_for_enumeration();
                 state.instruction_position = node.metadata_value().first().instruction_position;
                 auto& opcode = alternatives[node.metadata_value().first().alternative_index].get_opcode(state);
                 insn = ByteString::formatted("{} {}", opcode.to_byte_string(), opcode.arguments_string());

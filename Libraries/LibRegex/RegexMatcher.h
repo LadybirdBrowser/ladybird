@@ -31,13 +31,13 @@ struct Block {
 }
 
 static constexpr size_t const c_max_recursion = 5000;
-static constexpr size_t const c_match_preallocation_count = 0;
 
 struct RegexResult final {
     bool success { false };
     size_t count { 0 };
     Vector<Match> matches;
-    Vector<Vector<Match>> capture_group_matches;
+    Vector<Match> flat_capture_group_matches;
+    Vector<Span<Match>> capture_group_matches;
     size_t n_operations { 0 };
     size_t n_capture_groups { 0 };
     size_t n_named_capture_groups { 0 };

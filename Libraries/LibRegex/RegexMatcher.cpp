@@ -164,7 +164,7 @@ RegexResult Matcher<Parser>::match(Vector<RegexStringView> const& views, Optiona
     size_t match_count { 0 };
 
     MatchInput input;
-    MatchState state;
+    MatchState state { m_pattern->parser_result.capture_groups_count };
     size_t operations = 0;
 
     input.regex_options = m_regex_options | regex_options.value_or({}).value();
@@ -186,20 +186,6 @@ RegexResult Matcher<Parser>::match(Vector<RegexStringView> const& views, Optiona
                 input.global_offset += view.length() + 1;
             }
             dbgln_if(REGEX_DEBUG, "Ended with start={}, goff={}, skip={}", input.start_offset, input.global_offset, lines_to_skip);
-        }
-    }
-
-    if (c_match_preallocation_count) {
-        state.matches.ensure_capacity(c_match_preallocation_count);
-        state.capture_group_matches.ensure_capacity(c_match_preallocation_count);
-        auto& capture_groups_count = m_pattern->parser_result.capture_groups_count;
-
-        for (size_t j = 0; j < c_match_preallocation_count; ++j) {
-            state.matches.empend();
-            state.capture_group_matches.empend();
-            state.capture_group_matches.mutable_at(j).ensure_capacity(capture_groups_count);
-            for (size_t k = 0; k < capture_groups_count; ++k)
-                state.capture_group_matches.mutable_at(j).unchecked_append({});
         }
     }
 
@@ -343,29 +329,34 @@ RegexResult Matcher<Parser>::match(Vector<RegexStringView> const& views, Optiona
             break;
     }
 
+    auto flat_capture_group_matches = move(state.flat_capture_group_matches).release();
+    if (flat_capture_group_matches.size() < state.capture_group_count * match_count) {
+        flat_capture_group_matches.ensure_capacity(match_count * state.capture_group_count);
+        for (size_t i = flat_capture_group_matches.size(); i < match_count * state.capture_group_count; ++i)
+            flat_capture_group_matches.empend();
+    }
+
+    Vector<Span<Match>> capture_group_matches;
+    for (size_t i = 0; i < match_count; ++i) {
+        auto span = flat_capture_group_matches.span().slice(state.capture_group_count * i, state.capture_group_count);
+        capture_group_matches.append(span);
+    }
+
     RegexResult result {
         match_count != 0,
         match_count,
         move(state.matches).release(),
-        move(state.capture_group_matches).release(),
+        move(flat_capture_group_matches),
+        move(capture_group_matches),
         operations,
         m_pattern->parser_result.capture_groups_count,
         m_pattern->parser_result.named_capture_groups_count,
     };
 
-    if (match_count) {
-        // Make sure there are as many capture matches as there are actual matches.
-        if (result.capture_group_matches.size() < match_count)
-            result.capture_group_matches.resize(match_count);
-        for (auto& matches : result.capture_group_matches)
-            matches.resize(m_pattern->parser_result.capture_groups_count + 1);
-        if (!input.regex_options.has_flag_set(AllFlags::SkipTrimEmptyMatches)) {
-            for (auto& matches : result.capture_group_matches)
-                matches.remove_all_matching([](auto& match) { return match.view.is_null(); });
-        }
-    } else {
+    if (match_count > 0)
+        VERIFY(result.capture_group_matches.size() >= match_count);
+    else
         result.capture_group_matches.clear_with_capacity();
-    }
 
     return result;
 }
