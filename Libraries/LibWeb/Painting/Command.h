@@ -39,7 +39,7 @@ namespace Web::Painting {
 class DisplayList;
 
 struct DrawGlyphRun {
-    NonnullRefPtr<Gfx::GlyphRun> glyph_run;
+    NonnullRefPtr<Gfx::GlyphRun const> glyph_run;
     double scale { 1 };
     Gfx::IntRect rect;
     Gfx::FloatPoint translation;
@@ -61,7 +61,7 @@ struct FillRect {
 
 struct DrawPaintingSurface {
     Gfx::IntRect dst_rect;
-    NonnullRefPtr<Gfx::PaintingSurface> surface;
+    NonnullRefPtr<Gfx::PaintingSurface const> surface;
     Gfx::IntRect src_rect;
     Gfx::ScalingMode scaling_mode;
 
@@ -72,7 +72,7 @@ struct DrawPaintingSurface {
 struct DrawScaledImmutableBitmap {
     Gfx::IntRect dst_rect;
     Gfx::IntRect clip_rect;
-    NonnullRefPtr<Gfx::ImmutableBitmap> bitmap;
+    NonnullRefPtr<Gfx::ImmutableBitmap const> bitmap;
     Gfx::ScalingMode scaling_mode;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return clip_rect; }
@@ -91,7 +91,7 @@ struct DrawRepeatedImmutableBitmap {
 
     Gfx::IntRect dst_rect;
     Gfx::IntRect clip_rect;
-    NonnullRefPtr<Gfx::ImmutableBitmap> bitmap;
+    NonnullRefPtr<Gfx::ImmutableBitmap const> bitmap;
     Gfx::ScalingMode scaling_mode;
     Repeat repeat;
 
@@ -170,7 +170,7 @@ struct PaintInnerBoxShadow {
 };
 
 struct PaintTextShadow {
-    NonnullRefPtr<Gfx::GlyphRun> glyph_run;
+    NonnullRefPtr<Gfx::GlyphRun const> glyph_run;
     double glyph_run_scale { 1 };
     Gfx::IntRect shadow_bounding_rect;
     Gfx::IntRect text_rect;
@@ -438,7 +438,7 @@ struct ApplyTransform {
 
 struct ApplyMaskBitmap {
     Gfx::IntPoint origin;
-    NonnullRefPtr<Gfx::ImmutableBitmap> bitmap;
+    NonnullRefPtr<Gfx::ImmutableBitmap const> bitmap;
     Gfx::Bitmap::MaskKind kind;
 
     void translate_by(Gfx::IntPoint const& offset)
