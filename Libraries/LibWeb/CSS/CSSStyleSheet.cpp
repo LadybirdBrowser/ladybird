@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2019-2022, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2022-2024, Sam Atkins <sam@ladybird.org>
- * Copyright (c) 2024, Tim Ledbetter <timledbetter@gmail.com>
+ * Copyright (c) 2024-2025, Tim Ledbetter <tim.ledbetter@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -207,8 +207,7 @@ GC::Ref<WebIDL::Promise> CSSStyleSheet::replace(String text)
         HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
         // 1. Let rules be the result of running parse a stylesheet’s contents from text.
-        auto parsed_stylesheet = parse_css_stylesheet(make_parsing_params(), text);
-        auto& rules = parsed_stylesheet->rules();
+        auto rules = CSS::Parser::Parser::create(make_parsing_params(), text).parse_as_stylesheet_contents();
 
         // 2. If rules contains one or more @import rules, remove those rules from rules.
         GC::RootVector<GC::Ref<CSSRule>> rules_without_import(realm.heap());
@@ -240,8 +239,7 @@ WebIDL::ExceptionOr<void> CSSStyleSheet::replace_sync(StringView text)
         return WebIDL::NotAllowedError::create(realm(), "Can't call replaceSync() on non-modifiable stylesheets"_string);
 
     // 2. Let rules be the result of running parse a stylesheet’s contents from text.
-    auto parsed_stylesheet = parse_css_stylesheet(make_parsing_params(), text);
-    auto& rules = parsed_stylesheet->rules();
+    auto rules = CSS::Parser::Parser::create(make_parsing_params(), text).parse_as_stylesheet_contents();
 
     // 3. If rules contains one or more @import rules, remove those rules from rules.
     GC::RootVector<GC::Ref<CSSRule>> rules_without_import(realm().heap());
@@ -250,7 +248,7 @@ WebIDL::ExceptionOr<void> CSSStyleSheet::replace_sync(StringView text)
             rules_without_import.append(rule);
     }
 
-    // 4.Set sheet’s CSS rules to rules.
+    // 4. Set sheet’s CSS rules to rules.
     m_rules->set_rules({}, rules_without_import);
 
     return {};
