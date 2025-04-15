@@ -15,8 +15,8 @@ class ClippableAndScrollable {
 public:
     virtual ~ClippableAndScrollable() = default;
 
-    void set_enclosing_scroll_frame(RefPtr<ScrollFrame> scroll_frame) { m_enclosing_scroll_frame = scroll_frame; }
-    void set_enclosing_clip_frame(RefPtr<ClipFrame> clip_frame) { m_enclosing_clip_frame = clip_frame; }
+    void set_enclosing_scroll_frame(RefPtr<ScrollFrame const> scroll_frame) { m_enclosing_scroll_frame = scroll_frame; }
+    void set_enclosing_clip_frame(RefPtr<ClipFrame const> clip_frame) { m_enclosing_clip_frame = clip_frame; }
 
     [[nodiscard]] RefPtr<ScrollFrame const> enclosing_scroll_frame() const { return m_enclosing_scroll_frame; }
     [[nodiscard]] Optional<int> scroll_frame_id() const;
