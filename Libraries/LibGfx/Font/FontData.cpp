@@ -32,7 +32,7 @@ FontData::FontData(ByteBuffer&& byte_buffer)
 {
 }
 
-FontData::FontData(NonnullRefPtr<Core::Resource> resource)
+FontData::FontData(NonnullRefPtr<Core::Resource const> resource)
     : m_data(move(resource))
 {
 }
