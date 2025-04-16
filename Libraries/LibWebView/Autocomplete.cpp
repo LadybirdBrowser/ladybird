@@ -9,8 +9,10 @@
 #include <LibCore/EventLoop.h>
 #include <LibRequests/Request.h>
 #include <LibRequests/RequestClient.h>
+#include <LibTextCodec/Decoder.h>
 #include <LibURL/Parser.h>
 #include <LibURL/URL.h>
+#include <LibWeb/MimeSniff/MimeType.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/Autocomplete.h>
 
@@ -67,7 +69,7 @@ void Autocomplete::query_autocomplete_engine(String query)
     m_query = move(query);
 
     m_request->set_buffered_request_finished_callback(
-        [this, engine = engine.release_value()](u64, Requests::RequestTimingInfo const&, Optional<Requests::NetworkError> const& network_error, HTTP::HeaderMap const&, Optional<u32> response_code, Optional<String> const& reason_phrase, ReadonlyBytes payload) {
+        [this, engine = engine.release_value()](u64, Requests::RequestTimingInfo const&, Optional<Requests::NetworkError> const& network_error, HTTP::HeaderMap const& response_headers, Optional<u32> response_code, Optional<String> const& reason_phrase, ReadonlyBytes payload) {
             Core::deferred_invoke([this]() { m_request.clear(); });
 
             if (network_error.has_value()) {
@@ -81,7 +83,9 @@ void Autocomplete::query_autocomplete_engine(String query)
                 return;
             }
 
-            if (auto result = received_autocomplete_respsonse(engine, payload); result.is_error()) {
+            auto content_type = response_headers.get("Content-Type"sv);
+
+            if (auto result = received_autocomplete_respsonse(engine, content_type, payload); result.is_error()) {
                 warnln("Unable to handle autocomplete response: {}", result.error());
                 invoke_autocomplete_query_complete({});
             } else {
@@ -166,9 +170,28 @@ static ErrorOr<Vector<String>> parse_yahoo_autocomplete(JsonValue const& json)
     return results;
 }
 
-ErrorOr<Vector<String>> Autocomplete::received_autocomplete_respsonse(AutocompleteEngine const& engine, StringView response)
+ErrorOr<Vector<String>> Autocomplete::received_autocomplete_respsonse(AutocompleteEngine const& engine, Optional<ByteString const&> content_type, StringView response)
 {
-    auto json = TRY(JsonValue::from_string(response));
+    auto decoder = [&]() -> Optional<TextCodec::Decoder&> {
+        if (!content_type.has_value())
+            return {};
+
+        auto mime_type = Web::MimeSniff::MimeType::parse(*content_type);
+        if (!mime_type.has_value())
+            return {};
+
+        auto charset = mime_type->parameters().get("charset"sv);
+        if (!charset.has_value())
+            return {};
+
+        return TextCodec::decoder_for_exact_name(*charset);
+    }();
+
+    if (!decoder.has_value())
+        decoder = TextCodec::decoder_for_exact_name("UTF-8"sv);
+
+    auto decoded_response = TRY(decoder->to_utf8(response));
+    auto json = TRY(JsonValue::from_string(decoded_response));
 
     if (engine.name == "DuckDuckGo")
         return parse_duckduckgo_autocomplete(json);

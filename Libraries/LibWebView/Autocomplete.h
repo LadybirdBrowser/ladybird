@@ -34,7 +34,7 @@ public:
     void query_autocomplete_engine(String);
 
 private:
-    static ErrorOr<Vector<String>> received_autocomplete_respsonse(AutocompleteEngine const&, StringView response);
+    static ErrorOr<Vector<String>> received_autocomplete_respsonse(AutocompleteEngine const&, Optional<ByteString const&> content_type, StringView response);
     void invoke_autocomplete_query_complete(Vector<String> suggestions) const;
 
     String m_query;
