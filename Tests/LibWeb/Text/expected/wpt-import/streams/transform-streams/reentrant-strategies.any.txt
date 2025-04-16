@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 11 tests
 
-10 Pass
-1 Fail
+11 Pass
 Pass	enqueue() inside size() should work
 Pass	terminate() inside size() should work
 Pass	error() inside size() should work
@@ -14,4 +13,4 @@ Pass	read() inside of size() should work
 Pass	writer.write() inside size() should work
 Pass	synchronous writer.write() inside size() should work
 Pass	writer.close() inside size() should work
-Fail	writer.abort() inside size() should work
+Pass	writer.abort() inside size() should work
