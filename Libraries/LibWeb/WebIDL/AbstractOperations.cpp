@@ -8,17 +8,17 @@
 
 #include <AK/ByteBuffer.h>
 #include <AK/Enumerate.h>
-#include <AK/Math.h>
 #include <AK/NumericLimits.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/DataView.h>
-#include <LibJS/Runtime/PropertyKey.h>
+#include <LibJS/Runtime/FunctionObject.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/ValueInlines.h>
-#include <LibWeb/Bindings/PlatformObject.h>
-#include <LibWeb/HTML/Window.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
+#include <LibWeb/WebIDL/CallbackType.h>
 #include <LibWeb/WebIDL/Promise.h>
 #include <LibWeb/WebIDL/Types.h>
 
@@ -141,7 +141,7 @@ inline JS::Completion clean_up_on_return(JS::Realm& stored_realm, JS::Realm& rel
 
 // https://webidl.spec.whatwg.org/#call-a-user-objects-operation
 // https://whatpr.org/webidl/1437.html#call-a-user-objects-operation
-JS::Completion call_user_object_operation(WebIDL::CallbackType& callback, String const& operation_name, Optional<JS::Value> this_argument, GC::RootVector<JS::Value> args)
+JS::Completion call_user_object_operation(CallbackType& callback, String const& operation_name, Optional<JS::Value> this_argument, ReadonlySpan<JS::Value> args)
 {
     // 1. Let completion be an uninitialized variable.
     JS::Completion completion;
@@ -197,9 +197,7 @@ JS::Completion call_user_object_operation(WebIDL::CallbackType& callback, String
     //        For simplicity, we currently make the caller do this. However, this means we can't throw exceptions at this point like the spec wants us to.
 
     // 11. Let callResult be Call(X, thisArg, esArgs).
-    VERIFY(actual_function_object);
-    auto& vm = object->vm();
-    auto call_result = JS::call(vm, as<JS::FunctionObject>(*actual_function_object), this_argument.value(), args.span());
+    auto call_result = JS::call(object->vm(), as<JS::FunctionObject>(*actual_function_object), this_argument.value(), args);
 
     // 12. If callResult is an abrupt completion, set completion to callResult and jump to the step labeled return.
     if (call_result.is_throw_completion()) {
@@ -244,7 +242,7 @@ JS::ThrowCompletionOr<String> to_usv_string(JS::VM& vm, JS::Value value)
 // https://webidl.spec.whatwg.org/#invoke-a-callback-function
 // https://whatpr.org/webidl/1437.html#invoke-a-callback-function
 template<typename ReturnSteps>
-static auto invoke_callback_impl(WebIDL::CallbackType& callback, Optional<JS::Value> this_argument, GC::RootVector<JS::Value> args, ReturnSteps&& return_steps)
+static auto invoke_callback_impl(CallbackType& callback, Optional<JS::Value> this_argument, ReadonlySpan<JS::Value> args, ReturnSteps&& return_steps)
 {
     // 1. Let completion be an uninitialized variable.
 
@@ -279,8 +277,7 @@ static auto invoke_callback_impl(WebIDL::CallbackType& callback, Optional<JS::Va
     //           If this throws an exception, set completion to the completion value representing the thrown exception and jump to the step labeled return.
 
     // 10. Let callResult be Call(F, thisArg, jsArgs).
-    auto& vm = function_object->vm();
-    auto call_result = JS::call(vm, as<JS::FunctionObject>(*function_object), this_argument.value(), args.span());
+    auto call_result = JS::call(function_object->vm(), as<JS::FunctionObject>(*function_object), this_argument.value(), args);
 
     // 11. If callResult is an abrupt completion, set completion to callResult and jump to the step labeled return.
     // 12. Set completion to the result of converting callResult.[[Value]] to an IDL value of the same type as callable’s
@@ -298,7 +295,7 @@ static auto invoke_callback_impl(WebIDL::CallbackType& callback, Optional<JS::Va
     }
 }
 
-JS::Completion invoke_callback(WebIDL::CallbackType& callback, Optional<JS::Value> this_argument, ExceptionBehavior exception_behavior, GC::RootVector<JS::Value> args)
+JS::Completion invoke_callback(CallbackType& callback, Optional<JS::Value> this_argument, ExceptionBehavior exception_behavior, ReadonlySpan<JS::Value> args)
 {
     // https://webidl.spec.whatwg.org/#js-invoking-callback-functions
     // The exceptionBehavior argument must be supplied if, and only if, callable’s return type is not a promise type. If callable’s return type is neither undefined nor any, it must be "rethrow".
@@ -308,7 +305,7 @@ JS::Completion invoke_callback(WebIDL::CallbackType& callback, Optional<JS::Valu
 
     VERIFY(exception_behavior == ExceptionBehavior::NotSpecified || callback.operation_returns_promise == OperationReturnsPromise::No);
 
-    return invoke_callback_impl(callback, move(this_argument), move(args), [&](JS::Realm& relevant_realm, JS::Completion completion) -> JS::Completion {
+    return invoke_callback_impl(callback, move(this_argument), args, [&](JS::Realm& relevant_realm, JS::Completion completion) -> JS::Completion {
         // 3. If completion is an IDL value, return completion.
         if (!completion.is_abrupt())
             return completion;
@@ -344,21 +341,21 @@ JS::Completion invoke_callback(WebIDL::CallbackType& callback, Optional<JS::Valu
     });
 }
 
-JS::Completion invoke_callback(WebIDL::CallbackType& callback, Optional<JS::Value> this_argument, GC::RootVector<JS::Value> args)
+JS::Completion invoke_callback(CallbackType& callback, Optional<JS::Value> this_argument, ReadonlySpan<JS::Value> args)
 {
-    return invoke_callback(callback, move(this_argument), ExceptionBehavior::NotSpecified, move(args));
+    return invoke_callback(callback, move(this_argument), ExceptionBehavior::NotSpecified, args);
 }
 
 // AD-HOC: This may be used as an alternative to WebIDL::invoke_callback when you know the callback returns a promise,
 //         and the caller needs a WebIDL::Promise rather than a JS::Promise.
-GC::Ref<WebIDL::Promise> invoke_promise_callback(WebIDL::CallbackType& callback, Optional<JS::Value> this_argument, GC::RootVector<JS::Value> args)
+GC::Ref<Promise> invoke_promise_callback(CallbackType& callback, Optional<JS::Value> this_argument, ReadonlySpan<JS::Value> args)
 {
     VERIFY(callback.operation_returns_promise == OperationReturnsPromise::Yes);
 
-    return invoke_callback_impl(callback, move(this_argument), move(args), [&](JS::Realm& relevant_realm, JS::Completion completion) -> GC::Ref<WebIDL::Promise> {
+    return invoke_callback_impl(callback, move(this_argument), args, [&](JS::Realm& relevant_realm, JS::Completion completion) {
         // 3. If completion is an IDL value, return completion.
         if (!completion.is_abrupt())
-            return WebIDL::create_resolved_promise(relevant_realm, completion.release_value());
+            return create_resolved_promise(relevant_realm, completion.release_value());
 
         // 4. Assert: completion is an abrupt completion.
         VERIFY(completion.is_abrupt());
@@ -371,7 +368,7 @@ GC::Ref<WebIDL::Promise> invoke_promise_callback(WebIDL::CallbackType& callback,
     });
 }
 
-JS::Completion construct(WebIDL::CallbackType& callback, GC::RootVector<JS::Value> args)
+JS::Completion construct(CallbackType& callback, ReadonlySpan<JS::Value> args)
 {
     // 1. Let completion be an uninitialized variable.
     JS::Completion completion;
@@ -399,8 +396,7 @@ JS::Completion construct(WebIDL::CallbackType& callback, GC::RootVector<JS::Valu
     //        For simplicity, we currently make the caller do this. However, this means we can't throw exceptions at this point like the spec wants us to.
 
     // 8. Let callResult be Completion(Construct(F, esArgs)).
-    auto& vm = function_object->vm();
-    auto call_result = JS::construct(vm, as<JS::FunctionObject>(*function_object), args.span());
+    auto call_result = JS::construct(function_object->vm(), as<JS::FunctionObject>(*function_object), args);
 
     // 9. If callResult is an abrupt completion, set completion to callResult and jump to the step labeled return.
     if (call_result.is_throw_completion()) {

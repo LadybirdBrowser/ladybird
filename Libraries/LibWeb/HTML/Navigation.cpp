@@ -1141,7 +1141,7 @@ bool Navigation::inner_navigate_event_firing_algorithm(
         // 2. For each handler of event's navigation handler list:
         for (auto const& handler : event->navigation_handler_list()) {
             // 1. Append the result of invoking handler with an empty arguments list to promisesList.
-            auto result = WebIDL::invoke_callback(handler, {});
+            auto result = WebIDL::invoke_callback(handler, {}, {});
             // This *should* be equivalent to converting a promise to a promise capability
             promises_list.append(WebIDL::create_resolved_promise(realm, result.value()));
         }

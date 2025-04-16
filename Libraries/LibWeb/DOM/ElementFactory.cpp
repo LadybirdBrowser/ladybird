@@ -578,7 +578,7 @@ WebIDL::ExceptionOr<GC::Ref<Element>> create_element(Document& document, FlyStri
                 auto& constructor = definition->constructor();
 
                 // 2. Set result to the result of constructing C, with no arguments.
-                auto result = TRY(WebIDL::construct(constructor));
+                auto result = TRY(WebIDL::construct(constructor, {}));
 
                 // NOTE: IDL does not currently convert the object for us, so we will have to do it here.
                 if (!result.is_object() || !is<HTML::HTMLElement>(result.as_object()))

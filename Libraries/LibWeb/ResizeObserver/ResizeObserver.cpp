@@ -109,7 +109,7 @@ void ResizeObserver::invoke_callback(ReadonlySpan<GC::Ref<ResizeObserverEntry>> 
         MUST(wrapped_records->create_data_property(property_index, record.ptr()));
     }
 
-    (void)WebIDL::invoke_callback(callback, JS::js_undefined(), WebIDL::ExceptionBehavior::Report, wrapped_records);
+    (void)WebIDL::invoke_callback(callback, JS::js_undefined(), WebIDL::ExceptionBehavior::Report, { { wrapped_records } });
 }
 
 }

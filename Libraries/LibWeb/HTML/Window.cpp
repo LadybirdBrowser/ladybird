@@ -1611,7 +1611,7 @@ WebIDL::UnsignedLong Window::request_animation_frame(GC::Ref<WebIDL::CallbackTyp
     // FIXME: Make this fully spec compliant. Currently implements a mix of 'requestAnimationFrame()' and 'run the animation frame callbacks'.
     return animation_frame_callback_driver().add(GC::create_function(heap(), [this, callback](double now) {
         // 3. Invoke callback, passing now as the only argument, and if an exception is thrown, report the exception.
-        auto result = WebIDL::invoke_callback(*callback, {}, JS::Value(now));
+        auto result = WebIDL::invoke_callback(*callback, {}, { { JS::Value(now) } });
         if (result.is_error())
             report_exception(result, realm());
     }));
@@ -1655,7 +1655,7 @@ u32 Window::request_idle_callback(WebIDL::CallbackType& callback, RequestIdleCal
 
     // 4. Push callback to the end of window's list of idle request callbacks, associated with handle.
     auto handler = [callback = GC::make_root(callback)](GC::Ref<RequestIdleCallback::IdleDeadline> deadline) -> JS::Completion {
-        return WebIDL::invoke_callback(*callback, {}, deadline.ptr());
+        return WebIDL::invoke_callback(*callback, {}, { { deadline } });
     };
     m_idle_request_callbacks.append(adopt_ref(*new IdleCallback(move(handler), handle)));
 

@@ -713,7 +713,7 @@ void queue_mutation_observer_microtask(DOM::Document const& document)
                     MUST(wrapped_records->create_data_property(property_index, record.ptr()));
                 }
 
-                (void)WebIDL::invoke_callback(callback, mutation_observer, WebIDL::ExceptionBehavior::Report, wrapped_records, mutation_observer);
+                (void)WebIDL::invoke_callback(callback, mutation_observer, WebIDL::ExceptionBehavior::Report, { { wrapped_records, mutation_observer } });
             }
         }
 
