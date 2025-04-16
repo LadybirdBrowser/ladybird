@@ -2945,8 +2945,15 @@ ThrowCompletionOr<void> IteratorClose::execute_impl(Bytecode::Interpreter& inter
     auto& vm = interpreter.vm();
     auto& iterator = static_cast<IteratorRecord&>(interpreter.get(m_iterator_record).as_cell());
 
-    // FIXME: Return the value of the resulting completion. (Note that m_completion_value can be empty!)
-    TRY(iterator_close(vm, iterator, Completion { m_completion_type, m_completion_value.value_or(js_undefined()) }));
+    // NOTE: IteratorClose only cares about throw completions, so that it can prioritise rethrowing the previous exception
+    //       over the exceptions that occur related to calling the return method.
+    auto completion = JS::normal_completion(JS::js_undefined());
+    if (auto exception = interpreter.reg(Register::exception()); !exception.is_special_empty_value()) {
+        completion = JS::throw_completion(exception);
+    }
+
+    // FIXME: Return the value of the resulting completion.
+    TRY(iterator_close(vm, iterator, completion));
     return {};
 }
 
@@ -2955,8 +2962,15 @@ ThrowCompletionOr<void> AsyncIteratorClose::execute_impl(Bytecode::Interpreter& 
     auto& vm = interpreter.vm();
     auto& iterator = static_cast<IteratorRecord&>(interpreter.get(m_iterator_record).as_cell());
 
+    // NOTE: IteratorClose only cares about throw completions, so that it can prioritise rethrowing the previous exception
+    //       over the exceptions that occur related to calling the return method.
+    auto completion = JS::normal_completion(JS::js_undefined());
+    if (auto exception = interpreter.reg(Register::exception()); !exception.is_special_empty_value()) {
+        completion = JS::throw_completion(exception);
+    }
+
     // FIXME: Return the value of the resulting completion. (Note that m_completion_value can be empty!)
-    TRY(async_iterator_close(vm, iterator, Completion { m_completion_type, m_completion_value.value_or(js_undefined()) }));
+    TRY(async_iterator_close(vm, iterator, completion));
     return {};
 }
 
@@ -3721,28 +3735,14 @@ ByteString GetObjectPropertyIterator::to_byte_string_impl(Bytecode::Executable c
 
 ByteString IteratorClose::to_byte_string_impl(Bytecode::Executable const& executable) const
 {
-    if (!m_completion_value.has_value())
-        return ByteString::formatted("IteratorClose {}, completion_type={} completion_value=<empty>",
-            format_operand("iterator_record"sv, m_iterator_record, executable),
-            to_underlying(m_completion_type));
-
-    auto completion_value_string = m_completion_value->to_string_without_side_effects();
-    return ByteString::formatted("IteratorClose {}, completion_type={} completion_value={}",
-        format_operand("iterator_record"sv, m_iterator_record, executable),
-        to_underlying(m_completion_type), completion_value_string);
+    return ByteString::formatted("IteratorClose {}",
+        format_operand("iterator_record"sv, m_iterator_record, executable));
 }
 
 ByteString AsyncIteratorClose::to_byte_string_impl(Bytecode::Executable const& executable) const
 {
-    if (!m_completion_value.has_value()) {
-        return ByteString::formatted("AsyncIteratorClose {}, completion_type:{} completion_value:<empty>",
-            format_operand("iterator_record"sv, m_iterator_record, executable),
-            to_underlying(m_completion_type));
-    }
-
-    return ByteString::formatted("AsyncIteratorClose {}, completion_type:{}, completion_value:{}",
-        format_operand("iterator_record"sv, m_iterator_record, executable),
-        to_underlying(m_completion_type), m_completion_value);
+    return ByteString::formatted("AsyncIteratorClose {}",
+        format_operand("iterator_record"sv, m_iterator_record, executable));
 }
 
 ByteString IteratorNext::to_byte_string_impl(Executable const& executable) const

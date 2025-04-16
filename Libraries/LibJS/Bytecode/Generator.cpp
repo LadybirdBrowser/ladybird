@@ -981,7 +981,7 @@ void Generator::generate_scoped_jump(JumpType type)
             emit<Bytecode::Op::LeaveLexicalEnvironment>();
             break;
         case ReturnToFinally: {
-            VERIFY(m_current_unwind_context->finalizer().has_value());
+            VERIFY(m_current_unwind_context && m_current_unwind_context->finalizer().has_value());
             m_current_unwind_context = m_current_unwind_context->previous();
             auto jump_type_name = type == JumpType::Break ? "break"sv : "continue"sv;
             auto block_name = MUST(String::formatted("{}.{}", current_block().name(), jump_type_name));
@@ -1020,7 +1020,7 @@ void Generator::generate_labelled_jump(JumpType type, FlyString const& label)
             } else if (boundary == BlockBoundaryType::LeaveLexicalEnvironment) {
                 emit<Bytecode::Op::LeaveLexicalEnvironment>();
             } else if (boundary == BlockBoundaryType::ReturnToFinally) {
-                VERIFY(m_current_unwind_context->finalizer().has_value());
+                VERIFY(m_current_unwind_context && m_current_unwind_context->finalizer().has_value());
                 m_current_unwind_context = m_current_unwind_context->previous();
                 auto jump_type_name = type == JumpType::Break ? "break"sv : "continue"sv;
                 auto block_name = MUST(String::formatted("{}.{}", current_block().name(), jump_type_name));

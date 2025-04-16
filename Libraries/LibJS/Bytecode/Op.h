@@ -2682,11 +2682,9 @@ private:
 
 class IteratorClose final : public Instruction {
 public:
-    IteratorClose(Operand iterator_record, Completion::Type completion_type, Optional<Value> completion_value)
+    IteratorClose(Operand iterator_record)
         : Instruction(Type::IteratorClose)
         , m_iterator_record(iterator_record)
-        , m_completion_type(completion_type)
-        , m_completion_value(completion_value)
     {
     }
 
@@ -2698,22 +2696,16 @@ public:
     }
 
     Operand iterator_record() const { return m_iterator_record; }
-    Completion::Type completion_type() const { return m_completion_type; }
-    Optional<Value> const& completion_value() const { return m_completion_value; }
 
 private:
     Operand m_iterator_record;
-    Completion::Type m_completion_type { Completion::Type::Normal };
-    Optional<Value> m_completion_value;
 };
 
 class AsyncIteratorClose final : public Instruction {
 public:
-    AsyncIteratorClose(Operand iterator_record, Completion::Type completion_type, Optional<Value> completion_value)
+    AsyncIteratorClose(Operand iterator_record)
         : Instruction(Type::AsyncIteratorClose)
         , m_iterator_record(iterator_record)
-        , m_completion_type(completion_type)
-        , m_completion_value(completion_value)
     {
     }
 
@@ -2725,13 +2717,9 @@ public:
     }
 
     Operand iterator_record() const { return m_iterator_record; }
-    Completion::Type completion_type() const { return m_completion_type; }
-    Optional<Value> const& completion_value() const { return m_completion_value; }
 
 private:
     Operand m_iterator_record;
-    Completion::Type m_completion_type { Completion::Type::Normal };
-    Optional<Value> m_completion_value;
 };
 
 class IteratorNext final : public Instruction {
