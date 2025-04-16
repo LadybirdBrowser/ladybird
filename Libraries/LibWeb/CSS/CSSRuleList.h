@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2022, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2023, Luke Wilde <lukew@serenityos.org>
  *
@@ -9,10 +9,9 @@
 #pragma once
 
 #include <AK/Function.h>
-#include <AK/Iterator.h>
-#include <AK/RefPtr.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/CSS/CSSRule.h>
+#include <LibWeb/CSS/Parser/RuleContext.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/TraversalOrder.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -25,8 +24,7 @@ class CSSRuleList : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(CSSRuleList);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSRuleList> create(JS::Realm&, GC::RootVector<CSSRule*> const&);
-    [[nodiscard]] static GC::Ref<CSSRuleList> create_empty(JS::Realm&);
+    [[nodiscard]] static GC::Ref<CSSRuleList> create(JS::Realm&, ReadonlySpan<GC::Ref<CSSRule>> = {});
 
     ~CSSRuleList() = default;
 
@@ -55,12 +53,17 @@ public:
     virtual Optional<JS::Value> item_value(size_t index) const override;
 
     WebIDL::ExceptionOr<void> remove_a_css_rule(u32 index);
-    WebIDL::ExceptionOr<unsigned> insert_a_css_rule(Variant<StringView, CSSRule*>, u32 index);
+    enum class Nested {
+        No,
+        Yes,
+    };
+    WebIDL::ExceptionOr<unsigned> insert_a_css_rule(Variant<StringView, CSSRule*>, u32 index, Nested = Nested::No);
 
     void for_each_effective_rule(TraversalOrder, Function<void(CSSRule const&)> const& callback) const;
     // Returns whether the match state of any media queries changed after evaluation.
     bool evaluate_media_queries(HTML::Window const&);
 
+    void set_owner_rule(GC::Ref<CSSRule> owner_rule) { m_owner_rule = owner_rule; }
     void set_rules(Badge<CSSStyleSheet>, Vector<GC::Ref<CSSRule>> rules) { m_rules = move(rules); }
 
     Function<void()> on_change;
@@ -71,7 +74,10 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
+    Vector<Parser::RuleContext> rule_context() const;
+
     Vector<GC::Ref<CSSRule>> m_rules;
+    GC::Ptr<CSSRule> m_owner_rule;
 };
 
 }

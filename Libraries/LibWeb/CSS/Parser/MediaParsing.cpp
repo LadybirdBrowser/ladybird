@@ -497,12 +497,12 @@ GC::Ptr<CSSMediaRule> Parser::convert_to_media_rule(AtRule const& rule, Nested n
     auto media_query_list = parse_a_media_query_list(media_query_tokens);
     auto media_list = MediaList::create(realm(), move(media_query_list));
 
-    GC::RootVector<CSSRule*> child_rules { realm().heap() };
+    GC::RootVector<GC::Ref<CSSRule>> child_rules { realm().heap() };
     for (auto const& child : rule.child_rules_and_lists_of_declarations) {
         child.visit(
             [&](Rule const& rule) {
                 if (auto child_rule = convert_to_rule(rule, nested))
-                    child_rules.append(child_rule);
+                    child_rules.append(*child_rule);
             },
             [&](Vector<Declaration> const& declarations) {
                 child_rules.append(CSSNestedDeclarations::create(realm(), *convert_to_style_declaration(declarations)));
