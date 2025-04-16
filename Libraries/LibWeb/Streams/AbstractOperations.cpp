@@ -5438,7 +5438,7 @@ GC::Ref<WebIDL::Promise> transform_stream_default_sink_abort_algorithm(Transform
     // 7. React to cancelPromise:
     WebIDL::react_to_promise(cancel_promise,
         // 1. If cancelPromise was fulfilled, then:
-        GC::create_function(realm.heap(), [&realm, readable, controller](JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
+        GC::create_function(realm.heap(), [&realm, readable, controller, reason](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
             // 1. If readable.[[state]] is "errored", reject controller.[[finishPromise]] with readable.[[storedError]].
             if (readable->state() == ReadableStream::State::Errored) {
                 WebIDL::reject_promise(realm, *controller->finish_promise(), readable->stored_error());

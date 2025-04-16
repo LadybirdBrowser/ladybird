@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 21 tests
 
-19 Pass
-2 Fail
+21 Pass
 Pass	TransformStream errors thrown in transform put the writable and readable in an errored state
 Pass	TransformStream errors thrown in flush put the writable and readable in an errored state
 Pass	errored TransformStream should not enqueue new chunks
@@ -23,5 +22,5 @@ Pass	controller.error() should do nothing after readable.cancel() resolves
 Pass	controller.error() should do nothing after writable.abort() has completed
 Pass	controller.error() should do nothing after a transformer method has thrown an exception
 Pass	erroring during write with backpressure should result in the write failing
-Fail	a write() that was waiting for backpressure should reject if the writable is aborted
-Fail	the readable should be errored with the reason passed to the writable abort() method
+Pass	a write() that was waiting for backpressure should reject if the writable is aborted
+Pass	the readable should be errored with the reason passed to the writable abort() method
