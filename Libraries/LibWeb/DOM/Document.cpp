@@ -4569,7 +4569,7 @@ void Document::queue_intersection_observer_task()
 
             // 5. Invoke callback with queue as the first argument, observer as the second argument, and observer as the callback this value. If this throws an exception, report the exception.
             // NOTE: This does not follow the spec as written precisely, but this is the same thing we do elsewhere and there is a WPT test that relies on this.
-            (void)WebIDL::invoke_callback(callback, observer.ptr(), WebIDL::ExceptionBehavior::Report, wrapped_queue, observer.ptr());
+            (void)WebIDL::invoke_callback(callback, observer.ptr(), WebIDL::ExceptionBehavior::Report, { { wrapped_queue, observer.ptr() } });
         }
     }));
 }

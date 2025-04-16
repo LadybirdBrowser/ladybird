@@ -1762,7 +1762,8 @@ GC::Ref<SizeAlgorithm> extract_size_algorithm(JS::VM& vm, QueuingStrategy const&
 
     // 2. Return an algorithm that performs the following steps, taking a chunk argument:
     return GC::create_function(vm.heap(), [size = strategy.size](JS::Value chunk) {
-        return WebIDL::invoke_callback(*size, JS::js_undefined(), chunk);
+        // 1. Return the result of invoking strategy["size"] with argument list « chunk ».
+        return WebIDL::invoke_callback(*size, {}, { { chunk } });
     });
 }
 
@@ -3145,7 +3146,7 @@ WebIDL::ExceptionOr<void> set_up_readable_stream_default_controller_from_underly
     //    invoking underlyingSourceDict["start"] with argument list « controller » and callback this value underlyingSource.
     if (underlying_source.start) {
         start_algorithm = GC::create_function(realm.heap(), [controller, underlying_source_value, callback = underlying_source.start]() -> WebIDL::ExceptionOr<JS::Value> {
-            return TRY(WebIDL::invoke_callback(*callback, underlying_source_value, controller));
+            return TRY(WebIDL::invoke_callback(*callback, underlying_source_value, { { controller } }));
         });
     }
 
@@ -3153,7 +3154,7 @@ WebIDL::ExceptionOr<void> set_up_readable_stream_default_controller_from_underly
     //    invoking underlyingSourceDict["pull"] with argument list « controller » and callback this value underlyingSource.
     if (underlying_source.pull) {
         pull_algorithm = GC::create_function(realm.heap(), [controller, underlying_source_value, callback = underlying_source.pull]() {
-            return WebIDL::invoke_promise_callback(*callback, underlying_source_value, controller);
+            return WebIDL::invoke_promise_callback(*callback, underlying_source_value, { { controller } });
         });
     }
 
@@ -3162,7 +3163,7 @@ WebIDL::ExceptionOr<void> set_up_readable_stream_default_controller_from_underly
     //    callback this value underlyingSource.
     if (underlying_source.cancel) {
         cancel_algorithm = GC::create_function(realm.heap(), [underlying_source_value, callback = underlying_source.cancel](JS::Value reason) {
-            return WebIDL::invoke_promise_callback(*callback, underlying_source_value, reason);
+            return WebIDL::invoke_promise_callback(*callback, underlying_source_value, { { reason } });
         });
     }
 
@@ -4846,7 +4847,7 @@ WebIDL::ExceptionOr<void> set_up_writable_stream_default_controller_from_underly
     //    callback this value underlyingSink.
     if (underlying_sink.start) {
         start_algorithm = GC::create_function(realm.heap(), [controller, underlying_sink_value, callback = underlying_sink.start]() -> WebIDL::ExceptionOr<JS::Value> {
-            return TRY(WebIDL::invoke_callback(*callback, underlying_sink_value, WebIDL::ExceptionBehavior::Rethrow, controller));
+            return TRY(WebIDL::invoke_callback(*callback, underlying_sink_value, WebIDL::ExceptionBehavior::Rethrow, { { controller } }));
         });
     }
 
@@ -4855,7 +4856,7 @@ WebIDL::ExceptionOr<void> set_up_writable_stream_default_controller_from_underly
     //    callback this value underlyingSink.
     if (underlying_sink.write) {
         write_algorithm = GC::create_function(realm.heap(), [controller, underlying_sink_value, callback = underlying_sink.write](JS::Value chunk) {
-            return WebIDL::invoke_promise_callback(*callback, underlying_sink_value, chunk, controller);
+            return WebIDL::invoke_promise_callback(*callback, underlying_sink_value, { { chunk, controller } });
         });
     }
 
@@ -4863,7 +4864,7 @@ WebIDL::ExceptionOr<void> set_up_writable_stream_default_controller_from_underly
     //    invoking underlyingSinkDict["close"] with argument list «» and callback this value underlyingSink.
     if (underlying_sink.close) {
         close_algorithm = GC::create_function(realm.heap(), [underlying_sink_value, callback = underlying_sink.close]() {
-            return WebIDL::invoke_promise_callback(*callback, underlying_sink_value);
+            return WebIDL::invoke_promise_callback(*callback, underlying_sink_value, {});
         });
     }
 
@@ -4872,7 +4873,7 @@ WebIDL::ExceptionOr<void> set_up_writable_stream_default_controller_from_underly
     //    value underlyingSink.
     if (underlying_sink.abort) {
         abort_algorithm = GC::create_function(realm.heap(), [underlying_sink_value, callback = underlying_sink.abort](JS::Value reason) {
-            return WebIDL::invoke_promise_callback(*callback, underlying_sink_value, reason);
+            return WebIDL::invoke_promise_callback(*callback, underlying_sink_value, { { reason } });
         });
     }
 
@@ -5275,7 +5276,7 @@ void set_up_transform_stream_default_controller_from_transformer(TransformStream
     //    callback this value transformer.
     if (transformer_dict.transform) {
         transform_algorithm = GC::create_function(realm.heap(), [controller, transformer, callback = transformer_dict.transform](JS::Value chunk) {
-            return WebIDL::invoke_promise_callback(*callback, transformer, chunk, controller);
+            return WebIDL::invoke_promise_callback(*callback, transformer, { { chunk, controller } });
         });
     }
 
@@ -5283,7 +5284,7 @@ void set_up_transform_stream_default_controller_from_transformer(TransformStream
     //    transformerDict["flush"] with argument list « controller » and callback this value transformer.
     if (transformer_dict.flush) {
         flush_algorithm = GC::create_function(realm.heap(), [transformer, callback = transformer_dict.flush, controller]() {
-            return WebIDL::invoke_promise_callback(*callback, transformer, controller);
+            return WebIDL::invoke_promise_callback(*callback, transformer, { { controller } });
         });
     }
 
@@ -5291,7 +5292,7 @@ void set_up_transform_stream_default_controller_from_transformer(TransformStream
     // the result of invoking transformerDict["cancel"] with argument list « reason » and callback this value transformer.
     if (transformer_dict.cancel) {
         cancel_algorithm = GC::create_function(realm.heap(), [transformer, callback = transformer_dict.cancel](JS::Value reason) {
-            return WebIDL::invoke_promise_callback(*callback, transformer, reason);
+            return WebIDL::invoke_promise_callback(*callback, transformer, { { reason } });
         });
     }
 
@@ -5816,7 +5817,7 @@ WebIDL::ExceptionOr<void> set_up_readable_byte_stream_controller_from_underlying
     //    invoking underlyingSourceDict["start"] with argument list « controller » and callback this value underlyingSource.
     if (underlying_source_dict.start) {
         start_algorithm = GC::create_function(realm.heap(), [controller, underlying_source, callback = underlying_source_dict.start]() -> WebIDL::ExceptionOr<JS::Value> {
-            return TRY(WebIDL::invoke_callback(*callback, underlying_source, controller));
+            return TRY(WebIDL::invoke_callback(*callback, underlying_source, { { controller } }));
         });
     }
 
@@ -5824,7 +5825,7 @@ WebIDL::ExceptionOr<void> set_up_readable_byte_stream_controller_from_underlying
     //    invoking underlyingSourceDict["pull"] with argument list « controller » and callback this value underlyingSource.
     if (underlying_source_dict.pull) {
         pull_algorithm = GC::create_function(realm.heap(), [controller, underlying_source, callback = underlying_source_dict.pull]() {
-            return WebIDL::invoke_promise_callback(*callback, underlying_source, controller);
+            return WebIDL::invoke_promise_callback(*callback, underlying_source, { { controller } });
         });
     }
 
@@ -5833,7 +5834,7 @@ WebIDL::ExceptionOr<void> set_up_readable_byte_stream_controller_from_underlying
     //    callback this value underlyingSource.
     if (underlying_source_dict.cancel) {
         cancel_algorithm = GC::create_function(realm.heap(), [underlying_source, callback = underlying_source_dict.cancel](JS::Value reason) {
-            return WebIDL::invoke_promise_callback(*callback, underlying_source, reason);
+            return WebIDL::invoke_promise_callback(*callback, underlying_source, { { reason } });
         });
     }
 

@@ -117,7 +117,7 @@ void DataTransferItem::get_as_string(GC::Ptr<WebIDL::CallbackType> callback) con
 
     HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr,
         GC::Function<void()>::create(realm.heap(), [callback, data]() {
-            (void)WebIDL::invoke_callback(*callback, {}, data);
+            (void)WebIDL::invoke_callback(*callback, {}, { { data } });
         }));
 }
 

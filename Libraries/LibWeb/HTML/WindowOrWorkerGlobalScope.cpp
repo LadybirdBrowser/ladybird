@@ -639,7 +639,7 @@ void WindowOrWorkerGlobalScopeMixin::queue_the_performance_observer_task()
             // 9. Call po’s observer callback with observerEntryList as the first argument, with po as the second
             //    argument and as callback this value, and with callbackOptions as the third argument.
             //    If this throws an exception, report the exception.
-            auto completion = WebIDL::invoke_callback(registered_observer->callback(), registered_observer, observer_entry_list, registered_observer, callback_options);
+            auto completion = WebIDL::invoke_callback(registered_observer->callback(), registered_observer, { { observer_entry_list, registered_observer, callback_options } });
             if (completion.is_abrupt())
                 HTML::report_exception(completion, realm);
         }

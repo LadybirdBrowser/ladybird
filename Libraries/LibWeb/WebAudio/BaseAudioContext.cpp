@@ -243,7 +243,7 @@ GC::Ref<WebIDL::Promise> BaseAudioContext::decode_audio_data(GC::Root<WebIDL::Bu
         // 4.3. Queue a media element task to invoke errorCallback with error.
         if (error_callback) {
             queue_a_media_element_task(GC::create_function(heap(), [&realm, error_callback, error] {
-                auto completion = WebIDL::invoke_callback(*error_callback, {}, error);
+                auto completion = WebIDL::invoke_callback(*error_callback, {}, { { error } });
                 if (completion.is_abrupt())
                     HTML::report_exception(completion, realm);
             }));
@@ -293,7 +293,7 @@ void BaseAudioContext::queue_a_decoding_operation(GC::Ref<JS::PromiseCapability>
 
             // 4.2. If errorCallback is not missing, invoke errorCallback with error.
             if (error_callback) {
-                auto completion = WebIDL::invoke_callback(*error_callback, {}, error);
+                auto completion = WebIDL::invoke_callback(*error_callback, {}, { { error } });
                 if (completion.is_abrupt())
                     HTML::report_exception(completion, realm);
             }
@@ -317,7 +317,7 @@ void BaseAudioContext::queue_a_decoding_operation(GC::Ref<JS::PromiseCapability>
 
         // 5.2.3. If successCallback is not missing, invoke successCallback with buffer.
         if (success_callback) {
-            auto completion = WebIDL::invoke_callback(*success_callback, {}, buffer);
+            auto completion = WebIDL::invoke_callback(*success_callback, {}, { { buffer } });
             if (completion.is_abrupt())
                 HTML::report_exception(completion, realm);
         }
