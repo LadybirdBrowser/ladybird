@@ -2309,6 +2309,8 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
 
     (void)include_credentials;
     (void)is_new_connection_fetch;
+    (void)fetch_timing_info;
+    (void)cross_origin_isolated_capability;
 
     auto request = fetch_params.request();
 
@@ -2344,179 +2346,96 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
         log_load_request(load_request);
     }
 
-    // FIXME: This check should be removed and all HTTP requests should go through the `ResourceLoader::load_unbuffered`
-    //        path. The buffer option should then be supplied to the steps below that allow us to buffer data up to a
-    //        user-agent-defined limit (or not). However, we will need to fully use stream operations throughout the
-    //        fetch process to enable this (e.g. Body::fully_read must use streams for this to work).
-    if (request->buffer_policy() == Infrastructure::Request::BufferPolicy::DoNotBufferResponse) {
+    HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+
+    // 10. Let stream be a new ReadableStream.
+    auto stream = realm.create<Streams::ReadableStream>(realm);
+
+    // 9. Let buffer be an empty byte sequence.
+    auto fetched_data_receiver = realm.create<FetchedDataReceiver>(fetch_params, stream);
+
+    // 11. Let pullAlgorithm be the following steps:
+    auto pull_algorithm = GC::create_function(realm.heap(), [&realm, fetched_data_receiver]() {
+        // 1. Let promise be a new promise.
+        auto promise = WebIDL::create_promise(realm);
+
+        // 2. Run the following steps in parallel:
+        // NOTE: This is handled by FetchedDataReceiver.
+        fetched_data_receiver->set_pending_promise(promise);
+
+        // 3. Return promise.
+        return promise;
+    });
+
+    // 12. Let cancelAlgorithm be an algorithm that aborts fetchParams’s controller with reason, given reason.
+    auto cancel_algorithm = GC::create_function(realm.heap(), [&realm, &fetch_params](JS::Value reason) {
+        fetch_params.controller()->abort(realm, reason);
+        return WebIDL::create_resolved_promise(realm, JS::js_undefined());
+    });
+
+    // 13. Set up stream with byte reading support with pullAlgorithm set to pullAlgorithm, cancelAlgorithm set to cancelAlgorithm.
+    stream->set_up_with_byte_reading_support(pull_algorithm, cancel_algorithm);
+
+    auto on_headers_received = GC::create_function(vm.heap(), [&vm, pending_response, stream, request](HTTP::HeaderMap const& response_headers, Optional<u32> status_code, Optional<String> const& reason_phrase) {
+        if (pending_response->is_resolved()) {
+            // RequestServer will send us the response headers twice, the second time being for HTTP trailers. This
+            // fetch algorithm is not interested in trailers, so just drop them here.
+            return;
+        }
+
+        auto response = Infrastructure::Response::create(vm);
+        response->set_status(status_code.value_or(200));
+
+        if (reason_phrase.has_value())
+            response->set_status_message(MUST(ByteBuffer::copy(reason_phrase.value().bytes())));
+
+        (void)request;
+        if constexpr (WEB_FETCH_DEBUG) {
+            dbgln("Fetch: ResourceLoader load for '{}' {}: (status {})",
+                request->url(),
+                Infrastructure::is_ok_status(response->status()) ? "complete"sv : "failed"sv,
+                response->status());
+            log_response(status_code, response_headers, ReadonlyBytes {});
+        }
+
+        for (auto const& [name, value] : response_headers.headers()) {
+            auto header = Infrastructure::Header::from_latin1_pair(name, value);
+            response->header_list()->append(move(header));
+        }
+
+        // 14. Set response’s body to a new body whose stream is stream.
+        response->set_body(Infrastructure::Body::create(vm, stream));
+
+        // 17. Return response.
+        // NOTE: Typically response’s body’s stream is still being enqueued to after returning.
+        pending_response->resolve(response);
+    });
+
+    // 16. Run these steps in parallel:
+    //     FIXME: 1. Run these steps, but abort when fetchParams is canceled:
+    auto on_data_received = GC::create_function(vm.heap(), [fetched_data_receiver](ReadonlyBytes bytes) {
+        fetched_data_receiver->handle_network_bytes(bytes, FetchedDataReceiver::NetworkState::Ongoing);
+    });
+
+    auto on_complete = GC::create_function(vm.heap(), [&vm, &realm, pending_response, stream, fetched_data_receiver](bool success, Requests::RequestTimingInfo const&, Optional<StringView> error_message) {
+        // FIXME: Implement on_complete timing info for unbuffered requests
         HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
-        // 10. Let stream be a new ReadableStream.
-        auto stream = realm.create<Streams::ReadableStream>(realm);
-        auto fetched_data_receiver = realm.create<FetchedDataReceiver>(fetch_params, stream);
-
-        // 11. Let pullAlgorithm be the following steps:
-        auto pull_algorithm = GC::create_function(realm.heap(), [&realm, fetched_data_receiver]() {
-            // 1. Let promise be a new promise.
-            auto promise = WebIDL::create_promise(realm);
-
-            // 2. Run the following steps in parallel:
-            // NOTE: This is handled by FetchedDataReceiver.
-            fetched_data_receiver->set_pending_promise(promise);
-
-            // 3. Return promise.
-            return promise;
-        });
-
-        // 12. Let cancelAlgorithm be an algorithm that aborts fetchParams’s controller with reason, given reason.
-        auto cancel_algorithm = GC::create_function(realm.heap(), [&realm, &fetch_params](JS::Value reason) {
-            fetch_params.controller()->abort(realm, reason);
-            return WebIDL::create_resolved_promise(realm, JS::js_undefined());
-        });
-
-        // 13. Set up stream with byte reading support with pullAlgorithm set to pullAlgorithm, cancelAlgorithm set to cancelAlgorithm.
-        stream->set_up_with_byte_reading_support(pull_algorithm, cancel_algorithm);
-
-        auto on_headers_received = GC::create_function(vm.heap(), [&vm, request, pending_response, stream](HTTP::HeaderMap const& response_headers, Optional<u32> status_code, Optional<String> const& reason_phrase) {
-            (void)request;
-            if (pending_response->is_resolved()) {
-                // RequestServer will send us the response headers twice, the second time being for HTTP trailers. This
-                // fetch algorithm is not interested in trailers, so just drop them here.
-                return;
-            }
-
-            auto response = Infrastructure::Response::create(vm);
-            response->set_status(status_code.value_or(200));
-
-            if (reason_phrase.has_value())
-                response->set_status_message(MUST(ByteBuffer::copy(reason_phrase.value().bytes())));
-
-            if constexpr (WEB_FETCH_DEBUG) {
-                dbgln("Fetch: ResourceLoader load for '{}' {}: (status {})",
-                    request->url(),
-                    Infrastructure::is_ok_status(response->status()) ? "complete"sv : "failed"sv,
-                    response->status());
-                log_response(status_code, response_headers, ReadonlyBytes {});
-            }
-
-            for (auto const& [name, value] : response_headers.headers()) {
-                auto header = Infrastructure::Header::from_latin1_pair(name, value);
-                response->header_list()->append(move(header));
-            }
-
-            // 14. Set response’s body to a new body whose stream is stream.
-            response->set_body(Infrastructure::Body::create(vm, stream));
-
-            // 17. Return response.
-            // NOTE: Typically response’s body’s stream is still being enqueued to after returning.
-            pending_response->resolve(response);
-        });
-
-        // 16. Run these steps in parallel:
-        //    FIXME: 1. Run these steps, but abort when fetchParams is canceled:
-        auto on_data_received = GC::create_function(vm.heap(), [fetched_data_receiver](ReadonlyBytes bytes) {
-            // 1. If one or more bytes have been transmitted from response’s message body, then:
-            if (!bytes.is_empty()) {
-                // 1. Let bytes be the transmitted bytes.
-
-                // FIXME: 2. Let codings be the result of extracting header list values given `Content-Encoding` and response’s header list.
-                // FIXME: 3. Increase response’s body info’s encoded size by bytes’s length.
-                // FIXME: 4. Set bytes to the result of handling content codings given codings and bytes.
-                // FIXME: 5. Increase response’s body info’s decoded size by bytes’s length.
-                // FIXME: 6. If bytes is failure, then terminate fetchParams’s controller.
-
-                // 7. Append bytes to buffer.
-                fetched_data_receiver->on_data_received(bytes);
-
-                // FIXME: 8. If the size of buffer is larger than an upper limit chosen by the user agent, ask the user agent
-                //           to suspend the ongoing fetch.
-            }
-        });
-
-        auto on_complete = GC::create_function(vm.heap(), [&vm, &realm, pending_response, stream](bool success, Requests::RequestTimingInfo const&, Optional<StringView> error_message) {
-            dbgln("FIXME: Implement on_complete timing info for unbuffered requests");
-            HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
-
-            // 16.1.1.2. Otherwise, if the bytes transmission for response’s message body is done normally and stream is readable,
-            //           then close stream, and abort these in-parallel steps.
-            if (success) {
-                if (stream->is_readable())
-                    stream->close();
-            }
+        if (success) {
+            fetched_data_receiver->handle_network_bytes({}, FetchedDataReceiver::NetworkState::Complete);
+        } else {
             // 16.1.2.2. Otherwise, if stream is readable, error stream with a TypeError.
-            else {
-                auto error = MUST(String::formatted("Load failed: {}", error_message));
+            auto error = MUST(String::formatted("Load failed: {}", error_message.value_or("Unknown error"sv)));
 
-                if (stream->is_readable())
-                    stream->error(JS::TypeError::create(realm, error));
+            if (stream->is_readable())
+                stream->error(JS::TypeError::create(realm, error));
 
-                if (!pending_response->is_resolved())
-                    pending_response->resolve(Infrastructure::Response::network_error(vm, error));
-            }
-        });
+            if (!pending_response->is_resolved())
+                pending_response->resolve(Infrastructure::Response::network_error(vm, error));
+        }
+    });
 
-        ResourceLoader::the().load_unbuffered(load_request, on_headers_received, on_data_received, on_complete);
-    } else {
-        auto on_load_success = GC::create_function(vm.heap(), [&realm, &vm, request, pending_response, fetch_timing_info, cross_origin_isolated_capability](ReadonlyBytes data, Requests::RequestTimingInfo const& timing_info, HTTP::HeaderMap const& response_headers, Optional<u32> status_code, Optional<String> const& reason_phrase) {
-            (void)request;
-            dbgln_if(WEB_FETCH_DEBUG, "Fetch: ResourceLoader load for '{}' complete", request->url());
-            if constexpr (WEB_FETCH_DEBUG)
-                log_response(status_code, response_headers, data);
-            auto [body, _] = TRY_OR_IGNORE(extract_body(realm, data));
-            auto response = Infrastructure::Response::create(vm);
-            response->set_status(status_code.value_or(200));
-            response->set_body(move(body));
-            auto body_info = response->body_info();
-            body_info.encoded_size = timing_info.encoded_body_size;
-            body_info.decoded_size = data.size();
-            response->set_body_info(body_info);
-            for (auto const& [name, value] : response_headers.headers()) {
-                auto header = Infrastructure::Header::from_latin1_pair(name, value);
-                response->header_list()->append(move(header));
-            }
-
-            if (reason_phrase.has_value())
-                response->set_status_message(MUST(ByteBuffer::copy(reason_phrase.value().bytes())));
-
-            fetch_timing_info->update_final_timings(timing_info, cross_origin_isolated_capability);
-
-            pending_response->resolve(response);
-        });
-
-        auto on_load_error = GC::create_function(vm.heap(), [&realm, &vm, request, pending_response, fetch_timing_info, cross_origin_isolated_capability](ByteString const& error, Requests::RequestTimingInfo const& timing_info, Optional<u32> status_code, Optional<String> const& reason_phrase, ReadonlyBytes data, HTTP::HeaderMap const& response_headers) {
-            (void)request;
-            dbgln_if(WEB_FETCH_DEBUG, "Fetch: ResourceLoader load for '{}' failed: {} (status {})", request->url(), error, status_code.value_or(0));
-            if constexpr (WEB_FETCH_DEBUG)
-                log_response(status_code, response_headers, data);
-            auto response = Infrastructure::Response::create(vm);
-            // FIXME: This is ugly, ResourceLoader should tell us.
-            if (status_code.value_or(0) == 0) {
-                response = Infrastructure::Response::network_error(vm, TRY_OR_IGNORE(String::from_byte_string(error)));
-            } else {
-                response->set_type(Infrastructure::Response::Type::Error);
-                response->set_status(status_code.value_or(400));
-                auto [body, _] = TRY_OR_IGNORE(extract_body(realm, data));
-                response->set_body(move(body));
-                auto body_info = response->body_info();
-                body_info.encoded_size = timing_info.encoded_body_size;
-                body_info.decoded_size = data.size();
-                response->set_body_info(body_info);
-                for (auto const& [name, value] : response_headers.headers()) {
-                    auto header = Infrastructure::Header::from_latin1_pair(name, value);
-                    response->header_list()->append(move(header));
-                }
-
-                if (reason_phrase.has_value())
-                    response->set_status_message(MUST(ByteBuffer::copy(reason_phrase.value().bytes())));
-            }
-
-            fetch_timing_info->update_final_timings(timing_info, cross_origin_isolated_capability);
-
-            pending_response->resolve(response);
-        });
-
-        ResourceLoader::the().load(load_request, on_load_success, on_load_error);
-    }
+    ResourceLoader::the().load_unbuffered(load_request, on_headers_received, on_data_received, on_complete);
 
     return pending_response;
 }

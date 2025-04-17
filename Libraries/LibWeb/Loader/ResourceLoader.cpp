@@ -544,8 +544,9 @@ void ResourceLoader::load_unbuffered(LoadRequest& request, GC::Root<OnHeadersRec
     }
 
     if (!url.scheme().is_one_of("http"sv, "https"sv)) {
-        // FIXME: Non-network requests from fetch should not go through this path.
-        on_complete->function()(false, {}, "Cannot establish connection non-network scheme"sv);
+        auto not_implemented_error = ByteString::formatted("Protocol not implemented: {}", url.scheme());
+        log_failure(request, not_implemented_error);
+        on_complete->function()(false, {}, not_implemented_error);
         return;
     }
 
