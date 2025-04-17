@@ -14,8 +14,8 @@ namespace Web::XHR {
 
 struct ProgressEventInit : public DOM::EventInit {
     bool length_computable { false };
-    WebIDL::UnsignedLongLong loaded { 0 };
-    WebIDL::UnsignedLongLong total { 0 };
+    WebIDL::Double loaded { 0 };
+    WebIDL::Double total { 0 };
 };
 
 class ProgressEvent final : public DOM::Event {
@@ -29,8 +29,8 @@ public:
     virtual ~ProgressEvent() override;
 
     bool length_computable() const { return m_length_computable; }
-    WebIDL::UnsignedLongLong loaded() const { return m_loaded; }
-    WebIDL::UnsignedLongLong total() const { return m_total; }
+    WebIDL::Double loaded() const { return m_loaded; }
+    WebIDL::Double total() const { return m_total; }
 
 private:
     ProgressEvent(JS::Realm&, FlyString const& event_name, ProgressEventInit const& event_init);
@@ -38,8 +38,8 @@ private:
     virtual void initialize(JS::Realm&) override;
 
     bool m_length_computable { false };
-    WebIDL::UnsignedLongLong m_loaded { 0 };
-    WebIDL::UnsignedLongLong m_total { 0 };
+    WebIDL::Double m_loaded { 0 };
+    WebIDL::Double m_total { 0 };
 };
 
 }
