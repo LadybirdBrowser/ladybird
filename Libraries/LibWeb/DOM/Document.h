@@ -435,7 +435,7 @@ public:
     void set_active_element(Element*);
 
     Element const* target_element() const { return m_target_element.ptr(); }
-    void set_target_element(Element*);
+    void set_target_element(GC::Ptr<Element>);
 
     void try_to_scroll_to_the_fragment();
     void scroll_to_the_fragment();

@@ -2523,16 +2523,36 @@ void Document::set_active_element(Element* element)
         paintable()->set_needs_display();
 }
 
-void Document::set_target_element(Element* element)
+void Document::set_target_element(GC::Ptr<Element> element)
 {
     if (m_target_element.ptr() == element)
         return;
 
     GC::Ptr<Element> old_target_element = move(m_target_element);
-    m_target_element = element;
 
-    if (auto* invalidation_target = find_common_ancestor(old_target_element, m_target_element) ?: this)
-        invalidation_target->invalidate_style(StyleInvalidationReason::TargetElementChange);
+    auto* common_ancestor = find_common_ancestor(old_target_element, element);
+
+    GC::Ptr<Node> old_target_node_root = nullptr;
+    GC::Ptr<Node> new_target_node_root = nullptr;
+    if (old_target_element)
+        old_target_node_root = old_target_element->root();
+    if (element)
+        new_target_node_root = element->root();
+    if (old_target_node_root != new_target_node_root) {
+        if (old_target_node_root) {
+            invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::Target, m_target_element, *old_target_node_root, element);
+            invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::TargetWithin, m_target_element, *old_target_node_root, element);
+        }
+        if (new_target_node_root) {
+            invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::Target, m_target_element, *new_target_node_root, element);
+            invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::TargetWithin, m_target_element, *new_target_node_root, element);
+        }
+    } else {
+        invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::Target, m_target_element, *common_ancestor, element);
+        invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::TargetWithin, m_target_element, *common_ancestor, element);
+    }
+
+    m_target_element = element;
 
     if (paintable())
         paintable()->set_needs_display();
