@@ -17,6 +17,7 @@
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/WebIDL/Promise.h>
 
+
 namespace Web::Clipboard {
 
 GC_DEFINE_ALLOCATOR(Clipboard);
@@ -139,6 +140,144 @@ static bool check_clipboard_write_permission(JS::Realm& realm)
     // 3. Otherwise, return false.
     return false;
 }
+
+// https://w3c.github.io/clipboard-apis/#check-clipboard-write-permission
+static bool check_clipboard_read_permission(JS::Realm& realm)
+{
+    // NOTE: The clipboard permission is undergoing a refactor because the clipboard-write permission was removed from
+    //       the Permissions spec. So this partially implements the proposed update:
+    //       https://pr-preview.s3.amazonaws.com/w3c/clipboard-apis/pull/164.html#write-permission
+
+    // 1. Let hasGesture be true if the relevant global object of this has transient activation, false otherwise.
+    auto has_gesture = as<HTML::Window>(realm.global_object()).has_transient_activation();
+
+    // 2. If hasGesture then,
+    if (has_gesture) {
+        // FIXME: 1. Return true if the current script is running as a result of user interaction with a "Paste" 
+        //           element created by the user agent or operating system.
+        return true;
+    }
+
+    // 3. Otherwise, return false.
+    return false;
+}
+
+
+// https://w3c.github.io/clipboard-apis/#dom-clipboard-readtext
+GC::Ref<WebIDL::Promise> Clipboard::read_text()
+{
+    // 1. Let realm be this's relevant realm.
+    auto& realm = HTML::relevant_realm(*this);
+
+    // 2. Let p be a new promise in realm.
+    auto promise = WebIDL::create_promise(realm);
+
+    // 3. Run the following steps in parallel:
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, promise]() mutable {
+        // 1. Let r be the result of running check clipboard write permission.
+        auto result = check_clipboard_read_permission(realm);
+
+        // 2. If r is false, then:
+        if (!result) {
+            // 1. Queue a global task on the permission task source, given realm’s global object, to reject p with
+            //    "NotAllowedError" DOMException in realm.
+            queue_global_task(HTML::Task::Source::Permissions, realm.global_object(), GC::create_function(realm.heap(), [&realm, promise]() mutable {
+                HTML::TemporaryExecutionContext execution_context { realm };
+                WebIDL::reject_promise(realm, promise, WebIDL::NotAllowedError::create(realm, "Clipboard reading is only allowed through user activation"_string));
+            }));
+
+            // 2. Abort these steps.
+            return;
+        }
+
+        // 3. TODO Let data be a copy of the system clipboard data.
+        auto data = AK::Vector<SystemClipboardItem> {};
+
+
+        // 4. Queue a global task on the clipboard task source, given realm’s global object, to perform the below steps:
+        queue_global_task(HTML::Task::Source::Clipboard, realm.global_object(), GC::create_function(realm.heap(), [&realm, promise, data = move(data)]() mutable {
+
+            // 1. For each systemClipboardItem in data:
+            for (auto const& systemClipboardItem : data) {
+
+                // 1. For each systemClipboardRepresentation in systemClipboardItem:
+                for (auto const& systemClipboardRepresentation : systemClipboardItem.representations) {
+                    
+                    // 1. Let mimeType be the result of running the well-known mime type from os specific format algorithm given systemClipboardRepresentation’s name.
+                    auto mime_type = os_specific_well_known_format(systemClipboardRepresentation.name);
+
+                    // 2. If mimeType is null, continue this loop.
+                    if (mime_type.is_null())
+                        continue;
+
+                    // 3. Let representation be a new representation. NEW?? Or 
+                    // Create the new representation object
+                    auto representation = ClipboardItem::Representation{};
+
+                    // 4. If representation’s MIME type essence is "text/plain", then:
+                    if (representation.mime_type == "text/plain"sv) {
+
+                        // 1. Set representation’s MIME type to mimeType.
+                        representation.mime_type = mime_type;
+
+                        // 2. Let representationDataPromise be the representation’s data.
+                        auto representationDataPromise = representation.data;// representation.data();
+
+                        // 3. React to representationDataPromise:
+                        WebIDL::react_to_promise(representationDataPromise,
+
+                            // 1. If representationDataPromise was fulfilled with value v, then:
+                            GC::create_function(realm.heap(), [&realm, promise](JS::Value v) -> WebIDL::ExceptionOr<JS::Value> {
+                                HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+
+                                // 1. If v is a DOMString, then follow the below steps:
+                                if (v.is_string()) {
+
+                                    // 1. Resolve p with v.
+                                    // 2. Return p.
+                                    HTML::TemporaryExecutionContext execution_context { realm };
+                                    WebIDL::resolve_promise(realm, promise, v);
+                                }
+
+                                // 2. If v is a Blob, then follow the below steps:
+                                if (v.is_object() && v.as_object().class_name() == "Blob") { // or "FileAPI::Blob" ?
+
+                                    auto blob = dynamic_cast<FileAPI::Blob*>(&v.as_object());
+
+                                    // 1. Let string be the result of UTF-8 decoding v’s underlying byte sequence.
+                                    auto decoder = TextCodec::decoder_for("UTF-8"sv);
+                                    auto string = MUST(TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, blob->raw_bytes()));
+
+                                    // 2. Resolve p with string.
+                                    // 3. Return p.
+                                    HTML::TemporaryExecutionContext execution_context { realm };
+                                    WebIDL::resolve_promise(realm, promise, JS::Value(string));
+                                }
+                            }),
+                            // 2. If representationDataPromise was rejected, then:
+                            GC::create_function(realm.heap(), [&realm, promise](JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
+                                
+                                // 1. Reject p with "NotFoundError" DOMException in realm.
+                                // 2. Return p.
+                                HTML::TemporaryExecutionContext execution_context { realm };
+                                WebIDL::resolve_promise(realm, promise, WebIDL::NotFoundError::create(realm, "Clipboard data not found"_string));
+                            })
+                        );                
+                    }
+                }
+            }
+
+            // 2. Reject p with "NotFoundError" DOMException in realm.
+            // 3. Return p.
+            HTML::TemporaryExecutionContext execution_context { realm };
+            WebIDL::resolve_promise(realm, promise, WebIDL::NotFoundError::create(realm, "Clipboard data not found"_string));
+
+        }));
+
+    }));
+
+}
+
 
 // https://w3c.github.io/clipboard-apis/#dom-clipboard-writetext
 GC::Ref<WebIDL::Promise> Clipboard::write_text(String data)
