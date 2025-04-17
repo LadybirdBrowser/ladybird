@@ -1779,11 +1779,11 @@ void Document::invalidate_style_of_elements_affected_by_has()
     }
 }
 
-void Document::invalidate_style_for_elements_affected_by_hover_change(Node& old_new_hovered_common_ancestor, GC::Ptr<Node> hovered_node)
+void Document::invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass pseudo_class, auto& element_slot, Node& old_new_common_ancestor, auto node)
 {
-    auto const& hover_rules = style_computer().get_hover_rules();
+    auto const& rules = style_computer().get_pseudo_class_rule_cache(pseudo_class);
 
-    auto& root = old_new_hovered_common_ancestor.root();
+    auto& root = old_new_common_ancestor.root();
     auto shadow_root = is<ShadowRoot>(root) ? static_cast<ShadowRoot const*>(&root) : nullptr;
 
     auto& style_computer = this->style_computer();
@@ -1814,12 +1814,12 @@ void Document::invalidate_style_for_elements_affected_by_hover_change(Node& old_
         return false;
     };
 
-    auto matches_different_set_of_hover_rules_after_hovered_element_change = [&](Element const& element) {
+    auto matches_different_set_of_rules_after_state_change = [&](Element const& element) {
         bool result = false;
-        hover_rules.for_each_matching_rules(element, {}, [&](auto& rules) {
+        rules.for_each_matching_rules(element, {}, [&](auto& rules) {
             for (auto& rule : rules) {
                 bool before = does_rule_match_on_element(element, rule);
-                TemporaryChange change { m_hovered_node, hovered_node };
+                TemporaryChange change { element_slot, node };
                 bool after = does_rule_match_on_element(element, rule);
                 if (before != after) {
                     result = true;
@@ -1831,17 +1831,17 @@ void Document::invalidate_style_for_elements_affected_by_hover_change(Node& old_
         return result;
     };
 
-    Function<void(Node&)> invalidate_hovered_elements_recursively = [&](Node& node) -> void {
+    Function<void(Node&)> invalidate_affected_elements_recursively = [&](Node& node) -> void {
         if (node.is_element()) {
             auto& element = static_cast<Element&>(node);
             style_computer.push_ancestor(element);
-            if (element.affected_by_hover() && matches_different_set_of_hover_rules_after_hovered_element_change(element)) {
+            if (element.affected_by_pseudo_class(pseudo_class) && matches_different_set_of_rules_after_state_change(element)) {
                 element.set_needs_style_update(true);
             }
         }
 
         node.for_each_child([&](auto& child) {
-            invalidate_hovered_elements_recursively(child);
+            invalidate_affected_elements_recursively(child);
             return IterationDecision::Continue;
         });
 
@@ -1849,12 +1849,12 @@ void Document::invalidate_style_for_elements_affected_by_hover_change(Node& old_
             style_computer.pop_ancestor(static_cast<Element&>(node));
     };
 
-    invalidate_hovered_elements_recursively(root);
+    invalidate_affected_elements_recursively(root);
 }
 
-void Document::set_hovered_node(Node* node)
+void Document::set_hovered_node(GC::Ptr<Node> node)
 {
-    if (m_hovered_node.ptr() == node)
+    if (m_hovered_node == node)
         return;
 
     GC::Ptr<Node> old_hovered_node = move(m_hovered_node);
@@ -1868,11 +1868,11 @@ void Document::set_hovered_node(Node* node)
         new_hovered_node_root = node->root();
     if (old_hovered_node_root != new_hovered_node_root) {
         if (old_hovered_node_root)
-            invalidate_style_for_elements_affected_by_hover_change(*old_hovered_node_root, node);
+            invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::Hover, m_hovered_node, *old_hovered_node_root, node);
         if (new_hovered_node_root)
-            invalidate_style_for_elements_affected_by_hover_change(*new_hovered_node_root, node);
+            invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::Hover, m_hovered_node, *new_hovered_node_root, node);
     } else {
-        invalidate_style_for_elements_affected_by_hover_change(*common_ancestor, node);
+        invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::Hover, m_hovered_node, *common_ancestor, node);
     }
 
     m_hovered_node = node;

@@ -60,6 +60,7 @@ enum class PseudoClass {
         member_generator.appendln("    @name:titlecase@,");
     });
     generator.append(R"~~~(
+    __Count,
 };
 
 Optional<PseudoClass> pseudo_class_from_string(StringView);
@@ -123,6 +124,8 @@ Optional<PseudoClass> pseudo_class_from_string(StringView string)
 StringView pseudo_class_name(PseudoClass pseudo_class)
 {
     switch (pseudo_class) {
+    case PseudoClass::__Count:
+        VERIFY_NOT_REACHED();
 )~~~");
 
     pseudo_classes_data.for_each_member([&](auto& name, auto&) {
@@ -144,6 +147,8 @@ StringView pseudo_class_name(PseudoClass pseudo_class)
 PseudoClassMetadata pseudo_class_metadata(PseudoClass pseudo_class)
 {
     switch (pseudo_class) {
+    case PseudoClass::__Count:
+        VERIFY_NOT_REACHED();
 )~~~");
 
     pseudo_classes_data.for_each_member([&](auto& name, JsonValue const& value) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2024, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2018-2025, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2023-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -18,6 +18,8 @@
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/LengthBox.h>
 #include <LibWeb/CSS/PropertyID.h>
+#include <LibWeb/CSS/PseudoClass.h>
+#include <LibWeb/CSS/PseudoClassBitmap.h>
 #include <LibWeb/CSS/StyleProperty.h>
 
 namespace Web::CSS {
@@ -228,8 +230,15 @@ public:
 
     static float resolve_opacity_value(CSSStyleValue const& value);
 
-    bool did_match_any_hover_rules() const { return m_did_match_any_hover_rules; }
-    void set_did_match_any_hover_rules() { m_did_match_any_hover_rules = true; }
+    bool has_attempted_match_against_pseudo_class(PseudoClass pseudo_class) const
+    {
+        return m_attempted_pseudo_class_matches.get(pseudo_class);
+    }
+
+    void set_attempted_pseudo_class_matches(PseudoClassBitmap const& results)
+    {
+        m_attempted_pseudo_class_matches = results;
+    }
 
 private:
     friend class StyleComputer;
@@ -256,7 +265,7 @@ private:
 
     Optional<CSSPixels> m_line_height;
 
-    bool m_did_match_any_hover_rules { false };
+    PseudoClassBitmap m_attempted_pseudo_class_matches;
 };
 
 }
