@@ -1319,9 +1319,9 @@ static WebIDL::ExceptionOr<GC::Ref<Bindings::PlatformObject>> create_transferred
 }
 
 // https://html.spec.whatwg.org/multipage/structured-data.html#structureddeserializewithtransfer
-WebIDL::ExceptionOr<DeserializedTransferRecord> structured_deserialize_with_transfer(JS::VM& vm, SerializedTransferRecord& serialize_with_transfer_result)
+WebIDL::ExceptionOr<DeserializedTransferRecord> structured_deserialize_with_transfer(SerializedTransferRecord& serialize_with_transfer_result, JS::Realm& target_realm)
 {
-    auto& target_realm = *vm.current_realm();
+    auto& vm = target_realm.vm();
 
     // 1. Let memory be an empty map.
     auto memory = DeserializationMemory(vm.heap());
