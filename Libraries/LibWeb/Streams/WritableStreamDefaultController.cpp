@@ -9,6 +9,7 @@
 #include <LibWeb/DOM/AbortSignal.h>
 #include <LibWeb/Streams/WritableStream.h>
 #include <LibWeb/Streams/WritableStreamDefaultController.h>
+#include <LibWeb/Streams/WritableStreamOperations.h>
 
 namespace Web::Streams {
 
