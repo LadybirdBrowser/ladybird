@@ -6,9 +6,9 @@
 
 #include <LibJS/Runtime/Promise.h>
 #include <LibJS/Runtime/PromiseCapability.h>
-#include <LibWeb/Streams/AbstractOperations.h>
 #include <LibWeb/Streams/ReadableStream.h>
 #include <LibWeb/Streams/ReadableStreamGenericReader.h>
+#include <LibWeb/Streams/ReadableStreamOperations.h>
 #include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::Streams {
