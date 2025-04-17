@@ -14,7 +14,7 @@
 #include <LibWeb/HTML/FormControlInfrastructure.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
-#include <LibWeb/Streams/AbstractOperations.h>
+#include <LibWeb/Streams/ReadableStream.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/Buffers.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>

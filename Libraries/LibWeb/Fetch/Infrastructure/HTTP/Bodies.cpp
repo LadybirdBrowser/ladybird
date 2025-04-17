@@ -13,7 +13,7 @@
 #include <LibWeb/Fetch/Infrastructure/IncrementalReadLoopReadRequest.h>
 #include <LibWeb/Fetch/Infrastructure/Task.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
-#include <LibWeb/Streams/AbstractOperations.h>
+#include <LibWeb/Streams/ReadableStream.h>
 
 namespace Web::Fetch::Infrastructure {
 
@@ -30,12 +30,12 @@ GC::Ref<Body> Body::create(JS::VM& vm, GC::Ref<Streams::ReadableStream> stream, 
 }
 
 Body::Body(GC::Ref<Streams::ReadableStream> stream)
-    : m_stream(move(stream))
+    : m_stream(stream)
 {
 }
 
 Body::Body(GC::Ref<Streams::ReadableStream> stream, SourceType source, Optional<u64> length)
-    : m_stream(move(stream))
+    : m_stream(stream)
     , m_source(move(source))
     , m_length(move(length))
 {

@@ -20,7 +20,9 @@ struct ReadableStreamReadResult {
     bool done;
 };
 
+namespace Detail {
 class ReadableStreamPipeTo;
+}
 
 class ReadRequest : public JS::Cell {
     GC_CELL(ReadRequest, JS::Cell);
@@ -99,7 +101,7 @@ public:
 
     SinglyLinkedList<GC::Ref<ReadRequest>>& read_requests() { return m_read_requests; }
 
-    void set_readable_stream_pipe_to_operation(Badge<ReadableStreamPipeTo>, GC::Ptr<JS::Cell> readable_stream_pipe_to_operation) { m_readable_stream_pipe_to_operation = readable_stream_pipe_to_operation; }
+    void set_readable_stream_pipe_to_operation(Badge<Detail::ReadableStreamPipeTo>, GC::Ptr<JS::Cell> readable_stream_pipe_to_operation) { m_readable_stream_pipe_to_operation = readable_stream_pipe_to_operation; }
 
 private:
     explicit ReadableStreamDefaultReader(JS::Realm&);

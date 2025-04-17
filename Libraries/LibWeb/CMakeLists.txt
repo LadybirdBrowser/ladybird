@@ -749,6 +749,9 @@ set(SOURCES
     Streams/ReadableStreamDefaultController.cpp
     Streams/ReadableStreamDefaultReader.cpp
     Streams/ReadableStreamGenericReader.cpp
+    Streams/ReadableStreamOperations.cpp
+    Streams/ReadableStreamPipeTo.cpp
+    Streams/ReadableStreamTee.cpp
     Streams/Transformer.cpp
     Streams/TransformStream.cpp
     Streams/TransformStreamDefaultController.cpp
