@@ -489,27 +489,9 @@ to listen on this port and pretty-print the JSON packets. You will have to insta
 
 https://github.com/servo/servo/blob/main/etc/devtools_parser.py
 
-You may run into issues with the latest version of Firefox using this script directly, such as exceptions being thrown
-while decoding packets. The following patch helps with this:
-
-```diff
-diff --git a/etc/devtools_parser.py b/etc/devtools_parser.py
-index d33a4ee330..3d5dc74a32 100755
---- a/etc/devtools_parser.py
-+++ b/etc/devtools_parser.py
-@@ -118,7 +118,7 @@ def process_data(out, port):
-             continue
-         try:
-             dec = bytearray.fromhex(curr_data).decode()
--        except UnicodeError:
-+        except:
-             continue
-
-         indices = [m.span() for m in re.finditer(pattern, dec)]
-```
-
-Since such exceptions are hit fairly regularly, it is recommended to run this script in two phases. First, use the script
-to snoop on the DevTools port and write out a packet capture. You may need to run this script with `sudo`.
+You may run into cases where the script does not log all captured packets. Since this occurs fairly regularly, it is
+recommended to run this script in two phases. First, use the script to snoop on the DevTools port and write out a packet
+capture. You may need to run this script with `sudo`.
 
 ```bash
 ./etc/devtools_parser.py -s /tmp/devtools.pcap -p 6000
@@ -522,8 +504,8 @@ Now, use `about:debugging` to connect to the Firefox DevTools server and inspect
 exercise the feature you wish to implement.
 
 Once complete, use `ctrl+c` on Servo's snooping script to complete the capture. The script will try to print all packets
-at this point, but due to the aforementioned exceptions, it is likely that this will not print everything. So we can use
-the script again to inspect the now-existing .pcap, and it seems to have better luck printing everything this way:
+at this point, but due to the aforementioned incomplete logging, it is likely that this will not print everything. So we
+can use the script again to inspect the now-existing .pcap, and it should be able to print everything this way:
 
 ```bash
 ./etc/devtools_parser.py --use /tmp/devtools.pcap -p 6000
