@@ -49,7 +49,6 @@ enum class ShouldComputeRole {
 };
 
 #define ENUMERATE_STYLE_INVALIDATION_REASONS(X)     \
-    X(ActiveElementChange)                          \
     X(AdoptedStyleSheetsList)                       \
     X(CSSFontLoaded)                                \
     X(CSSImportRule)                                \
@@ -60,7 +59,6 @@ enum class ShouldComputeRole {
     X(EditingInsertion)                             \
     X(ElementAttributeChange)                       \
     X(ElementSetShadowRoot)                         \
-    X(FocusedElementChange)                         \
     X(HTMLHyperlinkElementHrefChange)               \
     X(HTMLIFrameElementGeometryChange)              \
     X(HTMLInputElementSetChecked)                   \
@@ -68,7 +66,6 @@ enum class ShouldComputeRole {
     X(HTMLObjectElementUpdateLayoutAndChildObjects) \
     X(HTMLOptionElementSelectedChange)              \
     X(HTMLSelectElementSetIsOpen)                   \
-    X(Hover)                                        \
     X(MediaListSetMediaText)                        \
     X(MediaListAppendMedium)                        \
     X(MediaListDeleteMedium)                        \
@@ -83,8 +80,7 @@ enum class ShouldComputeRole {
     X(StyleSheetDeleteRule)                         \
     X(StyleSheetInsertRule)                         \
     X(StyleSheetListAddSheet)                       \
-    X(StyleSheetListRemoveSheet)                    \
-    X(TargetElementChange)
+    X(StyleSheetListRemoveSheet)
 
 enum class StyleInvalidationReason {
 #define __ENUMERATE_STYLE_INVALIDATION_REASON(reason) reason,
