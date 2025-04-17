@@ -674,6 +674,10 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue const>> Parser::parse_css_value
         if (auto parsed_value = parse_list_of_time_values(property_id, tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
+    case PropertyID::TransitionDuration:
+        if (auto parsed_value = parse_list_of_time_values(property_id, tokens); parsed_value && !tokens.has_next_token())
+            return parsed_value.release_nonnull();
+        return ParseError::SyntaxError;
     case PropertyID::TransitionProperty:
         if (auto parsed_value = parse_transition_property_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
@@ -3807,6 +3811,7 @@ RefPtr<CSSStyleValue const> Parser::parse_list_of_time_values(PropertyID propert
     transaction.commit();
     return StyleValueList::create(move(time_value_list), StyleValueList::Separator::Comma);
 }
+
 RefPtr<CSSStyleValue const> Parser::parse_transition_property_value(TokenStream<ComponentValue>& tokens)
 {
     // https://drafts.csswg.org/css-transitions/#transition-property-property
