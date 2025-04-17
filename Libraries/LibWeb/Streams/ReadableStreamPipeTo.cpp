@@ -6,12 +6,12 @@
 
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
-#include <LibWeb/Streams/AbstractOperations.h>
 #include <LibWeb/Streams/ReadableStreamDefaultReader.h>
 #include <LibWeb/Streams/ReadableStreamOperations.h>
 #include <LibWeb/Streams/ReadableStreamPipeTo.h>
 #include <LibWeb/Streams/WritableStream.h>
 #include <LibWeb/Streams/WritableStreamDefaultWriter.h>
+#include <LibWeb/Streams/WritableStreamOperations.h>
 #include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::Streams::Detail {

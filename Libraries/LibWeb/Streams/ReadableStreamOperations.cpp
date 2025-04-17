@@ -31,6 +31,7 @@
 #include <LibWeb/Streams/UnderlyingSource.h>
 #include <LibWeb/Streams/WritableStream.h>
 #include <LibWeb/Streams/WritableStreamDefaultWriter.h>
+#include <LibWeb/Streams/WritableStreamOperations.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/Buffers.h>
 #include <LibWeb/WebIDL/Promise.h>
