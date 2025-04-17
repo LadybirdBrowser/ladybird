@@ -3724,7 +3724,7 @@ RefPtr<CSSStyleValue const> Parser::parse_transition_value(TokenStream<Component
     while (tokens.has_next_token()) {
         TransitionStyleValue::Transition transition;
         auto time_value_count = 0;
-
+        bool transition_behavior_found = false;
         while (tokens.has_next_token() && !tokens.next_token().is(Token::Type::Comma)) {
             if (auto maybe_time = parse_time(tokens); maybe_time.has_value()) {
                 auto time = maybe_time.release_value();
@@ -3757,6 +3757,14 @@ RefPtr<CSSStyleValue const> Parser::parse_transition_value(TokenStream<Component
                 continue;
             }
 
+            if (!transition_behavior_found && (tokens.peek_token().is_ident("normal"sv) || tokens.peek_token().is_ident("allow-discrete"sv))) {
+                transition_behavior_found = true;
+                auto ident = tokens.consume_a_token().token().ident();
+                if (ident == "allow-discrete"sv)
+                    transition.transition_behavior = TransitionBehavior::AllowDiscrete;
+                continue;
+            }
+
             if (auto token = tokens.peek_token(); token.is_ident("all"sv)) {
                 auto transition_keyword = parse_keyword_value(tokens);
                 VERIFY(transition_keyword->to_keyword() == Keyword::All);
@@ -3775,10 +3783,10 @@ RefPtr<CSSStyleValue const> Parser::parse_transition_value(TokenStream<Component
                 }
 
                 auto custom_ident = transition_property->custom_ident();
-                if (auto property = property_id_from_string(custom_ident); property.has_value())
+                if (auto property = property_id_from_string(custom_ident); property.has_value()) {
                     transition.property_name = CustomIdentStyleValue::create(custom_ident);
-
-                continue;
+                    continue;
+                }
             }
 
             dbgln_if(CSS_PARSER_DEBUG, "Transition property has unexpected token \"{}\"", tokens.next_token().to_string());

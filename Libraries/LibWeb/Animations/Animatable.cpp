@@ -11,6 +11,7 @@
 #include <LibWeb/Animations/DocumentTimeline.h>
 #include <LibWeb/Animations/PseudoElementParsing.h>
 #include <LibWeb/CSS/CSSTransition.h>
+#include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
 #include <LibWeb/CSS/StyleValues/EasingStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
 #include <LibWeb/DOM/Document.h>
@@ -127,21 +128,23 @@ void Animatable::disassociate_with_animation(GC::Ref<Animation> animation)
     impl.associated_animations.remove_first_matching([&](auto element) { return animation == element; });
 }
 
-void Animatable::add_transitioned_properties(Vector<Vector<CSS::PropertyID>> properties, CSS::StyleValueVector delays, CSS::StyleValueVector durations, CSS::StyleValueVector timing_functions)
+void Animatable::add_transitioned_properties(Vector<Vector<CSS::PropertyID>> properties, CSS::StyleValueVector delays, CSS::StyleValueVector durations, CSS::StyleValueVector timing_functions, CSS::StyleValueVector transition_behaviors)
 {
     auto& impl = ensure_impl();
 
     VERIFY(properties.size() == delays.size());
     VERIFY(properties.size() == durations.size());
     VERIFY(properties.size() == timing_functions.size());
+    VERIFY(properties.size() == transition_behaviors.size());
 
     for (size_t i = 0; i < properties.size(); i++) {
         size_t index_of_this_transition = impl.transition_attributes.size();
         auto delay = delays[i]->is_time() ? delays[i]->as_time().time().to_milliseconds() : 0;
         auto duration = durations[i]->is_time() ? durations[i]->as_time().time().to_milliseconds() : 0;
         auto timing_function = timing_functions[i]->is_easing() ? timing_functions[i]->as_easing().function() : CSS::EasingStyleValue::CubicBezier::ease();
+        auto transition_behavior = CSS::keyword_to_transition_behavior(transition_behaviors[i]->to_keyword()).value_or(CSS::TransitionBehavior::Normal);
         VERIFY(timing_functions[i]->is_easing());
-        impl.transition_attributes.empend(delay, duration, timing_function);
+        impl.transition_attributes.empend(delay, duration, timing_function, transition_behavior);
 
         for (auto const& property : properties[i])
             impl.transition_attribute_indices.set(property, index_of_this_transition);

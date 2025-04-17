@@ -2986,7 +2986,17 @@
       "transition-property",
       "transition-duration",
       "transition-timing-function",
-      "transition-delay"
+      "transition-delay",
+      "transition-behavior"
+    ]
+  },
+  "transition-behavior": {
+    "affects-layout": false,
+    "animation-type": "none",
+    "inherited": false,
+    "initial": "normal",
+    "valid-types": [
+      "transition-behavior"
     ]
   },
   "transition-delay": {

@@ -913,22 +913,25 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
             set_longhand_property(CSS::PropertyID::TransitionDuration, TimeStyleValue::create(CSS::Time::make_seconds(0)));
             set_longhand_property(CSS::PropertyID::TransitionDelay, TimeStyleValue::create(CSS::Time::make_seconds(0)));
             set_longhand_property(CSS::PropertyID::TransitionTimingFunction, EasingStyleValue::create(EasingStyleValue::CubicBezier::ease()));
+            set_longhand_property(CSS::PropertyID::TransitionBehavior, CSSKeywordValue::create(Keyword::Normal));
             return;
         }
         auto const& transitions = value.as_transition().transitions();
-        Array<Vector<ValueComparingNonnullRefPtr<CSSStyleValue const>>, 4> transition_values;
+        Array<Vector<ValueComparingNonnullRefPtr<CSSStyleValue const>>, 5> transition_values;
         for (auto const& transition : transitions) {
             transition_values[0].append(*transition.property_name);
             transition_values[1].append(transition.duration.as_style_value());
             transition_values[2].append(transition.delay.as_style_value());
             if (transition.easing)
                 transition_values[3].append(*transition.easing);
+            transition_values[4].append(CSSKeywordValue::create(to_keyword(transition.transition_behavior)));
         }
 
         set_longhand_property(CSS::PropertyID::TransitionProperty, StyleValueList::create(move(transition_values[0]), StyleValueList::Separator::Comma));
         set_longhand_property(CSS::PropertyID::TransitionDuration, StyleValueList::create(move(transition_values[1]), StyleValueList::Separator::Comma));
         set_longhand_property(CSS::PropertyID::TransitionDelay, StyleValueList::create(move(transition_values[2]), StyleValueList::Separator::Comma));
         set_longhand_property(CSS::PropertyID::TransitionTimingFunction, StyleValueList::create(move(transition_values[3]), StyleValueList::Separator::Comma));
+        set_longhand_property(CSS::PropertyID::TransitionBehavior, StyleValueList::create(move(transition_values[4]), StyleValueList::Separator::Comma));
         return;
     }
 
@@ -1371,8 +1374,11 @@ static void compute_transitioned_properties(ComputedProperties const& style, DOM
     auto timing_functions = normalize_transition_length_list(
         PropertyID::TransitionTimingFunction,
         [] { return EasingStyleValue::create(EasingStyleValue::CubicBezier::ease()); });
+    auto transition_behaviors = normalize_transition_length_list(
+        PropertyID::TransitionBehavior,
+        [] { return CSSKeywordValue::create(Keyword::None); });
 
-    element.add_transitioned_properties(move(properties), move(delays), move(durations), move(timing_functions));
+    element.add_transitioned_properties(move(properties), move(delays), move(durations), move(timing_functions), move(transition_behaviors));
 }
 
 // https://drafts.csswg.org/css-transitions/#starting
@@ -1414,13 +1420,13 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
         if (
             // - the element does not have a running transition for the property,
             (!has_running_transition) &&
+            // - there is a matching transition-property value, and
+            (matching_transition_properties.has_value()) &&
             // - the before-change style is different from the after-change style for that property, and the values for the property are transitionable,
-            (!before_change_value.equals(after_change_value) && property_values_are_transitionable(property_id, before_change_value, after_change_value)) &&
+            (!before_change_value.equals(after_change_value) && property_values_are_transitionable(property_id, before_change_value, after_change_value, matching_transition_properties->transition_behavior)) &&
             // - the element does not have a completed transition for the property
             //   or the end value of the completed transition is different from the after-change style for the property,
             (!has_completed_transition || !existing_transition->transition_end_value()->equals(after_change_value)) &&
-            // - there is a matching transition-property value, and
-            (matching_transition_properties.has_value()) &&
             // - the combined duration is greater than 0s,
             (combined_duration(matching_transition_properties.value()) > 0)) {
 
@@ -1480,7 +1486,7 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
             //    or if these two values are not transitionable,
             //    then implementations must cancel the running transition.
             auto current_value = existing_transition->value_at_time(style_change_event_time);
-            if (current_value->equals(after_change_value) || !property_values_are_transitionable(property_id, current_value, after_change_value)) {
+            if (current_value->equals(after_change_value) || !property_values_are_transitionable(property_id, current_value, after_change_value, matching_transition_properties->transition_behavior)) {
                 dbgln_if(CSS_TRANSITIONS_DEBUG, "Transition step 4.1");
                 existing_transition->cancel();
             }
@@ -1489,7 +1495,7 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
             //    or if the current value of the property in the running transition is not transitionable with the value of the property in the after-change style,
             //    then implementations must cancel the running transition.
             else if ((combined_duration(matching_transition_properties.value()) <= 0)
-                || !property_values_are_transitionable(property_id, current_value, after_change_value)) {
+                || !property_values_are_transitionable(property_id, current_value, after_change_value, matching_transition_properties->transition_behavior)) {
                 dbgln_if(CSS_TRANSITIONS_DEBUG, "Transition step 4.2");
                 existing_transition->cancel();
             }

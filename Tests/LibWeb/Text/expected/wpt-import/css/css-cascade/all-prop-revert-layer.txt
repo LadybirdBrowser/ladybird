@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 197 tests
+Found 198 tests
 
-187 Pass
+188 Pass
 10 Fail
 Pass	accent-color
 Pass	border-collapse
@@ -188,6 +188,7 @@ Pass	text-overflow
 Pass	top
 Fail	transform
 Pass	transform-box
+Pass	transition-behavior
 Pass	transition-delay
 Pass	transition-duration
 Pass	transition-property

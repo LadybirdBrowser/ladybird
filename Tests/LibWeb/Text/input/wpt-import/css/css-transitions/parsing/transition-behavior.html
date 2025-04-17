@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<link rel=author href="mailto:jarhar@chromium.org">
+<link rel=help href="https://github.com/w3c/csswg-drafts/issues/8857">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+<div id="target"></div>
+<script>
+test_valid_value('transition-behavior', 'normal');
+test_computed_value('transition-behavior', 'normal');
+
+test_valid_value('transition-behavior', 'allow-discrete');
+test_computed_value('transition-behavior', 'allow-discrete');
+
+test_valid_value('transition', 'allow-discrete display', 'display allow-discrete');
+test_computed_value('transition', 'allow-discrete display', 'display allow-discrete');
+
+test_valid_value('transition', 'allow-discrete display 3s', 'display 3s allow-discrete');
+test_computed_value('transition', 'allow-discrete display 3s', 'display 3s allow-discrete');
+
+test_valid_value('transition', 'allow-discrete display 3s 1s', 'display 3s 1s allow-discrete');
+test_computed_value('transition', 'allow-discrete display 3s 1s', 'display 3s 1s allow-discrete');
+
+test_valid_value('transition', 'allow-discrete display 3s ease-in-out', 'display 3s ease-in-out allow-discrete');
+test_computed_value('transition', 'allow-discrete display 3s ease-in-out', 'display 3s ease-in-out allow-discrete');
+
+test_valid_value('transition', 'allow-discrete display 3s ease-in-out 1s', 'display 3s ease-in-out 1s allow-discrete');
+test_computed_value('transition', 'allow-discrete display 3s ease-in-out 1s', 'display 3s ease-in-out 1s allow-discrete');
+
+test_invalid_value('transition', 'asdf display');
+test_invalid_value('transition', 'display asdf');
+
+// Putting "discrete" anywhere in the shorthand should still work
+test_valid_value('transition', 'display allow-discrete 3s ease-in-out 1s', 'display 3s ease-in-out 1s allow-discrete');
+test_valid_value('transition', 'display 3s allow-discrete ease-in-out 1s', 'display 3s ease-in-out 1s allow-discrete');
+test_valid_value('transition', 'display 3s ease-in-out allow-discrete 1s', 'display 3s ease-in-out 1s allow-discrete');
+test_valid_value('transition', 'display 3s ease-in-out 1s allow-discrete', 'display 3s ease-in-out 1s allow-discrete');
+test_computed_value('transition', 'display allow-discrete 3s ease-in-out 1s', 'display 3s ease-in-out 1s allow-discrete');
+test_computed_value('transition', 'display 3s allow-discrete ease-in-out 1s', 'display 3s ease-in-out 1s allow-discrete');
+test_computed_value('transition', 'display 3s ease-in-out allow-discrete 1s', 'display 3s ease-in-out 1s allow-discrete');
+test_computed_value('transition', 'display 3s ease-in-out 1s allow-discrete', 'display 3s ease-in-out 1s allow-discrete');
+
+// Serialization with multiple shorthands, including different order
+test_valid_value('transition',
+  'allow-discrete display, normal opacity, color',
+  'display allow-discrete, opacity, color');
+test_computed_value('transition',
+  'allow-discrete display, normal opacity, color',
+  'display allow-discrete, opacity, color');
+test_valid_value('transition',
+  'normal opacity, color, allow-discrete display',
+  'opacity, color, display allow-discrete');
+test_computed_value('transition',
+  'normal opacity, color, allow-discrete display',
+  'opacity, color, display allow-discrete');
+</script>
