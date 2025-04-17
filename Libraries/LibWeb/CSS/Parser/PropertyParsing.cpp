@@ -674,6 +674,10 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue const>> Parser::parse_css_value
         if (auto parsed_value = parse_transition_property_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
+    case PropertyID::TransitionTimingFunction:
+        if (auto parsed_value = parse_transition_timing_function_value(tokens); parsed_value && !tokens.has_next_token())
+            return parsed_value.release_nonnull();
+        return ParseError::SyntaxError;
     case PropertyID::Translate:
         if (auto parsed_value = parse_translate_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
@@ -3812,6 +3816,25 @@ RefPtr<CSSStyleValue const> Parser::parse_transition_property_value(TokenStream<
     }
     transaction.commit();
     return StyleValueList::create(move(transition_properties), StyleValueList::Separator::Comma);
+}
+
+RefPtr<CSSStyleValue const> Parser::parse_transition_timing_function_value(TokenStream<ComponentValue>& tokens)
+{
+    auto transaction = tokens.begin_transaction();
+    auto transition_timing_function_values = parse_a_comma_separated_list_of_component_values(tokens);
+    StyleValueVector transition_timing_functions;
+    for (auto const& value : transition_timing_function_values) {
+        TokenStream transition_timing_function_tokens { value };
+        auto time_style_value = parse_easing_value(transition_timing_function_tokens);
+        if (!time_style_value)
+            return nullptr;
+        if (transition_timing_function_tokens.has_next_token())
+            return nullptr;
+        transition_timing_functions.append(*time_style_value);
+    }
+
+    transaction.commit();
+    return StyleValueList::create(move(transition_timing_functions), StyleValueList::Separator::Comma);
 }
 
 RefPtr<CSSStyleValue const> Parser::parse_translate_value(TokenStream<ComponentValue>& tokens)
