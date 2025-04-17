@@ -456,23 +456,32 @@ WebContent process:
 ## Inspecting the protocol with Firefox
 
 When developing a DevTools feature, it's invaluable to see how the DevTools protocol is used by Firefox itself. First,
-enable remote debugging in your Firefox profile's `about:config` page. You may wish to create a new profile for this:
+enable remote debugging in your Firefox profile's `about:config` page:
 
 ```
 devtools.chrome.enabled = true
 devtools.debugger.remote-enabled = true
 ```
 
-Then close all Firefox windows. Restart Firefox via the command line, specifying the DevTools server port:
+You may wish to create a new profile for this, rather than modifying your default profile. To create a new profile from
+the command line:
+
+```bash
+firefox -CreateProfile YOUR_PROFILE_NAME
+```
+
+If you are using your default profile, then close all Firefox windows. Restart Firefox via the command line, specifying
+the DevTools server port:
 
 ```bash
 firefox --start-debugger-server 6000
 ```
 
-If you created a new profile, specify its path with the `--profile` flag:
+Or if you created a new profile, you do not need to close all Firefox windows. Instead, launch a new instance with the
+`--new-instance` flag, and specify your new profile's path with the `--profile` flag:
 
 ```bash
-firefox --start-debugger-server 6000 --profile ~/snap/firefox/common/.mozilla/firefox/z20dtqwq.TEST
+firefox --start-debugger-server 6000 --new-instance --profile ~/snap/firefox/common/.mozilla/firefox/z20dtqwq.YOUR_PROFILE_NAME
 ```
 
 After Firefox is running, we can now snoop the specified port. The Servo team has written a nice script using `tshark`
