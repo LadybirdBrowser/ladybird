@@ -428,7 +428,7 @@ public:
     Element* focused_element() { return m_focused_element.ptr(); }
     Element const* focused_element() const { return m_focused_element.ptr(); }
 
-    void set_focused_element(Element*);
+    void set_focused_element(GC::Ptr<Element>);
 
     Element const* active_element() const { return m_active_element.ptr(); }
 
