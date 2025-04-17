@@ -218,6 +218,7 @@ top: auto
 transform: none
 transform-box: view-box
 transform-origin: 50% 50%
+transition-behavior: normal
 transition-delay: 0s
 transition-duration: 0s
 transition-property: all

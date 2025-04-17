@@ -1,0 +1,34 @@
+Harness status: OK
+
+Found 28 tests
+
+22 Pass
+6 Fail
+Pass	e.style['transition-behavior'] = "normal" should set the property value
+Pass	Property transition-behavior value 'normal'
+Pass	e.style['transition-behavior'] = "allow-discrete" should set the property value
+Pass	Property transition-behavior value 'allow-discrete'
+Pass	e.style['transition'] = "allow-discrete display" should set the property value
+Pass	Property transition value 'allow-discrete display'
+Pass	e.style['transition'] = "allow-discrete display 3s" should set the property value
+Pass	Property transition value 'allow-discrete display 3s'
+Pass	e.style['transition'] = "allow-discrete display 3s 1s" should set the property value
+Pass	Property transition value 'allow-discrete display 3s 1s'
+Pass	e.style['transition'] = "allow-discrete display 3s ease-in-out" should set the property value
+Pass	Property transition value 'allow-discrete display 3s ease-in-out'
+Pass	e.style['transition'] = "allow-discrete display 3s ease-in-out 1s" should set the property value
+Pass	Property transition value 'allow-discrete display 3s ease-in-out 1s'
+Fail	e.style['transition'] = "asdf display" should not set the property value
+Fail	e.style['transition'] = "display asdf" should not set the property value
+Pass	e.style['transition'] = "display allow-discrete 3s ease-in-out 1s" should set the property value
+Pass	e.style['transition'] = "display 3s allow-discrete ease-in-out 1s" should set the property value
+Pass	e.style['transition'] = "display 3s ease-in-out allow-discrete 1s" should set the property value
+Pass	e.style['transition'] = "display 3s ease-in-out 1s allow-discrete" should set the property value
+Pass	Property transition value 'display allow-discrete 3s ease-in-out 1s'
+Pass	Property transition value 'display 3s allow-discrete ease-in-out 1s'
+Pass	Property transition value 'display 3s ease-in-out allow-discrete 1s'
+Pass	Property transition value 'display 3s ease-in-out 1s allow-discrete'
+Fail	e.style['transition'] = "allow-discrete display, normal opacity, color" should set the property value
+Fail	Property transition value 'allow-discrete display, normal opacity, color'
+Fail	e.style['transition'] = "normal opacity, color, allow-discrete display" should set the property value
+Fail	Property transition value 'normal opacity, color, allow-discrete display'

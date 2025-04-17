@@ -607,6 +607,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'transformOrigin': '50% 50%'
 'transform-origin': '50% 50%'
 'transition': 'all'
+'transitionBehavior': 'normal'
+'transition-behavior': 'normal'
 'transitionDelay': '0s'
 'transition-delay': '0s'
 'transitionDuration': '0s'

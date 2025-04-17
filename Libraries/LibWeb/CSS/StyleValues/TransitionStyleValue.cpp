@@ -18,6 +18,8 @@ String TransitionStyleValue::to_string(SerializationMode mode) const
             builder.append(", "sv);
         first = false;
         builder.appendff("{} {} {} {}", transition.property_name->to_string(mode), transition.duration, transition.easing->to_string(mode), transition.delay);
+        if (transition.transition_behavior != TransitionBehavior::Normal)
+            builder.appendff(" {}", CSS::to_string(transition.transition_behavior));
     }
 
     return MUST(builder.to_string());

@@ -21,6 +21,7 @@ public:
         TimeOrCalculated duration { CSS::Time::make_seconds(0.0) };
         TimeOrCalculated delay { CSS::Time::make_seconds(0.0) };
         ValueComparingRefPtr<EasingStyleValue const> easing;
+        TransitionBehavior transition_behavior { TransitionBehavior::Normal };
 
         bool operator==(Transition const&) const = default;
     };

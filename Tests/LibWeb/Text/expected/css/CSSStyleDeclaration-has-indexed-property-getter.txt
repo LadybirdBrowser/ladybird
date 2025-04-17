@@ -220,19 +220,20 @@ All properties associated with getComputedStyle(document.body):
     "217": "transform",
     "218": "transform-box",
     "219": "transform-origin",
-    "220": "transition-delay",
-    "221": "transition-duration",
-    "222": "transition-property",
-    "223": "transition-timing-function",
-    "224": "translate",
-    "225": "unicode-bidi",
-    "226": "user-select",
-    "227": "vertical-align",
-    "228": "view-transition-name",
-    "229": "width",
-    "230": "x",
-    "231": "y",
-    "232": "z-index"
+    "220": "transition-behavior",
+    "221": "transition-delay",
+    "222": "transition-duration",
+    "223": "transition-property",
+    "224": "transition-timing-function",
+    "225": "translate",
+    "226": "unicode-bidi",
+    "227": "user-select",
+    "228": "vertical-align",
+    "229": "view-transition-name",
+    "230": "width",
+    "231": "x",
+    "232": "y",
+    "233": "z-index"
 }
 All properties associated with document.body.style by default:
 {}

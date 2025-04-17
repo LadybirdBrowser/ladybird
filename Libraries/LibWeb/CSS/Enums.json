@@ -591,6 +591,10 @@
     "stroke-box",
     "view-box "
   ],
+  "transition-behavior": [
+    "normal",
+    "allow-discrete"
+  ],
   "unicode-bidi": [
     "bidi-override",
     "embed",

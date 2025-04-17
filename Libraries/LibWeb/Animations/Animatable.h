@@ -36,6 +36,7 @@ public:
         double delay;
         double duration;
         CSS::EasingStyleValue::Function timing_function;
+        CSS::TransitionBehavior transition_behavior;
     };
 
     virtual ~Animatable() = default;
@@ -56,7 +57,7 @@ public:
     GC::Ptr<CSS::CSSStyleDeclaration const> cached_transition_property_source() const;
     void set_cached_transition_property_source(GC::Ptr<CSS::CSSStyleDeclaration const> value);
 
-    void add_transitioned_properties(Vector<Vector<CSS::PropertyID>> properties, CSS::StyleValueVector delays, CSS::StyleValueVector durations, CSS::StyleValueVector timing_functions);
+    void add_transitioned_properties(Vector<Vector<CSS::PropertyID>> properties, CSS::StyleValueVector delays, CSS::StyleValueVector durations, CSS::StyleValueVector timing_functions, CSS::StyleValueVector transition_behaviors);
     Optional<TransitionAttributes const&> property_transition_attributes(CSS::PropertyID) const;
     void set_transition(CSS::PropertyID, GC::Ref<CSS::CSSTransition>);
     void remove_transition(CSS::PropertyID);
