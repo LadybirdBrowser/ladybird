@@ -674,6 +674,10 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue const>> Parser::parse_css_value
         if (auto parsed_value = parse_transition_property_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
+    case PropertyID::TransitionTimingFunction:
+        if (auto parsed_value = parse_comma_separated_value_list(tokens, [this](auto& tokens) { return parse_easing_value(tokens); }))
+            return parsed_value.release_nonnull();
+        return ParseError::SyntaxError;
     case PropertyID::Translate:
         if (auto parsed_value = parse_translate_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
