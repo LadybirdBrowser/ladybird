@@ -2452,7 +2452,7 @@ void Document::update_active_element()
     return;
 }
 
-void Document::set_focused_element(Element* element)
+void Document::set_focused_element(GC::Ptr<Element> element)
 {
     if (m_focused_element.ptr() == element)
         return;
@@ -2462,10 +2462,32 @@ void Document::set_focused_element(Element* element)
     if (old_focused_element)
         old_focused_element->did_lose_focus();
 
-    m_focused_element = element;
+    auto* common_ancestor = find_common_ancestor(old_focused_element, element);
 
-    if (auto* invalidation_target = find_common_ancestor(old_focused_element, m_focused_element) ?: this)
-        invalidation_target->invalidate_style(StyleInvalidationReason::FocusedElementChange);
+    GC::Ptr<Node> old_focused_node_root = nullptr;
+    GC::Ptr<Node> new_focused_node_root = nullptr;
+    if (old_focused_element)
+        old_focused_node_root = old_focused_element->root();
+    if (element)
+        new_focused_node_root = element->root();
+    if (old_focused_node_root != new_focused_node_root) {
+        if (old_focused_node_root) {
+            invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::Focus, m_focused_element, *old_focused_node_root, element);
+            invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::FocusWithin, m_focused_element, *old_focused_node_root, element);
+            invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::FocusVisible, m_focused_element, *old_focused_node_root, element);
+        }
+        if (new_focused_node_root) {
+            invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::Focus, m_focused_element, *new_focused_node_root, element);
+            invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::FocusWithin, m_focused_element, *new_focused_node_root, element);
+            invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::FocusVisible, m_focused_element, *new_focused_node_root, element);
+        }
+    } else {
+        invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::Focus, m_focused_element, *common_ancestor, element);
+        invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::FocusWithin, m_focused_element, *common_ancestor, element);
+        invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::FocusVisible, m_focused_element, *common_ancestor, element);
+    }
+
+    m_focused_element = element;
 
     if (m_focused_element)
         m_focused_element->did_receive_focus();
