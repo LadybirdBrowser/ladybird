@@ -223,7 +223,7 @@ WebIDL::ExceptionOr<void> HTMLDialogElement::show_a_modal_dialog(HTMLDialogEleme
     TRY(subject.set_attribute(AttributeNames::open, {}));
 
     // 12. Set is modal of subject to true.
-    subject.m_is_modal = true;
+    subject.set_is_modal(true);
 
     // FIXME: 13. Assert: subject's node document's open dialogs list does not contain subject.
     // FIXME: 14. Add subject to subject's node document's open dialogs list.
@@ -338,7 +338,7 @@ void HTMLDialogElement::close_the_dialog(Optional<String> result)
     // FIXME: 7. Let wasModal be the value of subject's is modal flag.
 
     // 8. Set the is modal flag of subject to false.
-    m_is_modal = false;
+    set_is_modal(false);
 
     // FIXME: 9. Remove subject from subject's node document's open dialogs list.
 
@@ -433,6 +433,14 @@ void HTMLDialogElement::run_dialog_focusing_steps()
 
     // FIXME: 9. Empty topDocument's autofocus candidates.
     // FIXME: 10. Set topDocument's autofocus processed flag to true.
+}
+
+void HTMLDialogElement::set_is_modal(bool is_modal)
+{
+    if (m_is_modal == is_modal)
+        return;
+    m_is_modal = is_modal;
+    invalidate_style(DOM::StyleInvalidationReason::NodeRemove);
 }
 
 }

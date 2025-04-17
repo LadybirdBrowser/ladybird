@@ -37,6 +37,7 @@ public:
     virtual Optional<ARIA::Role> default_role() const override { return ARIA::Role::dialog; }
 
     bool is_modal() const { return m_is_modal; }
+    void set_is_modal(bool);
 
 private:
     HTMLDialogElement(DOM::Document&, DOM::QualifiedName);
