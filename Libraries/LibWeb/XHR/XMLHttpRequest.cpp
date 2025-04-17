@@ -1129,7 +1129,7 @@ void XMLHttpRequest::abort()
     m_fetch_controller->abort(realm(), {});
 
     // 2. If this’s state is opened with this’s send() flag set, headers received, or loading, then run the request error steps for this and abort.
-    if ((m_state == State::Opened || m_state == State::HeadersReceived || m_state == State::Loading) && m_send) {
+    if ((m_state == State::Opened && m_send) || m_state == State::HeadersReceived || m_state == State::Loading) {
         // NOTE: This cannot throw as we don't pass in an exception. XHR::abort cannot be reached in a synchronous context where the state matches above.
         //       This is because it pauses inside XHR::send until the request is done or times out and then immediately calls `handle_response_end_of_body`
         //       which will always set `m_state` to `Done`.
