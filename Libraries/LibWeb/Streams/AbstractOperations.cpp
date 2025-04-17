@@ -2630,12 +2630,12 @@ WebIDL::ExceptionOr<void> readable_stream_default_controller_enqueue(ReadableStr
     }
 
     // 5. Perform ! ReadableStreamDefaultControllerCallPullIfNeeded(controller).
-    readable_stream_default_controller_can_pull_if_needed(controller);
+    readable_stream_default_controller_call_pull_if_needed(controller);
     return {};
 }
 
 // https://streams.spec.whatwg.org/#readable-stream-default-controller-call-pull-if-needed
-void readable_stream_default_controller_can_pull_if_needed(ReadableStreamDefaultController& controller)
+void readable_stream_default_controller_call_pull_if_needed(ReadableStreamDefaultController& controller)
 {
     // 1. Let shouldPull be ! ReadableStreamDefaultControllerShouldCallPull(controller).
     auto should_pull = readable_stream_default_controller_should_call_pull(controller);
@@ -2674,7 +2674,7 @@ void readable_stream_default_controller_can_pull_if_needed(ReadableStreamDefault
                 controller.set_pull_again(false);
 
                 // 2. Perform ! ReadableStreamDefaultControllerCallPullIfNeeded(controller).
-                readable_stream_default_controller_can_pull_if_needed(controller);
+                readable_stream_default_controller_call_pull_if_needed(controller);
             }
 
             return JS::js_undefined();
@@ -2778,7 +2778,7 @@ WebIDL::ExceptionOr<void> readable_byte_stream_controller_respond_in_readable_st
     // 3. If pullIntoDescriptor’s reader type is "none",
     if (pull_into_descriptor.reader_type == ReaderType::None) {
         // 1. Perform ? ReadableByteStreamControllerEnqueueDetachedPullIntoToQueue(controller, pullIntoDescriptor).
-        TRY(readable_byte_stream_controller_enqueue_detached_pull_into_queue(controller, pull_into_descriptor));
+        TRY(readable_byte_stream_controller_enqueue_detached_pull_into_to_queue(controller, pull_into_descriptor));
 
         // 2. Let filledPullIntos be the result of performing ! ReadableByteStreamControllerProcessPullIntoDescriptorsUsingQueue(controller).
         auto filled_pulled_intos = readable_byte_stream_controller_process_pull_into_descriptors_using_queue(controller);
@@ -3103,7 +3103,7 @@ WebIDL::ExceptionOr<void> set_up_readable_stream_default_controller(ReadableStre
             VERIFY(!controller.pull_again());
 
             // 4. Perform ! ReadableStreamDefaultControllerCallPullIfNeeded(controller).
-            readable_stream_default_controller_can_pull_if_needed(controller);
+            readable_stream_default_controller_call_pull_if_needed(controller);
 
             return JS::js_undefined();
         }),
@@ -3792,7 +3792,7 @@ WebIDL::ExceptionOr<void> readable_byte_stream_controller_enqueue(ReadableByteSt
 
         // 5. If firstPendingPullInto’s reader type is "none", perform ? ReadableByteStreamControllerEnqueueDetachedPullIntoToQueue(controller, firstPendingPullInto).
         if (first_pending_pull_into.reader_type == ReaderType::None)
-            TRY(readable_byte_stream_controller_enqueue_detached_pull_into_queue(controller, first_pending_pull_into));
+            TRY(readable_byte_stream_controller_enqueue_detached_pull_into_to_queue(controller, first_pending_pull_into));
     }
 
     // 9. If ! ReadableStreamHasDefaultReader(stream) is true,
@@ -3878,7 +3878,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> transfer_array_buffer(JS::Realm& r
 }
 
 // https://streams.spec.whatwg.org/#abstract-opdef-readablebytestreamcontrollerenqueuedetachedpullintotoqueue
-WebIDL::ExceptionOr<void> readable_byte_stream_controller_enqueue_detached_pull_into_queue(ReadableByteStreamController& controller, PullIntoDescriptor& pull_into_descriptor)
+WebIDL::ExceptionOr<void> readable_byte_stream_controller_enqueue_detached_pull_into_to_queue(ReadableByteStreamController& controller, PullIntoDescriptor& pull_into_descriptor)
 {
     // 1. Assert: pullIntoDescriptor’s reader type is "none".
     VERIFY(pull_into_descriptor.reader_type == ReaderType::None);

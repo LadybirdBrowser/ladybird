@@ -100,7 +100,7 @@ void ReadableStreamDefaultController::pull_steps(Web::Streams::ReadRequest& read
         }
         // 3. Otherwise, perform ! ReadableStreamDefaultControllerCallPullIfNeeded(this).
         else {
-            readable_stream_default_controller_can_pull_if_needed(*this);
+            readable_stream_default_controller_call_pull_if_needed(*this);
         }
 
         // 4. Perform readRequest’s chunk steps, given chunk.
@@ -112,7 +112,7 @@ void ReadableStreamDefaultController::pull_steps(Web::Streams::ReadRequest& read
         readable_stream_add_read_request(stream, read_request);
 
         // 2. Perform ! ReadableStreamDefaultControllerCallPullIfNeeded(this).
-        readable_stream_default_controller_can_pull_if_needed(*this);
+        readable_stream_default_controller_call_pull_if_needed(*this);
     }
 }
 

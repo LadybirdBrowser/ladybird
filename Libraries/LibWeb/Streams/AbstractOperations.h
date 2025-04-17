@@ -65,7 +65,7 @@ WebIDL::ExceptionOr<void> set_up_readable_stream_byob_reader(ReadableStreamBYOBR
 void readable_stream_default_controller_close(ReadableStreamDefaultController&);
 bool readable_stream_default_controller_has_backpressure(ReadableStreamDefaultController&);
 WebIDL::ExceptionOr<void> readable_stream_default_controller_enqueue(ReadableStreamDefaultController&, JS::Value chunk);
-void readable_stream_default_controller_can_pull_if_needed(ReadableStreamDefaultController&);
+void readable_stream_default_controller_call_pull_if_needed(ReadableStreamDefaultController&);
 bool readable_stream_default_controller_should_call_pull(ReadableStreamDefaultController&);
 void readable_stream_default_controller_clear_algorithms(ReadableStreamDefaultController&);
 
@@ -86,7 +86,7 @@ WebIDL::ExceptionOr<void> readable_byte_stream_controller_respond_with_new_view(
 
 WebIDL::ExceptionOr<void> readable_byte_stream_controller_enqueue(ReadableByteStreamController& controller, JS::Value chunk);
 WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> transfer_array_buffer(JS::Realm& realm, JS::ArrayBuffer& buffer);
-WebIDL::ExceptionOr<void> readable_byte_stream_controller_enqueue_detached_pull_into_queue(ReadableByteStreamController& controller, PullIntoDescriptor& pull_into_descriptor);
+WebIDL::ExceptionOr<void> readable_byte_stream_controller_enqueue_detached_pull_into_to_queue(ReadableByteStreamController& controller, PullIntoDescriptor& pull_into_descriptor);
 void readable_byte_stream_controller_commit_pull_into_descriptor(ReadableStream&, PullIntoDescriptor const&);
 void readable_byte_stream_controller_process_read_requests_using_queue(ReadableByteStreamController& controller);
 [[nodiscard]] SinglyLinkedList<GC::Root<PullIntoDescriptor>> readable_byte_stream_controller_process_pull_into_descriptors_using_queue(ReadableByteStreamController&);
