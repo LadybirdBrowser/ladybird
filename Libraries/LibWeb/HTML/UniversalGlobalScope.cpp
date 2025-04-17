@@ -93,19 +93,16 @@ void UniversalGlobalScopeMixin::queue_microtask(WebIDL::CallbackType& callback)
 // https://html.spec.whatwg.org/multipage/structured-data.html#dom-structuredclone
 WebIDL::ExceptionOr<JS::Value> UniversalGlobalScopeMixin::structured_clone(JS::Value value, StructuredSerializeOptions const& options) const
 {
-    auto& vm = this_impl().vm();
-    (void)options;
+    auto& realm = HTML::relevant_realm(this_impl());
 
     // 1. Let serialized be ? StructuredSerializeWithTransfer(value, options["transfer"]).
-    // FIXME: Use WithTransfer variant of the AO
-    auto serialized = TRY(structured_serialize(vm, value));
+    auto serialized = TRY(structured_serialize_with_transfer(realm.vm(), value, options.transfer));
 
     // 2. Let deserializeRecord be ? StructuredDeserializeWithTransfer(serialized, this's relevant realm).
-    // FIXME: Use WithTransfer variant of the AO
-    auto deserialized = TRY(structured_deserialize(vm, serialized, relevant_realm(this_impl())));
+    auto deserialized = TRY(structured_deserialize_with_transfer(serialized, realm));
 
     // 3. Return deserializeRecord.[[Deserialized]].
-    return deserialized;
+    return deserialized.deserialized;
 }
 
 // https://streams.spec.whatwg.org/#count-queuing-strategy-size-function
