@@ -27,6 +27,10 @@ Eventually, probably, if there's a Web Spec for it!
 
 Maybe someday. Maybe never. If you want to see something happen, you can do it yourself!
 
+### Will you have a built in ad blocker?
+
+We have a rudimentary built-in ad blocker, and we already have open issues about supporting uBlock via extensions.
+
 ## Is there a release roadmap?
 
 - 2026: alpha release (daily driver for developers and early adopters) for Linux and macOS.
