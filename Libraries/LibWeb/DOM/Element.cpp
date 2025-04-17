@@ -1207,16 +1207,16 @@ GC::Ptr<Layout::NodeWithStyle> Element::get_pseudo_element_node(CSS::PseudoEleme
     return nullptr;
 }
 
-bool Element::affected_by_hover() const
+bool Element::affected_by_pseudo_class(CSS::PseudoClass pseudo_class) const
 {
-    if (m_computed_properties && m_computed_properties->did_match_any_hover_rules()) {
+    if (m_computed_properties && m_computed_properties->has_attempted_match_against_pseudo_class(pseudo_class)) {
         return true;
     }
     if (m_pseudo_element_data) {
         for (auto& pseudo_element : *m_pseudo_element_data) {
             if (!pseudo_element.computed_properties)
                 continue;
-            if (pseudo_element.computed_properties->did_match_any_hover_rules())
+            if (pseudo_element.computed_properties->has_attempted_match_against_pseudo_class(pseudo_class))
                 return true;
         }
     }

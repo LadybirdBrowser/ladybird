@@ -253,8 +253,9 @@ public:
 
     virtual FlyString node_name() const override { return "#document"_fly_string; }
 
-    void invalidate_style_for_elements_affected_by_hover_change(Node& old_new_hovered_common_ancestor, GC::Ptr<Node> hovered_node);
-    void set_hovered_node(Node*);
+    void invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass, auto& element_slot, Node& old_new_common_ancestor, auto node);
+
+    void set_hovered_node(GC::Ptr<Node>);
     Node* hovered_node() { return m_hovered_node.ptr(); }
     Node const* hovered_node() const { return m_hovered_node.ptr(); }
 

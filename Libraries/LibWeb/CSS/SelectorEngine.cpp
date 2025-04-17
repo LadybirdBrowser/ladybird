@@ -433,7 +433,10 @@ static bool matches_optimal_value_pseudo_class(DOM::Element const& element, HTML
 
 static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoClassSelector const& pseudo_class, DOM::Element const& element, GC::Ptr<DOM::Element const> shadow_host, MatchContext& context, GC::Ptr<DOM::ParentNode const> scope, SelectorKind selector_kind)
 {
+    context.attempted_pseudo_class_matches.set(pseudo_class.type, true);
     switch (pseudo_class.type) {
+    case CSS::PseudoClass::__Count:
+        VERIFY_NOT_REACHED();
     case CSS::PseudoClass::Link:
     case CSS::PseudoClass::AnyLink:
         // NOTE: AnyLink should match whether the link is visited or not, so if we ever start matching
@@ -448,7 +451,6 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
     case CSS::PseudoClass::Active:
         return element.is_active();
     case CSS::PseudoClass::Hover:
-        context.did_match_any_hover_rules = true;
         return matches_hover_pseudo_class(element);
     case CSS::PseudoClass::Focus:
         return element.is_focused();
@@ -586,6 +588,8 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
 
         int index = 1;
         switch (pseudo_class.type) {
+        case CSS::PseudoClass::__Count:
+            VERIFY_NOT_REACHED();
         case CSS::PseudoClass::NthChild: {
             if (!matches_selector_list(pseudo_class.argument_selector_list, element))
                 return false;

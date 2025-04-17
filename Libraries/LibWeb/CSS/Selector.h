@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2018-2025, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -14,6 +14,7 @@
 #include <LibWeb/CSS/Keyword.h>
 #include <LibWeb/CSS/Parser/ComponentValue.h>
 #include <LibWeb/CSS/PseudoClass.h>
+#include <LibWeb/CSS/PseudoClassBitmap.h>
 #include <LibWeb/CSS/PseudoElement.h>
 
 namespace Web::CSS {
@@ -236,7 +237,7 @@ public:
     Optional<PseudoElementSelector> const& pseudo_element() const { return m_pseudo_element; }
     NonnullRefPtr<Selector> relative_to(SimpleSelector const&) const;
     bool contains_the_nesting_selector() const { return m_contains_the_nesting_selector; }
-    bool contains_hover_pseudo_class() const { return m_contains_hover_pseudo_class; }
+    bool contains_pseudo_class(PseudoClass pseudo_class) const { return m_contained_pseudo_classes.get(pseudo_class); }
     bool contains_unknown_webkit_pseudo_element() const;
     RefPtr<Selector> absolutized(SimpleSelector const& selector_for_nesting) const;
     u32 specificity() const;
@@ -259,7 +260,8 @@ private:
     bool m_can_use_fast_matches { false };
     bool m_can_use_ancestor_filter { false };
     bool m_contains_the_nesting_selector { false };
-    bool m_contains_hover_pseudo_class { false };
+
+    PseudoClassBitmap m_contained_pseudo_classes;
 
     void collect_ancestor_hashes();
 
