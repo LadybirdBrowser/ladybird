@@ -2,11 +2,11 @@ Harness status: OK
 
 Found 42 tests
 
-31 Pass
-11 Fail
-Pass	CSS Transitions with transition-behavior:allow-discrete: property <display> from [none] to [flex] at (-0.3) should be [flex]
-Pass	CSS Transitions with transition-behavior:allow-discrete: property <display> from [none] to [flex] at (0) should be [flex]
-Pass	CSS Transitions with transition-behavior:allow-discrete: property <display> from [none] to [flex] at (0.3) should be [flex]
+25 Pass
+17 Fail
+Fail	CSS Transitions with transition-behavior:allow-discrete: property <display> from [none] to [flex] at (-0.3) should be [flex]
+Fail	CSS Transitions with transition-behavior:allow-discrete: property <display> from [none] to [flex] at (0) should be [flex]
+Fail	CSS Transitions with transition-behavior:allow-discrete: property <display> from [none] to [flex] at (0.3) should be [flex]
 Pass	CSS Transitions with transition-behavior:allow-discrete: property <display> from [none] to [flex] at (0.5) should be [flex]
 Pass	CSS Transitions with transition-behavior:allow-discrete: property <display> from [none] to [flex] at (0.6) should be [flex]
 Pass	CSS Transitions with transition-behavior:allow-discrete: property <display> from [none] to [flex] at (1) should be [flex]
@@ -18,9 +18,9 @@ Pass	CSS Transitions with transition-property:all and transition-behavor:allow-d
 Pass	CSS Transitions with transition-property:all and transition-behavor:allow-discrete: property <display> from [none] to [flex] at (0.6) should be [flex]
 Pass	CSS Transitions with transition-property:all and transition-behavor:allow-discrete: property <display> from [none] to [flex] at (1) should be [flex]
 Pass	CSS Transitions with transition-property:all and transition-behavor:allow-discrete: property <display> from [none] to [flex] at (1.5) should be [flex]
-Pass	CSS Transitions: property <display> from [none] to [flex] at (-0.3) should be [flex]
-Pass	CSS Transitions: property <display> from [none] to [flex] at (0) should be [flex]
-Pass	CSS Transitions: property <display> from [none] to [flex] at (0.3) should be [flex]
+Fail	CSS Transitions: property <display> from [none] to [flex] at (-0.3) should be [flex]
+Fail	CSS Transitions: property <display> from [none] to [flex] at (0) should be [flex]
+Fail	CSS Transitions: property <display> from [none] to [flex] at (0.3) should be [flex]
 Pass	CSS Transitions: property <display> from [none] to [flex] at (0.5) should be [flex]
 Pass	CSS Transitions: property <display> from [none] to [flex] at (0.6) should be [flex]
 Pass	CSS Transitions: property <display> from [none] to [flex] at (1) should be [flex]
