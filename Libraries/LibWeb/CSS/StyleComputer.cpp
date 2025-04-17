@@ -2809,7 +2809,6 @@ void StyleComputer::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_ori
                     selector.specificity(),
                     cascade_origin,
                     false,
-                    false,
                 };
 
                 auto const& qualified_layer_name = matching_rule.qualified_layer_name();
@@ -2831,25 +2830,6 @@ void StyleComputer::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_ori
                         if (simple_selector.type == CSS::Selector::SimpleSelector::Type::PseudoClass
                             && simple_selector.pseudo_class().type == CSS::PseudoClass::Root) {
                             contains_root_pseudo_class = true;
-                        }
-                    }
-
-                    if (!matching_rule.must_be_hovered) {
-                        if (simple_selector.type == CSS::Selector::SimpleSelector::Type::PseudoClass && simple_selector.pseudo_class().type == CSS::PseudoClass::Hover) {
-                            matching_rule.must_be_hovered = true;
-                        }
-                        if (simple_selector.type == CSS::Selector::SimpleSelector::Type::PseudoClass
-                            && (simple_selector.pseudo_class().type == CSS::PseudoClass::Is
-                                || simple_selector.pseudo_class().type == CSS::PseudoClass::Where)) {
-                            auto const& argument_selectors = simple_selector.pseudo_class().argument_selector_list;
-
-                            if (argument_selectors.size() == 1) {
-                                auto const& simple_argument_selector = argument_selectors.first()->compound_selectors().last().simple_selectors.last();
-                                if (simple_argument_selector.type == CSS::Selector::SimpleSelector::Type::PseudoClass
-                                    && simple_argument_selector.pseudo_class().type == CSS::PseudoClass::Hover) {
-                                    matching_rule.must_be_hovered = true;
-                                }
-                            }
                         }
                     }
                 }
