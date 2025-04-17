@@ -431,8 +431,7 @@ public:
     void set_focused_element(GC::Ptr<Element>);
 
     Element const* active_element() const { return m_active_element.ptr(); }
-
-    void set_active_element(Element*);
+    void set_active_element(GC::Ptr<Element>);
 
     Element const* target_element() const { return m_target_element.ptr(); }
     void set_target_element(GC::Ptr<Element>);
