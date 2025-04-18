@@ -112,6 +112,8 @@ protected:
     GC::Ptr<MessagePort> m_internal_port;
 
 private:
+    virtual bool is_window_or_worker_global_scope_mixin() const final { return true; }
+
     virtual void visit_edges(Cell::Visitor&) override;
 
     GC::Ptr<WorkerLocation> m_location;
