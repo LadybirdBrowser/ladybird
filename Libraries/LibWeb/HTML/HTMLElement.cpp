@@ -467,15 +467,15 @@ GC::Ptr<DOM::Element> HTMLElement::offset_parent() const
     //    - The computed value of the position property of the element is static
     //      and the ancestor is one of the following HTML elements: td, th, or table.
 
-    for (auto* ancestor = parent_element(); ancestor; ancestor = ancestor->parent_element()) {
+    for (auto ancestor = parent_element(); ancestor; ancestor = ancestor->parent_element()) {
         if (!ancestor->layout_node())
             continue;
         if (ancestor->layout_node()->is_positioned())
-            return const_cast<Element*>(ancestor);
+            return const_cast<Element*>(ancestor.ptr());
         if (is<HTML::HTMLBodyElement>(*ancestor))
-            return const_cast<Element*>(ancestor);
+            return const_cast<Element*>(ancestor.ptr());
         if (!ancestor->layout_node()->is_positioned() && ancestor->local_name().is_one_of(HTML::TagNames::td, HTML::TagNames::th, HTML::TagNames::table))
-            return const_cast<Element*>(ancestor);
+            return const_cast<Element*>(ancestor.ptr());
     }
 
     // 3. Return null.
@@ -843,7 +843,7 @@ Optional<ARIA::Role> HTMLElement::default_role() const
     // https://www.w3.org/TR/html-aria/#el-aside
     if (local_name() == TagNames::aside) {
         // https://w3c.github.io/html-aam/#el-aside
-        for (auto const* ancestor = parent_element(); ancestor; ancestor = ancestor->parent_element()) {
+        for (auto ancestor = parent_element(); ancestor; ancestor = ancestor->parent_element()) {
             if (ancestor->local_name().is_one_of(TagNames::article, TagNames::aside, TagNames::nav, TagNames::section)
                 && accessible_name(document()).value().is_empty())
                 return ARIA::Role::generic;
@@ -887,7 +887,7 @@ Optional<ARIA::Role> HTMLElement::default_role() const
         // If not a descendant of an article, aside, main, nav or section element, or an element with role=article,
         // complementary, main, navigation or region then (footer) role=contentinfo (header) role=banner. Otherwise,
         // role=generic.
-        for (auto const* ancestor = parent_element(); ancestor; ancestor = ancestor->parent_element()) {
+        for (auto ancestor = parent_element(); ancestor; ancestor = ancestor->parent_element()) {
             if (ancestor->local_name().is_one_of(TagNames::article, TagNames::aside, TagNames::main, TagNames::nav, TagNames::section)) {
                 if (local_name() == TagNames::footer)
                     return ARIA::Role::sectionfooter;

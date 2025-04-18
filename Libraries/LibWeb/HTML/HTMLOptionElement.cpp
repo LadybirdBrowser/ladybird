@@ -250,7 +250,7 @@ void HTMLOptionElement::removed_from(Node* old_parent, Node& old_root)
     if (old_parent) {
         if (is<HTMLSelectElement>(*old_parent))
             static_cast<HTMLSelectElement&>(*old_parent).update_selectedness();
-        else if (is<HTMLOptGroupElement>(*old_parent) && old_parent->parent_element() && is<HTMLSelectElement>(old_parent->parent_element()))
+        else if (is<HTMLOptGroupElement>(*old_parent) && old_parent->parent_element() && is<HTMLSelectElement>(*old_parent->parent_element()))
             static_cast<HTMLSelectElement&>(*old_parent->parent_element()).update_selectedness();
     }
 }

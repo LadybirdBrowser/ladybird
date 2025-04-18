@@ -2626,7 +2626,7 @@ Optional<String> Element::locate_a_namespace_prefix(Optional<String> const& name
     }
 
     // 3. If element’s parent element is not null, then return the result of running locate a namespace prefix on that element using namespace.
-    if (auto* parent = this->parent_element())
+    if (auto parent = this->parent_element())
         return parent->locate_a_namespace_prefix(namespace_);
 
     // 4. Return null
@@ -2881,7 +2881,7 @@ bool Element::check_visibility(Optional<CheckVisibilityOptions> options)
         return false;
 
     // 2. If an ancestor of this in the flat tree has content-visibility: hidden, return false.
-    for (auto* element = parent_element(); element; element = element->parent_element()) {
+    for (auto element = parent_element(); element; element = element->parent_element()) {
         if (element->computed_properties()->content_visibility() == CSS::ContentVisibility::Hidden)
             return false;
     }
@@ -3151,7 +3151,7 @@ Element const* Element::list_owner() const
         return nullptr;
 
     // 2. Let ancestor be the element's parent.
-    auto const* ancestor = parent_element();
+    auto ancestor = parent_element();
 
     // AC-HOC: There may not be any parent element in a shadow tree.
     if (!ancestor)
@@ -3692,7 +3692,7 @@ void Element::inherit_counters()
 {
     // 1. If element is the root of its document tree, the element has an initially-empty CSS counters set.
     //    Return.
-    auto* parent = parent_element();
+    auto parent = parent_element();
     if (parent == nullptr) {
         // NOTE: We represent an empty counters set with `m_counters_set = nullptr`.
         m_counters_set = nullptr;
@@ -3765,14 +3765,14 @@ Optional<String> Element::lang() const
 
         // 3. If the node's parent is a shadow root
         //      Use the language of that shadow root's host.
-        if (auto const* parent = parent_element()) {
+        if (auto parent = parent_element()) {
             if (parent->is_shadow_root())
                 return parent->shadow_root()->host()->lang();
         }
 
         // 4. If the node's parent element is not null
         //      Use the language of that parent element.
-        if (auto const* parent = parent_element())
+        if (auto parent = parent_element())
             return parent->lang();
 
         // 5. Otherwise

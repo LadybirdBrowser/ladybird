@@ -2051,7 +2051,7 @@ Optional<String> Node::locate_a_namespace(Optional<String> const& prefix) const
         }
 
         // 5. If its parent element is null, then return null.
-        auto* parent_element = element.parent_element();
+        auto parent_element = element.parent_element();
         if (!element.parent_element())
             return {};
 
@@ -2090,7 +2090,7 @@ Optional<String> Node::locate_a_namespace(Optional<String> const& prefix) const
 
     // Otherwise
     // 1. If its parent element is null, then return null.
-    auto* parent_element = this->parent_element();
+    auto parent_element = this->parent_element();
     if (!parent_element)
         return {};
 
@@ -2153,7 +2153,7 @@ Optional<String> Node::lookup_prefix(Optional<String> namespace_) const
 
     // Otherwise
     // Return the result of locating a namespace prefix for its parent element, if its parent element is non-null; otherwise null.
-    auto* parent_element = this->parent_element();
+    auto parent_element = this->parent_element();
     if (!parent_element)
         return {};
 

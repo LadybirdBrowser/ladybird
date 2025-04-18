@@ -32,8 +32,8 @@ HTMLFormElement* HTMLLegendElement::form()
 {
     // The form IDL attribute's behavior depends on whether the legend element is in a fieldset element or not.
     // If the legend has a fieldset element as its parent, then the form IDL attribute must return the same value as the form IDL attribute on that fieldset element.
-    if (is<HTML::HTMLFieldSetElement>(parent_element())) {
-        return as<HTML::HTMLFieldSetElement>(parent_element())->form();
+    if (auto* field_set = as_if<HTML::HTMLFieldSetElement>(parent_element().ptr())) {
+        return field_set->form();
     }
 
     // Otherwise, it must return null.

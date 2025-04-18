@@ -727,7 +727,7 @@ void Page::update_find_in_page_selection(Vector<GC::Root<DOM::Range>> matches)
 
     selection->add_range(*current_range);
 
-    if (auto* element = common_ancestor_container->parent_element()) {
+    if (auto element = common_ancestor_container->parent_element()) {
         DOM::ScrollIntoViewOptions scroll_options;
         scroll_options.block = Bindings::ScrollLogicalPosition::Nearest;
         scroll_options.inline_ = Bindings::ScrollLogicalPosition::Nearest;
