@@ -24,7 +24,7 @@ protected:
     explicit RootVectorBase(Heap&);
     ~RootVectorBase();
 
-    RootVectorBase& operator=(RootVectorBase const&);
+    void assign_heap(Heap*);
 
     Heap* m_heap { nullptr };
     IntrusiveListNode<RootVectorBase> m_list_node;
@@ -37,6 +37,8 @@ template<typename T, size_t inline_capacity>
 class RootVector final
     : public RootVectorBase
     , public Vector<T, inline_capacity> {
+
+    using VectorBase = Vector<T, inline_capacity>;
 
 public:
     explicit RootVector(Heap& heap)
@@ -60,14 +62,24 @@ public:
 
     RootVector(RootVector&& other)
         : RootVectorBase(*other.m_heap)
-        , Vector<T, inline_capacity>(move(static_cast<Vector<T, inline_capacity>&>(other)))
+        , VectorBase(move(static_cast<VectorBase&>(other)))
     {
     }
 
     RootVector& operator=(RootVector const& other)
     {
-        Vector<T, inline_capacity>::operator=(other);
-        RootVectorBase::operator=(other);
+        if (&other == this)
+            return *this;
+
+        assign_heap(other.m_heap);
+        VectorBase::operator=(other);
+        return *this;
+    }
+
+    RootVector& operator=(RootVector&& other)
+    {
+        assign_heap(other.m_heap);
+        VectorBase::operator=(move(static_cast<VectorBase&>(other)));
         return *this;
     }
 
