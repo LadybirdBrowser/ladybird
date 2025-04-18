@@ -120,6 +120,8 @@ public:
 private:
     TraversableNavigable(GC::Ref<Page>);
 
+    virtual bool is_traversable() const override { return true; }
+
     virtual void visit_edges(Cell::Visitor&) override;
 
     // FIXME: Fix spec typo cancelation --> cancellation
@@ -174,5 +176,8 @@ struct BrowsingContextAndDocument {
 
 WebIDL::ExceptionOr<BrowsingContextAndDocument> create_a_new_top_level_browsing_context_and_document(GC::Ref<Page> page);
 void finalize_a_same_document_navigation(GC::Ref<TraversableNavigable> traversable, GC::Ref<Navigable> target_navigable, GC::Ref<SessionHistoryEntry> target_entry, GC::Ptr<SessionHistoryEntry> entry_to_replace, HistoryHandlingBehavior, UserNavigationInvolvement);
+
+template<>
+inline bool Navigable::fast_is<TraversableNavigable>() const { return is_traversable(); }
 
 }
