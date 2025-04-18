@@ -17,21 +17,24 @@
 
 namespace Web::Streams {
 
-GC::Ref<SizeAlgorithm> extract_size_algorithm(JS::VM&, QueuingStrategy const&);
+// 7.4. Abstract operations, https://streams.spec.whatwg.org/#qs-abstract-ops
 WebIDL::ExceptionOr<double> extract_high_water_mark(QueuingStrategy const&, double default_hwm);
+GC::Ref<SizeAlgorithm> extract_size_algorithm(JS::VM&, QueuingStrategy const&);
 
-WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> transfer_array_buffer(JS::Realm& realm, JS::ArrayBuffer& buffer);
-
-bool is_non_negative_number(JS::Value);
-bool can_copy_data_block_bytes_buffer(JS::ArrayBuffer const& to_buffer, u64 to_index, JS::ArrayBuffer const& from_buffer, u64 from_index, u64 count);
+// 8.3. Miscellaneous, https://streams.spec.whatwg.org/#misc-abstract-ops
 bool can_transfer_array_buffer(JS::ArrayBuffer const& array_buffer);
+bool is_non_negative_number(JS::Value);
+WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> transfer_array_buffer(JS::Realm& realm, JS::ArrayBuffer& buffer);
 WebIDL::ExceptionOr<JS::Value> clone_as_uint8_array(JS::Realm&, WebIDL::ArrayBufferView&);
 WebIDL::ExceptionOr<JS::Value> structured_clone(JS::Realm&, JS::Value value);
+bool can_copy_data_block_bytes_buffer(JS::ArrayBuffer const& to_buffer, u64 to_index, JS::ArrayBuffer const& from_buffer, u64 from_index, u64 count);
+
+// 8.1. Queue-with-sizes, https://streams.spec.whatwg.org/#queue-with-sizes
 
 // https://streams.spec.whatwg.org/#value-with-size
 struct ValueWithSize {
     JS::Value value;
-    double size;
+    double size { 0 };
 };
 
 // https://streams.spec.whatwg.org/#dequeue-value
