@@ -316,10 +316,6 @@ public:
     void set_needs_style_update(bool);
     void set_needs_style_update_internal(bool) { m_needs_style_update = true; }
 
-    bool needs_layout_update() const { return m_needs_layout_update; }
-    void set_needs_layout_update(SetNeedsLayoutReason);
-    void reset_needs_layout_update() { m_needs_layout_update = false; }
-
     bool child_needs_style_update() const { return m_child_needs_style_update; }
     void set_child_needs_style_update(bool b) { m_child_needs_style_update = b; }
 
@@ -556,8 +552,6 @@ protected:
     bool m_needs_style_update { false };
     bool m_child_needs_style_update { false };
     bool m_entire_subtree_needs_style_update { false };
-
-    bool m_needs_layout_update { false };
 
     UniqueNodeID m_unique_id;
 

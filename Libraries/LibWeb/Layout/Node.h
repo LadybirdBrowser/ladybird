@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2023, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2018-2025, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -44,6 +44,10 @@ public:
 
     DOM::Element const* pseudo_element_generator() const;
     DOM::Element* pseudo_element_generator();
+
+    bool needs_layout_update() const { return m_needs_layout_update; }
+    void set_needs_layout_update(DOM::SetNeedsLayoutReason);
+    void reset_needs_layout_update() { m_needs_layout_update = false; }
 
     bool is_generated() const { return m_generated_for.has_value(); }
     bool is_generated_for_before_pseudo_element() const { return m_generated_for == CSS::GeneratedPseudoElement::Before; }
@@ -214,6 +218,8 @@ private:
     bool m_is_grid_item { false };
 
     bool m_has_been_wrapped_in_table_wrapper { false };
+
+    bool m_needs_layout_update { false };
 
     Optional<CSS::GeneratedPseudoElement> m_generated_for {};
 

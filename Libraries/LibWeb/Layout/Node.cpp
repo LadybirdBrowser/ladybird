@@ -1281,4 +1281,25 @@ void NodeWithStyleAndBoxModelMetrics::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_continuation_of_node);
 }
 
+void Node::set_needs_layout_update(DOM::SetNeedsLayoutReason reason)
+{
+    if (m_needs_layout_update)
+        return;
+
+    if constexpr (UPDATE_LAYOUT_DEBUG) {
+        // NOTE: We check some conditions here to avoid debug spam in documents that don't do layout.
+        auto navigable = this->navigable();
+        if (navigable && navigable->active_document() == &document())
+            dbgln_if(UPDATE_LAYOUT_DEBUG, "NEED LAYOUT {}", DOM::to_string(reason));
+    }
+
+    m_needs_layout_update = true;
+
+    for (auto* ancestor = parent(); ancestor; ancestor = ancestor->parent()) {
+        if (ancestor->m_needs_layout_update)
+            break;
+        ancestor->m_needs_layout_update = true;
+    }
+}
+
 }

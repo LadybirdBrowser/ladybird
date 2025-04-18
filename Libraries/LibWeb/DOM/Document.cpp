@@ -1293,7 +1293,7 @@ void Document::update_layout(UpdateLayoutReason reason)
 
     update_style();
 
-    if (!m_needs_layout_update && m_layout_root)
+    if (m_layout_root && !m_layout_root->needs_layout_update())
         return;
 
     // NOTE: If this is a document hosting <template> contents, layout is unnecessary.
@@ -1332,8 +1332,7 @@ void Document::update_layout(UpdateLayoutReason reason)
         if (auto dom_node = child.dom_node(); dom_node && dom_node->is_element()) {
             child.set_has_size_containment(as<Element>(*dom_node).has_size_containment());
         }
-        bool needs_layout_update = child.dom_node() && child.dom_node()->needs_layout_update();
-        if (needs_layout_update || child.is_anonymous()) {
+        if (child.needs_layout_update() || child.is_anonymous()) {
             child.reset_cached_intrinsic_sizes();
         }
         child.clear_contained_abspos_children();
@@ -1403,7 +1402,7 @@ void Document::update_layout(UpdateLayoutReason reason)
         paintable()->recompute_selection_states(*range);
     }
 
-    for_each_shadow_including_inclusive_descendant([](auto& node) {
+    m_layout_root->for_each_in_inclusive_subtree([](auto& node) {
         node.reset_needs_layout_update();
         return TraversalDecision::Continue;
     });
@@ -1440,8 +1439,8 @@ void Document::update_layout(UpdateLayoutReason reason)
         }
         is_display_none = static_cast<Element&>(node).computed_properties()->display().is_none();
     }
-    if (node_invalidation.relayout) {
-        node.set_needs_layout_update(SetNeedsLayoutReason::StyleChange);
+    if (node_invalidation.relayout && node.layout_node()) {
+        node.layout_node()->set_needs_layout_update(SetNeedsLayoutReason::StyleChange);
     }
     if (node_invalidation.rebuild_layout_tree) {
         // We mark layout tree for rebuild starting from parent element to correctly invalidate
