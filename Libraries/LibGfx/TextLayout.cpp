@@ -14,8 +14,7 @@ namespace Gfx {
 
 RefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, Utf8View string, Gfx::Font const& font, GlyphRun::TextType text_type, ShapeFeatures const& features)
 {
-    hb_buffer_t* buffer = hb_buffer_create();
-    ScopeGuard destroy_buffer = [&]() { hb_buffer_destroy(buffer); };
+    static hb_buffer_t* buffer = hb_buffer_create();
     hb_buffer_add_utf8(buffer, reinterpret_cast<char const*>(string.bytes()), string.byte_length(), 0, -1);
     hb_buffer_guess_segment_properties(buffer);
 
@@ -60,9 +59,9 @@ RefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, Utf
             point.translate_by(letter_spacing, 0);
     }
 
+    auto run = adopt_ref(*new Gfx::GlyphRun(move(glyph_run), font, text_type, point.x()));
     hb_buffer_reset(buffer);
-
-    return adopt_ref(*new Gfx::GlyphRun(move(glyph_run), font, text_type, point.x()));
+    return run;
 }
 
 float measure_text_width(Utf8View const& string, Gfx::Font const& font, ShapeFeatures const& features)
