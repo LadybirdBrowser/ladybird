@@ -23,6 +23,12 @@ public:
     SVG::SVGGraphicsElement const& dom_node() const { return as<SVG::SVGGraphicsElement>(SVGBox::dom_node()); }
 
     virtual GC::Ptr<Painting::Paintable> create_paintable() const override;
+
+private:
+    virtual bool is_svg_graphics_box() const override { return true; }
 };
+
+template<>
+inline bool Node::fast_is<SVGGraphicsBox>() const { return is_svg_graphics_box(); }
 
 }

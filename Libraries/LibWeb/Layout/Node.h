@@ -101,6 +101,7 @@ public:
     virtual bool is_svg_geometry_box() const { return false; }
     virtual bool is_svg_mask_box() const { return false; }
     virtual bool is_svg_svg_box() const { return false; }
+    virtual bool is_svg_graphics_box() const { return false; }
     virtual bool is_label() const { return false; }
     virtual bool is_replaced_box() const { return false; }
     virtual bool is_list_item_box() const { return false; }
@@ -108,6 +109,7 @@ public:
     virtual bool is_fieldset_box() const { return false; }
     virtual bool is_legend_box() const { return false; }
     virtual bool is_table_wrapper() const { return false; }
+    virtual bool is_node_with_style() const { return false; }
     virtual bool is_node_with_style_and_box_model_metrics() const { return false; }
 
     template<typename T>
@@ -245,12 +247,17 @@ protected:
     NodeWithStyle(DOM::Document&, DOM::Node*, NonnullOwnPtr<CSS::ComputedValues>);
 
 private:
+    virtual bool is_node_with_style() const final { return true; }
+
     void reset_table_box_computed_values_used_by_wrapper_to_init_values();
     void propagate_style_to_anonymous_wrappers();
 
     NonnullOwnPtr<CSS::ComputedValues> m_computed_values;
     RefPtr<CSS::AbstractImageStyleValue const> m_list_style_image;
 };
+
+template<>
+inline bool Node::fast_is<NodeWithStyle>() const { return is_node_with_style(); }
 
 class NodeWithStyleAndBoxModelMetrics : public NodeWithStyle {
     GC_CELL(NodeWithStyleAndBoxModelMetrics, NodeWithStyle);
