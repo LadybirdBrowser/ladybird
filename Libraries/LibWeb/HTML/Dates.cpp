@@ -209,25 +209,6 @@ bool is_valid_time_string(StringView value)
     return true;
 }
 
-// https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#parse-a-time-string
-WebIDL::ExceptionOr<GC::Ref<JS::Date>> parse_time_string(JS::Realm& realm, StringView value)
-{
-    // FIXME: Implement spec compliant time string parsing
-    auto parts = value.split_view(':', SplitBehavior::KeepEmpty);
-    if (parts.size() >= 2) {
-        if (auto hours = parts.at(0).to_number<u32>(); hours.has_value()) {
-            if (auto minutes = parts.at(1).to_number<u32>(); minutes.has_value()) {
-                if (parts.size() >= 3) {
-                    if (auto seconds = parts.at(2).to_number<u32>(); seconds.has_value())
-                        return JS::Date::create(realm, JS::make_time(*hours, *minutes, *seconds, 0));
-                }
-                return JS::Date::create(realm, JS::make_date(0, JS::make_time(*hours, *minutes, 0, 0)));
-            }
-        }
-    }
-    return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Can't parse time string"sv };
-}
-
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#parse-a-month-component
 static Optional<YearAndMonth> parse_a_month_component(GenericLexer& input)
 {
@@ -440,7 +421,7 @@ static Optional<HourMinuteSecond> parse_a_time_component(GenericLexer& input)
         return {};
 
     // 6. Let second be 0.
-    i32 second = 0;
+    f32 second = 0;
 
     // 7. If position is not beyond the end of input and the character at position is U+003A (:), then:
     if (input.consume_specific(':')) {
@@ -463,23 +444,39 @@ static Optional<HourMinuteSecond> parse_a_time_component(GenericLexer& input)
             return {};
         // Otherwise, interpret the resulting sequence as a base-ten number (possibly with a fractional part). Set second
         // to that number.
-        // NB: The spec doesn't state requirements for what we must do with the fractional part of the second(s) string.
-        //     The spec neither requires that we separately preserve it nor requires that we completely discard it. If we
-        //     did have any reason at all to preserve it, we could parse the string into a float here. But there doesn't
-        //     seem to be any point in doing that, because there’s nothing in the corresponding calling algorithm(s) in the
-        //     spec that takes a milliseconds field and does anything with it anyway.
-        auto maybe_second = second_string.to_number<i32>();
+        auto maybe_second = second_string.to_number<f32>();
         if (!maybe_second.has_value())
             return {};
         second = maybe_second.value();
 
         // 4. If second is not a number in the range 0 ≤ second < 60, then fail.
-        if (second < 0 || second > 60)
+        if (second < 0 || second >= 60)
             return {};
     }
 
     // 8. Return hour, minute, and second.
     return HourMinuteSecond { hour, minute, second };
+}
+
+// https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#parse-a-time-string
+WebIDL::ExceptionOr<GC::Ref<JS::Date>> parse_time_string(JS::Realm& realm, StringView value)
+{
+    // 1. Let input be the string being parsed.
+    // 2. Let position be a pointer into input, initially pointing at the start of the string.
+    GenericLexer input { value };
+
+    // 3. Parse a time component to obtain hour, minute, and second. If this returns nothing, then fail.
+    auto hour_minute_second = parse_a_time_component(input);
+    if (!hour_minute_second.has_value())
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Can't parse time string"sv };
+
+    // 4. If position is not beyond the end of input, then fail.
+    if (!input.is_eof())
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Can't parse time string"sv };
+
+    // 5. Let time be the time with hour hour, minute minute, and second second.
+    // 6. Return time.
+    return JS::Date::create(realm, JS::make_time(hour_minute_second->hour, hour_minute_second->minute, hour_minute_second->second, static_cast<i32>(hour_minute_second->second * 1000) % 1000));
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#parse-a-local-date-and-time-string
