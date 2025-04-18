@@ -2209,7 +2209,7 @@ static Optional<double> convert_local_date_and_time_string_to_number(StringView 
     auto date = date_and_time.date;
     auto time = date_and_time.time;
 
-    auto date_time = UnixDateTime::from_unix_time_parts(date.year, date.month, date.day, time.hour, time.minute, time.second, 0);
+    auto date_time = UnixDateTime::from_unix_time_parts(date.year, date.month, date.day, time.hour, time.minute, time.second, static_cast<i32>(time.second * 1000) % 1000);
     return date_time.milliseconds_since_epoch();
 }
 

@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 49 tests
 
-43 Pass
-6 Fail
+49 Pass
 Pass	[INPUT in DATETIME-LOCAL status] The max attribute is not set
 Pass	[INPUT in DATETIME-LOCAL status] Value is empty string
 Pass	[INPUT in DATETIME-LOCAL status] The max attribute is an invalid local date time string
@@ -11,9 +10,9 @@ Pass	[INPUT in DATETIME-LOCAL status] The max attribute is greater than the valu
 Pass	[INPUT in DATETIME-LOCAL status] The value is an invalid local date time string(hour is greater than 23)
 Pass	[INPUT in DATETIME-LOCAL status] The value if an invalid local date time string(year is two digits)
 Pass	[INPUT in DATETIME-LOCAL status] The value is greater than max
-Fail	[INPUT in DATETIME-LOCAL status] The value is greater than max(with millisecond in 1 digit)
-Fail	[INPUT in DATETIME-LOCAL status] The value is greater than max(with millisecond in 2 digits)
-Fail	[INPUT in DATETIME-LOCAL status] The value is greater than max(with millisecond in 3 digits)
+Pass	[INPUT in DATETIME-LOCAL status] The value is greater than max(with millisecond in 1 digit)
+Pass	[INPUT in DATETIME-LOCAL status] The value is greater than max(with millisecond in 2 digits)
+Pass	[INPUT in DATETIME-LOCAL status] The value is greater than max(with millisecond in 3 digits)
 Pass	[INPUT in DATETIME-LOCAL status] The value is greater than max(Year is 10000 should be valid)
 Pass	[INPUT in DATE status] The max attribute is not set
 Pass	[INPUT in DATE status] Value is empty string
@@ -35,9 +34,9 @@ Pass	[INPUT in TIME status] The value attribute is an invalid time string(second
 Pass	[INPUT in TIME status] The max attribute is greater than value attribute
 Pass	[INPUT in TIME status] The time missing second and minute parts is invalid
 Pass	[INPUT in TIME status] The value attribute is greater than max attribute
-Fail	[INPUT in TIME status] The value is greater than max(with millisecond in 1 digit)
-Fail	[INPUT in TIME status] The value is greater than max(with millisecond in 2 digit)
-Fail	[INPUT in TIME status] The value is greater than max(with millisecond in 3 digit)
+Pass	[INPUT in TIME status] The value is greater than max(with millisecond in 1 digit)
+Pass	[INPUT in TIME status] The value is greater than max(with millisecond in 2 digit)
+Pass	[INPUT in TIME status] The value is greater than max(with millisecond in 3 digit)
 Pass	[INPUT in TIME status] The time missing second part is valid
 Pass	[INPUT in TIME status] The time is max for reversed range
 Pass	[INPUT in TIME status] The time is outside the accepted range for reversed range

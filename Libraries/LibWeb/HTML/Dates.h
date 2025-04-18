@@ -43,7 +43,7 @@ struct YearMonthDay {
 struct HourMinuteSecond {
     i32 hour;
     i32 minute;
-    i32 second;
+    f32 second;
 };
 
 struct DateAndTime {
