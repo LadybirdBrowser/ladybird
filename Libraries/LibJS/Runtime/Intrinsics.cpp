@@ -229,6 +229,15 @@ void Intrinsics::initialize_intrinsics(Realm& realm)
     m_unmapped_arguments_object_well_known_symbol_iterator_offset = m_unmapped_arguments_object_shape->lookup(StringOrSymbol(vm.well_known_symbol_iterator())).value().offset;
     m_unmapped_arguments_object_callee_offset = m_unmapped_arguments_object_shape->lookup(vm.names.callee.to_string_or_symbol()).value().offset;
 
+    m_mapped_arguments_object_shape = heap().allocate<Shape>(realm);
+    m_mapped_arguments_object_shape->set_prototype_without_transition(m_object_prototype);
+    m_mapped_arguments_object_shape->add_property_without_transition(vm.names.length, Attribute::Writable | Attribute::Configurable);
+    m_mapped_arguments_object_shape->add_property_without_transition(vm.well_known_symbol_iterator(), Attribute::Writable | Attribute::Configurable);
+    m_mapped_arguments_object_shape->add_property_without_transition(vm.names.callee, Attribute::Writable | Attribute::Configurable);
+    m_mapped_arguments_object_length_offset = m_mapped_arguments_object_shape->lookup(vm.names.length.to_string_or_symbol()).value().offset;
+    m_mapped_arguments_object_well_known_symbol_iterator_offset = m_mapped_arguments_object_shape->lookup(StringOrSymbol(vm.well_known_symbol_iterator())).value().offset;
+    m_mapped_arguments_object_callee_offset = m_mapped_arguments_object_shape->lookup(vm.names.callee.to_string_or_symbol()).value().offset;
+
     // Normally Realm::create() takes care of this, but these are allocated via Heap::allocate().
     m_function_prototype->initialize(realm);
     m_object_prototype->initialize(realm);
@@ -406,6 +415,7 @@ void Intrinsics::visit_edges(Visitor& visitor)
     visitor.visit(m_normal_function_shape);
     visitor.visit(m_native_function_shape);
     visitor.visit(m_unmapped_arguments_object_shape);
+    visitor.visit(m_mapped_arguments_object_shape);
     visitor.visit(m_proxy_constructor);
     visitor.visit(m_async_from_sync_iterator_prototype);
     visitor.visit(m_async_generator_prototype);

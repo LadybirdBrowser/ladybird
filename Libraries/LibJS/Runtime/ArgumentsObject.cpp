@@ -13,7 +13,7 @@ namespace JS {
 GC_DEFINE_ALLOCATOR(ArgumentsObject);
 
 ArgumentsObject::ArgumentsObject(Realm& realm, Environment& environment)
-    : Object(ConstructWithPrototypeTag::Tag, realm.intrinsics().object_prototype(), MayInterfereWithIndexedPropertyAccess::Yes)
+    : Object(realm.intrinsics().mapped_arguments_object_shape(), MayInterfereWithIndexedPropertyAccess::Yes)
     , m_environment(environment)
 {
 }
