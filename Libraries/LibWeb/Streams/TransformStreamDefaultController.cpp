@@ -6,10 +6,10 @@
 
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/TransformStreamDefaultControllerPrototype.h>
-#include <LibWeb/Streams/AbstractOperations.h>
 #include <LibWeb/Streams/ReadableStreamOperations.h>
 #include <LibWeb/Streams/TransformStream.h>
 #include <LibWeb/Streams/TransformStreamDefaultController.h>
+#include <LibWeb/Streams/TransformStreamOperations.h>
 
 namespace Web::Streams {
 
