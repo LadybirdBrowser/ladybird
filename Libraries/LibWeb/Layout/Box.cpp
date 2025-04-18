@@ -10,6 +10,7 @@
 #include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/FormattingContext.h>
+#include <LibWeb/Layout/TableWrapper.h>
 #include <LibWeb/Painting/PaintableBox.h>
 
 namespace Web::Layout {

@@ -1332,7 +1332,7 @@ void Document::update_layout(UpdateLayoutReason reason)
         if (auto dom_node = child.dom_node(); dom_node && dom_node->is_element()) {
             child.set_has_size_containment(as<Element>(*dom_node).has_size_containment());
         }
-        if (child.needs_layout_update() || child.is_anonymous()) {
+        if (child.needs_layout_update()) {
             child.reset_cached_intrinsic_sizes();
         }
         child.clear_contained_abspos_children();
