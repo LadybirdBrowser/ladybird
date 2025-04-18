@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2020-2025, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2020-2022, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2021-2022, David Tuin <davidot@serenityos.org>
  *
@@ -102,6 +102,11 @@ public:
     virtual bool is_labelled_statement() const { return false; }
     virtual bool is_iteration_statement() const { return false; }
     virtual bool is_class_method() const { return false; }
+    virtual bool is_spread_expression() const { return false; }
+    virtual bool is_function_body() const { return false; }
+    virtual bool is_block_statement() const { return false; }
+    virtual bool is_primitive_literal() const { return false; }
+    virtual bool is_optional_chain() const { return false; }
 
 protected:
     explicit ASTNode(SourceRange);
@@ -573,6 +578,9 @@ public:
         : ScopeNode(move(source_range))
     {
     }
+
+private:
+    virtual bool is_block_statement() const override { return true; }
 };
 
 class FunctionBody final : public ScopeNode {
@@ -587,6 +595,8 @@ public:
     bool in_strict_mode() const { return m_in_strict_mode; }
 
 private:
+    virtual bool is_function_body() const override { return true; }
+
     bool m_in_strict_mode { false };
 };
 
@@ -1191,6 +1201,9 @@ protected:
         : Expression(move(source_range))
     {
     }
+
+private:
+    virtual bool is_primitive_literal() const override { return true; }
 };
 
 class BooleanLiteral final : public PrimitiveLiteral {
@@ -1533,6 +1546,8 @@ public:
     virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_bytecode(Bytecode::Generator&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const override;
 
 private:
+    virtual bool is_spread_expression() const override { return true; }
+
     NonnullRefPtr<Expression const> m_target;
 };
 
@@ -1995,6 +2010,8 @@ public:
     Vector<Reference> const& references() const { return m_references; }
 
 private:
+    virtual bool is_optional_chain() const override { return true; }
+
     NonnullRefPtr<Expression const> m_base;
     Vector<Reference> m_references;
 };
@@ -2287,5 +2304,20 @@ inline bool ASTNode::fast_is<IterationStatement>() const { return is_iteration_s
 
 template<>
 inline bool ASTNode::fast_is<ClassMethod>() const { return is_class_method(); }
+
+template<>
+inline bool ASTNode::fast_is<SpreadExpression>() const { return is_spread_expression(); }
+
+template<>
+inline bool ASTNode::fast_is<FunctionBody>() const { return is_function_body(); }
+
+template<>
+inline bool ASTNode::fast_is<BlockStatement>() const { return is_block_statement(); }
+
+template<>
+inline bool ASTNode::fast_is<PrimitiveLiteral>() const { return is_primitive_literal(); }
+
+template<>
+inline bool ASTNode::fast_is<OptionalChain>() const { return is_optional_chain(); }
 
 }

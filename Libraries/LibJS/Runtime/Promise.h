@@ -54,6 +54,7 @@ protected:
     virtual void visit_edges(Visitor&) override;
 
 private:
+    virtual bool is_promise() const override { return true; }
     bool is_settled() const { return m_state == State::Fulfilled || m_state == State::Rejected; }
 
     void trigger_reactions() const;
@@ -65,5 +66,8 @@ private:
     Vector<GC::Ptr<PromiseReaction>> m_reject_reactions;  // [[PromiseRejectReactions]]
     bool m_is_handled { false };                          // [[PromiseIsHandled]]
 };
+
+template<>
+inline bool Object::fast_is<Promise>() const { return is_promise(); }
 
 }

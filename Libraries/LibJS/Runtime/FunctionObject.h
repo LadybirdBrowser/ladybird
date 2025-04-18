@@ -50,4 +50,7 @@ private:
     virtual bool is_function() const override { return true; }
 };
 
+template<>
+inline bool Object::fast_is<FunctionObject>() const { return is_function(); }
+
 }
