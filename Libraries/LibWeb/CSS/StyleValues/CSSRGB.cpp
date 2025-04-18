@@ -67,7 +67,7 @@ bool CSSRGB::equals(CSSStyleValue const& other) const
     auto const& other_color = other.as_color();
     if (color_type() != other_color.color_type())
         return false;
-    auto const& other_rgb = as<CSSRGB>(other_color);
+    auto const& other_rgb = static_cast<CSSRGB const&>(other_color);
     return m_properties == other_rgb.m_properties;
 }
 
