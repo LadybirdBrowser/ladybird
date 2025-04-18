@@ -124,6 +124,7 @@ class HashTable {
     static constexpr size_t grow_capacity_increase_percent = 60;
 
     struct Bucket {
+        unsigned hash;
         BucketState state;
         alignas(T) u8 storage[sizeof(T)];
         T* slot() { return reinterpret_cast<T*>(storage); }
@@ -133,6 +134,7 @@ class HashTable {
     struct OrderedBucket {
         OrderedBucket* previous;
         OrderedBucket* next;
+        unsigned hash;
         BucketState state;
         alignas(T) u8 storage[sizeof(T)];
         T* slot() { return reinterpret_cast<T*>(storage); }
@@ -564,15 +566,15 @@ private:
         if (is_empty())
             return nullptr;
 
-        hash %= m_capacity;
+        size_t index = hash % m_capacity;
         for (;;) {
-            auto* bucket = &m_buckets[hash];
+            auto* bucket = &m_buckets[index];
             if (bucket->state == BucketState::Free)
                 return nullptr;
-            if (predicate(*bucket->slot()))
+            if (bucket->hash == hash && predicate(*bucket->slot()))
                 return bucket;
-            if (++hash == m_capacity) [[unlikely]]
-                hash = 0;
+            if (++index == m_capacity) [[unlikely]]
+                index = 0;
         }
     }
 
@@ -644,7 +646,8 @@ private:
             }
         };
 
-        auto bucket_index = TraitsForT::hash(value) % m_capacity;
+        unsigned bucket_hash = TraitsForT::hash(value);
+        size_t bucket_index = bucket_hash % m_capacity;
         size_t probe_length = 0;
         for (;;) {
             auto* bucket = &m_buckets[bucket_index];
@@ -652,6 +655,7 @@ private:
             // We found a free bucket, write to it and stop
             if (bucket->state == BucketState::Free) {
                 new (bucket->slot()) T(forward<U>(value));
+                bucket->hash = bucket_hash;
                 bucket->state = bucket_state_for_probe_length(probe_length);
                 update_collection_for_new_bucket(*bucket);
                 ++m_size;
@@ -677,6 +681,7 @@ private:
 
                 // Write new bucket
                 new (bucket->slot()) T(forward<U>(value));
+                bucket->hash = bucket_hash;
                 bucket->state = bucket_state_for_probe_length(probe_length);
                 probe_length = target_probe_length;
                 if constexpr (IsOrdered)
