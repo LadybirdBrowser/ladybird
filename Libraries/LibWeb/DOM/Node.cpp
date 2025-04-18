@@ -1418,7 +1418,8 @@ void Node::set_needs_layout_tree_update(bool value)
                 break;
             ancestor->m_child_needs_layout_tree_update = true;
         }
-        set_needs_layout_update(SetNeedsLayoutReason::LayoutTreeUpdate);
+        if (auto layout_node = this->layout_node())
+            layout_node->set_needs_layout_update(SetNeedsLayoutReason::LayoutTreeUpdate);
     }
 }
 
@@ -1435,27 +1436,6 @@ void Node::set_needs_style_update(bool value)
             ancestor->m_child_needs_style_update = true;
         }
         document().schedule_style_update();
-    }
-}
-
-void Node::set_needs_layout_update(SetNeedsLayoutReason reason)
-{
-    if (m_needs_layout_update)
-        return;
-
-    if constexpr (UPDATE_LAYOUT_DEBUG) {
-        // NOTE: We check some conditions here to avoid debug spam in documents that don't do layout.
-        auto navigable = this->navigable();
-        if (navigable && navigable->active_document() == &document())
-            dbgln_if(UPDATE_LAYOUT_DEBUG, "NEED LAYOUT {}", to_string(reason));
-    }
-
-    m_needs_layout_update = true;
-
-    for (auto* ancestor = parent_or_shadow_host(); ancestor; ancestor = ancestor->parent_or_shadow_host()) {
-        if (ancestor->m_needs_layout_update)
-            break;
-        ancestor->m_needs_layout_update = true;
     }
 }
 

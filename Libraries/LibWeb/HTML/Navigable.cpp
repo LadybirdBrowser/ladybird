@@ -42,6 +42,7 @@
 #include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Layout/Node.h>
+#include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Loader/GeneratedPagesLoader.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/Paintable.h>
@@ -2165,7 +2166,8 @@ void finalize_a_cross_document_navigation(GC::Ref<Navigable> navigable, HistoryH
     // AD-HOC: If we're inside a navigable container, let's trigger a relayout in the container document.
     //         This allows size negotiation between the containing document and SVG documents to happen.
     if (auto container = navigable->container()) {
-        container->set_needs_layout_update(DOM::SetNeedsLayoutReason::FinalizeACrossDocumentNavigation);
+        if (auto layout_node = container->layout_node())
+            layout_node->set_needs_layout_update(DOM::SetNeedsLayoutReason::FinalizeACrossDocumentNavigation);
     }
 }
 
@@ -2288,7 +2290,8 @@ void Navigable::set_viewport_size(CSSPixelSize size)
     if (auto document = active_document()) {
         // NOTE: Resizing the viewport changes the reference value for viewport-relative CSS lengths.
         document->invalidate_style(DOM::StyleInvalidationReason::NavigableSetViewportSize);
-        document->set_needs_layout_update(DOM::SetNeedsLayoutReason::NavigableSetViewportSize);
+        if (auto layout_node = document->layout_node())
+            layout_node->set_needs_layout_update(DOM::SetNeedsLayoutReason::NavigableSetViewportSize);
     }
 
     if (auto document = active_document()) {
