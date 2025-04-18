@@ -190,6 +190,11 @@ public:
     void define_native_accessor(Realm&, PropertyKey const&, ESCAPING Function<ThrowCompletionOr<Value>(VM&)> getter, ESCAPING Function<ThrowCompletionOr<Value>(VM&)> setter, PropertyAttributes attributes);
 
     virtual bool is_dom_node() const { return false; }
+    virtual bool is_dom_event() const { return false; }
+    virtual bool is_html_window() const { return false; }
+    virtual bool is_html_window_proxy() const { return false; }
+    virtual bool is_html_location() const { return false; }
+
     virtual bool is_function() const { return false; }
     virtual bool is_promise() const { return false; }
     virtual bool is_error() const { return false; }
