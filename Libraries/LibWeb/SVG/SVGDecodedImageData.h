@@ -92,6 +92,8 @@ private:
     {
     }
 
+    virtual bool is_svg_page_client() const override { return true; }
+
     virtual void visit_edges(Visitor&) override;
 };
 
