@@ -2280,7 +2280,7 @@ static BoxTypeTransformation required_box_type_transformation(ComputedProperties
     // FIXME: Containment in a ruby container inlinifies the box’s display type, as described in [CSS-RUBY-1].
 
     // NOTE: If we're computing style for a pseudo-element, the effective parent will be the originating element itself, not its parent.
-    auto const* parent = pseudo_element.has_value() ? &element : element.parent_element();
+    auto parent = pseudo_element.has_value() ? GC::Ptr<DOM::Element const> { &element } : element.parent_element();
 
     // A parent with a grid or flex display value blockifies the box’s display type. [CSS-GRID-1] [CSS-FLEXBOX-1]
     if (parent && parent->computed_properties()) {
@@ -2505,7 +2505,7 @@ RefPtr<CSSStyleValue const> StyleComputer::recascade_font_size_if_needed(
     Vector<DOM::Element&> ancestors;
     if (pseudo_element.has_value())
         ancestors.append(element);
-    for (auto* ancestor = element.parent_element(); ancestor; ancestor = ancestor->parent_element())
+    for (auto ancestor = element.parent_element(); ancestor; ancestor = ancestor->parent_element())
         ancestors.append(*ancestor);
 
     NonnullRefPtr<CSSStyleValue const> new_font_size = CSS::LengthStyleValue::create(CSS::Length::make_px(default_monospace_font_size_in_px));

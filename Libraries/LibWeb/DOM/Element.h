@@ -582,20 +582,14 @@ private:
 template<>
 inline bool Node::fast_is<Element>() const { return is_element(); }
 
-inline Element* Node::parent_element()
+inline GC::Ptr<Element> Node::parent_element()
 {
-    auto* parent = this->parent();
-    if (!parent || !is<Element>(parent))
-        return nullptr;
-    return static_cast<Element*>(parent);
+    return as_if<Element>(this->parent());
 }
 
-inline Element const* Node::parent_element() const
+inline GC::Ptr<Element const> Node::parent_element() const
 {
-    auto const* parent = this->parent();
-    if (!parent || !is<Element>(parent))
-        return nullptr;
-    return static_cast<Element const*>(parent);
+    return as_if<Element>(this->parent());
 }
 
 inline bool Element::has_class(FlyString const& class_name, CaseSensitivity case_sensitivity) const

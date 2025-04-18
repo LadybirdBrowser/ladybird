@@ -31,7 +31,7 @@ void HTMLSummaryElement::activation_behavior(DOM::Event const&)
         return;
 
     // 2. Let parent be this summary element's parent.
-    auto* parent = this->parent_element();
+    auto parent = this->parent_element();
 
     // 3. If the open attribute is present on parent, then remove it. Otherwise, set parent's open attribute to the empty string.
     if (parent->has_attribute(HTML::AttributeNames::open))
@@ -50,7 +50,7 @@ bool HTMLSummaryElement::is_summary_for_its_parent_details()
         return false;
 
     // 2. Let parent be this summary element's parent.
-    auto* parent = this->parent_element();
+    auto parent = this->parent_element();
 
     // 3. If parent is not a details element, then return false.
     if (!is<HTMLDetailsElement>(*parent))

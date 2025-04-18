@@ -1440,7 +1440,7 @@ void Document::update_layout(UpdateLayoutReason reason)
     if (node_invalidation.rebuild_layout_tree) {
         // We mark layout tree for rebuild starting from parent element to correctly invalidate
         // "display" property change to/from "contents" value.
-        if (auto* parent_element = node.parent_element()) {
+        if (auto parent_element = node.parent_element()) {
             parent_element->set_needs_layout_tree_update(true);
         } else {
             node.set_needs_layout_tree_update(true);

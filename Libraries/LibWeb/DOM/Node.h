@@ -261,8 +261,8 @@ public:
     Node* parent_node() { return parent(); }
     Node const* parent_node() const { return parent(); }
 
-    Element* parent_element();
-    Element const* parent_element() const;
+    GC::Ptr<Element> parent_element();
+    GC::Ptr<Element const> parent_element() const;
 
     virtual void inserted();
     virtual void post_connection();
