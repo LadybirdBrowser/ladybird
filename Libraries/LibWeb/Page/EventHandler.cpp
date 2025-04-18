@@ -74,7 +74,8 @@ static bool parent_element_for_event_dispatch(Painting::Paintable& paintable, GC
 
     auto* current_ancestor_node = node.ptr();
     do {
-        if (is<HTML::FormAssociatedElement>(current_ancestor_node) && !dynamic_cast<HTML::FormAssociatedElement*>(current_ancestor_node)->enabled()) {
+        auto const* form_associated_element = as_if<HTML::FormAssociatedElement>(current_ancestor_node);
+        if (form_associated_element && !form_associated_element->enabled()) {
             return false;
         }
     } while ((current_ancestor_node = current_ancestor_node->parent()));
