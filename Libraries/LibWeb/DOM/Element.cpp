@@ -3153,6 +3153,10 @@ Element const* Element::list_owner() const
     // 2. Let ancestor be the element's parent.
     auto const* ancestor = parent_element();
 
+    // AC-HOC: There may not be any parent element in a shadow tree.
+    if (!ancestor)
+        return nullptr;
+
     // 3. If the element has an ol, ul, or menu ancestor, set ancestor to the closest such ancestor element.
     for_each_ancestor([&ancestor](GC::Ref<Node> node) {
         if (is<HTML::HTMLOListElement>(*node) || is<HTML::HTMLUListElement>(*node) || is<HTML::HTMLMenuElement>(*node)) {
@@ -3163,7 +3167,6 @@ Element const* Element::list_owner() const
     });
 
     // 4. Return the closest inclusive ancestor of ancestor that produces a CSS box.
-    // Spec-Note: Such an element will always exist, as at the very least the document element will always produce a CSS box.
     ancestor->for_each_inclusive_ancestor([&ancestor](GC::Ref<Node> node) {
         if (is<Element>(*node) && node->paintable_box()) {
             ancestor = static_cast<Element const*>(node.ptr());
