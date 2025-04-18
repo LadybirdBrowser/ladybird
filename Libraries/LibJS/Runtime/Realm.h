@@ -30,6 +30,12 @@ public:
         virtual ~HostDefined() = default;
 
         virtual void visit_edges(Cell::Visitor&) { }
+
+        template<typename T>
+        bool fast_is() const = delete;
+
+        virtual bool is_principal_host_defined() const { return false; }
+        virtual bool is_synthetic_host_defined() const { return false; }
     };
 
     template<typename T, typename... Args>
