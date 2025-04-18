@@ -1322,6 +1322,11 @@ void Document::update_layout(UpdateLayoutReason reason)
         }
     }
 
+    m_layout_root->for_each_in_inclusive_subtree([&](auto& layout_node) {
+        layout_node.recompute_containing_block({});
+        return TraversalDecision::Continue;
+    });
+
     m_layout_root->for_each_in_inclusive_subtree_of_type<Layout::Box>([&](auto& child) {
         if (auto dom_node = child.dom_node(); dom_node && dom_node->is_element()) {
             child.set_has_size_containment(as<Element>(*dom_node).has_size_containment());
@@ -1338,8 +1343,8 @@ void Document::update_layout(UpdateLayoutReason reason)
     m_layout_root->for_each_in_inclusive_subtree_of_type<Layout::Box>([&](auto& child) {
         if (!child.is_absolutely_positioned())
             return TraversalDecision::Continue;
-        if (auto* containing_block = child.containing_block()) {
-            auto* closest_box_that_establishes_formatting_context = containing_block;
+        if (auto containing_block = child.containing_block()) {
+            auto closest_box_that_establishes_formatting_context = containing_block;
             while (closest_box_that_establishes_formatting_context) {
                 if (closest_box_that_establishes_formatting_context == m_layout_root)
                     break;

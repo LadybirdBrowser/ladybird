@@ -127,8 +127,10 @@ public:
     bool is_grid_item() const { return m_is_grid_item; }
     void set_grid_item(bool b) { m_is_grid_item = b; }
 
-    Box const* containing_block() const;
-    Box* containing_block() { return const_cast<Box*>(const_cast<Node const*>(this)->containing_block()); }
+    [[nodiscard]] GC::Ptr<Box const> containing_block() const { return m_containing_block; }
+    [[nodiscard]] GC::Ptr<Box> containing_block() { return m_containing_block; }
+
+    void recompute_containing_block(Badge<DOM::Document>);
 
     [[nodiscard]] Box const* static_position_containing_block() const;
     [[nodiscard]] Box* static_position_containing_block() { return const_cast<Box*>(const_cast<Node const*>(this)->static_position_containing_block()); }
@@ -199,6 +201,8 @@ private:
 
     GC::Ref<DOM::Node> m_dom_node;
     PaintableList m_paintable;
+
+    GC::Ptr<Box> m_containing_block;
 
     GC::Ptr<DOM::Element> m_pseudo_element_generator;
 

@@ -53,6 +53,7 @@ void Node::visit_edges(Cell::Visitor& visitor)
     for (auto const& paintable : m_paintable) {
         visitor.visit(GC::Ptr { &paintable });
     }
+    visitor.visit(m_containing_block);
     visitor.visit(m_pseudo_element_generator);
     TreeNode::visit_edges(visitor);
 }
@@ -106,9 +107,9 @@ bool Node::can_contain_boxes_with_position_absolute() const
     return false;
 }
 
-static Box const* nearest_ancestor_capable_of_forming_a_containing_block(Node const& node)
+static GC::Ptr<Box> nearest_ancestor_capable_of_forming_a_containing_block(Node& node)
 {
-    for (auto const* ancestor = node.parent(); ancestor; ancestor = ancestor->parent()) {
+    for (auto* ancestor = node.parent(); ancestor; ancestor = ancestor->parent()) {
         if (ancestor->is_block_container()
             || ancestor->display().is_flex_inside()
             || ancestor->display().is_grid_inside()
@@ -119,31 +120,36 @@ static Box const* nearest_ancestor_capable_of_forming_a_containing_block(Node co
     return nullptr;
 }
 
-Box const* Node::containing_block() const
+void Node::recompute_containing_block(Badge<DOM::Document>)
 {
-    if (is<TextNode>(*this))
-        return nearest_ancestor_capable_of_forming_a_containing_block(*this);
+    if (is<TextNode>(*this)) {
+        m_containing_block = nearest_ancestor_capable_of_forming_a_containing_block(*this);
+        return;
+    }
 
     auto position = computed_values().position();
 
     // https://drafts.csswg.org/css-position-3/#absolute-cb
     if (position == CSS::Positioning::Absolute) {
-        auto const* ancestor = parent();
+        auto* ancestor = parent();
         while (ancestor && !ancestor->can_contain_boxes_with_position_absolute())
             ancestor = ancestor->parent();
-        return static_cast<Box const*>(ancestor);
+        m_containing_block = static_cast<Box*>(ancestor);
+        return;
     }
 
-    if (position == CSS::Positioning::Fixed)
-        return &root();
+    if (position == CSS::Positioning::Fixed) {
+        m_containing_block = &root();
+        return;
+    }
 
-    return nearest_ancestor_capable_of_forming_a_containing_block(*this);
+    m_containing_block = nearest_ancestor_capable_of_forming_a_containing_block(*this);
 }
 
 // returns containing block this node would have had if its position was static
 Box const* Node::static_position_containing_block() const
 {
-    return nearest_ancestor_capable_of_forming_a_containing_block(*this);
+    return nearest_ancestor_capable_of_forming_a_containing_block(const_cast<Node&>(*this));
 }
 
 Box const* Node::non_anonymous_containing_block() const

@@ -638,7 +638,7 @@ CSSPixels BlockFormattingContext::compute_auto_height_for_block_level_element(Bo
 static CSSPixels containing_block_height_to_resolve_percentage_in_quirks_mode(Box const& box, LayoutState const& state)
 {
     // https://quirks.spec.whatwg.org/#the-percentage-height-calculation-quirk
-    auto const* containing_block = box.containing_block();
+    auto containing_block = box.containing_block();
     while (containing_block) {
         // 1. Let element be the nearest ancestor containing block of element, if there is one.
         //    Otherwise, return the initial containing block.
@@ -925,7 +925,7 @@ BlockFormattingContext::DidIntroduceClearance BlockFormattingContext::clear_floa
 
             // Then, convert the clearance Y to a coordinate relative to the containing block of `child_box`.
             CSSPixels clearance_y_in_containing_block = clearance_y_in_root;
-            for (auto* containing_block = child_box.containing_block(); containing_block && containing_block != &root(); containing_block = containing_block->containing_block())
+            for (auto containing_block = child_box.containing_block(); containing_block && containing_block != &root(); containing_block = containing_block->containing_block())
                 clearance_y_in_containing_block -= m_state.get(*containing_block).offset.y();
 
             if (inline_formatting_context.has_value()) {
