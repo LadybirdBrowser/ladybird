@@ -6033,7 +6033,7 @@ void Document::for_each_shadow_root(Function<void(DOM::ShadowRoot&)>&& callback)
 
 bool Document::is_decoded_svg() const
 {
-    return is<Web::SVG::SVGDecodedImageData::SVGPageClient>(page().client());
+    return page().client().is_svg_page_client();
 }
 
 // https://drafts.csswg.org/css-position-4/#add-an-element-to-the-top-layer
