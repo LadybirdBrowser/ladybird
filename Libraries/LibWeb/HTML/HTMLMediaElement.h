@@ -182,6 +182,8 @@ protected:
 private:
     friend SourceElementSelector;
 
+    virtual bool is_html_media_element() const final { return true; }
+
     struct EntireResource { };
     using ByteRange = Variant<EntireResource>; // FIXME: This will need to include "until end" and an actual byte range.
 
@@ -323,4 +325,9 @@ private:
     mutable CachedLayoutBoxes m_layout_boxes;
 };
 
+}
+
+namespace Web::DOM {
+template<>
+inline bool Node::fast_is<HTML::HTMLMediaElement>() const { return is_html_media_element(); }
 }

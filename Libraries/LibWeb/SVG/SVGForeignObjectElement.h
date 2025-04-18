@@ -28,6 +28,8 @@ public:
 private:
     SVGForeignObjectElement(DOM::Document& document, DOM::QualifiedName qualified_name);
 
+    virtual bool is_svg_foreign_object_element() const override { return true; }
+
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
@@ -40,4 +42,9 @@ private:
     GC::Ptr<SVG::SVGAnimatedLength> m_height;
 };
 
+}
+
+namespace Web::DOM {
+template<>
+inline bool Node::fast_is<SVG::SVGForeignObjectElement>() const { return is_svg_foreign_object_element(); }
 }
