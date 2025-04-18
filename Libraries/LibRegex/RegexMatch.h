@@ -418,7 +418,8 @@ struct MatchState {
         auto combine = [&hash](auto value) {
             hash ^= value + 0x9e3779b97f4a7c15 + (hash << 6) + (hash >> 2);
         };
-        auto combine_vector = [&hash](auto const& vector) {
+        auto combine_vector = [&hash](auto const& vector, auto tag) {
+            hash ^= tag * (vector.size() + 1);
             for (auto& value : vector) {
                 hash ^= value;
                 hash *= 0x100000001b3;
@@ -431,8 +432,8 @@ struct MatchState {
         combine(instruction_position);
         combine(fork_at_position);
         combine(initiating_fork.value_or(0) + initiating_fork.has_value());
-        combine_vector(repetition_marks);
-        combine_vector(checkpoints);
+        combine_vector(repetition_marks, 0xbeefbeefbeefbeef);
+        combine_vector(checkpoints, 0xfacefacefaceface);
 
         return hash;
     }
