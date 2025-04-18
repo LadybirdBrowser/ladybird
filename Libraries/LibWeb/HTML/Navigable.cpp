@@ -99,11 +99,6 @@ Vector<GC::Root<Navigable>> Navigable::child_navigables() const
     return results;
 }
 
-bool Navigable::is_traversable() const
-{
-    return is<TraversableNavigable>(*this);
-}
-
 bool Navigable::is_ancestor_of(GC::Ref<Navigable> other) const
 {
     for (auto ancestor = other->parent(); ancestor; ancestor = ancestor->parent()) {
