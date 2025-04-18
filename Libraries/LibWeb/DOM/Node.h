@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2024, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2018-2025, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -144,6 +144,8 @@ public:
     virtual bool is_svg_style_element() const { return false; }
     virtual bool is_svg_svg_element() const { return false; }
     virtual bool is_svg_use_element() const { return false; }
+    virtual bool is_svg_a_element() const { return false; }
+    virtual bool is_svg_foreign_object_element() const { return false; }
 
     bool in_a_document_tree() const;
 
@@ -158,10 +160,13 @@ public:
     virtual bool is_html_element() const { return false; }
     virtual bool is_html_html_element() const { return false; }
     virtual bool is_html_anchor_element() const { return false; }
+    virtual bool is_html_area_element() const { return false; }
     virtual bool is_html_base_element() const { return false; }
     virtual bool is_html_body_element() const { return false; }
+    virtual bool is_html_head_element() const { return false; }
     virtual bool is_html_input_element() const { return false; }
     virtual bool is_html_link_element() const { return false; }
+    virtual bool is_html_media_element() const { return false; }
     virtual bool is_html_progress_element() const { return false; }
     virtual bool is_html_script_element() const { return false; }
     virtual bool is_html_style_element() const { return false; }
@@ -170,6 +175,7 @@ public:
     virtual bool is_html_table_section_element() const { return false; }
     virtual bool is_html_table_row_element() const { return false; }
     virtual bool is_html_table_cell_element() const { return false; }
+    virtual bool is_html_title_element() const { return false; }
     virtual bool is_html_br_element() const { return false; }
     virtual bool is_html_button_element() const { return false; }
     virtual bool is_html_slot_element() const { return false; }
@@ -178,6 +184,8 @@ public:
     virtual bool is_html_form_element() const { return false; }
     virtual bool is_html_image_element() const { return false; }
     virtual bool is_html_iframe_element() const { return false; }
+    virtual bool is_html_frameset_element() const { return false; }
+    virtual bool is_html_fieldset_element() const { return false; }
     virtual bool is_navigable_container() const { return false; }
     virtual bool is_lazy_loading() const { return false; }
 

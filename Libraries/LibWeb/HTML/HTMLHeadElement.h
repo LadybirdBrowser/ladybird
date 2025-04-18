@@ -20,7 +20,13 @@ public:
 private:
     HTMLHeadElement(DOM::Document&, DOM::QualifiedName);
 
+    virtual bool is_html_head_element() const final { return true; }
     virtual void initialize(JS::Realm&) override;
 };
 
+}
+
+namespace Web::DOM {
+template<>
+inline bool Node::fast_is<HTML::HTMLHeadElement>() const { return is_html_head_element(); }
 }
