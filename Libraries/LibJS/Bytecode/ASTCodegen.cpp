@@ -1578,7 +1578,7 @@ static Bytecode::CodeGenerationErrorOr<void> generate_array_binding_pattern_byte
         Bytecode::Label { not_done_block });
 
     generator.switch_to_basic_block(not_done_block);
-    generator.emit<Bytecode::Op::IteratorClose>(iterator, Completion::Type::Normal, Optional<Value> {});
+    generator.emit<Bytecode::Op::IteratorClose>(iterator);
     generator.emit<Bytecode::Op::Jump>(Bytecode::Label { done_block });
 
     generator.switch_to_basic_block(done_block);
@@ -2166,11 +2166,11 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> YieldExpression::genera
         // 3. If generatorKind is async, perform ? AsyncIteratorClose(iteratorRecord, closeCompletion).
         if (generator.is_in_async_generator_function()) {
             // FIXME: This performs `await` outside of the generator!
-            generator.emit<Bytecode::Op::AsyncIteratorClose>(iterator_record, Completion::Type::Normal, Optional<Value> {});
+            generator.emit<Bytecode::Op::AsyncIteratorClose>(iterator_record);
         }
         // 4. Else, perform ? IteratorClose(iteratorRecord, closeCompletion).
         else {
-            generator.emit<Bytecode::Op::IteratorClose>(iterator_record, Completion::Type::Normal, Optional<Value> {});
+            generator.emit<Bytecode::Op::IteratorClose>(iterator_record);
         }
 
         // 5. NOTE: The next step throws a TypeError to indicate that there was a yield* protocol violation: iterator does not have a throw method.
@@ -3026,10 +3026,15 @@ struct ForInOfHeadEvaluationResult {
     bool is_destructuring { false };
     LHSKind lhs_kind { LHSKind::Assignment };
     Optional<ScopedOperand> iterator;
+    Bytecode::BasicBlock& loop_end;
 };
 static Bytecode::CodeGenerationErrorOr<ForInOfHeadEvaluationResult> for_in_of_head_evaluation(Bytecode::Generator& generator, IterationKind iteration_kind, Variant<NonnullRefPtr<ASTNode const>, NonnullRefPtr<BindingPattern const>> const& lhs, NonnullRefPtr<ASTNode const> const& rhs)
 {
-    ForInOfHeadEvaluationResult result {};
+    auto& loop_end = generator.make_block();
+
+    ForInOfHeadEvaluationResult result {
+        .loop_end = loop_end,
+    };
 
     bool entered_lexical_scope = false;
     if (auto* ast_ptr = lhs.get_pointer<NonnullRefPtr<ASTNode const>>(); ast_ptr && is<VariableDeclaration>(**ast_ptr)) {
@@ -3103,16 +3108,12 @@ static Bytecode::CodeGenerationErrorOr<ForInOfHeadEvaluationResult> for_in_of_he
     // 6. If iterationKind is enumerate, then
     if (iteration_kind == IterationKind::Enumerate) {
         // a. If exprValue is undefined or null, then
-        auto& nullish_block = generator.make_block();
+        //    i. Return Completion Record { [[Type]]: break, [[Value]]: empty, [[Target]]: empty }.
         auto& continuation_block = generator.make_block();
         generator.emit<Bytecode::Op::JumpNullish>(
             object,
-            Bytecode::Label { nullish_block },
+            Bytecode::Label { loop_end },
             Bytecode::Label { continuation_block });
-
-        // i. Return Completion Record { [[Type]]: break, [[Value]]: empty, [[Target]]: empty }.
-        generator.switch_to_basic_block(nullish_block);
-        generator.generate_break();
 
         generator.switch_to_basic_block(continuation_block);
         // b. Let obj be ! ToObject(exprValue).
@@ -3138,8 +3139,10 @@ static Bytecode::CodeGenerationErrorOr<ForInOfHeadEvaluationResult> for_in_of_he
 }
 
 // 14.7.5.7 ForIn/OfBodyEvaluation ( lhs, stmt, iteratorRecord, iterationKind, lhsKind, labelSet [ , iteratorKind ] ), https://tc39.es/ecma262/#sec-runtime-semantics-forin-div-ofbodyevaluation-lhs-stmt-iterator-lhskind-labelset
-static Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> for_in_of_body_evaluation(Bytecode::Generator& generator, ASTNode const& node, Variant<NonnullRefPtr<ASTNode const>, NonnullRefPtr<BindingPattern const>> const& lhs, ASTNode const& body, ForInOfHeadEvaluationResult const& head_result, Vector<FlyString> const& label_set, Bytecode::BasicBlock& loop_end, Bytecode::BasicBlock& loop_update, IteratorHint iterator_kind = IteratorHint::Sync, [[maybe_unused]] Optional<ScopedOperand> preferred_dst = {})
+static Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> for_in_of_body_evaluation(Bytecode::Generator& generator, ASTNode const& node, Variant<NonnullRefPtr<ASTNode const>, NonnullRefPtr<BindingPattern const>> const& lhs, ASTNode const& body, ForInOfHeadEvaluationResult const& head_result, Vector<FlyString> const& label_set, IterationKind iteration_kind, IteratorHint iterator_kind = IteratorHint::Sync, [[maybe_unused]] Optional<ScopedOperand> preferred_dst = {})
 {
+    auto& loop_update = generator.make_block();
+
     // 1. If iteratorKind is not present, set iteratorKind to sync.
 
     // 2. Let oldEnv be the running execution context's LexicalEnvironment.
@@ -3168,7 +3171,6 @@ static Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> for_in_of_body_e
     // 6. Repeat,
     generator.emit<Bytecode::Op::Jump>(Bytecode::Label { loop_update });
     generator.switch_to_basic_block(loop_update);
-    generator.begin_continuable_scope(Bytecode::Label { loop_update }, label_set);
 
     // a. Let nextResult be ? Call(iteratorRecord.[[NextMethod]], iteratorRecord.[[Iterator]]).
     auto next_result = generator.allocate_register();
@@ -3196,13 +3198,34 @@ static Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> for_in_of_body_e
     auto& loop_continue = generator.make_block();
     generator.emit_jump_if(
         done,
-        Bytecode::Label { loop_end },
+        Bytecode::Label { head_result.loop_end },
         Bytecode::Label { loop_continue });
     generator.switch_to_basic_block(loop_continue);
 
     // f. Let nextValue be ? IteratorValue(nextResult).
     auto next_value = generator.allocate_register();
     generator.emit_iterator_value(next_value, next_result);
+
+    Bytecode::BasicBlock* close_iterator_finalizer_block { nullptr };
+    Optional<Bytecode::Generator::UnwindContext> close_iterator_unwind_context;
+
+    if (iteration_kind == IterationKind::Iterate) {
+        close_iterator_finalizer_block = &generator.make_block();
+
+        close_iterator_unwind_context.emplace(generator, Bytecode::Label { *close_iterator_finalizer_block });
+
+        auto& close_iterator_enter_unwind_block = generator.make_block();
+        generator.emit<Bytecode::Op::EnterUnwindContext>(Bytecode::Label { close_iterator_enter_unwind_block });
+        generator.switch_to_basic_block(close_iterator_enter_unwind_block);
+
+        generator.start_boundary(Bytecode::Generator::BlockBoundaryType::Unwind);
+        generator.begin_breakable_scope(Bytecode::Label { head_result.loop_end }, label_set);
+        generator.start_boundary(Bytecode::Generator::BlockBoundaryType::ReturnToFinally);
+        generator.begin_continuable_scope(Bytecode::Label { loop_update }, label_set);
+    } else {
+        generator.begin_breakable_scope(Bytecode::Label { head_result.loop_end }, label_set);
+        generator.begin_continuable_scope(Bytecode::Label { loop_update }, label_set);
+    }
 
     // g. If lhsKind is either assignment or varBinding, then
     if (head_result.lhs_kind != LHSKind::LexicalBinding) {
@@ -3333,8 +3356,16 @@ static Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> for_in_of_body_e
     // m. Set the running execution context's LexicalEnvironment to oldEnv.
     if (has_lexical_binding)
         generator.end_variable_scope();
+
     generator.end_continuable_scope();
+
+    if (iteration_kind == IterationKind::Iterate)
+        generator.end_boundary(Bytecode::Generator::BlockBoundaryType::ReturnToFinally);
+
     generator.end_breakable_scope();
+
+    if (iteration_kind == IterationKind::Iterate)
+        generator.end_boundary(Bytecode::Generator::BlockBoundaryType::Unwind);
 
     // NOTE: If we're here, then the loop definitely continues.
     // n. If LoopContinues(result, labelSet) is false, then
@@ -3349,15 +3380,32 @@ static Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> for_in_of_body_e
 
     // The body can contain an unconditional block terminator (e.g. return, throw), so we have to check for that before generating the Jump.
     if (!generator.is_current_block_terminated()) {
-        if (generator.must_propagate_completion()) {
-            if (result.has_value())
-                generator.emit_mov(*completion, *result);
-        }
+        if (iteration_kind == IterationKind::Iterate)
+            generator.emit<Bytecode::Op::LeaveUnwindContext>();
 
         generator.emit<Bytecode::Op::Jump>(Bytecode::Label { loop_update });
     }
 
-    generator.switch_to_basic_block(loop_end);
+    if (iteration_kind == IterationKind::Iterate) {
+        VERIFY(close_iterator_finalizer_block);
+        generator.switch_to_basic_block(*close_iterator_finalizer_block);
+        generator.emit<Bytecode::Op::LeaveUnwindContext>();
+
+        if (iterator_kind == IteratorHint::Async) {
+            // FIXME: This performs `await` outside of the generator!
+            generator.emit<Bytecode::Op::AsyncIteratorClose>(*head_result.iterator);
+        } else {
+            generator.emit<Bytecode::Op::IteratorClose>(*head_result.iterator);
+        }
+
+        generator.emit<Bytecode::Op::ContinuePendingUnwind>(Bytecode::Label { head_result.loop_end });
+    }
+
+    generator.switch_to_basic_block(head_result.loop_end);
+    if (generator.must_propagate_completion()) {
+        if (result.has_value())
+            generator.emit_mov(*completion, *result);
+    }
     return completion;
 }
 
@@ -3370,12 +3418,8 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ForInStatement::generat
 // 14.7.5.5 Runtime Semantics: ForInOfLoopEvaluation, https://tc39.es/ecma262/#sec-runtime-semantics-forinofloopevaluation
 Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ForInStatement::generate_labelled_evaluation(Bytecode::Generator& generator, Vector<FlyString> const& label_set, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
-    auto& loop_end = generator.make_block();
-    auto& loop_update = generator.make_block();
-    generator.begin_breakable_scope(Bytecode::Label { loop_end }, label_set);
-
     auto head_result = TRY(for_in_of_head_evaluation(generator, IterationKind::Enumerate, m_lhs, m_rhs));
-    return for_in_of_body_evaluation(generator, *this, m_lhs, body(), head_result, label_set, loop_end, loop_update);
+    return for_in_of_body_evaluation(generator, *this, m_lhs, body(), head_result, label_set, IterationKind::Enumerate);
 }
 
 Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ForOfStatement::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
@@ -3386,12 +3430,8 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ForOfStatement::generat
 
 Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ForOfStatement::generate_labelled_evaluation(Bytecode::Generator& generator, Vector<FlyString> const& label_set, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
-    auto& loop_end = generator.make_block();
-    auto& loop_update = generator.make_block();
-    generator.begin_breakable_scope(Bytecode::Label { loop_end }, label_set);
-
     auto head_result = TRY(for_in_of_head_evaluation(generator, IterationKind::Iterate, m_lhs, m_rhs));
-    return for_in_of_body_evaluation(generator, *this, m_lhs, body(), head_result, label_set, loop_end, loop_update);
+    return for_in_of_body_evaluation(generator, *this, m_lhs, body(), head_result, label_set, IterationKind::Iterate);
 }
 
 Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ForAwaitOfStatement::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
@@ -3402,12 +3442,8 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ForAwaitOfStatement::ge
 
 Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ForAwaitOfStatement::generate_labelled_evaluation(Bytecode::Generator& generator, Vector<FlyString> const& label_set, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
-    auto& loop_end = generator.make_block();
-    auto& loop_update = generator.make_block();
-    generator.begin_breakable_scope(Bytecode::Label { loop_end }, label_set);
-
     auto head_result = TRY(for_in_of_head_evaluation(generator, IterationKind::AsyncIterate, m_lhs, m_rhs));
-    return for_in_of_body_evaluation(generator, *this, m_lhs, m_body, head_result, label_set, loop_end, loop_update, IteratorHint::Async);
+    return for_in_of_body_evaluation(generator, *this, m_lhs, m_body, head_result, label_set, IterationKind::Iterate, IteratorHint::Async);
 }
 
 // 13.3.12.1 Runtime Semantics: Evaluation, https://tc39.es/ecma262/#sec-meta-properties-runtime-semantics-evaluation
