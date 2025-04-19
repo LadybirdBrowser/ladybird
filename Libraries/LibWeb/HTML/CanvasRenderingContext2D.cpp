@@ -232,11 +232,13 @@ Gfx::Path CanvasRenderingContext2D::text_path(StringView text, float x, float y,
 
     auto& drawing_state = this->drawing_state();
 
-    auto const& font = font_cascade_list()->first();
-
+    auto const& font_cascade_list = this->font_cascade_list();
+    auto const& font = font_cascade_list->first();
+    auto glyph_runs = Gfx::shape_text({ x, y }, Utf8View(text), *font_cascade_list);
     Gfx::Path path;
-    auto glyph_run = Gfx::shape_text({ x, y }, 0, Utf8View(text), font, Gfx::GlyphRun::TextType::Ltr, {});
-    path.glyph_run(*glyph_run);
+    for (auto const& glyph_run : glyph_runs) {
+        path.glyph_run(glyph_run);
+    }
 
     auto text_width = path.bounding_box().width();
     Gfx::AffineTransform transform = {};
