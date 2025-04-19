@@ -14,6 +14,7 @@
 #include <LibGfx/CompositingAndBlendingOperator.h>
 #include <LibGfx/Filter.h>
 #include <LibGfx/Font/Font.h>
+#include <LibGfx/FontCascadeList.h>
 #include <LibGfx/PaintStyle.h>
 #include <LibGfx/Path.h>
 #include <LibGfx/WindingRule.h>
@@ -99,7 +100,7 @@ public:
         float global_alpha = { 1 };
         Gfx::CompositingAndBlendingOperator current_compositing_and_blending_operator = Gfx::CompositingAndBlendingOperator::SourceOver;
         RefPtr<CSS::CSSStyleValue const> font_style_value { nullptr };
-        RefPtr<Gfx::Font const> current_font { nullptr };
+        RefPtr<Gfx::FontCascadeList const> current_font_cascade_list { nullptr };
         Bindings::CanvasTextAlign text_align { Bindings::CanvasTextAlign::Start };
         Bindings::CanvasTextBaseline text_baseline { Bindings::CanvasTextBaseline::Alphabetic };
     };
