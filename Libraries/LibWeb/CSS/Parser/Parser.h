@@ -419,6 +419,8 @@ private:
     RefPtr<CSSStyleValue const> parse_transform_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_transform_origin_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_transition_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_transition_property_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_transition_timing_function_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_translate_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_scale_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_grid_track_size_list(TokenStream<ComponentValue>&, bool allow_separate_line_name_blocks = false);
@@ -430,6 +432,8 @@ private:
     RefPtr<CSSStyleValue const> parse_grid_template_areas_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_grid_area_shorthand_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_grid_shorthand_value(TokenStream<ComponentValue>&);
+
+    RefPtr<CSSStyleValue const> parse_list_of_time_values(PropertyID, TokenStream<ComponentValue>&);
 
     RefPtr<CalculationNode const> convert_to_calculation_node(CalcParsing::Node const&, CalculationContext const&);
     RefPtr<CalculationNode const> parse_a_calculation(Vector<ComponentValue> const&, CalculationContext const&);
