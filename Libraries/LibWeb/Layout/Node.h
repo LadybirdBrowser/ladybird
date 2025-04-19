@@ -150,8 +150,8 @@ public:
     bool can_contain_boxes_with_position_absolute() const;
 
     Gfx::Font const& first_available_font() const;
-    Gfx::Font const& scaled_font(PaintContext&) const;
-    Gfx::Font const& scaled_font(float scale_factor) const;
+    Gfx::Font const& font(PaintContext&) const;
+    Gfx::Font const& font(float scale_factor) const;
 
     CSS::ImmutableComputedValues const& computed_values() const;
 
@@ -315,12 +315,12 @@ inline Gfx::Font const& Node::first_available_font() const
     return parent()->first_available_font();
 }
 
-inline Gfx::Font const& Node::scaled_font(PaintContext& context) const
+inline Gfx::Font const& Node::font(PaintContext& context) const
 {
-    return scaled_font(context.device_pixels_per_css_pixel());
+    return font(context.device_pixels_per_css_pixel());
 }
 
-inline Gfx::Font const& Node::scaled_font(float scale_factor) const
+inline Gfx::Font const& Node::font(float scale_factor) const
 {
     auto const& font = first_available_font();
     return font.with_size(font.point_size() * scale_factor);

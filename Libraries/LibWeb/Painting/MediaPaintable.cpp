@@ -118,7 +118,7 @@ MediaPaintable::Components MediaPaintable::compute_control_bar_components(PaintC
     auto display_time = human_readable_digital_time(round(media_element.layout_display_time({})));
     auto duration = human_readable_digital_time(isnan(media_element.duration()) ? 0 : round(media_element.duration()));
     components.timestamp = String::formatted("{} / {}", display_time, duration).release_value_but_fixme_should_propagate_errors();
-    components.timestamp_font = layout_node().scaled_font(context);
+    components.timestamp_font = layout_node().font(context);
 
     auto timestamp_size = DevicePixels { static_cast<DevicePixels::Type>(ceilf(components.timestamp_font->width(components.timestamp))) };
     if (timestamp_size <= remaining_rect.width()) {

@@ -1,17 +1,19 @@
 /*
  * Copyright (c) 2020, Stephan Unverwerth <s.unverwerth@serenityos.org>
+ * Copyright (c) 2023, MacDue <macdue@dueutil.tech>
  * Copyright (c) 2023, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #pragma once
 
-#include <AK/RefCounted.h>
-#include <AK/RefPtr.h>
-#include <AK/String.h>
-#include <AK/Types.h>
+#include <AK/FlyString.h>
+#include <LibGfx/Font/Font.h>
+#include <LibGfx/Font/Typeface.h>
 
+class SkFont;
 struct hb_font_t;
 
 namespace Gfx {
@@ -48,50 +50,51 @@ enum FontWidth {
 
 constexpr float text_shaping_resolution = 64;
 
-class Typeface;
-
 class Font : public RefCounted<Font> {
 public:
-    virtual ~Font();
+    Font(NonnullRefPtr<Typeface const>, float point_width, float point_height, unsigned dpi_x = DEFAULT_DPI, unsigned dpi_y = DEFAULT_DPI);
+    ScaledFontMetrics metrics() const;
+    ~Font();
 
-    virtual FontPixelMetrics pixel_metrics() const = 0;
+    float point_size() const;
+    float pixel_size() const;
+    int pixel_size_rounded_up() const;
+    Gfx::FontPixelMetrics pixel_metrics() const;
+    u8 slope() const { return m_typeface->slope(); }
+    u16 weight() const { return m_typeface->weight(); }
+    bool contains_glyph(u32 code_point) const { return m_typeface->glyph_id_for_code_point(code_point) > 0; }
+    float glyph_width(u32 code_point) const;
+    u32 glyph_id_for_code_point(u32 code_point) const { return m_typeface->glyph_id_for_code_point(code_point); }
+    float preferred_line_height() const { return metrics().height() + metrics().line_gap; }
+    int x_height() const { return m_point_height; } // FIXME: Read from font
+    u8 baseline() const { return m_point_height; }  // FIXME: Read from font
+    float width(StringView) const;
+    float width(Utf8View const&) const;
+    FlyString const& family() const { return m_typeface->family(); }
 
-    virtual u8 slope() const = 0;
+    NonnullRefPtr<Font> scaled_with_size(float point_size) const;
+    NonnullRefPtr<Font> with_size(float point_size) const;
 
-    // Font point size (distance between ascender and descender).
-    virtual float point_size() const = 0;
+    Typeface const& typeface() const { return m_typeface; }
 
-    // Font pixel size (distance between ascender and descender).
-    virtual float pixel_size() const = 0;
-
-    // Font pixel size, rounded up to the nearest integer.
-    virtual int pixel_size_rounded_up() const = 0;
-
-    virtual u16 weight() const = 0;
-    virtual bool contains_glyph(u32 code_point) const = 0;
-
-    virtual u32 glyph_id_for_code_point(u32 code_point) const = 0;
-    virtual float glyph_width(u32 code_point) const = 0;
-    virtual int x_height() const = 0;
-    virtual float preferred_line_height() const = 0;
-
-    virtual u8 baseline() const = 0;
-
-    virtual float width(StringView) const = 0;
-    virtual float width(Utf8View const&) const = 0;
-
-    virtual FlyString const& family() const = 0;
-
-    virtual NonnullRefPtr<Font> with_size(float point_size) const = 0;
+    SkFont skia_font(float scale) const;
 
     Font const& bold_variant() const;
     hb_font_t* harfbuzz_font() const;
 
-    virtual Typeface const& typeface() const = 0;
-
 private:
-    mutable RefPtr<Gfx::Font const> m_bold_variant;
+    mutable RefPtr<Font const> m_bold_variant;
     mutable hb_font_t* m_harfbuzz_font { nullptr };
+
+    NonnullRefPtr<Typeface const> m_typeface;
+    float m_x_scale { 0.0f };
+    float m_y_scale { 0.0f };
+    float m_point_width { 0.0f };
+    float m_point_height { 0.0f };
+    FontPixelMetrics m_pixel_metrics;
+
+    float m_pixel_size { 0.0f };
+    int m_pixel_size_rounded_up { 0 };
 };
 
 }

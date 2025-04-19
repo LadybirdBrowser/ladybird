@@ -13,9 +13,8 @@ set(SOURCES
     Font/Font.cpp
     Font/FontData.cpp
     Font/FontDatabase.cpp
+    Font/FontSkia.cpp
     Font/PathFontProvider.cpp
-    Font/ScaledFont.cpp
-    Font/ScaledFontSkia.cpp
     Font/Typeface.cpp
     Font/TypefaceSkia.cpp
     Font/WOFF/Loader.cpp
