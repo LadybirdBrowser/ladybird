@@ -24,9 +24,6 @@ namespace URL {
 
 Optional<URL> URL::complete_url(StringView relative_url) const
 {
-    if (!is_valid())
-        return {};
-
     return Parser::basic_parse(relative_url, *this);
 }
 
@@ -38,8 +35,6 @@ ByteString URL::path_segment_at_index(size_t index) const
 
 ByteString URL::basename() const
 {
-    if (!m_data->valid)
-        return {};
     if (m_data->paths.is_empty())
         return {};
     auto& last_segment = m_data->paths.last();
@@ -49,7 +44,6 @@ ByteString URL::basename() const
 void URL::set_scheme(String scheme)
 {
     m_data->scheme = move(scheme);
-    m_data->valid = compute_validity();
 }
 
 // https://url.spec.whatwg.org/#set-the-username
@@ -57,7 +51,6 @@ void URL::set_username(StringView username)
 {
     // To set the username given a url and username, set url’s username to the result of running UTF-8 percent-encode on username using the userinfo percent-encode set.
     m_data->username = percent_encode(username, PercentEncodeSet::Userinfo);
-    m_data->valid = compute_validity();
 }
 
 // https://url.spec.whatwg.org/#set-the-password
@@ -65,13 +58,11 @@ void URL::set_password(StringView password)
 {
     // To set the password given a url and password, set url’s password to the result of running UTF-8 percent-encode on password using the userinfo percent-encode set.
     m_data->password = percent_encode(password, PercentEncodeSet::Userinfo);
-    m_data->valid = compute_validity();
 }
 
 void URL::set_host(Host host)
 {
     m_data->host = move(host);
-    m_data->valid = compute_validity();
 }
 
 // https://url.spec.whatwg.org/#concept-host-serializer
@@ -87,7 +78,6 @@ void URL::set_port(Optional<u16> port)
         return;
     }
     m_data->port = move(port);
-    m_data->valid = compute_validity();
 }
 
 void URL::set_paths(Vector<ByteString> const& paths)
@@ -96,7 +86,6 @@ void URL::set_paths(Vector<ByteString> const& paths)
     m_data->paths.ensure_capacity(paths.size());
     for (auto const& segment : paths)
         m_data->paths.unchecked_append(percent_encode(segment, PercentEncodeSet::Path));
-    m_data->valid = compute_validity();
 }
 
 void URL::append_path(StringView path)
@@ -110,33 +99,6 @@ bool URL::cannot_have_a_username_or_password_or_port() const
     // A URL cannot have a username/password/port if its host is null or the empty string, or its scheme is "file".
 
     return !m_data->host.has_value() || m_data->host->is_empty_host() || m_data->scheme == "file"sv;
-}
-
-// FIXME: This is by no means complete.
-// NOTE: This relies on some assumptions about how the spec-defined URL parser works that may turn out to be wrong.
-bool URL::compute_validity() const
-{
-    if (m_data->scheme.is_empty())
-        return false;
-
-    if (m_data->has_an_opaque_path) {
-        if (m_data->paths.size() != 1)
-            return false;
-        if (m_data->paths[0].is_empty())
-            return false;
-    } else {
-        if (m_data->scheme.is_one_of("about", "mailto"))
-            return false;
-        // NOTE: Maybe it is allowed to have a zero-segment path.
-        if (m_data->paths.size() == 0)
-            return false;
-    }
-
-    // FIXME: A file URL's host should be the empty string for localhost, not null.
-    if (m_data->scheme == "file" && !m_data->host.has_value())
-        return false;
-
-    return true;
 }
 
 // https://url.spec.whatwg.org/#default-port
@@ -333,8 +295,6 @@ String URL::serialize(ExcludeFragment exclude_fragment) const
 //        resulting from percent-decoding those sequences converted to bytes, unless that renders those sequences invisible.
 ByteString URL::serialize_for_display() const
 {
-    VERIFY(m_data->valid);
-
     StringBuilder builder;
     builder.append(m_data->scheme);
     builder.append(':');
@@ -422,8 +382,6 @@ bool URL::equals(URL const& other, ExcludeFragment exclude_fragments) const
 {
     if (this == &other)
         return true;
-    if (!m_data->valid || !other.m_data->valid)
-        return false;
     return serialize(exclude_fragments) == other.serialize(exclude_fragments);
 }
 
@@ -495,7 +453,6 @@ String percent_encode(StringView input, PercentEncodeSet set, SpaceAsPlus space_
 URL URL::about(String path)
 {
     URL url;
-    url.m_data->valid = true;
     url.m_data->scheme = "about"_string;
     url.m_data->paths = { move(path) };
     url.m_data->has_an_opaque_path = true;

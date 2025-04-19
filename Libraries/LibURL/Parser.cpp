@@ -1663,7 +1663,6 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
         ++iterator;
     }
 
-    url->m_data->valid = true;
     dbgln_if(URL_PARSER_DEBUG, "URL::Parser::basic_parse: Parsed URL to be '{}'.", url->serialize());
 
     // 10. Return url.
