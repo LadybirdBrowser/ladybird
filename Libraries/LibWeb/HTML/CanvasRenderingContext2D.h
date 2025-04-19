@@ -144,7 +144,7 @@ private:
 
     void did_draw(Gfx::FloatRect const&);
 
-    RefPtr<Gfx::Font const> current_font();
+    RefPtr<Gfx::FontCascadeList const> font_cascade_list();
 
     PreparedText prepare_text(ByteString const& text, float max_width = INFINITY);
 
