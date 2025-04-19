@@ -1446,12 +1446,11 @@ void Document::update_layout(UpdateLayoutReason reason)
         // We mark layout tree for rebuild starting from parent element to correctly invalidate
         // "display" property change to/from "contents" value.
         if (auto parent_element = node.parent_element()) {
-            parent_element->set_needs_layout_tree_update(true);
+            parent_element->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::StyleChange);
         } else {
-            node.set_needs_layout_tree_update(true);
+            node.set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::StyleChange);
         }
     }
-    invalidation |= node_invalidation;
     node.set_needs_style_update(false);
     invalidation |= node_invalidation;
 
@@ -6558,6 +6557,18 @@ StringView to_string(SetNeedsLayoutReason reason)
         return #e##sv;
         ENUMERATE_SET_NEEDS_LAYOUT_REASONS(ENUMERATE_SET_NEEDS_LAYOUT_REASON)
 #undef ENUMERATE_SET_NEEDS_LAYOUT_REASON
+    }
+    VERIFY_NOT_REACHED();
+}
+
+StringView to_string(SetNeedsLayoutTreeUpdateReason reason)
+{
+    switch (reason) {
+#define ENUMERATE_SET_NEEDS_LAYOUT_TREE_UPDATE_REASON(e) \
+    case SetNeedsLayoutTreeUpdateReason::e:              \
+        return #e##sv;
+        ENUMERATE_SET_NEEDS_LAYOUT_TREE_UPDATE_REASONS(ENUMERATE_SET_NEEDS_LAYOUT_TREE_UPDATE_REASON)
+#undef ENUMERATE_SET_NEEDS_LAYOUT_TREE_UPDATE_REASON
     }
     VERIFY_NOT_REACHED();
 }
