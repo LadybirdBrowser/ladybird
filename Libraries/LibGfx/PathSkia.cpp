@@ -11,6 +11,7 @@
 #include <LibGfx/PathSkia.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/SkiaUtils.h>
+#include <LibGfx/TextLayout.h>
 #include <core/SkFont.h>
 #include <core/SkPath.h>
 #include <core/SkPathMeasure.h>
@@ -139,6 +140,21 @@ void PathImplSkia::text(Utf8View string, Font const& font)
 {
     SkTextUtils::GetPath(string.as_string().characters_without_null_termination(), string.as_string().length(), SkTextEncoding::kUTF8, last_point().x(), last_point().y(), font.skia_font(1), m_path.ptr());
 }
+
+void PathImplSkia::glyph_run(GlyphRun const& glyph_run)
+{
+    auto sk_font = glyph_run.font().skia_font(1);
+    m_path->setFillType(SkPathFillType::kWinding);
+    auto font_ascent = glyph_run.font().pixel_metrics().ascent;
+    for (auto const& glyph : glyph_run.glyphs()) {
+        SkPath glyph_path;
+        if (!sk_font.getPath(static_cast<SkGlyphID>(glyph.glyph_id), &glyph_path))
+            continue;
+        glyph_path.offset(glyph.position.x(), glyph.position.y() + font_ascent);
+        m_path->addPath(glyph_path);
+    }
+}
+
 NonnullOwnPtr<PathImpl> PathImplSkia::place_text_along(Utf8View text, Font const& font) const
 {
     auto sk_font = font.skia_font(1);
