@@ -163,7 +163,7 @@ Optional<u16> default_port_for_scheme(StringView scheme)
     return {};
 }
 
-URL create_with_file_scheme(ByteString const& path, ByteString const& fragment, ByteString const& hostname)
+Optional<URL> create_with_file_scheme(ByteString const& path, ByteString const& fragment, ByteString const& hostname)
 {
     LexicalPath lexical_path(path);
     if (!lexical_path.is_absolute())
@@ -180,11 +180,10 @@ URL create_with_file_scheme(ByteString const& path, ByteString const& fragment, 
         url_builder.append(fragment);
     }
 
-    auto url = Parser::basic_parse(url_builder.string_view());
-    return url.has_value() ? url.release_value() : URL {};
+    return Parser::basic_parse(url_builder.string_view());
 }
 
-URL create_with_url_or_path(ByteString const& url_or_path)
+Optional<URL> create_with_url_or_path(ByteString const& url_or_path)
 {
     auto url = Parser::basic_parse(url_or_path);
     if (url.has_value())

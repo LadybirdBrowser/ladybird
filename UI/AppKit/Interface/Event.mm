@@ -119,8 +119,8 @@ Web::DragEvent ns_event_to_drag_event(Web::DragEvent::Type type, id<NSDraggingIn
         Vector<URL::URL> urls;
 
         for_each_file([&](ByteString const& file_path) {
-            if (auto url = URL::create_with_url_or_path(file_path); url.is_valid())
-                urls.append(move(url));
+            if (auto url = URL::create_with_url_or_path(file_path); url.has_value())
+                urls.append(url.release_value());
         });
 
         browser_data = make<DragData>(move(urls));

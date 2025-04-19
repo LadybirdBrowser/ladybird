@@ -203,8 +203,8 @@ private:
     AK::CopyOnWrite<Data> m_data;
 };
 
-URL create_with_url_or_path(ByteString const&);
-URL create_with_file_scheme(ByteString const& path, ByteString const& fragment = {}, ByteString const& hostname = {});
+Optional<URL> create_with_url_or_path(ByteString const&);
+Optional<URL> create_with_file_scheme(ByteString const& path, ByteString const& fragment = {}, ByteString const& hostname = {});
 URL create_with_data(StringView mime_type, StringView payload, bool is_base64 = false);
 
 bool is_public_suffix(StringView host);
