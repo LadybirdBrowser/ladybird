@@ -365,7 +365,16 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     };
 
     view().on_fullscreen_window = [this]() {
-        m_window->showFullScreen();
+        BrowserWindow* window = static_cast<BrowserWindow*>(m_window);
+        m_toolbar->hide();
+        window->fullscreen_mode().enter(this);
+        view().did_update_window_rect();
+    };
+
+    view().on_exit_fullscreen_window = [this]() {
+        BrowserWindow* window = static_cast<BrowserWindow*>(m_window);
+        window->fullscreen_mode().exit();
+        m_toolbar->show();
         view().did_update_window_rect();
     };
 

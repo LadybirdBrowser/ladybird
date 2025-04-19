@@ -156,6 +156,15 @@ interface Document : Node {
     // special event handler IDL attributes that only apply to Document objects
     [LegacyLenientThis] attribute EventHandler onreadystatechange;
     attribute EventHandler onvisibilitychange;
+
+    // https://fullscreen.spec.whatwg.org/#api
+    attribute EventHandler onfullscreenchange;
+    attribute EventHandler onfullscreenerror;
+    // FIXME: [LegacyLenientSetter]
+    readonly attribute boolean fullscreenEnabled;
+    // FIXME: [LegacyLenientSetter, Unscopable]
+    readonly attribute boolean fullscreen; // historical
+    Promise<undefined> exitFullscreen();
 };
 
 dictionary ElementCreationOptions {

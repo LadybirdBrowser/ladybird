@@ -154,6 +154,15 @@ struct ElementCreationOptions {
 enum class PolicyControlledFeature : u8 {
     Autoplay,
     FocusWithoutUserActivation,
+    Fullscreen,
+};
+
+struct PendingFullscreenEvent {
+    enum class Type {
+        Change,
+        Error,
+    } type;
+    GC::Ref<Element> element;
 };
 
 class Document
@@ -896,6 +905,31 @@ public:
     }
 
     ElementByIdMap& element_by_id() const;
+    // https://fullscreen.spec.whatwg.org/#run-the-fullscreen-steps
+    void run_fullscreen_steps();
+    void append_pending_fullscreen_change(PendingFullscreenEvent::Type type, GC::Ref<Element> element);
+
+    // https://fullscreen.spec.whatwg.org/#api
+    [[nodiscard]] WebIDL::CallbackType* onfullscreenchange();
+    void set_onfullscreenchange(WebIDL::CallbackType*);
+    [[nodiscard]] WebIDL::CallbackType* onfullscreenerror();
+    void set_onfullscreenerror(WebIDL::CallbackType*);
+
+    // https://fullscreen.spec.whatwg.org/#fullscreen-an-element
+    void fullscreen_element_within_doc(GC::Ref<Element> element);
+    // https://fullscreen.spec.whatwg.org/#fullscreen-element
+    GC::Ptr<Element> fullscreen_element() const;
+    // https://fullscreen.spec.whatwg.org/#dom-document-fullscreen
+    bool fullscreen() const;
+    // https://fullscreen.spec.whatwg.org/#dom-document-fullscreenenabled
+    bool fullscreen_enabled() const;
+
+    // https://fullscreen.spec.whatwg.org/#fully-exit-fullscreen
+    void exit_fullscreen_fully();
+    // https://fullscreen.spec.whatwg.org/#exit-fullscreen
+    GC::Ref<WebIDL::Promise> exit_fullscreen();
+
+    void unfullscreen_element(GC::Ref<Element> element);
 
 protected:
     virtual void initialize(JS::Realm&) override;
@@ -916,6 +950,10 @@ private:
     void run_unloading_cleanup_steps();
 
     void evaluate_media_rules();
+
+    // https://fullscreen.spec.whatwg.org/#simple-fullscreen-document
+    bool is_simple_fullscreen_document() const;
+    Vector<GC::Ptr<Document>> collect_documents_to_unfullscreen() const;
 
     enum class AddLineFeed {
         Yes,
@@ -1249,6 +1287,8 @@ private:
     HashTable<GC::Ref<Element>> m_render_blocking_elements;
 
     HashTable<WeakPtr<Node>> m_pending_nodes_for_style_invalidation_due_to_presence_of_has;
+    // https://fullscreen.spec.whatwg.org/#list-of-pending-fullscreen-events
+    Vector<PendingFullscreenEvent> m_pending_fullscreen_events;
 };
 
 template<>

@@ -33,6 +33,17 @@ dictionary CheckVisibilityOptions {
     boolean visibilityProperty = false;
 };
 
+// https://fullscreen.spec.whatwg.org/#api
+enum FullscreenNavigationUI {
+    "auto",
+    "show",
+    "hide"
+};
+
+dictionary FullscreenOptions {
+    FullscreenNavigationUI navigationUI = "auto";
+};
+
 // https://dom.spec.whatwg.org/#element
 [Exposed=Window]
 interface Element : Node {
@@ -124,6 +135,11 @@ interface Element : Node {
     undefined setPointerCapture(long pointerId);
     undefined releasePointerCapture(long pointerId);
     boolean hasPointerCapture(long pointerId);
+
+    // partial interface for https://fullscreen.spec.whatwg.org/#api
+    Promise<undefined> requestFullscreen();
+    attribute EventHandler onfullscreenchange;
+    attribute EventHandler onfullscreenerror;
 };
 
 dictionary GetHTMLOptions {
