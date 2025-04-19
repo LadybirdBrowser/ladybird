@@ -39,6 +39,8 @@ public:
     [[nodiscard]] AK::ReadonlySpan<IndexRecord> records() const { return m_records; }
     [[nodiscard]] KeyPath const& key_path() const { return m_key_path; }
 
+    [[nodiscard]] bool has_record_with_key(GC::Ref<Key> key);
+
 protected:
     virtual void visit_edges(Visitor&) override;
 

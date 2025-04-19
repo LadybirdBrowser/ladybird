@@ -105,14 +105,14 @@ WebIDL::ExceptionOr<GC::Ref<IDBOpenDBRequest>> IDBFactory::open(String const& na
 WebIDL::ExceptionOr<i8> IDBFactory::cmp(JS::Value first, JS::Value second)
 {
     // 1. Let a be the result of converting a value to a key with first. Rethrow any exceptions.
-    auto a = convert_a_value_to_a_key(realm(), first);
+    auto a = TRY(convert_a_value_to_a_key(realm(), first));
 
     // 2. If a is invalid, throw a "DataError" DOMException.
     if (a.is_error())
         return WebIDL::DataError::create(realm(), "Failed to convert a value to a key"_string);
 
     // 3. Let b be the result of converting a value to a key with second. Rethrow any exceptions.
-    auto b = convert_a_value_to_a_key(realm(), second);
+    auto b = TRY(convert_a_value_to_a_key(realm(), second));
 
     // 4. If b is invalid, throw a "DataError" DOMException.
     if (b.is_error())
