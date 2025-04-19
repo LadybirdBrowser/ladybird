@@ -59,7 +59,7 @@ RefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, Utf
             point.translate_by(letter_spacing, 0);
     }
 
-    auto run = adopt_ref(*new Gfx::GlyphRun(move(glyph_run), font, text_type, point.x()));
+    auto run = adopt_ref(*new Gfx::GlyphRun(move(glyph_run), font, text_type, point.x() - baseline_start.x()));
     hb_buffer_reset(buffer);
     return run;
 }
