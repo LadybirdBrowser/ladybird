@@ -8,6 +8,7 @@
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
+#include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/DataView.h>
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/TypedArray.h>
@@ -194,7 +195,7 @@ bool fire_a_version_change_event(JS::Realm& realm, FlyString const& event_name, 
 }
 
 // https://w3c.github.io/IndexedDB/#convert-value-to-key
-ErrorOr<GC::Ref<Key>> convert_a_value_to_a_key(JS::Realm& realm, JS::Value input, Vector<JS::Value> seen)
+WebIDL::ExceptionOr<ErrorOr<GC::Ref<Key>>> convert_a_value_to_a_key(JS::Realm& realm, JS::Value input, Vector<JS::Value> seen)
 {
     // 1. If seen was not given, then let seen be a new empty set.
     // NOTE: This is handled by the caller.
@@ -256,11 +257,7 @@ ErrorOr<GC::Ref<Key>> convert_a_value_to_a_key(JS::Realm& realm, JS::Value input
     if (input.is_object() && is<JS::Array>(input.as_object())) {
 
         // 1. Let len be ? ToLength( ? Get(input, "length")).
-        auto maybe_length = length_of_array_like(realm.vm(), input.as_object());
-        if (maybe_length.is_error())
-            return Error::from_string_literal("Failed to get length of array-like object");
-
-        auto length = maybe_length.release_value();
+        auto length = TRY(length_of_array_like(realm.vm(), input.as_object()));
 
         // 2. Append input to seen.
         seen.append(input);
@@ -274,30 +271,19 @@ ErrorOr<GC::Ref<Key>> convert_a_value_to_a_key(JS::Realm& realm, JS::Value input
         // 5. While index is less than len:
         while (index < length) {
             // 1. Let hop be ? HasOwnProperty(input, index).
-            auto maybe_hop = input.as_object().has_own_property(index);
-            if (maybe_hop.is_error())
-                return Error::from_string_literal("Failed to check if array-like object has property");
-
-            auto hop = maybe_hop.release_value();
+            auto hop = TRY(input.as_object().has_own_property(index));
 
             // 2. If hop is false, return invalid.
             if (!hop)
                 return Error::from_string_literal("Array-like object has no property");
 
             // 3. Let entry be ? Get(input, index).
-            auto maybe_entry = input.as_object().get(index);
-            if (maybe_entry.is_error())
-                return Error::from_string_literal("Failed to get property of array-like object");
+            auto entry = TRY(input.as_object().get(index));
 
             // 4. Let key be the result of converting a value to a key with arguments entry and seen.
-            auto maybe_key = convert_a_value_to_a_key(realm, maybe_entry.release_value(), seen);
-
             // 5. ReturnIfAbrupt(key).
             // 6. If key is invalid abort these steps and return invalid.
-            if (maybe_key.is_error())
-                return maybe_key.release_error();
-
-            auto key = maybe_key.release_value();
+            auto key = TRY(TRY(convert_a_value_to_a_key(realm, entry, seen)));
 
             // 7. Append key to keys.
             keys.append(key);
@@ -311,7 +297,6 @@ ErrorOr<GC::Ref<Key>> convert_a_value_to_a_key(JS::Realm& realm, JS::Value input
     }
 
     // - Otherwise
-    // 1. Return invalid.
     return Error::from_string_literal("Unknown key type");
 }
 
