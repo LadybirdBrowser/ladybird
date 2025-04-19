@@ -95,6 +95,12 @@ public:
 
     static constexpr Color from_rgb(unsigned rgb) { return Color(rgb | 0xff000000); }
     static constexpr Color from_argb(unsigned argb) { return Color(argb); }
+    static constexpr Color from_abgr(unsigned abgr)
+    {
+        unsigned argb = (abgr & 0xff00ff00) | ((abgr & 0xff0000) >> 16) | ((abgr & 0xff) << 16);
+        return Color::from_argb(argb);
+    }
+    static constexpr Color from_bgr(unsigned bgr) { return Color::from_abgr(bgr | 0xff000000); }
 
     static constexpr Color from_yuv(YUV const& yuv) { return from_yuv(yuv.y, yuv.u, yuv.v); }
     static constexpr Color from_yuv(float y, float u, float v)
