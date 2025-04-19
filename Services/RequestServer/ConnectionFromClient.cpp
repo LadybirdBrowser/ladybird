@@ -527,6 +527,8 @@ static Requests::NetworkError map_curl_code_to_network_error(CURLcode const& cod
         return Requests::NetworkError::SSLVerificationFailed;
     case CURLE_URL_MALFORMAT:
         return Requests::NetworkError::MalformedUrl;
+    case CURLE_BAD_CONTENT_ENCODING:
+        return Requests::NetworkError::InvalidContentEncoding;
     default:
         return Requests::NetworkError::Unknown;
     }
