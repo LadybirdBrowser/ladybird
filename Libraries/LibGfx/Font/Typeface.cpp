@@ -6,7 +6,7 @@
 
 #include <harfbuzz/hb.h>
 
-#include <LibGfx/Font/ScaledFont.h>
+#include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/Typeface.h>
 #include <LibGfx/Font/TypefaceSkia.h>
 
@@ -40,21 +40,21 @@ Typeface::~Typeface()
         hb_blob_destroy(m_harfbuzz_blob);
 }
 
-NonnullRefPtr<ScaledFont> Typeface::scaled_font(float point_size) const
+NonnullRefPtr<Font> Typeface::font(float point_size) const
 {
-    auto it = m_scaled_fonts.find(point_size);
-    if (it != m_scaled_fonts.end())
+    auto it = m_fonts.find(point_size);
+    if (it != m_fonts.end())
         return *it->value;
 
     // FIXME: It might be nice to have a global cap on the number of fonts we cache
     //        instead of doing it at the per-Typeface level like this.
     constexpr size_t max_cached_font_size_count = 128;
-    if (m_scaled_fonts.size() > max_cached_font_size_count)
-        m_scaled_fonts.remove(m_scaled_fonts.begin());
+    if (m_fonts.size() > max_cached_font_size_count)
+        m_fonts.remove(m_fonts.begin());
 
-    auto scaled_font = adopt_ref(*new ScaledFont(*this, point_size, point_size));
-    m_scaled_fonts.set(point_size, scaled_font);
-    return scaled_font;
+    auto font = adopt_ref(*new Font(*this, point_size, point_size));
+    m_fonts.set(point_size, font);
+    return font;
 }
 
 hb_face_t* Typeface::harfbuzz_typeface() const

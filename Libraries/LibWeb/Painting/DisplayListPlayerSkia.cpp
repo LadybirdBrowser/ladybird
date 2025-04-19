@@ -22,7 +22,7 @@
 #include <gpu/ganesh/SkSurfaceGanesh.h>
 #include <pathops/SkPathOps.h>
 
-#include <LibGfx/Font/ScaledFont.h>
+#include <LibGfx/Font/Font.h>
 #include <LibGfx/PainterSkia.h>
 #include <LibGfx/PathSkia.h>
 #include <LibGfx/SkiaUtils.h>
@@ -77,7 +77,7 @@ void DisplayListPlayerSkia::flush()
 
 void DisplayListPlayerSkia::draw_glyph_run(DrawGlyphRun const& command)
 {
-    auto const& gfx_font = static_cast<Gfx::ScaledFont const&>(command.glyph_run->font());
+    auto const& gfx_font = command.glyph_run->font();
     auto sk_font = gfx_font.skia_font(command.scale);
 
     auto glyph_count = command.glyph_run->glyphs().size();

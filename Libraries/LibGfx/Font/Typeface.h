@@ -20,7 +20,7 @@ struct hb_face_t;
 
 namespace Gfx {
 
-class ScaledFont;
+class Font;
 
 struct ScaledFontMetrics {
     float ascender { 0 };
@@ -50,7 +50,7 @@ public:
     virtual u16 width() const = 0;
     virtual u8 slope() const = 0;
 
-    [[nodiscard]] NonnullRefPtr<ScaledFont> scaled_font(float point_size) const;
+    [[nodiscard]] NonnullRefPtr<Font> font(float point_size) const;
 
     hb_face_t* harfbuzz_typeface() const;
 
@@ -61,9 +61,9 @@ protected:
     virtual unsigned ttc_index() const = 0;
 
 private:
-    OwnPtr<Gfx::FontData> m_font_data;
+    OwnPtr<FontData> m_font_data;
 
-    mutable HashMap<float, NonnullRefPtr<ScaledFont>> m_scaled_fonts;
+    mutable HashMap<float, NonnullRefPtr<Font>> m_fonts;
     mutable hb_blob_t* m_harfbuzz_blob { nullptr };
     mutable hb_face_t* m_harfbuzz_face { nullptr };
 };

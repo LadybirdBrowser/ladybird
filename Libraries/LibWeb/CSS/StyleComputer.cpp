@@ -21,7 +21,6 @@
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Font/FontStyleMapping.h>
 #include <LibGfx/Font/FontWeight.h>
-#include <LibGfx/Font/ScaledFont.h>
 #include <LibGfx/Font/Typeface.h>
 #include <LibGfx/Font/WOFF/Loader.h>
 #include <LibGfx/Font/WOFF2/Loader.h>
@@ -236,7 +235,7 @@ RefPtr<Gfx::Font const> FontLoader::font_with_point_size(float point_size)
             start_loading_next_url();
         return nullptr;
     }
-    return m_vector_font->scaled_font(point_size);
+    return m_vector_font->font(point_size);
 }
 
 void FontLoader::start_loading_next_url()
@@ -304,7 +303,7 @@ struct StyleComputer::MatchingFontCandidate {
             return font_list;
         }
 
-        font_list->add(loader_or_typeface.get<Gfx::Typeface const*>()->scaled_font(point_size));
+        font_list->add(loader_or_typeface.get<Gfx::Typeface const*>()->font(point_size));
         return font_list;
     }
 };
