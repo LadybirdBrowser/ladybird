@@ -5,6 +5,7 @@
  */
 
 #include <AK/Array.h>
+#include <LibWeb/CSS/ToGfxConversions.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/HTMLVideoElement.h>

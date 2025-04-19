@@ -13,7 +13,6 @@
 #include <LibGfx/Filter.h>
 #include <LibGfx/Font/FontVariant.h>
 #include <LibGfx/FontCascadeList.h>
-#include <LibGfx/ScalingMode.h>
 #include <LibWeb/CSS/CalculatedOr.h>
 #include <LibWeb/CSS/Clip.h>
 #include <LibWeb/CSS/ColumnCount.h>
@@ -193,6 +192,7 @@ public:
     static CSS::Isolation isolation() { return CSS::Isolation::Auto; }
     static CSS::Containment contain() { return {}; }
     static CSS::MixBlendMode mix_blend_mode() { return CSS::MixBlendMode::Normal; }
+    static CSS::ImageOrientation image_orientation() { return CSS::ImageOrientation::FromImage; }
     static Optional<int> z_index() { return OptionalNone(); }
 
     // https://www.w3.org/TR/SVG/geometry.html
@@ -345,24 +345,6 @@ struct BorderRadiusData {
     CSS::LengthPercentage vertical_radius { InitialValues::border_radius() };
 };
 
-// FIXME: Find a better place for this helper.
-inline Gfx::ScalingMode to_gfx_scaling_mode(CSS::ImageRendering css_value, Gfx::IntRect source, Gfx::IntRect target)
-{
-    switch (css_value) {
-    case CSS::ImageRendering::Auto:
-    case CSS::ImageRendering::HighQuality:
-    case CSS::ImageRendering::Smooth:
-        if (target.width() < source.width() || target.height() < source.height())
-            return Gfx::ScalingMode::BoxSampling;
-        return Gfx::ScalingMode::BilinearBlend;
-    case CSS::ImageRendering::CrispEdges:
-        return Gfx::ScalingMode::NearestNeighbor;
-    case CSS::ImageRendering::Pixelated:
-        return Gfx::ScalingMode::SmoothPixels;
-    }
-    VERIFY_NOT_REACHED();
-}
-
 class ComputedValues {
     AK_MAKE_NONCOPYABLE(ComputedValues);
     AK_MAKE_NONMOVABLE(ComputedValues);
@@ -447,6 +429,7 @@ public:
     Vector<Vector<String>> const& grid_template_areas() const { return m_noninherited.grid_template_areas; }
     CSS::ObjectFit object_fit() const { return m_noninherited.object_fit; }
     CSS::ObjectPosition object_position() const { return m_noninherited.object_position; }
+    CSS::ImageOrientation image_orientation() const { return m_inherited.image_orientation; }
     CSS::Direction direction() const { return m_inherited.direction; }
     CSS::UnicodeBidi unicode_bidi() const { return m_noninherited.unicode_bidi; }
     CSS::WritingMode writing_mode() const { return m_inherited.writing_mode; }
@@ -600,6 +583,7 @@ protected:
         CSS::QuotesData quotes { InitialValues::quotes() };
         CSS::Direction direction { InitialValues::direction() };
         CSS::WritingMode writing_mode { InitialValues::writing_mode() };
+        CSS::ImageOrientation image_orientation { InitialValues::image_orientation() };
 
         Optional<SVGPaint> fill;
         CSS::FillRule fill_rule { InitialValues::fill_rule() };
@@ -882,6 +866,7 @@ public:
     void set_quotes(CSS::QuotesData value) { m_inherited.quotes = value; }
     void set_object_fit(CSS::ObjectFit value) { m_noninherited.object_fit = value; }
     void set_object_position(CSS::ObjectPosition value) { m_noninherited.object_position = value; }
+    void set_image_orientation(CSS::ImageOrientation value) { m_inherited.image_orientation = value; }
     void set_direction(CSS::Direction value) { m_inherited.direction = value; }
     void set_unicode_bidi(CSS::UnicodeBidi value) { m_noninherited.unicode_bidi = value; }
     void set_writing_mode(CSS::WritingMode value) { m_inherited.writing_mode = value; }

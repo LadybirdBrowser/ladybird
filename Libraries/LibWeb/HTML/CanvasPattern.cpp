@@ -55,8 +55,10 @@ void CanvasPatternPaintStyle::paint(Gfx::IntRect physical_bounding_box, PaintFun
         [](GC::Root<ImageBitmap> const& source) -> RefPtr<Gfx::ImmutableBitmap> { return Gfx::ImmutableBitmap::create(*source->bitmap()); });
     VERIFY(bitmap);
 
-    auto const bitmap_width = bitmap->width();
-    auto const bitmap_height = bitmap->height();
+    auto const image_orientation = get_image_orientation_from_canvas_source(m_image);
+
+    auto const bitmap_width = bitmap->width(image_orientation);
+    auto const bitmap_height = bitmap->height(image_orientation);
 
     paint([=, this](auto point) {
         point.translate_by(physical_bounding_box.location());
@@ -87,7 +89,7 @@ void CanvasPatternPaintStyle::paint(Gfx::IntRect physical_bounding_box, PaintFun
                 VERIFY_NOT_REACHED();
             }
         }();
-        if (bitmap->rect().contains(point))
+        if (bitmap->rect(image_orientation).contains(point))
             return bitmap->get_pixel(point.x(), point.y());
         return Gfx::Color();
     });

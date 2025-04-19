@@ -15,6 +15,8 @@
 #include <LibUnicode/Segmenter.h>
 #include <LibWeb/Bindings/CanvasRenderingContext2DPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/CSS/ComputedProperties.h>
+#include <LibWeb/CSS/ToGfxConversions.h>
 #include <LibWeb/HTML/CanvasRenderingContext2D.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
@@ -160,7 +162,14 @@ WebIDL::ExceptionOr<void> CanvasRenderingContext2D::draw_image_internal(CanvasIm
     auto destination_rect = Gfx::FloatRect { destination_x, destination_y, destination_width, destination_height };
     //    When the source rectangle is outside the source image, the source rectangle must be clipped
     //    to the source image and the destination rectangle must be clipped in the same proportion.
-    auto clipped_source = source_rect.intersected(bitmap->rect().to_type<float>());
+    auto clipped_source = source_rect.intersected(bitmap->rect(Gfx::ImageOrientation::FromDecoded).to_type<float>());
+
+    if (bitmap->bitmap()) {
+        auto const exif_orientation = bitmap->get_exif_orientation();
+        auto const oriented_size = Gfx::exif_oriented_size(destination_rect.size(), exif_orientation);
+        destination_rect.set_size(oriented_size);
+    }
+
     auto clipped_destination = destination_rect;
     if (clipped_source != source_rect) {
         clipped_destination.set_width(clipped_destination.width() * (clipped_source.width() / source_rect.width()));
@@ -456,7 +465,7 @@ WebIDL::ExceptionOr<GC::Ptr<ImageData>> CanvasRenderingContext2D::get_image_data
     if (width < 0 || height < 0) {
         source_rect = source_rect.translated(min(width, 0), min(height, 0));
     }
-    auto source_rect_intersected = source_rect.intersected(snapshot->rect());
+    auto source_rect_intersected = source_rect.intersected(snapshot->rect(Gfx::ImageOrientation::FromDecoded));
 
     // 6. Set the pixel values of imageData to be the pixels of this's output bitmap in the area specified by the source rectangle in the bitmap's coordinate space units, converted from this's color space to imageData's colorSpace using 'relative-colorimetric' rendering intent.
     // NOTE: Internally we must use premultiplied alpha, but ImageData should hold unpremultiplied alpha. This conversion
@@ -681,8 +690,12 @@ WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(CanvasI
             if (!image_element->immutable_bitmap())
                 return { CanvasImageSourceUsability::Bad };
 
+            auto const image_orientation = image_element->computed_properties()
+                ? to_gfx_image_orientation(image_element->computed_properties()->image_orientation())
+                : Gfx::ImageOrientation::FromExif;
+
             // If image has an intrinsic width or intrinsic height (or both) equal to zero, then return bad.
-            if (image_element->immutable_bitmap()->width() == 0 || image_element->immutable_bitmap()->height() == 0)
+            if (image_element->immutable_bitmap()->width(image_orientation) == 0 || image_element->immutable_bitmap()->height(image_orientation) == 0)
                 return { CanvasImageSourceUsability::Bad };
             return Optional<CanvasImageSourceUsability> {};
         },
@@ -694,8 +707,12 @@ WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(CanvasI
             if (!image_element->current_image_bitmap())
                 return { CanvasImageSourceUsability::Bad };
 
+            auto const image_orientation = image_element->computed_properties()
+                ? to_gfx_image_orientation(image_element->computed_properties()->image_orientation())
+                : Gfx::ImageOrientation::FromExif;
+
             // If image has an intrinsic width or intrinsic height (or both) equal to zero, then return bad.
-            if (image_element->current_image_bitmap()->width() == 0 || image_element->current_image_bitmap()->height() == 0)
+            if (image_element->current_image_bitmap()->width(image_orientation) == 0 || image_element->current_image_bitmap()->height(image_orientation) == 0)
                 return { CanvasImageSourceUsability::Bad };
             return Optional<CanvasImageSourceUsability> {};
         },
