@@ -64,7 +64,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBKeyRange>> IDBKeyRange::only(JS::VM& vm, JS::Valu
     auto& realm = *vm.current_realm();
 
     // 1. Let key be the result of converting a value to a key with value. Rethrow any exceptions.
-    auto maybe_key = convert_a_value_to_a_key(realm, value);
+    auto maybe_key = TRY(convert_a_value_to_a_key(realm, value));
 
     // 2. If key is invalid, throw a "DataError" DOMException.
     if (maybe_key.is_error())
@@ -82,7 +82,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBKeyRange>> IDBKeyRange::lower_bound(JS::VM& vm, J
     auto& realm = *vm.current_realm();
 
     // 1. Let lowerKey be the result of converting a value to a key with lower. Rethrow any exceptions.
-    auto lower_key = convert_a_value_to_a_key(realm, lower);
+    auto lower_key = TRY(convert_a_value_to_a_key(realm, lower));
 
     // 2. If lowerKey is invalid, throw a "DataError" DOMException.
     if (lower_key.is_error())
@@ -98,7 +98,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBKeyRange>> IDBKeyRange::upper_bound(JS::VM& vm, J
     auto& realm = *vm.current_realm();
 
     // 1. Let upperKey be the result of converting a value to a key with upper. Rethrow any exceptions.
-    auto upper_key = convert_a_value_to_a_key(realm, upper);
+    auto upper_key = TRY(convert_a_value_to_a_key(realm, upper));
 
     // 2. If upperKey is invalid, throw a "DataError" DOMException.
     if (upper_key.is_error())
@@ -114,14 +114,14 @@ WebIDL::ExceptionOr<GC::Ref<IDBKeyRange>> IDBKeyRange::bound(JS::VM& vm, JS::Val
     auto& realm = *vm.current_realm();
 
     // 1. Let lowerKey be the result of converting a value to a key with lower. Rethrow any exceptions.
-    auto lower_key = convert_a_value_to_a_key(realm, lower);
+    auto lower_key = TRY(convert_a_value_to_a_key(realm, lower));
 
     // 2. If lowerKey is invalid, throw a "DataError" DOMException.
     if (lower_key.is_error())
         return WebIDL::DataError::create(realm, "Value is invalid"_string);
 
     // 3. Let upperKey be the result of converting a value to a key with upper. Rethrow any exceptions.
-    auto upper_key = convert_a_value_to_a_key(realm, upper);
+    auto upper_key = TRY(convert_a_value_to_a_key(realm, upper));
 
     // 4. If upperKey is invalid, throw a "DataError" DOMException.
     if (upper_key.is_error())
@@ -141,7 +141,7 @@ WebIDL::ExceptionOr<bool> IDBKeyRange::includes(JS::Value key)
     auto& realm = this->realm();
 
     // 1. Let k be the result of converting a value to a key with key. Rethrow any exceptions.
-    auto k = convert_a_value_to_a_key(realm, key);
+    auto k = TRY(convert_a_value_to_a_key(realm, key));
 
     // 2. If k is invalid, throw a "DataError" DOMException.
     if (k.is_error())
