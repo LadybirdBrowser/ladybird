@@ -1,11 +1,13 @@
 /*
  * Copyright (c) 2024, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2025, Tim Ledbetter <tim.ledbetter@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include "CSSLabLike.h"
 #include <AK/TypeCasts.h>
+#include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
@@ -35,10 +37,23 @@ Color CSSOKLab::to_color(Optional<Layout::NodeWithStyle const&>) const
 }
 
 // https://www.w3.org/TR/css-color-4/#serializing-oklab-oklch
-String CSSOKLab::to_string(SerializationMode) const
+String CSSOKLab::to_string(SerializationMode mode) const
 {
-    // FIXME: Do this properly, taking unresolved calculated values into account.
-    return serialize_a_srgb_value(to_color({}));
+    StringBuilder builder;
+    builder.append("oklab("sv);
+    serialize_color_component(builder, mode, m_properties.l, 1.0f, 0, 1);
+    builder.append(' ');
+    serialize_color_component(builder, mode, m_properties.a, 0.4f);
+    builder.append(' ');
+    serialize_color_component(builder, mode, m_properties.b, 0.4f);
+    if ((!m_properties.alpha->is_number() || m_properties.alpha->as_number().number() < 1)
+        && (!m_properties.alpha->is_percentage() || m_properties.alpha->as_percentage().percentage().as_fraction() < 1)) {
+        builder.append(" / "sv);
+        serialize_alpha_component(builder, mode, m_properties.alpha);
+    }
+
+    builder.append(')');
+    return MUST(builder.to_string());
 }
 
 Color CSSLab::to_color(Optional<Layout::NodeWithStyle const&>) const
@@ -52,10 +67,23 @@ Color CSSLab::to_color(Optional<Layout::NodeWithStyle const&>) const
 }
 
 // https://www.w3.org/TR/css-color-4/#serializing-lab-lch
-String CSSLab::to_string(SerializationMode) const
+String CSSLab::to_string(SerializationMode mode) const
 {
-    // FIXME: Do this properly, taking unresolved calculated values into account.
-    return serialize_a_srgb_value(to_color({}));
+    StringBuilder builder;
+    builder.append("lab("sv);
+    serialize_color_component(builder, mode, m_properties.l, 100, 0, 100);
+    builder.append(' ');
+    serialize_color_component(builder, mode, m_properties.a, 125);
+    builder.append(' ');
+    serialize_color_component(builder, mode, m_properties.b, 125);
+    if ((!m_properties.alpha->is_number() || m_properties.alpha->as_number().number() < 1)
+        && (!m_properties.alpha->is_percentage() || m_properties.alpha->as_percentage().percentage().as_fraction() < 1)) {
+        builder.append(" / "sv);
+        serialize_alpha_component(builder, mode, m_properties.alpha);
+    }
+
+    builder.append(')');
+    return MUST(builder.to_string());
 }
 
 }
