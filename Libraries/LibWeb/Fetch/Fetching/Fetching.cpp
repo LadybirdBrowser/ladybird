@@ -2470,16 +2470,23 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> nonstandard_resource_loader_file_o
             } else {
                 response->set_type(Infrastructure::Response::Type::Error);
                 response->set_status(status_code.value_or(400));
+
                 auto [body, _] = TRY_OR_IGNORE(extract_body(realm, data));
-                response->set_body(move(body));
+                response->set_body(body);
+
                 auto body_info = response->body_info();
                 body_info.encoded_size = timing_info.encoded_body_size;
                 body_info.decoded_size = data.size();
                 response->set_body_info(body_info);
+
                 for (auto const& [name, value] : response_headers.headers()) {
                     auto header = Infrastructure::Header::from_latin1_pair(name, value);
                     response->header_list()->append(move(header));
                 }
+
+                // 16.1.2.2. Otherwise, if stream is readable, error stream with a TypeError.
+                if (body->stream()->is_readable())
+                    body->stream()->error(JS::TypeError::create(realm, error));
 
                 if (reason_phrase.has_value())
                     response->set_status_message(MUST(ByteBuffer::copy(reason_phrase.value().bytes())));
