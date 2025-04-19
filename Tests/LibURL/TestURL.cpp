@@ -270,8 +270,9 @@ TEST_CASE(equality)
 
 TEST_CASE(create_with_file_scheme)
 {
-    auto url = URL::create_with_file_scheme("/home/anon/README.md");
-    EXPECT(url.is_valid());
+    auto maybe_url = URL::create_with_file_scheme("/home/anon/README.md");
+    EXPECT(maybe_url.has_value());
+    auto url = maybe_url.release_value();
     EXPECT_EQ(url.scheme(), "file");
     EXPECT_EQ(url.port_or_default(), 0);
     EXPECT_EQ(url.path_segment_count(), 3u);
@@ -282,8 +283,9 @@ TEST_CASE(create_with_file_scheme)
     EXPECT(!url.query().has_value());
     EXPECT(!url.fragment().has_value());
 
-    url = URL::create_with_file_scheme("/home/anon/");
-    EXPECT(url.is_valid());
+    maybe_url = URL::create_with_file_scheme("/home/anon/");
+    EXPECT(maybe_url.has_value());
+    url = maybe_url.release_value();
     EXPECT_EQ(url.path_segment_count(), 3u);
     EXPECT_EQ(url.path_segment_at_index(0), "home");
     EXPECT_EQ(url.path_segment_at_index(1), "anon");

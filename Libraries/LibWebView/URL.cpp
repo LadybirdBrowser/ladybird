@@ -35,10 +35,10 @@ Optional<URL::URL> sanitize_url(StringView location, Optional<SearchEngine> cons
 
     auto url = URL::create_with_url_or_path(location);
 
-    if (!url.is_valid()) {
+    if (!url.has_value()) {
         url = URL::create_with_url_or_path(ByteString::formatted("https://{}", location));
 
-        if (!url.is_valid())
+        if (!url.has_value())
             return search_url_or_error();
 
         https_scheme_was_guessed = true;
@@ -140,9 +140,10 @@ static URLParts break_web_url_into_parts(URL::URL const& url, StringView url_str
 
 Optional<URLParts> break_url_into_parts(StringView url_string)
 {
-    auto url = URL::create_with_url_or_path(url_string);
-    if (!url.is_valid())
+    auto maybe_url = URL::create_with_url_or_path(url_string);
+    if (!maybe_url.has_value())
         return {};
+    auto const& url = maybe_url.value();
 
     auto const& scheme = url.scheme();
     auto scheme_length = scheme.bytes_as_string_view().length();
