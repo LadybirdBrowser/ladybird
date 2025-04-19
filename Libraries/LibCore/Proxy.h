@@ -27,9 +27,6 @@ struct ProxyData {
 
     static ErrorOr<ProxyData> parse_url(URL::URL const& url)
     {
-        if (!url.is_valid())
-            return Error::from_string_literal("Invalid proxy URL");
-
         ProxyData proxy_data;
         if (url.scheme() != "socks5")
             return Error::from_string_literal("Unsupported proxy type");
