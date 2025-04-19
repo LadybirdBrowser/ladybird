@@ -84,6 +84,8 @@ static bool is_platform_object(Type const& type)
         "NavigationDestination"sv,
         "NavigationHistoryEntry"sv,
         "Node"sv,
+        "OffscreenCanvas"sv,
+        "OffscreenCanvasRenderingContext2D"sv,
         "PasswordCredential"sv,
         "Path2D"sv,
         "PerformanceEntry"sv,
