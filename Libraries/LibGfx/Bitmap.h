@@ -231,7 +231,7 @@ ALWAYS_INLINE Color Bitmap::get_pixel(int x, int y) const
 {
     VERIFY(x >= 0);
     VERIFY(x < width());
-    auto pixel = unchecked_scanline(y)[x];
+    auto pixel = scanline(y)[x];
     switch (determine_storage_format(m_format)) {
     case StorageFormat::BGRx8888:
         return Color::from_rgb(pixel);
