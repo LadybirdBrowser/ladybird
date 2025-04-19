@@ -1871,9 +1871,9 @@ bool Parser::is_parsing_svg_presentation_attribute() const
 // FIXME: URLs shouldn't be completed during parsing, but when used.
 Optional<::URL::URL> Parser::complete_url(StringView relative_url) const
 {
-    if (!m_url.is_valid())
+    if (!m_url.has_value())
         return ::URL::Parser::basic_parse(relative_url);
-    return m_url.complete_url(relative_url);
+    return m_url->complete_url(relative_url);
 }
 
 }

@@ -477,7 +477,7 @@ private:
 
     GC::Ptr<DOM::Document const> m_document;
     GC::Ptr<JS::Realm> m_realm;
-    ::URL::URL m_url;
+    Optional<::URL::URL> m_url;
     ParsingMode m_parsing_mode { ParsingMode::Normal };
 
     Vector<Token> m_tokens;
