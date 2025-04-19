@@ -244,6 +244,18 @@ ALWAYS_INLINE Color Bitmap::unchecked_get_pixel<StorageFormat::BGRA8888>(int x, 
     return Color::from_argb(unchecked_scanline(y)[x]);
 }
 
+template<>
+ALWAYS_INLINE Color Bitmap::unchecked_get_pixel<StorageFormat::RGBx8888>(int x, int y) const
+{
+    return Color::from_bgr(unchecked_scanline(y)[x]);
+}
+
+template<>
+ALWAYS_INLINE Color Bitmap::unchecked_get_pixel<StorageFormat::RGBA8888>(int x, int y) const
+{
+    return Color::from_abgr(unchecked_scanline(y)[x]);
+}
+
 template<StorageFormat storage_format>
 ALWAYS_INLINE Color Bitmap::get_pixel(int x, int y) const
 {
@@ -259,6 +271,10 @@ ALWAYS_INLINE Color Bitmap::get_pixel(int x, int y) const
         return get_pixel<StorageFormat::BGRx8888>(x, y);
     case StorageFormat::BGRA8888:
         return get_pixel<StorageFormat::BGRA8888>(x, y);
+    case StorageFormat::RGBA8888:
+        return get_pixel<StorageFormat::RGBA8888>(x, y);
+    case StorageFormat::RGBx8888:
+        return get_pixel<StorageFormat::RGBx8888>(x, y);
     default:
         VERIFY_NOT_REACHED();
     }
