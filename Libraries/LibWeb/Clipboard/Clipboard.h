@@ -23,6 +23,7 @@ public:
     static WebIDL::ExceptionOr<GC::Ref<Clipboard>> construct_impl(JS::Realm&);
     virtual ~Clipboard() override;
 
+    GC::Ref<WebIDL::Promise> read_text();
     GC::Ref<WebIDL::Promise> write_text(String);
 
 private:

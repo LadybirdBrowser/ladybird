@@ -50,6 +50,8 @@ public:
 
     static bool supports(JS::VM&, String const& type);
 
+    Vector<Representation> representations() const& { return m_representations; }
+
 private:
     ClipboardItem(JS::Realm&);
 
