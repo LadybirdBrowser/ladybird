@@ -39,6 +39,4 @@ namespace Web::ContentSecurityPolicy::Directives::Names {
 ENUMERATE_DIRECTIVE_NAMES
 #undef __ENUMERATE_DIRECTIVE_NAME
 
-void initialize_strings();
-
 }
