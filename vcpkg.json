@@ -20,7 +20,7 @@
     },
     {
       "name": "ffmpeg",
-      "platform": "!android",
+      "platform": "!xbox",
       "features": [
         "avcodec",
         "avformat",
@@ -63,7 +63,10 @@
         "apng"
       ]
     },
-    "libproxy",
+    {
+      "name": "libproxy",
+      "platform": "!(uwp | xbox | android)"
+    },
     {
       "name": "libavif",
       "features": [
