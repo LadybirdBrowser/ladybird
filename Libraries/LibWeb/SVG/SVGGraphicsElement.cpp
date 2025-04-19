@@ -45,7 +45,7 @@ void SVGGraphicsElement::attribute_changed(FlyString const& name, Optional<Strin
         auto transform_list = AttributeParser::parse_transform(value.value_or(String {}));
         if (transform_list.has_value())
             m_transform = transform_from_transform_list(*transform_list);
-        set_needs_layout_tree_update(true);
+        set_needs_layout_tree_update(true, DOM::SetNeedsLayoutTreeUpdateReason::SVGGraphicsElementTransformChange);
     }
 }
 

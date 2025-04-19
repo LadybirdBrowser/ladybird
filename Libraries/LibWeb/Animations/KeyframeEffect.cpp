@@ -974,9 +974,9 @@ void KeyframeEffect::update_computed_properties()
         // We mark layout tree for rebuild starting from parent element to correctly invalidate
         // "display" property change to/from "contents" value.
         if (auto parent_element = target->parent_element()) {
-            parent_element->set_needs_layout_tree_update(true);
+            parent_element->set_needs_layout_tree_update(true, DOM::SetNeedsLayoutTreeUpdateReason::KeyframeEffect);
         } else {
-            target->set_needs_layout_tree_update(true);
+            target->set_needs_layout_tree_update(true, DOM::SetNeedsLayoutTreeUpdateReason::KeyframeEffect);
         }
     }
     if (invalidation.repaint) {

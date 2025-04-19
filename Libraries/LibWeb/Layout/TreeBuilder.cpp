@@ -446,7 +446,7 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
         // go through the DOM tree and remove any old layout & paint nodes since they are now all stale.
         if (!layout_node) {
             dom_node.for_each_in_inclusive_subtree([&](auto& node) {
-                node.set_needs_layout_tree_update(false);
+                node.set_needs_layout_tree_update(false, DOM::SetNeedsLayoutTreeUpdateReason::None);
                 node.set_child_needs_layout_tree_update(false);
                 auto layout_node = node.layout_node();
                 if (layout_node && layout_node->parent()) {
@@ -555,7 +555,7 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
                     update_layout_tree(*node, context, should_create_layout_node ? MustCreateSubtree::Yes : MustCreateSubtree::No);
                 }
                 shadow_root->set_child_needs_layout_tree_update(false);
-                shadow_root->set_needs_layout_tree_update(false);
+                shadow_root->set_needs_layout_tree_update(false, DOM::SetNeedsLayoutTreeUpdateReason::None);
             } else {
                 // This is the same as as<DOM::ParentNode>(dom_node).for_each_child
                 for (auto* node = as<DOM::ParentNode>(dom_node).first_child(); node; node = node->next_sibling())
@@ -637,7 +637,7 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
         m_quote_nesting_level = prior_quote_nesting_level;
     }
 
-    dom_node.set_needs_layout_tree_update(false);
+    dom_node.set_needs_layout_tree_update(false, DOM::SetNeedsLayoutTreeUpdateReason::None);
     dom_node.set_child_needs_layout_tree_update(false);
 }
 

@@ -108,6 +108,27 @@ enum class SetNeedsLayoutReason {
 
 [[nodiscard]] StringView to_string(SetNeedsLayoutReason);
 
+#define ENUMERATE_SET_NEEDS_LAYOUT_TREE_UPDATE_REASONS(X) \
+    X(ElementSetInnerHTML)                                \
+    X(HTMLInputElementSrcAttribute)                       \
+    X(HTMLObjectElementUpdateLayoutAndChildObjects)       \
+    X(KeyframeEffect)                                     \
+    X(NodeInsertBefore)                                   \
+    X(NodeInsertBeforeWithDisplayContents)                \
+    X(NodeRemove)                                         \
+    X(NodeSetTextContent)                                 \
+    X(None)                                               \
+    X(SVGGraphicsElementTransformChange)                  \
+    X(StyleChange)
+
+enum class SetNeedsLayoutTreeUpdateReason {
+#define ENUMERATE_SET_NEEDS_LAYOUT_TREE_UPDATE_REASON(e) e,
+    ENUMERATE_SET_NEEDS_LAYOUT_TREE_UPDATE_REASONS(ENUMERATE_SET_NEEDS_LAYOUT_TREE_UPDATE_REASON)
+#undef ENUMERATE_SET_NEEDS_LAYOUT_TREE_UPDATE_REASON
+};
+
+[[nodiscard]] StringView to_string(SetNeedsLayoutTreeUpdateReason);
+
 class Node : public EventTarget
     , public TreeNode<Node> {
     WEB_PLATFORM_OBJECT(Node, EventTarget);
@@ -307,7 +328,7 @@ public:
     virtual bool is_child_allowed(Node const&) const { return true; }
 
     [[nodiscard]] bool needs_layout_tree_update() const { return m_needs_layout_tree_update; }
-    void set_needs_layout_tree_update(bool);
+    void set_needs_layout_tree_update(bool, SetNeedsLayoutTreeUpdateReason);
 
     [[nodiscard]] bool child_needs_layout_tree_update() const { return m_child_needs_layout_tree_update; }
     void set_child_needs_layout_tree_update(bool b) { m_child_needs_layout_tree_update = b; }
