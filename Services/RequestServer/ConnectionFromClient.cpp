@@ -527,6 +527,8 @@ static Requests::NetworkError map_curl_code_to_network_error(CURLcode const& cod
         return Requests::NetworkError::SSLVerificationFailed;
     case CURLE_URL_MALFORMAT:
         return Requests::NetworkError::MalformedUrl;
+    case CURLE_BAD_CONTENT_ENCODING:
+        return Requests::NetworkError::InvalidContentEncoding;
     default:
         return Requests::NetworkError::Unknown;
     }
@@ -630,6 +632,13 @@ void ConnectionFromClient::check_active_requests()
             request->flush_headers_if_needed();
 
             auto result_code = msg->data.result;
+
+            // HTTPS servers might terminate their connection without proper notice of shutdown - i.e. they do not send
+            // a "close notify" alert. OpenSSL version 3.2 began treating this as an error, which curl translates to
+            // CURLE_RECV_ERROR in the absence of a Content-Length response header. The Python server used by WPT is one
+            // such server. We ignore this error if we were actually able to download some response data.
+            if (result_code == CURLE_RECV_ERROR && request->downloaded_so_far != 0 && !request->headers.contains("Content-Length"sv))
+                result_code = CURLE_OK;
 
             Optional<Requests::NetworkError> network_error;
             bool const request_was_successful = result_code == CURLE_OK;

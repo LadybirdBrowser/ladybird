@@ -19,7 +19,8 @@ enum class NetworkError {
     SSLHandshakeFailed,
     SSLVerificationFailed,
     MalformedUrl,
-    Unknown
+    InvalidContentEncoding,
+    Unknown,
 };
 
 constexpr StringView network_error_to_string(NetworkError network_error)
@@ -41,6 +42,8 @@ constexpr StringView network_error_to_string(NetworkError network_error)
         return "SSL verification failed"sv;
     case NetworkError::MalformedUrl:
         return "The URL is not formatted properly"sv;
+    case NetworkError::InvalidContentEncoding:
+        return "Response could not be decoded with its Content-Encoding"sv;
     case NetworkError::Unknown:
         return "An unexpected network error occurred"sv;
     }
