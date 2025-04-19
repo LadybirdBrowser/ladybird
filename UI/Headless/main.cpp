@@ -85,10 +85,6 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
     VERIFY(!WebView::Application::browser_options().urls.is_empty());
     auto const& url = WebView::Application::browser_options().urls.first();
-    if (!url.is_valid()) {
-        warnln("Invalid URL: \"{}\"", url);
-        return Error::from_string_literal("Invalid URL");
-    }
 
     if (app->dump_layout_tree || app->dump_text) {
         Ladybird::Test test { app->dump_layout_tree ? Ladybird::TestMode::Layout : Ladybird::TestMode::Text };
