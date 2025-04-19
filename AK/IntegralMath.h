@@ -85,4 +85,61 @@ constexpr T reinterpret_as_octal(T decimal)
     return result;
 }
 
+template<Unsigned T>
+constexpr T gcd(T x, T y)
+{
+    if (x == 0)
+        return y;
+    if (y == 0)
+        return x;
+
+    int shift = 0;
+    while (((x | y) & 1) == 0) {
+        x >>= 1;
+        y >>= 1;
+        shift++;
+    }
+
+    while (x != y) {
+        if (x & 1) {
+            if (y & 1) {
+                if (x > y)
+                    x -= y;
+                else
+                    y -= x;
+            } else {
+                y >>= 1;
+            }
+        } else {
+            x >>= 1;
+            if (y & 1) {
+                if (x < y)
+                    swap(x, y);
+            }
+        }
+    }
+
+    return x << shift;
+}
+
+template<Signed T>
+constexpr T gcd(T x, T y)
+{
+    return gcd(static_cast<MakeUnsigned<T>>(abs(x)), static_cast<MakeUnsigned<T>>(abs(y)));
+}
+
+template<Unsigned T>
+constexpr T lcm(T x, T y)
+{
+    if (x == 0 || y == 0)
+        return 0;
+    return x / gcd(x, y) * y;
+}
+
+template<Signed T>
+constexpr T lcm(T x, T y)
+{
+    return lcm(static_cast<MakeUnsigned<T>>(abs(x)), static_cast<MakeUnsigned<T>>(abs(y)));
+}
+
 }

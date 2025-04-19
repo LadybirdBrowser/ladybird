@@ -131,3 +131,36 @@ TEST_CASE(clamp_to)
     EXPECT_EQ(AK::clamp_to<i64>(-9223372036854775808.0), NumericLimits<i64>::min());
     EXPECT_EQ(AK::clamp_to<i64>(9223372036854775807.0), NumericLimits<i64>::max());
 }
+
+TEST_CASE(gcd)
+{
+    EXPECT_EQ(AK::gcd(0, 0), 0);
+    EXPECT_EQ(AK::gcd(1, 1), 1);
+    EXPECT_EQ(AK::gcd(0, 2), 2);
+    EXPECT_EQ(AK::gcd(2, 0), 2);
+    EXPECT_EQ(AK::gcd(8, 12), 4);
+    EXPECT_EQ(AK::gcd(17, 23), 1);
+    EXPECT_EQ(AK::gcd(48, 36), 12);
+    EXPECT_EQ(AK::gcd(-8, 12), 4);
+    EXPECT_EQ(AK::gcd(8, -12), 4);
+    EXPECT_EQ(AK::gcd(-8, -12), 4);
+    EXPECT_EQ(AK::gcd(100, 100), 100);
+    EXPECT_EQ(AK::gcd(13, 1), 1);
+    EXPECT_EQ(AK::gcd(-NumericLimits<i32>::max(), NumericLimits<i32>::max()), NumericLimits<i32>::max());
+}
+
+TEST_CASE(lcm)
+{
+    EXPECT_EQ(AK::lcm(0, 0), 0);
+    EXPECT_EQ(AK::lcm(0, 5), 0);
+    EXPECT_EQ(AK::lcm(5, 0), 0);
+    EXPECT_EQ(AK::lcm(1, 1), 1);
+    EXPECT_EQ(AK::lcm(4, 6), 12);
+    EXPECT_EQ(AK::lcm(7, 13), 91);
+    EXPECT_EQ(AK::lcm(12, 18), 36);
+    EXPECT_EQ(AK::lcm(-4, 6), 12);
+    EXPECT_EQ(AK::lcm(4, -6), 12);
+    EXPECT_EQ(AK::lcm(-4, -6), 12);
+    EXPECT_EQ(AK::lcm(10, 10), 10);
+    EXPECT_EQ(AK::lcm(1, 8), 8);
+}
