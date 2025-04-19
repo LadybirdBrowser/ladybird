@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, sin-ack <sin-ack@protonmail.com>
+ * Copyright (c) 2024-2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -11,6 +12,45 @@
 #include <harfbuzz/hb.h>
 
 namespace Gfx {
+
+Vector<NonnullRefPtr<GlyphRun>> shape_text(FloatPoint baseline_start, Utf8View string, FontCascadeList const& font_cascade_list)
+{
+    if (string.length() == 0)
+        return {};
+
+    Vector<NonnullRefPtr<GlyphRun>> runs;
+
+    auto it = string.begin();
+    auto substring_begin_offset = string.iterator_offset(it);
+    Font const* last_font = &font_cascade_list.font_for_code_point(*it);
+    FloatPoint last_position = baseline_start;
+
+    auto add_run = [&runs, &last_position](Utf8View string, Font const& font) {
+        auto run = shape_text(last_position, 0, string, font, GlyphRun::TextType::Common, {});
+        last_position.translate_by(run->width(), 0);
+        runs.append(*run);
+    };
+
+    while (it != string.end()) {
+        auto code_point = *it;
+        auto const* font = &font_cascade_list.font_for_code_point(code_point);
+        if (font != last_font) {
+            auto substring = string.substring_view(substring_begin_offset, string.iterator_offset(it) - substring_begin_offset);
+            add_run(substring, *last_font);
+            last_font = font;
+            substring_begin_offset = string.iterator_offset(it);
+        }
+        ++it;
+    }
+
+    auto end_offset = string.iterator_offset(it);
+    if (substring_begin_offset < end_offset) {
+        auto substring = string.substring_view(substring_begin_offset, end_offset - substring_begin_offset);
+        add_run(substring, *last_font);
+    }
+
+    return runs;
+}
 
 RefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, Utf8View string, Gfx::Font const& font, GlyphRun::TextType text_type, ShapeFeatures const& features)
 {

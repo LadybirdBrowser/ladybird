@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, sin-ack <sin-ack@protonmail.com>
+ * Copyright (c) 2024-2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -12,6 +13,7 @@
 #include <AK/Utf8View.h>
 #include <AK/Vector.h>
 #include <LibGfx/Font/Font.h>
+#include <LibGfx/FontCascadeList.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Point.h>
 
@@ -69,6 +71,7 @@ private:
 };
 
 RefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, Utf8View string, Gfx::Font const& font, GlyphRun::TextType, ShapeFeatures const& features);
+Vector<NonnullRefPtr<GlyphRun>> shape_text(FloatPoint baseline_start, Utf8View string, FontCascadeList const&);
 float measure_text_width(Utf8View const& string, Gfx::Font const& font, ShapeFeatures const& features);
 
 }
