@@ -169,15 +169,19 @@ URL create_with_file_scheme(ByteString const& path, ByteString const& fragment, 
     if (!lexical_path.is_absolute())
         return {};
 
-    URL url;
-    url.set_scheme("file"_string);
-    url.set_host(hostname == "localhost" ? String {} : String::from_byte_string(hostname).release_value_but_fixme_should_propagate_errors());
-    url.set_paths(lexical_path.parts());
+    StringBuilder url_builder;
+    url_builder.append("file://"sv);
+    url_builder.append(hostname);
+    url_builder.append(lexical_path.string());
     if (path.ends_with('/'))
-        url.append_slash();
-    if (!fragment.is_empty())
-        url.set_fragment(String::from_byte_string(fragment).release_value_but_fixme_should_propagate_errors());
-    return url;
+        url_builder.append('/');
+    if (!fragment.is_empty()) {
+        url_builder.append('#');
+        url_builder.append(fragment);
+    }
+
+    auto url = Parser::basic_parse(url_builder.string_view());
+    return url.has_value() ? url.release_value() : URL {};
 }
 
 URL create_with_url_or_path(ByteString const& url_or_path)

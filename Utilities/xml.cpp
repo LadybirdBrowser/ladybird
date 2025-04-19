@@ -435,7 +435,7 @@ static void do_run_tests(XML::Document& document)
             path_builder.append(suite.attributes.find("URI")->value);
             auto url = URL::create_with_file_scheme(path_builder.string_view());
 
-            auto file_path = URL::percent_decode(url.serialize_path());
+            auto file_path = URL::percent_decode(url->serialize_path());
             auto file_result = Core::File::open(file_path, Core::File::OpenMode::Read);
             if (file_result.is_error()) {
                 warnln("Read error for {}: {}", file_path, file_result.error());
