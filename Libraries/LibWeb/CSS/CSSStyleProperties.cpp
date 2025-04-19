@@ -595,6 +595,11 @@ static RefPtr<CSSStyleValue const> resolve_color_style_value(CSSStyleValue const
 {
     if (style_value.is_color_function())
         return style_value;
+    if (style_value.is_color()) {
+        auto& color_style_value = static_cast<CSSColorValue const&>(style_value);
+        if (first_is_one_of(color_style_value.color_type(), CSSColorValue::ColorType::Lab, CSSColorValue::ColorType::OKLab, CSSColorValue::ColorType::LCH, CSSColorValue::ColorType::OKLCH))
+            return style_value;
+    }
 
     return CSSColorValue::create_from_color(computed_color, ColorSyntax::Modern);
 }
