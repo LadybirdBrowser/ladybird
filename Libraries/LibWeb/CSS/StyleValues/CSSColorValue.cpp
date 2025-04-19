@@ -8,6 +8,7 @@
  */
 
 #include "CSSColorValue.h"
+#include <LibJS/Runtime/AbstractOperations.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
@@ -33,7 +34,7 @@ Optional<double> CSSColorValue::resolve_hue(CSSStyleValue const& style_value)
 {
     // <number> | <angle> | none
     auto normalized = [](double number) {
-        return fmod(number, 360.0);
+        return JS::modulo(number, 360.0);
     };
 
     if (style_value.is_number())
@@ -144,6 +145,19 @@ void CSSColorValue::serialize_alpha_component(StringBuilder& builder, Serializat
     }
     auto resolved_value = resolve_alpha(component).value_or(0);
     builder.appendff("{}", resolved_value);
+}
+
+void CSSColorValue::serialize_hue_component(StringBuilder& builder, SerializationMode mode, CSSStyleValue const& component) const
+{
+    if (component.to_keyword() == Keyword::None) {
+        builder.append("none"sv);
+        return;
+    }
+    if (component.is_calculated() && mode == SerializationMode::Normal) {
+        builder.append(component.to_string(mode));
+        return;
+    }
+    builder.appendff("{:.4}", resolve_hue(component).value_or(0));
 }
 
 }
