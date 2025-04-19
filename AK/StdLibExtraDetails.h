@@ -91,6 +91,15 @@ inline constexpr bool __IsPointerHelper<T*> = true;
 template<class T>
 inline constexpr bool IsPointer = __IsPointerHelper<RemoveCV<T>>;
 
+template<class T>
+inline constexpr bool __IsMemberPointer = false;
+
+template<class T, class C>
+inline constexpr bool __IsMemberPointer<T C::*> = true;
+
+template<class T>
+inline constexpr bool IsMemberPointer = __IsMemberPointer<RemoveCV<T>>;
+
 template<class>
 inline constexpr bool IsFunction = false;
 template<class Ret, class... Args>
@@ -398,6 +407,9 @@ inline constexpr bool IsArithmetic = IsIntegral<T> || IsFloatingPoint<T>;
 template<typename T>
 inline constexpr bool IsFundamental = IsArithmetic<T> || IsVoid<T> || IsNullPointer<T>;
 
+template<typename T>
+inline constexpr bool IsScalar = IsArithmetic<T> || IsEnum<T> || IsPointer<T> || IsNullPointer<T> || IsMemberPointer<T>;
+
 template<typename T, T... Ts>
 struct IntegerSequence {
     using Type = T;
@@ -677,6 +689,7 @@ using AK::Detail::IsFundamental;
 using AK::Detail::IsHashCompatible;
 using AK::Detail::IsIntegral;
 using AK::Detail::IsLvalueReference;
+using AK::Detail::IsMemberPointer;
 using AK::Detail::IsMoveAssignable;
 using AK::Detail::IsMoveConstructible;
 using AK::Detail::IsNullPointer;
@@ -687,6 +700,7 @@ using AK::Detail::IsPointer;
 using AK::Detail::IsRvalueReference;
 using AK::Detail::IsSame;
 using AK::Detail::IsSameIgnoringCV;
+using AK::Detail::IsScalar;
 using AK::Detail::IsSigned;
 using AK::Detail::IsSpecializationOf;
 using AK::Detail::IsTemplateBaseOf;
