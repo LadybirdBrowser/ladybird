@@ -610,7 +610,7 @@ bool HTMLLinkElement::load_favicon_and_use_if_window_is_active()
         return false;
 
     // FIXME: Refactor the caller(s) to handle the async nature of image loading
-    auto promise = decode_favicon(resource()->encoded_data(), resource()->url(), document());
+    auto promise = decode_favicon(resource()->encoded_data(), *resource()->url(), document());
     auto result = promise->await();
     return !result.is_error();
 }

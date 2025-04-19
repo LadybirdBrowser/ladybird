@@ -89,7 +89,7 @@ RefPtr<Resource> ResourceLoader::load_resource(Resource::Type type, LoadRequest&
     if (!request.is_valid())
         return nullptr;
 
-    bool use_cache = request.url().scheme() != "file";
+    bool use_cache = request.url()->scheme() != "file";
 
     if (use_cache) {
         auto it = s_resource_cache.find(request);
@@ -154,14 +154,14 @@ static HTTP::HeaderMap response_headers_for_file(StringView path, Optional<time_
 
 static void log_request_start(LoadRequest const& request)
 {
-    auto url_for_logging = sanitized_url_for_logging(request.url());
+    auto url_for_logging = sanitized_url_for_logging(*request.url());
 
     dbgln_if(SPAM_DEBUG, "ResourceLoader: Starting load of: \"{}\"", url_for_logging);
 }
 
 static void log_success(LoadRequest const& request)
 {
-    auto url_for_logging = sanitized_url_for_logging(request.url());
+    auto url_for_logging = sanitized_url_for_logging(*request.url());
     auto load_time_ms = request.load_time().to_milliseconds();
 
     dbgln_if(SPAM_DEBUG, "ResourceLoader: Finished load of: \"{}\", Duration: {}ms", url_for_logging, load_time_ms);
@@ -170,7 +170,7 @@ static void log_success(LoadRequest const& request)
 template<typename ErrorType>
 static void log_failure(LoadRequest const& request, ErrorType const& error)
 {
-    auto url_for_logging = sanitized_url_for_logging(request.url());
+    auto url_for_logging = sanitized_url_for_logging(*request.url());
     auto load_time_ms = request.load_time().to_milliseconds();
 
     dbgln("ResourceLoader: Failed load of: \"{}\", \033[31;1mError: {}\033[0m, Duration: {}ms", url_for_logging, error, load_time_ms);
@@ -178,13 +178,13 @@ static void log_failure(LoadRequest const& request, ErrorType const& error)
 
 static void log_filtered_request(LoadRequest const& request)
 {
-    auto url_for_logging = sanitized_url_for_logging(request.url());
+    auto url_for_logging = sanitized_url_for_logging(*request.url());
     dbgln("ResourceLoader: Filtered request to: \"{}\"", url_for_logging);
 }
 
 static bool should_block_request(LoadRequest const& request)
 {
-    auto const& url = request.url();
+    auto const& url = request.url().value();
 
     auto is_port_blocked = [](int port) {
         static constexpr auto ports = to_array({ 1, 7, 9, 11, 13, 15, 17, 19, 20, 21, 22, 23, 25, 37, 42,
@@ -210,7 +210,7 @@ static bool should_block_request(LoadRequest const& request)
 
 void ResourceLoader::load(LoadRequest& request, GC::Root<SuccessCallback> success_callback, GC::Root<ErrorCallback> error_callback, Optional<u32> timeout, GC::Root<TimeoutCallback> timeout_callback)
 {
-    auto const& url = request.url();
+    auto const& url = request.url().value();
 
     log_request_start(request);
     request.start_timer();
@@ -356,7 +356,7 @@ void ResourceLoader::load(LoadRequest& request, GC::Root<SuccessCallback> succes
             // When local file is a directory use file directory loader to generate response
             auto maybe_is_valid_directory = Core::Directory::is_valid_directory(fd);
             if (!maybe_is_valid_directory.is_error() && maybe_is_valid_directory.value()) {
-                respond_directory_page(request, request.url(), success_callback, error_callback);
+                respond_directory_page(request, request.url().value(), success_callback, error_callback);
                 return;
             }
 
@@ -387,7 +387,7 @@ void ResourceLoader::load(LoadRequest& request, GC::Root<SuccessCallback> succes
             }
 
             auto data = maybe_data.release_value();
-            auto response_headers = response_headers_for_file(request.url().file_path(), st_or_error.value().st_mtime);
+            auto response_headers = response_headers_for_file(request.url()->file_path(), st_or_error.value().st_mtime);
 
             // FIXME: Implement timing info for file requests.
             Requests::RequestTimingInfo fixme_implement_timing_info {};
@@ -468,7 +468,7 @@ void ResourceLoader::load(LoadRequest& request, GC::Root<SuccessCallback> succes
 
 void ResourceLoader::load_unbuffered(LoadRequest& request, GC::Root<OnHeadersReceived> on_headers_received, GC::Root<OnDataReceived> on_data_received, GC::Root<OnComplete> on_complete)
 {
-    auto const& url = request.url();
+    auto const& url = request.url().value();
 
     log_request_start(request);
     request.start_timer();
@@ -516,7 +516,7 @@ void ResourceLoader::load_unbuffered(LoadRequest& request, GC::Root<OnHeadersRec
 
 RefPtr<Requests::Request> ResourceLoader::start_network_request(LoadRequest const& request)
 {
-    auto proxy = ProxyMappings::the().proxy_for_url(request.url());
+    auto proxy = ProxyMappings::the().proxy_for_url(request.url().value());
 
     HTTP::HeaderMap headers;
 
@@ -527,7 +527,7 @@ RefPtr<Requests::Request> ResourceLoader::start_network_request(LoadRequest cons
     if (!headers.contains("User-Agent"))
         headers.set("User-Agent", m_user_agent.to_byte_string());
 
-    auto protocol_request = m_request_client->start_request(request.method(), request.url(), headers, request.body(), proxy);
+    auto protocol_request = m_request_client->start_request(request.method(), request.url().value(), headers, request.body(), proxy);
     if (!protocol_request) {
         log_failure(request, "Failed to initiate load"sv);
         return nullptr;
@@ -552,7 +552,7 @@ void ResourceLoader::handle_network_response_headers(LoadRequest const& request,
 
     for (auto const& [header, value] : response_headers.headers()) {
         if (header.equals_ignoring_ascii_case("Set-Cookie"sv)) {
-            store_response_cookies(*request.page(), request.url(), value);
+            store_response_cookies(*request.page(), request.url().value(), value);
         }
     }
 

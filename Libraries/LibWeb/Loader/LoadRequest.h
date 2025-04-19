@@ -27,12 +27,12 @@ public:
     bool is_main_resource() const { return m_main_resource; }
     void set_main_resource(bool b) { m_main_resource = b; }
 
-    bool is_valid() const { return m_url.is_valid(); }
+    bool is_valid() const { return m_url.has_value(); }
 
     int id() const { return m_id; }
 
-    const URL::URL& url() const { return m_url; }
-    void set_url(const URL::URL& url) { m_url = url; }
+    Optional<URL::URL> const& url() const { return m_url; }
+    void set_url(Optional<URL::URL> url) { m_url = move(url); }
 
     ByteString const& method() const { return m_method; }
     void set_method(ByteString const& method) { m_method = method; }
@@ -50,7 +50,8 @@ public:
     {
         auto body_hash = string_hash((char const*)m_body.data(), m_body.size());
         auto body_and_headers_hash = pair_int_hash(body_hash, m_headers.hash());
-        auto url_and_method_hash = pair_int_hash(m_url.to_byte_string().hash(), m_method.hash());
+        auto url_hash = m_url.has_value() ? m_url->to_byte_string().hash() : 0;
+        auto url_and_method_hash = pair_int_hash(url_hash, m_method.hash());
         return pair_int_hash(body_and_headers_hash, url_and_method_hash);
     }
 
@@ -75,7 +76,7 @@ public:
 
 private:
     int m_id { 0 };
-    URL::URL m_url;
+    Optional<URL::URL> m_url;
     ByteString m_method { "GET" };
     HashMap<ByteString, ByteString, CaseInsensitiveStringTraits> m_headers;
     ByteBuffer m_body;
