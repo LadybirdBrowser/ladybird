@@ -45,11 +45,11 @@ Optional<URL::URL> sanitize_url(StringView location, Optional<SearchEngine> cons
     }
 
     static constexpr Array SUPPORTED_SCHEMES { "about"sv, "data"sv, "file"sv, "http"sv, "https"sv, "resource"sv };
-    if (!any_of(SUPPORTED_SCHEMES, [&](StringView const& scheme) { return scheme == url.scheme(); }))
+    if (!any_of(SUPPORTED_SCHEMES, [&](StringView const& scheme) { return scheme == url->scheme(); }))
         return search_url_or_error();
     // FIXME: Add support for other schemes, e.g. "mailto:". Firefox and Chrome open mailto: locations.
 
-    auto const& host = url.host();
+    auto const& host = url->host();
     if (host.has_value() && host->is_domain()) {
         auto const& domain = host->get<String>();
 
@@ -64,7 +64,7 @@ Optional<URL::URL> sanitize_url(StringView location, Optional<SearchEngine> cons
         auto public_suffix = URL::get_public_suffix(domain);
         if (!public_suffix.has_value() || *public_suffix == domain) {
             if (append_tld == AppendTLD::Yes)
-                url.set_host(MUST(String::formatted("{}.com", domain)));
+                url->set_host(MUST(String::formatted("{}.com", domain)));
             else if (https_scheme_was_guessed && domain != "localhost"sv)
                 return search_url_or_error();
         }
