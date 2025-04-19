@@ -10,11 +10,6 @@
 #include <LibURL/Parser.h>
 #include <LibURL/URL.h>
 
-TEST_CASE(construct)
-{
-    EXPECT_EQ(URL::URL().is_valid(), false);
-}
-
 TEST_CASE(basic)
 {
     {

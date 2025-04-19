@@ -77,9 +77,8 @@ class URL {
     friend class Parser;
 
 public:
+    // FIXME: We should get rid of the default constructor, all URLs should be constructed through the Parser.
     URL() = default;
-
-    bool is_valid() const { return m_data->valid; }
 
     String const& scheme() const { return m_data->scheme; }
     String const& username() const { return m_data->username; }
@@ -147,13 +146,10 @@ public:
     static URL about(String path);
 
 private:
-    bool compute_validity() const;
-
     struct Data : public RefCounted<Data> {
-        NonnullRefPtr<Data> clone()
+        NonnullRefPtr<Data> clone() const
         {
             auto clone = adopt_ref(*new Data);
-            clone->valid = valid;
             clone->scheme = scheme;
             clone->username = username;
             clone->password = password;
@@ -166,8 +162,6 @@ private:
             clone->blob_url_entry = blob_url_entry;
             return clone;
         }
-
-        bool valid { false };
 
         // A URL’s scheme is an ASCII string that identifies the type of URL and can be used to dispatch a URL for further processing after parsing. It is initially the empty string.
         String scheme;
