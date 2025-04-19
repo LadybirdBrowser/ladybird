@@ -137,9 +137,9 @@ private:
     virtual Gfx::Path& path_for_canvas_state() override { return path(); }
 
     struct PreparedText {
-        RefPtr<Gfx::GlyphRun> glyph_run;
+        Vector<NonnullRefPtr<Gfx::GlyphRun>> glyph_runs;
         Gfx::TextAlignment physical_alignment;
-        Gfx::IntRect bounding_box;
+        Gfx::FloatRect bounding_box;
     };
 
     void did_draw(Gfx::FloatRect const&);

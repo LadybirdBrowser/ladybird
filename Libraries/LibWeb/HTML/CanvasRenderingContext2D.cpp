@@ -590,7 +590,7 @@ CanvasRenderingContext2D::PreparedText CanvasRenderingContext2D::prepare_text(By
     auto replaced_text = MUST(builder.to_string());
 
     // 3. Let font be the current font of target, as given by that object's font attribute.
-    auto const& font = font_cascade_list()->first();
+    auto glyph_runs = Gfx::shape_text({ 0, 0 }, Utf8View(replaced_text), *font_cascade_list());
 
     // FIXME: 4. Let language be the target's language.
     // FIXME: 5. If language is "inherit":
@@ -614,7 +614,12 @@ CanvasRenderingContext2D::PreparedText CanvasRenderingContext2D::prepare_text(By
     // ...and with all other properties set to their initial values.
     // FIXME: Actually use a LineBox here instead of, you know, using the default font and measuring its size (which is not the spec at all).
     // FIXME: Once we have CanvasTextDrawingStyles, add the CSS attributes.
-    size_t height = font.pixel_size();
+    float height = 0;
+    float width = 0;
+    for (auto const& glyph_run : glyph_runs) {
+        height = max(height, glyph_run->font().pixel_size());
+        width += glyph_run->width();
+    }
 
     // 9. If maxWidth was provided and the hypothetical width of the inline box in the hypothetical line box is greater than maxWidth CSS pixels, then change font to have a more condensed font (if one is available or if a reasonably readable one can be synthesized by applying a horizontal scale factor to the font) or a smaller font, and return to the previous step.
     // FIXME: Record the font size used for this piece of text, and actually retry with a smaller size if needed.
@@ -622,15 +627,11 @@ CanvasRenderingContext2D::PreparedText CanvasRenderingContext2D::prepare_text(By
     // FIXME: 10. The anchor point is a point on the inline box, and the physical alignment is one of the values left, right,
     //            and center. These variables are determined by the textAlign and textBaseline values as follows:
     //            ...
-    Gfx::FloatPoint anchor { 0, 0 };
-    auto physical_alignment = Gfx::TextAlignment::CenterLeft;
-
-    auto glyph_run = Gfx::shape_text(anchor, 0, replaced_text.code_points(), font, Gfx::GlyphRun::TextType::Ltr, {});
 
     // 11. Let result be an array constructed by iterating over each glyph in the inline box from left to right (if
     //     any), adding to the array, for each glyph, the shape of the glyph as it is in the inline box, positioned on
     //     a coordinate space using CSS pixels with its origin is at the anchor point.
-    PreparedText prepared_text { glyph_run, physical_alignment, { 0, 0, static_cast<int>(glyph_run->width()), static_cast<int>(height) } };
+    PreparedText prepared_text { move(glyph_runs), Gfx::TextAlignment::CenterLeft, { 0, 0, width, height } };
 
     // 12. Return result, physical alignment, and the inline box.
     return prepared_text;
