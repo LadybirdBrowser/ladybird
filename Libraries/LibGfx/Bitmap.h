@@ -120,11 +120,6 @@ public:
     [[nodiscard]] static constexpr size_t size_in_bytes(size_t pitch, int height) { return pitch * height; }
     [[nodiscard]] size_t size_in_bytes() const { return size_in_bytes(m_pitch, height()); }
 
-    template<StorageFormat>
-    [[nodiscard]] Color unchecked_get_pixel(int physical_x, int physical_y) const;
-
-    template<StorageFormat>
-    [[nodiscard]] Color get_pixel(int physical_x, int physical_y) const;
     [[nodiscard]] Color get_pixel(int physical_x, int physical_y) const;
     [[nodiscard]] Color get_pixel(IntPoint physical_position) const
     {
@@ -232,49 +227,20 @@ ALWAYS_INLINE size_t Bitmap::data_size() const
     return m_size.height() * m_pitch;
 }
 
-template<>
-ALWAYS_INLINE Color Bitmap::unchecked_get_pixel<StorageFormat::BGRx8888>(int x, int y) const
-{
-    return Color::from_rgb(unchecked_scanline(y)[x]);
-}
-
-template<>
-ALWAYS_INLINE Color Bitmap::unchecked_get_pixel<StorageFormat::BGRA8888>(int x, int y) const
-{
-    return Color::from_argb(unchecked_scanline(y)[x]);
-}
-
-template<>
-ALWAYS_INLINE Color Bitmap::unchecked_get_pixel<StorageFormat::RGBx8888>(int x, int y) const
-{
-    return Color::from_bgr(unchecked_scanline(y)[x]);
-}
-
-template<>
-ALWAYS_INLINE Color Bitmap::unchecked_get_pixel<StorageFormat::RGBA8888>(int x, int y) const
-{
-    return Color::from_abgr(unchecked_scanline(y)[x]);
-}
-
-template<StorageFormat storage_format>
 ALWAYS_INLINE Color Bitmap::get_pixel(int x, int y) const
 {
     VERIFY(x >= 0);
     VERIFY(x < width());
-    return unchecked_get_pixel<storage_format>(x, y);
-}
-
-ALWAYS_INLINE Color Bitmap::get_pixel(int x, int y) const
-{
+    auto pixel = unchecked_scanline(y)[x];
     switch (determine_storage_format(m_format)) {
     case StorageFormat::BGRx8888:
-        return get_pixel<StorageFormat::BGRx8888>(x, y);
+        return Color::from_rgb(pixel);
     case StorageFormat::BGRA8888:
-        return get_pixel<StorageFormat::BGRA8888>(x, y);
+        return Color::from_argb(pixel);
     case StorageFormat::RGBA8888:
-        return get_pixel<StorageFormat::RGBA8888>(x, y);
+        return Color::from_abgr(pixel);
     case StorageFormat::RGBx8888:
-        return get_pixel<StorageFormat::RGBx8888>(x, y);
+        return Color::from_bgr(pixel);
     default:
         VERIFY_NOT_REACHED();
     }
