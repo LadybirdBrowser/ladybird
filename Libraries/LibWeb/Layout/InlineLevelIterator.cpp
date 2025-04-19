@@ -554,7 +554,7 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::next_without_lookahead(
         auto shape_features = create_and_merge_font_features();
         auto glyph_run = Gfx::shape_text({ x, 0 }, letter_spacing.to_float(), chunk.view, chunk.font, text_type, shape_features);
 
-        CSSPixels chunk_width = CSSPixels::nearest_value_for(glyph_run->width());
+        CSSPixels chunk_width = CSSPixels::nearest_value_for(glyph_run->width() + x);
 
         // NOTE: We never consider `content: ""` to be collapsible whitespace.
         bool is_generated_empty_string = text_node.is_generated() && chunk.length == 0;
