@@ -129,4 +129,12 @@ hb_font_t* Font::harfbuzz_font() const
     return m_harfbuzz_font;
 }
 
+SkFont Font::skia_font(float scale) const
+{
+    auto const& sk_typeface = as<TypefaceSkia>(*m_typeface).sk_typeface();
+    auto sk_font = SkFont { sk_ref_sp(sk_typeface), pixel_size() * scale };
+    sk_font.setSubpixel(true);
+    return sk_font;
+}
+
 }
