@@ -186,7 +186,7 @@ static ThrowCompletionOr<Value> do_wait(VM& vm, WaitMode mode, TypedArrayBase& t
         timeout = max(timeout_number.as_double(), 0.0);
 
     // 10. If mode is sync and AgentCanSuspend() is false, throw a TypeError exception.
-    if (mode == WaitMode::Sync && !agent_can_suspend())
+    if (mode == WaitMode::Sync && !agent_can_suspend(vm))
         return vm.throw_completion<TypeError>(ErrorType::AgentCannotSuspend);
 
     // FIXME: Implement the remaining steps when we support SharedArrayBuffer.

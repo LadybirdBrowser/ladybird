@@ -21,6 +21,7 @@
 #include <LibGC/RootVector.h>
 #include <LibJS/CyclicModule.h>
 #include <LibJS/ModuleLoading.h>
+#include <LibJS/Runtime/Agent.h>
 #include <LibJS/Runtime/CommonPropertyNames.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/Error.h>
@@ -46,13 +47,7 @@ enum class EvalMode {
 
 class VM : public RefCounted<VM> {
 public:
-    struct CustomData {
-        virtual ~CustomData() = default;
-
-        virtual void spin_event_loop_until(GC::Root<GC::Function<bool()>> goal_condition) = 0;
-    };
-
-    static ErrorOr<NonnullRefPtr<VM>> create(OwnPtr<CustomData> = {});
+    static ErrorOr<NonnullRefPtr<VM>> create(OwnPtr<Agent> = {});
     ~VM();
 
     GC::Heap& heap() { return m_heap; }
@@ -245,7 +240,8 @@ public:
     Function<void(Promise&)> on_promise_rejection_handled;
     Function<void(Object const&, PropertyKey const&)> on_unimplemented_property_access;
 
-    CustomData* custom_data() { return m_custom_data; }
+    Agent* agent() { return m_agent; }
+    Agent const* agent() const { return m_agent; }
 
     void save_execution_context_stack();
     void clear_execution_context_stack();
@@ -294,7 +290,7 @@ private:
 #undef __JS_ENUMERATE
     };
 
-    VM(OwnPtr<CustomData>, ErrorMessages);
+    VM(OwnPtr<Agent>, ErrorMessages);
 
     void load_imported_module(ImportedModuleReferrer, ModuleRequest const&, GC::Ptr<GraphLoadingState::HostDefined>, ImportedModulePayload);
     ThrowCompletionOr<void> link_and_eval_module(CyclicModule&);
@@ -339,7 +335,7 @@ private:
 
     u32 m_execution_generation { 0 };
 
-    OwnPtr<CustomData> m_custom_data;
+    OwnPtr<Agent> m_agent;
 
     OwnPtr<Bytecode::Interpreter> m_bytecode_interpreter;
 
