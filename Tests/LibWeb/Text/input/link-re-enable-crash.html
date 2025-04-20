@@ -1,13 +1,11 @@
 <!DOCTYPE html>
 <script src="include.js"></script>
-<link rel="stylesheet" href="valid.css">
+<script>
+    var scriptOnloadWasInvoked = false;
+</script>
+<link id="link" rel="stylesheet" href="valid.css" onload="link.disabled = true; link.disabled = false;">
 <script>
     test(() => {
-        const link = document.querySelector("link");
-        link.onload = () => {
-            link.disabled = true;
-            link.disabled = false;
-            println("PASS (didn't crash)");
-        };
+        println("PASS (didn't crash)");
     });
 </script>

@@ -583,6 +583,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
     }
 
     visitor.visit(m_adopted_style_sheets);
+    visitor.visit(m_script_blocking_style_sheet_set);
 
     for (auto& shadow_root : m_shadow_roots)
         visitor.visit(shadow_root);
@@ -3242,11 +3243,18 @@ String Document::dump_dom_tree_as_json() const
     return MUST(builder.to_string());
 }
 
+// https://html.spec.whatwg.org/multipage/semantics.html#has-no-style-sheet-that-is-blocking-scripts
+bool Document::has_no_style_sheet_that_is_blocking_scripts() const
+{
+    // A Document has no style sheet that is blocking scripts if it does not have a style sheet that is blocking scripts.
+    return !has_a_style_sheet_that_is_blocking_scripts();
+}
+
 // https://html.spec.whatwg.org/multipage/semantics.html#has-a-style-sheet-that-is-blocking-scripts
 bool Document::has_a_style_sheet_that_is_blocking_scripts() const
 {
-    // FIXME: 1. If document's script-blocking style sheet set is not empty, then return true.
-    if (m_script_blocking_style_sheet_counter > 0)
+    // 1. If document's script-blocking style sheet set is not empty, then return true.
+    if (!m_script_blocking_style_sheet_set.is_empty())
         return true;
 
     // 2. If document's node navigable is null, then return false.
@@ -3256,8 +3264,8 @@ bool Document::has_a_style_sheet_that_is_blocking_scripts() const
     // 3. Let containerDocument be document's node navigable's container document.
     auto container_document = navigable()->container_document();
 
-    // FIXME: 4. If containerDocument is non-null and containerDocument's script-blocking style sheet set is not empty, then return true.
-    if (container_document && container_document->m_script_blocking_style_sheet_counter > 0)
+    // 4. If containerDocument is non-null and containerDocument's script-blocking style sheet set is not empty, then return true.
+    if (container_document && !container_document->m_script_blocking_style_sheet_set.is_empty())
         return true;
 
     // 5. Return false

@@ -509,9 +509,14 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
         dispatch_event(*DOM::Event::create(realm(), HTML::EventNames::error));
     }
 
-    // FIXME: 6. If el contributes a script-blocking style sheet, then:
-    //     FIXME: 1. Assert: el's node document's script-blocking style sheet counter is greater than 0.
-    //     FIXME: 2. Decrement el's node document's script-blocking style sheet counter by 1.
+    // 6. If el contributes a script-blocking style sheet, then:
+    if (contributes_a_script_blocking_style_sheet()) {
+        // 1. Assert: el's node document's script-blocking style sheet set contains el.
+        VERIFY(document().script_blocking_style_sheet_set().contains(*this));
+
+        // 2. Remove el from its node document's script-blocking style sheet set.
+        document().script_blocking_style_sheet_set().remove(*this);
+    }
 
     // 7. Unblock rendering on el.
     unblock_rendering();
@@ -541,7 +546,10 @@ bool HTMLLinkElement::stylesheet_linked_resource_fetch_setup_steps(Fetch::Infras
     // 1. If el's disabled attribute is set, then return false.
     if (has_attribute(AttributeNames::disabled))
         return false;
-    // FIXME: 2. If el contributes a script-blocking style sheet, increment el's node document's script-blocking style sheet counter by 1.
+
+    // 2. If el contributes a script-blocking style sheet, append el to its node document's script-blocking style sheet set.
+    if (contributes_a_script_blocking_style_sheet())
+        document().script_blocking_style_sheet_set().set(*this);
 
     // 3. If el's media attribute's value matches the environment and el is potentially render-blocking, then block rendering on el.
     // FIXME: Check media attribute value.
@@ -672,6 +680,36 @@ void HTMLLinkElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_loaded_style_sheet);
     visitor.visit(m_rel_list);
     visitor.visit(m_sizes);
+}
+
+// https://html.spec.whatwg.org/multipage/semantics.html#contributes-a-script-blocking-style-sheet
+bool HTMLLinkElement::contributes_a_script_blocking_style_sheet() const
+{
+    // An element el in the context of a Document of an HTML parser or XML parser
+    // contributes a script-blocking style sheet if all of the following are true:
+
+    // el was created by that Document's parser.
+    if (m_parser_document != &document())
+        return false;
+
+    // FIXME: el is either a style element or a link element that was an external resource link that contributes to the styling processing model when the el was created by the parser.
+
+    // FIXME: el's media attribute's value matches the environment.
+
+    // FIXME: el's style sheet was enabled when the element was created by the parser.
+    if (has_attribute(AttributeNames::disabled))
+        return false;
+
+    // FIXME: The last time the event loop reached step 1, el's root was that Document.
+
+    // The user agent hasn't given up on loading that particular style sheet yet.
+    // A user agent may give up on loading a style sheet at any time.
+    if (m_fetch_controller && m_fetch_controller->state() == Fetch::Infrastructure::FetchController::State::Terminated)
+        return false;
+    if (m_fetch_controller && m_fetch_controller->state() == Fetch::Infrastructure::FetchController::State::Aborted)
+        return false;
+
+    return true;
 }
 
 }

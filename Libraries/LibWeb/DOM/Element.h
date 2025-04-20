@@ -471,6 +471,8 @@ public:
     void release_pointer_capture(WebIDL::Long pointer_id);
     bool has_pointer_capture(WebIDL::Long pointer_id);
 
+    virtual bool contributes_a_script_blocking_style_sheet() const { return false; }
+
 protected:
     Element(Document&, DOM::QualifiedName);
     virtual void initialize(JS::Realm&) override;
