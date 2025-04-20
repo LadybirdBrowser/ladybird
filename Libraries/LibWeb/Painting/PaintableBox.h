@@ -317,6 +317,7 @@ private:
 
 class PaintableWithLines : public PaintableBox {
     GC_CELL(PaintableWithLines, PaintableBox);
+    GC_DECLARE_ALLOCATOR(PaintableWithLines);
 
 public:
     static GC::Ref<PaintableWithLines> create(Layout::BlockContainer const&);
