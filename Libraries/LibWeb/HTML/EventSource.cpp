@@ -173,8 +173,8 @@ EventSource::~EventSource() = default;
 
 void EventSource::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(EventSource);
+    Base::initialize(realm);
 
     auto& relevant_global = as<HTML::WindowOrWorkerGlobalScopeMixin>(HTML::relevant_global_object(*this));
     relevant_global.register_event_source({}, *this);

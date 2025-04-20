@@ -34,8 +34,8 @@ Selection::~Selection() = default;
 
 void Selection::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(Selection);
+    Base::initialize(realm);
 }
 
 // https://w3c.github.io/selection-api/#dfn-empty

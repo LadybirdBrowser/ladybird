@@ -43,8 +43,8 @@ MessageEvent::~MessageEvent() = default;
 
 void MessageEvent::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(MessageEvent);
+    Base::initialize(realm);
 }
 
 void MessageEvent::visit_edges(Cell::Visitor& visitor)

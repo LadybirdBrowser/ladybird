@@ -27,8 +27,8 @@ NodeIterator::~NodeIterator() = default;
 
 void NodeIterator::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(NodeIterator);
+    Base::initialize(realm);
 }
 
 void NodeIterator::finalize()

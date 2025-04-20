@@ -23,8 +23,8 @@ HTMLLIElement::~HTMLLIElement() = default;
 
 void HTMLLIElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLLIElement);
+    Base::initialize(realm);
 }
 
 // https://html.spec.whatwg.org/multipage/grouping-content.html#dom-li-value

@@ -36,8 +36,8 @@ InternalAnimationTimeline::InternalAnimationTimeline(JS::Realm& realm)
 
 void InternalAnimationTimeline::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(InternalAnimationTimeline);
+    Base::initialize(realm);
 }
 
 }

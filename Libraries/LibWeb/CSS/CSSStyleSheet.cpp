@@ -114,8 +114,8 @@ CSSStyleSheet::CSSStyleSheet(JS::Realm& realm, CSSRuleList& rules, MediaList& me
 
 void CSSStyleSheet::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSStyleSheet);
+    Base::initialize(realm);
 }
 
 void CSSStyleSheet::visit_edges(Cell::Visitor& visitor)

@@ -30,8 +30,8 @@ MediaList::MediaList(JS::Realm& realm, Vector<NonnullRefPtr<MediaQuery>>&& media
 
 void MediaList::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(MediaList);
+    Base::initialize(realm);
 }
 
 void MediaList::visit_edges(Visitor& visitor)

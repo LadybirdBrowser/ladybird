@@ -37,8 +37,8 @@ CSSLayerBlockRule::CSSLayerBlockRule(JS::Realm& realm, FlyString name, CSSRuleLi
 
 void CSSLayerBlockRule::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSLayerBlockRule);
+    Base::initialize(realm);
 }
 
 String CSSLayerBlockRule::serialized() const

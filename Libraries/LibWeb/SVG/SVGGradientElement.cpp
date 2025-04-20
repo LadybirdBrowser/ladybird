@@ -150,8 +150,8 @@ GC::Ptr<SVGGradientElement const> SVGGradientElement::linked_gradient(HashTable<
 
 void SVGGradientElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGGradientElement);
+    Base::initialize(realm);
 }
 
 void SVGGradientElement::visit_edges(Cell::Visitor& visitor)

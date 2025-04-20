@@ -155,8 +155,8 @@ StyleSheetList::StyleSheetList(GC::Ref<DOM::Node> document_or_shadow_root)
 
 void StyleSheetList::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(StyleSheetList);
+    Base::initialize(realm);
 }
 
 void StyleSheetList::visit_edges(Cell::Visitor& visitor)

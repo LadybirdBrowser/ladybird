@@ -31,8 +31,8 @@ HTMLTableSectionElement::~HTMLTableSectionElement() = default;
 
 void HTMLTableSectionElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLTableSectionElement);
+    Base::initialize(realm);
 }
 
 void HTMLTableSectionElement::visit_edges(Cell::Visitor& visitor)

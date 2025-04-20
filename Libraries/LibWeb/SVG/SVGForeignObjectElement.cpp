@@ -28,8 +28,8 @@ SVGForeignObjectElement::~SVGForeignObjectElement() = default;
 
 void SVGForeignObjectElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGForeignObjectElement);
+    Base::initialize(realm);
 
     // FIXME: These never actually get updated!
     m_x = SVGAnimatedLength::create(realm, SVGLength::create(realm, 0, 0), SVGLength::create(realm, 0, 0));

@@ -90,8 +90,8 @@ Global::Global(JS::Realm& realm, Wasm::GlobalAddress address)
 // https://webassembly.github.io/spec/js-api/#initialize-a-global-object
 void Global::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE_WITH_CUSTOM_NAME(Global, WebAssembly.Global);
+    Base::initialize(realm);
 
     // 1. Let map be the surrounding agent's associated Global object cache.
     // 2. Assert: map[globaladdr] doesn’t exist.

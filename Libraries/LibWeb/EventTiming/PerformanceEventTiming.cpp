@@ -112,8 +112,8 @@ PerformanceTimeline::ShouldAddEntry PerformanceEventTiming::should_add_entry(Opt
 
 void PerformanceEventTiming::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(PerformanceEventTiming);
+    Base::initialize(realm);
 }
 
 void PerformanceEventTiming::visit_edges(JS::Cell::Visitor& visitor)

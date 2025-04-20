@@ -34,8 +34,8 @@ HTMLTrackElement::~HTMLTrackElement() = default;
 
 void HTMLTrackElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLTrackElement);
+    Base::initialize(realm);
 }
 
 void HTMLTrackElement::visit_edges(Cell::Visitor& visitor)

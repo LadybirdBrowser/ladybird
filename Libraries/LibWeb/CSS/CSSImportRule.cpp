@@ -39,8 +39,8 @@ CSSImportRule::CSSImportRule(JS::Realm& realm, URL url, GC::Ptr<DOM::Document> d
 
 void CSSImportRule::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSImportRule);
+    Base::initialize(realm);
 }
 
 void CSSImportRule::visit_edges(Cell::Visitor& visitor)

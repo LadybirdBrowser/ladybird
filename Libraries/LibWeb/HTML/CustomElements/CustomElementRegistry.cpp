@@ -32,8 +32,8 @@ CustomElementRegistry::~CustomElementRegistry() = default;
 
 void CustomElementRegistry::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(CustomElementRegistry);
+    Base::initialize(realm);
 }
 
 void CustomElementRegistry::visit_edges(Visitor& visitor)

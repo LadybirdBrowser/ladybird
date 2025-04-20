@@ -64,8 +64,8 @@ void HTMLImageElement::finalize()
 
 void HTMLImageElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLImageElement);
+    Base::initialize(realm);
 
     m_current_request = ImageRequest::create(realm, document().page());
 }

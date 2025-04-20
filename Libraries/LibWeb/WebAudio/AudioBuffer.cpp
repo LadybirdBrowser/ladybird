@@ -148,8 +148,8 @@ AudioBuffer::AudioBuffer(JS::Realm& realm, AudioBufferOptions const& options)
 
 void AudioBuffer::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(AudioBuffer);
+    Base::initialize(realm);
 }
 
 void AudioBuffer::visit_edges(Cell::Visitor& visitor)

@@ -83,8 +83,8 @@ void OscillatorNode::set_periodic_wave(GC::Ptr<PeriodicWave> periodic_wave)
 
 void OscillatorNode::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(OscillatorNode);
+    Base::initialize(realm);
 }
 
 void OscillatorNode::visit_edges(Cell::Visitor& visitor)

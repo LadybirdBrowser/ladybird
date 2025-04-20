@@ -48,8 +48,8 @@ HTMLLinkElement::~HTMLLinkElement() = default;
 
 void HTMLLinkElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLLinkElement);
+    Base::initialize(realm);
 }
 
 void HTMLLinkElement::removed_from(Node* old_parent, Node& old_root)

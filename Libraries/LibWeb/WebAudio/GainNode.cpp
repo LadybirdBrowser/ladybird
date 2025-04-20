@@ -47,8 +47,8 @@ GainNode::GainNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context, GainOpti
 
 void GainNode::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(GainNode);
+    Base::initialize(realm);
 }
 
 void GainNode::visit_edges(Cell::Visitor& visitor)

@@ -93,8 +93,8 @@ void OESVertexArrayObject::bind_vertex_array_oes(GC::Root<WebGLVertexArrayObject
 
 void OESVertexArrayObject::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(OESVertexArrayObject);
+    Base::initialize(realm);
 }
 
 void OESVertexArrayObject::visit_edges(Visitor& visitor)

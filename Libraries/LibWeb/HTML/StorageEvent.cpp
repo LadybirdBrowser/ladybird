@@ -57,8 +57,8 @@ StorageEvent::StorageEvent(JS::Realm& realm, FlyString const& event_name, Storag
 
 void StorageEvent::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(StorageEvent);
+    Base::initialize(realm);
 }
 
 void StorageEvent::visit_edges(Visitor& visitor)

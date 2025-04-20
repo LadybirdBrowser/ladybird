@@ -29,8 +29,8 @@ NavigationDestination::~NavigationDestination() = default;
 
 void NavigationDestination::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(NavigationDestination);
+    Base::initialize(realm);
 }
 
 void NavigationDestination::visit_edges(JS::Cell::Visitor& visitor)

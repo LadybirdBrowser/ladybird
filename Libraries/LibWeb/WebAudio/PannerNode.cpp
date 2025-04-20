@@ -80,8 +80,8 @@ PannerNode::PannerNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context, Pann
 
 void PannerNode::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(PannerNode);
+    Base::initialize(realm);
 }
 
 void PannerNode::visit_edges(Cell::Visitor& visitor)

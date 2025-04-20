@@ -33,8 +33,8 @@ FederatedCredential::FederatedCredential(JS::Realm& realm)
 
 void FederatedCredential::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(FederatedCredential);
+    Base::initialize(realm);
 }
 
 }

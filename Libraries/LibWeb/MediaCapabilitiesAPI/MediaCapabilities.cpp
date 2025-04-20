@@ -123,8 +123,8 @@ MediaCapabilities::MediaCapabilities(JS::Realm& realm)
 
 void MediaCapabilities::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(MediaCapabilities);
+    Base::initialize(realm);
 }
 
 // https://w3c.github.io/media-capabilities/#queue-a-media-capabilities-task

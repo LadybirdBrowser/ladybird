@@ -28,8 +28,8 @@ SVGImageElement::SVGImageElement(DOM::Document& document, DOM::QualifiedName qua
 
 void SVGImageElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGImageElement);
+    Base::initialize(realm);
 }
 
 void SVGImageElement::visit_edges(Cell::Visitor& visitor)

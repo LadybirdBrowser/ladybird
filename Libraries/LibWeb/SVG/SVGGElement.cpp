@@ -22,8 +22,8 @@ SVGGElement::SVGGElement(DOM::Document& document, DOM::QualifiedName qualified_n
 
 void SVGGElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGGElement);
+    Base::initialize(realm);
 }
 
 GC::Ptr<Layout::Node> SVGGElement::create_layout_node(GC::Ref<CSS::ComputedProperties> style)

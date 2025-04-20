@@ -24,8 +24,8 @@ DocumentType::DocumentType(Document& document)
 
 void DocumentType::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(DocumentType);
+    Base::initialize(realm);
 }
 
 }

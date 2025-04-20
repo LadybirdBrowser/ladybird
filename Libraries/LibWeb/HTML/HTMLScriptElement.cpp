@@ -37,8 +37,8 @@ HTMLScriptElement::~HTMLScriptElement() = default;
 
 void HTMLScriptElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLScriptElement);
+    Base::initialize(realm);
 }
 
 void HTMLScriptElement::visit_edges(Cell::Visitor& visitor)

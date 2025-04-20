@@ -186,9 +186,8 @@ FontFace::~FontFace() = default;
 
 void FontFace::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
-
     WEB_SET_PROTOTYPE_FOR_INTERFACE(FontFace);
+    Base::initialize(realm);
 }
 
 void FontFace::visit_edges(JS::Cell::Visitor& visitor)

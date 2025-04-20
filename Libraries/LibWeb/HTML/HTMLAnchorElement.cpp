@@ -30,8 +30,8 @@ HTMLAnchorElement::~HTMLAnchorElement() = default;
 
 void HTMLAnchorElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLAnchorElement);
+    Base::initialize(realm);
 }
 
 void HTMLAnchorElement::visit_edges(Cell::Visitor& visitor)

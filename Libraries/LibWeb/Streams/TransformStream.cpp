@@ -170,8 +170,8 @@ TransformStream::~TransformStream() = default;
 
 void TransformStream::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(TransformStream);
+    Base::initialize(realm);
 }
 
 void TransformStream::visit_edges(Cell::Visitor& visitor)

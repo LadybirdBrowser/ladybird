@@ -108,8 +108,8 @@ void IntersectionObserver::finalize()
 
 void IntersectionObserver::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(IntersectionObserver);
+    Base::initialize(realm);
 }
 
 void IntersectionObserver::visit_edges(JS::Cell::Visitor& visitor)

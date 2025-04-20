@@ -22,8 +22,8 @@ HTMLTemplateElement::~HTMLTemplateElement() = default;
 
 void HTMLTemplateElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLTemplateElement);
+    Base::initialize(realm);
 
     m_content = realm.create<DOM::DocumentFragment>(m_document->appropriate_template_contents_owner_document());
     m_content->set_host(this);

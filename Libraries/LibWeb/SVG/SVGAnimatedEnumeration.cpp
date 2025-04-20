@@ -49,8 +49,8 @@ WebIDL::ExceptionOr<void> SVGAnimatedEnumeration::set_base_val(u16 base_val)
 
 void SVGAnimatedEnumeration::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGAnimatedEnumeration);
+    Base::initialize(realm);
 }
 
 // https://svgwg.org/svg2-draft/types.html#__svg__SVGAnimatedEnumeration__baseVal

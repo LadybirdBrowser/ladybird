@@ -216,8 +216,8 @@ Bindings::ChannelInterpretation AudioNode::channel_interpretation()
 
 void AudioNode::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(AudioNode);
+    Base::initialize(realm);
 }
 
 void AudioNode::visit_edges(Cell::Visitor& visitor)

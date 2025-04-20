@@ -73,8 +73,8 @@ HTMLInputElement::~HTMLInputElement() = default;
 
 void HTMLInputElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLInputElement);
+    Base::initialize(realm);
 }
 
 void HTMLInputElement::visit_edges(Cell::Visitor& visitor)

@@ -58,8 +58,8 @@ HTMLElement::~HTMLElement() = default;
 
 void HTMLElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLElement);
+    Base::initialize(realm);
 }
 
 void HTMLElement::visit_edges(Cell::Visitor& visitor)

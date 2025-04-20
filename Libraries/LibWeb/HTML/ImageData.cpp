@@ -133,8 +133,8 @@ ImageData::~ImageData() = default;
 
 void ImageData::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(ImageData);
+    Base::initialize(realm);
 }
 
 void ImageData::visit_edges(Cell::Visitor& visitor)

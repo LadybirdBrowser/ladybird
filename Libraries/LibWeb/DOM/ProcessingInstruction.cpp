@@ -22,8 +22,8 @@ ProcessingInstruction::ProcessingInstruction(Document& document, String const& d
 
 void ProcessingInstruction::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(ProcessingInstruction);
+    Base::initialize(realm);
 }
 
 }

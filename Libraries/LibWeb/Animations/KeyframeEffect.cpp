@@ -885,8 +885,8 @@ KeyframeEffect::KeyframeEffect(JS::Realm& realm)
 
 void KeyframeEffect::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(KeyframeEffect);
+    Base::initialize(realm);
 }
 
 void KeyframeEffect::visit_edges(Cell::Visitor& visitor)

@@ -36,8 +36,8 @@ void CSSKeyframesRule::visit_edges(Visitor& visitor)
 
 void CSSKeyframesRule::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSKeyframesRule);
+    Base::initialize(realm);
 }
 
 String CSSKeyframesRule::serialized() const

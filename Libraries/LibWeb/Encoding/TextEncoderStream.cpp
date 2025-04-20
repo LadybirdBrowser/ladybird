@@ -76,8 +76,8 @@ TextEncoderStream::~TextEncoderStream() = default;
 
 void TextEncoderStream::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(TextEncoderStream);
+    Base::initialize(realm);
 }
 
 void TextEncoderStream::visit_edges(JS::Cell::Visitor& visitor)

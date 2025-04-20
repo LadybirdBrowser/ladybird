@@ -24,8 +24,8 @@ void CSSConditionRule::for_each_effective_rule(TraversalOrder order, Function<vo
 
 void CSSConditionRule::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSConditionRule);
+    Base::initialize(realm);
 }
 
 }

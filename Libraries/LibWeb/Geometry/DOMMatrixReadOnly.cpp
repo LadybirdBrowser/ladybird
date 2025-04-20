@@ -154,8 +154,8 @@ DOMMatrixReadOnly::~DOMMatrixReadOnly() = default;
 
 void DOMMatrixReadOnly::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(DOMMatrixReadOnly);
+    Base::initialize(realm);
 }
 
 // https://drafts.fxtf.org/geometry/#create-a-2d-matrix

@@ -79,8 +79,8 @@ GC::Ref<SVGAnimatedNumber> SVGStopElement::offset() const
 
 void SVGStopElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGStopElement);
+    Base::initialize(realm);
 }
 
 }

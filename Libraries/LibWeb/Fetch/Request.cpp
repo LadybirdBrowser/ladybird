@@ -33,8 +33,8 @@ Request::~Request() = default;
 
 void Request::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(Request);
+    Base::initialize(realm);
 }
 
 void Request::visit_edges(Cell::Visitor& visitor)

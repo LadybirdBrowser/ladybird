@@ -38,8 +38,8 @@ BaseAudioContext::~BaseAudioContext() = default;
 
 void BaseAudioContext::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(BaseAudioContext);
+    Base::initialize(realm);
 }
 
 void BaseAudioContext::visit_edges(Cell::Visitor& visitor)

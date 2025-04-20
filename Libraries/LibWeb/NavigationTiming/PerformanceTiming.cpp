@@ -21,8 +21,8 @@ PerformanceTiming::~PerformanceTiming() = default;
 
 void PerformanceTiming::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(PerformanceTiming);
+    Base::initialize(realm);
 }
 
 DOM::DocumentLoadTimingInfo const& PerformanceTiming::document_load_timing_info(JS::Object const& global_object) const

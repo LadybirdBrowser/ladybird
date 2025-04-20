@@ -38,8 +38,8 @@ FlyString const& PerformanceMeasure::entry_type() const
 
 void PerformanceMeasure::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(PerformanceMeasure);
+    Base::initialize(realm);
 }
 
 void PerformanceMeasure::visit_edges(JS::Cell::Visitor& visitor)

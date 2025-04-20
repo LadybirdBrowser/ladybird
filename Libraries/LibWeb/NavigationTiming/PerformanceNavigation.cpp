@@ -22,8 +22,8 @@ PerformanceNavigation::~PerformanceNavigation() = default;
 
 void PerformanceNavigation::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(PerformanceNavigation);
+    Base::initialize(realm);
 }
 
 u16 PerformanceNavigation::type() const

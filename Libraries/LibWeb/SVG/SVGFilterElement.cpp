@@ -19,8 +19,8 @@ SVGFilterElement::SVGFilterElement(DOM::Document& document, DOM::QualifiedName q
 
 void SVGFilterElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGFilterElement);
+    Base::initialize(realm);
 }
 
 void SVGFilterElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const

@@ -41,8 +41,8 @@ void Location::visit_edges(Cell::Visitor& visitor)
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#the-location-interface
 void Location::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(Location);
+    Base::initialize(realm);
     Bindings::LocationPrototype::define_unforgeable_attributes(realm, *this);
 
     auto& vm = this->vm();

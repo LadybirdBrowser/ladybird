@@ -36,8 +36,8 @@ ResizeObserver::~ResizeObserver() = default;
 
 void ResizeObserver::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(ResizeObserver);
+    Base::initialize(realm);
 }
 
 void ResizeObserver::visit_edges(JS::Cell::Visitor& visitor)

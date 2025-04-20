@@ -51,8 +51,8 @@ WebIDL::ExceptionOr<GC::Ref<DelayNode>> DelayNode::construct_impl(JS::Realm& rea
 
 void DelayNode::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(DelayNode);
+    Base::initialize(realm);
 }
 
 void DelayNode::visit_edges(Cell::Visitor& visitor)

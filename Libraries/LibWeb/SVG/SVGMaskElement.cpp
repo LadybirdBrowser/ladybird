@@ -23,8 +23,8 @@ SVGMaskElement::~SVGMaskElement() = default;
 
 void SVGMaskElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGMaskElement);
+    Base::initialize(realm);
 }
 
 GC::Ptr<Layout::Node> SVGMaskElement::create_layout_node(GC::Ref<CSS::ComputedProperties>)

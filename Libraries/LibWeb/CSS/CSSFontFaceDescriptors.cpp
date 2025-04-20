@@ -30,8 +30,8 @@ CSSFontFaceDescriptors::~CSSFontFaceDescriptors() = default;
 
 void CSSFontFaceDescriptors::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSFontFaceDescriptors);
+    Base::initialize(realm);
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-length

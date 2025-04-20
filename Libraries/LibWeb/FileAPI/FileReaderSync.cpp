@@ -29,8 +29,8 @@ FileReaderSync::FileReaderSync(JS::Realm& realm)
 
 void FileReaderSync::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(FileReaderSync);
+    Base::initialize(realm);
 }
 
 GC::Ref<FileReaderSync> FileReaderSync::create(JS::Realm& realm)

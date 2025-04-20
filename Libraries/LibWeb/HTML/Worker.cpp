@@ -27,8 +27,8 @@ Worker::Worker(String const& script_url, WorkerOptions const& options, DOM::Docu
 
 void Worker::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(Worker);
+    Base::initialize(realm);
 }
 
 void Worker::visit_edges(Cell::Visitor& visitor)

@@ -125,8 +125,8 @@ void ReadableStreamDefaultController::release_steps()
 
 void ReadableStreamDefaultController::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(ReadableStreamDefaultController);
+    Base::initialize(realm);
 }
 
 void ReadableStreamDefaultController::visit_edges(Cell::Visitor& visitor)

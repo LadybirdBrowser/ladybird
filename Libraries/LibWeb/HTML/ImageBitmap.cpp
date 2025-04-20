@@ -24,8 +24,8 @@ ImageBitmap::ImageBitmap(JS::Realm& realm)
 
 void ImageBitmap::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(ImageBitmap);
+    Base::initialize(realm);
 }
 
 void ImageBitmap::visit_edges(Cell::Visitor& visitor)

@@ -28,8 +28,8 @@ TextEncoder::~TextEncoder() = default;
 
 void TextEncoder::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(TextEncoder);
+    Base::initialize(realm);
 }
 
 // https://encoding.spec.whatwg.org/#dom-textencoder-encode

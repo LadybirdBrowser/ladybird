@@ -38,8 +38,8 @@ MutationRecord::~MutationRecord() = default;
 
 void MutationRecord::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(MutationRecord);
+    Base::initialize(realm);
 }
 
 void MutationRecord::visit_edges(Cell::Visitor& visitor)

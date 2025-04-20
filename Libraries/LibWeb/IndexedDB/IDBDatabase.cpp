@@ -35,8 +35,8 @@ GC::Ref<IDBDatabase> IDBDatabase::create(JS::Realm& realm, Database& db)
 
 void IDBDatabase::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(IDBDatabase);
+    Base::initialize(realm);
 }
 
 void IDBDatabase::visit_edges(Visitor& visitor)

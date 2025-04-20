@@ -56,8 +56,8 @@ Storage::~Storage() = default;
 
 void Storage::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(Storage);
+    Base::initialize(realm);
 }
 
 void Storage::finalize()

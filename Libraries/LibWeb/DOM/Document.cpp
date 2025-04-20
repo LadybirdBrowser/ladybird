@@ -481,8 +481,8 @@ Document::~Document()
 
 void Document::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(Document);
+    Base::initialize(realm);
     Bindings::DocumentPrototype::define_unforgeable_attributes(realm, *this);
 
     m_selection = realm.create<Selection::Selection>(realm, *this);

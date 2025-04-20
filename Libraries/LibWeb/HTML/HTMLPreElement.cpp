@@ -24,8 +24,8 @@ HTMLPreElement::~HTMLPreElement() = default;
 
 void HTMLPreElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLPreElement);
+    Base::initialize(realm);
 }
 
 bool HTMLPreElement::is_presentational_hint(FlyString const& name) const

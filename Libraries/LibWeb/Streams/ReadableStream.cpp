@@ -217,8 +217,8 @@ void ReadableStream::error(JS::Value error)
 
 void ReadableStream::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(ReadableStream);
+    Base::initialize(realm);
 }
 
 void ReadableStream::visit_edges(Cell::Visitor& visitor)

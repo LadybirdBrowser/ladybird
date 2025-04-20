@@ -34,8 +34,8 @@ HTMLOptionElement::~HTMLOptionElement() = default;
 
 void HTMLOptionElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLOptionElement);
+    Base::initialize(realm);
 }
 
 // FIXME: This needs to be called any time a descendant's text is modified.

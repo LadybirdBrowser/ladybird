@@ -41,8 +41,8 @@ Module::Module(JS::Realm& realm, NonnullRefPtr<Detail::CompiledWebAssemblyModule
 
 void Module::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE_WITH_CUSTOM_NAME(Module, WebAssembly.Module);
+    Base::initialize(realm);
 }
 
 }

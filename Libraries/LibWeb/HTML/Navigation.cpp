@@ -76,8 +76,8 @@ Navigation::~Navigation() = default;
 
 void Navigation::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(Navigation);
+    Base::initialize(realm);
 }
 
 void Navigation::visit_edges(JS::Cell::Visitor& visitor)

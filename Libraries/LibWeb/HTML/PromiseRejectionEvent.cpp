@@ -40,8 +40,8 @@ void PromiseRejectionEvent::visit_edges(Cell::Visitor& visitor)
 
 void PromiseRejectionEvent::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(PromiseRejectionEvent);
+    Base::initialize(realm);
 }
 
 }

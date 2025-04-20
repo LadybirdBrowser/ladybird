@@ -107,8 +107,8 @@ HTMLFontElement::~HTMLFontElement() = default;
 
 void HTMLFontElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLFontElement);
+    Base::initialize(realm);
 }
 
 bool HTMLFontElement::is_presentational_hint(FlyString const& name) const

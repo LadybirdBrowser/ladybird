@@ -22,8 +22,8 @@ WebUI::~WebUI() = default;
 
 void WebUI::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(WebUI);
+    Base::initialize(realm);
 }
 
 void WebUI::send_message(String const& name, JS::Value data)

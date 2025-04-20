@@ -31,8 +31,8 @@ void HTMLFrameSetElement::adjust_computed_style(CSS::ComputedProperties& style)
 
 void HTMLFrameSetElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLFrameSetElement);
+    Base::initialize(realm);
 }
 
 void HTMLFrameSetElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)

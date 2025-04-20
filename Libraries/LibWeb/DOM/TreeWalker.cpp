@@ -28,8 +28,8 @@ TreeWalker::~TreeWalker() = default;
 
 void TreeWalker::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(TreeWalker);
+    Base::initialize(realm);
 }
 
 void TreeWalker::visit_edges(Cell::Visitor& visitor)

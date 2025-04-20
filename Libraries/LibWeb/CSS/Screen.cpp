@@ -29,8 +29,8 @@ Screen::Screen(HTML::Window& window)
 
 void Screen::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(Screen);
+    Base::initialize(realm);
 }
 
 void Screen::visit_edges(Cell::Visitor& visitor)

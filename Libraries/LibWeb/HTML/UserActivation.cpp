@@ -25,8 +25,8 @@ UserActivation::UserActivation(JS::Realm& realm)
 
 void UserActivation::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(UserActivation);
+    Base::initialize(realm);
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-useractivation-hasbeenactive

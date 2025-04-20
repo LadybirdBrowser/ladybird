@@ -34,8 +34,8 @@ HTMLOptionsCollection::~HTMLOptionsCollection() = default;
 
 void HTMLOptionsCollection::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLOptionsCollection);
+    Base::initialize(realm);
 }
 
 // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#dom-htmloptionscollection-length

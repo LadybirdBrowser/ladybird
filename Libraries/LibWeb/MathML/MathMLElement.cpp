@@ -41,8 +41,8 @@ void MathMLElement::inserted()
 
 void MathMLElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(MathMLElement);
+    Base::initialize(realm);
 }
 
 Optional<ARIA::Role> MathMLElement::default_role() const

@@ -41,8 +41,8 @@ GC::Ref<WebIDL::CallbackType> ByteLengthQueuingStrategy::size()
 
 void ByteLengthQueuingStrategy::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(ByteLengthQueuingStrategy);
+    Base::initialize(realm);
 }
 
 }

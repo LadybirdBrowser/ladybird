@@ -33,8 +33,8 @@ HTMLIFrameElement::~HTMLIFrameElement() = default;
 
 void HTMLIFrameElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLIFrameElement);
+    Base::initialize(realm);
 }
 
 GC::Ptr<Layout::Node> HTMLIFrameElement::create_layout_node(GC::Ref<CSS::ComputedProperties> style)

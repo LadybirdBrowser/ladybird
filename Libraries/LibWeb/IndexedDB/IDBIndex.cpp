@@ -31,8 +31,8 @@ GC::Ref<IDBIndex> IDBIndex::create(JS::Realm& realm, GC::Ref<Index> index, GC::R
 
 void IDBIndex::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(IDBIndex);
+    Base::initialize(realm);
 }
 
 void IDBIndex::visit_edges(Visitor& visitor)

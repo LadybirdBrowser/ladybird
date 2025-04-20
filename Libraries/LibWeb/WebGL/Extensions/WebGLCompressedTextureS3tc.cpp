@@ -30,8 +30,8 @@ WebGLCompressedTextureS3tc::WebGLCompressedTextureS3tc(JS::Realm& realm, WebGLRe
 
 void WebGLCompressedTextureS3tc::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(WebGLCompressedTextureS3tc);
+    Base::initialize(realm);
 }
 
 void WebGLCompressedTextureS3tc::visit_edges(Visitor& visitor)

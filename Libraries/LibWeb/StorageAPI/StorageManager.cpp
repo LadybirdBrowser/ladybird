@@ -25,8 +25,8 @@ StorageManager::StorageManager(JS::Realm& realm)
 
 void StorageManager::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(StorageManager);
+    Base::initialize(realm);
 }
 
 }

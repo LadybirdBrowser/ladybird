@@ -50,8 +50,8 @@ WebIDL::ExceptionOr<GC::Ref<ChannelSplitterNode>> ChannelSplitterNode::construct
 
 void ChannelSplitterNode::initialize(JS::Realm& realm)
 {
-    AudioNode::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(ChannelSplitterNode);
+    AudioNode::initialize(realm);
 }
 
 WebIDL::ExceptionOr<void> ChannelSplitterNode::set_channel_count(WebIDL::UnsignedLong channel_count)

@@ -26,8 +26,8 @@ CSSLayerStatementRule::CSSLayerStatementRule(JS::Realm& realm, Vector<FlyString>
 
 void CSSLayerStatementRule::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSLayerStatementRule);
+    Base::initialize(realm);
 }
 
 String CSSLayerStatementRule::serialized() const

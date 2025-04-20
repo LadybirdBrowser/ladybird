@@ -32,8 +32,8 @@ CSSStyleRule::CSSStyleRule(JS::Realm& realm, SelectorList&& selectors, CSSStyleP
 
 void CSSStyleRule::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSStyleRule);
+    Base::initialize(realm);
 }
 
 void CSSStyleRule::visit_edges(Cell::Visitor& visitor)

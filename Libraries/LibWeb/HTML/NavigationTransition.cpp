@@ -33,8 +33,8 @@ NavigationTransition::~NavigationTransition() = default;
 
 void NavigationTransition::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(NavigationTransition);
+    Base::initialize(realm);
 }
 
 void NavigationTransition::visit_edges(JS::Cell::Visitor& visitor)

@@ -75,8 +75,8 @@ DOMTokenList::DOMTokenList(Element& associated_element, FlyString associated_att
 
 void DOMTokenList::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(DOMTokenList);
+    Base::initialize(realm);
 }
 
 void DOMTokenList::visit_edges(Cell::Visitor& visitor)

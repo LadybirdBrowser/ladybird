@@ -34,8 +34,8 @@ HTMLTableRowElement::~HTMLTableRowElement() = default;
 
 void HTMLTableRowElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLTableRowElement);
+    Base::initialize(realm);
 }
 
 bool HTMLTableRowElement::is_presentational_hint(FlyString const& name) const
