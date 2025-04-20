@@ -1456,7 +1456,8 @@ void HTMLInputElement::type_attribute_changed(TypeAttributeState old_state, Type
     set_shadow_root(nullptr);
     create_shadow_tree_if_needed();
 
-    // FIXME: 5. Signal a type change for the element. (The Radio Button state uses this, in particular.)
+    // 5. Signal a type change for the element. (The Radio Button state uses this, in particular.)
+    signal_a_type_change();
 
     // 6. Invoke the value sanitization algorithm, if one is defined for the type attribute's new state.
     m_value = value_sanitization_algorithm(m_value);
@@ -1472,6 +1473,23 @@ void HTMLInputElement::type_attribute_changed(TypeAttributeState old_state, Type
     if (!previously_selectable && now_selectable) {
         set_the_selection_range(0, 0);
         set_selection_direction(OptionalNone {});
+    }
+}
+
+// https://html.spec.whatwg.org/multipage/input.html#radio-button-state-(type=radio):signal-a-type-change
+void HTMLInputElement::signal_a_type_change()
+{
+    // https://html.spec.whatwg.org/multipage/input.html#radio-button-state-(type=radio)
+    // When any of the following phenomena occur, if the element's checkedness state is true after the occurrence,
+    // the checkedness state of all the other elements in the same radio button group must be set to false:
+    // ...
+    // - A type change is signalled for the element.
+    if (type_state() == TypeAttributeState::RadioButton && checked()) {
+        root().for_each_in_inclusive_subtree_of_type<HTMLInputElement>([&](auto& element) {
+            if (element.checked() && &element != this && is_in_same_radio_button_group(*this, element))
+                element.set_checked(false);
+            return TraversalDecision::Continue;
+        });
     }
 }
 

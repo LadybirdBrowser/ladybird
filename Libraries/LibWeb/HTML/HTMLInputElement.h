@@ -389,6 +389,8 @@ private:
     bool m_has_uncommitted_changes { false };
 
     bool m_is_open { false };
+
+    void signal_a_type_change();
 };
 
 }
