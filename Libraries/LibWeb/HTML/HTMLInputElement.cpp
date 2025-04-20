@@ -1470,6 +1470,7 @@ void HTMLInputElement::type_attribute_changed(TypeAttributeState old_state, Type
     // 9. If previouslySelectable is false and nowSelectable is true, set the element's text entry cursor position to the
     //    beginning of the text control, and set its selection direction to "none".
     if (!previously_selectable && now_selectable) {
+        set_the_selection_range(0, 0);
         set_selection_direction(OptionalNone {});
     }
 }
