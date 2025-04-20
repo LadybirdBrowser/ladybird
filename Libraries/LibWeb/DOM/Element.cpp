@@ -99,8 +99,6 @@ void Element::initialize(JS::Realm& realm)
 {
     Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(Element);
-
-    m_attributes = NamedNodeMap::create(*this);
 }
 
 void Element::visit_edges(Cell::Visitor& visitor)
@@ -134,6 +132,8 @@ void Element::visit_edges(Cell::Visitor& visitor)
 Optional<String> Element::get_attribute(FlyString const& name) const
 {
     // 1. Let attr be the result of getting an attribute given qualifiedName and this.
+    if (!m_attributes)
+        return {};
     auto const* attribute = m_attributes->get_attribute(name);
 
     // 2. If attr is null, return null.
@@ -148,6 +148,8 @@ Optional<String> Element::get_attribute(FlyString const& name) const
 Optional<String> Element::get_attribute_ns(Optional<FlyString> const& namespace_, FlyString const& name) const
 {
     // 1. Let attr be the result of getting an attribute given namespace, localName, and this.
+    if (!m_attributes)
+        return {};
     auto const* attribute = m_attributes->get_attribute_ns(namespace_, name);
 
     // 2. If attr is null, return null.
@@ -162,6 +164,8 @@ Optional<String> Element::get_attribute_ns(Optional<FlyString> const& namespace_
 String Element::get_attribute_value(FlyString const& local_name, Optional<FlyString> const& namespace_) const
 {
     // 1. Let attr be the result of getting an attribute given namespace, localName, and element.
+    if (!m_attributes)
+        return {};
     auto const* attribute = m_attributes->get_attribute_ns(namespace_, local_name);
 
     // 2. If attr is null, then return the empty string.
@@ -176,6 +180,8 @@ String Element::get_attribute_value(FlyString const& local_name, Optional<FlyStr
 GC::Ptr<Attr> Element::get_attribute_node(FlyString const& name) const
 {
     // The getAttributeNode(qualifiedName) method steps are to return the result of getting an attribute given qualifiedName and this.
+    if (!m_attributes)
+        return {};
     return m_attributes->get_attribute(name);
 }
 
@@ -183,6 +189,8 @@ GC::Ptr<Attr> Element::get_attribute_node(FlyString const& name) const
 GC::Ptr<Attr> Element::get_attribute_node_ns(Optional<FlyString> const& namespace_, FlyString const& name) const
 {
     // The getAttributeNodeNS(namespace, localName) method steps are to return the result of getting an attribute given namespace, localName, and this.
+    if (!m_attributes)
+        return {};
     return m_attributes->get_attribute_ns(namespace_, name);
 }
 
@@ -197,7 +205,7 @@ WebIDL::ExceptionOr<void> Element::set_attribute(FlyString const& name, String c
     bool insert_as_lowercase = namespace_uri() == Namespace::HTML && document().document_type() == Document::Type::HTML;
 
     // 3. Let attribute be the first attribute in this’s attribute list whose qualified name is qualifiedName, and null otherwise.
-    auto* attribute = m_attributes->get_attribute(name);
+    auto* attribute = attributes()->get_attribute(name);
 
     // 4. If attribute is null, create an attribute whose local name is qualifiedName, value is value, and node document
     //    is this’s node document, then append this attribute to this, and then return.
@@ -280,20 +288,20 @@ WebIDL::ExceptionOr<void> Element::set_attribute_ns(Optional<FlyString> const& n
 // https://dom.spec.whatwg.org/#concept-element-attributes-append
 void Element::append_attribute(FlyString const& name, String const& value)
 {
-    m_attributes->append_attribute(Attr::create(document(), name, value));
+    attributes()->append_attribute(Attr::create(document(), name, value));
 }
 
 // https://dom.spec.whatwg.org/#concept-element-attributes-append
 void Element::append_attribute(Attr& attribute)
 {
-    m_attributes->append_attribute(attribute);
+    attributes()->append_attribute(attribute);
 }
 
 // https://dom.spec.whatwg.org/#concept-element-attributes-set-value
 void Element::set_attribute_value(FlyString const& local_name, String const& value, Optional<FlyString> const& prefix, Optional<FlyString> const& namespace_)
 {
     // 1. Let attribute be the result of getting an attribute given namespace, localName, and element.
-    auto* attribute = m_attributes->get_attribute_ns(namespace_, local_name);
+    auto* attribute = attributes()->get_attribute_ns(namespace_, local_name);
 
     // 2. If attribute is null, create an attribute whose namespace is namespace, namespace prefix is prefix, local name
     //    is localName, value is value, and node document is element’s node document, then append this attribute to element,
@@ -315,20 +323,22 @@ void Element::set_attribute_value(FlyString const& local_name, String const& val
 WebIDL::ExceptionOr<GC::Ptr<Attr>> Element::set_attribute_node(Attr& attr)
 {
     // The setAttributeNode(attr) and setAttributeNodeNS(attr) methods steps are to return the result of setting an attribute given attr and this.
-    return m_attributes->set_attribute(attr);
+    return attributes()->set_attribute(attr);
 }
 
 // https://dom.spec.whatwg.org/#dom-element-setattributenodens
 WebIDL::ExceptionOr<GC::Ptr<Attr>> Element::set_attribute_node_ns(Attr& attr)
 {
     // The setAttributeNode(attr) and setAttributeNodeNS(attr) methods steps are to return the result of setting an attribute given attr and this.
-    return m_attributes->set_attribute(attr);
+    return attributes()->set_attribute(attr);
 }
 
 // https://dom.spec.whatwg.org/#dom-element-removeattribute
 void Element::remove_attribute(FlyString const& name)
 {
     // The removeAttribute(qualifiedName) method steps are to remove an attribute given qualifiedName and this, and then return undefined.
+    if (!m_attributes)
+        return;
     m_attributes->remove_attribute(name);
 }
 
@@ -336,24 +346,31 @@ void Element::remove_attribute(FlyString const& name)
 void Element::remove_attribute_ns(Optional<FlyString> const& namespace_, FlyString const& name)
 {
     // The removeAttributeNS(namespace, localName) method steps are to remove an attribute given namespace, localName, and this, and then return undefined.
+    if (!m_attributes)
+        return;
     m_attributes->remove_attribute_ns(namespace_, name);
 }
 
 // https://dom.spec.whatwg.org/#dom-element-removeattributenode
 WebIDL::ExceptionOr<GC::Ref<Attr>> Element::remove_attribute_node(GC::Ref<Attr> attr)
 {
-    return m_attributes->remove_attribute_node(attr);
+    return attributes()->remove_attribute_node(attr);
 }
 
 // https://dom.spec.whatwg.org/#dom-element-hasattribute
 bool Element::has_attribute(FlyString const& name) const
 {
+    if (!m_attributes)
+        return false;
     return m_attributes->get_attribute(name) != nullptr;
 }
 
 // https://dom.spec.whatwg.org/#dom-element-hasattributens
 bool Element::has_attribute_ns(Optional<FlyString> const& namespace_, FlyString const& name) const
 {
+    if (!m_attributes)
+        return false;
+
     // 1. If namespace is the empty string, then set it to null.
     // 2. Return true if this has an attribute whose namespace is namespace and local name is localName; otherwise false.
     if (namespace_ == FlyString {})
@@ -373,7 +390,7 @@ WebIDL::ExceptionOr<bool> Element::toggle_attribute(FlyString const& name, Optio
     bool insert_as_lowercase = namespace_uri() == Namespace::HTML && document().document_type() == Document::Type::HTML;
 
     // 3. Let attribute be the first attribute in this’s attribute list whose qualified name is qualifiedName, and null otherwise.
-    auto* attribute = m_attributes->get_attribute(name);
+    auto* attribute = attributes()->get_attribute(name);
 
     // 4. If attribute is null, then:
     if (!attribute) {
@@ -404,6 +421,8 @@ WebIDL::ExceptionOr<bool> Element::toggle_attribute(FlyString const& name, Optio
 Vector<String> Element::get_attribute_names() const
 {
     // The getAttributeNames() method steps are to return the qualified names of the attributes in this’s attribute list, in order; otherwise a new list.
+    if (!m_attributes)
+        return {};
     Vector<String> names;
     for (size_t i = 0; i < m_attributes->length(); ++i) {
         auto const* attribute = m_attributes->item(i);
@@ -2481,7 +2500,8 @@ JS::ThrowCompletionOr<void> Element::upgrade_element(GC::Ref<HTML::CustomElement
 
     // 4. For each attribute in element's attribute list, in order, enqueue a custom element callback reaction with element, callback name "attributeChangedCallback",
     //    and « attribute's local name, null, attribute's value, attribute's namespace ».
-    for (size_t attribute_index = 0; attribute_index < m_attributes->length(); ++attribute_index) {
+    size_t attribute_count = m_attributes ? m_attributes->length() : 0;
+    for (size_t attribute_index = 0; attribute_index < attribute_count; ++attribute_index) {
         auto const* attribute = m_attributes->item(attribute_index);
         VERIFY(attribute);
 
@@ -2617,7 +2637,7 @@ Optional<String> Element::locate_a_namespace_prefix(Optional<String> const& name
         return this->prefix()->to_string();
 
     // 2. If element has an attribute whose namespace prefix is "xmlns" and value is namespace, then return element’s first such attribute’s local name.
-    if (auto* attributes = this->attributes()) {
+    if (auto attributes = this->attributes()) {
         for (size_t i = 0; i < attributes->length(); ++i) {
             auto& attr = *attributes->item(i);
             if (attr.prefix() == "xmlns" && attr.value() == namespace_)
@@ -2635,6 +2655,8 @@ Optional<String> Element::locate_a_namespace_prefix(Optional<String> const& name
 
 void Element::for_each_attribute(Function<void(Attr const&)> callback) const
 {
+    if (!m_attributes)
+        return;
     for (size_t i = 0; i < m_attributes->length(); ++i)
         callback(*m_attributes->item(i));
 }
@@ -2658,12 +2680,12 @@ GC::Ptr<Layout::NodeWithStyle const> Element::layout_node() const
 
 bool Element::has_attributes() const
 {
-    return !m_attributes->is_empty();
+    return m_attributes && !m_attributes->is_empty();
 }
 
 size_t Element::attribute_list_size() const
 {
-    return m_attributes->length();
+    return m_attributes ? m_attributes->length() : 0;
 }
 
 GC::Ptr<CSS::CascadedProperties> Element::cascaded_properties(Optional<CSS::PseudoElement> pseudo_element) const
@@ -3817,6 +3839,18 @@ bool Element::has_pointer_capture(WebIDL::Long pointer_id)
     (void)pointer_id;
     dbgln("FIXME: Implement Element::hasPointerCapture()");
     return false;
+}
+
+GC::Ptr<NamedNodeMap> Element::attributes()
+{
+    if (!m_attributes)
+        m_attributes = NamedNodeMap::create(*this);
+    return m_attributes;
+}
+
+GC::Ptr<NamedNodeMap const> Element::attributes() const
+{
+    return const_cast<Element&>(*this).attributes();
 }
 
 }

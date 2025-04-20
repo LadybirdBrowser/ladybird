@@ -154,7 +154,10 @@ public:
 
     WebIDL::ExceptionOr<bool> toggle_attribute(FlyString const& name, Optional<bool> force);
     size_t attribute_list_size() const;
-    NamedNodeMap const* attributes() const { return m_attributes.ptr(); }
+
+    GC::Ptr<NamedNodeMap const> attributes() const;
+    GC::Ptr<NamedNodeMap> attributes();
+
     Vector<String> get_attribute_names() const;
 
     GC::Ptr<Attr> get_attribute_node(FlyString const& name) const;
