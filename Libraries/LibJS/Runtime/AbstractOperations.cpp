@@ -1131,17 +1131,16 @@ Object* create_mapped_arguments_object(VM& vm, FunctionObject& function, Nonnull
             // 1. Let g be MakeArgGetter(name, env).
             // 2. Let p be MakeArgSetter(name, env).
             // 3. Perform ! map.[[DefineOwnProperty]](! ToString(𝔽(index)), PropertyDescriptor { [[Set]]: p, [[Get]]: g, [[Enumerable]]: false, [[Configurable]]: true }).
-            object->parameter_map().define_native_accessor(
-                realm,
-                PropertyKey { index },
-                [&environment, name](VM& vm) -> ThrowCompletionOr<Value> {
-                    return MUST(environment.get_binding_value(vm, name, false));
-                },
-                [&environment, name](VM& vm) {
-                    MUST(environment.set_mutable_binding(vm, name, vm.argument(0), false));
-                    return js_undefined();
-                },
-                Attribute::Configurable);
+            object->parameter_map().indexed_properties().put(
+                index,
+                Accessor::create(vm,
+                    NativeFunction::create(realm, FlyString {}, [&environment, name](VM& vm) -> ThrowCompletionOr<Value> {
+                        return MUST(environment.get_binding_value(vm, name, false));
+                    }),
+                    NativeFunction::create(realm, FlyString {}, [&environment, name](VM& vm) {
+                        MUST(environment.set_mutable_binding(vm, name, vm.argument(0), false));
+                        return js_undefined();
+                    })));
         }
     }
 
