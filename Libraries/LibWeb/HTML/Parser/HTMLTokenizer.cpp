@@ -232,7 +232,6 @@ void HTMLTokenizer::skip(size_t count)
             } else {
                 m_source_positions.last().column++;
             }
-            m_source_positions.last().byte_offset += m_utf8_iterator.underlying_code_point_length_in_bytes();
         }
         ++m_utf8_iterator;
     }
