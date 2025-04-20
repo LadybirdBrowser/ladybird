@@ -2035,7 +2035,7 @@ Optional<String> Node::locate_a_namespace(Optional<String> const& prefix) const
         // 4. If it has an attribute whose namespace is the XMLNS namespace, namespace prefix is "xmlns", and local name is prefix,
         //    or if prefix is null and it has an attribute whose namespace is the XMLNS namespace, namespace prefix is null,
         //    and local name is "xmlns", then return its value if it is not the empty string, and null otherwise.
-        if (auto* attributes = element.attributes()) {
+        if (auto attributes = element.attributes()) {
             for (size_t i = 0; i < attributes->length(); ++i) {
                 auto& attr = *attributes->item(i);
                 if (attr.namespace_uri() == Web::Namespace::XMLNS) {
