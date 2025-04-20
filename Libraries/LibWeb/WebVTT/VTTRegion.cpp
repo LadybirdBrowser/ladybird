@@ -53,8 +53,8 @@ VTTRegion::VTTRegion(JS::Realm& realm)
 
 void VTTRegion::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(VTTRegion);
+    Base::initialize(realm);
 }
 
 // https://w3c.github.io/webvtt/#dom-vttregion-width

@@ -39,8 +39,8 @@ InputEvent::~InputEvent() = default;
 
 void InputEvent::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(InputEvent);
+    Base::initialize(realm);
 }
 
 Vector<DOM::StaticRange> InputEvent::get_target_ranges() const

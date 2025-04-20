@@ -34,8 +34,8 @@ Crypto::~Crypto() = default;
 
 void Crypto::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(Crypto);
+    Base::initialize(realm);
     m_subtle = SubtleCrypto::create(realm);
 }
 

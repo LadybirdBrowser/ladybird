@@ -331,8 +331,8 @@ WebIDL::ExceptionOr<GC::Ref<AnalyserNode>> AnalyserNode::construct_impl(JS::Real
 
 void AnalyserNode::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(AnalyserNode);
+    Base::initialize(realm);
 }
 
 }

@@ -51,8 +51,8 @@ DynamicsCompressorNode::DynamicsCompressorNode(JS::Realm& realm, GC::Ref<BaseAud
 
 void DynamicsCompressorNode::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(DynamicsCompressorNode);
+    Base::initialize(realm);
 }
 
 void DynamicsCompressorNode::visit_edges(Cell::Visitor& visitor)

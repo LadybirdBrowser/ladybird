@@ -27,8 +27,8 @@ CharacterData::~CharacterData() = default;
 
 void CharacterData::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(CharacterData);
+    Base::initialize(realm);
 }
 
 // https://dom.spec.whatwg.org/#dom-characterdata-data

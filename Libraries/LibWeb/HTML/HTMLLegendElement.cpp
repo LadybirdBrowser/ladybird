@@ -23,8 +23,8 @@ HTMLLegendElement::~HTMLLegendElement() = default;
 
 void HTMLLegendElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLLegendElement);
+    Base::initialize(realm);
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-legend-form

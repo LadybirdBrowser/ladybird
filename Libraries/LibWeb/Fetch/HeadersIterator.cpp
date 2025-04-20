@@ -42,8 +42,8 @@ HeadersIterator::~HeadersIterator() = default;
 
 void HeadersIterator::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HeadersIterator);
+    Base::initialize(realm);
 }
 
 void HeadersIterator::visit_edges(JS::Cell::Visitor& visitor)

@@ -65,8 +65,8 @@ Table::Table(JS::Realm& realm, Wasm::TableAddress address)
 
 void Table::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE_WITH_CUSTOM_NAME(Table, WebAssembly.Table);
+    Base::initialize(realm);
 }
 
 // https://webassembly.github.io/spec/js-api/#dom-table-grow

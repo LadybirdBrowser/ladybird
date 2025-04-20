@@ -31,8 +31,8 @@ HTMLFrameElement::~HTMLFrameElement() = default;
 
 void HTMLFrameElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLFrameElement);
+    Base::initialize(realm);
 }
 
 // https://html.spec.whatwg.org/multipage/obsolete.html#frames:html-element-insertion-steps

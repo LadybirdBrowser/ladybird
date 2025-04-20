@@ -26,8 +26,8 @@ ValidityState::ValidityState(JS::Realm& realm, FormAssociatedElement const& cont
 
 void ValidityState::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(ValidityState);
+    Base::initialize(realm);
 }
 
 void ValidityState::visit_edges(Cell::Visitor& visitor)

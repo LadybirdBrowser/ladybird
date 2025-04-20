@@ -20,8 +20,8 @@ TimeRanges::TimeRanges(JS::Realm& realm)
 
 void TimeRanges::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(TimeRanges);
+    Base::initialize(realm);
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-timeranges-length

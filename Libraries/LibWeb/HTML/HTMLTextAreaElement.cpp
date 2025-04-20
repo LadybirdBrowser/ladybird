@@ -60,8 +60,8 @@ void HTMLTextAreaElement::adjust_computed_style(CSS::ComputedProperties& style)
 
 void HTMLTextAreaElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLTextAreaElement);
+    Base::initialize(realm);
 }
 
 void HTMLTextAreaElement::visit_edges(Cell::Visitor& visitor)

@@ -26,8 +26,8 @@ TextEvent::~TextEvent() = default;
 
 void TextEvent::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(TextEvent);
+    Base::initialize(realm);
 }
 
 // https://w3c.github.io/uievents/#dom-textevent-inittextevent

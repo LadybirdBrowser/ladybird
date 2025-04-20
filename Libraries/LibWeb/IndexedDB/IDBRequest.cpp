@@ -27,8 +27,8 @@ IDBRequest::IDBRequest(JS::Realm& realm, IDBRequestSource source)
 
 void IDBRequest::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(IDBRequest);
+    Base::initialize(realm);
 }
 
 GC::Ref<IDBRequest> IDBRequest::create(JS::Realm& realm, IDBRequestSource source)

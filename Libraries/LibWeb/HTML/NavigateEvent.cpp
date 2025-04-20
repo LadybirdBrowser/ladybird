@@ -50,8 +50,8 @@ NavigateEvent::~NavigateEvent() = default;
 
 void NavigateEvent::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(NavigateEvent);
+    Base::initialize(realm);
 }
 
 void NavigateEvent::visit_edges(JS::Cell::Visitor& visitor)

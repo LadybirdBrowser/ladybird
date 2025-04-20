@@ -21,8 +21,8 @@ HTMLBaseElement::~HTMLBaseElement() = default;
 
 void HTMLBaseElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLBaseElement);
+    Base::initialize(realm);
 }
 
 void HTMLBaseElement::inserted()

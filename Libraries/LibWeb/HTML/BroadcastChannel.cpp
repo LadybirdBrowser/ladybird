@@ -76,8 +76,8 @@ BroadcastChannel::BroadcastChannel(JS::Realm& realm, FlyString const& name)
 
 void BroadcastChannel::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(BroadcastChannel);
+    Base::initialize(realm);
 }
 
 // https://html.spec.whatwg.org/multipage/web-messaging.html#eligible-for-messaging

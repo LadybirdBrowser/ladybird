@@ -30,8 +30,8 @@ GC::Ref<HTMLDocument> HTMLDocument::create(JS::Realm& realm, URL::URL const& url
 
 void HTMLDocument::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLDocument);
+    Base::initialize(realm);
 }
 
 }

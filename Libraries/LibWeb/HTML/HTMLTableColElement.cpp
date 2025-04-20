@@ -24,8 +24,8 @@ HTMLTableColElement::~HTMLTableColElement() = default;
 
 void HTMLTableColElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLTableColElement);
+    Base::initialize(realm);
 }
 
 // https://html.spec.whatwg.org/multipage/tables.html#dom-colgroup-span

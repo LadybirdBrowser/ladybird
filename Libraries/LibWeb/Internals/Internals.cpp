@@ -34,8 +34,8 @@ Internals::~Internals() = default;
 
 void Internals::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(Internals);
+    Base::initialize(realm);
 }
 
 void Internals::signal_test_is_done(String const& text)

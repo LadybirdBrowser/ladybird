@@ -151,8 +151,8 @@ WebIDL::ExceptionOr<void> DOMQuad::deserialization_steps(ReadonlySpan<u32> const
 
 void DOMQuad::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(DOMQuad);
+    Base::initialize(realm);
 }
 
 void DOMQuad::visit_edges(Cell::Visitor& visitor)

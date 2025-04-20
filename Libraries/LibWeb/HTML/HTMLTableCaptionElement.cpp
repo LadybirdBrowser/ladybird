@@ -23,8 +23,8 @@ HTMLTableCaptionElement::~HTMLTableCaptionElement() = default;
 
 void HTMLTableCaptionElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLTableCaptionElement);
+    Base::initialize(realm);
 }
 
 bool HTMLTableCaptionElement::is_presentational_hint(FlyString const& name) const

@@ -55,8 +55,8 @@ HTMLObjectElement::~HTMLObjectElement() = default;
 
 void HTMLObjectElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLObjectElement);
+    Base::initialize(realm);
 
     m_document_observer = realm.create<DOM::DocumentObserver>(realm, document());
 

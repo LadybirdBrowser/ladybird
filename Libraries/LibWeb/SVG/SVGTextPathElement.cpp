@@ -32,8 +32,8 @@ GC::Ptr<SVGGeometryElement const> SVGTextPathElement::path_or_shape() const
 
 void SVGTextPathElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGTextPathElement);
+    Base::initialize(realm);
 }
 
 void SVGTextPathElement::visit_edges(Cell::Visitor& visitor)

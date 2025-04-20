@@ -23,8 +23,8 @@ SVGAElement::~SVGAElement() = default;
 
 void SVGAElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGAElement);
+    Base::initialize(realm);
 }
 
 void SVGAElement::visit_edges(Cell::Visitor& visitor)

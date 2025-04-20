@@ -55,8 +55,8 @@ Event::Event(JS::Realm& realm, FlyString const& type, EventInit const& event_ini
 
 void Event::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(Event);
+    Base::initialize(realm);
     Bindings::EventPrototype::define_unforgeable_attributes(realm, *this);
 }
 

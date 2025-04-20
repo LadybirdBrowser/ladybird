@@ -84,8 +84,8 @@ WebGLRenderingContext::~WebGLRenderingContext() = default;
 
 void WebGLRenderingContext::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(WebGLRenderingContext);
+    Base::initialize(realm);
 }
 
 void WebGLRenderingContext::visit_edges(Cell::Visitor& visitor)

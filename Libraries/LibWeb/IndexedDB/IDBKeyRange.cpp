@@ -33,8 +33,8 @@ GC::Ref<IDBKeyRange> IDBKeyRange::create(JS::Realm& realm, GC::Ptr<Key> lower_bo
 
 void IDBKeyRange::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(IDBKeyRange);
+    Base::initialize(realm);
 }
 
 void IDBKeyRange::visit_edges(Visitor& visitor)

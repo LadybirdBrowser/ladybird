@@ -42,8 +42,8 @@ FormDataIterator::~FormDataIterator() = default;
 
 void FormDataIterator::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(FormDataIterator);
+    Base::initialize(realm);
 }
 
 void FormDataIterator::visit_edges(Cell::Visitor& visitor)

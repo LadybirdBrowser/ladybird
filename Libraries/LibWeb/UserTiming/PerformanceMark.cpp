@@ -100,8 +100,8 @@ FlyString const& PerformanceMark::entry_type() const
 
 void PerformanceMark::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(PerformanceMark);
+    Base::initialize(realm);
 }
 
 void PerformanceMark::visit_edges(JS::Cell::Visitor& visitor)

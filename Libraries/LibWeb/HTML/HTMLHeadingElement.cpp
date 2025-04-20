@@ -23,8 +23,8 @@ HTMLHeadingElement::~HTMLHeadingElement() = default;
 
 void HTMLHeadingElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLHeadingElement);
+    Base::initialize(realm);
 }
 
 bool HTMLHeadingElement::is_presentational_hint(FlyString const& name) const

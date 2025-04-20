@@ -25,8 +25,8 @@ HTMLEmbedElement::~HTMLEmbedElement() = default;
 
 void HTMLEmbedElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLEmbedElement);
+    Base::initialize(realm);
 }
 
 bool HTMLEmbedElement::is_presentational_hint(FlyString const& name) const

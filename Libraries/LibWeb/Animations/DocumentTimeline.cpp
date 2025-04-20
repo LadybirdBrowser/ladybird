@@ -84,8 +84,8 @@ DocumentTimeline::DocumentTimeline(JS::Realm& realm, DOM::Document& document, Hi
 
 void DocumentTimeline::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(DocumentTimeline);
+    Base::initialize(realm);
 }
 
 }

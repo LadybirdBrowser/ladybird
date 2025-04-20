@@ -25,8 +25,8 @@ IDBOpenDBRequest::IDBOpenDBRequest(JS::Realm& realm)
 
 void IDBOpenDBRequest::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(IDBOpenDBRequest);
+    Base::initialize(realm);
 }
 
 GC::Ref<IDBOpenDBRequest> IDBOpenDBRequest::create(JS::Realm& realm)

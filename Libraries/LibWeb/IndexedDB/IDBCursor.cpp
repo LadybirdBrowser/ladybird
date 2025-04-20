@@ -27,8 +27,8 @@ GC::Ref<IDBCursor> IDBCursor::create(JS::Realm& realm)
 
 void IDBCursor::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(IDBCursor);
+    Base::initialize(realm);
 }
 
 }

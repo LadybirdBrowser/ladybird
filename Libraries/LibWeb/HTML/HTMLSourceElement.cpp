@@ -23,8 +23,8 @@ HTMLSourceElement::~HTMLSourceElement() = default;
 
 void HTMLSourceElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLSourceElement);
+    Base::initialize(realm);
 }
 
 // https://html.spec.whatwg.org/multipage/embedded-content.html#the-source-element:html-element-insertion-steps

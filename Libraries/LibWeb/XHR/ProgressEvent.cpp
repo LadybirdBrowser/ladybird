@@ -34,8 +34,8 @@ ProgressEvent::~ProgressEvent() = default;
 
 void ProgressEvent::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(ProgressEvent);
+    Base::initialize(realm);
 }
 
 }

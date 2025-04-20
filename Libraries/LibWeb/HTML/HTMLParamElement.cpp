@@ -21,8 +21,8 @@ HTMLParamElement::~HTMLParamElement() = default;
 
 void HTMLParamElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLParamElement);
+    Base::initialize(realm);
 }
 
 }

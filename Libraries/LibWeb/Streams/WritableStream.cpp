@@ -108,8 +108,8 @@ WritableStream::WritableStream(JS::Realm& realm)
 
 void WritableStream::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(WritableStream);
+    Base::initialize(realm);
 }
 
 void WritableStream::visit_edges(Cell::Visitor& visitor)

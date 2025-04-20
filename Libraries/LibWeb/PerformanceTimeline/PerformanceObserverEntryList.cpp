@@ -25,8 +25,8 @@ PerformanceObserverEntryList::~PerformanceObserverEntryList() = default;
 
 void PerformanceObserverEntryList::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(PerformanceObserverEntryList);
+    Base::initialize(realm);
 }
 
 void PerformanceObserverEntryList::visit_edges(Cell::Visitor& visitor)

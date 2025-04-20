@@ -26,8 +26,8 @@ HTMLAudioElement::~HTMLAudioElement() = default;
 
 void HTMLAudioElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLAudioElement);
+    Base::initialize(realm);
 }
 
 GC::Ptr<Layout::Node> HTMLAudioElement::create_layout_node(GC::Ref<CSS::ComputedProperties> style)

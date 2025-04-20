@@ -33,8 +33,8 @@ ServiceWorkerContainer::~ServiceWorkerContainer() = default;
 
 void ServiceWorkerContainer::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(ServiceWorkerContainer);
+    Base::initialize(realm);
 }
 
 void ServiceWorkerContainer::visit_edges(Cell::Visitor& visitor)

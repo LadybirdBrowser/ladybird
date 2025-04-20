@@ -74,8 +74,8 @@ VTTCue::VTTCue(JS::Realm& realm, GC::Ptr<HTML::TextTrack> track)
 
 void VTTCue::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(VTTCue);
+    Base::initialize(realm);
 }
 
 void VTTCue::visit_edges(Visitor& visitor)

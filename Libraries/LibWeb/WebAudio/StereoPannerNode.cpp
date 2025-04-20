@@ -72,8 +72,8 @@ StereoPannerNode::StereoPannerNode(JS::Realm& realm, GC::Ref<BaseAudioContext> c
 
 void StereoPannerNode::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(StereoPannerNode);
+    Base::initialize(realm);
 }
 
 void StereoPannerNode::visit_edges(Cell::Visitor& visitor)

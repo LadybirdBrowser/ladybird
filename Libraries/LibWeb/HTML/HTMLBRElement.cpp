@@ -24,8 +24,8 @@ HTMLBRElement::~HTMLBRElement() = default;
 
 void HTMLBRElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLBRElement);
+    Base::initialize(realm);
 }
 
 GC::Ptr<Layout::Node> HTMLBRElement::create_layout_node(GC::Ref<CSS::ComputedProperties> style)

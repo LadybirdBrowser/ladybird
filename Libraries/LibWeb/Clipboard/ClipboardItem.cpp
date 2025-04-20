@@ -193,8 +193,8 @@ ClipboardItem::~ClipboardItem() = default;
 
 void ClipboardItem::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(ClipboardItem);
+    Base::initialize(realm);
 }
 
 void ClipboardItem::visit_edges(Cell::Visitor& visitor)

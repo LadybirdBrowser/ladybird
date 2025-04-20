@@ -38,8 +38,8 @@ ErrorEvent::~ErrorEvent() = default;
 
 void ErrorEvent::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(ErrorEvent);
+    Base::initialize(realm);
 }
 
 void ErrorEvent::visit_edges(Cell::Visitor& visitor)

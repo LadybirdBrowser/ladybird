@@ -147,8 +147,8 @@ Blob::~Blob() = default;
 
 void Blob::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(Blob);
+    Base::initialize(realm);
 }
 
 WebIDL::ExceptionOr<void> Blob::serialization_steps(HTML::SerializationRecord& record, bool, HTML::SerializationMemory&)

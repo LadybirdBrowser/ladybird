@@ -27,8 +27,8 @@ SVGTransform::~SVGTransform() = default;
 
 void SVGTransform::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGTransform);
+    Base::initialize(realm);
 }
 
 // https://svgwg.org/svg2-draft/single-page.html#coords-__svg__SVGTransform__type

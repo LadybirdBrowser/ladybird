@@ -30,8 +30,8 @@ void WritableStreamDefaultController::visit_edges(Visitor& visitor)
 
 void WritableStreamDefaultController::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(WritableStreamDefaultController);
+    Base::initialize(realm);
 }
 
 // https://streams.spec.whatwg.org/#ws-default-controller-error

@@ -32,8 +32,8 @@ Performance::~Performance() = default;
 
 void Performance::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(Performance);
+    Base::initialize(realm);
 }
 
 void Performance::visit_edges(Cell::Visitor& visitor)

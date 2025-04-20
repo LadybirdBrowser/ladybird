@@ -26,8 +26,8 @@ HTMLMarqueeElement::~HTMLMarqueeElement() = default;
 
 void HTMLMarqueeElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLMarqueeElement);
+    Base::initialize(realm);
 }
 
 bool HTMLMarqueeElement::is_presentational_hint(FlyString const& name) const

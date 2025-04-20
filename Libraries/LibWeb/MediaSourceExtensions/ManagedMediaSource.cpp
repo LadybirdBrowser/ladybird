@@ -27,8 +27,8 @@ ManagedMediaSource::~ManagedMediaSource() = default;
 
 void ManagedMediaSource::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(ManagedMediaSource);
+    Base::initialize(realm);
 }
 
 // https://w3c.github.io/media-source/#dom-managedmediasource-onstartstreaming

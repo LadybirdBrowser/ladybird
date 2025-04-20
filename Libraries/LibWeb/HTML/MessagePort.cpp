@@ -58,8 +58,8 @@ void MessagePort::for_each_message_port(Function<void(MessagePort&)> callback)
 
 void MessagePort::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(MessagePort);
+    Base::initialize(realm);
 }
 
 void MessagePort::finalize()

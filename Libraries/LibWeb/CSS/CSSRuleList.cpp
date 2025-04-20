@@ -42,8 +42,8 @@ GC::Ref<CSSRuleList> CSSRuleList::create_empty(JS::Realm& realm)
 
 void CSSRuleList::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSRuleList);
+    Base::initialize(realm);
 }
 
 void CSSRuleList::visit_edges(Cell::Visitor& visitor)

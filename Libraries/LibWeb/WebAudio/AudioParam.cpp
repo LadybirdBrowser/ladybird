@@ -141,8 +141,8 @@ WebIDL::ExceptionOr<GC::Ref<AudioParam>> AudioParam::cancel_and_hold_at_time(dou
 
 void AudioParam::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(AudioParam);
+    Base::initialize(realm);
 }
 
 void AudioParam::visit_edges(Cell::Visitor& visitor)

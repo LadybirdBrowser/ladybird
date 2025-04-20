@@ -43,8 +43,8 @@ FileReader::FileReader(JS::Realm& realm)
 
 void FileReader::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(FileReader);
+    Base::initialize(realm);
 }
 
 void FileReader::visit_edges(JS::Cell::Visitor& visitor)

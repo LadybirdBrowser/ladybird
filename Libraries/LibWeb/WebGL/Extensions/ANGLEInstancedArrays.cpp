@@ -51,8 +51,8 @@ void ANGLEInstancedArrays::draw_elements_instanced_angle(GLenum mode, GLsizei co
 
 void ANGLEInstancedArrays::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(ANGLEInstancedArrays);
+    Base::initialize(realm);
 }
 
 void ANGLEInstancedArrays::visit_edges(Visitor& visitor)

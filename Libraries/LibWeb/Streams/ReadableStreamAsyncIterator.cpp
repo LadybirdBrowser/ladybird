@@ -51,8 +51,8 @@ ReadableStreamAsyncIterator::~ReadableStreamAsyncIterator() = default;
 
 void ReadableStreamAsyncIterator::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(ReadableStreamAsyncIterator);
+    Base::initialize(realm);
 }
 
 void ReadableStreamAsyncIterator::visit_edges(JS::Cell::Visitor& visitor)

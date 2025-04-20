@@ -43,8 +43,8 @@ void Instance::initialize(JS::Realm& realm)
 {
     auto& vm = this->vm();
 
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE_WITH_CUSTOM_NAME(Instance, WebAssembly.Instance);
+    Base::initialize(realm);
 
     auto& cache = Detail::get_cache(realm);
 

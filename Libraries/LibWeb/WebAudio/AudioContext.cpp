@@ -113,8 +113,8 @@ AudioContext::~AudioContext() = default;
 
 void AudioContext::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(AudioContext);
+    Base::initialize(realm);
 }
 
 void AudioContext::visit_edges(Cell::Visitor& visitor)

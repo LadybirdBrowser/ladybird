@@ -27,8 +27,8 @@ WebGLQuery::~WebGLQuery() = default;
 
 void WebGLQuery::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(WebGLQuery);
+    Base::initialize(realm);
 }
 
 }

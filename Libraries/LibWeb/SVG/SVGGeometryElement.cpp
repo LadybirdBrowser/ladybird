@@ -18,8 +18,8 @@ SVGGeometryElement::SVGGeometryElement(DOM::Document& document, DOM::QualifiedNa
 
 void SVGGeometryElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGGeometryElement);
+    Base::initialize(realm);
 }
 
 GC::Ptr<Layout::Node> SVGGeometryElement::create_layout_node(GC::Ref<CSS::ComputedProperties> style)

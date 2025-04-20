@@ -23,8 +23,8 @@ HTMLLabelElement::~HTMLLabelElement() = default;
 
 void HTMLLabelElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLLabelElement);
+    Base::initialize(realm);
 }
 
 GC::Ptr<Layout::Node> HTMLLabelElement::create_layout_node(GC::Ref<CSS::ComputedProperties> style)

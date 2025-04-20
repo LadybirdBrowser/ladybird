@@ -102,8 +102,8 @@ WebIDL::ExceptionOr<GC::Ref<BiquadFilterNode>> BiquadFilterNode::construct_impl(
 
 void BiquadFilterNode::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(BiquadFilterNode);
+    Base::initialize(realm);
 }
 
 void BiquadFilterNode::visit_edges(Cell::Visitor& visitor)

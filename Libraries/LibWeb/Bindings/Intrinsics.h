@@ -14,10 +14,12 @@
 #include <LibJS/Heap/Cell.h>
 #include <LibJS/Runtime/VM.h>
 
-#define WEB_SET_PROTOTYPE_FOR_INTERFACE_WITH_CUSTOM_NAME(interface_class, interface_name)                  \
-    do {                                                                                                   \
-        static auto name = #interface_name##_fly_string;                                                   \
-        set_prototype(&Bindings::ensure_web_prototype<Bindings::interface_class##Prototype>(realm, name)); \
+#define WEB_SET_PROTOTYPE_FOR_INTERFACE_WITH_CUSTOM_NAME(interface_class, interface_name)                      \
+    do {                                                                                                       \
+        static auto name = #interface_name##_fly_string;                                                       \
+        if (!shape().prototype()) {                                                                            \
+            set_prototype(&Bindings::ensure_web_prototype<Bindings::interface_class##Prototype>(realm, name)); \
+        }                                                                                                      \
     } while (0)
 
 #define WEB_SET_PROTOTYPE_FOR_INTERFACE(interface_name) WEB_SET_PROTOTYPE_FOR_INTERFACE_WITH_CUSTOM_NAME(interface_name, interface_name)

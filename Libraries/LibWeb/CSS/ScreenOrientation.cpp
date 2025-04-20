@@ -20,8 +20,8 @@ ScreenOrientation::ScreenOrientation(JS::Realm& realm)
 
 void ScreenOrientation::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(ScreenOrientation);
+    Base::initialize(realm);
 }
 
 GC::Ref<ScreenOrientation> ScreenOrientation::create(JS::Realm& realm)

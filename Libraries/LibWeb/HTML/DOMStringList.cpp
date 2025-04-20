@@ -27,8 +27,8 @@ DOMStringList::DOMStringList(JS::Realm& realm, Vector<String> list)
 
 void DOMStringList::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(DOMStringList);
+    Base::initialize(realm);
 }
 
 // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#dom-domstringlist-length

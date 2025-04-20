@@ -28,8 +28,8 @@ MediaSource::~MediaSource() = default;
 
 void MediaSource::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(MediaSource);
+    Base::initialize(realm);
 }
 
 // https://w3c.github.io/media-source/#dom-mediasource-onsourceopen

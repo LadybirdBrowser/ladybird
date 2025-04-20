@@ -35,8 +35,8 @@ GC::Ref<IDBTransaction> IDBTransaction::create(JS::Realm& realm, GC::Ref<IDBData
 
 void IDBTransaction::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(IDBTransaction);
+    Base::initialize(realm);
 }
 
 void IDBTransaction::visit_edges(Visitor& visitor)

@@ -33,8 +33,8 @@ NavigationHistoryEntry::~NavigationHistoryEntry() = default;
 
 void NavigationHistoryEntry::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(NavigationHistoryEntry);
+    Base::initialize(realm);
 }
 
 void NavigationHistoryEntry::visit_edges(JS::Cell::Visitor& visitor)

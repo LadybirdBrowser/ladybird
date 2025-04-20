@@ -28,8 +28,8 @@ SVGAnimatedTransformList::~SVGAnimatedTransformList() = default;
 
 void SVGAnimatedTransformList::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGAnimatedTransformList);
+    Base::initialize(realm);
 }
 
 void SVGAnimatedTransformList::visit_edges(Cell::Visitor& visitor)

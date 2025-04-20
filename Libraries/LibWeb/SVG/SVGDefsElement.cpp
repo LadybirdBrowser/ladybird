@@ -24,8 +24,8 @@ SVGDefsElement::~SVGDefsElement()
 
 void SVGDefsElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGDefsElement);
+    Base::initialize(realm);
 }
 
 }

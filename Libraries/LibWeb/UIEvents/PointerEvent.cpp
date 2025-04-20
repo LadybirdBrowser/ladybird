@@ -65,8 +65,8 @@ PointerEvent::~PointerEvent() = default;
 
 void PointerEvent::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(PointerEvent);
+    Base::initialize(realm);
 }
 
 void PointerEvent::visit_edges(Cell::Visitor& visitor)

@@ -23,8 +23,8 @@ URLPattern::~URLPattern() = default;
 
 void URLPattern::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(URLPattern);
+    Base::initialize(realm);
 }
 
 // https://urlpattern.spec.whatwg.org/#dom-urlpattern-urlpattern

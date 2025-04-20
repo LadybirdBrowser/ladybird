@@ -22,8 +22,8 @@ HTMLModElement::~HTMLModElement() = default;
 
 void HTMLModElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLModElement);
+    Base::initialize(realm);
 }
 
 Optional<ARIA::Role> HTMLModElement::default_role() const

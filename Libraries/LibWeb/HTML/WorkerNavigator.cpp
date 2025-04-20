@@ -29,8 +29,8 @@ WorkerNavigator::~WorkerNavigator() = default;
 
 void WorkerNavigator::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(WorkerNavigator);
+    Base::initialize(realm);
 }
 
 void WorkerNavigator::visit_edges(Cell::Visitor& visitor)

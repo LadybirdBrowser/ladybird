@@ -33,8 +33,8 @@ DataTransferItemList::~DataTransferItemList() = default;
 
 void DataTransferItemList::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(DataTransferItemList);
+    Base::initialize(realm);
 }
 
 void DataTransferItemList::visit_edges(JS::Cell::Visitor& visitor)

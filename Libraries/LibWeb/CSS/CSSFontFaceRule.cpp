@@ -30,8 +30,8 @@ CSSFontFaceRule::CSSFontFaceRule(JS::Realm& realm, GC::Ref<CSSFontFaceDescriptor
 
 void CSSFontFaceRule::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSFontFaceRule);
+    Base::initialize(realm);
 }
 
 bool CSSFontFaceRule::is_valid() const

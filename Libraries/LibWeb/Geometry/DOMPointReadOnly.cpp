@@ -62,8 +62,8 @@ WebIDL::ExceptionOr<GC::Ref<DOMPoint>> DOMPointReadOnly::matrix_transform(DOMMat
 
 void DOMPointReadOnly::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(DOMPointReadOnly);
+    Base::initialize(realm);
 }
 
 WebIDL::ExceptionOr<void> DOMPointReadOnly::serialization_steps(HTML::SerializationRecord& serialized, bool, HTML::SerializationMemory&)

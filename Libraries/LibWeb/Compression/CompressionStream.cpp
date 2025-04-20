@@ -94,8 +94,8 @@ CompressionStream::~CompressionStream() = default;
 
 void CompressionStream::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(CompressionStream);
+    Base::initialize(realm);
 }
 
 void CompressionStream::visit_edges(JS::Cell::Visitor& visitor)

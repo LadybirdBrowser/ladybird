@@ -24,8 +24,8 @@ HTMLStyleElement::~HTMLStyleElement() = default;
 
 void HTMLStyleElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLStyleElement);
+    Base::initialize(realm);
 }
 
 void HTMLStyleElement::visit_edges(Cell::Visitor& visitor)

@@ -19,8 +19,8 @@ SVGTextElement::SVGTextElement(DOM::Document& document, DOM::QualifiedName quali
 
 void SVGTextElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGTextElement);
+    Base::initialize(realm);
 }
 
 GC::Ptr<Layout::Node> SVGTextElement::create_layout_node(GC::Ref<CSS::ComputedProperties> style)

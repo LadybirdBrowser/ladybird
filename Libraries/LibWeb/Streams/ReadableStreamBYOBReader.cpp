@@ -27,8 +27,8 @@ ReadableStreamBYOBReader::ReadableStreamBYOBReader(JS::Realm& realm)
 
 void ReadableStreamBYOBReader::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(ReadableStreamBYOBReader);
+    Base::initialize(realm);
 }
 
 // https://streams.spec.whatwg.org/#byob-reader-constructor

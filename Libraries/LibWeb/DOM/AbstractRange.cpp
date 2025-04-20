@@ -24,8 +24,8 @@ AbstractRange::~AbstractRange() = default;
 
 void AbstractRange::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(AbstractRange);
+    Base::initialize(realm);
 }
 
 void AbstractRange::visit_edges(Cell::Visitor& visitor)

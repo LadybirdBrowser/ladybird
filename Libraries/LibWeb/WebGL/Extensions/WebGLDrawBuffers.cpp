@@ -39,8 +39,8 @@ void WebGLDrawBuffers::draw_buffers_webgl(Vector<GLenum> buffers)
 
 void WebGLDrawBuffers::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(WebGLDrawBuffers);
+    Base::initialize(realm);
 }
 
 void WebGLDrawBuffers::visit_edges(Visitor& visitor)

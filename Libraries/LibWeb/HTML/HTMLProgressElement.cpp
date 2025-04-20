@@ -31,8 +31,8 @@ HTMLProgressElement::~HTMLProgressElement() = default;
 
 void HTMLProgressElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLProgressElement);
+    Base::initialize(realm);
 }
 
 void HTMLProgressElement::visit_edges(Cell::Visitor& visitor)

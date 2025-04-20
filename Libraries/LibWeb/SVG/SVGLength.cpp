@@ -61,8 +61,8 @@ SVGLength::SVGLength(JS::Realm& realm, u8 unit_type, float value)
 
 void SVGLength::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGLength);
+    Base::initialize(realm);
 }
 
 SVGLength::~SVGLength() = default;

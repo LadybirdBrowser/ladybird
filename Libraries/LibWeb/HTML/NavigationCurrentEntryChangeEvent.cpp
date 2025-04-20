@@ -31,8 +31,8 @@ NavigationCurrentEntryChangeEvent::~NavigationCurrentEntryChangeEvent() = defaul
 
 void NavigationCurrentEntryChangeEvent::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(NavigationCurrentEntryChangeEvent);
+    Base::initialize(realm);
 }
 
 void NavigationCurrentEntryChangeEvent::visit_edges(JS::Cell::Visitor& visitor)

@@ -28,8 +28,8 @@ ClipboardEvent::~ClipboardEvent() = default;
 
 void ClipboardEvent::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(ClipboardEvent);
+    Base::initialize(realm);
 }
 
 void ClipboardEvent::visit_edges(JS::Cell::Visitor& visitor)

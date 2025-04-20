@@ -77,8 +77,8 @@ CSSStyleProperties::CSSStyleProperties(JS::Realm& realm, Computed computed, Read
 
 void CSSStyleProperties::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSStyleProperties);
+    Base::initialize(realm);
 }
 
 void CSSStyleProperties::visit_edges(Visitor& visitor)

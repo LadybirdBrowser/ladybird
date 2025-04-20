@@ -1343,8 +1343,8 @@ Animation::Animation(JS::Realm& realm)
 
 void Animation::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(Animation);
+    Base::initialize(realm);
 }
 
 void Animation::visit_edges(Cell::Visitor& visitor)

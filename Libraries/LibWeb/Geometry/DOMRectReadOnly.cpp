@@ -47,8 +47,8 @@ DOMRectReadOnly::~DOMRectReadOnly() = default;
 
 void DOMRectReadOnly::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(DOMRectReadOnly);
+    Base::initialize(realm);
 }
 
 // https://drafts.fxtf.org/geometry/#structured-serialization

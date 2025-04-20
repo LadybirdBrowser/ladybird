@@ -32,8 +32,8 @@ CompositionEvent::~CompositionEvent() = default;
 
 void CompositionEvent::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(CompositionEvent);
+    Base::initialize(realm);
 }
 
 // https://w3c.github.io/uievents/#dom-compositionevent-initcompositionevent

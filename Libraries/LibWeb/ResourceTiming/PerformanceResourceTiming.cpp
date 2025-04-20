@@ -33,8 +33,8 @@ FlyString const& PerformanceResourceTiming::entry_type() const
 
 void PerformanceResourceTiming::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(PerformanceResourceTiming);
+    Base::initialize(realm);
 }
 
 void PerformanceResourceTiming::visit_edges(JS::Cell::Visitor& visitor)
