@@ -2813,6 +2813,16 @@ void Element::scroll(double x, double y)
     if (document.document_element() == this && document.in_quirks_mode())
         return;
 
+    // OPTIMIZATION: Scrolling an unscrolled element to (0, 0) is a no-op as long
+    //               as the element is not eligible to be the Document.scrollingElement.
+    if (x == 0
+        && y == 0
+        && scroll_offset(ScrollOffsetFor::Self).is_zero()
+        && this != document.body()
+        && this != document.document_element()) {
+        return;
+    }
+
     // NOTE: Ensure that layout is up-to-date before looking at metrics.
     document.update_layout(UpdateLayoutReason::ElementScroll);
 
