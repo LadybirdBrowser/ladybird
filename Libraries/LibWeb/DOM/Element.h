@@ -110,7 +110,7 @@ public:
     virtual ~Element() override;
 
     FlyString const& qualified_name() const { return m_qualified_name.as_string(); }
-    FlyString const& html_uppercased_qualified_name() const { return m_html_uppercased_qualified_name; }
+    FlyString const& html_uppercased_qualified_name() const;
 
     virtual FlyString node_name() const final { return html_uppercased_qualified_name(); }
     FlyString const& local_name() const { return m_qualified_name.local_name(); }
@@ -497,7 +497,7 @@ protected:
     CustomElementState custom_element_state() const { return m_custom_element_state; }
 
 private:
-    void make_html_uppercased_qualified_name();
+    FlyString make_html_uppercased_qualified_name() const;
 
     void invalidate_style_after_attribute_change(FlyString const& attribute_name, Optional<String> const& old_value, Optional<String> const& new_value);
 
@@ -511,7 +511,7 @@ private:
     bool is_auto_directionality_form_associated_element() const;
 
     QualifiedName m_qualified_name;
-    FlyString m_html_uppercased_qualified_name;
+    mutable Optional<FlyString> m_html_uppercased_qualified_name;
 
     GC::Ptr<NamedNodeMap> m_attributes;
     GC::Ptr<CSS::CSSStyleProperties> m_inline_style;
