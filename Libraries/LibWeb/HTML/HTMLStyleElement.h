@@ -30,6 +30,8 @@ public:
     CSS::CSSStyleSheet* sheet();
     CSS::CSSStyleSheet const* sheet() const;
 
+    virtual bool contributes_a_script_blocking_style_sheet() const final;
+
 private:
     HTMLStyleElement(DOM::Document&, DOM::QualifiedName);
 

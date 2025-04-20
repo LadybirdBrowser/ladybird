@@ -87,6 +87,12 @@ void StyleElementUtils::update_a_style_block(DOM::Element& style_element)
         {},
         nullptr,
         nullptr);
+
+    // 7. If element contributes a script-blocking style sheet, append element to its node document's script-blocking style sheet set.
+    if (style_element.contributes_a_script_blocking_style_sheet())
+        style_element.document().script_blocking_style_sheet_set().set(style_element);
+
+    // FIXME: 8. If element's media attribute's value matches the environment and element is potentially render-blocking, then block rendering on element.
 }
 
 void StyleElementUtils::visit_edges(JS::Cell::Visitor& visitor)

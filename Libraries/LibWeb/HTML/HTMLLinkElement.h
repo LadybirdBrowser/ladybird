@@ -50,6 +50,8 @@ public:
 
     GC::Ptr<CSS::CSSStyleSheet> sheet() const;
 
+    virtual bool contributes_a_script_blocking_style_sheet() const final;
+
 private:
     HTMLLinkElement(DOM::Document&, DOM::QualifiedName);
 
