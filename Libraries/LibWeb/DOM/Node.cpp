@@ -2937,6 +2937,10 @@ bool Node::has_inclusive_ancestor_with_display_none()
 
 void Node::play_or_cancel_animations_after_display_property_change()
 {
+    // OPTIMIZATION: We don't care about animations in disconnected subtrees.
+    if (!is_connected())
+        return;
+
     // https://www.w3.org/TR/css-animations-1/#animations
     // Setting the display property to none will terminate any running animation applied to the element and its descendants.
     // If an element has a display of none, updating display to a value other than none will start all animations applied to
