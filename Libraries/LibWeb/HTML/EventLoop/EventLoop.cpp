@@ -68,7 +68,7 @@ void EventLoop::schedule()
 
 EventLoop& main_thread_event_loop()
 {
-    return *static_cast<Bindings::WebEngineCustomData*>(Bindings::main_thread_vm().custom_data())->agent.event_loop;
+    return *static_cast<HTML::Agent*>(Bindings::main_thread_vm().agent())->event_loop;
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#spin-the-event-loop

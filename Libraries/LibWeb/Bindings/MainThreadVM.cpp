@@ -76,10 +76,10 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
 {
     VERIFY(!s_main_thread_vm);
 
-    s_main_thread_vm = TRY(JS::VM::create(make<WebEngineCustomData>()));
+    s_main_thread_vm = TRY(JS::VM::create(make<HTML::Agent>()));
 
-    auto& custom_data = as<WebEngineCustomData>(*s_main_thread_vm->custom_data());
-    custom_data.agent.event_loop = s_main_thread_vm->heap().allocate<HTML::EventLoop>(type);
+    auto& agent = as<HTML::Agent>(*s_main_thread_vm->agent());
+    agent.event_loop = s_main_thread_vm->heap().allocate<HTML::EventLoop>(type);
 
     s_main_thread_vm->on_unimplemented_property_access = [](auto const& object, auto const& property_key) {
         dbgln("FIXME: Unimplemented IDL interface: '{}.{}'", object.class_name(), property_key.to_string());
@@ -658,7 +658,7 @@ JS::VM& main_thread_vm()
 void queue_mutation_observer_microtask(DOM::Document const& document)
 {
     auto& vm = main_thread_vm();
-    auto& surrounding_agent = as<WebEngineCustomData>(*vm.custom_data()).agent;
+    auto& surrounding_agent = as<HTML::Agent>(*vm.agent());
 
     // 1. If the surrounding agent’s mutation observer microtask queued is true, then return.
     if (surrounding_agent.mutation_observer_microtask_queued)
@@ -748,11 +748,6 @@ NonnullOwnPtr<JS::ExecutionContext> create_a_new_javascript_realm(JS::VM& vm, Fu
 
     // 7. Return realm execution context.
     return realm_execution_context;
-}
-
-void WebEngineCustomData::spin_event_loop_until(GC::Root<GC::Function<bool()>> goal_condition)
-{
-    Platform::EventLoopPlugin::the().spin_until(move(goal_condition));
 }
 
 // https://html.spec.whatwg.org/multipage/custom-elements.html#invoke-custom-element-reactions
