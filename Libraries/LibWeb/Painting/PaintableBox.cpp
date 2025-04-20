@@ -32,6 +32,8 @@
 
 namespace Web::Painting {
 
+GC_DEFINE_ALLOCATOR(PaintableWithLines);
+
 bool g_paint_viewport_scrollbars = true;
 
 GC::Ref<PaintableWithLines> PaintableWithLines::create(Layout::BlockContainer const& block_container)
