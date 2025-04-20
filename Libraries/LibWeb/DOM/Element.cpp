@@ -90,7 +90,6 @@ Element::Element(Document& document, DOM::QualifiedName qualified_name)
     : ParentNode(document, NodeType::ELEMENT_NODE)
     , m_qualified_name(move(qualified_name))
 {
-    make_html_uppercased_qualified_name();
 }
 
 Element::~Element() = default;
@@ -952,13 +951,12 @@ void Element::set_inline_style(GC::Ptr<CSS::CSSStyleProperties> style)
 }
 
 // https://dom.spec.whatwg.org/#element-html-uppercased-qualified-name
-void Element::make_html_uppercased_qualified_name()
+FlyString Element::make_html_uppercased_qualified_name() const
 {
     // This is allowed by the spec: "User agents could optimize qualified name and HTML-uppercased qualified name by storing them in internal slots."
     if (namespace_uri() == Namespace::HTML && document().document_type() == Document::Type::HTML)
-        m_html_uppercased_qualified_name = qualified_name().to_ascii_uppercase();
-    else
-        m_html_uppercased_qualified_name = qualified_name();
+        return qualified_name().to_ascii_uppercase();
+    return qualified_name();
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#queue-an-element-task
@@ -3851,6 +3849,13 @@ GC::Ptr<NamedNodeMap> Element::attributes()
 GC::Ptr<NamedNodeMap const> Element::attributes() const
 {
     return const_cast<Element&>(*this).attributes();
+}
+
+FlyString const& Element::html_uppercased_qualified_name() const
+{
+    if (!m_html_uppercased_qualified_name.has_value())
+        m_html_uppercased_qualified_name = make_html_uppercased_qualified_name();
+    return m_html_uppercased_qualified_name.value();
 }
 
 }
