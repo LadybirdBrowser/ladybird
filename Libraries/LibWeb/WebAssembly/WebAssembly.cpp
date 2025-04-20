@@ -375,16 +375,15 @@ GC_DEFINE_ALLOCATOR(ExportedWasmFunction);
 
 GC::Ref<ExportedWasmFunction> ExportedWasmFunction::create(JS::Realm& realm, FlyString const& name, Function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)> behavior, Wasm::FunctionAddress exported_address)
 {
-    auto& vm = realm.vm();
     auto prototype = realm.intrinsics().function_prototype();
     return realm.create<ExportedWasmFunction>(
         name,
-        GC::create_function(vm.heap(), move(behavior)),
+        move(behavior),
         exported_address,
         prototype);
 }
 
-ExportedWasmFunction::ExportedWasmFunction(FlyString name, GC::Ptr<GC::Function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)>> behavior, Wasm::FunctionAddress exported_address, JS::Object& prototype)
+ExportedWasmFunction::ExportedWasmFunction(FlyString name, AK::Function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)> behavior, Wasm::FunctionAddress exported_address, JS::Object& prototype)
     : NativeFunction(move(name), move(behavior), prototype)
     , m_exported_address(exported_address)
 {
