@@ -2661,17 +2661,35 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> TryStatement::generate_
 
         TRY(m_handler->parameter().visit(
             [&](NonnullRefPtr<Identifier const> const& parameter) -> Bytecode::CodeGenerationErrorOr<void> {
-                generator.begin_variable_scope();
-                did_create_variable_scope_for_catch_clause = true;
-                auto parameter_identifier = generator.intern_identifier(parameter->string());
-                generator.emit<Bytecode::Op::CreateVariable>(parameter_identifier, Bytecode::Op::EnvironmentMode::Lexical, false);
-                generator.emit<Bytecode::Op::InitializeLexicalBinding>(parameter_identifier, caught_value);
+                if (parameter->is_local()) {
+                    auto local = generator.local(parameter->local_variable_index());
+                    generator.emit_mov(local, caught_value);
+                } else {
+                    generator.begin_variable_scope();
+                    did_create_variable_scope_for_catch_clause = true;
+                    auto parameter_identifier = generator.intern_identifier(parameter->string());
+                    generator.emit<Bytecode::Op::CreateVariable>(parameter_identifier, Bytecode::Op::EnvironmentMode::Lexical, false);
+                    generator.emit<Bytecode::Op::InitializeLexicalBinding>(parameter_identifier, caught_value);
+                }
                 return {};
             },
             [&](NonnullRefPtr<BindingPattern const> const& binding_pattern) -> Bytecode::CodeGenerationErrorOr<void> {
-                generator.begin_variable_scope();
-                did_create_variable_scope_for_catch_clause = true;
-                TRY(binding_pattern->generate_bytecode(generator, Bytecode::Op::BindingInitializationMode::Initialize, caught_value, true));
+                MUST(binding_pattern->for_each_bound_identifier([&](auto const& identifier) {
+                    if (!identifier.is_local())
+                        did_create_variable_scope_for_catch_clause = true;
+                }));
+
+                if (did_create_variable_scope_for_catch_clause)
+                    generator.begin_variable_scope();
+
+                MUST(binding_pattern->for_each_bound_identifier([&](auto const& identifier) {
+                    if (identifier.is_local())
+                        return;
+                    auto parameter_identifier = generator.intern_identifier(identifier.string());
+                    generator.emit<Bytecode::Op::CreateVariable>(parameter_identifier, Bytecode::Op::EnvironmentMode::Lexical, false);
+                }));
+
+                TRY(binding_pattern->generate_bytecode(generator, Bytecode::Op::BindingInitializationMode::Initialize, caught_value, false));
                 return {};
             },
             [](Empty) -> Bytecode::CodeGenerationErrorOr<void> {
