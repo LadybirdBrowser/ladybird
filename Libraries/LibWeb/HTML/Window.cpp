@@ -1465,6 +1465,10 @@ void Window::scroll(ScrollToOptions const& options)
     x = HTML::normalize_non_finite_values(x);
     y = HTML::normalize_non_finite_values(y);
 
+    // OPTIMIZATION: If we're asked to scroll to (0, 0) and we're already there, do nothing.
+    if (x == 0 && y == 0 && navigable->viewport_scroll_offset().is_zero())
+        return;
+
     // 5. Let viewport width be the width of the viewport excluding the width of the scroll bar, if any.
     auto viewport_width = viewport_rect.width();
 
