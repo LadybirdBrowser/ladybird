@@ -266,8 +266,11 @@ protected:
         Horizontal,
         Vertical,
     };
-    Optional<ScrollbarData> compute_scrollbar_data(ScrollDirection) const;
-    [[nodiscard]] Optional<CSSPixelRect> scroll_thumb_rect(ScrollDirection) const;
+    enum class AdjustThumbRectForScrollOffset {
+        No,
+        Yes,
+    };
+    Optional<ScrollbarData> compute_scrollbar_data(ScrollDirection, AdjustThumbRectForScrollOffset = AdjustThumbRectForScrollOffset::No) const;
     [[nodiscard]] bool could_be_scrolled_by_wheel_event(ScrollDirection) const;
 
     TraversalDecision hit_test_scrollbars(CSSPixelPoint position, Function<TraversalDecision(HitTestResult)> const& callback) const;
