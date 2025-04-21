@@ -60,7 +60,6 @@ cmake -GNinja --preset=Distribution -B Build/tools \
     -DCMAKE_INSTALL_PREFIX=Build/tool-install \
     -DCMAKE_C_COMPILER=$BEST_CLANG_CANDIDATE \
     -DCMAKE_CXX_COMPILER="${BEST_CLANG_CANDIDATE/clang/clang++}" \
-    -DCMAKE_OSX_SYSROOT=macosx \
     -Dpackage=LagomTools
 ninja -C Build/tools install
 

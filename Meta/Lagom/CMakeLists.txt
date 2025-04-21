@@ -1,5 +1,9 @@
 cmake_minimum_required (VERSION 3.21)
 
+if (APPLE AND NOT CMAKE_OSX_SYSROOT)
+    set(CMAKE_OSX_SYSROOT macosx)
+endif()
+
 project(
     Lagom
     VERSION 0.0.0
