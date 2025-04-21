@@ -2660,20 +2660,21 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> TryStatement::generate_
         bool did_create_variable_scope_for_catch_clause = false;
 
         TRY(m_handler->parameter().visit(
-            [&](FlyString const& parameter) -> Bytecode::CodeGenerationErrorOr<void> {
-                if (!parameter.is_empty()) {
-                    generator.begin_variable_scope();
-                    did_create_variable_scope_for_catch_clause = true;
-                    auto parameter_identifier = generator.intern_identifier(parameter);
-                    generator.emit<Bytecode::Op::CreateVariable>(parameter_identifier, Bytecode::Op::EnvironmentMode::Lexical, false);
-                    generator.emit<Bytecode::Op::InitializeLexicalBinding>(parameter_identifier, caught_value);
-                }
+            [&](NonnullRefPtr<Identifier const> const& parameter) -> Bytecode::CodeGenerationErrorOr<void> {
+                generator.begin_variable_scope();
+                did_create_variable_scope_for_catch_clause = true;
+                auto parameter_identifier = generator.intern_identifier(parameter->string());
+                generator.emit<Bytecode::Op::CreateVariable>(parameter_identifier, Bytecode::Op::EnvironmentMode::Lexical, false);
+                generator.emit<Bytecode::Op::InitializeLexicalBinding>(parameter_identifier, caught_value);
                 return {};
             },
             [&](NonnullRefPtr<BindingPattern const> const& binding_pattern) -> Bytecode::CodeGenerationErrorOr<void> {
                 generator.begin_variable_scope();
                 did_create_variable_scope_for_catch_clause = true;
                 TRY(binding_pattern->generate_bytecode(generator, Bytecode::Op::BindingInitializationMode::Initialize, caught_value, true));
+                return {};
+            },
+            [](Empty) -> Bytecode::CodeGenerationErrorOr<void> {
                 return {};
             }));
 
