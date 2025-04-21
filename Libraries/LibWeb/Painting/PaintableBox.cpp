@@ -912,18 +912,35 @@ void PaintableWithLines::paint(PaintContext& context, PaintPhase phase) const
 
 Paintable::DispatchEventOfSameName PaintableBox::handle_mousedown(Badge<EventHandler>, CSSPixelPoint position, unsigned, unsigned)
 {
-    auto vertical_scroll_data = compute_scrollbar_data(ScrollDirection::Vertical, AdjustThumbRectForScrollOffset::Yes);
-    auto horizontal_scroll_data = compute_scrollbar_data(ScrollDirection::Horizontal, AdjustThumbRectForScrollOffset::Yes);
+    auto handle_scrollbar = [&](auto direction) {
+        auto scrollbar_data = compute_scrollbar_data(direction, AdjustThumbRectForScrollOffset::Yes);
+        if (!scrollbar_data.has_value())
+            return false;
 
-    if (vertical_scroll_data.has_value() && vertical_scroll_data->thumb_rect.contains(position)) {
-        m_last_mouse_tracking_position = position;
-        m_scroll_thumb_dragging_direction = ScrollDirection::Vertical;
-        const_cast<HTML::Navigable&>(*navigable()).event_handler().set_mouse_event_tracking_paintable(this);
-    } else if (horizontal_scroll_data.has_value() && horizontal_scroll_data->thumb_rect.contains(position)) {
-        m_last_mouse_tracking_position = position;
-        m_scroll_thumb_dragging_direction = ScrollDirection::Horizontal;
-        const_cast<HTML::Navigable&>(*navigable()).event_handler().set_mouse_event_tracking_paintable(this);
-    }
+        if (scrollbar_data->thumb_rect.contains(position)) {
+            m_last_mouse_tracking_position = position;
+            m_scroll_thumb_dragging_direction = direction;
+
+            navigable()->event_handler().set_mouse_event_tracking_paintable(this);
+            return true;
+        }
+
+        if (scrollbar_data->gutter_rect.contains(position)) {
+            m_last_mouse_tracking_position = scrollbar_data->thumb_rect.center();
+            m_scroll_thumb_dragging_direction = direction;
+
+            navigable()->event_handler().set_mouse_event_tracking_paintable(this);
+            scroll_to_mouse_postion(position);
+            return true;
+        }
+
+        return false;
+    };
+
+    if (handle_scrollbar(ScrollDirection::Vertical))
+        return Paintable::DispatchEventOfSameName::No;
+    if (handle_scrollbar(ScrollDirection::Horizontal))
+        return Paintable::DispatchEventOfSameName::No;
 
     return Paintable::DispatchEventOfSameName::Yes;
 }
@@ -941,26 +958,7 @@ Paintable::DispatchEventOfSameName PaintableBox::handle_mouseup(Badge<EventHandl
 Paintable::DispatchEventOfSameName PaintableBox::handle_mousemove(Badge<EventHandler>, CSSPixelPoint position, unsigned, unsigned)
 {
     if (m_last_mouse_tracking_position.has_value()) {
-        Gfx::Point<double> scroll_delta;
-        if (m_scroll_thumb_dragging_direction == ScrollDirection::Horizontal)
-            scroll_delta.set_x((position.x() - m_last_mouse_tracking_position->x()).to_double());
-        else
-            scroll_delta.set_y((position.y() - m_last_mouse_tracking_position->y()).to_double());
-
-        auto padding_rect = absolute_padding_box_rect();
-        auto scrollable_overflow_rect = this->scrollable_overflow_rect().value();
-        auto scroll_overflow_size = m_scroll_thumb_dragging_direction == ScrollDirection::Horizontal ? scrollable_overflow_rect.width() : scrollable_overflow_rect.height();
-        auto scrollport_size = m_scroll_thumb_dragging_direction == ScrollDirection::Horizontal ? padding_rect.width() : padding_rect.height();
-        auto scroll_px_per_mouse_position_delta_px = scroll_overflow_size.to_double() / scrollport_size.to_double();
-        scroll_delta *= scroll_px_per_mouse_position_delta_px;
-
-        if (is_viewport()) {
-            document().window()->scroll_by(scroll_delta.x(), scroll_delta.y());
-        } else {
-            scroll_by(scroll_delta.x(), scroll_delta.y());
-        }
-
-        m_last_mouse_tracking_position = position;
+        scroll_to_mouse_postion(position);
         return Paintable::DispatchEventOfSameName::No;
     }
 
@@ -992,6 +990,32 @@ bool PaintableBox::scrollbar_contains_mouse_position(ScrollDirection direction, 
     if (direction == ScrollDirection::Horizontal)
         return position.y() >= scrollbar_data->thumb_rect.top();
     return position.x() >= scrollbar_data->thumb_rect.left();
+}
+
+void PaintableBox::scroll_to_mouse_postion(CSSPixelPoint position)
+{
+    VERIFY(m_last_mouse_tracking_position.has_value());
+    VERIFY(m_scroll_thumb_dragging_direction.has_value());
+
+    Gfx::Point<double> scroll_delta;
+    if (m_scroll_thumb_dragging_direction == ScrollDirection::Horizontal)
+        scroll_delta.set_x((position.x() - m_last_mouse_tracking_position->x()).to_double());
+    else
+        scroll_delta.set_y((position.y() - m_last_mouse_tracking_position->y()).to_double());
+
+    auto padding_rect = absolute_padding_box_rect();
+    auto scrollable_overflow_rect = this->scrollable_overflow_rect().value();
+    auto scroll_overflow_size = m_scroll_thumb_dragging_direction == ScrollDirection::Horizontal ? scrollable_overflow_rect.width() : scrollable_overflow_rect.height();
+    auto scrollport_size = m_scroll_thumb_dragging_direction == ScrollDirection::Horizontal ? padding_rect.width() : padding_rect.height();
+    auto scroll_px_per_mouse_position_delta_px = scroll_overflow_size.to_double() / scrollport_size.to_double();
+    scroll_delta *= scroll_px_per_mouse_position_delta_px;
+
+    if (is_viewport())
+        document().window()->scroll_by(scroll_delta.x(), scroll_delta.y());
+    else
+        scroll_by(scroll_delta.x(), scroll_delta.y());
+
+    m_last_mouse_tracking_position = position;
 }
 
 bool PaintableBox::handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, unsigned, unsigned, int wheel_delta_x, int wheel_delta_y)
