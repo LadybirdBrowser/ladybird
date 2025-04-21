@@ -77,6 +77,9 @@ void Application::create_platform_options(WebView::BrowserOptions& browser_optio
 
         // Ensure consistent font rendering between operating systems.
         web_content_options.force_fontconfig = WebView::ForceFontconfig::Yes;
+
+        // Ensure tests are resilient to minor changes to the viewport scrollbar.
+        web_content_options.paint_viewport_scrollbars = WebView::PaintViewportScrollbars::No;
     }
 
     if (dump_gc_graph) {
