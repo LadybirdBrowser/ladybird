@@ -324,6 +324,7 @@ private:
     RefPtr<CSSStyleValue const> parse_lch_color_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_oklch_color_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_color_function(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_color_mix_function(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_light_dark_color_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_color_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_color_scheme_value(TokenStream<ComponentValue>&);
