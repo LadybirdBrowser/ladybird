@@ -548,7 +548,7 @@ bool is_secure_context(Environment const& environment)
     }
 
     // 2. If the result of Is url potentially trustworthy? given environment's top-level creation URL is "Potentially Trustworthy", then return true.
-    if (SecureContexts::is_url_potentially_trustworthy(environment.top_level_creation_url) == SecureContexts::Trustworthiness::PotentiallyTrustworthy)
+    if (SecureContexts::is_url_potentially_trustworthy(environment.top_level_creation_url.value()) == SecureContexts::Trustworthiness::PotentiallyTrustworthy)
         return true;
 
     // 3. Return false.
