@@ -310,9 +310,9 @@ Optional<CSSPixelRect> PaintableBox::get_clip_rect() const
 
 bool PaintableBox::wants_mouse_events() const
 {
-    if (scroll_thumb_rect(ScrollDirection::Vertical).has_value())
+    if (compute_scrollbar_data(ScrollDirection::Vertical).has_value())
         return true;
-    if (scroll_thumb_rect(ScrollDirection::Horizontal).has_value())
+    if (compute_scrollbar_data(ScrollDirection::Horizontal).has_value())
         return true;
     return false;
 }
@@ -361,25 +361,7 @@ bool PaintableBox::could_be_scrolled_by_wheel_event() const
 static constexpr CSSPixels SCROLLBAR_THUMB_NORMAL_THICKNESS = 5;
 static constexpr CSSPixels SCROLLBAR_THUMB_WIDENED_THICKNESS = 10;
 
-Optional<CSSPixelRect> PaintableBox::scroll_thumb_rect(ScrollDirection direction) const
-{
-    auto maybe_scrollbar_data = compute_scrollbar_data(direction);
-    if (!maybe_scrollbar_data.has_value())
-        return {};
-
-    auto scroll_offset = direction == ScrollDirection::Horizontal ? -own_scroll_frame_offset().x() : -own_scroll_frame_offset().y();
-    auto thumb_offset = scroll_offset * maybe_scrollbar_data->scroll_length;
-
-    CSSPixelRect thumb_rect = maybe_scrollbar_data->thumb_rect;
-    if (direction == ScrollDirection::Horizontal) {
-        thumb_rect.translate_by(thumb_offset, 0);
-    } else {
-        thumb_rect.translate_by(0, thumb_offset);
-    }
-    return thumb_rect;
-}
-
-Optional<PaintableBox::ScrollbarData> PaintableBox::compute_scrollbar_data(ScrollDirection direction) const
+Optional<PaintableBox::ScrollbarData> PaintableBox::compute_scrollbar_data(ScrollDirection direction, AdjustThumbRectForScrollOffset adjust_thumb_rect_for_scroll_offset) const
 {
     bool is_horizontal = direction == ScrollDirection::Horizontal;
     bool display_scrollbar = could_be_scrolled_by_wheel_event(direction);
@@ -427,6 +409,16 @@ Optional<PaintableBox::ScrollbarData> PaintableBox::compute_scrollbar_data(Scrol
         if (m_draw_enlarged_vertical_scrollbar)
             scrollbar_data.gutter_rect = { padding_rect.right() - thickness, padding_rect.top(), thickness, padding_rect.height() };
         scrollbar_data.thumb_rect = { padding_rect.right() - thickness, padding_rect.top(), thickness, thumb_length };
+    }
+
+    if (adjust_thumb_rect_for_scroll_offset == AdjustThumbRectForScrollOffset::Yes) {
+        auto scroll_offset = is_horizontal ? -own_scroll_frame_offset().x() : -own_scroll_frame_offset().y();
+        auto thumb_offset = scroll_offset * scrollbar_data.scroll_length;
+
+        if (is_horizontal)
+            scrollbar_data.thumb_rect.translate_by(thumb_offset, 0);
+        else
+            scrollbar_data.thumb_rect.translate_by(0, thumb_offset);
     }
 
     return scrollbar_data;
@@ -920,17 +912,19 @@ void PaintableWithLines::paint(PaintContext& context, PaintPhase phase) const
 
 Paintable::DispatchEventOfSameName PaintableBox::handle_mousedown(Badge<EventHandler>, CSSPixelPoint position, unsigned, unsigned)
 {
-    auto vertical_scroll_thumb_rect = scroll_thumb_rect(ScrollDirection::Vertical);
-    auto horizontal_scroll_thumb_rect = scroll_thumb_rect(ScrollDirection::Horizontal);
-    if (vertical_scroll_thumb_rect.has_value() && vertical_scroll_thumb_rect.value().contains(position)) {
+    auto vertical_scroll_data = compute_scrollbar_data(ScrollDirection::Vertical, AdjustThumbRectForScrollOffset::Yes);
+    auto horizontal_scroll_data = compute_scrollbar_data(ScrollDirection::Horizontal, AdjustThumbRectForScrollOffset::Yes);
+
+    if (vertical_scroll_data.has_value() && vertical_scroll_data->thumb_rect.contains(position)) {
         m_last_mouse_tracking_position = position;
         m_scroll_thumb_dragging_direction = ScrollDirection::Vertical;
         const_cast<HTML::Navigable&>(*navigable()).event_handler().set_mouse_event_tracking_paintable(this);
-    } else if (horizontal_scroll_thumb_rect.has_value() && horizontal_scroll_thumb_rect.value().contains(position)) {
+    } else if (horizontal_scroll_data.has_value() && horizontal_scroll_data->thumb_rect.contains(position)) {
         m_last_mouse_tracking_position = position;
         m_scroll_thumb_dragging_direction = ScrollDirection::Horizontal;
         const_cast<HTML::Navigable&>(*navigable()).event_handler().set_mouse_event_tracking_paintable(this);
     }
+
     return Paintable::DispatchEventOfSameName::Yes;
 }
 
