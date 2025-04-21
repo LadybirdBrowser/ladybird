@@ -114,7 +114,7 @@ CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(E
             auto input_operand = allocate_register();
             emit<Op::GetArgument>(input_operand.operand(), param_index);
             auto init_mode = function.shared_data().m_has_duplicates ? Op::BindingInitializationMode::Set : Bytecode::Op::BindingInitializationMode::Initialize;
-            TRY((*binding_pattern)->generate_bytecode(*this, init_mode, input_operand, false));
+            TRY((*binding_pattern)->generate_bytecode(*this, init_mode, input_operand));
         }
     }
 
