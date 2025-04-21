@@ -65,7 +65,6 @@ public:
 
     [[nodiscard]] static ErrorOr<UnsignedBigInteger> from_base(u16 N, StringView str);
     [[nodiscard]] ErrorOr<String> to_base(u16 N) const;
-    [[nodiscard]] ByteString to_base_deprecated(u16 N) const;
 
     [[nodiscard]] u64 to_u64() const;
 
