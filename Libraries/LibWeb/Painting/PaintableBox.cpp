@@ -8,6 +8,7 @@
  */
 
 #include <AK/GenericShorthands.h>
+#include <AK/TemporaryChange.h>
 #include <LibGfx/Font/Font.h>
 #include <LibUnicode/CharacterTypes.h>
 #include <LibWeb/CSS/SystemColor.h>
@@ -357,7 +358,8 @@ bool PaintableBox::could_be_scrolled_by_wheel_event() const
     return could_be_scrolled_by_wheel_event(ScrollDirection::Horizontal) || could_be_scrolled_by_wheel_event(ScrollDirection::Vertical);
 }
 
-static constexpr CSSPixels scrollbar_thumb_thickness = 8;
+static constexpr CSSPixels SCROLLBAR_THUMB_NORMAL_THICKNESS = 5;
+static constexpr CSSPixels SCROLLBAR_THUMB_WIDENED_THICKNESS = 10;
 
 Optional<CSSPixelRect> PaintableBox::scroll_thumb_rect(ScrollDirection direction) const
 {
@@ -401,7 +403,13 @@ Optional<PaintableBox::ScrollbarData> PaintableBox::compute_scrollbar_data(Scrol
     if (scroll_overflow_size == 0)
         return {};
 
-    auto scrollbar_rect_length = is_horizontal ? scrollport_size - scrollbar_thumb_thickness : scrollport_size;
+    auto thickness = [&]() {
+        if (is_horizontal)
+            return m_draw_enlarged_horizontal_scrollbar ? SCROLLBAR_THUMB_WIDENED_THICKNESS : SCROLLBAR_THUMB_NORMAL_THICKNESS;
+        return m_draw_enlarged_vertical_scrollbar ? SCROLLBAR_THUMB_WIDENED_THICKNESS : SCROLLBAR_THUMB_NORMAL_THICKNESS;
+    }();
+
+    auto scrollbar_rect_length = is_horizontal ? scrollport_size - thickness : scrollport_size;
 
     auto min_thumb_length = min(scrollbar_rect_length, 24);
     auto thumb_length = max(scrollbar_rect_length * (scrollport_size / scroll_overflow_size), min_thumb_length);
@@ -411,9 +419,9 @@ Optional<PaintableBox::ScrollbarData> PaintableBox::compute_scrollbar_data(Scrol
         scroll_size = (scrollbar_rect_length - thumb_length) / (scroll_overflow_size - scrollport_size);
     CSSPixelRect rect;
     if (is_horizontal)
-        rect = { padding_rect.left(), padding_rect.bottom() - scrollbar_thumb_thickness, thumb_length, scrollbar_thumb_thickness };
+        rect = { padding_rect.left(), padding_rect.bottom() - thickness, thumb_length, thickness };
     else
-        rect = { padding_rect.right() - scrollbar_thumb_thickness, padding_rect.top(), scrollbar_thumb_thickness, thumb_length };
+        rect = { padding_rect.right() - thickness, padding_rect.top(), thickness, thumb_length };
 
     return PaintableBox::ScrollbarData { rect, scroll_size };
 }
@@ -953,7 +961,35 @@ Paintable::DispatchEventOfSameName PaintableBox::handle_mousemove(Badge<EventHan
         m_last_mouse_tracking_position = position;
         return Paintable::DispatchEventOfSameName::No;
     }
+
+    auto previous_draw_enlarged_horizontal_scrollbar = m_draw_enlarged_horizontal_scrollbar;
+    m_draw_enlarged_horizontal_scrollbar = scrollbar_contains_mouse_position(ScrollDirection::Horizontal, position);
+    if (previous_draw_enlarged_horizontal_scrollbar != m_draw_enlarged_horizontal_scrollbar)
+        set_needs_display();
+
+    auto previous_draw_enlarged_vertical_scrollbar = m_draw_enlarged_vertical_scrollbar;
+    m_draw_enlarged_vertical_scrollbar = scrollbar_contains_mouse_position(ScrollDirection::Vertical, position);
+    if (previous_draw_enlarged_vertical_scrollbar != m_draw_enlarged_vertical_scrollbar)
+        set_needs_display();
+
+    if (m_draw_enlarged_horizontal_scrollbar || m_draw_enlarged_vertical_scrollbar)
+        return Paintable::DispatchEventOfSameName::No;
+
     return Paintable::DispatchEventOfSameName::Yes;
+}
+
+bool PaintableBox::scrollbar_contains_mouse_position(ScrollDirection direction, CSSPixelPoint position)
+{
+    TemporaryChange force_enlarged_horizontal_scrollbar { m_draw_enlarged_horizontal_scrollbar, true };
+    TemporaryChange force_enlarged_vertical_scrollbar { m_draw_enlarged_vertical_scrollbar, true };
+
+    auto scrollbar_data = compute_scrollbar_data(direction);
+    if (!scrollbar_data.has_value())
+        return false;
+
+    if (direction == ScrollDirection::Horizontal)
+        return position.y() >= scrollbar_data->thumb_rect.top();
+    return position.x() >= scrollbar_data->thumb_rect.left();
 }
 
 bool PaintableBox::handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, unsigned, unsigned, int wheel_delta_x, int wheel_delta_y)
@@ -979,12 +1015,25 @@ Layout::NodeWithStyleAndBoxModelMetrics& PaintableWithLines::layout_node_with_st
 
 TraversalDecision PaintableBox::hit_test_scrollbars(CSSPixelPoint position, Function<TraversalDecision(HitTestResult)> const& callback) const
 {
-    auto vertical_scroll_thumb_rect = scroll_thumb_rect(ScrollDirection::Vertical);
-    if (vertical_scroll_thumb_rect.has_value() && vertical_scroll_thumb_rect.value().contains(position))
+    // FIXME: This const_cast is not great, but this method is invoked from overrides of virtual const methods.
+    auto& self = const_cast<PaintableBox&>(*this);
+
+    if (self.scrollbar_contains_mouse_position(ScrollDirection::Horizontal, position))
         return callback(HitTestResult { const_cast<PaintableBox&>(*this) });
-    auto horizontal_scroll_thumb_rect = scroll_thumb_rect(ScrollDirection::Horizontal);
-    if (horizontal_scroll_thumb_rect.has_value() && horizontal_scroll_thumb_rect.value().contains(position))
+
+    if (m_draw_enlarged_horizontal_scrollbar) {
+        self.m_draw_enlarged_horizontal_scrollbar = false;
+        self.set_needs_display();
+    }
+
+    if (self.scrollbar_contains_mouse_position(ScrollDirection::Vertical, position))
         return callback(HitTestResult { const_cast<PaintableBox&>(*this) });
+
+    if (m_draw_enlarged_vertical_scrollbar) {
+        self.m_draw_enlarged_vertical_scrollbar = false;
+        self.set_needs_display();
+    }
+
     return TraversalDecision::Continue;
 }
 

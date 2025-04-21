@@ -278,6 +278,8 @@ private:
     virtual DispatchEventOfSameName handle_mouseup(Badge<EventHandler>, CSSPixelPoint, unsigned button, unsigned modifiers) override;
     virtual DispatchEventOfSameName handle_mousemove(Badge<EventHandler>, CSSPixelPoint, unsigned buttons, unsigned modifiers) override;
 
+    bool scrollbar_contains_mouse_position(ScrollDirection, CSSPixelPoint);
+
     OwnPtr<StackingContext> m_stacking_context;
 
     Optional<OverflowData> m_overflow_data;
@@ -304,6 +306,8 @@ private:
 
     Optional<CSSPixelPoint> m_last_mouse_tracking_position;
     Optional<ScrollDirection> m_scroll_thumb_dragging_direction;
+    bool m_draw_enlarged_horizontal_scrollbar { false };
+    bool m_draw_enlarged_vertical_scrollbar { false };
 
     ResolvedBackground m_resolved_background;
 
