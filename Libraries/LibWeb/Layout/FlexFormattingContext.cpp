@@ -1130,7 +1130,7 @@ void FlexFormattingContext::determine_hypothetical_cross_size_of_item(FlexItem& 
     }
 
     // "... treating auto as fit-content"
-    auto fit_content_cross_size = calculate_fit_content_cross_size(item);
+    CSSPixels fit_content_cross_size;
     if (is_row_layout()) {
         auto available_width = item.main_size.has_value() ? AvailableSize::make_definite(item.main_size.value()) : AvailableSize::make_indefinite();
         auto available_height = AvailableSize::make_indefinite();
