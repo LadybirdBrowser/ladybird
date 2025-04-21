@@ -4254,48 +4254,18 @@ MUST(impl->set_attribute("@attribute.reflect_name@"_fly_string, cpp_value));
 }
 )~~~");
         } else if (attribute.extended_attributes.contains("Replaceable"sv)) {
-            if (interface.name == "Window"sv) {
-                attribute_generator.append(R"~~~(
+            attribute_generator.append(R"~~~(
 JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
 {
     WebIDL::log_trace(vm, "@class_name@::@attribute.setter_callback@");
-    auto this_value = vm.this_value();
     if (vm.argument_count() < 1)
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::BadArgCountOne, "@namespaced_name@ setter");
-    GC::Ptr<Window> window;
-    if (this_value.is_object()) {
-        if (is<WindowProxy>(this_value.as_object())) {
-            auto& window_proxy = static_cast<WindowProxy&>(this_value.as_object());
-            window = window_proxy.window();
-        } else if (is<Window>(this_value.as_object())) {
-            window = &static_cast<Window&>(this_value.as_object());
-        }
-    }
 
-    if (window) {
-        TRY(window->internal_define_own_property("@attribute.name@"_fly_string, JS::PropertyDescriptor { .value = vm.argument(0), .writable = true }));
-        return JS::js_undefined();
-    }
-
-    return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "@namespaced_name@");
-}
-)~~~");
-            } else {
-
-                attribute_generator.append(R"~~~(
-JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
-{
-    WebIDL::log_trace(vm, "@class_name@::@attribute.setter_callback@");
-    auto this_value = vm.this_value();
-    if (!this_value.is_object() || !is<@fully_qualified_name@>(this_value.as_object()))
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "@namespaced_name@");
-    if (vm.argument_count() < 1)
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::BadArgCountOne, "@namespaced_name@ setter");
-    TRY(this_value.as_object().internal_define_own_property("@attribute.name@"_fly_string, JS::PropertyDescriptor { .value = vm.argument(0), .writable = true }));
+    auto* impl = TRY(impl_from(vm));
+    TRY(impl->internal_define_own_property("@attribute.name@"_fly_string, JS::PropertyDescriptor { .value = vm.argument(0), .writable = true }));
     return JS::js_undefined();
 }
 )~~~");
-            }
         } else if (auto put_forwards_identifier = attribute.extended_attributes.get("PutForwards"sv); put_forwards_identifier.has_value()) {
             attribute_generator.set("put_forwards_identifier"sv, *put_forwards_identifier);
             VERIFY(!put_forwards_identifier->is_empty() && !is_ascii_digit(put_forwards_identifier->byte_at(0))); // Ensure `PropertyKey`s are not Numbers.
