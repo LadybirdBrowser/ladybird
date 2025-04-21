@@ -946,7 +946,7 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
         // 2. If request's reserved client is null, then:
         if (!request->reserved_client()) {
             // 1. Let topLevelCreationURL be currentURL.
-            auto top_level_creation_url = current_url;
+            Optional<URL::URL> top_level_creation_url = current_url;
 
             // 2. Let topLevelOrigin be null.
             URL::Origin top_level_origin;

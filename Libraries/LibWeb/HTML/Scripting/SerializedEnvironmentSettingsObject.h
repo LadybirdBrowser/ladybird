@@ -22,7 +22,7 @@ enum class CanUseCrossOriginIsolatedAPIs {
 struct SerializedEnvironmentSettingsObject {
     String id;
     URL::URL creation_url;
-    URL::URL top_level_creation_url;
+    Optional<URL::URL> top_level_creation_url;
     URL::Origin top_level_origin;
 
     String api_url_character_encoding;
