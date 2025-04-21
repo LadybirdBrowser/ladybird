@@ -414,16 +414,22 @@ Optional<PaintableBox::ScrollbarData> PaintableBox::compute_scrollbar_data(Scrol
     auto min_thumb_length = min(scrollbar_rect_length, 24);
     auto thumb_length = max(scrollbar_rect_length * (scrollport_size / scroll_overflow_size), min_thumb_length);
 
-    CSSPixelFraction scroll_size = 0;
-    if (scroll_overflow_size > scrollport_size)
-        scroll_size = (scrollbar_rect_length - thumb_length) / (scroll_overflow_size - scrollport_size);
-    CSSPixelRect rect;
-    if (is_horizontal)
-        rect = { padding_rect.left(), padding_rect.bottom() - thickness, thumb_length, thickness };
-    else
-        rect = { padding_rect.right() - thickness, padding_rect.top(), thickness, thumb_length };
+    ScrollbarData scrollbar_data;
 
-    return PaintableBox::ScrollbarData { rect, scroll_size };
+    if (scroll_overflow_size > scrollport_size)
+        scrollbar_data.scroll_length = (scrollbar_rect_length - thumb_length) / (scroll_overflow_size - scrollport_size);
+
+    if (is_horizontal) {
+        if (m_draw_enlarged_horizontal_scrollbar)
+            scrollbar_data.gutter_rect = { padding_rect.left(), padding_rect.bottom() - thickness, padding_rect.width(), thickness };
+        scrollbar_data.thumb_rect = { padding_rect.left(), padding_rect.bottom() - thickness, thumb_length, thickness };
+    } else {
+        if (m_draw_enlarged_vertical_scrollbar)
+            scrollbar_data.gutter_rect = { padding_rect.right() - thickness, padding_rect.top(), thickness, padding_rect.height() };
+        scrollbar_data.thumb_rect = { padding_rect.right() - thickness, padding_rect.top(), thickness, thumb_length };
+    }
+
+    return scrollbar_data;
 }
 
 void PaintableBox::paint(PaintContext& context, PaintPhase phase) const
@@ -473,15 +479,17 @@ void PaintableBox::paint(PaintContext& context, PaintPhase phase) const
         }
     }
 
-    if (g_paint_viewport_scrollbars || !is_viewport()) {
-        auto scrollbar_width = computed_values().scrollbar_width();
-        if (phase == PaintPhase::Overlay && scrollbar_width != CSS::ScrollbarWidth::None) {
-            if (auto scrollbar_data = compute_scrollbar_data(ScrollDirection::Vertical); scrollbar_data.has_value()) {
-                context.display_list_recorder().paint_scrollbar(own_scroll_frame_id().value(), context.rounded_device_rect(scrollbar_data->thumb_rect).to_type<int>(), scrollbar_data->scroll_length, true);
-            }
-            if (auto scrollbar_data = compute_scrollbar_data(ScrollDirection::Horizontal); scrollbar_data.has_value()) {
-                context.display_list_recorder().paint_scrollbar(own_scroll_frame_id().value(), context.rounded_device_rect(scrollbar_data->thumb_rect).to_type<int>(), scrollbar_data->scroll_length, false);
-            }
+    if (phase == PaintPhase::Overlay && (g_paint_viewport_scrollbars || !is_viewport()) && computed_values().scrollbar_width() != CSS::ScrollbarWidth::None) {
+        if (auto scrollbar_data = compute_scrollbar_data(ScrollDirection::Vertical); scrollbar_data.has_value()) {
+            auto gutter_rect = context.rounded_device_rect(scrollbar_data->gutter_rect).to_type<int>();
+            auto thumb_rect = context.rounded_device_rect(scrollbar_data->thumb_rect).to_type<int>();
+            context.display_list_recorder().paint_scrollbar(own_scroll_frame_id().value(), gutter_rect, thumb_rect, scrollbar_data->scroll_length, true);
+        }
+
+        if (auto scrollbar_data = compute_scrollbar_data(ScrollDirection::Horizontal); scrollbar_data.has_value()) {
+            auto gutter_rect = context.rounded_device_rect(scrollbar_data->gutter_rect).to_type<int>();
+            auto thumb_rect = context.rounded_device_rect(scrollbar_data->thumb_rect).to_type<int>();
+            context.display_list_recorder().paint_scrollbar(own_scroll_frame_id().value(), gutter_rect, thumb_rect, scrollbar_data->scroll_length, false);
         }
     }
 

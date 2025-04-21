@@ -403,14 +403,15 @@ struct PaintNestedDisplayList {
 };
 
 struct PaintScrollBar {
-    int scroll_frame_id;
-    Gfx::IntRect rect;
+    int scroll_frame_id { 0 };
+    Gfx::IntRect gutter_rect;
+    Gfx::IntRect thumb_rect;
     CSSPixelFraction scroll_size;
     bool vertical;
 
     void translate_by(Gfx::IntPoint const& offset)
     {
-        rect.translate_by(offset);
+        thumb_rect.translate_by(offset);
     }
 };
 
