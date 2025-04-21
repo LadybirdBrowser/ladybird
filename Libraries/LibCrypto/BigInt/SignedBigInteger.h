@@ -52,11 +52,6 @@ public:
     {
     }
 
-    [[nodiscard]] static SignedBigInteger create_invalid()
-    {
-        return { UnsignedBigInteger::create_invalid(), false };
-    }
-
     [[nodiscard]] static SignedBigInteger import_data(StringView data) { return import_data((u8 const*)data.characters_without_null_termination(), data.length()); }
     [[nodiscard]] static SignedBigInteger import_data(u8 const* ptr, size_t length);
 

@@ -55,8 +55,6 @@ public:
 
     UnsignedBigInteger() = default;
 
-    [[nodiscard]] static UnsignedBigInteger create_invalid();
-
     [[nodiscard]] static UnsignedBigInteger import_data(StringView data) { return import_data((u8 const*)data.characters_without_null_termination(), data.length()); }
     [[nodiscard]] static UnsignedBigInteger import_data(u8 const* ptr, size_t length)
     {

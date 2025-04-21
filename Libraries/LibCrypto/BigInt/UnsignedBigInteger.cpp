@@ -97,13 +97,6 @@ UnsignedBigInteger::UnsignedBigInteger(double value)
     VERIFY(raw_mantissa == 0);
 }
 
-UnsignedBigInteger UnsignedBigInteger::create_invalid()
-{
-    UnsignedBigInteger invalid(0);
-    invalid.invalidate();
-    return invalid;
-}
-
 size_t UnsignedBigInteger::export_data(Bytes data, bool remove_leading_zeros) const
 {
     size_t word_count = trimmed_length();
