@@ -69,10 +69,10 @@ void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnaps
             auto scroll_offset = scroll_state.own_offset_for_frame_with_id(paint_scroll_bar.scroll_frame_id);
             if (paint_scroll_bar.vertical) {
                 auto offset = scroll_offset.y() * paint_scroll_bar.scroll_size;
-                paint_scroll_bar.rect.translate_by(0, -offset.to_int() * device_pixels_per_css_pixel);
+                paint_scroll_bar.thumb_rect.translate_by(0, -offset.to_int() * device_pixels_per_css_pixel);
             } else {
                 auto offset = scroll_offset.x() * paint_scroll_bar.scroll_size;
-                paint_scroll_bar.rect.translate_by(-offset.to_int() * device_pixels_per_css_pixel, 0);
+                paint_scroll_bar.thumb_rect.translate_by(-offset.to_int() * device_pixels_per_css_pixel, 0);
             }
         }
 
