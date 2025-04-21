@@ -31,6 +31,7 @@
 #include <LibWeb/CSS/StyleValues/CSSLightDark.h>
 #include <LibWeb/CSS/StyleValues/CSSRGB.h>
 #include <LibWeb/CSS/StyleValues/ColorFunctionStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ColorMixStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ConicGradientStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterDefinitionsStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterStyleValue.h>
@@ -1691,6 +1692,130 @@ RefPtr<CSSStyleValue const> Parser::parse_color_function(TokenStream<ComponentVa
         alpha.release_nonnull());
 }
 
+// https://drafts.csswg.org/css-color-5/#color-mix
+RefPtr<CSSStyleValue const> Parser::parse_color_mix_function(TokenStream<ComponentValue>& tokens)
+{
+    auto parse_color_interpolation_method = [this](TokenStream<ComponentValue>& function_tokens) -> Optional<ColorMixStyleValue::ColorInterpolationMethod> {
+        // <rectangular-color-space> = srgb | srgb-linear | display-p3 | a98-rgb | prophoto-rgb | rec2020 | lab | oklab | xyz | xyz-d50 | xyz-d65
+        // <polar-color-space> = hsl | hwb | lch | oklch
+        // <custom-color-space> = <dashed-ident>
+        // <hue-interpolation-method> = [ shorter | longer | increasing | decreasing ] hue
+        // <color-interpolation-method> = in [ <rectangular-color-space> | <polar-color-space> <hue-interpolation-method>? | <custom-color-space> ]
+        function_tokens.discard_whitespace();
+        if (!function_tokens.consume_a_token().is_ident("in"sv))
+            return {};
+        function_tokens.discard_whitespace();
+
+        String color_space;
+        Optional<HueInterpolationMethod> hue_interpolation_method;
+        auto color_space_value = parse_keyword_value(function_tokens);
+        if (color_space_value) {
+            auto color_space_keyword = color_space_value->to_keyword();
+            color_space = MUST(String::from_utf8(string_from_keyword(color_space_keyword)));
+            if (auto polar_color_space = keyword_to_polar_color_space(color_space_keyword); polar_color_space.has_value()) {
+                function_tokens.discard_whitespace();
+                if (auto hue_interpolation_method_keyword = parse_keyword_value(function_tokens)) {
+                    hue_interpolation_method = keyword_to_hue_interpolation_method(hue_interpolation_method_keyword->to_keyword());
+                    if (!hue_interpolation_method.has_value())
+                        return {};
+
+                    function_tokens.discard_whitespace();
+                    if (!function_tokens.consume_a_token().is_ident("hue"sv))
+                        return {};
+
+                    function_tokens.discard_whitespace();
+                }
+            }
+        } else {
+            auto color_space_token = function_tokens.consume_a_token();
+            if (color_space_token.token().type() != Token::Type::Ident)
+                return {};
+            color_space = color_space_token.token().ident().to_string();
+        }
+        function_tokens.discard_whitespace();
+
+        return ColorMixStyleValue::ColorInterpolationMethod {
+            .color_space = color_space,
+            .hue_interpolation_method = hue_interpolation_method,
+        };
+    };
+
+    auto parse_component = [this](TokenStream<ComponentValue>& function_tokens) -> Optional<ColorMixStyleValue::ColorMixComponent> {
+        function_tokens.discard_whitespace();
+        auto percentage_style_value = parse_percentage_value(function_tokens);
+        function_tokens.discard_whitespace();
+        auto color_style_value = parse_color_value(function_tokens);
+        if (!color_style_value)
+            return {};
+        function_tokens.discard_whitespace();
+        if (!percentage_style_value) {
+            percentage_style_value = parse_percentage_value(function_tokens);
+            function_tokens.discard_whitespace();
+        }
+        if (percentage_style_value && !percentage_style_value->is_calculated()) {
+            auto percentage = percentage_style_value->as_percentage().percentage().value();
+            if (percentage < 0 || percentage > 100)
+                return {};
+        }
+        Optional<PercentageOrCalculated> percentage_or_calculated;
+        if (percentage_style_value) {
+            if (percentage_style_value->is_calculated()) {
+                percentage_or_calculated = PercentageOrCalculated { percentage_style_value->as_calculated() };
+            } else if (percentage_style_value->is_percentage()) {
+                percentage_or_calculated = PercentageOrCalculated { percentage_style_value->as_percentage().percentage() };
+            } else {
+                VERIFY_NOT_REACHED();
+            }
+        }
+
+        return ColorMixStyleValue::ColorMixComponent {
+            .color = color_style_value.release_nonnull(),
+            .percentage = move(percentage_or_calculated),
+        };
+    };
+
+    // color-mix() = color-mix( <color-interpolation-method> , [ <color> && <percentage [0,100]>? ]#{2})
+    auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
+
+    auto const& function_token = tokens.consume_a_token();
+    if (!function_token.is_function("color-mix"sv))
+        return {};
+
+    auto context_guard = push_temporary_value_parsing_context(FunctionContext { function_token.function().name });
+    auto function_tokens = TokenStream { function_token.function().value };
+    auto color_interpolation_method = parse_color_interpolation_method(function_tokens);
+    if (!color_interpolation_method.has_value())
+        return {};
+    function_tokens.discard_whitespace();
+    if (!function_tokens.consume_a_token().is(Token::Type::Comma))
+        return {};
+
+    auto first_component = parse_component(function_tokens);
+    if (!first_component.has_value())
+        return {};
+    tokens.discard_whitespace();
+    if (!function_tokens.consume_a_token().is(Token::Type::Comma))
+        return {};
+
+    auto second_component = parse_component(function_tokens);
+    if (!second_component.has_value())
+        return {};
+
+    if (first_component->percentage.has_value() && second_component->percentage.has_value()
+        && !first_component->percentage->is_calculated() && !second_component->percentage->is_calculated()
+        && first_component->percentage->value().value() == 0 && second_component->percentage->value().value() == 0) {
+        return {};
+    }
+
+    tokens.discard_whitespace();
+    if (function_tokens.has_next_token())
+        return {};
+
+    transaction.commit();
+    return ColorMixStyleValue::create(move(*color_interpolation_method), move(*first_component), move(*second_component));
+}
+
 // https://drafts.csswg.org/css-color-5/#funcdef-light-dark
 RefPtr<CSSStyleValue const> Parser::parse_light_dark_color_value(TokenStream<ComponentValue>& outer_tokens)
 {
@@ -1740,6 +1865,9 @@ RefPtr<CSSStyleValue const> Parser::parse_color_value(TokenStream<ComponentValue
 
     // Functions
     if (auto color = parse_color_function(tokens))
+        return color;
+
+    if (auto color = parse_color_mix_function(tokens))
         return color;
 
     if (auto rgb = parse_rgb_color_value(tokens))

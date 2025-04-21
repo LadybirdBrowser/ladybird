@@ -329,6 +329,12 @@
     "ui-monospace",
     "ui-rounded"
   ],
+  "hue-interpolation-method": [
+    "shorter",
+    "longer",
+    "increasing",
+    "decreasing"
+  ],
   "image-rendering": [
     "auto",
     "crisp-edges",
@@ -468,6 +474,12 @@
     "auto",
     "all",
     "none"
+  ],
+  "polar-color-space": [
+    "hsl",
+    "hwb",
+    "lch",
+    "oklch"
   ],
   "positioning": [
     "absolute",

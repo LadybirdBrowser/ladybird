@@ -45,6 +45,7 @@ public:
         XYZD50,
         XYZD65,
         LightDark, // This is used by CSSLightDark for light-dark(..., ...).
+        ColorMix,
     };
     ColorType color_type() const { return m_color_type; }
     ColorSyntax color_syntax() const { return m_color_syntax; }
