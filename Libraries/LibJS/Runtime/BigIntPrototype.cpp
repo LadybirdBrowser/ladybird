@@ -74,7 +74,7 @@ JS_DEFINE_NATIVE_FUNCTION(BigIntPrototype::to_string)
     }
 
     // 5. Return BigInt::toString(x, radixMV).
-    return PrimitiveString::create(vm, bigint->big_integer().to_base_deprecated(radix));
+    return PrimitiveString::create(vm, TRY_OR_THROW_OOM(vm, bigint->big_integer().to_base(radix)));
 }
 
 // 21.2.3.2 BigInt.prototype.toLocaleString ( [ reserved1 [ , reserved2 ] ] ), https://tc39.es/ecma262/#sec-bigint.prototype.tolocalestring

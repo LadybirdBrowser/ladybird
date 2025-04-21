@@ -166,11 +166,6 @@ ErrorOr<String> UnsignedBigInteger::to_base(u16 N) const
     return TRY(builder.to_string()).reverse();
 }
 
-ByteString UnsignedBigInteger::to_base_deprecated(u16 N) const
-{
-    return MUST(to_base(N)).to_byte_string();
-}
-
 u64 UnsignedBigInteger::to_u64() const
 {
     static_assert(sizeof(Word) == 4);
