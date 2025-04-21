@@ -1008,6 +1008,7 @@ void DisplayListPlayerSkia::paint_scrollbar(PaintScrollBar const& command)
     SkPaint stroke_paint;
     stroke_paint.setStroke(true);
     stroke_paint.setStrokeWidth(1);
+    stroke_paint.setAntiAlias(true);
     stroke_paint.setColor(to_skia_color(stroke_color));
     canvas.drawRRect(rrect, stroke_paint);
 }
