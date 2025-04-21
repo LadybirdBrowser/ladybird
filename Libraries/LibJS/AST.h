@@ -2075,7 +2075,7 @@ private:
 
 class CatchClause final : public ASTNode {
 public:
-    CatchClause(SourceRange source_range, FlyString parameter, NonnullRefPtr<BlockStatement const> body)
+    CatchClause(SourceRange source_range, NonnullRefPtr<Identifier const> parameter, NonnullRefPtr<BlockStatement const> body)
         : ASTNode(move(source_range))
         , m_parameter(move(parameter))
         , m_body(move(body))
@@ -2089,13 +2089,20 @@ public:
     {
     }
 
+    CatchClause(SourceRange source_range, NonnullRefPtr<BlockStatement const> body)
+        : ASTNode(move(source_range))
+        , m_parameter(Empty {})
+        , m_body(move(body))
+    {
+    }
+
     auto& parameter() const { return m_parameter; }
     BlockStatement const& body() const { return m_body; }
 
     virtual void dump(int indent) const override;
 
 private:
-    Variant<FlyString, NonnullRefPtr<BindingPattern const>> m_parameter;
+    Variant<NonnullRefPtr<Identifier const>, NonnullRefPtr<BindingPattern const>, Empty> m_parameter;
     NonnullRefPtr<BlockStatement const> m_body;
 };
 

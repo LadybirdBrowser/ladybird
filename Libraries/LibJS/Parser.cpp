@@ -105,7 +105,7 @@ public:
         return scope_pusher;
     }
 
-    static ScopePusher catch_scope(Parser& parser, RefPtr<BindingPattern const> const& pattern, FlyString const& parameter)
+    static ScopePusher catch_scope(Parser& parser, RefPtr<BindingPattern const> const& pattern, RefPtr<Identifier const> const& parameter)
     {
         ScopePusher scope_pusher(parser, nullptr, ScopeLevel::NotTopLevel, ScopeType::Catch);
         if (pattern) {
@@ -114,9 +114,9 @@ public:
                 scope_pusher.m_forbidden_var_names.set(identifier.string());
                 scope_pusher.m_bound_names.set(identifier.string());
             }));
-        } else if (!parameter.is_empty()) {
-            scope_pusher.m_var_names.set(parameter);
-            scope_pusher.m_bound_names.set(parameter);
+        } else if (parameter) {
+            scope_pusher.m_var_names.set(parameter->string());
+            scope_pusher.m_bound_names.set(parameter->string());
         }
 
         return scope_pusher;
@@ -3777,7 +3777,7 @@ NonnullRefPtr<CatchClause const> Parser::parse_catch_clause()
     auto rule_start = push_start();
     consume(TokenType::Catch);
 
-    FlyString parameter;
+    RefPtr<Identifier const> parameter;
     RefPtr<BindingPattern const> pattern_parameter;
     auto should_expect_parameter = false;
     if (match(TokenType::ParenOpen)) {
@@ -3787,14 +3787,15 @@ NonnullRefPtr<CatchClause const> Parser::parse_catch_clause()
         if (match_identifier_name()
             && (!match(TokenType::Yield) || !m_state.in_generator_function_context)
             && (!match(TokenType::Async) || !m_state.await_expression_is_valid)
-            && (!match(TokenType::Await) || !m_state.in_class_static_init_block))
-            parameter = consume().fly_string_value();
-        else
+            && (!match(TokenType::Await) || !m_state.in_class_static_init_block)) {
+            parameter = parse_identifier();
+        } else {
             pattern_parameter = parse_binding_pattern(AllowDuplicates::No, AllowMemberExpressions::No);
+        }
         consume(TokenType::ParenClose);
     }
 
-    if (should_expect_parameter && parameter.is_empty() && !pattern_parameter)
+    if (should_expect_parameter && !parameter && !pattern_parameter)
         expected("an identifier or a binding pattern");
 
     HashTable<FlyString> bound_names;
@@ -3808,9 +3809,9 @@ NonnullRefPtr<CatchClause const> Parser::parse_catch_clause()
             }));
     }
 
-    if (!parameter.is_empty()) {
-        check_identifier_name_for_assignment_validity(parameter);
-        bound_names.set(parameter);
+    if (parameter) {
+        check_identifier_name_for_assignment_validity(parameter->string());
+        bound_names.set(parameter->string());
     }
 
     ScopePusher catch_scope = ScopePusher::catch_scope(*this, pattern_parameter, parameter);
@@ -3829,9 +3830,15 @@ NonnullRefPtr<CatchClause const> Parser::parse_catch_clause()
             move(body));
     }
 
+    if (parameter) {
+        return create_ast_node<CatchClause>(
+            { m_source_code, rule_start.position(), position() },
+            parameter.release_nonnull(),
+            move(body));
+    }
+
     return create_ast_node<CatchClause>(
         { m_source_code, rule_start.position(), position() },
-        move(parameter),
         move(body));
 }
 
