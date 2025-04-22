@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2020-2023, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2022-2023, Linus Groh <linusg@serenityos.org>
+ * Copyright (c) 2025, Shannon Booth <shannon@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -99,7 +100,7 @@ WebIDL::ExceptionOr<void> Location::navigate(URL::URL url, Bindings::NavigationH
     }
 
     // 4. Navigate navigable to url using sourceDocument, with exceptionsEnabled set to true and historyHandling set to historyHandling.
-    TRY(navigable->navigate({ .url = url,
+    TRY(navigable->navigate({ .url = move(url),
         .source_document = source_document,
         .exceptions_enabled = true,
         .history_handling = history_handling }));
@@ -235,10 +236,32 @@ WebIDL::ExceptionOr<String> Location::host() const
     return TRY_OR_THROW_OOM(vm, String::formatted("{}:{}", url.serialized_host(), *url.port()));
 }
 
-WebIDL::ExceptionOr<void> Location::set_host(String const&)
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-location-host
+WebIDL::ExceptionOr<void> Location::set_host(String const& value)
 {
-    auto& vm = this->vm();
-    return vm.throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, "Location.host setter");
+    // 1. If this's relevant Document is null, then return.
+    auto const relevant_document = this->relevant_document();
+    if (!relevant_document)
+        return {};
+
+    // 2. If this's relevant Document's origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
+    if (!relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
+        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_string);
+
+    // 3. Let copyURL be a copy of this's url.
+    auto copy_url = this->url();
+
+    // 4. If copyURL has an opaque path, then return.
+    if (copy_url.has_an_opaque_path())
+        return {};
+
+    // 5. Basic URL parse the given value, with copyURL as url and host state as state override.
+    (void)URL::Parser::basic_parse(value, {}, &copy_url, URL::Parser::State::Host);
+
+    // 6. Location-object navigate this to copyURL.
+    TRY(navigate(copy_url));
+
+    return {};
 }
 
 // https://html.spec.whatwg.org/multipage/history.html#dom-location-hostname
@@ -259,10 +282,32 @@ WebIDL::ExceptionOr<String> Location::hostname() const
     return url.serialized_host();
 }
 
-WebIDL::ExceptionOr<void> Location::set_hostname(String const&)
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-location-hostname
+WebIDL::ExceptionOr<void> Location::set_hostname(String const& value)
 {
-    auto& vm = this->vm();
-    return vm.throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, "Location.hostname setter");
+    // 1. If this's relevant Document is null, then return.
+    auto const relevant_document = this->relevant_document();
+    if (!relevant_document)
+        return {};
+
+    // 2. If this's relevant Document's origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
+    if (!relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
+        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_string);
+
+    // 3. Let copyURL be a copy of this's url.
+    auto copy_url = this->url();
+
+    // 4. If copyURL has an opaque path, then return.
+    if (copy_url.has_an_opaque_path())
+        return {};
+
+    // 5. Basic URL parse the given value, with copyURL as url and hostname state as state override.
+    (void)URL::Parser::basic_parse(value, {}, &copy_url, URL::Parser::State::Hostname);
+
+    // 6. Location-object navigate this to copyURL.
+    TRY(navigate(copy_url));
+
+    return {};
 }
 
 // https://html.spec.whatwg.org/multipage/history.html#dom-location-port
@@ -283,10 +328,38 @@ WebIDL::ExceptionOr<String> Location::port() const
     return String::number(*url.port());
 }
 
-WebIDL::ExceptionOr<void> Location::set_port(String const&)
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-location-port
+WebIDL::ExceptionOr<void> Location::set_port(String const& value)
 {
-    auto& vm = this->vm();
-    return vm.throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, "Location.port setter");
+    // 1. If this's relevant Document is null, then return.
+    auto const relevant_document = this->relevant_document();
+    if (!relevant_document)
+        return {};
+
+    // 2. If this's relevant Document's origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
+    if (!relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
+        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_string);
+
+    // 3. Let copyURL be a copy of this's url.
+    auto copy_url = this->url();
+
+    // 4. If copyURL cannot have a username/password/port, then return.
+    if (copy_url.cannot_have_a_username_or_password_or_port())
+        return {};
+
+    // 5. If the given value is the empty string, then set copyURL's port to null.
+    if (value.is_empty()) {
+        copy_url.set_port({});
+    }
+    // 5. Otherwise, basic URL parse the given value, with copyURL as url and port state as state override.
+    else {
+        (void)URL::Parser::basic_parse(value, {}, &copy_url, URL::Parser::State::Port);
+    }
+
+    // 6. Location-object navigate this to copyURL.
+    TRY(navigate(copy_url));
+
+    return {};
 }
 
 // https://html.spec.whatwg.org/multipage/history.html#dom-location-pathname
@@ -301,10 +374,35 @@ WebIDL::ExceptionOr<String> Location::pathname() const
     return url().serialize_path();
 }
 
-WebIDL::ExceptionOr<void> Location::set_pathname(String const&)
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-location-search
+WebIDL::ExceptionOr<void> Location::set_pathname(String const& value)
 {
-    auto& vm = this->vm();
-    return vm.throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, "Location.pathname setter");
+    // 1. If this's relevant Document is null, then return.
+    auto const relevant_document = this->relevant_document();
+    if (!relevant_document)
+        return {};
+
+    // 2. If this's relevant Document's origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
+    if (!relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
+        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_string);
+
+    // 3. Let copyURL be a copy of this's url.
+    auto copy_url = this->url();
+
+    // 4. If copyURL has an opaque path, then return.
+    if (copy_url.has_an_opaque_path())
+        return {};
+
+    // 5. Set copyURL's path to the empty list.
+    copy_url.set_paths({});
+
+    // 6. Basic URL parse the given value, with copyURL as url and path start state as state override.
+    (void)URL::Parser::basic_parse(value, {}, &copy_url, URL::Parser::State::PathStart);
+
+    // 7. Location-object navigate this to copyURL.
+    TRY(navigate(copy_url));
+
+    return {};
 }
 
 // https://html.spec.whatwg.org/multipage/history.html#dom-location-search
