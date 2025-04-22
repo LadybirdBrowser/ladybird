@@ -500,15 +500,17 @@ ThrowCompletionOr<Value> ECMAScriptFunctionObject::internal_call(Value this_argu
         m_bytecode_executable = ecmascript_code().bytecode_executable();
     }
 
-    auto callee_context = ExecutionContext::create(m_bytecode_executable->number_of_registers + m_bytecode_executable->constants.size() + m_bytecode_executable->local_variable_names.size());
+    u32 arguments_count = max(arguments_list.size(), formal_parameters().size());
+    auto callee_context = ExecutionContext::create(m_bytecode_executable->number_of_registers + m_bytecode_executable->constants.size() + m_bytecode_executable->local_variable_names.size(), arguments_count);
 
     // Non-standard
-    callee_context->arguments.ensure_capacity(max(arguments_list.size(), formal_parameters().size()));
-    callee_context->arguments.append(arguments_list.data(), arguments_list.size());
+    auto arguments = callee_context->arguments();
+    if (!arguments_list.is_empty())
+        arguments.overwrite(0, arguments_list.data(), arguments_list.size() * sizeof(Value));
     callee_context->passed_argument_count = arguments_list.size();
     if (arguments_list.size() < formal_parameters().size()) {
         for (size_t i = arguments_list.size(); i < formal_parameters().size(); ++i)
-            callee_context->arguments.append(js_undefined());
+            arguments[i] = js_undefined();
     }
 
     // 2. Let calleeContext be PrepareForOrdinaryCall(F, undefined).
@@ -568,15 +570,17 @@ ThrowCompletionOr<GC::Ref<Object>> ECMAScriptFunctionObject::internal_construct(
         m_bytecode_executable = ecmascript_code().bytecode_executable();
     }
 
-    auto callee_context = ExecutionContext::create(m_bytecode_executable->number_of_registers + m_bytecode_executable->constants.size() + m_bytecode_executable->local_variable_names.size());
+    u32 arguments_count = max(arguments_list.size(), formal_parameters().size());
+    auto callee_context = ExecutionContext::create(m_bytecode_executable->number_of_registers + m_bytecode_executable->constants.size() + m_bytecode_executable->local_variable_names.size(), arguments_count);
 
     // Non-standard
-    callee_context->arguments.ensure_capacity(max(arguments_list.size(), formal_parameters().size()));
-    callee_context->arguments.append(arguments_list.data(), arguments_list.size());
+    auto arguments = callee_context->arguments();
+    if (!arguments_list.is_empty())
+        arguments.overwrite(0, arguments_list.data(), arguments_list.size() * sizeof(Value));
     callee_context->passed_argument_count = arguments_list.size();
     if (arguments_list.size() < formal_parameters().size()) {
         for (size_t i = arguments_list.size(); i < formal_parameters().size(); ++i)
-            callee_context->arguments.append(js_undefined());
+            arguments[i] = js_undefined();
     }
 
     // 1. Let callerContext be the running execution context.

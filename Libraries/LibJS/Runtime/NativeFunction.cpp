@@ -119,7 +119,7 @@ ThrowCompletionOr<Value> NativeFunction::internal_call(Value this_argument, Read
 
     // 2. If callerContext is not already suspended, suspend callerContext.
     // 3. Let calleeContext be a new execution context.
-    auto callee_context = ExecutionContext::create(0);
+    auto callee_context = ExecutionContext::create(0, arguments_list.size());
 
     // 4. Set the Function of calleeContext to F.
     callee_context->function = this;
@@ -144,7 +144,8 @@ ThrowCompletionOr<Value> NativeFunction::internal_call(Value this_argument, Read
 
     // 8. Perform any necessary implementation-defined initialization of calleeContext.
     callee_context->this_value = this_argument;
-    callee_context->arguments.append(arguments_list.data(), arguments_list.size());
+    if (!arguments_list.is_empty())
+        callee_context->arguments().overwrite(0, arguments_list.data(), arguments_list.size() * sizeof(Value));
 
     callee_context->lexical_environment = caller_context.lexical_environment;
     callee_context->variable_environment = caller_context.variable_environment;
@@ -180,7 +181,7 @@ ThrowCompletionOr<GC::Ref<Object>> NativeFunction::internal_construct(ReadonlySp
 
     // 2. If callerContext is not already suspended, suspend callerContext.
     // 3. Let calleeContext be a new execution context.
-    auto callee_context = ExecutionContext::create(0);
+    auto callee_context = ExecutionContext::create(0, arguments_list.size());
 
     // 4. Set the Function of calleeContext to F.
     callee_context->function = this;
@@ -204,7 +205,8 @@ ThrowCompletionOr<GC::Ref<Object>> NativeFunction::internal_construct(ReadonlySp
     // Note: This is already the default value.
 
     // 8. Perform any necessary implementation-defined initialization of calleeContext.
-    callee_context->arguments.append(arguments_list.data(), arguments_list.size());
+    if (!arguments_list.is_empty())
+        callee_context->arguments().overwrite(0, arguments_list.data(), arguments_list.size() * sizeof(Value));
 
     callee_context->lexical_environment = caller_context.lexical_environment;
     callee_context->variable_environment = caller_context.variable_environment;

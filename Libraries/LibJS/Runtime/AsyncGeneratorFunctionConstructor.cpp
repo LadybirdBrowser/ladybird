@@ -47,7 +47,7 @@ ThrowCompletionOr<GC::Ref<Object>> AsyncGeneratorFunctionConstructor::construct(
 
     // 2. If bodyArg is not present, set bodyArg to the empty String.
     // NOTE: This does that, as well as the string extraction done inside of CreateDynamicFunction
-    auto extracted = TRY(extract_parameter_arguments_and_body(vm, vm.running_execution_context().arguments));
+    auto extracted = TRY(extract_parameter_arguments_and_body(vm, vm.running_execution_context().arguments()));
 
     // 3. Return ? CreateDynamicFunction(C, NewTarget, async-generator, parameterArgs, bodyArg).
     return TRY(FunctionConstructor::create_dynamic_function(vm, *constructor, &new_target, FunctionKind::AsyncGenerator, extracted.parameters, extracted.body));

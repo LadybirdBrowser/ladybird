@@ -32,7 +32,7 @@ struct CachedSourceRange : public RefCounted<CachedSourceRange> {
 
 // 9.4 Execution Contexts, https://tc39.es/ecma262/#sec-execution-contexts
 struct ExecutionContext {
-    static NonnullOwnPtr<ExecutionContext> create(u32);
+    static NonnullOwnPtr<ExecutionContext> create(u32 registers_and_constants_and_locals_count, u32 arguments_count);
     [[nodiscard]] NonnullOwnPtr<ExecutionContext> copy() const;
 
     ~ExecutionContext();
@@ -72,24 +72,34 @@ public:
 
     Value argument(size_t index) const
     {
-        if (index >= arguments.size()) [[unlikely]]
+        auto arguments_size = registers_and_constants_and_locals_and_arguments.size() - arguments_offset;
+        if (index >= arguments_size) [[unlikely]]
             return js_undefined();
-        return arguments[index];
+        return registers_and_constants_and_locals_and_arguments[arguments_offset + index];
     }
 
     Value& local(size_t index)
     {
-        return registers_and_constants_and_locals[index];
+        return registers_and_constants_and_locals_and_arguments[index];
     }
 
+    u32 arguments_offset { 0 };
     u32 passed_argument_count { 0 };
     bool is_strict_mode { false };
 
-    Vector<Value> arguments;
+    Span<Value> arguments()
+    {
+        return registers_and_constants_and_locals_and_arguments.span().slice(arguments_offset);
+    }
+
+    ReadonlySpan<Value> arguments() const
+    {
+        return registers_and_constants_and_locals_and_arguments.span().slice(arguments_offset);
+    }
 
 private:
     friend class Bytecode::Interpreter;
-    Vector<Value> registers_and_constants_and_locals;
+    Vector<Value> registers_and_constants_and_locals_and_arguments;
 
 public:
     Vector<Bytecode::UnwindInfo> unwind_contexts;

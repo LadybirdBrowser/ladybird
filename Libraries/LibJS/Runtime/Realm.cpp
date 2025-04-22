@@ -36,7 +36,7 @@ ThrowCompletionOr<NonnullOwnPtr<ExecutionContext>> Realm::initialize_host_define
     // FIXME: 6. Set realm.[[TemplateMap]] to a new empty List.
 
     // 7. Let newContext be a new execution context.
-    auto new_context = ExecutionContext::create(0);
+    auto new_context = ExecutionContext::create(0, 0);
 
     // 8. Set the Function of newContext to null.
     new_context->function = nullptr;
