@@ -1,16 +1,20 @@
 #!/usr/bin/env python3
 
+import json
 import os
-import subprocess
 import pathlib
+import subprocess
 import sys
 
 
 def main() -> int:
     script_dir = pathlib.Path(__file__).parent.resolve()
 
+    with open(script_dir.parent / "vcpkg.json", "r") as vcpkg_json_file:
+        vcpkg_json = json.load(vcpkg_json_file)
+
     git_repo = "https://github.com/microsoft/vcpkg.git"
-    git_rev = "d6995a0cf3cafda5e9e52749fad075dd62bfd90c"  # main on 2025-05-22
+    git_rev = vcpkg_json["builtin-baseline"]
 
     build_dir = script_dir.parent / "Build"
     build_dir.mkdir(parents=True, exist_ok=True)
