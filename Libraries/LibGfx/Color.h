@@ -82,16 +82,62 @@ public:
 
     using enum NamedColor;
 
+    enum class BrandedColor {
+        Indigo10,
+        Indigo20,
+        Indigo30,
+        Indigo40,
+        Indigo50,
+        Indigo60,
+        Indigo80,
+        Indigo100,
+        Indigo300,
+        Indigo500,
+        Indigo900,
+
+        Violet10,
+        Violet20,
+        Violet30,
+        Violet40,
+        Violet50,
+        Violet60,
+        Violet80,
+        Violet100,
+        Violet300,
+        Violet500,
+        Violet900,
+
+        SlateBlue10,
+        SlateBlue20,
+        SlateBlue30,
+        SlateBlue40,
+        SlateBlue50,
+        SlateBlue60,
+        SlateBlue80,
+        SlateBlue100,
+        SlateBlue300,
+        SlateBlue500,
+        SlateBlue900,
+
+        Violet = Violet100,
+        Indigo = Indigo100,
+        SlateBlue = SlateBlue100,
+    };
+
     constexpr Color() = default;
     constexpr Color(NamedColor);
+
     constexpr Color(u8 r, u8 g, u8 b)
         : m_value(0xff000000 | (r << 16) | (g << 8) | b)
     {
     }
+
     constexpr Color(u8 r, u8 g, u8 b, u8 a)
         : m_value((a << 24) | (r << 16) | (g << 8) | b)
     {
     }
+
+    static constexpr Color branded_color(BrandedColor);
 
     static constexpr Color from_rgb(unsigned rgb) { return Color(rgb | 0xff000000); }
     static constexpr Color from_argb(unsigned argb) { return Color(argb); }
@@ -647,6 +693,51 @@ constexpr Color::Color(NamedColor named)
     }
 
     m_value = 0xff000000 | (rgb.r << 16) | (rgb.g << 8) | rgb.b;
+}
+
+constexpr Color Color::branded_color(BrandedColor color)
+{
+    // clang-format off
+    switch (color) {
+    case BrandedColor::Indigo10:     return from_rgb(0xa5'a6'f2);
+    case BrandedColor::Indigo20:     return from_rgb(0x8a'88'eb);
+    case BrandedColor::Indigo30:     return from_rgb(0x68'51'd6);
+    case BrandedColor::Indigo40:     return from_rgb(0x55'3f'c4);
+    case BrandedColor::Indigo50:     return from_rgb(0x4d'37'b8);
+    case BrandedColor::Indigo60:     return from_rgb(0x3c'28'a1);
+    case BrandedColor::Indigo80:     return from_rgb(0x30'1f'82);
+    case BrandedColor::Indigo100:    return from_rgb(0x2a'13'73);
+    case BrandedColor::Indigo300:    return from_rgb(0x26'0f'73);
+    case BrandedColor::Indigo500:    return from_rgb(0x1d'0c'59);
+    case BrandedColor::Indigo900:    return from_rgb(0x19'0c'4a);
+
+    case BrandedColor::Violet10:     return from_rgb(0xe0'd4'ff);
+    case BrandedColor::Violet20:     return from_rgb(0xca'b5'ff);
+    case BrandedColor::Violet30:     return from_rgb(0xc3'ab'ff);
+    case BrandedColor::Violet40:     return from_rgb(0xb4'96'ff);
+    case BrandedColor::Violet50:     return from_rgb(0xab'8e'f5);
+    case BrandedColor::Violet60:     return from_rgb(0x9d'7c'f2);
+    case BrandedColor::Violet80:     return from_rgb(0x93'6f'ed);
+    case BrandedColor::Violet100:    return from_rgb(0x8a'64'e5);
+    case BrandedColor::Violet300:    return from_rgb(0x82'57'e6);
+    case BrandedColor::Violet500:    return from_rgb(0x7a'4c'e6);
+    case BrandedColor::Violet900:    return from_rgb(0x6a'39'db);
+
+    case BrandedColor::SlateBlue10:  return from_rgb(0xcb'e0'f7);
+    case BrandedColor::SlateBlue20:  return from_rgb(0xc1'd9'f5);
+    case BrandedColor::SlateBlue30:  return from_rgb(0xb6'd2'f2);
+    case BrandedColor::SlateBlue40:  return from_rgb(0xa8'c8'ed);
+    case BrandedColor::SlateBlue50:  return from_rgb(0x97'bc'e6);
+    case BrandedColor::SlateBlue60:  return from_rgb(0x86'ad'd9);
+    case BrandedColor::SlateBlue80:  return from_rgb(0x77'a1'd1);
+    case BrandedColor::SlateBlue100: return from_rgb(0x6d'98'cc);
+    case BrandedColor::SlateBlue300: return from_rgb(0x5c'8e'cc);
+    case BrandedColor::SlateBlue500: return from_rgb(0x54'84'bf);
+    case BrandedColor::SlateBlue900: return from_rgb(0x48'72'a3);
+    }
+    // clang-format on
+
+    VERIFY_NOT_REACHED();
 }
 
 }
