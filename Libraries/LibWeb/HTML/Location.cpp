@@ -47,11 +47,11 @@ void Location::initialize(JS::Realm& realm)
 
     auto& vm = this->vm();
 
-    // Step 2: Let valueOf be location's relevant realm.[[Intrinsics]].[[%Object.prototype.valueOf%]].
+    // 2. Let valueOf be location's relevant realm.[[Intrinsics]].[[%Object.prototype.valueOf%]].
     auto& intrinsics = realm.intrinsics();
     auto value_of_function = intrinsics.object_prototype()->get_without_side_effects(vm.names.valueOf);
 
-    // Step 3: Perform ! location.[[DefineOwnProperty]]("valueOf", { [[Value]]: valueOf, [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false }).
+    // 3. Perform ! location.[[DefineOwnProperty]]("valueOf", { [[Value]]: valueOf, [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false }).
     auto value_of_property_descriptor = JS::PropertyDescriptor {
         .value = value_of_function,
         .writable = false,
@@ -60,7 +60,7 @@ void Location::initialize(JS::Realm& realm)
     };
     MUST(internal_define_own_property(vm.names.valueOf, value_of_property_descriptor));
 
-    // Step 4: Perform ! location.[[DefineOwnProperty]](%Symbol.toPrimitive%, { [[Value]]: undefined, [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false }).
+    // 4. Perform ! location.[[DefineOwnProperty]](%Symbol.toPrimitive%, { [[Value]]: undefined, [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false }).
     auto to_primitive_property_descriptor = JS::PropertyDescriptor {
         .value = JS::js_undefined(),
         .writable = false,
@@ -350,14 +350,14 @@ WebIDL::ExceptionOr<void> Location::set_search(String const& value)
     }
     // 5. Otherwise, run these substeps:
     else {
-        // 5.1. Let input be the given value with a single leading "?" removed, if any.
+        // 1. Let input be the given value with a single leading "?" removed, if any.
         auto value_as_string_view = value.bytes_as_string_view();
         auto input = value_as_string_view.substring_view(value_as_string_view.starts_with('?'));
 
-        // 5.2. Set copyURL's query to the empty string.
+        // 2. Set copyURL's query to the empty string.
         copy_url.set_query(String {});
 
-        // 5.3. Basic URL parse input, with null, the relevant Document's document's character encoding, copyURL as url, and query state as state override.
+        // 3. Basic URL parse input, with null, the relevant Document's document's character encoding, copyURL as url, and query state as state override.
         (void)URL::Parser::basic_parse(input, {}, &copy_url, URL::Parser::State::Query);
     }
 
@@ -390,10 +390,8 @@ WebIDL::ExceptionOr<String> Location::hash() const
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-location-hash
 WebIDL::ExceptionOr<void> Location::set_hash(String const& value)
 {
-    // The hash setter steps are:
-    auto const relevant_document = this->relevant_document();
-
     // 1. If this's relevant Document is null, then return.
+    auto const relevant_document = this->relevant_document();
     if (!relevant_document)
         return {};
 
