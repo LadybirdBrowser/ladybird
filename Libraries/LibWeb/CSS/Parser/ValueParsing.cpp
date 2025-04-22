@@ -1732,10 +1732,17 @@ RefPtr<CSSStyleValue const> Parser::parse_color_mix_function(TokenStream<Compone
                 return {};
             color_space = color_space_token.token().ident().to_string();
         }
+
         function_tokens.discard_whitespace();
 
+        auto canonical_color_space_name = [](String const& color_space_name) {
+            if (color_space_name == "xyz"sv)
+                return "xyz-d65"_string;
+            return color_space_name;
+        };
+
         return ColorMixStyleValue::ColorInterpolationMethod {
-            .color_space = color_space,
+            .color_space = canonical_color_space_name(color_space),
             .hue_interpolation_method = hue_interpolation_method,
         };
     };
