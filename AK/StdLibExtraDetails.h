@@ -584,6 +584,12 @@ inline constexpr bool IsSameIgnoringCV = IsSame<RemoveCV<T>, RemoveCV<U>>;
 template<typename T, typename... Ts>
 inline constexpr bool IsOneOfIgnoringCV = (IsSameIgnoringCV<T, Ts> || ...);
 
+template<typename T, typename U>
+inline constexpr bool IsSameIgnoringCVReference = IsSame<RemoveCVReference<T>, RemoveCVReference<U>>;
+
+template<typename T, typename... Ts>
+inline constexpr bool IsOneOfIgnoringCVReference = (IsSameIgnoringCVReference<T, Ts> || ...);
+
 template<typename...>
 struct __InvokeResult { };
 
@@ -682,11 +688,13 @@ using AK::Detail::IsMoveConstructible;
 using AK::Detail::IsNullPointer;
 using AK::Detail::IsOneOf;
 using AK::Detail::IsOneOfIgnoringCV;
+using AK::Detail::IsOneOfIgnoringCVReference;
 using AK::Detail::IsPOD;
 using AK::Detail::IsPointer;
 using AK::Detail::IsRvalueReference;
 using AK::Detail::IsSame;
 using AK::Detail::IsSameIgnoringCV;
+using AK::Detail::IsSameIgnoringCVReference;
 using AK::Detail::IsSigned;
 using AK::Detail::IsSpecializationOf;
 using AK::Detail::IsTemplateBaseOf;
