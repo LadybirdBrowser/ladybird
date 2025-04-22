@@ -23,5 +23,5 @@ interface Module {
 
     static sequence<ModuleExportDescriptor> exports(Module moduleObject);
     static sequence<ModuleImportDescriptor> imports(Module moduleObject);
-    [FIXME] static sequence<ArrayBuffer> customSections(Module moduleObject, DOMString sectionName);
+    static sequence<ArrayBuffer> customSections(Module moduleObject, DOMString sectionName);
 };
