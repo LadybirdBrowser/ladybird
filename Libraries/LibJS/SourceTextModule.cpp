@@ -107,7 +107,7 @@ SourceTextModule::SourceTextModule(Realm& realm, StringView filename, Script::Ho
     RefPtr<ExportStatement const> default_export)
     : CyclicModule(realm, filename, has_top_level_await, move(requested_modules), host_defined)
     , m_ecmascript_code(move(body))
-    , m_execution_context(ExecutionContext::create())
+    , m_execution_context(ExecutionContext::create(0))
     , m_import_entries(move(import_entries))
     , m_local_export_entries(move(local_export_entries))
     , m_indirect_export_entries(move(indirect_export_entries))
@@ -680,8 +680,28 @@ ThrowCompletionOr<void> SourceTextModule::execute_module(VM& vm, GC::Ptr<Promise
 {
     dbgln_if(JS_MODULE_DEBUG, "[JS MODULE] SourceTextModule::execute_module({}, PromiseCapability @ {})", filename(), capability.ptr());
 
+    GC::Ptr<Bytecode::Executable> executable;
+    if (!m_has_top_level_await) {
+        Completion result;
+
+        auto maybe_executable = Bytecode::compile(vm, m_ecmascript_code, FunctionKind::Normal, "ShadowRealmEval"_fly_string);
+        if (maybe_executable.is_error()) {
+            result = maybe_executable.release_error();
+        } else {
+            executable = maybe_executable.release_value();
+        }
+
+        if (result.is_error())
+            return result.release_error();
+    }
+
+    u32 registers_and_constants_and_locals_count = 0;
+    if (executable) {
+        registers_and_constants_and_locals_count = executable->number_of_registers + executable->constants.size() + executable->local_variable_names.size();
+    }
+
     // 1. Let moduleContext be a new ECMAScript code execution context.
-    auto module_context = ExecutionContext::create();
+    auto module_context = ExecutionContext::create(registers_and_constants_and_locals_count);
 
     // Note: This is not in the spec but we require it.
     module_context->is_strict_mode = true;
@@ -720,19 +740,11 @@ ThrowCompletionOr<void> SourceTextModule::execute_module(VM& vm, GC::Ptr<Promise
         // c. Let result be the result of evaluating module.[[ECMAScriptCode]].
         Completion result;
 
-        auto maybe_executable = Bytecode::compile(vm, m_ecmascript_code, FunctionKind::Normal, "ShadowRealmEval"_fly_string);
-        if (maybe_executable.is_error())
-            result = maybe_executable.release_error();
-        else {
-            auto executable = maybe_executable.release_value();
-
-            auto result_and_return_register = vm.bytecode_interpreter().run_executable(*executable, {});
-            if (result_and_return_register.value.is_error()) {
-                result = result_and_return_register.value.release_error();
-            } else {
-                // Resulting value is in the accumulator.
-                result = result_and_return_register.return_register_value.is_special_empty_value() ? js_undefined() : result_and_return_register.return_register_value;
-            }
+        auto result_and_return_register = vm.bytecode_interpreter().run_executable(*executable, {});
+        if (result_and_return_register.value.is_error()) {
+            result = result_and_return_register.value.release_error();
+        } else {
+            result = result_and_return_register.return_register_value.is_special_empty_value() ? js_undefined() : result_and_return_register.return_register_value;
         }
 
         // d. Let env be moduleContext's LexicalEnvironment.

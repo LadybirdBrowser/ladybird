@@ -33,9 +33,11 @@ private:
 
 static NeverDestroyed<ExecutionContextAllocator> s_execution_context_allocator;
 
-NonnullOwnPtr<ExecutionContext> ExecutionContext::create()
+NonnullOwnPtr<ExecutionContext> ExecutionContext::create(u32 count)
 {
-    return s_execution_context_allocator->allocate();
+    auto execution_context = s_execution_context_allocator->allocate();
+    execution_context->registers_and_constants_and_locals.resize_with_default_value(count, js_special_empty_value());
+    return execution_context;
 }
 
 void ExecutionContext::operator delete(void* ptr)
@@ -53,7 +55,7 @@ ExecutionContext::~ExecutionContext()
 
 NonnullOwnPtr<ExecutionContext> ExecutionContext::copy() const
 {
-    auto copy = create();
+    auto copy = create(registers_and_constants_and_locals.size());
     copy->function = function;
     copy->realm = realm;
     copy->script_or_module = script_or_module;

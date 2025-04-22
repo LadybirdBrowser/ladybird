@@ -32,7 +32,7 @@ struct CachedSourceRange : public RefCounted<CachedSourceRange> {
 
 // 9.4 Execution Contexts, https://tc39.es/ecma262/#sec-execution-contexts
 struct ExecutionContext {
-    static NonnullOwnPtr<ExecutionContext> create();
+    static NonnullOwnPtr<ExecutionContext> create(u32);
     [[nodiscard]] NonnullOwnPtr<ExecutionContext> copy() const;
 
     ~ExecutionContext();
@@ -86,7 +86,12 @@ public:
     bool is_strict_mode { false };
 
     Vector<Value> arguments;
+
+private:
+    friend class Bytecode::Interpreter;
     Vector<Value> registers_and_constants_and_locals;
+
+public:
     Vector<Bytecode::UnwindInfo> unwind_contexts;
     Vector<Optional<size_t>> previously_scheduled_jumps;
     Vector<GC::Ptr<Environment>> saved_lexical_environments;

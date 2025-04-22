@@ -119,7 +119,7 @@ ThrowCompletionOr<Value> NativeFunction::internal_call(Value this_argument, Read
 
     // 2. If callerContext is not already suspended, suspend callerContext.
     // 3. Let calleeContext be a new execution context.
-    auto callee_context = ExecutionContext::create();
+    auto callee_context = ExecutionContext::create(0);
 
     // 4. Set the Function of calleeContext to F.
     callee_context->function = this;
@@ -180,7 +180,7 @@ ThrowCompletionOr<GC::Ref<Object>> NativeFunction::internal_construct(ReadonlySp
 
     // 2. If callerContext is not already suspended, suspend callerContext.
     // 3. Let calleeContext be a new execution context.
-    auto callee_context = ExecutionContext::create();
+    auto callee_context = ExecutionContext::create(0);
 
     // 4. Set the Function of calleeContext to F.
     callee_context->function = this;

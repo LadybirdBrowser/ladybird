@@ -208,8 +208,41 @@ ThrowCompletionOr<Value> Interpreter::run(Script& script_record, GC::Ptr<Environ
     // 1. Let globalEnv be scriptRecord.[[Realm]].[[GlobalEnv]].
     auto& global_environment = script_record.realm().global_environment();
 
+    // NOTE: Spec steps are rearranged in order to compute number of registers+constants+locals before construction of the execution context.
+
+    // 11. Let script be scriptRecord.[[ECMAScriptCode]].
+    auto& script = script_record.parse_node();
+
+    // 12. Let result be Completion(GlobalDeclarationInstantiation(script, globalEnv)).
+    auto instantiation_result = script.global_declaration_instantiation(vm, global_environment);
+    Completion result = instantiation_result.is_throw_completion() ? instantiation_result.throw_completion() : normal_completion(js_undefined());
+
+    GC::Ptr<Executable> executable;
+    if (result.type() == Completion::Type::Normal) {
+        auto executable_result = JS::Bytecode::Generator::generate_from_ast_node(vm, script, {});
+
+        if (executable_result.is_error()) {
+            if (auto error_string = executable_result.error().to_string(); error_string.is_error())
+                result = vm.template throw_completion<JS::InternalError>(vm.error_message(JS::VM::ErrorMessage::OutOfMemory));
+            else if (error_string = String::formatted("TODO({})", error_string.value()); error_string.is_error())
+                result = vm.template throw_completion<JS::InternalError>(vm.error_message(JS::VM::ErrorMessage::OutOfMemory));
+            else
+                result = vm.template throw_completion<JS::InternalError>(error_string.release_value());
+        } else {
+            executable = executable_result.release_value();
+
+            if (g_dump_bytecode)
+                executable->dump();
+        }
+    }
+
+    u32 registers_and_constants_and_locals_count = 0;
+    if (executable) {
+        registers_and_constants_and_locals_count = executable->number_of_registers + executable->constants.size() + executable->local_variable_names.size();
+    }
+
     // 2. Let scriptContext be a new ECMAScript code execution context.
-    auto script_context = ExecutionContext::create();
+    auto script_context = ExecutionContext::create(registers_and_constants_and_locals_count);
 
     // 3. Set the Function of scriptContext to null.
     // NOTE: This was done during execution context construction.
@@ -239,38 +272,14 @@ ThrowCompletionOr<Value> Interpreter::run(Script& script_record, GC::Ptr<Environ
     // 10. Push scriptContext onto the execution context stack; scriptContext is now the running execution context.
     TRY(vm.push_execution_context(*script_context, {}));
 
-    // 11. Let script be scriptRecord.[[ECMAScriptCode]].
-    auto& script = script_record.parse_node();
-
-    // 12. Let result be Completion(GlobalDeclarationInstantiation(script, globalEnv)).
-    auto instantiation_result = script.global_declaration_instantiation(vm, global_environment);
-    Completion result = instantiation_result.is_throw_completion() ? instantiation_result.throw_completion() : normal_completion(js_undefined());
-
     // 13. If result.[[Type]] is normal, then
-    if (result.type() == Completion::Type::Normal) {
+    if (executable) {
         // a. Set result to Completion(Evaluation of script).
-        auto executable_result = JS::Bytecode::Generator::generate_from_ast_node(vm, script, {});
-
-        if (executable_result.is_error()) {
-            if (auto error_string = executable_result.error().to_string(); error_string.is_error())
-                result = vm.template throw_completion<JS::InternalError>(vm.error_message(JS::VM::ErrorMessage::OutOfMemory));
-            else if (error_string = String::formatted("TODO({})", error_string.value()); error_string.is_error())
-                result = vm.template throw_completion<JS::InternalError>(vm.error_message(JS::VM::ErrorMessage::OutOfMemory));
-            else
-                result = vm.template throw_completion<JS::InternalError>(error_string.release_value());
-        } else {
-            auto executable = executable_result.release_value();
-
-            if (g_dump_bytecode)
-                executable->dump();
-
-            // a. Set result to the result of evaluating script.
-            auto result_or_error = run_executable(*executable, {}, {});
-            if (result_or_error.value.is_error())
-                result = result_or_error.value.release_error();
-            else {
-                result = result_or_error.return_register_value.is_special_empty_value() ? normal_completion(js_undefined()) : result_or_error.return_register_value;
-            }
+        auto result_or_error = run_executable(*executable, {}, {});
+        if (result_or_error.value.is_error())
+            result = result_or_error.value.release_error();
+        else {
+            result = result_or_error.return_register_value.is_special_empty_value() ? normal_completion(js_undefined()) : result_or_error.return_register_value;
         }
 
         // b. If result is a normal completion and result.[[Value]] is empty, then
@@ -732,8 +741,7 @@ Interpreter::ResultAndReturnRegister Interpreter::run_executable(Executable& exe
 
     auto& running_execution_context = vm().running_execution_context();
     u32 registers_and_constants_and_locals_count = executable.number_of_registers + executable.constants.size() + executable.local_variable_names.size();
-    if (running_execution_context.registers_and_constants_and_locals.size() < registers_and_constants_and_locals_count)
-        running_execution_context.registers_and_constants_and_locals.resize_with_default_value(registers_and_constants_and_locals_count, js_special_empty_value());
+    VERIFY(registers_and_constants_and_locals_count <= running_execution_context.registers_and_constants_and_locals.size());
 
     TemporaryChange restore_running_execution_context { m_running_execution_context, &running_execution_context };
     TemporaryChange restore_arguments { m_arguments, running_execution_context.arguments.span() };

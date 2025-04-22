@@ -489,7 +489,18 @@ ThrowCompletionOr<Value> ECMAScriptFunctionObject::internal_call(Value this_argu
     // 1. Let callerContext be the running execution context.
     // NOTE: No-op, kept by the VM in its execution context stack.
 
-    auto callee_context = ExecutionContext::create();
+    if (!m_bytecode_executable) {
+        if (!ecmascript_code().bytecode_executable()) {
+            if (is_module_wrapper()) {
+                const_cast<Statement&>(ecmascript_code()).set_bytecode_executable(TRY(Bytecode::compile(vm, ecmascript_code(), kind(), name())));
+            } else {
+                const_cast<Statement&>(ecmascript_code()).set_bytecode_executable(TRY(Bytecode::compile(vm, *this)));
+            }
+        }
+        m_bytecode_executable = ecmascript_code().bytecode_executable();
+    }
+
+    auto callee_context = ExecutionContext::create(m_bytecode_executable->number_of_registers + m_bytecode_executable->constants.size() + m_bytecode_executable->local_variable_names.size());
 
     // Non-standard
     callee_context->arguments.ensure_capacity(max(arguments_list.size(), formal_parameters().size()));
@@ -546,7 +557,18 @@ ThrowCompletionOr<GC::Ref<Object>> ECMAScriptFunctionObject::internal_construct(
 {
     auto& vm = this->vm();
 
-    auto callee_context = ExecutionContext::create();
+    if (!m_bytecode_executable) {
+        if (!ecmascript_code().bytecode_executable()) {
+            if (is_module_wrapper()) {
+                const_cast<Statement&>(ecmascript_code()).set_bytecode_executable(TRY(Bytecode::compile(vm, ecmascript_code(), kind(), name())));
+            } else {
+                const_cast<Statement&>(ecmascript_code()).set_bytecode_executable(TRY(Bytecode::compile(vm, *this)));
+            }
+        }
+        m_bytecode_executable = ecmascript_code().bytecode_executable();
+    }
+
+    auto callee_context = ExecutionContext::create(m_bytecode_executable->number_of_registers + m_bytecode_executable->constants.size() + m_bytecode_executable->local_variable_names.size());
 
     // Non-standard
     callee_context->arguments.ensure_capacity(max(arguments_list.size(), formal_parameters().size()));
@@ -889,19 +911,6 @@ Completion ECMAScriptFunctionObject::ordinary_call_evaluate_body()
 {
     auto& vm = this->vm();
     auto& realm = *vm.current_realm();
-
-    if (!m_bytecode_executable) {
-        if (!ecmascript_code().bytecode_executable()) {
-            if (is_module_wrapper()) {
-                const_cast<Statement&>(ecmascript_code()).set_bytecode_executable(TRY(Bytecode::compile(vm, ecmascript_code(), kind(), name())));
-            } else {
-                const_cast<Statement&>(ecmascript_code()).set_bytecode_executable(TRY(Bytecode::compile(vm, *this)));
-            }
-        }
-        m_bytecode_executable = ecmascript_code().bytecode_executable();
-    }
-
-    vm.running_execution_context().registers_and_constants_and_locals.resize_with_default_value(local_variables_names().size() + m_bytecode_executable->number_of_registers + m_bytecode_executable->constants.size(), js_special_empty_value());
 
     auto result_and_frame = vm.bytecode_interpreter().run_executable(*m_bytecode_executable, {});
 

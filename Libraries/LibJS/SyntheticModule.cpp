@@ -81,7 +81,7 @@ ThrowCompletionOr<Promise*> SyntheticModule::evaluate(VM& vm)
     // NOTE: Done by the push on step 8.
 
     // 2. Let moduleContext be a new ECMAScript code execution context.
-    auto module_context = ExecutionContext::create();
+    auto module_context = ExecutionContext::create(0);
 
     // 3. Set the Function of moduleContext to null.
     // Note: This is the default value.
