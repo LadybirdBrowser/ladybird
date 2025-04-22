@@ -42,7 +42,7 @@ void BytecodeInterpreter::interpret(Configuration& configuration)
     while (current_ip_value < max_ip_value) {
         if (should_limit_instruction_count) {
             if (executed_instructions++ >= Constants::max_allowed_executed_instructions_per_call) [[unlikely]] {
-                m_trap = Trap { "Exceeded maximum allowed number of instructions" };
+                m_trap = Trap::from_string("Exceeded maximum allowed number of instructions");
                 return;
             }
         }
@@ -78,7 +78,7 @@ void BytecodeInterpreter::load_and_push(Configuration& configuration, Instructio
     auto base = entry.to<i32>();
     u64 instance_address = static_cast<u64>(bit_cast<u32>(base)) + arg.offset;
     if (instance_address + sizeof(ReadType) > memory->size()) {
-        m_trap = Trap { "Memory access out of bounds" };
+        m_trap = Trap::from_string("Memory access out of bounds");
         dbgln("LibWasm: Memory access out of bounds (expected {} to be less than or equal to {})", instance_address + sizeof(ReadType), memory->size());
         return;
     }
@@ -103,7 +103,7 @@ void BytecodeInterpreter::load_and_push_mxn(Configuration& configuration, Instru
     auto base = entry.to<i32>();
     u64 instance_address = static_cast<u64>(bit_cast<u32>(base)) + arg.offset;
     if (instance_address + M * N / 8 > memory->size()) {
-        m_trap = Trap { "Memory access out of bounds" };
+        m_trap = Trap::from_string("Memory access out of bounds");
         dbgln("LibWasm: Memory access out of bounds (expected {} to be less than or equal to {})", instance_address + M * N / 8, memory->size());
         return;
     }
@@ -131,7 +131,7 @@ void BytecodeInterpreter::load_and_push_lane_n(Configuration& configuration, Ins
     auto base = configuration.value_stack().take_last().to<u32>();
     u64 instance_address = static_cast<u64>(bit_cast<u32>(base)) + memarg_and_lane.memory.offset;
     if (instance_address + N / 8 > memory->size()) {
-        m_trap = Trap { "Memory access out of bounds" };
+        m_trap = Trap::from_string("Memory access out of bounds");
         return;
     }
     auto slice = memory->data().bytes().slice(instance_address, N / 8);
@@ -149,7 +149,7 @@ void BytecodeInterpreter::load_and_push_zero_n(Configuration& configuration, Ins
     auto base = configuration.value_stack().take_last().to<u32>();
     u64 instance_address = static_cast<u64>(bit_cast<u32>(base)) + memarg_and_lane.offset;
     if (instance_address + N / 8 > memory->size()) {
-        m_trap = Trap { "Memory access out of bounds" };
+        m_trap = Trap::from_string("Memory access out of bounds");
         return;
     }
     auto slice = memory->data().bytes().slice(instance_address, N / 8);
@@ -168,7 +168,7 @@ void BytecodeInterpreter::load_and_push_m_splat(Configuration& configuration, In
     auto base = entry.to<i32>();
     u64 instance_address = static_cast<u64>(bit_cast<u32>(base)) + arg.offset;
     if (instance_address + M / 8 > memory->size()) {
-        m_trap = Trap { "Memory access out of bounds" };
+        m_trap = Trap::from_string("Memory access out of bounds");
         dbgln("LibWasm: Memory access out of bounds (expected {} to be less than or equal to {})", instance_address + M / 8, memory->size());
         return;
     }
@@ -238,7 +238,7 @@ void BytecodeInterpreter::call_address(Configuration& configuration, FunctionAdd
 
     configuration.value_stack().remove(configuration.value_stack().size() - span.size(), span.size());
 
-    Result result { Trap { ""sv } };
+    Result result { Trap::from_string("") };
     if (instance->has<WasmFunction>()) {
         CallFrameHandle handle { *this, configuration };
         result = configuration.call(*this, address, move(args));
@@ -248,11 +248,6 @@ void BytecodeInterpreter::call_address(Configuration& configuration, FunctionAdd
 
     if (result.is_trap()) {
         m_trap = move(result.trap());
-        return;
-    }
-
-    if (result.is_completion()) {
-        m_trap = move(result.completion());
         return;
     }
 
@@ -361,7 +356,7 @@ void BytecodeInterpreter::store_to_memory(Configuration& configuration, Instruct
     Checked addition { instance_address };
     addition += data.size();
     if (addition.has_overflow() || addition.value() > memory->size()) {
-        m_trap = Trap { "Memory access out of bounds" };
+        m_trap = Trap::from_string("Memory access out of bounds");
         dbgln("LibWasm: Memory access out of bounds (expected 0 <= {} and {} <= {})", instance_address, instance_address + data.size(), memory->size());
         return;
     }
@@ -376,7 +371,7 @@ T BytecodeInterpreter::read_value(ReadonlyBytes data)
     auto value_or_error = stream.read_value<LittleEndian<T>>();
     if (value_or_error.is_error()) {
         dbgln("Read from {} failed", data.data());
-        m_trap = Trap { "Read from memory failed" };
+        m_trap = Trap::from_string("Read from memory failed");
     }
     return value_or_error.release_value();
 }
@@ -387,7 +382,7 @@ float BytecodeInterpreter::read_value<float>(ReadonlyBytes data)
     FixedMemoryStream stream { data };
     auto raw_value_or_error = stream.read_value<LittleEndian<u32>>();
     if (raw_value_or_error.is_error())
-        m_trap = Trap { "Read from memory failed" };
+        m_trap = Trap::from_string("Read from memory failed");
     auto raw_value = raw_value_or_error.release_value();
     return bit_cast<float>(static_cast<u32>(raw_value));
 }
@@ -398,7 +393,7 @@ double BytecodeInterpreter::read_value<double>(ReadonlyBytes data)
     FixedMemoryStream stream { data };
     auto raw_value_or_error = stream.read_value<LittleEndian<u64>>();
     if (raw_value_or_error.is_error())
-        m_trap = Trap { "Read from memory failed" };
+        m_trap = Trap::from_string("Read from memory failed");
     auto raw_value = raw_value_or_error.release_value();
     return bit_cast<double>(static_cast<u64>(raw_value));
 }
@@ -409,7 +404,7 @@ ALWAYS_INLINE void BytecodeInterpreter::interpret_instruction(Configuration& con
 
     switch (instruction.opcode().value()) {
     case Instructions::unreachable.value():
-        m_trap = Trap { "Unreachable" };
+        m_trap = Trap::from_string("Unreachable");
         return;
     case Instructions::nop.value():
         return;
@@ -1659,7 +1654,7 @@ void DebuggerBytecodeInterpreter::interpret_instruction(Configuration& configura
     if (pre_interpret_hook) {
         auto result = pre_interpret_hook(configuration, ip, instruction);
         if (!result) {
-            m_trap = Trap { "Trapped by user request" };
+            m_trap = Trap::from_string("Trapped by user request");
             return;
         }
     }
@@ -1669,7 +1664,7 @@ void DebuggerBytecodeInterpreter::interpret_instruction(Configuration& configura
     if (post_interpret_hook) {
         auto result = post_interpret_hook(configuration, ip, instruction, *this);
         if (!result) {
-            m_trap = Trap { "Trapped by user request" };
+            m_trap = Trap::from_string("Trapped by user request");
             return;
         }
     }

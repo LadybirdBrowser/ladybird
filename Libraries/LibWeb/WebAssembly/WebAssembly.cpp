@@ -59,6 +59,10 @@ void visit_edges(JS::Object& object, JS::Cell::Visitor& visitor)
         visitor.visit(cache.imported_objects());
         visitor.visit(cache.extern_values());
         visitor.visit(cache.global_instances());
+        cache.abstract_machine().visit_external_resources({ .visit_trap = [&visitor](Wasm::ExternallyManagedTrap const& trap) {
+            auto& completion = trap.unsafe_external_object_as<JS::Completion>();
+            visitor.visit(completion.value());
+        } });
     }
 }
 
@@ -156,6 +160,32 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate_streaming(JS::VM& vm, 
 
 namespace Detail {
 
+#define TRY_OR_RETURN_TRAP(...)                                                                      \
+    ({                                                                                               \
+        /* Ignore -Wshadow to allow nesting the macro. */                                            \
+        AK_IGNORE_DIAGNOSTIC("-Wshadow",                                                             \
+            auto&& _temporary_result = (__VA_ARGS__));                                               \
+        static_assert(!::AK::Detail::IsLvalueReference<decltype(_temporary_result.release_value())>, \
+            "Do not return a reference from a fallible expression");                                 \
+        if (_temporary_result.is_error()) [[unlikely]]                                               \
+            return Wasm::Trap::from_external_object(_temporary_result.release_error());              \
+        _temporary_result.release_value();                                                           \
+    })
+
+#define TRY_OR_RETURN_OOM_TRAP(vm, ...)                                                                                                                 \
+    ({                                                                                                                                                  \
+        /* Ignore -Wshadow to allow nesting the macro. */                                                                                               \
+        AK_IGNORE_DIAGNOSTIC("-Wshadow",                                                                                                                \
+            auto&& _temporary_result = (__VA_ARGS__));                                                                                                  \
+        if (_temporary_result.is_error()) {                                                                                                             \
+            VERIFY(_temporary_result.error().code() == ENOMEM);                                                                                         \
+            return Wasm::Trap::from_external_object((vm).throw_completion<JS::InternalError>((vm).error_message(::JS::VM::ErrorMessage::OutOfMemory))); \
+        }                                                                                                                                               \
+        static_assert(!::AK::Detail::IsLvalueReference<decltype(_temporary_result.release_value())>,                                                    \
+            "Do not return a reference from a fallible expression");                                                                                    \
+        _temporary_result.release_value();                                                                                                              \
+    })
+
 JS::ThrowCompletionOr<NonnullOwnPtr<Wasm::ModuleInstance>> instantiate_module(JS::VM& vm, Wasm::Module const& module, GC::Ptr<JS::Object> import_object)
 {
     Wasm::Linker linker { module };
@@ -216,28 +246,28 @@ JS::ThrowCompletionOr<NonnullOwnPtr<Wasm::ModuleInstance>> instantiate_module(JS
                                     ++index;
                                 }
 
-                                auto result = TRY(JS::call(vm, function, JS::js_undefined(), argument_values.span()));
+                                auto result = TRY_OR_RETURN_TRAP(JS::call(vm, function, JS::js_undefined(), argument_values.span()));
                                 if (type.results().is_empty())
                                     return Wasm::Result { Vector<Wasm::Value> {} };
 
                                 if (type.results().size() == 1)
-                                    return Wasm::Result { Vector<Wasm::Value> { TRY(to_webassembly_value(vm, result, type.results().first())) } };
+                                    return Wasm::Result { Vector<Wasm::Value> { TRY_OR_RETURN_TRAP(to_webassembly_value(vm, result, type.results().first())) } };
 
-                                auto method = TRY(result.get_method(vm, vm.names.iterator));
+                                auto method = TRY_OR_RETURN_TRAP(result.get_method(vm, vm.names.iterator));
                                 if (method == JS::js_undefined())
-                                    return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotIterable, result.to_string_without_side_effects());
+                                    return Wasm::Trap::from_external_object(vm.throw_completion<JS::TypeError>(JS::ErrorType::NotIterable, result.to_string_without_side_effects()));
 
-                                auto values = TRY(JS::iterator_to_list(vm, TRY(JS::get_iterator_from_method(vm, result, *method))));
+                                auto values = TRY_OR_RETURN_TRAP(JS::iterator_to_list(vm, TRY_OR_RETURN_TRAP(JS::get_iterator_from_method(vm, result, *method))));
 
                                 if (values.size() != type.results().size())
-                                    return vm.throw_completion<JS::TypeError>(ByteString::formatted("Invalid number of return values for multi-value wasm return of {} objects", type.results().size()));
+                                    return Wasm::Trap::from_external_object(vm.throw_completion<JS::TypeError>(ByteString::formatted("Invalid number of return values for multi-value wasm return of {} objects", type.results().size())));
 
                                 Vector<Wasm::Value> wasm_values;
-                                TRY_OR_THROW_OOM(vm, wasm_values.try_ensure_capacity(values.size()));
+                                TRY_OR_RETURN_OOM_TRAP(vm, wasm_values.try_ensure_capacity(values.size()));
 
                                 size_t i = 0;
                                 for (auto& value : values)
-                                    wasm_values.append(TRY(to_webassembly_value(vm, value, type.results()[i++])));
+                                    wasm_values.append(TRY_OR_RETURN_TRAP(to_webassembly_value(vm, value, type.results()[i++])));
 
                                 return Wasm::Result { move(wasm_values) };
                             },
@@ -415,8 +445,11 @@ JS::NativeFunction* create_native_function(JS::VM& vm, Wasm::FunctionAddress add
             auto& cache = get_cache(realm);
             auto result = cache.abstract_machine().invoke(address, move(values));
             // FIXME: Use the convoluted mapping of errors defined in the spec.
-            if (result.is_trap())
-                return vm.throw_completion<JS::TypeError>(TRY_OR_THROW_OOM(vm, String::formatted("Wasm execution trapped (WIP): {}", result.trap().reason)));
+            if (result.is_trap()) {
+                if (auto ptr = result.trap().data.get_pointer<Wasm::ExternallyManagedTrap>())
+                    return ptr->unsafe_external_object_as<JS::Completion>();
+                return vm.throw_completion<JS::TypeError>(TRY_OR_THROW_OOM(vm, String::formatted("Wasm execution trapped (WIP): {}", result.trap().format())));
+            }
 
             if (result.values().is_empty())
                 return JS::js_undefined();
