@@ -500,23 +500,23 @@ WebIDL::ExceptionOr<void> Location::set_hash(String const& value)
     // 3. Let copyURL be a copy of this's url.
     auto copy_url = this->url();
 
-    // 4. Let input be the given value with a single leading "#" removed, if any.
+    // 4. Let thisURLFragment be copyURL's fragment if it is non-null; otherwise the empty string.
+    auto this_url_fragment = copy_url.fragment().has_value() ? *copy_url.fragment() : String {};
+
+    // 5. Let input be the given value with a single leading "#" removed, if any.
     auto input = value.bytes_as_string_view().trim("#"sv, TrimMode::Left);
 
-    // 5. Set copyURL's fragment to the empty string.
+    // 6. Set copyURL's fragment to the empty string.
     copy_url.set_fragment(String {});
 
-    // 6. Basic URL parse input, with copyURL as url and fragment state as state override.
+    // 7. Basic URL parse input, with copyURL as url and fragment state as state override.
     (void)URL::Parser::basic_parse(input, {}, &copy_url, URL::Parser::State::Fragment);
 
-    // 7. If copyURL's fragment is this's url's fragment, then return.
-    // NOTE: Ignore null values when comparing fragments. This behavior is not explicitly mentioned in the specs, potential bug?
-    auto copy_url_fragment = copy_url.fragment().has_value() ? copy_url.fragment() : String {};
-    auto this_url_fragment = this->url().fragment().has_value() ? this->url().fragment() : String {};
-    if (copy_url_fragment == this_url_fragment)
+    // 8. If copyURL's fragment is thisURLFragment, then return.
+    if (copy_url.fragment() == this_url_fragment)
         return {};
 
-    // 8. Location-object navigate this to copyURL.
+    // 9. Location-object navigate this to copyURL.
     TRY(navigate(copy_url));
 
     return {};
