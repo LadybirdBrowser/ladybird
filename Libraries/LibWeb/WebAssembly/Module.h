@@ -29,6 +29,11 @@ struct ModuleImportDescriptor {
     Bindings::ImportExportKind kind;
 };
 
+struct ModuleExportDescriptor {
+    String name;
+    Bindings::ImportExportKind kind;
+};
+
 class Module : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(Module, Bindings::PlatformObject);
     GC_DECLARE_ALLOCATOR(Module);
@@ -36,6 +41,7 @@ class Module : public Bindings::PlatformObject {
 public:
     static WebIDL::ExceptionOr<GC::Ref<Module>> construct_impl(JS::Realm&, GC::Root<WebIDL::BufferSource>& bytes);
     static WebIDL::ExceptionOr<Vector<ModuleImportDescriptor>> imports(JS::VM&, GC::Ref<Module>);
+    static WebIDL::ExceptionOr<Vector<ModuleExportDescriptor>> exports(JS::VM&, GC::Ref<Module>);
 
     NonnullRefPtr<Detail::CompiledWebAssemblyModule> compiled_module() const { return m_compiled_module; }
 

@@ -66,6 +66,35 @@ WebIDL::ExceptionOr<Vector<ModuleImportDescriptor>> Module::imports(JS::VM&, GC:
     return import_objects;
 }
 
+// https://webassembly.github.io/threads/js-api/index.html#dom-module-exports
+WebIDL::ExceptionOr<Vector<ModuleExportDescriptor>> Module::exports(JS::VM&, GC::Ref<Module> module_object)
+{
+    // 1. Let module be moduleObject.[[Module]].
+    // 2. Let exports be « ».
+    Vector<ModuleExportDescriptor> export_objects;
+
+    // 3. For each (name, type) of module_exports(module),
+    auto& exports = module_object->m_compiled_module->module->export_section().entries();
+    export_objects.ensure_capacity(exports.size());
+    for (auto& entry : exports) {
+        // 3.1. Let kind be the string value of the extern type type.
+        auto const kind = entry.description().visit(
+            [](Wasm::FunctionIndex) { return Bindings::ImportExportKind::Function; },
+            [](Wasm::TableIndex) { return Bindings::ImportExportKind::Table; },
+            [](Wasm::MemoryIndex) { return Bindings::ImportExportKind::Memory; },
+            [](Wasm::GlobalIndex) { return Bindings::ImportExportKind::Global; });
+        // 3.2. Let obj be «[ "name" → name, "kind" → kind ]».
+        ModuleExportDescriptor descriptor {
+            .name = String::from_utf8_with_replacement_character(entry.name()),
+            .kind = kind,
+        };
+        // 3.3. Append obj to exports.
+        export_objects.append(move(descriptor));
+    }
+    // 4. Return exports.
+    return export_objects;
+}
+
 Module::Module(JS::Realm& realm, NonnullRefPtr<Detail::CompiledWebAssemblyModule> compiled_module)
     : Bindings::PlatformObject(realm)
     , m_compiled_module(move(compiled_module))
