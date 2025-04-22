@@ -702,7 +702,6 @@ struct FunctionParameter {
     Variant<NonnullRefPtr<Identifier const>, NonnullRefPtr<BindingPattern const>> binding;
     RefPtr<Expression const> default_value;
     bool is_rest { false };
-    GC::Root<Bytecode::Executable> bytecode_executable {};
 };
 
 class FunctionParameters : public RefCounted<FunctionParameters> {
