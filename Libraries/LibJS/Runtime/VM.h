@@ -160,7 +160,7 @@ public:
 
     size_t argument_count() const
     {
-        return running_execution_context().arguments.size();
+        return running_execution_context().arguments().size();
     }
 
     Value argument(size_t index) const

@@ -33,10 +33,11 @@ private:
 
 static NeverDestroyed<ExecutionContextAllocator> s_execution_context_allocator;
 
-NonnullOwnPtr<ExecutionContext> ExecutionContext::create(u32 count)
+NonnullOwnPtr<ExecutionContext> ExecutionContext::create(u32 registers_and_constants_and_locals_count, u32 arguments_count)
 {
     auto execution_context = s_execution_context_allocator->allocate();
-    execution_context->registers_and_constants_and_locals.resize_with_default_value(count, js_special_empty_value());
+    execution_context->registers_and_constants_and_locals_and_arguments.resize_with_default_value(registers_and_constants_and_locals_count + arguments_count, js_special_empty_value());
+    execution_context->arguments_offset = registers_and_constants_and_locals_count;
     return execution_context;
 }
 
@@ -55,7 +56,7 @@ ExecutionContext::~ExecutionContext()
 
 NonnullOwnPtr<ExecutionContext> ExecutionContext::copy() const
 {
-    auto copy = create(registers_and_constants_and_locals.size());
+    auto copy = create(registers_and_constants_and_locals_and_arguments.size(), arguments().size());
     copy->function = function;
     copy->realm = realm;
     copy->script_or_module = script_or_module;
@@ -67,9 +68,9 @@ NonnullOwnPtr<ExecutionContext> ExecutionContext::copy() const
     copy->this_value = this_value;
     copy->is_strict_mode = is_strict_mode;
     copy->executable = executable;
-    copy->arguments = arguments;
+    copy->arguments_offset = arguments_offset;
     copy->passed_argument_count = passed_argument_count;
-    copy->registers_and_constants_and_locals = registers_and_constants_and_locals;
+    copy->registers_and_constants_and_locals_and_arguments = registers_and_constants_and_locals_and_arguments;
     copy->unwind_contexts = unwind_contexts;
     copy->saved_lexical_environments = saved_lexical_environments;
     copy->previously_scheduled_jumps = previously_scheduled_jumps;
@@ -88,8 +89,7 @@ void ExecutionContext::visit_edges(Cell::Visitor& visitor)
         visitor.visit(*this_value);
     visitor.visit(executable);
     visitor.visit(function_name);
-    visitor.visit(arguments);
-    visitor.visit(registers_and_constants_and_locals);
+    visitor.visit(registers_and_constants_and_locals_and_arguments);
     for (auto& context : unwind_contexts) {
         visitor.visit(context.lexical_environment);
     }

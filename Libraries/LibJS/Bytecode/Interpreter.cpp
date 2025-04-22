@@ -242,7 +242,7 @@ ThrowCompletionOr<Value> Interpreter::run(Script& script_record, GC::Ptr<Environ
     }
 
     // 2. Let scriptContext be a new ECMAScript code execution context.
-    auto script_context = ExecutionContext::create(registers_and_constants_and_locals_count);
+    auto script_context = ExecutionContext::create(registers_and_constants_and_locals_count, 0);
 
     // 3. Set the Function of scriptContext to null.
     // NOTE: This was done during execution context construction.
@@ -373,7 +373,7 @@ FLATTEN_ON_CLANG void Interpreter::run_bytecode(size_t entry_point)
     }
 
     auto& running_execution_context = this->running_execution_context();
-    auto* arguments = running_execution_context.arguments.data();
+    auto* arguments = running_execution_context.arguments().data();
     auto& accumulator = this->accumulator();
     auto& executable = current_executable();
     auto const* bytecode = executable.bytecode.data();
@@ -741,11 +741,11 @@ Interpreter::ResultAndReturnRegister Interpreter::run_executable(Executable& exe
 
     auto& running_execution_context = vm().running_execution_context();
     u32 registers_and_constants_and_locals_count = executable.number_of_registers + executable.constants.size() + executable.local_variable_names.size();
-    VERIFY(registers_and_constants_and_locals_count <= running_execution_context.registers_and_constants_and_locals.size());
+    VERIFY(registers_and_constants_and_locals_count <= running_execution_context.registers_and_constants_and_locals_and_arguments.size());
 
     TemporaryChange restore_running_execution_context { m_running_execution_context, &running_execution_context };
-    TemporaryChange restore_arguments { m_arguments, running_execution_context.arguments.span() };
-    TemporaryChange restore_registers_and_constants_and_locals { m_registers_and_constants_and_locals, running_execution_context.registers_and_constants_and_locals.span() };
+    TemporaryChange restore_arguments { m_arguments, running_execution_context.arguments() };
+    TemporaryChange restore_registers_and_constants_and_locals { m_registers_and_constants_and_locals, running_execution_context.registers_and_constants_and_locals_and_arguments.span() };
 
     reg(Register::accumulator()) = initial_accumulator_value;
     reg(Register::return_value()) = js_special_empty_value();
@@ -760,7 +760,7 @@ Interpreter::ResultAndReturnRegister Interpreter::run_executable(Executable& exe
     running_execution_context.executable = &executable;
 
     for (size_t i = 0; i < executable.constants.size(); ++i) {
-        running_execution_context.registers_and_constants_and_locals[executable.number_of_registers + i] = executable.constants[i];
+        running_execution_context.registers_and_constants_and_locals_and_arguments[executable.number_of_registers + i] = executable.constants[i];
     }
 
     run_bytecode(entry_point.value_or(0));
@@ -768,13 +768,13 @@ Interpreter::ResultAndReturnRegister Interpreter::run_executable(Executable& exe
     dbgln_if(JS_BYTECODE_DEBUG, "Bytecode::Interpreter did run unit {:p}", &executable);
 
     if constexpr (JS_BYTECODE_DEBUG) {
-        auto const& registers_and_constants_and_locals = running_execution_context.registers_and_constants_and_locals;
+        auto const& registers_and_constants_and_locals_and_arguments = running_execution_context.registers_and_constants_and_locals_and_arguments;
         for (size_t i = 0; i < executable.number_of_registers; ++i) {
             String value_string;
-            if (registers_and_constants_and_locals[i].is_special_empty_value())
+            if (registers_and_constants_and_locals_and_arguments[i].is_special_empty_value())
                 value_string = "(empty)"_string;
             else
-                value_string = registers_and_constants_and_locals[i].to_string_without_side_effects();
+                value_string = registers_and_constants_and_locals_and_arguments[i].to_string_without_side_effects();
             dbgln("[{:3}] {}", i, value_string);
         }
     }
@@ -788,8 +788,8 @@ Interpreter::ResultAndReturnRegister Interpreter::run_executable(Executable& exe
     vm().finish_execution_generation();
 
     if (!exception.is_special_empty_value())
-        return { throw_completion(exception), running_execution_context.registers_and_constants_and_locals[0] };
-    return { return_value, running_execution_context.registers_and_constants_and_locals[0] };
+        return { throw_completion(exception), running_execution_context.registers_and_constants_and_locals_and_arguments[0] };
+    return { return_value, running_execution_context.registers_and_constants_and_locals_and_arguments[0] };
 }
 
 void Interpreter::enter_unwind_context()
@@ -2331,7 +2331,7 @@ ThrowCompletionOr<void> CreateVariable::execute_impl(Bytecode::Interpreter& inte
 
 void CreateRestParams::execute_impl(Bytecode::Interpreter& interpreter) const
 {
-    auto const& arguments = interpreter.running_execution_context().arguments;
+    auto const arguments = interpreter.running_execution_context().arguments();
     auto arguments_count = interpreter.running_execution_context().passed_argument_count;
     auto array = MUST(Array::create(interpreter.realm(), 0));
     for (size_t rest_index = m_rest_index; rest_index < arguments_count; ++rest_index)
@@ -2342,7 +2342,7 @@ void CreateRestParams::execute_impl(Bytecode::Interpreter& interpreter) const
 void CreateArguments::execute_impl(Bytecode::Interpreter& interpreter) const
 {
     auto const& function = interpreter.running_execution_context().function;
-    auto const& arguments = interpreter.running_execution_context().arguments;
+    auto const arguments = interpreter.running_execution_context().arguments();
     auto const& environment = interpreter.running_execution_context().lexical_environment;
 
     auto passed_arguments = ReadonlySpan<Value> { arguments.data(), interpreter.running_execution_context().passed_argument_count };

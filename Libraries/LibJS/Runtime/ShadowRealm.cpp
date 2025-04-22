@@ -300,7 +300,7 @@ NonnullOwnPtr<ExecutionContext> get_shadow_realm_context(Realm& shadow_realm, bo
         variable_environment = lexical_environment;
 
     // 4. Let context be a new ECMAScript code execution context.
-    auto context = ExecutionContext::create(registers_and_constants_and_locals_count);
+    auto context = ExecutionContext::create(registers_and_constants_and_locals_count, 0);
 
     // 5. Set context's Function to null.
     context->function = nullptr;

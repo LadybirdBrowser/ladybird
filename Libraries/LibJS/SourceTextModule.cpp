@@ -107,7 +107,7 @@ SourceTextModule::SourceTextModule(Realm& realm, StringView filename, Script::Ho
     RefPtr<ExportStatement const> default_export)
     : CyclicModule(realm, filename, has_top_level_await, move(requested_modules), host_defined)
     , m_ecmascript_code(move(body))
-    , m_execution_context(ExecutionContext::create(0))
+    , m_execution_context(ExecutionContext::create(0, 0))
     , m_import_entries(move(import_entries))
     , m_local_export_entries(move(local_export_entries))
     , m_indirect_export_entries(move(indirect_export_entries))
@@ -701,7 +701,7 @@ ThrowCompletionOr<void> SourceTextModule::execute_module(VM& vm, GC::Ptr<Promise
     }
 
     // 1. Let moduleContext be a new ECMAScript code execution context.
-    auto module_context = ExecutionContext::create(registers_and_constants_and_locals_count);
+    auto module_context = ExecutionContext::create(registers_and_constants_and_locals_count, 0);
 
     // Note: This is not in the spec but we require it.
     module_context->is_strict_mode = true;
