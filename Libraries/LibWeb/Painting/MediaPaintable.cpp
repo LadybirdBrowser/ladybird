@@ -19,14 +19,15 @@
 
 namespace Web::Painting {
 
-static constexpr auto control_box_color = Gfx::Color::from_rgb(0x26'26'26);
-static constexpr auto control_highlight_color = Gfx::Color::from_rgb(0x1d'99'f3);
+static constexpr auto CONTROL_BOX_COLOR = Gfx::Color::from_rgb(0x26'26'26);
+static constexpr auto CONTROL_BUTTON_COLOR = Gfx::Color::branded_color(Gfx::Color::BrandedColor::Violet);
+static constexpr auto CONTROL_HIGHLIGHT_COLOR = Gfx::Color::branded_color(Gfx::Color::BrandedColor::Violet60);
 
 static constexpr Gfx::Color control_button_color(bool is_hovered)
 {
     if (!is_hovered)
         return Color::White;
-    return control_highlight_color;
+    return CONTROL_BUTTON_COLOR;
 }
 
 MediaPaintable::MediaPaintable(Layout::ReplacedBox const& layout_box)
@@ -61,7 +62,7 @@ void MediaPaintable::fill_triangle(DisplayListRecorder& painter, Gfx::IntPoint l
 void MediaPaintable::paint_media_controls(PaintContext& context, HTML::HTMLMediaElement const& media_element, DevicePixelRect media_rect, Optional<DevicePixelPoint> const& mouse_position) const
 {
     auto components = compute_control_bar_components(context, media_element, media_rect);
-    context.display_list_recorder().fill_rect(components.control_box_rect.to_type<int>(), control_box_color.with_alpha(0xd0));
+    context.display_list_recorder().fill_rect(components.control_box_rect.to_type<int>(), CONTROL_BOX_COLOR.with_alpha(0xd0));
 
     paint_control_bar_playback_button(context, media_element, components, mouse_position);
     paint_control_bar_timeline(context, media_element, components);
@@ -182,7 +183,7 @@ void MediaPaintable::paint_control_bar_timeline(PaintContext& context, HTML::HTM
 
     auto timeline_past_rect = components.timeline_rect;
     timeline_past_rect.set_width(timeline_button_offset_x);
-    context.display_list_recorder().fill_rect(timeline_past_rect.to_type<int>(), control_highlight_color.lightened());
+    context.display_list_recorder().fill_rect(timeline_past_rect.to_type<int>(), CONTROL_HIGHLIGHT_COLOR);
 
     auto timeline_future_rect = components.timeline_rect;
     timeline_future_rect.take_from_left(timeline_button_offset_x);
@@ -261,7 +262,7 @@ void MediaPaintable::paint_control_bar_volume(PaintContext& context, HTML::HTMLM
 
     auto volume_lower_rect = components.volume_scrub_rect;
     volume_lower_rect.set_width(volume_button_offset_x);
-    context.display_list_recorder().fill_rect_with_rounded_corners(volume_lower_rect.to_type<int>(), control_highlight_color.lightened(), 4);
+    context.display_list_recorder().fill_rect_with_rounded_corners(volume_lower_rect.to_type<int>(), CONTROL_HIGHLIGHT_COLOR, 4);
 
     auto volume_higher_rect = components.volume_scrub_rect;
     volume_higher_rect.take_from_left(volume_button_offset_x);
