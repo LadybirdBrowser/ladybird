@@ -1859,7 +1859,8 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
             auto* wrapped_element@recursion_depth@ = &(*element@recursion_depth@);
 )~~~");
         } else {
-            generate_wrap_statement(scoped_generator, ByteString::formatted("element{}", recursion_depth), sequence_generic_type.parameters().first(), interface, ByteString::formatted("auto wrapped_element{} =", recursion_depth), WrappingReference::Yes, recursion_depth + 1);
+            scoped_generator.append("JS::Value wrapped_element@recursion_depth@;\n"sv);
+            generate_wrap_statement(scoped_generator, ByteString::formatted("element{}", recursion_depth), sequence_generic_type.parameters().first(), interface, ByteString::formatted("wrapped_element{} =", recursion_depth), WrappingReference::Yes, recursion_depth + 1);
         }
 
         scoped_generator.append(R"~~~(
