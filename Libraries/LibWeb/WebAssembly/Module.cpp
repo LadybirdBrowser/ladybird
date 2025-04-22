@@ -33,6 +33,39 @@ WebIDL::ExceptionOr<GC::Ref<Module>> Module::construct_impl(JS::Realm& realm, GC
     return realm.create<Module>(realm, move(compiled_module));
 }
 
+// https://webassembly.github.io/threads/js-api/index.html#dom-module-imports
+WebIDL::ExceptionOr<Vector<ModuleImportDescriptor>> Module::imports(JS::VM&, GC::Ref<Module> module_object)
+{
+    // 1. Let module be moduleObject.[[Module]].
+    // 2. Let imports be « ».
+    Vector<ModuleImportDescriptor> import_objects;
+
+    // 3. For each (moduleName, name, type) of module_imports(module),
+    auto& imports = module_object->m_compiled_module->module->import_section().imports();
+    import_objects.ensure_capacity(imports.size());
+    for (auto& import : imports) {
+        // 3.1. Let kind be the string value of the extern type type.
+        auto const kind = import.description().visit(
+            [](Wasm::TypeIndex) { return Bindings::ImportExportKind::Function; },
+            [](Wasm::TableType) { return Bindings::ImportExportKind::Table; },
+            [](Wasm::MemoryType) { return Bindings::ImportExportKind::Memory; },
+            [](Wasm::GlobalType) { return Bindings::ImportExportKind::Global; },
+            [](Wasm::FunctionType) { return Bindings::ImportExportKind::Function; });
+
+        // 3.2. Let obj be «[ "module" → moduleName, "name" → name, "kind" → kind ]».
+        ModuleImportDescriptor descriptor {
+            .module = String::from_utf8_with_replacement_character(import.module()),
+            .name = String::from_utf8_with_replacement_character(import.name()),
+            .kind = kind,
+        };
+
+        // 3.3. Append obj to imports.
+        import_objects.append(move(descriptor));
+    }
+    // 4. Return imports.
+    return import_objects;
+}
+
 Module::Module(JS::Realm& realm, NonnullRefPtr<Detail::CompiledWebAssemblyModule> compiled_module)
     : Bindings::PlatformObject(realm)
     , m_compiled_module(move(compiled_module))
