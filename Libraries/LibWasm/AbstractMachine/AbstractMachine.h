@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/ByteBuffer.h>
 #include <AK/Function.h>
 #include <AK/HashMap.h>
 #include <AK/HashTable.h>
@@ -14,18 +15,13 @@
 #include <AK/UFixedBigInt.h>
 #include <LibWasm/Types.h>
 
-// NOTE: Special case for Wasm::Result.
-#include <LibJS/Runtime/Completion.h>
-
 namespace Wasm {
 
 class Configuration;
 class Result;
 struct Interpreter;
+struct Trap;
 
-struct InstantiationError {
-    ByteString error { "Unknown error" };
-};
 struct LinkError {
     enum OtherErrors {
         InvalidImportedModule,
@@ -198,37 +194,43 @@ private:
     u128 m_value;
 };
 
-struct Trap {
-    ByteString reason;
+struct ExternallyManagedTrap {
+    Array<u8, 64> data;
+
+    template<typename T>
+    T const& unsafe_external_object_as() const
+    {
+        static_assert(sizeof(T) <= sizeof(data), "Object size is too large for ExternallyManagedTrap");
+        return *reinterpret_cast<T const*>(data.data());
+    }
 };
 
-// A variant of Result that does not include external reasons for error (JS::Completion, for now).
-class PureResult {
-public:
-    explicit PureResult(Vector<Value> values)
-        : m_result(move(values))
+struct Trap {
+    Variant<ByteString, ExternallyManagedTrap> data;
+
+    ByteString format() const
     {
+        if (auto const* ptr = data.get_pointer<ByteString>())
+            return *ptr;
+        return "<Externally managed Trap Data>";
     }
 
-    PureResult(Trap trap)
-        : m_result(move(trap))
+    template<typename T>
+    static Trap from_external_object(T&& object)
     {
+        static_assert(sizeof(T) <= sizeof(ExternallyManagedTrap::data), "Object size is too large for ExternallyManagedTrap");
+        static_assert(IsTriviallyCopyable<T>, "Object must be trivially copyable");
+        static_assert(IsTriviallyDestructible<T>, "Object must be trivially destructible");
+
+        ExternallyManagedTrap externally_managed_trap;
+        new (externally_managed_trap.data.data()) T(forward<T>(object));
+        return Trap { externally_managed_trap };
     }
 
-    auto is_trap() const { return m_result.has<Trap>(); }
-    auto& values() const { return m_result.get<Vector<Value>>(); }
-    auto& values() { return m_result.get<Vector<Value>>(); }
-    auto& trap() const { return m_result.get<Trap>(); }
-    auto& trap() { return m_result.get<Trap>(); }
-
-private:
-    friend class Result;
-    explicit PureResult(Variant<Vector<Value>, Trap>&& result)
-        : m_result(move(result))
+    static Trap from_string(ByteString string)
     {
+        return Trap { move(string) };
     }
-
-    Variant<Vector<Value>, Trap> m_result;
 };
 
 class Result {
@@ -243,34 +245,24 @@ public:
     {
     }
 
-    Result(JS::Completion completion)
-        : m_result(move(completion))
-    {
-        VERIFY(m_result.get<JS::Completion>().is_abrupt());
-    }
-
-    Result(PureResult&& result)
-        : m_result(result.m_result.downcast<decltype(m_result)>())
-    {
-    }
-
     auto is_trap() const { return m_result.has<Trap>(); }
-    auto is_completion() const { return m_result.has<JS::Completion>(); }
     auto& values() const { return m_result.get<Vector<Value>>(); }
     auto& values() { return m_result.get<Vector<Value>>(); }
     auto& trap() const { return m_result.get<Trap>(); }
     auto& trap() { return m_result.get<Trap>(); }
-    auto& completion() { return m_result.get<JS::Completion>(); }
-    auto& completion() const { return m_result.get<JS::Completion>(); }
-
-    PureResult assert_wasm_result() &&
-    {
-        VERIFY(!is_completion());
-        return PureResult(move(m_result).downcast<Vector<Value>, Trap>());
-    }
 
 private:
-    Variant<Vector<Value>, Trap, JS::Completion> m_result;
+    explicit Result(Variant<Vector<Value>, Trap>&& result)
+        : m_result(move(result))
+    {
+    }
+
+    Variant<Vector<Value>, Trap> m_result;
+};
+
+struct InstantiationError {
+    ByteString error { "Unknown error" };
+    Optional<Trap> relevant_trap {};
 };
 
 using ExternValue = Variant<FunctionAddress, TableAddress, MemoryAddress, GlobalAddress>;
@@ -628,6 +620,10 @@ private:
 
 using InstantiationResult = AK::ErrorOr<NonnullOwnPtr<ModuleInstance>, InstantiationError>;
 
+struct HostVisitOps {
+    Function<void(ExternallyManagedTrap&)> visit_trap;
+};
+
 class AbstractMachine {
 public:
     explicit AbstractMachine() = default;
@@ -644,11 +640,38 @@ public:
 
     void enable_instruction_count_limit() { m_should_limit_instruction_count = true; }
 
+    void visit_external_resources(HostVisitOps const&);
+
 private:
+    class InterpreterHandle {
+    public:
+        explicit InterpreterHandle(AbstractMachine& machine, Interpreter& interpreter)
+            : m_machine(machine)
+            , m_interpreter(interpreter)
+        {
+            m_machine.m_active_interpreters.set(&m_interpreter);
+        }
+
+        ~InterpreterHandle()
+        {
+            m_machine.m_active_interpreters.remove(&m_interpreter);
+        }
+
+    private:
+        AbstractMachine& m_machine;
+        Interpreter& m_interpreter;
+    };
+
+    [[nodiscard]] InterpreterHandle register_scoped(Interpreter& interpreter)
+    {
+        return InterpreterHandle(*this, interpreter);
+    }
+
     Optional<InstantiationError> allocate_all_initial_phase(Module const&, ModuleInstance&, Vector<ExternValue>&, Vector<Value>& global_values, Vector<FunctionAddress>& own_functions);
     Optional<InstantiationError> allocate_all_final_phase(Module const&, ModuleInstance&, Vector<Vector<Reference>>& elements);
     Store m_store;
     StackInfo m_stack_info;
+    HashTable<Interpreter*> m_active_interpreters;
     bool m_should_limit_instruction_count { false };
 };
 

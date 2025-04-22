@@ -239,6 +239,7 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
     }
 
     BytecodeInterpreter interpreter(m_stack_info);
+    auto handle = register_scoped(interpreter);
 
     for (auto& entry : module.global_section().entries()) {
         Configuration config { m_store };
@@ -250,9 +251,9 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
             entry.expression(),
             1,
         });
-        auto result = config.execute(interpreter).assert_wasm_result();
+        auto result = config.execute(interpreter);
         if (result.is_trap())
-            return InstantiationError { ByteString::formatted("Global value construction trapped: {}", result.trap().reason) };
+            return InstantiationError { "Global instantiation trapped", move(result.trap()) };
         global_values.append(result.values().first());
     }
 
@@ -271,9 +272,9 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
                 entry,
                 entry.instructions().size(),
             });
-            auto result = config.execute(interpreter).assert_wasm_result();
+            auto result = config.execute(interpreter);
             if (result.is_trap())
-                return InstantiationError { ByteString::formatted("Element construction trapped: {}", result.trap().reason) };
+                return InstantiationError { "Element section initialisation trapped", move(result.trap()) };
 
             for (auto& value : result.values()) {
                 auto reference = value.to<Reference>();
@@ -306,9 +307,9 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
             active_ptr->expression,
             1,
         });
-        auto result = config.execute(interpreter).assert_wasm_result();
+        auto result = config.execute(interpreter);
         if (result.is_trap())
-            return InstantiationError { ByteString::formatted("Element section initialisation trapped: {}", result.trap().reason) };
+            return InstantiationError { "Element section initialisation trapped", move(result.trap()) };
         auto d = result.values().first().to<i32>();
         auto table_instance = m_store.get(main_module_instance.tables()[active_ptr->index.value()]);
         if (current_index >= main_module_instance.elements().size())
@@ -341,9 +342,9 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
                     data.offset,
                     1,
                 });
-                auto result = config.execute(interpreter).assert_wasm_result();
+                auto result = config.execute(interpreter);
                 if (result.is_trap())
-                    return InstantiationError { ByteString::formatted("Data section initialisation trapped: {}", result.trap().reason) };
+                    return InstantiationError { "Data section initialisation trapped", move(result.trap()) };
                 size_t offset = result.values().first().to<u64>();
                 if (main_module_instance.memories().size() <= data.index.value()) {
                     return InstantiationError {
@@ -391,7 +392,7 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
         }
         auto result = invoke(functions[index.value()], {});
         if (result.is_trap())
-            return InstantiationError { ByteString::formatted("Start function trapped: {}", result.trap().reason) };
+            return InstantiationError { "Start function trapped", move(result.trap()) };
     }
 
     return InstantiationResult { move(main_module_instance_pointer) };
@@ -491,6 +492,7 @@ Optional<InstantiationError> AbstractMachine::allocate_all_final_phase(Module co
 Result AbstractMachine::invoke(FunctionAddress address, Vector<Value> arguments)
 {
     BytecodeInterpreter interpreter(m_stack_info);
+    auto handle = register_scoped(interpreter);
     return invoke(interpreter, address, move(arguments));
 }
 
@@ -574,5 +576,11 @@ void Linker::populate()
         m_ordered_imports.append({ import_.module(), import_.name(), import_.description() });
         m_unresolved_imports.set(m_ordered_imports.last());
     }
+}
+
+void AbstractMachine::visit_external_resources(HostVisitOps const& host)
+{
+    for (auto interpreter_ptr : m_active_interpreters)
+        interpreter_ptr->visit_external_resources(host);
 }
 }
