@@ -2074,7 +2074,7 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
 )~~~");
         } else {
             scoped_generator.append(R"~~~(
-    @result_expression@ &const_cast<@type@&>(@value@);
+    @result_expression@ &const_cast<@type@&>(static_cast<@type@ const&>(@value@));
 )~~~");
         }
     }
