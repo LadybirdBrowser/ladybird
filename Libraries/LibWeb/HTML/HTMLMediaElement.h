@@ -132,12 +132,18 @@ public:
 
     WebIDL::ExceptionOr<bool> handle_keydown(Badge<Web::EventHandler>, UIEvents::KeyCode, u32 modifiers);
 
-    enum class MouseTrackingComponent {
+    enum class MediaComponent {
+        PlaybackButton,
+        SpeakerButton,
         Timeline,
         Volume,
     };
-    void set_layout_mouse_tracking_component(Badge<Painting::MediaPaintable>, Optional<MouseTrackingComponent> mouse_tracking_component) { m_mouse_tracking_component = move(mouse_tracking_component); }
-    Optional<MouseTrackingComponent> const& layout_mouse_tracking_component(Badge<Painting::MediaPaintable>) const { return m_mouse_tracking_component; }
+
+    void set_layout_mouse_tracking_component(Badge<Painting::MediaPaintable>, Optional<MediaComponent> mouse_tracking_component) { m_mouse_tracking_component = move(mouse_tracking_component); }
+    Optional<MediaComponent> const& layout_mouse_tracking_component(Badge<Painting::MediaPaintable>) const { return m_mouse_tracking_component; }
+
+    void set_layout_hovered_component(Badge<Painting::MediaPaintable>, Optional<MediaComponent> hovered_component) { m_hovered_component = hovered_component; }
+    Optional<MediaComponent> const& layout_hovered_component(Badge<Painting::MediaPaintable>) const { return m_hovered_component; }
 
     void set_layout_mouse_position(Badge<Painting::MediaPaintable>, Optional<CSSPixelPoint> mouse_position) { m_mouse_position = move(mouse_position); }
     Optional<CSSPixelPoint> const& layout_mouse_position(Badge<Painting::MediaPaintable>) const { return m_mouse_position; }
@@ -318,7 +324,8 @@ private:
     bool m_seek_in_progress = false;
 
     // Cached state for layout.
-    Optional<MouseTrackingComponent> m_mouse_tracking_component;
+    Optional<MediaComponent> m_mouse_tracking_component;
+    Optional<MediaComponent> m_hovered_component;
     bool m_tracking_mouse_position_while_playing { false };
     Optional<CSSPixelPoint> m_mouse_position;
     Optional<double> m_display_time;
