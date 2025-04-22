@@ -127,8 +127,14 @@ ThrowCompletionOr<Value> perform_shadow_realm_eval(VM& vm, StringView source_tex
     // 5. If runningContext is not already suspended, suspend runningContext.
     // NOTE: This would be unused due to step 9 and is omitted for that reason.
 
+    auto maybe_executable = Bytecode::compile(vm, program, FunctionKind::Normal, "ShadowRealmEval"_fly_string);
+    if (maybe_executable.is_error())
+        return vm.throw_completion<TypeError>(ErrorType::ShadowRealmEvaluateAbruptCompletion);
+    auto executable = maybe_executable.release_value();
+
     // 6. Let evalContext be GetShadowRealmContext(evalRealm, strictEval).
-    auto eval_context = get_shadow_realm_context(eval_realm, strict_eval);
+    u32 registers_and_constants_and_locals_count = executable->number_of_registers + executable->constants.size() + executable->local_variable_names.size();
+    auto eval_context = get_shadow_realm_context(eval_realm, strict_eval, registers_and_constants_and_locals_count);
 
     // 7. Let lexEnv be evalContext's LexicalEnvironment.
     auto lexical_environment = eval_context->lexical_environment;
@@ -147,19 +153,12 @@ ThrowCompletionOr<Value> perform_shadow_realm_eval(VM& vm, StringView source_tex
     // 11. If result.[[Type]] is normal, then
     if (!eval_result.is_throw_completion()) {
         // a. Set result to the result of evaluating body.
-        auto maybe_executable = Bytecode::compile(vm, program, FunctionKind::Normal, "ShadowRealmEval"_fly_string);
-        if (maybe_executable.is_error()) {
-            result = maybe_executable.release_error();
+        auto result_and_return_register = vm.bytecode_interpreter().run_executable(*executable, {});
+        if (result_and_return_register.value.is_error()) {
+            result = result_and_return_register.value.release_error();
         } else {
-            auto executable = maybe_executable.release_value();
-
-            auto result_and_return_register = vm.bytecode_interpreter().run_executable(*executable, {});
-            if (result_and_return_register.value.is_error()) {
-                result = result_and_return_register.value.release_error();
-            } else {
-                // Resulting value is in the accumulator.
-                result = result_and_return_register.return_register_value.is_special_empty_value() ? js_undefined() : result_and_return_register.return_register_value;
-            }
+            // Resulting value is in the accumulator.
+            result = result_and_return_register.return_register_value.is_special_empty_value() ? js_undefined() : result_and_return_register.return_register_value;
         }
     }
 
@@ -195,7 +194,7 @@ ThrowCompletionOr<Value> shadow_realm_import_value(VM& vm, String specifier_stri
     auto& realm = *vm.current_realm();
 
     // 1. Let evalContext be GetShadowRealmContext(evalRealm, true).
-    auto eval_context = get_shadow_realm_context(eval_realm, true);
+    auto eval_context = get_shadow_realm_context(eval_realm, true, 0);
 
     // 2. Let innerCapability be ! NewPromiseCapability(%Promise%).
     auto inner_capability = MUST(new_promise_capability(vm, realm.intrinsics().promise_constructor()));
@@ -288,7 +287,7 @@ ThrowCompletionOr<Value> get_wrapped_value(VM& vm, Realm& caller_realm, Value va
 }
 
 // 3.1.7 GetShadowRealmContext ( shadowRealmRecord, strictEval ), https://tc39.es/proposal-shadowrealm/#sec-getshadowrealmcontext
-NonnullOwnPtr<ExecutionContext> get_shadow_realm_context(Realm& shadow_realm, bool strict_eval)
+NonnullOwnPtr<ExecutionContext> get_shadow_realm_context(Realm& shadow_realm, bool strict_eval, u32 registers_and_constants_and_locals_count)
 {
     // 1. Let lexEnv be NewDeclarativeEnvironment(shadowRealmRecord.[[GlobalEnv]]).
     Environment* lexical_environment = new_declarative_environment(shadow_realm.global_environment()).ptr();
@@ -301,7 +300,7 @@ NonnullOwnPtr<ExecutionContext> get_shadow_realm_context(Realm& shadow_realm, bo
         variable_environment = lexical_environment;
 
     // 4. Let context be a new ECMAScript code execution context.
-    auto context = ExecutionContext::create();
+    auto context = ExecutionContext::create(registers_and_constants_and_locals_count);
 
     // 5. Set context's Function to null.
     context->function = nullptr;

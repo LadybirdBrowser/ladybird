@@ -646,8 +646,23 @@ ThrowCompletionOr<Value> perform_eval(VM& vm, Value x, CallerMode strict_caller,
     // 19. If runningContext is not already suspended, suspend runningContext.
     // NOTE: Done by the push on step 27.
 
+    // NOTE: Spec steps are rearranged in order to compute number of registers+constants+locals before construction of the execution context.
+
+    // 28. Let result be Completion(EvalDeclarationInstantiation(body, varEnv, lexEnv, privateEnv, strictEval)).
+    TRY(eval_declaration_instantiation(vm, program, variable_environment, lexical_environment, private_environment, strict_eval));
+
+    // 29. If result.[[Type]] is normal, then
+    //     a. Set result to the result of evaluating body.
+    auto executable_result = Bytecode::Generator::generate_from_ast_node(vm, program, {});
+    if (executable_result.is_error())
+        return vm.throw_completion<InternalError>(ErrorType::NotImplemented, TRY_OR_THROW_OOM(vm, executable_result.error().to_string()));
+    auto executable = executable_result.release_value();
+    executable->name = "eval"_fly_string;
+    if (Bytecode::g_dump_bytecode)
+        executable->dump();
+
     // 20. Let evalContext be a new ECMAScript code execution context.
-    auto eval_context = ExecutionContext::create();
+    auto eval_context = ExecutionContext::create(executable->number_of_registers + executable->constants.size() + executable->local_variable_names.size());
 
     // 21. Set evalContext's Function to null.
     // NOTE: This was done in the construction of eval_context.
@@ -680,21 +695,8 @@ ThrowCompletionOr<Value> perform_eval(VM& vm, Value x, CallerMode strict_caller,
         vm.pop_execution_context();
     };
 
-    // 28. Let result be Completion(EvalDeclarationInstantiation(body, varEnv, lexEnv, privateEnv, strictEval)).
-    TRY(eval_declaration_instantiation(vm, program, variable_environment, lexical_environment, private_environment, strict_eval));
-
     Optional<Value> eval_result;
 
-    // 29. If result.[[Type]] is normal, then
-    //     a. Set result to the result of evaluating body.
-    auto executable_result = Bytecode::Generator::generate_from_ast_node(vm, program, {});
-    if (executable_result.is_error())
-        return vm.throw_completion<InternalError>(ErrorType::NotImplemented, TRY_OR_THROW_OOM(vm, executable_result.error().to_string()));
-
-    auto executable = executable_result.release_value();
-    executable->name = "eval"_fly_string;
-    if (Bytecode::g_dump_bytecode)
-        executable->dump();
     auto result_or_error = vm.bytecode_interpreter().run_executable(*executable, {});
     if (result_or_error.value.is_error())
         return result_or_error.value.release_error();

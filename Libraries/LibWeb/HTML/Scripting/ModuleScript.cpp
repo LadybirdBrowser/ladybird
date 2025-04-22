@@ -102,7 +102,7 @@ JS::Promise* JavaScriptModuleScript::run(PreventErrorReporting)
         VERIFY(record);
 
         // NON-STANDARD: To ensure that LibJS can find the module on the stack, we push a new execution context.
-        auto module_execution_context = JS::ExecutionContext::create();
+        auto module_execution_context = JS::ExecutionContext::create(0);
         module_execution_context->realm = &realm;
         module_execution_context->script_or_module = GC::Ref<JS::Module> { *record };
         vm().push_execution_context(*module_execution_context);
