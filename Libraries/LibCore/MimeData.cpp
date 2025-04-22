@@ -42,9 +42,10 @@ ByteString MimeData::text() const
     return ByteString::copy(m_data.get("text/plain"sv).value_or({}));
 }
 
-void MimeData::set_text(ByteString const& text)
+ErrorOr<void> MimeData::set_text(ByteString const& text)
 {
-    set_data("text/plain"_string, text.to_byte_buffer());
+    set_data("text/plain"_string, TRY(text.to_byte_buffer()));
+    return {};
 }
 
 // FIXME: Share this, TextEditor and HackStudio language detection somehow.

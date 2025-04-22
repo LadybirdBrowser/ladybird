@@ -68,7 +68,7 @@ ErrorOr<DataURL> process_data_url(URL::URL const& data_url)
     auto encoded_body = input.substring_view(position.value());
 
     // 10. Let body be the percent-decoding of encodedBody.
-    auto body = URL::percent_decode(encoded_body).to_byte_buffer();
+    auto body = TRY(URL::percent_decode(encoded_body).to_byte_buffer());
 
     // 11. If mimeType ends with U+003B (;), followed by zero or more U+0020 SPACE, followed by an ASCII case-insensitive match for "base64", then:
     if (mime_type.ends_with("base64"sv, CaseSensitivity::CaseInsensitive)) {
