@@ -186,7 +186,7 @@ public:
     ALWAYS_INLINE constexpr void overwrite(size_t offset, void const* data, size_t data_size)
     {
         // make sure we're not told to write past the end
-        VERIFY(offset + data_size <= size());
+        VERIFY(offset + data_size <= size() * sizeof(T));
         __builtin_memmove(this->data() + offset, data, data_size);
     }
 
