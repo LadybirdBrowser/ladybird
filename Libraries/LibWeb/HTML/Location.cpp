@@ -486,7 +486,7 @@ WebIDL::ExceptionOr<String> Location::hash() const
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-location-hash
-WebIDL::ExceptionOr<void> Location::set_hash(String const& value)
+WebIDL::ExceptionOr<void> Location::set_hash(StringView value)
 {
     // 1. If this's relevant Document is null, then return.
     auto const relevant_document = this->relevant_document();
@@ -504,7 +504,7 @@ WebIDL::ExceptionOr<void> Location::set_hash(String const& value)
     auto this_url_fragment = copy_url.fragment().has_value() ? *copy_url.fragment() : String {};
 
     // 5. Let input be the given value with a single leading "#" removed, if any.
-    auto input = value.bytes_as_string_view().trim("#"sv, TrimMode::Left);
+    auto input = value.substring_view(value.starts_with('#'));
 
     // 6. Set copyURL's fragment to the empty string.
     copy_url.set_fragment(String {});

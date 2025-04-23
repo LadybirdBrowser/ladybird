@@ -48,7 +48,7 @@ public:
     WebIDL::ExceptionOr<void> set_search(String const&);
 
     WebIDL::ExceptionOr<String> hash() const;
-    WebIDL::ExceptionOr<void> set_hash(String const&);
+    WebIDL::ExceptionOr<void> set_hash(StringView);
 
     WebIDL::ExceptionOr<void> replace(String const& url);
     void reload() const;
