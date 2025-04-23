@@ -101,7 +101,6 @@ private:
     GC::Ptr<Object> m_global_object { nullptr };
     GC::Ptr<DeclarativeEnvironment> m_global_declarative_environment { nullptr };
     Optional<size_t&> m_program_counter;
-    Span<Value> m_arguments;
     Span<Value> m_registers_and_constants_and_locals;
     Vector<Value> m_argument_values_buffer;
     ExecutionContext* m_running_execution_context { nullptr };
