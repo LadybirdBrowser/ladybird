@@ -175,29 +175,26 @@ ThrowCompletionOr<Realm*> get_function_realm(VM& vm, FunctionObject const& funct
     }
 
     // 2. If obj is a bound function exotic object, then
-    if (is<BoundFunction>(function)) {
-        auto& bound_function = static_cast<BoundFunction const&>(function);
+    if (auto const* bound_function = as_if<BoundFunction>(function)) {
+        // a. Let boundTargetFunction be obj.[[BoundTargetFunction]].
+        auto& bound_target_function = bound_function->bound_target_function();
 
-        // a. Let target be obj.[[BoundTargetFunction]].
-        auto& target = bound_function.bound_target_function();
-
-        // b. Return ? GetFunctionRealm(target).
-        return get_function_realm(vm, target);
+        // b. Return ? GetFunctionRealm(boundTargetFunction).
+        return get_function_realm(vm, bound_target_function);
     }
 
     // 3. If obj is a Proxy exotic object, then
-    if (is<ProxyObject>(function)) {
-        auto& proxy = static_cast<ProxyObject const&>(function);
-
-        // a. If obj.[[ProxyHandler]] is null, throw a TypeError exception.
-        if (proxy.is_revoked())
-            return vm.throw_completion<TypeError>(ErrorType::ProxyRevoked);
+    if (auto const* proxy = as_if<ProxyObject>(function)) {
+        // a. a. Perform ? ValidateNonRevokedProxy(obj).
+        TRY(proxy->validate_non_revoked_proxy());
 
         // b. Let proxyTarget be obj.[[ProxyTarget]].
-        auto& proxy_target = proxy.target();
+        auto& proxy_target = proxy->target();
 
-        // c. Return ? GetFunctionRealm(proxyTarget).
+        // c. Assert: proxyTarget is a function object.
         VERIFY(proxy_target.is_function());
+
+        // d. Return ? GetFunctionRealm(proxyTarget).
         return get_function_realm(vm, static_cast<FunctionObject const&>(proxy_target));
     }
 

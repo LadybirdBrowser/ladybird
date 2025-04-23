@@ -233,18 +233,16 @@ ThrowCompletionOr<bool> Value::is_array(VM& vm) const
         return true;
 
     // 3. If argument is a Proxy exotic object, then
-    if (is<ProxyObject>(object)) {
-        auto const& proxy = static_cast<ProxyObject const&>(object);
+    if (auto const* proxy = as_if<ProxyObject>(object)) {
 
-        // a. If argument.[[ProxyHandler]] is null, throw a TypeError exception.
-        if (proxy.is_revoked())
-            return vm.throw_completion<TypeError>(ErrorType::ProxyRevoked);
+        // a. Perform ? ValidateNonRevokedProxy(argument).
+        TRY(proxy->validate_non_revoked_proxy());
 
-        // b. Let target be argument.[[ProxyTarget]].
-        auto const& target = proxy.target();
+        // b. Let proxyTarget be argument.[[ProxyTarget]].
+        auto& proxy_target = proxy->target();
 
-        // c. Return ? IsArray(target).
-        return Value(&target).is_array(vm);
+        // c. Return ? IsArray(proxyTarget).
+        return Value(&proxy_target).is_array(vm);
     }
 
     // 4. Return false.
