@@ -1400,9 +1400,7 @@ WebIDL::ExceptionOr<void> HTMLElement::hide_popover(FocusPreviousElement focus_p
         }
     };
 
-    // AD-HOC: This implementation checks "opened in popover mode" instead of the current popover state.
-    // Spec issue: https://github.com/whatwg/html/issues/10996.
-    // 7. If element's popover attribute is in the auto state or the hint state, then:
+    // 7. If element's opened in popover mode is "auto" or "hint", then:
     if (m_opened_in_popover_mode.has_value() && m_opened_in_popover_mode.value().is_one_of("auto", "hint")) {
         // 7.1. Run hide all popovers until given element, focusPreviousElement, and fireEvents.
         hide_all_popovers_until(GC::Ptr(this), focus_previous_element, fire_events);
