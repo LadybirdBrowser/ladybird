@@ -339,6 +339,7 @@ WebIDL::ExceptionOr<GC::Ptr<PendingResponse>> main_fetch(JS::Realm& realm, Infra
 
     auto get_response = GC::create_function(vm.heap(), [&realm, &vm, &fetch_params, request]() -> WebIDL::ExceptionOr<GC::Ref<PendingResponse>> {
         dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'main fetch' get_response() function");
+        auto const* origin = request->origin().get_pointer<URL::Origin>();
 
         // -> fetchParams’s preloaded response candidate is not null
         if (!fetch_params.preloaded_response_candidate().has<Empty>()) {
@@ -358,7 +359,7 @@ WebIDL::ExceptionOr<GC::Ptr<PendingResponse>> main_fetch(JS::Realm& realm, Infra
         // -> request’s current URL’s scheme is "data"
         // -> request’s mode is "navigate" or "websocket"
         if (
-            (request->origin().has<URL::Origin>() && request->current_url().origin().is_same_origin(request->origin().get<URL::Origin>()) && request->response_tainting() == Infrastructure::Request::ResponseTainting::Basic)
+            (origin && request->current_url().origin().is_same_origin(*origin) && request->response_tainting() == Infrastructure::Request::ResponseTainting::Basic)
             || request->current_url().scheme() == "data"sv
             || (request->mode() == Infrastructure::Request::Mode::Navigate || request->mode() == Infrastructure::Request::Mode::WebSocket)) {
             // 1. Set request’s response tainting to "basic".
@@ -391,7 +392,9 @@ WebIDL::ExceptionOr<GC::Ptr<PendingResponse>> main_fetch(JS::Realm& realm, Infra
         }
 
         // -> request’s current URL’s scheme is not an HTTP(S) scheme
-        if (!Infrastructure::is_http_or_https_scheme(request->current_url().scheme())) {
+        // AD-HOC: We allow CORS requests for resource:// URLs from opaque origins to enable requesting JS modules from internal pages.
+        if (!Infrastructure::is_http_or_https_scheme(request->current_url().scheme())
+            && !(origin && origin->is_opaque() && request->current_url().scheme() == "resource"sv)) {
             // NOTE: At this point all other request modes have been handled. Ensure we're not lying in the error message :^)
             VERIFY(request->mode() == Infrastructure::Request::Mode::CORS);
 
