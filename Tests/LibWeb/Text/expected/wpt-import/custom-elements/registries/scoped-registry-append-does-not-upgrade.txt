@@ -2,10 +2,11 @@ Harness status: OK
 
 Found 8 tests
 
-8 Fail
-Fail	customElementRegistry of an upgrade candidate created in a document without a browsing context uses null regsitry by default
-Fail	Connecting a custom element candiate in a shadow root with a scoped custom element registry has null registry by default
-Fail	Connecting a custom element candiate with null registry does not set the registry
+3 Pass
+5 Fail
+Pass	customElementRegistry of an upgrade candidate created in a document without a browsing context uses null regsitry by default
+Pass	Connecting a custom element candiate in a shadow root with a scoped custom element registry has null registry by default
+Pass	Connecting a custom element candiate with null registry does not set the registry
 Fail	Connecting a custom element candiate with a scoped custom element registry does not change the registry
 Fail	Inserting a custom element candiate with null registry does not change the registry
 Fail	Inserting the shadow host of a shadow root with a scoped custom element registry does not change the registry

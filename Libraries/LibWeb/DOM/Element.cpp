@@ -149,6 +149,7 @@ void Element::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_class_list);
     visitor.visit(m_shadow_root);
     visitor.visit(m_part_list);
+    visitor.visit(m_custom_element_registry);
     visitor.visit(m_custom_element_definition);
     visitor.visit(m_custom_state_set);
     visitor.visit(m_cascaded_properties);

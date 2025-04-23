@@ -2,10 +2,11 @@ Harness status: OK
 
 Found 6 tests
 
-6 Fail
+1 Pass
+5 Fail
 Fail	innerHTML on a disconnected element should use the scoped registry it was created with
 Fail	nested descendants in innerHTML on a disconnected element should use the scoped registry the element was created with
 Fail	innerHTML on a disconnected element should use the scoped registry it was created with when parsing a simple HTML
 Fail	innerHTML on an inserted element should continue to use the scoped registry it was created with
 Fail	nested descendants in innerHTML should use the null registry when the container element has null registry
-Fail	insertAdjacentHTML should use the element's registry even when the registry is null
+Pass	insertAdjacentHTML should use the element's registry even when the registry is null

@@ -2,12 +2,13 @@ Harness status: OK
 
 Found 9 tests
 
-9 Fail
+1 Pass
+8 Fail
 Fail	shadowRootCustomElementRegistry reflects as string
 Fail	Serializing a null registry ShadowRoot with a global registry host (document)
 Fail	Serializing a global registry ShadowRoot with a global registry host (document)
 Fail	Serializing a scoped registry ShadowRoot with a global registry host (document)
-Fail	Serializing a null registry ShadowRoot with a null registry host (document)
+Pass	Serializing a null registry ShadowRoot with a null registry host (document)
 Fail	Serializing a scoped registry ShadowRoot with a null registry host (document)
 Fail	Serializing a null registry ShadowRoot with a scoped registry host (document)
 Fail	Serializing a scoped registry ShadowRoot with a scoped registry host (document)
