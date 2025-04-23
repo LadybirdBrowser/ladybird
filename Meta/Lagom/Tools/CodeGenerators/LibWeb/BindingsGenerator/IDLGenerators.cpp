@@ -65,6 +65,7 @@ static bool is_platform_object(Type const& type)
         "CSSUnitValue"sv,
         "CSSUnparsedValue"sv,
         "CSSVariableReferenceValue"sv,
+        "CustomElementRegistry"sv,
         "CustomStateSet"sv,
         "DataTransfer"sv,
         "Document"sv,

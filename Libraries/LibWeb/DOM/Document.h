@@ -1035,6 +1035,9 @@ public:
     Optional<CSS::SelectorList> const* cached_query_selector_result(String const& selector_text) const;
     void cache_query_selector_result(String selector_text, Optional<CSS::SelectorList>);
 
+    GC::Ptr<HTML::CustomElementRegistry> custom_element_registry() const;
+    void set_custom_element_registry(GC::Ptr<HTML::CustomElementRegistry> custom_element_registry) { m_custom_element_registry = custom_element_registry; }
+
 protected:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
@@ -1464,6 +1467,9 @@ private:
 
     // https://fullscreen.spec.whatwg.org/#list-of-pending-fullscreen-events
     Vector<PendingFullscreenEvent> m_pending_fullscreen_events;
+
+    // https://dom.spec.whatwg.org/#document-custom-element-registry
+    GC::Ptr<HTML::CustomElementRegistry> m_custom_element_registry;
 };
 
 template<>

@@ -14,6 +14,7 @@
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/SlotRegistry.h>
 #include <LibWeb/DOM/Utils.h>
+#include <LibWeb/HTML/CustomElements/CustomElementRegistry.h>
 #include <LibWeb/HTML/HTMLSlotElement.h>
 #include <LibWeb/HTML/HTMLTemplateElement.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
@@ -192,6 +193,7 @@ void ShadowRoot::visit_edges(Visitor& visitor)
         for (auto const& element : elements)
             element.visit(visitor);
     }
+    visitor.visit(m_custom_element_registry);
 }
 
 GC::Ref<WebIDL::ObservableArray> ShadowRoot::adopted_style_sheets() const
@@ -321,6 +323,17 @@ void ShadowRoot::calculate_part_element_map()
         }
         return TraversalDecision::Continue;
     });
+}
+
+// https://dom.spec.whatwg.org/#dom-documentorshadowroot-customelementregistry
+GC::Ptr<HTML::CustomElementRegistry> ShadowRoot::custom_element_registry() const
+{
+    // 1. If this is a document, then return this’s custom element registry.
+    // NB: Impossible.
+
+    // 2. Assert: this is a ShadowRoot node.
+    // 3. Return this’s custom element registry.
+    return m_custom_element_registry;
 }
 
 }
