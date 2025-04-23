@@ -501,7 +501,9 @@ ThrowCompletionOr<Value> ECMAScriptFunctionObject::internal_call(Value this_argu
     }
 
     u32 arguments_count = max(arguments_list.size(), formal_parameters().size());
-    auto callee_context = ExecutionContext::create(m_bytecode_executable->number_of_registers + m_bytecode_executable->constants.size() + m_bytecode_executable->local_variable_names.size(), arguments_count);
+    auto registers_and_constants_and_locals_count = m_bytecode_executable->number_of_registers + m_bytecode_executable->constants.size() + m_bytecode_executable->local_variable_names.size();
+    ExecutionContext* callee_context = nullptr;
+    ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK(callee_context, registers_and_constants_and_locals_count, arguments_count);
 
     // Non-standard
     auto arguments = callee_context->arguments();
@@ -571,7 +573,9 @@ ThrowCompletionOr<GC::Ref<Object>> ECMAScriptFunctionObject::internal_construct(
     }
 
     u32 arguments_count = max(arguments_list.size(), formal_parameters().size());
-    auto callee_context = ExecutionContext::create(m_bytecode_executable->number_of_registers + m_bytecode_executable->constants.size() + m_bytecode_executable->local_variable_names.size(), arguments_count);
+    auto registers_and_constants_and_locals_count = m_bytecode_executable->number_of_registers + m_bytecode_executable->constants.size() + m_bytecode_executable->local_variable_names.size();
+    ExecutionContext* callee_context = nullptr;
+    ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK(callee_context, registers_and_constants_and_locals_count, arguments_count);
 
     // Non-standard
     auto arguments = callee_context->arguments();

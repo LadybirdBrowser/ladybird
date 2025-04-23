@@ -662,7 +662,8 @@ ThrowCompletionOr<Value> perform_eval(VM& vm, Value x, CallerMode strict_caller,
         executable->dump();
 
     // 20. Let evalContext be a new ECMAScript code execution context.
-    auto eval_context = ExecutionContext::create(executable->number_of_registers + executable->constants.size() + executable->local_variable_names.size(), 0);
+    ExecutionContext* eval_context = nullptr;
+    ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK(eval_context, executable->number_of_registers + executable->constants.size() + executable->local_variable_names.size(), 0);
 
     // 21. Set evalContext's Function to null.
     // NOTE: This was done in the construction of eval_context.
