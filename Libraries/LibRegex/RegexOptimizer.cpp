@@ -1264,7 +1264,7 @@ void Optimizer::append_alternation(ByteCode& target, Span<ByteCode> alternatives
 
     // This is really only worth it if we don't blow up the size by the 2-extra-instruction-per-node scheme, similarly, if no nodes are shared, we're better off not using a tree.
     auto tree_cost = (total_nodes - common_hits) * 2;
-    auto chain_cost = total_nodes + alternatives.size() * 2;
+    auto chain_cost = total_bytecode_entries_in_tree + alternatives.size() * 2;
     dbgln_if(REGEX_DEBUG, "Total nodes: {}, common hits: {} (tree cost = {}, chain cost = {})", total_nodes, common_hits, tree_cost, chain_cost);
 
     if (common_hits == 0 || tree_cost > chain_cost) {
