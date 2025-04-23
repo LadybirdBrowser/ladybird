@@ -918,10 +918,8 @@ BlockFormattingContext::DidIntroduceClearance BlockFormattingContext::clear_floa
 
             // First, find the lowest margin box edge on this float side and calculate the Y offset just below it.
             CSSPixels clearance_y_in_root = 0;
-            for (auto const& floating_box : float_side.current_boxes) {
-                auto floating_box_rect_in_root = margin_box_rect_in_ancestor_coordinate_space(floating_box.used_values, root());
-                clearance_y_in_root = max(clearance_y_in_root, floating_box_rect_in_root.bottom());
-            }
+            for (auto const& floating_box : float_side.current_boxes)
+                clearance_y_in_root = max(clearance_y_in_root, floating_box.margin_box_rect_in_root_coordinate_space.bottom());
 
             // Then, convert the clearance Y to a coordinate relative to the containing block of `child_box`.
             CSSPixels clearance_y_in_containing_block = clearance_y_in_root;
