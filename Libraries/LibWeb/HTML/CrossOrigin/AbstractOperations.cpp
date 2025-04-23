@@ -137,7 +137,7 @@ Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper(Variant<HT
             if (value->is_function()) {
                 value = JS::NativeFunction::create(
                     realm, [function = GC::make_root(*value)](auto& vm) {
-                        return JS::call(vm, function.value(), JS::js_undefined(), vm.running_execution_context().arguments());
+                        return JS::call(vm, function.value(), JS::js_undefined(), vm.running_execution_context().arguments);
                     },
                     0);
             }
@@ -154,7 +154,7 @@ Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper(Variant<HT
             if (*entry.needs_get) {
                 cross_origin_get = JS::NativeFunction::create(
                     realm, [object_ptr, getter = GC::make_root(*original_descriptor->get)](auto& vm) {
-                        return JS::call(vm, getter.cell(), object_ptr, vm.running_execution_context().arguments());
+                        return JS::call(vm, getter.cell(), object_ptr, vm.running_execution_context().arguments);
                     },
                     0);
             }
@@ -166,7 +166,7 @@ Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper(Variant<HT
             if (*entry.needs_set) {
                 cross_origin_set = JS::NativeFunction::create(
                     realm, [object_ptr, setter = GC::make_root(*original_descriptor->set)](auto& vm) {
-                        return JS::call(vm, setter.cell(), object_ptr, vm.running_execution_context().arguments());
+                        return JS::call(vm, setter.cell(), object_ptr, vm.running_execution_context().arguments);
                     },
                     0);
             }

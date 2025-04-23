@@ -83,10 +83,9 @@ public:
 
     Value argument(size_t index) const
     {
-        auto arguments_size = registers_and_constants_and_locals_and_arguments_count - arguments_offset;
-        if (index >= arguments_size) [[unlikely]]
+        if (index >= arguments.size()) [[unlikely]]
             return js_undefined();
-        return registers_and_constants_and_locals_and_arguments()[arguments_offset + index];
+        return arguments[index];
     }
 
     Value& local(size_t index)
@@ -98,15 +97,7 @@ public:
     u32 passed_argument_count { 0 };
     bool is_strict_mode { false };
 
-    Span<Value> arguments()
-    {
-        return { registers_and_constants_and_locals_and_arguments() + arguments_offset, registers_and_constants_and_locals_and_arguments_count - arguments_offset };
-    }
-
-    ReadonlySpan<Value> arguments() const
-    {
-        return { registers_and_constants_and_locals_and_arguments() + arguments_offset, registers_and_constants_and_locals_and_arguments_count - arguments_offset };
-    }
+    Span<Value> arguments;
 
     Vector<Bytecode::UnwindInfo> unwind_contexts;
     Vector<Optional<size_t>> previously_scheduled_jumps;

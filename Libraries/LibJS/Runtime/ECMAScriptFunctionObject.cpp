@@ -506,7 +506,7 @@ ThrowCompletionOr<Value> ECMAScriptFunctionObject::internal_call(Value this_argu
     ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK(callee_context, registers_and_constants_and_locals_count, arguments_count);
 
     // Non-standard
-    auto arguments = callee_context->arguments();
+    auto arguments = callee_context->arguments;
     if (!arguments_list.is_empty())
         arguments.overwrite(0, arguments_list.data(), arguments_list.size() * sizeof(Value));
     callee_context->passed_argument_count = arguments_list.size();
@@ -578,7 +578,7 @@ ThrowCompletionOr<GC::Ref<Object>> ECMAScriptFunctionObject::internal_construct(
     ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK(callee_context, registers_and_constants_and_locals_count, arguments_count);
 
     // Non-standard
-    auto arguments = callee_context->arguments();
+    auto arguments = callee_context->arguments;
     if (!arguments_list.is_empty())
         arguments.overwrite(0, arguments_list.data(), arguments_list.size() * sizeof(Value));
     callee_context->passed_argument_count = arguments_list.size();

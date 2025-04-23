@@ -269,7 +269,7 @@ ThrowCompletionOr<GC::Ref<Object>> FunctionConstructor::construct(FunctionObject
 
     // 2. If bodyArg is not present, set bodyArg to the empty String.
     // NOTE: This does that, as well as the string extraction done inside of CreateDynamicFunction
-    auto extracted = TRY(extract_parameter_arguments_and_body(vm, vm.running_execution_context().arguments()));
+    auto extracted = TRY(extract_parameter_arguments_and_body(vm, vm.running_execution_context().arguments));
 
     // 3. Return ? CreateDynamicFunction(C, NewTarget, normal, parameterArgs, bodyArg).
     return TRY(create_dynamic_function(vm, *constructor, &new_target, FunctionKind::Normal, extracted.parameters, extracted.body));
