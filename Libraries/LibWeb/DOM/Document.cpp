@@ -3774,31 +3774,8 @@ void Document::set_window(HTML::Window& window)
 // https://html.spec.whatwg.org/multipage/custom-elements.html#look-up-a-custom-element-definition
 GC::Ptr<HTML::CustomElementDefinition> Document::lookup_custom_element_definition(Optional<FlyString> const& namespace_, FlyString const& local_name, Optional<String> const& is) const
 {
-    // 1. If namespace is not the HTML namespace, then return null.
-    if (namespace_ != Namespace::HTML)
-        return nullptr;
-
-    // 2. If document's browsing context is null, then return null.
-    if (!browsing_context())
-        return nullptr;
-
-    // 3. Let registry be document's relevant global object's custom element registry.
-    auto registry = as<HTML::Window>(relevant_global_object(*this)).custom_elements();
-
-    // 4. If registry's custom element definition set contains an item with name and local name both equal to localName, then return that item.
-    auto converted_local_name = local_name.to_string();
-    auto maybe_definition = registry->get_definition_with_name_and_local_name(converted_local_name, converted_local_name);
-    if (maybe_definition)
-        return maybe_definition;
-
-    // 5. If registry's custom element definition set contains an item with name equal to is and local name equal to localName, then return that item.
-    // 6. Return null.
-
-    // NOTE: If `is` has no value, it can never match as custom element definitions always have a name and localName (i.e. not stored as Optional<String>)
-    if (!is.has_value())
-        return nullptr;
-
-    return registry->get_definition_with_name_and_local_name(is.value(), converted_local_name);
+    // FIXME: This whole method is a temporary stop-gap.
+    return HTML::look_up_a_custom_element_definition(custom_element_registry(), namespace_, local_name, is);
 }
 
 CSS::StyleSheetList& Document::style_sheets()
@@ -6561,6 +6538,10 @@ GC::Ptr<HTML::CustomElementRegistry> Document::custom_element_registry() const
 {
     // 1. If this is a document, then return this’s custom element registry.
     // NB: Always true.
+
+    // FIXME: Is this a spec bug? It was in the old version of the "look up a custom element definition" algorithm, and without it we fail some tests.
+    if (!browsing_context())
+        return nullptr;
     return m_custom_element_registry;
 
     // 2. Assert: this is a ShadowRoot node.

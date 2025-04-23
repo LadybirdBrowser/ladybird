@@ -1,12 +1,12 @@
 /*
  * Copyright (c) 2023, Luke Wilde <lukew@serenityos.org>
+ * Copyright (c) 2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #pragma once
 
-#include <AK/RefCounted.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/HTML/CustomElements/CustomElementDefinition.h>
 
@@ -50,5 +50,7 @@ private:
     // Every CustomElementRegistry also has a when-defined promise map, mapping valid custom element names to promises. It is used to implement the whenDefined() method.
     OrderedHashMap<String, GC::Ref<WebIDL::Promise>> m_when_defined_promise_map;
 };
+
+GC::Ptr<CustomElementDefinition> look_up_a_custom_element_definition(GC::Ptr<CustomElementRegistry> registry, Optional<FlyString> const& namespace_, FlyString const& local_name, Optional<String> const& is);
 
 }

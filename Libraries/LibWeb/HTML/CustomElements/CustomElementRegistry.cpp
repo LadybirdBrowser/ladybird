@@ -427,4 +427,30 @@ GC::Ptr<CustomElementDefinition> CustomElementRegistry::get_definition_from_new_
     return definition_iterator.is_end() ? nullptr : definition_iterator->ptr();
 }
 
+// https://html.spec.whatwg.org/multipage/custom-elements.html#look-up-a-custom-element-definition
+GC::Ptr<CustomElementDefinition> look_up_a_custom_element_definition(GC::Ptr<CustomElementRegistry> registry, Optional<FlyString> const& namespace_, FlyString const& local_name, Optional<String> const& is)
+{
+    // 1. If registry is null, then return null.
+    if (!registry)
+        return nullptr;
+
+    // 2. If namespace is not the HTML namespace, then return null.
+    if (namespace_ != Namespace::HTML)
+        return nullptr;
+
+    // 3. If registry's custom element definition set contains an item with name and local name both equal to localName, then return that item.
+    auto converted_local_name = local_name.to_string();
+    if (auto maybe_definition = registry->get_definition_with_name_and_local_name(converted_local_name, converted_local_name))
+        return maybe_definition;
+
+    // 4. If registry's custom element definition set contains an item with name equal to is and local name equal to localName, then return that item.
+    // 5. Return null.
+
+    // NB: If `is` has no value, it can never match as custom element definitions always have a name and localName (i.e. not stored as Optional<String>)
+    if (!is.has_value())
+        return nullptr;
+
+    return registry->get_definition_with_name_and_local_name(is.value(), converted_local_name);
+}
+
 }
