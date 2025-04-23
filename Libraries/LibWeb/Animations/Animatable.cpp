@@ -140,7 +140,7 @@ void Animatable::add_transitioned_properties(Vector<Vector<CSS::PropertyID>> pro
         auto delay = delays[i]->is_time() ? delays[i]->as_time().time().to_milliseconds() : 0;
         auto duration = durations[i]->is_time() ? durations[i]->as_time().time().to_milliseconds() : 0;
         auto timing_function = timing_functions[i]->is_easing() ? timing_functions[i]->as_easing().function() : CSS::EasingStyleValue::CubicBezier::ease();
-        VERIFY(timing_functions[i]->is_easing());
+        //VERIFY(timing_functions[i]->is_easing());
         impl.transition_attributes.empend(delay, duration, timing_function);
 
         for (auto const& property : properties[i])
