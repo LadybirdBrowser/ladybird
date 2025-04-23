@@ -2771,7 +2771,7 @@ JS::ThrowCompletionOr<GC::Ref<JS::Object>> @constructor_class@::construct@overlo
 
         // 2. Set prototype to the interface prototype object for interface in targetRealm.
         VERIFY(target_realm);
-        prototype = &Bindings::ensure_web_prototype<@prototype_class@>(*target_realm, "@name@"_fly_string);
+        prototype = &Bindings::ensure_web_prototype<@prototype_class@>(*target_realm, "@namespaced_name@"_fly_string);
     }
 
     // 4. Let instance be MakeBasicObject( « [[Prototype]], [[Extensible]], [[Realm]], [[PrimaryInterface]] »).
