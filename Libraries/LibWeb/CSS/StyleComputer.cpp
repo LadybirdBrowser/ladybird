@@ -1342,6 +1342,12 @@ static void compute_transitioned_properties(ComputedProperties const& style, DOM
         auto const* style_value = style.maybe_null_property(property);
         StyleValueVector list;
 
+        if (style_value && !style_value->is_value_list()) {
+            for (size_t i = 0; i < properties.size(); i++)
+                list.append(*style_value);
+            return list;
+        }
+
         if (!style_value || !style_value->is_value_list() || style_value->as_value_list().size() == 0) {
             auto default_value = make_default_value();
             for (size_t i = 0; i < properties.size(); i++)
