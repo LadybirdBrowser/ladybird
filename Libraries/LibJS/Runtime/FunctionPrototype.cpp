@@ -98,7 +98,7 @@ JS_DEFINE_NATIVE_FUNCTION(FunctionPrototype::bind)
 
     Vector<Value> arguments;
     if (vm.argument_count() > 1) {
-        arguments.append(vm.running_execution_context().arguments().slice(1).data(), vm.argument_count() - 1);
+        arguments.append(vm.running_execution_context().arguments.slice(1).data(), vm.argument_count() - 1);
     }
 
     // 3. Let F be ? BoundFunctionCreate(Target, thisArg, args).
@@ -129,7 +129,7 @@ JS_DEFINE_NATIVE_FUNCTION(FunctionPrototype::call)
     // FIXME: 3. Perform PrepareForTailCall().
 
     auto this_arg = vm.argument(0);
-    auto args = vm.argument_count() > 1 ? vm.running_execution_context().arguments().slice(1) : ReadonlySpan<Value> {};
+    auto args = vm.argument_count() > 1 ? vm.running_execution_context().arguments.slice(1) : ReadonlySpan<Value> {};
 
     // 4. Return ? Call(func, thisArg, args).
     return TRY(JS::call(vm, function, this_arg, args));

@@ -106,6 +106,7 @@ ExecutionContext::ExecutionContext(u32 registers_and_constants_and_locals_count,
     auto* registers_and_constants_and_locals_and_arguments = this->registers_and_constants_and_locals_and_arguments();
     for (size_t i = 0; i < registers_and_constants_and_locals_count; ++i)
         registers_and_constants_and_locals_and_arguments[i] = js_special_empty_value();
+    arguments = { registers_and_constants_and_locals_and_arguments + arguments_offset, registers_and_constants_and_locals_and_arguments_count - arguments_offset };
 }
 
 ExecutionContext::~ExecutionContext()
@@ -114,7 +115,7 @@ ExecutionContext::~ExecutionContext()
 
 NonnullOwnPtr<ExecutionContext> ExecutionContext::copy() const
 {
-    auto copy = create(registers_and_constants_and_locals_and_arguments_count, arguments().size());
+    auto copy = create(registers_and_constants_and_locals_and_arguments_count, arguments.size());
     copy->function = function;
     copy->realm = realm;
     copy->script_or_module = script_or_module;
@@ -134,6 +135,7 @@ NonnullOwnPtr<ExecutionContext> ExecutionContext::copy() const
     copy->registers_and_constants_and_locals_and_arguments_count = registers_and_constants_and_locals_and_arguments_count;
     for (size_t i = 0; i < registers_and_constants_and_locals_and_arguments_count; ++i)
         copy->registers_and_constants_and_locals_and_arguments()[i] = registers_and_constants_and_locals_and_arguments()[i];
+    copy->arguments = { copy->registers_and_constants_and_locals_and_arguments() + copy->arguments_offset, arguments.size() };
     return copy;
 }
 
