@@ -1,9 +1,163 @@
+const languagesAdd = document.querySelector("#languages-add");
+const languagesClose = document.querySelector("#languages-close");
+const languagesDialog = document.querySelector("#languages-dialog");
+const languagesList = document.querySelector("#languages-list");
+const languagesSelect = document.querySelector("#languages-select");
+const languagesSettings = document.querySelector("#languages-settings");
+
+let LANGUAGES = {};
+
+function loadSettings(settings) {
+    LANGUAGES = settings.languages;
+
+    if (languagesDialog.open) {
+        showLanguages();
+    }
+}
+
+function languageDisplayName(language) {
+    const item = AVAILABLE_LANGUAGES.find(item => item.language === language);
+    return item.displayName;
+}
+
+function saveLanguages() {
+    ladybird.sendMessage("setLanguages", LANGUAGES);
+}
+
+function moveLanguage(from, to) {
+    [LANGUAGES[from], LANGUAGES[to]] = [LANGUAGES[to], LANGUAGES[from]];
+    saveLanguages();
+}
+
+function removeLanguage(index) {
+    LANGUAGES.splice(index, 1);
+    saveLanguages();
+}
+
+function loadLanguages() {
+    for (const language of AVAILABLE_LANGUAGES) {
+        const option = document.createElement("option");
+        option.text = language.displayName;
+        option.value = language.language;
+
+        languagesSelect.add(option);
+    }
+}
+
+function showLanguages() {
+    languagesList.innerHTML = "";
+
+    LANGUAGES.forEach((language, index) => {
+        const name = document.createElement("span");
+        name.className = "dialog-list-item-label";
+        name.textContent = languageDisplayName(language);
+
+        const moveUp = document.createElement("button");
+        moveUp.className = "dialog-button";
+        moveUp.innerHTML = upwardArrowSVG;
+        moveUp.title = "Move up";
+
+        if (index === 0) {
+            moveUp.disabled = true;
+        } else {
+            moveUp.addEventListener("click", () => {
+                moveLanguage(index, index - 1);
+            });
+        }
+
+        const moveDown = document.createElement("button");
+        moveDown.className = "dialog-button";
+        moveDown.innerHTML = downwardArrowSVG;
+        moveDown.title = "Move down";
+
+        if (index === LANGUAGES.length - 1) {
+            moveDown.disabled = true;
+        } else {
+            moveDown.addEventListener("click", () => {
+                moveLanguage(index, index + 1);
+            });
+        }
+
+        const remove = document.createElement("button");
+        remove.className = "dialog-button";
+        remove.innerHTML = "&times;";
+        remove.title = "Remove";
+
+        if (LANGUAGES.length <= 1) {
+            remove.disabled = true;
+        } else {
+            remove.addEventListener("click", () => {
+                removeLanguage(index);
+            });
+        }
+
+        const controls = document.createElement("div");
+        controls.className = "dialog-controls";
+        controls.appendChild(moveUp);
+        controls.appendChild(moveDown);
+        controls.appendChild(remove);
+
+        const item = document.createElement("div");
+        item.className = "dialog-list-item";
+        item.appendChild(name);
+        item.appendChild(controls);
+
+        languagesList.appendChild(item);
+    });
+
+    for (const language of languagesSelect.options) {
+        language.disabled = LANGUAGES.includes(language.value);
+    }
+
+    if (!languagesDialog.open) {
+        setTimeout(() => languagesSelect.focus());
+        languagesDialog.showModal();
+    }
+}
+
+languagesAdd.addEventListener("click", () => {
+    const language = languagesSelect.value;
+
+    languagesAdd.disabled = true;
+    languagesSelect.selectedIndex = 0;
+
+    if (!language || LANGUAGES.includes(language)) {
+        return;
+    }
+
+    LANGUAGES.push(language);
+    saveLanguages();
+});
+
+languagesClose.addEventListener("click", () => {
+    languagesDialog.close();
+});
+
+languagesSelect.addEventListener("change", () => {
+    languagesAdd.disabled = !languagesSelect.value;
+});
+
+languagesSettings.addEventListener("click", event => {
+    showLanguages();
+    event.stopPropagation();
+});
+
+document.addEventListener("WebUILoaded", () => {
+    loadLanguages();
+});
+
+document.addEventListener("WebUIMessage", event => {
+    if (event.detail.name === "loadSettings") {
+        loadSettings(event.detail.data);
+    }
+});
+
 // Rather than creating a list of all languages supported by ICU (of which there are on the order of a thousand), we
 // create a list of languages that are supported by both Chrome and Firefox. We can extend this list as needed.
 //
 // https://github.com/chromium/chromium/blob/main/ui/base/l10n/l10n_util.cc (see kAcceptLanguageList)
 // https://github.com/mozilla/gecko-dev/blob/master/intl/locale/language.properties
-window.languages = (() => {
+const AVAILABLE_LANGUAGES = (() => {
     const display = new Intl.DisplayNames([], { type: "language", languageDisplay: "standard" });
 
     const language = languageID => {
