@@ -44,6 +44,7 @@ public:
     virtual ThrowCompletionOr<GC::RootVector<Value>> internal_own_property_keys() const override;
     virtual ThrowCompletionOr<Value> internal_call(Value this_argument, ReadonlySpan<Value> arguments_list) override;
     virtual ThrowCompletionOr<GC::Ref<Object>> internal_construct(ReadonlySpan<Value> arguments_list, FunctionObject& new_target) override;
+    ThrowCompletionOr<void> validate_non_revoked_proxy() const;
 
 private:
     ProxyObject(Object& target, Object& handler, Object& prototype);

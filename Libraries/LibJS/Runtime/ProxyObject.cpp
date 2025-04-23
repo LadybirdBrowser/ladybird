@@ -67,14 +67,12 @@ ThrowCompletionOr<Object*> ProxyObject::internal_get_prototype_of() const
 
     auto& vm = this->vm();
 
-    // 1. Let handler be O.[[ProxyHandler]].
+    // 1. Perform ? ValidateNonRevokedProxy(O).
+    TRY(validate_non_revoked_proxy());
 
-    // 2. If handler is null, throw a TypeError exception.
-    if (m_is_revoked)
-        return vm.throw_completion<TypeError>(ErrorType::ProxyRevoked);
-
-    // 3. Assert: Type(handler) is Object.
-    // 4. Let target be O.[[ProxyTarget]].
+    // 2. Let target be O.[[ProxyTarget]].
+    // 3. Let handler be O.[[ProxyHandler]].
+    // 4. Assert: handler is an Object.
 
     // 5. Let trap be ? GetMethod(handler, "getPrototypeOf").
     auto trap = TRY(Value(m_handler).get_method(vm, vm.names.getPrototypeOf));
@@ -117,14 +115,12 @@ ThrowCompletionOr<bool> ProxyObject::internal_set_prototype_of(Object* prototype
 
     auto& vm = this->vm();
 
-    // 1. Let handler be O.[[ProxyHandler]].
+    // 1. Perform ? ValidateNonRevokedProxy(O).
+    TRY(validate_non_revoked_proxy());
 
-    // 2. If handler is null, throw a TypeError exception.
-    if (m_is_revoked)
-        return vm.throw_completion<TypeError>(ErrorType::ProxyRevoked);
-
-    // 3. Assert: Type(handler) is Object.
-    // 4. Let target be O.[[ProxyTarget]].
+    // 2. Let target be O.[[ProxyTarget]].
+    // 3. Let handler be O.[[ProxyHandler]].
+    // 4. Assert: handler is an Object.
 
     // 5. Let trap be ? GetMethod(handler, "setPrototypeOf").
     auto trap = TRY(Value(m_handler).get_method(vm, vm.names.setPrototypeOf));
@@ -167,14 +163,12 @@ ThrowCompletionOr<bool> ProxyObject::internal_is_extensible() const
 
     auto& vm = this->vm();
 
-    // 1. Let handler be O.[[ProxyHandler]].
+    // 1. Perform ? ValidateNonRevokedProxy(O).
+    TRY(validate_non_revoked_proxy());
 
-    // 2. If handler is null, throw a TypeError exception.
-    if (m_is_revoked)
-        return vm.throw_completion<TypeError>(ErrorType::ProxyRevoked);
-
-    // 3. Assert: Type(handler) is Object.
-    // 4. Let target be O.[[ProxyTarget]].
+    // 2. Let target be O.[[ProxyTarget]].
+    // 3. Let handler be O.[[ProxyHandler]].
+    // 4. Assert: handler is an Object.
 
     // 5. Let trap be ? GetMethod(handler, "isExtensible").
     auto trap = TRY(Value(m_handler).get_method(vm, vm.names.isExtensible));
@@ -206,14 +200,12 @@ ThrowCompletionOr<bool> ProxyObject::internal_prevent_extensions()
 
     auto& vm = this->vm();
 
-    // 1. Let handler be O.[[ProxyHandler]].
+    // 1. Perform ? ValidateNonRevokedProxy(O).
+    TRY(validate_non_revoked_proxy());
 
-    // 2. If handler is null, throw a TypeError exception.
-    if (m_is_revoked)
-        return vm.throw_completion<TypeError>(ErrorType::ProxyRevoked);
-
-    // 3. Assert: Type(handler) is Object.
-    // 4. Let target be O.[[ProxyTarget]].
+    // 2. Let target be O.[[ProxyTarget]].
+    // 3. Let handler be O.[[ProxyHandler]].
+    // 4. Assert: handler is an Object.
 
     // 5. Let trap be ? GetMethod(handler, "preventExtensions").
     auto trap = TRY(Value(m_handler).get_method(vm, vm.names.preventExtensions));
@@ -248,14 +240,12 @@ ThrowCompletionOr<Optional<PropertyDescriptor>> ProxyObject::internal_get_own_pr
 
     auto& vm = this->vm();
 
-    // 1. Let handler be O.[[ProxyHandler]].
+    // 1. Perform ? ValidateNonRevokedProxy(O).
+    TRY(validate_non_revoked_proxy());
 
-    // 2. If handler is null, throw a TypeError exception.
-    if (m_is_revoked)
-        return vm.throw_completion<TypeError>(ErrorType::ProxyRevoked);
-
-    // 3. Assert: Type(handler) is Object.
-    // 4. Let target be O.[[ProxyTarget]].
+    // 2. Let target be O.[[ProxyTarget]].
+    // 3. Let handler be O.[[ProxyHandler]].
+    // 4. Assert: handler is an Object.
 
     // 5. Let trap be ? GetMethod(handler, "getOwnPropertyDescriptor").
     auto trap = TRY(Value(m_handler).get_method(vm, vm.names.getOwnPropertyDescriptor));
@@ -339,14 +329,12 @@ ThrowCompletionOr<bool> ProxyObject::internal_define_own_property(PropertyKey co
 
     auto& vm = this->vm();
 
-    // 1. Let handler be O.[[ProxyHandler]].
+    // 1. Perform ? ValidateNonRevokedProxy(O).
+    TRY(validate_non_revoked_proxy());
 
-    // 2. If handler is null, throw a TypeError exception.
-    if (m_is_revoked)
-        return vm.throw_completion<TypeError>(ErrorType::ProxyRevoked);
-
-    // 3. Assert: Type(handler) is Object.
-    // 4. Let target be O.[[ProxyTarget]].
+    // 2. Let target be O.[[ProxyTarget]].
+    // 3. Let handler be O.[[ProxyHandler]].
+    // 4. Assert: handler is an Object.
 
     // 5. Let trap be ? GetMethod(handler, "defineProperty").
     auto trap = TRY(Value(m_handler).get_method(vm, vm.names.defineProperty));
@@ -421,14 +409,12 @@ ThrowCompletionOr<bool> ProxyObject::internal_has_property(PropertyKey const& pr
 
     auto& vm = this->vm();
 
-    // 1. Let handler be O.[[ProxyHandler]].
+    // 1. Perform ? ValidateNonRevokedProxy(O).
+    TRY(validate_non_revoked_proxy());
 
-    // 2. If handler is null, throw a TypeError exception.
-    if (m_is_revoked)
-        return vm.throw_completion<TypeError>(ErrorType::ProxyRevoked);
-
-    // 3. Assert: Type(handler) is Object.
-    // 4. Let target be O.[[ProxyTarget]].
+    // 2. Let target be O.[[ProxyTarget]].
+    // 3. Let handler be O.[[ProxyHandler]].
+    // 4. Assert: handler is an Object.
 
     // NOTE: We need to protect ourselves from a Proxy with the handler's prototype set to the
     // Proxy itself, which would by default bounce between these functions indefinitely and lead to
@@ -490,14 +476,12 @@ ThrowCompletionOr<Value> ProxyObject::internal_get(PropertyKey const& property_k
 
     auto& vm = this->vm();
 
-    // 1. Let handler be O.[[ProxyHandler]].
+    // 1. Perform ? ValidateNonRevokedProxy(O).
+    TRY(validate_non_revoked_proxy());
 
-    // 2. If handler is null, throw a TypeError exception.
-    if (m_is_revoked)
-        return vm.throw_completion<TypeError>(ErrorType::ProxyRevoked);
-
-    // 3. Assert: Type(handler) is Object.
-    // 4. Let target be O.[[ProxyTarget]].
+    // 2. Let target be O.[[ProxyTarget]].
+    // 3. Let handler be O.[[ProxyHandler]].
+    // 4. Assert: handler is an Object.
 
     // NOTE: We need to protect ourselves from a Proxy with its (or handler's) prototype set to the
     // Proxy itself, which would by default bounce between these functions indefinitely and lead to
@@ -560,14 +544,12 @@ ThrowCompletionOr<bool> ProxyObject::internal_set(PropertyKey const& property_ke
     VERIFY(!value.is_special_empty_value());
     VERIFY(!receiver.is_special_empty_value());
 
-    // 1. Let handler be O.[[ProxyHandler]].
+    // 1. Perform ? ValidateNonRevokedProxy(O).
+    TRY(validate_non_revoked_proxy());
 
-    // 2. If handler is null, throw a TypeError exception.
-    if (m_is_revoked)
-        return vm.throw_completion<TypeError>(ErrorType::ProxyRevoked);
-
-    // 3. Assert: Type(handler) is Object.
-    // 4. Let target be O.[[ProxyTarget]].
+    // 2. Let target be O.[[ProxyTarget]].
+    // 3. Let handler be O.[[ProxyHandler]].
+    // 4. Assert: handler is an Object.
 
     // NOTE: We need to protect ourselves from a Proxy with its prototype set to the
     // Proxy itself, which would by default bounce between these functions indefinitely and lead to
@@ -631,14 +613,12 @@ ThrowCompletionOr<bool> ProxyObject::internal_delete(PropertyKey const& property
 
     auto& vm = this->vm();
 
-    // 1. Let handler be O.[[ProxyHandler]].
+    // 1. Perform ? ValidateNonRevokedProxy(O).
+    TRY(validate_non_revoked_proxy());
 
-    // 2. If handler is null, throw a TypeError exception.
-    if (m_is_revoked)
-        return vm.throw_completion<TypeError>(ErrorType::ProxyRevoked);
-
-    // 3. Assert: Type(handler) is Object.
-    // 4. Let target be O.[[ProxyTarget]].
+    // 2. Let target be O.[[ProxyTarget]].
+    // 3. Let handler be O.[[ProxyHandler]].
+    // 4. Assert: handler is an Object.
 
     // 5. Let trap be ? GetMethod(handler, "deleteProperty").
     auto trap = TRY(Value(m_handler).get_method(vm, vm.names.deleteProperty));
@@ -685,14 +665,12 @@ ThrowCompletionOr<GC::RootVector<Value>> ProxyObject::internal_own_property_keys
 
     auto& vm = this->vm();
 
-    // 1. Let handler be O.[[ProxyHandler]].
+    // 1. Perform ? ValidateNonRevokedProxy(O).
+    TRY(validate_non_revoked_proxy());
 
-    // 2. If handler is null, throw a TypeError exception.
-    if (m_is_revoked)
-        return vm.throw_completion<TypeError>(ErrorType::ProxyRevoked);
-
-    // 3. Assert: Type(handler) is Object.
-    // 4. Let target be O.[[ProxyTarget]].
+    // 2. Let target be O.[[ProxyTarget]].
+    // 3. Let handler be O.[[ProxyHandler]].
+    // 4. Assert: handler is an Object.
 
     // 5. Let trap be ? GetMethod(handler, "ownKeys").
     auto trap = TRY(Value(m_handler).get_method(vm, vm.names.ownKeys));
@@ -808,17 +786,15 @@ ThrowCompletionOr<Value> ProxyObject::internal_call(Value this_argument, Readonl
     auto& vm = this->vm();
     auto& realm = *vm.current_realm();
 
-    // A Proxy exotic object only has a [[Call]] internal method if the initial value of its [[ProxyTarget]] internal slot is an object that has a [[Call]] internal method.
+    // 1. Perform ? ValidateNonRevokedProxy(O).
+    TRY(validate_non_revoked_proxy());
+
+    // 2. Let target be O.[[ProxyTarget]].
+    // 3. Let handler be O.[[ProxyHandler]].
+    // 4. Assert: handler is an Object.
+
+    // NOTE: A Proxy exotic object only has a [[Call]] internal method if the initial value of its [[ProxyTarget]] internal slot is an object that has a [[Call]] internal method.
     VERIFY(is_function());
-
-    // 1. Let handler be O.[[ProxyHandler]].
-
-    // 2. If handler is null, throw a TypeError exception.
-    if (m_is_revoked)
-        return vm.throw_completion<TypeError>(ErrorType::ProxyRevoked);
-
-    // 3. Assert: Type(handler) is Object.
-    // 4. Let target be O.[[ProxyTarget]].
 
     // 5. Let trap be ? GetMethod(handler, "apply").
     auto trap = TRY(Value(m_handler).get_method(vm, vm.names.apply));
@@ -854,18 +830,15 @@ ThrowCompletionOr<GC::Ref<Object>> ProxyObject::internal_construct(ReadonlySpan<
     auto& vm = this->vm();
     auto& realm = *vm.current_realm();
 
-    // A Proxy exotic object only has a [[Construct]] internal method if the initial value of its [[ProxyTarget]] internal slot is an object that has a [[Construct]] internal method.
+    // 1. Perform ? ValidateNonRevokedProxy(O).
+    TRY(validate_non_revoked_proxy());
+
+    // 2. Let target be O.[[ProxyTarget]].
+    // 3. Let handler be O.[[ProxyHandler]].
+    // 4. Assert: handler is an Object.
+
+    // NOTE: A Proxy exotic object only has a [[Construct]] internal method if the initial value of its [[ProxyTarget]] internal slot is an object that has a [[Construct]] internal method.
     VERIFY(is_function());
-
-    // 1. Let handler be O.[[ProxyHandler]].
-
-    // 2. If handler is null, throw a TypeError exception.
-    if (m_is_revoked)
-        return vm.throw_completion<TypeError>(ErrorType::ProxyRevoked);
-
-    // 3. Assert: Type(handler) is Object.
-    // 4. Let target be O.[[ProxyTarget]].
-    // 5. Assert: IsConstructor(target) is true.
 
     // 6. Let trap be ? GetMethod(handler, "construct").
     auto trap = TRY(Value(m_handler).get_method(vm, vm.names.construct));
@@ -888,6 +861,22 @@ ThrowCompletionOr<GC::Ref<Object>> ProxyObject::internal_construct(ReadonlySpan<
 
     // 11. Return newObj.
     return new_object.as_object();
+}
+
+// 10.5.14 ValidateNonRevokedProxy ( proxy )
+ThrowCompletionOr<void> ProxyObject::validate_non_revoked_proxy() const
+{
+    auto& vm = this->vm();
+
+    // FIXME: The spec expects us to model a revoked proxy by having ProxyTarget and ProxyHandler be nullable.
+
+    // 1. If proxy.[[ProxyTarget]] is null, throw a TypeError exception.
+    // 2. Assert: proxy.[[ProxyHandler]] is not null.
+    if (m_is_revoked)
+        return vm.throw_completion<TypeError>(ErrorType::ProxyRevoked);
+
+    // 3. Return unused.
+    return {};
 }
 
 void ProxyObject::visit_edges(Cell::Visitor& visitor)
