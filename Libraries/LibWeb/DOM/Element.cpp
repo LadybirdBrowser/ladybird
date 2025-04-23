@@ -3252,7 +3252,7 @@ size_t Element::ordinal_value() const
     auto reversed = false;
     if (is<HTML::HTMLOListElement>(owner)) {
         auto const* ol_element = static_cast<const HTML::HTMLOListElement*>(owner);
-        numbering = ol_element->starting_value();
+        numbering = ol_element->starting_value().value();
         reversed = ol_element->has_attribute(HTML::AttributeNames::reversed);
     }
 
