@@ -909,36 +909,37 @@ BlockFormattingContext::DidIntroduceClearance BlockFormattingContext::clear_floa
     auto result = DidIntroduceClearance::No;
 
     auto clear_floating_boxes = [&](FloatSideData& float_side) {
-        if (!float_side.current_boxes.is_empty()) {
-            // NOTE: Floating boxes are globally relevant within this BFC, *but* their offset coordinates
-            //       are relative to their containing block.
-            //       This means that we have to first convert to a root-space Y coordinate before clearing,
-            //       and then convert back to a local Y coordinate when assigning the cleared offset to
-            //       the `child_box` layout state.
+        if (float_side.current_boxes.is_empty())
+            return;
 
-            // First, find the lowest margin box edge on this float side and calculate the Y offset just below it.
-            CSSPixels clearance_y_in_root = 0;
-            for (auto const& floating_box : float_side.current_boxes)
-                clearance_y_in_root = max(clearance_y_in_root, floating_box.margin_box_rect_in_root_coordinate_space.bottom());
+        // NOTE: Floating boxes are globally relevant within this BFC, *but* their offset coordinates
+        //       are relative to their containing block.
+        //       This means that we have to first convert to a root-space Y coordinate before clearing,
+        //       and then convert back to a local Y coordinate when assigning the cleared offset to
+        //       the `child_box` layout state.
 
-            // Then, convert the clearance Y to a coordinate relative to the containing block of `child_box`.
-            CSSPixels clearance_y_in_containing_block = clearance_y_in_root;
-            for (auto containing_block = child_box.containing_block(); containing_block && containing_block != &root(); containing_block = containing_block->containing_block())
-                clearance_y_in_containing_block -= m_state.get(*containing_block).offset.y();
+        // First, find the lowest margin box edge on this float side and calculate the Y offset just below it.
+        CSSPixels clearance_y_in_root = 0;
+        for (auto const& floating_box : float_side.current_boxes)
+            clearance_y_in_root = max(clearance_y_in_root, floating_box.margin_box_rect_in_root_coordinate_space.bottom());
 
-            if (inline_formatting_context.has_value()) {
-                if (clearance_y_in_containing_block > inline_formatting_context->vertical_float_clearance()) {
-                    result = DidIntroduceClearance::Yes;
-                    inline_formatting_context->set_vertical_float_clearance(clearance_y_in_containing_block);
-                }
-            } else if (clearance_y_in_containing_block > m_y_offset_of_current_block_container.value()) {
+        // Then, convert the clearance Y to a coordinate relative to the containing block of `child_box`.
+        CSSPixels clearance_y_in_containing_block = clearance_y_in_root;
+        for (auto containing_block = child_box.containing_block(); containing_block && containing_block != &root(); containing_block = containing_block->containing_block())
+            clearance_y_in_containing_block -= m_state.get(*containing_block).offset.y();
+
+        if (inline_formatting_context.has_value()) {
+            if (clearance_y_in_containing_block > inline_formatting_context->vertical_float_clearance()) {
                 result = DidIntroduceClearance::Yes;
-                m_y_offset_of_current_block_container = clearance_y_in_containing_block;
+                inline_formatting_context->set_vertical_float_clearance(clearance_y_in_containing_block);
             }
-
-            if (!child_box.is_floating())
-                float_side.clear();
+        } else if (clearance_y_in_containing_block > m_y_offset_of_current_block_container.value()) {
+            result = DidIntroduceClearance::Yes;
+            m_y_offset_of_current_block_container = clearance_y_in_containing_block;
         }
+
+        if (!child_box.is_floating())
+            float_side.clear();
     };
 
     if (computed_values.clear() == CSS::Clear::Left || computed_values.clear() == CSS::Clear::Both)
