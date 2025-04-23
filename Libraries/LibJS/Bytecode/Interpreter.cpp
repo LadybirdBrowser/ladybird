@@ -741,11 +741,11 @@ Interpreter::ResultAndReturnRegister Interpreter::run_executable(Executable& exe
 
     auto& running_execution_context = vm().running_execution_context();
     u32 registers_and_constants_and_locals_count = executable.number_of_registers + executable.constants.size() + executable.local_variable_names.size();
-    VERIFY(registers_and_constants_and_locals_count <= running_execution_context.registers_and_constants_and_locals_and_arguments.size());
+    VERIFY(registers_and_constants_and_locals_count <= running_execution_context.registers_and_constants_and_locals_and_arguments_span().size());
 
     TemporaryChange restore_running_execution_context { m_running_execution_context, &running_execution_context };
     TemporaryChange restore_arguments { m_arguments, running_execution_context.arguments() };
-    TemporaryChange restore_registers_and_constants_and_locals { m_registers_and_constants_and_locals, running_execution_context.registers_and_constants_and_locals_and_arguments.span() };
+    TemporaryChange restore_registers_and_constants_and_locals { m_registers_and_constants_and_locals, running_execution_context.registers_and_constants_and_locals_and_arguments_span() };
 
     reg(Register::accumulator()) = initial_accumulator_value;
     reg(Register::return_value()) = js_special_empty_value();
@@ -759,8 +759,9 @@ Interpreter::ResultAndReturnRegister Interpreter::run_executable(Executable& exe
 
     running_execution_context.executable = &executable;
 
+    auto* registers_and_constants_and_locals_and_arguments = running_execution_context.registers_and_constants_and_locals_and_arguments();
     for (size_t i = 0; i < executable.constants.size(); ++i) {
-        running_execution_context.registers_and_constants_and_locals_and_arguments[executable.number_of_registers + i] = executable.constants[i];
+        registers_and_constants_and_locals_and_arguments[executable.number_of_registers + i] = executable.constants[i];
     }
 
     run_bytecode(entry_point.value_or(0));
@@ -768,7 +769,6 @@ Interpreter::ResultAndReturnRegister Interpreter::run_executable(Executable& exe
     dbgln_if(JS_BYTECODE_DEBUG, "Bytecode::Interpreter did run unit {:p}", &executable);
 
     if constexpr (JS_BYTECODE_DEBUG) {
-        auto const& registers_and_constants_and_locals_and_arguments = running_execution_context.registers_and_constants_and_locals_and_arguments;
         for (size_t i = 0; i < executable.number_of_registers; ++i) {
             String value_string;
             if (registers_and_constants_and_locals_and_arguments[i].is_special_empty_value())
@@ -788,8 +788,8 @@ Interpreter::ResultAndReturnRegister Interpreter::run_executable(Executable& exe
     vm().finish_execution_generation();
 
     if (!exception.is_special_empty_value())
-        return { throw_completion(exception), running_execution_context.registers_and_constants_and_locals_and_arguments[0] };
-    return { return_value, running_execution_context.registers_and_constants_and_locals_and_arguments[0] };
+        return { throw_completion(exception), registers_and_constants_and_locals_and_arguments[0] };
+    return { return_value, registers_and_constants_and_locals_and_arguments[0] };
 }
 
 void Interpreter::enter_unwind_context()
