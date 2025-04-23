@@ -32,11 +32,7 @@ enum class DoNotTrack {
 
 class SettingsObserver {
 public:
-    enum class AddToObservers {
-        No,
-        Yes,
-    };
-    explicit SettingsObserver(AddToObservers = AddToObservers::Yes);
+    explicit SettingsObserver();
     virtual ~SettingsObserver();
 
     virtual void new_tab_page_url_changed() { }
@@ -46,13 +42,6 @@ public:
     virtual void autoplay_settings_changed() { }
     virtual void do_not_track_changed() { }
     virtual void dns_settings_changed() { }
-
-protected:
-    void complete_delayed_registration();
-    void complete_delayed_unregistration();
-
-private:
-    bool m_registration_was_delayed { false };
 };
 
 class Settings {

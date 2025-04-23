@@ -142,34 +142,6 @@ Settings Settings::create(Badge<Application>)
     return settings;
 }
 
-DNSSettings Settings::parse_dns_settings(JsonValue const& dns_settings)
-{
-    if (!dns_settings.is_object())
-        return SystemDNS {};
-
-    auto& dns_settings_object = dns_settings.as_object();
-    auto mode = dns_settings_object.get_string("mode"sv);
-    if (mode.has_value()) {
-        if (*mode == "system"sv)
-            return SystemDNS {};
-        if (*mode == "custom"sv) {
-            auto server = dns_settings_object.get_string("server"sv);
-            auto port = dns_settings_object.get_u16("port"sv);
-            auto type = dns_settings_object.get_string("type"sv);
-
-            if (server.has_value() && port.has_value() && type.has_value()) {
-                if (*type == "tls"sv)
-                    return DNSOverTLS { .server_address = server->to_byte_string(), .port = *port };
-                if (*type == "udp"sv)
-                    return DNSOverUDP { .server_address = server->to_byte_string(), .port = *port };
-            }
-        }
-    }
-
-    dbgln("Invalid DNS settings in parse_dns_settings, falling back to system DNS");
-    return SystemDNS {};
-}
-
 Settings::Settings(ByteString settings_path)
     : m_settings_path(move(settings_path))
     , m_new_tab_page_url(URL::about_newtab())
@@ -452,6 +424,35 @@ void Settings::set_do_not_track(DoNotTrack do_not_track)
         observer.do_not_track_changed();
 }
 
+DNSSettings Settings::parse_dns_settings(JsonValue const& dns_settings)
+{
+    if (!dns_settings.is_object())
+        return SystemDNS {};
+
+    auto const& dns_settings_object = dns_settings.as_object();
+
+    if (auto mode = dns_settings_object.get_string("mode"sv); mode.has_value()) {
+        if (*mode == "system"sv)
+            return SystemDNS {};
+
+        if (*mode == "custom"sv) {
+            auto server = dns_settings_object.get_string("server"sv);
+            auto port = dns_settings_object.get_u16("port"sv);
+            auto type = dns_settings_object.get_string("type"sv);
+
+            if (server.has_value() && port.has_value() && type.has_value()) {
+                if (*type == "tls"sv)
+                    return DNSOverTLS { .server_address = server->to_byte_string(), .port = *port };
+                if (*type == "udp"sv)
+                    return DNSOverUDP { .server_address = server->to_byte_string(), .port = *port };
+            }
+        }
+    }
+
+    dbgln("Invalid DNS settings in parse_dns_settings, falling back to system DNS");
+    return SystemDNS {};
+}
+
 void Settings::set_dns_settings(DNSSettings const& dns_settings, bool override_by_command_line)
 {
     m_dns_settings = dns_settings;
@@ -485,29 +486,13 @@ void Settings::remove_observer(Badge<SettingsObserver>, SettingsObserver& observ
     VERIFY(was_removed);
 }
 
-SettingsObserver::SettingsObserver(AddToObservers add_to_observers)
+SettingsObserver::SettingsObserver()
 {
-    if (add_to_observers == AddToObservers::Yes)
-        Settings::add_observer({}, *this);
-    else
-        m_registration_was_delayed = true;
+    Settings::add_observer({}, *this);
 }
 
 SettingsObserver::~SettingsObserver()
 {
-    if (!m_registration_was_delayed)
-        Settings::remove_observer({}, *this);
-}
-
-void SettingsObserver::complete_delayed_registration()
-{
-    VERIFY(m_registration_was_delayed);
-    Settings::add_observer({}, *this);
-}
-
-void SettingsObserver::complete_delayed_unregistration()
-{
-    VERIFY(m_registration_was_delayed);
     Settings::remove_observer({}, *this);
 }
 
