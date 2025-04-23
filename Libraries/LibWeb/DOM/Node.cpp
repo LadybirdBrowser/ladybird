@@ -716,11 +716,9 @@ void Node::insert_before(GC::Ref<Node> node, GC::Ptr<Node> child, bool suppress_
 
         // 4. If parent is a shadow host whose shadow root’s slot assignment is "named" and node is a slottable, then
         //    assign a slot for node.
-        if (is_element()) {
-            auto& element = static_cast<DOM::Element&>(*this);
-
-            auto is_named_shadow_host = element.is_shadow_host()
-                && element.shadow_root()->slot_assignment() == Bindings::SlotAssignmentMode::Named;
+        if (auto* element = as_if<DOM::Element>(*this)) {
+            auto is_named_shadow_host = element->is_shadow_host()
+                && element->shadow_root()->slot_assignment() == Bindings::SlotAssignmentMode::Named;
 
             if (is_named_shadow_host && node_to_insert->is_slottable())
                 assign_a_slot(node_to_insert->as_slottable());
@@ -728,11 +726,9 @@ void Node::insert_before(GC::Ref<Node> node, GC::Ptr<Node> child, bool suppress_
 
         // 5. If parent’s root is a shadow root, and parent is a slot whose assigned nodes is the empty list, then run
         //    signal a slot change for parent.
-        if (root().is_shadow_root() && is<HTML::HTMLSlotElement>(*this)) {
-            auto& slot = static_cast<HTML::HTMLSlotElement&>(*this);
-
-            if (slot.assigned_nodes_internal().is_empty())
-                signal_a_slot_change(slot);
+        if (auto* this_slot_element = as_if<HTML::HTMLSlotElement>(*this); this_slot_element && root().is_shadow_root()) {
+            if (this_slot_element->assigned_nodes_internal().is_empty())
+                signal_a_slot_change(*this_slot_element);
         }
 
         // 6. Run assign slottables for a tree with node’s root.
@@ -747,21 +743,19 @@ void Node::insert_before(GC::Ref<Node> node, GC::Ptr<Node> child, bool suppress_
 
             // 2. If inclusiveDescendant is connected, then:
             // NOTE: This is not specified here in the spec, but these steps can only be performed on an element.
-            if (inclusive_descendant.is_connected() && is<DOM::Element>(inclusive_descendant)) {
-                auto& element = static_cast<DOM::Element&>(inclusive_descendant);
-
+            if (auto* element = as_if<DOM::Element>(inclusive_descendant); element && inclusive_descendant.is_connected()) {
                 // 1. If inclusiveDescendant is custom, then enqueue a custom element callback reaction with inclusiveDescendant,
                 //    callback name "connectedCallback", and an empty argument list.
-                if (element.is_custom()) {
+                if (element->is_custom()) {
                     GC::RootVector<JS::Value> empty_arguments { vm().heap() };
-                    element.enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::connectedCallback, move(empty_arguments));
+                    element->enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::connectedCallback, move(empty_arguments));
                 }
 
                 // 2. Otherwise, try to upgrade inclusiveDescendant.
                 // NOTE: If this successfully upgrades inclusiveDescendant, its connectedCallback will be enqueued automatically during
                 //       the upgrade an element algorithm.
                 else {
-                    element.try_to_upgrade();
+                    element->try_to_upgrade();
                 }
             }
 
@@ -941,11 +935,9 @@ void Node::remove(bool suppress_observers)
 
     // 9. If parent’s root is a shadow root, and parent is a slot whose assigned nodes is the empty list, then run
     //    signal a slot change for parent.
-    if (parent_root.is_shadow_root() && is<HTML::HTMLSlotElement>(parent)) {
-        auto& slot = static_cast<HTML::HTMLSlotElement&>(*parent);
-
-        if (slot.assigned_nodes_internal().is_empty())
-            signal_a_slot_change(slot);
+    if (auto* parent_slot_element = as_if<HTML::HTMLSlotElement>(parent); parent_slot_element && parent_root.is_shadow_root()) {
+        if (parent_slot_element->assigned_nodes_internal().is_empty())
+            signal_a_slot_change(*parent_slot_element);
     }
 
     // 10. If node has an inclusive descendant that is a slot, then:
@@ -974,12 +966,10 @@ void Node::remove(bool suppress_observers)
     //     callback name "disconnectedCallback", and an empty argument list.
     // Spec Note: It is intentional for now that custom elements do not get parent passed.
     //            This might change in the future if there is a need.
-    if (is<DOM::Element>(*this)) {
-        auto& element = static_cast<DOM::Element&>(*this);
-
-        if (element.is_custom() && is_parent_connected) {
+    if (auto* element = as_if<DOM::Element>(*this)) {
+        if (element->is_custom() && is_parent_connected) {
             GC::RootVector<JS::Value> empty_arguments { vm().heap() };
-            element.enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::disconnectedCallback, move(empty_arguments));
+            element->enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::disconnectedCallback, move(empty_arguments));
         }
     }
 
@@ -990,12 +980,10 @@ void Node::remove(bool suppress_observers)
 
         // 2. If descendant is custom and isParentConnected is true, then enqueue a custom element callback reaction with descendant,
         //    callback name "disconnectedCallback", and an empty argument list.
-        if (is<DOM::Element>(descendant)) {
-            auto& element = static_cast<DOM::Element&>(descendant);
-
-            if (element.is_custom() && is_parent_connected) {
+        if (auto* element = as_if<DOM::Element>(descendant)) {
+            if (element->is_custom() && is_parent_connected) {
                 GC::RootVector<JS::Value> empty_arguments { vm().heap() };
-                element.enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::disconnectedCallback, move(empty_arguments));
+                element->enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::disconnectedCallback, move(empty_arguments));
             }
         }
 
@@ -1248,10 +1236,9 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
 
     // 15. If oldParent’s root is a shadow root, and oldParent is a slot whose assigned nodes is empty, then run signal a slot change for oldParent.
     auto& old_parent_root = old_parent->root();
-    if (old_parent_root.is_shadow_root() && is<HTML::HTMLSlotElement>(*old_parent)) {
-        auto& old_parent_slot = static_cast<HTML::HTMLSlotElement&>(*old_parent);
-        if (old_parent_slot.assigned_nodes_internal().is_empty())
-            signal_a_slot_change(old_parent_slot);
+    if (auto* old_parent_slot_element = as_if<HTML::HTMLSlotElement>(*old_parent); old_parent_slot_element && old_parent_root.is_shadow_root()) {
+        if (old_parent_slot_element->assigned_nodes_internal().is_empty())
+            signal_a_slot_change(*old_parent_slot_element);
     }
 
     // 16. If node has an inclusive descendant that is a slot:
@@ -1315,10 +1302,9 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
     }
 
     // 22. If newParent’s root is a shadow root, and newParent is a slot whose assigned nodes is empty, then run signal a slot change for newParent.
-    if (new_parent.root().is_shadow_root() && is<HTML::HTMLSlotElement>(new_parent)) {
-        auto& new_parent_slot = static_cast<HTML::HTMLSlotElement&>(new_parent);
-        if (new_parent_slot.assigned_nodes_internal().is_empty())
-            signal_a_slot_change(new_parent_slot);
+    if (auto* new_parent_slot_element = as_if<HTML::HTMLSlotElement>(new_parent); new_parent_slot_element && new_parent.root().is_shadow_root()) {
+        if (new_parent_slot_element->assigned_nodes_internal().is_empty())
+            signal_a_slot_change(*new_parent_slot_element);
     }
 
     // 23. Run assign slottables for a tree with node’s root.
@@ -1338,12 +1324,10 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
 
         // 2. If inclusiveDescendant is custom and newParent is connected, then enqueue a custom element callback reaction with inclusiveDescendant,
         //    callback name "connectedMoveCallback", and « ».
-        if (is<DOM::Element>(inclusive_descendant)) {
-            auto& element = static_cast<DOM::Element&>(inclusive_descendant);
-
-            if (element.is_custom() && new_parent.is_connected()) {
+        if (auto* element = as_if<DOM::Element>(inclusive_descendant)) {
+            if (element->is_custom() && new_parent.is_connected()) {
                 GC::RootVector<JS::Value> empty_arguments { vm().heap() };
-                element.enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::connectedMoveCallback, move(empty_arguments));
+                element->enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::connectedMoveCallback, move(empty_arguments));
             }
         }
         return TraversalDecision::Continue;
@@ -2969,9 +2953,9 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
 
             // b. Otherwise, if the current node is a slot with assigned nodes, set the rendered child nodes to be the
             //    assigned nodes of the current node.
-            if (element->is_html_slot_element()) {
+            if (auto const* slot_element = as_if<HTML::HTMLSlotElement>(element)) {
                 total_accumulated_text.append(element->text_content().value());
-                child_nodes = static_cast<HTML::HTMLSlotElement const*>(element)->assigned_nodes();
+                child_nodes = slot_element->assigned_nodes();
             }
 
             // iv. Name From Each Child: For each rendered child node of the current node
