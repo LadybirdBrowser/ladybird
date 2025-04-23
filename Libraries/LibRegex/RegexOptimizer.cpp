@@ -28,6 +28,8 @@ void Regex<Parser>::run_optimization_passes()
 {
     parser_result.bytecode.flatten();
 
+    rewrite_with_useless_jumps_removed();
+
     auto blocks = split_basic_blocks(parser_result.bytecode);
     if (attempt_rewrite_entire_match_as_substring_search(blocks))
         return;
@@ -810,6 +812,122 @@ bool Regex<Parser>::attempt_rewrite_entire_match_as_substring_search(BasicBlockL
 
     parser_result.optimization_data.pure_substring_search = final_string.to_byte_string();
     return true;
+}
+
+template<class Parser>
+void Regex<Parser>::rewrite_with_useless_jumps_removed()
+{
+    auto& bytecode = parser_result.bytecode;
+    auto flat = bytecode.flat_data();
+
+    if constexpr (REGEX_DEBUG) {
+        RegexDebug dbg;
+        dbg.print_bytecode(*this);
+    }
+
+    struct Instr {
+        size_t old_ip;
+        size_t size;
+        OpCodeId id;
+        bool is_useless;
+    };
+    Vector<Instr> infos;
+    infos.ensure_capacity(flat.size() / 2);
+
+    MatchState state = MatchState::only_for_enumeration();
+    for (size_t old_ip = 0; old_ip < flat.size();) {
+        state.instruction_position = old_ip;
+        auto& op = bytecode.get_opcode(state);
+        auto sz = op.size();
+
+        bool is_useless = false;
+        if (op.opcode_id() == OpCodeId::Jump) {
+            auto const& j = static_cast<OpCode_Jump const&>(op);
+            if (j.offset() == 0)
+                is_useless = true;
+        } else if (op.opcode_id() == OpCodeId::JumpNonEmpty) {
+            auto const& j = static_cast<OpCode_JumpNonEmpty const&>(op);
+            if (j.offset() == 0)
+                is_useless = true;
+        } else if (op.opcode_id() == OpCodeId::ForkJump || op.opcode_id() == OpCodeId::ForkReplaceJump) {
+            auto const& j = static_cast<OpCode_ForkJump const&>(op);
+            if (j.offset() == 0)
+                is_useless = true;
+        } else if (op.opcode_id() == OpCodeId::ForkStay || op.opcode_id() == OpCodeId::ForkReplaceStay) {
+            auto const& j = static_cast<OpCode_ForkStay const&>(op);
+            if (j.offset() == 0)
+                is_useless = true;
+        }
+
+        infos.append({ old_ip, sz, op.opcode_id(), is_useless });
+        old_ip += sz;
+    }
+
+    HashMap<size_t, size_t> new_ip;
+    new_ip.ensure_capacity(infos.size() + 1);
+    size_t cur = 0;
+    size_t skipped = 0;
+    for (auto& i : infos) {
+        new_ip.set(i.old_ip, cur);
+        if (!i.is_useless)
+            cur += i.size;
+        else
+            skipped++;
+    }
+
+    new_ip.set(bytecode.size(), cur);
+    if constexpr (REGEX_DEBUG) {
+        for (auto& i : infos)
+            dbgln("old_ip: {}, new_ip: {}, size: {}, is_useless: {}", i.old_ip, *new_ip.get(i.old_ip), i.size, i.is_useless);
+        dbgln("Saving {} bytes (of {})", bytecode.size() - cur, bytecode.size());
+        dbgln("...and {} instructions", skipped);
+    }
+
+    ByteCode out;
+    out.ensure_capacity(cur);
+    out.merge_string_tables_from({ &bytecode, 1 });
+
+    for (auto& i : infos) {
+        if (i.is_useless)
+            continue;
+
+        auto slice = Vector<ByteCodeValueType> { flat.slice(i.old_ip, i.size) };
+        auto adjust = [&](size_t idx, bool is_repeat) {
+            // original target in the old stream
+            auto old_off = slice[idx];
+            auto target_old = is_repeat ? i.old_ip - old_off : i.old_ip + i.size + old_off;
+            if (!new_ip.contains(target_old)) {
+                dbgln("Target {} not found in new_ip (in {})", target_old, i.old_ip);
+                RegexDebug dbg;
+                dbg.print_bytecode(*this);
+            }
+            size_t tgt_new = *new_ip.get(target_old);
+            size_t src_new = *new_ip.get(i.old_ip);
+            auto new_off = is_repeat ? src_new - tgt_new : tgt_new - src_new - i.size;
+            slice[idx] = static_cast<ByteCodeValueType>(new_off);
+        };
+
+        switch (i.id) {
+        case OpCodeId::Jump:
+        case OpCodeId::ForkJump:
+        case OpCodeId::ForkStay:
+        case OpCodeId::ForkReplaceJump:
+        case OpCodeId::ForkReplaceStay:
+        case OpCodeId::JumpNonEmpty:
+            adjust(1, false);
+            break;
+        case OpCodeId::Repeat:
+            adjust(1, true);
+            break;
+        default:
+            break;
+        }
+
+        out.append(move(slice));
+    }
+
+    out.flatten();
+    parser_result.bytecode = move(out);
 }
 
 template<typename Parser>
