@@ -366,7 +366,9 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
     //    current document readiness: "loading"
     //    about base URL: navigationParams's about base URL
     //    allow declarative shadow roots: true
-    auto document = HTML::HTMLDocument::create(window->realm());
+    //    custom element registry: A new CustomElementRegistry object.
+    auto& realm = window->realm();
+    auto document = HTML::HTMLDocument::create(realm);
     document->m_type = type;
     document->m_content_type = move(content_type);
     document->set_origin(navigation_params.origin);
@@ -379,6 +381,7 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
     document->m_readiness = HTML::DocumentReadyState::Loading;
     document->m_about_base_url = navigation_params.about_base_url;
     document->set_allow_declarative_shadow_roots(true);
+    document->set_custom_element_registry(realm.create<HTML::CustomElementRegistry>(realm));
 
     document->m_window = window;
 
@@ -628,6 +631,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_policy_container);
     visitor.visit(m_style_invalidator);
     visitor.visit(m_registered_custom_properties);
+    visitor.visit(m_custom_element_registry);
 }
 
 // https://w3c.github.io/selection-api/#dom-document-getselection
@@ -6732,6 +6736,17 @@ void Document::view_transition_page_visibility_change_steps()
             VERIFY(!m_active_view_transition);
         }
     }));
+}
+
+// https://dom.spec.whatwg.org/#dom-documentorshadowroot-customelementregistry
+GC::Ptr<HTML::CustomElementRegistry> Document::custom_element_registry() const
+{
+    // 1. If this is a document, then return this’s custom element registry.
+    // NB: Always true.
+    return m_custom_element_registry;
+
+    // 2. Assert: this is a ShadowRoot node.
+    // 3. Return this’s custom element registry.
 }
 
 ElementByIdMap& Document::element_by_id() const

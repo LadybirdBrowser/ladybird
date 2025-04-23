@@ -1420,7 +1420,7 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_single_node(Document& document) c
             document_copy->set_document_type(document_.document_type());
             document_copy->set_quirks_mode(document_.mode());
             document_copy->set_allow_declarative_shadow_roots(document_.allow_declarative_shadow_roots());
-            // FIXME: Custom element registry.
+            document_copy->set_custom_element_registry(document_.custom_element_registry().ptr());
             copy = move(document_copy);
         } else if (is_document_type()) {
             // -> DocumentType

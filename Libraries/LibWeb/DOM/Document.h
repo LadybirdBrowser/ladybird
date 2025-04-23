@@ -946,6 +946,9 @@ public:
 
     NonnullRefPtr<CSS::StyleValue const> custom_property_initial_value(FlyString const& name) const;
 
+    GC::Ptr<HTML::CustomElementRegistry> custom_element_registry() const;
+    void set_custom_element_registry(GC::Ptr<HTML::CustomElementRegistry> custom_element_registry) { m_custom_element_registry = custom_element_registry; }
+
 protected:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
@@ -1333,6 +1336,9 @@ private:
 
     // https://www.w3.org/TR/css-properties-values-api-1/#dom-window-registeredpropertyset-slot
     HashMap<FlyString, GC::Ref<Web::CSS::CSSPropertyRule>> m_registered_custom_properties;
+
+    // https://dom.spec.whatwg.org/#document-custom-element-registry
+    GC::Ptr<HTML::CustomElementRegistry> m_custom_element_registry;
 };
 
 template<>
