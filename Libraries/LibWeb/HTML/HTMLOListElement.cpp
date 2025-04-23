@@ -11,6 +11,7 @@
 #include <LibWeb/HTML/AttributeNames.h>
 #include <LibWeb/HTML/HTMLOListElement.h>
 #include <LibWeb/HTML/Numbers.h>
+#include <LibWeb/WebIDL/Types.h>
 
 namespace Web::HTML {
 
@@ -49,7 +50,7 @@ WebIDL::Long HTMLOListElement::start()
 }
 
 // https://html.spec.whatwg.org/multipage/grouping-content.html#concept-ol-start
-size_t HTMLOListElement::starting_value() const
+AK::Checked<i32> HTMLOListElement::starting_value() const
 {
     // 1. If the ol element has a start attribute, then:
     auto start = get_attribute(AttributeNames::start);
@@ -61,10 +62,11 @@ size_t HTMLOListElement::starting_value() const
         if (parsed.has_value())
             return parsed.value();
     }
-
     // 2. If the ol element has a reversed attribute, then return the number of owned li elements.
     if (has_attribute(AttributeNames::reversed)) {
-        return number_of_owned_list_items();
+        auto const reverse_list_starting_value = number_of_owned_list_items();
+        VERIFY(reverse_list_starting_value <= NumericLimits<WebIDL::Long>::max());
+        return reverse_list_starting_value;
     }
 
     // 3. Return 1.
