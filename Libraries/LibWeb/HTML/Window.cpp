@@ -123,7 +123,6 @@ void Window::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_location);
     visitor.visit(m_navigator);
     visitor.visit(m_navigation);
-    visitor.visit(m_custom_element_registry);
     visitor.visit(m_animation_frame_callback_driver);
     visitor.visit(m_pdf_viewer_plugin_objects);
     visitor.visit(m_pdf_viewer_mime_type_objects);
@@ -1723,12 +1722,16 @@ GC::Ref<Navigation> Window::navigation()
 // https://html.spec.whatwg.org/multipage/custom-elements.html#dom-window-customelements
 GC::Ref<CustomElementRegistry> Window::custom_elements()
 {
-    auto& realm = this->realm();
+    // The Window customElements getter steps are:
 
-    // The customElements attribute of the Window interface must return the CustomElementRegistry object for that Window object.
-    if (!m_custom_element_registry)
-        m_custom_element_registry = realm.create<CustomElementRegistry>(realm);
-    return GC::Ref { *m_custom_element_registry };
+    // 1. Assert: this's associated Document's custom element registry is a CustomElementRegistry object.
+    auto registry = associated_document().custom_element_registry();
+    VERIFY(registry);
+
+    // Note: A Window's associated Document is always created with a new CustomElementRegistry object.
+
+    // 2. Return this's associated Document's custom element registry.
+    return *registry;
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#document-tree-child-navigable-target-name-property-set
