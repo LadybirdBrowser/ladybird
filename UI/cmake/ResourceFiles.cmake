@@ -76,6 +76,11 @@ list(TRANSFORM ABOUT_PAGES PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/ladybird/abo
 
 set(ABOUT_SETTINGS_RESOURCES
     languages.js
+    network.js
+    new-tab-page.js
+    permissions.js
+    privacy.js
+    search.js
 )
 list(TRANSFORM ABOUT_SETTINGS_RESOURCES PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/ladybird/about-pages/settings/")
 
