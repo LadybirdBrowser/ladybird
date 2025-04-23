@@ -68,6 +68,8 @@ interface Element : Node {
     ShadowRoot attachShadow(ShadowRootInit init);
     [ImplementedAs=shadow_root_for_bindings] readonly attribute ShadowRoot? shadowRoot;
 
+    readonly attribute CustomElementRegistry? customElementRegistry;
+
     boolean matches(DOMString selectors);
     Element? closest(DOMString selectors);
     [ImplementedAs=matches] boolean webkitMatchesSelector(DOMString selectors); // legacy alias of .matches
