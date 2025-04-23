@@ -26,12 +26,31 @@ namespace WebView {
 
 Application* Application::s_the = nullptr;
 
+struct ApplicationSettingsObserver : public SettingsObserver {
+    virtual void dns_settings_changed() override
+    {
+        Application::settings().dns_settings().visit(
+            [](SystemDNS) {
+                Application::request_server_client().async_set_use_system_dns();
+            },
+            [](DNSOverTLS const& dns_over_tls) {
+                dbgln("Setting DNS server to {}:{} with TLS", dns_over_tls.server_address, dns_over_tls.port);
+                Application::request_server_client().async_set_dns_server(dns_over_tls.server_address, dns_over_tls.port, true);
+            },
+            [](DNSOverUDP const& dns_over_udp) {
+                dbgln("Setting DNS server to {}:{}", dns_over_udp.server_address, dns_over_udp.port);
+                Application::request_server_client().async_set_dns_server(dns_over_udp.server_address, dns_over_udp.port, false);
+            });
+    }
+};
+
 Application::Application()
-    : SettingsObserver(AddToObservers::No) // Application::the() is not set yet.
-    , m_settings(Settings::create({}))
+    : m_settings(Settings::create({}))
 {
     VERIFY(!s_the);
     s_the = this;
+
+    m_settings_observer = make<ApplicationSettingsObserver>();
 
     // No need to monitor the system time zone if the TZ environment variable is set, as it overrides system preferences.
     if (!Core::Environment::has("TZ"sv)) {
@@ -52,13 +71,13 @@ Application::Application()
     m_process_manager.on_process_exited = [this](Process&& process) {
         process_did_exit(move(process));
     };
-
-    SettingsObserver::complete_delayed_registration();
 }
 
 Application::~Application()
 {
-    SettingsObserver::complete_delayed_unregistration();
+    // Explicitly delete the settings observer first, as the observer destructor will refer to Application::the().
+    m_settings_observer.clear();
+
     s_the = nullptr;
 }
 
@@ -175,9 +194,6 @@ void Application::initialize(Main::Arguments const& arguments)
         .devtools_port = devtools_port,
     };
 
-    if (m_browser_options.dns_settings.has_value())
-        m_settings.set_dns_settings(m_browser_options.dns_settings.value(), true);
-
     if (webdriver_content_ipc_path.has_value())
         m_browser_options.webdriver_content_ipc_path = *webdriver_content_ipc_path;
 
@@ -268,6 +284,10 @@ ErrorOr<void> Application::launch_request_server()
 {
     // FIXME: Create an abstraction to re-spawn the RequestServer and re-hook up its client hooks to each tab on crash
     m_request_server_client = TRY(launch_request_server_process());
+
+    if (m_browser_options.dns_settings.has_value())
+        m_settings.set_dns_settings(m_browser_options.dns_settings.value(), true);
+
     return {};
 }
 
@@ -717,23 +737,4 @@ void Application::request_console_messages(DevTools::TabDescription const& descr
     view->js_console_request_messages(start_index);
 }
 
-void Application::dns_settings_changed()
-{
-    if (!m_request_server_client)
-        return;
-    auto dns_settings = settings().dns_settings();
-    auto& rs_client = *m_request_server_client;
-    dns_settings.visit(
-        [&](SystemDNS) {
-            rs_client.async_set_use_system_dns();
-        },
-        [&](DNSOverTLS const& dns_over_tls) {
-            dbgln("Setting DNS server to {}:{} with TLS", dns_over_tls.server_address, dns_over_tls.port);
-            rs_client.async_set_dns_server(dns_over_tls.server_address, dns_over_tls.port, true);
-        },
-        [&](DNSOverUDP const& dns_over_udp) {
-            dbgln("Setting DNS server to {}:{}", dns_over_udp.server_address, dns_over_udp.port);
-            rs_client.async_set_dns_server(dns_over_udp.server_address, dns_over_udp.port, false);
-        });
-}
 }

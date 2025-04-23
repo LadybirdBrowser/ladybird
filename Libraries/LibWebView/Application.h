@@ -26,8 +26,9 @@
 
 namespace WebView {
 
-class Application : public DevTools::DevToolsDelegate
-    , public SettingsObserver {
+struct ApplicationSettingsObserver;
+
+class Application : public DevTools::DevToolsDelegate {
     AK_MAKE_NONCOPYABLE(Application);
 
 public:
@@ -129,12 +130,10 @@ private:
     virtual void stop_listening_for_console_messages(DevTools::TabDescription const&) const override;
     virtual void request_console_messages(DevTools::TabDescription const&, i32) const override;
 
-    // ^SettingsObserver
-    virtual void dns_settings_changed() override;
-
     static Application* s_the;
 
     Settings m_settings;
+    OwnPtr<ApplicationSettingsObserver> m_settings_observer;
 
     BrowserOptions m_browser_options;
     WebContentOptions m_web_content_options;
@@ -156,6 +155,7 @@ private:
 
     OwnPtr<DevTools::DevToolsServer> m_devtools;
 } SWIFT_IMMORTAL_REFERENCE;
+
 }
 
 #define WEB_VIEW_APPLICATION(ApplicationType)                                \
