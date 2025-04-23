@@ -745,7 +745,6 @@ Interpreter::ResultAndReturnRegister Interpreter::run_executable(Executable& exe
     VERIFY(registers_and_constants_and_locals_count <= running_execution_context.registers_and_constants_and_locals_and_arguments_span().size());
 
     TemporaryChange restore_running_execution_context { m_running_execution_context, &running_execution_context };
-    TemporaryChange restore_arguments { m_arguments, running_execution_context.arguments() };
     TemporaryChange restore_registers_and_constants_and_locals { m_registers_and_constants_and_locals, running_execution_context.registers_and_constants_and_locals_and_arguments_span() };
 
     reg(Register::accumulator()) = initial_accumulator_value;
