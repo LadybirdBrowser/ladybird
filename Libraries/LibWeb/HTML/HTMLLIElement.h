@@ -41,6 +41,8 @@ public:
         MUST(set_attribute(AttributeNames::value, String::number(value)));
     }
 
+    virtual bool is_html_li_element() const override { return true; }
+
 private:
     HTMLLIElement(DOM::Document&, DOM::QualifiedName);
 
@@ -50,4 +52,9 @@ private:
     virtual void apply_presentational_hints(GC::Ref<CSS::CascadedProperties>) const override;
 };
 
+}
+
+namespace Web::DOM {
+template<>
+inline bool Node::fast_is<Web::HTML::HTMLLIElement>() const { return is_html_li_element(); }
 }

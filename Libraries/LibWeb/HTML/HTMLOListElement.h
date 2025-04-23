@@ -28,7 +28,9 @@ public:
         MUST(set_attribute(AttributeNames::start, String::number(start)));
     }
 
-    size_t starting_value() const;
+    WebIDL::Long starting_value() const;
+
+    virtual bool is_html_olist_element() const override { return true; }
 
 private:
     HTMLOListElement(DOM::Document&, DOM::QualifiedName);
@@ -39,4 +41,9 @@ private:
     virtual void apply_presentational_hints(GC::Ref<CSS::CascadedProperties>) const override;
 };
 
+}
+
+namespace Web::DOM {
+template<>
+inline bool Node::fast_is<Web::HTML::HTMLOListElement>() const { return is_html_olist_element(); }
 }
