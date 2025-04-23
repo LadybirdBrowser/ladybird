@@ -62,7 +62,9 @@ ThrowCompletionOr<Value> WrappedFunction::internal_call(Value this_argument, Rea
     // NOTE: No-op, kept by the VM in its execution context stack.
 
     // 2. Let calleeContext be PrepareForWrappedFunctionCall(F).
-    auto callee_context = ExecutionContext::create(0, 0);
+    ExecutionContext* callee_context = nullptr;
+    ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK(callee_context, 0, 0);
+
     prepare_for_wrapped_function_call(*this, *callee_context);
 
     // 3. Assert: calleeContext is now the running execution context.

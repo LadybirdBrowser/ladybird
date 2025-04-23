@@ -701,7 +701,8 @@ ThrowCompletionOr<void> SourceTextModule::execute_module(VM& vm, GC::Ptr<Promise
     }
 
     // 1. Let moduleContext be a new ECMAScript code execution context.
-    auto module_context = ExecutionContext::create(registers_and_constants_and_locals_count, 0);
+    ExecutionContext* module_context = nullptr;
+    ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK(module_context, registers_and_constants_and_locals_count, 0);
 
     // Note: This is not in the spec but we require it.
     module_context->is_strict_mode = true;

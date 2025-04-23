@@ -43,9 +43,9 @@ struct ExecutionContext {
 private:
     friend class ExecutionContextAllocator;
 
+public:
     ExecutionContext(u32 registers_and_constants_and_locals_count, u32 arguments_count);
 
-public:
     void operator delete(void* ptr);
 
     GC::Ptr<FunctionObject> function;                // [[Function]]
@@ -122,6 +122,22 @@ private:
 
     u32 registers_and_constants_and_locals_and_arguments_count { 0 };
 };
+
+#define ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK(execution_context,                        \
+    registers_and_constants_and_locals_count,                                                \
+    arguments_count)                                                                         \
+    auto execution_context_size = sizeof(JS::ExecutionContext)                               \
+        + ((registers_and_constants_and_locals_count) + (arguments_count))                   \
+            * sizeof(JS::Value);                                                             \
+                                                                                             \
+    void* execution_context_memory = alloca(execution_context_size);                         \
+                                                                                             \
+    execution_context = new (execution_context_memory)                                       \
+        JS::ExecutionContext((registers_and_constants_and_locals_count), (arguments_count)); \
+                                                                                             \
+    ScopeGuard run_execution_context_destructor([execution_context] {                        \
+        execution_context->~ExecutionContext();                                              \
+    })
 
 struct StackTraceElement {
     ExecutionContext* execution_context;

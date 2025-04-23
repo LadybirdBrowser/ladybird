@@ -242,7 +242,8 @@ ThrowCompletionOr<Value> Interpreter::run(Script& script_record, GC::Ptr<Environ
     }
 
     // 2. Let scriptContext be a new ECMAScript code execution context.
-    auto script_context = ExecutionContext::create(registers_and_constants_and_locals_count, 0);
+    ExecutionContext* script_context = nullptr;
+    ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK(script_context, registers_and_constants_and_locals_count, 0);
 
     // 3. Set the Function of scriptContext to null.
     // NOTE: This was done during execution context construction.

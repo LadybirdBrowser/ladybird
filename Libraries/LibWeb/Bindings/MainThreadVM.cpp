@@ -585,7 +585,8 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
             // 5. Perform FinishLoadingImportedModule(referrer, moduleRequest, payload, completion).
             // NON-STANDARD: To ensure that LibJS can find the module on the stack, we push a new execution context.
 
-            auto module_execution_context = JS::ExecutionContext::create(0, 0);
+            JS::ExecutionContext* module_execution_context = nullptr;
+            ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK(module_execution_context, 0, 0);
             module_execution_context->realm = realm;
             if (module)
                 module_execution_context->script_or_module = GC::Ref { *module };
