@@ -1345,16 +1345,6 @@ void Optimizer::append_alternation(ByteCode& target, Span<ByteCode> alternatives
         Vector<Patch> patch_locations;
         patch_locations.ensure_capacity(total_nodes);
 
-        auto add_patch_point = [&](Tree const* node, size_t target_ip) {
-            if (!node->has_metadata())
-                return;
-            auto& node_ip = node->metadata_value().first();
-            patch_locations.append({ node_ip, target_ip });
-        };
-
-        Vector<Tree*> nodes_to_visit;
-        nodes_to_visit.append(&trie);
-
         HashMap<size_t, NonnullOwnPtr<RedBlackTree<u64, u64>>> instruction_positions;
         if (has_any_backwards_jump)
             MUST(instruction_positions.try_ensure_capacity(alternatives.size()));
@@ -1364,6 +1354,16 @@ void Optimizer::append_alternation(ByteCode& target, Span<ByteCode> alternatives
                 return make<RedBlackTree<u64, u64>>();
             });
         };
+
+        auto add_patch_point = [&](Tree const* node, size_t target_ip) {
+            if (!node->has_metadata())
+                return;
+
+            patch_locations.append({ node->metadata_value().first(), target_ip });
+        };
+
+        Vector<Tree*> nodes_to_visit;
+        nodes_to_visit.append(&trie);
 
         // each node:
         //   node.re
@@ -1431,33 +1431,47 @@ void Optimizer::append_alternation(ByteCode& target, Span<ByteCode> alternatives
 
                 if (is_jump) {
                     VERIFY(node->has_metadata());
-                    QualifiedIP ip = node->metadata_value().first();
-                    auto intended_jump_ip = ip.instruction_position + jump_offset + opcode.size();
-                    if (jump_offset < 0) {
-                        VERIFY(has_any_backwards_jump);
-                        // We should've already seen this instruction, so we can just patch it in.
-                        auto& ip_mapping = ip_mapping_for_alternative(ip.alternative_index);
-                        auto target_ip = ip_mapping.find(intended_jump_ip);
-                        if (!target_ip) {
-                            RegexDebug dbg;
-                            size_t x = 0;
-                            for (auto& entry : alternatives) {
-                                warnln("----------- {} ----------", x++);
-                                dbg.print_bytecode(entry);
-                            }
+                    if (node->metadata_value().size() > 1)
+                        target[patch_location] = static_cast<ByteCodeValueType>(0); // Fall through instead.
 
-                            dbgln("Regex Tree / Unknown backwards jump: {}@{} -> {}",
-                                ip.instruction_position,
-                                ip.alternative_index,
-                                intended_jump_ip);
-                            VERIFY_NOT_REACHED();
+                    auto only_one = node->metadata_value().size() == 1;
+                    auto patch_size = opcode.size() - 1;
+                    for (auto [alternative_index, instruction_position] : node->metadata_value()) {
+                        if (!only_one) {
+                            target.append(static_cast<ByteCodeValueType>(OpCodeId::ForkJump));
+                            patch_location = target.size();
+                            should_negate = false;
+                            patch_size = 2;
+                            target.append(static_cast<ByteCodeValueType>(0));
                         }
-                        ssize_t target_value = *target_ip - patch_location - 1;
-                        if (should_negate)
-                            target_value = -target_value + 2; // from -1 to +1.
-                        target[patch_location] = static_cast<ByteCodeValueType>(target_value);
-                    } else {
-                        patch_locations.append({ QualifiedIP { ip.alternative_index, intended_jump_ip }, patch_location });
+
+                        auto intended_jump_ip = instruction_position + jump_offset + opcode.size();
+                        if (jump_offset < 0) {
+                            VERIFY(has_any_backwards_jump);
+                            // We should've already seen this instruction, so we can just patch it in.
+                            auto& ip_mapping = ip_mapping_for_alternative(alternative_index);
+                            auto target_ip = ip_mapping.find(intended_jump_ip);
+                            if (!target_ip) {
+                                RegexDebug dbg;
+                                size_t x = 0;
+                                for (auto& entry : alternatives) {
+                                    warnln("----------- {} ----------", x++);
+                                    dbg.print_bytecode(entry);
+                                }
+
+                                dbgln("Regex Tree / Unknown backwards jump: {}@{} -> {}",
+                                    instruction_position,
+                                    alternative_index,
+                                    intended_jump_ip);
+                                VERIFY_NOT_REACHED();
+                            }
+                            ssize_t target_value = *target_ip - patch_location - patch_size;
+                            if (should_negate)
+                                target_value = -target_value + 2; // from -1 to +1.
+                            target[patch_location] = static_cast<ByteCodeValueType>(target_value);
+                        } else {
+                            patch_locations.append({ QualifiedIP { alternative_index, intended_jump_ip }, patch_location });
+                        }
                     }
                 }
             }
