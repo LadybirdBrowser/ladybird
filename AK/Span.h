@@ -187,7 +187,7 @@ public:
     {
         // make sure we're not told to write past the end
         VERIFY(offset + data_size <= size() * sizeof(T));
-        __builtin_memmove(this->data() + offset, data, data_size);
+        TypedTransfer<T>::copy(this->data() + offset, static_cast<T const*>(data), data_size / sizeof(T));
     }
 
     ALWAYS_INLINE constexpr size_t copy_to(Span<RemoveConst<T>> other) const
