@@ -142,6 +142,7 @@ static HTTP::HeaderMap response_headers_for_file(StringView path, Optional<time_
     auto mime_type = Core::guess_mime_type_based_on_filename(path);
 
     HTTP::HeaderMap response_headers;
+    response_headers.set("Access-Control-Allow-Origin"sv, "null"sv);
     response_headers.set("Content-Type"sv, mime_type);
 
     if (modified_time.has_value()) {
