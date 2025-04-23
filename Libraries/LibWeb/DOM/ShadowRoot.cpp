@@ -9,6 +9,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/ShadowRoot.h>
+#include <LibWeb/HTML/CustomElements/CustomElementRegistry.h>
 #include <LibWeb/HTML/HTMLTemplateElement.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/Layout/BlockContainer.h>
@@ -136,6 +137,7 @@ void ShadowRoot::visit_edges(Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_style_sheets);
     visitor.visit(m_adopted_style_sheets);
+    visitor.visit(m_custom_element_registry);
 }
 
 GC::Ref<WebIDL::ObservableArray> ShadowRoot::adopted_style_sheets() const
@@ -189,6 +191,17 @@ ElementByIdMap& ShadowRoot::element_by_id() const
     if (!m_element_by_id)
         m_element_by_id = make<ElementByIdMap>();
     return *m_element_by_id;
+}
+
+// https://dom.spec.whatwg.org/#dom-documentorshadowroot-customelementregistry
+GC::Ptr<HTML::CustomElementRegistry> ShadowRoot::custom_element_registry() const
+{
+    // 1. If this is a document, then return this’s custom element registry.
+    // NB: Impossible.
+
+    // 2. Assert: this is a ShadowRoot node.
+    // 3. Return this’s custom element registry.
+    return m_custom_element_registry;
 }
 
 }

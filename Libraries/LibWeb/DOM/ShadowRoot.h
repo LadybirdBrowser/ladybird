@@ -65,6 +65,9 @@ public:
 
     ElementByIdMap& element_by_id() const;
 
+    GC::Ptr<HTML::CustomElementRegistry> custom_element_registry() const;
+    void set_custom_element_registry(GC::Ptr<HTML::CustomElementRegistry> registry) { m_custom_element_registry = registry; }
+
     virtual void finalize() override;
 
 protected:
@@ -99,6 +102,9 @@ private:
     mutable GC::Ptr<WebIDL::ObservableArray> m_adopted_style_sheets;
 
     IntrusiveListNode<ShadowRoot> m_list_node;
+
+    // https://dom.spec.whatwg.org/#shadowroot-custom-element-registry
+    GC::Ptr<HTML::CustomElementRegistry> m_custom_element_registry;
 
 public:
     using DocumentShadowRootList = IntrusiveList<&ShadowRoot::m_list_node>;

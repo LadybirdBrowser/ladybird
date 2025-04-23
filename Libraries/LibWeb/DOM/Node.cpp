@@ -1396,13 +1396,14 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_single_node(Document& document) c
                 }
             }();
 
-            // Set copy’s encoding, content type, URL, origin, type, and mode to those of node.
+            // Set copy’s encoding, content type, URL, origin, type, mode, and custom element registry to those of node.
             document_copy->set_encoding(document_.encoding());
             document_copy->set_content_type(document_.content_type());
             document_copy->set_url(document_.url());
             document_copy->set_origin(document_.origin());
             document_copy->set_document_type(document_.document_type());
             document_copy->set_quirks_mode(document_.mode());
+            document_copy->set_custom_element_registry(document_.custom_element_registry().ptr());
             copy = move(document_copy);
         } else if (is_document_type()) {
             // -> DocumentType

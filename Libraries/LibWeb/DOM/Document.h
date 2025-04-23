@@ -911,6 +911,9 @@ public:
     auto& script_blocking_style_sheet_set() { return m_script_blocking_style_sheet_set; }
     auto const& script_blocking_style_sheet_set() const { return m_script_blocking_style_sheet_set; }
 
+    GC::Ptr<HTML::CustomElementRegistry> custom_element_registry() const;
+    void set_custom_element_registry(GC::Ptr<HTML::CustomElementRegistry> custom_element_registry) { m_custom_element_registry = custom_element_registry; }
+
 protected:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
@@ -1268,6 +1271,9 @@ private:
     HashTable<GC::Ref<Element>> m_render_blocking_elements;
 
     HashTable<WeakPtr<Node>> m_pending_nodes_for_style_invalidation_due_to_presence_of_has;
+
+    // https://dom.spec.whatwg.org/#document-custom-element-registry
+    GC::Ptr<HTML::CustomElementRegistry> m_custom_element_registry;
 };
 
 template<>

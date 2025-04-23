@@ -2,8 +2,9 @@ Harness status: OK
 
 Found 4 tests
 
-4 Fail
+1 Pass
+3 Fail
 Fail	customElementRegistry on a document should return window.customElements by default
-Fail	customElementRegistry on a document without a browsing context should return null
+Pass	customElementRegistry on a document without a browsing context should return null
 Fail	customElementRegistry on a document of a connected iframe should return contentWindow.customElements
 Fail	customElementRegistry on a document of a disconnected iframe should return contentWindow.customElements
