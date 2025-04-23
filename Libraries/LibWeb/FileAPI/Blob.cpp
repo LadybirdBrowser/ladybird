@@ -19,8 +19,8 @@
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/MimeSniff/MimeType.h>
-#include <LibWeb/Streams/AbstractOperations.h>
 #include <LibWeb/Streams/ReadableStreamDefaultReader.h>
+#include <LibWeb/Streams/ReadableStreamOperations.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/Buffers.h>
 
@@ -147,8 +147,8 @@ Blob::~Blob() = default;
 
 void Blob::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(Blob);
+    Base::initialize(realm);
 }
 
 WebIDL::ExceptionOr<void> Blob::serialization_steps(HTML::SerializationRecord& record, bool, HTML::SerializationMemory&)
@@ -350,14 +350,14 @@ GC::Ref<Streams::ReadableStream> Blob::get_stream()
                 });
 
                 if (maybe_error.is_error()) {
-                    readable_stream_error(*stream, maybe_error.release_error().value());
+                    Streams::readable_stream_error(*stream, maybe_error.release_error().value());
                     return;
                 }
 
                 // FIXME: Spec bug: https://github.com/w3c/FileAPI/issues/206
                 //
                 // We need to close the stream so that the stream will finish reading.
-                readable_stream_close(*stream);
+                Streams::readable_stream_close(*stream);
             }));
         }
     }

@@ -6,10 +6,10 @@
 
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/ReadableStreamAsyncIteratorPrototype.h>
-#include <LibWeb/Streams/AbstractOperations.h>
 #include <LibWeb/Streams/ReadableStream.h>
 #include <LibWeb/Streams/ReadableStreamAsyncIterator.h>
 #include <LibWeb/Streams/ReadableStreamDefaultReader.h>
+#include <LibWeb/Streams/ReadableStreamOperations.h>
 
 namespace Web::Bindings {
 
@@ -51,8 +51,8 @@ ReadableStreamAsyncIterator::~ReadableStreamAsyncIterator() = default;
 
 void ReadableStreamAsyncIterator::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(ReadableStreamAsyncIterator);
+    Base::initialize(realm);
 }
 
 void ReadableStreamAsyncIterator::visit_edges(JS::Cell::Visitor& visitor)

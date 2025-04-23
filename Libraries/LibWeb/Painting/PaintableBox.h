@@ -258,15 +258,19 @@ protected:
     virtual CSSPixelRect compute_absolute_paint_rect() const;
 
     struct ScrollbarData {
+        CSSPixelRect gutter_rect;
         CSSPixelRect thumb_rect;
-        CSSPixelFraction scroll_length;
+        CSSPixelFraction scroll_length { 0 };
     };
     enum class ScrollDirection {
         Horizontal,
         Vertical,
     };
-    Optional<ScrollbarData> compute_scrollbar_data(ScrollDirection) const;
-    [[nodiscard]] Optional<CSSPixelRect> scroll_thumb_rect(ScrollDirection) const;
+    enum class AdjustThumbRectForScrollOffset {
+        No,
+        Yes,
+    };
+    Optional<ScrollbarData> compute_scrollbar_data(ScrollDirection, AdjustThumbRectForScrollOffset = AdjustThumbRectForScrollOffset::No) const;
     [[nodiscard]] bool could_be_scrolled_by_wheel_event(ScrollDirection) const;
 
     TraversalDecision hit_test_scrollbars(CSSPixelPoint position, Function<TraversalDecision(HitTestResult)> const& callback) const;
@@ -277,6 +281,9 @@ private:
     virtual DispatchEventOfSameName handle_mousedown(Badge<EventHandler>, CSSPixelPoint, unsigned button, unsigned modifiers) override;
     virtual DispatchEventOfSameName handle_mouseup(Badge<EventHandler>, CSSPixelPoint, unsigned button, unsigned modifiers) override;
     virtual DispatchEventOfSameName handle_mousemove(Badge<EventHandler>, CSSPixelPoint, unsigned buttons, unsigned modifiers) override;
+
+    bool scrollbar_contains_mouse_position(ScrollDirection, CSSPixelPoint);
+    void scroll_to_mouse_postion(CSSPixelPoint);
 
     OwnPtr<StackingContext> m_stacking_context;
 
@@ -304,6 +311,8 @@ private:
 
     Optional<CSSPixelPoint> m_last_mouse_tracking_position;
     Optional<ScrollDirection> m_scroll_thumb_dragging_direction;
+    bool m_draw_enlarged_horizontal_scrollbar { false };
+    bool m_draw_enlarged_vertical_scrollbar { false };
 
     ResolvedBackground m_resolved_background;
 
@@ -317,6 +326,7 @@ private:
 
 class PaintableWithLines : public PaintableBox {
     GC_CELL(PaintableWithLines, PaintableBox);
+    GC_DECLARE_ALLOCATOR(PaintableWithLines);
 
 public:
     static GC::Ref<PaintableWithLines> create(Layout::BlockContainer const&);

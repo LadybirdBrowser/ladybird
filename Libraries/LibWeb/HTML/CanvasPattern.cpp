@@ -147,8 +147,8 @@ WebIDL::ExceptionOr<GC::Ptr<CanvasPattern>> CanvasPattern::create(JS::Realm& rea
 
 void CanvasPattern::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(CanvasPattern);
+    Base::initialize(realm);
 }
 
 }

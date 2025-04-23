@@ -24,7 +24,7 @@ public:
     // https://www.w3.org/TR/html-aria/#el-li
     virtual Optional<ARIA::Role> default_role() const override
     {
-        for (auto const* ancestor = parent_element(); ancestor; ancestor = ancestor->parent_element()) {
+        for (auto ancestor = parent_element(); ancestor; ancestor = ancestor->parent_element()) {
             if (ancestor->role_or_default() == ARIA::Role::list)
                 return ARIA::Role::listitem;
         }

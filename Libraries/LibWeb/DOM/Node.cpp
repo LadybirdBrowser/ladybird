@@ -229,7 +229,7 @@ void Node::set_text_content(Optional<String> const& maybe_content)
 
     if (is_connected()) {
         invalidate_style(StyleInvalidationReason::NodeSetTextContent);
-        set_needs_layout_tree_update(true);
+        set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeSetTextContent);
     }
 
     document().bump_dom_tree_version();
@@ -802,9 +802,9 @@ void Node::insert_before(GC::Ref<Node> node, GC::Ptr<Node> child, bool suppress_
 
     if (is_connected()) {
         if (layout_node() && layout_node()->display().is_contents() && parent_element()) {
-            parent_element()->set_needs_layout_tree_update(true);
+            parent_element()->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeInsertBeforeWithDisplayContents);
         }
-        set_needs_layout_tree_update(true);
+        set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeInsertBefore);
     }
 
     document().bump_dom_tree_version();
@@ -913,7 +913,7 @@ void Node::remove(bool suppress_observers)
         // NOTE: If we didn't have a layout node before, rebuilding the layout tree isn't gonna give us one
         //       after we've been removed from the DOM.
         if (layout_node())
-            parent->set_needs_layout_tree_update(true);
+            parent->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeRemove);
     }
 
     // 11. Remove node from its parent’s children.
@@ -1399,17 +1399,34 @@ EventTarget* Node::get_parent(Event const&)
     return parent();
 }
 
-void Node::set_needs_layout_tree_update(bool value)
+void Node::set_needs_layout_tree_update(bool value, SetNeedsLayoutTreeUpdateReason reason)
 {
     if (m_needs_layout_tree_update == value)
         return;
     m_needs_layout_tree_update = value;
 
+    if constexpr (UPDATE_LAYOUT_DEBUG) {
+        if (m_needs_layout_tree_update) {
+            // NOTE: We check some conditions here to avoid debug spam in documents that don't do layout.
+            auto navigable = this->navigable();
+            bool any_ancestor_needs_layout_tree_update = false;
+            for (auto* ancestor = parent_or_shadow_host(); ancestor; ancestor = ancestor->parent_or_shadow_host()) {
+                if (ancestor->needs_layout_tree_update()) {
+                    any_ancestor_needs_layout_tree_update = true;
+                    break;
+                }
+            }
+            if (!any_ancestor_needs_layout_tree_update && navigable && navigable->active_document() == &document()) {
+                dbgln("Need tree update ({}): {}", to_string(reason), debug_description());
+            }
+        }
+    }
+
     // NOTE: If this is a shadow root, we need to propagate the layout tree update to the host.
     if (is_shadow_root()) {
         auto& shadow_root = static_cast<ShadowRoot&>(*this);
         if (auto host = shadow_root.host())
-            host->set_needs_layout_tree_update(value);
+            host->set_needs_layout_tree_update(value, reason);
     }
 
     if (m_needs_layout_tree_update) {
@@ -1418,7 +1435,8 @@ void Node::set_needs_layout_tree_update(bool value)
                 break;
             ancestor->m_child_needs_layout_tree_update = true;
         }
-        set_needs_layout_update(SetNeedsLayoutReason::LayoutTreeUpdate);
+        if (auto layout_node = this->layout_node())
+            layout_node->set_needs_layout_update(SetNeedsLayoutReason::LayoutTreeUpdate);
     }
 }
 
@@ -1435,27 +1453,6 @@ void Node::set_needs_style_update(bool value)
             ancestor->m_child_needs_style_update = true;
         }
         document().schedule_style_update();
-    }
-}
-
-void Node::set_needs_layout_update(SetNeedsLayoutReason reason)
-{
-    if (m_needs_layout_update)
-        return;
-
-    if constexpr (UPDATE_LAYOUT_DEBUG) {
-        // NOTE: We check some conditions here to avoid debug spam in documents that don't do layout.
-        auto navigable = this->navigable();
-        if (navigable && navigable->active_document() == &document())
-            dbgln_if(UPDATE_LAYOUT_DEBUG, "NEED LAYOUT {}", to_string(reason));
-    }
-
-    m_needs_layout_update = true;
-
-    for (auto* ancestor = parent_or_shadow_host(); ancestor; ancestor = ancestor->parent_or_shadow_host()) {
-        if (ancestor->m_needs_layout_update)
-            break;
-        ancestor->m_needs_layout_update = true;
     }
 }
 
@@ -2035,7 +2032,7 @@ Optional<String> Node::locate_a_namespace(Optional<String> const& prefix) const
         // 4. If it has an attribute whose namespace is the XMLNS namespace, namespace prefix is "xmlns", and local name is prefix,
         //    or if prefix is null and it has an attribute whose namespace is the XMLNS namespace, namespace prefix is null,
         //    and local name is "xmlns", then return its value if it is not the empty string, and null otherwise.
-        if (auto* attributes = element.attributes()) {
+        if (auto attributes = element.attributes()) {
             for (size_t i = 0; i < attributes->length(); ++i) {
                 auto& attr = *attributes->item(i);
                 if (attr.namespace_uri() == Web::Namespace::XMLNS) {
@@ -2051,7 +2048,7 @@ Optional<String> Node::locate_a_namespace(Optional<String> const& prefix) const
         }
 
         // 5. If its parent element is null, then return null.
-        auto* parent_element = element.parent_element();
+        auto parent_element = element.parent_element();
         if (!element.parent_element())
             return {};
 
@@ -2090,7 +2087,7 @@ Optional<String> Node::locate_a_namespace(Optional<String> const& prefix) const
 
     // Otherwise
     // 1. If its parent element is null, then return null.
-    auto* parent_element = this->parent_element();
+    auto parent_element = this->parent_element();
     if (!parent_element)
         return {};
 
@@ -2153,7 +2150,7 @@ Optional<String> Node::lookup_prefix(Optional<String> namespace_) const
 
     // Otherwise
     // Return the result of locating a namespace prefix for its parent element, if its parent element is non-null; otherwise null.
-    auto* parent_element = this->parent_element();
+    auto parent_element = this->parent_element();
     if (!parent_element)
         return {};
 
@@ -2937,6 +2934,10 @@ bool Node::has_inclusive_ancestor_with_display_none()
 
 void Node::play_or_cancel_animations_after_display_property_change()
 {
+    // OPTIMIZATION: We don't care about animations in disconnected subtrees.
+    if (!is_connected())
+        return;
+
     // https://www.w3.org/TR/css-animations-1/#animations
     // Setting the display property to none will terminate any running animation applied to the element and its descendants.
     // If an element has a display of none, updating display to a value other than none will start all animations applied to

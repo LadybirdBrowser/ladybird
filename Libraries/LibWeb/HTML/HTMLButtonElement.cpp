@@ -7,8 +7,10 @@
 #include <LibWeb/Bindings/HTMLButtonElementPrototype.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
+#include <LibWeb/HTML/CommandEvent.h>
 #include <LibWeb/HTML/HTMLButtonElement.h>
 #include <LibWeb/HTML/HTMLFormElement.h>
+#include <LibWeb/Namespace.h>
 
 namespace Web::HTML {
 
@@ -23,8 +25,8 @@ HTMLButtonElement::~HTMLButtonElement() = default;
 
 void HTMLButtonElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLButtonElement);
+    Base::initialize(realm);
 }
 
 HTMLButtonElement::TypeAttributeState HTMLButtonElement::type_state() const
@@ -87,6 +89,7 @@ void HTMLButtonElement::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
     PopoverInvokerElement::visit_edges(visitor);
+    visitor.visit(m_command_for_element);
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-tabindex
@@ -152,12 +155,111 @@ void HTMLButtonElement::activation_behavior(DOM::Event const& event)
             return;
     }
 
-    // FIXME: 4. Let target be the result of running element's get the commandfor associated element.
-    // FIXME: 5. If target is not null:
-    //           ...
+    // 4. Let target be the result of running element's get the commandfor associated element.
+    //    AD-HOC: Target needs to be an HTML Element in the following steps.
+    GC::Ptr<HTMLElement> target = as_if<HTMLElement>(m_command_for_element.ptr());
+    if (!target) {
+        auto target_id = attribute(AttributeNames::commandfor);
+        if (target_id.has_value()) {
+            root().for_each_in_inclusive_subtree_of_type<HTMLElement>([&](auto& candidate) {
+                if (candidate.attribute(HTML::AttributeNames::id) == target_id.value()) {
+                    target = &candidate;
+                    return TraversalDecision::Break;
+                }
+                return TraversalDecision::Continue;
+            });
+        }
+    }
+
+    // 5. If target is not null:
+    if (target) {
+        // 1. Let command be element's command attribute.
+        auto command = this->command();
+
+        // 2. If command is in the Unknown state, then return.
+        if (command.is_empty()) {
+            return;
+        }
+
+        // 3. Let isPopover be true if target's popover attribute is not in the no popover state; otherwise false.
+        auto is_popover = target->popover().has_value();
+
+        // 4. If isPopover is false and command is not in the Custom state:
+        auto command_is_in_custom_state = command.starts_with_bytes("--"sv);
+        if (!is_popover && !command.starts_with_bytes("--"sv)) {
+            // 1. Assert: target's namespace is the HTML namespace.
+            VERIFY(target->namespace_uri() == Namespace::HTML);
+
+            // 2. If this standard does not define is valid invoker command steps for target's local name, then return.
+            // 3. Otherwise, if the result of running target's corresponding is valid invoker command steps given command is false, then return.
+            if (!target->is_valid_invoker_command(command))
+                return;
+        }
+
+        // 5. Let continue be the result of firing an event named command at target, using CommandEvent, with its command attribute initialized to command, its source attribute initialized to element, and its cancelable and composed attributes initialized to true.
+        // SPEC-NOTE: DOM standard issue #1328 tracks how to better standardize associated event data in a way which makes sense on Events. Currently an event attribute initialized to a value cannot also have a getter, and so an internal slot (or map of additional fields) is required to properly specify this.
+        CommandEventInit event_init {};
+        event_init.command = command;
+        event_init.source = this;
+        event_init.cancelable = true;
+        event_init.composed = true;
+
+        auto event = CommandEvent::create(realm(), HTML::EventNames::command, move(event_init));
+        event->set_is_trusted(true);
+        auto continue_ = target->dispatch_event(event);
+
+        // 6. If continue is false, then return.
+        if (!continue_)
+            return;
+
+        // 7. If target is not connected, then return.
+        if (!target->is_connected())
+            return;
+
+        // 8. If command is in the Custom state, then return.
+        if (command_is_in_custom_state)
+            return;
+
+        // AD-HOC: The parameters provided in the spec do not match the function signatures in the following steps.
+        //         The inconsistent parameters were therefore selected ad hoc.
+
+        // 9. If command is in the Hide Popover state:
+        if (command == "hide-popover") {
+            // 1. If the result of running check popover validity given target, true, false, and null is true, then run the hide popover algorithm given target, true, true, and false.
+            if (MUST(target->check_popover_validity(ExpectedToBeShowing::Yes, ThrowExceptions::No, nullptr, IgnoreDomState::No))) {
+                MUST(target->hide_popover(FocusPreviousElement::Yes, FireEvents::Yes, ThrowExceptions::No, IgnoreDomState::No));
+            }
+        }
+
+        // 10. Otherwise, if command is in the Toggle Popover state:
+        else if (command == "toggle-popover") {
+            // 1. If the result of running check popover validity given target, false, false, and null is true, then run the show popover algorithm given target, true, true, and false.
+            if (MUST(target->check_popover_validity(ExpectedToBeShowing::No, ThrowExceptions::No, nullptr, IgnoreDomState::No))) {
+                MUST(target->show_popover(ThrowExceptions::No, this));
+            }
+
+            // 2. Otheriwse, if the result of running check popover validity given target, true, false, and null is true, then run the hide popover algorithm given target, true, true, and false.
+            else if (MUST(target->check_popover_validity(ExpectedToBeShowing::Yes, ThrowExceptions::No, nullptr, IgnoreDomState::No))) {
+                MUST(target->hide_popover(FocusPreviousElement::Yes, FireEvents::Yes, ThrowExceptions::No, IgnoreDomState::No));
+            }
+        }
+
+        // 11. Otherwise, if command is in the Show Popover state:
+        else if (command == "show-popover") {
+            // 1. If the result of running check popover validity given target, false, false, and null is true, then run the show popover algorithm given target, true, true, and false.
+            if (MUST(target->check_popover_validity(ExpectedToBeShowing::No, ThrowExceptions::No, nullptr, IgnoreDomState::No))) {
+                MUST(target->show_popover(ThrowExceptions::No, this));
+            }
+        }
+
+        // 12. Otherwise, if this standard defines invoker command steps for target's local name, then run the corresponding invoker command steps given target, element and command.
+        else {
+            target->invoker_command_steps(*this, command);
+        }
+    }
 
     // 6. Otherwise, run the popover target attribute activation behavior given element and event's target.
-    if (event.target() && event.target()->is_dom_node())
+    else if (event.target() && event.target()->is_dom_node())
         PopoverInvokerElement::popover_target_activation_behaviour(*this, as<DOM::Node>(*event.target()));
 }
 
@@ -171,6 +273,52 @@ bool HTMLButtonElement::will_validate()
 bool HTMLButtonElement::is_focusable() const
 {
     return enabled();
+}
+
+// https://html.spec.whatwg.org/multipage/form-elements.html#dom-button-command
+String HTMLButtonElement::command() const
+{
+    // 1. Let command be this's command attribute.
+    auto command = get_attribute(AttributeNames::command);
+
+    // https://html.spec.whatwg.org/multipage/form-elements.html#attr-button-command
+    // The command attribute is an enumerated attribute with the following keywords and states:
+    // Keyword                  State          Brief description
+    // toggle-popover           Toggle Popover Shows or hides the targeted popover element.
+    // show-popover             Show Popover   Shows the targeted popover element.
+    // hide-popover             Hide Popover   Hides the targeted popover element.
+    // close                    Close          Closes the targeted dialog element.
+    // show-modal               Show Modal     Opens the targeted dialog element as modal.
+    // A custom command keyword Custom         Only dispatches the command event on the targeted element.
+    Array valid_values { "toggle-popover"_string, "show-popover"_string, "hide-popover"_string, "close"_string, "show-modal"_string };
+
+    // 2. If command is in the Custom state, then return command's value.
+    //    A custom command keyword is a string that starts with "--".
+    if (command.has_value() && command.value().starts_with_bytes("--"sv)) {
+        return command.value();
+    }
+
+    // NOTE: Steps are re-ordered a bit.
+
+    // 4. Return the keword corresponding to the value of command.return
+    if (command.has_value()) {
+        auto command_value = command.value();
+        for (auto const& value : valid_values) {
+            if (value.equals_ignoring_ascii_case(command_value)) {
+                return value;
+            }
+        }
+    }
+
+    // 3. If command is in the Unknown state, then return the empty string.
+    //    The attribute's missing value default and invalid value default are both the Unknown state.
+    return {};
+}
+
+// https://html.spec.whatwg.org/multipage/form-elements.html#the-button-element:dom-button-command-2
+WebIDL::ExceptionOr<void> HTMLButtonElement::set_command(String const& value)
+{
+    return set_attribute(AttributeNames::command, value);
 }
 
 }

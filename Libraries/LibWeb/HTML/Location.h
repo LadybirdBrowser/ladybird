@@ -48,7 +48,7 @@ public:
     WebIDL::ExceptionOr<void> set_search(String const&);
 
     WebIDL::ExceptionOr<String> hash() const;
-    WebIDL::ExceptionOr<void> set_hash(String const&);
+    WebIDL::ExceptionOr<void> set_hash(StringView);
 
     WebIDL::ExceptionOr<void> replace(String const& url);
     void reload() const;
@@ -71,6 +71,8 @@ public:
 private:
     explicit Location(JS::Realm&);
 
+    virtual bool is_html_location() const override { return true; }
+
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
@@ -86,3 +88,6 @@ private:
 };
 
 }
+
+template<>
+inline bool JS::Object::fast_is<Web::HTML::Location>() const { return is_html_location(); }

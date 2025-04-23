@@ -22,7 +22,7 @@
 #include <gpu/ganesh/SkSurfaceGanesh.h>
 #include <pathops/SkPathOps.h>
 
-#include <LibGfx/Font/ScaledFont.h>
+#include <LibGfx/Font/Font.h>
 #include <LibGfx/PainterSkia.h>
 #include <LibGfx/PathSkia.h>
 #include <LibGfx/SkiaUtils.h>
@@ -77,7 +77,7 @@ void DisplayListPlayerSkia::flush()
 
 void DisplayListPlayerSkia::draw_glyph_run(DrawGlyphRun const& command)
 {
-    auto const& gfx_font = static_cast<Gfx::ScaledFont const&>(command.glyph_run->font());
+    auto const& gfx_font = command.glyph_run->font();
     auto sk_font = gfx_font.skia_font(command.scale);
 
     auto glyph_count = command.glyph_run->glyphs().size();
@@ -993,23 +993,31 @@ void DisplayListPlayerSkia::paint_nested_display_list(PaintNestedDisplayList con
 
 void DisplayListPlayerSkia::paint_scrollbar(PaintScrollBar const& command)
 {
-    auto rect = to_skia_rect(command.rect);
-    auto radius = rect.width() / 2;
-    auto rrect = SkRRect::MakeRectXY(rect, radius, radius);
+    auto gutter_rect = to_skia_rect(command.gutter_rect);
+
+    auto thumb_rect = to_skia_rect(command.thumb_rect);
+    auto radius = thumb_rect.width() / 2;
+    auto thumb_rrect = SkRRect::MakeRectXY(thumb_rect, radius, radius);
 
     auto& canvas = surface().canvas();
 
-    auto fill_color = Color(Color::NamedColor::DarkGray).with_alpha(128);
-    SkPaint fill_paint;
-    fill_paint.setColor(to_skia_color(fill_color));
-    canvas.drawRRect(rrect, fill_paint);
+    auto gutter_fill_color = Color(Color::NamedColor::WarmGray).with_alpha(192);
+    SkPaint gutter_fill_paint;
+    gutter_fill_paint.setColor(to_skia_color(gutter_fill_color));
+    canvas.drawRect(gutter_rect, gutter_fill_paint);
+
+    auto thumb_fill_color = Color(Color::NamedColor::DarkGray).with_alpha(gutter_rect.isEmpty() ? 128 : 192);
+    SkPaint thumb_fill_paint;
+    thumb_fill_paint.setColor(to_skia_color(thumb_fill_color));
+    canvas.drawRRect(thumb_rrect, thumb_fill_paint);
 
     auto stroke_color = Color(Color::NamedColor::LightGray).with_alpha(128);
     SkPaint stroke_paint;
     stroke_paint.setStroke(true);
     stroke_paint.setStrokeWidth(1);
+    stroke_paint.setAntiAlias(true);
     stroke_paint.setColor(to_skia_color(stroke_color));
-    canvas.drawRRect(rrect, stroke_paint);
+    canvas.drawRRect(thumb_rrect, stroke_paint);
 }
 
 void DisplayListPlayerSkia::apply_opacity(ApplyOpacity const& command)

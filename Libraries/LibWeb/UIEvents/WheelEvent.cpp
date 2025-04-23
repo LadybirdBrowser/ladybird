@@ -29,8 +29,8 @@ WheelEvent::~WheelEvent() = default;
 
 void WheelEvent::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(WheelEvent);
+    Base::initialize(realm);
 }
 
 GC::Ref<WheelEvent> WheelEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, WheelEventInit const& wheel_event_init)

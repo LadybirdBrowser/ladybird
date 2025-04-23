@@ -21,8 +21,8 @@ MediaSourceHandle::~MediaSourceHandle() = default;
 
 void MediaSourceHandle::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(MediaSourceHandle);
+    Base::initialize(realm);
 }
 
 }

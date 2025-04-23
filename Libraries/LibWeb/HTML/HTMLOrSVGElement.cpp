@@ -26,39 +26,25 @@ GC::Ref<DOMStringMap> HTMLOrSVGElement<ElementBase>::dataset()
 template<typename ElementBase>
 void HTMLOrSVGElement<ElementBase>::focus()
 {
-    // 1. If the allow focus steps given the element's node document return false, then return.
+    // 1. If the allow focus steps given this's node document return false, then return.
     if (!static_cast<ElementBase*>(this)->document().allow_focus())
         return;
 
-    // 2. If the element is marked as locked for focus, then return.
-    if (m_locked_for_focus)
-        return;
-
-    // 3. Mark the element as locked for focus.
-    m_locked_for_focus = true;
-
-    // 4. Run the focusing steps for the element.
+    // 2. Run the focusing steps for this.
     run_focusing_steps(static_cast<ElementBase*>(this));
 
-    // FIXME: 5. If the value of the focusVisible dictionary member of options is true, or is not present but in an implementation-defined way the user agent determines it would be best to do so, then indicate focus.
+    // FIXME: 3. If options["focusVisible"] is true, or does not exist but in an implementation-defined way the user agent determines it would be best to do so, then indicate focus.
 
-    // FIXME: 6. If the value of the preventScroll dictionary member of options is false,
-    //           then scroll the element into view with scroll behavior "auto",
-    //           block flow direction position set to an implementation-defined value,
-    //           and inline base direction position set to an implementation-defined value.
-
-    // 7. Unmark the element as locked for focus.
-    m_locked_for_focus = false;
+    // FIXME: 4. If options["preventScroll"] is false, then scroll a target into view given this, "auto", "center", and "center".
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-blur
 template<typename ElementBase>
 void HTMLOrSVGElement<ElementBase>::blur()
 {
-    // The blur() method, when invoked, should run the unfocusing steps for the element on which the method was called.
+    // 1. The user agent should run the unfocusing steps given this.
+    //    User agents may instead selectively or uniformly do nothing, for usability reasons.
     run_unfocusing_steps(static_cast<ElementBase*>(this));
-
-    // User agents may selectively or uniformly ignore calls to this method for usability reasons.
 }
 
 // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#dom-noncedelement-nonce

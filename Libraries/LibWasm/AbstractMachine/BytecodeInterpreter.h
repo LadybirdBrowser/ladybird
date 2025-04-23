@@ -22,14 +22,17 @@ struct BytecodeInterpreter : public Interpreter {
 
     virtual ~BytecodeInterpreter() override = default;
     virtual bool did_trap() const final { return !m_trap.has<Empty>(); }
-    virtual ByteString trap_reason() const final
+    virtual Trap trap() const final
     {
-        return m_trap.visit(
-            [](Empty) -> ByteString { VERIFY_NOT_REACHED(); },
-            [](Trap const& trap) { return trap.reason; },
-            [](JS::Completion const& completion) { return completion.value().to_string_without_side_effects().to_byte_string(); });
+        return m_trap.get<Trap>();
     }
     virtual void clear_trap() final { m_trap = Empty {}; }
+    virtual void visit_external_resources(HostVisitOps const& host) override
+    {
+        if (auto ptr = m_trap.get_pointer<Trap>())
+            if (auto data = ptr->data.get_pointer<ExternallyManagedTrap>())
+                host.visit_trap(*data);
+    }
 
     struct CallFrameHandle {
         explicit CallFrameHandle(BytecodeInterpreter& interpreter, Configuration& configuration)
@@ -82,11 +85,11 @@ protected:
     ALWAYS_INLINE bool trap_if_not(bool value, StringView reason)
     {
         if (!value)
-            m_trap = Trap { reason };
+            m_trap = Trap { ByteString(reason) };
         return !m_trap.has<Empty>();
     }
 
-    Variant<Trap, JS::Completion, Empty> m_trap;
+    Variant<Trap, Empty> m_trap;
     StackInfo const& m_stack_info;
 };
 

@@ -10,6 +10,7 @@
 #include <LibWeb/Streams/ReadableStream.h>
 #include <LibWeb/Streams/ReadableStreamDefaultController.h>
 #include <LibWeb/Streams/ReadableStreamDefaultReader.h>
+#include <LibWeb/Streams/ReadableStreamOperations.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/Promise.h>
 
@@ -100,7 +101,7 @@ void ReadableStreamDefaultController::pull_steps(Web::Streams::ReadRequest& read
         }
         // 3. Otherwise, perform ! ReadableStreamDefaultControllerCallPullIfNeeded(this).
         else {
-            readable_stream_default_controller_can_pull_if_needed(*this);
+            readable_stream_default_controller_call_pull_if_needed(*this);
         }
 
         // 4. Perform readRequest’s chunk steps, given chunk.
@@ -112,7 +113,7 @@ void ReadableStreamDefaultController::pull_steps(Web::Streams::ReadRequest& read
         readable_stream_add_read_request(stream, read_request);
 
         // 2. Perform ! ReadableStreamDefaultControllerCallPullIfNeeded(this).
-        readable_stream_default_controller_can_pull_if_needed(*this);
+        readable_stream_default_controller_call_pull_if_needed(*this);
     }
 }
 
@@ -124,8 +125,8 @@ void ReadableStreamDefaultController::release_steps()
 
 void ReadableStreamDefaultController::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(ReadableStreamDefaultController);
+    Base::initialize(realm);
 }
 
 void ReadableStreamDefaultController::visit_edges(Cell::Visitor& visitor)

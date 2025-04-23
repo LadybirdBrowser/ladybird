@@ -26,8 +26,8 @@ SVGTextContentElement::SVGTextContentElement(DOM::Document& document, DOM::Quali
 
 void SVGTextContentElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGTextContentElement);
+    Base::initialize(realm);
 }
 
 Optional<TextAnchor> SVGTextContentElement::text_anchor() const
@@ -54,7 +54,7 @@ ByteString SVGTextContentElement::text_contents() const
 // https://svgwg.org/svg2-draft/text.html#__svg__SVGTextContentElement__getNumberOfChars
 WebIDL::ExceptionOr<WebIDL::Long> SVGTextContentElement::get_number_of_chars() const
 {
-    auto chars = TRY_OR_THROW_OOM(vm(), utf8_to_utf16(text_contents()));
+    auto chars = TRY_OR_THROW_OOM(vm(), utf8_to_utf16(text_contents())).data;
     return static_cast<WebIDL::Long>(chars.size());
 }
 

@@ -48,8 +48,8 @@ GC::Ptr<DOM::ShadowRoot> ElementInternals::shadow_root() const
 
 void ElementInternals::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(ElementInternals);
+    Base::initialize(realm);
 }
 
 void ElementInternals::visit_edges(JS::Cell::Visitor& visitor)

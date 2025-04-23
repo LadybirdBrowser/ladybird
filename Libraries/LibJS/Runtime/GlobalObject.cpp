@@ -572,7 +572,8 @@ JS_DEFINE_NATIVE_FUNCTION(GlobalObject::escape)
     // 2. Let length be the length of string.
     // 5. Let k be 0.
     // 6. Repeat, while k < length,
-    for (auto code_point : TRY_OR_THROW_OOM(vm, utf8_to_utf16(string))) {
+    auto utf16_conversion = TRY_OR_THROW_OOM(vm, utf8_to_utf16(string));
+    for (auto code_point : utf16_conversion.data) {
         // a. Let char be the code unit at index k within string.
 
         // b. If unescapedSet contains char, then

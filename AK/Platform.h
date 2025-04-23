@@ -180,13 +180,6 @@
 #    define VALIDATE_IS_RISCV64() static_assert(false, "Trying to include riscv64 only header on non riscv64 platform");
 #endif
 
-// Apple Clang 14.0.3 (shipped in Xcode 14.3) has a bug that causes __builtin_subc{,l,ll}
-// to incorrectly return whether a borrow occurred on AArch64. See our writeup for the Qemu
-// issue also caused by it: https://gitlab.com/qemu-project/qemu/-/issues/1659#note_1408275831
-#if ARCH(AARCH64) && defined(__apple_build_version__) && __clang_major__ == 14
-#    define AK_BUILTIN_SUBC_BROKEN
-#endif
-
 #ifdef ALWAYS_INLINE
 #    undef ALWAYS_INLINE
 #endif

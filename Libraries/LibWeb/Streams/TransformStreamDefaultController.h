@@ -7,7 +7,7 @@
 #pragma once
 
 #include <LibWeb/Bindings/PlatformObject.h>
-#include <LibWeb/Streams/AbstractOperations.h>
+#include <LibWeb/Streams/Algorithms.h>
 
 namespace Web::Streams {
 

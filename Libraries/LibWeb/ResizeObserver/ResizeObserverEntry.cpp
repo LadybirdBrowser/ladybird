@@ -60,8 +60,8 @@ WebIDL::ExceptionOr<GC::Ref<ResizeObserverEntry>> ResizeObserverEntry::create_an
 
 void ResizeObserverEntry::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(ResizeObserverEntry);
+    Base::initialize(realm);
 }
 
 void ResizeObserverEntry::visit_edges(JS::Cell::Visitor& visitor)

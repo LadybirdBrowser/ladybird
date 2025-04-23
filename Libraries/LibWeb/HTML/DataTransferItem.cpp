@@ -35,8 +35,8 @@ DataTransferItem::~DataTransferItem() = default;
 
 void DataTransferItem::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(DataTransferItem);
+    Base::initialize(realm);
 }
 
 void DataTransferItem::visit_edges(JS::Cell::Visitor& visitor)

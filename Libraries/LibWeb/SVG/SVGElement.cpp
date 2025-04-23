@@ -26,8 +26,8 @@ SVGElement::SVGElement(DOM::Document& document, DOM::QualifiedName qualified_nam
 
 void SVGElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGElement);
+    Base::initialize(realm);
 }
 
 bool SVGElement::should_include_in_accessibility_tree() const

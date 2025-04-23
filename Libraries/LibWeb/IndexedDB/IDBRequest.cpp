@@ -27,8 +27,8 @@ IDBRequest::IDBRequest(JS::Realm& realm, IDBRequestSource source)
 
 void IDBRequest::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(IDBRequest);
+    Base::initialize(realm);
 }
 
 GC::Ref<IDBRequest> IDBRequest::create(JS::Realm& realm, IDBRequestSource source)
@@ -76,7 +76,7 @@ WebIDL::CallbackType* IDBRequest::onerror()
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbrequest-error
-[[nodiscard]] WebIDL::ExceptionOr<GC::Ptr<WebIDL::DOMException>> IDBRequest::error() const
+[[nodiscard]] GC::Ptr<WebIDL::DOMException> IDBRequest::error() const
 {
     // 1. If this's done flag is false, then throw an "InvalidStateError" DOMException.
     if (!m_done)

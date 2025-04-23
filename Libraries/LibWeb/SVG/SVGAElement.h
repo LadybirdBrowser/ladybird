@@ -31,6 +31,8 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
+    virtual bool is_svg_a_element() const override { return true; }
+
     // ^DOM::Element
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
     virtual i32 default_tab_index_value() const override;
@@ -38,4 +40,9 @@ private:
     GC::Ptr<DOM::DOMTokenList> m_rel_list;
 };
 
+}
+
+namespace Web::DOM {
+template<>
+inline bool Node::fast_is<SVG::SVGAElement>() const { return is_svg_a_element(); }
 }

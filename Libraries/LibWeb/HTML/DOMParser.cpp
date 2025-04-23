@@ -32,8 +32,8 @@ DOMParser::~DOMParser() = default;
 
 void DOMParser::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(DOMParser);
+    Base::initialize(realm);
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-domparser-parsefromstring

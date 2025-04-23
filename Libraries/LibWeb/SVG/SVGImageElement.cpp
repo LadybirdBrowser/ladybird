@@ -28,8 +28,8 @@ SVGImageElement::SVGImageElement(DOM::Document& document, DOM::QualifiedName qua
 
 void SVGImageElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGImageElement);
+    Base::initialize(realm);
 }
 
 void SVGImageElement::visit_edges(Cell::Visitor& visitor)
@@ -168,7 +168,8 @@ void SVGImageElement::fetch_the_document(URL::URL const& url)
                 m_animation_timer->start();
             }
             set_needs_style_update(true);
-            set_needs_layout_update(DOM::SetNeedsLayoutReason::SVGImageElementFetchTheDocument);
+            if (auto layout_node = this->layout_node())
+                layout_node->set_needs_layout_update(DOM::SetNeedsLayoutReason::SVGImageElementFetchTheDocument);
 
             dispatch_event(DOM::Event::create(realm(), HTML::EventNames::load));
         },

@@ -22,8 +22,8 @@ ManagedSourceBuffer::~ManagedSourceBuffer() = default;
 
 void ManagedSourceBuffer::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(ManagedSourceBuffer);
+    Base::initialize(realm);
 }
 
 // https://w3c.github.io/media-source/#dom-managedsourcebuffer-onbufferedchange

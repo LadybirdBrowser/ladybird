@@ -21,8 +21,8 @@ HTMLDataElement::~HTMLDataElement() = default;
 
 void HTMLDataElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLDataElement);
+    Base::initialize(realm);
 }
 
 }

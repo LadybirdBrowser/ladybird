@@ -41,8 +41,8 @@ URLSearchParamsIterator::~URLSearchParamsIterator() = default;
 
 void URLSearchParamsIterator::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(URLSearchParamsIterator);
+    Base::initialize(realm);
 }
 
 void URLSearchParamsIterator::visit_edges(JS::Cell::Visitor& visitor)

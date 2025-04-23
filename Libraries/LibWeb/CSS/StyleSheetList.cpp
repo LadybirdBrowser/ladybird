@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2020-2025, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -10,6 +10,7 @@
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleSheetList.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/HTML/Window.h>
 
 namespace Web::CSS {
 
@@ -108,6 +109,11 @@ void StyleSheetList::add_sheet(CSSStyleSheet& sheet)
             m_sheets.prepend(sheet);
     }
 
+    // NOTE: We evaluate media queries immediately when adding a new sheet.
+    //       This coalesces the full document style invalidations.
+    //       If we don't do this, we invalidate now, and then again when Document updates media rules.
+    sheet.evaluate_media_queries(as<HTML::Window>(HTML::relevant_global_object(*this)));
+
     if (sheet.rules().length() == 0) {
         // NOTE: If the added sheet has no rules, we don't have to invalidate anything.
         return;
@@ -149,8 +155,8 @@ StyleSheetList::StyleSheetList(GC::Ref<DOM::Node> document_or_shadow_root)
 
 void StyleSheetList::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(StyleSheetList);
+    Base::initialize(realm);
 }
 
 void StyleSheetList::visit_edges(Cell::Visitor& visitor)

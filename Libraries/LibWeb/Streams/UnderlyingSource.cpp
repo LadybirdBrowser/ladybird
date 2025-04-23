@@ -6,7 +6,6 @@
  */
 
 #include <LibJS/Runtime/VM.h>
-#include <LibWeb/Streams/AbstractOperations.h>
 #include <LibWeb/Streams/UnderlyingSource.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/CallbackType.h>

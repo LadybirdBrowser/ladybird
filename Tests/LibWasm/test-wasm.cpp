@@ -401,11 +401,11 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::wasm_invoke)
 
     auto functype = WebAssemblyModule::machine().store().get(function_address)->visit([&](auto& func) { return func.type(); });
     auto result = WebAssemblyModule::machine().invoke(function_address, arguments);
-    if (result.is_trap())
-        return vm.throw_completion<JS::TypeError>(TRY_OR_THROW_OOM(vm, String::formatted("Execution trapped: {}", result.trap().reason)));
-
-    if (result.is_completion())
-        return result.completion();
+    if (result.is_trap()) {
+        if (auto ptr = result.trap().data.get_pointer<Wasm::ExternallyManagedTrap>())
+            return ptr->unsafe_external_object_as<JS::Completion>();
+        return vm.throw_completion<JS::TypeError>(TRY_OR_THROW_OOM(vm, String::formatted("Execution trapped: {}", result.trap().format())));
+    }
 
     if (result.values().is_empty())
         return JS::js_null();

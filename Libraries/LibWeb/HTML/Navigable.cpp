@@ -42,6 +42,7 @@
 #include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Layout/Node.h>
+#include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Loader/GeneratedPagesLoader.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/Paintable.h>
@@ -97,11 +98,6 @@ Vector<GC::Root<Navigable>> Navigable::child_navigables() const
     }
 
     return results;
-}
-
-bool Navigable::is_traversable() const
-{
-    return is<TraversableNavigable>(*this);
 }
 
 bool Navigable::is_ancestor_of(GC::Ref<Navigable> other) const
@@ -950,7 +946,7 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
         // 2. If request's reserved client is null, then:
         if (!request->reserved_client()) {
             // 1. Let topLevelCreationURL be currentURL.
-            auto top_level_creation_url = current_url;
+            Optional<URL::URL> top_level_creation_url = current_url;
 
             // 2. Let topLevelOrigin be null.
             URL::Origin top_level_origin;
@@ -2170,7 +2166,8 @@ void finalize_a_cross_document_navigation(GC::Ref<Navigable> navigable, HistoryH
     // AD-HOC: If we're inside a navigable container, let's trigger a relayout in the container document.
     //         This allows size negotiation between the containing document and SVG documents to happen.
     if (auto container = navigable->container()) {
-        container->set_needs_layout_update(DOM::SetNeedsLayoutReason::FinalizeACrossDocumentNavigation);
+        if (auto layout_node = container->layout_node())
+            layout_node->set_needs_layout_update(DOM::SetNeedsLayoutReason::FinalizeACrossDocumentNavigation);
     }
 }
 
@@ -2293,7 +2290,8 @@ void Navigable::set_viewport_size(CSSPixelSize size)
     if (auto document = active_document()) {
         // NOTE: Resizing the viewport changes the reference value for viewport-relative CSS lengths.
         document->invalidate_style(DOM::StyleInvalidationReason::NavigableSetViewportSize);
-        document->set_needs_layout_update(DOM::SetNeedsLayoutReason::NavigableSetViewportSize);
+        if (auto layout_node = document->layout_node())
+            layout_node->set_needs_layout_update(DOM::SetNeedsLayoutReason::NavigableSetViewportSize);
     }
 
     if (auto document = active_document()) {

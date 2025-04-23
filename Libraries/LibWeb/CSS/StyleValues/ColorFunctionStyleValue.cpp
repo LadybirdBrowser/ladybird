@@ -7,6 +7,7 @@
 #include "ColorFunctionStyleValue.h"
 #include <AK/TypeCasts.h>
 #include <LibWeb/CSS/Serialize.h>
+#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 
@@ -93,9 +94,26 @@ ColorFunctionStyleValue::Resolved ColorFunctionStyleValue::resolve_properties() 
 // https://www.w3.org/TR/css-color-4/#serializing-color-function-values
 String ColorFunctionStyleValue::to_string(SerializationMode mode) const
 {
-    auto convert_percentage = [](ValueComparingNonnullRefPtr<CSSStyleValue const> const& value) -> RemoveReference<decltype(value)> {
+    auto convert_percentage = [&](ValueComparingNonnullRefPtr<CSSStyleValue const> const& value) -> RemoveReference<decltype(value)> {
         if (value->is_percentage())
             return NumberStyleValue::create(value->as_percentage().value() / 100);
+        if (mode == SerializationMode::ResolvedValue && value->is_calculated()) {
+            // FIXME: Figure out how to get the proper calculation resolution context here
+            CalculationResolutionContext context {};
+            auto const& calculated = value->as_calculated();
+            if (calculated.resolves_to_percentage()) {
+                if (auto resolved_percentage = calculated.resolve_percentage(context); resolved_percentage.has_value()) {
+                    auto resolved_number = resolved_percentage->value() / 100;
+                    if (!isfinite(resolved_number))
+                        resolved_number = 0;
+                    return NumberStyleValue::create(resolved_number);
+                }
+            } else if (calculated.resolves_to_number()) {
+                if (auto resolved_number = calculated.resolve_number(context); resolved_number.has_value())
+                    return NumberStyleValue::create(*resolved_number);
+            }
+        }
+
         return value;
     };
 

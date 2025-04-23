@@ -885,8 +885,8 @@ KeyframeEffect::KeyframeEffect(JS::Realm& realm)
 
 void KeyframeEffect::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(KeyframeEffect);
+    Base::initialize(realm);
 }
 
 void KeyframeEffect::visit_edges(Cell::Visitor& visitor)
@@ -968,15 +968,15 @@ void KeyframeEffect::update_computed_properties()
         }
     }
 
-    if (invalidation.relayout)
-        target->set_needs_layout_update(DOM::SetNeedsLayoutReason::KeyframeEffect);
+    if (invalidation.relayout && target->layout_node())
+        target->layout_node()->set_needs_layout_update(DOM::SetNeedsLayoutReason::KeyframeEffect);
     if (invalidation.rebuild_layout_tree) {
         // We mark layout tree for rebuild starting from parent element to correctly invalidate
         // "display" property change to/from "contents" value.
-        if (auto* parent_element = target->parent_element()) {
-            parent_element->set_needs_layout_tree_update(true);
+        if (auto parent_element = target->parent_element()) {
+            parent_element->set_needs_layout_tree_update(true, DOM::SetNeedsLayoutTreeUpdateReason::KeyframeEffect);
         } else {
-            target->set_needs_layout_tree_update(true);
+            target->set_needs_layout_tree_update(true, DOM::SetNeedsLayoutTreeUpdateReason::KeyframeEffect);
         }
     }
     if (invalidation.repaint) {

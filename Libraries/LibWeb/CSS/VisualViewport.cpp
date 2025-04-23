@@ -30,8 +30,8 @@ VisualViewport::VisualViewport(DOM::Document& document)
 
 void VisualViewport::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(VisualViewport);
+    Base::initialize(realm);
 }
 
 void VisualViewport::visit_edges(Cell::Visitor& visitor)

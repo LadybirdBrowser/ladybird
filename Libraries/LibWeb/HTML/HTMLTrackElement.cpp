@@ -34,8 +34,8 @@ HTMLTrackElement::~HTMLTrackElement() = default;
 
 void HTMLTrackElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLTrackElement);
+    Base::initialize(realm);
 }
 
 void HTMLTrackElement::visit_edges(Cell::Visitor& visitor)
@@ -151,7 +151,7 @@ void HTMLTrackElement::start_the_track_processing_model()
         return;
 
     // 3. If the text track's track element does not have a media element as a parent, return.
-    if (!is<HTMLMediaElement>(parent_element()))
+    if (!is<HTMLMediaElement>(parent_element().ptr()))
         return;
 
     // 4. Run the remainder of these steps in parallel, allowing whatever caused these steps to run to continue.

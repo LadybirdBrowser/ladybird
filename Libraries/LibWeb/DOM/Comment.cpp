@@ -27,8 +27,8 @@ WebIDL::ExceptionOr<GC::Ref<Comment>> Comment::construct_impl(JS::Realm& realm, 
 
 void Comment::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(Comment);
+    Base::initialize(realm);
 }
 
 }

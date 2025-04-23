@@ -21,8 +21,8 @@ SVGMetadataElement::SVGMetadataElement(DOM::Document& document, DOM::QualifiedNa
 
 void SVGMetadataElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGMetadataElement);
+    Base::initialize(realm);
 }
 
 GC::Ptr<Layout::Node> SVGMetadataElement::create_layout_node(GC::Ref<CSS::ComputedProperties>)

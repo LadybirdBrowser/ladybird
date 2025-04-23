@@ -14,8 +14,8 @@
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Compression/CompressionStream.h>
-#include <LibWeb/Streams/AbstractOperations.h>
 #include <LibWeb/Streams/TransformStream.h>
+#include <LibWeb/Streams/TransformStreamOperations.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 
 namespace Web::Compression {
@@ -94,8 +94,8 @@ CompressionStream::~CompressionStream() = default;
 
 void CompressionStream::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(CompressionStream);
+    Base::initialize(realm);
 }
 
 void CompressionStream::visit_edges(JS::Cell::Visitor& visitor)

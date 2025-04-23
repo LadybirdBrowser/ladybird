@@ -35,7 +35,6 @@ public:
     static constexpr regex::RegexOptions<ECMAScriptFlags> default_flags {
         (regex::ECMAScriptFlags)regex::AllFlags::SingleMatch
         | (regex::ECMAScriptFlags)regex::AllFlags::Global
-        | (regex::ECMAScriptFlags)regex::AllFlags::SkipTrimEmptyMatches
         | regex::ECMAScriptFlags::BrowserExtended
     };
 

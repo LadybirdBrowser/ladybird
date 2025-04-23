@@ -92,8 +92,8 @@ SVGPathElement::SVGPathElement(DOM::Document& document, DOM::QualifiedName quali
 
 void SVGPathElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGPathElement);
+    Base::initialize(realm);
 }
 
 void SVGPathElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)

@@ -77,8 +77,8 @@ CSSStyleProperties::CSSStyleProperties(JS::Realm& realm, Computed computed, Read
 
 void CSSStyleProperties::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSStyleProperties);
+    Base::initialize(realm);
 }
 
 void CSSStyleProperties::visit_edges(Visitor& visitor)
@@ -595,6 +595,11 @@ static RefPtr<CSSStyleValue const> resolve_color_style_value(CSSStyleValue const
 {
     if (style_value.is_color_function())
         return style_value;
+    if (style_value.is_color()) {
+        auto& color_style_value = static_cast<CSSColorValue const&>(style_value);
+        if (first_is_one_of(color_style_value.color_type(), CSSColorValue::ColorType::Lab, CSSColorValue::ColorType::OKLab, CSSColorValue::ColorType::LCH, CSSColorValue::ColorType::OKLCH))
+            return style_value;
+    }
 
     return CSSColorValue::create_from_color(computed_color, ColorSyntax::Modern);
 }
@@ -1211,7 +1216,9 @@ void CSSStyleProperties::set_declarations_from_text(StringView css_text)
     auto parsing_params = owner_node().has_value()
         ? Parser::ParsingParams(owner_node()->element().document())
         : Parser::ParsingParams();
-    auto style = parse_css_style_attribute(parsing_params, css_text);
+    parsing_params.rule_context.append(Parser::RuleContext::Style);
+
+    auto style = parse_css_property_declaration_block(parsing_params, css_text);
     set_the_declarations(style.properties, style.custom_properties);
 }
 

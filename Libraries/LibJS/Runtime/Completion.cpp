@@ -6,6 +6,7 @@
  */
 
 #include <AK/TypeCasts.h>
+#include <LibJS/Runtime/Agent.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/Promise.h>
@@ -98,9 +99,9 @@ ThrowCompletionOr<Value> await(VM& vm, Value value)
 
     // FIXME: Since we don't support context suspension, we attempt to "wait" for the promise to resolve
     //        by syncronously running all queued promise jobs.
-    if (auto* custom_data = vm.custom_data()) {
+    if (auto* agent = vm.agent()) {
         // Embedder case (i.e. LibWeb). Runs all promise jobs by performing a microtask checkpoint.
-        custom_data->spin_event_loop_until(GC::create_function(vm.heap(), [success] {
+        agent->spin_event_loop_until(GC::create_function(vm.heap(), [success] {
             return success.has_value();
         }));
     } else {

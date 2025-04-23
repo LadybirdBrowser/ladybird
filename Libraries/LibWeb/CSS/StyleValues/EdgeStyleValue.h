@@ -41,6 +41,8 @@ public:
 
     virtual String to_string(SerializationMode) const override;
 
+    ValueComparingNonnullRefPtr<EdgeStyleValue const> resolved_value(CalculationContext context) const;
+
     bool properties_equal(EdgeStyleValue const& other) const { return m_properties == other.m_properties; }
 
 private:

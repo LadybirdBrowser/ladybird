@@ -19,14 +19,15 @@
 
 namespace Web::Painting {
 
-static constexpr auto control_box_color = Gfx::Color::from_rgb(0x26'26'26);
-static constexpr auto control_highlight_color = Gfx::Color::from_rgb(0x1d'99'f3);
+static constexpr auto CONTROL_BOX_COLOR = Gfx::Color::from_rgb(0x26'26'26);
+static constexpr auto CONTROL_BUTTON_COLOR = Gfx::Color::branded_color(Gfx::Color::BrandedColor::Violet);
+static constexpr auto CONTROL_HIGHLIGHT_COLOR = Gfx::Color::branded_color(Gfx::Color::BrandedColor::Violet60);
 
 static constexpr Gfx::Color control_button_color(bool is_hovered)
 {
     if (!is_hovered)
         return Color::White;
-    return control_highlight_color;
+    return CONTROL_BUTTON_COLOR;
 }
 
 MediaPaintable::MediaPaintable(Layout::ReplacedBox const& layout_box)
@@ -61,7 +62,7 @@ void MediaPaintable::fill_triangle(DisplayListRecorder& painter, Gfx::IntPoint l
 void MediaPaintable::paint_media_controls(PaintContext& context, HTML::HTMLMediaElement const& media_element, DevicePixelRect media_rect, Optional<DevicePixelPoint> const& mouse_position) const
 {
     auto components = compute_control_bar_components(context, media_element, media_rect);
-    context.display_list_recorder().fill_rect(components.control_box_rect.to_type<int>(), control_box_color.with_alpha(0xd0));
+    context.display_list_recorder().fill_rect(components.control_box_rect.to_type<int>(), CONTROL_BOX_COLOR.with_alpha(0xd0));
 
     paint_control_bar_playback_button(context, media_element, components, mouse_position);
     paint_control_bar_timeline(context, media_element, components);
@@ -118,7 +119,7 @@ MediaPaintable::Components MediaPaintable::compute_control_bar_components(PaintC
     auto display_time = human_readable_digital_time(round(media_element.layout_display_time({})));
     auto duration = human_readable_digital_time(isnan(media_element.duration()) ? 0 : round(media_element.duration()));
     components.timestamp = String::formatted("{} / {}", display_time, duration).release_value_but_fixme_should_propagate_errors();
-    components.timestamp_font = layout_node().scaled_font(context);
+    components.timestamp_font = layout_node().font(context);
 
     auto timestamp_size = DevicePixels { static_cast<DevicePixels::Type>(ceilf(components.timestamp_font->width(components.timestamp))) };
     if (timestamp_size <= remaining_rect.width()) {
@@ -182,7 +183,7 @@ void MediaPaintable::paint_control_bar_timeline(PaintContext& context, HTML::HTM
 
     auto timeline_past_rect = components.timeline_rect;
     timeline_past_rect.set_width(timeline_button_offset_x);
-    context.display_list_recorder().fill_rect(timeline_past_rect.to_type<int>(), control_highlight_color.lightened());
+    context.display_list_recorder().fill_rect(timeline_past_rect.to_type<int>(), CONTROL_HIGHLIGHT_COLOR);
 
     auto timeline_future_rect = components.timeline_rect;
     timeline_future_rect.take_from_left(timeline_button_offset_x);
@@ -261,7 +262,7 @@ void MediaPaintable::paint_control_bar_volume(PaintContext& context, HTML::HTMLM
 
     auto volume_lower_rect = components.volume_scrub_rect;
     volume_lower_rect.set_width(volume_button_offset_x);
-    context.display_list_recorder().fill_rect_with_rounded_corners(volume_lower_rect.to_type<int>(), control_highlight_color.lightened(), 4);
+    context.display_list_recorder().fill_rect_with_rounded_corners(volume_lower_rect.to_type<int>(), CONTROL_HIGHLIGHT_COLOR, 4);
 
     auto volume_higher_rect = components.volume_scrub_rect;
     volume_higher_rect.take_from_left(volume_button_offset_x);
@@ -271,7 +272,7 @@ void MediaPaintable::paint_control_bar_volume(PaintContext& context, HTML::HTMLM
     volume_button_rect.shrink(components.volume_scrub_rect.width() - components.volume_button_size, components.volume_scrub_rect.height() - components.volume_button_size);
     volume_button_rect.set_x(components.volume_scrub_rect.x() + volume_button_offset_x - components.volume_button_size / 2);
 
-    auto volume_is_hovered = rect_is_hovered(media_element, components.volume_rect, mouse_position, HTML::HTMLMediaElement::MouseTrackingComponent::Volume);
+    auto volume_is_hovered = rect_is_hovered(media_element, components.volume_rect, mouse_position, HTML::HTMLMediaElement::MediaComponent::Volume);
     auto volume_color = control_button_color(volume_is_hovered);
     context.display_list_recorder().fill_ellipse(volume_button_rect.to_type<int>(), volume_color);
 }
@@ -288,10 +289,10 @@ MediaPaintable::DispatchEventOfSameName MediaPaintable::handle_mousedown(Badge<E
     position_adjusted_by_scroll_offset.translate_by(-cumulative_offset_of_enclosing_scroll_frame());
 
     if (cached_layout_boxes.timeline_rect.has_value() && cached_layout_boxes.timeline_rect->contains(position_adjusted_by_scroll_offset)) {
-        media_element.set_layout_mouse_tracking_component({}, HTML::HTMLMediaElement::MouseTrackingComponent::Timeline);
+        media_element.set_layout_mouse_tracking_component({}, HTML::HTMLMediaElement::MediaComponent::Timeline);
         set_current_time(media_element, *cached_layout_boxes.timeline_rect, position_adjusted_by_scroll_offset, Temporary::Yes);
     } else if (cached_layout_boxes.volume_rect.has_value() && cached_layout_boxes.volume_rect->contains(position_adjusted_by_scroll_offset)) {
-        media_element.set_layout_mouse_tracking_component({}, HTML::HTMLMediaElement::MouseTrackingComponent::Volume);
+        media_element.set_layout_mouse_tracking_component({}, HTML::HTMLMediaElement::MediaComponent::Volume);
         set_volume(media_element, *cached_layout_boxes.volume_scrub_rect, position_adjusted_by_scroll_offset);
     }
 
@@ -311,14 +312,17 @@ MediaPaintable::DispatchEventOfSameName MediaPaintable::handle_mouseup(Badge<Eve
 
     if (auto const& mouse_tracking_component = media_element.layout_mouse_tracking_component({}); mouse_tracking_component.has_value()) {
         switch (*mouse_tracking_component) {
-        case HTML::HTMLMediaElement::MouseTrackingComponent::Timeline:
+        case HTML::HTMLMediaElement::MediaComponent::Timeline:
             set_current_time(media_element, *cached_layout_boxes.timeline_rect, position_adjusted_by_scroll_offset, Temporary::No);
             media_element.set_layout_display_time({}, {});
             break;
 
-        case HTML::HTMLMediaElement::MouseTrackingComponent::Volume:
+        case HTML::HTMLMediaElement::MediaComponent::Volume:
             document().page().client().page_did_stop_tooltip_override();
             break;
+
+        default:
+            VERIFY_NOT_REACHED();
         }
 
         const_cast<HTML::Navigable&>(*navigable()).event_handler().set_mouse_event_tracking_paintable(nullptr);
@@ -360,12 +364,12 @@ MediaPaintable::DispatchEventOfSameName MediaPaintable::handle_mousemove(Badge<E
 
     if (auto const& mouse_tracking_component = media_element.layout_mouse_tracking_component({}); mouse_tracking_component.has_value()) {
         switch (*mouse_tracking_component) {
-        case HTML::HTMLMediaElement::MouseTrackingComponent::Timeline:
+        case HTML::HTMLMediaElement::MediaComponent::Timeline:
             if (cached_layout_boxes.timeline_rect.has_value())
                 set_current_time(media_element, *cached_layout_boxes.timeline_rect, position_adjusted_by_scroll_offset, Temporary::Yes);
             break;
 
-        case HTML::HTMLMediaElement::MouseTrackingComponent::Volume:
+        case HTML::HTMLMediaElement::MediaComponent::Volume:
             if (cached_layout_boxes.volume_rect.has_value()) {
                 set_volume(media_element, *cached_layout_boxes.volume_scrub_rect, position_adjusted_by_scroll_offset);
 
@@ -374,8 +378,25 @@ MediaPaintable::DispatchEventOfSameName MediaPaintable::handle_mousemove(Badge<E
             }
 
             break;
+
+        default:
+            VERIFY_NOT_REACHED();
         }
     }
+
+    auto previous_hovered_component = media_element.layout_hovered_component({});
+
+    if (cached_layout_boxes.playback_button_rect.has_value() && cached_layout_boxes.playback_button_rect->contains(position_adjusted_by_scroll_offset))
+        media_element.set_layout_hovered_component({}, HTML::HTMLMediaElement::MediaComponent::PlaybackButton);
+    else if (cached_layout_boxes.speaker_button_rect.has_value() && cached_layout_boxes.speaker_button_rect->contains(position_adjusted_by_scroll_offset))
+        media_element.set_layout_hovered_component({}, HTML::HTMLMediaElement::MediaComponent::SpeakerButton);
+    else if (cached_layout_boxes.volume_rect.has_value() && cached_layout_boxes.volume_rect->contains(position_adjusted_by_scroll_offset))
+        media_element.set_layout_hovered_component({}, HTML::HTMLMediaElement::MediaComponent::Volume);
+    else
+        media_element.set_layout_hovered_component({}, {});
+
+    if (previous_hovered_component != media_element.layout_hovered_component({}))
+        set_needs_display();
 
     if (absolute_rect().contains(position_adjusted_by_scroll_offset)) {
         media_element.set_layout_mouse_position({}, position_adjusted_by_scroll_offset);
@@ -415,7 +436,7 @@ void MediaPaintable::set_volume(HTML::HTMLMediaElement& media_element, CSSPixelR
     media_element.set_volume(volume).release_value_but_fixme_should_propagate_errors();
 }
 
-bool MediaPaintable::rect_is_hovered(HTML::HTMLMediaElement const& media_element, Optional<DevicePixelRect> const& rect, Optional<DevicePixelPoint> const& mouse_position, Optional<HTML::HTMLMediaElement::MouseTrackingComponent> const& allowed_mouse_tracking_component)
+bool MediaPaintable::rect_is_hovered(HTML::HTMLMediaElement const& media_element, Optional<DevicePixelRect> const& rect, Optional<DevicePixelPoint> const& mouse_position, Optional<HTML::HTMLMediaElement::MediaComponent> const& allowed_mouse_tracking_component)
 {
     if (auto const& mouse_tracking_component = media_element.layout_mouse_tracking_component({}); mouse_tracking_component.has_value())
         return mouse_tracking_component == allowed_mouse_tracking_component;

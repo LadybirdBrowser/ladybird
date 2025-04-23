@@ -116,6 +116,7 @@ set(SOURCES
     CSS/Parser/MediaParsing.cpp
     CSS/Parser/Parser.cpp
     CSS/Parser/PropertyParsing.cpp
+    CSS/Parser/RuleContext.cpp
     CSS/Parser/RuleParsing.cpp
     CSS/Parser/SelectorParsing.cpp
     CSS/Parser/Token.cpp
@@ -154,6 +155,7 @@ set(SOURCES
     CSS/StyleValues/CounterDefinitionsStyleValue.cpp
     CSS/StyleValues/CounterStyleValue.cpp
     CSS/StyleValues/ColorFunctionStyleValue.cpp
+    CSS/StyleValues/ColorMixStyleValue.cpp
     CSS/StyleValues/CSSColorValue.cpp
     CSS/StyleValues/CSSHSL.cpp
     CSS/StyleValues/CSSHWB.cpp
@@ -333,6 +335,7 @@ set(SOURCES
     HTML/CloseEvent.cpp
     HTML/CloseWatcher.cpp
     HTML/CloseWatcherManager.cpp
+    HTML/CommandEvent.cpp
     HTML/CORSSettingAttribute.cpp
     HTML/CrossOrigin/AbstractOperations.cpp
     HTML/CrossOrigin/Reporting.cpp
@@ -749,14 +752,19 @@ set(SOURCES
     Streams/ReadableStreamDefaultController.cpp
     Streams/ReadableStreamDefaultReader.cpp
     Streams/ReadableStreamGenericReader.cpp
+    Streams/ReadableStreamOperations.cpp
+    Streams/ReadableStreamPipeTo.cpp
+    Streams/ReadableStreamTee.cpp
     Streams/Transformer.cpp
     Streams/TransformStream.cpp
     Streams/TransformStreamDefaultController.cpp
+    Streams/TransformStreamOperations.cpp
     Streams/UnderlyingSink.cpp
     Streams/UnderlyingSource.cpp
     Streams/WritableStream.cpp
     Streams/WritableStreamDefaultController.cpp
     Streams/WritableStreamDefaultWriter.cpp
+    Streams/WritableStreamOperations.cpp
     SVG/AttributeNames.cpp
     SVG/AttributeParser.cpp
     SVG/SVGAElement.cpp

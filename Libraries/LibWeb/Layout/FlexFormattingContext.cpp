@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2021-2025, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, Tobias Christiansen <tobyase@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -94,7 +94,38 @@ void FlexFormattingContext::run(AvailableSpace const& available_space)
             // FIXME: Get rid of prepare_for_replaced_layout() and make replaced elements figure out their intrinsic size lazily.
             static_cast<ReplacedBox&>(*item.box).prepare_for_replaced_layout();
         }
-        determine_flex_base_size_and_hypothetical_main_size(item);
+        determine_flex_base_size(item);
+    }
+
+    // OPTIMIZATION: We try to avoid calculating the "automatic minimum size" if possible,
+    //               since it may require expensive intrinsic sizing layout.
+    //               If this is a single-line flex container and the sum of flex bases sizes
+    //               won't exceed the available space in the main axis, we know the layout
+    //               algorithm won't have to shrink anything, thus not needing the minimum size.
+    bool const should_skip_automatic_minimum_size_clamp = [&] {
+        if (m_layout_mode == LayoutMode::IntrinsicSizing)
+            return false;
+        if (!is_single_line())
+            return false;
+        if (is_row_layout() && !m_flex_container_state.has_definite_width())
+            return false;
+        if (!is_row_layout() && !m_flex_container_state.has_definite_height())
+            return false;
+        CSSPixels sum_of_item_flex_base_sizes = 0;
+        for (auto& item : m_flex_items) {
+            if (!has_definite_main_size(item))
+                return false;
+            sum_of_item_flex_base_sizes += item.flex_base_size;
+        }
+        if (sum_of_item_flex_base_sizes > m_available_space_for_items->main.to_px_or_zero())
+            return false;
+        return true;
+    }();
+    for (auto& item : m_flex_items) {
+        // The hypothetical main size is the item’s flex base size clamped according to its used min and max main sizes (and flooring the content box size at zero).
+        auto clamp_max = has_main_max_size(item.box) ? specified_main_max_size(item.box) : CSSPixels::max();
+        auto clamp_min = has_main_min_size(item.box) ? specified_main_min_size(item.box) : (should_skip_automatic_minimum_size_clamp ? 0 : automatic_minimum_size(item));
+        item.hypothetical_main_size = max(CSSPixels(0), css_clamp(item.flex_base_size, clamp_min, clamp_max));
     }
 
     if (available_space.width.is_intrinsic_sizing_constraint() || available_space.height.is_intrinsic_sizing_constraint()) {
@@ -556,8 +587,8 @@ CSSPixels FlexFormattingContext::adjust_cross_size_through_aspect_ratio_for_main
     return cross_size;
 }
 
-// https://www.w3.org/TR/css-flexbox-1/#algo-main-item
-void FlexFormattingContext::determine_flex_base_size_and_hypothetical_main_size(FlexItem& item)
+// https://drafts.csswg.org/css-flexbox-1/#algo-main-item
+void FlexFormattingContext::determine_flex_base_size(FlexItem& item)
 {
     auto& child_box = item.box;
 
@@ -694,10 +725,7 @@ void FlexFormattingContext::determine_flex_base_size_and_hypothetical_main_size(
         item.flex_base_size = adjust_main_size_through_aspect_ratio_for_cross_size_min_max_constraints(child_box, item.flex_base_size, computed_cross_min_size(child_box), computed_cross_max_size(child_box));
     }
 
-    // The hypothetical main size is the item’s flex base size clamped according to its used min and max main sizes (and flooring the content box size at zero).
-    auto clamp_min = has_main_min_size(child_box) ? specified_main_min_size(child_box) : automatic_minimum_size(item);
-    auto clamp_max = has_main_max_size(child_box) ? specified_main_max_size(child_box) : CSSPixels::max();
-    item.hypothetical_main_size = max(CSSPixels(0), css_clamp(item.flex_base_size, clamp_min, clamp_max));
+    // NOTE: We don't clamp the main size until we have them for all items.
 }
 
 // https://drafts.csswg.org/css-flexbox-1/#min-size-auto
@@ -1130,7 +1158,7 @@ void FlexFormattingContext::determine_hypothetical_cross_size_of_item(FlexItem& 
     }
 
     // "... treating auto as fit-content"
-    auto fit_content_cross_size = calculate_fit_content_cross_size(item);
+    CSSPixels fit_content_cross_size;
     if (is_row_layout()) {
         auto available_width = item.main_size.has_value() ? AvailableSize::make_definite(item.main_size.value()) : AvailableSize::make_indefinite();
         auto available_height = AvailableSize::make_indefinite();

@@ -30,8 +30,8 @@ HTMLMetaElement::~HTMLMetaElement() = default;
 
 void HTMLMetaElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLMetaElement);
+    Base::initialize(realm);
 }
 
 Optional<HTMLMetaElement::HttpEquivAttributeState> HTMLMetaElement::http_equiv_state() const

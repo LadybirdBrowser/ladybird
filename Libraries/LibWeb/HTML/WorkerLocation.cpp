@@ -131,8 +131,8 @@ WorkerLocation::~WorkerLocation() = default;
 
 void WorkerLocation::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(WorkerLocation);
+    Base::initialize(realm);
 }
 
 void WorkerLocation::visit_edges(Cell::Visitor& visitor)

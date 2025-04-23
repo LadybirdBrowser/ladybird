@@ -22,7 +22,7 @@ Result Configuration::call(Interpreter& interpreter, FunctionAddress address, Ve
 {
     auto* function = m_store.get(address);
     if (!function)
-        return Trap {};
+        return Trap::from_string("Attempt to call nonexistent function by address");
     if (auto* wasm_function = function->get_pointer<WasmFunction>()) {
         Vector<Value> locals = move(arguments);
         locals.ensure_capacity(locals.size() + wasm_function->code().func().locals().size());
@@ -50,7 +50,7 @@ Result Configuration::execute(Interpreter& interpreter)
 {
     interpreter.interpret(*this);
     if (interpreter.did_trap())
-        return Trap { interpreter.trap_reason() };
+        return interpreter.trap();
 
     Vector<Value> results;
     results.ensure_capacity(frame().arity());

@@ -54,8 +54,8 @@ HTMLAllCollection::~HTMLAllCollection() = default;
 
 void HTMLAllCollection::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLAllCollection);
+    Base::initialize(realm);
 }
 
 void HTMLAllCollection::visit_edges(Cell::Visitor& visitor)

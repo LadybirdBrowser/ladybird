@@ -42,8 +42,8 @@ HTMLSelectElement::~HTMLSelectElement() = default;
 
 void HTMLSelectElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLSelectElement);
+    Base::initialize(realm);
 }
 
 void HTMLSelectElement::visit_edges(Cell::Visitor& visitor)

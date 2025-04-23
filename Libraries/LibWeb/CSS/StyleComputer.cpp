@@ -21,7 +21,6 @@
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Font/FontStyleMapping.h>
 #include <LibGfx/Font/FontWeight.h>
-#include <LibGfx/Font/ScaledFont.h>
 #include <LibGfx/Font/Typeface.h>
 #include <LibGfx/Font/WOFF/Loader.h>
 #include <LibGfx/Font/WOFF2/Loader.h>
@@ -236,7 +235,7 @@ RefPtr<Gfx::Font const> FontLoader::font_with_point_size(float point_size)
             start_loading_next_url();
         return nullptr;
     }
-    return m_vector_font->scaled_font(point_size);
+    return m_vector_font->font(point_size);
 }
 
 void FontLoader::start_loading_next_url()
@@ -304,7 +303,7 @@ struct StyleComputer::MatchingFontCandidate {
             return font_list;
         }
 
-        font_list->add(loader_or_typeface.get<Gfx::Typeface const*>()->scaled_font(point_size));
+        font_list->add(loader_or_typeface.get<Gfx::Typeface const*>()->font(point_size));
         return font_list;
     }
 };
@@ -913,7 +912,7 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
             set_longhand_property(CSS::PropertyID::TransitionProperty, CSSKeywordValue::create(Keyword::All));
             set_longhand_property(CSS::PropertyID::TransitionDuration, TimeStyleValue::create(CSS::Time::make_seconds(0)));
             set_longhand_property(CSS::PropertyID::TransitionDelay, TimeStyleValue::create(CSS::Time::make_seconds(0)));
-            set_longhand_property(CSS::PropertyID::TransitionTimingFunction, CSSKeywordValue::create(Keyword::Ease));
+            set_longhand_property(CSS::PropertyID::TransitionTimingFunction, EasingStyleValue::create(EasingStyleValue::CubicBezier::ease()));
             return;
         }
         auto const& transitions = value.as_transition().transitions();
@@ -1342,6 +1341,12 @@ static void compute_transitioned_properties(ComputedProperties const& style, DOM
     auto normalize_transition_length_list = [&properties, &style](PropertyID property, auto make_default_value) {
         auto const* style_value = style.maybe_null_property(property);
         StyleValueVector list;
+
+        if (style_value && !style_value->is_value_list()) {
+            for (size_t i = 0; i < properties.size(); i++)
+                list.append(*style_value);
+            return list;
+        }
 
         if (!style_value || !style_value->is_value_list() || style_value->as_value_list().size() == 0) {
             auto default_value = make_default_value();
@@ -2280,7 +2285,7 @@ static BoxTypeTransformation required_box_type_transformation(ComputedProperties
     // FIXME: Containment in a ruby container inlinifies the box’s display type, as described in [CSS-RUBY-1].
 
     // NOTE: If we're computing style for a pseudo-element, the effective parent will be the originating element itself, not its parent.
-    auto const* parent = pseudo_element.has_value() ? &element : element.parent_element();
+    auto parent = pseudo_element.has_value() ? GC::Ptr<DOM::Element const> { &element } : element.parent_element();
 
     // A parent with a grid or flex display value blockifies the box’s display type. [CSS-GRID-1] [CSS-FLEXBOX-1]
     if (parent && parent->computed_properties()) {
@@ -2505,7 +2510,7 @@ RefPtr<CSSStyleValue const> StyleComputer::recascade_font_size_if_needed(
     Vector<DOM::Element&> ancestors;
     if (pseudo_element.has_value())
         ancestors.append(element);
-    for (auto* ancestor = element.parent_element(); ancestor; ancestor = ancestor->parent_element())
+    for (auto ancestor = element.parent_element(); ancestor; ancestor = ancestor->parent_element())
         ancestors.append(*ancestor);
 
     NonnullRefPtr<CSSStyleValue const> new_font_size = CSS::LengthStyleValue::create(CSS::Length::make_px(default_monospace_font_size_in_px));

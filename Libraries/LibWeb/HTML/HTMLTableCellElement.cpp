@@ -33,8 +33,8 @@ HTMLTableCellElement::~HTMLTableCellElement() = default;
 
 void HTMLTableCellElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLTableCellElement);
+    Base::initialize(realm);
 }
 
 bool HTMLTableCellElement::is_presentational_hint(FlyString const& name) const
@@ -215,7 +215,7 @@ WebIDL::Long HTMLTableCellElement::cell_index() const
 Optional<ARIA::Role> HTMLTableCellElement::default_role() const
 {
     if (local_name() == TagNames::th) {
-        for (auto const* ancestor = parent_element(); ancestor; ancestor = ancestor->parent_element()) {
+        for (auto ancestor = parent_element(); ancestor; ancestor = ancestor->parent_element()) {
             // AD-HOC: The ancestor checks here aren’t explicitly defined in the spec, but implicitly follow from what
             // the spec does state, and from the physical placement/layout of elements. Also, the el-th and el-th-in-row
             // tests at https://wpt.fyi/results/html-aam/table-roles.html require doing these ancestor checks — and

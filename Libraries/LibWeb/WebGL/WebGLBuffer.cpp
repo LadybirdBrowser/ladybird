@@ -29,8 +29,8 @@ WebGLBuffer::~WebGLBuffer() = default;
 
 void WebGLBuffer::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(WebGLBuffer);
+    Base::initialize(realm);
 }
 
 }

@@ -22,8 +22,8 @@ MediaError::MediaError(JS::Realm& realm, Code code, String message)
 
 void MediaError::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(MediaError);
+    Base::initialize(realm);
 }
 
 }

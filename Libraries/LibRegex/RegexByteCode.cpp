@@ -341,40 +341,29 @@ ALWAYS_INLINE ExecutionResult OpCode_CheckEnd::execute(MatchInput const& input, 
 
 ALWAYS_INLINE ExecutionResult OpCode_ClearCaptureGroup::execute(MatchInput const& input, MatchState& state) const
 {
-    if (input.match_index < state.capture_group_matches.size()) {
-        auto& group = state.capture_group_matches.mutable_at(input.match_index);
-        auto group_id = id();
-        if (group_id >= group.size())
-            group.resize(group_id + 1);
-
-        group[group_id].reset();
+    if (input.match_index < state.capture_group_matches_size()) {
+        auto group = state.mutable_capture_group_matches(input.match_index);
+        group[id() - 1].reset();
     }
     return ExecutionResult::Continue;
 }
 
 ALWAYS_INLINE ExecutionResult OpCode_SaveLeftCaptureGroup::execute(MatchInput const& input, MatchState& state) const
 {
-    if (input.match_index >= state.capture_group_matches.size()) {
-        state.capture_group_matches.ensure_capacity(input.match_index);
-        auto capacity = state.capture_group_matches.capacity();
-        for (size_t i = state.capture_group_matches.size(); i <= capacity; ++i)
-            state.capture_group_matches.empend();
+    if (input.match_index >= state.capture_group_matches_size()) {
+        state.flat_capture_group_matches.ensure_capacity((input.match_index + 1) * state.capture_group_count);
+        for (size_t i = state.capture_group_matches_size(); i <= input.match_index; ++i)
+            for (size_t j = 0; j < state.capture_group_count; ++j)
+                state.flat_capture_group_matches.append({});
     }
 
-    if (id() >= state.capture_group_matches.at(input.match_index).size()) {
-        state.capture_group_matches.mutable_at(input.match_index).ensure_capacity(id());
-        auto capacity = state.capture_group_matches.at(input.match_index).capacity();
-        for (size_t i = state.capture_group_matches.at(input.match_index).size(); i <= capacity; ++i)
-            state.capture_group_matches.mutable_at(input.match_index).empend();
-    }
-
-    state.capture_group_matches.mutable_at(input.match_index).at(id()).left_column = state.string_position;
+    state.mutable_capture_group_matches(input.match_index).at(id() - 1).left_column = state.string_position;
     return ExecutionResult::Continue;
 }
 
 ALWAYS_INLINE ExecutionResult OpCode_SaveRightCaptureGroup::execute(MatchInput const& input, MatchState& state) const
 {
-    auto& match = state.capture_group_matches.mutable_at(input.match_index).at(id());
+    auto& match = state.capture_group_matches(input.match_index).at(id() - 1);
     auto start_position = match.left_column;
     if (state.string_position < start_position) {
         dbgln("Right capture group {} is before left capture group {}!", state.string_position, start_position);
@@ -388,14 +377,14 @@ ALWAYS_INLINE ExecutionResult OpCode_SaveRightCaptureGroup::execute(MatchInput c
 
     VERIFY(start_position + length <= input.view.length());
 
-    match = { input.view.substring_view(start_position, length), input.line, start_position, input.global_offset + start_position };
+    state.mutable_capture_group_matches(input.match_index).at(id() - 1) = { input.view.substring_view(start_position, length), input.line, start_position, input.global_offset + start_position };
 
     return ExecutionResult::Continue;
 }
 
 ALWAYS_INLINE ExecutionResult OpCode_SaveRightNamedCaptureGroup::execute(MatchInput const& input, MatchState& state) const
 {
-    auto& match = state.capture_group_matches.mutable_at(input.match_index).at(id());
+    auto& match = state.capture_group_matches(input.match_index).at(id() - 1);
     auto start_position = match.left_column;
     if (state.string_position < start_position)
         return ExecutionResult::Failed_ExecuteLowPrioForks;
@@ -409,7 +398,7 @@ ALWAYS_INLINE ExecutionResult OpCode_SaveRightNamedCaptureGroup::execute(MatchIn
 
     auto view = input.view.substring_view(start_position, length);
 
-    match = { view, name_string_table_index(), input.line, start_position, input.global_offset + start_position };
+    state.mutable_capture_group_matches(input.match_index).at(id() - 1) = { view, name_string_table_index(), input.line, start_position, input.global_offset + start_position };
 
     return ExecutionResult::Continue;
 }
@@ -584,11 +573,11 @@ ALWAYS_INLINE ExecutionResult OpCode_Compare::execute(MatchInput const& input, M
             break;
         }
         case CharacterCompareType::Reference: {
-            auto reference_number = (size_t)m_bytecode->at(offset++);
-            if (input.match_index >= state.capture_group_matches.size())
+            auto reference_number = ((size_t)m_bytecode->at(offset++)) - 1;
+            if (input.match_index >= state.capture_group_matches_size())
                 return ExecutionResult::Failed_ExecuteLowPrioForks;
 
-            auto& groups = state.capture_group_matches.at(input.match_index);
+            auto groups = state.capture_group_matches(input.match_index);
             if (groups.size() <= reference_number)
                 return ExecutionResult::Failed_ExecuteLowPrioForks;
 
@@ -988,8 +977,8 @@ Vector<ByteString> OpCode_Compare::variable_arguments_to_byte_string(Optional<Ma
             auto ref = m_bytecode->at(offset++);
             result.empend(ByteString::formatted(" number={}", ref));
             if (input.has_value()) {
-                if (state().capture_group_matches.size() > input->match_index) {
-                    auto& match = state().capture_group_matches[input->match_index];
+                if (state().capture_group_matches_size() > input->match_index) {
+                    auto match = state().capture_group_matches(input->match_index);
                     if (match.size() > ref) {
                         auto& group = match[ref];
                         result.empend(ByteString::formatted(" left={}", group.left_column));
@@ -999,7 +988,7 @@ Vector<ByteString> OpCode_Compare::variable_arguments_to_byte_string(Optional<Ma
                         result.empend(ByteString::formatted(" (invalid ref, max={})", match.size() - 1));
                     }
                 } else {
-                    result.empend(ByteString::formatted(" (invalid index {}, max={})", input->match_index, state().capture_group_matches.size() - 1));
+                    result.empend(ByteString::formatted(" (invalid index {}, max={})", input->match_index, state().capture_group_matches_size() - 1));
                 }
             }
         } else if (compare_type == CharacterCompareType::String) {

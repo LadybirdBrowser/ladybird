@@ -21,8 +21,8 @@ SVGTitleElement::SVGTitleElement(DOM::Document& document, DOM::QualifiedName qua
 
 void SVGTitleElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGTitleElement);
+    Base::initialize(realm);
 }
 
 GC::Ptr<Layout::Node> SVGTitleElement::create_layout_node(GC::Ref<CSS::ComputedProperties>)

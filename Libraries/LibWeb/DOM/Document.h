@@ -499,7 +499,8 @@ public:
 
     String dump_dom_tree_as_json() const;
 
-    bool has_a_style_sheet_that_is_blocking_scripts() const;
+    [[nodiscard]] bool has_a_style_sheet_that_is_blocking_scripts() const;
+    [[nodiscard]] bool has_no_style_sheet_that_is_blocking_scripts() const;
 
     bool is_fully_active() const;
     bool is_active() const;
@@ -547,6 +548,7 @@ public:
     void unregister_viewport_client(ViewportClient&);
     void inform_all_viewport_clients_about_the_current_viewport_rect();
 
+    bool has_focus_for_bindings() const;
     bool has_focus() const;
 
     bool allow_focus() const;
@@ -896,6 +898,9 @@ public:
 
     ElementByIdMap& element_by_id() const;
 
+    auto& script_blocking_style_sheet_set() { return m_script_blocking_style_sheet_set; }
+    auto const& script_blocking_style_sheet_set() const { return m_script_blocking_style_sheet_set; }
+
 protected:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
@@ -1029,8 +1034,8 @@ private:
     // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#throw-on-dynamic-markup-insertion-counter
     u32 m_throw_on_dynamic_markup_insertion_counter { 0 };
 
-    // https://html.spec.whatwg.org/multipage/semantics.html#script-blocking-style-sheet-counter
-    u32 m_script_blocking_style_sheet_counter { 0 };
+    // https://html.spec.whatwg.org/multipage/semantics.html#script-blocking-style-sheet-set
+    HashTable<GC::Ref<DOM::Element>> m_script_blocking_style_sheet_set;
 
     GC::Ptr<HTML::History> m_history;
 

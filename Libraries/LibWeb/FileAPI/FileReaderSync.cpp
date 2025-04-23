@@ -12,7 +12,7 @@
 #include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/FileAPI/FileReaderSync.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
-#include <LibWeb/Streams/AbstractOperations.h>
+#include <LibWeb/Streams/ReadableStream.h>
 #include <LibWeb/Streams/ReadableStreamDefaultReader.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -29,8 +29,8 @@ FileReaderSync::FileReaderSync(JS::Realm& realm)
 
 void FileReaderSync::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(FileReaderSync);
+    Base::initialize(realm);
 }
 
 GC::Ref<FileReaderSync> FileReaderSync::create(JS::Realm& realm)

@@ -31,8 +31,8 @@ File::File(JS::Realm& realm)
 
 void File::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(File);
+    Base::initialize(realm);
 }
 
 File::~File() = default;

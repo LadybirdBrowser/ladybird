@@ -25,8 +25,8 @@ SVGCircleElement::SVGCircleElement(DOM::Document& document, DOM::QualifiedName q
 
 void SVGCircleElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGCircleElement);
+    Base::initialize(realm);
 }
 
 bool SVGCircleElement::is_presentational_hint(FlyString const& name) const

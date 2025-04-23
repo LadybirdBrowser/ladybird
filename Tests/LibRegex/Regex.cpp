@@ -373,7 +373,7 @@ TEST_CASE(ini_file_entries)
     }
 
     EXPECT_EQ(result.matches.at(0).view, "[Window]");
-    EXPECT_EQ(result.capture_group_matches.at(0).at(0).view, "Window");
+    EXPECT_EQ(result.capture_group_matches.at(0).at(1).view, "Window");
     EXPECT_EQ(result.matches.at(1).view, "Opacity=255");
     EXPECT_EQ(result.matches.at(1).line, 1u);
     EXPECT_EQ(result.matches.at(1).column, 0u);

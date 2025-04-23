@@ -39,7 +39,7 @@ public:
 
     void print_bytecode(ByteCode const& bytecode) const
     {
-        MatchState state;
+        auto state = MatchState::only_for_enumeration();
         for (;;) {
             auto& opcode = bytecode.get_opcode(state);
             print_opcode("PrintBytecode", opcode, state);

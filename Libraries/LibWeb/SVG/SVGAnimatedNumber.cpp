@@ -28,8 +28,8 @@ SVGAnimatedNumber::~SVGAnimatedNumber() = default;
 
 void SVGAnimatedNumber::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGAnimatedNumber);
+    Base::initialize(realm);
 }
 
 }

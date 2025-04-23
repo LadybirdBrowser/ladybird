@@ -37,8 +37,8 @@ DOMStringMap::~DOMStringMap() = default;
 
 void DOMStringMap::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(DOMStringMap);
+    Base::initialize(realm);
 }
 
 void DOMStringMap::visit_edges(Cell::Visitor& visitor)

@@ -21,8 +21,8 @@ NodeList::~NodeList() = default;
 
 void NodeList::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(NodeList);
+    Base::initialize(realm);
 }
 
 Optional<JS::Value> NodeList::item_value(size_t index) const

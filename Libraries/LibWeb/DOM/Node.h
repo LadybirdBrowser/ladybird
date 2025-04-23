@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2024, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2018-2025, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -108,6 +108,27 @@ enum class SetNeedsLayoutReason {
 
 [[nodiscard]] StringView to_string(SetNeedsLayoutReason);
 
+#define ENUMERATE_SET_NEEDS_LAYOUT_TREE_UPDATE_REASONS(X) \
+    X(ElementSetInnerHTML)                                \
+    X(HTMLInputElementSrcAttribute)                       \
+    X(HTMLObjectElementUpdateLayoutAndChildObjects)       \
+    X(KeyframeEffect)                                     \
+    X(NodeInsertBefore)                                   \
+    X(NodeInsertBeforeWithDisplayContents)                \
+    X(NodeRemove)                                         \
+    X(NodeSetTextContent)                                 \
+    X(None)                                               \
+    X(SVGGraphicsElementTransformChange)                  \
+    X(StyleChange)
+
+enum class SetNeedsLayoutTreeUpdateReason {
+#define ENUMERATE_SET_NEEDS_LAYOUT_TREE_UPDATE_REASON(e) e,
+    ENUMERATE_SET_NEEDS_LAYOUT_TREE_UPDATE_REASONS(ENUMERATE_SET_NEEDS_LAYOUT_TREE_UPDATE_REASON)
+#undef ENUMERATE_SET_NEEDS_LAYOUT_TREE_UPDATE_REASON
+};
+
+[[nodiscard]] StringView to_string(SetNeedsLayoutTreeUpdateReason);
+
 class Node : public EventTarget
     , public TreeNode<Node> {
     WEB_PLATFORM_OBJECT(Node, EventTarget);
@@ -144,6 +165,8 @@ public:
     virtual bool is_svg_style_element() const { return false; }
     virtual bool is_svg_svg_element() const { return false; }
     virtual bool is_svg_use_element() const { return false; }
+    virtual bool is_svg_a_element() const { return false; }
+    virtual bool is_svg_foreign_object_element() const { return false; }
 
     bool in_a_document_tree() const;
 
@@ -158,10 +181,13 @@ public:
     virtual bool is_html_element() const { return false; }
     virtual bool is_html_html_element() const { return false; }
     virtual bool is_html_anchor_element() const { return false; }
+    virtual bool is_html_area_element() const { return false; }
     virtual bool is_html_base_element() const { return false; }
     virtual bool is_html_body_element() const { return false; }
+    virtual bool is_html_head_element() const { return false; }
     virtual bool is_html_input_element() const { return false; }
     virtual bool is_html_link_element() const { return false; }
+    virtual bool is_html_media_element() const { return false; }
     virtual bool is_html_progress_element() const { return false; }
     virtual bool is_html_script_element() const { return false; }
     virtual bool is_html_style_element() const { return false; }
@@ -170,6 +196,7 @@ public:
     virtual bool is_html_table_section_element() const { return false; }
     virtual bool is_html_table_row_element() const { return false; }
     virtual bool is_html_table_cell_element() const { return false; }
+    virtual bool is_html_title_element() const { return false; }
     virtual bool is_html_br_element() const { return false; }
     virtual bool is_html_button_element() const { return false; }
     virtual bool is_html_slot_element() const { return false; }
@@ -178,6 +205,8 @@ public:
     virtual bool is_html_form_element() const { return false; }
     virtual bool is_html_image_element() const { return false; }
     virtual bool is_html_iframe_element() const { return false; }
+    virtual bool is_html_frameset_element() const { return false; }
+    virtual bool is_html_fieldset_element() const { return false; }
     virtual bool is_navigable_container() const { return false; }
     virtual bool is_lazy_loading() const { return false; }
 
@@ -261,8 +290,8 @@ public:
     Node* parent_node() { return parent(); }
     Node const* parent_node() const { return parent(); }
 
-    Element* parent_element();
-    Element const* parent_element() const;
+    GC::Ptr<Element> parent_element();
+    GC::Ptr<Element const> parent_element() const;
 
     virtual void inserted();
     virtual void post_connection();
@@ -299,7 +328,7 @@ public:
     virtual bool is_child_allowed(Node const&) const { return true; }
 
     [[nodiscard]] bool needs_layout_tree_update() const { return m_needs_layout_tree_update; }
-    void set_needs_layout_tree_update(bool);
+    void set_needs_layout_tree_update(bool, SetNeedsLayoutTreeUpdateReason);
 
     [[nodiscard]] bool child_needs_layout_tree_update() const { return m_child_needs_layout_tree_update; }
     void set_child_needs_layout_tree_update(bool b) { m_child_needs_layout_tree_update = b; }
@@ -307,10 +336,6 @@ public:
     bool needs_style_update() const { return m_needs_style_update; }
     void set_needs_style_update(bool);
     void set_needs_style_update_internal(bool) { m_needs_style_update = true; }
-
-    bool needs_layout_update() const { return m_needs_layout_update; }
-    void set_needs_layout_update(SetNeedsLayoutReason);
-    void reset_needs_layout_update() { m_needs_layout_update = false; }
 
     bool child_needs_style_update() const { return m_child_needs_style_update; }
     void set_child_needs_style_update(bool b) { m_child_needs_style_update = b; }
@@ -548,8 +573,6 @@ protected:
     bool m_needs_style_update { false };
     bool m_child_needs_style_update { false };
     bool m_entire_subtree_needs_style_update { false };
-
-    bool m_needs_layout_update { false };
 
     UniqueNodeID m_unique_id;
 

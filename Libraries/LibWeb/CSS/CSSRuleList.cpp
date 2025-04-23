@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -11,6 +11,7 @@
 #include <LibWeb/CSS/CSSKeyframesRule.h>
 #include <LibWeb/CSS/CSSLayerBlockRule.h>
 #include <LibWeb/CSS/CSSMediaRule.h>
+#include <LibWeb/CSS/CSSNestedDeclarations.h>
 #include <LibWeb/CSS/CSSRule.h>
 #include <LibWeb/CSS/CSSRuleList.h>
 #include <LibWeb/CSS/CSSSupportsRule.h>
@@ -21,11 +22,11 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSRuleList);
 
-GC::Ref<CSSRuleList> CSSRuleList::create(JS::Realm& realm, GC::RootVector<CSSRule*> const& rules)
+GC::Ref<CSSRuleList> CSSRuleList::create(JS::Realm& realm, ReadonlySpan<GC::Ref<CSSRule>> rules)
 {
     auto rule_list = realm.create<CSSRuleList>(realm);
-    for (auto* rule : rules)
-        rule_list->m_rules.append(*rule);
+    for (auto rule : rules)
+        rule_list->m_rules.append(rule);
     return rule_list;
 }
 
@@ -35,25 +36,21 @@ CSSRuleList::CSSRuleList(JS::Realm& realm)
     m_legacy_platform_object_flags = LegacyPlatformObjectFlags { .supports_indexed_properties = 1 };
 }
 
-GC::Ref<CSSRuleList> CSSRuleList::create_empty(JS::Realm& realm)
-{
-    return realm.create<CSSRuleList>(realm);
-}
-
 void CSSRuleList::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSRuleList);
+    Base::initialize(realm);
 }
 
 void CSSRuleList::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_rules);
+    visitor.visit(m_owner_rule);
 }
 
-// https://www.w3.org/TR/cssom/#insert-a-css-rule
-WebIDL::ExceptionOr<unsigned> CSSRuleList::insert_a_css_rule(Variant<StringView, CSSRule*> rule, u32 index)
+// https://drafts.csswg.org/cssom/#insert-a-css-rule
+WebIDL::ExceptionOr<unsigned> CSSRuleList::insert_a_css_rule(Variant<StringView, CSSRule*> rule, u32 index, Nested nested)
 {
     // 1. Set length to the number of items in list.
     auto length = m_rules.size();
@@ -66,27 +63,41 @@ WebIDL::ExceptionOr<unsigned> CSSRuleList::insert_a_css_rule(Variant<StringView,
     // NOTE: The insert-a-css-rule spec expects `rule` to be a string, but the CSSStyleSheet.insertRule()
     //       spec calls this algorithm with an already-parsed CSSRule. So, we use a Variant and skip step 3
     //       if that variant holds a CSSRule already.
+    Parser::ParsingParams parsing_params { realm() };
+    parsing_params.rule_context = rule_context();
+
     CSSRule* new_rule = nullptr;
     if (rule.has<StringView>()) {
-        new_rule = parse_css_rule(
-            CSS::Parser::ParsingParams { realm() },
-            rule.get<StringView>());
+        new_rule = parse_css_rule(parsing_params, rule.get<StringView>());
     } else {
         new_rule = rule.get<CSSRule*>();
     }
 
-    // 4. If new rule is a syntax error, throw a SyntaxError exception.
+    // 4. If new rule is a syntax error, and nested is set, perform the following substeps:
+    if (!new_rule && nested == Nested::Yes) {
+        // - Set declarations to the results of performing parse a CSS declaration block, on argument rule.
+        auto declarations = parse_css_property_declaration_block(parsing_params, rule.get<StringView>());
+
+        // - If declarations is empty, throw a SyntaxError exception.
+        if (declarations.custom_properties.is_empty() && declarations.properties.is_empty())
+            return WebIDL::SyntaxError::create(realm(), "Unable to parse CSS declarations block."_string);
+
+        // - Otherwise, set new rule to a new nested declarations rule with declarations as it contents.
+        new_rule = CSSNestedDeclarations::create(realm(), CSSStyleProperties::create(realm(), move(declarations.properties), move(declarations.custom_properties)));
+    }
+
+    // 5. If new rule is a syntax error, throw a SyntaxError exception.
     if (!new_rule)
         return WebIDL::SyntaxError::create(realm(), "Unable to parse CSS rule."_string);
 
-    // FIXME: 5. If new rule cannot be inserted into list at the zero-index position index due to constraints specified by CSS, then throw a HierarchyRequestError exception. [CSS21]
+    // FIXME: 6. If new rule cannot be inserted into list at the zero-index position index due to constraints specified by CSS, then throw a HierarchyRequestError exception. [CSS21]
 
-    // FIXME: 6. If new rule is an @namespace at-rule, and list contains anything other than @import at-rules, and @namespace at-rules, throw an InvalidStateError exception.
+    // FIXME: 7. If new rule is an @namespace at-rule, and list contains anything other than @import at-rules, and @namespace at-rules, throw an InvalidStateError exception.
 
-    // 7. Insert new rule into list at the zero-indexed position index.
+    // 8. Insert new rule into list at the zero-indexed position index.
     m_rules.insert(index, *new_rule);
 
-    // 8. Return index.
+    // 9. Return index.
     if (on_change)
         on_change();
     return index;
@@ -214,6 +225,15 @@ Optional<JS::Value> CSSRuleList::item_value(size_t index) const
     if (auto value = item(index))
         return value;
     return {};
+}
+
+Vector<Parser::RuleContext> CSSRuleList::rule_context() const
+{
+    Vector<Parser::RuleContext> context;
+    for (auto* rule = m_owner_rule.ptr(); rule; rule = rule->parent_rule())
+        context.append(Parser::rule_context_type_for_rule(rule->type()));
+    context.reverse();
+    return context;
 }
 
 }

@@ -42,6 +42,7 @@ protected:
     virtual void visit_edges(Visitor&) override;
 
 private:
+    virtual bool is_script() const final { return true; }
     virtual void visit_host_defined_self(JS::Cell::Visitor&) override;
 
     Optional<URL::URL> m_base_url;
@@ -56,3 +57,6 @@ private:
 };
 
 }
+
+template<>
+inline bool JS::Script::HostDefined::fast_is<Web::HTML::Script>() const { return is_script(); }

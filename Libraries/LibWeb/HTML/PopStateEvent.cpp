@@ -32,8 +32,8 @@ PopStateEvent::PopStateEvent(JS::Realm& realm, FlyString const& event_name, PopS
 
 void PopStateEvent::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(PopStateEvent);
+    Base::initialize(realm);
 }
 
 void PopStateEvent::visit_edges(JS::Cell::Visitor& visitor)

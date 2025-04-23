@@ -38,8 +38,8 @@ void HTMLDetailsElement::visit_edges(Cell::Visitor& visitor)
 
 void HTMLDetailsElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLDetailsElement);
+    Base::initialize(realm);
 }
 
 // https://html.spec.whatwg.org/multipage/interactive-elements.html#the-details-element:html-element-insertion-steps

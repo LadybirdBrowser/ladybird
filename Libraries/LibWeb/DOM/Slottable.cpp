@@ -56,7 +56,7 @@ bool is_an_assigned_slottable(GC::Ref<Node> node)
 GC::Ptr<HTML::HTMLSlotElement> find_a_slot(Slottable const& slottable, OpenFlag open_flag)
 {
     // 1. If slottable’s parent is null, then return null.
-    auto* parent = slottable.visit([](auto& node) { return node->parent_element(); });
+    auto parent = slottable.visit([](auto& node) { return node->parent_element(); });
     if (!parent)
         return nullptr;
 

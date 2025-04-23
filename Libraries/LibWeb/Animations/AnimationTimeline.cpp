@@ -61,8 +61,8 @@ void AnimationTimeline::finalize()
 
 void AnimationTimeline::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(AnimationTimeline);
+    Base::initialize(realm);
 }
 
 void AnimationTimeline::visit_edges(Cell::Visitor& visitor)

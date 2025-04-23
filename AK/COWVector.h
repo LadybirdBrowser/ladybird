@@ -127,6 +127,13 @@ public:
         return m_detail->m_members[index];
     }
 
+    Span<T const> span() const { return m_detail->m_members; }
+    Span<T> mutable_span()
+    {
+        copy();
+        return m_detail->m_members;
+    }
+
     size_t capacity() const
     {
         return m_detail->m_members.capacity();

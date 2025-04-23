@@ -40,6 +40,8 @@ public:
 private:
     ClassicScript(URL::URL base_url, ByteString filename, JS::Realm&);
 
+    virtual bool is_classic_script() const final { return true; }
+
     virtual void visit_edges(Cell::Visitor&) override;
 
     GC::Ptr<JS::Script> m_script_record;
@@ -47,3 +49,6 @@ private:
 };
 
 }
+
+template<>
+inline bool JS::Script::HostDefined::fast_is<Web::HTML::ClassicScript>() const { return is_classic_script(); }

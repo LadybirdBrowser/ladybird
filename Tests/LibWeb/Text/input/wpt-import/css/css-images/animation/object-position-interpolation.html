@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<link rel="help" href="https://drafts.csswg.org/css-images-3/#the-object-position">
+<meta name="test" content="object-position supports animation">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<body></body>
+
+<script>
+  // Default object-position value is 50% 50%
+  test_interpolation({
+    property: 'object-position',
+    from: neutralKeyframe,
+    to: 'left top',
+  }, [
+    { at: -0.25, expect: '62.5% 62.5%' },
+    { at: 0, expect: '50% 50%' },
+    { at: 0.25, expect: '37.5% 37.5%' },
+    { at: 0.5, expect: '25% 25%' },
+    { at: 0.75, expect: '12.5% 12.5%' },
+    { at: 1, expect: '0% 0%' },
+    { at: 1.25, expect: '-12.5% -12.5%' },
+  ]);
+
+  // Animate x axis
+  test_interpolation({
+    property: 'object-position',
+    from: 'initial',
+    to: 'center top',
+  }, [
+    { at: -0.25, expect: '50% 62.5%' },
+    { at: 0, expect: '50% 50%' },
+    { at: 0.25, expect: '50% 37.5%' },
+    { at: 0.5, expect: '50% 25%' },
+    { at: 0.75, expect: '50% 12.5%' },
+    { at: 1, expect: '50% 0%' },
+    { at: 1.25, expect: '50% -12.5%' },
+  ]);
+
+  // Animate y axis
+  test_interpolation({
+    property: 'object-position',
+    from: 'initial',
+    to: 'left center',
+  }, [
+    { at: -0.25, expect: '62.5% 50%' },
+    { at: 0, expect: '50% 50%' },
+    { at: 0.25, expect: '37.5% 50%' },
+    { at: 0.5, expect: '25% 50%' },
+    { at: 0.75, expect: '12.5% 50%' },
+    { at: 1, expect: '0% 50%' },
+    { at: 1.25, expect: '-12.5% 50%' },
+  ]);
+
+  // Pixel values
+  test_interpolation({
+    property: 'object-position',
+    from: '20px 20px',
+    to: '100px 100px',
+  }, [
+    { at: -0.25, expect: '0px 0px' },
+    { at: 0, expect: '20px 20px' },
+    { at: 0.25, expect: '40px 40px' },
+    { at: 0.5, expect: '60px 60px' },
+    { at: 0.75, expect: '80px 80px' },
+    { at: 1, expect: '100px 100px' },
+    { at: 1.25, expect: '120px 120px' },
+  ]);
+</script>

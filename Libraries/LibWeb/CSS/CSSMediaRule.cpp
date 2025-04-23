@@ -27,8 +27,8 @@ CSSMediaRule::CSSMediaRule(JS::Realm& realm, MediaList& media, CSSRuleList& rule
 
 void CSSMediaRule::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSMediaRule);
+    Base::initialize(realm);
 }
 
 void CSSMediaRule::visit_edges(Cell::Visitor& visitor)

@@ -30,8 +30,8 @@ AbortSignal::AbortSignal(JS::Realm& realm)
 
 void AbortSignal::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(AbortSignal);
+    Base::initialize(realm);
 }
 
 // https://dom.spec.whatwg.org/#abortsignal-add

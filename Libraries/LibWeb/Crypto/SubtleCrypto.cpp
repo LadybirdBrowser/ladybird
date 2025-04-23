@@ -58,8 +58,8 @@ SubtleCrypto::~SubtleCrypto() = default;
 
 void SubtleCrypto::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SubtleCrypto);
+    Base::initialize(realm);
 }
 
 // https://w3c.github.io/webcrypto/#dfn-normalize-an-algorithm

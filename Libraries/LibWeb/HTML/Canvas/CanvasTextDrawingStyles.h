@@ -65,7 +65,7 @@ public:
         auto& font_size = *font_style_value.longhand(CSS::PropertyID::FontSize);
         auto& font_family = *font_style_value.longhand(CSS::PropertyID::FontFamily);
         auto font_list = canvas_element.document().style_computer().compute_font_for_style_values(&canvas_element, {}, font_family, font_size, font_style, font_weight, font_width);
-        my_drawing_state().current_font = font_list->first();
+        my_drawing_state().current_font_cascade_list = font_list;
     }
 
     Bindings::CanvasTextAlign text_align() const { return my_drawing_state().text_align; }

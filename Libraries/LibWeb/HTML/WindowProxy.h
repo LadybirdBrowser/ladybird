@@ -40,6 +40,7 @@ public:
 private:
     explicit WindowProxy(JS::Realm&);
 
+    virtual bool is_html_window_proxy() const override { return true; }
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
     // [[Window]], https://html.spec.whatwg.org/multipage/window-object.html#concept-windowproxy-window
@@ -47,3 +48,6 @@ private:
 };
 
 }
+
+template<>
+inline bool JS::Object::fast_is<Web::HTML::WindowProxy>() const { return is_html_window_proxy(); }

@@ -28,6 +28,12 @@ public:
 
 protected:
     SVGSVGPaintable(Layout::SVGSVGBox const&);
+
+private:
+    virtual bool is_svg_svg_paintable() const final { return true; }
 };
+
+template<>
+inline bool Paintable::fast_is<SVGSVGPaintable>() const { return is_svg_svg_paintable(); }
 
 }

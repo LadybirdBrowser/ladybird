@@ -24,8 +24,8 @@ HTMLStyleElement::~HTMLStyleElement() = default;
 
 void HTMLStyleElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLStyleElement);
+    Base::initialize(realm);
 }
 
 void HTMLStyleElement::visit_edges(Cell::Visitor& visitor)
@@ -101,6 +101,29 @@ CSS::CSSStyleSheet const* HTMLStyleElement::sheet() const
 {
     // The sheet attribute must return the associated CSS style sheet for the node or null if there is no associated CSS style sheet.
     return m_style_element_utils.sheet();
+}
+
+// https://html.spec.whatwg.org/multipage/semantics.html#contributes-a-script-blocking-style-sheet
+bool HTMLStyleElement::contributes_a_script_blocking_style_sheet() const
+{
+    // An element el in the context of a Document of an HTML parser or XML parser
+    // contributes a script-blocking style sheet if all of the following are true:
+
+    // FIXME: el was created by that Document's parser.
+
+    // el is either a style element or a link element that was an external resource link that contributes to the styling processing model when the el was created by the parser.
+    // NOTE: This is a style element, so all good!
+
+    // FIXME: el's media attribute's value matches the environment.
+
+    // FIXME: el's style sheet was enabled when the element was created by the parser.
+
+    // FIXME: The last time the event loop reached step 1, el's root was that Document.
+
+    // FIXME: The user agent hasn't given up on loading that particular style sheet yet.
+    //        A user agent may give up on loading a style sheet at any time.
+
+    return false;
 }
 
 }

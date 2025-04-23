@@ -37,12 +37,12 @@
 
 namespace JS {
 
-ErrorOr<NonnullRefPtr<VM>> VM::create(OwnPtr<CustomData> custom_data)
+ErrorOr<NonnullRefPtr<VM>> VM::create(OwnPtr<Agent> agent)
 {
     ErrorMessages error_messages {};
     error_messages[to_underlying(ErrorMessage::OutOfMemory)] = ErrorType::OutOfMemory.message();
 
-    auto vm = adopt_ref(*new VM(move(custom_data), move(error_messages)));
+    auto vm = adopt_ref(*new VM(move(agent), move(error_messages)));
 
     WellKnownSymbols well_known_symbols {
 #define __JS_ENUMERATE(SymbolName, snake_name) \
@@ -63,12 +63,12 @@ static constexpr auto make_single_ascii_character_strings(IndexSequence<code_poi
 
 static constexpr auto single_ascii_character_strings = make_single_ascii_character_strings(MakeIndexSequence<128>());
 
-VM::VM(OwnPtr<CustomData> custom_data, ErrorMessages error_messages)
+VM::VM(OwnPtr<Agent> agent, ErrorMessages error_messages)
     : m_heap(this, [this](HashMap<GC::Cell*, GC::HeapRoot>& roots) {
         gather_roots(roots);
     })
     , m_error_messages(move(error_messages))
-    , m_custom_data(move(custom_data))
+    , m_agent(move(agent))
 {
     m_bytecode_interpreter = make<Bytecode::Interpreter>(*this);
 

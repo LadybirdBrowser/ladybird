@@ -24,6 +24,14 @@ public:
         virtual ~HostDefined() = default;
 
         virtual void visit_host_defined_self(Cell::Visitor&) = 0;
+
+        template<typename T>
+        bool fast_is() const = delete;
+
+        virtual bool is_script() const { return false; }
+        virtual bool is_classic_script() const { return false; }
+        virtual bool is_module_script() const { return false; }
+        virtual bool is_javascript_module_script() const { return false; }
     };
 
     virtual ~Script() override;

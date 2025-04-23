@@ -21,16 +21,15 @@ RootVectorBase::~RootVectorBase()
     m_heap->did_destroy_root_vector({}, *this);
 }
 
-RootVectorBase& RootVectorBase::operator=(RootVectorBase const& other)
+void RootVectorBase::assign_heap(Heap* heap)
 {
-    if (m_heap != other.m_heap) {
-        m_heap = other.m_heap;
+    if (m_heap == heap)
+        return;
 
-        // NOTE: IntrusiveList will remove this RootVectorBase from the old heap it was part of.
-        m_heap->did_create_root_vector({}, *this);
-    }
+    m_heap = heap;
 
-    return *this;
+    // NOTE: IntrusiveList will remove this RootVectorBase from the old heap it was part of.
+    m_heap->did_create_root_vector({}, *this);
 }
 
 }

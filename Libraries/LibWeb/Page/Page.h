@@ -408,6 +408,8 @@ public:
 
     virtual bool is_headless() const = 0;
 
+    virtual bool is_svg_page_client() const { return false; }
+
 protected:
     virtual ~PageClient() = default;
 };

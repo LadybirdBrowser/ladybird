@@ -6,8 +6,10 @@
 
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/TransformStreamDefaultControllerPrototype.h>
+#include <LibWeb/Streams/ReadableStreamOperations.h>
 #include <LibWeb/Streams/TransformStream.h>
 #include <LibWeb/Streams/TransformStreamDefaultController.h>
+#include <LibWeb/Streams/TransformStreamOperations.h>
 
 namespace Web::Streams {
 
@@ -22,8 +24,8 @@ TransformStreamDefaultController::~TransformStreamDefaultController() = default;
 
 void TransformStreamDefaultController::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(TransformStreamDefaultController);
+    Base::initialize(realm);
 }
 
 void TransformStreamDefaultController::visit_edges(Cell::Visitor& visitor)

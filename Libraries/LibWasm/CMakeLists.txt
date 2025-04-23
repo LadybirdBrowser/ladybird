@@ -12,6 +12,6 @@ if (NOT WIN32)
 endif()
 
 serenity_lib(LibWasm wasm)
-target_link_libraries(LibWasm PRIVATE LibCore LibGC LibJS)
+target_link_libraries(LibWasm PRIVATE LibCore)
 
 include(wasm_spec_tests)

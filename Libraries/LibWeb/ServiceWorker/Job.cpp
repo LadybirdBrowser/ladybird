@@ -171,7 +171,7 @@ private:
     bool m_has_updated_resources { false };
 };
 
-// https://w3c.github.io/ServiceWorker/#update
+// https://w3c.github.io/ServiceWorker/#update-algorithm
 static void update(JS::VM& vm, GC::Ref<Job> job)
 {
     // 1. Let registration be the result of running Get Registration given job’s storage key and job’s scope url.
@@ -349,7 +349,31 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
                 state->set_has_updated_resources(true);
             }
 
-            // FIXME: 21. If hasUpdatedResources is false and newestWorker’s classic scripts imported flag is set, then:
+            // 21. If hasUpdatedResources is false and newestWorker’s classic scripts imported flag is set, then:
+            if (!state->has_updated_resources()) {
+                VERIFY(newest_worker);
+                if (newest_worker->classic_scripts_imported) {
+                    // 1. For each importUrl → storedResponse of newestWorker’s script resource map:
+                    if (false) {
+                        // FIXME: 1. If importUrl is url, then continue.
+                        // FIXME 2. Let importRequest be a new request whose url is importUrl, client is job’s client, destination is "script", parser metadata
+                        //    is "not parser-inserted", and whose use-URL-credentials flag is set.
+                        // FIXME: 3. Set importRequest’s cache mode to "no-cache" if any of the following are true:
+                        //     * registration’s update via cache mode is "none".
+                        //     * job’s force bypass cache flag is set.
+                        //     * registration is stale.
+                        // FIXME: 4. Let fetchedResponse be the result of fetching importRequest.
+                        // FIXME: 5. Set updatedResourceMap[importRequest’s url] to fetchedResponse.
+                        // FIXME: 6. Set fetchedResponse to fetchedResponse’s unsafe response.
+                        // FIXME: 7. If fetchedResponse’s cache state is not "local", set registration’s last update check time to the current time.
+                        // FIXME: 8. If fetchedResponse is a bad import script response, continue.
+                        // NOTE: Bad responses for importScripts() are ignored for the purpose of the byte-to-byte check. Only good responses for the incumbent worker
+                        //       and good responses for the potential update worker are considered. See issue #1374 for some rationale
+                        // FIXME: 9. If fetchedResponse’s body is not byte-for-byte identical with storedResponse’s unsafe response’s body, set hasUpdatedResources to true.
+                        // NOTE: The control does not break the loop in this step to continue with all the imported scripts to populate the cache.
+                    }
+                }
+            }
 
             // 22. Asynchronously complete these steps with response.
             process_response_completion_result = WebIDL::ExceptionOr<void> {};
@@ -375,7 +399,7 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
 
     // When the algorithm asynchronously completes, continue the rest of these steps, with script being the asynchronous completion value.
     auto on_fetch_complete = HTML::create_on_fetch_script_complete(vm.heap(), [job, newest_worker, state, &registration = *registration, &vm](GC::Ptr<HTML::Script> script) -> void {
-        // If script is null or Is Async Module with script’s record, script’s base URL, and « » is true, then:
+        // 8. If script is null or Is Async Module with script’s record, script’s base URL, and « » is true, then:
         // FIXME: Reject async modules
         if (!script) {
             // 1. Invoke Reject Job Promise with job and TypeError.
@@ -384,6 +408,19 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
             // 2. If newestWorker is null, then remove registration map[(registration’s storage key, serialized scopeURL)].
             if (newest_worker == nullptr)
                 Registration::remove(registration.storage_key(), registration.scope_url());
+
+            // 3. Invoke Finish Job with job and abort these steps.
+            finish_job(vm, job);
+            return;
+        }
+
+        // 9. If hasUpdatedResources is false, then:
+        if (!state->has_updated_resources()) {
+            // 1. Set registration’s update via cache mode to job’s update via cache mode.
+            registration.set_update_via_cache(job->update_via_cache);
+
+            // 2. Invoke Resolve Job Promise with job and registration.
+            resolve_job_promise(job, registration);
 
             // 3. Invoke Finish Job with job and abort these steps.
             finish_job(vm, job);

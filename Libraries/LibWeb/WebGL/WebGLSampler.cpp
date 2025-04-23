@@ -27,8 +27,8 @@ WebGLSampler::~WebGLSampler() = default;
 
 void WebGLSampler::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(WebGLSampler);
+    Base::initialize(realm);
 }
 
 }

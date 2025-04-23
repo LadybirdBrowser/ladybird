@@ -27,8 +27,8 @@ HTMLHRElement::~HTMLHRElement() = default;
 
 void HTMLHRElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLHRElement);
+    Base::initialize(realm);
 }
 
 bool HTMLHRElement::is_presentational_hint(FlyString const& name) const

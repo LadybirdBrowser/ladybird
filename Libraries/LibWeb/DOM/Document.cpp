@@ -481,8 +481,8 @@ Document::~Document()
 
 void Document::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(Document);
+    Base::initialize(realm);
     Bindings::DocumentPrototype::define_unforgeable_attributes(realm, *this);
 
     m_selection = realm.create<Selection::Selection>(realm, *this);
@@ -583,6 +583,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
     }
 
     visitor.visit(m_adopted_style_sheets);
+    visitor.visit(m_script_blocking_style_sheet_set);
 
     for (auto& shadow_root : m_shadow_roots)
         visitor.visit(shadow_root);
@@ -1292,7 +1293,7 @@ void Document::update_layout(UpdateLayoutReason reason)
 
     update_style();
 
-    if (!m_needs_layout_update && m_layout_root)
+    if (m_layout_root && !m_layout_root->needs_layout_update())
         return;
 
     // NOTE: If this is a document hosting <template> contents, layout is unnecessary.
@@ -1322,12 +1323,16 @@ void Document::update_layout(UpdateLayoutReason reason)
         }
     }
 
+    m_layout_root->for_each_in_inclusive_subtree([&](auto& layout_node) {
+        layout_node.recompute_containing_block({});
+        return TraversalDecision::Continue;
+    });
+
     m_layout_root->for_each_in_inclusive_subtree_of_type<Layout::Box>([&](auto& child) {
         if (auto dom_node = child.dom_node(); dom_node && dom_node->is_element()) {
             child.set_has_size_containment(as<Element>(*dom_node).has_size_containment());
         }
-        bool needs_layout_update = child.dom_node() && child.dom_node()->needs_layout_update();
-        if (needs_layout_update || child.is_anonymous()) {
+        if (child.needs_layout_update()) {
             child.reset_cached_intrinsic_sizes();
         }
         child.clear_contained_abspos_children();
@@ -1338,8 +1343,8 @@ void Document::update_layout(UpdateLayoutReason reason)
     m_layout_root->for_each_in_inclusive_subtree_of_type<Layout::Box>([&](auto& child) {
         if (!child.is_absolutely_positioned())
             return TraversalDecision::Continue;
-        if (auto* containing_block = child.containing_block()) {
-            auto* closest_box_that_establishes_formatting_context = containing_block;
+        if (auto containing_block = child.containing_block()) {
+            auto closest_box_that_establishes_formatting_context = containing_block;
             while (closest_box_that_establishes_formatting_context) {
                 if (closest_box_that_establishes_formatting_context == m_layout_root)
                     break;
@@ -1397,7 +1402,7 @@ void Document::update_layout(UpdateLayoutReason reason)
         paintable()->recompute_selection_states(*range);
     }
 
-    for_each_shadow_including_inclusive_descendant([](auto& node) {
+    m_layout_root->for_each_in_inclusive_subtree([](auto& node) {
         node.reset_needs_layout_update();
         return TraversalDecision::Continue;
     });
@@ -1434,19 +1439,18 @@ void Document::update_layout(UpdateLayoutReason reason)
         }
         is_display_none = static_cast<Element&>(node).computed_properties()->display().is_none();
     }
-    if (node_invalidation.relayout) {
-        node.set_needs_layout_update(SetNeedsLayoutReason::StyleChange);
+    if (node_invalidation.relayout && node.layout_node()) {
+        node.layout_node()->set_needs_layout_update(SetNeedsLayoutReason::StyleChange);
     }
     if (node_invalidation.rebuild_layout_tree) {
         // We mark layout tree for rebuild starting from parent element to correctly invalidate
         // "display" property change to/from "contents" value.
-        if (auto* parent_element = node.parent_element()) {
-            parent_element->set_needs_layout_tree_update(true);
+        if (auto parent_element = node.parent_element()) {
+            parent_element->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::StyleChange);
         } else {
-            node.set_needs_layout_tree_update(true);
+            node.set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::StyleChange);
         }
     }
-    invalidation |= node_invalidation;
     node.set_needs_style_update(false);
     invalidation |= node_invalidation;
 
@@ -2415,13 +2419,13 @@ String const& Document::compat_mode() const
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-documentorshadowroot-activeelement
 void Document::update_active_element()
 {
-    // 1. Let candidate be the DOM anchor of the focused area of this DocumentOrShadowRoot's node document.
+    // 1. Let candidate be this's node document's focused area's DOM anchor.
     Node* candidate = focused_element();
 
-    // 2. Set candidate to the result of retargeting candidate against this DocumentOrShadowRoot.
+    // 2. Set candidate to the result of retargeting candidate against this.
     candidate = as<Node>(retarget(candidate, this));
 
-    // 3. If candidate's root is not this DocumentOrShadowRoot, then return null.
+    // 3. If candidate's root is not this, then return null.
     if (&candidate->root() != this) {
         set_active_element(nullptr);
         return;
@@ -2449,7 +2453,6 @@ void Document::update_active_element()
 
     // 7. Return null.
     set_active_element(nullptr);
-    return;
 }
 
 void Document::set_focused_element(GC::Ptr<Element> element)
@@ -3238,11 +3241,18 @@ String Document::dump_dom_tree_as_json() const
     return MUST(builder.to_string());
 }
 
+// https://html.spec.whatwg.org/multipage/semantics.html#has-no-style-sheet-that-is-blocking-scripts
+bool Document::has_no_style_sheet_that_is_blocking_scripts() const
+{
+    // A Document has no style sheet that is blocking scripts if it does not have a style sheet that is blocking scripts.
+    return !has_a_style_sheet_that_is_blocking_scripts();
+}
+
 // https://html.spec.whatwg.org/multipage/semantics.html#has-a-style-sheet-that-is-blocking-scripts
 bool Document::has_a_style_sheet_that_is_blocking_scripts() const
 {
-    // FIXME: 1. If document's script-blocking style sheet set is not empty, then return true.
-    if (m_script_blocking_style_sheet_counter > 0)
+    // 1. If document's script-blocking style sheet set is not empty, then return true.
+    if (!m_script_blocking_style_sheet_set.is_empty())
         return true;
 
     // 2. If document's node navigable is null, then return false.
@@ -3252,8 +3262,8 @@ bool Document::has_a_style_sheet_that_is_blocking_scripts() const
     // 3. Let containerDocument be document's node navigable's container document.
     auto container_document = navigable()->container_document();
 
-    // FIXME: 4. If containerDocument is non-null and containerDocument's script-blocking style sheet set is not empty, then return true.
-    if (container_document && container_document->m_script_blocking_style_sheet_counter > 0)
+    // 4. If containerDocument is non-null and containerDocument's script-blocking style sheet set is not empty, then return true.
+    if (container_document && !container_document->m_script_blocking_style_sheet_set.is_empty())
         return true;
 
     // 5. Return false
@@ -3475,9 +3485,17 @@ DOMImplementation* Document::implementation()
     return m_implementation;
 }
 
+// https://html.spec.whatwg.org/multipage/interaction.html#dom-document-hasfocus
+bool Document::has_focus_for_bindings() const
+{
+    // The Document hasFocus() method steps are to return the result of running the has focus steps given this.
+    return has_focus();
+}
+
+// https://html.spec.whatwg.org/multipage/interaction.html#has-focus-steps
 bool Document::has_focus() const
 {
-    // FIXME: Return whether we actually have focus.
+    // FIXME: Implement this algorithm.
     return true;
 }
 
@@ -3490,10 +3508,7 @@ bool Document::allow_focus() const
     if (is_allowed_to_use_feature(PolicyControlledFeature::FocusWithoutUserActivation))
         return true;
 
-    // FIXME: 2. If any of the following are true:
-    //    - target's relevant global object has transient user activation; or
-    //    - target's node navigable's container, if any, is marked as locked for focus,
-    //    then return true.
+    // FIXME: 2. If target's relevant global object has transient activation, then return true.
 
     // 3. Return false.
     return false;
@@ -3793,7 +3808,7 @@ CSS::StyleSheetList const& Document::style_sheets() const
 GC::Ref<HTML::History> Document::history()
 {
     if (!m_history)
-        m_history = HTML::History::create(realm(), *this);
+        m_history = HTML::History::create(realm());
     return *m_history;
 }
 
@@ -6029,7 +6044,7 @@ void Document::for_each_shadow_root(Function<void(DOM::ShadowRoot&)>&& callback)
 
 bool Document::is_decoded_svg() const
 {
-    return is<Web::SVG::SVGDecodedImageData::SVGPageClient>(page().client());
+    return page().client().is_svg_page_client();
 }
 
 // https://drafts.csswg.org/css-position-4/#add-an-element-to-the-top-layer
@@ -6542,6 +6557,18 @@ StringView to_string(SetNeedsLayoutReason reason)
         return #e##sv;
         ENUMERATE_SET_NEEDS_LAYOUT_REASONS(ENUMERATE_SET_NEEDS_LAYOUT_REASON)
 #undef ENUMERATE_SET_NEEDS_LAYOUT_REASON
+    }
+    VERIFY_NOT_REACHED();
+}
+
+StringView to_string(SetNeedsLayoutTreeUpdateReason reason)
+{
+    switch (reason) {
+#define ENUMERATE_SET_NEEDS_LAYOUT_TREE_UPDATE_REASON(e) \
+    case SetNeedsLayoutTreeUpdateReason::e:              \
+        return #e##sv;
+        ENUMERATE_SET_NEEDS_LAYOUT_TREE_UPDATE_REASONS(ENUMERATE_SET_NEEDS_LAYOUT_TREE_UPDATE_REASON)
+#undef ENUMERATE_SET_NEEDS_LAYOUT_TREE_UPDATE_REASON
     }
     VERIFY_NOT_REACHED();
 }

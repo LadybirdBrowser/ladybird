@@ -30,8 +30,8 @@ TrackEvent::TrackEvent(JS::Realm& realm, FlyString const& event_name, TrackEvent
 
 void TrackEvent::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(TrackEvent);
+    Base::initialize(realm);
 }
 
 Variant<Empty, GC::Root<VideoTrack>, GC::Root<AudioTrack>, GC::Root<TextTrack>> TrackEvent::track() const

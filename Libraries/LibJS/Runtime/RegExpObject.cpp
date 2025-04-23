@@ -97,8 +97,8 @@ ErrorOr<String, ParseRegexPatternError> parse_regex_pattern(StringView pattern, 
     if (utf16_pattern_result.is_error())
         return ParseRegexPatternError { "Out of memory"_string };
 
-    auto utf16_pattern = utf16_pattern_result.release_value();
-    Utf16View utf16_pattern_view { utf16_pattern };
+    auto utf16_result = utf16_pattern_result.release_value();
+    Utf16View utf16_pattern_view { utf16_result };
     StringBuilder builder;
 
     // If the Unicode flag is set, append each code point to the pattern. Otherwise, append each

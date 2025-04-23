@@ -26,8 +26,8 @@ CSSSupportsRule::CSSSupportsRule(JS::Realm& realm, NonnullRefPtr<Supports>&& sup
 
 void CSSSupportsRule::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSSupportsRule);
+    Base::initialize(realm);
 }
 
 String CSSSupportsRule::condition_text() const

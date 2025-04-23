@@ -85,8 +85,8 @@ FormData::~FormData() = default;
 
 void FormData::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(FormData);
+    Base::initialize(realm);
 }
 
 // https://xhr.spec.whatwg.org/#dom-formdata-append

@@ -107,8 +107,8 @@ PeriodicWave::~PeriodicWave() = default;
 
 void PeriodicWave::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(PeriodicWave);
+    Base::initialize(realm);
 }
 
 void PeriodicWave::visit_edges(Cell::Visitor& visitor)

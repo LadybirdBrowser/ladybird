@@ -7,8 +7,8 @@
 #include <AK/Format.h>
 #include <AK/LexicalPath.h>
 #include <LibCore/Resource.h>
+#include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/PathFontProvider.h>
-#include <LibGfx/Font/ScaledFont.h>
 #include <LibGfx/Font/WOFF/Loader.h>
 
 namespace Gfx {
@@ -60,7 +60,7 @@ RefPtr<Gfx::Font> PathFontProvider::get_font(FlyString const& family, float poin
         return nullptr;
     for (auto const& typeface : it->value) {
         if (typeface->weight() == weight && typeface->width() == width && typeface->slope() == slope)
-            return typeface->scaled_font(point_size);
+            return typeface->font(point_size);
     }
     return nullptr;
 }

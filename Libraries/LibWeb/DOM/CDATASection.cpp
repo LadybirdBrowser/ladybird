@@ -21,8 +21,8 @@ CDATASection::~CDATASection() = default;
 
 void CDATASection::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(CDATASection);
+    Base::initialize(realm);
 }
 
 }

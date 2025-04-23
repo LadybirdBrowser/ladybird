@@ -7,9 +7,9 @@
 #include <LibJS/Runtime/PromiseCapability.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/WritableStreamDefaultWriterPrototype.h>
-#include <LibWeb/Streams/AbstractOperations.h>
 #include <LibWeb/Streams/WritableStream.h>
 #include <LibWeb/Streams/WritableStreamDefaultWriter.h>
+#include <LibWeb/Streams/WritableStreamOperations.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::Streams {
@@ -127,8 +127,8 @@ WritableStreamDefaultWriter::WritableStreamDefaultWriter(JS::Realm& realm)
 
 void WritableStreamDefaultWriter::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(WritableStreamDefaultWriter);
+    Base::initialize(realm);
 }
 
 void WritableStreamDefaultWriter::visit_edges(Cell::Visitor& visitor)

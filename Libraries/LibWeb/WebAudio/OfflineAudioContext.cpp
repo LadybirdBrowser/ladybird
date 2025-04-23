@@ -99,8 +99,8 @@ OfflineAudioContext::OfflineAudioContext(JS::Realm& realm, WebIDL::UnsignedLong 
 
 void OfflineAudioContext::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(OfflineAudioContext);
+    Base::initialize(realm);
 }
 
 void OfflineAudioContext::visit_edges(Cell::Visitor& visitor)

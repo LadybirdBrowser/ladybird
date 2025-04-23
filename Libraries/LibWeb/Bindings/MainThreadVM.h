@@ -17,14 +17,6 @@
 
 namespace Web::Bindings {
 
-struct WebEngineCustomData final : public JS::VM::CustomData {
-    virtual ~WebEngineCustomData() override = default;
-
-    virtual void spin_event_loop_until(GC::Root<GC::Function<bool()>> goal_condition) override;
-
-    HTML::Agent agent;
-};
-
 struct WebEngineCustomJobCallbackData final : public JS::JobCallback::CustomData {
     WebEngineCustomJobCallbackData(JS::Realm& incumbent_realm, OwnPtr<JS::ExecutionContext> active_script_context)
         : incumbent_realm(incumbent_realm)

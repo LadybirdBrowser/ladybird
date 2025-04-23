@@ -19,8 +19,8 @@ HTMLTimeElement::HTMLTimeElement(DOM::Document& document, DOM::QualifiedName qua
 
 void HTMLTimeElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLTimeElement);
+    Base::initialize(realm);
 }
 
 HTMLTimeElement::~HTMLTimeElement() = default;

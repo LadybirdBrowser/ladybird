@@ -37,8 +37,8 @@ HTMLTableElement::~HTMLTableElement() = default;
 
 void HTMLTableElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLTableElement);
+    Base::initialize(realm);
 }
 
 void HTMLTableElement::visit_edges(Cell::Visitor& visitor)

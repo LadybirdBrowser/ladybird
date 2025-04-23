@@ -53,8 +53,8 @@ HTMLMediaElement::~HTMLMediaElement() = default;
 
 void HTMLMediaElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLMediaElement);
+    Base::initialize(realm);
 
     m_audio_tracks = realm.create<AudioTrackList>(realm);
     m_video_tracks = realm.create<VideoTrackList>(realm);

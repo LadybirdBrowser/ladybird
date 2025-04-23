@@ -40,8 +40,8 @@ WebIDL::ExceptionOr<GC::Ref<StaticRange>> StaticRange::construct_impl(JS::Realm&
 
 void StaticRange::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(StaticRange);
+    Base::initialize(realm);
 }
 
 }

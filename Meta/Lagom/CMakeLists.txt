@@ -1,5 +1,9 @@
 cmake_minimum_required (VERSION 3.21)
 
+if (APPLE AND NOT CMAKE_OSX_SYSROOT)
+    set(CMAKE_OSX_SYSROOT macosx)
+endif()
+
 project(
     Lagom
     VERSION 0.0.0
@@ -471,7 +475,7 @@ if (ASSERT_FAIL_HAS_INT OR EMSCRIPTEN)
     target_compile_definitions(test262-runner PRIVATE ASSERT_FAIL_HAS_INT)
 endif()
 
-lagom_utility(wasm SOURCES ../../Utilities/wasm.cpp LIBS LibFileSystem LibWasm LibLine LibMain LibJS)
+lagom_utility(wasm SOURCES ../../Utilities/wasm.cpp LIBS LibFileSystem LibWasm LibLine LibMain)
 lagom_utility(xml SOURCES ../../Utilities/xml.cpp LIBS LibFileSystem LibMain LibXML LibURL)
 
 include(CTest)

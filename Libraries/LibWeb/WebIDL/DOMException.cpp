@@ -44,8 +44,8 @@ DOMException::~DOMException() = default;
 
 void DOMException::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(DOMException);
+    Base::initialize(realm);
 }
 
 ExceptionOr<void> DOMException::serialization_steps(HTML::SerializationRecord& record, bool, HTML::SerializationMemory&)

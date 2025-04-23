@@ -294,7 +294,7 @@ static ThrowCompletionOr<Value> regexp_builtin_exec(VM& vm, RegExpObject& regexp
     // 33. For each integer i such that i ≥ 1 and i ≤ n, in ascending order, do
     for (size_t i = 1; i <= result.n_capture_groups; ++i) {
         // a. Let captureI be ith element of r's captures List.
-        auto& capture = result.capture_group_matches[0][i];
+        auto& capture = result.capture_group_matches[0][i - 1];
 
         Value captured_value;
 

@@ -48,8 +48,8 @@ void HTMLDivElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties>
 
 void HTMLDivElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLDivElement);
+    Base::initialize(realm);
 }
 
 }

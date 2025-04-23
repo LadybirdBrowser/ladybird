@@ -9,6 +9,7 @@
 #include <LibWeb/DOM/AbortSignal.h>
 #include <LibWeb/Streams/WritableStream.h>
 #include <LibWeb/Streams/WritableStreamDefaultController.h>
+#include <LibWeb/Streams/WritableStreamOperations.h>
 
 namespace Web::Streams {
 
@@ -29,8 +30,8 @@ void WritableStreamDefaultController::visit_edges(Visitor& visitor)
 
 void WritableStreamDefaultController::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(WritableStreamDefaultController);
+    Base::initialize(realm);
 }
 
 // https://streams.spec.whatwg.org/#ws-default-controller-error

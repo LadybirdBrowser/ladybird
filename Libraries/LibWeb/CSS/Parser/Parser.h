@@ -22,6 +22,7 @@
 #include <LibWeb/CSS/ParsedFontFace.h>
 #include <LibWeb/CSS/Parser/ComponentValue.h>
 #include <LibWeb/CSS/Parser/Dimension.h>
+#include <LibWeb/CSS/Parser/RuleContext.h>
 #include <LibWeb/CSS/Parser/TokenStream.h>
 #include <LibWeb/CSS/Parser/Tokenizer.h>
 #include <LibWeb/CSS/Parser/Types.h>
@@ -78,6 +79,8 @@ struct ParsingParams {
     GC::Ptr<DOM::Document const> document;
     ::URL::URL url;
     ParsingMode mode { ParsingMode::Normal };
+
+    Vector<RuleContext> rule_context;
 };
 
 // The very large CSS Parser implementation code is broken up among several .cpp files:
@@ -96,8 +99,8 @@ public:
         Vector<StyleProperty> properties;
         HashMap<FlyString, StyleProperty> custom_properties;
     };
-    PropertiesAndCustomProperties parse_as_style_attribute();
-    Vector<Descriptor> parse_as_list_of_descriptors(AtRuleID);
+    PropertiesAndCustomProperties parse_as_property_declaration_block();
+    Vector<Descriptor> parse_as_descriptor_declaration_block(AtRuleID);
     CSSRule* parse_as_css_rule();
     Optional<StyleProperty> parse_as_supports_condition();
     GC::RootVector<GC::Ref<CSSRule>> parse_as_stylesheet_contents();
@@ -324,6 +327,7 @@ private:
     RefPtr<CSSStyleValue const> parse_lch_color_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_oklch_color_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_color_function(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_color_mix_function(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_light_dark_color_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_color_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_color_scheme_value(TokenStream<ComponentValue>&);
@@ -419,6 +423,7 @@ private:
     RefPtr<CSSStyleValue const> parse_transform_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_transform_origin_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_transition_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_transition_property_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_translate_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_scale_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_grid_track_size_list(TokenStream<ComponentValue>&, bool allow_separate_line_name_blocks = false);
@@ -430,6 +435,8 @@ private:
     RefPtr<CSSStyleValue const> parse_grid_template_areas_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_grid_area_shorthand_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_grid_shorthand_value(TokenStream<ComponentValue>&);
+
+    RefPtr<CSSStyleValue const> parse_list_of_time_values(PropertyID, TokenStream<ComponentValue>&);
 
     RefPtr<CalculationNode const> convert_to_calculation_node(CalcParsing::Node const&, CalculationContext const&);
     RefPtr<CalculationNode const> parse_a_calculation(Vector<ComponentValue> const&, CalculationContext const&);
@@ -465,7 +472,6 @@ private:
 
     static bool has_ignored_vendor_prefix(StringView);
 
-    PropertiesAndCustomProperties extract_properties(Vector<RuleOrListOfDeclarations> const&);
     void extract_property(Declaration const&, Parser::PropertiesAndCustomProperties&);
 
     DOM::Document const* document() const;
@@ -477,7 +483,7 @@ private:
 
     GC::Ptr<DOM::Document const> m_document;
     GC::Ptr<JS::Realm> m_realm;
-    ::URL::URL m_url;
+    Optional<::URL::URL> m_url;
     ParsingMode m_parsing_mode { ParsingMode::Normal };
 
     Vector<Token> m_tokens;
@@ -499,20 +505,7 @@ private:
     }
     bool context_allows_quirky_length() const;
 
-    enum class ContextType {
-        Unknown,
-        Style,
-        AtMedia,
-        AtFontFace,
-        AtKeyframes,
-        Keyframe,
-        AtSupports,
-        SupportsCondition,
-        AtLayer,
-        AtProperty,
-    };
-    static ContextType context_type_for_at_rule(FlyString const&);
-    Vector<ContextType> m_rule_context;
+    Vector<RuleContext> m_rule_context;
 
     Vector<PseudoClass> m_pseudo_class_context; // Stack of pseudo-class functions we're currently inside
 };
@@ -522,8 +515,8 @@ private:
 namespace Web {
 
 GC::Ref<CSS::CSSStyleSheet> parse_css_stylesheet(CSS::Parser::ParsingParams const&, StringView, Optional<::URL::URL> location = {}, Vector<NonnullRefPtr<CSS::MediaQuery>> = {});
-CSS::Parser::Parser::PropertiesAndCustomProperties parse_css_style_attribute(CSS::Parser::ParsingParams const&, StringView);
-Vector<CSS::Descriptor> parse_css_list_of_descriptors(CSS::Parser::ParsingParams const&, CSS::AtRuleID, StringView);
+CSS::Parser::Parser::PropertiesAndCustomProperties parse_css_property_declaration_block(CSS::Parser::ParsingParams const&, StringView);
+Vector<CSS::Descriptor> parse_css_descriptor_declaration_block(CSS::Parser::ParsingParams const&, CSS::AtRuleID, StringView);
 RefPtr<CSS::CSSStyleValue const> parse_css_value(CSS::Parser::ParsingParams const&, StringView, CSS::PropertyID property_id = CSS::PropertyID::Invalid);
 RefPtr<CSS::CSSStyleValue const> parse_css_descriptor(CSS::Parser::ParsingParams const&, CSS::AtRuleID, CSS::DescriptorID, StringView);
 Optional<CSS::SelectorList> parse_selector(CSS::Parser::ParsingParams const&, StringView);

@@ -16,6 +16,7 @@ source_set("StyleValues") {
     "CSSRGB.cpp",
     "CalculatedStyleValue.cpp",
     "ColorFunctionStyleValue.cpp",
+    "ColorMixStyleValue.cpp",
     "ConicGradientStyleValue.cpp",
     "ContentStyleValue.cpp",
     "CounterDefinitionsStyleValue.cpp",

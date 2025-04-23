@@ -10,6 +10,7 @@
 #include <AK/Vector.h>
 #include <LibGC/Root.h>
 #include <LibJS/Forward.h>
+#include <LibJS/Runtime/Agent.h>
 #include <LibWeb/DOM/MutationObserver.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/CustomElements/CustomElementReactionsStack.h>
@@ -17,7 +18,7 @@
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#similar-origin-window-agent
-struct Agent {
+struct Agent : public JS::Agent {
     GC::Root<HTML::EventLoop> event_loop;
 
     // FIXME: These should only be on similar-origin window agents, but we don't currently differentiate agent types.
@@ -40,6 +41,11 @@ struct Agent {
     // A similar-origin window agent's current element queue is the element queue at the top of its custom element reactions stack.
     Vector<GC::Root<DOM::Element>>& current_element_queue() { return custom_element_reactions_stack.element_queue_stack.last(); }
     Vector<GC::Root<DOM::Element>> const& current_element_queue() const { return custom_element_reactions_stack.element_queue_stack.last(); }
+
+    // [[CanBlock]]
+    virtual bool can_block() const override;
+
+    virtual void spin_event_loop_until(GC::Root<GC::Function<bool()>> goal_condition) override;
 };
 
 Agent& relevant_agent(JS::Object const&);

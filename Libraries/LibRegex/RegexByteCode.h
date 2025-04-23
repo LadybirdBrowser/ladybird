@@ -190,6 +190,8 @@ class ByteCode : public DisjointChunks<ByteCodeValueType> {
     using Base = DisjointChunks<ByteCodeValueType>;
 
 public:
+    using Base::append;
+
     ByteCode()
     {
         ensure_opcodes_initialized();

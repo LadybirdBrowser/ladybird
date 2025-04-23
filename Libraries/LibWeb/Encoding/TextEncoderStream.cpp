@@ -12,8 +12,8 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/TextEncoderStreamPrototype.h>
 #include <LibWeb/Encoding/TextEncoderStream.h>
-#include <LibWeb/Streams/AbstractOperations.h>
 #include <LibWeb/Streams/TransformStream.h>
+#include <LibWeb/Streams/TransformStreamOperations.h>
 #include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::Encoding {
@@ -76,8 +76,8 @@ TextEncoderStream::~TextEncoderStream() = default;
 
 void TextEncoderStream::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(TextEncoderStream);
+    Base::initialize(realm);
 }
 
 void TextEncoderStream::visit_edges(JS::Cell::Visitor& visitor)

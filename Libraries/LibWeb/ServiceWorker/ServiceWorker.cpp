@@ -27,8 +27,8 @@ GC::Ref<ServiceWorker> ServiceWorker::create(JS::Realm& realm, ServiceWorkerReco
 
 void ServiceWorker::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(ServiceWorker);
+    Base::initialize(realm);
 }
 
 // https://w3c.github.io/ServiceWorker/#dom-serviceworker-scripturl

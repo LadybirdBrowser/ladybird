@@ -25,8 +25,8 @@ WebGLObject::~WebGLObject() = default;
 
 void WebGLObject::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(WebGLObject);
+    Base::initialize(realm);
 }
 
 void WebGLObject::visit_edges(Visitor& visitor)

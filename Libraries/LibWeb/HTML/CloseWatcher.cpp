@@ -171,8 +171,8 @@ void CloseWatcher::destroy()
 
 void CloseWatcher::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(CloseWatcher);
+    Base::initialize(realm);
 }
 
 void CloseWatcher::set_oncancel(WebIDL::CallbackType* event_handler)

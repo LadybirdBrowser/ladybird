@@ -45,6 +45,7 @@ public:
         XYZD50,
         XYZD65,
         LightDark, // This is used by CSSLightDark for light-dark(..., ...).
+        ColorMix,
     };
     ColorType color_type() const { return m_color_type; }
     ColorSyntax color_syntax() const { return m_color_syntax; }
@@ -60,6 +61,10 @@ protected:
     static Optional<double> resolve_hue(CSSStyleValue const&);
     static Optional<double> resolve_with_reference_value(CSSStyleValue const&, float one_hundred_percent_value);
     static Optional<double> resolve_alpha(CSSStyleValue const&);
+
+    void serialize_color_component(StringBuilder& builder, SerializationMode mode, CSSStyleValue const& component, float one_hundred_percent_value, Optional<double> clamp_min = {}, Optional<double> clamp_max = {}) const;
+    void serialize_alpha_component(StringBuilder& builder, SerializationMode mode, CSSStyleValue const& component) const;
+    void serialize_hue_component(StringBuilder& builder, SerializationMode mode, CSSStyleValue const& component) const;
 
     ColorType m_color_type;
     ColorSyntax m_color_syntax;

@@ -21,8 +21,8 @@ HTMLMenuElement::~HTMLMenuElement() = default;
 
 void HTMLMenuElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLMenuElement);
+    Base::initialize(realm);
 }
 
 }

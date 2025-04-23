@@ -55,8 +55,8 @@ HTMLObjectElement::~HTMLObjectElement() = default;
 
 void HTMLObjectElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLObjectElement);
+    Base::initialize(realm);
 
     m_document_observer = realm.create<DOM::DocumentObserver>(realm, document());
 
@@ -562,7 +562,9 @@ void HTMLObjectElement::update_layout_and_child_objects(Representation represent
 
     m_representation = representation;
     invalidate_style(DOM::StyleInvalidationReason::HTMLObjectElementUpdateLayoutAndChildObjects);
-    set_needs_layout_tree_update(true);
+
+    if (auto parent_element = this->parent_element())
+        parent_element->set_needs_layout_tree_update(true, DOM::SetNeedsLayoutTreeUpdateReason::HTMLObjectElementUpdateLayoutAndChildObjects);
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-tabindex

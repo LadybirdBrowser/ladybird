@@ -422,7 +422,7 @@ static void run_test(HeadlessWebView& view, Test& test, Application& app)
     view.on_test_finish = {};
 
     promise->when_resolved([&view, &test, &app](auto) {
-        auto url = URL::create_with_file_scheme(MUST(FileSystem::real_path(test.input_path)));
+        auto url = URL::create_with_file_scheme(MUST(FileSystem::real_path(test.input_path))).release_value();
 
         switch (test.mode) {
         case TestMode::Crash:

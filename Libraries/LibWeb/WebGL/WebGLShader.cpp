@@ -30,8 +30,8 @@ WebGLShader::~WebGLShader() = default;
 
 void WebGLShader::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(WebGLShader);
+    Base::initialize(realm);
 }
 
 }

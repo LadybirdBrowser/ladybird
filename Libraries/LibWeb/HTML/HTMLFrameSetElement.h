@@ -24,6 +24,8 @@ public:
 private:
     HTMLFrameSetElement(DOM::Document&, DOM::QualifiedName);
 
+    virtual bool is_html_frameset_element() const override { return true; }
+
     virtual void adjust_computed_style(CSS::ComputedProperties&) override;
 
     virtual void initialize(JS::Realm&) override;
@@ -36,4 +38,9 @@ private:
     virtual GC::Ptr<EventTarget> window_event_handlers_to_event_target() override;
 };
 
+}
+
+namespace Web::DOM {
+template<>
+inline bool Node::fast_is<HTML::HTMLFrameSetElement>() const { return is_html_frameset_element(); }
 }

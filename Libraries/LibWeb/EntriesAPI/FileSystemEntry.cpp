@@ -27,8 +27,8 @@ FileSystemEntry::FileSystemEntry(JS::Realm& realm, EntryType entry_type, ByteStr
 
 void FileSystemEntry::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(FileSystemEntry);
+    Base::initialize(realm);
 }
 
 // https://wicg.github.io/entries-api/#dom-filesystementry-isfile

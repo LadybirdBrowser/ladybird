@@ -56,9 +56,8 @@ FontFaceSet::FontFaceSet(JS::Realm& realm, GC::Ref<WebIDL::Promise> ready_promis
 
 void FontFaceSet::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
-
     WEB_SET_PROTOTYPE_FOR_INTERFACE(FontFaceSet);
+    Base::initialize(realm);
 }
 
 void FontFaceSet::visit_edges(Cell::Visitor& visitor)

@@ -20,6 +20,7 @@
 #include <LibWasm/Printer/Printer.h>
 #include <LibWasm/Types.h>
 #include <LibWasm/Wasi.h>
+#include <math.h>
 #include <signal.h>
 #include <unistd.h>
 
@@ -264,7 +265,7 @@ static bool post_interpret_hook(Wasm::Configuration&, Wasm::InstructionPointer& 
         g_continue = false;
         warnln("Trapped when executing ip={}", ip);
         g_printer->print(instr);
-        warnln("Trap reason: {}", interpreter.trap_reason());
+        warnln("Trap reason: {}", interpreter.trap().format());
         const_cast<Wasm::Interpreter&>(interpreter).clear_trap();
     }
     return true;
@@ -446,13 +447,13 @@ static bool pre_interpret_hook(Wasm::Configuration& config, Wasm::InstructionPoi
             if (!ok)
                 continue;
 
-            Wasm::Result result { Wasm::Trap {} };
+            Wasm::Result result { Wasm::Trap::from_string("") };
             {
                 Wasm::BytecodeInterpreter::CallFrameHandle handle { g_interpreter, config };
-                result = config.call(g_interpreter, *address, move(values)).assert_wasm_result();
+                result = config.call(g_interpreter, *address, move(values));
             }
             if (result.is_trap()) {
-                warnln("Execution trapped: {}", result.trap().reason);
+                warnln("Execution trapped: {}", result.trap().format());
             } else {
                 if (!result.values().is_empty())
                     warnln("Returned:");
@@ -833,15 +834,16 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
                 outln();
             }
 
-            auto result = machine.invoke(g_interpreter, run_address.value(), move(values)).assert_wasm_result();
+            auto result = machine.invoke(g_interpreter, run_address.value(), move(values));
 
             if (debug)
                 launch_repl();
 
             if (result.is_trap()) {
-                if (result.trap().reason.starts_with("exit:"sv))
-                    return -result.trap().reason.substring_view(5).to_number<i32>().value_or(-1);
-                warnln("Execution trapped: {}", result.trap().reason);
+                auto trap_reason = result.trap().format();
+                if (trap_reason.starts_with("exit:"sv))
+                    return -trap_reason.substring_view(5).to_number<i32>().value_or(-1);
+                warnln("Execution trapped: {}", trap_reason);
             } else {
                 if (!result.values().is_empty())
                     warnln("Returned:");

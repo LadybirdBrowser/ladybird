@@ -34,8 +34,8 @@ WebIDL::ExceptionOr<GC::Ref<ConstantSourceNode>> ConstantSourceNode::construct_i
 
 void ConstantSourceNode::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(ConstantSourceNode);
+    Base::initialize(realm);
 }
 
 void ConstantSourceNode::visit_edges(Cell::Visitor& visitor)

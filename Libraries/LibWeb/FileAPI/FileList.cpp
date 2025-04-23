@@ -30,8 +30,8 @@ FileList::~FileList() = default;
 
 void FileList::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(FileList);
+    Base::initialize(realm);
 }
 
 Optional<JS::Value> FileList::item_value(size_t index) const

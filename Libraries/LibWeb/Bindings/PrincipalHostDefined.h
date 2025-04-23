@@ -14,7 +14,7 @@
 
 namespace Web::Bindings {
 
-struct PrincipalHostDefined : public HostDefined {
+struct PrincipalHostDefined final : public HostDefined {
     PrincipalHostDefined(GC::Ref<HTML::EnvironmentSettingsObject> eso, GC::Ref<Intrinsics> intrinsics, GC::Ref<Page> page)
         : HostDefined(intrinsics)
         , environment_settings_object(eso)
@@ -23,6 +23,7 @@ struct PrincipalHostDefined : public HostDefined {
     }
     virtual ~PrincipalHostDefined() override = default;
     virtual void visit_edges(JS::Cell::Visitor& visitor) override;
+    virtual bool is_principal_host_defined() const override { return true; }
 
     GC::Ref<HTML::EnvironmentSettingsObject> environment_settings_object;
     GC::Ref<Page> page;
@@ -44,3 +45,6 @@ struct PrincipalHostDefined : public HostDefined {
 }
 
 }
+
+template<>
+inline bool JS::Realm::HostDefined::fast_is<Web::Bindings::PrincipalHostDefined>() const { return is_principal_host_defined(); }

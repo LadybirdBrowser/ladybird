@@ -34,8 +34,8 @@ DOMRectList::~DOMRectList() = default;
 
 void DOMRectList::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(DOMRectList);
+    Base::initialize(realm);
 }
 
 void DOMRectList::visit_edges(Cell::Visitor& visitor)

@@ -44,8 +44,8 @@ public:
 
 protected:
     NativeFunction(FlyString name, Object& prototype);
-    NativeFunction(GC::Ptr<GC::Function<ThrowCompletionOr<Value>(VM&)>>, Object* prototype, Realm& realm);
-    NativeFunction(FlyString name, GC::Ptr<GC::Function<ThrowCompletionOr<Value>(VM&)>>, Object& prototype);
+    NativeFunction(AK::Function<ThrowCompletionOr<Value>(VM&)>, Object* prototype, Realm& realm);
+    NativeFunction(FlyString name, AK::Function<ThrowCompletionOr<Value>(VM&)>, Object& prototype);
     explicit NativeFunction(Object& prototype);
 
     virtual void initialize(Realm&) override;
@@ -57,7 +57,7 @@ private:
     FlyString m_name;
     GC::Ptr<PrimitiveString> m_name_string;
     Optional<FlyString> m_initial_name; // [[InitialName]]
-    GC::Ptr<GC::Function<ThrowCompletionOr<Value>(VM&)>> m_native_function;
+    AK::Function<ThrowCompletionOr<Value>(VM&)> m_native_function;
     GC::Ptr<Realm> m_realm;
 };
 

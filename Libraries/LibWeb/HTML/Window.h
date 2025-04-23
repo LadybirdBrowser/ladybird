@@ -269,8 +269,12 @@ public:
 private:
     explicit Window(JS::Realm&);
 
+    virtual bool is_window_or_worker_global_scope_mixin() const final { return true; }
+
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void finalize() override;
+
+    virtual bool is_html_window() const override { return true; }
 
     // ^HTML::GlobalEventHandlers
     virtual GC::Ptr<DOM::EventTarget> global_event_handlers_to_event_target(FlyString const&) override { return *this; }
@@ -354,3 +358,6 @@ private:
 void run_animation_frame_callbacks(DOM::Document&, double now);
 
 }
+
+template<>
+inline bool JS::Object::fast_is<Web::HTML::Window>() const { return is_html_window(); }

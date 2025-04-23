@@ -27,8 +27,8 @@ WebGLTransformFeedback::~WebGLTransformFeedback() = default;
 
 void WebGLTransformFeedback::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(WebGLTransformFeedback);
+    Base::initialize(realm);
 }
 
 }

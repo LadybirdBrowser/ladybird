@@ -29,8 +29,8 @@ CSSStyleDeclaration::CSSStyleDeclaration(JS::Realm& realm, Computed computed, Re
 
 void CSSStyleDeclaration::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSStyleDeclaration);
+    Base::initialize(realm);
 }
 
 // https://drafts.csswg.org/cssom/#update-style-attribute-for

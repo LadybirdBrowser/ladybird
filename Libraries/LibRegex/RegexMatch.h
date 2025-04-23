@@ -113,16 +113,19 @@ public:
     RegexStringView construct_as_same(Span<u32> data, Optional<ByteString>& optional_string_storage, Utf16Data& optional_utf16_storage) const
     {
         auto view = m_view.visit(
-            [&]<typename T>(T const&) {
+            [&optional_string_storage, data]<typename T>(T const&) {
                 StringBuilder builder;
                 for (auto ch : data)
                     builder.append(ch); // Note: The type conversion is intentional.
                 optional_string_storage = builder.to_byte_string();
                 return RegexStringView { T { *optional_string_storage } };
             },
-            [&](Utf16View) {
-                optional_utf16_storage = AK::utf32_to_utf16(Utf32View { data.data(), data.size() }).release_value_but_fixme_should_propagate_errors();
-                return RegexStringView { Utf16View { optional_utf16_storage } };
+            [&optional_utf16_storage, data](Utf16View) {
+                auto conversion_result = utf32_to_utf16(Utf32View { data.data(), data.size() }).release_value_but_fixme_should_propagate_errors();
+                optional_utf16_storage = conversion_result.data;
+                auto view = Utf16View { optional_utf16_storage };
+                view.unsafe_set_code_point_length(conversion_result.code_point_count);
+                return RegexStringView { view };
             });
 
         view.set_unicode(unicode());
@@ -369,6 +372,7 @@ struct MatchInput {
 };
 
 struct MatchState {
+    size_t capture_group_count;
     size_t string_position_before_match { 0 };
     size_t string_position { 0 };
     size_t string_position_in_code_units { 0 };
@@ -377,9 +381,37 @@ struct MatchState {
     size_t forks_since_last_save { 0 };
     Optional<size_t> initiating_fork;
     COWVector<Match> matches;
-    COWVector<Vector<Match>> capture_group_matches;
+    COWVector<Match> flat_capture_group_matches; // Vector<Vector<Match>> indexed by match index, then by capture group id; flattened for performance
     COWVector<u64> repetition_marks;
     Vector<u64, 64> checkpoints;
+
+    explicit MatchState(size_t capture_group_count)
+        : capture_group_count(capture_group_count)
+    {
+    }
+
+    MatchState(MatchState const&) = default;
+    MatchState(MatchState&&) = default;
+
+    MatchState& operator=(MatchState const&) = default;
+    MatchState& operator=(MatchState&&) = default;
+
+    static MatchState only_for_enumeration() { return MatchState { 0 }; }
+
+    size_t capture_group_matches_size() const
+    {
+        return flat_capture_group_matches.size() / capture_group_count;
+    }
+
+    Span<Match const> capture_group_matches(size_t match_index) const
+    {
+        return flat_capture_group_matches.span().slice(match_index * capture_group_count, capture_group_count);
+    }
+
+    Span<Match> mutable_capture_group_matches(size_t match_index)
+    {
+        return flat_capture_group_matches.mutable_span().slice(match_index * capture_group_count, capture_group_count);
+    }
 
     // For size_t in {0..100}, ips in {0..500} and repetitions in {0..30}, there are zero collisions.
     // For the full range, zero collisions were found in 8 million random samples.
@@ -389,7 +421,8 @@ struct MatchState {
         auto combine = [&hash](auto value) {
             hash ^= value + 0x9e3779b97f4a7c15 + (hash << 6) + (hash >> 2);
         };
-        auto combine_vector = [&hash](auto const& vector) {
+        auto combine_vector = [&hash](auto const& vector, auto tag) {
+            hash ^= tag * (vector.size() + 1);
             for (auto& value : vector) {
                 hash ^= value;
                 hash *= 0x100000001b3;
@@ -402,8 +435,8 @@ struct MatchState {
         combine(instruction_position);
         combine(fork_at_position);
         combine(initiating_fork.value_or(0) + initiating_fork.has_value());
-        combine_vector(repetition_marks);
-        combine_vector(checkpoints);
+        combine_vector(repetition_marks, 0xbeefbeefbeefbeef);
+        combine_vector(checkpoints, 0xfacefacefaceface);
 
         return hash;
     }

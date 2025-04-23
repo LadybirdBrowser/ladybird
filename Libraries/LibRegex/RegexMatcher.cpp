@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/BinarySearch.h>
 #include <AK/BumpAllocator.h>
 #include <AK/ByteString.h>
 #include <AK/Debug.h>
@@ -164,7 +165,7 @@ RegexResult Matcher<Parser>::match(Vector<RegexStringView> const& views, Optiona
     size_t match_count { 0 };
 
     MatchInput input;
-    MatchState state;
+    MatchState state { m_pattern->parser_result.capture_groups_count };
     size_t operations = 0;
 
     input.regex_options = m_regex_options | regex_options.value_or({}).value();
@@ -189,20 +190,6 @@ RegexResult Matcher<Parser>::match(Vector<RegexStringView> const& views, Optiona
         }
     }
 
-    if (c_match_preallocation_count) {
-        state.matches.ensure_capacity(c_match_preallocation_count);
-        state.capture_group_matches.ensure_capacity(c_match_preallocation_count);
-        auto& capture_groups_count = m_pattern->parser_result.capture_groups_count;
-
-        for (size_t j = 0; j < c_match_preallocation_count; ++j) {
-            state.matches.empend();
-            state.capture_group_matches.empend();
-            state.capture_group_matches.mutable_at(j).ensure_capacity(capture_groups_count);
-            for (size_t k = 0; k < capture_groups_count; ++k)
-                state.capture_group_matches.mutable_at(j).unchecked_append({});
-        }
-    }
-
     auto append_match = [](auto& input, auto& state, auto& start_position) {
         if (state.matches.size() == input.match_index)
             state.matches.empend();
@@ -221,6 +208,23 @@ RegexResult Matcher<Parser>::match(Vector<RegexStringView> const& views, Optiona
 
     auto single_match_only = input.regex_options.has_flag_set(AllFlags::SingleMatch);
     auto only_start_of_line = m_pattern->parser_result.optimization_data.only_start_of_line && !input.regex_options.has_flag_set(AllFlags::Multiline);
+
+    auto compare_range = [insensitive = input.regex_options & AllFlags::Insensitive](auto needle, CharRange range) {
+        auto upper_case_needle = needle;
+        auto lower_case_needle = needle;
+        if (insensitive) {
+            upper_case_needle = to_ascii_uppercase(needle);
+            lower_case_needle = to_ascii_lowercase(needle);
+        }
+
+        if (lower_case_needle >= range.from && lower_case_needle <= range.to)
+            return 0;
+        if (upper_case_needle >= range.from && upper_case_needle <= range.to)
+            return 0;
+        if (lower_case_needle > range.to || upper_case_needle > range.to)
+            return 1;
+        return -1;
+    };
 
     for (auto const& view : views) {
         if (lines_to_skip != 0) {
@@ -267,18 +271,25 @@ RegexResult Matcher<Parser>::match(Vector<RegexStringView> const& views, Optiona
         }
 
         for (; view_index <= view_length; ++view_index) {
-            if (view_index == view_length && input.regex_options.has_flag_set(AllFlags::Multiline))
-                break;
+            if (view_index == view_length) {
+                if (input.regex_options.has_flag_set(AllFlags::Multiline))
+                    break;
+            }
 
-            auto& match_length_minimum = m_pattern->parser_result.match_length_minimum;
             // FIXME: More performant would be to know the remaining minimum string
             //        length needed to match from the current position onwards within
             //        the vm. Add new OpCode for MinMatchLengthFromSp with the value of
             //        the remaining string length from the current path. The value though
             //        has to be filled in reverse. That implies a second run over bytecode
             //        after generation has finished.
+            auto const match_length_minimum = m_pattern->parser_result.match_length_minimum;
             if (match_length_minimum && match_length_minimum > view_length - view_index)
                 break;
+
+            if (auto& starting_ranges = m_pattern->parser_result.optimization_data.starting_ranges; !starting_ranges.is_empty()) {
+                if (!binary_search(starting_ranges, input.view.code_unit_at(view_index), nullptr, compare_range))
+                    goto done_matching;
+            }
 
             input.column = match_count;
             input.match_index = match_count;
@@ -288,8 +299,7 @@ RegexResult Matcher<Parser>::match(Vector<RegexStringView> const& views, Optiona
             state.instruction_position = 0;
             state.repetition_marks.clear();
 
-            auto success = execute(input, state, operations);
-            if (success) {
+            if (execute(input, state, operations)) {
                 succeeded = true;
 
                 if (input.regex_options.has_flag_set(AllFlags::MatchNotEndOfLine) && state.string_position == input.view.length()) {
@@ -329,6 +339,7 @@ RegexResult Matcher<Parser>::match(Vector<RegexStringView> const& views, Optiona
                 break;
             }
 
+        done_matching:
             if (!continue_search || only_start_of_line)
                 break;
         }
@@ -343,29 +354,34 @@ RegexResult Matcher<Parser>::match(Vector<RegexStringView> const& views, Optiona
             break;
     }
 
+    auto flat_capture_group_matches = move(state.flat_capture_group_matches).release();
+    if (flat_capture_group_matches.size() < state.capture_group_count * match_count) {
+        flat_capture_group_matches.ensure_capacity(match_count * state.capture_group_count);
+        for (size_t i = flat_capture_group_matches.size(); i < match_count * state.capture_group_count; ++i)
+            flat_capture_group_matches.empend();
+    }
+
+    Vector<Span<Match>> capture_group_matches;
+    for (size_t i = 0; i < match_count; ++i) {
+        auto span = flat_capture_group_matches.span().slice(state.capture_group_count * i, state.capture_group_count);
+        capture_group_matches.append(span);
+    }
+
     RegexResult result {
         match_count != 0,
         match_count,
         move(state.matches).release(),
-        move(state.capture_group_matches).release(),
+        move(flat_capture_group_matches),
+        move(capture_group_matches),
         operations,
         m_pattern->parser_result.capture_groups_count,
         m_pattern->parser_result.named_capture_groups_count,
     };
 
-    if (match_count) {
-        // Make sure there are as many capture matches as there are actual matches.
-        if (result.capture_group_matches.size() < match_count)
-            result.capture_group_matches.resize(match_count);
-        for (auto& matches : result.capture_group_matches)
-            matches.resize(m_pattern->parser_result.capture_groups_count + 1);
-        if (!input.regex_options.has_flag_set(AllFlags::SkipTrimEmptyMatches)) {
-            for (auto& matches : result.capture_group_matches)
-                matches.remove_all_matching([](auto& match) { return match.view.is_null(); });
-        }
-    } else {
+    if (match_count > 0)
+        VERIFY(result.capture_group_matches.size() >= match_count);
+    else
         result.capture_group_matches.clear_with_capacity();
-    }
 
     return result;
 }
@@ -451,11 +467,18 @@ private:
     Node* m_last { nullptr };
 };
 
+struct SufficientlyUniformValueTraits : DefaultTraits<u64> {
+    static constexpr unsigned hash(u64 value)
+    {
+        return (value >> 32) ^ value;
+    }
+};
+
 template<class Parser>
 bool Matcher<Parser>::execute(MatchInput const& input, MatchState& state, size_t& operations) const
 {
     BumpAllocatedLinkedList<MatchState> states_to_try_next;
-    HashTable<u64> seen_state_hashes;
+    HashTable<u64, SufficientlyUniformValueTraits> seen_state_hashes;
 #if REGEX_DEBUG
     size_t recursion_level = 0;
 #endif

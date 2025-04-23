@@ -43,8 +43,8 @@ void MessageChannel::visit_edges(Cell::Visitor& visitor)
 
 void MessageChannel::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(MessageChannel);
+    Base::initialize(realm);
 }
 
 MessagePort* MessageChannel::port1()

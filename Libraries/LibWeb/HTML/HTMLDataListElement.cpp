@@ -22,8 +22,8 @@ HTMLDataListElement::~HTMLDataListElement() = default;
 
 void HTMLDataListElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLDataListElement);
+    Base::initialize(realm);
 }
 
 void HTMLDataListElement::visit_edges(Cell::Visitor& visitor)

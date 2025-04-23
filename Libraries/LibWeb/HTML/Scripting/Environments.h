@@ -33,7 +33,8 @@ public:
     URL::URL creation_url;
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#concept-environment-top-level-creation-url
-    URL::URL top_level_creation_url;
+    // Null or a URL that represents the creation URL of the "top-level" environment. It is null for workers and worklets.
+    Optional<URL::URL> top_level_creation_url;
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#concept-environment-top-level-origin
     URL::Origin top_level_origin;
@@ -51,7 +52,7 @@ public:
 
 protected:
     Environment() = default;
-    Environment(String id, URL::URL creation_url, URL::URL top_level_creation_url, URL::Origin top_level_origin, GC::Ptr<BrowsingContext> target_browsing_context)
+    Environment(String id, URL::URL creation_url, Optional<URL::URL> top_level_creation_url, URL::Origin top_level_origin, GC::Ptr<BrowsingContext> target_browsing_context)
         : id(move(id))
         , creation_url(move(creation_url))
         , top_level_creation_url(move(top_level_creation_url))

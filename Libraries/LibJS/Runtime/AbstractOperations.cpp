@@ -1101,13 +1101,13 @@ Object* create_mapped_arguments_object(VM& vm, FunctionObject& function, Nonnull
         auto value = arguments[index];
 
         // b. Perform ! CreateDataPropertyOrThrow(obj, ! ToString(𝔽(index)), val).
-        MUST(object->create_data_property_or_throw(index, value));
+        object->indexed_properties().put(index, value);
 
         // c. Set index to index + 1.
     }
 
     // 16. Perform ! DefinePropertyOrThrow(obj, "length", PropertyDescriptor { [[Value]]: 𝔽(len), [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true }).
-    MUST(object->define_property_or_throw(vm.names.length, { .value = Value(length), .writable = true, .enumerable = false, .configurable = true }));
+    object->put_direct(realm.intrinsics().mapped_arguments_object_length_offset(), Value(length));
 
     // 17. Let mappedNames be a new empty List.
     HashTable<FlyString> mapped_names;
@@ -1131,26 +1131,25 @@ Object* create_mapped_arguments_object(VM& vm, FunctionObject& function, Nonnull
             // 1. Let g be MakeArgGetter(name, env).
             // 2. Let p be MakeArgSetter(name, env).
             // 3. Perform ! map.[[DefineOwnProperty]](! ToString(𝔽(index)), PropertyDescriptor { [[Set]]: p, [[Get]]: g, [[Enumerable]]: false, [[Configurable]]: true }).
-            object->parameter_map().define_native_accessor(
-                realm,
-                PropertyKey { index },
-                [&environment, name](VM& vm) -> ThrowCompletionOr<Value> {
-                    return MUST(environment.get_binding_value(vm, name, false));
-                },
-                [&environment, name](VM& vm) {
-                    MUST(environment.set_mutable_binding(vm, name, vm.argument(0), false));
-                    return js_undefined();
-                },
-                Attribute::Configurable);
+            object->parameter_map().indexed_properties().put(
+                index,
+                Accessor::create(vm,
+                    NativeFunction::create(realm, FlyString {}, [&environment, name](VM& vm) -> ThrowCompletionOr<Value> {
+                        return MUST(environment.get_binding_value(vm, name, false));
+                    }),
+                    NativeFunction::create(realm, FlyString {}, [&environment, name](VM& vm) {
+                        MUST(environment.set_mutable_binding(vm, name, vm.argument(0), false));
+                        return js_undefined();
+                    })));
         }
     }
 
     // 20. Perform ! DefinePropertyOrThrow(obj, @@iterator, PropertyDescriptor { [[Value]]: %Array.prototype.values%, [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true }).
     auto array_prototype_values = realm.intrinsics().array_prototype_values_function();
-    MUST(object->define_property_or_throw(vm.well_known_symbol_iterator(), { .value = array_prototype_values, .writable = true, .enumerable = false, .configurable = true }));
+    object->put_direct(realm.intrinsics().mapped_arguments_object_well_known_symbol_iterator_offset(), array_prototype_values);
 
     // 21. Perform ! DefinePropertyOrThrow(obj, "callee", PropertyDescriptor { [[Value]]: func, [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true }).
-    MUST(object->define_property_or_throw(vm.names.callee, { .value = &function, .writable = true, .enumerable = false, .configurable = true }));
+    object->put_direct(realm.intrinsics().mapped_arguments_object_callee_offset(), Value(&function));
 
     // 22. Return obj.
     return object;

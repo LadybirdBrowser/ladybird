@@ -74,6 +74,11 @@
                 padding: 15px 20px;
             }
 
+            .inner-header {
+                font-size: 16px;
+                font-weight: 500;
+            }
+
             .card-body {
                 padding: 20px;
             }
@@ -378,6 +383,46 @@
             </div>
         </div>
 
+        <div class="card">
+            <div class="card-header">Network</div>
+            <div class="card-body">
+                <div class="card-group">
+                    <div class="card-header inner-header inline-container">
+                        <span>DNS Settings</span>
+                        <span id="dns-forcibly-enabled" class="forcibly-enabled hidden">
+                            This setting is controlled via the command line
+                        </span>
+                    </div>
+                    <div id="dns-settings-container" class="card-body">
+                        <div class="card-group">
+                            <label for="dns-upstream">DNS Upstream</label>
+                            <select id="dns-upstream">
+                                <option value="system">System DNS</option>
+                                <option value="custom">Custom DNS Server</option>
+                            </select>
+                        </div>
+                        <div id="custom-dns-settings" class="hidden">
+                            <div class="card-group">
+                                <label for="dns-type">Type</label>
+                                <select id="dns-type">
+                                    <option value="udp">UDP</option>
+                                    <option value="tls">TLS</option>
+                                </select>
+                            </div>
+                            <div class="card-group">
+                                <label for="dns-server">DNS Server (IP or hostname)</label>
+                                <input id="dns-server" type="text" />
+                            </div>
+                            <div class="card-group">
+                                <label for="dns-port">Port</label>
+                                <input id="dns-port" type="text" placeholder="53" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="button-container">
             <button id="restore-defaults" class="primary-button">Restore&nbsp;Defaults</button>
         </div>
@@ -487,6 +532,12 @@
             const siteSettingsTitle = document.querySelector("#site-settings-title");
             const doNotTrackToggle = document.querySelector("#do-not-track-toggle");
             const restoreDefaults = document.querySelector("#restore-defaults");
+            const dnsUpstream = document.querySelector("#dns-upstream");
+            const dnsServer = document.querySelector("#dns-server");
+            const dnsPort = document.querySelector("#dns-port");
+            const dnsType = document.querySelector("#dns-type");
+            const customDnsSettings = document.querySelector("#custom-dns-settings");
+            const dnsForciblyEnabled = document.querySelector("#dns-forcibly-enabled");
 
             // FIXME: When we support per-glyph font fallbacks, replace these SVGs with analogous code points.
             //        https://github.com/LadybirdBrowser/ladybird/issues/864
@@ -539,6 +590,8 @@
                 }
 
                 doNotTrackToggle.checked = window.settings.doNotTrack;
+
+                loadDnsSettings(window.settings.dnsSettings);
             };
 
             const containsValidURL = input => {
@@ -989,6 +1042,68 @@
                 });
             });
 
+            // DNS settings
+            const loadDnsSettings = settings => {
+                dnsUpstream.value = settings.mode;
+
+                if (settings.mode === "custom") {
+                    dnsServer.value = settings.server;
+                    dnsPort.value = settings.port;
+                    dnsType.value = settings.type;
+                    customDnsSettings.classList.remove("hidden");
+                } else {
+                    dnsServer.value = "";
+                    dnsType.value = "udp";
+                    dnsPort.value = "53";
+                    customDnsSettings.classList.add("hidden");
+                }
+
+                if (settings.forciblyEnabled) {
+                    dnsForciblyEnabled.classList.remove("hidden");
+                    dnsUpstream.setAttribute("disabled", "");
+                    dnsServer.setAttribute("disabled", "");
+                    dnsPort.setAttribute("disabled", "");
+                    dnsType.setAttribute("disabled", "");
+                } else {
+                    dnsForciblyEnabled.classList.add("hidden");
+                    dnsUpstream.removeAttribute("disabled");
+                    dnsServer.removeAttribute("disabled");
+                    dnsPort.removeAttribute("disabled");
+                    dnsType.removeAttribute("disabled");
+                }
+            };
+
+            dnsUpstream.addEventListener("change", () => {
+                if (dnsUpstream.value === "custom") {
+                    customDnsSettings.classList.remove("hidden");
+                    if (dnsServer.value !== "" && dnsPort.value !== "") {
+                        updateDnsSettings();
+                    }
+                } else {
+                    customDnsSettings.classList.add("hidden");
+                    ladybird.sendMessage("setDNSSettings", { mode: "system" });
+                }
+            });
+
+            function updateDnsSettings() {
+                if (dnsUpstream.value === "custom") {
+                    dnsPort.placeholder = dnsType.value === "tls" ? "853" : "53";
+                    if ((dnsPort.value | 0) === 0) dnsPort.value = dnsPort.placeholder;
+
+                    const settings = {
+                        mode: "custom",
+                        server: dnsServer.value,
+                        port: dnsPort.value | 0,
+                        type: dnsType.value,
+                    };
+                    ladybird.sendMessage("setDNSSettings", settings);
+                }
+            }
+
+            dnsServer.addEventListener("change", updateDnsSettings);
+            dnsPort.addEventListener("change", updateDnsSettings);
+            dnsType.addEventListener("change", updateDnsSettings);
+
             autoplaySettings.addEventListener("click", event => {
                 showSiteSettings("Autoplay", window.settings.autoplay);
                 event.stopPropagation();
@@ -1003,7 +1118,7 @@
             });
 
             // FIXME: This should be replaced once we support popover light dismissal.
-            document.querySelectorAll("dialog").forEach((dialog) =>
+            document.querySelectorAll("dialog").forEach(dialog =>
                 dialog.addEventListener("click", event => {
                     const rect = dialog.getBoundingClientRect();
 
@@ -1015,8 +1130,8 @@
                     ) {
                         dialog.close();
                     }
-                }
-            ));
+                })
+            );
 
             document.addEventListener("WebUILoaded", () => {
                 ladybird.sendMessage("loadAvailableEngines");
@@ -1033,6 +1148,8 @@
                     loadEngines(Engine.autocomplete, event.detail.data.autocomplete);
                 } else if (event.detail.name === "forciblyEnableSiteSettings") {
                     forciblyEnableSiteSettings(event.detail.data);
+                } else if (event.detail.name === "loadDNSSettings") {
+                    loadDnsSettings(event.detail.data);
                 }
             });
         </script>

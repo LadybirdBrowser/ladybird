@@ -28,6 +28,8 @@ void Regex<Parser>::run_optimization_passes()
 {
     parser_result.bytecode.flatten();
 
+    rewrite_with_useless_jumps_removed();
+
     auto blocks = split_basic_blocks(parser_result.bytecode);
     if (attempt_rewrite_entire_match_as_substring_search(blocks))
         return;
@@ -36,13 +38,209 @@ void Regex<Parser>::run_optimization_passes()
     // e.g. a*b -> (ATOMIC a*)b
     attempt_rewrite_loops_as_atomic_groups(blocks);
 
-    // FIXME: "There are a few more conditions this can be true in (e.g. within an arbitrarily nested capture group)"
-    MatchState state;
-    auto& opcode = parser_result.bytecode.get_opcode(state);
-    if (opcode.opcode_id() == OpCodeId::CheckBegin)
-        parser_result.optimization_data.only_start_of_line = true;
+    fill_optimization_data(split_basic_blocks(parser_result.bytecode));
 
     parser_result.bytecode.flatten();
+}
+
+struct StaticallyInterpretedCompares {
+    RedBlackTree<u32, u32> lhs_ranges;
+    RedBlackTree<u32, u32> lhs_negated_ranges;
+    HashTable<CharClass> lhs_char_classes;
+    HashTable<CharClass> lhs_negated_char_classes;
+
+    bool has_any_unicode_property = false;
+    HashTable<Unicode::GeneralCategory> lhs_unicode_general_categories;
+    HashTable<Unicode::Property> lhs_unicode_properties;
+    HashTable<Unicode::Script> lhs_unicode_scripts;
+    HashTable<Unicode::Script> lhs_unicode_script_extensions;
+    HashTable<Unicode::GeneralCategory> lhs_negated_unicode_general_categories;
+    HashTable<Unicode::Property> lhs_negated_unicode_properties;
+    HashTable<Unicode::Script> lhs_negated_unicode_scripts;
+    HashTable<Unicode::Script> lhs_negated_unicode_script_extensions;
+};
+
+static bool interpret_compares(Vector<CompareTypeAndValuePair> const& lhs, StaticallyInterpretedCompares& compares)
+{
+    bool inverse { false };
+    bool temporary_inverse { false };
+    bool reset_temporary_inverse { false };
+
+    auto current_lhs_inversion_state = [&]() -> bool { return temporary_inverse ^ inverse; };
+
+    auto& lhs_ranges = compares.lhs_ranges;
+    auto& lhs_negated_ranges = compares.lhs_negated_ranges;
+    auto& lhs_char_classes = compares.lhs_char_classes;
+    auto& lhs_negated_char_classes = compares.lhs_negated_char_classes;
+    auto& has_any_unicode_property = compares.has_any_unicode_property;
+    auto& lhs_unicode_general_categories = compares.lhs_unicode_general_categories;
+    auto& lhs_unicode_properties = compares.lhs_unicode_properties;
+    auto& lhs_unicode_scripts = compares.lhs_unicode_scripts;
+    auto& lhs_unicode_script_extensions = compares.lhs_unicode_script_extensions;
+    auto& lhs_negated_unicode_general_categories = compares.lhs_negated_unicode_general_categories;
+    auto& lhs_negated_unicode_properties = compares.lhs_negated_unicode_properties;
+    auto& lhs_negated_unicode_scripts = compares.lhs_negated_unicode_scripts;
+    auto& lhs_negated_unicode_script_extensions = compares.lhs_negated_unicode_script_extensions;
+
+    for (auto const& pair : lhs) {
+        if (reset_temporary_inverse) {
+            reset_temporary_inverse = false;
+            temporary_inverse = false;
+        } else {
+            reset_temporary_inverse = true;
+        }
+
+        switch (pair.type) {
+        case CharacterCompareType::Inverse:
+            inverse = !inverse;
+            break;
+        case CharacterCompareType::TemporaryInverse:
+            temporary_inverse = true;
+            reset_temporary_inverse = false;
+            break;
+        case CharacterCompareType::AnyChar:
+            // Special case: if not inverted, AnyChar is always in the range.
+            if (!current_lhs_inversion_state())
+                return false;
+            break;
+        case CharacterCompareType::Char:
+            if (!current_lhs_inversion_state())
+                lhs_ranges.insert(pair.value, pair.value);
+            else
+                lhs_negated_ranges.insert(pair.value, pair.value);
+            break;
+        case CharacterCompareType::String:
+            // FIXME: We just need to look at the last character of this string, but we only have the first character here.
+            //        Just bail out to avoid false positives.
+            return false;
+        case CharacterCompareType::CharClass:
+            if (!current_lhs_inversion_state())
+                lhs_char_classes.set(static_cast<CharClass>(pair.value));
+            else
+                lhs_negated_char_classes.set(static_cast<CharClass>(pair.value));
+            break;
+        case CharacterCompareType::CharRange: {
+            auto range = CharRange(pair.value);
+            if (!current_lhs_inversion_state())
+                lhs_ranges.insert(range.from, range.to);
+            else
+                lhs_negated_ranges.insert(range.from, range.to);
+            break;
+        }
+        case CharacterCompareType::LookupTable:
+            // We've transformed this into a series of ranges in flat_compares(), so bail out if we see it.
+            return false;
+        case CharacterCompareType::Reference:
+            // We've handled this before coming here.
+            break;
+        case CharacterCompareType::Property:
+            has_any_unicode_property = true;
+            if (!current_lhs_inversion_state())
+                lhs_unicode_properties.set(static_cast<Unicode::Property>(pair.value));
+            else
+                lhs_negated_unicode_properties.set(static_cast<Unicode::Property>(pair.value));
+            break;
+        case CharacterCompareType::GeneralCategory:
+            has_any_unicode_property = true;
+            if (!current_lhs_inversion_state())
+                lhs_unicode_general_categories.set(static_cast<Unicode::GeneralCategory>(pair.value));
+            else
+                lhs_negated_unicode_general_categories.set(static_cast<Unicode::GeneralCategory>(pair.value));
+            break;
+        case CharacterCompareType::Script:
+            has_any_unicode_property = true;
+            if (!current_lhs_inversion_state())
+                lhs_unicode_scripts.set(static_cast<Unicode::Script>(pair.value));
+            else
+                lhs_negated_unicode_scripts.set(static_cast<Unicode::Script>(pair.value));
+            break;
+        case CharacterCompareType::ScriptExtension:
+            has_any_unicode_property = true;
+            if (!current_lhs_inversion_state())
+                lhs_unicode_script_extensions.set(static_cast<Unicode::Script>(pair.value));
+            else
+                lhs_negated_unicode_script_extensions.set(static_cast<Unicode::Script>(pair.value));
+            break;
+        case CharacterCompareType::Or:
+        case CharacterCompareType::EndAndOr:
+            // These are the default behaviour for [...], so we don't need to do anything (unless we add support for 'And' below).
+            break;
+        case CharacterCompareType::And:
+            // FIXME: These are too difficult to handle, so bail out.
+            return false;
+        case CharacterCompareType::Undefined:
+        case CharacterCompareType::RangeExpressionDummy:
+            // These do not occur in valid bytecode.
+            VERIFY_NOT_REACHED();
+        }
+    }
+
+    return true;
+}
+
+template<class Parser>
+void Regex<Parser>::fill_optimization_data(BasicBlockList const& blocks)
+{
+    if (blocks.is_empty())
+        return;
+
+    if constexpr (REGEX_DEBUG) {
+        dbgln("Pulling out optimization data from bytecode:");
+        RegexDebug dbg;
+        dbg.print_bytecode(*this);
+        for (auto const& block : blocks)
+            dbgln("block from {} to {} (comment: {})", block.start, block.end, block.comment);
+    }
+
+    ScopeGuard print = [&] {
+        if constexpr (REGEX_DEBUG) {
+            dbgln("Optimization data:");
+            if (parser_result.optimization_data.starting_ranges.is_empty())
+                dbgln("; - no starting ranges");
+            for (auto const& range : parser_result.optimization_data.starting_ranges)
+                dbgln("  - starting range: {}-{}", range.from, range.to);
+            dbgln("; - only start of line: {}", parser_result.optimization_data.only_start_of_line);
+        }
+    };
+
+    auto& bytecode = parser_result.bytecode;
+
+    auto state = MatchState::only_for_enumeration();
+    auto block = blocks.first();
+    for (state.instruction_position = block.start; state.instruction_position < block.end;) {
+        auto& opcode = bytecode.get_opcode(state);
+        switch (opcode.opcode_id()) {
+        case OpCodeId::Compare: {
+            auto flat_compares = static_cast<OpCode_Compare const&>(opcode).flat_compares();
+            StaticallyInterpretedCompares compares;
+            if (!interpret_compares(flat_compares, compares))
+                return; // No idea, the bytecode is too complex.
+
+            if (compares.has_any_unicode_property)
+                return; // Faster to just run the bytecode.
+
+            // FIXME: We should be able to handle these cases (jump ahead while...)
+            if (!compares.lhs_char_classes.is_empty() || !compares.lhs_negated_char_classes.is_empty() || !compares.lhs_negated_ranges.is_empty())
+                return;
+
+            for (auto it = compares.lhs_ranges.begin(); it != compares.lhs_ranges.end(); ++it)
+                parser_result.optimization_data.starting_ranges.append({ it.key(), *it });
+            return;
+        }
+        case OpCodeId::CheckBegin:
+            parser_result.optimization_data.only_start_of_line = true;
+            return;
+        case OpCodeId::Checkpoint:
+        case OpCodeId::Save:
+        case OpCodeId::ClearCaptureGroup:
+        case OpCodeId::SaveLeftCaptureGroup:
+            // These do not 'match' anything, so look through them.
+            state.instruction_position += opcode.size();
+            continue;
+        default:
+            return;
+        }
+    }
 }
 
 template<typename Parser>
@@ -53,7 +251,7 @@ typename Regex<Parser>::BasicBlockList Regex<Parser>::split_basic_blocks(ByteCod
 
     auto bytecode_size = bytecode.size();
 
-    MatchState state;
+    auto state = MatchState::only_for_enumeration();
     state.instruction_position = 0;
     auto check_jump = [&]<typename T>(OpCode const& opcode) {
         auto& op = static_cast<T const&>(opcode);
@@ -126,7 +324,6 @@ typename Regex<Parser>::BasicBlockList Regex<Parser>::split_basic_blocks(ByteCod
 
 static bool has_overlap(Vector<CompareTypeAndValuePair> const& lhs, Vector<CompareTypeAndValuePair> const& rhs)
 {
-
     // We have to fully interpret the two sequences to determine if they overlap (that is, keep track of inversion state and what ranges they cover).
     bool inverse { false };
     bool temporary_inverse { false };
@@ -134,20 +331,20 @@ static bool has_overlap(Vector<CompareTypeAndValuePair> const& lhs, Vector<Compa
 
     auto current_lhs_inversion_state = [&]() -> bool { return temporary_inverse ^ inverse; };
 
-    RedBlackTree<u32, u32> lhs_ranges;
-    RedBlackTree<u32, u32> lhs_negated_ranges;
-    HashTable<CharClass> lhs_char_classes;
-    HashTable<CharClass> lhs_negated_char_classes;
-
-    auto has_any_unicode_property = false;
-    HashTable<Unicode::GeneralCategory> lhs_unicode_general_categories;
-    HashTable<Unicode::Property> lhs_unicode_properties;
-    HashTable<Unicode::Script> lhs_unicode_scripts;
-    HashTable<Unicode::Script> lhs_unicode_script_extensions;
-    HashTable<Unicode::GeneralCategory> lhs_negated_unicode_general_categories;
-    HashTable<Unicode::Property> lhs_negated_unicode_properties;
-    HashTable<Unicode::Script> lhs_negated_unicode_scripts;
-    HashTable<Unicode::Script> lhs_negated_unicode_script_extensions;
+    StaticallyInterpretedCompares compares;
+    auto& lhs_ranges = compares.lhs_ranges;
+    auto& lhs_negated_ranges = compares.lhs_negated_ranges;
+    auto& lhs_char_classes = compares.lhs_char_classes;
+    auto& lhs_negated_char_classes = compares.lhs_negated_char_classes;
+    auto& has_any_unicode_property = compares.has_any_unicode_property;
+    auto& lhs_unicode_general_categories = compares.lhs_unicode_general_categories;
+    auto& lhs_unicode_properties = compares.lhs_unicode_properties;
+    auto& lhs_unicode_scripts = compares.lhs_unicode_scripts;
+    auto& lhs_unicode_script_extensions = compares.lhs_unicode_script_extensions;
+    auto& lhs_negated_unicode_general_categories = compares.lhs_negated_unicode_general_categories;
+    auto& lhs_negated_unicode_properties = compares.lhs_negated_unicode_properties;
+    auto& lhs_negated_unicode_scripts = compares.lhs_negated_unicode_scripts;
+    auto& lhs_negated_unicode_script_extensions = compares.lhs_negated_unicode_script_extensions;
 
     auto any_unicode_property_matches = [&](u32 code_point) {
         if (any_of(lhs_negated_unicode_general_categories, [code_point](auto category) { return Unicode::code_point_has_general_category(code_point, category); }))
@@ -214,98 +411,8 @@ static bool has_overlap(Vector<CompareTypeAndValuePair> const& lhs, Vector<Compa
         return false;
     };
 
-    for (auto const& pair : lhs) {
-        if (reset_temporary_inverse) {
-            reset_temporary_inverse = false;
-            temporary_inverse = false;
-        } else {
-            reset_temporary_inverse = true;
-        }
-
-        switch (pair.type) {
-        case CharacterCompareType::Inverse:
-            inverse = !inverse;
-            break;
-        case CharacterCompareType::TemporaryInverse:
-            temporary_inverse = true;
-            reset_temporary_inverse = false;
-            break;
-        case CharacterCompareType::AnyChar:
-            // Special case: if not inverted, AnyChar is always in the range.
-            if (!current_lhs_inversion_state())
-                return true;
-            break;
-        case CharacterCompareType::Char:
-            if (!current_lhs_inversion_state())
-                lhs_ranges.insert(pair.value, pair.value);
-            else
-                lhs_negated_ranges.insert(pair.value, pair.value);
-            break;
-        case CharacterCompareType::String:
-            // FIXME: We just need to look at the last character of this string, but we only have the first character here.
-            //        Just bail out to avoid false positives.
-            return true;
-        case CharacterCompareType::CharClass:
-            if (!current_lhs_inversion_state())
-                lhs_char_classes.set(static_cast<CharClass>(pair.value));
-            else
-                lhs_negated_char_classes.set(static_cast<CharClass>(pair.value));
-            break;
-        case CharacterCompareType::CharRange: {
-            auto range = CharRange(pair.value);
-            if (!current_lhs_inversion_state())
-                lhs_ranges.insert(range.from, range.to);
-            else
-                lhs_negated_ranges.insert(range.from, range.to);
-            break;
-        }
-        case CharacterCompareType::LookupTable:
-            // We've transformed this into a series of ranges in flat_compares(), so bail out if we see it.
-            return true;
-        case CharacterCompareType::Reference:
-            // We've handled this before coming here.
-            break;
-        case CharacterCompareType::Property:
-            has_any_unicode_property = true;
-            if (!current_lhs_inversion_state())
-                lhs_unicode_properties.set(static_cast<Unicode::Property>(pair.value));
-            else
-                lhs_negated_unicode_properties.set(static_cast<Unicode::Property>(pair.value));
-            break;
-        case CharacterCompareType::GeneralCategory:
-            has_any_unicode_property = true;
-            if (!current_lhs_inversion_state())
-                lhs_unicode_general_categories.set(static_cast<Unicode::GeneralCategory>(pair.value));
-            else
-                lhs_negated_unicode_general_categories.set(static_cast<Unicode::GeneralCategory>(pair.value));
-            break;
-        case CharacterCompareType::Script:
-            has_any_unicode_property = true;
-            if (!current_lhs_inversion_state())
-                lhs_unicode_scripts.set(static_cast<Unicode::Script>(pair.value));
-            else
-                lhs_negated_unicode_scripts.set(static_cast<Unicode::Script>(pair.value));
-            break;
-        case CharacterCompareType::ScriptExtension:
-            has_any_unicode_property = true;
-            if (!current_lhs_inversion_state())
-                lhs_unicode_script_extensions.set(static_cast<Unicode::Script>(pair.value));
-            else
-                lhs_negated_unicode_script_extensions.set(static_cast<Unicode::Script>(pair.value));
-            break;
-        case CharacterCompareType::Or:
-        case CharacterCompareType::EndAndOr:
-            // These are the default behaviour for [...], so we don't need to do anything (unless we add support for 'And' below).
-            break;
-        case CharacterCompareType::And:
-            // FIXME: These are too difficult to handle, so bail out.
-            return true;
-        case CharacterCompareType::Undefined:
-        case CharacterCompareType::RangeExpressionDummy:
-            // These do not occur in valid bytecode.
-            VERIFY_NOT_REACHED();
-        }
-    }
+    if (!interpret_compares(lhs, compares))
+        return true; // We can't interpret this, so we can't optimize it.
 
     if constexpr (REGEX_DEBUG) {
         dbgln("lhs ranges:");
@@ -512,7 +619,7 @@ enum class AtomicRewritePreconditionResult {
 static AtomicRewritePreconditionResult block_satisfies_atomic_rewrite_precondition(ByteCode const& bytecode, Block repeated_block, Block following_block, auto const& all_blocks)
 {
     Vector<Vector<CompareTypeAndValuePair>> repeated_values;
-    MatchState state;
+    auto state = MatchState::only_for_enumeration();
     auto has_seen_actionable_opcode = false;
     for (state.instruction_position = repeated_block.start; state.instruction_position < repeated_block.end;) {
         auto& opcode = bytecode.get_opcode(state);
@@ -680,7 +787,7 @@ bool Regex<Parser>::attempt_rewrite_entire_match_as_substring_search(BasicBlockL
 
     // We have a single basic block, let's see if it's a series of character or string compares.
     StringBuilder final_string;
-    MatchState state;
+    auto state = MatchState::only_for_enumeration();
     while (state.instruction_position < bytecode.size()) {
         auto& opcode = bytecode.get_opcode(state);
         switch (opcode.opcode_id()) {
@@ -705,6 +812,122 @@ bool Regex<Parser>::attempt_rewrite_entire_match_as_substring_search(BasicBlockL
 
     parser_result.optimization_data.pure_substring_search = final_string.to_byte_string();
     return true;
+}
+
+template<class Parser>
+void Regex<Parser>::rewrite_with_useless_jumps_removed()
+{
+    auto& bytecode = parser_result.bytecode;
+    auto flat = bytecode.flat_data();
+
+    if constexpr (REGEX_DEBUG) {
+        RegexDebug dbg;
+        dbg.print_bytecode(*this);
+    }
+
+    struct Instr {
+        size_t old_ip;
+        size_t size;
+        OpCodeId id;
+        bool is_useless;
+    };
+    Vector<Instr> infos;
+    infos.ensure_capacity(flat.size() / 2);
+
+    MatchState state = MatchState::only_for_enumeration();
+    for (size_t old_ip = 0; old_ip < flat.size();) {
+        state.instruction_position = old_ip;
+        auto& op = bytecode.get_opcode(state);
+        auto sz = op.size();
+
+        bool is_useless = false;
+        if (op.opcode_id() == OpCodeId::Jump) {
+            auto const& j = static_cast<OpCode_Jump const&>(op);
+            if (j.offset() == 0)
+                is_useless = true;
+        } else if (op.opcode_id() == OpCodeId::JumpNonEmpty) {
+            auto const& j = static_cast<OpCode_JumpNonEmpty const&>(op);
+            if (j.offset() == 0)
+                is_useless = true;
+        } else if (op.opcode_id() == OpCodeId::ForkJump || op.opcode_id() == OpCodeId::ForkReplaceJump) {
+            auto const& j = static_cast<OpCode_ForkJump const&>(op);
+            if (j.offset() == 0)
+                is_useless = true;
+        } else if (op.opcode_id() == OpCodeId::ForkStay || op.opcode_id() == OpCodeId::ForkReplaceStay) {
+            auto const& j = static_cast<OpCode_ForkStay const&>(op);
+            if (j.offset() == 0)
+                is_useless = true;
+        }
+
+        infos.append({ old_ip, sz, op.opcode_id(), is_useless });
+        old_ip += sz;
+    }
+
+    HashMap<size_t, size_t> new_ip;
+    new_ip.ensure_capacity(infos.size() + 1);
+    size_t cur = 0;
+    size_t skipped = 0;
+    for (auto& i : infos) {
+        new_ip.set(i.old_ip, cur);
+        if (!i.is_useless)
+            cur += i.size;
+        else
+            skipped++;
+    }
+
+    new_ip.set(bytecode.size(), cur);
+    if constexpr (REGEX_DEBUG) {
+        for (auto& i : infos)
+            dbgln("old_ip: {}, new_ip: {}, size: {}, is_useless: {}", i.old_ip, *new_ip.get(i.old_ip), i.size, i.is_useless);
+        dbgln("Saving {} bytes (of {})", bytecode.size() - cur, bytecode.size());
+        dbgln("...and {} instructions", skipped);
+    }
+
+    ByteCode out;
+    out.ensure_capacity(cur);
+    out.merge_string_tables_from({ &bytecode, 1 });
+
+    for (auto& i : infos) {
+        if (i.is_useless)
+            continue;
+
+        auto slice = Vector<ByteCodeValueType> { flat.slice(i.old_ip, i.size) };
+        auto adjust = [&](size_t idx, bool is_repeat) {
+            // original target in the old stream
+            auto old_off = slice[idx];
+            auto target_old = is_repeat ? i.old_ip - old_off : i.old_ip + i.size + old_off;
+            if (!new_ip.contains(target_old)) {
+                dbgln("Target {} not found in new_ip (in {})", target_old, i.old_ip);
+                RegexDebug dbg;
+                dbg.print_bytecode(*this);
+            }
+            size_t tgt_new = *new_ip.get(target_old);
+            size_t src_new = *new_ip.get(i.old_ip);
+            auto new_off = is_repeat ? src_new - tgt_new : tgt_new - src_new - i.size;
+            slice[idx] = static_cast<ByteCodeValueType>(new_off);
+        };
+
+        switch (i.id) {
+        case OpCodeId::Jump:
+        case OpCodeId::ForkJump:
+        case OpCodeId::ForkStay:
+        case OpCodeId::ForkReplaceJump:
+        case OpCodeId::ForkReplaceStay:
+        case OpCodeId::JumpNonEmpty:
+            adjust(1, false);
+            break;
+        case OpCodeId::Repeat:
+            adjust(1, true);
+            break;
+        default:
+            break;
+        }
+
+        out.append(move(slice));
+    }
+
+    out.flatten();
+    parser_result.bytecode = move(out);
 }
 
 template<typename Parser>
@@ -796,7 +1019,7 @@ void Regex<Parser>::attempt_rewrite_loops_as_atomic_groups(BasicBlockList const&
         Optional<Block> fork_fallback_block;
         if (i + 1 < basic_blocks.size())
             fork_fallback_block = basic_blocks[i + 1];
-        MatchState state;
+        auto state = MatchState::only_for_enumeration();
         // Check if the last instruction in this block is a jump to the block itself:
         {
             state.instruction_position = forking_block.end;
@@ -913,7 +1136,7 @@ void Regex<Parser>::attempt_rewrite_loops_as_atomic_groups(BasicBlockList const&
     }
 
     if (!needed_patches.is_empty()) {
-        MatchState state;
+        auto state = MatchState::only_for_enumeration();
         auto bytecode_size = bytecode.size();
         state.instruction_position = 0;
         struct Patch {
@@ -1039,7 +1262,7 @@ void Optimizer::append_alternation(ByteCode& target, Span<ByteCode> alternatives
 
     auto has_any_backwards_jump = false;
 
-    MatchState state;
+    auto state = MatchState::only_for_enumeration();
 
     for (size_t i = 0; i < alternatives.size(); ++i) {
         auto& alternative = alternatives[i];
@@ -1144,7 +1367,7 @@ void Optimizer::append_alternation(ByteCode& target, Span<ByteCode> alternatives
                     node.metadata_value().size(),
                     node.metadata_value().size() == 1 ? "" : "s");
 
-                MatchState state;
+                auto state = MatchState::only_for_enumeration();
                 state.instruction_position = node.metadata_value().first().instruction_position;
                 auto& opcode = alternatives[node.metadata_value().first().alternative_index].get_opcode(state);
                 insn = ByteString::formatted("{} {}", opcode.to_byte_string(), opcode.arguments_string());
@@ -1159,7 +1382,7 @@ void Optimizer::append_alternation(ByteCode& target, Span<ByteCode> alternatives
 
     // This is really only worth it if we don't blow up the size by the 2-extra-instruction-per-node scheme, similarly, if no nodes are shared, we're better off not using a tree.
     auto tree_cost = (total_nodes - common_hits) * 2;
-    auto chain_cost = total_nodes + alternatives.size() * 2;
+    auto chain_cost = total_bytecode_entries_in_tree + alternatives.size() * 2;
     dbgln_if(REGEX_DEBUG, "Total nodes: {}, common hits: {} (tree cost = {}, chain cost = {})", total_nodes, common_hits, tree_cost, chain_cost);
 
     if (common_hits == 0 || tree_cost > chain_cost) {
@@ -1240,16 +1463,6 @@ void Optimizer::append_alternation(ByteCode& target, Span<ByteCode> alternatives
         Vector<Patch> patch_locations;
         patch_locations.ensure_capacity(total_nodes);
 
-        auto add_patch_point = [&](Tree const* node, size_t target_ip) {
-            if (!node->has_metadata())
-                return;
-            auto& node_ip = node->metadata_value().first();
-            patch_locations.append({ node_ip, target_ip });
-        };
-
-        Vector<Tree*> nodes_to_visit;
-        nodes_to_visit.append(&trie);
-
         HashMap<size_t, NonnullOwnPtr<RedBlackTree<u64, u64>>> instruction_positions;
         if (has_any_backwards_jump)
             MUST(instruction_positions.try_ensure_capacity(alternatives.size()));
@@ -1259,6 +1472,16 @@ void Optimizer::append_alternation(ByteCode& target, Span<ByteCode> alternatives
                 return make<RedBlackTree<u64, u64>>();
             });
         };
+
+        auto add_patch_point = [&](Tree const* node, size_t target_ip) {
+            if (!node->has_metadata())
+                return;
+
+            patch_locations.append({ node->metadata_value().first(), target_ip });
+        };
+
+        Vector<Tree*> nodes_to_visit;
+        nodes_to_visit.append(&trie);
 
         // each node:
         //   node.re
@@ -1326,33 +1549,47 @@ void Optimizer::append_alternation(ByteCode& target, Span<ByteCode> alternatives
 
                 if (is_jump) {
                     VERIFY(node->has_metadata());
-                    QualifiedIP ip = node->metadata_value().first();
-                    auto intended_jump_ip = ip.instruction_position + jump_offset + opcode.size();
-                    if (jump_offset < 0) {
-                        VERIFY(has_any_backwards_jump);
-                        // We should've already seen this instruction, so we can just patch it in.
-                        auto& ip_mapping = ip_mapping_for_alternative(ip.alternative_index);
-                        auto target_ip = ip_mapping.find(intended_jump_ip);
-                        if (!target_ip) {
-                            RegexDebug dbg;
-                            size_t x = 0;
-                            for (auto& entry : alternatives) {
-                                warnln("----------- {} ----------", x++);
-                                dbg.print_bytecode(entry);
-                            }
+                    if (node->metadata_value().size() > 1)
+                        target[patch_location] = static_cast<ByteCodeValueType>(0); // Fall through instead.
 
-                            dbgln("Regex Tree / Unknown backwards jump: {}@{} -> {}",
-                                ip.instruction_position,
-                                ip.alternative_index,
-                                intended_jump_ip);
-                            VERIFY_NOT_REACHED();
+                    auto only_one = node->metadata_value().size() == 1;
+                    auto patch_size = opcode.size() - 1;
+                    for (auto [alternative_index, instruction_position] : node->metadata_value()) {
+                        if (!only_one) {
+                            target.append(static_cast<ByteCodeValueType>(OpCodeId::ForkJump));
+                            patch_location = target.size();
+                            should_negate = false;
+                            patch_size = 2;
+                            target.append(static_cast<ByteCodeValueType>(0));
                         }
-                        ssize_t target_value = *target_ip - patch_location - 1;
-                        if (should_negate)
-                            target_value = -target_value + 2; // from -1 to +1.
-                        target[patch_location] = static_cast<ByteCodeValueType>(target_value);
-                    } else {
-                        patch_locations.append({ QualifiedIP { ip.alternative_index, intended_jump_ip }, patch_location });
+
+                        auto intended_jump_ip = instruction_position + jump_offset + opcode.size();
+                        if (jump_offset < 0) {
+                            VERIFY(has_any_backwards_jump);
+                            // We should've already seen this instruction, so we can just patch it in.
+                            auto& ip_mapping = ip_mapping_for_alternative(alternative_index);
+                            auto target_ip = ip_mapping.find(intended_jump_ip);
+                            if (!target_ip) {
+                                RegexDebug dbg;
+                                size_t x = 0;
+                                for (auto& entry : alternatives) {
+                                    warnln("----------- {} ----------", x++);
+                                    dbg.print_bytecode(entry);
+                                }
+
+                                dbgln("Regex Tree / Unknown backwards jump: {}@{} -> {}",
+                                    instruction_position,
+                                    alternative_index,
+                                    intended_jump_ip);
+                                VERIFY_NOT_REACHED();
+                            }
+                            ssize_t target_value = *target_ip - patch_location - patch_size;
+                            if (should_negate)
+                                target_value = -target_value + 2; // from -1 to +1.
+                            target[patch_location] = static_cast<ByteCodeValueType>(target_value);
+                        } else {
+                            patch_locations.append({ QualifiedIP { alternative_index, intended_jump_ip }, patch_location });
+                        }
                     }
                 }
             }

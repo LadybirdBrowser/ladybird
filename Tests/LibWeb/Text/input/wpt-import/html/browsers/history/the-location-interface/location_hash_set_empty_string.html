@@ -1,0 +1,17 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Set window.location.hash to an empty string</title>
+<link rel="author" href="mailto:cristianb@gmail.com">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/#dom-location-hash">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script>
+const orig_location = window.location.href;
+
+window.location.hash = '';
+
+test(() => {
+    assert_true(window.location.hash === '');
+    assert_true(window.location.href === orig_location);
+}, 'window.location.hash is an empty string');
+</script>

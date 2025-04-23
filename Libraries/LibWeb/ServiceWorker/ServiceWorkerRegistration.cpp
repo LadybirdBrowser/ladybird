@@ -22,8 +22,8 @@ ServiceWorkerRegistration::ServiceWorkerRegistration(JS::Realm& realm, Registrat
 
 void ServiceWorkerRegistration::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(ServiceWorkerRegistration);
+    Base::initialize(realm);
 }
 
 void ServiceWorkerRegistration::visit_edges(Cell::Visitor& visitor)

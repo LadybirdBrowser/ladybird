@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2021-2025, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -173,7 +173,7 @@ private:
 
     void determine_available_space_for_items(AvailableSpace const&);
 
-    void determine_flex_base_size_and_hypothetical_main_size(FlexItem&);
+    void determine_flex_base_size(FlexItem&);
 
     void collect_flex_items_into_flex_lines();
 

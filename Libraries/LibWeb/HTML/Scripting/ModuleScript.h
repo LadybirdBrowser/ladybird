@@ -20,6 +20,9 @@ public:
 
 protected:
     ModuleScript(URL::URL base_url, ByteString filename, JS::Realm&);
+
+private:
+    virtual bool is_module_script() const final { return true; }
 };
 
 class JavaScriptModuleScript final : public ModuleScript {
@@ -45,6 +48,7 @@ protected:
     JavaScriptModuleScript(URL::URL base_url, ByteString filename, JS::Realm&);
 
 private:
+    virtual bool is_javascript_module_script() const final { return true; }
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
     GC::Ptr<JS::SourceTextModule> m_record;
@@ -56,3 +60,9 @@ private:
 };
 
 }
+
+template<>
+inline bool JS::Script::HostDefined::fast_is<Web::HTML::ModuleScript>() const { return is_module_script(); }
+
+template<>
+inline bool JS::Script::HostDefined::fast_is<Web::HTML::JavaScriptModuleScript>() const { return is_javascript_module_script(); }

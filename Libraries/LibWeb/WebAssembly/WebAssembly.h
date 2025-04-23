@@ -77,7 +77,7 @@ public:
     Wasm::FunctionAddress exported_address() const { return m_exported_address; }
 
 protected:
-    ExportedWasmFunction(FlyString name, GC::Ptr<GC::Function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)>>, Wasm::FunctionAddress, Object& prototype);
+    ExportedWasmFunction(FlyString name, AK::Function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)>, Wasm::FunctionAddress, Object& prototype);
 
 private:
     Wasm::FunctionAddress m_exported_address;

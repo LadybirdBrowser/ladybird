@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2023, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2018-2025, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -44,6 +44,10 @@ public:
 
     DOM::Element const* pseudo_element_generator() const;
     DOM::Element* pseudo_element_generator();
+
+    bool needs_layout_update() const { return m_needs_layout_update; }
+    void set_needs_layout_update(DOM::SetNeedsLayoutReason);
+    void reset_needs_layout_update() { m_needs_layout_update = false; }
 
     bool is_generated() const { return m_generated_for.has_value(); }
     bool is_generated_for_before_pseudo_element() const { return m_generated_for == CSS::GeneratedPseudoElement::Before; }
@@ -101,6 +105,7 @@ public:
     virtual bool is_svg_geometry_box() const { return false; }
     virtual bool is_svg_mask_box() const { return false; }
     virtual bool is_svg_svg_box() const { return false; }
+    virtual bool is_svg_graphics_box() const { return false; }
     virtual bool is_label() const { return false; }
     virtual bool is_replaced_box() const { return false; }
     virtual bool is_list_item_box() const { return false; }
@@ -108,6 +113,7 @@ public:
     virtual bool is_fieldset_box() const { return false; }
     virtual bool is_legend_box() const { return false; }
     virtual bool is_table_wrapper() const { return false; }
+    virtual bool is_node_with_style() const { return false; }
     virtual bool is_node_with_style_and_box_model_metrics() const { return false; }
 
     template<typename T>
@@ -125,8 +131,10 @@ public:
     bool is_grid_item() const { return m_is_grid_item; }
     void set_grid_item(bool b) { m_is_grid_item = b; }
 
-    Box const* containing_block() const;
-    Box* containing_block() { return const_cast<Box*>(const_cast<Node const*>(this)->containing_block()); }
+    [[nodiscard]] GC::Ptr<Box const> containing_block() const { return m_containing_block; }
+    [[nodiscard]] GC::Ptr<Box> containing_block() { return m_containing_block; }
+
+    void recompute_containing_block(Badge<DOM::Document>);
 
     [[nodiscard]] Box const* static_position_containing_block() const;
     [[nodiscard]] Box* static_position_containing_block() { return const_cast<Box*>(const_cast<Node const*>(this)->static_position_containing_block()); }
@@ -142,8 +150,8 @@ public:
     bool can_contain_boxes_with_position_absolute() const;
 
     Gfx::Font const& first_available_font() const;
-    Gfx::Font const& scaled_font(PaintContext&) const;
-    Gfx::Font const& scaled_font(float scale_factor) const;
+    Gfx::Font const& font(PaintContext&) const;
+    Gfx::Font const& font(float scale_factor) const;
 
     CSS::ImmutableComputedValues const& computed_values() const;
 
@@ -198,6 +206,8 @@ private:
     GC::Ref<DOM::Node> m_dom_node;
     PaintableList m_paintable;
 
+    GC::Ptr<Box> m_containing_block;
+
     GC::Ptr<DOM::Element> m_pseudo_element_generator;
 
     bool m_anonymous { false };
@@ -208,6 +218,8 @@ private:
     bool m_is_grid_item { false };
 
     bool m_has_been_wrapped_in_table_wrapper { false };
+
+    bool m_needs_layout_update { false };
 
     Optional<CSS::GeneratedPseudoElement> m_generated_for {};
 
@@ -245,12 +257,17 @@ protected:
     NodeWithStyle(DOM::Document&, DOM::Node*, NonnullOwnPtr<CSS::ComputedValues>);
 
 private:
+    virtual bool is_node_with_style() const final { return true; }
+
     void reset_table_box_computed_values_used_by_wrapper_to_init_values();
     void propagate_style_to_anonymous_wrappers();
 
     NonnullOwnPtr<CSS::ComputedValues> m_computed_values;
     RefPtr<CSS::AbstractImageStyleValue const> m_list_style_image;
 };
+
+template<>
+inline bool Node::fast_is<NodeWithStyle>() const { return is_node_with_style(); }
 
 class NodeWithStyleAndBoxModelMetrics : public NodeWithStyle {
     GC_CELL(NodeWithStyleAndBoxModelMetrics, NodeWithStyle);
@@ -298,12 +315,12 @@ inline Gfx::Font const& Node::first_available_font() const
     return parent()->first_available_font();
 }
 
-inline Gfx::Font const& Node::scaled_font(PaintContext& context) const
+inline Gfx::Font const& Node::font(PaintContext& context) const
 {
-    return scaled_font(context.device_pixels_per_css_pixel());
+    return font(context.device_pixels_per_css_pixel());
 }
 
-inline Gfx::Font const& Node::scaled_font(float scale_factor) const
+inline Gfx::Font const& Node::font(float scale_factor) const
 {
     auto const& font = first_available_font();
     return font.with_size(font.point_size() * scale_factor);

@@ -40,8 +40,8 @@ XMLSerializer::~XMLSerializer() = default;
 
 void XMLSerializer::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(XMLSerializer);
+    Base::initialize(realm);
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-xmlserializer-serializetostring

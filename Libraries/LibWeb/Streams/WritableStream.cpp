@@ -12,6 +12,7 @@
 #include <LibWeb/Streams/WritableStream.h>
 #include <LibWeb/Streams/WritableStreamDefaultController.h>
 #include <LibWeb/Streams/WritableStreamDefaultWriter.h>
+#include <LibWeb/Streams/WritableStreamOperations.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::Streams {
@@ -45,7 +46,7 @@ WebIDL::ExceptionOr<GC::Ref<WritableStream>> WritableStream::construct_impl(JS::
     auto high_water_mark = TRY(extract_high_water_mark(strategy, 1));
 
     // 7. Perform ? SetUpWritableStreamDefaultControllerFromUnderlyingSink(this, underlyingSink, underlyingSinkDict, highWaterMark, sizeAlgorithm).
-    TRY(set_up_writable_stream_default_controller_from_underlying_sink(*writable_stream, underlying_sink, underlying_sink_dict, high_water_mark, move(size_algorithm)));
+    TRY(set_up_writable_stream_default_controller_from_underlying_sink(*writable_stream, underlying_sink, underlying_sink_dict, high_water_mark, size_algorithm));
 
     return writable_stream;
 }
@@ -107,8 +108,8 @@ WritableStream::WritableStream(JS::Realm& realm)
 
 void WritableStream::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(WritableStream);
+    Base::initialize(realm);
 }
 
 void WritableStream::visit_edges(Cell::Visitor& visitor)

@@ -1378,19 +1378,17 @@ void TryStatement::dump(int indent) const
 void CatchClause::dump(int indent) const
 {
     print_indent(indent);
+    outln("CatchClause");
     m_parameter.visit(
-        [&](FlyString const& parameter) {
-            if (parameter.is_empty())
-                outln("CatchClause");
-            else
-                outln("CatchClause ({})", parameter);
+        [&](NonnullRefPtr<Identifier const> const& parameter) {
+            parameter->dump(indent + 1);
         },
         [&](NonnullRefPtr<BindingPattern const> const& pattern) {
-            outln("CatchClause");
             print_indent(indent);
             outln("(Parameter)");
             pattern->dump(indent + 2);
-        });
+        },
+        [&](Empty) {});
 
     body().dump(indent + 1);
 }

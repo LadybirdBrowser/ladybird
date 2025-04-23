@@ -24,8 +24,8 @@ HTMLOListElement::~HTMLOListElement() = default;
 
 void HTMLOListElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLOListElement);
+    Base::initialize(realm);
 }
 
 // https://html.spec.whatwg.org/multipage/grouping-content.html#dom-ol-start

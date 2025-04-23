@@ -37,8 +37,8 @@ void HTMLBodyElement::visit_edges(Visitor& visitor)
 
 void HTMLBodyElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLBodyElement);
+    Base::initialize(realm);
 }
 
 bool HTMLBodyElement::is_presentational_hint(FlyString const& name) const

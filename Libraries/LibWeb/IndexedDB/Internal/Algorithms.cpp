@@ -4,18 +4,26 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Math.h>
 #include <AK/QuickSort.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
+#include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/DataView.h>
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/DOM/EventDispatcher.h>
+#include <LibWeb/FileAPI/Blob.h>
+#include <LibWeb/FileAPI/File.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
+#include <LibWeb/HTML/StructuredSerialize.h>
+#include <LibWeb/IndexedDB/IDBCursor.h>
 #include <LibWeb/IndexedDB/IDBDatabase.h>
+#include <LibWeb/IndexedDB/IDBIndex.h>
+#include <LibWeb/IndexedDB/IDBObjectStore.h>
 #include <LibWeb/IndexedDB/IDBRequest.h>
 #include <LibWeb/IndexedDB/IDBTransaction.h>
 #include <LibWeb/IndexedDB/IDBVersionChangeEvent.h>
@@ -29,6 +37,12 @@
 #include <LibWeb/WebIDL/Buffers.h>
 
 namespace Web::IndexedDB {
+
+#if defined(AK_COMPILER_CLANG)
+#    define MAX_KEY_GENERATOR_VALUE AK::exp2(53.)
+#else
+constexpr double const MAX_KEY_GENERATOR_VALUE { __builtin_exp2(53) };
+#endif
 
 // https://w3c.github.io/IndexedDB/#open-a-database-connection
 WebIDL::ExceptionOr<GC::Ref<IDBDatabase>> open_a_database_connection(JS::Realm& realm, StorageAPI::StorageKey storage_key, String name, Optional<u64> maybe_version, GC::Ref<IDBRequest> request)
@@ -193,7 +207,7 @@ bool fire_a_version_change_event(JS::Realm& realm, FlyString const& event_name, 
 }
 
 // https://w3c.github.io/IndexedDB/#convert-value-to-key
-ErrorOr<GC::Ref<Key>> convert_a_value_to_a_key(JS::Realm& realm, JS::Value input, Vector<JS::Value> seen)
+WebIDL::ExceptionOr<ErrorOr<GC::Ref<Key>>> convert_a_value_to_a_key(JS::Realm& realm, JS::Value input, Vector<JS::Value> seen)
 {
     // 1. If seen was not given, then let seen be a new empty set.
     // NOTE: This is handled by the caller.
@@ -255,11 +269,7 @@ ErrorOr<GC::Ref<Key>> convert_a_value_to_a_key(JS::Realm& realm, JS::Value input
     if (input.is_object() && is<JS::Array>(input.as_object())) {
 
         // 1. Let len be ? ToLength( ? Get(input, "length")).
-        auto maybe_length = length_of_array_like(realm.vm(), input.as_object());
-        if (maybe_length.is_error())
-            return Error::from_string_literal("Failed to get length of array-like object");
-
-        auto length = maybe_length.release_value();
+        auto length = TRY(length_of_array_like(realm.vm(), input.as_object()));
 
         // 2. Append input to seen.
         seen.append(input);
@@ -273,30 +283,19 @@ ErrorOr<GC::Ref<Key>> convert_a_value_to_a_key(JS::Realm& realm, JS::Value input
         // 5. While index is less than len:
         while (index < length) {
             // 1. Let hop be ? HasOwnProperty(input, index).
-            auto maybe_hop = input.as_object().has_own_property(index);
-            if (maybe_hop.is_error())
-                return Error::from_string_literal("Failed to check if array-like object has property");
-
-            auto hop = maybe_hop.release_value();
+            auto hop = TRY(input.as_object().has_own_property(index));
 
             // 2. If hop is false, return invalid.
             if (!hop)
                 return Error::from_string_literal("Array-like object has no property");
 
             // 3. Let entry be ? Get(input, index).
-            auto maybe_entry = input.as_object().get(index);
-            if (maybe_entry.is_error())
-                return Error::from_string_literal("Failed to get property of array-like object");
+            auto entry = TRY(input.as_object().get(index));
 
             // 4. Let key be the result of converting a value to a key with arguments entry and seen.
-            auto maybe_key = convert_a_value_to_a_key(realm, maybe_entry.release_value(), seen);
-
             // 5. ReturnIfAbrupt(key).
             // 6. If key is invalid abort these steps and return invalid.
-            if (maybe_key.is_error())
-                return maybe_key.release_error();
-
-            auto key = maybe_key.release_value();
+            auto key = TRY(TRY(convert_a_value_to_a_key(realm, entry, seen)));
 
             // 7. Append key to keys.
             keys.append(key);
@@ -310,7 +309,6 @@ ErrorOr<GC::Ref<Key>> convert_a_value_to_a_key(JS::Realm& realm, JS::Value input
     }
 
     // - Otherwise
-    // 1. Return invalid.
     return Error::from_string_literal("Unknown key type");
 }
 
@@ -788,6 +786,631 @@ void commit_a_transaction(JS::Realm& realm, GC::Ref<IDBTransaction> transaction)
             }
         }));
     }));
+}
+
+// https://w3c.github.io/IndexedDB/#clone
+WebIDL::ExceptionOr<JS::Value> clone_in_realm(JS::Realm& target_realm, JS::Value value, GC::Ref<IDBTransaction> transaction)
+{
+    auto& vm = target_realm.vm();
+
+    // 1. Assert: transaction’s state is active.
+    VERIFY(transaction->state() == IDBTransaction::TransactionState::Active);
+
+    // 2. Set transaction’s state to inactive.
+    transaction->set_state(IDBTransaction::TransactionState::Inactive);
+
+    // 3. Let serialized be ? StructuredSerializeForStorage(value).
+    auto serialized = TRY(HTML::structured_serialize_for_storage(vm, value));
+
+    // 4. Let clone be ? StructuredDeserialize(serialized, targetRealm).
+    auto clone = TRY(HTML::structured_deserialize(vm, serialized, target_realm));
+
+    // 5. Set transaction’s state to active.
+    transaction->set_state(IDBTransaction::TransactionState::Active);
+
+    // 6. Return clone.
+    return clone;
+}
+
+// https://w3c.github.io/IndexedDB/#convert-a-value-to-a-multientry-key
+WebIDL::ExceptionOr<ErrorOr<GC::Ref<Key>>> convert_a_value_to_a_multi_entry_key(JS::Realm& realm, JS::Value value)
+{
+    // 1. If input is an Array exotic object, then:
+    if (value.is_object() && is<JS::Array>(value.as_object())) {
+
+        // 1. Let len be ? ToLength( ? Get(input, "length")).
+        auto len = TRY(length_of_array_like(realm.vm(), value.as_object()));
+
+        // 2. Let seen be a new set containing only input.
+        Vector<JS::Value> seen { value };
+
+        // 3. Let keys be a new empty list.
+        Vector<GC::Root<Key>> keys;
+
+        // 4. Let index be 0.
+        u64 index = 0;
+
+        // 5. While index is less than len:
+        while (index < len) {
+
+            // 1. Let entry be Get(input, index).
+            auto maybe_entry = value.as_object().get(index);
+
+            // 2. If entry is not an abrupt completion, then:
+            if (!maybe_entry.is_error()) {
+
+                // 1. Let key be the result of converting a value to a key with arguments entry and seen.
+                auto completion_key = convert_a_value_to_a_key(realm, maybe_entry.release_value(), seen);
+
+                // 2. If key is not invalid or an abrupt completion, and there is no item in keys equal to key, then append key to keys.
+                if (!completion_key.is_error()) {
+                    auto maybe_key = completion_key.release_value();
+
+                    if (!maybe_key.is_error()) {
+                        auto key = maybe_key.release_value();
+
+                        if (!keys.contains_slow(key))
+                            keys.append(key);
+                    }
+                }
+            }
+
+            // 3. Increase index by 1.
+            index++;
+        }
+
+        // 6. Return a new array key with value set to keys.
+        return Key::create_array(realm, keys);
+    }
+
+    // 2. Otherwise, return the result of converting a value to a key with argument input. Rethrow any exceptions.
+    return convert_a_value_to_a_key(realm, value);
+}
+
+// https://w3c.github.io/IndexedDB/#evaluate-a-key-path-on-a-value
+WebIDL::ExceptionOr<ErrorOr<JS::Value>> evaluate_key_path_on_a_value(JS::Realm& realm, JS::Value value, KeyPath const& key_path)
+{
+    // 1. If keyPath is a list of strings, then:
+    if (key_path.has<Vector<String>>()) {
+        auto const& key_path_list = key_path.get<Vector<String>>();
+
+        // 1. Let result be a new Array object created as if by the expression [].
+        auto result = MUST(JS::Array::create(realm, 0));
+
+        // 2. Let i be 0.
+        u64 i = 0;
+
+        // 3. For each item of keyPath:
+        for (auto const& item : key_path_list) {
+            // 1. Let key be the result of recursively evaluating a key path on a value with item and value.
+            auto completion_key = evaluate_key_path_on_a_value(realm, value, item);
+
+            // 2. Assert: key is not an abrupt completion.
+            VERIFY(!completion_key.is_error());
+
+            // 3. If key is failure, abort the overall algorithm and return failure.
+            auto key = TRY(TRY(completion_key));
+
+            // 4. Let p be ! ToString(i).
+            auto p = JS::PropertyKey { i };
+
+            // 5. Let status be CreateDataProperty(result, p, key).
+            auto status = MUST(result->create_data_property(p, key));
+
+            // 6. Assert: status is true.
+            VERIFY(status);
+
+            // 7. Increase i by 1.
+            i++;
+        }
+
+        // 4. Return result.
+        return result;
+    }
+
+    auto const& key_path_string = key_path.get<String>();
+
+    // 2. If keyPath is the empty string, return value and skip the remaining steps.
+    if (key_path_string.is_empty())
+        return value;
+
+    // 3. Let identifiers be the result of strictly splitting keyPath on U+002E FULL STOP characters (.).
+    // 4. For each identifier of identifiers, jump to the appropriate step below:
+    TRY(key_path_string.bytes_as_string_view().for_each_split_view('.', SplitBehavior::KeepEmpty | SplitBehavior::KeepTrailingSeparator, [&](auto const& identifier) -> ErrorOr<void> {
+        // If Type(value) is String, and identifier is "length"
+        if (value.is_string() && identifier == "length") {
+            // Let value be a Number equal to the number of elements in value.
+            value = JS::Value(value.as_string().utf16_string_view().length_in_code_units());
+        }
+
+        // If value is an Array and identifier is "length"
+        else if (value.is_object() && is<JS::Array>(value.as_object()) && identifier == "length") {
+            // Let value be ! ToLength(! Get(value, "length")).
+            value = JS::Value(MUST(length_of_array_like(realm.vm(), value.as_object())));
+        }
+
+        // If value is a Blob and identifier is "size"
+        else if (value.is_object() && is<FileAPI::Blob>(value.as_object()) && identifier == "size") {
+            // Let value be value’s size.
+            value = JS::Value(static_cast<FileAPI::Blob&>(value.as_object()).size());
+        }
+
+        // If value is a Blob and identifier is "type"
+        else if (value.is_object() && is<FileAPI::Blob>(value.as_object()) && identifier == "type") {
+            // Let value be a String equal to value’s type.
+            value = JS::PrimitiveString::create(realm.vm(), static_cast<FileAPI::Blob&>(value.as_object()).type());
+        }
+
+        // If value is a File and identifier is "name"
+        else if (value.is_object() && is<FileAPI::File>(value.as_object()) && identifier == "name") {
+            // Let value be a String equal to value’s name.
+            value = JS::PrimitiveString::create(realm.vm(), static_cast<FileAPI::File&>(value.as_object()).name());
+        }
+
+        // If value is a File and identifier is "lastModified"
+        else if (value.is_object() && is<FileAPI::File>(value.as_object()) && identifier == "lastModified") {
+            // Let value be a Number equal to value’s lastModified.
+            value = JS::Value(static_cast<double>(static_cast<FileAPI::File&>(value.as_object()).last_modified()));
+        }
+
+        // Otherwise
+        else {
+            // 1. If Type(value) is not Object, return failure.
+            if (!value.is_object())
+                return Error::from_string_literal("Value is not an object");
+
+            auto identifier_property = String::from_utf8_without_validation(identifier.bytes());
+
+            // 2. Let hop be ! HasOwnProperty(value, identifier).
+            auto hop = MUST(value.as_object().has_own_property(identifier_property));
+
+            // 3. If hop is false, return failure.
+            if (!hop)
+                return Error::from_string_literal("Property does not exist");
+
+            // 4. Let value be ! Get(value, identifier).
+            value = MUST(value.as_object().get(identifier_property));
+
+            // 5. If value is undefined, return failure.
+            if (value.is_undefined())
+                return Error::from_string_literal("Value is undefined");
+        }
+
+        return {};
+    }));
+
+    // 5. Assert: value is not an abrupt completion.
+    // NOTE: Step 4 above makes this assertion via MUST
+
+    // 6. Return value.
+    return value;
+}
+
+// https://w3c.github.io/IndexedDB/#extract-a-key-from-a-value-using-a-key-path
+WebIDL::ExceptionOr<ErrorOr<GC::Ref<Key>>> extract_a_key_from_a_value_using_a_key_path(JS::Realm& realm, JS::Value value, KeyPath const& key_path, bool multi_entry)
+{
+    // 1. Let r be the result of evaluating a key path on a value with value and keyPath. Rethrow any exceptions.
+    // 2. If r is failure, return failure.
+    auto r = TRY(TRY(evaluate_key_path_on_a_value(realm, value, key_path)));
+
+    // 3. Let key be the result of converting a value to a key with r if the multiEntry flag is false,
+    //    and the result of converting a value to a multiEntry key with r otherwise. Rethrow any exceptions.
+    // 4. If key is invalid, return invalid.
+    // 5. Return key.
+    return multi_entry ? TRY(convert_a_value_to_a_multi_entry_key(realm, r)) : TRY(convert_a_value_to_a_key(realm, r));
+}
+
+// https://w3c.github.io/IndexedDB/#check-that-a-key-could-be-injected-into-a-value
+bool check_that_a_key_could_be_injected_into_a_value(JS::Realm& realm, JS::Value value, KeyPath const& key_path)
+{
+    // NOTE: The key paths used in this section are always strings and never sequences
+
+    // 1. Let identifiers be the result of strictly splitting keyPath on U+002E FULL STOP characters (.).
+    auto identifiers = MUST(key_path.get<String>().split('.'));
+
+    // 2. Assert: identifiers is not empty.
+    VERIFY(!identifiers.is_empty());
+
+    // 3. Remove the last item of identifiers.
+    identifiers.take_last();
+
+    // 4. For each remaining identifier of identifiers, if any:
+    for (auto const& identifier : identifiers) {
+        // 1. If value is not an Object or an Array, return false.
+        if (!(value.is_object() || MUST(value.is_array(realm.vm()))))
+            return false;
+
+        // 2. Let hop be ! HasOwnProperty(value, identifier).
+        auto hop = MUST(value.as_object().has_own_property(identifier));
+
+        // 3. If hop is false, return true.
+        if (!hop)
+            return true;
+
+        // 4. Let value be ! Get(value, identifier).
+        value = MUST(value.as_object().get(identifier));
+    }
+
+    // 5. Return true if value is an Object or an Array, or false otherwise.
+    return value.is_object() || MUST(value.is_array(realm.vm()));
+}
+
+// https://w3c.github.io/IndexedDB/#fire-an-error-event
+void fire_an_error_event(JS::Realm& realm, GC::Ref<IDBRequest> request)
+{
+    // 1. Let event be the result of creating an event using Event.
+    // 2. Set event’s type attribute to "error".
+    // 3. Set event’s bubbles and cancelable attributes to true.
+    auto event = DOM::Event::create(realm, HTML::EventNames::error, { .bubbles = true, .cancelable = true });
+
+    // 4. Let transaction be request’s transaction.
+    auto transaction = request->transaction();
+
+    // 5. Let legacyOutputDidListenersThrowFlag be initially false.
+    bool legacy_output_did_listeners_throw_flag = false;
+
+    // 6. If transaction’s state is inactive, then set transaction’s state to active.
+    if (transaction->state() == IDBTransaction::TransactionState::Inactive)
+        transaction->set_state(IDBTransaction::TransactionState::Active);
+
+    // 7. Dispatch event at request with legacyOutputDidListenersThrowFlag.
+    DOM::EventDispatcher::dispatch(request, *event, false, legacy_output_did_listeners_throw_flag);
+
+    // 8. If transaction’s state is active, then:
+    if (transaction->state() == IDBTransaction::TransactionState::Active) {
+        // 1. Set transaction’s state to inactive.
+        transaction->set_state(IDBTransaction::TransactionState::Inactive);
+
+        // 2. If legacyOutputDidListenersThrowFlag is true, then run abort a transaction with transaction and a newly created "AbortError" DOMException and terminate these steps.
+        //    This is done even if event’s canceled flag is false.
+        if (legacy_output_did_listeners_throw_flag) {
+            abort_a_transaction(*transaction, WebIDL::AbortError::create(realm, "Error event interrupted by exception"_string));
+            return;
+        }
+
+        // 3. If event’s canceled flag is false, then run abort a transaction using transaction and request's error, and terminate these steps.
+        if (!event->cancelled()) {
+            abort_a_transaction(*transaction, request->error());
+            return;
+        }
+
+        // 4. If transaction’s request list is empty, then run commit a transaction with transaction.
+        if (transaction->request_list().is_empty())
+            commit_a_transaction(realm, *transaction);
+    }
+}
+
+// https://w3c.github.io/IndexedDB/#fire-a-success-event
+void fire_a_success_event(JS::Realm& realm, GC::Ref<IDBRequest> request)
+{
+    // 1. Let event be the result of creating an event using Event.
+    // 2. Set event’s type attribute to "success".
+    // 3. Set event’s bubbles and cancelable attributes to false.
+    auto event = DOM::Event::create(realm, HTML::EventNames::success, { .bubbles = false, .cancelable = false });
+
+    // 4. Let transaction be request’s transaction.
+    auto transaction = request->transaction();
+
+    // 5. Let legacyOutputDidListenersThrowFlag be initially false.
+    bool legacy_output_did_listeners_throw_flag = false;
+
+    // 6. If transaction’s state is inactive, then set transaction’s state to active.
+    if (transaction->state() == IDBTransaction::TransactionState::Inactive)
+        transaction->set_state(IDBTransaction::TransactionState::Active);
+
+    // 7. Dispatch event at request with legacyOutputDidListenersThrowFlag.
+    DOM::EventDispatcher::dispatch(request, *event, false, legacy_output_did_listeners_throw_flag);
+
+    // 8. If transaction’s state is active, then:
+    if (transaction->state() == IDBTransaction::TransactionState::Active) {
+        // 1. Set transaction’s state to inactive.
+        transaction->set_state(IDBTransaction::TransactionState::Inactive);
+
+        // 2. If legacyOutputDidListenersThrowFlag is true, then run abort a transaction with transaction and a newly created "AbortError" DOMException.
+        if (legacy_output_did_listeners_throw_flag) {
+            abort_a_transaction(*transaction, WebIDL::AbortError::create(realm, "An error occurred"_string));
+            return;
+        }
+
+        // 3. If transaction’s request list is empty, then run commit a transaction with transaction.
+        if (transaction->request_list().is_empty())
+            commit_a_transaction(realm, *transaction);
+    }
+}
+
+// https://w3c.github.io/IndexedDB/#asynchronously-execute-a-request
+GC::Ref<IDBRequest> asynchronously_execute_a_request(JS::Realm& realm, IDBRequestSource source, GC::Ref<GC::Function<WebIDL::ExceptionOr<JS::Value>()>> operation, GC::Ptr<IDBRequest> request_input)
+{
+    // 1. Let transaction be the transaction associated with source.
+    auto transaction = source.visit(
+        [](Empty) -> GC::Ptr<IDBTransaction> {
+            VERIFY_NOT_REACHED();
+        },
+        [](GC::Ref<IDBObjectStore> object_store) -> GC::Ptr<IDBTransaction> {
+            return object_store->transaction();
+        },
+        [](GC::Ref<IDBIndex> index) -> GC::Ptr<IDBTransaction> {
+            return index->transaction();
+        },
+        [](GC::Ref<IDBCursor> cursor) -> GC::Ptr<IDBTransaction> {
+            return cursor->transaction();
+        });
+
+    // 2. Assert: transaction’s state is active.
+    VERIFY(transaction->state() == IDBTransaction::TransactionState::Active);
+
+    // 3. If request was not given, let request be a new request with source as source.
+    GC::Ref<IDBRequest> request = request_input ? GC::Ref(*request_input) : IDBRequest::create(realm, source);
+
+    // 4. Add request to the end of transaction’s request list.
+    transaction->request_list().append(request);
+
+    // Set the two-way binding. (Missing spec step)
+    // FIXME: https://github.com/w3c/IndexedDB/issues/433
+    request->set_transaction(transaction);
+
+    // 5. Run these steps in parallel:
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, transaction, operation, request]() {
+        HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+
+        // 1. Wait until request is the first item in transaction’s request list that is not processed.
+        HTML::main_thread_event_loop().spin_until(GC::create_function(realm.vm().heap(), [transaction, request]() {
+            if constexpr (IDB_DEBUG) {
+                dbgln("asynchronously_execute_a_request: waiting for step 5.1");
+                dbgln("requests in queue:");
+                for (auto const& item : transaction->request_list()) {
+                    dbgln("[{}] - {} = {}", item == request ? "x"sv : " "sv, item->uuid(), item->processed() ? "processed"sv : "not processed"sv);
+                }
+            }
+
+            return transaction->request_list().all_previous_requests_processed(request);
+        }));
+
+        // 2. Let result be the result of performing operation.
+        auto result = operation->function()();
+
+        // 3. If result is an error and transaction’s state is committing, then run abort a transaction with transaction and result, and terminate these steps.
+        if (result.is_error() && transaction->state() == IDBTransaction::TransactionState::Committing) {
+            abort_a_transaction(*transaction, result.exception().get<GC::Ref<WebIDL::DOMException>>());
+            return;
+        }
+
+        // FIXME: 4. If result is an error, then revert all changes made by operation.
+
+        // 5. Set request’s processed flag to true.
+        request->set_processed(true);
+
+        // 6. Queue a task to run these steps:
+        HTML::queue_a_task(HTML::Task::Source::DatabaseAccess, nullptr, nullptr, GC::create_function(realm.vm().heap(), [&realm, request, result, transaction]() mutable {
+            // 1. Remove request from transaction’s request list.
+            transaction->request_list().remove_first_matching([&request](auto& entry) { return entry.ptr() == request.ptr(); });
+
+            // 2. Set request’s done flag to true.
+            request->set_done(true);
+
+            // 3. If result is an error, then:
+            if (result.is_error()) {
+                // 1. Set request’s result to undefined.
+                request->set_result(JS::js_undefined());
+
+                // 2. Set request’s error to result.
+                request->set_error(result.exception().get<GC::Ref<WebIDL::DOMException>>());
+
+                // 3. Fire an error event at request.
+                fire_an_error_event(realm, request);
+            } else {
+                // 1. Set request’s result to result.
+                request->set_result(result.release_value());
+
+                // 2. Set request’s error to undefined.
+                request->set_error(nullptr);
+
+                // 3. Fire a success event at request.
+                fire_a_success_event(realm, request);
+            }
+        }));
+    }));
+
+    // 6. Return request.
+    return request;
+}
+
+// https://w3c.github.io/IndexedDB/#generate-a-key
+ErrorOr<u64> generate_a_key(GC::Ref<ObjectStore> store)
+{
+    // 1. Let generator be store’s key generator.
+    auto generator = store->key_generator().value();
+
+    // 2. Let key be generator’s current number.
+    auto key = generator.current_number();
+
+    // 3. If key is greater than 2^53 (9007199254740992), then return failure.
+    if (key > static_cast<u64>(MAX_KEY_GENERATOR_VALUE))
+        return Error::from_string_literal("Key is greater than 2^53");
+
+    // 4. Increase generator’s current number by 1.
+    generator.increment(1);
+
+    // 5. Return key.
+    return key;
+}
+
+// https://w3c.github.io/IndexedDB/#possibly-update-the-key-generator
+void possibly_update_the_key_generator(GC::Ref<ObjectStore> store, GC::Ref<Key> key)
+{
+    // 1. If the type of key is not number, abort these steps.
+    if (key->type() != Key::KeyType::Number)
+        return;
+
+    // 2. Let value be the value of key.
+    auto temp_value = key->value_as_double();
+
+    // 3. Set value to the minimum of value and 2^53 (9007199254740992).
+    temp_value = min(temp_value, MAX_KEY_GENERATOR_VALUE);
+
+    // 4. Set value to the largest integer not greater than value.
+    u64 value = floor(temp_value);
+
+    // 5. Let generator be store’s key generator.
+    auto generator = store->key_generator().value();
+
+    // 6. If value is greater than or equal to generator’s current number, then set generator’s current number to value + 1.
+    if (value >= generator.current_number())
+        generator.set(value + 1);
+}
+
+// https://w3c.github.io/IndexedDB/#inject-a-key-into-a-value-using-a-key-path
+void inject_a_key_into_a_value_using_a_key_path(JS::Realm& realm, JS::Value value, GC::Ref<Key> key, KeyPath const& key_path)
+{
+    // 1. Let identifiers be the result of strictly splitting keyPath on U+002E FULL STOP characters (.).
+    auto identifiers = MUST(key_path.get<String>().split('.'));
+
+    // 2. Assert: identifiers is not empty.
+    VERIFY(!identifiers.is_empty());
+
+    // 3. Let last be the last item of identifiers and remove it from the list.
+    auto last = identifiers.take_last();
+
+    // 4. For each remaining identifier of identifiers:
+    for (auto const& identifier : identifiers) {
+        // 1. Assert: value is an Object or an Array.
+        VERIFY(value.is_object() || MUST(value.is_array(realm.vm())));
+
+        // 2. Let hop be ! HasOwnProperty(value, identifier).
+        auto hop = MUST(value.as_object().has_own_property(identifier));
+
+        // 3. If hop is false, then:
+        if (!hop) {
+            // 1. Let o be a new Object created as if by the expression ({}).
+            auto o = JS::Object::create(realm, realm.intrinsics().object_prototype());
+
+            // 2. Let status be CreateDataProperty(value, identifier, o).
+            auto status = MUST(value.as_object().create_data_property(identifier, o));
+
+            // 3. Assert: status is true.
+            VERIFY(status);
+        }
+
+        // 4. Let value be ! Get(value, identifier).
+        value = MUST(value.as_object().get(identifier));
+    }
+
+    // 5. Assert: value is an Object or an Array.
+    VERIFY(value.is_object() || MUST(value.is_array(realm.vm())));
+
+    // 6. Let keyValue be the result of converting a key to a value with key.
+    auto key_value = convert_a_key_to_a_value(realm, key);
+
+    // 7. Let status be CreateDataProperty(value, last, keyValue).
+    auto status = MUST(value.as_object().create_data_property(last, key_value));
+
+    // 8. Assert: status is true.
+    VERIFY(status);
+}
+
+// https://w3c.github.io/IndexedDB/#delete-records-from-an-object-store
+void delete_records_from_an_object_store(GC::Ref<ObjectStore> store, GC::Ref<IDBKeyRange> range)
+{
+    // 1. Remove all records, if any, from store’s list of records with key in range.
+    store->remove_records_in_range(range);
+
+    // FIXME: 2. For each index which references store, remove every record from index’s list of records whose value is in range, if any such records exist.
+
+    // 3. Return undefined.
+}
+
+// https://w3c.github.io/IndexedDB/#store-a-record-into-an-object-store
+WebIDL::ExceptionOr<GC::Ptr<Key>> store_a_record_into_an_object_store(JS::Realm& realm, GC::Ref<ObjectStore> store, JS::Value value, GC::Ptr<Key> key, bool no_overwrite)
+{
+    // 1. If store uses a key generator, then:
+    if (store->key_generator().has_value()) {
+        // 1. If key is undefined, then:
+        if (key == nullptr) {
+            // 1. Let key be the result of generating a key for store.
+            auto maybe_key = generate_a_key(store);
+
+            // 2. If key is failure, then this operation failed with a "ConstraintError" DOMException. Abort this algorithm without taking any further steps.
+            if (maybe_key.is_error())
+                return WebIDL::ConstraintError::create(realm, String::from_utf8_without_validation(maybe_key.error().string_literal().bytes()));
+
+            key = Key::create_number(realm, static_cast<double>(maybe_key.value()));
+
+            // 3. If store also uses in-line keys, then run inject a key into a value using a key path with value, key and store’s key path.
+            if (store->uses_inline_keys())
+                inject_a_key_into_a_value_using_a_key_path(realm, value, GC::Ref(*key), store->key_path().value());
+        }
+
+        // 2. Otherwise, run possibly update the key generator for store with key.
+        else {
+            possibly_update_the_key_generator(store, GC::Ref(*key));
+        }
+    }
+
+    // 2. If the no-overwrite flag was given to these steps and is true, and a record already exists in store with its key equal to key,
+    //    then this operation failed with a "ConstraintError" DOMException. Abort this algorithm without taking any further steps.
+    auto has_record = store->has_record_with_key(*key);
+    if (no_overwrite && has_record)
+        return WebIDL::ConstraintError::create(realm, "Record already exists"_string);
+
+    // 3. If a record already exists in store with its key equal to key, then remove the record from store using delete records from an object store.
+    if (has_record) {
+        auto key_range = IDBKeyRange::create(realm, key, key, false, false);
+        delete_records_from_an_object_store(store, key_range);
+    }
+
+    // 4. Store a record in store containing key as its key and ! StructuredSerializeForStorage(value) as its value.
+    //    The record is stored in the object store’s list of records such that the list is sorted according to the key of the records in ascending order.
+    Record record = {
+        .key = *key,
+        .value = MUST(HTML::structured_serialize_for_storage(realm.vm(), value)),
+    };
+    store->store_a_record(record);
+
+    // 5. For each index which references store:
+    for (auto const& [name, index] : store->index_set()) {
+        // 1. Let index key be the result of extracting a key from a value using a key path with value, index’s key path, and index’s multiEntry flag.
+        auto index_key = TRY(extract_a_key_from_a_value_using_a_key_path(realm, value, index->key_path(), index->multi_entry()));
+
+        // 2. If index key is an exception, or invalid, or failure, take no further actions for index, and continue these steps for the next index.
+        if (index_key.is_error())
+            continue;
+
+        auto index_key_value = index_key.value();
+        auto index_multi_entry = index->multi_entry();
+        auto index_key_is_array = index_key_value->type() == Key::KeyType::Array;
+        auto index_is_unique = index->unique();
+
+        // 3. If index’s multiEntry flag is false, or if index key is not an array key,
+        //    and if index already contains a record with key equal to index key,
+        //    and index’s unique flag is true,
+        //    then this operation failed with a "ConstraintError" DOMException.
+        //    Abort this algorithm without taking any further steps.
+        if ((!index_multi_entry || !index_key_is_array) && index_is_unique && index->has_record_with_key(index_key_value))
+            return WebIDL::ConstraintError::create(realm, "Record already exists in index"_string);
+
+        // 4. If index’s multiEntry flag is true and index key is an array key,
+        //    and if index already contains a record with key equal to any of the subkeys of index key,
+        //    and index’s unique flag is true,
+        //    then this operation failed with a "ConstraintError" DOMException.
+        //    Abort this algorithm without taking any further steps.
+        if (index_multi_entry && index_key_is_array && index_is_unique) {
+            for (auto const& subkey : index_key_value->subkeys()) {
+                if (index->has_record_with_key(*subkey))
+                    return WebIDL::ConstraintError::create(realm, "Record already exists in index"_string);
+            }
+        }
+
+        // FIXME: 5. If index’s multiEntry flag is false, or if index key is not an array key
+        //    then store a record in index containing index key as its key and key as its value.
+        //    The record is stored in index’s list of records such that the list is sorted primarily on the records keys,
+        //    and secondarily on the records values, in ascending order.
+
+        // // FIXME: 6. If index’s multiEntry flag is true and index key is an array key,
+        //    then for each subkey of the subkeys of index key store a record in index containing subkey as its key and key as its value.
+    }
+
+    // 6. Return key.
+    return key;
 }
 
 }

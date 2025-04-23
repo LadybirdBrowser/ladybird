@@ -56,8 +56,8 @@ Memory::Memory(JS::Realm& realm, Wasm::MemoryAddress address, Shared shared)
 
 void Memory::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE_WITH_CUSTOM_NAME(Memory, WebAssembly.Memory);
+    Base::initialize(realm);
 }
 
 void Memory::visit_edges(Visitor& visitor)

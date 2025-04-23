@@ -28,8 +28,8 @@ TextEncoder::~TextEncoder() = default;
 
 void TextEncoder::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(TextEncoder);
+    Base::initialize(realm);
 }
 
 // https://encoding.spec.whatwg.org/#dom-textencoder-encode
@@ -53,6 +53,12 @@ GC::Ref<JS::Uint8Array> TextEncoder::encode(String const& input) const
 // https://encoding.spec.whatwg.org/#dom-textencoder-encodeinto
 TextEncoderEncodeIntoResult TextEncoder::encode_into(String const& source, GC::Root<WebIDL::BufferSource> const& destination) const
 {
+    // AD-HOC: Return early if destination is detached. This is not explicitly handled in the spec,
+    //         however no bytes are copied as destinations size is always zero in this case.
+    //         See: https://github.com/whatwg/encoding/issues/324
+    if (destination->viewed_array_buffer()->is_detached())
+        return { 0, 0 };
+
     auto data = destination->viewed_array_buffer()->buffer().bytes().slice(destination->byte_offset(), destination->byte_length());
 
     // 1. Let read be 0.
@@ -91,6 +97,7 @@ TextEncoderEncodeIntoResult TextEncoder::encode_into(String const& source, GC::R
 
             // 6.4.1.3. Write the bytes in result into destination, with startingOffset set to written.
             // 6.4.1.4. Increment written by the number of bytes in result.
+            // WARNING: See the warning for SharedArrayBuffer objects at https://encoding.spec.whatwg.org/#sharedarraybuffer-warning.
             for (auto byte : result)
                 data[written++] = byte;
         }

@@ -37,8 +37,8 @@ HTMLVideoElement::~HTMLVideoElement() = default;
 
 void HTMLVideoElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLVideoElement);
+    Base::initialize(realm);
 }
 
 void HTMLVideoElement::finalize()
@@ -112,7 +112,8 @@ u32 HTMLVideoElement::video_height() const
 void HTMLVideoElement::set_video_track(GC::Ptr<HTML::VideoTrack> video_track)
 {
     set_needs_style_update(true);
-    set_needs_layout_update(DOM::SetNeedsLayoutReason::HTMLVideoElementSetVideoTrack);
+    if (auto layout_node = this->layout_node())
+        layout_node->set_needs_layout_update(DOM::SetNeedsLayoutReason::HTMLVideoElementSetVideoTrack);
 
     if (m_video_track)
         m_video_track->pause_video({});

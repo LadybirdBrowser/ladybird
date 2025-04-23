@@ -159,6 +159,8 @@ protected:
     virtual void visit_edges(Visitor&) override;
 
 private:
+    virtual bool is_dom_event() const final { return true; }
+
     FlyString m_type;
     GC::Ptr<EventTarget> m_target;
     GC::Ptr<EventTarget> m_related_target;
@@ -188,3 +190,6 @@ private:
 };
 
 }
+
+template<>
+inline bool JS::Object::fast_is<Web::DOM::Event>() const { return is_dom_event(); }

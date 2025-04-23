@@ -34,8 +34,8 @@ WebIDL::ExceptionOr<GC::Ref<MediaElementAudioSourceNode>> MediaElementAudioSourc
 
 void MediaElementAudioSourceNode::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(MediaElementAudioSourceNode);
+    Base::initialize(realm);
 }
 
 void MediaElementAudioSourceNode::visit_edges(Cell::Visitor& visitor)
