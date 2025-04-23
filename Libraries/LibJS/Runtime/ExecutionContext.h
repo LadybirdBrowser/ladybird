@@ -2,6 +2,7 @@
  * Copyright (c) 2020-2024, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2020-2021, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2022, Luke Wilde <lukew@serenityos.org>
+ * Copyright (c) 2024-2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -42,7 +43,7 @@ struct ExecutionContext {
 private:
     friend class ExecutionContextAllocator;
 
-    ExecutionContext();
+    ExecutionContext(u32 registers_and_constants_and_locals_count, u32 arguments_count);
 
 public:
     void operator delete(void* ptr);
@@ -70,17 +71,27 @@ public:
     // FIXME: Move this out of LibJS (e.g. by using the CustomData concept), as it's used exclusively by LibWeb.
     size_t skip_when_determining_incumbent_counter { 0 };
 
+    Span<Value> registers_and_constants_and_locals_and_arguments_span()
+    {
+        return { registers_and_constants_and_locals_and_arguments(), registers_and_constants_and_locals_and_arguments_count };
+    }
+
+    Value const* registers_and_constants_and_locals_and_arguments() const
+    {
+        return reinterpret_cast<Value*>(reinterpret_cast<uintptr_t>(this) + sizeof(ExecutionContext));
+    }
+
     Value argument(size_t index) const
     {
-        auto arguments_size = registers_and_constants_and_locals_and_arguments.size() - arguments_offset;
+        auto arguments_size = registers_and_constants_and_locals_and_arguments_count - arguments_offset;
         if (index >= arguments_size) [[unlikely]]
             return js_undefined();
-        return registers_and_constants_and_locals_and_arguments[arguments_offset + index];
+        return registers_and_constants_and_locals_and_arguments()[arguments_offset + index];
     }
 
     Value& local(size_t index)
     {
-        return registers_and_constants_and_locals_and_arguments[index];
+        return registers_and_constants_and_locals_and_arguments()[index];
     }
 
     u32 arguments_offset { 0 };
@@ -89,22 +100,27 @@ public:
 
     Span<Value> arguments()
     {
-        return registers_and_constants_and_locals_and_arguments.span().slice(arguments_offset);
+        return { registers_and_constants_and_locals_and_arguments() + arguments_offset, registers_and_constants_and_locals_and_arguments_count - arguments_offset };
     }
 
     ReadonlySpan<Value> arguments() const
     {
-        return registers_and_constants_and_locals_and_arguments.span().slice(arguments_offset);
+        return { registers_and_constants_and_locals_and_arguments() + arguments_offset, registers_and_constants_and_locals_and_arguments_count - arguments_offset };
     }
 
-private:
-    friend class Bytecode::Interpreter;
-    Vector<Value> registers_and_constants_and_locals_and_arguments;
-
-public:
     Vector<Bytecode::UnwindInfo> unwind_contexts;
     Vector<Optional<size_t>> previously_scheduled_jumps;
     Vector<GC::Ptr<Environment>> saved_lexical_environments;
+
+private:
+    friend class Bytecode::Interpreter;
+
+    Value* registers_and_constants_and_locals_and_arguments()
+    {
+        return reinterpret_cast<Value*>(reinterpret_cast<uintptr_t>(this) + sizeof(ExecutionContext));
+    }
+
+    u32 registers_and_constants_and_locals_and_arguments_count { 0 };
 };
 
 struct StackTraceElement {
