@@ -540,6 +540,9 @@ public:
 
     GC::Ref<CSS::StylePropertyMapReadOnly> computed_style_map();
 
+    GC::Ptr<HTML::CustomElementRegistry> custom_element_registry() const { return m_custom_element_registry; }
+    void set_custom_element_registry(GC::Ptr<HTML::CustomElementRegistry> registry) { m_custom_element_registry = registry; }
+
 protected:
     Element(Document&, DOM::QualifiedName);
     virtual void initialize(JS::Realm&) override;
@@ -606,6 +609,9 @@ private:
     // All elements have an associated custom element reaction queue, initially empty. Each item in the custom element reaction queue is of one of two types:
     // NOTE: See the structs at the top of this header.
     OwnPtr<CustomElementReactionQueue> m_custom_element_reaction_queue;
+
+    // https://dom.spec.whatwg.org/#element-custom-element-registry
+    GC::Ptr<HTML::CustomElementRegistry> m_custom_element_registry;
 
     // https://dom.spec.whatwg.org/#concept-element-custom-element-state
     CustomElementState m_custom_element_state { CustomElementState::Undefined };
