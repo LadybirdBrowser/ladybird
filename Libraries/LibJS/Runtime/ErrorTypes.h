@@ -96,6 +96,7 @@
     M(JsonBigInt, "Cannot serialize BigInt value to JSON")                                                                          \
     M(JsonCircular, "Cannot stringify circular object")                                                                             \
     M(JsonMalformed, "Malformed JSON string")                                                                                       \
+    M(JsonRawJSONNonPrimitive, "JSON.rawJSON cannot accept object or array as outermost value")                                     \
     M(MathSumPreciseOverflow, "Overflow in Math.sumPrecise")                                                                        \
     M(MissingRequiredProperty, "Required property {} is missing or undefined")                                                      \
     M(ModuleNoEnvironment, "Cannot find module environment for imported binding")                                                   \
