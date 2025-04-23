@@ -7,8 +7,8 @@
 
 #pragma once
 
+#include <AK/AtomicRefCounted.h>
 #include <AK/Function.h>
-#include <AK/RefCounted.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/Forward.h>
@@ -62,7 +62,7 @@ inline StorageFormat determine_storage_format(BitmapFormat format)
 
 struct BackingStore;
 
-class Bitmap : public RefCounted<Bitmap> {
+class Bitmap : public AtomicRefCounted<Bitmap> {
 public:
     [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create(BitmapFormat, IntSize);
     [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create(BitmapFormat, AlphaType, IntSize);
