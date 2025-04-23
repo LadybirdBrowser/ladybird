@@ -285,6 +285,7 @@ namespace JS {
     P(isLockFree)                            \
     P(isNaN)                                 \
     P(isPrototypeOf)                         \
+    P(isRawJSON)                             \
     P(isSafeInteger)                         \
     P(isSealed)                              \
     P(isSubsetOf)                            \
@@ -403,6 +404,7 @@ namespace JS {
     P(race)                                  \
     P(random)                                \
     P(raw)                                   \
+    P(rawJSON)                               \
     P(read)                                  \
     P(reason)                                \
     P(reduce)                                \

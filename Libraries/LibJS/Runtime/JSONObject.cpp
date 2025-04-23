@@ -22,6 +22,7 @@
 #include <LibJS/Runtime/JSONObject.h>
 #include <LibJS/Runtime/NumberObject.h>
 #include <LibJS/Runtime/Object.h>
+#include <LibJS/Runtime/RawJSONObject.h>
 #include <LibJS/Runtime/StringObject.h>
 #include <LibJS/Runtime/ValueInlines.h>
 
@@ -41,6 +42,8 @@ void JSONObject::initialize(Realm& realm)
     u8 attr = Attribute::Writable | Attribute::Configurable;
     define_native_function(realm, vm.names.stringify, stringify, 3, attr);
     define_native_function(realm, vm.names.parse, parse, 2, attr);
+    define_native_function(realm, vm.names.rawJSON, raw_json, 1, attr);
+    define_native_function(realm, vm.names.isRawJSON, is_raw_json, 1, attr);
 
     // 25.5.3 JSON [ @@toStringTag ], https://tc39.es/ecma262/#sec-json-@@tostringtag
     define_direct_property(vm.well_known_symbol_to_string_tag(), PrimitiveString::create(vm, "JSON"_string), Attribute::Configurable);
@@ -128,6 +131,7 @@ JS_DEFINE_NATIVE_FUNCTION(JSONObject::stringify)
 }
 
 // 25.5.2.1 SerializeJSONProperty ( state, key, holder ), https://tc39.es/ecma262/#sec-serializejsonproperty
+// 1.4.1 SerializeJSONProperty ( state, key, holder ), https://tc39.es/proposal-json-parse-with-source/#sec-serializejsonproperty
 ThrowCompletionOr<Optional<String>> JSONObject::serialize_json_property(VM& vm, StringifyState& state, PropertyKey const& key, Object* holder)
 {
     // 1. Let value be ? Get(holder, key).
@@ -155,22 +159,27 @@ ThrowCompletionOr<Optional<String>> JSONObject::serialize_json_property(VM& vm, 
     if (value.is_object()) {
         auto& value_object = value.as_object();
 
-        // a. If value has a [[NumberData]] internal slot, then
+        // a. If value has an [[IsRawJSON]] internal slot, then
+        if (is<RawJSONObject>(value_object)) {
+            // i. Return ! Get(value, "rawJSON").
+            return MUST(value_object.get(vm.names.rawJSON)).as_string().utf8_string();
+        }
+        // b. If value has a [[NumberData]] internal slot, then
         if (is<NumberObject>(value_object)) {
             // i. Set value to ? ToNumber(value).
             value = TRY(value.to_number(vm));
         }
-        // b. Else if value has a [[StringData]] internal slot, then
+        // c. Else if value has a [[StringData]] internal slot, then
         else if (is<StringObject>(value_object)) {
             // i. Set value to ? ToString(value).
             value = TRY(value.to_primitive_string(vm));
         }
-        // c. Else if value has a [[BooleanData]] internal slot, then
+        // d. Else if value has a [[BooleanData]] internal slot, then
         else if (is<BooleanObject>(value_object)) {
             // i. Set value to value.[[BooleanData]].
             value = Value(static_cast<BooleanObject&>(value_object).boolean());
         }
-        // d. Else if value has a [[BigIntData]] internal slot, then
+        // e. Else if value has a [[BigIntData]] internal slot, then
         else if (is<BigIntObject>(value_object)) {
             // i. Set value to value.[[BigIntData]].
             value = Value(&static_cast<BigIntObject&>(value_object).bigint());
@@ -493,6 +502,63 @@ ThrowCompletionOr<Value> JSONObject::internalize_json_property(VM& vm, Object* h
     }
 
     return TRY(call(vm, reviver, holder, PrimitiveString::create(vm, name.to_string()), value));
+}
+
+// 1.3 JSON.rawJSON ( text ), https://tc39.es/proposal-json-parse-with-source/#sec-json.rawjson
+JS_DEFINE_NATIVE_FUNCTION(JSONObject::raw_json)
+{
+    auto& realm = *vm.current_realm();
+
+    // 1. Let jsonString be ? ToString(text).
+    auto json_string = TRY(vm.argument(0).to_string(vm));
+
+    // 2. Throw a SyntaxError exception if jsonString is the empty String, or if either the first or last code unit of
+    //    jsonString is any of 0x0009 (CHARACTER TABULATION), 0x000A (LINE FEED), 0x000D (CARRIAGE RETURN), or
+    //    0x0020 (SPACE).
+    auto bytes = json_string.bytes_as_string_view();
+    if (bytes.is_empty())
+        return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
+
+    static constexpr AK::Array invalid_code_points { 0x09, 0x0A, 0x0D, 0x20 };
+    auto first_char = bytes[0];
+    auto last_char = bytes[bytes.length() - 1];
+
+    if (invalid_code_points.contains_slow(first_char) || invalid_code_points.contains_slow(last_char))
+        return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
+
+    // 3. Parse StringToCodePoints(jsonString) as a JSON text as specified in ECMA-404. Throw a SyntaxError exception
+    //    if it is not a valid JSON text as defined in that specification, or if its outermost value is an object or
+    //    array as defined in that specification.
+    auto json = JsonValue::from_string(json_string);
+    if (json.is_error())
+        return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
+
+    if (json.value().is_object() || json.value().is_array())
+        return vm.throw_completion<SyntaxError>(ErrorType::JsonRawJSONNonPrimitive);
+
+    // 4. Let internalSlotsList be « [[IsRawJSON]] ».
+    // 5. Let obj be OrdinaryObjectCreate(null, internalSlotsList).
+    auto object = RawJSONObject::create(realm, nullptr);
+
+    // 6. Perform ! CreateDataPropertyOrThrow(obj, "rawJSON", jsonString).
+    MUST(object->create_data_property_or_throw(vm.names.rawJSON, PrimitiveString::create(vm, json_string)));
+
+    // 7. Perform ! SetIntegrityLevel(obj, frozen).
+    MUST(object->set_integrity_level(Object::IntegrityLevel::Frozen));
+
+    // 8. Return obj.
+    return object;
+}
+
+// 1.1 JSON.isRawJSON ( O ), https://tc39.es/proposal-json-parse-with-source/#sec-json.israwjson
+JS_DEFINE_NATIVE_FUNCTION(JSONObject::is_raw_json)
+{
+    // 1. If Type(O) is Object and O has an [[IsRawJSON]] internal slot, return true.
+    if (vm.argument(0).is_object() && is<RawJSONObject>(vm.argument(0).as_object()))
+        return Value(true);
+
+    // 2. Return false.
+    return Value(false);
 }
 
 }

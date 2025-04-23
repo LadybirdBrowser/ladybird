@@ -48,6 +48,8 @@ private:
 
     JS_DECLARE_NATIVE_FUNCTION(stringify);
     JS_DECLARE_NATIVE_FUNCTION(parse);
+    JS_DECLARE_NATIVE_FUNCTION(raw_json);
+    JS_DECLARE_NATIVE_FUNCTION(is_raw_json);
 };
 
 }
