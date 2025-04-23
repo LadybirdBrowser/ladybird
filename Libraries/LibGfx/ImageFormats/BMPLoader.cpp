@@ -1379,12 +1379,18 @@ static ErrorOr<void> decode_bmp_pixel_data(BMPLoadingContext& context)
                     return Error::from_string_literal("Cannot read 24 bits");
 
                 u32 pixel = streamer.read_u24();
-                u8 b = (pixel & 0xFF0000) >> 16;
-                u8 g = (pixel & 0x00FF00) >> 8;
-                u8 r = (pixel & 0x0000FF);
 
-                u32 rgbx_pixel = (r << 16) | (g << 8) | b;
-                context.bitmap->scanline(row)[column++] = rgbx_pixel;
+                if (context.is_included_in_ico) {
+                    // 24-bit ICO files already use BGRA8888 format
+                    context.bitmap->scanline(row)[column++] = pixel;
+                } else {
+                    u8 b = (pixel & 0x0000FF);
+                    u8 g = (pixel & 0x00FF00) >> 8;
+                    u8 r = (pixel & 0xFF0000) >> 16;
+
+                    context.bitmap->scanline(row)[column++] = (b << 16) | (g << 8) | r;
+                }
+
                 break;
             }
             case 32:
