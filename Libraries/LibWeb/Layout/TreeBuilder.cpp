@@ -19,8 +19,6 @@
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/Dump.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
-#include <LibWeb/HTML/HTMLLIElement.h>
-#include <LibWeb/HTML/HTMLOListElement.h>
 #include <LibWeb/HTML/HTMLSlotElement.h>
 #include <LibWeb/Layout/FieldSetBox.h>
 #include <LibWeb/Layout/ListItemBox.h>
@@ -128,12 +126,8 @@ static Layout::Node& insertion_parent_for_block_node(Layout::NodeWithStyle& layo
 
     // Parent block has inline-level children (our siblings); wrap these siblings into an anonymous wrapper block.
     Vector<GC::Ref<Node>> children;
-    for (GC::Ptr<Node> child = layout_parent.first_child(); child; child = child->next_sibling()) {
-        // NOTE: We let out-of-flow children stay in the parent, to preserve tree structure.
-        if (child->is_out_of_flow())
-            continue;
+    for (GC::Ptr<Node> child = layout_parent.first_child(); child; child = child->next_sibling())
         children.append(*child);
-    }
 
     auto wrapper = layout_parent.create_anonymous_wrapper();
     wrapper->set_children_are_inline(true);
