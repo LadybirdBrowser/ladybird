@@ -228,6 +228,7 @@ public:
 
 private:
     void run_optimization_passes();
+    void rewrite_with_useless_jumps_removed();
     void attempt_rewrite_loops_as_atomic_groups(BasicBlockList const&);
     bool attempt_rewrite_entire_match_as_substring_search(BasicBlockList const&);
     void fill_optimization_data(BasicBlockList const&);
