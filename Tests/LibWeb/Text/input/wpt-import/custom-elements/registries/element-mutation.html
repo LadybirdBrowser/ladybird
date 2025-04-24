@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<title>Tests the registry assignment during element mutation</title>
+<meta name="author" title="Jayson Chen" href="mailto:jaysonchen@microsoft.com"></meta>
+<link rel="help" href="https://wicg.github.io/webcomponents/proposals/Scoped-Custom-Element-Registries">
+<link rel="help" href="https://github.com/WICG/webcomponents/issues/923">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<body>
+<div id="host">
+    <div id="shadow-host-1">
+        <template shadowrootmode="open" shadowrootclonable="true" shadowrootcustomelementregistry>
+            <div id="shadow-host-1-child"></div>
+        </template>
+    </div>
+    <div id="shadow-host-2">
+        <template shadowrootmode="open" shadowrootclonable="true" shadowrootcustomelementregistry>
+            <div id="shadow-host-2-child"></div>
+        </template>
+    </div>
+</div>
+
+<template id="template">
+    <div id="template-host-1">
+        <template shadowrootmode="open" shadowrootclonable><x-foo></x-foo></template>
+    </div>
+    <div id="template-host-2">
+        <template shadowrootmode="open" shadowrootclonable shadowrootcustomelementregistry><x-foo></x-foo></template>
+    </div>
+</template>
+
+<script>
+
+function runTests(mutation, mutationName) {
+    test(() => {
+        const registry = new CustomElementRegistry;
+
+        const element = document.createElement('new-element');
+        assert_equals(element.customElementRegistry, window.customElements);
+
+        mutation(document.body, element);
+        const shadow = document.createElement('div').attachShadow({mode: 'open', customElementRegistry: registry})
+        mutation(shadow, element);
+        assert_not_equals(element.customElementRegistry, registry);
+
+        mutation(document.body, element);
+        assert_equals(element.customElementRegistry, window.customElements);
+    }, "An element with global registry should not change its registry when run " + mutationName + " into a shadow tree with scoped registry.")
+
+    test(() => {
+        const clone = host.cloneNode(true);
+        const shadowRoot1 = clone.querySelector('#shadow-host-1').shadowRoot;
+        const element = shadowRoot1.querySelector('#shadow-host-1-child');
+
+        const registry1 = new CustomElementRegistry;
+        registry1.initialize(shadowRoot1);
+        assert_equals(element.customElementRegistry, registry1);
+
+        mutation(document.querySelector('#host'), element);
+        assert_equals(element.customElementRegistry, registry1);
+    }, "An element with scoped registry should not change its registry when run " + mutationName + " out of the shadow tree.")
+
+    test(() => {
+        const clone = host.cloneNode(true);
+        const shadowRoot1 = clone.querySelector('#shadow-host-1').shadowRoot;
+        const shadowRoot2 = clone.querySelector('#shadow-host-2').shadowRoot;
+        const element = shadowRoot1.querySelector('#shadow-host-1-child');
+
+        const registry1 = new CustomElementRegistry;
+        const registry2 = new CustomElementRegistry;
+        registry1.initialize(shadowRoot1);
+        registry2.initialize(shadowRoot2);
+        assert_equals(element.customElementRegistry, registry1);
+
+        mutation(shadowRoot2, element);
+        assert_equals(element.customElementRegistry, registry1);
+    }, "An element with scoped registry should not change its registry when run " + mutationName + " into another shadow tree with different scoped registry.")
+};
+
+runTests(function (parent, child) { parent.append(child); }, "append");
+runTests(function (parent, child) { parent.appendChild(child); }, "appendChild");
+runTests(function (parent, child) { parent.prepend(child); }, "prepend");
+
+test(() => {
+    customElements.define('x-foo', class extends HTMLElement {});
+    const template = document.getElementById('template');
+    document.body.append(template.content.cloneNode(true));
+    assert_equals(document.querySelector('#template-host-1').shadowRoot.querySelector('x-foo').customElementRegistry, customElements);
+    assert_equals(document.querySelector('#template-host-2').shadowRoot.querySelector('x-foo').customElementRegistry, null);
+}, "Declarative shadow DOM with shadowrootcustomelementregistry attribute without registry initialized should remain null registry after adoption.")
+
+</script>
+</body>

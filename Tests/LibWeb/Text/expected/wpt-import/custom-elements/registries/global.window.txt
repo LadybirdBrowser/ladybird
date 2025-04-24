@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Fail
+Fail	initialize() of global registry should throw for nodes from another document
+Fail	createElement() should throw with global registry from another document
+Fail	createElementNS() should throw with global registry from another document
+Fail	attachShadow() should throw with global registry from another document
+Fail	importNode() should throw with global registry from another document

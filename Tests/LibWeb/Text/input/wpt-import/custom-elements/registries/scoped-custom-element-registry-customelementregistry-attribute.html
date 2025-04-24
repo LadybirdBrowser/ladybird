@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/custom-elements.html#dom-customelementregistry-initialize">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+</head>
+<body>
+<script>
+
+function makeIframe(test) {
+    const iframe = document.createElement('iframe');
+    document.body.appendChild(iframe);
+    test.add_cleanup(() => iframe.remove());
+    return [iframe.contentDocument, iframe.contentWindow];
+}
+
+function makeIframeWithABElement(test) {
+    const [doc, win] = makeIframe(test);
+    win.customElements.define('a-b', class ABElement extends win.HTMLElement { });
+    return [doc, win];
+}
+
+function runBasicTests(makeIframe, elementName, elementDescription) {
+    test((test) => {
+        const [doc, win] = makeIframe(test);
+        doc.documentElement.setHTMLUnsafe(`<${elementName} customelementregistry></${elementName}>`);
+        assert_equals(doc.querySelector(elementName).customElementRegistry, null);
+    }, `HTML parser should create a ${elementDescription} with null registry if customelementregistry is set`);
+
+    test((test) => {
+        const [doc, win] = makeIframe(test);
+        const element = doc.createElement(elementName);
+        assert_equals(element.customElementRegistry, win.customElements);
+        element.setAttribute('customelementregistry', '');
+        assert_equals(element.customElementRegistry, win.customElements);
+    }, `Setting customelementregistry content attribute after a ${elementDescription} had finishsed parsing should not set null registry`);
+
+    test((test) => {
+        const [doc, win] = makeIframe(test);
+        const element = doc.createElement(elementName, {customElementRegistry: null});
+        assert_equals(element.customElementRegistry, null);
+        assert_equals(element.cloneNode(false).customElementRegistry, null);
+
+        doc.documentElement.setHTMLUnsafe(`<${elementName} customelementregistry></${elementName}>`);
+        assert_equals(doc.querySelector(elementName).customElementRegistry, null);
+        assert_equals(doc.querySelector(elementName).cloneNode(true).customElementRegistry, null);
+    }, `Cloning a ${elementDescription} with null regsitry should create an element with null registry`);
+}
+
+runBasicTests(makeIframe, 'div', 'builtin element');
+runBasicTests(makeIframe, 'a-b', 'custom element candidate');
+runBasicTests(makeIframeWithABElement, 'a-b', 'custom element');
+
+test((test) => {
+    const [doc, win] = makeIframe(test);
+    win.customElements.define('c-d', class CDElement extends win.HTMLElement { });
+    const container = doc.createElement('div', {customElementRegistry: null});
+    container.innerHTML = '<a-b><c-d></c-d><e-f customelementregistry></e-f></a-b>';
+    assert_equals(container.querySelector('a-b').customElementRegistry, null);
+    assert_equals(container.querySelector('c-d').customElementRegistry, null);
+    assert_equals(container.querySelector('e-f').customElementRegistry, null);
+}, 'Descendants of an element with customelementregistry should use null registry');
+
+test((test) => {
+    const [doc, win] = makeIframe(test);
+
+    const upgradeCandidate = doc.createElement('a-b');
+    assert_equals(upgradeCandidate.customElementRegistry, win.customElements);
+
+    doc.body.setHTMLUnsafe('<a-b></a-b>');
+    assert_equals(doc.querySelector('a-b').customElementRegistry, win.customElements);
+
+    assert_equals(upgradeCandidate.customElementRegistry, win.customElements);
+    let customElementRegistryDuringConstruction = null;
+    win.customElements.define('a-b', class ABElement extends win.HTMLElement {
+        constructor() {
+            super();
+            this.setAttribute('customelementregistry', '');
+            customElementRegistryDuringConstruction = this.customElementRegistry;
+            this.removeAttribute('customelementregistry', '');
+        }
+    });
+    assert_equals(customElementRegistryDuringConstruction, win.customElements);
+    assert_equals(doc.querySelector('a-b').customElementRegistry, win.customElements);
+
+    const element = doc.createElement('a-b');
+    assert_equals(customElementRegistryDuringConstruction, win.customElements);
+    assert_equals(element.customElementRegistry, win.customElements);
+
+    doc.body.setHTMLUnsafe('<a-b></a-b>');
+    assert_equals(customElementRegistryDuringConstruction, win.customElements);
+    assert_equals(element.customElementRegistry, win.customElements);
+
+    win.customElements.upgrade(upgradeCandidate);
+    assert_equals(customElementRegistryDuringConstruction, win.customElements);
+    assert_equals(element.customElementRegistry, win.customElements);
+}, `Setting customelementregistry content attribute during constructor should not make it use null registry`);
+
+</script>
+</body>
+</html>

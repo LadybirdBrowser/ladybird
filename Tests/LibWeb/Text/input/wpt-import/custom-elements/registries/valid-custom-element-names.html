@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<meta name="timeout" content="long">
 <link rel=author href="mailto:jarhar@chromium.org">
 <link rel=help href="https://github.com/whatwg/html/pull/7991">
 <script src="../../resources/testharness.js"></script>
@@ -113,26 +114,25 @@ function createElementClass() {
   return newClass;
 }
 
-promise_test(async t => {
-  for (const validName of validCustomElementNames) {
-    try {
-      const newClass = createElementClass();
-      customElements.define(validName, newClass);
-      await customElements.whenDefined(validName);
-    } catch (error) {
-      assert_unreached(`Custom element name should have been valid but threw error: ${debugString(validName)} ${error.toString()}`);
-    }
-  }
+for (const validName of validCustomElementNames) {
+  promise_test(async t => {
+    const newClass = createElementClass();
+    customElements.define(validName, newClass);
+    await customElements.whenDefined(validName);
+  }, `Valid custom element name: ${debugString(validName)}`);
+}
 
-  for (const invalidName of invalidCustomElementNames) {
+for (const invalidName of invalidCustomElementNames) {
+  promise_test(async t => {
     const newClass = createElementClass();
     assert_throws_dom(
       'SyntaxError',
       () => customElements.define(invalidName, newClass),
-      `customElements.define should have thrown for invalid name: ${debugString(invalidName)}`);
+      `customElements.define should have thrown`);
     await promise_rejects_dom(t, 'SyntaxError',
       customElements.whenDefined(invalidName),
-      `customElements.whenDefined should have thrown for invalid name: ${debugString(invalidName)}`);
-  }
-});
+      `customElements.whenDefined should have thrown`);
+  }, `Invalid custom element name: ${debugString(invalidName)}`);
+}
+
 </script>

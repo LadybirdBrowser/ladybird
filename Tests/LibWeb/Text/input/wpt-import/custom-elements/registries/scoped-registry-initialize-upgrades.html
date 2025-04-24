@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/custom-elements.html#dom-customelementregistry-initialize">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<div id="declarative-host">
+  <template shadowrootmode="open" shadowrootclonable="true" shadowrootcustomelementregistry>
+    <a-b></a-b>
+  </template>
+</div>
+<div id="imperative-host"></div>
+</head>
+<body>
+<script>
+
+function runTest(title, makeDocument, makeCustomElementRegistry) {
+    test(() => {
+        const element = makeDocument().createElement('a-b');
+        assert_equals(element.customElementRegistry, null);
+        const registry = new CustomElementRegistry;
+        registry.define('a-b', class ABElement extends HTMLElement { });
+        assert_equals(element.customElementRegistry, null);
+        registry.initialize(element);
+        assert_equals(element.customElementRegistry, registry);
+    }, `${title}: CustomElementRegistry.prototype.initialize should upgrade the element given to the first argument`);
+
+    test(() => {
+        const doc = makeDocument();
+        const container = doc.createElementNS('http://www.w3.org/1999/xhtml', 'div');
+        container.innerHTML = '<a-b id="ab1"></a-b><a-b id="ab2"></a-b>';
+        const elements = Array.from(container.querySelectorAll('a-b'));
+        assert_equals(elements[0].id, 'ab1');
+        assert_equals(elements[0].customElementRegistry, null);
+        assert_equals(elements[1].id, 'ab2');
+        assert_equals(elements[1].customElementRegistry, null);
+        const registry = new CustomElementRegistry;
+        let registryInConstructor = [];
+        class ABElement extends HTMLElement {
+            constructor() {
+                super();
+                registryInConstructor[elements.indexOf(this)] = this.customElementRegistry;
+            }
+        };
+        registry.define('a-b', ABElement);
+        assert_false(elements[0] instanceof ABElement);
+        assert_false(elements[1] instanceof ABElement);
+        assert_equals(registryInConstructor.length, 0);
+        registry.initialize(container);
+        assert_equals(elements[0].customElementRegistry, registry);
+        assert_true(elements[0] instanceof ABElement);
+        assert_equals(elements[1].customElementRegistry, registry);
+        assert_true(elements[1] instanceof ABElement);
+        assert_equals(registryInConstructor.length, 2);
+        assert_equals(registryInConstructor[0], registry);
+        assert_equals(registryInConstructor[1], registry);
+    }, `${title}: CustomElementRegistry.prototype.initialize should upgrade elements in tree order`);
+
+    test(() => {
+        const doc1 = makeDocument();
+        const htmlNS = 'http://www.w3.org/1999/xhtml';
+        if (!doc1.documentElement)
+            doc1.appendChild(doc1.createElementNS(htmlNS, 'html')).appendChild(doc1.createElementNS(htmlNS, 'body'));
+
+        const undefinedElement1 = doc1.createElementNS(htmlNS, 'a-b');
+
+        const registry1 = new CustomElementRegistry;
+        class ABElement extends HTMLElement { };
+        registry1.define('a-b', ABElement);
+
+        const registry2 = new CustomElementRegistry;
+        undefinedElement2 = doc1.createElementNS(htmlNS, 'a-b', {customElementRegistry: registry2});
+
+        undefinedElement1.appendChild(undefinedElement2);
+
+        assert_equals(undefinedElement1.customElementRegistry, null);
+        assert_equals(undefinedElement1.__proto__.constructor.name, 'HTMLElement');
+        assert_equals(undefinedElement2.customElementRegistry, registry2);
+        assert_equals(undefinedElement2.__proto__.constructor.name, 'HTMLElement');
+
+        registry1.initialize(undefinedElement1);
+        assert_equals(undefinedElement1.customElementRegistry, registry1);
+        assert_true(undefinedElement1 instanceof ABElement);
+        assert_equals(undefinedElement2.customElementRegistry, registry2);
+        assert_equals(undefinedElement2.__proto__.constructor.name, 'HTMLElement');
+    }, `${title}: CustomElementRegistry.prototype.initialize only upgrades elements beloning to the registry`);
+}
+
+runTest('Document', () => new Document);
+runTest('HTMLDocument', () => document.implementation.createHTMLDocument());
+runTest('XHTMLDocument', () => document.implementation.createDocument('http://www.w3.org/1999/xhtml', 'html', null));
+
+test(() => {
+    class ABElement extends HTMLElement { };
+    const registry = new CustomElementRegistry;
+
+    const element = document.createElement('a-b', { customElementRegistry: registry });
+    assert_equals(element.customElementRegistry, registry);
+    assert_equals(element.__proto__.constructor.name, 'HTMLElement');
+    assert_false(element instanceof ABElement);
+
+    registry.define('a-b', ABElement);
+    assert_equals(element.customElementRegistry, registry);
+    assert_equals(element.__proto__.constructor.name, 'HTMLElement');
+    assert_false(element instanceof ABElement);
+
+    registry.initialize(element);
+    assert_equals(element.customElementRegistry, registry);
+    assert_equals(element.__proto__.constructor.name, 'ABElement');
+    assert_true(element instanceof ABElement);
+}, `CustomElementRegistry.prototype.initialize upgrades already initialized elements`);
+
+test(() => {
+    class ABElement extends HTMLElement { }
+    const registry = new CustomElementRegistry;
+
+    const declarativeHost = document.getElementById('declarative-host');
+    const element = declarativeHost.shadowRoot.querySelector('a-b');
+    assert_equals(element.customElementRegistry, null);
+    assert_equals(element.__proto__.constructor.name, 'HTMLElement');
+    assert_false(element instanceof ABElement);
+
+    registry.initialize(declarativeHost.shadowRoot);
+    assert_equals(element.customElementRegistry, registry);
+    assert_equals(element.__proto__.constructor.name, 'HTMLElement');
+    assert_false(element instanceof ABElement);
+
+    registry.define('a-b', ABElement);
+    assert_equals(element.customElementRegistry, registry);
+    assert_equals(element.__proto__.constructor.name, 'ABElement');
+    assert_true(element instanceof ABElement);
+}, 'CustomElementRegistry.prototype.initialize upgrades custom elements in declarative shadow root when initialize() runs before define()');
+
+test(() => {
+    class ABElement extends HTMLElement { }
+    const registry = new CustomElementRegistry;
+
+    const imperativeHost = document.getElementById('imperative-host');
+    imperativeHost.attachShadow({
+        mode: 'open',
+        customElementRegistry: registry,
+    });
+    imperativeHost.shadowRoot.innerHTML = '<a-b></a-b>';
+    const element = imperativeHost.shadowRoot.querySelector('a-b');
+    assert_equals(element.customElementRegistry, registry);
+    assert_equals(element.__proto__.constructor.name, 'HTMLElement');
+    assert_false(element instanceof ABElement);
+
+    registry.define('a-b', ABElement);
+    assert_equals(element.customElementRegistry, registry);
+    assert_equals(element.__proto__.constructor.name, 'ABElement');
+    assert_true(element instanceof ABElement);
+}, 'CustomElementRegistry.prototype.initialize upgrades custom elements in imperative shadow root when inserted before define()');
+</script>
+</body>
+</html>

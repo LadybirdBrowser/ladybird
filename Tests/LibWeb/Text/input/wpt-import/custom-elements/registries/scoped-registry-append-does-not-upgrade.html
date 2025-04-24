@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+</head>
+<body>
+<script>
+
+test(() => {
+    assert_equals((new Document).createElement('a-b').customElementRegistry, null);
+    assert_equals(document.implementation.createHTMLDocument().createElement('a-b').customElementRegistry, null);
+    assert_equals(document.implementation.createDocument('http://www.w3.org/1999/xhtml', 'html', null).createElement('a-b').customElementRegistry, null);
+}, 'customElementRegistry of an upgrade candidate created in a document without a browsing context uses null regsitry by default');
+
+function makeIframe(test) {
+    const iframe = document.createElement('iframe');
+    document.body.appendChild(iframe);
+    test.add_cleanup(() => iframe.remove());
+    return [iframe.contentDocument, iframe.contentWindow];
+}
+
+test((test) => {
+    const [doc, win] = makeIframe(test);
+    doc.documentElement.setHTMLUnsafe('<div id="host"><template shadowrootmode="open" shadowrootclonable="true" shadowrootcustomelementregistry><a-b></a-b></template></div>');
+    const hostClone = doc.getElementById('host').cloneNode(true);
+    assert_equals(hostClone.shadowRoot.customElementRegistry, null);
+    assert_equals(hostClone.shadowRoot.querySelector('a-b').customElementRegistry, null);
+}, 'Connecting a custom element candiate in a shadow root with a scoped custom element registry has null registry by default');
+
+test((test) => {
+    const [doc, win] = makeIframe(test);
+    doc.documentElement.setHTMLUnsafe('<div id="host"><template shadowrootmode="open" shadowrootclonable="true" shadowrootcustomelementregistry><a-b></a-b></template></div>');
+    win.customElements.define('a-b', class ABElement extends win.HTMLElement { });
+    const hostClone = doc.getElementById('host').cloneNode(true);
+    assert_equals(hostClone.shadowRoot.customElementRegistry, null);
+    const candidate = hostClone.shadowRoot.querySelector('a-b');
+    assert_equals(candidate.customElementRegistry, null);
+    doc.body.appendChild(candidate);
+    assert_equals(candidate.customElementRegistry, null);
+}, 'Connecting a custom element candiate with null registry does not set the registry');
+
+test((test) => {
+    const [doc, win] = makeIframe(test);
+    doc.documentElement.setHTMLUnsafe('<div id="host"><template shadowrootmode="open" shadowrootclonable="true" shadowrootcustomelementregistry><a-b></a-b></template></div>');
+    win.customElements.define('a-b', class ABElement extends win.HTMLElement { });
+    const hostClone = doc.getElementById('host').cloneNode(true);
+    const candidate = hostClone.shadowRoot.querySelector('a-b');
+    const registry = new CustomElementRegistry;
+    assert_equals(candidate.customElementRegistry, null);
+    registry.initialize(hostClone.shadowRoot);
+    assert_equals(candidate.customElementRegistry, registry);
+    doc.body.appendChild(candidate);
+    assert_equals(candidate.customElementRegistry, registry);
+
+    const element = doc.createElement('host', {customElementRegistry: registry});
+    assert_equals(element.customElementRegistry, registry);
+    doc.body.appendChild(element);
+    assert_equals(element.customElementRegistry, registry);
+}, 'Connecting a custom element candiate with a scoped custom element registry does not change the registry');
+
+test((test) => {
+    const [doc, win] = makeIframe(test);
+    doc.documentElement.setHTMLUnsafe('<div id="host1"><template shadowrootmode="open" shadowrootclonable="true" shadowrootcustomelementregistry><a-b></a-b></template></div>'
+        + '<div id="host2"><template shadowrootmode="open" shadowrootclonable="true" shadowrootcustomelementregistry><c-d></c-d></template></div>');
+    win.customElements.define('a-b', class ABElement extends win.HTMLElement { });
+    const clone1 = doc.getElementById('host1').cloneNode(true);
+    const clone2 = doc.getElementById('host2').cloneNode(true);
+    const candidate = clone1.shadowRoot.querySelector('a-b');
+    assert_equals(candidate.customElementRegistry, null);
+    assert_equals(clone2.shadowRoot.querySelector('c-d').customElementRegistry, null);
+    const registry = new CustomElementRegistry;
+    registry.initialize(clone2.shadowRoot);
+    assert_equals(clone2.shadowRoot.querySelector('c-d').customElementRegistry, registry);
+    clone2.shadowRoot.appendChild(candidate);
+    assert_equals(candidate.customElementRegistry, null);
+}, 'Inserting a custom element candiate with null registry does not change the registry');
+
+test((test) => {
+    const [doc, win] = makeIframe(test);
+    const registry = new CustomElementRegistry;
+    const host = doc.createElement('div');
+    const shadowRoot = host.attachShadow({mode: 'closed', customElementRegistry: registry});
+    assert_equals(shadowRoot.customElementRegistry, registry);
+    doc.body.appendChild(host);
+    assert_equals(shadowRoot.customElementRegistry, registry);
+}, 'Inserting the shadow host of a shadow root with a scoped custom element registry does not change the registry');
+
+test((test) => {
+    const [doc1, win1] = makeIframe(test);
+    const [doc2, win2] = makeIframe(test);
+    class ABElement extends win2.HTMLElement { };
+    win2.customElements.define('a-b', ABElement);
+    const elementFromDoc1 = doc1.createElement('a-b');
+    assert_equals(elementFromDoc1.customElementRegistry, win1.customElements);
+    doc2.body.appendChild(elementFromDoc1);
+    assert_equals(elementFromDoc1.customElementRegistry, win2.customElements);
+    assert_true(elementFromDoc1 instanceof ABElement);
+}, 'Inserting a node from another document with global registry results in the custom element registry to be set and upgraded.');
+
+test((test) => {
+    const contentDocument = document.implementation.createHTMLDocument();
+    class ABElement extends HTMLElement { }
+    customElements.define('a-b', ABElement);
+    const elementFromContentDoc = contentDocument.createElement('a-b');
+    assert_equals(elementFromContentDoc.customElementRegistry, null);
+    document.body.appendChild(elementFromContentDoc);
+    assert_equals(elementFromContentDoc.customElementRegistry, customElements);
+    assert_true(elementFromContentDoc instanceof ABElement);
+}, 'Inserting a node from another document with null registry results in the custom element registry to be set and upgraded.');
+
+</script>
+</body>
+</html>

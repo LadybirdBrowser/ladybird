@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/custom-elements.html#dom-customelementregistry-initialize">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+</head>
+<body>
+<script>
+
+function runTest(title, makeDocument, customElementRegistry) {
+    test(() => {
+        assert_equals(makeDocument().createElement('a-b').customElementRegistry, null);
+    }, `${title}: customElementRegistry of an upgrade candidate created with a document without a browsing context uses null regsitry by default`);
+
+    test(() => {
+        const element = makeDocument().createElement('a-b');
+        customElementRegistry.initialize(element);
+        assert_equals(element.customElementRegistry, customElementRegistry);
+    }, `${title}: customElementRegistry of an upgrade candidate after calling CustomElementRegistry.prototype.initialize should return the registry`);
+
+    test(() => {
+        const element = makeDocument().createElement('a-b', {customElementRegistry});
+        customElementRegistry.initialize(element);
+        assert_equals(element.customElementRegistry, customElementRegistry);
+    }, `${title}: customElementRegistry of an upgrade candidate created with an explicit customElementRegistry argument should return the registry`);
+
+    test(() => {
+        const element = makeDocument().createElement('foo');
+        assert_equals(element.customElementRegistry, null);
+    }, `${title}: customElementRegistry of an unknown element created with a document without a browsing context uses null regsitry by default`);
+
+    test(() => {
+        const element = makeDocument().createElement('foo');
+        customElementRegistry.initialize(element);
+        assert_equals(element.customElementRegistry, customElementRegistry);
+    }, `${title}: customElementRegistry of an unknown element after calling CustomElementRegistry.prototype.initialize should return the registry`);
+
+    test(() => {
+        const element = makeDocument().createElement('foo', {customElementRegistry});
+        assert_equals(element.customElementRegistry, customElementRegistry);
+    }, `${title}: customElementRegistry of an unknown element created with an explicit customElementRegistry argument should return the registry`);
+
+    const addElement = (doc) => {
+        const element = doc.createElement('b-c');
+        if (doc.body)
+            doc.body.appendChild(element);
+        else if (doc.documentElement)
+            doc.documentElement.appendChild(element);
+        else
+            doc.appendChild(element);
+        return element;
+    }
+
+    test(() => {
+        assert_equals(addElement(makeDocument()).customElementRegistry, null);
+    }, `${title}: customElementRegistry of an upgrade candidate connected to a document without a browsing context uses null regsitry by default`);
+
+    test(() => {
+        const doc = makeDocument();
+        const element = addElement(doc);
+        customElementRegistry.initialize(doc);
+        assert_equals(doc.customElementRegistry, customElementRegistry);
+        assert_equals(element.customElementRegistry, customElementRegistry);
+    }, `${title}: customElementRegistry of document and an upgrade candidate after calling CustomElementRegistry.prototype.initialize should return the registry`);
+
+    test(() => {
+        const doc = makeDocument();
+        const element = addElement(doc);
+        customElementRegistry.initialize(doc);
+        assert_equals(doc.customElementRegistry, customElementRegistry);
+        assert_equals(element.customElementRegistry, customElementRegistry);
+        element.innerHTML = '<a-b></a-b>';
+        assert_equals(element.querySelector('a-b').customElementRegistry, customElementRegistry);
+    }, `${title}: customElementRegistry of an element created after calling CustomElementRegistry.prototype.initialize should return the registry`);
+}
+
+runTest('Document', () => new Document, new CustomElementRegistry);
+runTest('HTMLDocument', () => document.implementation.createHTMLDocument(), new CustomElementRegistry);
+runTest('XHTMLDocument', () => document.implementation.createDocument('http://www.w3.org/1999/xhtml', 'html', null), new CustomElementRegistry);
+
+</script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 9 tests
+
+9 Fail
+Fail	shadowRootCustomElementRegistry reflects as string
+Fail	Serializing a null registry ShadowRoot with a global registry host (document)
+Fail	Serializing a global registry ShadowRoot with a global registry host (document)
+Fail	Serializing a scoped registry ShadowRoot with a global registry host (document)
+Fail	Serializing a null registry ShadowRoot with a null registry host (document)
+Fail	Serializing a scoped registry ShadowRoot with a null registry host (document)
+Fail	Serializing a null registry ShadowRoot with a scoped registry host (document)
+Fail	Serializing a scoped registry ShadowRoot with a scoped registry host (document)
+Fail	A declarative shadow root gets its default registry from its node document

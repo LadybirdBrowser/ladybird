@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Fail
+Fail	innerHTML on a shadow root should use the scoped registry
+Fail	innerHTML on a connected shadow root should use the associated scoped registry
+Fail	innerHTML on a connected shadow root should not upgrade a custom element inside a template element
+Fail	innerHTML on a connected shadow root should be able to create an unknown element

@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Fail
+Fail	XHTML parser should create a custom element candidate with null registry if customelementregistry is set
+Fail	XHTML parser should create a defined custom element with null registry if customelementregistry is set
+Fail	XHTML fragment parser should create a custom element candidate with null registry if customelementregistry is set
+Fail	XHTML fragment parser should create a defined custom element with null registry if customelementregistry is set

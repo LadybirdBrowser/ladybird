@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org"/>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/custom-elements.html#dom-customelementregistry-initialize"/>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+</head>
+<body>
+<script>
+<![CDATA[
+
+customElements.define('c-d', class ABElement extends HTMLElement { });
+
+]]>
+</script>
+<div id="container"><a-b customelementregistry=""></a-b><c-d customelementregistry=""></c-d></div>
+<script>
+<![CDATA[
+
+const container = document.getElementById('container');
+test((test) => {
+    assert_equals(container.querySelector('a-b').customElementRegistry, null);
+}, `XHTML parser should create a custom element candidate with null registry if customelementregistry is set`);
+
+test((test) => {
+    assert_equals(container.querySelector('c-d').customElementRegistry, null);
+}, `XHTML parser should create a defined custom element with null registry if customelementregistry is set`);
+
+test((test) => {
+    container.setHTMLUnsafe(`<a-b customelementregistry></a-b>`);
+    assert_equals(container.querySelector('a-b').customElementRegistry, null);
+}, `XHTML fragment parser should create a custom element candidate with null registry if customelementregistry is set`);
+
+test((test) => {
+    container.setHTMLUnsafe(`<c-d></c-d>`);
+    assert_equals(container.querySelector('c-d').customElementRegistry, window.customElements);
+    container.setHTMLUnsafe(`<c-d customelementregistry></c-d>`);
+    assert_equals(container.querySelector('c-d').customElementRegistry, null);
+}, `XHTML fragment parser should create a defined custom element with null registry if customelementregistry is set`);
+
+]]>
+</script>
+</body>
+</html>

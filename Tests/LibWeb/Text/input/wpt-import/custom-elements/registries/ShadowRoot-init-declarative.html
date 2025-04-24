@@ -1,0 +1,29 @@
+<!doctype html>
+<title>Scoped Custom Element Registries: declarative shadow root</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<div id="host">
+  <template shadowrootmode="open" shadowrootcustomelementregistry>
+    <custom-element></custom-element>
+    <div></div>
+  </template>
+</div>
+<script>
+test(() => {
+  const customElement = host.shadowRoot.firstElementChild;
+  assert_equals(customElement.customElementRegistry, null);
+  customElement.attachShadow({
+    mode: "open"
+  });
+  assert_equals(customElement.shadowRoot.customElementRegistry, null);
+}, "Custom element inside 'shadowrootcustomelementregistry' declarative shadow root");
+
+test(() => {
+  const divElement = host.shadowRoot.lastElementChild;
+  assert_equals(divElement.customElementRegistry, null);
+  divElement.attachShadow({
+    mode: "open"
+  });
+  assert_equals(divElement.shadowRoot.customElementRegistry, null);
+}, "Built-in element inside 'shadowrootcustomelementregistry' declarative shadow root");
+</script>

@@ -1,0 +1,16 @@
+Harness status: OK
+
+Found 11 tests
+
+11 Fail
+Fail	HTML parser should create a builtin element with null registry if customelementregistry is set
+Fail	Setting customelementregistry content attribute after a builtin element had finishsed parsing should not set null registry
+Fail	Cloning a builtin element with null regsitry should create an element with null registry
+Fail	HTML parser should create a custom element candidate with null registry if customelementregistry is set
+Fail	Setting customelementregistry content attribute after a custom element candidate had finishsed parsing should not set null registry
+Fail	Cloning a custom element candidate with null regsitry should create an element with null registry
+Fail	HTML parser should create a custom element with null registry if customelementregistry is set
+Fail	Setting customelementregistry content attribute after a custom element had finishsed parsing should not set null registry
+Fail	Cloning a custom element with null regsitry should create an element with null registry
+Fail	Descendants of an element with customelementregistry should use null registry
+Fail	Setting customelementregistry content attribute during constructor should not make it use null registry

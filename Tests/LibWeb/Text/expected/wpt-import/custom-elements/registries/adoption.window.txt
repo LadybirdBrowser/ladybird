@@ -1,0 +1,41 @@
+Harness status: OK
+
+Found 36 tests
+
+36 Fail
+Fail	Adoption with global registry
+Fail	Adoption with explicit global registry
+Fail	Adoption with scoped registry
+Fail	Adoption with global registry into a scoped registry
+Fail	Adoption with explicit global registry into a scoped registry
+Fail	Adoption with scoped registry into a scoped registry
+Fail	Adoption including shadow root with global registry
+Fail	Adoption including shadow root with explicit global registry
+Fail	Adoption including shadow root with scoped registry
+Fail	Adoption including shadow root with global registry into a scoped registry
+Fail	Adoption including shadow root with explicit global registry into a scoped registry
+Fail	Adoption including shadow root with scoped registry into a scoped registry
+Fail	Adoption with global registry (null registry target)
+Fail	Adoption with explicit global registry (null registry target)
+Fail	Adoption with scoped registry (null registry target)
+Fail	Adoption with global registry into a scoped registry (null registry target)
+Fail	Adoption with explicit global registry into a scoped registry (null registry target)
+Fail	Adoption with scoped registry into a scoped registry (null registry target)
+Fail	Adoption including shadow root with global registry (null registry target)
+Fail	Adoption including shadow root with explicit global registry (null registry target)
+Fail	Adoption including shadow root with scoped registry (null registry target)
+Fail	Adoption including shadow root with global registry into a scoped registry (null registry target)
+Fail	Adoption including shadow root with explicit global registry into a scoped registry (null registry target)
+Fail	Adoption including shadow root with scoped registry into a scoped registry (null registry target)
+Fail	Adoption with global registry (scoped registry target)
+Fail	Adoption with explicit global registry (scoped registry target)
+Fail	Adoption with scoped registry (scoped registry target)
+Fail	Adoption with global registry into a scoped registry (scoped registry target)
+Fail	Adoption with explicit global registry into a scoped registry (scoped registry target)
+Fail	Adoption with scoped registry into a scoped registry (scoped registry target)
+Fail	Adoption including shadow root with global registry (scoped registry target)
+Fail	Adoption including shadow root with explicit global registry (scoped registry target)
+Fail	Adoption including shadow root with scoped registry (scoped registry target)
+Fail	Adoption including shadow root with global registry into a scoped registry (scoped registry target)
+Fail	Adoption including shadow root with explicit global registry into a scoped registry (scoped registry target)
+Fail	Adoption including shadow root with scoped registry into a scoped registry (scoped registry target)

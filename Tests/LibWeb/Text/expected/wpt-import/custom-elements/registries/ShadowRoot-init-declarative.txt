@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Fail
+Fail	Custom element inside 'shadowrootcustomelementregistry' declarative shadow root
+Fail	Built-in element inside 'shadowrootcustomelementregistry' declarative shadow root
