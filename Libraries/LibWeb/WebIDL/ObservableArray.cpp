@@ -69,7 +69,8 @@ JS::ThrowCompletionOr<void> ObservableArray::append(JS::Value value)
 void ObservableArray::clear()
 {
     while (!indexed_properties().is_empty()) {
-        indexed_properties().storage()->take_first();
+        auto deleted_value = indexed_properties().storage()->take_first().value;
+        MUST(m_on_delete_an_indexed_value->function()(deleted_value));
     }
 }
 
