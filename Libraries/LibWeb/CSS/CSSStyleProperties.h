@@ -71,6 +71,8 @@ private:
     void empty_the_declarations();
     void set_the_declarations(Vector<StyleProperty> properties, HashMap<FlyString, StyleProperty> custom_properties);
 
+    void invalidate_owners(DOM::StyleInvalidationReason);
+
     Vector<StyleProperty> m_properties;
     HashMap<FlyString, StyleProperty> m_custom_properties;
 };

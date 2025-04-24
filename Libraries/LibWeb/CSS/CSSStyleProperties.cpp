@@ -270,8 +270,12 @@ WebIDL::ExceptionOr<void> CSSStyleProperties::set_property(StringView property_n
     }
 
     // 10. If updated is true, update style attribute for the CSS declaration block.
-    if (updated)
+    if (updated) {
         update_style_attribute();
+
+        // Non-standard: Invalidate style for the owners of our containing sheet, if any.
+        invalidate_owners(DOM::StyleInvalidationReason::CSSStylePropertiesSetProperty);
+    }
 
     return {};
 }
@@ -1049,8 +1053,12 @@ WebIDL::ExceptionOr<String> CSSStyleProperties::remove_property(StringView prope
     }
 
     // 7. If removed is true, Update style attribute for the CSS declaration block.
-    if (removed)
+    if (removed) {
         update_style_attribute();
+
+        // Non-standard: Invalidate style for the owners of our containing sheet, if any.
+        invalidate_owners(DOM::StyleInvalidationReason::CSSStylePropertiesRemoveProperty);
+    }
 
     // 8. Return value.
     return value;
@@ -1164,13 +1172,18 @@ WebIDL::ExceptionOr<void> CSSStyleProperties::set_css_text(StringView css_text)
     update_style_attribute();
 
     // Non-standard: Invalidate style for the owners of our containing sheet, if any.
-    if (auto rule = parent_rule()) {
-        if (auto sheet = rule->parent_style_sheet()) {
-            sheet->invalidate_owners(DOM::StyleInvalidationReason::CSSStylePropertiesTextChange);
-        }
-    }
+    invalidate_owners(DOM::StyleInvalidationReason::CSSStylePropertiesTextChange);
 
     return {};
+}
+
+void CSSStyleProperties::invalidate_owners(DOM::StyleInvalidationReason reason)
+{
+    if (auto rule = parent_rule()) {
+        if (auto sheet = rule->parent_style_sheet()) {
+            sheet->invalidate_owners(reason);
+        }
+    }
 }
 
 // https://drafts.csswg.org/cssom/#set-a-css-declaration
