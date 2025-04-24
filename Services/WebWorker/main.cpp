@@ -68,7 +68,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
     Web::Platform::FontPlugin::install(*new WebView::FontPlugin(false));
 
-    Web::Bindings::initialize_main_thread_vm(Web::HTML::EventLoop::Type::Worker);
+    Web::Bindings::initialize_main_thread_vm(Web::Bindings::AgentType::DedicatedWorker);
 
     TRY(initialize_resource_loader(Web::Bindings::main_thread_vm().heap(), request_server_socket));
 

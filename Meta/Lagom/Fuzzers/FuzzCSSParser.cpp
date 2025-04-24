@@ -17,7 +17,7 @@ struct Globals {
 Globals::Globals()
 {
     Web::Platform::EventLoopPlugin::install(*new Web::Platform::EventLoopPluginSerenity);
-    Web::Bindings::initialize_main_thread_vm(Web::HTML::EventLoop::Type::Window);
+    Web::Bindings::initialize_main_thread_vm(Web::Bindings::AgentType::SimilarOriginWindow);
 }
 
 }

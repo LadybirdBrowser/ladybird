@@ -40,6 +40,7 @@
 #include <LibWeb/HTML/Scripting/SimilarOriginWindowAgent.h>
 #include <LibWeb/HTML/Scripting/SyntheticRealmSettings.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
+#include <LibWeb/HTML/Scripting/WorkerAgent.h>
 #include <LibWeb/HTML/ShadowRealmGlobalScope.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowProxy.h>
@@ -72,15 +73,28 @@ HTML::Script* active_script()
         });
 }
 
-void initialize_main_thread_vm(HTML::EventLoop::Type type)
+static NonnullOwnPtr<JS::Agent> create_agent(GC::Heap& heap, AgentType type)
+{
+    switch (type) {
+    case AgentType::SimilarOriginWindow:
+        return HTML::SimilarOriginWindowAgent::create(heap);
+    case AgentType::DedicatedWorker:
+    case AgentType::SharedWorker:
+        return HTML::WorkerAgent::create(heap, JS::Agent::CanBlock::Yes);
+    case AgentType::ServiceWorker:
+        return HTML::WorkerAgent::create(heap, JS::Agent::CanBlock::No);
+    default:
+        break;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+void initialize_main_thread_vm(AgentType type)
 {
     VERIFY(!s_main_thread_vm);
 
     s_main_thread_vm = JS::VM::create();
-    s_main_thread_vm->set_agent(HTML::SimilarOriginWindowAgent::create());
-
-    auto& agent = as<HTML::Agent>(*s_main_thread_vm->agent());
-    agent.event_loop = s_main_thread_vm->heap().allocate<HTML::EventLoop>(type);
+    s_main_thread_vm->set_agent(create_agent(s_main_thread_vm->heap(), type));
 
     s_main_thread_vm->on_unimplemented_property_access = [](auto const& object, auto const& property_key) {
         dbgln("FIXME: Unimplemented IDL interface: '{}.{}'", object.class_name(), property_key.to_string());
