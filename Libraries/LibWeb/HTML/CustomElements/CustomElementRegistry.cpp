@@ -427,6 +427,26 @@ GC::Ptr<CustomElementDefinition> CustomElementRegistry::get_definition_from_new_
     return definition_iterator.is_end() ? nullptr : definition_iterator->ptr();
 }
 
+// https://html.spec.whatwg.org/multipage/custom-elements.html#look-up-a-custom-element-registry
+GC::Ptr<CustomElementRegistry> look_up_a_custom_element_registry(DOM::Node const& node)
+{
+    // To look up a custom element registry, given a Node object node:
+    // 1. If node is an Element object, then return node's custom element registry.
+    if (auto* element = as_if<DOM::Element>(node))
+        return element->custom_element_registry();
+
+    // 2. If node is a ShadowRoot object, then return node's custom element registry.
+    if (auto* shadow_root = as_if<DOM::ShadowRoot>(node))
+        return shadow_root->custom_element_registry();
+
+    // 3. If node is a Document object, then return node's custom element registry.
+    if (auto* document = as_if<DOM::Document>(node))
+        return document->custom_element_registry();
+
+    // 4. Return null.
+    return nullptr;
+}
+
 // https://html.spec.whatwg.org/multipage/custom-elements.html#look-up-a-custom-element-definition
 GC::Ptr<CustomElementDefinition> look_up_a_custom_element_definition(GC::Ptr<CustomElementRegistry> registry, Optional<FlyString> const& namespace_, FlyString const& local_name, Optional<String> const& is)
 {

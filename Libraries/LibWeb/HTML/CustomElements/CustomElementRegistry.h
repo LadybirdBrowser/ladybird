@@ -51,6 +51,7 @@ private:
     OrderedHashMap<String, GC::Ref<WebIDL::Promise>> m_when_defined_promise_map;
 };
 
+GC::Ptr<CustomElementRegistry> look_up_a_custom_element_registry(DOM::Node const&);
 GC::Ptr<CustomElementDefinition> look_up_a_custom_element_definition(GC::Ptr<CustomElementRegistry> registry, Optional<FlyString> const& namespace_, FlyString const& local_name, Optional<String> const& is);
 
 }
