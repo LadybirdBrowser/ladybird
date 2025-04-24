@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Fail
+Fail	innerHTML on a disconnected element should use the scoped registry it was created with
+Fail	innerHTML on an inserted element should continue to use the scoped registry it was created with

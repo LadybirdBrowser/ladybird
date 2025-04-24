@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<link rel="help" href="https://github.com/whatwg/html/issues/10854">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+</head>
+<body>
+<some-host id="host">
+    <template shadowrootmode="closed" shadowrootclonable="true" shadowrootcustomelementregistry>
+        <a-b>
+            <template shadowrootmode="closed" shadowrootclonable="true" shadowrootcustomelementregistry>
+                <c-d/>
+                    <template shadowrootmode="closed" shadowrootclonable="true">
+                        <a-b></a-b>
+                    </template>
+                <c-d>
+            </template>
+        </a-b>
+    </template>
+</some-host>
+<script>
+
+customElements.define('some-host', class SomeHost extends HTMLElement {
+    elementInternals;
+
+    constructor() {
+        super();
+        this.elementInternals = this.attachInternals();
+    }
+});
+customElements.define('a-b', class GlobalABElement extends HTMLElement { });
+customElements.define('c-d', class GlobalCDElement extends HTMLElement { });
+
+test(() => {
+    assert_equals(typeof(window.customElements.upgrade), 'function');
+    assert_equals(typeof((new CustomElementRegistry).upgrade), 'function');
+}, 'upgrade is a function on both global and scoped CustomElementRegistry');
+
+test(() => {
+    const registry = new CustomElementRegistry;
+    registry.define('a-b', class ABElement extends HTMLElement { });
+
+    const clone = host.cloneNode(true);
+    registry.upgrade(clone.elementInternals.shadowRoot);
+    assert_equals(clone.elementInternals.shadowRoot.querySelector('a-b').__proto__.constructor.name, 'HTMLElement');
+}, 'upgrade is a no-op when called on a shadow root with no association');
+
+test(() => {
+    const registry = new CustomElementRegistry;
+    registry.define('a-b', class ABElement extends HTMLElement {
+        elementInternals;
+
+        constructor() {
+            super();
+            this.elementInternals = this.attachInternals();
+        }
+    });
+
+    const clone = host.cloneNode(true);
+    registry.initialize(clone.elementInternals.shadowRoot);
+    registry.upgrade(clone.elementInternals.shadowRoot);
+    const abElement = clone.elementInternals.shadowRoot.querySelector('a-b');
+    assert_equals(abElement.__proto__.constructor.name, 'ABElement');
+    assert_equals(abElement.elementInternals.shadowRoot.customElementRegistry, null);
+    const cdElement = abElement.elementInternals.shadowRoot.querySelector('c-d');
+    assert_equals(cdElement.__proto__.constructor.name, 'HTMLElement');
+    assert_equals(cdElement.customElementRegistry, null);
+}, 'upgrade should upgrade a candidate element when called on a shadow root with an association');
+
+test(() => {
+    const registry = new CustomElementRegistry;
+    registry.define('a-b', class ScopedABElement extends HTMLElement {
+        elementInternals;
+
+        constructor() {
+            super();
+            this.elementInternals = this.attachInternals();
+        }
+    });
+
+    const clone = host.cloneNode(true);
+    registry.initialize(clone.elementInternals.shadowRoot);
+    registry.upgrade(clone.elementInternals.shadowRoot);
+    const abElement = clone.elementInternals.shadowRoot.querySelector('a-b');
+    assert_equals(abElement.__proto__.constructor.name, 'ScopedABElement');
+    registry.initialize(abElement.elementInternals.shadowRoot);
+    assert_equals(abElement.elementInternals.shadowRoot.customElementRegistry, registry);
+    const cdElement = abElement.elementInternals.shadowRoot.querySelector('c-d');
+    assert_equals(cdElement.customElementRegistry, registry);
+
+    registry.define('c-d', class ScopedCDElement extends HTMLElement {
+        elementInternals;
+
+        constructor() {
+            super();
+            this.elementInternals = this.attachInternals();
+        }
+    });
+    assert_equals(cdElement.__proto__.constructor.name, 'HTMLElement');
+    registry.upgrade(abElement.elementInternals.shadowRoot);
+    assert_equals(cdElement.__proto__.constructor.name, 'ScopedCDElement');
+    assert_equals(cdElement.customElementRegistry, registry);
+
+    assert_equals(cdElement.elementInternals.shadowRoot.customElementRegistry, window.customElements);
+    const innerAB = cdElement.elementInternals.shadowRoot.querySelector('a-b');
+    assert_equals(innerAB.customElementRegistry, window.customElements);
+    assert_equals(innerAB.__proto__.constructor.name, 'HTMLElement');
+}, 'upgrade should not upgrade a candidate element not associated with the registry');
+
+</script>
+</body>
+</html>

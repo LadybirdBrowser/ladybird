@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<title>Custom Elements: Element definition</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<body>
+<div id="log"></div>
+<iframe id="iframe"></iframe>
+<script>
+'use strict';
+(() =>  {
+  // Element definition
+  // https://html.spec.whatwg.org/multipage/scripting.html#element-definition
+
+  // Use window from iframe to isolate the test.
+  const iframe = document.getElementById("iframe");
+  const testWindow = iframe.contentDocument.defaultView;
+  const customElements = testWindow.customElements;
+
+  let testable = false;
+  test(() =>  {
+    assert_true('customElements' in testWindow, '"window.customElements" exists');
+    assert_true('define' in customElements, '"window.customElements.define" exists');
+    testable = true;
+  }, '"window.customElements.define" should exists');
+  if (!testable)
+    return;
+
+  const expectTypeError = testWindow.TypeError;
+  // Following errors are DOMException, not JavaScript errors.
+  const expectSyntaxError = 'SYNTAX_ERR';
+  const expectNotSupportedError = 'NOT_SUPPORTED_ERR';
+
+  // 1. If IsConstructor(constructor) is false,
+  // then throw a TypeError and abort these steps.
+  test(() =>  {
+    assert_throws_js(expectTypeError, () =>  {
+      customElements.define();
+    });
+  }, 'If no arguments, should throw a TypeError');
+  test(() =>  {
+    assert_throws_js(expectTypeError, () =>  {
+      customElements.define('test-define-one-arg');
+    });
+  }, 'If one argument, should throw a TypeError');
+  [
+    [ 'undefined', undefined ],
+    [ 'null', null ],
+    [ 'object', {} ],
+    [ 'string', 'string' ],
+    [ 'arrow function', () => {} ], // IsConstructor returns false for arrow functions
+    [ 'method', ({ m() { } }).m ], // IsConstructor returns false for methods
+  ].forEach(t =>  {
+    test(() =>  {
+      assert_throws_js(expectTypeError, () =>  {
+        customElements.define(`test-define-constructor-${t[0]}`, t[1]);
+      });
+    }, `If constructor is ${t[0]}, should throw a TypeError`);
+  });
+
+  // 2. If name is not a valid custom element name,
+  // then throw a SyntaxError and abort these steps.
+  let validCustomElementNames = [
+    // [a-z] (PCENChar)* '-' (PCENChar)*
+    // https://html.spec.whatwg.org/multipage/scripting.html#valid-custom-element-name
+    'a-',
+    'a-a',
+    'aa-',
+    'aa-a',
+    'a-.-_',
+    'a-0123456789',
+    'a-\u6F22\u5B57', // Two CJK Unified Ideographs
+    'a-\uD840\uDC0B', // Surrogate pair U+2000B
+  ];
+  let invalidCustomElementNames = [
+    undefined,
+    null,
+    '',
+    '-',
+    'a',
+    'input',
+    'mycustomelement',
+    'A',
+    'A-',
+    '0-',
+    'a-A',
+    'a-Z',
+    'A-a',
+    'a-a\u00D7',
+    'a-a\u3000',
+    'a-a\uDB80\uDC00', // Surrogate pair U+F0000
+    // name must not be any of the hyphen-containing element names.
+    'annotation-xml',
+    'color-profile',
+    'font-face',
+    'font-face-src',
+    'font-face-uri',
+    'font-face-format',
+    'font-face-name',
+    'missing-glyph',
+  ];
+  validCustomElementNames.forEach(name =>  {
+    test(() =>  {
+      customElements.define(name, class {});
+    }, `Element names: defining an element named ${name} should succeed`);
+  });
+  invalidCustomElementNames.forEach(name =>  {
+    test(() =>  {
+      assert_throws_dom(expectSyntaxError, testWindow.DOMException, () =>  {
+        customElements.define(name, class {});
+      });
+    }, `Element names: defining an element named ${name} should throw a SyntaxError`);
+  });
+
+  // 3. If this CustomElementRegistry contains an entry with name name,
+  // then throw a NotSupportedError and abort these steps.
+  test(() =>  {
+    customElements.define('test-define-dup-name', class {});
+    assert_throws_dom(expectNotSupportedError, testWindow.DOMException, () =>  {
+      customElements.define('test-define-dup-name', class {});
+    });
+  }, 'If the name is already defined, should throw a NotSupportedError');
+
+  // 5. If this CustomElementRegistry contains an entry with constructor constructor,
+  // then throw a NotSupportedError and abort these steps.
+  test(() =>  {
+    class TestDupConstructor {};
+    customElements.define('test-define-dup-constructor', TestDupConstructor);
+    assert_throws_dom(expectNotSupportedError, testWindow.DOMException, () =>  {
+      customElements.define('test-define-dup-ctor2', TestDupConstructor);
+    });
+  }, 'If the constructor is already defined, should throw a NotSupportedError');
+
+  // 12.1. Let prototype be Get(constructor, "prototype"). Rethrow any exceptions.
+  const err = new Error('check this is rethrown');
+  err.name = 'rethrown';
+  function assert_rethrown(func, description) {
+    assert_throws_exactly(err, func, description);
+  }
+  function throw_rethrown_error() {
+    throw err;
+  }
+  test(() =>  {
+    // Hack for prototype to throw while IsConstructor is true.
+    const BadConstructor = (function () { }).bind({});
+    Object.defineProperty(BadConstructor, 'prototype', {
+      get() { throw_rethrown_error(); }
+    });
+    assert_rethrown(() =>  {
+      customElements.define('test-define-constructor-prototype-rethrow', BadConstructor);
+    });
+  }, 'If constructor.prototype throws, should rethrow');
+
+  // 12.2. If Type(prototype) is not Object,
+  // then throw a TypeError exception.
+  test(() =>  {
+    const c = (function () { }).bind({}); // prototype is undefined.
+    assert_throws_js(expectTypeError, () =>  {
+      customElements.define('test-define-constructor-prototype-undefined', c);
+    });
+  }, 'If Type(constructor.prototype) is undefined, should throw a TypeError');
+  test(() =>  {
+    function c() {};
+    c.prototype = 'string';
+    assert_throws_js(expectTypeError, () =>  {
+      customElements.define('test-define-constructor-prototype-string', c);
+    });
+  }, 'If Type(constructor.prototype) is string, should throw a TypeError');
+
+  // 12.3. Let lifecycleCallbacks be a map with the four keys "connectedCallback",
+  // "disconnectedCallback", "adoptedCallback", and "attributeChangedCallback",
+  // each of which belongs to an entry whose value is null.
+  // 12.4. For each of the four keys callbackName in lifecycleCallbacks:
+  // 12.4.1. Let callbackValue be Get(prototype, callbackName). Rethrow any exceptions.
+  // 12.4.2. If callbackValue is not undefined, then set the value of the entry in
+  // lifecycleCallbacks with key callbackName to the result of converting callbackValue
+  // to the Web IDL Function callback type. Rethrow any exceptions from the conversion.
+  [
+    'connectedCallback',
+    'disconnectedCallback',
+    'adoptedCallback',
+    'attributeChangedCallback',
+  ].forEach(name => {
+    test(() => {
+      class C {
+        get [name]() { throw_rethrown_error(); }
+      }
+      assert_rethrown(() => {
+        customElements.define(`test-define-${name.toLowerCase()}-rethrow`, C);
+      });
+    }, `If constructor.prototype.${name} throws, should rethrow`);
+
+    [
+      { name: 'undefined', value: undefined, success: true },
+      { name: 'function', value: function () { }, success: true },
+      { name: 'null', value: null, success: false },
+      { name: 'object', value: {}, success: false },
+      { name: 'integer', value: 1, success: false },
+    ].forEach(data => {
+      test(() => {
+        class C { };
+        C.prototype[name] = data.value;
+        if (data.success) {
+          customElements.define(`test-define-${name.toLowerCase()}-${data.name}`, C);
+        } else {
+          assert_throws_js(expectTypeError, () => {
+            customElements.define(`test-define-${name.toLowerCase()}-${data.name}`, C);
+          });
+        }
+      }, `If constructor.prototype.${name} is ${data.name}, should ${data.success ? 'succeed' : 'throw a TypeError'}`);
+    });
+  });
+})();
+</script>
+</body>

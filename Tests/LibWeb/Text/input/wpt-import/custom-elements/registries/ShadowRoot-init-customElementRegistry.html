@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<link rel="help" href="https://github.com/whatwg/html/issues/10854">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+</head>
+<body>
+<script>
+
+test(() => {
+    const shadowRoot = document.createElement('div').attachShadow({mode: 'closed'});
+    assert_equals(shadowRoot.customElementRegistry, window.customElements);
+}, 'A newly attached disconnected ShadowRoot should use the global registry by default');
+
+test(() => {
+    const host = document.body.appendChild(document.createElement('div'));
+    const shadowRoot = host.attachShadow({mode: 'closed'});
+    assert_equals(shadowRoot.customElementRegistry, window.customElements);
+}, 'A newly attached connected ShadowRoot should use the global registry by default');
+
+test(() => {
+    const registry = new CustomElementRegistry;
+    const shadowRoot = document.createElement('div').attachShadow({mode: 'closed', customElementRegistry: registry});
+    assert_equals(shadowRoot.customElementRegistry, registry);
+}, 'A newly attached disconnected ShadowRoot should use the scoped registry if explicitly specified in attachShadow');
+
+test(() => {
+    const registry = new CustomElementRegistry;
+    const host = document.body.appendChild(document.createElement('div'));
+    const shadowRoot = host.attachShadow({mode: 'closed', customElementRegistry: registry});
+    assert_equals(shadowRoot.customElementRegistry, registry);
+}, 'A newly attached connected ShadowRoot should use the scoped registry if explicitly specified in attachShadow');
+
+test(() => {
+    const host = document.body.appendChild(document.createElement('div'));
+    assert_throws_js(TypeError, () => host.attachShadow({mode: 'closed', customElementRegistry: null}))
+}, 'attachShadow() should throw for a null customElementRegistry value');
+
+</script>
+</body>
+</html>

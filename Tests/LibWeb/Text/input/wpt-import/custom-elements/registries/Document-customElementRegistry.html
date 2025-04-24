@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<link rel="help" href="https://github.com/whatwg/html/issues/10854">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+</head>
+<body>
+<script>
+
+test(() => {
+    assert_equals(document.customElementRegistry, window.customElements);
+}, 'customElementRegistry on a document should return window.customElements by default');
+
+test(() => {
+    const doc = document.implementation.createHTMLDocument('foo')
+    assert_equals(doc.customElementRegistry, null);
+}, 'customElementRegistry on a document without a browsing context should return null');
+
+test((t) => {
+    const frame = document.createElement('iframe');
+    t.add_cleanup(() => frame.remove());
+    document.body.appendChild(frame);
+    assert_equals(frame.contentDocument.customElementRegistry, frame.contentWindow.customElements);
+}, 'customElementRegistry on a document of a connected iframe should return contentWindow.customElements');
+
+test((t) => {
+    const frame = document.createElement('iframe');
+    document.body.appendChild(frame);
+    const doc = frame.contentDocument;
+    const registry = frame.contentWindow.customElements;
+    frame.remove();
+    assert_equals(doc.customElementRegistry, registry);
+}, 'customElementRegistry on a document of a disconnected iframe should return contentWindow.customElements');
+
+</script>
+</body>
+</html>

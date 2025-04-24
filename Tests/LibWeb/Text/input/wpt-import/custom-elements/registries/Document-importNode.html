@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<link rel="help" href="https://github.com/whatwg/html/issues/10854">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+</head>
+<body>
+<div id="host">
+    <template shadowrootmode="open" shadowrootclonable="true" shadowrootcustomelementregistry>
+        <div>
+            <some-element></some-element>
+            <other-element></other-element>
+        </div>
+    </template>
+</div>
+<template id="template">
+    <some-element>
+        <template shadowrootmode="closed" shadowrootclonable="true" shadowrootcustomelementregistry>
+            <div>
+                <some-element></some-element>
+                <other-element></other-element>
+            </div>
+        </template>
+    </some-element>
+</template>
+<div id="root">
+    <span></span>
+</div>
+<script>
+
+const scopedRegistry = new CustomElementRegistry();
+const emptyRegistry = new CustomElementRegistry();
+class GlobalSomeElement extends HTMLElement {
+    elementInternals;
+
+    constructor() {
+        super();
+        this.elementInternals = this.attachInternals();
+        if (this.elementInternals.shadowRoot)
+            scopedRegistry.initialize(this.elementInternals.shadowRoot);
+    }
+};
+class GlobalOtherElement extends HTMLElement {};
+class ScopedSomeElement extends HTMLElement {};
+customElements.define('some-element', GlobalSomeElement);
+customElements.define('other-element', GlobalOtherElement);
+scopedRegistry.define('some-element', ScopedSomeElement);
+
+test(() => {
+    assert_true(document.importNode(document.createElement('some-element')) instanceof GlobalSomeElement);
+}, 'importNode should clone using the global regsitry by default');
+
+test(() => {
+    assert_true(document.importNode(document.createElement('some-element'), {customElementRegistry: scopedRegistry}) instanceof ScopedSomeElement);
+}, 'importNode should clone using the specified scoped regsitry');
+
+test(() => {
+    const clone = document.importNode(host, {selfOnly: false, customElementRegistry: scopedRegistry});
+    assert_equals(clone.shadowRoot.querySelector('some-element').__proto__.constructor.name, 'HTMLElement');
+    assert_false(clone.shadowRoot.querySelector('some-element') instanceof GlobalSomeElement);
+    assert_false(clone.shadowRoot.querySelector('some-element') instanceof ScopedSomeElement);
+    assert_true(clone.shadowRoot.querySelector('other-element') instanceof HTMLElement);
+    assert_false(clone.shadowRoot.querySelector('other-element') instanceof GlobalOtherElement);
+}, 'importNode should preserve null-ness of custom element registry');
+
+test(() => {
+    const clone = document.importNode(host.shadowRoot.querySelector('div'), {selfOnly: false});
+    assert_equals(clone.customElementRegistry, window.customElements);
+    assert_true(clone.querySelector('some-element') instanceof GlobalSomeElement);
+    assert_true(clone.querySelector('other-element') instanceof GlobalOtherElement);
+}, 'importNode should clone a shadow host with a declarative shadow DOM using the global registry by default');
+
+test(() => {
+    const clone = document.importNode(host.shadowRoot.querySelector('div'), {selfOnly: false, customElementRegistry: scopedRegistry});
+    assert_equals(clone.customElementRegistry, scopedRegistry);
+    assert_true(clone.querySelector('some-element') instanceof ScopedSomeElement);
+    assert_false(clone.querySelector('other-element') instanceof GlobalOtherElement);
+}, 'importNode should clone a shadow host with a declarative shadow DOM using a specified scoped registry');
+
+test(() => {
+    const element = document.createElement('div', {customElementRegistry: emptyRegistry});
+    element.innerHTML = '<some-element></some-element><other-element></other-element>';
+    const clone = document.importNode(element, {selfOnly: false, customElementRegistry: scopedRegistry});
+    assert_equals(clone.customElementRegistry, scopedRegistry);
+    assert_true(clone.querySelector('some-element') instanceof ScopedSomeElement);
+    assert_false(clone.querySelector('other-element') instanceof GlobalOtherElement);
+}, 'importNode should clone an element originating from a scoped registry using another scoped registry');
+
+test(() => {
+    const template = document.createElement('template');
+    template.innerHTML = '<div><some-element>hello</some-element><other-element>world</other-element></div>';
+    assert_equals(template.content.querySelector('some-element').__proto__.constructor.name, 'HTMLElement');
+    assert_equals(template.content.querySelector('other-element').__proto__.constructor.name, 'HTMLElement');
+    const clone = document.importNode(template.content, {selfOnly: false});
+    assert_equals(clone.querySelector('some-element').customElementRegistry, window.customElements);
+    assert_equals(clone.querySelector('some-element').__proto__.constructor.name, 'GlobalSomeElement');
+    assert_equals(clone.querySelector('other-element').__proto__.constructor.name, 'GlobalOtherElement');
+}, 'importNode should clone a template content using the global registry by default');
+
+test(() => {
+    const template = document.createElement('template');
+    template.innerHTML = '<div><some-element>hello</some-element><other-element>world</other-element></div>';
+    assert_equals(template.content.querySelector('some-element').__proto__.constructor.name, 'HTMLElement');
+    assert_equals(template.content.querySelector('other-element').__proto__.constructor.name, 'HTMLElement');
+    const clone = document.importNode(template.content, {selfOnly: false, customElementRegistry: scopedRegistry});
+    assert_equals(clone.querySelector('some-element').customElementRegistry, scopedRegistry);
+    assert_equals(clone.querySelector('some-element').__proto__.constructor.name, 'ScopedSomeElement');
+    assert_equals(clone.querySelector('other-element').__proto__.constructor.name, 'HTMLElement');
+}, 'importNode should clone a template content using a specified scoped registry');
+
+test(() => {
+    const template = document.createElement('template');
+    template.innerHTML = `
+<div>
+    <some-element>
+        <template>
+            <other-element>
+                hello
+            </other-element>
+        </template>
+    </some-element>
+    <other-element>
+        world
+    </other-element>
+</div>`;
+    assert_equals(template.content.querySelector('some-element').__proto__.constructor.name, 'HTMLElement');
+    assert_equals(template.content.querySelector('other-element').__proto__.constructor.name, 'HTMLElement');
+    const clone = document.importNode(template.content, {selfOnly: false});
+    assert_equals(clone.querySelector('some-element').customElementRegistry, window.customElements);
+    assert_equals(clone.querySelector('some-element').__proto__.constructor.name, 'GlobalSomeElement');
+    const otherElementInTemplate = clone.querySelector('template').content.querySelector('other-element');
+    assert_equals(otherElementInTemplate.__proto__.constructor.name, 'HTMLElement');
+    assert_equals(clone.querySelector('other-element').__proto__.constructor.name, 'GlobalOtherElement');
+}, 'importNode should clone a template content with a nested template element using a scoped registry');
+
+test(() => {
+    const clone = document.importNode(root);
+    assert_false(clone.hasChildNodes());
+}, "importNode: don't pass options argument");
+
+test(() => {
+    const clone = document.importNode(root, false);
+    assert_false(clone.hasChildNodes());
+}, "importNode: pass options argument with value false");
+
+test(() => {
+    const clone = document.importNode(root, true);
+    assert_true(clone.hasChildNodes());
+}, "importNode: pass options argument with value true");
+
+test(() => {
+    const clone = document.importNode(root, undefined);
+    assert_false(clone.hasChildNodes());
+}, "importNode: pass options argument with value undefined");
+
+test(() => {
+    const clone = document.importNode(root, { });
+    assert_true(clone.hasChildNodes());
+}, "importNode: pass options argument with value { }");
+
+test(() => {
+    const clone = document.importNode(root, { selfOnly: false });
+    assert_true(clone.hasChildNodes());
+}, "importNode: pass options argument with value { selfOnly: false }");
+
+test(() => {
+    const clone = document.importNode(root, { selfOnly: true });
+    assert_false(clone.hasChildNodes());
+}, "importNode: pass options argument with value { selfOnly: true }");
+
+test(() => {
+    const clone = document.importNode(root, { customElementRegistry: scopedRegistry });
+    assert_true(clone.hasChildNodes());
+}, "importNode: pass options argument with value { customElementRegistry: scopedRegistry }");
+
+test(() => {
+    assert_throws_js(TypeError, () => document.importNode(root, { customElementRegistry: null }));
+}, "importNode: pass options argument with value { customElementRegistry: null }");
+
+</script>
+</body>
+</html>
