@@ -47,7 +47,7 @@ enum class EvalMode {
 
 class VM : public RefCounted<VM> {
 public:
-    static ErrorOr<NonnullRefPtr<VM>> create(OwnPtr<Agent> = {});
+    static NonnullRefPtr<VM> create(OwnPtr<Agent> = {});
     ~VM();
 
     GC::Heap& heap() { return m_heap; }

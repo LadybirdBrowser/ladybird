@@ -210,7 +210,7 @@ static ErrorOr<void, TestError> run_test(StringView source, StringView filepath,
         return {};
     }
 
-    auto vm = MUST(JS::VM::create());
+    auto vm = JS::VM::create();
     vm->set_dynamic_imports_allowed(true);
 
     GC::Ptr<JS::Realm> realm;
