@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Format.h>
 #include <AK/Traits.h>
 #include <AK/Types.h>
 
@@ -235,6 +236,31 @@ struct Traits<GC::Ref<T>> : public DefaultTraits<GC::Ref<T>> {
     static unsigned hash(GC::Ref<T> const& value)
     {
         return Traits<T*>::hash(value.ptr());
+    }
+};
+
+template<typename T>
+struct Formatter<GC::Ptr<T>> : Formatter<T const*> {
+    ErrorOr<void> format(FormatBuilder& builder, GC::Ptr<T> const& value)
+    {
+        return Formatter<T const*>::format(builder, value.ptr());
+    }
+};
+
+template<Formattable T>
+struct Formatter<GC::Ref<T>> : Formatter<T> {
+    ErrorOr<void> format(FormatBuilder& builder, GC::Ref<T> const& value)
+    {
+        return Formatter<T>::format(builder, *value);
+    }
+};
+
+template<typename T>
+requires(!HasFormatter<T>)
+struct Formatter<GC::Ref<T>> : Formatter<T const*> {
+    ErrorOr<void> format(FormatBuilder& builder, GC::Ref<T> const& value)
+    {
+        return Formatter<T const*>::format(builder, value.ptr());
     }
 };
 
