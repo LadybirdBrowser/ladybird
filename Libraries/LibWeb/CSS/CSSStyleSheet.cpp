@@ -248,6 +248,11 @@ WebIDL::ExceptionOr<void> CSSStyleSheet::replace_sync(StringView text)
             rules_without_import.append(rule);
     }
 
+    // NOTE: The spec doesn't say where to set the parent style sheet, so we'll do it here.
+    for (auto& rule : rules_without_import) {
+        rule->set_parent_style_sheet(this);
+    }
+
     // 4. Set sheet’s CSS rules to rules.
     m_rules->set_rules({}, rules_without_import);
 
