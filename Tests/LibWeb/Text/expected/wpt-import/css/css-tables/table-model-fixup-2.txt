@@ -1,0 +1,46 @@
+Harness status: OK
+
+Found 40 tests
+
+26 Pass
+14 Fail
+Fail	Replaced elements inside a table cannot be table-row and are considered inline -- input elements (width)
+Fail	Replaced elements inside a table cannot be table-row and are considered inline -- input elements (top)
+Fail	Replaced elements inside a table cannot be table-row and are considered inline -- img elements (width)
+Fail	Replaced elements inside a table cannot be table-row and are considered inline -- img elements (top)
+Fail	Replaced elements inside a table cannot be table-column and are considered inline -- input elements (width)
+Pass	Replaced elements inside a table cannot be table-column and are considered inline -- input elements (top)
+Fail	Replaced elements inside a table cannot be table-column and are considered inline -- img elements (width)
+Pass	Replaced elements inside a table cannot be table-column and are considered inline -- img elements (top)
+Fail	Replaced elements inside a table cannot be table-cell and are considered inline -- input elements (width)
+Pass	Replaced elements inside a table cannot be table-cell and are considered inline -- input elements (top)
+Fail	Replaced elements inside a table cannot be table-cell and are considered inline -- img elements (width)
+Pass	Replaced elements inside a table cannot be table-cell and are considered inline -- img elements (top)
+Pass	Replaced elements outside a table cannot be inline-table and are considered inline -- input=text elements
+Pass	Replaced elements outside a table cannot be inline-table and are considered inline -- input=button elements
+Pass	Replaced elements outside a table cannot be inline-table and are considered inline -- input=file elements
+Pass	Replaced elements outside a table cannot be inline-table and are considered inline -- img elements
+Pass	Replaced elements outside a table cannot be table and are considered block -- input=text elements
+Pass	Replaced elements outside a table cannot be table and are considered block -- input=button elements
+Pass	Replaced elements outside a table cannot be table and are considered block -- input=file elements
+Pass	Replaced elements outside a table cannot be table and are considered block -- img elements
+Fail	Replaced elements outside a table cannot be table-row and are considered inline -- input=text elements
+Fail	Replaced elements outside a table cannot be table-row and are considered inline -- input=button elements
+Fail	Replaced elements outside a table cannot be table-row and are considered inline -- input=file elements
+Pass	Replaced elements outside a table cannot be table-row and are considered inline -- img elements
+Fail	Replaced elements outside a table cannot be table-row-group and are considered inline -- input=text elements
+Fail	Replaced elements outside a table cannot be table-row-group and are considered inline -- input=button elements
+Fail	Replaced elements outside a table cannot be table-row-group and are considered inline -- input=file elements
+Pass	Replaced elements outside a table cannot be table-row-group and are considered inline -- img elements
+Pass	Replaced elements outside a table cannot be table-column and are considered inline inline -- input=text elements
+Pass	Replaced elements outside a table cannot be table-column and are considered inline -- input=button elements
+Pass	Replaced elements outside a table cannot be table-column and are considered inline -- input=file elements
+Pass	Replaced elements outside a table cannot be table-column and are considered inline -- img elements
+Pass	Replaced elements outside a table cannot be table-cell and are considered inline -- input=text elements
+Pass	Replaced elements outside a table cannot be table-cell and are considered inline -- input=button elements
+Pass	Replaced elements outside a table cannot be table-cell and are considered inline -- input=file elements
+Pass	Replaced elements outside a table cannot be table-cell and are considered inline -- img elements
+Pass	Replaced elements outside a table cannot be table-caption and are considered inline -- input=text elements
+Pass	Replaced elements outside a table cannot be table-caption and are considered inline -- input=button elements
+Pass	Replaced elements outside a table cannot be table-caption and are considered inline -- input=file elements
+Pass	Replaced elements outside a table cannot be table-caption and are considered inline -- img elements
