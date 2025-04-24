@@ -10,6 +10,7 @@
 #include <AK/Optional.h>
 #include <LibImageDecoderClient/Client.h>
 #include <LibRequests/RequestClient.h>
+#include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Worker/WebWorkerClient.h>
 #include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebContentClient.h>
@@ -26,7 +27,7 @@ ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_spare_web_content_proce
     Optional<IPC::File> request_server_socket = {});
 
 ErrorOr<NonnullRefPtr<ImageDecoderClient::Client>> launch_image_decoder_process();
-ErrorOr<NonnullRefPtr<Web::HTML::WebWorkerClient>> launch_web_worker_process();
+ErrorOr<NonnullRefPtr<Web::HTML::WebWorkerClient>> launch_web_worker_process(Web::Bindings::AgentType);
 ErrorOr<NonnullRefPtr<Requests::RequestClient>> launch_request_server_process();
 
 ErrorOr<IPC::File> connect_new_request_server_client();

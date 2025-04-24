@@ -21,6 +21,7 @@
 #include <LibWebView/Mutation.h>
 #include <LibWebView/PageInfo.h>
 #include <LibWebView/ProcessHandle.h>
+#include <LibWeb/Bindings/MainThreadVM.h>
 
 endpoint WebContentClient
 {
@@ -107,5 +108,5 @@ endpoint WebContentClient
 
     did_find_in_page(u64 page_id, size_t current_match_index, Optional<size_t> total_match_count) =|
 
-    request_worker_agent(u64 page_id) => (IPC::File socket) // FIXME: Add required attributes to select a SharedWorker Agent
+    request_worker_agent(u64 page_id, Web::Bindings::AgentType worker_type) => (IPC::File socket) // FIXME: Add required attributes to select a SharedWorker Agent
 }

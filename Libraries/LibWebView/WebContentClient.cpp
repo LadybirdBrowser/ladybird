@@ -659,10 +659,10 @@ void WebContentClient::did_allocate_backing_stores(u64 page_id, i32 front_bitmap
         view->did_allocate_backing_stores({}, front_bitmap_id, front_bitmap, back_bitmap_id, back_bitmap);
 }
 
-Messages::WebContentClient::RequestWorkerAgentResponse WebContentClient::request_worker_agent(u64 page_id)
+Messages::WebContentClient::RequestWorkerAgentResponse WebContentClient::request_worker_agent(u64 page_id, Web::Bindings::AgentType worker_type)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
-        auto worker_client = MUST(WebView::launch_web_worker_process());
+        auto worker_client = MUST(WebView::launch_web_worker_process(worker_type));
         return worker_client->clone_transport();
     }
 
