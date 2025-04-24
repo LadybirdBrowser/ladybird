@@ -44,6 +44,7 @@ public:
     static WebIDL::ExceptionOr<void> load_fallback_favicon_if_needed(GC::Ref<DOM::Document>);
 
     void set_parser_document(Badge<HTMLParser>, GC::Ref<DOM::Document>);
+    void set_was_enabled_when_created_by_parser(Badge<HTMLParser>, bool was_enabled_when_created_by_parser) { m_was_enabled_when_created_by_parser = was_enabled_when_created_by_parser; }
 
     void set_media(String);
     String media() const;
@@ -160,6 +161,8 @@ private:
     unsigned m_relationship { 0 };
     // https://html.spec.whatwg.org/multipage/semantics.html#explicitly-enabled
     bool m_explicitly_enabled { false };
+
+    bool m_was_enabled_when_created_by_parser { false };
 
     Optional<String> m_mime_type;
 
