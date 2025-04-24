@@ -42,84 +42,84 @@ Optional<Role> ARIAMixin::role_from_role_attribute_value() const
         // without the required accessible parent of role list), User Agents MUST ignore the role token, and return the
         // computedrole as if the ignored role token had not been included.
         if (role == ARIA::Role::columnheader) {
-            for (auto ancestor = to_element()->parent_element(); ancestor; ancestor = ancestor->parent_element()) {
+            for (auto ancestor = to_element().parent_element(); ancestor; ancestor = ancestor->parent_element()) {
                 if (ancestor->role_or_default() == ARIA::Role::row)
                     return ARIA::Role::columnheader;
             }
             continue;
         }
         if (role == ARIA::Role::gridcell) {
-            for (auto ancestor = to_element()->parent_element(); ancestor; ancestor = ancestor->parent_element()) {
+            for (auto ancestor = to_element().parent_element(); ancestor; ancestor = ancestor->parent_element()) {
                 if (ancestor->role_or_default() == ARIA::Role::row)
                     return ARIA::Role::gridcell;
             }
             continue;
         }
         if (role == ARIA::Role::listitem) {
-            for (auto ancestor = to_element()->parent_element(); ancestor; ancestor = ancestor->parent_element()) {
+            for (auto ancestor = to_element().parent_element(); ancestor; ancestor = ancestor->parent_element()) {
                 if (first_is_one_of(ancestor->role_or_default(), ARIA::Role::directory, ARIA::Role::list))
                     return ARIA::Role::listitem;
             }
             continue;
         }
         if (role == ARIA::Role::menuitem) {
-            for (auto ancestor = to_element()->parent_element(); ancestor; ancestor = ancestor->parent_element()) {
+            for (auto ancestor = to_element().parent_element(); ancestor; ancestor = ancestor->parent_element()) {
                 if (first_is_one_of(ancestor->role_or_default(), ARIA::Role::menu, ARIA::Role::menubar))
                     return ARIA::Role::menuitem;
             }
             continue;
         }
         if (role == ARIA::Role::menuitemcheckbox) {
-            for (auto ancestor = to_element()->parent_element(); ancestor; ancestor = ancestor->parent_element()) {
+            for (auto ancestor = to_element().parent_element(); ancestor; ancestor = ancestor->parent_element()) {
                 if (first_is_one_of(ancestor->role_or_default(), ARIA::Role::menu, ARIA::Role::menubar))
                     return ARIA::Role::menuitemcheckbox;
             }
             continue;
         }
         if (role == ARIA::Role::menuitemradio) {
-            for (auto ancestor = to_element()->parent_element(); ancestor; ancestor = ancestor->parent_element()) {
+            for (auto ancestor = to_element().parent_element(); ancestor; ancestor = ancestor->parent_element()) {
                 if (first_is_one_of(ancestor->role_or_default(), ARIA::Role::menu, ARIA::Role::menubar))
                     return ARIA::Role::menuitemradio;
             }
             continue;
         }
         if (role == ARIA::Role::option) {
-            for (auto ancestor = to_element()->parent_element(); ancestor; ancestor = ancestor->parent_element()) {
+            for (auto ancestor = to_element().parent_element(); ancestor; ancestor = ancestor->parent_element()) {
                 if (ancestor->role_or_default() == ARIA::Role::listbox)
                     return ARIA::Role::option;
             }
             continue;
         }
         if (role == ARIA::Role::row) {
-            for (auto ancestor = to_element()->parent_element(); ancestor; ancestor = ancestor->parent_element()) {
+            for (auto ancestor = to_element().parent_element(); ancestor; ancestor = ancestor->parent_element()) {
                 if (first_is_one_of(ancestor->role_or_default(), ARIA::Role::table, ARIA::Role::grid, ARIA::Role::treegrid))
                     return ARIA::Role::row;
             }
             continue;
         }
         if (role == ARIA::Role::rowgroup) {
-            for (auto ancestor = to_element()->parent_element(); ancestor; ancestor = ancestor->parent_element()) {
+            for (auto ancestor = to_element().parent_element(); ancestor; ancestor = ancestor->parent_element()) {
                 if (first_is_one_of(ancestor->role_or_default(), ARIA::Role::table, ARIA::Role::grid, ARIA::Role::treegrid))
                     return ARIA::Role::rowgroup;
             }
             continue;
         }
         if (role == ARIA::Role::rowheader) {
-            for (auto ancestor = to_element()->parent_element(); ancestor; ancestor = ancestor->parent_element()) {
+            for (auto ancestor = to_element().parent_element(); ancestor; ancestor = ancestor->parent_element()) {
                 if (ancestor->role_or_default() == ARIA::Role::row)
                     return ARIA::Role::rowheader;
             }
             continue;
         }
         if (role == ARIA::Role::tab) {
-            for (auto ancestor = to_element()->parent_element(); ancestor; ancestor = ancestor->parent_element()) {
+            for (auto ancestor = to_element().parent_element(); ancestor; ancestor = ancestor->parent_element()) {
                 if (ancestor->role_or_default() == ARIA::Role::tablist)
                     return ARIA::Role::tab;
             }
             continue;
         }
         if (role == ARIA::Role::treeitem) {
-            for (auto ancestor = to_element()->parent_element(); ancestor; ancestor = ancestor->parent_element()) {
+            for (auto ancestor = to_element().parent_element(); ancestor; ancestor = ancestor->parent_element()) {
                 if (ancestor->role_or_default() == ARIA::Role::tree)
                     return ARIA::Role::treeitem;
             }
@@ -131,13 +131,13 @@ Optional<Role> ARIAMixin::role_from_role_attribute_value() const
         // had been provided. If a valid fallback role had been specified, or if the element had an implicit ARIA role,
         // then user agents would continue to expose that role, instead.
         if ((role == ARIA::Role::form || role == ARIA::Role::region)
-            && to_element()->accessible_name(to_element()->document(), DOM::ShouldComputeRole::No).value().is_empty())
+            && to_element().accessible_name(to_element().document(), DOM::ShouldComputeRole::No).value().is_empty())
             continue;
         if (role == ARIA::Role::none || role == ARIA::Role::presentation) {
             // https://w3c.github.io/aria/#conflict_resolution_presentation_none
             // If an element is focusable, user agents MUST ignore the none/presentation
             // role and expose the element with its implicit role.
-            if (to_element()->is_focusable())
+            if (to_element().is_focusable())
                 continue;
             // If an element has global WAI-ARIA states or properties, user agents MUST
             // ignore the none/presentation role and instead expose the element's implicit role.
