@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>SVG presentation attributes - on relevant elements</title>
+<link rel="help" href="https://svgwg.org/svg2-draft/styling.html#PresentationAttributes">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="presentation-attributes.js"></script>
+<svg id="svg"></svg>
+<script>
+// Test that all of the presentation attributes with no special rules are
+// supported on elements that the corresponding properties apply to.
+
+for (let p in PROPERTIES) {
+  if (CSS.supports(p, "initial")) {
+    test(function() {
+      assertPresentationAttributeIsSupported(PROPERTIES[p].relevantElement, p, PROPERTIES[p].value, p);
+    }, `${p} presentation attribute supported on a relevant element`);
+  }
+}
+</script>

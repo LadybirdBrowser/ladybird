@@ -30,6 +30,91 @@ void SVGElement::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
+struct NamedPropertyID {
+    NamedPropertyID(CSS::PropertyID property_id)
+        : id(property_id)
+        , name(CSS::string_from_property_id(property_id))
+    {
+    }
+
+    CSS::PropertyID id;
+    StringView name;
+};
+
+static Array const attribute_style_properties {
+    // FIXME: The `fill` attribute and CSS `fill` property are not the same! But our support is limited enough that they are equivalent for now.
+    NamedPropertyID(CSS::PropertyID::Fill),
+    // FIXME: The `stroke` attribute and CSS `stroke` property are not the same! But our support is limited enough that they are equivalent for now.
+    NamedPropertyID(CSS::PropertyID::ClipPath),
+    NamedPropertyID(CSS::PropertyID::ClipRule),
+    NamedPropertyID(CSS::PropertyID::Color),
+    NamedPropertyID(CSS::PropertyID::Cursor),
+    NamedPropertyID(CSS::PropertyID::Direction),
+    NamedPropertyID(CSS::PropertyID::Display),
+    NamedPropertyID(CSS::PropertyID::FillOpacity),
+    NamedPropertyID(CSS::PropertyID::FillRule),
+    NamedPropertyID(CSS::PropertyID::FontFamily),
+    NamedPropertyID(CSS::PropertyID::FontSize),
+    NamedPropertyID(CSS::PropertyID::FontStyle),
+    NamedPropertyID(CSS::PropertyID::FontWeight),
+    NamedPropertyID(CSS::PropertyID::ImageRendering),
+    NamedPropertyID(CSS::PropertyID::LetterSpacing),
+    NamedPropertyID(CSS::PropertyID::Mask),
+    NamedPropertyID(CSS::PropertyID::MaskType),
+    NamedPropertyID(CSS::PropertyID::Opacity),
+    NamedPropertyID(CSS::PropertyID::Overflow),
+    NamedPropertyID(CSS::PropertyID::PointerEvents),
+    NamedPropertyID(CSS::PropertyID::StopColor),
+    NamedPropertyID(CSS::PropertyID::StopOpacity),
+    NamedPropertyID(CSS::PropertyID::Stroke),
+    NamedPropertyID(CSS::PropertyID::StrokeDasharray),
+    NamedPropertyID(CSS::PropertyID::StrokeDashoffset),
+    NamedPropertyID(CSS::PropertyID::StrokeLinecap),
+    NamedPropertyID(CSS::PropertyID::StrokeLinejoin),
+    NamedPropertyID(CSS::PropertyID::StrokeMiterlimit),
+    NamedPropertyID(CSS::PropertyID::StrokeOpacity),
+    NamedPropertyID(CSS::PropertyID::StrokeWidth),
+    NamedPropertyID(CSS::PropertyID::TextAnchor),
+    NamedPropertyID(CSS::PropertyID::TextOverflow),
+    NamedPropertyID(CSS::PropertyID::TransformOrigin),
+    NamedPropertyID(CSS::PropertyID::UnicodeBidi),
+    NamedPropertyID(CSS::PropertyID::Visibility),
+    NamedPropertyID(CSS::PropertyID::WhiteSpace),
+    NamedPropertyID(CSS::PropertyID::WordSpacing),
+    NamedPropertyID(CSS::PropertyID::WritingMode),
+};
+
+bool SVGElement::is_presentational_hint(FlyString const& name) const
+{
+    if (Base::is_presentational_hint(name))
+        return true;
+
+    return any_of(attribute_style_properties, [&](auto& property) { return name.equals_ignoring_ascii_case(property.name); });
+}
+
+void SVGElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
+{
+    CSS::Parser::ParsingParams parsing_context { document(), CSS::Parser::ParsingMode::SVGPresentationAttribute };
+    for_each_attribute([&](auto& name, auto& value) {
+        for (auto property : attribute_style_properties) {
+            if (!name.equals_ignoring_ascii_case(property.name))
+                continue;
+            if (property.id == CSS::PropertyID::Mask) {
+                // Mask is a shorthand property in CSS, but parse_css_value does not take that into account. For now,
+                // just parse as 'mask-image' as anything else is currently not supported.
+                // FIXME: properly parse longhand 'mask' property
+                if (auto style_value = parse_css_value(parsing_context, value, CSS::PropertyID::MaskImage)) {
+                    cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::MaskImage, style_value.release_nonnull());
+                }
+            } else {
+                if (auto style_value = parse_css_value(parsing_context, value, property.id))
+                    cascaded_properties->set_property_from_presentational_hint(property.id, style_value.release_nonnull());
+            }
+            break;
+        }
+    });
+}
+
 bool SVGElement::should_include_in_accessibility_tree() const
 {
     bool has_title_or_desc = false;

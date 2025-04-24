@@ -1,0 +1,48 @@
+Harness status: OK
+
+Found 42 tests
+
+37 Pass
+5 Fail
+Pass	clip-path presentation attribute supported on an unknown SVG element
+Pass	clip-rule presentation attribute supported on an unknown SVG element
+Pass	color presentation attribute supported on an unknown SVG element
+Pass	cursor presentation attribute supported on an unknown SVG element
+Pass	direction presentation attribute supported on an unknown SVG element
+Pass	display presentation attribute supported on an unknown SVG element
+Pass	fill presentation attribute supported on an unknown SVG element
+Pass	fill-opacity presentation attribute supported on an unknown SVG element
+Pass	fill-rule presentation attribute supported on an unknown SVG element
+Fail	filter presentation attribute supported on an unknown SVG element
+Pass	font-family presentation attribute supported on an unknown SVG element
+Pass	font-size presentation attribute supported on an unknown SVG element
+Fail	font-stretch presentation attribute supported on an unknown SVG element
+Pass	font-style presentation attribute supported on an unknown SVG element
+Fail	font-variant presentation attribute supported on an unknown SVG element
+Pass	font-weight presentation attribute supported on an unknown SVG element
+Pass	image-rendering presentation attribute supported on an unknown SVG element
+Pass	letter-spacing presentation attribute supported on an unknown SVG element
+Pass	mask-type presentation attribute supported on an unknown SVG element
+Pass	mask presentation attribute supported on an unknown SVG element
+Pass	opacity presentation attribute supported on an unknown SVG element
+Fail	overflow presentation attribute supported on an unknown SVG element
+Pass	pointer-events presentation attribute supported on an unknown SVG element
+Pass	stop-color presentation attribute supported on an unknown SVG element
+Pass	stop-opacity presentation attribute supported on an unknown SVG element
+Pass	stroke presentation attribute supported on an unknown SVG element
+Pass	stroke-dasharray presentation attribute supported on an unknown SVG element
+Pass	stroke-dashoffset presentation attribute supported on an unknown SVG element
+Pass	stroke-linecap presentation attribute supported on an unknown SVG element
+Pass	stroke-linejoin presentation attribute supported on an unknown SVG element
+Pass	stroke-miterlimit presentation attribute supported on an unknown SVG element
+Pass	stroke-opacity presentation attribute supported on an unknown SVG element
+Pass	stroke-width presentation attribute supported on an unknown SVG element
+Pass	text-anchor presentation attribute supported on an unknown SVG element
+Fail	text-decoration presentation attribute supported on an unknown SVG element
+Pass	text-overflow presentation attribute supported on an unknown SVG element
+Pass	transform-origin presentation attribute supported on an unknown SVG element
+Pass	unicode-bidi presentation attribute supported on an unknown SVG element
+Pass	visibility presentation attribute supported on an unknown SVG element
+Pass	white-space presentation attribute supported on an unknown SVG element
+Pass	word-spacing presentation attribute supported on an unknown SVG element
+Pass	writing-mode presentation attribute supported on an unknown SVG element
