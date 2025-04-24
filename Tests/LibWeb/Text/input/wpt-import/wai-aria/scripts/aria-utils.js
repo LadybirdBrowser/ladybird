@@ -20,7 +20,7 @@ const AriaUtils = {
         el.setAttribute("role", role); // el.role not yet supported by Gecko.
         document.body.appendChild(el);
         const computedRole = await test_driver.get_computed_role(el);
-        assert_equals(computedRole, role, el.outerHTML);
+        assert_equals(computedRole, role.toLowerCase(), el.outerHTML);
       }, `role: ${role}`);
     }
   },
@@ -44,6 +44,9 @@ const AriaUtils = {
       throw `Selector passed in verifyRolesBySelector("${selector}") should match at least one element.`;
     }
     for (const el of els) {
+      if (!el.hasAttribute("data-expectedrole")) {
+        throw `Element should have attribute 'data-expectedrole'. Element: ${el.outerHTML}`;
+      }
       let role = el.getAttribute("data-expectedrole");
       let testName = el.getAttribute("data-testname") || role; // data-testname optional if role is unique per test file
       if (typeof roleTestNamePrefix !== "undefined") {
@@ -136,6 +139,9 @@ const AriaUtils = {
       throw `Selector passed in verifyLabelsBySelector("${selector}") should match at least one element.`;
     }
     for (const el of els) {
+      if (!el.hasAttribute("data-expectedlabel")) {
+        throw `Element should have attribute 'data-expectedlabel'. Element: ${el.outerHTML}`;
+      }
       let label = el.getAttribute("data-expectedlabel");
       let testName = el.getAttribute("data-testname") || label; // data-testname optional if label is unique per test file
       if (typeof labelTestNamePrefix !== "undefined") {
