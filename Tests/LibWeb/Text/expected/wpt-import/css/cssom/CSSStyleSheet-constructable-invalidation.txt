@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 3 tests
 
-2 Pass
-1 Fail
-Fail	mutating constructed CSSStyleSheet applied to root invalidates styles
+3 Pass
+Pass	mutating constructed CSSStyleSheet applied to root invalidates styles
 Pass	mutating constructed CSSStyleSheet applied to shadowdom invalidates styles
 Pass	mutating dependent constructed CSSStyleSheet applied to shadowdom invalidates styles
