@@ -31,11 +31,18 @@ inputs:
     description: 'Path to the download cache directory'
     required: false
     default: 'caches'
+  vcpkg_cache_path:
+    description: 'Path to vcpkg binary cache'
+    required: false
+    default: ''
 
 outputs:
   ccache_primary_key:
     description: 'Primary ccache key'
     value: ${{ steps.ccache.outputs.cache-primary-key }}
+  vcpkg_cache_primary_key:
+    description: 'Primary vcpkg binary cache key'
+    value: ${{ steps.vcpkg.outputs.cache-primary-key }}
 
 runs:
   using: "composite"
@@ -68,9 +75,12 @@ runs:
           CCACHE_DIR=${{ inputs.ccache_path }} ccache -s
           CCACHE_DIR=${{ inputs.ccache_path }} ccache -z
 
-    - name: Export vcpkg GitHub Actions cache environment variables
-      uses: actions/github-script@v7
+    - name: 'Restore vcpkg cache'
+      uses: actions/cache/restore@v4
+      if: ${{ inputs.vcpkg_cache_path != '' }}
+      id: 'vcpkg'
       with:
-        script: |
-          core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
-          core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+        path: ${{ inputs.vcpkg_cache_path }}
+        key: '"vcpkg" | "${{ inputs.os }}" | "${{ inputs.arch }}" | "${{ inputs.toolchain }}" | "${{ inputs.cache_key_extra }}" | "${{ inputs.ccache_version }}" | ${{ steps.date-stamp.outputs.timestamp }}'
+        restore-keys: |
+          "vcpkg" | "${{ inputs.os }}" | "${{ inputs.arch }}" | "${{ inputs.toolchain }}" | "${{ inputs.cache_key_extra }}" | "${{ inputs.ccache_version }}"

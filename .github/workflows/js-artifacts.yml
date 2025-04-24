@@ -8,7 +8,6 @@ env:
   LADYBIRD_SOURCE_DIR: ${{ github.workspace }}
   CCACHE_DIR: ${{ github.workspace }}/.ccache
   VCPKG_ROOT:  ${{ github.workspace }}/Build/vcpkg
-  VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
 
 jobs:
   build-and-package:
@@ -47,6 +46,7 @@ jobs:
           cache_key_extra: 'LibJS Artifacts'
           ccache_path: ${{ env.CCACHE_DIR }}
           download_cache_path: ${{ github.workspace }}/Build/caches
+          vcpkg_cache_path: ${{ github.workspace }}/Build/caches/vcpkg-binary-cache
 
       - name: Create build directory Ubuntu
         run: |
@@ -79,6 +79,8 @@ jobs:
           arch: 'Lagom'
           ccache_path: ${{ env.CCACHE_DIR }}
           ccache_primary_key: ${{ steps.cache-restore.outputs.ccache_primary_key }}
+          vcpkg_cache_path: ${{ github.workspace }}/Build/caches/vcpkg-binary-cache
+          vcpkg_cache_primary_key: ${{ steps.cache-restore.outputs.vcpkg_cache_primary_key }}
 
       - name: Upload js package
         uses: actions/upload-artifact@v4

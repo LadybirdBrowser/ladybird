@@ -11,7 +11,6 @@ env:
   LADYBIRD_SOURCE_DIR: ${{ github.workspace }}
   CCACHE_DIR: ${{ github.workspace }}/.ccache
   VCPKG_ROOT:  ${{ github.workspace }}/Build/vcpkg
-  VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || format('{0}-{1}', github.ref, github.run_number) }}
@@ -56,6 +55,7 @@ jobs:
           cache_key_extra: 'Nightly Android'
           ccache_path: ${{ env.CCACHE_DIR }}
           download_cache_path: ${{ github.workspace }}/Build/caches
+          vcpkg_cache_path: ${{ github.workspace }}/Build/caches/vcpkg-binary-cache
 
       - name: Assign Build Parameters
         id: 'build-parameters'
@@ -103,3 +103,5 @@ jobs:
           arch: 'Lagom'
           ccache_path: ${{ env.CCACHE_DIR }}
           ccache_primary_key: ${{ steps.cache-restore.outputs.ccache_primary_key }}
+          vcpkg_cache_path: ${{ github.workspace }}/Build/caches/vcpkg-binary-cache
+          vcpkg_cache_primary_key: ${{ steps.cache-restore.outputs.vcpkg_cache_primary_key }}

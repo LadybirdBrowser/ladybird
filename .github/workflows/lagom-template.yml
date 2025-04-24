@@ -29,7 +29,6 @@ env:
   LADYBIRD_SOURCE_DIR: ${{ github.workspace }}
   CCACHE_DIR: ${{ github.workspace }}/.ccache
   VCPKG_ROOT:  ${{ github.workspace }}/Build/vcpkg
-  VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
 
   # Use the compiler version for the ccache compiler hash. Otherwise, if plugins are enabled, the plugin .so files
   # are included in the hash. This results in clean builds on every run as the .so files are rebuilt.
@@ -110,6 +109,7 @@ jobs:
           cache_key_extra: ${{ steps.build-parameters.outputs.ccache_key }}
           ccache_path: ${{ env.CCACHE_DIR }}
           download_cache_path: ${{ github.workspace }}/Build/caches
+          vcpkg_cache_path: ${{ github.workspace }}/Build/caches/vcpkg-binary-cache
 
       - name: Set dynamic environment variables
         run: |
@@ -180,6 +180,8 @@ jobs:
           arch: ${{ inputs.arch }}
           ccache_path: ${{ env.CCACHE_DIR }}
           ccache_primary_key: ${{ steps.cache-restore.outputs.ccache_primary_key }}
+          vcpkg_cache_path: ${{ github.workspace }}/Build/caches/vcpkg-binary-cache
+          vcpkg_cache_primary_key: ${{ steps.cache-restore.outputs.vcpkg_cache_primary_key }}
 
       # === TEST ===
 

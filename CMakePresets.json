@@ -125,10 +125,7 @@
     {
       "hidden": true,
       "name": "vcpkg_ci",
-      "description": "Use the GitHub Actions vcpkg cache",
-      "environment": {
-        "VCPKG_BINARY_SOURCES": "clear;x-gha,readwrite"
-      }
+      "description": "FIXME: Use the GitHub Actions vcpkg cache"
     },
     {
       "name": "CI",
