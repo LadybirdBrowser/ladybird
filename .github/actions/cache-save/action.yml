@@ -15,6 +15,14 @@ inputs:
     description: 'Primary ccache key'
     required: false
     default: ''
+  vcpkg_cache_path:
+    description: 'Path to the vcpkg binary cache directory'
+    required: false
+    default: ''
+  vcpkg_cache_primary_key:
+    description: 'Primary vcpkg binary cache key'
+    required: false
+    default: ''
 
 runs:
   using: "composite"
@@ -36,3 +44,10 @@ runs:
       shell: bash
       run: |
         CCACHE_DIR=${{ inputs.ccache_path }} ccache -s
+
+    - name: 'vcpkg binary cache'
+      uses: actions/cache/save@v4
+      if: ${{ inputs.vcpkg_cache_path != '' }}
+      with:
+        path: ${{ inputs.vcpkg_cache_path }}
+        key: ${{ inputs.vcpkg_cache_primary_key }}
