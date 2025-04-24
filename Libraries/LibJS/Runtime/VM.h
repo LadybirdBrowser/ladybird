@@ -47,7 +47,7 @@ enum class EvalMode {
 
 class VM : public RefCounted<VM> {
 public:
-    static NonnullRefPtr<VM> create(OwnPtr<Agent> = {});
+    static NonnullRefPtr<VM> create();
     ~VM();
 
     GC::Heap& heap() { return m_heap; }
@@ -240,6 +240,7 @@ public:
     Function<void(Promise&)> on_promise_rejection_handled;
     Function<void(Object const&, PropertyKey const&)> on_unimplemented_property_access;
 
+    void set_agent(OwnPtr<Agent> agent) { m_agent = move(agent); }
     Agent* agent() { return m_agent; }
     Agent const* agent() const { return m_agent; }
 
@@ -290,7 +291,7 @@ private:
 #undef __JS_ENUMERATE
     };
 
-    VM(OwnPtr<Agent>, ErrorMessages);
+    explicit VM(ErrorMessages);
 
     void load_imported_module(ImportedModuleReferrer, ModuleRequest const&, GC::Ptr<GraphLoadingState::HostDefined>, ImportedModulePayload);
     ThrowCompletionOr<void> link_and_eval_module(CyclicModule&);
