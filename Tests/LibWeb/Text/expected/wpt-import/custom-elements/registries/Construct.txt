@@ -2,7 +2,8 @@ Harness status: OK
 
 Found 3 tests
 
-3 Fail
-Fail	A constructor with only a scoped custom element registry definition should fail upon construction
-Fail	A constructor uses the global registry to create an element
+2 Pass
+1 Fail
+Pass	A constructor with only a scoped custom element registry definition should fail upon construction
+Pass	A constructor uses the global registry to create an element
 Fail	A constructor creating an element from another registry before or after super call should work

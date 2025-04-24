@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2023, Luke Wilde <lukew@serenityos.org>
+ * Copyright (c) 2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -23,6 +24,15 @@ namespace Web::HTML {
 GC_DEFINE_ALLOCATOR(CustomElementRegistry);
 GC_DEFINE_ALLOCATOR(CustomElementDefinition);
 
+// https://html.spec.whatwg.org/multipage/custom-elements.html#dom-customelementregistry
+GC::Ref<CustomElementRegistry> CustomElementRegistry::construct_impl(JS::Realm& realm)
+{
+    // The new CustomElementRegistry() constructor steps are to set this's is scoped to true.
+    auto registry = realm.create<CustomElementRegistry>(realm);
+    registry->m_is_scoped = true;
+    return registry;
+}
+
 CustomElementRegistry::CustomElementRegistry(JS::Realm& realm)
     : Bindings::PlatformObject(realm)
 {
@@ -39,6 +49,7 @@ void CustomElementRegistry::initialize(JS::Realm& realm)
 void CustomElementRegistry::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
+    visitor.visit(m_scoped_documents);
     visitor.visit(m_custom_element_definitions);
     visitor.visit(m_when_defined_promise_map);
 }
@@ -150,17 +161,21 @@ JS::ThrowCompletionOr<void> CustomElementRegistry::define(String const& name, We
 
     // 7. If extends is not null:
     if (extends.has_value()) {
-        // 1. If extends is a valid custom element name, then throw a "NotSupportedError" DOMException.
+        // 1. If this's is scoped is true, then throw a "NotSupportedError" DOMException.
+        if (m_is_scoped)
+            return JS::throw_completion(WebIDL::NotSupportedError::create(realm, "Cannot define a custom element that extends another in a scoped registry"_string));
+
+        // 2. If extends is a valid custom element name, then throw a "NotSupportedError" DOMException.
         if (is_valid_custom_element_name(extends.value()))
             return JS::throw_completion(WebIDL::NotSupportedError::create(realm, MUST(String::formatted("'{}' is a custom element name, only non-custom elements can be extended", extends.value()))));
 
-        // 2. If the element interface for extends and the HTML namespace is HTMLUnknownElement
+        // 3. If the element interface for extends and the HTML namespace is HTMLUnknownElement
         //    (e.g., if extends does not indicate an element definition in this specification),
         //    then throw a "NotSupportedError" DOMException.
         if (DOM::is_unknown_html_element(extends.value()))
             return JS::throw_completion(WebIDL::NotSupportedError::create(realm, MUST(String::formatted("'{}' is an unknown HTML element", extends.value()))));
 
-        // 3. Set localName to extends.
+        // 4. Set localName to extends.
         local_name = extends.value();
     }
 
@@ -289,31 +304,20 @@ JS::ThrowCompletionOr<void> CustomElementRegistry::define(String const& name, We
     // 16. Append definition to this's custom element definition set.
     m_custom_element_definitions.append(definition);
 
-    // 17. Let document be this's relevant global object's associated Document.
-    auto& document = as<HTML::Window>(relevant_global_object(*this)).associated_document();
+    // 17. If this's is scoped is true, then for each document of this's scoped document set:
+    //     upgrade particular elements within a document given document, definition, and localName.
+    if (m_is_scoped) {
+        for (auto& document : m_scoped_documents.values())
+            document->upgrade_particular_elements(definition, local_name);
+    }
+    // 18. Otherwise, upgrade particular elements within a document given this's relevant global object's associated
+    //     Document, definition, localName, and name.
+    else {
+        auto& document = as<HTML::Window>(relevant_global_object(*this)).associated_document();
+        document.upgrade_particular_elements(definition, local_name, name);
+    }
 
-    // 18. Let upgradeCandidates be all elements that are shadow-including descendants of document, whose namespace is the HTML namespace
-    //     and whose local name is localName, in shadow-including tree order.
-    //     Additionally, if extends is non-null, only include elements whose is value is equal to name.
-    Vector<GC::Root<DOM::Element>> upgrade_candidates;
-
-    document.for_each_shadow_including_descendant([&](DOM::Node& inclusive_descendant) {
-        if (!is<DOM::Element>(inclusive_descendant))
-            return TraversalDecision::Continue;
-
-        auto& inclusive_descendant_element = static_cast<DOM::Element&>(inclusive_descendant);
-
-        if (inclusive_descendant_element.namespace_uri() == Namespace::HTML && inclusive_descendant_element.local_name() == local_name && (!extends.has_value() || inclusive_descendant_element.is_value() == name))
-            upgrade_candidates.append(GC::make_root(inclusive_descendant_element));
-
-        return TraversalDecision::Continue;
-    });
-
-    // 19. For each element element of upgradeCandidates, enqueue a custom element upgrade reaction given element and definition.
-    for (auto& element : upgrade_candidates)
-        element->enqueue_a_custom_element_upgrade_reaction(definition);
-
-    // 20. If this's when-defined promise map[name] exists:
+    // 19. If this's when-defined promise map[name] exists:
     auto promise_when_defined_iterator = m_when_defined_promise_map.find(name);
     if (promise_when_defined_iterator != m_when_defined_promise_map.end()) {
         // 1. Resolve this's when-defined promise map[name] with constructor.
@@ -407,6 +411,39 @@ void CustomElementRegistry::upgrade(GC::Ref<DOM::Node> root) const
     // 2. For each candidate of candidates, try to upgrade candidate.
     for (auto& candidate : candidates)
         candidate->try_to_upgrade();
+}
+
+// https://html.spec.whatwg.org/multipage/custom-elements.html#dom-customelementregistry-initialize
+void CustomElementRegistry::initialize_for_bindings(GC::Ref<DOM::Node> root)
+{
+    // 1. If root is a Document node whose custom element registry is null, then set root's custom element registry to this.
+    if (auto* document = as_if<DOM::Document>(*root))
+        document->set_custom_element_registry(this);
+
+    // 2. Otherwise, if root is a ShadowRoot node whose custom element registry is null, then set root's custom element
+    //    registry to this.
+    else if (auto* shadow_root = as_if<DOM::ShadowRoot>(*root))
+        shadow_root->set_custom_element_registry(this);
+
+    // 3. For each inclusive descendant inclusiveDescendant of root:
+    //    if inclusiveDescendant is an Element node whose custom element registry is null:
+    root->for_each_in_inclusive_subtree([this](auto& inclusive_descendant) {
+        if (auto* element = as_if<DOM::Element>(inclusive_descendant); element && element->custom_element_registry() == nullptr) {
+            // 1. Set inclusiveDescendant's custom element registry to this.
+            element->set_custom_element_registry(this);
+
+            // 2. If this's is scoped is true, then append inclusiveDescendant's node document to this's scoped
+            //    document set.
+            if (m_is_scoped)
+                append_scoped_document(element->document());
+        }
+        return TraversalDecision::Continue;
+    });
+}
+
+void CustomElementRegistry::append_scoped_document(GC::Ref<DOM::Document> document)
+{
+    m_scoped_documents.set(document);
 }
 
 GC::Ptr<CustomElementDefinition> CustomElementRegistry::get_definition_with_name_and_local_name(String const& name, String const& local_name) const

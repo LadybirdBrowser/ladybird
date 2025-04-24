@@ -2,7 +2,7 @@ Harness status: OK
 
 Found 3 tests
 
-3 Fail
-Fail	Create a CustomElementRegistry not identically equal to window.customElements
-Fail	Defining an element in the global registry does not add a definition to a scoped CustomElementRegistry
-Fail	Defining an element in a scoped global registry does not add a definition to the global registry
+3 Pass
+Pass	Create a CustomElementRegistry not identically equal to window.customElements
+Pass	Defining an element in the global registry does not add a definition to a scoped CustomElementRegistry
+Pass	Defining an element in a scoped global registry does not add a definition to the global registry

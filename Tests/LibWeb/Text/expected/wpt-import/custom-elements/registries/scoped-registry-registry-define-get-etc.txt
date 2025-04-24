@@ -2,11 +2,11 @@ Harness status: OK
 
 Found 7 tests
 
-7 Fail
-Fail	Custom element registries with a registered custom element return the class in their get method, and the name in their getName method
-Fail	Scoped Custom element registries do not inherit names or classes from the global registry
-Fail	Scoped Custom element registries return the same constructor when it is defined in both
-Fail	Scoped Custom element registries allow registering name that exists in global registry
-Fail	Custom element registries with a registered custom element resolve the class in their whenDefined method
-Fail	Scoped Custom element registries resolve the same constructor from whenDefined when it is defined in both
-Fail	Scoped Custom element registry getters do not resolve globally registered classes from whenDefined
+7 Pass
+Pass	Custom element registries with a registered custom element return the class in their get method, and the name in their getName method
+Pass	Scoped Custom element registries do not inherit names or classes from the global registry
+Pass	Scoped Custom element registries return the same constructor when it is defined in both
+Pass	Scoped Custom element registries allow registering name that exists in global registry
+Pass	Custom element registries with a registered custom element resolve the class in their whenDefined method
+Pass	Scoped Custom element registries resolve the same constructor from whenDefined when it is defined in both
+Pass	Scoped Custom element registry getters do not resolve globally registered classes from whenDefined

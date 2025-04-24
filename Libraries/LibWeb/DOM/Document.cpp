@@ -6548,6 +6548,38 @@ GC::Ptr<HTML::CustomElementRegistry> Document::custom_element_registry() const
     // 3. Return this’s custom element registry.
 }
 
+// https://html.spec.whatwg.org/multipage/custom-elements.html#upgrade-particular-elements-within-a-document
+void Document::upgrade_particular_elements(GC::Ref<HTML::CustomElementDefinition> definition, String local_name, Optional<String> maybe_name)
+{
+    // To upgrade particular elements within a document given a Document object document, a custom element definition
+    // definition, a string localName, and optionally a string name (default localName):
+    auto name = maybe_name.value_or(local_name);
+
+    // 1. Let upgradeCandidates be all elements that are shadow-including descendants of document, whose namespace is
+    //    the HTML namespace and whose local name is localName, in shadow-including tree order.
+    //    Additionally, if name is not localName, only include elements whose is value is equal to name.
+    Vector<GC::Root<Element>> upgrade_candidates;
+    for_each_shadow_including_descendant([&](Node& inclusive_descendant) {
+        auto* element = as_if<Element>(inclusive_descendant);
+        if (!element)
+            return TraversalDecision::Continue;
+
+        if (element->namespace_uri() != Namespace::HTML || element->local_name() != local_name)
+            return TraversalDecision::Continue;
+
+        if (name != local_name && element->is_value() != name)
+            return TraversalDecision::Continue;
+
+        upgrade_candidates.append(GC::make_root(element));
+        return TraversalDecision::Continue;
+    });
+
+    // 2. For each element element of upgradeCandidates:
+    //    enqueue a custom element upgrade reaction given element and definition.
+    for (auto& element : upgrade_candidates)
+        element->enqueue_a_custom_element_upgrade_reaction(definition);
+}
+
 ElementByIdMap& Document::element_by_id() const
 {
     if (!m_element_by_id)

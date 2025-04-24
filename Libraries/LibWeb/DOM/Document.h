@@ -914,6 +914,8 @@ public:
     GC::Ptr<HTML::CustomElementRegistry> custom_element_registry() const;
     void set_custom_element_registry(GC::Ptr<HTML::CustomElementRegistry> custom_element_registry) { m_custom_element_registry = custom_element_registry; }
 
+    void upgrade_particular_elements(GC::Ref<HTML::CustomElementDefinition>, String local_name, Optional<String> name = {});
+
 protected:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
