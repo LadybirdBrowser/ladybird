@@ -2,18 +2,18 @@ Harness status: OK
 
 Found 13 tests
 
-2 Pass
-11 Fail
+6 Pass
+7 Fail
 Fail	Adding definition to global registry should not affect shadow roots using scoped registry
 Pass	Adding definition to global registry should affect shadow roots also using global registry
 Fail	Adding definition to scoped registry should affect all associated shadow roots
 Fail	Adding definition to scoped registry should not affect document tree scope
 Fail	Adding definition to scoped registry should not affect shadow roots using other registries
 Fail	Adding definition to global registry should not upgrade nodes no longer using the registry
-Fail	Adding definition to scoped registry should not upgrade nodes no longer using the registry
+Pass	Adding definition to scoped registry should not upgrade nodes no longer using the registry
 Fail	Adding definition to scoped registry affects associated shadow roots in all iframes
 Fail	Adding definition to scoped registry affects associated shadow roots in other frame trees
-Fail	Adding definition to scoped registry should not upgrade disconnected elements
-Fail	Adding definition to scoped registry should not upgrade nodes in constructed documents
-Fail	Adding definition to scoped registry should not upgrade nodes in detached frames
+Pass	Adding definition to scoped registry should not upgrade disconnected elements
+Pass	Adding definition to scoped registry should not upgrade nodes in constructed documents
+Pass	Adding definition to scoped registry should not upgrade nodes in detached frames
 Pass	Adding definition to scoped registry should not upgrade nodes in closed windows

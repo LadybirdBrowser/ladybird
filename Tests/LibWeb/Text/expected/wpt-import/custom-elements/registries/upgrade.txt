@@ -2,9 +2,10 @@ Harness status: OK
 
 Found 5 tests
 
-5 Pass
+4 Pass
+1 Fail
 Pass	Upgrading an element directly (example from the spec)
 Pass	Two elements as children of the upgraded node
 Pass	Two elements as descendants of the upgraded node
 Pass	Two elements as shadow-including descendants (and not descendants) of the upgraded node
-Pass	Elements inside a template contents DocumentFragment node
+Fail	Elements inside a template contents DocumentFragment node

@@ -111,7 +111,7 @@ interface Document : Node {
     Range createRange();
     Event createEvent(DOMString interface);
 
-    [CEReactions, NewObject] Node importNode(Node node, optional boolean deep = false);
+    [CEReactions, NewObject] Node importNode(Node node, optional (boolean or ImportNodeOptions) options = false);
     [CEReactions, ImplementedAs=adopt_node_binding] Node adoptNode(Node node);
 
     readonly attribute DOMString compatMode;
@@ -171,9 +171,18 @@ interface Document : Node {
     readonly attribute SVGSVGElement? rootElement;
 };
 
+// https://dom.spec.whatwg.org/#dictdef-elementcreationoptions
 dictionary ElementCreationOptions {
+    CustomElementRegistry customElementRegistry;
     DOMString is;
 };
+
+// https://dom.spec.whatwg.org/#dictdef-importnodeoptions
+dictionary ImportNodeOptions {
+    CustomElementRegistry customElementRegistry;
+    boolean selfOnly = false;
+};
+
 Document includes ParentNode;
 Document includes GlobalEventHandlers;
 Document includes DocumentOrShadowRoot;

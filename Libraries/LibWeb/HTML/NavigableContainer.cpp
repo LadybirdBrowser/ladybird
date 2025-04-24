@@ -295,6 +295,17 @@ void NavigableContainer::destroy_the_child_navigable()
     navigable->inform_the_navigation_api_about_child_navigable_destruction();
 
     // 5. Destroy a document and its descendants given navigable's active document.
+    if (!navigable->active_document()) {
+        // AD-HOC: We're finding there's no active document sometimes. Why?
+        // Spec issue: https://github.com/whatwg/dom/issues/1379
+        dbgln("No active document so not destroying it!");
+        // 3. Set container's content navigable to null.
+        m_content_navigable = nullptr;
+
+        // Not in the spec:
+        HTML::all_navigables().remove(*navigable);
+        return;
+    }
     navigable->active_document()->destroy_a_document_and_its_descendants(GC::create_function(heap(), [this, navigable] {
         // 3. Set container's content navigable to null.
         m_content_navigable = nullptr;

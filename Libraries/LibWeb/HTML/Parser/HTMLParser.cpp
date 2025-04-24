@@ -26,6 +26,7 @@
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/HTML/CustomElements/CustomElementDefinition.h>
+#include <LibWeb/HTML/CustomElements/CustomElementRegistry.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/HTMLFormElement.h>
@@ -786,25 +787,30 @@ HTMLParser::AdjustedInsertionLocation HTMLParser::find_appropriate_place_for_ins
 // https://html.spec.whatwg.org/multipage/parsing.html#create-an-element-for-the-token
 GC::Ref<DOM::Element> HTMLParser::create_element_for(HTMLToken const& token, Optional<FlyString> const& namespace_, DOM::Node& intended_parent)
 {
-    // FIXME: 1. If the active speculative HTML parser is not null, then return the result of creating a speculative mock element given given namespace, the tag name of the given token, and the attributes of the given token.
-    // FIXME: 2. Otherwise, optionally create a speculative mock element given given namespace, the tag name of the given token, and the attributes of the given token.
+    // FIXME: 1. If the active speculative HTML parser is not null, then return the result of creating a speculative mock element given namespace, token's tag name, and token's attributes.
+    // FIXME: 2. Otherwise, optionally create a speculative mock element given namespace, token's tag name, and token's attributes.
 
-    // 3. Let document be intended parent's node document.
+    // 3. Let document be intendedParent's node document.
     GC::Ref<DOM::Document> document = intended_parent.document();
 
-    // 4. Let local name be the tag name of the token.
+    // 4. Let localName be token's tag name.
     auto const& local_name = token.tag_name();
 
-    // 5. Let is be the value of the "is" attribute in the given token, if such an attribute exists, or null otherwise.
+    // 5. Let is be the value of the "is" attribute in token, if such an attribute exists; otherwise null.
     auto is_value = token.attribute(AttributeNames::is);
 
-    // 6. Let definition be the result of looking up a custom element definition given document, given namespace, local name, and is.
-    auto definition = document->lookup_custom_element_definition(namespace_, local_name, is_value);
+    // 6. Let registry be the result of looking up a custom element registry given intendedParent.
+    auto registry = look_up_a_custom_element_registry(intended_parent);
 
-    // 7. Let willExecuteScript be true if definition is non-null and the parser was not created as part of the HTML fragment parsing algorithm; otherwise false.
+    // 7. Let definition be the result of looking up a custom element definition given registry, namespace, localName,
+    //    and is.
+    auto definition = look_up_a_custom_element_definition(registry, namespace_, local_name, is_value);
+
+    // 8. Let willExecuteScript be true if definition is non-null and the parser was not created as part of the HTML
+    //    fragment parsing algorithm; otherwise false.
     bool will_execute_script = definition && !m_parsing_fragment;
 
-    // 8. If willExecuteScript is true:
+    // 9. If willExecuteScript is true:
     if (will_execute_script) {
         // 1. Increment document's throw-on-dynamic-markup-insertion counter.
         document->increment_throw_on_dynamic_markup_insertion_counter({});
@@ -818,8 +824,9 @@ GC::Ref<DOM::Element> HTMLParser::create_element_for(HTMLToken const& token, Opt
         relevant_similar_origin_window_agent(document).custom_element_reactions_stack.element_queue_stack.append({});
     }
 
-    // 9. Let element be the result of creating an element given document, localName, given namespace, null, is, and willExecuteScript.
-    auto element = create_element(*document, local_name, namespace_, {}, is_value, will_execute_script).release_value_but_fixme_should_propagate_errors();
+    // 10. Let element be the result of creating an element given document, localName, namespace, null, is,
+    //     willExecuteScript, and registry.
+    auto element = create_element(*document, local_name, namespace_, {}, is_value, will_execute_script, registry).release_value_but_fixme_should_propagate_errors();
 
     // AD-HOC: See AD-HOC comment on Element.m_had_duplicate_attribute_during_tokenization about why this is done.
     if (token.had_duplicate_attribute()) {
@@ -834,7 +841,7 @@ GC::Ref<DOM::Element> HTMLParser::create_element_for(HTMLToken const& token, Opt
         link_element.set_was_enabled_when_created_by_parser({}, !token.has_attribute(HTML::AttributeNames::disabled));
     }
 
-    // 10. Append each attribute in the given token to element.
+    // 11. Append each attribute in the given token to element.
     token.for_each_attribute([&](auto const& attribute) {
         DOM::QualifiedName qualified_name { attribute.local_name, attribute.prefix, attribute.namespace_ };
         auto dom_attribute = realm().create<DOM::Attr>(*document, move(qualified_name), attribute.value, element);
@@ -853,7 +860,7 @@ GC::Ref<DOM::Element> HTMLParser::create_element_for(HTMLToken const& token, Opt
         }
     }
 
-    // 11. If willExecuteScript is true:
+    // 12. If willExecuteScript is true:
     if (will_execute_script) {
         // 1. Let queue be the result of popping from document's relevant agent's custom element reactions stack. (This will be the same element queue as was pushed above.)
         auto queue = relevant_similar_origin_window_agent(document).custom_element_reactions_stack.element_queue_stack.take_last();
@@ -865,14 +872,16 @@ GC::Ref<DOM::Element> HTMLParser::create_element_for(HTMLToken const& token, Opt
         document->decrement_throw_on_dynamic_markup_insertion_counter({});
     }
 
-    // FIXME: 12. If element has an xmlns attribute in the XMLNS namespace whose value is not exactly the same as the element's namespace, that is a parse error.
+    // FIXME: 13. If element has an xmlns attribute in the XMLNS namespace whose value is not exactly the same as the element's namespace, that is a parse error.
     //            Similarly, if element has an xmlns:xlink attribute in the XMLNS namespace whose value is not the XLink Namespace, that is a parse error.
 
-    // FIXME: 13. If element is a resettable element and not a form-associated custom element, then invoke its reset algorithm. (This initializes the element's value and checkedness based on the element's attributes.)
+    // FIXME: 14. If element is a resettable element and not a form-associated custom element, then invoke its reset algorithm. (This initializes the element's value and checkedness based on the element's attributes.)
 
-    // 14. If element is a form-associated element and not a form-associated custom element, the form element pointer is not null, there is no template element on the stack of open elements,
-    //     element is either not listed or doesn't have a form attribute, and the intended parent is in the same tree as the element pointed to by the form element pointer,
-    //     then associate element with the form element pointed to by the form element pointer and set element's parser inserted flag.
+    // 15. If element is a form-associated element and not a form-associated custom element, the form element pointer
+    //     is not null, there is no template element on the stack of open elements, element is either not listed or
+    //     doesn't have a form attribute, and the intendedParent is in the same tree as the element pointed to by the
+    //     form element pointer, then associate element with the form element pointed to by the form element pointer
+    //     and set element's parser inserted flag.
     // FIXME: Check if the element is not a form-associated custom element.
     if (auto* form_associated_element = as_if<FormAssociatedElement>(*element)) {
         auto& html_element = form_associated_element->form_associated_element_to_html_element();
@@ -886,18 +895,18 @@ GC::Ref<DOM::Element> HTMLParser::create_element_for(HTMLToken const& token, Opt
         }
     }
 
-    // 15. Return element.
+    // 16. Return element.
     return element;
 }
 
 // https://html.spec.whatwg.org/multipage/parsing.html#insert-a-foreign-element
 GC::Ref<DOM::Element> HTMLParser::insert_foreign_element(HTMLToken const& token, Optional<FlyString> const& namespace_, OnlyAddToElementStack only_add_to_element_stack)
 {
-    // 1. Let the adjusted insertion location be the appropriate place for inserting a node.
+    // 1. Let the adjustedInsertionLocation be the appropriate place for inserting a node.
     auto adjusted_insertion_location = find_appropriate_place_for_inserting_node();
 
-    // 2. Let element be the result of creating an element for the token in the given namespace,
-    //    with the intended parent being the element in which the adjusted insertion location finds itself.
+    // 2. Let element be the result of creating an element for the token given token, namespace, and the element in
+    //    which the adjustedInsertionLocation finds itself.
     auto element = create_element_for(token, namespace_, *adjusted_insertion_location.parent);
 
     // 3. If onlyAddToElementStack is false, then run insert an element at the adjusted insertion location with element.
@@ -915,8 +924,7 @@ GC::Ref<DOM::Element> HTMLParser::insert_foreign_element(HTMLToken const& token,
 // https://html.spec.whatwg.org/multipage/parsing.html#insert-an-html-element
 GC::Ref<DOM::Element> HTMLParser::insert_html_element(HTMLToken const& token)
 {
-    // When the steps below require the user agent to insert an HTML element for a token, the user agent must insert a
-    // foreign element for the token, with the HTML namespace and false.
+    // To insert an HTML element given a token token: insert a foreign element given token, the HTML namespace, and false.
     return insert_foreign_element(token, Namespace::HTML, OnlyAddToElementStack::No);
 }
 
@@ -1151,7 +1159,7 @@ void HTMLParser::handle_in_head(HTMLToken& token)
     // -> A start tag whose tag name is "template"
     if (token.is_start_tag() && token.tag_name() == HTML::TagNames::template_) {
         // Run these steps:
-        // 1. Let template start tag be the start tag.
+        // 1. Let templateStartTag be the start tag.
         auto const& template_start_tag = token;
 
         // 2. Insert a marker at the end of the list of active formatting elements.
@@ -1228,31 +1236,46 @@ void HTMLParser::handle_in_head(HTMLToken& token)
 
             // 8. Otherwise:
             else {
-                // FIXME: The spec substeps here now deal with custom element registries. Update to match that.
+                // 1. Let registry be declarativeShadowHostElement's custom element registry.
+                auto registry = declarative_shadow_host_element.custom_element_registry();
 
-                // 1. Attach a shadow root with declarativeShadowHostElement, mode, clonable, serializable, delegatesFocus, and "named".
-                //    If an exception is thrown, then catch it, report the exception, insert an element at the adjusted insertion location with template, and return.
-                auto result = declarative_shadow_host_element.attach_a_shadow_root(mode, clonable, serializable, delegates_focus, Bindings::SlotAssignmentMode::Named);
+                // 2. If templateStartTag has a shadowrootcustomelementregistry attribute, then set registry to null.
+                if (template_start_tag.has_attribute(AttributeNames::shadowrootcustomelementregistry))
+                    registry = nullptr;
+
+                // 3. Attach a shadow root with declarativeShadowHostElement, mode, clonable, serializable, delegatesFocus, "named", and registry.
+                //    If an exception is thrown, then catch it and:
+                auto result = declarative_shadow_host_element.attach_a_shadow_root(mode, clonable, serializable, delegates_focus, Bindings::SlotAssignmentMode::Named, registry);
                 if (result.is_error()) {
-                    report_exception(Bindings::exception_to_throw_completion(vm(), result.release_error()), realm());
+                    // 1. Insert an element at the adjusted insertion location with template.
                     // FIXME: We do manual "insert before" instead of "insert an element at the adjusted insertion location" here
                     //        Otherwise, the new insertion location will be inside the template's contents, which is not what we want here.
                     //        This might be a spec bug(?)
                     adjusted_insertion_location.parent->insert_before(*template_, adjusted_insertion_location.insert_before_sibling);
+
+                    // 2. The user agent may report an error to the developer console.
+                    report_exception(Bindings::exception_to_throw_completion(vm(), result.release_error()), realm());
+
+                    // 3. Return.
+                    report_exception(Bindings::exception_to_throw_completion(vm(), result.release_error()), realm());
                     return;
                 }
 
-                // 2. Let shadow be declarativeShadowHostElement's shadow root.
+                // 4. Let shadow be declarativeShadowHostElement's shadow root.
                 auto& shadow = *declarative_shadow_host_element.shadow_root();
 
-                // 3. Set shadow's declarative to true.
+                // 5. Set shadow's declarative to true.
                 shadow.set_declarative(true);
 
-                // 4. Set template's template contents property to shadow.
+                // 6. Set template's template contents property to shadow.
                 as<HTMLTemplateElement>(*template_).set_template_contents(shadow);
 
-                // 5. Set shadow's available to element internals to true.
+                // 7. Set shadow's available to element internals to true.
                 shadow.set_available_to_element_internals(true);
+
+                // 8. If template start tag has a shadowrootcustomelementregistry attribute, then set shadow's keep custom element registry null to true.
+                if (token.has_attribute(AttributeNames::shadowrootcustomelementregistry))
+                    shadow.set_keep_custom_element_registry_null(true);
             }
         }
 
@@ -5074,8 +5097,8 @@ Vector<GC::Root<DOM::Node>> HTMLParser::parse_html_fragment(DOM::Element& contex
         // Leave the tokenizer in the data state.
     }
 
-    // 7. Let root be the result of creating an element given document, "html", and the HTML namespace.
-    auto root = MUST(create_element(context_element.document(), HTML::TagNames::html, Namespace::HTML));
+    // 7. Let root be the result of creating an element given document, "html", the HTML namespace, null, null, false, and context's custom element registry.
+    auto root = MUST(create_element(context_element.document(), HTML::TagNames::html, Namespace::HTML, {}, {}, false, context_element.custom_element_registry()));
 
     // 8. Append root to document.
     MUST(temp_document->append_child(root));
@@ -5323,14 +5346,18 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, SerializableSh
                 if (shadow->clonable())
                     builder.append(" shadowrootclonable=\"\""sv);
 
-                // 7. Append ">".
+                // 7. If current node's custom element registry is not shadow's custom element registry, then append " shadowrootcustomelementregistry=""".
+                if (element.custom_element_registry() != shadow->custom_element_registry())
+                    builder.append(" shadowrootcustomelementregistry=\"\""sv);
+
+                // 8. Append ">".
                 builder.append('>');
 
-                // 8. Append the value of running the HTML fragment serialization algorithm with shadow,
+                // 9. Append the value of running the HTML fragment serialization algorithm with shadow,
                 //    serializableShadowRoots, and shadowRoots (thus recursing into this algorithm for that element).
                 builder.append(serialize_html_fragment(*shadow, serializable_shadow_roots, shadow_roots));
 
-                // 9. Append "</template>".
+                // 10. Append "</template>".
                 builder.append("</template>"sv);
             }
         }

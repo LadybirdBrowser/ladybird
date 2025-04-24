@@ -4,8 +4,8 @@ Found 12 tests
 
 11 Pass
 1 Fail
-Fail	importNode on Document must construct a new custom element when importing a custom element into a window-less document
-Pass	importNode on Document must construct a new custom element when importing a custom element from a template
+Pass	importNode on Document must construct a new custom element when importing a custom element into a window-less document
+Fail	importNode on Document must construct a new custom element when importing a custom element from a template
 Pass	adoptNode on Document must enqueue an adopted reaction when importing a custom element
 Pass	execCommand on Document must enqueue a disconnected reaction when deleting a custom element from a contenteditable element
 Pass	title on Document must enqueue disconnectedCallback when removing a custom element

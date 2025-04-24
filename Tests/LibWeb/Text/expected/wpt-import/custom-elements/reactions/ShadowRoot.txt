@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 3 tests
 
-2 Pass
-1 Fail
-Fail	innerHTML on ShadowRoot must upgrade a custom element
+3 Pass
+Pass	innerHTML on ShadowRoot must upgrade a custom element
 Pass	innerHTML on ShadowRoot must enqueue connectedCallback on newly upgraded custom elements when the shadow root is connected
 Pass	innerHTML on ShadowRoot must enqueue disconnectedCallback when removing a custom element

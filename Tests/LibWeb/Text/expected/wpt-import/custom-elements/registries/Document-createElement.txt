@@ -1,3 +1,12 @@
-Harness status: Error
+Harness status: OK
 
-Found 0 tests
+Found 7 tests
+
+7 Pass
+Pass	createElement should use the global registry by default
+Pass	createElement should use the specified scoped registry
+Pass	createElement should create a builtin element regardless of a custom element registry specified
+Pass	createElement should use the specified global registry
+Pass	createElement should create an upgrade candidate when there is no matching definition in the specified registry
+Pass	createElement should create an upgrade candidate and the candidate should be upgraded when the element is defined
+Pass	createElement on a non-HTML document should still handle registries correctly
