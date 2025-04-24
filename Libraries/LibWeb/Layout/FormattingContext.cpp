@@ -1914,8 +1914,6 @@ bool FormattingContext::should_treat_max_width_as_none(Box const& box, Available
         return true;
     if (available_width.is_max_content() && max_width.is_max_content())
         return true;
-    if (box.is_absolutely_positioned())
-        return false;
     if (max_width.contains_percentage()) {
         if (available_width.is_max_content())
             return true;
@@ -1942,8 +1940,6 @@ bool FormattingContext::should_treat_max_height_as_none(Box const& box, Availabl
     auto const& max_height = box.computed_values().max_height();
     if (max_height.is_none())
         return true;
-    if (box.is_absolutely_positioned())
-        return false;
     if (max_height.contains_percentage()) {
         if (available_height.is_min_content())
             return false;
