@@ -504,6 +504,7 @@ set(SOURCES
     HTML/Scripting/ModuleMap.cpp
     HTML/Scripting/ModuleScript.cpp
     HTML/Scripting/Script.cpp
+    HTML/Scripting/SimilarOriginWindowAgent.cpp
     HTML/Scripting/SyntheticRealmSettings.cpp
     HTML/Scripting/TemporaryExecutionContext.cpp
     HTML/Scripting/WindowEnvironmentSettingsObject.cpp

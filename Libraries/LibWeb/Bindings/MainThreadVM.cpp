@@ -31,13 +31,13 @@
 #include <LibWeb/HTML/HTMLSlotElement.h>
 #include <LibWeb/HTML/Location.h>
 #include <LibWeb/HTML/PromiseRejectionEvent.h>
-#include <LibWeb/HTML/Scripting/Agent.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/Scripting/Fetching.h>
 #include <LibWeb/HTML/Scripting/ModuleScript.h>
 #include <LibWeb/HTML/Scripting/Script.h>
+#include <LibWeb/HTML/Scripting/SimilarOriginWindowAgent.h>
 #include <LibWeb/HTML/Scripting/SyntheticRealmSettings.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/ShadowRealmGlobalScope.h>
@@ -76,7 +76,7 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
 {
     VERIFY(!s_main_thread_vm);
 
-    s_main_thread_vm = TRY(JS::VM::create(make<HTML::Agent>()));
+    s_main_thread_vm = TRY(JS::VM::create(make<HTML::SimilarOriginWindowAgent>()));
 
     auto& agent = as<HTML::Agent>(*s_main_thread_vm->agent());
     agent.event_loop = s_main_thread_vm->heap().allocate<HTML::EventLoop>(type);
@@ -659,7 +659,7 @@ JS::VM& main_thread_vm()
 void queue_mutation_observer_microtask(DOM::Document const& document)
 {
     auto& vm = main_thread_vm();
-    auto& surrounding_agent = as<HTML::Agent>(*vm.agent());
+    auto& surrounding_agent = as<HTML::SimilarOriginWindowAgent>(*vm.agent());
 
     // 1. If the surrounding agent’s mutation observer microtask queued is true, then return.
     if (surrounding_agent.mutation_observer_microtask_queued)
