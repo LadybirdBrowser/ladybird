@@ -20,7 +20,7 @@ namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#similar-origin-window-agent
 struct SimilarOriginWindowAgent : public Agent {
-    static NonnullOwnPtr<SimilarOriginWindowAgent> create();
+    static NonnullOwnPtr<SimilarOriginWindowAgent> create(GC::Heap&);
 
     // https://dom.spec.whatwg.org/#mutation-observer-compound-microtask-queued-flag
     // Each similar-origin window agent has a mutation observer microtask queued (a boolean), which is initially false. [HTML]

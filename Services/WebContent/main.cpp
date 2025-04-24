@@ -191,7 +191,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
     Web::Platform::FontPlugin::install(*new WebView::FontPlugin(is_layout_test_mode, &font_provider));
 
-    Web::Bindings::initialize_main_thread_vm(Web::HTML::EventLoop::Type::Window);
+    Web::Bindings::initialize_main_thread_vm(Web::Bindings::AgentType::SimilarOriginWindow);
 
     if (collect_garbage_on_every_allocation)
         Web::Bindings::main_thread_vm().heap().set_should_collect_on_every_allocation(true);

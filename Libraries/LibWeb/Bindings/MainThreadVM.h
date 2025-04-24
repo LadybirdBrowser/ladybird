@@ -32,7 +32,15 @@ struct WebEngineCustomJobCallbackData final : public JS::JobCallback::CustomData
 
 HTML::Script* active_script();
 
-void initialize_main_thread_vm(HTML::EventLoop::Type);
+enum class AgentType : u8 {
+    SimilarOriginWindow,
+    DedicatedWorker,
+    SharedWorker,
+    ServiceWorker,
+    Worklet,
+};
+
+void initialize_main_thread_vm(AgentType);
 JS::VM& main_thread_vm();
 
 void queue_mutation_observer_microtask(DOM::Document const&);
