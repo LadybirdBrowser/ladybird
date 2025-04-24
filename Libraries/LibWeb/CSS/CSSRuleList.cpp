@@ -116,7 +116,13 @@ WebIDL::ExceptionOr<void> CSSRuleList::remove_a_css_rule(u32 index)
     // 3. Set old rule to the indexth item in list.
     CSSRule& old_rule = m_rules[index];
 
-    // FIXME: 4. If old rule is an @namespace at-rule, and list contains anything other than @import at-rules, and @namespace at-rules, throw an InvalidStateError exception.
+    // 4. If old rule is an @namespace at-rule, and list contains anything other than @import at-rules, and @namespace at-rules, throw an InvalidStateError exception.
+    if (old_rule.type() == CSSRule::Type::Namespace) {
+        for (auto& rule : m_rules) {
+            if (rule->type() != CSSRule::Type::Import && rule->type() != CSSRule::Type::Namespace)
+                return WebIDL::InvalidStateError::create(realm(), "Cannot remove @namespace rule from a stylesheet with non-namespace/import rules."_string);
+        }
+    }
 
     // 5. Remove rule old rule from list at the zero-indexed position index.
     m_rules.remove(index);
