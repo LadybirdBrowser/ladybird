@@ -6,15 +6,15 @@
 
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/HTML/MessagePort.h>
-#include <LibWeb/HTML/WorkerAgent.h>
+#include <LibWeb/HTML/WorkerAgentParent.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Worker/WebWorkerClient.h>
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(WorkerAgent);
+GC_DEFINE_ALLOCATOR(WorkerAgentParent);
 
-WorkerAgent::WorkerAgent(URL::URL url, WorkerOptions const& options, GC::Ptr<MessagePort> outside_port, GC::Ref<EnvironmentSettingsObject> outside_settings)
+WorkerAgentParent::WorkerAgentParent(URL::URL url, WorkerOptions const& options, GC::Ptr<MessagePort> outside_port, GC::Ref<EnvironmentSettingsObject> outside_settings)
     : m_worker_options(options)
     , m_url(move(url))
     , m_outside_port(outside_port)
@@ -22,7 +22,7 @@ WorkerAgent::WorkerAgent(URL::URL url, WorkerOptions const& options, GC::Ptr<Mes
 {
 }
 
-void WorkerAgent::initialize(JS::Realm& realm)
+void WorkerAgentParent::initialize(JS::Realm& realm)
 {
     Base::initialize(realm);
 
@@ -47,7 +47,7 @@ void WorkerAgent::initialize(JS::Realm& realm)
     m_worker_ipc->async_start_dedicated_worker(m_url, m_worker_options.type, m_worker_options.credentials, m_worker_options.name, move(data_holder), m_outside_settings->serialize());
 }
 
-void WorkerAgent::visit_edges(Cell::Visitor& visitor)
+void WorkerAgentParent::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_message_port);

@@ -545,7 +545,7 @@ set(SOURCES
     HTML/WindowOrWorkerGlobalScope.cpp
     HTML/WindowProxy.cpp
     HTML/Worker.cpp
-    HTML/WorkerAgent.cpp
+    HTML/WorkerAgentParent.cpp
     HTML/WorkerDebugConsoleClient.cpp
     HTML/WorkerGlobalScope.cpp
     HTML/WorkerLocation.cpp

@@ -19,16 +19,17 @@ struct WorkerOptions {
     String name { String {} };
 };
 
-class WorkerAgent : public JS::Cell {
-    GC_CELL(WorkerAgent, JS::Cell);
-    GC_DECLARE_ALLOCATOR(WorkerAgent);
+// FIXME: Figure out a better naming convention for this type of parent/child process pattern.
+class WorkerAgentParent : public JS::Cell {
+    GC_CELL(WorkerAgentParent, JS::Cell);
+    GC_DECLARE_ALLOCATOR(WorkerAgentParent);
 
-    WorkerAgent(URL::URL url, WorkerOptions const& options, GC::Ptr<MessagePort> outside_port, GC::Ref<EnvironmentSettingsObject> outside_settings);
-
-private:
+protected:
+    WorkerAgentParent(URL::URL url, WorkerOptions const& options, GC::Ptr<MessagePort> outside_port, GC::Ref<EnvironmentSettingsObject> outside_settings);
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
+private:
     WorkerOptions m_worker_options;
     URL::URL m_url;
 
