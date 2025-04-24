@@ -775,52 +775,6 @@ private:
     mutable EnvironmentCoordinate m_cache;
 };
 
-class SetArgument final : public Instruction {
-public:
-    SetArgument(size_t index, Operand src)
-        : Instruction(Type::SetArgument)
-        , m_index(index)
-        , m_src(src)
-    {
-    }
-
-    ByteString to_byte_string_impl(Bytecode::Executable const&) const;
-    void visit_operands_impl(Function<void(Operand&)> visitor)
-    {
-        visitor(m_src);
-    }
-
-    size_t index() const { return m_index; }
-    Operand src() const { return m_src; }
-
-private:
-    u32 m_index;
-    Operand m_src;
-};
-
-class GetArgument final : public Instruction {
-public:
-    GetArgument(Operand dst, size_t index)
-        : Instruction(Type::GetArgument)
-        , m_index(index)
-        , m_dst(dst)
-    {
-    }
-
-    ByteString to_byte_string_impl(Bytecode::Executable const&) const;
-    void visit_operands_impl(Function<void(Operand&)> visitor)
-    {
-        visitor(m_dst);
-    }
-
-    u32 index() const { return m_index; }
-    Operand dst() const { return m_dst; }
-
-private:
-    u32 m_index;
-    Operand m_dst;
-};
-
 class GetCalleeAndThisFromEnvironment final : public Instruction {
 public:
     explicit GetCalleeAndThisFromEnvironment(Operand callee, Operand this_value, IdentifierTableIndex identifier)

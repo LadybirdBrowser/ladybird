@@ -83,6 +83,9 @@ static ByteString format_operand(StringView name, Operand operand, Bytecode::Exe
     case Operand::Type::Local:
         builder.appendff("\033[34m{}~{}\033[0m", executable.local_variable_names[operand.index() - executable.local_index_base], operand.index() - executable.local_index_base);
         break;
+    case Operand::Type::Argument:
+        builder.appendff("\033[34marg{}\033[0m", operand.index() - executable.argument_index_base);
+        break;
     case Operand::Type::Constant: {
         builder.append("\033[36m"sv);
         auto value = executable.constants[operand.index() - executable.number_of_registers];
@@ -184,12 +187,12 @@ Interpreter::~Interpreter()
 
 ALWAYS_INLINE Value Interpreter::get(Operand op) const
 {
-    return m_registers_and_constants_and_locals.data()[op.index()];
+    return m_registers_and_constants_and_locals_arguments.data()[op.index()];
 }
 
 ALWAYS_INLINE void Interpreter::set(Operand op, Value value)
 {
-    m_registers_and_constants_and_locals.data()[op.index()] = value;
+    m_registers_and_constants_and_locals_arguments.data()[op.index()] = value;
 }
 
 ALWAYS_INLINE Value Interpreter::do_yield(Value value, Optional<Label> continuation)
@@ -374,7 +377,6 @@ FLATTEN_ON_CLANG void Interpreter::run_bytecode(size_t entry_point)
     }
 
     auto& running_execution_context = this->running_execution_context();
-    auto* arguments = running_execution_context.arguments.data();
     auto& accumulator = this->accumulator();
     auto& executable = current_executable();
     auto const* bytecode = executable.bytecode.data();
@@ -407,18 +409,6 @@ FLATTEN_ON_CLANG void Interpreter::run_bytecode(size_t entry_point)
     start:
         for (;;) {
             goto* bytecode_dispatch_table[static_cast<size_t>((*reinterpret_cast<Instruction const*>(&bytecode[program_counter])).type())];
-
-        handle_GetArgument: {
-            auto const& instruction = *reinterpret_cast<Op::GetArgument const*>(&bytecode[program_counter]);
-            set(instruction.dst(), arguments[instruction.index()]);
-            DISPATCH_NEXT(GetArgument);
-        }
-
-        handle_SetArgument: {
-            auto const& instruction = *reinterpret_cast<Op::SetArgument const*>(&bytecode[program_counter]);
-            arguments[instruction.index()] = get(instruction.src());
-            DISPATCH_NEXT(SetArgument);
-        }
 
         handle_Mov: {
             auto& instruction = *reinterpret_cast<Op::Mov const*>(&bytecode[program_counter]);
@@ -745,7 +735,7 @@ Interpreter::ResultAndReturnRegister Interpreter::run_executable(Executable& exe
     VERIFY(registers_and_constants_and_locals_count <= running_execution_context.registers_and_constants_and_locals_and_arguments_span().size());
 
     TemporaryChange restore_running_execution_context { m_running_execution_context, &running_execution_context };
-    TemporaryChange restore_registers_and_constants_and_locals { m_registers_and_constants_and_locals, running_execution_context.registers_and_constants_and_locals_and_arguments_span() };
+    TemporaryChange restore_registers_and_constants_and_locals { m_registers_and_constants_and_locals_arguments, running_execution_context.registers_and_constants_and_locals_and_arguments_span() };
 
     reg(Register::accumulator()) = initial_accumulator_value;
     reg(Register::return_value()) = js_special_empty_value();
@@ -3217,16 +3207,6 @@ ByteString SetVariableBinding::to_byte_string_impl(Bytecode::Executable const& e
     return ByteString::formatted("SetVariableBinding {}, {}",
         executable.identifier_table->get(m_identifier),
         format_operand("src"sv, src(), executable));
-}
-
-ByteString GetArgument::to_byte_string_impl(Bytecode::Executable const& executable) const
-{
-    return ByteString::formatted("GetArgument {}, {}", index(), format_operand("dst"sv, dst(), executable));
-}
-
-ByteString SetArgument::to_byte_string_impl(Bytecode::Executable const& executable) const
-{
-    return ByteString::formatted("SetArgument {}, {}", index(), format_operand("src"sv, src(), executable));
 }
 
 static StringView property_kind_to_string(PropertyKind kind)

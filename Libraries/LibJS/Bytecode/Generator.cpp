@@ -72,15 +72,13 @@ CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(E
         auto const& parameter = formal_parameters.parameters()[param_index];
 
         if (parameter.is_rest) {
-            auto argument_reg = allocate_register();
-            emit<Op::CreateRestParams>(argument_reg.operand(), param_index);
-            emit<Op::SetArgument>(param_index, argument_reg.operand());
+            emit<Op::CreateRestParams>(Operand { Operand::Type::Argument, param_index }, param_index);
         } else if (parameter.default_value) {
             auto& if_undefined_block = make_block();
             auto& if_not_undefined_block = make_block();
 
             auto argument_reg = allocate_register();
-            emit<Op::GetArgument>(argument_reg.operand(), param_index);
+            emit<Op::Mov>(argument_reg.operand(), Operand { Operand::Type::Argument, param_index });
 
             emit<Op::JumpUndefined>(
                 argument_reg.operand(),
@@ -89,7 +87,7 @@ CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(E
 
             switch_to_basic_block(if_undefined_block);
             auto operand = TRY(parameter.default_value->generate_bytecode(*this));
-            emit<Op::SetArgument>(param_index, *operand);
+            emit<Op::Mov>(Operand { Operand::Type::Argument, param_index }, *operand);
             emit<Op::Jump>(Label { if_not_undefined_block });
 
             switch_to_basic_block(if_not_undefined_block);
@@ -98,23 +96,20 @@ CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(E
         if (auto const* identifier = parameter.binding.get_pointer<NonnullRefPtr<Identifier const>>(); identifier) {
             if ((*identifier)->is_local()) {
                 auto local_variable_index = (*identifier)->local_variable_index();
-                emit<Op::GetArgument>(local(local_variable_index), param_index);
+                emit<Op::Mov>(local(local_variable_index), Operand { Operand::Type::Argument, param_index });
                 set_local_initialized((*identifier)->local_variable_index());
             } else {
                 auto id = intern_identifier((*identifier)->string());
-                auto argument_reg = allocate_register();
-                emit<Op::GetArgument>(argument_reg.operand(), param_index);
                 if (function.shared_data().m_has_duplicates) {
-                    emit<Op::SetLexicalBinding>(id, argument_reg.operand());
+                    emit<Op::SetLexicalBinding>(id, Operand { Operand::Type::Argument, param_index });
                 } else {
-                    emit<Op::InitializeLexicalBinding>(id, argument_reg.operand());
+                    emit<Op::InitializeLexicalBinding>(id, Operand { Operand::Type::Argument, param_index });
                 }
             }
         } else if (auto const* binding_pattern = parameter.binding.get_pointer<NonnullRefPtr<BindingPattern const>>(); binding_pattern) {
-            auto input_operand = allocate_register();
-            emit<Op::GetArgument>(input_operand.operand(), param_index);
+            ScopedOperand argument { *this, Operand { Operand::Type::Argument, param_index } };
             auto init_mode = function.shared_data().m_has_duplicates ? Op::BindingInitializationMode::Set : Bytecode::Op::BindingInitializationMode::Initialize;
-            TRY((*binding_pattern)->generate_bytecode(*this, init_mode, input_operand));
+            TRY((*binding_pattern)->generate_bytecode(*this, init_mode, argument));
         }
     }
 
@@ -312,6 +307,7 @@ CodeGenerationErrorOr<GC::Ref<Executable>> Generator::compile(VM& vm, ASTNode co
 
     auto number_of_registers = generator.m_next_register;
     auto number_of_constants = generator.m_constants.size();
+    auto number_of_locals = function ? function->local_variables_names().size() : 0;
 
     // Pass: Rewrite the bytecode to use the correct register and constant indices.
     for (auto& block : generator.m_root_basic_blocks) {
@@ -319,7 +315,7 @@ CodeGenerationErrorOr<GC::Ref<Executable>> Generator::compile(VM& vm, ASTNode co
         while (!it.at_end()) {
             auto& instruction = const_cast<Instruction&>(*it);
 
-            instruction.visit_operands([number_of_registers, number_of_constants](Operand& operand) {
+            instruction.visit_operands([number_of_registers, number_of_constants, number_of_locals](Operand& operand) {
                 switch (operand.type()) {
                 case Operand::Type::Register:
                     break;
@@ -328,6 +324,9 @@ CodeGenerationErrorOr<GC::Ref<Executable>> Generator::compile(VM& vm, ASTNode co
                     break;
                 case Operand::Type::Constant:
                     operand.offset_index_by(number_of_registers);
+                    break;
+                case Operand::Type::Argument:
+                    operand.offset_index_by(number_of_registers + number_of_constants + number_of_locals);
                     break;
                 default:
                     VERIFY_NOT_REACHED();
@@ -476,6 +475,7 @@ CodeGenerationErrorOr<GC::Ref<Executable>> Generator::compile(VM& vm, ASTNode co
     executable->source_map = move(source_map);
     executable->local_variable_names = move(local_variable_names);
     executable->local_index_base = number_of_registers + number_of_constants;
+    executable->argument_index_base = number_of_registers + number_of_constants + number_of_locals;
     executable->length_identifier = generator.m_length_identifier;
 
     generator.m_finished = true;

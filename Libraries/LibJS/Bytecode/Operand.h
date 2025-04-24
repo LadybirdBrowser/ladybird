@@ -22,6 +22,7 @@ public:
         Register,
         Local,
         Constant,
+        Argument,
     };
 
     [[nodiscard]] bool operator==(Operand const&) const = default;
@@ -53,8 +54,8 @@ private:
     //       Because this type is absolutely essential to the interpreter, we allow
     //       ourselves this little ifdef.
 #if ARCH(AARCH64)
-    Type m_type : 2 {};
-    u32 m_index : 30 { 0 };
+    Type m_type : 3 {};
+    u32 m_index : 29 { 0 };
 #else
     Type m_type { Type::Invalid };
     u32 m_index { 0 };
