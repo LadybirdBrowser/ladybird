@@ -38,15 +38,18 @@ CSSPixels TableFormattingContext::run_caption_layout(CSS::CaptionSide phase)
         if (!child->display().is_table_caption() || child->computed_values().caption_side() != phase) {
             continue;
         }
+        auto const& child_box = as<Box>(*child);
         // The caption boxes are principal block-level boxes that retain their own content, padding, margin, and border areas,
         // and are rendered as normal block boxes inside the table wrapper box, as described in https://www.w3.org/TR/CSS22/tables.html#model
-        auto caption_context = make<BlockFormattingContext>(m_state, m_layout_mode, *as<BlockContainer>(child), this);
-        caption_context->run(*m_available_space);
-        VERIFY(child->is_box());
-        auto const& child_box = static_cast<Box const&>(*child);
-        // FIXME: Since caption only has inline children, BlockFormattingContext doesn't resolve the vertical metrics.
-        //        We need to do it manually here.
-        caption_context->resolve_vertical_box_model_metrics(child_box, m_available_space->width.to_px_or_zero());
+        if (auto caption_context = create_independent_formatting_context_if_needed(m_state, m_layout_mode, child_box)) {
+            caption_context->run(*m_available_space);
+            // FIXME: If caption only has inline children, BlockFormattingContext doesn't resolve the vertical metrics.
+            //        We need to do it manually here.
+            if (caption_context->type() == FormattingContext::Type::Block) {
+                static_cast<BlockFormattingContext&>(*caption_context).resolve_vertical_box_model_metrics(child_box, m_available_space->width.to_px_or_zero());
+            }
+        }
+
         auto const& caption_state = m_state.get(child_box);
         if (phase == CSS::CaptionSide::Top) {
             m_state.get_mutable(table_box()).set_content_y(caption_state.content_height() + caption_state.margin_box_bottom());

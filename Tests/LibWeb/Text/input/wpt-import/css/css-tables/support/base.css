@@ -1,0 +1,21 @@
+/* custom table tags */
+
+    x-table { display: table; }
+    x-colgroup { display: table-column-group; }
+    x-col { display: table-column; }
+    x-tbody { display: table-row-group; }
+    x-thead { display: table-header-group; }
+    x-tfoot { display: table-footer-group; }
+    x-tr { display: table-row; }
+    x-td { display: table-cell; }
+    x-caption { display: table-caption; }
+
+/* layout of the page */
+
+    hr + p { font-weight: bold; margin-bottom: 0; }
+    p + p { margin-top: 0; }
+
+    html, body { padding: 0; margin: 0; }
+    main, #log { padding: 10px; width: 50%; box-sizing: border-box; }
+    main { float: left; }
+    #log { float: right; background: #eee; }
