@@ -158,9 +158,12 @@ interface Document : Node {
     attribute EventHandler onvisibilitychange;
 };
 
+// https://dom.spec.whatwg.org/#dictdef-elementcreationoptions
 dictionary ElementCreationOptions {
+    CustomElementRegistry customElementRegistry;
     DOMString is;
 };
+
 Document includes ParentNode;
 Document includes GlobalEventHandlers;
 Document includes DocumentOrShadowRoot;

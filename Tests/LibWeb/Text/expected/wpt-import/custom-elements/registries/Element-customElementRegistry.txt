@@ -1,16 +1,16 @@
-Harness status: OK
+Harness status: Error
 
 Found 10 tests
 
-1 Pass
-9 Fail
+5 Pass
+5 Fail
 Pass	customElementRegistry on a newly constrcuted element should return window.customElements by default
 Fail	customElementRegistry on an element inside a declarative shadow DOM should return window.customElements by default
 Fail	customElementRegistry on an element inside a declarative shadow DOM with shadowrootcustomelementregistry should return null
 Fail	customElementRegistry on a clone of a declarative shadow tree with shadowrootcustomelementregistry should return null
 Fail	customElementRegistry on a clone of a declarative shadow tree with shadowrootcustomelementregistry should return the global registry after getting inserted into a document
 Fail	customElementRegistry on an element inside a declarative shadow DOM with shadowrootcustomelementregistry should return the scoped registry after calling initialize
-Fail	customElementRegistry on a builtin element created by calling createElement on CustomElementRegistry should return the registry
-Fail	customElementRegistry on an upgarde candidate created by calling createElement on CustomElementRegistry should return the registry
-Fail	customElementRegistry on an unknown element created by calling createElement on CustomElementRegistry should return the registry
-Fail	customElementRegistry on a defined custom element created by calling createElement on CustomElementRegistry should return the registry
+Pass	customElementRegistry on a builtin element created by calling createElement on CustomElementRegistry should return the registry
+Pass	customElementRegistry on an upgarde candidate created by calling createElement on CustomElementRegistry should return the registry
+Pass	customElementRegistry on an unknown element created by calling createElement on CustomElementRegistry should return the registry
+Pass	customElementRegistry on a defined custom element created by calling createElement on CustomElementRegistry should return the registry

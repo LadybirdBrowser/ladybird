@@ -2096,23 +2096,16 @@ WebIDL::ExceptionOr<GC::Ref<Element>> Document::create_element(String const& loc
         ? local_name.to_ascii_lowercase()
         : local_name;
 
-    // 3. Let is be null.
-    Optional<String> is_value;
+    // 3. Let registry and is be the result of flattening element creation options given options and this.
+    auto [registry, is_value] = TRY(flatten_element_creation_options(options));
 
-    // 4. If options is a dictionary and options["is"] exists, then set is to it.
-    if (options.has<ElementCreationOptions>()) {
-        auto const& element_creation_options = options.get<ElementCreationOptions>();
-        if (element_creation_options.is.has_value())
-            is_value = element_creation_options.is.value();
-    }
-
-    // 5. Let namespace be the HTML namespace, if this is an HTML document or this’s content type is "application/xhtml+xml"; otherwise null.
+    // 4. Let namespace be the HTML namespace, if this is an HTML document or this’s content type is "application/xhtml+xml"; otherwise null.
     Optional<FlyString> namespace_;
     if (document_type() == Type::HTML || content_type() == "application/xhtml+xml"sv)
         namespace_ = Namespace::HTML;
 
-    // 6. Return the result of creating an element given this, localName, namespace, null, is, and with the synchronous custom elements flag set.
-    return TRY(DOM::create_element(*this, FlyString::from_utf8_without_validation(local_name_lower.bytes()), move(namespace_), {}, move(is_value), true));
+    // 5. Return the result of creating an element given this, localName, namespace, null, is, true, and registry.
+    return TRY(DOM::create_element(*this, FlyString::from_utf8_without_validation(local_name_lower.bytes()), move(namespace_), {}, move(is_value), true, registry));
 }
 
 // https://dom.spec.whatwg.org/#dom-document-createelementns
@@ -2122,18 +2115,11 @@ WebIDL::ExceptionOr<GC::Ref<Element>> Document::create_element_ns(Optional<FlySt
     // 1. Let namespace, prefix, and localName be the result of passing namespace and qualifiedName to validate and extract.
     auto extracted_qualified_name = TRY(validate_and_extract(realm(), namespace_, qualified_name));
 
-    // 2. Let is be null.
-    Optional<String> is_value;
+    // 2. Let registry and is be the result of flattening element creation options given options and this.
+    auto [registry, is_value] = TRY(flatten_element_creation_options(options));
 
-    // 3. If options is a dictionary and options["is"] exists, then set is to it.
-    if (options.has<ElementCreationOptions>()) {
-        auto const& element_creation_options = options.get<ElementCreationOptions>();
-        if (element_creation_options.is.has_value())
-            is_value = element_creation_options.is.value();
-    }
-
-    // 4. Return the result of creating an element given document, localName, namespace, prefix, is, and with the synchronous custom elements flag set.
-    return TRY(DOM::create_element(*this, extracted_qualified_name.local_name(), extracted_qualified_name.namespace_(), extracted_qualified_name.prefix(), move(is_value), true));
+    // 3. Return the result of creating an element given document, localName, namespace, prefix, is, true, and registry.
+    return TRY(DOM::create_element(*this, extracted_qualified_name.local_name(), extracted_qualified_name.namespace_(), extracted_qualified_name.prefix(), move(is_value), true, registry));
 }
 
 GC::Ref<DocumentFragment> Document::create_document_fragment()
@@ -6511,6 +6497,38 @@ void Document::run_csp_initialization() const
             VERIFY(result == ContentSecurityPolicy::Directives::Directive::Result::Allowed);
         }
     }
+}
+
+// https://dom.spec.whatwg.org/#flatten-element-creation-options
+WebIDL::ExceptionOr<Document::RegistryAndIs> Document::flatten_element_creation_options(Variant<String, ElementCreationOptions> options) const
+{
+    // 1. Let registry be null.
+    GC::Ptr<HTML::CustomElementRegistry> registry;
+
+    // 2. Let is be null.
+    Optional<String> is;
+
+    // 3. If options is a dictionary:
+    if (auto* dictionary = options.get_pointer<ElementCreationOptions>()) {
+        // 1. If options["customElementRegistry"] exists, then set registry to it.
+        if (dictionary->custom_element_registry)
+            registry = dictionary->custom_element_registry;
+
+        // 2. If options["is"] exists, then set is to it.
+        if (dictionary->is.has_value())
+            is = dictionary->is.value();
+
+        // 3. If registry is non-null and is is non-null, then throw a "NotSupportedError" DOMException.
+        if (registry && is.has_value())
+            return WebIDL::NotSupportedError::create(realm(), "Cannot provide both 'is' and 'customElementRegistry' in ElementCreationOptions."_string);
+    }
+
+    // 4. If registry is null, then set registry to the result of looking up a custom element registry given document.
+    if (!registry)
+        registry = HTML::look_up_a_custom_element_registry(*this);
+
+    // 5. Return registry and is.
+    return RegistryAndIs { registry, move(is) };
 }
 
 WebIDL::CallbackType* Document::onreadystatechange()

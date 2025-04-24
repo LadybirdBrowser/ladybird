@@ -147,7 +147,9 @@ struct DocumentUnloadTimingInfo {
     double unload_event_end_time { 0 };
 };
 
+// https://dom.spec.whatwg.org/#dictdef-elementcreationoptions
 struct ElementCreationOptions {
+    GC::Ptr<HTML::CustomElementRegistry> custom_element_registry;
     Optional<String> is;
 };
 
@@ -966,6 +968,12 @@ private:
     }
 
     void run_csp_initialization() const;
+
+    struct RegistryAndIs {
+        GC::Ptr<HTML::CustomElementRegistry> registry;
+        Optional<String> is;
+    };
+    WebIDL::ExceptionOr<RegistryAndIs> flatten_element_creation_options(Variant<String, ElementCreationOptions>) const;
 
     GC::Ref<Page> m_page;
     OwnPtr<CSS::StyleComputer> m_style_computer;
