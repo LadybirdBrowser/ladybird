@@ -17,7 +17,7 @@ namespace Web::ARIA {
 
 class ARIAMixin {
 public:
-    virtual ~ARIAMixin() = default;
+    virtual ~ARIAMixin();
 
 #define __ENUMERATE_ARIA_ATTRIBUTE(name, attribute) \
     virtual Optional<String> name() const = 0;      \
@@ -48,10 +48,18 @@ public:
     // https://www.w3.org/TR/wai-aria-1.2/#valuetype_idref_list
     Vector<String> parse_id_reference_list(Optional<String> const&) const;
 
+    GC::Ptr<DOM::Element> aria_active_descendant_element() { return m_aria_active_descendant_element; }
+    void set_aria_active_descendant_element(GC::Ptr<DOM::Element> value) { m_aria_active_descendant_element = value; }
+
 protected:
-    ARIAMixin() = default;
+    ARIAMixin();
+
+    void visit_edges(GC::Cell::Visitor&);
 
     virtual bool id_reference_exists(String const&) const = 0;
+
+private:
+    GC::Ptr<DOM::Element> m_aria_active_descendant_element;
 };
 
 }

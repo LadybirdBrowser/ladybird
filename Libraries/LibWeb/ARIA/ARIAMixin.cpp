@@ -11,6 +11,14 @@
 
 namespace Web::ARIA {
 
+ARIAMixin::ARIAMixin() = default;
+ARIAMixin::~ARIAMixin() = default;
+
+void ARIAMixin::visit_edges(GC::Cell::Visitor& visitor)
+{
+    visitor.visit(m_aria_active_descendant_element);
+}
+
 // https://www.w3.org/TR/wai-aria-1.2/#introroles
 Optional<Role> ARIAMixin::role_from_role_attribute_value() const
 {

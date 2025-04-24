@@ -323,9 +323,6 @@ public:
     ENUMERATE_ARIA_ATTRIBUTES
 #undef __ENUMERATE_ARIA_ATTRIBUTE
 
-    GC::Ptr<DOM::Element> aria_active_descendant_element() { return m_aria_active_descendant_element; }
-    void set_aria_active_descendant_element(GC::Ptr<DOM::Element> value) { m_aria_active_descendant_element = value; }
-
     virtual bool exclude_from_accessibility_tree() const override;
 
     virtual bool include_in_accessibility_tree() const override;
@@ -578,8 +575,6 @@ private:
     size_t m_sibling_invalidation_distance { 0 };
 
     OwnPtr<CSS::CountersSet> m_counters_set;
-
-    GC::Ptr<DOM::Element> m_aria_active_descendant_element;
 
     // https://drafts.csswg.org/css-contain/#proximity-to-the-viewport
     ProximityToTheViewport m_proximity_to_the_viewport { ProximityToTheViewport::NotDetermined };
