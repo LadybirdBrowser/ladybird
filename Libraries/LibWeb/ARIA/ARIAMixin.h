@@ -15,6 +15,9 @@
 
 namespace Web::ARIA {
 
+#define ENUMERATE_ARIA_ELEMENT_REFERENCING_ATTRIBUTES \
+    __ENUMERATE_ARIA_ATTRIBUTE(aria_active_descendant_element, aria_active_descendant)
+
 #define ENUMERATE_ARIA_ELEMENT_LIST_REFERENCING_ATTRIBUTES                      \
     __ENUMERATE_ARIA_ATTRIBUTE(aria_controls_elements, aria_controls)           \
     __ENUMERATE_ARIA_ATTRIBUTE(aria_described_by_elements, aria_described_by)   \
@@ -57,8 +60,11 @@ public:
     // https://www.w3.org/TR/wai-aria-1.2/#valuetype_idref_list
     Vector<String> parse_id_reference_list(Optional<String> const&) const;
 
-    GC::Ptr<DOM::Element> aria_active_descendant_element() { return m_aria_active_descendant_element; }
-    void set_aria_active_descendant_element(GC::Ptr<DOM::Element> value) { m_aria_active_descendant_element = value; }
+#define __ENUMERATE_ARIA_ATTRIBUTE(attribute, referencing_attribute) \
+    GC::Ptr<DOM::Element> attribute() const;                         \
+    void set_##attribute(GC::Ptr<DOM::Element> value);
+    ENUMERATE_ARIA_ELEMENT_REFERENCING_ATTRIBUTES
+#undef __ENUMERATE_ARIA_ATTRIBUTE
 
 #define __ENUMERATE_ARIA_ATTRIBUTE(attribute, referencing_attribute)  \
     Optional<Vector<WeakPtr<DOM::Element>>> const& attribute() const; \
@@ -69,12 +75,13 @@ public:
 protected:
     ARIAMixin();
 
-    void visit_edges(GC::Cell::Visitor&);
-
     virtual bool id_reference_exists(String const&) const = 0;
 
 private:
-    GC::Ptr<DOM::Element> m_aria_active_descendant_element;
+#define __ENUMERATE_ARIA_ATTRIBUTE(attribute, referencing_attribute) \
+    WeakPtr<DOM::Element> m_##attribute;
+    ENUMERATE_ARIA_ELEMENT_REFERENCING_ATTRIBUTES
+#undef __ENUMERATE_ARIA_ATTRIBUTE
 
 #define __ENUMERATE_ARIA_ATTRIBUTE(attribute, referencing_attribute) \
     Optional<Vector<WeakPtr<DOM::Element>>> m_##attribute;

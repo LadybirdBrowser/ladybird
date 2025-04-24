@@ -14,11 +14,6 @@ namespace Web::ARIA {
 ARIAMixin::ARIAMixin() = default;
 ARIAMixin::~ARIAMixin() = default;
 
-void ARIAMixin::visit_edges(GC::Cell::Visitor& visitor)
-{
-    visitor.visit(m_aria_active_descendant_element);
-}
-
 // https://www.w3.org/TR/wai-aria-1.2/#introroles
 Optional<Role> ARIAMixin::role_from_role_attribute_value() const
 {
@@ -229,6 +224,19 @@ Vector<String> ARIAMixin::parse_id_reference_list(Optional<String> const& id_lis
     }
     return result;
 }
+
+#define __ENUMERATE_ARIA_ATTRIBUTE(attribute, referencing_attribute) \
+    GC::Ptr<DOM::Element> ARIAMixin::attribute() const               \
+    {                                                                \
+        return m_##attribute.ptr();                                  \
+    }                                                                \
+                                                                     \
+    void ARIAMixin::set_##attribute(GC::Ptr<DOM::Element> value)     \
+    {                                                                \
+        m_##attribute = value.ptr();                                 \
+    }
+ENUMERATE_ARIA_ELEMENT_REFERENCING_ATTRIBUTES
+#undef __ENUMERATE_ARIA_ATTRIBUTE
 
 #define __ENUMERATE_ARIA_ATTRIBUTE(attribute, referencing_attribute)               \
     Optional<Vector<WeakPtr<DOM::Element>>> const& ARIAMixin::attribute() const    \

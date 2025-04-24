@@ -163,6 +163,7 @@ public:
     GC::Ptr<Attr> get_attribute_node(FlyString const& name) const;
     GC::Ptr<Attr> get_attribute_node_ns(Optional<FlyString> const& namespace_, FlyString const& name) const;
 
+    GC::Ptr<DOM::Element> get_the_attribute_associated_element(FlyString const& content_attribute, GC::Ptr<DOM::Element> explicitly_set_attribute_element) const;
     Optional<GC::RootVector<GC::Ref<DOM::Element>>> get_the_attribute_associated_elements(FlyString const& content_attribute, Optional<Vector<WeakPtr<DOM::Element>>> const& explicitly_set_attribute_elements) const;
 
     DOMTokenList* class_list();
