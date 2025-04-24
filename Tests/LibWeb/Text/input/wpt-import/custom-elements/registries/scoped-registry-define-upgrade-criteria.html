@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<title>Tests which nodes are upgraded after adding a scoped custom element definition</title>
+<meta name="author" title="Xiaocheng Hu" href="mailto:xiaochengh@chromium.org">
+<link rel="help" href="https://wicg.github.io/webcomponents/proposals/Scoped-Custom-Element-Registries">
+<link rel="help" href="https://github.com/WICG/webcomponents/issues/923">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<body>
+
+<script>
+function attachShadowForTest(t, customElementRegistry) {
+  const host = document.createElement('div');
+  const shadow = host.attachShadow({mode: 'open', customElementRegistry});
+  document.body.appendChild(host);
+  t.add_cleanup(() => host.remove());
+  return shadow;
+}
+
+function createIFrameForTest(t) {
+  const iframe = document.createElement('iframe');
+  document.body.appendChild(iframe);
+  if (!iframe.contentDocument.body) {
+    iframe.contentDocument.body = iframe.contentDocument.createElement('body');
+  }
+  t.add_cleanup(() => iframe.remove());
+  return iframe;
+}
+
+let definitionCount = 0;
+function nextCustomElementName() {
+  return `test-element-${++definitionCount}`;
+}
+
+test(t => {
+  const name = nextCustomElementName();
+  document.body.appendChild(document.createElement(name));
+
+  const registry = new CustomElementRegistry;
+  const shadow = attachShadowForTest(t, registry);
+  shadow.appendChild(document.createElement(name));
+
+  class TestElement extends HTMLElement {};
+  customElements.define(name, TestElement);
+
+  assert_true(document.querySelector(name) instanceof TestElement);
+  assert_false(shadow.querySelector(name) instanceof TestElement);
+}, 'Adding definition to global registry should not affect shadow roots using scoped registry');
+
+test(t => {
+  const name = nextCustomElementName();
+
+  const shadow1 = attachShadowForTest(t, customElements);
+  shadow1.appendChild(document.createElement(name));
+
+  const shadow2 = attachShadowForTest(t);
+  shadow2.appendChild(document.createElement(name));
+
+  class TestElement extends HTMLElement {};
+  customElements.define(name, TestElement);
+
+  assert_true(shadow1.querySelector(name) instanceof TestElement);
+  assert_true(shadow2.querySelector(name) instanceof TestElement);
+}, 'Adding definition to global registry should affect shadow roots also using global registry');
+
+test(t => {
+  const name = nextCustomElementName();
+
+  const registry = new CustomElementRegistry;
+  const shadow1 = attachShadowForTest(t, registry);
+  shadow1.appendChild(document.createElement(name));
+
+  const shadow2 = attachShadowForTest(t, registry);
+  shadow2.appendChild(document.createElement(name));
+
+  class TestElement extends HTMLElement {};
+  registry.define(name, TestElement);
+
+  assert_true(shadow1.querySelector(name) instanceof TestElement);
+  assert_true(shadow2.querySelector(name) instanceof TestElement);
+}, 'Adding definition to scoped registry should affect all associated shadow roots');
+
+test(t => {
+  const name = nextCustomElementName();
+  document.body.appendChild(document.createElement(name));
+
+  const registry = new CustomElementRegistry;
+  const shadow = attachShadowForTest(t, registry);
+  shadow.appendChild(document.createElement(name));
+
+  class TestElement extends HTMLElement {};
+  registry.define(name, TestElement);
+
+  assert_false(document.querySelector(name) instanceof TestElement);
+  assert_true(shadow.querySelector(name) instanceof TestElement);
+}, 'Adding definition to scoped registry should not affect document tree scope');
+
+test(t => {
+  const name = nextCustomElementName();
+
+  const registry = new CustomElementRegistry;
+  const shadow1 = attachShadowForTest(t, registry);
+  shadow1.appendChild(document.createElement(name));
+
+  const shadow2 = attachShadowForTest(t, new CustomElementRegistry);
+  shadow2.appendChild(document.createElement(name));
+
+  const shadow3 = attachShadowForTest(t);
+  shadow3.appendChild(document.createElement(name));
+
+  class TestElement extends HTMLElement {};
+  registry.define(name, TestElement);
+
+  assert_true(shadow1.querySelector(name) instanceof TestElement);
+  assert_false(shadow2.querySelector(name) instanceof TestElement);
+  assert_false(shadow3.querySelector(name) instanceof TestElement);
+}, 'Adding definition to scoped registry should not affect shadow roots using other registries');
+
+test(t => {
+  const name = nextCustomElementName();
+  const node = document.body.appendChild(document.createElement(name));
+
+  const registry = new CustomElementRegistry;
+  const shadow = attachShadowForTest(t, registry);
+  shadow.appendChild(node);
+
+  class TestElement extends HTMLElement {};
+  customElements.define(name, TestElement);
+
+  assert_false(node instanceof TestElement);
+}, 'Adding definition to global registry should not upgrade nodes no longer using the registry');
+
+test(t => {
+  const name = nextCustomElementName();
+
+  const registry = new CustomElementRegistry;
+  const shadow1 = attachShadowForTest(t, registry);
+  const node = shadow1.appendChild(document.createElement(name));
+
+  const shadow2 = attachShadowForTest(t, new CustomElementRegistry);
+  shadow2.appendChild(node);
+
+  class TestElement extends HTMLElement {};
+  registry.define(name, TestElement);
+
+  assert_false(node instanceof TestElement);
+}, 'Adding definition to scoped registry should not upgrade nodes no longer using the registry');
+
+test(t => {
+  const name = nextCustomElementName();
+
+  const registry = new CustomElementRegistry;
+  const shadow1 = attachShadowForTest(t, registry);
+  const node1 = shadow1.appendChild(document.createElement(name));
+
+  const iframe = createIFrameForTest(t);
+  const host2 = iframe.contentDocument.createElement('div');
+  const shadow2 = host2.attachShadow({mode: 'open', customElementRegistry: registry});
+  const node2 = shadow2.appendChild(iframe.contentDocument.createElement(name));
+  iframe.contentDocument.body.appendChild(host2);
+
+  class TestElement extends HTMLElement {};
+  registry.define(name, TestElement);
+
+  assert_true(node1 instanceof TestElement);
+  assert_true(node2 instanceof TestElement);
+}, 'Adding definition to scoped registry affects associated shadow roots in all iframes');
+
+test(t => {
+  const name = nextCustomElementName();
+
+  const newWindow = window.open('about:blank');
+  t.add_cleanup(() => newWindow.close());
+
+  const host = newWindow.document.createElement('div');
+  const shadow = host.attachShadow({mode: 'open', customElementRegistry: window.customElements});
+  const node = shadow.appendChild(newWindow.document.createElement(name));
+  newWindow.document.body.appendChild(host);
+
+  class TestElement extends HTMLElement {};
+  window.customElements.define(name, TestElement);
+
+  assert_true(node instanceof TestElement);
+}, 'Adding definition to scoped registry affects associated shadow roots in other frame trees');
+
+test(t => {
+  const name = nextCustomElementName();
+
+  const registry = new CustomElementRegistry;
+  const shadow = attachShadowForTest(t, registry);
+  const node = shadow.appendChild(document.createElement(name));
+  shadow.host.remove();
+
+  class TestElement extends HTMLElement {};
+  registry.define(name, TestElement);
+
+  assert_false(node instanceof TestElement);
+}, 'Adding definition to scoped registry should not upgrade disconnected elements');
+
+test(t => {
+  const name = nextCustomElementName();
+
+  const registry = new CustomElementRegistry;
+  const doc = document.implementation.createHTMLDocument();
+  const host = doc.createElement('div');
+  const shadow = host.attachShadow({mode: 'open', registry});
+  const node = shadow.appendChild(doc.createElement(name));
+  doc.body.appendChild(host);
+
+  class TestElement extends HTMLElement {};
+  registry.define(name, TestElement);
+
+  assert_false(node instanceof TestElement);
+}, 'Adding definition to scoped registry should not upgrade nodes in constructed documents');
+
+test(t => {
+  const name = nextCustomElementName();
+
+  const iframe = createIFrameForTest(t);
+  const registry = new CustomElementRegistry;
+  const host = iframe.contentDocument.createElement('div');
+  const shadow = host.attachShadow({mode: 'open', registry});
+  const node = shadow.appendChild(iframe.contentDocument.createElement(name));
+  iframe.contentDocument.body.appendChild(host);
+
+  iframe.remove();
+
+  class TestElement extends HTMLElement {};
+  registry.define(name, TestElement);
+
+  assert_false(node instanceof TestElement);
+}, 'Adding definition to scoped registry should not upgrade nodes in detached frames');
+
+promise_test(async t => {
+  const name = nextCustomElementName();
+
+  const newWindow = window.open('about:blank');
+  t.add_cleanup(() => newWindow.close());
+
+  const host = newWindow.document.createElement('div');
+  const shadow = host.attachShadow({mode: 'open', registry: window.customElements});
+  const node = shadow.appendChild(newWindow.document.createElement(name));
+  newWindow.document.body.appendChild(host);
+
+  newWindow.close();
+
+  // `window.close()` is async. Wait a while until it's fully closed
+  await new Promise(resolve => t.step_timeout(resolve, 500));
+
+  class TestElement extends HTMLElement {};
+  window.customElements.define(name, TestElement);
+
+  assert_false(node instanceof TestElement);
+}, 'Adding definition to scoped registry should not upgrade nodes in closed windows');
+</script>

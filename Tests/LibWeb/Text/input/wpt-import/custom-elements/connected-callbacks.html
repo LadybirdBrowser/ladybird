@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Custom Elements: connectedCallback</title>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<meta name="assert" content="connectedCallback must be enqueued whenever custom element is inserted into a document">
+<link rel="help" href="https://w3c.github.io/webcomponents/spec/custom/#dfn-connected-callback">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="resources/custom-elements-helpers.js"></script>
+</head>
+<body>
+<div id="log"></div>
+<script>
+
+var calls = [];
+class MyCustomElement extends HTMLElement {
+    connectedCallback() { calls.push('connected', this); }
+    disconnectedCallback() { calls.push('disconnected', this); }
+}
+customElements.define('my-custom-element', MyCustomElement);
+
+document_types().forEach(function (entry) {
+    var documentName = entry.name;
+    var getDocument = entry.create;
+
+    promise_test(function () {
+        return getDocument().then(function (doc) {
+            var instance = document.createElement('my-custom-element');
+            calls = [];
+            doc.documentElement.appendChild(instance);
+            assert_array_equals(calls, ['connected', instance]);
+        });
+    }, 'Inserting a custom element into ' + documentName + ' must enqueue and invoke connectedCallback');
+
+    promise_test(function () {
+        return getDocument().then(function (doc) {
+            var instance = document.createElement('my-custom-element');
+            var parent = document.createElement('div');
+            parent.appendChild(instance);
+            calls = [];
+            doc.documentElement.appendChild(parent);
+            assert_array_equals(calls, ['connected', instance]);
+        });
+    }, 'Inserting an ancestor of custom element into ' + documentName + ' must enqueue and invoke connectedCallback');
+
+    promise_test(function () {
+        return getDocument().then(function (doc) {
+            var instance = document.createElement('my-custom-element');
+            var host = doc.createElementNS('http://www.w3.org/1999/xhtml', 'div');
+            var shadowRoot = host.attachShadow({mode: 'closed'});
+            doc.documentElement.appendChild(host);
+
+            calls = [];
+            shadowRoot.appendChild(instance);
+            assert_array_equals(calls, ['connected', instance]);
+        });
+    }, 'Inserting a custom element into a shadow tree in ' + documentName + ' must enqueue and invoke connectedCallback');
+
+    promise_test(function () {
+        return getDocument().then(function (doc) {
+            var instance = document.createElement('my-custom-element');
+            var host = doc.createElementNS('http://www.w3.org/1999/xhtml', 'div');
+            var shadowRoot = host.attachShadow({mode: 'closed'});
+            shadowRoot.appendChild(instance);
+
+            calls = [];
+            doc.documentElement.appendChild(host);
+            assert_array_equals(calls, ['connected', instance]);
+        });
+    }, 'Inserting the shadow host of a custom element into ' + documentName + ' must enqueue and invoke connectedCallback');
+
+    promise_test(function () {
+        return getDocument().then(function (doc) {
+            var instance = document.createElement('my-custom-element');
+            var host = doc.createElementNS('http://www.w3.org/1999/xhtml', 'div');
+            var shadowRoot = host.attachShadow({mode: 'closed'});
+
+            calls = [];
+            shadowRoot.appendChild(instance);
+            assert_array_equals(calls, []);
+        });
+    }, 'Inserting a custom element into a detached shadow tree that belongs to ' + documentName + ' must not enqueue and invoke connectedCallback');
+});
+
+</script>
+</body>
+</html>

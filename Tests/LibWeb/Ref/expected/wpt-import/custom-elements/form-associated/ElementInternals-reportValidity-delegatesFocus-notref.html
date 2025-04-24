@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<title>Custom element with delegatesFocus in Form should show validation message on focus delegated element</title>
+<link rel=help href=https://html.spec.whatwg.org/C/#report-validity-steps>
+
+<form>
+ <input-custom-element></input-custom-element>
+</form>
+
+<script>
+class InputCustomElement extends HTMLElement {
+  constructor() {
+    super();
+
+    this.attachShadow({
+      mode: "open",
+      delegatesFocus: true
+    });
+    this.shadowRoot.innerHTML = '<input>';
+    this.elementInternals = this.attachInternals();
+    this.elementInternals.setValidity({valueMissing: true}, 'value missing');
+  }
+
+  static get formAssociated() {
+    return true;
+  }
+}
+
+customElements.define("input-custom-element", InputCustomElement);
+
+</script>

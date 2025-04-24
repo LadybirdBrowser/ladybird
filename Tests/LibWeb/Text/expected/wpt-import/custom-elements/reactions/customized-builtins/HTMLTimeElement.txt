@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	dateTime on HTMLTimeElement must enqueue an attributeChanged reaction when adding datetime content attribute
+Pass	dateTime on HTMLTimeElement must enqueue an attributeChanged reaction when replacing an existing attribute

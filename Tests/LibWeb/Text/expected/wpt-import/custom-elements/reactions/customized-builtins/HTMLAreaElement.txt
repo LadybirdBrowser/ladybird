@@ -1,0 +1,21 @@
+Harness status: OK
+
+Found 16 tests
+
+16 Pass
+Pass	alt on HTMLAreaElement must enqueue an attributeChanged reaction when adding a new attribute
+Pass	alt on HTMLAreaElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	coords on HTMLAreaElement must enqueue an attributeChanged reaction when adding a new attribute
+Pass	coords on HTMLAreaElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	shape on HTMLAreaElement must enqueue an attributeChanged reaction when adding a new attribute
+Pass	shape on HTMLAreaElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	target on HTMLAreaElement must enqueue an attributeChanged reaction when adding a new attribute
+Pass	target on HTMLAreaElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	download on HTMLAreaElement must enqueue an attributeChanged reaction when adding a new attribute
+Pass	download on HTMLAreaElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	ping on HTMLAreaElement must enqueue an attributeChanged reaction when adding a new attribute
+Pass	ping on HTMLAreaElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	rel on HTMLAreaElement must enqueue an attributeChanged reaction when adding a new attribute
+Pass	rel on HTMLAreaElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	referrerPolicy on HTMLAreaElement must enqueue an attributeChanged reaction when adding a new attribute
+Pass	referrerPolicy on HTMLAreaElement must enqueue an attributeChanged reaction when replacing an existing attribute

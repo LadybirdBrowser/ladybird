@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	Inserting a custom element into the document using HTML fragment parsing must enqueue a custom element upgrade reaction, not synchronously invoke its constructor
+Pass	Inserting a custom element into the document of the template elements using HTML fragment parsing must enqueue a custom element upgrade reaction, not synchronously invoke its constructor
+Pass	Inserting a custom element into a new document using HTML fragment parsing must enqueue a custom element upgrade reaction, not synchronously invoke its constructor
+Pass	Inserting a custom element into a cloned document using HTML fragment parsing must enqueue a custom element upgrade reaction, not synchronously invoke its constructor
+Pass	Inserting a custom element into a document created by createHTMLDocument using HTML fragment parsing must enqueue a custom element upgrade reaction, not synchronously invoke its constructor
+Pass	Inserting a custom element into an HTML document created by createDocument using HTML fragment parsing must enqueue a custom element upgrade reaction, not synchronously invoke its constructor
+Pass	Inserting a custom element into the document of an iframe using HTML fragment parsing must enqueue a custom element upgrade reaction, not synchronously invoke its constructor
+Pass	Inserting a custom element into an HTML document fetched by XHR using HTML fragment parsing must enqueue a custom element upgrade reaction, not synchronously invoke its constructor

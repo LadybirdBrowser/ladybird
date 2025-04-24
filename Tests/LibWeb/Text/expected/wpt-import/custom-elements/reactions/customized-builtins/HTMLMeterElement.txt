@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 12 tests
+
+12 Pass
+Pass	value on HTMLMeterElement must enqueue an attributeChanged reaction when adding value content attribute
+Pass	value on HTMLMeterElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	min on HTMLMeterElement must enqueue an attributeChanged reaction when adding a new attribute
+Pass	min on HTMLMeterElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	max on HTMLMeterElement must enqueue an attributeChanged reaction when adding a new attribute
+Pass	max on HTMLMeterElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	low on HTMLMeterElement must enqueue an attributeChanged reaction when adding a new attribute
+Pass	low on HTMLMeterElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	high on HTMLMeterElement must enqueue an attributeChanged reaction when adding a new attribute
+Pass	high on HTMLMeterElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	optimum on HTMLMeterElement must enqueue an attributeChanged reaction when adding a new attribute
+Pass	optimum on HTMLMeterElement must enqueue an attributeChanged reaction when replacing an existing attribute

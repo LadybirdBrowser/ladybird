@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Element Reflection for aria-activedescendant and aria-errormessage on ElementInternals</title>
+  <link rel=help href="https://whatpr.org/html/3917/common-dom-interfaces.html#reflecting-content-attributes-in-idl-attributes:element">
+  <link rel="author" title="Alice Boxhall" href="alice@igalia.com">
+  <script src="../resources/testdriver.js"></script>
+  <script src="../resources/testdriver-vendor.js"></script>
+  <script src="../resources/testdriver-actions.js"></script>
+  <script src="../resources/testharness.js"></script>
+  <script src="../resources/testharnessreport.js"></script>
+</head>
+
+<body>
+  <script>
+    class CustomElement extends HTMLElement {
+      constructor() {
+        super();
+        this.i = this.attachInternals();
+      }
+    }
+    customElements.define('custom-element', CustomElement);
+  </script>
+
+  <custom-element id="custom1"></custom-element>
+
+  <div id="activedescendant">Active descendant</div>
+  <div id="controls">Controls</div>
+  <div id="describedby">Described by</div>
+  <div id="details">Details</div>
+  <div id="errormessage">Error message</div>
+  <div id="flowto">Flow to</div>
+  <div id="labelledby">Labelled by</div>
+  <div id="owns">Owns</div>
+
+  <div id="labelledby_content">Labelled by from content attribute</div>
+  <div id="labelledby_element">Labelled by from IDL attribute</div>
+
+  <div id="shadowhost">
+    <template shadowrootmode="open">
+      <div id="labelledby_element_shadow">Invalid labelled by in shadow root</div>
+    </template>
+  </div>
+
+  <script>
+    const element_properties = [
+      ['ariaActiveDescendantElement', 'activedescendant']];
+    const array_properties = [
+      ['ariaControlsElements', 'controls'],
+      ['ariaDescribedByElements', 'describedby'],
+      ['ariaDetailsElements', 'details'],
+      ['ariaErrorMessageElements', 'errormessage'],
+      ['ariaFlowToElements', 'flowto'],
+      ['ariaLabelledByElements', 'labelledby'],
+      ['ariaOwnsElements', 'owns']];
+
+    test(t => {
+      const custom = document.getElementById('custom1');
+      for (const [property, id] of element_properties) {
+        assert_equals(custom.i[property], null);
+      }
+      for (const [property, id] of array_properties) {
+        assert_equals(custom.i[property], null);
+      }
+    }, "Getting previously-unset ARIA element reflection properties on ElementInternals should return null.");
+
+    test(t => {
+      const custom = document.getElementById('custom1');
+      for (const [property, id] of element_properties) {
+        const related = document.getElementById(id);
+        custom.i[property] = related;
+        assert_equals(custom.i[property], related);
+      }
+      for (const [property, id] of array_properties) {
+        const related = document.getElementById(id);
+        custom.i[property] = [related];
+        assert_array_equals(custom.i[property], [related]);
+      }
+    }, "Getting ARIA element reflection properties on ElementInternals should return the value that was set.");
+
+    test(t => {
+      const custom = document.getElementById('custom1');
+      for (const [property, id] of array_properties) {
+        custom.i[property] = [];
+        assert_array_equals(custom.i[property], []);
+      }
+    }, "Setting ARIA element reflection properties to an empty array should work as expected.");
+
+    test(t => {
+      const custom = document.getElementById('custom1');
+      for (const [property, id] of element_properties) {
+        const related = document.getElementById(id);
+        custom.i[property] = related;
+        assert_equals(custom.i[property], related);
+
+        custom.i[property] = null;
+        assert_equals(custom.i[property], null);
+      }
+      for (const [property, id] of array_properties) {
+        const related = document.getElementById(id);
+        custom.i[property] = [related];
+        assert_array_equals(custom.i[property], [related]);
+
+        custom.i[property] = null;
+        assert_equals(custom.i[property], null);
+      }
+    }, "Setting ARIA element reflection properties on ElementInternals to null should delete any previous value, and not crash");
+
+    promise_test(async t => {
+      const custom = document.getElementById('custom1');
+      custom.i.ariaLabelledByElements = null;
+      const label_before_labelledby_set = await test_driver.get_computed_label(custom);
+      assert_equals(label_before_labelledby_set, "", "Before ariaLabelledByElements is set, accessible label should be empty.");
+
+      const labelledBy = document.getElementById('labelledby');
+      custom.i.ariaLabelledByElements = [labelledBy];
+      const label_after_labelledby_set = await test_driver.get_computed_label(custom);
+      assert_equals(label_after_labelledby_set, "Labelled by", "After ariaLabelledByElements is set, accessible label should be 'Labelled by'");
+    }, "Setting ariaLabelledByElements on ElementInternals should change the accessible name of the custom element")
+
+    promise_test(async t => {
+      const custom = document.getElementById('custom1');
+      custom.i.ariaLabelledByElements = null;
+      const label_before_labelledby_set = await test_driver.get_computed_label(custom);
+      assert_equals(label_before_labelledby_set, "", "Before ariaLabelledByElements is set, accessible label should be empty.");
+
+      const labelledBy = document.getElementById('labelledby');
+      custom.i.ariaLabelledByElements = [labelledBy];
+      const label_after_internals_labelledby_set = await test_driver.get_computed_label(custom);
+      assert_equals(label_after_internals_labelledby_set, "Labelled by", "After ariaLabelledByElements is set, accessible label should be 'Labelled by'");
+
+      custom.setAttribute('aria-labelledby', 'labelledby_content');
+      const label_after_content_labelledby_set = await test_driver.get_computed_label(custom);
+      assert_equals(label_after_content_labelledby_set, "Labelled by from content attribute", "aria-labelledby content attribute supersedes ariaLabelledByElements on internals");
+
+      const labelledby_element = document.getElementById('labelledby_element');
+      custom.ariaLabelledByElements = [labelledby_element];
+      const label_after_idl_arialabelledbyelements_set = await test_driver.get_computed_label(custom);
+      assert_equals(label_after_idl_arialabelledbyelements_set, "Labelled by from IDL attribute", "ariaLabelledByElements on element supersedes ariaLabelledByElements on internals");
+
+      custom.setAttribute('aria-labelledby', 'bad_id');
+      const label_after_content_labelledby_set_to_bad_id = await test_driver.get_computed_label(custom);
+      assert_equals(label_after_content_labelledby_set_to_bad_id, "", "aria-labelledby content attribute supersedes ariaLabelledByElements on internals even when invalid");
+
+      const shadowhost = document.getElementById('shadowhost');
+      const labelledby_element_invalid = shadowhost.shadowRoot.getElementById('labelledby_element_shadow');
+      custom.ariaLabelledByElements = [labelledby_element_invalid];
+      const label_after_idl_arialabelledbyelements_set_to_invalid_element = await test_driver.get_computed_label(custom);
+      assert_equals(label_after_idl_arialabelledbyelements_set_to_invalid_element, "", "ariaLabelledByElements on element supersedes ariaLabelledByElements on internals even when invalid");
+    }, "Setting aria-labelledby or ariaLabelledByElements on the custom element should supersede the value of ariaLabelledByElements on ElementInternals");
+  </script>
+
+  <custom-element id="cachingInvariantMain"></custom-element>
+  <div id="cachingInvariantElement1"></div>
+  <div id="cachingInvariantElement2"></div>
+  <div id="cachingInvariantElement3"></div>
+  <div id="cachingInvariantElement4"></div>
+  <div id="cachingInvariantElement5"></div>
+
+  <script>
+    test(function(t) {
+      cachingInvariantMain.i.ariaControlsElements = [cachingInvariantElement1, cachingInvariantElement2];
+      cachingInvariantMain.i.ariaDescribedByElements = [cachingInvariantElement3, cachingInvariantElement4];
+      cachingInvariantMain.i.ariaDetailsElements = [cachingInvariantElement5];
+      cachingInvariantMain.i.ariaFlowToElements = [cachingInvariantElement1, cachingInvariantElement3];
+      cachingInvariantMain.i.ariaLabelledByElements = [cachingInvariantElement2, cachingInvariantElement4];
+      cachingInvariantMain.i.ariaOwnsElements = [cachingInvariantElement1, cachingInvariantElement2, cachingInvariantElement3];
+
+      let ariaControlsElementsArray = cachingInvariantMain.i.ariaControlsElements;
+      let ariaDescribedByElementsArray = cachingInvariantMain.i.ariaDescribedByElements;
+      let ariaDetailsElementsArray = cachingInvariantMain.i.ariaDetailsElements;
+      let ariaFlowToElementsArray = cachingInvariantMain.i.ariaFlowToElements;
+      let ariaLabelledByElementsArray = cachingInvariantMain.i.ariaLabelledByElements;
+      let ariaOwnsElementsArray = cachingInvariantMain.i.ariaOwnsElements;
+
+      assert_equals(ariaControlsElementsArray, cachingInvariantMain.i.ariaControlsElements, "Caching invariant for ariaControlsElements");
+      assert_equals(ariaDescribedByElementsArray, cachingInvariantMain.i.ariaDescribedByElements, "Caching invariant for ariaDescribedByElements");
+      assert_equals(ariaDetailsElementsArray, cachingInvariantMain.i.ariaDetailsElements, "Caching invariant for ariaDetailsElements");
+      assert_equals(ariaFlowToElementsArray, cachingInvariantMain.i.ariaFlowToElements, "Caching invariant for ariaFlowToElements");
+      assert_equals(ariaLabelledByElementsArray, cachingInvariantMain.i.ariaLabelledByElements, "Caching invariant for ariaLabelledByElements");
+      assert_equals(ariaOwnsElementsArray, cachingInvariantMain.i.ariaOwnsElements, "Caching invariant for ariaOwnsElements");
+
+      // Ensure that cached values don't become stale
+      cachingInvariantMain.i.ariaControlsElements = [cachingInvariantElement4, cachingInvariantElement5];
+      cachingInvariantMain.i.ariaDescribedByElements = [cachingInvariantElement1, cachingInvariantElement2];
+      cachingInvariantMain.i.ariaDetailsElements = [cachingInvariantElement3];
+      cachingInvariantMain.i.ariaFlowToElements = [cachingInvariantElement4, cachingInvariantElement5];
+      cachingInvariantMain.i.ariaLabelledByElements = [cachingInvariantElement1, cachingInvariantElement2];
+      cachingInvariantMain.i.ariaOwnsElements = [cachingInvariantElement3, cachingInvariantElement4, cachingInvariantElement1];
+
+      ariaControlsElementsArray = cachingInvariantMain.i.ariaControlsElements;
+      ariaDescribedByElementsArray = cachingInvariantMain.i.ariaDescribedByElements;
+      ariaDetailsElementsArray = cachingInvariantMain.i.ariaDetailsElements;
+      ariaFlowToElementsArray = cachingInvariantMain.i.ariaFlowToElements;
+      ariaLabelledByElementsArray = cachingInvariantMain.i.ariaLabelledByElements;
+      ariaOwnsElementsArray = cachingInvariantMain.i.ariaOwnsElements;
+
+      assert_equals(ariaControlsElementsArray, cachingInvariantMain.i.ariaControlsElements, "Caching invariant for ariaControlsElements");
+      assert_equals(ariaDescribedByElementsArray, cachingInvariantMain.i.ariaDescribedByElements, "Caching invariant for ariaDescribedByElements");
+      assert_equals(ariaDetailsElementsArray, cachingInvariantMain.i.ariaDetailsElements, "Caching invariant for ariaDetailsElements");
+      assert_equals(ariaFlowToElementsArray, cachingInvariantMain.i.ariaFlowToElements, "Caching invariant for ariaFlowToElements");
+      assert_equals(ariaLabelledByElementsArray, cachingInvariantMain.i.ariaLabelledByElements, "Caching invariant for ariaLabelledByElements");
+      assert_equals(ariaOwnsElementsArray, cachingInvariantMain.i.ariaOwnsElements, "Caching invariant for ariaOwnsElements");
+
+    }, "Caching invariant different attributes.");
+  </script>
+
+  <custom-element id="cachingInvariantMain1"></custom-element>
+  <custom-element id="cachingInvariantMain2"></custom-element>
+
+  <script>
+    test(function(t) {
+      cachingInvariantMain1.i.ariaDescribedByElements = [cachingInvariantElement1, cachingInvariantElement2];
+      cachingInvariantMain2.i.ariaDescribedByElements = [cachingInvariantElement1, cachingInvariantElement2];
+
+      let ariaDescribedByElementsArray1 = cachingInvariantMain1.i.ariaDescribedByElements;
+      let ariaDescribedByElementsArray2 = cachingInvariantMain2.i.ariaDescribedByElements;
+
+      assert_equals(ariaDescribedByElementsArray1, cachingInvariantMain1.i.ariaDescribedByElements, "Caching invariant for ariaDescribedByElements in one elemnt");
+      assert_equals(ariaDescribedByElementsArray2, cachingInvariantMain2.i.ariaDescribedByElements, "Caching invariant for ariaDescribedByElements in onother elemnt");
+      assert_not_equals(cachingInvariantMain1.i.ariaDescribedByElements, cachingInvariantMain2.i.ariaDescribedByElements);
+    }, "Caching invariant different elements.");
+  </script>
+
+</body>
+</html>

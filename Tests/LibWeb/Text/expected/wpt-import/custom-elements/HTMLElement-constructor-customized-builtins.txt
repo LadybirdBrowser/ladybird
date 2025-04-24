@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	HTMLElement constructor must not get .prototype until it finishes its extends sanity checks, calling proxy constructor directly
+Pass	HTMLElement constructor must not get .prototype until it finishes its extends sanity checks, calling via Reflect

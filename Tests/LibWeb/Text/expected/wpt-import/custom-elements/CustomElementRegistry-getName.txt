@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	customElements.getName must return null when the registry does not contain an entry with the given constructor
+Pass	customElements.getName must throw when the element interface is not a constructor
+Pass	customElements.getName returns the name of the entry with the given constructor when there is a matching entry.
+Pass	customElements.getName returns the name of the entry with the given customized built in constructor when there is a matching entry.

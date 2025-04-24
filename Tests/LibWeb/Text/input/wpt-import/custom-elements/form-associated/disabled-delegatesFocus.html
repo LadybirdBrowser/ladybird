@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<meta charset="utf8">
+<title>delegatesFocus on disabled form-associated custom elements</title>
+<link rel="author" href="mailto:avandolder@mozilla.com">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+  class CustomControl extends HTMLElement {
+    static get formAssociated() {return true;}
+
+    constructor() {
+      super();
+      this.internals = this.attachInternals();
+
+      this.attachShadow({mode: "open", delegatesFocus: true});
+      this.shadowRoot.append(
+        document.querySelector("template").content.cloneNode(true)
+      );
+
+      this.eventFired = false;
+      this.addEventListener("focus", () => this.eventFired = true);
+    }
+  }
+
+  customElements.define("custom-control", CustomControl)
+</script>
+
+<template>
+  <div tabindex=0 id="target">
+    <slot></slot>
+  </div>
+</template>
+
+<form>
+  <custom-control disabled>Text</custom-control>
+</form>
+
+<script>
+  let focusinPropagated = false;
+  let focusoutPropagated = false;
+
+  const form = document.querySelector("form");
+  form.addEventListener("focusin", () => focusinPropagated = true);
+  form.addEventListener("focusout", () => focusoutPropagated = true);
+
+  test(() => {
+    const element = document.querySelector("custom-control");
+    element.focus();
+
+    assert_true(element.eventFired, "Focus event fired on custom control");
+    assert_true(focusinPropagated, "FocusIn event propagated through control");
+
+    element.blur();
+    assert_true(focusoutPropagated, "FocusOut event propagated through control");
+  }, "Focus events fire on disabled form-associated custom elements with delegatesFocus");
+</script>

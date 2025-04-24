@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Custom Elements: CEReactions on NamedNodeMap interface</title>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<meta name="assert" content="setNamedItem, setNamedItemNS, removeNameditem, and removeNamedItemNS of NamedNodeMap interface must have CEReactions">
+<meta name="help" content="https://dom.spec.whatwg.org/#node">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../resources/custom-elements-helpers.js"></script>
+<script src="./resources/reactions.js"></script>
+</head>
+<body>
+<div id="log"></div>
+<script>
+
+testAttributeAdder(function (element, name, value) {
+    var attr = element.ownerDocument.createAttribute(name);
+    attr.value = value;
+    element.attributes.setNamedItem(attr);
+}, 'setNamedItem on NamedNodeMap');
+
+testAttributeAdder(function (element, name, value) {
+    var attr = element.ownerDocument.createAttribute(name);
+    attr.value = value;
+    element.attributes.setNamedItemNS(attr);
+}, 'setNamedItemNS on NamedNodeMap');
+
+testAttributeRemover(function (element, name) {
+    element.attributes.removeNamedItem(name);
+}, 'removeNamedItem on NamedNodeMap', {onlyExistingAttribute: true});
+
+testAttributeRemover(function (element, name) {
+    element.attributes.removeNamedItemNS(null, name);
+}, 'removeNamedItemNS on NamedNodeMap', {onlyExistingAttribute: true});
+
+</script>
+</body>
+</html>

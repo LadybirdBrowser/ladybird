@@ -1,0 +1,16 @@
+Harness status: OK
+
+Found 11 tests
+
+11 Fail
+Fail	document.open() must throw an InvalidStateError when processing custom element reactions for a synchronous constructed custom element
+Fail	document.open("text/html") must throw an InvalidStateError when processing custom element reactions for a synchronous constructed custom element
+Fail	document.open(URL) must NOT throw an InvalidStateError when processing custom element reactions for a synchronous constructed custom element
+Fail	document.close() must throw an InvalidStateError when processing custom element reactions for a synchronous constructed custom element
+Fail	document.write must throw an InvalidStateError when processing custom element reactions for a synchronous constructed custom element
+Fail	document.writeln must throw an InvalidStateError when processing custom element reactions for a synchronous constructed custom element
+Fail	document.open() of another document must not throw an InvalidStateError when processing custom element reactions for a synchronous constructed custom element
+Fail	document.open("text/html") of another document must not throw an InvalidStateError when processing custom element reactions for a synchronous constructed custom element
+Fail	document.close() of another document must not throw an InvalidStateError when processing custom element reactions for a synchronous constructed custom element
+Fail	document.write of another document must not throw an InvalidStateError when processing custom element reactions for a synchronous constructed custom element
+Fail	document.writeln of another document must not throw an InvalidStateError when processing custom element reactions for a synchronous constructed custom element

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<body>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<script>
+customElements.define('custom-input', class extends HTMLElement {
+  static get formAssociated() {return true;}
+});
+</script>
+
+<form id="custom-form">
+  <custom-input id="custom-1" name="alone"></custom-input>
+  <custom-input id="custom-2" name="group"></custom-input>
+  <custom-input id="custom-3" name="group"></custom-input>
+  <custom-button id="custom-4" name="upgrade"></custom-button>
+</form>
+<custom-input id="custom-5" name="group" form="custom-form"></custom-input>
+<custom-button id="custom-6" name="group" form="custom-form"></custom-button>
+
+<script>
+test(() => {
+  const formElements = document.forms[0].elements;
+  assert_equals(formElements['invalid'],undefined);
+  assert_equals(formElements['alone'],document.getElementById('custom-1'),'Single input should be returned as-is');
+  assert_true(formElements['group'] instanceof RadioNodeList,'Repeated names should result in RadioNodeList');
+  const expected = [document.getElementById('custom-2'),
+                    document.getElementById('custom-3'),
+                    document.getElementById('custom-5')];
+  assert_array_equals(formElements['group'],expected,'Repeated names should be contained in RadioNodeList, in tree order');
+}, 'Form associated custom elements should work with document.forms.elements.namedItem()');
+
+test(() => {
+  const formElements = document.forms[0].elements;
+  assert_equals(formElements['upgrade'],undefined);
+  customElements.define('custom-button', class extends HTMLElement {
+    static get formAssociated() {return true;}
+  });
+  assert_equals(formElements['upgrade'],document.getElementById('custom-4'),'Single button should be returned after upgrading');
+  const expected = [document.getElementById('custom-2'),
+                    document.getElementById('custom-3'),
+                    document.getElementById('custom-5'),
+                    document.getElementById('custom-6')];
+  assert_array_equals(formElements['group'],expected,'Repeated names should be contained in RadioNodeList, in tree order after upgrading');
+}, 'Form associated custom elements should work with document.forms.elements.namedItem() after upgrading');
+
+test(() => {
+  const formElements = document.forms[0].elements;
+  assert_equals(formElements['alone'],document.getElementById('custom-1'),'Single input should be returned as-is');
+  const expected = [document.getElementById('custom-2'),
+                    document.getElementById('custom-3'),
+                    document.getElementById('custom-5'),
+                    document.getElementById('custom-6')];
+  assert_array_equals(formElements['group'],expected,'Repeated names should be contained in RadioNodeList, in tree order after upgrading');
+  document.getElementById('custom-1').setAttribute("name", "group");
+  assert_equals(formElements['alone'],undefined);
+  const expectedNew = [document.getElementById('custom-1'),
+                      document.getElementById('custom-2'),
+                      document.getElementById('custom-3'),
+                      document.getElementById('custom-5'),
+                      document.getElementById('custom-6')];
+  assert_array_equals(formElements['group'],expectedNew,'Repeated names should be contained in RadioNodeList, in tree order after updating name attribute');
+}, 'Form associated custom elements should work with document.forms.elements.namedItem() after updating the name attribute');
+
+</script>
+</body>

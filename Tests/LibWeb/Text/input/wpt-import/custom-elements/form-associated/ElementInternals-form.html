@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<title>form attribute of ElementInternals</title>
+<body>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<script>
+customElements.define('custom-input-parser', class extends HTMLElement {
+  static get formAssociated() { return true; }
+
+  constructor() {
+    super();
+    this.internals_ = this.attachInternals();
+  }
+  get i() { return this.internals_; }
+});
+</script>
+
+<form id="custom-form">
+  <custom-input-parser id="custom-1"></custom-input-parser>
+  <custom-input-upgrade id="custom-2"></custom-input-upgrade>
+</form>
+<custom-input-parser id="custom-3" form="custom-form"></custom-input-parser>
+<custom-input-upgrade id="custom-4" form="custom-form"></custom-input-upgrade>
+<custom-input-upgrade id="custom-5"></custom-input-upgrade>
+
+<script>
+test(() => {
+  const form = document.forms[0];
+  assert_equals(document.getElementById("custom-1").i.form, form);
+  assert_equals(document.getElementById("custom-3").i.form, form);
+
+  // Test upgrading.
+  customElements.define('custom-input-upgrade', class extends HTMLElement {
+    static get formAssociated() { return true; }
+    constructor() {
+      super();
+      this.internals_ = this.attachInternals();
+    }
+    get i() { return this.internals_; }
+  });
+  assert_equals(document.getElementById("custom-2").i.form, form);
+  assert_equals(document.getElementById("custom-4").i.form, form);
+
+  // Test changing name attribuate.
+  let custom5 = document.getElementById("custom-5");
+  assert_equals(custom5.i.form, null);
+  custom5.setAttribute("form", "custom-form");
+  assert_equals(custom5.i.form, form);
+}, "ElementInternals.form should return the target element's form owner");
+
+test(() => {
+  class NotFormAssociatedElement extends HTMLElement {}
+  customElements.define('not-form-associated-element', NotFormAssociatedElement);
+  const element = new NotFormAssociatedElement();
+  const i = element.attachInternals();
+  assert_throws_dom('NotSupportedError', () => i.form);
+}, "ElementInternals.form should throws NotSupportedError if the target element is not a form-associated custom element");
+
+</script>
+</body>

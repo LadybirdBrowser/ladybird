@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<title>Both focusable and unfocusable custom elements can show validation bubbles</title>
+<link rel=mismatch href=../../../../expected/wpt-import/custom-elements/form-associated/ElementInternals-reportValidity-bubble-notref.html>
+<link rel=help href=https://html.spec.whatwg.org/C/#report-validity-steps>
+<unfocusable-custom-element></unfocusable-custom-element>
+<script>
+class UnfocusableCustomElement extends HTMLElement {
+  constructor() {
+    super();
+    this.attachShadow({mode: 'open'});
+    this.shadowRoot.innerHTML = '<input>';
+    this.elementInternals = this.attachInternals();
+    const validationAnchor = this.shadowRoot.querySelector('input');
+    this.elementInternals.setValidity({valueMissing: true}, 'value missing', validationAnchor);
+  }
+
+  static get formAssociated() {
+    return true;
+  }
+
+  reportValidity() {
+    this.elementInternals.reportValidity();
+  }
+}
+
+customElements.define('unfocusable-custom-element', UnfocusableCustomElement);
+
+document.querySelector('unfocusable-custom-element').reportValidity();
+</script>

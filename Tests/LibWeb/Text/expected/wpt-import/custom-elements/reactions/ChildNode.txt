@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Pass
+Pass	before on ChildNode must enqueue a connected reaction
+Pass	before on ChildNode must enqueue a disconnected reaction, an adopted reaction, and a connected reaction when the custom element was in another document
+Pass	after on ChildNode must enqueue a connected reaction
+Pass	after on ChildNode must enqueue a disconnected reaction, an adopted reaction, and a connected reaction when the custom element was in another document
+Pass	replaceWith on ChildNode must enqueue a connected reaction
+Pass	replaceWith on ChildNode must enqueue a disconnected reaction, an adopted reaction, and a connected reaction when the custom element was in another document
+Pass	remove on ChildNode must enqueue a disconnected reaction

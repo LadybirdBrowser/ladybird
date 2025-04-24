@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Custom Elements: CEReactions on ChildNode interface</title>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<meta name="assert" content="before, after, replaceWith, and remove of ChildNode interface must have CEReactions">
+<meta name="help" content="https://dom.spec.whatwg.org/#childnode">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../resources/custom-elements-helpers.js"></script>
+<script src="./resources/reactions.js"></script>
+</head>
+<body>
+<div id="log"></div>
+<script>
+
+testNodeConnector(function (newContainer, customElement) {
+    newContainer.firstChild.before(customElement);
+}, 'before on ChildNode');
+
+testNodeConnector(function (newContainer, customElement) {
+    newContainer.firstChild.after(customElement);
+}, 'after on ChildNode');
+
+testNodeConnector(function (newContainer, customElement) {
+    newContainer.firstChild.replaceWith(customElement);
+}, 'replaceWith on ChildNode');
+
+testNodeDisconnector(function (customElement) {
+    customElement.remove();
+}, 'remove on ChildNode');
+
+</script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	HTML parser must create a defined autonomous custom element when customElements.define comes after HTML parser creation
+Pass	HTML parser must create a defined autonomous custom element when customElements.define comes before HTML parser creation

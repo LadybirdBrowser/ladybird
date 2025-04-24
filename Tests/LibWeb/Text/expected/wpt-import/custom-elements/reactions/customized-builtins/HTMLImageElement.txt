@@ -1,0 +1,27 @@
+Harness status: OK
+
+Found 22 tests
+
+22 Pass
+Pass	alt on HTMLImageElement must enqueue an attributeChanged reaction when adding a new attribute
+Pass	alt on HTMLImageElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	src on HTMLImageElement must enqueue an attributeChanged reaction when adding a new attribute
+Pass	src on HTMLImageElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	srcset on HTMLImageElement must enqueue an attributeChanged reaction when adding a new attribute
+Pass	srcset on HTMLImageElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	sizes on HTMLImageElement must enqueue an attributeChanged reaction when adding a new attribute
+Pass	sizes on HTMLImageElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	crossOrigin on HTMLImageElement must enqueue an attributeChanged reaction when adding a new attribute
+Pass	crossOrigin on HTMLImageElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	useMap on HTMLImageElement must enqueue an attributeChanged reaction when adding a new attribute
+Pass	useMap on HTMLImageElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	isMap on HTMLImageElement must enqueue an attributeChanged reaction when adding a new attribute
+Pass	isMap on HTMLImageElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	width on HTMLImageElement must enqueue an attributeChanged reaction when adding a new attribute
+Pass	width on HTMLImageElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	height on HTMLImageElement must enqueue an attributeChanged reaction when adding a new attribute
+Pass	height on HTMLImageElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	referrerPolicy on HTMLImageElement must enqueue an attributeChanged reaction when adding a new attribute
+Pass	referrerPolicy on HTMLImageElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	decoding on HTMLImageElement must enqueue an attributeChanged reaction when adding a new attribute
+Pass	decoding on HTMLImageElement must enqueue an attributeChanged reaction when replacing an existing attribute

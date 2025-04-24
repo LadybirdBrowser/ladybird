@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<link rel="help" href="https://github.com/whatwg/html/issues/10854">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+</head>
+<body>
+<script>
+test(() => {
+    let registry = new CustomElementRegistry();
+    assert_not_equals(registry, window.customElements);
+}, 'Create a CustomElementRegistry not identically equal to window.customElements');
+
+test(() => {
+    let registry = new CustomElementRegistry();
+    window.customElements.define('a-b', class extends HTMLElement {});
+    assert_equals(registry.get('a-b'), undefined);
+}, 'Defining an element in the global registry does not add a definition to a scoped CustomElementRegistry');
+
+test(() => {
+    let registry = new CustomElementRegistry();
+    registry.define('b-c', class extends HTMLElement {});
+    assert_equals(window.customElements.get('b-c'), undefined);
+}, 'Defining an element in a scoped global registry does not add a definition to the global registry');
+
+</script>
+</body>
+</html>

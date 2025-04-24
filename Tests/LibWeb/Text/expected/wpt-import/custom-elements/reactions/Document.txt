@@ -1,0 +1,18 @@
+Harness status: OK
+
+Found 12 tests
+
+11 Pass
+1 Fail
+Fail	importNode on Document must construct a new custom element when importing a custom element into a window-less document
+Pass	importNode on Document must construct a new custom element when importing a custom element from a template
+Pass	adoptNode on Document must enqueue an adopted reaction when importing a custom element
+Pass	execCommand on Document must enqueue a disconnected reaction when deleting a custom element from a contenteditable element
+Pass	title on Document must enqueue disconnectedCallback when removing a custom element
+Pass	body on Document must enqueue disconnectedCallback when removing a custom element
+Pass	body on Document must enqueue connectedCallback when inserting a custom element
+Pass	open on Document must enqueue disconnectedCallback when removing a custom element
+Pass	write on Document must enqueue disconnectedCallback when removing a custom element
+Pass	write on Document must enqueue connectedCallback after constructing a custom element
+Pass	writeln on Document must enqueue disconnectedCallback when removing a custom element
+Pass	writeln on Document must enqueue connectedCallback after constructing a custom element

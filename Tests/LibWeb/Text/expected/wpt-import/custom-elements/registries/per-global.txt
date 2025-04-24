@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 3 tests
+
+1 Pass
+2 Fail
+Fail	Navigating from the initial about:blank must not replace window.customElements
+Pass	Discarding the browsing context must not change window.customElements
+Fail	document.open() must not replace window.customElements

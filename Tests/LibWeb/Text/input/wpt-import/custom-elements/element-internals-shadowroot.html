@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>ElementInternals.shadowRoot</title>
+<link rel="author" href="mailto:masonf@chromium.org">
+<link rel="help" href="https://html.spec.whatwg.org/#dom-elementinternals-shadowroot">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+
+<script>
+
+test(() => {
+  let constructed = false;
+  customElements.define('custom-open', class extends HTMLElement {
+    constructor() {
+      super();
+      const elementInternals = this.attachInternals();
+      assert_equals(elementInternals.shadowRoot, null);
+      const shadow = this.attachShadow({mode: 'open'});
+      assert_equals(elementInternals.shadowRoot, shadow);
+      constructed = true;
+    }
+  });
+  const element = document.createElement('custom-open');
+  assert_true(constructed);
+}, 'ElementInternals.shadowRoot allows access to open shadow root');
+
+test(() => {
+  let constructed = false;
+  customElements.define('custom-closed', class extends HTMLElement {
+    constructor() {
+      super();
+      const elementInternals = this.attachInternals();
+      assert_equals(elementInternals.shadowRoot, null);
+      const shadow = this.attachShadow({mode: 'closed'});
+      assert_equals(elementInternals.shadowRoot, shadow);
+      assert_equals(this.shadowRoot, null);
+      constructed = true;
+    }
+  });
+  const element = document.createElement('custom-closed');
+  assert_true(constructed);
+}, 'ElementInternals.shadowRoot allows access to closed shadow root');
+
+test(() => {
+  let constructed = false;
+  const element = document.createElement('x-1');
+  assert_throws_dom('NotSupportedError', () => element.attachInternals(),'attachInternals cannot be called before definition exists');
+  customElements.define('x-1', class extends HTMLElement {
+    constructor() {
+      super();
+      assert_true(!!this.attachInternals());
+      constructed = true;
+    }
+  });
+  assert_false(constructed);
+  assert_throws_dom('NotSupportedError', () => element.attachInternals(),'attachInternals cannot be called before constructor');
+  customElements.upgrade(element);
+  assert_true(constructed);
+  assert_throws_dom('NotSupportedError', () => element.attachInternals(),'attachInternals already called');
+}, 'ElementInternals cannot be called before constructor, upgrade case');
+
+test(() => {
+  let constructed = false;
+  const element = document.createElement('x-2');
+  customElements.define('x-2', class extends HTMLElement {
+    constructor() {
+      super();
+      // Don't attachInternals() here
+      constructed = true;
+    }
+  });
+  assert_throws_dom('NotSupportedError', () => element.attachInternals(),'attachInternals cannot be called before constructor');
+  assert_false(constructed);
+  customElements.upgrade(element);
+  assert_true(constructed);
+  assert_true(!!element.attachInternals(),'After the constructor, ok to call from outside');
+}, 'ElementInternals *can* be called after constructor, upgrade case');
+
+test(() => {
+  let constructed = false;
+  customElements.define('x-3', class extends HTMLElement {
+    constructor() {
+      super();
+      assert_true(!!this.attachInternals());
+      constructed = true;
+    }
+  });
+  const element = document.createElement('x-3');
+  assert_true(constructed);
+  assert_throws_dom('NotSupportedError', () => element.attachInternals(), 'attachInternals already called');
+}, 'ElementInternals cannot be called after constructor calls it, create case');
+
+test(() => {
+  let constructed = false;
+  const element = document.createElement('x-5');
+  customElements.define('x-5', class extends HTMLElement {
+    static disabledFeatures = [ 'internals' ];
+    constructor() {
+      super();
+      assert_throws_dom('NotSupportedError', () => this.attachInternals(), 'attachInternals forbidden by disabledFeatures, constructor');
+      constructed = true;
+    }
+  });
+  assert_false(constructed);
+  assert_throws_dom('NotSupportedError', () => element.attachInternals(), 'attachInternals forbidden by disabledFeatures, pre-upgrade');
+  customElements.upgrade(element);
+  assert_true(constructed);
+  assert_throws_dom('NotSupportedError', () => element.attachInternals(), 'attachInternals forbidden by disabledFeatures, post-upgrade');
+}, 'ElementInternals disabled by disabledFeatures');
+
+test(() => {
+  let constructed = false;
+  const element = document.createElement('x-6');
+  const sr = element.attachShadow({mode: 'closed'});
+  assert_true(sr instanceof ShadowRoot);
+  customElements.define('x-6', class extends HTMLElement {
+    constructor() {
+      super();
+      assert_throws_dom('NotSupportedError', () => this.attachShadow({mode:'open'}), 'attachShadow already called');
+      const elementInternals = this.attachInternals();
+      assert_equals(elementInternals.shadowRoot, null, 'ElementInternals.shadowRoot should not be available for pre-attached shadow');
+      constructed = true;
+    }
+  });
+  assert_false(constructed);
+  customElements.upgrade(element);
+  assert_true(constructed,'Failed to construct - test failed');
+  assert_equals(element.shadowRoot, null, 'shadow root is closed');
+}, 'ElementInternals.shadowRoot doesn\'t reveal pre-attached closed shadowRoot');
+</script>

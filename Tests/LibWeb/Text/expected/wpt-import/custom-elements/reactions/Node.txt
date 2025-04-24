@@ -1,0 +1,19 @@
+Harness status: OK
+
+Found 14 tests
+
+14 Pass
+Pass	nodeValue on Node must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	nodeValue on Node must not enqueue an attributeChanged reaction when replacing an existing unobserved attribute
+Pass	textContent on Node must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	textContent on Node must not enqueue an attributeChanged reaction when replacing an existing unobserved attribute
+Pass	cloneNode on Node must enqueue an attributeChanged reaction when cloning an element with an observed attribute
+Pass	cloneNode on Node must not enqueue an attributeChanged reaction when cloning an element with an unobserved attribute
+Pass	cloneNode on Node must enqueue an attributeChanged reaction when cloning an element only for observed attributes
+Pass	insertBefore on ChildNode must enqueue a connected reaction
+Pass	insertBefore on ChildNode must enqueue a disconnected reaction, an adopted reaction, and a connected reaction when the custom element was in another document
+Pass	appendChild on ChildNode must enqueue a connected reaction
+Pass	appendChild on ChildNode must enqueue a disconnected reaction, an adopted reaction, and a connected reaction when the custom element was in another document
+Pass	replaceChild on ChildNode must enqueue a connected reaction
+Pass	replaceChild on ChildNode must enqueue a disconnected reaction, an adopted reaction, and a connected reaction when the custom element was in another document
+Pass	removeChild on ChildNode must enqueue a disconnected reaction

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<title>Custom Elements: CEReactions on HTMLImageElement interface</title>
+<link rel="author" title="Intel" href="http://www.intel.com">
+<meta name="assert" content="alt, src, srcset, sizes, crossOrigin, useMap,
+  isMap, width, height, referrerPolicy, decoding of
+  HTMLImageElement interface must have CEReactions">
+<meta name="help" content="https://html.spec.whatwg.org/#the-img-element">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../resources/custom-elements-helpers.js"></script>
+<script src="../resources/reactions.js"></script>
+
+<map name="yellow"></map>
+<map name="green"></map>
+<a href="/" id="a">
+</a>
+<body>
+<script>
+
+function getParentElement() {
+  return document.body;
+}
+
+function setAttributes(instance) {
+  instance.setAttribute('src', '/images/green-1x1.png');
+}
+
+testReflectAttributeWithDependentAttributes(
+  'alt', 'alt', 'image1',
+  'image2', 'alt on HTMLImageElement', 'img',
+  getParentElement, instance => setAttributes(instance), HTMLImageElement
+);
+testReflectAttributeWithParentNode(
+  'src', 'src', '/images/green-1x1.png',
+  '/images/green-2x2.png', 'src on HTMLImageElement', 'img',
+  getParentElement, HTMLImageElement
+);
+testReflectAttributeWithDependentAttributes(
+  'srcset', 'srcset', '/images/green.png',
+  '/images/green-2x2.png', 'srcset on HTMLImageElement', 'img',
+  getParentElement, instance => setAttributes(instance), HTMLImageElement
+);
+testReflectAttributeWithDependentAttributes(
+  'sizes', 'sizes', '(max-width: 32px) 28px',
+  '(max-width: 48px) 44px', 'sizes on HTMLImageElement', 'img',
+  getParentElement, instance => {
+    instance.setAttribute('src', '/images/green-1x1.png');
+    instance.setAttribute('srcset', '/images/green-2x2.png 1x');
+  }, HTMLImageElement
+);
+testReflectAttributeWithDependentAttributes(
+  'crossOrigin', 'crossorigin', 'use-credentials',
+  'anonymous', 'crossOrigin on HTMLImageElement', 'img',
+  getParentElement, instance => setAttributes(instance), HTMLImageElement
+);
+testReflectAttributeWithDependentAttributes(
+  'useMap', 'usemap', '#yellow',
+  '#green', 'useMap on HTMLImageElement', 'img',
+  getParentElement, instance => setAttributes(instance), HTMLImageElement
+);
+testReflectBooleanAttributeWithDependentAttributes(
+  'isMap', 'ismap', 'isMap on HTMLImageElement',
+  'img', () => { return document.getElementById('a') },
+  instance => setAttributes(instance),
+  HTMLImageElement
+);
+testReflectAttributeWithDependentAttributes(
+  'width', 'width', '1',
+  '2', 'width on HTMLImageElement', 'img',
+  getParentElement, instance => setAttributes(instance), HTMLImageElement
+);
+testReflectAttributeWithDependentAttributes(
+  'height', 'height', '1',
+  '2', 'height on HTMLImageElement', 'img',
+  getParentElement, instance => setAttributes(instance), HTMLImageElement
+);
+testReflectAttributeWithDependentAttributes(
+  'referrerPolicy', 'referrerpolicy', 'same-origin',
+  'origin', 'referrerPolicy on HTMLImageElement', 'img',
+  getParentElement, instance => setAttributes(instance), HTMLImageElement
+);
+testReflectAttributeWithDependentAttributes(
+  'decoding', 'decoding', 'async',
+  'sync', 'decoding on HTMLImageElement', 'img',
+  getParentElement, instance => setAttributes(instance), HTMLImageElement
+);
+
+</script>
+</body>

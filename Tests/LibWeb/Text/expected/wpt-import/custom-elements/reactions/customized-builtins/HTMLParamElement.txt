@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	name on HTMLParamElement must enqueue an attributeChanged reaction when adding a new attribute
+Pass	name on HTMLParamElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	value on HTMLParamElement must enqueue an attributeChanged reaction when adding a new attribute
+Pass	value on HTMLParamElement must enqueue an attributeChanged reaction when replacing an existing attribute

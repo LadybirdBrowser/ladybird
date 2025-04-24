@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CustomElementInterface holds constructors and callbacks strongly, preventing them from being GCed if there are no other references</title>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/custom-elements.html#concept-custom-element-definition-lifecycle-callbacks">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../common/gc.js"></script>
+
+<body>
+<div id="customElementsRoot"></div>
+<iframe id="emptyIframe" srcdoc></iframe>
+<script>
+"use strict";
+
+const tagNames = [...new Array(100)].map((_, i) => `x-foo${i}`);
+const delay = (t, ms) => new Promise(resolve => { t.step_timeout(resolve, ms); });
+
+const connectedCallbackCalls = new Set;
+const disconnectedCallbackCalls = new Set;
+const attributeChangedCallbackCalls = new Set;
+const adoptedCallbackCalls = new Set;
+
+for (const tagName of tagNames) {
+    const constructor = class extends HTMLElement {
+        connectedCallback() { connectedCallbackCalls.add(tagName); }
+        disconnectedCallback() { disconnectedCallbackCalls.add(tagName); }
+        attributeChangedCallback() { attributeChangedCallbackCalls.add(tagName); }
+        adoptedCallback() { adoptedCallbackCalls.add(tagName); }
+    };
+
+    constructor.observedAttributes = ["foo"];
+
+    customElements.define(tagName, constructor);
+
+    delete constructor.prototype.connectedCallback;
+    delete constructor.prototype.disconnectedCallback;
+    delete constructor.prototype.attributeChangedCallback;
+    delete constructor.prototype.adoptedCallback;
+}
+
+promise_test(async t => {
+    await garbageCollect();
+
+    assert_true(tagNames.every(tagName => typeof customElements.get(tagName) === "function"));
+}, "constructor");
+
+promise_test(async t => {
+    await garbageCollect();
+    for (const tagName of tagNames) {
+        customElementsRoot.append(document.createElement(tagName));
+    }
+
+    await delay(t, 10);
+    assert_equals(connectedCallbackCalls.size, tagNames.length);
+}, "connectedCallback");
+
+promise_test(async t => {
+    await garbageCollect();
+    for (const xFoo of customElementsRoot.children) {
+        xFoo.setAttribute("foo", "bar");
+    }
+
+    await delay(t, 10);
+    assert_equals(attributeChangedCallbackCalls.size, tagNames.length);
+}, "attributeChangedCallback");
+
+promise_test(async t => {
+    await garbageCollect();
+    customElementsRoot.innerHTML = "";
+
+    await delay(t, 10);
+    assert_equals(disconnectedCallbackCalls.size, tagNames.length);
+}, "disconnectedCallback");
+
+promise_test(async t => {
+    await garbageCollect();
+    for (const tagName of tagNames) {
+        emptyIframe.contentDocument.adoptNode(document.createElement(tagName));
+    }
+
+    await delay(t, 10);
+    assert_equals(adoptedCallbackCalls.size, tagNames.length);
+}, "adoptedCallback");
+</script>

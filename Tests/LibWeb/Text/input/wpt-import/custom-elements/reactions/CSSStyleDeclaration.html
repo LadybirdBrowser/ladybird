@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Custom Elements: CEReactions on CSSStyleDeclaration interface</title>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<meta name="assert" content="cssText, setProperty, setPropertyValue, setPropertyPriority, removeProperty, cssFloat, and all camel cased attributes of CSSStyleDeclaration interface must have CEReactions">
+<meta name="help" content="https://dom.spec.whatwg.org/#node">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../resources/custom-elements-helpers.js"></script>
+<script src="./resources/reactions.js"></script>
+</head>
+<body>
+<div id="log"></div>
+<script>
+
+test_mutating_style_property_value(function (instance, propertyName, idlName, value) {
+    instance.style.cssText = `${propertyName}: ${value}`;
+}, 'cssText on CSSStyleDeclaration');
+
+test_mutating_style_property_value(function (instance, propertyName, idlName, value) {
+    instance.style.setProperty(propertyName, value);
+}, 'setProperty on CSSStyleDeclaration');
+
+test_mutating_style_property_priority(function (instance, propertyName, idlName, isImportant) {
+    instance.style.setProperty(propertyName, instance.style[idlName], isImportant ? 'important': '');
+}, 'setProperty on CSSStyleDeclaration');
+
+if (CSSStyleDeclaration.prototype.setPropertyValue) {
+    test_mutating_style_property_value(function (instance, propertyName, idlName, value) {
+        instance.style.setPropertyValue(propertyName, value);
+    }, 'setPropertyValue on CSSStyleDeclaration');
+}
+
+if (CSSStyleDeclaration.prototype.setPropertyPriority) {
+    test_mutating_style_property_priority(function (instance, propertyName, idlName, isImportant) {
+        instance.style.setPropertyPriority(propertyName, isImportant ? 'important': '');
+    }, 'setPropertyPriority on CSSStyleDeclaration');
+}
+
+test_removing_style_property_value(function (instance, propertyName, idlName) {
+    instance.style.removeProperty(propertyName);
+}, 'removeProperty on CSSStyleDeclaration');
+
+test(function () {
+    var element = define_new_custom_element(['style']);
+    var instance = document.createElement(element.name);
+    assert_array_equals(element.takeLog().types(), ['constructed']);
+    instance.style.cssFloat = 'left';
+    assert_equals(instance.getAttribute('style'), 'float: left;');
+    var logEntries = element.takeLog();
+    assert_array_equals(logEntries.types(), ['attributeChanged']);
+    assert_attribute_log_entry(logEntries.last(), {name: 'style', oldValue: null, newValue: 'float: left;', namespace: null});
+}, 'cssFloat on CSSStyleDeclaration must enqueue an attributeChanged reaction when it adds the observed style attribute');
+
+test(function () {
+    var element = define_new_custom_element([]);
+    var instance = document.createElement(element.name);
+    assert_array_equals(element.takeLog().types(), ['constructed']);
+    instance.style.cssFloat = 'left';
+    assert_equals(instance.getAttribute('style'), 'float: left;');
+    assert_array_equals(element.takeLog().types(), []);
+}, 'cssFloat on CSSStyleDeclaration must not enqueue an attributeChanged reaction when it adds the style attribute but the style attribute is not observed');
+
+test_mutating_style_property_value(function (instance, propertyName, idlName, value) {
+    assert_equals(idlName, 'borderWidth');
+    instance.style.borderWidth = value;
+}, 'A camel case attribute (borderWidth) on CSSStyleDeclaration',
+    {propertyName: 'border-width', idlName: 'borderWidth', value1: '2px', value2: '4px'});
+
+test_mutating_style_property_value(function (instance, propertyName, idlName, value) {
+    assert_equals(propertyName, 'border-width');
+    instance.style['border-width'] = value;
+}, 'A dashed property (border-width) on CSSStyleDeclaration',
+    {propertyName: 'border-width', idlName: 'borderWidth', value1: '1px', value2: '5px'});
+
+test_mutating_style_property_value(function (instance, propertyName, idlName, value) {
+    instance.style.webkitFilter = value;
+}, 'A webkit prefixed camel case attribute (webkitFilter) on CSSStyleDeclaration',
+    {propertyName: 'filter', idlName: 'filter', value1: 'grayscale(20%)', value2: 'grayscale(30%)'});
+
+test_mutating_style_property_value(function (instance, propertyName, idlName, value) {
+    instance.style['-webkit-filter'] = value;
+}, 'A webkit prefixed dashed property (-webkit-filter) on CSSStyleDeclaration',
+    {propertyName: 'filter', idlName: 'filter', value1: 'grayscale(20%)', value2: 'grayscale(30%)'});
+
+</script>
+</body>
+</html>

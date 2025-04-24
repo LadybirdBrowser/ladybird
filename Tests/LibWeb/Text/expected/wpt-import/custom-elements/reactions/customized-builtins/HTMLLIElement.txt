@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	value on HTMLLIElement in ol must enqueue an attributeChanged reaction when adding a new attribute
+Pass	value on HTMLLIElement in ol must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	value on HTMLLIElement in ul must enqueue an attributeChanged reaction when adding a new attribute
+Pass	value on HTMLLIElement in ul must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	value on HTMLLIElement in menu must enqueue an attributeChanged reaction when adding a new attribute
+Pass	value on HTMLLIElement in menu must enqueue an attributeChanged reaction when replacing an existing attribute

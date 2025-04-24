@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 5 tests
+
+3 Pass
+2 Fail
+Pass	length on HTMLSelectElement must enqueue disconnectedCallback when removing a custom element
+Fail	The indexed setter on HTMLSelectElement must enqueue connectedCallback when inserting a custom element
+Fail	The indexed setter on HTMLSelectElement must enqueue disconnectedCallback when removing a custom element
+Pass	add on HTMLSelectElement must enqueue connectedCallback when inserting a custom element
+Pass	remove on HTMLSelectElement must enqueue disconnectedCallback when removing a custom element

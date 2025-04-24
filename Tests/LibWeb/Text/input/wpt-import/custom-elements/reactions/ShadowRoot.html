@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Custom Elements: CEReactions on ShadowRoot interface</title>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<meta name="assert" content="innerHTML of ShadowRoot interface must have CEReactions">
+<meta name="help" content="https://dom.spec.whatwg.org/#node">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../resources/custom-elements-helpers.js"></script>
+<script src="./resources/reactions.js"></script>
+</head>
+<body>
+<div id="log"></div>
+<script>
+
+test_with_window(function (contentWindow, contentDocument) {
+    const element = define_custom_element_in_window(contentWindow, 'custom-element', []);
+    const host = contentDocument.createElement('div');
+    const shadowRoot = host.attachShadow({mode: 'closed'});
+    shadowRoot.innerHTML = '<custom-element></custom-element>';
+
+    assert_array_equals(element.takeLog().types(), ['constructed']);
+}, 'innerHTML on ShadowRoot must upgrade a custom element');
+
+test_with_window(function (contentWindow, contentDocument) {
+    const element = define_custom_element_in_window(contentWindow, 'custom-element', []);
+    const host = contentDocument.createElement('div');
+    contentDocument.body.appendChild(host);
+    const shadowRoot = host.attachShadow({mode: 'closed'});
+    shadowRoot.innerHTML = '<custom-element></custom-element>';
+
+    assert_array_equals(element.takeLog().types(), ['constructed', 'connected']);
+}, 'innerHTML on ShadowRoot must enqueue connectedCallback on newly upgraded custom elements when the shadow root is connected');
+
+test_with_window(function (contentWindow, contentDocument) {
+    const element = define_custom_element_in_window(contentWindow, 'custom-element', []);
+    const host = contentDocument.createElement('div');
+    contentDocument.body.appendChild(host);
+
+    const shadowRoot = host.attachShadow({mode: 'closed'});
+    shadowRoot.innerHTML = '<custom-element></custom-element>';
+    assert_array_equals(element.takeLog().types(), ['constructed', 'connected']);
+
+    shadowRoot.innerHTML = '';
+    assert_array_equals(element.takeLog().types(), ['disconnected']);
+
+}, 'innerHTML on ShadowRoot must enqueue disconnectedCallback when removing a custom element');
+
+</script>
+</body>
+</html>

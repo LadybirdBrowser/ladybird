@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	HTML parser must only append nodes that appear before a custom element before instantiating the custom element

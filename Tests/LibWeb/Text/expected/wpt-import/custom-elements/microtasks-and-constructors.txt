@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	Microtasks evaluate immediately when the stack is empty inside the parser
+Pass	Microtasks evaluate immediately when the stack is empty inside the parser, causing the checks on no attributes to fail
+Pass	Microtasks evaluate afterward when the stack is not empty using createElement()
+Pass	Microtasks evaluate afterward when the stack is not empty using the constructor
+Pass	Microtasks evaluate afterward when the stack is not empty due to upgrades

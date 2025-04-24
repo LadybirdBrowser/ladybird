@@ -1,0 +1,76 @@
+Harness status: OK
+
+Found 71 tests
+
+71 Pass
+Pass	Inserting a custom element into the owner document must not enqueue and invoke adoptedCallback
+Pass	Inserting a custom element into the document of the template elements must enqueue and invoke adoptedCallback
+Pass	Moving a custom element from the owner document into the document of the template elements must enqueue and invoke adoptedCallback
+Pass	Inserting an ancestor of custom element into the document of the template elements must enqueue and invoke adoptedCallback
+Pass	Moving an ancestor of custom element from the owner document into the document of the template elements must enqueue and invoke adoptedCallback
+Pass	Inserting a custom element into a shadow tree in the document of the template elements must enqueue and invoke adoptedCallback
+Pass	Inserting the shadow host of a custom element into the document of the template elements must enqueue and invoke adoptedCallback
+Pass	Moving the shadow host of a custom element from the owner document into the document of the template elements must enqueue and invoke adoptedCallback
+Pass	Moving the shadow host's shadow of a custom element from the owner document into the document of the template elements must enqueue and invoke adoptedCallback
+Pass	Moving the <template>'s content of a custom element from the owner document into the document of the template elements must enqueue and invoke adoptedCallback
+Pass	Inserting a custom element into a detached shadow tree that belongs to the document of the template elements must enqueue and invoke adoptedCallback
+Pass	Inserting a custom element into a new document must enqueue and invoke adoptedCallback
+Pass	Moving a custom element from the owner document into a new document must enqueue and invoke adoptedCallback
+Pass	Inserting an ancestor of custom element into a new document must enqueue and invoke adoptedCallback
+Pass	Moving an ancestor of custom element from the owner document into a new document must enqueue and invoke adoptedCallback
+Pass	Inserting a custom element into a shadow tree in a new document must enqueue and invoke adoptedCallback
+Pass	Inserting the shadow host of a custom element into a new document must enqueue and invoke adoptedCallback
+Pass	Moving the shadow host of a custom element from the owner document into a new document must enqueue and invoke adoptedCallback
+Pass	Moving the shadow host's shadow of a custom element from the owner document into a new document must enqueue and invoke adoptedCallback
+Pass	Moving the <template>'s content of a custom element from the owner document into a new document must enqueue and invoke adoptedCallback
+Pass	Inserting a custom element into a detached shadow tree that belongs to a new document must enqueue and invoke adoptedCallback
+Pass	Inserting a custom element into a cloned document must enqueue and invoke adoptedCallback
+Pass	Moving a custom element from the owner document into a cloned document must enqueue and invoke adoptedCallback
+Pass	Inserting an ancestor of custom element into a cloned document must enqueue and invoke adoptedCallback
+Pass	Moving an ancestor of custom element from the owner document into a cloned document must enqueue and invoke adoptedCallback
+Pass	Inserting a custom element into a shadow tree in a cloned document must enqueue and invoke adoptedCallback
+Pass	Inserting the shadow host of a custom element into a cloned document must enqueue and invoke adoptedCallback
+Pass	Moving the shadow host of a custom element from the owner document into a cloned document must enqueue and invoke adoptedCallback
+Pass	Moving the shadow host's shadow of a custom element from the owner document into a cloned document must enqueue and invoke adoptedCallback
+Pass	Moving the <template>'s content of a custom element from the owner document into a cloned document must enqueue and invoke adoptedCallback
+Pass	Inserting a custom element into a detached shadow tree that belongs to a cloned document must enqueue and invoke adoptedCallback
+Pass	Inserting a custom element into a document created by createHTMLDocument must enqueue and invoke adoptedCallback
+Pass	Moving a custom element from the owner document into a document created by createHTMLDocument must enqueue and invoke adoptedCallback
+Pass	Inserting an ancestor of custom element into a document created by createHTMLDocument must enqueue and invoke adoptedCallback
+Pass	Moving an ancestor of custom element from the owner document into a document created by createHTMLDocument must enqueue and invoke adoptedCallback
+Pass	Inserting a custom element into a shadow tree in a document created by createHTMLDocument must enqueue and invoke adoptedCallback
+Pass	Inserting the shadow host of a custom element into a document created by createHTMLDocument must enqueue and invoke adoptedCallback
+Pass	Moving the shadow host of a custom element from the owner document into a document created by createHTMLDocument must enqueue and invoke adoptedCallback
+Pass	Moving the shadow host's shadow of a custom element from the owner document into a document created by createHTMLDocument must enqueue and invoke adoptedCallback
+Pass	Moving the <template>'s content of a custom element from the owner document into a document created by createHTMLDocument must enqueue and invoke adoptedCallback
+Pass	Inserting a custom element into a detached shadow tree that belongs to a document created by createHTMLDocument must enqueue and invoke adoptedCallback
+Pass	Inserting a custom element into an HTML document created by createDocument must enqueue and invoke adoptedCallback
+Pass	Moving a custom element from the owner document into an HTML document created by createDocument must enqueue and invoke adoptedCallback
+Pass	Inserting an ancestor of custom element into an HTML document created by createDocument must enqueue and invoke adoptedCallback
+Pass	Moving an ancestor of custom element from the owner document into an HTML document created by createDocument must enqueue and invoke adoptedCallback
+Pass	Inserting a custom element into a shadow tree in an HTML document created by createDocument must enqueue and invoke adoptedCallback
+Pass	Inserting the shadow host of a custom element into an HTML document created by createDocument must enqueue and invoke adoptedCallback
+Pass	Moving the shadow host of a custom element from the owner document into an HTML document created by createDocument must enqueue and invoke adoptedCallback
+Pass	Moving the shadow host's shadow of a custom element from the owner document into an HTML document created by createDocument must enqueue and invoke adoptedCallback
+Pass	Moving the <template>'s content of a custom element from the owner document into an HTML document created by createDocument must enqueue and invoke adoptedCallback
+Pass	Inserting a custom element into a detached shadow tree that belongs to an HTML document created by createDocument must enqueue and invoke adoptedCallback
+Pass	Inserting a custom element into the document of an iframe must enqueue and invoke adoptedCallback
+Pass	Moving a custom element from the owner document into the document of an iframe must enqueue and invoke adoptedCallback
+Pass	Inserting an ancestor of custom element into the document of an iframe must enqueue and invoke adoptedCallback
+Pass	Moving an ancestor of custom element from the owner document into the document of an iframe must enqueue and invoke adoptedCallback
+Pass	Inserting a custom element into a shadow tree in the document of an iframe must enqueue and invoke adoptedCallback
+Pass	Inserting the shadow host of a custom element into the document of an iframe must enqueue and invoke adoptedCallback
+Pass	Moving the shadow host of a custom element from the owner document into the document of an iframe must enqueue and invoke adoptedCallback
+Pass	Moving the shadow host's shadow of a custom element from the owner document into the document of an iframe must enqueue and invoke adoptedCallback
+Pass	Moving the <template>'s content of a custom element from the owner document into the document of an iframe must enqueue and invoke adoptedCallback
+Pass	Inserting a custom element into a detached shadow tree that belongs to the document of an iframe must enqueue and invoke adoptedCallback
+Pass	Inserting a custom element into an HTML document fetched by XHR must enqueue and invoke adoptedCallback
+Pass	Moving a custom element from the owner document into an HTML document fetched by XHR must enqueue and invoke adoptedCallback
+Pass	Inserting an ancestor of custom element into an HTML document fetched by XHR must enqueue and invoke adoptedCallback
+Pass	Moving an ancestor of custom element from the owner document into an HTML document fetched by XHR must enqueue and invoke adoptedCallback
+Pass	Inserting a custom element into a shadow tree in an HTML document fetched by XHR must enqueue and invoke adoptedCallback
+Pass	Inserting the shadow host of a custom element into an HTML document fetched by XHR must enqueue and invoke adoptedCallback
+Pass	Moving the shadow host of a custom element from the owner document into an HTML document fetched by XHR must enqueue and invoke adoptedCallback
+Pass	Moving the shadow host's shadow of a custom element from the owner document into an HTML document fetched by XHR must enqueue and invoke adoptedCallback
+Pass	Moving the <template>'s content of a custom element from the owner document into an HTML document fetched by XHR must enqueue and invoke adoptedCallback
+Pass	Inserting a custom element into a detached shadow tree that belongs to an HTML document fetched by XHR must enqueue and invoke adoptedCallback

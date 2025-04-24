@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 8 tests
+
+5 Pass
+3 Fail
+Fail	Getting previously-unset ARIA element reflection properties on ElementInternals should return null.
+Pass	Getting ARIA element reflection properties on ElementInternals should return the value that was set.
+Pass	Setting ARIA element reflection properties to an empty array should work as expected.
+Pass	Setting ARIA element reflection properties on ElementInternals to null should delete any previous value, and not crash
+Fail	Setting ariaLabelledByElements on ElementInternals should change the accessible name of the custom element
+Fail	Setting aria-labelledby or ariaLabelledByElements on the custom element should supersede the value of ariaLabelledByElements on ElementInternals
+Pass	Caching invariant different attributes.
+Pass	Caching invariant different elements.

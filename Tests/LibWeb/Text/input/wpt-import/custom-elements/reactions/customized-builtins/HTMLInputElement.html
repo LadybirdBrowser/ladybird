@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Custom Elements: CEReactions on HTMLInputElement interface</title>
+<link rel="author" title="Intel" href="http://www.intel.com">
+<link rel="author" title="Wanming Lin" href="mailto:wanming.lin@intel.com">
+<meta name="assert" content="capture of HTMLInputElement interface must have CEReactions">
+<meta name="help" content="https://www.w3.org/TR/html-media-capture/#the-capture-attribute">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../resources/custom-elements-helpers.js"></script>
+<script src="../resources/reactions.js"></script>
+<body>
+<script>
+if ('capture' in HTMLInputElement.prototype) {
+    test(() => {
+        const element = define_build_in_custom_element(['capture'], HTMLInputElement, 'input');
+        const instance = document.createElement('input', { is: element.name });
+
+        assert_array_equals(element.takeLog().types(), ['constructed']);
+        instance['capture'] = 'user';
+        const logEntries = element.takeLog();
+        assert_array_equals(logEntries.types(), ['attributeChanged']);
+        assert_attribute_log_entry(logEntries.last(), {name: 'capture', oldValue: null, newValue: 'user', namespace: null});
+    }, 'capture on HTMLInputElement must enqueue an attributeChanged reaction when adding new attribute');
+
+    test(() => {
+        const element = define_build_in_custom_element(['capture'], HTMLInputElement, 'input');
+        const instance = document.createElement('input', { is: element.name });
+
+        instance['capture'] = 'user';
+        assert_array_equals(element.takeLog().types(), ['constructed', 'attributeChanged']);
+        instance['capture'] = 'environment';
+        const logEntries = element.takeLog();
+        assert_array_equals(logEntries.types(), ['attributeChanged']);
+        assert_attribute_log_entry(logEntries.last(), {name: 'capture', oldValue: 'user', newValue: 'environment', namespace: null});
+    }, 'capture on HTMLInputElement must enqueue an attributeChanged reaction when replacing an existing attribute');
+
+    test(() => {
+        const element = define_build_in_custom_element(['capture'], HTMLInputElement, 'input');
+        const instance = document.createElement('input', { is: element.name });
+
+        assert_array_equals(element.takeLog().types(), ['constructed']);
+        instance['capture'] = 'asdf';
+        const logEntries = element.takeLog();
+        assert_array_equals(logEntries.types(), ['attributeChanged']);
+        assert_attribute_log_entry(logEntries.last(), {name: 'capture', oldValue: null, newValue: 'asdf', namespace: null});
+    }, 'capture on HTMLInputElement must enqueue an attributeChanged reaction when adding invalid value default');
+
+    test(() => {
+        const element = define_build_in_custom_element(['capture'], HTMLInputElement, 'input');
+        const instance = document.createElement('input', { is: element.name });
+
+        instance['capture'] = 'user';
+        assert_array_equals(element.takeLog().types(), ['constructed', 'attributeChanged']);
+        instance['capture'] = '';
+        const logEntries = element.takeLog();
+        assert_array_equals(logEntries.types(), ['attributeChanged']);
+        assert_attribute_log_entry(logEntries.last(), {name: 'capture', oldValue: 'user', newValue: '', namespace: null});
+    }, 'capture on HTMLInputElement must enqueue an attributeChanged reaction when removing the attribute');
+} else {
+    // testharness.js doesn't allow a test file with no tests.
+    test(() => {
+    }, 'No tests if HTMLInputEement has no "capture" IDL attribute');
+}
+</script>
+</body>

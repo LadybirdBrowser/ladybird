@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	"is" value should be serialized if the custom element has no "is" content attribute
+Pass	"is" value should be serialized even for an undefined element
+Pass	"is" content attribute should be serialized even if the element is a customized built-in element

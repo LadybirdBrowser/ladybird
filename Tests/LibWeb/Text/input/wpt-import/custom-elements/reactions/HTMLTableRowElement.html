@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Custom Elements: CEReactions on HTMLTableRowElement interface</title>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<meta name="assert" content="deleteCell of HTMLTableRowElement interface must have CEReactions">
+<meta name="help" content="https://dom.spec.whatwg.org/#node">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../resources/custom-elements-helpers.js"></script>
+<script src="./resources/reactions.js"></script>
+</head>
+<body>
+<div id="log"></div>
+<script>
+
+test_with_window(function (contentWindow, contentDocument) {
+    const element = define_custom_element_in_window(contentWindow, 'custom-element', []);
+    contentDocument.body.innerHTML = `<table><tr><td><custom-element>hello</custom-element></td></tr></table>`;
+    const td = contentDocument.querySelector('td');
+    assert_array_equals(element.takeLog().types(), ['constructed', 'connected']);
+    assert_equals(td.innerHTML, '<custom-element>hello</custom-element>');
+
+    const table = contentDocument.querySelector('table');
+    const row = table.rows[0];
+    assert_equals(row.cells[0], td);
+    row.deleteCell(0);
+    assert_equals(row.cells.length, 0);
+    assert_array_equals(element.takeLog().types(), ['disconnected']);
+}, 'deleteCell() on HTMLTableRowElement must enqueue disconnectedCallback when removing a custom element');
+
+</script>
+</body>
+</html>

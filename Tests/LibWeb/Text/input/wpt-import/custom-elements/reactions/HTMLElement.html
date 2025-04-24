@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Custom Elements: CEReactions on HTMLElement interface</title>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<meta name="assert" content="title, lang, translate, dir, hidden, tabIndex, accessKey, draggable, dropzone, contextMenu, spellcheck, popover, innerText, and outerText of HTMLElement interface must have CEReactions">
+<meta name="help" content="https://html.spec.whatwg.org/#htmlelement">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../resources/custom-elements-helpers.js"></script>
+<script src="./resources/reactions.js"></script>
+</head>
+<body>
+<div id="log"></div>
+<script>
+
+testReflectAttribute('title', 'title', 'foo', 'bar', 'title on HTMLElement');
+testReflectAttribute('lang', 'lang', 'en', 'zh', 'lang on HTMLElement');
+testReflectAttributeWithContentValues('translate', 'translate', true, 'yes', false, 'no', 'translate on HTMLElement');
+testReflectAttribute('dir', 'dir', 'ltr', 'rtl', 'dir on HTMLElement');
+testReflectBooleanAttribute('hidden', 'hidden', 'hidden on HTMLElement');
+testReflectAttribute('tabIndex', 'tabindex', '0', '1', 'tabIndex on HTMLElement');
+testReflectAttribute('accessKey', 'accesskey', 'a', 'b', 'accessKey on HTMLElement');
+testReflectAttributeWithContentValues('draggable', 'draggable', true, 'true', false, 'false', 'draggable on HTMLElement');
+testReflectAttributeWithContentValues('spellcheck', 'spellcheck', true, 'true', false, 'false', 'spellcheck on HTMLElement');
+testReflectAttribute('popover', 'popover', 'auto', 'manual', 'popover on HTMLElement', undefined, undefined, () => 'popover' in HTMLElement.prototype);
+
+testNodeDisconnector(function (customElement) {
+    customElement.parentNode.innerText = '';
+}, 'innerText on HTMLElement');
+
+testNodeDisconnector(function (customElement) {
+    customElement.outerText = '';
+}, 'outerText on HTMLElement');
+
+</script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+Harness status: OK
+
+Found 10 tests
+
+9 Pass
+1 Fail
+Pass	HTML parser must not instantiate custom elements inside template elements
+Pass	HTML parser must not use the registry of the owner element's document inside an iframe
+Pass	HTML parser must use the registry of the content document inside an iframe
+Pass	HTML parser must not instantiate a custom element defined inside an frame in frame element's owner document
+Pass	HTML parser must use the registry of window.document in a document created by DOMParser
+Pass	HTML parser must use the registry of window.document in a document created by document.implementation.createXHTMLDocument()
+Pass	HTML parser must use the registry of window.document in a document created by new Document
+Fail	HTML parser must use the registry of window.document in a document created by XMLHttpRequest
+Pass	document.write() must not instantiate a custom element without a defined insertion point
+Pass	document.writeln() must not instantiate a custom element without a defined insertion point

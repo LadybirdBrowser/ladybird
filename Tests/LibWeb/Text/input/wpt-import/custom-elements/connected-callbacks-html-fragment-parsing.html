@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Custom Elements: the HTML fragment parsing algorithm must not create a custom element synchronously</title>
+<meta name="author" title="Rob Buis" href="mailto:rbuis@igalia.com">
+<meta name="assert" content="The HTML fragment parsing algorithm must enqueue a custom element upgrade reaction instead of synchronously invoking its constructor">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/parsing.html#create-an-element-for-the-token">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="resources/custom-elements-helpers.js"></script>
+</head>
+<body>
+<div id="log"></div>
+<script>
+
+let iteration = 0;
+
+document_types().forEach(function (entry) {
+    var documentName = entry.name;
+    var getDocument = entry.create;
+    let calls = 0;
+
+    promise_test(function () {
+        class Parenter extends HTMLElement {
+            connectedCallback() {
+                const child = this.firstChild;
+                this.removeChild(child);
+                this.appendChild(child);
+            }
+        }
+        class Child extends HTMLElement {
+            connectedCallback() { calls++; }
+        }
+        iteration++;
+        let parenter = 'x-parenter' + iteration;
+        let child = 'x-child' + iteration;
+        customElements.define(parenter, Parenter);
+        customElements.define(child, Child);
+        return getDocument().then(function (doc) {
+            document.documentElement.innerHTML = `<${parenter}><${child}></${child}></${parenter}>`;
+            doc.documentElement.appendChild(document.documentElement.firstChild);
+            assert_equals(calls, 1);
+        });
+    }, `Inserting a custom element into ${documentName} using HTML fragment parsing must enqueue a custom element upgrade reaction, not synchronously invoke its constructor`);
+});
+
+</script>
+</body>
+</html>

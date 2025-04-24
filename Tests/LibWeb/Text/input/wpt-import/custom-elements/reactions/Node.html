@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Custom Elements: CEReactions on Node interface</title>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<meta name="assert" content="nodeValue, textContent, normalize, cloneNode, insertBefore, appendChild, replaceChild, and removeChild of Node interface must have CEReactions">
+<meta name="help" content="https://dom.spec.whatwg.org/#node">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../resources/custom-elements-helpers.js"></script>
+<script src="./resources/reactions.js"></script>
+</head>
+<body>
+<div id="log"></div>
+<script>
+
+testAttributeMutator(function (element, name, value) {
+    element.getAttributeNode(name).nodeValue = value;
+}, 'nodeValue on Node');
+
+testAttributeMutator(function (element, name, value) {
+    element.getAttributeNode(name).textContent = value;
+}, 'textContent on Node');
+
+// FIXME: Add a test for normalize()
+
+testCloner(function (customElement) {
+    return customElement.cloneNode(false);
+}, 'cloneNode on Node');
+
+testNodeConnector(function (newContainer, customElement) {
+    newContainer.insertBefore(customElement, newContainer.firstChild);
+}, 'insertBefore on ChildNode');
+
+testNodeConnector(function (newContainer, customElement) {
+    newContainer.appendChild(customElement);
+}, 'appendChild on ChildNode');
+
+testNodeConnector(function (newContainer, customElement) {
+    newContainer.replaceChild(customElement, newContainer.firstChild);
+}, 'replaceChild on ChildNode');
+
+testNodeDisconnector(function (customElement) {
+    customElement.parentNode.removeChild(customElement);
+}, 'removeChild on ChildNode');
+
+</script>
+</body>
+</html>

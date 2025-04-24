@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	No tests if HTMLInputEement has no "capture" IDL attribute

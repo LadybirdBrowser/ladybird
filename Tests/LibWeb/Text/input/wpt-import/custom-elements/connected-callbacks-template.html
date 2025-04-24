@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<!-- Regression test for https://github.com/jsdom/jsdom/issues/3290 -->
+
+<body>
+<script>
+"use strict";
+
+test(() => {
+  let innerConnectedCallbackCalled = false;
+  customElements.define("inner-element", class extends HTMLElement {
+    connectedCallback() {
+      innerConnectedCallbackCalled = true;
+    }
+  });
+
+  let outerConnectedCallbackCalled = false;
+  customElements.define("outer-element", class extends HTMLElement {
+    connectedCallback() {
+      const template = document.createElement("template");
+      template.innerHTML = "<inner-element></inner-element>";
+      this.appendChild(document.importNode(template.content, true));
+      outerConnectedCallbackCalled = true;
+    }
+  });
+
+  document.body.appendChild(document.createElement("outer-element"));
+  assert_true(innerConnectedCallbackCalled, "inner connectedCallback must be called");
+  assert_true(outerConnectedCallbackCalled, "outer connectedCallback must be called");
+}, "Nested custom element connectedCallback insertion involving a template DocumentFragment");
+</script>

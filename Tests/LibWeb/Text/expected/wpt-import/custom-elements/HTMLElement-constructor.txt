@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 12 tests
+
+12 Pass
+Pass	HTMLElement constructor must throw a TypeError when NewTarget is equal to itself
+Pass	HTMLElement constructor must throw a TypeError when NewTarget is equal to itself via a Proxy object
+Pass	HTMLElement constructor must throw TypeError when it has not been defined by customElements.define
+Pass	Custom element constructor must throw TypeError when it does not extend HTMLElement
+Pass	Custom element constructor must throw TypeError when it does not extend the proper element interface
+Pass	HTMLElement constructor must infer the tag name from the element interface
+Pass	HTMLElement constructor must allow subclassing a custom element
+Pass	HTMLElement constructor must allow subclassing an user-defined subclass of HTMLElement
+Pass	HTMLElement constructor must only get .prototype once, calling proxy constructor directly
+Pass	HTMLElement constructor must only get .prototype once, calling proxy constructor via Reflect
+Pass	HTMLElement constructor must only get .prototype once, calling proxy constructor via Reflect with no inheritance
+Pass	HTMLElement constructor must not get .prototype until it finishes its registration  sanity checks, calling via Reflect

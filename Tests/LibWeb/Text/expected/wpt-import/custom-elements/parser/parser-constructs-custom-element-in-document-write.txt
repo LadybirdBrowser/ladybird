@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	HTML parser must instantiate custom elements inside document.write
+Pass	HTML parser should call connectedCallback before appending child nodes inside document.write

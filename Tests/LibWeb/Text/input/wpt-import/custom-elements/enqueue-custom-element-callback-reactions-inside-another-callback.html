@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Custom Elements: must enqueue an element on the appropriate element queue after checking callback is null and the attribute name</title>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<meta name="assert" content="To enqueue a custom element callback reaction, the callback must be checked of being null and whether the attribute name is observed or not">
+<link rel="help" content="https://html.spec.whatwg.org/multipage/custom-elements.html#enqueue-a-custom-element-callback-reaction">
+<link rel="help" content="https://github.com/w3c/webcomponents/issues/760">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="resources/custom-elements-helpers.js"></script>
+</head>
+<body>
+<script>
+
+test_with_window((contentWindow, contentDocument) => {
+    class ParentElement extends contentWindow.HTMLElement {
+        connectedCallback()
+        {
+            logs.push('begin');
+            const child = this.firstChild;
+            child.remove();
+            logs.push('end');
+        }
+    }
+    contentWindow.customElements.define('parent-element', ParentElement);
+
+    const logs = [];
+    class ChildElement extends contentWindow.HTMLElement {
+        connectedCallback() { logs.push('connected'); }
+        disconnectedCallback() { logs.push('disconnected'); }
+    }
+    contentWindow.customElements.define('child-element', ChildElement);
+
+    const parent = new ParentElement;
+    const child = new ChildElement;
+    parent.appendChild(child);
+
+    contentDocument.body.appendChild(parent);
+    assert_array_equals(logs, ['begin', 'connected', 'disconnected', 'end']);
+}, 'Disconnecting an element with disconnectedCallback while it has a connectedCallback in its custom element reaction queue must result in connectedCallback getting invoked before the removal completes');
+
+test_with_window((contentWindow, contentDocument) => {
+    class ParentElement extends contentWindow.HTMLElement {
+        connectedCallback()
+        {
+            logs.push('begin');
+            const child = this.firstChild;
+            child.remove();
+            logs.push('end');
+        }
+    }
+    contentWindow.customElements.define('parent-element', ParentElement);
+
+    const logs = [];
+    class ChildElement extends contentWindow.HTMLElement {
+        connectedCallback() { logs.push('connected'); }
+    }
+    contentWindow.customElements.define('child-element', ChildElement);
+
+    const parent = new ParentElement;
+    const child = new ChildElement;
+    parent.appendChild(child);
+
+    contentDocument.body.appendChild(parent);
+    assert_array_equals(logs, ['begin', 'end', 'connected']);
+}, 'Disconnecting an element without disconnectedCallback while it has a connectedCallback in its custom element reaction queue must not result in connectedCallback getting invoked before the removal completes');
+
+test_with_window((contentWindow, contentDocument) => {
+    class ParentElement extends contentWindow.HTMLElement {
+        disconnectedCallback()
+        {
+            logs.push('begin');
+            contentDocument.body.appendChild(this.firstChild);
+            logs.push('end');
+        }
+    }
+    contentWindow.customElements.define('parent-element', ParentElement);
+
+    const logs = [];
+    class ChildElement extends contentWindow.HTMLElement {
+        connectedCallback() { logs.push('connected'); }
+        disconnectedCallback() { logs.push('disconnected'); }
+    }
+    contentWindow.customElements.define('child-element', ChildElement);
+
+    const parent = new ParentElement;
+    const child = new ChildElement;
+    parent.appendChild(child);
+    contentDocument.body.appendChild(parent);
+    parent.remove();
+    assert_array_equals(logs, ['connected', 'begin', 'disconnected', 'connected', 'end']);
+}, 'Connecting a element with connectedCallback while it has a disconnectedCallback in its custom element reaction queue must result in disconnectedCallback getting invoked before the insertion completes');
+
+test_with_window((contentWindow, contentDocument) => {
+    class ParentElement extends contentWindow.HTMLElement {
+        disconnectedCallback()
+        {
+            logs.push('begin');
+            contentDocument.body.appendChild(this.firstChild);
+            logs.push('end');
+        }
+    }
+    contentWindow.customElements.define('parent-element', ParentElement);
+
+    const logs = [];
+    class ChildElement extends contentWindow.HTMLElement {
+        disconnectedCallback() { logs.push('disconnected'); }
+    }
+    contentWindow.customElements.define('child-element', ChildElement);
+
+    const parent = new ParentElement;
+    const child = new ChildElement;
+    parent.appendChild(child);
+    contentDocument.body.appendChild(parent);
+    parent.remove();
+    assert_array_equals(logs, ['begin', 'end', 'disconnected']);
+}, 'Connecting an element without connectedCallback while it has a disconnectedCallback in its custom element reaction queue must not result in disconnectedCallback getting invoked before the insertion completes');
+
+test_with_window((contentWindow, contentDocument) => {
+    class ParentElement extends contentWindow.HTMLElement {
+        connectedCallback()
+        {
+            logs.push('begin');
+            document.adoptNode(this.firstChild);
+            logs.push('end');
+        }
+    }
+    contentWindow.customElements.define('parent-element', ParentElement);
+
+    const logs = [];
+    class ChildElement extends contentWindow.HTMLElement {
+        adoptedCallback() { logs.push('adopted'); }
+        connectedCallback() { logs.push('connected'); }
+    }
+    contentWindow.customElements.define('child-element', ChildElement);
+
+    const parent = new ParentElement;
+    const child = new ChildElement;
+    parent.appendChild(child);
+    contentDocument.body.appendChild(parent);
+    assert_array_equals(logs, ['begin', 'connected', 'adopted', 'end']);
+}, 'Adopting an element with adoptingCallback while it has a connectedCallback in its custom element reaction queue must result in connectedCallback getting invoked before the adoption completes');
+
+test_with_window((contentWindow, contentDocument) => {
+    class ParentElement extends contentWindow.HTMLElement {
+        connectedCallback()
+        {
+            logs.push('begin');
+            document.adoptNode(this.firstChild);
+            logs.push('end');
+        }
+    }
+    contentWindow.customElements.define('parent-element', ParentElement);
+
+    const logs = [];
+    class ChildElement extends contentWindow.HTMLElement {
+        connectedCallback() { logs.push('connected'); }
+    }
+    contentWindow.customElements.define('child-element', ChildElement);
+
+    const parent = new ParentElement;
+    const child = new ChildElement;
+    parent.appendChild(child);
+    contentDocument.body.appendChild(parent);
+    assert_array_equals(logs, ['begin', 'end', 'connected']);
+}, 'Adopting an element without adoptingCallback while it has a connectedCallback in its custom element reaction queue must not result in connectedCallback getting invoked before the adoption completes');
+
+test_with_window((contentWindow, contentDocument) => {
+    class ParentElement extends contentWindow.HTMLElement {
+        connectedCallback()
+        {
+            logs.push('begin');
+            this.firstChild.setAttribute('title', 'foo');
+            logs.push('end');
+        }
+    }
+    contentWindow.customElements.define('parent-element', ParentElement);
+
+    const logs = [];
+    class ChildElement extends contentWindow.HTMLElement {
+        attributeChangedCallback() { logs.push('attributeChanged'); }
+        connectedCallback() { logs.push('connected'); }
+        static get observedAttributes() { return ['title']; }
+    }
+    contentWindow.customElements.define('child-element', ChildElement);
+
+    const parent = new ParentElement;
+    const child = new ChildElement;
+    parent.appendChild(child);
+    contentDocument.body.appendChild(parent);
+    assert_array_equals(logs, ['begin', 'connected', 'attributeChanged', 'end']);
+}, 'Setting an observed attribute on an element with attributeChangedCallback while it has a connectedCallback in its custom element reaction queue must result in connectedCallback getting invoked before the attribute change completes');
+
+test_with_window((contentWindow, contentDocument) => {
+    class ParentElement extends contentWindow.HTMLElement {
+        connectedCallback()
+        {
+            logs.push('begin');
+            this.firstChild.setAttribute('lang', 'en');
+            logs.push('end');
+        }
+    }
+    contentWindow.customElements.define('parent-element', ParentElement);
+
+    const logs = [];
+    class ChildElement extends contentWindow.HTMLElement {
+        attributeChangedCallback() { logs.push('attributeChanged'); }
+        connectedCallback() { logs.push('connected'); }
+        static get observedAttributes() { return ['title']; }
+    }
+    contentWindow.customElements.define('child-element', ChildElement);
+
+    const parent = new ParentElement;
+    const child = new ChildElement;
+    parent.appendChild(child);
+    contentDocument.body.appendChild(parent);
+    assert_array_equals(logs, ['begin', 'end', 'connected']);
+}, 'Setting an observed attribute on an element with attributeChangedCallback while it has a connectedCallback in its custom element reaction queue must not result in connectedCallback getting invoked before the attribute change completes');
+
+</script>
+</body>
+</html>

@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Custom Elements: attributeChangedCallback</title>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<meta name="assert" content="attributeChangedCallback must be enqueued whenever custom element's attribute is added, changed or removed">
+<link rel="help" href="https://w3c.github.io/webcomponents/spec/custom/#dfn-attribute-changed-callback">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="resources/custom-elements-helpers.js"></script>
+</head>
+<body>
+<div id="log"></div>
+<parser-created-element title></parser-created-element>
+<script>
+
+var customElement = define_new_custom_element(['title', 'id', 'r']);
+
+test(function () {
+    const instance = document.createElement(customElement.name);
+    assert_array_equals(customElement.takeLog().types(), ['constructed']);
+
+    instance.setAttribute('title', 'foo');
+    assert_equals(instance.getAttribute('title'), 'foo');
+    var logEntries = customElement.takeLog();
+    assert_array_equals(logEntries.types(), ['attributeChanged']);
+    assert_attribute_log_entry(logEntries.last(), {name: 'title', oldValue: null, newValue: 'foo', namespace: null});
+
+    instance.removeAttribute('title');
+    assert_equals(instance.getAttribute('title'), null);
+    var logEntries = customElement.takeLog();
+    assert_array_equals(logEntries.types(), ['attributeChanged']);
+    assert_attribute_log_entry(logEntries.last(), {name: 'title', oldValue: 'foo', newValue: null, namespace: null});
+}, 'setAttribute and removeAttribute must enqueue and invoke attributeChangedCallback');
+
+test(function () {
+    var instance = document.createElement(customElement.name);
+    assert_array_equals(customElement.takeLog().types(), ['constructed']);
+
+    instance.setAttributeNS('http://www.w3.org/2000/svg', 'title', 'hello');
+    assert_equals(instance.getAttribute('title'), 'hello');
+    var logEntries = customElement.takeLog();
+    assert_array_equals(logEntries.types(), ['attributeChanged']);
+    assert_attribute_log_entry(logEntries.last(), {name: 'title', oldValue: null, newValue: 'hello', namespace: 'http://www.w3.org/2000/svg'});
+
+    instance.removeAttributeNS('http://www.w3.org/2000/svg', 'title');
+    assert_equals(instance.getAttribute('title'), null);
+    var logEntries = customElement.takeLog();
+    assert_array_equals(logEntries.types(), ['attributeChanged']);
+    assert_attribute_log_entry(logEntries.last(), {name: 'title', oldValue: 'hello', newValue: null, namespace: 'http://www.w3.org/2000/svg'});
+}, 'setAttributeNS and removeAttributeNS must enqueue and invoke attributeChangedCallback');
+
+test(function () {
+    var instance = document.createElement(customElement.name);
+    assert_array_equals(customElement.takeLog().types(), ['constructed']);
+
+    var attr = document.createAttribute('id');
+    attr.value = 'bar';
+    instance.setAttributeNode(attr);
+
+    assert_equals(instance.getAttribute('id'), 'bar');
+    var logEntries = customElement.takeLog();
+    assert_array_equals(logEntries.types(), ['attributeChanged']);
+    assert_attribute_log_entry(logEntries.last(), {name: 'id', oldValue: null, newValue: 'bar', namespace: null});
+
+    instance.removeAttributeNode(attr);
+    assert_equals(instance.getAttribute('id'), null);
+    var logEntries = customElement.takeLog();
+    assert_array_equals(logEntries.types(), ['attributeChanged']);
+    assert_attribute_log_entry(logEntries.last(), {name: 'id', oldValue: 'bar', newValue: null, namespace: null});
+}, 'setAttributeNode and removeAttributeNode must enqueue and invoke attributeChangedCallback for an HTML attribute');
+
+test(function () {
+    const instance = document.createElement(customElement.name);
+    assert_array_equals(customElement.takeLog().types(), ['constructed']);
+
+    const attr = document.createAttributeNS('http://www.w3.org/2000/svg', 'r');
+    attr.value = '100';
+    instance.setAttributeNode(attr);
+
+    assert_equals(instance.getAttribute('r'), '100');
+    var logEntries = customElement.takeLog();
+    assert_array_equals(logEntries.types(), ['attributeChanged']);
+    assert_attribute_log_entry(logEntries.last(), {name: 'r', oldValue: null, newValue: '100', namespace: 'http://www.w3.org/2000/svg'});
+
+    instance.removeAttributeNode(attr);
+    assert_equals(instance.getAttribute('r'), null);
+    var logEntries = customElement.takeLog();
+    assert_array_equals(logEntries.types(), ['attributeChanged']);
+    assert_attribute_log_entry(logEntries.last(), {name: 'r', oldValue: '100', newValue: null, namespace: 'http://www.w3.org/2000/svg'});
+}, 'setAttributeNode and removeAttributeNS must enqueue and invoke attributeChangedCallback for an SVG attribute');
+
+test(function () {
+    const instance = document.createElement(customElement.name);
+    assert_array_equals(customElement.takeLog().types(), ['constructed']);
+
+    instance.toggleAttribute('title', true);
+    assert_equals(instance.hasAttribute('title'), true);
+    var logEntries = customElement.takeLog();
+    assert_array_equals(logEntries.types(), ['attributeChanged']);
+    assert_attribute_log_entry(logEntries.last(), {name: 'title', oldValue: null, newValue: '', namespace: null});
+
+    instance.toggleAttribute('title');
+    assert_equals(instance.hasAttribute('title'), false);
+    var logEntries = customElement.takeLog();
+    assert_array_equals(logEntries.types(), ['attributeChanged']);
+    assert_attribute_log_entry(logEntries.last(), {name: 'title', oldValue: '', newValue: null, namespace: null});
+}, 'toggleAttribute must enqueue and invoke attributeChangedCallback');
+
+test(function () {
+    const callsToOld = [];
+    const callsToNew = [];
+    class CustomElement extends HTMLElement { }
+    CustomElement.prototype.attributeChangedCallback = function (...args) {
+        callsToOld.push(create_attribute_changed_callback_log(this, ...args));
+    }
+    CustomElement.observedAttributes = ['title'];
+    customElements.define('element-with-mutated-attribute-changed-callback', CustomElement);
+    CustomElement.prototype.attributeChangedCallback = function (...args) {
+        callsToNew.push(create_attribute_changed_callback_log(this, ...args));
+    }
+
+    const instance = document.createElement('element-with-mutated-attribute-changed-callback');
+    instance.setAttribute('title', 'hi');
+    assert_equals(instance.getAttribute('title'), 'hi');
+    assert_array_equals(callsToNew, []);
+    assert_equals(callsToOld.length, 1);
+    assert_attribute_log_entry(callsToOld[0], {name: 'title', oldValue: null, newValue: 'hi', namespace: null});
+}, 'Mutating attributeChangedCallback after calling customElements.define must not affect the callback being invoked');
+
+test(function () {
+    const calls = [];
+    class CustomElement extends HTMLElement {
+        attributeChangedCallback(...args) {
+            calls.push(create_attribute_changed_callback_log(this, ...args));
+        }
+    }
+    CustomElement.observedAttributes = ['title'];
+    customElements.define('element-not-observing-id-attribute', CustomElement);
+
+    const instance = document.createElement('element-not-observing-id-attribute');
+    assert_equals(calls.length, 0);
+    instance.setAttribute('title', 'hi');
+    assert_equals(calls.length, 1);
+    assert_attribute_log_entry(calls[0], {name: 'title', oldValue: null, newValue: 'hi', namespace: null});
+    instance.setAttribute('id', 'some');
+    assert_equals(calls.length, 1);
+    assert_attribute_log_entry(calls[0], {name: 'title', oldValue: null, newValue: 'hi', namespace: null});
+}, 'attributedChangedCallback must not be invoked when the observed attributes does not contain the attribute');
+
+test(function () {
+    const calls = [];
+    class CustomElement extends HTMLElement { }
+    CustomElement.prototype.attributeChangedCallback = function (...args) {
+        calls.push(create_attribute_changed_callback_log(this, ...args));
+    }
+    CustomElement.observedAttributes = ['title', 'lang'];
+    customElements.define('element-with-mutated-observed-attributes', CustomElement);
+    CustomElement.observedAttributes = ['title', 'id'];
+
+    const instance = document.createElement('element-with-mutated-observed-attributes');
+    instance.setAttribute('title', 'hi');
+    assert_equals(calls.length, 1);
+    assert_attribute_log_entry(calls[0], {name: 'title', oldValue: null, newValue: 'hi', namespace: null});
+
+    instance.setAttribute('id', 'some');
+    assert_equals(calls.length, 1);
+
+    instance.setAttribute('lang', 'en');
+    assert_equals(calls.length, 2);
+    assert_attribute_log_entry(calls[1], {name: 'lang', oldValue: null, newValue: 'en', namespace: null});
+}, 'Mutating observedAttributes after calling customElements.define must not affect the set of attributes for which attributedChangedCallback is invoked');
+
+test(function () {
+    var calls = [];
+    class CustomElement extends HTMLElement { }
+    CustomElement.prototype.attributeChangedCallback = function (...args) {
+        calls.push(create_attribute_changed_callback_log(this, ...args));
+    }
+    CustomElement.observedAttributes = { [Symbol.iterator]: function *() { yield 'lang'; yield 'style'; } };
+    customElements.define('element-with-generator-observed-attributes', CustomElement);
+
+    var instance = document.createElement('element-with-generator-observed-attributes');
+    instance.setAttribute('lang', 'en');
+    assert_equals(calls.length, 1);
+    assert_attribute_log_entry(calls[0], {name: 'lang', oldValue: null, newValue: 'en', namespace: null});
+
+    instance.setAttribute('lang', 'ja');
+    assert_equals(calls.length, 2);
+    assert_attribute_log_entry(calls[1], {name: 'lang', oldValue: 'en', newValue: 'ja', namespace: null});
+
+    instance.setAttribute('title', 'hello');
+    assert_equals(calls.length, 2);
+
+    instance.setAttribute('style', 'font-size: 2rem');
+    assert_equals(calls.length, 3);
+    assert_attribute_log_entry(calls[2], {name: 'style', oldValue: null, newValue: 'font-size: 2rem', namespace: null});
+}, 'attributedChangedCallback must be enqueued for attributes specified in a non-Array iterable observedAttributes');
+
+test(function () {
+    var calls = [];
+    class CustomElement extends HTMLElement { }
+    CustomElement.prototype.attributeChangedCallback = function (...args) {
+        calls.push(create_attribute_changed_callback_log(this, ...args));
+    }
+    CustomElement.observedAttributes = ['style'];
+    customElements.define('element-with-style-attribute-observation', CustomElement);
+
+    var instance = document.createElement('element-with-style-attribute-observation');
+    assert_equals(calls.length, 0);
+
+    instance.style.fontSize = '10px';
+    assert_equals(calls.length, 1);
+    assert_attribute_log_entry(calls[0], {name: 'style', oldValue: null, newValue: 'font-size: 10px;', namespace: null});
+
+    instance.style.fontSize = '20px';
+    assert_equals(calls.length, 2);
+    assert_attribute_log_entry(calls[1], {name: 'style', oldValue: 'font-size: 10px;', newValue: 'font-size: 20px;', namespace: null});
+
+}, 'attributedChangedCallback must be enqueued for style attribute change by mutating inline style declaration');
+
+test(function () {
+    var calls = [];
+    class CustomElement extends HTMLElement { }
+    CustomElement.prototype.attributeChangedCallback = function (...args) {
+        calls.push(create_attribute_changed_callback_log(this, ...args));
+    }
+    CustomElement.observedAttributes = ['title'];
+    customElements.define('element-with-no-style-attribute-observation', CustomElement);
+
+    var instance = document.createElement('element-with-no-style-attribute-observation');
+    assert_equals(calls.length, 0);
+    instance.style.fontSize = '10px';
+    assert_equals(calls.length, 0);
+    instance.title = 'hello';
+    assert_attribute_log_entry(calls[0], {name: 'title', oldValue: null, newValue: 'hello', namespace: null});
+}, 'attributedChangedCallback must not be enqueued when mutating inline style declaration if the style attribute is not observed');
+
+test(function () {
+    var calls = [];
+    class CustomElement extends HTMLElement { }
+    CustomElement.prototype.attributeChangedCallback = function (...args) {
+        calls.push(create_attribute_changed_callback_log(this, ...args));
+    }
+    CustomElement.observedAttributes = ['title'];
+    customElements.define('parser-created-element', CustomElement);
+    assert_attribute_log_entry(calls[0], {name: 'title', oldValue: null, newValue: '', namespace: null});
+}, 'Upgrading a parser created element must enqueue and invoke attributeChangedCallback for an HTML attribute');
+
+test(function () {
+    var calls = [];
+    class CustomElement extends HTMLElement { }
+    CustomElement.prototype.attributeChangedCallback = function (...args) {
+        calls.push(create_attribute_changed_callback_log(this, ...args));
+    }
+    CustomElement.observedAttributes = ['title'];
+    customElements.define('cloned-element-with-attribute', CustomElement);
+
+    var instance = document.createElement('cloned-element-with-attribute');
+    assert_equals(calls.length, 0);
+    instance.title = '';
+    assert_attribute_log_entry(calls[0], {name: 'title', oldValue: null, newValue: '', namespace: null});
+
+    calls = [];
+    var clone = instance.cloneNode(false);
+    assert_attribute_log_entry(calls[0], {name: 'title', oldValue: null, newValue: '', namespace: null});
+}, 'Upgrading a cloned element must enqueue and invoke attributeChangedCallback for an HTML attribute');
+
+</script>
+</body>
+</html>

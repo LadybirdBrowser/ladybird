@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<title>Custom Elements: [HTMLConstructor] derives prototype from NewTarget</title>
+<meta name="author" title="Domenic Denicola" href="mailto:d@domenic.me">
+<meta name="help" content="https://html.spec.whatwg.org/multipage/dom.html#htmlconstructor">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../resources/custom-elements-helpers.js"></script>
+<body>
+<script>
+"use strict";
+
+[null, undefined, 5, "string"].forEach(function (notAnObject) {
+  test_with_window(w => {
+    // We have to return an object during define(), but not during super()
+    let returnNotAnObject = false;
+
+    function TestElement() {
+      const o = Reflect.construct(w.HTMLParagraphElement, [], new.target);
+
+      assert_equals(Object.getPrototypeOf(o), window.HTMLParagraphElement.prototype,
+        "Must use the HTMLParagraphElement from the realm of NewTarget");
+      assert_not_equals(Object.getPrototypeOf(o), w.HTMLParagraphElement.prototype,
+        "Must not use the HTMLParagraphElement from the realm of the active function object (w.HTMLParagraphElement)");
+
+      return o;
+    }
+
+    const ElementWithDynamicPrototype = new Proxy(TestElement, {
+      get: function (target, name) {
+        if (name == "prototype")
+          return returnNotAnObject ? notAnObject : {};
+        return target[name];
+      }
+    });
+
+    w.customElements.define("test-element", ElementWithDynamicPrototype, { extends: "p" });
+
+    returnNotAnObject = true;
+    new ElementWithDynamicPrototype();
+  }, "If prototype is not object (" + notAnObject + "), derives the fallback from NewTarget's realm (customized built-in elements)");
+
+  test_with_window(w => {
+    // We have to return an object during define(), but not during super()
+    let returnNotAnObject = false;
+
+    function TestElement() {
+      const o = Reflect.construct(w.HTMLParagraphElement, [], new.target);
+
+      assert_equals(Object.getPrototypeOf(o), window.HTMLParagraphElement.prototype,
+        "Must use the HTMLParagraphElement from the realm of NewTarget");
+      assert_not_equals(Object.getPrototypeOf(o), w.HTMLParagraphElement.prototype,
+        "Must not use the HTMLParagraphElement from the realm of the active function object (w.HTMLParagraphElement)");
+
+      return o;
+    }
+
+    // Create the proxy in the subframe, which should not affect what our
+    // prototype ends up as.
+    const ElementWithDynamicPrototype = new w.Proxy(TestElement, {
+      get: function (target, name) {
+        if (name == "prototype")
+          return returnNotAnObject ? notAnObject : {};
+        return target[name];
+      }
+    });
+
+    w.customElements.define("test-element", ElementWithDynamicPrototype, { extends: "p" });
+
+    returnNotAnObject = true;
+    new ElementWithDynamicPrototype();
+  }, "If prototype is not object (" + notAnObject + "), derives the fallback from NewTarget's GetFunctionRealm (customized built-in elements)");
+});
+
+test_with_window(w => {
+    class SomeCustomElement extends HTMLParagraphElement {};
+    var getCount = 0;
+    var countingProxy = new Proxy(SomeCustomElement, {
+        get: function(target, prop, receiver) {
+            if (prop == "prototype") {
+                ++getCount;
+            }
+            return Reflect.get(target, prop, receiver);
+        }
+    });
+    w.customElements.define("failure-counting-element", countingProxy);
+    // define() gets the prototype of the constructor it's passed, so
+    // reset the counter.
+    getCount = 0;
+    assert_throws_js(TypeError,
+                     function () { new countingProxy() },
+                     "Should not be able to construct an HTMLParagraphElement not named 'p'");
+    assert_equals(getCount, 0, "Should never have gotten .prototype");
+}, 'HTMLParagraphElement constructor must not get .prototype until it finishes its extends sanity checks, calling proxy constructor directly');
+
+test_with_window(w => {
+    class SomeCustomElement extends HTMLParagraphElement {};
+    var getCount = 0;
+    var countingProxy = new Proxy(SomeCustomElement, {
+        get: function(target, prop, receiver) {
+            if (prop == "prototype") {
+                ++getCount;
+            }
+            return Reflect.get(target, prop, receiver);
+        }
+    });
+    w.customElements.define("failure-counting-element", countingProxy);
+    // define() gets the prototype of the constructor it's passed, so
+    // reset the counter.
+    getCount = 0;
+    assert_throws_js(TypeError,
+                     function () { Reflect.construct(HTMLParagraphElement, [], countingProxy) },
+                     "Should not be able to construct an HTMLParagraphElement not named 'p'");
+    assert_equals(getCount, 0, "Should never have gotten .prototype");
+}, 'HTMLParagraphElement constructor must not get .prototype until it finishes its extends sanity checks, calling via Reflect');
+</script>
+</body>

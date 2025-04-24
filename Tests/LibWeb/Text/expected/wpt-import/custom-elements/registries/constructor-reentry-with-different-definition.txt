@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Fail
+Fail	Re-entry via upgrade before calling super()
+Fail	Re-entry via upgrade after calling super()
+Fail	Re-entry via direct constructor call before calling super()
+Fail	Re-entry via direct constructor call after calling super()

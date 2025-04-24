@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Fail
+Fail	form.reset() should trigger formResetCallback
+Fail	form.reset(): formResetCallback is called synchronously at the end of form reset, with custom element reaction timing, *after* built-in form control reset algorithms run.
+Fail	Clicking a reset button invokes formResetCallback in a microtask

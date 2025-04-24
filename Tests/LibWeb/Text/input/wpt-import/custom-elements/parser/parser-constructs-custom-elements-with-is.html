@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Custom Elements: Changes to the HTML parser</title>
+<meta name="author" title="John Dai" href="mailto:jdai@mozilla.com">
+<meta name="assert" content="HTML parser creates a custom element which contains is attribute">
+<link rel="help" href="https://html.spec.whatwg.org/#create-an-element-for-the-token">
+<link rel="help" href="https://dom.spec.whatwg.org/#concept-create-element">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+</head>
+<body>
+<div id="log"></div>
+<autonomous-custom-element id="instance1" is="is-custom-element"></autonomous-custom-element>
+<script>
+
+class AutonomousCustomElement extends HTMLElement { };
+class IsCustomElement extends HTMLElement { };
+
+customElements.define('autonomous-custom-element', AutonomousCustomElement);
+customElements.define('is-custom-element', IsCustomElement);
+
+test(function () {
+    var customElement = document.getElementById('instance1');
+
+    assert_true(customElement instanceof HTMLElement, 'A resolved custom element must be an instance of HTMLElement');
+    assert_false(customElement instanceof HTMLUnknownElement, 'A resolved custom element must NOT be an instance of HTMLUnknownElement');
+    assert_true(customElement instanceof AutonomousCustomElement, 'A resolved custom element must be an instance of that custom element');
+    assert_equals(customElement.localName, 'autonomous-custom-element');
+    assert_equals(customElement.namespaceURI, 'http://www.w3.org/1999/xhtml', 'A custom element HTML must use HTML namespace');
+
+}, 'HTML parser must create a defined autonomous custom element when customElements.define comes after HTML parser creation');
+
+</script>
+<autonomous-custom-element id="instance2" is="is-custom-element"></autonomous-custom-element>
+<script>
+
+test(function () {
+    var customElement = document.getElementById('instance2');
+
+    assert_true(customElement instanceof HTMLElement, 'A resolved custom element must be an instance of HTMLElement');
+    assert_false(customElement instanceof HTMLUnknownElement, 'A resolved custom element must NOT be an instance of HTMLUnknownElement');
+    assert_true(customElement instanceof AutonomousCustomElement, 'A resolved custom element must be an instance of that custom element');
+    assert_equals(customElement.localName, 'autonomous-custom-element');
+    assert_equals(customElement.namespaceURI, 'http://www.w3.org/1999/xhtml', 'A custom element HTML must use HTML namespace');
+
+}, 'HTML parser must create a defined autonomous custom element when customElements.define comes before HTML parser creation');
+
+</script>
+</body>
+</html>

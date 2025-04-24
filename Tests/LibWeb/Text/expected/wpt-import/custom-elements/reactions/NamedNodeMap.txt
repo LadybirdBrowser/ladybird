@@ -1,0 +1,19 @@
+Harness status: OK
+
+Found 14 tests
+
+14 Pass
+Pass	setNamedItem on NamedNodeMap must enqueue an attributeChanged reaction when adding an attribute
+Pass	setNamedItem on NamedNodeMap must not enqueue an attributeChanged reaction when adding an unobserved attribute
+Pass	setNamedItem on NamedNodeMap must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	setNamedItem on NamedNodeMap must enqueue an attributeChanged reaction when replacing an existing unobserved attribute
+Pass	setNamedItemNS on NamedNodeMap must enqueue an attributeChanged reaction when adding an attribute
+Pass	setNamedItemNS on NamedNodeMap must not enqueue an attributeChanged reaction when adding an unobserved attribute
+Pass	setNamedItemNS on NamedNodeMap must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	setNamedItemNS on NamedNodeMap must enqueue an attributeChanged reaction when replacing an existing unobserved attribute
+Pass	removeNamedItem on NamedNodeMap must not enqueue an attributeChanged reaction when removing an unobserved attribute
+Pass	removeNamedItem on NamedNodeMap must enqueue an attributeChanged reaction when removing an existing attribute
+Pass	removeNamedItem on NamedNodeMap must not enqueue an attributeChanged reaction when removing an existing unobserved attribute
+Pass	removeNamedItemNS on NamedNodeMap must not enqueue an attributeChanged reaction when removing an unobserved attribute
+Pass	removeNamedItemNS on NamedNodeMap must enqueue an attributeChanged reaction when removing an existing attribute
+Pass	removeNamedItemNS on NamedNodeMap must not enqueue an attributeChanged reaction when removing an existing unobserved attribute

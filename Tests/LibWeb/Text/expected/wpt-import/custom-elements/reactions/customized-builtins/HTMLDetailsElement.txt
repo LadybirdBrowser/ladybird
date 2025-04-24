@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	open on HTMLDetailsElement must enqueue an attributeChanged reaction when adding open content attribute
+Pass	open on HTMLDetailsElement must enqueue an attributeChanged reaction when replacing an existing attribute

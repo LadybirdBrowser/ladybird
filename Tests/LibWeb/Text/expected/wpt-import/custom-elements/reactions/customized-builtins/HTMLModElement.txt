@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	cite on ins use HTMLModElement must enqueue an attributeChanged reaction when adding cite content attribute
+Pass	cite on ins use HTMLModElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	dateTime on ins use HTMLModElement must enqueue an attributeChanged reaction when adding datetime content attribute
+Pass	dateTime on ins use HTMLModElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	cite on del use HTMLModElement must enqueue an attributeChanged reaction when adding cite content attribute
+Pass	cite on del use HTMLModElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	dateTime on del use HTMLModElement must enqueue an attributeChanged reaction when adding datetime content attribute
+Pass	dateTime on del use HTMLModElement must enqueue an attributeChanged reaction when replacing an existing attribute

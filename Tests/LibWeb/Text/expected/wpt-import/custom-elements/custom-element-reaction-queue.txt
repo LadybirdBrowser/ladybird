@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	Upgrading a custom element must invoke attributeChangedCallback and connectedCallback before start upgrading another element
+Pass	Upgrading a custom element must not invoke attributeChangedCallback for the attribute that is changed during upgrading
+Pass	Upgrading a custom element must not invoke disconnectedCallback if the element is disconnected during upgrading
+Pass	Upgrading a disconnected custom element must not invoke connectedCallback if the element is connected during upgrading
+Pass	Mutating a undefined custom element while upgrading a custom element must not enqueue or invoke reactions on the mutated element
+Pass	Mutating another custom element inside adopted callback must invoke all pending callbacks on the mutated element

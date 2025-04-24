@@ -1,0 +1,15 @@
+Harness status: OK
+
+Found 10 tests
+
+10 Pass
+Pass	Use NewTarget's prototype, not the one stored at definition time
+Pass	Rethrow any exceptions thrown while getting the prototype
+Pass	If prototype is not object (null), derives the fallback from NewTarget's realm (autonomous custom elements)
+Pass	If prototype is not object (null), derives the fallback from NewTarget's GetFunctionRealm (autonomous custom elements)
+Pass	If prototype is not object (undefined), derives the fallback from NewTarget's realm (autonomous custom elements)
+Pass	If prototype is not object (undefined), derives the fallback from NewTarget's GetFunctionRealm (autonomous custom elements)
+Pass	If prototype is not object (5), derives the fallback from NewTarget's realm (autonomous custom elements)
+Pass	If prototype is not object (5), derives the fallback from NewTarget's GetFunctionRealm (autonomous custom elements)
+Pass	If prototype is not object (string), derives the fallback from NewTarget's realm (autonomous custom elements)
+Pass	If prototype is not object (string), derives the fallback from NewTarget's GetFunctionRealm (autonomous custom elements)

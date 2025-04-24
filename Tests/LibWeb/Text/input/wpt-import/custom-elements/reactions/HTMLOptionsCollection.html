@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Custom Elements: CEReactions on HTMLOptionsCollection interface</title>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<meta name="assert" content="length, the indexed setter, add, and remove of HTMLOptionsCollection interface must have CEReactions">
+<meta name="help" content="https://dom.spec.whatwg.org/#node">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../resources/custom-elements-helpers.js"></script>
+<script src="./resources/reactions.js"></script>
+</head>
+<body>
+<div id="log"></div>
+<script>
+
+test_with_window(function (contentWindow, contentDocument) {
+    const element = define_custom_element_in_window(contentWindow, 'custom-element', []);
+    contentDocument.body.innerHTML = `<select><option></option></select>`;
+    const option = contentDocument.querySelector('option');
+
+    const instance = contentDocument.createElement(element.name);
+    option.appendChild(instance);
+    instance.textContent = 'hello';
+
+    assert_array_equals(element.takeLog().types(), ['constructed', 'connected']);
+    assert_equals(option.innerHTML, '<custom-element>hello</custom-element>');
+
+    const select = contentDocument.querySelector('select');
+    assert_equals(select.options[0], option);
+    select.options.length = 0;
+    assert_equals(select.firstChild, null);
+    assert_array_equals(element.takeLog().types(), ['disconnected']);
+}, 'length on HTMLOptionsCollection must enqueue disconnectedCallback when removing a custom element');
+
+test_with_window(function (contentWindow) {
+    const element = define_custom_element_in_window(contentWindow, 'custom-element', []);
+
+    const contentDocument = contentWindow.document;
+    contentDocument.body.innerHTML = `<select></select>`;
+    const select = contentDocument.querySelector('select');
+
+    const option = contentDocument.createElement('option');
+    const instance = contentDocument.createElement(element.name);
+    option.appendChild(instance);
+    instance.textContent = 'hello';
+
+    assert_array_equals(element.takeLog().types(), ['constructed']);
+    assert_equals(option.innerHTML, '<custom-element>hello</custom-element>');
+
+    assert_equals(select.options.length, 0);
+    select.options[0] = option;
+    assert_equals(select.options.length, 1);
+    assert_array_equals(element.takeLog().types(), ['connected']);
+}, 'The indexed setter on HTMLOptionsCollection must enqueue connectedCallback when inserting a custom element');
+
+test_with_window(function (contentWindow) {
+    const element = define_custom_element_in_window(contentWindow, 'custom-element', []);
+
+    const contentDocument = contentWindow.document;
+    contentDocument.body.innerHTML = `<select><option></option></select>`;
+    const option = contentDocument.querySelector('option');
+
+    const instance = contentDocument.createElement(element.name);
+    option.appendChild(instance);
+    instance.textContent = 'hello';
+
+    assert_array_equals(element.takeLog().types(), ['constructed', 'connected']);
+    assert_equals(option.innerHTML, '<custom-element>hello</custom-element>');
+
+    const select = contentDocument.querySelector('select');
+    assert_equals(select.options[0], option);
+    select.options[0] = null;
+    assert_equals(select.options.length, 0);
+    assert_array_equals(element.takeLog().types(), ['disconnected']);
+}, 'The indexed setter on HTMLOptionsCollection must enqueue disconnectedCallback when removing a custom element');
+
+test_with_window(function (contentWindow) {
+    const element = define_custom_element_in_window(contentWindow, 'custom-element', []);
+
+    const contentDocument = contentWindow.document;
+    contentDocument.body.innerHTML = `<select></select>`;
+    const select = contentDocument.querySelector('select');
+
+    const option = contentDocument.createElement('option');
+    const instance = contentDocument.createElement(element.name);
+    option.appendChild(instance);
+    instance.textContent = 'hello';
+
+    assert_array_equals(element.takeLog().types(), ['constructed']);
+    assert_equals(option.innerHTML, '<custom-element>hello</custom-element>');
+
+    assert_equals(select.options.length, 0);
+    select.options.add(option);
+    assert_equals(select.options.length, 1);
+    assert_array_equals(element.takeLog().types(), ['connected']);
+}, 'add on HTMLOptionsCollection must enqueue connectedCallback when inserting a custom element');
+
+test_with_window(function (contentWindow) {
+    const element = define_custom_element_in_window(contentWindow, 'custom-element', []);
+
+    const contentDocument = contentWindow.document;
+    contentDocument.body.innerHTML = `<select><option></option></select>`;
+    const option = contentDocument.querySelector('option');
+
+    const instance = contentDocument.createElement(element.name);
+    option.appendChild(instance);
+    instance.textContent = 'hello';
+
+    assert_array_equals(element.takeLog().types(), ['constructed', 'connected']);
+    assert_equals(option.innerHTML, '<custom-element>hello</custom-element>');
+
+    const select = contentDocument.querySelector('select');
+    assert_equals(select.options[0], option);
+    select.options.remove(0);
+    assert_equals(select.options.length, 0);
+    assert_array_equals(element.takeLog().types(), ['disconnected']);
+}, 'remove on HTMLOptionsCollection must enqueue disconnectedCallback when removing a custom element');
+
+</script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+Harness status: OK
+
+Found 10 tests
+
+10 Pass
+Pass	src on HTMLSourceElement must enqueue an attributeChanged reaction when adding a new attribute
+Pass	src on HTMLSourceElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	type on HTMLSourceElement must enqueue an attributeChanged reaction when adding a new attribute
+Pass	type on HTMLSourceElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	srcset on HTMLSourceElement must enqueue an attributeChanged reaction when adding a new attribute
+Pass	srcset on HTMLSourceElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	sizes on HTMLSourceElement must enqueue an attributeChanged reaction when adding a new attribute
+Pass	sizes on HTMLSourceElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	media on HTMLSourceElement must enqueue an attributeChanged reaction when adding a new attribute
+Pass	media on HTMLSourceElement must enqueue an attributeChanged reaction when replacing an existing attribute

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Custom Elements: CEReactions on HTMLOutputElement interface</title>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<meta name="assert" content="value and defaultValue of HTMLOutputElement interface must have CEReactions">
+<meta name="help" content="https://dom.spec.whatwg.org/#node">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../resources/custom-elements-helpers.js"></script>
+<script src="./resources/reactions.js"></script>
+</head>
+<body>
+<div id="log"></div>
+<script>
+
+test_with_window(function (contentWindow, contentDocument) {
+    const element = define_custom_element_in_window(contentWindow, 'custom-element', []);
+    contentDocument.body.innerHTML = `<output><custom-element>hello</custom-element></output>`;
+    const anchor = contentDocument.querySelector('output');
+
+    assert_array_equals(element.takeLog().types(), ['constructed', 'connected']);
+    assert_equals(anchor.innerHTML, '<custom-element>hello</custom-element>');
+
+    anchor.value = 'world';
+    assert_equals(anchor.innerHTML, 'world');
+    assert_array_equals(element.takeLog().types(), ['disconnected']);
+}, 'value on HTMLOutputElement must enqueue disconnectedCallback when removing a custom element');
+
+test_with_window(function (contentWindow, contentDocument) {
+    const element = define_custom_element_in_window(contentWindow, 'custom-element', []);
+    contentDocument.body.innerHTML = `<output><custom-element>hello</custom-element></output>`;
+    const anchor = contentDocument.querySelector('output');
+
+    assert_array_equals(element.takeLog().types(), ['constructed', 'connected']);
+    assert_equals(anchor.innerHTML, '<custom-element>hello</custom-element>');
+
+    anchor.defaultValue = 'world';
+    assert_equals(anchor.innerHTML, 'world');
+    assert_array_equals(element.takeLog().types(), ['disconnected']);
+}, 'defaultValue on HTMLOutputElement must enqueue disconnectedCallback when removing a custom element');
+
+</script>
+</body>
+</html>

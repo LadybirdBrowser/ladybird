@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<title>Custom Elements: [HTMLConstructor] derives prototype from NewTarget</title>
+<meta name="author" title="Domenic Denicola" href="mailto:d@domenic.me">
+<meta name="help" content="https://html.spec.whatwg.org/multipage/dom.html#htmlconstructor">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../resources/custom-elements-helpers.js"></script>
+<body>
+<script>
+"use strict";
+
+test_with_window(w => {
+  let beforeDefinition = true;
+  const proto1 = { "proto": "number one" };
+  const proto2 = { "proto": "number two" };
+
+  function TestElement() {
+    const o = Reflect.construct(w.HTMLElement, [], new.target);
+    assert_equals(Object.getPrototypeOf(o), proto2,
+      "Must use the value returned from new.target.prototype");
+    assert_not_equals(Object.getPrototypeOf(o), proto1,
+      "Must not use the prototype stored at definition time");
+  }
+
+  const ElementWithDynamicPrototype = new Proxy(TestElement, {
+      get: function (target, name) {
+        if (name == "prototype")
+          return beforeDefinition ? proto1 : proto2;
+        return target[name];
+      }
+  });
+
+  w.customElements.define("test-element", ElementWithDynamicPrototype);
+
+  beforeDefinition = false;
+  new ElementWithDynamicPrototype();
+}, "Use NewTarget's prototype, not the one stored at definition time");
+
+test_with_window(w => {
+  // We have to not throw during define(), but throw during super()
+  let throws = false;
+
+  let err = { name: "prototype throws" };
+  function TestElement() {
+    throws = true;
+    assert_throws_exactly(err, () => {
+      Reflect.construct(w.HTMLElement, [], new.target);
+    });
+  }
+
+  const ElementWithDynamicPrototype = new Proxy(TestElement, {
+    get: function (target, name) {
+      if (throws && name == "prototype")
+        throw err;
+      return target[name];
+    }
+  });
+
+  w.customElements.define("test-element", ElementWithDynamicPrototype);
+
+  new ElementWithDynamicPrototype();
+
+}, "Rethrow any exceptions thrown while getting the prototype");
+
+[null, undefined, 5, "string"].forEach(function (notAnObject) {
+  test_with_window(w => {
+    // We have to return an object during define(), but not during super()
+    let returnNotAnObject = false;
+
+    function TestElement() {
+      const o = Reflect.construct(w.HTMLElement, [], new.target);
+
+      assert_equals(Object.getPrototypeOf(new.target), window.Function.prototype);
+      assert_equals(Object.getPrototypeOf(o), window.HTMLElement.prototype,
+        "Must use the HTMLElement from the realm of NewTarget");
+      assert_not_equals(Object.getPrototypeOf(o), w.HTMLElement.prototype,
+        "Must not use the HTMLElement from the realm of the active function object (w.HTMLElement)");
+
+      return o;
+    }
+
+    const ElementWithDynamicPrototype = new Proxy(TestElement, {
+      get: function (target, name) {
+        if (name == "prototype")
+          return returnNotAnObject ? notAnObject : {};
+        return target[name];
+      }
+    });
+
+    w.customElements.define("test-element", ElementWithDynamicPrototype);
+
+    returnNotAnObject = true;
+    new ElementWithDynamicPrototype();
+  }, "If prototype is not object (" + notAnObject + "), derives the fallback from NewTarget's realm (autonomous custom elements)");
+
+  test_with_window(w => {
+    // We have to return an object during define(), but not during super()
+    let returnNotAnObject = false;
+
+    function TestElement() {
+      const o = Reflect.construct(w.HTMLElement, [], new.target);
+
+      assert_equals(Object.getPrototypeOf(new.target), window.Function.prototype);
+      assert_equals(Object.getPrototypeOf(o), window.HTMLElement.prototype,
+        "Must use the HTMLElement from the realm of NewTarget");
+      assert_not_equals(Object.getPrototypeOf(o), w.HTMLElement.prototype,
+        "Must not use the HTMLElement from the realm of the active function object (w.HTMLElement)");
+
+      return o;
+    }
+
+    // Create the proxy in the subframe, which should not affect what our
+    // prototype ends up as.
+    const ElementWithDynamicPrototype = new w.Proxy(TestElement, {
+      get: function (target, name) {
+        if (name == "prototype")
+          return returnNotAnObject ? notAnObject : {};
+        return target[name];
+      }
+    });
+
+    w.customElements.define("test-element", ElementWithDynamicPrototype);
+
+    returnNotAnObject = true;
+    new ElementWithDynamicPrototype();
+  }, "If prototype is not object (" + notAnObject + "), derives the fallback from NewTarget's GetFunctionRealm (autonomous custom elements)");
+});
+
+</script>
+</body>

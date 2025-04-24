@@ -1,0 +1,41 @@
+Harness status: OK
+
+Found 36 tests
+
+36 Pass
+Pass	document.createElement must create an instance of custom elements
+Pass	document.createElement must report a TypeError when the result of Construct is not a DOM node
+Pass	document.createElement must report a TypeError when the result of Construct is a TextNode
+Pass	document.createElement must report a NotSupportedError when attribute is added by setAttribute during construction
+Pass	document.createElement must report a NotSupportedError when attribute is added by attributes.setNamedItem during construction
+Pass	document.createElement must not report a NotSupportedError when attribute is added and removed during construction
+Pass	document.createElement must report a NotSupportedError when a Text child is added during construction
+Pass	document.createElement must report a NotSupportedError when a Comment child is added during construction
+Pass	document.createElement must report a NotSupportedError when an element child is added during construction
+Pass	document.createElement must not report a NotSupportedError when an element child is added and removed during construction
+Pass	document.createElement must report a NotSupportedError when the element gets inserted into another element during construction
+Pass	document.createElement must not report a NotSupportedError when the element is inserted and removed from another element during construction
+Pass	document.createElement must report a NotSupportedError when the element is adopted into a the document of the template elements during construction
+Pass	document.createElement must report a NotSupportedError when the element is inserted into a the document of the template elements during construction
+Pass	document.createElement must not report a NotSupportedError when the element is adopted back from a the document of the template elements during construction
+Pass	document.createElement must report a NotSupportedError when the element is adopted into a a new document during construction
+Pass	document.createElement must report a NotSupportedError when the element is inserted into a a new document during construction
+Pass	document.createElement must not report a NotSupportedError when the element is adopted back from a a new document during construction
+Pass	document.createElement must report a NotSupportedError when the element is adopted into a a cloned document during construction
+Pass	document.createElement must report a NotSupportedError when the element is inserted into a a cloned document during construction
+Pass	document.createElement must not report a NotSupportedError when the element is adopted back from a a cloned document during construction
+Pass	document.createElement must report a NotSupportedError when the element is adopted into a a document created by createHTMLDocument during construction
+Pass	document.createElement must report a NotSupportedError when the element is inserted into a a document created by createHTMLDocument during construction
+Pass	document.createElement must not report a NotSupportedError when the element is adopted back from a a document created by createHTMLDocument during construction
+Pass	document.createElement must report a NotSupportedError when the element is adopted into a an HTML document created by createDocument during construction
+Pass	document.createElement must report a NotSupportedError when the element is inserted into a an HTML document created by createDocument during construction
+Pass	document.createElement must not report a NotSupportedError when the element is adopted back from a an HTML document created by createDocument during construction
+Pass	document.createElement must report a NotSupportedError when the element is adopted into a the document of an iframe during construction
+Pass	document.createElement must report a NotSupportedError when the element is inserted into a the document of an iframe during construction
+Pass	document.createElement must not report a NotSupportedError when the element is adopted back from a the document of an iframe during construction
+Pass	document.createElement must report a NotSupportedError when the element is adopted into a an HTML document fetched by XHR during construction
+Pass	document.createElement must report a NotSupportedError when the element is inserted into a an HTML document fetched by XHR during construction
+Pass	document.createElement must not report a NotSupportedError when the element is adopted back from a an HTML document fetched by XHR during construction
+Pass	document.createElement must report a NotSupportedError when the local name of the element does not match that of the custom element
+Pass	document.createElement must report an exception thrown by a custom element constructor
+Pass	document.createElement with undefined options value should be upgraded.
