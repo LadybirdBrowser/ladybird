@@ -898,6 +898,7 @@ void Regex<Parser>::rewrite_with_useless_jumps_removed()
             auto target_old = is_repeat ? i.old_ip - old_off : i.old_ip + i.size + old_off;
             if (!new_ip.contains(target_old)) {
                 dbgln("Target {} not found in new_ip (in {})", target_old, i.old_ip);
+                dbgln("Pattern: {}", pattern_value);
                 RegexDebug dbg;
                 dbg.print_bytecode(*this);
             }
@@ -1585,7 +1586,7 @@ void Optimizer::append_alternation(ByteCode& target, Span<ByteCode> alternatives
                             }
                             ssize_t target_value = *target_ip - patch_location - patch_size;
                             if (should_negate)
-                                target_value = -target_value + 2; // from -1 to +1.
+                                target_value = -target_value - opcode.size();
                             target[patch_location] = static_cast<ByteCodeValueType>(target_value);
                         } else {
                             patch_locations.append({ QualifiedIP { alternative_index, intended_jump_ip }, patch_location });

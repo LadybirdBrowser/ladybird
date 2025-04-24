@@ -1285,3 +1285,12 @@ TEST_CASE(mismatching_brackets)
         EXPECT_EQ(re.parser_result.error, regex::Error::MismatchingBracket);
     }
 }
+
+TEST_CASE(optimizer_repeat_offset)
+{
+    {
+        // Miscalculating the repeat offset in table reconstruction of alternatives would lead to crash here
+        // make sure that doesn't happen :)
+        Regex<ECMA262> re("\\/?\\??#?([\\/?#]|[\\uD800-\\uDBFF]|%[c-f][0-9a-f](%[89ab][0-9a-f]){0,2}(%[89ab]?)?|%[0-9a-f]?)$"sv);
+    }
+}
