@@ -22,7 +22,7 @@ bool agent_can_suspend(VM const& vm)
     // NOTE: We default to true if no agent has been provided (standalone LibJS with no embedder).
     if (!agent)
         return true;
-    return agent->can_block();
+    return agent->can_block() == Agent::CanBlock::Yes;
 }
 
 }

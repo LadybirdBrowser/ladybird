@@ -11,10 +11,10 @@
 
 namespace Web::HTML {
 
-bool SimilarOriginWindowAgent::can_block() const
+NonnullOwnPtr<SimilarOriginWindowAgent> SimilarOriginWindowAgent::create()
 {
-    // similar-origin window agents can not block, see: https://html.spec.whatwg.org/multipage/webappapis.html#obtain-similar-origin-window-agent
-    return false;
+    // See 'creating an agent' step in: https://html.spec.whatwg.org/multipage/webappapis.html#obtain-similar-origin-window-agent
+    return adopt_own(*new SimilarOriginWindowAgent(CanBlock::No));
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#relevant-agent

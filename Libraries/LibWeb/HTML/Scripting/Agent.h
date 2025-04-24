@@ -21,6 +21,9 @@ struct Agent : public JS::Agent {
     GC::Root<HTML::EventLoop> event_loop;
 
     virtual void spin_event_loop_until(GC::Root<GC::Function<bool()>> goal_condition) override;
+
+protected:
+    using JS::Agent::Agent;
 };
 
 Agent& relevant_agent(JS::Object const&);

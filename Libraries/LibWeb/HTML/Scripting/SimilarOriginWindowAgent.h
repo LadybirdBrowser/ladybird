@@ -20,6 +20,8 @@ namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#similar-origin-window-agent
 struct SimilarOriginWindowAgent : public Agent {
+    static NonnullOwnPtr<SimilarOriginWindowAgent> create();
+
     // https://dom.spec.whatwg.org/#mutation-observer-compound-microtask-queued-flag
     // Each similar-origin window agent has a mutation observer microtask queued (a boolean), which is initially false. [HTML]
     bool mutation_observer_microtask_queued { false };
@@ -41,8 +43,11 @@ struct SimilarOriginWindowAgent : public Agent {
     Vector<GC::Root<DOM::Element>>& current_element_queue() { return custom_element_reactions_stack.element_queue_stack.last(); }
     Vector<GC::Root<DOM::Element>> const& current_element_queue() const { return custom_element_reactions_stack.element_queue_stack.last(); }
 
-    // [[CanBlock]]
-    virtual bool can_block() const override;
+private:
+    explicit SimilarOriginWindowAgent(CanBlock can_block)
+        : Agent(can_block)
+    {
+    }
 };
 
 SimilarOriginWindowAgent& relevant_similar_origin_window_agent(JS::Object const&);
