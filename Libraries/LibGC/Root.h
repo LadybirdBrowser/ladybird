@@ -170,6 +170,14 @@ struct Traits<GC::Root<T>> : public DefaultTraits<GC::Root<T>> {
     static unsigned hash(GC::Root<T> const& handle) { return Traits<T>::hash(handle); }
 };
 
+template<typename T>
+struct Formatter<GC::Root<T>> : Formatter<T const*> {
+    ErrorOr<void> format(FormatBuilder& builder, GC::Root<T> const& value)
+    {
+        return Formatter<T const*>::format(builder, value.ptr());
+    }
+};
+
 namespace Detail {
 template<typename T>
 inline constexpr bool IsHashCompatible<GC::Root<T>, T> = true;
