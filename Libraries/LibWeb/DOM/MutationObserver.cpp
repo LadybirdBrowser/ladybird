@@ -9,7 +9,7 @@
 #include <LibWeb/Bindings/MutationObserverPrototype.h>
 #include <LibWeb/DOM/MutationObserver.h>
 #include <LibWeb/DOM/Node.h>
-#include <LibWeb/HTML/Scripting/Agent.h>
+#include <LibWeb/HTML/Scripting/SimilarOriginWindowAgent.h>
 
 namespace Web::DOM {
 
@@ -30,7 +30,7 @@ MutationObserver::MutationObserver(JS::Realm& realm, GC::Ptr<WebIDL::CallbackTyp
     // 1. Set this’s callback to callback.
 
     // 2. Append this to this’s relevant agent’s mutation observers.
-    HTML::relevant_agent(*this).mutation_observers.append(*this);
+    HTML::relevant_similar_origin_window_agent(*this).mutation_observers.append(*this);
 }
 
 MutationObserver::~MutationObserver()
@@ -39,7 +39,7 @@ MutationObserver::~MutationObserver()
 
 void MutationObserver::finalize()
 {
-    HTML::relevant_agent(*this).mutation_observers.remove(*this);
+    HTML::relevant_similar_origin_window_agent(*this).mutation_observers.remove(*this);
 }
 
 void MutationObserver::initialize(JS::Realm& realm)
