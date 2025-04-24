@@ -125,15 +125,14 @@ static Layout::Node& insertion_parent_for_block_node(Layout::NodeWithStyle& layo
     }
 
     // Parent block has inline-level children (our siblings); wrap these siblings into an anonymous wrapper block.
-    Vector<GC::Ref<Node>> children;
-    for (GC::Ptr<Node> child = layout_parent.first_child(); child; child = child->next_sibling())
-        children.append(*child);
-
     auto wrapper = layout_parent.create_anonymous_wrapper();
     wrapper->set_children_are_inline(true);
-    for (auto child : children) {
-        layout_parent.remove_child(child);
-        wrapper->append_child(child);
+
+    for (GC::Ptr<Node> child = layout_parent.first_child(); child;) {
+        GC::Ptr<Node> next_child = child->next_sibling();
+        layout_parent.remove_child(*child);
+        wrapper->append_child(*child);
+        child = next_child;
     }
 
     layout_parent.set_children_are_inline(false);
