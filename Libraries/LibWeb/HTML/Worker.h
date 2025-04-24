@@ -9,7 +9,7 @@
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/AbstractWorker.h>
 #include <LibWeb/HTML/Window.h>
-#include <LibWeb/HTML/WorkerAgent.h>
+#include <LibWeb/HTML/WorkerAgentParent.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 #define ENUMERATE_WORKER_EVENT_HANDLERS(E)  \
@@ -65,7 +65,7 @@ private:
     GC::Ptr<DOM::Document> m_document;
     GC::Ptr<MessagePort> m_outside_port;
 
-    GC::Ptr<WorkerAgent> m_agent;
+    GC::Ptr<WorkerAgentParent> m_agent;
 
     void run_a_worker(URL::URL& url, EnvironmentSettingsObject& outside_settings, GC::Ptr<MessagePort> outside_port, WorkerOptions const& options);
 };
