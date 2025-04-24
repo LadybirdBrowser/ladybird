@@ -105,7 +105,6 @@ void Element::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     SlottableMixin::visit_edges(visitor);
     Animatable::visit_edges(visitor);
-    ARIAMixin::visit_edges(visitor);
 
     visitor.visit(m_attributes);
     visitor.visit(m_inline_style);
@@ -428,6 +427,39 @@ Vector<String> Element::get_attribute_names() const
         names.append(attribute->name().to_string());
     }
     return names;
+}
+
+// https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#attr-associated-element
+GC::Ptr<DOM::Element> Element::get_the_attribute_associated_element(FlyString const& content_attribute, GC::Ptr<DOM::Element> explicitly_set_attribute_element) const
+{
+    // 1. Let element be the result of running reflectedTarget's get the element.
+    auto const& element = *this;
+
+    // 2. Let contentAttributeValue be the result of running reflectedTarget's get the content attribute.
+    auto content_attribute_value = element.get_attribute(content_attribute);
+
+    // 3. If reflectedTarget's explicitly set attr-element is not null:
+    if (explicitly_set_attribute_element) {
+        // 1. If reflectedTarget's explicitly set attr-element is a descendant of any of element's shadow-including
+        //    ancestors, then return reflectedTarget's explicitly set attr-element.
+        if (&explicitly_set_attribute_element->root() == &element.shadow_including_root())
+            return *explicitly_set_attribute_element;
+
+        // 2. Return null.
+        return {};
+    }
+
+    // 4. Otherwise, if contentAttributeValue is not null, return the first element candidate, in tree order, that meets
+    //    the following criteria:
+    //     * candidate's root is the same as element's root;
+    //     * candidate's ID is contentAttributeValue; and
+    //     * candidate implements T.
+    if (content_attribute_value.has_value())
+        return element.document().get_element_by_id(*content_attribute_value);
+
+    // 5. If no such element exists, then return null.
+    // 6. Return null.
+    return {};
 }
 
 // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#attr-associated-elements
@@ -3658,11 +3690,18 @@ void Element::attribute_changed(FlyString const& local_name, Optional<String> co
             m_dir = Dir::Auto;
         else
             m_dir = {};
-    } else if (local_name == ARIA::AttributeNames::aria_active_descendant) {
-        // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#reflecting-content-attributes-in-idl-attributes:concept-element-attributes-change-ext
-        // Set element's explicitly set attr-element to null.
-        set_aria_active_descendant_element({});
     }
+
+    // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#reflecting-content-attributes-in-idl-attributes:concept-element-attributes-change-ext
+    // 1. If localName is not attr or namespace is not null, then return.
+    // 2. Set element's explicitly set attr-element to null.
+#define __ENUMERATE_ARIA_ATTRIBUTE(attribute, referencing_attribute)                               \
+    else if (local_name == ARIA::AttributeNames::referencing_attribute && !namespace_.has_value()) \
+    {                                                                                              \
+        set_##attribute({});                                                                       \
+    }
+    ENUMERATE_ARIA_ELEMENT_REFERENCING_ATTRIBUTES
+#undef __ENUMERATE_ARIA_ATTRIBUTE
 
     // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#reflecting-content-attributes-in-idl-attributes:concept-element-attributes-change-ext-2
     // 1. If localName is not attr or namespace is not null, then return.

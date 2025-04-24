@@ -4025,53 +4025,16 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.getter_callback@)
         retval = MUST(Infra::convert_to_scalar_value_string(*content_attribute_value));
 )~~~");
             }
-            // If a reflected IDL attribute has the type T?, where T is either Element
-            // FIXME: or an interface that inherits from Element,
-            // then with attr being the reflected content attribute name:
+            // If a reflected IDL attribute has the type T?, where T is either Element or an interface that inherits
+            // from Element, then with attr being the reflected content attribute name:
+            // FIXME: Handle "an interface that inherits from Element".
             else if (attribute.type->is_nullable() && attribute.type->name() == "Element") {
                 // The getter steps are to return the result of running this's get the attr-associated element.
                 attribute_generator.append(R"~~~(
-    auto retval = GC::Ptr<Element> {};
-)~~~");
+    static auto content_attribute = "@attribute.reflect_name@"_fly_string;
 
-                // 1. Let element be the result of running reflectedTarget's get the element.
-                // 2. Let contentAttributeValue be the result of running reflectedTarget's get the content attribute.
-                attribute_generator.append(R"~~~(
-    auto contentAttributeValue = impl->attribute("@attribute.reflect_name@"_fly_string);
+    auto retval = impl->get_the_attribute_associated_element(content_attribute, TRY(throw_dom_exception_if_needed(vm, [&] { return impl->@attribute.cpp_name@(); })));
 )~~~");
-                // 3. If reflectedTarget's explicitly set attr-element is not null:
-                //      1. If reflectedTarget's explicitly set attr-element is a descendant of any of element's shadow-including ancestors, then return reflectedTarget's explicitly set attr-element.
-                //      2. Return null.
-                attribute_generator.append(R"~~~(
-    auto const explicitly_set_attr = TRY(throw_dom_exception_if_needed(vm, [&] { return impl->@attribute.cpp_name@(); }));
-    if (explicitly_set_attr) {
-        if (&impl->shadow_including_root() == &explicitly_set_attr->root()) {
-            retval = explicitly_set_attr;
-        } else {
-            retval = GC::Ptr<Element> {};
-        }
-    }
-)~~~");
-                // 4. Otherwise, if contentAttributeValue is not null, return the first element candidate, in tree order, that meets the following criteria:
-                //      candidate's root is the same as element's root;
-                //      candidate's ID is contentAttributeValue; and
-                //      FIXME: candidate implements T.
-                // If no such element exists, then return null.
-                // 5. Return null.
-
-                // FIXME: This works when T is Element but will need adjustment when we handle subtypes too
-                attribute_generator.append(R"~~~(
-    else if (contentAttributeValue.has_value()) {
-        impl->root().for_each_in_inclusive_subtree_of_type<DOM::Element>([&](auto& candidate) {
-            if (candidate.attribute(HTML::AttributeNames::id) == contentAttributeValue.value()) {
-                retval = &candidate;
-                return TraversalDecision::Break;
-            }
-            return TraversalDecision::Continue;
-        });
-    }
-)~~~");
-
             }
             // If a reflected IDL attribute has the type FrozenArray<T>?, where T is either Element or an interface that
             // inherits from Element, then with attr being the reflected content attribute name:
@@ -4209,29 +4172,31 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
     MUST(impl->set_attribute("@attribute.reflect_name@"_fly_string, String::number(cpp_value)));
 )~~~");
                 }
-                // If a reflected IDL attribute has the type T?, where T is either Element
-                // FIXME: or an interface that inherits from Element,
-                // then with attr being the reflected content attribute name:
+                // If a reflected IDL attribute has the type T?, where T is either Element or an interface that inherits
+                // from Element, then with attr being the reflected content attribute name:
+                // FIXME: Handle "an interface that inherits from Element".
                 else if (attribute.type->is_nullable() && attribute.type->name() == "Element") {
                     // The setter steps are:
                     // 1. If the given value is null, then:
-                    //      1. Set this's explicitly set attr-element to null.
-                    //      2. Run this's delete the content attribute.
-                    //      3. Return.
+                    //     1. Set this's explicitly set attr-element to null.
+                    //     2. Run this's delete the content attribute.
+                    //     3. Return.
                     attribute_generator.append(R"~~~(
+    static auto content_attribute = "@attribute.reflect_name@"_fly_string;
+
     if (!cpp_value) {
-        TRY(throw_dom_exception_if_needed(vm, [&] { return impl->set_@attribute.cpp_name@(nullptr); }));
-        impl->remove_attribute("@attribute.reflect_name@"_fly_string);
+        TRY(throw_dom_exception_if_needed(vm, [&] { return impl->set_@attribute.cpp_name@({}); }));
+        impl->remove_attribute(content_attribute);
         return JS::js_undefined();
     }
 )~~~");
                     // 2. Run this's set the content attribute with the empty string.
                     attribute_generator.append(R"~~~(
-    MUST(impl->set_attribute("@attribute.reflect_name@"_fly_string, String {}));
+    MUST(impl->set_attribute(content_attribute, String {}));
 )~~~");
                     // 3. Set this's explicitly set attr-element to a weak reference to the given value.
                     attribute_generator.append(R"~~~(
-    TRY(throw_dom_exception_if_needed(vm, [&] { return impl->set_@attribute.cpp_name@(cpp_value); }));
+    TRY(throw_dom_exception_if_needed(vm, [&] { return impl->set_@attribute.cpp_name@(*cpp_value); }));
 )~~~");
                 }
                 // If a reflected IDL attribute has the type FrozenArray<T>?, where T is either Element or an interface
