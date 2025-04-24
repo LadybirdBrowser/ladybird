@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#round-func">
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#numbers">
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#calc-type-checking">
+<link rel="author" title="Apple Inc">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../support/numeric-testcommon.js"></script>
+<div style="width: 75px;">
+    <div id="target"></div>
+</div>
+<script>
+// Simple tests
+test_math_used('round(10,10)', '10', {type:'number'});
+test_math_used('mod(1,1)', '0', {type:'number'});
+test_math_used('rem(1,1)', '0', {type:'number'});
+
+// Test basic round
+test_math_used('calc(round(100,10))', '100', {type:'number'});
+test_math_used('calc(round(up, 101,10))', '110', {type:'number'});
+test_math_used('calc(round(down, 106,10))', '100', {type:'number'});
+test_math_used('calc(round(to-zero, 105, 10))', '100', {type:'number'});
+test_math_used('calc(round(to-zero, -105, 10))', '-100', {type:'number'});
+test_math_used('calc(round(-100, 10))', '-100', {type:'number'});
+test_math_used('calc(round(up, -103, 10))', '-100', {type:'number'});
+
+// Test round when first number is a multiple of the second number.
+for (let number of [0, 5, -5, 10, -10, 20, -20]) {
+    test_math_used(`round(up, ${number}, 5)`, `${number}`, {type:'number'});
+    test_math_used(`round(down, ${number}, 5)`, `${number}`, {type:'number'});
+    test_math_used(`round(nearest, ${number}, 5)`, `${number}`, {type:'number'});
+    test_math_used(`round(to-zero, ${number}, 5)`, `${number}`, {type:'number'});
+}
+
+// Test basic mod/rem
+test_math_used('mod(18,5)', '3', {type:'number'});
+test_math_used('rem(18,5)', '3', {type:'number'});
+test_math_used('mod(-140,-90)', '-50', {type:'number'});
+test_math_used('mod(-18,5)', '2', {type:'number'});
+test_math_used('rem(-18,5)', '-3', {type:'number'});
+test_math_used('mod(140,-90)', '-40', {type:'number'});
+test_math_used('rem(140,-90)', '50', {type:'number'});
+
+// Test basic calculations
+test_math_used('calc(round(round(100,10), 10))', '100', {type:'number'});
+test_math_used('calc(round(up, round(100,10) + 1,10))', '110', {type:'number'});
+test_math_used('calc(round(down, round(100,10) + 2 * 3,10))', '100', {type:'number'});
+test_math_used('calc(round(to-zero,round(100,10) * 2 - 95, 10))', '100', {type:'number'});
+test_math_used('calc(round(round(100,10)* -1,10))', '-100', {type:'number'});
+test_math_used('calc(round(up, -103 + -103 / -103 - 1,10))', '-100', {type:'number'});
+test_math_used('calc(mod(18,5) * 2 + mod(17,5))', '8', {type:'number'});
+test_math_used('calc(rem(mod(18,5),5))', '3', {type:'number'});
+test_math_used('calc(rem(mod(18,5),mod(17,5)))', '1', {type:'number'});
+test_math_used('calc(mod(-140,-90))', '-50', {type:'number'});
+test_math_used('calc(mod(rem(1,18)* -1,5))', '4', {type:'number'});
+
+// Type check
+test_math_used('round(10px,6px)', '12px');
+test_math_used('round(10cm,6cm)', '12cm');
+test_math_used('round(10mm,6mm)', '12mm');
+test_math_used('round(10Q, 6Q)', '12Q');
+test_math_used('round(10in,6in)', '12in');
+test_math_used('round(10pc,6pc)', '12pc');
+test_math_used('round(10pt,6pt)', '12pt');
+test_math_used('round(10em,6em)', '12em');
+test_math_used('round(10ex,6ex)', '12ex');
+test_math_used('round(10ch,6ch)', '12ch');
+test_math_used('round(10rem,6rem)', '12rem');
+test_math_used('round(10vh,6vh)', '12vh');
+test_math_used('round(10vw,6vw)', '12vw');
+test_math_used('round(10vmin,6vmin)', '12vmin');
+test_math_used('round(10vmax,6vmax)', '12vmax');
+test_math_used('round(10s,6s)', '12s', {type:'time'});
+test_math_used('round(10ms,6ms)', '12ms', {type:'time'});
+test_math_used('round(10deg,6deg)', '12deg', {type:'angle', approx:0.1});
+test_math_used('round(10grad,6grad)', '12grad', {type:'angle', approx:0.1});
+test_math_used('round(10rad,6rad)', '12rad',{type:'angle', approx:0.1});
+test_math_used('round(10turn,6turn)', '12turn',{type:'angle', approx:0.1});
+
+test_math_used('mod(10px,6px)', '4px');
+test_math_used('mod(10cm,6cm)', '4cm');
+test_math_used('mod(10mm,6mm)', '4mm');
+test_math_used('mod(10Q, 6Q)', '4Q');
+test_math_used('mod(10in,6in)', '4in');
+test_math_used('mod(10pc,6pc)', '4pc');
+test_math_used('mod(10em,6em)', '4em');
+test_math_used('mod(10ex,6ex)', '4ex');
+test_math_used('mod(10ch,6ch)', '4ch');
+test_math_used('mod(10rem,6rem)', '4rem');
+test_math_used('mod(10vh,6vh)', '4vh', {approx: 0.1});
+test_math_used('mod(10vw,6vw)', '4vw', {approx: 0.1});
+test_math_used('mod(10vmin,6vmin)', '4vmin', {approx: 0.1});
+test_math_used('mod(10vmax,6vmax)', '4vmax', {approx: 0.1});
+test_math_used('mod(10s,6s)', '4s', {type:'time'});
+test_math_used('mod(10ms,6ms)', '4ms', {type:'time'});
+test_math_used('mod(10deg,6deg)', '4deg', {type:'angle', approx:0.1});
+test_math_used('mod(10grad,6grad)', '4grad', {type:'angle', approx:0.1});
+test_math_used('mod(10rad,6rad)', '4rad',{type:'angle', approx:0.1});
+test_math_used('mod(10turn,6turn)', '4turn',{type:'angle', approx:0.1});
+
+test_math_used('rem(10px,6px)', '4px');
+test_math_used('rem(10cm,6cm)', '4cm');
+test_math_used('rem(10mm,6mm)', '4mm');
+test_math_used('rem(10Q, 6Q)', '4Q');
+test_math_used('rem(10in,6in)', '4in');
+test_math_used('rem(10pc,6pc)', '4pc');
+test_math_used('rem(10em,6em)', '4em');
+test_math_used('rem(10ex,6ex)', '4ex');
+test_math_used('rem(10ch,6ch)', '4ch');
+test_math_used('rem(10rem,6rem)', '4rem');
+test_math_used('rem(10vh,6vh)', '4vh', {approx: 0.1});
+test_math_used('rem(10vw,6vw)', '4vw', {approx: 0.1});
+test_math_used('rem(10vmin,6vmin)', '4vmin', {approx: 0.1});
+test_math_used('rem(10vmax,6vmax)', '4vmax', {approx: 0.1});
+test_math_used('rem(10s,6s)', '4s', {type:'time'});
+test_math_used('rem(10ms,6ms)', '4ms', {type:'time'});
+test_math_used('rem(10deg,6deg)', '4deg', {type:'angle', approx:0.1});
+test_math_used('rem(10grad,6grad)', '4grad', {type:'angle', approx:0.1});
+test_math_used('rem(10rad,6rad)', '4rad',{type:'angle', approx:0.1});
+test_math_used('rem(10turn,6turn)', '4turn',{type:'angle', approx:0.1});
+
+//Test percentage and mixed units
+test_math_used('round(10%,1px)', '8px');
+test_math_used('round(10%,5px)', '10px');
+test_math_used('round(2rem,5px)', '30px');
+test_math_used('round(100px,1rem)', '96px');
+test_math_used('round(10s,6000ms)', '12s', {type:'time'});
+test_math_used('round(10000ms,6s)', '12s', {type:'time'});
+
+test_math_used('mod(10%,1px)', '0.5px');
+test_math_used('mod(10%,5px)', '2.5px');
+test_math_used('mod(2rem,5px)', '2px');
+test_math_used('mod(100px,1rem)', '4px');
+test_math_used('mod(10s,6000ms)', '4s', {type:'time'});
+test_math_used('mod(10000ms,6s)', '4s', {type:'time'});
+test_math_used('mod(18px,100% / 15)', '3px', {approx: 0.1});
+test_math_used('mod(-18px,100% / 10)', '4.5px');
+test_math_used('mod(18%,5%)', '3%');
+test_math_used('mod(-19%,5%)', '1%');
+test_math_used('mod(18vw,5vw)', '3vw');
+test_math_used('mod(-18vw,5vw)', '2vw', {approx: 0.1});
+
+test_math_used('rem(10%,1px)', '0.5px');
+test_math_used('rem(10%,5px)', '2.5px');
+test_math_used('rem(2rem,5px)', '2px');
+test_math_used('rem(100px,1rem)', '4px');
+test_math_used('rem(10s,6000ms)', '4s', {type:'time'});
+test_math_used('rem(10000ms,6s)', '4s', {type:'time'});
+test_math_used('rem(18px,100% / 15)', '3px', {approx: 0.1});
+test_math_used('rem(-18px,100% / 15)', '-3px', {approx: 0.1});
+test_math_used('rem(18vw,5vw)', '3vw');
+test_math_used('rem(-18vw,5vw)', '-3vw');
+
+test_math_used('calc(round(1px + 0%, 1px + 0%))', '1px');
+test_math_used('calc(mod(3px + 0%, 2px + 0%))', '1px');
+test_math_used('calc(rem(3px + 0%, 2px + 0%))', '1px');
+
+test_math_used('round(1px + 0%, 1px)', '1px');
+test_math_used('mod(3px + 0%, 2px)', '1px');
+test_math_used('rem(3px + 0%, 2px)', '1px');
+
+// In round(A, B), if B is 0, the result is NaN. If A and B are both infinite, the result is NaN.
+// In mod(A, B) or rem(A, B), if B is 0, the result is NaN. If A is infinite, the result is NaN.
+for (let operator of ['round', 'mod', 'rem']) {
+    test_math_used(`${operator}(0, 0)`, 'calc(NaN)', {type: 'number'});
+    test_math_used(`${operator}(-0, 0)`, 'calc(NaN)', {type: 'number'});
+    test_math_used(`${operator}(Infinity, 0)`, 'calc(NaN)', {type: 'number'});
+    test_math_used(`${operator}(-Infinity, 0)`, 'calc(NaN)', {type: 'number'});
+    test_math_used(`${operator}(-4, 0)`, 'calc(NaN)', {type: 'number'});
+    test_math_used(`${operator}(4, 0)`, 'calc(NaN)', {type: 'number'});
+    test_math_used(`${operator}(Infinity, Infinity)`, 'calc(NaN)', {type: 'number'});
+    test_math_used(`${operator}(-Infinity, -Infinity)`, 'calc(NaN)', {type: 'number'});
+    test_math_used(`${operator}(Infinity, -Infinity)`, 'calc(NaN)', {type: 'number'});
+    test_math_used(`${operator}(-Infinity, Infinity)`, 'calc(NaN)', {type: 'number'});
+}
+
+// In round(A, B), if A is infinite but B is finite, the result is the same infinity.
+for (let roundingStrategy of ['up', 'down', 'nearest', 'to-zero']) {
+    test_math_used(`round(${roundingStrategy}, Infinity, 4)`, 'calc(Infinity)', {type: 'number'});
+    test_math_used(`round(${roundingStrategy}, -Infinity, 4)`, 'calc(-Infinity)', {type: 'number'});
+    test_math_used(`round(${roundingStrategy}, Infinity, -4)`, 'calc(Infinity)', {type: 'number'});
+    test_math_used(`round(${roundingStrategy}, -Infinity, -4)`, 'calc(-Infinity)', {type: 'number'});
+}
+
+// If A is finite but B is infinite, the result depends on the <rounding-strategy> and the sign of A:
+// nearest & to-zero: If A is positive or 0⁺, return 0⁺. Otherwise, return 0⁻.
+for (let roundingStrategy of ['nearest', 'to-zero']) {
+    test_math_used(`round(${roundingStrategy}, 0, Infinity)`, '0', {type: 'number'});
+    test_math_used(`round(${roundingStrategy}, 4, Infinity)`, '0', {type: 'number'});
+    test_math_used(`round(${roundingStrategy}, -0, Infinity)`, 'calc(-0)', {type: 'number'});
+    test_math_used(`round(${roundingStrategy}, -4, Infinity)`, 'calc(-0)', {type: 'number'});
+    test_math_used(`round(${roundingStrategy}, 0, -Infinity)`, '0', {type: 'number'});
+    test_math_used(`round(${roundingStrategy}, 4, -Infinity)`, '0', {type: 'number'});
+    test_math_used(`round(${roundingStrategy}, -0, -Infinity)`, 'calc(-0)', {type: 'number'});
+    test_math_used(`round(${roundingStrategy}, -4, -Infinity)`, 'calc(-0)', {type: 'number'});
+}
+
+// up: If A is positive (not zero), return +∞. If A is 0⁺, return 0⁺. Otherwise, return 0⁻.
+test_math_used('round(up, 1, Infinity)', 'calc(Infinity)', {type: 'number'});
+test_math_used('round(up, 0, Infinity)', '0', {type: 'number'});
+test_math_used('round(up, -1, Infinity)', 'calc(-0)', {type: 'number'});
+test_math_used('round(up, 1, -Infinity)', 'calc(Infinity)', {type: 'number'});
+test_math_used('round(up, 0, -Infinity)', '0', {type: 'number'});
+test_math_used('round(up, -1, -Infinity)', 'calc(-0)', {type: 'number'});
+// down: If A is negative (not zero), return −∞. If A is 0⁻, return 0⁻. Otherwise, return 0⁺.
+test_math_used('round(down, 1, Infinity)', 'calc(-0)', {type: 'number'});
+test_math_used('round(down, 0, Infinity)', '0', {type: 'number'});
+test_math_used('round(down, -1, Infinity)', 'calc(-Infinity)', {type: 'number'});
+test_math_used('round(down, 1, -Infinity)', 'calc(-0)', {type: 'number'});
+test_math_used('round(down, 0, -Infinity)', '0', {type: 'number'});
+test_math_used('round(down, -1, -Infinity)', 'calc(-Infinity)', {type: 'number'});
+
+// In mod(A, B) only, if B is infinite and A has opposite sign to B (including an oppositely-signed zero), the result is NaN.
+test_math_used('mod(-0, Infinity)', 'calc(NaN)', {type: 'number'});
+test_math_used('mod(0, -Infinity)', 'calc(NaN)', {type: 'number'});
+test_math_used('mod(-4, Infinity)', 'calc(NaN)', {type: 'number'});
+test_math_used('mod(4, -Infinity)', 'calc(NaN)', {type: 'number'});
+</script>
