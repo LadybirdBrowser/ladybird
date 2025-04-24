@@ -172,6 +172,18 @@ static StringView sequence_storage_type_to_cpp_storage_type_name(SequenceStorage
     }
 }
 
+static bool is_nullable_sequence_of_single_type(Type const& type, StringView type_name)
+{
+    if (!type.is_nullable() || !type.is_sequence())
+        return false;
+
+    auto const& parameters = type.as_parameterized().parameters();
+    if (parameters.size() != 1)
+        return false;
+
+    return parameters.first()->name() == type_name;
+}
+
 CppType idl_type_name_to_cpp_type(Type const& type, Interface const& interface);
 
 static ByteString union_type_to_variant(UnionType const& union_type, Interface const& interface)
@@ -1024,21 +1036,15 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
         // 3. If method is undefined, throw a TypeError.
         // 4. Return the result of creating a sequence from V and method.
 
-        if (optional) {
+        if (optional || parameter.type->is_nullable()) {
             auto sequence_cpp_type = idl_type_name_to_cpp_type(parameterized_type.parameters().first(), interface);
             sequence_generator.set("sequence.type", sequence_cpp_type.name);
             sequence_generator.set("sequence.storage_type", sequence_storage_type_to_cpp_storage_type_name(sequence_cpp_type.sequence_storage_type));
 
             if (!optional_default_value.has_value()) {
-                if (sequence_cpp_type.sequence_storage_type == IDL::SequenceStorageType::Vector) {
-                    sequence_generator.append(R"~~~(
+                sequence_generator.append(R"~~~(
     Optional<@sequence.storage_type@<@sequence.type@>> @cpp_name@;
 )~~~");
-                } else {
-                    sequence_generator.append(R"~~~(
-    Optional<@sequence.storage_type@> @cpp_name@;
-)~~~");
-                }
             } else {
                 if (optional_default_value != "[]")
                     TODO();
@@ -1054,9 +1060,15 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
                 }
             }
 
-            sequence_generator.append(R"~~~(
+            if (optional) {
+                sequence_generator.append(R"~~~(
     if (!@js_name@@js_suffix@.is_undefined()) {
 )~~~");
+            } else {
+                sequence_generator.append(R"~~~(
+    if (!@js_name@@js_suffix@.is_nullish()) {
+)~~~");
+            }
         }
 
         sequence_generator.append(R"~~~(
@@ -1068,9 +1080,9 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotIterable, @js_name@@js_suffix@.to_string_without_side_effects());
 )~~~");
 
-        parameterized_type.generate_sequence_from_iterable(sequence_generator, ByteString::formatted("{}{}", acceptable_cpp_name, optional ? "_non_optional" : ""), ByteString::formatted("{}{}", js_name, js_suffix), ByteString::formatted("{}{}_iterator_method{}", js_name, js_suffix, recursion_depth), interface, recursion_depth + 1);
+        parameterized_type.generate_sequence_from_iterable(sequence_generator, ByteString::formatted("{}{}", acceptable_cpp_name, optional || parameter.type->is_nullable() ? "_non_optional" : ""), ByteString::formatted("{}{}", js_name, js_suffix), ByteString::formatted("{}{}_iterator_method{}", js_name, js_suffix, recursion_depth), interface, recursion_depth + 1);
 
-        if (optional) {
+        if (optional || parameter.type->is_nullable()) {
             sequence_generator.append(R"~~~(
         @cpp_name@ = move(@cpp_name@_non_optional);
     }
@@ -4060,6 +4072,24 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.getter_callback@)
     }
 )~~~");
 
+            }
+            // If a reflected IDL attribute has the type FrozenArray<T>?, where T is either Element or an interface that
+            // inherits from Element, then with attr being the reflected content attribute name:
+            // FIXME: Handle "an interface that inherits from Element".
+            // FIXME: This should handle "FrozenArray" rather than "sequence".
+            else if (is_nullable_sequence_of_single_type(attribute.type, "Element"sv)) {
+                // 1. Let elements be the result of running this's get the attr-associated elements.
+                attribute_generator.append(R"~~~(
+    static auto content_attribute = "@attribute.reflect_name@"_fly_string;
+
+    auto retval = impl->get_the_attribute_associated_elements(content_attribute, TRY(throw_dom_exception_if_needed(vm, [&] { return impl->@attribute.cpp_name@(); })));
+)~~~");
+
+                // FIXME: 2. If the contents of elements is equal to the contents of this's cached attr-associated elements, then return
+                //           this's cached attr-associated elements object.
+                // FIXME: 3. Let elementsAsFrozenArray be elements, converted to a FrozenArray<T>?.
+                // FIXME: 4. Set this's cached attr-associated elements to elements.
+                // FIXME: 5. Set this's cached attr-associated elements object to elementsAsFrozenArray.
             } else {
                 attribute_generator.append(R"~~~(
     auto retval = impl->get_attribute_value("@attribute.reflect_name@"_fly_string);
@@ -4202,6 +4232,45 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
                     // 3. Set this's explicitly set attr-element to a weak reference to the given value.
                     attribute_generator.append(R"~~~(
     TRY(throw_dom_exception_if_needed(vm, [&] { return impl->set_@attribute.cpp_name@(cpp_value); }));
+)~~~");
+                }
+                // If a reflected IDL attribute has the type FrozenArray<T>?, where T is either Element or an interface
+                // that inherits from Element, then with attr being the reflected content attribute name:
+                // FIXME: Handle "an interface that inherits from Element".
+                // FIXME: This should handle "FrozenArray" rather than "sequence".
+                else if (is_nullable_sequence_of_single_type(attribute.type, "Element"sv)) {
+                    // 1. If the given value is null:
+                    //     1. Set this's explicitly set attr-elements to null.
+                    //     2. Run this's delete the content attribute.
+                    //     3. Return.
+                    attribute_generator.append(R"~~~(
+    static auto content_attribute = "@attribute.reflect_name@"_fly_string;
+
+    if (!cpp_value.has_value()) {
+        TRY(throw_dom_exception_if_needed(vm, [&] { return impl->set_@attribute.cpp_name@({}); }));
+        impl->remove_attribute(content_attribute);
+        return JS::js_undefined();
+    }
+)~~~");
+
+                    // 2. Run this's set the content attribute with the empty string.
+                    attribute_generator.append(R"~~~(
+    MUST(impl->set_attribute(content_attribute, String {}));
+)~~~");
+
+                    // 3. Let elements be an empty list.
+                    // 4. For each element in the given value:
+                    //     1. Append a weak reference to element to elements.
+                    // 5. Set this's explicitly set attr-elements to elements.
+                    attribute_generator.append(R"~~~(
+    Vector<WeakPtr<DOM::Element>> elements;
+    elements.ensure_capacity(cpp_value->size());
+
+    for (auto const& element : *cpp_value) {
+        elements.unchecked_append(*element);
+    }
+
+    TRY(throw_dom_exception_if_needed(vm, [&] { return impl->set_@attribute.cpp_name@(move(elements)); }));
 )~~~");
                 } else if (attribute.type->is_nullable()) {
                     attribute_generator.append(R"~~~(

@@ -15,6 +15,15 @@
 
 namespace Web::ARIA {
 
+#define ENUMERATE_ARIA_ELEMENT_LIST_REFERENCING_ATTRIBUTES                      \
+    __ENUMERATE_ARIA_ATTRIBUTE(aria_controls_elements, aria_controls)           \
+    __ENUMERATE_ARIA_ATTRIBUTE(aria_described_by_elements, aria_described_by)   \
+    __ENUMERATE_ARIA_ATTRIBUTE(aria_details_elements, aria_details)             \
+    __ENUMERATE_ARIA_ATTRIBUTE(aria_error_message_elements, aria_error_message) \
+    __ENUMERATE_ARIA_ATTRIBUTE(aria_flow_to_elements, aria_flow_to)             \
+    __ENUMERATE_ARIA_ATTRIBUTE(aria_labelled_by_elements, aria_labelled_by)     \
+    __ENUMERATE_ARIA_ATTRIBUTE(aria_owns_elements, aria_owns)
+
 class ARIAMixin {
 public:
     virtual ~ARIAMixin();
@@ -51,6 +60,12 @@ public:
     GC::Ptr<DOM::Element> aria_active_descendant_element() { return m_aria_active_descendant_element; }
     void set_aria_active_descendant_element(GC::Ptr<DOM::Element> value) { m_aria_active_descendant_element = value; }
 
+#define __ENUMERATE_ARIA_ATTRIBUTE(attribute, referencing_attribute)  \
+    Optional<Vector<WeakPtr<DOM::Element>>> const& attribute() const; \
+    void set_##attribute(Optional<Vector<WeakPtr<DOM::Element>>> value);
+    ENUMERATE_ARIA_ELEMENT_LIST_REFERENCING_ATTRIBUTES
+#undef __ENUMERATE_ARIA_ATTRIBUTE
+
 protected:
     ARIAMixin();
 
@@ -60,6 +75,11 @@ protected:
 
 private:
     GC::Ptr<DOM::Element> m_aria_active_descendant_element;
+
+#define __ENUMERATE_ARIA_ATTRIBUTE(attribute, referencing_attribute) \
+    Optional<Vector<WeakPtr<DOM::Element>>> m_##attribute;
+    ENUMERATE_ARIA_ELEMENT_LIST_REFERENCING_ATTRIBUTES
+#undef __ENUMERATE_ARIA_ATTRIBUTE
 };
 
 }

@@ -430,6 +430,60 @@ Vector<String> Element::get_attribute_names() const
     return names;
 }
 
+// https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#attr-associated-elements
+Optional<GC::RootVector<GC::Ref<DOM::Element>>> Element::get_the_attribute_associated_elements(FlyString const& content_attribute, Optional<Vector<WeakPtr<DOM::Element>>> const& explicitly_set_attribute_elements) const
+{
+    // 1. Let elements be an empty list.
+    GC::RootVector<GC::Ref<DOM::Element>> elements(heap());
+
+    // 2. Let element be the result of running reflectedTarget's get the element.
+    auto const& element = *this;
+
+    // 3. If reflectedTarget's explicitly set attr-elements is not null:
+    if (explicitly_set_attribute_elements.has_value()) {
+        // 1. For each attrElement in reflectedTarget's explicitly set attr-elements:
+        for (auto const& attribute_element : *explicitly_set_attribute_elements) {
+            // 1. If attrElement is not a descendant of any of element's shadow-including ancestors, then continue.
+            if (!attribute_element || &attribute_element->root() != &element.shadow_including_root())
+                continue;
+
+            // 2. Append attrElement to elements.
+            elements.append(*attribute_element);
+        }
+    }
+    // 4. Otherwise:
+    else {
+        // 1. Let contentAttributeValue be the result of running reflectedTarget's get the content attribute.
+        auto content_attribute_value = element.get_attribute(content_attribute);
+
+        // 2. If contentAttributeValue is null, then return null.
+        if (!content_attribute_value.has_value())
+            return {};
+
+        // 3. Let tokens be contentAttributeValue, split on ASCII whitespace.
+        auto tokens = content_attribute_value->bytes_as_string_view().split_view_if(Infra::is_ascii_whitespace);
+
+        // 4. For each id of tokens:
+        for (auto id : tokens) {
+            // 1. Let candidate be the first element, in tree order, that meets the following criteria:
+            //     * candidate's root is the same as element's root;
+            //     * candidate's ID is id; and
+            //     * candidate implements T.
+            auto candidate = element.document().get_element_by_id(MUST(FlyString::from_utf8(id)));
+
+            // 2. If no such element exists, then continue.
+            if (!candidate)
+                continue;
+
+            // 3. Append candidate to elements.
+            elements.append(*candidate);
+        }
+    }
+
+    // 5. Return elements.
+    return elements;
+}
+
 GC::Ptr<Layout::Node> Element::create_layout_node(GC::Ref<CSS::ComputedProperties> style)
 {
     if (local_name() == "noscript" && document().is_scripting_enabled())
@@ -3609,6 +3663,17 @@ void Element::attribute_changed(FlyString const& local_name, Optional<String> co
         // Set element's explicitly set attr-element to null.
         set_aria_active_descendant_element({});
     }
+
+    // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#reflecting-content-attributes-in-idl-attributes:concept-element-attributes-change-ext-2
+    // 1. If localName is not attr or namespace is not null, then return.
+    // 2. Set element's explicitly set attr-elements to null.
+#define __ENUMERATE_ARIA_ATTRIBUTE(attribute, referencing_attribute)                               \
+    else if (local_name == ARIA::AttributeNames::referencing_attribute && !namespace_.has_value()) \
+    {                                                                                              \
+        set_##attribute({});                                                                       \
+    }
+    ENUMERATE_ARIA_ELEMENT_LIST_REFERENCING_ATTRIBUTES
+#undef __ENUMERATE_ARIA_ATTRIBUTE
 }
 
 auto Element::ensure_custom_element_reaction_queue() -> CustomElementReactionQueue&

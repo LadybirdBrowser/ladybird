@@ -2,32 +2,32 @@ Harness status: OK
 
 Found 27 tests
 
-16 Pass
-11 Fail
+22 Pass
+5 Fail
 Pass	aria-activedescendant element reflection
 Pass	aria-activedescendant If the content attribute is set directly, the IDL attribute getter always returns the first element whose ID matches the content attribute.
 Pass	aria-activedescendant Setting the IDL attribute to an element which is not the first element in DOM order with its ID causes the content attribute to be an empty string
 Pass	aria-activedescendant Setting an element reference that crosses into a shadow tree is disallowed, but setting one that is in a shadow inclusive ancestor is allowed.
-Fail	aria-errormessage
+Pass	aria-errormessage
 Pass	ariaErrorMessageElement is not defined
-Fail	aria-details
+Pass	aria-details
 Pass	aria-activedescendant Deleting a reflected element should return null for the IDL attribute and the content attribute will be empty.
 Pass	aria-activedescendant Changing the ID of an element doesn't lose the reference.
 Pass	aria-activedescendant Reparenting an element into a descendant shadow scope hides the element reference.
 Pass	aria-activedescendant Reparenting referenced element cannot cause retargeting of reference.
 Pass	aria-activedescendant Element reference set in invalid scope remains intact throughout move to valid scope.
 Fail	aria-labelledby.
-Fail	aria-controls.
-Fail	aria-describedby.
-Fail	aria-flowto.
-Fail	aria-owns.
+Pass	aria-controls.
+Pass	aria-describedby.
+Pass	aria-flowto.
+Pass	aria-owns.
 Fail	shadow DOM behaviour for FrozenArray element reflection.
 Fail	Moving explicitly set elements across shadow DOM boundaries.
-Fail	Moving explicitly set elements around within the same scope, and removing from the DOM.
+Pass	Moving explicitly set elements around within the same scope, and removing from the DOM.
 Pass	aria-activedescendant Reparenting.
 Pass	aria-activedescendant Attaching element reference before it's inserted into the DOM.
 Pass	aria-activedescendant Cross-document references and moves.
 Pass	aria-activedescendant Adopting element keeps references.
-Pass	Caching invariant different attributes.
-Pass	Caching invariant different elements.
-Fail	Passing values of the wrong type should throw a TypeError
+Fail	Caching invariant different attributes.
+Fail	Caching invariant different elements.
+Pass	Passing values of the wrong type should throw a TypeError

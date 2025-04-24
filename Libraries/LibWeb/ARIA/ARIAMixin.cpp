@@ -230,4 +230,17 @@ Vector<String> ARIAMixin::parse_id_reference_list(Optional<String> const& id_lis
     return result;
 }
 
+#define __ENUMERATE_ARIA_ATTRIBUTE(attribute, referencing_attribute)               \
+    Optional<Vector<WeakPtr<DOM::Element>>> const& ARIAMixin::attribute() const    \
+    {                                                                              \
+        return m_##attribute;                                                      \
+    }                                                                              \
+                                                                                   \
+    void ARIAMixin::set_##attribute(Optional<Vector<WeakPtr<DOM::Element>>> value) \
+    {                                                                              \
+        m_##attribute = move(value);                                               \
+    }
+ENUMERATE_ARIA_ELEMENT_LIST_REFERENCING_ATTRIBUTES
+#undef __ENUMERATE_ARIA_ATTRIBUTE
+
 }
