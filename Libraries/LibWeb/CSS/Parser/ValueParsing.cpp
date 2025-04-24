@@ -3515,8 +3515,11 @@ RefPtr<CalculationNode const> Parser::parse_a_calc_function_node(Function const&
     if (function.name.equals_ignoring_ascii_case("calc"sv))
         return parse_a_calculation(function.value, context);
 
-    if (auto maybe_function = parse_math_function(function, context))
-        return maybe_function;
+    if (auto maybe_function = parse_math_function(function, context)) {
+        // NOTE: We have to simplify manually here, since parse_math_function() is a helper for calc() parsing
+        //       that doesn't do it directly by itself.
+        return simplify_a_calculation_tree(*maybe_function, context, CalculationResolutionContext {});
+    }
 
     return nullptr;
 }

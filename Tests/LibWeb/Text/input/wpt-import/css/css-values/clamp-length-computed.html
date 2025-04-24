@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#comp-func">
+<link rel="author" title="Xiaocheng Hu" href="mailto:xiaochengh@chromium.org">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../support/computed-testcommon.js"></script>
+<div id="container" style="font-size: 20px">
+  <div id="target"></div>
+  <div id="reference"></div>
+</div>
+<script>
+const property = 'letter-spacing';
+
+function test_length_equals(value, expected) {
+  const reference = document.getElementById('reference');
+  reference.style[property] = '';
+  reference.style[property] = expected;
+  const computed = getComputedStyle(reference)[property];
+  test_computed_value(property, value, computed);
+}
+
+test_length_equals('clamp(10px, 20px, 30px)', '20px');
+test_length_equals('clamp(10px, 5px, 30px)', '10px');
+test_length_equals('clamp(10px, 35px, 30px)', '30px');
+test_length_equals('clamp(10px, 35px , 30px)', '30px');
+test_length_equals('clamp(10px, 35px /*foo*/, 30px)', '30px');
+test_length_equals('clamp(10px /* foo */ , 35px, 30px)', '30px');
+test_length_equals('clamp(10px , 35px, 30px)', '30px');
+
+// clamp(MIN, VAL, MAX) is identical to max(MIN, min(VAL, MAX)),
+// so MIN wins over MAX if they are in the wrong order.
+test_length_equals('clamp(30px, 100px, 20px)', '30px');
+
+// also test with negative values
+test_length_equals('clamp(-30px, -20px, -10px)', '-20px');
+test_length_equals('clamp(-30px, -100px, -10px)', '-30px');
+test_length_equals('clamp(-30px, 100px, -10px)', '-10px');
+test_length_equals('clamp(-10px, 100px, -30px)', '-10px');
+test_length_equals('clamp(-10px, -100px, -30px)', '-10px');
+
+// and negating the result of clamp
+test_length_equals('calc(0px + clamp(10px, 20px, 30px))', '20px');
+test_length_equals('calc(0px - clamp(10px, 20px, 30px))', '-20px');
+test_length_equals('calc(0px + clamp(30px, 100px, 20px))', '30px');
+test_length_equals('calc(0px - clamp(30px, 100px, 20px))', '-30px');
+
+</script>
