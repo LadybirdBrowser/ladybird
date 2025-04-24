@@ -330,7 +330,8 @@ public:
 
     virtual bool include_in_accessibility_tree() const override;
 
-    virtual Element const* to_element() const override { return this; }
+    virtual Element& to_element() override { return *this; }
+    virtual Element const& to_element() const override { return *this; }
 
     bool is_hidden() const;
     bool has_hidden_ancestor() const;

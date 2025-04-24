@@ -28,7 +28,8 @@ public:
     // https://www.w3.org/TR/html-aria/#docconformance
     virtual Optional<Role> default_role() const { return {}; }
 
-    virtual DOM::Element const* to_element() const { return {}; }
+    virtual DOM::Element& to_element() = 0;
+    virtual DOM::Element const& to_element() const = 0;
 
     Optional<Role> role_from_role_attribute_value() const;
     Optional<Role> role_or_default() const;
