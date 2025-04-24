@@ -37,7 +37,7 @@
 
 namespace JS {
 
-ErrorOr<NonnullRefPtr<VM>> VM::create(OwnPtr<Agent> agent)
+NonnullRefPtr<VM> VM::create(OwnPtr<Agent> agent)
 {
     ErrorMessages error_messages {};
     error_messages[to_underlying(ErrorMessage::OutOfMemory)] = ErrorType::OutOfMemory.message();

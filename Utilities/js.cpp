@@ -558,7 +558,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     AK::set_debug_enabled(!disable_debug_printing);
     s_history_path = TRY(String::formatted("{}/.js-history", Core::StandardPaths::home_directory()));
 
-    g_vm_storage.get() = TRY(JS::VM::create());
+    g_vm_storage.get() = JS::VM::create();
     g_vm = g_vm_storage->ptr();
     g_vm->set_dynamic_imports_allowed(true);
 

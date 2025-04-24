@@ -183,7 +183,7 @@ int main(int argc, char** argv)
         g_main_hook();
 
     if (!g_vm) {
-        g_vm = MUST(JS::VM::create());
+        g_vm = JS::VM::create();
         g_vm->set_dynamic_imports_allowed(true);
     }
 

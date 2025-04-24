@@ -72,11 +72,11 @@ HTML::Script* active_script()
         });
 }
 
-ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
+void initialize_main_thread_vm(HTML::EventLoop::Type type)
 {
     VERIFY(!s_main_thread_vm);
 
-    s_main_thread_vm = TRY(JS::VM::create(make<HTML::SimilarOriginWindowAgent>()));
+    s_main_thread_vm = JS::VM::create(make<HTML::SimilarOriginWindowAgent>());
 
     auto& agent = as<HTML::Agent>(*s_main_thread_vm->agent());
     agent.event_loop = s_main_thread_vm->heap().allocate<HTML::EventLoop>(type);
@@ -645,8 +645,6 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
     s_main_thread_vm->host_unrecognized_date_string = [](StringView date) {
         dbgln("Unable to parse date string: \"{}\"", date);
     };
-
-    return {};
 }
 
 JS::VM& main_thread_vm()
