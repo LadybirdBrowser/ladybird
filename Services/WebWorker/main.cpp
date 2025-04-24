@@ -33,6 +33,18 @@
 static ErrorOr<void> initialize_image_decoder(int image_decoder_socket);
 static ErrorOr<void> initialize_resource_loader(GC::Heap&, int request_server_socket);
 
+static ErrorOr<Web::Bindings::AgentType> agent_type_from_string(StringView type)
+{
+    if (type == "dedicated"sv)
+        return Web::Bindings::AgentType::DedicatedWorker;
+    if (type == "shared"sv)
+        return Web::Bindings::AgentType::SharedWorker;
+    if (type == "service"sv)
+        return Web::Bindings::AgentType::ServiceWorker;
+
+    return Error::from_string_literal("Invalid worker type, must be one of: 'dedicated', 'shared', or 'service'");
+}
+
 ErrorOr<int> serenity_main(Main::Arguments arguments)
 {
     AK::set_rich_debug_enabled(true);
@@ -40,6 +52,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     int request_server_socket { -1 };
     int image_decoder_socket { -1 };
     StringView serenity_resource_root;
+    StringView worker_type_string;
     Vector<ByteString> certificates;
     bool wait_for_debugger = false;
 
@@ -49,10 +62,14 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     args_parser.add_option(serenity_resource_root, "Absolute path to directory for serenity resources", "serenity-resource-root", 'r', "serenity-resource-root");
     args_parser.add_option(certificates, "Path to a certificate file", "certificate", 'C', "certificate");
     args_parser.add_option(wait_for_debugger, "Wait for debugger", "wait-for-debugger");
+    args_parser.add_option(worker_type_string, "Type of WebWorker to start (dedicated, shared, or service)", "type", 't', "type");
+
     args_parser.parse(arguments);
 
     if (wait_for_debugger)
         Core::Process::wait_for_debugger_and_break();
+
+    auto worker_type = TRY(agent_type_from_string(worker_type_string));
 
 #if defined(HAVE_QT)
     QCoreApplication app(arguments.argc, arguments.argv);
@@ -68,7 +85,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
     Web::Platform::FontPlugin::install(*new WebView::FontPlugin(false));
 
-    Web::Bindings::initialize_main_thread_vm(Web::Bindings::AgentType::DedicatedWorker);
+    Web::Bindings::initialize_main_thread_vm(worker_type);
 
     TRY(initialize_resource_loader(Web::Bindings::main_thread_vm().heap(), request_server_socket));
 

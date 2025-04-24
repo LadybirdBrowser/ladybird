@@ -167,7 +167,7 @@ ErrorOr<NonnullRefPtr<ImageDecoderClient::Client>> launch_image_decoder_process(
     return launch_server_process<ImageDecoderClient::Client>("ImageDecoder"sv, arguments);
 }
 
-ErrorOr<NonnullRefPtr<Web::HTML::WebWorkerClient>> launch_web_worker_process()
+ErrorOr<NonnullRefPtr<Web::HTML::WebWorkerClient>> launch_web_worker_process(Web::Bindings::AgentType type)
 {
     Vector<ByteString> arguments;
 
@@ -178,6 +178,21 @@ ErrorOr<NonnullRefPtr<Web::HTML::WebWorkerClient>> launch_web_worker_process()
     auto image_decoder_socket = TRY(connect_new_image_decoder_client());
     arguments.append("--image-decoder-socket"sv);
     arguments.append(ByteString::number(image_decoder_socket.fd()));
+
+    arguments.append("--type"sv);
+    switch (type) {
+    case Web::Bindings::AgentType::DedicatedWorker:
+        arguments.append("dedicated"sv);
+        break;
+    case Web::Bindings::AgentType::SharedWorker:
+        arguments.append("shared"sv);
+        break;
+    case Web::Bindings::AgentType::ServiceWorker:
+        arguments.append("service"sv);
+        break;
+    default:
+        VERIFY_NOT_REACHED();
+    }
 
     return launch_server_process<Web::HTML::WebWorkerClient>("WebWorker"sv, move(arguments));
 }

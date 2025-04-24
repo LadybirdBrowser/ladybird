@@ -664,9 +664,9 @@ void PageClient::page_did_allocate_backing_stores(i32 front_bitmap_id, Gfx::Shar
     client().async_did_allocate_backing_stores(m_id, front_bitmap_id, front_bitmap, back_bitmap_id, back_bitmap);
 }
 
-IPC::File PageClient::request_worker_agent()
+IPC::File PageClient::request_worker_agent(Web::Bindings::AgentType type)
 {
-    auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::RequestWorkerAgent>(m_id);
+    auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::RequestWorkerAgent>(m_id, type);
     if (!response) {
         dbgln("WebContent client disconnected during RequestWorkerAgent. Exiting peacefully.");
         exit(0);
