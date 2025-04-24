@@ -1217,7 +1217,8 @@ CalculatedStyleValue::CalculationResult ClampCalculationNode::resolve(Calculatio
     if (chosen_value == max_value)
         return max_node;
 
-    VERIFY_NOT_REACHED();
+    // NOTE: Non-finite values end up here.
+    return CalculatedStyleValue::CalculationResult { chosen_value, numeric_type() };
 }
 
 NonnullRefPtr<CalculationNode const> ClampCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context) const

@@ -1,0 +1,67 @@
+<!DOCTYPE HTML>
+<title>Infinity and NaN: calc() serialization for length values.</title>
+<link rel="author" title="Seokho Song"  href="mailto:0xdevssh@gmail.com">
+<link rel="help" href="https://drafts.csswg.org/css-values/#calc-type-checking">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../support/serialize-testcommon.js"></script>
+<div id="target"></div>
+<div id="log"></div>
+<script>
+function test_serialization(t,s, {prop="width"}={}) {
+    test_specified_serialization(prop, t, s)
+}
+//TEST CASE                                          | EXPECTED
+var test_map = {
+    "1px * NaN"                                     :"calc(NaN * 1px)",
+    "1% * NaN"                                      :"calc(NaN * 1%)",
+    "1in * NaN"                                     :"calc(NaN * 1px)",
+    "1cm * NaN"                                     :"calc(NaN * 1px)",
+    "1mm * NaN"                                     :"calc(NaN * 1px)",
+    "1q * NaN"                                      :"calc(NaN * 1px)",
+    "1pt * NaN"                                     :"calc(NaN * 1px)",
+    "1pc * NaN"                                     :"calc(NaN * 1px)",
+    "1px * nan"                                     :"calc(NaN * 1px)",
+    "1px * infinity / infinity"                     :"calc(NaN * 1px)",
+    "1px * 0 * infinity"                            :"calc(NaN * 1px)",
+    "1px * (infinity + -infinity)"                  :"calc(NaN * 1px)",
+    "1px * (-infinity + infinity)"                  :"calc(NaN * 1px)",
+    "1px * (infinity - infinity)"                   :"calc(NaN * 1px)",
+    "1px * infinity"                                :"calc(infinity * 1px)",
+    "1px * -infinity"                               :"calc(-infinity * 1px)",
+    "1% * infinity"                                 :"calc(infinity * 1%)",
+    "1% * -infinity"                                :"calc(-infinity * 1%)",
+    "1px * iNFinIty"                                :"calc(infinity * 1px)",
+    "1px * (infinity + infinity)"                   :"calc(infinity * 1px)",
+    "1px * (-infinity + -infinity)"                 :"calc(-infinity * 1px)",
+    "1px * 1/infinity"                              :"calc(0px)",
+    "1px * infinity * infinity"                     :"calc(infinity * 1px)",
+    "1px * -infinity * -infinity"                   :"calc(infinity * 1px)",
+    "1 * max(INFinity*3px, 0px)"                    :"calc(infinity * 1px)",
+    "1 * min(inFInity*4px, 0px)"                    :"calc(0px)",
+    "1 * max(nAn*2px, 0px)"                         :"calc(NaN * 1px)",
+    "1 * min(nan*3px, 0px)"                         :"calc(NaN * 1px)",
+    "1 * clamp(-INFINITY*20px, 0px, infiniTY*10px)" :"calc(0px)",
+
+    "1px * max(NaN, min(0,10))"                     :"calc(NaN * 1px)",
+    "1px * clamp(NaN, 0, 10)"                       :"calc(NaN * 1px)",
+
+    "1px * max(0, min(10, NaN))"                    :"calc(NaN * 1px)",
+    "1px * clamp(0, 10, NaN)"                       :"calc(NaN * 1px)",
+
+    "1px * max(0, min(NaN, 10))"                    :"calc(NaN * 1px)",
+    "1px * clamp(0, NaN, 10)"                       :"calc(NaN * 1px)",
+
+    "1px * clamp(-Infinity, 0, infinity)"           :"calc(0px)",
+    "1px * clamp(-inFinity, infinity, 10)"          :"calc(10px)",
+
+    "1 * min(NaN * 1pt, NaN * 1cm)"                 :"calc(NaN * 1px)",
+    "1 * max(NaN * 1cm, NaN * 2Q)"                  :"calc(NaN * 1px)",
+    "1 * min(NaN * 2px, NaN * 4em)"                 :"calc(NaN * 1px)",
+    "1 * clamp(NaN * 2em, NaN * 4px, NaN * 8pt)"    :"clamp(NaN * 1em, NaN * 1px, NaN * 1px)",
+};
+
+for (var exp in test_map) {
+    test_serialization("calc("+exp+")", test_map[exp]);
+}
+</script>
