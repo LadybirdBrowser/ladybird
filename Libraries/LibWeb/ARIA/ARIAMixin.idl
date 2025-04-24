@@ -12,21 +12,28 @@ interface mixin ARIAMixin {
     [CEReactions] attribute DOMString? ariaColIndex;
     [CEReactions] attribute DOMString? ariaColIndexText;
     [CEReactions] attribute DOMString? ariaColSpan;
+    [Reflect=aria-controls, CEReactions] attribute sequence<Element>? ariaControlsElements; // FIXME: Should `FrozenArray<Element>?`
     [CEReactions] attribute DOMString? ariaCurrent;
+    [Reflect=aria-describedby, CEReactions] attribute sequence<Element>? ariaDescribedByElements; // FIXME: Should `FrozenArray<Element>?`
     [CEReactions] attribute DOMString? ariaDescription;
+    [Reflect=aria-details, CEReactions] attribute sequence<Element>? ariaDetailsElements; // FIXME: Should `FrozenArray<Element>?`
     [CEReactions] attribute DOMString? ariaDisabled;
+    [Reflect=aria-errormessage, CEReactions] attribute sequence<Element>? ariaErrorMessageElements; // FIXME: Should `FrozenArray<Element>?`
     [CEReactions] attribute DOMString? ariaExpanded;
+    [Reflect=aria-flowto, CEReactions] attribute sequence<Element>? ariaFlowToElements; // FIXME: Should `FrozenArray<Element>?`
     [CEReactions] attribute DOMString? ariaHasPopup;
     [CEReactions] attribute DOMString? ariaHidden;
     [CEReactions] attribute DOMString? ariaInvalid;
     [CEReactions] attribute DOMString? ariaKeyShortcuts;
     [CEReactions] attribute DOMString? ariaLabel;
+    [Reflect=aria-labelledby, CEReactions] attribute sequence<Element>? ariaLabelledByElements; // FIXME: Should `FrozenArray<Element>?`
     [CEReactions] attribute DOMString? ariaLevel;
     [CEReactions] attribute DOMString? ariaLive;
     [CEReactions] attribute DOMString? ariaModal;
     [CEReactions] attribute DOMString? ariaMultiLine;
     [CEReactions] attribute DOMString? ariaMultiSelectable;
     [CEReactions] attribute DOMString? ariaOrientation;
+    [Reflect=aria-owns, CEReactions] attribute sequence<Element>? ariaOwnsElements; // FIXME: Should `FrozenArray<Element>?`
     [CEReactions] attribute DOMString? ariaPlaceholder;
     [CEReactions] attribute DOMString? ariaPosInSet;
     [CEReactions] attribute DOMString? ariaPressed;
