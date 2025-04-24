@@ -16,12 +16,26 @@ namespace JS {
 // https://tc39.es/ecma262/#sec-agents
 class Agent {
 public:
+    enum class CanBlock {
+        Yes,
+        No,
+    };
+
     virtual ~Agent();
 
-    // [[CanBlock]]
-    virtual bool can_block() const = 0;
+    CanBlock can_block() const { return m_can_block; }
 
     virtual void spin_event_loop_until(GC::Root<GC::Function<bool()>> goal_condition) = 0;
+
+protected:
+    explicit Agent(CanBlock can_block)
+        : m_can_block(can_block)
+    {
+    }
+
+private:
+    // [[CanBlock]]
+    CanBlock m_can_block { false };
 };
 
 bool agent_can_suspend(VM const&);

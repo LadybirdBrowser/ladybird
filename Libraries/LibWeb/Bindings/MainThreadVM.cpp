@@ -77,7 +77,7 @@ void initialize_main_thread_vm(HTML::EventLoop::Type type)
     VERIFY(!s_main_thread_vm);
 
     s_main_thread_vm = JS::VM::create();
-    s_main_thread_vm->set_agent(make<HTML::SimilarOriginWindowAgent>());
+    s_main_thread_vm->set_agent(HTML::SimilarOriginWindowAgent::create());
 
     auto& agent = as<HTML::Agent>(*s_main_thread_vm->agent());
     agent.event_loop = s_main_thread_vm->heap().allocate<HTML::EventLoop>(type);
