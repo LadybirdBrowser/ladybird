@@ -87,6 +87,7 @@ public:
 
     Vector<FlyString> local_variable_names;
     size_t local_index_base { 0 };
+    size_t argument_index_base { 0 };
 
     Optional<IdentifierTableIndex> length_identifier;
 

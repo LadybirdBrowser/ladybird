@@ -51,7 +51,6 @@
     O(EnterObjectEnvironment)          \
     O(EnterUnwindContext)              \
     O(Exp)                             \
-    O(GetArgument)                     \
     O(GetById)                         \
     O(GetByIdWithThis)                 \
     O(GetByValue)                      \
@@ -131,7 +130,6 @@
     O(Return)                          \
     O(RightShift)                      \
     O(ScheduleJump)                    \
-    O(SetArgument)                     \
     O(SetCompletionType)               \
     O(SetLexicalBinding)               \
     O(SetVariableBinding)              \
