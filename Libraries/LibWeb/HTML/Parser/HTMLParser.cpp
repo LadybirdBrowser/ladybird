@@ -810,7 +810,9 @@ GC::Ref<DOM::Element> HTMLParser::create_element_for(HTMLToken const& token, Opt
     // AD-HOC: Let <link> elements know which document they were originally parsed for.
     //         This is used for the render-blocking logic.
     if (local_name == HTML::TagNames::link && namespace_ == Namespace::HTML) {
-        as<HTMLLinkElement>(*element).set_parser_document({}, document);
+        auto& link_element = as<HTMLLinkElement>(*element);
+        link_element.set_parser_document({}, document);
+        link_element.set_was_enabled_when_created_by_parser({}, !token.has_attribute(HTML::AttributeNames::disabled));
     }
 
     // 10. Append each attribute in the given token to element.

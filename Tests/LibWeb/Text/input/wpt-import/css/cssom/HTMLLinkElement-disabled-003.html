@@ -1,0 +1,31 @@
+<!doctype html>
+<title>&lt;link disabled&gt;'s "explicitly enabled" state persists after getting disconnected from the tree</title>
+<link rel="author" title="Emilio Cobos Álvarez" href="mailto:emilio@crisal.io">
+<link rel="author" title="Mozilla" href="https://mozilla.org">
+<link rel="help" href="https://html.spec.whatwg.org/#attr-link-disabled">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<link title="alt" rel="alternate stylesheet" disabled href="data:text/css,html { background: green }">
+<script>
+function assert_applies(applies) {
+  (applies ? assert_equals : assert_not_equals)(getComputedStyle(document.documentElement).backgroundColor, "rgb(0, 128, 0)");
+}
+
+const link = document.querySelector("link[disabled]");
+async_test(function(t) {
+  assert_true(link.disabled);
+  link.disabled = false;
+  assert_false(link.disabled);
+  assert_true(!link.hasAttribute("disabled"));
+  link.remove();
+
+  link.onload = t.step_func_done(function() {
+    assert_equals(document.styleSheets.length, 1);
+    let sheet = document.styleSheets[0];
+    assert_equals(sheet.ownerNode, link);
+    assert_applies(true);
+  });
+
+  document.head.appendChild(link);
+}, "HTMLLinkElement.disabled's explicitly enabled state persists when disconnected and connected again");
+</script>

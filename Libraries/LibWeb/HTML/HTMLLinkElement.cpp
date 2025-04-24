@@ -696,8 +696,8 @@ bool HTMLLinkElement::contributes_a_script_blocking_style_sheet() const
 
     // FIXME: el's media attribute's value matches the environment.
 
-    // FIXME: el's style sheet was enabled when the element was created by the parser.
-    if (has_attribute(AttributeNames::disabled))
+    // el's style sheet was enabled when the element was created by the parser.
+    if (!m_was_enabled_when_created_by_parser)
         return false;
 
     // FIXME: The last time the event loop reached step 1, el's root was that Document.
