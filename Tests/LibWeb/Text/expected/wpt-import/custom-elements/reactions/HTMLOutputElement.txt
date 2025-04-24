@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	value on HTMLOutputElement must enqueue disconnectedCallback when removing a custom element
+Pass	defaultValue on HTMLOutputElement must enqueue disconnectedCallback when removing a custom element

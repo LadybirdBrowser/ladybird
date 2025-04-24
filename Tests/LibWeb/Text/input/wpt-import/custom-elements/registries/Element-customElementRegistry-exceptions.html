@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<link rel="help" href="https://github.com/whatwg/html/issues/10854">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+</head>
+<body>
+<div id="host-window"><template shadowrootmode="open"><a-b></a-b></template></div>
+<div id="host-null"><template shadowrootmode="open" shadowrootcustomelementregistry=""><a-b></a-b></template></div>
+<script>
+
+setup({allow_uncaught_exception : true});
+
+test(() => {
+    const registry = new CustomElementRegistry;
+    registry.define('constructor-throws-exception', class extends HTMLElement { constructor() { super(); throw TypeError; } });
+    registry.define('constructor-returns-different-element', class extends HTMLElement { constructor() { super(); return document.createElement('span'); } });
+    assert_equals(document.createElement('constructor-throws-exception', {customElementRegistry: registry}).customElementRegistry, registry);
+    assert_equals(document.createElement('constructor-returns-different-element', {customElementRegistry: registry}).customElementRegistry, registry);
+}, 'customElementRegistry on a failed custom element created by calling createElement on CustomElementRegistry should return the registry');
+
+test(() => {
+    const registry = new CustomElementRegistry;
+    registry.define('constructor-throws-exception', class extends HTMLElement { constructor() { super(); throw TypeError; } });
+    registry.define('constructor-returns-different-element', class extends HTMLElement { constructor() { super(); return document.createElement('span'); } });
+    const container = document.createElement('div', {customElementRegistry: registry});
+    container.innerHTML = '<constructor-throws-exception></constructor-throws-exception><constructor-returns-different-element></constructor-returns-different-element>';
+    assert_equals(container.querySelector('constructor-throws-exception').customElementRegistry, registry);
+    assert_equals(container.querySelector('constructor-returns-different-element').customElementRegistry, registry);
+}, 'customElementRegistry on a failed custom element created by setting innerHTML should return the associated scoped registry');
+
+function insideDeclarativeShadowTreeWithNullRegistry(test, script, markup, check) {
+    const frame = document.body.appendChild(document.createElement('iframe'));
+    test.add_cleanup(() => frame.remove());
+
+    frame.contentDocument.open();
+    frame.contentDocument.write(`<!DOCTYPE html><html><body><div id="host"><template shadowrootmode="open" shadowrootcustomelementregistry><script>`
+        + script + `</` + 'script>' + markup + '</template></div></body></html>');
+    frame.contentDocument.close();
+    check(frame.contentDocument, frame.contentWindow);
+}
+
+test((t) => {
+    insideDeclarativeShadowTreeWithNullRegistry(t, `
+        window.registry = new CustomElementRegistry;
+        registry.initialize(host.shadowRoot);
+        registry.define('constructor-throws-exception', class extends HTMLElement { constructor() { super(); throw TypeError; } });
+        registry.define('constructor-returns-different-element', class extends HTMLElement { constructor() { super(); return document.createElement('span'); } });`,
+        '<constructor-throws-exception></constructor-throws-exception><constructor-returns-different-element></constructor-returns-different-element>',
+        (doc, win) => {
+            assert_equals(win.host.shadowRoot.querySelector('constructor-throws-exception').customElementRegistry, win.registry);
+            assert_equals(win.host.shadowRoot.querySelector('constructor-returns-different-element').customElementRegistry, win.registry);
+        });
+}, 'customElementRegistry on a failed custom element created by parser should return the specified custom regsitry');
+
+</script>
+</body>
+</html>

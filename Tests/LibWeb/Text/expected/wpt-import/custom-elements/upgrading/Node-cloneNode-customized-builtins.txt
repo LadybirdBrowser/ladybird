@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	Node.prototype.cloneNode(false) must be able to clone as a customized built-in element when it has an inconsistent "is" attribute

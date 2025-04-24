@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<title>Custom Elements: document.createElementNS should support custom elements</title>
+<link rel="help" content="https://dom.spec.whatwg.org/#concept-create-element">
+<link rel="help" content="https://dom.spec.whatwg.org/#internal-createelementns-steps">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<body>
+<script>
+test(() => {
+  class MyElement extends HTMLElement {};
+
+  customElements.define('my-autonomous', MyElement);
+  let element = document.createElementNS('http://www.w3.org/1999/xhtml', 'p:my-autonomous');
+  assert_true(element instanceof MyElement);
+  assert_equals(element.prefix, 'p');
+}, 'autonomous: document.createElementNS should create custom elements with prefixes.');
+
+test(() => {
+  class MyElement2 extends HTMLElement {};
+
+  customElements.define('my-autonomous2', MyElement2);
+  let element = document.createElementNS('urn:example', 'my-autonomous2');
+  assert_false(element instanceof MyElement2);
+}, 'autonomous: document.createElementNS should check namespaces.');
+
+test(() => {
+  const xhtmlNS = 'http://www.w3.org/1999/xhtml';
+  assert_false(document.createElementNS(xhtmlNS, 'x-foo') instanceof HTMLUnknownElement);
+  assert_false(document.createElementNS(xhtmlNS, 'x-foo', {}) instanceof HTMLUnknownElement);
+  assert_false((new Document()).createElementNS(xhtmlNS, 'x-foo') instanceof HTMLUnknownElement);
+  assert_false((new Document()).createElementNS(xhtmlNS, 'x-foo', {}) instanceof HTMLUnknownElement);
+}, 'autonomous: document.createElementNS should not create HTMLUnknownElement for a valid custom element name');
+
+test(() => {
+  class MyElement3 extends HTMLElement {};
+  customElements.define('my-autonomous3', MyElement3);
+
+  const instance = document.createElementNS('http://www.w3.org/1999/xhtml', 'my-autonomous3', undefined);
+  assert_true(instance instanceof MyElement3);
+}, 'autonomous: document.createElementNS with undefined options value should be upgraded.');
+
+</script>
+</body>

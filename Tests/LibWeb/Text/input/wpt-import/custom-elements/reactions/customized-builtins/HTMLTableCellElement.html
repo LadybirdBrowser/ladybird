@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<title>Custom Elements: CEReactions on HTMLTableCellElement interface</title>
+<link rel="author" title="Intel" href="http://www.intel.com">
+<meta name="assert" content="colSpan, rowSpan, headers, scope, abbr of
+  HTMLTableCellElement interface must have CEReactions">
+<meta name="help" content="https://html.spec.whatwg.org/#the-td-element">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../resources/custom-elements-helpers.js"></script>
+<script src="../resources/reactions.js"></script>
+
+<table><tr id="colSpan"></table>
+<table><tr id="rowSpan"><tr><tr></table>
+<table><tr><th id="id1"><th id="id2"><tr id="td_headers"><tr id="th_headers"></table>
+<script>
+
+function getParentElement(id) {
+  let parentElement = document.getElementById(id);
+  return parentElement;
+}
+
+testReflectAttributeWithParentNode(
+  'colSpan', 'colspan', '2',
+  '3', 'colSpan on HTMLTableCellElement in td', 'td',
+  () => getParentElement('colSpan'), HTMLTableCellElement
+);
+testReflectAttributeWithParentNode(
+  'colSpan', 'colspan', '2',
+  '3', 'colSpan on HTMLTableCellElement in th', 'th',
+  () => getParentElement('colSpan'), HTMLTableCellElement
+);
+testReflectAttributeWithParentNode(
+  'rowSpan', 'rowspan', '2',
+  '3', 'rowSpan on HTMLTableCellElement in td', 'td',
+  () => getParentElement('rowSpan'), HTMLTableCellElement
+);
+testReflectAttributeWithParentNode(
+  'rowSpan', 'rowspan', '2',
+  '3', 'rowSpan on HTMLTableCellElement in th', 'th',
+  () => getParentElement('rowSpan'), HTMLTableCellElement
+);
+testReflectAttributeWithParentNode(
+  'headers', 'headers', 'id1',
+  'id2', 'headers on HTMLTableCellElement in td', 'td',
+  () => getParentElement('td_headers'), HTMLTableCellElement
+);
+testReflectAttributeWithParentNode(
+  'headers', 'headers', 'id1',
+  'id2', 'headers on HTMLTableCellElement in th', 'th',
+  () => getParentElement('th_headers'), HTMLTableCellElement
+);
+testReflectAttributeWithParentNode(
+  'scope', 'scope', 'row',
+  'col', 'scope on HTMLTableCellElement in th', 'th',
+  () => getParentElement('colSpan'), HTMLTableCellElement
+);
+testReflectAttributeWithParentNode(
+  'abbr', 'abbr', 'Model1',
+  'Model2', 'abbr on HTMLTableCellElement in th', 'th',
+  () => getParentElement('colSpan'), HTMLTableCellElement
+);
+
+</script>

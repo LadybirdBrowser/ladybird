@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/semantics-other.html#selector-defined">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<iframe id="iframe"></iframe>
+<script>
+const testList = [
+  { tag_name: 'abbr', is: 'my-abbr', defined: false },
+  { tag_name: 'p', is: '', defined: false },
+];
+
+// Setup iframe to test the parser.
+const neither = 'rgb(255, 0, 0)';
+const defined = 'rgb(255, 165, 0)';
+const not_defined = 'rgb(0, 0, 255)';
+const iframe = document.getElementById("iframe");
+iframe.srcdoc = `<style>
+  * { color:${neither}; }
+  :defined { color:${defined}; }
+  :not(:defined) { color:${not_defined}; }
+</style>`
+  + testList.map(d => `<${d.tag_name} is="${d.is}"></${d.tag_name}>`).join('');
+setup({ explicit_done: true });
+iframe.onload = () => {
+  const doc = iframe.contentDocument;
+  const doc_without_browsing_context = doc.implementation.createHTMLDocument();
+  for (const data of testList) {
+    // Test elements inserted by parser.
+    test_defined(data.defined, doc.getElementsByTagName(data.tag_name)[0], `<${data.tag_name} is="${data.is}">`);
+
+    // Test DOM createElement() methods.
+    let try_upgrade = !data.defined && (data.is === undefined || data.is.length > 0);
+    test_defined_for_createElement(data.defined, try_upgrade, doc, data.tag_name, data.is);
+
+    // Documents without browsing context should behave the same.
+    test_defined_for_createElement(data.defined, false, doc_without_browsing_context, data.tag_name, data.is, 'Without browsing context: ');
+  }
+
+  done();
+};
+
+function test_defined_for_createElement(defined, should_test_change, doc, tag_name, is, description = '') {
+  let has_is = is !== undefined;
+  // Test document.createElement().
+  let element = doc.createElement(tag_name, { is });
+  doc.body.appendChild(element);
+  test_defined(defined, element, `${description}createElement("${tag_name}", is:"${is}")`);
+
+  // Test document.createElementNS().
+  let html_element = doc.createElementNS('http://www.w3.org/1999/xhtml', tag_name, { is })
+  doc.body.appendChild(html_element);
+  test_defined(defined, html_element, `${description}createElementNS("http://www.w3.org/1999/xhtml", "${tag_name}", is:"${is}")`);
+
+  // If the element namespace is not HTML, it should be "uncustomized"; i.e., "defined".
+  let svg_element = doc.createElementNS('http://www.w3.org/2000/svg', tag_name, { is });
+  doc.body.appendChild(svg_element);
+  test_defined(true, svg_element, `${description}createElementNS("http://www.w3.org/2000/svg", "${tag_name}", is:"${is}")`);
+
+  // Test ":defined" changes when the custom element was defined.
+  if (should_test_change) {
+    let w = doc.defaultView;
+    assert_false(!w, 'defaultView required to test change');
+    w.customElements.define(is, class extends w.HTMLElement {}, { extends: tag_name });
+    test_defined(true, element, `Upgraded ${description}createElement("${tag_name}", is:"${is}")`);
+    test_defined(true, html_element, `Upgraded ${description}createElementNS("http://www.w3.org/1999/xhtml", "${tag_name}", is:"${is}")`);
+  }
+}
+
+function test_defined(expected, element, description) {
+  test(() => {
+    assert_equals(element.matches(':defined'), expected, 'matches(":defined")');
+    assert_equals(element.matches(':not(:defined)'), !expected, 'matches(":not(:defined")');
+    const view = element.ownerDocument.defaultView;
+    if (!view)
+      return;
+    const style = view.getComputedStyle(element);
+    assert_equals(style.color, expected ? defined : not_defined, 'getComputedStyle');
+  }, `${description} should ${expected ? 'be' : 'not be'} :defined`);
+}
+
+</script>

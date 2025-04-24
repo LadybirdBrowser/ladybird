@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+
+<body>
+<script>
+"use strict";
+
+test(() => {
+  class SomeElement1 extends HTMLElement {}
+  customElements.define("some-element-1", SomeElement1);
+
+  const savedCustomElements = Object.getOwnPropertyDescriptor(window, "customElements");
+  Object.defineProperty(window, "customElements", { value: {}, configurable: true });
+
+  const element = document.createElement("some-element-1");
+  assert_true(element instanceof SomeElement1);
+
+  Object.defineProperty(window, "customElements", savedCustomElements);
+}, "Custom elements can still be created after `window.customElements` is overwritten.");
+
+test(() => {
+  class SomeElement2 extends HTMLElement {}
+  customElements.define("some-element-2", SomeElement2);
+
+  const savedCustomElements = Object.getOwnPropertyDescriptor(window, "customElements");
+  Object.defineProperty(window, "customElements", { value: {}, configurable: true });
+
+  const element = new SomeElement2();
+  assert_true(element instanceof SomeElement2);
+
+  Object.defineProperty(window, "customElements", savedCustomElements);
+}, "Custom elements can still be constructed after `window.customElements` is overwritten.");
+
+test(() => {
+  class SomeElement3 extends HTMLElement {}
+  customElements.define("some-element-3", SomeElement3);
+
+  const savedCustomElements = Object.getOwnPropertyDescriptor(window, "customElements");
+  delete window.customElements;
+
+  const element = document.createElement("some-element-3");
+  assert_true(element instanceof SomeElement3);
+
+  Object.defineProperty(window, "customElements", savedCustomElements);
+}, "Custom elements can still be created after `window.customElements` is deleted.");
+
+test(() => {
+  class SomeElement4 extends HTMLElement {}
+  customElements.define("some-element-4", SomeElement4);
+
+  const savedCustomElements = Object.getOwnPropertyDescriptor(window, "customElements");
+  delete window.customElements;
+
+  const element = new SomeElement4();
+  assert_true(element instanceof SomeElement4);
+
+  Object.defineProperty(window, "customElements", savedCustomElements);
+}, "Custom elements can still be constructed after `window.customElements` is deleted.");
+</script>

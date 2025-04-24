@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Range.cloneContents should invoke constructor in tree order
+Pass	Range.extractContents should invoke constructor in tree order

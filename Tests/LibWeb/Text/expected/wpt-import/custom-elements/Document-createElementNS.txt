@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	autonomous: document.createElementNS should create custom elements with prefixes.
+Pass	autonomous: document.createElementNS should check namespaces.
+Pass	autonomous: document.createElementNS should not create HTMLUnknownElement for a valid custom element name
+Pass	autonomous: document.createElementNS with undefined options value should be upgraded.

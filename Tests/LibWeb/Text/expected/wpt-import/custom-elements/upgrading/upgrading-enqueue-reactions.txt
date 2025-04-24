@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	Upgrading a custom element must enqueue attributeChangedCallback on each attribute
+Pass	Upgrading a custom element not must enqueue attributeChangedCallback on unobserved attributes
+Pass	Upgrading a custom element must enqueue connectedCallback if the element in the document
+Pass	Upgrading a custom element must enqueue attributeChangedCallback before connectedCallback
+Pass	Upgrading a custom element must not invoke attributeChangedCallback and connectedCallback when the element failed to upgrade

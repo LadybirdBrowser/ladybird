@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+ <html>
+ <head>
+ <title>Custom Elements: create an element for a token must increment and decrement document's throw-on-dynamic-markup-insertion counter</title>
+ <meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+ <meta name="assert" content="Invoking document.open, document.write, document.writeln, and document.write must throw an exception when the HTML parser is creating a custom element for a token">
+ <meta name="help" content="https://html.spec.whatwg.org/multipage/parsing.html#create-an-element-for-the-token">
+ <meta name="help" content="https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#throw-on-dynamic-markup-insertion-counter">
+ <script src="../resources/testharness.js"></script>
+ <script src="../resources/testharnessreport.js"></script>
+ <script src="./resources/custom-elements-helpers.js"></script>
+ </head>
+ <body>
+ <div id="log"></div>
+ <script>
+
+ async function construct_custom_element_in_parser(test, call_function)
+ {
+     const window = await create_window_in_test(test);
+     const document = window.document;
+
+     document.open();
+
+     let executed = false;
+     let exception = null;
+     class CustomElement extends window.HTMLElement {
+         constructor() {
+             super();
+             try {
+                 call_function(document, window);
+             } catch (error) {
+                 exception = error;
+             }
+             executed = true;
+         }
+     }
+     window.customElements.define('some-element', CustomElement);
+
+     document.write('<!DOCTYPE html><html><body><some-element></some-element></body></html>');
+     document.close();
+
+     assert_true(executed, 'Must synchronously instantiate a custom element');
+     return {window, document, exception};
+ }
+
+ promise_test(async function () {
+     const result = await construct_custom_element_in_parser(this, (document) => document.open());
+     assert_throws_dom('InvalidStateError', result.window.DOMException, () => { throw result.exception; }, 'Must throw an InvalidStateError');
+ }, 'document.open() must throw an InvalidStateError when synchronously constructing a custom element');
+
+ promise_test(async function () {
+     const result = await construct_custom_element_in_parser(this, (document) => document.open('text/html'));
+     assert_throws_dom('InvalidStateError', result.window.DOMException, () => { throw result.exception; }, 'Must throw an InvalidStateError');
+ }, 'document.open("text/html") must throw an InvalidStateError when synchronously constructing a custom element');
+
+ // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-document-open-window
+ promise_test(async function () {
+     let load_promise = new Promise((resolve) => window.onmessage = (event) => resolve(event.data));
+     const result = await construct_custom_element_in_parser(this, (document, window) => document.open('resources/navigation-destination.html', '_self', ''));
+     assert_equals(result.exception, null);
+     assert_equals(await load_promise, 'didNavigate');
+ }, 'document.open(URL) must NOT throw an InvalidStateError when synchronously constructing a custom element');
+
+ promise_test(async function () {
+     const result = await construct_custom_element_in_parser(this, (document) => document.close());
+     assert_throws_dom('InvalidStateError', result.window.DOMException, () => { throw result.exception; }, 'Must throw an InvalidStateError');
+ }, 'document.close() must throw an InvalidStateError when synchronously constructing a custom element');
+
+ promise_test(async function () {
+     const result = await construct_custom_element_in_parser(this, (document) => document.write('<b>some text</b>'));
+     assert_throws_dom('InvalidStateError', result.window.DOMException, () => { throw result.exception; }, 'Must throw an InvalidStateError');
+     assert_equals(result.document.querySelector('b'), null, 'Must not insert new content');
+     assert_false(result.document.documentElement.innerHTML.includes('some text'), 'Must not insert new content');
+ }, 'document.write must throw an InvalidStateError when synchronously constructing a custom element');
+
+ promise_test(async function () {
+     const result = await construct_custom_element_in_parser(this, (document) => document.writeln('<b>some text</b>'));
+     assert_throws_dom('InvalidStateError', result.window.DOMException, () => { throw result.exception; }, 'Must throw an InvalidStateError');
+     assert_equals(result.document.querySelector('b'), null, 'Must not insert new content');
+     assert_false(result.document.documentElement.innerHTML.includes('some text'), 'Must not insert new content');
+ }, 'document.writeln must throw an InvalidStateError when synchronously constructing a custom element');
+
+ promise_test(async function () {
+     const another_window = await create_window_in_test(this);
+     const result = await construct_custom_element_in_parser(this, (document) => another_window.document.open());
+     assert_equals(result.exception, null);
+ }, 'document.open() of another document must not throw an InvalidStateError when synchronously constructing a custom element');
+
+ promise_test(async function () {
+     const another_window = await create_window_in_test(this);
+     const result = await construct_custom_element_in_parser(this, (document) => another_window.document.open('text/html'));
+     assert_equals(result.exception, null);
+ }, 'document.open("text/html") of another document must not throw an InvalidStateError when synchronously constructing a custom element');
+
+ promise_test(async function () {
+     const another_window = await create_window_in_test(this);
+     const result = await construct_custom_element_in_parser(this, (document) => another_window.document.close());
+     assert_equals(result.exception, null);
+ }, 'document.close() of another document must not throw an InvalidStateError when synchronously constructing a custom element');
+
+ promise_test(async function () {
+     const another_window = await create_window_in_test(this);
+     const result = await construct_custom_element_in_parser(this, (document) => another_window.document.write('<b>some text</b>'));
+     assert_equals(result.exception, null);
+     assert_equals(another_window.document.querySelector('b').outerHTML, '<b>some text</b>');
+ }, 'document.write of another document must not throw an InvalidStateError when synchronously constructing a custom element');
+
+ promise_test(async function () {
+     const another_window = await create_window_in_test(this);
+     const result = await construct_custom_element_in_parser(this, (document) => another_window.document.writeln('<b>some text</b>'));
+     assert_equals(result.exception, null);
+     assert_equals(another_window.document.querySelector('b').outerHTML, '<b>some text</b>');
+ }, 'document.writeln of another document must not throw an InvalidStateError when synchronously constructing a custom element');
+
+ </script>
+ </body>
+ </html>

@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	href on HTMLBaseElement must enqueue an attributeChanged reaction when adding a new attribute
+Pass	href on HTMLBaseElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	target on HTMLBaseElement must enqueue an attributeChanged reaction when adding a new attribute
+Pass	target on HTMLBaseElement must enqueue an attributeChanged reaction when replacing an existing attribute

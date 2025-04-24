@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	text on HTMLOptionElement must enqueue disconnectedCallback when removing a custom element

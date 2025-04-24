@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Custom Elements: HTML parser must construct a custom element instead of upgrading</title>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<meta name="assert" content="HTML parser must construct a custom element instead of upgrading">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<link rel="help" href="https://html.spec.whatwg.org/#create-an-element-for-the-token">
+<link rel="help" href="https://dom.spec.whatwg.org/#concept-create-element">
+</head>
+<body>
+<div id="log"></div>
+<script>
+
+let anotherElementCreatedBeforeSuperCall = undefined;
+let elementCreatedBySuperCall = undefined;
+let shouldCreateElementBeforeSuperCall = true;
+class InstantiatesItselfBeforeSuper extends HTMLElement {
+    constructor() {
+        if (shouldCreateElementBeforeSuperCall) {
+            shouldCreateElementBeforeSuperCall = false;
+            anotherElementCreatedBeforeSuperCall = new InstantiatesItselfBeforeSuper();
+        }
+        super();
+        elementCreatedBySuperCall = this;
+    }
+};
+customElements.define('instantiates-itself-before-super', InstantiatesItselfBeforeSuper);
+
+let shouldCreateAnotherInstance = true;
+let anotherInstance = undefined;
+let firstInstance = undefined;
+class ReturnsAnotherInstance extends HTMLElement {
+    constructor() {
+        super();
+        if (shouldCreateAnotherInstance) {
+            shouldCreateAnotherInstance = false;
+            firstInstance = this;
+            anotherInstance = new ReturnsAnotherInstance;
+            return anotherInstance;
+        } else
+            return this;
+    }
+};
+customElements.define('returns-another-instance', ReturnsAnotherInstance);
+
+</script>
+<instantiates-itself-before-super></instantiates-itself-before-super>
+<returns-another-instance></returns-another-instance>
+<script>
+
+test(function () {
+    var instance = document.querySelector('instantiates-itself-before-super');
+
+    assert_true(instance instanceof InstantiatesItselfBeforeSuper, 'HTML parser must insert the synchronously constructed custom element');
+    assert_equals(instance, elementCreatedBySuperCall, 'HTML parser must insert the element returned by the custom element constructor');
+    assert_not_equals(instance, anotherElementCreatedBeforeSuperCall, 'HTML parser must not insert another instance of the custom element created before super() call');
+    assert_equals(anotherElementCreatedBeforeSuperCall.parentNode, null, 'HTML parser must not insert another instance of the custom element created before super() call');
+
+}, 'HTML parser must use the returned value of the custom element constructor instead of the one created before super() call');
+
+test(function () {
+    var instance = document.querySelector('returns-another-instance');
+
+    assert_true(instance instanceof ReturnsAnotherInstance, 'HTML parser must insert the synchronously constructed custom element');
+    assert_equals(instance, anotherInstance, 'HTML parser must insert the element returned by the custom element constructor');
+    assert_not_equals(instance, firstInstance, 'HTML parser must not insert the element created by super() call if the constructor returned another element');
+    assert_equals(firstInstance.parentNode, null, 'HTML parser must not insert the element created by super() call if the constructor returned another element');
+
+}, 'HTML parser must use the returned value of the custom element constructor instead using the one created in super() call');
+
+</script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	disabled on HTMLOptGroupElement must enqueue an attributeChanged reaction when adding a new attribute
+Pass	disabled on HTMLOptGroupElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	label on HTMLOptGroupElement must enqueue an attributeChanged reaction when adding a new attribute
+Pass	label on HTMLOptGroupElement must enqueue an attributeChanged reaction when replacing an existing attribute

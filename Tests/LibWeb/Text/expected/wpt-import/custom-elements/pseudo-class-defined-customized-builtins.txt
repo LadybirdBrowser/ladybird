@@ -1,0 +1,21 @@
+Harness status: OK
+
+Found 16 tests
+
+16 Pass
+Pass	<abbr is="my-abbr"> should not be :defined
+Pass	createElement("abbr", is:"my-abbr") should not be :defined
+Pass	createElementNS("http://www.w3.org/1999/xhtml", "abbr", is:"my-abbr") should not be :defined
+Pass	createElementNS("http://www.w3.org/2000/svg", "abbr", is:"my-abbr") should be :defined
+Pass	Upgraded createElement("abbr", is:"my-abbr") should be :defined
+Pass	Upgraded createElementNS("http://www.w3.org/1999/xhtml", "abbr", is:"my-abbr") should be :defined
+Pass	Without browsing context: createElement("abbr", is:"my-abbr") should not be :defined
+Pass	Without browsing context: createElementNS("http://www.w3.org/1999/xhtml", "abbr", is:"my-abbr") should not be :defined
+Pass	Without browsing context: createElementNS("http://www.w3.org/2000/svg", "abbr", is:"my-abbr") should be :defined
+Pass	<p is=""> should not be :defined
+Pass	createElement("p", is:"") should not be :defined
+Pass	createElementNS("http://www.w3.org/1999/xhtml", "p", is:"") should not be :defined
+Pass	createElementNS("http://www.w3.org/2000/svg", "p", is:"") should be :defined
+Pass	Without browsing context: createElement("p", is:"") should not be :defined
+Pass	Without browsing context: createElementNS("http://www.w3.org/1999/xhtml", "p", is:"") should not be :defined
+Pass	Without browsing context: createElementNS("http://www.w3.org/2000/svg", "p", is:"") should be :defined

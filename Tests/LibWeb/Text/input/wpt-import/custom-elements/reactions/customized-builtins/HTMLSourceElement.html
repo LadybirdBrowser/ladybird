@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<title>Custom Elements: CEReactions on HTMLSourceElement interface</title>
+<link rel="author" title="Intel" href="http://www.intel.com">
+<meta name="assert" content="src, type, srcset, sizes, media of
+  HTMLSourceElement interface must have CEReactions">
+<meta name="help" content="https://html.spec.whatwg.org/#the-source-element">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../resources/custom-elements-helpers.js"></script>
+<script src="../resources/reactions.js"></script>
+
+<video controls id='video' width='5' height='5'></video>
+<picture id='pic'>
+  <img src='../../../images/green-1x1.png'>
+</picture>
+<body>
+<script>
+
+function getParentElement(id) {
+  let element = document.getElementById(id);
+  return element;
+}
+
+testReflectAttributeWithParentNode(
+  'src', 'src', '/media/video.webm',
+  '/media/white.mp4', 'src on HTMLSourceElement', 'source',
+  () => getParentElement('video'), HTMLSourceElement
+);
+testReflectAttributeWithDependentAttributes(
+  'type', 'type', 'video/mp4; codecs="mp4v.20.240, mp4a.40.2"',
+  'video/mp4; codecs="mp4v.20.8, mp4a.40.2"', 'type on HTMLSourceElement',
+  'source',
+  () => getParentElement('video'),
+  instance => instance.setAttribute('src', '/media/white.mp4'), HTMLSourceElement
+);
+
+function testReflectAttributeWithContentValuesAndParentNode(
+  jsAttributeName, contentAttributeName, validValue1,
+  contentValue1, validValue2, contentValue2,
+  name, elementName, getParentElement,
+  interfaceName) {
+
+  let parentElement = getParentElement();
+
+  test(() => {
+    let element = define_build_in_custom_element(
+      [contentAttributeName], interfaceName, elementName
+    );
+    let instance = document.createElement(elementName, { is: element.name });
+
+    assert_array_equals(element.takeLog().types(), ['constructed']);
+    // source element as a child of a picture element, before the img element
+    parentElement.prepend(instance);
+    assert_array_equals(element.takeLog().types(), ['connected']);
+    instance[jsAttributeName] = validValue1;
+    let logEntries = element.takeLog();
+    assert_array_equals(logEntries.types(), ['attributeChanged']);
+    assert_attribute_log_entry(
+      logEntries.last(),
+      { name: contentAttributeName, oldValue: null,
+        newValue: contentValue1, namespace: null
+      }
+    );
+  }, name + ' must enqueue an attributeChanged reaction when adding a new attribute');
+
+  test(() => {
+    let element = define_build_in_custom_element(
+      [contentAttributeName], interfaceName, elementName
+    );
+    let instance = document.createElement(elementName, { is: element.name });
+    // source element as a child of a picture element, before the img element
+    parentElement.prepend(instance);
+
+    assert_array_equals(element.takeLog().types(), ['constructed', 'connected']);
+    instance[jsAttributeName] = validValue1;
+    assert_array_equals(element.takeLog().types(), ['attributeChanged']);
+    instance[jsAttributeName] = validValue2;
+    let logEntries = element.takeLog();
+    assert_array_equals(logEntries.types(), ['attributeChanged']);
+    assert_attribute_log_entry(
+      logEntries.last(),
+      { name: contentAttributeName, oldValue: contentValue1,
+        newValue: contentValue2, namespace: null
+      }
+    );
+  }, name + ' must enqueue an attributeChanged reaction when replacing an existing attribute');
+}
+
+function testReflectAttributeWithParentNode(
+  jsAttributeName, contentAttributeName, validValue1,
+  validValue2, name, elementName,
+  getParentElement, interfaceName) {
+
+  testReflectAttributeWithContentValuesAndParentNode(
+    jsAttributeName, contentAttributeName, validValue1,
+    validValue1, validValue2, validValue2,
+    name, elementName, getParentElement,
+    interfaceName
+  );
+}
+
+function testReflectAttributeWithContentValuesAndDependentAttributes(
+  jsAttributeName, contentAttributeName, validValue1,
+  contentValue1, validValue2, contentValue2,
+  name, elementName, getParentElement,
+  setAttributes, interfaceName) {
+
+  let parentElement = getParentElement();
+
+  test(() => {
+    let element = define_build_in_custom_element(
+      [contentAttributeName], interfaceName, elementName
+    );
+    let instance = document.createElement(elementName, { is: element.name });
+
+    assert_array_equals(element.takeLog().types(), ['constructed']);
+    // source element as a child of a picture element, before the img element
+    parentElement.prepend(instance);
+    assert_array_equals(element.takeLog().types(), ['connected']);
+    setAttributes(instance);
+    instance[jsAttributeName] = validValue1;
+    let logEntries = element.takeLog();
+    assert_array_equals(logEntries.types(), ['attributeChanged']);
+    assert_attribute_log_entry(
+      logEntries.last(),
+      { name: contentAttributeName, oldValue: null,
+        newValue: contentValue1, namespace: null
+      }
+    );
+  }, name + ' must enqueue an attributeChanged reaction when adding a new attribute');
+
+  test(() => {
+    let element = define_build_in_custom_element(
+      [contentAttributeName], interfaceName, elementName
+    );
+    let instance = document.createElement(elementName, { is: element.name });
+    // source element as a child of a picture element, before the img element
+    parentElement.prepend(instance);
+    setAttributes(instance);
+    instance[jsAttributeName] = validValue1;
+
+    assert_array_equals(
+      element.takeLog().types(),
+      ['constructed', 'connected', 'attributeChanged']
+    );
+    instance[jsAttributeName] = validValue2;
+    let logEntries = element.takeLog();
+    assert_array_equals(logEntries.types(), ['attributeChanged']);
+    assert_attribute_log_entry(
+      logEntries.last(),
+      { name: contentAttributeName, oldValue: contentValue1,
+        newValue: contentValue2, namespace: null
+      }
+    );
+  }, name + ' must enqueue an attributeChanged reaction when replacing an existing attribute');
+}
+
+function testReflectAttributeWithDependentAttributes(
+  jsAttributeName, contentAttributeName, validValue1,
+  validValue2, name, elementName,
+  getParentElement, setAttributes, interfaceName) {
+
+  testReflectAttributeWithContentValuesAndDependentAttributes(
+    jsAttributeName, contentAttributeName, validValue1,
+    validValue1, validValue2, validValue2,
+    name, elementName, getParentElement,
+    setAttributes, interfaceName);
+}
+
+testReflectAttributeWithParentNode(
+  'srcset', 'srcset', '/images/green.png',
+  '../../../images/green-1x1.png', 'srcset on HTMLSourceElement', 'source',
+  () => getParentElement('pic'), HTMLSourceElement
+);
+testReflectAttributeWithDependentAttributes(
+  'sizes', 'sizes', '(max-width: 32px) 28px',
+  '(max-width: 48px) 44px', 'sizes on HTMLSourceElement', 'source',
+  () => getParentElement('pic'),
+  instance => instance.setAttribute('srcset', '/images/green.png 3x'),
+  HTMLSourceElement
+);
+testReflectAttributeWithDependentAttributes(
+  'media', 'media', '(max-width: 7px)',
+  '(max-width: 9px)', 'media on HTMLSourceElement', 'source',
+  () => getParentElement('pic'),
+  instance => instance.setAttribute('srcset', '/images/green.png 3x'),
+  HTMLSourceElement
+);
+
+</script>
+</body>

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<title>Custom Elements: CEReactions on HTMLButtonElement interface</title>
+<meta name="author" title="Zhang Xiaoyu" href="xiaoyux.zhang@intel.com">
+<meta name="assert" content=" autofocus, disabled, formAction, formEnctype,
+  formMethod, formNoValidate, formTarget, name, type, value
+  of HTMLButtonElement interface must have CEReactions">
+<meta name="help" content="https://html.spec.whatwg.org/#htmlbuttonelement">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../resources/custom-elements-helpers.js"></script>
+<script src="../resources/reactions.js"></script>
+<body>
+<script>
+
+function getParentElement(parentElementName) {
+  let parentElement = document.createElement(parentElementName);
+  document.body.appendChild(parentElement);
+  return parentElement;
+}
+
+function setAttributes(instance) {
+  instance.setAttribute('type', 'submit');
+}
+
+testReflectBooleanAttribute(
+  'autofocus', 'autofocus', 'autofocus on HTMLButtonElement',
+  'button', HTMLButtonElement
+);
+testReflectBooleanAttribute(
+  'disabled', 'disabled','disabled on HTMLButtonElement',
+  'button', HTMLButtonElement
+);
+testReflectAttribute(
+  'name', 'name', 'intel',
+  'intel1', 'name on HTMLButtonElement', 'button',
+  HTMLButtonElement
+);
+testReflectAttribute(
+  'value', 'value', 'HTML',
+  'CSS', 'value on HTMLButtonElement', 'button',
+  HTMLButtonElement
+);
+testReflectAttributeWithParentNode(
+  'type', 'type', 'submit',
+  'reset',  'type on HTMLButtonElement', 'button',
+  () => getParentElement('form'), HTMLButtonElement
+);
+testReflectAttributeWithDependentAttributes(
+  'formAction', 'formaction', 'intel.asp',
+  'intel1.asp', 'formAction on HTMLButtonElement', 'button',
+  () => getParentElement('form'), instance => setAttributes(instance),
+  HTMLButtonElement
+);
+testReflectAttributeWithDependentAttributes(
+  'formEnctype', 'formenctype', 'text/plain', 'multipart/form-data',
+  'formEnctype on HTMLButtonElement', 'button', () => getParentElement('form'),
+  instance => setAttributes(instance),
+  HTMLButtonElement
+);
+testReflectAttributeWithDependentAttributes(
+  'formMethod', 'formmethod', 'get',
+  'post', 'formMethod on HTMLButtonElement', 'button',
+  () => getParentElement('form'), instance => setAttributes(instance),
+  HTMLButtonElement
+);
+testReflectBooleanAttributeWithDependentAttributes(
+  'formNoValidate', 'formnovalidate', 'formNoValidate on HTMLButtonElement',
+  'button', () => getParentElement('form'),
+  instance => setAttributes(instance),
+  HTMLButtonElement
+);
+testReflectAttributeWithDependentAttributes(
+  'formTarget', 'formtarget', '_blank',
+  '_self', 'formTarget on HTMLButtonElement', 'button',
+  () => getParentElement('form'), instance => setAttributes(instance),
+  HTMLButtonElement
+);
+
+</script>
+</body>

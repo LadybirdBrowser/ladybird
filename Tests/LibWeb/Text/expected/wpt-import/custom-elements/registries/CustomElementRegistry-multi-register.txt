@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Fail
+Fail	Same constructor can be registered to different registries
+Fail	Non-global registries still reject duplicate registrations of the same constructor

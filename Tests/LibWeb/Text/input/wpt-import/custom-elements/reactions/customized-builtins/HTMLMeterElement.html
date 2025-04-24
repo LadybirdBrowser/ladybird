@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<title>Custom Elements: CEReactions on HTMLMeterElement interface</title>
+<link rel="author" title="Intel" href="http://www.intel.com">
+<meta name="assert" content="value, min, max, low, high, optimum of
+  HTMLMeterElement interface must have CEReactions">
+<meta name="help" content="https://html.spec.whatwg.org/#the-meter-element">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../resources/custom-elements-helpers.js"></script>
+<script src="../resources/reactions.js"></script>
+
+<body>
+<script>
+
+function getParentElement() {
+  return document.body;
+}
+
+function setAttributes(instance) {
+  instance.setAttribute('value', '0.6');
+}
+
+testReflectAttribute(
+  'value', 'value', '0.3',
+  '0.4', 'value on HTMLMeterElement', 'meter',
+  HTMLMeterElement
+);
+testReflectAttributeWithDependentAttributes(
+  'min', 'min', '0.1',
+  '0.2', 'min on HTMLMeterElement', 'meter',
+  getParentElement, instance => setAttributes(instance), HTMLMeterElement
+);
+testReflectAttributeWithDependentAttributes(
+  'max', 'max', '2',
+  '3', 'max on HTMLMeterElement', 'meter',
+  getParentElement, instance => setAttributes(instance), HTMLMeterElement
+);
+testReflectAttributeWithDependentAttributes(
+  'low', 'low', '0.1',
+  '0.2', 'low on HTMLMeterElement', 'meter',
+  getParentElement, instance => setAttributes(instance), HTMLMeterElement
+);
+testReflectAttributeWithDependentAttributes(
+  'high', 'high', '2',
+  '3', 'high on HTMLMeterElement', 'meter',
+  getParentElement, instance => setAttributes(instance), HTMLMeterElement
+);
+testReflectAttributeWithDependentAttributes(
+  'optimum', 'optimum', '0.3',
+  '0.4', 'optimum on HTMLMeterElement', 'meter',
+  getParentElement, instance => setAttributes(instance), HTMLMeterElement
+);
+
+</script>
+</body>

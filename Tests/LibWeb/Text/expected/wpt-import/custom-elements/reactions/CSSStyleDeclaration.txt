@@ -1,0 +1,35 @@
+Harness status: OK
+
+Found 30 tests
+
+30 Pass
+Pass	cssText on CSSStyleDeclaration must enqueue an attributeChanged reaction when it adds the observed style attribute
+Pass	cssText on CSSStyleDeclaration must not enqueue an attributeChanged reaction when it adds the style attribute but the style attribute is not observed
+Pass	cssText on CSSStyleDeclaration must enqueue an attributeChanged reaction when it mutates the observed style attribute
+Pass	cssText on CSSStyleDeclaration must not enqueue an attributeChanged reaction when it mutates the style attribute but the style attribute is not observed
+Pass	setProperty on CSSStyleDeclaration must enqueue an attributeChanged reaction when it adds the observed style attribute
+Pass	setProperty on CSSStyleDeclaration must not enqueue an attributeChanged reaction when it adds the style attribute but the style attribute is not observed
+Pass	setProperty on CSSStyleDeclaration must enqueue an attributeChanged reaction when it mutates the observed style attribute
+Pass	setProperty on CSSStyleDeclaration must not enqueue an attributeChanged reaction when it mutates the style attribute but the style attribute is not observed
+Pass	setProperty on CSSStyleDeclaration must enqueue an attributeChanged reaction when it makes a property important and the style attribute is observed
+Pass	setProperty on CSSStyleDeclaration must enqueue an attributeChanged reaction when it makes a property important but the style attribute is not observed
+Pass	removeProperty on CSSStyleDeclaration must enqueue an attributeChanged reaction when it removes a property from the observed style attribute
+Pass	removeProperty on CSSStyleDeclaration must not enqueue an attributeChanged reaction when it removes a property from the style attribute but the style attribute is not observed
+Pass	cssFloat on CSSStyleDeclaration must enqueue an attributeChanged reaction when it adds the observed style attribute
+Pass	cssFloat on CSSStyleDeclaration must not enqueue an attributeChanged reaction when it adds the style attribute but the style attribute is not observed
+Pass	A camel case attribute (borderWidth) on CSSStyleDeclaration must enqueue an attributeChanged reaction when it adds the observed style attribute
+Pass	A camel case attribute (borderWidth) on CSSStyleDeclaration must not enqueue an attributeChanged reaction when it adds the style attribute but the style attribute is not observed
+Pass	A camel case attribute (borderWidth) on CSSStyleDeclaration must enqueue an attributeChanged reaction when it mutates the observed style attribute
+Pass	A camel case attribute (borderWidth) on CSSStyleDeclaration must not enqueue an attributeChanged reaction when it mutates the style attribute but the style attribute is not observed
+Pass	A dashed property (border-width) on CSSStyleDeclaration must enqueue an attributeChanged reaction when it adds the observed style attribute
+Pass	A dashed property (border-width) on CSSStyleDeclaration must not enqueue an attributeChanged reaction when it adds the style attribute but the style attribute is not observed
+Pass	A dashed property (border-width) on CSSStyleDeclaration must enqueue an attributeChanged reaction when it mutates the observed style attribute
+Pass	A dashed property (border-width) on CSSStyleDeclaration must not enqueue an attributeChanged reaction when it mutates the style attribute but the style attribute is not observed
+Pass	A webkit prefixed camel case attribute (webkitFilter) on CSSStyleDeclaration must enqueue an attributeChanged reaction when it adds the observed style attribute
+Pass	A webkit prefixed camel case attribute (webkitFilter) on CSSStyleDeclaration must not enqueue an attributeChanged reaction when it adds the style attribute but the style attribute is not observed
+Pass	A webkit prefixed camel case attribute (webkitFilter) on CSSStyleDeclaration must enqueue an attributeChanged reaction when it mutates the observed style attribute
+Pass	A webkit prefixed camel case attribute (webkitFilter) on CSSStyleDeclaration must not enqueue an attributeChanged reaction when it mutates the style attribute but the style attribute is not observed
+Pass	A webkit prefixed dashed property (-webkit-filter) on CSSStyleDeclaration must enqueue an attributeChanged reaction when it adds the observed style attribute
+Pass	A webkit prefixed dashed property (-webkit-filter) on CSSStyleDeclaration must not enqueue an attributeChanged reaction when it adds the style attribute but the style attribute is not observed
+Pass	A webkit prefixed dashed property (-webkit-filter) on CSSStyleDeclaration must enqueue an attributeChanged reaction when it mutates the observed style attribute
+Pass	A webkit prefixed dashed property (-webkit-filter) on CSSStyleDeclaration must not enqueue an attributeChanged reaction when it mutates the style attribute but the style attribute is not observed

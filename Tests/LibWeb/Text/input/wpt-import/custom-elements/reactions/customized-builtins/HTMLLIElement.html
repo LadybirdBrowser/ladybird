@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<title>Custom Elements: CEReactions on HTMLLIElement interface</title>
+<link rel="author" title="Intel" href="http://www.intel.com">
+<meta name="assert"
+  content="value of HTMLLIElement interface must have CEReactions">
+<meta name="help" content="https://html.spec.whatwg.org/#the-li-element">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../resources/custom-elements-helpers.js"></script>
+<script src="../resources/reactions.js"></script>
+
+<body>
+<script>
+
+function getParentElement(parentElementName) {
+  let parentElement = document.createElement(parentElementName);
+  document.body.appendChild(parentElement);
+  return parentElement;
+}
+
+testReflectAttributeWithParentNode(
+  'value', 'value', '3',
+  '5', 'value on HTMLLIElement in ol', 'li',
+  () => getParentElement('ol'), HTMLLIElement
+);
+testReflectAttributeWithParentNode(
+  'value', 'value', '3',
+  '5', 'value on HTMLLIElement in ul', 'li',
+  () => getParentElement('ul'), HTMLLIElement
+);
+testReflectAttributeWithParentNode(
+  'value', 'value', '3',
+  '5', 'value on HTMLLIElement in menu', 'li',
+  () => getParentElement('menu'), HTMLLIElement
+);
+
+</script>
+</body>

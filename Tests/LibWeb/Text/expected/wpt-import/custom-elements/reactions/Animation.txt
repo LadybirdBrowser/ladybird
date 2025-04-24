@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Fail
+Fail	Animation.animate must enqueue an attributeChanged reaction when it adds the observed style attribute
+Fail	Animation.animate must enqueue an attributeChanged reaction when it mutates the observed style attribute
+Fail	Animation.animate must not enqueue an attributeChanged reaction when it mutates the style attribute but the style attribute is not observed

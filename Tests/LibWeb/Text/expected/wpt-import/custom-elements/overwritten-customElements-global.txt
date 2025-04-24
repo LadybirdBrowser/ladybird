@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	Custom elements can still be created after `window.customElements` is overwritten.
+Pass	Custom elements can still be constructed after `window.customElements` is overwritten.
+Pass	Custom elements can still be created after `window.customElements` is deleted.
+Pass	Custom elements can still be constructed after `window.customElements` is deleted.

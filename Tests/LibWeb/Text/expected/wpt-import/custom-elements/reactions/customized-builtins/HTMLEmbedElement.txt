@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	src on HTMLEmbedElement must enqueue an attributeChanged reaction when adding src content attribute
+Pass	src on HTMLEmbedElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	type on HTMLEmbedElement must enqueue an attributeChanged reaction when adding type content attribute
+Pass	type on HTMLEmbedElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	width on HTMLEmbedElement must enqueue an attributeChanged reaction when adding width content attribute
+Pass	width on HTMLEmbedElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	height on HTMLEmbedElement must enqueue an attributeChanged reaction when adding height content attribute
+Pass	height on HTMLEmbedElement must enqueue an attributeChanged reaction when replacing an existing attribute

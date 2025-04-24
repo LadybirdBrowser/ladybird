@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Custom elements: Range APIs should invoke constructor in tree order</title>
+<meta name="author" title="Edgar Chen" href="mailto:echen@mozilla.com">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/scripting.html#concept-upgrade-an-element">
+<link rel="help" href="https://dom.spec.whatwg.org/#concept-create-element">
+<link rel="help" href="https://dom.spec.whatwg.org/#concept-range-extract">
+<link rel="help" href="https://dom.spec.whatwg.org/#concept-range-clone">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+</head>
+<body>
+<div id="log"></div>
+
+<c-e id="root">
+  <c-e id="root-0">
+    <c-e id="root-0-0">
+      <c-e id="root-0-0-0"></c-e>
+      <span id="start"></span>
+    </c-e>
+  </c-e>
+  <c-e id="root-1"></c-e>
+  <span id="end"></span>
+</c-e>
+
+<script>
+
+var logs = [];
+class CE extends HTMLElement {
+  constructor() {
+    super();
+    logs.push(this.id);
+  }
+}
+customElements.define('c-e', CE);
+
+function getRange() {
+  const range = new Range();
+  range.setStart(document.getElementById('start'), 0);
+  range.setEnd(document.getElementById('end'), 0);
+  return range;
+}
+
+test(function () {
+  // Clear log for testing.
+  logs = [];
+  getRange().cloneContents();
+  assert_array_equals(logs, ['root-0', 'root-0-0', 'root-1']);
+}, 'Range.cloneContents should invoke constructor in tree order');
+
+test(function () {
+  // Clear log for testing.
+  logs = [];
+  getRange().extractContents();
+  assert_array_equals(logs, ['root-0', 'root-0-0']);
+}, 'Range.extractContents should invoke constructor in tree order');
+
+</script>
+</body>
+</html>

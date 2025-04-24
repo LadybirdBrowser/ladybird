@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Custom Elements: Custom element reactions must be invoked before returning to author scripts</title>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<meta name="assert" content="Custom element reactions must be invoked before returning to author scripts">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/scripting.html#invoke-custom-element-reactions">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+</head>
+<body>
+<div id="log"></div>
+<script>
+
+class MyCustomElement extends HTMLElement {
+    attributeChangedCallback(...args) {
+        this.handler(...args);
+    }
+
+    handler() { }
+}
+MyCustomElement.observedAttributes = ['data-title', 'title'];
+customElements.define('my-custom-element', MyCustomElement);
+
+test(function () {
+    var instance = document.createElement('my-custom-element');
+    var anotherInstance = document.createElement('my-custom-element');
+
+    var callbackOrder = [];
+    instance.handler = function () {
+        callbackOrder.push([this, 'begin']);
+        anotherInstance.setAttribute('data-title', 'baz');
+        callbackOrder.push([this, 'end']);
+    }
+    anotherInstance.handler = function () {
+        callbackOrder.push([this, 'begin']);
+        callbackOrder.push([this, 'end']);
+    }
+
+    instance.setAttribute('title', 'foo');
+    assert_equals(callbackOrder.length, 4);
+
+    assert_array_equals(callbackOrder[0], [instance, 'begin']);
+    assert_array_equals(callbackOrder[1], [anotherInstance, 'begin']);
+    assert_array_equals(callbackOrder[2], [anotherInstance, 'end']);
+    assert_array_equals(callbackOrder[3], [instance, 'end']);
+
+}, 'setAttribute and removeAttribute must enqueue and invoke attributeChangedCallback');
+
+test(function () {
+    var instance = document.createElement('my-custom-element');
+    var anotherInstance = document.createElement('my-custom-element');
+
+    var callbackOrder = [];
+    instance.handler = function () {
+        callbackOrder.push([this, 'begin']);
+        anotherInstance.toggleAttribute('data-title');
+        callbackOrder.push([this, 'end']);
+    }
+    anotherInstance.handler = function () {
+        callbackOrder.push([this, 'begin']);
+        callbackOrder.push([this, 'end']);
+    }
+
+    instance.toggleAttribute('title');
+    assert_equals(callbackOrder.length, 4);
+
+    assert_array_equals(callbackOrder[0], [instance, 'begin']);
+    assert_array_equals(callbackOrder[1], [anotherInstance, 'begin']);
+    assert_array_equals(callbackOrder[2], [anotherInstance, 'end']);
+    assert_array_equals(callbackOrder[3], [instance, 'end']);
+
+}, 'toggleAttribute must enqueue and invoke attributeChangedCallback');
+
+test(function () {
+    var shouldCloneAnotherInstance = false;
+    var anotherInstanceClone;
+    var log = [];
+
+    class SelfCloningElement extends HTMLElement {
+        constructor() {
+            super();
+            log.push([this, 'begin']);
+            if (shouldCloneAnotherInstance) {
+                shouldCloneAnotherInstance = false;
+                anotherInstanceClone = anotherInstance.cloneNode(false);
+            }
+            log.push([this, 'end']);
+        }
+    }
+    customElements.define('self-cloning-element', SelfCloningElement);
+
+    var instance = document.createElement('self-cloning-element');
+    var anotherInstance = document.createElement('self-cloning-element');
+    shouldCloneAnotherInstance = true;
+
+    assert_equals(log.length, 4);
+    var instanceClone = instance.cloneNode(false);
+
+    assert_equals(log.length, 8);
+    assert_array_equals(log[0], [instance, 'begin']);
+    assert_array_equals(log[1], [instance, 'end']);
+    assert_array_equals(log[2], [anotherInstance, 'begin']);
+    assert_array_equals(log[3], [anotherInstance, 'end']);
+    assert_array_equals(log[4], [instanceClone, 'begin']);
+    assert_array_equals(log[5], [anotherInstanceClone, 'begin']);
+    assert_array_equals(log[6], [anotherInstanceClone, 'end']);
+    assert_array_equals(log[7], [instanceClone, 'end']);
+}, 'Calling Node.prototype.cloneNode(false) must push a new element queue to the processing stack');
+
+</script>
+</body>
+</html>

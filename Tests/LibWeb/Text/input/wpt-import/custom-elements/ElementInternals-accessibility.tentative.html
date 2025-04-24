@@ -1,0 +1,41 @@
+<!DOCTYPE HTML>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script>
+class TestElement extends HTMLElement {
+  constructor() {
+    super();
+    this._internals = this.attachInternals();
+  }
+
+  get internals() {
+    return this._internals;
+  }
+
+  set internals(val) {
+    throw "Can't set internals!";
+  }
+}
+customElements.define("test-element", TestElement);
+</script>
+
+<test-element id= "testElement"></test-element>
+
+<script>
+const element = document.getElementById("testElement");
+
+
+// tentative properties
+const properties = [
+  "ariaColIndexText",
+  "ariaDescription",
+  "ariaRowIndexText",
+];
+
+for (const property of properties) {
+  test(() => {
+    assert_inherits(element.internals, property);
+  }, property + " is defined in ElementInternals");
+}
+
+</script>

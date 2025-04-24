@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Custom Elements: HTML parser must use the owner document's custom element registry</title>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<meta name="assert" content="HTML parser must use the owner document's custom element registry">
+<link rel="help" href="https://html.spec.whatwg.org/#create-an-element-for-the-token">
+<link rel="help" href="https://dom.spec.whatwg.org/#concept-create-element">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../resources/custom-elements-helpers.js"></script>
+</head>
+<body>
+<div id="log"></div>
+<script>
+
+class MyCustomElement extends HTMLElement { };
+customElements.define('my-custom-element', MyCustomElement);
+
+document.write('<template><my-custom-element></my-custom-element></template>');
+
+test(function () {
+    var template = document.querySelector('template');
+    var instance = template.content.firstChild;
+
+    assert_true(instance instanceof HTMLElement,
+        'A custom element inside a template element must be an instance of HTMLElement');
+    assert_false(instance instanceof MyCustomElement,
+        'A custom element must not be instantiated inside a template element using the registry of the template element\'s owner document');
+    assert_equals(instance.ownerDocument, template.content.ownerDocument,
+        'Custom elements inside a template must use the appropriate template contents owner document as the owner document');
+
+}, 'HTML parser must not instantiate custom elements inside template elements');
+
+var iframe = document.createElement('iframe');
+document.body.appendChild(iframe);
+iframe.contentDocument.body.innerHTML = '<my-custom-element></my-custom-element>';
+
+test(function () {
+    var instance = iframe.contentDocument.querySelector('my-custom-element');
+
+    assert_true(instance instanceof iframe.contentWindow.HTMLElement);
+    assert_false(instance instanceof MyCustomElement);
+
+}, 'HTML parser must not use the registry of the owner element\'s document inside an iframe');
+
+class ElementInIFrame extends iframe.contentWindow.HTMLElement { };
+iframe.contentWindow.customElements.define('element-in-iframe', ElementInIFrame);
+iframe.contentDocument.body.innerHTML = '<element-in-iframe></element-in-iframe>';
+
+test(function () {
+    var instance = iframe.contentDocument.querySelector('element-in-iframe');
+
+    assert_true(instance instanceof iframe.contentWindow.HTMLElement, 'A custom element inside an iframe must be an instance of HTMLElement');
+    assert_true(instance instanceof ElementInIFrame,
+        'A custom element must be instantiated inside an iframe using the registry of the content document');
+    assert_equals(instance.ownerDocument, iframe.contentDocument,
+        'The owner document of custom elements inside an iframe must be the content document of the iframe');
+
+}, 'HTML parser must use the registry of the content document inside an iframe');
+
+document.write('<element-in-iframe></element-in-iframe>');
+
+test(function () {
+    var instance = document.querySelector('element-in-iframe');
+
+    assert_true(instance instanceof HTMLElement);
+    assert_false(instance instanceof ElementInIFrame);
+
+}, 'HTML parser must not instantiate a custom element defined inside an frame in frame element\'s owner document');
+
+document.body.removeChild(iframe);
+
+test(function () {
+    var windowlessDocument = (new DOMParser()).parseFromString('<my-custom-element></my-custom-element>', "text/html");
+
+    var instance = windowlessDocument.querySelector('my-custom-element');
+
+    assert_true(instance instanceof HTMLElement);
+    assert_false(instance instanceof MyCustomElement);
+
+}, 'HTML parser must use the registry of window.document in a document created by DOMParser');
+
+test(function () {
+    var windowlessDocument = document.implementation.createDocument ('http://www.w3.org/1999/xhtml', 'html', null);
+    windowlessDocument.documentElement.innerHTML = '<my-custom-element></my-custom-element>';
+
+    var instance = windowlessDocument.querySelector('my-custom-element');
+    assert_true(instance instanceof HTMLElement);
+    assert_false(instance instanceof MyCustomElement);
+
+}, 'HTML parser must use the registry of window.document in a document created by document.implementation.createXHTMLDocument()');
+
+test(function () {
+    var windowlessDocument = new Document;
+    windowlessDocument.appendChild(windowlessDocument.createElement('html'));
+    windowlessDocument.documentElement.innerHTML = '<my-custom-element></my-custom-element>';
+
+    var instance = windowlessDocument.querySelector('my-custom-element');
+
+    assert_true(instance instanceof Element);
+    assert_false(instance instanceof MyCustomElement);
+
+}, 'HTML parser must use the registry of window.document in a document created by new Document');
+
+promise_test(function () {
+    return new Promise(function (resolve, reject) {
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', '../resources/my-custom-element-html-document.html');
+        xhr.overrideMimeType('text/xml');
+        xhr.onload = function () { resolve(xhr.responseXML); }
+        xhr.onerror = function () { reject('Failed to fetch the document'); }
+        xhr.send();
+    }).then(function (doc) {
+        var instance = doc.querySelector('my-custom-element');
+        assert_true(instance instanceof Element);
+        assert_false(instance instanceof MyCustomElement);
+
+        doc.documentElement.innerHTML = '<my-custom-element></my-custom-element>';
+        var instance2 = doc.querySelector('my-custom-element');
+        assert_true(instance2 instanceof Element);
+        assert_false(instance2 instanceof MyCustomElement);
+    });
+}, 'HTML parser must use the registry of window.document in a document created by XMLHttpRequest');
+
+test_with_window(function (contentWindow, contentDocument) {
+    const element = define_custom_element_in_window(contentWindow, 'my-custom-element', []);
+    // document-open-steps spec doesn't do anything with the custom element
+    // registry, so it should just stick around.
+    contentDocument.write('<my-custom-element></my-custom-element>');
+
+    var instance = contentDocument.querySelector('my-custom-element');
+
+    assert_true(instance instanceof contentWindow.HTMLElement);
+    assert_true(instance instanceof element.class);
+
+}, 'document.write() must not instantiate a custom element without a defined insertion point');
+
+test_with_window(function (contentWindow, contentDocument) {
+    const element = define_custom_element_in_window(contentWindow, 'my-custom-element', []);
+    // document-open-steps spec doesn't do anything with the custom element
+    // registry, so it should just stick around.
+    contentDocument.writeln('<my-custom-element></my-custom-element>');
+
+    var instance = contentDocument.querySelector('my-custom-element');
+
+    assert_true(instance instanceof contentWindow.HTMLElement);
+    assert_true(instance instanceof element.class);
+
+}, 'document.writeln() must not instantiate a custom element without a defined insertion point');
+
+</script>
+</body>
+</html>

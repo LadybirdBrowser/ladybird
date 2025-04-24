@@ -1,0 +1,27 @@
+Harness status: OK
+
+Found 22 tests
+
+22 Pass
+Pass	title on HTMLElement must enqueue an attributeChanged reaction when adding title content attribute
+Pass	title on HTMLElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	lang on HTMLElement must enqueue an attributeChanged reaction when adding lang content attribute
+Pass	lang on HTMLElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	translate on HTMLElement must enqueue an attributeChanged reaction when adding translate content attribute
+Pass	translate on HTMLElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	dir on HTMLElement must enqueue an attributeChanged reaction when adding dir content attribute
+Pass	dir on HTMLElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	hidden on HTMLElement must enqueue an attributeChanged reaction when adding hidden content attribute
+Pass	hidden on HTMLElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	tabIndex on HTMLElement must enqueue an attributeChanged reaction when adding tabindex content attribute
+Pass	tabIndex on HTMLElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	accessKey on HTMLElement must enqueue an attributeChanged reaction when adding accesskey content attribute
+Pass	accessKey on HTMLElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	draggable on HTMLElement must enqueue an attributeChanged reaction when adding draggable content attribute
+Pass	draggable on HTMLElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	spellcheck on HTMLElement must enqueue an attributeChanged reaction when adding spellcheck content attribute
+Pass	spellcheck on HTMLElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	popover on HTMLElement must enqueue an attributeChanged reaction when adding popover content attribute
+Pass	popover on HTMLElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	innerText on HTMLElement must enqueue a disconnected reaction
+Pass	outerText on HTMLElement must enqueue a disconnected reaction

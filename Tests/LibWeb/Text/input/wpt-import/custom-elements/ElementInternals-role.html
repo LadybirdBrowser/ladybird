@@ -1,0 +1,195 @@
+<!DOCTYPE HTML>
+<!-- This test makes hundreds of sequential testdriver calls,
+     which can take a long time in non-optimized builds. -->
+<meta name="timeout" content="long">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../resources/testdriver.js"></script>
+<script src="../resources/testdriver-vendor.js"></script>
+
+<body>
+    <table-element id="table-row-columnheader-test">
+        <row-element>
+            <columnheader-element></columnheader-element>
+        </row-element>
+    </table-element>
+    <grid-element id="grid-row-gridcell-test">
+        <row-element>
+            <gridcell-element></gridcell-element>
+        </row-element>
+    </grid-element>
+    <list-element id="list-listitem-test">
+        <listitem-element></listitem-element>
+    </list-element>
+    <menu-element id="menu-menuitem-test">
+        <menuitem-element></menuitem-element>
+    </menu-element>
+    <menu-element id="menu-menuitemcheckbox-test">
+        <menuitemcheckbox-element></menuitemcheckbox-element>
+    </menu-element>
+    <menu-element id="menu-menuitemradio-test">
+        <menuitemradio-element></menuitemradio-element>
+    </menu-element>
+    <listbox-element id="listbox-option-test">
+        <option-element></option-element>
+    </listbox-element>
+    <table-element id="table-row-test">
+        <row-element></row-element>
+    </table-element>
+    <table-element id="table-rowgroup-test">
+        <rowgroup-element></rowgroup-element>
+    </table-element>
+    <table-element id="table-row-rowheader-test">
+        <row-element>
+            <rowheader-element></rowheader-element>
+        </row-element>
+    </table-element>
+    <tablist-element id="tablist-tab-test">
+        <tab-element></tab-element>
+    </tablist-element>
+    <tree-element id="tree-treeitem-test">
+        <treeitem-element></treeitem-element>
+    </tree-element>
+</body>
+
+<script>
+function conditionally_register_element(role) {
+    if (!customElements.get(`${role}-element`)) {
+        customElements.define(`${role}-element`, class extends HTMLElement {
+            constructor() {
+                super();
+                this.internals_ = this.attachInternals();
+                this.internals_.role = role;
+                this.internals_.ariaLabel = `Test ${role} label`;
+            }
+        });
+    }
+}
+
+function generate_role_element(role) {
+    conditionally_register_element(role);
+    const el = document.createElement(`${role}-element`);
+    document.body.append(el);
+    return el;
+}
+
+function generate_child_role_element(role, parentElement) {
+    conditionally_register_element(role);
+    const el = document.createElement(`${role}-element`);
+    parentElement.append(el);
+    return el;
+}
+
+const test_roles = [
+    'alert',
+    'alertdialog',
+    'application',
+    'article',
+    'banner',
+    'button',
+    'cell',
+    'checkbox',
+    'combobox',
+    'complementary',
+    'contentinfo',
+    'definition',
+    'dialog',
+    ['directory', 'list'], // is this expected?
+    'document',
+    'figure',
+    'form',
+    'grid',
+    'group',
+    'heading',
+    ['img', 'image'],
+    'feed',
+    'link',
+    'list',
+    'listbox',
+    'log',
+    'main',
+    'marquee',
+    'math',
+    'menu',
+    'menubar',
+    'meter',
+    'navigation',
+    'note',
+    'progressbar',
+    'radio',
+    'radiogroup',
+    'region',
+    'scrollbar',
+    'search',
+    'searchbox',
+    'separator',
+    'slider',
+    'spinbutton',
+    'status',
+    'switch',
+    'table',
+    'tablist',
+    'tabpanel',
+    'term',
+    'textbox',
+    'timer',
+    'toolbar',
+    'tooltip',
+    'tree',
+    'treegrid'
+];
+
+test_roles.map((testdata) => {
+    let role;
+    let roleName;
+    if (Array.isArray(testdata)) {
+        role = testdata[0];
+        roleName = testdata[1];
+    } else {
+        role = testdata;
+        roleName = testdata;
+    }
+    promise_test(async () => {
+        const el = generate_role_element(role);
+        const computed_role = await test_driver.get_computed_role(el);
+        const computed_label = await test_driver.get_computed_label(el);
+        assert_equals(computed_role, roleName, el);
+        assert_equals(computed_label, `Test ${role} label`, el);
+        el.remove();
+    }, `Applies "${role}" via Element Internals`);
+});
+
+const child_test_roles = [
+    ['table', 'row', 'columnheader'],
+    ['grid', 'row', 'gridcell'],
+    ['list', 'listitem'],
+    ['menu', 'menuitem'],
+    ['menu', 'menuitemcheckbox'],
+    ['menu', 'menuitemradio'],
+    ['listbox', 'option'],
+    ['table', 'row'],
+    ['table', 'rowgroup'],
+    ['table', 'row', 'rowheader'],
+    ['tablist', 'tab'],
+    ['tree', 'treeitem'],
+];
+
+child_test_roles.map((roles) => {
+    promise_test(async () => {
+        // Ensure role applied elements are registered.
+        roles.forEach((role) => {
+            conditionally_register_element(role);
+        });
+        // Gather test DOM and walk children to ensure parent/child relationships are correct.
+        let testEl = document.getElementById([...roles, 'test'].join('-'));
+        for (let i = 0; i < roles.length; i++) {
+            const role = roles[i];
+            const computed_role = await test_driver.get_computed_role(testEl);
+            const computed_label = await test_driver.get_computed_label(testEl);
+            assert_equals(computed_role, role, testEl);
+            assert_equals(computed_label, `Test ${role} label`, testEl);
+            testEl = testEl.children[0];
+        }
+    }, `Applies parent/child relationship of "${roles.join('"/"')}" via Element Internals`);
+});
+</script>

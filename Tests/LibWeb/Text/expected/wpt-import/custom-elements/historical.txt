@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	document.registerElement should not exist
+Pass	ShadowRoot doesn't have importNode or createElement[NS]
+Pass	attachShadow() does not recognize a registry member

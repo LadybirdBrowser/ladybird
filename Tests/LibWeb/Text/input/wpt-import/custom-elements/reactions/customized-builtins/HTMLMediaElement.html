@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<title>Custom Elements: CEReactions on HTMLMediaElement interface</title>
+<link rel="author" title="Intel" href="http://www.intel.com">
+<meta name="assert" content="src, crossOrigin, preload, autoplay, loop,
+  controls, defaultMuted of HTMLMediaElement interface must have CEReactions">
+<meta name="help" content="https://html.spec.whatwg.org/#media-elements">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../resources/custom-elements-helpers.js"></script>
+<script src="../resources/reactions.js"></script>
+
+<body>
+<script>
+
+function getParentElement() {
+  return document.body;
+}
+
+function setAttributes(instance, value) {
+  instance.setAttribute('src', value);
+}
+
+testReflectAttribute(
+  'src', 'src', '/media/sound_0.mp3',
+  '/media/sound_5.mp3', 'src on HTMLMediaElement in audio', 'audio',
+  HTMLAudioElement
+);
+testReflectAttributeWithDependentAttributes(
+  'crossOrigin', 'crossorigin', 'use-credentials',
+  'anonymous', 'crossOrigin on HTMLMediaElement in audio', 'audio',
+  getParentElement, instance => setAttributes(instance, '/media/sound_5.mp3'),
+  HTMLAudioElement
+);
+testReflectAttributeWithDependentAttributes(
+  'preload', 'preload', 'auto',
+  'none', 'preload on HTMLMediaElement in audio', 'audio',
+  getParentElement, instance => setAttributes(instance, '/media/sound_5.mp3'),
+  HTMLAudioElement
+);
+testReflectBooleanAttributeWithDependentAttributes(
+  'autoplay', 'autoplay', 'autoplay on HTMLMediaElement in audio',
+  'audio', getParentElement,
+  instance => setAttributes(instance, '/media/sound_5.mp3'),
+  HTMLAudioElement
+);
+testReflectBooleanAttributeWithDependentAttributes(
+  'loop', 'loop', 'loop on HTMLMediaElement in audio',
+  'audio', getParentElement,
+  instance => setAttributes(instance, '/media/sound_5.mp3'), HTMLAudioElement
+);
+testReflectBooleanAttributeWithDependentAttributes(
+  'controls', 'controls', 'controls on HTMLMediaElement in audio',
+  'audio', getParentElement,
+  instance => setAttributes(instance, '/media/sound_5.mp3'),
+  HTMLAudioElement
+);
+testReflectBooleanAttributeWithDependentAttributes(
+  'defaultMuted', 'muted', 'defaultMuted on HTMLMediaElement in audio',
+  'audio', getParentElement,
+  instance => setAttributes(instance, '/media/sound_5.mp3'),
+  HTMLAudioElement
+);
+
+testReflectAttribute(
+  'src', 'src', '/media/video.webm',
+  '/media/movie_5.mp4', 'src on HTMLMediaElement in video', 'video',
+  HTMLVideoElement
+);
+testReflectAttributeWithDependentAttributes(
+  'crossOrigin', 'crossorigin', 'use-credentials',
+  'anonymous', 'crossOrigin on HTMLMediaElement in video', 'video',
+  getParentElement, instance => setAttributes(instance, '/media/movie_5.mp4'),
+  HTMLVideoElement
+);
+testReflectAttributeWithDependentAttributes(
+  'preload', 'preload', 'auto',
+  'none', 'preload on HTMLMediaElement in video', 'video',
+  getParentElement, instance => setAttributes(instance, '/media/movie_5.mp4'),
+  HTMLVideoElement
+);
+testReflectBooleanAttributeWithDependentAttributes(
+  'autoplay', 'autoplay', 'autoplay on HTMLMediaElement in video',
+  'video', getParentElement,
+  instance => setAttributes(instance, '/media/movie_5.mp4'),
+  HTMLVideoElement
+);
+testReflectBooleanAttributeWithDependentAttributes(
+  'loop', 'loop', 'loop on HTMLMediaElement in video',
+  'video', getParentElement,
+  instance => setAttributes(instance, '/media/movie_5.mp4'),
+  HTMLVideoElement
+);
+testReflectBooleanAttributeWithDependentAttributes(
+  'controls', 'controls', 'controls on HTMLMediaElement in video',
+  'video', getParentElement,
+  instance => setAttributes(instance, '/media/movie_5.mp4'),
+  HTMLVideoElement
+);
+testReflectBooleanAttributeWithDependentAttributes(
+  'defaultMuted', 'muted', 'defaultMuted on HTMLMediaElement in video',
+  'video', getParentElement,
+  instance => setAttributes(instance, '/media/movie_5.mp4'),
+  HTMLVideoElement
+);
+
+</script>
+</body>

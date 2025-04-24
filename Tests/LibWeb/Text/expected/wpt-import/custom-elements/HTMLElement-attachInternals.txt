@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	Successful attachInternals() and the second call.
+Pass	attachInternals() throws a NotSupportedError if it is called for a customized built-in element
+Pass	If a custom element definition for the local name of the element doesn't exist, throw an NotSupportedError
+Pass	If a custom element definition for the local name of the element has disable internals flag, throw a NotSupportedError

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<title>Custom Elements: CEReactions on HTMLLabelElement interface</title>
+<link rel="author" title="Intel" href="http://www.intel.com">
+<meta name="assert"
+  content="htmlFor of HTMLLabelElement interface must have CEReactions">
+<meta name="help" content="https://html.spec.whatwg.org/#the-label-element">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../resources/custom-elements-helpers.js"></script>
+<script src="../resources/reactions.js"></script>
+
+<form id="form">
+  <input type="radio" name="gender" id="male" value="male">
+  <input type="radio" name="gender" id="female" value="female">
+</form>
+<script>
+
+function getParentElement() {
+  let parentElement = document.getElementById("form");
+  return parentElement;
+}
+
+testReflectAttributeWithParentNode(
+  'htmlFor', 'for', 'male',
+  'female', 'htmlFor on HTMLLabelElement', 'label',
+  getParentElement, HTMLLabelElement
+);
+
+</script>

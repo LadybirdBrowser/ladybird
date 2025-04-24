@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<title>Tests scoped custom element registry methods which get custom element definitions or metadata</title>
+<meta name="author" title="Benny Powers" href="mailto:bennyp@redhat.com">
+<link rel="help" href="https://wicg.github.io/webcomponents/proposals/Scoped-Custom-Element-Registries">
+<link rel="help" href="https://github.com/WICG/webcomponents/issues/923">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<body>
+
+<script>
+let definitionCount = 0;
+function nextCustomElementDefinition() {
+  const log = [];
+  const name = `test-element-${++definitionCount}`;
+  const constructor = class extends HTMLElement {
+    constructor() {
+      super();
+      log.push(this.id);
+    }
+  };
+  return {name, constructor, log};
+}
+
+test(t => {
+  const {name, constructor, log} = nextCustomElementDefinition();
+  const registry = new CustomElementRegistry;
+  registry.define(name, constructor);
+  assert_equals(registry.get(name), constructor);
+  assert_equals(registry.getName(constructor), name);
+}, 'Custom element registries with a registered custom element return the class in their get method, and the name in their getName method');
+
+test(t => {
+  const {name, constructor, log} = nextCustomElementDefinition();
+  const registry = new CustomElementRegistry;
+  customElements.define(name, constructor)
+  assert_equals(customElements.get(name), constructor);
+  assert_equals(customElements.getName(constructor), name);
+  assert_equals(registry.get(name), undefined);
+  assert_equals(registry.getName(constructor), null);
+  const scopedName = name + '-scoped';
+  registry.define(scopedName, class extends constructor {});
+  assert_not_equals(registry.get(scopedName), constructor)
+}, 'Scoped Custom element registries do not inherit names or classes from the global registry');
+
+test(t => {
+  const {name, constructor, log} = nextCustomElementDefinition();
+  const registry = new CustomElementRegistry;
+  customElements.define(name, constructor)
+  registry.define(name, constructor);
+  assert_equals(customElements.get(name), constructor);
+  assert_equals(customElements.getName(constructor), name);
+  assert_equals(registry.get(name), constructor);
+  assert_equals(registry.getName(constructor), name);
+}, 'Scoped Custom element registries return the same constructor when it is defined in both');
+
+test(t => {
+  const {name, constructor, log} = nextCustomElementDefinition();
+  const {name:name2, constructor: constructor2} = nextCustomElementDefinition();
+  const registry = new CustomElementRegistry;
+  customElements.define(name, constructor)
+  registry.define(name, constructor2);
+  assert_equals(customElements.get(name), constructor);
+  assert_equals(customElements.get(name2), undefined);
+  assert_equals(customElements.getName(constructor), name);
+  assert_equals(customElements.getName(constructor2), null);
+  assert_equals(registry.get(name), constructor2);
+  assert_equals(registry.get(name2), undefined);
+  assert_equals(registry.getName(constructor), null);
+  assert_equals(registry.getName(constructor2), name);
+}, 'Scoped Custom element registries allow registering name that exists in global registry');
+
+promise_test(async t => {
+  const {name, constructor, log} = nextCustomElementDefinition();
+  const registry = new CustomElementRegistry;
+  registry.define(name, constructor);
+  assert_equals(await registry.whenDefined(name), constructor);
+}, 'Custom element registries with a registered custom element resolve the class in their whenDefined method');
+
+promise_test(async t => {
+  const {name, constructor, log} = nextCustomElementDefinition();
+  const registry = new CustomElementRegistry;
+  customElements.define(name, constructor)
+  registry.define(name, constructor);
+  assert_equals(await customElements.whenDefined(name), constructor);
+  assert_equals(await registry.whenDefined(name), constructor);
+}, 'Scoped Custom element registries resolve the same constructor from whenDefined when it is defined in both');
+
+promise_test(async t => {
+  const {name, constructor, log} = nextCustomElementDefinition();
+  const registry = new CustomElementRegistry;
+  customElements.define(name, constructor)
+  const scopedName = name + '-scoped';
+  registry.define(scopedName , class extends constructor {});
+  const sym = Symbol();
+  const testPromise = await Promise.race([
+    registry.whenDefined(name),
+    new Promise(r => requestAnimationFrame(() => r(sym))),
+  ]);
+  assert_equals(testPromise, sym);
+}, 'Scoped Custom element registry getters do not resolve globally registered classes from whenDefined');
+
+</script>

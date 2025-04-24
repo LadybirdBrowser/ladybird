@@ -1,0 +1,22 @@
+<!doctype html>
+<title>Custom Elements historical features</title>
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<script>
+test(() => {
+  assert_false('registerElement' in document);
+}, 'document.registerElement should not exist');
+
+test(() => {
+  const dummy = document.createElement("div");
+  const shadowRoot = dummy.attachShadow({ mode: "closed" });
+  assert_equals(shadowRoot.importNode, undefined);
+  assert_equals(shadowRoot.createElement, undefined);
+  assert_equals(shadowRoot.createElementNS, undefined);
+}, "ShadowRoot doesn't have importNode or createElement[NS]");
+
+test(() => {
+  const dummy = document.createElement("div");
+  dummy.attachShadow({ mode: "closed", get registry() { throw "FAIL" } });
+}, "attachShadow() does not recognize a registry member");
+</script>

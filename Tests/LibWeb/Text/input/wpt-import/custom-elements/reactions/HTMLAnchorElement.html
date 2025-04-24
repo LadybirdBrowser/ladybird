@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Custom Elements: CEReactions on HTMLAnchorElement interface</title>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<meta name="assert" content="text of HTMLAnchorElement interface must have CEReactions">
+<meta name="help" content="https://dom.spec.whatwg.org/#node">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../resources/custom-elements-helpers.js"></script>
+<script src="./resources/reactions.js"></script>
+</head>
+<body>
+<div id="log"></div>
+<script>
+
+test_with_window(function (contentWindow, contentDocument) {
+    const element = define_custom_element_in_window(contentWindow, 'custom-element', []);
+    contentDocument.body.innerHTML = `<a><custom-element>hello</custom-element></a>`;
+    const anchor = contentDocument.querySelector('a');
+
+    assert_array_equals(element.takeLog().types(), ['constructed', 'connected']);
+    assert_equals(anchor.innerHTML, '<custom-element>hello</custom-element>');
+
+    anchor.text = 'world';
+    assert_equals(anchor.innerHTML, 'world');
+    assert_array_equals(element.takeLog().types(), ['disconnected']);
+}, 'text on HTMLAnchorElement must enqueue disconnectedCallback when removing a custom element');
+
+</script>
+</body>
+</html>

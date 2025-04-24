@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Fail
+Fail	autonomous: document.importNode() should import custom elements successfully
+Fail	autonomous: document.importNode() should import "undefined" custom elements successfully

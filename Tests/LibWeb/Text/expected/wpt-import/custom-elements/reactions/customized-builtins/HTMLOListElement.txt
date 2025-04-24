@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	reversed on HTMLOListElement must enqueue an attributeChanged reaction when adding reversed content attribute
+Pass	reversed on HTMLOListElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	start on HTMLOListElement must enqueue an attributeChanged reaction when adding start content attribute
+Pass	start on HTMLOListElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	type on HTMLOListElement must enqueue an attributeChanged reaction when adding type content attribute
+Pass	type on HTMLOListElement must enqueue an attributeChanged reaction when replacing an existing attribute

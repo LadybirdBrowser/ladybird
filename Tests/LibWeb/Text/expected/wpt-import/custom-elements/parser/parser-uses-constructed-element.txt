@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	HTML parser must use the returned value of the custom element constructor instead of the one created before super() call
+Pass	HTML parser must use the returned value of the custom element constructor instead using the one created in super() call

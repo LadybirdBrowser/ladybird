@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Custom Elements: HTMLElement must allow subclassing</title>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<meta name="assert" content="HTMLElement must allow subclassing">
+<link rel="help" href="https://html.spec.whatwg.org/#html-element-constructors">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+</head>
+<body>
+<div id="log"></div>
+<script>
+
+test(function () {
+    customElements.define('html-custom-element', HTMLElement);
+    assert_throws_js(TypeError, function () { new HTMLElement(); });
+}, 'HTMLElement constructor must throw a TypeError when NewTarget is equal to itself');
+
+test(function () {
+    customElements.define('html-proxy-custom-element', new Proxy(HTMLElement, {}));
+    assert_throws_js(TypeError, function () { new HTMLElement(); });
+}, 'HTMLElement constructor must throw a TypeError when NewTarget is equal to itself via a Proxy object');
+
+test(function () {
+    class SomeCustomElement extends HTMLElement {};
+    assert_throws_js(TypeError, function () { new SomeCustomElement; });
+}, 'HTMLElement constructor must throw TypeError when it has not been defined by customElements.define');
+
+test(function () {
+    class SomeCustomElement extends HTMLParagraphElement {};
+    customElements.define('some-custom-element', SomeCustomElement);
+    assert_throws_js(TypeError, function () { new SomeCustomElement(); });
+}, 'Custom element constructor must throw TypeError when it does not extend HTMLElement');
+
+test(function () {
+    class SomeCustomButtonElement extends HTMLButtonElement {};
+    customElements.define('some-custom-button-element', SomeCustomButtonElement, { extends: "p" });
+    assert_throws_js(TypeError, function () { new SomeCustomButtonElement(); });
+}, 'Custom element constructor must throw TypeError when it does not extend the proper element interface');
+
+test(function () {
+    class CustomElementWithInferredTagName extends HTMLElement {};
+    customElements.define('inferred-name', CustomElementWithInferredTagName);
+
+    var instance = new CustomElementWithInferredTagName;
+    assert_true(instance instanceof Element, 'A custom element must inherit from Element');
+    assert_true(instance instanceof Node, 'A custom element must inherit from Node');
+    assert_equals(instance.localName, 'inferred-name');
+    assert_equals(instance.nodeName, 'INFERRED-NAME');
+    assert_equals(instance.namespaceURI, 'http://www.w3.org/1999/xhtml', 'A custom HTML element must use HTML namespace');
+
+    document.body.appendChild(instance);
+    assert_equals(document.body.lastChild, instance,
+        'document.body.appendChild must be able to insert a custom element');
+    assert_equals(document.querySelector('inferred-name'), instance,
+        'document.querySelector must be able to find a custom element by its tag name');
+
+}, 'HTMLElement constructor must infer the tag name from the element interface');
+
+test(function () {
+    class ConcreteCustomElement extends HTMLElement { };
+    class SubCustomElement extends ConcreteCustomElement { };
+    customElements.define('concrete-custom-element', ConcreteCustomElement);
+    customElements.define('sub-custom-element', SubCustomElement);
+
+    var instance = new ConcreteCustomElement();
+    assert_true(instance instanceof ConcreteCustomElement);
+    assert_false(instance instanceof SubCustomElement);
+    assert_equals(instance.localName, 'concrete-custom-element');
+    assert_equals(instance.nodeName, 'CONCRETE-CUSTOM-ELEMENT');
+
+    var instance = new SubCustomElement();
+    assert_true(instance instanceof ConcreteCustomElement);
+    assert_true(instance instanceof SubCustomElement);
+    assert_equals(instance.localName, 'sub-custom-element');
+    assert_equals(instance.nodeName, 'SUB-CUSTOM-ELEMENT');
+
+}, 'HTMLElement constructor must allow subclassing a custom element');
+
+test(function () {
+    class AbstractCustomElement extends HTMLElement { };
+    class ConcreteSubCustomElement extends AbstractCustomElement { };
+    customElements.define('concrete-sub-custom-element', ConcreteSubCustomElement);
+
+    var instance = new ConcreteSubCustomElement();
+    assert_true(instance instanceof AbstractCustomElement);
+    assert_true(instance instanceof ConcreteSubCustomElement);
+    assert_equals(instance.localName, 'concrete-sub-custom-element');
+    assert_equals(instance.nodeName, 'CONCRETE-SUB-CUSTOM-ELEMENT');
+
+}, 'HTMLElement constructor must allow subclassing an user-defined subclass of HTMLElement');
+
+test(function() {
+    class SomeCustomElement extends HTMLElement {};
+    var getCount = 0;
+    var countingProxy = new Proxy(SomeCustomElement, {
+        get: function(target, prop, receiver) {
+            if (prop == "prototype") {
+                ++getCount;
+            }
+            return Reflect.get(target, prop, receiver);
+        }
+    });
+    customElements.define("success-counting-element-1", countingProxy);
+    // define() gets the prototype of the constructor it's passed, so
+    // reset the counter.
+    getCount = 0;
+    var instance = new countingProxy();
+    assert_equals(getCount, 1, "Should have gotten .prototype once");
+    assert_true(instance instanceof countingProxy);
+    assert_true(instance instanceof HTMLElement);
+    assert_true(instance instanceof SomeCustomElement);
+    assert_equals(instance.localName, "success-counting-element-1");
+    assert_equals(instance.nodeName, "SUCCESS-COUNTING-ELEMENT-1");
+}, 'HTMLElement constructor must only get .prototype once, calling proxy constructor directly');
+
+test(function() {
+    class SomeCustomElement extends HTMLElement {};
+    var getCount = 0;
+    var countingProxy = new Proxy(SomeCustomElement, {
+        get: function(target, prop, receiver) {
+            if (prop == "prototype") {
+                ++getCount;
+            }
+            return Reflect.get(target, prop, receiver);
+        }
+    });
+    customElements.define("success-counting-element-2", countingProxy);
+    // define() gets the prototype of the constructor it's passed, so
+    // reset the counter.
+    getCount = 0;
+    var instance = Reflect.construct(HTMLElement, [], countingProxy);
+    assert_equals(getCount, 1, "Should have gotten .prototype once");
+    assert_true(instance instanceof countingProxy);
+    assert_true(instance instanceof HTMLElement);
+    assert_true(instance instanceof SomeCustomElement);
+    assert_equals(instance.localName, "success-counting-element-2");
+    assert_equals(instance.nodeName, "SUCCESS-COUNTING-ELEMENT-2");
+}, 'HTMLElement constructor must only get .prototype once, calling proxy constructor via Reflect');
+
+test(function() {
+    class SomeCustomElement {};
+    var getCount = 0;
+    var countingProxy = new Proxy(SomeCustomElement, {
+        get: function(target, prop, receiver) {
+            if (prop == "prototype") {
+                ++getCount;
+            }
+            return Reflect.get(target, prop, receiver);
+        }
+    });
+    customElements.define("success-counting-element-3", countingProxy);
+    // define() gets the prototype of the constructor it's passed, so
+    // reset the counter.
+    getCount = 0;
+    var instance = Reflect.construct(HTMLElement, [], countingProxy);
+    assert_equals(getCount, 1, "Should have gotten .prototype once");
+    assert_true(instance instanceof countingProxy);
+    assert_true(instance instanceof SomeCustomElement);
+    assert_equals(instance.localName, undefined);
+    assert_equals(instance.nodeName, undefined);
+}, 'HTMLElement constructor must only get .prototype once, calling proxy constructor via Reflect with no inheritance');
+
+test(function() {
+    class SomeCustomElement extends HTMLElement {};
+    var getCount = 0;
+    var countingProxy = new Proxy(SomeCustomElement, {
+        get: function(target, prop, receiver) {
+            if (prop == "prototype") {
+                ++getCount;
+            }
+            return Reflect.get(target, prop, receiver);
+        }
+    });
+
+    // Purposefully don't register it.
+    assert_throws_js(TypeError,
+                     function () { Reflect.construct(HTMLElement, [], countingProxy) },
+                     "Should not be able to construct an HTMLElement named 'button'");
+    assert_equals(getCount, 0, "Should never have gotten .prototype");
+}, 'HTMLElement constructor must not get .prototype until it finishes its registration  sanity checks, calling via Reflect');
+</script>
+</body>
+</html>
+

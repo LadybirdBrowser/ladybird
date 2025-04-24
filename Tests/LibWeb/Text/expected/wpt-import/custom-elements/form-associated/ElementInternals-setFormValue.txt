@@ -1,0 +1,61 @@
+Harness status: OK
+
+Found 55 tests
+
+1 Pass
+54 Fail
+Fail	Single value - name is missing
+Fail	Single value - empty name exists
+Fail	Single value - Non-empty name exists
+Fail	Null value should submit nothing
+Fail	Multiple values - name content attribute is ignored
+Fail	setFormValue with an empty FormData should submit nothing
+Fail	Newline normalization - \n in name (urlencoded)
+Fail	Newline normalization - \n in name (formdata)
+Fail	Newline normalization - \r in name (urlencoded)
+Fail	Newline normalization - \r in name (formdata)
+Fail	Newline normalization - \r\n in name (urlencoded)
+Fail	Newline normalization - \r\n in name (formdata)
+Fail	Newline normalization - \n\r in name (urlencoded)
+Fail	Newline normalization - \n\r in name (formdata)
+Fail	Newline normalization - \n in value (urlencoded)
+Fail	Newline normalization - \n in value (formdata)
+Fail	Newline normalization - \r in value (urlencoded)
+Fail	Newline normalization - \r in value (formdata)
+Fail	Newline normalization - \r\n in value (urlencoded)
+Fail	Newline normalization - \r\n in value (formdata)
+Fail	Newline normalization - \n\r in value (urlencoded)
+Fail	Newline normalization - \n\r in value (formdata)
+Fail	Newline normalization - \n in filename (urlencoded)
+Fail	Newline normalization - \n in filename (formdata)
+Fail	Newline normalization - \r in filename (urlencoded)
+Fail	Newline normalization - \r in filename (formdata)
+Fail	Newline normalization - \r\n in filename (urlencoded)
+Fail	Newline normalization - \r\n in filename (formdata)
+Fail	Newline normalization - \n\r in filename (urlencoded)
+Fail	Newline normalization - \n\r in filename (formdata)
+Fail	Newline normalization - \n in FormData name (urlencoded)
+Fail	Newline normalization - \n in FormData name (formdata)
+Fail	Newline normalization - \r in FormData name (urlencoded)
+Fail	Newline normalization - \r in FormData name (formdata)
+Fail	Newline normalization - \r\n in FormData name (urlencoded)
+Fail	Newline normalization - \r\n in FormData name (formdata)
+Fail	Newline normalization - \n\r in FormData name (urlencoded)
+Fail	Newline normalization - \n\r in FormData name (formdata)
+Fail	Newline normalization - \n in FormData value (urlencoded)
+Fail	Newline normalization - \n in FormData value (formdata)
+Fail	Newline normalization - \r in FormData value (urlencoded)
+Fail	Newline normalization - \r in FormData value (formdata)
+Fail	Newline normalization - \r\n in FormData value (urlencoded)
+Fail	Newline normalization - \r\n in FormData value (formdata)
+Fail	Newline normalization - \n\r in FormData value (urlencoded)
+Fail	Newline normalization - \n\r in FormData value (formdata)
+Fail	Newline normalization - \n in FormData filename (urlencoded)
+Fail	Newline normalization - \n in FormData filename (formdata)
+Fail	Newline normalization - \r in FormData filename (urlencoded)
+Fail	Newline normalization - \r in FormData filename (formdata)
+Fail	Newline normalization - \r\n in FormData filename (urlencoded)
+Fail	Newline normalization - \r\n in FormData filename (formdata)
+Fail	Newline normalization - \n\r in FormData filename (urlencoded)
+Fail	Newline normalization - \n\r in FormData filename (formdata)
+Pass	ElementInternals.setFormValue() should throw NotSupportedError if the target element is not a form-associated custom element

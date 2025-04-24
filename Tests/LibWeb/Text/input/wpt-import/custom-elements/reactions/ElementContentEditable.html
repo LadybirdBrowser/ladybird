@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Custom Elements: CEReactions on ElementContentEditable interface</title>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<meta name="assert" content="contentEditable of ElementContentEditable interface must have CEReactions">
+<meta name="help" content="https://html.spec.whatwg.org/#elementcontenteditable">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../resources/custom-elements-helpers.js"></script>
+<script src="./resources/reactions.js"></script>
+</head>
+<body>
+<div id="log"></div>
+<script>
+
+testReflectAttribute('contentEditable', 'contenteditable', 'true', 'false', 'contentEditable on ElementContentEditable');
+
+</script>
+</body>
+</html>

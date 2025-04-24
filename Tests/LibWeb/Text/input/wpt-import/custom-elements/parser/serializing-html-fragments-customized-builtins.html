@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/parsing.html#serialising-html-fragments">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<body>
+<div id="container"></div>
+<script>
+test(() => {
+  class MyParagraph extends HTMLParagraphElement {}
+  customElements.define('my-p', MyParagraph, { extends: 'p' });
+
+  let p = new MyParagraph();
+  p.setAttribute('class', 'foo');
+  assert_equals(p.outerHTML, '<p is="my-p" class="foo"></p>');
+
+  let container = document.querySelector('#container');
+  container.appendChild(p);
+  container.innerHTML = container.innerHTML;
+  assert_not_equals(container.firstChild, p);
+  assert_true(container.firstChild instanceof MyParagraph);
+}, '"is" value should be serialized if the custom element has no "is" content attribute');
+
+test(() => {
+  let p = document.createElement('p', { is: 'your-p' });
+  assert_equals(p.outerHTML, '<p is="your-p"></p>');
+}, '"is" value should be serialized even for an undefined element');
+
+test(() => {
+  class MyDiv extends HTMLDivElement {}
+  customElements.define('my-div', MyDiv, { extends: 'div' });
+
+  let div = document.createElement('div', { is: 'my-div' });
+  div.setAttribute('is', 'foo"bar\n');
+  assert_equals(div.outerHTML, '<div is="foo&quot;bar\n"></div>');
+}, '"is" content attribute should be serialized even if the element is a customized built-in element');
+</script>
+</body>

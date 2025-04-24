@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Custom Elements: CEReactions on ParentNode interface</title>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<meta name="assert" content="prepend and append of ParentNode interface must have CEReactions">
+<meta name="help" content="https://dom.spec.whatwg.org/#parentnode">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../resources/custom-elements-helpers.js"></script>
+<script src="./resources/reactions.js"></script>
+</head>
+<body>
+<div id="log"></div>
+<script>
+
+testNodeConnector(function (newContainer, customElement) {
+    newContainer.prepend(customElement);
+}, 'prepend on ParentNode');
+
+testNodeConnector(function (newContainer, customElement) {
+    newContainer.append(customElement);
+}, 'append on ParentNode');
+
+</script>
+</body>
+</html>

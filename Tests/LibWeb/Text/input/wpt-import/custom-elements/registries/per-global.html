@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Custom Elements: CustomElementRegistry is per global</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/#custom-elements-api">
+<link rel="author" title="Domenic Denicola" href="mailto:d@domenic.me">
+<script src="../../common/object-association.js"></script>
+
+<body>
+<script>
+"use strict";
+testIsPerWindow("customElements");
+</script>

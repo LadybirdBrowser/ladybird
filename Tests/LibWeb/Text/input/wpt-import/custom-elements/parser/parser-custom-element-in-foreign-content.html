@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<title>Custom Elements: Custom element in foreign content</title>
+<meta name="assert" content="HTML parser should not create non-HTML namespace custom elements">
+<link rel="help" href="https://html.spec.whatwg.org/#create-an-element-for-the-token">
+<link rel="help" href="https://dom.spec.whatwg.org/#concept-create-element">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+class ThrowsException extends HTMLElement {
+  constructor() {
+    throw 'Bad';
+  }
+};
+customElements.define('throws-exception', ThrowsException);
+</script>
+<svg>
+  <throws-exception/>
+</svg>
+<script>
+test(function () {
+  var instance = document.querySelector('throws-exception');
+  assert_false(instance instanceof ThrowsException,
+               'The HTML parser must NOT instantiate a custom element in non-HTML namespaces');
+  assert_false(instance instanceof HTMLUnknownElement, 'The HTML parser should not fallback');
+  assert_true(instance instanceof SVGElement,
+              'The element created by the HTML parser must be an instance of SVGElement');
+}, 'HTML parser should not create custom elements in non-HTML namespaces');
+</script>

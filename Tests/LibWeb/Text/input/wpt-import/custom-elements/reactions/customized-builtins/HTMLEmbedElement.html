@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<title>Custom Elements: CEReactions on HTMLEmbedElement interface</title>
+<link rel="author" title="Intel" href="http://www.intel.com">
+<meta name="assert" content="src, type, width, height of
+  HTMLEmbedElement interface must have CEReactions">
+<meta name="help" content="https://html.spec.whatwg.org/#the-embed-element">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../resources/custom-elements-helpers.js"></script>
+<script src="../resources/reactions.js"></script>
+
+<script>
+
+testReflectAttribute(
+  'src', 'src', '/media/movie_5.mp4',
+  '/media/sound_5.mp3', 'src on HTMLEmbedElement', 'embed',
+  HTMLEmbedElement
+);
+testReflectAttribute(
+  'type', 'type', 'video/webm',
+  'video/mp4', 'type on HTMLEmbedElement', 'embed',
+  HTMLEmbedElement
+);
+testReflectAttribute(
+  'width', 'width', '100',
+  '120', 'width on HTMLEmbedElement', 'embed',
+  HTMLEmbedElement
+);
+testReflectAttribute(
+  'height', 'height', '100',
+  '120', 'height on HTMLEmbedElement', 'embed',
+  HTMLEmbedElement
+);
+
+</script>

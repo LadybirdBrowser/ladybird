@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<title>labels attribute of ElementInternals, and label association</title>
+<body>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<div id="container"></div>
+<script>
+class MyControl extends HTMLElement {
+  static get formAssociated() { return true; }
+
+  constructor() {
+    super();
+    this.internals_ = this.attachInternals();
+  }
+  get i() { return this.internals_; }
+}
+customElements.define('my-control', MyControl);
+const container = document.querySelector('#container');
+
+test(() => {
+  container.innerHTML = '<label><span><my-control></my-control></span></label>';
+  let label = container.querySelector('label');
+  let control = container.querySelector('my-control');
+  assert_equals(label.control, control);
+  assert_true(control.i.labels instanceof NodeList);
+  assert_array_equals(control.i.labels, [label]);
+
+  container.innerHTML = '<label for="mc"></label><form><my-control id="mc"></my-control></form>';
+  label = container.querySelector('label');
+  control = container.querySelector('my-control');
+  assert_equals(label.control, control);
+  assert_equals(label.form, control.i.form);
+  assert_array_equals(control.i.labels, [label]);
+
+  container.innerHTML = '<label for="mc"></label><label for="mc"><my-control id="mc">';
+  const labels = container.querySelectorAll('label');
+  control = container.querySelector('my-control');
+  assert_array_equals(control.i.labels, labels);
+
+  container.innerHTML = '<my-control></my-control>';
+  control = container.querySelector('my-control');
+  assert_array_equals(control.i.labels, []);
+
+  container.innerHTML = '<label><x-foo></x-foo></label>';
+  label = container.querySelector('label');
+  assert_equals(label.control, null);
+}, 'LABEL association');
+
+test(() => {
+  container.innerHTML = '<label for="mc"></label><form><my-control id="mc"></my-control></form>';
+  const control = container.querySelector('my-control');
+  let clickCount = 0;
+  control.addEventListener('click', e => { ++clickCount; });
+  container.querySelector('label').click();
+  assert_equals(clickCount, 1);
+}, 'LABEL click');
+
+test(() => {
+  class NotFormAssociatedElement extends HTMLElement {}
+  customElements.define('not-form-associated-element', NotFormAssociatedElement);
+  const element = new NotFormAssociatedElement();
+  const i = element.attachInternals();
+  assert_throws_dom('NotSupportedError', () => i.labels);
+}, "ElementInternals.labels should throw NotSupportedError if the target element is not a form-associated custom element");
+
+</script>
+</body>

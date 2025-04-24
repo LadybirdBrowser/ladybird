@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	HTML parser must NOT create a custom element before customElements.define is called
+Pass	HTML parser must create a defined custom element before executing inline scripts

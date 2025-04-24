@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Custom Elements: create an element for a token must perform a microtask checkpoint</title>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<meta name="assert" content="When the HTML parser creates an element for a token, it must perform a microtask checkpoint before invoking the constructor">
+<meta name="help" content="https://html.spec.whatwg.org/multipage/parsing.html#create-an-element-for-the-token">
+<meta name="help" content="https://html.spec.whatwg.org/multipage/webappapis.html#perform-a-microtask-checkpoint">
+<meta name="help" content="https://html.spec.whatwg.org/multipage/parsing.html#adoption-agency-algorithm">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="resources/custom-elements-helpers.js"></script>
+</head>
+<body>
+<div id="log"></div>
+<script>
+
+async function construct_custom_element_in_parser(test, markup)
+{
+    const window = await create_window_in_test(test, `
+<!DOCTYPE html>
+<html>
+<body><script>
+class SomeElement extends HTMLElement {
+    constructor() {
+        super();
+        window.recordsListInConstructor = recordsList.map((records) => records.slice(0));
+    }
+}
+customElements.define('some-element', SomeElement);
+
+const recordsList = [];
+const observer = new MutationObserver((records) => {
+    recordsList.push(records);
+});
+observer.observe(document.body, {childList: true, subtree: true});
+
+window.onload = () => {
+    window.recordsListInDOMContentLoaded = recordsList.map((records) => records.slice(0));
+}
+
+</scr` + `ipt>${markup}</body></html>`);
+    return window;
+}
+
+promise_test(async function () {
+    const contentWindow = await construct_custom_element_in_parser(this, '<b><some-element></b>');
+    const contentDocument = contentWindow.document;
+
+    let recordsList = contentWindow.recordsListInConstructor;
+    assert_true(Array.isArray(recordsList));
+    assert_equals(recordsList.length, 1);
+    assert_true(Array.isArray(recordsList[0]));
+    assert_equals(recordsList[0].length, 1);
+    let record = recordsList[0][0];
+    assert_equals(record.type, 'childList');
+    assert_equals(record.target, contentDocument.body);
+    assert_equals(record.previousSibling, contentDocument.querySelector('script'));
+    assert_equals(record.nextSibling, null);
+    assert_equals(record.removedNodes.length, 0);
+    assert_equals(record.addedNodes.length, 1);
+    assert_equals(record.addedNodes[0], contentDocument.querySelector('b'));
+
+    recordsList = contentWindow.recordsListInDOMContentLoaded;
+    assert_true(Array.isArray(recordsList));
+    assert_equals(recordsList.length, 2);
+    assert_true(Array.isArray(recordsList[1]));
+    assert_equals(recordsList[1].length, 1);
+    record = recordsList[1][0];
+    assert_equals(record.type, 'childList');
+    assert_equals(record.target, contentDocument.querySelector('b'));
+    assert_equals(record.previousSibling, null);
+    assert_equals(record.nextSibling, null);
+    assert_equals(record.removedNodes.length, 0);
+    assert_equals(record.addedNodes.length, 1);
+    assert_equals(record.addedNodes[0], contentDocument.querySelector('some-element'));
+}, 'HTML parser must perform a microtask checkpoint before constructing a custom element');
+
+promise_test(async function () {
+    const contentWindow = await construct_custom_element_in_parser(this, '<b><i>hello</b><some-element>');
+    const contentDocument = contentWindow.document;
+    let recordsList = contentWindow.recordsListInConstructor;
+    assert_true(Array.isArray(recordsList));
+    assert_equals(recordsList.length, 1);
+    assert_true(Array.isArray(recordsList[0]));
+    assert_equals(recordsList[0].length, 4);
+
+    let record = recordsList[0][0];
+    assert_equals(record.type, 'childList');
+    assert_equals(record.target, contentDocument.body);
+    assert_equals(record.previousSibling, contentDocument.querySelector('script'));
+    assert_equals(record.nextSibling, null);
+    assert_equals(record.removedNodes.length, 0);
+    assert_equals(record.addedNodes.length, 1);
+    assert_equals(record.addedNodes[0], contentDocument.querySelector('b'));
+
+    record = recordsList[0][1];
+    assert_equals(record.type, 'childList');
+    assert_equals(record.target, contentDocument.querySelector('b'));
+    assert_equals(record.previousSibling, null);
+    assert_equals(record.nextSibling, null);
+    assert_equals(record.removedNodes.length, 0);
+    assert_equals(record.addedNodes.length, 1);
+    assert_equals(record.addedNodes[0], contentDocument.querySelector('i'));
+
+    record = recordsList[0][2];
+    assert_equals(record.type, 'childList');
+    assert_equals(record.target, contentDocument.querySelector('i'));
+    assert_equals(record.previousSibling, null);
+    assert_equals(record.nextSibling, null);
+    assert_equals(record.removedNodes.length, 0);
+    assert_equals(record.addedNodes.length, 1);
+    assert_equals(record.addedNodes[0].nodeType, Node.TEXT_NODE);
+    assert_equals(record.addedNodes[0].data, "hello");
+
+    record = recordsList[0][3];
+    assert_equals(record.type, 'childList');
+    assert_equals(record.target, contentDocument.body);
+    assert_equals(record.previousSibling, contentDocument.querySelector('b'));
+    assert_equals(record.nextSibling, null);
+    assert_equals(record.removedNodes.length, 0);
+    assert_equals(record.addedNodes.length, 1);
+    assert_equals(record.addedNodes[0], contentDocument.querySelectorAll('i')[1]);
+
+    recordsList = contentWindow.recordsListInDOMContentLoaded;
+    assert_true(Array.isArray(recordsList));
+    assert_equals(recordsList.length, 2);
+    assert_true(Array.isArray(recordsList[1]));
+    assert_equals(recordsList[1].length, 1);
+
+    record = recordsList[1][0];
+    assert_equals(record.type, 'childList');
+    assert_equals(record.target, contentDocument.querySelectorAll('i')[1]);
+    assert_equals(record.previousSibling, null);
+    assert_equals(record.nextSibling, null);
+    assert_equals(record.removedNodes.length, 0);
+    assert_equals(record.addedNodes.length, 1);
+    assert_equals(record.addedNodes[0], contentDocument.querySelector('some-element'));
+}, 'HTML parser must perform a microtask checkpoint before constructing a custom element during the adoption agency algorithm');
+
+</script>
+</body>
+</html>

@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Custom Elements: CEReactions on DOMTokenList interface</title>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<meta name="assert" content="add, remove, toggle, replace, and the stringifier of DOMTokenList interface must have CEReactions">
+<meta name="help" content="https://dom.spec.whatwg.org/#node">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../resources/custom-elements-helpers.js"></script>
+<script src="./resources/reactions.js"></script>
+</head>
+<body>
+<script>
+
+test(function () {
+    var element = define_new_custom_element(['class']);
+    var instance = document.createElement(element.name);
+    assert_array_equals(element.takeLog().types(), ['constructed']);
+    instance.classList.add('foo');
+    var logEntries = element.takeLog();
+    assert_array_equals(logEntries.types(), ['attributeChanged']);
+    assert_attribute_log_entry(logEntries.last(), {name: 'class', oldValue: null, newValue: 'foo', namespace: null});
+}, 'add on DOMTokenList must enqueue an attributeChanged reaction when adding an attribute');
+
+test(function () {
+    var element = define_new_custom_element(['style']);
+    var instance = document.createElement(element.name);
+    assert_array_equals(element.takeLog().types(), ['constructed']);
+    instance.classList.add('foo');
+    assert_array_equals(element.takeLog().types(), []);
+}, 'add on DOMTokenList must not enqueue an attributeChanged reaction when adding an unobserved attribute');
+
+test(function () {
+    var element = define_new_custom_element(['class']);
+    var instance = document.createElement(element.name);
+    instance.setAttribute('class', 'hello');
+    assert_array_equals(element.takeLog().types(), ['constructed', 'attributeChanged']);
+    instance.classList.add('world');
+    var logEntries = element.takeLog();
+    assert_array_equals(logEntries.types(), ['attributeChanged']);
+    assert_attribute_log_entry(logEntries.last(), {name: 'class', oldValue: 'hello', newValue: 'hello world', namespace: null});
+}, 'add on DOMTokenList must enqueue an attributeChanged reaction when adding a value to an existing attribute');
+
+test(function () {
+    var element = define_new_custom_element(['contenteditable']);
+    var instance = document.createElement(element.name);
+    instance.setAttribute('class', 'hello');
+    assert_array_equals(element.takeLog().types(), ['constructed']);
+    instance.classList.add('world');
+    assert_array_equals(element.takeLog().types(), []);
+}, 'add on DOMTokenList must not enqueue an attributeChanged reaction when adding a value to an unobserved attribute');
+
+test(function () {
+    var element = define_new_custom_element(['class']);
+    var instance = document.createElement(element.name);
+    assert_array_equals(element.takeLog().types(), ['constructed']);
+    instance.classList.add('hello', 'world');
+    var logEntries = element.takeLog();
+    assert_array_equals(logEntries.types(), ['attributeChanged']);
+    assert_attribute_log_entry(logEntries.last(), {name: 'class', oldValue: null, newValue: 'hello world', namespace: null});
+}, 'add on DOMTokenList must enqueue exactly one attributeChanged reaction when adding multiple values to an attribute');
+
+test(function () {
+    var element = define_new_custom_element(['class']);
+    var instance = document.createElement(element.name);
+    instance.setAttribute('class', 'hello world');
+    assert_array_equals(element.takeLog().types(), ['constructed', 'attributeChanged']);
+    instance.classList.remove('world');
+    var logEntries = element.takeLog();
+    assert_array_equals(logEntries.types(), ['attributeChanged']);
+    assert_attribute_log_entry(logEntries.last(), {name: 'class', oldValue: 'hello world', newValue: 'hello', namespace: null});
+}, 'remove on DOMTokenList must enqueue an attributeChanged reaction when removing a value from an attribute');
+
+test(function () {
+    var element = define_new_custom_element(['class']);
+    var instance = document.createElement(element.name);
+    instance.setAttribute('class', 'hello foo world bar');
+    assert_array_equals(element.takeLog().types(), ['constructed', 'attributeChanged']);
+    instance.classList.remove('hello', 'world');
+    var logEntries = element.takeLog();
+    assert_array_equals(logEntries.types(), ['attributeChanged']);
+    assert_attribute_log_entry(logEntries.last(), {name: 'class', oldValue: 'hello foo world bar', newValue: 'foo bar', namespace: null});
+}, 'remove on DOMTokenList must enqueue exactly one attributeChanged reaction when removing multiple values to an attribute');
+
+test(function () {
+    var element = define_new_custom_element(['class']);
+    var instance = document.createElement(element.name);
+    instance.setAttribute('class', 'hello world');
+    assert_array_equals(element.takeLog().types(), ['constructed', 'attributeChanged']);
+    instance.classList.remove('foo');
+    var logEntries = element.takeLog();
+    assert_array_equals(logEntries.types(), ['attributeChanged']);
+    assert_attribute_log_entry(logEntries.last(), {name: 'class', oldValue: 'hello world', newValue: 'hello world', namespace: null});
+}, 'remove on DOMTokenList must enqueue an attributeChanged reaction even when removing a non-existent value from an attribute');
+
+test(function () {
+    var element = define_new_custom_element(['title']);
+    var instance = document.createElement(element.name);
+    instance.setAttribute('class', 'hello world');
+    assert_array_equals(element.takeLog().types(), ['constructed']);
+    instance.classList.remove('world');
+    assert_array_equals(element.takeLog().types(), []);
+}, 'remove on DOMTokenList must not enqueue an attributeChanged reaction when removing a value from an unobserved attribute');
+
+test(function () {
+    var element = define_new_custom_element(['class']);
+    var instance = document.createElement(element.name);
+    instance.setAttribute('class', 'hello');
+    assert_array_equals(element.takeLog().types(), ['constructed', 'attributeChanged']);
+    instance.classList.toggle('world');
+    var logEntries = element.takeLog();
+    assert_array_equals(logEntries.types(), ['attributeChanged']);
+    assert_attribute_log_entry(logEntries.last(), {name: 'class', oldValue: 'hello', newValue: 'hello world', namespace: null});
+}, 'toggle on DOMTokenList must enqueue an attributeChanged reaction when adding a value to an attribute');
+
+test(function () {
+    var element = define_new_custom_element(['class']);
+    var instance = document.createElement(element.name);
+    instance.setAttribute('class', 'hello world');
+    assert_array_equals(element.takeLog().types(), ['constructed', 'attributeChanged']);
+    instance.classList.toggle('world');
+    var logEntries = element.takeLog();
+    assert_array_equals(logEntries.types(), ['attributeChanged']);
+    assert_attribute_log_entry(logEntries.last(), {name: 'class', oldValue: 'hello world', newValue: 'hello', namespace: null});
+}, 'toggle on DOMTokenList must enqueue an attributeChanged reaction when removing a value from an attribute');
+
+test(function () {
+    var element = define_new_custom_element(['class']);
+    var instance = document.createElement(element.name);
+    instance.setAttribute('class', 'hello');
+    assert_array_equals(element.takeLog().types(), ['constructed', 'attributeChanged']);
+    instance.classList.replace('hello', 'world');
+    var logEntries = element.takeLog();
+    assert_array_equals(logEntries.types(), ['attributeChanged']);
+    assert_attribute_log_entry(logEntries.last(), {name: 'class', oldValue: 'hello', newValue: 'world', namespace: null});
+}, 'replace on DOMTokenList must enqueue an attributeChanged reaction when replacing a value in an attribute');
+
+test(function () {
+    var element = define_new_custom_element(['class']);
+    var instance = document.createElement(element.name);
+    instance.setAttribute('class', 'hello world');
+    assert_array_equals(element.takeLog().types(), ['constructed', 'attributeChanged']);
+    instance.classList.replace('foo', 'bar');
+    assert_array_equals(element.takeLog().types(), []);
+}, 'replace on DOMTokenList must not enqueue an attributeChanged reaction when the token to replace does not exist in the attribute');
+
+test(function () {
+    var element = define_new_custom_element(['title']);
+    var instance = document.createElement(element.name);
+    instance.setAttribute('class', 'hello');
+    assert_array_equals(element.takeLog().types(), ['constructed']);
+    instance.classList.replace('hello', 'world');
+    assert_array_equals(element.takeLog().types(), []);
+}, 'replace on DOMTokenList must not enqueue an attributeChanged reaction when replacing a value in an unobserved attribute');
+
+test(function () {
+    var element = define_new_custom_element(['class']);
+    var instance = document.createElement(element.name);
+    assert_array_equals(element.takeLog().types(), ['constructed']);
+    instance.classList = 'hello';
+    var logEntries = element.takeLog();
+    assert_array_equals(logEntries.types(), ['attributeChanged']);
+    assert_attribute_log_entry(logEntries.last(), {name: 'class', oldValue: null, newValue: 'hello', namespace: null});
+}, 'the stringifier of DOMTokenList must enqueue an attributeChanged reaction when adding an observed attribute');
+
+test(function () {
+    var element = define_new_custom_element(['id']);
+    var instance = document.createElement(element.name);
+    instance.setAttribute('class', 'hello');
+    assert_array_equals(element.takeLog().types(), ['constructed']);
+    instance.classList = 'hello';
+    var logEntries = element.takeLog();
+    assert_array_equals(element.takeLog().types(), []);
+}, 'the stringifier of DOMTokenList must not enqueue an attributeChanged reaction when adding an unobserved attribute');
+
+test(function () {
+    var element = define_new_custom_element(['class']);
+    var instance = document.createElement(element.name);
+    instance.setAttribute('class', 'hello');
+    assert_array_equals(element.takeLog().types(), ['constructed', 'attributeChanged']);
+    instance.classList = 'world';
+    var logEntries = element.takeLog();
+    assert_array_equals(logEntries.types(), ['attributeChanged']);
+    assert_attribute_log_entry(logEntries.last(), {name: 'class', oldValue: 'hello', newValue: 'world', namespace: null});
+}, 'the stringifier of DOMTokenList must enqueue an attributeChanged reaction when mutating the value of an observed attribute');
+
+test(function () {
+    var element = define_new_custom_element([]);
+    var instance = document.createElement(element.name);
+    instance.setAttribute('class', 'hello');
+    assert_array_equals(element.takeLog().types(), ['constructed']);
+    instance.classList = 'world';
+    assert_array_equals(element.takeLog().types(), []);
+}, 'the stringifier of DOMTokenList must not enqueue an attributeChanged reaction when mutating the value of an unobserved attribute');
+
+test(function () {
+    var element = define_new_custom_element(['class']);
+    var instance = document.createElement(element.name);
+    instance.setAttribute('class', 'hello');
+    assert_array_equals(element.takeLog().types(), ['constructed', 'attributeChanged']);
+    instance.classList = 'hello';
+    var logEntries = element.takeLog();
+    assert_array_equals(logEntries.types(), ['attributeChanged']);
+    assert_attribute_log_entry(logEntries.last(), {name: 'class', oldValue: 'hello', newValue: 'hello', namespace: null});
+}, 'the stringifier of DOMTokenList must enqueue an attributeChanged reaction when the setter is called with the original value of the attribute');
+
+</script>
+</body>
+</html>

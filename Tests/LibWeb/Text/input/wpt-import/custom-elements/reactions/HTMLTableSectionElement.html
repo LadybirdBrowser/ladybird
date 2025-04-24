@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Custom Elements: CEReactions on HTMLTableSectionElement interface</title>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<meta name="assert" content="deleteRow of HTMLTableSectionElement interface must have CEReactions">
+<meta name="help" content="https://dom.spec.whatwg.org/#node">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../resources/custom-elements-helpers.js"></script>
+<script src="./resources/reactions.js"></script>
+</head>
+<body>
+<div id="log"></div>
+<script>
+
+test_with_window(function (contentWindow, contentDocument) {
+    const element = define_custom_element_in_window(contentWindow, 'custom-element', []);
+    contentDocument.body.innerHTML = `<table><thead><tr><td><custom-element>hello</custom-element></td></tr></thead></table>`;
+    const thead = contentDocument.querySelector('thead');
+    assert_array_equals(element.takeLog().types(), ['constructed', 'connected']);
+    assert_equals(thead.innerHTML, '<tr><td><custom-element>hello</custom-element></td></tr>');
+
+    const table = contentDocument.querySelector('table');
+    assert_equals(table.tHead, thead);
+    table.tHead.deleteRow(0);
+    assert_array_equals(element.takeLog().types(), ['disconnected']);
+}, 'deleteRow() on HTMLTableSectionElement on thead must enqueue disconnectedCallback when removing a custom element');
+
+test_with_window(function (contentWindow, contentDocument) {
+    const element = define_custom_element_in_window(contentWindow, 'custom-element', []);
+    contentDocument.body.innerHTML = `<table><tfoot><tr><td><custom-element>hello</custom-element></td></tr></tfoot></table>`;
+    const tfoot = contentDocument.querySelector('tfoot');
+    assert_array_equals(element.takeLog().types(), ['constructed', 'connected']);
+    assert_equals(tfoot.innerHTML, '<tr><td><custom-element>hello</custom-element></td></tr>');
+
+    const table = contentDocument.querySelector('table');
+    assert_equals(table.tFoot, tfoot);
+    table.tFoot.deleteRow(0);
+    assert_array_equals(element.takeLog().types(), ['disconnected']);
+}, 'deleteRow() on HTMLTableSectionElement on tfoot must enqueue disconnectedCallback when removing a custom element');
+
+</script>
+</body>
+</html>

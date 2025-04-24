@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 5 tests
+
+3 Pass
+2 Fail
+Pass	length on HTMLOptionsCollection must enqueue disconnectedCallback when removing a custom element
+Fail	The indexed setter on HTMLOptionsCollection must enqueue connectedCallback when inserting a custom element
+Fail	The indexed setter on HTMLOptionsCollection must enqueue disconnectedCallback when removing a custom element
+Pass	add on HTMLOptionsCollection must enqueue connectedCallback when inserting a custom element
+Pass	remove on HTMLOptionsCollection must enqueue disconnectedCallback when removing a custom element

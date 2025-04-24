@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Custom Elements: document.createElement should create a customized builtin element with synchronous custom elements flag set</title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="resources/custom-elements-helpers.js"></script>
+</head>
+<body>
+<div id="log"></div>
+<script>
+setup({allow_uncaught_exception:true});
+
+function assert_reports(expected, testFunction, message) {
+    var uncaughtError = null;
+    window.onerror = function (message, url, lineNumber, columnNumber, error) { uncaughtError = error; return true; }
+    testFunction();
+    if (typeof(expected) == 'string')
+        assert_equals(uncaughtError, expected, message);
+    else if (expected && 'name' in expected)
+        assert_equals(uncaughtError.name, expected.name, message);
+    else
+      assert_equals(uncaughtError, expected, message);
+    window.onerror = null;
+}
+
+test(function () {
+    class AutonomousCustomElement extends HTMLElement {};
+    class IsCustomElement extends HTMLElement {};
+
+    customElements.define('autonomous-custom-element', AutonomousCustomElement);
+    customElements.define('is-custom-element', IsCustomElement);
+
+    var instance = document.createElement('autonomous-custom-element', { is: 'is-custom-element'});
+
+    assert_true(instance instanceof AutonomousCustomElement);
+    assert_equals(instance.localName, 'autonomous-custom-element');
+    assert_equals(instance.namespaceURI, 'http://www.w3.org/1999/xhtml', 'A custom element HTML must use HTML namespace');
+
+    var instance2 = document.createElement('undefined-element', { is: 'is-custom-element'});
+    assert_false(instance2.matches(':defined'));
+    class DefinedLater extends HTMLElement {}
+    customElements.define('undefined-element', DefinedLater);
+    document.body.appendChild(instance2);
+    assert_true(instance2 instanceof DefinedLater);
+}, 'document.createElement must create an instance of autonomous custom elements when it has is attribute');
+
+test(() => {
+    class SuperP extends HTMLParagraphElement {}
+    customElements.define("super-p", SuperP, { extends: "p" });
+
+    const superP = document.createElement("p", { is: "super-p" });
+    assert_true(superP instanceof HTMLParagraphElement);
+    assert_true(superP instanceof SuperP);
+    assert_equals(superP.localName, "p");
+
+    const notSuperP = document.createElement("p", "super-p");
+    assert_true(notSuperP instanceof HTMLParagraphElement);
+    assert_false(notSuperP instanceof SuperP);
+    assert_equals(notSuperP.localName, "p");
+}, "document.createElement()'s second argument is to be ignored when it's a string");
+
+test(function () {
+    var exceptionToThrow = {name: 'exception thrown by a custom constructor'};
+    class ThrowCustomBuiltinElement extends HTMLDivElement {
+        constructor()
+        {
+            super();
+            if (exceptionToThrow)
+                throw exceptionToThrow;
+        }
+    };
+    customElements.define('throw-custom-builtin-element', ThrowCustomBuiltinElement, { extends: 'div' });
+
+    assert_throws_exactly(exceptionToThrow, function () { new ThrowCustomBuiltinElement; });
+    var instance;
+    assert_reports(exceptionToThrow, function () { instance = document.createElement('div', { is: 'throw-custom-builtin-element' }); });
+    assert_equals(instance.localName, 'div');
+    assert_true(instance instanceof HTMLDivElement);
+
+    exceptionToThrow = false;
+    var instance = document.createElement('div', { is: 'throw-custom-builtin-element' });
+    assert_true(instance instanceof ThrowCustomBuiltinElement);
+    assert_equals(instance.localName, 'div');
+
+}, 'document.createElement must report an exception thrown by a custom built-in element constructor');
+
+test(() => {
+  class MyElement extends HTMLDivElement {}
+
+  // createElement with unknown 'is' should not throw.
+  // https://github.com/w3c/webcomponents/issues/608
+  let div = document.createElement('div', { is: 'my-div' });
+  assert_false(div instanceof MyElement);
+  assert_false(div.hasAttribute('is'));
+
+  customElements.define('my-div', MyElement, { extends: 'div' });
+  document.body.appendChild(div);
+  assert_true(div instanceof MyElement, 'Undefined element is upgraded on connecting to a document');
+}, 'document.createElement with unknown "is" value should create "undefined" state element');
+
+</script>
+</body>
+</html>

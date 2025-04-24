@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	Appending children in customized built-in constructor should work
+Pass	Throwing exception in customized built-in constructor should not crash and should return correct element type (video)
+Pass	Throwing exception in customized built-in constructor should not crash and should return correct element type (form)
+Pass	Make sure customized <input> element doesnt crash
+Pass	Make sure customized <input> element that sets attributes doesnt crash

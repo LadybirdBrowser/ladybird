@@ -1,0 +1,15 @@
+Harness status: OK
+
+Found 10 tests
+
+10 Pass
+Pass	If prototype is not object (null), derives the fallback from NewTarget's realm (customized built-in elements)
+Pass	If prototype is not object (null), derives the fallback from NewTarget's GetFunctionRealm (customized built-in elements)
+Pass	If prototype is not object (undefined), derives the fallback from NewTarget's realm (customized built-in elements)
+Pass	If prototype is not object (undefined), derives the fallback from NewTarget's GetFunctionRealm (customized built-in elements)
+Pass	If prototype is not object (5), derives the fallback from NewTarget's realm (customized built-in elements)
+Pass	If prototype is not object (5), derives the fallback from NewTarget's GetFunctionRealm (customized built-in elements)
+Pass	If prototype is not object (string), derives the fallback from NewTarget's realm (customized built-in elements)
+Pass	If prototype is not object (string), derives the fallback from NewTarget's GetFunctionRealm (customized built-in elements)
+Pass	HTMLParagraphElement constructor must not get .prototype until it finishes its extends sanity checks, calling proxy constructor directly
+Pass	HTMLParagraphElement constructor must not get .prototype until it finishes its extends sanity checks, calling via Reflect

@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 2 tests
+
+1 Pass
+1 Fail
+Fail	ElementInternals.form should return the target element's form owner
+Pass	ElementInternals.form should throws NotSupportedError if the target element is not a form-associated custom element

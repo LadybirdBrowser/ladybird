@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<title>Tests element upgrade order after adding a scoped custom element definition</title>
+<meta name="author" title="Xiaocheng Hu" href="mailto:xiaochengh@chromium.org">
+<link rel="help" href="https://wicg.github.io/webcomponents/proposals/Scoped-Custom-Element-Registries">
+<link rel="help" href="https://github.com/WICG/webcomponents/issues/923">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<body>
+
+<script>
+let definitionCount = 0;
+function nextCustomElementDefinition() {
+  const log = [];
+  const name = `test-element-${++definitionCount}`;
+  const constructor = class extends HTMLElement {
+    constructor() {
+      super();
+      log.push(this.id);
+    }
+  };
+  return {name, constructor, log};
+}
+
+function attachShadowForTest(t, {parent, registry}) {
+  parent = parent || document.body;
+  const host = parent.ownerDocument.createElement('div');
+  const shadow = host.attachShadow({mode: 'open', customElementRegistry: registry});
+  parent.appendChild(host);
+  t.add_cleanup(() => host.remove());
+  return shadow;
+}
+
+function createIFrameForTest(t, {parent, nextSibling}) {
+  parent = parent || document.body;
+  const iframe = parent.ownerDocument.createElement('iframe');
+  parent.insertBefore(iframe, nextSibling);
+  if (!iframe.contentDocument.body) {
+    iframe.contentDocument.body = iframe.contentDocument.createElement('body');
+  }
+  t.add_cleanup(() => iframe.remove());
+  return iframe;
+}
+
+test(t => {
+  const {name, constructor, log} = nextCustomElementDefinition();
+
+  const registry = new CustomElementRegistry;
+  const shadow = attachShadowForTest(t, {registry});
+  shadow.innerHTML = `
+    <${name} id="a"></${name}>
+    <${name} id="b"></${name}>
+    <${name} id="c"></${name}>
+  `;
+
+  registry.define(name, constructor);
+  assert_array_equals(log, ['a', 'b', 'c']);
+}, 'Upgrade in tree order in the same tree scope');
+
+test(t => {
+  // document
+  // +- shadow1
+  // |  +- a
+  // |  +- shadow2
+  // |     +- b
+  // +- shadow3
+  //    +- c
+
+  const {name, constructor, log} = nextCustomElementDefinition();
+  const registry = new CustomElementRegistry;
+
+  const shadow1 = attachShadowForTest(t, {registry});
+  shadow1.innerHTML = `<${name} id="a"></${name}>`;
+
+  const shadow2 = attachShadowForTest(t, {registry, parent: shadow1});
+  shadow2.innerHTML = `<${name} id="b"></${name}>`;
+
+  const shadow3 = attachShadowForTest(t, {registry});
+  shadow3.innerHTML = `<${name} id="c"></${name}>`;
+
+  registry.define(name, constructor);
+  assert_array_equals(log, ['a', 'b', 'c']);
+}, 'Upgrade in shadow-including tree order across tree scopes');
+
+test(t => {
+  // document
+  // +- shadow1
+  // |  +- a
+  // |  +- shadow3
+  // |     +- c
+  // +- shadow2
+  //    +- b
+
+  const {name, constructor, log} = nextCustomElementDefinition();
+  const registry = new CustomElementRegistry;
+
+  const shadow1 = attachShadowForTest(t, {registry});
+  shadow1.innerHTML = `<${name} id="a"></${name}>`;
+
+  const shadow2 = attachShadowForTest(t, {registry});
+  shadow2.innerHTML = `<${name} id="b"></${name}>`;
+
+  const shadow3 = attachShadowForTest(t, {registry, parent: shadow1});
+  shadow3.innerHTML = `<${name} id="c"></${name}>`;
+
+  registry.define(name, constructor);
+  assert_array_equals(log, ['a', 'c', 'b']);
+}, 'Upgrade order does not depend on shadow root attach order');
+
+test(t => {
+  // document
+  // +- iframe1
+  // |   +- shadow1
+  // |   |  +- a
+  // |   +- iframe2
+  // |      +- shadow2
+  // |         +- b
+  // +- shadow3
+  //    +- c
+
+  const {name, constructor, log} = nextCustomElementDefinition();
+  const registry = new CustomElementRegistry;
+
+  const iframe1 = createIFrameForTest(t, {});
+  const shadow1 = attachShadowForTest(t, {registry, parent: iframe1.contentDocument.body});
+  shadow1.innerHTML = `<${name} id="a"></${name}>`;
+
+  const iframe2 = createIFrameForTest(t, {parent: iframe1.contentDocument.body});
+  const shadow2 = attachShadowForTest(t, {registry, parent: iframe2.contentDocument.body});
+  shadow2.innerHTML = `<${name} id="b"></${name}>`;
+
+  const shadow3 = attachShadowForTest(t, {registry});
+  shadow3.innerHTML = `<${name} id="c"></${name}>`;
+
+  registry.define(name, constructor);
+  assert_array_equals(log, ['a', 'b', 'c']);
+}, 'Upgrade in association order across documents, then tree order in each document');
+
+test(t => {
+  // document
+  // +- iframe2
+  // |  +- shadow2
+  // |     +- b
+  // +- iframe1
+  // |  +- shadow1
+  // |     +- a
+
+  const {name, constructor, log} = nextCustomElementDefinition();
+  const registry = new CustomElementRegistry;
+
+  const iframe1 = createIFrameForTest(t, {});
+  const shadow1 = attachShadowForTest(t, {registry, parent: iframe1.contentDocument.body});
+  shadow1.innerHTML = `<${name} id="a"></${name}>`;
+
+  const iframe2 = createIFrameForTest(t, {nextSibling: iframe1});
+  const shadow2 = attachShadowForTest(t, {registry, parent: iframe2.contentDocument.body});
+  shadow2.innerHTML = `<${name} id="b"></${name}>`;
+
+  registry.define(name, constructor);
+  assert_array_equals(log, ['a', 'b']);
+}, 'Upgrade order is not affected by DOM order between child frames');
+
+test(t => {
+  // document
+  // +- iframe1
+  // |  +- shadow2
+  // |     +- b
+  // +- iframe2
+  // |  +- shadow1
+  // |     +- a
+
+  const {name, constructor, log} = nextCustomElementDefinition();
+  const registry = new CustomElementRegistry;
+
+  const iframe1 = createIFrameForTest(t, {});
+  const iframe2 = createIFrameForTest(t, {});
+
+  const shadow1 = attachShadowForTest(t, {registry});
+  const host1 = shadow1.host;
+  shadow1.innerHTML = `<${name} id="a"></${name}>`;
+
+  const shadow2 = attachShadowForTest(t, {registry});
+  const host2 = shadow2.host;
+  shadow2.innerHTML = `<${name} id="b"></${name}>`;
+
+  iframe1.contentDocument.body.appendChild(host2);
+  iframe2.contentDocument.body.appendChild(host1);
+
+  registry.define(name, constructor);
+  assert_array_equals(log, ['b', 'a']);
+}, 'Upgrade order is affected by shadow tree adoption across documents');
+
+test(t => {
+  // Create a registry in one window, but associate it with another document first
+  // document
+  // +- iframe1
+  // |   +- shadow1
+  // |      +- a
+  // +- shadowr2
+  //    +- b
+
+  const {name, constructor, log} = nextCustomElementDefinition();
+  const registry = new CustomElementRegistry;
+
+  const iframe1 = createIFrameForTest(t, {});
+  const shadow1 = attachShadowForTest(t, {registry, parent: iframe1.contentDocument.body});
+  shadow1.innerHTML = `<${name} id="a"></${name}>`;
+
+  const shadow2 = attachShadowForTest(t, {registry});
+  shadow2.innerHTML = `<${name} id="b"></${name}>`;
+
+  registry.define(name, constructor);
+  assert_array_equals(log, ['a', 'b']);
+}, 'Elements in the "owner" window of a scoped registry are not always upgraded first');
+
+</script>

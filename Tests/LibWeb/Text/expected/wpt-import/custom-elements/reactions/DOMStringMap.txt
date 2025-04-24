@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 8 tests
+
+4 Pass
+4 Fail
+Fail	setter on DOMStringMap must enqueue an attributeChanged reaction when adding an observed data attribute
+Pass	setter on DOMStringMap must not enqueue an attributeChanged reaction when adding an unobserved data attribute
+Fail	setter on DOMStringMap must enqueue an attributeChanged reaction when mutating the value of an observed data attribute
+Fail	setter on DOMStringMap must enqueue an attributeChanged reaction when mutating the value of an observed data attribute to the same value
+Pass	setter on DOMStringMap must not enqueue an attributeChanged reaction when mutating the value of an unobserved data attribute
+Fail	deleter on DOMStringMap must enqueue an attributeChanged reaction when removing an observed data attribute
+Pass	deleter on DOMStringMap must not enqueue an attributeChanged reaction when removing an unobserved data attribute
+Pass	deleter on DOMStringMap must not enqueue an attributeChanged reaction when it does not remove a data attribute

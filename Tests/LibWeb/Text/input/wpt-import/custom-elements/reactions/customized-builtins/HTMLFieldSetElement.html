@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<title>Custom Elements: CEReactions on HTMLFieldSetElement interface</title>
+<link rel="author" title="Intel" href="http://www.intel.com">
+<meta name="assert" content="disabled, name of
+  HTMLFieldSetElement interface must have CEReactions">
+<meta name="help" content="https://html.spec.whatwg.org/#the-fieldset-element">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../resources/custom-elements-helpers.js"></script>
+<script src="../resources/reactions.js"></script>
+
+<body>
+<script>
+
+function getParentElement() {
+  let form = document.createElement("form");
+  document.body.appendChild(form);
+  return form;
+}
+
+testReflectBooleanAttributeWithParentNode(
+  'disabled', 'disabled', 'disabled on HTMLFieldSetElement',
+  'fieldset', getParentElement, HTMLFieldSetElement
+);
+testReflectAttributeWithParentNode(
+  'name', 'name', 'fieldset1',
+  'fieldset2', 'name on HTMLFieldSetElement', 'fieldset',
+  getParentElement, HTMLFieldSetElement
+);
+
+</script>
+</body>

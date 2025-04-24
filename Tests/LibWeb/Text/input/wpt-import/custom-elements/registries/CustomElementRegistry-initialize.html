@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<link rel="help" href="https://github.com/whatwg/html/issues/10854">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+</head>
+<body>
+<div id="host">
+    <template shadowrootmode="open" shadowrootclonable="true" shadowrootcustomelementregistry>
+        <a-b>
+            <template shadowrootmode="open" shadowrootclonable="true" shadowrootcustomelementregistry>
+                <c-d/><c-d>
+            </template>
+        </a-b>
+        <ef></ef>
+    </template>
+</div>
+<div id="host-with-registry">
+    <template shadowrootmode="open" shadowrootclonable="true">
+        <a-b></a-b>
+        <ef></ef>
+    </template>
+</div>
+<script>
+
+test(() => {
+    assert_equals(typeof(window.customElements.initialize), 'function');
+    assert_equals(typeof((new CustomElementRegistry).initialize), 'function');
+}, 'initialize is a function on both global and scoped CustomElementRegistry');
+
+test(() => {
+    const clone = host.cloneNode(true);
+    const shadowRoot = clone.shadowRoot;
+    assert_equals(shadowRoot.customElementRegistry, null);
+    assert_equals(shadowRoot.querySelector('a-b').customElementRegistry, null);
+    assert_equals(shadowRoot.querySelector('ef').customElementRegistry, null);
+    window.customElements.initialize(shadowRoot);
+    assert_equals(shadowRoot.customElementRegistry, window.customElements);
+    assert_equals(shadowRoot.querySelector('a-b').customElementRegistry, window.customElements);
+    assert_equals(shadowRoot.querySelector('ef').customElementRegistry, window.customElements);
+}, 'initialize sets element.customElementRegistry to the global registry');
+
+test(() => {
+    const clone = host.cloneNode(true);
+    const shadowRoot = clone.shadowRoot;
+    assert_equals(shadowRoot.customElementRegistry, null);
+    assert_equals(shadowRoot.querySelector('a-b').customElementRegistry, null);
+    assert_equals(shadowRoot.querySelector('ef').customElementRegistry, null);
+    window.customElements.initialize(shadowRoot);
+    assert_equals(shadowRoot.customElementRegistry, window.customElements);
+    assert_equals(shadowRoot.querySelector('a-b').customElementRegistry, window.customElements);
+    assert_equals(shadowRoot.querySelector('ef').customElementRegistry, window.customElements);
+    assert_equals(shadowRoot.querySelector('a-b').shadowRoot.customElementRegistry, null);
+    assert_equals(shadowRoot.querySelector('a-b').shadowRoot.querySelector('c-d').customElementRegistry, null);
+}, 'initialize does not set the registry of nested shadow tree to the global registry');
+
+
+test(() => {
+    const clone = host.cloneNode(true);
+    const shadowRoot = clone.shadowRoot;
+    assert_equals(shadowRoot.customElementRegistry, null);
+    assert_equals(shadowRoot.querySelector('a-b').customElementRegistry, null);
+    assert_equals(shadowRoot.querySelector('ef').customElementRegistry, null);
+    const registry = new CustomElementRegistry;
+    registry.initialize(shadowRoot);
+    assert_equals(shadowRoot.customElementRegistry, registry);
+    assert_equals(shadowRoot.querySelector('a-b').customElementRegistry, registry);
+    assert_equals(shadowRoot.querySelector('ef').customElementRegistry, registry);
+}, 'initialize sets element.customElementRegistry to a scoped registry');
+
+test(() => {
+    const clone = host.cloneNode(true);
+    const shadowRoot = clone.shadowRoot;
+    assert_equals(shadowRoot.customElementRegistry, null);
+    assert_equals(shadowRoot.querySelector('a-b').customElementRegistry, null);
+    assert_equals(shadowRoot.querySelector('ef').customElementRegistry, null);
+    const registry = new CustomElementRegistry;
+    registry.initialize(shadowRoot);
+    assert_equals(shadowRoot.customElementRegistry, registry);
+    assert_equals(shadowRoot.querySelector('a-b').customElementRegistry, registry);
+    assert_equals(shadowRoot.querySelector('ef').customElementRegistry, registry);
+    assert_equals(shadowRoot.querySelector('a-b').shadowRoot.customElementRegistry, null);
+    assert_equals(shadowRoot.querySelector('a-b').shadowRoot.querySelector('c-d').customElementRegistry, null);
+}, 'initialize does not set the registry of nested shadow tree to a scoped registry');
+
+test(() => {
+    const clone = host.cloneNode(true);
+    const shadowRoot = clone.shadowRoot;
+    assert_equals(shadowRoot.customElementRegistry, null);
+    assert_equals(shadowRoot.querySelector('a-b').customElementRegistry, null);
+    assert_equals(shadowRoot.querySelector('ef').customElementRegistry, null);
+    const registry = new CustomElementRegistry;
+    registry.initialize(shadowRoot);
+    assert_equals(shadowRoot.customElementRegistry, registry);
+    assert_equals(shadowRoot.querySelector('a-b').customElementRegistry, registry);
+    assert_equals(shadowRoot.querySelector('ef').customElementRegistry, registry);
+    document.body.appendChild(clone);
+    assert_equals(shadowRoot.customElementRegistry, registry);
+    assert_equals(shadowRoot.querySelector('a-b').customElementRegistry, registry);
+    assert_equals(shadowRoot.querySelector('ef').customElementRegistry, registry);
+}, 'initialize sets element.customElementRegistry permantently');
+
+test(() => {
+    const clone = document.getElementById('host-with-registry').cloneNode(true);
+    const shadowRoot = clone.shadowRoot;
+    assert_equals(shadowRoot.customElementRegistry, window.customElements);
+    assert_equals(shadowRoot.querySelector('a-b').customElementRegistry, window.customElements);
+    assert_equals(shadowRoot.querySelector('ef').customElementRegistry, window.customElements);
+    const registry = new CustomElementRegistry;
+    registry.initialize(shadowRoot);
+    assert_equals(shadowRoot.customElementRegistry, window.customElements);
+    assert_equals(shadowRoot.querySelector('a-b').customElementRegistry, window.customElements);
+    assert_equals(shadowRoot.querySelector('ef').customElementRegistry, window.customElements);
+}, 'initialize is no-op on a subtree with a non-null registry');
+
+test(() => {
+    const doc = new Document();
+    assert_equals(doc.customElementRegistry, null);
+    const registry = new CustomElementRegistry();
+    registry.initialize(doc);
+    assert_equals(doc.customElementRegistry, registry);
+}, 'initialize works on Document');
+
+test(() => {
+    const doc = new Document();
+    const df = doc.createDocumentFragment();
+    const dummy = doc.createElement("dummy");
+    df.append(dummy);
+    assert_equals(dummy.customElementRegistry, null);
+    assert_equals(df.customElementRegistry, undefined);
+    const registry = new CustomElementRegistry();
+    registry.initialize(df);
+    assert_equals(dummy.customElementRegistry, registry);
+    assert_equals(df.customElementRegistry, undefined);
+}, 'initialize works on DocumentFragment');
+
+</script>
+</body>
+</html>

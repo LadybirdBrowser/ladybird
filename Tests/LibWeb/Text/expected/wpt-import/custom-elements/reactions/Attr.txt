@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	value on Attr must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	value on Attr must not enqueue an attributeChanged reaction when replacing an existing unobserved attribute

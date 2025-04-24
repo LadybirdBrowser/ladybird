@@ -1,0 +1,33 @@
+Harness status: OK
+
+Found 28 tests
+
+28 Pass
+Pass	src on HTMLMediaElement in audio must enqueue an attributeChanged reaction when adding src content attribute
+Pass	src on HTMLMediaElement in audio must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	crossOrigin on HTMLMediaElement in audio must enqueue an attributeChanged reaction when adding a new attribute
+Pass	crossOrigin on HTMLMediaElement in audio must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	preload on HTMLMediaElement in audio must enqueue an attributeChanged reaction when adding a new attribute
+Pass	preload on HTMLMediaElement in audio must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	autoplay on HTMLMediaElement in audio must enqueue an attributeChanged reaction when adding a new attribute
+Pass	autoplay on HTMLMediaElement in audio must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	loop on HTMLMediaElement in audio must enqueue an attributeChanged reaction when adding a new attribute
+Pass	loop on HTMLMediaElement in audio must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	controls on HTMLMediaElement in audio must enqueue an attributeChanged reaction when adding a new attribute
+Pass	controls on HTMLMediaElement in audio must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	defaultMuted on HTMLMediaElement in audio must enqueue an attributeChanged reaction when adding a new attribute
+Pass	defaultMuted on HTMLMediaElement in audio must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	src on HTMLMediaElement in video must enqueue an attributeChanged reaction when adding src content attribute
+Pass	src on HTMLMediaElement in video must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	crossOrigin on HTMLMediaElement in video must enqueue an attributeChanged reaction when adding a new attribute
+Pass	crossOrigin on HTMLMediaElement in video must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	preload on HTMLMediaElement in video must enqueue an attributeChanged reaction when adding a new attribute
+Pass	preload on HTMLMediaElement in video must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	autoplay on HTMLMediaElement in video must enqueue an attributeChanged reaction when adding a new attribute
+Pass	autoplay on HTMLMediaElement in video must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	loop on HTMLMediaElement in video must enqueue an attributeChanged reaction when adding a new attribute
+Pass	loop on HTMLMediaElement in video must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	controls on HTMLMediaElement in video must enqueue an attributeChanged reaction when adding a new attribute
+Pass	controls on HTMLMediaElement in video must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	defaultMuted on HTMLMediaElement in video must enqueue an attributeChanged reaction when adding a new attribute
+Pass	defaultMuted on HTMLMediaElement in video must enqueue an attributeChanged reaction when replacing an existing attribute

@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<title>Custom Elements: CEReactions on HTMLDataElement interface</title>
+<link rel="author" title="Intel" href="http://www.intel.com">
+<meta name="assert" content="value of HTMLDataElement interface must have CEReactions">
+<meta name="help" content="https://html.spec.whatwg.org/#the-data-element">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../resources/custom-elements-helpers.js"></script>
+<script src="../resources/reactions.js"></script>
+
+<script>
+
+testReflectAttribute('value', 'value', '1234', '2345', 'name on HTMLDataElement', 'data', HTMLDataElement);
+
+</script>

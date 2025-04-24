@@ -1,0 +1,52 @@
+Harness status: OK
+
+Found 46 tests
+
+41 Pass
+5 Fail
+Pass	CustomElementRegistry interface must have define as a method
+Pass	customElements.define must throw when the element interface is not a constructor
+Pass	customElements.define must not throw the constructor is HTMLElement
+Pass	customElements.define must throw with an invalid name
+Pass	customElements.define must throw when there is already a custom element of the same name
+Pass	customElements.define must throw a NotSupportedError when there is already a custom element with the same class
+Pass	customElements.define must throw a NotSupportedError when element definition is running flag is set
+Pass	customElements.define must check IsConstructor on the constructor before checking the element definition is running flag
+Pass	customElements.define must validate the custom element name before checking the element definition is running flag
+Pass	customElements.define unset the element definition is running flag before upgrading custom elements
+Pass	customElements.define must not throw when defining another custom element in a different global object during Get(constructor, "prototype")
+Pass	Custom Elements: CustomElementRegistry interface
+Pass	customElements.define must get "prototype", "disabledFeatures", and "formAssociated" property of the constructor
+Pass	customElements.define must rethrow an exception thrown while getting "prototype" property of the constructor
+Pass	customElements.define must throw when "prototype" property of the constructor is not an object
+Fail	customElements.define must get callbacks of the constructor prototype
+Pass	customElements.define must rethrow an exception thrown while getting callbacks on the constructor prototype
+Fail	customElements.define must rethrow an exception thrown while converting a callback value to Function callback type
+Fail	customElements.define must get "observedAttributes" property on the constructor prototype when "attributeChangedCallback" is present
+Pass	customElements.define must rethrow an exception thrown while getting observedAttributes on the constructor prototype
+Pass	customElements.define must rethrow an exception thrown while converting the value of observedAttributes to sequence<DOMString>
+Pass	customElements.define must rethrow an exception thrown while iterating over observedAttributes to sequence<DOMString>
+Pass	customElements.define must rethrow an exception thrown while retrieving Symbol.iterator on observedAttributes
+Pass	customElements.define must not throw even if "observedAttributes" fails to convert if "attributeChangedCallback" is not defined
+Pass	customElements.define must rethrow an exception thrown while getting disabledFeatures on the constructor prototype
+Pass	customElements.define must rethrow an exception thrown while converting the value of disabledFeatures to sequence<DOMString>
+Pass	customElements.define must rethrow an exception thrown while iterating over disabledFeatures to sequence<DOMString>
+Pass	customElements.define must rethrow an exception thrown while retrieving Symbol.iterator on disabledFeatures
+Pass	customElements.define must rethrow an exception thrown while getting formAssociated on the constructor prototype
+Fail	customElements.define must get four additional callbacks on the prototype if formAssociated is converted to true
+Fail	customElements.define must rethrow an exception thrown while getting additional formAssociated callbacks on the constructor prototype
+Pass	customElements.define must define an instantiatable custom element
+Pass	customElements.define must upgrade elements in the shadow-including tree order
+Pass	CustomElementRegistry interface must have get as a method
+Pass	customElements.get must return undefined when the registry does not contain an entry with the given name
+Pass	customElements.get must return undefined when the registry does not contain an entry with the given name even if the name was not a valid custom element name
+Pass	customElements.get return the constructor of the entry with the given name when there is a matching entry.
+Pass	customElements.whenDefined must return a promise for a valid custom element name
+Pass	customElements.whenDefined must return the same promise each time invoked for a valid custom element name which has not been defined
+Pass	customElements.whenDefined must return an unresolved promise when the registry does not contain the entry with the given name
+Pass	customElements.whenDefined must return a rejected promise when the given name is not a valid custom element name
+Pass	customElements.whenDefined must return a resolved promise when the registry contains the entry with the given name
+Pass	customElements.whenDefined must return a new resolved promise each time invoked when the registry contains the entry with the given name
+Pass	A promise returned by customElements.whenDefined must be resolved by "define"
+Pass	A promise returned by customElements.whenDefined must be resolved with the defined class
+Pass	A promise returned by customElements.whenDefined must be resolved with the defined class once such class is defined

@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Custom Elements: CEReactions on Document interface</title>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<meta name="assert" content="importNode and adoptNode of Document interface must have CEReactions">
+<meta name="help" content="https://dom.spec.whatwg.org/#document">
+<meta name="help" content="https://html.spec.whatwg.org/#document">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../resources/custom-elements-helpers.js"></script>
+<script src="./resources/reactions.js"></script>
+</head>
+<body>
+<div id="log"></div>
+<script>
+
+test_with_window(function (contentWindow, contentDocument) {
+    const element = define_custom_element_in_window(contentWindow, 'custom-element', []);
+    const instance = contentDocument.createElement('custom-element');
+    assert_array_equals(element.takeLog().types(), ['constructed']);
+
+    const newDoc = contentDocument.implementation.createHTMLDocument();
+    newDoc.importNode(instance);
+
+    assert_array_equals(element.takeLog().types(), ['constructed']);
+}, 'importNode on Document must construct a new custom element when importing a custom element into a window-less document');
+
+test_with_window(function (contentWindow, contentDocument) {
+    const element = define_custom_element_in_window(contentWindow, 'custom-element', []);
+    const template = contentDocument.createElement('template');
+    template.innerHTML = '<custom-element></custom-element>';
+    assert_array_equals(element.takeLog().types(), []);
+    contentDocument.importNode(template.content, true);
+    assert_array_equals(element.takeLog().types(), ['constructed']);
+}, 'importNode on Document must construct a new custom element when importing a custom element from a template');
+
+test_with_window(function (contentWindow, contentDocument) {
+    const element = define_custom_element_in_window(contentWindow, 'custom-element', []);
+    const instance = contentDocument.createElement('custom-element');
+    assert_array_equals(element.takeLog().types(), ['constructed']);
+
+    const newDoc = contentDocument.implementation.createHTMLDocument();
+    newDoc.adoptNode(instance);
+
+    const logEntries = element.takeLog();
+    assert_array_equals(logEntries.types(), ['adopted']);
+    assert_equals(logEntries.last().oldDocument, contentDocument);
+    assert_equals(logEntries.last().newDocument, newDoc);
+}, 'adoptNode on Document must enqueue an adopted reaction when importing a custom element');
+
+test_with_window(function (contentWindow, contentDocument) {
+    const element = define_custom_element_in_window(contentWindow, 'custom-element', []);
+    const instance = contentDocument.createElement('custom-element');
+
+    const container = contentDocument.createElement('div');
+    container.contentEditable = true;
+    container.appendChild(instance);
+    contentDocument.body.appendChild(container);
+
+    assert_array_equals(element.takeLog().types(), ['constructed', 'connected']);
+
+    container.focus();
+    contentDocument.getSelection().collapse(container, 1);
+    contentDocument.execCommand('delete', false, null);
+
+    assert_array_equals(element.takeLog().types(), ['disconnected']);
+}, 'execCommand on Document must enqueue a disconnected reaction when deleting a custom element from a contenteditable element');
+
+test_with_window(function (contentWindow, contentDocument) {
+    const element = define_custom_element_in_window(contentWindow, 'custom-element', []);
+
+    contentDocument.title = '';
+    const title = contentDocument.querySelector('title');
+    const instance = contentDocument.createElement('custom-element');
+    title.appendChild(instance);
+    instance.textContent = 'hello';
+
+    assert_array_equals(element.takeLog().types(), ['constructed', 'connected']);
+    assert_equals(title.innerHTML, '<custom-element>hello</custom-element>');
+
+    title.text = 'world';
+    assert_equals(title.innerHTML, 'world');
+    assert_array_equals(element.takeLog().types(), ['disconnected']);
+}, 'title on Document must enqueue disconnectedCallback when removing a custom element');
+
+test_with_window(function (contentWindow, contentDocument) {
+    const element = define_custom_element_in_window(contentWindow, 'custom-element', []);
+
+    const body = contentDocument.body;
+    body.innerHTML = '<custom-element>hello</custom-element>';
+
+    assert_array_equals(element.takeLog().types(), ['constructed', 'connected']);
+    assert_equals(body.innerHTML, '<custom-element>hello</custom-element>');
+
+    contentDocument.body = contentDocument.createElement('body');
+    assert_array_equals(element.takeLog().types(), ['disconnected']);
+}, 'body on Document must enqueue disconnectedCallback when removing a custom element');
+
+test_with_window(function (contentWindow, contentDocument) {
+    const element = define_custom_element_in_window(contentWindow, 'custom-element', []);
+
+    const instance = contentDocument.createElement('custom-element');
+    const body = contentDocument.createElement('body');
+    body.appendChild(instance);
+
+    assert_array_equals(element.takeLog().types(), ['constructed']);
+    assert_equals(body.innerHTML, '<custom-element></custom-element>');
+
+    contentDocument.body = body;
+    assert_array_equals(element.takeLog().types(), ['connected']);
+}, 'body on Document must enqueue connectedCallback when inserting a custom element');
+
+test_with_window(function (contentWindow, contentDocument) {
+    const element = define_custom_element_in_window(contentWindow, 'custom-element', []);
+    contentDocument.body.innerHTML = '<custom-element></custom-element>';
+    assert_array_equals(element.takeLog().types(), ['constructed', 'connected']);
+
+    contentDocument.open();
+    assert_array_equals(element.takeLog().types(), ['disconnected']);
+}, 'open on Document must enqueue disconnectedCallback when removing a custom element');
+
+test_with_window(function (contentWindow, contentDocument) {
+    const element = define_custom_element_in_window(contentWindow, 'custom-element', []);
+    contentDocument.body.innerHTML = '<custom-element></custom-element>';
+    assert_array_equals(element.takeLog().types(), ['constructed', 'connected']);
+
+    contentDocument.write('');
+    assert_array_equals(element.takeLog().types(), ['disconnected']);
+}, 'write on Document must enqueue disconnectedCallback when removing a custom element');
+
+test_with_window(function (contentWindow, contentDocument) {
+    contentWindow.document.open();
+    const element = define_custom_element_in_window(contentWindow, 'custom-element', []);
+    contentWindow.document.write('<custom-element></custom-element>');
+    assert_array_equals(element.takeLog().types(), ['constructed', 'connected']);
+}, 'write on Document must enqueue connectedCallback after constructing a custom element');
+
+test_with_window(function (contentWindow, contentDocument) {
+    const element = define_custom_element_in_window(contentWindow, 'custom-element', []);
+    contentDocument.body.innerHTML = '<custom-element></custom-element>';
+    assert_array_equals(element.takeLog().types(), ['constructed', 'connected']);
+
+    contentDocument.writeln('');
+    assert_array_equals(element.takeLog().types(), ['disconnected']);
+}, 'writeln on Document must enqueue disconnectedCallback when removing a custom element');
+
+test_with_window(function (contentWindow) {
+    contentWindow.document.open();
+    const element = define_custom_element_in_window(contentWindow, 'custom-element', []);
+    contentWindow.document.writeln('<custom-element></custom-element>');
+    assert_array_equals(element.takeLog().types(), ['constructed', 'connected']);
+}, 'writeln on Document must enqueue connectedCallback after constructing a custom element');
+
+</script>
+</body>
+</html>

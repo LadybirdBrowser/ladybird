@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 2 tests
+
+1 Pass
+1 Fail
+Pass	XML parser should create autonomous custom elements.
+Fail	XML parser should create custom built-in elements.

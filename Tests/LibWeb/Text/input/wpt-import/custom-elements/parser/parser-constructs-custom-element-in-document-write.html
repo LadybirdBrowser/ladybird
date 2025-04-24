@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Custom Elements: Changes to the HTML parser</title>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<meta name="assert" content="HTML parser must construct custom elements inside document.write">
+<link rel="help" href="https://html.spec.whatwg.org/#create-an-element-for-the-token">
+<link rel="help" href="https://dom.spec.whatwg.org/#concept-create-element">
+<link rel="help" href="https://html.spec.whatwg.org/#document.write()">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+</head>
+<body>
+<div id="log"></div>
+<script>
+
+var numberOfChildNodesInConnectedCallback = 0;
+
+class MyCustomElement extends HTMLElement {
+    connectedCallback() {
+        numberOfChildNodesInConnectedCallback = this.childNodes.length;
+    }
+}
+customElements.define('my-custom-element', MyCustomElement);
+
+document.write('<my-custom-element>hello <b>world</b></my-custom-element>');
+
+test(function () {
+    var instance = document.querySelector('my-custom-element');
+
+    assert_true(instance instanceof HTMLElement);
+    assert_true(instance instanceof MyCustomElement);
+
+}, 'HTML parser must instantiate custom elements inside document.write');
+
+test(function () {
+  assert_equals(numberOfChildNodesInConnectedCallback, 0);
+
+}, 'HTML parser should call connectedCallback before appending child nodes inside document.write');
+
+</script>
+</body>
+</html>

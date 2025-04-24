@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	disabled on HTMLFieldSetElement must enqueue an attributeChanged reaction when adding a new attribute
+Pass	disabled on HTMLFieldSetElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	name on HTMLFieldSetElement must enqueue an attributeChanged reaction when adding a new attribute
+Pass	name on HTMLFieldSetElement must enqueue an attributeChanged reaction when replacing an existing attribute

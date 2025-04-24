@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<title>Custom Elements: CEReactions on HTMLDetailsElement interface</title>
+<link rel="author" title="Intel" href="http://www.intel.com">
+<meta name="assert" content="open of HTMLDetailsElement interface must have CEReactions">
+<meta name="help" content="https://html.spec.whatwg.org/#the-details-element">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../resources/custom-elements-helpers.js"></script>
+<script src="../resources/reactions.js"></script>
+
+<script>
+
+testReflectBooleanAttribute('open', 'open', 'open on HTMLDetailsElement', 'details', HTMLDetailsElement);
+
+</script>
