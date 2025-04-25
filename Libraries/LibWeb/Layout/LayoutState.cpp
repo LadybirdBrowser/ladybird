@@ -85,6 +85,13 @@ static CSSPixelRect measure_scrollable_overflow(Box const& box)
             if (child.containing_block() != &box)
                 return TraversalDecision::Continue;
 
+            // https://drafts.csswg.org/css-position/#fixed-positioning-containing-block
+            // [..] As a result, parts of fixed-positioned boxes that extend outside the layout viewport/page area
+            //      cannot be scrolled to and will not print.
+            // FIXME: Properly establish the fixed positioning containing block for `position: fixed`
+            if (child.is_fixed_position())
+                return TraversalDecision::Continue;
+
             auto child_border_box = child.paintable_box()->absolute_border_box_rect();
 
             // Border boxes with zero area do not affect the scrollable overflow area.
