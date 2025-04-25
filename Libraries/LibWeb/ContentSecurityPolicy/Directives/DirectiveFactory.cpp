@@ -10,10 +10,10 @@
 
 namespace Web::ContentSecurityPolicy::Directives {
 
-GC::Ref<Directive> create_directive(JS::Realm& realm, String name, Vector<String> value)
+GC::Ref<Directive> create_directive(GC::Heap& heap, String name, Vector<String> value)
 {
     dbgln("Potential FIXME: Creating unknown Content Security Policy directive: {}", name);
-    return realm.create<Directive>(move(name), move(value));
+    return heap.allocate<Directive>(move(name), move(value));
 }
 
 }

@@ -19,9 +19,9 @@ Directive::Directive(String name, Vector<String> value)
 {
 }
 
-GC::Ref<Directive> Directive::clone(JS::Realm& realm) const
+GC::Ref<Directive> Directive::clone(GC::Heap& heap) const
 {
-    return create_directive(realm, m_name, m_value);
+    return create_directive(heap, m_name, m_value);
 }
 
 SerializedDirective Directive::serialize() const

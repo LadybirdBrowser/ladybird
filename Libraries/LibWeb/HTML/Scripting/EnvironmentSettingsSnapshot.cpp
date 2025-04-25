@@ -15,7 +15,7 @@ EnvironmentSettingsSnapshot::EnvironmentSettingsSnapshot(JS::Realm& realm, Nonnu
     , m_api_url_character_encoding(serialized_settings.api_url_character_encoding)
     , m_url(serialized_settings.api_base_url)
     , m_origin(serialized_settings.origin)
-    , m_policy_container(create_a_policy_container_from_serialized_policy_container(realm, serialized_settings.policy_container))
+    , m_policy_container(create_a_policy_container_from_serialized_policy_container(realm.heap(), serialized_settings.policy_container))
     , m_time_origin(serialized_settings.time_origin)
 {
     // Why can't we put these in the init list? grandparent class members are strange it seems

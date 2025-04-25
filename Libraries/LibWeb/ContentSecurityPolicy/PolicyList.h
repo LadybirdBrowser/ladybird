@@ -12,13 +12,13 @@
 
 namespace Web::ContentSecurityPolicy {
 
-class PolicyList final : public JS::Cell {
-    GC_CELL(PolicyList, JS::Cell);
+class PolicyList final : public GC::Cell {
+    GC_CELL(PolicyList, GC::Cell);
     GC_DECLARE_ALLOCATOR(PolicyList);
 
 public:
-    [[nodiscard]] static GC::Ref<PolicyList> create(JS::Realm&, GC::RootVector<GC::Ref<Policy>> const&);
-    [[nodiscard]] static GC::Ref<PolicyList> create(JS::Realm&, Vector<SerializedPolicy> const&);
+    [[nodiscard]] static GC::Ref<PolicyList> create(GC::Heap&, GC::RootVector<GC::Ref<Policy>> const&);
+    [[nodiscard]] static GC::Ref<PolicyList> create(GC::Heap&, Vector<SerializedPolicy> const&);
     [[nodiscard]] static GC::Ptr<PolicyList> from_object(JS::Object&);
 
     virtual ~PolicyList() = default;
@@ -29,7 +29,7 @@ public:
 
     [[nodiscard]] HTML::SandboxingFlagSet csp_derived_sandboxing_flags() const;
 
-    [[nodiscard]] GC::Ref<PolicyList> clone(JS::Realm&) const;
+    [[nodiscard]] GC::Ref<PolicyList> clone(GC::Heap&) const;
     [[nodiscard]] Vector<SerializedPolicy> serialize() const;
 
 protected:

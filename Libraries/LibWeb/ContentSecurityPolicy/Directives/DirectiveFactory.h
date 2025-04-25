@@ -8,11 +8,12 @@
 
 #include <AK/String.h>
 #include <AK/Vector.h>
+#include <LibGC/Forward.h>
 #include <LibGC/Ptr.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::ContentSecurityPolicy::Directives {
 
-[[nodiscard]] GC::Ref<Directive> create_directive(JS::Realm&, String name, Vector<String> value);
+[[nodiscard]] GC::Ref<Directive> create_directive(GC::Heap&, String name, Vector<String> value);
 
 }

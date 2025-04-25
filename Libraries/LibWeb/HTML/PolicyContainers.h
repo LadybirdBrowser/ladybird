@@ -18,8 +18,8 @@ namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/origin.html#policy-container
 // A policy container is a struct containing policies that apply to a Document, a WorkerGlobalScope, or a WorkletGlobalScope. It has the following items:
-struct PolicyContainer : public JS::Cell {
-    GC_CELL(PolicyContainer, JS::Cell)
+struct PolicyContainer : public GC::Cell {
+    GC_CELL(PolicyContainer, GC::Cell)
     GC_DECLARE_ALLOCATOR(PolicyContainer);
 
 public:
@@ -37,22 +37,22 @@ public:
     // A referrer policy, which is a referrer policy. It is initially the default referrer policy.
     ReferrerPolicy::ReferrerPolicy referrer_policy { ReferrerPolicy::DEFAULT_REFERRER_POLICY };
 
-    [[nodiscard]] GC::Ref<PolicyContainer> clone(JS::Realm&) const;
+    [[nodiscard]] GC::Ref<PolicyContainer> clone(GC::Heap&) const;
     [[nodiscard]] SerializedPolicyContainer serialize() const;
 
 protected:
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:
-    PolicyContainer(JS::Realm&);
+    PolicyContainer(GC::Heap&);
 };
 
 // https://html.spec.whatwg.org/multipage/browsers.html#requires-storing-the-policy-container-in-history
 [[nodiscard]] bool url_requires_storing_the_policy_container_in_history(URL::URL const& url);
 
 // https://html.spec.whatwg.org/multipage/browsers.html#creating-a-policy-container-from-a-fetch-response
-[[nodiscard]] GC::Ref<PolicyContainer> create_a_policy_container_from_a_fetch_response(JS::Realm&, GC::Ref<Fetch::Infrastructure::Response const> response, GC::Ptr<Environment> environment);
+[[nodiscard]] GC::Ref<PolicyContainer> create_a_policy_container_from_a_fetch_response(GC::Heap&, GC::Ref<Fetch::Infrastructure::Response const> response, GC::Ptr<Environment> environment);
 
-[[nodiscard]] GC::Ref<PolicyContainer> create_a_policy_container_from_serialized_policy_container(JS::Realm&, SerializedPolicyContainer const&);
+[[nodiscard]] GC::Ref<PolicyContainer> create_a_policy_container_from_serialized_policy_container(GC::Heap&, SerializedPolicyContainer const&);
 
 }

@@ -18,8 +18,8 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(PolicyContainer);
 
-PolicyContainer::PolicyContainer(JS::Realm& realm)
-    : csp_list(realm.create<ContentSecurityPolicy::PolicyList>())
+PolicyContainer::PolicyContainer(GC::Heap& heap)
+    : csp_list(heap.allocate<ContentSecurityPolicy::PolicyList>())
 {
 }
 
@@ -36,16 +36,16 @@ bool url_requires_storing_the_policy_container_in_history(URL::URL const& url)
 }
 
 // https://html.spec.whatwg.org/multipage/browsers.html#creating-a-policy-container-from-a-fetch-response
-GC::Ref<PolicyContainer> create_a_policy_container_from_a_fetch_response(JS::Realm& realm, GC::Ref<Fetch::Infrastructure::Response const> response, GC::Ptr<Environment>)
+GC::Ref<PolicyContainer> create_a_policy_container_from_a_fetch_response(GC::Heap& heap, GC::Ref<Fetch::Infrastructure::Response const> response, GC::Ptr<Environment>)
 {
     // FIXME: 1. If response's URL's scheme is "blob", then return a clone of response's URL's blob URL entry's
     //           environment's policy container.
 
     // 2. Let result be a new policy container.
-    GC::Ref<PolicyContainer> result = realm.create<PolicyContainer>(realm);
+    GC::Ref<PolicyContainer> result = heap.allocate<PolicyContainer>(heap);
 
     // 3. Set result's CSP list to the result of parsing a response's Content Security Policies given response.
-    result->csp_list = ContentSecurityPolicy::Policy::parse_a_responses_content_security_policies(realm, response);
+    result->csp_list = ContentSecurityPolicy::Policy::parse_a_responses_content_security_policies(heap, response);
 
     // FIXME: 4. If environment is non-null, then set result's embedder policy to the result of obtaining an embedder
     //           policy given response and environment. Otherwise, set it to "unsafe-none".
@@ -58,23 +58,23 @@ GC::Ref<PolicyContainer> create_a_policy_container_from_a_fetch_response(JS::Rea
     return result;
 }
 
-GC::Ref<PolicyContainer> create_a_policy_container_from_serialized_policy_container(JS::Realm& realm, SerializedPolicyContainer const& serialized_policy_container)
+GC::Ref<PolicyContainer> create_a_policy_container_from_serialized_policy_container(GC::Heap& heap, SerializedPolicyContainer const& serialized_policy_container)
 {
-    GC::Ref<PolicyContainer> result = realm.create<PolicyContainer>(realm);
-    result->csp_list = ContentSecurityPolicy::PolicyList::create(realm, serialized_policy_container.csp_list);
+    GC::Ref<PolicyContainer> result = heap.allocate<PolicyContainer>(heap);
+    result->csp_list = ContentSecurityPolicy::PolicyList::create(heap, serialized_policy_container.csp_list);
     result->embedder_policy = serialized_policy_container.embedder_policy;
     result->referrer_policy = serialized_policy_container.referrer_policy;
     return result;
 }
 
 // https://html.spec.whatwg.org/multipage/browsers.html#clone-a-policy-container
-GC::Ref<PolicyContainer> PolicyContainer::clone(JS::Realm& realm) const
+GC::Ref<PolicyContainer> PolicyContainer::clone(GC::Heap& heap) const
 {
     // 1. Let clone be a new policy container.
-    auto clone = realm.create<PolicyContainer>(realm);
+    auto clone = heap.allocate<PolicyContainer>(heap);
 
     // 2. For each policy in policyContainer's CSP list, append a copy of policy into clone's CSP list.
-    clone->csp_list = csp_list->clone(realm);
+    clone->csp_list = csp_list->clone(heap);
 
     // 3. Set clone's embedder policy to a copy of policyContainer's embedder policy.
     // NOTE: This is a C++ copy.

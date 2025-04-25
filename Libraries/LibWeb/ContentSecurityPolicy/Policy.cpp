@@ -21,7 +21,7 @@ namespace Web::ContentSecurityPolicy {
 GC_DEFINE_ALLOCATOR(Policy);
 
 // https://w3c.github.io/webappsec-csp/#abstract-opdef-parse-a-serialized-csp
-GC::Ref<Policy> Policy::parse_a_serialized_csp(JS::Realm& realm, Variant<ByteBuffer, String> serialized, Source source, Disposition disposition)
+GC::Ref<Policy> Policy::parse_a_serialized_csp(GC::Heap& heap, Variant<ByteBuffer, String> serialized, Source source, Disposition disposition)
 {
     // To parse a serialized CSP, given a byte sequence or string serialized, a source source, and a disposition disposition,
     // execute the following steps.
@@ -34,14 +34,14 @@ GC::Ref<Policy> Policy::parse_a_serialized_csp(JS::Realm& realm, Variant<ByteBuf
         : Infra::isomorphic_decode(serialized.get<ByteBuffer>());
 
     // 2. Let policy be a new policy with an empty directive set, a source of source, and a disposition of disposition.
-    auto policy = realm.create<Policy>();
+    auto policy = heap.allocate<Policy>();
     policy->m_pre_parsed_policy_string = serialized_string;
     policy->m_source = source;
     policy->m_disposition = disposition;
 
     // 3. For each token returned by strictly splitting serialized on the U+003B SEMICOLON character (;):
     auto tokens = MUST(serialized_string.split(';', SplitBehavior::KeepEmpty));
-    for (auto token : tokens) {
+    for (auto const& token : tokens) {
         // 1. Strip leading and trailing ASCII whitespace from token.
         auto stripped_token = MUST(token.trim(Infra::ASCII_WHITESPACE));
         auto stripped_token_view = stripped_token.bytes_as_string_view();
@@ -79,7 +79,7 @@ GC::Ref<Policy> Policy::parse_a_serialized_csp(JS::Realm& realm, Variant<ByteBuf
         }
 
         // 7. Let directive be a new directive whose name is directive name, and value is directive value.
-        auto directive = Directives::create_directive(realm, move(lowercase_directive_name), move(directive_value));
+        auto directive = Directives::create_directive(heap, move(lowercase_directive_name), move(directive_value));
 
         // 8. Append directive to policy’s directive set.
         policy->m_directives.append(directive);
@@ -90,22 +90,22 @@ GC::Ref<Policy> Policy::parse_a_serialized_csp(JS::Realm& realm, Variant<ByteBuf
 }
 
 // https://w3c.github.io/webappsec-csp/#abstract-opdef-parse-a-responses-content-security-policies
-GC::Ref<PolicyList> Policy::parse_a_responses_content_security_policies(JS::Realm& realm, GC::Ref<Fetch::Infrastructure::Response const> response)
+GC::Ref<PolicyList> Policy::parse_a_responses_content_security_policies(GC::Heap& heap, GC::Ref<Fetch::Infrastructure::Response const> response)
 {
     // To parse a response’s Content Security Policies given a response response, execute the following steps.
     // This algorithm returns a list of Content Security Policy objects. If the policies cannot be parsed,
     // the returned list will be empty.
 
     // 1. Let policies be an empty list.
-    GC::RootVector<GC::Ref<Policy>> policies(realm.heap());
+    GC::RootVector<GC::Ref<Policy>> policies(heap);
 
     // 2. For each token returned by extracting header list values given Content-Security-Policy and response’s header
     //    list:
     auto enforce_policy_tokens_or_failure = Fetch::Infrastructure::extract_header_list_values("Content-Security-Policy"sv.bytes(), response->header_list());
     auto enforce_policy_tokens = enforce_policy_tokens_or_failure.has<Vector<ByteBuffer>>() ? enforce_policy_tokens_or_failure.get<Vector<ByteBuffer>>() : Vector<ByteBuffer> {};
-    for (auto enforce_policy_token : enforce_policy_tokens) {
+    for (auto const& enforce_policy_token : enforce_policy_tokens) {
         // 1. Let policy be the result of parsing token, with a source of "header", and a disposition of "enforce".
-        auto policy = parse_a_serialized_csp(realm, enforce_policy_token, Policy::Source::Header, Policy::Disposition::Enforce);
+        auto policy = parse_a_serialized_csp(heap, enforce_policy_token, Policy::Source::Header, Policy::Disposition::Enforce);
 
         // 2. If policy’s directive set is not empty, append policy to policies.
         if (!policy->m_directives.is_empty()) {
@@ -117,9 +117,9 @@ GC::Ref<PolicyList> Policy::parse_a_responses_content_security_policies(JS::Real
     //    response’s header list:
     auto report_policy_tokens_or_failure = Fetch::Infrastructure::extract_header_list_values("Content-Security-Policy-Report-Only"sv.bytes(), response->header_list());
     auto report_policy_tokens = report_policy_tokens_or_failure.has<Vector<ByteBuffer>>() ? report_policy_tokens_or_failure.get<Vector<ByteBuffer>>() : Vector<ByteBuffer> {};
-    for (auto report_policy_token : report_policy_tokens) {
+    for (auto const& report_policy_token : report_policy_tokens) {
         // 1. Let policy be the result of parsing token, with a source of "header", and a disposition of "report".
-        auto policy = parse_a_serialized_csp(realm, report_policy_token, Policy::Source::Header, Policy::Disposition::Report);
+        auto policy = parse_a_serialized_csp(heap, report_policy_token, Policy::Source::Header, Policy::Disposition::Report);
 
         // 2. If policy’s directive set is not empty, append policy to policies.
         if (!policy->m_directives.is_empty()) {
@@ -134,15 +134,15 @@ GC::Ref<PolicyList> Policy::parse_a_responses_content_security_policies(JS::Real
     }
 
     // 5. Return policies.
-    return PolicyList::create(realm, policies);
+    return PolicyList::create(heap, policies);
 }
 
-GC::Ref<Policy> Policy::create_from_serialized_policy(JS::Realm& realm, SerializedPolicy const& serialized_policy)
+GC::Ref<Policy> Policy::create_from_serialized_policy(GC::Heap& heap, SerializedPolicy const& serialized_policy)
 {
-    auto policy = realm.create<Policy>();
+    auto policy = heap.allocate<Policy>();
 
     for (auto const& serialized_directive : serialized_policy.directives) {
-        auto directive = Directives::create_directive(realm, serialized_directive.name, serialized_directive.value);
+        auto directive = Directives::create_directive(heap, serialized_directive.name, serialized_directive.value);
         policy->m_directives.append(directive);
     }
 
@@ -173,12 +173,12 @@ GC::Ptr<Directives::Directive> Policy::get_directive_by_name(StringView name) co
     return nullptr;
 }
 
-GC::Ref<Policy> Policy::clone(JS::Realm& realm) const
+GC::Ref<Policy> Policy::clone(GC::Heap& heap) const
 {
-    auto policy = realm.create<Policy>();
+    auto policy = heap.allocate<Policy>();
 
     for (auto directive : m_directives) {
-        auto cloned_directive = directive->clone(realm);
+        auto cloned_directive = directive->clone(heap);
         policy->m_directives.append(cloned_directive);
     }
 

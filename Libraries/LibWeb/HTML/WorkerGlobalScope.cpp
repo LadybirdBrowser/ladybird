@@ -173,9 +173,9 @@ GC::Ref<CSS::FontFaceSet> WorkerGlobalScope::fonts()
 
 GC::Ref<PolicyContainer> WorkerGlobalScope::policy_container() const
 {
-    auto& realm = this->realm();
+    auto& heap = this->heap();
     if (!m_policy_container) {
-        m_policy_container = realm.create<PolicyContainer>(realm);
+        m_policy_container = heap.allocate<PolicyContainer>(heap);
     }
     return *m_policy_container;
 }
@@ -195,7 +195,7 @@ void WorkerGlobalScope::initialize_policy_container(GC::Ref<Fetch::Infrastructur
 
     // 2. Otherwise, set workerGlobalScope's policy container to the result of creating a policy container from a fetch
     //    response given response and environment.
-    m_policy_container = create_a_policy_container_from_a_fetch_response(realm, response, environment);
+    m_policy_container = create_a_policy_container_from_a_fetch_response(realm.heap(), response, environment);
 }
 
 // https://w3c.github.io/webappsec-csp/#run-global-object-csp-initialization

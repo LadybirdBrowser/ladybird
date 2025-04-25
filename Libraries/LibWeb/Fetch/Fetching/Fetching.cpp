@@ -83,6 +83,7 @@ WebIDL::ExceptionOr<GC::Ref<Infrastructure::FetchController>> fetch(JS::Realm& r
     dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'fetch' with: request @ {}", &request);
 
     auto& vm = realm.vm();
+    auto& heap = vm.heap();
 
     // 1. Assert: request’s mode is "navigate" or processEarlyHintsResponse is null.
     VERIFY(request.mode() == Infrastructure::Request::Mode::Navigate || !algorithms.process_early_hints_response());
@@ -185,10 +186,10 @@ WebIDL::ExceptionOr<GC::Ref<Infrastructure::FetchController>> fetch(JS::Realm& r
         // 1. If request’s client is non-null, then set request’s policy container to a clone of request’s client’s
         //    policy container.
         if (request.client() != nullptr)
-            request.set_policy_container(request.client()->policy_container()->clone(realm));
+            request.set_policy_container(request.client()->policy_container()->clone(heap));
         // 2. Otherwise, set request’s policy container to a new policy container.
         else
-            request.set_policy_container(realm.create<HTML::PolicyContainer>(realm));
+            request.set_policy_container(heap.allocate<HTML::PolicyContainer>(heap));
     }
 
     // 13. If request’s header list does not contain `Accept`, then:

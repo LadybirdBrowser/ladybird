@@ -20,8 +20,8 @@ namespace Web::ContentSecurityPolicy {
 // https://w3c.github.io/webappsec-csp/#content-security-policy-object
 // A policy defines allowed and restricted behaviors, and may be applied to a Document, WorkerGlobalScope,
 // or WorkletGlobalScope.
-class Policy final : public JS::Cell {
-    GC_CELL(Policy, JS::Cell);
+class Policy final : public GC::Cell {
+    GC_CELL(Policy, GC::Cell);
     GC_DECLARE_ALLOCATOR(Policy);
 
 public:
@@ -38,9 +38,9 @@ public:
 
     ~Policy() = default;
 
-    [[nodiscard]] static GC::Ref<Policy> parse_a_serialized_csp(JS::Realm&, Variant<ByteBuffer, String> serialized, Source source, Disposition disposition);
-    [[nodiscard]] static GC::Ref<PolicyList> parse_a_responses_content_security_policies(JS::Realm&, GC::Ref<Fetch::Infrastructure::Response const> response);
-    [[nodiscard]] static GC::Ref<Policy> create_from_serialized_policy(JS::Realm&, SerializedPolicy const&);
+    [[nodiscard]] static GC::Ref<Policy> parse_a_serialized_csp(GC::Heap&, Variant<ByteBuffer, String> serialized, Source source, Disposition disposition);
+    [[nodiscard]] static GC::Ref<PolicyList> parse_a_responses_content_security_policies(GC::Heap&, GC::Ref<Fetch::Infrastructure::Response const> response);
+    [[nodiscard]] static GC::Ref<Policy> create_from_serialized_policy(GC::Heap&, SerializedPolicy const&);
 
     [[nodiscard]] Vector<GC::Ref<Directives::Directive>> const& directives() const { return m_directives; }
     [[nodiscard]] Disposition disposition() const { return m_disposition; }
@@ -51,7 +51,7 @@ public:
     [[nodiscard]] bool contains_directive_with_name(StringView name) const;
     [[nodiscard]] GC::Ptr<Directives::Directive> get_directive_by_name(StringView) const;
 
-    [[nodiscard]] GC::Ref<Policy> clone(JS::Realm&) const;
+    [[nodiscard]] GC::Ref<Policy> clone(GC::Heap&) const;
     [[nodiscard]] SerializedPolicy serialize() const;
 
 protected:

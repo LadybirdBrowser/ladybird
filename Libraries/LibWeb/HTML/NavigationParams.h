@@ -28,8 +28,8 @@ enum class UserNavigationInvolvement {
 };
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigation-params
-struct NavigationParams : JS::Cell {
-    GC_CELL(NavigationParams, JS::Cell);
+struct NavigationParams : GC::Cell {
+    GC_CELL(NavigationParams, GC::Cell);
     GC_DECLARE_ALLOCATOR(NavigationParams);
 
     // null or a navigation ID
