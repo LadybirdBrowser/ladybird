@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
+ * Copyright (c) 2024-2025, Shannon Booth <shannon@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -17,6 +17,21 @@ class ServiceWorkerGlobalScope : public HTML::WorkerGlobalScope {
 
 public:
     virtual ~ServiceWorkerGlobalScope() override;
+
+    void set_oninstall(GC::Ptr<WebIDL::CallbackType>);
+    GC::Ptr<WebIDL::CallbackType> oninstall();
+
+    void set_onactivate(GC::Ptr<WebIDL::CallbackType>);
+    GC::Ptr<WebIDL::CallbackType> onactivate();
+
+    void set_onfetch(GC::Ptr<WebIDL::CallbackType>);
+    GC::Ptr<WebIDL::CallbackType> onfetch();
+
+    void set_onmessage(GC::Ptr<WebIDL::CallbackType>);
+    GC::Ptr<WebIDL::CallbackType> onmessage();
+
+    void set_onmessageerror(GC::Ptr<WebIDL::CallbackType>);
+    GC::Ptr<WebIDL::CallbackType> onmessageerror();
 
 protected:
     explicit ServiceWorkerGlobalScope(JS::Realm&, GC::Ref<Web::Page>);
