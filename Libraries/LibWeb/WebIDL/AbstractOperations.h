@@ -10,6 +10,7 @@
 
 #include <AK/Forward.h>
 #include <LibGC/Ptr.h>
+#include <LibGC/RootVector.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Forward.h>
 
@@ -53,5 +54,7 @@ enum class Clamp {
 // https://webidl.spec.whatwg.org/#abstract-opdef-converttoint
 template<Integral T>
 JS::ThrowCompletionOr<T> convert_to_int(JS::VM& vm, JS::Value, EnforceRange enforce_range = EnforceRange::No, Clamp clamp = Clamp::No);
+
+bool lists_contain_same_elements(GC::Ptr<JS::Array> array, Optional<GC::RootVector<GC::Ref<DOM::Element>>> const& elements);
 
 }

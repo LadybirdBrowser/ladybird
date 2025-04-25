@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/Runtime/Array.h>
 #include <LibWeb/ARIA/ARIAMixin.h>
 #include <LibWeb/ARIA/Roles.h>
 #include <LibWeb/DOM/Element.h>
@@ -13,6 +14,13 @@ namespace Web::ARIA {
 
 ARIAMixin::ARIAMixin() = default;
 ARIAMixin::~ARIAMixin() = default;
+
+void ARIAMixin::visit_edges(GC::Cell::Visitor& visitor) {
+#define __ENUMERATE_ARIA_ATTRIBUTE(attribute, referencing_attribute) \
+    visitor.visit(m_cached_##attribute);
+    ENUMERATE_ARIA_ELEMENT_LIST_REFERENCING_ATTRIBUTES
+#undef __ENUMERATE_ARIA_ATTRIBUTE
+}
 
 // https://www.w3.org/TR/wai-aria-1.2/#introroles
 Optional<Role> ARIAMixin::role_from_role_attribute_value() const
@@ -247,6 +255,16 @@ ENUMERATE_ARIA_ELEMENT_REFERENCING_ATTRIBUTES
     void ARIAMixin::set_##attribute(Optional<Vector<WeakPtr<DOM::Element>>> value) \
     {                                                                              \
         m_##attribute = move(value);                                               \
+    }                                                                              \
+                                                                                   \
+    GC::Ptr<JS::Array> ARIAMixin::cached_##attribute() const                       \
+    {                                                                              \
+        return m_cached_##attribute;                                               \
+    }                                                                              \
+                                                                                   \
+    void ARIAMixin::set_cached_##attribute(GC::Ptr<JS::Array> value)               \
+    {                                                                              \
+        m_cached_##attribute = value;                                              \
     }
 ENUMERATE_ARIA_ELEMENT_LIST_REFERENCING_ATTRIBUTES
 #undef __ENUMERATE_ARIA_ATTRIBUTE
