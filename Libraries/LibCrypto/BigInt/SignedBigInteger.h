@@ -92,13 +92,6 @@ public:
         m_sign = other.m_sign;
     }
 
-    void invalidate()
-    {
-        m_unsigned_data.invalidate();
-    }
-
-    [[nodiscard]] bool is_invalid() const { return m_unsigned_data.is_invalid(); }
-
     // These get + 1 byte for the sign.
     [[nodiscard]] size_t length() const { return m_unsigned_data.length() + 1; }
     [[nodiscard]] size_t trimmed_length() const { return m_unsigned_data.trimmed_length() + 1; }

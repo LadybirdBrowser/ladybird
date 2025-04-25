@@ -21,7 +21,6 @@ GC::Ref<BigInt> BigInt::create(VM& vm, Crypto::SignedBigInteger big_integer)
 BigInt::BigInt(Crypto::SignedBigInteger big_integer)
     : m_big_integer(move(big_integer))
 {
-    VERIFY(!m_big_integer.is_invalid());
 }
 
 ErrorOr<String> BigInt::to_string() const

@@ -23,16 +23,6 @@ FLATTEN void UnsignedBigIntegerAlgorithms::bitwise_or_without_allocation(
     UnsignedBigInteger const& right,
     UnsignedBigInteger& output)
 {
-    // If either of the BigInts are invalid, the output is just the other one.
-    if (left.is_invalid()) {
-        output.set_to(right);
-        return;
-    }
-    if (right.is_invalid()) {
-        output.set_to(left);
-        return;
-    }
-
     UnsignedBigInteger const *shorter, *longer;
     if (left.length() < right.length()) {
         shorter = &left;
@@ -62,16 +52,6 @@ FLATTEN void UnsignedBigIntegerAlgorithms::bitwise_and_without_allocation(
     UnsignedBigInteger const& right,
     UnsignedBigInteger& output)
 {
-    // If either of the BigInts are invalid, the output is just the other one.
-    if (left.is_invalid()) {
-        output.set_to(right);
-        return;
-    }
-    if (right.is_invalid()) {
-        output.set_to(left);
-        return;
-    }
-
     UnsignedBigInteger const *shorter, *longer;
     if (left.length() < right.length()) {
         shorter = &left;
@@ -101,16 +81,6 @@ FLATTEN void UnsignedBigIntegerAlgorithms::bitwise_xor_without_allocation(
     UnsignedBigInteger const& right,
     UnsignedBigInteger& output)
 {
-    // If either of the BigInts are invalid, the output is just the other one.
-    if (left.is_invalid()) {
-        output.set_to(right);
-        return;
-    }
-    if (right.is_invalid()) {
-        output.set_to(left);
-        return;
-    }
-
     UnsignedBigInteger const *shorter, *longer;
     if (left.length() < right.length()) {
         shorter = &left;
@@ -137,12 +107,6 @@ FLATTEN ErrorOr<void> UnsignedBigIntegerAlgorithms::bitwise_not_fill_to_one_base
     size_t index,
     UnsignedBigInteger& output)
 {
-    // If the value is invalid, the output value is invalid as well.
-    if (right.is_invalid()) {
-        output.invalidate();
-        return {};
-    }
-
     if (index == 0) {
         output.set_to_0();
         return {};

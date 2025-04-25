@@ -73,14 +73,13 @@ void UnsignedBigIntegerAlgorithms::add_into_accumulator_without_allocation(Unsig
 /**
  * Complexity: O(N) where N is the number of words in the larger number
  */
-void UnsignedBigIntegerAlgorithms::subtract_without_allocation(
+ErrorOr<void> UnsignedBigIntegerAlgorithms::subtract_without_allocation(
     UnsignedBigInteger const& left,
     UnsignedBigInteger const& right,
     UnsignedBigInteger& output)
 {
     if (left < right) {
-        output.invalidate();
-        return;
+        return Error::from_string_literal("Invalid subtraction: left < right");
     }
 
     u8 borrow = 0;
@@ -103,6 +102,8 @@ void UnsignedBigIntegerAlgorithms::subtract_without_allocation(
 
     // This assertion should not fail, because we verified that *this>=other at the beginning of the function
     VERIFY(borrow == 0);
+
+    return {};
 }
 
 }

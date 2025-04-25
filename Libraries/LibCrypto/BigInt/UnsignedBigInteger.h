@@ -83,16 +83,8 @@ public:
     void set_to(Word other);
     void set_to(UnsignedBigInteger const& other);
 
-    void invalidate()
-    {
-        m_is_invalid = true;
-        m_cached_trimmed_length = {};
-        m_cached_hash = 0;
-    }
-
     [[nodiscard]] bool is_zero() const;
     [[nodiscard]] bool is_odd() const { return m_words.size() && (m_words[0] & 1); }
-    [[nodiscard]] bool is_invalid() const { return m_is_invalid; }
 
     [[nodiscard]] size_t length() const { return m_words.size(); }
     // The "trimmed length" is the number of words after trimming leading zeroed words
@@ -107,7 +99,7 @@ public:
     size_t one_based_index_of_highest_set_bit() const;
 
     [[nodiscard]] UnsignedBigInteger plus(UnsignedBigInteger const& other) const;
-    [[nodiscard]] UnsignedBigInteger minus(UnsignedBigInteger const& other) const;
+    [[nodiscard]] ErrorOr<UnsignedBigInteger> minus(UnsignedBigInteger const& other) const;
     [[nodiscard]] UnsignedBigInteger bitwise_or(UnsignedBigInteger const& other) const;
     [[nodiscard]] UnsignedBigInteger bitwise_and(UnsignedBigInteger const& other) const;
     [[nodiscard]] UnsignedBigInteger bitwise_xor(UnsignedBigInteger const& other) const;
@@ -153,10 +145,6 @@ private:
     }
 
     mutable u32 m_cached_hash { 0 };
-
-    // Used to indicate a negative result, or a result of an invalid operation
-    bool m_is_invalid { false };
-
     mutable Optional<size_t> m_cached_trimmed_length;
 };
 
@@ -179,10 +167,7 @@ inline Crypto::UnsignedBigInteger operator""_bigint(char const* string, size_t l
 
 inline Crypto::UnsignedBigInteger operator""_bigint(unsigned long long value)
 {
-    auto result = Crypto::UnsignedBigInteger { static_cast<u64>(value) };
-    VERIFY(!result.is_invalid());
-
-    return result;
+    return Crypto::UnsignedBigInteger { static_cast<u64>(value) };
 }
 
 inline Crypto::UnsignedBigInteger operator""_bigint(long double value)
@@ -190,8 +175,5 @@ inline Crypto::UnsignedBigInteger operator""_bigint(long double value)
     VERIFY(value >= 0);
     VERIFY(value < static_cast<long double>(NumericLimits<double>::max()));
 
-    auto result = Crypto::UnsignedBigInteger { static_cast<double>(value) };
-    VERIFY(!result.is_invalid());
-
-    return result;
+    return Crypto::UnsignedBigInteger { static_cast<double>(value) };
 }
