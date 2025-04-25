@@ -6,10 +6,7 @@
 interface ResizeObserverEntry {
     readonly attribute Element target;
     readonly attribute DOMRectReadOnly contentRect;
-    // FIXME: Return FrozenArray<ResizeObserverSize> instead of any.
-    [ImplementedAs=border_box_size_js_array] readonly attribute any borderBoxSize;
-    // FIXME: Return FrozenArray<ResizeObserverSize> instead of any.
-    [ImplementedAs=content_box_size_js_array] readonly attribute any contentBoxSize;
-    // FIXME: Return FrozenArray<ResizeObserverSize> instead of any.
-    [ImplementedAs=device_pixel_content_box_size_js_array] readonly attribute any devicePixelContentBoxSize;
+    readonly attribute FrozenArray<ResizeObserverSize> borderBoxSize;
+    readonly attribute FrozenArray<ResizeObserverSize> contentBoxSize;
+    readonly attribute FrozenArray<ResizeObserverSize> devicePixelContentBoxSize;
 };

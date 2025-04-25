@@ -14,7 +14,7 @@ interface DataTransfer {
     [FIXME] undefined setDragImage(Element image, long x, long y);
 
     // old interface
-    readonly attribute sequence<DOMString> types; // FIXME: This should be FrozenArray<DOMString>
+    readonly attribute FrozenArray<DOMString> types;
     DOMString getData(DOMString format);
     [FIXME] undefined setData(DOMString format, DOMString data);
     [FIXME] undefined clearData(optional DOMString format);

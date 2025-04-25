@@ -7,8 +7,7 @@ interface ClipboardItem {
               optional ClipboardItemOptions options = {});
 
     readonly attribute PresentationStyle presentationStyle;
-    // FIXME: Should be a FrozenArray<DOMString>
-    readonly attribute sequence<DOMString> types;
+    readonly attribute FrozenArray<DOMString> types;
 
     Promise<Blob> getType(DOMString type);
 
