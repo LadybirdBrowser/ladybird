@@ -38,7 +38,7 @@ void CSSNestedDeclarations::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_parent_style_rule);
 }
 
-CSSStyleDeclaration* CSSNestedDeclarations::style()
+GC::Ref<CSSStyleProperties> CSSNestedDeclarations::style()
 {
     return m_declaration;
 }

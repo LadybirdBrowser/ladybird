@@ -1,9 +1,8 @@
 #import <CSS/CSSRule.idl>
-#import <CSS/CSSStyleDeclaration.idl>
+#import <CSS/CSSStyleProperties.idl>
 
 // https://drafts.csswg.org/css-nesting-1/#cssnesteddeclarations
 [Exposed=Window]
 interface CSSNestedDeclarations : CSSRule {
-    // FIXME: Should be a CSSStyleProperties, once we have that
-    [SameObject, PutForwards=cssText] readonly attribute CSSStyleDeclaration style;
+    [SameObject, PutForwards=cssText] readonly attribute CSSStyleProperties style;
 };
