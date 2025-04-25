@@ -254,7 +254,7 @@ WebIDL::ExceptionOr<ErrorOr<GC::Ref<Key>>> convert_a_value_to_a_key(JS::Realm& r
     // - If input is a buffer source type
     if (input.is_object() && (is<JS::TypedArrayBase>(input.as_object()) || is<JS::ArrayBuffer>(input.as_object()) || is<JS::DataView>(input.as_object()))) {
 
-        // 1. If input is [detached] then return invalid.
+        // 1. If input is detached then return invalid.
         if (WebIDL::is_buffer_source_detached(input))
             return Error::from_string_literal("Detached buffer is not supported as key");
 
@@ -399,14 +399,13 @@ GC::Ref<IDBTransaction> upgrade_a_database(JS::Realm& realm, GC::Ref<IDBDatabase
         // 5. Let didThrow be the result of firing a version change event named upgradeneeded at request with old version and version.
         auto did_throw = fire_a_version_change_event(realm, HTML::EventNames::upgradeneeded, request, old_version, version);
 
-        // AD-HOC: If the transaction was aborted by the event, then DONT set the transaction back to inactive.
-        // https://github.com/w3c/IndexedDB/issues/436#issuecomment-2791113467
-        if (transaction->state() != IDBTransaction::TransactionState::Finished) {
+        // 6. If transaction’s state is active, then:
+        if (transaction->state() == IDBTransaction::TransactionState::Active) {
 
-            // 6. Set transaction’s state to inactive.
+            // 1. Set transaction’s state to inactive.
             transaction->set_state(IDBTransaction::TransactionState::Inactive);
 
-            // 7. If didThrow is true, run abort a transaction with transaction and a newly created "AbortError" DOMException.
+            // 2. If didThrow is true, run abort a transaction with transaction and a newly created "AbortError" DOMException.
             if (did_throw)
                 abort_a_transaction(transaction, WebIDL::AbortError::create(realm, "Version change event threw an exception"_string));
 
