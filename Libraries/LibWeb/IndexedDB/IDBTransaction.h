@@ -52,6 +52,7 @@ public:
     void set_error(GC::Ptr<WebIDL::DOMException> error) { m_error = error; }
     void set_associated_request(GC::Ptr<IDBRequest> request) { m_associated_request = request; }
     void set_aborted(bool aborted) { m_aborted = aborted; }
+    void set_cleanup_event_loop(GC::Ptr<HTML::EventLoop> event_loop) { m_cleanup_event_loop = event_loop; }
     void set_state(TransactionState state) { m_state = state; }
 
     [[nodiscard]] bool is_upgrade_transaction() const { return m_mode == Bindings::IDBTransactionMode::Versionchange; }
