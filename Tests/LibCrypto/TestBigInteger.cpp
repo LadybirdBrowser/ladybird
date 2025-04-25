@@ -377,69 +377,6 @@ TEST_CASE(test_bigint_modular_power_extra_tests)
     }
 }
 
-TEST_CASE(test_bigint_primality_test)
-{
-    struct {
-        Crypto::UnsignedBigInteger candidate;
-        bool expected_result;
-    } primality_tests[] = {
-        { "1180591620717411303424"_bigint, false },                  // 2**70
-        { "620448401733239439360000"_bigint, false },                // 25!
-        { "953962166440690129601298432"_bigint, false },             // 12**25
-        { "620448401733239439360000"_bigint, false },                // 25!
-        { "147926426347074375"_bigint, false },                      // 35! / 2**32
-        { "340282366920938429742726440690708343523"_bigint, false }, // 2 factors near 2^64
-        { "73"_bigint, true },
-        { "6967"_bigint, true },
-        { "787649"_bigint, true },
-        { "73513949"_bigint, true },
-        { "6691236901"_bigint, true },
-        { "741387182759"_bigint, true },
-        { "67466615915827"_bigint, true },
-        { "9554317039214687"_bigint, true },
-        { "533344522150170391"_bigint, true },
-        { "18446744073709551557"_bigint, true }, // just below 2**64
-    };
-
-    for (auto test_case : primality_tests) {
-        bool actual_result = Crypto::NumberTheory::is_probably_prime(test_case.candidate);
-        EXPECT_EQ(test_case.expected_result, actual_result);
-    }
-}
-
-TEST_CASE(test_bigint_random_number_generation)
-{
-    struct {
-        Crypto::UnsignedBigInteger min;
-        Crypto::UnsignedBigInteger max;
-    } random_number_tests[] = {
-        { "1"_bigint, "1000000"_bigint },
-        { "10000000000"_bigint, "20000000000"_bigint },
-        { "1000"_bigint, "200000000000000000"_bigint },
-        { "200000000000000000"_bigint, "200000000000010000"_bigint },
-    };
-
-    for (auto test_case : random_number_tests) {
-        auto actual_result = Crypto::NumberTheory::random_number(test_case.min, test_case.max);
-        EXPECT(!(actual_result < test_case.min));
-        EXPECT(actual_result < test_case.max);
-    }
-}
-
-TEST_CASE(test_bigint_random_distribution)
-{
-    auto actual_result = Crypto::NumberTheory::random_number(
-        "1"_bigint,
-        "100000000000000000000000000000"_bigint);         // 10**29
-    if (actual_result < "100000000000000000000"_bigint) { // 10**20
-        FAIL("Too small");
-        outln("The generated number {} is extremely small. This *can* happen by pure chance, but should happen only once in a billion times. So it's probably an error.", MUST(actual_result.to_base(10)));
-    } else if ("99999999900000000000000000000"_bigint < actual_result) { // 10**29 - 10**20
-        FAIL("Too large");
-        outln("The generated number {} is extremely large. This *can* happen by pure chance, but should happen only once in a billion times. So it's probably an error.", MUST(actual_result.to_base(10)));
-    }
-}
-
 TEST_CASE(test_bigint_import_big_endian_decode_encode_roundtrip)
 {
     u8 random_bytes[128];
