@@ -1027,7 +1027,7 @@ void Identifier::dump(int indent) const
 {
     print_indent(indent);
     if (is_local()) {
-        outln("Identifier \"{}\" is_local=(true) index=({})", m_string, m_local_variable_index);
+        outln("Identifier \"{}\" is_local=(true) index=({})", m_string, m_local_index->index);
     } else if (is_global()) {
         outln("Identifier \"{}\" is_global=(true)", m_string);
     } else {
@@ -1668,7 +1668,12 @@ void ScopeNode::block_declaration_instantiation(VM& vm, Environment* environment
                 auto& running_execution_context = vm.running_execution_context();
                 auto number_of_registers = running_execution_context.executable->number_of_registers;
                 auto number_of_constants = running_execution_context.executable->constants.size();
-                running_execution_context.local(function_declaration.name_identifier()->local_variable_index() + number_of_registers + number_of_constants) = function;
+                auto local_index = function_declaration.name_identifier()->local_index();
+                if (local_index.is_variable()) {
+                    running_execution_context.local(local_index.index + number_of_registers + number_of_constants) = function;
+                } else {
+                    VERIFY_NOT_REACHED();
+                }
             } else {
                 VERIFY(is<DeclarativeEnvironment>(*environment));
                 static_cast<DeclarativeEnvironment&>(*environment).initialize_or_set_mutable_binding({}, vm, function_declaration.name(), function);
