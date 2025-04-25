@@ -917,7 +917,7 @@ WebIDL::ExceptionOr<ErrorOr<JS::Value>> evaluate_key_path_on_a_value(JS::Realm& 
 
     // 3. Let identifiers be the result of strictly splitting keyPath on U+002E FULL STOP characters (.).
     // 4. For each identifier of identifiers, jump to the appropriate step below:
-    TRY(key_path_string.bytes_as_string_view().for_each_split_view('.', SplitBehavior::KeepEmpty | SplitBehavior::KeepTrailingSeparator, [&](auto const& identifier) -> ErrorOr<void> {
+    TRY(key_path_string.bytes_as_string_view().for_each_split_view('.', SplitBehavior::KeepEmpty, [&](auto const& identifier) -> ErrorOr<void> {
         // If Type(value) is String, and identifier is "length"
         if (value.is_string() && identifier == "length") {
             // Let value be a Number equal to the number of elements in value.
