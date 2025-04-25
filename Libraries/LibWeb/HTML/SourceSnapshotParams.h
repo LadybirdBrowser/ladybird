@@ -13,8 +13,8 @@
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#source-snapshot-params
-struct SourceSnapshotParams : public JS::Cell {
-    GC_CELL(SourceSnapshotParams, JS::Cell)
+struct SourceSnapshotParams : public GC::Cell {
+    GC_CELL(SourceSnapshotParams, GC::Cell)
     GC_DECLARE_ALLOCATOR(SourceSnapshotParams);
 
 public:

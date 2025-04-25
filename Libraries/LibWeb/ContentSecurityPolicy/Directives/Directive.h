@@ -17,8 +17,8 @@ namespace Web::ContentSecurityPolicy::Directives {
 // https://w3c.github.io/webappsec-csp/#directives
 // Each policy contains an ordered set of directives (its directive set), each of which controls a specific behavior.
 // The directives defined in this document are described in detail in § 6 Content Security Policy Directives.
-class Directive : public JS::Cell {
-    GC_CELL(Directive, JS::Cell)
+class Directive : public GC::Cell {
+    GC_CELL(Directive, GC::Cell)
     GC_DECLARE_ALLOCATOR(Directive);
 
 public:
@@ -94,7 +94,7 @@ public:
     [[nodiscard]] String const& name() const { return m_name; }
     [[nodiscard]] Vector<String> const& value() const { return m_value; }
 
-    [[nodiscard]] GC::Ref<Directive> clone(JS::Realm&) const;
+    [[nodiscard]] GC::Ref<Directive> clone(GC::Heap&) const;
     [[nodiscard]] SerializedDirective serialize() const;
 
 protected:

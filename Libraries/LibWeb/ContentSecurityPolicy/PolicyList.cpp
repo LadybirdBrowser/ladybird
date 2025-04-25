@@ -18,19 +18,19 @@ namespace Web::ContentSecurityPolicy {
 
 GC_DEFINE_ALLOCATOR(PolicyList);
 
-GC::Ref<PolicyList> PolicyList::create(JS::Realm& realm, GC::RootVector<GC::Ref<Policy>> const& policies)
+GC::Ref<PolicyList> PolicyList::create(GC::Heap& heap, GC::RootVector<GC::Ref<Policy>> const& policies)
 {
-    auto policy_list = realm.create<PolicyList>();
+    auto policy_list = heap.allocate<PolicyList>();
     for (auto policy : policies)
         policy_list->m_policies.append(policy);
     return policy_list;
 }
 
-GC::Ref<PolicyList> PolicyList::create(JS::Realm& realm, Vector<SerializedPolicy> const& serialized_policies)
+GC::Ref<PolicyList> PolicyList::create(GC::Heap& heap, Vector<SerializedPolicy> const& serialized_policies)
 {
-    auto policy_list = realm.create<PolicyList>();
+    auto policy_list = heap.allocate<PolicyList>();
     for (auto const& serialized_policy : serialized_policies) {
-        auto policy = Policy::create_from_serialized_policy(realm, serialized_policy);
+        auto policy = Policy::create_from_serialized_policy(heap, serialized_policy);
         policy_list->m_policies.append(policy);
     }
     return policy_list;
@@ -79,11 +79,11 @@ HTML::SandboxingFlagSet PolicyList::csp_derived_sandboxing_flags() const
     return HTML::SandboxingFlagSet {};
 }
 
-GC::Ref<PolicyList> PolicyList::clone(JS::Realm& realm) const
+GC::Ref<PolicyList> PolicyList::clone(GC::Heap& heap) const
 {
-    auto policy_list = realm.create<PolicyList>();
+    auto policy_list = heap.allocate<PolicyList>();
     for (auto policy : m_policies) {
-        auto cloned_policy = policy->clone(realm);
+        auto cloned_policy = policy->clone(heap);
         policy_list->m_policies.append(cloned_policy);
     }
     return policy_list;

@@ -3858,9 +3858,9 @@ void Document::set_active_sandboxing_flag_set(HTML::SandboxingFlagSet sandboxing
 
 GC::Ref<HTML::PolicyContainer> Document::policy_container() const
 {
-    auto& realm = this->realm();
+    auto& heap = this->heap();
     if (!m_policy_container) {
-        m_policy_container = realm.create<HTML::PolicyContainer>(realm);
+        m_policy_container = heap.allocate<HTML::PolicyContainer>(heap);
     }
     return *m_policy_container;
 }
@@ -3873,10 +3873,8 @@ void Document::set_policy_container(GC::Ref<HTML::PolicyContainer> policy_contai
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#snapshotting-source-snapshot-params
 GC::Ref<HTML::SourceSnapshotParams> Document::snapshot_source_snapshot_params() const
 {
-    auto& realm = this->realm();
-
     // To snapshot source snapshot params given a Document sourceDocument, return a new source snapshot params with
-    return realm.create<HTML::SourceSnapshotParams>(
+    return heap().allocate<HTML::SourceSnapshotParams>(
         // has transient activation
         //    true if sourceDocument's relevant global object has transient activation; otherwise false
         as<HTML::Window>(HTML::relevant_global_object(*this)).has_transient_activation(),
@@ -3895,7 +3893,7 @@ GC::Ref<HTML::SourceSnapshotParams> Document::snapshot_source_snapshot_params() 
 
         // source policy container
         //     a clone of sourceDocument's policy container
-        policy_container()->clone(realm));
+        policy_container()->clone(heap()));
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#descendant-navigables

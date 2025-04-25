@@ -621,7 +621,7 @@ Vector<GC::Ref<SessionHistoryEntry>>& Navigable::get_session_history_entries() c
 
 // https://html.spec.whatwg.org/multipage/browsers.html#determining-navigation-params-policy-container
 static GC::Ref<PolicyContainer> determine_navigation_params_policy_container(URL::URL const& response_url,
-    JS::Realm& realm,
+    GC::Heap& heap,
     GC::Ptr<PolicyContainer> history_policy_container,
     GC::Ptr<PolicyContainer> initiator_policy_container,
     GC::Ptr<PolicyContainer> parent_policy_container,
@@ -632,7 +632,7 @@ static GC::Ref<PolicyContainer> determine_navigation_params_policy_container(URL
         // FIXME: 1. Assert: responseURL requires storing the policy container in history.
 
         // 2. Return a clone of historyPolicyContainer.
-        return history_policy_container->clone(realm);
+        return history_policy_container->clone(heap);
     }
 
     // 2. If responseURL is about:srcdoc, then:
@@ -641,20 +641,20 @@ static GC::Ref<PolicyContainer> determine_navigation_params_policy_container(URL
         VERIFY(parent_policy_container);
 
         // 2. Return a clone of parentPolicyContainer.
-        return parent_policy_container->clone(realm);
+        return parent_policy_container->clone(heap);
     }
 
     // 3. If responseURL is local and initiatorPolicyContainer is not null, then return a clone of initiatorPolicyContainer.
     if (Fetch::Infrastructure::is_local_url(response_url) && initiator_policy_container)
-        return initiator_policy_container->clone(realm);
+        return initiator_policy_container->clone(heap);
 
     // 4. If responsePolicyContainer is not null, then return responsePolicyContainer.
     // FIXME: File a spec issue to say "a clone of" here for consistency
     if (response_policy_container)
-        return response_policy_container->clone(realm);
+        return response_policy_container->clone(heap);
 
     // 5. Return a new policy container.
-    return realm.create<PolicyContainer>(realm);
+    return heap.allocate<PolicyContainer>(heap);
 }
 
 // https://html.spec.whatwg.org/multipage/browsers.html#obtain-coop
@@ -743,9 +743,9 @@ static GC::Ref<NavigationParams> create_navigation_params_from_a_srcdoc_resource
         // NOTE: Specification assumes that only navigables corresponding to iframes can be navigated to about:srcdoc.
         //       We also use srcdoc to implement load_html() for top level navigables so we need to null check container
         //       because it might be null.
-        policy_container = determine_navigation_params_policy_container(*response->url(), realm, history_policy_container, {}, navigable->container_document()->policy_container(), {});
+        policy_container = determine_navigation_params_policy_container(*response->url(), realm.heap(), history_policy_container, {}, navigable->container_document()->policy_container(), {});
     } else {
-        policy_container = realm.create<PolicyContainer>(realm);
+        policy_container = realm.heap().allocate<PolicyContainer>(realm.heap());
     }
 
     // 7. Return a new navigation params, with
@@ -1036,7 +1036,7 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
         }
 
         // 9. Set responsePolicyContainer to the result of creating a policy container from a fetch response given response and request's reserved client.
-        response_policy_container = create_a_policy_container_from_a_fetch_response(realm, *response_holder->response(), request->reserved_client());
+        response_policy_container = create_a_policy_container_from_a_fetch_response(realm.heap(), *response_holder->response(), request->reserved_client());
 
         // 10. Set finalSandboxFlags to the union of targetSnapshotParams's sandboxing flags and responsePolicyContainer's CSP list's CSP-derived sandboxing flags.
         final_sandbox_flags = target_snapshot_params.sandboxing_flags | response_policy_container->csp_list->csp_derived_sandboxing_flags();
@@ -1156,7 +1156,7 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
     GC::Ptr<PolicyContainer> history_policy_container = entry->document_state()->history_policy_container().visit(
         [](GC::Ref<PolicyContainer> const& c) -> GC::Ptr<PolicyContainer> { return c; },
         [](DocumentState::Client) -> GC::Ptr<PolicyContainer> { return {}; });
-    auto result_policy_container = determine_navigation_params_policy_container(*response_holder->response()->url(), realm, history_policy_container, source_snapshot_params.source_policy_container, {}, response_policy_container);
+    auto result_policy_container = determine_navigation_params_policy_container(*response_holder->response()->url(), realm.heap(), history_policy_container, source_snapshot_params.source_policy_container, {}, response_policy_container);
 
     // 24. If navigable's container is an iframe, and response's timing allow passed flag is set, then set container's pending resource-timing start time to null.
     if (navigable->container() && is<HTML::HTMLIFrameElement>(*navigable->container()) && response_holder->response()->timing_allow_passed())
