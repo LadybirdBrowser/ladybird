@@ -1114,7 +1114,10 @@ void HTMLParser::handle_in_head(HTMLToken& token)
                 auto result = declarative_shadow_host_element.attach_a_shadow_root(mode, clonable, serializable, delegates_focus, Bindings::SlotAssignmentMode::Named);
                 if (result.is_error()) {
                     report_exception(Bindings::exception_to_throw_completion(vm(), result.release_error()), realm());
-                    insert_an_element_at_the_adjusted_insertion_location(template_);
+                    // FIXME: We do manual "insert before" instead of "insert an element at the adjusted insertion location" here
+                    //        Otherwise, the new insertion location will be inside the template's contents, which is not what we want here.
+                    //        This might be a spec bug(?)
+                    adjusted_insertion_location.parent->insert_before(*template_, adjusted_insertion_location.insert_before_sibling);
                     return;
                 }
 
