@@ -1137,6 +1137,8 @@ TEST_CASE(optimizer_alternation)
         Tuple { "(xxxxxxxxxxxxxxxxxxxxxxx|xxxxxxxxxxxxxxxxxxxxxxx)?b"sv, "xxxxxxxxxxxxxxxxxxxxxxx"sv, 0u },
         // Don't take the jump in JumpNonEmpty with nonexistent checkpoints (also don't crash).
         Tuple { "(?!\\d*|[g-ta-r]+|[h-l]|\\S|\\S|\\S){,9}|\\S{7,8}|\\d|(?<wnvdfimiwd>)|[c-mj-tb-o]*|\\s"sv, "rjvogg7pm|li4nmct mjb2|pk7s8e0"sv, 0u },
+        // Use the right offset when patching jumps through a fork-tree
+        Tuple { "(?!a)|(?!a)b"sv, "b"sv, 0u },
     };
 
     for (auto& test : tests) {

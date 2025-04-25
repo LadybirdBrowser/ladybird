@@ -1560,7 +1560,7 @@ void Optimizer::append_alternation(ByteCode& target, Span<ByteCode> alternatives
                             target.append(static_cast<ByteCodeValueType>(OpCodeId::ForkJump));
                             patch_location = target.size();
                             should_negate = false;
-                            patch_size = 2;
+                            patch_size = 1;
                             target.append(static_cast<ByteCodeValueType>(0));
                         }
 
