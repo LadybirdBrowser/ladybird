@@ -243,13 +243,12 @@ public:
     }
 
     bool contains_direct_call_to_eval() const { return m_contains_direct_call_to_eval; }
-    bool contains_access_to_arguments_object() const { return m_contains_access_to_arguments_object; }
     void set_contains_direct_call_to_eval()
     {
         m_contains_direct_call_to_eval = true;
         m_screwed_by_eval_in_scope_chain = true;
     }
-    void set_contains_access_to_arguments_object() { m_contains_access_to_arguments_object = true; }
+    void set_contains_access_to_arguments_object_in_non_strict_mode() { m_contains_access_to_arguments_object_in_non_strict_mode = true; }
     void set_scope_node(ScopeNode* node) { m_node = node; }
     void set_function_parameters(NonnullRefPtr<FunctionParameters const> parameters)
     {
@@ -275,7 +274,7 @@ public:
         VERIFY(is_top_level() || m_parent_scope);
 
         if (m_parent_scope && !m_function_parameters) {
-            m_parent_scope->m_contains_access_to_arguments_object |= m_contains_access_to_arguments_object;
+            m_parent_scope->m_contains_access_to_arguments_object_in_non_strict_mode |= m_contains_access_to_arguments_object_in_non_strict_mode;
             m_parent_scope->m_contains_direct_call_to_eval |= m_contains_direct_call_to_eval;
             m_parent_scope->m_contains_await_expression |= m_contains_await_expression;
         }
@@ -328,7 +327,7 @@ public:
             }
 
             if (m_type == ScopeType::Function) {
-                if (!m_contains_access_to_arguments_object && m_function_parameters_candidates_for_local_variables.contains(identifier_group_name)) {
+                if (!m_contains_access_to_arguments_object_in_non_strict_mode && m_function_parameters_candidates_for_local_variables.contains(identifier_group_name)) {
                     scope_has_declaration = true;
                 } else if (m_forbidden_lexical_names.contains(identifier_group_name)) {
                     // NOTE: If an identifier is used as a function parameter that cannot be optimized locally or globally, it is simply ignored.
@@ -516,7 +515,7 @@ private:
 
     RefPtr<FunctionParameters const> m_function_parameters;
 
-    bool m_contains_access_to_arguments_object { false };
+    bool m_contains_access_to_arguments_object_in_non_strict_mode { false };
     bool m_contains_direct_call_to_eval { false };
     bool m_contains_await_expression { false };
     bool m_screwed_by_eval_in_scope_chain { false };
@@ -2301,9 +2300,8 @@ NonnullRefPtr<Expression const> Parser::parse_expression(int min_precedence, Ass
             }
         }
 
-        if (has_not_been_declared_as_variable) {
-            if (identifier_instance->string() == "arguments"sv)
-                m_state.current_scope_pusher->set_contains_access_to_arguments_object();
+        if (has_not_been_declared_as_variable && !m_state.strict_mode && identifier_instance->string() == "arguments"sv) {
+            m_state.current_scope_pusher->set_contains_access_to_arguments_object_in_non_strict_mode();
         }
     }
 
