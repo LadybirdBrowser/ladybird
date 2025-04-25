@@ -13,8 +13,7 @@ interface IntersectionObserver {
     readonly attribute (Element or Document)? root;
     readonly attribute DOMString rootMargin;
     readonly attribute DOMString scrollMargin;
-    // FIXME: `sequence<double>` should be `FrozenArray<double>`
-    readonly attribute sequence<double> thresholds;
+    readonly attribute FrozenArray<double> thresholds;
     readonly attribute long delay;
     readonly attribute boolean trackVisibility;
     undefined observe(Element target);
