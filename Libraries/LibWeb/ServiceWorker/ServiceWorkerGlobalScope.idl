@@ -9,10 +9,10 @@ interface ServiceWorkerGlobalScope : WorkerGlobalScope {
 
     [FIXME, NewObject] Promise<undefined> skipWaiting();
 
-    [FIXME] attribute EventHandler oninstall;
-    [FIXME] attribute EventHandler onactivate;
-    [FIXME] attribute EventHandler onfetch;
+    attribute EventHandler oninstall;
+    attribute EventHandler onactivate;
+    attribute EventHandler onfetch;
 
-    [FIXME] attribute EventHandler onmessage;
-    [FIXME] attribute EventHandler onmessageerror;
+    attribute EventHandler onmessage;
+    attribute EventHandler onmessageerror;
 };
