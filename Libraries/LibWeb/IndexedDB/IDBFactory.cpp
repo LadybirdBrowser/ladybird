@@ -211,11 +211,17 @@ GC::Ref<WebIDL::Promise> IDBFactory::databases()
         for (u32 i = 0; i < databases.size(); ++i) {
             auto& db = databases[i];
 
-            // 1. Let info be a new IDBDatabaseInfo dictionary.
-            // 2. Set info’s name dictionary member to db’s name.
-            // 3. Set info’s version dictionary member to db’s version.
+            // 1. If db’s version is 0, then continue.
+            if (db->version() == 0)
+                continue;
+
+            // 2. Let info be a new IDBDatabaseInfo dictionary.
             auto info = JS::Object::create(realm, realm.intrinsics().object_prototype());
+
+            // 3. Set info’s name dictionary member to db’s name.
             MUST(info->create_data_property("name"_fly_string, JS::PrimitiveString::create(realm.vm(), db->name())));
+
+            // 4. Set info’s version dictionary member to db’s version.
             MUST(info->create_data_property("version"_fly_string, JS::Value(db->version())));
 
             // 4. Append info to result.
