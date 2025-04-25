@@ -1874,7 +1874,7 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
         // This might need to change if we switch to a RootVector.
         if (is_platform_object(sequence_generic_type.parameters().first())) {
             scoped_generator.append(R"~~~(
-            auto* wrapped_element@recursion_depth@ = &(*element@recursion_depth@);
+        auto* wrapped_element@recursion_depth@ = &(*element@recursion_depth@);
 )~~~");
         } else {
             scoped_generator.append("JS::Value wrapped_element@recursion_depth@;\n"sv);
@@ -3748,6 +3748,9 @@ static void generate_prototype_or_global_mixin_definitions(IDL::Interface const&
     for (auto& attribute : interface.attributes) {
         if (attribute.extended_attributes.contains("FIXME"))
             continue;
+
+        bool generated_reflected_element_array = false;
+
         auto attribute_generator = generator.fork();
         attribute_generator.set("attribute.name", attribute.name);
         attribute_generator.set("attribute.getter_callback", attribute.getter_callback_name);
@@ -4054,18 +4057,14 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.getter_callback@)
             // inherits from Element, then with attr being the reflected content attribute name:
             // FIXME: Handle "an interface that inherits from Element".
             else if (is_nullable_frozen_array_of_single_type(attribute.type, "Element"sv)) {
+                generated_reflected_element_array = true;
+
                 // 1. Let elements be the result of running this's get the attr-associated elements.
                 attribute_generator.append(R"~~~(
     static auto content_attribute = "@attribute.reflect_name@"_fly_string;
 
     auto retval = impl->get_the_attribute_associated_elements(content_attribute, TRY(throw_dom_exception_if_needed(vm, [&] { return impl->@attribute.cpp_name@(); })));
 )~~~");
-
-                // FIXME: 2. If the contents of elements is equal to the contents of this's cached attr-associated elements, then return
-                //           this's cached attr-associated elements object.
-                // FIXME: 3. Let elementsAsFrozenArray be elements, converted to a FrozenArray<T>?.
-                // FIXME: 4. Set this's cached attr-associated elements to elements.
-                // FIXME: 5. Set this's cached attr-associated elements object to elementsAsFrozenArray.
             } else {
                 attribute_generator.append(R"~~~(
     auto retval = impl->get_attribute_value("@attribute.reflect_name@"_fly_string);
@@ -4083,6 +4082,19 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.getter_callback@)
     Bindings::invoke_custom_element_reactions(queue);
 )~~~");
             }
+
+            if (generated_reflected_element_array) {
+                // 2. If the contents of elements is equal to the contents of this's cached attr-associated elements,
+                //    then return this's cached attr-associated elements object.
+                attribute_generator.append(R"~~~(
+    auto cached_@attribute.cpp_name@ = TRY(throw_dom_exception_if_needed(vm, [&] { return impl->cached_@attribute.cpp_name@(); }));
+    if (WebIDL::lists_contain_same_elements(cached_@attribute.cpp_name@, retval))
+        return cached_@attribute.cpp_name@;
+
+    auto result = TRY([&]() -> JS::ThrowCompletionOr<JS::Value> {
+)~~~");
+            }
+
         } else {
             if (!attribute.extended_attributes.contains("CEReactions")) {
                 attribute_generator.append(R"~~~(
@@ -4126,6 +4138,24 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.getter_callback@)
         }
 
         generate_return_statement(generator, *attribute.type, interface);
+
+        if (generated_reflected_element_array) {
+            // 3. Let elementsAsFrozenArray be elements, converted to a FrozenArray<T>?.
+            // 4. Set this's cached attr-associated elements to elements.
+            // 5. Set this's cached attr-associated elements object to elementsAsFrozenArray.
+            attribute_generator.append(R"~~~(
+    }());
+
+    if (result.is_null()) {
+        TRY(throw_dom_exception_if_needed(vm, [&] { impl->set_cached_@attribute.cpp_name@({}); }));
+    } else {
+        auto& array = as<JS::Array>(result.as_object());
+        TRY(throw_dom_exception_if_needed(vm, [&] { impl->set_cached_@attribute.cpp_name@(&array); }));
+    }
+
+    return result;
+)~~~");
+        }
 
         attribute_generator.append(R"~~~(
 }

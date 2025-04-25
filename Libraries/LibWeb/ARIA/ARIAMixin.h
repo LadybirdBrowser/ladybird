@@ -68,12 +68,17 @@ public:
 
 #define __ENUMERATE_ARIA_ATTRIBUTE(attribute, referencing_attribute)  \
     Optional<Vector<WeakPtr<DOM::Element>>> const& attribute() const; \
-    void set_##attribute(Optional<Vector<WeakPtr<DOM::Element>>> value);
+    void set_##attribute(Optional<Vector<WeakPtr<DOM::Element>>>);    \
+                                                                      \
+    GC::Ptr<JS::Array> cached_##attribute() const;                    \
+    void set_cached_##attribute(GC::Ptr<JS::Array>);
     ENUMERATE_ARIA_ELEMENT_LIST_REFERENCING_ATTRIBUTES
 #undef __ENUMERATE_ARIA_ATTRIBUTE
 
 protected:
     ARIAMixin();
+
+    void visit_edges(GC::Cell::Visitor&);
 
     virtual bool id_reference_exists(String const&) const = 0;
 
@@ -84,7 +89,8 @@ private:
 #undef __ENUMERATE_ARIA_ATTRIBUTE
 
 #define __ENUMERATE_ARIA_ATTRIBUTE(attribute, referencing_attribute) \
-    Optional<Vector<WeakPtr<DOM::Element>>> m_##attribute;
+    Optional<Vector<WeakPtr<DOM::Element>>> m_##attribute;           \
+    GC::Ptr<JS::Array> m_cached_##attribute;
     ENUMERATE_ARIA_ELEMENT_LIST_REFERENCING_ATTRIBUTES
 #undef __ENUMERATE_ARIA_ATTRIBUTE
 };
