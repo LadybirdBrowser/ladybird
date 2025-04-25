@@ -195,7 +195,7 @@ WebIDL::ExceptionOr<void> Location::set_protocol(String const& value)
     auto copy_url = this->url();
 
     // 4. Let possibleFailure be the result of basic URL parsing the given value, followed by ":", with copyURL as url and scheme start state as state override.
-    auto possible_failure = URL::Parser::basic_parse(value, {}, &copy_url, URL::Parser::State::SchemeStart);
+    auto possible_failure = URL::Parser::basic_parse(MUST(String::formatted("{}:", value)), {}, &copy_url, URL::Parser::State::SchemeStart);
 
     // 5. If possibleFailure is failure, then throw a "SyntaxError" DOMException.
     if (!possible_failure.has_value())
