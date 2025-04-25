@@ -61,6 +61,7 @@ public:
     [[nodiscard]] bool is_finished() const { return m_state == TransactionState::Finished; }
 
     GC::Ptr<ObjectStore> object_store_named(String const& name) const;
+    void add_to_scope(GC::Ref<ObjectStore> object_store) { m_scope.append(object_store); }
 
     WebIDL::ExceptionOr<void> abort();
     WebIDL::ExceptionOr<void> commit();

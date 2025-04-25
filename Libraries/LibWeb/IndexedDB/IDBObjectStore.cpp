@@ -24,6 +24,7 @@ IDBObjectStore::IDBObjectStore(JS::Realm& realm, GC::Ref<ObjectStore> store, GC:
     , m_transaction(transaction)
     , m_name(store->name())
 {
+    transaction->add_to_scope(store);
 }
 
 GC::Ref<IDBObjectStore> IDBObjectStore::create(JS::Realm& realm, GC::Ref<ObjectStore> store, GC::Ref<IDBTransaction> transaction)
