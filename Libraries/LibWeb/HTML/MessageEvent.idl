@@ -13,7 +13,7 @@ interface MessageEvent : Event {
     readonly attribute USVString origin;
     readonly attribute DOMString lastEventId;
     readonly attribute MessageEventSource? source;
-    // FIXME: readonly attribute FrozenArray<MessagePort> ports;
+    // FIXME: This should be FrozenArray<MessagePort>, but must also always return the same object.
     readonly attribute any ports;
 
     undefined initMessageEvent(DOMString type, optional boolean bubbles = false, optional boolean cancelable = false, optional any data = null, optional USVString origin = "", optional DOMString lastEventId = "", optional MessageEventSource? source = null, optional sequence<MessagePort> ports = []);
