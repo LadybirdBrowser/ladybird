@@ -172,9 +172,9 @@ static StringView sequence_storage_type_to_cpp_storage_type_name(SequenceStorage
     }
 }
 
-static bool is_nullable_sequence_of_single_type(Type const& type, StringView type_name)
+static bool is_nullable_frozen_array_of_single_type(Type const& type, StringView type_name)
 {
-    if (!type.is_nullable() || !type.is_sequence())
+    if (!type.is_nullable() || type.name() != "FrozenArray"sv)
         return false;
 
     auto const& parameters = type.as_parameterized().parameters();
@@ -4053,8 +4053,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.getter_callback@)
             // If a reflected IDL attribute has the type FrozenArray<T>?, where T is either Element or an interface that
             // inherits from Element, then with attr being the reflected content attribute name:
             // FIXME: Handle "an interface that inherits from Element".
-            // FIXME: This should handle "FrozenArray" rather than "sequence".
-            else if (is_nullable_sequence_of_single_type(attribute.type, "Element"sv)) {
+            else if (is_nullable_frozen_array_of_single_type(attribute.type, "Element"sv)) {
                 // 1. Let elements be the result of running this's get the attr-associated elements.
                 attribute_generator.append(R"~~~(
     static auto content_attribute = "@attribute.reflect_name@"_fly_string;
@@ -4216,8 +4215,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
                 // If a reflected IDL attribute has the type FrozenArray<T>?, where T is either Element or an interface
                 // that inherits from Element, then with attr being the reflected content attribute name:
                 // FIXME: Handle "an interface that inherits from Element".
-                // FIXME: This should handle "FrozenArray" rather than "sequence".
-                else if (is_nullable_sequence_of_single_type(attribute.type, "Element"sv)) {
+                else if (is_nullable_frozen_array_of_single_type(attribute.type, "Element"sv)) {
                     // 1. If the given value is null:
                     //     1. Set this's explicitly set attr-elements to null.
                     //     2. Run this's delete the content attribute.
