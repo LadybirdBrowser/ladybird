@@ -2926,8 +2926,9 @@ NonnullRefPtr<CalculationNode const> simplify_a_calculation_tree(CalculationNode
     //    running root’s operation using its children, expressed in the result’s canonical unit.
     if (root->is_math_function_node()) {
         if (auto maybe_simplified = root->run_operation_if_possible(context, resolution_context); maybe_simplified.has_value()) {
-            // NOTE: If this returns nullptr, that's a logic error in the code, so it's fine to assert that it's nonnull.
-            return make_calculation_node(maybe_simplified.release_value(), context).release_nonnull();
+            if (auto node = make_calculation_node(maybe_simplified.release_value(), context))
+                return node.release_nonnull();
+            return root;
         }
     }
 

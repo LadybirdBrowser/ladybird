@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#comp-func">
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#lengths">
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#calc-type-checking">
+<link rel="author" title="Xiaocheng Hu" href="mailto:xiaochengh@chromium.org">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../support/parsing-testcommon.js"></script>
+<script>
+function test_invalid_length(value) {
+  // 'border-width' accepts <length> only, not <percentage> or any mixes.
+  test_invalid_value('border-left-width', value);
+}
+
+// Syntax checking
+test_invalid_length('min()');
+test_invalid_length('min( )');
+test_invalid_length('min(,)');
+test_invalid_length('min(1py)');
+test_invalid_length('min(1px, )');
+test_invalid_length('min(, 1px)');
+test_invalid_length('min(1px + )');
+test_invalid_length('min(1px - )');
+test_invalid_length('min(1px * )');
+test_invalid_length('min(1px / )');
+test_invalid_length('min(1px 2px)');
+test_invalid_length('min(1px, , 2px)');
+test_invalid_length('max()');
+test_invalid_length('max( )');
+test_invalid_length('max(,)');
+test_invalid_length('max(1py)');
+test_invalid_length('max(1px, )');
+test_invalid_length('max(, 1px)');
+test_invalid_length('max(1px + )');
+test_invalid_length('max(1px - )');
+test_invalid_length('max(1px * )');
+test_invalid_length('max(1px / )');
+test_invalid_length('max(1px 2px)');
+test_invalid_length('max(1px, , 2px)');
+
+// Type checking
+test_invalid_length('min(0)');
+test_invalid_length('min(0%)');
+test_invalid_length('min(0s)');
+test_invalid_length('min(0Hz)');
+test_invalid_length('min(0dpi)');
+test_invalid_length('min(0fr)');
+test_invalid_length('min(1px, 0)');
+test_invalid_length('min(1px, 0%)');
+test_invalid_length('min(1px, 0s)');
+test_invalid_length('min(1px, 0Hz)');
+test_invalid_length('min(1px, 0dpi)');
+test_invalid_length('min(1px, 0fr)');
+test_invalid_length('max(0)');
+test_invalid_length('max(0%)');
+test_invalid_length('max(0s)');
+test_invalid_length('max(0Hz)');
+test_invalid_length('max(0dpi)');
+test_invalid_length('max(0fr)');
+test_invalid_length('max(1px, 0)');
+test_invalid_length('max(1px, 0%)');
+test_invalid_length('max(1px, 0s)');
+test_invalid_length('max(1px, 0Hz)');
+test_invalid_length('max(1px, 0dpi)');
+test_invalid_length('max(1px, 0fr)');
+</script>
