@@ -257,13 +257,14 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::add_or_put(GC::Ref<IDBO
     // 8. If key was given, then:
     if (key_was_given) {
         // 1. Let r be the result of converting a value to a key with key. Rethrow any exceptions.
-        auto maybe_key = TRY(convert_a_value_to_a_key(realm, key.value()));
+        auto r = TRY(convert_a_value_to_a_key(realm, key.value()));
+
         // 2. If r is invalid, throw a "DataError" DOMException.
-        if (maybe_key.is_error())
+        if (r->is_invalid())
             return WebIDL::DataError::create(realm, "Key is invalid"_string);
 
         // 3. Let key be r.
-        key_value = maybe_key.release_value();
+        key_value = r;
     }
 
     // 9. Let targetRealm be a user-agent defined Realm.
@@ -277,13 +278,14 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::add_or_put(GC::Ref<IDBO
         // 1. Let kpk be the result of extracting a key from a value using a key path with clone and store’s key path. Rethrow any exceptions.
         auto maybe_kpk = TRY(extract_a_key_from_a_value_using_a_key_path(realm, clone, store.key_path().value()));
 
-        // 2. If kpk is invalid, throw a "DataError" DOMException.
-        if (maybe_kpk.is_error())
-            return WebIDL::DataError::create(realm, "Key path is invalid"_string);
-
+        // NOTE: Step 2 and 3 is reversed here, since we check for failure before validity.
         // 3. If kpk is not failure, let key be kpk.
         if (!maybe_kpk.is_error()) {
             key_value = maybe_kpk.release_value();
+
+            // 2. If kpk is invalid, throw a "DataError" DOMException.
+            if (key_value->is_invalid())
+                return WebIDL::DataError::create(realm, "Key path is invalid"_string);
         }
 
         // 4. Otherwise (kpk is failure):
@@ -300,12 +302,9 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::add_or_put(GC::Ref<IDBO
 
     // 12. Let operation be an algorithm to run store a record into an object store with store, clone, key, and no-overwrite flag.
     auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(realm.heap(), [&realm, &store, clone, key_value, no_overwrite] -> WebIDL::ExceptionOr<JS::Value> {
-        auto maybe_key = store_a_record_into_an_object_store(realm, store, clone, key_value, no_overwrite);
-        if (maybe_key.is_error())
-            return maybe_key.release_error();
+        auto optional_key = TRY(store_a_record_into_an_object_store(realm, store, clone, key_value, no_overwrite));
 
-        auto optional_key = maybe_key.release_value();
-        if (optional_key == nullptr)
+        if (!optional_key || optional_key->is_invalid())
             return JS::js_undefined();
 
         return convert_a_key_to_a_value(realm, GC::Ref(*optional_key));

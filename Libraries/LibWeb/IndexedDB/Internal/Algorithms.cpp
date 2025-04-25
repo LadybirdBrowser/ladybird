@@ -207,14 +207,14 @@ bool fire_a_version_change_event(JS::Realm& realm, FlyString const& event_name, 
 }
 
 // https://w3c.github.io/IndexedDB/#convert-value-to-key
-WebIDL::ExceptionOr<ErrorOr<GC::Ref<Key>>> convert_a_value_to_a_key(JS::Realm& realm, JS::Value input, Vector<JS::Value> seen)
+WebIDL::ExceptionOr<GC::Ref<Key>> convert_a_value_to_a_key(JS::Realm& realm, JS::Value input, Vector<JS::Value> seen)
 {
     // 1. If seen was not given, then let seen be a new empty set.
     // NOTE: This is handled by the caller.
 
     // 2. If seen contains input, then return invalid.
     if (seen.contains_slow(input))
-        return Error::from_string_literal("Already seen key");
+        return Key::create_invalid(realm, "Already seen key"_string);
 
     // 3. Jump to the appropriate step below:
 
@@ -223,7 +223,7 @@ WebIDL::ExceptionOr<ErrorOr<GC::Ref<Key>>> convert_a_value_to_a_key(JS::Realm& r
 
         // 1. If input is NaN then return invalid.
         if (input.is_nan())
-            return Error::from_string_literal("NaN key");
+            return Key::create_invalid(realm, "NaN key"_string);
 
         // 2. Otherwise, return a new key with type number and value input.
         return Key::create_number(realm, input.as_double());
@@ -238,7 +238,7 @@ WebIDL::ExceptionOr<ErrorOr<GC::Ref<Key>>> convert_a_value_to_a_key(JS::Realm& r
 
         // 2. If ms is NaN then return invalid.
         if (isnan(ms))
-            return Error::from_string_literal("NaN key");
+            return Key::create_invalid(realm, "NaN key"_string);
 
         // 3. Otherwise, return a new key with type date and value ms.
         return Key::create_date(realm, ms);
@@ -256,10 +256,10 @@ WebIDL::ExceptionOr<ErrorOr<GC::Ref<Key>>> convert_a_value_to_a_key(JS::Realm& r
 
         // 1. If input is detached then return invalid.
         if (WebIDL::is_buffer_source_detached(input))
-            return Error::from_string_literal("Detached buffer is not supported as key");
+            return Key::create_invalid(realm, "Detached buffer is not supported as key"_string);
 
         // 2. Let bytes be the result of getting a copy of the bytes held by the buffer source input.
-        auto data_buffer = TRY(WebIDL::get_buffer_source_copy(input.as_object()));
+        auto data_buffer = MUST(WebIDL::get_buffer_source_copy(input.as_object()));
 
         // 3. Return a new key with type binary and value bytes.
         return Key::create_binary(realm, data_buffer);
@@ -287,15 +287,18 @@ WebIDL::ExceptionOr<ErrorOr<GC::Ref<Key>>> convert_a_value_to_a_key(JS::Realm& r
 
             // 2. If hop is false, return invalid.
             if (!hop)
-                return Error::from_string_literal("Array-like object has no property");
+                return Key::create_invalid(realm, "Array-like object has no property"_string);
 
             // 3. Let entry be ? Get(input, index).
             auto entry = TRY(input.as_object().get(index));
 
             // 4. Let key be the result of converting a value to a key with arguments entry and seen.
             // 5. ReturnIfAbrupt(key).
+            auto key = TRY(convert_a_value_to_a_key(realm, entry, seen));
+
             // 6. If key is invalid abort these steps and return invalid.
-            auto key = TRY(TRY(convert_a_value_to_a_key(realm, entry, seen)));
+            if (key->is_invalid())
+                return key;
 
             // 7. Append key to keys.
             keys.append(key);
@@ -309,7 +312,8 @@ WebIDL::ExceptionOr<ErrorOr<GC::Ref<Key>>> convert_a_value_to_a_key(JS::Realm& r
     }
 
     // - Otherwise
-    return Error::from_string_literal("Unknown key type");
+    // Return invalid.
+    return Key::create_invalid(realm, "Unable to convert value to key. Its not of a known type"_string);
 }
 
 // https://w3c.github.io/IndexedDB/#close-a-database-connection
@@ -682,6 +686,8 @@ JS::Value convert_a_key_to_a_value(JS::Realm& realm, GC::Ref<Key> key)
         // 6. Return array.
         return array;
     }
+    case Key::KeyType::Invalid:
+        VERIFY_NOT_REACHED();
     }
 
     VERIFY_NOT_REACHED();
@@ -812,7 +818,7 @@ WebIDL::ExceptionOr<JS::Value> clone_in_realm(JS::Realm& target_realm, JS::Value
 }
 
 // https://w3c.github.io/IndexedDB/#convert-a-value-to-a-multientry-key
-WebIDL::ExceptionOr<ErrorOr<GC::Ref<Key>>> convert_a_value_to_a_multi_entry_key(JS::Realm& realm, JS::Value value)
+WebIDL::ExceptionOr<GC::Ref<Key>> convert_a_value_to_a_multi_entry_key(JS::Realm& realm, JS::Value value)
 {
     // 1. If input is an Array exotic object, then:
     if (value.is_object() && is<JS::Array>(value.as_object())) {
@@ -843,14 +849,10 @@ WebIDL::ExceptionOr<ErrorOr<GC::Ref<Key>>> convert_a_value_to_a_multi_entry_key(
 
                 // 2. If key is not invalid or an abrupt completion, and there is no item in keys equal to key, then append key to keys.
                 if (!completion_key.is_error()) {
-                    auto maybe_key = completion_key.release_value();
+                    auto key = completion_key.release_value();
 
-                    if (!maybe_key.is_error()) {
-                        auto key = maybe_key.release_value();
-
-                        if (!keys.contains_slow(key))
-                            keys.append(key);
-                    }
+                    if (!key->is_invalid() && !keys.contains_slow(key))
+                        keys.append(key);
                 }
             }
 
@@ -1368,15 +1370,22 @@ WebIDL::ExceptionOr<GC::Ptr<Key>> store_a_record_into_an_object_store(JS::Realm&
     // 5. For each index which references store:
     for (auto const& [name, index] : store->index_set()) {
         // 1. Let index key be the result of extracting a key from a value using a key path with value, index’s key path, and index’s multiEntry flag.
-        auto index_key = TRY(extract_a_key_from_a_value_using_a_key_path(realm, value, index->key_path(), index->multi_entry()));
+        auto completion_index_key = extract_a_key_from_a_value_using_a_key_path(realm, value, index->key_path(), index->multi_entry());
 
         // 2. If index key is an exception, or invalid, or failure, take no further actions for index, and continue these steps for the next index.
-        if (index_key.is_error())
+        if (completion_index_key.is_error())
             continue;
 
-        auto index_key_value = index_key.value();
+        auto failure_index_key = completion_index_key.release_value();
+        if (failure_index_key.is_error())
+            continue;
+
+        auto index_key = failure_index_key.release_value();
+        if (index_key->is_invalid())
+            continue;
+
         auto index_multi_entry = index->multi_entry();
-        auto index_key_is_array = index_key_value->type() == Key::KeyType::Array;
+        auto index_key_is_array = index_key->type() == Key::KeyType::Array;
         auto index_is_unique = index->unique();
 
         // 3. If index’s multiEntry flag is false, or if index key is not an array key,
@@ -1384,7 +1393,7 @@ WebIDL::ExceptionOr<GC::Ptr<Key>> store_a_record_into_an_object_store(JS::Realm&
         //    and index’s unique flag is true,
         //    then this operation failed with a "ConstraintError" DOMException.
         //    Abort this algorithm without taking any further steps.
-        if ((!index_multi_entry || !index_key_is_array) && index_is_unique && index->has_record_with_key(index_key_value))
+        if ((!index_multi_entry || !index_key_is_array) && index_is_unique && index->has_record_with_key(index_key))
             return WebIDL::ConstraintError::create(realm, "Record already exists in index"_string);
 
         // 4. If index’s multiEntry flag is true and index key is an array key,
@@ -1393,7 +1402,7 @@ WebIDL::ExceptionOr<GC::Ptr<Key>> store_a_record_into_an_object_store(JS::Realm&
         //    then this operation failed with a "ConstraintError" DOMException.
         //    Abort this algorithm without taking any further steps.
         if (index_multi_entry && index_key_is_array && index_is_unique) {
-            for (auto const& subkey : index_key_value->subkeys()) {
+            for (auto const& subkey : index_key->subkeys()) {
                 if (index->has_record_with_key(*subkey))
                     return WebIDL::ConstraintError::create(realm, "Record already exists in index"_string);
             }
