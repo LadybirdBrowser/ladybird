@@ -277,7 +277,7 @@ CppType idl_type_name_to_cpp_type(Type const& type, Interface const& interface)
     if (type.name() == "Promise")
         return { .name = "GC::Root<WebIDL::Promise>", .sequence_storage_type = SequenceStorageType::RootVector };
 
-    if (type.name() == "sequence") {
+    if (type.name().is_one_of("sequence"sv, "FrozenArray"sv)) {
         auto& parameterized_type = as<ParameterizedType>(type);
         auto& sequence_type = parameterized_type.parameters().first();
         auto sequence_cpp_type = idl_type_name_to_cpp_type(sequence_type, interface);
@@ -1023,18 +1023,23 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
     auto @cpp_name@ = vm.heap().allocate<WebIDL::CallbackType>(@js_name@@js_suffix@.as_object(), HTML::incumbent_realm(), @operation_returns_promise@);
 )~~~");
         }
-    } else if (parameter.type->name() == "sequence") {
-        // https://webidl.spec.whatwg.org/#es-sequence
+    } else if (parameter.type->name().is_one_of("sequence"sv, "FrozenArray"sv)) {
+        // https://webidl.spec.whatwg.org/#js-sequence
+        // https://webidl.spec.whatwg.org/#js-frozen-array
 
         auto sequence_generator = scoped_generator.fork();
         auto& parameterized_type = as<IDL::ParameterizedType>(*parameter.type);
         sequence_generator.set("recursion_depth", ByteString::number(recursion_depth));
 
-        // An ECMAScript value V is converted to an IDL sequence<T> value as follows:
-        // 1. If Type(V) is not Object, throw a TypeError.
-        // 2. Let method be ? GetMethod(V, @@iterator).
+        // A JavaScript value V is converted to an IDL sequence<T> value as follows:
+        // 1. If V is not an Object, throw a TypeError.
+        // 2. Let method be ? GetMethod(V, %Symbol.iterator%).
         // 3. If method is undefined, throw a TypeError.
         // 4. Return the result of creating a sequence from V and method.
+
+        // A JavaScript value V is converted to an IDL FrozenArray<T> value by running the following algorithm:
+        // 1. Let values be the result of converting V to IDL type sequence<T>.
+        // 2. Return the result of creating a frozen array from values.
 
         if (optional || parameter.type->is_nullable()) {
             auto sequence_cpp_type = idl_type_name_to_cpp_type(parameterized_type.parameters().first(), interface);
@@ -1814,7 +1819,7 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
             scoped_generator.append(R"~~~(
     if (@value@.has_value()) {
 )~~~");
-        } else if (type.name() == "sequence") {
+        } else if (type.name().is_one_of("sequence"sv, "FrozenArray"sv)) {
             scoped_generator.append(R"~~~(
     if (@value@.has_value()) {
 )~~~");
@@ -1842,8 +1847,9 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
     @result_expression@ JS::PrimitiveString::create(vm, @value@);
 )~~~");
         }
-    } else if (type.name() == "sequence") {
-        // https://webidl.spec.whatwg.org/#es-sequence
+    } else if (type.name().is_one_of("sequence"sv, "FrozenArray"sv)) {
+        // https://webidl.spec.whatwg.org/#js-sequence
+        // https://webidl.spec.whatwg.org/#js-frozen-array
         auto& sequence_generic_type = as<IDL::ParameterizedType>(type);
 
         scoped_generator.append(R"~~~(
@@ -1879,7 +1885,15 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
         auto property_index@recursion_depth@ = JS::PropertyKey { i@recursion_depth@ };
         MUST(new_array@recursion_depth@->create_data_property(property_index@recursion_depth@, wrapped_element@recursion_depth@));
     }
+)~~~");
 
+        if (type.name() == "FrozenArray"sv) {
+            scoped_generator.append(R"~~~(
+    TRY(new_array@recursion_depth@->set_integrity_level(IntegrityLevel::Frozen));
+)~~~");
+        }
+
+        scoped_generator.append(R"~~~(
     @result_expression@ new_array@recursion_depth@;
 )~~~");
     } else if (type.name() == "record") {
