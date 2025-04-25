@@ -22,7 +22,7 @@ public:
 
     CSSStyleProperties const& declaration() const { return m_declaration; }
 
-    CSSStyleDeclaration* style();
+    GC::Ref<CSSStyleProperties> style();
 
     CSSStyleRule const& parent_style_rule() const;
 
