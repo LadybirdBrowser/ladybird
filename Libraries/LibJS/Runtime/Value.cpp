@@ -1593,8 +1593,13 @@ ThrowCompletionOr<Value> left_shift(VM& vm, Value lhs, Value rhs)
         return Value(lhs_i32 << shift_count);
     }
     if (both_bigint(lhs_numeric, rhs_numeric)) {
+        // AD-HOC: Prevent allocating huge amounts of memory.
+        auto rhs_bigint = rhs_numeric.as_bigint().big_integer().unsigned_value();
+        if (rhs_bigint.byte_length() > sizeof(u32))
+            return vm.throw_completion<RangeError>(ErrorType::BigIntSizeExceeded);
+
         // 6.1.6.2.9 BigInt::leftShift ( x, y ), https://tc39.es/ecma262/#sec-numeric-types-bigint-leftShift
-        auto multiplier_divisor = Crypto::SignedBigInteger { Crypto::NumberTheory::Power(Crypto::UnsignedBigInteger(2), rhs_numeric.as_bigint().big_integer().unsigned_value()) };
+        auto multiplier_divisor = Crypto::SignedBigInteger { Crypto::NumberTheory::Power(Crypto::UnsignedBigInteger(2), rhs_bigint) };
 
         // 1. If y < 0ℤ, then
         if (rhs_numeric.as_bigint().big_integer().is_negative()) {
