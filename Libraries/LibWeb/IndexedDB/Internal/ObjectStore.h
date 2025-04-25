@@ -43,7 +43,8 @@ public:
     Optional<KeyPath> key_path() const { return m_key_path; }
     bool uses_inline_keys() const { return m_key_path.has_value(); }
     bool uses_out_of_line_keys() const { return !m_key_path.has_value(); }
-    Optional<KeyGenerator> key_generator() const { return m_key_generator; }
+    KeyGenerator& key_generator() { return *m_key_generator; }
+    bool uses_a_key_generator() const { return m_key_generator.has_value(); }
     AK::HashMap<String, GC::Ref<Index>>& index_set() { return m_indexes; }
 
     GC::Ref<Database> database() const { return m_database; }

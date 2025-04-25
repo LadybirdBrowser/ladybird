@@ -250,7 +250,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::add_or_put(GC::Ref<IDBO
         return WebIDL::DataError::create(realm, "Store uses in-line keys and key was given"_string);
 
     // 7. If store uses out-of-line keys and has no key generator and key was not given, throw a "DataError" DOMException.
-    if (store.uses_out_of_line_keys() && !store.key_generator().has_value() && !key_was_given)
+    if (store.uses_out_of_line_keys() && !store.uses_a_key_generator() && !key_was_given)
         return WebIDL::DataError::create(realm, "Store uses out-of-line keys and has no key generator and key was not given"_string);
 
     GC::Ptr<Key> key_value;
@@ -291,7 +291,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::add_or_put(GC::Ref<IDBO
         // 4. Otherwise (kpk is failure):
         else {
             // 1. If store does not have a key generator, throw a "DataError" DOMException.
-            if (!store.key_generator().has_value())
+            if (!store.uses_a_key_generator())
                 return WebIDL::DataError::create(realm, "Store does not have a key generator"_string);
 
             // 2. Otherwise, if check that a key could be injected into a value with clone and store’s key path return false, throw a "DataError" DOMException.
