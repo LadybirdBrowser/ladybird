@@ -3889,8 +3889,17 @@ RefPtr<CSSStyleValue const> Parser::parse_scale_value(TokenStream<ComponentValue
     if (!maybe_y)
         return nullptr;
 
+    if (!tokens.has_next_token()) {
+        transaction.commit();
+        return TransformationStyleValue::create(PropertyID::Scale, TransformFunction::Scale, { maybe_x.release_nonnull(), maybe_y.release_nonnull() });
+    }
+
+    auto maybe_z = parse_number_percentage_value(tokens);
+    if (!maybe_z)
+        return nullptr;
+
     transaction.commit();
-    return TransformationStyleValue::create(PropertyID::Scale, TransformFunction::Scale, { maybe_x.release_nonnull(), maybe_y.release_nonnull() });
+    return TransformationStyleValue::create(PropertyID::Scale, TransformFunction::Scale, { maybe_x.release_nonnull(), maybe_y.release_nonnull(), maybe_z.release_nonnull() });
 }
 
 // https://drafts.csswg.org/css-overflow/#propdef-scrollbar-gutter
