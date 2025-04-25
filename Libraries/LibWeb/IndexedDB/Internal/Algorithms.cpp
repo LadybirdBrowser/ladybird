@@ -1220,7 +1220,7 @@ GC::Ref<IDBRequest> asynchronously_execute_a_request(JS::Realm& realm, IDBReques
 ErrorOr<u64> generate_a_key(GC::Ref<ObjectStore> store)
 {
     // 1. Let generator be store’s key generator.
-    auto generator = store->key_generator().value();
+    auto& generator = store->key_generator();
 
     // 2. Let key be generator’s current number.
     auto key = generator.current_number();
@@ -1253,7 +1253,7 @@ void possibly_update_the_key_generator(GC::Ref<ObjectStore> store, GC::Ref<Key> 
     u64 value = floor(temp_value);
 
     // 5. Let generator be store’s key generator.
-    auto generator = store->key_generator().value();
+    auto& generator = store->key_generator();
 
     // 6. If value is greater than or equal to generator’s current number, then set generator’s current number to value + 1.
     if (value >= generator.current_number())
@@ -1324,7 +1324,7 @@ void delete_records_from_an_object_store(GC::Ref<ObjectStore> store, GC::Ref<IDB
 WebIDL::ExceptionOr<GC::Ptr<Key>> store_a_record_into_an_object_store(JS::Realm& realm, GC::Ref<ObjectStore> store, JS::Value value, GC::Ptr<Key> key, bool no_overwrite)
 {
     // 1. If store uses a key generator, then:
-    if (store->key_generator().has_value()) {
+    if (store->uses_a_key_generator()) {
         // 1. If key is undefined, then:
         if (key == nullptr) {
             // 1. Let key be the result of generating a key for store.
