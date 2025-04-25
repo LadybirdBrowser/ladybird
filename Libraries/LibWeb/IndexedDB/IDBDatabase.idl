@@ -1,5 +1,6 @@
 #import <DOM/EventTarget.idl>
 #import <DOM/EventHandler.idl>
+#import <IndexedDB/IDBTransaction.idl>
 #import <IndexedDB/IDBObjectStore.idl>
 
 [Exposed=(Window,Worker)]
@@ -8,7 +9,7 @@ interface IDBDatabase : EventTarget {
     readonly attribute unsigned long long version;
     readonly attribute DOMStringList objectStoreNames;
 
-    [FIXME, NewObject] IDBTransaction transaction((DOMString or sequence<DOMString>) storeNames, optional IDBTransactionMode mode = "readonly", optional IDBTransactionOptions options = {});
+    [NewObject] IDBTransaction transaction((DOMString or sequence<DOMString>) storeNames, optional IDBTransactionMode mode = "readonly", optional IDBTransactionOptions options = {});
     undefined close();
     [NewObject] IDBObjectStore createObjectStore(DOMString name, optional IDBObjectStoreParameters options = {});
     undefined deleteObjectStore(DOMString name);
