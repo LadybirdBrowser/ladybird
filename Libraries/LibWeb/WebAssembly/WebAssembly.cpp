@@ -476,13 +476,13 @@ JS::NativeFunction* create_native_function(JS::VM& vm, Wasm::FunctionAddress add
 
 JS::ThrowCompletionOr<Wasm::Value> to_webassembly_value(JS::VM& vm, JS::Value value, Wasm::ValueType const& type)
 {
-    static ::Crypto::SignedBigInteger two_64 = "1"_sbigint.shift_left(64);
+    static ::Crypto::SignedBigInteger two_64 = TRY_OR_THROW_OOM(vm, "1"_sbigint.shift_left(64));
 
     switch (type.kind()) {
     case Wasm::ValueType::I64: {
         auto bigint = TRY(value.to_bigint(vm));
         auto value = bigint->big_integer().divided_by(two_64).remainder;
-        VERIFY(value.unsigned_value().trimmed_length() <= 2);
+        VERIFY(value.unsigned_value().byte_length() <= sizeof(i64));
         i64 integer = static_cast<i64>(value.unsigned_value().to_u64());
         if (value.is_negative())
             integer = -integer;

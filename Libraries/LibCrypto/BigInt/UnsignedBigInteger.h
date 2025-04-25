@@ -2,66 +2,44 @@
  * Copyright (c) 2020, Itamar S. <itamar8910@gmail.com>
  * Copyright (c) 2022, the SerenityOS developers.
  * Copyright (c) 2022, David Tuin <davidot@serenityos.org>
+ * Copyright (c) 2025, Altomani Gianluca <altomanigianluca@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #pragma once
 
-#include <AK/BigIntBase.h>
 #include <AK/ByteString.h>
-#include <AK/Concepts.h>
-#include <AK/Span.h>
 #include <AK/String.h>
-#include <AK/Types.h>
-#include <AK/Vector.h>
+#include <LibCrypto/BigInt/TommathForward.h>
 
 namespace Crypto {
 
 struct UnsignedDivisionResult;
-constexpr size_t STARTING_WORD_SIZE = 32;
 
 class UnsignedBigInteger {
 public:
-    using Word = u32;
-    using StorageSpan = AK::Detail::StorageSpan<Word, false>;
-    using ConstStorageSpan = AK::Detail::StorageSpan<Word const, false>;
-    static constexpr size_t BITS_IN_WORD = 32;
-
-    // This constructor accepts any unsigned with size up to Word.
     template<Integral T>
-    requires(sizeof(T) <= sizeof(Word))
     UnsignedBigInteger(T value)
-    {
-        m_words.append(static_cast<Word>(value));
-    }
-
-    explicit UnsignedBigInteger(Vector<Word, STARTING_WORD_SIZE>&& words)
-        : m_words(move(words))
+        : UnsignedBigInteger(static_cast<u64>(value))
     {
     }
+    UnsignedBigInteger(u8 const* ptr, size_t length);
 
-    explicit UnsignedBigInteger(u8 const* ptr, size_t length);
-
+    explicit UnsignedBigInteger(Vector<u32> const& words);
     explicit UnsignedBigInteger(double value);
+    explicit UnsignedBigInteger(u64 value);
 
-    explicit UnsignedBigInteger(u64 value)
-    {
-        static_assert(sizeof(u64) == sizeof(Word) * 2);
-        m_words.resize_and_keep_capacity(2);
-        m_words[0] = static_cast<Word>(value & 0xFFFFFFFF);
-        m_words[1] = static_cast<Word>((value >> 32) & 0xFFFFFFFF);
-    }
+    UnsignedBigInteger(UnsignedBigInteger const&);
+    UnsignedBigInteger& operator=(UnsignedBigInteger const&);
 
-    UnsignedBigInteger() = default;
+    UnsignedBigInteger();
+    ~UnsignedBigInteger();
 
-    [[nodiscard]] static UnsignedBigInteger import_data(StringView data) { return import_data((u8 const*)data.characters_without_null_termination(), data.length()); }
-    [[nodiscard]] static UnsignedBigInteger import_data(u8 const* ptr, size_t length)
-    {
-        return UnsignedBigInteger(ptr, length);
-    }
+    [[nodiscard]] static UnsignedBigInteger import_data(StringView data) { return import_data(reinterpret_cast<u8 const*>(data.characters_without_null_termination()), data.length()); }
+    [[nodiscard]] static UnsignedBigInteger import_data(u8 const* ptr, size_t length) { return UnsignedBigInteger(ptr, length); }
 
-    size_t export_data(Bytes, bool remove_leading_zeros = false) const;
+    size_t export_data(Bytes) const;
 
     [[nodiscard]] static ErrorOr<UnsignedBigInteger> from_base(u16 N, StringView str);
     [[nodiscard]] ErrorOr<String> to_base(u16 N) const;
@@ -77,24 +55,16 @@ public:
 
     [[nodiscard]] double to_double(RoundingMode rounding_mode = RoundingMode::IEEERoundAndTiesToEvenMantissa) const;
 
-    [[nodiscard]] Vector<Word, STARTING_WORD_SIZE> const& words() const { return m_words; }
+    [[nodiscard]] Vector<u32> words() const;
 
     void set_to_0();
-    void set_to(Word other);
+    void set_to(u64 other);
     void set_to(UnsignedBigInteger const& other);
 
     [[nodiscard]] bool is_zero() const;
-    [[nodiscard]] bool is_odd() const { return m_words.size() && (m_words[0] & 1); }
+    [[nodiscard]] bool is_odd() const;
 
-    [[nodiscard]] size_t length() const { return m_words.size(); }
-    // The "trimmed length" is the number of words after trimming leading zeroed words
-    [[nodiscard]] size_t trimmed_length() const;
-
-    [[nodiscard]] size_t byte_length() const { return length() * sizeof(Word); }
-    [[nodiscard]] size_t trimmed_byte_length() const { return trimmed_length() * sizeof(Word); }
-
-    void clamp_to_trimmed_length();
-    void resize_with_leading_zeros(size_t num_words);
+    [[nodiscard]] size_t byte_length() const;
 
     size_t one_based_index_of_highest_set_bit() const;
 
@@ -103,21 +73,15 @@ public:
     [[nodiscard]] UnsignedBigInteger bitwise_or(UnsignedBigInteger const& other) const;
     [[nodiscard]] UnsignedBigInteger bitwise_and(UnsignedBigInteger const& other) const;
     [[nodiscard]] UnsignedBigInteger bitwise_xor(UnsignedBigInteger const& other) const;
-    [[nodiscard]] UnsignedBigInteger bitwise_not_fill_to_one_based_index(size_t) const;
-    [[nodiscard]] UnsignedBigInteger shift_left(size_t num_bits) const;
+    [[nodiscard]] ErrorOr<UnsignedBigInteger> bitwise_not_fill_to_one_based_index(size_t) const;
+    [[nodiscard]] ErrorOr<UnsignedBigInteger> shift_left(size_t num_bits) const;
     [[nodiscard]] UnsignedBigInteger shift_right(size_t num_bits) const;
-    [[nodiscard]] UnsignedBigInteger as_n_bits(size_t n) const;
     [[nodiscard]] UnsignedBigInteger multiplied_by(UnsignedBigInteger const& other) const;
     [[nodiscard]] UnsignedDivisionResult divided_by(UnsignedBigInteger const& divisor) const;
     [[nodiscard]] UnsignedBigInteger pow(u32 exponent) const;
     [[nodiscard]] UnsignedBigInteger gcd(UnsignedBigInteger const& other) const;
 
-    [[nodiscard]] ErrorOr<UnsignedBigInteger> try_bitwise_not_fill_to_one_based_index(size_t) const;
-    [[nodiscard]] ErrorOr<UnsignedBigInteger> try_shift_left(size_t num_bits) const;
-
     [[nodiscard]] u32 hash() const;
-
-    void set_bit_inplace(size_t bit_index);
 
     [[nodiscard]] bool operator==(UnsignedBigInteger const& other) const;
     [[nodiscard]] bool operator!=(UnsignedBigInteger const& other) const;
@@ -135,19 +99,10 @@ public:
     [[nodiscard]] CompareResult compare_to_double(double) const;
 
 private:
-    friend class UnsignedBigIntegerAlgorithms;
+    friend class SignedBigInteger;
 
-    // Little endian
-    // m_word[0] + m_word[1] * Word::MAX + m_word[2] * Word::MAX * Word::MAX + ...
-    Vector<Word, STARTING_WORD_SIZE> m_words;
-    StorageSpan words_span() { return { m_words.data(), m_words.size() }; }
-    ConstStorageSpan words_span() const
-    {
-        return { m_words.data(), m_words.size() };
-    }
-
-    mutable u32 m_cached_hash { 0 };
-    mutable Optional<size_t> m_cached_trimmed_length;
+    mp_int m_mp;
+    mutable Optional<u32> m_hash {};
 };
 
 struct UnsignedDivisionResult {

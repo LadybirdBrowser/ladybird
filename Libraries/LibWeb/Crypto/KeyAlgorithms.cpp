@@ -96,10 +96,9 @@ WebIDL::ExceptionOr<void> RsaKeyAlgorithm::set_public_exponent(::Crypto::Unsigne
     auto& realm = this->realm();
     auto& vm = this->vm();
 
-    auto bytes = TRY_OR_THROW_OOM(vm, ByteBuffer::create_uninitialized(exponent.trimmed_byte_length()));
+    auto bytes = TRY_OR_THROW_OOM(vm, ByteBuffer::create_uninitialized(exponent.byte_length()));
 
-    bool const remove_leading_zeroes = true;
-    auto data_size = exponent.export_data(bytes.span(), remove_leading_zeroes);
+    auto data_size = exponent.export_data(bytes.span());
     auto data_slice_be = bytes.bytes().slice(bytes.size() - data_size, data_size);
 
     // The BigInteger typedef from the WebCrypto spec requires the bytes in the Uint8Array be ordered in Big Endian

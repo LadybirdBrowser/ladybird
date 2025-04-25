@@ -1,14 +1,13 @@
 /*
  * Copyright (c) 2020, the SerenityOS developers.
  * Copyright (c) 2022, David Tuin <davidot@serenityos.org>
+ * Copyright (c) 2025, Altomani Gianluca <altomanigianluca@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #pragma once
 
-#include <AK/Concepts.h>
-#include <AK/Span.h>
 #include <LibCrypto/BigInt/UnsignedBigInteger.h>
 
 namespace Crypto {
@@ -18,44 +17,27 @@ struct SignedDivisionResult;
 class SignedBigInteger {
 public:
     template<Signed T>
-    requires(sizeof(T) <= sizeof(i32))
     SignedBigInteger(T value)
-        : m_sign(value < 0)
-        , m_unsigned_data(static_cast<u32>(abs(static_cast<i64>(value))))
+        : SignedBigInteger(static_cast<i64>(value))
     {
     }
+    SignedBigInteger(UnsignedBigInteger&& unsigned_data, bool sign);
+    SignedBigInteger(u8 const* ptr, size_t length);
 
-    SignedBigInteger(UnsignedBigInteger&& unsigned_data, bool sign)
-        : m_sign(sign)
-        , m_unsigned_data(move(unsigned_data))
-    {
-        ensure_sign_is_valid();
-    }
-
-    explicit SignedBigInteger(UnsignedBigInteger unsigned_data)
-        : m_sign(false)
-        , m_unsigned_data(move(unsigned_data))
-    {
-    }
-
-    SignedBigInteger()
-        : m_sign(false)
-        , m_unsigned_data()
-    {
-    }
-
+    explicit SignedBigInteger(UnsignedBigInteger const& unsigned_data);
     explicit SignedBigInteger(double value);
+    explicit SignedBigInteger(i64 value);
 
-    explicit SignedBigInteger(i64 value)
-        : m_sign(value < 0)
-        , m_unsigned_data(value < 0 ? static_cast<u64>(-(value + 1)) + 1 : static_cast<u64>(value))
-    {
-    }
+    SignedBigInteger(SignedBigInteger const&);
+    SignedBigInteger& operator=(SignedBigInteger const&);
 
-    [[nodiscard]] static SignedBigInteger import_data(StringView data) { return import_data((u8 const*)data.characters_without_null_termination(), data.length()); }
-    [[nodiscard]] static SignedBigInteger import_data(u8 const* ptr, size_t length);
+    SignedBigInteger();
+    ~SignedBigInteger();
 
-    size_t export_data(Bytes, bool remove_leading_zeros = false) const;
+    [[nodiscard]] static SignedBigInteger import_data(StringView data) { return import_data(reinterpret_cast<u8 const*>(data.characters_without_null_termination()), data.length()); }
+    [[nodiscard]] static SignedBigInteger import_data(u8 const* ptr, size_t length) { return SignedBigInteger(ptr, length); }
+
+    size_t export_data(Bytes) const;
 
     [[nodiscard]] static ErrorOr<SignedBigInteger> from_base(u16 N, StringView str);
     [[nodiscard]] ErrorOr<String> to_base(u16 N) const;
@@ -63,38 +45,17 @@ public:
     [[nodiscard]] u64 to_u64() const;
     [[nodiscard]] double to_double(UnsignedBigInteger::RoundingMode rounding_mode = UnsignedBigInteger::RoundingMode::IEEERoundAndTiesToEvenMantissa) const;
 
-    [[nodiscard]] UnsignedBigInteger const& unsigned_value() const { return m_unsigned_data; }
-    [[nodiscard]] Vector<u32, STARTING_WORD_SIZE> const words() const { return m_unsigned_data.words(); }
+    [[nodiscard]] UnsignedBigInteger unsigned_value() const;
     [[nodiscard]] bool is_positive() const { return !is_negative() && !is_zero(); }
-    [[nodiscard]] bool is_negative() const { return m_sign; }
-    [[nodiscard]] bool is_zero() const { return m_unsigned_data.is_zero(); }
+    [[nodiscard]] bool is_negative() const;
+    [[nodiscard]] bool is_zero() const;
 
-    void negate()
-    {
-        if (!m_unsigned_data.is_zero())
-            m_sign = !m_sign;
-    }
+    void negate();
+    void set_to_0();
+    void set_to(i64 other);
+    void set_to(SignedBigInteger const& other);
 
-    void set_to_0()
-    {
-        m_unsigned_data.set_to_0();
-        m_sign = false;
-    }
-
-    void set_to(i32 other)
-    {
-        m_unsigned_data.set_to((u32)other);
-        m_sign = other < 0;
-    }
-    void set_to(SignedBigInteger const& other)
-    {
-        m_unsigned_data.set_to(other.m_unsigned_data);
-        m_sign = other.m_sign;
-    }
-
-    // These get + 1 byte for the sign.
-    [[nodiscard]] size_t length() const { return m_unsigned_data.length() + 1; }
-    [[nodiscard]] size_t trimmed_length() const { return m_unsigned_data.trimmed_length() + 1; }
+    [[nodiscard]] size_t byte_length() const;
 
     [[nodiscard]] SignedBigInteger plus(SignedBigInteger const& other) const;
     [[nodiscard]] SignedBigInteger minus(SignedBigInteger const& other) const;
@@ -102,14 +63,12 @@ public:
     [[nodiscard]] SignedBigInteger bitwise_and(SignedBigInteger const& other) const;
     [[nodiscard]] SignedBigInteger bitwise_xor(SignedBigInteger const& other) const;
     [[nodiscard]] SignedBigInteger bitwise_not() const;
-    [[nodiscard]] SignedBigInteger shift_left(size_t num_bits) const;
+    [[nodiscard]] ErrorOr<SignedBigInteger> shift_left(size_t num_bits) const;
     [[nodiscard]] SignedBigInteger shift_right(size_t num_bits) const;
     [[nodiscard]] SignedBigInteger multiplied_by(SignedBigInteger const& other) const;
     [[nodiscard]] SignedDivisionResult divided_by(SignedBigInteger const& divisor) const;
     [[nodiscard]] SignedBigInteger pow(u32 exponent) const;
-
     [[nodiscard]] ErrorOr<SignedBigInteger> mod_power_of_two(size_t power_of_two) const;
-    [[nodiscard]] ErrorOr<SignedBigInteger> try_shift_left(size_t num_bits) const;
 
     [[nodiscard]] SignedBigInteger plus(UnsignedBigInteger const& other) const;
     [[nodiscard]] SignedBigInteger minus(UnsignedBigInteger const& other) const;
@@ -119,8 +78,6 @@ public:
     [[nodiscard]] SignedBigInteger negated_value() const;
 
     [[nodiscard]] u32 hash() const;
-
-    void set_bit_inplace(size_t bit_index);
 
     [[nodiscard]] bool operator==(SignedBigInteger const& other) const;
     [[nodiscard]] bool operator!=(SignedBigInteger const& other) const;
@@ -137,14 +94,8 @@ public:
     [[nodiscard]] UnsignedBigInteger::CompareResult compare_to_double(double) const;
 
 private:
-    void ensure_sign_is_valid()
-    {
-        if (m_sign && m_unsigned_data.is_zero())
-            m_sign = false;
-    }
-
-    bool m_sign { false };
-    UnsignedBigInteger m_unsigned_data;
+    mp_int m_mp {};
+    mutable Optional<u32> m_hash {};
 };
 
 struct SignedDivisionResult {

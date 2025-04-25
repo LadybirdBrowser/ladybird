@@ -1,243 +1,241 @@
 /*
  * Copyright (c) 2020, the SerenityOS developers.
  * Copyright (c) 2022, David Tuin <davidot@serenityos.org>
+ * Copyright (c) 2025, Altomani Gianluca <altomanigianluca@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "SignedBigInteger.h"
-#include <AK/StringBuilder.h>
 #include <math.h>
+#include <tommath.h>
+
+#include <AK/StringBuilder.h>
+#include <LibCrypto/BigInt/SignedBigInteger.h>
+#include <LibCrypto/BigInt/Tommath.h>
 
 namespace Crypto {
 
+SignedBigInteger::SignedBigInteger(UnsignedBigInteger&& unsigned_data, bool sign)
+{
+    MP_MUST(mp_init_copy(&m_mp, &unsigned_data.m_mp));
+    if (sign) {
+        MP_MUST(mp_neg(&m_mp, &m_mp));
+    }
+}
+
+SignedBigInteger::SignedBigInteger(u8 const* ptr, size_t length)
+{
+    MP_MUST(mp_init(&m_mp));
+    MP_MUST(mp_from_sbin(&m_mp, ptr, length));
+}
+
+SignedBigInteger::SignedBigInteger(UnsignedBigInteger const& unsigned_data)
+{
+    MP_MUST(mp_init_copy(&m_mp, &unsigned_data.m_mp));
+}
+
 SignedBigInteger::SignedBigInteger(double value)
-    : m_sign(value < 0.0)
-    , m_unsigned_data(fabs(value))
 {
+    MP_MUST(mp_init(&m_mp));
+    MP_MUST(mp_set_double(&m_mp, value));
 }
 
-SignedBigInteger SignedBigInteger::import_data(u8 const* ptr, size_t length)
+SignedBigInteger::SignedBigInteger(i64 value)
 {
-    bool sign = *ptr;
-    auto unsigned_data = UnsignedBigInteger::import_data(ptr + 1, length - 1);
-    return { move(unsigned_data), sign };
+    MP_MUST(mp_init(&m_mp));
+    mp_set_i64(&m_mp, value);
 }
 
-size_t SignedBigInteger::export_data(Bytes data, bool remove_leading_zeros) const
+SignedBigInteger::SignedBigInteger(SignedBigInteger const& other)
 {
-    // FIXME: Support this:
-    //        m <0XX> -> m <XX> (if remove_leading_zeros)
-    VERIFY(!remove_leading_zeros);
+    MP_MUST(mp_init_copy(&m_mp, &other.m_mp));
+}
 
-    data[0] = m_sign;
-    auto bytes_view = data.slice(1, data.size() - 1);
-    return m_unsigned_data.export_data(bytes_view, remove_leading_zeros) + 1;
+SignedBigInteger& SignedBigInteger::operator=(SignedBigInteger const& other)
+{
+    if (this == &other)
+        return *this;
+    mp_clear(&m_mp);
+    MP_MUST(mp_init_copy(&m_mp, &other.m_mp));
+    return *this;
+}
+
+SignedBigInteger::SignedBigInteger()
+{
+    MP_MUST(mp_init(&m_mp));
+}
+
+SignedBigInteger::~SignedBigInteger()
+{
+    mp_clear(&m_mp);
+}
+
+size_t SignedBigInteger::export_data(Bytes data) const
+{
+    size_t written = 0;
+    MP_MUST(mp_to_sbin(&m_mp, data.data(), data.size(), &written));
+    return written;
 }
 
 ErrorOr<SignedBigInteger> SignedBigInteger::from_base(u16 N, StringView str)
 {
-    auto sign = false;
-    if (str.length() > 1) {
-        auto maybe_sign = str[0];
-        if (maybe_sign == '-') {
-            str = str.substring_view(1);
-            sign = true;
+    VERIFY(N <= 36);
+    if (str.is_empty())
+        return SignedBigInteger(0);
+
+    auto buffer = TRY(ByteBuffer::create_zeroed(str.length() + 1));
+
+    size_t idx = 0;
+    for (auto& c : str) {
+        if (c == '_') {
+            // Skip underscores
+            continue;
         }
-        if (maybe_sign == '+')
-            str = str.substring_view(1);
+
+        buffer[idx++] = c;
     }
-    auto unsigned_data = TRY(UnsignedBigInteger::from_base(N, str));
-    return SignedBigInteger { move(unsigned_data), sign };
+
+    SignedBigInteger result;
+    if (mp_read_radix(&result.m_mp, reinterpret_cast<char const*>(buffer.data()), N) != MP_OKAY)
+        return Error::from_string_literal("Invalid number");
+    return result;
 }
 
 ErrorOr<String> SignedBigInteger::to_base(u16 N) const
 {
-    StringBuilder builder;
+    VERIFY(N <= 36);
+    if (is_zero())
+        return "0"_string;
 
-    if (m_sign)
-        TRY(builder.try_append('-'));
+    int size = 0;
+    MP_MUST(mp_radix_size(&m_mp, N, &size));
+    auto buffer = TRY(ByteBuffer::create_zeroed(size));
 
-    auto unsigned_as_base = TRY(m_unsigned_data.to_base(N));
-    TRY(builder.try_append(unsigned_as_base.bytes_as_string_view()));
+    size_t written = 0;
+    MP_MUST(mp_to_radix(&m_mp, reinterpret_cast<char*>(buffer.data()), size, &written, N));
 
-    return builder.to_string();
+    return StringView(buffer.bytes().slice(0, written - 1)).to_ascii_lowercase_string();
 }
 
 u64 SignedBigInteger::to_u64() const
 {
-    u64 unsigned_value = m_unsigned_data.to_u64();
-    if (!m_sign)
-        return unsigned_value;
-    return ~(unsigned_value - 1); // equivalent to `-unsigned_value`, but doesn't trigger UBSAN
+    return mp_get_u64(&m_mp);
 }
 
 double SignedBigInteger::to_double(UnsignedBigInteger::RoundingMode rounding_mode) const
 {
-    double unsigned_value = m_unsigned_data.to_double(rounding_mode);
-    if (!m_sign)
-        return unsigned_value;
+    int sign = mp_isneg(&m_mp) ? -1 : 1;
+    return unsigned_value().to_double(rounding_mode) * sign;
+}
 
-    VERIFY(!is_zero());
-    return -unsigned_value;
+UnsignedBigInteger SignedBigInteger::unsigned_value() const
+{
+    UnsignedBigInteger result;
+    MP_MUST(mp_abs(&m_mp, &result.m_mp));
+    return result;
+}
+
+bool SignedBigInteger::is_negative() const
+{
+    return mp_isneg(&m_mp);
+}
+
+bool SignedBigInteger::is_zero() const
+{
+    return mp_iszero(&m_mp);
+}
+
+void SignedBigInteger::negate()
+{
+    MP_MUST(mp_neg(&m_mp, &m_mp));
+    m_hash = {};
+}
+
+void SignedBigInteger::set_to_0()
+{
+    mp_zero(&m_mp);
+    m_hash = {};
+}
+
+void SignedBigInteger::set_to(i64 other)
+{
+    mp_set_i64(&m_mp, other);
+    m_hash = {};
+}
+
+void SignedBigInteger::set_to(SignedBigInteger const& other)
+{
+    MP_MUST(mp_copy(&other.m_mp, &m_mp));
+    m_hash = {};
+}
+
+size_t SignedBigInteger::byte_length() const
+{
+    return mp_sbin_size(&m_mp);
 }
 
 FLATTEN SignedBigInteger SignedBigInteger::plus(SignedBigInteger const& other) const
 {
-    // If both are of the same sign, just add the unsigned data and return.
-    if (m_sign == other.m_sign)
-        return { other.m_unsigned_data.plus(m_unsigned_data), m_sign };
-
-    // One value is signed while the other is not.
-    return m_sign ? other.minus(this->m_unsigned_data) : minus(other.m_unsigned_data);
+    SignedBigInteger result;
+    MP_MUST(mp_add(&m_mp, &other.m_mp, &result.m_mp));
+    return result;
 }
 
 FLATTEN SignedBigInteger SignedBigInteger::minus(SignedBigInteger const& other) const
 {
-    // If the signs are different, convert the op to an addition.
-    if (m_sign != other.m_sign) {
-        // -x - y = - (x + y)
-        // x - -y = (x + y)
-        SignedBigInteger result { other.m_unsigned_data.plus(this->m_unsigned_data) };
-        if (m_sign)
-            result.negate();
-        return result;
-    }
-
-    if (!m_sign) {
-        // Both operands are positive.
-        // x - y = - (y - x)
-        if (m_unsigned_data < other.m_unsigned_data) {
-            // The result will be negative.
-            return { MUST(other.m_unsigned_data.minus(m_unsigned_data)), true };
-        }
-
-        // The result will be either zero, or positive.
-        return SignedBigInteger { MUST(m_unsigned_data.minus(other.m_unsigned_data)) };
-    }
-
-    // Both operands are negative.
-    // -x - -y = y - x
-    if (m_unsigned_data < other.m_unsigned_data) {
-        // The result will be positive.
-        return SignedBigInteger { MUST(other.m_unsigned_data.minus(m_unsigned_data)) };
-    }
-    // y - x = - (x - y)
-    if (m_unsigned_data > other.m_unsigned_data) {
-        // The result will be negative.
-        return SignedBigInteger { MUST(m_unsigned_data.minus(other.m_unsigned_data)), true };
-    }
-    // Both operands have the same magnitude, the result is positive zero.
-    return SignedBigInteger { 0 };
+    SignedBigInteger result;
+    MP_MUST(mp_sub(&m_mp, &other.m_mp, &result.m_mp));
+    return result;
 }
 
 FLATTEN SignedBigInteger SignedBigInteger::plus(UnsignedBigInteger const& other) const
 {
-    if (m_sign) {
-        if (other < m_unsigned_data)
-            return { MUST(m_unsigned_data.minus(other)), true };
-
-        return { MUST(other.minus(m_unsigned_data)), false };
-    }
-
-    return { m_unsigned_data.plus(other), false };
+    SignedBigInteger result;
+    MP_MUST(mp_add(&m_mp, &other.m_mp, &result.m_mp));
+    return result;
 }
 
 FLATTEN SignedBigInteger SignedBigInteger::minus(UnsignedBigInteger const& other) const
 {
-    if (m_sign)
-        return { m_unsigned_data.plus(m_unsigned_data), true };
-
-    if (other < m_unsigned_data)
-        return { MUST(m_unsigned_data.minus(other)), false };
-
-    return { MUST(other.minus(m_unsigned_data)), true };
+    SignedBigInteger result;
+    MP_MUST(mp_sub(&m_mp, &other.m_mp, &result.m_mp));
+    return result;
 }
 
 FLATTEN SignedBigInteger SignedBigInteger::bitwise_not() const
 {
-    // Bitwise operators assume two's complement, while SignedBigInteger uses sign-magnitude.
-    // In two's complement, -x := ~x + 1.
-    // Hence, ~x == -x -1 == -(x + 1).
-    SignedBigInteger result = plus(SignedBigInteger { 1 });
-    result.negate();
+    SignedBigInteger result;
+    MP_MUST(mp_complement(&m_mp, &result.m_mp));
     return result;
 }
 
 FLATTEN SignedBigInteger SignedBigInteger::multiplied_by(UnsignedBigInteger const& other) const
 {
-    return { unsigned_value().multiplied_by(other), m_sign };
+    SignedBigInteger result;
+    MP_MUST(mp_mul(&m_mp, &other.m_mp, &result.m_mp));
+    return result;
 }
 
 FLATTEN SignedDivisionResult SignedBigInteger::divided_by(UnsignedBigInteger const& divisor) const
 {
-    auto division_result = unsigned_value().divided_by(divisor);
-    return {
-        { move(division_result.quotient), m_sign },
-        { move(division_result.remainder), m_sign },
-    };
+    SignedBigInteger quotient;
+    SignedBigInteger remainder;
+    MP_MUST(mp_div(&m_mp, &divisor.m_mp, &quotient.m_mp, &remainder.m_mp));
+    return SignedDivisionResult { quotient, remainder };
 }
 
 FLATTEN SignedBigInteger SignedBigInteger::bitwise_or(SignedBigInteger const& other) const
 {
-    // See bitwise_and() for derivations.
-    if (!is_negative() && !other.is_negative())
-        return { unsigned_value().bitwise_or(other.unsigned_value()), false };
-
-    // -A | B == (~A + 1) | B == ~(A - 1) | B. The result is negative, so need to two's complement at the end to move the sign into the m_sign field.
-    // That can be simplified to:
-    //   -(-A | B) == ~(~(A - 1) | B) + 1 = (A - 1) & ~B + 1
-    // This saves one ~.
-    if (is_negative() && !other.is_negative()) {
-        size_t index = unsigned_value().one_based_index_of_highest_set_bit();
-        return { MUST(unsigned_value().minus(1)).bitwise_and(other.unsigned_value().bitwise_not_fill_to_one_based_index(index)).plus(1), true };
-    }
-
-    // -(A | -B) == ~A & (B - 1) + 1
-    if (!is_negative() && other.is_negative()) {
-        size_t index = other.unsigned_value().one_based_index_of_highest_set_bit();
-        return { unsigned_value().bitwise_not_fill_to_one_based_index(index).bitwise_and(MUST(other.unsigned_value().minus(1))).plus(1), true };
-    }
-
-    return { MUST(unsigned_value().minus(1)).bitwise_and(MUST(other.unsigned_value().minus(1))).plus(1), true };
+    SignedBigInteger result;
+    MP_MUST(mp_or(&m_mp, &other.m_mp, &result.m_mp));
+    return result;
 }
 
 FLATTEN SignedBigInteger SignedBigInteger::bitwise_and(SignedBigInteger const& other) const
 {
-    if (!is_negative() && !other.is_negative())
-        return { unsigned_value().bitwise_and(other.unsigned_value()), false };
-
-    // These two just use that -x == ~x + 1 (see below).
-
-    // -A & B == (~A + 1) & B.
-    if (is_negative() && !other.is_negative()) {
-        size_t index = other.unsigned_value().one_based_index_of_highest_set_bit();
-        return { unsigned_value().bitwise_not_fill_to_one_based_index(index).plus(1).bitwise_and(other.unsigned_value()), false };
-    }
-
-    // A & -B == A & (~B + 1).
-    if (!is_negative() && other.is_negative()) {
-        size_t index = unsigned_value().one_based_index_of_highest_set_bit();
-        return { unsigned_value().bitwise_and(other.unsigned_value().bitwise_not_fill_to_one_based_index(index).plus(1)), false };
-    }
-
-    // Both numbers are negative.
-    // x + ~x == 0xff...ff, up to however many bits x is wide.
-    // In two's complement, x + ~x + 1 == 0 since the 1 in the overflowing bit position is masked out.
-    // Rearranging terms, ~x = -x - 1 (eq1).
-    // Substituting x = y - 1, ~(y - 1) == -(y - 1) - 1 == -y +1 -1 == -y, or ~(y - 1) == -y (eq2).
-    // Since both numbers are negative, we want to compute -A & -B.
-    // Per (eq2):
-    //   -A & -B == ~(A - 1) & ~(B - 1)
-    // Inverting both sides:
-    //   ~(-A & -B) == ~(~(A - 1) & ~(B - 1)) == ~~(A - 1) | ~~(B - 1) == (A - 1) | (B - 1).
-    // Applying (q1) on the LHS:
-    //   -(-A & -B) - 1 == (A - 1) | (B - 1)
-    // Adding 1 on both sides and then multiplying both sides by -1:
-    //   -A & -B == -( (A - 1) | (B - 1) + 1)
-    // So we can compute the bitwise and by returning a negative number with magnitude (A - 1) | (B - 1) + 1.
-    // This is better than the naive (~A + 1) & (~B + 1) because it needs just one O(n) scan for the or instead of 2 for the ~s.
-    return { MUST(unsigned_value().minus(1)).bitwise_or(MUST(other.unsigned_value().minus(1))).plus(1), true };
+    SignedBigInteger result;
+    MP_MUST(mp_and(&m_mp, &other.m_mp, &result.m_mp));
+    return result;
 }
 
 FLATTEN SignedBigInteger SignedBigInteger::bitwise_xor(SignedBigInteger const& other) const
@@ -247,23 +245,17 @@ FLATTEN SignedBigInteger SignedBigInteger::bitwise_xor(SignedBigInteger const& o
 
 bool SignedBigInteger::operator==(UnsignedBigInteger const& other) const
 {
-    if (m_sign && m_unsigned_data != 0)
-        return false;
-    return m_unsigned_data == other;
+    return mp_cmp(&m_mp, &other.m_mp) == MP_EQ;
 }
 
 bool SignedBigInteger::operator!=(UnsignedBigInteger const& other) const
 {
-    if (m_sign)
-        return true;
-    return m_unsigned_data != other;
+    return !(*this == other);
 }
 
 bool SignedBigInteger::operator<(UnsignedBigInteger const& other) const
 {
-    if (m_sign)
-        return true;
-    return m_unsigned_data < other;
+    return mp_cmp(&m_mp, &other.m_mp) == MP_LT;
 }
 
 bool SignedBigInteger::operator>(UnsignedBigInteger const& other) const
@@ -271,67 +263,65 @@ bool SignedBigInteger::operator>(UnsignedBigInteger const& other) const
     return *this != other && !(*this < other);
 }
 
-FLATTEN ErrorOr<SignedBigInteger> SignedBigInteger::try_shift_left(size_t num_bits) const
+FLATTEN ErrorOr<SignedBigInteger> SignedBigInteger::shift_left(size_t num_bits) const
 {
-    return SignedBigInteger { TRY(m_unsigned_data.try_shift_left(num_bits)), m_sign };
-}
-
-FLATTEN SignedBigInteger SignedBigInteger::shift_left(size_t num_bits) const
-{
-    return MUST(try_shift_left(num_bits));
+    SignedBigInteger result;
+    MP_TRY(mp_mul_2d(&m_mp, num_bits, &result.m_mp));
+    return result;
 }
 
 FLATTEN SignedBigInteger SignedBigInteger::shift_right(size_t num_bits) const
 {
-    return SignedBigInteger { m_unsigned_data.shift_right(num_bits), m_sign };
+    SignedBigInteger result;
+    MP_MUST(mp_div_2d(&m_mp, num_bits, &result.m_mp, nullptr));
+    return result;
 }
 
 FLATTEN ErrorOr<SignedBigInteger> SignedBigInteger::mod_power_of_two(size_t power_of_two) const
 {
-    auto const lower_bits = m_unsigned_data.as_n_bits(power_of_two);
+    if (power_of_two == 0)
+        return SignedBigInteger(0);
 
-    if (is_positive())
-        return SignedBigInteger(lower_bits);
+    // If the number is positive and smaller than the modulus, we can just return it.
+    if (!is_negative() && static_cast<size_t>(m_mp.used * MP_DIGIT_BIT) <= power_of_two)
+        return *this;
 
-    // twos encode lower bits
-    return SignedBigInteger(TRY(lower_bits.try_bitwise_not_fill_to_one_based_index(power_of_two)).plus(1).as_n_bits(power_of_two));
+    // If the power of two overflows the int type, we don't have enough memory to compute it.
+    if (power_of_two > NumericLimits<int>::max())
+        return Error::from_errno(ENOMEM);
+
+    SignedBigInteger result;
+    MP_MUST(mp_mod_2d(&m_mp, power_of_two, &result.m_mp));
+    if (!result.is_negative())
+        return result;
+
+    // If the result is negative, we need to add the modulus to it.
+    UnsignedBigInteger modulus;
+    MP_TRY(mp_2expt(&modulus.m_mp, power_of_two));
+    MP_MUST(mp_add(&result.m_mp, &modulus.m_mp, &result.m_mp));
+    return result;
 }
 
 FLATTEN SignedBigInteger SignedBigInteger::multiplied_by(SignedBigInteger const& other) const
 {
-    bool result_sign = m_sign ^ other.m_sign;
-    return { m_unsigned_data.multiplied_by(other.m_unsigned_data), result_sign };
+    SignedBigInteger result;
+    MP_MUST(mp_mul(&m_mp, &other.m_mp, &result.m_mp));
+    return result;
 }
 
 FLATTEN SignedDivisionResult SignedBigInteger::divided_by(SignedBigInteger const& divisor) const
 {
-    // Aa / Bb -> (A^B)q, Ar
-    bool result_sign = m_sign ^ divisor.m_sign;
-    auto unsigned_division_result = m_unsigned_data.divided_by(divisor.m_unsigned_data);
-    return {
-        { move(unsigned_division_result.quotient), result_sign },
-        { move(unsigned_division_result.remainder), m_sign }
-    };
+    SignedBigInteger quotient;
+    SignedBigInteger remainder;
+    MP_MUST(mp_div(&m_mp, &divisor.m_mp, &quotient.m_mp, &remainder.m_mp));
+    return SignedDivisionResult { quotient, remainder };
 }
 
 FLATTEN SignedBigInteger SignedBigInteger::pow(u32 exponent) const
 {
-    UnsignedBigInteger ep { exponent };
-    SignedBigInteger base { *this };
-    SignedBigInteger exp { 1 };
-
-    while (!(ep < 1)) {
-        if (ep.words()[0] % 2 == 1)
-            exp.set_to(exp.multiplied_by(base));
-
-        // ep = ep / 2;
-        ep.set_to(ep.shift_right(1));
-
-        // base = base * base
-        base.set_to(base.multiplied_by(base));
-    }
-
-    return exp;
+    SignedBigInteger result;
+    MP_MUST(mp_expt_n(&m_mp, exponent, &result.m_mp));
+    return result;
 }
 
 FLATTEN SignedBigInteger SignedBigInteger::negated_value() const
@@ -343,20 +333,18 @@ FLATTEN SignedBigInteger SignedBigInteger::negated_value() const
 
 u32 SignedBigInteger::hash() const
 {
-    return m_unsigned_data.hash() * (1 - (2 * m_sign));
-}
+    if (m_hash.has_value())
+        return *m_hash;
 
-void SignedBigInteger::set_bit_inplace(size_t bit_index)
-{
-    m_unsigned_data.set_bit_inplace(bit_index);
+    auto buffer = MUST(ByteBuffer::create_zeroed(byte_length()));
+    auto length = export_data(buffer);
+    m_hash = string_hash(reinterpret_cast<char const*>(buffer.data()), length);
+    return *m_hash;
 }
 
 bool SignedBigInteger::operator==(SignedBigInteger const& other) const
 {
-    if (m_unsigned_data == 0 && other.m_unsigned_data == 0)
-        return true;
-
-    return m_sign == other.m_sign && m_unsigned_data == other.m_unsigned_data;
+    return mp_cmp(&m_mp, &other.m_mp) == MP_EQ;
 }
 
 bool SignedBigInteger::operator!=(SignedBigInteger const& other) const
@@ -366,13 +354,7 @@ bool SignedBigInteger::operator!=(SignedBigInteger const& other) const
 
 bool SignedBigInteger::operator<(SignedBigInteger const& other) const
 {
-    if (m_sign ^ other.m_sign)
-        return m_sign;
-
-    if (m_sign)
-        return other.m_unsigned_data < m_unsigned_data;
-
-    return m_unsigned_data < other.m_unsigned_data;
+    return mp_cmp(&m_mp, &other.m_mp) == MP_LT;
 }
 
 bool SignedBigInteger::operator<=(SignedBigInteger const& other) const
@@ -392,7 +374,7 @@ bool SignedBigInteger::operator>=(SignedBigInteger const& other) const
 
 UnsignedBigInteger::CompareResult SignedBigInteger::compare_to_double(double value) const
 {
-    bool bigint_is_negative = m_sign;
+    bool bigint_is_negative = is_negative();
 
     bool value_is_negative = value < 0;
 
@@ -400,9 +382,9 @@ UnsignedBigInteger::CompareResult SignedBigInteger::compare_to_double(double val
         return bigint_is_negative ? UnsignedBigInteger::CompareResult::DoubleGreaterThanBigInt : UnsignedBigInteger::CompareResult::DoubleLessThanBigInt;
 
     // Now both bigint and value have the same sign, so let's compare our magnitudes.
-    auto magnitudes_compare_result = m_unsigned_data.compare_to_double(fabs(value));
+    auto magnitudes_compare_result = unsigned_value().compare_to_double(fabs(value));
 
-    // If our mangnitudes are euqal, then we're equal.
+    // If our magnitudes are equal, then we're equal.
     if (magnitudes_compare_result == UnsignedBigInteger::CompareResult::DoubleEqualsBigInt)
         return UnsignedBigInteger::CompareResult::DoubleEqualsBigInt;
 

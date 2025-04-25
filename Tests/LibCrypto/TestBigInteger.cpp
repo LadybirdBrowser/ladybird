@@ -6,7 +6,6 @@
  */
 
 #include <AK/Tuple.h>
-#include <LibCrypto/BigInt/Algorithms/UnsignedBigIntegerAlgorithms.h>
 #include <LibCrypto/BigInt/SignedBigInteger.h>
 #include <LibCrypto/BigInt/UnsignedBigInteger.h>
 #include <LibTest/TestCase.h>
@@ -71,57 +70,6 @@ TEST_CASE(test_unsigned_bigint_addition_borrow_with_zero)
     EXPECT_EQ(num1.plus(num2).words(), expected_result);
 }
 
-TEST_CASE(test_unsigned_bigint_basic_add_to_accumulator)
-{
-    Crypto::UnsignedBigInteger num1(10);
-    Crypto::UnsignedBigInteger num2(70);
-    Crypto::UnsignedBigIntegerAlgorithms::add_into_accumulator_without_allocation(num1, num2);
-    EXPECT_EQ(num1.words(), Vector<u32> { 80 });
-}
-
-TEST_CASE(test_unsigned_bigint_basic_add_to_empty_accumulator)
-{
-    Crypto::UnsignedBigInteger num1 {};
-    Crypto::UnsignedBigInteger num2(10);
-    Crypto::UnsignedBigIntegerAlgorithms::add_into_accumulator_without_allocation(num1, num2);
-    EXPECT_EQ(num1.words(), Vector<u32> { 10 });
-}
-
-TEST_CASE(test_unsigned_bigint_basic_add_to_smaller_accumulator)
-{
-    Crypto::UnsignedBigInteger num1(10);
-    Crypto::UnsignedBigInteger num2({ 10, 10 });
-    Crypto::UnsignedBigIntegerAlgorithms::add_into_accumulator_without_allocation(num1, num2);
-    Vector<u32> expected_result { 20, 10 };
-    EXPECT_EQ(num1.words(), expected_result);
-}
-
-TEST_CASE(test_unsigned_bigint_add_to_accumulator_with_multiple_carry_levels)
-{
-    Crypto::UnsignedBigInteger num1({ UINT32_MAX - 2, UINT32_MAX });
-    Crypto::UnsignedBigInteger num2(5);
-    Crypto::UnsignedBigIntegerAlgorithms::add_into_accumulator_without_allocation(num1, num2);
-    Vector<u32> expected_result { 2, 0, 1 };
-    EXPECT_EQ(num1.words(), expected_result);
-}
-
-TEST_CASE(test_unsigned_bigint_add_to_accumulator_with_leading_zero)
-{
-    Crypto::UnsignedBigInteger num1(1);
-    Crypto::UnsignedBigInteger num2({ 1, 0 });
-    Crypto::UnsignedBigIntegerAlgorithms::add_into_accumulator_without_allocation(num1, num2);
-    EXPECT_EQ(num1.words(), Vector<u32> { 2 });
-}
-
-TEST_CASE(test_unsigned_bigint_add_to_accumulator_with_carry_and_leading_zero)
-{
-    Crypto::UnsignedBigInteger num1({ UINT32_MAX, 0, 0, 0 });
-    Crypto::UnsignedBigInteger num2({ 1, 0 });
-    Crypto::UnsignedBigIntegerAlgorithms::add_into_accumulator_without_allocation(num1, num2);
-    Vector<u32> expected_result { 0, 1, 0, 0 };
-    EXPECT_EQ(num1.words(), expected_result);
-}
-
 TEST_CASE(test_unsigned_bigint_simple_subtraction)
 {
     Crypto::UnsignedBigInteger num1(80);
@@ -167,14 +115,15 @@ TEST_CASE(test_unsigned_bigint_subtraction_with_large_numbers2)
     Crypto::UnsignedBigInteger num2(Vector<u32> { 4196414175, 1117247942, 1123294122, 191895498, 3347106536, 16 });
     ErrorOr<Crypto::UnsignedBigInteger> result = num1.minus(num2);
     // this test only verifies that we don't crash on an assertion
+    (void)result;
 }
 
 TEST_CASE(test_unsigned_bigint_subtraction_regression_1)
 {
-    auto num = Crypto::UnsignedBigInteger { 1 }.shift_left(256);
+    auto num = TRY_OR_FAIL(Crypto::UnsignedBigInteger { 1 }.shift_left(256));
     Vector<u32> expected_result {
         4294967295, 4294967295, 4294967295, 4294967295, 4294967295,
-        4294967295, 4294967295, 4294967295, 0
+        4294967295, 4294967295, 4294967295
     };
     EXPECT_EQ(TRY_OR_FAIL(num.minus(1)).words(), expected_result);
 }
@@ -266,7 +215,7 @@ TEST_CASE(test_bigint_import_big_endian_decode_encode_roundtrip)
     u8 target_buffer[128];
     fill_with_random(random_bytes);
     auto encoded = Crypto::UnsignedBigInteger::import_data(random_bytes, 128);
-    encoded.export_data({ target_buffer, 128 });
+    (void)encoded.export_data({ target_buffer, 128 });
     EXPECT(memcmp(target_buffer, random_bytes, 128) == 0);
 }
 
@@ -288,16 +237,14 @@ TEST_CASE(test_bigint_big_endian_import)
 TEST_CASE(test_bigint_big_endian_export)
 {
     auto number = "448378203247"_bigint;
-    char exported[8] { 0 };
-    auto exported_length = number.export_data({ exported, 8 }, true);
+    char exported[8] {};
+    auto exported_length = number.export_data({ exported, 8 });
     EXPECT_EQ(exported_length, 5u);
-    EXPECT(memcmp(exported + 3, "hello", 5) == 0);
+    EXPECT(memcmp(exported, "hello", 5) == 0);
 }
 
 TEST_CASE(test_bigint_one_based_index_of_highest_set_bit)
 {
-    auto num1 = "1234567"_bigint;
-    auto num2 = "1234567"_bigint;
     EXPECT_EQ("0"_bigint.one_based_index_of_highest_set_bit(), 0u);
     EXPECT_EQ("1"_bigint.one_based_index_of_highest_set_bit(), 1u);
     EXPECT_EQ("7"_bigint.one_based_index_of_highest_set_bit(), 3u);
@@ -306,12 +253,12 @@ TEST_CASE(test_bigint_one_based_index_of_highest_set_bit)
 
 TEST_CASE(test_signed_bigint_bitwise_not_fill_to_one_based_index)
 {
-    EXPECT_EQ("0"_bigint.bitwise_not_fill_to_one_based_index(0), "0"_bigint);
-    EXPECT_EQ("0"_bigint.bitwise_not_fill_to_one_based_index(1), "1"_bigint);
-    EXPECT_EQ("0"_bigint.bitwise_not_fill_to_one_based_index(2), "3"_bigint);
-    EXPECT_EQ("0"_bigint.bitwise_not_fill_to_one_based_index(4), "15"_bigint);
-    EXPECT_EQ("0"_bigint.bitwise_not_fill_to_one_based_index(32), "4294967295"_bigint);
-    EXPECT_EQ("0"_bigint.bitwise_not_fill_to_one_based_index(33), "8589934591"_bigint);
+    EXPECT_EQ(TRY_OR_FAIL("0"_bigint.bitwise_not_fill_to_one_based_index(0)), "0"_bigint);
+    EXPECT_EQ(TRY_OR_FAIL("0"_bigint.bitwise_not_fill_to_one_based_index(1)), "1"_bigint);
+    EXPECT_EQ(TRY_OR_FAIL("0"_bigint.bitwise_not_fill_to_one_based_index(2)), "3"_bigint);
+    EXPECT_EQ(TRY_OR_FAIL("0"_bigint.bitwise_not_fill_to_one_based_index(4)), "15"_bigint);
+    EXPECT_EQ(TRY_OR_FAIL("0"_bigint.bitwise_not_fill_to_one_based_index(32)), "4294967295"_bigint);
+    EXPECT_EQ(TRY_OR_FAIL("0"_bigint.bitwise_not_fill_to_one_based_index(33)), "8589934591"_bigint);
 }
 
 TEST_CASE(test_bigint_bitwise_or)
@@ -415,7 +362,7 @@ TEST_CASE(test_bigint_shift_left)
     };
 
     for (size_t i = 0; i < tests; ++i)
-        EXPECT_EQ(num.shift_left(results[i].get<0>()).words(), results[i].get<1>());
+        EXPECT_EQ(TRY_OR_FAIL(num.shift_left(results[i].get<0>())).words(), results[i].get<1>());
 }
 
 TEST_CASE(test_bigint_shift_right)
@@ -535,6 +482,7 @@ TEST_CASE(test_signed_subtraction_with_large_numbers_check_for_assertion)
     Crypto::SignedBigInteger num2(Crypto::UnsignedBigInteger { Vector<u32> { 4196414175, 1117247942, 1123294122, 191895498, 3347106536, 16 } });
     Crypto::SignedBigInteger result = num1.minus(num2);
     // this test only verifies that we don't crash on an assertion
+    (void)result;
 }
 
 TEST_CASE(test_signed_multiplication_with_negative_number)

@@ -7,13 +7,6 @@ set(SOURCES
     ASN1/PEM.cpp
     Authentication/HMAC.cpp
     BigFraction/BigFraction.cpp
-    BigInt/Algorithms/BitwiseOperations.cpp
-    BigInt/Algorithms/Division.cpp
-    BigInt/Algorithms/GCD.cpp
-    BigInt/Algorithms/ModularInverse.cpp
-    BigInt/Algorithms/ModularPower.cpp
-    BigInt/Algorithms/Multiplication.cpp
-    BigInt/Algorithms/SimpleOperations.cpp
     BigInt/SignedBigInteger.cpp
     BigInt/UnsignedBigInteger.cpp
     Certificate/Certificate.cpp
