@@ -181,8 +181,8 @@ TEST_CASE(test_encoder_primitives)
 
     roundtrip_value(Crypto::UnsignedBigInteger { 0 });
     roundtrip_value(Crypto::UnsignedBigInteger { 1 });
-    roundtrip_value(Crypto::UnsignedBigInteger { 2 }.shift_left(128));
-    roundtrip_value(Crypto::UnsignedBigInteger { 2 }.shift_left(256));
+    roundtrip_value(TRY_OR_FAIL(Crypto::UnsignedBigInteger { 2 }.shift_left(128)));
+    roundtrip_value(TRY_OR_FAIL(Crypto::UnsignedBigInteger { 2 }.shift_left(256)));
 
     roundtrip_value(Vector { 1, 2, 840, 113549, 1, 1, 1 });
     roundtrip_value(Vector { 1, 2, 840, 113549, 1, 1, 11 });

@@ -1,38 +1,33 @@
 /*
  * Copyright (c) 2020, Itamar S. <itamar8910@gmail.com>
  * Copyright (c) 2022, David Tuin <davidot@serenityos.org>
+ * Copyright (c) 2025, Altomani Gianluca <altomanigianluca@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "UnsignedBigInteger.h"
-#include <AK/BuiltinWrappers.h>
-#include <AK/CharacterTypes.h>
-#include <AK/FloatingPoint.h>
-#include <AK/StringBuilder.h>
-#include <AK/StringHash.h>
-#include <LibCrypto/BigInt/Algorithms/UnsignedBigIntegerAlgorithms.h>
 #include <math.h>
+#include <tommath.h>
+
+#include <AK/BuiltinWrappers.h>
+#include <AK/FloatingPoint.h>
+#include <AK/NonnullOwnPtr.h>
+#include <AK/StringBuilder.h>
+#include <LibCrypto/BigInt/Tommath.h>
+#include <LibCrypto/BigInt/UnsignedBigInteger.h>
 
 namespace Crypto {
 
 UnsignedBigInteger::UnsignedBigInteger(u8 const* ptr, size_t length)
 {
-    m_words.resize_and_keep_capacity((length + sizeof(u32) - 1) / sizeof(u32));
-    size_t in = length, out = 0;
-    while (in >= sizeof(u32)) {
-        in -= sizeof(u32);
-        u32 word = ((u32)ptr[in] << 24) | ((u32)ptr[in + 1] << 16) | ((u32)ptr[in + 2] << 8) | (u32)ptr[in + 3];
-        m_words[out++] = word;
-    }
-    if (in > 0) {
-        u32 word = 0;
-        for (size_t i = 0; i < in; i++) {
-            word <<= 8;
-            word |= (u32)ptr[i];
-        }
-        m_words[out++] = word;
-    }
+    MP_MUST(mp_init(&m_mp));
+    MP_MUST(mp_from_ubin(&m_mp, ptr, length));
+}
+
+UnsignedBigInteger::UnsignedBigInteger(Vector<u32> const& words)
+{
+    MP_MUST(mp_init(&m_mp));
+    MP_MUST(mp_unpack(&m_mp, words.size(), MP_LSB_FIRST, sizeof(u32), MP_NATIVE_ENDIAN, 0, words.data()));
 }
 
 UnsignedBigInteger::UnsignedBigInteger(double value)
@@ -44,489 +39,265 @@ UnsignedBigInteger::UnsignedBigInteger(double value)
     VERIFY(trunc(value) == value);
     VERIFY(value >= 0.0);
 
-    if (value <= NumericLimits<u32>::max()) {
-        m_words.append(static_cast<u32>(value));
-        return;
-    }
-
-    FloatExtractor<double> extractor;
-    extractor.d = value;
-    VERIFY(!extractor.sign);
-
-    i32 real_exponent = extractor.exponent - extractor.exponent_bias;
-    VERIFY(real_exponent > 0);
-
-    // Ensure we have enough space, we will need 2^exponent bits, so round up in words
-    auto word_index = (real_exponent + BITS_IN_WORD) / BITS_IN_WORD;
-    m_words.resize_and_keep_capacity(word_index);
-
-    // Now we just need to put the mantissa with explicit 1 bit at the top at the proper location
-    u64 raw_mantissa = extractor.mantissa | (1ull << extractor.mantissa_bits);
-    VERIFY((raw_mantissa & 0xfff0000000000000) == 0x0010000000000000);
-    // Shift it so the bits we need are at the top
-    raw_mantissa <<= 64 - extractor.mantissa_bits - 1;
-
-    // The initial bit needs to be exactly aligned with exponent, this is 1-indexed
-    auto top_word_bit_offset = real_exponent % BITS_IN_WORD + 1;
-
-    auto top_word_bits_from_mantissa = raw_mantissa >> (64 - top_word_bit_offset);
-    VERIFY(top_word_bits_from_mantissa <= NumericLimits<Word>::max());
-    m_words[word_index - 1] = top_word_bits_from_mantissa;
-
-    --word_index;
-    // Shift used bits away
-    raw_mantissa <<= top_word_bit_offset;
-    i32 bits_in_mantissa = extractor.mantissa_bits + 1 - top_word_bit_offset;
-    // Now just put everything at the top of the next words
-
-    constexpr auto to_word_shift = 64 - BITS_IN_WORD;
-
-    while (word_index > 0 && bits_in_mantissa > 0) {
-        VERIFY((raw_mantissa >> to_word_shift) <= NumericLimits<Word>::max());
-        m_words[word_index - 1] = raw_mantissa >> to_word_shift;
-        raw_mantissa <<= to_word_shift;
-
-        bits_in_mantissa -= BITS_IN_WORD;
-        --word_index;
-    }
-
-    VERIFY(m_words.size() > word_index);
-    VERIFY((m_words.size() - word_index) <= 3);
-
-    // No bits left, otherwise we would have to round
-    VERIFY(raw_mantissa == 0);
+    MP_MUST(mp_init(&m_mp));
+    MP_MUST(mp_set_double(&m_mp, value));
 }
 
-size_t UnsignedBigInteger::export_data(Bytes data, bool remove_leading_zeros) const
+UnsignedBigInteger::UnsignedBigInteger(u64 value)
 {
-    size_t word_count = trimmed_length();
-    size_t out = 0;
-    if (word_count > 0) {
-        ssize_t leading_zeros = -1;
-        if (remove_leading_zeros) {
-            UnsignedBigInteger::Word word = m_words[word_count - 1];
-            for (size_t i = 0; i < sizeof(u32); i++) {
-                u8 byte = (u8)(word >> ((sizeof(u32) - i - 1) * 8));
-                data[out++] = byte;
-                if (leading_zeros < 0 && byte != 0)
-                    leading_zeros = (int)i;
-            }
-        }
-        for (size_t i = word_count - (remove_leading_zeros ? 1 : 0); i > 0; i--) {
-            auto word = m_words[i - 1];
-            data[out++] = (u8)(word >> 24);
-            data[out++] = (u8)(word >> 16);
-            data[out++] = (u8)(word >> 8);
-            data[out++] = (u8)word;
-        }
-        if (leading_zeros > 0)
-            out -= leading_zeros;
-    }
-    return out;
+    MP_MUST(mp_init(&m_mp));
+    mp_set_u64(&m_mp, value);
+}
+
+UnsignedBigInteger::UnsignedBigInteger(UnsignedBigInteger const& other)
+{
+    MP_MUST(mp_init_copy(&m_mp, &other.m_mp));
+}
+
+UnsignedBigInteger& UnsignedBigInteger::operator=(UnsignedBigInteger const& other)
+{
+    if (this == &other)
+        return *this;
+    mp_clear(&m_mp);
+    MP_MUST(mp_init_copy(&m_mp, &other.m_mp));
+    return *this;
+}
+
+UnsignedBigInteger::UnsignedBigInteger()
+{
+    MP_MUST(mp_init(&m_mp));
+}
+
+UnsignedBigInteger::~UnsignedBigInteger()
+{
+    mp_clear(&m_mp);
+}
+
+size_t UnsignedBigInteger::export_data(Bytes data) const
+{
+    size_t written = 0;
+    MP_MUST(mp_to_ubin(&m_mp, data.data(), data.size(), &written));
+    return written;
 }
 
 ErrorOr<UnsignedBigInteger> UnsignedBigInteger::from_base(u16 N, StringView str)
 {
     VERIFY(N <= 36);
-    UnsignedBigInteger result;
-    UnsignedBigInteger base { N };
+    if (str.is_empty())
+        return UnsignedBigInteger(0);
 
-    for (auto const& c : str) {
-        if (c == '_')
+    auto buffer = TRY(ByteBuffer::create_zeroed(str.length() + 1));
+
+    size_t idx = 0;
+    for (auto& c : str) {
+        if (c == '_') {
+            // Skip underscores
             continue;
-        if (!is_ascii_base36_digit(c))
-            return Error::from_string_literal("Invalid Base36 digit");
-        auto digit = parse_ascii_base36_digit(c);
-        if (digit >= N)
-            return Error::from_string_literal("Base36 digit out of range");
+        }
 
-        result = result.multiplied_by(base).plus(digit);
+        buffer[idx++] = c;
     }
+
+    UnsignedBigInteger result;
+    if (mp_read_radix(&result.m_mp, reinterpret_cast<char const*>(buffer.data()), N) != MP_OKAY)
+        return Error::from_string_literal("Invalid number");
     return result;
 }
 
 ErrorOr<String> UnsignedBigInteger::to_base(u16 N) const
 {
     VERIFY(N <= 36);
-    if (*this == UnsignedBigInteger { 0 })
+    if (is_zero())
         return "0"_string;
 
-    StringBuilder builder;
-    UnsignedBigInteger temp(*this);
-    UnsignedBigInteger quotient;
-    UnsignedBigInteger remainder;
+    int size = 0;
+    MP_MUST(mp_radix_size(&m_mp, N, &size));
+    auto buffer = TRY(ByteBuffer::create_zeroed(size));
 
-    while (temp != UnsignedBigInteger { 0 }) {
-        UnsignedBigIntegerAlgorithms::divide_u16_without_allocation(temp, N, quotient, remainder);
-        VERIFY(remainder.words()[0] < N);
-        TRY(builder.try_append(to_ascii_base36_digit(remainder.words()[0])));
-        temp.set_to(quotient);
-    }
+    size_t written = 0;
+    MP_MUST(mp_to_radix(&m_mp, reinterpret_cast<char*>(buffer.data()), size, &written, N));
 
-    return TRY(builder.to_string()).reverse();
+    return StringView(buffer.bytes().slice(0, written - 1)).to_ascii_lowercase_string();
 }
 
 u64 UnsignedBigInteger::to_u64() const
 {
-    static_assert(sizeof(Word) == 4);
-    if (!length())
-        return 0;
-    u64 value = m_words[0];
-    if (length() > 1)
-        value |= static_cast<u64>(m_words[1]) << 32;
-    return value;
+    return mp_get_u64(&m_mp);
 }
 
-double UnsignedBigInteger::to_double(UnsignedBigInteger::RoundingMode rounding_mode) const
+double UnsignedBigInteger::to_double(RoundingMode rounding_mode) const
 {
-    auto highest_bit = one_based_index_of_highest_set_bit();
-    if (highest_bit == 0)
-        return 0;
-    --highest_bit;
+    // Check if we need to truncate
+    auto bitlen = mp_count_bits(&m_mp);
+    if (bitlen <= 53)
+        return mp_get_double(&m_mp);
 
-    using Extractor = FloatExtractor<double>;
+    if (rounding_mode == RoundingMode::RoundTowardZero) {
+        UnsignedBigInteger shifted;
 
-    // Simple case if less than 2^53 since those number are all exactly representable in doubles
-    if (highest_bit < Extractor::mantissa_bits + 1)
-        return static_cast<double>(to_u64());
+        // Truncate the lower bits
+        auto shift = bitlen - 53;
+        MP_MUST(mp_div_2d(&m_mp, shift, &shifted.m_mp, nullptr));
 
-    // If it uses too many bit to represent in a double return infinity
-    if (highest_bit > Extractor::exponent_bias)
-        return __builtin_huge_val();
-
-    // Otherwise we have to take the top 53 bits, use those as the mantissa,
-    // and the amount of bits as the exponent. Note that the mantissa has an implicit top bit of 1
-    // so we have to ignore the very top bit.
-
-    // Since we extract at most 53 bits it will take at most 3 words
-    static_assert(BITS_IN_WORD * 3 >= (Extractor::mantissa_bits + 1));
-    constexpr auto bits_in_u64 = 64;
-    static_assert(bits_in_u64 > Extractor::mantissa_bits + 1);
-
-    auto bits_to_read = min(static_cast<size_t>(Extractor::mantissa_bits), highest_bit);
-
-    auto last_word_index = trimmed_length();
-    VERIFY(last_word_index > 0);
-
-    // Note that highest bit is 0-indexed at this point.
-    auto highest_bit_index_in_top_word = highest_bit % BITS_IN_WORD;
-
-    // Shift initial word until highest bit is just beyond top of u64.
-    u64 mantissa = m_words[last_word_index - 1];
-    if (highest_bit_index_in_top_word != 0)
-        mantissa <<= (bits_in_u64 - highest_bit_index_in_top_word);
-    else
-        mantissa = 0;
-
-    auto bits_written = highest_bit_index_in_top_word;
-
-    --last_word_index;
-
-    Optional<Word> dropped_bits_for_rounding;
-    u8 bits_dropped_from_final_word = 0;
-
-    if (bits_written < bits_to_read && last_word_index > 0) {
-        // Second word can always just cleanly be shifted up to the final bit of the first word
-        // since the first has at most BIT_IN_WORD - 1, 31
-        u64 next_word = m_words[last_word_index - 1];
-        VERIFY((mantissa & (next_word << (bits_in_u64 - bits_written - BITS_IN_WORD))) == 0);
-        mantissa |= next_word << (bits_in_u64 - bits_written - BITS_IN_WORD);
-        bits_written += BITS_IN_WORD;
-        --last_word_index;
-
-        if (bits_written > bits_to_read) {
-            bits_dropped_from_final_word = bits_written - bits_to_read;
-            dropped_bits_for_rounding = m_words[last_word_index] & ((1 << bits_dropped_from_final_word) - 1);
-        } else if (bits_written < bits_to_read && last_word_index > 0) {
-            // The final word has to be shifted down first to discard any excess bits.
-            u64 final_word = m_words[last_word_index - 1];
-            --last_word_index;
-
-            auto bits_to_write = bits_to_read - bits_written;
-
-            bits_dropped_from_final_word = BITS_IN_WORD - bits_to_write;
-            dropped_bits_for_rounding = final_word & ((1 << bits_dropped_from_final_word) - 1u);
-            final_word >>= bits_dropped_from_final_word;
-
-            // Then move the bits right up to the lowest bits of the second word
-            VERIFY((mantissa & (final_word << (bits_in_u64 - bits_written - bits_to_write))) == 0);
-            mantissa |= final_word << (bits_in_u64 - bits_written - bits_to_write);
-        }
+        // Convert to double
+        return ldexp(mp_get_double(&shifted.m_mp), shift);
     }
-
-    // Now the mantissa should be complete so shift it down
-    mantissa >>= bits_in_u64 - Extractor::mantissa_bits;
 
     if (rounding_mode == RoundingMode::IEEERoundAndTiesToEvenMantissa) {
-        bool round_up = false;
+        UnsignedBigInteger shifted, remainder, half, lsb;
 
-        if (bits_dropped_from_final_word == 0) {
-            if (last_word_index > 0) {
-                Word next_word = m_words[last_word_index - 1];
-                last_word_index--;
-                if ((next_word & 0x80000000) != 0) {
-                    // next top bit set check for any other bits
-                    if ((next_word ^ 0x80000000) != 0) {
-                        round_up = true;
-                    } else {
-                        while (last_word_index > 0) {
-                            if (m_words[last_word_index - 1] != 0) {
-                                round_up = true;
-                                break;
-                            }
-                        }
+        // Get top 53 bits (truncated)
+        auto shift = bitlen - 53;
+        MP_MUST(mp_div_2d(&m_mp, shift, &shifted.m_mp, &remainder.m_mp));
 
-                        // All other bits are 0 which is a tie thus round to even exponent
-                        // Since we are halfway, if exponent ends with 1 we round up, if 0 we round down
-                        round_up = (mantissa & 1) != 0;
-                    }
-                } else {
-                    round_up = false;
-                }
-            } else {
-                // If there are no words left the rest is implicitly 0 so just round down
-                round_up = false;
-            }
-
+        // Check if remainder == 2^(shift - 1)
+        MP_MUST(mp_2expt(&half.m_mp, shift - 1));
+        int cmp = mp_cmp(&remainder.m_mp, &half.m_mp);
+        if (cmp < 0) {
+            // Round down (truncate)
+        } else if (cmp > 0) {
+            // Round up
+            MP_MUST(mp_add_d(&shifted.m_mp, 1, &shifted.m_mp));
         } else {
-            VERIFY(dropped_bits_for_rounding.has_value());
-            VERIFY(bits_dropped_from_final_word >= 1);
-
-            // In this case the top bit comes form the dropped bits
-            auto top_bit_extractor = 1u << (bits_dropped_from_final_word - 1u);
-            if ((*dropped_bits_for_rounding & top_bit_extractor) != 0) {
-                // Possible tie again, if any other bit is set we round up
-                if ((*dropped_bits_for_rounding ^ top_bit_extractor) != 0) {
-                    round_up = true;
-                } else {
-                    while (last_word_index > 0) {
-                        if (m_words[last_word_index - 1] != 0) {
-                            round_up = true;
-                            break;
-                        }
-                    }
-
-                    round_up = (mantissa & 1) != 0;
-                }
-            } else {
-                round_up = false;
+            // Exactly halfway, check even
+            MP_MUST(mp_mod_2d(&shifted.m_mp, 1, &lsb.m_mp));
+            if (!mp_iszero(&lsb.m_mp)) {
+                // It's odd, round to even
+                MP_MUST(mp_add_d(&shifted.m_mp, 1, &shifted.m_mp));
             }
         }
 
-        if (round_up) {
-            ++mantissa;
-            if ((mantissa & (1ull << Extractor::mantissa_bits)) != 0) {
-                // we overflowed the mantissa
-                mantissa = 0;
-                highest_bit++;
-
-                // In which case it is possible we have to round to infinity
-                if (highest_bit > Extractor::exponent_bias)
-                    return __builtin_huge_val();
-            }
-        }
-    } else {
-        VERIFY(rounding_mode == RoundingMode::RoundTowardZero);
+        // Convert to double
+        return ldexp(mp_get_double(&shifted.m_mp), shift);
     }
 
-    Extractor extractor;
-    extractor.exponent = highest_bit + extractor.exponent_bias;
+    VERIFY_NOT_REACHED();
+}
 
-    VERIFY((mantissa & 0xfff0000000000000) == 0);
-    extractor.mantissa = mantissa;
+Vector<u32> UnsignedBigInteger::words() const
+{
+    auto count = mp_pack_count(&m_mp, 0, sizeof(u32));
+    Vector<u32> result;
+    result.resize(count);
 
-    return extractor.d;
+    size_t written = 0;
+    MP_MUST(mp_pack(result.data(), count, &written, MP_LSB_FIRST, sizeof(u32), MP_NATIVE_ENDIAN, 0, &m_mp));
+
+    result.resize(written);
+    return result;
 }
 
 void UnsignedBigInteger::set_to_0()
 {
-    m_words.clear_with_capacity();
-    m_cached_trimmed_length = {};
-    m_cached_hash = 0;
+    mp_zero(&m_mp);
+    m_hash = {};
 }
 
-void UnsignedBigInteger::set_to(UnsignedBigInteger::Word other)
+void UnsignedBigInteger::set_to(u64 other)
 {
-    m_words.resize_and_keep_capacity(1);
-    m_words[0] = other;
-    m_cached_trimmed_length = {};
-    m_cached_hash = 0;
+    mp_set_u64(&m_mp, other);
+    m_hash = {};
 }
 
 void UnsignedBigInteger::set_to(UnsignedBigInteger const& other)
 {
-    m_words.resize_and_keep_capacity(other.m_words.size());
-    __builtin_memcpy(m_words.data(), other.m_words.data(), other.m_words.size() * sizeof(u32));
-    m_cached_trimmed_length = {};
-    m_cached_hash = 0;
+    MP_MUST(mp_copy(&other.m_mp, &m_mp));
+    m_hash = {};
 }
 
 bool UnsignedBigInteger::is_zero() const
 {
-    for (size_t i = 0; i < length(); ++i) {
-        if (m_words[i] != 0)
-            return false;
-    }
-
-    return true;
+    return mp_iszero(&m_mp);
 }
 
-size_t UnsignedBigInteger::trimmed_length() const
+bool UnsignedBigInteger::is_odd() const
 {
-    if (!m_cached_trimmed_length.has_value()) {
-        size_t num_leading_zeroes = 0;
-        for (int i = length() - 1; i >= 0; --i, ++num_leading_zeroes) {
-            if (m_words[i] != 0)
-                break;
-        }
-        m_cached_trimmed_length = length() - num_leading_zeroes;
-    }
-    return m_cached_trimmed_length.value();
+    return mp_isodd(&m_mp);
 }
 
-void UnsignedBigInteger::clamp_to_trimmed_length()
+size_t UnsignedBigInteger::byte_length() const
 {
-    auto length = trimmed_length();
-    if (m_words.size() > length)
-        m_words.resize(length);
-}
-
-void UnsignedBigInteger::resize_with_leading_zeros(size_t new_length)
-{
-    size_t old_length = length();
-    if (old_length < new_length) {
-        m_words.resize_and_keep_capacity(new_length);
-        __builtin_memset(&m_words.data()[old_length], 0, (new_length - old_length) * sizeof(u32));
-    }
+    return mp_ubin_size(&m_mp);
 }
 
 size_t UnsignedBigInteger::one_based_index_of_highest_set_bit() const
 {
-    size_t number_of_words = trimmed_length();
-    size_t index = 0;
-    if (number_of_words > 0) {
-        index += (number_of_words - 1) * BITS_IN_WORD;
-        index += BITS_IN_WORD - count_leading_zeroes(m_words[number_of_words - 1]);
-    }
-    return index;
+    return mp_count_bits(&m_mp);
 }
 
 FLATTEN UnsignedBigInteger UnsignedBigInteger::plus(UnsignedBigInteger const& other) const
 {
     UnsignedBigInteger result;
-
-    UnsignedBigIntegerAlgorithms::add_without_allocation(*this, other, result);
-
+    MP_MUST(mp_add(&m_mp, &other.m_mp, &result.m_mp));
     return result;
 }
 
 FLATTEN ErrorOr<UnsignedBigInteger> UnsignedBigInteger::minus(UnsignedBigInteger const& other) const
 {
     UnsignedBigInteger result;
-
-    TRY(UnsignedBigIntegerAlgorithms::subtract_without_allocation(*this, other, result));
-
+    MP_MUST(mp_sub(&m_mp, &other.m_mp, &result.m_mp));
+    if (mp_isneg(&result.m_mp))
+        return Error::from_string_literal("Substraction produced a negative result");
     return result;
 }
 
 FLATTEN UnsignedBigInteger UnsignedBigInteger::bitwise_or(UnsignedBigInteger const& other) const
 {
     UnsignedBigInteger result;
-
-    UnsignedBigIntegerAlgorithms::bitwise_or_without_allocation(*this, other, result);
-
+    MP_MUST(mp_or(&m_mp, &other.m_mp, &result.m_mp));
     return result;
 }
 
 FLATTEN UnsignedBigInteger UnsignedBigInteger::bitwise_and(UnsignedBigInteger const& other) const
 {
     UnsignedBigInteger result;
-
-    UnsignedBigIntegerAlgorithms::bitwise_and_without_allocation(*this, other, result);
-
+    MP_MUST(mp_and(&m_mp, &other.m_mp, &result.m_mp));
     return result;
 }
 
 FLATTEN UnsignedBigInteger UnsignedBigInteger::bitwise_xor(UnsignedBigInteger const& other) const
 {
     UnsignedBigInteger result;
+    MP_MUST(mp_xor(&m_mp, &other.m_mp, &result.m_mp));
+    return result;
+}
 
-    UnsignedBigIntegerAlgorithms::bitwise_xor_without_allocation(*this, other, result);
+FLATTEN ErrorOr<UnsignedBigInteger> UnsignedBigInteger::bitwise_not_fill_to_one_based_index(size_t index) const
+{
+    if (index == 0)
+        return UnsignedBigInteger(0);
+    if (index > NumericLimits<int>::max())
+        return Error::from_errno(ENOMEM);
+
+    UnsignedBigInteger result, mask, temp;
+
+    MP_TRY(mp_2expt(&mask.m_mp, index));
+    MP_TRY(mp_sub_d(&mask.m_mp, 1, &mask.m_mp));
+
+    MP_TRY(mp_and(&mask.m_mp, &m_mp, &temp.m_mp));
+    MP_TRY(mp_xor(&temp.m_mp, &mask.m_mp, &result.m_mp));
 
     return result;
 }
 
-FLATTEN UnsignedBigInteger UnsignedBigInteger::bitwise_not_fill_to_one_based_index(size_t size) const
-{
-    return MUST(try_bitwise_not_fill_to_one_based_index(size));
-}
-
-FLATTEN ErrorOr<UnsignedBigInteger> UnsignedBigInteger::try_bitwise_not_fill_to_one_based_index(size_t size) const
+FLATTEN ErrorOr<UnsignedBigInteger> UnsignedBigInteger::shift_left(size_t num_bits) const
 {
     UnsignedBigInteger result;
-
-    TRY(UnsignedBigIntegerAlgorithms::bitwise_not_fill_to_one_based_index_without_allocation(*this, size, result));
-
+    MP_TRY(mp_mul_2d(&m_mp, num_bits, &result.m_mp));
     return result;
-}
-
-FLATTEN ErrorOr<UnsignedBigInteger> UnsignedBigInteger::try_shift_left(size_t num_bits) const
-{
-    UnsignedBigInteger output;
-
-    TRY(UnsignedBigIntegerAlgorithms::try_shift_left_without_allocation(*this, num_bits, output));
-
-    return output;
-}
-
-FLATTEN UnsignedBigInteger UnsignedBigInteger::shift_left(size_t num_bits) const
-{
-    return MUST(try_shift_left(num_bits));
 }
 
 FLATTEN UnsignedBigInteger UnsignedBigInteger::shift_right(size_t num_bits) const
 {
-    UnsignedBigInteger output;
-
-    UnsignedBigIntegerAlgorithms::shift_right_without_allocation(*this, num_bits, output);
-
-    return output;
-}
-
-FLATTEN UnsignedBigInteger UnsignedBigInteger::as_n_bits(size_t n) const
-{
-    if (auto const num_bits = one_based_index_of_highest_set_bit(); n >= num_bits)
-        return *this;
-
-    UnsignedBigInteger output;
-    output.set_to(*this);
-
-    auto const word_index = n / BITS_IN_WORD;
-
-    auto const bits_to_keep = n % BITS_IN_WORD;
-    auto const bits_to_discard = BITS_IN_WORD - bits_to_keep;
-
-    output.m_words.resize(word_index + 1);
-
-    auto const last_word = output.m_words[word_index];
-    Word new_last_word = 0;
-
-    // avoid UB from a 32 bit shift on a u32
-    if (bits_to_keep != 0)
-        new_last_word = last_word << bits_to_discard >> bits_to_discard;
-
-    output.m_words[word_index] = new_last_word;
-
-    return output;
+    UnsignedBigInteger result;
+    MP_MUST(mp_div_2d(&m_mp, num_bits, &result.m_mp, nullptr));
+    return result;
 }
 
 FLATTEN UnsignedBigInteger UnsignedBigInteger::multiplied_by(UnsignedBigInteger const& other) const
 {
     UnsignedBigInteger result;
-    UnsignedBigInteger temp_shift;
-
-    UnsignedBigIntegerAlgorithms::multiply_without_allocation(*this, other, temp_shift, result);
-
+    MP_MUST(mp_mul(&m_mp, &other.m_mp, &result.m_mp));
     return result;
 }
 
@@ -534,84 +305,38 @@ FLATTEN UnsignedDivisionResult UnsignedBigInteger::divided_by(UnsignedBigInteger
 {
     UnsignedBigInteger quotient;
     UnsignedBigInteger remainder;
-
-    // If we actually have a u16-compatible divisor, short-circuit to the
-    // less computationally-intensive "divide_u16_without_allocation" method.
-    if (divisor.trimmed_length() == 1 && divisor.m_words[0] < (1 << 16)) {
-        UnsignedBigIntegerAlgorithms::divide_u16_without_allocation(*this, divisor.m_words[0], quotient, remainder);
-        return UnsignedDivisionResult { quotient, remainder };
-    }
-
-    UnsignedBigIntegerAlgorithms::divide_without_allocation(*this, divisor, quotient, remainder);
-
+    MP_MUST(mp_div(&m_mp, &divisor.m_mp, &quotient.m_mp, &remainder.m_mp));
     return UnsignedDivisionResult { quotient, remainder };
 }
 
 FLATTEN UnsignedBigInteger UnsignedBigInteger::pow(u32 exponent) const
 {
-    UnsignedBigInteger ep { exponent };
-    UnsignedBigInteger base { *this };
-    UnsignedBigInteger exp { 1 };
-
-    while (!(ep <  1 )) {
-        if (ep.words()[0] % 2 == 1)
-            exp.set_to(exp.multiplied_by(base));
-
-        // ep = ep / 2;
-        ep.set_to(ep.shift_right(1));
-
-        // base = base * base
-        base.set_to(base.multiplied_by(base));
-    }
-
-    return exp;
+    UnsignedBigInteger result;
+    MP_MUST(mp_expt_n(&m_mp, exponent, &result.m_mp));
+    return result;
 }
 
 FLATTEN UnsignedBigInteger UnsignedBigInteger::gcd(UnsignedBigInteger const& other) const
 {
-    UnsignedBigInteger temp_a { *this };
-    UnsignedBigInteger temp_b { other };
-    UnsignedBigInteger temp_quotient;
-    UnsignedBigInteger temp_remainder;
-    UnsignedBigInteger output;
-
-    UnsignedBigIntegerAlgorithms::destructive_GCD_without_allocation(temp_a, temp_b, temp_quotient, temp_remainder, output);
-
-    return output;
+    UnsignedBigInteger result;
+    MP_MUST(mp_gcd(&m_mp, &other.m_mp, &result.m_mp));
+    return result;
 }
 
 u32 UnsignedBigInteger::hash() const
 {
-    if (m_cached_hash != 0)
-        return m_cached_hash;
+    if (m_hash.has_value())
+        return *m_hash;
 
-    return m_cached_hash = string_hash((char const*)m_words.data(), sizeof(Word) * m_words.size());
-}
-
-void UnsignedBigInteger::set_bit_inplace(size_t bit_index)
-{
-    size_t const word_index = bit_index / UnsignedBigInteger::BITS_IN_WORD;
-    size_t const inner_word_index = bit_index % UnsignedBigInteger::BITS_IN_WORD;
-
-    m_words.ensure_capacity(word_index + 1);
-
-    for (size_t i = length(); i <= word_index; ++i) {
-        m_words.unchecked_append(0);
-    }
-    m_words[word_index] |= (1 << inner_word_index);
-
-    m_cached_trimmed_length = {};
-    m_cached_hash = 0;
+    auto buffer = MUST(ByteBuffer::create_zeroed(byte_length()));
+    auto length = export_data(buffer);
+    m_hash = string_hash(reinterpret_cast<char const*>(buffer.data()), length);
+    return *m_hash;
 }
 
 bool UnsignedBigInteger::operator==(UnsignedBigInteger const& other) const
 {
-    auto length = trimmed_length();
-
-    if (length != other.trimmed_length())
-        return false;
-
-    return !__builtin_memcmp(m_words.data(), other.words().data(), length * (BITS_IN_WORD / 8));
+    return mp_cmp(&m_mp, &other.m_mp) == MP_EQ;
 }
 
 bool UnsignedBigInteger::operator!=(UnsignedBigInteger const& other) const
@@ -621,26 +346,7 @@ bool UnsignedBigInteger::operator!=(UnsignedBigInteger const& other) const
 
 bool UnsignedBigInteger::operator<(UnsignedBigInteger const& other) const
 {
-    auto length = trimmed_length();
-    auto other_length = other.trimmed_length();
-
-    if (length < other_length) {
-        return true;
-    }
-
-    if (length > other_length) {
-        return false;
-    }
-
-    if (length == 0) {
-        return false;
-    }
-    for (int i = length - 1; i >= 0; --i) {
-        if (m_words[i] == other.m_words[i])
-            continue;
-        return m_words[i] < other.m_words[i];
-    }
-    return false;
+    return mp_cmp(&m_mp, &other.m_mp) == MP_LT;
 }
 
 bool UnsignedBigInteger::operator<=(UnsignedBigInteger const& other) const
@@ -720,21 +426,24 @@ UnsignedBigInteger::CompareResult UnsignedBigInteger::compare_to_double(double v
 
     mantissa_bits |= mantissa_extended_bit;
 
+    constexpr u32 bits_in_word = sizeof(u32) * 8;
+
     // Now we shift value to the left virtually, with `exponent - bias` steps
     // we then pretend both it and the big int are extended with virtual zeros.
-    auto next_bigint_word = (BITS_IN_WORD - 1 + bigint_bits_needed) / BITS_IN_WORD;
+    auto next_bigint_word = (bits_in_word - 1 + bigint_bits_needed) / bits_in_word;
 
-    VERIFY(next_bigint_word == trimmed_length());
+    auto words = this->words();
+    VERIFY(next_bigint_word == words.size());
 
-    auto msb_in_top_word_index = (bigint_bits_needed - 1) % BITS_IN_WORD;
-    VERIFY(msb_in_top_word_index == (BITS_IN_WORD - count_leading_zeroes(words()[next_bigint_word - 1]) - 1));
+    auto msb_in_top_word_index = (bigint_bits_needed - 1) % bits_in_word;
+    VERIFY(msb_in_top_word_index == (bits_in_word - count_leading_zeroes(words[next_bigint_word - 1]) - 1));
 
     // We will keep the bits which are still valid in the mantissa at the top of mantissa bits.
     mantissa_bits <<= 64 - (extractor.mantissa_bits + 1);
 
     auto bits_left_in_mantissa = static_cast<size_t>(extractor.mantissa_bits) + 1;
 
-    auto get_next_value_bits = [&](size_t num_bits) -> Word {
+    auto get_next_value_bits = [&](size_t num_bits) -> u32 {
         VERIFY(num_bits < 63);
         VERIFY(bits_left_in_mantissa > 0);
         if (num_bits > bits_left_in_mantissa)
@@ -745,24 +454,24 @@ UnsignedBigInteger::CompareResult UnsignedBigInteger::compare_to_double(double v
         u64 extracted_bits = mantissa_bits & (((1ull << num_bits) - 1) << (64 - num_bits));
         // Now shift the bits down to put the most significant bit on the num_bits position
         // this means the rest will be "virtual" zeros.
-        extracted_bits >>= 32;
+        extracted_bits >>= bits_in_word;
 
         // Now shift away the used bits and fit the result into a Word.
         mantissa_bits <<= num_bits;
 
-        VERIFY(extracted_bits <= NumericLimits<Word>::max());
-        return static_cast<Word>(extracted_bits);
+        VERIFY(extracted_bits <= NumericLimits<u32>::max());
+        return static_cast<u32>(extracted_bits);
     };
 
     auto bits_in_next_bigint_word = msb_in_top_word_index + 1;
 
     while (next_bigint_word > 0 && bits_left_in_mantissa > 0) {
-        Word bigint_word = words()[next_bigint_word - 1];
-        Word double_word = get_next_value_bits(bits_in_next_bigint_word);
+        u32 bigint_word = words[next_bigint_word - 1];
+        u32 double_word = get_next_value_bits(bits_in_next_bigint_word);
 
         // For the first bit we have to align it with the top bit of bigint
         // and for all the other cases bits_in_next_bigint_word is 32 so this does nothing.
-        double_word >>= 32 - bits_in_next_bigint_word;
+        double_word >>= bits_in_word - bits_in_next_bigint_word;
 
         if (bigint_word < double_word)
             return CompareResult::DoubleGreaterThanBigInt;
@@ -771,14 +480,14 @@ UnsignedBigInteger::CompareResult UnsignedBigInteger::compare_to_double(double v
             return CompareResult::DoubleLessThanBigInt;
 
         --next_bigint_word;
-        bits_in_next_bigint_word = BITS_IN_WORD;
+        bits_in_next_bigint_word = bits_in_word;
     }
 
     // If there are still bits left in bigint than any non zero bit means it has greater value.
     if (next_bigint_word > 0) {
         VERIFY(bits_left_in_mantissa == 0);
         while (next_bigint_word > 0) {
-            if (words()[next_bigint_word - 1] != 0)
+            if (words[next_bigint_word - 1] != 0)
                 return CompareResult::DoubleLessThanBigInt;
             --next_bigint_word;
         }
@@ -797,9 +506,5 @@ UnsignedBigInteger::CompareResult UnsignedBigInteger::compare_to_double(double v
 
 ErrorOr<void> AK::Formatter<Crypto::UnsignedBigInteger>::format(FormatBuilder& fmtbuilder, Crypto::UnsignedBigInteger const& value)
 {
-    StringBuilder builder;
-    for (int i = value.length() - 1; i >= 0; --i)
-        TRY(builder.try_appendff("{}|", value.words()[i]));
-
-    return Formatter<StringView>::format(fmtbuilder, builder.string_view());
+    return Formatter<StringView>::format(fmtbuilder, TRY(value.to_base(10)));
 }
