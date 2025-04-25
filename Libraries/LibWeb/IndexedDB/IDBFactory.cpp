@@ -108,18 +108,18 @@ WebIDL::ExceptionOr<i8> IDBFactory::cmp(JS::Value first, JS::Value second)
     auto a = TRY(convert_a_value_to_a_key(realm(), first));
 
     // 2. If a is invalid, throw a "DataError" DOMException.
-    if (a.is_error())
+    if (a->is_invalid())
         return WebIDL::DataError::create(realm(), "Failed to convert a value to a key"_string);
 
     // 3. Let b be the result of converting a value to a key with second. Rethrow any exceptions.
     auto b = TRY(convert_a_value_to_a_key(realm(), second));
 
     // 4. If b is invalid, throw a "DataError" DOMException.
-    if (b.is_error())
+    if (b->is_invalid())
         return WebIDL::DataError::create(realm(), "Failed to convert a value to a key"_string);
 
     // 5. Return the results of comparing two keys with a and b.
-    return Key::compare_two_keys(a.release_value(), b.release_value());
+    return Key::compare_two_keys(a, b);
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbfactory-deletedatabase

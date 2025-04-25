@@ -19,7 +19,7 @@ using KeyPath = Variant<String, Vector<String>>;
 
 WebIDL::ExceptionOr<GC::Ref<IDBDatabase>> open_a_database_connection(JS::Realm&, StorageAPI::StorageKey, String, Optional<u64>, GC::Ref<IDBRequest>);
 bool fire_a_version_change_event(JS::Realm&, FlyString const&, GC::Ref<DOM::EventTarget>, u64, Optional<u64>);
-WebIDL::ExceptionOr<ErrorOr<GC::Ref<Key>>> convert_a_value_to_a_key(JS::Realm&, JS::Value, Vector<JS::Value> = {});
+WebIDL::ExceptionOr<GC::Ref<Key>> convert_a_value_to_a_key(JS::Realm&, JS::Value, Vector<JS::Value> = {});
 void close_a_database_connection(GC::Ref<IDBDatabase>, bool forced = false);
 GC::Ref<IDBTransaction> upgrade_a_database(JS::Realm&, GC::Ref<IDBDatabase>, u64, GC::Ref<IDBRequest>);
 WebIDL::ExceptionOr<u64> delete_a_database(JS::Realm&, StorageAPI::StorageKey, String, GC::Ref<IDBRequest>);
@@ -29,7 +29,7 @@ bool is_valid_key_path(KeyPath const&);
 GC::Ref<HTML::DOMStringList> create_a_sorted_name_list(JS::Realm&, Vector<String>);
 void commit_a_transaction(JS::Realm&, GC::Ref<IDBTransaction>);
 WebIDL::ExceptionOr<JS::Value> clone_in_realm(JS::Realm&, JS::Value, GC::Ref<IDBTransaction>);
-WebIDL::ExceptionOr<ErrorOr<GC::Ref<Key>>> convert_a_value_to_a_multi_entry_key(JS::Realm&, JS::Value);
+WebIDL::ExceptionOr<GC::Ref<Key>> convert_a_value_to_a_multi_entry_key(JS::Realm&, JS::Value);
 WebIDL::ExceptionOr<ErrorOr<JS::Value>> evaluate_key_path_on_a_value(JS::Realm&, JS::Value, KeyPath const&);
 WebIDL::ExceptionOr<ErrorOr<GC::Ref<Key>>> extract_a_key_from_a_value_using_a_key_path(JS::Realm&, JS::Value, KeyPath const&, bool = false);
 bool check_that_a_key_could_be_injected_into_a_value(JS::Realm&, JS::Value, KeyPath const&);

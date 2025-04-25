@@ -73,6 +73,8 @@ i8 Key::compare_two_keys(GC::Ref<Key> a, GC::Ref<Key> b)
 
     // 6. Switch on ta:
     switch (ta) {
+    case KeyType::Invalid:
+        VERIFY_NOT_REACHED();
     // number
     // date
     case KeyType::Number:
