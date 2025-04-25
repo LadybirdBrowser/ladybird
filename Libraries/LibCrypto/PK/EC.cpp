@@ -87,6 +87,10 @@ ErrorOr<EC::KeyPairType> EC::parse_ec_key(ReadonlyBytes der, bool is_private, Ve
         READ_OBJECT(Integer, Crypto::UnsignedBigInteger, version);
         POP_SCOPE();
 
+        if (version != 1) {
+            ERROR_WITH_SCOPE("Invalid version");
+        }
+
         PUSH_SCOPE("privateKey");
         READ_OBJECT(OctetString, StringView, private_key_bytes);
         POP_SCOPE();
