@@ -125,16 +125,19 @@ void dump_tree(StringBuilder& builder, DOM::Node const& node)
             }
         }
     }
+    if (is<HTML::HTMLTemplateElement>(node)) {
+        auto& template_element = as<HTML::HTMLTemplateElement>(node);
+        for (int i = 0; i < indent; ++i)
+            builder.append("  "sv);
+        builder.append("(template content)\n"sv);
+        dump_tree(builder, template_element.content());
+        builder.append("(template normal subtree)\n"sv);
+    }
     if (is<DOM::ParentNode>(node)) {
-        if (!is<HTML::HTMLTemplateElement>(node)) {
-            static_cast<DOM::ParentNode const&>(node).for_each_child([&](auto& child) {
-                dump_tree(builder, child);
-                return IterationDecision::Continue;
-            });
-        } else {
-            auto& template_element = as<HTML::HTMLTemplateElement>(node);
-            dump_tree(builder, template_element.content());
-        }
+        static_cast<DOM::ParentNode const&>(node).for_each_child([&](auto& child) {
+            dump_tree(builder, child);
+            return IterationDecision::Continue;
+        });
     }
     --indent;
 }
