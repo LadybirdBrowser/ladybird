@@ -41,8 +41,4 @@ static IntegerType Power(IntegerType const& b, IntegerType const& e)
 UnsignedBigInteger GCD(UnsignedBigInteger const& a, UnsignedBigInteger const& b);
 UnsignedBigInteger LCM(UnsignedBigInteger const& a, UnsignedBigInteger const& b);
 
-UnsignedBigInteger random_number(UnsignedBigInteger const& min, UnsignedBigInteger const& max_excluded);
-bool is_probably_prime(UnsignedBigInteger const& p);
-UnsignedBigInteger random_big_prime(size_t bits);
-
 }
