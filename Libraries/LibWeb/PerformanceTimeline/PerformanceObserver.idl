@@ -21,6 +21,6 @@ interface PerformanceObserver {
     undefined observe(optional PerformanceObserverInit options = {});
     undefined disconnect();
     PerformanceEntryList takeRecords();
-    // FIXME: [SameObject] static readonly attribute FrozenArray<DOMString> supportedEntryTypes;
+    // FIXME: This should be FrozenArray<DOMString>, but must also always return the same object.
     [SameObject] static readonly attribute any supportedEntryTypes;
 };
