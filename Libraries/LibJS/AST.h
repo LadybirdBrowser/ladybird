@@ -675,13 +675,29 @@ public:
 
     FlyString const& string() const { return m_string; }
 
-    bool is_local() const { return m_local_variable_index.has_value(); }
-    size_t local_variable_index() const
+    struct Local {
+        enum Type {
+            Argument,
+            Variable,
+        };
+        Type type;
+        size_t index;
+
+        bool is_argument() const { return type == Argument; }
+        bool is_variable() const { return type == Variable; }
+
+        static Local variable(size_t index) { return { Variable, index }; }
+        static Local argument(size_t index) { return { Argument, index }; }
+    };
+
+    bool is_local() const { return m_local_index.has_value(); }
+    Local local_index() const
     {
-        VERIFY(m_local_variable_index.has_value());
-        return m_local_variable_index.value();
+        VERIFY(m_local_index.has_value());
+        return m_local_index.value();
     }
-    void set_local_variable_index(size_t index) { m_local_variable_index = index; }
+    void set_local_variable_index(size_t index) { m_local_index = Local::variable(index); }
+    void set_argument_index(size_t index) { m_local_index = Local::argument(index); }
 
     bool is_global() const { return m_is_global; }
     void set_is_global() { m_is_global = true; }
@@ -694,7 +710,7 @@ private:
 
     FlyString m_string;
 
-    Optional<size_t> m_local_variable_index;
+    Optional<Local> m_local_index;
     bool m_is_global { false };
 };
 
@@ -718,6 +734,20 @@ public:
     bool is_empty() const { return m_parameters.is_empty(); }
     size_t size() const { return m_parameters.size(); }
     Vector<FunctionParameter> const& parameters() const { return m_parameters; }
+
+    Optional<size_t> get_index_of_parameter_name(FlyString const& name) const
+    {
+        // Iterate backwards to return the last parameter with the same name
+        for (int i = m_parameters.size() - 1; i >= 0; i--) {
+            auto& parameter = m_parameters[i];
+            if (parameter.binding.has<NonnullRefPtr<Identifier const>>()) {
+                auto& identifier = parameter.binding.get<NonnullRefPtr<Identifier const>>();
+                if (identifier->string() == name)
+                    return i;
+            }
+        }
+        return {};
+    }
 
 private:
     FunctionParameters(Vector<FunctionParameter> parameters)

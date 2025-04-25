@@ -326,9 +326,10 @@ public:
                 scope_has_declaration = false;
             }
 
+            bool is_function_parameter = false;
             if (m_type == ScopeType::Function) {
                 if (!m_contains_access_to_arguments_object_in_non_strict_mode && m_function_parameters_candidates_for_local_variables.contains(identifier_group_name)) {
-                    scope_has_declaration = true;
+                    is_function_parameter = true;
                 } else if (m_forbidden_lexical_names.contains(identifier_group_name)) {
                     // NOTE: If an identifier is used as a function parameter that cannot be optimized locally or globally, it is simply ignored.
                     continue;
@@ -346,7 +347,7 @@ public:
                     for (auto& identifier : identifier_group.identifiers)
                         identifier->set_is_global();
                 }
-            } else if (scope_has_declaration) {
+            } else if (scope_has_declaration || is_function_parameter) {
                 if (hoistable_function_declaration)
                     continue;
 
@@ -368,9 +369,15 @@ public:
                         local_scope = m_top_level_scope;
                     }
 
-                    auto local_variable_index = local_scope->m_node->add_local_variable(identifier_group_name);
-                    for (auto& identifier : identifier_group.identifiers)
-                        identifier->set_local_variable_index(local_variable_index);
+                    if (is_function_parameter) {
+                        auto argument_index = local_scope->m_function_parameters->get_index_of_parameter_name(identifier_group_name);
+                        for (auto& identifier : identifier_group.identifiers)
+                            identifier->set_argument_index(argument_index.value());
+                    } else {
+                        auto local_variable_index = local_scope->m_node->add_local_variable(identifier_group_name);
+                        for (auto& identifier : identifier_group.identifiers)
+                            identifier->set_local_variable_index(local_variable_index);
+                    }
                 }
             } else {
                 if (m_function_parameters || m_type == ScopeType::ClassField || m_type == ScopeType::ClassStaticInit) {

@@ -461,8 +461,14 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> Identifier::generate_by
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
 
     if (is_local()) {
-        auto local = generator.local(local_variable_index());
-        if (!generator.is_local_initialized(local_variable_index())) {
+        auto local_index = this->local_index();
+        auto local = generator.local(local_index);
+        if (!generator.is_local_initialized(local_index)) {
+            if (local_index.is_argument()) {
+                // Arguments are initialized to undefined by default, so here we need to replace it with the empty value to
+                // trigger the TDZ check.
+                generator.emit<Bytecode::Op::Mov>(local, generator.add_constant(js_special_empty_value()));
+            }
             generator.emit<Bytecode::Op::ThrowIfTDZ>(local);
         }
         return local;
@@ -1605,7 +1611,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> VariableDeclaration::ge
         if (declaration_kind() != DeclarationKind::Var) {
             if (auto const* identifier = declarator->target().get_pointer<NonnullRefPtr<Identifier const>>()) {
                 if ((*identifier)->is_local()) {
-                    init_dst = generator.local((*identifier)->local_variable_index());
+                    init_dst = generator.local((*identifier)->local_index());
                 }
             }
         }
@@ -1625,7 +1631,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> VariableDeclaration::ge
 
         if (auto const* identifier = declarator->target().get_pointer<NonnullRefPtr<Identifier const>>()) {
             if ((*identifier)->is_local()) {
-                generator.set_local_initialized((*identifier)->local_variable_index());
+                generator.set_local_initialized((*identifier)->local_index());
             }
         }
     }
@@ -1736,7 +1742,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> CallExpression::generat
             call_type = Bytecode::Op::CallType::DirectEval;
         }
         if (identifier.is_local()) {
-            auto local = generator.local(identifier.local_variable_index());
+            auto local = generator.local(identifier.local_index());
             if (!generator.is_local_initialized(local.operand().index())) {
                 generator.emit<Bytecode::Op::ThrowIfTDZ>(local);
             }
@@ -2648,7 +2654,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> TryStatement::generate_
         TRY(m_handler->parameter().visit(
             [&](NonnullRefPtr<Identifier const> const& parameter) -> Bytecode::CodeGenerationErrorOr<void> {
                 if (parameter->is_local()) {
-                    auto local = generator.local(parameter->local_variable_index());
+                    auto local = generator.local(parameter->local_index());
                     generator.emit_mov(local, caught_value);
                 } else {
                     generator.begin_variable_scope();

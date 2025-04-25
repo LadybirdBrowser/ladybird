@@ -44,14 +44,15 @@ public:
     CodeGenerationErrorOr<void> emit_function_declaration_instantiation(ECMAScriptFunctionObject const& function);
 
     [[nodiscard]] ScopedOperand allocate_register();
-    [[nodiscard]] ScopedOperand local(u32 local_index);
+    [[nodiscard]] ScopedOperand local(Identifier::Local const&);
     [[nodiscard]] ScopedOperand accumulator();
     [[nodiscard]] ScopedOperand this_value();
 
     void free_register(Register);
 
-    void set_local_initialized(u32 local_index);
+    void set_local_initialized(Identifier::Local const&);
     [[nodiscard]] bool is_local_initialized(u32 local_index) const;
+    [[nodiscard]] bool is_local_initialized(Identifier::Local const&) const;
 
     class SourceLocationScope {
     public:
@@ -411,6 +412,7 @@ private:
     Vector<ScopedOperand> m_home_objects;
 
     HashTable<u32> m_initialized_locals;
+    HashTable<u32> m_initialized_arguments;
 
     bool m_finished { false };
     bool m_must_propagate_completion { true };
