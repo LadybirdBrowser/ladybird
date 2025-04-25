@@ -262,7 +262,7 @@ void UnsignedBigIntegerAlgorithms::montgomery_modular_power_with_minimal_allocat
     // Note : Since we were using "almost montgomery" multiplications, we aren't guaranteed to be under the modulo already.
     // So, if we're here, we need to respect the modulo.
     // We can, however, start by trying to subtract the modulo, just in case we're close.
-    subtract_without_allocation(zz, modulo, result);
+    MUST(subtract_without_allocation(zz, modulo, result));
 
     if (modulo < zz) {
         // Note: This branch shouldn't happen in theory (as noted in https://github.com/rust-num/num-bigint/blob/master/src/biguint/monty.rs#L210)

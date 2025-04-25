@@ -127,7 +127,7 @@ TEST_CASE(test_unsigned_bigint_simple_subtraction)
     Crypto::UnsignedBigInteger num1(80);
     Crypto::UnsignedBigInteger num2(70);
 
-    EXPECT_EQ(num1.minus(num2), Crypto::UnsignedBigInteger(10));
+    EXPECT_EQ(TRY_OR_FAIL(num1.minus(num2)), Crypto::UnsignedBigInteger(10));
 }
 
 TEST_CASE(test_unsigned_bigint_simple_subtraction_invalid)
@@ -135,7 +135,7 @@ TEST_CASE(test_unsigned_bigint_simple_subtraction_invalid)
     Crypto::UnsignedBigInteger num1(50);
     Crypto::UnsignedBigInteger num2(70);
 
-    EXPECT(num1.minus(num2).is_invalid());
+    EXPECT(num1.minus(num2).is_error());
 }
 
 TEST_CASE(test_unsigned_bigint_simple_subtraction_with_borrow)
@@ -143,7 +143,7 @@ TEST_CASE(test_unsigned_bigint_simple_subtraction_with_borrow)
     Crypto::UnsignedBigInteger num1(UINT32_MAX);
     Crypto::UnsignedBigInteger num2(1);
     Crypto::UnsignedBigInteger num3 = num1.plus(num2);
-    Crypto::UnsignedBigInteger result = num3.minus(num2);
+    Crypto::UnsignedBigInteger result = TRY_OR_FAIL(num3.minus(num2));
     EXPECT_EQ(result, num1);
 }
 
@@ -151,7 +151,7 @@ TEST_CASE(test_unsigned_bigint_subtraction_with_large_numbers)
 {
     Crypto::UnsignedBigInteger num1 = bigint_fibonacci(343);
     Crypto::UnsignedBigInteger num2 = bigint_fibonacci(218);
-    Crypto::UnsignedBigInteger result = num1.minus(num2);
+    Crypto::UnsignedBigInteger result = TRY_OR_FAIL(num1.minus(num2));
 
     Vector<u32> expected_result {
         811430588, 2958904896, 1130908877, 2830569969, 3243275482,
@@ -165,7 +165,7 @@ TEST_CASE(test_unsigned_bigint_subtraction_with_large_numbers2)
 {
     Crypto::UnsignedBigInteger num1(Vector<u32> { 1483061863, 446680044, 1123294122, 191895498, 3347106536, 16, 0, 0, 0 });
     Crypto::UnsignedBigInteger num2(Vector<u32> { 4196414175, 1117247942, 1123294122, 191895498, 3347106536, 16 });
-    Crypto::UnsignedBigInteger result = num1.minus(num2);
+    ErrorOr<Crypto::UnsignedBigInteger> result = num1.minus(num2);
     // this test only verifies that we don't crash on an assertion
 }
 
@@ -176,7 +176,7 @@ TEST_CASE(test_unsigned_bigint_subtraction_regression_1)
         4294967295, 4294967295, 4294967295, 4294967295, 4294967295,
         4294967295, 4294967295, 4294967295, 0
     };
-    EXPECT_EQ(num.minus(1).words(), expected_result);
+    EXPECT_EQ(TRY_OR_FAIL(num.minus(1)).words(), expected_result);
 }
 
 TEST_CASE(test_unsigned_bigint_simple_multiplication)
@@ -934,7 +934,6 @@ TEST_CASE(bigint_from_double)
     {
         Crypto::UnsignedBigInteger from_zero { 0.0 };
         EXPECT(from_zero.is_zero());
-        EXPECT(!from_zero.is_invalid());
     }
 
 #define SURVIVES_ROUND_TRIP_UNSIGNED(double_value)            \
@@ -1040,7 +1039,7 @@ TEST_CASE(unsigned_bigint_double_comparisons)
         VERIFY(double_below_max_value < (double_max_value - 1.0));
         auto max_value_in_bigint = TRY_OR_FAIL(Crypto::UnsignedBigInteger::from_base(16, "fffffffffffff800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"sv));
         auto max_value_plus_one = max_value_in_bigint.plus(Crypto::UnsignedBigInteger { 1 });
-        auto max_value_minus_one = max_value_in_bigint.minus(Crypto::UnsignedBigInteger { 1 });
+        auto max_value_minus_one = TRY_OR_FAIL(max_value_in_bigint.minus(Crypto::UnsignedBigInteger { 1 }));
 
         auto below_max_value_in_bigint = TRY_OR_FAIL(Crypto::UnsignedBigInteger::from_base(16, "fffffffffffff000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"sv));
 

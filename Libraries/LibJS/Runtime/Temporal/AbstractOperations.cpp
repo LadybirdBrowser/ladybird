@@ -965,7 +965,7 @@ Crypto::SignedBigInteger apply_unsigned_rounding_mode(Crypto::SignedDivisionResu
     auto d1 = x.remainder.unsigned_value();
 
     // 7. Let d2 be r2 – x.
-    auto d2 = increment.minus(x.remainder.unsigned_value());
+    auto d2 = MUST(increment.minus(x.remainder.unsigned_value()));
 
     // 8. If d1 < d2, return r1.
     if (d1 < d2)

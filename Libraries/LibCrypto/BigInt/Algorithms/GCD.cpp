@@ -68,7 +68,7 @@ void UnsignedBigIntegerAlgorithms::extended_GCD_without_allocation(
         while (gcd < temp_1) {
             add_into_accumulator_without_allocation(gcd, b);
         }
-        subtract_without_allocation(gcd, temp_1, temp_r);
+        MUST(subtract_without_allocation(gcd, temp_1, temp_r));
         gcd.set_to(temp_2);
 
         // (old_s, s) := (s, old_s − quotient × s)
@@ -77,7 +77,7 @@ void UnsignedBigIntegerAlgorithms::extended_GCD_without_allocation(
         while (x < temp_1) {
             add_into_accumulator_without_allocation(x, b);
         }
-        subtract_without_allocation(x, temp_1, temp_s);
+        MUST(subtract_without_allocation(x, temp_1, temp_s));
         x.set_to(temp_2);
 
         // (old_t, t) := (t, old_t − quotient × t)
@@ -86,7 +86,7 @@ void UnsignedBigIntegerAlgorithms::extended_GCD_without_allocation(
         while (y < temp_1) {
             add_into_accumulator_without_allocation(y, b);
         }
-        subtract_without_allocation(y, temp_1, temp_t);
+        MUST(subtract_without_allocation(y, temp_1, temp_t));
         y.set_to(temp_2);
     }
 }

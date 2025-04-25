@@ -179,7 +179,6 @@ u64 UnsignedBigInteger::to_u64() const
 
 double UnsignedBigInteger::to_double(UnsignedBigInteger::RoundingMode rounding_mode) const
 {
-    VERIFY(!is_invalid());
     auto highest_bit = one_based_index_of_highest_set_bit();
     if (highest_bit == 0)
         return 0;
@@ -342,14 +341,12 @@ double UnsignedBigInteger::to_double(UnsignedBigInteger::RoundingMode rounding_m
 void UnsignedBigInteger::set_to_0()
 {
     m_words.clear_with_capacity();
-    m_is_invalid = false;
     m_cached_trimmed_length = {};
     m_cached_hash = 0;
 }
 
 void UnsignedBigInteger::set_to(UnsignedBigInteger::Word other)
 {
-    m_is_invalid = false;
     m_words.resize_and_keep_capacity(1);
     m_words[0] = other;
     m_cached_trimmed_length = {};
@@ -358,7 +355,6 @@ void UnsignedBigInteger::set_to(UnsignedBigInteger::Word other)
 
 void UnsignedBigInteger::set_to(UnsignedBigInteger const& other)
 {
-    m_is_invalid = other.m_is_invalid;
     m_words.resize_and_keep_capacity(other.m_words.size());
     __builtin_memcpy(m_words.data(), other.m_words.data(), other.m_words.size() * sizeof(u32));
     m_cached_trimmed_length = {};
@@ -424,11 +420,11 @@ FLATTEN UnsignedBigInteger UnsignedBigInteger::plus(UnsignedBigInteger const& ot
     return result;
 }
 
-FLATTEN UnsignedBigInteger UnsignedBigInteger::minus(UnsignedBigInteger const& other) const
+FLATTEN ErrorOr<UnsignedBigInteger> UnsignedBigInteger::minus(UnsignedBigInteger const& other) const
 {
     UnsignedBigInteger result;
 
-    UnsignedBigIntegerAlgorithms::subtract_without_allocation(*this, other, result);
+    TRY(UnsignedBigIntegerAlgorithms::subtract_without_allocation(*this, other, result));
 
     return result;
 }
@@ -577,9 +573,6 @@ void UnsignedBigInteger::set_bit_inplace(size_t bit_index)
 
 bool UnsignedBigInteger::operator==(UnsignedBigInteger const& other) const
 {
-    if (is_invalid() != other.is_invalid())
-        return false;
-
     auto length = trimmed_length();
 
     if (length != other.trimmed_length())
@@ -771,9 +764,6 @@ UnsignedBigInteger::CompareResult UnsignedBigInteger::compare_to_double(double v
 
 ErrorOr<void> AK::Formatter<Crypto::UnsignedBigInteger>::format(FormatBuilder& fmtbuilder, Crypto::UnsignedBigInteger const& value)
 {
-    if (value.is_invalid())
-        return fmtbuilder.put_string("invalid"sv);
-
     StringBuilder builder;
     for (int i = value.length() - 1; i >= 0; --i)
         TRY(builder.try_appendff("{}|", value.words()[i]));

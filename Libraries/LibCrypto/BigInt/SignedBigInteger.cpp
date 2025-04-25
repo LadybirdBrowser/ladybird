@@ -109,23 +109,23 @@ FLATTEN SignedBigInteger SignedBigInteger::minus(SignedBigInteger const& other) 
         // x - y = - (y - x)
         if (m_unsigned_data < other.m_unsigned_data) {
             // The result will be negative.
-            return { other.m_unsigned_data.minus(m_unsigned_data), true };
+            return { MUST(other.m_unsigned_data.minus(m_unsigned_data)), true };
         }
 
         // The result will be either zero, or positive.
-        return SignedBigInteger { m_unsigned_data.minus(other.m_unsigned_data) };
+        return SignedBigInteger { MUST(m_unsigned_data.minus(other.m_unsigned_data)) };
     }
 
     // Both operands are negative.
     // -x - -y = y - x
     if (m_unsigned_data < other.m_unsigned_data) {
         // The result will be positive.
-        return SignedBigInteger { other.m_unsigned_data.minus(m_unsigned_data) };
+        return SignedBigInteger { MUST(other.m_unsigned_data.minus(m_unsigned_data)) };
     }
     // y - x = - (x - y)
     if (m_unsigned_data > other.m_unsigned_data) {
         // The result will be negative.
-        return SignedBigInteger { m_unsigned_data.minus(other.m_unsigned_data), true };
+        return SignedBigInteger { MUST(m_unsigned_data.minus(other.m_unsigned_data)), true };
     }
     // Both operands have the same magnitude, the result is positive zero.
     return SignedBigInteger { 0 };
@@ -135,9 +135,9 @@ FLATTEN SignedBigInteger SignedBigInteger::plus(UnsignedBigInteger const& other)
 {
     if (m_sign) {
         if (other < m_unsigned_data)
-            return { m_unsigned_data.minus(other), true };
+            return { MUST(m_unsigned_data.minus(other)), true };
 
-        return { other.minus(m_unsigned_data), false };
+        return { MUST(other.minus(m_unsigned_data)), false };
     }
 
     return { m_unsigned_data.plus(other), false };
@@ -149,9 +149,9 @@ FLATTEN SignedBigInteger SignedBigInteger::minus(UnsignedBigInteger const& other
         return { m_unsigned_data.plus(m_unsigned_data), true };
 
     if (other < m_unsigned_data)
-        return { m_unsigned_data.minus(other), false };
+        return { MUST(m_unsigned_data.minus(other)), false };
 
-    return { other.minus(m_unsigned_data), true };
+    return { MUST(other.minus(m_unsigned_data)), true };
 }
 
 FLATTEN SignedBigInteger SignedBigInteger::bitwise_not() const
@@ -190,16 +190,16 @@ FLATTEN SignedBigInteger SignedBigInteger::bitwise_or(SignedBigInteger const& ot
     // This saves one ~.
     if (is_negative() && !other.is_negative()) {
         size_t index = unsigned_value().one_based_index_of_highest_set_bit();
-        return { unsigned_value().minus(1).bitwise_and(other.unsigned_value().bitwise_not_fill_to_one_based_index(index)).plus(1), true };
+        return { MUST(unsigned_value().minus(1)).bitwise_and(other.unsigned_value().bitwise_not_fill_to_one_based_index(index)).plus(1), true };
     }
 
     // -(A | -B) == ~A & (B - 1) + 1
     if (!is_negative() && other.is_negative()) {
         size_t index = other.unsigned_value().one_based_index_of_highest_set_bit();
-        return { unsigned_value().bitwise_not_fill_to_one_based_index(index).bitwise_and(other.unsigned_value().minus(1)).plus(1), true };
+        return { unsigned_value().bitwise_not_fill_to_one_based_index(index).bitwise_and(MUST(other.unsigned_value().minus(1))).plus(1), true };
     }
 
-    return { unsigned_value().minus(1).bitwise_and(other.unsigned_value().minus(1)).plus(1), true };
+    return { MUST(unsigned_value().minus(1)).bitwise_and(MUST(other.unsigned_value().minus(1))).plus(1), true };
 }
 
 FLATTEN SignedBigInteger SignedBigInteger::bitwise_and(SignedBigInteger const& other) const
@@ -237,7 +237,7 @@ FLATTEN SignedBigInteger SignedBigInteger::bitwise_and(SignedBigInteger const& o
     //   -A & -B == -( (A - 1) | (B - 1) + 1)
     // So we can compute the bitwise and by returning a negative number with magnitude (A - 1) | (B - 1) + 1.
     // This is better than the naive (~A + 1) & (~B + 1) because it needs just one O(n) scan for the or instead of 2 for the ~s.
-    return { unsigned_value().minus(1).bitwise_or(other.unsigned_value().minus(1)).plus(1), true };
+    return { MUST(unsigned_value().minus(1)).bitwise_or(MUST(other.unsigned_value().minus(1))).plus(1), true };
 }
 
 FLATTEN SignedBigInteger SignedBigInteger::bitwise_xor(SignedBigInteger const& other) const
@@ -333,9 +333,6 @@ void SignedBigInteger::set_bit_inplace(size_t bit_index)
 
 bool SignedBigInteger::operator==(SignedBigInteger const& other) const
 {
-    if (is_invalid() != other.is_invalid())
-        return false;
-
     if (m_unsigned_data == 0 && other.m_unsigned_data == 0)
         return true;
 
