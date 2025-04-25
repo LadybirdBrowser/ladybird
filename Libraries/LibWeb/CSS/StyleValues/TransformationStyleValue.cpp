@@ -129,13 +129,19 @@ String TransformationStyleValue::to_string(SerializationMode mode) const
 
         auto x_value = resolve_to_string(m_properties.values[0]);
         auto y_value = resolve_to_string(m_properties.values[1]);
-        // FIXME: 3D scaling
+        Optional<String> z_value;
+        if (m_properties.values.size() == 3)
+            z_value = resolve_to_string(m_properties.values[2]);
 
         StringBuilder builder;
         builder.append(x_value);
-        if (x_value != y_value) {
+        if (x_value != y_value || z_value.has_value()) {
             builder.append(" "sv);
             builder.append(y_value);
+        }
+        if (z_value.has_value()) {
+            builder.append(" "sv);
+            builder.append(z_value.value());
         }
         return builder.to_string_without_validation();
     }
