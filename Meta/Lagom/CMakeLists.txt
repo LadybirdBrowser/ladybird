@@ -139,8 +139,6 @@ add_library(JSClangPlugin INTERFACE)
 add_library(GenericClangPlugin INTERFACE)
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang$")
-    add_cxx_compile_options(-Wno-overloaded-virtual)
-
     if (ENABLE_FUZZERS_LIBFUZZER)
         add_cxx_compile_options(-fsanitize=fuzzer)
         set(LINKER_FLAGS "${LINKER_FLAGS} -fsanitize=fuzzer")
