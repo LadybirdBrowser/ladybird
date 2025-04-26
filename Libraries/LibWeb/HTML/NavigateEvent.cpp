@@ -25,6 +25,13 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(NavigateEvent);
 
+GC::Ref<NavigateEvent> NavigateEvent::create(JS::Realm& realm, FlyString const& event_name, NavigateEventInit const& event_init)
+{
+    auto event = realm.create<NavigateEvent>(realm, event_name, event_init);
+    event->set_is_trusted(true);
+    return event;
+}
+
 GC::Ref<NavigateEvent> NavigateEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, NavigateEventInit const& event_init)
 {
     return realm.create<NavigateEvent>(realm, event_name, event_init);

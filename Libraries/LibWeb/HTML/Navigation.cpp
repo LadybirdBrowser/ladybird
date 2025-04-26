@@ -1045,7 +1045,7 @@ bool Navigation::inner_navigate_event_firing_algorithm(
     }
 
     // AD-HOC: *Now* we have all the info required to create the event
-    auto event = NavigateEvent::construct_impl(realm, EventNames::navigate, event_init);
+    auto event = NavigateEvent::create(realm, EventNames::navigate, event_init);
     event->set_abort_controller(abort_controller);
 
     // AD-HOC: This is supposed to be set in "fire a <type> navigate event", and is only non-null when
