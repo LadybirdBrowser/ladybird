@@ -547,6 +547,19 @@ FLATTEN UnsignedDivisionResult UnsignedBigInteger::divided_by(UnsignedBigInteger
     return UnsignedDivisionResult { quotient, remainder };
 }
 
+FLATTEN UnsignedBigInteger UnsignedBigInteger::gcd(UnsignedBigInteger const& other) const
+{
+    UnsignedBigInteger temp_a { *this };
+    UnsignedBigInteger temp_b { other };
+    UnsignedBigInteger temp_quotient;
+    UnsignedBigInteger temp_remainder;
+    UnsignedBigInteger output;
+
+    UnsignedBigIntegerAlgorithms::destructive_GCD_without_allocation(temp_a, temp_b, temp_quotient, temp_remainder, output);
+
+    return output;
+}
+
 u32 UnsignedBigInteger::hash() const
 {
     if (m_cached_hash != 0)

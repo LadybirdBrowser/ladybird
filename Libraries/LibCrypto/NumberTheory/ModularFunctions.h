@@ -34,6 +34,4 @@ static IntegerType Power(IntegerType const& b, IntegerType const& e)
     return exp;
 }
 
-UnsignedBigInteger GCD(UnsignedBigInteger const& a, UnsignedBigInteger const& b);
-
 }
