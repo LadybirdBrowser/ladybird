@@ -52,6 +52,7 @@ public:
         Finished
     };
 
+    [[nodiscard]] static GC::Ref<NavigateEvent> create(JS::Realm&, FlyString const& event_name, NavigateEventInit const&);
     [[nodiscard]] static GC::Ref<NavigateEvent> construct_impl(JS::Realm&, FlyString const& event_name, NavigateEventInit const&);
 
     // The navigationType, destination, canIntercept, userInitiated, hashChange, signal, formData, downloadRequest,
