@@ -15,7 +15,6 @@
 #include <AK/StringFloatingPointConversions.h>
 #include <AK/Utf8View.h>
 #include <LibCrypto/BigInt/SignedBigInteger.h>
-#include <LibCrypto/NumberTheory/ModularFunctions.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Accessor.h>
 #include <LibJS/Runtime/Array.h>
@@ -1599,7 +1598,7 @@ ThrowCompletionOr<Value> left_shift(VM& vm, Value lhs, Value rhs)
             return vm.throw_completion<RangeError>(ErrorType::BigIntSizeExceeded);
 
         // 6.1.6.2.9 BigInt::leftShift ( x, y ), https://tc39.es/ecma262/#sec-numeric-types-bigint-leftShift
-        auto multiplier_divisor = Crypto::SignedBigInteger { Crypto::NumberTheory::Power(Crypto::UnsignedBigInteger(2), rhs_bigint) };
+        auto multiplier_divisor = Crypto::SignedBigInteger { Crypto::UnsignedBigInteger(2).pow(rhs_bigint.to_u64()) };
 
         // 1. If y < 0ℤ, then
         if (rhs_numeric.as_bigint().big_integer().is_negative()) {
@@ -2075,9 +2074,14 @@ ThrowCompletionOr<Value> exp(VM& vm, Value lhs, Value rhs)
         // 1. If exponent < 0ℤ, throw a RangeError exception.
         if (exponent.is_negative())
             return vm.throw_completion<RangeError>(ErrorType::NegativeExponent);
+
+        // AD-HOC: Prevent allocating huge amounts of memory.
+        if (exponent.unsigned_value().byte_length() > sizeof(u32))
+            return vm.throw_completion<RangeError>(ErrorType::BigIntSizeExceeded);
+
         // 2. If base is 0ℤ and exponent is 0ℤ, return 1ℤ.
         // 3. Return the BigInt value that represents ℝ(base) raised to the power ℝ(exponent).
-        return BigInt::create(vm, Crypto::NumberTheory::Power(base, exponent));
+        return BigInt::create(vm, base.pow(exponent.to_u64()));
     }
     return vm.throw_completion<TypeError>(ErrorType::BigIntBadOperatorOtherType, "exponentiation");
 }
