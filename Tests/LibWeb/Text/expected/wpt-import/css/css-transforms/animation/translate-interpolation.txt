@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 408 tests
 
-54 Pass
-354 Fail
+58 Pass
+350 Fail
 Fail	CSS Transitions: property <translate> from [-100px] to [100px] at (-1) should be [-300px]
 Pass	CSS Transitions: property <translate> from [-100px] to [100px] at (0) should be [-100px]
 Fail	CSS Transitions: property <translate> from [-100px] to [100px] at (0.25) should be [-50px]
@@ -11,7 +11,7 @@ Fail	CSS Transitions: property <translate> from [-100px] to [100px] at (0.75) sh
 Pass	CSS Transitions: property <translate> from [-100px] to [100px] at (1) should be [100px]
 Fail	CSS Transitions: property <translate> from [-100px] to [100px] at (2) should be [300px]
 Fail	CSS Transitions with transition: all: property <translate> from [-100px] to [100px] at (-1) should be [-300px]
-Fail	CSS Transitions with transition: all: property <translate> from [-100px] to [100px] at (0) should be [-100px]
+Pass	CSS Transitions with transition: all: property <translate> from [-100px] to [100px] at (0) should be [-100px]
 Fail	CSS Transitions with transition: all: property <translate> from [-100px] to [100px] at (0.25) should be [-50px]
 Fail	CSS Transitions with transition: all: property <translate> from [-100px] to [100px] at (0.75) should be [50px]
 Pass	CSS Transitions with transition: all: property <translate> from [-100px] to [100px] at (1) should be [100px]
@@ -35,7 +35,7 @@ Fail	CSS Transitions: property <translate> from [-100%] to [100%] at (0.75) shou
 Pass	CSS Transitions: property <translate> from [-100%] to [100%] at (1) should be [100%]
 Fail	CSS Transitions: property <translate> from [-100%] to [100%] at (2) should be [300%]
 Fail	CSS Transitions with transition: all: property <translate> from [-100%] to [100%] at (-1) should be [-300%]
-Fail	CSS Transitions with transition: all: property <translate> from [-100%] to [100%] at (0) should be [-100%]
+Pass	CSS Transitions with transition: all: property <translate> from [-100%] to [100%] at (0) should be [-100%]
 Fail	CSS Transitions with transition: all: property <translate> from [-100%] to [100%] at (0.25) should be [-50%]
 Fail	CSS Transitions with transition: all: property <translate> from [-100%] to [100%] at (0.75) should be [50%]
 Pass	CSS Transitions with transition: all: property <translate> from [-100%] to [100%] at (1) should be [100%]
@@ -59,7 +59,7 @@ Fail	CSS Transitions: property <translate> from [-100px -50px] to [100px 50px] a
 Pass	CSS Transitions: property <translate> from [-100px -50px] to [100px 50px] at (1) should be [100px 50px]
 Fail	CSS Transitions: property <translate> from [-100px -50px] to [100px 50px] at (2) should be [300px 150px]
 Fail	CSS Transitions with transition: all: property <translate> from [-100px -50px] to [100px 50px] at (-1) should be [-300px -150px]
-Fail	CSS Transitions with transition: all: property <translate> from [-100px -50px] to [100px 50px] at (0) should be [-100px -50px]
+Pass	CSS Transitions with transition: all: property <translate> from [-100px -50px] to [100px 50px] at (0) should be [-100px -50px]
 Fail	CSS Transitions with transition: all: property <translate> from [-100px -50px] to [100px 50px] at (0.25) should be [-50px -25px]
 Fail	CSS Transitions with transition: all: property <translate> from [-100px -50px] to [100px 50px] at (0.75) should be [50px 25px]
 Pass	CSS Transitions with transition: all: property <translate> from [-100px -50px] to [100px 50px] at (1) should be [100px 50px]
@@ -227,7 +227,7 @@ Fail	CSS Transitions: property <translate> from neutral to [20px] at (0.75) shou
 Pass	CSS Transitions: property <translate> from neutral to [20px] at (1) should be [20px]
 Fail	CSS Transitions: property <translate> from neutral to [20px] at (2) should be [30px]
 Fail	CSS Transitions with transition: all: property <translate> from neutral to [20px] at (-1) should be [0px]
-Fail	CSS Transitions with transition: all: property <translate> from neutral to [20px] at (0) should be [10px]
+Pass	CSS Transitions with transition: all: property <translate> from neutral to [20px] at (0) should be [10px]
 Fail	CSS Transitions with transition: all: property <translate> from neutral to [20px] at (0.25) should be [12.5px]
 Fail	CSS Transitions with transition: all: property <translate> from neutral to [20px] at (0.75) should be [17.5px]
 Pass	CSS Transitions with transition: all: property <translate> from neutral to [20px] at (1) should be [20px]
