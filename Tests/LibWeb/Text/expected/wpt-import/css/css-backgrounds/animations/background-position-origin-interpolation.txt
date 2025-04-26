@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 280 tests
 
-88 Pass
-192 Fail
+96 Pass
+184 Fail
 Fail	CSS Transitions: property <background-position> from neutral to [left 20px top 20px] at (0) should be [10px 10px]
 Fail	CSS Transitions: property <background-position> from neutral to [left 20px top 20px] at (0.25) should be [12.5px 12.5px]
 Fail	CSS Transitions: property <background-position> from neutral to [left 20px top 20px] at (0.5) should be [15px 15px]
@@ -109,7 +109,7 @@ Fail	CSS Transitions: property <background-position> from [center center] to [ce
 Fail	CSS Transitions: property <background-position> from [center center] to [center top 20px] at (0.5) should be [50% calc(10px + 25%)]
 Fail	CSS Transitions: property <background-position> from [center center] to [center top 20px] at (0.75) should be [50% calc(15px + 12.5%)]
 Fail	CSS Transitions: property <background-position> from [center center] to [center top 20px] at (1) should be [50% calc(0% + 20px)]
-Fail	CSS Transitions with transition: all: property <background-position> from [center center] to [center top 20px] at (0) should be [50% 50%]
+Pass	CSS Transitions with transition: all: property <background-position> from [center center] to [center top 20px] at (0) should be [50% 50%]
 Fail	CSS Transitions with transition: all: property <background-position> from [center center] to [center top 20px] at (0.25) should be [50% calc(5px + 37.5%)]
 Fail	CSS Transitions with transition: all: property <background-position> from [center center] to [center top 20px] at (0.5) should be [50% calc(10px + 25%)]
 Fail	CSS Transitions with transition: all: property <background-position> from [center center] to [center top 20px] at (0.75) should be [50% calc(15px + 12.5%)]
@@ -149,7 +149,7 @@ Fail	CSS Transitions: property <background-position> from [center center] to [le
 Fail	CSS Transitions: property <background-position> from [center center] to [left 20px center] at (0.5) should be [calc(10px + 25%) 50%]
 Fail	CSS Transitions: property <background-position> from [center center] to [left 20px center] at (0.75) should be [calc(15px + 12.5%) 50%]
 Fail	CSS Transitions: property <background-position> from [center center] to [left 20px center] at (1) should be [calc(0% + 20px) 50%]
-Fail	CSS Transitions with transition: all: property <background-position> from [center center] to [left 20px center] at (0) should be [50% 50%]
+Pass	CSS Transitions with transition: all: property <background-position> from [center center] to [left 20px center] at (0) should be [50% 50%]
 Fail	CSS Transitions with transition: all: property <background-position> from [center center] to [left 20px center] at (0.25) should be [calc(5px + 37.5%) 50%]
 Fail	CSS Transitions with transition: all: property <background-position> from [center center] to [left 20px center] at (0.5) should be [calc(10px + 25%) 50%]
 Fail	CSS Transitions with transition: all: property <background-position> from [center center] to [left 20px center] at (0.75) should be [calc(15px + 12.5%) 50%]
@@ -189,7 +189,7 @@ Fail	CSS Transitions: property <background-position> from [center center] to [ri
 Fail	CSS Transitions: property <background-position> from [center center] to [right 20px center] at (0.5) should be [calc(-10px + 75%) 50%]
 Fail	CSS Transitions: property <background-position> from [center center] to [right 20px center] at (0.75) should be [calc(-15px + 87.5%) 50%]
 Pass	CSS Transitions: property <background-position> from [center center] to [right 20px center] at (1) should be [calc(-20px + 100%) 50%]
-Fail	CSS Transitions with transition: all: property <background-position> from [center center] to [right 20px center] at (0) should be [50% 50%]
+Pass	CSS Transitions with transition: all: property <background-position> from [center center] to [right 20px center] at (0) should be [50% 50%]
 Fail	CSS Transitions with transition: all: property <background-position> from [center center] to [right 20px center] at (0.25) should be [calc(-5px + 62.5%) 50%]
 Fail	CSS Transitions with transition: all: property <background-position> from [center center] to [right 20px center] at (0.5) should be [calc(-10px + 75%) 50%]
 Fail	CSS Transitions with transition: all: property <background-position> from [center center] to [right 20px center] at (0.75) should be [calc(-15px + 87.5%) 50%]
@@ -229,7 +229,7 @@ Fail	CSS Transitions: property <background-position> from [center center] to [ce
 Fail	CSS Transitions: property <background-position> from [center center] to [center bottom 20px] at (0.5) should be [50% calc(-10px + 75%)]
 Fail	CSS Transitions: property <background-position> from [center center] to [center bottom 20px] at (0.75) should be [50% calc(-15px + 87.5%)]
 Pass	CSS Transitions: property <background-position> from [center center] to [center bottom 20px] at (1) should be [50% calc(-20px + 100%)]
-Fail	CSS Transitions with transition: all: property <background-position> from [center center] to [center bottom 20px] at (0) should be [50% 50%]
+Pass	CSS Transitions with transition: all: property <background-position> from [center center] to [center bottom 20px] at (0) should be [50% 50%]
 Fail	CSS Transitions with transition: all: property <background-position> from [center center] to [center bottom 20px] at (0.25) should be [50% calc(-5px + 62.5%)]
 Fail	CSS Transitions with transition: all: property <background-position> from [center center] to [center bottom 20px] at (0.5) should be [50% calc(-10px + 75%)]
 Fail	CSS Transitions with transition: all: property <background-position> from [center center] to [center bottom 20px] at (0.75) should be [50% calc(-15px + 87.5%)]
@@ -269,10 +269,10 @@ Pass	CSS Transitions: property <background-position> from [center] to [bottom] a
 Pass	CSS Transitions: property <background-position> from [center] to [bottom] at (0.5) should be [50% 75%]
 Pass	CSS Transitions: property <background-position> from [center] to [bottom] at (0.75) should be [50% 87.5%]
 Pass	CSS Transitions: property <background-position> from [center] to [bottom] at (1) should be [50% 100%]
-Fail	CSS Transitions with transition: all: property <background-position> from [center] to [bottom] at (0) should be [50% 50%]
-Fail	CSS Transitions with transition: all: property <background-position> from [center] to [bottom] at (0.25) should be [50% 62.5%]
-Fail	CSS Transitions with transition: all: property <background-position> from [center] to [bottom] at (0.5) should be [50% 75%]
-Fail	CSS Transitions with transition: all: property <background-position> from [center] to [bottom] at (0.75) should be [50% 87.5%]
+Pass	CSS Transitions with transition: all: property <background-position> from [center] to [bottom] at (0) should be [50% 50%]
+Pass	CSS Transitions with transition: all: property <background-position> from [center] to [bottom] at (0.25) should be [50% 62.5%]
+Pass	CSS Transitions with transition: all: property <background-position> from [center] to [bottom] at (0.5) should be [50% 75%]
+Pass	CSS Transitions with transition: all: property <background-position> from [center] to [bottom] at (0.75) should be [50% 87.5%]
 Pass	CSS Transitions with transition: all: property <background-position> from [center] to [bottom] at (1) should be [50% 100%]
 Pass	CSS Animations: property <background-position> from [center] to [bottom] at (0) should be [50% 50%]
 Pass	CSS Animations: property <background-position> from [center] to [bottom] at (0.25) should be [50% 62.5%]

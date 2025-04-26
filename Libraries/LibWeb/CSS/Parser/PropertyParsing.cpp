@@ -3829,11 +3829,15 @@ RefPtr<CSSStyleValue const> Parser::parse_transition_property_value(TokenStream<
     StyleValueVector transition_properties;
     for (auto const& value : transition_property_values) {
         TokenStream transition_property_tokens { value };
-        auto custom_ident = parse_custom_ident_value(transition_property_tokens, { { "none"sv } });
-        if (!custom_ident || transition_property_tokens.has_next_token())
-            return nullptr;
+        if (auto all_keyword_value = parse_all_as_single_keyword_value(transition_property_tokens, Keyword::All)) {
+            transition_properties.append(*all_keyword_value);
+        } else {
+            auto custom_ident = parse_custom_ident_value(transition_property_tokens, { { "all"sv, "none"sv } });
+            if (!custom_ident || transition_property_tokens.has_next_token())
+                return nullptr;
 
-        transition_properties.append(custom_ident.release_nonnull());
+            transition_properties.append(custom_ident.release_nonnull());
+        }
     }
     transaction.commit();
     return StyleValueList::create(move(transition_properties), StyleValueList::Separator::Comma);
