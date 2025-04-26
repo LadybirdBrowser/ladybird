@@ -65,6 +65,9 @@ CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(E
         } else {
             emit<Op::CreateArguments>(dst, Op::CreateArguments::Kind::Mapped, function.is_strict_mode());
         }
+
+        if (local_var_index.has_value())
+            set_local_initialized(Identifier::Local::variable(local_var_index.value()));
     }
 
     auto const& formal_parameters = function.formal_parameters();
