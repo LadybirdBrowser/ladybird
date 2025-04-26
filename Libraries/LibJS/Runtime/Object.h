@@ -197,7 +197,7 @@ public:
 
     virtual bool is_function() const { return false; }
     virtual bool is_promise() const { return false; }
-    virtual bool is_error() const { return false; }
+    virtual bool is_error_object() const { return false; }
     virtual bool is_date() const { return false; }
     virtual bool is_number_object() const { return false; }
     virtual bool is_boolean_object() const { return false; }
