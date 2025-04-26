@@ -5,12 +5,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "BigFraction.h"
 #include <AK/ByteString.h>
 #include <AK/Math.h>
 #include <AK/StringBuilder.h>
+#include <LibCrypto/BigFraction/BigFraction.h>
 #include <LibCrypto/BigInt/UnsignedBigInteger.h>
-#include <LibCrypto/NumberTheory/ModularFunctions.h>
 
 namespace Crypto {
 
@@ -36,12 +35,11 @@ ErrorOr<BigFraction> BigFraction::from_string(StringView sv)
 
     auto integer_part = TRY(SignedBigInteger::from_base(10, integer_part_view));
     auto fractional_part = TRY(SignedBigInteger::from_base(10, fraction_part_view));
-    auto fraction_length = UnsignedBigInteger(static_cast<u64>(fraction_part_view.length()));
 
     if (!sv.is_empty() && sv[0] == '-')
         fractional_part.negate();
 
-    return BigFraction(move(integer_part)) + BigFraction(move(fractional_part), NumberTheory::Power("10"_bigint, move(fraction_length)));
+    return BigFraction(move(integer_part)) + BigFraction(move(fractional_part), "10"_bigint.pow(fraction_part_view.length()));
 }
 
 BigFraction BigFraction::operator+(BigFraction const& rhs) const
@@ -129,7 +127,7 @@ BigFraction::BigFraction(double d)
         d -= digit * AK::pow(10.0, (double)current_pow);
         if (current_pow < 0) {
             ++decimal_places;
-            m_denominator.set_to(NumberTheory::Power("10"_bigint, UnsignedBigInteger { decimal_places }));
+            m_denominator.set_to("10"_bigint.pow(decimal_places));
         }
         current_pow -= 1;
     }
@@ -205,7 +203,7 @@ BigFraction BigFraction::rounded(unsigned rounding_threshold) const
     auto res = m_numerator.divided_by(m_denominator);
     BigFraction result { move(res.quotient) };
 
-    auto const needed_power = NumberTheory::Power("10"_bigint, UnsignedBigInteger { rounding_threshold });
+    auto const needed_power = "10"_bigint.pow(rounding_threshold);
     // We get one more digit to do proper rounding
     auto const fractional_value = res.remainder.multiplied_by(needed_power.multiplied_by("10"_bigint)).divided_by(m_denominator).quotient;
 

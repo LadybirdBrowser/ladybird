@@ -547,6 +547,26 @@ FLATTEN UnsignedDivisionResult UnsignedBigInteger::divided_by(UnsignedBigInteger
     return UnsignedDivisionResult { quotient, remainder };
 }
 
+FLATTEN UnsignedBigInteger UnsignedBigInteger::pow(u32 exponent) const
+{
+    UnsignedBigInteger ep { exponent };
+    UnsignedBigInteger base { *this };
+    UnsignedBigInteger exp { 1 };
+
+    while (!(ep <  1 )) {
+        if (ep.words()[0] % 2 == 1)
+            exp.set_to(exp.multiplied_by(base));
+
+        // ep = ep / 2;
+        ep.set_to(ep.shift_right(1));
+
+        // base = base * base
+        base.set_to(base.multiplied_by(base));
+    }
+
+    return exp;
+}
+
 FLATTEN UnsignedBigInteger UnsignedBigInteger::gcd(UnsignedBigInteger const& other) const
 {
     UnsignedBigInteger temp_a { *this };
