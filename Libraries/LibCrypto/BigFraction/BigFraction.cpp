@@ -221,7 +221,7 @@ BigFraction BigFraction::rounded(unsigned rounding_threshold) const
 
 void BigFraction::reduce()
 {
-    auto const gcd = NumberTheory::GCD(m_numerator.unsigned_value(), m_denominator);
+    auto const gcd = m_numerator.unsigned_value().gcd(m_denominator);
 
     if (gcd == 1)
         return;
