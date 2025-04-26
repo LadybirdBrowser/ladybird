@@ -1402,12 +1402,14 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
 
     auto source_document = params.source_document;
     auto exceptions_enabled = params.exceptions_enabled;
+
     auto& active_document = *this->active_document();
     auto& realm = active_document.realm();
+    auto& page_client = active_document.page().client();
 
     // AD-HOC: If we are not able to continue in this process, request a new process from the UI.
-    if (!active_document.page().client().is_url_suitable_for_same_process_navigation(active_document.url(), params.url)) {
-        active_document.page().client().request_new_process_for_navigation(params.url);
+    if (is_top_level_traversable() && !page_client.is_url_suitable_for_same_process_navigation(active_document.url(), params.url)) {
+        page_client.request_new_process_for_navigation(params.url);
         return {};
     }
 
