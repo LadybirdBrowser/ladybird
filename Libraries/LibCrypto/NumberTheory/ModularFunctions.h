@@ -10,10 +10,6 @@
 
 namespace Crypto::NumberTheory {
 
-UnsignedBigInteger Mod(UnsignedBigInteger const& a, UnsignedBigInteger const& b);
-UnsignedBigInteger ModularInverse(UnsignedBigInteger const& a_, UnsignedBigInteger const& b);
-UnsignedBigInteger ModularPower(UnsignedBigInteger const& b, UnsignedBigInteger const& e, UnsignedBigInteger const& m);
-
 // Note: This function _will_ generate extremely huge numbers, and in doing so,
 //       it will allocate and free a lot of memory!
 //       Please use |ModularPower| if your use-case is modexp.
@@ -39,6 +35,5 @@ static IntegerType Power(IntegerType const& b, IntegerType const& e)
 }
 
 UnsignedBigInteger GCD(UnsignedBigInteger const& a, UnsignedBigInteger const& b);
-UnsignedBigInteger LCM(UnsignedBigInteger const& a, UnsignedBigInteger const& b);
 
 }
