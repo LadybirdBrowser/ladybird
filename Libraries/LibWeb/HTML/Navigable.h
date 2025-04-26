@@ -186,6 +186,8 @@ public:
     bool has_session_history_entry_and_ready_for_navigation() const { return m_has_session_history_entry_and_ready_for_navigation; }
     void set_has_session_history_entry_and_ready_for_navigation();
 
+    void inform_the_navigation_api_about_child_navigable_destruction();
+
     bool has_pending_navigations() const { return !m_pending_navigations.is_empty(); }
 
     template<typename T>

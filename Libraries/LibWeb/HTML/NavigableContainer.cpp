@@ -282,7 +282,8 @@ void NavigableContainer::destroy_the_child_navigable()
         return;
     navigable->set_has_been_destroyed();
 
-    // FIXME: 4. Inform the navigation API about child navigable destruction given navigable.
+    // 4. Inform the navigation API about child navigable destruction given navigable.
+    navigable->inform_the_navigation_api_about_child_navigable_destruction();
 
     // 5. Destroy a document and its descendants given navigable's active document.
     navigable->active_document()->destroy_a_document_and_its_descendants(GC::create_function(heap(), [this, navigable] {

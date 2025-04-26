@@ -2343,6 +2343,19 @@ bool Navigable::has_a_rendering_opportunity() const
     return browsing_context->page().client().is_ready_to_paint();
 }
 
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#inform-the-navigation-api-about-child-navigable-destruction
+void Navigable::inform_the_navigation_api_about_child_navigable_destruction()
+{
+    // 1. Inform the navigation API about aborting navigation in navigable.
+    inform_the_navigation_api_about_aborting_navigation();
+
+    // FIXME: 2. Let navigation be navigable's active window's navigation API.
+
+    // FIXME: 3. Let traversalAPIMethodTrackers be a clone of navigation's upcoming traverse API method trackers.
+
+    // FIXME: 4. For each apiMethodTracker of traversalAPIMethodTrackers: reject the finished promise for apiMethodTracker with a new "AbortError" DOMException created in navigation's relevant realm.
+}
+
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#inform-the-navigation-api-about-aborting-navigation
 void Navigable::inform_the_navigation_api_about_aborting_navigation()
 {
