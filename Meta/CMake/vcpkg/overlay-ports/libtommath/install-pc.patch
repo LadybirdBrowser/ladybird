@@ -1,0 +1,12 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -168,7 +168,7 @@ install(TARGETS ${PROJECT_NAME}
+ )
+
+ # Install libtommath.pc for pkg-config if we build a shared library
+-if(BUILD_SHARED_LIBS)
++if(BUILD_SHARED_LIBS OR TRUE)
+     # Let the user override the default directory of the pkg-config file (usually this shouldn't be required to be changed)
+     set(CMAKE_INSTALL_PKGCONFIGDIR "${CMAKE_INSTALL_LIBDIR}/pkgconfig" CACHE PATH "Folder where to install .pc files")
+

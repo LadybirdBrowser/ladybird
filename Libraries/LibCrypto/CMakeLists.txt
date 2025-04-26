@@ -34,5 +34,9 @@ set(SOURCES
 serenity_lib(LibCrypto crypto)
 target_link_libraries(LibCrypto PRIVATE LibCore)
 
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(libtommath REQUIRED IMPORTED_TARGET libtommath)
+target_link_libraries(LibCrypto PRIVATE PkgConfig::libtommath)
+
 find_package(OpenSSL REQUIRED)
 target_link_libraries(LibCrypto PUBLIC OpenSSL::Crypto)
