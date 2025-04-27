@@ -18,7 +18,7 @@ public:
     virtual void initialize(Realm&) override;
     virtual ~FunctionPrototype() override = default;
 
-    virtual ThrowCompletionOr<Value> internal_call(Value this_argument, ReadonlySpan<Value> arguments_list) override;
+    virtual ThrowCompletionOr<Value> internal_call(ExecutionContext&, Value this_argument) override;
 
 private:
     explicit FunctionPrototype(Realm&);

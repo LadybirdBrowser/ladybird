@@ -59,7 +59,19 @@ ThrowCompletionOr<Value> call_impl(VM& vm, Value function, Value this_value, Rea
         return vm.throw_completion<TypeError>(ErrorType::NotAFunction, function.to_string_without_side_effects());
 
     // 3. Return ? F.[[Call]](V, argumentsList).
-    return function.as_function().internal_call(this_value, arguments_list);
+    ExecutionContext* callee_context = nullptr;
+    auto& function_object = function.as_function();
+    size_t registers_and_constants_and_locals_count = 0;
+    size_t argument_count = arguments_list.size();
+    TRY(function_object.get_stack_frame_size(registers_and_constants_and_locals_count, argument_count));
+    ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK(callee_context, registers_and_constants_and_locals_count, argument_count);
+
+    auto* argument_values = callee_context->arguments.data();
+    for (size_t i = 0; i < arguments_list.size(); ++i)
+        argument_values[i] = arguments_list[i];
+    callee_context->passed_argument_count = arguments_list.size();
+
+    return function_object.internal_call(*callee_context, this_value);
 }
 
 ThrowCompletionOr<Value> call_impl(VM&, FunctionObject& function, Value this_value, ReadonlySpan<Value> arguments_list)
@@ -70,7 +82,18 @@ ThrowCompletionOr<Value> call_impl(VM&, FunctionObject& function, Value this_val
     // Note: Called with a FunctionObject ref
 
     // 3. Return ? F.[[Call]](V, argumentsList).
-    return function.internal_call(this_value, arguments_list);
+    ExecutionContext* callee_context = nullptr;
+    size_t registers_and_constants_and_locals_count = 0;
+    size_t argument_count = arguments_list.size();
+    TRY(function.get_stack_frame_size(registers_and_constants_and_locals_count, argument_count));
+    ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK(callee_context, registers_and_constants_and_locals_count, argument_count);
+
+    auto* argument_values = callee_context->arguments.data();
+    for (size_t i = 0; i < arguments_list.size(); ++i)
+        argument_values[i] = arguments_list[i];
+    callee_context->passed_argument_count = arguments_list.size();
+
+    return function.internal_call(*callee_context, this_value);
 }
 
 // 7.3.15 Construct ( F [ , argumentsList [ , newTarget ] ] ), https://tc39.es/ecma262/#sec-construct

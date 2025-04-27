@@ -40,7 +40,7 @@ void FunctionPrototype::initialize(Realm& realm)
     define_direct_property(vm.names.name, PrimitiveString::create(vm, String {}), Attribute::Configurable);
 }
 
-ThrowCompletionOr<Value> FunctionPrototype::internal_call(Value, ReadonlySpan<Value>)
+ThrowCompletionOr<Value> FunctionPrototype::internal_call(ExecutionContext&, Value)
 {
     // The Function prototype object:
     // - accepts any arguments and returns undefined when invoked.

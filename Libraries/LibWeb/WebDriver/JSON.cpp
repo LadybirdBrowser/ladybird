@@ -253,7 +253,7 @@ static Response internal_json_clone(HTML::BrowsingContext const& browsing_contex
     // -> has an own property named "toJSON" that is a Function
     if (auto to_json = object.get_without_side_effects(vm.names.toJSON); to_json.is_function()) {
         // Return success with the value returned by Function.[[Call]](toJSON) with value as the this value.
-        auto to_json_result = TRY_OR_JS_ERROR(to_json.as_function().internal_call(value, GC::RootVector<JS::Value> { vm.heap() }));
+        auto to_json_result = TRY_OR_JS_ERROR(JS::call(vm, to_json.as_function(), value));
         if (!to_json_result.is_string())
             return WebDriver::Error::from_code(ErrorCode::JavascriptError, "toJSON did not return a String"sv);
 
