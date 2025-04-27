@@ -291,6 +291,10 @@ static inline bool matches_attribute(CSS::Selector::SimpleSelector::Attribute co
         return !attribute.value.is_empty()
             && attr->value().contains(attribute.value, case_sensitivity);
     case CSS::Selector::SimpleSelector::Attribute::MatchType::StartsWithSegment: {
+        // https://www.w3.org/TR/CSS2/selector.html#attribute-selectors
+        // [att|=val]
+        // Represents an element with the att attribute, its value either being exactly "val" or beginning with "val" immediately followed by "-" (U+002D).
+
         auto const& element_attr_value = attr->value();
         if (element_attr_value.is_empty()) {
             // If the attribute value on element is empty, the selector is true
@@ -300,10 +304,19 @@ static inline bool matches_attribute(CSS::Selector::SimpleSelector::Attribute co
         if (attribute.value.is_empty()) {
             return false;
         }
-        auto segments = element_attr_value.bytes_as_string_view().split_view('-');
-        return case_insensitive_match
-            ? Infra::is_ascii_case_insensitive_match(segments.first(), attribute.value)
-            : segments.first() == attribute.value;
+
+        auto element_attribute_length = element_attr_value.bytes_as_string_view().length();
+        auto attribute_length = attribute.value.bytes_as_string_view().length();
+        if (element_attribute_length < attribute_length)
+            return false;
+
+        if (attribute_length == element_attribute_length) {
+            return case_insensitive_match
+                ? Infra::is_ascii_case_insensitive_match(element_attr_value, attribute.value)
+                : element_attr_value == attribute.value;
+        }
+
+        return element_attr_value.starts_with_bytes(attribute.value, case_insensitive_match ? CaseSensitivity::CaseInsensitive : CaseSensitivity::CaseSensitive) && element_attr_value.bytes_as_string_view()[attribute_length] == '-';
     }
     case CSS::Selector::SimpleSelector::Attribute::MatchType::StartsWithString:
         return !attribute.value.is_empty()
