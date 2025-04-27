@@ -118,8 +118,8 @@ private:
     registers_and_constants_and_locals_count,                                                \
     arguments_count)                                                                         \
     auto execution_context_size = sizeof(JS::ExecutionContext)                               \
-        + ((registers_and_constants_and_locals_count) + (arguments_count))                   \
-            * sizeof(JS::Value);                                                             \
+        + (((registers_and_constants_and_locals_count) + (arguments_count))                  \
+            * sizeof(JS::Value));                                                            \
                                                                                              \
     void* execution_context_memory = alloca(execution_context_size);                         \
                                                                                              \
