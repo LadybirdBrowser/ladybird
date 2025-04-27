@@ -212,7 +212,7 @@ private:
 
     ALWAYS_INLINE RETURNS_NONNULL T* as_nonnull_ptr() const
     {
-        VERIFY(m_ptr);
+        ASSERT(m_ptr);
         return m_ptr;
     }
 
