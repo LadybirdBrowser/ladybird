@@ -499,7 +499,7 @@ ThrowCompletionOr<void> ECMAScriptFunctionObject::get_stack_frame_size(size_t& r
 }
 
 // 10.2.1 [[Call]] ( thisArgument, argumentsList ), https://tc39.es/ecma262/#sec-ecmascript-function-objects-call-thisargument-argumentslist
-ThrowCompletionOr<Value> ECMAScriptFunctionObject::internal_call(ExecutionContext& callee_context, Value this_argument)
+FLATTEN ThrowCompletionOr<Value> ECMAScriptFunctionObject::internal_call(ExecutionContext& callee_context, Value this_argument)
 {
     auto& vm = this->vm();
 
