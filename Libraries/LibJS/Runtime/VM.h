@@ -112,8 +112,9 @@ public:
     ThrowCompletionOr<void> push_execution_context(ExecutionContext& context, CheckStackSpaceLimitTag)
     {
         // Ensure we got some stack space left, so the next function call doesn't kill us.
-        if (did_reach_stack_space_limit())
+        if (did_reach_stack_space_limit()) [[unlikely]] {
             return throw_completion<InternalError>(ErrorType::CallStackSizeExceeded);
+        }
         push_execution_context(context);
         return {};
     }
