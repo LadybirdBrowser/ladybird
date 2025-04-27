@@ -121,4 +121,4 @@ runs:
 
     - name: 'Install vcpkg'
       shell: bash
-      run: ./Toolchain/BuildVcpkg.sh
+      run: ./Toolchain/BuildVcpkg.py
