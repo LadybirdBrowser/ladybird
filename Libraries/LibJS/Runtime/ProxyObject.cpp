@@ -779,7 +779,7 @@ ThrowCompletionOr<GC::RootVector<Value>> ProxyObject::internal_own_property_keys
 }
 
 // 10.5.12 [[Call]] ( thisArgument, argumentsList ), https://tc39.es/ecma262/#sec-proxy-object-internal-methods-and-internal-slots-call-thisargument-argumentslist
-ThrowCompletionOr<Value> ProxyObject::internal_call(Value this_argument, ReadonlySpan<Value> arguments_list)
+ThrowCompletionOr<Value> ProxyObject::internal_call(ExecutionContext& callee_context, Value this_argument)
 {
     LIMIT_PROXY_RECURSION_DEPTH();
 
@@ -802,11 +802,11 @@ ThrowCompletionOr<Value> ProxyObject::internal_call(Value this_argument, Readonl
     // 6. If trap is undefined, then
     if (!trap) {
         // a. Return ? Call(target, thisArgument, argumentsList).
-        return call(vm, m_target, this_argument, arguments_list);
+        return call(vm, m_target, this_argument, callee_context.arguments);
     }
 
     // 7. Let argArray be CreateArrayFromList(argumentsList).
-    auto arguments_array = Array::create_from(realm, arguments_list);
+    auto arguments_array = Array::create_from(realm, callee_context.arguments);
 
     // 8. Return ? Call(trap, handler, « target, thisArgument, argArray »).
     return call(vm, trap, m_handler, m_target, this_argument, arguments_array);

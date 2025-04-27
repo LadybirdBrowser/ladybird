@@ -114,7 +114,7 @@ private:
     u32 registers_and_constants_and_locals_and_arguments_count { 0 };
 };
 
-#define ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK(execution_context,                        \
+#define ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK_WITHOUT_CLEARING_ARGS(execution_context,  \
     registers_and_constants_and_locals_count,                                                \
     arguments_count)                                                                         \
     auto execution_context_size = sizeof(JS::ExecutionContext)                               \
@@ -129,6 +129,16 @@ private:
     ScopeGuard run_execution_context_destructor([execution_context] {                        \
         execution_context->~ExecutionContext();                                              \
     })
+
+#define ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK(execution_context, registers_and_constants_and_locals_count, \
+    arguments_count)                                                                                            \
+    ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK_WITHOUT_CLEARING_ARGS(execution_context,                         \
+        registers_and_constants_and_locals_count, arguments_count);                                             \
+    do {                                                                                                        \
+        for (size_t i = 0; i < execution_context->arguments.size(); i++) {                                      \
+            execution_context->arguments[i] = JS::js_undefined();                                               \
+        }                                                                                                       \
+    } while (0)
 
 struct StackTraceElement {
     ExecutionContext* execution_context;

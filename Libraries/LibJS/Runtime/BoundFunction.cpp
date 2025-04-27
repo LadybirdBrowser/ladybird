@@ -43,10 +43,8 @@ BoundFunction::BoundFunction(Realm& realm, FunctionObject& bound_target_function
 }
 
 // 10.4.1.1 [[Call]] ( thisArgument, argumentsList ), https://tc39.es/ecma262/#sec-bound-function-exotic-objects-call-thisargument-argumentslist
-ThrowCompletionOr<Value> BoundFunction::internal_call([[maybe_unused]] Value this_argument, ReadonlySpan<Value> arguments_list)
+ThrowCompletionOr<Value> BoundFunction::internal_call(ExecutionContext& outer_context, [[maybe_unused]] Value this_argument)
 {
-    auto& vm = this->vm();
-
     // 1. Let target be F.[[BoundTargetFunction]].
     auto& target = *m_bound_target_function;
 
@@ -57,13 +55,24 @@ ThrowCompletionOr<Value> BoundFunction::internal_call([[maybe_unused]] Value thi
     auto& bound_args = m_bound_arguments;
 
     // 4. Let args be the list-concatenation of boundArgs and argumentsList.
-    Vector<Value> args;
-    args.ensure_capacity(bound_args.size() + arguments_list.size());
-    args.extend(bound_args);
-    args.append(arguments_list.data(), arguments_list.size());
+
+    ExecutionContext* callee_context = nullptr;
+    size_t registers_and_constants_and_locals_count = 0;
+    size_t argument_count = bound_args.size() + outer_context.arguments.size();
+    TRY(target.get_stack_frame_size(registers_and_constants_and_locals_count, argument_count));
+    ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK(callee_context, registers_and_constants_and_locals_count, argument_count);
+
+    auto* argument_values = callee_context->arguments.data();
+    for (size_t i = 0; i < bound_args.size(); ++i)
+        argument_values[i] = bound_args[i];
+
+    for (size_t i = 0; i < outer_context.arguments.size(); ++i)
+        argument_values[bound_args.size() + i] = outer_context.arguments[i];
+
+    callee_context->passed_argument_count = bound_args.size() + outer_context.arguments.size();
 
     // 5. Return ? Call(target, boundThis, args).
-    return call(vm, &target, bound_this, args.span());
+    return target.internal_call(*callee_context, bound_this);
 }
 
 // 10.4.1.2 [[Construct]] ( argumentsList, newTarget ), https://tc39.es/ecma262/#sec-bound-function-exotic-objects-construct-argumentslist-newtarget

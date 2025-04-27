@@ -54,7 +54,7 @@ void WrappedFunction::visit_edges(Visitor& visitor)
 }
 
 // 2.1 [[Call]] ( thisArgument, argumentsList ), https://tc39.es/proposal-shadowrealm/#sec-wrapped-function-exotic-objects-call-thisargument-argumentslist
-ThrowCompletionOr<Value> WrappedFunction::internal_call(Value this_argument, ReadonlySpan<Value> arguments_list)
+ThrowCompletionOr<Value> WrappedFunction::internal_call(ExecutionContext& callee_context, Value this_argument)
 {
     auto& vm = this->vm();
 
@@ -62,16 +62,13 @@ ThrowCompletionOr<Value> WrappedFunction::internal_call(Value this_argument, Rea
     // NOTE: No-op, kept by the VM in its execution context stack.
 
     // 2. Let calleeContext be PrepareForWrappedFunctionCall(F).
-    ExecutionContext* callee_context = nullptr;
-    ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK(callee_context, 0, 0);
-
-    prepare_for_wrapped_function_call(*this, *callee_context);
+    prepare_for_wrapped_function_call(*this, callee_context);
 
     // 3. Assert: calleeContext is now the running execution context.
-    VERIFY(&vm.running_execution_context() == callee_context);
+    VERIFY(&vm.running_execution_context() == &callee_context);
 
     // 4. Let result be Completion(OrdinaryWrappedFunctionCall(F, thisArgument, argumentsList)).
-    auto result = ordinary_wrapped_function_call(*this, this_argument, arguments_list);
+    auto result = ordinary_wrapped_function_call(*this, this_argument, callee_context.arguments);
 
     // 5. Remove calleeContext from the execution context stack and restore callerContext as the running execution context.
     vm.pop_execution_context();
@@ -80,13 +77,18 @@ ThrowCompletionOr<Value> WrappedFunction::internal_call(Value this_argument, Rea
     return result;
 }
 
+ThrowCompletionOr<void> WrappedFunction::get_stack_frame_size(size_t& registers_and_constants_and_locals_count, size_t& argument_count)
+{
+    return m_wrapped_target_function->get_stack_frame_size(registers_and_constants_and_locals_count, argument_count);
+}
+
 // 2.2 OrdinaryWrappedFunctionCall ( F: a wrapped function exotic object, thisArgument: an ECMAScript language value, argumentsList: a List of ECMAScript language values, ), https://tc39.es/proposal-shadowrealm/#sec-ordinary-wrapped-function-call
-ThrowCompletionOr<Value> ordinary_wrapped_function_call(WrappedFunction const& function, Value this_argument, ReadonlySpan<Value> arguments_list)
+ThrowCompletionOr<Value> ordinary_wrapped_function_call(WrappedFunction& function, Value this_argument, Span<Value> arguments_list)
 {
     auto& vm = function.vm();
 
     // 1. Let target be F.[[WrappedTargetFunction]].
-    auto const& target = function.wrapped_target_function();
+    auto& target = function.wrapped_target_function();
 
     // 2. Assert: IsCallable(target) is true.
     VERIFY(Value(&target).is_function());
@@ -134,7 +136,7 @@ ThrowCompletionOr<Value> ordinary_wrapped_function_call(WrappedFunction const& f
 }
 
 // 2.3 PrepareForWrappedFunctionCall ( F: a wrapped function exotic object, ), https://tc39.es/proposal-shadowrealm/#sec-prepare-for-wrapped-function-call
-void prepare_for_wrapped_function_call(WrappedFunction const& function, ExecutionContext& callee_context)
+void prepare_for_wrapped_function_call(WrappedFunction& function, ExecutionContext& callee_context)
 {
     auto& vm = function.vm();
 
