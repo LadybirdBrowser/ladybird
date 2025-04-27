@@ -379,15 +379,6 @@ public:
 
     [[nodiscard]] String to_string_without_side_effects() const;
 
-#if 0
-    Value value_or(Value fallback) const
-    {
-        if (is_special_empty_value())
-            return fallback;
-        return *this;
-    }
-#endif
-
     [[nodiscard]] GC::Ref<PrimitiveString> typeof_(VM&) const;
 
     bool operator==(Value const&) const;
