@@ -503,7 +503,7 @@ ThrowCompletionOr<Value> ECMAScriptFunctionObject::internal_call(ExecutionContex
 {
     auto& vm = this->vm();
 
-    VERIFY(m_bytecode_executable);
+    ASSERT(m_bytecode_executable);
 
     // 1. Let callerContext be the running execution context.
     // NOTE: No-op, kept by the VM in its execution context stack.
@@ -513,7 +513,7 @@ ThrowCompletionOr<Value> ECMAScriptFunctionObject::internal_call(ExecutionContex
     TRY(prepare_for_ordinary_call(vm, callee_context, nullptr));
 
     // 3. Assert: calleeContext is now the running execution context.
-    VERIFY(&vm.running_execution_context() == &callee_context);
+    ASSERT(&vm.running_execution_context() == &callee_context);
 
     // 4. If F.[[IsClassConstructor]] is true, then
     if (is_class_constructor()) {
@@ -543,7 +543,7 @@ ThrowCompletionOr<Value> ECMAScriptFunctionObject::internal_call(ExecutionContex
         return result.value();
 
     // 9. Assert: result is a throw completion.
-    VERIFY(result.type() == Completion::Type::Throw);
+    ASSERT(result.type() == Completion::Type::Throw);
 
     // 10. Return ? result.
     return result.release_error();
