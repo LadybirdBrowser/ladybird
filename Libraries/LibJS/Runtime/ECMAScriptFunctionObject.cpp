@@ -510,7 +510,7 @@ ThrowCompletionOr<Value> ECMAScriptFunctionObject::internal_call(ExecutionContex
 
     // 2. Let calleeContext be PrepareForOrdinaryCall(F, undefined).
     // NOTE: We throw if the end of the native stack is reached, so unlike in the spec this _does_ need an exception check.
-    TRY(prepare_for_ordinary_call(callee_context, nullptr));
+    TRY(prepare_for_ordinary_call(vm, callee_context, nullptr));
 
     // 3. Assert: calleeContext is now the running execution context.
     VERIFY(&vm.running_execution_context() == &callee_context);
@@ -530,10 +530,10 @@ ThrowCompletionOr<Value> ECMAScriptFunctionObject::internal_call(ExecutionContex
 
     // 5. Perform OrdinaryCallBindThis(F, calleeContext, thisArgument).
     if (uses_this())
-        ordinary_call_bind_this(callee_context, this_argument);
+        ordinary_call_bind_this(vm, callee_context, this_argument);
 
     // 6. Let result be Completion(OrdinaryCallEvaluateBody(F, argumentsList)).
-    auto result = ordinary_call_evaluate_body();
+    auto result = ordinary_call_evaluate_body(vm);
 
     // 7. Remove calleeContext from the execution context stack and restore callerContext as the running execution context.
     vm.pop_execution_context();
@@ -596,7 +596,7 @@ ThrowCompletionOr<GC::Ref<Object>> ECMAScriptFunctionObject::internal_construct(
 
     // 4. Let calleeContext be PrepareForOrdinaryCall(F, newTarget).
     // NOTE: We throw if the end of the native stack is reached, so unlike in the spec this _does_ need an exception check.
-    TRY(prepare_for_ordinary_call(*callee_context, &new_target));
+    TRY(prepare_for_ordinary_call(vm, *callee_context, &new_target));
 
     // 5. Assert: calleeContext is now the running execution context.
     VERIFY(&vm.running_execution_context() == callee_context);
@@ -605,7 +605,7 @@ ThrowCompletionOr<GC::Ref<Object>> ECMAScriptFunctionObject::internal_construct(
     if (kind == ConstructorKind::Base) {
         // a. Perform OrdinaryCallBindThis(F, calleeContext, thisArgument).
         if (uses_this())
-            ordinary_call_bind_this(*callee_context, this_argument);
+            ordinary_call_bind_this(vm, *callee_context, this_argument);
 
         // b. Let initializeResult be Completion(InitializeInstanceElements(thisArgument, F)).
         auto initialize_result = this_argument->initialize_instance_elements(*this);
@@ -624,7 +624,7 @@ ThrowCompletionOr<GC::Ref<Object>> ECMAScriptFunctionObject::internal_construct(
     auto constructor_env = callee_context->lexical_environment;
 
     // 8. Let result be Completion(OrdinaryCallEvaluateBody(F, argumentsList)).
-    auto result = ordinary_call_evaluate_body();
+    auto result = ordinary_call_evaluate_body(vm);
 
     // 9. Remove calleeContext from the execution context stack and restore callerContext as the running execution context.
     vm.pop_execution_context();
@@ -705,10 +705,8 @@ void ECMAScriptFunctionObject::make_method(Object& home_object)
 }
 
 // 10.2.1.1 PrepareForOrdinaryCall ( F, newTarget ), https://tc39.es/ecma262/#sec-prepareforordinarycall
-ThrowCompletionOr<void> ECMAScriptFunctionObject::prepare_for_ordinary_call(ExecutionContext& callee_context, Object* new_target)
+ThrowCompletionOr<void> ECMAScriptFunctionObject::prepare_for_ordinary_call(VM& vm, ExecutionContext& callee_context, Object* new_target)
 {
-    auto& vm = this->vm();
-
     // Non-standard
     callee_context.is_strict_mode = is_strict_mode();
 
@@ -755,10 +753,8 @@ ThrowCompletionOr<void> ECMAScriptFunctionObject::prepare_for_ordinary_call(Exec
 }
 
 // 10.2.1.2 OrdinaryCallBindThis ( F, calleeContext, thisArgument ), https://tc39.es/ecma262/#sec-ordinarycallbindthis
-void ECMAScriptFunctionObject::ordinary_call_bind_this(ExecutionContext& callee_context, Value this_argument)
+void ECMAScriptFunctionObject::ordinary_call_bind_this(VM& vm, ExecutionContext& callee_context, Value this_argument)
 {
-    auto& vm = this->vm();
-
     // 1. Let thisMode be F.[[ThisMode]].
     // If thisMode is lexical, return unused.
     if (this_mode() == ThisMode::Lexical)
@@ -908,9 +904,8 @@ template void async_function_start(VM&, PromiseCapability const&, GC::Function<C
 
 // 10.2.1.4 OrdinaryCallEvaluateBody ( F, argumentsList ), https://tc39.es/ecma262/#sec-ordinarycallevaluatebody
 // 15.8.4 Runtime Semantics: EvaluateAsyncFunctionBody, https://tc39.es/ecma262/#sec-runtime-semantics-evaluatefunctionbody
-Completion ECMAScriptFunctionObject::ordinary_call_evaluate_body()
+Completion ECMAScriptFunctionObject::ordinary_call_evaluate_body(VM& vm)
 {
-    auto& vm = this->vm();
     auto& realm = *vm.current_realm();
 
     auto result_and_frame = vm.bytecode_interpreter().run_executable(*m_bytecode_executable, {});

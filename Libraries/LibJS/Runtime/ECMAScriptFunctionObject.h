@@ -181,11 +181,6 @@ public:
 
     friend class Bytecode::Generator;
 
-protected:
-    virtual bool is_strict_mode() const override { return shared_data().m_strict; }
-
-    virtual Completion ordinary_call_evaluate_body();
-
 private:
     ECMAScriptFunctionObject(
         NonnullRefPtr<SharedFunctionInstanceData>,
@@ -193,14 +188,18 @@ private:
         PrivateEnvironment* private_environment,
         Object& prototype);
 
+    virtual bool is_strict_mode() const override { return shared_data().m_strict; }
+
+    Completion ordinary_call_evaluate_body(VM&);
+
     [[nodiscard]] bool function_environment_needed() const { return shared_data().m_function_environment_needed; }
     SharedFunctionInstanceData const& shared_data() const { return m_shared_data; }
 
     virtual bool is_ecmascript_function_object() const override { return true; }
     virtual void visit_edges(Visitor&) override;
 
-    ThrowCompletionOr<void> prepare_for_ordinary_call(ExecutionContext& callee_context, Object* new_target);
-    void ordinary_call_bind_this(ExecutionContext&, Value this_argument);
+    ThrowCompletionOr<void> prepare_for_ordinary_call(VM&, ExecutionContext& callee_context, Object* new_target);
+    void ordinary_call_bind_this(VM&, ExecutionContext&, Value this_argument);
 
     NonnullRefPtr<SharedFunctionInstanceData> m_shared_data;
 
