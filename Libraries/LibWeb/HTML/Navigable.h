@@ -132,7 +132,7 @@ public:
 
     struct NavigateParams {
         URL::URL url;
-        GC::Ref<DOM::Document> source_document;
+        GC::Ptr<DOM::Document> source_document = nullptr;
         Variant<Empty, String, POSTResource> document_resource = Empty {};
         GC::Ptr<Fetch::Infrastructure::Response> response = nullptr;
         bool exceptions_enabled = false;

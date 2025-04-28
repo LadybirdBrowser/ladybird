@@ -71,7 +71,7 @@ void Page::navigable_document_destroyed(Badge<DOM::Document>, HTML::Navigable& n
 
 void Page::load(URL::URL const& url)
 {
-    (void)top_level_traversable()->navigate({ .url = url, .source_document = *top_level_traversable()->active_document(), .user_involvement = HTML::UserNavigationInvolvement::BrowserUI });
+    (void)top_level_traversable()->navigate({ .url = url, .source_document = nullptr, .user_involvement = HTML::UserNavigationInvolvement::BrowserUI });
 }
 
 void Page::load_html(StringView html)
@@ -80,7 +80,7 @@ void Page::load_html(StringView html)
     heap().collect_garbage();
 
     (void)top_level_traversable()->navigate({ .url = URL::about_srcdoc(),
-        .source_document = *top_level_traversable()->active_document(),
+        .source_document = nullptr,
         .document_resource = String::from_utf8(html).release_value_but_fixme_should_propagate_errors(),
         .user_involvement = HTML::UserNavigationInvolvement::BrowserUI });
 }
