@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Check initial styleSheets length type
+Pass	Change type from invalid type to valid type
+Pass	Change type from valid type to invalid type
