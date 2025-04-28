@@ -371,7 +371,7 @@ NEVER_INLINE Interpreter::HandleExceptionResponse Interpreter::handle_exception(
 
 FLATTEN_ON_CLANG void Interpreter::run_bytecode(size_t entry_point)
 {
-    if (vm().did_reach_stack_space_limit()) {
+    if (vm().did_reach_stack_space_limit()) [[unlikely]] {
         reg(Register::exception()) = vm().throw_completion<InternalError>(ErrorType::CallStackSizeExceeded).value();
         return;
     }
