@@ -67,4 +67,14 @@ void ObjectStore::store_a_record(Record const& record)
     });
 }
 
+u64 ObjectStore::count_records_in_range(GC::Ref<IDBKeyRange> range)
+{
+    u64 count = 0;
+    for (auto const& record : m_records) {
+        if (range->is_in_range(record.key))
+            ++count;
+    }
+    return count;
+}
+
 }
