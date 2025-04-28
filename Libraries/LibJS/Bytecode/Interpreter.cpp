@@ -726,8 +726,6 @@ Interpreter::ResultAndReturnRegister Interpreter::run_executable(Executable& exe
     TemporaryChange restore_global_object { m_global_object, GC::Ptr { m_realm->global_object() } };
     TemporaryChange restore_global_declarative_environment { m_global_declarative_environment, GC::Ptr { m_realm->global_environment().declarative_record() } };
 
-    VERIFY(!vm().execution_context_stack().is_empty());
-
     auto& running_execution_context = vm().running_execution_context();
     u32 registers_and_constants_and_locals_count = executable.number_of_registers + executable.constants.size() + executable.local_variable_names.size();
     VERIFY(registers_and_constants_and_locals_count <= running_execution_context.registers_and_constants_and_locals_and_arguments_span().size());
