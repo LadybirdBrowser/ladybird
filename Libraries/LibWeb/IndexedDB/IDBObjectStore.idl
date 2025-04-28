@@ -14,7 +14,7 @@ interface IDBObjectStore {
     [NewObject] IDBRequest add(any value, optional any key);
     [FIXME, NewObject] IDBRequest delete(any query);
     [FIXME, NewObject] IDBRequest clear();
-    [FIXME, NewObject] IDBRequest get(any query);
+    [NewObject] IDBRequest get(any query);
     [FIXME, NewObject] IDBRequest getKey(any query);
     [FIXME, NewObject] IDBRequest getAll(optional any query, optional [EnforceRange] unsigned long count);
     [FIXME, NewObject] IDBRequest getAllKeys(optional any query, optional [EnforceRange] unsigned long count);
