@@ -480,8 +480,8 @@ void VM::dump_backtrace() const
 {
     for (ssize_t i = m_execution_context_stack.size() - 1; i >= 0; --i) {
         auto& frame = m_execution_context_stack[i];
-        if (frame->executable && frame->program_counter.has_value()) {
-            auto source_range = frame->executable->source_range_at(frame->program_counter.value()).realize();
+        if (frame->executable) {
+            auto source_range = frame->executable->source_range_at(frame->program_counter).realize();
             dbgln("-> {} @ {}:{},{}", frame->function_name ? frame->function_name->utf8_string() : ""_string, source_range.filename(), source_range.start.line, source_range.start.column);
         } else {
             dbgln("-> {}", frame->function_name ? frame->function_name->utf8_string() : ""_string);
@@ -746,34 +746,17 @@ void VM::load_imported_module(ImportedModuleReferrer referrer, ModuleRequest con
     finish_loading_imported_module(referrer, module_request, payload, module);
 }
 
-void VM::push_execution_context(ExecutionContext& context)
-{
-    if (!m_execution_context_stack.is_empty())
-        m_execution_context_stack.last()->program_counter = bytecode_interpreter().program_counter();
-    m_execution_context_stack.append(&context);
-}
-
-void VM::pop_execution_context()
-{
-    m_execution_context_stack.take_last();
-    if (m_execution_context_stack.is_empty() && on_call_stack_emptied)
-        on_call_stack_emptied();
-}
-
 static RefPtr<CachedSourceRange> get_source_range(ExecutionContext const* context)
 {
     // native function
     if (!context->executable)
         return {};
 
-    if (!context->program_counter.has_value())
-        return {};
-
     if (!context->cached_source_range
-        || context->cached_source_range->program_counter != context->program_counter.value()) {
-        auto unrealized_source_range = context->executable->source_range_at(context->program_counter.value());
+        || context->cached_source_range->program_counter != context->program_counter) {
+        auto unrealized_source_range = context->executable->source_range_at(context->program_counter);
         context->cached_source_range = adopt_ref(*new CachedSourceRange(
-            context->program_counter.value(),
+            context->program_counter,
             move(unrealized_source_range)));
     }
     return context->cached_source_range;

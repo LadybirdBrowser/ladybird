@@ -58,7 +58,7 @@ public:
     // Non-standard: This points at something that owns this ExecutionContext, in case it needs to be protected from GC.
     GC::Ptr<Cell> context_owner;
 
-    Optional<size_t> program_counter;
+    size_t program_counter { 0 };
 
     mutable RefPtr<CachedSourceRange> cached_source_range;
 
