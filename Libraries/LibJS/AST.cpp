@@ -1693,16 +1693,15 @@ ThrowCompletionOr<void> Program::global_declaration_instantiation(VM& vm, Global
     TRY(for_each_lexically_declared_identifier([&](Identifier const& identifier) -> ThrowCompletionOr<void> {
         auto const& name = identifier.string();
 
-        // a. If env.HasVarDeclaration(name) is true, throw a SyntaxError exception.
-        if (global_environment.has_var_declaration(name))
-            return vm.throw_completion<SyntaxError>(ErrorType::TopLevelVariableAlreadyDeclared, name);
-
-        // b. If env.HasLexicalDeclaration(name) is true, throw a SyntaxError exception.
+        // a. If HasLexicalDeclaration(env, name) is true, throw a SyntaxError exception.
         if (global_environment.has_lexical_declaration(name))
             return vm.throw_completion<SyntaxError>(ErrorType::TopLevelVariableAlreadyDeclared, name);
 
-        // c. Let hasRestrictedGlobal be ? env.HasRestrictedGlobalProperty(name).
+        // b. Let hasRestrictedGlobal be ? HasRestrictedGlobalProperty(env, name).
         auto has_restricted_global = TRY(global_environment.has_restricted_global_property(name));
+
+        // c. NOTE: Global var and function bindings (except those that are introduced by non-strict direct eval) are
+        //    non-configurable and are therefore restricted global properties.
 
         // d. If hasRestrictedGlobal is true, throw a SyntaxError exception.
         if (has_restricted_global)

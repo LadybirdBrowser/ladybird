@@ -32,6 +32,20 @@ TESTJS_GLOBAL_FUNCTION(can_parse_source, canParseSource)
     return JS::Value(!parser.has_errors());
 }
 
+// Based on $262.evalScript
+TESTJS_GLOBAL_FUNCTION(evaluate_source, evaluateSource)
+{
+    auto& realm = *vm.current_realm();
+
+    auto source = TRY(vm.argument(0).to_string(vm));
+
+    auto script = JS::Script::parse(source, realm);
+    if (script.is_error())
+        return vm.throw_completion<JS::SyntaxError>(script.error().first().to_string());
+
+    return vm.bytecode_interpreter().run(script.value());
+}
+
 TESTJS_GLOBAL_FUNCTION(run_queued_promise_jobs, runQueuedPromiseJobs)
 {
     vm.run_queued_promise_jobs();
