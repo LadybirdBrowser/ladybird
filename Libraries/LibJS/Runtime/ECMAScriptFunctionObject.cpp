@@ -901,8 +901,6 @@ template void async_function_start(VM&, PromiseCapability const&, GC::Function<C
 // 15.8.4 Runtime Semantics: EvaluateAsyncFunctionBody, https://tc39.es/ecma262/#sec-runtime-semantics-evaluatefunctionbody
 ThrowCompletionOr<Value> ECMAScriptFunctionObject::ordinary_call_evaluate_body(VM& vm)
 {
-    auto& realm = *vm.current_realm();
-
     auto result_and_frame = vm.bytecode_interpreter().run_executable(*m_bytecode_executable, {});
 
     if (result_and_frame.value.is_error()) [[unlikely]] {
@@ -916,6 +914,7 @@ ThrowCompletionOr<Value> ECMAScriptFunctionObject::ordinary_call_evaluate_body(V
     if (kind() == FunctionKind::Normal)
         return result;
 
+    auto& realm = *vm.current_realm();
     if (kind() == FunctionKind::AsyncGenerator) {
         auto async_generator_object = TRY(AsyncGenerator::create(realm, result, this, vm.running_execution_context().copy()));
         return async_generator_object;
