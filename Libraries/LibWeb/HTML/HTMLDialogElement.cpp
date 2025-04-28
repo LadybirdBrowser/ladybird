@@ -17,6 +17,8 @@
 #include <LibWeb/HTML/HTMLDialogElement.h>
 #include <LibWeb/HTML/ToggleEvent.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
+#include <LibWeb/UIEvents/EventNames.h>
+#include <LibWeb/UIEvents/PointerEvent.h>
 
 namespace Web::HTML {
 
@@ -131,8 +133,12 @@ WebIDL::ExceptionOr<void> HTMLDialogElement::show()
     // 6. Add an open attribute to this, whose value is the empty string.
     TRY(set_attribute(AttributeNames::open, {}));
 
-    // FIXME: 7. Assert: this's node document's open dialogs list does not contain this.
-    // FIXME: 8. Add this to this's node document's open dialogs list.
+    // 7. Assert: this's node document's open dialogs list does not contain this.
+    VERIFY(!m_document->open_dialogs_list().contains_slow(GC::Ref(*this)));
+
+    // 8. Add this to this's node document's open dialogs list.
+    m_document->open_dialogs_list().append(*this);
+
     // 9. Set the dialog close watcher with this.
     set_close_watcher();
     // FIXME: 10. Set this's previously focused element to the focused element.
@@ -225,8 +231,14 @@ WebIDL::ExceptionOr<void> HTMLDialogElement::show_a_modal_dialog(HTMLDialogEleme
     // 12. Set is modal of subject to true.
     subject.set_is_modal(true);
 
-    // FIXME: 13. Assert: subject's node document's open dialogs list does not contain subject.
-    // FIXME: 14. Add subject to subject's node document's open dialogs list.
+    // 13. Assert: subject's node document's open dialogs list does not contain subject.
+    // AD-HOC: This assertion is skipped because it fails if the open attribute was removed before calling showModal()
+    // See https://github.com/whatwg/html/issues/10953 and https://github.com/whatwg/html/pull/10954
+    // VERIFY(!subject.document().open_dialogs_list().contains_slow(GC::Ref(subject)));
+
+    // 14. Add subject to subject's node document's open dialogs list.
+    subject.document().open_dialogs_list().append(subject);
+
     // FIXME: 15. Let subject's node document be blocked by the modal dialog subject.
 
     // 16. If subject's node document's top layer does not already contain subject, then add an element to the top layer given subject.
@@ -340,7 +352,8 @@ void HTMLDialogElement::close_the_dialog(Optional<String> result)
     // 8. Set the is modal flag of subject to false.
     set_is_modal(false);
 
-    // FIXME: 9. Remove subject from subject's node document's open dialogs list.
+    // 9. Remove subject from subject's node document's open dialogs list.
+    document().open_dialogs_list().remove_first_matching([this](auto other) { return other == this; });
 
     // 10. If result is not null, then set the returnValue attribute to result.
     if (result.has_value())
@@ -475,6 +488,94 @@ void HTMLDialogElement::invoker_command_steps(DOM::Element& invoker, String& com
     // 3. If command is the Show Modal state and element does not have an open attribute, then show a modal dialog given element.
     if (command == "show-modal" && !has_attribute(AttributeNames::open)) {
         MUST(show_a_modal_dialog(*this));
+    }
+}
+
+// https://html.spec.whatwg.org/multipage/interactive-elements.html#nearest-clicked-dialog
+GC::Ptr<HTMLDialogElement> HTMLDialogElement::nearest_clicked_dialog(UIEvents::PointerEvent const& event, const GC::Ptr<DOM::Node> target)
+{
+    // To find the nearest clicked dialog, given a PointerEvent event:
+
+    // 1. Let target be event's target.
+
+    // 2. If target is a dialog element, target has an open attribute, target's is modal is true, and event's clientX and clientY are outside the bounds of target, then return null.
+    if (auto const* target_dialog = as_if<HTMLDialogElement>(*target); target_dialog
+        && target_dialog->has_attribute(AttributeNames::open)
+        && target_dialog->is_modal()
+        && !target_dialog->get_bounding_client_rect().to_type<double>().contains(event.client_x(), event.client_y()))
+        return {};
+
+    // 3. Let currentNode be target.
+    auto current_node = target;
+
+    // 4. While currentNode is not null:
+    while (current_node) {
+        // 1. If currentNode is a dialog element and currentNode has an open attribute, then return currentNode.
+        if (auto* current_dialog = as_if<HTMLDialogElement>(*current_node); current_dialog
+            && current_dialog->has_attribute(AttributeNames::open))
+            return current_dialog;
+
+        // 2. Set currentNode to currentNode's parent in the flat tree.
+        current_node = current_node->shadow_including_first_ancestor_of_type<HTMLElement>();
+    }
+
+    // 5. Return null.
+    return {};
+}
+
+// https://html.spec.whatwg.org/multipage/interactive-elements.html#light-dismiss-open-dialogs
+void HTMLDialogElement::light_dismiss_open_dialogs(UIEvents::PointerEvent const& event, const GC::Ptr<DOM::Node> target)
+{
+    // To light dismiss open dialogs, given a PointerEvent event:
+
+    // 1. Assert: event's isTrusted attribute is true.
+    VERIFY(event.is_trusted());
+
+    // 2. Let document be event's target's node document.
+    // FIXME: The event's target hasn't been initialized yet, so it's passed as an argument
+    auto& document = target->document();
+
+    // 3. If document's open dialogs list is empty, then return.
+    if (document.open_dialogs_list().is_empty())
+        return;
+
+    // 4. Let ancestor be the result of running nearest clicked dialog given event.
+    auto const ancestor = nearest_clicked_dialog(event, target);
+
+    // 5. If event's type is "pointerdown", then set document's dialog pointerdown target to ancestor.
+    if (event.type() == UIEvents::EventNames::pointerdown)
+        document.set_dialog_pointerdown_target(ancestor);
+
+    // 6. If event's type is "pointerup", then:
+    if (event.type() == UIEvents::EventNames::pointerup) {
+        // 1. Let sameTarget be true if ancestor is document's dialog pointerdown target.
+        bool const same_target = ancestor == document.dialog_pointerdown_target();
+
+        // 2. Set document's dialog pointerdown target to null.
+        document.set_dialog_pointerdown_target({});
+
+        // 3. If sameTarget is false, then return.
+        if (!same_target)
+            return;
+
+        // 4. Let topmostDialog be the last element of document's open dialogs list.
+        auto const topmost_dialog = document.open_dialogs_list().last();
+
+        // 5. If ancestor is topmostDialog, then return.
+        if (ancestor == topmost_dialog)
+            return;
+
+        // 6. If topmostDialog's computed closed-by state is not Any, then return.
+        // FIXME: This should use the "computed closed-by state" algorithm.
+        auto closedby = topmost_dialog->attribute(AttributeNames::closedby);
+        if (!closedby.has_value() || !closedby.value().equals_ignoring_ascii_case("any"sv))
+            return;
+
+        // 7. Assert: topmostDialog's close watcher is not null.
+        VERIFY(topmost_dialog->m_close_watcher);
+
+        // 8. Request to close topmostDialog's close watcher with false.
+        topmost_dialog->request_close({});
     }
 }
 
