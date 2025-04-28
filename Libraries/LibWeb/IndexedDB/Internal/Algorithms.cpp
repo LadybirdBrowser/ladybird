@@ -1421,4 +1421,31 @@ WebIDL::ExceptionOr<GC::Ptr<Key>> store_a_record_into_an_object_store(JS::Realm&
     return key;
 }
 
+// https://w3c.github.io/IndexedDB/#convert-a-value-to-a-key-range
+WebIDL::ExceptionOr<GC::Ref<IDBKeyRange>> convert_a_value_to_a_key_range(JS::Realm& realm, Optional<JS::Value> value, bool null_disallowed)
+{
+    // 1. If value is a key range, return value.
+    if (value.has_value() && value->is_object() && is<IDBKeyRange>(value->as_object())) {
+        return GC::Ref(static_cast<IDBKeyRange&>(value->as_object()));
+    }
+
+    // 2. If value is undefined or is null, then throw a "DataError" DOMException if null disallowed flag is true, or return an unbounded key range otherwise.
+    if (!value.has_value() || (value.has_value() && (value->is_undefined() || value->is_null()))) {
+        if (null_disallowed)
+            return WebIDL::DataError::create(realm, "Value is undefined or null"_string);
+
+        return IDBKeyRange::create(realm, {}, {}, false, false);
+    }
+
+    // 3. Let key be the result of converting a value to a key with value. Rethrow any exceptions.
+    auto key = TRY(convert_a_value_to_a_key(realm, *value));
+
+    // 4. If key is invalid, throw a "DataError" DOMException.
+    if (key->is_invalid())
+        return WebIDL::DataError::create(realm, "Value is invalid"_string);
+
+    // 5. Return a key range containing only key.
+    return IDBKeyRange::create(realm, key, key, false, false);
+}
+
 }
