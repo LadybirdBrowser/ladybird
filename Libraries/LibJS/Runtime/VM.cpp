@@ -214,11 +214,6 @@ String const& VM::error_message(ErrorMessage type) const
     return message;
 }
 
-Bytecode::Interpreter& VM::bytecode_interpreter()
-{
-    return *m_bytecode_interpreter;
-}
-
 struct ExecutionContextRootsCollector : public Cell::Visitor {
     virtual void visit_impl(GC::Cell& cell) override
     {
