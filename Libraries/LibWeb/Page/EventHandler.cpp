@@ -12,6 +12,7 @@
 #include <LibWeb/HTML/CloseWatcherManager.h>
 #include <LibWeb/HTML/Focus.h>
 #include <LibWeb/HTML/HTMLAnchorElement.h>
+#include <LibWeb/HTML/HTMLDialogElement.h>
 #include <LibWeb/HTML/HTMLFormElement.h>
 #include <LibWeb/HTML/HTMLIFrameElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
@@ -347,7 +348,8 @@ static void light_dismiss_activities(UIEvents::PointerEvent const& event, const 
     // 1. Run light dismiss open popovers with event.
     HTML::HTMLElement::light_dismiss_open_popovers(event, target);
 
-    // FIXME: 2. Run light dismiss open dialogs with event.
+    // 2. Run light dismiss open dialogs with event.
+    HTML::HTMLDialogElement::light_dismiss_open_dialogs(event, target);
 }
 
 EventHandler::EventHandler(Badge<HTML::Navigable>, HTML::Navigable& navigable)

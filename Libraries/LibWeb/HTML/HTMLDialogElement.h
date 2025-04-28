@@ -33,6 +33,8 @@ public:
     void close(Optional<String> return_value);
     void request_close(Optional<String> return_value);
 
+    static void light_dismiss_open_dialogs(UIEvents::PointerEvent const&, GC::Ptr<DOM::Node>);
+
     // https://www.w3.org/TR/html-aria/#el-dialog
     virtual Optional<ARIA::Role> default_role() const override { return ARIA::Role::dialog; }
 
@@ -55,6 +57,8 @@ private:
     void run_dialog_focusing_steps();
 
     void set_close_watcher();
+
+    static GC::Ptr<HTMLDialogElement> nearest_clicked_dialog(UIEvents::PointerEvent const&, GC::Ptr<DOM::Node>);
 
     String m_return_value;
     bool m_is_modal { false };
