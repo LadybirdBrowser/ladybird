@@ -377,7 +377,6 @@ FLATTEN_ON_CLANG void Interpreter::run_bytecode(size_t entry_point)
     }
 
     auto& running_execution_context = this->running_execution_context();
-    auto& accumulator = this->accumulator();
     auto& executable = current_executable();
     auto const* bytecode = executable.bytecode.data();
 
@@ -417,7 +416,7 @@ FLATTEN_ON_CLANG void Interpreter::run_bytecode(size_t entry_point)
 
         handle_End: {
             auto& instruction = *reinterpret_cast<Op::End const*>(&bytecode[program_counter]);
-            accumulator = get(instruction.value());
+            accumulator() = get(instruction.value());
             return;
         }
 
