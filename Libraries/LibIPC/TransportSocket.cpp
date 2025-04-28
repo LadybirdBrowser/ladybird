@@ -68,8 +68,15 @@ TransportSocket::TransportSocket(NonnullOwnPtr<Core::LocalSocket> socket)
             ReadonlyBytes remaining_to_send_bytes = bytes;
 
             Threading::RWLockLocker<Threading::LockMode::Read> lock(m_socket_rw_lock);
+            if (!m_socket->is_open())
+                break;
             auto result = send_message(*m_socket, remaining_to_send_bytes, fds);
             if (result.is_error()) {
+                if (result.error().is_errno() && result.error().code() == EPIPE) {
+                    // The socket is closed, we can stop sending.
+                    VERIFY(!m_socket->is_open());
+                    break;
+                }
                 dbgln("TransportSocket::send_thread: {}", result.error());
                 VERIFY_NOT_REACHED();
             }
