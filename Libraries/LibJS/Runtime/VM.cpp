@@ -525,10 +525,9 @@ VM::StoredModule* VM::get_stored_module(ImportedModuleReferrer const&, ByteStrin
     // FinishLoadingImportedModule(referrer, specifier, payload, result) where result is a normal completion,
     // then it must perform FinishLoadingImportedModule(referrer, specifier, payload, result) with the same result each time.
 
-    // Editor's Note from https://tc39.es/proposal-json-modules/#sec-hostresolveimportedmodule
-    // The above text implies that is recommended but not required that hosts do not use moduleRequest.[[Assertions]]
-    // as part of the module cache key. In either case, an exception thrown from an import with a given assertion list
-    // does not rule out success of another import with the same specifier but a different assertion list.
+    // Editor's Note from https://tc39.es/ecma262/#sec-hostresolveimportedmodule
+    // The above text requires that hosts support JSON modules when imported with type: "json" (and HostLoadImportedModule
+    // completes normally), but it does not prohibit hosts from supporting JSON modules when imported without type: "json".
 
     // FIXME: This should probably check referrer as well.
     auto end_or_module = m_loaded_modules.find_if([&](StoredModule const& stored_module) {
@@ -612,6 +611,9 @@ void VM::load_imported_module(ImportedModuleReferrer referrer, ModuleRequest con
     // - If this operation is called multiple times with the same (referrer, specifier) pair and it performs
     //   FinishLoadingImportedModule(referrer, specifier, payload, result) where result is a normal completion,
     //   then it must perform FinishLoadingImportedModule(referrer, specifier, payload, result) with the same result each time.
+    // - If moduleRequest.[[Attributes]] has an entry entry such that entry.[[Key]] is "type" and entry.[[Value]] is "json",
+    //   when the host environment performs FinishLoadingImportedModule(referrer, moduleRequest, payload, result), result
+    //   must either be the Completion Record returned by an invocation of ParseJSONModule or a throw completion.
     // - The operation must treat payload as an opaque value to be passed through to FinishLoadingImportedModule.
     //
     // The actual process performed is host-defined, but typically consists of performing whatever I/O operations are necessary to
@@ -680,10 +682,9 @@ void VM::load_imported_module(ImportedModuleReferrer referrer, ModuleRequest con
     dbgln_if(JS_MODULE_DEBUG, "[JS MODULE]     resolved {} + {} -> {}", base_path, module_request.module_specifier, filename);
 #endif
 
-    auto* loaded_module_or_end = get_stored_module(referrer, filename, module_type);
-    if (loaded_module_or_end != nullptr) {
-        dbgln_if(JS_MODULE_DEBUG, "[JS MODULE] load_imported_module({}) already loaded at {}", filename, loaded_module_or_end->module.ptr());
-        finish_loading_imported_module(referrer, module_request, payload, *loaded_module_or_end->module);
+    if (auto* loaded_module = get_stored_module(referrer, filename, module_type)) {
+        dbgln_if(JS_MODULE_DEBUG, "[JS MODULE] load_imported_module({}) already loaded at {}", filename, loaded_module->module.ptr());
+        finish_loading_imported_module(referrer, module_request, payload, *loaded_module->module);
         return;
     }
 
@@ -710,12 +711,13 @@ void VM::load_imported_module(ImportedModuleReferrer referrer, ModuleRequest con
 
     StringView const content_view { file_content_or_error.value().bytes() };
 
-    auto module = [&]() -> ThrowCompletionOr<GC::Ref<Module>> {
-        // If assertions has an entry entry such that entry.[[Key]] is "type", let type be entry.[[Value]]. The following requirements apply:
-        // If type is "json", then this algorithm must either invoke ParseJSONModule and return the resulting Completion Record, or throw an exception.
+    auto module = [&, content = file_content_or_error.release_value()]() -> ThrowCompletionOr<GC::Ref<Module>> {
+        // If moduleRequest.[[Attributes]] has an entry entry such that entry.[[Key]] is "type" and entry.[[Value]] is "json",
+        // when the host environment performs FinishLoadingImportedModule(referrer, moduleRequest, payload, result), result
+        // must either be the Completion Record returned by an invocation of ParseJSONModule or a throw completion.
         if (module_type == "json"sv) {
             dbgln_if(JS_MODULE_DEBUG, "[JS MODULE] reading and parsing JSON module {}", filename);
-            return parse_json_module(content_view, *current_realm(), filename);
+            return parse_json_module(*current_realm(), content_view, filename);
         }
 
         dbgln_if(JS_MODULE_DEBUG, "[JS MODULE] reading and parsing as SourceTextModule module {}", filename);
@@ -727,16 +729,17 @@ void VM::load_imported_module(ImportedModuleReferrer referrer, ModuleRequest con
             return throw_completion<SyntaxError>(module_or_errors.error().first().to_byte_string());
         }
 
-        auto module = module_or_errors.release_value();
+        return module_or_errors.release_value();
+    }();
+
+    if (!module.is_error()) {
         m_loaded_modules.empend(
             referrer,
-            module->filename(),
+            module.value()->filename(),
             String {}, // Null type
-            make_root<Module>(*module),
+            make_root(module.value()),
             true);
-
-        return module;
-    }();
+    }
 
     finish_loading_imported_module(referrer, module_request, payload, module);
 }

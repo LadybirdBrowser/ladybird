@@ -419,20 +419,55 @@ JS_DEFINE_NATIVE_FUNCTION(JSONObject::parse)
 {
     auto& realm = *vm.current_realm();
 
-    auto string = TRY(vm.argument(0).to_string(vm));
+    auto text = vm.argument(0);
     auto reviver = vm.argument(1);
 
-    auto json = JsonValue::from_string(string);
-    if (json.is_error())
-        return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
-    Value unfiltered = parse_json_value(vm, json.value());
+    // 1. Let jsonString be ? ToString(text).
+    auto json_string = TRY(text.to_string(vm));
+
+    // 2. Let unfiltered be ? ParseJSON(jsonString).
+    auto unfiltered = TRY(parse_json(vm, json_string));
+
+    // 3. If IsCallable(reviver) is true, then
     if (reviver.is_function()) {
+        // a. Let root be OrdinaryObjectCreate(%Object.prototype%).
         auto root = Object::create(realm, realm.intrinsics().object_prototype());
-        auto root_name = String {};
+
+        // b. Let rootName be the empty String.
+        String root_name;
+
+        // c. Perform ! CreateDataPropertyOrThrow(root, rootName, unfiltered).
         MUST(root->create_data_property_or_throw(root_name, unfiltered));
+
+        // d. Return ? InternalizeJSONProperty(root, rootName, reviver).
         return internalize_json_property(vm, root, root_name, reviver.as_function());
     }
+    // 4. Else,
+    //     a. Return unfiltered.
     return unfiltered;
+}
+
+// 25.5.1.1 ParseJSON ( text ), https://tc39.es/ecma262/#sec-ParseJSON
+ThrowCompletionOr<Value> JSONObject::parse_json(VM& vm, StringView text)
+{
+    auto json = JsonValue::from_string(text);
+
+    // 1. If StringToCodePoints(text) is not a valid JSON text as specified in ECMA-404, throw a SyntaxError exception.
+    if (json.is_error())
+        return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
+
+    // 2. Let scriptString be the string-concatenation of "(", text, and ");".
+    // 3. Let script be ParseText(scriptString, Script).
+    // 4. NOTE: The early error rules defined in 13.2.5.1 have special handling for the above invocation of ParseText.
+    // 5. Assert: script is a Parse Node.
+    // 6. Let result be ! Evaluation of script.
+    auto result = JSONObject::parse_json_value(vm, json.value());
+
+    // 7. NOTE: The PropertyDefinitionEvaluation semantics defined in 13.2.5.5 have special handling for the above evaluation.
+    // 8. Assert: result is either a String, a Number, a Boolean, an Object that is defined by either an ArrayLiteral or an ObjectLiteral, or null.
+
+    // 9. Return result.
+    return result;
 }
 
 Value JSONObject::parse_json_value(VM& vm, JsonValue const& value)
@@ -448,7 +483,7 @@ Value JSONObject::parse_json_value(VM& vm, JsonValue const& value)
     if (value.is_string())
         return PrimitiveString::create(vm, value.as_string());
     if (value.is_bool())
-        return Value(static_cast<bool>(value.as_bool()));
+        return Value(value.as_bool());
     VERIFY_NOT_REACHED();
 }
 
