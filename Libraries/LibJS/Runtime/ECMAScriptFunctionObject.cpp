@@ -539,14 +539,9 @@ FLATTEN ThrowCompletionOr<Value> ECMAScriptFunctionObject::internal_call(Executi
     vm.pop_execution_context();
 
     // 8. If result.[[Type]] is return, return result.[[Value]].
-    if (result.type() == Completion::Type::Return)
-        return result.value();
-
     // 9. Assert: result is a throw completion.
-    ASSERT(result.type() == Completion::Type::Throw);
-
     // 10. Return ? result.
-    return result.release_error();
+    return result;
 }
 
 // 10.2.2 [[Construct]] ( argumentsList, newTarget ), https://tc39.es/ecma262/#sec-ecmascript-function-objects-construct-argumentslist-newtarget
@@ -630,17 +625,17 @@ ThrowCompletionOr<GC::Ref<Object>> ECMAScriptFunctionObject::internal_construct(
     vm.pop_execution_context();
 
     // 10. If result is a throw completion, then
-    if (result.type() == Completion::Type::Throw) {
+    if (result.is_error()) {
         // a. Return ? result.
         return result.release_error();
     }
 
     // 11. Assert: result is a return completion.
-    VERIFY(result.type() == Completion::Type::Return);
+    // NOTE: We already checked !is_error() above.
 
     // 12. If Type(result.[[Value]]) is Object, return result.[[Value]].
     if (result.value().is_object())
-        return result.value().as_object();
+        return GC::Ref<Object> { const_cast<Object&>(result.value().as_object()) };
 
     // 13. If kind is base, return thisArgument.
     if (kind == ConstructorKind::Base)
@@ -904,7 +899,7 @@ template void async_function_start(VM&, PromiseCapability const&, GC::Function<C
 
 // 10.2.1.4 OrdinaryCallEvaluateBody ( F, argumentsList ), https://tc39.es/ecma262/#sec-ordinarycallevaluatebody
 // 15.8.4 Runtime Semantics: EvaluateAsyncFunctionBody, https://tc39.es/ecma262/#sec-runtime-semantics-evaluatefunctionbody
-Completion ECMAScriptFunctionObject::ordinary_call_evaluate_body(VM& vm)
+ThrowCompletionOr<Value> ECMAScriptFunctionObject::ordinary_call_evaluate_body(VM& vm)
 {
     auto& realm = *vm.current_realm();
 
@@ -918,11 +913,11 @@ Completion ECMAScriptFunctionObject::ordinary_call_evaluate_body(VM& vm)
     // NOTE: Running the bytecode should eventually return a completion.
     // Until it does, we assume "return" and include the undefined fallback from the call site.
     if (kind() == FunctionKind::Normal)
-        return { Completion::Type::Return, result };
+        return result;
 
     if (kind() == FunctionKind::AsyncGenerator) {
         auto async_generator_object = TRY(AsyncGenerator::create(realm, result, this, vm.running_execution_context().copy()));
-        return { Completion::Type::Return, async_generator_object };
+        return async_generator_object;
     }
 
     auto generator_object = TRY(GeneratorObject::create(realm, result, this, vm.running_execution_context().copy()));
@@ -930,10 +925,10 @@ Completion ECMAScriptFunctionObject::ordinary_call_evaluate_body(VM& vm)
     // NOTE: Async functions are entirely transformed to generator functions, and wrapped in a custom driver that returns a promise
     //       See AwaitExpression::generate_bytecode() for the transformation.
     if (kind() == FunctionKind::Async)
-        return { Completion::Type::Return, AsyncFunctionDriverWrapper::create(realm, generator_object) };
+        return AsyncFunctionDriverWrapper::create(realm, generator_object);
 
     VERIFY(kind() == FunctionKind::Generator);
-    return { Completion::Type::Return, generator_object };
+    return generator_object;
 }
 
 void ECMAScriptFunctionObject::set_name(FlyString const& name)

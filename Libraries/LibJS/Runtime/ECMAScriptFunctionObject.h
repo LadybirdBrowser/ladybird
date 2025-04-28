@@ -190,7 +190,7 @@ private:
 
     virtual bool is_strict_mode() const override { return shared_data().m_strict; }
 
-    Completion ordinary_call_evaluate_body(VM&);
+    ThrowCompletionOr<Value> ordinary_call_evaluate_body(VM&);
 
     [[nodiscard]] bool function_environment_needed() const { return shared_data().m_function_environment_needed; }
     SharedFunctionInstanceData const& shared_data() const { return m_shared_data; }
