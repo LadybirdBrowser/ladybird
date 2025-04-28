@@ -149,7 +149,7 @@ void CanvasRenderingContext2D::clear_rect(float x, float y, float width, float h
 {
     if (auto* painter = this->painter()) {
         auto rect = Gfx::FloatRect(x, y, width, height);
-        painter->clear_rect(rect, Color::Transparent);
+        painter->clear_rect(rect, clear_color());
         did_draw(rect);
     }
 }
@@ -270,14 +270,23 @@ void CanvasRenderingContext2D::allocate_painting_surface_if_needed()
     if (m_surface || m_size.is_empty())
         return;
 
-    // FIXME: implement context attribute .alpha
     // FIXME: implement context attribute .color_space
     // FIXME: implement context attribute .color_type
     // FIXME: implement context attribute .desynchronized
     // FIXME: implement context attribute .will_read_frequently
 
+    auto color_type = m_context_attributes.alpha ? Gfx::BitmapFormat::BGRA8888 : Gfx::BitmapFormat::BGRx8888;
+
     auto skia_backend_context = canvas_element().navigable()->traversable_navigable()->skia_backend_context();
-    m_surface = Gfx::PaintingSurface::create_with_size(skia_backend_context, canvas_element().bitmap_size_for_canvas(), Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
+    m_surface = Gfx::PaintingSurface::create_with_size(skia_backend_context, canvas_element().bitmap_size_for_canvas(), color_type, Gfx::AlphaType::Premultiplied);
+
+    // https://html.spec.whatwg.org/multipage/canvas.html#the-canvas-settings:concept-canvas-alpha
+    // Thus, the bitmap of such a context starts off as opaque black instead of transparent black;
+    // AD-HOC: Skia provides us with a full transparent surface by default; only clear the surface if alpha is disabled.
+    if (!m_context_attributes.alpha) {
+        auto* painter = this->painter();
+        painter->clear_rect(m_surface->rect().to_type<float>(), clear_color());
+    }
 }
 
 Gfx::Path CanvasRenderingContext2D::text_path(StringView text, float x, float y, Optional<double> max_width)
@@ -375,6 +384,12 @@ static Gfx::Path::JoinStyle to_gfx_join(Bindings::CanvasLineJoin const& join_sty
     }
 
     VERIFY_NOT_REACHED();
+}
+
+// https://html.spec.whatwg.org/multipage/canvas.html#the-canvas-settings:concept-canvas-alpha
+Gfx::Color CanvasRenderingContext2D::clear_color() const
+{
+    return m_context_attributes.alpha ? Gfx::Color::Transparent : Gfx::Color::Black;
 }
 
 void CanvasRenderingContext2D::stroke_internal(Gfx::Path const& path)
@@ -561,7 +576,7 @@ void CanvasRenderingContext2D::reset_to_default_state()
 
     // 1. Clear canvas's bitmap to transparent black.
     if (surface) {
-        painter()->clear_rect(surface->rect().to_type<float>(), Color::Transparent);
+        painter()->clear_rect(surface->rect().to_type<float>(), clear_color());
     }
 
     // 2. Empty the list of subpaths in context's current default path.

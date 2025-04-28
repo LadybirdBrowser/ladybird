@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CanvasRenderingContext 2D with alpha=flase, fillRect with semi-transparent color.</title>
+<p>Test passes if a 100x100 black square is displayed below.</p>
+<canvas id="c" width=100 height=100></canvas>
+<script>
+const ctx = document.getElementById("c").getContext("2d");
+ctx.fillStyle = 'black';
+ctx.fillRect(-1, -1, 102, 102);
+</script>
