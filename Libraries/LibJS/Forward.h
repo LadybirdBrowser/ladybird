@@ -324,6 +324,7 @@ class Interpreter;
 class Operand;
 class RegexTable;
 class Register;
+class StackFrame;
 }
 
 }

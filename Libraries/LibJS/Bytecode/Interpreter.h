@@ -56,9 +56,6 @@ public:
         return m_registers_and_constants_and_locals_arguments.data()[r.index()];
     }
 
-    [[nodiscard]] Value get(Operand) const;
-    void set(Operand, Value);
-
     Value do_yield(Value value, Optional<Label> continuation);
     void do_return(Value value)
     {
