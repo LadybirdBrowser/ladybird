@@ -22,6 +22,7 @@ public:
     // test-js to communicate between the JS tests and the C++ test runner.
     static ThrowCompletionOr<Optional<String>> stringify_impl(VM&, Value value, Value replacer, Value space);
 
+    static ThrowCompletionOr<Value> parse_json(VM&, StringView text);
     static Value parse_json_value(VM&, JsonValue const&);
 
 private:
