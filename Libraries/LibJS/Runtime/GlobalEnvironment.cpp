@@ -146,34 +146,15 @@ ThrowCompletionOr<bool> GlobalEnvironment::delete_binding(VM& vm, FlyString cons
 
     // 6. If existingProp is true, then
     if (existing_prop) {
-        // a. Let status be ? ObjRec.DeleteBinding(N).
-        bool status = TRY(m_object_record->delete_binding(vm, name));
-
-        // b. If status is true, then
-        if (status) {
-            // i. Let varNames be envRec.[[VarNames]].
-            // ii. If N is an element of varNames, remove that element from the varNames.
-            m_var_names.remove_all_matching([&](auto& entry) { return entry == name; });
-        }
-
-        // c. Return status.
-        return status;
+        // a. Return ? ObjRec.DeleteBinding(N).
+        return TRY(m_object_record->delete_binding(vm, name));
     }
 
     // 7. Return true.
     return true;
 }
 
-// 9.1.1.4.12 HasVarDeclaration ( N ), https://tc39.es/ecma262/#sec-hasvardeclaration
-bool GlobalEnvironment::has_var_declaration(FlyString const& name) const
-{
-    // 1. Let varDeclaredNames be envRec.[[VarNames]].
-    // 2. If varDeclaredNames contains N, return true.
-    // 3. Return false.
-    return m_var_names.contains_slow(name);
-}
-
-// 9.1.1.4.13 HasLexicalDeclaration ( N ), https://tc39.es/ecma262/#sec-haslexicaldeclaration
+// 9.1.1.4.12 HasLexicalDeclaration ( envRec, N ), https://tc39.es/ecma262/#sec-haslexicaldeclaration
 bool GlobalEnvironment::has_lexical_declaration(FlyString const& name) const
 {
     // 1. Let DclRec be envRec.[[DeclarativeRecord]].
@@ -181,7 +162,7 @@ bool GlobalEnvironment::has_lexical_declaration(FlyString const& name) const
     return MUST(m_declarative_record->has_binding(name));
 }
 
-// 9.1.1.4.14 HasRestrictedGlobalProperty ( N ), https://tc39.es/ecma262/#sec-hasrestrictedglobalproperty
+// 9.1.1.4.13 HasRestrictedGlobalProperty ( envRec, N ), https://tc39.es/ecma262/#sec-hasrestrictedglobalproperty
 ThrowCompletionOr<bool> GlobalEnvironment::has_restricted_global_property(FlyString const& name) const
 {
     // 1. Let ObjRec be envRec.[[ObjectRecord]].
@@ -203,7 +184,7 @@ ThrowCompletionOr<bool> GlobalEnvironment::has_restricted_global_property(FlyStr
     return true;
 }
 
-// 9.1.1.4.15 CanDeclareGlobalVar ( N ), https://tc39.es/ecma262/#sec-candeclareglobalvar
+// 9.1.1.4.14 CanDeclareGlobalVar ( envRec, N ), https://tc39.es/ecma262/#sec-candeclareglobalvar
 ThrowCompletionOr<bool> GlobalEnvironment::can_declare_global_var(FlyString const& name) const
 {
     // 1. Let ObjRec be envRec.[[ObjectRecord]].
@@ -221,7 +202,7 @@ ThrowCompletionOr<bool> GlobalEnvironment::can_declare_global_var(FlyString cons
     return global_object.is_extensible();
 }
 
-// 9.1.1.4.16 CanDeclareGlobalFunction ( N ), https://tc39.es/ecma262/#sec-candeclareglobalfunction
+// 9.1.1.4.15 CanDeclareGlobalFunction ( envRec, N ), https://tc39.es/ecma262/#sec-candeclareglobalfunction
 ThrowCompletionOr<bool> GlobalEnvironment::can_declare_global_function(FlyString const& name) const
 {
     // 1. Let ObjRec be envRec.[[ObjectRecord]].
@@ -247,7 +228,7 @@ ThrowCompletionOr<bool> GlobalEnvironment::can_declare_global_function(FlyString
     return false;
 }
 
-// 9.1.1.4.17 CreateGlobalVarBinding ( N, D ), https://tc39.es/ecma262/#sec-createglobalvarbinding
+// 9.1.1.4.16 CreateGlobalVarBinding ( envRec, N, D ), https://tc39.es/ecma262/#sec-createglobalvarbinding
 ThrowCompletionOr<void> GlobalEnvironment::create_global_var_binding(FlyString const& name, bool can_be_deleted)
 {
     auto& vm = this->vm();
@@ -271,18 +252,11 @@ ThrowCompletionOr<void> GlobalEnvironment::create_global_var_binding(FlyString c
         TRY(m_object_record->initialize_binding(vm, name, js_undefined(), Environment::InitializeBindingHint::Normal));
     }
 
-    // 6. Let varDeclaredNames be envRec.[[VarNames]].
-    // 7. If varDeclaredNames does not contain N, then
-    if (!m_var_names.contains_slow(name)) {
-        // a. Append N to varDeclaredNames.
-        m_var_names.append(name);
-    }
-
-    // 8. Return unused.
+    // 6. Return UNUSED.
     return {};
 }
 
-// 9.1.1.4.18 CreateGlobalFunctionBinding ( N, V, D ), https://tc39.es/ecma262/#sec-createglobalfunctionbinding
+// 9.1.1.4.17 CreateGlobalFunctionBinding ( envRec, N, V, D ), https://tc39.es/ecma262/#sec-createglobalfunctionbinding
 ThrowCompletionOr<void> GlobalEnvironment::create_global_function_binding(FlyString const& name, Value value, bool can_be_deleted)
 {
     // 1. Let ObjRec be envRec.[[ObjectRecord]].
@@ -311,14 +285,7 @@ ThrowCompletionOr<void> GlobalEnvironment::create_global_function_binding(FlyStr
     // 7. Perform ? Set(globalObject, N, V, false).
     TRY(global_object.set(name, value, Object::ShouldThrowExceptions::Yes));
 
-    // 8. Let varDeclaredNames be envRec.[[VarNames]].
-    // 9. If varDeclaredNames does not contain N, then
-    if (!m_var_names.contains_slow(name)) {
-        // a. Append N to varDeclaredNames.
-        m_var_names.append(name);
-    }
-
-    // 10. Return unused.
+    // 8. Return UNUSED.
     return {};
 }
 

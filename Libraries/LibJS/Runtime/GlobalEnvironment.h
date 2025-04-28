@@ -30,7 +30,6 @@ public:
     Object& global_this_value() { return *m_global_this_value; }
     DeclarativeEnvironment& declarative_record() { return *m_declarative_record; }
 
-    bool has_var_declaration(FlyString const& name) const;
     bool has_lexical_declaration(FlyString const& name) const;
     ThrowCompletionOr<bool> has_restricted_global_property(FlyString const& name) const;
     ThrowCompletionOr<bool> can_declare_global_var(FlyString const& name) const;
@@ -47,7 +46,6 @@ private:
     GC::Ptr<ObjectEnvironment> m_object_record;           // [[ObjectRecord]]
     GC::Ptr<Object> m_global_this_value;                  // [[GlobalThisValue]]
     GC::Ptr<DeclarativeEnvironment> m_declarative_record; // [[DeclarativeRecord]]
-    Vector<FlyString> m_var_names;                        // [[VarNames]]
 };
 
 template<>
