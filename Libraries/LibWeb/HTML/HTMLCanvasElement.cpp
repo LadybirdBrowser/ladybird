@@ -208,12 +208,12 @@ void HTMLCanvasElement::adjust_computed_style(CSS::ComputedProperties& style)
         style.set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::None)));
 }
 
-HTMLCanvasElement::HasOrCreatedContext HTMLCanvasElement::create_2d_context()
+JS::ThrowCompletionOr<HTMLCanvasElement::HasOrCreatedContext> HTMLCanvasElement::create_2d_context(JS::Value options)
 {
     if (!m_context.has<Empty>())
         return m_context.has<GC::Ref<CanvasRenderingContext2D>>() ? HasOrCreatedContext::Yes : HasOrCreatedContext::No;
 
-    m_context = CanvasRenderingContext2D::create(realm(), *this);
+    m_context = TRY(CanvasRenderingContext2D::create(realm(), *this, options));
     return HasOrCreatedContext::Yes;
 }
 
@@ -244,7 +244,7 @@ JS::ThrowCompletionOr<HTMLCanvasElement::RenderingContext> HTMLCanvasElement::ge
     // 3. Run the steps in the cell of the following table whose column header matches this canvas element's canvas context mode and whose row header matches contextId:
     // NOTE: See the spec for the full table.
     if (type == "2d"sv) {
-        if (create_2d_context() == HasOrCreatedContext::Yes)
+        if (TRY(create_2d_context(options)) == HasOrCreatedContext::Yes)
             return GC::make_root(*m_context.get<GC::Ref<HTML::CanvasRenderingContext2D>>());
 
         return Empty {};

@@ -64,5 +64,5 @@ CanvasRenderingContext2D includes CanvasPath;
 // https://html.spec.whatwg.org/multipage/canvas.html#canvassettings
 interface mixin CanvasSettings {
     // settings
-    [FIXME] CanvasRenderingContext2DSettings getContextAttributes();
+    CanvasRenderingContext2DSettings getContextAttributes();
 };

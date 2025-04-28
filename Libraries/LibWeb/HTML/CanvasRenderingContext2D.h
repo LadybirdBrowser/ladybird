@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2020-2024, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021-2022, Linus Groh <linusg@serenityos.org>
+ * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -8,9 +9,6 @@
 #pragma once
 
 #include <AK/String.h>
-#include <AK/Variant.h>
-#include <LibGfx/AffineTransform.h>
-#include <LibGfx/Color.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Painter.h>
 #include <LibGfx/Path.h>
@@ -31,10 +29,17 @@
 #include <LibWeb/HTML/Canvas/CanvasText.h>
 #include <LibWeb/HTML/Canvas/CanvasTextDrawingStyles.h>
 #include <LibWeb/HTML/Canvas/CanvasTransform.h>
-#include <LibWeb/HTML/CanvasGradient.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::HTML {
+
+struct CanvasRenderingContext2DSettings {
+    bool alpha { true };
+    bool desynchronized { false };
+    Bindings::PredefinedColorSpace color_space { Bindings::PredefinedColorSpace::Srgb };
+    Bindings::CanvasColorType color_type { Bindings::CanvasColorType::Unorm8 };
+    bool will_read_frequently { false };
+};
 
 class CanvasRenderingContext2D
     : public Bindings::PlatformObject
@@ -58,7 +63,7 @@ class CanvasRenderingContext2D
     GC_DECLARE_ALLOCATOR(CanvasRenderingContext2D);
 
 public:
-    [[nodiscard]] static GC::Ref<CanvasRenderingContext2D> create(JS::Realm&, HTMLCanvasElement&);
+    static JS::ThrowCompletionOr<GC::Ref<CanvasRenderingContext2D>> create(JS::Realm&, HTMLCanvasElement&, JS::Value options);
     virtual ~CanvasRenderingContext2D() override;
 
     virtual void fill_rect(float x, float y, float width, float height) override;
@@ -85,6 +90,8 @@ public:
     virtual void reset_to_default_state() override;
 
     GC::Ref<HTMLCanvasElement> canvas_for_binding() const;
+
+    CanvasRenderingContext2DSettings get_context_attributes() const { return m_context_attributes; }
 
     virtual GC::Ref<TextMetrics> measure_text(StringView text) override;
 
@@ -128,10 +135,12 @@ public:
     void allocate_painting_surface_if_needed();
 
 private:
-    explicit CanvasRenderingContext2D(JS::Realm&, HTMLCanvasElement&);
+    CanvasRenderingContext2D(JS::Realm&, HTMLCanvasElement&, CanvasRenderingContext2DSettings);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
+
+    static JS::ThrowCompletionOr<CanvasRenderingContext2DSettings> context_attributes_from_options(JS::VM&, JS::Value);
 
     virtual Gfx::Painter* painter_for_canvas_state() override { return painter(); }
     virtual Gfx::Path& path_for_canvas_state() override { return path(); }
@@ -165,6 +174,7 @@ private:
 
     Gfx::IntSize m_size;
     RefPtr<Gfx::PaintingSurface> m_surface;
+    CanvasRenderingContext2DSettings m_context_attributes;
 };
 
 enum class CanvasImageSourceUsability {
