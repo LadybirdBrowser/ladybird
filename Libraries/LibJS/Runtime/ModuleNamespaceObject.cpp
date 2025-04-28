@@ -155,8 +155,8 @@ ThrowCompletionOr<Value> ModuleNamespaceObject::internal_get(PropertyKey const& 
         return js_undefined();
 
     // 4. Let m be O.[[Module]].
-    // 5. Let binding be ! m.ResolveExport(P).
-    auto binding = MUST(m_module->resolve_export(vm, property_key.to_string()));
+    // 5. Let binding be m.ResolveExport(P).
+    auto binding = m_module->resolve_export(vm, property_key.to_string());
 
     // 6. Assert: binding is a ResolvedBinding Record.
     VERIFY(binding.is_valid());
@@ -169,8 +169,8 @@ ThrowCompletionOr<Value> ModuleNamespaceObject::internal_get(PropertyKey const& 
 
     // 9. If binding.[[BindingName]] is namespace, then
     if (binding.is_namespace()) {
-        // a. Return ? GetModuleNamespace(targetModule).
-        return TRY(target_module->get_module_namespace(vm));
+        // a. Return GetModuleNamespace(targetModule)..
+        return target_module->get_module_namespace(vm);
     }
 
     // 10. Let targetEnv be targetModule.[[Environment]].

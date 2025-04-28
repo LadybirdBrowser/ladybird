@@ -1292,15 +1292,14 @@ RefPtr<MetaProperty const> Parser::try_parse_import_meta_expression()
     return create_ast_node<MetaProperty>({ m_source_code, rule_start.position(), position() }, MetaProperty::Type::ImportMeta);
 }
 
+// https://tc39.es/ecma262/#prod-ImportCall
 NonnullRefPtr<ImportCall const> Parser::parse_import_call()
 {
     auto rule_start = push_start();
 
-    // We use the extended definition:
-    //  ImportCall[Yield, Await]:
-    //      import(AssignmentExpression[+In, ?Yield, ?Await] ,opt)
-    //      import(AssignmentExpression[+In, ?Yield, ?Await] ,AssignmentExpression[+In, ?Yield, ?Await] ,opt)
-    // From https://tc39.es/proposal-import-attributes/#sec-evaluate-import-call
+    // ImportCall[Yield, Await] :
+    //     import ( AssignmentExpression[+In, ?Yield, ?Await] ,opt )
+    //     import ( AssignmentExpression[+In, ?Yield, ?Await] , AssignmentExpression[+In, ?Yield, ?Await] ,opt )
 
     consume(TokenType::Import);
     consume(TokenType::ParenOpen);
@@ -4597,7 +4596,7 @@ FlyString Parser::consume_string_value()
     return value;
 }
 
-// WithClause, https://tc39.es/proposal-import-attributes/#prod-WithClause
+// https://tc39.es/ecma262/#prod-WithClause
 ModuleRequest Parser::parse_module_request()
 {
     // Does not include the 'from' since that is not always required.
@@ -4651,13 +4650,12 @@ ModuleRequest Parser::parse_module_request()
 
 static FlyString default_string_value = "default"_fly_string;
 
+// https://tc39.es/ecma262/#prod-ImportDeclaration
 NonnullRefPtr<ImportStatement const> Parser::parse_import_statement(Program& program)
 {
-    // We use the extended syntax which adds:
-    //     ImportDeclaration:
-    //         import ImportClause FromClause WithClause[opt] ;
-    //         import ModuleSpecifier WithClause[opt] ;
-    // From: https://tc39.es/proposal-import-attributes/#prod-ImportDeclaration
+    // ImportDeclaration :
+    //     import ImportClause FromClause WithClauseopt ;
+    //     import ModuleSpecifier WithClauseopt ;
 
     auto rule_start = push_start();
     if (program.type() != Program::Type::Module)
@@ -4811,12 +4809,17 @@ NonnullRefPtr<ImportStatement const> Parser::parse_import_statement(Program& pro
     return create_ast_node<ImportStatement>({ m_source_code, rule_start.position(), position() }, move(module_request), move(entries));
 }
 
+// https://tc39.es/ecma262/#prod-ExportDeclaration
 NonnullRefPtr<ExportStatement const> Parser::parse_export_statement(Program& program)
 {
-    // We use the extended syntax which adds:
-    //  ExportDeclaration:
-    //      export ExportFromClause FromClause [no LineTerminator here] WithClause ;
-    // From:  https://tc39.es/proposal-import-attributes/#sec-exports
+    // ExportDeclaration:
+    //     export ExportFromClause FromClause WithClauseopt ;
+    //     export NamedExports ;
+    //     export VariableStatement[~Yield, +Await]
+    //     export Declaration[~Yield, +Await]
+    //     export default HoistableDeclaration[~Yield, +Await, +Default]
+    //     export default ClassDeclaration[~Yield, +Await, +Default]
+    //     export default [lookahead ∉ { function, async [no LineTerminator here] function, class }] AssignmentExpression[+In, ~Yield, +Await] ;
 
     auto rule_start = push_start();
     if (program.type() != Program::Type::Module)

@@ -1708,7 +1708,7 @@ Completion dispose_resources(VM& vm, DisposeCapability& dispose_capability, Comp
     return completion;
 }
 
-// https://tc39.es/proposal-import-attributes/#sec-AllImportAttributesSupported
+// 16.2.1.12 AllImportAttributesSupported ( attributes ), https://tc39.es/ecma262/#sec-AllImportAttributesSupported
 static bool all_import_attributes_supported(VM& vm, Vector<ImportAttribute> const& attributes)
 {
     // 1. Let supported be HostGetSupportedImportAttributes().
@@ -1725,8 +1725,8 @@ static bool all_import_attributes_supported(VM& vm, Vector<ImportAttribute> cons
     return true;
 }
 
-// 13.3.10.2 EvaluateImportCall ( specifierExpression [ , optionsExpression ] ), https://tc39.es/proposal-import-attributes/#sec-evaluate-import-call
-ThrowCompletionOr<Value> perform_import_call(VM& vm, Value specifier, Value options_value)
+// 13.3.10.2 EvaluateImportCall ( specifierExpression [ , optionsExpression ] ), https://tc39.es/ecma262/#sec-evaluate-import-call
+ThrowCompletionOr<Value> perform_import_call(VM& vm, Value specifier, Value options)
 {
     auto& realm = *vm.current_realm();
 
@@ -1744,49 +1744,57 @@ ThrowCompletionOr<Value> perform_import_call(VM& vm, Value specifier, Value opti
         return GC::Ref<CyclicModule> { as<CyclicModule>(*active_script_or_module.get<GC::Ref<Module>>()) };
     }();
 
+    // 3. Let specifierRef be ? Evaluation of specifierExpression.
+    // 4. Let specifier be ? GetValue(specifierRef).
+    // 5. If optionsExpression is present, then
+    //     a. Let optionsRef be ? Evaluation of optionsExpression.
+    //     b. Let options be ? GetValue(optionsRef).
+    // 6. Else,
+    //    a. Let options be undefined.
+
     // 7. Let promiseCapability be ! NewPromiseCapability(%Promise%).
     auto promise_capability = MUST(new_promise_capability(vm, realm.intrinsics().promise_constructor()));
 
     // 8. Let specifierString be Completion(ToString(specifier)).
     // 9. IfAbruptRejectPromise(specifierString, promiseCapability).
-    auto specifier_string = TRY_OR_REJECT_WITH_VALUE(vm, promise_capability, specifier.to_string(vm));
+    FlyString specifier_string = TRY_OR_REJECT(vm, promise_capability, specifier.to_string(vm));
 
     // 10. Let attributes be a new empty List.
     Vector<ImportAttribute> attributes;
 
     // 11. If options is not undefined, then
-    if (!options_value.is_undefined()) {
-        // a. If Type(options) is not Object,
-        if (!options_value.is_object()) {
-            auto error = TypeError::create(realm, TRY_OR_THROW_OOM(vm, String::formatted(ErrorType::NotAnObject.message(), "ImportOptions")));
+    if (!options.is_undefined()) {
+        // a. If options is not an Object, then
+        if (!options.is_object()) {
             // i. Perform ! Call(promiseCapability.[[Reject]], undefined, « a newly created TypeError object »).
+            auto error = TypeError::create(realm, MUST(String::formatted(ErrorType::NotAnObject.message(), "options"sv)));
             MUST(call(vm, *promise_capability->reject(), js_undefined(), error));
 
             // ii. Return promiseCapability.[[Promise]].
-            return Value { promise_capability->promise() };
+            return promise_capability->promise();
         }
 
         // b. Let attributesObj be Completion(Get(options, "with")).
         // c. IfAbruptRejectPromise(attributesObj, promiseCapability).
-        auto attributes_obj = TRY_OR_REJECT_WITH_VALUE(vm, promise_capability, options_value.get(vm, vm.names.with));
+        auto attributes_obj = TRY_OR_REJECT(vm, promise_capability, options.get(vm, vm.names.with));
 
         // d. If attributesObj is not undefined, then
         if (!attributes_obj.is_undefined()) {
-            // i. If Type(attributesObj) is not Object, then
+            // i. If attributesObj is not an Object, then
             if (!attributes_obj.is_object()) {
-                auto error = TypeError::create(realm, TRY_OR_THROW_OOM(vm, String::formatted(ErrorType::NotAnObject.message(), "ImportOptionsAssertions")));
                 // 1. Perform ! Call(promiseCapability.[[Reject]], undefined, « a newly created TypeError object »).
+                auto error = TypeError::create(realm, MUST(String::formatted(ErrorType::NotAnObject.message(), "with"sv)));
                 MUST(call(vm, *promise_capability->reject(), js_undefined(), error));
 
                 // 2. Return promiseCapability.[[Promise]].
-                return Value { promise_capability->promise() };
+                return promise_capability->promise();
             }
 
-            // ii. Let entries be Completion(EnumerableOwnProperties(attributesObj, key+value)).
+            // ii. Let entries be Completion(EnumerableOwnProperties(attributesObj, KEY+VALUE)).
             // iii. IfAbruptRejectPromise(entries, promiseCapability).
-            auto entries = TRY_OR_REJECT_WITH_VALUE(vm, promise_capability, attributes_obj.as_object().enumerable_own_property_names(Object::PropertyKind::KeyAndValue));
+            auto entries = TRY_OR_REJECT(vm, promise_capability, attributes_obj.as_object().enumerable_own_property_names(Object::PropertyKind::KeyAndValue));
 
-            // iv. For each entry of entries, do
+            // iv. For each element entry of entries, do
             for (auto const& entry : entries) {
                 // 1. Let key be ! Get(entry, "0").
                 auto key = MUST(entry.get(vm, PropertyKey(0)));
@@ -1794,46 +1802,48 @@ ThrowCompletionOr<Value> perform_import_call(VM& vm, Value specifier, Value opti
                 // 2. Let value be ! Get(entry, "1").
                 auto value = MUST(entry.get(vm, PropertyKey(1)));
 
-                // 3. If Type(value) is not String, then
-                if (!value.is_string()) {
-                    auto error = TypeError::create(realm, TRY_OR_THROW_OOM(vm, String::formatted(ErrorType::NotAString.message(), "Import Assertion option value")));
-                    // a. Perform ! Call(promiseCapability.[[Reject]], undefined, « a newly created TypeError object »).
-                    MUST(call(vm, *promise_capability->reject(), js_undefined(), error));
+                // 3. If key is a String, then
+                if (key.is_string()) {
+                    // a. If value is not a String, then
+                    if (!value.is_string()) {
+                        // i. Perform ! Call(promiseCapability.[[Reject]], undefined, « a newly created TypeError object »).
+                        auto error = TypeError::create(realm, MUST(String::formatted(ErrorType::NotAString.message(), "Import attribute value"sv)));
+                        MUST(call(vm, *promise_capability->reject(), js_undefined(), error));
 
-                    // b. Return promiseCapability.[[Promise]].
-                    return Value { promise_capability->promise() };
+                        // ii. Return promiseCapability.[[Promise]].
+                        return promise_capability->promise();
+                    }
+
+                    // b. Append the ImportAttribute Record { [[Key]]: key, [[Value]]: value } to attributes.
+                    attributes.empend(key.as_string().utf8_string(), value.as_string().utf8_string());
                 }
-
-                // 4. Append the ImportAttribute Record { [[Key]]: key, [[Value]]: value } to attributes.
-                attributes.empend(key.as_string().utf8_string(), value.as_string().utf8_string());
             }
         }
 
         // e. If AllImportAttributesSupported(attributes) is false, then
         if (!all_import_attributes_supported(vm, attributes)) {
-            auto error = TypeError::create(realm, TRY_OR_THROW_OOM(vm, String::formatted(ErrorType::NotAnObject.message(), "ImportOptionsAssertions")));
             // i. Perform ! Call(promiseCapability.[[Reject]], undefined, « a newly created TypeError object »).
+            auto error = TypeError::create(realm, MUST(String::formatted(ErrorType::ImportAttributeUnsupported.message())));
             MUST(call(vm, *promise_capability->reject(), js_undefined(), error));
 
             // ii. Return promiseCapability.[[Promise]].
-            return Value { promise_capability->promise() };
+            return promise_capability->promise();
         }
 
-        // f. Sort attributes according to the lexicographic order of their [[Key]] fields,
-        //    treating the value of each such field as a sequence of UTF-16 code unit values.
-        //    NOTE: This sorting is observable only in that hosts are prohibited from
-        //    distinguishing among attributes by the order they occur in.
+        // f. Sort attributes according to the lexicographic order of their [[Key]] field, treating the value of each
+        //    such field as a sequence of UTF-16 code unit values. NOTE: This sorting is observable only in that hosts
+        //    are prohibited from changing behaviour based on the order in which attributes are enumerated.
         // NOTE: This is done when constructing the ModuleRequest.
     }
 
     // 12. Let moduleRequest be a new ModuleRequest Record { [[Specifier]]: specifierString, [[Attributes]]: attributes }.
-    ModuleRequest request { specifier_string, attributes };
+    ModuleRequest request { move(specifier_string), move(attributes) };
 
-    // 13. Perform HostLoadImportedModule(referrer, moduleRequest, empty, promiseCapability).
-    vm.host_load_imported_module(referrer, move(request), nullptr, promise_capability);
+    // 13. Perform HostLoadImportedModule(referrer, moduleRequest, EMPTY, promiseCapability).
+    vm.host_load_imported_module(referrer, request, nullptr, promise_capability);
 
     // 13. Return promiseCapability.[[Promise]].
-    return Value { promise_capability->promise() };
+    return promise_capability->promise();
 }
 
 // 14.5.2.1 GetOptionsObject ( options ), https://tc39.es/proposal-temporal/#sec-getoptionsobject

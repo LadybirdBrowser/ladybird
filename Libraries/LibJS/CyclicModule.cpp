@@ -322,7 +322,7 @@ ThrowCompletionOr<u32> CyclicModule::inner_module_linking(VM& vm, Vector<Module*
 }
 
 // 16.2.1.5.3 Evaluate ( ), https://tc39.es/ecma262/#sec-moduleevaluation
-ThrowCompletionOr<Promise*> CyclicModule::evaluate(VM& vm)
+ThrowCompletionOr<GC::Ref<Promise>> CyclicModule::evaluate(VM& vm)
 {
     dbgln_if(JS_MODULE_DEBUG, "[JS MODULE] evaluate[{}](vm)", this);
     // 1. Assert: This call to Evaluate is not happening at the same time as another call to Evaluate within the surrounding agent.
@@ -336,7 +336,7 @@ ThrowCompletionOr<Promise*> CyclicModule::evaluate(VM& vm)
     //       In that case we first check if this module itself has a top level capability.
     //       See also: https://github.com/tc39/ecma262/issues/2823 .
     if (m_top_level_capability != nullptr)
-        return as<Promise>(m_top_level_capability->promise().ptr());
+        return as<Promise>(*m_top_level_capability->promise());
 
     // 3. If module.[[Status]] is either evaluating-async or evaluated, set module to module.[[CycleRoot]].
     if ((m_status == ModuleStatus::EvaluatingAsync || m_status == ModuleStatus::Evaluated) && m_cycle_root != this) {
@@ -350,7 +350,7 @@ ThrowCompletionOr<Promise*> CyclicModule::evaluate(VM& vm)
     // 4. If module.[[TopLevelCapability]] is not empty, then
     if (m_top_level_capability != nullptr) {
         // a. Return module.[[TopLevelCapability]].[[Promise]].
-        return as<Promise>(m_top_level_capability->promise().ptr());
+        return as<Promise>(*m_top_level_capability->promise());
     }
 
     // 5. Let stack be a new empty List.
@@ -416,7 +416,7 @@ ThrowCompletionOr<Promise*> CyclicModule::evaluate(VM& vm)
     }
 
     // 11. Return capability.[[Promise]].
-    return as<Promise>(m_top_level_capability->promise().ptr());
+    return as<Promise>(*m_top_level_capability->promise());
 }
 
 // 16.2.1.5.2.1 InnerModuleEvaluation ( module, stack, index ), https://tc39.es/ecma262/#sec-innermoduleevaluation
@@ -892,7 +892,7 @@ void continue_dynamic_import(GC::Ref<PromiseCapability> promise_capability, Thro
             auto namespace_ = module.get_module_namespace(vm);
 
             // ii. Perform ! Call(promiseCapability.[[Resolve]], undefined, « namespace »).
-            MUST(call(vm, *promise_capability->resolve(), js_undefined(), namespace_.value()));
+            MUST(call(vm, *promise_capability->resolve(), js_undefined(), namespace_));
 
             // iii. Return unused.
             return js_undefined();

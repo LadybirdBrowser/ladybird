@@ -568,7 +568,7 @@ ThrowCompletionOr<void> VM::link_and_eval_module(CyclicModule& module)
     if (evaluated_or_error.is_error())
         return evaluated_or_error.throw_completion();
 
-    auto* evaluated_value = evaluated_or_error.value();
+    auto evaluated_value = evaluated_or_error.value();
 
     run_queued_promise_jobs();
     VERIFY(m_promise_jobs.is_empty());

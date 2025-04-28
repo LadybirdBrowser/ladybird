@@ -52,6 +52,7 @@
         "Legacy RegExp static property getter must be called with the RegExp constructor for the this value")                       \
     M(GetLegacyRegExpStaticPropertyValueEmpty, "Legacy RegExp static property getter value is empty")                               \
     M(GlobalEnvironmentAlreadyHasBinding, "Global environment already has binding '{}'")                                            \
+    M(ImportAttributeUnsupported, "Every import attribute is not supported")                                                        \
     M(IndexOutOfRange, "Index {} is out of range of array length {}")                                                               \
     M(InOperatorWithObject, "'in' operator must be used on an object")                                                              \
     M(InstanceOfOperatorBadPrototype, "'prototype' property of {} is not an object")                                                \
