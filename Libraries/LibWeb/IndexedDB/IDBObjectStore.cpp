@@ -331,4 +331,35 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::put(JS::Value value, Op
     return add_or_put(*this, value, key, false);
 }
 
+// https://w3c.github.io/IndexedDB/#dom-idbobjectstore-count
+WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::count(Optional<JS::Value> query)
+{
+    auto& realm = this->realm();
+
+    // 1. Let transaction be this's transaction.
+    auto transaction = this->transaction();
+
+    // 2. Let store be this's object store.
+    auto store = this->store();
+
+    // FIXME: 3. If store has been deleted, throw an "InvalidStateError" DOMException.
+
+    // 4. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
+    if (transaction->state() != IDBTransaction::TransactionState::Active)
+        return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while doing count"_string);
+
+    // 5. Let range be the result of converting a value to a key range with query. Rethrow any exceptions.
+    auto range = TRY(convert_a_value_to_a_key_range(realm, move(query)));
+
+    // 6. Let operation be an algorithm to run count the records in a range with store and range.
+    auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(realm.heap(), [store, range] -> WebIDL::ExceptionOr<JS::Value> {
+        return count_the_records_in_a_range(store, range);
+    });
+
+    // 7. Return the result (an IDBRequest) of running asynchronously execute a request with this and operation.
+    auto result = asynchronously_execute_a_request(realm, GC::Ref(*this), operation);
+    dbgln_if(IDB_DEBUG, "Executing request for count with uuid {}", result->uuid());
+    return result;
+}
+
 }
