@@ -43,5 +43,6 @@ void delete_records_from_an_object_store(GC::Ref<ObjectStore>, GC::Ref<IDBKeyRan
 WebIDL::ExceptionOr<GC::Ptr<Key>> store_a_record_into_an_object_store(JS::Realm&, GC::Ref<ObjectStore>, JS::Value, GC::Ptr<Key>, bool);
 WebIDL::ExceptionOr<GC::Ref<IDBKeyRange>> convert_a_value_to_a_key_range(JS::Realm&, Optional<JS::Value>, bool = false);
 JS::Value count_the_records_in_a_range(GC::Ref<ObjectStore>, GC::Ref<IDBKeyRange>);
+WebIDL::ExceptionOr<JS::Value> retrieve_a_value_from_an_object_store(JS::Realm&, GC::Ref<ObjectStore>, GC::Ref<IDBKeyRange>);
 
 }

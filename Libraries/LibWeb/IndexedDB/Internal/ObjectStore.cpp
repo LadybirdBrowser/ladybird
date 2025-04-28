@@ -77,4 +77,11 @@ u64 ObjectStore::count_records_in_range(GC::Ref<IDBKeyRange> range)
     return count;
 }
 
+Optional<Record&> ObjectStore::first_in_range(GC::Ref<IDBKeyRange> range)
+{
+    return m_records.first_matching([&](auto const& record) {
+        return range->is_in_range(record.key);
+    });
+}
+
 }
