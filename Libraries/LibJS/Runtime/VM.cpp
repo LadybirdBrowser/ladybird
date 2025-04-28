@@ -419,7 +419,7 @@ bool VM::in_strict_mode() const
     return running_execution_context().is_strict_mode;
 }
 
-void VM::run_queued_promise_jobs()
+void VM::run_queued_promise_jobs_impl()
 {
     dbgln_if(PROMISE_DEBUG, "Running queued promise jobs");
 
