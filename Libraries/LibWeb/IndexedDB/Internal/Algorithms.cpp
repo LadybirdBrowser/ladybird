@@ -1458,4 +1458,21 @@ JS::Value count_the_records_in_a_range(GC::Ref<ObjectStore> source, GC::Ref<IDBK
     return JS::Value(count);
 }
 
+// https://w3c.github.io/IndexedDB/#retrieve-a-value-from-an-object-store
+WebIDL::ExceptionOr<JS::Value> retrieve_a_value_from_an_object_store(JS::Realm& realm, GC::Ref<ObjectStore> store, GC::Ref<IDBKeyRange> range)
+{
+    // 1. Let record be the first record in store’s list of records whose key is in range, if any.
+    auto record = store->first_in_range(range);
+
+    // 2. If record was not found, return undefined.
+    if (!record.has_value())
+        return JS::js_undefined();
+
+    // 3. Let serialized be record’s value. If an error occurs while reading the value from the underlying storage, return a newly created "NotReadableError" DOMException.
+    auto serialized = record->value;
+
+    // 4. Return ! StructuredDeserialize(serialized, targetRealm).
+    return MUST(HTML::structured_deserialize(realm.vm(), serialized, realm));
+}
+
 }

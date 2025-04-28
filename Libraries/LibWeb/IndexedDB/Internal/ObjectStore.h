@@ -53,6 +53,7 @@ public:
     bool has_record_with_key(GC::Ref<Key> key);
     void store_a_record(Record const& record);
     u64 count_records_in_range(GC::Ref<IDBKeyRange> range);
+    Optional<Record&> first_in_range(GC::Ref<IDBKeyRange> range);
 
 protected:
     virtual void visit_edges(Visitor&) override;
