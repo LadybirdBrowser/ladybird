@@ -84,38 +84,53 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::drop)
     // 2. If O is not an Object, throw a TypeError exception.
     auto object = TRY(this_object(vm));
 
-    // 3. Let numLimit be ? ToNumber(limit).
-    auto numeric_limit = TRY(limit.to_number(vm));
+    // 3. Let iterated be the Iterator Record { [[Iterator]]: O, [[NextMethod]]: undefined, [[Done]]: false }.
+    auto iterated = realm.create<IteratorRecord>(object, js_undefined(), false);
 
-    // 4. If numLimit is NaN, throw a RangeError exception.
-    if (numeric_limit.is_nan())
-        return vm.throw_completion<RangeError>(ErrorType::NumberIsNaN, "limit"sv);
+    // 4. Let numLimit be Completion(ToNumber(limit)).
+    // 5. IfAbruptCloseIterator(numLimit, iterated).
+    auto numeric_limit = TRY_OR_CLOSE_ITERATOR(vm, iterated, limit.to_number(vm));
 
-    // 5. Let integerLimit be ! ToIntegerOrInfinity(numLimit).
+    // 6. If numLimit is NaN, then
+    if (numeric_limit.is_nan()) {
+        // a. Let error be ThrowCompletion(a newly created RangeError object).
+        auto error = vm.throw_completion<RangeError>(ErrorType::NumberIsNaN, "limit"sv);
+
+        // b. Return ? IteratorClose(iterated, error).
+        return iterator_close(vm, iterated, error);
+    }
+
+    // 7. Let integerLimit be ! ToIntegerOrInfinity(numLimit).
     auto integer_limit = MUST(numeric_limit.to_integer_or_infinity(vm));
 
-    // 6. If integerLimit < 0, throw a RangeError exception.
-    if (integer_limit < 0)
-        return vm.throw_completion<RangeError>(ErrorType::NumberIsNegative, "limit"sv);
+    // 8. If integerLimit < 0, then
+    if (integer_limit < 0) {
+        // a. Let error be ThrowCompletion(a newly created RangeError object).
+        auto error = vm.throw_completion<RangeError>(ErrorType::NumberIsNegative, "limit"sv);
 
-    // 7. Let iterated be ? GetIteratorDirect(O).
-    auto iterated = TRY(get_iterator_direct(vm, object));
+        // b. Return ? IteratorClose(iterated, error).
+        return iterator_close(vm, iterated, error);
+    }
 
-    // 8. Let closure be a new Abstract Closure with no parameters that captures iterated and integerLimit and performs the following steps when called:
+    // 9. Set iterated to ? GetIteratorDirect(O).
+    iterated = TRY(get_iterator_direct(vm, object));
+
+    // 10. Let closure be a new Abstract Closure with no parameters that captures iterated and integerLimit and performs
+    //     the following steps when called:
     auto closure = GC::create_function(realm.heap(), [integer_limit](VM& vm, IteratorHelper& iterator) -> ThrowCompletionOr<Value> {
         auto& iterated = iterator.underlying_iterator();
 
         // a. Let remaining be integerLimit.
         // b. Repeat, while remaining > 0,
         while (iterator.counter() < integer_limit) {
-            // i. If remaining is not +∞, then
-            //     1. Set remaining to remaining - 1.
+            // i. If remaining ≠ +∞, then
+            //        1. Set remaining to remaining - 1.
             iterator.increment_counter();
 
             // ii. Let next be ? IteratorStep(iterated).
             auto next = TRY(iterator_step(vm, iterated));
 
-            // iii. If next is false, return undefined.
+            // iii. If next is DONE, return ReturnCompletion(undefined).
             if (!next)
                 return iterator.result(js_undefined());
         }
@@ -125,7 +140,7 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::drop)
         // i. Let value be ? IteratorStepValue(iterated).
         auto value = TRY(iterator_step_value(vm, iterated));
 
-        // ii. If value is done, return undefined.
+        // ii. If value is DONE, return ReturnCompletion(undefined).
         if (!value.has_value())
             return iterator.result(js_undefined());
 
@@ -134,8 +149,8 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::drop)
         return iterator.result(*value);
     });
 
-    // 9. Let result be CreateIteratorFromClosure(closure, "Iterator Helper", %IteratorHelperPrototype%, « [[UnderlyingIterator]] »).
-    // 10. Set result.[[UnderlyingIterator]] to iterated.
+    // 11. Let result be CreateIteratorFromClosure(closure, "Iterator Helper", %IteratorHelperPrototype%, « [[UnderlyingIterator]] »).
+    // 12. Set result.[[UnderlyingIterator]] to iterated.
     auto result = TRY(IteratorHelper::create(realm, iterated, closure));
 
     // 11. Return result.
@@ -145,44 +160,48 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::drop)
 // 27.1.4.3 Iterator.prototype.every ( predicate ), https://tc39.es/ecma262/#sec-iterator.prototype.every
 JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::every)
 {
+    auto& realm = *vm.current_realm();
+
     auto predicate = vm.argument(0);
 
     // 1. Let O be the this value.
     // 2. If O is not an Object, throw a TypeError exception.
     auto object = TRY(this_object(vm));
 
-    // 3. If IsCallable(predicate) is false, throw a TypeError exception.
-    if (!predicate.is_function())
-        return vm.throw_completion<TypeError>(ErrorType::NotAFunction, "predicate"sv);
+    // 3. Let iterated be the Iterator Record { [[Iterator]]: O, [[NextMethod]]: undefined, [[Done]]: false }.
+    auto iterated = realm.create<IteratorRecord>(object, js_undefined(), false);
 
-    // 4. Let iterated be ? GetIteratorDirect(O).
-    auto iterated = TRY(get_iterator_direct(vm, object));
+    // 4. If IsCallable(predicate) is false, then
+    if (!predicate.is_function()) {
+        // a. Let error be ThrowCompletion(a newly created TypeError object).
+        auto error = vm.throw_completion<TypeError>(ErrorType::NotAFunction, "predicate"sv);
 
-    // 5. Let counter be 0.
-    size_t counter = 0;
+        // b. Return ? IteratorClose(iterated, error).
+        return iterator_close(vm, iterated, error);
+    }
 
-    // 6. Repeat,
-    while (true) {
+    // 5. Set iterated to ? GetIteratorDirect(O).
+    iterated = TRY(get_iterator_direct(vm, object));
+
+    // 6. Let counter be 0.
+    // 7. Repeat,
+    for (size_t counter = 0;; ++counter) {
         // a. Let value be ? IteratorStepValue(iterated).
         auto value = TRY(iterator_step_value(vm, iterated));
 
-        // b. If value is done, return undefined.
+        // b. If value is DONE, return true.
         if (!value.has_value())
             return Value { true };
 
         // c. Let result be Completion(Call(predicate, undefined, « value, 𝔽(counter) »)).
-        auto result = call(vm, predicate.as_function(), js_undefined(), *value, Value { counter });
-
         // d. IfAbruptCloseIterator(result, iterated).
-        if (result.is_error())
-            return TRY(iterator_close(vm, iterated, result.release_error()));
+        auto result = TRY_OR_CLOSE_ITERATOR(vm, iterated, call(vm, predicate.as_function(), js_undefined(), *value, Value { counter }));
 
         // e. If ToBoolean(result) is false, return ? IteratorClose(iterated, NormalCompletion(false)).
-        if (!result.value().to_boolean())
+        if (!result.to_boolean())
             return TRY(iterator_close(vm, iterated, normal_completion(Value { false })));
 
         // f. Set counter to counter + 1.
-        ++counter;
     }
 }
 
@@ -197,25 +216,33 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::filter)
     // 2. If O is not an Object, throw a TypeError exception.
     auto object = TRY(this_object(vm));
 
-    // 3. If IsCallable(predicate) is false, throw a TypeError exception.
-    if (!predicate.is_function())
-        return vm.throw_completion<TypeError>(ErrorType::NotAFunction, "predicate"sv);
+    // 3. Let iterated be the Iterator Record { [[Iterator]]: O, [[NextMethod]]: undefined, [[Done]]: false }.
+    auto iterated = realm.create<IteratorRecord>(object, js_undefined(), false);
 
-    // 4. Let iterated be ? GetIteratorDirect(O).
-    auto iterated = TRY(get_iterator_direct(vm, object));
+    // 4. If IsCallable(predicate) is false, then
+    if (!predicate.is_function()) {
+        // a. Let error be ThrowCompletion(a newly created TypeError object).
+        auto error = vm.throw_completion<TypeError>(ErrorType::NotAFunction, "predicate"sv);
 
-    // 5. Let closure be a new Abstract Closure with no parameters that captures iterated and predicate and performs the following steps when called:
+        // b. Return ? IteratorClose(iterated, error).
+        return iterator_close(vm, iterated, error);
+    }
+
+    // 5. Set iterated to ? GetIteratorDirect(O).
+    iterated = TRY(get_iterator_direct(vm, object));
+
+    // 6. Let closure be a new Abstract Closure with no parameters that captures iterated and predicate and performs the
+    //    following steps when called:
     auto closure = GC::create_function(realm.heap(), [predicate = GC::Ref { predicate.as_function() }](VM& vm, IteratorHelper& iterator) -> ThrowCompletionOr<Value> {
         auto& iterated = iterator.underlying_iterator();
 
         // a. Let counter be 0.
-
         // b. Repeat,
         while (true) {
             // i. Let value be ? IteratorStepValue(iterated).
             auto value = TRY(iterator_step_value(vm, iterated));
 
-            // ii. If value is done, return undefined.
+            // ii. If value is DONE, return ReturnCompletion(undefined).
             if (!value.has_value())
                 return iterator.result(js_undefined());
 
@@ -239,55 +266,59 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::filter)
         }
     });
 
-    // 6. Let result be CreateIteratorFromClosure(closure, "Iterator Helper", %IteratorHelperPrototype%, « [[UnderlyingIterator]] »).
-    // 7. Set result.[[UnderlyingIterator]] to iterated.
+    // 7. Let result be CreateIteratorFromClosure(closure, "Iterator Helper", %IteratorHelperPrototype%, « [[UnderlyingIterator]] »).
+    // 8. Set result.[[UnderlyingIterator]] to iterated.
     auto result = TRY(IteratorHelper::create(realm, iterated, closure));
 
-    // 8. Return result.
+    // 9. Return result.
     return result;
 }
 
 // 27.1.4.5 Iterator.prototype.find ( predicate ), https://tc39.es/ecma262/#sec-iterator.prototype.find
 JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::find)
 {
+    auto& realm = *vm.current_realm();
+
     auto predicate = vm.argument(0);
 
     // 1. Let O be the this value.
     // 2. If O is not an Object, throw a TypeError exception.
     auto object = TRY(this_object(vm));
 
-    // 3. If IsCallable(predicate) is false, throw a TypeError exception.
-    if (!predicate.is_function())
-        return vm.throw_completion<TypeError>(ErrorType::NotAFunction, "predicate"sv);
+    // 3. Let iterated be the Iterator Record { [[Iterator]]: O, [[NextMethod]]: undefined, [[Done]]: false }.
+    auto iterated = realm.create<IteratorRecord>(object, js_undefined(), false);
 
-    // 4. Let iterated be ? GetIteratorDirect(O).
-    auto iterated = TRY(get_iterator_direct(vm, object));
+    // 4. If IsCallable(predicate) is false, then
+    if (!predicate.is_function()) {
+        // a. Let error be ThrowCompletion(a newly created TypeError object).
+        auto error = vm.throw_completion<TypeError>(ErrorType::NotAFunction, "predicate"sv);
 
-    // 5. Let counter be 0.
-    size_t counter = 0;
+        // b. Return ? IteratorClose(iterated, error).
+        return iterator_close(vm, iterated, error);
+    }
 
-    // 6. Repeat,
-    while (true) {
+    // 5. Set iterated to ? GetIteratorDirect(O).
+    iterated = TRY(get_iterator_direct(vm, object));
+
+    // 6. Let counter be 0.
+    // 7. Repeat,
+    for (size_t counter = 0;; ++counter) {
         // a. Let value be ? IteratorStepValue(iterated).
         auto value = TRY(iterator_step_value(vm, iterated));
 
-        // b. If value is done, return undefined.
+        // b. If value is DONE, return undefined.
         if (!value.has_value())
             return js_undefined();
 
         // c. Let result be Completion(Call(predicate, undefined, « value, 𝔽(counter) »)).
-        auto result = call(vm, predicate.as_function(), js_undefined(), *value, Value { counter });
-
         // d. IfAbruptCloseIterator(result, iterated).
-        if (result.is_error())
-            return TRY(iterator_close(vm, iterated, result.release_error()));
+        auto result = TRY_OR_CLOSE_ITERATOR(vm, iterated, call(vm, predicate.as_function(), js_undefined(), *value, Value { counter }));
 
         // e. If ToBoolean(result) is true, return ? IteratorClose(iterated, NormalCompletion(value)).
-        if (result.value().to_boolean())
+        if (result.to_boolean())
             return TRY(iterator_close(vm, iterated, normal_completion(*value)));
 
         // f. Set counter to counter + 1.
-        ++counter;
     }
 }
 
@@ -303,7 +334,7 @@ public:
         return next_outer_iterator(vm, iterated, iterator, mapper);
     }
 
-    // NOTE: This implements step 5.b.vii.4.b of Iterator.prototype.flatMap.
+    // NOTE: This implements step 6.b.vii.4.b of Iterator.prototype.flatMap.
     ThrowCompletionOr<Value> on_abrupt_completion(VM& vm, IteratorHelper& iterator, Completion const& completion)
     {
         VERIFY(m_inner_iterator);
@@ -335,7 +366,7 @@ private:
         // i. Let value be ? IteratorStepValue(iterated).
         auto value = TRY(iterator_step_value(vm, iterated));
 
-        // ii. If value is done, return undefined.
+        // ii. If value is DONE, return undefined.
         if (!value.has_value())
             return iterator.result(js_undefined());
 
@@ -375,7 +406,7 @@ private:
         if (inner_value.is_error())
             return iterator.close_result(vm, inner_value.release_error());
 
-        // 3. If innerValue is done, then
+        // 3. If innerValue is DONE, then
         if (!inner_value.value().has_value()) {
             // a. Set innerAlive to false.
             m_inner_iterator = nullptr;
@@ -406,16 +437,25 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::flat_map)
     // 2. If O is not an Object, throw a TypeError exception.
     auto object = TRY(this_object(vm));
 
-    // 3. If IsCallable(mapper) is false, throw a TypeError exception.
-    if (!mapper.is_function())
-        return vm.throw_completion<TypeError>(ErrorType::NotAFunction, "mapper"sv);
+    // 3. Let iterated be the Iterator Record { [[Iterator]]: O, [[NextMethod]]: undefined, [[Done]]: false }.
+    auto iterated = realm.create<IteratorRecord>(object, js_undefined(), false);
 
-    // 4. Let iterated be ? GetIteratorDirect(O).
-    auto iterated = TRY(get_iterator_direct(vm, object));
+    // 4. If IsCallable(mapper) is false, then
+    if (!mapper.is_function()) {
+        // a. Let error be ThrowCompletion(a newly created TypeError object).
+        auto error = vm.throw_completion<TypeError>(ErrorType::NotAFunction, "mapper"sv);
+
+        // b. Return ? IteratorClose(iterated, error).
+        return iterator_close(vm, iterated, error);
+    }
+
+    // 5. Set iterated to ? GetIteratorDirect(O).
+    iterated = TRY(get_iterator_direct(vm, object));
 
     auto flat_map_iterator = realm.create<FlatMapIterator>();
 
-    // 5. Let closure be a new Abstract Closure with no parameters that captures iterated and mapper and performs the following steps when called:
+    // 7. Let closure be a new Abstract Closure with no parameters that captures iterated and mapper and performs the
+    //    following steps when called:
     auto closure = GC::create_function(realm.heap(), [flat_map_iterator, mapper = GC::Ref { mapper.as_function() }](VM& vm, IteratorHelper& iterator) mutable -> ThrowCompletionOr<Value> {
         auto& iterated = iterator.underlying_iterator();
         return flat_map_iterator->next(vm, iterated, iterator, *mapper);
@@ -425,51 +465,55 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::flat_map)
         return flat_map_iterator->on_abrupt_completion(vm, iterator, completion);
     });
 
-    // 6. Let result be CreateIteratorFromClosure(closure, "Iterator Helper", %IteratorHelperPrototype%, « [[UnderlyingIterator]] »).
-    // 7. Set result.[[UnderlyingIterator]] to iterated.
+    // 8. Let result be CreateIteratorFromClosure(closure, "Iterator Helper", %IteratorHelperPrototype%, « [[UnderlyingIterator]] »).
+    // 9. Set result.[[UnderlyingIterator]] to iterated.
     auto result = TRY(IteratorHelper::create(realm, iterated, closure, move(abrupt_closure)));
 
-    // 8. Return result.
+    // 9. Return result.
     return result;
 }
 
 // 27.1.4.7 Iterator.prototype.forEach ( procedure ), https://tc39.es/ecma262/#sec-iterator.prototype.foreach
 JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::for_each)
 {
-    auto function = vm.argument(0);
+    auto& realm = *vm.current_realm();
+
+    auto procedure = vm.argument(0);
 
     // 1. Let O be the this value.
     // 2. If O is not an Object, throw a TypeError exception.
     auto object = TRY(this_object(vm));
 
-    // 3. If IsCallable(fn) is false, throw a TypeError exception.
-    if (!function.is_function())
-        return vm.throw_completion<TypeError>(ErrorType::NotAFunction, "fn"sv);
+    // 3. Let iterated be the Iterator Record { [[Iterator]]: O, [[NextMethod]]: undefined, [[Done]]: false }.
+    auto iterated = realm.create<IteratorRecord>(object, js_undefined(), false);
 
-    // 4. Let iterated be ? GetIteratorDirect(O).
-    auto iterated = TRY(get_iterator_direct(vm, object));
+    // 4. If IsCallable(procedure) is false, then
+    if (!procedure.is_function()) {
+        // a. Let error be ThrowCompletion(a newly created TypeError object).
+        auto error = vm.throw_completion<TypeError>(ErrorType::NotAFunction, "procedure"sv);
 
-    // 5. Let counter be 0.
-    size_t counter = 0;
+        // b. Return ? IteratorClose(iterated, error).
+        return iterator_close(vm, iterated, error);
+    }
 
-    // 6. Repeat,
-    while (true) {
+    // 5. Set iterated to ? GetIteratorDirect(O).
+    iterated = TRY(get_iterator_direct(vm, object));
+
+    // 6. Let counter be 0.
+    // 7. Repeat,
+    for (size_t counter = 0;; ++counter) {
         // a. Let value be ? IteratorStepValue(iterated).
         auto value = TRY(iterator_step_value(vm, iterated));
 
-        // b. If value is done, return undefined.
+        // b. If value is DONE, return undefined.
         if (!value.has_value())
             return js_undefined();
 
-        // c. Let result be Completion(Call(fn, undefined, « value, 𝔽(counter) »)).
-        auto result = call(vm, function.as_function(), js_undefined(), *value, Value { counter });
-
+        // c. Let result be Completion(Call(procedure, undefined, « value, 𝔽(counter) »)).
         // d. IfAbruptCloseIterator(result, iterated).
-        if (result.is_error())
-            return TRY(iterator_close(vm, iterated, result.release_error()));
+        TRY_OR_CLOSE_ITERATOR(vm, iterated, call(vm, procedure.as_function(), js_undefined(), *value, Value { counter }));
 
         // e. Set counter to counter + 1.
-        ++counter;
     }
 }
 
@@ -484,14 +528,23 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::map)
     // 2. If O is not an Object, throw a TypeError exception.
     auto object = TRY(this_object(vm));
 
-    // 3. If IsCallable(mapper) is false, throw a TypeError exception.
-    if (!mapper.is_function())
-        return vm.throw_completion<TypeError>(ErrorType::NotAFunction, "mapper"sv);
+    // 3. Let iterated be the Iterator Record { [[Iterator]]: O, [[NextMethod]]: undefined, [[Done]]: false }.
+    auto iterated = realm.create<IteratorRecord>(object, js_undefined(), false);
 
-    // 4. Let iterated be ? GetIteratorDirect(O).
-    auto iterated = TRY(get_iterator_direct(vm, object));
+    // 4. If IsCallable(mapper) is false, then
+    if (!mapper.is_function()) {
+        // a. Let error be ThrowCompletion(a newly created TypeError object).
+        auto error = vm.throw_completion<TypeError>(ErrorType::NotAFunction, "mapper"sv);
 
-    // 5. Let closure be a new Abstract Closure with no parameters that captures iterated and mapper and performs the following steps when called:
+        // b. Return ? IteratorClose(iterated, error).
+        return iterator_close(vm, iterated, error);
+    }
+
+    // 5. Set iterated to ? GetIteratorDirect(O).
+    iterated = TRY(get_iterator_direct(vm, object));
+
+    // 6. Let closure be a new Abstract Closure with no parameters that captures iterated and mapper and performs the
+    //    following steps when called:
     auto closure = GC::create_function(realm.heap(), [mapper = GC::Ref { mapper.as_function() }](VM& vm, IteratorHelper& iterator) -> ThrowCompletionOr<Value> {
         auto& iterated = iterator.underlying_iterator();
 
@@ -501,7 +554,7 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::map)
         // i. Let value be ? IteratorStepValue(iterated).
         auto value = TRY(iterator_step_value(vm, iterated));
 
-        // ii. If value is done, return undefined.
+        // ii. If value is DONE, return undefined.
         if (!value.has_value())
             return iterator.result(js_undefined());
 
@@ -521,48 +574,58 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::map)
         return iterator.result(mapped.release_value());
     });
 
-    // 6. Let result be CreateIteratorFromClosure(closure, "Iterator Helper", %IteratorHelperPrototype%, « [[UnderlyingIterator]] »).
-    // 7. Set result.[[UnderlyingIterator]] to iterated.
+    // 7. Let result be CreateIteratorFromClosure(closure, "Iterator Helper", %IteratorHelperPrototype%, « [[UnderlyingIterator]] »).
+    // 8. Set result.[[UnderlyingIterator]] to iterated.
     auto result = TRY(IteratorHelper::create(realm, iterated, closure));
 
-    // 8. Return result.
+    // 9. Return result.
     return result;
 }
 
 // 27.1.4.9 Iterator.prototype.reduce ( reducer [ , initialValue ] ), https://tc39.es/ecma262/#sec-iterator.prototype.reduce
 JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::reduce)
 {
+    auto& realm = *vm.current_realm();
+
     auto reducer = vm.argument(0);
 
     // 1. Let O be the this value.
     // 2. If O is not an Object, throw a TypeError exception.
     auto object = TRY(this_object(vm));
 
-    // 3. If IsCallable(reducer) is false, throw a TypeError exception.
-    if (!reducer.is_function())
-        return vm.throw_completion<TypeError>(ErrorType::NotAFunction, "reducer"sv);
+    // 3. Let iterated be the Iterator Record { [[Iterator]]: O, [[NextMethod]]: undefined, [[Done]]: false }.
+    auto iterated = realm.create<IteratorRecord>(object, js_undefined(), false);
 
-    // 4. Let iterated be ? GetIteratorDirect(O).
-    auto iterated = TRY(get_iterator_direct(vm, object));
+    // 4. If IsCallable(reducer) is false, then
+    if (!reducer.is_function()) {
+        // a. Let error be ThrowCompletion(a newly created TypeError object).
+        auto error = vm.throw_completion<TypeError>(ErrorType::NotAFunction, "reducer"sv);
+
+        // b. Return ? IteratorClose(iterated, error).
+        return iterator_close(vm, iterated, error);
+    }
+
+    // 5. Set iterated to ? GetIteratorDirect(O).
+    iterated = TRY(get_iterator_direct(vm, object));
 
     Value accumulator;
     size_t counter = 0;
 
-    // 5. If initialValue is not present, then
+    // 6. If initialValue is not present, then
     if (vm.argument_count() < 2) {
         // a. Let accumulator be ? IteratorStepValue(iterated).
         auto maybe_accumulator = TRY(iterator_step_value(vm, iterated));
 
-        // b. If accumulator is done, throw a TypeError exception.
+        // b. If accumulator is DONE, throw a TypeError exception.
         if (!maybe_accumulator.has_value())
             return vm.throw_completion<TypeError>(ErrorType::ReduceNoInitial);
 
-        // d. Let counter be 1.
+        // c. Let counter be 1.
         counter = 1;
 
         accumulator = maybe_accumulator.release_value();
     }
-    // 6. Else,
+    // 7. Else,
     else {
         // a. Let accumulator be initialValue.
         accumulator = vm.argument(1);
@@ -571,12 +634,12 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::reduce)
         counter = 0;
     }
 
-    // 7. Repeat,
-    while (true) {
+    // 8. Repeat,
+    for (;; ++counter) {
         // a. Let value be ? IteratorStepValue(iterated).
         auto value = TRY(iterator_step_value(vm, iterated));
 
-        // b. If value is done, return accumulator.
+        // b. If value is DONE, return accumulator.
         if (!value.has_value())
             return accumulator;
 
@@ -591,35 +654,42 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::reduce)
         accumulator = result.release_value();
 
         // f. Set counter to counter + 1.
-        ++counter;
     }
 }
 
 // 27.1.4.10 Iterator.prototype.some ( predicate ), https://tc39.es/ecma262/#sec-iterator.prototype.some
 JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::some)
 {
+    auto& realm = *vm.current_realm();
+
     auto predicate = vm.argument(0);
 
     // 1. Let O be the this value.
     // 2. If O is not an Object, throw a TypeError exception.
     auto object = TRY(this_object(vm));
 
-    // 3. If IsCallable(predicate) is false, throw a TypeError exception.
-    if (!predicate.is_function())
-        return vm.throw_completion<TypeError>(ErrorType::NotAFunction, "predicate"sv);
+    // 3. Let iterated be the Iterator Record { [[Iterator]]: O, [[NextMethod]]: undefined, [[Done]]: false }.
+    auto iterated = realm.create<IteratorRecord>(object, js_undefined(), false);
 
-    // 4. Let iterated be ? GetIteratorDirect(O).
-    auto iterated = TRY(get_iterator_direct(vm, object));
+    // 4. If IsCallable(predicate) is false, then
+    if (!predicate.is_function()) {
+        // a. Let error be ThrowCompletion(a newly created TypeError object).
+        auto error = vm.throw_completion<TypeError>(ErrorType::NotAFunction, "predicate"sv);
 
-    // 5. Let counter be 0.
-    size_t counter = 0;
+        // b. Return ? IteratorClose(iterated, error).
+        return iterator_close(vm, iterated, error);
+    }
 
-    // 6. Repeat,
-    while (true) {
+    // 5. Set iterated to ? GetIteratorDirect(O).
+    iterated = TRY(get_iterator_direct(vm, object));
+
+    // 6. Let counter be 0.
+    // 7. Repeat,
+    for (size_t counter = 0;; ++counter) {
         // a. Let value be ? IteratorStepValue(iterated).
         auto value = TRY(iterator_step_value(vm, iterated));
 
-        // b. If value is done, return undefined.
+        // b. If value is DONE, return false.
         if (!value.has_value())
             return Value { false };
 
@@ -635,7 +705,6 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::some)
             return TRY(iterator_close(vm, iterated, normal_completion(Value { true })));
 
         // f. Set counter to counter + 1.
-        ++counter;
     }
 }
 
@@ -650,44 +719,59 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::take)
     // 2. If O is not an Object, throw a TypeError exception.
     auto object = TRY(this_object(vm));
 
-    // 3. Let numLimit be ? ToNumber(limit).
-    auto numeric_limit = TRY(limit.to_number(vm));
+    // 3. Let iterated be the Iterator Record { [[Iterator]]: O, [[NextMethod]]: undefined, [[Done]]: false }.
+    auto iterated = realm.create<IteratorRecord>(object, js_undefined(), false);
 
-    // 4. If numLimit is NaN, throw a RangeError exception.
-    if (numeric_limit.is_nan())
-        return vm.throw_completion<RangeError>(ErrorType::NumberIsNaN, "limit"sv);
+    // 4. Let numLimit be Completion(ToNumber(limit)).
+    // 5. IfAbruptCloseIterator(numLimit, iterated).
+    auto numeric_limit = TRY_OR_CLOSE_ITERATOR(vm, iterated, limit.to_number(vm));
 
-    // 5. Let integerLimit be ! ToIntegerOrInfinity(numLimit).
+    // 6. If numLimit is NaN, then
+    if (numeric_limit.is_nan()) {
+        // a. Let error be ThrowCompletion(a newly created RangeError object).
+        auto error = vm.throw_completion<RangeError>(ErrorType::NumberIsNaN, "limit"sv);
+
+        // b. Return ? IteratorClose(iterated, error).
+        return iterator_close(vm, iterated, error);
+    }
+
+    // 7. Let integerLimit be ! ToIntegerOrInfinity(numLimit).
     auto integer_limit = MUST(numeric_limit.to_integer_or_infinity(vm));
 
-    // 6. If integerLimit < 0, throw a RangeError exception.
-    if (integer_limit < 0)
-        return vm.throw_completion<RangeError>(ErrorType::NumberIsNegative, "limit"sv);
+    // 8. If integerLimit < 0, then
+    if (integer_limit < 0) {
+        // a. Let error be ThrowCompletion(a newly created RangeError object).
+        auto error = vm.throw_completion<RangeError>(ErrorType::NumberIsNegative, "limit"sv);
 
-    // 7. Let iterated be ? GetIteratorDirect(O).
-    auto iterated = TRY(get_iterator_direct(vm, object));
+        // b. Return ? IteratorClose(iterated, error).
+        return iterator_close(vm, iterated, error);
+    }
 
-    // 8. Let closure be a new Abstract Closure with no parameters that captures iterated and integerLimit and performs the following steps when called:
+    // 9. Set iterated to ? GetIteratorDirect(O).
+    iterated = TRY(get_iterator_direct(vm, object));
+
+    // 10. Let closure be a new Abstract Closure with no parameters that captures iterated and integerLimit and performs
+    //     the following steps when called:
     auto closure = GC::create_function(realm.heap(), [integer_limit](VM& vm, IteratorHelper& iterator) -> ThrowCompletionOr<Value> {
         auto& iterated = iterator.underlying_iterator();
 
         // a. Let remaining be integerLimit.
         // b. Repeat,
 
-        // i. If remaining is 0, then
+        // i. If remaining = 0, then
         if (iterator.counter() >= integer_limit) {
             // 1. Return ? IteratorClose(iterated, NormalCompletion(undefined)).
             return iterator.close_result(vm, normal_completion(js_undefined()));
         }
 
-        // ii. If remaining is not +∞, then
+        // ii. If remaining ≠ +∞, then
         //     1. Set remaining to remaining - 1.
         iterator.increment_counter();
 
         // iii. Let value be ? IteratorStepValue(iterated).
         auto value = TRY(iterator_step_value(vm, iterated));
 
-        // iv. If value is done, return undefined.
+        // iv. If value is DONE, return ReturnCompletion(undefined)..
         if (!value.has_value())
             return iterator.result(js_undefined());
 
@@ -696,11 +780,11 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::take)
         return iterator.result(*value);
     });
 
-    // 9. Let result be CreateIteratorFromClosure(closure, "Iterator Helper", %IteratorHelperPrototype%, « [[UnderlyingIterator]] »).
-    // 10. Set result.[[UnderlyingIterator]] to iterated.
+    // 11. Let result be CreateIteratorFromClosure(closure, "Iterator Helper", %IteratorHelperPrototype%, « [[UnderlyingIterator]] »).
+    // 12. Set result.[[UnderlyingIterator]] to iterated.
     auto result = TRY(IteratorHelper::create(realm, iterated, closure));
 
-    // 11. Return result.
+    // 13. Return result.
     return result;
 }
 
@@ -724,7 +808,7 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::to_array)
         // a. Let value be ? IteratorStepValue(iterated).
         auto value = TRY(iterator_step_value(vm, iterated));
 
-        // b. If value is done, return CreateArrayFromList(items).
+        // b. If value is DONE, return CreateArrayFromList(items).
         if (!value.has_value())
             return Array::create_from(realm, items);
 

@@ -5,6 +5,24 @@ describe("errors", () => {
         }).toThrowWithMessage(TypeError, "Cannot convert symbol to number");
     });
 
+    test("argument validation closes underlying iterator", () => {
+        let closed = false;
+        let iterator = {
+            __proto__: Iterator.prototype,
+
+            return() {
+                closed = true;
+                return {};
+            },
+        };
+
+        expect(() => {
+            iterator.drop(Symbol.hasInstance);
+        }).toThrowWithMessage(TypeError, "Cannot convert symbol to number");
+
+        expect(closed).toBeTrue();
+    });
+
     test("called with invalid numbers", () => {
         expect(() => {
             Iterator.prototype.drop(NaN);

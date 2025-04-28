@@ -2,7 +2,25 @@ describe("errors", () => {
     test("called with non-callable object", () => {
         expect(() => {
             Iterator.prototype.forEach(Symbol.hasInstance);
-        }).toThrowWithMessage(TypeError, "fn is not a function");
+        }).toThrowWithMessage(TypeError, "procedure is not a function");
+    });
+
+    test("argument validation closes underlying iterator", () => {
+        let closed = false;
+        let iterator = {
+            __proto__: Iterator.prototype,
+
+            return() {
+                closed = true;
+                return {};
+            },
+        };
+
+        expect(() => {
+            iterator.forEach(Symbol.hasInstance);
+        }).toThrowWithMessage(TypeError, "procedure is not a function");
+
+        expect(closed).toBeTrue();
     });
 
     test("iterator's next method throws", () => {
