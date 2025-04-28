@@ -40,6 +40,20 @@ constexpr SkColorType to_skia_color_type(Gfx::BitmapFormat format)
     VERIFY_NOT_REACHED();
 }
 
+constexpr SkAlphaType to_skia_alpha_type(Gfx::BitmapFormat format, Gfx::AlphaType alpha_type)
+{
+    if (format == BitmapFormat::BGRx8888 || format == BitmapFormat::RGBx8888)
+        return kOpaque_SkAlphaType;
+
+    switch (alpha_type) {
+    case AlphaType::Premultiplied:
+        return kPremul_SkAlphaType;
+    case AlphaType::Unpremultiplied:
+        return kUnpremul_SkAlphaType;
+    }
+    VERIFY_NOT_REACHED();
+}
+
 constexpr SkRect to_skia_rect(auto const& rect)
 {
     return SkRect::MakeXYWH(rect.x(), rect.y(), rect.width(), rect.height());

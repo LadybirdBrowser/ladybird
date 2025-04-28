@@ -125,11 +125,11 @@ PainterSkia::~PainterSkia() = default;
 
 void PainterSkia::clear_rect(Gfx::FloatRect const& rect, Gfx::Color color)
 {
-    SkPaint paint;
-    paint.setColor(to_skia_color(color));
-    paint.setBlendMode(SkBlendMode::kClear);
     impl().with_canvas([&](auto& canvas) {
-        canvas.drawRect(to_skia_rect(rect), paint);
+        canvas.save();
+        canvas.clipRect(to_skia_rect(rect));
+        canvas.clear(to_skia_color(color));
+        canvas.restore();
     });
 }
 

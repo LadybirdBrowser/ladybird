@@ -160,6 +160,8 @@ private:
     [[nodiscard]] Gfx::Path rect_path(float x, float y, float width, float height);
     [[nodiscard]] Gfx::Path text_path(StringView text, float x, float y, Optional<double> max_width);
 
+    Gfx::Color clear_color() const;
+
     void stroke_internal(Gfx::Path const&);
     void fill_internal(Gfx::Path const&, Gfx::WindingRule);
     void clip_internal(Gfx::Path&, Gfx::WindingRule);
