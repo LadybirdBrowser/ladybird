@@ -51,7 +51,7 @@ void DataViewPrototype::initialize(Realm& realm)
     define_native_accessor(realm, vm.names.byteLength, byte_length_getter, {}, Attribute::Configurable);
     define_native_accessor(realm, vm.names.byteOffset, byte_offset_getter, {}, Attribute::Configurable);
 
-    // 25.3.4.25 DataView.prototype [ @@toStringTag ], https://tc39.es/ecma262/#sec-dataview.prototype-@@tostringtag
+    // 25.3.4.27 DataView.prototype [ @@toStringTag ], https://tc39.es/ecma262/#sec-dataview.prototype-@@tostringtag
     define_direct_property(vm.well_known_symbol_to_string_tag(), PrimitiveString::create(vm, vm.names.DataView.as_string()), Attribute::Configurable);
 }
 
@@ -238,7 +238,7 @@ JS_DEFINE_NATIVE_FUNCTION(DataViewPrototype::get_big_uint_64)
     return get_view_value<u64>(vm, vm.argument(0), vm.argument(1));
 }
 
-// 7.1 DataView.prototype.getFloat16 ( byteOffset [ , littleEndian ] ), https://tc39.es/proposal-float16array/#sec-dataview.prototype.getfloat16
+// 25.3.4.7 DataView.prototype.getFloat16 ( byteOffset [ , littleEndian ] ), https://tc39.es/ecma262/#sec-dataview.prototype.getfloat16
 JS_DEFINE_NATIVE_FUNCTION(DataViewPrototype::get_float_16)
 {
     // 1. Let v be the this value.
@@ -247,7 +247,7 @@ JS_DEFINE_NATIVE_FUNCTION(DataViewPrototype::get_float_16)
     return get_view_value<f16>(vm, vm.argument(0), vm.argument(1));
 }
 
-// 25.3.4.7 DataView.prototype.getFloat32 ( byteOffset [ , littleEndian ] ), https://tc39.es/ecma262/#sec-dataview.prototype.getfloat32
+// 25.3.4.8 DataView.prototype.getFloat32 ( byteOffset [ , littleEndian ] ), https://tc39.es/ecma262/#sec-dataview.prototype.getfloat32
 JS_DEFINE_NATIVE_FUNCTION(DataViewPrototype::get_float_32)
 {
     // 1. Let v be the this value.
@@ -256,7 +256,7 @@ JS_DEFINE_NATIVE_FUNCTION(DataViewPrototype::get_float_32)
     return get_view_value<float>(vm, vm.argument(0), vm.argument(1));
 }
 
-// 25.3.4.8 DataView.prototype.getFloat64 ( byteOffset [ , littleEndian ] ), https://tc39.es/ecma262/#sec-dataview.prototype.getfloat64
+// 25.3.4.9 DataView.prototype.getFloat64 ( byteOffset [ , littleEndian ] ), https://tc39.es/ecma262/#sec-dataview.prototype.getfloat64
 JS_DEFINE_NATIVE_FUNCTION(DataViewPrototype::get_float_64)
 {
     // 1. Let v be the this value.
@@ -265,7 +265,7 @@ JS_DEFINE_NATIVE_FUNCTION(DataViewPrototype::get_float_64)
     return get_view_value<double>(vm, vm.argument(0), vm.argument(1));
 }
 
-// 25.3.4.9 DataView.prototype.getInt8 ( byteOffset ), https://tc39.es/ecma262/#sec-dataview.prototype.getint8
+// 25.3.4.10 DataView.prototype.getInt8 ( byteOffset ), https://tc39.es/ecma262/#sec-dataview.prototype.getint8
 JS_DEFINE_NATIVE_FUNCTION(DataViewPrototype::get_int_8)
 {
     // 1. Let v be the this value.
@@ -273,7 +273,7 @@ JS_DEFINE_NATIVE_FUNCTION(DataViewPrototype::get_int_8)
     return get_view_value<i8>(vm, vm.argument(0), Value(true));
 }
 
-// 25.3.4.10 DataView.prototype.getInt16 ( byteOffset [ , littleEndian ] ), https://tc39.es/ecma262/#sec-dataview.prototype.getint16
+// 25.3.4.11 DataView.prototype.getInt16 ( byteOffset [ , littleEndian ] ), https://tc39.es/ecma262/#sec-dataview.prototype.getint16
 JS_DEFINE_NATIVE_FUNCTION(DataViewPrototype::get_int_16)
 {
     // 1. Let v be the this value.
@@ -282,7 +282,7 @@ JS_DEFINE_NATIVE_FUNCTION(DataViewPrototype::get_int_16)
     return get_view_value<i16>(vm, vm.argument(0), vm.argument(1));
 }
 
-// 25.3.4.11 DataView.prototype.getInt32 ( byteOffset [ , littleEndian ] ), https://tc39.es/ecma262/#sec-dataview.prototype.getint32
+// 25.3.4.12 DataView.prototype.getInt32 ( byteOffset [ , littleEndian ] ), https://tc39.es/ecma262/#sec-dataview.prototype.getint32
 JS_DEFINE_NATIVE_FUNCTION(DataViewPrototype::get_int_32)
 {
     // 1. Let v be the this value.
@@ -291,7 +291,7 @@ JS_DEFINE_NATIVE_FUNCTION(DataViewPrototype::get_int_32)
     return get_view_value<i32>(vm, vm.argument(0), vm.argument(1));
 }
 
-// 25.3.4.12 DataView.prototype.getUint8 ( byteOffset ), https://tc39.es/ecma262/#sec-dataview.prototype.getuint8
+// 25.3.4.13 DataView.prototype.getUint8 ( byteOffset ), https://tc39.es/ecma262/#sec-dataview.prototype.getuint8
 JS_DEFINE_NATIVE_FUNCTION(DataViewPrototype::get_uint_8)
 {
     // 1. Let v be the this value.
@@ -299,7 +299,7 @@ JS_DEFINE_NATIVE_FUNCTION(DataViewPrototype::get_uint_8)
     return get_view_value<u8>(vm, vm.argument(0), Value(true));
 }
 
-// 25.3.4.13 DataView.prototype.getUint16 ( byteOffset [ , littleEndian ] ), https://tc39.es/ecma262/#sec-dataview.prototype.getuint16
+// 25.3.4.14 DataView.prototype.getUint16 ( byteOffset [ , littleEndian ] ), https://tc39.es/ecma262/#sec-dataview.prototype.getuint16
 JS_DEFINE_NATIVE_FUNCTION(DataViewPrototype::get_uint_16)
 {
     // 1. Let v be the this value.
@@ -308,7 +308,7 @@ JS_DEFINE_NATIVE_FUNCTION(DataViewPrototype::get_uint_16)
     return get_view_value<u16>(vm, vm.argument(0), vm.argument(1));
 }
 
-// 25.3.4.14 DataView.prototype.getUint32 ( byteOffset [ , littleEndian ] ), https://tc39.es/ecma262/#sec-dataview.prototype.getuint32
+// 25.3.4.15 DataView.prototype.getUint32 ( byteOffset [ , littleEndian ] ), https://tc39.es/ecma262/#sec-dataview.prototype.getuint32
 JS_DEFINE_NATIVE_FUNCTION(DataViewPrototype::get_uint_32)
 {
     // 1. Let v be the this value.
@@ -317,7 +317,7 @@ JS_DEFINE_NATIVE_FUNCTION(DataViewPrototype::get_uint_32)
     return get_view_value<u32>(vm, vm.argument(0), vm.argument(1));
 }
 
-// 25.3.4.15 DataView.prototype.setBigInt64 ( byteOffset, value [ , littleEndian ] ), https://tc39.es/ecma262/#sec-dataview.prototype.setbigint64
+// 25.3.4.16 DataView.prototype.setBigInt64 ( byteOffset, value [ , littleEndian ] ), https://tc39.es/ecma262/#sec-dataview.prototype.setbigint64
 JS_DEFINE_NATIVE_FUNCTION(DataViewPrototype::set_big_int_64)
 {
     // 1. Let v be the this value.
@@ -325,7 +325,7 @@ JS_DEFINE_NATIVE_FUNCTION(DataViewPrototype::set_big_int_64)
     return set_view_value<i64>(vm, vm.argument(0), vm.argument(2), vm.argument(1));
 }
 
-// 25.3.4.16 DataView.prototype.setBigUint64 ( byteOffset, value [ , littleEndian ] ), https://tc39.es/ecma262/#sec-dataview.prototype.setbiguint64
+// 25.3.4.17 DataView.prototype.setBigUint64 ( byteOffset, value [ , littleEndian ] ), https://tc39.es/ecma262/#sec-dataview.prototype.setbiguint64
 JS_DEFINE_NATIVE_FUNCTION(DataViewPrototype::set_big_uint_64)
 {
     // 1. Let v be the this value.
@@ -333,7 +333,7 @@ JS_DEFINE_NATIVE_FUNCTION(DataViewPrototype::set_big_uint_64)
     return set_view_value<u64>(vm, vm.argument(0), vm.argument(2), vm.argument(1));
 }
 
-// 7.2 DataView.prototype.setFloat16 ( byteOffset, value [ , littleEndian ] ), https://tc39.es/proposal-float16array/#sec-dataview.prototype.setfloat16
+// 25.3.4.18 DataView.prototype.setFloat16 ( byteOffset, value [ , littleEndian ] ), https://tc39.es/ecma262/#sec-dataview.prototype.setfloat16
 JS_DEFINE_NATIVE_FUNCTION(DataViewPrototype::set_float_16)
 {
     // 1. Let v be the this value.
@@ -342,7 +342,7 @@ JS_DEFINE_NATIVE_FUNCTION(DataViewPrototype::set_float_16)
     return set_view_value<f16>(vm, vm.argument(0), vm.argument(2), vm.argument(1));
 }
 
-// 25.3.4.17 DataView.prototype.setFloat32 ( byteOffset, value [ , littleEndian ] ), https://tc39.es/ecma262/#sec-dataview.prototype.setfloat32
+// 25.3.4.19 DataView.prototype.setFloat32 ( byteOffset, value [ , littleEndian ] ), https://tc39.es/ecma262/#sec-dataview.prototype.setfloat32
 JS_DEFINE_NATIVE_FUNCTION(DataViewPrototype::set_float_32)
 {
     // 1. Let v be the this value.
@@ -351,7 +351,7 @@ JS_DEFINE_NATIVE_FUNCTION(DataViewPrototype::set_float_32)
     return set_view_value<float>(vm, vm.argument(0), vm.argument(2), vm.argument(1));
 }
 
-// 25.3.4.18 DataView.prototype.setFloat64 ( byteOffset, value [ , littleEndian ] ), https://tc39.es/ecma262/#sec-dataview.prototype.setfloat64
+// 25.3.4.20 DataView.prototype.setFloat64 ( byteOffset, value [ , littleEndian ] ), https://tc39.es/ecma262/#sec-dataview.prototype.setfloat64
 JS_DEFINE_NATIVE_FUNCTION(DataViewPrototype::set_float_64)
 {
     // 1. Let v be the this value.
@@ -360,7 +360,7 @@ JS_DEFINE_NATIVE_FUNCTION(DataViewPrototype::set_float_64)
     return set_view_value<double>(vm, vm.argument(0), vm.argument(2), vm.argument(1));
 }
 
-// 25.3.4.19 DataView.prototype.setInt8 ( byteOffset, value ), https://tc39.es/ecma262/#sec-dataview.prototype.setint8
+// 25.3.4.21 DataView.prototype.setInt8 ( byteOffset, value ), https://tc39.es/ecma262/#sec-dataview.prototype.setint8
 JS_DEFINE_NATIVE_FUNCTION(DataViewPrototype::set_int_8)
 {
     // 1. Let v be the this value.
@@ -368,7 +368,7 @@ JS_DEFINE_NATIVE_FUNCTION(DataViewPrototype::set_int_8)
     return set_view_value<i8>(vm, vm.argument(0), Value(true), vm.argument(1));
 }
 
-// 25.3.4.20 DataView.prototype.setInt16 ( byteOffset, value [ , littleEndian ] ), https://tc39.es/ecma262/#sec-dataview.prototype.setint16
+// 25.3.4.22 DataView.prototype.setInt16 ( byteOffset, value [ , littleEndian ] ), https://tc39.es/ecma262/#sec-dataview.prototype.setint16
 JS_DEFINE_NATIVE_FUNCTION(DataViewPrototype::set_int_16)
 {
     // 1. Let v be the this value.
@@ -377,7 +377,7 @@ JS_DEFINE_NATIVE_FUNCTION(DataViewPrototype::set_int_16)
     return set_view_value<i16>(vm, vm.argument(0), vm.argument(2), vm.argument(1));
 }
 
-// 25.3.4.21 DataView.prototype.setInt32 ( byteOffset, value [ , littleEndian ] ), https://tc39.es/ecma262/#sec-dataview.prototype.setint32
+// 25.3.4.23 DataView.prototype.setInt32 ( byteOffset, value [ , littleEndian ] ), https://tc39.es/ecma262/#sec-dataview.prototype.setint32
 JS_DEFINE_NATIVE_FUNCTION(DataViewPrototype::set_int_32)
 {
     // 1. Let v be the this value.
@@ -386,7 +386,7 @@ JS_DEFINE_NATIVE_FUNCTION(DataViewPrototype::set_int_32)
     return set_view_value<i32>(vm, vm.argument(0), vm.argument(2), vm.argument(1));
 }
 
-// 25.3.4.22 DataView.prototype.setUint8 ( byteOffset, value ), https://tc39.es/ecma262/#sec-dataview.prototype.setuint8
+// 25.3.4.24 DataView.prototype.setUint8 ( byteOffset, value ), https://tc39.es/ecma262/#sec-dataview.prototype.setuint8
 JS_DEFINE_NATIVE_FUNCTION(DataViewPrototype::set_uint_8)
 {
     // 1. Let v be the this value.
@@ -394,7 +394,7 @@ JS_DEFINE_NATIVE_FUNCTION(DataViewPrototype::set_uint_8)
     return set_view_value<u8>(vm, vm.argument(0), Value(true), vm.argument(1));
 }
 
-// 25.3.4.23 DataView.prototype.setUint16 ( byteOffset, value [ , littleEndian ] ), https://tc39.es/ecma262/#sec-dataview.prototype.setuint16
+// 25.3.4.25 DataView.prototype.setUint16 ( byteOffset, value [ , littleEndian ] ), https://tc39.es/ecma262/#sec-dataview.prototype.setuint16
 JS_DEFINE_NATIVE_FUNCTION(DataViewPrototype::set_uint_16)
 {
     // 1. Let v be the this value.
@@ -403,7 +403,7 @@ JS_DEFINE_NATIVE_FUNCTION(DataViewPrototype::set_uint_16)
     return set_view_value<u16>(vm, vm.argument(0), vm.argument(2), vm.argument(1));
 }
 
-// 25.3.4.24 DataView.prototype.setUint32 ( byteOffset, value [ , littleEndian ] ), https://tc39.es/ecma262/#sec-dataview.prototype.setuint32
+// 25.3.4.26 DataView.prototype.setUint32 ( byteOffset, value [ , littleEndian ] ), https://tc39.es/ecma262/#sec-dataview.prototype.setuint32
 JS_DEFINE_NATIVE_FUNCTION(DataViewPrototype::set_uint_32)
 {
     // 1. Let v be the this value.
