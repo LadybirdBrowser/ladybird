@@ -516,7 +516,7 @@ FLATTEN ThrowCompletionOr<Value> ECMAScriptFunctionObject::internal_call(Executi
     ASSERT(&vm.running_execution_context() == &callee_context);
 
     // 4. If F.[[IsClassConstructor]] is true, then
-    if (is_class_constructor()) {
+    if (is_class_constructor()) [[unlikely]] {
         // a. Let error be a newly created TypeError object.
         // b. NOTE: error is created in calleeContext with F's associated Realm Record.
         auto throw_completion = vm.throw_completion<TypeError>(ErrorType::ClassConstructorWithoutNew, name());
