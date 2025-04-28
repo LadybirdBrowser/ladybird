@@ -352,14 +352,19 @@ bool String::starts_with_bytes(StringView bytes, CaseSensitivity case_sensitivit
 
 bool String::ends_with(u32 code_point) const
 {
+    ASSERT(is_unicode(code_point));
+
     if (is_empty())
         return false;
 
-    u32 last_code_point = 0;
-    for (auto it = code_points().begin(); it != code_points().end(); ++it)
-        last_code_point = *it;
+    Array<u8, 4> code_point_as_utf8;
+    size_t i = 0;
 
-    return last_code_point == code_point;
+    size_t code_point_byte_length = UnicodeUtils::code_point_to_utf8(code_point, [&](auto byte) {
+        code_point_as_utf8[i++] = static_cast<u8>(byte);
+    });
+
+    return ends_with_bytes(StringView { code_point_as_utf8.data(), code_point_byte_length });
 }
 
 bool String::ends_with_bytes(StringView bytes, CaseSensitivity case_sensitivity) const
