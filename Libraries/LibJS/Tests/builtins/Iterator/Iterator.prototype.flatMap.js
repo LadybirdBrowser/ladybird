@@ -5,6 +5,24 @@ describe("errors", () => {
         }).toThrowWithMessage(TypeError, "mapper is not a function");
     });
 
+    test("argument validation closes underlying iterator", () => {
+        let closed = false;
+        let iterator = {
+            __proto__: Iterator.prototype,
+
+            return() {
+                closed = true;
+                return {};
+            },
+        };
+
+        expect(() => {
+            iterator.flatMap(Symbol.hasInstance);
+        }).toThrowWithMessage(TypeError, "mapper is not a function");
+
+        expect(closed).toBeTrue();
+    });
+
     test("iterator's next method throws", () => {
         function TestError() {}
 
