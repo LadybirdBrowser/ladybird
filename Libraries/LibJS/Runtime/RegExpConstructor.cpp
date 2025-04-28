@@ -27,7 +27,7 @@ void RegExpConstructor::initialize(Realm& realm)
     auto& vm = this->vm();
     Base::initialize(realm);
 
-    // 22.2.5.1 RegExp.prototype, https://tc39.es/ecma262/#sec-regexp.prototype
+    // 22.2.5.2 RegExp.prototype, https://tc39.es/ecma262/#sec-regexp.prototype
     define_direct_property(vm.names.prototype, realm.intrinsics().regexp_prototype(), 0);
 
     u8 attr = Attribute::Writable | Attribute::Configurable;
@@ -147,7 +147,7 @@ ThrowCompletionOr<GC::Ref<Object>> RegExpConstructor::construct(FunctionObject& 
     return TRY(regexp_object->regexp_initialize(vm, pattern_value, flags_value));
 }
 
-// 22.2.5.1.1 EncodeForRegExpEscape ( c ), https://tc39.es/proposal-regex-escaping/#sec-encodeforregexpescape
+// 22.2.5.1.1 EncodeForRegExpEscape ( cp ), https://tc39.es/ecma262/#sec-encodeforregexpescape
 static String encode_for_regexp_escape(u32 code_point)
 {
     // https://tc39.es/ecma262/#table-controlescape-code-point-values
@@ -209,7 +209,7 @@ static String encode_for_regexp_escape(u32 code_point)
     return String::from_code_point(code_point);
 }
 
-// 22.2.5.1 RegExp.escape ( S ), https://tc39.es/proposal-regex-escaping/
+// 22.2.5.1 RegExp.escape ( S ), https://tc39.es/ecma262/#sec-regexp.escape
 JS_DEFINE_NATIVE_FUNCTION(RegExpConstructor::escape)
 {
     auto string = vm.argument(0);
@@ -250,7 +250,7 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpConstructor::escape)
     return JS::PrimitiveString::create(vm, MUST(escaped.to_string()));
 }
 
-// 22.2.5.2 get RegExp [ @@species ], https://tc39.es/ecma262/#sec-get-regexp-@@species
+// 22.2.5.3 get RegExp [ %Symbol.species% ], https://tc39.es/ecma262/#sec-get-regexp-@@species
 JS_DEFINE_NATIVE_FUNCTION(RegExpConstructor::symbol_species_getter)
 {
     // 1. Return the this value.
