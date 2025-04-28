@@ -237,22 +237,16 @@ ThrowCompletionOr<GroupsType> group_by(VM& vm, Value items, Value callback_funct
         auto value = next.release_value();
 
         // e. Let key be Completion(Call(callbackfn, undefined, « value, 𝔽(k) »)).
-        auto key = call(vm, callback_function, js_undefined(), value, Value(k));
-
         // f. IfAbruptCloseIterator(key, iteratorRecord).
-        if (key.is_error())
-            return Completion { TRY(iterator_close(vm, iterator_record, key.release_error())) };
+        auto key = TRY_OR_CLOSE_ITERATOR(vm, iterator_record, call(vm, callback_function, js_undefined(), value, Value(k)));
 
         // g. If keyCoercion is property, then
         if constexpr (IsSame<KeyType, PropertyKey>) {
             // i. Set key to Completion(ToPropertyKey(key)).
-            auto property_key = key.value().to_property_key(vm);
-
             // ii. IfAbruptCloseIterator(key, iteratorRecord).
-            if (property_key.is_error())
-                return Completion { TRY(iterator_close(vm, iterator_record, property_key.release_error())) };
+            auto property_key = TRY_OR_CLOSE_ITERATOR(vm, iterator_record, key.to_property_key(vm));
 
-            add_value_to_keyed_group(vm, groups, property_key.release_value(), value);
+            add_value_to_keyed_group(vm, groups, move(property_key), value);
         }
         // h. Else,
         else {
@@ -260,9 +254,9 @@ ThrowCompletionOr<GroupsType> group_by(VM& vm, Value items, Value callback_funct
             static_assert(IsSame<KeyType, void>);
 
             // ii. Set key to CanonicalizeKeyedCollectionKey(key).
-            key = canonicalize_keyed_collection_key(key.value());
+            key = canonicalize_keyed_collection_key(key);
 
-            add_value_to_keyed_group(vm, groups, make_root(key.release_value()), value);
+            add_value_to_keyed_group(vm, groups, make_root(key), value);
         }
 
         // i. Perform AddValueToKeyedGroup(groups, key, value).

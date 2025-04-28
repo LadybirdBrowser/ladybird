@@ -67,6 +67,24 @@ enum class PrimitiveHandling {
     RejectPrimitives,
 };
 
+// 7.4.12 IfAbruptCloseIterator ( value, iteratorRecord ), https://tc39.es/ecma262/#sec-ifabruptcloseiterator
+#define TRY_OR_CLOSE_ITERATOR(vm, iterator_record, expression)                                                    \
+    ({                                                                                                            \
+        auto&& _temporary_try_or_close_result = (expression);                                                     \
+                                                                                                                  \
+        /* 1. Assert: value is a Completion Record. */                                                            \
+        /* 2. If value is an abrupt completion, return ? IteratorClose(iteratorRecord, value). */                 \
+        if (_temporary_try_or_close_result.is_error()) {                                                          \
+            return iterator_close(vm, iterator_record, _temporary_try_or_close_result.release_error());           \
+        }                                                                                                         \
+                                                                                                                  \
+        static_assert(!::AK::Detail::IsLvalueReference<decltype(_temporary_try_or_close_result.release_value())>, \
+            "Do not return a reference from a fallible expression");                                              \
+                                                                                                                  \
+        /* 3. Else, set value to ! value. */                                                                      \
+        _temporary_try_or_close_result.release_value();                                                           \
+    })
+
 ThrowCompletionOr<GC::Ref<IteratorRecord>> get_iterator_direct(VM&, Object&);
 ThrowCompletionOr<GC::Ref<IteratorRecord>> get_iterator_from_method(VM&, Value, GC::Ref<FunctionObject>);
 ThrowCompletionOr<GC::Ref<IteratorRecord>> get_iterator(VM&, Value, IteratorHint);
