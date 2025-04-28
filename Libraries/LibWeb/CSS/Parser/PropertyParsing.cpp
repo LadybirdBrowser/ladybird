@@ -3756,7 +3756,18 @@ RefPtr<CSSStyleValue const> Parser::parse_transition_value(TokenStream<Component
                 continue;
             }
 
-            if (auto transition_property = parse_custom_ident_value(tokens, { { "none"sv } })) {
+            if (auto token = tokens.peek_token(); token.is_ident("all"sv)) {
+                auto transition_keyword = parse_keyword_value(tokens);
+                VERIFY(transition_keyword->to_keyword() == Keyword::All);
+                if (transition.property_name) {
+                    dbgln_if(CSS_PARSER_DEBUG, "Transition property has multiple property identifiers");
+                    return {};
+                }
+                transition.property_name = transition_keyword.release_nonnull();
+                continue;
+            }
+
+            if (auto transition_property = parse_custom_ident_value(tokens, { { "all"sv, "none"sv } })) {
                 if (transition.property_name) {
                     dbgln_if(CSS_PARSER_DEBUG, "Transition property has multiple property identifiers");
                     return {};
@@ -3774,7 +3785,7 @@ RefPtr<CSSStyleValue const> Parser::parse_transition_value(TokenStream<Component
         }
 
         if (!transition.property_name)
-            transition.property_name = CustomIdentStyleValue::create("all"_fly_string);
+            transition.property_name = CSSKeywordValue::create(Keyword::All);
 
         if (!transition.easing)
             transition.easing = EasingStyleValue::create(EasingStyleValue::CubicBezier::ease());

@@ -17,7 +17,7 @@ namespace Web::CSS {
 class TransitionStyleValue final : public StyleValueWithDefaultOperators<TransitionStyleValue> {
 public:
     struct Transition {
-        ValueComparingRefPtr<CustomIdentStyleValue const> property_name;
+        ValueComparingRefPtr<CSSStyleValue const> property_name;
         TimeOrCalculated duration { CSS::Time::make_seconds(0.0) };
         TimeOrCalculated delay { CSS::Time::make_seconds(0.0) };
         ValueComparingRefPtr<EasingStyleValue const> easing;
