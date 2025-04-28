@@ -13,7 +13,15 @@ namespace Web::HTML {
 
 RenderingThread::RenderingThread()
     : m_main_thread_event_loop(Core::EventLoop::current())
+    , m_main_thread_exit_promise(Core::Promise<NonnullRefPtr<Core::EventReceiver>>::construct())
 {
+    // FIXME: Come up with a better "event loop exited" notification mechanism.
+    m_main_thread_exit_promise->on_rejection = [this](Error const&) -> void {
+        Threading::MutexLocker const locker { m_rendering_task_mutex };
+        m_exit = true;
+        m_rendering_task_ready_wake_condition.signal();
+    };
+    m_main_thread_event_loop.add_job(m_main_thread_exit_promise);
 }
 
 RenderingThread::~RenderingThread()
@@ -58,6 +66,8 @@ void RenderingThread::rendering_thread_loop()
 
         auto painting_surface = painting_surface_for_backing_store(task->backing_store);
         m_skia_player->execute(*task->display_list, task->scroll_state_snapshot, painting_surface);
+        if (m_exit)
+            break;
         m_main_thread_event_loop.deferred_invoke([callback = move(task->callback)] {
             callback();
         });
