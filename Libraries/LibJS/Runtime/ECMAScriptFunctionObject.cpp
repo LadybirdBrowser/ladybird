@@ -905,8 +905,9 @@ ThrowCompletionOr<Value> ECMAScriptFunctionObject::ordinary_call_evaluate_body(V
 
     auto result_and_frame = vm.bytecode_interpreter().run_executable(*m_bytecode_executable, {});
 
-    if (result_and_frame.value.is_error())
+    if (result_and_frame.value.is_error()) [[unlikely]] {
         return result_and_frame.value.release_error();
+    }
 
     auto result = result_and_frame.value.release_value();
 
