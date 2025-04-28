@@ -214,12 +214,8 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayConstructor::from)
             // v. If mapping is true, then
             if (mapfn) {
                 // 1. Let mappedValue be Completion(Call(mapfn, thisArg, « nextValue, 𝔽(k) »)).
-                auto mapped_value_or_error = JS::call(vm, *mapfn, this_arg, next.release_value(), Value(k));
-
                 // 2. IfAbruptCloseIterator(mappedValue, iteratorRecord).
-                if (mapped_value_or_error.is_error())
-                    return TRY(iterator_close(vm, iterator, mapped_value_or_error.release_error()));
-                mapped_value = mapped_value_or_error.release_value();
+                mapped_value = TRY_OR_CLOSE_ITERATOR(vm, iterator, JS::call(vm, *mapfn, this_arg, next.release_value(), Value(k)));
             }
             // vi. Else, let mappedValue be nextValue.
             else {
@@ -227,11 +223,8 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayConstructor::from)
             }
 
             // vii. Let defineStatus be Completion(CreateDataPropertyOrThrow(A, Pk, mappedValue)).
-            auto result_or_error = array->create_data_property_or_throw(property_key, mapped_value);
-
             // viii. IfAbruptCloseIterator(defineStatus, iteratorRecord).
-            if (result_or_error.is_error())
-                return TRY(iterator_close(vm, iterator, result_or_error.release_error()));
+            TRY_OR_CLOSE_ITERATOR(vm, iterator, array->create_data_property_or_throw(property_key, mapped_value));
 
             // ix. Set k to k + 1.
         }
