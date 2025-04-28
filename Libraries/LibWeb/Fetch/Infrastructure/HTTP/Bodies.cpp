@@ -70,20 +70,18 @@ void Body::fully_read(JS::Realm& realm, Web::Fetch::Infrastructure::Body::Proces
 
     // FIXME: 1. If taskDestination is null, then set taskDestination to the result of starting a new parallel queue.
     // FIXME: Handle 'parallel queue' task destination
-    VERIFY(!task_destination.has<Empty>());
-    auto task_destination_object = task_destination.get<GC::Ref<JS::Object>>();
 
     // 2. Let successSteps given a byte sequence bytes be to queue a fetch task to run processBody given bytes, with taskDestination.
-    auto success_steps = [&realm, process_body, task_destination_object](ByteBuffer bytes) {
-        queue_fetch_task(*task_destination_object, GC::create_function(realm.heap(), [process_body, bytes = move(bytes)]() mutable {
+    auto success_steps = [&realm, process_body, task_destination](ByteBuffer bytes) {
+        queue_fetch_task(task_destination, GC::create_function(realm.heap(), [process_body, bytes = move(bytes)]() mutable {
             process_body->function()(move(bytes));
         }));
     };
 
     // 3. Let errorSteps optionally given an exception exception be to queue a fetch task to run processBodyError given
     //    exception, with taskDestination.
-    auto error_steps = [&realm, process_body_error, task_destination_object](JS::Value exception) {
-        queue_fetch_task(*task_destination_object, GC::create_function(realm.heap(), [process_body_error, exception]() {
+    auto error_steps = [&realm, process_body_error, task_destination](JS::Value exception) {
+        queue_fetch_task(task_destination, GC::create_function(realm.heap(), [process_body_error, exception]() {
             process_body_error->function()(exception);
         }));
     };

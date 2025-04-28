@@ -725,14 +725,12 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
         });
 
         // FIXME: Handle 'parallel queue' task destination
-        auto task_destination = fetch_params.task_destination().get<GC::Ref<JS::Object>>();
-
         // 5. Queue a fetch task to run processResponseEndOfBodyTask with fetchParams’s task destination.
-        Infrastructure::queue_fetch_task(fetch_params.controller(), task_destination, move(process_response_end_of_body_task));
+        Infrastructure::queue_fetch_task(fetch_params.controller(), fetch_params.task_destination(), move(process_response_end_of_body_task));
     };
 
     // FIXME: Handle 'parallel queue' task destination
-    auto task_destination = fetch_params.task_destination().get<GC::Ref<JS::Object>>();
+    auto task_destination = fetch_params.task_destination();
 
     // 4. If fetchParams’s process response is non-null, then queue a fetch task to run fetchParams’s process response
     //    given response, with fetchParams’s task destination.
