@@ -8,6 +8,7 @@
 
 #include <AK/Noncopyable.h>
 #include <AK/Queue.h>
+#include <LibCore/Promise.h>
 #include <LibThreading/ConditionVariable.h>
 #include <LibThreading/Mutex.h>
 #include <LibThreading/Thread.h>
@@ -43,6 +44,7 @@ private:
 
     RefPtr<Threading::Thread> m_thread;
     Atomic<bool> m_exit { false };
+    NonnullRefPtr<Core::Promise<NonnullRefPtr<Core::EventReceiver>>> m_main_thread_exit_promise;
 
     struct Task {
         NonnullRefPtr<Painting::DisplayList> display_list;
