@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/ByteBuffer.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/PaintingSurface.h>
 #include <LibWeb/HTML/HTMLElement.h>
@@ -30,7 +29,7 @@ public:
         No,
         Yes,
     };
-    HasOrCreatedContext create_2d_context();
+    JS::ThrowCompletionOr<HasOrCreatedContext> create_2d_context(JS::Value options);
 
     WebIDL::UnsignedLong width() const;
     WebIDL::UnsignedLong height() const;

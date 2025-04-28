@@ -4,6 +4,7 @@
  * Copyright (c) 2023, MacDue <macdue@dueutil.tech>
  * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  * Copyright (c) 2024, Lucien Fiorini <lucienfiorini@gmail.com>
+ * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -26,7 +27,6 @@
 #include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Painting/Paintable.h>
-#include <LibWeb/Platform/FontPlugin.h>
 #include <LibWeb/SVG/SVGImageElement.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -34,16 +34,18 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(CanvasRenderingContext2D);
 
-GC::Ref<CanvasRenderingContext2D> CanvasRenderingContext2D::create(JS::Realm& realm, HTMLCanvasElement& element)
+JS::ThrowCompletionOr<GC::Ref<CanvasRenderingContext2D>> CanvasRenderingContext2D::create(JS::Realm& realm, HTMLCanvasElement& element, JS::Value options)
 {
-    return realm.create<CanvasRenderingContext2D>(realm, element);
+    auto context_attributes = TRY(context_attributes_from_options(realm.vm(), options));
+    return realm.create<CanvasRenderingContext2D>(realm, element, context_attributes);
 }
 
-CanvasRenderingContext2D::CanvasRenderingContext2D(JS::Realm& realm, HTMLCanvasElement& element)
+CanvasRenderingContext2D::CanvasRenderingContext2D(JS::Realm& realm, HTMLCanvasElement& element, CanvasRenderingContext2DSettings context_attributes)
     : PlatformObject(realm)
     , CanvasPath(static_cast<Bindings::PlatformObject&>(*this), *this)
     , m_element(element)
     , m_size(element.bitmap_size_for_canvas())
+    , m_context_attributes(move(context_attributes))
 {
 }
 
@@ -59,6 +61,52 @@ void CanvasRenderingContext2D::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_element);
+}
+
+// https://html.spec.whatwg.org/multipage/canvas.html#canvasrenderingcontext2dsettings
+JS::ThrowCompletionOr<CanvasRenderingContext2DSettings> CanvasRenderingContext2D::context_attributes_from_options(JS::VM& vm, JS::Value value)
+{
+    if (!value.is_nullish() && !value.is_object())
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "CanvasRenderingContext2DSettings");
+
+    CanvasRenderingContext2DSettings settings;
+    if (value.is_nullish())
+        return settings;
+
+    auto& value_object = value.as_object();
+
+    JS::Value alpha = TRY(value_object.get("alpha"_fly_string));
+    settings.alpha = alpha.is_undefined() ? true : alpha.to_boolean();
+
+    JS::Value desynchronized = TRY(value_object.get("desynchronized"_fly_string));
+    settings.desynchronized = desynchronized.is_undefined() ? false : desynchronized.to_boolean();
+
+    JS::Value color_space = TRY(value_object.get("colorSpace"_fly_string));
+    if (!color_space.is_undefined()) {
+        auto color_space_string = TRY(color_space.to_string(vm));
+        if (color_space_string == "srgb"sv)
+            settings.color_space = Bindings::PredefinedColorSpace::Srgb;
+        else if (color_space_string == "display-p3"sv)
+            settings.color_space = Bindings::PredefinedColorSpace::DisplayP3;
+        else
+            return vm.throw_completion<JS::TypeError>(JS::ErrorType::InvalidEnumerationValue, color_space_string, "colorSpace");
+    }
+
+    JS::Value color_type = TRY(value_object.get("colorType"_fly_string));
+    if (!color_type.is_undefined()) {
+        auto color_type_string = TRY(color_type.to_string(vm));
+        if (color_type_string == "unorm8"sv)
+            settings.color_type = Bindings::CanvasColorType::Unorm8;
+        else if (color_type_string == "float16"sv)
+            settings.color_type = Bindings::CanvasColorType::Float16;
+        else
+            return vm.throw_completion<JS::TypeError>(JS::ErrorType::InvalidEnumerationValue, color_type_string, "colorType");
+    }
+
+    JS::Value will_read_frequently = TRY(value_object.get("willReadFrequently"_fly_string));
+    settings.will_read_frequently = will_read_frequently.is_undefined() ? false : will_read_frequently.to_boolean();
+
+    return settings;
 }
 
 HTMLCanvasElement& CanvasRenderingContext2D::canvas_element()
@@ -221,6 +269,13 @@ void CanvasRenderingContext2D::allocate_painting_surface_if_needed()
 {
     if (m_surface || m_size.is_empty())
         return;
+
+    // FIXME: implement context attribute .alpha
+    // FIXME: implement context attribute .color_space
+    // FIXME: implement context attribute .color_type
+    // FIXME: implement context attribute .desynchronized
+    // FIXME: implement context attribute .will_read_frequently
+
     auto skia_backend_context = canvas_element().navigable()->traversable_navigable()->skia_backend_context();
     m_surface = Gfx::PaintingSurface::create_with_size(skia_backend_context, canvas_element().bitmap_size_for_canvas(), Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
 }
