@@ -309,6 +309,7 @@ public:
             visitor(m_excluded_names[i]);
     }
 
+    size_t length() const { return length_impl(); }
     size_t length_impl() const
     {
         return round_up_to_power_of_two(alignof(void*), sizeof(*this) + sizeof(Operand) * m_excluded_names_count);
@@ -358,6 +359,7 @@ public:
 
     Operand dst() const { return m_dst; }
 
+    size_t length() const { return length_impl(); }
     size_t length_impl() const
     {
         return round_up_to_power_of_two(alignof(void*), sizeof(*this) + sizeof(Operand) * m_element_count);
@@ -384,6 +386,7 @@ public:
             m_elements[i] = elements[i];
     }
 
+    size_t length() const { return length_impl(); }
     size_t length_impl() const
     {
         return round_up_to_power_of_two(alignof(void*), sizeof(*this) + sizeof(Value) * m_element_count);
@@ -1766,6 +1769,7 @@ public:
             m_arguments[i] = arguments[i];
     }
 
+    size_t length() const { return length_impl(); }
     size_t length_impl() const
     {
         return round_up_to_power_of_two(alignof(void*), sizeof(*this) + sizeof(Operand) * m_argument_count);
@@ -1815,6 +1819,7 @@ public:
             m_arguments[i] = arguments[i];
     }
 
+    size_t length() const { return length_impl(); }
     size_t length_impl() const
     {
         return round_up_to_power_of_two(alignof(void*), sizeof(*this) + sizeof(Operand) * m_argument_count);
@@ -1865,6 +1870,7 @@ public:
             m_arguments[i] = arguments[i];
     }
 
+    size_t length() const { return length_impl(); }
     size_t length_impl() const
     {
         return round_up_to_power_of_two(alignof(void*), sizeof(*this) + sizeof(Operand) * m_argument_count);
@@ -1910,6 +1916,7 @@ public:
             m_arguments[i] = arguments[i];
     }
 
+    size_t length() const { return length_impl(); }
     size_t length_impl() const
     {
         return round_up_to_power_of_two(alignof(void*), sizeof(*this) + sizeof(Operand) * m_argument_count);
@@ -2027,6 +2034,7 @@ public:
         }
     }
 
+    size_t length() const { return length_impl(); }
     size_t length_impl() const
     {
         return round_up_to_power_of_two(alignof(void*), sizeof(*this) + sizeof(Optional<Operand>) * m_element_keys_count);
