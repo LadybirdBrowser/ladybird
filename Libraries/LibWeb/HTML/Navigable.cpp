@@ -521,7 +521,7 @@ GC::Ptr<Navigable> Navigable::find_a_navigable_by_target_name(StringView name)
     auto& current_document = *active_document();
 
     // 2. Let sourceSnapshotParams be the result of snapshotting source snapshot params given currentDocument.
-    auto source_snapshot_params = current_document.snapshot_source_snapshot_params();
+    auto source_snapshot_params = snapshot_source_snapshot_params(current_document.heap(), current_document);
 
     // 3. Let subtreesToSearch be an implementation-defined choice of one of the following:
     //    - « currentNavigable's traversable navigable, currentNavigable »
@@ -1414,7 +1414,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
     }
 
     // 2. Let sourceSnapshotParams be the result of snapshotting source snapshot params given sourceDocument.
-    auto source_snapshot_params = source_document->snapshot_source_snapshot_params();
+    auto source_snapshot_params = snapshot_source_snapshot_params(realm.heap(), source_document);
 
     // 3. Let initiatorOriginSnapshot be sourceDocument's origin.
     auto initiator_origin_snapshot = source_document->origin();
@@ -1481,7 +1481,7 @@ void Navigable::begin_navigation(NavigateParams params)
     auto csp_navigation_type = form_data_entry_list.has_value() ? ContentSecurityPolicy::Directives::Directive::NavigationType::FormSubmission : ContentSecurityPolicy::Directives::Directive::NavigationType::Other;
 
     // 2. Let sourceSnapshotParams be the result of snapshotting source snapshot params given sourceDocument.
-    auto source_snapshot_params = source_document->snapshot_source_snapshot_params();
+    auto source_snapshot_params = snapshot_source_snapshot_params(vm.heap(), source_document);
 
     // 3. Let initiatorOriginSnapshot be sourceDocument's origin.
     auto initiator_origin_snapshot = source_document->origin();

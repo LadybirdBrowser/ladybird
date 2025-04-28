@@ -3870,32 +3870,6 @@ void Document::set_policy_container(GC::Ref<HTML::PolicyContainer> policy_contai
     m_policy_container = policy_container;
 }
 
-// https://html.spec.whatwg.org/multipage/browsing-the-web.html#snapshotting-source-snapshot-params
-GC::Ref<HTML::SourceSnapshotParams> Document::snapshot_source_snapshot_params() const
-{
-    // To snapshot source snapshot params given a Document sourceDocument, return a new source snapshot params with
-    return heap().allocate<HTML::SourceSnapshotParams>(
-        // has transient activation
-        //    true if sourceDocument's relevant global object has transient activation; otherwise false
-        as<HTML::Window>(HTML::relevant_global_object(*this)).has_transient_activation(),
-
-        // sandboxing flags
-        //     sourceDocument's active sandboxing flag set
-        m_active_sandboxing_flag_set,
-
-        // allows downloading
-        //     false if sourceDocument's active sandboxing flag set has the sandboxed downloads browsing context flag set; otherwise true
-        !has_flag(m_active_sandboxing_flag_set, HTML::SandboxingFlagSet::SandboxedDownloads),
-
-        // fetch client
-        //     sourceDocument's relevant settings object
-        relevant_settings_object(),
-
-        // source policy container
-        //     a clone of sourceDocument's policy container
-        policy_container()->clone(heap()));
-}
-
 // https://html.spec.whatwg.org/multipage/document-sequences.html#descendant-navigables
 Vector<GC::Root<HTML::Navigable>> Document::descendant_navigables()
 {
