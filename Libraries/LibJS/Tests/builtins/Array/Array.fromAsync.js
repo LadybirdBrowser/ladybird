@@ -77,4 +77,28 @@ describe("normal behavior", () => {
         checkResult(promise, TestArray);
         expect(callCount).toBe(1);
     });
+
+    asyncTest("sync iterable is closed upon rejection", async () => {
+        const thenable = {
+            then(resolve, reject) {
+                reject();
+            },
+        };
+
+        let counter = 0;
+
+        function* iterator() {
+            try {
+                yield thenable;
+            } finally {
+                counter++;
+            }
+        }
+
+        try {
+            await Array.fromAsync(iterator());
+        } catch (e) {}
+
+        expect(counter).toBe(1);
+    });
 });
