@@ -171,7 +171,6 @@ inline size_t array_buffer_byte_length(ArrayBuffer const& array_buffer, ArrayBuf
 }
 
 // 25.1.3.14 RawBytesToNumeric ( type, rawBytes, isLittleEndian ), https://tc39.es/ecma262/#sec-rawbytestonumeric
-// 5 RawBytesToNumeric ( type, rawBytes, isLittleEndian ), https://tc39.es/proposal-float16array/#sec-rawbytestonumeric
 template<typename T>
 static Value raw_bytes_to_numeric(VM& vm, Bytes raw_value, bool is_little_endian)
 {
@@ -305,7 +304,6 @@ Value ArrayBuffer::get_value(size_t byte_index, [[maybe_unused]] bool is_typed_a
 }
 
 // 25.1.3.17 NumericToRawBytes ( type, value, isLittleEndian ), https://tc39.es/ecma262/#sec-numerictorawbytes
-// 6 NumericToRawBytes ( type, value, isLittleEndian ), https://tc39.es/proposal-float16array/#sec-numerictorawbytes
 template<typename T>
 static void numeric_to_raw_bytes(VM& vm, Value value, bool is_little_endian, Bytes raw_bytes)
 {

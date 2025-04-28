@@ -30,6 +30,7 @@ void MathObject::initialize(Realm& realm)
 {
     auto& vm = this->vm();
     Base::initialize(realm);
+
     u8 attr = Attribute::Writable | Attribute::Configurable;
     define_native_function(realm, vm.names.abs, abs, 1, attr, Bytecode::Builtin::MathAbs);
     define_native_function(realm, vm.names.random, random, 0, attr, Bytecode::Builtin::MathRandom);
@@ -517,7 +518,7 @@ JS_DEFINE_NATIVE_FUNCTION(MathObject::fround)
     return Value((float)number.as_double());
 }
 
-// 3.1 Math.f16round ( x ), https://tc39.es/proposal-float16array/#sec-math.f16round
+// 21.3.2.18 Math.f16round ( x ), https://tc39.es/ecma262/#sec-math.f16round
 JS_DEFINE_NATIVE_FUNCTION(MathObject::f16round)
 {
     // 1. Let n be ? ToNumber(x).
@@ -537,7 +538,7 @@ JS_DEFINE_NATIVE_FUNCTION(MathObject::f16round)
     return Value(static_cast<f16>(number.as_double()));
 }
 
-// 21.3.2.18 Math.hypot ( ...args ), https://tc39.es/ecma262/#sec-math.hypot
+// 21.3.2.19 Math.hypot ( ...args ), https://tc39.es/ecma262/#sec-math.hypot
 JS_DEFINE_NATIVE_FUNCTION(MathObject::hypot)
 {
     // 1. Let coerced be a new empty List.
@@ -586,7 +587,7 @@ JS_DEFINE_NATIVE_FUNCTION(MathObject::hypot)
     return Value(::sqrt(sum_of_squares));
 }
 
-// 21.3.2.19 Math.imul ( x, y ), https://tc39.es/ecma262/#sec-math.imul
+// 21.3.2.20 Math.imul ( x, y ), https://tc39.es/ecma262/#sec-math.imul
 ThrowCompletionOr<Value> MathObject::imul_impl(VM& vm, Value arg_a, Value arg_b)
 {
     // 1. Let a be ℝ(? ToUint32(x)).
@@ -600,13 +601,13 @@ ThrowCompletionOr<Value> MathObject::imul_impl(VM& vm, Value arg_a, Value arg_b)
     return Value(static_cast<i32>(a * b));
 }
 
-// 21.3.2.19 Math.imul ( x, y ), https://tc39.es/ecma262/#sec-math.imul
+// 21.3.2.20 Math.imul ( x, y ), https://tc39.es/ecma262/#sec-math.imul
 JS_DEFINE_NATIVE_FUNCTION(MathObject::imul)
 {
     return imul_impl(vm, vm.argument(0), vm.argument(1));
 }
 
-// 21.3.2.20 Math.log ( x ), https://tc39.es/ecma262/#sec-math.log
+// 21.3.2.21 Math.log ( x ), https://tc39.es/ecma262/#sec-math.log
 ThrowCompletionOr<Value> MathObject::log_impl(VM& vm, Value x)
 {
     // 1. Let n be ? ToNumber(x).
@@ -632,13 +633,13 @@ ThrowCompletionOr<Value> MathObject::log_impl(VM& vm, Value x)
     return Value(::log(number.as_double()));
 }
 
-// 21.3.2.20 Math.log ( x ), https://tc39.es/ecma262/#sec-math.log
+// 21.3.2.21 Math.log ( x ), https://tc39.es/ecma262/#sec-math.log
 JS_DEFINE_NATIVE_FUNCTION(MathObject::log)
 {
     return log_impl(vm, vm.argument(0));
 }
 
-// 21.3.2.21 Math.log1p ( x ), https://tc39.es/ecma262/#sec-math.log1p
+// 21.3.2.22 Math.log1p ( x ), https://tc39.es/ecma262/#sec-math.log1p
 JS_DEFINE_NATIVE_FUNCTION(MathObject::log1p)
 {
     // 1. Let n be ? ToNumber(x).
@@ -660,7 +661,7 @@ JS_DEFINE_NATIVE_FUNCTION(MathObject::log1p)
     return Value(::log1p(number.as_double()));
 }
 
-// 21.3.2.22 Math.log10 ( x ), https://tc39.es/ecma262/#sec-math.log10
+// 21.3.2.23 Math.log10 ( x ), https://tc39.es/ecma262/#sec-math.log10
 JS_DEFINE_NATIVE_FUNCTION(MathObject::log10)
 {
     // 1. Let n be ? ToNumber(x).
@@ -686,7 +687,7 @@ JS_DEFINE_NATIVE_FUNCTION(MathObject::log10)
     return Value(::log10(number.as_double()));
 }
 
-// 21.3.2.23 Math.log2 ( x ), https://tc39.es/ecma262/#sec-math.log2
+// 21.3.2.24 Math.log2 ( x ), https://tc39.es/ecma262/#sec-math.log2
 JS_DEFINE_NATIVE_FUNCTION(MathObject::log2)
 {
     // 1. Let n be ? ToNumber(x).
@@ -712,7 +713,7 @@ JS_DEFINE_NATIVE_FUNCTION(MathObject::log2)
     return Value(::log2(number.as_double()));
 }
 
-// 21.3.2.24 Math.max ( ...args ), https://tc39.es/ecma262/#sec-math.max
+// 21.3.2.25 Math.max ( ...args ), https://tc39.es/ecma262/#sec-math.max
 JS_DEFINE_NATIVE_FUNCTION(MathObject::max)
 {
     // 1. Let coerced be a new empty List.
@@ -746,7 +747,7 @@ JS_DEFINE_NATIVE_FUNCTION(MathObject::max)
     return highest;
 }
 
-// 21.3.2.25 Math.min ( ...args ), https://tc39.es/ecma262/#sec-math.min
+// 21.3.2.26 Math.min ( ...args ), https://tc39.es/ecma262/#sec-math.min
 JS_DEFINE_NATIVE_FUNCTION(MathObject::min)
 {
     // 1. Let coerced be a new empty List.
@@ -780,7 +781,7 @@ JS_DEFINE_NATIVE_FUNCTION(MathObject::min)
     return lowest;
 }
 
-// 21.3.2.26 Math.pow ( base, exponent ), https://tc39.es/ecma262/#sec-math.pow
+// 21.3.2.27 Math.pow ( base, exponent ), https://tc39.es/ecma262/#sec-math.pow
 ThrowCompletionOr<Value> MathObject::pow_impl(VM& vm, Value base, Value exponent)
 {
     // Set base to ? ToNumber(base).
@@ -793,7 +794,7 @@ ThrowCompletionOr<Value> MathObject::pow_impl(VM& vm, Value base, Value exponent
     return JS::exp(vm, base, exponent);
 }
 
-// 21.3.2.26 Math.pow ( base, exponent ), https://tc39.es/ecma262/#sec-math.pow
+// 21.3.2.27 Math.pow ( base, exponent ), https://tc39.es/ecma262/#sec-math.pow
 JS_DEFINE_NATIVE_FUNCTION(MathObject::pow)
 {
     return pow_impl(vm, vm.argument(0), vm.argument(1));
@@ -849,13 +850,13 @@ Value MathObject::random_impl()
     return Value(rng.get());
 }
 
-// 21.3.2.27 Math.random ( ), https://tc39.es/ecma262/#sec-math.random
+// 21.3.2.28 Math.random ( ), https://tc39.es/ecma262/#sec-math.random
 JS_DEFINE_NATIVE_FUNCTION(MathObject::random)
 {
     return random_impl();
 }
 
-// 21.3.2.28 Math.round ( x ), https://tc39.es/ecma262/#sec-math.round
+// 21.3.2.29 Math.round ( x ), https://tc39.es/ecma262/#sec-math.round
 ThrowCompletionOr<Value> MathObject::round_impl(VM& vm, Value x)
 {
     // 1. Let n be ? ToNumber(x).
@@ -874,13 +875,13 @@ ThrowCompletionOr<Value> MathObject::round_impl(VM& vm, Value x)
     return Value(integer);
 }
 
-// 21.3.2.28 Math.round ( x ), https://tc39.es/ecma262/#sec-math.round
+// 21.3.2.29 Math.round ( x ), https://tc39.es/ecma262/#sec-math.round
 JS_DEFINE_NATIVE_FUNCTION(MathObject::round)
 {
     return round_impl(vm, vm.argument(0));
 }
 
-// 21.3.2.29 Math.sign ( x ), https://tc39.es/ecma262/#sec-math.sign
+// 21.3.2.30 Math.sign ( x ), https://tc39.es/ecma262/#sec-math.sign
 JS_DEFINE_NATIVE_FUNCTION(MathObject::sign)
 {
     // 1. Let n be ? ToNumber(x).
@@ -898,7 +899,7 @@ JS_DEFINE_NATIVE_FUNCTION(MathObject::sign)
     return Value(1);
 }
 
-// 21.3.2.30 Math.sin ( x ), https://tc39.es/ecma262/#sec-math.sin
+// 21.3.2.31 Math.sin ( x ), https://tc39.es/ecma262/#sec-math.sin
 JS_DEFINE_NATIVE_FUNCTION(MathObject::sin)
 {
     // 1. Let n be ? ToNumber(x).
@@ -916,7 +917,7 @@ JS_DEFINE_NATIVE_FUNCTION(MathObject::sin)
     return Value(::sin(number.as_double()));
 }
 
-// 21.3.2.31 Math.sinh ( x ), https://tc39.es/ecma262/#sec-math.sinh
+// 21.3.2.32 Math.sinh ( x ), https://tc39.es/ecma262/#sec-math.sinh
 JS_DEFINE_NATIVE_FUNCTION(MathObject::sinh)
 {
     // 1. Let n be ? ToNumber(x).
@@ -930,7 +931,7 @@ JS_DEFINE_NATIVE_FUNCTION(MathObject::sinh)
     return Value(::sinh(number.as_double()));
 }
 
-// 21.3.2.32 Math.sqrt ( x ), https://tc39.es/ecma262/#sec-math.sqrt
+// 21.3.2.33 Math.sqrt ( x ), https://tc39.es/ecma262/#sec-math.sqrt
 ThrowCompletionOr<Value> MathObject::sqrt_impl(VM& vm, Value x)
 {
     // Let n be ? ToNumber(x).
@@ -948,13 +949,13 @@ ThrowCompletionOr<Value> MathObject::sqrt_impl(VM& vm, Value x)
     return Value(::sqrt(number.as_double()));
 }
 
-// 21.3.2.32 Math.sqrt ( x ), https://tc39.es/ecma262/#sec-math.sqrt
+// 21.3.2.33 Math.sqrt ( x ), https://tc39.es/ecma262/#sec-math.sqrt
 JS_DEFINE_NATIVE_FUNCTION(MathObject::sqrt)
 {
     return sqrt_impl(vm, vm.argument(0));
 }
 
-// 21.3.2.33 Math.tan ( x ), https://tc39.es/ecma262/#sec-math.tan
+// 21.3.2.34 Math.tan ( x ), https://tc39.es/ecma262/#sec-math.tan
 JS_DEFINE_NATIVE_FUNCTION(MathObject::tan)
 {
     // Let n be ? ToNumber(x).
@@ -972,7 +973,7 @@ JS_DEFINE_NATIVE_FUNCTION(MathObject::tan)
     return Value(::tan(number.as_double()));
 }
 
-// 21.3.2.34 Math.tanh ( x ), https://tc39.es/ecma262/#sec-math.tanh
+// 21.3.2.35 Math.tanh ( x ), https://tc39.es/ecma262/#sec-math.tanh
 JS_DEFINE_NATIVE_FUNCTION(MathObject::tanh)
 {
     // 1. Let n be ? ToNumber(x).
@@ -994,7 +995,7 @@ JS_DEFINE_NATIVE_FUNCTION(MathObject::tanh)
     return Value(::tanh(number.as_double()));
 }
 
-// 21.3.2.35 Math.trunc ( x ), https://tc39.es/ecma262/#sec-math.trunc
+// 21.3.2.36 Math.trunc ( x ), https://tc39.es/ecma262/#sec-math.trunc
 JS_DEFINE_NATIVE_FUNCTION(MathObject::trunc)
 {
     // 1. Let n be ? ToNumber(x).
