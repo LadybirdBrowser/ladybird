@@ -228,7 +228,13 @@ public:
         GC::Ptr<PrimitiveString> object_Object;
     } cached_strings;
 
-    void run_queued_promise_jobs();
+    void run_queued_promise_jobs()
+    {
+        if (m_promise_jobs.is_empty())
+            return;
+        run_queued_promise_jobs_impl();
+    }
+
     void enqueue_promise_job(GC::Ref<GC::Function<ThrowCompletionOr<Value>()>> job, Realm*);
 
     void run_queued_finalization_registry_cleanup_jobs();
@@ -298,6 +304,8 @@ private:
     ThrowCompletionOr<void> link_and_eval_module(CyclicModule&);
 
     void set_well_known_symbols(WellKnownSymbols well_known_symbols) { m_well_known_symbols = move(well_known_symbols); }
+
+    void run_queued_promise_jobs_impl();
 
     HashMap<String, GC::Ptr<PrimitiveString>> m_string_cache;
     HashMap<Utf16String, GC::Ptr<PrimitiveString>> m_utf16_string_cache;
