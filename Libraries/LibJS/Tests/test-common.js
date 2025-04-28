@@ -617,6 +617,37 @@ class ExpectationError extends Error {
         }
     };
 
+    asyncTest = async (message, callback) => {
+        if (!__TestResults__[suiteMessage]) __TestResults__[suiteMessage] = {};
+
+        const suite = __TestResults__[suiteMessage];
+        if (Object.prototype.hasOwnProperty.call(suite, message)) {
+            suite[message] = {
+                result: "fail",
+                details: "Another test with the same message did already run",
+                duration: 0,
+            };
+            return;
+        }
+
+        const start = Date.now();
+        const time_ms = () => Date.now() - start;
+
+        try {
+            await callback();
+            suite[message] = {
+                result: "pass",
+                duration: time_ms(),
+            };
+        } catch (e) {
+            suite[message] = {
+                result: "fail",
+                details: String(e),
+                duration: time_ms(),
+            };
+        }
+    };
+
     test.skip = (message, callback) => {
         if (typeof callback !== "function")
             throw new Error("test.skip has invalid second argument (must be a function)");
