@@ -52,7 +52,7 @@ ThrowCompletionOr<u32> Module::inner_module_linking(VM& vm, Vector<Module*>&, u3
 ThrowCompletionOr<u32> Module::inner_module_evaluation(VM& vm, Vector<Module*>&, u32 index)
 {
     // 1. If module is not a Cyclic Module Record, then
-    // a. Let promise be ! module.Evaluate().
+    // a. Let promise be module.Evaluate().
     auto promise = TRY(evaluate(vm));
 
     // b. Assert: promise.[[PromiseState]] is not pending.
@@ -122,26 +122,26 @@ void finish_loading_imported_module(ImportedModuleReferrer referrer, ModuleReque
 }
 
 // 16.2.1.10 GetModuleNamespace ( module ), https://tc39.es/ecma262/#sec-getmodulenamespace
-ThrowCompletionOr<Object*> Module::get_module_namespace(VM& vm)
+GC::Ref<Object> Module::get_module_namespace(VM& vm)
 {
-    // 1. Assert: If module is a Cyclic Module Record, then module.[[Status]] is not unlinked.
+    // 1. Assert: If module is a Cyclic Module Record, then module.[[Status]] is not NEW or UNLINKED.
     // FIXME: Spec bug: https://github.com/tc39/ecma262/issues/3114
 
     // 2. Let namespace be module.[[Namespace]].
-    auto* namespace_ = m_namespace.ptr();
+    auto namespace_ = m_namespace;
 
-    // 3. If namespace is empty, then
+    // 3. If namespace is EMPTY, then
     if (!namespace_) {
-        // a. Let exportedNames be ? module.GetExportedNames().
-        auto exported_names = TRY(get_exported_names(vm));
+        // a. Let exportedNames be module.GetExportedNames().
+        auto exported_names = get_exported_names(vm);
 
         // b. Let unambiguousNames be a new empty List.
         Vector<FlyString> unambiguous_names;
 
         // c. For each element name of exportedNames, do
         for (auto& name : exported_names) {
-            // i. Let resolution be ? module.ResolveExport(name).
-            auto resolution = TRY(resolve_export(vm, name));
+            // i. Let resolution be module.ResolveExport(name).
+            auto resolution = resolve_export(vm, name);
 
             // ii. If resolution is a ResolvedBinding Record, append name to unambiguousNames.
             if (resolution.is_valid())
@@ -150,16 +150,20 @@ ThrowCompletionOr<Object*> Module::get_module_namespace(VM& vm)
 
         // d. Set namespace to ModuleNamespaceCreate(module, unambiguousNames).
         namespace_ = module_namespace_create(unambiguous_names);
-        VERIFY(m_namespace);
-        // Note: This set the local variable 'namespace' and not the member variable which is done by ModuleNamespaceCreate
     }
 
     // 4. Return namespace.
-    return namespace_;
+    return *namespace_;
+}
+
+Vector<FlyString> Module::get_exported_names(VM& vm)
+{
+    HashTable<Module const*> export_star_set;
+    return get_exported_names(vm, export_star_set);
 }
 
 // 10.4.6.12 ModuleNamespaceCreate ( module, exports ), https://tc39.es/ecma262/#sec-modulenamespacecreate
-Object* Module::module_namespace_create(Vector<FlyString> unambiguous_names)
+GC::Ref<Object> Module::module_namespace_create(Vector<FlyString> unambiguous_names)
 {
     auto& realm = this->realm();
 
@@ -176,7 +180,7 @@ Object* Module::module_namespace_create(Vector<FlyString> unambiguous_names)
     auto module_namespace = realm.create<ModuleNamespaceObject>(realm, this, move(unambiguous_names));
 
     // 9. Set module.[[Namespace]] to M.
-    m_namespace = make_root(module_namespace);
+    m_namespace = module_namespace;
 
     // 10. Return M.
     return module_namespace;

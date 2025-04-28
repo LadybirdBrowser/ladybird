@@ -18,7 +18,7 @@ struct ModuleWithSpecifier {
     GC::Ref<Module> module; // [[Module]]
 };
 
-// https://tc39.es/proposal-import-attributes/#importattribute-record
+// https://tc39.es/ecma262/#importattribute-record
 struct ImportAttribute {
     String key;
     String value;
@@ -26,7 +26,7 @@ struct ImportAttribute {
     bool operator==(ImportAttribute const&) const = default;
 };
 
-// https://tc39.es/proposal-import-attributes/#modulerequest-record
+// https://tc39.es/ecma262/#modulerequest-record
 struct ModuleRequest {
     ModuleRequest() = default;
 

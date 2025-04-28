@@ -269,11 +269,7 @@ public:
 
     ScriptOrModule get_active_script_or_module() const;
 
-    // NOTE: The host defined implementation described in the web spec https://html.spec.whatwg.org/multipage/webappapis.html#hostloadimportedmodule
-    //       currently references proposal-import-attributes.
-    //       Our implementation of this proposal is outdated however, as such we try to adapt the proposal and living standard
-    //       to match our implementation for now.
-    // 16.2.1.8 HostLoadImportedModule ( referrer, moduleRequest, hostDefined, payload ), https://tc39.es/proposal-import-attributes/#sec-HostLoadImportedModule
+    // 16.2.1.10 HostLoadImportedModule ( referrer, moduleRequest, hostDefined, payload ), https://tc39.es/ecma262/#sec-HostLoadImportedModule
     Function<void(ImportedModuleReferrer, ModuleRequest const&, GC::Ptr<GraphLoadingState::HostDefined>, ImportedModulePayload)> host_load_imported_module;
 
     Function<HashMap<PropertyKey, Value>(SourceTextModule&)> host_get_import_meta_properties;

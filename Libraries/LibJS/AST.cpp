@@ -1898,10 +1898,10 @@ ModuleRequest::ModuleRequest(FlyString module_specifier_, Vector<ImportAttribute
     : module_specifier(move(module_specifier_))
     , attributes(move(attributes))
 {
-    // Perform step 10.e. from EvaluateImportCall, https://tc39.es/proposal-import-attributes/#sec-evaluate-import-call
-    // or step 2. from WithClauseToAttributes, https://tc39.es/proposal-import-attributes/#sec-with-clause-to-attributes
-    // e. / 2. Sort assertions by the code point order of the [[Key]] of each element.
-    // NOTE: This sorting is observable only in that hosts are prohibited from distinguishing among assertions by the order they occur in.
+    // 13.3.10.2 EvaluateImportCall ( specifierExpression [ , optionsExpression ] ), https://tc39.es/ecma262/#sec-evaluate-import-call
+    // 16.2.2.4 Static Semantics: WithClauseToAttributes, https://tc39.es/ecma262/#sec-withclausetoattributes
+    // 2. Sort attributes according to the lexicographic order of their [[Key]] field, treating the value of each such
+    //    field as a sequence of UTF-16 code unit values.
     quick_sort(this->attributes, [](ImportAttribute const& lhs, ImportAttribute const& rhs) {
         return lhs.key < rhs.key;
     });

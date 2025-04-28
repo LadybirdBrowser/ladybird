@@ -27,14 +27,14 @@ SyntheticModule::SyntheticModule(Vector<FlyString> export_names, SyntheticModule
 }
 
 // 1.2.3.1 GetExportedNames( exportStarSet ), https://tc39.es/proposal-json-modules/#sec-smr-getexportednames
-ThrowCompletionOr<Vector<FlyString>> SyntheticModule::get_exported_names(VM&, Vector<Module*>)
+Vector<FlyString> SyntheticModule::get_exported_names(VM&, HashTable<Module const*>&)
 {
     // 1. Return module.[[ExportNames]].
     return m_export_names;
 }
 
 // 1.2.3.2 ResolveExport( exportName, resolveSet ), https://tc39.es/proposal-json-modules/#sec-smr-resolveexport
-ThrowCompletionOr<ResolvedBinding> SyntheticModule::resolve_export(VM&, FlyString const& export_name, Vector<ResolvedBinding>)
+ResolvedBinding SyntheticModule::resolve_export(VM&, FlyString const& export_name, Vector<ResolvedBinding>)
 {
     // 1. If module.[[ExportNames]] does not contain exportName, return null.
     if (!m_export_names.contains_slow(export_name))
@@ -74,7 +74,7 @@ ThrowCompletionOr<void> SyntheticModule::link(VM& vm)
 }
 
 // 1.2.3.4 Evaluate ( ), https://tc39.es/proposal-json-modules/#sec-smr-Evaluate
-ThrowCompletionOr<Promise*> SyntheticModule::evaluate(VM& vm)
+ThrowCompletionOr<GC::Ref<Promise>> SyntheticModule::evaluate(VM& vm)
 {
     // Note: Has some changes from PR: https://github.com/tc39/proposal-json-modules/pull/13.
     // 1. Suspend the currently running execution context.
@@ -119,7 +119,8 @@ ThrowCompletionOr<Promise*> SyntheticModule::evaluate(VM& vm)
         // Note: This value probably isn't visible to JS code? But undefined is fine anyway.
         promise->fulfill(js_undefined());
     }
-    return promise.ptr();
+
+    return promise;
 }
 
 // 1.2.2 SetSyntheticModuleExport ( module, exportName, exportValue ), https://tc39.es/proposal-json-modules/#sec-setsyntheticmoduleexport

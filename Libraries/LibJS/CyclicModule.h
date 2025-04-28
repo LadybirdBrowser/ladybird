@@ -33,7 +33,7 @@ public:
     // Note: Do not call these methods directly unless you are HostResolveImportedModule.
     //       Badges cannot be used because other hosts must be able to call this (and it is called recursively)
     virtual ThrowCompletionOr<void> link(VM& vm) override final;
-    virtual ThrowCompletionOr<Promise*> evaluate(VM& vm) override final;
+    virtual ThrowCompletionOr<GC::Ref<Promise>> evaluate(VM& vm) override final;
 
     virtual PromiseCapability& load_requested_modules(GC::Ptr<GraphLoadingState::HostDefined>) override;
 
