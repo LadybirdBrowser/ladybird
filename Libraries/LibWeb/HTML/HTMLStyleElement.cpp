@@ -59,6 +59,8 @@ void HTMLStyleElement::attribute_changed(FlyString const& name, Optional<String>
     if (name == HTML::AttributeNames::media) {
         if (auto* sheet = m_style_element_utils.sheet())
             sheet->set_media(value.value_or({}));
+    } else if (name == HTML::AttributeNames::type) {
+        m_style_element_utils.update_a_style_block(*this);
     }
 }
 
