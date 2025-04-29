@@ -29,7 +29,7 @@ void CanvasPatternPaintStyle::paint(Gfx::IntRect physical_bounding_box, PaintFun
     // is "repeat-x", or vertically up and down, if the repetition behavior is "repeat-y", or in all four directions
     // all over the bitmap, if the repetition behavior is "repeat".
 
-    // FIMXE: If the original image data is a bitmap image, then the value painted at a point in the area of
+    // FIXME: If the original image data is a bitmap image, then the value painted at a point in the area of
     // the repetitions is computed by filtering the original image data. When scaling up, if the imageSmoothingEnabled
     // attribute is set to false, then the image must be rendered using nearest-neighbor interpolation.
     // Otherwise, the user agent may use any filtering algorithm (for example bilinear interpolation or nearest-neighbor).

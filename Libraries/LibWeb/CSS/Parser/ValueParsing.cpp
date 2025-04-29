@@ -2197,7 +2197,7 @@ RefPtr<CSSStyleValue const> Parser::parse_paint_value(TokenStream<ComponentValue
         return OptionalNone {};
     };
 
-    // FIMXE: Allow context-fill/context-stroke here
+    // FIXME: Allow context-fill/context-stroke here
     if (auto color_or_none = parse_color_or_none(); color_or_none.has_value())
         return *color_or_none;
 
