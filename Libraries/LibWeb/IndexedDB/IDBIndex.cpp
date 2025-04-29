@@ -62,7 +62,7 @@ WebIDL::ExceptionOr<void> IDBIndex::set_name(String const& value)
 
     // 5. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
     if (transaction->state() != IDBTransaction::TransactionState::Active)
-        return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active"_string);
+        return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while updating index name"_string);
 
     // FIXME: 6. If index or index’s object store has been deleted, throw an "InvalidStateError" DOMException.
 

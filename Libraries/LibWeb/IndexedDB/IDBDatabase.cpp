@@ -109,7 +109,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBObjectStore>> IDBDatabase::create_object_store(St
 
     // 3. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
     if (transaction->state() != IDBTransaction::TransactionState::Active)
-        return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active"_string);
+        return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while creating object store"_string);
 
     // 4. Let keyPath be options’s keyPath member if it is not undefined or null, or null otherwise.
     auto key_path = options.key_path;
@@ -171,7 +171,7 @@ WebIDL::ExceptionOr<void> IDBDatabase::delete_object_store(String const& name)
 
     // 3. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
     if (transaction->state() != IDBTransaction::TransactionState::Active)
-        return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active"_string);
+        return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while deleting object store"_string);
 
     // 4. Let store be the object store named name in database, or throw a "NotFoundError" DOMException if none.
     auto store = database->object_store_with_name(name);
