@@ -2656,6 +2656,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> TryStatement::generate_
                 if (parameter->is_local()) {
                     auto local = generator.local(parameter->local_index());
                     generator.emit_mov(local, caught_value);
+                    generator.set_local_initialized(parameter->local_index());
                 } else {
                     generator.begin_variable_scope();
                     did_create_variable_scope_for_catch_clause = true;
