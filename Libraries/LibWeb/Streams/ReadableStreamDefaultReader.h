@@ -49,18 +49,15 @@ public:
     // AD-HOC: callback triggered on every chunk received from the stream.
     using ChunkSteps = GC::Function<void(ByteBuffer)>;
 
-    ReadLoopReadRequest(JS::VM& vm, JS::Realm& realm, ReadableStreamDefaultReader& reader, GC::Ref<SuccessSteps> success_steps, GC::Ref<FailureSteps> failure_steps, GC::Ptr<ChunkSteps> chunk_steps = {});
-
-    virtual void on_chunk(JS::Value chunk) override;
-
-    virtual void on_close() override;
-
-    virtual void on_error(JS::Value error) override;
-
 private:
+    ReadLoopReadRequest(JS::Realm&, ReadableStreamDefaultReader&, GC::Ref<SuccessSteps>, GC::Ref<FailureSteps>, GC::Ptr<ChunkSteps> = {});
+
     virtual void visit_edges(Visitor&) override;
 
-    JS::VM& m_vm;
+    virtual void on_chunk(JS::Value chunk) override;
+    virtual void on_close() override;
+    virtual void on_error(JS::Value error) override;
+
     GC::Ref<JS::Realm> m_realm;
     GC::Ref<ReadableStreamDefaultReader> m_reader;
     ByteBuffer m_bytes;

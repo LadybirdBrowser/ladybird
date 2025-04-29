@@ -27,16 +27,6 @@ namespace Web::Streams {
 GC_DEFINE_ALLOCATOR(ReadableStreamDefaultReader);
 GC_DEFINE_ALLOCATOR(ReadLoopReadRequest);
 
-void ReadLoopReadRequest::visit_edges(Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_realm);
-    visitor.visit(m_reader);
-    visitor.visit(m_success_steps);
-    visitor.visit(m_failure_steps);
-    visitor.visit(m_chunk_steps);
-}
-
 // https://streams.spec.whatwg.org/#default-reader-constructor
 WebIDL::ExceptionOr<GC::Ref<ReadableStreamDefaultReader>> ReadableStreamDefaultReader::construct_impl(JS::Realm& realm, GC::Ref<ReadableStream> stream)
 {
@@ -70,14 +60,23 @@ void ReadableStreamDefaultReader::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://streams.spec.whatwg.org/#read-loop
-ReadLoopReadRequest::ReadLoopReadRequest(JS::VM& vm, JS::Realm& realm, ReadableStreamDefaultReader& reader, GC::Ref<SuccessSteps> success_steps, GC::Ref<FailureSteps> failure_steps, GC::Ptr<ChunkSteps> chunk_steps)
-    : m_vm(vm)
-    , m_realm(realm)
+ReadLoopReadRequest::ReadLoopReadRequest(JS::Realm& realm, ReadableStreamDefaultReader& reader, GC::Ref<SuccessSteps> success_steps, GC::Ref<FailureSteps> failure_steps, GC::Ptr<ChunkSteps> chunk_steps)
+    : m_realm(realm)
     , m_reader(reader)
     , m_success_steps(success_steps)
     , m_failure_steps(failure_steps)
     , m_chunk_steps(chunk_steps)
 {
+}
+
+void ReadLoopReadRequest::visit_edges(Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_realm);
+    visitor.visit(m_reader);
+    visitor.visit(m_success_steps);
+    visitor.visit(m_failure_steps);
+    visitor.visit(m_chunk_steps);
 }
 
 // chunk steps, given chunk
@@ -203,11 +202,10 @@ void ReadableStreamDefaultReader::read_a_chunk(Fetch::Infrastructure::Incrementa
 void ReadableStreamDefaultReader::read_all_bytes(GC::Ref<ReadLoopReadRequest::SuccessSteps> success_steps, GC::Ref<ReadLoopReadRequest::FailureSteps> failure_steps)
 {
     auto& realm = this->realm();
-    auto& vm = realm.vm();
 
     // 1. Let readRequest be a new read request with the following items:
     //    NOTE: items and steps in ReadLoopReadRequest.
-    auto read_request = heap().allocate<ReadLoopReadRequest>(vm, realm, *this, success_steps, failure_steps);
+    auto read_request = heap().allocate<ReadLoopReadRequest>(realm, *this, success_steps, failure_steps);
 
     // 2. Perform ! ReadableStreamDefaultReaderRead(this, readRequest).
     readable_stream_default_reader_read(*this, read_request);
