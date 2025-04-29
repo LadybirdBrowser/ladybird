@@ -292,54 +292,50 @@ String canonical_space_sequence(u32 length, bool non_breaking_start, bool non_br
     auto repeated_pair = non_breaking_start ? "\u00A0 "sv : " \u00A0"sv;
 
     // 6. While n is greater than three, append repeated pair to buffer and subtract two from n.
-    while (n > 3) {
+    // AD-HOC: Other browsers seem to fit in as many repeated pairs until the remaining length is <= 2.
+    while (n > 2) {
         buffer.append(repeated_pair);
         n -= 2;
     }
 
     // 7. If n is three, append a three-code unit string to buffer depending on non-breaking start
     //    and non-breaking end:
-    if (n == 3) {
-        // non-breaking start and non-breaking end false
-        // U+0020 U+00A0 U+0020
-        if (!non_breaking_start && !non_breaking_end)
-            buffer.append(" \u00A0 "sv);
-
-        // non-breaking start true, non-breaking end false
-        // U+00A0 U+00A0 U+0020
-        else if (non_breaking_start && !non_breaking_end)
-            buffer.append("\u00A0\u00A0 "sv);
-
-        // non-breaking start false, non-breaking end true
-        // U+0020 U+00A0 U+00A0
-        else if (!non_breaking_start)
-            buffer.append(" \u00A0\u00A0"sv);
-
-        // non-breaking start and non-breaking end both true
-        // U+00A0 U+0020 U+00A0
-        else
-            buffer.append("\u00A0 \u00A0"sv);
-    }
+    //
+    // non-breaking start and non-breaking end false
+    // U+0020 U+00A0 U+0020
+    //
+    // non-breaking start true, non-breaking end false
+    // U+00A0 U+00A0 U+0020
+    //
+    // non-breaking start false, non-breaking end true
+    // U+0020 U+00A0 U+00A0
+    //
+    // non-breaking start and non-breaking end both true
+    // U+00A0 U+0020 U+00A0
 
     // 8. Otherwise, append a two-code unit string to buffer depending on non-breaking start and
     //    non-breaking end:
-    else {
-        // non-breaking start and non-breaking end false
-        // non-breaking start true, non-breaking end false
-        // U+00A0 U+0020
-        if (!non_breaking_start && !non_breaking_end)
-            buffer.append("\u00A0 "sv);
+    //
+    // non-breaking start and non-breaking end false
+    // non-breaking start true, non-breaking end false
+    // U+00A0 U+0020
+    //
+    // non-breaking start false, non-breaking end true
+    // U+0020 U+00A0
+    //
+    // non-breaking start and non-breaking end both true
+    // U+00A0 U+00A0
 
-        // non-breaking start false, non-breaking end true
-        // U+0020 U+00A0
-        else if (!non_breaking_start)
-            buffer.append(" \u00A0"sv);
-
-        // non-breaking start and non-breaking end both true
-        // U+00A0 U+00A0
-        else
-            buffer.append("\u00A0\u00A0"sv);
+    // AD-HOC: Other browsers seem to ignore the above and deal differently with padding the remainder; the first
+    //         remaining position is filled with the first character from repeated pair.
+    if (n > 0) {
+        buffer.append(repeated_pair.substring_view(0, 1) == " "sv ? " "sv : "\u00A0"sv);
+        --n;
     }
+
+    // AD-HOC: Then, the final position is set depending on the value of non-breaking end.
+    if (n > 0)
+        buffer.append(non_breaking_end ? "\u00A0"sv : " "sv);
 
     // 9. Return buffer.
     return MUST(buffer.to_string());
@@ -528,9 +524,11 @@ void canonicalize_whitespace(DOM::BoundaryPoint boundary, bool fix_collapsed_spa
     //    start is true if start offset is zero and start node follows a line break, and false
     //    otherwise. non-breaking end is true if end offset is end node's length and end node
     //    precedes a line break, and false otherwise.
+    // AD-HOC: Other browsers' behavior here is to set non_breaking_start to true if length > 1, so we add that
+    //         condition as well.
     auto replacement_whitespace = canonical_space_sequence(
         length,
-        start_offset == 0 && follows_a_line_break(start_node),
+        (start_offset == 0 && follows_a_line_break(start_node)) || length > 1,
         end_offset == end_node->length() && precedes_a_line_break(end_node));
 
     // 10. While (start node, start offset) is before (end node, end offset):
