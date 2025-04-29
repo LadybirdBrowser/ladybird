@@ -94,6 +94,9 @@ WebIDL::CallbackType* IDBRequest::onerror()
         return WebIDL::InvalidStateError::create(realm(), "The request is not done"_string);
 
     // 2. Otherwise, return this's result, or undefined if the request resulted in an error.
+    if (m_error)
+        return JS::js_undefined();
+
     return m_result;
 }
 
