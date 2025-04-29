@@ -1,19 +1,35 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
-<div contenteditable="true">foobar</div>
+<div id="a" contenteditable="true">foobar</div>
+<div id="b" contenteditable="true">a&nbsp;&nbsp;&nbsp;</div>
+<div id="c" contenteditable="true">a&nbsp;&nbsp;b</div>
+<div id="d" contenteditable="true">a&nbsp;&nbsp;&nbsp;b</div>
+<div id="e" contenteditable="true">a&nbsp;&nbsp;&nbsp;&nbsp;b</div>
+<div id="f" contenteditable="true">a&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;b</div>
+<div id="g" contenteditable="true">&nbsp;&nbsp;b</div>
 <script>
     test(() => {
-        var divElm = document.querySelector('div');
-        println(`Before: ${divElm.textContent}`);
+        const testForwardDelete = function(divId, position) {
+            println(`--- ${divId} ---`);
+            const divElm = document.querySelector(`div#${divId}`);
+            println(`Before: ${divElm.innerHTML}`);
 
-        // Put cursor after 'foo'
-        var range = document.createRange();
-        range.setStart(divElm.childNodes[0], 3);
-        getSelection().addRange(range);
+            // Place cursor
+            const node = divElm.childNodes[0];
+            getSelection().setBaseAndExtent(node, position, node, position);
 
-        // Press delete
-        document.execCommand('forwardDelete');
+            // Press delete
+            document.execCommand('forwardDelete');
 
-        println(`After: ${divElm.textContent}`);
+            println(`After: ${divElm.innerHTML}`);
+        };
+
+        testForwardDelete('a', 3);
+        testForwardDelete('b', 1);
+        testForwardDelete('c', 1);
+        testForwardDelete('d', 1);
+        testForwardDelete('e', 1);
+        testForwardDelete('f', 1);
+        testForwardDelete('g', 0);
     });
 </script>
