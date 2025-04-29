@@ -282,7 +282,7 @@ private:
     Optional<ExplicitGridTrack> parse_track_sizing_function(ComponentValue const&);
 
     Optional<URL> parse_url_function(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue const> parse_url_value(TokenStream<ComponentValue>&);
+    RefPtr<URLStyleValue const> parse_url_value(TokenStream<ComponentValue>&);
 
     Optional<ShapeRadius> parse_shape_radius(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_basic_shape_value(TokenStream<ComponentValue>&);

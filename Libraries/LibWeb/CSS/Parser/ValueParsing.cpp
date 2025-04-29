@@ -2725,16 +2725,12 @@ Optional<URL> Parser::parse_url_function(TokenStream<ComponentValue>& tokens)
     return {};
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_url_value(TokenStream<ComponentValue>& tokens)
+RefPtr<URLStyleValue const> Parser::parse_url_value(TokenStream<ComponentValue>& tokens)
 {
     auto url = parse_url_function(tokens);
     if (!url.has_value())
         return nullptr;
-    // FIXME: Stop completing the URL here
-    auto completed_url = complete_url(url->url());
-    if (!completed_url.has_value())
-        return nullptr;
-    return URLStyleValue::create(completed_url.release_value());
+    return URLStyleValue::create(url.release_value());
 }
 
 // https://www.w3.org/TR/css-shapes-1/#typedef-shape-radius
