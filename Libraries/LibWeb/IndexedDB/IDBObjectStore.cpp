@@ -9,6 +9,7 @@
 #include <LibWeb/Bindings/IDBObjectStorePrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/IndexedDB/IDBCursor.h>
 #include <LibWeb/IndexedDB/IDBIndex.h>
 #include <LibWeb/IndexedDB/IDBObjectStore.h>
 
@@ -393,6 +394,46 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::get(JS::Value query)
     auto result = asynchronously_execute_a_request(realm, GC::Ref(*this), operation);
     dbgln_if(IDB_DEBUG, "Executing request for get with uuid {}", result->uuid());
     return result;
+}
+
+// https://w3c.github.io/IndexedDB/#dom-idbobjectstore-opencursor
+WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::open_cursor(JS::Value query, Bindings::IDBCursorDirection direction)
+{
+    auto& realm = this->realm();
+
+    // 1. Let transaction be this's transaction.
+    auto transaction = this->transaction();
+
+    // 2. Let store be this's object store.
+    [[maybe_unused]] auto store = this->store();
+
+    // FIXME: 3. If store has been deleted, throw an "InvalidStateError" DOMException.
+
+    // 4. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
+    if (transaction->state() != IDBTransaction::TransactionState::Active)
+        return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while opening cursor"_string);
+
+    // 5. Let range be the result of converting a value to a key range with query. Rethrow any exceptions.
+    auto range = TRY(convert_a_value_to_a_key_range(realm, query, false));
+
+    // 6. Let cursor be a new cursor with its transaction set to transaction, undefined position, direction set to direction,
+    //    got value flag set to false, undefined key and value, source set to store, range set to range, and key only flag set to false.
+    auto cursor = IDBCursor::create(realm, transaction, {}, direction, false, {}, {}, GC::Ref(*this), range, false);
+
+    // 7. Let operation be an algorithm to run iterate a cursor with the current Realm record and cursor.
+    auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(realm.heap(), [&realm, cursor] -> WebIDL::ExceptionOr<JS::Value> {
+        return WebIDL::ExceptionOr<JS::Value>(iterate_a_cursor(realm, cursor));
+    });
+
+    // 8. Let request be the result of running asynchronously execute a request with this and operation.
+    auto request = asynchronously_execute_a_request(realm, GC::Ref(*this), operation);
+    dbgln_if(IDB_DEBUG, "Executing request for open cursor with uuid {}", request->uuid());
+
+    // 9. Set cursor’s request to request.
+    cursor->set_request(request);
+
+    // 10. Return request.
+    return request;
 }
 
 }
