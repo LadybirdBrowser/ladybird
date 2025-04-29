@@ -289,7 +289,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::add_or_put(GC::Ref<IDBO
 
             // 2. If kpk is invalid, throw a "DataError" DOMException.
             if (key_value->is_invalid())
-                return WebIDL::DataError::create(realm, "Key path is invalid"_string);
+                return WebIDL::DataError::create(realm, key_value->value_as_string());
         }
 
         // 4. Otherwise (kpk is failure):
