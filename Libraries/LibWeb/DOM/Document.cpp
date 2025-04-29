@@ -2714,8 +2714,8 @@ void Document::dispatch_events_for_transition(GC::Ref<CSS::CSSTransition> transi
                 type,
                 CSS::TransitionEventInit {
                     { .bubbles = true },
-                    // FIXME: Correctly set property_name and pseudo_element
-                    String {},
+                    // FIXME: Correctly set pseudo_element
+                    MUST(String::from_utf8(transition->transition_property())),
                     elapsed_time,
                     String {},
                 }),
