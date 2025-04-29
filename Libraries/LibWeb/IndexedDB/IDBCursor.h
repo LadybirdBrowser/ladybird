@@ -40,6 +40,13 @@ public:
     [[nodiscard]] bool key_only() const { return m_key_only; }
     [[nodiscard]] bool got_value() const { return m_got_value; }
 
+    void set_request(GC::Ptr<IDBRequest> request) { m_request = request; }
+    void set_position(GC::Ptr<Key> position) { m_position = position; }
+    void set_got_value(bool got_value) { m_got_value = got_value; }
+    void set_key(GC::Ptr<Key> key) { m_key = key; }
+    void set_value(JS::Value value) { m_value = value; }
+    void set_object_store_position(GC::Ptr<Key> object_store_position) { m_object_store_position = object_store_position; }
+
 protected:
     explicit IDBCursor(JS::Realm&, GC::Ref<IDBTransaction>, GC::Ptr<Key>, Bindings::IDBCursorDirection, bool, GC::Ptr<Key>, JS::Value, CursorSource, GC::Ref<IDBKeyRange>, bool);
     virtual void initialize(JS::Realm&) override;
