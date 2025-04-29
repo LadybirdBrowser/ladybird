@@ -23,7 +23,6 @@ void EventLoopPluginSerenity::spin_until(GC::Root<GC::Function<bool()>> goal_con
 
 void EventLoopPluginSerenity::deferred_invoke(GC::Root<GC::Function<void()>> function)
 {
-    VERIFY(function);
     Core::deferred_invoke([function = move(function)]() {
         function->function()();
     });
