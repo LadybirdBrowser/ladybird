@@ -94,7 +94,7 @@ Vector<f32> AnalyserNode::smoothing_over_time(Vector<f32> const& current_block)
     Vector<f32> result;
     result.ensure_capacity(m_fft_size);
     for (unsigned long i = 0; i < m_fft_size; i++) {
-        // FIMXE: Complex modulus on X[i]
+        // FIXME: Complex modulus on X[i]
         result.unchecked_append(m_smoothing_time_constant * m_previous_block[i] + (1.f - m_smoothing_time_constant) * abs(X[i]));
     }
 
