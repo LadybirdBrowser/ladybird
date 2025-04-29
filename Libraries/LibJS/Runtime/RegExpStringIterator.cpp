@@ -14,6 +14,13 @@ GC_DEFINE_ALLOCATOR(RegExpStringIterator);
 // 22.2.9.1 CreateRegExpStringIterator ( R, S, global, fullUnicode ), https://tc39.es/ecma262/#sec-createregexpstringiterator
 GC::Ref<RegExpStringIterator> RegExpStringIterator::create(Realm& realm, Object& regexp_object, Utf16String string, bool global, bool unicode)
 {
+    // 1. Let iterator be OrdinaryObjectCreate(%RegExpStringIteratorPrototype%, « [[IteratingRegExp]], [[IteratedString]], [[Global]], [[Unicode]], [[Done]] »).
+    // 2. Set iterator.[[IteratingRegExp]] to R.
+    // 3. Set iterator.[[IteratedString]] to S.
+    // 4. Set iterator.[[Global]] to global.
+    // 5. Set iterator.[[Unicode]] to fullUnicode.
+    // 6. Set iterator.[[Done]] to false.
+    // 7. Return iterator.
     return realm.create<RegExpStringIterator>(realm.intrinsics().regexp_string_iterator_prototype(), regexp_object, move(string), global, unicode);
 }
 
