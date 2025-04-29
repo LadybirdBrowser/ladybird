@@ -78,6 +78,8 @@ public:
 
     void quit(int);
 
+    bool was_exit_requested();
+
     // The registration functions act upon the current loop of the current thread.
     static intptr_t register_timer(EventReceiver&, int milliseconds, bool should_reload, TimerShouldFireWhenNotVisible);
     static void unregister_timer(intptr_t timer_id);

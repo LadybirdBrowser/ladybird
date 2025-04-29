@@ -52,6 +52,7 @@ public:
     virtual size_t pump(PumpMode) = 0;
     virtual void quit(int) = 0;
     virtual void wake() = 0;
+    virtual bool was_exit_requested() const = 0;
 
     virtual void post_event(EventReceiver& receiver, NonnullOwnPtr<Event>&&) = 0;
 

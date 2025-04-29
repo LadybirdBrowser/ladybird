@@ -39,6 +39,7 @@ public:
     virtual size_t pump(PumpMode) override;
     virtual void quit(int) override;
     virtual void wake() override;
+    virtual bool was_exit_requested() const override;
     virtual void post_event(Core::EventReceiver& receiver, NonnullOwnPtr<Core::Event>&&) override;
 
 private:
