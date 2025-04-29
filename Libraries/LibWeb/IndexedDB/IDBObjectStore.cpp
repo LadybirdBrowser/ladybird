@@ -85,7 +85,7 @@ WebIDL::ExceptionOr<void> IDBObjectStore::set_name(String const& value)
 
     // 6. If transaction’s state is not active, throw a "TransactionInactiveError" DOMException.
     if (transaction->state() != IDBTransaction::TransactionState::Active)
-        return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active"_string);
+        return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while updating object store name"_string);
 
     // 7. If store’s name is equal to name, terminate these steps.
     if (store->name() == name)
@@ -193,6 +193,8 @@ WebIDL::ExceptionOr<GC::Ref<IDBIndex>> IDBObjectStore::index(String const& name)
 // https://w3c.github.io/IndexedDB/#dom-idbobjectstore-deleteindex
 WebIDL::ExceptionOr<void> IDBObjectStore::delete_index(String const& name)
 {
+    auto& realm = this->realm();
+
     // 1. Let transaction be this’s transaction.
     auto transaction = this->transaction();
 
@@ -201,18 +203,18 @@ WebIDL::ExceptionOr<void> IDBObjectStore::delete_index(String const& name)
 
     // 3. If transaction is not an upgrade transaction, throw an "InvalidStateError" DOMException.
     if (transaction->mode() != Bindings::IDBTransactionMode::Versionchange)
-        return WebIDL::InvalidStateError::create(realm(), "Transaction is not an upgrade transaction"_string);
+        return WebIDL::InvalidStateError::create(realm, "Transaction is not an upgrade transaction"_string);
 
     // FIXME: 4. If store has been deleted, throw an "InvalidStateError" DOMException.
 
     // 5. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
     if (transaction->state() != IDBTransaction::TransactionState::Active)
-        return WebIDL::TransactionInactiveError::create(realm(), "Transaction is not active"_string);
+        return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while deleting index"_string);
 
     // 6. Let index be the index named name in store if one exists, or throw a "NotFoundError" DOMException otherwise.
     auto index = m_indexes.get(name);
     if (!index.has_value())
-        return WebIDL::NotFoundError::create(realm(), "Index not found"_string);
+        return WebIDL::NotFoundError::create(realm, "Index not found"_string);
 
     // 7. Remove index from this’s index set.
     m_indexes.remove(name);
