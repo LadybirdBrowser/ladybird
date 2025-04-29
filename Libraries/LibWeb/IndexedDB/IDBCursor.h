@@ -47,6 +47,8 @@ public:
     void set_value(JS::Value value) { m_value = value; }
     void set_object_store_position(GC::Ptr<Key> object_store_position) { m_object_store_position = object_store_position; }
 
+    WebIDL::ExceptionOr<void> continue_(JS::Value);
+
 protected:
     explicit IDBCursor(JS::Realm&, GC::Ref<IDBTransaction>, GC::Ptr<Key>, Bindings::IDBCursorDirection, bool, GC::Ptr<Key>, JS::Value, CursorSource, GC::Ref<IDBKeyRange>, bool);
     virtual void initialize(JS::Realm&) override;
