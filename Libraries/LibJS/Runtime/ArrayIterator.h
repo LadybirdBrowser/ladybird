@@ -20,12 +20,14 @@ public:
     virtual ~ArrayIterator() override = default;
 
     Value array() const { return m_array; }
+    void set_array(Value array) { m_array = array; }
+
     Object::PropertyKind iteration_kind() const { return m_iteration_kind; }
+
     size_t index() const { return m_index; }
+    void set_index(size_t index) { m_index = index; }
 
 private:
-    friend class ArrayIteratorPrototype;
-
     ArrayIterator(Value array, Object::PropertyKind iteration_kind, Object& prototype);
 
     virtual bool is_array_iterator() const override { return true; }

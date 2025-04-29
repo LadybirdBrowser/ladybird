@@ -34,35 +34,66 @@ void RegExpStringIteratorPrototype::initialize(Realm& realm)
 // 22.2.9.2.1 %RegExpStringIteratorPrototype%.next ( ), https://tc39.es/ecma262/#sec-%regexpstringiteratorprototype%.next
 JS_DEFINE_NATIVE_FUNCTION(RegExpStringIteratorPrototype::next)
 {
-    // For details, see the 'closure' of: https://tc39.es/ecma262/#sec-createregexpstringiterator
+    // 1. Let O be the this value.
+    // 2. If O is not an Object, throw a TypeError exception.
+    // 3. If O does not have all of the internal slots of a RegExp String Iterator Object Instance (see 22.2.9.3), throw a TypeError exception.
     auto iterator = TRY(typed_this_value(vm));
-    if (iterator->done())
-        return create_iterator_result_object(vm, js_undefined(), true);
 
-    auto match = TRY(regexp_exec(vm, iterator->regexp_object(), iterator->string()));
-
-    if (match.is_null()) {
-        iterator->set_done();
+    // 4. If O.[[Done]] is true, then
+    if (iterator->done()) {
+        // a. Return CreateIteratorResultObject(undefined, true).
         return create_iterator_result_object(vm, js_undefined(), true);
     }
 
-    if (!iterator->global()) {
+    // 5. Let R be O.[[IteratingRegExp]].
+    auto& regexp = iterator->regexp_object();
+
+    // 6. Let S be O.[[IteratedString]].
+    auto const& string = iterator->string();
+
+    // 7. Let global be O.[[Global]].
+    auto global = iterator->global();
+
+    // 8. Let fullUnicode be O.[[Unicode]].
+    auto full_unicode = iterator->unicode();
+
+    // 9. Let match be ? RegExpExec(R, S).
+    auto match = TRY(regexp_exec(vm, regexp, string));
+
+    // 10. If match is null, then
+    if (match.is_null()) {
+        // a. Set O.[[Done]] to true.
         iterator->set_done();
+
+        // b. Return CreateIteratorResultObject(undefined, true).
+        return create_iterator_result_object(vm, js_undefined(), true);
+    }
+
+    // 11. If global is false, then
+    if (!global) {
+        // a. Set O.[[Done]] to true.
+        iterator->set_done();
+
+        // b. Return CreateIteratorResultObject(match, false).
         return create_iterator_result_object(vm, match, false);
     }
 
-    auto match_object = TRY(match.to_object(vm));
-    auto match_string_value = TRY(match_object->get(0));
-    auto match_string = TRY(match_string_value.to_string(vm));
+    // 12. Let matchStr be ? ToString(? Get(match, "0")).
+    auto match_string = TRY(TRY(match.get(vm, 0)).to_utf16_string(vm));
+
+    // 13. If matchStr is the empty String, then
     if (match_string.is_empty()) {
-        auto last_index_value = TRY(iterator->regexp_object().get(vm.names.lastIndex));
-        auto last_index = TRY(last_index_value.to_length(vm));
+        // a. Let thisIndex be ℝ(? ToLength(? Get(R, "lastIndex"))).
+        auto this_index = TRY(TRY(regexp.get(vm.names.lastIndex)).to_length(vm));
 
-        last_index = advance_string_index(iterator->string().view(), last_index, iterator->unicode());
+        // b. Let nextIndex be AdvanceStringIndex(S, thisIndex, fullUnicode).
+        auto next_index = advance_string_index(string.view(), this_index, full_unicode);
 
-        TRY(iterator->regexp_object().set(vm.names.lastIndex, Value(last_index), Object::ShouldThrowExceptions::Yes));
+        // c. Perform ? Set(R, "lastIndex", 𝔽(nextIndex), true).
+        TRY(regexp.set(vm.names.lastIndex, Value { next_index }, Object::ShouldThrowExceptions::Yes));
     }
 
+    // 14. Return CreateIteratorResultObject(match, false).
     return create_iterator_result_object(vm, match, false);
 }
 
