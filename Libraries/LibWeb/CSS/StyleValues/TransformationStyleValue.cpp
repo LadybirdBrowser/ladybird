@@ -130,7 +130,7 @@ String TransformationStyleValue::to_string(SerializationMode mode) const
         auto x_value = resolve_to_string(m_properties.values[0]);
         auto y_value = resolve_to_string(m_properties.values[1]);
         Optional<String> z_value;
-        if (m_properties.values.size() == 3)
+        if (m_properties.values.size() == 3 && (!m_properties.values[2]->is_number() || m_properties.values[2]->as_number().number() != 1))
             z_value = resolve_to_string(m_properties.values[2]);
 
         StringBuilder builder;
