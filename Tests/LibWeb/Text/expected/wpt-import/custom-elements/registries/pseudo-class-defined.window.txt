@@ -1,9 +1,8 @@
-Harness status: Error
+Harness status: OK
 
 Found 3 tests
 
-1 Pass
-2 Fail
+3 Pass
 Pass	"uncustomized" :defined doesn't care about your registry'
-Fail	"custom" :defined doesn't care about your registry
-Fail	pseudo-class-defined
+Pass	"custom" :defined doesn't care about your registry
+Pass	pseudo-class-defined

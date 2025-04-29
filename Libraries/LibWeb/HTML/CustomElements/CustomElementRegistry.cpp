@@ -305,16 +305,16 @@ JS::ThrowCompletionOr<void> CustomElementRegistry::define(String const& name, We
     m_custom_element_definitions.append(definition);
 
     // 17. If this's is scoped is true, then for each document of this's scoped document set:
-    //     upgrade particular elements within a document given document, definition, and localName.
+    //     upgrade particular elements within a document given this, document, definition, and localName.
     if (m_is_scoped) {
         for (auto& document : m_scoped_documents.values())
-            document->upgrade_particular_elements(definition, local_name);
+            document->upgrade_particular_elements(*this, definition, local_name);
     }
-    // 18. Otherwise, upgrade particular elements within a document given this's relevant global object's associated
-    //     Document, definition, localName, and name.
+    // 18. Otherwise, upgrade particular elements within a document given this, this's relevant global object's
+    //     associated Document, definition, localName, and name.
     else {
         auto& document = as<HTML::Window>(relevant_global_object(*this)).associated_document();
-        document.upgrade_particular_elements(definition, local_name, name);
+        document.upgrade_particular_elements(*this, definition, local_name, name);
     }
 
     // 19. If this's when-defined promise map[name] exists:
@@ -457,7 +457,13 @@ GC::Ptr<CustomElementDefinition> CustomElementRegistry::get_definition_with_name
 
 GC::Ptr<CustomElementDefinition> CustomElementRegistry::get_definition_from_new_target(JS::FunctionObject const& new_target) const
 {
+    VERIFY(this);
+    dbgln("get_definition_from_new_target");
+    dbgln("- this = {:p}", this);
+    dbgln("- m_custom_element_definitions = {} elements", m_custom_element_definitions.size());
     auto definition_iterator = m_custom_element_definitions.find_if([&](GC::Root<CustomElementDefinition> const& definition) {
+        dbgln("Checking a thing");
+        dbgln("definition is {:p}, callback is {:p}, new_target is {:p}", definition, definition->constructor().callback, &new_target);
         return definition->constructor().callback.ptr() == &new_target;
     });
 

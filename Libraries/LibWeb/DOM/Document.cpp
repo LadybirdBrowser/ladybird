@@ -2303,14 +2303,39 @@ Vector<GC::Root<HTML::HTMLScriptElement>> Document::take_scripts_to_execute_in_o
 }
 
 // https://dom.spec.whatwg.org/#dom-document-importnode
-WebIDL::ExceptionOr<GC::Ref<Node>> Document::import_node(GC::Ref<Node> node, bool deep)
+WebIDL::ExceptionOr<GC::Ref<Node>> Document::import_node(GC::Ref<Node> node, Variant<bool, ImportNodeOptions> options)
 {
     // 1. If node is a document or shadow root, then throw a "NotSupportedError" DOMException.
     if (is<Document>(*node) || is<ShadowRoot>(*node))
         return WebIDL::NotSupportedError::create(realm(), "Cannot import a document or shadow root."_string);
 
-    // 2. Return a clone of node, with this and the clone children flag set if deep is true.
-    return node->clone_node(this, deep);
+    // 2. Let subtree be false.
+    bool subtree = false;
+
+    // 3. Let registry be null.
+    GC::Ptr<HTML::CustomElementRegistry> registry;
+
+    options.visit(
+        // 4. If options is a boolean, then set subtree to options.
+        [&subtree](bool const& value) {
+            subtree = value;
+        },
+        // 5. Otherwise:
+        [&subtree, &registry](ImportNodeOptions const& options) {
+            // 1. Set subtree to the negation of options["selfOnly"].
+            subtree = !options.self_only;
+
+            // 2. If options["customElementRegistry"] exists, then set registry to it.
+            if (options.custom_element_registry)
+                registry = options.custom_element_registry;
+        });
+
+    // 6. If registry is null, then set registry to the result of looking up a custom element registry given this.
+    if (!registry)
+        registry = HTML::look_up_a_custom_element_registry(*this);
+
+    // 7. Return the result of cloning a node given node with document set to this, subtree set to subtree, and fallbackRegistry set to registry.
+    return node->clone_node(this, subtree, nullptr, registry);
 }
 
 // https://dom.spec.whatwg.org/#concept-node-adopt
@@ -3755,13 +3780,6 @@ void Document::check_favicon_after_loading_link_resource()
 void Document::set_window(HTML::Window& window)
 {
     m_window = &window;
-}
-
-// https://html.spec.whatwg.org/multipage/custom-elements.html#look-up-a-custom-element-definition
-GC::Ptr<HTML::CustomElementDefinition> Document::lookup_custom_element_definition(Optional<FlyString> const& namespace_, FlyString const& local_name, Optional<String> const& is) const
-{
-    // FIXME: This whole method is a temporary stop-gap.
-    return HTML::look_up_a_custom_element_definition(custom_element_registry(), namespace_, local_name, is);
 }
 
 CSS::StyleSheetList& Document::style_sheets()
@@ -6567,19 +6585,24 @@ GC::Ptr<HTML::CustomElementRegistry> Document::custom_element_registry() const
 }
 
 // https://html.spec.whatwg.org/multipage/custom-elements.html#upgrade-particular-elements-within-a-document
-void Document::upgrade_particular_elements(GC::Ref<HTML::CustomElementDefinition> definition, String local_name, Optional<String> maybe_name)
+void Document::upgrade_particular_elements(GC::Ref<HTML::CustomElementRegistry> registry, GC::Ref<HTML::CustomElementDefinition> definition, String local_name, Optional<String> maybe_name)
 {
-    // To upgrade particular elements within a document given a Document object document, a custom element definition
-    // definition, a string localName, and optionally a string name (default localName):
+    // To upgrade particular elements within a document given a CustomElementRegistry object registry, a Document
+    // object document, a custom element definition definition, a string localName, and optionally a string name
+    // (default localName):
     auto name = maybe_name.value_or(local_name);
 
-    // 1. Let upgradeCandidates be all elements that are shadow-including descendants of document, whose namespace is
-    //    the HTML namespace and whose local name is localName, in shadow-including tree order.
+    // 1. Let upgradeCandidates be all elements that are shadow-including descendants of document, whose custom element
+    //    registry is registry, whose namespace is the HTML namespace, and whose local name is localName, in
+    //    shadow-including tree order.
     //    Additionally, if name is not localName, only include elements whose is value is equal to name.
     Vector<GC::Root<Element>> upgrade_candidates;
     for_each_shadow_including_descendant([&](Node& inclusive_descendant) {
         auto* element = as_if<Element>(inclusive_descendant);
         if (!element)
+            return TraversalDecision::Continue;
+
+        if (element->custom_element_registry() != registry)
             return TraversalDecision::Continue;
 
         if (element->namespace_uri() != Namespace::HTML || element->local_name() != local_name)

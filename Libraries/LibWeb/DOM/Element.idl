@@ -139,6 +139,7 @@ dictionary ShadowRootInit {
     SlotAssignmentMode slotAssignment = "named";
     boolean clonable = false;
     boolean serializable = false;
+    CustomElementRegistry customElementRegistry;
 };
 
 Element includes ParentNode;

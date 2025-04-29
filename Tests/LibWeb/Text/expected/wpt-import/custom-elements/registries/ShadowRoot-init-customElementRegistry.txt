@@ -2,9 +2,9 @@ Harness status: OK
 
 Found 5 tests
 
-5 Fail
-Fail	A newly attached disconnected ShadowRoot should use the global registry by default
-Fail	A newly attached connected ShadowRoot should use the global registry by default
-Fail	A newly attached disconnected ShadowRoot should use the scoped registry if explicitly specified in attachShadow
-Fail	A newly attached connected ShadowRoot should use the scoped registry if explicitly specified in attachShadow
-Fail	attachShadow() should throw for a null customElementRegistry value
+5 Pass
+Pass	A newly attached disconnected ShadowRoot should use the global registry by default
+Pass	A newly attached connected ShadowRoot should use the global registry by default
+Pass	A newly attached disconnected ShadowRoot should use the scoped registry if explicitly specified in attachShadow
+Pass	A newly attached connected ShadowRoot should use the scoped registry if explicitly specified in attachShadow
+Pass	attachShadow() should throw for a null customElementRegistry value

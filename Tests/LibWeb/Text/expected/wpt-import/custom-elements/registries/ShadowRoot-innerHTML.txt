@@ -1,4 +1,4 @@
-Harness status: Error
+Harness status: OK
 
 Found 4 tests
 

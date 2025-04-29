@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 3 tests
 
-1 Pass
-2 Fail
+3 Pass
 Pass	customElementRegistry on a failed custom element created by calling createElement on CustomElementRegistry should return the registry
-Fail	customElementRegistry on a failed custom element created by setting innerHTML should return the associated scoped registry
-Fail	customElementRegistry on a failed custom element created by parser should return the specified custom regsitry
+Pass	customElementRegistry on a failed custom element created by setting innerHTML should return the associated scoped registry
+Pass	customElementRegistry on a failed custom element created by parser should return the specified custom regsitry

@@ -38,6 +38,7 @@
 #include <LibWeb/DOM/StaticNodeList.h>
 #include <LibWeb/DOM/XMLDocument.h>
 #include <LibWeb/HTML/CustomElements/CustomElementReactionNames.h>
+#include <LibWeb/HTML/CustomElements/CustomElementRegistry.h>
 #include <LibWeb/HTML/HTMLAnchorElement.h>
 #include <LibWeb/HTML/HTMLDocument.h>
 #include <LibWeb/HTML/HTMLFieldSetElement.h>
@@ -741,21 +742,51 @@ void Node::insert_before(GC::Ref<Node> node, GC::Ptr<Node> child, bool suppress_
             // 1. Run the insertion steps with inclusiveDescendant.
             inclusive_descendant.inserted();
 
-            // 2. If inclusiveDescendant is connected, then:
-            // NOTE: This is not specified here in the spec, but these steps can only be performed on an element.
-            if (auto* element = as_if<DOM::Element>(inclusive_descendant); element && inclusive_descendant.is_connected()) {
-                // 1. If inclusiveDescendant is custom, then enqueue a custom element callback reaction with inclusiveDescendant,
-                //    callback name "connectedCallback", and an empty argument list.
+            // 2. If inclusiveDescendant is not connected, then continue.
+            if (!inclusive_descendant.is_connected())
+                return TraversalDecision::Continue;
+
+            // 3. If inclusiveDescendant is an element:
+            if (auto* element = as_if<Element>(inclusive_descendant)) {
+                // 1. If inclusiveDescendant’s custom element registry is null, then set inclusiveDescendant’s custom
+                //    element registry to the result of looking up a custom element registry given
+                //    inclusiveDescendant’s parent.
+                if (!element->custom_element_registry()) {
+                    element->set_custom_element_registry(HTML::look_up_a_custom_element_registry(*element->parent()));
+                }
+
+                // 2. Otherwise, if inclusiveDescendant’s custom element registry’s is scoped is true, append
+                //    inclusiveDescendant’s node document to inclusiveDescendant’s custom element registry’s scoped
+                //    document set.
+                else if (element->custom_element_registry()->is_scoped()) {
+                    element->custom_element_registry()->append_scoped_document(element->document());
+                }
+
+                // 3. If inclusiveDescendant is custom, then enqueue a custom element callback reaction with inclusiveDescendant, callback name "connectedCallback", and « ».
                 if (element->is_custom()) {
                     GC::RootVector<JS::Value> empty_arguments { vm().heap() };
                     element->enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::connectedCallback, move(empty_arguments));
                 }
 
-                // 2. Otherwise, try to upgrade inclusiveDescendant.
-                // NOTE: If this successfully upgrades inclusiveDescendant, its connectedCallback will be enqueued automatically during
-                //       the upgrade an element algorithm.
+                // 4. Otherwise, try to upgrade inclusiveDescendant.
                 else {
                     element->try_to_upgrade();
+                }
+            }
+            // 4. Otherwise, if inclusiveDescendant is a shadow root:
+            else if (auto* shadow_root = as_if<ShadowRoot>(inclusive_descendant)) {
+                // 1. If inclusiveDescendant’s custom element registry is null and inclusiveDescendant’s keep custom
+                //    element registry null is false, then set inclusiveDescendant’s custom element registry to the
+                //    result of looking up a custom element registry given inclusiveDescendant’s host.
+                if (!shadow_root->custom_element_registry() && !shadow_root->keep_custom_element_registry_null()) {
+                    shadow_root->set_custom_element_registry(HTML::look_up_a_custom_element_registry(*shadow_root->host()));
+                }
+
+                // 2. Otherwise, if inclusiveDescendant’s custom element registry is non-null and inclusiveDescendant’s
+                //    custom element registry’s is scoped is true, append inclusiveDescendant’s node document to
+                //    inclusiveDescendant’s custom element registry’s scoped document set.
+                else if (shadow_root->custom_element_registry() && shadow_root->custom_element_registry()->is_scoped()) {
+                    shadow_root->custom_element_registry()->append_scoped_document(shadow_root->document());
                 }
             }
 
@@ -1110,18 +1141,19 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::replace_child(GC::Ref<Node> node, GC::R
 }
 
 // https://dom.spec.whatwg.org/#concept-node-clone
-WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_node(Document* document, bool subtree, Node* parent) const
+WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_node(GC::Ptr<Document> document, bool subtree, GC::Ptr<Node> parent, GC::Ptr<HTML::CustomElementRegistry> fallback_registry) const
 {
     // To clone a node given a node node and an optional document document (default node’s node document),
-    // boolean subtree (default false), and node-or-null parent (default null):
+    // boolean subtree (default false), node-or-null parent (default null), and null or a CustomElementRegistry object
+    // fallbackRegistry (default null):
     if (!document)
         document = m_document;
 
     // 1. Assert: node is not a document or node is document.
     VERIFY(!is_document() || this == document);
 
-    // 2. Let copy be the result of cloning a single node given node and document.
-    auto copy = TRY(clone_single_node(*document));
+    // 2. Let copy be the result of cloning a single node given node, document, and fallbackRegistry.
+    auto copy = TRY(clone_single_node(*document, fallback_registry));
 
     // 3. Run any cloning steps defined for node in other applicable specifications and pass node, copy, and subtree as parameters.
     TRY(cloned(*copy, subtree));
@@ -1131,10 +1163,11 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_node(Document* document, bool sub
         TRY(parent->append_child(copy));
 
     // 5. If subtree is true, then for each child of node’s children, in tree order:
-    //    clone a node given child with document set to document, subtree set to subtree, and parent set to copy.
+    //    clone a node given child with document set to document, subtree set to subtree, parent set to copy, and
+    //    fallbackRegistry set to fallbackRegistry.
     if (subtree) {
         for (auto child = first_child(); child; child = child->next_sibling()) {
-            TRY(child->clone_node(document, subtree, copy));
+            TRY(child->clone_node(document, subtree, copy, fallback_registry));
         }
     }
 
@@ -1146,13 +1179,17 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_node(Document* document, bool sub
             auto& copy_element = as<Element>(*copy);
             VERIFY(!copy_element.is_shadow_host());
 
-            // 2. Attach a shadow root with copy, node’s shadow root’s mode, true, node’s shadow root’s serializable, node’s shadow root’s delegates focus, and node’s shadow root’s slot assignment.
-            TRY(copy_element.attach_a_shadow_root(node_element.shadow_root()->mode(), true, node_element.shadow_root()->serializable(), node_element.shadow_root()->delegates_focus(), node_element.shadow_root()->slot_assignment()));
+            // 2. Let shadowRootRegistry be node’s shadow root’s custom element registry.
+            auto shadow_root_registry = node_element.shadow_root()->custom_element_registry();
 
-            // 3. Set copy’s shadow root’s declarative to node’s shadow root’s declarative.
+            // 3. Attach a shadow root with copy, node’s shadow root’s mode, true, node’s shadow root’s serializable,
+            //    node’s shadow root’s delegates focus, node’s shadow root’s slot assignment, and shadowRootRegistry.
+            TRY(copy_element.attach_a_shadow_root(node_element.shadow_root()->mode(), true, node_element.shadow_root()->serializable(), node_element.shadow_root()->delegates_focus(), node_element.shadow_root()->slot_assignment(), shadow_root_registry));
+
+            // 4. Set copy’s shadow root’s declarative to node’s shadow root’s declarative.
             copy_element.shadow_root()->set_declarative(node_element.shadow_root()->declarative());
 
-            // 4. For each child of node’s shadow root’s children, in tree order:
+            // 5. For each child of node’s shadow root’s children, in tree order:
             //    clone a node given child with document set to document, subtree set to subtree, and parent set to copy’s shadow root.
             for (auto child = node_element.shadow_root()->first_child(); child; child = child->next_sibling()) {
                 TRY(child->clone_node(document, subtree, copy_element.shadow_root()));
@@ -1345,24 +1382,30 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
 }
 
 // https://dom.spec.whatwg.org/#clone-a-single-node
-WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_single_node(Document& document) const
+WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_single_node(Document& document, GC::Ptr<HTML::CustomElementRegistry> fallback_registry) const
 {
-    // To clone a single node given a node node and document document:
+    // To clone a single node given a node node, document document, and null or a CustomElementRegistry object fallbackRegistry:
 
     // 1. Let copy be null.
     GC::Ptr<Node> copy = nullptr;
 
     // 2. If node is an element:
-    if (is_element()) {
-        // 1. Set copy to the result of creating an element, given document, node’s local name, node’s namespace, node’s namespace prefix, and node’s is value.
-        auto& element = *as<Element>(this);
-        auto element_copy = TRY(DOM::create_element(document, element.local_name(), element.namespace_uri(), element.prefix(), element.is_value()));
+    if (auto* element = as_if<Element>(this)) {
+        // 1. Let registry be node’s custom element registry.
+        auto registry = element->custom_element_registry();
 
-        // 2. For each attribute of node’s attribute list:
+        // 2. If registry is null, then set registry to fallbackRegistry.
+        if (!registry)
+            registry = fallback_registry;
+
+        // 3. Set copy to the result of creating an element, given document, node’s local name, node’s namespace, node’s namespace prefix, node’s is value, false, and registry.
+        auto element_copy = TRY(DOM::create_element(document, element->local_name(), element->namespace_uri(), element->prefix(), element->is_value(), false, registry));
+
+        // 4. For each attribute of node’s attribute list:
         Optional<WebIDL::Exception> maybe_exception;
-        element.for_each_attribute([&](Attr const& attr) {
-            // 1. Let copyAttribute be the result of cloning a single node given attribute and document.
-            auto copy_attribute_or_error = attr.clone_single_node(document);
+        element->for_each_attribute([&](Attr const& attr) {
+            // 1. Let copyAttribute be the result of cloning a single node given attribute, document, and null.
+            auto copy_attribute_or_error = attr.clone_single_node(document, nullptr);
             if (copy_attribute_or_error.is_error()) {
                 maybe_exception = copy_attribute_or_error.release_error();
                 return;
