@@ -46,6 +46,7 @@ public:
     virtual int exec() override;
     virtual size_t pump(PumpMode) override;
     virtual void quit(int) override;
+    virtual bool was_exit_requested() const override { return m_exit_requested; }
 
     virtual void wake() override;
 

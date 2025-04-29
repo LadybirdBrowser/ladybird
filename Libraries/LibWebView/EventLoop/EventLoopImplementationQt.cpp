@@ -222,6 +222,13 @@ void EventLoopImplementationQt::wake()
         m_event_loop->wakeUp();
 }
 
+bool EventLoopImplementationQt::was_exit_requested() const
+{
+    if (is_main_loop())
+        return QCoreApplication::closingDown();
+    return !m_event_loop->isRunning();
+}
+
 void EventLoopImplementationQt::post_event(Core::EventReceiver& receiver, NonnullOwnPtr<Core::Event>&& event)
 {
     m_thread_event_queue.post_event(receiver, move(event));

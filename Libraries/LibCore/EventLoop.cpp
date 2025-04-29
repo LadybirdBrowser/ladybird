@@ -65,6 +65,11 @@ void EventLoop::quit(int code)
     m_impl->quit(code);
 }
 
+bool EventLoop::was_exit_requested()
+{
+    return m_impl->was_exit_requested();
+}
+
 struct EventLoopPusher {
 public:
     EventLoopPusher(EventLoop& event_loop)
