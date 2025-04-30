@@ -66,6 +66,8 @@ public:
         return result.release_value();
     }
 
+    [[nodiscard]] MappingType clone_mapping() const { return MUST(m_mapping.clone()); }
+
     StringView as_string_view() const { return m_builder.string_view(); }
 
     void append(StringView pattern)
