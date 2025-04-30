@@ -988,6 +988,55 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
 
         return false;
     }
+    case CSS::PseudoClass::Required: {
+        // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-required
+
+        // The :required pseudo-class must match any element falling into one of the following categories:
+        // - input elements that are required
+        if (auto const* input_element = as_if<Web::HTML::HTMLInputElement>(element)) {
+            if (input_element->required_applies() && input_element->has_attribute(HTML::AttributeNames::required))
+                return true;
+        }
+        // - select elements that have a required attribute
+        else if (auto const* select_element = as_if<Web::HTML::HTMLSelectElement>(element)) {
+            if (select_element->has_attribute(HTML::AttributeNames::required))
+                return true;
+        }
+        // - textarea elements that have a required attribute
+        else if (auto const* textarea_element = as_if<Web::HTML::HTMLTextAreaElement>(element)) {
+            if (textarea_element->has_attribute(HTML::AttributeNames::required))
+                return true;
+        }
+
+        return false;
+    }
+    case CSS::PseudoClass::Optional: {
+        // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-optional
+
+        // The :optional pseudo-class must match any element falling into one of the following categories:
+        // - input elements to which the required attribute applies that are not required
+        if (auto const* input_element = as_if<Web::HTML::HTMLInputElement>(element)) {
+            if (input_element->required_applies() && !input_element->has_attribute(HTML::AttributeNames::required))
+                return true;
+
+            // AD-HOC: Chromium and Webkit also match for hidden inputs (and WPT expects this)
+            // See: https://github.com/whatwg/html/issues/11273
+            if (input_element->type_state() == HTML::HTMLInputElement::TypeAttributeState::Hidden)
+                return true;
+        }
+        // - select elements that do not have a required attribute
+        else if (auto const* select_element = as_if<Web::HTML::HTMLSelectElement>(element)) {
+            if (!select_element->has_attribute(HTML::AttributeNames::required))
+                return true;
+        }
+        // - textarea elements that do not have a required attribute
+        else if (auto const* textarea_element = as_if<Web::HTML::HTMLTextAreaElement>(element)) {
+            if (!textarea_element->has_attribute(HTML::AttributeNames::required))
+                return true;
+        }
+
+        return false;
+    }
     }
 
     return false;

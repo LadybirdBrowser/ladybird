@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Test required attribute
+1 Pass
+Pass	Test required attribute

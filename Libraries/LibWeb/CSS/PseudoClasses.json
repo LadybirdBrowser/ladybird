@@ -116,6 +116,9 @@
   "optimal-value": {
     "argument": ""
   },
+  "optional": {
+    "argument": ""
+  },
   "popover-open": {
     "argument": ""
   },
@@ -132,6 +135,9 @@
     "argument": ""
   },
   "read-write": {
+    "argument": ""
+  },
+  "required": {
     "argument": ""
   },
   "root": {
