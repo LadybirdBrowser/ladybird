@@ -80,19 +80,6 @@ protected:
     Gfx::AffineTransform m_transform = {};
 
     template<typename T>
-    GC::Ptr<T> try_resolve_url_to(URL::URL const& url) const
-    {
-        if (!url.fragment().has_value())
-            return {};
-        auto node = document().get_element_by_id(*url.fragment());
-        if (!node)
-            return {};
-        if (is<T>(*node))
-            return static_cast<T&>(*node);
-        return {};
-    }
-
-    template<typename T>
     GC::Ptr<T> try_resolve_url_to(CSS::URL const& url) const
     {
         // FIXME: Complete and use the entire URL, not just the fragment.
