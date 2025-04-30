@@ -3877,8 +3877,17 @@ RefPtr<CSSStyleValue const> Parser::parse_translate_value(TokenStream<ComponentV
     if (!maybe_y)
         return nullptr;
 
+    if (!tokens.has_next_token()) {
+        transaction.commit();
+        return TransformationStyleValue::create(PropertyID::Translate, TransformFunction::Translate, { maybe_x.release_nonnull(), maybe_y.release_nonnull() });
+    }
+
+    auto maybe_z = parse_length_value(tokens);
+    if (!maybe_z)
+        return nullptr;
+
     transaction.commit();
-    return TransformationStyleValue::create(PropertyID::Translate, TransformFunction::Translate, { maybe_x.release_nonnull(), maybe_y.release_nonnull() });
+    return TransformationStyleValue::create(PropertyID::Translate, TransformFunction::Translate3d, { maybe_x.release_nonnull(), maybe_y.release_nonnull(), maybe_z.release_nonnull() });
 }
 
 RefPtr<CSSStyleValue const> Parser::parse_scale_value(TokenStream<ComponentValue>& tokens)
