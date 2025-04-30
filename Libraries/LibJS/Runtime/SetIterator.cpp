@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/GlobalObject.h>
+#include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/SetIterator.h>
 
 namespace JS {
@@ -28,6 +28,33 @@ void SetIterator::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_set);
+}
+
+ThrowCompletionOr<void> SetIterator::next(VM& vm, bool& done, Value& value)
+{
+    if (m_done) {
+        done = true;
+        value = js_undefined();
+        return {};
+    }
+
+    if (m_iterator == m_set->end()) {
+        m_done = true;
+        done = true;
+        value = js_undefined();
+        return {};
+    }
+
+    VERIFY(m_iteration_kind != Object::PropertyKind::Key);
+
+    value = (*m_iterator).key;
+    ++m_iterator;
+    if (m_iteration_kind == Object::PropertyKind::Value) {
+        return {};
+    }
+
+    value = Array::create_from(*vm.current_realm(), { value, value });
+    return {};
 }
 
 }

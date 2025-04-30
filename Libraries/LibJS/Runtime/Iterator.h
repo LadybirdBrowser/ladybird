@@ -67,6 +67,12 @@ enum class PrimitiveHandling {
     RejectPrimitives,
 };
 
+class BuiltinIterator {
+public:
+    virtual ~BuiltinIterator() = default;
+    virtual ThrowCompletionOr<void> next(VM&, bool& done, Value& value) = 0;
+};
+
 // 7.4.12 IfAbruptCloseIterator ( value, iteratorRecord ), https://tc39.es/ecma262/#sec-ifabruptcloseiterator
 #define TRY_OR_CLOSE_ITERATOR(vm, iterator_record, expression)                                                    \
     ({                                                                                                            \

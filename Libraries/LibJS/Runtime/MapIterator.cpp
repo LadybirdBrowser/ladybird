@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/GlobalObject.h>
+#include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/MapIterator.h>
 
 namespace JS {
@@ -28,6 +28,36 @@ void MapIterator::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_map);
+}
+
+ThrowCompletionOr<void> MapIterator::next(VM& vm, bool& done, Value& value)
+{
+    if (m_done) {
+        done = true;
+        value = js_undefined();
+        return {};
+    }
+
+    if (m_iterator.is_end()) {
+        m_done = true;
+        done = true;
+        value = js_undefined();
+        return {};
+    }
+
+    auto entry = *m_iterator;
+    ++m_iterator;
+    if (m_iteration_kind == Object::PropertyKind::Key) {
+        value = entry.key;
+        return {};
+    }
+    if (m_iteration_kind == Object::PropertyKind::Value) {
+        value = entry.value;
+        return {};
+    }
+
+    value = Array::create_from(*vm.current_realm(), { entry.key, entry.value });
+    return {};
 }
 
 }

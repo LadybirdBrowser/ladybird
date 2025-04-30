@@ -34,27 +34,13 @@ void SetIteratorPrototype::initialize(Realm& realm)
 // 24.2.5.2.1 %SetIteratorPrototype%.next ( ), https://tc39.es/ecma262/#sec-%setiteratorprototype%.next
 JS_DEFINE_NATIVE_FUNCTION(SetIteratorPrototype::next)
 {
-    auto& realm = *vm.current_realm();
+    auto iterator = TRY(typed_this_value(vm));
 
-    auto set_iterator = TRY(typed_this_value(vm));
-    if (set_iterator->done())
-        return create_iterator_result_object(vm, js_undefined(), true);
+    Value value;
+    bool done = false;
+    TRY(iterator->next(vm, done, value));
 
-    auto& set = set_iterator->set();
-    if (set_iterator->m_iterator == set.end()) {
-        set_iterator->m_done = true;
-        return create_iterator_result_object(vm, js_undefined(), true);
-    }
-
-    auto iteration_kind = set_iterator->iteration_kind();
-    VERIFY(iteration_kind != Object::PropertyKind::Key);
-
-    auto value = (*set_iterator->m_iterator).key;
-    ++set_iterator->m_iterator;
-    if (iteration_kind == Object::PropertyKind::Value)
-        return create_iterator_result_object(vm, value, false);
-
-    return create_iterator_result_object(vm, Array::create_from(realm, { value, value }), false);
+    return create_iterator_result_object(vm, value, done);
 }
 
 }

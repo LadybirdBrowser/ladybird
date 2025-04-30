@@ -33,20 +33,12 @@ void StringIteratorPrototype::initialize(Realm& realm)
 JS_DEFINE_NATIVE_FUNCTION(StringIteratorPrototype::next)
 {
     auto iterator = TRY(typed_this_value(vm));
-    if (iterator->done())
-        return create_iterator_result_object(vm, js_undefined(), true);
 
-    auto& utf8_iterator = iterator->iterator();
+    Value value;
+    bool done = false;
+    TRY(iterator->next(vm, done, value));
 
-    if (utf8_iterator.done()) {
-        iterator->m_done = true;
-        return create_iterator_result_object(vm, js_undefined(), true);
-    }
-
-    auto code_point = String::from_code_point(*utf8_iterator);
-    ++utf8_iterator;
-
-    return create_iterator_result_object(vm, PrimitiveString::create(vm, move(code_point)), false);
+    return create_iterator_result_object(vm, value, done);
 }
 
 }

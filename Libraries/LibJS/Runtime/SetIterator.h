@@ -6,13 +6,14 @@
 
 #pragma once
 
-#include <AK/HashTable.h>
+#include <LibJS/Runtime/Iterator.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/Set.h>
 
 namespace JS {
 
-class SetIterator final : public Object {
+class SetIterator final : public Object
+    , public BuiltinIterator {
     JS_OBJECT(SetIterator, Object);
     GC_DECLARE_ALLOCATOR(SetIterator);
 
@@ -21,9 +22,8 @@ public:
 
     virtual ~SetIterator() override = default;
 
-    Set& set() const { return m_set; }
-    bool done() const { return m_done; }
-    Object::PropertyKind iteration_kind() const { return m_iteration_kind; }
+    BuiltinIterator* as_builtin_iterator() override { return this; }
+    ThrowCompletionOr<void> next(VM&, bool& done, Value& value) override;
 
 private:
     friend class SetIteratorPrototype;

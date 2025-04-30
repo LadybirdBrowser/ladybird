@@ -8,11 +8,13 @@
 
 #include <AK/String.h>
 #include <AK/Utf8View.h>
+#include <LibJS/Runtime/Iterator.h>
 #include <LibJS/Runtime/Object.h>
 
 namespace JS {
 
-class StringIterator final : public Object {
+class StringIterator final : public Object
+    , public BuiltinIterator {
     JS_OBJECT(StringIterator, Object);
     GC_DECLARE_ALLOCATOR(StringIterator);
 
@@ -21,8 +23,8 @@ public:
 
     virtual ~StringIterator() override = default;
 
-    Utf8CodePointIterator& iterator() { return m_iterator; }
-    bool done() const { return m_done; }
+    BuiltinIterator* as_builtin_iterator() override { return this; }
+    ThrowCompletionOr<void> next(VM&, bool& done, Value& value) override;
 
 private:
     explicit StringIterator(String string, Object& prototype);
