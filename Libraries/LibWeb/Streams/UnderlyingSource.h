@@ -11,6 +11,7 @@
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/Promise.h>
+#include <LibWeb/WebIDL/Types.h>
 
 namespace Web::Streams {
 
@@ -18,12 +19,13 @@ enum class ReadableStreamType {
     Bytes
 };
 
+// https://streams.spec.whatwg.org/#dictdef-underlyingsource
 struct UnderlyingSource {
     GC::Root<WebIDL::CallbackType> start;
     GC::Root<WebIDL::CallbackType> pull;
     GC::Root<WebIDL::CallbackType> cancel;
     Optional<ReadableStreamType> type;
-    Optional<u64> auto_allocate_chunk_size;
+    Optional<WebIDL::UnsignedLongLong> auto_allocate_chunk_size;
 
     static JS::ThrowCompletionOr<UnderlyingSource> from_value(JS::VM&, JS::Value);
 };
