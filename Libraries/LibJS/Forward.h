@@ -158,6 +158,7 @@ class Agent;
 struct AsyncGeneratorRequest;
 class BigInt;
 class BoundFunction;
+class BuiltinIterator;
 struct CachedSourceRange;
 class Cell;
 class ClassExpression;

@@ -24,4 +24,26 @@ StringIterator::StringIterator(String string, Object& prototype)
 {
 }
 
+ThrowCompletionOr<void> StringIterator::next(VM& vm, bool& done, Value& value)
+{
+    if (m_done) {
+        done = true;
+        value = js_undefined();
+        return {};
+    }
+
+    if (m_iterator.done()) {
+        m_done = true;
+        done = true;
+        value = js_undefined();
+        return {};
+    }
+
+    auto code_point = String::from_code_point(*m_iterator);
+    ++m_iterator;
+
+    value = PrimitiveString::create(vm, move(code_point));
+    return {};
+}
+
 }

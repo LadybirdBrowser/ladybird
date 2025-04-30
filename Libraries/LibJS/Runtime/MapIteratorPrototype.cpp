@@ -6,8 +6,6 @@
 
 #include <AK/TypeCasts.h>
 #include <LibJS/Runtime/Array.h>
-#include <LibJS/Runtime/Error.h>
-#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Iterator.h>
 #include <LibJS/Runtime/MapIteratorPrototype.h>
 
@@ -32,27 +30,13 @@ void MapIteratorPrototype::initialize(Realm& realm)
 // 24.1.5.2.1 %MapIteratorPrototype%.next ( ), https://tc39.es/ecma262/#sec-%mapiteratorprototype%.next
 JS_DEFINE_NATIVE_FUNCTION(MapIteratorPrototype::next)
 {
-    auto& realm = *vm.current_realm();
+    auto iterator = TRY(typed_this_value(vm));
 
-    auto map_iterator = TRY(typed_this_value(vm));
-    if (map_iterator->done())
-        return create_iterator_result_object(vm, js_undefined(), true);
+    Value value;
+    bool done = false;
+    TRY(iterator->next(vm, done, value));
 
-    if (map_iterator->m_iterator.is_end()) {
-        map_iterator->m_done = true;
-        return create_iterator_result_object(vm, js_undefined(), true);
-    }
-
-    auto iteration_kind = map_iterator->iteration_kind();
-
-    auto entry = *map_iterator->m_iterator;
-    ++map_iterator->m_iterator;
-    if (iteration_kind == Object::PropertyKind::Key)
-        return create_iterator_result_object(vm, entry.key, false);
-    if (iteration_kind == Object::PropertyKind::Value)
-        return create_iterator_result_object(vm, entry.value, false);
-
-    return create_iterator_result_object(vm, Array::create_from(realm, { entry.key, entry.value }), false);
+    return create_iterator_result_object(vm, value, done);
 }
 
 }

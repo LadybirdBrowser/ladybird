@@ -6,12 +6,14 @@
 
 #pragma once
 
+#include <LibJS/Runtime/Iterator.h>
 #include <LibJS/Runtime/Map.h>
 #include <LibJS/Runtime/Object.h>
 
 namespace JS {
 
-class MapIterator final : public Object {
+class MapIterator final : public Object
+    , public BuiltinIterator {
     JS_OBJECT(MapIterator, Object);
     GC_DECLARE_ALLOCATOR(MapIterator);
 
@@ -20,9 +22,8 @@ public:
 
     virtual ~MapIterator() override = default;
 
-    Map& map() const { return m_map; }
-    bool done() const { return m_done; }
-    Object::PropertyKind iteration_kind() const { return m_iteration_kind; }
+    BuiltinIterator* as_builtin_iterator() override { return this; }
+    ThrowCompletionOr<void> next(VM&, bool& done, Value& value) override;
 
 private:
     friend class MapIteratorPrototype;

@@ -6,11 +6,13 @@
 
 #pragma once
 
+#include <LibJS/Runtime/Iterator.h>
 #include <LibJS/Runtime/Object.h>
 
 namespace JS {
 
-class ArrayIterator final : public Object {
+class ArrayIterator final : public Object
+    , public BuiltinIterator {
     JS_OBJECT(ArrayIterator, Object);
     GC_DECLARE_ALLOCATOR(ArrayIterator);
 
@@ -19,13 +21,8 @@ public:
 
     virtual ~ArrayIterator() override = default;
 
-    Value array() const { return m_array; }
-    void set_array(Value array) { m_array = array; }
-
-    Object::PropertyKind iteration_kind() const { return m_iteration_kind; }
-
-    size_t index() const { return m_index; }
-    void set_index(size_t index) { m_index = index; }
+    BuiltinIterator* as_builtin_iterator() override { return this; }
+    ThrowCompletionOr<void> next(VM&, bool& done, Value& value) override;
 
 private:
     ArrayIterator(Value array, Object::PropertyKind iteration_kind, Object& prototype);

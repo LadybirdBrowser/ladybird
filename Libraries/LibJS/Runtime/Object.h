@@ -212,6 +212,8 @@ public:
     virtual bool is_array_iterator() const { return false; }
     virtual bool is_raw_json_object() const { return false; }
 
+    virtual BuiltinIterator* as_builtin_iterator() { return nullptr; }
+
     // B.3.7 The [[IsHTMLDDA]] Internal Slot, https://tc39.es/ecma262/#sec-IsHTMLDDA-internal-slot
     virtual bool is_htmldda() const { return false; }
 
