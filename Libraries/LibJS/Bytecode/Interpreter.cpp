@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2021-2025, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -611,6 +612,7 @@ FLATTEN_ON_CLANG void Interpreter::run_bytecode(size_t entry_point)
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(Dump);
             HANDLE_INSTRUCTION(EnterObjectEnvironment);
             HANDLE_INSTRUCTION(Exp);
+            HANDLE_INSTRUCTION(ForOfNext);
             HANDLE_INSTRUCTION(GetById);
             HANDLE_INSTRUCTION(GetByIdWithThis);
             HANDLE_INSTRUCTION(GetByValue);
@@ -2980,6 +2982,27 @@ ThrowCompletionOr<void> IteratorNext::execute_impl(Bytecode::Interpreter& interp
     return {};
 }
 
+ThrowCompletionOr<void> ForOfNext::execute_impl(Bytecode::Interpreter& interpreter) const
+{
+    auto& vm = interpreter.vm();
+    auto& iterator_record = static_cast<IteratorRecord&>(interpreter.get(m_iterator_record).as_cell());
+
+    Value value;
+    bool done = false;
+    if (auto* builtin_iterator = iterator_record.iterator->as_builtin_iterator()) {
+        TRY(builtin_iterator->next(vm, done, value));
+    } else {
+        auto result = TRY(iterator_next(vm, iterator_record));
+        value = TRY(result->internal_get(vm.names.value, {}));
+        done = TRY(result->internal_get(vm.names.done, {})).to_boolean();
+    }
+
+    interpreter.set(dst_done(), Value(done));
+    interpreter.set(dst_value(), value);
+
+    return {};
+}
+
 ThrowCompletionOr<void> NewClass::execute_impl(Bytecode::Interpreter& interpreter) const
 {
     Value super_class;
@@ -3751,6 +3774,14 @@ ByteString IteratorNext::to_byte_string_impl(Executable const& executable) const
 {
     return ByteString::formatted("IteratorNext {}, {}",
         format_operand("dst"sv, m_dst, executable),
+        format_operand("iterator_record"sv, m_iterator_record, executable));
+}
+
+ByteString ForOfNext::to_byte_string_impl(Executable const& executable) const
+{
+    return ByteString::formatted("ForOfNext {}, {}, {}",
+        format_operand("dst_value"sv, m_dst_value, executable),
+        format_operand("dst_done"sv, m_dst_done, executable),
         format_operand("iterator_record"sv, m_iterator_record, executable));
 }
 

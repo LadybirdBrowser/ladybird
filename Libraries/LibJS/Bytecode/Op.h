@@ -2721,6 +2721,35 @@ private:
     Operand m_iterator_record;
 };
 
+class ForOfNext final : public Instruction {
+public:
+    ForOfNext(Operand dst_value, Operand dst_done, Operand iterator_record)
+        : Instruction(Type::ForOfNext)
+        , m_dst_value(dst_value)
+        , m_dst_done(dst_done)
+        , m_iterator_record(iterator_record)
+    {
+    }
+
+    ThrowCompletionOr<void> execute_impl(Bytecode::Interpreter&) const;
+    ByteString to_byte_string_impl(Bytecode::Executable const&) const;
+    void visit_operands_impl(Function<void(Operand&)> visitor)
+    {
+        visitor(m_dst_value);
+        visitor(m_dst_done);
+        visitor(m_iterator_record);
+    }
+
+    Operand dst_value() const { return m_dst_value; }
+    Operand dst_done() const { return m_dst_done; }
+    Operand iterator_record() const { return m_iterator_record; }
+
+private:
+    Operand m_dst_value;
+    Operand m_dst_done;
+    Operand m_iterator_record;
+};
+
 class ResolveThisBinding final : public Instruction {
 public:
     ResolveThisBinding()
