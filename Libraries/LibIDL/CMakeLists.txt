@@ -1,4 +1,5 @@
 set(SOURCES
+    ExposedTo.cpp
     IDLParser.cpp
     Types.cpp
 )
