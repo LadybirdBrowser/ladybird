@@ -17,6 +17,8 @@ EventLoopPluginSerenity::~EventLoopPluginSerenity() = default;
 void EventLoopPluginSerenity::spin_until(GC::Root<GC::Function<bool()>> goal_condition)
 {
     Core::EventLoop::current().spin_until([goal_condition = move(goal_condition)]() {
+        if (Core::EventLoop::current().was_exit_requested())
+            ::exit(0);
         return goal_condition->function()();
     });
 }
