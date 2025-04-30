@@ -24,10 +24,7 @@ GC::Ptr<SVGGeometryElement const> SVGTextPathElement::path_or_shape() const
     auto href = get_attribute(AttributeNames::href);
     if (!href.has_value())
         return {};
-    auto url = document().url().complete_url(*href);
-    if (!url.has_value())
-        return {};
-    return try_resolve_url_to<SVGGeometryElement const>(*url);
+    return try_resolve_url_to<SVGGeometryElement const>(*href);
 }
 
 void SVGTextPathElement::initialize(JS::Realm& realm)
