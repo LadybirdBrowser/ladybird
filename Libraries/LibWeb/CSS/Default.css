@@ -53,20 +53,19 @@ button, input[type=submit], input[type=button], input[type=reset], select, ::fil
     border: 1px solid ButtonBorder;
     color: ButtonText;
     cursor: default;
-    /* FIXME: For some reason this filter is required for the :hover style to work */
-    filter: contrast(100%);
-}
 
-button:disabled, input[type=submit]:disabled, input[type=button]:disabled, input[type=reset]:disabled, select:disabled {
-    filter: contrast(70%);
+    &:hover {
+        background-color: -libweb-ButtonFaceHover;
+    }
+
+    &:disabled {
+        background-color: -libweb-ButtonFaceDisabled;
+        color: GrayText;
+    }
 }
 
 input[type=image] {
     cursor: pointer;
-}
-
-button:hover, input[type=submit]:hover, input[type=button]:hover, input[type=reset]:hover, select:hover {
-    filter: contrast(70%);
 }
 
 option {
