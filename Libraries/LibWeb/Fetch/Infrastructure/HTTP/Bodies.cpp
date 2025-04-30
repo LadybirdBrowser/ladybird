@@ -54,7 +54,7 @@ GC::Ref<Body> Body::clone(JS::Realm& realm)
 
     // To clone a body body, run these steps:
     // 1. Let « out1, out2 » be the result of teeing body’s stream.
-    auto [out1, out2] = m_stream->tee().release_value_but_fixme_should_propagate_errors();
+    auto [out1, out2] = m_stream->tee(&realm).release_value_but_fixme_should_propagate_errors();
 
     // 2. Set body’s stream to out1.
     m_stream = out1;

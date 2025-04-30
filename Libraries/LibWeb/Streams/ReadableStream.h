@@ -80,7 +80,7 @@ public:
     WebIDL::ExceptionOr<ReadableStreamReader> get_reader(ReadableStreamGetReaderOptions const& = {});
     WebIDL::ExceptionOr<GC::Ref<ReadableStream>> pipe_through(ReadableWritablePair transform, StreamPipeOptions const& = {});
     GC::Ref<WebIDL::Promise> pipe_to(WritableStream& destination, StreamPipeOptions const& = {});
-    WebIDL::ExceptionOr<ReadableStreamPair> tee();
+    WebIDL::ExceptionOr<ReadableStreamPair> tee(GC::Ptr<JS::Realm> target_realm = {});
 
     void close();
     void error(JS::Value);

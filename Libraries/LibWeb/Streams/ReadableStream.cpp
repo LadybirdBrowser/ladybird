@@ -173,10 +173,13 @@ GC::Ref<WebIDL::Promise> ReadableStream::pipe_to(WritableStream& destination, St
 }
 
 // https://streams.spec.whatwg.org/#readablestream-tee
-WebIDL::ExceptionOr<ReadableStreamPair> ReadableStream::tee()
+WebIDL::ExceptionOr<ReadableStreamPair> ReadableStream::tee(GC::Ptr<JS::Realm> target_realm)
 {
+    if (!target_realm)
+        target_realm = &realm();
+
     // To tee a ReadableStream stream, return ? ReadableStreamTee(stream, true).
-    return TRY(readable_stream_tee(realm(), *this, true));
+    return TRY(readable_stream_tee(*target_realm, *this, true));
 }
 
 // https://streams.spec.whatwg.org/#readablestream-close
