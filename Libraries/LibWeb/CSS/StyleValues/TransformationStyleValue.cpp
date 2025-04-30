@@ -148,11 +148,7 @@ String TransformationStyleValue::to_string(SerializationMode mode) const
     if (m_properties.property == PropertyID::Translate) {
         auto resolve_to_string = [mode](CSSStyleValue const& value) -> Optional<String> {
             if (value.is_length()) {
-                if (value.as_length().length().raw_value() == 0)
-                    return {};
-            }
-            if (value.is_percentage()) {
-                if (value.as_percentage().percentage().value() == 0)
+                if (value.as_length().length().raw_value() == 0 && value.as_length().length().type() == Length::Type::Px)
                     return {};
             }
             return value.to_string(mode);
@@ -160,13 +156,19 @@ String TransformationStyleValue::to_string(SerializationMode mode) const
 
         auto x_value = resolve_to_string(m_properties.values[0]);
         auto y_value = resolve_to_string(m_properties.values[1]);
-        // FIXME: 3D translation
+        Optional<String> z_value;
+        if (m_properties.values.size() == 3 && (!m_properties.values[2]->is_length() || m_properties.values[2]->as_length().length() != Length::make_px(0)))
+            z_value = resolve_to_string(m_properties.values[2]);
 
         StringBuilder builder;
         builder.append(x_value.value_or("0px"_string));
-        if (y_value.has_value()) {
+        if (y_value.has_value() || z_value.has_value()) {
             builder.append(" "sv);
-            builder.append(y_value.value());
+            builder.append(y_value.value_or("0px"_string));
+        }
+        if (z_value.has_value()) {
+            builder.append(" "sv);
+            builder.append(z_value.value());
         }
 
         return builder.to_string_without_validation();
