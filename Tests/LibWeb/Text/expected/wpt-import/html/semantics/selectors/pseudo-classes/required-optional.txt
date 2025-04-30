@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	':required' matches required <input>s, <select>s and <textarea>s
+Pass	':optional' matches elements <input>s, <select>s and <textarea>s that are not required
+Pass	':required' doesn't match elements whose required attribute has been removed
+Pass	':optional' matches elements whose required attribute has been removed
+Pass	':required' matches elements whose required attribute has been added
+Pass	':optional' doesn't match elements whose required attribute has been added

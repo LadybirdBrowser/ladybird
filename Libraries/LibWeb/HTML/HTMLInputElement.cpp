@@ -3002,6 +3002,31 @@ bool HTMLInputElement::multiple_applies() const
     }
 }
 
+// https://html.spec.whatwg.org/multipage/input.html#do-not-apply
+bool HTMLInputElement::required_applies() const
+{
+    switch (type_state()) {
+    case TypeAttributeState::Text:
+    case TypeAttributeState::Search:
+    case TypeAttributeState::Telephone:
+    case TypeAttributeState::URL:
+    case TypeAttributeState::Email:
+    case TypeAttributeState::Password:
+    case TypeAttributeState::Date:
+    case TypeAttributeState::Month:
+    case TypeAttributeState::Week:
+    case TypeAttributeState::Time:
+    case TypeAttributeState::LocalDateAndTime:
+    case TypeAttributeState::Number:
+    case TypeAttributeState::Checkbox:
+    case TypeAttributeState::RadioButton:
+    case TypeAttributeState::FileUpload:
+        return true;
+    default:
+        return false;
+    }
+}
+
 bool HTMLInputElement::has_selectable_text() const
 {
     // Potential FIXME: Date, Month, Week, Time and LocalDateAndTime are rendered as a basic text input for now,
