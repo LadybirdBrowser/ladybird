@@ -505,7 +505,9 @@ void Parser::parse_stringifier(HashMap<ByteString, ByteString>& extended_attribu
     if (lexer.next_is("attribute"sv) || lexer.next_is("inherit"sv) || lexer.next_is("readonly"sv)) {
         parse_attribute(extended_attributes, interface);
         interface.stringifier_attribute = interface.attributes.last();
+        interface.stringifier_extended_attributes = interface.stringifier_attribute->extended_attributes;
     } else {
+        interface.stringifier_extended_attributes = move(extended_attributes);
         assert_specific(';');
     }
 }
