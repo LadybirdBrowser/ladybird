@@ -94,6 +94,42 @@ static RefPtr<CSSStyleValue const> interpolate_scale(DOM::Element& element, Calc
         move(new_values));
 }
 
+static RefPtr<CSSStyleValue const> interpolate_translate(DOM::Element& element, CalculationContext calculation_context, CSSStyleValue const& a_from, CSSStyleValue const& a_to, float delta)
+{
+    if (a_from.to_keyword() == Keyword::None && a_to.to_keyword() == Keyword::None)
+        return a_from;
+
+    static auto zero_px = LengthStyleValue::create(Length::make_px(0));
+    static auto zero = TransformationStyleValue::create(PropertyID::Translate, TransformFunction::Translate, { zero_px, zero_px });
+
+    auto const& from = a_from.to_keyword() == Keyword::None ? *zero : a_from;
+    auto const& to = a_to.to_keyword() == Keyword::None ? *zero : a_to;
+
+    auto const& from_transform = from.as_transformation();
+    auto const& to_transform = to.as_transformation();
+
+    auto interpolated_x = interpolate_value(element, calculation_context, from_transform.values()[0], to_transform.values()[0], delta);
+    auto interpolated_y = interpolate_value(element, calculation_context, from_transform.values()[1], to_transform.values()[1], delta);
+
+    RefPtr<CSSStyleValue const> interpolated_z;
+
+    if (from_transform.values().size() == 3 || to_transform.values().size() == 3) {
+        auto from_z = from_transform.values().size() == 3 ? from_transform.values()[2] : zero_px;
+        auto to_z = to_transform.values().size() == 3 ? to_transform.values()[2] : zero_px;
+        interpolated_z = interpolate_value(element, calculation_context, from_z, to_z, delta);
+    }
+
+    StyleValueVector new_values = { interpolated_x, interpolated_y };
+    if (interpolated_z && interpolated_z->is_length() && !interpolated_z->as_length().equals(zero_px)) {
+        new_values.append(*interpolated_z);
+    }
+
+    return TransformationStyleValue::create(
+        PropertyID::Translate,
+        new_values.size() == 3 ? TransformFunction::Translate3d : TransformFunction::Translate,
+        move(new_values));
+}
+
 ValueComparingRefPtr<CSSStyleValue const> interpolate_property(DOM::Element& element, PropertyID property_id, CSSStyleValue const& a_from, CSSStyleValue const& a_to, float delta)
 {
     auto from = with_keyword_values_resolved(element, property_id, a_from);
@@ -127,6 +163,9 @@ ValueComparingRefPtr<CSSStyleValue const> interpolate_property(DOM::Element& ele
 
         if (property_id == PropertyID::Scale)
             return interpolate_scale(element, calculation_context, from, to, delta);
+
+        if (property_id == PropertyID::Translate)
+            return interpolate_translate(element, calculation_context, from, to, delta);
 
         // FIXME: Handle all custom animatable properties
         [[fallthrough]];
