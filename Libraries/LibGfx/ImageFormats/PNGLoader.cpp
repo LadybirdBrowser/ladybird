@@ -267,6 +267,7 @@ ErrorOr<size_t> PNGLoadingContext::read_frames(png_structp png_ptr, png_infop in
         // Conceptually, at the beginning of each play the output buffer must be completely initialized to a fully transparent black rectangle, with width and height dimensions from the `IHDR` chunk.
         auto output_buffer = TRY(Bitmap::create(BitmapFormat::BGRA8888, AlphaType::Unpremultiplied, size));
         auto painter = Painter::create(output_buffer);
+        size_t animation_frame_count = 0;
 
         for (size_t frame_index = 0; frame_index < frame_count; ++frame_index) {
             png_read_frame_head(png_ptr, info_ptr);
@@ -289,7 +290,8 @@ ErrorOr<size_t> PNGLoadingContext::read_frames(png_structp png_ptr, png_infop in
                 return static_cast<int>(unsigned_duration_ms);
             };
 
-            if (png_get_valid(png_ptr, info_ptr, PNG_INFO_fcTL)) {
+            bool has_fcTL = png_get_valid(png_ptr, info_ptr, PNG_INFO_fcTL);
+            if (has_fcTL) {
                 png_get_next_frame_fcTL(png_ptr, info_ptr, &width, &height, &x, &y, &delay_num, &delay_den, &dispose_op, &blend_op);
             } else {
                 width = png_get_image_width(png_ptr, info_ptr);
@@ -316,7 +318,10 @@ ErrorOr<size_t> PNGLoadingContext::read_frames(png_structp png_ptr, png_infop in
                 VERIFY_NOT_REACHED();
             }
 
-            frame_descriptors.append({ TRY(output_buffer->clone()), duration_ms() });
+            if (has_fcTL) {
+                animation_frame_count++;
+                frame_descriptors.append({ TRY(output_buffer->clone()), duration_ms() });
+            }
 
             switch (dispose_op) {
             case PNG_DISPOSE_OP_NONE:
@@ -334,6 +339,15 @@ ErrorOr<size_t> PNGLoadingContext::read_frames(png_structp png_ptr, png_infop in
                 VERIFY_NOT_REACHED();
             }
         }
+
+        frame_count = animation_frame_count;
+
+        // If we didn't find any valid animation frames with fcTL chunks, fall back to using the base IDAT data as a single frame.
+        if (frame_count == 0) {
+            auto frame_bitmap = TRY(decode_frame(size));
+            frame_descriptors.append({ move(frame_bitmap), 0 });
+            frame_count = 1;
+        }
     } else {
         // This is a single-frame PNG.
         frame_count = 1;
@@ -342,7 +356,7 @@ ErrorOr<size_t> PNGLoadingContext::read_frames(png_structp png_ptr, png_infop in
         auto decoded_frame_bitmap = TRY(decode_frame(size));
         frame_descriptors.append({ move(decoded_frame_bitmap), 0 });
     }
-    return this->frame_count;
+    return frame_count;
 }
 
 PNGImageDecoderPlugin::~PNGImageDecoderPlugin() = default;
