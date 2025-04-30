@@ -50,6 +50,8 @@ bool CSSKeywordValue::is_color(Keyword keyword)
     case Keyword::Inactivecaptiontext:
     case Keyword::Infobackground:
     case Keyword::Infotext:
+    case Keyword::LibwebButtonfacedisabled:
+    case Keyword::LibwebButtonfacehover:
     case Keyword::LibwebLink:
     case Keyword::LibwebPaletteActiveLink:
     case Keyword::LibwebPaletteActiveWindowBorder1:
@@ -205,6 +207,10 @@ Color CSSKeywordValue::to_color(Optional<Layout::NodeWithStyle const&> node) con
         return SystemColor::selected_item(scheme);
     case Keyword::Selecteditemtext:
         return SystemColor::selected_item_text(scheme);
+    case Keyword::LibwebButtonfacedisabled:
+        return SystemColor::button_face(scheme).with_alpha(128);
+    case Keyword::LibwebButtonfacehover:
+        return SystemColor::button_face(scheme).darkened(0.8f);
     default:
         break;
     }
