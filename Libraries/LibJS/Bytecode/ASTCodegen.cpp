@@ -3183,11 +3183,23 @@ static Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> for_in_of_body_e
     generator.begin_continuable_scope(Bytecode::Label { loop_update }, label_set);
 
     // a. Let nextResult be ? Call(iteratorRecord.[[NextMethod]], iteratorRecord.[[Iterator]]).
-    auto next_result = generator.allocate_register();
-    generator.emit<Bytecode::Op::IteratorNext>(next_result, *head_result.iterator);
+    auto next_value = generator.allocate_register();
+    auto done = generator.allocate_register();
 
-    // b. If iteratorKind is async, set nextResult to ? Await(nextResult).
-    if (iterator_kind == IteratorHint::Async) {
+    if (iterator_kind == IteratorHint::Sync) {
+        generator.emit<Bytecode::Op::ForOfNext>(next_value, done, *head_result.iterator);
+
+        auto& loop_continue = generator.make_block();
+        generator.emit_jump_if(
+            done,
+            Bytecode::Label { loop_end },
+            Bytecode::Label { loop_continue });
+        generator.switch_to_basic_block(loop_continue);
+    } else {
+        auto next_result = generator.allocate_register();
+        generator.emit<Bytecode::Op::IteratorNext>(next_result, *head_result.iterator);
+
+        // b. If iteratorKind is async, set nextResult to ? Await(nextResult).
         auto received_completion = generator.allocate_register();
         auto received_completion_type = generator.allocate_register();
         auto received_completion_value = generator.allocate_register();
@@ -3195,26 +3207,24 @@ static Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> for_in_of_body_e
         generator.emit_mov(received_completion, generator.accumulator());
         auto new_result = generate_await(generator, next_result, received_completion, received_completion_type, received_completion_value);
         generator.emit_mov(next_result, new_result);
+
+        // c. If Type(nextResult) is not Object, throw a TypeError exception.
+        generator.emit<Bytecode::Op::ThrowIfNotObject>(next_result);
+
+        // d. Let done be ? IteratorComplete(nextResult).
+        generator.emit_iterator_complete(done, next_result);
+
+        // e. If done is true, return V.
+        auto& loop_continue = generator.make_block();
+        generator.emit_jump_if(
+            done,
+            Bytecode::Label { loop_end },
+            Bytecode::Label { loop_continue });
+        generator.switch_to_basic_block(loop_continue);
+
+        // f. Let nextValue be ? IteratorValue(nextResult).
+        generator.emit_iterator_value(next_value, next_result);
     }
-
-    // c. If Type(nextResult) is not Object, throw a TypeError exception.
-    generator.emit<Bytecode::Op::ThrowIfNotObject>(next_result);
-
-    // d. Let done be ? IteratorComplete(nextResult).
-    auto done = generator.allocate_register();
-    generator.emit_iterator_complete(done, next_result);
-
-    // e. If done is true, return V.
-    auto& loop_continue = generator.make_block();
-    generator.emit_jump_if(
-        done,
-        Bytecode::Label { loop_end },
-        Bytecode::Label { loop_continue });
-    generator.switch_to_basic_block(loop_continue);
-
-    // f. Let nextValue be ? IteratorValue(nextResult).
-    auto next_value = generator.allocate_register();
-    generator.emit_iterator_value(next_value, next_result);
 
     // g. If lhsKind is either assignment or varBinding, then
     if (head_result.lhs_kind != LHSKind::LexicalBinding) {

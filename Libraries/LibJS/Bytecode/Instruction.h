@@ -51,6 +51,7 @@
     O(EnterObjectEnvironment)          \
     O(EnterUnwindContext)              \
     O(Exp)                             \
+    O(ForOfNext)                       \
     O(GetById)                         \
     O(GetByIdWithThis)                 \
     O(GetByValue)                      \
