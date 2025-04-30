@@ -73,8 +73,7 @@ TransportSocket::TransportSocket(NonnullOwnPtr<Core::LocalSocket> socket)
             auto result = send_message(*m_socket, remaining_to_send_bytes, fds);
             if (result.is_error()) {
                 if (result.error().is_errno() && result.error().code() == EPIPE) {
-                    // The socket is closed, we can stop sending.
-                    VERIFY(!m_socket->is_open());
+                    // The socket is closed from the other end, we can stop sending.
                     break;
                 }
                 dbgln("TransportSocket::send_thread: {}", result.error());
