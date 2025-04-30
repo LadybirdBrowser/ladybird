@@ -1010,7 +1010,7 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
         auto callback_function_generator = scoped_generator.fork();
         auto& callback_function = interface.callback_functions.find(parameter.type->name())->value;
 
-        if (callback_function.return_type->is_object() && callback_function.return_type->name() == "Promise")
+        if (callback_function.return_type->name() == "Promise")
             callback_function_generator.set("operation_returns_promise", "WebIDL::OperationReturnsPromise::Yes");
         else
             callback_function_generator.set("operation_returns_promise", "WebIDL::OperationReturnsPromise::No");
