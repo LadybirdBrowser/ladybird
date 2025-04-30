@@ -586,7 +586,9 @@ void HTMLScriptElement::children_changed(ChildrenChangedMetadata const* metadata
     Base::children_changed(metadata);
 
     // 1. Run the script HTML element post-connection steps, given the script element.
-    post_connection();
+    if (metadata && metadata->type != ChildrenChangedMetadata::Type::Removal) {
+        post_connection();
+    }
 }
 
 // https://html.spec.whatwg.org/multipage/scripting.html#script-processing-model:prepare-the-script-element-5
