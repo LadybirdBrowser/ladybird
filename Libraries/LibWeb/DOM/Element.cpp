@@ -529,6 +529,9 @@ GC::Ptr<Layout::Node> Element::create_layout_node(GC::Ref<CSS::ComputedPropertie
 
 GC::Ptr<Layout::NodeWithStyle> Element::create_layout_node_for_display_type(DOM::Document& document, CSS::Display const& display, GC::Ref<CSS::ComputedProperties> style, Element* element)
 {
+    if (display.is_none())
+        return {};
+
     if (display.is_table_inside() || display.is_table_row_group() || display.is_table_header_group() || display.is_table_footer_group() || display.is_table_row())
         return document.heap().allocate<Layout::Box>(document, element, move(style));
 
