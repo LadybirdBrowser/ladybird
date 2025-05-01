@@ -8,6 +8,7 @@
 #include <LibTextCodec/Decoder.h>
 #include <LibWeb/Bindings/ClipboardPrototype.h>
 #include <LibWeb/Clipboard/Clipboard.h>
+#include <LibWeb/Clipboard/SystemClipboard.h>
 #include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
@@ -40,43 +41,43 @@ void Clipboard::initialize(JS::Realm& realm)
 }
 
 // https://w3c.github.io/clipboard-apis/#os-specific-well-known-format
-static StringView os_specific_well_known_format(StringView mime_type_string)
+static String os_specific_well_known_format(StringView mime_type_string)
 {
     // NOTE: Here we always takes the Linux case, and defer to the browser process to handle OS specific implementations.
     auto mime_type = MimeSniff::MimeType::parse(mime_type_string);
 
     // 1. Let wellKnownFormat be an empty string.
-    StringView well_known_format {};
+    String well_known_format {};
 
     // 2. If mimeType’s essence is "text/plain", then
-    if (mime_type->essence() == "text/plain"sv) {
+    if (auto const& essence = mime_type->essence(); essence == "text/plain"sv) {
         // On Windows, follow the convention described below:
         //     Assign CF_UNICODETEXT to wellKnownFormat.
         // On MacOS, follow the convention described below:
         //     Assign NSPasteboardTypeString to wellKnownFormat.
         // On Linux, ChromeOS, and Android, follow the convention described below:
         //     Assign "text/plain" to wellKnownFormat.
-        well_known_format = "text/plain"sv;
+        well_known_format = essence;
     }
     // 3. Else, if mimeType’s essence is "text/html", then
-    if (mime_type->essence() == "text/html"sv) {
+    else if (essence == "text/html"sv) {
         // On Windows, follow the convention described below:
         //     Assign CF_HTML to wellKnownFormat.
         // On MacOS, follow the convention described below:
         //     Assign NSHTMLPboardType to wellKnownFormat.
         // On Linux, ChromeOS, and Android, follow the convention described below:
         //     Assign "text/html" to wellKnownFormat.
-        well_known_format = "text/html"sv;
+        well_known_format = essence;
     }
     // 4. Else, if mimeType’s essence is "image/png", then
-    if (mime_type->essence() == "image/png"sv) {
+    else if (essence == "image/png"sv) {
         // On Windows, follow the convention described below:
         //     Assign "PNG" to wellKnownFormat.
         // On MacOS, follow the convention described below:
         //     Assign NSPasteboardTypePNG to wellKnownFormat.
         // On Linux, ChromeOS, and Android, follow the convention described below:
         //     Assign "image/png" to wellKnownFormat.
-        well_known_format = "image/png"sv;
+        well_known_format = essence;
     }
 
     // 5. Return wellKnownFormat.
@@ -113,7 +114,7 @@ static void write_blobs_and_option_to_clipboard(JS::Realm& realm, ReadonlySpan<G
         auto payload = MUST(TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, item->raw_bytes()));
 
         // 4. Insert payload and presentationStyle into the system clipboard using formatString as the native clipboard format.
-        window.page().client().page_did_insert_clipboard_entry(payload, presentation_style, format_string);
+        window.page().client().page_did_insert_clipboard_entry({ payload.to_byte_string(), move(format_string) }, presentation_style);
     }
 
     // FIXME: 3. Write web custom formats given webCustomFormats.

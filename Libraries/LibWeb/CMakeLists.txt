@@ -34,6 +34,7 @@ set(SOURCES
     Clipboard/Clipboard.cpp
     Clipboard/ClipboardEvent.cpp
     Clipboard/ClipboardItem.cpp
+    Clipboard/SystemClipboard.cpp
     Compression/CompressionStream.cpp
     Compression/DecompressionStream.cpp
     ContentSecurityPolicy/Directives/Directive.cpp

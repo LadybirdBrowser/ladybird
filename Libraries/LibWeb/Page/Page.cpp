@@ -10,6 +10,7 @@
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
 #include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/Clipboard/SystemClipboard.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/HTML/BrowsingContext.h>
@@ -49,6 +50,7 @@ void Page::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_client);
     visitor.visit(m_window_rect_observer);
     visitor.visit(m_on_pending_dialog_closed);
+    visitor.visit(m_pending_clipboard_requests);
 }
 
 HTML::Navigable& Page::focused_navigable()
@@ -452,6 +454,20 @@ void Page::select_dropdown_closed(Optional<u32> const& selected_item_id)
             m_pending_non_blocking_dialog_target.clear();
         }
     }
+}
+
+void Page::request_clipboard_entries(ClipboardRequest request)
+{
+    auto request_id = m_next_clipboard_request_id++;
+    m_pending_clipboard_requests.set(request_id, request);
+
+    client().page_did_request_clipboard_entries(request_id);
+}
+
+void Page::retrieved_clipboard_entries(u64 request_id, Vector<Clipboard::SystemClipboardItem> items)
+{
+    if (auto request = m_pending_clipboard_requests.take(request_id); request.has_value())
+        (*request)->function()(move(items));
 }
 
 void Page::register_media_element(Badge<HTML::HTMLMediaElement>, UniqueNodeID media_id)

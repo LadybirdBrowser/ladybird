@@ -28,6 +28,11 @@ NSString* string_to_ns_string(StringView string)
     return [[NSString alloc] initWithData:string_to_ns_data(string) encoding:NSUTF8StringEncoding];
 }
 
+ByteString ns_data_to_string(NSData* data)
+{
+    return { reinterpret_cast<char const*>([data bytes]), [data length] };
+}
+
 NSData* string_to_ns_data(StringView string)
 {
     return [NSData dataWithBytes:string.characters_without_null_termination() length:string.length()];
