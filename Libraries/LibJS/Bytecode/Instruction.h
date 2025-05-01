@@ -51,7 +51,6 @@
     O(EnterObjectEnvironment)          \
     O(EnterUnwindContext)              \
     O(Exp)                             \
-    O(ForOfNext)                       \
     O(GetById)                         \
     O(GetByIdWithThis)                 \
     O(GetByValue)                      \
@@ -81,6 +80,7 @@
     O(InstanceOf)                      \
     O(IteratorClose)                   \
     O(IteratorNext)                    \
+    O(IteratorNextUnpack)              \
     O(IteratorToArray)                 \
     O(Jump)                            \
     O(JumpFalse)                       \

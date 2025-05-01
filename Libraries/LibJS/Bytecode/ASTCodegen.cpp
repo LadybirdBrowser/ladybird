@@ -1504,8 +1504,8 @@ static Bytecode::CodeGenerationErrorOr<void> generate_array_binding_pattern_byte
             generator.switch_to_basic_block(iterator_is_not_exhausted_block);
         }
 
-        generator.emit<Bytecode::Op::IteratorNext>(temp_iterator_result, iterator);
-        generator.emit_iterator_complete(is_iterator_exhausted, temp_iterator_result);
+        auto value = generator.allocate_register();
+        generator.emit<Bytecode::Op::IteratorNextUnpack>(value, is_iterator_exhausted, iterator);
 
         // We still have to check for exhaustion here. If the iterator is exhausted,
         // we need to bail before trying to get the value
@@ -1516,10 +1516,6 @@ static Bytecode::CodeGenerationErrorOr<void> generate_array_binding_pattern_byte
             Bytecode::Label { no_bail_block });
 
         generator.switch_to_basic_block(no_bail_block);
-
-        // Get the next value in the iterator
-        auto value = generator.allocate_register();
-        generator.emit_iterator_value(value, temp_iterator_result);
 
         auto& create_binding_block = generator.make_block();
         generator.emit<Bytecode::Op::Jump>(Bytecode::Label { create_binding_block });
@@ -3187,7 +3183,7 @@ static Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> for_in_of_body_e
     auto done = generator.allocate_register();
 
     if (iterator_kind == IteratorHint::Sync) {
-        generator.emit<Bytecode::Op::ForOfNext>(next_value, done, *head_result.iterator);
+        generator.emit<Bytecode::Op::IteratorNextUnpack>(next_value, done, *head_result.iterator);
 
         auto& loop_continue = generator.make_block();
         generator.emit_jump_if(
