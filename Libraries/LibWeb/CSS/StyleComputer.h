@@ -174,7 +174,7 @@ public:
 
     void did_load_font(FlyString const& family_name);
 
-    Optional<FontLoader&> load_font_face(ParsedFontFace const&, ESCAPING Function<void(FontLoader const&)> on_load = {}, ESCAPING Function<void()> on_fail = {});
+    Optional<FontLoader&> load_font_face(ParsedFontFace const&, ESCAPING Function<void(RefPtr<Gfx::Typeface const>)> on_load = {});
 
     void load_fonts_from_sheet(CSSStyleSheet&);
     void unload_fonts_from_sheet(CSSStyleSheet&);
@@ -313,11 +313,11 @@ private:
     CountingBloomFilter<u8, 14> m_ancestor_filter;
 };
 
-class FontLoader : public ResourceClient {
+class FontLoader : public Weakable<FontLoader> {
 public:
-    FontLoader(StyleComputer& style_computer, FlyString family_name, Vector<Gfx::UnicodeRange> unicode_ranges, Vector<::URL::URL> urls, ESCAPING Function<void(FontLoader const&)> on_load = {}, ESCAPING Function<void()> on_fail = {});
+    FontLoader(StyleComputer& style_computer, FlyString family_name, Vector<Gfx::UnicodeRange> unicode_ranges, Vector<::URL::URL> urls, ESCAPING Function<void(RefPtr<Gfx::Typeface const>)> on_load = {});
 
-    virtual ~FontLoader() override;
+    virtual ~FontLoader();
 
     Vector<Gfx::UnicodeRange> const& unicode_ranges() const { return m_unicode_ranges; }
     RefPtr<Gfx::Typeface const> vector_font() const { return m_vector_font; }
@@ -325,24 +325,20 @@ public:
     RefPtr<Gfx::Font const> font_with_point_size(float point_size);
     void start_loading_next_url();
 
-    bool is_loading() const { return resource() && resource()->is_pending(); }
+    bool is_loading() const;
 
 private:
-    // ^ResourceClient
-    virtual void resource_did_load() override;
-    virtual void resource_did_fail() override;
+    ErrorOr<NonnullRefPtr<Gfx::Typeface const>> try_load_font(Fetch::Infrastructure::Response const&, ByteBuffer const&);
 
-    void resource_did_load_or_fail();
-
-    ErrorOr<NonnullRefPtr<Gfx::Typeface const>> try_load_font();
+    void font_did_load_or_fail(RefPtr<Gfx::Typeface const>);
 
     StyleComputer& m_style_computer;
     FlyString m_family_name;
     Vector<Gfx::UnicodeRange> m_unicode_ranges;
     RefPtr<Gfx::Typeface const> m_vector_font;
     Vector<::URL::URL> m_urls;
-    Function<void(FontLoader const&)> m_on_load;
-    Function<void()> m_on_fail;
+    GC::Root<Fetch::Infrastructure::FetchController> m_fetch_controller;
+    Function<void(RefPtr<Gfx::Typeface const>)> m_on_load;
 };
 
 inline bool StyleComputer::should_reject_with_ancestor_filter(Selector const& selector) const

@@ -450,32 +450,28 @@ GC::Ref<WebIDL::Promise> FontFace::load()
         // 4. Using the value of font face’s [[Urls]] slot, attempt to load a font as defined in [CSS-FONTS-3],
         //     as if it was the value of a @font-face rule’s src descriptor.
 
-        // 5. When the load operation completes, successfully or not, queue a task to run the following steps synchronously:
-        auto on_error = [font] {
-            HTML::queue_global_task(HTML::Task::Source::FontLoading, HTML::relevant_global_object(*font), GC::create_function(font->heap(), [font = GC::Ref(*font)] {
+        // 5. When the load operation completes, successfully or not, queue a task to run the follsowing steps synchronously:
+        auto on_load = [font](RefPtr<Gfx::Typeface const> maybe_typeface) {
+            HTML::queue_global_task(HTML::Task::Source::FontLoading, HTML::relevant_global_object(*font), GC::create_function(font->heap(), [font = GC::Ref(*font), maybe_typeface] {
                 HTML::TemporaryExecutionContext context(font->realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+                // 1. If the attempt to load fails, reject font face’s [[FontStatusPromise]] with a DOMException whose name
+                //    is "NetworkError" and set font face’s status attribute to "error".
+                if (!maybe_typeface) {
+                    font->m_status = Bindings::FontFaceLoadStatus::Error;
+                    WebIDL::reject_promise(font->realm(), font->m_font_status_promise, WebIDL::NetworkError::create(font->realm(), "Failed to load font"_string));
 
-                //     1. If the attempt to load fails, reject font face’s [[FontStatusPromise]] with a DOMException whose name
-                //        is "NetworkError" and set font face’s status attribute to "error".
-                font->m_status = Bindings::FontFaceLoadStatus::Error;
-                WebIDL::reject_promise(font->realm(), font->m_font_status_promise, WebIDL::NetworkError::create(font->realm(), "Failed to load font"_string));
-
-                // FIXME: For each FontFaceSet font face is in:
-            }));
-        };
-
-        auto on_load = [font](FontLoader const& loader) {
-            // FIXME: We are assuming that the font loader will live as long as the document! This is an unsafe capture
-            HTML::queue_global_task(HTML::Task::Source::FontLoading, HTML::relevant_global_object(*font), GC::create_function(font->heap(), [font = GC::Ref(*font), &loader] {
-                HTML::TemporaryExecutionContext context(font->realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+                    // FIXME: For each FontFaceSet font face is in:
+                }
 
                 // 2. Otherwise, font face now represents the loaded font; fulfill font face’s [[FontStatusPromise]] with font face
                 //    and set font face’s status attribute to "loaded".
-                font->m_parsed_font = loader.vector_font();
-                font->m_status = Bindings::FontFaceLoadStatus::Loaded;
-                WebIDL::resolve_promise(font->realm(), font->m_font_status_promise, font);
+                else {
+                    font->m_parsed_font = maybe_typeface;
+                    font->m_status = Bindings::FontFaceLoadStatus::Loaded;
+                    WebIDL::resolve_promise(font->realm(), font->m_font_status_promise, font);
 
-                // FIXME: For each FontFaceSet font face is in:
+                    // FIXME: For each FontFaceSet font face is in:
+                }
             }));
         };
 
@@ -502,7 +498,7 @@ GC::Ref<WebIDL::Promise> FontFace::load()
                 {},                // FIXME: feature_settings
                 {},                // FIXME: variation_settings
             };
-            if (auto loader = style_computer.load_font_face(parsed_font_face, move(on_load), move(on_error)); loader.has_value())
+            if (auto loader = style_computer.load_font_face(parsed_font_face, move(on_load)); loader.has_value())
                 loader->start_loading_next_url();
         } else {
             // FIXME: Don't know how to load fonts in workers! They don't have a StyleComputer
