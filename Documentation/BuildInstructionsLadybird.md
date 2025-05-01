@@ -184,6 +184,7 @@ The simplest way to build and run ladybird is via the ladybird.sh script:
 
 On macOS, to build using clang from homebrew:
 ```bash
+export VCPKG_FORCE_SYSTEM_BINARIES=1
 CC=$(brew --prefix llvm)/bin/clang CXX=$(brew --prefix llvm)/bin/clang++ ./Meta/ladybird.sh run
 ```
 
