@@ -892,7 +892,11 @@ void Generator::emit_set_variable(JS::Identifier const& identifier, ScopedOperan
             if (initialization_mode == Bytecode::Op::BindingInitializationMode::Initialize) {
                 emit<Bytecode::Op::InitializeLexicalBinding>(identifier_index, value);
             } else if (initialization_mode == Bytecode::Op::BindingInitializationMode::Set) {
-                emit<Bytecode::Op::SetLexicalBinding>(identifier_index, value);
+                if (identifier.is_global()) {
+                    emit<Bytecode::Op::SetGlobal>(identifier_index, value, next_global_variable_cache());
+                } else {
+                    emit<Bytecode::Op::SetLexicalBinding>(identifier_index, value);
+                }
             }
         } else if (environment_mode == Bytecode::Op::EnvironmentMode::Var) {
             if (initialization_mode == Bytecode::Op::BindingInitializationMode::Initialize) {

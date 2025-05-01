@@ -132,6 +132,7 @@
     O(RightShift)                      \
     O(ScheduleJump)                    \
     O(SetCompletionType)               \
+    O(SetGlobal)                       \
     O(SetLexicalBinding)               \
     O(SetVariableBinding)              \
     O(StrictlyEquals)                  \

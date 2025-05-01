@@ -677,6 +677,7 @@ FLATTEN_ON_CLANG void Interpreter::run_bytecode(size_t entry_point)
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(RestoreScheduledJump);
             HANDLE_INSTRUCTION(RightShift);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(SetCompletionType);
+            HANDLE_INSTRUCTION(SetGlobal);
             HANDLE_INSTRUCTION(SetLexicalBinding);
             HANDLE_INSTRUCTION(SetVariableBinding);
             HANDLE_INSTRUCTION(StrictlyEquals);
@@ -2278,6 +2279,98 @@ ThrowCompletionOr<void> GetGlobal::execute_impl(Bytecode::Interpreter& interpret
     return {};
 }
 
+ThrowCompletionOr<void> SetGlobal::execute_impl(Bytecode::Interpreter& interpreter) const
+{
+    auto& vm = interpreter.vm();
+    auto& binding_object = interpreter.global_object();
+    auto& declarative_record = interpreter.global_declarative_environment();
+
+    auto& cache = interpreter.current_executable().global_variable_caches[m_cache_index];
+    auto& shape = binding_object.shape();
+    auto src = interpreter.get(m_src);
+
+    if (cache.environment_serial_number == declarative_record.environment_serial_number()) {
+        // OPTIMIZATION: For global var bindings, if the shape of the global object hasn't changed,
+        //               we can use the cached property offset.
+        if (&shape == cache.shape) {
+            auto value = binding_object.get_direct(cache.property_offset.value());
+            if (value.is_accessor())
+                TRY(call(vm, value.as_accessor().setter(), js_undefined(), value));
+            else
+                binding_object.put_direct(cache.property_offset.value(), src);
+            return {};
+        }
+
+        // OPTIMIZATION: For global lexical bindings, if the global declarative environment hasn't changed,
+        //               we can use the cached environment binding index.
+        if (cache.has_environment_binding_index) {
+            if (cache.in_module_environment) {
+                auto module = vm.running_execution_context().script_or_module.get_pointer<GC::Ref<Module>>();
+                TRY((*module)->environment()->set_mutable_binding_direct(vm, cache.environment_binding_index, src, vm.in_strict_mode()));
+            } else {
+                TRY(declarative_record.set_mutable_binding_direct(vm, cache.environment_binding_index, src, vm.in_strict_mode()));
+            }
+            return {};
+        }
+    }
+
+    cache.environment_serial_number = declarative_record.environment_serial_number();
+
+    auto& identifier = interpreter.current_executable().get_identifier(m_identifier);
+
+    if (auto* module = vm.running_execution_context().script_or_module.get_pointer<GC::Ref<Module>>()) {
+        // NOTE: GetGlobal is used to access variables stored in the module environment and global environment.
+        //       The module environment is checked first since it precedes the global environment in the environment chain.
+        auto& module_environment = *(*module)->environment();
+        Optional<size_t> index;
+        if (TRY(module_environment.has_binding(identifier, &index))) {
+            if (index.has_value()) {
+                cache.environment_binding_index = static_cast<u32>(index.value());
+                cache.has_environment_binding_index = true;
+                cache.in_module_environment = true;
+                return TRY(module_environment.set_mutable_binding_direct(vm, index.value(), src, vm.in_strict_mode()));
+            }
+            return TRY(module_environment.set_mutable_binding(vm, identifier, src, vm.in_strict_mode()));
+        }
+    }
+
+    Optional<size_t> offset;
+    if (TRY(declarative_record.has_binding(identifier, &offset))) {
+        cache.environment_binding_index = static_cast<u32>(offset.value());
+        cache.has_environment_binding_index = true;
+        cache.in_module_environment = false;
+        TRY(declarative_record.set_mutable_binding(vm, identifier, src, vm.in_strict_mode()));
+        return {};
+    }
+
+    if (TRY(binding_object.has_property(identifier))) {
+        CacheablePropertyMetadata cacheable_metadata;
+        auto success = TRY(binding_object.internal_set(identifier, src, &binding_object, &cacheable_metadata));
+        if (!success && vm.in_strict_mode()) {
+            // Note: Nothing like this in the spec, this is here to produce nicer errors instead of the generic one thrown by Object::set().
+
+            auto property_or_error = binding_object.internal_get_own_property(identifier);
+            if (!property_or_error.is_error()) {
+                auto property = property_or_error.release_value();
+                if (property.has_value() && !property->writable.value_or(true)) {
+                    return vm.throw_completion<TypeError>(ErrorType::DescWriteNonWritable, identifier);
+                }
+            }
+            return vm.throw_completion<TypeError>(ErrorType::ObjectSetReturnedFalse);
+        }
+        if (cacheable_metadata.type == CacheablePropertyMetadata::Type::OwnProperty) {
+            cache.shape = shape;
+            cache.property_offset = cacheable_metadata.property_offset.value();
+        }
+        return {};
+    }
+
+    auto reference = TRY(vm.resolve_binding(identifier, &declarative_record));
+    TRY(reference.put_value(vm, src));
+
+    return {};
+}
+
 ThrowCompletionOr<void> DeleteVariable::execute_impl(Bytecode::Interpreter& interpreter) const
 {
     auto& vm = interpreter.vm();
@@ -3196,6 +3289,13 @@ ByteString GetGlobal::to_byte_string_impl(Bytecode::Executable const& executable
 {
     return ByteString::formatted("GetGlobal {}, {}", format_operand("dst"sv, dst(), executable),
         executable.identifier_table->get(m_identifier));
+}
+
+ByteString SetGlobal::to_byte_string_impl(Bytecode::Executable const& executable) const
+{
+    return ByteString::formatted("SetGlobal {}, {}",
+        executable.identifier_table->get(m_identifier),
+        format_operand("src"sv, src(), executable));
 }
 
 ByteString DeleteVariable::to_byte_string_impl(Bytecode::Executable const& executable) const
