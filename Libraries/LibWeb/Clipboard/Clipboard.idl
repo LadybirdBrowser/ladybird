@@ -6,7 +6,7 @@
 [SecureContext, Exposed=Window]
 interface Clipboard : EventTarget {
     [FIXME] Promise<ClipboardItems> read();
-    [FIXME] Promise<DOMString> readText();
+    Promise<DOMString> readText();
     [FIXME] Promise<undefined> write(ClipboardItems data);
     Promise<undefined> writeText(DOMString data);
 };

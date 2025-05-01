@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2023-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -22,6 +22,8 @@ class Clipboard final : public DOM::EventTarget {
 public:
     static WebIDL::ExceptionOr<GC::Ref<Clipboard>> construct_impl(JS::Realm&);
     virtual ~Clipboard() override;
+
+    GC::Ref<WebIDL::Promise> read_text();
 
     GC::Ref<WebIDL::Promise> write_text(String);
 

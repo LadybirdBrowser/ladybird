@@ -120,6 +120,27 @@ static void write_blobs_and_option_to_clipboard(JS::Realm& realm, ReadonlySpan<G
     // FIXME: 3. Write web custom formats given webCustomFormats.
 }
 
+// https://w3c.github.io/clipboard-apis/#h-clipboard-read-permission
+static bool check_clipboard_read_permission(JS::Realm& realm)
+{
+    // NOTE: The clipboard permission is undergoing a refactor because the clipboard-read permission was removed from
+    //       the Permissions spec. So this partially implements the proposed update:
+    //       https://pr-preview.s3.amazonaws.com/w3c/clipboard-apis/pull/164.html#read-permission
+
+    // 1. Let hasGesture be true if the relevant global object of this has transient activation, false otherwise.
+    auto has_gesture = as<HTML::Window>(realm.global_object()).has_transient_activation();
+
+    // 2. If hasGesture then,
+    if (has_gesture) {
+        // FIXME: 1. Return true if the current script is running as a result of user interaction with a "Paste" element
+        //           created by the user agent or operating system.
+        return true;
+    }
+
+    // 3. Otherwise, return false.
+    return false;
+}
+
 // https://w3c.github.io/clipboard-apis/#check-clipboard-write-permission
 static bool check_clipboard_write_permission(JS::Realm& realm)
 {
@@ -139,6 +160,94 @@ static bool check_clipboard_write_permission(JS::Realm& realm)
 
     // 3. Otherwise, return false.
     return false;
+}
+
+// https://w3c.github.io/clipboard-apis/#dom-clipboard-readtext
+GC::Ref<WebIDL::Promise> Clipboard::read_text()
+{
+    // 1. Let realm be this's relevant realm.
+    auto& realm = HTML::relevant_realm(*this);
+
+    // 2. Let p be a new promise in realm.
+    auto promise = WebIDL::create_promise(realm);
+
+    // 3. Run the following steps in parallel:
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, promise]() mutable {
+        // 1. Let r be the result of running check clipboard read permission.
+        auto result = check_clipboard_read_permission(realm);
+
+        // 2. If r is false, then:
+        if (!result) {
+            // 1. Queue a global task on the permission task source, given realm’s global object, to reject p with
+            //    "NotAllowedError" DOMException in realm.
+            queue_global_task(HTML::Task::Source::Permissions, realm.global_object(), GC::create_function(realm.heap(), [&realm, promise]() mutable {
+                HTML::TemporaryExecutionContext execution_context { realm };
+                WebIDL::reject_promise(realm, promise, WebIDL::NotAllowedError::create(realm, "Clipboard reading is only allowed through user activation"_string));
+            }));
+
+            // 2. Abort these steps.
+            return;
+        }
+
+        // 3. Let data be a copy of the system clipboard data.
+        as<HTML::Window>(realm.global_object()).page().request_clipboard_entries(GC::create_function(realm.heap(), [&realm, promise](Vector<SystemClipboardItem> data) mutable {
+            // 4. Queue a global task on the clipboard task source, given realm’s global object, to perform the below steps:
+            queue_global_task(HTML::Task::Source::Clipboard, realm.global_object(), GC::create_function(realm.heap(), [&realm, promise, data = move(data)]() mutable {
+                HTML::TemporaryExecutionContext execution_context { realm };
+
+                // 1. For each systemClipboardItem in data:
+                for (auto const& system_clipboard_item : data) {
+                    // 1. For each systemClipboardRepresentation in systemClipboardItem:
+                    for (auto const& system_clipboard_representation : system_clipboard_item.system_clipboard_representations) {
+                        // 1. Let mimeType be the result of running the well-known mime type from os specific format
+                        //    algorithm given systemClipboardRepresentation’s name.
+                        auto mime_type = os_specific_well_known_format(system_clipboard_representation.mime_type);
+
+                        // 2. If mimeType is null, continue this loop.
+                        if (mime_type.is_empty())
+                            continue;
+
+                        // 3. Let representation be a new representation.
+                        // FIXME: Spec issue: Creating a new representation here and reacting to its promise does not
+                        //        make sense. Nothing will ever fulfill or reject its promise. So we resolve the outer
+                        //        promise with the system clipboard data converted to UTF-8 instead. See:
+                        //        https://github.com/w3c/clipboard-apis/issues/236
+
+                        // 4. If representation’s MIME type essence is "text/plain", then:
+                        if (mime_type == "text/plain"sv) {
+                            // 1. Set representation’s MIME type to mimeType.
+                            // 2. Let representationDataPromise be the representation’s data.
+
+                            // 3. React to representationDataPromise:
+                            //     1. If representationDataPromise was fulfilled with value v, then:
+                            //         1. If v is a DOMString, then follow the below steps:
+                            //             1. Resolve p with v.
+                            //             2. Return p.
+                            //         2. If v is a Blob, then follow the below steps:
+                            //             1. Let string be the result of UTF-8 decoding v’s underlying byte sequence.
+                            //             2. Resolve p with string.
+                            //             3. Return p.
+                            //     2. If representationDataPromise was rejected, then:
+                            //         1. Reject p with "NotFoundError" DOMException in realm.
+                            //         2. Return p.
+
+                            auto decoder = TextCodec::decoder_for("UTF-8"sv);
+                            auto string = MUST(TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, system_clipboard_representation.data));
+
+                            WebIDL::resolve_promise(realm, promise, JS::PrimitiveString::create(realm.vm(), move(string)));
+                            return;
+                        }
+                    }
+                }
+
+                // 2. Reject p with "NotFoundError" DOMException in realm.
+                WebIDL::reject_promise(realm, promise, WebIDL::NotFoundError::create(realm, "Did not find a text item in the system clipboard"_string));
+            }));
+        }));
+    }));
+
+    // 5. Return p.
+    return promise;
 }
 
 // https://w3c.github.io/clipboard-apis/#dom-clipboard-writetext
