@@ -1981,15 +1981,10 @@ bool is_collapsed_line_break(GC::Ref<DOM::Node> node)
         return false;
 
     // that begins a line box which has nothing else in it, and therefore has zero height.
-    auto layout_node = node->layout_node();
-    if (!layout_node)
-        return false;
-    VERIFY(is<Layout::BreakNode>(*layout_node));
-
-    // NOTE: We do not generate a TextNode for empty text after the break, so if we do not have a sibling or if that
-    //       sibling is not a TextNode, we consider it a collapsed line break.
-    auto* next_layout_node = layout_node->next_sibling();
-    return !is<Layout::TextNode>(next_layout_node);
+    // NOTE: We check this on the DOM-level by seeing if the next node is neither a non-empty text node nor a <br>.
+    if (auto text_node = as_if<DOM::Text>(node->next_sibling()))
+        return text_node->text_content().value_or({}).is_empty();
+    return !is<HTML::HTMLBRElement>(node->next_sibling());
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#collapsed-whitespace-node
