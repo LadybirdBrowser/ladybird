@@ -2721,10 +2721,10 @@ private:
     Operand m_iterator_record;
 };
 
-class ForOfNext final : public Instruction {
+class IteratorNextUnpack final : public Instruction {
 public:
-    ForOfNext(Operand dst_value, Operand dst_done, Operand iterator_record)
-        : Instruction(Type::ForOfNext)
+    IteratorNextUnpack(Operand dst_value, Operand dst_done, Operand iterator_record)
+        : Instruction(Type::IteratorNextUnpack)
         , m_dst_value(dst_value)
         , m_dst_done(dst_done)
         , m_iterator_record(iterator_record)

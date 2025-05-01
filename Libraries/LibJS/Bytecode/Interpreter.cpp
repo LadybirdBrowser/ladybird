@@ -612,7 +612,6 @@ FLATTEN_ON_CLANG void Interpreter::run_bytecode(size_t entry_point)
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(Dump);
             HANDLE_INSTRUCTION(EnterObjectEnvironment);
             HANDLE_INSTRUCTION(Exp);
-            HANDLE_INSTRUCTION(ForOfNext);
             HANDLE_INSTRUCTION(GetById);
             HANDLE_INSTRUCTION(GetByIdWithThis);
             HANDLE_INSTRUCTION(GetByValue);
@@ -642,6 +641,7 @@ FLATTEN_ON_CLANG void Interpreter::run_bytecode(size_t entry_point)
             HANDLE_INSTRUCTION(InstanceOf);
             HANDLE_INSTRUCTION(IteratorClose);
             HANDLE_INSTRUCTION(IteratorNext);
+            HANDLE_INSTRUCTION(IteratorNextUnpack);
             HANDLE_INSTRUCTION(IteratorToArray);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(LeaveFinally);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(LeaveLexicalEnvironment);
@@ -2982,7 +2982,7 @@ ThrowCompletionOr<void> IteratorNext::execute_impl(Bytecode::Interpreter& interp
     return {};
 }
 
-ThrowCompletionOr<void> ForOfNext::execute_impl(Bytecode::Interpreter& interpreter) const
+ThrowCompletionOr<void> IteratorNextUnpack::execute_impl(Bytecode::Interpreter& interpreter) const
 {
     auto& vm = interpreter.vm();
     auto& iterator_record = static_cast<IteratorRecord&>(interpreter.get(m_iterator_record).as_cell());
@@ -3777,9 +3777,9 @@ ByteString IteratorNext::to_byte_string_impl(Executable const& executable) const
         format_operand("iterator_record"sv, m_iterator_record, executable));
 }
 
-ByteString ForOfNext::to_byte_string_impl(Executable const& executable) const
+ByteString IteratorNextUnpack::to_byte_string_impl(Executable const& executable) const
 {
-    return ByteString::formatted("ForOfNext {}, {}, {}",
+    return ByteString::formatted("IteratorNextUnpack {}, {}, {}",
         format_operand("dst_value"sv, m_dst_value, executable),
         format_operand("dst_done"sv, m_dst_done, executable),
         format_operand("iterator_record"sv, m_iterator_record, executable));
