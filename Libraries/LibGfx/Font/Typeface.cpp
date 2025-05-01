@@ -25,6 +25,13 @@ ErrorOr<NonnullRefPtr<Typeface>> Typeface::try_load_from_font_data(NonnullOwnPtr
     return typeface;
 }
 
+ErrorOr<NonnullRefPtr<Typeface>> Typeface::try_load_from_temporary_memory(ReadonlyBytes bytes, int ttc_index)
+{
+    auto buffer = TRY(ByteBuffer::copy(bytes));
+    auto font_data = FontData::create_from_byte_buffer(move(buffer));
+    return try_load_from_font_data(move(font_data), ttc_index);
+}
+
 ErrorOr<NonnullRefPtr<Typeface>> Typeface::try_load_from_externally_owned_memory(ReadonlyBytes bytes, int ttc_index)
 {
     return TypefaceSkia::load_from_buffer(bytes, ttc_index);
