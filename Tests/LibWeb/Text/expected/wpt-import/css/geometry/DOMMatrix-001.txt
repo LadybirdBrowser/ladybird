@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 126 tests
 
-124 Pass
-2 Fail
+126 Pass
 Pass	new DOMMatrix()
 Pass	new DOMMatrix(undefined)
 Pass	new DOMMatrix(new DOMMatrix())
@@ -53,7 +52,7 @@ Pass	new DOMMatrix(" ")
 Pass	new DOMMatrix("/**/")
 Pass	new DOMMatrix("\0")
 Pass	new DOMMatrix(";")
-Fail	new DOMMatrix("none;")
+Pass	new DOMMatrix("none;")
 Pass	new DOMMatrix("null")
 Pass	new DOMMatrix(null)
 Pass	new DOMMatrix("undefined")
@@ -116,7 +115,7 @@ Pass	new DOMMatrixReadOnly(" ")
 Pass	new DOMMatrixReadOnly("/**/")
 Pass	new DOMMatrixReadOnly("\0")
 Pass	new DOMMatrixReadOnly(";")
-Fail	new DOMMatrixReadOnly("none;")
+Pass	new DOMMatrixReadOnly("none;")
 Pass	new DOMMatrixReadOnly("null")
 Pass	new DOMMatrixReadOnly(null)
 Pass	new DOMMatrixReadOnly("undefined")
