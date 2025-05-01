@@ -370,7 +370,7 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue const>> Parser::parse_css_value
 
         if (token.is(Token::Type::Semicolon)) {
             unprocessed_tokens.reconsume_current_input_token();
-            break;
+            return ParseError::SyntaxError;
         }
 
         if (property_id != PropertyID::Custom) {
