@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2020-2022, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2022-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2024-2025, Bastiaan van der Plaat <bastiaan.v.d.plaat@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -25,6 +26,13 @@ ErrorOr<Gfx::FloatMatrix4x4> Transformation::to_matrix(Optional<Painting::Painta
             context.length_resolution_context = Length::ResolutionContext::for_layout_node(paintable_box->layout_node());
 
         return m_values[index].visit(
+            [&](CSS::AngleOrCalculated const& value) -> ErrorOr<float> {
+                if (!value.is_calculated())
+                    return value.value().to_radians();
+                if (auto resolved = value.resolved(context); resolved.has_value())
+                    return resolved->to_radians();
+                return Error::from_string_literal("Transform contains non absolute units");
+            },
             [&](CSS::LengthPercentage const& value) -> ErrorOr<float> {
                 context.percentage_basis = Length::make_px(reference_length);
 
@@ -34,20 +42,17 @@ ErrorOr<Gfx::FloatMatrix4x4> Transformation::to_matrix(Optional<Painting::Painta
                     if (auto const& length = value.length(); length.is_absolute())
                         return length.absolute_length_to_px().to_float();
                 }
-                return Error::from_string_literal("Transform contains non absolute units");
-            },
-            [&](CSS::AngleOrCalculated const& value) -> ErrorOr<float> {
-                if (auto resolved = value.resolved(context); resolved.has_value())
-                    return resolved->to_radians();
-                if (!value.is_calculated())
-                    return value.value().to_radians();
+                if (value.is_calculated() && value.calculated()->resolves_to_length()) {
+                    if (auto const& resolved = value.calculated()->resolve_length(context); resolved->is_absolute())
+                        return resolved->absolute_length_to_px().to_float();
+                }
                 return Error::from_string_literal("Transform contains non absolute units");
             },
             [&](CSS::NumberPercentage const& value) -> ErrorOr<float> {
-                if (value.is_percentage())
-                    return value.percentage().as_fraction();
                 if (value.is_number())
                     return value.number().value();
+                if (value.is_percentage())
+                    return value.percentage().as_fraction();
                 if (value.is_calculated()) {
                     if (value.calculated()->resolves_to_number())
                         return value.calculated()->resolve_number(context).value();
