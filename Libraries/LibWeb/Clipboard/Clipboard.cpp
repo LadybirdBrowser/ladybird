@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2023-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -167,10 +167,10 @@ GC::Ref<WebIDL::Promise> Clipboard::write_text(String data)
             return;
         }
 
-        // 1. Queue a global task on the clipboard task source, given realm’s global object, to perform the below steps:
+        // 3. Queue a global task on the clipboard task source, given realm’s global object, to perform the below steps:
         queue_global_task(HTML::Task::Source::Clipboard, realm.global_object(), GC::create_function(realm.heap(), [&realm, promise, data = move(data)]() mutable {
             // 1. Let itemList be an empty sequence<Blob>.
-            Vector<GC::Ref<FileAPI::Blob>> item_list;
+            GC::RootVector<GC::Ref<FileAPI::Blob>> item_list(realm.heap());
 
             // 2. Let textBlob be a new Blob created with: type attribute set to "text/plain;charset=utf-8", and its
             //    underlying byte sequence set to the UTF-8 encoding of data.
