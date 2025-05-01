@@ -34,7 +34,7 @@ class ClipboardItem : public Bindings::PlatformObject {
 public:
     struct Representation {
         String mime_type;              // The MIME type (e.g., "text/plain").
-        bool is_custom;                // Whether this is a web custom format.
+        bool is_custom { false };      // Whether this is a web custom format.
         GC::Ref<WebIDL::Promise> data; // The actual data for this representation.
     };
 
