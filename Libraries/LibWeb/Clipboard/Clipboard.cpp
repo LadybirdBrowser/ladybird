@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibWeb/Bindings/ClipboardPrototype.h>
@@ -161,6 +162,149 @@ static bool check_clipboard_write_permission(JS::Realm& realm)
 
     // 3. Otherwise, return false.
     return false;
+}
+
+// https://w3c.github.io/clipboard-apis/#dom-clipboard-readtext
+GC::Ref<WebIDL::Promise> Clipboard::read(ClipboardUnsanitizedFormats formats)
+{
+    // 1. Let realm be this's relevant realm.
+    auto& realm = HTML::relevant_realm(*this);
+
+    // 2. Let p be a new promise in realm.
+    auto promise = WebIDL::create_promise(realm);
+
+    // 3. If formats is not empty, then:
+    if (formats.unsanitized.has_value()) {
+        // 1. For each format in formats["unsanitized"]:
+        for (auto const& format : *formats.unsanitized) {
+            // FIXME: 1. If format is not in optional unsanitized data types, then reject p with format "NotAllowedError"
+            //           DOMException in realm.
+            (void)format;
+        }
+    }
+
+    // 4. Run the following steps in parallel:
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, promise, formats = move(formats)]() mutable {
+        // 1. Let r be the result of running check clipboard read permission.
+        auto result = check_clipboard_read_permission(realm);
+
+        // 2. If r is false, then:
+        if (!result) {
+            // 1. Queue a global task on the permission task source, given realm’s global object, to reject p with
+            //    "NotAllowedError" DOMException in realm.
+            queue_global_task(HTML::Task::Source::Permissions, realm.global_object(), GC::create_function(realm.heap(), [&realm, promise]() mutable {
+                HTML::TemporaryExecutionContext execution_context { realm };
+                WebIDL::reject_promise(realm, promise, WebIDL::NotAllowedError::create(realm, "Clipboard reading is only allowed through user activation"_string));
+            }));
+
+            // 2. Abort these steps.
+            return;
+        }
+
+        // 3. Let data be a copy of the system clipboard data.
+        as<HTML::Window>(realm.global_object()).page().request_clipboard_entries(GC::create_function(realm.heap(), [&realm, promise, formats = move(formats)](Vector<SystemClipboardItem> data) mutable {
+            HTML::TemporaryExecutionContext execution_context { realm };
+
+            // 4. Let items be a sequence<clipboard item>.
+            GC::RootVector<JS::Value> items(realm.heap());
+
+            // 5. For each systemClipboardItem in data:
+            for (auto const& system_clipboard_item : data) {
+                // 1. Let item be a new clipboard item.
+                auto item = realm.create<ClipboardItem>(realm);
+
+                // 2. For each systemClipboardRepresentation in systemClipboardItem:
+                for (auto const& system_clipboard_representation : system_clipboard_item.system_clipboard_representations) {
+                    // 1. Let mimeType be the result of running the well-known mime type from os specific format
+                    //    algorithm given systemClipboardRepresentation’s name.
+                    auto mime_type = os_specific_well_known_format(system_clipboard_representation.mime_type);
+
+                    // 2. If mimeType is null, continue this loop.
+                    if (mime_type.is_empty())
+                        continue;
+
+                    auto decoder = TextCodec::decoder_for("UTF-8"sv);
+                    auto string = MUST(TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, system_clipboard_representation.data));
+
+                    // 3. Let representation be a new representation.
+                    ClipboardItem::Representation representation {
+                        // 4. Set representation’s MIME type to mimeType.
+                        .mime_type = move(mime_type),
+
+                        // 7. Resolve representation’s data with systemClipboardRepresentation’s data.
+                        .data = WebIDL::create_resolved_promise(realm, JS::PrimitiveString::create(realm.vm(), move(string))),
+                    };
+
+                    // 5. Let isUnsanitized be false.
+                    auto is_unsanitized = false;
+
+                    // 6. If formats is not empty, then:
+                    if (formats.unsanitized.has_value()) {
+                        // 1. For each format in formats["unsanitized"]:
+                        for (auto const& format : *formats.unsanitized) {
+                            // 1. If format is equal to MIME type, set isUnsanitized to true.
+                            if (format == representation.mime_type) {
+                                is_unsanitized = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    // 8. The user agent, MAY sanitize representation’s data, unless representation’s MIME type's essence
+                    //    is "image/png", which should remain unsanitized to preserve meta data, or if it satisfies the
+                    //    below conditions:
+                    //     1. representation’s MIME type is in optional unsanitized data types list.
+                    //     2. isUnsanitized is true.
+                    // FIXME: Sanitization is an underspecified spec feature. See:
+                    //        https://github.com/w3c/clipboard-apis/issues/73
+                    (void)is_unsanitized;
+
+                    // 9. Append representation to item’s list of representations.
+                    item->append_representation(move(representation));
+
+                    // 10. Set isUnsanitized to false.
+                    is_unsanitized = false;
+                }
+
+                // 3. If item’s list of representations size is greater than 0, append item to items.
+                if (!item->representations().is_empty())
+                    items.append(item);
+            }
+
+            // 6. If items has a size > 0, then:
+            if (!items.is_empty()) {
+                // FIXME: 1. Let firstItem be items[0]
+                // FIXME: 2. Run the read web custom format algorithm given firstItem.
+            }
+            // 7. Else:
+            else {
+                // FIXME: 1. Let customItem be a new clipboard item.
+                // FIXME: 2. Run the read web custom format algorithm given customItem.
+                // FIXME: 3. If customItem’s list of representations size is greater than 0, append customItem to items.
+            }
+
+            // 8. Queue a global task on the clipboard task source, given realm’s global object, to perform the below steps:
+            queue_global_task(HTML::Task::Source::Clipboard, realm.global_object(), GC::create_function(realm.heap(), [&realm, promise, items = move(items)]() mutable {
+                HTML::TemporaryExecutionContext execution_context { realm };
+
+                // 1. Let clipboardItems be a sequence<ClipboardItem>.
+                // 2. For each clipboard item underlyingItem of items:
+                //     1. Let clipboardItem be the result of running the steps of create a ClipboardItem object given
+                //        underlyingItem and realm.
+                //     2. Append clipboardItem to clipboardItems.
+
+                // NOTE: We do not perform this song-and-dance of having ClipboardItem and "clipboard item" being
+                //       separate concepts. But we do still need to convert the RootVector to a JS array.
+                auto clipboard_items = JS::Array::create_from(realm, items);
+
+                // 2. Resolve p with clipboardItems.
+                WebIDL::resolve_promise(realm, promise, clipboard_items);
+            }));
+        }));
+    }));
+
+    // 5. Return p.
+    return promise;
 }
 
 // https://w3c.github.io/clipboard-apis/#dom-clipboard-readtext

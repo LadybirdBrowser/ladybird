@@ -89,6 +89,12 @@ WebIDL::ExceptionOr<GC::Ref<ClipboardItem>> ClipboardItem::construct_impl(JS::Re
     return clipboard_item;
 }
 
+void ClipboardItem::append_representation(Representation representation)
+{
+    m_types.append(representation.mime_type);
+    m_representations.append(move(representation));
+}
+
 // https://w3c.github.io/clipboard-apis/#dom-clipboarditem-gettype
 WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> ClipboardItem::get_type(String const& type)
 {
