@@ -3,11 +3,13 @@
 <div id="a" contenteditable>foobar</div>
 <div id="b" contenteditable><p style="white-space: pre">foobar</p></div>
 <div id="c" contenteditable><p style="white-space: pre">foobar</p></div>
+<div id="d" contenteditable>foo</div>
 <script>
     test(() => {
         let divA = document.querySelector('div#a');
         let divB = document.querySelector('div#b');
         let divC = document.querySelector('div#c');
+        let divD = document.querySelector('div#d');
 
         document.body.offsetWidth // Force a layout
 
@@ -36,6 +38,15 @@
         getSelection().addRange(range);
         document.execCommand('insertLinebreak');
         println(`After: "${divC.innerHTML}"`);
+        getSelection().empty();
+
+        // D: Insert linebreak after 'foo'
+        println(`Before: "${divD.innerHTML}"`);
+        var range = document.createRange();
+        range.setStart(divD.firstChild, 3);
+        getSelection().addRange(range);
+        document.execCommand('insertLinebreak');
+        println(`After: "${divD.innerHTML}"`);
         getSelection().empty();
     });
 </script>

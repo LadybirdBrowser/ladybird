@@ -7,3 +7,5 @@ Before: "<p style="white-space: pre">foobar</p>"
 After: "<p style="white-space: pre">foobar
 
 </p>"
+Before: "foo"
+After: "foo<br><br>"
