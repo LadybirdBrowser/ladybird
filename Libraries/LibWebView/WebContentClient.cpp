@@ -633,11 +633,19 @@ void WebContentClient::did_change_theme_color(u64 page_id, Gfx::Color color)
     }
 }
 
-void WebContentClient::did_insert_clipboard_entry(u64 page_id, String data, String presentation_style, String mime_type)
+void WebContentClient::did_insert_clipboard_entry(u64 page_id, Web::Clipboard::SystemClipboardRepresentation entry, String presentation_style)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_insert_clipboard_entry)
-            view->on_insert_clipboard_entry(data, presentation_style, mime_type);
+            view->on_insert_clipboard_entry(move(entry), presentation_style);
+    }
+}
+
+void WebContentClient::did_request_clipboard_entries(u64 page_id, u64 request_id)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
+        if (view->on_request_clipboard_entries)
+            view->on_request_clipboard_entries(request_id);
     }
 }
 

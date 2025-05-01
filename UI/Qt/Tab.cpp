@@ -369,14 +369,37 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
         view().did_update_window_rect();
     };
 
-    view().on_insert_clipboard_entry = [](auto const& data, auto const&, auto const& mime_type) {
-        QByteArray qdata { data.bytes_as_string_view().characters_without_null_termination(), static_cast<qsizetype>(data.bytes_as_string_view().length()) };
-
+    view().on_insert_clipboard_entry = [](Web::Clipboard::SystemClipboardRepresentation const& entry, auto const&) {
         auto* mime_data = new QMimeData();
-        mime_data->setData(qstring_from_ak_string(mime_type), qdata);
+        mime_data->setData(qstring_from_ak_string(entry.mime_type), qbytearray_from_ak_string(entry.data));
 
         auto* clipboard = QGuiApplication::clipboard();
         clipboard->setMimeData(mime_data);
+    };
+
+    view().on_request_clipboard_entries = [this](auto request_id) {
+        auto const* clipboard = QGuiApplication::clipboard();
+
+        auto const* mime_data = clipboard->mimeData();
+        if (!mime_data) {
+            view().retrieved_clipboard_entries(request_id, {});
+            return;
+        }
+
+        Vector<Web::Clipboard::SystemClipboardItem> items;
+        Vector<Web::Clipboard::SystemClipboardRepresentation> representations;
+
+        for (auto const& format : mime_data->formats()) {
+            auto data = ak_byte_string_from_qbytearray(mime_data->data(format));
+            auto mime_type = ak_string_from_qstring(format);
+
+            representations.empend(AK::move(data), AK::move(mime_type));
+        }
+
+        if (!representations.is_empty())
+            items.empend(AK::move(representations));
+
+        view().retrieved_clipboard_entries(request_id, items);
     };
 
     view().on_audio_play_state_changed = [this](auto play_state) {

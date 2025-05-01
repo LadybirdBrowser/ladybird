@@ -164,6 +164,10 @@ public:
     void did_request_select_dropdown(WeakPtr<HTML::HTMLSelectElement> target, Web::CSSPixelPoint content_position, Web::CSSPixels minimum_width, Vector<Web::HTML::SelectItem> items);
     void select_dropdown_closed(Optional<u32> const& selected_item_id);
 
+    using ClipboardRequest = GC::Ref<GC::Function<void(Vector<Clipboard::SystemClipboardItem>)>>;
+    void request_clipboard_entries(ClipboardRequest);
+    void retrieved_clipboard_entries(u64 request_id, Vector<Clipboard::SystemClipboardItem>);
+
     enum class PendingNonBlockingDialog {
         None,
         ColorPicker,
@@ -271,6 +275,9 @@ private:
 
     PendingNonBlockingDialog m_pending_non_blocking_dialog { PendingNonBlockingDialog::None };
     WeakPtr<HTML::HTMLElement> m_pending_non_blocking_dialog_target;
+
+    HashMap<u64, ClipboardRequest> m_pending_clipboard_requests;
+    u64 m_next_clipboard_request_id { 0 };
 
     Vector<UniqueNodeID> m_media_elements;
     Optional<UniqueNodeID> m_media_context_menu_element_id;
@@ -393,7 +400,8 @@ public:
 
     virtual void page_did_change_theme_color(Gfx::Color) { }
 
-    virtual void page_did_insert_clipboard_entry([[maybe_unused]] StringView data, [[maybe_unused]] StringView presentation_style, [[maybe_unused]] StringView mime_type) { }
+    virtual void page_did_insert_clipboard_entry(Clipboard::SystemClipboardRepresentation const&, [[maybe_unused]] StringView presentation_style) { }
+    virtual void page_did_request_clipboard_entries([[maybe_unused]] u64 request_id) { }
 
     virtual void page_did_change_audio_play_state(HTML::AudioPlayState) { }
 

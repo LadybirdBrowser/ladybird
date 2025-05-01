@@ -1257,6 +1257,12 @@ void ConnectionFromClient::select_dropdown_closed(u64 page_id, Optional<u32> sel
         page->page().select_dropdown_closed(selected_item_id);
 }
 
+void ConnectionFromClient::retrieved_clipboard_entries(u64 page_id, u64 request_id, Vector<Web::Clipboard::SystemClipboardItem> items)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().retrieved_clipboard_entries(request_id, move(items));
+}
+
 void ConnectionFromClient::toggle_media_play_state(u64 page_id)
 {
     if (auto page = this->page(page_id); page.has_value())

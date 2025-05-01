@@ -10,6 +10,7 @@
 #include <LibCore/StandardPaths.h>
 #include <LibCore/Timer.h>
 #include <LibGfx/ImageFormats/PNGWriter.h>
+#include <LibWeb/Clipboard/SystemClipboard.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWebView/Application.h>
@@ -453,6 +454,11 @@ void ViewImplementation::file_picker_closed(Vector<Web::HTML::SelectedFile> sele
 void ViewImplementation::select_dropdown_closed(Optional<u32> const& selected_item_id)
 {
     client().async_select_dropdown_closed(page_id(), selected_item_id);
+}
+
+void ViewImplementation::retrieved_clipboard_entries(u64 request_id, ReadonlySpan<Web::Clipboard::SystemClipboardItem> items)
+{
+    client().async_retrieved_clipboard_entries(page_id(), request_id, items);
 }
 
 void ViewImplementation::toggle_media_play_state()

@@ -92,6 +92,9 @@ enum class XMLHttpRequestResponseType : u8;
 namespace Web::Clipboard {
 class Clipboard;
 class ClipboardItem;
+
+struct SystemClipboardItem;
+struct SystemClipboardRepresentation;
 }
 
 namespace Web::Compression {

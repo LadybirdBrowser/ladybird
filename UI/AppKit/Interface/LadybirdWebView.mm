@@ -1064,19 +1064,50 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
                           totalMatchCount:total_match_count];
     };
 
-    m_web_view_bridge->on_insert_clipboard_entry = [](auto const& data, auto const&, auto const& mime_type) {
+    m_web_view_bridge->on_insert_clipboard_entry = [](Web::Clipboard::SystemClipboardRepresentation const& entry, auto const&) {
         NSPasteboardType pasteboard_type = nil;
 
         // https://w3c.github.io/clipboard-apis/#os-specific-well-known-format
-        if (mime_type == "text/plain"sv)
+        if (entry.mime_type == "text/plain"sv)
             pasteboard_type = NSPasteboardTypeString;
-        else if (mime_type == "text/html"sv)
+        else if (entry.mime_type == "text/html"sv)
             pasteboard_type = NSPasteboardTypeHTML;
-        else if (mime_type == "text/png"sv)
+        else if (entry.mime_type == "image/png"sv)
             pasteboard_type = NSPasteboardTypePNG;
 
         if (pasteboard_type)
-            copy_data_to_clipboard(data, pasteboard_type);
+            copy_data_to_clipboard(entry.data, pasteboard_type);
+    };
+
+    m_web_view_bridge->on_request_clipboard_entries = [weak_self](auto request_id) {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return;
+        }
+
+        Vector<Web::Clipboard::SystemClipboardItem> items;
+        Vector<Web::Clipboard::SystemClipboardRepresentation> representations;
+
+        auto* pasteBoard = [NSPasteboard generalPasteboard];
+
+        for (NSPasteboardType type : [pasteBoard types]) {
+            String mime_type;
+
+            if (type == NSPasteboardTypeString)
+                mime_type = "text/plain"_string;
+            else if (type == NSPasteboardTypeHTML)
+                mime_type = "text/html"_string;
+            else if (type == NSPasteboardTypePNG)
+                mime_type = "image/png"_string;
+
+            auto data = Ladybird::ns_data_to_string([pasteBoard dataForType:type]);
+            representations.empend(move(data), move(mime_type));
+        }
+
+        if (!representations.is_empty())
+            items.empend(AK::move(representations));
+
+        m_web_view_bridge->retrieved_clipboard_entries(request_id, items);
     };
 
     m_web_view_bridge->on_audio_play_state_changed = [weak_self](auto play_state) {

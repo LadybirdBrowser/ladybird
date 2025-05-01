@@ -649,9 +649,14 @@ void PageClient::page_did_change_theme_color(Gfx::Color color)
     client().async_did_change_theme_color(m_id, color);
 }
 
-void PageClient::page_did_insert_clipboard_entry(StringView data, StringView presentation_style, StringView mime_type)
+void PageClient::page_did_insert_clipboard_entry(Web::Clipboard::SystemClipboardRepresentation const& entry, StringView presentation_style)
 {
-    client().async_did_insert_clipboard_entry(m_id, data, presentation_style, mime_type);
+    client().async_did_insert_clipboard_entry(m_id, entry, presentation_style);
+}
+
+void PageClient::page_did_request_clipboard_entries(u64 request_id)
+{
+    client().async_did_request_clipboard_entries(m_id, request_id);
 }
 
 void PageClient::page_did_change_audio_play_state(Web::HTML::AudioPlayState play_state)

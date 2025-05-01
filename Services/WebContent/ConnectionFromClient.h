@@ -129,6 +129,8 @@ private:
     virtual void file_picker_closed(u64 page_id, Vector<Web::HTML::SelectedFile> selected_files) override;
     virtual void select_dropdown_closed(u64 page_id, Optional<u32> selected_item_id) override;
 
+    virtual void retrieved_clipboard_entries(u64 page_id, u64 request_id, Vector<Web::Clipboard::SystemClipboardItem>) override;
+
     virtual void toggle_media_play_state(u64 page_id) override;
     virtual void toggle_media_mute_state(u64 page_id) override;
     virtual void toggle_media_loop_state(u64 page_id) override;
