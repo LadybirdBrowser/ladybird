@@ -99,6 +99,14 @@ sudo xbps-install -Su # (optional) ensure packages are up to date to avoid "Tran
 sudo xbps-install -S git bash gcc python3 curl cmake zip unzip linux-headers make pkg-config autoconf automake autoconf-archive nasm MesaLib-devel ninja qt6-base-devel qt6-multimedia-devel qt6-tools-devel qt6-wayland-devel
 ```
 
+### NixOS or with Nix:
+A Nix development shell is maintained
+[here](https://github.com/nix-community/nix-environments/tree/master/envs/ladybird),
+in the
+[nix-environments](https://github.com/nix-community/nix-environments/)
+repository.
+If you encounter any problems building with Nix, please create an issue there.
+
 ### macOS:
 
 Xcode 15 or clang from homebrew is required to successfully build ladybird.
