@@ -18,7 +18,8 @@ namespace Web::Clipboard {
 
 constexpr auto WEB_CUSTOM_FORMAT_PREFIX = "web "sv;
 
-inline constexpr Array MANDATORY_DATA_TYPES = {
+// https://w3c.github.io/clipboard-apis/#mandatory-data-types
+constexpr inline Array MANDATORY_DATA_TYPES = {
     "text/plain"sv, "text/html"sv, "image/png"sv
 };
 
@@ -45,6 +46,7 @@ public:
     Bindings::PresentationStyle presentation_style() const { return m_presentation_style; }
 
     Vector<String> const& types() const { return m_types; }
+    Vector<Representation> const& representations() const { return m_representations; }
 
     WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> get_type(String const& type);
 
