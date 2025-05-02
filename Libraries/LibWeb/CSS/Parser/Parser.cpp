@@ -45,25 +45,9 @@ ParsingParams::ParsingParams(JS::Realm& realm, ParsingMode mode)
 {
 }
 
-ParsingParams::ParsingParams(JS::Realm& realm, ::URL::URL url, ParsingMode mode)
-    : realm(realm)
-    , url(move(url))
-    , mode(mode)
-{
-}
-
-ParsingParams::ParsingParams(DOM::Document const& document, ::URL::URL url, ParsingMode mode)
-    : realm(const_cast<JS::Realm&>(document.realm()))
-    , document(&document)
-    , url(move(url))
-    , mode(mode)
-{
-}
-
 ParsingParams::ParsingParams(DOM::Document const& document, ParsingMode mode)
     : realm(const_cast<JS::Realm&>(document.realm()))
     , document(&document)
-    , url(document.url())
     , mode(mode)
 {
 }
@@ -77,7 +61,6 @@ Parser Parser::create(ParsingParams const& context, StringView input, StringView
 Parser::Parser(ParsingParams const& context, Vector<Token> tokens)
     : m_document(context.document)
     , m_realm(context.realm)
-    , m_url(context.url)
     , m_parsing_mode(context.mode)
     , m_tokens(move(tokens))
     , m_token_stream(m_tokens)
@@ -1862,15 +1845,6 @@ bool Parser::in_quirks_mode() const
 bool Parser::is_parsing_svg_presentation_attribute() const
 {
     return m_parsing_mode == ParsingMode::SVGPresentationAttribute;
-}
-
-// https://www.w3.org/TR/css-values-4/#relative-urls
-// FIXME: URLs shouldn't be completed during parsing, but when used.
-Optional<::URL::URL> Parser::complete_url(StringView relative_url) const
-{
-    if (!m_url.has_value())
-        return ::URL::Parser::basic_parse(relative_url);
-    return m_url->complete_url(relative_url);
 }
 
 }

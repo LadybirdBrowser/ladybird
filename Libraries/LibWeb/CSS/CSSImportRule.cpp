@@ -156,7 +156,7 @@ void CSSImportRule::fetch()
             }
             auto decoded = decoded_or_error.release_value();
 
-            auto imported_style_sheet = parse_css_stylesheet(Parser::ParsingParams(*strong_this->m_document, parsed_url), decoded, parsed_url, strong_this->m_media_query_list);
+            auto imported_style_sheet = parse_css_stylesheet(Parser::ParsingParams(*strong_this->m_document), decoded, parsed_url, strong_this->m_media_query_list);
 
             // 5. Set importedStylesheet’s origin-clean flag to parentStylesheet’s origin-clean flag.
             imported_style_sheet->set_origin_clean(parent_style_sheet->is_origin_clean());

@@ -63,7 +63,6 @@ GC_DEFINE_ALLOCATOR(FontFace);
 GC::Ref<FontFace> FontFace::construct_impl(JS::Realm& realm, String family, FontFaceSource source, FontFaceDescriptors const& descriptors)
 {
     auto& vm = realm.vm();
-    auto base_url = HTML::relevant_settings_object(realm.global_object()).api_base_url();
 
     // 1. Let font face be a fresh FontFace object. Set font face’s status attribute to "unloaded",
     //    Set its internal [[FontStatusPromise]] slot to a fresh pending Promise object.
@@ -76,7 +75,7 @@ GC::Ref<FontFace> FontFace::construct_impl(JS::Realm& realm, String family, Font
     //    set font face’s corresponding attributes to the empty string, and set font face’s status attribute to "error".
     //    Otherwise, set font face’s corresponding attributes to the serialization of the parsed values.
 
-    Parser::ParsingParams parsing_params { realm, base_url };
+    Parser::ParsingParams parsing_params { realm };
     auto try_parse_descriptor = [&parsing_params, &font_face, &realm](DescriptorID descriptor_id, String const& string) -> String {
         auto result = parse_css_descriptor(parsing_params, AtRuleID::FontFace, descriptor_id, string);
         if (!result) {
