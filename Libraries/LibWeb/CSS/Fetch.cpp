@@ -55,10 +55,15 @@ static WebIDL::ExceptionOr<GC::Ref<Fetch::Infrastructure::Request>> fetch_a_styl
     request->set_client(&environment_settings);
     request->set_referrer(environment_settings.api_base_url());
 
-    // 5. Apply any URL request modifier steps that apply to this request.
-    // FIXME: No specs seem to define these yet. When they do, implement them.
+    // 5. If corsMode is "no-cors", set req’s credentials mode to "include".
+    if (cors_mode == CorsMode::NoCors)
+        request->set_credentials_mode(Fetch::Infrastructure::Request::CredentialsMode::Include);
 
-    // 6. If req’s mode is "cors", set req’s referrer to sheet’s location. [CSSOM]
+    // 6. Apply any URL request modifier steps that apply to this request.
+    if (auto const* css_url = url_value.get_pointer<CSS::URL>())
+        apply_request_modifiers_from_url_value(*css_url, request);
+
+    // 7. If req’s mode is "cors", set req’s referrer to sheet’s location. [CSSOM]
     if (request->mode() == Fetch::Infrastructure::Request::Mode::CORS) {
         auto location = sheet_or_document.visit(
             [](GC::Ref<CSSStyleSheet> const& sheet) { return sheet->location().value(); },
@@ -66,11 +71,11 @@ static WebIDL::ExceptionOr<GC::Ref<Fetch::Infrastructure::Request>> fetch_a_styl
         request->set_referrer(move(location));
     }
 
-    // 7. If sheet’s origin-clean flag is set, set req’s initiator type to "css". [CSSOM]
+    // 8. If sheet’s origin-clean flag is set, set req’s initiator type to "css". [CSSOM]
     if (auto* sheet = sheet_or_document.get_pointer<GC::Ref<CSSStyleSheet>>(); sheet && (*sheet)->is_origin_clean())
         request->set_initiator_type(Fetch::Infrastructure::Request::InitiatorType::CSS);
 
-    // 8. Fetch req, with processresponseconsumebody set to processResponse.
+    // 9. Fetch req, with processresponseconsumebody set to processResponse.
     // NB: Implemented by caller.
     return request;
 }
@@ -129,6 +134,15 @@ GC::Ptr<HTML::SharedResourceRequest> fetch_an_external_image_for_a_stylesheet(St
         shared_resource_request->fetch_resource(realm, *request);
 
     return shared_resource_request;
+}
+
+// https://drafts.csswg.org/css-values-5/#apply-request-modifiers-from-url-value
+void apply_request_modifiers_from_url_value(URL const& url, GC::Ref<Fetch::Infrastructure::Request> request)
+{
+    // To apply request modifiers from URL value given a request req and a <url> url, call the URL request modifier
+    // steps for url’s <request-url-modifier>s in sequence given req.
+    for (auto const& request_url_modifier : url.request_url_modifiers())
+        request_url_modifier.modify_request(request);
 }
 
 }

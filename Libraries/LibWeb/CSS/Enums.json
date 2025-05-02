@@ -138,6 +138,10 @@
     "upper-latin",
     "upper-roman"
   ],
+  "cross-origin-modifier-value": [
+    "anonymous",
+    "use-credentials"
+  ],
   "cursor": [
     "auto",
     "default",
@@ -501,6 +505,16 @@
     "right",
     "top",
     "bottom"
+  ],
+  "referrer-policy-modifier-value": [
+    "no-referrer",
+    "no-referrer-when-downgrade",
+    "same-origin",
+    "origin",
+    "strict-origin",
+    "origin-when-cross-origin",
+    "strict-origin-when-cross-origin",
+    "unsafe-url"
   ],
   "repeat": [
     "no-repeat",

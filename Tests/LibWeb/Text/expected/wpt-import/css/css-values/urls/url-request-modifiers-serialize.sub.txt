@@ -2,28 +2,27 @@ Harness status: OK
 
 Found 23 tests
 
-1 Pass
-22 Fail
+23 Pass
 Pass	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\")" should set the property value
-Fail	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" crossorigin(anonymous))" should set the property value
-Fail	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" crossorigin(use-credentials))" should set the property value
-Fail	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" integrity(\"sha384-foobar\"))" should set the property value
-Fail	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" integrity(\"\"))" should set the property value
-Fail	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" referrerpolicy(no-referrer))" should set the property value
-Fail	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" referrerpolicy(no-referrer-when-downgrade))" should set the property value
-Fail	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" referrerpolicy(same-origin))" should set the property value
-Fail	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" referrerpolicy(origin))" should set the property value
-Fail	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" referrerpolicy(strict-origin))" should set the property value
-Fail	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" referrerpolicy(origin-when-cross-origin))" should set the property value
-Fail	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" referrerpolicy(strict-origin-when-cross-origin))" should set the property value
-Fail	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" referrerpolicy(unsafe-url))" should set the property value
-Fail	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" crossorigin(anonymous) integrity(\"sha384-foobar\"))" should set the property value
-Fail	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" integrity(\"sha384-foobar\") crossorigin(anonymous))" should set the property value
-Fail	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" integrity(\"sha384-foobar\") referrerpolicy(no-referrer))" should set the property value
-Fail	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" referrerpolicy(no-referrer) integrity(\"sha384-foobar\"))" should set the property value
-Fail	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" crossorigin(anonymous) referrerpolicy(no-referrer))" should set the property value
-Fail	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" referrerpolicy(no-referrer) crossorigin(anonymous))" should set the property value
-Fail	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" crossorigin(anonymous) integrity(\"sha384-foobar\") referrerpolicy(no-referrer))" should set the property value
-Fail	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" integrity(\"sha384-foobar\") referrerpolicy(no-referrer) crossorigin(anonymous))" should set the property value
-Fail	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" referrerpolicy(no-referrer) crossorigin(anonymous) integrity(\"sha384-foobar\"))" should set the property value
-Fail	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" referrerpolicy(no-referrer) integrity(\"sha384-foobar\") crossorigin(anonymous))" should set the property value
+Pass	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" crossorigin(anonymous))" should set the property value
+Pass	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" crossorigin(use-credentials))" should set the property value
+Pass	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" integrity(\"sha384-foobar\"))" should set the property value
+Pass	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" integrity(\"\"))" should set the property value
+Pass	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" referrerpolicy(no-referrer))" should set the property value
+Pass	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" referrerpolicy(no-referrer-when-downgrade))" should set the property value
+Pass	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" referrerpolicy(same-origin))" should set the property value
+Pass	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" referrerpolicy(origin))" should set the property value
+Pass	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" referrerpolicy(strict-origin))" should set the property value
+Pass	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" referrerpolicy(origin-when-cross-origin))" should set the property value
+Pass	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" referrerpolicy(strict-origin-when-cross-origin))" should set the property value
+Pass	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" referrerpolicy(unsafe-url))" should set the property value
+Pass	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" crossorigin(anonymous) integrity(\"sha384-foobar\"))" should set the property value
+Pass	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" integrity(\"sha384-foobar\") crossorigin(anonymous))" should set the property value
+Pass	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" integrity(\"sha384-foobar\") referrerpolicy(no-referrer))" should set the property value
+Pass	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" referrerpolicy(no-referrer) integrity(\"sha384-foobar\"))" should set the property value
+Pass	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" crossorigin(anonymous) referrerpolicy(no-referrer))" should set the property value
+Pass	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" referrerpolicy(no-referrer) crossorigin(anonymous))" should set the property value
+Pass	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" crossorigin(anonymous) integrity(\"sha384-foobar\") referrerpolicy(no-referrer))" should set the property value
+Pass	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" integrity(\"sha384-foobar\") referrerpolicy(no-referrer) crossorigin(anonymous))" should set the property value
+Pass	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" referrerpolicy(no-referrer) crossorigin(anonymous) integrity(\"sha384-foobar\"))" should set the property value
+Pass	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" referrerpolicy(no-referrer) integrity(\"sha384-foobar\") crossorigin(anonymous))" should set the property value
