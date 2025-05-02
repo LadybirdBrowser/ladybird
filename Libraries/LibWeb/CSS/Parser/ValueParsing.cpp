@@ -3813,10 +3813,6 @@ RefPtr<FontSourceStyleValue const> Parser::parse_font_source_value(TokenStream<C
     auto url = parse_url_function(tokens);
     if (!url.has_value())
         return nullptr;
-    // FIXME: Stop completing the URL here
-    auto completed_url = complete_url(url->url());
-    if (!completed_url.has_value())
-        return nullptr;
 
     Optional<FlyString> format;
 
@@ -3859,7 +3855,7 @@ RefPtr<FontSourceStyleValue const> Parser::parse_font_source_value(TokenStream<C
     // FIXME: [ tech( <font-tech>#)]?
 
     transaction.commit();
-    return FontSourceStyleValue::create(completed_url.release_value(), move(format));
+    return FontSourceStyleValue::create(url.release_value(), move(format));
 }
 
 NonnullRefPtr<CSSStyleValue const> Parser::resolve_unresolved_style_value(ParsingParams const& context, DOM::Element& element, Optional<PseudoElement> pseudo_element, PropertyID property_id, UnresolvedStyleValue const& unresolved)

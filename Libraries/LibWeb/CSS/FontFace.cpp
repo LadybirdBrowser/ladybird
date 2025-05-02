@@ -483,6 +483,7 @@ GC::Ref<WebIDL::Promise> FontFace::load()
 
             // FIXME: The ParsedFontFace is kind of expensive to create. We should be using a shared sub-object for the data
             ParsedFontFace parsed_font_face {
+                nullptr,
                 font->m_family,
                 font->m_weight.to_number<int>(),
                 0,                      // FIXME: slope

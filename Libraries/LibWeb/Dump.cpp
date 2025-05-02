@@ -728,12 +728,15 @@ void dump_font_face_rule(StringBuilder& builder, CSS::CSSFontFaceRule const& rul
 
     indent(builder, indent_levels + 1);
     builder.append("sources:\n"sv);
-    for (auto const& source : font_face.sources()) {
+    for (auto const& [local_or_url, format] : font_face.sources()) {
         indent(builder, indent_levels + 2);
-        if (source.local_or_url.has<URL::URL>())
-            builder.appendff("url={}, format={}\n", source.local_or_url.get<URL::URL>(), source.format.value_or("???"_string));
-        else
-            builder.appendff("local={}\n", source.local_or_url.get<FlyString>());
+        local_or_url.visit(
+            [&builder, &format](CSS::URL const& url) {
+                builder.appendff("url={}, format={}\n", url, format.value_or("???"_string));
+            },
+            [&builder](FlyString const& local) {
+                builder.appendff("local={}\n", local);
+            });
     }
 
     indent(builder, indent_levels + 1);
