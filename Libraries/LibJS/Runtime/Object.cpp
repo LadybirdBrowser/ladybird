@@ -1095,7 +1095,7 @@ ThrowCompletionOr<GC::RootVector<Value>> Object::internal_own_property_keys() co
     // 2. For each own property key P of O such that P is an array index, in ascending numeric index order, do
     for (auto& entry : m_indexed_properties) {
         // a. Add P as the last element of keys.
-        keys.append(PrimitiveString::create(vm, ByteString::number(entry.index())));
+        keys.append(PrimitiveString::create(vm, String::number(entry.index())));
     }
 
     // 3. For each own property key P of O such that Type(P) is String and P is not an array index, in ascending chronological order of property creation, do
