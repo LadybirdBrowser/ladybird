@@ -13,6 +13,6 @@
 
 namespace WOFF2 {
 
-ErrorOr<NonnullRefPtr<Gfx::Typeface>> try_load_from_externally_owned_memory(ReadonlyBytes);
+ErrorOr<NonnullRefPtr<Gfx::Typeface>> try_load_from_bytes(ReadonlyBytes);
 
 }

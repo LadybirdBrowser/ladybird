@@ -41,12 +41,12 @@ static NonnullRefPtr<Core::Promise<NonnullRefPtr<Gfx::Typeface const>>> load_vec
             promise->resolve(ttf.release_value());
             return;
         }
-        auto woff = WOFF::try_load_from_externally_owned_memory(data);
+        auto woff = WOFF::try_load_from_bytes(data);
         if (!woff.is_error()) {
             promise->resolve(woff.release_value());
             return;
         }
-        auto woff2 = WOFF2::try_load_from_externally_owned_memory(data);
+        auto woff2 = WOFF2::try_load_from_bytes(data);
         if (!woff2.is_error()) {
             promise->resolve(woff2.release_value());
             return;

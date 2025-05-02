@@ -274,12 +274,12 @@ ErrorOr<NonnullRefPtr<Gfx::Typeface const>> FontLoader::try_load_font()
             }
         }
         if (mime_type->essence() == "font/woff"sv || mime_type->essence() == "application/font-woff"sv) {
-            if (auto result = WOFF::try_load_from_externally_owned_memory(resource()->encoded_data()); !result.is_error()) {
+            if (auto result = WOFF::try_load_from_bytes(resource()->encoded_data()); !result.is_error()) {
                 return result;
             }
         }
         if (mime_type->essence() == "font/woff2"sv || mime_type->essence() == "application/font-woff2"sv) {
-            if (auto result = WOFF2::try_load_from_externally_owned_memory(resource()->encoded_data()); !result.is_error()) {
+            if (auto result = WOFF2::try_load_from_bytes(resource()->encoded_data()); !result.is_error()) {
                 return result;
             }
         }
