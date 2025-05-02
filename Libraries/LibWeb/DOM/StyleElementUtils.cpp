@@ -84,7 +84,8 @@ void StyleElementUtils::update_a_style_block(DOM::Element& style_element)
             : String {},
         CSS::StyleSheetList::Alternate::No,
         CSS::StyleSheetList::OriginClean::Yes,
-        {},
+        // AD-HOC: Use the document's base URL as the location instead. Spec issue: https://github.com/whatwg/html/issues/11281
+        style_element.document().base_url(),
         nullptr,
         nullptr);
 
