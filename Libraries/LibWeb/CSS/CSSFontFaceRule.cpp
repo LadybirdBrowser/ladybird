@@ -26,6 +26,7 @@ CSSFontFaceRule::CSSFontFaceRule(JS::Realm& realm, GC::Ref<CSSFontFaceDescriptor
     : CSSRule(realm, Type::FontFace)
     , m_style(style)
 {
+    m_style->set_parent_rule(*this);
 }
 
 void CSSFontFaceRule::initialize(JS::Realm& realm)
