@@ -394,6 +394,7 @@ private:
     RefPtr<CSSStyleValue const> parse_font_family_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_font_language_override_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_font_feature_settings_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_font_style_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_font_variation_settings_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_font_variant(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_font_variant_alternates_value(TokenStream<ComponentValue>&);

@@ -107,6 +107,7 @@ public:
         FitContent,
         Flex,
         FontSource,
+        FontStyle,
         FontVariant,
         Frequency,
         GridAutoFlow,
@@ -233,6 +234,10 @@ public:
     bool is_font_source() const { return type() == Type::FontSource; }
     FontSourceStyleValue const& as_font_source() const;
     FontSourceStyleValue& as_font_source() { return const_cast<FontSourceStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_font_source()); }
+
+    bool is_font_style() const { return type() == Type::FontStyle; }
+    FontStyleStyleValue const& as_font_style() const;
+    FontStyleStyleValue& as_font_style() { return const_cast<FontStyleStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_font_style()); }
 
     bool is_frequency() const { return type() == Type::Frequency; }
     FrequencyStyleValue const& as_frequency() const;

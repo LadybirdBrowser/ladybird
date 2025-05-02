@@ -34,6 +34,7 @@
 #include <LibWeb/CSS/StyleValues/FilterValueListStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FitContentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FlexStyleValue.h>
+#include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FrequencyStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridAutoFlowStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTemplateAreaStyleValue.h>
@@ -521,6 +522,10 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue const>> Parser::parse_css_value
         return ParseError::SyntaxError;
     case PropertyID::FontLanguageOverride:
         if (auto parsed_value = parse_font_language_override_value(tokens); parsed_value && !tokens.has_next_token())
+            return parsed_value.release_nonnull();
+        return ParseError::SyntaxError;
+    case PropertyID::FontStyle:
+        if (auto parsed_value = parse_font_style_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
     case PropertyID::FontVariationSettings:
@@ -2361,7 +2366,7 @@ RefPtr<CSSStyleValue const> Parser::parse_font_value(TokenStream<ComponentValue>
         }
         case PropertyID::FontStyle: {
             VERIFY(!font_style);
-            font_style = value.release_nonnull();
+            font_style = FontStyleStyleValue::create(*keyword_to_font_style(value.release_nonnull()->to_keyword()));
             continue;
         }
         case PropertyID::FontVariant: {
@@ -2595,6 +2600,34 @@ RefPtr<CSSStyleValue const> Parser::parse_font_feature_settings_value(TokenStrea
 
     transaction.commit();
     return StyleValueList::create(move(feature_tags), StyleValueList::Separator::Comma);
+}
+
+RefPtr<CSSStyleValue const> Parser::parse_font_style_value(TokenStream<ComponentValue>& tokens)
+{
+    // https://drafts.csswg.org/css-fonts/#font-style-prop
+    // normal | italic | left | right | oblique <angle [-90deg,90deg]>?
+    auto transaction = tokens.begin_transaction();
+    auto keyword_value = parse_css_value_for_property(PropertyID::FontStyle, tokens);
+    if (!keyword_value)
+        return nullptr;
+    auto font_style = keyword_to_font_style(keyword_value->to_keyword());
+    VERIFY(font_style.has_value());
+    if (tokens.has_next_token() && keyword_value->to_keyword() == Keyword::Oblique) {
+        if (auto angle_value = parse_angle_value(tokens)) {
+            if (angle_value->is_angle()) {
+                auto angle = angle_value->as_angle().angle();
+                auto angle_degrees = angle.to_degrees();
+                if (angle_degrees < -90 || angle_degrees > 90)
+                    return nullptr;
+            }
+
+            transaction.commit();
+            return FontStyleStyleValue::create(*font_style, angle_value);
+        }
+    }
+
+    transaction.commit();
+    return FontStyleStyleValue::create(*font_style);
 }
 
 RefPtr<CSSStyleValue const> Parser::parse_font_variation_settings_value(TokenStream<ComponentValue>& tokens)

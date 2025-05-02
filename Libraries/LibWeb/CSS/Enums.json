@@ -247,6 +247,13 @@
     "fallback",
     "optional"
   ],
+  "font-style": [
+    "normal",
+    "italic",
+    "left",
+    "right",
+    "oblique"
+  ],
   "font-variant-alternates": [
     "normal",
     "historical-forms"
