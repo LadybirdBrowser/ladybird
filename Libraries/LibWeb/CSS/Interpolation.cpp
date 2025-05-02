@@ -15,6 +15,7 @@
 #include <LibWeb/CSS/StyleValues/CSSColorValue.h>
 #include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
+#include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FrequencyStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
@@ -160,6 +161,13 @@ ValueComparingRefPtr<CSSStyleValue const> interpolate_property(DOM::Element& ele
         }
         if (property_id == PropertyID::BoxShadow)
             return interpolate_box_shadow(element, calculation_context, from, to, delta);
+
+        if (property_id == PropertyID::FontStyle) {
+            auto static oblique_0deg_value = FontStyleStyleValue::create(FontStyle::Oblique, AngleStyleValue::create(Angle::make_degrees(0)));
+            auto from_value = from->as_font_style().font_style() == FontStyle::Normal ? oblique_0deg_value : from;
+            auto to_value = to->as_font_style().font_style() == FontStyle::Normal ? oblique_0deg_value : to;
+            return interpolate_value(element, calculation_context, from_value, to_value, delta);
+        }
 
         if (property_id == PropertyID::Scale)
             return interpolate_scale(element, calculation_context, from, to, delta);
@@ -688,6 +696,17 @@ static RefPtr<CSSStyleValue const> interpolate_value_impl(DOM::Element& element,
             return EdgeStyleValue::create(edge, *interpolated_value);
 
         return delta >= 0.5f ? to : from;
+    }
+    case CSSStyleValue::Type::FontStyle: {
+        auto const& from_font_style = from.as_font_style();
+        auto const& to_font_style = to.as_font_style();
+        auto interpolated_font_style = interpolate_value(element, calculation_context, CSSKeywordValue::create(to_keyword(from_font_style.font_style())), CSSKeywordValue::create(to_keyword(to_font_style.font_style())), delta);
+        if (from_font_style.angle() && to_font_style.angle()) {
+            auto interpolated_angle = interpolate_value(element, calculation_context, *from_font_style.angle(), *to_font_style.angle(), delta);
+            return FontStyleStyleValue::create(*keyword_to_font_style(interpolated_font_style->to_keyword()), interpolated_angle);
+        }
+
+        return FontStyleStyleValue::create(*keyword_to_font_style(interpolated_font_style->to_keyword()));
     }
     case CSSStyleValue::Type::Integer: {
         // https://drafts.csswg.org/css-values/#combine-integers
