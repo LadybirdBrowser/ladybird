@@ -34,6 +34,7 @@
 #include <LibWeb/CSS/StyleValues/FitContentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FlexStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FontSourceStyleValue.h>
+#include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FrequencyStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridAutoFlowStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTemplateAreaStyleValue.h>
@@ -201,6 +202,12 @@ FontSourceStyleValue const& CSSStyleValue::as_font_source() const
 {
     VERIFY(is_font_source());
     return static_cast<FontSourceStyleValue const&>(*this);
+}
+
+FontStyleStyleValue const& CSSStyleValue::as_font_style() const
+{
+    VERIFY(is_font_style());
+    return static_cast<FontStyleStyleValue const&>(*this);
 }
 
 FrequencyStyleValue const& CSSStyleValue::as_frequency() const

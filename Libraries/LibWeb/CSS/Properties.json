@@ -1440,10 +1440,8 @@
     "animation-type": "custom",
     "inherited": true,
     "initial": "normal",
-    "valid-identifiers": [
-      "italic",
-      "normal",
-      "oblique"
+    "valid-types": [
+      "font-style"
     ]
   },
   "font-variant": {
