@@ -28,7 +28,7 @@ class Index : public JS::Cell {
     GC_DECLARE_ALLOCATOR(Index);
 
 public:
-    [[nodiscard]] static GC::Ref<Index> create(JS::Realm&, GC::Ref<ObjectStore>, String, KeyPath const&, bool, bool);
+    [[nodiscard]] static GC::Ref<Index> create(JS::Realm&, GC::Ref<ObjectStore>, String const&, KeyPath const&, bool, bool);
     virtual ~Index();
 
     void set_name(String name);
@@ -45,7 +45,7 @@ protected:
     virtual void visit_edges(Visitor&) override;
 
 private:
-    Index(GC::Ref<ObjectStore>, String, KeyPath const&, bool, bool);
+    Index(GC::Ref<ObjectStore>, String const&, KeyPath const&, bool, bool);
 
     // An index [...] has a referenced object store.
     GC::Ref<ObjectStore> m_object_store;
