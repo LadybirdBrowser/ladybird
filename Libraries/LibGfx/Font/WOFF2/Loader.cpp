@@ -53,7 +53,7 @@ private:
     ByteBuffer& m_buffer;
 };
 
-ErrorOr<NonnullRefPtr<Gfx::Typeface>> try_load_from_externally_owned_memory(ReadonlyBytes bytes)
+ErrorOr<NonnullRefPtr<Gfx::Typeface>> try_load_from_bytes(ReadonlyBytes bytes)
 {
     auto ttf_buffer = TRY(ByteBuffer::create_uninitialized(0));
     auto output = WOFF2ByteBufferOut { ttf_buffer };
