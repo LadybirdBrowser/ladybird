@@ -25,3 +25,11 @@ private:
 };
 
 }
+
+template<>
+struct AK::Formatter<Web::CSS::URL> : AK::Formatter<StringView> {
+    ErrorOr<void> format(FormatBuilder& builder, Web::CSS::URL const& value)
+    {
+        return Formatter<StringView>::format(builder, value.to_string());
+    }
+};
