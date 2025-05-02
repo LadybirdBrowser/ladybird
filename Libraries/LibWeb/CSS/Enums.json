@@ -514,19 +514,6 @@
     "to-zero",
     "up"
   ],
-  "table-layout": [
-    "auto",
-    "fixed"
-  ],
-  "text-anchor": [
-    "start",
-    "middle",
-    "end"
-  ],
-  "text-overflow": [
-    "clip",
-    "ellipsis"
-  ],
   "scrollbar-gutter": [
     "auto",
     "stable",
@@ -547,6 +534,10 @@
     "round",
     "bevel"
   ],
+  "table-layout": [
+    "auto",
+    "fixed"
+  ],
   "text-align": [
     "center",
     "justify",
@@ -558,6 +549,11 @@
     "-libweb-center",
     "-libweb-left",
     "-libweb-right"
+  ],
+  "text-anchor": [
+    "start",
+    "middle",
+    "end"
   ],
   "text-decoration-line": [
     "none",
@@ -581,6 +577,10 @@
     "inter-word",
     "inter-character",
     "distribute=inter-character"
+  ],
+  "text-overflow": [
+    "clip",
+    "ellipsis"
   ],
   "text-transform": [
     "capitalize",
