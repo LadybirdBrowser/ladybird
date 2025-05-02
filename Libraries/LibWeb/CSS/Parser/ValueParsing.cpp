@@ -14,6 +14,7 @@
 
 #include <AK/Debug.h>
 #include <AK/GenericLexer.h>
+#include <AK/QuickSort.h>
 #include <AK/TemporaryChange.h>
 #include <LibWeb/CSS/FontFace.h>
 #include <LibWeb/CSS/Parser/Parser.h>
@@ -2697,29 +2698,105 @@ RefPtr<CSSStyleValue const> Parser::parse_easing_value(TokenStream<ComponentValu
     return nullptr;
 }
 
+// https://drafts.csswg.org/css-values-4/#url-value
 Optional<URL> Parser::parse_url_function(TokenStream<ComponentValue>& tokens)
 {
+    // <url> = <url()> | <src()>
+    // <url()> = url( <string> <url-modifier>* ) | <url-token>
+    // <src()> = src( <string> <url-modifier>* )
+    // FIXME: Also parse src() function
     auto transaction = tokens.begin_transaction();
     auto const& component_value = tokens.consume_a_token();
 
+    // <url-token>
     if (component_value.is(Token::Type::Url)) {
         transaction.commit();
         return URL { component_value.token().url().to_string() };
     }
 
+    // <url()> = url( <string> <url-modifier>* )
     if (component_value.is_function("url"sv)) {
         auto const& function_values = component_value.function().value;
-        // FIXME: Handle url-modifiers. https://www.w3.org/TR/css-values-4/#url-modifiers
-        for (size_t i = 0; i < function_values.size(); ++i) {
-            auto const& value = function_values[i];
-            if (value.is(Token::Type::Whitespace))
-                continue;
-            if (value.is(Token::Type::String)) {
-                transaction.commit();
-                return URL { value.token().string().to_string() };
+        TokenStream url_tokens { function_values };
+
+        url_tokens.discard_whitespace();
+        auto url_string = url_tokens.consume_a_token();
+        if (!url_string.is(Token::Type::String))
+            return {};
+        url_tokens.discard_whitespace();
+
+        // NB: Currently <request-url-modifier> is the only kind of <url-modifier>
+        // https://drafts.csswg.org/css-values-5/#request-url-modifiers
+        // <request-url-modifier> = <crossorigin-modifier> | <integrity-modifier> | <referrerpolicy-modifier>
+        Vector<RequestURLModifier> request_url_modifiers;
+        // AD-HOC: This isn't mentioned in the spec, but WPT expects modifiers to be unique (one per type).
+        // Spec issue: https://github.com/w3c/csswg-drafts/issues/12151
+        while (url_tokens.has_next_token()) {
+            auto& modifier_token = url_tokens.consume_a_token();
+            if (modifier_token.is_function("crossorigin"sv)) {
+                // Reject duplicates
+                if (request_url_modifiers.first_matching([](auto& modifier) { return modifier.type() == RequestURLModifier::Type::CrossOrigin; }).has_value())
+                    return {};
+                // <crossorigin-modifier> = crossorigin(anonymous | use-credentials)
+                TokenStream modifier_tokens { modifier_token.function().value };
+                modifier_tokens.discard_whitespace();
+                if (!modifier_tokens.next_token().is(Token::Type::Ident))
+                    return {};
+                auto maybe_keyword = keyword_from_string(modifier_tokens.consume_a_token().token().ident());
+                modifier_tokens.discard_whitespace();
+                if (!maybe_keyword.has_value() || modifier_tokens.has_next_token())
+                    return {};
+                if (auto value = keyword_to_cross_origin_modifier_value(*maybe_keyword); value.has_value()) {
+                    request_url_modifiers.append(RequestURLModifier::create_cross_origin(value.release_value()));
+                } else {
+                    return {};
+                }
+            } else if (modifier_token.is_function("integrity"sv)) {
+                // Reject duplicates
+                if (request_url_modifiers.first_matching([](auto& modifier) { return modifier.type() == RequestURLModifier::Type::Integrity; }).has_value())
+                    return {};
+                // <integrity-modifier> = integrity(<string>)
+                TokenStream modifier_tokens { modifier_token.function().value };
+                modifier_tokens.discard_whitespace();
+                auto& maybe_string = modifier_tokens.consume_a_token();
+                modifier_tokens.discard_whitespace();
+                if (!maybe_string.is(Token::Type::String) || modifier_tokens.has_next_token())
+                    return {};
+                request_url_modifiers.append(RequestURLModifier::create_integrity(maybe_string.token().string()));
+            } else if (modifier_token.is_function("referrerpolicy"sv)) {
+                // Reject duplicates
+                if (request_url_modifiers.first_matching([](auto& modifier) { return modifier.type() == RequestURLModifier::Type::ReferrerPolicy; }).has_value())
+                    return {};
+
+                // <referrerpolicy-modifier> = (no-referrer | no-referrer-when-downgrade | same-origin | origin | strict-origin | origin-when-cross-origin | strict-origin-when-cross-origin | unsafe-url)
+                TokenStream modifier_tokens { modifier_token.function().value };
+                modifier_tokens.discard_whitespace();
+                if (!modifier_tokens.next_token().is(Token::Type::Ident))
+                    return {};
+                auto maybe_keyword = keyword_from_string(modifier_tokens.consume_a_token().token().ident());
+                modifier_tokens.discard_whitespace();
+                if (!maybe_keyword.has_value() || modifier_tokens.has_next_token())
+                    return {};
+                if (auto value = keyword_to_referrer_policy_modifier_value(*maybe_keyword); value.has_value()) {
+                    request_url_modifiers.append(RequestURLModifier::create_referrer_policy(value.release_value()));
+                } else {
+                    return {};
+                }
+            } else {
+                dbgln_if(CSS_PARSER_DEBUG, "Unrecognized URL modifier: {}", modifier_token.to_debug_string());
+                return {};
             }
-            break;
+            url_tokens.discard_whitespace();
         }
+
+        // AD-HOC: This isn't mentioned in the spec, but WPT expects modifiers to be sorted alphabetically.
+        // Spec issue: https://github.com/w3c/csswg-drafts/issues/12151
+        quick_sort(request_url_modifiers, [](RequestURLModifier const& a, RequestURLModifier const& b) {
+            return to_underlying(a.type()) < to_underlying(b.type());
+        });
+
+        transaction.commit();
+        return URL { url_string.token().string().to_string(), move(request_url_modifiers) };
     }
 
     return {};
