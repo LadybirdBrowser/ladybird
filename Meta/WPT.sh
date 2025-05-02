@@ -35,22 +35,22 @@ WEBDRIVER_BINARY=${WEBDRIVER_BINARY:-"$(default_binary_path)/WebDriver"}
 HEADLESS_BROWSER_BINARY=${HEADLESS_BROWSER_BINARY:-"$(default_binary_path)/headless-browser"}
 WPT_PROCESSES=${WPT_PROCESSES:-$(get_number_of_processing_units)}
 WPT_CERTIFICATES=(
-  "tools/certs/cacert.pem"
-  "${BUILD_DIR}/Lagom/cacert.pem"
+    "tools/certs/cacert.pem"
+    "${BUILD_DIR}/Lagom/cacert.pem"
 )
 WPT_ARGS=( "--webdriver-binary=${WEBDRIVER_BINARY}"
-           "--install-webdriver"
-            "--processes=${WPT_PROCESSES}"
-           "--webdriver-arg=--force-cpu-painting"
-            "--no-pause-after-test"
-           "-f"
-           "${EXTRA_WPT_ARGS[@]}"
+    "--install-webdriver"
+    "--processes=${WPT_PROCESSES}"
+    "--webdriver-arg=--force-cpu-painting"
+    "--no-pause-after-test"
+    "-f"
+    "${EXTRA_WPT_ARGS[@]}"
 )
 
 ARG0=$0
 print_help() {
-  NAME=$(basename "$ARG0")
-  cat <<EOF
+    NAME=$(basename "$ARG0")
+    cat <<EOF
   Usage: $NAME COMMAND [OPTIONS..] [TESTS...]
     Supported COMMANDs:
       update:     Update the Web Platform Tests repository.
@@ -145,16 +145,16 @@ fi
 exit_if_running_as_root "Do not run WPT.sh as root"
 
 construct_test_list() {
-  TEST_LIST=( "$@" )
+    TEST_LIST=( "$@" )
 
-  for i in "${!TEST_LIST[@]}"; do
-      item="${TEST_LIST[i]}"
-      item="${item#"$WPT_SOURCE_DIR"/}"
-      item="${item#*Tests/LibWeb/WPT/wpt/}"
-      item="${item#http://wpt.live/}"
-      item="${item#https://wpt.live/}"
-      TEST_LIST[i]="$item"
-  done
+    for i in "${!TEST_LIST[@]}"; do
+        item="${TEST_LIST[i]}"
+        item="${item#"$WPT_SOURCE_DIR"/}"
+        item="${item#*Tests/LibWeb/WPT/wpt/}"
+        item="${item#http://wpt.live/}"
+        item="${item#https://wpt.live/}"
+        TEST_LIST[i]="$item"
+    done
 }
 
 ensure_wpt_repository() {
@@ -272,7 +272,7 @@ compare_wpt() {
     ensure_wpt_repository
     METADATA_DIR=$(mktemp -d)
     pushd "${WPT_SOURCE_DIR}" > /dev/null
-      ./wpt update-expectations --product ladybird --full --metadata="${METADATA_DIR}" "${INPUT_LOG_NAME}"
+        ./wpt update-expectations --product ladybird --full --metadata="${METADATA_DIR}" "${INPUT_LOG_NAME}"
     popd > /dev/null
     WPT_ARGS+=( "--metadata=${METADATA_DIR}" )
     build_ladybird_and_webdriver
