@@ -21,11 +21,20 @@ def main() -> int:
     vcpkg_checkout = build_dir / "vcpkg"
 
     if not vcpkg_checkout.is_dir():
-        # shallow fetch
-        subprocess.check_call(args=["git", "init"], cwd=build_dir)
-        subprocess.check_call(args=["git", "remote", "add", "origin", git_repo], cwd=vcpkg_checkout)
-        subprocess.check_call(args=["git", "fetch", "--depth 1", "origin", git_rev], cwd=vcpkg_checkout)
-        subprocess.check_call(args=["git", "checkout", git_rev], cwd=vcpkg_checkout)
+        vcpkg_checkout.mkdir(parents=True, exist_ok=True)
+        subprocess.check_call(args=["git", "init"], cwd=vcpkg_checkout)
+        subprocess.check_call(
+            args=["git", "remote", "add", "origin", git_repo],
+            cwd=vcpkg_checkout
+        )
+        subprocess.check_call(
+            args=["git", "fetch", "--depth", "1", "origin", git_rev],
+            cwd=vcpkg_checkout
+        )
+        subprocess.check_call(
+            args=["git", "checkout", git_rev],
+            cwd=vcpkg_checkout
+        )
     else:
         bootstrapped_vcpkg_version = subprocess.check_output(
             ["git", "-C", vcpkg_checkout, "rev-parse", "HEAD"]).strip().decode()
@@ -33,14 +42,24 @@ def main() -> int:
         if bootstrapped_vcpkg_version == git_rev:
             return 0
 
+        # clean and reset before updating
+        subprocess.check_call(
+            args=["git", "reset", "--hard"], cwd=vcpkg_checkout)
+        subprocess.check_call(
+            args=["git", "clean", "-fdx"], cwd=vcpkg_checkout)
+
         # get the new baseline commit
-        subprocess.check_call(args=["git", "fetch", "--depth 1", "origin", git_rev], cwd=vcpkg_checkout)
-        subprocess.check_call(args=["git", "checkout", git_rev], cwd=vcpkg_checkout)
+        subprocess.check_call(
+            args=["git", "fetch", "--depth", "1", "origin", git_rev], cwd=vcpkg_checkout
+        )
+        subprocess.check_call(
+            args=["git", "checkout", git_rev], cwd=vcpkg_checkout)
 
     print(f"Building vcpkg@{git_rev}")
 
     bootstrap_script = "bootstrap-vcpkg.bat" if os.name == 'nt' else "bootstrap-vcpkg.sh"
-    subprocess.check_call(args=[vcpkg_checkout / bootstrap_script, "-disableMetrics"], cwd=vcpkg_checkout)
+    subprocess.check_call(
+        args=[vcpkg_checkout / bootstrap_script, "-disableMetrics"], cwd=vcpkg_checkout)
 
     return 0
 
