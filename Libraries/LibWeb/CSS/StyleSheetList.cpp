@@ -78,7 +78,6 @@ GC::Ref<CSSStyleSheet> StyleSheetList::create_a_css_style_sheet(String const& cs
     sheet->set_title(move(title));
     sheet->set_alternate(alternate == Alternate::Yes);
     sheet->set_origin_clean(origin_clean == OriginClean::Yes);
-    sheet->set_location(move(location));
 
     // 2. Then run the add a CSS style sheet steps for the newly created CSS style sheet.
     add_a_css_style_sheet(*sheet);
