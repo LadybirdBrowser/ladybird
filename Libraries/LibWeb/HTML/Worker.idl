@@ -7,6 +7,7 @@
 // https://html.spec.whatwg.org/multipage/workers.html#worker
 [Exposed=(Window,DedicatedWorker,SharedWorker)]
 interface Worker : EventTarget {
+    // FIXME: "DOMString scriptURL" should be "(TrustedScriptURL or USVString) scriptURL".
     constructor(DOMString scriptURL, optional WorkerOptions options = {});
 
     undefined terminate();
