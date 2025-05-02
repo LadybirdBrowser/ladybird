@@ -8,6 +8,7 @@
 
 #include <AK/FlyString.h>
 #include <LibWeb/CSS/CSSStyleValue.h>
+#include <LibWeb/CSS/URL.h>
 
 namespace Web::CSS {
 
@@ -16,7 +17,7 @@ public:
     struct Local {
         NonnullRefPtr<CSSStyleValue const> name;
     };
-    using Source = Variant<Local, ::URL::URL>;
+    using Source = Variant<Local, URL>;
 
     static ValueComparingNonnullRefPtr<FontSourceStyleValue const> create(Source source, Optional<FlyString> format)
     {

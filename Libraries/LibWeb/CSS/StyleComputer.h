@@ -315,7 +315,7 @@ private:
 
 class FontLoader : public Weakable<FontLoader> {
 public:
-    FontLoader(StyleComputer& style_computer, FlyString family_name, Vector<Gfx::UnicodeRange> unicode_ranges, Vector<::URL::URL> urls, ESCAPING Function<void(RefPtr<Gfx::Typeface const>)> on_load = {});
+    FontLoader(StyleComputer& style_computer, GC::Ptr<CSSStyleSheet> parent_style_sheet, FlyString family_name, Vector<Gfx::UnicodeRange> unicode_ranges, Vector<URL> urls, ESCAPING Function<void(RefPtr<Gfx::Typeface const>)> on_load = {});
 
     virtual ~FontLoader();
 
@@ -333,10 +333,11 @@ private:
     void font_did_load_or_fail(RefPtr<Gfx::Typeface const>);
 
     StyleComputer& m_style_computer;
+    GC::Ptr<CSSStyleSheet> m_parent_style_sheet;
     FlyString m_family_name;
     Vector<Gfx::UnicodeRange> m_unicode_ranges;
     RefPtr<Gfx::Typeface const> m_vector_font;
-    Vector<::URL::URL> m_urls;
+    Vector<URL> m_urls;
     GC::Root<Fetch::Infrastructure::FetchController> m_fetch_controller;
     Function<void(RefPtr<Gfx::Typeface const>)> m_on_load;
 };

@@ -187,8 +187,9 @@ StyleComputer::StyleComputer(DOM::Document& document)
 
 StyleComputer::~StyleComputer() = default;
 
-FontLoader::FontLoader(StyleComputer& style_computer, FlyString family_name, Vector<Gfx::UnicodeRange> unicode_ranges, Vector<::URL::URL> urls, Function<void(RefPtr<Gfx::Typeface const>)> on_load)
+FontLoader::FontLoader(StyleComputer& style_computer, GC::Ptr<CSSStyleSheet> parent_style_sheet, FlyString family_name, Vector<Gfx::UnicodeRange> unicode_ranges, Vector<URL> urls, Function<void(RefPtr<Gfx::Typeface const>)> on_load)
     : m_style_computer(style_computer)
+    , m_parent_style_sheet(parent_style_sheet)
     , m_family_name(move(family_name))
     , m_unicode_ranges(move(unicode_ranges))
     , m_urls(move(urls))
@@ -225,8 +226,8 @@ void FontLoader::start_loading_next_url()
     // To fetch a font given a selected <url> url for @font-face rule, fetch url, with stylesheet being rule’s parent
     // CSS style sheet, destination "font", CORS mode "cors", and processResponse being the following steps given
     // response res and null, failure or a byte stream stream:
-    // FIXME: Get the rule's parent style sheet from somewhere
-    auto maybe_fetch_controller = fetch_a_style_resource(m_urls.take_first(), GC::Ref { m_style_computer.document() }, Fetch::Infrastructure::Request::Destination::Font, CorsMode::Cors,
+    auto style_sheet_or_document = m_parent_style_sheet ? StyleSheetOrDocument { *m_parent_style_sheet } : StyleSheetOrDocument { m_style_computer.document() };
+    auto maybe_fetch_controller = fetch_a_style_resource(m_urls.take_first(), style_sheet_or_document, Fetch::Infrastructure::Request::Destination::Font, CorsMode::Cors,
         [weak_loader = make_weak_ptr()](auto response, auto stream) {
             // NB: If the FontLoader died before this fetch completed, nobody wants the data.
             if (weak_loader.is_null())
@@ -3049,11 +3050,10 @@ Optional<FontLoader&> StyleComputer::load_font_face(ParsedFontFace const& font_f
     };
 
     // FIXME: Pass the sources directly, so the font loader can make use of the format information, or load local fonts.
-    Vector<::URL::URL> urls;
+    Vector<URL> urls;
     for (auto const& source : font_face.sources()) {
-        // FIXME: These should be loaded relative to the stylesheet URL instead of the document URL.
-        if (source.local_or_url.has<::URL::URL>())
-            urls.append(*m_document->encoding_parse_url(source.local_or_url.get<::URL::URL>().to_string()));
+        if (source.local_or_url.has<URL>())
+            urls.append(source.local_or_url.get<URL>());
         // FIXME: Handle local()
     }
 
@@ -3063,7 +3063,7 @@ Optional<FontLoader&> StyleComputer::load_font_face(ParsedFontFace const& font_f
         return {};
     }
 
-    auto loader = make<FontLoader>(*this, font_face.font_family(), font_face.unicode_ranges(), move(urls), move(on_load));
+    auto loader = make<FontLoader>(*this, font_face.parent_style_sheet(), font_face.font_family(), font_face.unicode_ranges(), move(urls), move(on_load));
     auto& loader_ref = *loader;
     auto maybe_font_loaders_list = m_loaded_fonts.get(key);
     if (maybe_font_loaders_list.has_value()) {
