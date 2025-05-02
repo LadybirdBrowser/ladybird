@@ -520,6 +520,8 @@ set(SOURCES
     HTML/SessionHistoryTraversalQueue.cpp
     HTML/ShadowRealmGlobalScope.cpp
     HTML/SharedResourceRequest.cpp
+    HTML/SharedWorker.cpp
+    HTML/SharedWorkerGlobalScope.cpp
     HTML/SourceSet.cpp
     HTML/SourceSnapshotParams.cpp
     HTML/Storage.cpp
