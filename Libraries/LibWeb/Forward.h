@@ -562,6 +562,8 @@ class RadioNodeList;
 class SelectedFile;
 class SessionHistoryEntry;
 class SharedResourceRequest;
+class SharedWorker;
+class SharedWorkerGlobalScope;
 class Storage;
 class SubmitEvent;
 class TextMetrics;
