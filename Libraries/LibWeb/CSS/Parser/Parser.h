@@ -71,13 +71,10 @@ enum class ParsingMode {
 struct ParsingParams {
     explicit ParsingParams(ParsingMode = ParsingMode::Normal);
     explicit ParsingParams(JS::Realm&, ParsingMode = ParsingMode::Normal);
-    explicit ParsingParams(JS::Realm&, ::URL::URL, ParsingMode = ParsingMode::Normal);
-    explicit ParsingParams(DOM::Document const&, ::URL::URL, ParsingMode = ParsingMode::Normal);
     explicit ParsingParams(DOM::Document const&, ParsingMode = ParsingMode::Normal);
 
     GC::Ptr<JS::Realm> realm;
     GC::Ptr<DOM::Document const> document;
-    ::URL::URL url;
     ParsingMode mode { ParsingMode::Normal };
 
     Vector<RuleContext> rule_context;
@@ -480,11 +477,9 @@ private:
     JS::Realm& realm() const;
     bool in_quirks_mode() const;
     bool is_parsing_svg_presentation_attribute() const;
-    Optional<::URL::URL> complete_url(StringView) const;
 
     GC::Ptr<DOM::Document const> m_document;
     GC::Ptr<JS::Realm> m_realm;
-    Optional<::URL::URL> m_url;
     ParsingMode m_parsing_mode { ParsingMode::Normal };
 
     Vector<Token> m_tokens;

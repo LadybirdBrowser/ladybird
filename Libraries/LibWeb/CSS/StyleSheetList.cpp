@@ -68,7 +68,7 @@ GC::Ref<CSSStyleSheet> StyleSheetList::create_a_css_style_sheet(String const& cs
     // AD-HOC: The spec never tells us when to parse this style sheet, but the most logical place is here.
     // AD-HOC: Are we supposed to use the document's URL for the stylesheet's location during parsing? Not doing it breaks things.
     auto location_url = location.value_or(document().url());
-    auto sheet = parse_css_stylesheet(Parser::ParsingParams { document(), location_url }, css_text, location_url);
+    auto sheet = parse_css_stylesheet(Parser::ParsingParams { document() }, css_text, location_url);
 
     sheet->set_parent_css_style_sheet(parent_style_sheet);
     sheet->set_owner_css_rule(owner_rule);
