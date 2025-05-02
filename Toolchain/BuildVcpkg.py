@@ -28,7 +28,9 @@ def main() -> int:
             cwd=vcpkg_checkout
         )
         subprocess.check_call(
-            args=["git", "fetch", "--depth", "1", "origin", git_rev],
+            args=["git", "fetch",
+                  "--shallow-since", "2023-10-13",
+                  "origin", git_rev],
             cwd=vcpkg_checkout
         )
         subprocess.check_call(
@@ -50,7 +52,9 @@ def main() -> int:
 
         # get the new baseline commit
         subprocess.check_call(
-            args=["git", "fetch", "--depth", "1", "origin", git_rev], cwd=vcpkg_checkout
+            args=["git", "fetch",
+                  "--shallow-since", "2023-10-13",
+                  "origin", git_rev], cwd=vcpkg_checkout
         )
         subprocess.check_call(
             args=["git", "checkout", git_rev], cwd=vcpkg_checkout)
