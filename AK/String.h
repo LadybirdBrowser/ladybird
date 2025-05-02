@@ -185,7 +185,10 @@ public:
 
     [[nodiscard]] u32 ascii_case_insensitive_hash() const;
 
-    template<Arithmetic T>
+    template<Integral T>
+    [[nodiscard]] static String number(T);
+
+    template<FloatingPoint T>
     [[nodiscard]] static String number(T value)
     {
         return MUST(formatted("{}", value));
