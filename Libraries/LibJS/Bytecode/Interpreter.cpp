@@ -1739,7 +1739,9 @@ inline ThrowCompletionOr<Value> get_object_property_iterator(VM& vm, Value value
     // Collect all keys immediately (invariant no. 5)
     for (auto object_to_check = GC::Ptr { object.ptr() }; object_to_check && !seen_objects.contains(*object_to_check); object_to_check = TRY(object_to_check->internal_get_prototype_of())) {
         seen_objects.set(*object_to_check);
-        for (auto& key : TRY(object_to_check->internal_own_property_keys())) {
+        auto keys = TRY(object_to_check->internal_own_property_keys());
+        properties.ensure_capacity(properties.size() + keys.size());
+        for (auto& key : keys) {
             if (key.is_symbol())
                 continue;
 
