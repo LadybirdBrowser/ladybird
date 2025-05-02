@@ -531,4 +531,57 @@ String String::roman_number_from(size_t value, Case target_case)
     return builder.to_string_without_validation();
 }
 
+template<Integral T>
+String String::number(T value)
+{
+    // Maximum number of base-10 digits for T + sign
+    constexpr size_t max_digits = sizeof(T) * 3 + 2;
+    char buffer[max_digits];
+    char* ptr = buffer + max_digits;
+    bool is_negative = false;
+
+    using UnsignedT = MakeUnsigned<T>;
+
+    UnsignedT unsigned_value;
+    if constexpr (IsSigned<T>) {
+        if (value < 0) {
+            is_negative = true;
+            // Handle signed min correctly
+            unsigned_value = static_cast<UnsignedT>(0) - static_cast<UnsignedT>(value);
+        } else {
+            unsigned_value = static_cast<UnsignedT>(value);
+        }
+    } else {
+        unsigned_value = value;
+    }
+
+    if (unsigned_value == 0) {
+        *--ptr = '0';
+    } else {
+        while (unsigned_value != 0) {
+            *--ptr = '0' + (unsigned_value % 10);
+            unsigned_value /= 10;
+        }
+    }
+
+    if (is_negative) {
+        *--ptr = '-';
+    }
+
+    size_t size = buffer + max_digits - ptr;
+    return from_utf8_without_validation(ReadonlyBytes { ptr, size });
+}
+
+template String String::number(char);
+template String String::number(signed char);
+template String String::number(unsigned char);
+template String String::number(signed short);
+template String String::number(unsigned short);
+template String String::number(int);
+template String String::number(unsigned int);
+template String String::number(long);
+template String String::number(unsigned long);
+template String String::number(long long);
+template String String::number(unsigned long long);
+
 }
