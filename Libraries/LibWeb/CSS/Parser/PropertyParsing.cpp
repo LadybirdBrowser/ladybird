@@ -700,6 +700,10 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue const>> Parser::parse_css_value
         if (auto parsed_value = parse_scale_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
+    case PropertyID::Contain:
+        if (auto parsed_value = parse_contain_value(tokens); parsed_value && !tokens.has_next_token())
+            return parsed_value.release_nonnull();
+        return ParseError::SyntaxError;
     default:
         break;
     }
@@ -4607,6 +4611,77 @@ RefPtr<CSSStyleValue const> Parser::parse_filter_value_list_value(TokenStream<Co
 
     transaction.commit();
     return FilterValueListStyleValue::create(move(filter_value_list));
+}
+
+RefPtr<CSSStyleValue const> Parser::parse_contain_value(TokenStream<ComponentValue>& tokens)
+{
+    // none | strict | content | [ [size | inline-size] || layout || style || paint ]
+    auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
+
+    // none
+    if (auto none = parse_all_as_single_keyword_value(tokens, Keyword::None)) {
+        transaction.commit();
+        return none;
+    }
+
+    // strict
+    if (auto strict = parse_all_as_single_keyword_value(tokens, Keyword::Strict)) {
+        transaction.commit();
+        return strict;
+    }
+
+    // content
+    if (auto content = parse_all_as_single_keyword_value(tokens, Keyword::Content)) {
+        transaction.commit();
+        return content;
+    }
+
+    // [ [size | inline-size] || layout || style || paint ]
+    if (!tokens.has_next_token())
+        return {};
+
+    bool has_size = false;
+    bool has_layout = false;
+    bool has_style = false;
+    bool has_paint = false;
+
+    StyleValueVector containments;
+    while (tokens.has_next_token()) {
+        tokens.discard_whitespace();
+        auto keyword = parse_keyword_value(tokens);
+        if (!keyword)
+            return {};
+        switch (keyword->to_keyword()) {
+        case Keyword::Size:
+        case Keyword::InlineSize:
+            if (has_size)
+                return {};
+            has_size = true;
+            break;
+        case Keyword::Layout:
+            if (has_layout)
+                return {};
+            has_layout = true;
+            break;
+        case Keyword::Style:
+            if (has_style)
+                return {};
+            has_style = true;
+            break;
+        case Keyword::Paint:
+            if (has_paint)
+                return {};
+            has_paint = true;
+            break;
+        default:
+            return {};
+        }
+        containments.append(*keyword);
+    }
+    transaction.commit();
+
+    return StyleValueList::create(move(containments), StyleValueList::Separator::Space);
 }
 
 }
