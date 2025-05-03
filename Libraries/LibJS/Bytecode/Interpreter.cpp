@@ -1728,20 +1728,20 @@ public:
     ThrowCompletionOr<void> next(VM&, bool& done, Value& value) override
     {
         while (true) {
-            if (m_properties.is_empty()) {
+            if (m_iterator == m_properties.end()) {
                 done = true;
                 return {};
             }
 
-            auto it = *m_properties.begin();
-            ScopeGuard remove_first = [&] { m_properties.take_first(); };
+            auto const& entry = *m_iterator;
+            ScopeGuard remove_first = [&] { ++m_iterator; };
 
             // If the property is deleted, don't include it (invariant no. 2)
-            if (!TRY(m_object->has_property(it.key.key)))
+            if (!TRY(m_object->has_property(entry.key.key)))
                 continue;
 
             done = false;
-            value = it.value;
+            value = entry.value;
             return {};
         }
     }
@@ -1751,6 +1751,7 @@ private:
         : Object(realm, nullptr)
         , m_object(object)
         , m_properties(move(properties))
+        , m_iterator(m_properties.begin())
     {
     }
 
@@ -1763,6 +1764,7 @@ private:
 
     GC::Ref<Object> m_object;
     OrderedHashMap<PropertyKeyAndEnumerableFlag, Value> m_properties;
+    decltype(m_properties.begin()) m_iterator;
 };
 
 GC_DEFINE_ALLOCATOR(PropertyNameIterator);
