@@ -64,6 +64,7 @@ static bool is_platform_object(Type const& type)
         "FileList"sv,
         "FontFace"sv,
         "FormData"sv,
+        "Geolocation"sv,
         "HTMLCollection"sv,
         "IDBCursor"sv,
         "IDBIndex"sv,
@@ -4724,6 +4725,7 @@ using namespace Web::EntriesAPI;
 using namespace Web::EventTiming;
 using namespace Web::Fetch;
 using namespace Web::FileAPI;
+using namespace Web::Geolocation;
 using namespace Web::Geometry;
 using namespace Web::HighResolutionTime;
 using namespace Web::HTML;

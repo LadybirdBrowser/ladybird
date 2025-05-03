@@ -133,6 +133,10 @@ FormData
 FormDataEvent
 Function
 GainNode
+Geolocation
+GeolocationCoordinates
+GeolocationPosition
+GeolocationPositionError
 HTMLAllCollection
 HTMLAnchorElement
 HTMLAreaElement
