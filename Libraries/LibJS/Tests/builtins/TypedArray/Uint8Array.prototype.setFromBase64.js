@@ -79,28 +79,28 @@ describe("errors", () => {
     test("invalid padding", () => {
         expect(() => {
             new Uint8Array(10).setFromBase64("Zm9v=", { lastChunkHandling: "strict" });
-        }).toThrowWithMessage(SyntaxError, "Unexpected padding character");
+        }).toThrowWithMessage(SyntaxError, "Invalid trailing data");
 
         expect(() => {
             new Uint8Array(10).setFromBase64("Zm9vaa=", { lastChunkHandling: "strict" });
-        }).toThrowWithMessage(SyntaxError, "Incomplete number of padding characters");
+        }).toThrowWithMessage(SyntaxError, "Invalid trailing data");
 
         expect(() => {
             new Uint8Array(10).setFromBase64("Zm9vaa=a", { lastChunkHandling: "strict" });
-        }).toThrowWithMessage(SyntaxError, "Unexpected padding character");
+        }).toThrowWithMessage(SyntaxError, "Invalid base64 character");
     });
 
     test("invalid alphabet", () => {
         expect(() => {
             new Uint8Array(10).setFromBase64("-", { lastChunkHandling: "strict" });
-        }).toThrowWithMessage(SyntaxError, "Invalid character '-'");
+        }).toThrowWithMessage(SyntaxError, "Invalid base64 character");
 
         expect(() => {
             new Uint8Array(10).setFromBase64("+", {
                 alphabet: "base64url",
                 lastChunkHandling: "strict",
             });
-        }).toThrowWithMessage(SyntaxError, "Invalid character '+'");
+        }).toThrowWithMessage(SyntaxError, "Invalid base64 character");
     });
 
     test("overlong chunk", () => {
