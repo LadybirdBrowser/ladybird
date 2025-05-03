@@ -980,7 +980,7 @@ inline ThrowCompletionOr<Value> get_by_id(VM& vm, Optional<IdentifierTableIndex>
 {
     if constexpr (mode == GetByIdMode::Length) {
         if (base_value.is_string()) {
-            return Value(base_value.as_string().utf16_string().length_in_code_units());
+            return Value(base_value.as_string().length_in_utf16_code_units());
         }
     }
 
