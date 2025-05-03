@@ -711,6 +711,12 @@ bool HTMLSelectElement::check_validity()
     return check_validity_steps();
 }
 
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-reportvalidity
+bool HTMLSelectElement::report_validity()
+{
+    return report_validity_steps();
+}
+
 bool HTMLSelectElement::is_focusable() const
 {
     return enabled();

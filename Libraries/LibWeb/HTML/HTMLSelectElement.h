@@ -63,6 +63,7 @@ public:
 
     bool will_validate();
     bool check_validity();
+    bool report_validity();
 
     // ^EventTarget
     // https://html.spec.whatwg.org/multipage/interaction.html#the-tabindex-attribute:the-select-element

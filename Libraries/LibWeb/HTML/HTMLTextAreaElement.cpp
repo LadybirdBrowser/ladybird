@@ -248,8 +248,7 @@ bool HTMLTextAreaElement::check_validity()
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-reportvalidity
 bool HTMLTextAreaElement::report_validity()
 {
-    dbgln("(STUBBED) HTMLTextAreaElement::report_validity(). Called on: {}", debug_description());
-    return true;
+    return report_validity_steps();
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-textarea-maxlength
