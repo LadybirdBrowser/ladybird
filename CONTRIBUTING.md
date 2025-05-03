@@ -35,6 +35,7 @@ Pull requests are approved and merged by a group of maintainers. The current gro
 - [Jelle Raaijmakers (@GMTA)](https://github.com/gmta)
 - [Luke Wilde (@Lubrsi)](https://github.com/Lubrsi)
 - [Sam Atkins (@AtkinsSJ)](https://github.com/AtkinsSJ)
+- [Shannon Booth (@shannonbooth)](https://github.com/shannonbooth)
 - [Tim Flynn (@trflynn89)](https://github.com/trflynn89)
 - [Tim Ledbetter (@tcl3)](https://github.com/tcl3)
 
