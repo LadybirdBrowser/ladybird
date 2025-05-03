@@ -3243,8 +3243,7 @@ NonnullRefPtr<CalculationNode const> simplify_a_calculation_tree(CalculationNode
         return ProductCalculationNode::create(move(children));
     }
 
-    // AD-HOC: Math-function nodes that cannot be fully simplified will reach here.
-    //         Spec bug: https://github.com/w3c/csswg-drafts/issues/11572
+    // 10. Return root.
     return root;
 }
 
