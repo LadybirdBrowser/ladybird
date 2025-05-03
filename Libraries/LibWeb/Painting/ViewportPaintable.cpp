@@ -136,6 +136,12 @@ void ViewportPaintable::assign_clip_frames()
     });
 
     for_each_in_subtree([&](auto const& paintable) {
+        if (paintable.is_paintable_box()) {
+            auto const& paintable_box = static_cast<PaintableBox const&>(paintable);
+            if (auto clip_frame = clip_state.get(paintable_box); clip_frame.has_value()) {
+                const_cast<PaintableBox&>(paintable_box).set_own_clip_frame(clip_frame.value());
+            }
+        }
         for (auto block = paintable.containing_block(); !block->is_viewport(); block = block->containing_block()) {
             if (auto clip_frame = clip_state.get(block); clip_frame.has_value()) {
                 if (paintable.is_paintable_box()) {
