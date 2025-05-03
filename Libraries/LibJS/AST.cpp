@@ -1158,6 +1158,8 @@ void VariableDeclaration::dump(int indent) const
 {
     char const* declaration_kind_string = nullptr;
     switch (m_declaration_kind) {
+    case DeclarationKind::None:
+        VERIFY_NOT_REACHED();
     case DeclarationKind::Let:
         declaration_kind_string = "Let";
         break;

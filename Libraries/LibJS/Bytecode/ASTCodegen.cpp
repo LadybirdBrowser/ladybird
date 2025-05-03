@@ -482,7 +482,11 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> Identifier::generate_by
     if (is_global()) {
         generator.emit<Bytecode::Op::GetGlobal>(dst, generator.intern_identifier(m_string), generator.next_global_variable_cache());
     } else {
-        generator.emit<Bytecode::Op::GetBinding>(dst, generator.intern_identifier(m_string));
+        if (declaration_kind() == DeclarationKind::Var) {
+            generator.emit<Bytecode::Op::GetInitializedBinding>(dst, generator.intern_identifier(m_string));
+        } else {
+            generator.emit<Bytecode::Op::GetBinding>(dst, generator.intern_identifier(m_string));
+        }
     }
     return dst;
 }

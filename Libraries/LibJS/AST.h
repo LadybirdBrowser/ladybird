@@ -159,6 +159,13 @@ private:
     u32 m_tail_size { 0 };
 };
 
+enum class DeclarationKind {
+    None,
+    Var,
+    Let,
+    Const,
+};
+
 class Statement : public ASTNode {
 public:
     explicit Statement(SourceRange source_range)
@@ -702,6 +709,9 @@ public:
     bool is_global() const { return m_is_global; }
     void set_is_global() { m_is_global = true; }
 
+    [[nodiscard]] DeclarationKind declaration_kind() const { return m_declaration_kind; }
+    void set_declaration_kind(DeclarationKind kind) { m_declaration_kind = kind; }
+
     virtual void dump(int indent) const override;
     virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_bytecode(Bytecode::Generator&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const override;
 
@@ -712,6 +722,7 @@ private:
 
     Optional<Local> m_local_index;
     bool m_is_global { false };
+    DeclarationKind m_declaration_kind { DeclarationKind::None };
 };
 
 struct FunctionParameter {
@@ -1762,12 +1773,6 @@ private:
     UpdateOp m_op;
     NonnullRefPtr<Expression const> m_argument;
     bool m_prefixed;
-};
-
-enum class DeclarationKind {
-    Var,
-    Let,
-    Const,
 };
 
 class VariableDeclarator final : public ASTNode {
