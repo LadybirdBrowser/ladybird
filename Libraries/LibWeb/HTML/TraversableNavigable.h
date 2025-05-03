@@ -47,6 +47,9 @@ public:
     VisibilityState system_visibility_state() const { return m_system_visibility_state; }
     void set_system_visibility_state(VisibilityState);
 
+    bool is_created_by_web_content() const { return m_is_created_by_web_content; }
+    void set_is_created_by_web_content(bool value) { m_is_created_by_web_content = value; }
+
     struct HistoryObjectLengthAndIndex {
         u64 script_history_length;
         u64 script_history_index;
@@ -155,6 +158,9 @@ private:
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#system-visibility-state
     VisibilityState m_system_visibility_state { VisibilityState::Hidden };
+
+    // https://html.spec.whatwg.org/multipage/document-sequences.html#is-created-by-web-content
+    bool m_is_created_by_web_content { false };
 
     // https://storage.spec.whatwg.org/#traversable-navigable-storage-shed
     // A traversable navigable holds a storage shed, which is a storage shed. A traversable navigable’s storage shed holds all session storage data.
