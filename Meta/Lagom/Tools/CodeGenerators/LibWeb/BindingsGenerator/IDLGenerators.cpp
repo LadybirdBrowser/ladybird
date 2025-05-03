@@ -1787,7 +1787,7 @@ enum class WrappingReference {
     Yes,
 };
 
-static void generate_wrap_statement(SourceGenerator& generator, ByteString const& value, IDL::Type const& type, IDL::Interface const& interface, StringView result_expression, WrappingReference wrapping_reference = WrappingReference::No, size_t recursion_depth = 0, bool is_optional = false)
+static void generate_wrap_statement(SourceGenerator& generator, ByteString const& value, IDL::Type const& type, IDL::Interface const& interface, StringView result_expression, Optional<StringView> trailing_template = {}, WrappingReference wrapping_reference = WrappingReference::No, size_t recursion_depth = 0, bool is_optional = false)
 {
     auto scoped_generator = generator.fork();
     scoped_generator.set("value", value);
@@ -1811,6 +1811,8 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
         scoped_generator.append(R"~~~(
     @result_expression@ JS::js_undefined();
 )~~~");
+        if (trailing_template.has_value())
+            scoped_generator.append(*trailing_template);
         return;
     }
 
@@ -1878,7 +1880,7 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
 )~~~");
         } else {
             scoped_generator.append("JS::Value wrapped_element@recursion_depth@;\n"sv);
-            generate_wrap_statement(scoped_generator, ByteString::formatted("element{}", recursion_depth), sequence_generic_type.parameters().first(), interface, ByteString::formatted("wrapped_element{} =", recursion_depth), WrappingReference::Yes, recursion_depth + 1);
+            generate_wrap_statement(scoped_generator, ByteString::formatted("element{}", recursion_depth), sequence_generic_type.parameters().first(), interface, ByteString::formatted("wrapped_element{} =", recursion_depth), {}, WrappingReference::Yes, recursion_depth + 1);
         }
 
         scoped_generator.append(R"~~~(
@@ -1916,7 +1918,7 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
 
             // 2. Let jsValue be value converted to a JavaScript value.
 )~~~");
-        generate_wrap_statement(scoped_generator, "value"sv, parameterized_type.parameters()[1], interface, "auto js_value ="sv, WrappingReference::Yes, recursion_depth + 1);
+        generate_wrap_statement(scoped_generator, "value"sv, parameterized_type.parameters()[1], interface, "auto js_value ="sv, {}, WrappingReference::Yes, recursion_depth + 1);
         scoped_generator.append(R"~~~(
 
             // 3. Let created be ! CreateDataProperty(result, jsKey, jsValue).
@@ -1974,7 +1976,7 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
 )~~~");
 
             // NOTE: While we are using const&, the underlying type for wrappable types in unions is (Nonnull)RefPtr, which are not references.
-            generate_wrap_statement(union_generator, ByteString::formatted("visited_union_value{}", recursion_depth), current_union_type, interface, "return"sv, WrappingReference::No, recursion_depth + 1);
+            generate_wrap_statement(union_generator, ByteString::formatted("visited_union_value{}", recursion_depth), current_union_type, interface, "return"sv, {}, WrappingReference::No, recursion_depth + 1);
 
             // End of current visit lambda.
             // The last lambda cannot have a trailing comma on the closing brace, unless the type is nullable, where an extra lambda will be generated for the Empty case.
@@ -2065,7 +2067,7 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
         JS::Value @wrapped_value_name@;
 )~~~");
                 }
-                generate_wrap_statement(dictionary_generator, ByteString::formatted("{}{}{}", value, type.is_nullable() ? "->" : ".", member.name.to_snakecase()), member.type, interface, ByteString::formatted("{} =", wrapped_value_name), WrappingReference::No, recursion_depth + 1, is_optional);
+                generate_wrap_statement(dictionary_generator, ByteString::formatted("{}{}{}", value, type.is_nullable() ? "->" : ".", member.name.to_snakecase()), member.type, interface, ByteString::formatted("{} =", wrapped_value_name), {}, WrappingReference::No, recursion_depth + 1, is_optional);
 
                 if (is_optional) {
                     dictionary_generator.append(R"~~~(
@@ -2105,10 +2107,17 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
         }
     }
 
+    if (trailing_template.has_value())
+        scoped_generator.append(*trailing_template);
+
     if (type.is_nullable() && !is<UnionType>(type)) {
         scoped_generator.append(R"~~~(
     } else {
         @result_expression@ JS::js_null();
+)~~~");
+        if (trailing_template.has_value())
+            scoped_generator.append(*trailing_template);
+        scoped_generator.append(R"~~~(
     }
 )~~~");
     } else if (is_optional) {
@@ -3159,22 +3168,18 @@ static void collect_attribute_values_of_an_inheritance_stack(SourceGenerator& fu
 )~~~");
             }
 
-            generate_wrap_statement(attribute_generator, return_value_name, attribute.type, interface_in_chain, ByteString::formatted("auto {}_wrapped =", return_value_name));
-
-            attribute_generator.append(R"~~~(
+            generate_wrap_statement(attribute_generator, return_value_name, attribute.type, interface_in_chain, ByteString::formatted("auto {}_wrapped =", return_value_name), R"~~~(
     MUST(result->create_data_property("@attribute.name@"_fly_string, @attribute.return_value_name@_wrapped));
-)~~~");
+)~~~"sv);
         }
 
         for (auto& constant : interface_in_chain.constants) {
             auto constant_generator = function_generator.fork();
             constant_generator.set("constant.name", constant.name);
 
-            generate_wrap_statement(constant_generator, constant.value, constant.type, interface_in_chain, ByteString::formatted("auto constant_{}_value =", constant.name));
-
-            constant_generator.append(R"~~~(
+            generate_wrap_statement(constant_generator, constant.value, constant.type, interface_in_chain, ByteString::formatted("auto constant_{}_value =", constant.name), R"~~~(
     MUST(result->create_data_property("@constant.name@"_fly_string, constant_@constant.name@_value));
-)~~~");
+)~~~"sv);
         }
     }
 }
