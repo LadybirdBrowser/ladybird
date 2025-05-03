@@ -1,4 +1,4 @@
-<!DOCTYPE quirks><!-- FIXME: should probably not run in quirks mode, but just swapping the doctype breaks the test -->
+<!DOCTYPE html>
 <link rel="match" href="../expected/color-scheme-ref.html" />
 <style>
     body>div>div {
@@ -29,7 +29,7 @@
         <div style="background: VisitedText; width: 10em; color: transparent">a</div>
         <div><button style="width: 10rem">Button</button></div>
         <div><button style="width: 10rem" disabled>Disabled</button></div>
-        <div><input style="width: 10rem" value="Input"></input></div>
+        <div><input style="width: calc(10rem - 2px)" value="Input"></input></div>
         <div><input type="checkbox"></input><input type="checkbox" checked></input></div>
         <div><input type="checkbox" switch></input><input type="checkbox" switch checked></input></div>
         <div><input type="radio" name="lightradio"></input><input type="radio" name="lightradio" checked></input></div>
@@ -59,7 +59,7 @@
         <div style="background: VisitedText; width: 10em; color: transparent">a</div>
         <div><button style="width: 10rem">Button</button></div>
         <div><button style="width: 10rem" disabled>Disabled</button></div>
-        <div><input style="width: 10rem" value="Input"></input></div>
+        <div><input style="width: calc(10rem - 2px)" value="Input"></input></div>
         <div><input type="checkbox"></input><input type="checkbox" checked></input></div>
         <div><input type="checkbox" switch></input><input type="checkbox" switch checked></input></div>
         <div><input type="radio" name="darkradio"></input><input type="radio" name="darkradio" checked></input></div>
