@@ -1714,8 +1714,65 @@ inline ThrowCompletionOr<Value> delete_by_value_with_this(Bytecode::Interpreter&
     return Value(TRY(reference.delete_(vm)));
 }
 
+class PropertyNameIterator final
+    : public Object
+    , public BuiltinIterator {
+    JS_OBJECT(PropertyNameIterator, Object);
+    GC_DECLARE_ALLOCATOR(PropertyNameIterator);
+
+public:
+    virtual ~PropertyNameIterator() override = default;
+
+    BuiltinIterator* as_builtin_iterator() override { return this; }
+    ThrowCompletionOr<void> next(VM& vm, bool& done, Value& value) override
+    {
+        while (true) {
+            if (m_properties.is_empty()) {
+                done = true;
+                return {};
+            }
+
+            auto key = move(m_properties.take_first().key);
+
+            // If the property is deleted, don't include it (invariant no. 2)
+            if (!TRY(m_object->has_property(key)))
+                continue;
+
+            done = false;
+
+            if (key.is_number())
+                value = PrimitiveString::create(vm, String::number(key.as_number()));
+            else if (key.is_string())
+                value = PrimitiveString::create(vm, key.as_string());
+            else
+                VERIFY_NOT_REACHED(); // We should not have non-string/number keys.
+
+            return {};
+        }
+    }
+
+private:
+    PropertyNameIterator(JS::Realm& realm, GC::Ref<Object> object, OrderedHashTable<PropertyKeyAndEnumerableFlag> properties)
+        : Object(realm, nullptr)
+        , m_object(object)
+        , m_properties(move(properties))
+    {
+    }
+
+    virtual void visit_edges(Visitor& visitor) override
+    {
+        Base::visit_edges(visitor);
+        visitor.visit(m_object);
+    }
+
+    GC::Ref<Object> m_object;
+    OrderedHashTable<PropertyKeyAndEnumerableFlag> m_properties;
+};
+
+GC_DEFINE_ALLOCATOR(PropertyNameIterator);
+
 // 14.7.5.9 EnumerateObjectProperties ( O ), https://tc39.es/ecma262/#sec-enumerate-object-properties
-inline ThrowCompletionOr<Value> get_object_property_iterator(VM& vm, Value value)
+inline ThrowCompletionOr<Value> get_object_property_iterator(Interpreter& interpreter, Value value)
 {
     // While the spec does provide an algorithm, it allows us to implement it ourselves so long as we meet the following invariants:
     //    1- Returned property keys do not include keys that are Symbols
@@ -1728,6 +1785,8 @@ inline ThrowCompletionOr<Value> get_object_property_iterator(VM& vm, Value value
     //    7- The enumerable property names of prototype objects must be obtained by invoking EnumerateObjectProperties passing the prototype object as the argument.
     //    8- EnumerateObjectProperties must obtain the own property keys of the target object by calling its [[OwnPropertyKeys]] internal method.
     //    9- Property attributes of the target object must be obtained by calling its [[GetOwnProperty]] internal method
+
+    auto& vm = interpreter.vm();
 
     // Invariant 3 effectively allows the implementation to ignore newly added keys, and we do so (similar to other implementations).
     auto object = TRY(value.to_object(vm));
@@ -1768,41 +1827,9 @@ inline ThrowCompletionOr<Value> get_object_property_iterator(VM& vm, Value value
 
     properties.remove_all_matching([&](auto& entry) { return !entry.enumerable; });
 
-    auto& realm = *vm.current_realm();
+    auto iterator = interpreter.realm().create<PropertyNameIterator>(interpreter.realm(), object, move(properties));
 
-    auto result_object = Object::create_with_premade_shape(realm.intrinsics().iterator_result_object_shape());
-    auto value_offset = realm.intrinsics().iterator_result_object_value_offset();
-    auto done_offset = realm.intrinsics().iterator_result_object_done_offset();
-
-    auto callback = NativeFunction::create(
-        *vm.current_realm(), [items = move(properties), result_object, value_offset, done_offset](VM& vm) mutable -> ThrowCompletionOr<Value> {
-            auto& iterated_object = vm.this_value().as_object();
-            while (true) {
-                if (items.is_empty()) {
-                    result_object->put_direct(done_offset, JS::Value(true));
-                    return result_object;
-                }
-
-                auto key = move(items.take_first().key);
-
-                // If the property is deleted, don't include it (invariant no. 2)
-                if (!TRY(iterated_object.has_property(key)))
-                    continue;
-
-                result_object->put_direct(done_offset, JS::Value(false));
-
-                if (key.is_number())
-                    result_object->put_direct(value_offset, PrimitiveString::create(vm, String::number(key.as_number())));
-                else if (key.is_string())
-                    result_object->put_direct(value_offset, PrimitiveString::create(vm, key.as_string()));
-                else
-                    VERIFY_NOT_REACHED(); // We should not have non-string/number keys.
-
-                return result_object;
-            }
-        },
-        1, vm.names.next);
-    return vm.heap().allocate<IteratorRecord>(object, callback, false);
+    return vm.heap().allocate<IteratorRecord>(iterator, js_undefined(), false);
 }
 
 ByteString Instruction::to_byte_string(Bytecode::Executable const& executable) const
@@ -2951,7 +2978,7 @@ ThrowCompletionOr<void> GetMethod::execute_impl(Bytecode::Interpreter& interpret
 
 ThrowCompletionOr<void> GetObjectPropertyIterator::execute_impl(Bytecode::Interpreter& interpreter) const
 {
-    auto iterator_record = TRY(get_object_property_iterator(interpreter.vm(), interpreter.get(object())));
+    auto iterator_record = TRY(get_object_property_iterator(interpreter, interpreter.get(object())));
     interpreter.set(dst(), iterator_record);
     return {};
 }
