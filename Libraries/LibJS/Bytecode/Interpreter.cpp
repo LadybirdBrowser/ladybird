@@ -8,6 +8,7 @@
 #include <AK/Debug.h>
 #include <AK/HashTable.h>
 #include <AK/TemporaryChange.h>
+#include <LibGC/RootHashMap.h>
 #include <LibJS/AST.h>
 #include <LibJS/Bytecode/BasicBlock.h>
 #include <LibJS/Bytecode/Generator.h>
@@ -1724,7 +1725,7 @@ public:
     virtual ~PropertyNameIterator() override = default;
 
     BuiltinIterator* as_builtin_iterator() override { return this; }
-    ThrowCompletionOr<void> next(VM& vm, bool& done, Value& value) override
+    ThrowCompletionOr<void> next(VM&, bool& done, Value& value) override
     {
         while (true) {
             if (m_properties.is_empty()) {
@@ -1732,27 +1733,21 @@ public:
                 return {};
             }
 
-            auto key = move(m_properties.take_first().key);
+            auto it = *m_properties.begin();
+            ScopeGuard remove_first = [&] { m_properties.take_first(); };
 
             // If the property is deleted, don't include it (invariant no. 2)
-            if (!TRY(m_object->has_property(key)))
+            if (!TRY(m_object->has_property(it.key.key)))
                 continue;
 
             done = false;
-
-            if (key.is_number())
-                value = PrimitiveString::create(vm, String::number(key.as_number()));
-            else if (key.is_string())
-                value = PrimitiveString::create(vm, key.as_string());
-            else
-                VERIFY_NOT_REACHED(); // We should not have non-string/number keys.
-
+            value = it.value;
             return {};
         }
     }
 
 private:
-    PropertyNameIterator(JS::Realm& realm, GC::Ref<Object> object, OrderedHashTable<PropertyKeyAndEnumerableFlag> properties)
+    PropertyNameIterator(JS::Realm& realm, GC::Ref<Object> object, OrderedHashMap<PropertyKeyAndEnumerableFlag, Value> properties)
         : Object(realm, nullptr)
         , m_object(object)
         , m_properties(move(properties))
@@ -1763,10 +1758,11 @@ private:
     {
         Base::visit_edges(visitor);
         visitor.visit(m_object);
+        visitor.visit(m_properties);
     }
 
     GC::Ref<Object> m_object;
-    OrderedHashTable<PropertyKeyAndEnumerableFlag> m_properties;
+    OrderedHashMap<PropertyKeyAndEnumerableFlag, Value> m_properties;
 };
 
 GC_DEFINE_ALLOCATOR(PropertyNameIterator);
@@ -1793,7 +1789,7 @@ inline ThrowCompletionOr<Value> get_object_property_iterator(Interpreter& interp
     // Note: While the spec doesn't explicitly require these to be ordered, it says that the values should be retrieved via OwnPropertyKeys,
     //       so we just keep the order consistent anyway.
 
-    OrderedHashTable<PropertyKeyAndEnumerableFlag> properties;
+    GC::OrderedRootHashMap<PropertyKeyAndEnumerableFlag, Value> properties(vm.heap());
     HashTable<GC::Ref<Object>> seen_objects;
     // Collect all keys immediately (invariant no. 5)
     for (auto object_to_check = GC::Ptr { object.ptr() }; object_to_check && !seen_objects.contains(*object_to_check); object_to_check = TRY(object_to_check->internal_get_prototype_of())) {
@@ -1821,11 +1817,11 @@ inline ThrowCompletionOr<Value> get_object_property_iterator(Interpreter& interp
                 continue;
 
             new_entry.enumerable = *descriptor->enumerable;
-            properties.set(move(new_entry), AK::HashSetExistingEntryBehavior::Keep);
+            properties.set(move(new_entry), key, AK::HashSetExistingEntryBehavior::Keep);
         }
     }
 
-    properties.remove_all_matching([&](auto& entry) { return !entry.enumerable; });
+    properties.remove_all_matching([&](auto& key, auto&) { return !key.enumerable; });
 
     auto iterator = interpreter.realm().create<PropertyNameIterator>(interpreter.realm(), object, move(properties));
 
