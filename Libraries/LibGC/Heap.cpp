@@ -282,6 +282,9 @@ void Heap::gather_roots(HashMap<Cell*, HeapRoot>& roots)
     for (auto& vector : m_root_vectors)
         vector.gather_roots(roots);
 
+    for (auto& hash_map : m_root_hash_maps)
+        hash_map.gather_roots(roots);
+
     if constexpr (HEAP_DEBUG) {
         dbgln("gather_roots:");
         for (auto* root : roots.keys())
