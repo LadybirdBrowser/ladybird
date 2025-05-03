@@ -1,0 +1,15 @@
+:root {
+    --image-path-stylesheet: url("images/test.png");
+}
+
+#stylesheet-relative-image {
+    background-image: url(images/test.png);
+}
+
+#stylesheet-relative-variable-image {
+    background-image: var(--image-path-stylesheet);
+}
+
+#stylesheet-relative-document-variable-image {
+    background-image: var(--image-path-document);
+}

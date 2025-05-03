@@ -1,0 +1,29 @@
+Harness status: OK
+
+Found 23 tests
+
+1 Pass
+22 Fail
+Pass	Property background-image value 'url("http://wpt.live:80/css/support/1x1-green.png")'
+Fail	Property background-image value 'url("http://wpt.live:80/css/support/1x1-green.png" crossorigin(anonymous))'
+Fail	Property background-image value 'url("http://wpt.live:80/css/support/1x1-green.png" crossorigin(use-credentials))'
+Fail	Property background-image value 'url("http://wpt.live:80/css/support/1x1-green.png" integrity("sha384-foobar"))'
+Fail	Property background-image value 'url("http://wpt.live:80/css/support/1x1-green.png" integrity(""))'
+Fail	Property background-image value 'url("http://wpt.live:80/css/support/1x1-green.png" referrerpolicy(no-referrer))'
+Fail	Property background-image value 'url("http://wpt.live:80/css/support/1x1-green.png" referrerpolicy(no-referrer-when-downgrade))'
+Fail	Property background-image value 'url("http://wpt.live:80/css/support/1x1-green.png" referrerpolicy(same-origin))'
+Fail	Property background-image value 'url("http://wpt.live:80/css/support/1x1-green.png" referrerpolicy(origin))'
+Fail	Property background-image value 'url("http://wpt.live:80/css/support/1x1-green.png" referrerpolicy(strict-origin))'
+Fail	Property background-image value 'url("http://wpt.live:80/css/support/1x1-green.png" referrerpolicy(origin-when-cross-origin))'
+Fail	Property background-image value 'url("http://wpt.live:80/css/support/1x1-green.png" referrerpolicy(strict-origin-when-cross-origin))'
+Fail	Property background-image value 'url("http://wpt.live:80/css/support/1x1-green.png" referrerpolicy(unsafe-url))'
+Fail	Property background-image value 'url("http://wpt.live:80/css/support/1x1-green.png" crossorigin(anonymous) integrity("sha384-foobar"))'
+Fail	Property background-image value 'url("http://wpt.live:80/css/support/1x1-green.png" integrity("sha384-foobar") crossorigin(anonymous))'
+Fail	Property background-image value 'url("http://wpt.live:80/css/support/1x1-green.png" integrity("sha384-foobar") referrerpolicy(no-referrer))'
+Fail	Property background-image value 'url("http://wpt.live:80/css/support/1x1-green.png" referrerpolicy(no-referrer) integrity("sha384-foobar"))'
+Fail	Property background-image value 'url("http://wpt.live:80/css/support/1x1-green.png" crossorigin(anonymous) referrerpolicy(no-referrer))'
+Fail	Property background-image value 'url("http://wpt.live:80/css/support/1x1-green.png" referrerpolicy(no-referrer) crossorigin(anonymous))'
+Fail	Property background-image value 'url("http://wpt.live:80/css/support/1x1-green.png" crossorigin(anonymous) integrity("sha384-foobar") referrerpolicy(no-referrer))'
+Fail	Property background-image value 'url("http://wpt.live:80/css/support/1x1-green.png" integrity("sha384-foobar") referrerpolicy(no-referrer) crossorigin(anonymous))'
+Fail	Property background-image value 'url("http://wpt.live:80/css/support/1x1-green.png" referrerpolicy(no-referrer) crossorigin(anonymous) integrity("sha384-foobar"))'
+Fail	Property background-image value 'url("http://wpt.live:80/css/support/1x1-green.png" referrerpolicy(no-referrer) integrity("sha384-foobar") crossorigin(anonymous))'

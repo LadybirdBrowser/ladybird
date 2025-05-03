@@ -1,0 +1,40 @@
+<!doctype html>
+<title>Fragment-on URLs behaviour</title>
+<link rel=help href=https://drafts.csswg.org/css-values/#local-urls>
+<script src=../../../resources/testharness.js></script>
+<script src=../../../resources/testharnessreport.js></script>
+<style>
+#inline-unquoted {
+    background-image: url(#foo);
+    cursor: url(#foo), pointer;
+}
+
+#inline-quoted {
+    background-image: url("#foo");
+    cursor: url("#foo"), pointer;
+}
+</style>
+<link rel=stylesheet href=support/fragment-only-urls.css>
+<div id="inline-unquoted"></div>
+<div id="inline-quoted"></div>
+<div id="external-unquoted"></div>
+<div id="external-quoted"></div>
+<div id="external-variable"></div>
+<script>
+const ids = [
+  "inline-unquoted",
+  "inline-quoted",
+  "external-unquoted",
+  "external-quoted",
+  "external-variable",
+];
+
+for (let id of ids) {
+    test(function() {
+        const el = document.getElementById(id);
+        const style = window.getComputedStyle(el);
+        assert_equals(style["background-image"], 'url("#foo")');
+        assert_equals(style["cursor"], 'url("#foo"), pointer');
+    }, "empty URL: " + id);
+}
+</script>

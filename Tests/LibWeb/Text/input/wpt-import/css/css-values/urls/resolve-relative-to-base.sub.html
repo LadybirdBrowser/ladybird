@@ -1,0 +1,35 @@
+<!doctype html>
+<title>URLs in embedded style sheets resolve relative to the document base URI</title>
+<link rel=help href=https://drafts.csswg.org/css-values/#relative-urls>
+<script src=../../../resources/testharness.js></script>
+<script src=../../../resources/testharnessreport.js></script>
+<base href="http://www.not-wpt.live">
+<style>
+:root {
+    --image-path: url("images/test.png");
+}
+#relative-image-url {
+    background-image: url(images/test.png);
+}
+
+#relative-image-variable-url {
+    background-image: var(--image-path);
+}
+</style>
+<div id="relative-image-url"></div>
+<div id="relative-image-variable-url"></div>
+<script>
+const ids = [
+  "relative-image-url",
+  "relative-image-variable-url"
+];
+
+for (let id of ids) {
+    test(() => {
+        const el = document.getElementById(id);
+        const backgroundImageStyle = window.getComputedStyle(el)["background-image"];
+        const baseRelativeImageURL = new URL("images/test.png", document.baseURI);
+        assert_equals(backgroundImageStyle, `url("${baseRelativeImageURL.href}")`);
+    }, "base-relative URL: " + id);
+}
+</script>

@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Fail
+Fail	stylesheet-relative URL: stylesheet-relative-image
+Fail	stylesheet-relative URL: stylesheet-relative-variable-image
+Fail	stylesheet-relative URL: stylesheet-relative-document-variable-image
