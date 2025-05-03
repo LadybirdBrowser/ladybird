@@ -127,7 +127,8 @@ void ViewportPaintable::assign_clip_frames()
     for_each_in_subtree_of_type<PaintableBox>([&](auto const& paintable_box) {
         auto overflow_x = paintable_box.computed_values().overflow_x();
         auto overflow_y = paintable_box.computed_values().overflow_y();
-        auto has_hidden_overflow = overflow_x != CSS::Overflow::Visible && overflow_y != CSS::Overflow::Visible;
+        // Note: Overflow may be clip on one axis and visible on the other.
+        auto has_hidden_overflow = overflow_x != CSS::Overflow::Visible || overflow_y != CSS::Overflow::Visible;
         if (has_hidden_overflow || paintable_box.get_clip_rect().has_value()) {
             auto clip_frame = adopt_ref(*new ClipFrame());
             clip_state.set(paintable_box, move(clip_frame));
@@ -166,14 +167,40 @@ void ViewportPaintable::assign_clip_frames()
                 continue;
             }
             auto const& block_paintable_box = static_cast<PaintableBox const&>(*paintable);
-            auto block_overflow_x = block_paintable_box.computed_values().overflow_x();
-            auto block_overflow_y = block_paintable_box.computed_values().overflow_y();
-            if (block_overflow_x != CSS::Overflow::Visible && block_overflow_y != CSS::Overflow::Visible) {
-                auto rect = block_paintable_box.absolute_padding_box_rect();
-                clip_frame.add_clip_rect(rect, block_paintable_box.normalized_border_radii_data(ShrinkRadiiForBorders::Yes), block_paintable_box.enclosing_scroll_frame());
+            bool clip_x = paintable->computed_values().overflow_x() != CSS::Overflow::Visible;
+            bool clip_y = paintable->computed_values().overflow_y() != CSS::Overflow::Visible;
+
+            auto clip_rect = block_paintable_box.overflow_clip_edge_rect();
+            if (block_paintable_box.get_clip_rect().has_value()) {
+                clip_rect.intersect(block_paintable_box.get_clip_rect().value());
+                clip_x = true;
+                clip_y = true;
             }
-            if (auto css_clip_property_rect = block_paintable_box.get_clip_rect(); css_clip_property_rect.has_value()) {
-                clip_frame.add_clip_rect(css_clip_property_rect.value(), {}, block_paintable_box.enclosing_scroll_frame());
+
+            if (clip_x || clip_y) {
+                // https://drafts.csswg.org/css-overflow-3/#corner-clipping
+                // As mentioned in CSS Backgrounds 3 § 4.3 Corner Clipping, the clipping region established by overflow can be
+                // rounded:
+                if (clip_x && clip_y) {
+                    // - When overflow-x and overflow-y compute to hidden, scroll, or auto, the clipping region is rounded
+                    //   based on the border radius, adjusted to the padding edge, as described in CSS Backgrounds 3 § 4.2 Corner
+                    //   Shaping.
+                    // - When both overflow-x and overflow-y compute to clip, the clipping region is rounded as described in § 3.2
+                    //   Expanding Clipping Bounds: the overflow-clip-margin property.
+                    // FIXME: Implement overflow-clip-margin
+                    clip_frame.add_clip_rect(clip_rect, block_paintable_box.normalized_border_radii_data(ShrinkRadiiForBorders::Yes), block_paintable_box.enclosing_scroll_frame());
+                } else {
+                    // - However, when one of overflow-x or overflow-y computes to clip and the other computes to visible, the
+                    //   clipping region is not rounded.
+                    if (clip_x) {
+                        clip_rect.set_top(0);
+                        clip_rect.set_bottom(CSSPixels::max_integer_value);
+                    } else {
+                        clip_rect.set_left(0);
+                        clip_rect.set_right(CSSPixels::max_integer_value);
+                    }
+                    clip_frame.add_clip_rect(clip_rect, {}, block_paintable_box.enclosing_scroll_frame());
+                }
             }
             if (block->has_css_transform()) {
                 break;
