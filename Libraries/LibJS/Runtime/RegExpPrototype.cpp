@@ -169,7 +169,7 @@ static Value make_match_indices_index_pair_array(VM& vm, Utf16View const& string
 
 // 22.2.7.2 RegExpBuiltinExec ( R, S ), https://tc39.es/ecma262/#sec-regexpbuiltinexec
 // 22.2.7.2 RegExpBuiltInExec ( R, S ), https://github.com/tc39/proposal-regexp-legacy-features#regexpbuiltinexec--r-s-
-static ThrowCompletionOr<Value> regexp_builtin_exec(VM& vm, RegExpObject& regexp_object, Utf16String string)
+static ThrowCompletionOr<Value> regexp_builtin_exec(VM& vm, RegExpObject& regexp_object, GC::Ref<PrimitiveString> string)
 {
     auto& realm = *vm.current_realm();
 
@@ -220,11 +220,11 @@ static ThrowCompletionOr<Value> regexp_builtin_exec(VM& vm, RegExpObject& regexp
     //       ii. Set matchSucceeded to true.
 
     // 13.b and 13.c
-    regex.start_offset = full_unicode ? string.view().code_point_offset_of(last_index) : last_index;
-    result = regex.match(string.view());
+    regex.start_offset = full_unicode ? string->utf16_string_view().code_point_offset_of(last_index) : last_index;
+    result = regex.match(string->utf16_string_view());
 
     // 13.d and 13.a
-    if (!result.success || last_index > string.length_in_code_units()) {
+    if (!result.success || last_index > string->length_in_utf16_code_units()) {
         // 13.d.i, 13.a.i
         if (sticky || global)
             TRY(regexp_object.set(vm.names.lastIndex, Value(0), Object::ShouldThrowExceptions::Yes));
@@ -242,8 +242,8 @@ static ThrowCompletionOr<Value> regexp_builtin_exec(VM& vm, RegExpObject& regexp
 
     // 15. If fullUnicode is true, set e to ! GetStringIndex(S, Input, e).
     if (full_unicode) {
-        match_index = string.view().code_unit_offset_of(match.global_offset);
-        end_index = string.view().code_unit_offset_of(end_index);
+        match_index = string->utf16_string_view().code_unit_offset_of(match.global_offset);
+        end_index = string->utf16_string_view().code_unit_offset_of(end_index);
     }
 
     // 16. If global is true or sticky is true, then
@@ -355,7 +355,7 @@ static ThrowCompletionOr<Value> regexp_builtin_exec(VM& vm, RegExpObject& regexp
         // i. If the value of R’s [[LegacyFeaturesEnabled]] internal slot is true, then
         if (regexp_object.legacy_features_enabled()) {
             // a. Perform UpdateLegacyRegExpStaticProperties(%RegExp%, S, lastIndex, e, capturedValues).
-            update_legacy_regexp_static_properties(realm.intrinsics().regexp_constructor(), string, match_indices.start_index, match_indices.end_index, captured_values);
+            update_legacy_regexp_static_properties(realm.intrinsics().regexp_constructor(), string->utf16_string(), match_indices.start_index, match_indices.end_index, captured_values);
         }
         // ii. Else,
         else {
@@ -372,21 +372,21 @@ static ThrowCompletionOr<Value> regexp_builtin_exec(VM& vm, RegExpObject& regexp
     // 34. If hasIndices is true, then
     if (has_indices) {
         // a. Let indicesArray be MakeMatchIndicesIndexPairArray(S, indices, groupNames, hasGroups).
-        auto indices_array = make_match_indices_index_pair_array(vm, string.view(), indices, group_names, has_groups);
+        auto indices_array = make_match_indices_index_pair_array(vm, string->utf16_string_view(), indices, group_names, has_groups);
         // b. Perform ! CreateDataProperty(A, "indices", indicesArray).
         MUST(array->create_data_property(vm.names.indices, indices_array));
     }
 
     // 23. Perform ! CreateDataPropertyOrThrow(A, "input", S).
     // NOTE: This step is performed last to allow the string to be moved into the PrimitiveString::create() invocation.
-    MUST(array->create_data_property_or_throw(vm.names.input, PrimitiveString::create(vm, move(string))));
+    MUST(array->create_data_property_or_throw(vm.names.input, string));
 
     // 35. Return A.
     return array;
 }
 
 // 22.2.7.1 RegExpExec ( R, S ), https://tc39.es/ecma262/#sec-regexpexec
-ThrowCompletionOr<Value> regexp_exec(VM& vm, Object& regexp_object, Utf16String string)
+ThrowCompletionOr<Value> regexp_exec(VM& vm, Object& regexp_object, GC::Ref<PrimitiveString> string)
 {
     // 1. Let exec be ? Get(R, "exec").
     auto exec = TRY(regexp_object.get(vm.names.exec));
@@ -394,7 +394,7 @@ ThrowCompletionOr<Value> regexp_exec(VM& vm, Object& regexp_object, Utf16String 
     // 2. If IsCallable(exec) is true, then
     if (exec.is_function()) {
         // a. Let result be ? Call(exec, R, « S »).
-        auto result = TRY(call(vm, exec.as_function(), &regexp_object, PrimitiveString::create(vm, move(string))));
+        auto result = TRY(call(vm, exec.as_function(), &regexp_object, string));
 
         // b. If Type(result) is neither Object nor Null, throw a TypeError exception.
         if (!result.is_object() && !result.is_null())
@@ -409,7 +409,7 @@ ThrowCompletionOr<Value> regexp_exec(VM& vm, Object& regexp_object, Utf16String 
         return vm.throw_completion<TypeError>(ErrorType::NotAnObjectOfType, "RegExp");
 
     // 4. Return ? RegExpBuiltinExec(R, S).
-    return regexp_builtin_exec(vm, static_cast<RegExpObject&>(regexp_object), move(string));
+    return regexp_builtin_exec(vm, static_cast<RegExpObject&>(regexp_object), string);
 }
 
 // 22.2.7.3 AdvanceStringIndex ( S, index, unicode ), https://tc39.es/ecma262/#sec-advancestringindex
@@ -472,10 +472,10 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::exec)
     auto regexp_object = TRY(typed_this_object(vm));
 
     // 3. Let S be ? ToString(string).
-    auto string = TRY(vm.argument(0).to_utf16_string(vm));
+    auto string = TRY(vm.argument(0).to_primitive_string(vm));
 
     // 4. Return ? RegExpBuiltinExec(R, S).
-    return TRY(regexp_builtin_exec(vm, regexp_object, move(string)));
+    return TRY(regexp_builtin_exec(vm, regexp_object, string));
 }
 
 // 22.2.6.4 get RegExp.prototype.flags, https://tc39.es/ecma262/#sec-get-regexp.prototype.flags
@@ -525,7 +525,7 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_match)
     auto regexp_object = TRY(this_object(vm));
 
     // 3. Let S be ? ToString(string).
-    auto string = TRY(vm.argument(0).to_utf16_string(vm));
+    auto string = TRY(vm.argument(0).to_primitive_string(vm));
 
     // 4. Let flags be ? ToString(? Get(rx, "flags")).
     auto flags_value = TRY(regexp_object->get(vm.names.flags));
@@ -534,7 +534,7 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_match)
     // 5. If flags does not contain "g", then
     if (!flags.contains('g')) {
         // a. Return ? RegExpExec(rx, S).
-        return TRY(regexp_exec(vm, regexp_object, move(string)));
+        return TRY(regexp_exec(vm, regexp_object, string));
     }
 
     // 6. Else,
@@ -580,7 +580,7 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_match)
         // 3. If matchStr is the empty String, then
         if (match_str.is_empty()) {
             // Steps 3a-3c are implemented by increment_last_index.
-            TRY(increment_last_index(vm, regexp_object, string.view(), full_unicode));
+            TRY(increment_last_index(vm, regexp_object, string->utf16_string_view(), full_unicode));
         }
 
         // 4. Set n to n + 1.
@@ -598,7 +598,7 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_match_all)
     auto regexp_object = TRY(this_object(vm));
 
     // 3. Let S be ? ToString(string).
-    auto string = TRY(vm.argument(0).to_utf16_string(vm));
+    auto string = TRY(vm.argument(0).to_primitive_string(vm));
 
     // 4. Let C be ? SpeciesConstructor(R, %RegExp%).
     auto* constructor = TRY(species_constructor(vm, regexp_object, realm.intrinsics().regexp_constructor()));
@@ -628,7 +628,7 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_match_all)
     TRY(matcher->set(vm.names.lastIndex, Value(last_index), Object::ShouldThrowExceptions::Yes));
 
     // 13. Return CreateRegExpStringIterator(matcher, S, global, fullUnicode).
-    return RegExpStringIterator::create(realm, matcher, move(string), global, full_unicode);
+    return RegExpStringIterator::create(realm, matcher, string, global, full_unicode);
 }
 
 // 22.2.6.11 RegExp.prototype [ @@replace ] ( string, replaceValue ), https://tc39.es/ecma262/#sec-regexp.prototype-@@replace
@@ -642,7 +642,7 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_replace)
     auto regexp_object = TRY(this_object(vm));
 
     // 3. Let S be ? ToString(string).
-    auto string = TRY(string_value.to_utf16_string(vm));
+    auto string = TRY(string_value.to_primitive_string(vm));
 
     // 4. Let lengthS be the number of code unit elements in S.
     // 5. Let functionalReplace be IsCallable(replaceValue).
@@ -701,7 +701,7 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_replace)
             bool full_unicode = flags.contains('u') || flags.contains('v');
 
             // Steps 2a, 2c-2d are implemented by increment_last_index.
-            TRY(increment_last_index(vm, regexp_object, string.view(), full_unicode));
+            TRY(increment_last_index(vm, regexp_object, string->utf16_string_view(), full_unicode));
         }
     }
 
@@ -721,17 +721,17 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_replace)
 
         // c. Let matched be ? ToString(? Get(result, "0")).
         auto matched_value = TRY(result->get(0));
-        auto matched = TRY(matched_value.to_utf16_string(vm));
+        auto matched = TRY(matched_value.to_primitive_string(vm));
 
         // d. Let matchLength be the length of matched.
-        auto matched_length = matched.length_in_code_units();
+        auto matched_length = matched->length_in_utf16_code_units();
 
         // e. Let position be ? ToIntegerOrInfinity(? Get(result, "index")).
         auto position_value = TRY(result->get(vm.names.index));
         double position = TRY(position_value.to_integer_or_infinity(vm));
 
         // f. Set position to the result of clamping position between 0 and lengthS.
-        position = clamp(position, static_cast<double>(0), static_cast<double>(string.length_in_code_units()));
+        position = clamp(position, static_cast<double>(0), static_cast<double>(string->length_in_utf16_code_units()));
 
         // g. Let captures be a new empty List.
         GC::RootVector<Value> captures(vm.heap());
@@ -764,10 +764,10 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_replace)
         if (replace_value.is_function()) {
             // i. Let replacerArgs be the list-concatenation of « matched », captures, and « 𝔽(position), S ».
             GC::RootVector<Value> replacer_args(vm.heap());
-            replacer_args.append(PrimitiveString::create(vm, move(matched)));
+            replacer_args.append(matched);
             replacer_args.extend(move(captures));
             replacer_args.append(Value(position));
-            replacer_args.append(PrimitiveString::create(vm, string));
+            replacer_args.append(string);
 
             // ii. If namedCaptures is not undefined, then
             if (!named_captures.is_undefined()) {
@@ -790,7 +790,7 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_replace)
             }
 
             // ii. Let replacement be ? GetSubstitution(matched, S, position, captures, namedCaptures, replaceValue).
-            replacement = TRY(get_substitution(vm, matched.view(), string.view(), position, captures, named_captures, replace_value));
+            replacement = TRY(get_substitution(vm, matched->utf16_string_view(), string->utf16_string_view(), position, captures, named_captures, replace_value));
         }
 
         // m. If position ≥ nextSourcePosition, then
@@ -798,7 +798,7 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_replace)
             // i. NOTE: position should not normally move backwards. If it does, it is an indication of an ill-behaving RegExp subclass or use of an access triggered side-effect to change the global flag or other characteristics of rx. In such cases, the corresponding substitution is ignored.
 
             // ii. Set accumulatedResult to the string-concatenation of accumulatedResult, the substring of S from nextSourcePosition to position, and replacement.
-            auto substring = string.substring_view(next_source_position, position - next_source_position);
+            auto substring = string->utf16_string_view().substring_view(next_source_position, position - next_source_position);
             accumulated_result.append(substring);
             accumulated_result.append(replacement);
 
@@ -808,11 +808,11 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_replace)
     }
 
     // 16. If nextSourcePosition ≥ lengthS, return accumulatedResult.
-    if (next_source_position >= string.length_in_code_units())
+    if (next_source_position >= string->length_in_utf16_code_units())
         return PrimitiveString::create(vm, accumulated_result.to_string_without_validation());
 
     // 17. Return the string-concatenation of accumulatedResult and the substring of S from nextSourcePosition.
-    auto substring = string.substring_view(next_source_position);
+    auto substring = string->utf16_string_view().substring_view(next_source_position);
     accumulated_result.append(substring);
 
     return PrimitiveString::create(vm, accumulated_result.to_string_without_validation());
@@ -826,7 +826,7 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_search)
     auto regexp_object = TRY(this_object(vm));
 
     // 3. Let S be ? ToString(string).
-    auto string = TRY(vm.argument(0).to_utf16_string(vm));
+    auto string = TRY(vm.argument(0).to_primitive_string(vm));
 
     // 4. Let previousLastIndex be ? Get(rx, "lastIndex").
     auto previous_last_index = TRY(regexp_object->get(vm.names.lastIndex));
@@ -838,7 +838,7 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_search)
     }
 
     // 6. Let result be ? RegExpExec(rx, S).
-    auto result = TRY(regexp_exec(vm, regexp_object, move(string)));
+    auto result = TRY(regexp_exec(vm, regexp_object, string));
 
     // 7. Let currentLastIndex be ? Get(rx, "lastIndex").
     auto current_last_index = TRY(regexp_object->get(vm.names.lastIndex));
@@ -893,7 +893,7 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_split)
     auto regexp_object = TRY(this_object(vm));
 
     // 3. Let S be ? ToString(string).
-    auto string = TRY(vm.argument(0).to_utf16_string(vm));
+    auto string = TRY(vm.argument(0).to_primitive_string(vm));
 
     // 4. Let C be ? SpeciesConstructor(rx, %RegExp%).
     auto* constructor = TRY(species_constructor(vm, regexp_object, realm.intrinsics().regexp_constructor()));
@@ -929,7 +929,7 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_split)
         return array;
 
     // 15. If S is the empty String, then
-    if (string.is_empty()) {
+    if (string->is_empty()) {
         // a. Let z be ? RegExpExec(splitter, S).
         auto result = TRY(regexp_exec(vm, splitter, string));
 
@@ -938,7 +938,7 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_split)
             return array;
 
         // c. Perform ! CreateDataPropertyOrThrow(A, "0", S).
-        MUST(array->create_data_property_or_throw(0, PrimitiveString::create(vm, move(string))));
+        MUST(array->create_data_property_or_throw(0, string));
 
         // d. Return A.
         return array;
@@ -953,7 +953,7 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_split)
     size_t next_search_from = 0;
 
     // 19. Repeat, while q < size,
-    while (next_search_from < string.length_in_code_units()) {
+    while (next_search_from < string->length_in_utf16_code_units()) {
         // a. Perform ? Set(splitter, "lastIndex", 𝔽(q), SplitBehavior::KeepEmpty).
         TRY(splitter->set(vm.names.lastIndex, Value(next_search_from), Object::ShouldThrowExceptions::Yes));
 
@@ -962,7 +962,7 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_split)
 
         // c. If z is null, set q to AdvanceStringIndex(S, q, unicodeMatching).
         if (result.is_null()) {
-            next_search_from = advance_string_index(string.view(), next_search_from, unicode_matching);
+            next_search_from = advance_string_index(string->utf16_string_view(), next_search_from, unicode_matching);
             continue;
         }
 
@@ -973,18 +973,18 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_split)
         auto last_index = TRY(last_index_value.to_length(vm));
 
         // ii. Set e to min(e, size).
-        last_index = min(last_index, string.length_in_code_units());
+        last_index = min(last_index, string->length_in_utf16_code_units());
 
         // iii. If e = p, set q to AdvanceStringIndex(S, q, unicodeMatching).
         if (last_index == last_match_end) {
-            next_search_from = advance_string_index(string.view(), next_search_from, unicode_matching);
+            next_search_from = advance_string_index(string->utf16_string_view(), next_search_from, unicode_matching);
             continue;
         }
 
         // iv. Else,
 
         // 1. Let T be the substring of S from p to q.
-        auto substring = string.substring_view(last_match_end, next_search_from - last_match_end);
+        auto substring = string->utf16_string_view().substring_view(last_match_end, next_search_from - last_match_end);
 
         // 2. Perform ! CreateDataPropertyOrThrow(A, ! ToString(𝔽(lengthA)), T).
         MUST(array->create_data_property_or_throw(array_length, PrimitiveString::create(vm, Utf16String::create(substring))));
@@ -1030,7 +1030,7 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_split)
     }
 
     // 20. Let T be the substring of S from p to size.
-    auto substring = string.substring_view(last_match_end);
+    auto substring = string->utf16_string_view().substring_view(last_match_end);
 
     // 21. Perform ! CreateDataPropertyOrThrow(A, ! ToString(𝔽(lengthA)), T).
     MUST(array->create_data_property_or_throw(array_length, PrimitiveString::create(vm, Utf16String::create(substring))));
@@ -1047,10 +1047,10 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::test)
     auto regexp_object = TRY(this_object(vm));
 
     // 3. Let string be ? ToString(S).
-    auto string = TRY(vm.argument(0).to_utf16_string(vm));
+    auto string = TRY(vm.argument(0).to_primitive_string(vm));
 
     // 4. Let match be ? RegExpExec(R, string).
-    auto match = TRY(regexp_exec(vm, regexp_object, move(string)));
+    auto match = TRY(regexp_exec(vm, regexp_object, string));
 
     // 5. If match is not null, return true; else return false.
     return Value(!match.is_null());
