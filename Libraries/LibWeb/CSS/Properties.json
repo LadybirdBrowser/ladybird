@@ -2410,6 +2410,98 @@
       "overflow"
     ]
   },
+  "overflow-clip-margin": {
+    "logical-alias-for": [
+      "overflow-clip-margin-top",
+      "overflow-clip-margin-right",
+      "overflow-clip-margin-bottom",
+      "overflow-clip-margin-left"
+    ]
+  },
+  "overflow-clip-margin-block": {
+    "logical-alias-for": [
+      "overflow-clip-margin-top",
+      "overflow-clip-margin-right",
+      "overflow-clip-margin-bottom",
+      "overflow-clip-margin-left"
+    ]
+  },
+  "overflow-clip-margin-block-end": {
+    "logical-alias-for": [
+      "overflow-clip-margin-top",
+      "overflow-clip-margin-right",
+      "overflow-clip-margin-bottom",
+      "overflow-clip-margin-left"
+    ]
+  },
+  "overflow-clip-margin-block-start": {
+    "logical-alias-for": [
+      "overflow-clip-margin-top",
+      "overflow-clip-margin-right",
+      "overflow-clip-margin-bottom",
+      "overflow-clip-margin-left"
+    ]
+  },
+  "overflow-clip-margin-bottom": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "0px",
+    "valid-types": [
+      "length [0,∞]"
+    ],
+    "percentages-resolve-to": "length"
+  },
+  "overflow-clip-margin-inline": {
+    "logical-alias-for": [
+      "overflow-clip-margin-top",
+      "overflow-clip-margin-right",
+      "overflow-clip-margin-bottom",
+      "overflow-clip-margin-left"
+    ]
+  },
+  "overflow-clip-margin-inline-end": {
+    "logical-alias-for": [
+      "overflow-clip-margin-top",
+      "overflow-clip-margin-right",
+      "overflow-clip-margin-bottom",
+      "overflow-clip-margin-left"
+    ]
+  },
+  "overflow-clip-margin-inline-start": {
+    "logical-alias-for": [
+      "overflow-clip-margin-top",
+      "overflow-clip-margin-right",
+      "overflow-clip-margin-bottom",
+      "overflow-clip-margin-left"
+    ]
+  },
+  "overflow-clip-margin-left": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "0px",
+    "valid-types": [
+      "length [0,∞]"
+    ],
+    "percentages-resolve-to": "length"
+  },
+  "overflow-clip-margin-right": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "0px",
+    "valid-types": [
+      "length [0,∞]"
+    ],
+    "percentages-resolve-to": "length"
+  },
+  "overflow-clip-margin-top": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "0px",
+    "valid-types": [
+      "length [0,∞]"
+    ],
+    "percentages-resolve-to": "length"
+  },
   "overflow-x": {
     "animation-type": "discrete",
     "inherited": false,

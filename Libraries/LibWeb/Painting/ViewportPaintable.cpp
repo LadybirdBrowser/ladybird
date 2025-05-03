@@ -167,15 +167,8 @@ void ViewportPaintable::assign_clip_frames()
                 continue;
             }
             auto const& block_paintable_box = static_cast<PaintableBox const&>(*paintable);
-            bool clip_x = paintable->computed_values().overflow_x() != CSS::Overflow::Visible;
-            bool clip_y = paintable->computed_values().overflow_y() != CSS::Overflow::Visible;
-
-            auto clip_rect = block_paintable_box.overflow_clip_edge_rect();
-            if (block_paintable_box.get_clip_rect().has_value()) {
-                clip_rect.intersect(block_paintable_box.get_clip_rect().value());
-                clip_x = true;
-                clip_y = true;
-            }
+            auto overflow_x = paintable->computed_values().overflow_x();
+            auto overflow_y = paintable->computed_values().overflow_y();
 
             // https://drafts.csswg.org/css-contain-2/#paint-containment
             // 1. The contents of the element including any ink or scrollable overflow must be clipped to the overflow clip
@@ -189,13 +182,38 @@ void ViewportPaintable::assign_clip_frames()
                     // NOTE: Note: The behavior is described in this paragraph is equivalent to changing 'overflow-x: visible' into
                     //       'overflow-x: clip' and 'overflow-y: visible' into 'overflow-y: clip' at used value time, while leaving other
                     //       values of 'overflow-x' and 'overflow-y' unchanged.
-                    clip_x = true;
-                    clip_y = true;
+                    overflow_x = CSS::Overflow::Clip;
+                    overflow_y = CSS::Overflow::Clip;
                 }
+            }
+
+            auto clip_rect = block_paintable_box.absolute_padding_box_rect();
+
+            // https://drafts.csswg.org/css-overflow-3/#propdef-overflow
+            // 'clip'
+            //    This value indicates that the box’s content is clipped to its overflow clip edge
+            auto overflow_clip_edge = block_paintable_box.overflow_clip_edge_rect();
+            if (overflow_x == CSS::Overflow::Clip) {
+                clip_rect.set_left(overflow_clip_edge.left());
+                clip_rect.set_right(overflow_clip_edge.right());
+            }
+            if (overflow_y == CSS::Overflow::Clip) {
+                clip_rect.set_top(overflow_clip_edge.top());
+                clip_rect.set_bottom(overflow_clip_edge.bottom());
+            }
+
+            bool clip_x = overflow_x != CSS::Overflow::Visible;
+            bool clip_y = overflow_y != CSS::Overflow::Visible;
+
+            if (block_paintable_box.get_clip_rect().has_value()) {
+                clip_rect.intersect(block_paintable_box.get_clip_rect().value());
+                clip_x = true;
+                clip_y = true;
             }
 
             if (clip_x || clip_y) {
                 if (clip_x && clip_y) {
+                    // FIXME: Adjust the border radii to match the overflow clip edge, if needed. (see https://drafts.csswg.org/css-overflow-4/#valdef-overflow-clip-margin-length-0 )
                     clip_frame.add_clip_rect(clip_rect, block_paintable_box.normalized_border_radii_data(ShrinkRadiiForBorders::Yes), block_paintable_box.enclosing_scroll_frame());
                 } else {
                     if (clip_x) {
