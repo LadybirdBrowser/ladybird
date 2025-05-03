@@ -1,0 +1,35 @@
+Harness status: OK
+
+Found 29 tests
+
+6 Pass
+23 Fail
+Fail	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" crossorigin())" should not set the property value
+Fail	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" crossorigin(,))" should not set the property value
+Fail	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" crossorigin(anonymous,))" should not set the property value
+Fail	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" crossorigin(,anonymous))" should not set the property value
+Fail	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" crossorigin(anonymous foobar))" should not set the property value
+Fail	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" crossorigin(anonymous) cross-origin(anonymous))" should not set the property value
+Fail	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" crossorigin(anonymous) cross-origin(use-credentials))" should not set the property value
+Pass	e.style['background-image'] = "url(crossorigin(anonymous) \"http://wpt.live:80/css/support/1x1-green.png\")" should not set the property value
+Pass	e.style['background-image'] = "\"http://wpt.live:80/css/support/1x1-green.png\" crossorigin(anonymous)" should not set the property value
+Fail	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" integrity())" should not set the property value
+Fail	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" integrity(,))" should not set the property value
+Fail	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" integrity(\"sha384-foobar\",))" should not set the property value
+Fail	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" integrity(,\"sha384-foobar\"))" should not set the property value
+Fail	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" integrity(\"sha384-foobar\" foobar))" should not set the property value
+Fail	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" integrity(sha384-foobar))" should not set the property value
+Fail	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" integrity(\"sha384-foobar\") integrity(\"sha384-foobar\"))" should not set the property value
+Fail	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" integrity(\"sha384-foobar\") integrity(\"sha384-barbaz\"))" should not set the property value
+Pass	e.style['background-image'] = "url(integrity(\"sha384-foobar\") \"http://wpt.live:80/css/support/1x1-green.png\")" should not set the property value
+Pass	e.style['background-image'] = "\"http://wpt.live:80/css/support/1x1-green.png\" integrity(\"sha384-foobar\")" should not set the property value
+Fail	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" referrerpolicy())" should not set the property value
+Fail	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" referrerpolicy(,))" should not set the property value
+Fail	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" referrerpolicy(no-referrer,))" should not set the property value
+Fail	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" referrerpolicy(,no-referrer))" should not set the property value
+Fail	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" referrerpolicy(no-referrer foobar))" should not set the property value
+Fail	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" referrerpolicy(no-referrer same-origin))" should not set the property value
+Fail	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" referrerpolicy(no-referrer) referrerpolicy(no-referrer))" should not set the property value
+Fail	e.style['background-image'] = "url(\"http://wpt.live:80/css/support/1x1-green.png\" referrerpolicy(no-referrer) referrerpolicy(same-origin))" should not set the property value
+Pass	e.style['background-image'] = "url(referrerpolicy(no-referrer) \"http://wpt.live:80/css/support/1x1-green.png\")" should not set the property value
+Pass	e.style['background-image'] = "\"http://wpt.live:80/css/support/1x1-green.png\" referrerpolicy(no-referrer)" should not set the property value
