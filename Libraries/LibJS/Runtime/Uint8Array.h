@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Base64.h>
 #include <AK/ByteBuffer.h>
 #include <AK/Optional.h>
 #include <AK/StringView.h>
@@ -41,12 +42,6 @@ enum class Alphabet {
     Base64URL,
 };
 
-enum class LastChunkHandling {
-    Loose,
-    Strict,
-    StopBeforePartial,
-};
-
 struct DecodeResult {
     size_t read { 0 };          // [[Read]]
     ByteBuffer bytes;           // [[Bytes]]
@@ -56,7 +51,7 @@ struct DecodeResult {
 ThrowCompletionOr<GC::Ref<TypedArrayBase>> validate_uint8_array(VM&);
 ThrowCompletionOr<ByteBuffer> get_uint8_array_bytes(VM&, TypedArrayBase const&);
 void set_uint8_array_bytes(TypedArrayBase&, ReadonlyBytes);
-DecodeResult from_base64(VM&, StringView string, Alphabet alphabet, LastChunkHandling last_chunk_handling, Optional<size_t> max_length = {});
+DecodeResult from_base64(VM&, StringView string, Alphabet alphabet, AK::LastChunkHandling last_chunk_handling, Optional<size_t> max_length = {});
 DecodeResult from_hex(VM&, StringView string, Optional<size_t> max_length = {});
 
 }
