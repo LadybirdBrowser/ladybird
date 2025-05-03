@@ -246,6 +246,13 @@ CSSPixelRect PaintableBox::absolute_border_box_rect() const
     return rect;
 }
 
+// https://drafts.csswg.org/css-overflow-4/#overflow-clip-edge
+CSSPixelRect PaintableBox::overflow_clip_edge_rect() const
+{
+    // FIXME: Apply overflow-clip-margin-* properties
+    return absolute_padding_box_rect();
+}
+
 CSSPixelRect PaintableBox::absolute_paint_rect() const
 {
     if (!m_absolute_paint_rect.has_value())
@@ -623,18 +630,24 @@ void PaintableBox::reset_scroll_offset(PaintContext& context, PaintPhase) const
 
 void PaintableBox::apply_clip_overflow_rect(PaintContext& context, PaintPhase phase) const
 {
+    if (!enclosing_clip_frame())
+        return;
+
     if (!AK::first_is_one_of(phase, PaintPhase::Background, PaintPhase::Border, PaintPhase::TableCollapsedBorder, PaintPhase::Foreground, PaintPhase::Outline))
         return;
 
-    apply_clip(context);
+    apply_clip(context, enclosing_clip_frame());
 }
 
 void PaintableBox::clear_clip_overflow_rect(PaintContext& context, PaintPhase phase) const
 {
+    if (!enclosing_clip_frame())
+        return;
+
     if (!AK::first_is_one_of(phase, PaintPhase::Background, PaintPhase::Border, PaintPhase::TableCollapsedBorder, PaintPhase::Foreground, PaintPhase::Outline))
         return;
 
-    restore_clip(context);
+    restore_clip(context, enclosing_clip_frame());
 }
 
 void paint_cursor_if_needed(PaintContext& context, TextPaintable const& paintable, PaintableFragment const& fragment)
@@ -847,32 +860,8 @@ void PaintableWithLines::paint(PaintContext& context, PaintPhase phase) const
 
     PaintableBox::paint(context, phase);
 
-    if (fragments().is_empty())
-        return;
-
-    bool should_clip_overflow = computed_values().overflow_x() != CSS::Overflow::Visible && computed_values().overflow_y() != CSS::Overflow::Visible;
-
-    auto clip_box = absolute_padding_box_rect();
-    if (get_clip_rect().has_value()) {
-        clip_box.intersect(get_clip_rect().value());
-        should_clip_overflow = true;
-    }
-    if (should_clip_overflow) {
-        context.display_list_recorder().save();
-        // FIXME: Handle overflow-x and overflow-y being different values.
-        context.display_list_recorder().add_clip_rect(context.rounded_device_rect(clip_box).to_type<int>());
-
-        auto border_radii = normalized_border_radii_data(ShrinkRadiiForBorders::Yes);
-        CornerRadii corner_radii {
-            .top_left = border_radii.top_left.as_corner(context),
-            .top_right = border_radii.top_right.as_corner(context),
-            .bottom_right = border_radii.bottom_right.as_corner(context),
-            .bottom_left = border_radii.bottom_left.as_corner(context)
-        };
-        if (corner_radii.has_any_radius()) {
-            context.display_list_recorder().add_rounded_rect_clip(corner_radii, context.rounded_device_rect(clip_box).to_type<int>(), CornerClip::Outside);
-        }
-
+    if (own_clip_frame()) {
+        apply_clip(context, own_clip_frame());
         if (own_scroll_frame_id().has_value()) {
             context.display_list_recorder().push_scroll_frame_id(own_scroll_frame_id().value());
         }
@@ -900,12 +889,11 @@ void PaintableWithLines::paint(PaintContext& context, PaintPhase phase) const
             paint_text_fragment(context, static_cast<TextPaintable const&>(fragment.paintable()), fragment, phase);
     }
 
-    if (should_clip_overflow) {
-        context.display_list_recorder().restore();
-
+    if (own_clip_frame()) {
         if (own_scroll_frame_id().has_value()) {
             context.display_list_recorder().pop_scroll_frame_id();
         }
+        restore_clip(context, own_clip_frame());
     }
 }
 
