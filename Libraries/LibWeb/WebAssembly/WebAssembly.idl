@@ -9,7 +9,7 @@ dictionary WebAssemblyInstantiatedSource {
 
 // https://webassembly.github.io/spec/js-api/#webassembly-namespace
 // https://webassembly.github.io/spec/web-api/index.html#streaming-modules
-[Exposed=*, WithGCVisitor, WithFinalizer]
+[Exposed=*, WithGCVisitor, WithFinalizer, WithInitializer]
 namespace WebAssembly {
     // FIXME: Streaming APIs are supposed to be only exposed to Window, Worker
 
