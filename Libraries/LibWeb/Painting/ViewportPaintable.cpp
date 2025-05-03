@@ -129,7 +129,8 @@ void ViewportPaintable::assign_clip_frames()
         auto overflow_y = paintable_box.computed_values().overflow_y();
         // Note: Overflow may be clip on one axis and visible on the other.
         auto has_hidden_overflow = overflow_x != CSS::Overflow::Visible || overflow_y != CSS::Overflow::Visible;
-        if (has_hidden_overflow || paintable_box.get_clip_rect().has_value()) {
+        auto element = as_if<DOM::Element>(paintable_box.layout_node().dom_node());
+        if (has_hidden_overflow || paintable_box.get_clip_rect().has_value() || (element && element->has_paint_containment())) {
             auto clip_frame = adopt_ref(*new ClipFrame());
             clip_state.set(paintable_box, move(clip_frame));
         }
@@ -175,6 +176,23 @@ void ViewportPaintable::assign_clip_frames()
                 clip_rect.intersect(block_paintable_box.get_clip_rect().value());
                 clip_x = true;
                 clip_y = true;
+            }
+
+            // https://drafts.csswg.org/css-contain-2/#paint-containment
+            // 1. The contents of the element including any ink or scrollable overflow must be clipped to the overflow clip
+            //    edge of the paint containment box, taking corner clipping into account. This does not include the creation of
+            //    any mechanism to access or indicate the presence of the clipped content; nor does it inhibit the creation of
+            //    any such mechanism through other properties, such as overflow, resize, or text-overflow.
+            //    NOTE: This clipping shape respects overflow-clip-margin, allowing an element with paint containment
+            //          to still slightly overflow its normal bounds.
+            if (auto element = as_if<DOM::Element>(block->dom_node())) {
+                if (element->has_paint_containment()) {
+                    // NOTE: Note: The behavior is described in this paragraph is equivalent to changing 'overflow-x: visible' into
+                    //       'overflow-x: clip' and 'overflow-y: visible' into 'overflow-y: clip' at used value time, while leaving other
+                    //       values of 'overflow-x' and 'overflow-y' unchanged.
+                    clip_x = true;
+                    clip_y = true;
+                }
             }
 
             if (clip_x || clip_y) {
