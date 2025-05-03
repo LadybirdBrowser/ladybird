@@ -42,7 +42,7 @@ void StringObject::initialize(Realm& realm)
     auto& vm = this->vm();
     Base::initialize(realm);
 
-    define_direct_property(vm.names.length, Value(m_string->utf16_string_view().length_in_code_units()), 0);
+    define_direct_property(vm.names.length, Value(m_string->length_in_utf16_code_units()), 0);
 }
 
 void StringObject::visit_edges(Cell::Visitor& visitor)
@@ -136,12 +136,9 @@ ThrowCompletionOr<GC::RootVector<Value>> StringObject::internal_own_property_key
     auto keys = GC::RootVector<Value> { heap() };
 
     // 2. Let str be O.[[StringData]].
-    auto str = m_string->utf16_string_view();
-
     // 3. Assert: str is a String.
-
     // 4. Let len be the length of str.
-    auto length = str.length_in_code_units();
+    auto length = m_string->length_in_utf16_code_units();
 
     // 5. For each integer i starting with 0 such that i < len, in ascending order, do
     for (size_t i = 0; i < length; ++i) {

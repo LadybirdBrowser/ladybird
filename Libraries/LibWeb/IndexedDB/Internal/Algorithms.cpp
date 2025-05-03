@@ -921,7 +921,7 @@ WebIDL::ExceptionOr<ErrorOr<JS::Value>> evaluate_key_path_on_a_value(JS::Realm& 
         // If Type(value) is String, and identifier is "length"
         if (value.is_string() && identifier == "length") {
             // Let value be a Number equal to the number of elements in value.
-            value = JS::Value(value.as_string().utf16_string_view().length_in_code_units());
+            value = JS::Value(value.as_string().length_in_utf16_code_units());
         }
 
         // If value is an Array and identifier is "length"
