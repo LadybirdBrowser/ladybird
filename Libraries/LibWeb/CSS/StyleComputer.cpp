@@ -691,6 +691,10 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
             return StartAndEndPropertyIDs { PropertyID::Top, PropertyID::Bottom };
         case PropertyID::InsetInline:
             return StartAndEndPropertyIDs { PropertyID::Left, PropertyID::Right };
+        case PropertyID::OverflowClipMarginBlock:
+            return StartAndEndPropertyIDs { PropertyID::OverflowClipMarginTop, PropertyID::OverflowClipMarginBottom };
+        case PropertyID::OverflowClipMarginInline:
+            return StartAndEndPropertyIDs { PropertyID::OverflowClipMarginLeft, PropertyID::OverflowClipMarginRight };
         default:
             return {};
         }
@@ -869,6 +873,20 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
         set_longhand_property(CSS::PropertyID::PaddingRight, value);
         set_longhand_property(CSS::PropertyID::PaddingBottom, value);
         set_longhand_property(CSS::PropertyID::PaddingLeft, value);
+        return;
+    }
+
+    if (property_id == CSS::PropertyID::OverflowClipMargin) {
+        if (value.is_value_list()) {
+            auto const& values_list = value.as_value_list();
+            assign_edge_values(PropertyID::OverflowClipMarginTop, PropertyID::OverflowClipMarginRight, PropertyID::OverflowClipMarginBottom, PropertyID::OverflowClipMarginLeft, values_list.values());
+            return;
+        }
+
+        set_longhand_property(CSS::PropertyID::OverflowClipMarginTop, value);
+        set_longhand_property(CSS::PropertyID::OverflowClipMarginRight, value);
+        set_longhand_property(CSS::PropertyID::OverflowClipMarginBottom, value);
+        set_longhand_property(CSS::PropertyID::OverflowClipMarginLeft, value);
         return;
     }
 

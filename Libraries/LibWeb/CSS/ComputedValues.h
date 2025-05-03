@@ -157,6 +157,7 @@ public:
     static CSS::LengthBox inset() { return { CSS::Length::make_auto(), CSS::Length::make_auto(), CSS::Length::make_auto(), CSS::Length::make_auto() }; }
     static CSS::LengthBox margin() { return { CSS::Length::make_px(0), CSS::Length::make_px(0), CSS::Length::make_px(0), CSS::Length::make_px(0) }; }
     static CSS::LengthBox padding() { return { CSS::Length::make_px(0), CSS::Length::make_px(0), CSS::Length::make_px(0), CSS::Length::make_px(0) }; }
+    static CSSPixelRect overflow_clip_margin() { return { 0, 0, 0, 0 }; }
     static CSS::Size width() { return CSS::Size::make_auto(); }
     static CSS::Size min_width() { return CSS::Size::make_auto(); }
     static CSS::Size max_width() { return CSS::Size::make_none(); }
@@ -484,6 +485,7 @@ public:
     CSS::LengthBox const& inset() const { return m_noninherited.inset; }
     const CSS::LengthBox& margin() const { return m_noninherited.margin; }
     const CSS::LengthBox& padding() const { return m_noninherited.padding; }
+    CSSPixelRect const& overflow_clip_margin() const { return m_noninherited.overflow_clip_margin; }
 
     BorderData const& border_left() const { return m_noninherited.border_left; }
     BorderData const& border_top() const { return m_noninherited.border_top; }
@@ -670,6 +672,7 @@ protected:
         CSS::LengthBox inset { InitialValues::inset() };
         CSS::LengthBox margin { InitialValues::margin() };
         CSS::LengthBox padding { InitialValues::padding() };
+        CSSPixelRect overflow_clip_margin { InitialValues::overflow_clip_margin() };
         Vector<Gfx::Filter> backdrop_filter { InitialValues::backdrop_filter() };
         Vector<Gfx::Filter> filter { InitialValues::filter() };
         BorderData border_left;
@@ -831,6 +834,7 @@ public:
     void set_inset(CSS::LengthBox const& inset) { m_noninherited.inset = inset; }
     void set_margin(const CSS::LengthBox& margin) { m_noninherited.margin = margin; }
     void set_padding(const CSS::LengthBox& padding) { m_noninherited.padding = padding; }
+    void set_overflow_clip_margin(CSSPixelRect const& overflow_clip_margin) { m_noninherited.overflow_clip_margin = overflow_clip_margin; }
     void set_overflow_x(CSS::Overflow value) { m_noninherited.overflow_x = value; }
     void set_overflow_y(CSS::Overflow value) { m_noninherited.overflow_y = value; }
     void set_list_style_type(CSS::ListStyleType value) { m_inherited.list_style_type = value; }

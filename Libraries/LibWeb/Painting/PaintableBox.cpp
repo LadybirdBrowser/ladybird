@@ -249,8 +249,26 @@ CSSPixelRect PaintableBox::absolute_border_box_rect() const
 // https://drafts.csswg.org/css-overflow-4/#overflow-clip-edge
 CSSPixelRect PaintableBox::overflow_clip_edge_rect() const
 {
-    // FIXME: Apply overflow-clip-margin-* properties
-    return absolute_padding_box_rect();
+    // https://drafts.csswg.org/css-overflow-4/#overflow-clip-margin
+    // Values are defined as follows:
+    // '<visual-box>'
+    //     Specifies the box edge to use as the overflow clip edge origin, i.e. when the specified offset is zero.
+    //     If omitted, defaults to 'padding-box' on non-replaced elements, or 'content-box' on replaced elements.
+    // FIXME: We can't parse this yet so it's always omitted for now.
+    auto overflow_clip_edge = absolute_padding_box_rect();
+    if (layout_node().is_replaced_box()) {
+        overflow_clip_edge = absolute_rect();
+    }
+
+    // '<length [0,∞]>'
+    //     The specified offset dictates how much the overflow clip edge is expanded from the specified box edge
+    //     Negative values are invalid. Defaults to zero if omitted.
+    overflow_clip_edge.inflate(
+        computed_values().overflow_clip_margin().top(),
+        computed_values().overflow_clip_margin().right(),
+        computed_values().overflow_clip_margin().bottom(),
+        computed_values().overflow_clip_margin().left());
+    return overflow_clip_edge;
 }
 
 CSSPixelRect PaintableBox::absolute_paint_rect() const
@@ -862,9 +880,6 @@ void PaintableWithLines::paint(PaintContext& context, PaintPhase phase) const
 
     if (own_clip_frame()) {
         apply_clip(context, own_clip_frame());
-        if (own_scroll_frame_id().has_value()) {
-            context.display_list_recorder().push_scroll_frame_id(own_scroll_frame_id().value());
-        }
     }
 
     // Text shadows
@@ -890,9 +905,6 @@ void PaintableWithLines::paint(PaintContext& context, PaintPhase phase) const
     }
 
     if (own_clip_frame()) {
-        if (own_scroll_frame_id().has_value()) {
-            context.display_list_recorder().pop_scroll_frame_id();
-        }
         restore_clip(context, own_clip_frame());
     }
 }

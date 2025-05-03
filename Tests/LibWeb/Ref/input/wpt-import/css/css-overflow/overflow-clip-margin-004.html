@@ -1,0 +1,42 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Verifies overflow-clip-margin extends outside bounds with contain: paint</title>
+<link rel="help" href="https://www.w3.org/TR/css-overflow-3/#propdef-overflow-clip-margin">
+<link rel="author" title="Scott Violet" href="mailto:sky@chromium.org">
+<link rel="match" href="../../../../expected/wpt-import/css/css-overflow/overflow-clip-margin-004-ref.html">
+<style>
+  .container {
+      display: flex;
+  }
+  .parent {
+      width: 100px;
+      height: 100px;
+      flex: none;
+      contain: paint;
+      overflow-clip-margin: 10px;
+  }
+  .child {
+      width: 200px;
+      height: 200px;
+      position: relative;
+      top: -50px;
+      left: -50px;
+      background-color: green;
+  }
+  .spacer {
+      flex: none;
+      height: 100px;
+      width: 100px;
+  }
+
+</style>
+<p>You should see two green squares touching each other. The one on the
+  right should be slightly larger.</p>
+<div class="spacer"></div>
+<div class="container">
+  <div class="spacer" style="width: 90px; background-color: green"></div>
+  <div class="spacer" style="width: 10px"></div>
+  <div class="parent">
+    <div class="child"></div>
+  </div>
+</div>

@@ -703,6 +703,16 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     computed_values.set_inset(computed_style.length_box(CSS::PropertyID::Left, CSS::PropertyID::Top, CSS::PropertyID::Right, CSS::PropertyID::Bottom, CSS::Length::make_auto()));
     computed_values.set_margin(computed_style.length_box(CSS::PropertyID::MarginLeft, CSS::PropertyID::MarginTop, CSS::PropertyID::MarginRight, CSS::PropertyID::MarginBottom, CSS::Length::make_px(0)));
     computed_values.set_padding(computed_style.length_box(CSS::PropertyID::PaddingLeft, CSS::PropertyID::PaddingTop, CSS::PropertyID::PaddingRight, CSS::PropertyID::PaddingBottom, CSS::Length::make_px(0)));
+    CSSPixelRect overflow_clip_margin = { 0, 0, 0, 0 };
+    if (auto const& top = computed_style.property(CSS::PropertyID::OverflowClipMarginTop); top.is_length())
+        overflow_clip_margin.set_top(top.as_length().length().to_px(*this));
+    if (auto const& bottom = computed_style.property(CSS::PropertyID::OverflowClipMarginBottom); bottom.is_length())
+        overflow_clip_margin.set_bottom(bottom.as_length().length().to_px(*this));
+    if (auto const& left = computed_style.property(CSS::PropertyID::OverflowClipMarginLeft); left.is_length())
+        overflow_clip_margin.set_left(left.as_length().length().to_px(*this));
+    if (auto const& right = computed_style.property(CSS::PropertyID::OverflowClipMarginRight); right.is_length())
+        overflow_clip_margin.set_right(right.as_length().length().to_px(*this));
+    computed_values.set_overflow_clip_margin(overflow_clip_margin);
 
     computed_values.set_box_shadow(computed_style.box_shadow(*this));
 
