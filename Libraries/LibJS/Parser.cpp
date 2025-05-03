@@ -292,6 +292,12 @@ public:
             auto const& identifier_group_name = it.key;
             auto& identifier_group = it.value;
 
+            if (identifier_group.declaration_kind.has_value()) {
+                for (auto& identifier : identifier_group.identifiers) {
+                    identifier->set_declaration_kind(identifier_group.declaration_kind.value());
+                }
+            }
+
             bool scope_has_declaration = false;
             if (is_top_level() && m_var_names.contains(identifier_group_name))
                 scope_has_declaration = true;

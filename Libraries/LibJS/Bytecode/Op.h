@@ -833,6 +833,32 @@ private:
     mutable EnvironmentCoordinate m_cache;
 };
 
+class GetInitializedBinding final : public Instruction {
+public:
+    explicit GetInitializedBinding(Operand dst, IdentifierTableIndex identifier)
+        : Instruction(Type::GetInitializedBinding)
+        , m_dst(dst)
+        , m_identifier(identifier)
+    {
+    }
+
+    ThrowCompletionOr<void> execute_impl(Bytecode::Interpreter&) const;
+    ByteString to_byte_string_impl(Bytecode::Executable const&) const;
+
+    Operand dst() const { return m_dst; }
+    IdentifierTableIndex identifier() const { return m_identifier; }
+
+    void visit_operands_impl(Function<void(Operand&)> visitor)
+    {
+        visitor(m_dst);
+    }
+
+private:
+    Operand m_dst;
+    IdentifierTableIndex m_identifier;
+    mutable EnvironmentCoordinate m_cache;
+};
+
 class GetGlobal final : public Instruction {
 public:
     GetGlobal(Operand dst, IdentifierTableIndex identifier, u32 cache_index)

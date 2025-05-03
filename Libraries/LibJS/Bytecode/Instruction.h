@@ -69,6 +69,7 @@
     O(GetObjectPropertyIterator)       \
     O(GetPrivateById)                  \
     O(GetBinding)                      \
+    O(GetInitializedBinding)           \
     O(GreaterThan)                     \
     O(GreaterThanEquals)               \
     O(HasPrivateId)                    \

@@ -631,6 +631,7 @@ FLATTEN_ON_CLANG void Interpreter::run_bytecode(size_t entry_point)
             HANDLE_INSTRUCTION(GetObjectPropertyIterator);
             HANDLE_INSTRUCTION(GetPrivateById);
             HANDLE_INSTRUCTION(GetBinding);
+            HANDLE_INSTRUCTION(GetInitializedBinding);
             HANDLE_INSTRUCTION(GreaterThan);
             HANDLE_INSTRUCTION(GreaterThanEquals);
             HANDLE_INSTRUCTION(HasPrivateId);
@@ -2239,27 +2240,49 @@ ThrowCompletionOr<void> ConcatString::execute_impl(Bytecode::Interpreter& interp
     return {};
 }
 
-ThrowCompletionOr<void> GetBinding::execute_impl(Bytecode::Interpreter& interpreter) const
+enum class BindingIsKnownToBeInitialized {
+    No,
+    Yes,
+};
+
+template<BindingIsKnownToBeInitialized binding_is_known_to_be_initialized>
+static ThrowCompletionOr<void> get_binding(Interpreter& interpreter, Operand dst, IdentifierTableIndex identifier, EnvironmentCoordinate& cache)
 {
     auto& vm = interpreter.vm();
     auto& executable = interpreter.current_executable();
 
-    if (m_cache.is_valid()) {
+    if (cache.is_valid()) {
         auto const* environment = interpreter.running_execution_context().lexical_environment.ptr();
-        for (size_t i = 0; i < m_cache.hops; ++i)
+        for (size_t i = 0; i < cache.hops; ++i)
             environment = environment->outer_environment();
         if (!environment->is_permanently_screwed_by_eval()) {
-            interpreter.set(dst(), TRY(static_cast<DeclarativeEnvironment const&>(*environment).get_binding_value_direct(vm, m_cache.index)));
+            Value value;
+            if constexpr (binding_is_known_to_be_initialized == BindingIsKnownToBeInitialized::No) {
+                value = TRY(static_cast<DeclarativeEnvironment const&>(*environment).get_binding_value_direct(vm, cache.index));
+            } else {
+                value = static_cast<DeclarativeEnvironment const&>(*environment).get_initialized_binding_value_direct(cache.index);
+            }
+            interpreter.set(dst, value);
             return {};
         }
-        m_cache = {};
+        cache = {};
     }
 
-    auto reference = TRY(vm.resolve_binding(executable.get_identifier(m_identifier)));
+    auto reference = TRY(vm.resolve_binding(executable.get_identifier(identifier)));
     if (reference.environment_coordinate().has_value())
-        m_cache = reference.environment_coordinate().value();
-    interpreter.set(dst(), TRY(reference.get_value(vm)));
+        cache = reference.environment_coordinate().value();
+    interpreter.set(dst, TRY(reference.get_value(vm)));
     return {};
+}
+
+ThrowCompletionOr<void> GetBinding::execute_impl(Bytecode::Interpreter& interpreter) const
+{
+    return get_binding<BindingIsKnownToBeInitialized::No>(interpreter, m_dst, m_identifier, m_cache);
+}
+
+ThrowCompletionOr<void> GetInitializedBinding::execute_impl(Bytecode::Interpreter& interpreter) const
+{
+    return get_binding<BindingIsKnownToBeInitialized::Yes>(interpreter, m_dst, m_identifier, m_cache);
 }
 
 ThrowCompletionOr<void> GetCalleeAndThisFromEnvironment::execute_impl(Bytecode::Interpreter& interpreter) const
@@ -3281,6 +3304,13 @@ ByteString GetCalleeAndThisFromEnvironment::to_byte_string_impl(Bytecode::Execut
 ByteString GetBinding::to_byte_string_impl(Bytecode::Executable const& executable) const
 {
     return ByteString::formatted("GetBinding {}, {}",
+        format_operand("dst"sv, dst(), executable),
+        executable.identifier_table->get(m_identifier));
+}
+
+ByteString GetInitializedBinding::to_byte_string_impl(Bytecode::Executable const& executable) const
+{
+    return ByteString::formatted("GetInitializedBinding {}, {}",
         format_operand("dst"sv, dst(), executable),
         executable.identifier_table->get(m_identifier));
 }
