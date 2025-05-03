@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang=en>
+  <meta charset=utf-8>
+  <title>CSS-contain test: paint containment use the padding edge</title>
+  <link rel="author" title="Florian Rivoal" href="https://florian.rivoal.net">
+  <meta name=flags content="">
+  <meta name=assert content="paint containment clips at the padding edge, not content edge, and takes corner clipping into account">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-contain/reference/contain-paint-001-ref.html">
+  <link rel=help href="https://drafts.csswg.org/css-contain-1/#containment-paint">
+
+<style>
+div {
+  width: 100px;
+  height: 100px;
+  background: blue;
+  padding: 50px;
+  border-radius: 100px;
+  contain: paint;
+}
+div::before {
+ content:"";
+ display: block;
+ background: green;
+ width: 100px;
+ height: 100px;
+}
+div::after {
+  content:"";
+  display: block;
+  background: red;
+  width: 50px;
+  height: 50px;
+  margin-top: 38px;
+  margin-left: -50px;
+}
+</style>
+
+<p>Test passes if there is a green square in a rounded blue box, and no red.
+<div></div>
