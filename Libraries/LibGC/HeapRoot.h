@@ -15,6 +15,7 @@ struct HeapRoot {
         HeapFunctionCapturedPointer,
         Root,
         RootVector,
+        RootHashMap,
         ConservativeVector,
         RegisterPointer,
         StackPointer,
