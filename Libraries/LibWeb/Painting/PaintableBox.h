@@ -84,6 +84,7 @@ public:
     CSSPixelRect absolute_rect() const;
     CSSPixelRect absolute_padding_box_rect() const;
     CSSPixelRect absolute_border_box_rect() const;
+    CSSPixelRect overflow_clip_edge_rect() const;
     CSSPixelRect absolute_paint_rect() const;
 
     // These united versions of the above rects take continuation into account.
