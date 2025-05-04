@@ -3107,7 +3107,7 @@ void Element::determine_proximity_to_the_viewport()
 }
 
 // https://drafts.csswg.org/css-contain/#relevant-to-the-user
-bool Element::is_relevant_to_the_user()
+bool Element::is_relevant_to_the_user() const
 {
     // An element is relevant to the user if any of the following conditions are true:
 
@@ -3121,7 +3121,7 @@ bool Element::is_relevant_to_the_user()
         return true;
 
     // Either the element or its contents are selected, where selection is described in the selection API.
-    if (document().get_selection()->contains_node(*this, true))
+    if (document().get_selection()->contains_node(const_cast<Element&>(*this), true))
         return true;
 
     // Either the element or its contents are placed in the top layer.
@@ -3144,7 +3144,7 @@ bool Element::is_relevant_to_the_user()
 }
 
 // https://drafts.csswg.org/css-contain-2/#skips-its-contents
-bool Element::skips_its_contents()
+bool Element::skips_its_contents() const
 {
     // https://drafts.csswg.org/css-contain-2/#valdef-content-visibility-hidden
     // The element skips its contents.
@@ -3182,6 +3182,13 @@ bool Element::has_size_containment() const
 
     if (computed_properties()->contain().size_containment)
         return true;
+
+    // https://drafts.csswg.org/css-contain-2/#skips-its-contents
+    // When an element skips its contents, the user agent must change the used value of the 'contain' property so as
+    // to turn on layout containment, style containment, paint containment, and size containment.
+    if (skips_its_contents()) {
+        return true;
+    }
 
     return false;
 }
@@ -3235,6 +3242,13 @@ bool Element::has_layout_containment() const
     if (computed_properties()->content_visibility() == CSS::ContentVisibility::Auto)
         return true;
 
+    // https://drafts.csswg.org/css-contain-2/#skips-its-contents
+    // When an element skips its contents, the user agent must change the used value of the 'contain' property so as
+    // to turn on layout containment, style containment, paint containment, and size containment.
+    if (skips_its_contents()) {
+        return true;
+    }
+
     return false;
 }
 // https://drafts.csswg.org/css-contain-2/#containment-style
@@ -3254,6 +3268,13 @@ bool Element::has_style_containment() const
     // paint containment for the element.
     if (computed_properties()->content_visibility() == CSS::ContentVisibility::Auto)
         return true;
+
+    // https://drafts.csswg.org/css-contain-2/#skips-its-contents
+    // When an element skips its contents, the user agent must change the used value of the 'contain' property so as
+    // to turn on layout containment, style containment, paint containment, and size containment.
+    if (skips_its_contents()) {
+        return true;
+    }
 
     return false;
 }
@@ -3281,6 +3302,13 @@ bool Element::has_paint_containment() const
     // paint containment for the element.
     if (computed_properties()->content_visibility() == CSS::ContentVisibility::Auto)
         return true;
+
+    // https://drafts.csswg.org/css-contain-2/#skips-its-contents
+    // When an element skips its contents, the user agent must change the used value of the 'contain' property so as
+    // to turn on layout containment, style containment, paint containment, and size containment.
+    if (skips_its_contents()) {
+        return true;
+    }
 
     return false;
 }

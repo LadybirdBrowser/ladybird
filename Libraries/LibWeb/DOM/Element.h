@@ -417,10 +417,10 @@ public:
 
     ProximityToTheViewport proximity_to_the_viewport() const { return m_proximity_to_the_viewport; }
     void determine_proximity_to_the_viewport();
-    bool is_relevant_to_the_user();
+    bool is_relevant_to_the_user() const;
 
     // https://drafts.csswg.org/css-contain-2/#skips-its-contents
-    bool skips_its_contents();
+    bool skips_its_contents() const;
 
     // https://drafts.csswg.org/css-contain-2/#containment-types
     bool has_size_containment() const;
