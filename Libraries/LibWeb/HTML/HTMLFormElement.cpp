@@ -139,11 +139,20 @@ WebIDL::ExceptionOr<void> HTMLFormElement::submit_form(GC::Ref<HTMLElement> subm
             }
         }
 
-        // FIXME: 4. If the submitter element's no-validate state is false, then interactively validate the constraints
-        //           of form and examine the result. If the result is negative (i.e., the constraint validation concluded
-        //           that there were invalid fields and probably informed the user of this), then:
-        //           1. Set form's firing submission events to false.
-        //           2. Return.
+        // 4. If the submitter element's no-validate state is false, then interactively validate the constraints
+        //    of form and examine the result. If the result is negative (i.e., the constraint validation concluded
+        //    that there were invalid fields and probably informed the user of this), then:
+        auto* form_associated_element = as_if<FormAssociatedElement>(*submitter);
+        if (form_associated_element && !form_associated_element->novalidate_state()) {
+            auto validation_result = interactively_validate_constraints();
+            if (!validation_result) {
+                // 1. Set form's firing submission events to false.
+                m_firing_submission_events = false;
+
+                // 2. Return.
+                return {};
+            }
+        }
 
         // 5. Let submitterButton be null if submitter is form. Otherwise, let submitterButton be submitter.
         GC::Ptr<HTMLElement> submitter_button;
