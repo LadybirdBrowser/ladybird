@@ -66,6 +66,24 @@
         println(`instanceOf DOMException: ${domException instanceof DOMException}`);
         println(`DOMException: ${domException.message} - ${domException.name}`);
 
+        const data = new Uint8ClampedArray([
+            255, 0, 0, 255,
+            0, 255, 0, 255,
+            0, 0, 255, 255,
+            255, 255, 0, 255
+        ]);
+        const imageData = structuredClone(new ImageData(data, 2, 2));
+        println(`instanceOf ImageData: ${imageData instanceof ImageData}`);
+        println(`ImageData.width: ${imageData.width}`);
+        println(`ImageData.height: ${imageData.height}`);
+        for (let i = 0; i < imageData.data.length; i += 4) {
+            const r = imageData.data[i];
+            const g = imageData.data[i + 1];
+            const b = imageData.data[i + 2];
+            const a = imageData.data[i + 3];
+            println(`${r}, ${g}, ${b}, ${a}`);
+        }
+
         done();
     });
 </script>

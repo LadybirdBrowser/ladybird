@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 150 tests
 
-134 Pass
-15 Fail
+140 Pass
+9 Fail
 1 Optional Feature Unsupported
 Pass	primitive undefined
 Pass	primitive null
@@ -109,12 +109,12 @@ Pass	File basic
 Pass	FileList empty
 Pass	Array FileList object, FileList empty
 Pass	Object FileList object, FileList empty
-Fail	ImageData 1x1 transparent black
-Fail	ImageData 1x1 non-transparent non-black
-Fail	Array ImageData object, ImageData 1x1 transparent black
-Fail	Array ImageData object, ImageData 1x1 non-transparent non-black
-Fail	Object ImageData object, ImageData 1x1 transparent black
-Fail	Object ImageData object, ImageData 1x1 non-transparent non-black
+Pass	ImageData 1x1 transparent black
+Pass	ImageData 1x1 non-transparent non-black
+Pass	Array ImageData object, ImageData 1x1 transparent black
+Pass	Array ImageData object, ImageData 1x1 non-transparent non-black
+Pass	Object ImageData object, ImageData 1x1 transparent black
+Pass	Object ImageData object, ImageData 1x1 non-transparent non-black
 Pass	Array sparse
 Pass	Array with non-index property
 Pass	Object with index property and length
