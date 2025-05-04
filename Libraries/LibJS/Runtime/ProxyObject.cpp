@@ -535,7 +535,7 @@ ThrowCompletionOr<Value> ProxyObject::internal_get(PropertyKey const& property_k
 }
 
 // 10.5.9 [[Set]] ( P, V, Receiver ), https://tc39.es/ecma262/#sec-proxy-object-internal-methods-and-internal-slots-set-p-v-receiver
-ThrowCompletionOr<bool> ProxyObject::internal_set(PropertyKey const& property_key, Value value, Value receiver, CacheablePropertyMetadata*)
+ThrowCompletionOr<bool> ProxyObject::internal_set(PropertyKey const& property_key, Value value, Value receiver, CacheablePropertyMetadata*, PropertyLookupPhase)
 {
     LIMIT_PROXY_RECURSION_DEPTH();
 
