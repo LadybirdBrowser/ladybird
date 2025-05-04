@@ -271,7 +271,7 @@ void on_domain_attribute(ParsedCookie& parsed_cookie, StringView attribute_value
         cookie_domain = cookie_domain.substring_view(1);
 
     // 3. Convert the cookie-domain to lower case.
-    auto lowercase_cookie_domain = MUST(Infra::to_ascii_lowercase(cookie_domain));
+    auto lowercase_cookie_domain = cookie_domain.to_ascii_lowercase_string();
 
     // 4. Append an attribute to the cookie-attribute-list with an attribute-name of Domain and an attribute-value of
     //    cookie-domain.

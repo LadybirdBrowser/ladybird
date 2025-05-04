@@ -58,7 +58,7 @@ GC::Ref<Policy> Policy::parse_a_serialized_csp(GC::Heap& heap, Variant<ByteBuffe
         // 4. Set directive name to be the result of running ASCII lowercase on directive name.
         // Spec Note: Directive names are case-insensitive, that is: script-SRC 'none' and ScRiPt-sRc 'none' are
         //            equivalent.
-        auto lowercase_directive_name = MUST(Infra::to_ascii_lowercase(directive_name));
+        auto lowercase_directive_name = directive_name.to_ascii_lowercase_string();
 
         // 5. If policy’s directive set contains a directive whose name is directive name, continue.
         if (policy->contains_directive_with_name(lowercase_directive_name)) {
