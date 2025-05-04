@@ -1,5 +1,5 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x600 [BFC] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x39 [BFC] children: not-inline
     BlockContainer <body> at (8,8) content-size 784x23 children: not-inline
       FieldSetBox <fieldset> at (24,15.59375) content-size 752x3.40625 [BFC] children: not-inline
         LegendBox <legend> at (26,1) content-size 36.328125x18 children: inline
@@ -10,7 +10,7 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
         TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x39]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x23] overflow: [8,1 784x38]
       FieldSetPaintable (FieldSetBox<FIELDSET>) [10,8 780x23] overflow: [12,1 776x38]
         PaintableWithLines (LegendBox<LEGEND>) [24,1 40.328125x18]
