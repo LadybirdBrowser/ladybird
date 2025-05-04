@@ -326,12 +326,24 @@ void PaintableBox::before_paint(PaintContext& context, [[maybe_unused]] PaintPha
         apply_clip_overflow_rect(context, phase);
     }
     apply_scroll_offset(context, phase);
+
+    if (auto clip_rect = get_clip_rect(); clip_rect.has_value()) {
+        context.display_list_recorder().save();
+        context.display_list_recorder().add_clip_rect(context.rounded_device_rect(*clip_rect).to_type<int>());
+        m_did_clip = true;
+    } else {
+        m_did_clip = false;
+    }
 }
 
 void PaintableBox::after_paint(PaintContext& context, [[maybe_unused]] PaintPhase phase) const
 {
     if (!is_visible())
         return;
+
+    if (m_did_clip) {
+        context.display_list_recorder().restore();
+    }
 
     reset_scroll_offset(context, phase);
     if (!has_css_transform()) {

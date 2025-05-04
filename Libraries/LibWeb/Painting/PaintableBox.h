@@ -322,6 +322,8 @@ private:
     RefPtr<CSS::GridTrackSizeListStyleValue const> m_used_values_for_grid_template_rows;
 
     BoxModelMetrics m_box_model;
+
+    mutable bool m_did_clip { false };
 };
 
 class PaintableWithLines : public PaintableBox {
