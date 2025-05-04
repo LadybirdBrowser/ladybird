@@ -952,7 +952,7 @@ ThrowCompletionOr<Value> Object::internal_get(PropertyKey const& property_key, V
 
 // 10.1.9 [[Set]] ( P, V, Receiver ), https://tc39.es/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots-set-p-v-receiver
 // 10.1.9.1 OrdinarySet ( O, P, V, Receiver ), https://tc39.es/ecma262/#sec-ordinaryset
-ThrowCompletionOr<bool> Object::internal_set(PropertyKey const& property_key, Value value, Value receiver, CacheablePropertyMetadata* cacheable_metadata)
+ThrowCompletionOr<bool> Object::internal_set(PropertyKey const& property_key, Value value, Value receiver, CacheablePropertyMetadata* cacheable_metadata, PropertyLookupPhase phase)
 {
     VERIFY(!value.is_special_empty_value());
     VERIFY(!receiver.is_special_empty_value());
@@ -961,11 +961,11 @@ ThrowCompletionOr<bool> Object::internal_set(PropertyKey const& property_key, Va
     auto own_descriptor = TRY(internal_get_own_property(property_key));
 
     // 3. Return ? OrdinarySetWithOwnDescriptor(O, P, V, Receiver, ownDesc).
-    return ordinary_set_with_own_descriptor(property_key, value, receiver, own_descriptor, cacheable_metadata);
+    return ordinary_set_with_own_descriptor(property_key, value, receiver, own_descriptor, cacheable_metadata, phase);
 }
 
 // 10.1.9.2 OrdinarySetWithOwnDescriptor ( O, P, V, Receiver, ownDesc ), https://tc39.es/ecma262/#sec-ordinarysetwithowndescriptor
-ThrowCompletionOr<bool> Object::ordinary_set_with_own_descriptor(PropertyKey const& property_key, Value value, Value receiver, Optional<PropertyDescriptor> own_descriptor, CacheablePropertyMetadata* cacheable_metadata)
+ThrowCompletionOr<bool> Object::ordinary_set_with_own_descriptor(PropertyKey const& property_key, Value value, Value receiver, Optional<PropertyDescriptor> own_descriptor, CacheablePropertyMetadata* cacheable_metadata, PropertyLookupPhase phase)
 {
     VERIFY(!value.is_special_empty_value());
     VERIFY(!receiver.is_special_empty_value());
@@ -980,7 +980,7 @@ ThrowCompletionOr<bool> Object::ordinary_set_with_own_descriptor(PropertyKey con
         // b. If parent is not null, then
         if (parent) {
             // i. Return ? parent.[[Set]](P, V, Receiver).
-            return TRY(parent->internal_set(property_key, value, receiver));
+            return TRY(parent->internal_set(property_key, value, receiver, cacheable_metadata, PropertyLookupPhase::PrototypeChain));
         }
         // c. Else,
         else {
@@ -993,6 +993,27 @@ ThrowCompletionOr<bool> Object::ordinary_set_with_own_descriptor(PropertyKey con
             };
         }
     }
+
+    auto update_inline_cache = [&] {
+        // Non-standard: If the caller has requested cacheable metadata and the property is an own property, fill it in.
+        if (!cacheable_metadata || !own_descriptor->property_offset.has_value() || !shape().is_cacheable())
+            return;
+        if (phase == PropertyLookupPhase::OwnProperty) {
+            *cacheable_metadata = CacheablePropertyMetadata {
+                .type = CacheablePropertyMetadata::Type::OwnProperty,
+                .property_offset = own_descriptor->property_offset.value(),
+                .prototype = nullptr,
+            };
+        } else if (phase == PropertyLookupPhase::PrototypeChain) {
+            VERIFY(shape().is_prototype_shape());
+            VERIFY(shape().prototype_chain_validity()->is_valid());
+            *cacheable_metadata = CacheablePropertyMetadata {
+                .type = CacheablePropertyMetadata::Type::InPrototypeChain,
+                .property_offset = own_descriptor->property_offset.value(),
+                .prototype = this,
+            };
+        }
+    };
 
     // 2. If IsDataDescriptor(ownDesc) is true, then
     if (own_descriptor->is_data_descriptor()) {
@@ -1022,13 +1043,10 @@ ThrowCompletionOr<bool> Object::ordinary_set_with_own_descriptor(PropertyKey con
             // iii. Let valueDesc be the PropertyDescriptor { [[Value]]: V }.
             auto value_descriptor = PropertyDescriptor { .value = value };
 
-            if (cacheable_metadata && own_descriptor.has_value() && own_descriptor->property_offset.has_value() && shape().is_cacheable()) {
-                *cacheable_metadata = CacheablePropertyMetadata {
-                    .type = CacheablePropertyMetadata::Type::OwnProperty,
-                    .property_offset = own_descriptor->property_offset.value(),
-                    .prototype = nullptr,
-                };
-            }
+            // NOTE: We don't cache non-setter properties in the prototype chain, as that's a weird
+            //       use-case, and doesn't seem like something in need of optimization.
+            if (phase == PropertyLookupPhase::OwnProperty)
+                update_inline_cache();
 
             // iv. Return ? Receiver.[[DefineOwnProperty]](P, valueDesc).
             return TRY(receiver_object.internal_define_own_property(property_key, value_descriptor, &existing_descriptor));
@@ -1052,6 +1070,8 @@ ThrowCompletionOr<bool> Object::ordinary_set_with_own_descriptor(PropertyKey con
     // 5. If setter is undefined, return false.
     if (!setter)
         return false;
+
+    update_inline_cache();
 
     // 6. Perform ? Call(setter, Receiver, « V »).
     (void)TRY(call(vm, *setter, receiver, value));

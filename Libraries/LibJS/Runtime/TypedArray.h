@@ -352,7 +352,7 @@ public:
     }
 
     // 10.4.5.6 [[Set]] ( P, V, Receiver ), https://tc39.es/ecma262/#sec-integer-indexed-exotic-objects-set-p-v-receiver
-    virtual ThrowCompletionOr<bool> internal_set(PropertyKey const& property_key, Value value, Value receiver, CacheablePropertyMetadata*) override
+    virtual ThrowCompletionOr<bool> internal_set(PropertyKey const& property_key, Value value, Value receiver, CacheablePropertyMetadata*, PropertyLookupPhase) override
     {
         VERIFY(!value.is_special_empty_value());
         VERIFY(!receiver.is_special_empty_value());

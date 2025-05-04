@@ -54,7 +54,7 @@ ThrowCompletionOr<Value> ArgumentsObject::internal_get(PropertyKey const& proper
 }
 
 // 10.4.4.4 [[Set]] ( P, V, Receiver ), https://tc39.es/ecma262/#sec-arguments-exotic-objects-set-p-v-receiver
-ThrowCompletionOr<bool> ArgumentsObject::internal_set(PropertyKey const& property_key, Value value, Value receiver, CacheablePropertyMetadata*)
+ThrowCompletionOr<bool> ArgumentsObject::internal_set(PropertyKey const& property_key, Value value, Value receiver, CacheablePropertyMetadata*, PropertyLookupPhase)
 {
     bool is_mapped = false;
 

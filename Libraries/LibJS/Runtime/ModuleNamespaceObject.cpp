@@ -185,7 +185,7 @@ ThrowCompletionOr<Value> ModuleNamespaceObject::internal_get(PropertyKey const& 
 }
 
 // 10.4.6.9 [[Set]] ( P, V, Receiver ), https://tc39.es/ecma262/#sec-module-namespace-exotic-objects-set-p-v-receiver
-ThrowCompletionOr<bool> ModuleNamespaceObject::internal_set(PropertyKey const&, Value, Value, CacheablePropertyMetadata*)
+ThrowCompletionOr<bool> ModuleNamespaceObject::internal_set(PropertyKey const&, Value, Value, CacheablePropertyMetadata*, PropertyLookupPhase)
 {
     // 1. Return false.
     return false;
