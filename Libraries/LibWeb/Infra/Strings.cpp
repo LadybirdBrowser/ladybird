@@ -116,34 +116,6 @@ ErrorOr<String> convert_to_scalar_value_string(StringView string)
     return scalar_value_builder.to_string();
 }
 
-// https://infra.spec.whatwg.org/#ascii-lowercase
-ErrorOr<String> to_ascii_lowercase(StringView string)
-{
-    // To ASCII lowercase a string, replace all ASCII upper alphas in the string with their
-    // corresponding code point in ASCII lower alpha.
-    StringBuilder string_builder;
-    auto utf8_view = Utf8View { string };
-    for (u32 code_point : utf8_view) {
-        code_point = AK::to_ascii_lowercase(code_point);
-        string_builder.append_code_point(code_point);
-    }
-    return string_builder.to_string();
-}
-
-// https://infra.spec.whatwg.org/#ascii-uppercase
-ErrorOr<String> to_ascii_uppercase(StringView string)
-{
-    // To ASCII uppercase a string, replace all ASCII lower alphas in the string with their
-    // corresponding code point in ASCII upper alpha.
-    StringBuilder string_builder;
-    auto utf8_view = Utf8View { string };
-    for (u32 code_point : utf8_view) {
-        code_point = AK::to_ascii_uppercase(code_point);
-        string_builder.append_code_point(code_point);
-    }
-    return string_builder.to_string();
-}
-
 // https://infra.spec.whatwg.org/#isomorphic-encode
 ByteBuffer isomorphic_encode(StringView input)
 {

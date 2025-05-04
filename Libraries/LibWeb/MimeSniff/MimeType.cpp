@@ -118,7 +118,7 @@ Optional<MimeType> MimeType::parse(StringView string)
         return OptionalNone {};
 
     // 10. Let mimeType be a new MIME type record whose type is type, in ASCII lowercase, and subtype is subtype, in ASCII lowercase.
-    auto mime_type = MimeType::create(MUST(Infra::to_ascii_lowercase(type)), MUST(Infra::to_ascii_lowercase(subtype)));
+    auto mime_type = MimeType::create(type.to_ascii_lowercase_string(), subtype.to_ascii_lowercase_string());
 
     // 11. While position is not past the end of input:
     while (!lexer.is_eof()) {
@@ -134,7 +134,7 @@ Optional<MimeType> MimeType::parse(StringView string)
         });
 
         // 4. Set parameterName to parameterName, in ASCII lowercase.
-        auto parameter_name = MUST(Infra::to_ascii_lowercase(parameter_name_view));
+        auto parameter_name = parameter_name_view.to_ascii_lowercase_string();
 
         // 5. If position is not past the end of input, then:
         if (!lexer.is_eof()) {
