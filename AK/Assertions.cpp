@@ -33,18 +33,17 @@
 #    define ERRORLN warnln
 #endif
 
+extern "C" {
+
 #if defined(AK_HAS_STD_STACKTRACE)
-namespace {
-ALWAYS_INLINE void dump_backtrace()
+void dump_backtrace()
 {
     // We assume the stacktrace implementation demangles symbols, as does microsoft/STL
     PRINT_ERROR(std::to_string(std::stacktrace::current(2)).c_str());
     PRINT_ERROR("\n");
 }
-}
 #elif defined(AK_HAS_BACKTRACE_HEADER)
-namespace {
-ALWAYS_INLINE void dump_backtrace()
+void dump_backtrace()
 {
     // Grab symbols and dso name for up to 256 frames
     void* trace[256] = {};
@@ -89,10 +88,12 @@ ALWAYS_INLINE void dump_backtrace()
     }
     free(syms);
 }
+#else
+void dump_backtrace()
+{
+    PRINT_ERROR("dump_backtrace() is not supported with the current compilation options.\n");
 }
 #endif
-
-extern "C" {
 
 bool ak_colorize_output(void)
 {
