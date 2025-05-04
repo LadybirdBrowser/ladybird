@@ -6,6 +6,7 @@
 
 #pragma once
 
+extern "C" void dump_backtrace();
 extern "C" bool ak_colorize_output(void);
 extern "C" __attribute__((noreturn)) void ak_trap(void);
 
