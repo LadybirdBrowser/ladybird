@@ -564,9 +564,9 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::match)
     // 1. Let O be ? RequireObjectCoercible(this value).
     auto this_object = TRY(require_object_coercible(vm, vm.this_value()));
 
-    // 2. If regexp is neither undefined nor null, then
+    // 2. If regexp is an Object, then
     auto regexp = vm.argument(0);
-    if (!regexp.is_nullish()) {
+    if (regexp.is_object()) {
         // a. Let matcher be ? GetMethod(regexp, @@match).
         auto matcher = TRY(regexp.get_method(vm, vm.well_known_symbol_match()));
 
@@ -595,8 +595,8 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::match_all)
     // 1. Let O be ? RequireObjectCoercible(this value).
     auto this_object = TRY(require_object_coercible(vm, vm.this_value()));
 
-    // 2. If regexp is neither undefined nor null, then
-    if (!regexp.is_nullish()) {
+    // 2. If regexp is an Object, then
+    if (regexp.is_object()) {
         // a. Let isRegExp be ? IsRegExp(regexp).
         auto is_regexp = TRY(regexp.is_regexp(vm));
 
@@ -782,8 +782,8 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::replace)
     // 1. Let O be ? RequireObjectCoercible(this value).
     auto this_object = TRY(require_object_coercible(vm, vm.this_value()));
 
-    // 2. If searchValue is neither undefined nor null, then
-    if (!search_value.is_nullish()) {
+    // 2. If searchValue is an Object, then
+    if (search_value.is_object()) {
         // a. Let replacer be ? GetMethod(searchValue, @@replace).
         auto replacer = TRY(search_value.get_method(vm, vm.well_known_symbol_replace()));
 
@@ -861,8 +861,8 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::replace_all)
     // 1. Let O be ? RequireObjectCoercible(this value).
     auto this_object = TRY(require_object_coercible(vm, vm.this_value()));
 
-    // 2. If searchValue is neither undefined nor null, then
-    if (!search_value.is_nullish()) {
+    // 2. If searchValue is an Object, then
+    if (search_value.is_object()) {
         // a. Let isRegExp be ? IsRegExp(searchValue).
         bool is_regexp = TRY(search_value.is_regexp(vm));
 
@@ -977,8 +977,8 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::search)
     // 1. Let O be ? RequireObjectCoercible(this value).
     auto this_object = TRY(require_object_coercible(vm, vm.this_value()));
 
-    // 2. If regexp is neither undefined nor null, then
-    if (!regexp.is_nullish()) {
+    // 2. If regexp is an Object, then
+    if (regexp.is_object()) {
         // a. Let searcher be ? GetMethod(regexp, @@search).
         auto searcher = TRY(regexp.get_method(vm, vm.well_known_symbol_search()));
 
@@ -1058,8 +1058,8 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::split)
     // 1. Let O be ? RequireObjectCoercible(this value).
     auto object = TRY(require_object_coercible(vm, vm.this_value()));
 
-    // 2. If separator is neither undefined nor null, then
-    if (!separator_argument.is_nullish()) {
+    // 2. If separator is an Object, then
+    if (separator_argument.is_object()) {
         // a. Let splitter be ? GetMethod(separator, @@split).
         auto splitter = TRY(separator_argument.get_method(vm, vm.well_known_symbol_split()));
         // b. If splitter is not undefined, then
