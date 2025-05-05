@@ -294,7 +294,7 @@ If you want to run the debugger, first place the content below in `.vscode/launc
             "name": "Attach to WebContent",
             "type": "lldb",
             "request": "attach",
-            "program": "${workspaceFolder}/Build/ladybird-debug/bin/Ladybird.app/Contents/MacOS/WebContent",
+            "program": "${workspaceFolder}/Build/debug/bin/Ladybird.app/Contents/MacOS/WebContent",
         }
     ],
 }
@@ -319,7 +319,7 @@ For Linux, the `launch.json` will instead be the file below.
       "name": "Attach and debug",
       "type": "cppdbg",
       "request": "attach",
-      "program": "${workspaceRoot}/Build/ladybird-debug/libexec/WebContent",
+      "program": "${workspaceRoot}/Build/debug/libexec/WebContent",
       "MIMode": "gdb",
     },
   ]
@@ -332,7 +332,7 @@ Running Ladybird as follows:
 BUILD_PRESET=Debug Meta/ladybird.sh run ladybird --debug-process WebContent
 ```
 
-Then follow the same steps found in the Mac section.
+Then follow the same steps found in the Mac section. Notice also that you need to have `gdb` (the GNU Debugger) installed.
 
 ### License snippet
 

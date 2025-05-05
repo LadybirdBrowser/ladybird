@@ -49,9 +49,9 @@ This error typically arises when CLion is not configured to use the correct buil
 
 **Solution**: Ensure that CLion's build directory is set to the correct build directory for the selected profile.
 Navigate to `Settings -> Build, Execution, Deployment -> CMake` and in your selected profile, set the `Build directory` according to the profile:
-- Default -> "`Build/ladybird`"
-- Debug -> "`Build/ladybird-debug`"
-- Sanitizer -> "`Build/ladybird-sanitizers`"
+- Default -> "`Build/release`"
+- Debug -> "`Build/debug`"
+- Sanitizer -> "`Build/sanitizers`"
 
 
 ## Notes for WSL Users
