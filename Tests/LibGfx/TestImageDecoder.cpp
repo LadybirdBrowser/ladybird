@@ -84,6 +84,16 @@ TEST_CASE(test_bmp_too_many_palette_colors)
     TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 2, 2 }));
 }
 
+TEST_CASE(test_bmp_v4)
+{
+    auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("bmp/2x2x32_v4.bmp"sv)));
+    EXPECT(Gfx::BMPImageDecoderPlugin::sniff(file->bytes()));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::BMPImageDecoderPlugin::create(file->bytes()));
+
+    auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 2, 2 }));
+    EXPECT_EQ(frame.image->get_pixel(0, 0), Gfx::Color::NamedColor::Red);
+}
+
 TEST_CASE(test_ico_malformed_frame)
 {
     Array test_inputs = {
