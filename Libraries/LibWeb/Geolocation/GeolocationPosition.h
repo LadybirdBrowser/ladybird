@@ -19,19 +19,24 @@ class GeolocationPosition final : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(GeolocationPosition);
 
 public:
-    [[nodiscard]] static GC::Ref<GeolocationPosition> create(JS::Realm&, GC::Root<GeolocationCoordinates> coords, HighResolutionTime::EpochTimeStamp timestamp);
+    [[nodiscard]] static GC::Ref<GeolocationPosition> create(JS::Realm&, GC::Ptr<GeolocationCoordinates> coords, HighResolutionTime::EpochTimeStamp timestamp, bool is_high_accuracy);
 
-    GC::Root<GeolocationCoordinates> coords() const { return m_coords; }
+    GC::Ptr<GeolocationCoordinates> coords() const { return m_coords; }
     HighResolutionTime::EpochTimeStamp timestamp() const { return m_timestamp; }
+    bool is_high_accuracy() const { return m_is_high_accuracy; }
 
 private:
-    GeolocationPosition(JS::Realm&, GC::Root<GeolocationCoordinates> coords, HighResolutionTime::EpochTimeStamp timestamp);
+    GeolocationPosition(JS::Realm&, GC::Ptr<GeolocationCoordinates> coords, HighResolutionTime::EpochTimeStamp timestamp, bool is_high_accuracy);
     virtual ~GeolocationPosition() override;
 
     virtual void initialize(JS::Realm&) override;
+    virtual void visit_edges(Cell::Visitor&) override;
 
-    GC::Root<GeolocationCoordinates> m_coords;
+    GC::Ptr<GeolocationCoordinates> m_coords;
     HighResolutionTime::EpochTimeStamp m_timestamp;
+
+    // https://w3c.github.io/geolocation/#dfn-ishighaccuracy
+    bool m_is_high_accuracy;
 };
 
 }

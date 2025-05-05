@@ -649,6 +649,22 @@ void WebContentClient::did_request_clipboard_entries(u64 page_id, u64 request_id
     }
 }
 
+void WebContentClient::did_request_geolocation_watch(u64 page_id, u64 request_id, bool enable_high_accuracy)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
+        if (view->on_request_geolocation_watch)
+            view->on_request_geolocation_watch(request_id, enable_high_accuracy);
+    }
+}
+
+void WebContentClient::did_stop_geolocation_watch(u64 page_id, u64 request_id)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
+        if (view->on_stop_geolocation_watch)
+            view->on_stop_geolocation_watch(request_id);
+    }
+}
+
 void WebContentClient::did_change_audio_play_state(u64 page_id, Web::HTML::AudioPlayState play_state)
 {
     if (auto view = view_for_page_id(page_id); view.has_value())

@@ -228,6 +228,7 @@ write_cmake_config("ak_debug_gen") {
     "FILE_WATCHER_DEBUG=",
     "FLAC_ENCODER_DEBUG=",
     "GENERATE_DEBUG=",
+    "GEOLOCATION_DEBUG=",
     "GHASH_PROCESS_DEBUG=",
     "GIF_DEBUG=",
     "HEAP_DEBUG=",

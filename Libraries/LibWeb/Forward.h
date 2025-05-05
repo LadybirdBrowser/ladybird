@@ -412,6 +412,7 @@ class GeolocationCoordinates;
 class GeolocationPosition;
 class GeolocationPositionError;
 
+struct GeolocationUpdate;
 struct PositionOptions;
 }
 

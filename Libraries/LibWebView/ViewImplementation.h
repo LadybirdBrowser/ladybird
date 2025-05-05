@@ -132,6 +132,8 @@ public:
 
     void retrieved_clipboard_entries(u64 request_id, ReadonlySpan<Web::Clipboard::SystemClipboardItem>);
 
+    void geolocation_update(u64 request_id, Web::Geolocation::GeolocationUpdateState state);
+
     void toggle_media_play_state();
     void toggle_media_mute_state();
     void toggle_media_loop_state();
@@ -229,6 +231,8 @@ public:
     Function<void(Gfx::Color)> on_theme_color_change;
     Function<void(Web::Clipboard::SystemClipboardRepresentation, String const&)> on_insert_clipboard_entry;
     Function<void(u64 request_id)> on_request_clipboard_entries;
+    Function<void(u64 request_id, bool enable_high_accuracy)> on_request_geolocation_watch;
+    Function<void(u64 request_id)> on_stop_geolocation_watch;
     Function<void(Web::HTML::AudioPlayState)> on_audio_play_state_changed;
     Function<void(bool, bool)> on_navigation_buttons_state_changed;
     Function<void()> on_web_content_crashed;

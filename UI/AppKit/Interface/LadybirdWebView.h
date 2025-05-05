@@ -17,6 +17,7 @@
 #include <LibWebView/Forward.h>
 
 #import <Cocoa/Cocoa.h>
+#import <CoreLocation/CoreLocation.h>
 
 @protocol LadybirdWebViewObserver <NSObject>
 
@@ -48,7 +49,7 @@
 
 @end
 
-@interface LadybirdWebView : NSView <NSMenuDelegate>
+@interface LadybirdWebView : NSView <NSMenuDelegate, CLLocationManagerDelegate>
 
 - (instancetype)init:(id<LadybirdWebViewObserver>)observer;
 - (instancetype)initAsChild:(id<LadybirdWebViewObserver>)observer

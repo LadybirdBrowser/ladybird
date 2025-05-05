@@ -1263,6 +1263,12 @@ void ConnectionFromClient::retrieved_clipboard_entries(u64 page_id, u64 request_
         page->page().retrieved_clipboard_entries(request_id, move(items));
 }
 
+void ConnectionFromClient::geolocation_update(u64 page_id, u64 request_id, Web::Geolocation::GeolocationUpdateState state)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().geolocation_update(request_id, state);
+}
+
 void ConnectionFromClient::toggle_media_play_state(u64 page_id)
 {
     if (auto page = this->page(page_id); page.has_value())

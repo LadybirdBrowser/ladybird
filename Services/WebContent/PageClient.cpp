@@ -659,6 +659,16 @@ void PageClient::page_did_request_clipboard_entries(u64 request_id)
     client().async_did_request_clipboard_entries(m_id, request_id);
 }
 
+void PageClient::page_did_request_geolocation_watch(u64 request_id, bool enable_high_accuracy)
+{
+    client().async_did_request_geolocation_watch(m_id, request_id, enable_high_accuracy);
+}
+
+void PageClient::page_did_stop_geolocation_watch(u64 request_id)
+{
+    client().async_did_stop_geolocation_watch(m_id, request_id);
+}
+
 void PageClient::page_did_change_audio_play_state(Web::HTML::AudioPlayState play_state)
 {
     client().async_did_change_audio_play_state(m_id, play_state);

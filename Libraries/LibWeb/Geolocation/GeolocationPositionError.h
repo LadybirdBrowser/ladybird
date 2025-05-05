@@ -17,10 +17,16 @@ class GeolocationPositionError final : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(GeolocationPositionError);
 
 public:
+    [[nodiscard]] static GC::Ref<GeolocationPositionError> create(JS::Realm&, WebIDL::UnsignedShort code);
     [[nodiscard]] static GC::Ref<GeolocationPositionError> create(JS::Realm&, WebIDL::UnsignedShort code, String message);
 
     WebIDL::UnsignedShort code() const { return m_code; }
     String message() const { return m_message; }
+
+    // FIXME: Generate these consts from the IDL.
+    static WebIDL::UnsignedShort const PERMISSION_DENIED = 1;
+    static WebIDL::UnsignedShort const POSITION_UNAVAILABLE = 2;
+    static WebIDL::UnsignedShort const TIMEOUT = 3;
 
 private:
     GeolocationPositionError(JS::Realm&, WebIDL::UnsignedShort code, String message);

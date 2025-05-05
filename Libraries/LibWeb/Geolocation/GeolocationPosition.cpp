@@ -13,15 +13,16 @@ namespace Web::Geolocation {
 
 GC_DEFINE_ALLOCATOR(GeolocationPosition);
 
-GC::Ref<GeolocationPosition> GeolocationPosition::create(JS::Realm& realm, GC::Root<GeolocationCoordinates> coords, HighResolutionTime::EpochTimeStamp timestamp)
+GC::Ref<GeolocationPosition> GeolocationPosition::create(JS::Realm& realm, GC::Ptr<GeolocationCoordinates> coords, HighResolutionTime::EpochTimeStamp timestamp, bool is_high_accuracy)
 {
-    return realm.create<GeolocationPosition>(realm, move(coords), timestamp);
+    return realm.create<GeolocationPosition>(realm, coords, timestamp, is_high_accuracy);
 }
 
-GeolocationPosition::GeolocationPosition(JS::Realm& realm, GC::Root<GeolocationCoordinates> coords, HighResolutionTime::EpochTimeStamp timestamp)
+GeolocationPosition::GeolocationPosition(JS::Realm& realm, GC::Ptr<GeolocationCoordinates> coords, HighResolutionTime::EpochTimeStamp timestamp, bool is_high_accuracy)
     : PlatformObject(realm)
-    , m_coords(move(coords))
+    , m_coords(coords)
     , m_timestamp(timestamp)
+    , m_is_high_accuracy(is_high_accuracy)
 {
 }
 
@@ -31,6 +32,12 @@ void GeolocationPosition::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(GeolocationPosition);
     Base::initialize(realm);
+}
+
+void GeolocationPosition::visit_edges(Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_coords);
 }
 
 }

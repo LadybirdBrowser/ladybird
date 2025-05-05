@@ -131,6 +131,8 @@ private:
 
     virtual void retrieved_clipboard_entries(u64 page_id, u64 request_id, Vector<Web::Clipboard::SystemClipboardItem>) override;
 
+    virtual void geolocation_update(u64 page_id, u64 request_id, Web::Geolocation::GeolocationUpdateState state) override;
+
     virtual void toggle_media_play_state(u64 page_id) override;
     virtual void toggle_media_mute_state(u64 page_id) override;
     virtual void toggle_media_loop_state(u64 page_id) override;

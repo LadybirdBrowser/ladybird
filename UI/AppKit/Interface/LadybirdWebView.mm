@@ -11,6 +11,7 @@
 #include <LibGfx/ShareableBitmap.h>
 #include <LibURL/Parser.h>
 #include <LibURL/URL.h>
+#include <LibWeb/Geolocation/GeolocationUpdateState.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/SearchEngine.h>
@@ -60,6 +61,8 @@ struct HideCursor {
     Optional<String> m_context_menu_search_text;
 
     Optional<HideCursor> m_hidden_cursor;
+
+    HashMap<u64, CLLocationManager*> m_geolocation_watchs;
 
     // We have to send key events for modifer keys, but AppKit does not generate key down/up events when only a modifier
     // key is pressed. Instead, we only receive an event that the modifier flags have changed, and we must determine for
@@ -1110,6 +1113,35 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
         m_web_view_bridge->retrieved_clipboard_entries(request_id, items);
     };
 
+    m_web_view_bridge->on_request_geolocation_watch = [weak_self](auto request_id, auto enable_high_accuracy) {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return;
+        }
+
+        dbgln_if(GEOLOCATION_DEBUG, "Geolocation request #{} watch started", request_id);
+
+        auto location_manager = [CLLocationManager new];
+        location_manager.delegate = self;
+        location_manager.desiredAccuracy = enable_high_accuracy ? kCLLocationAccuracyBest : kCLLocationAccuracyThreeKilometers;
+        m_geolocation_watchs.set(request_id, location_manager);
+
+        // Request location permission when not given yet, when denied locationManager:didFailWithError: will be called
+        if ([location_manager authorizationStatus] == kCLAuthorizationStatusNotDetermined) {
+            [location_manager requestWhenInUseAuthorization];
+        }
+
+        [location_manager startUpdatingLocation];
+    };
+
+    m_web_view_bridge->on_stop_geolocation_watch = [weak_self](auto request_id) {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return;
+        }
+        [self stopGeolocationWatch:request_id];
+    };
+
     m_web_view_bridge->on_audio_play_state_changed = [weak_self](auto play_state) {
         LadybirdWebView* self = weak_self;
         if (self == nil) {
@@ -1757,6 +1789,66 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
 - (BOOL)wantsPeriodicDraggingUpdates
 {
     return NO;
+}
+
+- (void)locationManager:(CLLocationManager*)manager didUpdateLocations:(NSArray<CLLocation*>*)locations
+{
+    // Find request id by location manager
+    for (auto const& entry : m_geolocation_watchs) {
+        if (entry.value == manager) {
+            CLLocation* last_location = [locations lastObject];
+
+            dbgln_if(GEOLOCATION_DEBUG, "Geolocation request #{} position: {},{}", entry.key, last_location.coordinate.latitude, last_location.coordinate.longitude);
+
+            // Send geolocation update
+            auto update_state = Web::Geolocation::GeolocationUpdatePosition {
+                .latitude = last_location.coordinate.latitude,
+                .longitude = last_location.coordinate.longitude,
+                .accuracy = last_location.horizontalAccuracy,
+                .altitude = last_location.altitude,
+                .altitude_accuracy = last_location.verticalAccuracy,
+                .heading = last_location.course,
+                .speed = last_location.speed,
+                .timestamp = UnixDateTime::from_seconds_since_epoch((i64)last_location.timestamp.timeIntervalSince1970),
+            };
+            m_web_view_bridge->geolocation_update(entry.key, update_state);
+            return;
+        }
+    }
+}
+
+- (void)locationManager:(CLLocationManager*)manager didFailWithError:(NSError*)error
+{
+    // Find request id by location manager
+    for (auto const& entry : m_geolocation_watchs) {
+        if (entry.value == manager) {
+            dbgln_if(GEOLOCATION_DEBUG, "Geolocation request #{} error: {}", entry.key, Ladybird::ns_string_to_string(error.localizedDescription));
+
+            // Detect errors
+            if (error.code == kCLErrorLocationUnknown) {
+                m_web_view_bridge->geolocation_update(entry.key, Web::Geolocation::GeolocationUpdateError::PositionUnavailable);
+            } else {
+                m_web_view_bridge->geolocation_update(entry.key, Web::Geolocation::GeolocationUpdateError::PermissionDenied);
+            }
+
+            // Stop watching location when error occurs
+            [self stopGeolocationWatch:entry.key];
+            return;
+        }
+    }
+}
+
+- (void)stopGeolocationWatch:(u64)request_id
+{
+    if (auto location_manager = m_geolocation_watchs.get(request_id); location_manager.has_value()) {
+        dbgln_if(GEOLOCATION_DEBUG, "Geolocation request #{} watch stopped", request_id);
+
+        // Stop location manager
+        [*location_manager stopUpdatingLocation];
+
+        // FIXME: Should we not [location_manager release]?
+        m_geolocation_watchs.remove(request_id);
+    }
 }
 
 @end

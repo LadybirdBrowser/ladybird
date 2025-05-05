@@ -13,6 +13,17 @@ namespace Web::Geolocation {
 
 GC_DEFINE_ALLOCATOR(GeolocationPositionError);
 
+GC::Ref<GeolocationPositionError> GeolocationPositionError::create(JS::Realm& realm, WebIDL::UnsignedShort code)
+{
+    if (code == PERMISSION_DENIED)
+        return create(realm, code, "Permission Denied"_string);
+    if (code == POSITION_UNAVAILABLE)
+        return create(realm, code, "Position Unavailable"_string);
+    if (code == TIMEOUT)
+        return create(realm, code, "Timeout"_string);
+    VERIFY_NOT_REACHED();
+}
+
 GC::Ref<GeolocationPositionError> GeolocationPositionError::create(JS::Realm& realm, WebIDL::UnsignedShort code, String message)
 {
     return realm.create<GeolocationPositionError>(realm, code, move(message));

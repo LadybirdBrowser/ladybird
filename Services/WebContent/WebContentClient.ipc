@@ -96,6 +96,9 @@ endpoint WebContentClient
     did_insert_clipboard_entry(u64 page_id, Web::Clipboard::SystemClipboardRepresentation entry, String presentation_style) =|
     did_request_clipboard_entries(u64 page_id, u64 request_id) =|
 
+    did_request_geolocation_watch(u64 page_id, u64 request_id, bool enable_high_accuracy) =|
+    did_stop_geolocation_watch(u64 page_id, u64 request_id) =|
+
     did_update_navigation_buttons_state(u64 page_id, bool back_enabled, bool forward_enabled) =|
     did_allocate_backing_stores(u64 page_id, i32 front_bitmap_id, Gfx::ShareableBitmap front_bitmap, i32 back_bitmap_id, Gfx::ShareableBitmap back_bitmap) =|
 
