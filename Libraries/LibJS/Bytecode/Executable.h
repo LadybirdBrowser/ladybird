@@ -17,6 +17,7 @@
 #include <LibJS/Bytecode/StringTable.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/Cell.h>
+#include <LibJS/LocalVariable.h>
 #include <LibJS/Runtime/EnvironmentCoordinate.h>
 #include <LibJS/SourceRange.h>
 
@@ -85,7 +86,7 @@ public:
 
     HashMap<size_t, SourceRecord> source_map;
 
-    Vector<FlyString> local_variable_names;
+    Vector<LocalVariable> local_variable_names;
     size_t local_index_base { 0 };
     size_t argument_index_base { 0 };
 

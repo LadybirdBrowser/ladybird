@@ -46,7 +46,7 @@ public:
         bool strict,
         bool is_arrow_function,
         FunctionParsingInsights const&,
-        Vector<FlyString> local_variables_names);
+        Vector<LocalVariable> local_variables_names);
 
     RefPtr<FunctionParameters const> m_formal_parameters; // [[FormalParameters]]
     RefPtr<Statement const> m_ecmascript_code;            // [[ECMAScriptCode]]
@@ -54,7 +54,7 @@ public:
     FlyString m_name;
     ByteString m_source_text; // [[SourceText]]
 
-    Vector<FlyString> m_local_variables_names;
+    Vector<LocalVariable> m_local_variables_names;
 
     i32 m_function_length { 0 };
 
@@ -103,8 +103,8 @@ class ECMAScriptFunctionObject final : public FunctionObject {
     GC_DECLARE_ALLOCATOR(ECMAScriptFunctionObject);
 
 public:
-    static GC::Ref<ECMAScriptFunctionObject> create(Realm&, FlyString name, ByteString source_text, Statement const& ecmascript_code, NonnullRefPtr<FunctionParameters const> parameters, i32 function_length, Vector<FlyString> local_variables_names, Environment* parent_environment, PrivateEnvironment* private_environment, FunctionKind, bool is_strict, FunctionParsingInsights, bool is_arrow_function = false, Variant<PropertyKey, PrivateName, Empty> class_field_initializer_name = {});
-    static GC::Ref<ECMAScriptFunctionObject> create(Realm&, FlyString name, Object& prototype, ByteString source_text, Statement const& ecmascript_code, NonnullRefPtr<FunctionParameters const> parameters, i32 function_length, Vector<FlyString> local_variables_names, Environment* parent_environment, PrivateEnvironment* private_environment, FunctionKind, bool is_strict, FunctionParsingInsights, bool is_arrow_function = false, Variant<PropertyKey, PrivateName, Empty> class_field_initializer_name = {});
+    static GC::Ref<ECMAScriptFunctionObject> create(Realm&, FlyString name, ByteString source_text, Statement const& ecmascript_code, NonnullRefPtr<FunctionParameters const> parameters, i32 function_length, Vector<LocalVariable> local_variables_names, Environment* parent_environment, PrivateEnvironment* private_environment, FunctionKind, bool is_strict, FunctionParsingInsights, bool is_arrow_function = false, Variant<PropertyKey, PrivateName, Empty> class_field_initializer_name = {});
+    static GC::Ref<ECMAScriptFunctionObject> create(Realm&, FlyString name, Object& prototype, ByteString source_text, Statement const& ecmascript_code, NonnullRefPtr<FunctionParameters const> parameters, i32 function_length, Vector<LocalVariable> local_variables_names, Environment* parent_environment, PrivateEnvironment* private_environment, FunctionKind, bool is_strict, FunctionParsingInsights, bool is_arrow_function = false, Variant<PropertyKey, PrivateName, Empty> class_field_initializer_name = {});
 
     [[nodiscard]] static GC::Ref<ECMAScriptFunctionObject> create_from_function_node(
         FunctionNode const&,
@@ -167,7 +167,7 @@ public:
     // Equivalent to absence of [[Construct]]
     virtual bool has_constructor() const override { return kind() == FunctionKind::Normal && !shared_data().m_is_arrow_function; }
 
-    virtual Vector<FlyString> const& local_variables_names() const override { return shared_data().m_local_variables_names; }
+    virtual Vector<LocalVariable> const& local_variables_names() const override { return shared_data().m_local_variables_names; }
 
     FunctionKind kind() const { return shared_data().m_kind; }
 
