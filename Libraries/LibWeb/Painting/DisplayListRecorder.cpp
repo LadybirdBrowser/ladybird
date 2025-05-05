@@ -270,6 +270,16 @@ void DisplayListRecorder::add_clip_rect(Gfx::IntRect const& rect)
     append(AddClipRect { rect });
 }
 
+void DisplayListRecorder::start_non_local_effect()
+{
+    append(StartNonLocalEffect {});
+}
+
+void DisplayListRecorder::end_non_local_effect()
+{
+    append(EndNonLocalEffect {});
+}
+
 void DisplayListRecorder::translate(Gfx::IntPoint delta)
 {
     append(Translate { delta });

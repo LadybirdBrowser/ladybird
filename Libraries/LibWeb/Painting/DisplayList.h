@@ -22,6 +22,11 @@ namespace Web::Painting {
 
 class DisplayList;
 
+struct PaintContainmentInfo {
+    Gfx::IntRect visible_area;
+    int non_local_effects;
+};
+
 class DisplayListPlayer {
 public:
     virtual ~DisplayListPlayer() = default;
@@ -30,7 +35,7 @@ public:
 
 protected:
     Gfx::PaintingSurface& surface() const { return m_surfaces.last(); }
-    void execute_impl(DisplayList&, ScrollStateSnapshot const& scroll_state, RefPtr<Gfx::PaintingSurface>);
+    void execute_impl(DisplayList&, ScrollStateSnapshot const& scroll_state, RefPtr<Gfx::PaintingSurface>, Gfx::Point<int>);
 
 private:
     virtual void flush() = 0;
@@ -75,6 +80,7 @@ private:
     virtual bool would_be_fully_clipped_by_painter(Gfx::IntRect) const = 0;
 
     Vector<NonnullRefPtr<Gfx::PaintingSurface>, 1> m_surfaces;
+    Vector<PaintContainmentInfo> m_containment_stack;
 };
 
 class DisplayList : public AtomicRefCounted<DisplayList> {

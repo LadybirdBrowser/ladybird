@@ -23,11 +23,31 @@
 
 namespace Web::Painting {
 
+// https://drafts.csswg.org/css-contain/#containment-paint-opt
+static bool has_non_local_effects(Layout::Node const& node)
+{
+    // NOTE: Some paint effects such as the blur() filter from [FILTER-EFFECTS-1] have non local effects.
+    //       The user agent needs to keep track of these, as it may need to repaint parts of an element with such a
+    //       filter when its descendents change, even if they have paint containment and could otherwise be skipped.
+    if (!node.computed_values().filter().is_empty()) {
+        // FIXME: Only do this for BlurFilter since the others are local.
+        return true;
+    }
+    return false;
+}
+
 static void paint_node(Paintable const& paintable, PaintContext& context, PaintPhase phase)
 {
+    bool non_local_effects = has_non_local_effects(paintable.layout_node());
+    if (non_local_effects) {
+        context.display_list_recorder().start_non_local_effect();
+    }
     paintable.before_paint(context, phase);
     paintable.paint(context, phase);
     paintable.after_paint(context, phase);
+    if (non_local_effects) {
+        context.display_list_recorder().end_non_local_effect();
+    }
 }
 
 StackingContext::StackingContext(PaintableBox& paintable, StackingContext* parent, size_t index_in_tree_order)

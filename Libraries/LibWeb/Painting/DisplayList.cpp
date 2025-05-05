@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Vector.h>
 #include <LibWeb/Painting/DisplayList.h>
 
 namespace Web::Painting {
@@ -35,18 +36,32 @@ static bool command_is_clip_or_mask(Command const& command)
         });
 }
 
+static bool command_performs_save(Command const& command)
+{
+    return command.visit(
+        [&](auto const& command) -> bool {
+            if constexpr (requires { command.performs_save(); })
+                return command.performs_save();
+            else
+                return false;
+        });
+}
+
 void DisplayListPlayer::execute(DisplayList& display_list, ScrollStateSnapshot const& scroll_state, RefPtr<Gfx::PaintingSurface> surface)
 {
     if (surface) {
         surface->lock_context();
     }
-    execute_impl(display_list, scroll_state, surface);
+    m_containment_stack.clear();
+    if (surface)
+        m_containment_stack.append({ surface->rect(), 0 });
+    execute_impl(display_list, scroll_state, surface, {});
     if (surface) {
         surface->unlock_context();
     }
 }
 
-void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnapshot const& scroll_state, RefPtr<Gfx::PaintingSurface> surface)
+void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnapshot const& scroll_state, RefPtr<Gfx::PaintingSurface> surface, Gfx::Point<int> surface_offset)
 {
     if (surface)
         m_surfaces.append(*surface);
@@ -59,6 +74,9 @@ void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnaps
     auto device_pixels_per_css_pixel = display_list.device_pixels_per_css_pixel();
 
     VERIFY(!m_surfaces.is_empty());
+
+    m_containment_stack.append({ m_containment_stack.last() });
+    m_containment_stack.last().visible_area.translate_by(-surface_offset);
 
     for (size_t command_index = 0; command_index < commands.size(); command_index++) {
         auto scroll_frame_id = commands[command_index].scroll_frame_id;
@@ -88,17 +106,54 @@ void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnaps
         }
 
         auto bounding_rect = command_bounding_rectangle(command);
-        if (bounding_rect.has_value() && (bounding_rect->is_empty() || would_be_fully_clipped_by_painter(*bounding_rect))) {
-            // Any clip or mask that's located outside of the visible region is equivalent to a simple clip-rect,
-            // so replace it with one to avoid doing unnecessary work.
-            if (command_is_clip_or_mask(command)) {
-                if (command.has<AddClipRect>()) {
-                    add_clip_rect(command.get<AddClipRect>());
+        if (command_is_clip_or_mask(command)) {
+            if (bounding_rect.has_value()) {
+                // Non-local effects prevent us from just intersecting with the previous visible area because we are
+                // potentially discarding parts of the clipped region that the non-local effect could bring into view.
+                // In this case, we scope to the clipped region and render all of it as if there were no non-local effects,
+                // since things inside the clipped element, but beyond the clipped area will not be affected by the
+                // existing non-local effect. (It will only affect the element in its entirety once drawn)
+                if (m_containment_stack.last().non_local_effects > 0) {
+                    m_containment_stack.last().visible_area = { *bounding_rect };
+                    m_containment_stack.last().non_local_effects = 0;
                 } else {
-                    add_clip_rect({ bounding_rect.release_value() });
+                    m_containment_stack.last().visible_area.intersect(*bounding_rect);
+                }
+
+                if (bounding_rect->is_empty() || would_be_fully_clipped_by_painter(*bounding_rect)) {
+                    // Any clip or mask that's located outside of the drawn region is equivalent to a simple clip-rect,
+                    // so replace it with one to avoid doing unnecessary work.
+                    if (command.has<AddClipRect>()) {
+                        add_clip_rect(command.get<AddClipRect>());
+                    } else {
+                        add_clip_rect({ bounding_rect.release_value() });
+                    }
+                    continue;
                 }
             }
+        } else if (command.has<Translate>()) {
+            m_containment_stack.last().visible_area.translate_by(-command.get<Translate>().delta);
+        } else if (command.has<ApplyTransform>()) {
+            auto affine_transform = Gfx::extract_2d_affine_transform(command.get<ApplyTransform>().matrix);
+            auto final_transform = Gfx::AffineTransform {}
+                                       .translate(command.get<ApplyTransform>().origin)
+                                       .multiply(affine_transform)
+                                       .translate(-command.get<ApplyTransform>().origin);
+            m_containment_stack.last().visible_area = final_transform.map(m_containment_stack.last().visible_area);
+        } else if (command.has<Restore>()) {
+            m_containment_stack.take_last();
+        } else if (command_performs_save(command)) {
+            m_containment_stack.append({ m_containment_stack.last() });
+        } else if (command.has<StartNonLocalEffect>()) {
+            m_containment_stack.last().non_local_effects++;
             continue;
+        } else if (command.has<EndNonLocalEffect>()) {
+            m_containment_stack.last().non_local_effects--;
+            continue;
+        } else {
+            if (bounding_rect.has_value() && !bounding_rect.value().intersects(m_containment_stack.last().visible_area)) {
+                continue;
+            }
         }
 
 #define HANDLE_COMMAND(command_type, executor_method) \
@@ -147,7 +202,15 @@ void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnaps
         else HANDLE_COMMAND(ApplyMaskBitmap, apply_mask_bitmap)
         else VERIFY_NOT_REACHED();
         // clang-format on
+
+        if (command.has<PaintNestedDisplayList>()) {
+            m_containment_stack.last().visible_area.translate_by(command.get<PaintNestedDisplayList>().rect.location());
+        }
     }
+
+    // This also takes care of un-translating the visible area back to where it
+    // was before the call to this function
+    m_containment_stack.take_last();
 
     if (surface)
         flush();

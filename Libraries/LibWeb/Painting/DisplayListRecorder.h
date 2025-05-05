@@ -108,6 +108,9 @@ public:
 
     void add_clip_rect(Gfx::IntRect const& rect);
 
+    void start_non_local_effect();
+    void end_non_local_effect();
+
     void translate(Gfx::IntPoint delta);
 
     void push_scroll_frame_id(Optional<i32> id);

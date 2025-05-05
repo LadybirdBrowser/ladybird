@@ -98,8 +98,12 @@ struct DrawRepeatedImmutableBitmap {
     void translate_by(Gfx::IntPoint const& offset) { dst_rect.translate_by(offset); }
 };
 
-struct Save { };
-struct SaveLayer { };
+struct Save {
+    bool performs_save() const { return true; }
+};
+struct SaveLayer {
+    bool performs_save() const { return true; }
+};
 struct Restore { };
 
 struct Translate {
@@ -115,6 +119,9 @@ struct AddClipRect {
     bool is_clip_or_mask() const { return true; }
     void translate_by(Gfx::IntPoint const& offset) { rect.translate_by(offset); }
 };
+
+struct StartNonLocalEffect { };
+struct EndNonLocalEffect { };
 
 struct StackingContextTransform {
     Gfx::FloatPoint origin;
@@ -417,14 +424,20 @@ struct PaintScrollBar {
 
 struct ApplyOpacity {
     float opacity;
+
+    bool performs_save() const { return true; }
 };
 
 struct ApplyCompositeAndBlendingOperator {
     Gfx::CompositingAndBlendingOperator compositing_and_blending_operator;
+
+    bool performs_save() const { return true; }
 };
 
 struct ApplyFilters {
     Vector<Gfx::Filter> filter;
+
+    bool performs_save() const { return true; }
 };
 
 struct ApplyTransform {
@@ -459,6 +472,8 @@ using Command = Variant<
     Restore,
     Translate,
     AddClipRect,
+    StartNonLocalEffect,
+    EndNonLocalEffect,
     PushStackingContext,
     PopStackingContext,
     PaintLinearGradient,
