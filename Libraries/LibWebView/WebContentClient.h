@@ -135,6 +135,8 @@ private:
 
     Optional<ViewImplementation&> view_for_page_id(u64, SourceLocation = SourceLocation::current());
 
+    virtual void did_request_download(u64 page_id, String filename, ByteBuffer bytes) override;
+
     // FIXME: Does a HashMap holding references make sense?
     HashMap<u64, ViewImplementation*> m_views;
 

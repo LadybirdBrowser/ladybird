@@ -25,6 +25,7 @@ NSString* string_to_ns_string(StringView);
 
 ByteString ns_data_to_string(NSData*);
 NSData* string_to_ns_data(StringView);
+NSData* byte_buffer_to_ns_data(ByteBuffer);
 
 NSDictionary* deserialize_json_to_dictionary(StringView);
 

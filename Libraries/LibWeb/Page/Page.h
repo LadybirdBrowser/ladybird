@@ -223,6 +223,8 @@ public:
     bool listen_for_dom_mutations() const { return m_listen_for_dom_mutations; }
     void set_listen_for_dom_mutations(bool listen_for_dom_mutations) { m_listen_for_dom_mutations = listen_for_dom_mutations; }
 
+    virtual void did_request_download(String const&, ByteBuffer const&);
+
 private:
     explicit Page(GC::Ref<PageClient>);
     virtual void visit_edges(Visitor&) override;
@@ -418,6 +420,8 @@ public:
     virtual bool is_headless() const = 0;
 
     virtual bool is_svg_page_client() const { return false; }
+
+    virtual void page_did_request_download(String const&, ByteBuffer const&) { }
 
 protected:
     virtual ~PageClient() = default;

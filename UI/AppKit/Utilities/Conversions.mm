@@ -38,6 +38,11 @@ NSData* string_to_ns_data(StringView string)
     return [NSData dataWithBytes:string.characters_without_null_termination() length:string.length()];
 }
 
+NSData* byte_buffer_to_ns_data(ByteBuffer bytes)
+{
+    return [NSData dataWithBytes:bytes.data() length:bytes.size()];
+}
+
 NSDictionary* deserialize_json_to_dictionary(StringView json)
 {
     auto* ns_json = string_to_ns_string(json);

@@ -232,6 +232,7 @@ public:
     Function<void(Web::HTML::AudioPlayState)> on_audio_play_state_changed;
     Function<void(bool, bool)> on_navigation_buttons_state_changed;
     Function<void()> on_web_content_crashed;
+    Function<void(String const& filename, ByteBuffer const& bytes)> on_request_download;
 
     virtual Web::DevicePixelSize viewport_size() const = 0;
     virtual Gfx::IntPoint to_content_position(Gfx::IntPoint widget_position) const = 0;

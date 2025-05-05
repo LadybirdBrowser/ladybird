@@ -1117,6 +1117,27 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
         }
         [self.observer onAudioPlayStateChange:play_state];
     };
+
+    m_web_view_bridge->on_request_download = [weak_self](auto const& filename, auto const& bytes) {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return;
+        }
+        auto* ns_filename = Ladybird::string_to_ns_string(filename);
+        auto* ns_bytes = Ladybird::string_to_ns_data(bytes);
+
+        NSFileManager* fileManager = [NSFileManager defaultManager];
+        NSArray<NSURL*>* downloadsURLs = [fileManager URLsForDirectory:NSDownloadsDirectory inDomains:NSUserDomainMask];
+        NSURL* targetDirectory = downloadsURLs.firstObject;
+        if (!targetDirectory) {
+            targetDirectory = [fileManager homeDirectoryForCurrentUser];
+        }
+
+        NSURL* fileURL = [targetDirectory URLByAppendingPathComponent:[ns_filename lastPathComponent]];
+        NSError* error = nil;
+        BOOL success = [ns_bytes writeToURL:fileURL options:NSDataWritingAtomic error:&error];
+        VERIFY(success);
+    };
 }
 
 - (void)selectDropdownAction:(NSMenuItem*)menuItem

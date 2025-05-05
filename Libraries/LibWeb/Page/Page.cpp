@@ -752,6 +752,11 @@ void Page::update_find_in_page_selection(Vector<GC::Root<DOM::Range>> matches)
     }
 }
 
+void Page::did_request_download(String const& filename, ByteBuffer const& bytes)
+{
+    m_client->page_did_request_download(filename, bytes);
+}
+
 }
 
 template<>
