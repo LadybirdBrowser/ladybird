@@ -13,15 +13,15 @@
         anim.cancel();
 
         // "Undo" the removal of an animation by the Document
-        anim1 = foo.animate({ opacity: 0 }, { duration: 1, fill: 'forwards' });
-        anim2 = foo.animate({ opacity: 0 }, { duration: 1, fill: 'forwards' });
+        let anim1 = foo.animate({ opacity: 0 }, { duration: 1, fill: 'forwards' });
+        let anim2 = foo.animate({ opacity: 0 }, { duration: 1, fill: 'forwards' });
         await anim1.finished;
         anim1.persist();
         println(`persist() undoes the Document removal effects: ${foo.getAnimations().length === 2}`);
 
         const timeline = internals.createInternalAnimationTimeline();
-        let anim1 = foo.animate({ opacity: 0 }, { duration: 1000, fill: "forwards", timeline });
-        let anim2 = foo.animate({ opacity: 0 }, { duration: 500, fill: "forwards", timeline });
+        anim1 = foo.animate({ opacity: 0 }, { duration: 1000, fill: "forwards", timeline });
+        anim2 = foo.animate({ opacity: 0 }, { duration: 500, fill: "forwards", timeline });
         timeline.setTime(1500);
         await animationFrame();
         if (anim1.replaceState === "removed" && anim2.replaceState === "active")
