@@ -73,8 +73,12 @@ private:
     virtual Optional<ARIA::Role> default_role() const override;
 
     GC::Ptr<DOM::DOMTokenList> m_rel_list;
+
+    void download_the_hyperlink(Optional<String>, UserNavigationInvolvement);
 };
 
+String handle_as_a_download(GC::Ref<Fetch::Infrastructure::Response> response, Page& page, Optional<DOM::Document&> document, Optional<String> download_attribute);
+String get_the_suggested_filename(GC::Ref<Fetch::Infrastructure::Response> response, Page& page, Optional<DOM::Document&> document, Optional<String&> download_attribute);
 }
 
 namespace Web::DOM {
