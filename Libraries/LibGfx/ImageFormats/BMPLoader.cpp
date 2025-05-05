@@ -724,6 +724,11 @@ static bool decode_bmp_v2_dib(BMPLoadingContext& context, InputStreamer& streame
     if (!decode_bmp_info_dib(context, streamer))
         return false;
 
+    if (context.dib.info.compression != Compression::BITFIELDS && context.dib.info.compression != Compression::ALPHABITFIELDS) {
+        streamer.drop_bytes(12);
+        return true;
+    }
+
     context.dib.info.masks.append(streamer.read_u32());
     context.dib.info.masks.append(streamer.read_u32());
     context.dib.info.masks.append(streamer.read_u32());
