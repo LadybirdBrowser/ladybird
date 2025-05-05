@@ -630,6 +630,13 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> AssignmentExpression::g
                 // e. Perform ? PutValue(lref, rval).
                 if (is<Identifier>(*lhs)) {
                     auto& identifier = static_cast<Identifier const&>(*lhs);
+                    if (identifier.is_local()) {
+                        auto is_initialized = generator.is_local_initialized(identifier.local_index());
+                        auto is_lexically_declared = generator.is_local_lexically_declared(identifier.local_index());
+                        if (is_lexically_declared && !is_initialized) {
+                            generator.emit<Bytecode::Op::ThrowIfTDZ>(generator.local(identifier.local_index()));
+                        }
+                    }
                     generator.emit_set_variable(identifier, rval);
                 } else if (is<MemberExpression>(*lhs)) {
                     auto& expression = static_cast<MemberExpression const&>(*lhs);
