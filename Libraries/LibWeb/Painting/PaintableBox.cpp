@@ -140,20 +140,20 @@ void PaintableBox::set_scroll_offset(CSSPixelPoint offset)
     // Whenever an element gets scrolled (whether in response to user interaction or by an API),
     // the user agent must run these steps:
 
-    // 1. Let doc be the element’s node document.
+    // 1. Let doc be the element's node document.
     auto& document = layout_node().document();
 
     // FIXME: 2. If the element is a snap container, run the steps to update snapchanging targets for the element with
-    //           the element’s eventual snap target in the block axis as newBlockTarget and the element’s eventual snap
+    //           the element's eventual snap target in the block axis as newBlockTarget and the element's eventual snap
     //           target in the inline axis as newInlineTarget.
 
     GC::Ref<DOM::EventTarget> const event_target = *dom_node();
 
-    // 3. If the element is already in doc’s pending scroll event targets, abort these steps.
+    // 3. If the element is already in doc's pending scroll event targets, abort these steps.
     if (document.pending_scroll_event_targets().contains_slow(event_target))
         return;
 
-    // 4. Append the element to doc’s pending scroll event targets.
+    // 4. Append the element to doc's pending scroll event targets.
     document.pending_scroll_event_targets().append(*layout_node_with_style_and_box_metrics().dom_node());
 
     set_needs_display(InvalidateDisplayList::No);
@@ -402,12 +402,16 @@ Optional<PaintableBox::ScrollbarData> PaintableBox::compute_scrollbar_data(Scrol
         scrollbar_data.scroll_length = (scrollbar_rect_length - thumb_length) / (scroll_overflow_size - scrollport_size);
 
     if (is_horizontal) {
-        if (m_draw_enlarged_horizontal_scrollbar)
+        if (m_draw_enlarged_horizontal_scrollbar) {
             scrollbar_data.gutter_rect = { padding_rect.left(), padding_rect.bottom() - thickness, padding_rect.width(), thickness };
+            scrollbar_data.gutter_rect.translate_by(-own_scroll_frame_offset().x(), 0);
+        }
         scrollbar_data.thumb_rect = { padding_rect.left(), padding_rect.bottom() - thickness, thumb_length, thickness };
     } else {
-        if (m_draw_enlarged_vertical_scrollbar)
+        if (m_draw_enlarged_vertical_scrollbar) {
             scrollbar_data.gutter_rect = { padding_rect.right() - thickness, padding_rect.top(), thickness, padding_rect.height() };
+            scrollbar_data.gutter_rect.translate_by(0, -own_scroll_frame_offset().y());
+        }
         scrollbar_data.thumb_rect = { padding_rect.right() - thickness, padding_rect.top(), thickness, thumb_length };
     }
 
@@ -1409,7 +1413,7 @@ void PaintableBox::resolve_paint_properties()
         background_rect = navigable()->viewport_rect();
 
         // Section 2.11.2: If the computed value of background-image on the root element is none and its background-color is transparent,
-        // user agents must instead propagate the computed values of the background properties from that element’s first HTML BODY child element.
+        // user agents must instead propagate the computed values of the background properties from that element's first HTML BODY child element.
         if (document().html_element()->should_use_body_background_properties()) {
             background_layers = document().background_layers();
             background_color = document().background_color();
