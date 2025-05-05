@@ -655,10 +655,8 @@ static bool decode_bmp_osv2_dib(BMPLoadingContext& context, InputStreamer& strea
         return false;
     }
 
-    if (info.number_of_palette_colors > color_palette_limit || info.number_of_important_palette_colors > color_palette_limit) {
-        dbgln("BMP header indicates too many palette colors: {}", info.number_of_palette_colors);
-        return false;
-    }
+    info.number_of_palette_colors = min(info.number_of_palette_colors, color_palette_limit);
+    info.number_of_important_palette_colors = min(info.number_of_important_palette_colors, color_palette_limit);
 
     // Units (2) + reserved (2)
     streamer.drop_bytes(4);
@@ -703,10 +701,8 @@ static bool decode_bmp_info_dib(BMPLoadingContext& context, InputStreamer& strea
     info.number_of_palette_colors = streamer.read_u32();
     info.number_of_important_palette_colors = streamer.read_u32();
 
-    if (info.number_of_palette_colors > color_palette_limit || info.number_of_important_palette_colors > color_palette_limit) {
-        dbgln("BMP header indicates too many palette colors: {}", info.number_of_palette_colors);
-        return false;
-    }
+    info.number_of_palette_colors = min(info.number_of_palette_colors, color_palette_limit);
+    info.number_of_important_palette_colors = min(info.number_of_important_palette_colors, color_palette_limit);
 
     if (info.number_of_important_palette_colors == 0)
         info.number_of_important_palette_colors = info.number_of_palette_colors;
