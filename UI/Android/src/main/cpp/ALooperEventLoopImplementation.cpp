@@ -221,6 +221,12 @@ static int notifier_callback(int fd, int events, void* data)
     if (events & ALOOPER_EVENT_ERROR)
         type |= Core::NotificationType::Error;
 
+    // Patch for issue #484
+    if (type == Core::NotificationType::None) {
+        dbgln("ALooper received event for fd {}, but no known flags were set (events = {}). Forcing fallback notification.", fd, events);
+        type = Core::NotificationType::Error;
+    }
+
     Core::NotifierActivationEvent event(notifier.fd(), type);
     notifier.dispatch_event(event);
 
