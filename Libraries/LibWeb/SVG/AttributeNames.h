@@ -27,6 +27,8 @@ namespace Web::SVG::AttributeNames {
     __ENUMERATE_SVG_ATTRIBUTE(dy, "dy")                                   \
     __ENUMERATE_SVG_ATTRIBUTE(edgeMode, "edgeMode")                       \
     __ENUMERATE_SVG_ATTRIBUTE(filterUnits, "filterUnits")                 \
+    __ENUMERATE_SVG_ATTRIBUTE(floodColor, "floodColor")                   \
+    __ENUMERATE_SVG_ATTRIBUTE(floodOpacity, "floodOpacity")               \
     __ENUMERATE_SVG_ATTRIBUTE(fr, "fr")                                   \
     __ENUMERATE_SVG_ATTRIBUTE(fx, "fx")                                   \
     __ENUMERATE_SVG_ATTRIBUTE(fy, "fy")                                   \
