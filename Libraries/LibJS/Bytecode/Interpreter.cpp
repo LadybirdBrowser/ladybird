@@ -83,7 +83,7 @@ static ByteString format_operand(StringView name, Operand operand, Bytecode::Exe
         }
         break;
     case Operand::Type::Local:
-        builder.appendff("\033[34m{}~{}\033[0m", executable.local_variable_names[operand.index() - executable.local_index_base], operand.index() - executable.local_index_base);
+        builder.appendff("\033[34m{}~{}\033[0m", executable.local_variable_names[operand.index() - executable.local_index_base].name, operand.index() - executable.local_index_base);
         break;
     case Operand::Type::Argument:
         builder.appendff("\033[34marg{}\033[0m", operand.index() - executable.argument_index_base);

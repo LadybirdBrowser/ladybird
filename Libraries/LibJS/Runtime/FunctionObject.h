@@ -9,6 +9,7 @@
 
 #include <AK/Optional.h>
 #include <AK/StringView.h>
+#include <LibJS/LocalVariable.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/PrivateEnvironment.h>
 #include <LibJS/Runtime/PropertyKey.h>
@@ -37,7 +38,7 @@ public:
     // [[Realm]]
     virtual Realm* realm() const { return nullptr; }
 
-    virtual Vector<FlyString> const& local_variables_names() const { VERIFY_NOT_REACHED(); }
+    virtual Vector<LocalVariable> const& local_variables_names() const { VERIFY_NOT_REACHED(); }
 
     virtual FunctionParameters const& formal_parameters() const { VERIFY_NOT_REACHED(); }
 
