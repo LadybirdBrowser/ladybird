@@ -41,6 +41,8 @@ public:
 
     [[nodiscard]] bool has_record_with_key(GC::Ref<Key> key);
 
+    HTML::SerializationRecord referenced_value(IndexRecord const& index_record) const;
+
 protected:
     virtual void visit_edges(Visitor&) override;
 

@@ -419,9 +419,9 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::open_cursor(JS::Value q
     // 5. Let range be the result of converting a value to a key range with query. Rethrow any exceptions.
     auto range = TRY(convert_a_value_to_a_key_range(realm, query, false));
 
-    // 6. Let cursor be a new cursor with its transaction set to transaction, undefined position, direction set to direction,
-    //    got value flag set to false, undefined key and value, source set to store, range set to range, and key only flag set to false.
-    auto cursor = IDBCursor::create(realm, transaction, {}, direction, false, {}, {}, GC::Ref(*this), range, false);
+    // 6. Let cursor be a new cursor with its source handle set to this, undefined position, direction set to direction,
+    //    got value flag set to false, undefined key and value, range set to range, and key only flag set to false.
+    auto cursor = IDBCursor::create(realm, GC::Ref(*this), {}, direction, false, {}, {}, range, false);
 
     // 7. Let operation be an algorithm to run iterate a cursor with the current Realm record and cursor.
     auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(realm.heap(), [&realm, cursor] -> WebIDL::ExceptionOr<JS::Value> {
