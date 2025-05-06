@@ -421,6 +421,22 @@ TEST_CASE(test_apng)
     EXPECT_EQ(frame.image->size(), Gfx::IntSize(128, 64));
 }
 
+TEST_CASE(test_apng_idat_not_affecting_next_frame)
+{
+    auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("png/apng-blend.png"sv)));
+    EXPECT(Gfx::PNGImageDecoderPlugin::sniff(file->bytes()));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::PNGImageDecoderPlugin::create(file->bytes()));
+
+    EXPECT_EQ(plugin_decoder->frame_count(), 1u);
+    EXPECT_EQ(plugin_decoder->loop_count(), 0u);
+
+    auto frame = TRY_OR_FAIL(plugin_decoder->frame(0));
+
+    EXPECT_EQ(frame.duration, 1000);
+    EXPECT_EQ(frame.image->get_pixel(0, 0), Gfx::Color::NamedColor::Transparent);
+    EXPECT_EQ(frame.image->size(), Gfx::IntSize(100, 100));
+}
+
 TEST_CASE(test_exif)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("png/exif.png"sv)));

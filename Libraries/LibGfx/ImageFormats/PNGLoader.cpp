@@ -301,6 +301,9 @@ ErrorOr<size_t> PNGLoadingContext::read_frames(png_structp png_ptr, png_infop in
 
             auto decoded_frame_bitmap = TRY(decode_frame({ width, height }));
 
+            if (!has_fcTL)
+                continue;
+
             RefPtr<Bitmap> prev_output_buffer;
             if (dispose_op == PNG_DISPOSE_OP_PREVIOUS) // Only actually clone if it's necessary
                 prev_output_buffer = TRY(output_buffer->clone());
@@ -318,10 +321,8 @@ ErrorOr<size_t> PNGLoadingContext::read_frames(png_structp png_ptr, png_infop in
                 VERIFY_NOT_REACHED();
             }
 
-            if (has_fcTL) {
-                animation_frame_count++;
-                frame_descriptors.append({ TRY(output_buffer->clone()), duration_ms() });
-            }
+            animation_frame_count++;
+            frame_descriptors.append({ TRY(output_buffer->clone()), duration_ms() });
 
             switch (dispose_op) {
             case PNG_DISPOSE_OP_NONE:
