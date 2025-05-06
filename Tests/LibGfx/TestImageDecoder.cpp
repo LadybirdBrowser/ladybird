@@ -110,6 +110,18 @@ TEST_CASE(test_ico_malformed_frame)
     }
 }
 
+TEST_CASE(test_cur)
+{
+    auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("cur/cursor.cur"sv)));
+    EXPECT(Gfx::ICOImageDecoderPlugin::sniff(file->bytes()));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::ICOImageDecoderPlugin::create(file->bytes()));
+
+    auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 32, 32 }));
+    EXPECT_EQ(frame.image->get_pixel(0, 0), Gfx::Color(0, 0, 0, 0));
+    EXPECT_EQ(frame.image->get_pixel(2, 2), Gfx::Color::NamedColor::Black);
+    EXPECT_EQ(frame.image->get_pixel(8, 8), Gfx::Color::NamedColor::White);
+}
+
 TEST_CASE(test_gif)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("gif/download-animation.gif"sv)));
