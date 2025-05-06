@@ -1119,19 +1119,33 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
             return;
         }
 
-        dbgln_if(GEOLOCATION_DEBUG, "Geolocation request #{} watch started", request_id);
+        dbgln_if(GEOLOCATION_DEBUG, "Geolocation request #{} watch requested", request_id);
 
-        auto location_manager = [CLLocationManager new];
-        location_manager.delegate = self;
-        location_manager.desiredAccuracy = enable_high_accuracy ? kCLLocationAccuracyBest : kCLLocationAccuracyThreeKilometers;
-        m_geolocation_watchs.set(request_id, location_manager);
+        self.dialog = [[NSAlert alloc] init];
+        [self.dialog setMessageText:@"Would you allow this website to access your location?"];
+        [[self.dialog addButtonWithTitle:@"Allow"] setTag:NSModalResponseOK];
+        [[self.dialog addButtonWithTitle:@"Deny"] setTag:NSModalResponseCancel];
+        [self.dialog beginSheetModalForWindow:[self window]
+                            completionHandler:^(NSModalResponse response) {
+                                if (response == NSModalResponseOK) {
+                                    dbgln_if(GEOLOCATION_DEBUG, "Geolocation request #{} watch started", request_id);
 
-        // Request location permission when not given yet, when denied locationManager:didFailWithError: will be called
-        if ([location_manager authorizationStatus] == kCLAuthorizationStatusNotDetermined) {
-            [location_manager requestWhenInUseAuthorization];
-        }
+                                    auto location_manager = [CLLocationManager new];
+                                    location_manager.delegate = self;
+                                    location_manager.desiredAccuracy = enable_high_accuracy ? kCLLocationAccuracyBest : kCLLocationAccuracyThreeKilometers;
+                                    m_geolocation_watchs.set(request_id, location_manager);
 
-        [location_manager startUpdatingLocation];
+                                    // Request location permission when not given yet, when denied locationManager:didFailWithError: will be called
+                                    if ([location_manager authorizationStatus] == kCLAuthorizationStatusNotDetermined) {
+                                        [location_manager requestWhenInUseAuthorization];
+                                    }
+
+                                    [location_manager startUpdatingLocation];
+                                } else {
+                                    dbgln_if(GEOLOCATION_DEBUG, "Geolocation request #{} watch denied", request_id);
+                                    m_web_view_bridge->geolocation_update(request_id, Web::Geolocation::GeolocationUpdateError::PermissionDenied);
+                                }
+                            }];
     };
 
     m_web_view_bridge->on_stop_geolocation_watch = [weak_self](auto request_id) {
