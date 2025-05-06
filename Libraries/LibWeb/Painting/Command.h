@@ -411,6 +411,7 @@ struct PaintScrollBar {
 
     void translate_by(Gfx::IntPoint const& offset)
     {
+        gutter_rect.translate_by(offset);
         thumb_rect.translate_by(offset);
     }
 };
