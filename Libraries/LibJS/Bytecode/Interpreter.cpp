@@ -998,44 +998,53 @@ inline ThrowCompletionOr<Value> get_by_id(VM& vm, Optional<IdentifierTableIndex>
 
     auto& shape = base_obj->shape();
 
-    if (cache.prototype) {
-        // OPTIMIZATION: If the prototype chain hasn't been mutated in a way that would invalidate the cache, we can use it.
-        bool can_use_cache = [&]() -> bool {
-            if (&shape != cache.shape)
-                return false;
-            if (!cache.prototype_chain_validity)
-                return false;
-            if (!cache.prototype_chain_validity->is_valid())
-                return false;
-            return true;
-        }();
-        if (can_use_cache) {
-            auto value = cache.prototype->get_direct(cache.property_offset.value());
+    for (auto& cache_entry : cache.entries) {
+        if (cache_entry.prototype) {
+            // OPTIMIZATION: If the prototype chain hasn't been mutated in a way that would invalidate the cache, we can use it.
+            bool can_use_cache = [&]() -> bool {
+                if (&shape != cache_entry.shape)
+                    return false;
+                if (!cache_entry.prototype_chain_validity)
+                    return false;
+                if (!cache_entry.prototype_chain_validity->is_valid())
+                    return false;
+                return true;
+            }();
+            if (can_use_cache) {
+                auto value = cache_entry.prototype->get_direct(cache_entry.property_offset.value());
+                if (value.is_accessor())
+                    return TRY(call(vm, value.as_accessor().getter(), this_value));
+                return value;
+            }
+        } else if (&shape == cache_entry.shape) {
+            // OPTIMIZATION: If the shape of the object hasn't changed, we can use the cached property offset.
+            auto value = base_obj->get_direct(cache_entry.property_offset.value());
             if (value.is_accessor())
                 return TRY(call(vm, value.as_accessor().getter(), this_value));
             return value;
         }
-    } else if (&shape == cache.shape) {
-        // OPTIMIZATION: If the shape of the object hasn't changed, we can use the cached property offset.
-        auto value = base_obj->get_direct(cache.property_offset.value());
-        if (value.is_accessor())
-            return TRY(call(vm, value.as_accessor().getter(), this_value));
-        return value;
     }
 
     CacheablePropertyMetadata cacheable_metadata;
     auto value = TRY(base_obj->internal_get(executable.get_identifier(property), this_value, &cacheable_metadata));
 
+    auto get_cache_slot = [&] -> PropertyLookupCache::Entry& {
+        for (size_t i = cache.entries.size() - 1; i >= 1; --i) {
+            cache.entries[i] = cache.entries[i - 1];
+        }
+        cache.entries[0] = {};
+        return cache.entries[0];
+    };
     if (cacheable_metadata.type == CacheablePropertyMetadata::Type::OwnProperty) {
-        cache = {};
-        cache.shape = shape;
-        cache.property_offset = cacheable_metadata.property_offset.value();
+        auto& entry = get_cache_slot();
+        entry.shape = shape;
+        entry.property_offset = cacheable_metadata.property_offset.value();
     } else if (cacheable_metadata.type == CacheablePropertyMetadata::Type::InPrototypeChain) {
-        cache = {};
-        cache.shape = &base_obj->shape();
-        cache.property_offset = cacheable_metadata.property_offset.value();
-        cache.prototype = *cacheable_metadata.prototype;
-        cache.prototype_chain_validity = *cacheable_metadata.prototype->shape().prototype_chain_validity();
+        auto& entry = get_cache_slot();
+        entry.shape = &base_obj->shape();
+        entry.property_offset = cacheable_metadata.property_offset.value();
+        entry.prototype = *cacheable_metadata.prototype;
+        entry.prototype_chain_validity = *cacheable_metadata.prototype->shape().prototype_chain_validity();
     }
 
     return value;
@@ -1133,8 +1142,8 @@ inline ThrowCompletionOr<Value> get_global(Interpreter& interpreter, IdentifierT
 
         // OPTIMIZATION: For global var bindings, if the shape of the global object hasn't changed,
         //               we can use the cached property offset.
-        if (&shape == cache.shape) {
-            auto value = binding_object.get_direct(cache.property_offset.value());
+        if (&shape == cache.entries[0].shape) {
+            auto value = binding_object.get_direct(cache.entries[0].property_offset.value());
             if (value.is_accessor())
                 return TRY(call(vm, value.as_accessor().getter(), js_undefined()));
             return value;
@@ -1183,8 +1192,8 @@ inline ThrowCompletionOr<Value> get_global(Interpreter& interpreter, IdentifierT
         CacheablePropertyMetadata cacheable_metadata;
         auto value = TRY(binding_object.internal_get(identifier, js_undefined(), &cacheable_metadata));
         if (cacheable_metadata.type == CacheablePropertyMetadata::Type::OwnProperty) {
-            cache.shape = shape;
-            cache.property_offset = cacheable_metadata.property_offset.value();
+            cache.entries[0].shape = shape;
+            cache.entries[0].property_offset = cacheable_metadata.property_offset.value();
         }
         return value;
     }
@@ -1192,7 +1201,7 @@ inline ThrowCompletionOr<Value> get_global(Interpreter& interpreter, IdentifierT
     return vm.throw_completion<ReferenceError>(ErrorType::UnknownIdentifier, identifier);
 }
 
-inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value this_value, Value value, Optional<FlyString const&> const& base_identifier, PropertyKey name, Op::PropertyKind kind, PropertyLookupCache* cache = nullptr)
+inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value this_value, Value value, Optional<FlyString const&> const& base_identifier, PropertyKey name, Op::PropertyKind kind, PropertyLookupCache* caches = nullptr)
 {
     // Better error message than to_object would give
     if (vm.in_strict_mode() && base.is_nullish())
@@ -1224,7 +1233,8 @@ inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value thi
         break;
     }
     case Op::PropertyKind::KeyValue: {
-        if (cache) {
+        if (caches) {
+            auto* cache = &caches->entries[0];
             if (cache->prototype) {
                 // OPTIMIZATION: If the prototype chain hasn't been mutated in a way that would invalidate the cache, we can use it.
                 bool can_use_cache = [&]() -> bool {
@@ -1257,7 +1267,8 @@ inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value thi
         CacheablePropertyMetadata cacheable_metadata;
         bool succeeded = TRY(object->internal_set(name, value, this_value, &cacheable_metadata));
 
-        if (succeeded && cache) {
+        if (succeeded && caches) {
+            auto* cache = &caches->entries[0];
             if (cacheable_metadata.type == CacheablePropertyMetadata::Type::OwnProperty) {
                 *cache = {};
                 cache->shape = object->shape();
@@ -2349,12 +2360,12 @@ ThrowCompletionOr<void> SetGlobal::execute_impl(Bytecode::Interpreter& interpret
     if (cache.environment_serial_number == declarative_record.environment_serial_number()) {
         // OPTIMIZATION: For global var bindings, if the shape of the global object hasn't changed,
         //               we can use the cached property offset.
-        if (&shape == cache.shape) {
-            auto value = binding_object.get_direct(cache.property_offset.value());
+        if (&shape == cache.entries[0].shape) {
+            auto value = binding_object.get_direct(cache.entries[0].property_offset.value());
             if (value.is_accessor())
                 TRY(call(vm, value.as_accessor().setter(), &binding_object, src));
             else
-                binding_object.put_direct(cache.property_offset.value(), src);
+                binding_object.put_direct(cache.entries[0].property_offset.value(), src);
             return {};
         }
 
@@ -2416,8 +2427,8 @@ ThrowCompletionOr<void> SetGlobal::execute_impl(Bytecode::Interpreter& interpret
             return vm.throw_completion<TypeError>(ErrorType::ObjectSetReturnedFalse);
         }
         if (cacheable_metadata.type == CacheablePropertyMetadata::Type::OwnProperty) {
-            cache.shape = shape;
-            cache.property_offset = cacheable_metadata.property_offset.value();
+            cache.entries[0].shape = shape;
+            cache.entries[0].property_offset = cacheable_metadata.property_offset.value();
         }
         return {};
     }
