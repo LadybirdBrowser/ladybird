@@ -1,54 +1,150 @@
-# Ladybird
+# 🌐 Ladybird Browser
 
-[Ladybird](https://ladybird.org) is a truly independent web browser, using a novel engine based on web standards.
+[Ladybird](https://ladybird.org) is a truly independent web browser in active development, using a novel engine built from scratch based on modern web standards.
 
-> [!IMPORTANT]
-> Ladybird is in a pre-alpha state, and only suitable for use by developers
->
+> [!IMPORTANT]  
+> Ladybird is in a pre-alpha state and only suitable for use by developers.
 
-## Features
+Part of the [SerenityOS](https://github.com/SerenityOS/serenity) ecosystem.
 
-We aim to build a complete, usable browser for the modern web.
+---
 
-Ladybird uses a multi-process architecture with a main UI process, several WebContent renderer processes,
-an ImageDecoder process, and a RequestServer process.
+## 📑 Table of Contents
 
-Image decoding and network connections are done out of process to be more robust against malicious content.
-Each tab has its own renderer process, which is sandboxed from the rest of the system.
+- [About](#about)
+- [Why Ladybird?](#-why-ladybird)
+- [Features](#features)
+- [Architecture](#architecture)
+- [Quick Start](#-quick-start)
+- [Build Instructions](#build-instructions)
+- [Getting Started for Web Developers](#-getting-started-for-web-developers)
+- [Documentation](#documentation)
+- [Contributing](#contributing)
+- [Community & Help](#-community--help)
+- [Related Projects](#-related-projects)
+- [License](#license)
 
-At the moment, many core library support components are inherited from SerenityOS:
+---
 
-- LibWeb: Web rendering engine
-- LibJS: JavaScript engine
-- LibWasm: WebAssembly implementation
-- LibCrypto/LibTLS: Cryptography primitives and Transport Layer Security
-- LibHTTP: HTTP/1.1 client
-- LibGfx: 2D Graphics Library, Image Decoding and Rendering
-- LibUnicode: Unicode and locale support
-- LibMedia: Audio and video playback
-- LibCore: Event loop, OS abstraction layer
-- LibIPC: Inter-process communication
+## 📘 About
 
-## How do I build and run this?
+Ladybird is a cross-platform browser built from scratch using modern C++ and Qt. It reuses SerenityOS’s rendering engine (`LibWeb`) but runs natively on Linux, macOS, Windows (via WSL2), and other Unix-like platforms.
 
-See [build instructions](Documentation/BuildInstructionsLadybird.md) for information on how to build Ladybird.
+---
 
-Ladybird runs on Linux, macOS, Windows (with WSL2), and many other \*Nixes.
+## ❓ Why Ladybird?
 
-## How do I read the documentation?
+Ladybird is a rare attempt to build a browser independent of Chromium, WebKit, or Gecko.
 
-Code-related documentation can be found in the [documentation](Documentation/) folder.
+**Contributing helps you:**
 
-## Get in touch and participate!
+- Learn browser internals, C++, and rendering engine architecture.
+- Gain hands-on experience in a large-scale open-source project.
+- Help shape an alternative to today's browser engine monopoly.
 
-Join [our Discord server](https://discord.gg/nvfjVJ4Svh) to participate in development discussion.
+---
 
-Please read [Getting started contributing](Documentation/GettingStartedContributing.md) if you plan to contribute to Ladybird for the first time.
+## ✨ Features
 
-Before opening an issue, please see the [issue policy](CONTRIBUTING.md#issue-policy) and the [detailed issue-reporting guidelines](ISSUES.md).
+- Custom rendering engine: [`LibWeb`](https://github.com/SerenityOS/serenity/tree/master/Userland/Libraries/LibWeb)
+- JavaScript engine: `LibJS`
+- WebAssembly via `LibWasm`
+- Audio/Video playback using `LibMedia`
+- Sandboxed, multi-process architecture
+- TLS via `LibTLS`, Unicode via `LibUnicode`
+- Active developer community
 
-The full contribution guidelines can be found in [`CONTRIBUTING.md`](CONTRIBUTING.md).
+---
 
-## License
+## 🧠 Architecture
 
-Ladybird is licensed under a 2-clause BSD license.
+Ladybird uses a **multi-process design** for robustness and security:
+
+- **UI Process**: Manages the interface and user interactions
+- **WebContent Process**: Renders web pages (1 per tab)
+- **RequestServer Process**: Handles networking
+- **ImageDecoder Process**: Handles image decoding securely
+
+> Many components are shared with SerenityOS, including:
+> - `LibJS`, `LibWeb`, `LibGfx`, `LibHTTP`, `LibCore`, `LibCrypto`, `LibIPC`
+
+---
+
+## 🚀 Quick Start
+
+```bash
+git clone https://github.com/LadybirdBrowser/ladybird.git
+cd ladybird
+cmake -B build
+cmake --build build -j$(nproc)
+./build/Ladybird/Ladybird
+````
+
+> ✅ Make sure your system meets the requirements described in the [Build Instructions](Documentation/BuildInstructionsLadybird.md).
+
+---
+
+## 🔧 Build Instructions
+
+Ladybird builds on:
+
+* Linux
+* macOS
+* Windows (via WSL2)
+
+See full setup: [Documentation/BuildInstructionsLadybird.md](Documentation/BuildInstructionsLadybird.md)
+
+---
+
+## 👋 Getting Started for Web Developers
+
+Coming from a frontend background? Here's how you can help
+
+🧪 Test HTML/CSS/JS rendering**: Spot inconsistencies and report bugs
+🐞 Create minimal repros**: Help isolate rendering bugs with small HTML/CSS test cases
+📄 Improve documentation**: Fix typos, clarify setup, or write guides
+💡 Suggest UI improvements**: Help with visual/UI feedback via Qt
+
+👉 Browse [Good First Issues](https://github.com/LadybirdBrowser/ladybird/issues?q=label%3A%22good+first+issue%22)
+
+
+## 📚 Documentation
+
+Find technical docs and contributor guides in the [Documentation/](Documentation/) directory:
+
+* [Getting Started Contributing](Documentation/GettingStartedContributing.md)
+* [Build Instructions](Documentation/BuildInstructionsLadybird.md)
+* [Issue Reporting Guide](ISSUES.md)
+
+---
+
+## 🤝 Contributing
+
+We welcome your contributions!
+
+Please read the full guidelines in [`CONTRIBUTING.md`](CONTRIBUTING.md).
+Before filing a bug, check our [Issue Policy](CONTRIBUTING.md#issue-policy).
+
+---
+
+## 💬 Community & Help
+
+* 💬 Join [our Discord server](https://discord.gg/nvfjVJ4Svh) for discussions and help
+* 🛠️ Report issues or suggest features [here](https://github.com/LadybirdBrowser/ladybird/issues)
+
+---
+
+## 🌐 Related Projects
+
+* [SerenityOS](https://github.com/SerenityOS/serenity): Unix-like OS where Ladybird began
+* [LibWeb](https://github.com/SerenityOS/serenity/tree/master/Userland/Libraries/LibWeb): Web rendering engine
+* [LibJS](https://github.com/SerenityOS/serenity/tree/master/Userland/Libraries/LibJS): JavaScript engine
+
+---
+
+## 📝 License
+
+Ladybird is licensed under the [2-clause BSD license](LICENSE).
+
+```
+
