@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<title>Elements with 'opacity: 0' should respond to hit testing.</title>
+<link rel="author" title="Psychpsyo" href="psychpsyo@gmail.com">
+<meta name="assert" content="element with 'opacity: 0' responds to hit testing">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  div {
+    width: 100px;
+    height: 100px;
+    opacity: 0;
+  }
+</style>
+<div></div>
+<script>
+  test(() => {
+    assert_equals(document.elementFromPoint(50, 50).tagName, "DIV", "element with 'opacity: 0' doesn't respond to hit testing");
+  });
+</script>

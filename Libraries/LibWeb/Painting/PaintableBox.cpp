@@ -1069,7 +1069,7 @@ TraversalDecision PaintableBox::hit_test(CSSPixelPoint position, HitTestType typ
 
     auto position_adjusted_by_scroll_offset = position.translated(-cumulative_offset_of_enclosing_scroll_frame());
 
-    if (!is_visible())
+    if (computed_values().visibility() != CSS::Visibility::Visible)
         return TraversalDecision::Continue;
 
     if (hit_test_scrollbars(position_adjusted_by_scroll_offset, callback) == TraversalDecision::Break)
