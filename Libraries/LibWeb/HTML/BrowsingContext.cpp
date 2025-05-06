@@ -12,6 +12,7 @@
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/BrowsingContextGroup.h>
+#include <LibWeb/HTML/CustomElements/CustomElementRegistry.h>
 #include <LibWeb/HTML/HTMLDocument.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/SandboxingFlagSet.h>
@@ -183,6 +184,8 @@ WebIDL::ExceptionOr<BrowsingContext::BrowsingContextAndDocument> BrowsingContext
             return browsing_context->window_proxy();
         });
 
+    auto& realm = window->realm();
+
     // 11. Let topLevelCreationURL be about:blank if embedder is null; otherwise embedder's relevant settings object's top-level creation URL.
     auto top_level_creation_url = !embedder ? URL::about_blank() : relevant_settings_object(*embedder).top_level_creation_url.value();
 
@@ -203,10 +206,10 @@ WebIDL::ExceptionOr<BrowsingContext::BrowsingContextAndDocument> BrowsingContext
     auto load_timing_info = DOM::DocumentLoadTimingInfo();
     load_timing_info.navigation_start_time = HighResolutionTime::coarsen_time(
         unsafe_context_creation_time,
-        as<WindowEnvironmentSettingsObject>(Bindings::principal_host_defined_environment_settings_object(window->realm())).cross_origin_isolated_capability() == CanUseCrossOriginIsolatedAPIs::Yes);
+        as<WindowEnvironmentSettingsObject>(Bindings::principal_host_defined_environment_settings_object(realm)).cross_origin_isolated_capability() == CanUseCrossOriginIsolatedAPIs::Yes);
 
     // 15. Let document be a new Document, with:
-    auto document = HTML::HTMLDocument::create(window->realm());
+    auto document = HTML::HTMLDocument::create(realm);
 
     // Non-standard
     window->set_associated_document(*document);
@@ -244,6 +247,9 @@ WebIDL::ExceptionOr<BrowsingContext::BrowsingContextAndDocument> BrowsingContext
 
     // allow declarative shadow roots: true
     document->set_allow_declarative_shadow_roots(true);
+
+    // custom element registry: A new CustomElementRegistry object.
+    document->set_custom_element_registry(realm.create<CustomElementRegistry>(realm));
 
     // 16. If creator is non-null, then:
     if (creator) {

@@ -52,6 +52,7 @@ static bool is_platform_object(Type const& type)
         "Credential"sv,
         "CredentialsContainer"sv,
         "CryptoKey"sv,
+        "CustomElementRegistry"sv,
         "DataTransfer"sv,
         "Document"sv,
         "DocumentType"sv,
@@ -320,7 +321,7 @@ CppType idl_type_name_to_cpp_type(Type const& type, Interface const& interface)
 
 static ByteString make_input_acceptable_cpp(ByteString const& input)
 {
-    if (input.is_one_of("class", "template", "for", "default", "char", "namespace", "delete", "inline", "register", "switch", "mutable")) {
+    if (input.is_one_of("char", "class", "default", "delete", "for", "initialize", "inline", "mutable", "namespace", "register", "switch", "template")) {
         StringBuilder builder;
         builder.append(input);
         builder.append('_');
@@ -1639,7 +1640,12 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
                         union_generator.append(R"~~~(
     @union_type@ @cpp_name@ = @js_name@@js_suffix@.is_undefined() ? @parameter.optional_default_value@ : TRY(@js_name@@js_suffix@_to_variant(@js_name@@js_suffix@));
 )~~~");
+                    } else if (optional_default_value == "true"sv || optional_default_value == "false"sv) {
+                        union_generator.append(R"~~~(
+    @union_type@ @cpp_name@ = @js_name@@js_suffix@.is_undefined() ? @parameter.optional_default_value@ : TRY(@js_name@@js_suffix@_to_variant(@js_name@@js_suffix@));
+)~~~");
                     } else {
+                        dbgln("Don't know how to handle optional default value of `{}`", *optional_default_value);
                         TODO();
                     }
                 }
@@ -2644,23 +2650,40 @@ static void generate_html_constructor(SourceGenerator& generator, IDL::Construct
     constructor_generator.append(R"~~~(
     auto& window = as<HTML::Window>(HTML::current_principal_global_object());
 
-    // 1. Let registry be current global object's custom element registry.
-    auto registry = TRY(throw_dom_exception_if_needed(vm, [&] { return window.custom_elements(); }));
-
-    // 2. If NewTarget is equal to the active function object, then throw a TypeError.
+    // 1. If NewTarget is equal to the active function object, then throw a TypeError.
     if (&new_target == vm.active_function_object())
         return vm.throw_completion<JS::TypeError>("Cannot directly construct an HTML element, it must be inherited"sv);
 
-    // 3. Let definition be the item in registry's custom element definition set with constructor equal to NewTarget.
+    // 2. Let registry be null.
+    GC::Ptr<HTML::CustomElementRegistry> registry;
+
+    // 3. If the surrounding agent's active custom element constructor map[NewTarget] exists:
+    auto& surrounding_agent = HTML::relevant_similar_origin_window_agent(window);
+    dbgln("IDL: Getting active custom element constructor map: {:p}", &new_target);
+    if (auto registry_for_constructor = surrounding_agent.active_custom_element_constructor_map.get(&new_target); registry_for_constructor.has_value() && !registry_for_constructor->is_null()) {
+        // 1. Set registry to the surrounding agent's active custom element constructor map[NewTarget].
+        registry = registry_for_constructor.value();
+        dbgln("-> Found registry is: {:p}", registry);
+
+        // 2. Remove the surrounding agent's active custom element constructor map[NewTarget].
+        dbgln("IDL: Removing active custom element constructor map: {:p}", &new_target);
+        surrounding_agent.active_custom_element_constructor_map.remove(&new_target);
+    }
+    // 4. Otherwise, set registry to current global object's associated Document's custom element registry.
+    else {
+        registry = window.associated_document().custom_element_registry();
+    }
+
+    // 5. Let definition be the item in registry's custom element definition set with constructor equal to NewTarget.
     //    If there is no such item, then throw a TypeError.
     auto definition = registry->get_definition_from_new_target(new_target);
     if (!definition)
         return vm.throw_completion<JS::TypeError>("There is no custom element definition assigned to the given constructor"sv);
 
-    // 4. Let isValue be null.
+    // 6. Let isValue be null.
     Optional<String> is_value;
 
-    // 5. If definition's local name is equal to definition's name (i.e., definition is for an autonomous custom element):
+    // 7. If definition's local name is equal to definition's name (i.e., definition is for an autonomous custom element):
     if (definition->local_name() == definition->name()) {
         // 1. If the active function object is not HTMLElement, then throw a TypeError.
 )~~~");
@@ -2678,7 +2701,7 @@ static void generate_html_constructor(SourceGenerator& generator, IDL::Construct
     constructor_generator.append(R"~~~(
     }
 
-    // 6. Otherwise (i.e., if definition is for a customized built-in element):
+    // 8. Otherwise (i.e., if definition is for a customized built-in element):
     else {
         // 1. Let valid local names be the list of local names for elements defined in this specification or in other applicable specifications that use the active function object as their element interface.
         static auto valid_local_names = MUST(DOM::valid_local_names_for_given_html_element_interface("@name@"sv));
@@ -2691,7 +2714,7 @@ static void generate_html_constructor(SourceGenerator& generator, IDL::Construct
         is_value = definition->name();
     }
 
-    // 7. If definition's construction stack is empty:
+    // 9. If definition's construction stack is empty:
     if (definition->construction_stack().is_empty()) {
         // 1. Let element be the result of internally creating a new object implementing the interface to which the active function object corresponds, given the current Realm Record and NewTarget.
         // 2. Set element's node document to the current global object's associated Document.
@@ -2728,10 +2751,10 @@ static void generate_html_constructor(SourceGenerator& generator, IDL::Construct
         return *element;
     }
 
-    // 8. Let prototype be ? Get(NewTarget, "prototype").
+    // 10. Let prototype be ? Get(NewTarget, "prototype").
     auto prototype = TRY(new_target.get(vm.names.prototype));
 
-    // 9. If Type(prototype) is not Object, then:
+    // 11. If Type(prototype) is not Object, then:
     if (!prototype.is_object()) {
         // 1. Let realm be ? GetFunctionRealm(NewTarget).
         auto* function_realm = TRY(JS::get_function_realm(vm, new_target));
@@ -2743,21 +2766,21 @@ static void generate_html_constructor(SourceGenerator& generator, IDL::Construct
 
     VERIFY(prototype.is_object());
 
-    // 10. Let element be the last entry in definition's construction stack.
+    // 12. Let element be the last entry in definition's construction stack.
     auto& element = definition->construction_stack().last();
 
-    // 11. If element is an already constructed marker, then throw a TypeError.
+    // 13. If element is an already constructed marker, then throw a TypeError.
     if (element.has<HTML::AlreadyConstructedCustomElementMarker>())
         return vm.throw_completion<JS::TypeError>("Custom element has already been constructed"sv);
 
-    // 12. Perform ? element.[[SetPrototypeOf]](prototype).
+    // 14. Perform ? element.[[SetPrototypeOf]](prototype).
     auto actual_element = element.get<GC::Ref<DOM::Element>>();
     TRY(actual_element->internal_set_prototype_of(&prototype.as_object()));
 
-    // 13. Replace the last entry in definition's construction stack with an already constructed marker.
+    // 15. Replace the last entry in definition's construction stack with an already constructed marker.
     definition->construction_stack().last() = HTML::AlreadyConstructedCustomElementMarker {};
 
-    // 14. Return element.
+    // 16. Return element.
     return *actual_element;
 }
 )~~~");
@@ -4987,6 +5010,7 @@ void generate_constructor_implementation(IDL::Interface const& interface, String
 #include <LibWeb/Bindings/@prototype_class@.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/HTML/Scripting/SimilarOriginWindowAgent.h>
 #include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/Buffers.h>

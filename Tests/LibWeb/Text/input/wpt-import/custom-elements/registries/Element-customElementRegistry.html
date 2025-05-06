@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<link rel="help" href="https://github.com/whatwg/html/issues/10854">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+</head>
+<body>
+<div id="host-window"><template shadowrootmode="open" shadowrootclonable="true"><a-b></a-b></template></div>
+<div id="host-null"><template shadowrootmode="open" shadowrootclonable="true" shadowrootcustomelementregistry=""><a-b></a-b></template></div>
+<script>
+
+test(() => {
+    assert_equals(document.createElement('div').customElementRegistry, window.customElements);
+}, 'customElementRegistry on a newly constrcuted element should return window.customElements by default');
+
+test(() => {
+    const sr = document.getElementById('host-window').shadowRoot;
+    const ab = sr.querySelector('a-b');
+    assert_equals(sr.customElementRegistry, window.customElements);
+    assert_equals(ab.customElementRegistry, window.customElements);
+}, 'customElementRegistry on an element inside a declarative shadow DOM should return window.customElements by default');
+
+test(() => {
+    const sr = document.getElementById('host-null').shadowRoot;
+    const ab = sr.querySelector('a-b');
+    assert_equals(sr.customElementRegistry, null);
+    assert_equals(ab.customElementRegistry, null);
+}, 'customElementRegistry on an element inside a declarative shadow DOM with shadowrootcustomelementregistry should return null');
+
+test(() => {
+    const clone = document.getElementById('host-null').cloneNode(true);
+    const sr = clone.shadowRoot;
+    const ab = sr.querySelector('a-b');
+    assert_equals(sr.customElementRegistry, null);
+    assert_equals(ab.customElementRegistry, null);
+}, 'customElementRegistry on a clone of a declarative shadow tree with shadowrootcustomelementregistry should return null');
+
+test((t) => {
+    const clone = document.getElementById('host-null').cloneNode(true);
+    const ab = clone.shadowRoot.querySelector('a-b');
+    document.body.appendChild(ab);
+    assert_equals(ab.customElementRegistry, window.customElements);
+
+    const frame = document.createElement('iframe');
+    t.add_cleanup(() => frame.remove());
+    document.body.appendChild(frame);
+    frame.contentDocument.body.append(ab);
+    assert_equals(ab.customElementRegistry, frame.contentWindow.customElements);
+
+}, 'customElementRegistry on a clone of a declarative shadow tree with shadowrootcustomelementregistry should return the global registry after getting inserted into a document');
+
+test(() => {
+    const sr = document.getElementById('host-null').shadowRoot;
+    const ab = sr.querySelector('a-b');
+    const registry = new CustomElementRegistry;
+    registry.initialize(sr);
+    assert_equals(sr.customElementRegistry, registry);
+    assert_equals(ab.customElementRegistry, registry);
+}, 'customElementRegistry on an element inside a declarative shadow DOM with shadowrootcustomelementregistry should return the scoped registry after calling initialize');
+
+test(() => {
+    const registry = new CustomElementRegistry;
+    element = document.createElement('div', {customElementRegistry: registry});
+    assert_equals(element.customElementRegistry, registry);
+}, 'customElementRegistry on a builtin element created by calling createElement on CustomElementRegistry should return the registry');
+
+test(() => {
+    const registry = new CustomElementRegistry;
+    element = document.createElement('non-existent', {customElementRegistry: registry});
+    assert_equals(element.customElementRegistry, registry);
+}, 'customElementRegistry on an upgarde candidate created by calling createElement on CustomElementRegistry should return the registry');
+
+test(() => {
+    const registry = new CustomElementRegistry;
+    element = document.createElement('nonexistent', {customElementRegistry: registry});
+    assert_equals(element.customElementRegistry, registry);
+}, 'customElementRegistry on an unknown element created by calling createElement on CustomElementRegistry should return the registry');
+
+test(() => {
+    const registry = new CustomElementRegistry;
+    registry.define('custom-element', class extends HTMLElement { })
+    element = document.createElement('custom-element', {customElementRegistry: registry});
+    assert_equals(element.customElementRegistry, registry);
+}, 'customElementRegistry on a defined custom element created by calling createElement on CustomElementRegistry should return the registry');
+
+</script>
+</body>
+</html>

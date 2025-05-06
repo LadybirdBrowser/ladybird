@@ -2,6 +2,8 @@
 
 // https://dom.spec.whatwg.org/#documentorshadowroot
 interface mixin DocumentOrShadowRoot {
+    readonly attribute CustomElementRegistry? customElementRegistry;
+
     // https://w3c.github.io/csswg-drafts/cssom/#extensions-to-the-document-or-shadow-root-interface
     [SameObject, ImplementedAs=style_sheets_for_bindings] readonly attribute StyleSheetList styleSheets;
     attribute any adoptedStyleSheets;

@@ -288,6 +288,13 @@ void NavigableContainer::destroy_the_child_navigable()
     // 4. Inform the navigation API about child navigable destruction given navigable.
     navigable->inform_the_navigation_api_about_child_navigable_destruction();
 
+    // AD-HOC: If the navigable has no active document, return.
+    // FIXME: Figure out what bug this is covering up.
+    if (!navigable->active_document()) {
+        dbgln("NavigableContainer::destroy_the_child_navigable()'s navigable has no active document. This shouldn't happen!");
+        return;
+    }
+
     // 5. Destroy a document and its descendants given navigable's active document.
     navigable->active_document()->destroy_a_document_and_its_descendants(GC::create_function(heap(), [this, navigable] {
         // 3. Set container's content navigable to null.

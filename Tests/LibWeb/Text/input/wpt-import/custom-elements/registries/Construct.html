@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<link rel="help" href="https://github.com/whatwg/html/issues/10854">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+</head>
+<body>
+<script>
+
+test(() => {
+    class ABElement extends HTMLElement { };
+    const scopedRegistry = new CustomElementRegistry;
+    scopedRegistry.define('a-b', ABElement);
+    assert_throws_js(TypeError, () => new ABElement);
+}, 'A constructor with only a scoped custom element registry definition should fail upon construction');
+
+test(() => {
+    class CElement extends HTMLElement { };
+    const scopedRegistry = new CustomElementRegistry;
+    scopedRegistry.define('scoped-c', CElement);
+    customElements.define('global-c', CElement);
+    const cElement = new CElement;
+    assert_equals(cElement.localName, 'global-c');
+}, 'A constructor uses the global registry to create an element');
+
+test(() => {
+    let fgElement;
+    let hiElement;
+    class DEElement extends HTMLElement {
+        constructor() {
+            fgElement = document.createElement('f-g', {customElementRegistry: scopedRegistry2});
+            super();
+            hiElement = document.createElement('h-i', {customElementRegistry: scopedRegistry2});
+        }
+    };
+    class FGElement extends HTMLElement { }
+    class HIElement extends HTMLElement { }
+    const scopedRegistry1 = new CustomElementRegistry;
+    scopedRegistry1.define('d-e', DEElement);
+    const scopedRegistry2 = new CustomElementRegistry;
+    scopedRegistry2.define('f-g', FGElement);
+    scopedRegistry2.define('h-i', HIElement);
+
+    const deElement = document.createElement('d-e', {customElementRegistry: scopedRegistry1});
+    assert_true(deElement instanceof DEElement);
+    assert_equals(deElement.customElementRegistry, scopedRegistry1);
+    assert_true(fgElement instanceof FGElement);
+    assert_equals(fgElement.customElementRegistry, scopedRegistry2);
+    assert_true(hiElement instanceof HIElement);
+    assert_equals(hiElement.customElementRegistry, scopedRegistry2);
+}, 'A constructor creating an element from another registry before or after super call should work');
+
+</script>
+</body>
+</html>

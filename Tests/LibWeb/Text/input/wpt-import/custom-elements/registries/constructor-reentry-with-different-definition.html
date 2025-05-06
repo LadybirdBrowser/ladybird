@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<meta name="author" title="Xiaocheng Hu" href="mailto:xiaochengh@chromium.org">
+<meta name="assert" content="Custom element constructors can re-enter with different definitions">
+<link rel="help" href="https://wicg.github.io/webcomponents/proposals/Scoped-Custom-Element-Registries">
+<link rel="help" href="https://github.com/WICG/webcomponents/issues/969">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<div id='test-container-1'></div>
+<div id='test-container-2'></div>
+
+<script>
+setup({allow_uncaught_exception : true});
+
+function createShadowForTest(t, customElementRegistry) {
+  const host = document.createElement('div');
+  const shadow = host.attachShadow({mode: 'open', customElementRegistry});
+  document.body.appendChild(host);
+  t.add_cleanup(() => host.remove());
+  return shadow;
+}
+
+test(t => {
+  let needsTest = true;
+  class ReentryBeforeSuper extends HTMLElement {
+    constructor() {
+      if (needsTest) {
+        needsTest = false;
+        document.getElementById('test-container-1').innerHTML =
+            '<test-element-1></test-element-1>';
+      }
+      super();
+    }
+  };
+  window.customElements.define('test-element-1', ReentryBeforeSuper);
+
+  let registry = new CustomElementRegistry;
+  registry.define('shadow-test-element-1', ReentryBeforeSuper);
+
+  let shadow = createShadowForTest(t, registry);
+  shadow.innerHTML = '<shadow-test-element-1></shadow-test-element-1>';
+
+  let shadowElement = shadow.firstChild;
+  assert_true(shadowElement instanceof ReentryBeforeSuper);
+  assert_equals(shadowElement.localName, 'shadow-test-element-1');
+
+  let mainDocElement = document.getElementById('test-container-1').firstChild;
+  assert_true(mainDocElement instanceof ReentryBeforeSuper);
+  assert_equals(mainDocElement.localName, 'test-element-1');
+}, 'Re-entry via upgrade before calling super()');
+
+test(t => {
+  let needsTest = true;
+  class ReentryAfterSuper extends HTMLElement {
+    constructor() {
+      super();
+      if (needsTest) {
+        needsTest = false;
+        document.getElementById('test-container-2').innerHTML =
+            '<test-element-2></test-element-2>';
+      }
+    }
+  };
+  window.customElements.define('test-element-2', ReentryAfterSuper);
+
+  let registry = new CustomElementRegistry;
+  registry.define('shadow-test-element-2', ReentryAfterSuper);
+
+  let shadow = createShadowForTest(t, registry);
+  shadow.innerHTML = '<shadow-test-element-2></shadow-test-element-2>';
+
+  let shadowElement = shadow.firstChild;
+  assert_true(shadowElement instanceof ReentryAfterSuper);
+  assert_equals(shadowElement.localName, 'shadow-test-element-2');
+
+  let mainDocElement = document.getElementById('test-container-2').firstChild;
+  assert_true(mainDocElement instanceof ReentryAfterSuper);
+  assert_equals(mainDocElement.localName, 'test-element-2');
+}, 'Re-entry via upgrade after calling super()');
+
+test(t => {
+  let needsTest = true;
+  let elementByNestedCall;
+  class ReentryByDirectCall extends HTMLElement {
+    constructor() {
+      if (needsTest) {
+        needsTest = false;
+        elementByNestedCall = new ReentryByDirectCall;
+      }
+      super();
+    }
+  }
+  window.customElements.define('test-element-3', ReentryByDirectCall);
+
+  let registry = new CustomElementRegistry;
+  registry.define('shadow-test-element-3', ReentryByDirectCall);
+
+  let shadow = createShadowForTest(t, registry);
+  shadow.innerHTML = '<shadow-test-element-3></shadow-test-element-3>';
+
+  let shadowElement = shadow.firstChild;
+  assert_true(shadowElement instanceof ReentryByDirectCall);
+  assert_equals(shadowElement.localName, 'shadow-test-element-3');
+
+  // Nested constructor call makes the following `super()` fail, and we should
+  // end up creating only one element.
+  assert_equals(elementByNestedCall, shadowElement);
+}, 'Re-entry via direct constructor call before calling super()');
+
+test(t => {
+  let needsTest = true;
+  let elementByNestedCall;
+  class ReentryByDirectCall extends HTMLElement {
+    constructor() {
+      super();
+      if (needsTest) {
+        needsTest = false;
+        elementByNestedCall = new ReentryByDirectCall;
+      }
+    }
+  }
+  window.customElements.define('test-element-4', ReentryByDirectCall);
+
+  let registry = new CustomElementRegistry;
+  registry.define('shadow-test-element-4', ReentryByDirectCall);
+
+  let shadow = createShadowForTest(t, registry);
+  shadow.innerHTML = '<shadow-test-element-4></shadow-test-element-4>';
+
+  let shadowElement = shadow.firstChild;
+  assert_true(shadowElement instanceof ReentryByDirectCall);
+  assert_equals(shadowElement.localName, 'shadow-test-element-4');
+
+  // Nested constructor call should be blocked.
+  assert_false(elementByNestedCall instanceof ReentryByDirectCall);
+}, 'Re-entry via direct constructor call after calling super()');
+</script>

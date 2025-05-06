@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<link rel="help" href="https://github.com/whatwg/html/issues/10854">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+</head>
+<body>
+<script>
+
+function createConnectedShadowTree(test, customElementRegistry) {
+    const host = document.createElement('div');
+    const shadowRoot = host.attachShadow({mode: 'closed', customElementRegistry});
+    document.body.appendChild(host);
+    test.add_cleanup(() => host.remove());
+    return shadowRoot;
+}
+
+class GlobalSomeElement extends HTMLElement { };
+customElements.define('some-element', GlobalSomeElement);
+
+class GlobalOtherElement extends HTMLElement { };
+customElements.define('other-element', GlobalOtherElement);
+
+test((test) => {
+    const registry = new CustomElementRegistry;
+
+    class ScopedSomeElement extends HTMLElement { };
+    registry.define('some-element', ScopedSomeElement);
+
+    class ScopedOtherElement extends HTMLElement { };
+    registry.define('other-element', ScopedOtherElement);
+
+    const shadowRoot = createConnectedShadowTree(test, registry);
+    const someElement = document.createElement('some-element', {customElementRegistry: registry});
+    assert_true(someElement instanceof ScopedSomeElement);
+    someElement.innerHTML = '<other-element></other-element>';
+    assert_true(someElement.querySelector('other-element') instanceof ScopedOtherElement);
+}, 'innerHTML on a disconnected element should use the scoped registry it was created with');
+
+test((test) => {
+    const registry1 = new CustomElementRegistry;
+    const registry2 = new CustomElementRegistry;
+
+    class ScopedSomeElement extends HTMLElement { };
+    registry1.define('some-element', ScopedSomeElement);
+
+    class ScopedOtherElement1 extends HTMLElement { };
+    registry1.define('other-element', ScopedOtherElement1);
+    class ScopedOtherElement2 extends HTMLElement { };
+    registry2.define('other-element', ScopedOtherElement2);
+
+    const shadowRoot1 = createConnectedShadowTree(test, registry1);
+    const shadowRoot2 = createConnectedShadowTree(test, registry2);
+    const someElement = document.createElement('some-element', {customElementRegistry: registry1});
+    someElement.innerHTML = '<other-element></other-element>';
+    assert_true(someElement.querySelector('other-element') instanceof ScopedOtherElement1);
+    shadowRoot2.appendChild(someElement);
+    someElement.innerHTML = '<other-element></other-element>';
+    assert_true(someElement.querySelector('other-element') instanceof ScopedOtherElement1);
+    someElement.remove();
+    someElement.innerHTML = '<other-element></other-element>';
+    assert_true(someElement.querySelector('other-element') instanceof ScopedOtherElement1);
+}, 'innerHTML on an inserted element should continue to use the scoped registry it was created with');
+
+</script>
+</body>
+</html>

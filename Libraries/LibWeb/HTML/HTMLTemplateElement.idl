@@ -12,4 +12,5 @@ interface HTMLTemplateElement : HTMLElement {
     [Reflect=shadowrootdelegatesfocus, CEReactions] attribute boolean shadowRootDelegatesFocus;
     [Reflect=shadowrootclonable, CEReactions] attribute boolean shadowRootClonable;
     [Reflect=shadowrootserializable, CEReactions] attribute boolean shadowRootSerializable;
+    [Reflect=shadowrootcustomelementregistry, CEReactions] attribute DOMString shadowRootCustomElementRegistry;
 };

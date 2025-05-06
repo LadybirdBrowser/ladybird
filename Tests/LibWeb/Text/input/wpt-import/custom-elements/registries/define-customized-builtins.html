@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<title>Custom Elements: Element Definition Customized Builtins</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<body>
+<div id="log"></div>
+<iframe id="iframe"></iframe>
+<script>
+'use strict';
+(() =>  {
+  // 2. If name is not a valid custom element name,
+  // then throw a SyntaxError and abort these steps.
+  let validCustomElementNames = [
+    // [a-z] (PCENChar)* '-' (PCENChar)*
+    // https://html.spec.whatwg.org/multipage/scripting.html#valid-custom-element-name
+    'a-',
+    'a-a',
+    'aa-',
+    'aa-a',
+    'a-.-_',
+    'a-0123456789',
+    'a-\u6F22\u5B57', // Two CJK Unified Ideographs
+    'a-\uD840\uDC0B', // Surrogate pair U+2000B
+  ];
+  let invalidCustomElementNames = [
+    undefined,
+    null,
+    '',
+    '-',
+    'a',
+    'input',
+    'mycustomelement',
+    'A',
+    'A-',
+    '0-',
+    'a-A',
+    'a-Z',
+    'A-a',
+    'a-a\u00D7',
+    'a-a\u3000',
+    'a-a\uDB80\uDC00', // Surrogate pair U+F0000
+    // name must not be any of the hyphen-containing element names.
+    'annotation-xml',
+    'color-profile',
+    'font-face',
+    'font-face-src',
+    'font-face-uri',
+    'font-face-format',
+    'font-face-name',
+    'missing-glyph',
+  ];
+
+  const iframe = document.getElementById("iframe");
+  const testWindow = iframe.contentDocument.defaultView;
+  const customElements = testWindow.customElements;
+
+  // 9.1. If extends is a valid custom element name,
+  // then throw a NotSupportedError.
+  validCustomElementNames.forEach(name =>  {
+    test(() =>  {
+      assert_throws_dom('NOT_SUPPORTED_ERR', testWindow.DOMException, () =>  {
+        customElements.define('test-define-extend-valid-name', class {}, { extends: name });
+      });
+    }, `If extends is ${name}, should throw a NotSupportedError`);
+  });
+
+  // 9.2. If the element interface for extends and the HTML namespace is HTMLUnknownElement
+  // (e.g., if extends does not indicate an element definition in this specification),
+  // then throw a NotSupportedError.
+  [
+    // https://html.spec.whatwg.org/multipage/dom.html#elements-in-the-dom:htmlunknownelement
+    'bgsound',
+    'blink',
+    'isindex',
+    'multicol',
+    'nextid',
+    'spacer',
+    'elementnametobeunknownelement',
+  ].forEach(name =>  {
+    test(() =>  {
+      assert_throws_dom('NOT_SUPPORTED_ERR', testWindow.DOMException, () =>  {
+        customElements.define('test-define-extend-' + name, class {}, { extends: name });
+      });
+    }, `If extends is ${name}, should throw a NotSupportedError`);
+  });
+})();
+</script>
+</body>

@@ -1,0 +1,15 @@
+Harness status: OK
+
+Found 9 tests
+
+7 Pass
+2 Fail
+Pass	initialize is a function on both global and scoped CustomElementRegistry
+Pass	initialize sets element.customElementRegistry to the global registry
+Pass	initialize does not set the registry of nested shadow tree to the global registry
+Pass	initialize sets element.customElementRegistry to a scoped registry
+Pass	initialize does not set the registry of nested shadow tree to a scoped registry
+Pass	initialize sets element.customElementRegistry permantently
+Fail	initialize is no-op on a subtree with a non-null registry
+Fail	initialize works on Document
+Pass	initialize works on DocumentFragment

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<meta name="author" title="Xiaocheng Hu" href="mailto:xiaochengh@chromium.org">
+<meta name="assert" content="The same constructor can be registered to multiple registries">
+<link rel="help" href="https://wicg.github.io/webcomponents/proposals/Scoped-Custom-Element-Registries">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+class MyCustom extends HTMLElement {};
+
+test(() => {
+  let registry1 = new CustomElementRegistry();
+  let registry2 = new CustomElementRegistry();
+  window.customElements.define('my-custom', MyCustom);
+  registry1.define('my-custom', MyCustom);
+  registry2.define('my-custom', MyCustom);
+
+  assert_equals(window.customElements.get('my-custom'), MyCustom);
+  assert_equals(registry1.get('my-custom'), MyCustom);
+  assert_equals(registry2.get('my-custom'), MyCustom);
+}, 'Same constructor can be registered to different registries');
+
+test(() => {
+  let registry = new CustomElementRegistry();
+  registry.define('custom-a', MyCustom);
+  assert_throws_dom('NotSupportedError', () => registry.define('custom-b', MyCustom));
+}, 'Non-global registries still reject duplicate registrations of the same constructor');
+</script>

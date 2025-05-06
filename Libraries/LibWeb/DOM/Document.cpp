@@ -355,7 +355,9 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
     //    current document readiness: "loading"
     //    about base URL: navigationParams's about base URL
     //    allow declarative shadow roots: true
-    auto document = HTML::HTMLDocument::create(window->realm());
+    //    custom element registry: A new CustomElementRegistry object.
+    auto& realm = window->realm();
+    auto document = HTML::HTMLDocument::create(realm);
     document->m_type = type;
     document->m_content_type = move(content_type);
     document->set_origin(navigation_params.origin);
@@ -368,6 +370,7 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
     document->m_readiness = HTML::DocumentReadyState::Loading;
     document->m_about_base_url = navigation_params.about_base_url;
     document->set_allow_declarative_shadow_roots(true);
+    document->set_custom_element_registry(realm.create<HTML::CustomElementRegistry>(realm));
 
     document->m_window = window;
 
@@ -602,6 +605,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_session_storage_holder);
     visitor.visit(m_render_blocking_elements);
     visitor.visit(m_policy_container);
+    visitor.visit(m_custom_element_registry);
 }
 
 // https://w3c.github.io/selection-api/#dom-document-getselection
@@ -2092,23 +2096,16 @@ WebIDL::ExceptionOr<GC::Ref<Element>> Document::create_element(String const& loc
         ? local_name.to_ascii_lowercase()
         : local_name;
 
-    // 3. Let is be null.
-    Optional<String> is_value;
+    // 3. Let registry and is be the result of flattening element creation options given options and this.
+    auto [registry, is_value] = TRY(flatten_element_creation_options(options));
 
-    // 4. If options is a dictionary and options["is"] exists, then set is to it.
-    if (options.has<ElementCreationOptions>()) {
-        auto const& element_creation_options = options.get<ElementCreationOptions>();
-        if (element_creation_options.is.has_value())
-            is_value = element_creation_options.is.value();
-    }
-
-    // 5. Let namespace be the HTML namespace, if this is an HTML document or this’s content type is "application/xhtml+xml"; otherwise null.
+    // 4. Let namespace be the HTML namespace, if this is an HTML document or this’s content type is "application/xhtml+xml"; otherwise null.
     Optional<FlyString> namespace_;
     if (document_type() == Type::HTML || content_type() == "application/xhtml+xml"sv)
         namespace_ = Namespace::HTML;
 
-    // 6. Return the result of creating an element given this, localName, namespace, null, is, and with the synchronous custom elements flag set.
-    return TRY(DOM::create_element(*this, FlyString::from_utf8_without_validation(local_name_lower.bytes()), move(namespace_), {}, move(is_value), true));
+    // 5. Return the result of creating an element given this, localName, namespace, null, is, true, and registry.
+    return TRY(DOM::create_element(*this, FlyString::from_utf8_without_validation(local_name_lower.bytes()), move(namespace_), {}, move(is_value), true, registry));
 }
 
 // https://dom.spec.whatwg.org/#dom-document-createelementns
@@ -2118,18 +2115,11 @@ WebIDL::ExceptionOr<GC::Ref<Element>> Document::create_element_ns(Optional<FlySt
     // 1. Let namespace, prefix, and localName be the result of passing namespace and qualifiedName to validate and extract.
     auto extracted_qualified_name = TRY(validate_and_extract(realm(), namespace_, qualified_name));
 
-    // 2. Let is be null.
-    Optional<String> is_value;
+    // 2. Let registry and is be the result of flattening element creation options given options and this.
+    auto [registry, is_value] = TRY(flatten_element_creation_options(options));
 
-    // 3. If options is a dictionary and options["is"] exists, then set is to it.
-    if (options.has<ElementCreationOptions>()) {
-        auto const& element_creation_options = options.get<ElementCreationOptions>();
-        if (element_creation_options.is.has_value())
-            is_value = element_creation_options.is.value();
-    }
-
-    // 4. Return the result of creating an element given document, localName, namespace, prefix, is, and with the synchronous custom elements flag set.
-    return TRY(DOM::create_element(*this, extracted_qualified_name.local_name(), extracted_qualified_name.namespace_(), extracted_qualified_name.prefix(), move(is_value), true));
+    // 3. Return the result of creating an element given document, localName, namespace, prefix, is, true, and registry.
+    return TRY(DOM::create_element(*this, extracted_qualified_name.local_name(), extracted_qualified_name.namespace_(), extracted_qualified_name.prefix(), move(is_value), true, registry));
 }
 
 GC::Ref<DocumentFragment> Document::create_document_fragment()
@@ -2313,14 +2303,39 @@ Vector<GC::Root<HTML::HTMLScriptElement>> Document::take_scripts_to_execute_in_o
 }
 
 // https://dom.spec.whatwg.org/#dom-document-importnode
-WebIDL::ExceptionOr<GC::Ref<Node>> Document::import_node(GC::Ref<Node> node, bool deep)
+WebIDL::ExceptionOr<GC::Ref<Node>> Document::import_node(GC::Ref<Node> node, Variant<bool, ImportNodeOptions> options)
 {
     // 1. If node is a document or shadow root, then throw a "NotSupportedError" DOMException.
     if (is<Document>(*node) || is<ShadowRoot>(*node))
         return WebIDL::NotSupportedError::create(realm(), "Cannot import a document or shadow root."_string);
 
-    // 2. Return a clone of node, with this and the clone children flag set if deep is true.
-    return node->clone_node(this, deep);
+    // 2. Let subtree be false.
+    bool subtree = false;
+
+    // 3. Let registry be null.
+    GC::Ptr<HTML::CustomElementRegistry> registry;
+
+    options.visit(
+        // 4. If options is a boolean, then set subtree to options.
+        [&subtree](bool const& value) {
+            subtree = value;
+        },
+        // 5. Otherwise:
+        [&subtree, &registry](ImportNodeOptions const& options) {
+            // 1. Set subtree to the negation of options["selfOnly"].
+            subtree = !options.self_only;
+
+            // 2. If options["customElementRegistry"] exists, then set registry to it.
+            if (options.custom_element_registry)
+                registry = options.custom_element_registry;
+        });
+
+    // 6. If registry is null, then set registry to the result of looking up a custom element registry given this.
+    if (!registry)
+        registry = HTML::look_up_a_custom_element_registry(*this);
+
+    // 7. Return the result of cloning a node given node with document set to this, subtree set to subtree, and fallbackRegistry set to registry.
+    return node->clone_node(this, subtree, nullptr, registry);
 }
 
 // https://dom.spec.whatwg.org/#concept-node-adopt
@@ -3765,36 +3780,6 @@ void Document::check_favicon_after_loading_link_resource()
 void Document::set_window(HTML::Window& window)
 {
     m_window = &window;
-}
-
-// https://html.spec.whatwg.org/multipage/custom-elements.html#look-up-a-custom-element-definition
-GC::Ptr<HTML::CustomElementDefinition> Document::lookup_custom_element_definition(Optional<FlyString> const& namespace_, FlyString const& local_name, Optional<String> const& is) const
-{
-    // 1. If namespace is not the HTML namespace, then return null.
-    if (namespace_ != Namespace::HTML)
-        return nullptr;
-
-    // 2. If document's browsing context is null, then return null.
-    if (!browsing_context())
-        return nullptr;
-
-    // 3. Let registry be document's relevant global object's custom element registry.
-    auto registry = as<HTML::Window>(relevant_global_object(*this)).custom_elements();
-
-    // 4. If registry's custom element definition set contains an item with name and local name both equal to localName, then return that item.
-    auto converted_local_name = local_name.to_string();
-    auto maybe_definition = registry->get_definition_with_name_and_local_name(converted_local_name, converted_local_name);
-    if (maybe_definition)
-        return maybe_definition;
-
-    // 5. If registry's custom element definition set contains an item with name equal to is and local name equal to localName, then return that item.
-    // 6. Return null.
-
-    // NOTE: If `is` has no value, it can never match as custom element definitions always have a name and localName (i.e. not stored as Optional<String>)
-    if (!is.has_value())
-        return nullptr;
-
-    return registry->get_definition_with_name_and_local_name(is.value(), converted_local_name);
 }
 
 CSS::StyleSheetList& Document::style_sheets()
@@ -6532,6 +6517,38 @@ void Document::run_csp_initialization() const
     }
 }
 
+// https://dom.spec.whatwg.org/#flatten-element-creation-options
+WebIDL::ExceptionOr<Document::RegistryAndIs> Document::flatten_element_creation_options(Variant<String, ElementCreationOptions> options) const
+{
+    // 1. Let registry be null.
+    GC::Ptr<HTML::CustomElementRegistry> registry;
+
+    // 2. Let is be null.
+    Optional<String> is;
+
+    // 3. If options is a dictionary:
+    if (auto* dictionary = options.get_pointer<ElementCreationOptions>()) {
+        // 1. If options["customElementRegistry"] exists, then set registry to it.
+        if (dictionary->custom_element_registry)
+            registry = dictionary->custom_element_registry;
+
+        // 2. If options["is"] exists, then set is to it.
+        if (dictionary->is.has_value())
+            is = dictionary->is.value();
+
+        // 3. If registry is non-null and is is non-null, then throw a "NotSupportedError" DOMException.
+        if (registry && is.has_value())
+            return WebIDL::NotSupportedError::create(realm(), "Cannot provide both 'is' and 'customElementRegistry' in ElementCreationOptions."_string);
+    }
+
+    // 4. If registry is null, then set registry to the result of looking up a custom element registry given document.
+    if (!registry)
+        registry = HTML::look_up_a_custom_element_registry(*this);
+
+    // 5. Return registry and is.
+    return RegistryAndIs { registry, move(is) };
+}
+
 WebIDL::CallbackType* Document::onreadystatechange()
 {
     return event_handler_attribute(HTML::EventNames::readystatechange);
@@ -6550,6 +6567,58 @@ WebIDL::CallbackType* Document::onvisibilitychange()
 void Document::set_onvisibilitychange(WebIDL::CallbackType* value)
 {
     set_event_handler_attribute(HTML::EventNames::visibilitychange, value);
+}
+
+// https://dom.spec.whatwg.org/#dom-documentorshadowroot-customelementregistry
+GC::Ptr<HTML::CustomElementRegistry> Document::custom_element_registry() const
+{
+    // 1. If this is a document, then return this’s custom element registry.
+    // NB: Always true.
+
+    // FIXME: Is this a spec bug? It was in the old version of the "look up a custom element definition" algorithm, and without it we fail some tests.
+    if (!browsing_context())
+        return nullptr;
+    return m_custom_element_registry;
+
+    // 2. Assert: this is a ShadowRoot node.
+    // 3. Return this’s custom element registry.
+}
+
+// https://html.spec.whatwg.org/multipage/custom-elements.html#upgrade-particular-elements-within-a-document
+void Document::upgrade_particular_elements(GC::Ref<HTML::CustomElementRegistry> registry, GC::Ref<HTML::CustomElementDefinition> definition, String local_name, Optional<String> maybe_name)
+{
+    // To upgrade particular elements within a document given a CustomElementRegistry object registry, a Document
+    // object document, a custom element definition definition, a string localName, and optionally a string name
+    // (default localName):
+    auto name = maybe_name.value_or(local_name);
+
+    // 1. Let upgradeCandidates be all elements that are shadow-including descendants of document, whose custom element
+    //    registry is registry, whose namespace is the HTML namespace, and whose local name is localName, in
+    //    shadow-including tree order.
+    //    Additionally, if name is not localName, only include elements whose is value is equal to name.
+    Vector<GC::Root<Element>> upgrade_candidates;
+    for_each_shadow_including_descendant([&](Node& inclusive_descendant) {
+        auto* element = as_if<Element>(inclusive_descendant);
+        if (!element)
+            return TraversalDecision::Continue;
+
+        if (element->custom_element_registry() != registry)
+            return TraversalDecision::Continue;
+
+        if (element->namespace_uri() != Namespace::HTML || element->local_name() != local_name)
+            return TraversalDecision::Continue;
+
+        if (name != local_name && element->is_value() != name)
+            return TraversalDecision::Continue;
+
+        upgrade_candidates.append(GC::make_root(element));
+        return TraversalDecision::Continue;
+    });
+
+    // 2. For each element element of upgradeCandidates:
+    //    enqueue a custom element upgrade reaction given element and definition.
+    for (auto& element : upgrade_candidates)
+        element->enqueue_a_custom_element_upgrade_reaction(definition);
 }
 
 ElementByIdMap& Document::element_by_id() const

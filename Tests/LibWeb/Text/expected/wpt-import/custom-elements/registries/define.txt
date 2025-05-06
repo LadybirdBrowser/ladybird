@@ -1,0 +1,76 @@
+Harness status: OK
+
+Found 70 tests
+
+69 Pass
+1 Fail
+Pass	"window.customElements.define" should exists
+Pass	If no arguments, should throw a TypeError
+Pass	If one argument, should throw a TypeError
+Pass	If constructor is undefined, should throw a TypeError
+Pass	If constructor is null, should throw a TypeError
+Pass	If constructor is object, should throw a TypeError
+Pass	If constructor is string, should throw a TypeError
+Pass	If constructor is arrow function, should throw a TypeError
+Fail	If constructor is method, should throw a TypeError
+Pass	Element names: defining an element named a- should succeed
+Pass	Element names: defining an element named a-a should succeed
+Pass	Element names: defining an element named aa- should succeed
+Pass	Element names: defining an element named aa-a should succeed
+Pass	Element names: defining an element named a-.-_ should succeed
+Pass	Element names: defining an element named a-0123456789 should succeed
+Pass	Element names: defining an element named a-æ¼¢å­— should succeed
+Pass	Element names: defining an element named a-í¡€U+dc0b should succeed
+Pass	Element names: defining an element named undefined should throw a SyntaxError
+Pass	Element names: defining an element named null should throw a SyntaxError
+Pass	Element names: defining an element named  should throw a SyntaxError
+Pass	Element names: defining an element named - should throw a SyntaxError
+Pass	Element names: defining an element named a should throw a SyntaxError
+Pass	Element names: defining an element named input should throw a SyntaxError
+Pass	Element names: defining an element named mycustomelement should throw a SyntaxError
+Pass	Element names: defining an element named A should throw a SyntaxError
+Pass	Element names: defining an element named A- should throw a SyntaxError
+Pass	Element names: defining an element named 0- should throw a SyntaxError
+Pass	Element names: defining an element named a-A should throw a SyntaxError
+Pass	Element names: defining an element named a-Z should throw a SyntaxError
+Pass	Element names: defining an element named A-a should throw a SyntaxError
+Pass	Element names: defining an element named a-aÃ— should throw a SyntaxError
+Pass	Element names: defining an element named a-aã€€ should throw a SyntaxError
+Pass	Element names: defining an element named a-aí®€U+dc00 should throw a SyntaxError
+Pass	Element names: defining an element named annotation-xml should throw a SyntaxError
+Pass	Element names: defining an element named color-profile should throw a SyntaxError
+Pass	Element names: defining an element named font-face should throw a SyntaxError
+Pass	Element names: defining an element named font-face-src should throw a SyntaxError
+Pass	Element names: defining an element named font-face-uri should throw a SyntaxError
+Pass	Element names: defining an element named font-face-format should throw a SyntaxError
+Pass	Element names: defining an element named font-face-name should throw a SyntaxError
+Pass	Element names: defining an element named missing-glyph should throw a SyntaxError
+Pass	If the name is already defined, should throw a NotSupportedError
+Pass	If the constructor is already defined, should throw a NotSupportedError
+Pass	If constructor.prototype throws, should rethrow
+Pass	If Type(constructor.prototype) is undefined, should throw a TypeError
+Pass	If Type(constructor.prototype) is string, should throw a TypeError
+Pass	If constructor.prototype.connectedCallback throws, should rethrow
+Pass	If constructor.prototype.connectedCallback is undefined, should succeed
+Pass	If constructor.prototype.connectedCallback is function, should succeed
+Pass	If constructor.prototype.connectedCallback is null, should throw a TypeError
+Pass	If constructor.prototype.connectedCallback is object, should throw a TypeError
+Pass	If constructor.prototype.connectedCallback is integer, should throw a TypeError
+Pass	If constructor.prototype.disconnectedCallback throws, should rethrow
+Pass	If constructor.prototype.disconnectedCallback is undefined, should succeed
+Pass	If constructor.prototype.disconnectedCallback is function, should succeed
+Pass	If constructor.prototype.disconnectedCallback is null, should throw a TypeError
+Pass	If constructor.prototype.disconnectedCallback is object, should throw a TypeError
+Pass	If constructor.prototype.disconnectedCallback is integer, should throw a TypeError
+Pass	If constructor.prototype.adoptedCallback throws, should rethrow
+Pass	If constructor.prototype.adoptedCallback is undefined, should succeed
+Pass	If constructor.prototype.adoptedCallback is function, should succeed
+Pass	If constructor.prototype.adoptedCallback is null, should throw a TypeError
+Pass	If constructor.prototype.adoptedCallback is object, should throw a TypeError
+Pass	If constructor.prototype.adoptedCallback is integer, should throw a TypeError
+Pass	If constructor.prototype.attributeChangedCallback throws, should rethrow
+Pass	If constructor.prototype.attributeChangedCallback is undefined, should succeed
+Pass	If constructor.prototype.attributeChangedCallback is function, should succeed
+Pass	If constructor.prototype.attributeChangedCallback is null, should throw a TypeError
+Pass	If constructor.prototype.attributeChangedCallback is object, should throw a TypeError
+Pass	If constructor.prototype.attributeChangedCallback is integer, should throw a TypeError

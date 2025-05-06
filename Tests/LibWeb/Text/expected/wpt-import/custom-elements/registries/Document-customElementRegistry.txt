@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	customElementRegistry on a document should return window.customElements by default
+Pass	customElementRegistry on a document without a browsing context should return null
+Pass	customElementRegistry on a document of a connected iframe should return contentWindow.customElements
+Pass	customElementRegistry on a document of a disconnected iframe should return contentWindow.customElements
