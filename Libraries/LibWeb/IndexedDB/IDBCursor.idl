@@ -2,7 +2,7 @@
 
 [Exposed=(Window,Worker)]
 interface IDBCursor {
-    readonly attribute (IDBObjectStore or IDBIndex) source;
+    [ImplementedAs=source_handle] readonly attribute (IDBObjectStore or IDBIndex) source;
     readonly attribute IDBCursorDirection direction;
     readonly attribute any key;
     [FIXME] readonly attribute any primaryKey;

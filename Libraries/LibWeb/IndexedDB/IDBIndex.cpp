@@ -101,19 +101,4 @@ JS::Value IDBIndex::key_path() const
         });
 }
 
-// https://w3c.github.io/IndexedDB/#index-referenced-value
-HTML::SerializationRecord IDBIndex::get_referenced_value(IndexRecord const& index_record) const
-{
-    // Records in an index are said to have a referenced value.
-    // This is the value of the record in the index’s referenced object store which has a key equal to the index’s record’s value.
-    return m_index
-        ->object_store()
-        ->records()
-        .first_matching([&](auto const& store_record) {
-            return Key::equals(store_record.key, index_record.value);
-        })
-        .value()
-        .value;
-}
-
 }

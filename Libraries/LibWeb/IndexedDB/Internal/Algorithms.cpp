@@ -1481,7 +1481,7 @@ WebIDL::ExceptionOr<JS::Value> retrieve_a_value_from_an_object_store(JS::Realm& 
 GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor, GC::Ptr<Key> key, GC::Ptr<Key> primary_key, u64 count)
 {
     // 1. Let source be cursor’s source.
-    auto source = cursor->source();
+    auto source = cursor->internal_source();
 
     // 2. Let direction be cursor’s direction.
     auto direction = cursor->direction();
@@ -1489,15 +1489,15 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
     // 3. Assert: if primaryKey is given, source is an index and direction is "next" or "prev".
     auto direction_is_next_or_prev = direction == Bindings::IDBCursorDirection::Next || direction == Bindings::IDBCursorDirection::Prev;
     if (primary_key)
-        VERIFY(source.has<GC::Ref<IDBIndex>>() && direction_is_next_or_prev);
+        VERIFY(source.has<GC::Ref<Index>>() && direction_is_next_or_prev);
 
     // 4. Let records be the list of records in source.
     Variant<ReadonlySpan<Record>, ReadonlySpan<IndexRecord>> records = source.visit(
-        [](GC::Ref<IDBObjectStore> object_store) -> Variant<ReadonlySpan<Record>, ReadonlySpan<IndexRecord>> {
-            return object_store->store()->records();
+        [](GC::Ref<ObjectStore> object_store) -> Variant<ReadonlySpan<Record>, ReadonlySpan<IndexRecord>> {
+            return object_store->records();
         },
-        [](GC::Ref<IDBIndex> index) -> Variant<ReadonlySpan<Record>, ReadonlySpan<IndexRecord>> {
-            return index->index()->records();
+        [](GC::Ref<Index> index) -> Variant<ReadonlySpan<Record>, ReadonlySpan<IndexRecord>> {
+            return index->records();
         });
 
     // 5. Let range be cursor’s range.
@@ -1540,7 +1540,7 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
         }
 
         // * If position is defined, and source is an object store,
-        if (position && source.has<GC::Ref<IDBObjectStore>>()) {
+        if (position && source.has<GC::Ref<ObjectStore>>()) {
             auto const& inner_record = record.get<Record>();
 
             // * the record’s key is greater than position.
@@ -1549,7 +1549,7 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
         }
 
         // * If position is defined, and source is an index,
-        if (position && source.has<GC::Ref<IDBIndex>>()) {
+        if (position && source.has<GC::Ref<Index>>()) {
             auto const& inner_record = record.get<IndexRecord>();
 
             // * the record’s key is equal to position and the record’s value is greater than object store position
@@ -1636,7 +1636,7 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
         }
 
         // * If position is defined, and source is an object store,
-        if (position && source.has<GC::Ref<IDBObjectStore>>()) {
+        if (position && source.has<GC::Ref<ObjectStore>>()) {
             auto const& inner_record = record.get<Record>();
 
             // * the record’s key is less than position.
@@ -1645,7 +1645,7 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
         }
 
         // * If position is defined, and source is an index,
-        if (position && source.has<GC::Ref<IDBIndex>>()) {
+        if (position && source.has<GC::Ref<Index>>()) {
             auto const& inner_record = record.get<IndexRecord>();
 
             // * the record’s key is equal to position and the record’s value is less than object store position
@@ -1780,7 +1780,7 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
             cursor->set_key(nullptr);
 
             // 2. If source is an index, set cursor’s object store position to undefined.
-            if (source.has<GC::Ref<IDBIndex>>())
+            if (source.has<GC::Ref<Index>>())
                 cursor->set_object_store_position(nullptr);
 
             // 3. If cursor’s key only flag is false, set cursor’s value to undefined.
@@ -1797,7 +1797,7 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
             [](auto val) { return val.key; });
 
         // 4. If source is an index, let object store position be found record’s value.
-        if (source.has<GC::Ref<IDBIndex>>())
+        if (source.has<GC::Ref<Index>>())
             object_store_position = found_record.get<IndexRecord>().value;
 
         // 5. Decrease count by 1.
@@ -1808,7 +1808,7 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
     cursor->set_position(position);
 
     // 11. If source is an index, set cursor’s object store position to object store position.
-    if (source.has<GC::Ref<IDBIndex>>())
+    if (source.has<GC::Ref<Index>>())
         cursor->set_object_store_position(object_store_position);
 
     // 12. Set cursor’s key to found record’s key.
@@ -1821,11 +1821,11 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
 
         // 1. Let serialized be found record’s value if source is an object store, or found record’s referenced value otherwise.
         auto serialized = source.visit(
-            [&](GC::Ref<IDBObjectStore>) {
+            [&](GC::Ref<ObjectStore>) {
                 return found_record.get<Record>().value;
             },
-            [&](GC::Ref<IDBIndex> index) {
-                return index->get_referenced_value(found_record.get<IndexRecord>());
+            [&](GC::Ref<Index> index) {
+                return index->referenced_value(found_record.get<IndexRecord>());
             });
 
         // 2. Set cursor’s value to ! StructuredDeserialize(serialized, targetRealm)

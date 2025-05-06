@@ -33,8 +33,6 @@ public:
     GC::Ref<IDBTransaction> transaction() { return m_object_store_handle->transaction(); }
     GC::Ref<Index> index() { return m_index; }
 
-    HTML::SerializationRecord get_referenced_value(IndexRecord const& index_record) const;
-
 protected:
     explicit IDBIndex(JS::Realm&, GC::Ref<Index>, GC::Ref<IDBObjectStore>);
     virtual void initialize(JS::Realm&) override;

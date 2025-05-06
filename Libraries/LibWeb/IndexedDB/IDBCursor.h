@@ -17,7 +17,8 @@
 
 namespace Web::IndexedDB {
 
-using CursorSource = Variant<GC::Ref<IDBObjectStore>, GC::Ref<IDBIndex>>;
+using CursorSourceHandle = Variant<GC::Ref<IDBObjectStore>, GC::Ref<IDBIndex>>;
+using CursorSource = Variant<GC::Ref<ObjectStore>, GC::Ref<Index>>;
 
 // https://w3c.github.io/IndexedDB/#cursor-interface
 class IDBCursor : public Bindings::PlatformObject {
@@ -26,19 +27,21 @@ class IDBCursor : public Bindings::PlatformObject {
 
 public:
     virtual ~IDBCursor() override;
-    [[nodiscard]] static GC::Ref<IDBCursor> create(JS::Realm&, GC::Ref<IDBTransaction>, GC::Ptr<Key>, Bindings::IDBCursorDirection, bool, GC::Ptr<Key>, JS::Value, CursorSource, GC::Ref<IDBKeyRange>, bool);
+    [[nodiscard]] static GC::Ref<IDBCursor> create(JS::Realm&, CursorSourceHandle, GC::Ptr<Key>, Bindings::IDBCursorDirection, bool, GC::Ptr<Key>, JS::Value, GC::Ref<IDBKeyRange>, bool);
 
-    [[nodiscard]] CursorSource source() { return m_source; }
+    [[nodiscard]] CursorSourceHandle source_handle() { return m_source_handle; }
     [[nodiscard]] Bindings::IDBCursorDirection direction() { return m_direction; }
     [[nodiscard]] JS::Value key();
     [[nodiscard]] JS::Value value() { return m_value.value_or(JS::js_undefined()); }
     [[nodiscard]] GC::Ptr<IDBRequest> request() { return m_request; }
-    [[nodiscard]] GC::Ref<IDBTransaction> transaction() { return m_transaction; }
     [[nodiscard]] GC::Ref<IDBKeyRange> range() { return m_range; }
     [[nodiscard]] GC::Ptr<Key> position() { return m_position; }
     [[nodiscard]] GC::Ptr<Key> object_store_position() { return m_object_store_position; }
     [[nodiscard]] bool key_only() const { return m_key_only; }
     [[nodiscard]] bool got_value() const { return m_got_value; }
+
+    [[nodiscard]] GC::Ref<IDBTransaction> transaction();
+    [[nodiscard]] CursorSource internal_source();
 
     void set_request(GC::Ptr<IDBRequest> request) { m_request = request; }
     void set_position(GC::Ptr<Key> position) { m_position = position; }
@@ -50,14 +53,11 @@ public:
     WebIDL::ExceptionOr<void> continue_(JS::Value);
 
 protected:
-    explicit IDBCursor(JS::Realm&, GC::Ref<IDBTransaction>, GC::Ptr<Key>, Bindings::IDBCursorDirection, bool, GC::Ptr<Key>, JS::Value, CursorSource, GC::Ref<IDBKeyRange>, bool);
+    explicit IDBCursor(JS::Realm&, CursorSourceHandle, GC::Ptr<Key>, Bindings::IDBCursorDirection, bool, GC::Ptr<Key>, JS::Value, GC::Ref<IDBKeyRange>, bool);
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Visitor& visitor) override;
 
 private:
-    // A cursor has a transaction, the transaction that was active when the cursor was created.
-    GC::Ref<IDBTransaction> m_transaction;
-
     // A cursor has a position within its range.
     GC::Ptr<Key> m_position;
 
@@ -74,8 +74,8 @@ private:
     GC::Ptr<Key> m_key;
     Optional<JS::Value> m_value;
 
-    // A cursor has a source that indicates which index or an object store is associated with the records over which the cursor is iterating.
-    CursorSource m_source;
+    // A cursor has a source handle, which is the index handle or the object store handle that opened the cursor.
+    CursorSourceHandle m_source_handle;
 
     // A cursor has a range of records in either an index or an object store.
     GC::Ref<IDBKeyRange> m_range;
