@@ -33,6 +33,7 @@ public:
 private:
     BoundFunction(Realm&, FunctionObject& target_function, Value bound_this, Vector<Value> bound_arguments, Object* prototype);
 
+    ThrowCompletionOr<void> get_stack_frame_size(size_t& registers_and_constants_and_locals_count, size_t& argument_count) override;
     virtual void visit_edges(Visitor&) override;
 
     GC::Ptr<FunctionObject> m_bound_target_function; // [[BoundTargetFunction]]
