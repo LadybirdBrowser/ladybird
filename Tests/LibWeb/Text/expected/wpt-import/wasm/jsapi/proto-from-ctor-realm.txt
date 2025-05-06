@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 120 tests
 
-75 Pass
-45 Fail
+120 Pass
 Pass	WebAssembly.Module: cross-realm NewTarget with `undefined` prototype
 Pass	WebAssembly.Module: cross-realm NewTarget with `null` prototype
 Pass	WebAssembly.Module: cross-realm NewTarget with `false` prototype
@@ -79,48 +78,48 @@ Pass	WebAssembly.Global: bound Proxy of cross-realm NewTarget with `false` proto
 Pass	WebAssembly.Global: Proxy of cross-realm NewTarget with `true` prototype
 Pass	WebAssembly.Global: Proxy of Proxy of cross-realm NewTarget with `-0` prototype
 Pass	WebAssembly.Global: Proxy of bound cross-realm NewTarget with `NaN` prototype
-Fail	WebAssembly.CompileError: cross-realm NewTarget with `undefined` prototype
-Fail	WebAssembly.CompileError: cross-realm NewTarget with `null` prototype
-Fail	WebAssembly.CompileError: cross-realm NewTarget with `false` prototype
-Fail	WebAssembly.CompileError: cross-realm NewTarget with `true` prototype
-Fail	WebAssembly.CompileError: cross-realm NewTarget with `0` prototype
-Fail	WebAssembly.CompileError: cross-realm NewTarget with `-1` prototype
-Fail	WebAssembly.CompileError: cross-realm NewTarget with `""` prototype
-Fail	WebAssembly.CompileError: cross-realm NewTarget with `"str"` prototype
-Fail	WebAssembly.CompileError: cross-realm NewTarget with `symbol "Symbol()"` prototype
-Fail	WebAssembly.CompileError: bound cross-realm NewTarget with `undefined` prototype
-Fail	WebAssembly.CompileError: bound bound cross-realm NewTarget with `null` prototype
-Fail	WebAssembly.CompileError: bound Proxy of cross-realm NewTarget with `false` prototype
-Fail	WebAssembly.CompileError: Proxy of cross-realm NewTarget with `true` prototype
-Fail	WebAssembly.CompileError: Proxy of Proxy of cross-realm NewTarget with `-0` prototype
-Fail	WebAssembly.CompileError: Proxy of bound cross-realm NewTarget with `NaN` prototype
-Fail	WebAssembly.LinkError: cross-realm NewTarget with `undefined` prototype
-Fail	WebAssembly.LinkError: cross-realm NewTarget with `null` prototype
-Fail	WebAssembly.LinkError: cross-realm NewTarget with `false` prototype
-Fail	WebAssembly.LinkError: cross-realm NewTarget with `true` prototype
-Fail	WebAssembly.LinkError: cross-realm NewTarget with `0` prototype
-Fail	WebAssembly.LinkError: cross-realm NewTarget with `-1` prototype
-Fail	WebAssembly.LinkError: cross-realm NewTarget with `""` prototype
-Fail	WebAssembly.LinkError: cross-realm NewTarget with `"str"` prototype
-Fail	WebAssembly.LinkError: cross-realm NewTarget with `symbol "Symbol()"` prototype
-Fail	WebAssembly.LinkError: bound cross-realm NewTarget with `undefined` prototype
-Fail	WebAssembly.LinkError: bound bound cross-realm NewTarget with `null` prototype
-Fail	WebAssembly.LinkError: bound Proxy of cross-realm NewTarget with `false` prototype
-Fail	WebAssembly.LinkError: Proxy of cross-realm NewTarget with `true` prototype
-Fail	WebAssembly.LinkError: Proxy of Proxy of cross-realm NewTarget with `-0` prototype
-Fail	WebAssembly.LinkError: Proxy of bound cross-realm NewTarget with `NaN` prototype
-Fail	WebAssembly.RuntimeError: cross-realm NewTarget with `undefined` prototype
-Fail	WebAssembly.RuntimeError: cross-realm NewTarget with `null` prototype
-Fail	WebAssembly.RuntimeError: cross-realm NewTarget with `false` prototype
-Fail	WebAssembly.RuntimeError: cross-realm NewTarget with `true` prototype
-Fail	WebAssembly.RuntimeError: cross-realm NewTarget with `0` prototype
-Fail	WebAssembly.RuntimeError: cross-realm NewTarget with `-1` prototype
-Fail	WebAssembly.RuntimeError: cross-realm NewTarget with `""` prototype
-Fail	WebAssembly.RuntimeError: cross-realm NewTarget with `"str"` prototype
-Fail	WebAssembly.RuntimeError: cross-realm NewTarget with `symbol "Symbol()"` prototype
-Fail	WebAssembly.RuntimeError: bound cross-realm NewTarget with `undefined` prototype
-Fail	WebAssembly.RuntimeError: bound bound cross-realm NewTarget with `null` prototype
-Fail	WebAssembly.RuntimeError: bound Proxy of cross-realm NewTarget with `false` prototype
-Fail	WebAssembly.RuntimeError: Proxy of cross-realm NewTarget with `true` prototype
-Fail	WebAssembly.RuntimeError: Proxy of Proxy of cross-realm NewTarget with `-0` prototype
-Fail	WebAssembly.RuntimeError: Proxy of bound cross-realm NewTarget with `NaN` prototype
+Pass	WebAssembly.CompileError: cross-realm NewTarget with `undefined` prototype
+Pass	WebAssembly.CompileError: cross-realm NewTarget with `null` prototype
+Pass	WebAssembly.CompileError: cross-realm NewTarget with `false` prototype
+Pass	WebAssembly.CompileError: cross-realm NewTarget with `true` prototype
+Pass	WebAssembly.CompileError: cross-realm NewTarget with `0` prototype
+Pass	WebAssembly.CompileError: cross-realm NewTarget with `-1` prototype
+Pass	WebAssembly.CompileError: cross-realm NewTarget with `""` prototype
+Pass	WebAssembly.CompileError: cross-realm NewTarget with `"str"` prototype
+Pass	WebAssembly.CompileError: cross-realm NewTarget with `symbol "Symbol()"` prototype
+Pass	WebAssembly.CompileError: bound cross-realm NewTarget with `undefined` prototype
+Pass	WebAssembly.CompileError: bound bound cross-realm NewTarget with `null` prototype
+Pass	WebAssembly.CompileError: bound Proxy of cross-realm NewTarget with `false` prototype
+Pass	WebAssembly.CompileError: Proxy of cross-realm NewTarget with `true` prototype
+Pass	WebAssembly.CompileError: Proxy of Proxy of cross-realm NewTarget with `-0` prototype
+Pass	WebAssembly.CompileError: Proxy of bound cross-realm NewTarget with `NaN` prototype
+Pass	WebAssembly.LinkError: cross-realm NewTarget with `undefined` prototype
+Pass	WebAssembly.LinkError: cross-realm NewTarget with `null` prototype
+Pass	WebAssembly.LinkError: cross-realm NewTarget with `false` prototype
+Pass	WebAssembly.LinkError: cross-realm NewTarget with `true` prototype
+Pass	WebAssembly.LinkError: cross-realm NewTarget with `0` prototype
+Pass	WebAssembly.LinkError: cross-realm NewTarget with `-1` prototype
+Pass	WebAssembly.LinkError: cross-realm NewTarget with `""` prototype
+Pass	WebAssembly.LinkError: cross-realm NewTarget with `"str"` prototype
+Pass	WebAssembly.LinkError: cross-realm NewTarget with `symbol "Symbol()"` prototype
+Pass	WebAssembly.LinkError: bound cross-realm NewTarget with `undefined` prototype
+Pass	WebAssembly.LinkError: bound bound cross-realm NewTarget with `null` prototype
+Pass	WebAssembly.LinkError: bound Proxy of cross-realm NewTarget with `false` prototype
+Pass	WebAssembly.LinkError: Proxy of cross-realm NewTarget with `true` prototype
+Pass	WebAssembly.LinkError: Proxy of Proxy of cross-realm NewTarget with `-0` prototype
+Pass	WebAssembly.LinkError: Proxy of bound cross-realm NewTarget with `NaN` prototype
+Pass	WebAssembly.RuntimeError: cross-realm NewTarget with `undefined` prototype
+Pass	WebAssembly.RuntimeError: cross-realm NewTarget with `null` prototype
+Pass	WebAssembly.RuntimeError: cross-realm NewTarget with `false` prototype
+Pass	WebAssembly.RuntimeError: cross-realm NewTarget with `true` prototype
+Pass	WebAssembly.RuntimeError: cross-realm NewTarget with `0` prototype
+Pass	WebAssembly.RuntimeError: cross-realm NewTarget with `-1` prototype
+Pass	WebAssembly.RuntimeError: cross-realm NewTarget with `""` prototype
+Pass	WebAssembly.RuntimeError: cross-realm NewTarget with `"str"` prototype
+Pass	WebAssembly.RuntimeError: cross-realm NewTarget with `symbol "Symbol()"` prototype
+Pass	WebAssembly.RuntimeError: bound cross-realm NewTarget with `undefined` prototype
+Pass	WebAssembly.RuntimeError: bound bound cross-realm NewTarget with `null` prototype
+Pass	WebAssembly.RuntimeError: bound Proxy of cross-realm NewTarget with `false` prototype
+Pass	WebAssembly.RuntimeError: Proxy of cross-realm NewTarget with `true` prototype
+Pass	WebAssembly.RuntimeError: Proxy of Proxy of cross-realm NewTarget with `-0` prototype
+Pass	WebAssembly.RuntimeError: Proxy of bound cross-realm NewTarget with `NaN` prototype
