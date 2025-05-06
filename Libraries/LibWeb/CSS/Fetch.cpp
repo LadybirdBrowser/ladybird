@@ -27,12 +27,12 @@ static WebIDL::ExceptionOr<GC::Ref<Fetch::Infrastructure::Request>> fetch_a_styl
     // 2. Let base be sheet’s stylesheet base URL if it is not null, otherwise environmentSettings’s API base URL. [CSSOM]
     // AD-HOC: We use the sheet's location if it has no base url. https://github.com/w3c/csswg-drafts/issues/12068
     auto base = sheet_or_document.visit(
-        [&](GC::Ref<CSSStyleSheet> const& sheet) {
+        [&](GC::Ref<CSSStyleSheet> sheet) {
             return sheet->base_url()
                 .value_or_lazy_evaluated_optional([&sheet] { return sheet->location(); })
                 .value_or_lazy_evaluated([&environment_settings] { return environment_settings.api_base_url(); });
         },
-        [](GC::Ref<DOM::Document> const& document) { return document->base_url(); });
+        [](GC::Ref<DOM::Document> document) { return document->base_url(); });
 
     // 3. Let parsedUrl be the result of the URL parser steps with urlValue’s url and base. If the algorithm returns an error, return.
     auto url_string = url_value.visit(
@@ -66,14 +66,22 @@ static WebIDL::ExceptionOr<GC::Ref<Fetch::Infrastructure::Request>> fetch_a_styl
     // 7. If req’s mode is "cors", set req’s referrer to sheet’s location. [CSSOM]
     if (request->mode() == Fetch::Infrastructure::Request::Mode::CORS) {
         auto location = sheet_or_document.visit(
-            [](GC::Ref<CSSStyleSheet> const& sheet) { return sheet->location().value(); },
-            [](GC::Ref<DOM::Document> const& document) { return document->url(); });
+            [](GC::Ref<CSSStyleSheet> sheet) { return sheet->location().value(); },
+            [](GC::Ref<DOM::Document> document) { return document->url(); });
         request->set_referrer(move(location));
     }
 
-    // 8. If sheet’s origin-clean flag is set, set req’s initiator type to "css". [CSSOM]
-    if (auto* sheet = sheet_or_document.get_pointer<GC::Ref<CSSStyleSheet>>(); sheet && (*sheet)->is_origin_clean())
-        request->set_initiator_type(Fetch::Infrastructure::Request::InitiatorType::CSS);
+    sheet_or_document.visit(
+        [&](GC::Ref<CSSStyleSheet> sheet) {
+            // 8. If sheet’s origin-clean flag is set, set req’s initiator type to "css". [CSSOM]
+            if (sheet->is_origin_clean())
+                request->set_initiator_type(Fetch::Infrastructure::Request::InitiatorType::CSS);
+        },
+        [&](GC::Ref<DOM::Document>) {
+            // AD-HOC: If the resource is not associated with a stylesheet, we must still set an initiator type in order
+            //         for this resource to be observable through a PerformanceObserver. WPT relies on this.
+            request->set_initiator_type(Fetch::Infrastructure::Request::InitiatorType::Script);
+        });
 
     // 9. Fetch req, with processresponseconsumebody set to processResponse.
     // NB: Implemented by caller.
