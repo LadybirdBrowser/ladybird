@@ -958,7 +958,26 @@ static ErrorOr<void> decode_bmp_color_table(BMPLoadingContext& context)
         return {};
     }
 
-    auto bytes_per_color = context.dib_type == DIBType::Core ? 3 : 4;
+    // OS/2 1.x (Core) uses 3 bytes per color
+    // OS/2 2.x (OSV2) can use 3 or 4 bytes per color
+    u8 bytes_per_color;
+    if (context.dib_type == DIBType::Core) {
+        bytes_per_color = 3;
+    } else if (context.dib_type == DIBType::OSV2 || context.dib_type == DIBType::OSV2Short) {
+        // For OS/2 2.x we need to determine the number of bytes per color based on the size of the color table
+        u8 header_size = context.is_included_in_ico ? 0 : bmp_header_size;
+        u32 available_size = context.data_offset - header_size - context.dib_size();
+        u32 max_colors = 1 << context.dib.core.bpp;
+
+        if (available_size == 3 * max_colors) {
+            bytes_per_color = 3;
+        } else {
+            bytes_per_color = 4;
+        }
+    } else {
+        bytes_per_color = 4;
+    }
+
     u32 max_colors = 1 << context.dib.core.bpp;
 
     u8 header_size = !context.is_included_in_ico ? bmp_header_size : 0;
@@ -974,9 +993,9 @@ static ErrorOr<void> decode_bmp_color_table(BMPLoadingContext& context)
     if (context.dib_type <= DIBType::OSV2) {
         // Partial color tables are not supported, so the space of the color
         // table must be at least enough for the maximum amount of colors
-        if (size_of_color_table < 3 * max_colors) {
+        if (size_of_color_table < bytes_per_color * max_colors) {
             // This is against the spec, but most viewers process it anyways
-            dbgln("BMP with CORE header does not have enough colors. Has: {}, expected: {}", size_of_color_table, (3 * max_colors));
+            dbgln("BMP with CORE header does not have enough colors. Has: {}, expected: {}", size_of_color_table, (bytes_per_color * max_colors));
         }
     }
 
