@@ -1234,33 +1234,34 @@ inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value thi
     }
     case Op::PropertyKind::KeyValue: {
         if (caches) {
-            auto* cache = &caches->entries[0];
-            if (cache->prototype) {
-                // OPTIMIZATION: If the prototype chain hasn't been mutated in a way that would invalidate the cache, we can use it.
-                bool can_use_cache = [&]() -> bool {
-                    if (&object->shape() != cache->shape)
-                        return false;
-                    if (!cache->prototype_chain_validity)
-                        return false;
-                    if (!cache->prototype_chain_validity->is_valid())
-                        return false;
-                    return true;
-                }();
-                if (can_use_cache) {
-                    auto value_in_prototype = cache->prototype->get_direct(cache->property_offset.value());
-                    if (value_in_prototype.is_accessor()) {
-                        TRY(call(vm, value_in_prototype.as_accessor().setter(), this_value, value));
-                        return {};
+            for (auto& cache : caches->entries) {
+                if (cache.prototype) {
+                    // OPTIMIZATION: If the prototype chain hasn't been mutated in a way that would invalidate the cache, we can use it.
+                    bool can_use_cache = [&]() -> bool {
+                        if (&object->shape() != cache.shape)
+                            return false;
+                        if (!cache.prototype_chain_validity)
+                            return false;
+                        if (!cache.prototype_chain_validity->is_valid())
+                            return false;
+                        return true;
+                    }();
+                    if (can_use_cache) {
+                        auto value_in_prototype = cache.prototype->get_direct(cache.property_offset.value());
+                        if (value_in_prototype.is_accessor()) {
+                            TRY(call(vm, value_in_prototype.as_accessor().setter(), this_value, value));
+                            return {};
+                        }
                     }
+                } else if (cache.shape == &object->shape()) {
+                    auto value_in_object = object->get_direct(cache.property_offset.value());
+                    if (value_in_object.is_accessor()) {
+                        TRY(call(vm, value_in_object.as_accessor().setter(), this_value, value));
+                    } else {
+                        object->put_direct(*cache.property_offset, value);
+                    }
+                    return {};
                 }
-            } else if (cache->shape == &object->shape()) {
-                auto value_in_object = object->get_direct(cache->property_offset.value());
-                if (value_in_object.is_accessor()) {
-                    TRY(call(vm, value_in_object.as_accessor().setter(), this_value, value));
-                } else {
-                    object->put_direct(*cache->property_offset, value);
-                }
-                return {};
             }
         }
 
@@ -1268,17 +1269,22 @@ inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value thi
         bool succeeded = TRY(object->internal_set(name, value, this_value, &cacheable_metadata));
 
         if (succeeded && caches) {
-            auto* cache = &caches->entries[0];
+            auto get_cache_slot = [&] -> PropertyLookupCache::Entry& {
+                for (size_t i = caches->entries.size() - 1; i >= 1; --i) {
+                    caches->entries[i] = caches->entries[i - 1];
+                }
+                caches->entries[0] = {};
+                return caches->entries[0];
+            };
+            auto& cache = get_cache_slot();
             if (cacheable_metadata.type == CacheablePropertyMetadata::Type::OwnProperty) {
-                *cache = {};
-                cache->shape = object->shape();
-                cache->property_offset = cacheable_metadata.property_offset.value();
+                cache.shape = object->shape();
+                cache.property_offset = cacheable_metadata.property_offset.value();
             } else if (cacheable_metadata.type == CacheablePropertyMetadata::Type::InPrototypeChain) {
-                *cache = {};
-                cache->shape = object->shape();
-                cache->property_offset = cacheable_metadata.property_offset.value();
-                cache->prototype = *cacheable_metadata.prototype;
-                cache->prototype_chain_validity = *cacheable_metadata.prototype->shape().prototype_chain_validity();
+                cache.shape = object->shape();
+                cache.property_offset = cacheable_metadata.property_offset.value();
+                cache.prototype = *cacheable_metadata.prototype;
+                cache.prototype_chain_validity = *cacheable_metadata.prototype->shape().prototype_chain_validity();
             }
         }
 
