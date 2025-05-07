@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="just-margin" style="--a: 5px; margin: var(--a) 10px"></div>
+<div id="margin-before" style="--a: 5px; margin: var(--a) 10px; margin-top: 20px"></div>
+<div id="margin-after" style="--a: 5px; margin-top: 20px; margin: var(--a) 10px"></div>
+<div id="margin-repeated" style="--a: 5px; margin-top: 20px; margin: var(--a) 10px; margin-top: 50px; margin: 10px var(--a); margin-top: 7px"></div>
+<script>
+    test(() => {
+        function printMargins(id) {
+            const target = document.getElementById(id);
+            const targetStyle = getComputedStyle(target);
+            println(`margins for #${id}:`);
+            println(`marginTop: ${targetStyle.marginTop}`);
+            println(`marginRight: ${targetStyle.marginRight}`);
+            println(`marginBottom: ${targetStyle.marginBottom}`);
+            println(`marginLeft: ${targetStyle.marginLeft}`);
+            println("");
+        }
+
+        printMargins("just-margin");
+        printMargins("margin-before");
+        printMargins("margin-after");
+        printMargins("margin-repeated");
+    });
+</script>
