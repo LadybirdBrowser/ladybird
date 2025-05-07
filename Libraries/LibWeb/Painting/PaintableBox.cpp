@@ -986,9 +986,7 @@ bool PaintableBox::scrollbar_contains_mouse_position(ScrollDirection direction, 
     if (!scrollbar_data.has_value())
         return false;
 
-    if (direction == ScrollDirection::Horizontal)
-        return position.y() >= scrollbar_data->thumb_rect.top();
-    return position.x() >= scrollbar_data->thumb_rect.left();
+    return scrollbar_data->gutter_rect.contains(position);
 }
 
 void PaintableBox::scroll_to_mouse_postion(CSSPixelPoint position)
