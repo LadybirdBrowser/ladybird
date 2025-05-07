@@ -620,7 +620,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style()
     m_affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator = false;
     m_affected_by_direct_sibling_combinator = false;
     m_affected_by_indirect_sibling_combinator = false;
-    m_affected_by_first_or_last_child_pseudo_class = false;
+    m_affected_by_sibling_position_or_count_pseudo_class = false;
     m_affected_by_nth_child_pseudo_class = false;
     m_sibling_invalidation_distance = 0;
 
