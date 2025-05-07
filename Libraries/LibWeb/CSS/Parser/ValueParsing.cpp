@@ -45,6 +45,7 @@
 #include <LibWeb/CSS/StyleValues/FrequencyStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTrackPlacementStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTrackSizeListStyleValue.h>
+#include <LibWeb/CSS/StyleValues/GuaranteedInvalidStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
@@ -3941,8 +3942,6 @@ NonnullRefPtr<CSSStyleValue const> Parser::resolve_unresolved_style_value(Parsin
     // to produce a different CSSStyleValue from it.
     VERIFY(unresolved.contains_var_or_attr());
 
-    // If the value is invalid, we fall back to `unset`: https://www.w3.org/TR/css-variables-1/#invalid-at-computed-value-time
-
     auto parser = Parser::create(context, ""sv);
     return parser.resolve_unresolved_style_value(element, pseudo_element, property_id, unresolved);
 }
@@ -4005,18 +4004,18 @@ NonnullRefPtr<CSSStyleValue const> Parser::resolve_unresolved_style_value(DOM::E
         }
     };
     if (!expand_variables(element, pseudo_element, string_from_property_id(property_id), dependencies, unresolved_values_without_variables_expanded, values_with_variables_expanded))
-        return CSSKeywordValue::create(Keyword::Unset);
+        return GuaranteedInvalidStyleValue::create();
 
     TokenStream unresolved_values_with_variables_expanded { values_with_variables_expanded };
     Vector<ComponentValue> expanded_values;
     if (!expand_unresolved_values(element, string_from_property_id(property_id), unresolved_values_with_variables_expanded, expanded_values))
-        return CSSKeywordValue::create(Keyword::Unset);
+        return GuaranteedInvalidStyleValue::create();
 
     auto expanded_value_tokens = TokenStream { expanded_values };
     if (auto parsed_value = parse_css_value(property_id, expanded_value_tokens); !parsed_value.is_error())
         return parsed_value.release_value();
 
-    return CSSKeywordValue::create(Keyword::Unset);
+    return GuaranteedInvalidStyleValue::create();
 }
 
 static RefPtr<CSSStyleValue const> get_custom_property(DOM::Element const& element, Optional<CSS::PseudoElement> pseudo_element, FlyString const& custom_property_name)

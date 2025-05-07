@@ -45,14 +45,20 @@ static T interpolate_raw(T from, T to, float delta)
 
 static NonnullRefPtr<CSSStyleValue const> with_keyword_values_resolved(DOM::Element& element, PropertyID property_id, CSSStyleValue const& value)
 {
+    if (value.is_guaranteed_invalid()) {
+        // At the moment, we're only dealing with "real" properties, so this behaves the same as `unset`.
+        // https://drafts.csswg.org/css-values-5/#invalid-at-computed-value-time
+        return property_initial_value(property_id);
+    }
+
     if (!value.is_keyword())
         return value;
     switch (value.as_keyword().keyword()) {
-    case CSS::Keyword::Initial:
-    case CSS::Keyword::Unset:
+    case Keyword::Initial:
+    case Keyword::Unset:
         return property_initial_value(property_id);
-    case CSS::Keyword::Inherit:
-        return CSS::StyleComputer::get_inherit_value(property_id, &element);
+    case Keyword::Inherit:
+        return StyleComputer::get_inherit_value(property_id, &element);
     default:
         break;
     }

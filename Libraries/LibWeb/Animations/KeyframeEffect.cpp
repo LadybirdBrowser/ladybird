@@ -863,9 +863,10 @@ WebIDL::ExceptionOr<void> KeyframeEffect::set_keyframes(Optional<GC::Root<JS::Ob
         for (auto [property_id, property_value] : keyframe.parsed_properties()) {
             if (property_value->is_unresolved() && target)
                 property_value = CSS::Parser::Parser::resolve_unresolved_style_value(CSS::Parser::ParsingParams { target->document() }, *target, pseudo_element_type(), property_id, property_value->as_unresolved());
-            CSS::StyleComputer::for_each_property_expanding_shorthands(property_id, property_value, CSS::StyleComputer::AllowUnresolved::Yes, [&](CSS::PropertyID shorthand_id, CSS::CSSStyleValue const& shorthand_value) {
-                m_target_properties.set(shorthand_id);
-                resolved_keyframe.properties.set(shorthand_id, NonnullRefPtr<CSS::CSSStyleValue const> { shorthand_value });
+
+            CSS::StyleComputer::for_each_property_expanding_shorthands(property_id, property_value, CSS::StyleComputer::AllowUnresolved::Yes, [&](CSS::PropertyID longhand_id, CSS::CSSStyleValue const& longhand_value) {
+                m_target_properties.set(longhand_id);
+                resolved_keyframe.properties.set(longhand_id, NonnullRefPtr<CSS::CSSStyleValue const> { longhand_value });
             });
         }
 
