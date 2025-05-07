@@ -1546,10 +1546,14 @@ bool command_insert_paragraph_action(DOM::Document& document, String const&)
 
         // 7. Wrap node list, with sibling criteria returning false and new parent instructions returning the result of
         //    calling createElement(tag) on the context object. Set container to the result.
-        wrap(
+        // AD-HOC: wrap() does not always return something, but the rest of this algorithm expects it to be a valid
+        //         node. Therefore, we only change the container if we successfully wrapped the node list.
+        auto new_container = wrap(
             node_list,
             [](auto) { return false; },
             [&] { return MUST(DOM::create_element(document, tag, Namespace::HTML)); });
+        if (new_container)
+            container = new_container;
     }
 
     // 12. If container's local name is "address", "listing", or "pre":
