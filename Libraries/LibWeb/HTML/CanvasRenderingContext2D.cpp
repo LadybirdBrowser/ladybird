@@ -13,6 +13,7 @@
 #include <LibGfx/CompositingAndBlendingOperator.h>
 #include <LibGfx/PainterSkia.h>
 #include <LibGfx/Rect.h>
+#include <LibJS/Runtime/ValueInlines.h>
 #include <LibUnicode/Segmenter.h>
 #include <LibWeb/Bindings/CanvasRenderingContext2DPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
