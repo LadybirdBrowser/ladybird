@@ -143,12 +143,12 @@ void ImageData::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_data);
 }
 
-unsigned ImageData::width() const
+WebIDL::UnsignedLong ImageData::width() const
 {
     return m_bitmap->width();
 }
 
-unsigned ImageData::height() const
+WebIDL::UnsignedLong ImageData::height() const
 {
     return m_bitmap->height();
 }

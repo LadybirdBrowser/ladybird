@@ -10,6 +10,7 @@
 #include <LibGfx/Forward.h>
 #include <LibWeb/Bindings/ImageDataPrototype.h>
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/WebIDL/Types.h>
 
 namespace Web::HTML {
 
@@ -30,8 +31,8 @@ public:
 
     virtual ~ImageData() override;
 
-    unsigned width() const;
-    unsigned height() const;
+    WebIDL::UnsignedLong width() const;
+    WebIDL::UnsignedLong height() const;
 
     Gfx::Bitmap& bitmap() { return m_bitmap; }
     Gfx::Bitmap const& bitmap() const { return m_bitmap; }
