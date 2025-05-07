@@ -608,7 +608,7 @@ static void sort_matching_rules(Vector<MatchingRule const*>& matching_rules)
     });
 }
 
-void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_id, CSSStyleValue const& value, AllowUnresolved allow_unresolved, Function<void(PropertyID, CSSStyleValue const&)> const& set_longhand_property)
+void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_id, CSSStyleValue const& value, Function<void(PropertyID, CSSStyleValue const&)> const& set_longhand_property)
 {
     if (property_is_shorthand(property_id) && (value.is_unresolved() || value.is_pending_substitution())) {
         // If a shorthand property contains an arbitrary substitution function in its value, the longhand properties
@@ -620,7 +620,7 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
         set_longhand_property(property_id, value);
         auto pending_substitution_value = PendingSubstitutionStyleValue::create();
         for (auto longhand_id : longhands_for_shorthand(property_id)) {
-            for_each_property_expanding_shorthands(longhand_id, pending_substitution_value, allow_unresolved, set_longhand_property);
+            for_each_property_expanding_shorthands(longhand_id, pending_substitution_value, set_longhand_property);
         }
         return;
     }
@@ -710,7 +710,7 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
     };
 
     if (auto real_property_id = map_logical_property_to_real_property(property_id); real_property_id.has_value()) {
-        for_each_property_expanding_shorthands(real_property_id.value(), value, allow_unresolved, set_longhand_property);
+        for_each_property_expanding_shorthands(real_property_id.value(), value, set_longhand_property);
         return;
     }
 
@@ -718,12 +718,12 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
         if (value.is_value_list() && value.as_value_list().size() == 2) {
             auto const& start = value.as_value_list().values()[0];
             auto const& end = value.as_value_list().values()[1];
-            for_each_property_expanding_shorthands(real_property_ids->start, start, allow_unresolved, set_longhand_property);
-            for_each_property_expanding_shorthands(real_property_ids->end, end, allow_unresolved, set_longhand_property);
+            for_each_property_expanding_shorthands(real_property_ids->start, start, set_longhand_property);
+            for_each_property_expanding_shorthands(real_property_ids->end, end, set_longhand_property);
             return;
         }
-        for_each_property_expanding_shorthands(real_property_ids->start, value, allow_unresolved, set_longhand_property);
-        for_each_property_expanding_shorthands(real_property_ids->end, value, allow_unresolved, set_longhand_property);
+        for_each_property_expanding_shorthands(real_property_ids->start, value, set_longhand_property);
+        for_each_property_expanding_shorthands(real_property_ids->end, value, set_longhand_property);
         return;
     }
 
@@ -732,7 +732,7 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
         auto& properties = shorthand_value.sub_properties();
         auto& values = shorthand_value.values();
         for (size_t i = 0; i < properties.size(); ++i)
-            for_each_property_expanding_shorthands(properties[i], values[i], allow_unresolved, set_longhand_property);
+            for_each_property_expanding_shorthands(properties[i], values[i], set_longhand_property);
         return;
     }
 
@@ -761,10 +761,10 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
     };
 
     if (property_id == CSS::PropertyID::Border) {
-        for_each_property_expanding_shorthands(CSS::PropertyID::BorderTop, value, allow_unresolved, set_longhand_property);
-        for_each_property_expanding_shorthands(CSS::PropertyID::BorderRight, value, allow_unresolved, set_longhand_property);
-        for_each_property_expanding_shorthands(CSS::PropertyID::BorderBottom, value, allow_unresolved, set_longhand_property);
-        for_each_property_expanding_shorthands(CSS::PropertyID::BorderLeft, value, allow_unresolved, set_longhand_property);
+        for_each_property_expanding_shorthands(CSS::PropertyID::BorderTop, value, set_longhand_property);
+        for_each_property_expanding_shorthands(CSS::PropertyID::BorderRight, value, set_longhand_property);
+        for_each_property_expanding_shorthands(CSS::PropertyID::BorderBottom, value, set_longhand_property);
+        for_each_property_expanding_shorthands(CSS::PropertyID::BorderLeft, value, set_longhand_property);
         // FIXME: Also reset border-image, in line with the spec: https://www.w3.org/TR/css-backgrounds-3/#border-shorthands
         return;
     }
@@ -987,7 +987,7 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
         // (eg `grid` -> `grid-template` -> `grid-template-areas` & `grid-template-rows` & `grid-template-columns`)
         VERIFY(value.is_css_wide_keyword() || value.is_guaranteed_invalid());
         for (auto longhand : longhands_for_shorthand(property_id))
-            for_each_property_expanding_shorthands(longhand, value, allow_unresolved, set_longhand_property);
+            for_each_property_expanding_shorthands(longhand, value, set_longhand_property);
         return;
     }
 
@@ -1003,7 +1003,7 @@ void StyleComputer::set_property_expanding_shorthands(
     Important important,
     Optional<FlyString> layer_name)
 {
-    for_each_property_expanding_shorthands(property_id, value, AllowUnresolved::No, [&](PropertyID longhand_id, CSSStyleValue const& longhand_value) {
+    for_each_property_expanding_shorthands(property_id, value, [&](PropertyID longhand_id, CSSStyleValue const& longhand_value) {
         if (longhand_value.is_revert()) {
             cascaded_properties.revert_property(longhand_id, important, cascade_origin);
         } else if (longhand_value.is_revert_layer()) {
@@ -1095,7 +1095,7 @@ void StyleComputer::cascade_declarations(
             }
 
             // NOTE: This is a duplicate of set_property_expanding_shorthands() with some extra checks.
-            for_each_property_expanding_shorthands(property.property_id, property_value, AllowUnresolved::No, [&](PropertyID longhand_id, CSSStyleValue const& longhand_value) {
+            for_each_property_expanding_shorthands(property.property_id, property_value, [&](PropertyID longhand_id, CSSStyleValue const& longhand_value) {
                 // If we're a PSV that's already been seen, that should mean that our shorthand already got
                 // resolved and gave us a value, so we don't want to overwrite it with a PSV.
                 if (seen_properties.get(to_underlying(longhand_id)) && property_value->is_pending_substitution())
@@ -1230,7 +1230,7 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
             if (style_value->is_unresolved())
                 style_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { element.document() }, element, pseudo_element, property_id, style_value->as_unresolved());
 
-            for_each_property_expanding_shorthands(property_id, *style_value, AllowUnresolved::No, [&result](PropertyID id, CSSStyleValue const& longhand_value) {
+            for_each_property_expanding_shorthands(property_id, *style_value, [&result](PropertyID id, CSSStyleValue const& longhand_value) {
                 result.set(id, { longhand_value });
             });
         }
@@ -2944,7 +2944,7 @@ void StyleComputer::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_ori
                 auto const& keyframe_style = *keyframe.style();
                 for (auto const& it : keyframe_style.properties()) {
                     // Unresolved properties will be resolved in collect_animation_into()
-                    for_each_property_expanding_shorthands(it.property_id, it.value, AllowUnresolved::Yes, [&](PropertyID shorthand_id, CSSStyleValue const& shorthand_value) {
+                    for_each_property_expanding_shorthands(it.property_id, it.value, [&](PropertyID shorthand_id, CSSStyleValue const& shorthand_value) {
                         animated_properties.set(shorthand_id);
                         resolved_keyframe.properties.set(shorthand_id, NonnullRefPtr<CSSStyleValue const> { shorthand_value });
                     });
