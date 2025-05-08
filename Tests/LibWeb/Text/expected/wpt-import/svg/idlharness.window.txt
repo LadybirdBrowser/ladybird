@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1781 tests
 
-874 Pass
-907 Fail
+909 Pass
+872 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Document: original interface defined
@@ -59,7 +59,7 @@ Pass	SVGElement interface: existence and properties of interface prototype objec
 Pass	SVGElement interface: existence and properties of interface prototype object's @@unscopables property
 Pass	SVGElement interface: attribute className
 Pass	SVGElement interface: attribute ownerSVGElement
-Fail	SVGElement interface: attribute viewportElement
+Pass	SVGElement interface: attribute viewportElement
 Fail	SVGElement interface: attribute correspondingElement
 Fail	SVGElement interface: attribute correspondingUseElement
 Pass	SVGGraphicsElement interface: existence and properties of interface object
@@ -486,7 +486,7 @@ Fail	SVGGraphicsElement interface: objects.svg must inherit property "requiredEx
 Fail	SVGGraphicsElement interface: objects.svg must inherit property "systemLanguage" with the proper type
 Pass	SVGElement interface: objects.svg must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.svg must inherit property "ownerSVGElement" with the proper type
-Fail	SVGElement interface: objects.svg must inherit property "viewportElement" with the proper type
+Pass	SVGElement interface: objects.svg must inherit property "viewportElement" with the proper type
 Fail	SVGElement interface: objects.svg must inherit property "correspondingElement" with the proper type
 Fail	SVGElement interface: objects.svg must inherit property "correspondingUseElement" with the proper type
 Pass	SVGGElement interface: existence and properties of interface object
@@ -506,7 +506,7 @@ Fail	SVGGraphicsElement interface: objects.g must inherit property "requiredExte
 Fail	SVGGraphicsElement interface: objects.g must inherit property "systemLanguage" with the proper type
 Pass	SVGElement interface: objects.g must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.g must inherit property "ownerSVGElement" with the proper type
-Fail	SVGElement interface: objects.g must inherit property "viewportElement" with the proper type
+Pass	SVGElement interface: objects.g must inherit property "viewportElement" with the proper type
 Fail	SVGElement interface: objects.g must inherit property "correspondingElement" with the proper type
 Fail	SVGElement interface: objects.g must inherit property "correspondingUseElement" with the proper type
 Pass	SVGDefsElement interface: existence and properties of interface object
@@ -526,7 +526,7 @@ Fail	SVGGraphicsElement interface: objects.defs must inherit property "requiredE
 Fail	SVGGraphicsElement interface: objects.defs must inherit property "systemLanguage" with the proper type
 Pass	SVGElement interface: objects.defs must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.defs must inherit property "ownerSVGElement" with the proper type
-Fail	SVGElement interface: objects.defs must inherit property "viewportElement" with the proper type
+Pass	SVGElement interface: objects.defs must inherit property "viewportElement" with the proper type
 Fail	SVGElement interface: objects.defs must inherit property "correspondingElement" with the proper type
 Fail	SVGElement interface: objects.defs must inherit property "correspondingUseElement" with the proper type
 Pass	SVGDescElement interface: existence and properties of interface object
@@ -539,7 +539,7 @@ Pass	SVGDescElement must be primary interface of objects.desc
 Pass	Stringification of objects.desc
 Pass	SVGElement interface: objects.desc must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.desc must inherit property "ownerSVGElement" with the proper type
-Fail	SVGElement interface: objects.desc must inherit property "viewportElement" with the proper type
+Pass	SVGElement interface: objects.desc must inherit property "viewportElement" with the proper type
 Fail	SVGElement interface: objects.desc must inherit property "correspondingElement" with the proper type
 Fail	SVGElement interface: objects.desc must inherit property "correspondingUseElement" with the proper type
 Pass	SVGMetadataElement interface: existence and properties of interface object
@@ -552,7 +552,7 @@ Pass	SVGMetadataElement must be primary interface of objects.metadata
 Pass	Stringification of objects.metadata
 Pass	SVGElement interface: objects.metadata must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.metadata must inherit property "ownerSVGElement" with the proper type
-Fail	SVGElement interface: objects.metadata must inherit property "viewportElement" with the proper type
+Pass	SVGElement interface: objects.metadata must inherit property "viewportElement" with the proper type
 Fail	SVGElement interface: objects.metadata must inherit property "correspondingElement" with the proper type
 Fail	SVGElement interface: objects.metadata must inherit property "correspondingUseElement" with the proper type
 Pass	SVGTitleElement interface: existence and properties of interface object
@@ -565,7 +565,7 @@ Pass	SVGTitleElement must be primary interface of objects.title
 Pass	Stringification of objects.title
 Pass	SVGElement interface: objects.title must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.title must inherit property "ownerSVGElement" with the proper type
-Fail	SVGElement interface: objects.title must inherit property "viewportElement" with the proper type
+Pass	SVGElement interface: objects.title must inherit property "viewportElement" with the proper type
 Fail	SVGElement interface: objects.title must inherit property "correspondingElement" with the proper type
 Fail	SVGElement interface: objects.title must inherit property "correspondingUseElement" with the proper type
 Pass	SVGSymbolElement interface: existence and properties of interface object
@@ -589,7 +589,7 @@ Fail	SVGGraphicsElement interface: objects.symbol must inherit property "require
 Fail	SVGGraphicsElement interface: objects.symbol must inherit property "systemLanguage" with the proper type
 Pass	SVGElement interface: objects.symbol must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.symbol must inherit property "ownerSVGElement" with the proper type
-Fail	SVGElement interface: objects.symbol must inherit property "viewportElement" with the proper type
+Pass	SVGElement interface: objects.symbol must inherit property "viewportElement" with the proper type
 Fail	SVGElement interface: objects.symbol must inherit property "correspondingElement" with the proper type
 Fail	SVGElement interface: objects.symbol must inherit property "correspondingUseElement" with the proper type
 Pass	SVGUseElement interface: existence and properties of interface object
@@ -623,7 +623,7 @@ Fail	SVGGraphicsElement interface: objects.use must inherit property "requiredEx
 Fail	SVGGraphicsElement interface: objects.use must inherit property "systemLanguage" with the proper type
 Pass	SVGElement interface: objects.use must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.use must inherit property "ownerSVGElement" with the proper type
-Fail	SVGElement interface: objects.use must inherit property "viewportElement" with the proper type
+Pass	SVGElement interface: objects.use must inherit property "viewportElement" with the proper type
 Fail	SVGElement interface: objects.use must inherit property "correspondingElement" with the proper type
 Fail	SVGElement interface: objects.use must inherit property "correspondingUseElement" with the proper type
 Fail	SVGUseElementShadowRoot interface: existence and properties of interface object
@@ -656,7 +656,7 @@ Fail	SVGGraphicsElement interface: objects.switch must inherit property "require
 Fail	SVGGraphicsElement interface: objects.switch must inherit property "systemLanguage" with the proper type
 Pass	SVGElement interface: objects.switch must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.switch must inherit property "ownerSVGElement" with the proper type
-Fail	SVGElement interface: objects.switch must inherit property "viewportElement" with the proper type
+Pass	SVGElement interface: objects.switch must inherit property "viewportElement" with the proper type
 Fail	SVGElement interface: objects.switch must inherit property "correspondingElement" with the proper type
 Fail	SVGElement interface: objects.switch must inherit property "correspondingUseElement" with the proper type
 Pass	SVGStyleElement interface: existence and properties of interface object
@@ -675,7 +675,7 @@ Pass	SVGStyleElement interface: objects.style must inherit property "media" with
 Pass	SVGStyleElement interface: objects.style must inherit property "title" with the proper type
 Pass	SVGElement interface: objects.style must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.style must inherit property "ownerSVGElement" with the proper type
-Fail	SVGElement interface: objects.style must inherit property "viewportElement" with the proper type
+Pass	SVGElement interface: objects.style must inherit property "viewportElement" with the proper type
 Fail	SVGElement interface: objects.style must inherit property "correspondingElement" with the proper type
 Fail	SVGElement interface: objects.style must inherit property "correspondingUseElement" with the proper type
 Pass	SVGTransform interface: existence and properties of interface object
@@ -883,7 +883,7 @@ Fail	SVGGraphicsElement interface: objects.rect must inherit property "requiredE
 Fail	SVGGraphicsElement interface: objects.rect must inherit property "systemLanguage" with the proper type
 Pass	SVGElement interface: objects.rect must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.rect must inherit property "ownerSVGElement" with the proper type
-Fail	SVGElement interface: objects.rect must inherit property "viewportElement" with the proper type
+Pass	SVGElement interface: objects.rect must inherit property "viewportElement" with the proper type
 Fail	SVGElement interface: objects.rect must inherit property "correspondingElement" with the proper type
 Fail	SVGElement interface: objects.rect must inherit property "correspondingUseElement" with the proper type
 Pass	SVGCircleElement interface: existence and properties of interface object
@@ -917,7 +917,7 @@ Fail	SVGGraphicsElement interface: objects.circle must inherit property "require
 Fail	SVGGraphicsElement interface: objects.circle must inherit property "systemLanguage" with the proper type
 Pass	SVGElement interface: objects.circle must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.circle must inherit property "ownerSVGElement" with the proper type
-Fail	SVGElement interface: objects.circle must inherit property "viewportElement" with the proper type
+Pass	SVGElement interface: objects.circle must inherit property "viewportElement" with the proper type
 Fail	SVGElement interface: objects.circle must inherit property "correspondingElement" with the proper type
 Fail	SVGElement interface: objects.circle must inherit property "correspondingUseElement" with the proper type
 Pass	SVGEllipseElement interface: existence and properties of interface object
@@ -953,7 +953,7 @@ Fail	SVGGraphicsElement interface: objects.ellipse must inherit property "requir
 Fail	SVGGraphicsElement interface: objects.ellipse must inherit property "systemLanguage" with the proper type
 Pass	SVGElement interface: objects.ellipse must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.ellipse must inherit property "ownerSVGElement" with the proper type
-Fail	SVGElement interface: objects.ellipse must inherit property "viewportElement" with the proper type
+Pass	SVGElement interface: objects.ellipse must inherit property "viewportElement" with the proper type
 Fail	SVGElement interface: objects.ellipse must inherit property "correspondingElement" with the proper type
 Fail	SVGElement interface: objects.ellipse must inherit property "correspondingUseElement" with the proper type
 Pass	SVGLineElement interface: existence and properties of interface object
@@ -989,7 +989,7 @@ Fail	SVGGraphicsElement interface: objects.line must inherit property "requiredE
 Fail	SVGGraphicsElement interface: objects.line must inherit property "systemLanguage" with the proper type
 Pass	SVGElement interface: objects.line must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.line must inherit property "ownerSVGElement" with the proper type
-Fail	SVGElement interface: objects.line must inherit property "viewportElement" with the proper type
+Pass	SVGElement interface: objects.line must inherit property "viewportElement" with the proper type
 Fail	SVGElement interface: objects.line must inherit property "correspondingElement" with the proper type
 Fail	SVGElement interface: objects.line must inherit property "correspondingUseElement" with the proper type
 Fail	SVGPointList interface: existence and properties of interface object
@@ -1053,7 +1053,7 @@ Fail	SVGGraphicsElement interface: objects.polyline must inherit property "requi
 Fail	SVGGraphicsElement interface: objects.polyline must inherit property "systemLanguage" with the proper type
 Pass	SVGElement interface: objects.polyline must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.polyline must inherit property "ownerSVGElement" with the proper type
-Fail	SVGElement interface: objects.polyline must inherit property "viewportElement" with the proper type
+Pass	SVGElement interface: objects.polyline must inherit property "viewportElement" with the proper type
 Fail	SVGElement interface: objects.polyline must inherit property "correspondingElement" with the proper type
 Fail	SVGElement interface: objects.polyline must inherit property "correspondingUseElement" with the proper type
 Pass	SVGPolygonElement interface: existence and properties of interface object
@@ -1085,7 +1085,7 @@ Fail	SVGGraphicsElement interface: objects.polygon must inherit property "requir
 Fail	SVGGraphicsElement interface: objects.polygon must inherit property "systemLanguage" with the proper type
 Pass	SVGElement interface: objects.polygon must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.polygon must inherit property "ownerSVGElement" with the proper type
-Fail	SVGElement interface: objects.polygon must inherit property "viewportElement" with the proper type
+Pass	SVGElement interface: objects.polygon must inherit property "viewportElement" with the proper type
 Fail	SVGElement interface: objects.polygon must inherit property "correspondingElement" with the proper type
 Fail	SVGElement interface: objects.polygon must inherit property "correspondingUseElement" with the proper type
 Pass	SVGTextContentElement interface: existence and properties of interface object
@@ -1165,7 +1165,7 @@ Fail	SVGGraphicsElement interface: objects.text must inherit property "requiredE
 Fail	SVGGraphicsElement interface: objects.text must inherit property "systemLanguage" with the proper type
 Pass	SVGElement interface: objects.text must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.text must inherit property "ownerSVGElement" with the proper type
-Fail	SVGElement interface: objects.text must inherit property "viewportElement" with the proper type
+Pass	SVGElement interface: objects.text must inherit property "viewportElement" with the proper type
 Fail	SVGElement interface: objects.text must inherit property "correspondingElement" with the proper type
 Fail	SVGElement interface: objects.text must inherit property "correspondingUseElement" with the proper type
 Pass	SVGTSpanElement interface: existence and properties of interface object
@@ -1211,7 +1211,7 @@ Fail	SVGGraphicsElement interface: objects.tspan must inherit property "required
 Fail	SVGGraphicsElement interface: objects.tspan must inherit property "systemLanguage" with the proper type
 Pass	SVGElement interface: objects.tspan must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.tspan must inherit property "ownerSVGElement" with the proper type
-Fail	SVGElement interface: objects.tspan must inherit property "viewportElement" with the proper type
+Pass	SVGElement interface: objects.tspan must inherit property "viewportElement" with the proper type
 Fail	SVGElement interface: objects.tspan must inherit property "correspondingElement" with the proper type
 Fail	SVGElement interface: objects.tspan must inherit property "correspondingUseElement" with the proper type
 Pass	SVGTextPathElement interface: existence and properties of interface object
@@ -1278,7 +1278,7 @@ Fail	SVGGraphicsElement interface: objects.textPath must inherit property "requi
 Fail	SVGGraphicsElement interface: objects.textPath must inherit property "systemLanguage" with the proper type
 Pass	SVGElement interface: objects.textPath must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.textPath must inherit property "ownerSVGElement" with the proper type
-Fail	SVGElement interface: objects.textPath must inherit property "viewportElement" with the proper type
+Pass	SVGElement interface: objects.textPath must inherit property "viewportElement" with the proper type
 Fail	SVGElement interface: objects.textPath must inherit property "correspondingElement" with the proper type
 Fail	SVGElement interface: objects.textPath must inherit property "correspondingUseElement" with the proper type
 Pass	SVGImageElement interface: existence and properties of interface object
@@ -1312,7 +1312,7 @@ Fail	SVGGraphicsElement interface: objects.image must inherit property "required
 Fail	SVGGraphicsElement interface: objects.image must inherit property "systemLanguage" with the proper type
 Pass	SVGElement interface: objects.image must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.image must inherit property "ownerSVGElement" with the proper type
-Fail	SVGElement interface: objects.image must inherit property "viewportElement" with the proper type
+Pass	SVGElement interface: objects.image must inherit property "viewportElement" with the proper type
 Fail	SVGElement interface: objects.image must inherit property "correspondingElement" with the proper type
 Fail	SVGElement interface: objects.image must inherit property "correspondingUseElement" with the proper type
 Pass	SVGForeignObjectElement interface: existence and properties of interface object
@@ -1340,7 +1340,7 @@ Fail	SVGGraphicsElement interface: objects.foreignObject must inherit property "
 Fail	SVGGraphicsElement interface: objects.foreignObject must inherit property "systemLanguage" with the proper type
 Pass	SVGElement interface: objects.foreignObject must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.foreignObject must inherit property "ownerSVGElement" with the proper type
-Fail	SVGElement interface: objects.foreignObject must inherit property "viewportElement" with the proper type
+Pass	SVGElement interface: objects.foreignObject must inherit property "viewportElement" with the proper type
 Fail	SVGElement interface: objects.foreignObject must inherit property "correspondingElement" with the proper type
 Fail	SVGElement interface: objects.foreignObject must inherit property "correspondingUseElement" with the proper type
 Fail	SVGMarkerElement interface: existence and properties of interface object
@@ -1396,7 +1396,7 @@ Fail	SVGMarkerElement interface: objects.marker must inherit property "viewBox" 
 Fail	SVGMarkerElement interface: objects.marker must inherit property "preserveAspectRatio" with the proper type
 Pass	SVGElement interface: objects.marker must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.marker must inherit property "ownerSVGElement" with the proper type
-Fail	SVGElement interface: objects.marker must inherit property "viewportElement" with the proper type
+Pass	SVGElement interface: objects.marker must inherit property "viewportElement" with the proper type
 Fail	SVGElement interface: objects.marker must inherit property "correspondingElement" with the proper type
 Fail	SVGElement interface: objects.marker must inherit property "correspondingUseElement" with the proper type
 Pass	SVGGradientElement interface: existence and properties of interface object
@@ -1443,7 +1443,7 @@ Fail	SVGGradientElement interface: objects.linearGradient must inherit property 
 Pass	SVGGradientElement interface: objects.linearGradient must inherit property "href" with the proper type
 Pass	SVGElement interface: objects.linearGradient must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.linearGradient must inherit property "ownerSVGElement" with the proper type
-Fail	SVGElement interface: objects.linearGradient must inherit property "viewportElement" with the proper type
+Pass	SVGElement interface: objects.linearGradient must inherit property "viewportElement" with the proper type
 Fail	SVGElement interface: objects.linearGradient must inherit property "correspondingElement" with the proper type
 Fail	SVGElement interface: objects.linearGradient must inherit property "correspondingUseElement" with the proper type
 Pass	SVGRadialGradientElement interface: existence and properties of interface object
@@ -1476,7 +1476,7 @@ Fail	SVGGradientElement interface: objects.radialGradient must inherit property 
 Pass	SVGGradientElement interface: objects.radialGradient must inherit property "href" with the proper type
 Pass	SVGElement interface: objects.radialGradient must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.radialGradient must inherit property "ownerSVGElement" with the proper type
-Fail	SVGElement interface: objects.radialGradient must inherit property "viewportElement" with the proper type
+Pass	SVGElement interface: objects.radialGradient must inherit property "viewportElement" with the proper type
 Fail	SVGElement interface: objects.radialGradient must inherit property "correspondingElement" with the proper type
 Fail	SVGElement interface: objects.radialGradient must inherit property "correspondingUseElement" with the proper type
 Pass	SVGStopElement interface: existence and properties of interface object
@@ -1491,7 +1491,7 @@ Pass	Stringification of objects.stop
 Pass	SVGStopElement interface: objects.stop must inherit property "offset" with the proper type
 Pass	SVGElement interface: objects.stop must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.stop must inherit property "ownerSVGElement" with the proper type
-Fail	SVGElement interface: objects.stop must inherit property "viewportElement" with the proper type
+Pass	SVGElement interface: objects.stop must inherit property "viewportElement" with the proper type
 Fail	SVGElement interface: objects.stop must inherit property "correspondingElement" with the proper type
 Fail	SVGElement interface: objects.stop must inherit property "correspondingUseElement" with the proper type
 Fail	SVGPatternElement interface: existence and properties of interface object
@@ -1524,7 +1524,7 @@ Fail	SVGPatternElement interface: objects.pattern must inherit property "preserv
 Fail	SVGPatternElement interface: objects.pattern must inherit property "href" with the proper type
 Pass	SVGElement interface: objects.pattern must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.pattern must inherit property "ownerSVGElement" with the proper type
-Fail	SVGElement interface: objects.pattern must inherit property "viewportElement" with the proper type
+Pass	SVGElement interface: objects.pattern must inherit property "viewportElement" with the proper type
 Fail	SVGElement interface: objects.pattern must inherit property "correspondingElement" with the proper type
 Fail	SVGElement interface: objects.pattern must inherit property "correspondingUseElement" with the proper type
 Pass	SVGScriptElement interface: existence and properties of interface object
@@ -1543,7 +1543,7 @@ Pass	SVGScriptElement interface: objects.script must inherit property "crossOrig
 Pass	SVGScriptElement interface: objects.script must inherit property "href" with the proper type
 Pass	SVGElement interface: objects.script must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.script must inherit property "ownerSVGElement" with the proper type
-Fail	SVGElement interface: objects.script must inherit property "viewportElement" with the proper type
+Pass	SVGElement interface: objects.script must inherit property "viewportElement" with the proper type
 Fail	SVGElement interface: objects.script must inherit property "correspondingElement" with the proper type
 Fail	SVGElement interface: objects.script must inherit property "correspondingUseElement" with the proper type
 Pass	SVGAElement interface: existence and properties of interface object
@@ -1603,7 +1603,7 @@ Fail	SVGGraphicsElement interface: objects.a must inherit property "requiredExte
 Fail	SVGGraphicsElement interface: objects.a must inherit property "systemLanguage" with the proper type
 Pass	SVGElement interface: objects.a must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.a must inherit property "ownerSVGElement" with the proper type
-Fail	SVGElement interface: objects.a must inherit property "viewportElement" with the proper type
+Pass	SVGElement interface: objects.a must inherit property "viewportElement" with the proper type
 Fail	SVGElement interface: objects.a must inherit property "correspondingElement" with the proper type
 Fail	SVGElement interface: objects.a must inherit property "correspondingUseElement" with the proper type
 Fail	SVGViewElement interface: existence and properties of interface object
@@ -1620,7 +1620,7 @@ Fail	SVGViewElement interface: objects.view must inherit property "viewBox" with
 Fail	SVGViewElement interface: objects.view must inherit property "preserveAspectRatio" with the proper type
 Pass	SVGElement interface: objects.view must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.view must inherit property "ownerSVGElement" with the proper type
-Fail	SVGElement interface: objects.view must inherit property "viewportElement" with the proper type
+Pass	SVGElement interface: objects.view must inherit property "viewportElement" with the proper type
 Fail	SVGElement interface: objects.view must inherit property "correspondingElement" with the proper type
 Fail	SVGElement interface: objects.view must inherit property "correspondingUseElement" with the proper type
 Fail	TimeEvent interface: existence and properties of interface object
@@ -1676,7 +1676,7 @@ Fail	SVGAnimationElement interface: objects.animate must inherit property "requi
 Fail	SVGAnimationElement interface: objects.animate must inherit property "systemLanguage" with the proper type
 Pass	SVGElement interface: objects.animate must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.animate must inherit property "ownerSVGElement" with the proper type
-Fail	SVGElement interface: objects.animate must inherit property "viewportElement" with the proper type
+Pass	SVGElement interface: objects.animate must inherit property "viewportElement" with the proper type
 Fail	SVGElement interface: objects.animate must inherit property "correspondingElement" with the proper type
 Fail	SVGElement interface: objects.animate must inherit property "correspondingUseElement" with the proper type
 Fail	SVGSetElement interface: existence and properties of interface object
@@ -1704,7 +1704,7 @@ Fail	SVGAnimationElement interface: objects.set must inherit property "requiredE
 Fail	SVGAnimationElement interface: objects.set must inherit property "systemLanguage" with the proper type
 Pass	SVGElement interface: objects.set must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.set must inherit property "ownerSVGElement" with the proper type
-Fail	SVGElement interface: objects.set must inherit property "viewportElement" with the proper type
+Pass	SVGElement interface: objects.set must inherit property "viewportElement" with the proper type
 Fail	SVGElement interface: objects.set must inherit property "correspondingElement" with the proper type
 Fail	SVGElement interface: objects.set must inherit property "correspondingUseElement" with the proper type
 Fail	SVGAnimateMotionElement interface: existence and properties of interface object
@@ -1732,7 +1732,7 @@ Fail	SVGAnimationElement interface: objects.animateMotion must inherit property 
 Fail	SVGAnimationElement interface: objects.animateMotion must inherit property "systemLanguage" with the proper type
 Pass	SVGElement interface: objects.animateMotion must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.animateMotion must inherit property "ownerSVGElement" with the proper type
-Fail	SVGElement interface: objects.animateMotion must inherit property "viewportElement" with the proper type
+Pass	SVGElement interface: objects.animateMotion must inherit property "viewportElement" with the proper type
 Fail	SVGElement interface: objects.animateMotion must inherit property "correspondingElement" with the proper type
 Fail	SVGElement interface: objects.animateMotion must inherit property "correspondingUseElement" with the proper type
 Fail	SVGMPathElement interface: existence and properties of interface object
@@ -1747,7 +1747,7 @@ Fail	Stringification of objects.mpath
 Fail	SVGMPathElement interface: objects.mpath must inherit property "href" with the proper type
 Pass	SVGElement interface: objects.mpath must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.mpath must inherit property "ownerSVGElement" with the proper type
-Fail	SVGElement interface: objects.mpath must inherit property "viewportElement" with the proper type
+Pass	SVGElement interface: objects.mpath must inherit property "viewportElement" with the proper type
 Fail	SVGElement interface: objects.mpath must inherit property "correspondingElement" with the proper type
 Fail	SVGElement interface: objects.mpath must inherit property "correspondingUseElement" with the proper type
 Fail	SVGAnimateTransformElement interface: existence and properties of interface object
@@ -1775,7 +1775,7 @@ Fail	SVGAnimationElement interface: objects.animateTransform must inherit proper
 Fail	SVGAnimationElement interface: objects.animateTransform must inherit property "systemLanguage" with the proper type
 Pass	SVGElement interface: objects.animateTransform must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.animateTransform must inherit property "ownerSVGElement" with the proper type
-Fail	SVGElement interface: objects.animateTransform must inherit property "viewportElement" with the proper type
+Pass	SVGElement interface: objects.animateTransform must inherit property "viewportElement" with the proper type
 Fail	SVGElement interface: objects.animateTransform must inherit property "correspondingElement" with the proper type
 Fail	SVGElement interface: objects.animateTransform must inherit property "correspondingUseElement" with the proper type
 Fail	SVGDiscardElement interface: existence and properties of interface object

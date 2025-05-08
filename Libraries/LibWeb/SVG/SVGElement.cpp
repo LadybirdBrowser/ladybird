@@ -14,6 +14,7 @@
 #include <LibWeb/SVG/SVGDescElement.h>
 #include <LibWeb/SVG/SVGElement.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
+#include <LibWeb/SVG/SVGSymbolElement.h>
 #include <LibWeb/SVG/SVGTitleElement.h>
 #include <LibWeb/SVG/SVGUseElement.h>
 
@@ -249,6 +250,21 @@ GC::Ptr<SVGSVGElement> SVGElement::owner_svg_element()
     // On getting ownerSVGElement, the nearest ancestor ‘svg’ element is returned;
     // if the current element is the outermost svg element, then null is returned.
     return shadow_including_first_ancestor_of_type<SVGSVGElement>();
+}
+
+// https://svgwg.org/svg2-draft/types.html#__svg__SVGElement__viewportElement
+GC::Ptr<SVGElement> SVGElement::viewport_element()
+{
+    for (auto* node = parent(); node; node = node->parent_or_shadow_host()) {
+        // https://svgwg.org/svg2-draft/coords.html#EstablishingANewSVGViewport
+        // The following elements establish new SVG viewports:
+        // - The ‘svg’ element
+        // - A ‘symbol’ element that is instanced by a ‘use’ element.
+        if (is<SVGSVGElement>(*node) || is<SVGSymbolElement>(*node)) {
+            return static_cast<SVGElement*>(node);
+        }
+    }
+    return nullptr;
 }
 
 GC::Ref<SVGAnimatedLength> SVGElement::svg_animated_length_for_property(CSS::PropertyID property) const
