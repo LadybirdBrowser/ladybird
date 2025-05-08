@@ -1550,9 +1550,9 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
     [self setWindowSize:window.size()];
 }
 
-- (void)viewDidEndLiveResize
+- (void)layout
 {
-    [super viewDidEndLiveResize];
+    [super layout];
     [self handleResize];
 }
 
