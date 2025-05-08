@@ -1,0 +1,68 @@
+// GENERATED CONTENT - DO NOT EDIT
+// Content was automatically extracted by Reffy into webref
+// (https://github.com/w3c/webref)
+// Source: SVG Animations (https://svgwg.org/specs/animations/)
+
+[Exposed=Window]
+interface TimeEvent : Event {
+
+  readonly attribute WindowProxy? view;
+  readonly attribute long detail;
+
+  undefined initTimeEvent(DOMString typeArg, Window? viewArg, long detailArg);
+};
+
+[Exposed=Window]
+interface SVGAnimationElement : SVGElement {
+
+  readonly attribute SVGElement? targetElement;
+
+  attribute EventHandler onbegin;
+  attribute EventHandler onend;
+  attribute EventHandler onrepeat;
+
+  float getStartTime();
+  float getCurrentTime();
+  float getSimpleDuration();
+
+  undefined beginElement();
+  undefined beginElementAt(float offset);
+  undefined endElement();
+  undefined endElementAt(float offset);
+};
+
+SVGAnimationElement includes SVGTests;
+
+[Exposed=Window]
+interface SVGAnimateElement : SVGAnimationElement {
+};
+
+[Exposed=Window]
+interface SVGSetElement : SVGAnimationElement {
+};
+
+[Exposed=Window]
+interface SVGAnimateMotionElement : SVGAnimationElement {
+};
+
+[Exposed=Window]
+interface SVGMPathElement : SVGElement {
+};
+
+SVGMPathElement includes SVGURIReference;
+
+[Exposed=Window]
+interface SVGAnimateTransformElement : SVGAnimationElement {
+};
+
+[Exposed=Window]
+interface SVGDiscardElement : SVGAnimationElement {
+};
+
+partial interface SVGSVGElement {
+  undefined pauseAnimations();
+  undefined unpauseAnimations();
+  boolean animationsPaused();
+  float getCurrentTime();
+  undefined setCurrentTime(float seconds);
+};

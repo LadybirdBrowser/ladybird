@@ -1,0 +1,150 @@
+// GENERATED CONTENT - DO NOT EDIT
+// Content was automatically extracted by Reffy into webref
+// (https://github.com/w3c/webref)
+// Source: Web Animations (https://drafts.csswg.org/web-animations-1/)
+
+[Exposed=Window]
+interface AnimationTimeline {
+};
+
+dictionary DocumentTimelineOptions {
+  DOMHighResTimeStamp originTime = 0;
+};
+
+[Exposed=Window]
+interface DocumentTimeline : AnimationTimeline {
+  constructor(optional DocumentTimelineOptions options = {});
+};
+
+[Exposed=Window]
+interface Animation : EventTarget {
+  constructor(optional AnimationEffect? effect = null,
+              optional AnimationTimeline? timeline);
+           attribute DOMString                id;
+           attribute AnimationEffect?         effect;
+           attribute AnimationTimeline?       timeline;
+           attribute double                   playbackRate;
+  readonly attribute AnimationPlayState       playState;
+  readonly attribute AnimationReplaceState    replaceState;
+  readonly attribute boolean                  pending;
+  readonly attribute Promise<Animation>       ready;
+  readonly attribute Promise<Animation>       finished;
+           attribute EventHandler             onfinish;
+           attribute EventHandler             oncancel;
+           attribute EventHandler             onremove;
+  undefined cancel();
+  undefined finish();
+  undefined play();
+  undefined pause();
+  undefined updatePlaybackRate(double playbackRate);
+  undefined reverse();
+  undefined persist();
+  [CEReactions]
+  undefined commitStyles();
+};
+
+enum AnimationPlayState { "idle", "running", "paused", "finished" };
+
+enum AnimationReplaceState { "active", "removed", "persisted" };
+
+[Exposed=Window]
+interface AnimationEffect {
+    EffectTiming         getTiming();
+    ComputedEffectTiming getComputedTiming();
+    undefined            updateTiming(optional OptionalEffectTiming timing = {});
+};
+
+dictionary EffectTiming {
+  FillMode                           fill = "auto";
+  double                             iterationStart = 0.0;
+  unrestricted double                iterations = 1.0;
+  PlaybackDirection                  direction = "normal";
+  DOMString                          easing = "linear";
+};
+
+dictionary OptionalEffectTiming {
+  double                             delay;
+  double                             endDelay;
+  FillMode                           fill;
+  double                             iterationStart;
+  unrestricted double                iterations;
+  (unrestricted double or DOMString) duration;
+  PlaybackDirection                  direction;
+  DOMString                          easing;
+};
+
+enum FillMode { "none", "forwards", "backwards", "both", "auto" };
+
+enum PlaybackDirection { "normal", "reverse", "alternate", "alternate-reverse" };
+
+dictionary ComputedEffectTiming : EffectTiming {
+  double?              progress;
+  unrestricted double? currentIteration;
+};
+
+[Exposed=Window]
+interface KeyframeEffect : AnimationEffect {
+  constructor(Element?       target,
+              object?        keyframes,
+              optional (unrestricted double or KeyframeEffectOptions) options = {});
+  constructor(KeyframeEffect source);
+  attribute Element?           target;
+  attribute CSSOMString?       pseudoElement;
+  attribute CompositeOperation composite;
+  sequence<object> getKeyframes();
+  undefined        setKeyframes(object? keyframes);
+};
+
+dictionary BaseComputedKeyframe {
+     double?                  offset = null;
+     double                   computedOffset;
+     DOMString                easing = "linear";
+     CompositeOperationOrAuto composite = "auto";
+};
+
+dictionary BasePropertyIndexedKeyframe {
+  (double? or sequence<double?>)                         offset = [];
+  (DOMString or sequence<DOMString>)                     easing = [];
+  (CompositeOperationOrAuto or sequence<CompositeOperationOrAuto>) composite = [];
+};
+
+dictionary BaseKeyframe {
+  double?                  offset = null;
+  DOMString                easing = "linear";
+  CompositeOperationOrAuto composite = "auto";
+};
+
+dictionary KeyframeEffectOptions : EffectTiming {
+    CompositeOperation composite = "replace";
+    CSSOMString?       pseudoElement = null;
+};
+
+enum CompositeOperation { "replace", "add", "accumulate" };
+
+enum CompositeOperationOrAuto { "replace", "add", "accumulate", "auto" };
+
+interface mixin Animatable {
+    Animation           animate(object? keyframes,
+                                optional (unrestricted double or KeyframeAnimationOptions) options = {});
+    sequence<Animation> getAnimations(optional GetAnimationsOptions options = {});
+};
+
+dictionary KeyframeAnimationOptions : KeyframeEffectOptions {
+    DOMString id = "";
+    AnimationTimeline? timeline;
+};
+
+dictionary GetAnimationsOptions {
+    boolean subtree = false;
+    CSSOMString? pseudoElement = null;
+};
+
+partial interface Document {
+    readonly attribute DocumentTimeline timeline;
+};
+
+partial interface mixin DocumentOrShadowRoot {
+    sequence<Animation> getAnimations();
+};
+
+Element includes Animatable;
