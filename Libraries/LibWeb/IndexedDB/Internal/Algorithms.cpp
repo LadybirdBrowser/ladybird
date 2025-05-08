@@ -1855,4 +1855,18 @@ JS::Value clear_an_object_store(GC::Ref<ObjectStore> store)
     return JS::js_undefined();
 }
 
+// https://w3c.github.io/IndexedDB/#retrieve-a-key-from-an-object-store
+JS::Value retrieve_a_key_from_an_object_store(JS::Realm& realm, GC::Ref<ObjectStore> store, GC::Ref<IDBKeyRange> range)
+{
+    // 1. Let record be the first record in store’s list of records whose key is in range, if any.
+    auto record = store->first_in_range(range);
+
+    // 2. If record was not found, return undefined.
+    if (!record.has_value())
+        return JS::js_undefined();
+
+    // 3. Return the result of converting a key to a value with record’s key.
+    return convert_a_key_to_a_value(realm, record.value().key);
+}
+
 }
