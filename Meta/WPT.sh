@@ -85,6 +85,7 @@ WPT_ARGS=( "--webdriver-binary=${WEBDRIVER_BINARY}"
     "--no-pause-after-test"
     "${EXTRA_WPT_ARGS[@]}"
 )
+WPT_LOG_ARGS=()
 
 ARG0=$0
 print_help() {
@@ -172,7 +173,7 @@ set_logging_flags()
     log_type="${1}"
     log_name="${2}"
 
-    WPT_ARGS+=( "${log_type}=${log_name}" )
+    WPT_LOG_ARGS+=("${log_type}" "${log_name}")
 }
 
 headless=1
@@ -458,9 +459,10 @@ show_summary() {
     echo "Longest run time: ${max_time}s"
 }
 
+# run_wpt_chunked <#processes> <wpt args...>
 run_wpt_chunked() {
     local procs concurrency
-    procs=$(make_instances)
+    procs="$1"; shift
 
     # Ensure open files limit is at least 1024, so the WPT runner does not run out of descriptors
     if [ "$(ulimit -n)" -lt $((1024 * procs)) ]; then
@@ -515,7 +517,20 @@ run_wpt_chunked() {
     show_summary "${logs[@]}"
 }
 
+absolutize_log_args() {
+    for ((i=0; i<${#WPT_LOG_ARGS[@]}; i += 2)); do
+        WPT_LOG_ARGS[i + 1]="$(absolutize_path "${WPT_LOG_ARGS[i + 1]}")"
+    done
+}
+
 execute_wpt() {
+    local procs
+
+    procs=$(make_instances)
+    if [[ "$procs" -le 1 ]]; then
+        absolutize_log_args
+    fi
+
     pushd "${WPT_SOURCE_DIR}" > /dev/null
         for certificate_path in "${WPT_CERTIFICATES[@]}"; do
             if [ ! -f "${certificate_path}" ]; then
@@ -525,7 +540,7 @@ execute_wpt() {
             WPT_ARGS+=( "--webdriver-arg=--certificate=${certificate_path}" )
         done
         construct_test_list "${@}"
-        run_wpt_chunked "${WPT_ARGS[@]}" ladybird "${TEST_LIST[@]}"
+        run_wpt_chunked "$procs" "${WPT_ARGS[@]}" "${WPT_LOG_ARGS[@]}" ladybird "${TEST_LIST[@]}"
     popd > /dev/null
 }
 
