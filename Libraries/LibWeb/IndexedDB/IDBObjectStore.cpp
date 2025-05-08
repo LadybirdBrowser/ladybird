@@ -188,7 +188,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBIndex>> IDBObjectStore::index(String const& name)
     // 5. Let index be the index named name in this’s index set if one exists, or throw a "NotFoundError" DOMException otherwise.
     auto index = m_indexes.get(name);
     if (!index.has_value())
-        return WebIDL::NotFoundError::create(realm(), "Index not found"_string);
+        return WebIDL::NotFoundError::create(realm(), "Index not found in object store"_string);
 
     // 6. Return an index handle associated with index and this.
     return IDBIndex::create(realm(), *index, *this);
@@ -218,7 +218,7 @@ WebIDL::ExceptionOr<void> IDBObjectStore::delete_index(String const& name)
     // 6. Let index be the index named name in store if one exists, or throw a "NotFoundError" DOMException otherwise.
     auto index = m_indexes.get(name);
     if (!index.has_value())
-        return WebIDL::NotFoundError::create(realm, "Index not found"_string);
+        return WebIDL::NotFoundError::create(realm, "Index not found while trying to delete it"_string);
 
     // 7. Remove index from this’s index set.
     m_indexes.remove(name);

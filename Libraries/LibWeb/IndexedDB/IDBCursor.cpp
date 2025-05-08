@@ -98,7 +98,7 @@ WebIDL::ExceptionOr<void> IDBCursor::continue_(JS::Value key)
 
     // 4. If this's got value flag is false, indicating that the cursor is being iterated or has iterated past its end, throw an "InvalidStateError" DOMException.
     if (!m_got_value)
-        return WebIDL::InvalidStateError::create(realm, "Cursor is active or EOL"_string);
+        return WebIDL::InvalidStateError::create(realm, "Cursor is active or EOL while continuing"_string);
 
     // 5. If key is given, then:
     GC::Ptr<Key> key_value;
