@@ -12,6 +12,8 @@
 #include <LibWeb/CSS/CSSDescriptors.h>
 #include <LibWeb/CSS/CSSFontFaceRule.h>
 #include <LibWeb/CSS/CSSImportRule.h>
+#include <LibWeb/CSS/CSSKeyframeRule.h>
+#include <LibWeb/CSS/CSSKeyframesRule.h>
 #include <LibWeb/CSS/CSSLayerBlockRule.h>
 #include <LibWeb/CSS/CSSLayerStatementRule.h>
 #include <LibWeb/CSS/CSSMediaRule.h>
@@ -673,8 +675,10 @@ void dump_rule(StringBuilder& builder, CSS::CSSRule const& rule, int indent_leve
         dump_import_rule(builder, as<CSS::CSSImportRule const>(rule), indent_levels);
         break;
     case CSS::CSSRule::Type::Keyframe:
+        dump_keyframe_rule(builder, as<CSS::CSSKeyframeRule const>(rule), indent_levels);
+        break;
     case CSS::CSSRule::Type::Keyframes:
-        // TODO: Dump them!
+        dump_keyframes_rule(builder, as<CSS::CSSKeyframesRule const>(rule), indent_levels);
         break;
     case CSS::CSSRule::Type::LayerBlock:
         dump_layer_block_rule(builder, as<CSS::CSSLayerBlockRule const>(rule), indent_levels);
@@ -714,6 +718,23 @@ void dump_import_rule(StringBuilder& builder, CSS::CSSImportRule const& rule, in
 {
     indent(builder, indent_levels);
     builder.appendff("  Document URL: {}\n", rule.url().to_string());
+}
+
+void dump_keyframe_rule(StringBuilder& builder, CSS::CSSKeyframeRule const& keyframe, int indent_levels)
+{
+    indent(builder, indent_levels + 1);
+    builder.appendff("Key: {}\n"sv, keyframe.key_text());
+    dump_style_properties(builder, keyframe.style(), indent_levels + 1);
+}
+
+void dump_keyframes_rule(StringBuilder& builder, CSS::CSSKeyframesRule const& keyframes, int indent_levels)
+{
+    indent(builder, indent_levels + 1);
+    builder.appendff("Name: {}\n", keyframes.name());
+    indent(builder, indent_levels + 1);
+    builder.appendff("Keyframes ({}):\n", keyframes.length());
+    for (auto& rule : *keyframes.css_rules())
+        dump_rule(builder, rule, indent_levels + 2);
 }
 
 void dump_layer_block_rule(StringBuilder& builder, CSS::CSSLayerBlockRule const& layer_block, int indent_levels)
