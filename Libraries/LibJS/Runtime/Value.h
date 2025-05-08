@@ -461,10 +461,10 @@ private:
     friend constexpr Value js_undefined();
     friend constexpr Value js_null();
     friend constexpr Value js_special_empty_value();
-    friend ThrowCompletionOr<Value> greater_than(VM&, Value lhs, Value rhs);
-    friend ThrowCompletionOr<Value> greater_than_equals(VM&, Value lhs, Value rhs);
-    friend ThrowCompletionOr<Value> less_than(VM&, Value lhs, Value rhs);
-    friend ThrowCompletionOr<Value> less_than_equals(VM&, Value lhs, Value rhs);
+    friend ThrowCompletionOr<bool> greater_than(VM&, Value lhs, Value rhs);
+    friend ThrowCompletionOr<bool> greater_than_equals(VM&, Value lhs, Value rhs);
+    friend ThrowCompletionOr<bool> less_than(VM&, Value lhs, Value rhs);
+    friend ThrowCompletionOr<bool> less_than_equals(VM&, Value lhs, Value rhs);
     friend ThrowCompletionOr<Value> add(VM&, Value lhs, Value rhs);
     friend bool same_value_non_number(Value lhs, Value rhs);
 };
@@ -499,10 +499,10 @@ inline Value js_negative_infinity()
     return Value(-INFINITY);
 }
 
-ThrowCompletionOr<Value> greater_than(VM&, Value lhs, Value rhs);
-ThrowCompletionOr<Value> greater_than_equals(VM&, Value lhs, Value rhs);
-ThrowCompletionOr<Value> less_than(VM&, Value lhs, Value rhs);
-ThrowCompletionOr<Value> less_than_equals(VM&, Value lhs, Value rhs);
+ThrowCompletionOr<bool> greater_than(VM&, Value lhs, Value rhs);
+ThrowCompletionOr<bool> greater_than_equals(VM&, Value lhs, Value rhs);
+ThrowCompletionOr<bool> less_than(VM&, Value lhs, Value rhs);
+ThrowCompletionOr<bool> less_than_equals(VM&, Value lhs, Value rhs);
 ThrowCompletionOr<Value> bitwise_and(VM&, Value lhs, Value rhs);
 ThrowCompletionOr<Value> bitwise_or(VM&, Value lhs, Value rhs);
 ThrowCompletionOr<Value> bitwise_xor(VM&, Value lhs, Value rhs);
