@@ -84,4 +84,9 @@ Optional<Record&> ObjectStore::first_in_range(GC::Ref<IDBKeyRange> range)
     });
 }
 
+void ObjectStore::clear_records()
+{
+    m_records.clear();
+}
+
 }

@@ -1840,4 +1840,19 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
     return cursor;
 }
 
+// https://w3c.github.io/IndexedDB/#clear-an-object-store
+JS::Value clear_an_object_store(GC::Ref<ObjectStore> store)
+{
+    // 1. Remove all records from store.
+    store->clear_records();
+
+    // 2. In all indexes which reference store, remove all records.
+    for (auto const& [name, index] : store->index_set()) {
+        index->clear_records();
+    }
+
+    // 3. Return undefined.
+    return JS::js_undefined();
+}
+
 }
