@@ -12,6 +12,7 @@
 #include <LibWeb/IndexedDB/IDBRequest.h>
 #include <LibWeb/IndexedDB/Internal/Key.h>
 #include <LibWeb/StorageAPI/StorageKey.h>
+#include <LibWeb/WebIDL/Types.h>
 
 namespace Web::IndexedDB {
 
@@ -47,5 +48,6 @@ WebIDL::ExceptionOr<JS::Value> retrieve_a_value_from_an_object_store(JS::Realm&,
 GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm&, GC::Ref<IDBCursor>, GC::Ptr<Key> = nullptr, GC::Ptr<Key> = nullptr, u64 = 1);
 JS::Value clear_an_object_store(GC::Ref<ObjectStore>);
 JS::Value retrieve_a_key_from_an_object_store(JS::Realm&, GC::Ref<ObjectStore>, GC::Ref<IDBKeyRange>);
+GC::Ref<JS::Array> retrieve_multiple_values_from_an_object_store(JS::Realm&, GC::Ref<ObjectStore>, GC::Ref<IDBKeyRange>, Optional<WebIDL::UnsignedLong>);
 
 }

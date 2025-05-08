@@ -5,6 +5,7 @@
  */
 
 #include <AK/Math.h>
+#include <AK/NumericLimits.h>
 #include <AK/QuickSort.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
@@ -1867,6 +1868,37 @@ JS::Value retrieve_a_key_from_an_object_store(JS::Realm& realm, GC::Ref<ObjectSt
 
     // 3. Return the result of converting a key to a value with record’s key.
     return convert_a_key_to_a_value(realm, record.value().key);
+}
+
+// https://w3c.github.io/IndexedDB/#retrieve-multiple-values-from-an-object-store
+GC::Ref<JS::Array> retrieve_multiple_values_from_an_object_store(JS::Realm& realm, GC::Ref<ObjectStore> store, GC::Ref<IDBKeyRange> range, Optional<WebIDL::UnsignedLong> count)
+{
+    // 1. If count is not given or is 0 (zero), let count be infinity.
+    if (count.has_value() && *count == 0)
+        count = OptionalNone();
+
+    // 2. Let records be a list containing the first count records in store’s list of records whose key is in range.
+    auto records = store->first_n_in_range(range, count);
+
+    // 3. Let list be an empty list.
+    auto list = MUST(JS::Array::create(realm, records.size()));
+
+    // 4. For each record of records:
+    for (u32 i = 0; i < records.size(); ++i) {
+        auto& record = records[i];
+
+        // 1. Let serialized be record’s value. If an error occurs while reading the value from the underlying storage, return a newly created "NotReadableError" DOMException.
+        auto serialized = record.value;
+
+        // 2. Let entry be ! StructuredDeserialize(serialized, targetRealm).
+        auto entry = MUST(HTML::structured_deserialize(realm.vm(), serialized, realm));
+
+        // 3. Append entry to list.
+        MUST(list->create_data_property_or_throw(i, entry));
+    }
+
+    // 5. Return list converted to a sequence<any>.
+    return list;
 }
 
 }
