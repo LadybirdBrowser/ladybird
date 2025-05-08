@@ -148,4 +148,18 @@ WebIDL::ExceptionOr<void> IDBCursor::continue_(JS::Value key)
     return {};
 }
 
+// https://w3c.github.io/IndexedDB/#cursor-effective-key
+[[nodiscard]] GC::Ref<Key> IDBCursor::effective_key() const
+{
+    return m_source_handle.visit(
+        [&](GC::Ref<IDBObjectStore>) -> GC::Ref<Key> {
+            //  If the source of a cursor is an object store, the effective key of the cursor is the cursor’s position
+            return *m_position;
+        },
+        [&](GC::Ref<IDBIndex>) -> GC::Ref<Key> {
+            // If the source of a cursor is an index, the effective key is the cursor’s object store position.
+            return *m_object_store_position;
+        });
+}
+
 }
