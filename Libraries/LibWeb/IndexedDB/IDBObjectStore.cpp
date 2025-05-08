@@ -474,4 +474,36 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::delete_(JS::Value query
     return result;
 }
 
+// https://w3c.github.io/IndexedDB/#dom-idbobjectstore-clear
+WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::clear()
+{
+    auto& realm = this->realm();
+
+    // 1. Let transaction be this’s transaction.
+    auto transaction = this->transaction();
+
+    // 2. Let store be this’s object store.
+    auto store = this->store();
+
+    // FIXME: 3. If store has been deleted, throw an "InvalidStateError" DOMException.
+
+    // 4. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
+    if (transaction->state() != IDBTransaction::TransactionState::Active)
+        return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while clearing object store"_string);
+
+    // 5. If transaction is a read-only transaction, throw a "ReadOnlyError" DOMException.
+    if (transaction->is_readonly())
+        return WebIDL::ReadOnlyError::create(realm, "Transaction is read-only while clearing object store"_string);
+
+    // 6. Let operation be an algorithm to run clear an object store with store.
+    auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(realm.heap(), [store] -> WebIDL::ExceptionOr<JS::Value> {
+        return clear_an_object_store(store);
+    });
+
+    // 7. Return the result (an IDBRequest) of running asynchronously execute a request with this and operation.
+    auto result = asynchronously_execute_a_request(realm, GC::Ref(*this), operation);
+    dbgln_if(IDB_DEBUG, "Executing request for clear with uuid {}", result->uuid());
+    return result;
+}
+
 }
