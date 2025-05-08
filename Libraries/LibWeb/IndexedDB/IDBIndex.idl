@@ -12,6 +12,6 @@ interface IDBIndex {
     [FIXME, NewObject] IDBRequest getAll(optional any query, optional [EnforceRange] unsigned long count);
     [FIXME, NewObject] IDBRequest getAllKeys(optional any query, optional [EnforceRange] unsigned long count);
     [FIXME, NewObject] IDBRequest count(optional any query);
-    [FIXME, NewObject] IDBRequest openCursor(optional any query, optional IDBCursorDirection direction = "next");
+    [NewObject] IDBRequest openCursor(optional any query, optional IDBCursorDirection direction = "next");
     [FIXME, NewObject] IDBRequest openKeyCursor(optional any query, optional IDBCursorDirection direction = "next");
 };
