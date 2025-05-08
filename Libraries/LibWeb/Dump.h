@@ -27,6 +27,8 @@ void dump_style_properties(StringBuilder&, CSS::CSSStyleProperties const&, int i
 void dump_descriptors(StringBuilder&, CSS::CSSDescriptors const&, int indent_levels = 0);
 void dump_font_face_rule(StringBuilder&, CSS::CSSFontFaceRule const&, int indent_levels = 0);
 void dump_import_rule(StringBuilder&, CSS::CSSImportRule const&, int indent_levels = 0);
+void dump_keyframe_rule(StringBuilder&, CSS::CSSKeyframeRule const&, int indent_levels = 0);
+void dump_keyframes_rule(StringBuilder&, CSS::CSSKeyframesRule const&, int indent_levels = 0);
 void dump_media_rule(StringBuilder&, CSS::CSSMediaRule const&, int indent_levels = 0);
 void dump_style_rule(StringBuilder&, CSS::CSSStyleRule const&, int indent_levels = 0);
 void dump_supports_rule(StringBuilder&, CSS::CSSSupportsRule const&, int indent_levels = 0);
