@@ -525,8 +525,13 @@ PseudoElementMetadata pseudo_element_metadata(PseudoElement pseudo_element)
     });
 
     generator.append(R"~~~(
-    case PseudoElement::KnownPseudoElementCount:
     case PseudoElement::UnknownWebKit:
+        return {
+            .parameter_type = PseudoElementMetadata::ParameterType::None,
+            .is_valid_as_function = false,
+            .is_valid_as_identifier = true,
+        };
+    case PseudoElement::KnownPseudoElementCount:
         break;
     }
     VERIFY_NOT_REACHED();

@@ -590,7 +590,7 @@ void dump_selector(StringBuilder& builder, CSS::Selector const& selector, int in
 
             if (simple_selector.type == CSS::Selector::SimpleSelector::Type::PseudoElement) {
                 auto const& pseudo_element = simple_selector.pseudo_element();
-                builder.appendff(" pseudo_element={}", CSS::pseudo_element_name(pseudo_element.type()));
+                builder.appendff(" pseudo_element={}", pseudo_element.serialize());
                 auto pseudo_element_metadata = CSS::pseudo_element_metadata(pseudo_element.type());
 
                 switch (pseudo_element_metadata.parameter_type) {
