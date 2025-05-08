@@ -270,6 +270,9 @@ public:
     Element* document_element();
     Element const* document_element() const;
 
+    // https://www.w3.org/TR/SVG2/struct.html#InterfaceDocumentExtensions
+    GC::Ptr<SVG::SVGSVGElement> root_element();
+
     HTML::HTMLHtmlElement* html_element();
     HTML::HTMLHeadElement* head();
     GC::Ptr<HTML::HTMLTitleElement> title_element();

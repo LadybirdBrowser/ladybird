@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1781 tests
 
-873 Pass
-908 Fail
+874 Pass
+907 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Document: original interface defined
@@ -1784,4 +1784,4 @@ Fail	SVGDiscardElement interface object name
 Fail	SVGDiscardElement interface: existence and properties of interface prototype object
 Fail	SVGDiscardElement interface: existence and properties of interface prototype object's "constructor" property
 Fail	SVGDiscardElement interface: existence and properties of interface prototype object's @@unscopables property
-Fail	Document interface: attribute rootElement
+Pass	Document interface: attribute rootElement
