@@ -1,0 +1,1787 @@
+Harness status: OK
+
+Found 1781 tests
+
+873 Pass
+908 Fail
+Pass	idl_test setup
+Pass	idl_test validation
+Pass	Partial interface Document: original interface defined
+Pass	Partial interface Document: member names are unique
+Pass	Partial interface SVGAElement: original interface defined
+Pass	Partial interface SVGAElement: member names are unique
+Pass	Partial interface SVGSVGElement: original interface defined
+Pass	Partial interface SVGSVGElement: member names are unique
+Pass	Partial interface Document[2]: member names are unique
+Pass	Partial interface Document[3]: member names are unique
+Pass	Partial interface Element: member names are unique
+Pass	Partial interface ShadowRoot: member names are unique
+Pass	Partial interface Document[4]: member names are unique
+Pass	SVGElement includes GlobalEventHandlers: member names are unique
+Pass	SVGElement includes SVGElementInstance: member names are unique
+Pass	SVGElement includes HTMLOrSVGElement: member names are unique
+Pass	SVGGraphicsElement includes SVGTests: member names are unique
+Pass	SVGSVGElement includes SVGFitToViewBox: member names are unique
+Pass	SVGSVGElement includes WindowEventHandlers: member names are unique
+Pass	SVGSymbolElement includes SVGFitToViewBox: member names are unique
+Pass	SVGUseElement includes SVGURIReference: member names are unique
+Pass	SVGStyleElement includes LinkStyle: member names are unique
+Pass	SVGPolylineElement includes SVGAnimatedPoints: member names are unique
+Pass	SVGPolygonElement includes SVGAnimatedPoints: member names are unique
+Pass	SVGTextPathElement includes SVGURIReference: member names are unique
+Pass	SVGImageElement includes SVGURIReference: member names are unique
+Pass	SVGMarkerElement includes SVGFitToViewBox: member names are unique
+Pass	SVGGradientElement includes SVGURIReference: member names are unique
+Pass	SVGPatternElement includes SVGFitToViewBox: member names are unique
+Pass	SVGPatternElement includes SVGURIReference: member names are unique
+Pass	SVGScriptElement includes SVGURIReference: member names are unique
+Pass	SVGAElement includes SVGURIReference: member names are unique
+Pass	SVGViewElement includes SVGFitToViewBox: member names are unique
+Pass	SVGAnimationElement includes SVGTests: member names are unique
+Pass	SVGMPathElement includes SVGURIReference: member names are unique
+Pass	SVGElement includes ElementCSSInlineStyle: member names are unique
+Pass	Element includes Animatable: member names are unique
+Pass	Document includes GlobalEventHandlers: member names are unique
+Pass	Document includes NonElementParentNode: member names are unique
+Pass	DocumentFragment includes NonElementParentNode: member names are unique
+Pass	Document includes ParentNode: member names are unique
+Pass	DocumentFragment includes ParentNode: member names are unique
+Pass	Element includes ParentNode: member names are unique
+Pass	Element includes NonDocumentTypeChildNode: member names are unique
+Pass	Element includes ChildNode: member names are unique
+Pass	Element includes Slottable: member names are unique
+Pass	Document includes XPathEvaluatorBase: member names are unique
+Pass	SVGElement interface: existence and properties of interface object
+Pass	SVGElement interface object length
+Pass	SVGElement interface object name
+Pass	SVGElement interface: existence and properties of interface prototype object
+Pass	SVGElement interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGElement interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGElement interface: attribute className
+Pass	SVGElement interface: attribute ownerSVGElement
+Fail	SVGElement interface: attribute viewportElement
+Fail	SVGElement interface: attribute correspondingElement
+Fail	SVGElement interface: attribute correspondingUseElement
+Pass	SVGGraphicsElement interface: existence and properties of interface object
+Pass	SVGGraphicsElement interface object length
+Pass	SVGGraphicsElement interface object name
+Pass	SVGGraphicsElement interface: existence and properties of interface prototype object
+Pass	SVGGraphicsElement interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGGraphicsElement interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGGraphicsElement interface: attribute transform
+Pass	SVGGraphicsElement interface: operation getBBox(optional SVGBoundingBoxOptions)
+Fail	SVGGraphicsElement interface: operation getCTM()
+Pass	SVGGraphicsElement interface: operation getScreenCTM()
+Fail	SVGGraphicsElement interface: attribute requiredExtensions
+Fail	SVGGraphicsElement interface: attribute systemLanguage
+Pass	SVGGeometryElement interface: existence and properties of interface object
+Pass	SVGGeometryElement interface object length
+Pass	SVGGeometryElement interface object name
+Pass	SVGGeometryElement interface: existence and properties of interface prototype object
+Pass	SVGGeometryElement interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGGeometryElement interface: existence and properties of interface prototype object's @@unscopables property
+Fail	SVGGeometryElement interface: attribute pathLength
+Fail	SVGGeometryElement interface: operation isPointInFill(optional DOMPointInit)
+Fail	SVGGeometryElement interface: operation isPointInStroke(optional DOMPointInit)
+Pass	SVGGeometryElement interface: operation getTotalLength()
+Pass	SVGGeometryElement interface: operation getPointAtLength(float)
+Fail	SVGNumber interface: existence and properties of interface object
+Fail	SVGNumber interface object length
+Fail	SVGNumber interface object name
+Fail	SVGNumber interface: existence and properties of interface prototype object
+Fail	SVGNumber interface: existence and properties of interface prototype object's "constructor" property
+Fail	SVGNumber interface: existence and properties of interface prototype object's @@unscopables property
+Fail	SVGNumber interface: attribute value
+Fail	SVGNumber must be primary interface of objects.svg.createSVGNumber()
+Fail	Stringification of objects.svg.createSVGNumber()
+Fail	SVGNumber interface: objects.svg.createSVGNumber() must inherit property "value" with the proper type
+Pass	SVGLength interface: existence and properties of interface object
+Pass	SVGLength interface object length
+Pass	SVGLength interface object name
+Pass	SVGLength interface: existence and properties of interface prototype object
+Pass	SVGLength interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGLength interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGLength interface: constant SVG_LENGTHTYPE_UNKNOWN on interface object
+Pass	SVGLength interface: constant SVG_LENGTHTYPE_UNKNOWN on interface prototype object
+Pass	SVGLength interface: constant SVG_LENGTHTYPE_NUMBER on interface object
+Pass	SVGLength interface: constant SVG_LENGTHTYPE_NUMBER on interface prototype object
+Pass	SVGLength interface: constant SVG_LENGTHTYPE_PERCENTAGE on interface object
+Pass	SVGLength interface: constant SVG_LENGTHTYPE_PERCENTAGE on interface prototype object
+Pass	SVGLength interface: constant SVG_LENGTHTYPE_EMS on interface object
+Pass	SVGLength interface: constant SVG_LENGTHTYPE_EMS on interface prototype object
+Pass	SVGLength interface: constant SVG_LENGTHTYPE_EXS on interface object
+Pass	SVGLength interface: constant SVG_LENGTHTYPE_EXS on interface prototype object
+Pass	SVGLength interface: constant SVG_LENGTHTYPE_PX on interface object
+Pass	SVGLength interface: constant SVG_LENGTHTYPE_PX on interface prototype object
+Pass	SVGLength interface: constant SVG_LENGTHTYPE_CM on interface object
+Pass	SVGLength interface: constant SVG_LENGTHTYPE_CM on interface prototype object
+Pass	SVGLength interface: constant SVG_LENGTHTYPE_MM on interface object
+Pass	SVGLength interface: constant SVG_LENGTHTYPE_MM on interface prototype object
+Pass	SVGLength interface: constant SVG_LENGTHTYPE_IN on interface object
+Pass	SVGLength interface: constant SVG_LENGTHTYPE_IN on interface prototype object
+Pass	SVGLength interface: constant SVG_LENGTHTYPE_PT on interface object
+Pass	SVGLength interface: constant SVG_LENGTHTYPE_PT on interface prototype object
+Pass	SVGLength interface: constant SVG_LENGTHTYPE_PC on interface object
+Pass	SVGLength interface: constant SVG_LENGTHTYPE_PC on interface prototype object
+Pass	SVGLength interface: attribute unitType
+Pass	SVGLength interface: attribute value
+Fail	SVGLength interface: attribute valueInSpecifiedUnits
+Fail	SVGLength interface: attribute valueAsString
+Fail	SVGLength interface: operation newValueSpecifiedUnits(unsigned short, float)
+Fail	SVGLength interface: operation convertToSpecifiedUnits(unsigned short)
+Pass	SVGLength must be primary interface of objects.svg.createSVGLength()
+Pass	Stringification of objects.svg.createSVGLength()
+Pass	SVGLength interface: objects.svg.createSVGLength() must inherit property "SVG_LENGTHTYPE_UNKNOWN" with the proper type
+Pass	SVGLength interface: objects.svg.createSVGLength() must inherit property "SVG_LENGTHTYPE_NUMBER" with the proper type
+Pass	SVGLength interface: objects.svg.createSVGLength() must inherit property "SVG_LENGTHTYPE_PERCENTAGE" with the proper type
+Pass	SVGLength interface: objects.svg.createSVGLength() must inherit property "SVG_LENGTHTYPE_EMS" with the proper type
+Pass	SVGLength interface: objects.svg.createSVGLength() must inherit property "SVG_LENGTHTYPE_EXS" with the proper type
+Pass	SVGLength interface: objects.svg.createSVGLength() must inherit property "SVG_LENGTHTYPE_PX" with the proper type
+Pass	SVGLength interface: objects.svg.createSVGLength() must inherit property "SVG_LENGTHTYPE_CM" with the proper type
+Pass	SVGLength interface: objects.svg.createSVGLength() must inherit property "SVG_LENGTHTYPE_MM" with the proper type
+Pass	SVGLength interface: objects.svg.createSVGLength() must inherit property "SVG_LENGTHTYPE_IN" with the proper type
+Pass	SVGLength interface: objects.svg.createSVGLength() must inherit property "SVG_LENGTHTYPE_PT" with the proper type
+Pass	SVGLength interface: objects.svg.createSVGLength() must inherit property "SVG_LENGTHTYPE_PC" with the proper type
+Pass	SVGLength interface: objects.svg.createSVGLength() must inherit property "unitType" with the proper type
+Pass	SVGLength interface: objects.svg.createSVGLength() must inherit property "value" with the proper type
+Fail	SVGLength interface: objects.svg.createSVGLength() must inherit property "valueInSpecifiedUnits" with the proper type
+Fail	SVGLength interface: objects.svg.createSVGLength() must inherit property "valueAsString" with the proper type
+Fail	SVGLength interface: objects.svg.createSVGLength() must inherit property "newValueSpecifiedUnits(unsigned short, float)" with the proper type
+Pass	SVGLength interface: calling newValueSpecifiedUnits(unsigned short, float) on objects.svg.createSVGLength() with too few arguments must throw TypeError
+Fail	SVGLength interface: objects.svg.createSVGLength() must inherit property "convertToSpecifiedUnits(unsigned short)" with the proper type
+Pass	SVGLength interface: calling convertToSpecifiedUnits(unsigned short) on objects.svg.createSVGLength() with too few arguments must throw TypeError
+Fail	SVGAngle interface: existence and properties of interface object
+Fail	SVGAngle interface object length
+Fail	SVGAngle interface object name
+Fail	SVGAngle interface: existence and properties of interface prototype object
+Fail	SVGAngle interface: existence and properties of interface prototype object's "constructor" property
+Fail	SVGAngle interface: existence and properties of interface prototype object's @@unscopables property
+Fail	SVGAngle interface: constant SVG_ANGLETYPE_UNKNOWN on interface object
+Fail	SVGAngle interface: constant SVG_ANGLETYPE_UNKNOWN on interface prototype object
+Fail	SVGAngle interface: constant SVG_ANGLETYPE_UNSPECIFIED on interface object
+Fail	SVGAngle interface: constant SVG_ANGLETYPE_UNSPECIFIED on interface prototype object
+Fail	SVGAngle interface: constant SVG_ANGLETYPE_DEG on interface object
+Fail	SVGAngle interface: constant SVG_ANGLETYPE_DEG on interface prototype object
+Fail	SVGAngle interface: constant SVG_ANGLETYPE_RAD on interface object
+Fail	SVGAngle interface: constant SVG_ANGLETYPE_RAD on interface prototype object
+Fail	SVGAngle interface: constant SVG_ANGLETYPE_GRAD on interface object
+Fail	SVGAngle interface: constant SVG_ANGLETYPE_GRAD on interface prototype object
+Fail	SVGAngle interface: attribute unitType
+Fail	SVGAngle interface: attribute value
+Fail	SVGAngle interface: attribute valueInSpecifiedUnits
+Fail	SVGAngle interface: attribute valueAsString
+Fail	SVGAngle interface: operation newValueSpecifiedUnits(unsigned short, float)
+Fail	SVGAngle interface: operation convertToSpecifiedUnits(unsigned short)
+Fail	SVGAngle must be primary interface of objects.svg.createSVGAngle()
+Fail	Stringification of objects.svg.createSVGAngle()
+Fail	SVGAngle interface: objects.svg.createSVGAngle() must inherit property "SVG_ANGLETYPE_UNKNOWN" with the proper type
+Fail	SVGAngle interface: objects.svg.createSVGAngle() must inherit property "SVG_ANGLETYPE_UNSPECIFIED" with the proper type
+Fail	SVGAngle interface: objects.svg.createSVGAngle() must inherit property "SVG_ANGLETYPE_DEG" with the proper type
+Fail	SVGAngle interface: objects.svg.createSVGAngle() must inherit property "SVG_ANGLETYPE_RAD" with the proper type
+Fail	SVGAngle interface: objects.svg.createSVGAngle() must inherit property "SVG_ANGLETYPE_GRAD" with the proper type
+Fail	SVGAngle interface: objects.svg.createSVGAngle() must inherit property "unitType" with the proper type
+Fail	SVGAngle interface: objects.svg.createSVGAngle() must inherit property "value" with the proper type
+Fail	SVGAngle interface: objects.svg.createSVGAngle() must inherit property "valueInSpecifiedUnits" with the proper type
+Fail	SVGAngle interface: objects.svg.createSVGAngle() must inherit property "valueAsString" with the proper type
+Fail	SVGAngle interface: objects.svg.createSVGAngle() must inherit property "newValueSpecifiedUnits(unsigned short, float)" with the proper type
+Fail	SVGAngle interface: calling newValueSpecifiedUnits(unsigned short, float) on objects.svg.createSVGAngle() with too few arguments must throw TypeError
+Fail	SVGAngle interface: objects.svg.createSVGAngle() must inherit property "convertToSpecifiedUnits(unsigned short)" with the proper type
+Fail	SVGAngle interface: calling convertToSpecifiedUnits(unsigned short) on objects.svg.createSVGAngle() with too few arguments must throw TypeError
+Fail	SVGNumberList interface: existence and properties of interface object
+Fail	SVGNumberList interface object length
+Fail	SVGNumberList interface object name
+Fail	SVGNumberList interface: existence and properties of interface prototype object
+Fail	SVGNumberList interface: existence and properties of interface prototype object's "constructor" property
+Fail	SVGNumberList interface: existence and properties of interface prototype object's @@unscopables property
+Fail	SVGNumberList interface: attribute length
+Fail	SVGNumberList interface: attribute numberOfItems
+Fail	SVGNumberList interface: operation clear()
+Fail	SVGNumberList interface: operation initialize(SVGNumber)
+Fail	SVGNumberList interface: operation getItem(unsigned long)
+Fail	SVGNumberList interface: operation insertItemBefore(SVGNumber, unsigned long)
+Fail	SVGNumberList interface: operation replaceItem(SVGNumber, unsigned long)
+Fail	SVGNumberList interface: operation removeItem(unsigned long)
+Fail	SVGNumberList interface: operation appendItem(SVGNumber)
+Fail	SVGNumberList must be primary interface of objects.text.rotate.baseVal
+Fail	Stringification of objects.text.rotate.baseVal
+Fail	SVGNumberList interface: objects.text.rotate.baseVal must inherit property "length" with the proper type
+Fail	SVGNumberList interface: objects.text.rotate.baseVal must inherit property "numberOfItems" with the proper type
+Fail	SVGNumberList interface: objects.text.rotate.baseVal must inherit property "clear()" with the proper type
+Fail	SVGNumberList interface: objects.text.rotate.baseVal must inherit property "initialize(SVGNumber)" with the proper type
+Fail	SVGNumberList interface: calling initialize(SVGNumber) on objects.text.rotate.baseVal with too few arguments must throw TypeError
+Fail	SVGNumberList interface: objects.text.rotate.baseVal must inherit property "getItem(unsigned long)" with the proper type
+Fail	SVGNumberList interface: calling getItem(unsigned long) on objects.text.rotate.baseVal with too few arguments must throw TypeError
+Fail	SVGNumberList interface: objects.text.rotate.baseVal must inherit property "insertItemBefore(SVGNumber, unsigned long)" with the proper type
+Fail	SVGNumberList interface: calling insertItemBefore(SVGNumber, unsigned long) on objects.text.rotate.baseVal with too few arguments must throw TypeError
+Fail	SVGNumberList interface: objects.text.rotate.baseVal must inherit property "replaceItem(SVGNumber, unsigned long)" with the proper type
+Fail	SVGNumberList interface: calling replaceItem(SVGNumber, unsigned long) on objects.text.rotate.baseVal with too few arguments must throw TypeError
+Fail	SVGNumberList interface: objects.text.rotate.baseVal must inherit property "removeItem(unsigned long)" with the proper type
+Fail	SVGNumberList interface: calling removeItem(unsigned long) on objects.text.rotate.baseVal with too few arguments must throw TypeError
+Fail	SVGNumberList interface: objects.text.rotate.baseVal must inherit property "appendItem(SVGNumber)" with the proper type
+Fail	SVGNumberList interface: calling appendItem(SVGNumber) on objects.text.rotate.baseVal with too few arguments must throw TypeError
+Fail	SVGLengthList interface: existence and properties of interface object
+Fail	SVGLengthList interface object length
+Fail	SVGLengthList interface object name
+Fail	SVGLengthList interface: existence and properties of interface prototype object
+Fail	SVGLengthList interface: existence and properties of interface prototype object's "constructor" property
+Fail	SVGLengthList interface: existence and properties of interface prototype object's @@unscopables property
+Fail	SVGLengthList interface: attribute length
+Fail	SVGLengthList interface: attribute numberOfItems
+Fail	SVGLengthList interface: operation clear()
+Fail	SVGLengthList interface: operation initialize(SVGLength)
+Fail	SVGLengthList interface: operation getItem(unsigned long)
+Fail	SVGLengthList interface: operation insertItemBefore(SVGLength, unsigned long)
+Fail	SVGLengthList interface: operation replaceItem(SVGLength, unsigned long)
+Fail	SVGLengthList interface: operation removeItem(unsigned long)
+Fail	SVGLengthList interface: operation appendItem(SVGLength)
+Fail	SVGStringList interface: existence and properties of interface object
+Fail	SVGStringList interface object length
+Fail	SVGStringList interface object name
+Fail	SVGStringList interface: existence and properties of interface prototype object
+Fail	SVGStringList interface: existence and properties of interface prototype object's "constructor" property
+Fail	SVGStringList interface: existence and properties of interface prototype object's @@unscopables property
+Fail	SVGStringList interface: attribute length
+Fail	SVGStringList interface: attribute numberOfItems
+Fail	SVGStringList interface: operation clear()
+Fail	SVGStringList interface: operation initialize(DOMString)
+Fail	SVGStringList interface: operation getItem(unsigned long)
+Fail	SVGStringList interface: operation insertItemBefore(DOMString, unsigned long)
+Fail	SVGStringList interface: operation replaceItem(DOMString, unsigned long)
+Fail	SVGStringList interface: operation removeItem(unsigned long)
+Fail	SVGStringList interface: operation appendItem(DOMString)
+Fail	SVGStringList must be primary interface of objects.a.requiredExtensions
+Fail	Stringification of objects.a.requiredExtensions
+Fail	SVGStringList interface: objects.a.requiredExtensions must inherit property "length" with the proper type
+Fail	SVGStringList interface: objects.a.requiredExtensions must inherit property "numberOfItems" with the proper type
+Fail	SVGStringList interface: objects.a.requiredExtensions must inherit property "clear()" with the proper type
+Fail	SVGStringList interface: objects.a.requiredExtensions must inherit property "initialize(DOMString)" with the proper type
+Fail	SVGStringList interface: calling initialize(DOMString) on objects.a.requiredExtensions with too few arguments must throw TypeError
+Fail	SVGStringList interface: objects.a.requiredExtensions must inherit property "getItem(unsigned long)" with the proper type
+Fail	SVGStringList interface: calling getItem(unsigned long) on objects.a.requiredExtensions with too few arguments must throw TypeError
+Fail	SVGStringList interface: objects.a.requiredExtensions must inherit property "insertItemBefore(DOMString, unsigned long)" with the proper type
+Fail	SVGStringList interface: calling insertItemBefore(DOMString, unsigned long) on objects.a.requiredExtensions with too few arguments must throw TypeError
+Fail	SVGStringList interface: objects.a.requiredExtensions must inherit property "replaceItem(DOMString, unsigned long)" with the proper type
+Fail	SVGStringList interface: calling replaceItem(DOMString, unsigned long) on objects.a.requiredExtensions with too few arguments must throw TypeError
+Fail	SVGStringList interface: objects.a.requiredExtensions must inherit property "removeItem(unsigned long)" with the proper type
+Fail	SVGStringList interface: calling removeItem(unsigned long) on objects.a.requiredExtensions with too few arguments must throw TypeError
+Fail	SVGStringList interface: objects.a.requiredExtensions must inherit property "appendItem(DOMString)" with the proper type
+Fail	SVGStringList interface: calling appendItem(DOMString) on objects.a.requiredExtensions with too few arguments must throw TypeError
+Fail	SVGAnimatedBoolean interface: existence and properties of interface object
+Fail	SVGAnimatedBoolean interface object length
+Fail	SVGAnimatedBoolean interface object name
+Fail	SVGAnimatedBoolean interface: existence and properties of interface prototype object
+Fail	SVGAnimatedBoolean interface: existence and properties of interface prototype object's "constructor" property
+Fail	SVGAnimatedBoolean interface: existence and properties of interface prototype object's @@unscopables property
+Fail	SVGAnimatedBoolean interface: attribute baseVal
+Fail	SVGAnimatedBoolean interface: attribute animVal
+Fail	SVGAnimatedBoolean must be primary interface of objects.feConvolveMatrix.preserveAlpha
+Fail	Stringification of objects.feConvolveMatrix.preserveAlpha
+Fail	SVGAnimatedBoolean interface: objects.feConvolveMatrix.preserveAlpha must inherit property "baseVal" with the proper type
+Fail	SVGAnimatedBoolean interface: objects.feConvolveMatrix.preserveAlpha must inherit property "animVal" with the proper type
+Pass	SVGAnimatedEnumeration interface: existence and properties of interface object
+Pass	SVGAnimatedEnumeration interface object length
+Pass	SVGAnimatedEnumeration interface object name
+Pass	SVGAnimatedEnumeration interface: existence and properties of interface prototype object
+Pass	SVGAnimatedEnumeration interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGAnimatedEnumeration interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGAnimatedEnumeration interface: attribute baseVal
+Pass	SVGAnimatedEnumeration interface: attribute animVal
+Fail	SVGAnimatedEnumeration must be primary interface of objects.text.lengthAdjust
+Fail	Stringification of objects.text.lengthAdjust
+Fail	SVGAnimatedEnumeration interface: objects.text.lengthAdjust must inherit property "baseVal" with the proper type
+Fail	SVGAnimatedEnumeration interface: objects.text.lengthAdjust must inherit property "animVal" with the proper type
+Fail	SVGAnimatedInteger interface: existence and properties of interface object
+Fail	SVGAnimatedInteger interface object length
+Fail	SVGAnimatedInteger interface object name
+Fail	SVGAnimatedInteger interface: existence and properties of interface prototype object
+Fail	SVGAnimatedInteger interface: existence and properties of interface prototype object's "constructor" property
+Fail	SVGAnimatedInteger interface: existence and properties of interface prototype object's @@unscopables property
+Fail	SVGAnimatedInteger interface: attribute baseVal
+Fail	SVGAnimatedInteger interface: attribute animVal
+Fail	SVGAnimatedInteger must be primary interface of objects.feConvolveMatrix.orderX
+Fail	Stringification of objects.feConvolveMatrix.orderX
+Fail	SVGAnimatedInteger interface: objects.feConvolveMatrix.orderX must inherit property "baseVal" with the proper type
+Fail	SVGAnimatedInteger interface: objects.feConvolveMatrix.orderX must inherit property "animVal" with the proper type
+Pass	SVGAnimatedNumber interface: existence and properties of interface object
+Pass	SVGAnimatedNumber interface object length
+Pass	SVGAnimatedNumber interface object name
+Pass	SVGAnimatedNumber interface: existence and properties of interface prototype object
+Pass	SVGAnimatedNumber interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGAnimatedNumber interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGAnimatedNumber interface: attribute baseVal
+Pass	SVGAnimatedNumber interface: attribute animVal
+Pass	SVGAnimatedNumber must be primary interface of objects.stop.offset
+Pass	Stringification of objects.stop.offset
+Pass	SVGAnimatedNumber interface: objects.stop.offset must inherit property "baseVal" with the proper type
+Pass	SVGAnimatedNumber interface: objects.stop.offset must inherit property "animVal" with the proper type
+Pass	SVGAnimatedLength interface: existence and properties of interface object
+Pass	SVGAnimatedLength interface object length
+Pass	SVGAnimatedLength interface object name
+Pass	SVGAnimatedLength interface: existence and properties of interface prototype object
+Pass	SVGAnimatedLength interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGAnimatedLength interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGAnimatedLength interface: attribute baseVal
+Pass	SVGAnimatedLength interface: attribute animVal
+Pass	SVGAnimatedLength must be primary interface of objects.svg.x
+Pass	Stringification of objects.svg.x
+Pass	SVGAnimatedLength interface: objects.svg.x must inherit property "baseVal" with the proper type
+Pass	SVGAnimatedLength interface: objects.svg.x must inherit property "animVal" with the proper type
+Fail	SVGAnimatedAngle interface: existence and properties of interface object
+Fail	SVGAnimatedAngle interface object length
+Fail	SVGAnimatedAngle interface object name
+Fail	SVGAnimatedAngle interface: existence and properties of interface prototype object
+Fail	SVGAnimatedAngle interface: existence and properties of interface prototype object's "constructor" property
+Fail	SVGAnimatedAngle interface: existence and properties of interface prototype object's @@unscopables property
+Fail	SVGAnimatedAngle interface: attribute baseVal
+Fail	SVGAnimatedAngle interface: attribute animVal
+Fail	SVGAnimatedAngle must be primary interface of objects.marker.orientAngle
+Fail	Stringification of objects.marker.orientAngle
+Fail	SVGAnimatedAngle interface: objects.marker.orientAngle must inherit property "baseVal" with the proper type
+Fail	SVGAnimatedAngle interface: objects.marker.orientAngle must inherit property "animVal" with the proper type
+Pass	SVGAnimatedString interface: existence and properties of interface object
+Pass	SVGAnimatedString interface object length
+Pass	SVGAnimatedString interface object name
+Pass	SVGAnimatedString interface: existence and properties of interface prototype object
+Pass	SVGAnimatedString interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGAnimatedString interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGAnimatedString interface: attribute baseVal
+Pass	SVGAnimatedString interface: attribute animVal
+Fail	SVGAnimatedString must be primary interface of objects.a.target
+Fail	Stringification of objects.a.target
+Fail	SVGAnimatedString interface: objects.a.target must inherit property "baseVal" with the proper type
+Fail	SVGAnimatedString interface: objects.a.target must inherit property "animVal" with the proper type
+Pass	SVGAnimatedRect interface: existence and properties of interface object
+Pass	SVGAnimatedRect interface object length
+Pass	SVGAnimatedRect interface object name
+Pass	SVGAnimatedRect interface: existence and properties of interface prototype object
+Pass	SVGAnimatedRect interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGAnimatedRect interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGAnimatedRect interface: attribute baseVal
+Pass	SVGAnimatedRect interface: attribute animVal
+Pass	SVGAnimatedRect must be primary interface of objects.svg.viewBox
+Pass	Stringification of objects.svg.viewBox
+Fail	SVGAnimatedRect interface: objects.svg.viewBox must inherit property "baseVal" with the proper type
+Fail	SVGAnimatedRect interface: objects.svg.viewBox must inherit property "animVal" with the proper type
+Fail	SVGAnimatedNumberList interface: existence and properties of interface object
+Fail	SVGAnimatedNumberList interface object length
+Fail	SVGAnimatedNumberList interface object name
+Fail	SVGAnimatedNumberList interface: existence and properties of interface prototype object
+Fail	SVGAnimatedNumberList interface: existence and properties of interface prototype object's "constructor" property
+Fail	SVGAnimatedNumberList interface: existence and properties of interface prototype object's @@unscopables property
+Fail	SVGAnimatedNumberList interface: attribute baseVal
+Fail	SVGAnimatedNumberList interface: attribute animVal
+Fail	SVGAnimatedNumberList must be primary interface of objects.text.rotate
+Fail	Stringification of objects.text.rotate
+Fail	SVGAnimatedNumberList interface: objects.text.rotate must inherit property "baseVal" with the proper type
+Fail	SVGAnimatedNumberList interface: objects.text.rotate must inherit property "animVal" with the proper type
+Fail	SVGAnimatedLengthList interface: existence and properties of interface object
+Fail	SVGAnimatedLengthList interface object length
+Fail	SVGAnimatedLengthList interface object name
+Fail	SVGAnimatedLengthList interface: existence and properties of interface prototype object
+Fail	SVGAnimatedLengthList interface: existence and properties of interface prototype object's "constructor" property
+Fail	SVGAnimatedLengthList interface: existence and properties of interface prototype object's @@unscopables property
+Fail	SVGAnimatedLengthList interface: attribute baseVal
+Fail	SVGAnimatedLengthList interface: attribute animVal
+Fail	SVGAnimatedLengthList must be primary interface of objects.text.x
+Fail	Stringification of objects.text.x
+Fail	SVGAnimatedLengthList interface: objects.text.x must inherit property "baseVal" with the proper type
+Fail	SVGAnimatedLengthList interface: objects.text.x must inherit property "animVal" with the proper type
+Fail	SVGUnitTypes interface: existence and properties of interface object
+Fail	SVGUnitTypes interface object length
+Fail	SVGUnitTypes interface object name
+Fail	SVGUnitTypes interface: existence and properties of interface prototype object
+Fail	SVGUnitTypes interface: existence and properties of interface prototype object's "constructor" property
+Fail	SVGUnitTypes interface: existence and properties of interface prototype object's @@unscopables property
+Fail	SVGUnitTypes interface: constant SVG_UNIT_TYPE_UNKNOWN on interface object
+Fail	SVGUnitTypes interface: constant SVG_UNIT_TYPE_UNKNOWN on interface prototype object
+Fail	SVGUnitTypes interface: constant SVG_UNIT_TYPE_USERSPACEONUSE on interface object
+Fail	SVGUnitTypes interface: constant SVG_UNIT_TYPE_USERSPACEONUSE on interface prototype object
+Fail	SVGUnitTypes interface: constant SVG_UNIT_TYPE_OBJECTBOUNDINGBOX on interface object
+Fail	SVGUnitTypes interface: constant SVG_UNIT_TYPE_OBJECTBOUNDINGBOX on interface prototype object
+Pass	SVGSVGElement interface: existence and properties of interface object
+Pass	SVGSVGElement interface object length
+Pass	SVGSVGElement interface object name
+Pass	SVGSVGElement interface: existence and properties of interface prototype object
+Pass	SVGSVGElement interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGSVGElement interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGSVGElement interface: attribute x
+Pass	SVGSVGElement interface: attribute y
+Pass	SVGSVGElement interface: attribute width
+Pass	SVGSVGElement interface: attribute height
+Pass	SVGSVGElement interface: attribute currentScale
+Pass	SVGSVGElement interface: attribute currentTranslate
+Pass	SVGSVGElement interface: operation getIntersectionList(DOMRectReadOnly, SVGElement?)
+Pass	SVGSVGElement interface: operation getEnclosureList(DOMRectReadOnly, SVGElement?)
+Pass	SVGSVGElement interface: operation checkIntersection(SVGElement, DOMRectReadOnly)
+Pass	SVGSVGElement interface: operation checkEnclosure(SVGElement, DOMRectReadOnly)
+Pass	SVGSVGElement interface: operation deselectAll()
+Fail	SVGSVGElement interface: operation createSVGNumber()
+Pass	SVGSVGElement interface: operation createSVGLength()
+Fail	SVGSVGElement interface: operation createSVGAngle()
+Pass	SVGSVGElement interface: operation createSVGPoint()
+Pass	SVGSVGElement interface: operation createSVGMatrix()
+Pass	SVGSVGElement interface: operation createSVGRect()
+Pass	SVGSVGElement interface: operation createSVGTransform()
+Fail	SVGSVGElement interface: operation createSVGTransformFromMatrix(optional DOMMatrix2DInit)
+Pass	SVGSVGElement interface: operation getElementById(DOMString)
+Pass	SVGSVGElement interface: operation suspendRedraw(unsigned long)
+Pass	SVGSVGElement interface: operation unsuspendRedraw(unsigned long)
+Pass	SVGSVGElement interface: operation unsuspendRedrawAll()
+Pass	SVGSVGElement interface: operation forceRedraw()
+Fail	SVGSVGElement interface: operation pauseAnimations()
+Fail	SVGSVGElement interface: operation unpauseAnimations()
+Fail	SVGSVGElement interface: operation animationsPaused()
+Fail	SVGSVGElement interface: operation getCurrentTime()
+Fail	SVGSVGElement interface: operation setCurrentTime(float)
+Pass	SVGSVGElement interface: attribute viewBox
+Fail	SVGSVGElement interface: attribute preserveAspectRatio
+Pass	SVGSVGElement must be primary interface of objects.svg
+Pass	Stringification of objects.svg
+Pass	SVGSVGElement interface: objects.svg must inherit property "x" with the proper type
+Pass	SVGSVGElement interface: objects.svg must inherit property "y" with the proper type
+Pass	SVGSVGElement interface: objects.svg must inherit property "width" with the proper type
+Pass	SVGSVGElement interface: objects.svg must inherit property "height" with the proper type
+Pass	SVGSVGElement interface: objects.svg must inherit property "currentScale" with the proper type
+Pass	SVGSVGElement interface: objects.svg must inherit property "currentTranslate" with the proper type
+Pass	SVGSVGElement interface: objects.svg must inherit property "getIntersectionList(DOMRectReadOnly, SVGElement?)" with the proper type
+Pass	SVGSVGElement interface: calling getIntersectionList(DOMRectReadOnly, SVGElement?) on objects.svg with too few arguments must throw TypeError
+Pass	SVGSVGElement interface: objects.svg must inherit property "getEnclosureList(DOMRectReadOnly, SVGElement?)" with the proper type
+Pass	SVGSVGElement interface: calling getEnclosureList(DOMRectReadOnly, SVGElement?) on objects.svg with too few arguments must throw TypeError
+Pass	SVGSVGElement interface: objects.svg must inherit property "checkIntersection(SVGElement, DOMRectReadOnly)" with the proper type
+Pass	SVGSVGElement interface: calling checkIntersection(SVGElement, DOMRectReadOnly) on objects.svg with too few arguments must throw TypeError
+Pass	SVGSVGElement interface: objects.svg must inherit property "checkEnclosure(SVGElement, DOMRectReadOnly)" with the proper type
+Pass	SVGSVGElement interface: calling checkEnclosure(SVGElement, DOMRectReadOnly) on objects.svg with too few arguments must throw TypeError
+Pass	SVGSVGElement interface: objects.svg must inherit property "deselectAll()" with the proper type
+Fail	SVGSVGElement interface: objects.svg must inherit property "createSVGNumber()" with the proper type
+Pass	SVGSVGElement interface: objects.svg must inherit property "createSVGLength()" with the proper type
+Fail	SVGSVGElement interface: objects.svg must inherit property "createSVGAngle()" with the proper type
+Pass	SVGSVGElement interface: objects.svg must inherit property "createSVGPoint()" with the proper type
+Pass	SVGSVGElement interface: objects.svg must inherit property "createSVGMatrix()" with the proper type
+Pass	SVGSVGElement interface: objects.svg must inherit property "createSVGRect()" with the proper type
+Pass	SVGSVGElement interface: objects.svg must inherit property "createSVGTransform()" with the proper type
+Fail	SVGSVGElement interface: objects.svg must inherit property "createSVGTransformFromMatrix(optional DOMMatrix2DInit)" with the proper type
+Pass	SVGSVGElement interface: calling createSVGTransformFromMatrix(optional DOMMatrix2DInit) on objects.svg with too few arguments must throw TypeError
+Pass	SVGSVGElement interface: objects.svg must inherit property "getElementById(DOMString)" with the proper type
+Pass	SVGSVGElement interface: calling getElementById(DOMString) on objects.svg with too few arguments must throw TypeError
+Pass	SVGSVGElement interface: objects.svg must inherit property "suspendRedraw(unsigned long)" with the proper type
+Pass	SVGSVGElement interface: calling suspendRedraw(unsigned long) on objects.svg with too few arguments must throw TypeError
+Pass	SVGSVGElement interface: objects.svg must inherit property "unsuspendRedraw(unsigned long)" with the proper type
+Pass	SVGSVGElement interface: calling unsuspendRedraw(unsigned long) on objects.svg with too few arguments must throw TypeError
+Pass	SVGSVGElement interface: objects.svg must inherit property "unsuspendRedrawAll()" with the proper type
+Pass	SVGSVGElement interface: objects.svg must inherit property "forceRedraw()" with the proper type
+Fail	SVGSVGElement interface: objects.svg must inherit property "pauseAnimations()" with the proper type
+Fail	SVGSVGElement interface: objects.svg must inherit property "unpauseAnimations()" with the proper type
+Fail	SVGSVGElement interface: objects.svg must inherit property "animationsPaused()" with the proper type
+Fail	SVGSVGElement interface: objects.svg must inherit property "getCurrentTime()" with the proper type
+Fail	SVGSVGElement interface: objects.svg must inherit property "setCurrentTime(float)" with the proper type
+Fail	SVGSVGElement interface: calling setCurrentTime(float) on objects.svg with too few arguments must throw TypeError
+Pass	SVGSVGElement interface: objects.svg must inherit property "viewBox" with the proper type
+Fail	SVGSVGElement interface: objects.svg must inherit property "preserveAspectRatio" with the proper type
+Pass	SVGGraphicsElement interface: objects.svg must inherit property "transform" with the proper type
+Pass	SVGGraphicsElement interface: objects.svg must inherit property "getBBox(optional SVGBoundingBoxOptions)" with the proper type
+Pass	SVGGraphicsElement interface: calling getBBox(optional SVGBoundingBoxOptions) on objects.svg with too few arguments must throw TypeError
+Fail	SVGGraphicsElement interface: objects.svg must inherit property "getCTM()" with the proper type
+Pass	SVGGraphicsElement interface: objects.svg must inherit property "getScreenCTM()" with the proper type
+Fail	SVGGraphicsElement interface: objects.svg must inherit property "requiredExtensions" with the proper type
+Fail	SVGGraphicsElement interface: objects.svg must inherit property "systemLanguage" with the proper type
+Pass	SVGElement interface: objects.svg must inherit property "className" with the proper type
+Pass	SVGElement interface: objects.svg must inherit property "ownerSVGElement" with the proper type
+Fail	SVGElement interface: objects.svg must inherit property "viewportElement" with the proper type
+Fail	SVGElement interface: objects.svg must inherit property "correspondingElement" with the proper type
+Fail	SVGElement interface: objects.svg must inherit property "correspondingUseElement" with the proper type
+Pass	SVGGElement interface: existence and properties of interface object
+Pass	SVGGElement interface object length
+Pass	SVGGElement interface object name
+Pass	SVGGElement interface: existence and properties of interface prototype object
+Pass	SVGGElement interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGGElement interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGGElement must be primary interface of objects.g
+Pass	Stringification of objects.g
+Pass	SVGGraphicsElement interface: objects.g must inherit property "transform" with the proper type
+Pass	SVGGraphicsElement interface: objects.g must inherit property "getBBox(optional SVGBoundingBoxOptions)" with the proper type
+Pass	SVGGraphicsElement interface: calling getBBox(optional SVGBoundingBoxOptions) on objects.g with too few arguments must throw TypeError
+Fail	SVGGraphicsElement interface: objects.g must inherit property "getCTM()" with the proper type
+Pass	SVGGraphicsElement interface: objects.g must inherit property "getScreenCTM()" with the proper type
+Fail	SVGGraphicsElement interface: objects.g must inherit property "requiredExtensions" with the proper type
+Fail	SVGGraphicsElement interface: objects.g must inherit property "systemLanguage" with the proper type
+Pass	SVGElement interface: objects.g must inherit property "className" with the proper type
+Pass	SVGElement interface: objects.g must inherit property "ownerSVGElement" with the proper type
+Fail	SVGElement interface: objects.g must inherit property "viewportElement" with the proper type
+Fail	SVGElement interface: objects.g must inherit property "correspondingElement" with the proper type
+Fail	SVGElement interface: objects.g must inherit property "correspondingUseElement" with the proper type
+Pass	SVGDefsElement interface: existence and properties of interface object
+Pass	SVGDefsElement interface object length
+Pass	SVGDefsElement interface object name
+Pass	SVGDefsElement interface: existence and properties of interface prototype object
+Pass	SVGDefsElement interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGDefsElement interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGDefsElement must be primary interface of objects.defs
+Pass	Stringification of objects.defs
+Pass	SVGGraphicsElement interface: objects.defs must inherit property "transform" with the proper type
+Pass	SVGGraphicsElement interface: objects.defs must inherit property "getBBox(optional SVGBoundingBoxOptions)" with the proper type
+Pass	SVGGraphicsElement interface: calling getBBox(optional SVGBoundingBoxOptions) on objects.defs with too few arguments must throw TypeError
+Fail	SVGGraphicsElement interface: objects.defs must inherit property "getCTM()" with the proper type
+Pass	SVGGraphicsElement interface: objects.defs must inherit property "getScreenCTM()" with the proper type
+Fail	SVGGraphicsElement interface: objects.defs must inherit property "requiredExtensions" with the proper type
+Fail	SVGGraphicsElement interface: objects.defs must inherit property "systemLanguage" with the proper type
+Pass	SVGElement interface: objects.defs must inherit property "className" with the proper type
+Pass	SVGElement interface: objects.defs must inherit property "ownerSVGElement" with the proper type
+Fail	SVGElement interface: objects.defs must inherit property "viewportElement" with the proper type
+Fail	SVGElement interface: objects.defs must inherit property "correspondingElement" with the proper type
+Fail	SVGElement interface: objects.defs must inherit property "correspondingUseElement" with the proper type
+Pass	SVGDescElement interface: existence and properties of interface object
+Pass	SVGDescElement interface object length
+Pass	SVGDescElement interface object name
+Pass	SVGDescElement interface: existence and properties of interface prototype object
+Pass	SVGDescElement interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGDescElement interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGDescElement must be primary interface of objects.desc
+Pass	Stringification of objects.desc
+Pass	SVGElement interface: objects.desc must inherit property "className" with the proper type
+Pass	SVGElement interface: objects.desc must inherit property "ownerSVGElement" with the proper type
+Fail	SVGElement interface: objects.desc must inherit property "viewportElement" with the proper type
+Fail	SVGElement interface: objects.desc must inherit property "correspondingElement" with the proper type
+Fail	SVGElement interface: objects.desc must inherit property "correspondingUseElement" with the proper type
+Pass	SVGMetadataElement interface: existence and properties of interface object
+Pass	SVGMetadataElement interface object length
+Pass	SVGMetadataElement interface object name
+Pass	SVGMetadataElement interface: existence and properties of interface prototype object
+Pass	SVGMetadataElement interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGMetadataElement interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGMetadataElement must be primary interface of objects.metadata
+Pass	Stringification of objects.metadata
+Pass	SVGElement interface: objects.metadata must inherit property "className" with the proper type
+Pass	SVGElement interface: objects.metadata must inherit property "ownerSVGElement" with the proper type
+Fail	SVGElement interface: objects.metadata must inherit property "viewportElement" with the proper type
+Fail	SVGElement interface: objects.metadata must inherit property "correspondingElement" with the proper type
+Fail	SVGElement interface: objects.metadata must inherit property "correspondingUseElement" with the proper type
+Pass	SVGTitleElement interface: existence and properties of interface object
+Pass	SVGTitleElement interface object length
+Pass	SVGTitleElement interface object name
+Pass	SVGTitleElement interface: existence and properties of interface prototype object
+Pass	SVGTitleElement interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGTitleElement interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGTitleElement must be primary interface of objects.title
+Pass	Stringification of objects.title
+Pass	SVGElement interface: objects.title must inherit property "className" with the proper type
+Pass	SVGElement interface: objects.title must inherit property "ownerSVGElement" with the proper type
+Fail	SVGElement interface: objects.title must inherit property "viewportElement" with the proper type
+Fail	SVGElement interface: objects.title must inherit property "correspondingElement" with the proper type
+Fail	SVGElement interface: objects.title must inherit property "correspondingUseElement" with the proper type
+Pass	SVGSymbolElement interface: existence and properties of interface object
+Pass	SVGSymbolElement interface object length
+Pass	SVGSymbolElement interface object name
+Pass	SVGSymbolElement interface: existence and properties of interface prototype object
+Pass	SVGSymbolElement interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGSymbolElement interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGSymbolElement interface: attribute viewBox
+Fail	SVGSymbolElement interface: attribute preserveAspectRatio
+Pass	SVGSymbolElement must be primary interface of objects.symbol
+Pass	Stringification of objects.symbol
+Pass	SVGSymbolElement interface: objects.symbol must inherit property "viewBox" with the proper type
+Fail	SVGSymbolElement interface: objects.symbol must inherit property "preserveAspectRatio" with the proper type
+Pass	SVGGraphicsElement interface: objects.symbol must inherit property "transform" with the proper type
+Pass	SVGGraphicsElement interface: objects.symbol must inherit property "getBBox(optional SVGBoundingBoxOptions)" with the proper type
+Pass	SVGGraphicsElement interface: calling getBBox(optional SVGBoundingBoxOptions) on objects.symbol with too few arguments must throw TypeError
+Fail	SVGGraphicsElement interface: objects.symbol must inherit property "getCTM()" with the proper type
+Pass	SVGGraphicsElement interface: objects.symbol must inherit property "getScreenCTM()" with the proper type
+Fail	SVGGraphicsElement interface: objects.symbol must inherit property "requiredExtensions" with the proper type
+Fail	SVGGraphicsElement interface: objects.symbol must inherit property "systemLanguage" with the proper type
+Pass	SVGElement interface: objects.symbol must inherit property "className" with the proper type
+Pass	SVGElement interface: objects.symbol must inherit property "ownerSVGElement" with the proper type
+Fail	SVGElement interface: objects.symbol must inherit property "viewportElement" with the proper type
+Fail	SVGElement interface: objects.symbol must inherit property "correspondingElement" with the proper type
+Fail	SVGElement interface: objects.symbol must inherit property "correspondingUseElement" with the proper type
+Pass	SVGUseElement interface: existence and properties of interface object
+Pass	SVGUseElement interface object length
+Pass	SVGUseElement interface object name
+Pass	SVGUseElement interface: existence and properties of interface prototype object
+Pass	SVGUseElement interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGUseElement interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGUseElement interface: attribute x
+Pass	SVGUseElement interface: attribute y
+Pass	SVGUseElement interface: attribute width
+Pass	SVGUseElement interface: attribute height
+Pass	SVGUseElement interface: attribute instanceRoot
+Pass	SVGUseElement interface: attribute animatedInstanceRoot
+Pass	SVGUseElement interface: attribute href
+Pass	SVGUseElement must be primary interface of objects.use
+Pass	Stringification of objects.use
+Pass	SVGUseElement interface: objects.use must inherit property "x" with the proper type
+Pass	SVGUseElement interface: objects.use must inherit property "y" with the proper type
+Pass	SVGUseElement interface: objects.use must inherit property "width" with the proper type
+Pass	SVGUseElement interface: objects.use must inherit property "height" with the proper type
+Pass	SVGUseElement interface: objects.use must inherit property "instanceRoot" with the proper type
+Pass	SVGUseElement interface: objects.use must inherit property "animatedInstanceRoot" with the proper type
+Pass	SVGUseElement interface: objects.use must inherit property "href" with the proper type
+Pass	SVGGraphicsElement interface: objects.use must inherit property "transform" with the proper type
+Pass	SVGGraphicsElement interface: objects.use must inherit property "getBBox(optional SVGBoundingBoxOptions)" with the proper type
+Pass	SVGGraphicsElement interface: calling getBBox(optional SVGBoundingBoxOptions) on objects.use with too few arguments must throw TypeError
+Fail	SVGGraphicsElement interface: objects.use must inherit property "getCTM()" with the proper type
+Pass	SVGGraphicsElement interface: objects.use must inherit property "getScreenCTM()" with the proper type
+Fail	SVGGraphicsElement interface: objects.use must inherit property "requiredExtensions" with the proper type
+Fail	SVGGraphicsElement interface: objects.use must inherit property "systemLanguage" with the proper type
+Pass	SVGElement interface: objects.use must inherit property "className" with the proper type
+Pass	SVGElement interface: objects.use must inherit property "ownerSVGElement" with the proper type
+Fail	SVGElement interface: objects.use must inherit property "viewportElement" with the proper type
+Fail	SVGElement interface: objects.use must inherit property "correspondingElement" with the proper type
+Fail	SVGElement interface: objects.use must inherit property "correspondingUseElement" with the proper type
+Fail	SVGUseElementShadowRoot interface: existence and properties of interface object
+Fail	SVGUseElementShadowRoot interface object length
+Fail	SVGUseElementShadowRoot interface object name
+Fail	SVGUseElementShadowRoot interface: existence and properties of interface prototype object
+Fail	SVGUseElementShadowRoot interface: existence and properties of interface prototype object's "constructor" property
+Fail	SVGUseElementShadowRoot interface: existence and properties of interface prototype object's @@unscopables property
+Fail	ShadowAnimation interface: existence and properties of interface object
+Fail	ShadowAnimation interface object length
+Fail	ShadowAnimation interface object name
+Fail	ShadowAnimation interface: existence and properties of interface prototype object
+Fail	ShadowAnimation interface: existence and properties of interface prototype object's "constructor" property
+Fail	ShadowAnimation interface: existence and properties of interface prototype object's @@unscopables property
+Fail	ShadowAnimation interface: attribute sourceAnimation
+Fail	SVGSwitchElement interface: existence and properties of interface object
+Fail	SVGSwitchElement interface object length
+Fail	SVGSwitchElement interface object name
+Fail	SVGSwitchElement interface: existence and properties of interface prototype object
+Fail	SVGSwitchElement interface: existence and properties of interface prototype object's "constructor" property
+Fail	SVGSwitchElement interface: existence and properties of interface prototype object's @@unscopables property
+Fail	SVGSwitchElement must be primary interface of objects.switch
+Fail	Stringification of objects.switch
+Fail	SVGGraphicsElement interface: objects.switch must inherit property "transform" with the proper type
+Fail	SVGGraphicsElement interface: objects.switch must inherit property "getBBox(optional SVGBoundingBoxOptions)" with the proper type
+Fail	SVGGraphicsElement interface: calling getBBox(optional SVGBoundingBoxOptions) on objects.switch with too few arguments must throw TypeError
+Fail	SVGGraphicsElement interface: objects.switch must inherit property "getCTM()" with the proper type
+Fail	SVGGraphicsElement interface: objects.switch must inherit property "getScreenCTM()" with the proper type
+Fail	SVGGraphicsElement interface: objects.switch must inherit property "requiredExtensions" with the proper type
+Fail	SVGGraphicsElement interface: objects.switch must inherit property "systemLanguage" with the proper type
+Pass	SVGElement interface: objects.switch must inherit property "className" with the proper type
+Pass	SVGElement interface: objects.switch must inherit property "ownerSVGElement" with the proper type
+Fail	SVGElement interface: objects.switch must inherit property "viewportElement" with the proper type
+Fail	SVGElement interface: objects.switch must inherit property "correspondingElement" with the proper type
+Fail	SVGElement interface: objects.switch must inherit property "correspondingUseElement" with the proper type
+Pass	SVGStyleElement interface: existence and properties of interface object
+Pass	SVGStyleElement interface object length
+Pass	SVGStyleElement interface object name
+Pass	SVGStyleElement interface: existence and properties of interface prototype object
+Pass	SVGStyleElement interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGStyleElement interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGStyleElement interface: attribute type
+Pass	SVGStyleElement interface: attribute media
+Pass	SVGStyleElement interface: attribute title
+Pass	SVGStyleElement must be primary interface of objects.style
+Pass	Stringification of objects.style
+Pass	SVGStyleElement interface: objects.style must inherit property "type" with the proper type
+Pass	SVGStyleElement interface: objects.style must inherit property "media" with the proper type
+Pass	SVGStyleElement interface: objects.style must inherit property "title" with the proper type
+Pass	SVGElement interface: objects.style must inherit property "className" with the proper type
+Pass	SVGElement interface: objects.style must inherit property "ownerSVGElement" with the proper type
+Fail	SVGElement interface: objects.style must inherit property "viewportElement" with the proper type
+Fail	SVGElement interface: objects.style must inherit property "correspondingElement" with the proper type
+Fail	SVGElement interface: objects.style must inherit property "correspondingUseElement" with the proper type
+Pass	SVGTransform interface: existence and properties of interface object
+Pass	SVGTransform interface object length
+Pass	SVGTransform interface object name
+Pass	SVGTransform interface: existence and properties of interface prototype object
+Pass	SVGTransform interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGTransform interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGTransform interface: constant SVG_TRANSFORM_UNKNOWN on interface object
+Pass	SVGTransform interface: constant SVG_TRANSFORM_UNKNOWN on interface prototype object
+Pass	SVGTransform interface: constant SVG_TRANSFORM_MATRIX on interface object
+Pass	SVGTransform interface: constant SVG_TRANSFORM_MATRIX on interface prototype object
+Pass	SVGTransform interface: constant SVG_TRANSFORM_TRANSLATE on interface object
+Pass	SVGTransform interface: constant SVG_TRANSFORM_TRANSLATE on interface prototype object
+Pass	SVGTransform interface: constant SVG_TRANSFORM_SCALE on interface object
+Pass	SVGTransform interface: constant SVG_TRANSFORM_SCALE on interface prototype object
+Pass	SVGTransform interface: constant SVG_TRANSFORM_ROTATE on interface object
+Pass	SVGTransform interface: constant SVG_TRANSFORM_ROTATE on interface prototype object
+Pass	SVGTransform interface: constant SVG_TRANSFORM_SKEWX on interface object
+Pass	SVGTransform interface: constant SVG_TRANSFORM_SKEWX on interface prototype object
+Pass	SVGTransform interface: constant SVG_TRANSFORM_SKEWY on interface object
+Pass	SVGTransform interface: constant SVG_TRANSFORM_SKEWY on interface prototype object
+Pass	SVGTransform interface: attribute type
+Fail	SVGTransform interface: attribute matrix
+Pass	SVGTransform interface: attribute angle
+Fail	SVGTransform interface: operation setMatrix(optional DOMMatrix2DInit)
+Pass	SVGTransform interface: operation setTranslate(float, float)
+Pass	SVGTransform interface: operation setScale(float, float)
+Pass	SVGTransform interface: operation setRotate(float, float, float)
+Pass	SVGTransform interface: operation setSkewX(float)
+Pass	SVGTransform interface: operation setSkewY(float)
+Pass	SVGTransform must be primary interface of objects.svg.createSVGTransform()
+Pass	Stringification of objects.svg.createSVGTransform()
+Pass	SVGTransform interface: objects.svg.createSVGTransform() must inherit property "SVG_TRANSFORM_UNKNOWN" with the proper type
+Pass	SVGTransform interface: objects.svg.createSVGTransform() must inherit property "SVG_TRANSFORM_MATRIX" with the proper type
+Pass	SVGTransform interface: objects.svg.createSVGTransform() must inherit property "SVG_TRANSFORM_TRANSLATE" with the proper type
+Pass	SVGTransform interface: objects.svg.createSVGTransform() must inherit property "SVG_TRANSFORM_SCALE" with the proper type
+Pass	SVGTransform interface: objects.svg.createSVGTransform() must inherit property "SVG_TRANSFORM_ROTATE" with the proper type
+Pass	SVGTransform interface: objects.svg.createSVGTransform() must inherit property "SVG_TRANSFORM_SKEWX" with the proper type
+Pass	SVGTransform interface: objects.svg.createSVGTransform() must inherit property "SVG_TRANSFORM_SKEWY" with the proper type
+Pass	SVGTransform interface: objects.svg.createSVGTransform() must inherit property "type" with the proper type
+Fail	SVGTransform interface: objects.svg.createSVGTransform() must inherit property "matrix" with the proper type
+Pass	SVGTransform interface: objects.svg.createSVGTransform() must inherit property "angle" with the proper type
+Fail	SVGTransform interface: objects.svg.createSVGTransform() must inherit property "setMatrix(optional DOMMatrix2DInit)" with the proper type
+Pass	SVGTransform interface: calling setMatrix(optional DOMMatrix2DInit) on objects.svg.createSVGTransform() with too few arguments must throw TypeError
+Pass	SVGTransform interface: objects.svg.createSVGTransform() must inherit property "setTranslate(float, float)" with the proper type
+Pass	SVGTransform interface: calling setTranslate(float, float) on objects.svg.createSVGTransform() with too few arguments must throw TypeError
+Pass	SVGTransform interface: objects.svg.createSVGTransform() must inherit property "setScale(float, float)" with the proper type
+Pass	SVGTransform interface: calling setScale(float, float) on objects.svg.createSVGTransform() with too few arguments must throw TypeError
+Pass	SVGTransform interface: objects.svg.createSVGTransform() must inherit property "setRotate(float, float, float)" with the proper type
+Pass	SVGTransform interface: calling setRotate(float, float, float) on objects.svg.createSVGTransform() with too few arguments must throw TypeError
+Pass	SVGTransform interface: objects.svg.createSVGTransform() must inherit property "setSkewX(float)" with the proper type
+Pass	SVGTransform interface: calling setSkewX(float) on objects.svg.createSVGTransform() with too few arguments must throw TypeError
+Pass	SVGTransform interface: objects.svg.createSVGTransform() must inherit property "setSkewY(float)" with the proper type
+Pass	SVGTransform interface: calling setSkewY(float) on objects.svg.createSVGTransform() with too few arguments must throw TypeError
+Pass	SVGTransformList interface: existence and properties of interface object
+Pass	SVGTransformList interface object length
+Pass	SVGTransformList interface object name
+Pass	SVGTransformList interface: existence and properties of interface prototype object
+Pass	SVGTransformList interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGTransformList interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGTransformList interface: attribute length
+Pass	SVGTransformList interface: attribute numberOfItems
+Fail	SVGTransformList interface: operation clear()
+Fail	SVGTransformList interface: operation initialize(SVGTransform)
+Pass	SVGTransformList interface: operation getItem(unsigned long)
+Fail	SVGTransformList interface: operation insertItemBefore(SVGTransform, unsigned long)
+Fail	SVGTransformList interface: operation replaceItem(SVGTransform, unsigned long)
+Fail	SVGTransformList interface: operation removeItem(unsigned long)
+Pass	SVGTransformList interface: operation appendItem(SVGTransform)
+Fail	SVGTransformList interface: operation createSVGTransformFromMatrix(optional DOMMatrix2DInit)
+Fail	SVGTransformList interface: operation consolidate()
+Fail	SVGTransformList must be primary interface of objects.pattern.patternTransform.baseVal
+Fail	Stringification of objects.pattern.patternTransform.baseVal
+Fail	SVGTransformList interface: objects.pattern.patternTransform.baseVal must inherit property "length" with the proper type
+Fail	SVGTransformList interface: objects.pattern.patternTransform.baseVal must inherit property "numberOfItems" with the proper type
+Fail	SVGTransformList interface: objects.pattern.patternTransform.baseVal must inherit property "clear()" with the proper type
+Fail	SVGTransformList interface: objects.pattern.patternTransform.baseVal must inherit property "initialize(SVGTransform)" with the proper type
+Fail	SVGTransformList interface: calling initialize(SVGTransform) on objects.pattern.patternTransform.baseVal with too few arguments must throw TypeError
+Fail	SVGTransformList interface: objects.pattern.patternTransform.baseVal must inherit property "getItem(unsigned long)" with the proper type
+Fail	SVGTransformList interface: calling getItem(unsigned long) on objects.pattern.patternTransform.baseVal with too few arguments must throw TypeError
+Fail	SVGTransformList interface: objects.pattern.patternTransform.baseVal must inherit property "insertItemBefore(SVGTransform, unsigned long)" with the proper type
+Fail	SVGTransformList interface: calling insertItemBefore(SVGTransform, unsigned long) on objects.pattern.patternTransform.baseVal with too few arguments must throw TypeError
+Fail	SVGTransformList interface: objects.pattern.patternTransform.baseVal must inherit property "replaceItem(SVGTransform, unsigned long)" with the proper type
+Fail	SVGTransformList interface: calling replaceItem(SVGTransform, unsigned long) on objects.pattern.patternTransform.baseVal with too few arguments must throw TypeError
+Fail	SVGTransformList interface: objects.pattern.patternTransform.baseVal must inherit property "removeItem(unsigned long)" with the proper type
+Fail	SVGTransformList interface: calling removeItem(unsigned long) on objects.pattern.patternTransform.baseVal with too few arguments must throw TypeError
+Fail	SVGTransformList interface: objects.pattern.patternTransform.baseVal must inherit property "appendItem(SVGTransform)" with the proper type
+Fail	SVGTransformList interface: calling appendItem(SVGTransform) on objects.pattern.patternTransform.baseVal with too few arguments must throw TypeError
+Fail	SVGTransformList interface: objects.pattern.patternTransform.baseVal must inherit property "createSVGTransformFromMatrix(optional DOMMatrix2DInit)" with the proper type
+Fail	SVGTransformList interface: calling createSVGTransformFromMatrix(optional DOMMatrix2DInit) on objects.pattern.patternTransform.baseVal with too few arguments must throw TypeError
+Fail	SVGTransformList interface: objects.pattern.patternTransform.baseVal must inherit property "consolidate()" with the proper type
+Pass	SVGAnimatedTransformList interface: existence and properties of interface object
+Pass	SVGAnimatedTransformList interface object length
+Pass	SVGAnimatedTransformList interface object name
+Pass	SVGAnimatedTransformList interface: existence and properties of interface prototype object
+Pass	SVGAnimatedTransformList interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGAnimatedTransformList interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGAnimatedTransformList interface: attribute baseVal
+Pass	SVGAnimatedTransformList interface: attribute animVal
+Fail	SVGAnimatedTransformList must be primary interface of objects.pattern.patternTransform
+Fail	Stringification of objects.pattern.patternTransform
+Fail	SVGAnimatedTransformList interface: objects.pattern.patternTransform must inherit property "baseVal" with the proper type
+Fail	SVGAnimatedTransformList interface: objects.pattern.patternTransform must inherit property "animVal" with the proper type
+Fail	SVGPreserveAspectRatio interface: existence and properties of interface object
+Fail	SVGPreserveAspectRatio interface object length
+Fail	SVGPreserveAspectRatio interface object name
+Fail	SVGPreserveAspectRatio interface: existence and properties of interface prototype object
+Fail	SVGPreserveAspectRatio interface: existence and properties of interface prototype object's "constructor" property
+Fail	SVGPreserveAspectRatio interface: existence and properties of interface prototype object's @@unscopables property
+Fail	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_UNKNOWN on interface object
+Fail	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_UNKNOWN on interface prototype object
+Fail	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_NONE on interface object
+Fail	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_NONE on interface prototype object
+Fail	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_XMINYMIN on interface object
+Fail	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_XMINYMIN on interface prototype object
+Fail	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_XMIDYMIN on interface object
+Fail	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_XMIDYMIN on interface prototype object
+Fail	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_XMAXYMIN on interface object
+Fail	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_XMAXYMIN on interface prototype object
+Fail	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_XMINYMID on interface object
+Fail	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_XMINYMID on interface prototype object
+Fail	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_XMIDYMID on interface object
+Fail	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_XMIDYMID on interface prototype object
+Fail	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_XMAXYMID on interface object
+Fail	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_XMAXYMID on interface prototype object
+Fail	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_XMINYMAX on interface object
+Fail	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_XMINYMAX on interface prototype object
+Fail	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_XMIDYMAX on interface object
+Fail	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_XMIDYMAX on interface prototype object
+Fail	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_XMAXYMAX on interface object
+Fail	SVGPreserveAspectRatio interface: constant SVG_PRESERVEASPECTRATIO_XMAXYMAX on interface prototype object
+Fail	SVGPreserveAspectRatio interface: constant SVG_MEETORSLICE_UNKNOWN on interface object
+Fail	SVGPreserveAspectRatio interface: constant SVG_MEETORSLICE_UNKNOWN on interface prototype object
+Fail	SVGPreserveAspectRatio interface: constant SVG_MEETORSLICE_MEET on interface object
+Fail	SVGPreserveAspectRatio interface: constant SVG_MEETORSLICE_MEET on interface prototype object
+Fail	SVGPreserveAspectRatio interface: constant SVG_MEETORSLICE_SLICE on interface object
+Fail	SVGPreserveAspectRatio interface: constant SVG_MEETORSLICE_SLICE on interface prototype object
+Fail	SVGPreserveAspectRatio interface: attribute align
+Fail	SVGPreserveAspectRatio interface: attribute meetOrSlice
+Fail	SVGPreserveAspectRatio must be primary interface of objects.image.preserveAspectRatio.baseVal
+Fail	Stringification of objects.image.preserveAspectRatio.baseVal
+Fail	SVGPreserveAspectRatio interface: objects.image.preserveAspectRatio.baseVal must inherit property "SVG_PRESERVEASPECTRATIO_UNKNOWN" with the proper type
+Fail	SVGPreserveAspectRatio interface: objects.image.preserveAspectRatio.baseVal must inherit property "SVG_PRESERVEASPECTRATIO_NONE" with the proper type
+Fail	SVGPreserveAspectRatio interface: objects.image.preserveAspectRatio.baseVal must inherit property "SVG_PRESERVEASPECTRATIO_XMINYMIN" with the proper type
+Fail	SVGPreserveAspectRatio interface: objects.image.preserveAspectRatio.baseVal must inherit property "SVG_PRESERVEASPECTRATIO_XMIDYMIN" with the proper type
+Fail	SVGPreserveAspectRatio interface: objects.image.preserveAspectRatio.baseVal must inherit property "SVG_PRESERVEASPECTRATIO_XMAXYMIN" with the proper type
+Fail	SVGPreserveAspectRatio interface: objects.image.preserveAspectRatio.baseVal must inherit property "SVG_PRESERVEASPECTRATIO_XMINYMID" with the proper type
+Fail	SVGPreserveAspectRatio interface: objects.image.preserveAspectRatio.baseVal must inherit property "SVG_PRESERVEASPECTRATIO_XMIDYMID" with the proper type
+Fail	SVGPreserveAspectRatio interface: objects.image.preserveAspectRatio.baseVal must inherit property "SVG_PRESERVEASPECTRATIO_XMAXYMID" with the proper type
+Fail	SVGPreserveAspectRatio interface: objects.image.preserveAspectRatio.baseVal must inherit property "SVG_PRESERVEASPECTRATIO_XMINYMAX" with the proper type
+Fail	SVGPreserveAspectRatio interface: objects.image.preserveAspectRatio.baseVal must inherit property "SVG_PRESERVEASPECTRATIO_XMIDYMAX" with the proper type
+Fail	SVGPreserveAspectRatio interface: objects.image.preserveAspectRatio.baseVal must inherit property "SVG_PRESERVEASPECTRATIO_XMAXYMAX" with the proper type
+Fail	SVGPreserveAspectRatio interface: objects.image.preserveAspectRatio.baseVal must inherit property "SVG_MEETORSLICE_UNKNOWN" with the proper type
+Fail	SVGPreserveAspectRatio interface: objects.image.preserveAspectRatio.baseVal must inherit property "SVG_MEETORSLICE_MEET" with the proper type
+Fail	SVGPreserveAspectRatio interface: objects.image.preserveAspectRatio.baseVal must inherit property "SVG_MEETORSLICE_SLICE" with the proper type
+Fail	SVGPreserveAspectRatio interface: objects.image.preserveAspectRatio.baseVal must inherit property "align" with the proper type
+Fail	SVGPreserveAspectRatio interface: objects.image.preserveAspectRatio.baseVal must inherit property "meetOrSlice" with the proper type
+Fail	SVGAnimatedPreserveAspectRatio interface: existence and properties of interface object
+Fail	SVGAnimatedPreserveAspectRatio interface object length
+Fail	SVGAnimatedPreserveAspectRatio interface object name
+Fail	SVGAnimatedPreserveAspectRatio interface: existence and properties of interface prototype object
+Fail	SVGAnimatedPreserveAspectRatio interface: existence and properties of interface prototype object's "constructor" property
+Fail	SVGAnimatedPreserveAspectRatio interface: existence and properties of interface prototype object's @@unscopables property
+Fail	SVGAnimatedPreserveAspectRatio interface: attribute baseVal
+Fail	SVGAnimatedPreserveAspectRatio interface: attribute animVal
+Fail	SVGAnimatedPreserveAspectRatio must be primary interface of objects.image.preserveAspectRatio
+Fail	Stringification of objects.image.preserveAspectRatio
+Fail	SVGAnimatedPreserveAspectRatio interface: objects.image.preserveAspectRatio must inherit property "baseVal" with the proper type
+Fail	SVGAnimatedPreserveAspectRatio interface: objects.image.preserveAspectRatio must inherit property "animVal" with the proper type
+Pass	SVGRectElement interface: existence and properties of interface object
+Pass	SVGRectElement interface object length
+Pass	SVGRectElement interface object name
+Pass	SVGRectElement interface: existence and properties of interface prototype object
+Pass	SVGRectElement interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGRectElement interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGRectElement interface: attribute x
+Pass	SVGRectElement interface: attribute y
+Pass	SVGRectElement interface: attribute width
+Pass	SVGRectElement interface: attribute height
+Pass	SVGRectElement interface: attribute rx
+Pass	SVGRectElement interface: attribute ry
+Pass	SVGRectElement must be primary interface of objects.rect
+Pass	Stringification of objects.rect
+Pass	SVGRectElement interface: objects.rect must inherit property "x" with the proper type
+Pass	SVGRectElement interface: objects.rect must inherit property "y" with the proper type
+Pass	SVGRectElement interface: objects.rect must inherit property "width" with the proper type
+Pass	SVGRectElement interface: objects.rect must inherit property "height" with the proper type
+Pass	SVGRectElement interface: objects.rect must inherit property "rx" with the proper type
+Pass	SVGRectElement interface: objects.rect must inherit property "ry" with the proper type
+Fail	SVGGeometryElement interface: objects.rect must inherit property "pathLength" with the proper type
+Fail	SVGGeometryElement interface: objects.rect must inherit property "isPointInFill(optional DOMPointInit)" with the proper type
+Pass	SVGGeometryElement interface: calling isPointInFill(optional DOMPointInit) on objects.rect with too few arguments must throw TypeError
+Fail	SVGGeometryElement interface: objects.rect must inherit property "isPointInStroke(optional DOMPointInit)" with the proper type
+Pass	SVGGeometryElement interface: calling isPointInStroke(optional DOMPointInit) on objects.rect with too few arguments must throw TypeError
+Pass	SVGGeometryElement interface: objects.rect must inherit property "getTotalLength()" with the proper type
+Pass	SVGGeometryElement interface: objects.rect must inherit property "getPointAtLength(float)" with the proper type
+Pass	SVGGeometryElement interface: calling getPointAtLength(float) on objects.rect with too few arguments must throw TypeError
+Pass	SVGGraphicsElement interface: objects.rect must inherit property "transform" with the proper type
+Pass	SVGGraphicsElement interface: objects.rect must inherit property "getBBox(optional SVGBoundingBoxOptions)" with the proper type
+Pass	SVGGraphicsElement interface: calling getBBox(optional SVGBoundingBoxOptions) on objects.rect with too few arguments must throw TypeError
+Fail	SVGGraphicsElement interface: objects.rect must inherit property "getCTM()" with the proper type
+Pass	SVGGraphicsElement interface: objects.rect must inherit property "getScreenCTM()" with the proper type
+Fail	SVGGraphicsElement interface: objects.rect must inherit property "requiredExtensions" with the proper type
+Fail	SVGGraphicsElement interface: objects.rect must inherit property "systemLanguage" with the proper type
+Pass	SVGElement interface: objects.rect must inherit property "className" with the proper type
+Pass	SVGElement interface: objects.rect must inherit property "ownerSVGElement" with the proper type
+Fail	SVGElement interface: objects.rect must inherit property "viewportElement" with the proper type
+Fail	SVGElement interface: objects.rect must inherit property "correspondingElement" with the proper type
+Fail	SVGElement interface: objects.rect must inherit property "correspondingUseElement" with the proper type
+Pass	SVGCircleElement interface: existence and properties of interface object
+Pass	SVGCircleElement interface object length
+Pass	SVGCircleElement interface object name
+Pass	SVGCircleElement interface: existence and properties of interface prototype object
+Pass	SVGCircleElement interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGCircleElement interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGCircleElement interface: attribute cx
+Pass	SVGCircleElement interface: attribute cy
+Pass	SVGCircleElement interface: attribute r
+Pass	SVGCircleElement must be primary interface of objects.circle
+Pass	Stringification of objects.circle
+Pass	SVGCircleElement interface: objects.circle must inherit property "cx" with the proper type
+Pass	SVGCircleElement interface: objects.circle must inherit property "cy" with the proper type
+Pass	SVGCircleElement interface: objects.circle must inherit property "r" with the proper type
+Fail	SVGGeometryElement interface: objects.circle must inherit property "pathLength" with the proper type
+Fail	SVGGeometryElement interface: objects.circle must inherit property "isPointInFill(optional DOMPointInit)" with the proper type
+Pass	SVGGeometryElement interface: calling isPointInFill(optional DOMPointInit) on objects.circle with too few arguments must throw TypeError
+Fail	SVGGeometryElement interface: objects.circle must inherit property "isPointInStroke(optional DOMPointInit)" with the proper type
+Pass	SVGGeometryElement interface: calling isPointInStroke(optional DOMPointInit) on objects.circle with too few arguments must throw TypeError
+Pass	SVGGeometryElement interface: objects.circle must inherit property "getTotalLength()" with the proper type
+Pass	SVGGeometryElement interface: objects.circle must inherit property "getPointAtLength(float)" with the proper type
+Pass	SVGGeometryElement interface: calling getPointAtLength(float) on objects.circle with too few arguments must throw TypeError
+Pass	SVGGraphicsElement interface: objects.circle must inherit property "transform" with the proper type
+Pass	SVGGraphicsElement interface: objects.circle must inherit property "getBBox(optional SVGBoundingBoxOptions)" with the proper type
+Pass	SVGGraphicsElement interface: calling getBBox(optional SVGBoundingBoxOptions) on objects.circle with too few arguments must throw TypeError
+Fail	SVGGraphicsElement interface: objects.circle must inherit property "getCTM()" with the proper type
+Pass	SVGGraphicsElement interface: objects.circle must inherit property "getScreenCTM()" with the proper type
+Fail	SVGGraphicsElement interface: objects.circle must inherit property "requiredExtensions" with the proper type
+Fail	SVGGraphicsElement interface: objects.circle must inherit property "systemLanguage" with the proper type
+Pass	SVGElement interface: objects.circle must inherit property "className" with the proper type
+Pass	SVGElement interface: objects.circle must inherit property "ownerSVGElement" with the proper type
+Fail	SVGElement interface: objects.circle must inherit property "viewportElement" with the proper type
+Fail	SVGElement interface: objects.circle must inherit property "correspondingElement" with the proper type
+Fail	SVGElement interface: objects.circle must inherit property "correspondingUseElement" with the proper type
+Pass	SVGEllipseElement interface: existence and properties of interface object
+Pass	SVGEllipseElement interface object length
+Pass	SVGEllipseElement interface object name
+Pass	SVGEllipseElement interface: existence and properties of interface prototype object
+Pass	SVGEllipseElement interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGEllipseElement interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGEllipseElement interface: attribute cx
+Pass	SVGEllipseElement interface: attribute cy
+Pass	SVGEllipseElement interface: attribute rx
+Pass	SVGEllipseElement interface: attribute ry
+Pass	SVGEllipseElement must be primary interface of objects.ellipse
+Pass	Stringification of objects.ellipse
+Pass	SVGEllipseElement interface: objects.ellipse must inherit property "cx" with the proper type
+Pass	SVGEllipseElement interface: objects.ellipse must inherit property "cy" with the proper type
+Pass	SVGEllipseElement interface: objects.ellipse must inherit property "rx" with the proper type
+Pass	SVGEllipseElement interface: objects.ellipse must inherit property "ry" with the proper type
+Fail	SVGGeometryElement interface: objects.ellipse must inherit property "pathLength" with the proper type
+Fail	SVGGeometryElement interface: objects.ellipse must inherit property "isPointInFill(optional DOMPointInit)" with the proper type
+Pass	SVGGeometryElement interface: calling isPointInFill(optional DOMPointInit) on objects.ellipse with too few arguments must throw TypeError
+Fail	SVGGeometryElement interface: objects.ellipse must inherit property "isPointInStroke(optional DOMPointInit)" with the proper type
+Pass	SVGGeometryElement interface: calling isPointInStroke(optional DOMPointInit) on objects.ellipse with too few arguments must throw TypeError
+Pass	SVGGeometryElement interface: objects.ellipse must inherit property "getTotalLength()" with the proper type
+Pass	SVGGeometryElement interface: objects.ellipse must inherit property "getPointAtLength(float)" with the proper type
+Pass	SVGGeometryElement interface: calling getPointAtLength(float) on objects.ellipse with too few arguments must throw TypeError
+Pass	SVGGraphicsElement interface: objects.ellipse must inherit property "transform" with the proper type
+Pass	SVGGraphicsElement interface: objects.ellipse must inherit property "getBBox(optional SVGBoundingBoxOptions)" with the proper type
+Pass	SVGGraphicsElement interface: calling getBBox(optional SVGBoundingBoxOptions) on objects.ellipse with too few arguments must throw TypeError
+Fail	SVGGraphicsElement interface: objects.ellipse must inherit property "getCTM()" with the proper type
+Pass	SVGGraphicsElement interface: objects.ellipse must inherit property "getScreenCTM()" with the proper type
+Fail	SVGGraphicsElement interface: objects.ellipse must inherit property "requiredExtensions" with the proper type
+Fail	SVGGraphicsElement interface: objects.ellipse must inherit property "systemLanguage" with the proper type
+Pass	SVGElement interface: objects.ellipse must inherit property "className" with the proper type
+Pass	SVGElement interface: objects.ellipse must inherit property "ownerSVGElement" with the proper type
+Fail	SVGElement interface: objects.ellipse must inherit property "viewportElement" with the proper type
+Fail	SVGElement interface: objects.ellipse must inherit property "correspondingElement" with the proper type
+Fail	SVGElement interface: objects.ellipse must inherit property "correspondingUseElement" with the proper type
+Pass	SVGLineElement interface: existence and properties of interface object
+Pass	SVGLineElement interface object length
+Pass	SVGLineElement interface object name
+Pass	SVGLineElement interface: existence and properties of interface prototype object
+Pass	SVGLineElement interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGLineElement interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGLineElement interface: attribute x1
+Pass	SVGLineElement interface: attribute y1
+Pass	SVGLineElement interface: attribute x2
+Pass	SVGLineElement interface: attribute y2
+Pass	SVGLineElement must be primary interface of objects.line
+Pass	Stringification of objects.line
+Pass	SVGLineElement interface: objects.line must inherit property "x1" with the proper type
+Pass	SVGLineElement interface: objects.line must inherit property "y1" with the proper type
+Pass	SVGLineElement interface: objects.line must inherit property "x2" with the proper type
+Pass	SVGLineElement interface: objects.line must inherit property "y2" with the proper type
+Fail	SVGGeometryElement interface: objects.line must inherit property "pathLength" with the proper type
+Fail	SVGGeometryElement interface: objects.line must inherit property "isPointInFill(optional DOMPointInit)" with the proper type
+Pass	SVGGeometryElement interface: calling isPointInFill(optional DOMPointInit) on objects.line with too few arguments must throw TypeError
+Fail	SVGGeometryElement interface: objects.line must inherit property "isPointInStroke(optional DOMPointInit)" with the proper type
+Pass	SVGGeometryElement interface: calling isPointInStroke(optional DOMPointInit) on objects.line with too few arguments must throw TypeError
+Pass	SVGGeometryElement interface: objects.line must inherit property "getTotalLength()" with the proper type
+Pass	SVGGeometryElement interface: objects.line must inherit property "getPointAtLength(float)" with the proper type
+Pass	SVGGeometryElement interface: calling getPointAtLength(float) on objects.line with too few arguments must throw TypeError
+Pass	SVGGraphicsElement interface: objects.line must inherit property "transform" with the proper type
+Pass	SVGGraphicsElement interface: objects.line must inherit property "getBBox(optional SVGBoundingBoxOptions)" with the proper type
+Pass	SVGGraphicsElement interface: calling getBBox(optional SVGBoundingBoxOptions) on objects.line with too few arguments must throw TypeError
+Fail	SVGGraphicsElement interface: objects.line must inherit property "getCTM()" with the proper type
+Pass	SVGGraphicsElement interface: objects.line must inherit property "getScreenCTM()" with the proper type
+Fail	SVGGraphicsElement interface: objects.line must inherit property "requiredExtensions" with the proper type
+Fail	SVGGraphicsElement interface: objects.line must inherit property "systemLanguage" with the proper type
+Pass	SVGElement interface: objects.line must inherit property "className" with the proper type
+Pass	SVGElement interface: objects.line must inherit property "ownerSVGElement" with the proper type
+Fail	SVGElement interface: objects.line must inherit property "viewportElement" with the proper type
+Fail	SVGElement interface: objects.line must inherit property "correspondingElement" with the proper type
+Fail	SVGElement interface: objects.line must inherit property "correspondingUseElement" with the proper type
+Fail	SVGPointList interface: existence and properties of interface object
+Fail	SVGPointList interface object length
+Fail	SVGPointList interface object name
+Fail	SVGPointList interface: existence and properties of interface prototype object
+Fail	SVGPointList interface: existence and properties of interface prototype object's "constructor" property
+Fail	SVGPointList interface: existence and properties of interface prototype object's @@unscopables property
+Fail	SVGPointList interface: attribute length
+Fail	SVGPointList interface: attribute numberOfItems
+Fail	SVGPointList interface: operation clear()
+Fail	SVGPointList interface: operation initialize(DOMPoint)
+Fail	SVGPointList interface: operation getItem(unsigned long)
+Fail	SVGPointList interface: operation insertItemBefore(DOMPoint, unsigned long)
+Fail	SVGPointList interface: operation replaceItem(DOMPoint, unsigned long)
+Fail	SVGPointList interface: operation removeItem(unsigned long)
+Fail	SVGPointList interface: operation appendItem(DOMPoint)
+Fail	SVGPointList must be primary interface of objects.polygon.points
+Fail	Stringification of objects.polygon.points
+Fail	SVGPointList interface: objects.polygon.points must inherit property "length" with the proper type
+Fail	SVGPointList interface: objects.polygon.points must inherit property "numberOfItems" with the proper type
+Fail	SVGPointList interface: objects.polygon.points must inherit property "clear()" with the proper type
+Fail	SVGPointList interface: objects.polygon.points must inherit property "initialize(DOMPoint)" with the proper type
+Fail	SVGPointList interface: calling initialize(DOMPoint) on objects.polygon.points with too few arguments must throw TypeError
+Fail	SVGPointList interface: objects.polygon.points must inherit property "getItem(unsigned long)" with the proper type
+Fail	SVGPointList interface: calling getItem(unsigned long) on objects.polygon.points with too few arguments must throw TypeError
+Fail	SVGPointList interface: objects.polygon.points must inherit property "insertItemBefore(DOMPoint, unsigned long)" with the proper type
+Fail	SVGPointList interface: calling insertItemBefore(DOMPoint, unsigned long) on objects.polygon.points with too few arguments must throw TypeError
+Fail	SVGPointList interface: objects.polygon.points must inherit property "replaceItem(DOMPoint, unsigned long)" with the proper type
+Fail	SVGPointList interface: calling replaceItem(DOMPoint, unsigned long) on objects.polygon.points with too few arguments must throw TypeError
+Fail	SVGPointList interface: objects.polygon.points must inherit property "removeItem(unsigned long)" with the proper type
+Fail	SVGPointList interface: calling removeItem(unsigned long) on objects.polygon.points with too few arguments must throw TypeError
+Fail	SVGPointList interface: objects.polygon.points must inherit property "appendItem(DOMPoint)" with the proper type
+Fail	SVGPointList interface: calling appendItem(DOMPoint) on objects.polygon.points with too few arguments must throw TypeError
+Pass	SVGPolylineElement interface: existence and properties of interface object
+Pass	SVGPolylineElement interface object length
+Pass	SVGPolylineElement interface object name
+Pass	SVGPolylineElement interface: existence and properties of interface prototype object
+Pass	SVGPolylineElement interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGPolylineElement interface: existence and properties of interface prototype object's @@unscopables property
+Fail	SVGPolylineElement interface: attribute points
+Fail	SVGPolylineElement interface: attribute animatedPoints
+Pass	SVGPolylineElement must be primary interface of objects.polyline
+Pass	Stringification of objects.polyline
+Fail	SVGPolylineElement interface: objects.polyline must inherit property "points" with the proper type
+Fail	SVGPolylineElement interface: objects.polyline must inherit property "animatedPoints" with the proper type
+Fail	SVGGeometryElement interface: objects.polyline must inherit property "pathLength" with the proper type
+Fail	SVGGeometryElement interface: objects.polyline must inherit property "isPointInFill(optional DOMPointInit)" with the proper type
+Pass	SVGGeometryElement interface: calling isPointInFill(optional DOMPointInit) on objects.polyline with too few arguments must throw TypeError
+Fail	SVGGeometryElement interface: objects.polyline must inherit property "isPointInStroke(optional DOMPointInit)" with the proper type
+Pass	SVGGeometryElement interface: calling isPointInStroke(optional DOMPointInit) on objects.polyline with too few arguments must throw TypeError
+Pass	SVGGeometryElement interface: objects.polyline must inherit property "getTotalLength()" with the proper type
+Pass	SVGGeometryElement interface: objects.polyline must inherit property "getPointAtLength(float)" with the proper type
+Pass	SVGGeometryElement interface: calling getPointAtLength(float) on objects.polyline with too few arguments must throw TypeError
+Pass	SVGGraphicsElement interface: objects.polyline must inherit property "transform" with the proper type
+Pass	SVGGraphicsElement interface: objects.polyline must inherit property "getBBox(optional SVGBoundingBoxOptions)" with the proper type
+Pass	SVGGraphicsElement interface: calling getBBox(optional SVGBoundingBoxOptions) on objects.polyline with too few arguments must throw TypeError
+Fail	SVGGraphicsElement interface: objects.polyline must inherit property "getCTM()" with the proper type
+Pass	SVGGraphicsElement interface: objects.polyline must inherit property "getScreenCTM()" with the proper type
+Fail	SVGGraphicsElement interface: objects.polyline must inherit property "requiredExtensions" with the proper type
+Fail	SVGGraphicsElement interface: objects.polyline must inherit property "systemLanguage" with the proper type
+Pass	SVGElement interface: objects.polyline must inherit property "className" with the proper type
+Pass	SVGElement interface: objects.polyline must inherit property "ownerSVGElement" with the proper type
+Fail	SVGElement interface: objects.polyline must inherit property "viewportElement" with the proper type
+Fail	SVGElement interface: objects.polyline must inherit property "correspondingElement" with the proper type
+Fail	SVGElement interface: objects.polyline must inherit property "correspondingUseElement" with the proper type
+Pass	SVGPolygonElement interface: existence and properties of interface object
+Pass	SVGPolygonElement interface object length
+Pass	SVGPolygonElement interface object name
+Pass	SVGPolygonElement interface: existence and properties of interface prototype object
+Pass	SVGPolygonElement interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGPolygonElement interface: existence and properties of interface prototype object's @@unscopables property
+Fail	SVGPolygonElement interface: attribute points
+Fail	SVGPolygonElement interface: attribute animatedPoints
+Pass	SVGPolygonElement must be primary interface of objects.polygon
+Pass	Stringification of objects.polygon
+Fail	SVGPolygonElement interface: objects.polygon must inherit property "points" with the proper type
+Fail	SVGPolygonElement interface: objects.polygon must inherit property "animatedPoints" with the proper type
+Fail	SVGGeometryElement interface: objects.polygon must inherit property "pathLength" with the proper type
+Fail	SVGGeometryElement interface: objects.polygon must inherit property "isPointInFill(optional DOMPointInit)" with the proper type
+Pass	SVGGeometryElement interface: calling isPointInFill(optional DOMPointInit) on objects.polygon with too few arguments must throw TypeError
+Fail	SVGGeometryElement interface: objects.polygon must inherit property "isPointInStroke(optional DOMPointInit)" with the proper type
+Pass	SVGGeometryElement interface: calling isPointInStroke(optional DOMPointInit) on objects.polygon with too few arguments must throw TypeError
+Pass	SVGGeometryElement interface: objects.polygon must inherit property "getTotalLength()" with the proper type
+Pass	SVGGeometryElement interface: objects.polygon must inherit property "getPointAtLength(float)" with the proper type
+Pass	SVGGeometryElement interface: calling getPointAtLength(float) on objects.polygon with too few arguments must throw TypeError
+Pass	SVGGraphicsElement interface: objects.polygon must inherit property "transform" with the proper type
+Pass	SVGGraphicsElement interface: objects.polygon must inherit property "getBBox(optional SVGBoundingBoxOptions)" with the proper type
+Pass	SVGGraphicsElement interface: calling getBBox(optional SVGBoundingBoxOptions) on objects.polygon with too few arguments must throw TypeError
+Fail	SVGGraphicsElement interface: objects.polygon must inherit property "getCTM()" with the proper type
+Pass	SVGGraphicsElement interface: objects.polygon must inherit property "getScreenCTM()" with the proper type
+Fail	SVGGraphicsElement interface: objects.polygon must inherit property "requiredExtensions" with the proper type
+Fail	SVGGraphicsElement interface: objects.polygon must inherit property "systemLanguage" with the proper type
+Pass	SVGElement interface: objects.polygon must inherit property "className" with the proper type
+Pass	SVGElement interface: objects.polygon must inherit property "ownerSVGElement" with the proper type
+Fail	SVGElement interface: objects.polygon must inherit property "viewportElement" with the proper type
+Fail	SVGElement interface: objects.polygon must inherit property "correspondingElement" with the proper type
+Fail	SVGElement interface: objects.polygon must inherit property "correspondingUseElement" with the proper type
+Pass	SVGTextContentElement interface: existence and properties of interface object
+Pass	SVGTextContentElement interface object length
+Pass	SVGTextContentElement interface object name
+Pass	SVGTextContentElement interface: existence and properties of interface prototype object
+Pass	SVGTextContentElement interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGTextContentElement interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGTextContentElement interface: constant LENGTHADJUST_UNKNOWN on interface object
+Pass	SVGTextContentElement interface: constant LENGTHADJUST_UNKNOWN on interface prototype object
+Pass	SVGTextContentElement interface: constant LENGTHADJUST_SPACING on interface object
+Pass	SVGTextContentElement interface: constant LENGTHADJUST_SPACING on interface prototype object
+Pass	SVGTextContentElement interface: constant LENGTHADJUST_SPACINGANDGLYPHS on interface object
+Pass	SVGTextContentElement interface: constant LENGTHADJUST_SPACINGANDGLYPHS on interface prototype object
+Fail	SVGTextContentElement interface: attribute textLength
+Fail	SVGTextContentElement interface: attribute lengthAdjust
+Pass	SVGTextContentElement interface: operation getNumberOfChars()
+Fail	SVGTextContentElement interface: operation getComputedTextLength()
+Fail	SVGTextContentElement interface: operation getSubStringLength(unsigned long, unsigned long)
+Pass	SVGTextContentElement interface: operation getStartPositionOfChar(unsigned long)
+Fail	SVGTextContentElement interface: operation getEndPositionOfChar(unsigned long)
+Fail	SVGTextContentElement interface: operation getExtentOfChar(unsigned long)
+Fail	SVGTextContentElement interface: operation getRotationOfChar(unsigned long)
+Fail	SVGTextContentElement interface: operation getCharNumAtPosition(optional DOMPointInit)
+Fail	SVGTextContentElement interface: operation selectSubString(unsigned long, unsigned long)
+Pass	SVGTextPositioningElement interface: existence and properties of interface object
+Pass	SVGTextPositioningElement interface object length
+Pass	SVGTextPositioningElement interface object name
+Pass	SVGTextPositioningElement interface: existence and properties of interface prototype object
+Pass	SVGTextPositioningElement interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGTextPositioningElement interface: existence and properties of interface prototype object's @@unscopables property
+Fail	SVGTextPositioningElement interface: attribute x
+Fail	SVGTextPositioningElement interface: attribute y
+Fail	SVGTextPositioningElement interface: attribute dx
+Fail	SVGTextPositioningElement interface: attribute dy
+Fail	SVGTextPositioningElement interface: attribute rotate
+Pass	SVGTextElement interface: existence and properties of interface object
+Pass	SVGTextElement interface object length
+Pass	SVGTextElement interface object name
+Pass	SVGTextElement interface: existence and properties of interface prototype object
+Pass	SVGTextElement interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGTextElement interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGTextElement must be primary interface of objects.text
+Pass	Stringification of objects.text
+Fail	SVGTextPositioningElement interface: objects.text must inherit property "x" with the proper type
+Fail	SVGTextPositioningElement interface: objects.text must inherit property "y" with the proper type
+Fail	SVGTextPositioningElement interface: objects.text must inherit property "dx" with the proper type
+Fail	SVGTextPositioningElement interface: objects.text must inherit property "dy" with the proper type
+Fail	SVGTextPositioningElement interface: objects.text must inherit property "rotate" with the proper type
+Pass	SVGTextContentElement interface: objects.text must inherit property "LENGTHADJUST_UNKNOWN" with the proper type
+Pass	SVGTextContentElement interface: objects.text must inherit property "LENGTHADJUST_SPACING" with the proper type
+Pass	SVGTextContentElement interface: objects.text must inherit property "LENGTHADJUST_SPACINGANDGLYPHS" with the proper type
+Fail	SVGTextContentElement interface: objects.text must inherit property "textLength" with the proper type
+Fail	SVGTextContentElement interface: objects.text must inherit property "lengthAdjust" with the proper type
+Pass	SVGTextContentElement interface: objects.text must inherit property "getNumberOfChars()" with the proper type
+Fail	SVGTextContentElement interface: objects.text must inherit property "getComputedTextLength()" with the proper type
+Fail	SVGTextContentElement interface: objects.text must inherit property "getSubStringLength(unsigned long, unsigned long)" with the proper type
+Pass	SVGTextContentElement interface: calling getSubStringLength(unsigned long, unsigned long) on objects.text with too few arguments must throw TypeError
+Pass	SVGTextContentElement interface: objects.text must inherit property "getStartPositionOfChar(unsigned long)" with the proper type
+Pass	SVGTextContentElement interface: calling getStartPositionOfChar(unsigned long) on objects.text with too few arguments must throw TypeError
+Fail	SVGTextContentElement interface: objects.text must inherit property "getEndPositionOfChar(unsigned long)" with the proper type
+Pass	SVGTextContentElement interface: calling getEndPositionOfChar(unsigned long) on objects.text with too few arguments must throw TypeError
+Fail	SVGTextContentElement interface: objects.text must inherit property "getExtentOfChar(unsigned long)" with the proper type
+Pass	SVGTextContentElement interface: calling getExtentOfChar(unsigned long) on objects.text with too few arguments must throw TypeError
+Fail	SVGTextContentElement interface: objects.text must inherit property "getRotationOfChar(unsigned long)" with the proper type
+Pass	SVGTextContentElement interface: calling getRotationOfChar(unsigned long) on objects.text with too few arguments must throw TypeError
+Fail	SVGTextContentElement interface: objects.text must inherit property "getCharNumAtPosition(optional DOMPointInit)" with the proper type
+Pass	SVGTextContentElement interface: calling getCharNumAtPosition(optional DOMPointInit) on objects.text with too few arguments must throw TypeError
+Fail	SVGTextContentElement interface: objects.text must inherit property "selectSubString(unsigned long, unsigned long)" with the proper type
+Pass	SVGTextContentElement interface: calling selectSubString(unsigned long, unsigned long) on objects.text with too few arguments must throw TypeError
+Pass	SVGGraphicsElement interface: objects.text must inherit property "transform" with the proper type
+Pass	SVGGraphicsElement interface: objects.text must inherit property "getBBox(optional SVGBoundingBoxOptions)" with the proper type
+Pass	SVGGraphicsElement interface: calling getBBox(optional SVGBoundingBoxOptions) on objects.text with too few arguments must throw TypeError
+Fail	SVGGraphicsElement interface: objects.text must inherit property "getCTM()" with the proper type
+Pass	SVGGraphicsElement interface: objects.text must inherit property "getScreenCTM()" with the proper type
+Fail	SVGGraphicsElement interface: objects.text must inherit property "requiredExtensions" with the proper type
+Fail	SVGGraphicsElement interface: objects.text must inherit property "systemLanguage" with the proper type
+Pass	SVGElement interface: objects.text must inherit property "className" with the proper type
+Pass	SVGElement interface: objects.text must inherit property "ownerSVGElement" with the proper type
+Fail	SVGElement interface: objects.text must inherit property "viewportElement" with the proper type
+Fail	SVGElement interface: objects.text must inherit property "correspondingElement" with the proper type
+Fail	SVGElement interface: objects.text must inherit property "correspondingUseElement" with the proper type
+Pass	SVGTSpanElement interface: existence and properties of interface object
+Pass	SVGTSpanElement interface object length
+Pass	SVGTSpanElement interface object name
+Pass	SVGTSpanElement interface: existence and properties of interface prototype object
+Pass	SVGTSpanElement interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGTSpanElement interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGTSpanElement must be primary interface of objects.tspan
+Pass	Stringification of objects.tspan
+Fail	SVGTextPositioningElement interface: objects.tspan must inherit property "x" with the proper type
+Fail	SVGTextPositioningElement interface: objects.tspan must inherit property "y" with the proper type
+Fail	SVGTextPositioningElement interface: objects.tspan must inherit property "dx" with the proper type
+Fail	SVGTextPositioningElement interface: objects.tspan must inherit property "dy" with the proper type
+Fail	SVGTextPositioningElement interface: objects.tspan must inherit property "rotate" with the proper type
+Pass	SVGTextContentElement interface: objects.tspan must inherit property "LENGTHADJUST_UNKNOWN" with the proper type
+Pass	SVGTextContentElement interface: objects.tspan must inherit property "LENGTHADJUST_SPACING" with the proper type
+Pass	SVGTextContentElement interface: objects.tspan must inherit property "LENGTHADJUST_SPACINGANDGLYPHS" with the proper type
+Fail	SVGTextContentElement interface: objects.tspan must inherit property "textLength" with the proper type
+Fail	SVGTextContentElement interface: objects.tspan must inherit property "lengthAdjust" with the proper type
+Pass	SVGTextContentElement interface: objects.tspan must inherit property "getNumberOfChars()" with the proper type
+Fail	SVGTextContentElement interface: objects.tspan must inherit property "getComputedTextLength()" with the proper type
+Fail	SVGTextContentElement interface: objects.tspan must inherit property "getSubStringLength(unsigned long, unsigned long)" with the proper type
+Pass	SVGTextContentElement interface: calling getSubStringLength(unsigned long, unsigned long) on objects.tspan with too few arguments must throw TypeError
+Pass	SVGTextContentElement interface: objects.tspan must inherit property "getStartPositionOfChar(unsigned long)" with the proper type
+Pass	SVGTextContentElement interface: calling getStartPositionOfChar(unsigned long) on objects.tspan with too few arguments must throw TypeError
+Fail	SVGTextContentElement interface: objects.tspan must inherit property "getEndPositionOfChar(unsigned long)" with the proper type
+Pass	SVGTextContentElement interface: calling getEndPositionOfChar(unsigned long) on objects.tspan with too few arguments must throw TypeError
+Fail	SVGTextContentElement interface: objects.tspan must inherit property "getExtentOfChar(unsigned long)" with the proper type
+Pass	SVGTextContentElement interface: calling getExtentOfChar(unsigned long) on objects.tspan with too few arguments must throw TypeError
+Fail	SVGTextContentElement interface: objects.tspan must inherit property "getRotationOfChar(unsigned long)" with the proper type
+Pass	SVGTextContentElement interface: calling getRotationOfChar(unsigned long) on objects.tspan with too few arguments must throw TypeError
+Fail	SVGTextContentElement interface: objects.tspan must inherit property "getCharNumAtPosition(optional DOMPointInit)" with the proper type
+Pass	SVGTextContentElement interface: calling getCharNumAtPosition(optional DOMPointInit) on objects.tspan with too few arguments must throw TypeError
+Fail	SVGTextContentElement interface: objects.tspan must inherit property "selectSubString(unsigned long, unsigned long)" with the proper type
+Pass	SVGTextContentElement interface: calling selectSubString(unsigned long, unsigned long) on objects.tspan with too few arguments must throw TypeError
+Pass	SVGGraphicsElement interface: objects.tspan must inherit property "transform" with the proper type
+Pass	SVGGraphicsElement interface: objects.tspan must inherit property "getBBox(optional SVGBoundingBoxOptions)" with the proper type
+Pass	SVGGraphicsElement interface: calling getBBox(optional SVGBoundingBoxOptions) on objects.tspan with too few arguments must throw TypeError
+Fail	SVGGraphicsElement interface: objects.tspan must inherit property "getCTM()" with the proper type
+Pass	SVGGraphicsElement interface: objects.tspan must inherit property "getScreenCTM()" with the proper type
+Fail	SVGGraphicsElement interface: objects.tspan must inherit property "requiredExtensions" with the proper type
+Fail	SVGGraphicsElement interface: objects.tspan must inherit property "systemLanguage" with the proper type
+Pass	SVGElement interface: objects.tspan must inherit property "className" with the proper type
+Pass	SVGElement interface: objects.tspan must inherit property "ownerSVGElement" with the proper type
+Fail	SVGElement interface: objects.tspan must inherit property "viewportElement" with the proper type
+Fail	SVGElement interface: objects.tspan must inherit property "correspondingElement" with the proper type
+Fail	SVGElement interface: objects.tspan must inherit property "correspondingUseElement" with the proper type
+Pass	SVGTextPathElement interface: existence and properties of interface object
+Pass	SVGTextPathElement interface object length
+Pass	SVGTextPathElement interface object name
+Pass	SVGTextPathElement interface: existence and properties of interface prototype object
+Pass	SVGTextPathElement interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGTextPathElement interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGTextPathElement interface: constant TEXTPATH_METHODTYPE_UNKNOWN on interface object
+Pass	SVGTextPathElement interface: constant TEXTPATH_METHODTYPE_UNKNOWN on interface prototype object
+Pass	SVGTextPathElement interface: constant TEXTPATH_METHODTYPE_ALIGN on interface object
+Pass	SVGTextPathElement interface: constant TEXTPATH_METHODTYPE_ALIGN on interface prototype object
+Pass	SVGTextPathElement interface: constant TEXTPATH_METHODTYPE_STRETCH on interface object
+Pass	SVGTextPathElement interface: constant TEXTPATH_METHODTYPE_STRETCH on interface prototype object
+Pass	SVGTextPathElement interface: constant TEXTPATH_SPACINGTYPE_UNKNOWN on interface object
+Pass	SVGTextPathElement interface: constant TEXTPATH_SPACINGTYPE_UNKNOWN on interface prototype object
+Pass	SVGTextPathElement interface: constant TEXTPATH_SPACINGTYPE_AUTO on interface object
+Pass	SVGTextPathElement interface: constant TEXTPATH_SPACINGTYPE_AUTO on interface prototype object
+Pass	SVGTextPathElement interface: constant TEXTPATH_SPACINGTYPE_EXACT on interface object
+Pass	SVGTextPathElement interface: constant TEXTPATH_SPACINGTYPE_EXACT on interface prototype object
+Fail	SVGTextPathElement interface: attribute startOffset
+Fail	SVGTextPathElement interface: attribute method
+Fail	SVGTextPathElement interface: attribute spacing
+Pass	SVGTextPathElement interface: attribute href
+Pass	SVGTextPathElement must be primary interface of objects.textPath
+Pass	Stringification of objects.textPath
+Pass	SVGTextPathElement interface: objects.textPath must inherit property "TEXTPATH_METHODTYPE_UNKNOWN" with the proper type
+Pass	SVGTextPathElement interface: objects.textPath must inherit property "TEXTPATH_METHODTYPE_ALIGN" with the proper type
+Pass	SVGTextPathElement interface: objects.textPath must inherit property "TEXTPATH_METHODTYPE_STRETCH" with the proper type
+Pass	SVGTextPathElement interface: objects.textPath must inherit property "TEXTPATH_SPACINGTYPE_UNKNOWN" with the proper type
+Pass	SVGTextPathElement interface: objects.textPath must inherit property "TEXTPATH_SPACINGTYPE_AUTO" with the proper type
+Pass	SVGTextPathElement interface: objects.textPath must inherit property "TEXTPATH_SPACINGTYPE_EXACT" with the proper type
+Fail	SVGTextPathElement interface: objects.textPath must inherit property "startOffset" with the proper type
+Fail	SVGTextPathElement interface: objects.textPath must inherit property "method" with the proper type
+Fail	SVGTextPathElement interface: objects.textPath must inherit property "spacing" with the proper type
+Pass	SVGTextPathElement interface: objects.textPath must inherit property "href" with the proper type
+Pass	SVGTextContentElement interface: objects.textPath must inherit property "LENGTHADJUST_UNKNOWN" with the proper type
+Pass	SVGTextContentElement interface: objects.textPath must inherit property "LENGTHADJUST_SPACING" with the proper type
+Pass	SVGTextContentElement interface: objects.textPath must inherit property "LENGTHADJUST_SPACINGANDGLYPHS" with the proper type
+Fail	SVGTextContentElement interface: objects.textPath must inherit property "textLength" with the proper type
+Fail	SVGTextContentElement interface: objects.textPath must inherit property "lengthAdjust" with the proper type
+Pass	SVGTextContentElement interface: objects.textPath must inherit property "getNumberOfChars()" with the proper type
+Fail	SVGTextContentElement interface: objects.textPath must inherit property "getComputedTextLength()" with the proper type
+Fail	SVGTextContentElement interface: objects.textPath must inherit property "getSubStringLength(unsigned long, unsigned long)" with the proper type
+Pass	SVGTextContentElement interface: calling getSubStringLength(unsigned long, unsigned long) on objects.textPath with too few arguments must throw TypeError
+Pass	SVGTextContentElement interface: objects.textPath must inherit property "getStartPositionOfChar(unsigned long)" with the proper type
+Pass	SVGTextContentElement interface: calling getStartPositionOfChar(unsigned long) on objects.textPath with too few arguments must throw TypeError
+Fail	SVGTextContentElement interface: objects.textPath must inherit property "getEndPositionOfChar(unsigned long)" with the proper type
+Pass	SVGTextContentElement interface: calling getEndPositionOfChar(unsigned long) on objects.textPath with too few arguments must throw TypeError
+Fail	SVGTextContentElement interface: objects.textPath must inherit property "getExtentOfChar(unsigned long)" with the proper type
+Pass	SVGTextContentElement interface: calling getExtentOfChar(unsigned long) on objects.textPath with too few arguments must throw TypeError
+Fail	SVGTextContentElement interface: objects.textPath must inherit property "getRotationOfChar(unsigned long)" with the proper type
+Pass	SVGTextContentElement interface: calling getRotationOfChar(unsigned long) on objects.textPath with too few arguments must throw TypeError
+Fail	SVGTextContentElement interface: objects.textPath must inherit property "getCharNumAtPosition(optional DOMPointInit)" with the proper type
+Pass	SVGTextContentElement interface: calling getCharNumAtPosition(optional DOMPointInit) on objects.textPath with too few arguments must throw TypeError
+Fail	SVGTextContentElement interface: objects.textPath must inherit property "selectSubString(unsigned long, unsigned long)" with the proper type
+Pass	SVGTextContentElement interface: calling selectSubString(unsigned long, unsigned long) on objects.textPath with too few arguments must throw TypeError
+Pass	SVGGraphicsElement interface: objects.textPath must inherit property "transform" with the proper type
+Pass	SVGGraphicsElement interface: objects.textPath must inherit property "getBBox(optional SVGBoundingBoxOptions)" with the proper type
+Pass	SVGGraphicsElement interface: calling getBBox(optional SVGBoundingBoxOptions) on objects.textPath with too few arguments must throw TypeError
+Fail	SVGGraphicsElement interface: objects.textPath must inherit property "getCTM()" with the proper type
+Pass	SVGGraphicsElement interface: objects.textPath must inherit property "getScreenCTM()" with the proper type
+Fail	SVGGraphicsElement interface: objects.textPath must inherit property "requiredExtensions" with the proper type
+Fail	SVGGraphicsElement interface: objects.textPath must inherit property "systemLanguage" with the proper type
+Pass	SVGElement interface: objects.textPath must inherit property "className" with the proper type
+Pass	SVGElement interface: objects.textPath must inherit property "ownerSVGElement" with the proper type
+Fail	SVGElement interface: objects.textPath must inherit property "viewportElement" with the proper type
+Fail	SVGElement interface: objects.textPath must inherit property "correspondingElement" with the proper type
+Fail	SVGElement interface: objects.textPath must inherit property "correspondingUseElement" with the proper type
+Pass	SVGImageElement interface: existence and properties of interface object
+Pass	SVGImageElement interface object length
+Pass	SVGImageElement interface object name
+Pass	SVGImageElement interface: existence and properties of interface prototype object
+Pass	SVGImageElement interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGImageElement interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGImageElement interface: attribute x
+Pass	SVGImageElement interface: attribute y
+Pass	SVGImageElement interface: attribute width
+Pass	SVGImageElement interface: attribute height
+Fail	SVGImageElement interface: attribute preserveAspectRatio
+Pass	SVGImageElement interface: attribute crossOrigin
+Pass	SVGImageElement interface: attribute href
+Pass	SVGImageElement must be primary interface of objects.image
+Pass	Stringification of objects.image
+Pass	SVGImageElement interface: objects.image must inherit property "x" with the proper type
+Pass	SVGImageElement interface: objects.image must inherit property "y" with the proper type
+Pass	SVGImageElement interface: objects.image must inherit property "width" with the proper type
+Pass	SVGImageElement interface: objects.image must inherit property "height" with the proper type
+Fail	SVGImageElement interface: objects.image must inherit property "preserveAspectRatio" with the proper type
+Pass	SVGImageElement interface: objects.image must inherit property "crossOrigin" with the proper type
+Pass	SVGImageElement interface: objects.image must inherit property "href" with the proper type
+Pass	SVGGraphicsElement interface: objects.image must inherit property "transform" with the proper type
+Pass	SVGGraphicsElement interface: objects.image must inherit property "getBBox(optional SVGBoundingBoxOptions)" with the proper type
+Pass	SVGGraphicsElement interface: calling getBBox(optional SVGBoundingBoxOptions) on objects.image with too few arguments must throw TypeError
+Fail	SVGGraphicsElement interface: objects.image must inherit property "getCTM()" with the proper type
+Pass	SVGGraphicsElement interface: objects.image must inherit property "getScreenCTM()" with the proper type
+Fail	SVGGraphicsElement interface: objects.image must inherit property "requiredExtensions" with the proper type
+Fail	SVGGraphicsElement interface: objects.image must inherit property "systemLanguage" with the proper type
+Pass	SVGElement interface: objects.image must inherit property "className" with the proper type
+Pass	SVGElement interface: objects.image must inherit property "ownerSVGElement" with the proper type
+Fail	SVGElement interface: objects.image must inherit property "viewportElement" with the proper type
+Fail	SVGElement interface: objects.image must inherit property "correspondingElement" with the proper type
+Fail	SVGElement interface: objects.image must inherit property "correspondingUseElement" with the proper type
+Pass	SVGForeignObjectElement interface: existence and properties of interface object
+Pass	SVGForeignObjectElement interface object length
+Pass	SVGForeignObjectElement interface object name
+Pass	SVGForeignObjectElement interface: existence and properties of interface prototype object
+Pass	SVGForeignObjectElement interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGForeignObjectElement interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGForeignObjectElement interface: attribute x
+Pass	SVGForeignObjectElement interface: attribute y
+Pass	SVGForeignObjectElement interface: attribute width
+Pass	SVGForeignObjectElement interface: attribute height
+Pass	SVGForeignObjectElement must be primary interface of objects.foreignObject
+Pass	Stringification of objects.foreignObject
+Pass	SVGForeignObjectElement interface: objects.foreignObject must inherit property "x" with the proper type
+Pass	SVGForeignObjectElement interface: objects.foreignObject must inherit property "y" with the proper type
+Pass	SVGForeignObjectElement interface: objects.foreignObject must inherit property "width" with the proper type
+Pass	SVGForeignObjectElement interface: objects.foreignObject must inherit property "height" with the proper type
+Pass	SVGGraphicsElement interface: objects.foreignObject must inherit property "transform" with the proper type
+Pass	SVGGraphicsElement interface: objects.foreignObject must inherit property "getBBox(optional SVGBoundingBoxOptions)" with the proper type
+Pass	SVGGraphicsElement interface: calling getBBox(optional SVGBoundingBoxOptions) on objects.foreignObject with too few arguments must throw TypeError
+Fail	SVGGraphicsElement interface: objects.foreignObject must inherit property "getCTM()" with the proper type
+Pass	SVGGraphicsElement interface: objects.foreignObject must inherit property "getScreenCTM()" with the proper type
+Fail	SVGGraphicsElement interface: objects.foreignObject must inherit property "requiredExtensions" with the proper type
+Fail	SVGGraphicsElement interface: objects.foreignObject must inherit property "systemLanguage" with the proper type
+Pass	SVGElement interface: objects.foreignObject must inherit property "className" with the proper type
+Pass	SVGElement interface: objects.foreignObject must inherit property "ownerSVGElement" with the proper type
+Fail	SVGElement interface: objects.foreignObject must inherit property "viewportElement" with the proper type
+Fail	SVGElement interface: objects.foreignObject must inherit property "correspondingElement" with the proper type
+Fail	SVGElement interface: objects.foreignObject must inherit property "correspondingUseElement" with the proper type
+Fail	SVGMarkerElement interface: existence and properties of interface object
+Fail	SVGMarkerElement interface object length
+Fail	SVGMarkerElement interface object name
+Fail	SVGMarkerElement interface: existence and properties of interface prototype object
+Fail	SVGMarkerElement interface: existence and properties of interface prototype object's "constructor" property
+Fail	SVGMarkerElement interface: existence and properties of interface prototype object's @@unscopables property
+Fail	SVGMarkerElement interface: constant SVG_MARKERUNITS_UNKNOWN on interface object
+Fail	SVGMarkerElement interface: constant SVG_MARKERUNITS_UNKNOWN on interface prototype object
+Fail	SVGMarkerElement interface: constant SVG_MARKERUNITS_USERSPACEONUSE on interface object
+Fail	SVGMarkerElement interface: constant SVG_MARKERUNITS_USERSPACEONUSE on interface prototype object
+Fail	SVGMarkerElement interface: constant SVG_MARKERUNITS_STROKEWIDTH on interface object
+Fail	SVGMarkerElement interface: constant SVG_MARKERUNITS_STROKEWIDTH on interface prototype object
+Fail	SVGMarkerElement interface: constant SVG_MARKER_ORIENT_UNKNOWN on interface object
+Fail	SVGMarkerElement interface: constant SVG_MARKER_ORIENT_UNKNOWN on interface prototype object
+Fail	SVGMarkerElement interface: constant SVG_MARKER_ORIENT_AUTO on interface object
+Fail	SVGMarkerElement interface: constant SVG_MARKER_ORIENT_AUTO on interface prototype object
+Fail	SVGMarkerElement interface: constant SVG_MARKER_ORIENT_ANGLE on interface object
+Fail	SVGMarkerElement interface: constant SVG_MARKER_ORIENT_ANGLE on interface prototype object
+Fail	SVGMarkerElement interface: attribute refX
+Fail	SVGMarkerElement interface: attribute refY
+Fail	SVGMarkerElement interface: attribute markerUnits
+Fail	SVGMarkerElement interface: attribute markerWidth
+Fail	SVGMarkerElement interface: attribute markerHeight
+Fail	SVGMarkerElement interface: attribute orientType
+Fail	SVGMarkerElement interface: attribute orientAngle
+Fail	SVGMarkerElement interface: attribute orient
+Fail	SVGMarkerElement interface: operation setOrientToAuto()
+Fail	SVGMarkerElement interface: operation setOrientToAngle(SVGAngle)
+Fail	SVGMarkerElement interface: attribute viewBox
+Fail	SVGMarkerElement interface: attribute preserveAspectRatio
+Fail	SVGMarkerElement must be primary interface of objects.marker
+Fail	Stringification of objects.marker
+Fail	SVGMarkerElement interface: objects.marker must inherit property "SVG_MARKERUNITS_UNKNOWN" with the proper type
+Fail	SVGMarkerElement interface: objects.marker must inherit property "SVG_MARKERUNITS_USERSPACEONUSE" with the proper type
+Fail	SVGMarkerElement interface: objects.marker must inherit property "SVG_MARKERUNITS_STROKEWIDTH" with the proper type
+Fail	SVGMarkerElement interface: objects.marker must inherit property "SVG_MARKER_ORIENT_UNKNOWN" with the proper type
+Fail	SVGMarkerElement interface: objects.marker must inherit property "SVG_MARKER_ORIENT_AUTO" with the proper type
+Fail	SVGMarkerElement interface: objects.marker must inherit property "SVG_MARKER_ORIENT_ANGLE" with the proper type
+Fail	SVGMarkerElement interface: objects.marker must inherit property "refX" with the proper type
+Fail	SVGMarkerElement interface: objects.marker must inherit property "refY" with the proper type
+Fail	SVGMarkerElement interface: objects.marker must inherit property "markerUnits" with the proper type
+Fail	SVGMarkerElement interface: objects.marker must inherit property "markerWidth" with the proper type
+Fail	SVGMarkerElement interface: objects.marker must inherit property "markerHeight" with the proper type
+Fail	SVGMarkerElement interface: objects.marker must inherit property "orientType" with the proper type
+Fail	SVGMarkerElement interface: objects.marker must inherit property "orientAngle" with the proper type
+Fail	SVGMarkerElement interface: objects.marker must inherit property "orient" with the proper type
+Fail	SVGMarkerElement interface: objects.marker must inherit property "setOrientToAuto()" with the proper type
+Fail	SVGMarkerElement interface: objects.marker must inherit property "setOrientToAngle(SVGAngle)" with the proper type
+Fail	SVGMarkerElement interface: calling setOrientToAngle(SVGAngle) on objects.marker with too few arguments must throw TypeError
+Fail	SVGMarkerElement interface: objects.marker must inherit property "viewBox" with the proper type
+Fail	SVGMarkerElement interface: objects.marker must inherit property "preserveAspectRatio" with the proper type
+Pass	SVGElement interface: objects.marker must inherit property "className" with the proper type
+Pass	SVGElement interface: objects.marker must inherit property "ownerSVGElement" with the proper type
+Fail	SVGElement interface: objects.marker must inherit property "viewportElement" with the proper type
+Fail	SVGElement interface: objects.marker must inherit property "correspondingElement" with the proper type
+Fail	SVGElement interface: objects.marker must inherit property "correspondingUseElement" with the proper type
+Pass	SVGGradientElement interface: existence and properties of interface object
+Pass	SVGGradientElement interface object length
+Pass	SVGGradientElement interface object name
+Pass	SVGGradientElement interface: existence and properties of interface prototype object
+Pass	SVGGradientElement interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGGradientElement interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGGradientElement interface: constant SVG_SPREADMETHOD_UNKNOWN on interface object
+Pass	SVGGradientElement interface: constant SVG_SPREADMETHOD_UNKNOWN on interface prototype object
+Pass	SVGGradientElement interface: constant SVG_SPREADMETHOD_PAD on interface object
+Pass	SVGGradientElement interface: constant SVG_SPREADMETHOD_PAD on interface prototype object
+Pass	SVGGradientElement interface: constant SVG_SPREADMETHOD_REFLECT on interface object
+Pass	SVGGradientElement interface: constant SVG_SPREADMETHOD_REFLECT on interface prototype object
+Pass	SVGGradientElement interface: constant SVG_SPREADMETHOD_REPEAT on interface object
+Pass	SVGGradientElement interface: constant SVG_SPREADMETHOD_REPEAT on interface prototype object
+Fail	SVGGradientElement interface: attribute gradientUnits
+Fail	SVGGradientElement interface: attribute gradientTransform
+Fail	SVGGradientElement interface: attribute spreadMethod
+Pass	SVGGradientElement interface: attribute href
+Pass	SVGLinearGradientElement interface: existence and properties of interface object
+Pass	SVGLinearGradientElement interface object length
+Pass	SVGLinearGradientElement interface object name
+Pass	SVGLinearGradientElement interface: existence and properties of interface prototype object
+Pass	SVGLinearGradientElement interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGLinearGradientElement interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGLinearGradientElement interface: attribute x1
+Pass	SVGLinearGradientElement interface: attribute y1
+Pass	SVGLinearGradientElement interface: attribute x2
+Pass	SVGLinearGradientElement interface: attribute y2
+Pass	SVGLinearGradientElement must be primary interface of objects.linearGradient
+Pass	Stringification of objects.linearGradient
+Pass	SVGLinearGradientElement interface: objects.linearGradient must inherit property "x1" with the proper type
+Pass	SVGLinearGradientElement interface: objects.linearGradient must inherit property "y1" with the proper type
+Pass	SVGLinearGradientElement interface: objects.linearGradient must inherit property "x2" with the proper type
+Pass	SVGLinearGradientElement interface: objects.linearGradient must inherit property "y2" with the proper type
+Pass	SVGGradientElement interface: objects.linearGradient must inherit property "SVG_SPREADMETHOD_UNKNOWN" with the proper type
+Pass	SVGGradientElement interface: objects.linearGradient must inherit property "SVG_SPREADMETHOD_PAD" with the proper type
+Pass	SVGGradientElement interface: objects.linearGradient must inherit property "SVG_SPREADMETHOD_REFLECT" with the proper type
+Pass	SVGGradientElement interface: objects.linearGradient must inherit property "SVG_SPREADMETHOD_REPEAT" with the proper type
+Fail	SVGGradientElement interface: objects.linearGradient must inherit property "gradientUnits" with the proper type
+Fail	SVGGradientElement interface: objects.linearGradient must inherit property "gradientTransform" with the proper type
+Fail	SVGGradientElement interface: objects.linearGradient must inherit property "spreadMethod" with the proper type
+Pass	SVGGradientElement interface: objects.linearGradient must inherit property "href" with the proper type
+Pass	SVGElement interface: objects.linearGradient must inherit property "className" with the proper type
+Pass	SVGElement interface: objects.linearGradient must inherit property "ownerSVGElement" with the proper type
+Fail	SVGElement interface: objects.linearGradient must inherit property "viewportElement" with the proper type
+Fail	SVGElement interface: objects.linearGradient must inherit property "correspondingElement" with the proper type
+Fail	SVGElement interface: objects.linearGradient must inherit property "correspondingUseElement" with the proper type
+Pass	SVGRadialGradientElement interface: existence and properties of interface object
+Pass	SVGRadialGradientElement interface object length
+Pass	SVGRadialGradientElement interface object name
+Pass	SVGRadialGradientElement interface: existence and properties of interface prototype object
+Pass	SVGRadialGradientElement interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGRadialGradientElement interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGRadialGradientElement interface: attribute cx
+Pass	SVGRadialGradientElement interface: attribute cy
+Pass	SVGRadialGradientElement interface: attribute r
+Pass	SVGRadialGradientElement interface: attribute fx
+Pass	SVGRadialGradientElement interface: attribute fy
+Pass	SVGRadialGradientElement interface: attribute fr
+Pass	SVGRadialGradientElement must be primary interface of objects.radialGradient
+Pass	Stringification of objects.radialGradient
+Pass	SVGRadialGradientElement interface: objects.radialGradient must inherit property "cx" with the proper type
+Pass	SVGRadialGradientElement interface: objects.radialGradient must inherit property "cy" with the proper type
+Pass	SVGRadialGradientElement interface: objects.radialGradient must inherit property "r" with the proper type
+Pass	SVGRadialGradientElement interface: objects.radialGradient must inherit property "fx" with the proper type
+Pass	SVGRadialGradientElement interface: objects.radialGradient must inherit property "fy" with the proper type
+Pass	SVGRadialGradientElement interface: objects.radialGradient must inherit property "fr" with the proper type
+Pass	SVGGradientElement interface: objects.radialGradient must inherit property "SVG_SPREADMETHOD_UNKNOWN" with the proper type
+Pass	SVGGradientElement interface: objects.radialGradient must inherit property "SVG_SPREADMETHOD_PAD" with the proper type
+Pass	SVGGradientElement interface: objects.radialGradient must inherit property "SVG_SPREADMETHOD_REFLECT" with the proper type
+Pass	SVGGradientElement interface: objects.radialGradient must inherit property "SVG_SPREADMETHOD_REPEAT" with the proper type
+Fail	SVGGradientElement interface: objects.radialGradient must inherit property "gradientUnits" with the proper type
+Fail	SVGGradientElement interface: objects.radialGradient must inherit property "gradientTransform" with the proper type
+Fail	SVGGradientElement interface: objects.radialGradient must inherit property "spreadMethod" with the proper type
+Pass	SVGGradientElement interface: objects.radialGradient must inherit property "href" with the proper type
+Pass	SVGElement interface: objects.radialGradient must inherit property "className" with the proper type
+Pass	SVGElement interface: objects.radialGradient must inherit property "ownerSVGElement" with the proper type
+Fail	SVGElement interface: objects.radialGradient must inherit property "viewportElement" with the proper type
+Fail	SVGElement interface: objects.radialGradient must inherit property "correspondingElement" with the proper type
+Fail	SVGElement interface: objects.radialGradient must inherit property "correspondingUseElement" with the proper type
+Pass	SVGStopElement interface: existence and properties of interface object
+Pass	SVGStopElement interface object length
+Pass	SVGStopElement interface object name
+Pass	SVGStopElement interface: existence and properties of interface prototype object
+Pass	SVGStopElement interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGStopElement interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGStopElement interface: attribute offset
+Pass	SVGStopElement must be primary interface of objects.stop
+Pass	Stringification of objects.stop
+Pass	SVGStopElement interface: objects.stop must inherit property "offset" with the proper type
+Pass	SVGElement interface: objects.stop must inherit property "className" with the proper type
+Pass	SVGElement interface: objects.stop must inherit property "ownerSVGElement" with the proper type
+Fail	SVGElement interface: objects.stop must inherit property "viewportElement" with the proper type
+Fail	SVGElement interface: objects.stop must inherit property "correspondingElement" with the proper type
+Fail	SVGElement interface: objects.stop must inherit property "correspondingUseElement" with the proper type
+Fail	SVGPatternElement interface: existence and properties of interface object
+Fail	SVGPatternElement interface object length
+Fail	SVGPatternElement interface object name
+Fail	SVGPatternElement interface: existence and properties of interface prototype object
+Fail	SVGPatternElement interface: existence and properties of interface prototype object's "constructor" property
+Fail	SVGPatternElement interface: existence and properties of interface prototype object's @@unscopables property
+Fail	SVGPatternElement interface: attribute patternUnits
+Fail	SVGPatternElement interface: attribute patternContentUnits
+Fail	SVGPatternElement interface: attribute patternTransform
+Fail	SVGPatternElement interface: attribute x
+Fail	SVGPatternElement interface: attribute y
+Fail	SVGPatternElement interface: attribute width
+Fail	SVGPatternElement interface: attribute height
+Fail	SVGPatternElement interface: attribute viewBox
+Fail	SVGPatternElement interface: attribute preserveAspectRatio
+Fail	SVGPatternElement interface: attribute href
+Fail	SVGPatternElement must be primary interface of objects.pattern
+Fail	Stringification of objects.pattern
+Fail	SVGPatternElement interface: objects.pattern must inherit property "patternUnits" with the proper type
+Fail	SVGPatternElement interface: objects.pattern must inherit property "patternContentUnits" with the proper type
+Fail	SVGPatternElement interface: objects.pattern must inherit property "patternTransform" with the proper type
+Fail	SVGPatternElement interface: objects.pattern must inherit property "x" with the proper type
+Fail	SVGPatternElement interface: objects.pattern must inherit property "y" with the proper type
+Fail	SVGPatternElement interface: objects.pattern must inherit property "width" with the proper type
+Fail	SVGPatternElement interface: objects.pattern must inherit property "height" with the proper type
+Fail	SVGPatternElement interface: objects.pattern must inherit property "viewBox" with the proper type
+Fail	SVGPatternElement interface: objects.pattern must inherit property "preserveAspectRatio" with the proper type
+Fail	SVGPatternElement interface: objects.pattern must inherit property "href" with the proper type
+Pass	SVGElement interface: objects.pattern must inherit property "className" with the proper type
+Pass	SVGElement interface: objects.pattern must inherit property "ownerSVGElement" with the proper type
+Fail	SVGElement interface: objects.pattern must inherit property "viewportElement" with the proper type
+Fail	SVGElement interface: objects.pattern must inherit property "correspondingElement" with the proper type
+Fail	SVGElement interface: objects.pattern must inherit property "correspondingUseElement" with the proper type
+Pass	SVGScriptElement interface: existence and properties of interface object
+Pass	SVGScriptElement interface object length
+Pass	SVGScriptElement interface object name
+Pass	SVGScriptElement interface: existence and properties of interface prototype object
+Pass	SVGScriptElement interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGScriptElement interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGScriptElement interface: attribute type
+Pass	SVGScriptElement interface: attribute crossOrigin
+Pass	SVGScriptElement interface: attribute href
+Pass	SVGScriptElement must be primary interface of objects.script
+Pass	Stringification of objects.script
+Pass	SVGScriptElement interface: objects.script must inherit property "type" with the proper type
+Pass	SVGScriptElement interface: objects.script must inherit property "crossOrigin" with the proper type
+Pass	SVGScriptElement interface: objects.script must inherit property "href" with the proper type
+Pass	SVGElement interface: objects.script must inherit property "className" with the proper type
+Pass	SVGElement interface: objects.script must inherit property "ownerSVGElement" with the proper type
+Fail	SVGElement interface: objects.script must inherit property "viewportElement" with the proper type
+Fail	SVGElement interface: objects.script must inherit property "correspondingElement" with the proper type
+Fail	SVGElement interface: objects.script must inherit property "correspondingUseElement" with the proper type
+Pass	SVGAElement interface: existence and properties of interface object
+Pass	SVGAElement interface object length
+Pass	SVGAElement interface object name
+Pass	SVGAElement interface: existence and properties of interface prototype object
+Pass	SVGAElement interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGAElement interface: existence and properties of interface prototype object's @@unscopables property
+Fail	SVGAElement interface: attribute target
+Pass	SVGAElement interface: attribute download
+Pass	SVGAElement interface: attribute ping
+Pass	SVGAElement interface: attribute rel
+Pass	SVGAElement interface: attribute relList
+Pass	SVGAElement interface: attribute hreflang
+Pass	SVGAElement interface: attribute type
+Fail	SVGAElement interface: attribute text
+Fail	SVGAElement interface: attribute referrerPolicy
+Fail	SVGAElement interface: attribute origin
+Fail	SVGAElement interface: attribute protocol
+Fail	SVGAElement interface: attribute username
+Fail	SVGAElement interface: attribute password
+Fail	SVGAElement interface: attribute host
+Fail	SVGAElement interface: attribute hostname
+Fail	SVGAElement interface: attribute port
+Fail	SVGAElement interface: attribute pathname
+Fail	SVGAElement interface: attribute search
+Fail	SVGAElement interface: attribute hash
+Pass	SVGAElement interface: attribute href
+Pass	SVGAElement must be primary interface of objects.a
+Pass	Stringification of objects.a
+Fail	SVGAElement interface: objects.a must inherit property "target" with the proper type
+Pass	SVGAElement interface: objects.a must inherit property "download" with the proper type
+Pass	SVGAElement interface: objects.a must inherit property "ping" with the proper type
+Pass	SVGAElement interface: objects.a must inherit property "rel" with the proper type
+Pass	SVGAElement interface: objects.a must inherit property "relList" with the proper type
+Pass	SVGAElement interface: objects.a must inherit property "hreflang" with the proper type
+Pass	SVGAElement interface: objects.a must inherit property "type" with the proper type
+Fail	SVGAElement interface: objects.a must inherit property "text" with the proper type
+Fail	SVGAElement interface: objects.a must inherit property "referrerPolicy" with the proper type
+Fail	SVGAElement interface: objects.a must inherit property "origin" with the proper type
+Fail	SVGAElement interface: objects.a must inherit property "protocol" with the proper type
+Fail	SVGAElement interface: objects.a must inherit property "username" with the proper type
+Fail	SVGAElement interface: objects.a must inherit property "password" with the proper type
+Fail	SVGAElement interface: objects.a must inherit property "host" with the proper type
+Fail	SVGAElement interface: objects.a must inherit property "hostname" with the proper type
+Fail	SVGAElement interface: objects.a must inherit property "port" with the proper type
+Fail	SVGAElement interface: objects.a must inherit property "pathname" with the proper type
+Fail	SVGAElement interface: objects.a must inherit property "search" with the proper type
+Fail	SVGAElement interface: objects.a must inherit property "hash" with the proper type
+Pass	SVGAElement interface: objects.a must inherit property "href" with the proper type
+Pass	SVGGraphicsElement interface: objects.a must inherit property "transform" with the proper type
+Pass	SVGGraphicsElement interface: objects.a must inherit property "getBBox(optional SVGBoundingBoxOptions)" with the proper type
+Pass	SVGGraphicsElement interface: calling getBBox(optional SVGBoundingBoxOptions) on objects.a with too few arguments must throw TypeError
+Fail	SVGGraphicsElement interface: objects.a must inherit property "getCTM()" with the proper type
+Pass	SVGGraphicsElement interface: objects.a must inherit property "getScreenCTM()" with the proper type
+Fail	SVGGraphicsElement interface: objects.a must inherit property "requiredExtensions" with the proper type
+Fail	SVGGraphicsElement interface: objects.a must inherit property "systemLanguage" with the proper type
+Pass	SVGElement interface: objects.a must inherit property "className" with the proper type
+Pass	SVGElement interface: objects.a must inherit property "ownerSVGElement" with the proper type
+Fail	SVGElement interface: objects.a must inherit property "viewportElement" with the proper type
+Fail	SVGElement interface: objects.a must inherit property "correspondingElement" with the proper type
+Fail	SVGElement interface: objects.a must inherit property "correspondingUseElement" with the proper type
+Fail	SVGViewElement interface: existence and properties of interface object
+Fail	SVGViewElement interface object length
+Fail	SVGViewElement interface object name
+Fail	SVGViewElement interface: existence and properties of interface prototype object
+Fail	SVGViewElement interface: existence and properties of interface prototype object's "constructor" property
+Fail	SVGViewElement interface: existence and properties of interface prototype object's @@unscopables property
+Fail	SVGViewElement interface: attribute viewBox
+Fail	SVGViewElement interface: attribute preserveAspectRatio
+Fail	SVGViewElement must be primary interface of objects.view
+Fail	Stringification of objects.view
+Fail	SVGViewElement interface: objects.view must inherit property "viewBox" with the proper type
+Fail	SVGViewElement interface: objects.view must inherit property "preserveAspectRatio" with the proper type
+Pass	SVGElement interface: objects.view must inherit property "className" with the proper type
+Pass	SVGElement interface: objects.view must inherit property "ownerSVGElement" with the proper type
+Fail	SVGElement interface: objects.view must inherit property "viewportElement" with the proper type
+Fail	SVGElement interface: objects.view must inherit property "correspondingElement" with the proper type
+Fail	SVGElement interface: objects.view must inherit property "correspondingUseElement" with the proper type
+Fail	TimeEvent interface: existence and properties of interface object
+Fail	TimeEvent interface object length
+Fail	TimeEvent interface object name
+Fail	TimeEvent interface: existence and properties of interface prototype object
+Fail	TimeEvent interface: existence and properties of interface prototype object's "constructor" property
+Fail	TimeEvent interface: existence and properties of interface prototype object's @@unscopables property
+Fail	TimeEvent interface: attribute view
+Fail	TimeEvent interface: attribute detail
+Fail	TimeEvent interface: operation initTimeEvent(DOMString, Window?, long)
+Fail	SVGAnimationElement interface: existence and properties of interface object
+Fail	SVGAnimationElement interface object length
+Fail	SVGAnimationElement interface object name
+Fail	SVGAnimationElement interface: existence and properties of interface prototype object
+Fail	SVGAnimationElement interface: existence and properties of interface prototype object's "constructor" property
+Fail	SVGAnimationElement interface: existence and properties of interface prototype object's @@unscopables property
+Fail	SVGAnimationElement interface: attribute targetElement
+Fail	SVGAnimationElement interface: attribute onbegin
+Fail	SVGAnimationElement interface: attribute onend
+Fail	SVGAnimationElement interface: attribute onrepeat
+Fail	SVGAnimationElement interface: operation getStartTime()
+Fail	SVGAnimationElement interface: operation getCurrentTime()
+Fail	SVGAnimationElement interface: operation getSimpleDuration()
+Fail	SVGAnimationElement interface: operation beginElement()
+Fail	SVGAnimationElement interface: operation beginElementAt(float)
+Fail	SVGAnimationElement interface: operation endElement()
+Fail	SVGAnimationElement interface: operation endElementAt(float)
+Fail	SVGAnimationElement interface: attribute requiredExtensions
+Fail	SVGAnimationElement interface: attribute systemLanguage
+Fail	SVGAnimateElement interface: existence and properties of interface object
+Fail	SVGAnimateElement interface object length
+Fail	SVGAnimateElement interface object name
+Fail	SVGAnimateElement interface: existence and properties of interface prototype object
+Fail	SVGAnimateElement interface: existence and properties of interface prototype object's "constructor" property
+Fail	SVGAnimateElement interface: existence and properties of interface prototype object's @@unscopables property
+Fail	SVGAnimateElement must be primary interface of objects.animate
+Fail	Stringification of objects.animate
+Fail	SVGAnimationElement interface: objects.animate must inherit property "targetElement" with the proper type
+Fail	SVGAnimationElement interface: objects.animate must inherit property "onbegin" with the proper type
+Fail	SVGAnimationElement interface: objects.animate must inherit property "onend" with the proper type
+Fail	SVGAnimationElement interface: objects.animate must inherit property "onrepeat" with the proper type
+Fail	SVGAnimationElement interface: objects.animate must inherit property "getStartTime()" with the proper type
+Fail	SVGAnimationElement interface: objects.animate must inherit property "getCurrentTime()" with the proper type
+Fail	SVGAnimationElement interface: objects.animate must inherit property "getSimpleDuration()" with the proper type
+Fail	SVGAnimationElement interface: objects.animate must inherit property "beginElement()" with the proper type
+Fail	SVGAnimationElement interface: objects.animate must inherit property "beginElementAt(float)" with the proper type
+Fail	SVGAnimationElement interface: calling beginElementAt(float) on objects.animate with too few arguments must throw TypeError
+Fail	SVGAnimationElement interface: objects.animate must inherit property "endElement()" with the proper type
+Fail	SVGAnimationElement interface: objects.animate must inherit property "endElementAt(float)" with the proper type
+Fail	SVGAnimationElement interface: calling endElementAt(float) on objects.animate with too few arguments must throw TypeError
+Fail	SVGAnimationElement interface: objects.animate must inherit property "requiredExtensions" with the proper type
+Fail	SVGAnimationElement interface: objects.animate must inherit property "systemLanguage" with the proper type
+Pass	SVGElement interface: objects.animate must inherit property "className" with the proper type
+Pass	SVGElement interface: objects.animate must inherit property "ownerSVGElement" with the proper type
+Fail	SVGElement interface: objects.animate must inherit property "viewportElement" with the proper type
+Fail	SVGElement interface: objects.animate must inherit property "correspondingElement" with the proper type
+Fail	SVGElement interface: objects.animate must inherit property "correspondingUseElement" with the proper type
+Fail	SVGSetElement interface: existence and properties of interface object
+Fail	SVGSetElement interface object length
+Fail	SVGSetElement interface object name
+Fail	SVGSetElement interface: existence and properties of interface prototype object
+Fail	SVGSetElement interface: existence and properties of interface prototype object's "constructor" property
+Fail	SVGSetElement interface: existence and properties of interface prototype object's @@unscopables property
+Fail	SVGSetElement must be primary interface of objects.set
+Fail	Stringification of objects.set
+Fail	SVGAnimationElement interface: objects.set must inherit property "targetElement" with the proper type
+Fail	SVGAnimationElement interface: objects.set must inherit property "onbegin" with the proper type
+Fail	SVGAnimationElement interface: objects.set must inherit property "onend" with the proper type
+Fail	SVGAnimationElement interface: objects.set must inherit property "onrepeat" with the proper type
+Fail	SVGAnimationElement interface: objects.set must inherit property "getStartTime()" with the proper type
+Fail	SVGAnimationElement interface: objects.set must inherit property "getCurrentTime()" with the proper type
+Fail	SVGAnimationElement interface: objects.set must inherit property "getSimpleDuration()" with the proper type
+Fail	SVGAnimationElement interface: objects.set must inherit property "beginElement()" with the proper type
+Fail	SVGAnimationElement interface: objects.set must inherit property "beginElementAt(float)" with the proper type
+Fail	SVGAnimationElement interface: calling beginElementAt(float) on objects.set with too few arguments must throw TypeError
+Fail	SVGAnimationElement interface: objects.set must inherit property "endElement()" with the proper type
+Fail	SVGAnimationElement interface: objects.set must inherit property "endElementAt(float)" with the proper type
+Fail	SVGAnimationElement interface: calling endElementAt(float) on objects.set with too few arguments must throw TypeError
+Fail	SVGAnimationElement interface: objects.set must inherit property "requiredExtensions" with the proper type
+Fail	SVGAnimationElement interface: objects.set must inherit property "systemLanguage" with the proper type
+Pass	SVGElement interface: objects.set must inherit property "className" with the proper type
+Pass	SVGElement interface: objects.set must inherit property "ownerSVGElement" with the proper type
+Fail	SVGElement interface: objects.set must inherit property "viewportElement" with the proper type
+Fail	SVGElement interface: objects.set must inherit property "correspondingElement" with the proper type
+Fail	SVGElement interface: objects.set must inherit property "correspondingUseElement" with the proper type
+Fail	SVGAnimateMotionElement interface: existence and properties of interface object
+Fail	SVGAnimateMotionElement interface object length
+Fail	SVGAnimateMotionElement interface object name
+Fail	SVGAnimateMotionElement interface: existence and properties of interface prototype object
+Fail	SVGAnimateMotionElement interface: existence and properties of interface prototype object's "constructor" property
+Fail	SVGAnimateMotionElement interface: existence and properties of interface prototype object's @@unscopables property
+Fail	SVGAnimateMotionElement must be primary interface of objects.animateMotion
+Fail	Stringification of objects.animateMotion
+Fail	SVGAnimationElement interface: objects.animateMotion must inherit property "targetElement" with the proper type
+Fail	SVGAnimationElement interface: objects.animateMotion must inherit property "onbegin" with the proper type
+Fail	SVGAnimationElement interface: objects.animateMotion must inherit property "onend" with the proper type
+Fail	SVGAnimationElement interface: objects.animateMotion must inherit property "onrepeat" with the proper type
+Fail	SVGAnimationElement interface: objects.animateMotion must inherit property "getStartTime()" with the proper type
+Fail	SVGAnimationElement interface: objects.animateMotion must inherit property "getCurrentTime()" with the proper type
+Fail	SVGAnimationElement interface: objects.animateMotion must inherit property "getSimpleDuration()" with the proper type
+Fail	SVGAnimationElement interface: objects.animateMotion must inherit property "beginElement()" with the proper type
+Fail	SVGAnimationElement interface: objects.animateMotion must inherit property "beginElementAt(float)" with the proper type
+Fail	SVGAnimationElement interface: calling beginElementAt(float) on objects.animateMotion with too few arguments must throw TypeError
+Fail	SVGAnimationElement interface: objects.animateMotion must inherit property "endElement()" with the proper type
+Fail	SVGAnimationElement interface: objects.animateMotion must inherit property "endElementAt(float)" with the proper type
+Fail	SVGAnimationElement interface: calling endElementAt(float) on objects.animateMotion with too few arguments must throw TypeError
+Fail	SVGAnimationElement interface: objects.animateMotion must inherit property "requiredExtensions" with the proper type
+Fail	SVGAnimationElement interface: objects.animateMotion must inherit property "systemLanguage" with the proper type
+Pass	SVGElement interface: objects.animateMotion must inherit property "className" with the proper type
+Pass	SVGElement interface: objects.animateMotion must inherit property "ownerSVGElement" with the proper type
+Fail	SVGElement interface: objects.animateMotion must inherit property "viewportElement" with the proper type
+Fail	SVGElement interface: objects.animateMotion must inherit property "correspondingElement" with the proper type
+Fail	SVGElement interface: objects.animateMotion must inherit property "correspondingUseElement" with the proper type
+Fail	SVGMPathElement interface: existence and properties of interface object
+Fail	SVGMPathElement interface object length
+Fail	SVGMPathElement interface object name
+Fail	SVGMPathElement interface: existence and properties of interface prototype object
+Fail	SVGMPathElement interface: existence and properties of interface prototype object's "constructor" property
+Fail	SVGMPathElement interface: existence and properties of interface prototype object's @@unscopables property
+Fail	SVGMPathElement interface: attribute href
+Fail	SVGMPathElement must be primary interface of objects.mpath
+Fail	Stringification of objects.mpath
+Fail	SVGMPathElement interface: objects.mpath must inherit property "href" with the proper type
+Pass	SVGElement interface: objects.mpath must inherit property "className" with the proper type
+Pass	SVGElement interface: objects.mpath must inherit property "ownerSVGElement" with the proper type
+Fail	SVGElement interface: objects.mpath must inherit property "viewportElement" with the proper type
+Fail	SVGElement interface: objects.mpath must inherit property "correspondingElement" with the proper type
+Fail	SVGElement interface: objects.mpath must inherit property "correspondingUseElement" with the proper type
+Fail	SVGAnimateTransformElement interface: existence and properties of interface object
+Fail	SVGAnimateTransformElement interface object length
+Fail	SVGAnimateTransformElement interface object name
+Fail	SVGAnimateTransformElement interface: existence and properties of interface prototype object
+Fail	SVGAnimateTransformElement interface: existence and properties of interface prototype object's "constructor" property
+Fail	SVGAnimateTransformElement interface: existence and properties of interface prototype object's @@unscopables property
+Fail	SVGAnimateTransformElement must be primary interface of objects.animateTransform
+Fail	Stringification of objects.animateTransform
+Fail	SVGAnimationElement interface: objects.animateTransform must inherit property "targetElement" with the proper type
+Fail	SVGAnimationElement interface: objects.animateTransform must inherit property "onbegin" with the proper type
+Fail	SVGAnimationElement interface: objects.animateTransform must inherit property "onend" with the proper type
+Fail	SVGAnimationElement interface: objects.animateTransform must inherit property "onrepeat" with the proper type
+Fail	SVGAnimationElement interface: objects.animateTransform must inherit property "getStartTime()" with the proper type
+Fail	SVGAnimationElement interface: objects.animateTransform must inherit property "getCurrentTime()" with the proper type
+Fail	SVGAnimationElement interface: objects.animateTransform must inherit property "getSimpleDuration()" with the proper type
+Fail	SVGAnimationElement interface: objects.animateTransform must inherit property "beginElement()" with the proper type
+Fail	SVGAnimationElement interface: objects.animateTransform must inherit property "beginElementAt(float)" with the proper type
+Fail	SVGAnimationElement interface: calling beginElementAt(float) on objects.animateTransform with too few arguments must throw TypeError
+Fail	SVGAnimationElement interface: objects.animateTransform must inherit property "endElement()" with the proper type
+Fail	SVGAnimationElement interface: objects.animateTransform must inherit property "endElementAt(float)" with the proper type
+Fail	SVGAnimationElement interface: calling endElementAt(float) on objects.animateTransform with too few arguments must throw TypeError
+Fail	SVGAnimationElement interface: objects.animateTransform must inherit property "requiredExtensions" with the proper type
+Fail	SVGAnimationElement interface: objects.animateTransform must inherit property "systemLanguage" with the proper type
+Pass	SVGElement interface: objects.animateTransform must inherit property "className" with the proper type
+Pass	SVGElement interface: objects.animateTransform must inherit property "ownerSVGElement" with the proper type
+Fail	SVGElement interface: objects.animateTransform must inherit property "viewportElement" with the proper type
+Fail	SVGElement interface: objects.animateTransform must inherit property "correspondingElement" with the proper type
+Fail	SVGElement interface: objects.animateTransform must inherit property "correspondingUseElement" with the proper type
+Fail	SVGDiscardElement interface: existence and properties of interface object
+Fail	SVGDiscardElement interface object length
+Fail	SVGDiscardElement interface object name
+Fail	SVGDiscardElement interface: existence and properties of interface prototype object
+Fail	SVGDiscardElement interface: existence and properties of interface prototype object's "constructor" property
+Fail	SVGDiscardElement interface: existence and properties of interface prototype object's @@unscopables property
+Fail	Document interface: attribute rootElement
