@@ -151,6 +151,7 @@
 #include <LibWeb/ResizeObserver/ResizeObserverEntry.h>
 #include <LibWeb/SVG/SVGDecodedImageData.h>
 #include <LibWeb/SVG/SVGElement.h>
+#include <LibWeb/SVG/SVGSVGElement.h>
 #include <LibWeb/SVG/SVGStyleElement.h>
 #include <LibWeb/SVG/SVGTitleElement.h>
 #include <LibWeb/Selection/Selection.h>
@@ -890,6 +891,12 @@ Element* Document::document_element()
 Element const* Document::document_element() const
 {
     return first_child_of_type<Element>();
+}
+
+// https://www.w3.org/TR/SVG2/struct.html#InterfaceDocumentExtensions
+GC::Ptr<SVG::SVGSVGElement> Document::root_element()
+{
+    return as_if<SVG::SVGSVGElement>(document_element());
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#the-html-element-2

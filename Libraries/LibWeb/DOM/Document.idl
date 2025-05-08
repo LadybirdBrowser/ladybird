@@ -156,6 +156,9 @@ interface Document : Node {
     // special event handler IDL attributes that only apply to Document objects
     [LegacyLenientThis] attribute EventHandler onreadystatechange;
     attribute EventHandler onvisibilitychange;
+
+    // https://www.w3.org/TR/SVG2/struct.html#InterfaceDocumentExtensions
+    readonly attribute SVGSVGElement? rootElement;
 };
 
 dictionary ElementCreationOptions {
