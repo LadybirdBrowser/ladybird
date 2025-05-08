@@ -89,4 +89,18 @@ void ObjectStore::clear_records()
     m_records.clear();
 }
 
+AK::Vector<Record> ObjectStore::first_n_in_range(GC::Ref<IDBKeyRange> range, size_t count)
+{
+    Vector<Record> records;
+    for (auto const& record : m_records) {
+        if (range->is_in_range(record.key))
+            records.append(record);
+
+        if (records.size() >= count)
+            break;
+    }
+
+    return records;
+}
+
 }

@@ -56,6 +56,7 @@ public:
     u64 count_records_in_range(GC::Ref<IDBKeyRange> range);
     Optional<Record&> first_in_range(GC::Ref<IDBKeyRange> range);
     void clear_records();
+    AK::Vector<Record> first_n_in_range(GC::Ref<IDBKeyRange> range, size_t count);
 
 protected:
     virtual void visit_edges(Visitor&) override;
