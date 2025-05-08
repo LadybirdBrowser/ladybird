@@ -12,7 +12,7 @@ interface IDBObjectStore {
     
     [NewObject] IDBRequest put(any value, optional any key);
     [NewObject] IDBRequest add(any value, optional any key);
-    [FIXME, NewObject] IDBRequest delete(any query);
+    [NewObject] IDBRequest delete(any query);
     [FIXME, NewObject] IDBRequest clear();
     [NewObject] IDBRequest get(any query);
     [FIXME, NewObject] IDBRequest getKey(any query);
