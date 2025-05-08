@@ -439,4 +439,39 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::open_cursor(JS::Value q
     return request;
 }
 
+// https://w3c.github.io/IndexedDB/#dom-idbobjectstore-delete
+WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::delete_(JS::Value query)
+{
+    auto& realm = this->realm();
+
+    // 1. Let transaction be this’s transaction.
+    auto transaction = this->transaction();
+
+    // 2. Let store be this’s object store.
+    auto store = this->store();
+
+    // FIXME: 3. If store has been deleted, throw an "InvalidStateError" DOMException.
+
+    // 4. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
+    if (transaction->state() != IDBTransaction::TransactionState::Active)
+        return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while deleting object store"_string);
+
+    // 5. If transaction is a read-only transaction, throw a "ReadOnlyError" DOMException.
+    if (transaction->is_readonly())
+        return WebIDL::ReadOnlyError::create(realm, "Transaction is read-only while deleting object store"_string);
+
+    // 6. Let range be the result of converting a value to a key range with query and true. Rethrow any exceptions.
+    auto range = TRY(convert_a_value_to_a_key_range(realm, query, true));
+
+    // 7. Let operation be an algorithm to run delete records from an object store with store and range.
+    auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(realm.heap(), [store, range] -> WebIDL::ExceptionOr<JS::Value> {
+        return delete_records_from_an_object_store(store, range);
+    });
+
+    // 8. Return the result (an IDBRequest) of running asynchronously execute a request with this and operation.
+    auto result = asynchronously_execute_a_request(realm, GC::Ref(*this), operation);
+    dbgln_if(IDB_DEBUG, "Executing request for delete with uuid {}", result->uuid());
+    return result;
+}
+
 }

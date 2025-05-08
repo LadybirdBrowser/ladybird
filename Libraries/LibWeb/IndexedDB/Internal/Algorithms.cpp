@@ -1312,7 +1312,7 @@ void inject_a_key_into_a_value_using_a_key_path(JS::Realm& realm, JS::Value valu
 }
 
 // https://w3c.github.io/IndexedDB/#delete-records-from-an-object-store
-void delete_records_from_an_object_store(GC::Ref<ObjectStore> store, GC::Ref<IDBKeyRange> range)
+JS::Value delete_records_from_an_object_store(GC::Ref<ObjectStore> store, GC::Ref<IDBKeyRange> range)
 {
     // 1. Remove all records, if any, from store’s list of records with key in range.
     store->remove_records_in_range(range);
@@ -1320,6 +1320,7 @@ void delete_records_from_an_object_store(GC::Ref<ObjectStore> store, GC::Ref<IDB
     // FIXME: 2. For each index which references store, remove every record from index’s list of records whose value is in range, if any such records exist.
 
     // 3. Return undefined.
+    return JS::js_undefined();
 }
 
 // https://w3c.github.io/IndexedDB/#store-a-record-into-an-object-store
