@@ -50,21 +50,11 @@ void IDBObjectStore::visit_edges(Visitor& visitor)
     visitor.visit(m_indexes);
 }
 
-// https://w3c.github.io/IndexedDB/#dom-idbobjectstore-keypath
-JS::Value IDBObjectStore::key_path() const
+// https://w3c.github.io/IndexedDB/#dom-idbobjectstore-name
+String IDBObjectStore::name() const
 {
-    if (!m_store->key_path().has_value())
-        return JS::js_null();
-
-    return m_store->key_path().value().visit(
-        [&](String const& value) -> JS::Value {
-            return JS::PrimitiveString::create(realm().vm(), value);
-        },
-        [&](Vector<String> const& value) -> JS::Value {
-            return JS::Array::create_from<String>(realm(), value.span(), [&](auto const& entry) -> JS::Value {
-                return JS::PrimitiveString::create(realm().vm(), entry);
-            });
-        });
+    // The name getter steps are to return this’s name.
+    return m_name;
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbobjectstore-name
@@ -106,6 +96,49 @@ WebIDL::ExceptionOr<void> IDBObjectStore::set_name(String const& value)
     m_name = name;
 
     return {};
+}
+
+// https://w3c.github.io/IndexedDB/#dom-idbobjectstore-keypath
+JS::Value IDBObjectStore::key_path() const
+{
+    if (!m_store->key_path().has_value())
+        return JS::js_null();
+
+    return m_store->key_path().value().visit(
+        [&](String const& value) -> JS::Value {
+            return JS::PrimitiveString::create(realm().vm(), value);
+        },
+        [&](Vector<String> const& value) -> JS::Value {
+            return JS::Array::create_from<String>(realm(), value.span(), [&](auto const& entry) -> JS::Value {
+                return JS::PrimitiveString::create(realm().vm(), entry);
+            });
+        });
+}
+
+// https://w3c.github.io/IndexedDB/#dom-idbobjectstore-indexnames
+GC::Ref<HTML::DOMStringList> IDBObjectStore::index_names()
+{
+    // 1. Let names be a list of the names of the indexes in this's index set.
+    Vector<String> names;
+    for (auto const& [name, index] : m_indexes)
+        names.append(name);
+
+    // 2. Return the result (a DOMStringList) of creating a sorted name list with names.
+    return create_a_sorted_name_list(realm(), names);
+}
+
+// https://w3c.github.io/IndexedDB/#dom-idbobjectstore-transaction
+GC::Ref<IDBTransaction> IDBObjectStore::transaction() const
+{
+    // The transaction getter steps are to return this’s transaction.
+    return m_transaction;
+}
+
+// https://w3c.github.io/IndexedDB/#dom-idbobjectstore-autoincrement
+bool IDBObjectStore::auto_increment() const
+{
+    // The autoIncrement getter steps are to return true if this’s object store has a key generator, and false otherwise.
+    return m_store->uses_a_key_generator();
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbobjectstore-createindex
@@ -156,18 +189,6 @@ WebIDL::ExceptionOr<GC::Ref<IDBIndex>> IDBObjectStore::create_index(String const
 
     // 13. Return a new index handle associated with index and this.
     return IDBIndex::create(realm, index, *this);
-}
-
-// https://w3c.github.io/IndexedDB/#dom-idbobjectstore-indexnames
-GC::Ref<HTML::DOMStringList> IDBObjectStore::index_names()
-{
-    // 1. Let names be a list of the names of the indexes in this's index set.
-    Vector<String> names;
-    for (auto const& [name, index] : m_indexes)
-        names.append(name);
-
-    // 2. Return the result (a DOMStringList) of creating a sorted name list with names.
-    return create_a_sorted_name_list(realm(), names);
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbobjectstore-index
