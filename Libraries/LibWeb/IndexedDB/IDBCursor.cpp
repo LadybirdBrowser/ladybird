@@ -162,4 +162,11 @@ WebIDL::ExceptionOr<void> IDBCursor::continue_(JS::Value key)
         });
 }
 
+// https://w3c.github.io/IndexedDB/#dom-idbcursor-primarykey
+JS::Value IDBCursor::primary_key() const
+{
+    // The primaryKey getter steps are to return the result of converting a key to a value with the cursor’s current effective key.
+    return convert_a_key_to_a_value(realm(), effective_key());
+}
+
 }

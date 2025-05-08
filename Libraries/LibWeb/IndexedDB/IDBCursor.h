@@ -43,6 +43,7 @@ public:
     [[nodiscard]] GC::Ref<IDBTransaction> transaction();
     [[nodiscard]] CursorSource internal_source();
     [[nodiscard]] GC::Ref<Key> effective_key() const;
+    [[nodiscard]] JS::Value primary_key() const;
 
     void set_request(GC::Ptr<IDBRequest> request) { m_request = request; }
     void set_position(GC::Ptr<Key> position) { m_position = position; }
