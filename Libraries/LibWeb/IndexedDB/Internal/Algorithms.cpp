@@ -1898,4 +1898,29 @@ WebIDL::ExceptionOr<JS::Value> retrieve_multiple_values_from_an_object_store(JS:
     return JS::Array::create_from(realm, list);
 }
 
+// https://w3c.github.io/IndexedDB/#retrieve-multiple-keys-from-an-object-store
+WebIDL::ExceptionOr<JS::Value> retrieve_multiple_keys_from_an_object_store(JS::Realm& realm, GC::Ref<ObjectStore> store, GC::Ref<IDBKeyRange> range, Optional<WebIDL::UnsignedLong> count_parameter)
+{
+    // 1. If count is not given or is 0 (zero), let count be infinity.
+    size_t count = count_parameter.has_value() ? count_parameter.value() : AK::NumericLimits<WebIDL::UnsignedLong>::max();
+
+    // 2. Let records be a list containing the first count records in store’s list of records whose key is in range.
+    auto records = store->first_n_in_range(range, count);
+
+    // 3. Let list be an empty list.
+    Vector<JS::Value> list;
+
+    // 4. For each record of records:
+    for (auto const& record : records) {
+        // 1. Let entry be the result of converting a key to a value with record’s key.
+        auto entry = convert_a_key_to_a_value(realm, record.key);
+
+        // 2. Append entry to list.
+        list.append(entry);
+    }
+
+    // 5. Return list converted to a sequence<any>.
+    return JS::Array::create_from(realm, list);
+}
+
 }
