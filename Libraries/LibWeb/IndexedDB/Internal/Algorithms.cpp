@@ -960,7 +960,7 @@ WebIDL::ExceptionOr<ErrorOr<JS::Value>> evaluate_key_path_on_a_value(JS::Realm& 
         else {
             // 1. If Type(value) is not Object, return failure.
             if (!value.is_object())
-                return Error::from_string_literal("Value is not an object");
+                return Error::from_string_literal("Value is not an object during key path evaluation");
 
             auto identifier_property = String::from_utf8_without_validation(identifier.bytes());
 
@@ -969,14 +969,14 @@ WebIDL::ExceptionOr<ErrorOr<JS::Value>> evaluate_key_path_on_a_value(JS::Realm& 
 
             // 3. If hop is false, return failure.
             if (!hop)
-                return Error::from_string_literal("Property does not exist");
+                return Error::from_string_literal("Failed to find property on object during key path evaluation");
 
             // 4. Let value be ! Get(value, identifier).
             value = MUST(value.as_object().get(identifier_property));
 
             // 5. If value is undefined, return failure.
             if (value.is_undefined())
-                return Error::from_string_literal("Value is undefined");
+                return Error::from_string_literal("undefined value on object during key path evaluation");
         }
 
         return {};
@@ -1229,7 +1229,7 @@ ErrorOr<u64> generate_a_key(GC::Ref<ObjectStore> store)
 
     // 3. If key is greater than 2^53 (9007199254740992), then return failure.
     if (key > static_cast<u64>(MAX_KEY_GENERATOR_VALUE))
-        return Error::from_string_literal("Key is greater than 2^53");
+        return Error::from_string_literal("Key is greater than 2^53 while trying to generate a key");
 
     // 4. Increase generator’s current number by 1.
     generator.increment(1);
