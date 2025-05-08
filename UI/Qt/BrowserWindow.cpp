@@ -76,6 +76,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     , m_new_tab_button_toolbar(new QToolBar("New Tab", m_tabs_container))
     , m_is_popup_window(is_popup_window)
 {
+    m_tabs_container->tabBar()->installEventFilter(this);
     setWindowIcon(app_icon());
 
     // Listen for DPI changes
@@ -646,8 +647,24 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
 
     m_go_back_action->setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::Back));
     m_go_forward_action->setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::Forward));
-    m_reload_action->setShortcuts({ QKeySequence(Qt::CTRL | Qt::Key_R), QKeySequence(Qt::Key_F5) });
+    // m_reload_action->setShortcuts({ QKeySequence(Qt::CTRL | Qt::Key_R), QKeySequence(Qt::Key_F5) });
+    // 1) Grab whatever Qt normally binds to “Refresh” on each platform:
+    auto reload_shortcuts = QKeySequence::keyBindings(QKeySequence::StandardKey::Refresh);
 
+// 2) Add your extra “reload” keys:
+//    - On macOS append ⌘R
+//    - On Windows/Linux append Ctrl+R
+#ifdef Q_OS_MAC
+    reload_shortcuts.append(QKeySequence(Qt::META | Qt::Key_R));
+#else
+    reload_shortcuts.append(QKeySequence(Qt::CTRL | Qt::Key_R));
+#endif
+
+    // 3) Also append F5 everywhere:
+    reload_shortcuts.append(QKeySequence(Qt::Key_F5));
+
+    // 4) Install the combined list as the action’s shortcuts:
+    m_reload_action->setShortcuts(reload_shortcuts);
     m_go_back_action->setEnabled(false);
     m_go_forward_action->setEnabled(false);
     m_reload_action->setEnabled(true);
