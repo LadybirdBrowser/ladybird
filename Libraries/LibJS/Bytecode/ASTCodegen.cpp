@@ -113,13 +113,13 @@ static ThrowCompletionOr<ScopedOperand> constant_fold_binary_expression(Generato
     case BinaryOp::Exponentiation:
         return generator.add_constant(TRY(exp(generator.vm(), lhs, rhs)));
     case BinaryOp::GreaterThan:
-        return generator.add_constant(TRY(greater_than(generator.vm(), lhs, rhs)));
+        return generator.add_constant(Value { TRY(greater_than(generator.vm(), lhs, rhs)) });
     case BinaryOp::GreaterThanEquals:
-        return generator.add_constant(TRY(greater_than_equals(generator.vm(), lhs, rhs)));
+        return generator.add_constant(Value { TRY(greater_than_equals(generator.vm(), lhs, rhs)) });
     case BinaryOp::LessThan:
-        return generator.add_constant(TRY(less_than(generator.vm(), lhs, rhs)));
+        return generator.add_constant(Value { TRY(less_than(generator.vm(), lhs, rhs)) });
     case BinaryOp::LessThanEquals:
-        return generator.add_constant(TRY(less_than_equals(generator.vm(), lhs, rhs)));
+        return generator.add_constant(Value { TRY(less_than_equals(generator.vm(), lhs, rhs)) });
     case BinaryOp::LooselyInequals:
         return generator.add_constant(Value(!TRY(is_loosely_equal(generator.vm(), lhs, rhs))));
     case BinaryOp::LooselyEquals:
