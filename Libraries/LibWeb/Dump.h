@@ -8,7 +8,6 @@
 #pragma once
 
 #include <AK/Forward.h>
-#include <LibWeb/CSS/CSSNamespaceRule.h>
 #include <LibWeb/Forward.h>
 
 namespace Web {
@@ -25,6 +24,7 @@ void dump_sheet(CSS::StyleSheet const&);
 void dump_rule(StringBuilder&, CSS::CSSRule const&, int indent_levels = 0);
 void dump_rule(CSS::CSSRule const&);
 void dump_style_properties(StringBuilder&, CSS::CSSStyleProperties const&, int indent_levels = 0);
+void dump_descriptors(StringBuilder&, CSS::CSSDescriptors const&, int indent_levels = 0);
 void dump_font_face_rule(StringBuilder&, CSS::CSSFontFaceRule const&, int indent_levels = 0);
 void dump_import_rule(StringBuilder&, CSS::CSSImportRule const&, int indent_levels = 0);
 void dump_media_rule(StringBuilder&, CSS::CSSMediaRule const&, int indent_levels = 0);

@@ -24,7 +24,8 @@ public:
 
     bool is_valid() const;
     ParsedFontFace font_face() const;
-    CSSStyleDeclaration* style() { return m_style; }
+    GC::Ref<CSSStyleDeclaration> style() { return m_style; }
+    GC::Ref<CSSFontFaceDescriptors const> descriptors() const { return m_style; }
 
 private:
     CSSFontFaceRule(JS::Realm&, GC::Ref<CSSFontFaceDescriptors>);
