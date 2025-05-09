@@ -1,0 +1,32 @@
+Harness status: OK
+
+Found 26 tests
+
+12 Pass
+14 Fail
+Pass	Slots: Basic.
+Pass	Slots: Basic, elements only.
+Pass	Slots: Slots in closed.
+Pass	Slots: Slots in closed, elements only.
+Pass	Slots: Slots not in a shadow tree.
+Pass	Slots: Slots not in a shadow tree, elements only.
+Pass	Slots: Distributed nodes for Slots not in a shadow tree.
+Pass	Slots: Name matching
+Pass	Slots: No direct host child.
+Pass	Slots: Default Slot.
+Pass	Slots: Slot in Slot does not matter in assignment.
+Fail	Slots: Slot is assigned to another slot
+Fail	Slots: Open > Closed.
+Fail	Slots: Closed > Closed.
+Fail	Slots: Closed > Open.
+Fail	Slots: Complex case: Basi line.
+Fail	Slots: Mutation: appendChild.
+Fail	Slots: Mutation: Change slot= attribute 1.
+Fail	Slots: Mutation: Change slot= attribute 2.
+Fail	Slots: Mutation: Change slot= attribute 3.
+Fail	Slots: Mutation: Remove a child.
+Pass	Slots: Mutation: Add a slot: after.
+Fail	Slots: Mutation: Add a slot: before.
+Fail	Slots: Mutation: Remove a slot.
+Fail	Slots: Mutation: Change slot name= attribute.
+Fail	Slots: Mutation: Change slot slot= attribute.

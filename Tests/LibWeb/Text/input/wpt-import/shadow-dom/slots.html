@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<title>Shadow DOM: Slots and assignments</title>
+<meta name="author" title="Hayato Ito" href="mailto:hayato@google.com">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="resources/shadow-dom.js"></script>
+
+<div id="test_basic">
+  <div id="host">
+    <template data-mode="open">
+      <slot id="s1" name="slot1"></slot>
+    </template>
+    <div id="c1" slot="slot1"></div>
+  </div>
+</div>
+
+<script>
+test(() => {
+  let n = createTestTree(test_basic);
+  removeWhiteSpaceOnlyTextNodes(n.test_basic);
+
+  assert_equals(n.c1.assignedSlot, n.s1);
+  assert_array_equals(n.s1.assignedNodes(), [n.c1]);
+}, 'Slots: Basic.');
+
+test(() => {
+  let n = createTestTree(test_basic);
+
+  assert_array_equals(n.s1.assignedElements(), [n.c1]);
+}, 'Slots: Basic, elements only.');
+</script>
+
+<div id="test_basic_closed">
+  <div id="host">
+    <template data-mode="closed">
+      <slot id="s1" name="slot1"></slot>
+    </template>
+    <div id="c1" slot="slot1"></div>
+  </div>
+</div>
+
+<script>
+test(() => {
+  let n = createTestTree(test_basic_closed);
+  removeWhiteSpaceOnlyTextNodes(n.test_basic_closed);
+
+  assert_equals(n.c1.assignedSlot, null);
+  assert_array_equals(n.s1.assignedNodes(), [n.c1]);
+}, 'Slots: Slots in closed.');
+
+test(() => {
+  let n = createTestTree(test_basic_closed);
+
+  assert_array_equals(n.s1.assignedElements(), [n.c1]);
+}, 'Slots: Slots in closed, elements only.');
+</script>
+
+<div id="test_slot_not_in_shadow">
+  <slot id="s1"></slot>
+</div>
+
+<script>
+test(() => {
+  let n = createTestTree(test_slot_not_in_shadow);
+  removeWhiteSpaceOnlyTextNodes(n.test_slot_not_in_shadow);
+
+  assert_array_equals(n.s1.assignedNodes(), []);
+}, 'Slots: Slots not in a shadow tree.');
+
+test(() => {
+  let n = createTestTree(test_slot_not_in_shadow);
+
+  assert_array_equals(n.s1.assignedElements(), []);
+}, 'Slots: Slots not in a shadow tree, elements only.');
+</script>
+
+<div id="test_slot_not_in_shadow_2">
+  <slot id="s1">
+    <div id="c1"></div>
+  </slot>
+  <slot id="s2">
+    <div id="c2"></div>
+    <slot id="s3">
+      <div id="c3_1"></div>
+      <div id="c3_2"></div>
+    </slot>
+  </slot>
+</div>
+
+<script>
+test(() => {
+  let n = createTestTree(test_slot_not_in_shadow_2);
+  removeWhiteSpaceOnlyTextNodes(n.test_slot_not_in_shadow_2);
+
+  assert_equals(n.c1.assignedSlot, null);
+  assert_equals(n.c2.assignedSlot, null);
+  assert_equals(n.c3_1.assignedSlot, null);
+  assert_equals(n.c3_2.assignedSlot, null);
+
+  assert_array_equals(n.s1.assignedNodes(), []);
+  assert_array_equals(n.s2.assignedNodes(), []);
+  assert_array_equals(n.s3.assignedNodes(), []);
+
+  assert_array_equals(n.s1.assignedNodes({ flatten: true }), []);
+  assert_array_equals(n.s2.assignedNodes({ flatten: true }), []);
+  assert_array_equals(n.s3.assignedNodes({ flatten: true }), []);
+}, 'Slots: Distributed nodes for Slots not in a shadow tree.');
+</script>
+
+<div id="test_slot_name_matching">
+  <div id="host">
+    <template data-mode="open">
+      <slot id="s1" name="slot1"></slot>
+      <slot id="s2" name="slot2"></slot>
+      <slot id="s3" name="xxx"></slot>
+    </template>
+    <div id="c1" slot="slot1"></div>
+    <div id="c2" slot="slot2"></div>
+    <div id="c3" slot="yyy"></div>
+  </div>
+</div>
+
+<script>
+test(() => {
+  let n = createTestTree(test_slot_name_matching);
+  removeWhiteSpaceOnlyTextNodes(n.test_slot_name_matching);
+
+  assert_equals(n.c1.assignedSlot, n.s1);
+  assert_equals(n.c2.assignedSlot, n.s2);
+  assert_equals(n.c3.assignedSlot, null);
+}, 'Slots: Name matching');
+</script>
+
+<div id="test_no_direct_host_child">
+  <div id="host">
+    <template data-mode="open">
+      <slot id="s1" name="slot1"></slot>
+      <slot id="s2" name="slot1"></slot>
+    </template>
+    <div id="c1" slot="slot1"></div>
+    <div id="c2" slot="slot1"></div>
+    <div>
+      <div id="c3" slot="slot1"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+test(() => {
+  let n = createTestTree(test_no_direct_host_child);
+  removeWhiteSpaceOnlyTextNodes(n.test_no_direct_host_child);
+
+  assert_equals(n.c1.assignedSlot, n.s1);
+  assert_equals(n.c2.assignedSlot, n.s1);
+  assert_equals(n.c3.assignedSlot, null);
+
+  assert_array_equals(n.s1.assignedNodes(), [n.c1, n.c2]);
+}, 'Slots: No direct host child.');
+</script>
+
+<div id="test_default_slot">
+  <div id="host">
+    <template data-mode="open">
+      <slot id="s1" name="slot1"></slot>
+      <slot id="s2"></slot>
+      <slot id="s3"></slot>
+    </template>
+    <div id="c1"></div>
+    <div id="c2" slot=""></div>
+    <div id="c3" slot="foo"></div>
+  </div>
+</div>
+
+<script>
+test(() => {
+  let n = createTestTree(test_default_slot);
+  removeWhiteSpaceOnlyTextNodes(n.test_default_slot);
+
+  assert_equals(n.c1.assignedSlot, n.s2);
+  assert_equals(n.c2.assignedSlot, n.s2);
+  assert_equals(n.c3.assignedSlot, null);
+}, 'Slots: Default Slot.');
+</script>
+
+<div id="test_slot_in_slot">
+  <div id="host">
+    <template data-mode="open">
+      <slot id="s1" name="slot1">
+        <slot id="s2" name="slot2"></slot>
+      </slot>
+    </template>
+    <div id="c1" slot="slot2"></div>
+    <div id="c2" slot="slot1"></div>
+  </div>
+</div>
+
+<script>
+test(() => {
+  let n = createTestTree(test_slot_in_slot);
+  removeWhiteSpaceOnlyTextNodes(n.test_slot_in_slot);
+
+  assert_equals(n.c1.assignedSlot, n.s2);
+  assert_equals(n.c2.assignedSlot, n.s1);
+}, 'Slots: Slot in Slot does not matter in assignment.');
+</script>
+
+<div id="test_slot_is_assigned_to_slot">
+  <div id="host1">
+    <template data-mode="open">
+      <div id="host2">
+        <template data-mode="open">
+          <slot id="s2" name="slot2"></slot>
+        </template>
+        <slot id="s1" name="slot1" slot="slot2"></slot>
+      </div>
+    </template>
+    <div id="c1" slot="slot1"></div>
+  </div>
+</div>
+
+<script>
+test(() => {
+  let n = createTestTree(test_slot_is_assigned_to_slot);
+  removeWhiteSpaceOnlyTextNodes(n.test_slot_is_assigned_to_slot);
+
+  assert_equals(n.c1.assignedSlot, n.s1);
+  assert_equals(n.s1.assignedSlot, n.s2);
+
+  assert_array_equals(n.s1.assignedNodes(), [n.c1]);
+  assert_array_equals(n.s2.assignedNodes(), [n.s1]);
+
+  assert_array_equals(n.s1.assignedNodes({ flatten: true }), [n.c1]);
+  assert_array_equals(n.s2.assignedNodes({ flatten: true }), [n.c1]);
+}, 'Slots: Slot is assigned to another slot');
+</script>
+
+<div id="test_open_closed">
+  <div id="host1">
+    <template data-mode="open">
+      <div id="host2">
+        <template data-mode="closed">
+          <slot id="s2" name="slot2"></slot>
+        </template>
+        <slot id="s1" name="slot1" slot="slot2"></slot>
+      </div>
+    </template>
+    <div id="c1" slot="slot1"></div>
+  </div>
+</div>
+
+<script>
+test(() => {
+  let n = createTestTree(test_open_closed);
+  removeWhiteSpaceOnlyTextNodes(n.test_open_closed);
+
+  assert_equals(n.c1.assignedSlot, n.s1);
+  assert_equals(n.s1.assignedSlot, null,
+                'A slot in a closed shadow tree should not be accessed via assignedSlot');
+
+  assert_array_equals(n.s1.assignedNodes(), [n.c1]);
+  assert_array_equals(n.s2.assignedNodes(), [n.s1]);
+
+  assert_array_equals(n.s1.assignedNodes({ flatten: true }), [n.c1]);
+  assert_array_equals(n.s2.assignedNodes({ flatten: true }), [n.c1]);
+}, 'Slots: Open > Closed.');
+</script>
+
+<div id="test_closed_closed">
+  <div id="host1">
+    <template data-mode="closed">
+      <div id="host2">
+        <template data-mode="closed">
+          <slot id="s2" name="slot2"></slot>
+        </template>
+        <slot id="s1" name="slot1" slot="slot2"></slot>
+      </div>
+    </template>
+    <div id="c1" slot="slot1"></div>
+  </div>
+</div>
+
+<script>
+test(() => {
+  let n = createTestTree(test_closed_closed);
+  removeWhiteSpaceOnlyTextNodes(n.test_closed_closed);
+
+  assert_equals(n.c1.assignedSlot, null,
+                'A slot in a closed shadow tree should not be accessed via assignedSlot');
+  assert_equals(n.s1.assignedSlot, null,
+                'A slot in a closed shadow tree should not be accessed via assignedSlot');
+
+  assert_array_equals(n.s1.assignedNodes(), [n.c1]);
+  assert_array_equals(n.s2.assignedNodes(), [n.s1]);
+
+  assert_array_equals(n.s1.assignedNodes({ flatten: true }), [n.c1]);
+  assert_array_equals(n.s2.assignedNodes({ flatten: true }), [n.c1]);
+}, 'Slots: Closed > Closed.');
+</script>
+
+<div id="test_closed_open">
+  <div id="host1">
+    <template data-mode="closed">
+      <div id="host2">
+        <template data-mode="open">
+          <slot id="s2" name="slot2"></slot>
+        </template>
+        <slot id="s1" name="slot1" slot="slot2"></slot>
+      </div>
+    </template>
+    <div id="c1" slot="slot1"></div>
+  </div>
+</div>
+
+<script>
+test(() => {
+  let n = createTestTree(test_closed_open);
+  removeWhiteSpaceOnlyTextNodes(n.test_closed_open);
+
+  assert_equals(n.c1.assignedSlot, null,
+                'A slot in a closed shadow tree should not be accessed via assignedSlot');
+  assert_equals(n.s1.assignedSlot, n.s2);
+
+  assert_array_equals(n.s1.assignedNodes(), [n.c1]);
+  assert_array_equals(n.s2.assignedNodes(), [n.s1]);
+
+  assert_array_equals(n.s1.assignedNodes({ flatten: true }), [n.c1]);
+  assert_array_equals(n.s2.assignedNodes({ flatten: true }), [n.c1]);
+}, 'Slots: Closed > Open.');
+</script>
+
+<div id="test_complex">
+  <div id="host1">
+    <template data-mode="open">
+      <div id="host2">
+        <template data-mode="open">
+          <slot id="s5" name="slot5"></slot>
+          <slot id="s6" name="slot6"></slot>
+          <slot id="s7"></slot>
+          <slot id="s8" name="slot8"></slot>
+        </template>
+        <slot id="s1" name="slot1" slot="slot5"></slot>
+        <slot id="s2" name="slot2" slot="slot6"></slot>
+        <slot id="s3"></slot>
+        <slot id="s4" name="slot4" slot="slot-none"></slot>
+        <div id="c5" slot="slot5"></div>
+        <div id="c6" slot="slot6"></div>
+        <div id="c7"></div>
+        <div id="c8" slot="slot-none"></div>
+      </div>
+    </template>
+    <div id="c1" slot="slot1"></div>
+    <div id="c2" slot="slot2"></div>
+    <div id="c3"></div>
+    <div id="c4" slot="slot-none"></div>
+  </div>
+</div>
+
+<script>
+test(() => {
+  let n = createTestTree(test_complex);
+  removeWhiteSpaceOnlyTextNodes(n.test_complex);
+
+  assert_equals(n.c1.assignedSlot, n.s1);
+  assert_equals(n.c2.assignedSlot, n.s2);
+  assert_equals(n.c3.assignedSlot, n.s3);
+  assert_equals(n.c4.assignedSlot, null);
+
+  assert_equals(n.s1.assignedSlot, n.s5);
+  assert_equals(n.s2.assignedSlot, n.s6);
+  assert_equals(n.s3.assignedSlot, n.s7);
+  assert_equals(n.s4.assignedSlot, null);
+
+  assert_equals(n.c5.assignedSlot, n.s5);
+  assert_equals(n.c6.assignedSlot, n.s6);
+  assert_equals(n.c7.assignedSlot, n.s7);
+  assert_equals(n.c8.assignedSlot, null);
+
+  assert_array_equals(n.s1.assignedNodes(), [n.c1]);
+  assert_array_equals(n.s2.assignedNodes(), [n.c2]);
+  assert_array_equals(n.s3.assignedNodes(), [n.c3]);
+  assert_array_equals(n.s4.assignedNodes(), []);
+  assert_array_equals(n.s5.assignedNodes(), [n.s1, n.c5]);
+  assert_array_equals(n.s6.assignedNodes(), [n.s2, n.c6]);
+  assert_array_equals(n.s7.assignedNodes(), [n.s3, n.c7]);
+  assert_array_equals(n.s8.assignedNodes(), []);
+
+  assert_array_equals(n.s1.assignedNodes({ flatten: true }), [n.c1]);
+  assert_array_equals(n.s2.assignedNodes({ flatten: true }), [n.c2]);
+  assert_array_equals(n.s3.assignedNodes({ flatten: true }), [n.c3]);
+  assert_array_equals(n.s4.assignedNodes({ flatten: true }), []);
+  assert_array_equals(n.s5.assignedNodes({ flatten: true }), [n.c1, n.c5]);
+  assert_array_equals(n.s6.assignedNodes({ flatten: true }), [n.c2, n.c6]);
+  assert_array_equals(n.s7.assignedNodes({ flatten: true }), [n.c3, n.c7]);
+  assert_array_equals(n.s8.assignedNodes({ flatten: true }), []);
+}, 'Slots: Complex case: Basi line.');
+
+test(() => {
+  let n = createTestTree(test_complex);
+  removeWhiteSpaceOnlyTextNodes(n.test_complex);
+
+  let d1 = document.createElement('div');
+  d1.setAttribute('slot', 'slot1');
+  n.host1.appendChild(d1);
+
+  assert_array_equals(n.s1.assignedNodes(), [n.c1, d1]);
+  assert_equals(d1.assignedSlot, n.s1);
+
+  assert_array_equals(n.s5.assignedNodes({ flatten: true }), [n.c1, d1, n.c5]);
+}, 'Slots: Mutation: appendChild.');
+
+test(() => {
+  let n = createTestTree(test_complex);
+  removeWhiteSpaceOnlyTextNodes(n.test_complex);
+
+  n.c1.setAttribute('slot', 'slot-none');
+
+  assert_array_equals(n.s1.assignedNodes(), []);
+  assert_equals(n.c1.assignedSlot, null);
+
+  assert_array_equals(n.s5.assignedNodes({ flatten: true }), [n.c5]);
+}, 'Slots: Mutation: Change slot= attribute 1.');
+
+test(() => {
+  let n = createTestTree(test_complex);
+  removeWhiteSpaceOnlyTextNodes(n.test_complex);
+
+  n.c1.setAttribute('slot', 'slot2');
+
+  assert_array_equals(n.s1.assignedNodes(), []);
+  assert_array_equals(n.s2.assignedNodes(), [n.c1, n.c2]);
+  assert_equals(n.c1.assignedSlot, n.s2);
+
+  assert_array_equals(n.s5.assignedNodes({ flatten: true }), [n.c5]);
+  assert_array_equals(n.s6.assignedNodes({ flatten: true }), [n.c1, n.c2, n.c6]);
+}, 'Slots: Mutation: Change slot= attribute 2.');
+
+test(() => {
+  let n = createTestTree(test_complex);
+  removeWhiteSpaceOnlyTextNodes(n.test_complex);
+
+  n.c4.setAttribute('slot', 'slot1');
+
+  assert_array_equals(n.s1.assignedNodes(), [n.c1, n.c4]);
+  assert_equals(n.c4.assignedSlot, n.s1);
+
+  assert_array_equals(n.s5.assignedNodes({ flatten: true }), [n.c1, n.c4, n.c5]);
+}, 'Slots: Mutation: Change slot= attribute 3.');
+
+test(() => {
+  let n = createTestTree(test_complex);
+  removeWhiteSpaceOnlyTextNodes(n.test_complex);
+
+  n.c1.remove();
+
+  assert_array_equals(n.s1.assignedNodes(), []);
+  assert_equals(n.c1.assignedSlot, null);
+
+  assert_array_equals(n.s5.assignedNodes({ flatten: true }), [n.c5]);
+}, 'Slots: Mutation: Remove a child.');
+
+test(() => {
+  let n = createTestTree(test_complex);
+  removeWhiteSpaceOnlyTextNodes(n.test_complex);
+
+  let slot = document.createElement('slot');
+  slot.setAttribute('name', 'slot1');
+  n.host2.appendChild(slot);
+
+  assert_array_equals(slot.assignedNodes(), []);
+}, 'Slots: Mutation: Add a slot: after.');
+
+test(() => {
+  let n = createTestTree(test_complex);
+  removeWhiteSpaceOnlyTextNodes(n.test_complex);
+
+  let slot = document.createElement('slot');
+  slot.setAttribute('name', 'slot1');
+  n.host2.insertBefore(slot, n.s1);
+
+  assert_array_equals(slot.assignedNodes(), [n.c1]);
+  assert_equals(n.c1.assignedSlot, slot);
+
+  assert_array_equals(n.s7.assignedNodes(), [slot, n.s3, n.c7]);
+  assert_array_equals(n.s7.assignedNodes({ flatten: true }), [n.c1, n.c3, n.c7]);
+}, 'Slots: Mutation: Add a slot: before.');
+
+test(() => {
+  let n = createTestTree(test_complex);
+  removeWhiteSpaceOnlyTextNodes(n.test_complex);
+
+  n.s1.remove();
+
+  assert_array_equals(n.s1.assignedNodes(), []);
+  assert_equals(n.c1.assignedSlot, null);
+
+  assert_array_equals(n.s5.assignedNodes(), [n.c5]);
+  assert_array_equals(n.s5.assignedNodes({ flatten: true }), [n.c5]);
+}, 'Slots: Mutation: Remove a slot.');
+
+test(() => {
+  let n = createTestTree(test_complex);
+  removeWhiteSpaceOnlyTextNodes(n.test_complex);
+
+  n.s1.setAttribute('name', 'slot2');
+
+  assert_array_equals(n.s1.assignedNodes(), [n.c2]);
+  assert_equals(n.c1.assignedSlot, null);
+  assert_equals(n.c2.assignedSlot, n.s1);
+
+  assert_array_equals(n.s5.assignedNodes(), [n.s1, n.c5]);
+  assert_array_equals(n.s5.assignedNodes({ flatten: true }), [n.c2, n.c5]);
+}, 'Slots: Mutation: Change slot name= attribute.');
+
+test(() => {
+  let n = createTestTree(test_complex);
+  removeWhiteSpaceOnlyTextNodes(n.test_complex);
+
+  n.s1.setAttribute('slot', 'slot6');
+
+  assert_array_equals(n.s1.assignedNodes(), [n.c1]);
+
+  assert_array_equals(n.s5.assignedNodes(), [n.c5]);
+  assert_array_equals(n.s6.assignedNodes(), [n.s1, n.s2, n.c6]);
+  assert_array_equals(n.s6.assignedNodes({ flatten: true }), [n.c1, n.c2, n.c6]);
+}, 'Slots: Mutation: Change slot slot= attribute.');
+</script>
