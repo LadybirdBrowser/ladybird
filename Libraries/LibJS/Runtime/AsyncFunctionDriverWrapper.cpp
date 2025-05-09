@@ -131,11 +131,8 @@ void AsyncFunctionDriverWrapper::continue_async_execution(VM& vm, Value value, b
                 return generator_result.throw_completion();
 
             auto result = generator_result.release_value();
-            VERIFY(result.is_object());
-
-            auto promise_value = TRY(result.get(vm, vm.names.value));
-
-            if (TRY(result.get(vm, vm.names.done)).to_boolean()) {
+            auto promise_value = result.value;
+            if (result.done) {
                 // When returning a promise, we need to unwrap it.
                 if (promise_value.is_object() && is<Promise>(promise_value.as_object())) {
                     auto& returned_promise = static_cast<Promise&>(promise_value.as_object());

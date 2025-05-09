@@ -78,7 +78,7 @@ ThrowCompletionOr<GeneratorObject::GeneratorState> GeneratorObject::validate(VM&
     return state;
 }
 
-ThrowCompletionOr<Value> GeneratorObject::execute(VM& vm, Completion const& completion)
+ThrowCompletionOr<GeneratorObject::IterationResult> GeneratorObject::execute(VM& vm, Completion const& completion)
 {
     // Loosely based on step 4 of https://tc39.es/ecma262/#sec-generatorstart mixed with https://tc39.es/ecma262/#sec-generatoryield at the end.
 
@@ -115,24 +115,26 @@ ThrowCompletionOr<Value> GeneratorObject::execute(VM& vm, Completion const& comp
     if (result_value.is_throw_completion()) {
         // Uncaught exceptions disable the generator.
         m_generator_state = GeneratorState::Completed;
-        return result_value;
+        return result_value.throw_completion();
     }
     m_previous_value = result_value.release_value();
     bool done = !generated_continuation(m_previous_value).has_value();
 
     m_generator_state = done ? GeneratorState::Completed : GeneratorState::SuspendedYield;
-    return create_iterator_result_object(vm, generated_value(m_previous_value), done);
+
+    return IterationResult(generated_value(m_previous_value), done);
 }
 
 // 27.5.3.3 GeneratorResume ( generator, value, generatorBrand ), https://tc39.es/ecma262/#sec-generatorresume
-ThrowCompletionOr<Value> GeneratorObject::resume(VM& vm, Value value, Optional<StringView> const& generator_brand)
+ThrowCompletionOr<GeneratorObject::IterationResult> GeneratorObject::resume(VM& vm, Value value, Optional<StringView> const& generator_brand)
 {
     // 1. Let state be ? GeneratorValidate(generator, generatorBrand).
     auto state = TRY(validate(vm, generator_brand));
 
     // 2. If state is completed, return CreateIterResultObject(undefined, true).
-    if (state == GeneratorState::Completed)
-        return create_iterator_result_object(vm, js_undefined(), true);
+    if (state == GeneratorState::Completed) {
+        return IterationResult(js_undefined(), true);
+    }
 
     // 3. Assert: state is either suspendedStart or suspendedYield.
     VERIFY(state == GeneratorState::SuspendedStart || state == GeneratorState::SuspendedYield);
@@ -163,7 +165,7 @@ ThrowCompletionOr<Value> GeneratorObject::resume(VM& vm, Value value, Optional<S
 }
 
 // 27.5.3.4 GeneratorResumeAbrupt ( generator, abruptCompletion, generatorBrand ), https://tc39.es/ecma262/#sec-generatorresumeabrupt
-ThrowCompletionOr<Value> GeneratorObject::resume_abrupt(JS::VM& vm, JS::Completion abrupt_completion, Optional<StringView> const& generator_brand)
+ThrowCompletionOr<GeneratorObject::IterationResult> GeneratorObject::resume_abrupt(JS::VM& vm, JS::Completion abrupt_completion, Optional<StringView> const& generator_brand)
 {
     // 1. Let state be ? GeneratorValidate(generator, generatorBrand).
     auto state = TRY(validate(vm, generator_brand));
@@ -185,7 +187,7 @@ ThrowCompletionOr<Value> GeneratorObject::resume_abrupt(JS::VM& vm, JS::Completi
         // a. If abruptCompletion.[[Type]] is return, then
         if (abrupt_completion.type() == Completion::Type::Return) {
             // i. Return CreateIterResultObject(abruptCompletion.[[Value]], true).
-            return create_iterator_result_object(vm, abrupt_completion.value(), true);
+            return IterationResult(abrupt_completion.value(), true);
         }
 
         // b. Return ? abruptCompletion.
