@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2020-2022, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -958,18 +959,6 @@ void BlockFormattingContext::place_block_level_element_in_normal_flow_vertically
         float_box->margin_box_rect_in_root_coordinate_space = margin_box_rect_in_ancestor_coordinate_space(float_box->used_values, root());
 }
 
-// Returns whether the given box has the given ancestor on the path to root, ignoring the anonymous blocks.
-static bool box_has_ancestor_in_non_anonymous_containing_block_chain(Box const* box, Box const& ancestor, Box const& root)
-{
-    Box const* current_ancestor = box ? box->non_anonymous_containing_block() : &root;
-    while (current_ancestor != &root) {
-        if (current_ancestor == &ancestor)
-            return true;
-        current_ancestor = current_ancestor->non_anonymous_containing_block();
-    }
-    return false;
-}
-
 void BlockFormattingContext::place_block_level_element_in_normal_flow_horizontally(Box const& child_box, AvailableSpace const& available_space)
 {
     auto& box_state = m_state.get_mutable(child_box);
@@ -982,12 +971,18 @@ void BlockFormattingContext::place_block_level_element_in_normal_flow_horizontal
         auto box_in_root_rect = content_box_rect_in_ancestor_coordinate_space(box_state, root());
         auto space_and_containing_margin = space_used_and_containing_margin_for_floats(box_in_root_rect.y());
         available_width_within_containing_block -= space_and_containing_margin.left_used_space + space_and_containing_margin.right_used_space;
-        auto const& containing_box_state = m_state.get(*child_box.containing_block());
-        if (box_has_ancestor_in_non_anonymous_containing_block_chain(space_and_containing_margin.matching_left_float_box, *child_box.non_anonymous_containing_block(), root()))
-            x = space_and_containing_margin.left_used_space;
-        else
-            // If the floating box doesn't share a containing block with the child box, the child box margin should overlap with the width of the floating box.
-            x = max(space_and_containing_margin.left_used_space - containing_box_state.margin_left, 0);
+        x = space_and_containing_margin.left_used_space;
+
+        // All non-anonymous containing blocks that are ancestors of the child box, but are not ancestors of the left
+        // float box, might have left margins set that overlap with the used float space.
+        if (space_and_containing_margin.matching_left_float_box) {
+            Box const* current_ancestor = child_box.non_anonymous_containing_block();
+            while (!current_ancestor->is_ancestor_of(*space_and_containing_margin.matching_left_float_box)) {
+                x -= m_state.get(*current_ancestor).margin_left;
+                current_ancestor = current_ancestor->non_anonymous_containing_block();
+            }
+            x = max(x, 0);
+        }
     }
 
     if (child_box.containing_block()->computed_values().text_align() == CSS::TextAlign::LibwebCenter) {
