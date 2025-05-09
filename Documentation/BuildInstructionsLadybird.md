@@ -2,7 +2,7 @@
 
 ## Build Prerequisites
 
-Qt6 development packages, nasm, additional build tools, and a C++23 capable compiler like g++-13 or clang-17 are required.
+Qt6 development packages, nasm, additional build tools, and a C++23 capable compiler like g++-13 or clang-19 are required.
 
 CMake 3.25 or newer must be available in $PATH.
 
@@ -40,7 +40,7 @@ sudo apt update -y && sudo apt install cmake -y
 
 #### C++23-capable compiler:
 
-- Recommendation: Install `clang-17` or newer from [LLVM's apt repository](https://apt.llvm.org/):
+- Recommendation: Install `clang-19` or newer from [LLVM's apt repository](https://apt.llvm.org/):
 
 ```bash
 # Add LLVM GPG signing key
@@ -163,7 +163,7 @@ choco install pkgconfiglite -y
 Note that OpenIndiana's latest GCC port (GCC 11) is too old to build Ladybird, so you need Clang, which is available in the repository.
 
 ```
-pfexec pkg install clang-17 cmake libglvnd ninja qt6
+pfexec pkg install clang-19 cmake libglvnd ninja qt6
 ```
 
 ### Haiku:
