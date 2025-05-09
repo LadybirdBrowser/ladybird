@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -8,7 +9,9 @@
 #include <LibWeb/DOM/EditingHostManager.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/Text.h>
+#include <LibWeb/Editing/CommandNames.h>
 #include <LibWeb/Selection/Selection.h>
+#include <LibWeb/UIEvents/InputTypes.h>
 
 namespace Web::DOM {
 
@@ -31,38 +34,18 @@ void EditingHostManager::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_active_contenteditable_element);
 }
 
-void EditingHostManager::handle_insert(String const& data)
+void EditingHostManager::handle_insert(String const& value)
 {
-    auto selection = m_document->get_selection();
+    // https://w3c.github.io/editing/docs/execCommand/#additional-requirements
+    // When the user instructs the user agent to insert text inside an editing host, such as by typing on the keyboard
+    // while the cursor is in an editable node, the user agent must call execCommand("inserttext", false, value) on the
+    // relevant document, with value equal to the text the user provided. If the user inserts multiple characters at
+    // once or in quick succession, this specification does not define whether it is treated as one insertion or several
+    // consecutive insertions.
 
-    auto selection_range = selection->range();
-    if (!selection_range)
-        return;
-
-    auto node = selection->anchor_node();
-    if (!node || !node->is_editable_or_editing_host())
-        return;
-
-    if (!is<DOM::Text>(*node)) {
-        auto& realm = node->realm();
-        auto text = realm.create<DOM::Text>(node->document(), data);
-        MUST(node->append_child(*text));
-        MUST(selection->collapse(*text, 1));
-        return;
-    }
-
-    auto& text_node = static_cast<DOM::Text&>(*node);
-
-    MUST(selection_range->delete_contents());
-    MUST(text_node.insert_data(selection->anchor_offset(), data));
-    VERIFY(selection->is_collapsed());
-
-    auto utf16_data = MUST(AK::utf8_to_utf16(data));
-    Utf16View const utf16_view { utf16_data };
-    auto length = utf16_view.length_in_code_units();
-    MUST(selection->collapse(*node, selection->anchor_offset() + length));
-
-    text_node.invalidate_style(DOM::StyleInvalidationReason::EditingInsertion);
+    auto editing_result = m_document->exec_command(Editing::CommandNames::insertText, false, value);
+    if (editing_result.is_exception())
+        dbgln("handle_insert(): editing resulted in exception: {}", editing_result.exception());
 }
 
 void EditingHostManager::select_all()
@@ -159,41 +142,49 @@ void EditingHostManager::decrement_cursor_position_to_previous_word(CollapseSele
 
 void EditingHostManager::handle_delete(DeleteDirection direction)
 {
-    auto selection = m_document->get_selection();
-    auto selection_range = selection->range();
-    if (!selection_range) {
-        return;
-    }
+    // https://w3c.github.io/editing/docs/execCommand/#additional-requirements
+    // When the user instructs the user agent to delete the previous character inside an editing host, such as by
+    // pressing the Backspace key while the cursor is in an editable node, the user agent must call
+    // execCommand("delete") on the relevant document.
+    // When the user instructs the user agent to delete the next character inside an editing host, such as by pressing
+    // the Delete key while the cursor is in an editable node, the user agent must call execCommand("forwarddelete") on
+    // the relevant document.
 
-    if (selection->is_collapsed()) {
-        auto node = selection->anchor_node();
-        if (!node || !is<DOM::Text>(*node)) {
-            return;
-        }
+    auto editing_result = [&] {
+        if (direction == DeleteDirection::Backward)
+            return m_document->exec_command(Editing::CommandNames::delete_, false, {});
+        if (direction == DeleteDirection::Forward)
+            return m_document->exec_command(Editing::CommandNames::forwardDelete, false, {});
+        VERIFY_NOT_REACHED();
+    }();
 
-        auto& text_node = static_cast<DOM::Text&>(*node);
-        if (direction == DeleteDirection::Backward) {
-            if (selection->anchor_offset() > 0) {
-                MUST(text_node.delete_data(selection->anchor_offset() - 1, 1));
-                text_node.invalidate_style(DOM::StyleInvalidationReason::EditingInsertion);
-            }
-        } else {
-            if (selection->anchor_offset() < text_node.data().bytes_as_string_view().length()) {
-                MUST(text_node.delete_data(selection->anchor_offset(), 1));
-                text_node.invalidate_style(DOM::StyleInvalidationReason::EditingInsertion);
-            }
-        }
-        m_document->reset_cursor_blink_cycle();
-        return;
-    }
-
-    MUST(selection_range->delete_contents());
+    if (editing_result.is_exception())
+        dbgln("handle_delete(): editing resulted in exception: {}", editing_result.exception());
 }
 
-EventResult EditingHostManager::handle_return_key()
+EventResult EditingHostManager::handle_return_key(FlyString const& ui_input_type)
 {
-    dbgln("FIXME: Implement EditingHostManager::handle_return_key()");
-    return EventResult::Dropped;
+    // https://w3c.github.io/editing/docs/execCommand/#additional-requirements
+    // When the user instructs the user agent to insert a line break inside an editing host, such as by pressing the
+    // Enter key while the cursor is in an editable node, the user agent must call execCommand("insertparagraph") on the
+    // relevant document.
+    // When the user instructs the user agent to insert a line break inside an editing host without breaking out of the
+    // current block, such as by pressing Shift-Enter or Option-Enter while the cursor is in an editable node, the user
+    // agent must call execCommand("insertlinebreak") on the relevant document.
+    auto editing_result = [&] {
+        if (ui_input_type == UIEvents::InputTypes::insertParagraph)
+            return m_document->exec_command(Editing::CommandNames::insertParagraph, false, {});
+        if (ui_input_type == UIEvents::InputTypes::insertLineBreak)
+            return m_document->exec_command(Editing::CommandNames::insertLineBreak, false, {});
+        VERIFY_NOT_REACHED();
+    }();
+
+    if (editing_result.is_exception()) {
+        dbgln("handle_return_key(): editing resulted in exception: {}", editing_result.exception());
+        return EventResult::Dropped;
+    }
+
+    return editing_result.value() ? EventResult::Handled : EventResult::Dropped;
 }
 
 }

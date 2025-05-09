@@ -820,7 +820,7 @@ void FormAssociatedTextControlElement::handle_delete(DeleteDirection direction)
     MUST(set_range_text(String {}, selection_start, selection_end, Bindings::SelectionMode::End));
 }
 
-EventResult FormAssociatedTextControlElement::handle_return_key()
+EventResult FormAssociatedTextControlElement::handle_return_key(FlyString const&)
 {
     auto* input_element = as_if<HTMLInputElement>(form_associated_element_to_html_element());
     if (!input_element)

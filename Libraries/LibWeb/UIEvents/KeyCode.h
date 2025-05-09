@@ -229,6 +229,10 @@ inline KeyCode code_point_to_key_code(u32 code_point)
 #define MATCH_KEY(name, character) \
     case character:                \
         return KeyCode::Key_##name;
+        MATCH_KEY(Backspace, '\b')
+        MATCH_KEY(Tab, '\t')
+        MATCH_KEY(Return, '\n')
+        MATCH_KEY(Space, ' ')
         MATCH_KEY(ExclamationPoint, '!')
         MATCH_KEY(DoubleQuote, '"')
         MATCH_KEY(Hashtag, '#')
@@ -271,9 +275,6 @@ inline KeyCode code_point_to_key_code(u32 code_point)
         MATCH_KEY(Pipe, '|')
         MATCH_KEY(Tilde, '~')
         MATCH_KEY(Backtick, '`')
-        MATCH_KEY(Space, ' ')
-        MATCH_KEY(Tab, '\t')
-        MATCH_KEY(Backspace, '\b')
 #undef MATCH_KEY
 
     default:
