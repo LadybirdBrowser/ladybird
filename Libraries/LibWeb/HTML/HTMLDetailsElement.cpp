@@ -54,12 +54,6 @@ void HTMLDetailsElement::inserted()
     update_shadow_tree_slots();
 }
 
-void HTMLDetailsElement::removed_from(DOM::Node* old_parent, DOM::Node& old_root)
-{
-    Base::removed_from(old_parent, old_root);
-    set_shadow_root(nullptr);
-}
-
 // https://html.spec.whatwg.org/multipage/interactive-elements.html#the-details-element:concept-element-attributes-change-ext
 void HTMLDetailsElement::attribute_changed(FlyString const& local_name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
 {
