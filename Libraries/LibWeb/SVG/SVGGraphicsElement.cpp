@@ -324,4 +324,10 @@ GC::Ptr<Geometry::DOMMatrix> SVGGraphicsElement::get_screen_ctm()
     return Geometry::DOMMatrix::create(realm());
 }
 
+GC::Ptr<Geometry::DOMMatrix> SVGGraphicsElement::get_ctm()
+{
+    dbgln("(STUBBED) SVGGraphicsElement::get_ctm(). Called on: {}", debug_description());
+    return Geometry::DOMMatrix::create(realm());
+}
+
 }
