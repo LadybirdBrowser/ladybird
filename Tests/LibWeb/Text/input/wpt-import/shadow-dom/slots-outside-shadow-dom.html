@@ -1,0 +1,16 @@
+<!doctype html>
+<meta charset=utf-8>
+<title></title>
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<div id="host1"><slot>foo</slot></div>
+<script>
+
+test(() => {
+  var host1 = document.getElementById("host1");
+  var sr = host1.attachShadow({mode: "open"});
+  sr.innerHTML = "<slot></slot>";
+  assert_array_equals(sr.firstChild.assignedNodes({ flatten: true }), [host1.firstChild]);
+}, "Light DOM slot element should be in flattened assignedNodes");
+
+</script>

@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Fail
+Fail	Children of a slot in a document tree should not be counted in flattened assigned nodes.
+Fail	Slot fallback content in shadow tree should be counted in flattened assigned nodes.
