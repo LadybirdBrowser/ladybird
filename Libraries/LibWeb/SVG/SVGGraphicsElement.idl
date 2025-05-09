@@ -14,6 +14,6 @@ interface SVGGraphicsElement : SVGElement {
     [SameObject] readonly attribute SVGAnimatedTransformList transform;
 
     DOMRect getBBox(optional SVGBoundingBoxOptions options = {});
-    [FIXME] DOMMatrix? getCTM();
+    DOMMatrix? getCTM();
     DOMMatrix? getScreenCTM();
 };

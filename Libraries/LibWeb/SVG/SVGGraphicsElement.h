@@ -63,6 +63,7 @@ public:
     GC::Ref<Geometry::DOMRect> get_b_box(Optional<SVGBoundingBoxOptions>);
     GC::Ref<SVGAnimatedTransformList> transform() const;
 
+    GC::Ptr<Geometry::DOMMatrix> get_ctm();
     GC::Ptr<Geometry::DOMMatrix> get_screen_ctm();
 
     virtual Gfx::AffineTransform element_transform() const
