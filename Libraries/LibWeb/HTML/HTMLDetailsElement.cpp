@@ -16,6 +16,7 @@
 #include <LibWeb/HTML/HTMLSlotElement.h>
 #include <LibWeb/HTML/HTMLSummaryElement.h>
 #include <LibWeb/HTML/ToggleEvent.h>
+#include <LibWeb/Layout/Node.h>
 #include <LibWeb/Namespace.h>
 
 namespace Web::HTML {
@@ -314,6 +315,8 @@ void HTMLDetailsElement::update_shadow_tree_style()
             content-visibility: hidden;
         )~~~"_string));
     }
+
+    shadow_root()->set_needs_layout_tree_update(true, DOM::SetNeedsLayoutTreeUpdateReason::DetailsElementOpenedOrClosed);
 }
 
 }
