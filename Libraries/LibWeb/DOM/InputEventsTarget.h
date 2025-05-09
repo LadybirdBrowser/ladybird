@@ -19,7 +19,7 @@ public:
     virtual GC::Ref<JS::Cell> as_cell() = 0;
 
     virtual void handle_insert(String const&) = 0;
-    virtual EventResult handle_return_key() = 0;
+    virtual EventResult handle_return_key(FlyString const& ui_input_type) = 0;
 
     enum class DeleteDirection {
         Backward,

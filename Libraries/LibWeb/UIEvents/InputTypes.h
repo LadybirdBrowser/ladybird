@@ -12,10 +12,11 @@ namespace Web::UIEvents::InputTypes {
 
 // https://w3c.github.io/input-events/#interface-InputEvent-Attributes
 #define ENUMERATE_INPUT_TYPES                     \
-    __ENUMERATE_INPUT_TYPE(insertText)            \
-    __ENUMERATE_INPUT_TYPE(insertParagraph)       \
     __ENUMERATE_INPUT_TYPE(deleteContentBackward) \
-    __ENUMERATE_INPUT_TYPE(deleteContentForward)
+    __ENUMERATE_INPUT_TYPE(deleteContentForward)  \
+    __ENUMERATE_INPUT_TYPE(insertLineBreak)       \
+    __ENUMERATE_INPUT_TYPE(insertParagraph)       \
+    __ENUMERATE_INPUT_TYPE(insertText)
 
 #define __ENUMERATE_INPUT_TYPE(name) extern FlyString name;
 ENUMERATE_INPUT_TYPES
