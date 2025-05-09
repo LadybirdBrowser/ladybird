@@ -2,17 +2,18 @@ Harness status: OK
 
 Found 13 tests
 
-13 Fail
-Fail	Slots fallback: Basic.
-Fail	Slots fallback: Basic, elements only.
-Fail	Slots fallback: Slots in Slots.
-Fail	Slots fallback: Slots in Slots, elements only.
-Fail	Slots fallback: Fallback contents should not be used if a node is assigned.
-Fail	Slots fallback: Slots in Slots: Assigned nodes should be used as fallback contents of another slot
-Fail	Slots fallback: Complex case.
-Fail	Slots fallback: Complex case, elements only.
-Fail	Slots fallback: Mutation. Append fallback contents.
-Fail	Slots fallback: Mutation. Remove fallback contents.
-Fail	Slots fallback: Mutation. Assign a node to a slot so that fallback contens are no longer used.
-Fail	Slots fallback: Mutation. Remove an assigned node from a slot so that fallback contens will be used.
+12 Pass
+1 Fail
+Pass	Slots fallback: Basic.
+Pass	Slots fallback: Basic, elements only.
+Pass	Slots fallback: Slots in Slots.
+Pass	Slots fallback: Slots in Slots, elements only.
+Pass	Slots fallback: Fallback contents should not be used if a node is assigned.
+Pass	Slots fallback: Slots in Slots: Assigned nodes should be used as fallback contents of another slot
+Pass	Slots fallback: Complex case.
+Pass	Slots fallback: Complex case, elements only.
+Pass	Slots fallback: Mutation. Append fallback contents.
+Pass	Slots fallback: Mutation. Remove fallback contents.
+Pass	Slots fallback: Mutation. Assign a node to a slot so that fallback contens are no longer used.
+Pass	Slots fallback: Mutation. Remove an assigned node from a slot so that fallback contens will be used.
 Fail	Slots fallback: Mutation.  Remove a slot which is a fallback content of another slot.
