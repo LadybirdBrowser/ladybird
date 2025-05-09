@@ -46,24 +46,27 @@ ThrowCompletionOr<Value> IteratorHelper::close_result(VM& vm, Completion complet
     return TRY(iterator_close(vm, underlying_iterator(), move(completion)));
 }
 
-ThrowCompletionOr<Value> IteratorHelper::execute(VM& vm, JS::Completion const& completion)
+ThrowCompletionOr<GeneratorObject::IterationResult> IteratorHelper::execute(VM& vm, JS::Completion const& completion)
 {
     ScopeGuard guard { [&] { vm.pop_execution_context(); } };
 
     if (completion.is_abrupt()) {
-        if (m_abrupt_closure)
-            return m_abrupt_closure->function()(vm, *this, completion);
-        return close_result(vm, completion);
+        if (m_abrupt_closure) {
+            auto abrupt_result = TRY(m_abrupt_closure->function()(vm, *this, completion));
+            return IterationResult(abrupt_result, true);
+        }
+        auto close_result = TRY(this->close_result(vm, completion));
+        return IterationResult(close_result, true);
     }
 
     auto result_value = m_closure->function()(vm, *this);
 
     if (result_value.is_throw_completion()) {
         set_generator_state(GeneratorState::Completed);
-        return result_value;
+        return result_value.throw_completion();
     }
 
-    return create_iterator_result_object(vm, result(result_value.release_value()), generator_state() == GeneratorState::Completed);
+    return IterationResult(result(result_value.release_value()), generator_state() == GeneratorState::Completed);
 }
 
 }
