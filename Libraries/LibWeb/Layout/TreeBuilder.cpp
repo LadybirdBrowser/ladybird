@@ -626,7 +626,7 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
     // Giving an element style containment has the following effects:
     // 2. The effects of the 'content' property’s 'open-quote', 'close-quote', 'no-open-quote' and 'no-close-quote' must
     //    be scoped to the element’s sub-tree.
-    if (dom_node.is_element() && (static_cast<DOM::Element&>(dom_node)).has_style_containment()) {
+    if (layout_node->has_style_containment()) {
         m_quote_nesting_level = prior_quote_nesting_level;
     }
 
