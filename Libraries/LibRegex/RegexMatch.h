@@ -301,8 +301,8 @@ public:
     }
 
 private:
-    [[no_unique_address]] Variant<StringView, Utf16View> m_view { StringView {} };
-    [[no_unique_address]] bool m_unicode { false };
+    NO_UNIQUE_ADDRESS Variant<StringView, Utf16View> m_view { StringView {} };
+    NO_UNIQUE_ADDRESS bool m_unicode { false };
 };
 
 class Match final {
