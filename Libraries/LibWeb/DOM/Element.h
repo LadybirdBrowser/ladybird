@@ -422,13 +422,6 @@ public:
     // https://drafts.csswg.org/css-contain-2/#skips-its-contents
     bool skips_its_contents();
 
-    // https://drafts.csswg.org/css-contain-2/#containment-types
-    bool has_size_containment() const;
-    bool has_inline_size_containment() const;
-    bool has_layout_containment() const;
-    bool has_style_containment() const;
-    bool has_paint_containment() const;
-
     bool matches_enabled_pseudo_class() const;
     bool matches_disabled_pseudo_class() const;
     bool matches_checked_pseudo_class() const;
