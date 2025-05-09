@@ -574,11 +574,6 @@ void HTMLSelectElement::form_associated_element_was_inserted()
     create_shadow_tree_if_needed();
 }
 
-void HTMLSelectElement::form_associated_element_was_removed(DOM::Node*)
-{
-    set_shadow_root(nullptr);
-}
-
 void HTMLSelectElement::computed_properties_changed()
 {
     // Hide chevron icon when appearance is none
