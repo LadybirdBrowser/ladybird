@@ -295,7 +295,7 @@ void paint_background(PaintContext& context, PaintableBox const& paintable_box, 
                 fill_rect.unite(image_device_rect);
             });
             display_list_recorder.fill_rect(fill_rect.to_type<int>(), color.value());
-        } else if (is<CSS::ImageStyleValue>(image) && repeat_x && repeat_y && !repeat_x_has_gap && !repeat_y_has_gap) {
+        } else if (is<CSS::ImageStyleValue>(image) && (repeat_x || repeat_y) && !repeat_x_has_gap && !repeat_y_has_gap) {
             // Use a dedicated painting command for repeated images instead of recording a separate command for each instance
             // of a repeated background, so the painter has the opportunity to optimize the painting of repeated images.
             auto dest_rect = context.rounded_device_rect(image_rect);
