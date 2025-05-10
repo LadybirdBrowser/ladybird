@@ -68,6 +68,35 @@ void CheckBoxPaintable::paint(PaintContext& context, PaintPhase phase) const
     if (phase != PaintPhase::Foreground)
         return;
 
+    auto clip_box = absolute_padding_box_rect();
+    bool should_clip_overflow = false;
+
+    if (get_clip_rect().has_value()) {
+        clip_box.intersect(get_clip_rect().value());
+        should_clip_overflow = true;
+    }
+
+    if (should_clip_overflow) {
+        context.display_list_recorder().save();
+        context.display_list_recorder().add_clip_rect(context.rounded_device_rect(clip_box).to_type<int>());
+
+        auto border_radii = normalized_border_radii_data(ShrinkRadiiForBorders::Yes);
+        CornerRadii corner_radii {
+            .top_left = border_radii.top_left.as_corner(context),
+            .top_right = border_radii.top_right.as_corner(context),
+            .bottom_right = border_radii.bottom_right.as_corner(context),
+            .bottom_left = border_radii.bottom_left.as_corner(context)
+        };
+
+        if (corner_radii.has_any_radius()) {
+            context.display_list_recorder().add_rounded_rect_clip(corner_radii, context.rounded_device_rect(clip_box).to_type<int>(), CornerClip::Outside);
+        }
+
+        if (own_scroll_frame_id().has_value()) {
+            context.display_list_recorder().push_scroll_frame_id(own_scroll_frame_id().value());
+        }
+    }
+
     auto const& checkbox = static_cast<HTML::HTMLInputElement const&>(layout_box().dom_node());
     bool enabled = layout_box().dom_node().enabled();
     auto checkbox_rect = context.enclosing_device_rect(absolute_rect()).to_type<int>();
@@ -119,6 +148,13 @@ void CheckBoxPaintable::paint(PaintContext& context, PaintPhase phase) const
             auto dash_rect = checkbox_rect.inflated(-0.4 * checkbox_rect.width(), -0.8 * checkbox_rect.height());
             context.display_list_recorder().fill_rect_with_rounded_corners(dash_rect, dash_color, radius, radius, radius, radius);
         }
+    }
+
+    if (should_clip_overflow) {
+        if (own_scroll_frame_id().has_value()) {
+            context.display_list_recorder().pop_scroll_frame_id();
+        }
+        context.display_list_recorder().restore();
     }
 }
 
