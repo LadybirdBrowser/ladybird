@@ -57,10 +57,7 @@ public:
     template<OneOf<String, FlyString, ByteString, ByteBuffer> StringType>
     StringView& operator=(StringType&&) = delete;
 
-    [[nodiscard]] constexpr bool is_null() const
-    {
-        return m_characters == nullptr;
-    }
+    [[nodiscard]] constexpr bool is_null() const { return m_characters == nullptr; }
     [[nodiscard]] constexpr bool is_empty() const { return m_length == 0; }
 
     [[nodiscard]] constexpr char const* characters_without_null_termination() const { return m_characters; }
@@ -106,10 +103,7 @@ public:
     [[nodiscard]] String to_ascii_uppercase_string() const;
     [[nodiscard]] String to_ascii_titlecase_string() const;
 
-    [[nodiscard]] Optional<size_t> find(char needle, size_t start = 0) const
-    {
-        return StringUtils::find(*this, needle, start);
-    }
+    [[nodiscard]] Optional<size_t> find(char needle, size_t start = 0) const { return StringUtils::find(*this, needle, start); }
     [[nodiscard]] Optional<size_t> find(StringView needle, size_t start = 0) const { return StringUtils::find(*this, needle, start); }
     [[nodiscard]] Optional<size_t> find_last(char needle) const { return StringUtils::find_last(*this, needle); }
     [[nodiscard]] Optional<size_t> find_last(StringView needle) const { return StringUtils::find_last(*this, needle); }
@@ -311,11 +305,8 @@ public:
     }
 
     constexpr bool operator<(StringView other) const { return compare(other) < 0; }
-
     constexpr bool operator<=(StringView other) const { return compare(other) <= 0; }
-
     constexpr bool operator>(StringView other) const { return compare(other) > 0; }
-
     constexpr bool operator>=(StringView other) const { return compare(other) >= 0; }
 
     [[nodiscard]] ByteString to_byte_string() const;
@@ -326,6 +317,7 @@ public:
     }
 
     [[nodiscard]] ByteString replace(StringView needle, StringView replacement, ReplaceMode) const;
+
     [[nodiscard]] size_t count(StringView needle) const
     {
         return StringUtils::count(*this, needle);
