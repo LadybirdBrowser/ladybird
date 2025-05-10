@@ -233,6 +233,8 @@ public:
     virtual void decrement_cursor_position_offset(CollapseSelection) override;
     virtual void increment_cursor_position_to_next_word(CollapseSelection) override;
     virtual void decrement_cursor_position_to_previous_word(CollapseSelection) override;
+    virtual void increment_cursor_position_to_next_line(CollapseSelection) override;
+    virtual void decrement_cursor_position_to_previous_line(CollapseSelection) override;
 
     GC::Ptr<DOM::Position> cursor_position() const;
 
