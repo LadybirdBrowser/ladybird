@@ -11,7 +11,6 @@
 #include <AK/StringBuilder.h>
 #include <AK/StringView.h>
 #include <AK/Types.h>
-#include <AK/Utf8View.h>
 #include <LibGC/Ptr.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/Parser/Entities.h>
@@ -129,7 +128,7 @@ public:
     void set_blocked(bool b) { m_blocked = b; }
     bool is_blocked() const { return m_blocked; }
 
-    ByteString source() const { return m_decoded_input; }
+    auto const& source() const { return m_source; }
 
     void insert_input_at_insertion_point(StringView input);
     void insert_eof();
@@ -138,7 +137,7 @@ public:
     bool is_insertion_point_defined() const { return m_insertion_point.defined; }
     bool is_insertion_point_reached()
     {
-        return m_insertion_point.defined && m_utf8_view.iterator_offset(m_utf8_iterator) >= m_insertion_point.position;
+        return m_insertion_point.defined && m_current_offset >= m_insertion_point.position;
     }
     void undefine_insertion_point() { m_insertion_point.defined = false; }
     void store_insertion_point() { m_old_insertion_point = m_insertion_point; }
@@ -146,7 +145,7 @@ public:
     void update_insertion_point()
     {
         m_insertion_point.defined = true;
-        m_insertion_point.position = m_utf8_view.iterator_offset(m_utf8_iterator);
+        m_insertion_point.position = m_current_offset;
     }
 
     // This permanently cuts off the tokenizer input stream.
@@ -155,7 +154,7 @@ public:
 private:
     void skip(size_t count);
     Optional<u32> next_code_point(StopAtInsertionPoint);
-    Optional<u32> peek_code_point(size_t offset, StopAtInsertionPoint) const;
+    Optional<u32> peek_code_point(ssize_t offset, StopAtInsertionPoint) const;
 
     enum class ConsumeNextResult {
         Consumed,
@@ -186,7 +185,7 @@ private:
 
     bool consumed_as_part_of_an_attribute() const;
 
-    void restore_to(Utf8CodePointIterator const& new_iterator);
+    void restore_to(ssize_t new_iterator);
     HTMLToken::Position nth_last_position(size_t n = 0);
 
     GC::Ptr<HTMLParser> m_parser;
@@ -196,18 +195,18 @@ private:
 
     Vector<u32> m_temporary_buffer;
 
-    ByteString m_decoded_input;
+    String m_source;
+    Vector<u32> m_decoded_input;
 
     struct InsertionPoint {
-        size_t position { 0 };
+        ssize_t position { 0 };
         bool defined { false };
     };
     InsertionPoint m_insertion_point {};
     InsertionPoint m_old_insertion_point {};
 
-    Utf8View m_utf8_view;
-    Utf8CodePointIterator m_utf8_iterator;
-    Utf8CodePointIterator m_prev_utf8_iterator;
+    ssize_t m_current_offset { 0 };
+    ssize_t m_prev_offset { 0 };
 
     HTMLToken m_current_token;
     StringBuilder m_current_builder;
