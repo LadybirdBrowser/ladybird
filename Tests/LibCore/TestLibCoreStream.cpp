@@ -178,7 +178,7 @@ TEST_CASE(should_error_when_connection_fails)
 
     auto maybe_tcp_socket = Core::TCPSocket::connect({ { 127, 0, 0, 1 }, 1234 });
     EXPECT(maybe_tcp_socket.is_error());
-    EXPECT(maybe_tcp_socket.error().is_syscall());
+    EXPECT(maybe_tcp_socket.error().is_errno());
     EXPECT(maybe_tcp_socket.error().code() == ECONNREFUSED);
 }
 

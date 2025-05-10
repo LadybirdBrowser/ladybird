@@ -218,11 +218,11 @@ TransportSocket::ShouldShutdown TransportSocket::read_as_many_messages_as_possib
         auto maybe_bytes_read = m_socket->receive_message({ buffer, 4096 }, MSG_DONTWAIT, received_fds);
         if (maybe_bytes_read.is_error()) {
             auto error = maybe_bytes_read.release_error();
-            if (error.is_syscall() && error.code() == EAGAIN) {
+
+            if (error.is_errno() && error.code() == EAGAIN) {
                 break;
             }
-
-            if (error.is_syscall() && error.code() == ECONNRESET) {
+            if (error.is_errno() && error.code() == ECONNRESET) {
                 should_shutdown = true;
                 break;
             }
