@@ -8,6 +8,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/HTML/AttributeNames.h>
 #include <LibWeb/HTML/HTMLOListElement.h>
 #include <LibWeb/HTML/Numbers.h>
 
@@ -26,6 +27,15 @@ void HTMLOListElement::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLOListElement);
     Base::initialize(realm);
+}
+
+void HTMLOListElement::attribute_changed(FlyString const& local_name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
+{
+    Base::attribute_changed(local_name, old_value, value, namespace_);
+
+    if (local_name.is_one_of(HTML::AttributeNames::reversed, HTML::AttributeNames::start, HTML::AttributeNames::type)) {
+        set_needs_layout_tree_update(true, DOM::SetNeedsLayoutTreeUpdateReason::HTMLOListElementOrdinalValues);
+    }
 }
 
 // https://html.spec.whatwg.org/multipage/grouping-content.html#dom-ol-start
