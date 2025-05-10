@@ -4,13 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Assertions.h>
-#include <AK/ByteString.h>
 #include <AK/CharacterTypes.h>
-#include <AK/Error.h>
 #include <AK/Format.h>
 #include <AK/GenericLexer.h>
-#include <AK/HashMap.h>
 #include <AK/IntegralMath.h>
 #include <AK/LexicalPath.h>
 #include <AK/String.h>
@@ -1090,56 +1086,6 @@ void vout(FILE* file, StringView fmtstr, TypeErasedFormatParams& params, bool ne
         auto error = ferror(file);
         dbgln("vout() failed ({} written out of {}), error was {} ({})", retval, string.length(), error, strerror(error));
     }
-}
-#if defined(AK_OS_WINDOWS)
-ErrorOr<void> Formatter<Error>::format_windows_error(FormatBuilder& builder, Error const& error)
-{
-    thread_local HashMap<u32, ByteString> windows_errors;
-
-    int code = error.code();
-    Optional<ByteString&> string = windows_errors.get(static_cast<u32>(code));
-    if (string.has_value()) {
-        return Formatter<StringView>::format(builder, string->view());
-    }
-
-    TCHAR* message = nullptr;
-    u32 size = FormatMessage(
-        FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-        nullptr,
-        static_cast<DWORD>(code),
-        MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-        message,
-        0,
-        nullptr);
-    if (size == 0) {
-        auto format_error = GetLastError();
-        return Formatter<FormatString>::format(builder, "Error {:08x} when formatting code {:08x}"sv, format_error, code);
-    }
-
-    auto& string_in_map = windows_errors.ensure(code, [message, size] { return ByteString { message, size }; });
-    LocalFree(message);
-    return Formatter<StringView>::format(builder, string_in_map.view());
-}
-#else
-ErrorOr<void> Formatter<Error>::format_windows_error(FormatBuilder&, Error const&)
-{
-    VERIFY_NOT_REACHED();
-}
-#endif
-
-ErrorOr<void> Formatter<Error>::format(FormatBuilder& builder, Error const& error)
-{
-    switch (error.kind()) {
-    case Error::Kind::Syscall:
-        return Formatter<FormatString>::format(builder, "{}: {} (errno={})"sv, error.string_literal(), strerror(error.code()), error.code());
-    case Error::Kind::Errno:
-        return Formatter<FormatString>::format(builder, "{} (errno={})"sv, strerror(error.code()), error.code());
-    case Error::Kind::Windows:
-        return Formatter<Error>::format_windows_error(builder, error);
-    case Error::Kind::StringLiteral:
-        return Formatter<FormatString>::format(builder, "{}"sv, error.string_literal());
-    }
-    VERIFY_NOT_REACHED();
 }
 
 #ifdef AK_OS_ANDROID
