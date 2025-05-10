@@ -36,12 +36,6 @@ public:
     static Error from_windows_error();
 #endif
 
-    // NOTE: For calling this method from within kernel code, we will simply print
-    // the error message and return the errno code.
-    // For calling this method from userspace programs, we will simply return from
-    // the Error::from_string_view method!
-    static Error from_string_view_or_print_error_and_return_errno(StringView string_literal, int code);
-
     static Error from_syscall(StringView syscall_name, int rc)
     {
         return Error(syscall_name, rc);

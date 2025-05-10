@@ -17,7 +17,7 @@ ErrorOr<void> Stream::read_until_filled(Bytes buffer)
     size_t nread = 0;
     while (nread < buffer.size()) {
         if (is_eof())
-            return Error::from_string_view_or_print_error_and_return_errno("Reached end-of-file before filling the entire buffer"sv, EIO);
+            return Error::from_string_literal("Reached end-of-file before filling the entire buffer");
 
         auto result = read_some(buffer.slice(nread));
         if (result.is_error()) {
@@ -70,7 +70,7 @@ ErrorOr<void> Stream::discard(size_t discarded_bytes)
 
     while (discarded_bytes > 0) {
         if (is_eof())
-            return Error::from_string_view_or_print_error_and_return_errno("Reached end-of-file before reading all discarded bytes"sv, EIO);
+            return Error::from_string_literal("Reached end-of-file before reading all discarded bytes");
 
         auto slice = TRY(read_some(buffer.span().slice(0, min(discarded_bytes, continuous_read_size))));
         discarded_bytes -= slice.size();

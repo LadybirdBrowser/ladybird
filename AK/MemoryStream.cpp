@@ -58,7 +58,7 @@ ErrorOr<Bytes> FixedMemoryStream::read_some(Bytes bytes)
 ErrorOr<void> FixedMemoryStream::read_until_filled(AK::Bytes bytes)
 {
     if (remaining() < bytes.size())
-        return Error::from_string_view_or_print_error_and_return_errno("Can't read past the end of the stream memory"sv, EINVAL);
+        return Error::from_string_literal("Can't read past the end of the stream memory");
 
     m_bytes.slice(m_offset).copy_trimmed_to(bytes);
     m_offset += bytes.size();
@@ -71,19 +71,19 @@ ErrorOr<size_t> FixedMemoryStream::seek(i64 offset, SeekMode seek_mode)
     switch (seek_mode) {
     case SeekMode::SetPosition:
         if (offset > static_cast<i64>(m_bytes.size()))
-            return Error::from_string_view_or_print_error_and_return_errno("Offset past the end of the stream memory"sv, EINVAL);
+            return Error::from_string_literal("Offset past the end of the stream memory");
 
         m_offset = offset;
         break;
     case SeekMode::FromCurrentPosition:
         if (offset + static_cast<i64>(m_offset) > static_cast<i64>(m_bytes.size()))
-            return Error::from_string_view_or_print_error_and_return_errno("Offset past the end of the stream memory"sv, EINVAL);
+            return Error::from_string_literal("Offset past the end of the stream memory");
 
         m_offset += offset;
         break;
     case SeekMode::FromEndPosition:
         if (-offset > static_cast<i64>(m_bytes.size()))
-            return Error::from_string_view_or_print_error_and_return_errno("Offset past the start of the stream memory"sv, EINVAL);
+            return Error::from_string_literal("Offset past the start of the stream memory");
 
         m_offset = m_bytes.size() + offset;
         break;
@@ -108,7 +108,7 @@ ErrorOr<size_t> FixedMemoryStream::write_some(ReadonlyBytes bytes)
 ErrorOr<void> FixedMemoryStream::write_until_depleted(ReadonlyBytes bytes)
 {
     if (remaining() < bytes.size())
-        return Error::from_string_view_or_print_error_and_return_errno("Write of entire buffer ends past the memory area"sv, EINVAL);
+        return Error::from_string_literal("Write of entire buffer ends past the memory area");
 
     TRY(write_some(bytes));
     return {};
@@ -185,7 +185,7 @@ ErrorOr<void> AllocatingMemoryStream::discard(size_t count)
     VERIFY(m_write_offset >= m_read_offset);
 
     if (count > used_buffer_size())
-        return Error::from_string_view_or_print_error_and_return_errno("Number of discarded bytes is higher than the number of allocated bytes"sv, EINVAL);
+        return Error::from_string_literal("Number of discarded bytes is higher than the number of allocated bytes");
 
     m_read_offset += count;
 

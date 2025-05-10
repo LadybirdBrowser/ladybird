@@ -15,18 +15,18 @@ namespace AK {
 ErrorOr<ByteBuffer> decode_hex(StringView input)
 {
     if ((input.length() % 2) != 0)
-        return Error::from_string_view_or_print_error_and_return_errno("Hex string was not an even length"sv, EINVAL);
+        return Error::from_string_literal("Hex string was not an even length");
 
     auto output = TRY(ByteBuffer::create_zeroed(input.length() / 2));
 
     for (size_t i = 0; i < input.length() / 2; ++i) {
         auto const c1 = decode_hex_digit(input[i * 2]);
         if (c1 >= 16)
-            return Error::from_string_view_or_print_error_and_return_errno("Hex string contains invalid digit"sv, EINVAL);
+            return Error::from_string_literal("Hex string contains invalid digit");
 
         auto const c2 = decode_hex_digit(input[i * 2 + 1]);
         if (c2 >= 16)
-            return Error::from_string_view_or_print_error_and_return_errno("Hex string contains invalid digit"sv, EINVAL);
+            return Error::from_string_literal("Hex string contains invalid digit");
 
         output[i] = (c1 << 4) + c2;
     }
