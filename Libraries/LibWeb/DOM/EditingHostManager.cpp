@@ -156,6 +156,22 @@ void EditingHostManager::decrement_cursor_position_to_previous_word(CollapseSele
         return;
     selection->move_offset_to_previous_word(collapse == CollapseSelection::Yes);
 }
+void EditingHostManager::increment_cursor_position_to_next_line(CollapseSelection collapse)
+{
+    // TODO: Improve this method
+    auto selection = m_document->get_selection();
+    if (!selection)
+        return;
+    selection->move_offset_to_next_character(collapse == CollapseSelection::Yes);
+}
+void EditingHostManager::decrement_cursor_position_to_previous_line(CollapseSelection collapse)
+{
+    // TODO: Improve this method
+    auto selection = m_document->get_selection();
+    if (!selection)
+        return;
+    selection->move_offset_to_previous_word(collapse == CollapseSelection::Yes);
+}
 
 void EditingHostManager::handle_delete(DeleteDirection direction)
 {

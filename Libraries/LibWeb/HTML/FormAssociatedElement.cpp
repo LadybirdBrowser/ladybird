@@ -968,6 +968,115 @@ void FormAssociatedTextControlElement::decrement_cursor_position_to_previous_wor
     selection_was_changed();
 }
 
+void FormAssociatedTextControlElement::increment_cursor_position_to_next_line(CollapseSelection collapse)
+{
+    auto const text_node = form_associated_element_to_text_node();
+    if (!text_node)
+        return;
+    auto const& code_points = text_node->data().code_points();
+
+    int last_newline_index = -1;
+    auto current_offset = m_selection_end;
+
+    for (auto maybe_offset = text_node->grapheme_segmenter().previous_boundary(current_offset);
+        code_points.byte_length() > current_offset + 1 && maybe_offset.has_value();
+        maybe_offset = text_node->grapheme_segmenter().previous_boundary(current_offset)) {
+        current_offset = maybe_offset.value();
+        auto code_point = code_points.iterator_at_byte_offset_without_validation(current_offset);
+        if (*code_point == '\n') {
+            last_newline_index = current_offset;
+            break;
+        }
+    }
+
+    current_offset = m_selection_end;
+    int next_newline_index = -1;
+    int next_next_newline_index = code_points.byte_length();
+    for (Optional<size_t> maybe_offset = current_offset;
+        code_points.byte_length() > current_offset + 1 && maybe_offset.has_value();
+        maybe_offset = text_node->grapheme_segmenter().next_boundary(current_offset)) {
+        current_offset = maybe_offset.value();
+        auto code_point = code_points.iterator_at_byte_offset_without_validation(current_offset);
+        if (*code_point == '\n') {
+            next_newline_index = current_offset;
+            for (auto maybe_next_offset = text_node->grapheme_segmenter().next_boundary(current_offset); code_points.byte_length() > current_offset + 1 && maybe_next_offset.has_value(); maybe_next_offset = text_node->grapheme_segmenter().next_boundary(current_offset)) {
+                current_offset = maybe_next_offset.value();
+                auto code_point_next = code_points.iterator_at_byte_offset_without_validation(current_offset);
+                if (*code_point_next == '\n') {
+                    next_next_newline_index = current_offset;
+                    break;
+                }
+            }
+            break;
+        }
+    }
+
+    size_t new_offset;
+    if (next_newline_index == -1) {
+        new_offset = code_points.byte_length();
+    } else {
+        size_t column = m_selection_end - last_newline_index;
+        size_t next_line_length = next_next_newline_index - next_newline_index;
+        new_offset = next_newline_index + min(column, next_line_length);
+    }
+
+    if (collapse == CollapseSelection::Yes) {
+        collapse_selection_to_offset(new_offset);
+    } else {
+        m_selection_end = new_offset;
+    }
+
+    selection_was_changed();
+}
+
+void FormAssociatedTextControlElement::decrement_cursor_position_to_previous_line(CollapseSelection collapse)
+{
+    auto const text_node = form_associated_element_to_text_node();
+    if (!text_node)
+        return;
+
+    auto const& code_points = text_node->data().code_points();
+
+    int last_newline_index = -1;
+    int previous_last_newline_index = -1;
+
+    auto current_offset = m_selection_end;
+    for (auto maybe_offset = text_node->grapheme_segmenter().previous_boundary(current_offset); maybe_offset.has_value(); maybe_offset = text_node->grapheme_segmenter().previous_boundary(current_offset)) {
+        current_offset = maybe_offset.value();
+        auto code_point = code_points.iterator_at_byte_offset_without_validation(current_offset);
+        if (*code_point == '\n') {
+            last_newline_index = current_offset;
+
+            for (auto maybe_previous_offset = text_node->grapheme_segmenter().previous_boundary(current_offset); maybe_previous_offset.has_value(); maybe_previous_offset = text_node->grapheme_segmenter().previous_boundary(current_offset)) {
+                current_offset = maybe_previous_offset.value();
+                auto code_point = code_points.iterator_at_byte_offset_without_validation(current_offset);
+                if (*code_point == '\n') {
+                    previous_last_newline_index = current_offset;
+                    break;
+                }
+            }
+            break;
+        }
+    }
+
+    size_t new_offset;
+    if (last_newline_index == -1) {
+        new_offset = 0;
+    } else {
+        size_t column = m_selection_end - last_newline_index;
+        size_t previous_line_length = last_newline_index - previous_last_newline_index;
+        new_offset = previous_last_newline_index + min(column, previous_line_length);
+    }
+
+    if (collapse == CollapseSelection::Yes) {
+        collapse_selection_to_offset(new_offset);
+    } else {
+        m_selection_end = new_offset;
+    }
+
+    selection_was_changed();
+}
+
 GC::Ptr<DOM::Position> FormAssociatedTextControlElement::cursor_position() const
 {
     auto const node = form_associated_element_to_text_node();

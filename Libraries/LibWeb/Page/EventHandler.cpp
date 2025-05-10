@@ -1244,6 +1244,15 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
             }
             return EventResult::Handled;
         }
+        if (key == UIEvents::KeyCode::Key_Up || key == UIEvents::KeyCode::Key_Down) {
+            auto collapse = modifiers & UIEvents::Mod_Shift ? InputEventsTarget::CollapseSelection::No : InputEventsTarget::CollapseSelection::Yes;
+            if (key == UIEvents::KeyCode::Key_Up) {
+                target->decrement_cursor_position_to_previous_line(collapse);
+            } else {
+                target->increment_cursor_position_to_next_line(collapse);
+            }
+            return EventResult::Handled;
+        }
 
         if (key == UIEvents::KeyCode::Key_Home) {
             auto collapse = modifiers & UIEvents::Mod_Shift ? InputEventsTarget::CollapseSelection::No : InputEventsTarget::CollapseSelection::Yes;
