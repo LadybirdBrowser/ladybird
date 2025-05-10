@@ -89,7 +89,7 @@ public:
     int code() const { return m_code; }
     bool is_errno() const
     {
-        return m_kind == Kind::Errno;
+        return m_kind == Kind::Errno || m_kind == Kind::Syscall;
     }
     bool is_syscall() const
     {
