@@ -7,6 +7,7 @@
  */
 
 #include <AK/Error.h>
+
 #ifdef AK_OS_WINDOWS
 #    include <AK/ByteString.h>
 #    include <AK/HashMap.h>
@@ -16,11 +17,6 @@
 #endif
 
 namespace AK {
-
-Error Error::from_string_view_or_print_error_and_return_errno(StringView string_literal, [[maybe_unused]] int code)
-{
-    return Error::from_string_view(string_literal);
-}
 
 #ifdef AK_OS_WINDOWS
 Error Error::from_windows_error(u32 windows_error)
