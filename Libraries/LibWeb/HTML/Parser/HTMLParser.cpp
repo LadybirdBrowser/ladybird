@@ -268,7 +268,7 @@ void HTMLParser::run(HTMLTokenizer::StopAtInsertionPoint stop_at_insertion_point
 void HTMLParser::run(const URL::URL& url, HTMLTokenizer::StopAtInsertionPoint stop_at_insertion_point)
 {
     m_document->set_url(url);
-    m_document->set_source(MUST(String::from_byte_string(m_tokenizer.source())));
+    m_document->set_source(m_tokenizer.source());
     run(stop_at_insertion_point);
     the_end(*m_document, this);
 }
