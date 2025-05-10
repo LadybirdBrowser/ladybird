@@ -166,13 +166,6 @@ public:
     {
     }
 
-#ifdef AK_OS_SERENITY
-    ErrorOr(ErrnoCode code)
-        : m_value_or_error(Error::from_errno(code))
-    {
-    }
-#endif
-
     T& value()
     {
         return m_value_or_error.template get<T>();
