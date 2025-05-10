@@ -142,7 +142,7 @@ struct CompareTypeAndValuePair {
 
 class OpCode;
 
-struct StringTable {
+struct REGEX_API StringTable {
     StringTable();
     ~StringTable();
     StringTable(StringTable const&) = default;
@@ -176,7 +176,7 @@ struct StringTable {
     HashMap<ByteCodeValueType, FlyString> m_inverse_table;
 };
 
-class ByteCode : public DisjointChunks<ByteCodeValueType> {
+class REGEX_API ByteCode : public DisjointChunks<ByteCodeValueType> {
     using Base = DisjointChunks<ByteCodeValueType>;
 
 public:
