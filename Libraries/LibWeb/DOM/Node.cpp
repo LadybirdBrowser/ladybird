@@ -2654,16 +2654,14 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
         // then try to retrieve a role for such elements here, that’d then end up calling right back into this
         // name_or_description code — which would cause the calls to loop infinitely. So to avoid that, the caller
         // in the ARIAMixin code can pass the shouldComputeRole parameter to indicate we must skip the role lookup.
+        // https://github.com/w3c/aria/issues/2404
         if (should_compute_role == ShouldComputeRole::Yes)
             role = element->role_from_role_attribute_value();
-        // Per https://w3c.github.io/html-aam/#el-aside and https://w3c.github.io/html-aam/#el-section, computing a
-        // default role for an aside element or section element requires first computing its accessible name — that is,
-        // calling into this name_or_description code. But if we then try to determine a default role for the aside
-        // element or section element here, that’d then end up calling right back into this name_or_description code —
-        // which would cause the calls to loop infinitely. So to avoid that, we only compute a default role here if this
-        // isn’t an aside element or section element.
+        // Per-spec, at https://w3c.github.io/html-aam/#el-aside and elsewhere, computing a default role for certain
+        // elements (img, aside, and section) requires first computing its accessible name. So to avoid getting into an
+        // infinite loop here, the callers in our code for those cases pass in ShouldComputeRole::Yes.
         // https://github.com/w3c/aria/issues/2391
-        if (!role.has_value() && element->local_name() != HTML::TagNames::aside && element->local_name() != HTML::TagNames::section)
+        if (should_compute_role == ShouldComputeRole::Yes && !role.has_value())
             role = element->default_role();
 
         // 2. Compute the text alternative for the current node:
@@ -2734,7 +2732,7 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
                 total_accumulated_text.append(result);
             }
 
-            // iii. Return the accumulated text.
+            // iii. Return the accumulated text if it is not the empty string ("").
             // AD-HOC: This substep in the spec doesn’t seem to explicitly require the following check for an aria-label
             // value; but the “button's hidden referenced name (visibility:hidden) with hidden aria-labelledby traversal
             // falls back to aria-label” subtest at https://wpt.fyi/results/accname/name/comp_labelledby.html won’t pass
@@ -2859,7 +2857,9 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
         //
         // https://w3c.github.io/html-aam/#img-element-accessible-name-computation
         // use alt attribute, even if its value is the empty string.
-        // See also https://wpt.fyi/results/accname/name/comp_tooltip.tentative.html.
+        // See also https://wpt.fyi/results/accname/name/comp_tooltip.tentative.html — but also see
+        // https://github.com/w3c/aria/issues/2491 and the el-img-empty-alt-title subtest in the test at
+        // https://wpt.fyi/results/html-aam/roles-contextual.html.
         if (is<HTML::HTMLImageElement>(*element) && element->has_attribute(HTML::AttributeNames::alt))
             return element->get_attribute(HTML::AttributeNames::alt).value();
 

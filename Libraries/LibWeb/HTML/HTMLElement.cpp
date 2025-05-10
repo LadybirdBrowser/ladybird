@@ -846,7 +846,7 @@ Optional<ARIA::Role> HTMLElement::default_role() const
         // https://w3c.github.io/html-aam/#el-aside
         for (auto ancestor = parent_element(); ancestor; ancestor = ancestor->parent_element()) {
             if (ancestor->local_name().is_one_of(TagNames::article, TagNames::aside, TagNames::nav, TagNames::section)
-                && accessible_name(document()).value().is_empty())
+                && accessible_name(document(), DOM::ShouldComputeRole::No).value().trim_whitespace(TrimMode::Both).value().is_empty())
                 return ARIA::Role::generic;
         }
         // https://w3c.github.io/html-aam/#el-aside-ancestorbodymain
@@ -933,7 +933,7 @@ Optional<ARIA::Role> HTMLElement::default_role() const
     // https://www.w3.org/TR/html-aria/#el-section
     if (local_name() == TagNames::section) {
         // role=region if the section element has an accessible name
-        if (!accessible_name(document()).value().is_empty())
+        if (!accessible_name(document(), DOM::ShouldComputeRole::No).value().trim_whitespace(TrimMode::Both).value().is_empty())
             return ARIA::Role::region;
         // Otherwise, role=generic
         return ARIA::Role::generic;
