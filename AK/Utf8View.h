@@ -29,6 +29,7 @@ public:
     bool operator==(Utf8CodePointIterator const&) const = default;
     bool operator!=(Utf8CodePointIterator const&) const = default;
     Utf8CodePointIterator& operator++();
+    Utf8CodePointIterator& operator--();
     u32 operator*() const;
     // NOTE: This returns {} if the peek is at or past EOF.
     Optional<u32> peek(size_t offset = 0) const;
@@ -48,15 +49,18 @@ public:
     size_t underlying_code_point_length_in_bytes() const;
     ReadonlyBytes underlying_code_point_bytes() const { return { m_ptr, underlying_code_point_length_in_bytes() }; }
     bool done() const { return m_length == 0; }
+    bool at_start() const { return m_ptr == m_start; }
 
 private:
-    Utf8CodePointIterator(u8 const* ptr, size_t length)
+    Utf8CodePointIterator(u8 const* ptr, size_t length, u8 const* start = nullptr)
         : m_ptr(ptr)
+        , m_start(start ? start : ptr)
         , m_length(length)
     {
     }
 
     u8 const* m_ptr { nullptr };
+    u8 const* m_start { nullptr };
     size_t m_length { 0 };
 };
 
@@ -87,8 +91,8 @@ public:
 
     StringView as_string() const { return m_string; }
 
-    Utf8CodePointIterator begin() const { return { begin_ptr(), m_string.length() }; }
-    Utf8CodePointIterator end() const { return { end_ptr(), 0 }; }
+    Utf8CodePointIterator begin() const { return { begin_ptr(), m_string.length(), begin_ptr() }; }
+    Utf8CodePointIterator end() const { return { end_ptr(), 0, begin_ptr() }; }
     Utf8CodePointIterator iterator_at_byte_offset(size_t) const;
 
     Utf8CodePointIterator iterator_at_byte_offset_without_validation(size_t) const;
@@ -261,6 +265,21 @@ inline Utf8CodePointIterator& Utf8CodePointIterator::operator++()
 
     m_ptr += code_point_length_in_bytes;
     m_length -= code_point_length_in_bytes;
+    return *this;
+}
+
+inline Utf8CodePointIterator& Utf8CodePointIterator::operator--()
+{
+    VERIFY(m_ptr > m_start);
+
+    --m_ptr;
+    ++m_length;
+
+    while (m_ptr > m_start && (*m_ptr & 0xC0) == 0x80) {
+        --m_ptr;
+        ++m_length;
+    }
+
     return *this;
 }
 
