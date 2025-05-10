@@ -192,6 +192,13 @@ public:
     // https://drafts.csswg.org/css-ui/#propdef-user-select
     CSS::UserSelect user_select_used_value() const;
 
+    // https://drafts.csswg.org/css-contain-2/#containment-types
+    bool has_size_containment() const;
+    bool has_inline_size_containment() const;
+    bool has_layout_containment() const;
+    bool has_style_containment() const;
+    bool has_paint_containment() const;
+
     [[nodiscard]] bool has_been_wrapped_in_table_wrapper() const { return m_has_been_wrapped_in_table_wrapper; }
     void set_has_been_wrapped_in_table_wrapper(bool value) { m_has_been_wrapped_in_table_wrapper = value; }
 
