@@ -3,6 +3,7 @@
  * Copyright (c) 2022-2023, Sam Atkins <atkinssj@serenityos.org>
  * Copyright (c) 2022, MacDue <macdue@dueutil.tech>
  * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
+ * Copyright (c) 2025, Aziz B. Yesilyurt <abyesilyurt@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -283,10 +284,10 @@ void TreeBuilder::restructure_block_node_in_inline_parent(NodeWithStyleAndBoxMod
     VERIFY(!parent.children_are_inline());
     parent.set_children_are_inline(true);
 
-    // Find nearest non-inline, content supporting ancestor that is not an anonymous block.
+    // Find nearest ancestor that establishes a BFC (block container) and is not display: contents or anonymous.
     auto& nearest_block_ancestor = [&] -> NodeWithStyle& {
         for (auto* ancestor = parent.parent(); ancestor; ancestor = ancestor->parent()) {
-            if (!ancestor->is_inline() && !ancestor->display().is_contents() && !ancestor->is_anonymous())
+            if (ancestor->is_block_container() && !ancestor->display().is_contents() && !ancestor->is_anonymous())
                 return *ancestor;
         }
         VERIFY_NOT_REACHED();
@@ -310,6 +311,12 @@ void TreeBuilder::restructure_block_node_in_inline_parent(NodeWithStyleAndBoxMod
         before_wrapper = last_child;
     } else {
         before_wrapper = nearest_block_ancestor.create_anonymous_wrapper();
+
+        // CSS 2.2 9.2.1.1 creates anonymous block boxes, but 9.4.1 states inline-block creates a BFC.
+        // Set wrapper to inline-block to participate correctly in the IFC within the parent inline-block.
+        if (nearest_block_ancestor.display().is_inline_block()) {
+            static_cast<NodeWithStyle&>(*before_wrapper).mutable_computed_values().set_display(CSS::Display::from_short(CSS::Display::Short::InlineBlock));
+        }
         before_wrapper->set_children_are_inline(true);
         nearest_block_ancestor.append_child(*before_wrapper);
     }
@@ -341,6 +348,10 @@ void TreeBuilder::restructure_block_node_in_inline_parent(NodeWithStyleAndBoxMod
     }
     if (!middle_wrapper) {
         middle_wrapper = static_cast<NodeWithStyleAndBoxModelMetrics&>(*nearest_block_ancestor.create_anonymous_wrapper());
+        // See comment above for `before_wrapper` for the reasoning.
+        if (nearest_block_ancestor.display().is_inline_block()) {
+            middle_wrapper->mutable_computed_values().set_display(CSS::Display::from_short(CSS::Display::Short::InlineBlock));
+        }
         nearest_block_ancestor.append_child(*middle_wrapper);
         middle_wrapper->set_continuation_of_node({}, topmost_inline_ancestor);
     }
@@ -354,6 +365,10 @@ void TreeBuilder::restructure_block_node_in_inline_parent(NodeWithStyleAndBoxMod
     // any inclusive ancestor of node in the after wrapper.
     if (needs_new_continuation) {
         auto after_wrapper = nearest_block_ancestor.create_anonymous_wrapper();
+        // See comment above for `before_wrapper` for the reasoning.
+        if (nearest_block_ancestor.display().is_inline_block()) {
+            static_cast<NodeWithStyle&>(*after_wrapper).mutable_computed_values().set_display(CSS::Display::from_short(CSS::Display::Short::InlineBlock));
+        }
         GC::Ptr<Node> current_parent = after_wrapper;
         for (GC::Ptr<Node> inline_node = topmost_inline_ancestor;
             inline_node && is<DOM::Element>(inline_node->dom_node()); inline_node = inline_node->last_child()) {
