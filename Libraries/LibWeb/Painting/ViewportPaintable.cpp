@@ -127,8 +127,9 @@ void ViewportPaintable::assign_clip_frames()
     for_each_in_subtree_of_type<PaintableBox>([&](auto const& paintable_box) {
         auto overflow_x = paintable_box.computed_values().overflow_x();
         auto overflow_y = paintable_box.computed_values().overflow_y();
-        auto has_hidden_overflow = overflow_x != CSS::Overflow::Visible && overflow_y != CSS::Overflow::Visible;
-        if (has_hidden_overflow || paintable_box.get_clip_rect().has_value()) {
+        auto has_hidden_overflow = overflow_x != CSS::Overflow::Visible || overflow_y != CSS::Overflow::Visible;
+        auto element = as_if<DOM::Element>(paintable_box.layout_node().dom_node());
+        if (has_hidden_overflow || paintable_box.get_clip_rect().has_value() || (element && element->has_paint_containment())) {
             auto clip_frame = adopt_ref(*new ClipFrame());
             clip_state.set(paintable_box, move(clip_frame));
         }
@@ -136,6 +137,12 @@ void ViewportPaintable::assign_clip_frames()
     });
 
     for_each_in_subtree([&](auto const& paintable) {
+        if (paintable.is_paintable_box()) {
+            auto const& paintable_box = static_cast<PaintableBox const&>(paintable);
+            if (auto clip_frame = clip_state.get(paintable_box); clip_frame.has_value()) {
+                const_cast<PaintableBox&>(paintable_box).set_own_clip_frame(clip_frame.value());
+            }
+        }
         for (auto block = paintable.containing_block(); !block->is_viewport(); block = block->containing_block()) {
             if (auto clip_frame = clip_state.get(block); clip_frame.has_value()) {
                 if (paintable.is_paintable_box()) {
@@ -160,14 +167,64 @@ void ViewportPaintable::assign_clip_frames()
                 continue;
             }
             auto const& block_paintable_box = static_cast<PaintableBox const&>(*paintable);
-            auto block_overflow_x = block_paintable_box.computed_values().overflow_x();
-            auto block_overflow_y = block_paintable_box.computed_values().overflow_y();
-            if (block_overflow_x != CSS::Overflow::Visible && block_overflow_y != CSS::Overflow::Visible) {
-                auto rect = block_paintable_box.absolute_padding_box_rect();
-                clip_frame.add_clip_rect(rect, block_paintable_box.normalized_border_radii_data(ShrinkRadiiForBorders::Yes), block_paintable_box.enclosing_scroll_frame());
+            auto overflow_x = paintable->computed_values().overflow_x();
+            auto overflow_y = paintable->computed_values().overflow_y();
+
+            // https://drafts.csswg.org/css-contain-2/#paint-containment
+            // 1. The contents of the element including any ink or scrollable overflow must be clipped to the overflow clip
+            //    edge of the paint containment box, taking corner clipping into account. This does not include the creation of
+            //    any mechanism to access or indicate the presence of the clipped content; nor does it inhibit the creation of
+            //    any such mechanism through other properties, such as overflow, resize, or text-overflow.
+            //    NOTE: This clipping shape respects overflow-clip-margin, allowing an element with paint containment
+            //          to still slightly overflow its normal bounds.
+            if (auto element = as_if<DOM::Element>(block->dom_node())) {
+                if (element->has_paint_containment()) {
+                    // NOTE: Note: The behavior is described in this paragraph is equivalent to changing 'overflow-x: visible' into
+                    //       'overflow-x: clip' and 'overflow-y: visible' into 'overflow-y: clip' at used value time, while leaving other
+                    //       values of 'overflow-x' and 'overflow-y' unchanged.
+                    overflow_x = CSS::Overflow::Clip;
+                    overflow_y = CSS::Overflow::Clip;
+                }
             }
-            if (auto css_clip_property_rect = block_paintable_box.get_clip_rect(); css_clip_property_rect.has_value()) {
-                clip_frame.add_clip_rect(css_clip_property_rect.value(), {}, block_paintable_box.enclosing_scroll_frame());
+
+            auto clip_rect = block_paintable_box.absolute_padding_box_rect();
+
+            // https://drafts.csswg.org/css-overflow-3/#propdef-overflow
+            // 'clip'
+            //    This value indicates that the box’s content is clipped to its overflow clip edge
+            auto overflow_clip_edge = block_paintable_box.overflow_clip_edge_rect();
+            if (overflow_x == CSS::Overflow::Clip) {
+                clip_rect.set_left(overflow_clip_edge.left());
+                clip_rect.set_right(overflow_clip_edge.right());
+            }
+            if (overflow_y == CSS::Overflow::Clip) {
+                clip_rect.set_top(overflow_clip_edge.top());
+                clip_rect.set_bottom(overflow_clip_edge.bottom());
+            }
+
+            bool clip_x = overflow_x != CSS::Overflow::Visible;
+            bool clip_y = overflow_y != CSS::Overflow::Visible;
+
+            if (block_paintable_box.get_clip_rect().has_value()) {
+                clip_rect.intersect(block_paintable_box.get_clip_rect().value());
+                clip_x = true;
+                clip_y = true;
+            }
+
+            if (clip_x || clip_y) {
+                if (clip_x && clip_y) {
+                    // FIXME: Adjust the border radii to match the overflow clip edge, if needed. (see https://drafts.csswg.org/css-overflow-4/#valdef-overflow-clip-margin-length-0 )
+                    clip_frame.add_clip_rect(clip_rect, block_paintable_box.normalized_border_radii_data(ShrinkRadiiForBorders::Yes), block_paintable_box.enclosing_scroll_frame());
+                } else {
+                    if (clip_x) {
+                        clip_rect.set_top(0);
+                        clip_rect.set_bottom(CSSPixels::max_integer_value);
+                    } else {
+                        clip_rect.set_left(0);
+                        clip_rect.set_right(CSSPixels::max_integer_value);
+                    }
+                    clip_frame.add_clip_rect(clip_rect, {}, block_paintable_box.enclosing_scroll_frame());
+                }
             }
             if (block->has_css_transform()) {
                 break;

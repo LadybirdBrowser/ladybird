@@ -38,11 +38,9 @@ Optional<CSSPixelRect> ClippableAndScrollable::clip_rect_for_hit_testing() const
     return {};
 }
 
-void ClippableAndScrollable::apply_clip(PaintContext& context) const
+void ClippableAndScrollable::apply_clip(PaintContext& context, RefPtr<ClipFrame const> from_clip_frame) const
 {
-    if (!m_enclosing_clip_frame)
-        return;
-    auto const& clip_rects = m_enclosing_clip_frame->clip_rects();
+    auto const& clip_rects = from_clip_frame->clip_rects();
     if (clip_rects.is_empty())
         return;
 
@@ -64,11 +62,9 @@ void ClippableAndScrollable::apply_clip(PaintContext& context) const
     }
 }
 
-void ClippableAndScrollable::restore_clip(PaintContext& context) const
+void ClippableAndScrollable::restore_clip(PaintContext& context, RefPtr<ClipFrame const> from_clip_frame) const
 {
-    if (!m_enclosing_clip_frame)
-        return;
-    auto const& clip_rects = m_enclosing_clip_frame->clip_rects();
+    auto const& clip_rects = from_clip_frame->clip_rects();
     if (clip_rects.is_empty())
         return;
 

@@ -5,15 +5,27 @@
         scrollbar-width: none;
     }
 
+    #outer {
+        /*
+        This needs to be here so that the text is double-clipped.
+        This happens in the reference and causes a slight difference
+        in aliasing around the edges.
+        */
+        width: 300px;
+        height: 300px;
+        border-radius: 50%;
+        overflow: hidden;
+    }
+
     #container {
         width: 300px;
         height: 300px;
-        border: 5px solid black;
         border-radius: 50%;
         overflow: scroll;
         font-size: 40px;
     }
 </style>
+<div id="outer">
 <div id="container">
     Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut ultrices neque eu nisi facilisis
     viverra. Integer lacinia, lacus vel condimentum suscipit, lacus felis porta nulla, eget lacinia
@@ -22,6 +34,7 @@
     Curabitur ligula diam, tincidunt congue tincidunt nec, sodales nec orci. Vestibulum tincidunt
     non elit in vehicula. Etiam malesuada neque eu porta rhoncus. Curabitur vel nunc finibus ligula
     posuere venenatis.
+</div>
 </div>
 <script>
     const scrollContainer = document.getElementById("container");
