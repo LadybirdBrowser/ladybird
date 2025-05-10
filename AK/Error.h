@@ -19,13 +19,12 @@ public:
         Errno,
         Syscall,
         Windows,
-        StringLiteral
+        StringLiteral,
     };
 
     static Error from_errno(int code)
     {
-        VERIFY(code != 0);
-        return Error(code);
+        return Error(code, Kind::Errno);
     }
 
     static Error from_syscall(StringView syscall_name, int code)
@@ -78,25 +77,21 @@ public:
         return m_code == other.m_code && m_string_literal == other.m_string_literal && m_kind == other.m_kind;
     }
 
-    int code() const { return m_code; }
     bool is_errno() const { return m_kind == Kind::Errno || m_kind == Kind::Syscall; }
-    bool is_syscall() const { return m_kind == Kind::Syscall; }
-
     bool is_windows_error() const { return m_kind == Kind::Windows; }
 
-    bool is_string_literal() const { return m_kind == Kind::StringLiteral; }
     StringView string_literal() const { return m_string_literal; }
-
+    int code() const { return m_code; }
     Kind kind() const { return m_kind; }
 
-protected:
-    Error(int code, Kind kind = Kind::Errno)
+private:
+    Error(int code, Kind kind)
         : m_code(code)
         , m_kind(kind)
     {
+        VERIFY(code != 0);
     }
 
-private:
     Error(StringView string_literal)
         : m_string_literal(string_literal)
         , m_kind(Kind::StringLiteral)
