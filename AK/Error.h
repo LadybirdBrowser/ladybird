@@ -74,13 +74,6 @@ public:
         return from_string_view(StringView { string_literal, N - 1 });
     }
 
-    // Note: Don't call this from C++; it's here for Jakt interop (as the name suggests).
-    template<SameAs<StringView> T>
-    ALWAYS_INLINE static Error __jakt_from_string_literal(T string)
-    {
-        return from_string_view(string);
-    }
-
     bool operator==(Error const& other) const
     {
         return m_code == other.m_code && m_string_literal == other.m_string_literal && m_kind == other.m_kind;
