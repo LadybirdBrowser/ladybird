@@ -10,9 +10,7 @@
 #ifdef AK_OS_WINDOWS
 #    include <AK/ByteString.h>
 #    include <AK/HashMap.h>
-#    include <windows.h>
-// Comment to prevent clang-format from including windows.h too late
-#    include <winbase.h>
+#    include <AK/Windows.h>
 #endif
 
 namespace AK {
