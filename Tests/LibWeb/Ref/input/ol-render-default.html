@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<head>
+     <link rel="match" href="../expected/ol-render-default-ref.html" />
+</head>
+<body>
+<ol> <!--  Default -->
+    <li>One</li>
+    <li>Two</li>
+    <li>Three</li>
+</ol>
+<ol> <!--  Incremental start value -->
+    <li value="14">Fourteen</li>
+    <li>Fifteen</li>
+    <li>Sixteen</li>
+</ol>
+<ol> <!--  Incremental start value negative -->
+    <li value="-11">Minus eleven</li>
+    <li>Minus ten</li>
+    <li>Minus nine</li>
+</ol>
+<ol> <!--  Incremental cross zero -->
+    <li value="-1">Minus one</li>
+    <li>Zero</li>
+    <li>One</li>
+</ol>
+<ol reversed> <!--  Reverse -->
+    <li value=3>Three</li>
+    <li>Two</li>
+    <li>One</li>
+</ol>
+<ol reversed> <!--  Reverse start value -->
+    <li value="14">Fourteen</li>
+    <li>Thirteen</li>
+    <li>Twelve</li>
+</ol>
+<ol reversed> <!--  Reverse negative start value -->
+    <li value="-14">Minus fourteen</li>
+    <li>Minus fifteen</li>
+    <li>Minus sixteen</li>
+</ol>
+<ol reversed> <!--  Reverse cross zero -->
+    <li value="1">One</li>
+    <li>Zero</li>
+    <li>Minus one</li>
+</ol>
+</body>
