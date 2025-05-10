@@ -402,6 +402,14 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
         view().retrieved_clipboard_entries(request_id, items);
     };
 
+    view().on_request_geolocation_watch = [](auto, auto) {
+        // FIXME: Implement geolocation for QT chrome with CoreLocation on macOS and libgeoclue on Linux.
+    };
+
+    view().on_stop_geolocation_watch = [](auto) {
+        // FIXME: Implement geolocation for QT chrome with CoreLocation on macOS and libgeoclue on Linux.
+    };
+
     view().on_audio_play_state_changed = [this](auto play_state) {
         emit audio_play_state_changed(tab_index(), play_state);
     };

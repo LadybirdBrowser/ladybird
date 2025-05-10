@@ -82,6 +82,10 @@
 #    cmakedefine01 GENERATE_DEBUG
 #endif
 
+#ifndef GEOLOCATION_DEBUG
+#    cmakedefine01 GEOLOCATION_DEBUG
+#endif
+
 #ifndef GHASH_PROCESS_DEBUG
 #    cmakedefine01 GHASH_PROCESS_DEBUG
 #endif

@@ -141,6 +141,14 @@ HeadlessWebView::HeadlessWebView(Core::AnonymousBuffer theme, Web::DevicePixelSi
             retrieved_clipboard_entries(request_id, {});
     };
 
+    on_request_geolocation_watch = [](auto, auto) {
+        // FIXME: Implement geolocation stubbing for headless browser.
+    };
+
+    on_stop_geolocation_watch = [](auto) {
+        // FIXME: Implement geolocation stubbing for headless browser.
+    };
+
     m_system_visibility_state = Web::HTML::VisibilityState::Visible;
 }
 
