@@ -5,6 +5,7 @@
  */
 
 #include <AK/Math.h>
+#include <AK/NumericLimits.h>
 #include <AK/QuickSort.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
@@ -1853,6 +1854,73 @@ JS::Value clear_an_object_store(GC::Ref<ObjectStore> store)
 
     // 3. Return undefined.
     return JS::js_undefined();
+}
+
+// https://w3c.github.io/IndexedDB/#retrieve-a-key-from-an-object-store
+WebIDL::ExceptionOr<JS::Value> retrieve_a_key_from_an_object_store(JS::Realm& realm, GC::Ref<ObjectStore> store, GC::Ref<IDBKeyRange> range)
+{
+    // 1. Let record be the first record in store’s list of records whose key is in range, if any.
+    auto record = store->first_in_range(range);
+
+    // 2. If record was not found, return undefined.
+    if (!record.has_value())
+        return JS::js_undefined();
+
+    // 3. Return the result of converting a key to a value with record’s key.
+    return convert_a_key_to_a_value(realm, record.value().key);
+}
+
+// https://w3c.github.io/IndexedDB/#retrieve-multiple-values-from-an-object-store
+WebIDL::ExceptionOr<JS::Value> retrieve_multiple_values_from_an_object_store(JS::Realm& realm, GC::Ref<ObjectStore> store, GC::Ref<IDBKeyRange> range, Optional<WebIDL::UnsignedLong> count_parameter)
+{
+    // 1. If count is not given or is 0 (zero), let count be infinity.
+    size_t count = count_parameter.has_value() ? count_parameter.value() : AK::NumericLimits<WebIDL::UnsignedLong>::max();
+
+    // 2. Let records be a list containing the first count records in store’s list of records whose key is in range.
+    auto records = store->first_n_in_range(range, count);
+
+    // 3. Let list be an empty list.
+    Vector<JS::Value> list;
+
+    // 4. For each record of records:
+    for (auto const& record : records) {
+        // 1. Let serialized be record’s value. If an error occurs while reading the value from the underlying storage, return a newly created "NotReadableError" DOMException.
+        auto serialized = record.value;
+
+        // 2. Let entry be ! StructuredDeserialize(serialized, targetRealm).
+        auto entry = MUST(HTML::structured_deserialize(realm.vm(), serialized, realm));
+
+        // 3. Append entry to list.
+        list.append(entry);
+    }
+
+    // 5. Return list converted to a sequence<any>.
+    return JS::Array::create_from(realm, list);
+}
+
+// https://w3c.github.io/IndexedDB/#retrieve-multiple-keys-from-an-object-store
+WebIDL::ExceptionOr<JS::Value> retrieve_multiple_keys_from_an_object_store(JS::Realm& realm, GC::Ref<ObjectStore> store, GC::Ref<IDBKeyRange> range, Optional<WebIDL::UnsignedLong> count_parameter)
+{
+    // 1. If count is not given or is 0 (zero), let count be infinity.
+    size_t count = count_parameter.has_value() ? count_parameter.value() : AK::NumericLimits<WebIDL::UnsignedLong>::max();
+
+    // 2. Let records be a list containing the first count records in store’s list of records whose key is in range.
+    auto records = store->first_n_in_range(range, count);
+
+    // 3. Let list be an empty list.
+    Vector<JS::Value> list;
+
+    // 4. For each record of records:
+    for (auto const& record : records) {
+        // 1. Let entry be the result of converting a key to a value with record’s key.
+        auto entry = convert_a_key_to_a_value(realm, record.key);
+
+        // 2. Append entry to list.
+        list.append(entry);
+    }
+
+    // 5. Return list converted to a sequence<any>.
+    return JS::Array::create_from(realm, list);
 }
 
 }
