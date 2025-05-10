@@ -10,6 +10,7 @@
 #include <AK/BuiltinWrappers.h>
 #include <AK/Function.h>
 #include <AK/Random.h>
+#include <LibCrypto/SecureRandom.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Iterator.h>
@@ -800,12 +801,15 @@ JS_DEFINE_NATIVE_FUNCTION(MathObject::pow)
     return pow_impl(vm, vm.argument(0), vm.argument(1));
 }
 
-class XorShift128PlusPlusRNG {
+// http://vigna.di.unimi.it/ftp/papers/xorshiftplus.pdf
+class XorShift128PlusRNG {
 public:
-    XorShift128PlusPlusRNG()
+    XorShift128PlusRNG()
     {
-        u64 seed = get_random<u32>();
+        // Splitmix64 is used as xorshift is sensitive to being seeded with all 0s
+        u64 seed = Crypto::get_secure_random<u64>();
         m_low = splitmix64(seed);
+        seed = Crypto::get_secure_random<u64>();
         m_high = splitmix64(seed);
     }
 
@@ -824,6 +828,7 @@ private:
         return z ^ (z >> 31);
     }
 
+    // Apparently this set of constants is better: https://stackoverflow.com/a/34432126
     u64 advance()
     {
         u64 s1 = m_low;
@@ -831,8 +836,8 @@ private:
         u64 const result = s0 + s1;
         m_low = s0;
         s1 ^= s1 << 23;
-        s1 ^= s1 >> 17;
-        s1 ^= s0 ^ (s0 >> 26);
+        s1 ^= s1 >> 18;
+        s1 ^= s0 ^ (s0 >> 5);
         m_high = s1;
         return result + s1;
     }
@@ -846,7 +851,7 @@ Value MathObject::random_impl()
     // This function returns a Number value with positive sign, greater than or equal to +0𝔽 but strictly less than 1𝔽,
     // chosen randomly or pseudo randomly with approximately uniform distribution over that range, using an
     // implementation-defined algorithm or strategy.
-    static XorShift128PlusPlusRNG rng;
+    static XorShift128PlusRNG rng;
     return Value(rng.get());
 }
 
