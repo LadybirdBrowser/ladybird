@@ -15,9 +15,6 @@ namespace AK {
 
 class [[nodiscard]] Error {
 public:
-    ALWAYS_INLINE Error(Error&&) = default;
-    ALWAYS_INLINE Error& operator=(Error&&) = default;
-
     enum class Kind : u8 {
         Errno,
         Syscall,
@@ -31,42 +28,50 @@ public:
         return Error(code);
     }
 
-#ifdef AK_OS_WINDOWS
-    static Error from_windows_error(u32 windows_error);
-    static Error from_windows_error();
-#endif
-
     static Error from_syscall(StringView syscall_name, int code)
     {
         return Error(syscall_name, code);
     }
-    static Error from_string_view(StringView string_literal) { return Error(string_literal); }
+
+    // Prefer `from_string_literal` when directly typing out an error message:
+    //
+    //     return Error::from_string_literal("Class: Some failure");
+    //
+    // If you need to return a static string based on a dynamic condition (like picking an error from an array), then
+    // prefer `from_string_view` instead.
+    template<size_t N>
+    ALWAYS_INLINE static Error from_string_literal(char const (&string_literal)[N])
+    {
+        return from_string_view(StringView { string_literal, N - 1 });
+    }
+
+    static Error from_string_view(StringView string_literal)
+    {
+        return Error(string_literal);
+    }
 
     template<OneOf<ByteString, String, FlyString> T>
     static Error from_string_view(T)
     {
-        // `Error::from_string_view(ByteString::formatted(...))` is a somewhat common mistake, which leads to a UAF situation.
-        // If your string outlives this error and _isn't_ a temporary being passed to this function, explicitly call .view() on it to resolve to the StringView overload.
+        // `Error::from_string_view(ByteString::formatted(...))` is a somewhat common mistake, which leads to a UAF
+        // situation. If your string outlives this error and _isn't_ a temporary being passed to this function,
+        // explicitly call .view() on it to resolve to the StringView overload.
         static_assert(DependentFalse<T>, "Error::from_string_view(String) is almost always a use-after-free");
         VERIFY_NOT_REACHED();
     }
+
+#ifdef AK_OS_WINDOWS
+    static Error from_windows_error(u32 windows_error);
+    static Error from_windows_error();
+#endif
 
     static Error copy(Error const& error)
     {
         return Error(error);
     }
 
-    // NOTE: Prefer `from_string_literal` when directly typing out an error message:
-    //
-    //     return Error::from_string_literal("Class: Some failure");
-    //
-    // If you need to return a static string based on a dynamic condition (like
-    // picking an error from an array), then prefer `from_string_view` instead.
-    template<size_t N>
-    ALWAYS_INLINE static Error from_string_literal(char const (&string_literal)[N])
-    {
-        return from_string_view(StringView { string_literal, N - 1 });
-    }
+    ALWAYS_INLINE Error(Error&&) = default;
+    ALWAYS_INLINE Error& operator=(Error&&) = default;
 
     bool operator==(Error const& other) const
     {
@@ -74,30 +79,15 @@ public:
     }
 
     int code() const { return m_code; }
-    bool is_errno() const
-    {
-        return m_kind == Kind::Errno || m_kind == Kind::Syscall;
-    }
-    bool is_syscall() const
-    {
-        return m_kind == Kind::Syscall;
-    }
-    bool is_windows_error() const
-    {
-        return m_kind == Kind::Windows;
-    }
-    bool is_string_literal() const
-    {
-        return m_kind == Kind::StringLiteral;
-    }
-    StringView string_literal() const
-    {
-        return m_string_literal;
-    }
-    Kind kind() const
-    {
-        return m_kind;
-    }
+    bool is_errno() const { return m_kind == Kind::Errno || m_kind == Kind::Syscall; }
+    bool is_syscall() const { return m_kind == Kind::Syscall; }
+
+    bool is_windows_error() const { return m_kind == Kind::Windows; }
+
+    bool is_string_literal() const { return m_kind == Kind::StringLiteral; }
+    StringView string_literal() const { return m_string_literal; }
+
+    Kind kind() const { return m_kind; }
 
 protected:
     Error(int code, Kind kind = Kind::Errno)
@@ -124,9 +114,7 @@ private:
     Error& operator=(Error const&) = default;
 
     StringView m_string_literal;
-
     int m_code { 0 };
-
     Kind m_kind {};
 };
 
@@ -166,10 +154,7 @@ public:
     {
     }
 
-    T& value()
-    {
-        return m_value_or_error.template get<T>();
-    }
+    T& value() { return m_value_or_error.template get<T>(); }
     T const& value() const { return m_value_or_error.template get<T>(); }
 
     ErrorType& error() { return m_value_or_error.template get<ErrorType>(); }

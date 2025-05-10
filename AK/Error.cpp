@@ -7,6 +7,7 @@
  */
 
 #include <AK/Error.h>
+
 #ifdef AK_OS_WINDOWS
 #    include <AK/ByteString.h>
 #    include <AK/HashMap.h>
