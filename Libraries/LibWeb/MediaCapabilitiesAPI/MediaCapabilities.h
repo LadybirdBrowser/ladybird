@@ -9,6 +9,7 @@
 
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/EncryptedMediaExtensions/EncryptedMediaExtensions.h>
+#include <LibWeb/WebIDL/Types.h>
 
 namespace Web::MediaCapabilitiesAPI {
 
