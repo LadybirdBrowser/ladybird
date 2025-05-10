@@ -40,6 +40,8 @@ public:
     virtual void decrement_cursor_position_offset(CollapseSelection) = 0;
     virtual void increment_cursor_position_to_next_word(CollapseSelection) = 0;
     virtual void decrement_cursor_position_to_previous_word(CollapseSelection) = 0;
+    virtual void increment_cursor_position_to_next_line(CollapseSelection) = 0;
+    virtual void decrement_cursor_position_to_previous_line(CollapseSelection) = 0;
 };
 
 }
