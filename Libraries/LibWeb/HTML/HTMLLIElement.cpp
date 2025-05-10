@@ -27,6 +27,17 @@ void HTMLLIElement::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
+void HTMLLIElement::attribute_changed(FlyString const& local_name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
+{
+    Base::attribute_changed(local_name, old_value, value, namespace_);
+
+    if (local_name == HTML::AttributeNames::value) {
+        if (auto* owner = list_owner()) {
+            owner->set_needs_layout_tree_update(true, DOM::SetNeedsLayoutTreeUpdateReason::HTMLOListElementOrdinalValues);
+        }
+    }
+}
+
 // https://html.spec.whatwg.org/multipage/grouping-content.html#dom-li-value
 WebIDL::Long HTMLLIElement::value()
 {
