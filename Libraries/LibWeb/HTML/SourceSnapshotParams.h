@@ -18,7 +18,7 @@ struct SourceSnapshotParams : public GC::Cell {
     GC_DECLARE_ALLOCATOR(SourceSnapshotParams);
 
 public:
-    SourceSnapshotParams(bool has_transient_activation, SandboxingFlagSet sandboxing_flags, bool allows_downloading, GC::Ref<EnvironmentSettingsObject> fetch_client, GC::Ref<PolicyContainer> source_policy_container)
+    SourceSnapshotParams(bool has_transient_activation, SandboxingFlagSet sandboxing_flags, bool allows_downloading, GC::Ptr<EnvironmentSettingsObject> fetch_client, GC::Ref<PolicyContainer> source_policy_container)
         : has_transient_activation(has_transient_activation)
         , sandboxing_flags(sandboxing_flags)
         , allows_downloading(allows_downloading)
@@ -38,8 +38,8 @@ public:
     // a boolean
     bool allows_downloading;
 
-    // an environment settings object, only to be used as a request client
-    GC::Ref<EnvironmentSettingsObject> fetch_client;
+    // an environment settings object or null, only to be used as a request client
+    GC::Ptr<EnvironmentSettingsObject> fetch_client;
 
     // a policy container
     GC::Ref<PolicyContainer> source_policy_container;
@@ -47,5 +47,7 @@ public:
 protected:
     virtual void visit_edges(Cell::Visitor&) override;
 };
+
+GC::Ref<SourceSnapshotParams> snapshot_source_snapshot_params(GC::Heap&, GC::Ptr<DOM::Document>);
 
 }

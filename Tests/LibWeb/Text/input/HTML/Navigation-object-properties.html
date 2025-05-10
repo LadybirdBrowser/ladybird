@@ -11,6 +11,15 @@
 
         println(`transition is null: ${n.transition == null}`);
         println(`canGoBack: ${n.canGoBack}`);
-        println(`canGoForward: ${n.canGoForward}`);       
+        println(`canGoForward: ${n.canGoForward}`);
+
+        history.pushState({}, "", "#foo");
+
+        println(`entries[length - 1] is current entry: ${n.entries()[len - 1] === n.currentEntry}`);
+        println(`currentEntry is a ${n.currentEntry}`);
+
+        println(`transition is null: ${n.transition == null}`);
+        println(`canGoBack: ${n.canGoBack}`);
+        println(`canGoForward: ${n.canGoForward}`);
     });
 </script>
