@@ -114,6 +114,7 @@ enum class SetNeedsLayoutReason {
     X(ElementSetInnerHTML)                                \
     X(DetailsElementOpenedOrClosed)                       \
     X(HTMLInputElementSrcAttribute)                       \
+    X(HTMLOListElementOrdinalValues)                      \
     X(HTMLObjectElementUpdateLayoutAndChildObjects)       \
     X(KeyframeEffect)                                     \
     X(NodeInsertBefore)                                   \
