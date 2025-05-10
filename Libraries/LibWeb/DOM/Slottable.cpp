@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2025, Shannon Booth <shannon@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -151,6 +152,54 @@ Vector<Slottable> find_slottables(GC::Ref<HTML::HTMLSlotElement> slot)
     }
 
     // 7. Return result.
+    return result;
+}
+
+// https://dom.spec.whatwg.org/#find-flattened-slotables
+Vector<Slottable> find_flattened_slottables(GC::Ref<HTML::HTMLSlotElement> slot)
+{
+    // 1. Let result be « ».
+    Vector<Slottable> result;
+
+    // 2. If slot’s root is not a shadow root, then return result.
+    if (!slot->root().is_shadow_root())
+        return result;
+
+    // 3. Let slottables be the result of finding slottables given slot.
+    auto slottables = find_slottables(slot);
+
+    // 4. If slottables is the empty list, then append each slottable child of slot, in tree order, to slottables.
+    if (slottables.is_empty()) {
+        slot->for_each_child([&](auto& node) {
+            if (!node.is_slottable())
+                return IterationDecision::Continue;
+
+            slottables.append(node.as_slottable());
+            return IterationDecision::Continue;
+        });
+    }
+
+    // 5. For each node of slottables:
+    for (auto& node : slottables) {
+        // 1. If node is a slot whose root is a shadow root:
+        //     1. Let temporaryResult be the result of finding flattened slottables given node.
+        //     2. Append each slottable in temporaryResult, in order, to result.
+        // 2. Otherwise, append node to result.
+        auto* maybe_slot = node.get_pointer<GC::Ref<DOM::Element>>();
+        if (!maybe_slot) {
+            result.append(node);
+            continue;
+        }
+
+        if (auto* slot = as_if<HTML::HTMLSlotElement>(maybe_slot->ptr()); slot && slot->root().is_shadow_root()) {
+            auto temporary_result = find_flattened_slottables(*slot);
+            result.extend(temporary_result);
+        } else {
+            result.append(node);
+        }
+    }
+
+    // 6. Return result.
     return result;
 }
 
