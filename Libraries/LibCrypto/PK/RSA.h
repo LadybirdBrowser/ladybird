@@ -21,7 +21,7 @@ public:
     RSAPublicKey(Integer n, Integer e)
         : m_modulus(move(n))
         , m_public_exponent(move(e))
-        , m_length(m_modulus.trimmed_length() * sizeof(u32))
+        , m_length(m_modulus.byte_length())
     {
     }
 
@@ -52,7 +52,7 @@ public:
     {
         m_modulus = move(n);
         m_public_exponent = move(e);
-        m_length = (m_modulus.trimmed_length() * sizeof(u32));
+        m_length = m_modulus.byte_length();
     }
 
 private:
@@ -68,7 +68,7 @@ public:
         : m_modulus(move(n))
         , m_private_exponent(move(d))
         , m_public_exponent(move(e))
-        , m_length(m_modulus.trimmed_length() * sizeof(u32))
+        , m_length(m_modulus.byte_length())
     {
     }
 
@@ -81,7 +81,7 @@ public:
         , m_exponent_1(move(dp))
         , m_exponent_2(move(dq))
         , m_coefficient(move(qinv))
-        , m_length(m_modulus.trimmed_length() * sizeof(u32))
+        , m_length(m_modulus.byte_length())
     {
     }
 

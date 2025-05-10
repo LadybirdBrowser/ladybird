@@ -302,7 +302,7 @@ ErrorOr<void> Encoder::write_arbitrary_sized_integer(UnsignedBigInteger const& v
     auto kind = kind_override.value_or(Kind::Integer);
     TRY(write_tag(class_, type, kind));
 
-    auto max_byte_size = max(1ull, value.length() * UnsignedBigInteger::BITS_IN_WORD / 8); // At minimum, we need one byte to encode 0.
+    auto max_byte_size = max(1ull, value.byte_length()); // At minimum, we need one byte to encode 0.
     ByteBuffer buffer;
     auto output = TRY(buffer.get_bytes_for_writing(max_byte_size));
     auto size = value.export_data(output);

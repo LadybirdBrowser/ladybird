@@ -116,10 +116,9 @@ ErrorOr<String> base64_url_uint_encode(::Crypto::UnsignedBigInteger integer)
     // value.  Zero is represented as BASE64URL(single zero-valued
     // octet), which is "AA".
 
-    auto bytes = TRY(ByteBuffer::create_uninitialized(integer.trimmed_byte_length()));
+    auto bytes = TRY(ByteBuffer::create_uninitialized(integer.byte_length()));
 
-    bool const remove_leading_zeroes = true;
-    auto data_size = integer.export_data(bytes.span(), remove_leading_zeroes);
+    auto data_size = integer.export_data(bytes.span());
 
     auto data_slice_be = bytes.bytes().slice(bytes.size() - data_size, data_size);
 
@@ -1057,12 +1056,12 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAOAEP::import_key(Web::Crypto::Algorit
     // 6. Set the publicExponent attribute of algorithm to the BigInteger representation of the RSA public exponent.
     TRY(key->handle().visit(
         [&](::Crypto::PK::RSAPublicKey<> const& public_key) -> WebIDL::ExceptionOr<void> {
-            algorithm->set_modulus_length(public_key.modulus().trimmed_byte_length() * 8);
+            algorithm->set_modulus_length(public_key.modulus().byte_length() * 8);
             TRY(algorithm->set_public_exponent(public_key.public_exponent()));
             return {};
         },
         [&](::Crypto::PK::RSAPrivateKey<> const& private_key) -> WebIDL::ExceptionOr<void> {
-            algorithm->set_modulus_length(private_key.modulus().trimmed_byte_length() * 8);
+            algorithm->set_modulus_length(private_key.modulus().byte_length() * 8);
             TRY(algorithm->set_public_exponent(private_key.public_exponent()));
             return {};
         },
@@ -1635,12 +1634,12 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAPSS::import_key(AlgorithmParams const
     // 6. Set the publicExponent attribute of algorithm to the BigInteger representation of the RSA public exponent.
     TRY(key->handle().visit(
         [&](::Crypto::PK::RSAPublicKey<> const& public_key) -> WebIDL::ExceptionOr<void> {
-            algorithm->set_modulus_length(public_key.modulus().trimmed_byte_length() * 8);
+            algorithm->set_modulus_length(public_key.modulus().byte_length() * 8);
             TRY(algorithm->set_public_exponent(public_key.public_exponent()));
             return {};
         },
         [&](::Crypto::PK::RSAPrivateKey<> const& private_key) -> WebIDL::ExceptionOr<void> {
-            algorithm->set_modulus_length(private_key.modulus().trimmed_byte_length() * 8);
+            algorithm->set_modulus_length(private_key.modulus().byte_length() * 8);
             TRY(algorithm->set_public_exponent(private_key.public_exponent()));
             return {};
         },
@@ -2206,12 +2205,12 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSASSAPKCS1::import_key(AlgorithmParams 
     // 6. Set the publicExponent attribute of algorithm to the BigInteger representation of the RSA public exponent.
     TRY(key->handle().visit(
         [&](::Crypto::PK::RSAPublicKey<> const& public_key) -> WebIDL::ExceptionOr<void> {
-            algorithm->set_modulus_length(public_key.modulus().trimmed_byte_length() * 8);
+            algorithm->set_modulus_length(public_key.modulus().byte_length() * 8);
             TRY(algorithm->set_public_exponent(public_key.public_exponent()));
             return {};
         },
         [&](::Crypto::PK::RSAPrivateKey<> const& private_key) -> WebIDL::ExceptionOr<void> {
-            algorithm->set_modulus_length(private_key.modulus().trimmed_byte_length() * 8);
+            algorithm->set_modulus_length(private_key.modulus().byte_length() * 8);
             TRY(algorithm->set_public_exponent(private_key.public_exponent()));
             return {};
         },

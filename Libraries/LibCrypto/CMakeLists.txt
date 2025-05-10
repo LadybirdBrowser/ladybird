@@ -7,13 +7,6 @@ set(SOURCES
     ASN1/PEM.cpp
     Authentication/HMAC.cpp
     BigFraction/BigFraction.cpp
-    BigInt/Algorithms/BitwiseOperations.cpp
-    BigInt/Algorithms/Division.cpp
-    BigInt/Algorithms/GCD.cpp
-    BigInt/Algorithms/ModularInverse.cpp
-    BigInt/Algorithms/ModularPower.cpp
-    BigInt/Algorithms/Multiplication.cpp
-    BigInt/Algorithms/SimpleOperations.cpp
     BigInt/SignedBigInteger.cpp
     BigInt/UnsignedBigInteger.cpp
     Certificate/Certificate.cpp
@@ -26,7 +19,6 @@ set(SOURCES
     Hash/PBKDF2.cpp
     Hash/SHA1.cpp
     Hash/SHA2.cpp
-    NumberTheory/ModularFunctions.cpp
     PK/RSA.cpp
     PK/EC.cpp
     SecureRandom.cpp
@@ -34,6 +26,10 @@ set(SOURCES
 
 serenity_lib(LibCrypto crypto)
 target_link_libraries(LibCrypto PRIVATE LibCore)
+
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(libtommath REQUIRED IMPORTED_TARGET libtommath)
+target_link_libraries(LibCrypto PRIVATE PkgConfig::libtommath)
 
 find_package(OpenSSL REQUIRED)
 target_link_libraries(LibCrypto PUBLIC OpenSSL::Crypto)
