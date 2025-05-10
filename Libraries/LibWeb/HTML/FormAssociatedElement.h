@@ -101,6 +101,9 @@ public:
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#check-validity-steps
     bool check_validity_steps();
 
+    // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#report-validity-steps
+    bool report_validity_steps();
+
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#candidate-for-constraint-validation
     bool is_candidate_for_constraint_validation() const;
 

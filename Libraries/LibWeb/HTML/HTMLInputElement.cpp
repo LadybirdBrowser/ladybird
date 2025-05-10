@@ -2785,8 +2785,7 @@ WebIDL::ExceptionOr<bool> HTMLInputElement::check_validity()
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-reportvalidity
 WebIDL::ExceptionOr<bool> HTMLInputElement::report_validity()
 {
-    dbgln("(STUBBED) HTMLInputElement::report_validity(). Called on: {}", debug_description());
-    return true;
+    return report_validity_steps();
 }
 
 Optional<ARIA::Role> HTMLInputElement::default_role() const

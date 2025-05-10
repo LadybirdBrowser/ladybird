@@ -17,6 +17,7 @@
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/HTML/Focus.h>
 #include <LibWeb/HTML/FormControlInfrastructure.h>
 #include <LibWeb/HTML/HTMLButtonElement.h>
 #include <LibWeb/HTML/HTMLDialogElement.h>
@@ -599,6 +600,41 @@ HTMLFormElement::StaticValidationResult HTMLFormElement::statically_validate_con
     return { false, unhandled_invalid_controls };
 }
 
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#interactively-validate-the-constraints
+bool HTMLFormElement::interactively_validate_constraints()
+{
+    // 1. Statically validate the constraints of form, and let unhandled invalid controls be the list of elements returned if the result was negative.
+    // 2. If the result was positive, then return that result.
+    auto static_validation_result = statically_validate_constraints();
+    if (static_validation_result.result)
+        return true;
+    auto unhandled_invalid_controls = static_validation_result.unhandled_invalid_controls;
+
+    //  3. Report the problems with the constraints of at least one of the elements given in unhandled invalid controls to the user.
+    //     - User agents may focus one of those elements in the process, by running the focusing steps for that element, and may change the
+    //       scrolling position of the document, or perform some other action that brings the element to the user's attention.
+    //       For elements that are form-associated custom elements, user agents should use their validation anchor instead, for the purposes of these actions.
+    //     - User agents may report more than one constraint violation.
+    //     - User agents may coalesce related constraint violation reports if appropriate (e.g. if multiple radio buttons in a group are marked as required, only one error need be reported).
+    //     - If one of the controls is not being rendered (e.g. it has the hidden attribute set) then user agents may report a script error.
+    // FIXME: Does this align with other browsers?
+    auto first_invalid_control = unhandled_invalid_controls.first_matching([](auto control) {
+        return control->check_visibility({});
+    });
+    if (first_invalid_control.has_value()) {
+        auto control = first_invalid_control.release_value();
+        run_focusing_steps(control);
+        DOM::ScrollIntoViewOptions scroll_options;
+        scroll_options.block = Bindings::ScrollLogicalPosition::Nearest;
+        scroll_options.inline_ = Bindings::ScrollLogicalPosition::Nearest;
+        scroll_options.behavior = Bindings::ScrollBehavior::Instant;
+        (void)control->scroll_into_view(scroll_options);
+    }
+
+    // 4. Return a negative result.
+    return false;
+}
+
 // https://html.spec.whatwg.org/multipage/forms.html#dom-form-checkvalidity
 WebIDL::ExceptionOr<bool> HTMLFormElement::check_validity()
 {
@@ -608,8 +644,7 @@ WebIDL::ExceptionOr<bool> HTMLFormElement::check_validity()
 // https://html.spec.whatwg.org/multipage/forms.html#dom-form-reportvalidity
 WebIDL::ExceptionOr<bool> HTMLFormElement::report_validity()
 {
-    dbgln("(STUBBED) HTMLFormElement::report_validity(). Called on: {}", debug_description());
-    return true;
+    return interactively_validate_constraints();
 }
 
 // https://html.spec.whatwg.org/multipage/forms.html#category-submit

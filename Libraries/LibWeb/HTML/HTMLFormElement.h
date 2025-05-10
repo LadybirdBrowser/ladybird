@@ -84,6 +84,7 @@ public:
     };
 
     StaticValidationResult statically_validate_constraints();
+    bool interactively_validate_constraints();
     WebIDL::ExceptionOr<bool> check_validity();
     WebIDL::ExceptionOr<bool> report_validity();
 
