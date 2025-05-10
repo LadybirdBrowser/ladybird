@@ -47,7 +47,7 @@ template<class Parser>
 class Regex;
 
 template<class Parser>
-class Matcher final {
+class REGEX_API Matcher final {
 
 public:
     Matcher(Regex<Parser> const* pattern, Optional<typename ParserTraits<Parser>::OptionsType> regex_options = {})
@@ -78,7 +78,7 @@ private:
 };
 
 template<class Parser>
-class Regex final {
+class REGEX_API Regex final {
 public:
     ByteString pattern_value;
     regex::Parser::Result parser_result;

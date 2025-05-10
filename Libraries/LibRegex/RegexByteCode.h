@@ -142,7 +142,7 @@ struct CompareTypeAndValuePair {
 
 class OpCode;
 
-struct StringTable {
+struct REGEX_API StringTable {
     StringTable()
         : m_serial(next_serial++)
     {
