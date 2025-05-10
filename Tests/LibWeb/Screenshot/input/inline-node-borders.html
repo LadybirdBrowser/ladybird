@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/inline-node-borders-ref.html" />
+<style>
+  #pseudos::before {
+    content: 'This text is very long so that it will break onto multiple lines and showcase the bug.';
+    border: 2px solid red;
+    border-radius: 5px;
+  }
+  div {
+    max-width: 100px;
+    line-height: 3em;
+  }
+  span {
+    border: 2px solid blue;
+    border-radius: 5px;
+  }
+</style>
+<div id="pseudos"></div>
+<br>
+<div><span>This text is very long so that it will break onto multiple lines and showcase the bug.</span></div>

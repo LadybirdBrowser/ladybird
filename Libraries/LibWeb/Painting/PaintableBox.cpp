@@ -559,7 +559,33 @@ void PaintableBox::paint_border(PaintContext& context) const
         .bottom = box_model().border.bottom == 0 ? CSS::BorderData() : computed_values().border_bottom(),
         .left = box_model().border.left == 0 ? CSS::BorderData() : computed_values().border_left(),
     };
-    paint_all_borders(context.display_list_recorder(), context.rounded_device_rect(absolute_border_box_rect()), normalized_border_radii_data().as_corners(context), borders_data.to_device_pixels(context));
+
+    auto corners_data = normalized_border_radii_data().as_corners(context);
+
+    if (is_paintable_with_lines() && is_inline()) {
+        // For multi-line inline nodes, only draw the inline-start border on the first line, and the inline-end border
+        // on the last line.
+        // FIXME: Actually use inline-start/end instead of left/right.
+        auto& paintable_with_lines = as<PaintableWithLines>(*this);
+        if (paintable_with_lines.line_index() > 0) {
+            borders_data.left = CSS::BorderData();
+            corners_data.top_left = {};
+            corners_data.bottom_left = {};
+        }
+        if (borders_data.right.width != 0
+            || corners_data.top_right.horizontal_radius != 0 || corners_data.top_right.vertical_radius != 0
+            || corners_data.bottom_right.horizontal_radius != 0 || corners_data.bottom_right.vertical_radius != 0) {
+            // FIXME: Find a way of doing this that doesn't involve walking the tree each time.
+            auto parent_line_count = paintable_with_lines.layout_node().paintables().size_slow();
+            if (paintable_with_lines.line_index() < (parent_line_count - 1)) {
+                borders_data.right = CSS::BorderData();
+                corners_data.top_right = {};
+                corners_data.bottom_right = {};
+            }
+        }
+    }
+
+    paint_all_borders(context.display_list_recorder(), context.rounded_device_rect(absolute_border_box_rect()), corners_data, borders_data.to_device_pixels(context));
 }
 
 void PaintableBox::paint_backdrop_filter(PaintContext& context) const
