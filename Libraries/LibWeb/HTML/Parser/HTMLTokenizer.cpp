@@ -59,7 +59,7 @@ namespace Web::HTML {
         will_reconsume_in(m_return_state);       \
         m_state = m_return_state;                \
         if (current_input_character.has_value()) \
-            restore_to(m_prev_utf8_iterator);    \
+            restore_to(m_prev_offset);           \
         goto _StartOfFunction;                   \
     } while (0)
 
@@ -97,7 +97,7 @@ namespace Web::HTML {
 #define DONT_CONSUME_NEXT_INPUT_CHARACTER        \
     do {                                         \
         if (current_input_character.has_value()) \
-            restore_to(m_prev_utf8_iterator);    \
+            restore_to(m_prev_offset);           \
     } while (0)
 
 #define ON(code_point) \
@@ -195,7 +195,7 @@ static inline void log_parse_error(SourceLocation const& location = SourceLocati
 
 Optional<u32> HTMLTokenizer::next_code_point(StopAtInsertionPoint stop_at_insertion_point)
 {
-    if (m_utf8_iterator == m_utf8_view.end())
+    if (m_current_offset >= static_cast<ssize_t>(m_decoded_input.size()))
         return {};
 
     u32 code_point;
@@ -211,7 +211,7 @@ Optional<u32> HTMLTokenizer::next_code_point(StopAtInsertionPoint stop_at_insert
         code_point = '\n';
     } else {
         skip(1);
-        code_point = *m_prev_utf8_iterator;
+        code_point = m_decoded_input[m_prev_offset];
     }
 
     dbgln_if(TOKENIZER_TRACE_DEBUG, "(Tokenizer) Next code_point: {}", code_point);
@@ -223,8 +223,8 @@ void HTMLTokenizer::skip(size_t count)
     if (!m_source_positions.is_empty())
         m_source_positions.append(m_source_positions.last());
     for (size_t i = 0; i < count; ++i) {
-        m_prev_utf8_iterator = m_utf8_iterator;
-        auto code_point = *m_utf8_iterator;
+        m_prev_offset = m_current_offset;
+        auto code_point = m_decoded_input[m_current_offset];
         if (!m_source_positions.is_empty()) {
             if (code_point == '\n') {
                 m_source_positions.last().column = 0;
@@ -233,23 +233,21 @@ void HTMLTokenizer::skip(size_t count)
                 m_source_positions.last().column++;
             }
         }
-        ++m_utf8_iterator;
+        ++m_current_offset;
     }
 }
 
-Optional<u32> HTMLTokenizer::peek_code_point(size_t offset, StopAtInsertionPoint stop_at_insertion_point) const
+Optional<u32> HTMLTokenizer::peek_code_point(ssize_t offset, StopAtInsertionPoint stop_at_insertion_point) const
 {
-    auto it = m_utf8_iterator;
-    for (size_t i = 0; i < offset && it != m_utf8_view.end(); ++i)
-        ++it;
+    auto it = m_current_offset + offset;
+    if (it >= static_cast<ssize_t>(m_decoded_input.size()))
+        return {};
     if (stop_at_insertion_point == StopAtInsertionPoint::Yes
         && m_insertion_point.defined
-        && m_utf8_view.byte_offset_of(it) >= m_insertion_point.position) {
+        && it >= m_insertion_point.position) {
         return {};
     }
-    if (it == m_utf8_view.end())
-        return {};
-    return *it;
+    return m_decoded_input[it];
 }
 
 HTMLToken::Position HTMLTokenizer::nth_last_position(size_t n)
@@ -1712,10 +1710,8 @@ _StartOfFunction:
                 // have lead to `&notindot;`) would need to backtrack back to `&not`),
                 auto overconsumed_code_points = m_named_character_reference_matcher.overconsumed_code_points();
                 if (overconsumed_code_points > 0) {
-                    auto current_byte_offset = m_utf8_view.byte_offset_of(m_utf8_iterator);
-                    // All consumed code points during character reference matching are guaranteed to be
-                    // within the ASCII range, so they are always 1 byte wide.
-                    restore_to(m_utf8_view.iterator_at_byte_offset_without_validation(current_byte_offset - overconsumed_code_points));
+                    auto current_byte_offset = m_current_offset;
+                    restore_to(current_byte_offset - overconsumed_code_points);
                     m_temporary_buffer.resize_and_keep_capacity(m_temporary_buffer.size() - overconsumed_code_points);
                 }
 
@@ -2856,10 +2852,9 @@ void HTMLTokenizer::create_new_token(HTMLToken::Type type)
 
 HTMLTokenizer::HTMLTokenizer()
 {
-    m_decoded_input = "";
-    m_utf8_view = Utf8View(m_decoded_input);
-    m_utf8_iterator = m_utf8_view.begin();
-    m_prev_utf8_iterator = m_utf8_view.begin();
+    m_decoded_input = {};
+    m_current_offset = 0;
+    m_prev_offset = 0;
     m_source_positions.empend(0u, 0u);
 }
 
@@ -2867,30 +2862,35 @@ HTMLTokenizer::HTMLTokenizer(StringView input, ByteString const& encoding)
 {
     auto decoder = TextCodec::decoder_for(encoding);
     VERIFY(decoder.has_value());
-    m_decoded_input = decoder->to_utf8(input).release_value_but_fixme_should_propagate_errors().to_byte_string();
-    m_utf8_view = Utf8View(m_decoded_input);
-    m_utf8_iterator = m_utf8_view.begin();
-    m_prev_utf8_iterator = m_utf8_view.begin();
+    m_source = MUST(decoder->to_utf8(input));
+    m_decoded_input.ensure_capacity(m_source.bytes().size());
+    for (auto code_point : m_source.code_points())
+        m_decoded_input.append(code_point);
+    m_current_offset = 0;
+    m_prev_offset = 0;
     m_source_positions.empend(0u, 0u);
 }
 
 void HTMLTokenizer::insert_input_at_insertion_point(StringView input)
 {
-    auto utf8_iterator_byte_offset = m_utf8_view.byte_offset_of(m_utf8_iterator);
-    auto prev_utf8_iterator_byte_offset = m_utf8_view.byte_offset_of(m_prev_utf8_iterator);
+    Vector<u32> new_decoded_input;
+    new_decoded_input.ensure_capacity(m_decoded_input.size() + input.length());
 
-    // FIXME: Implement a InputStream to handle insertion_point and iterators.
-    StringBuilder builder {};
-    builder.append(m_decoded_input.substring_view(0, m_insertion_point.position));
-    builder.append(input);
-    builder.append(m_decoded_input.substring_view(m_insertion_point.position));
-    m_decoded_input = builder.to_byte_string();
+    auto before = m_decoded_input.span().slice(0, m_insertion_point.position);
+    new_decoded_input.append(before.data(), before.size());
 
-    m_utf8_view = Utf8View(m_decoded_input);
-    m_utf8_iterator = m_utf8_view.iterator_at_byte_offset(utf8_iterator_byte_offset);
-    m_prev_utf8_iterator = m_utf8_view.iterator_at_byte_offset(prev_utf8_iterator_byte_offset);
+    auto utf8_to_insert = MUST(String::from_utf8(input));
+    ssize_t code_points_inserted = 0;
+    for (auto code_point : utf8_to_insert.code_points()) {
+        new_decoded_input.append(code_point);
+        ++code_points_inserted;
+    }
 
-    m_insertion_point.position += input.length();
+    auto after = m_decoded_input.span().slice(m_insertion_point.position);
+    new_decoded_input.append(after.data(), after.size());
+    m_decoded_input = move(new_decoded_input);
+
+    m_insertion_point.position += code_points_inserted;
 }
 
 void HTMLTokenizer::insert_eof()
@@ -2944,9 +2944,9 @@ bool HTMLTokenizer::consumed_as_part_of_an_attribute() const
     return m_return_state == State::AttributeValueUnquoted || m_return_state == State::AttributeValueSingleQuoted || m_return_state == State::AttributeValueDoubleQuoted;
 }
 
-void HTMLTokenizer::restore_to(Utf8CodePointIterator const& new_iterator)
+void HTMLTokenizer::restore_to(ssize_t new_iterator)
 {
-    auto diff = m_utf8_iterator - new_iterator;
+    auto diff = m_current_offset - new_iterator;
     if (diff > 0) {
         for (ssize_t i = 0; i < diff; ++i) {
             if (!m_source_positions.is_empty())
@@ -2956,7 +2956,7 @@ void HTMLTokenizer::restore_to(Utf8CodePointIterator const& new_iterator)
         // Going forwards...?
         TODO();
     }
-    m_utf8_iterator = new_iterator;
+    m_current_offset = new_iterator;
 }
 
 String HTMLTokenizer::consume_current_builder()
