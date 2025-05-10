@@ -1328,7 +1328,7 @@ Parser::PropertiesAndCustomProperties Parser::parse_as_property_declaration_bloc
         Vector<StyleProperty> expanded_properties;
         for (auto& property : properties) {
             if (property_is_shorthand(property.property_id)) {
-                StyleComputer::for_each_property_expanding_shorthands(property.property_id, *property.value, StyleComputer::AllowUnresolved::Yes, [&](PropertyID longhand_property_id, CSSStyleValue const& longhand_value) {
+                StyleComputer::for_each_property_expanding_shorthands(property.property_id, *property.value, [&](PropertyID longhand_property_id, CSSStyleValue const& longhand_value) {
                     expanded_properties.append(CSS::StyleProperty {
                         .important = property.important,
                         .property_id = longhand_property_id,

@@ -242,7 +242,7 @@ WebIDL::ExceptionOr<void> CSSStyleProperties::set_property(StringView property_n
     // 8. If property is a shorthand property,
     if (property_is_shorthand(property_id)) {
         // then for each longhand property longhand that property maps to, in canonical order, follow these substeps:
-        StyleComputer::for_each_property_expanding_shorthands(property_id, *component_value_list, StyleComputer::AllowUnresolved::Yes, [this, &updated, priority](PropertyID longhand_property_id, CSSStyleValue const& longhand_value) {
+        StyleComputer::for_each_property_expanding_shorthands(property_id, *component_value_list, [this, &updated, priority](PropertyID longhand_property_id, CSSStyleValue const& longhand_value) {
             // 1. Let longhand result be the result of set the CSS declaration longhand with the appropriate value(s) from component value list,
             //    with the important flag set if priority is not the empty string, and unset otherwise, and with the list of declarations being the declarations.
             // 2. If longhand result is true, let updated be true.

@@ -128,11 +128,7 @@ class FontLoader;
 
 class StyleComputer {
 public:
-    enum class AllowUnresolved {
-        Yes,
-        No,
-    };
-    static void for_each_property_expanding_shorthands(PropertyID, CSSStyleValue const&, AllowUnresolved, Function<void(PropertyID, CSSStyleValue const&)> const& set_longhand_property);
+    static void for_each_property_expanding_shorthands(PropertyID, CSSStyleValue const&, Function<void(PropertyID, CSSStyleValue const&)> const& set_longhand_property);
     static void set_property_expanding_shorthands(
         CascadedProperties&,
         PropertyID,

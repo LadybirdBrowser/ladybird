@@ -8,6 +8,7 @@
  */
 
 #include <AK/BinarySearch.h>
+#include <AK/Bitmap.h>
 #include <AK/Debug.h>
 #include <AK/Error.h>
 #include <AK/Find.h>
@@ -16,11 +17,9 @@
 #include <AK/Math.h>
 #include <AK/NonnullRawPtr.h>
 #include <AK/QuickSort.h>
-#include <AK/TemporaryChange.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Font/FontStyleMapping.h>
-#include <LibGfx/Font/FontWeight.h>
 #include <LibGfx/Font/Typeface.h>
 #include <LibGfx/Font/WOFF/Loader.h>
 #include <LibGfx/Font/WOFF2/Loader.h>
@@ -60,6 +59,7 @@
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/MathDepthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
+#include <LibWeb/CSS/StyleValues/PendingSubstitutionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RatioStyleValue.h>
@@ -81,14 +81,12 @@
 #include <LibWeb/HTML/HTMLHtmlElement.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
-#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/MimeSniff/MimeType.h>
 #include <LibWeb/MimeSniff/Resource.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Platform/FontPlugin.h>
-#include <LibWeb/ReferrerPolicy/AbstractOperations.h>
 #include <math.h>
 #include <stdio.h>
 
@@ -610,8 +608,23 @@ static void sort_matching_rules(Vector<MatchingRule const*>& matching_rules)
     });
 }
 
-void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_id, CSSStyleValue const& value, AllowUnresolved allow_unresolved, Function<void(PropertyID, CSSStyleValue const&)> const& set_longhand_property)
+void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_id, CSSStyleValue const& value, Function<void(PropertyID, CSSStyleValue const&)> const& set_longhand_property)
 {
+    if (property_is_shorthand(property_id) && (value.is_unresolved() || value.is_pending_substitution())) {
+        // If a shorthand property contains an arbitrary substitution function in its value, the longhand properties
+        // it’s associated with must instead be filled in with a special, unobservable-to-authors pending-substitution
+        // value that indicates the shorthand contains an arbitrary substitution function, and thus the longhand’s
+        // value can’t be determined until after substituted.
+        // https://drafts.csswg.org/css-values-5/#pending-substitution-value
+        // Ensure we keep the longhand around until it can be resolved.
+        set_longhand_property(property_id, value);
+        auto pending_substitution_value = PendingSubstitutionStyleValue::create();
+        for (auto longhand_id : longhands_for_shorthand(property_id)) {
+            for_each_property_expanding_shorthands(longhand_id, pending_substitution_value, set_longhand_property);
+        }
+        return;
+    }
+
     auto map_logical_property_to_real_property = [](PropertyID property_id) -> Optional<PropertyID> {
         // FIXME: Honor writing-mode, direction and text-orientation.
         switch (property_id) {
@@ -697,7 +710,7 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
     };
 
     if (auto real_property_id = map_logical_property_to_real_property(property_id); real_property_id.has_value()) {
-        for_each_property_expanding_shorthands(real_property_id.value(), value, allow_unresolved, set_longhand_property);
+        for_each_property_expanding_shorthands(real_property_id.value(), value, set_longhand_property);
         return;
     }
 
@@ -705,12 +718,12 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
         if (value.is_value_list() && value.as_value_list().size() == 2) {
             auto const& start = value.as_value_list().values()[0];
             auto const& end = value.as_value_list().values()[1];
-            for_each_property_expanding_shorthands(real_property_ids->start, start, allow_unresolved, set_longhand_property);
-            for_each_property_expanding_shorthands(real_property_ids->end, end, allow_unresolved, set_longhand_property);
+            for_each_property_expanding_shorthands(real_property_ids->start, start, set_longhand_property);
+            for_each_property_expanding_shorthands(real_property_ids->end, end, set_longhand_property);
             return;
         }
-        for_each_property_expanding_shorthands(real_property_ids->start, value, allow_unresolved, set_longhand_property);
-        for_each_property_expanding_shorthands(real_property_ids->end, value, allow_unresolved, set_longhand_property);
+        for_each_property_expanding_shorthands(real_property_ids->start, value, set_longhand_property);
+        for_each_property_expanding_shorthands(real_property_ids->end, value, set_longhand_property);
         return;
     }
 
@@ -719,7 +732,7 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
         auto& properties = shorthand_value.sub_properties();
         auto& values = shorthand_value.values();
         for (size_t i = 0; i < properties.size(); ++i)
-            for_each_property_expanding_shorthands(properties[i], values[i], allow_unresolved, set_longhand_property);
+            for_each_property_expanding_shorthands(properties[i], values[i], set_longhand_property);
         return;
     }
 
@@ -748,10 +761,10 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
     };
 
     if (property_id == CSS::PropertyID::Border) {
-        for_each_property_expanding_shorthands(CSS::PropertyID::BorderTop, value, allow_unresolved, set_longhand_property);
-        for_each_property_expanding_shorthands(CSS::PropertyID::BorderRight, value, allow_unresolved, set_longhand_property);
-        for_each_property_expanding_shorthands(CSS::PropertyID::BorderBottom, value, allow_unresolved, set_longhand_property);
-        for_each_property_expanding_shorthands(CSS::PropertyID::BorderLeft, value, allow_unresolved, set_longhand_property);
+        for_each_property_expanding_shorthands(CSS::PropertyID::BorderTop, value, set_longhand_property);
+        for_each_property_expanding_shorthands(CSS::PropertyID::BorderRight, value, set_longhand_property);
+        for_each_property_expanding_shorthands(CSS::PropertyID::BorderBottom, value, set_longhand_property);
+        for_each_property_expanding_shorthands(CSS::PropertyID::BorderLeft, value, set_longhand_property);
         // FIXME: Also reset border-image, in line with the spec: https://www.w3.org/TR/css-backgrounds-3/#border-shorthands
         return;
     }
@@ -967,14 +980,14 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
     }
 
     if (property_is_shorthand(property_id)) {
-        // ShorthandStyleValue was handled already.
-        // That means if we got here, that `value` must be a CSS-wide keyword, which we should apply to our longhand properties.
+        // ShorthandStyleValue was handled already, as were unresolved shorthands.
+        // That means the only values we should see are the CSS-wide keywords, or the guaranteed-invalid value.
+        // Both should be applied to our longhand properties.
         // We don't directly call `set_longhand_property()` because the longhands might have longhands of their own.
         // (eg `grid` -> `grid-template` -> `grid-template-areas` & `grid-template-rows` & `grid-template-columns`)
-        // Forget this requirement if we're ignoring unresolved values and the value is unresolved.
-        VERIFY(value.is_css_wide_keyword() || (allow_unresolved == AllowUnresolved::Yes && value.is_unresolved()));
+        VERIFY(value.is_css_wide_keyword() || value.is_guaranteed_invalid());
         for (auto longhand : longhands_for_shorthand(property_id))
-            for_each_property_expanding_shorthands(longhand, value, allow_unresolved, set_longhand_property);
+            for_each_property_expanding_shorthands(longhand, value, set_longhand_property);
         return;
     }
 
@@ -990,7 +1003,7 @@ void StyleComputer::set_property_expanding_shorthands(
     Important important,
     Optional<FlyString> layer_name)
 {
-    for_each_property_expanding_shorthands(property_id, value, AllowUnresolved::No, [&](PropertyID longhand_id, CSSStyleValue const& longhand_value) {
+    for_each_property_expanding_shorthands(property_id, value, [&](PropertyID longhand_id, CSSStyleValue const& longhand_value) {
         if (longhand_value.is_revert()) {
             cascaded_properties.revert_property(longhand_id, important, cascade_origin);
         } else if (longhand_value.is_revert_layer()) {
@@ -1028,10 +1041,7 @@ void StyleComputer::set_all_properties(
         NonnullRefPtr<CSSStyleValue const> property_value = value;
         if (property_value->is_unresolved())
             property_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { document }, element, pseudo_element, property_id, property_value->as_unresolved());
-        if (!property_value->is_unresolved())
-            set_property_expanding_shorthands(cascaded_properties, property_id, property_value, declaration, cascade_origin, important, layer_name);
-
-        set_property_expanding_shorthands(cascaded_properties, property_id, value, declaration, cascade_origin, important, layer_name);
+        set_property_expanding_shorthands(cascaded_properties, property_id, property_value, declaration, cascade_origin, important, layer_name);
     }
 }
 
@@ -1044,44 +1054,72 @@ void StyleComputer::cascade_declarations(
     Important important,
     Optional<FlyString> layer_name) const
 {
-    for (auto const& match : matching_rules) {
-        for (auto const& property : match->declaration().properties()) {
+    auto seen_properties = MUST(Bitmap::create(to_underlying(last_property_id) + 1, false));
+    auto cascade_style_declaration = [&](CSSStyleProperties const& declaration) {
+        seen_properties.fill(false);
+        for (auto const& property : declaration.properties()) {
             if (important != property.important)
                 continue;
 
             if (pseudo_element.has_value() && !pseudo_element_supports_property(*pseudo_element, property.property_id))
                 continue;
 
-            if (property.property_id == CSS::PropertyID::All) {
-                set_all_properties(cascaded_properties, element, pseudo_element, property.value, m_document, &match->declaration(), cascade_origin, important, layer_name);
+            auto property_value = property.value;
+
+            if (property_value->is_unresolved())
+                property_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { element.document() }, element, pseudo_element, property.property_id, property_value->as_unresolved());
+
+            if (property_value->is_guaranteed_invalid()) {
+                // https://drafts.csswg.org/css-values-5/#invalid-at-computed-value-time
+                // When substitution results in a property’s value containing the guaranteed-invalid value, this makes the
+                // declaration invalid at computed-value time. When this happens, the computed value is one of the
+                // following depending on the property’s type:
+
+                // -> The property is a non-registered custom property
+                // -> The property is a registered custom property with universal syntax
+                // FIXME: Process custom properties here?
+                if (false) {
+                    // The computed value is the guaranteed-invalid value.
+                }
+                // -> Otherwise
+                else {
+                    // Either the property’s inherited value or its initial value depending on whether the property is
+                    // inherited or not, respectively, as if the property’s value had been specified as the unset keyword.
+                    property_value = CSSKeywordValue::create(Keyword::Unset);
+                }
+            }
+
+            if (property.property_id == PropertyID::All) {
+                set_all_properties(cascaded_properties, element, pseudo_element, property_value, m_document, &declaration, cascade_origin, important, layer_name);
                 continue;
             }
 
-            auto property_value = property.value;
-            if (property.value->is_unresolved())
-                property_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { document() }, element, pseudo_element, property.property_id, property.value->as_unresolved());
-            if (!property_value->is_unresolved())
-                set_property_expanding_shorthands(cascaded_properties, property.property_id, property_value, &match->declaration(), cascade_origin, important, layer_name);
+            // NOTE: This is a duplicate of set_property_expanding_shorthands() with some extra checks.
+            for_each_property_expanding_shorthands(property.property_id, property_value, [&](PropertyID longhand_id, CSSStyleValue const& longhand_value) {
+                // If we're a PSV that's already been seen, that should mean that our shorthand already got
+                // resolved and gave us a value, so we don't want to overwrite it with a PSV.
+                if (seen_properties.get(to_underlying(longhand_id)) && property_value->is_pending_substitution())
+                    return;
+                seen_properties.set(to_underlying(longhand_id), true);
+
+                if (longhand_value.is_revert()) {
+                    cascaded_properties.revert_property(longhand_id, important, cascade_origin);
+                } else if (longhand_value.is_revert_layer()) {
+                    cascaded_properties.revert_layer_property(longhand_id, important, layer_name);
+                } else {
+                    cascaded_properties.set_property(longhand_id, longhand_value, important, cascade_origin, layer_name, declaration);
+                }
+            });
         }
+    };
+
+    for (auto const& match : matching_rules) {
+        cascade_style_declaration(match->declaration());
     }
 
     if (cascade_origin == CascadeOrigin::Author && !pseudo_element.has_value()) {
         if (auto const inline_style = element.inline_style()) {
-            for (auto const& property : inline_style->properties()) {
-                if (important != property.important)
-                    continue;
-
-                if (property.property_id == CSS::PropertyID::All) {
-                    set_all_properties(cascaded_properties, element, pseudo_element, property.value, m_document, inline_style, cascade_origin, important, layer_name);
-                    continue;
-                }
-
-                auto property_value = property.value;
-                if (property.value->is_unresolved())
-                    property_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { document() }, element, pseudo_element, property.property_id, property.value->as_unresolved());
-                if (!property_value->is_unresolved())
-                    set_property_expanding_shorthands(cascaded_properties, property.property_id, property_value, inline_style, cascade_origin, important, layer_name);
-            }
+            cascade_style_declaration(*inline_style);
         }
     }
 }
@@ -1166,35 +1204,52 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
         dbgln("Animation {} contains {} properties to interpolate, progress = {}%", animation->id(), valid_properties, progress_in_keyframe * 100);
     }
 
-    for (auto const& it : keyframe_values.properties) {
-        auto resolve_property = [&](auto& property) {
-            return property.visit(
+    // FIXME: Follow https://drafts.csswg.org/web-animations-1/#ref-for-computed-keyframes in whatever the right place is.
+    auto compute_keyframe_values = [refresh, &computed_properties, &element, &pseudo_element](auto const& keyframe_values) {
+        HashMap<PropertyID, RefPtr<CSSStyleValue const>> result;
+        for (auto const& [property_id, value] : keyframe_values.properties) {
+            auto style_value = value.visit(
                 [&](Animations::KeyframeEffect::KeyFrameSet::UseInitial) -> RefPtr<CSSStyleValue const> {
                     if (refresh == AnimationRefresh::Yes)
                         return {};
-                    return computed_properties.property(it.key);
+                    if (property_is_shorthand(property_id))
+                        return {};
+                    return computed_properties.property(property_id);
                 },
                 [&](RefPtr<CSSStyleValue const> value) -> RefPtr<CSSStyleValue const> {
-                    if (value->is_revert() || value->is_revert_layer())
-                        return computed_properties.property(it.key);
-                    if (value->is_unresolved())
-                        return Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { element.document() }, element, pseudo_element, it.key, value->as_unresolved());
                     return value;
                 });
-        };
 
-        auto resolved_start_property = resolve_property(it.value);
+            if (!style_value) {
+                result.set(property_id, nullptr);
+                continue;
+            }
 
-        auto const& end_property = keyframe_end_values.properties.get(it.key);
-        if (!end_property.has_value()) {
+            if (style_value->is_revert() || style_value->is_revert_layer())
+                style_value = computed_properties.property(property_id);
+            if (style_value->is_unresolved())
+                style_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { element.document() }, element, pseudo_element, property_id, style_value->as_unresolved());
+
+            for_each_property_expanding_shorthands(property_id, *style_value, [&result](PropertyID id, CSSStyleValue const& longhand_value) {
+                result.set(id, { longhand_value });
+            });
+        }
+        return result;
+    };
+    HashMap<PropertyID, RefPtr<CSSStyleValue const>> computed_start_values = compute_keyframe_values(keyframe_values);
+    HashMap<PropertyID, RefPtr<CSSStyleValue const>> computed_end_values = compute_keyframe_values(keyframe_end_values);
+
+    for (auto const& it : computed_start_values) {
+        auto resolved_start_property = it.value;
+        RefPtr resolved_end_property = computed_end_values.get(it.key).value_or(nullptr);
+
+        if (!resolved_end_property) {
             if (resolved_start_property) {
                 computed_properties.set_animated_property(it.key, *resolved_start_property);
                 dbgln_if(LIBWEB_CSS_ANIMATION_DEBUG, "No end property for property {}, using {}", string_from_property_id(it.key), resolved_start_property->to_string(CSSStyleValue::SerializationMode::Normal));
             }
             continue;
         }
-
-        auto resolved_end_property = resolve_property(end_property.value());
 
         if (resolved_end_property && !resolved_start_property)
             resolved_start_property = property_initial_value(it.key);
@@ -1708,8 +1763,6 @@ NonnullRefPtr<CSSStyleValue const> StyleComputer::get_inherit_value(CSS::Propert
 
 void StyleComputer::compute_defaulted_property_value(ComputedProperties& style, DOM::Element const* element, CSS::PropertyID property_id, Optional<CSS::PseudoElement> pseudo_element) const
 {
-    // FIXME: If we don't know the correct initial value for a property, we fall back to `initial`.
-
     auto& value_slot = style.m_property_values[to_underlying(property_id)];
     if (!value_slot) {
         if (is_inherited_property(property_id)) {
@@ -2891,7 +2944,7 @@ void StyleComputer::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_ori
                 auto const& keyframe_style = *keyframe.style();
                 for (auto const& it : keyframe_style.properties()) {
                     // Unresolved properties will be resolved in collect_animation_into()
-                    for_each_property_expanding_shorthands(it.property_id, it.value, AllowUnresolved::Yes, [&](PropertyID shorthand_id, CSSStyleValue const& shorthand_value) {
+                    for_each_property_expanding_shorthands(it.property_id, it.value, [&](PropertyID shorthand_id, CSSStyleValue const& shorthand_value) {
                         animated_properties.set(shorthand_id);
                         resolved_keyframe.properties.set(shorthand_id, NonnullRefPtr<CSSStyleValue const> { shorthand_value });
                     });
