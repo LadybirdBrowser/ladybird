@@ -96,12 +96,6 @@ void HTMLProgressElement::inserted()
     create_shadow_tree_if_needed();
 }
 
-void HTMLProgressElement::removed_from(DOM::Node* old_parent, DOM::Node& old_root)
-{
-    Base::removed_from(old_parent, old_root);
-    set_shadow_root(nullptr);
-}
-
 void HTMLProgressElement::adjust_computed_style(CSS::ComputedProperties& style)
 {
     // https://drafts.csswg.org/css-display-3/#unbox

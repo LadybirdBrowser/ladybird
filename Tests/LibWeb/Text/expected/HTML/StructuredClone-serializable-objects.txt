@@ -29,3 +29,10 @@ CryptoKey.algorithm: {"name":"PBKDF2"}
 CryptoKey.usages: ["deriveKey","deriveBits"]
 instanceOf DOMException: true
 DOMException: Index out of bounds - IndexSizeError
+instanceOf ImageData: true
+ImageData.width: 2
+ImageData.height: 2
+255, 0, 0, 255
+0, 255, 0, 255
+0, 0, 255, 255
+255, 255, 0, 255

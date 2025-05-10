@@ -1793,11 +1793,6 @@ void HTMLInputElement::form_associated_element_was_inserted()
     }
 }
 
-void HTMLInputElement::form_associated_element_was_removed(DOM::Node*)
-{
-    set_shadow_root(nullptr);
-}
-
 bool HTMLInputElement::is_presentational_hint(FlyString const& name) const
 {
     if (Base::is_presentational_hint(name))

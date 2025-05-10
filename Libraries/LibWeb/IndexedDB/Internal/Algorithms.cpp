@@ -960,7 +960,7 @@ WebIDL::ExceptionOr<ErrorOr<JS::Value>> evaluate_key_path_on_a_value(JS::Realm& 
         else {
             // 1. If Type(value) is not Object, return failure.
             if (!value.is_object())
-                return Error::from_string_literal("Value is not an object");
+                return Error::from_string_literal("Value is not an object during key path evaluation");
 
             auto identifier_property = String::from_utf8_without_validation(identifier.bytes());
 
@@ -969,14 +969,14 @@ WebIDL::ExceptionOr<ErrorOr<JS::Value>> evaluate_key_path_on_a_value(JS::Realm& 
 
             // 3. If hop is false, return failure.
             if (!hop)
-                return Error::from_string_literal("Property does not exist");
+                return Error::from_string_literal("Failed to find property on object during key path evaluation");
 
             // 4. Let value be ! Get(value, identifier).
             value = MUST(value.as_object().get(identifier_property));
 
             // 5. If value is undefined, return failure.
             if (value.is_undefined())
-                return Error::from_string_literal("Value is undefined");
+                return Error::from_string_literal("undefined value on object during key path evaluation");
         }
 
         return {};
@@ -1229,7 +1229,7 @@ ErrorOr<u64> generate_a_key(GC::Ref<ObjectStore> store)
 
     // 3. If key is greater than 2^53 (9007199254740992), then return failure.
     if (key > static_cast<u64>(MAX_KEY_GENERATOR_VALUE))
-        return Error::from_string_literal("Key is greater than 2^53");
+        return Error::from_string_literal("Key is greater than 2^53 while trying to generate a key");
 
     // 4. Increase generator’s current number by 1.
     generator.increment(1);
@@ -1312,7 +1312,7 @@ void inject_a_key_into_a_value_using_a_key_path(JS::Realm& realm, JS::Value valu
 }
 
 // https://w3c.github.io/IndexedDB/#delete-records-from-an-object-store
-void delete_records_from_an_object_store(GC::Ref<ObjectStore> store, GC::Ref<IDBKeyRange> range)
+JS::Value delete_records_from_an_object_store(GC::Ref<ObjectStore> store, GC::Ref<IDBKeyRange> range)
 {
     // 1. Remove all records, if any, from store’s list of records with key in range.
     store->remove_records_in_range(range);
@@ -1320,6 +1320,7 @@ void delete_records_from_an_object_store(GC::Ref<ObjectStore> store, GC::Ref<IDB
     // FIXME: 2. For each index which references store, remove every record from index’s list of records whose value is in range, if any such records exist.
 
     // 3. Return undefined.
+    return JS::js_undefined();
 }
 
 // https://w3c.github.io/IndexedDB/#store-a-record-into-an-object-store
@@ -1837,6 +1838,21 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
 
     // 15. Return cursor.
     return cursor;
+}
+
+// https://w3c.github.io/IndexedDB/#clear-an-object-store
+JS::Value clear_an_object_store(GC::Ref<ObjectStore> store)
+{
+    // 1. Remove all records from store.
+    store->clear_records();
+
+    // 2. In all indexes which reference store, remove all records.
+    for (auto const& [name, index] : store->index_set()) {
+        index->clear_records();
+    }
+
+    // 3. Return undefined.
+    return JS::js_undefined();
 }
 
 }

@@ -101,7 +101,7 @@ runs:
 
         echo "swiftly version: $(swiftly --version)" >&2
 
-        swiftly install --use main-snapshot-2025-04-12
+        swiftly install --use main-snapshot-2025-04-30
         swiftly list
 
     - name: 'Install Dependencies'

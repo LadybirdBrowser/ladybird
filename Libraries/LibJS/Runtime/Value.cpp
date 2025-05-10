@@ -1261,7 +1261,7 @@ ThrowCompletionOr<GC::Ptr<FunctionObject>> Value::get_method(VM& vm, PropertyKey
 
 // 13.10 Relational Operators, https://tc39.es/ecma262/#sec-relational-operators
 // RelationalExpression : RelationalExpression > ShiftExpression
-ThrowCompletionOr<Value> greater_than(VM& vm, Value lhs, Value rhs)
+ThrowCompletionOr<bool> greater_than(VM& vm, Value lhs, Value rhs)
 {
     // 1. Let lref be ? Evaluation of RelationalExpression.
     // 2. Let lval be ? GetValue(lref).
@@ -1278,13 +1278,13 @@ ThrowCompletionOr<Value> greater_than(VM& vm, Value lhs, Value rhs)
 
     // 6. If r is undefined, return false. Otherwise, return r.
     if (relation == TriState::Unknown)
-        return Value(false);
-    return Value(relation == TriState::True);
+        return false;
+    return relation == TriState::True;
 }
 
 // 13.10 Relational Operators, https://tc39.es/ecma262/#sec-relational-operators
 // RelationalExpression : RelationalExpression >= ShiftExpression
-ThrowCompletionOr<Value> greater_than_equals(VM& vm, Value lhs, Value rhs)
+ThrowCompletionOr<bool> greater_than_equals(VM& vm, Value lhs, Value rhs)
 {
     // 1. Let lref be ? Evaluation of RelationalExpression.
     // 2. Let lval be ? GetValue(lref).
@@ -1301,13 +1301,13 @@ ThrowCompletionOr<Value> greater_than_equals(VM& vm, Value lhs, Value rhs)
 
     // 6. If r is true or undefined, return false. Otherwise, return true.
     if (relation == TriState::Unknown || relation == TriState::True)
-        return Value(false);
-    return Value(true);
+        return false;
+    return true;
 }
 
 // 13.10 Relational Operators, https://tc39.es/ecma262/#sec-relational-operators
 // RelationalExpression : RelationalExpression < ShiftExpression
-ThrowCompletionOr<Value> less_than(VM& vm, Value lhs, Value rhs)
+ThrowCompletionOr<bool> less_than(VM& vm, Value lhs, Value rhs)
 {
     // 1. Let lref be ? Evaluation of RelationalExpression.
     // 2. Let lval be ? GetValue(lref).
@@ -1324,13 +1324,13 @@ ThrowCompletionOr<Value> less_than(VM& vm, Value lhs, Value rhs)
 
     // 6. If r is undefined, return false. Otherwise, return r.
     if (relation == TriState::Unknown)
-        return Value(false);
-    return Value(relation == TriState::True);
+        return false;
+    return relation == TriState::True;
 }
 
 // 13.10 Relational Operators, https://tc39.es/ecma262/#sec-relational-operators
 // RelationalExpression : RelationalExpression <= ShiftExpression
-ThrowCompletionOr<Value> less_than_equals(VM& vm, Value lhs, Value rhs)
+ThrowCompletionOr<bool> less_than_equals(VM& vm, Value lhs, Value rhs)
 {
     // 1. Let lref be ? Evaluation of RelationalExpression.
     // 2. Let lval be ? GetValue(lref).
@@ -1347,8 +1347,8 @@ ThrowCompletionOr<Value> less_than_equals(VM& vm, Value lhs, Value rhs)
 
     // 6. If r is true or undefined, return false. Otherwise, return true.
     if (relation == TriState::True || relation == TriState::Unknown)
-        return Value(false);
-    return Value(true);
+        return false;
+    return true;
 }
 
 // 13.12 Binary Bitwise Operators, https://tc39.es/ecma262/#sec-binary-bitwise-operators

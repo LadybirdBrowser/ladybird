@@ -12,12 +12,15 @@
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/BigInt.h>
+#include <LibJS/Runtime/ErrorConstructor.h>
+#include <LibJS/Runtime/Intrinsics.h>
 #include <LibJS/Runtime/Iterator.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibJS/Runtime/ValueInlines.h>
 #include <LibWasm/AbstractMachine/Validator.h>
+#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/ResponsePrototype.h>
 #include <LibWeb/Fetch/Response.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
@@ -70,6 +73,35 @@ void finalize(JS::Object& object)
 {
     auto& global_object = HTML::relevant_global_object(object);
     Detail::s_caches.remove(global_object);
+}
+
+// https://webassembly.github.io/spec/js-api/#error-objects
+void initialize(JS::Object& self, JS::Realm& realm)
+{
+    // 1. Let namespaceObject be the namespace object.
+    auto& namespace_object = self;
+
+    // 2. For each error of « "CompileError", "LinkError", "RuntimeError" »,
+    // 2.1. Let constructor be a new object, implementing the NativeError Object Structure, with NativeError set to error.
+    // 2.2. ! DefineMethodProperty(namespaceObject, error, constructor, false).
+
+    // 2..2.2 for error=CompileError:
+    auto descriptor = JS::PropertyDescriptor {
+        .writable = true,
+        .enumerable = false,
+        .configurable = true,
+    };
+
+    descriptor.value = &Bindings::ensure_web_constructor<CompileErrorPrototype>(realm, "CompileError"_fly_string);
+    MUST(namespace_object.define_property_or_throw("CompileError"_string, descriptor));
+
+    // 2..2.2 for error=LinkError:
+    descriptor.value = &Bindings::ensure_web_constructor<LinkErrorPrototype>(realm, "LinkError"_fly_string);
+    MUST(namespace_object.define_property_or_throw("LinkError"_string, descriptor));
+
+    // 2..2.2 for error=RuntimeError:
+    descriptor.value = &Bindings::ensure_web_constructor<RuntimeErrorPrototype>(realm, "RuntimeError"_fly_string);
+    MUST(namespace_object.define_property_or_throw("RuntimeError"_string, descriptor));
 }
 
 // https://webassembly.github.io/spec/js-api/#dom-webassembly-validate
@@ -294,18 +326,18 @@ JS::ThrowCompletionOr<NonnullOwnPtr<Wasm::ModuleInstance>> instantiate_module(JS
                     if (import_.is_number() || import_.is_bigint()) {
                         // 3.5.1.1. If valtype is i64 and v is a Number,
                         if (import_.is_number() && type.type().kind() == Wasm::ValueType::I64) {
-                            // FIXME: 3.5.1.1.1. Throw a LinkError exception.
-                            return vm.throw_completion<JS::TypeError>("LinkError: Import resolution attempted to cast a Number to a BigInteger"sv);
+                            // 3.5.1.1.1. Throw a LinkError exception.
+                            return vm.throw_completion<LinkError>("Import resolution attempted to cast a Number to a BigInteger"sv);
                         }
                         // 3.5.1.2. If valtype is not i64 and v is a BigInt,
                         if (import_.is_bigint() && type.type().kind() != Wasm::ValueType::I64) {
-                            // FIXME: 3.5.1.2.1. Throw a LinkError exception.
-                            return vm.throw_completion<JS::TypeError>("LinkError: Import resolution attempted to cast a BigInteger to a Number"sv);
+                            // 3.5.1.2.1. Throw a LinkError exception.
+                            return vm.throw_completion<LinkError>("Import resolution attempted to cast a BigInteger to a Number"sv);
                         }
                         // 3.5.1.3. If valtype is v128,
                         if (type.type().kind() == Wasm::ValueType::V128) {
-                            // FIXME: 3.5.1.3.1. Throw a LinkError exception.
-                            return vm.throw_completion<JS::TypeError>("LinkError: Import resolution attempted to cast a Number or BigInt to a V128"sv);
+                            // 3.5.1.3.1. Throw a LinkError exception.
+                            return vm.throw_completion<LinkError>("Import resolution attempted to cast a Number or BigInt to a V128"sv);
                         }
                         // 3.5.1.4. Let value be ToWebAssemblyValue(v, valtype).
                         auto cast_value = TRY(to_webassembly_value(vm, import_, type.type()));
@@ -318,8 +350,8 @@ JS::ThrowCompletionOr<NonnullOwnPtr<Wasm::ModuleInstance>> instantiate_module(JS
                     // FIXME: 3.5.2.1. Let globaladdr be v.[[Global]].
                     // 3.5.3. Otherwise,
                     else {
-                        // FIXME: 3.5.3.1. Throw a LinkError exception.
-                        return vm.throw_completion<JS::TypeError>("LinkError: Invalid value for global type"sv);
+                        // 3.5.3.1. Throw a LinkError exception.
+                        return vm.throw_completion<LinkError>("Invalid value for global type"sv);
                     }
 
                     // 3.5.4. Let externglobal be global globaladdr.
@@ -331,8 +363,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<Wasm::ModuleInstance>> instantiate_module(JS
                 [&](Wasm::MemoryType const&) -> JS::ThrowCompletionOr<void> {
                     // 3.6.1. If v does not implement Memory, throw a LinkError exception.
                     if (!import_.is_object() || !is<WebAssembly::Memory>(import_.as_object())) {
-                        // FIXME: Throw a LinkError instead
-                        return vm.throw_completion<JS::TypeError>("LinkError: Expected an instance of WebAssembly.Memory for a memory import"sv);
+                        return vm.throw_completion<LinkError>("Expected an instance of WebAssembly.Memory for a memory import"sv);
                     }
                     // 3.6.2. Let externmem be the external value mem v.[[Memory]].
                     auto address = static_cast<WebAssembly::Memory const&>(import_.as_object()).address();
@@ -344,8 +375,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<Wasm::ModuleInstance>> instantiate_module(JS
                 [&](Wasm::TableType const&) -> JS::ThrowCompletionOr<void> {
                     // 3.7.1. If v does not implement Table, throw a LinkError exception.
                     if (!import_.is_object() || !is<WebAssembly::Table>(import_.as_object())) {
-                        // FIXME: Throw a LinkError instead
-                        return vm.throw_completion<JS::TypeError>("LinkError: Expected an instance of WebAssembly.Table for a table import"sv);
+                        return vm.throw_completion<LinkError>("Expected an instance of WebAssembly.Table for a table import"sv);
                     }
                     // 3.7.2. Let tableaddr be v.[[Table]].
                     // 3.7.3. Let externtable be the external value table tableaddr.
@@ -365,17 +395,15 @@ JS::ThrowCompletionOr<NonnullOwnPtr<Wasm::ModuleInstance>> instantiate_module(JS
     linker.link(resolved_imports);
     auto link_result = linker.finish();
     if (link_result.is_error()) {
-        // FIXME: Throw a LinkError.
         StringBuilder builder;
-        builder.append("LinkError: Missing "sv);
+        builder.append("Missing "sv);
         builder.join(' ', link_result.error().missing_imports);
-        return vm.throw_completion<JS::TypeError>(MUST(builder.to_string()));
+        return vm.throw_completion<LinkError>(MUST(builder.to_string()));
     }
 
     auto instance_result = cache.abstract_machine().instantiate(module, link_result.release_value());
     if (instance_result.is_error()) {
-        // FIXME: Throw a LinkError instead.
-        return vm.throw_completion<JS::TypeError>(instance_result.error().error);
+        return vm.throw_completion<LinkError>(instance_result.error().error);
     }
 
     return instance_result.release_value();
@@ -387,14 +415,12 @@ JS::ThrowCompletionOr<NonnullRefPtr<CompiledWebAssemblyModule>> compile_a_webass
     FixedMemoryStream stream { data.bytes() };
     auto module_result = Wasm::Module::parse(stream);
     if (module_result.is_error()) {
-        // FIXME: Throw CompileError instead.
-        return vm.throw_completion<JS::TypeError>(Wasm::parse_error_to_byte_string(module_result.error()));
+        return vm.throw_completion<CompileError>(Wasm::parse_error_to_byte_string(module_result.error()));
     }
 
     auto& cache = get_cache(*vm.current_realm());
     if (auto validation_result = cache.abstract_machine().validate(module_result.value()); validation_result.is_error()) {
-        // FIXME: Throw CompileError instead.
-        return vm.throw_completion<JS::TypeError>(validation_result.error().error_string);
+        return vm.throw_completion<CompileError>(validation_result.error().error_string);
     }
     auto compiled_module = make_ref_counted<CompiledWebAssemblyModule>(module_result.release_value());
     cache.add_compiled_module(compiled_module);
@@ -448,7 +474,7 @@ JS::NativeFunction* create_native_function(JS::VM& vm, Wasm::FunctionAddress add
             if (result.is_trap()) {
                 if (auto ptr = result.trap().data.get_pointer<Wasm::ExternallyManagedTrap>())
                     return ptr->unsafe_external_object_as<JS::Completion>();
-                return vm.throw_completion<JS::TypeError>(TRY_OR_THROW_OOM(vm, String::formatted("Wasm execution trapped (WIP): {}", result.trap().format())));
+                return vm.throw_completion<RuntimeError>(TRY_OR_THROW_OOM(vm, String::formatted("Wasm execution trapped (WIP): {}", result.trap().format())));
             }
 
             if (result.values().is_empty())
@@ -851,4 +877,142 @@ GC::Ref<WebIDL::Promise> compile_potential_webassembly_response(JS::VM& vm, GC::
     return return_value;
 }
 
+#define DEFINE_WASM_NATIVE_ERROR(ClassName, snake_name, PrototypeName, ConstructorName)                                \
+    GC_DEFINE_ALLOCATOR(ClassName);                                                                                    \
+    GC::Ref<ClassName> ClassName::create(JS::Realm& realm)                                                             \
+    {                                                                                                                  \
+        return realm.create<ClassName>(Bindings::ensure_web_prototype<PrototypeName>(realm, #ClassName##_fly_string)); \
+    }                                                                                                                  \
+                                                                                                                       \
+    GC::Ref<ClassName> ClassName::create(JS::Realm& realm, String message)                                             \
+    {                                                                                                                  \
+        auto& vm = realm.vm();                                                                                         \
+        auto error = ClassName::create(realm);                                                                         \
+        u8 const attr = JS::Attribute::Writable | JS::Attribute::Configurable;                                         \
+        error->define_direct_property(vm.names.message, JS::PrimitiveString::create(vm, move(message)), attr);         \
+        return error;                                                                                                  \
+    }                                                                                                                  \
+                                                                                                                       \
+    GC::Ref<ClassName> ClassName::create(JS::Realm& realm, StringView message)                                         \
+    {                                                                                                                  \
+        return create(realm, MUST(String::from_utf8(message)));                                                        \
+    }                                                                                                                  \
+                                                                                                                       \
+    ClassName::ClassName(JS::Object& prototype)                                                                        \
+        : Error(prototype)                                                                                             \
+    {                                                                                                                  \
+    }
+
+DEFINE_WASM_NATIVE_ERROR(CompileError, compile_error, CompileErrorPrototype, CompileErrorConstructor)
+DEFINE_WASM_NATIVE_ERROR(LinkError, link_error, LinkErrorPrototype, LinkErrorConstructor)
+DEFINE_WASM_NATIVE_ERROR(RuntimeError, runtime_error, RuntimeErrorPrototype, RuntimeErrorConstructor)
+
+#undef DEFINE_WASM_NATIVE_ERROR
+
+#define DEFINE_WASM_NATIVE_ERROR_CONSTRUCTOR(ClassName, snake_name, PrototypeName, ConstructorName)                                    \
+    GC_DEFINE_ALLOCATOR(ConstructorName);                                                                                              \
+    ConstructorName::ConstructorName(JS::Realm& realm)                                                                                 \
+        : NativeFunction(#ClassName##_string, *realm.intrinsics().error_constructor())                                                 \
+    {                                                                                                                                  \
+    }                                                                                                                                  \
+                                                                                                                                       \
+    void ConstructorName::initialize(JS::Realm& realm)                                                                                 \
+    {                                                                                                                                  \
+        auto& vm = this->vm();                                                                                                         \
+        Base::initialize(realm);                                                                                                       \
+                                                                                                                                       \
+        /* 20.5.6.2.1 NativeError.prototype, https://tc39.es/ecma262/#sec-nativeerror.prototype */                                     \
+        define_direct_property(vm.names.prototype, &Bindings::ensure_web_prototype<PrototypeName>(realm, #ClassName##_fly_string), 0); \
+                                                                                                                                       \
+        define_direct_property(vm.names.length, JS::Value(1), JS::Attribute::Configurable);                                            \
+    }                                                                                                                                  \
+                                                                                                                                       \
+    ConstructorName::~ConstructorName() = default;                                                                                     \
+                                                                                                                                       \
+    /* 20.5.6.1.1 NativeError ( message [ , options ] ), https://tc39.es/ecma262/#sec-nativeerror */                                   \
+    JS::ThrowCompletionOr<JS::Value> ConstructorName::call()                                                                           \
+    {                                                                                                                                  \
+        /* 1. If NewTarget is undefined, let newTarget be the active function object; else let newTarget be NewTarget. */              \
+        return TRY(construct(*this));                                                                                                  \
+    }                                                                                                                                  \
+                                                                                                                                       \
+    /* 20.5.6.1.1 NativeError ( message [ , options ] ), https://tc39.es/ecma262/#sec-nativeerror */                                   \
+    JS::ThrowCompletionOr<GC::Ref<JS::Object>> ConstructorName::construct(JS::FunctionObject& new_target)                              \
+    {                                                                                                                                  \
+        auto& vm = this->vm();                                                                                                         \
+                                                                                                                                       \
+        auto message = vm.argument(0);                                                                                                 \
+        auto options = vm.argument(1);                                                                                                 \
+                                                                                                                                       \
+        /* 2. Let O be ? OrdinaryCreateFromConstructor(newTarget, "%NativeError.prototype%", « [[ErrorData]] »). */                    \
+        auto error = TRY(ordinary_create_from_constructor<ClassName>(vm, new_target, &JS::Intrinsics::error_prototype));               \
+                                                                                                                                       \
+        /* 3. If message is not undefined, then */                                                                                     \
+        if (!message.is_undefined()) {                                                                                                 \
+            /* a. Let msg be ? ToString(message). */                                                                                   \
+            auto msg = TRY(message.to_string(vm));                                                                                     \
+                                                                                                                                       \
+            /* b. Perform CreateNonEnumerableDataPropertyOrThrow(O, "message", msg). */                                                \
+            error->create_non_enumerable_data_property_or_throw(vm.names.message, JS::PrimitiveString::create(vm, move(msg)));         \
+        }                                                                                                                              \
+                                                                                                                                       \
+        /* 4. Perform ? InstallErrorCause(O, options). */                                                                              \
+        TRY(error->install_error_cause(options));                                                                                      \
+                                                                                                                                       \
+        /* 5. Return O. */                                                                                                             \
+        return error;                                                                                                                  \
+    }
+
+DEFINE_WASM_NATIVE_ERROR_CONSTRUCTOR(CompileError, compile_error, CompileErrorPrototype, CompileErrorConstructor)
+DEFINE_WASM_NATIVE_ERROR_CONSTRUCTOR(LinkError, link_error, LinkErrorPrototype, LinkErrorConstructor)
+DEFINE_WASM_NATIVE_ERROR_CONSTRUCTOR(RuntimeError, runtime_error, RuntimeErrorPrototype, RuntimeErrorConstructor)
+
+#undef DEFINE_WASM_NATIVE_ERROR_CONSTRUCTOR
+
+#define DEFINE_WASM_NATIVE_ERROR_PROTOTYPE(ClassName, snake_name, PrototypeName, ConstructorName)          \
+    GC_DEFINE_ALLOCATOR(PrototypeName);                                                                    \
+                                                                                                           \
+    PrototypeName::PrototypeName(JS::Realm& realm)                                                         \
+        : PrototypeObject(realm.intrinsics().error_prototype())                                            \
+    {                                                                                                      \
+    }                                                                                                      \
+                                                                                                           \
+    void PrototypeName::initialize(JS::Realm& realm)                                                       \
+    {                                                                                                      \
+        auto& vm = this->vm();                                                                             \
+        Base::initialize(realm);                                                                           \
+        u8 const attr = JS::Attribute::Writable | JS::Attribute::Configurable;                             \
+        define_direct_property(vm.names.name, JS::PrimitiveString::create(vm, #ClassName##_string), attr); \
+        define_direct_property(vm.names.message, JS::PrimitiveString::create(vm, String {}), attr);        \
+    }
+
+DEFINE_WASM_NATIVE_ERROR_PROTOTYPE(CompileError, compile_error, CompileErrorPrototype, CompileErrorConstructor)
+DEFINE_WASM_NATIVE_ERROR_PROTOTYPE(LinkError, link_error, LinkErrorPrototype, LinkErrorConstructor)
+DEFINE_WASM_NATIVE_ERROR_PROTOTYPE(RuntimeError, runtime_error, RuntimeErrorPrototype, RuntimeErrorConstructor)
+
+#undef DEFINE_WASM_NATIVE_ERROR_PROTOTYPE
+
 }
+
+#define DEFINE_WASM_ERROR_PROTOTYPE_AND_CONSTRUCTOR_WEB_INTRINSIC(ClassName, snake_name, PrototypeName, ConstructorName)                       \
+    template<>                                                                                                                                 \
+    void Intrinsics::create_web_prototype_and_constructor<WebAssembly::PrototypeName>(JS::Realm & realm)                                       \
+    {                                                                                                                                          \
+        auto& vm = realm.vm();                                                                                                                 \
+        auto prototype = heap().allocate<WebAssembly::PrototypeName>(realm);                                                                   \
+        m_prototypes.set(#ClassName##_string, prototype);                                                                                      \
+                                                                                                                                               \
+        auto constructor = heap().allocate<WebAssembly::ConstructorName>(realm);                                                               \
+        m_constructors.set(#ClassName##_string, constructor);                                                                                  \
+                                                                                                                                               \
+        prototype->define_direct_property(vm.names.constructor, constructor.ptr(), JS::Attribute::Writable | JS::Attribute::Configurable);     \
+        constructor->define_direct_property(vm.names.name, JS::PrimitiveString::create(vm, #ClassName##_string), JS::Attribute::Configurable); \
+    }
+
+namespace Web::Bindings {
+DEFINE_WASM_ERROR_PROTOTYPE_AND_CONSTRUCTOR_WEB_INTRINSIC(CompileError, compile_error, CompileErrorPrototype, CompileErrorConstructor)
+DEFINE_WASM_ERROR_PROTOTYPE_AND_CONSTRUCTOR_WEB_INTRINSIC(LinkError, link_error, LinkErrorPrototype, LinkErrorConstructor)
+DEFINE_WASM_ERROR_PROTOTYPE_AND_CONSTRUCTOR_WEB_INTRINSIC(RuntimeError, runtime_error, RuntimeErrorPrototype, RuntimeErrorConstructor)
+}
+
+#undef DEFINE_WASM_ERROR_PROTOTYPE_AND_CONSTRUCTOR_WEB_INTRINSIC

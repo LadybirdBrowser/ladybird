@@ -138,8 +138,3 @@ endif()
 if (NOT MSVC)
     add_cxx_compile_options(-fstrict-flex-arrays=2)
 endif()
-
-# FIXME: https://github.com/swiftlang/swift/issues/80764
-if (CMAKE_Swift_COMPILER_LOADED)
-    add_cxx_compile_definitions(AK_DISABLE_NO_UNIQUE_ADDRESS)
-endif()

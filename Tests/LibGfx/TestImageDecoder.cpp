@@ -75,6 +75,36 @@ TEST_CASE(test_bmp_1bpp)
     EXPECT_EQ(frame.image->begin()[0], 0xff'ff'ff'ff);
 }
 
+TEST_CASE(test_bmp_too_many_palette_colors)
+{
+    auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("bmp/too-many-palette-colors.bmp"sv)));
+    EXPECT(Gfx::BMPImageDecoderPlugin::sniff(file->bytes()));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::BMPImageDecoderPlugin::create(file->bytes()));
+
+    TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 2, 2 }));
+}
+
+TEST_CASE(test_bmp_v4)
+{
+    auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("bmp/2x2x32_v4.bmp"sv)));
+    EXPECT(Gfx::BMPImageDecoderPlugin::sniff(file->bytes()));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::BMPImageDecoderPlugin::create(file->bytes()));
+
+    auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 2, 2 }));
+    EXPECT_EQ(frame.image->get_pixel(0, 0), Gfx::Color::NamedColor::Red);
+}
+
+TEST_CASE(test_bmp_os2_3bit)
+{
+    auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("bmp/os2_3bpc.bmp"sv)));
+    EXPECT(Gfx::BMPImageDecoderPlugin::sniff(file->bytes()));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::BMPImageDecoderPlugin::create(file->bytes()));
+
+    auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 300, 200 }));
+    EXPECT_EQ(frame.image->get_pixel(150, 100), Gfx::Color::NamedColor::Black);
+    EXPECT_EQ(frame.image->get_pixel(152, 100), Gfx::Color::NamedColor::White);
+}
+
 TEST_CASE(test_ico_malformed_frame)
 {
     Array test_inputs = {
@@ -89,6 +119,18 @@ TEST_CASE(test_ico_malformed_frame)
         auto frame_or_error = plugin_decoder->frame(0);
         EXPECT(frame_or_error.is_error());
     }
+}
+
+TEST_CASE(test_cur)
+{
+    auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("cur/cursor.cur"sv)));
+    EXPECT(Gfx::ICOImageDecoderPlugin::sniff(file->bytes()));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::ICOImageDecoderPlugin::create(file->bytes()));
+
+    auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 32, 32 }));
+    EXPECT_EQ(frame.image->get_pixel(0, 0), Gfx::Color(0, 0, 0, 0));
+    EXPECT_EQ(frame.image->get_pixel(2, 2), Gfx::Color::NamedColor::Black);
+    EXPECT_EQ(frame.image->get_pixel(8, 8), Gfx::Color::NamedColor::White);
 }
 
 TEST_CASE(test_gif)
@@ -377,6 +419,22 @@ TEST_CASE(test_apng)
     EXPECT_EQ(frame.duration, 1000);
     EXPECT_EQ(frame.image->get_pixel(64, 32), Gfx::Color(117, 252, 76));
     EXPECT_EQ(frame.image->size(), Gfx::IntSize(128, 64));
+}
+
+TEST_CASE(test_apng_idat_not_affecting_next_frame)
+{
+    auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("png/apng-blend.png"sv)));
+    EXPECT(Gfx::PNGImageDecoderPlugin::sniff(file->bytes()));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::PNGImageDecoderPlugin::create(file->bytes()));
+
+    EXPECT_EQ(plugin_decoder->frame_count(), 1u);
+    EXPECT_EQ(plugin_decoder->loop_count(), 0u);
+
+    auto frame = TRY_OR_FAIL(plugin_decoder->frame(0));
+
+    EXPECT_EQ(frame.duration, 1000);
+    EXPECT_EQ(frame.image->get_pixel(0, 0), Gfx::Color::NamedColor::Transparent);
+    EXPECT_EQ(frame.image->size(), Gfx::IntSize(100, 100));
 }
 
 TEST_CASE(test_exif)

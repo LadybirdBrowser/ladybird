@@ -168,16 +168,8 @@ ErrorOr<String> Utf16View::to_utf8(AllowInvalidCodeUnits allow_invalid_code_unit
         return String::from_utf16(*this);
 
     StringBuilder builder;
-
-    for (size_t i = 0; i < length_in_code_units(); ++i) {
-        auto code_point = code_point_at(i);
-        TRY(builder.try_append_code_point(code_point));
-
-        if (code_point >= first_supplementary_plane_code_point)
-            ++i;
-    }
-
-    return builder.to_string_without_validation();
+    builder.append(*this);
+    return builder.to_string();
 }
 
 size_t Utf16View::length_in_code_points() const

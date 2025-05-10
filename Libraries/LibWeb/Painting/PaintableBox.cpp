@@ -911,6 +911,8 @@ void PaintableWithLines::paint(PaintContext& context, PaintPhase phase) const
 
 Paintable::DispatchEventOfSameName PaintableBox::handle_mousedown(Badge<EventHandler>, CSSPixelPoint position, unsigned, unsigned)
 {
+    position = adjust_position_for_cumulative_scroll_offset(position);
+
     auto handle_scrollbar = [&](auto direction) {
         auto scrollbar_data = compute_scrollbar_data(direction, AdjustThumbRectForScrollOffset::Yes);
         if (!scrollbar_data.has_value())
@@ -956,6 +958,8 @@ Paintable::DispatchEventOfSameName PaintableBox::handle_mouseup(Badge<EventHandl
 
 Paintable::DispatchEventOfSameName PaintableBox::handle_mousemove(Badge<EventHandler>, CSSPixelPoint position, unsigned, unsigned)
 {
+    position = adjust_position_for_cumulative_scroll_offset(position);
+
     if (m_last_mouse_tracking_position.has_value()) {
         scroll_to_mouse_postion(position);
         return Paintable::DispatchEventOfSameName::No;
@@ -986,9 +990,7 @@ bool PaintableBox::scrollbar_contains_mouse_position(ScrollDirection direction, 
     if (!scrollbar_data.has_value())
         return false;
 
-    if (direction == ScrollDirection::Horizontal)
-        return position.y() >= scrollbar_data->thumb_rect.top();
-    return position.x() >= scrollbar_data->thumb_rect.left();
+    return scrollbar_data->gutter_rect.contains(position);
 }
 
 void PaintableBox::scroll_to_mouse_postion(CSSPixelPoint position)
@@ -1062,14 +1064,19 @@ TraversalDecision PaintableBox::hit_test_scrollbars(CSSPixelPoint position, Func
     return TraversalDecision::Continue;
 }
 
+CSSPixelPoint PaintableBox::adjust_position_for_cumulative_scroll_offset(CSSPixelPoint position) const
+{
+    return position.translated(-cumulative_offset_of_enclosing_scroll_frame());
+}
+
 TraversalDecision PaintableBox::hit_test(CSSPixelPoint position, HitTestType type, Function<TraversalDecision(HitTestResult)> const& callback) const
 {
     if (clip_rect_for_hit_testing().has_value() && !clip_rect_for_hit_testing()->contains(position))
         return TraversalDecision::Continue;
 
-    auto position_adjusted_by_scroll_offset = position.translated(-cumulative_offset_of_enclosing_scroll_frame());
+    auto position_adjusted_by_scroll_offset = adjust_position_for_cumulative_scroll_offset(position);
 
-    if (!is_visible())
+    if (computed_values().visibility() != CSS::Visibility::Visible)
         return TraversalDecision::Continue;
 
     if (hit_test_scrollbars(position_adjusted_by_scroll_offset, callback) == TraversalDecision::Break)
@@ -1143,7 +1150,7 @@ TraversalDecision PaintableWithLines::hit_test(CSSPixelPoint position, HitTestTy
     if (clip_rect_for_hit_testing().has_value() && !clip_rect_for_hit_testing()->contains(position))
         return TraversalDecision::Continue;
 
-    auto position_adjusted_by_scroll_offset = position.translated(-cumulative_offset_of_enclosing_scroll_frame());
+    auto position_adjusted_by_scroll_offset = adjust_position_for_cumulative_scroll_offset(position);
 
     // TextCursor hit testing mode should be able to place cursor in contenteditable elements even if they are empty
     if (m_fragments.is_empty()

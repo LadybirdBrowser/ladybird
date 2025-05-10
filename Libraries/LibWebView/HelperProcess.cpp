@@ -62,8 +62,8 @@ static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process(
 
             if (browser_options.profile_helper_process == process_type) {
                 dbgln();
-                dbgln("\033[1;45mLaunched {} process under callgrind!\033[0m", server_name);
-                dbgln("\033[100mRun `\033[4mcallgrind_control -i on\033[24m` to start instrumentation and `\033[4mcallgrind_control -i off\033[24m` stop it again.\033[0m");
+                dbgln("\033[1;34mLaunched {} process under callgrind!\033[0m", server_name);
+                dbgln("\033[1;36mRun `\033[4mcallgrind_control -i on\033[24m` to start instrumentation and `\033[4mcallgrind_control -i off\033[24m` stop it again.\033[0m");
                 dbgln();
             }
 

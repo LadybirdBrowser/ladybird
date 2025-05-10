@@ -243,14 +243,10 @@
 #ifdef NO_UNIQUE_ADDRESS
 #    undef NO_UNIQUE_ADDRESS
 #endif
-#if defined(AK_DISABLE_NO_UNIQUE_ADDRESS)
-#    define NO_UNIQUE_ADDRESS
+#if defined(AK_OS_WINDOWS)
+#    define NO_UNIQUE_ADDRESS [[msvc::no_unique_address]]
 #else
-#    if defined(AK_OS_WINDOWS)
-#        define NO_UNIQUE_ADDRESS [[msvc::no_unique_address]]
-#    else
-#        define NO_UNIQUE_ADDRESS [[no_unique_address]]
-#    endif
+#    define NO_UNIQUE_ADDRESS [[no_unique_address]]
 #endif
 
 // GCC doesn't have __has_feature but clang does

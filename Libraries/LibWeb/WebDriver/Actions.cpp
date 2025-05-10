@@ -926,6 +926,9 @@ static KeyEvent key_code_to_page_event(u32 code_point, UIEvents::KeyModifier mod
         code_point = [&]() -> u32 {
             // clang-format off
             switch (code_point) {
+            case 0xE003: return '\b';
+            case 0xE004: return '\t';
+            case 0xE007: return '\n';
             case 0xE00D: return ' ';
             case 0xE018: return ';';
             case 0xE019: return '=';
@@ -1581,7 +1584,6 @@ GC::Ref<JS::Cell> dispatch_actions_for_a_string(Web::WebDriver::InputState& inpu
         }
         // -> cluster is a modifier key
         {
-
             // FIXME: 1. Dispatch the events for a typeable string with input state, input id, source, current typeable text, and browsing context.
             // FIXME: 2. Empty current typeable text.
             // FIXME: 3. Let keydown action be an action object constructed with arguments input id, "key", and "keyDown".

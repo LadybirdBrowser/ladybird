@@ -71,4 +71,9 @@ HTML::SerializationRecord Index::referenced_value(IndexRecord const& index_recor
         .value;
 }
 
+void Index::clear_records()
+{
+    m_records.clear();
+}
+
 }

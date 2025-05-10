@@ -37,7 +37,7 @@ private:
     IteratorHelper(Realm&, Object& prototype, GC::Ref<IteratorRecord>, GC::Ref<Closure>, GC::Ptr<AbruptClosure>);
 
     virtual void visit_edges(Visitor&) override;
-    virtual ThrowCompletionOr<Value> execute(VM&, JS::Completion const& completion) override;
+    virtual ThrowCompletionOr<IterationResult> execute(VM&, JS::Completion const& completion) override;
 
     GC::Ref<IteratorRecord> m_underlying_iterator; // [[UnderlyingIterator]]
     GC::Ref<Closure> m_closure;

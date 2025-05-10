@@ -6,15 +6,14 @@
 
 #pragma once
 
-#include <LibWeb/CSS/CSSStyleDeclaration.h>
-#include <LibWeb/CSS/Descriptor.h>
+#include <LibWeb/CSS/CSSDescriptors.h>
 
 namespace Web::CSS {
 
 // https://drafts.csswg.org/css-fonts-4/#cssfontfacedescriptors
 class CSSFontFaceDescriptors final
-    : public CSSStyleDeclaration {
-    WEB_PLATFORM_OBJECT(CSSFontFaceDescriptors, CSSStyleDeclaration);
+    : public CSSDescriptors {
+    WEB_PLATFORM_OBJECT(CSSFontFaceDescriptors, CSSDescriptors);
     GC_DECLARE_ALLOCATOR(CSSFontFaceDescriptors);
 
 public:
@@ -23,17 +22,6 @@ public:
     virtual ~CSSFontFaceDescriptors() override;
 
     virtual void initialize(JS::Realm&) override;
-
-    virtual size_t length() const override;
-    virtual String item(size_t index) const override;
-
-    virtual WebIDL::ExceptionOr<void> set_property(StringView property, StringView value, StringView priority) override;
-    virtual WebIDL::ExceptionOr<String> remove_property(StringView property) override;
-    virtual String get_property_value(StringView property) const override;
-    virtual StringView get_property_priority(StringView property) const override;
-
-    RefPtr<CSSStyleValue const> descriptor(DescriptorID) const;
-    RefPtr<CSSStyleValue const> descriptor_or_initial_value(DescriptorID) const;
 
     WebIDL::ExceptionOr<void> set_ascent_override(StringView value);
     String ascent_override() const;
@@ -77,18 +65,8 @@ public:
     WebIDL::ExceptionOr<void> set_unicode_range(StringView value);
     String unicode_range() const;
 
-    virtual String serialized() const override;
-
-    virtual WebIDL::ExceptionOr<void> set_css_text(StringView) override;
-
 private:
     CSSFontFaceDescriptors(JS::Realm&, Vector<Descriptor>);
-
-    bool set_a_css_declaration(DescriptorID, NonnullRefPtr<CSSStyleValue const>, Important);
-
-    virtual void visit_edges(Visitor&) override;
-
-    Vector<Descriptor> m_descriptors;
 };
 
 }

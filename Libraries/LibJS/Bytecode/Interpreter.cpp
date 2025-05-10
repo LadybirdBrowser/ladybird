@@ -142,40 +142,40 @@ static ByteString format_value_list(StringView name, ReadonlySpan<Value> values)
     return builder.to_byte_string();
 }
 
-ALWAYS_INLINE static ThrowCompletionOr<Value> loosely_inequals(VM& vm, Value src1, Value src2)
+ALWAYS_INLINE static ThrowCompletionOr<bool> loosely_inequals(VM& vm, Value src1, Value src2)
 {
     if (src1.tag() == src2.tag()) {
         if (src1.is_int32() || src1.is_object() || src1.is_boolean() || src1.is_nullish())
-            return Value(src1.encoded() != src2.encoded());
+            return src1.encoded() != src2.encoded();
     }
-    return Value(!TRY(is_loosely_equal(vm, src1, src2)));
+    return !TRY(is_loosely_equal(vm, src1, src2));
 }
 
-ALWAYS_INLINE static ThrowCompletionOr<Value> loosely_equals(VM& vm, Value src1, Value src2)
+ALWAYS_INLINE static ThrowCompletionOr<bool> loosely_equals(VM& vm, Value src1, Value src2)
 {
     if (src1.tag() == src2.tag()) {
         if (src1.is_int32() || src1.is_object() || src1.is_boolean() || src1.is_nullish())
-            return Value(src1.encoded() == src2.encoded());
+            return src1.encoded() == src2.encoded();
     }
-    return Value(TRY(is_loosely_equal(vm, src1, src2)));
+    return TRY(is_loosely_equal(vm, src1, src2));
 }
 
-ALWAYS_INLINE static ThrowCompletionOr<Value> strict_inequals(VM&, Value src1, Value src2)
+ALWAYS_INLINE static ThrowCompletionOr<bool> strict_inequals(VM&, Value src1, Value src2)
 {
     if (src1.tag() == src2.tag()) {
         if (src1.is_int32() || src1.is_object() || src1.is_boolean() || src1.is_nullish())
-            return Value(src1.encoded() != src2.encoded());
+            return src1.encoded() != src2.encoded();
     }
-    return Value(!is_strictly_equal(src1, src2));
+    return !is_strictly_equal(src1, src2);
 }
 
-ALWAYS_INLINE static ThrowCompletionOr<Value> strict_equals(VM&, Value src1, Value src2)
+ALWAYS_INLINE static ThrowCompletionOr<bool> strict_equals(VM&, Value src1, Value src2)
 {
     if (src1.tag() == src2.tag()) {
         if (src1.is_int32() || src1.is_object() || src1.is_boolean() || src1.is_nullish())
-            return Value(src1.encoded() == src2.encoded());
+            return src1.encoded() == src2.encoded();
     }
-    return Value(is_strictly_equal(src1, src2));
+    return is_strictly_equal(src1, src2);
 }
 
 Interpreter::Interpreter(VM& vm)
@@ -302,14 +302,6 @@ ThrowCompletionOr<Value> Interpreter::run(Script& script_record, GC::Ptr<Environ
     VERIFY(!vm.execution_context_stack().is_empty());
 
     // FIXME: 16. Resume the context that is now on the top of the execution context stack as the running execution context.
-
-    // FIXME: These three should be moved out of Interpreter::run and give the host an option to run these, as it's up to the host when these get run.
-    //        https://tc39.es/ecma262/#sec-jobs for jobs and https://tc39.es/ecma262/#_ref_3508 for ClearKeptObjects
-    //        finish_execution_generation is particularly an issue for LibWeb, as the HTML spec wants to run it specifically after performing a microtask checkpoint.
-    //        The promise and registry cleanup queues don't cause LibWeb an issue, as LibWeb overrides the hooks that push onto these queues.
-    vm.run_queued_promise_jobs();
-
-    vm.run_queued_finalization_registry_cleanup_jobs();
 
     vm.finish_execution_generation();
 
@@ -486,7 +478,7 @@ FLATTEN_ON_CLANG void Interpreter::run_bytecode(size_t entry_point)
                 return;                                                                                                 \
             goto start;                                                                                                 \
         }                                                                                                               \
-        if (result.value().to_boolean())                                                                                \
+        if (result.value())                                                                                             \
             program_counter = instruction.true_target().address();                                                      \
         else                                                                                                            \
             program_counter = instruction.false_target().address();                                                     \
@@ -998,44 +990,53 @@ inline ThrowCompletionOr<Value> get_by_id(VM& vm, Optional<IdentifierTableIndex>
 
     auto& shape = base_obj->shape();
 
-    if (cache.prototype) {
-        // OPTIMIZATION: If the prototype chain hasn't been mutated in a way that would invalidate the cache, we can use it.
-        bool can_use_cache = [&]() -> bool {
-            if (&shape != cache.shape)
-                return false;
-            if (!cache.prototype_chain_validity)
-                return false;
-            if (!cache.prototype_chain_validity->is_valid())
-                return false;
-            return true;
-        }();
-        if (can_use_cache) {
-            auto value = cache.prototype->get_direct(cache.property_offset.value());
+    for (auto& cache_entry : cache.entries) {
+        if (cache_entry.prototype) {
+            // OPTIMIZATION: If the prototype chain hasn't been mutated in a way that would invalidate the cache, we can use it.
+            bool can_use_cache = [&]() -> bool {
+                if (&shape != cache_entry.shape)
+                    return false;
+                if (!cache_entry.prototype_chain_validity)
+                    return false;
+                if (!cache_entry.prototype_chain_validity->is_valid())
+                    return false;
+                return true;
+            }();
+            if (can_use_cache) {
+                auto value = cache_entry.prototype->get_direct(cache_entry.property_offset.value());
+                if (value.is_accessor())
+                    return TRY(call(vm, value.as_accessor().getter(), this_value));
+                return value;
+            }
+        } else if (&shape == cache_entry.shape) {
+            // OPTIMIZATION: If the shape of the object hasn't changed, we can use the cached property offset.
+            auto value = base_obj->get_direct(cache_entry.property_offset.value());
             if (value.is_accessor())
                 return TRY(call(vm, value.as_accessor().getter(), this_value));
             return value;
         }
-    } else if (&shape == cache.shape) {
-        // OPTIMIZATION: If the shape of the object hasn't changed, we can use the cached property offset.
-        auto value = base_obj->get_direct(cache.property_offset.value());
-        if (value.is_accessor())
-            return TRY(call(vm, value.as_accessor().getter(), this_value));
-        return value;
     }
 
     CacheablePropertyMetadata cacheable_metadata;
     auto value = TRY(base_obj->internal_get(executable.get_identifier(property), this_value, &cacheable_metadata));
 
+    auto get_cache_slot = [&] -> PropertyLookupCache::Entry& {
+        for (size_t i = cache.entries.size() - 1; i >= 1; --i) {
+            cache.entries[i] = cache.entries[i - 1];
+        }
+        cache.entries[0] = {};
+        return cache.entries[0];
+    };
     if (cacheable_metadata.type == CacheablePropertyMetadata::Type::OwnProperty) {
-        cache = {};
-        cache.shape = shape;
-        cache.property_offset = cacheable_metadata.property_offset.value();
+        auto& entry = get_cache_slot();
+        entry.shape = shape;
+        entry.property_offset = cacheable_metadata.property_offset.value();
     } else if (cacheable_metadata.type == CacheablePropertyMetadata::Type::InPrototypeChain) {
-        cache = {};
-        cache.shape = &base_obj->shape();
-        cache.property_offset = cacheable_metadata.property_offset.value();
-        cache.prototype = *cacheable_metadata.prototype;
-        cache.prototype_chain_validity = *cacheable_metadata.prototype->shape().prototype_chain_validity();
+        auto& entry = get_cache_slot();
+        entry.shape = &base_obj->shape();
+        entry.property_offset = cacheable_metadata.property_offset.value();
+        entry.prototype = *cacheable_metadata.prototype;
+        entry.prototype_chain_validity = *cacheable_metadata.prototype->shape().prototype_chain_validity();
     }
 
     return value;
@@ -1133,8 +1134,8 @@ inline ThrowCompletionOr<Value> get_global(Interpreter& interpreter, IdentifierT
 
         // OPTIMIZATION: For global var bindings, if the shape of the global object hasn't changed,
         //               we can use the cached property offset.
-        if (&shape == cache.shape) {
-            auto value = binding_object.get_direct(cache.property_offset.value());
+        if (&shape == cache.entries[0].shape) {
+            auto value = binding_object.get_direct(cache.entries[0].property_offset.value());
             if (value.is_accessor())
                 return TRY(call(vm, value.as_accessor().getter(), js_undefined()));
             return value;
@@ -1183,8 +1184,8 @@ inline ThrowCompletionOr<Value> get_global(Interpreter& interpreter, IdentifierT
         CacheablePropertyMetadata cacheable_metadata;
         auto value = TRY(binding_object.internal_get(identifier, js_undefined(), &cacheable_metadata));
         if (cacheable_metadata.type == CacheablePropertyMetadata::Type::OwnProperty) {
-            cache.shape = shape;
-            cache.property_offset = cacheable_metadata.property_offset.value();
+            cache.entries[0].shape = shape;
+            cache.entries[0].property_offset = cacheable_metadata.property_offset.value();
         }
         return value;
     }
@@ -1192,7 +1193,7 @@ inline ThrowCompletionOr<Value> get_global(Interpreter& interpreter, IdentifierT
     return vm.throw_completion<ReferenceError>(ErrorType::UnknownIdentifier, identifier);
 }
 
-inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value this_value, Value value, Optional<FlyString const&> const& base_identifier, PropertyKey name, Op::PropertyKind kind, PropertyLookupCache* cache = nullptr)
+inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value this_value, Value value, Optional<FlyString const&> const& base_identifier, PropertyKey name, Op::PropertyKind kind, PropertyLookupCache* caches = nullptr)
 {
     // Better error message than to_object would give
     if (vm.in_strict_mode() && base.is_nullish())
@@ -1224,50 +1225,58 @@ inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value thi
         break;
     }
     case Op::PropertyKind::KeyValue: {
-        if (cache) {
-            if (cache->prototype) {
-                // OPTIMIZATION: If the prototype chain hasn't been mutated in a way that would invalidate the cache, we can use it.
-                bool can_use_cache = [&]() -> bool {
-                    if (&object->shape() != cache->shape)
-                        return false;
-                    if (!cache->prototype_chain_validity)
-                        return false;
-                    if (!cache->prototype_chain_validity->is_valid())
-                        return false;
-                    return true;
-                }();
-                if (can_use_cache) {
-                    auto value_in_prototype = cache->prototype->get_direct(cache->property_offset.value());
-                    if (value_in_prototype.is_accessor()) {
-                        TRY(call(vm, value_in_prototype.as_accessor().setter(), this_value, value));
-                        return {};
+        if (caches) {
+            for (auto& cache : caches->entries) {
+                if (cache.prototype) {
+                    // OPTIMIZATION: If the prototype chain hasn't been mutated in a way that would invalidate the cache, we can use it.
+                    bool can_use_cache = [&]() -> bool {
+                        if (&object->shape() != cache.shape)
+                            return false;
+                        if (!cache.prototype_chain_validity)
+                            return false;
+                        if (!cache.prototype_chain_validity->is_valid())
+                            return false;
+                        return true;
+                    }();
+                    if (can_use_cache) {
+                        auto value_in_prototype = cache.prototype->get_direct(cache.property_offset.value());
+                        if (value_in_prototype.is_accessor()) {
+                            TRY(call(vm, value_in_prototype.as_accessor().setter(), this_value, value));
+                            return {};
+                        }
                     }
+                } else if (cache.shape == &object->shape()) {
+                    auto value_in_object = object->get_direct(cache.property_offset.value());
+                    if (value_in_object.is_accessor()) {
+                        TRY(call(vm, value_in_object.as_accessor().setter(), this_value, value));
+                    } else {
+                        object->put_direct(*cache.property_offset, value);
+                    }
+                    return {};
                 }
-            } else if (cache->shape == &object->shape()) {
-                auto value_in_object = object->get_direct(cache->property_offset.value());
-                if (value_in_object.is_accessor()) {
-                    TRY(call(vm, value_in_object.as_accessor().setter(), this_value, value));
-                } else {
-                    object->put_direct(*cache->property_offset, value);
-                }
-                return {};
             }
         }
 
         CacheablePropertyMetadata cacheable_metadata;
         bool succeeded = TRY(object->internal_set(name, value, this_value, &cacheable_metadata));
 
-        if (succeeded && cache) {
+        if (succeeded && caches) {
+            auto get_cache_slot = [&] -> PropertyLookupCache::Entry& {
+                for (size_t i = caches->entries.size() - 1; i >= 1; --i) {
+                    caches->entries[i] = caches->entries[i - 1];
+                }
+                caches->entries[0] = {};
+                return caches->entries[0];
+            };
+            auto& cache = get_cache_slot();
             if (cacheable_metadata.type == CacheablePropertyMetadata::Type::OwnProperty) {
-                *cache = {};
-                cache->shape = object->shape();
-                cache->property_offset = cacheable_metadata.property_offset.value();
+                cache.shape = object->shape();
+                cache.property_offset = cacheable_metadata.property_offset.value();
             } else if (cacheable_metadata.type == CacheablePropertyMetadata::Type::InPrototypeChain) {
-                *cache = {};
-                cache->shape = object->shape();
-                cache->property_offset = cacheable_metadata.property_offset.value();
-                cache->prototype = *cacheable_metadata.prototype;
-                cache->prototype_chain_validity = *cacheable_metadata.prototype->shape().prototype_chain_validity();
+                cache.shape = object->shape();
+                cache.property_offset = cacheable_metadata.property_offset.value();
+                cache.prototype = *cacheable_metadata.prototype;
+                cache.prototype_chain_validity = *cacheable_metadata.prototype->shape().prototype_chain_validity();
             }
         }
 
@@ -1915,7 +1924,7 @@ void Dump::execute_impl(Bytecode::Interpreter& interpreter) const
         auto& vm = interpreter.vm();                                                            \
         auto lhs = interpreter.get(m_lhs);                                                      \
         auto rhs = interpreter.get(m_rhs);                                                      \
-        interpreter.set(m_dst, TRY(op_snake_case(vm, lhs, rhs)));                               \
+        interpreter.set(m_dst, Value { TRY(op_snake_case(vm, lhs, rhs)) });                     \
         return {};                                                                              \
     }
 
@@ -2089,7 +2098,7 @@ ThrowCompletionOr<void> LessThan::execute_impl(Bytecode::Interpreter& interprete
         interpreter.set(m_dst, Value(lhs.as_double() < rhs.as_double()));
         return {};
     }
-    interpreter.set(m_dst, TRY(less_than(vm, lhs, rhs)));
+    interpreter.set(m_dst, Value { TRY(less_than(vm, lhs, rhs)) });
     return {};
 }
 
@@ -2106,7 +2115,7 @@ ThrowCompletionOr<void> LessThanEquals::execute_impl(Bytecode::Interpreter& inte
         interpreter.set(m_dst, Value(lhs.as_double() <= rhs.as_double()));
         return {};
     }
-    interpreter.set(m_dst, TRY(less_than_equals(vm, lhs, rhs)));
+    interpreter.set(m_dst, Value { TRY(less_than_equals(vm, lhs, rhs)) });
     return {};
 }
 
@@ -2123,7 +2132,7 @@ ThrowCompletionOr<void> GreaterThan::execute_impl(Bytecode::Interpreter& interpr
         interpreter.set(m_dst, Value(lhs.as_double() > rhs.as_double()));
         return {};
     }
-    interpreter.set(m_dst, TRY(greater_than(vm, lhs, rhs)));
+    interpreter.set(m_dst, Value { TRY(greater_than(vm, lhs, rhs)) });
     return {};
 }
 
@@ -2140,7 +2149,7 @@ ThrowCompletionOr<void> GreaterThanEquals::execute_impl(Bytecode::Interpreter& i
         interpreter.set(m_dst, Value(lhs.as_double() >= rhs.as_double()));
         return {};
     }
-    interpreter.set(m_dst, TRY(greater_than_equals(vm, lhs, rhs)));
+    interpreter.set(m_dst, Value { TRY(greater_than_equals(vm, lhs, rhs)) });
     return {};
 }
 
@@ -2349,12 +2358,12 @@ ThrowCompletionOr<void> SetGlobal::execute_impl(Bytecode::Interpreter& interpret
     if (cache.environment_serial_number == declarative_record.environment_serial_number()) {
         // OPTIMIZATION: For global var bindings, if the shape of the global object hasn't changed,
         //               we can use the cached property offset.
-        if (&shape == cache.shape) {
-            auto value = binding_object.get_direct(cache.property_offset.value());
+        if (&shape == cache.entries[0].shape) {
+            auto value = binding_object.get_direct(cache.entries[0].property_offset.value());
             if (value.is_accessor())
                 TRY(call(vm, value.as_accessor().setter(), &binding_object, src));
             else
-                binding_object.put_direct(cache.property_offset.value(), src);
+                binding_object.put_direct(cache.entries[0].property_offset.value(), src);
             return {};
         }
 
@@ -2416,8 +2425,8 @@ ThrowCompletionOr<void> SetGlobal::execute_impl(Bytecode::Interpreter& interpret
             return vm.throw_completion<TypeError>(ErrorType::ObjectSetReturnedFalse);
         }
         if (cacheable_metadata.type == CacheablePropertyMetadata::Type::OwnProperty) {
-            cache.shape = shape;
-            cache.property_offset = cacheable_metadata.property_offset.value();
+            cache.entries[0].shape = shape;
+            cache.entries[0].property_offset = cacheable_metadata.property_offset.value();
         }
         return {};
     }

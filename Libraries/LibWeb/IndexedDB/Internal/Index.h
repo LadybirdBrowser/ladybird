@@ -40,6 +40,7 @@ public:
     [[nodiscard]] KeyPath const& key_path() const { return m_key_path; }
 
     [[nodiscard]] bool has_record_with_key(GC::Ref<Key> key);
+    void clear_records();
 
     HTML::SerializationRecord referenced_value(IndexRecord const& index_record) const;
 

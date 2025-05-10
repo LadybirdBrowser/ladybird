@@ -23,11 +23,16 @@
 
 namespace JS::Bytecode {
 
+// Represents one polymorphic inline cache used for property lookups.
 struct PropertyLookupCache {
-    WeakPtr<Shape> shape;
-    Optional<u32> property_offset;
-    WeakPtr<Object> prototype;
-    WeakPtr<PrototypeChainValidity> prototype_chain_validity;
+    static constexpr size_t max_number_of_shapes_to_remember = 4;
+    struct Entry {
+        WeakPtr<Shape> shape;
+        Optional<u32> property_offset;
+        WeakPtr<Object> prototype;
+        WeakPtr<PrototypeChainValidity> prototype_chain_validity;
+    };
+    AK::Array<Entry, max_number_of_shapes_to_remember> entries;
 };
 
 struct GlobalVariableCache : public PropertyLookupCache {

@@ -150,16 +150,14 @@ void Navigable::NavigateParams::visit_edges(Cell::Visitor& visitor)
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#script-closable
 bool Navigable::is_script_closable()
 {
-    // A navigable is script-closable if its active browsing context is an auxiliary browsing context that was created
-    // by a script (as opposed to by an action of the user), or if it is a top-level traversable whose session history
-    // entries's size is 1.
-    if (auto browsing_context = active_browsing_context(); browsing_context && browsing_context->is_auxiliary())
-        return true;
+    // A navigable is script-closable if it is a top-level traversable, and any of the following are true:
+    // - its is created by web content is true; or
+    // - its session history entries's size is 1.
+    if (!is_top_level_traversable())
+        return false;
 
-    if (is_top_level_traversable())
-        return get_session_history_entries().size() == 1;
-
-    return false;
+    return as<TraversableNavigable>(this)->is_created_by_web_content()
+        || get_session_history_entries().size() == 1;
 }
 
 void Navigable::set_delaying_load_events(bool value)
@@ -381,7 +379,7 @@ Navigable::ChosenNavigable Navigable::choose_a_navigable(StringView name, Tokeni
     // 2. Let windowType be "existing or none".
     auto window_type = WindowType::ExistingOrNone;
 
-    // 3. Let sandboxingFlagSet be current's active document's active sandboxing flag set.
+    // 3. Let sandboxingFlagSet be currentNavigable's active document's active sandboxing flag set.
     auto sandboxing_flag_set = active_document()->active_sandboxing_flag_set();
 
     // 4. If name is the empty string or an ASCII case-insensitive match for "_self", then set chosen to currentNavigable.
@@ -455,13 +453,10 @@ Navigable::ChosenNavigable Navigable::choose_a_navigable(StringView name, Tokeni
             // NOTE: In the presence of an opener policy,
             //       nested documents that are cross-origin with their top-level browsing context's active document always set noopener to true.
 
-            // 5. Let chosen be null.
-            chosen = nullptr;
-
-            // 6. Let targetName be the empty string.
+            // 5. Let targetName be the empty string.
             String target_name;
 
-            // 7. If name is not an ASCII case-insensitive match for "_blank", then set targetName to name.
+            // 6. If name is not an ASCII case-insensitive match for "_blank", then set targetName to name.
             if (!Infra::is_ascii_case_insensitive_match(name, "_blank"sv))
                 target_name = MUST(String::from_utf8(name));
 
@@ -475,12 +470,12 @@ Navigable::ChosenNavigable Navigable::choose_a_navigable(StringView name, Tokeni
             };
             auto create_new_traversable = GC::create_function(heap(), move(create_new_traversable_closure));
 
-            // 8. If noopener is true, then set chosen to the result of creating a new top-level traversable given null and targetName.
+            // 7. If noopener is true, then set chosen to the result of creating a new top-level traversable given null and targetName.
             if (no_opener == TokenizedFeature::NoOpener::Yes) {
                 chosen = create_new_traversable->function()(nullptr);
             }
 
-            // 9. Otherwise:
+            // 8. Otherwise:
             else {
                 // 1. Set chosen to the result of creating a new top-level traversable given currentNavigable's active browsing context, targetName, and currentNavigable.
                 // FIXME: "and currentNavigable", which is the openerNavigableForWebDriver parameter.
@@ -492,10 +487,13 @@ Navigable::ChosenNavigable Navigable::choose_a_navigable(StringView name, Tokeni
                     chosen->active_browsing_context()->set_the_one_permitted_sandboxed_navigator(active_browsing_context());
             }
 
-            // 10. If sandboxingFlagSet's sandbox propagates to auxiliary browsing contexts flag is set,
+            // 9. If sandboxingFlagSet's sandbox propagates to auxiliary browsing contexts flag is set,
             //     then all the flags that are set in sandboxingFlagSet must be set in chosen's active browsing context's popup sandboxing flag set.
             if (has_flag(sandboxing_flag_set, SandboxingFlagSet::SandboxPropagatesToAuxiliaryBrowsingContexts))
                 chosen->active_browsing_context()->set_popup_sandboxing_flag_set(chosen->active_browsing_context()->popup_sandboxing_flag_set() | sandboxing_flag_set);
+
+            // 10. Set chosen's is created by web content to true.
+            as<TraversableNavigable>(*chosen).set_is_created_by_web_content(true);
         }
 
         // --> If the user agent has been configured such that in this instance it will choose currentNavigable

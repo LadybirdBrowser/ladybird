@@ -21,8 +21,20 @@ public:
     virtual ~GeneratorObject() override = default;
     void visit_edges(Cell::Visitor&) override;
 
-    ThrowCompletionOr<Value> resume(VM&, Value value, Optional<StringView> const& generator_brand);
-    ThrowCompletionOr<Value> resume_abrupt(VM&, JS::Completion abrupt_completion, Optional<StringView> const& generator_brand);
+    struct IterationResult {
+        IterationResult() = delete;
+        explicit IterationResult(Value value, bool done)
+            : done(done)
+            , value(value)
+        {
+        }
+
+        bool done { false };
+        Value value;
+    };
+
+    ThrowCompletionOr<IterationResult> resume(VM&, Value value, Optional<StringView> const& generator_brand);
+    ThrowCompletionOr<IterationResult> resume_abrupt(VM&, JS::Completion abrupt_completion, Optional<StringView> const& generator_brand);
 
     enum class GeneratorState {
         SuspendedStart,
@@ -37,7 +49,7 @@ protected:
     GeneratorObject(Realm&, Object& prototype, NonnullOwnPtr<ExecutionContext>, Optional<StringView> generator_brand = {});
 
     ThrowCompletionOr<GeneratorState> validate(VM&, Optional<StringView> const& generator_brand);
-    virtual ThrowCompletionOr<Value> execute(VM&, JS::Completion const& completion);
+    virtual ThrowCompletionOr<IterationResult> execute(VM&, JS::Completion const& completion);
 
 private:
     NonnullOwnPtr<ExecutionContext> m_execution_context;

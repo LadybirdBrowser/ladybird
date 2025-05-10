@@ -13,10 +13,15 @@
 
 namespace Gfx {
 
+enum class IconType : u16 {
+    ICO = 1,
+    CUR = 2,
+};
+
 // FIXME: This is in little-endian order. Maybe need a NetworkOrdered<T> equivalent eventually.
 struct ICONDIR {
     u16 must_be_0 = 0;
-    u16 must_be_1 = 0;
+    IconType type = IconType::ICO;
     u16 image_count = 0;
 };
 static_assert(AssertSize<ICONDIR, 6>());
@@ -53,6 +58,8 @@ struct ICOImageDescriptor {
     u16 width;
     u16 height;
     u16 bits_per_pixel;
+    u16 hotspot_x { 0 };
+    u16 hotspot_y { 0 };
     size_t offset;
     size_t size;
     RefPtr<Gfx::Bitmap> bitmap;
@@ -68,22 +75,40 @@ struct ICOLoadingContext {
     State state { NotDecoded };
     u8 const* data { nullptr };
     size_t data_size { 0 };
+    IconType file_type { IconType::ICO };
     Vector<ICOImageDescriptor> images;
     size_t largest_index;
 };
 
-static ErrorOr<size_t> decode_ico_header(Stream& stream)
+static ErrorOr<size_t> decode_ico_header(Stream& stream, IconType& out_type)
 {
     auto header = TRY(stream.read_value<ICONDIR>());
-    if (header.must_be_0 != 0 || header.must_be_1 != 1)
-        return Error::from_string_literal("Invalid ICO header");
+    if (header.must_be_0 != 0 || (header.type != IconType::ICO && header.type != IconType::CUR))
+        return Error::from_string_literal("Invalid ICO/CUR header");
+
+    out_type = header.type;
     return { header.image_count };
 }
 
-static ErrorOr<ICOImageDescriptor> decode_ico_direntry(Stream& stream)
+static ErrorOr<ICOImageDescriptor> decode_ico_direntry(Stream& stream, IconType file_type)
 {
     auto entry = TRY(stream.read_value<ICONDIRENTRY>());
-    ICOImageDescriptor desc = { entry.width, entry.height, entry.bits_per_pixel, entry.offset, entry.size, nullptr };
+    ICOImageDescriptor desc = {
+        entry.width,
+        entry.height,
+        entry.bits_per_pixel,
+        0, 0,
+        entry.offset,
+        entry.size,
+        nullptr
+    };
+
+    if (file_type == IconType::CUR) {
+        // For cursor files, hotsport coordinates are stored in the planes and bits_per_pixel fields
+        desc.hotspot_x = entry.planes;
+        desc.hotspot_y = entry.bits_per_pixel;
+    }
+
     if (desc.width == 0)
         desc.width = 256;
     if (desc.height == 0)
@@ -115,12 +140,12 @@ static ErrorOr<void> load_ico_directory(ICOLoadingContext& context)
 {
     FixedMemoryStream stream { { context.data, context.data_size } };
 
-    auto image_count = TRY(decode_ico_header(stream));
+    auto image_count = TRY(decode_ico_header(stream, context.file_type));
     if (image_count == 0)
-        return Error::from_string_literal("ICO file has no images");
+        return Error::from_string_literal("ICO/CUR file has no images");
 
     for (size_t i = 0; i < image_count; ++i) {
-        auto desc = TRY(decode_ico_direntry(stream));
+        auto desc = TRY(decode_ico_direntry(stream, context.file_type));
         if (desc.offset + desc.size < desc.offset // detect integer overflow
             || (desc.offset + desc.size) > context.data_size) {
             dbgln_if(ICO_DEBUG, "load_ico_directory: offset: {} size: {} doesn't fit in ICO size: {}", desc.offset, desc.size, context.data_size);
@@ -175,7 +200,8 @@ ErrorOr<void> ICOImageDecoderPlugin::load_ico_bitmap(ICOLoadingContext& context)
 bool ICOImageDecoderPlugin::sniff(ReadonlyBytes data)
 {
     FixedMemoryStream stream { data };
-    return !decode_ico_header(stream).is_error();
+    IconType file_type;
+    return !decode_ico_header(stream, file_type).is_error();
 }
 
 ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> ICOImageDecoderPlugin::create(ReadonlyBytes data)

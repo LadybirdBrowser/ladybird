@@ -98,7 +98,7 @@ WebIDL::ExceptionOr<void> IDBCursor::continue_(JS::Value key)
 
     // 4. If this's got value flag is false, indicating that the cursor is being iterated or has iterated past its end, throw an "InvalidStateError" DOMException.
     if (!m_got_value)
-        return WebIDL::InvalidStateError::create(realm, "Cursor is active or EOL"_string);
+        return WebIDL::InvalidStateError::create(realm, "Cursor is active or EOL while continuing"_string);
 
     // 5. If key is given, then:
     GC::Ptr<Key> key_value;
@@ -146,6 +146,27 @@ WebIDL::ExceptionOr<void> IDBCursor::continue_(JS::Value key)
     dbgln_if(IDB_DEBUG, "Executing request for cursor continue with uuid {}", request->uuid());
 
     return {};
+}
+
+// https://w3c.github.io/IndexedDB/#cursor-effective-key
+[[nodiscard]] GC::Ref<Key> IDBCursor::effective_key() const
+{
+    return m_source_handle.visit(
+        [&](GC::Ref<IDBObjectStore>) -> GC::Ref<Key> {
+            //  If the source of a cursor is an object store, the effective key of the cursor is the cursor’s position
+            return *m_position;
+        },
+        [&](GC::Ref<IDBIndex>) -> GC::Ref<Key> {
+            // If the source of a cursor is an index, the effective key is the cursor’s object store position.
+            return *m_object_store_position;
+        });
+}
+
+// https://w3c.github.io/IndexedDB/#dom-idbcursor-primarykey
+JS::Value IDBCursor::primary_key() const
+{
+    // The primaryKey getter steps are to return the result of converting a key to a value with the cursor’s current effective key.
+    return convert_a_key_to_a_value(realm(), effective_key());
 }
 
 }

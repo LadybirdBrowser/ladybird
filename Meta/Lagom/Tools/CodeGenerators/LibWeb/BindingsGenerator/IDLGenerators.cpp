@@ -4824,6 +4824,13 @@ void @namespace_class@::initialize(JS::Realm& realm)
 )~~~");
     }
 
+    if (interface.extended_attributes.contains("WithInitializer"sv)) {
+        generator.append(R"~~~(
+
+    @name@::initialize(*this, realm);
+)~~~");
+    }
+
     generator.append(R"~~~(
 }
 )~~~");
