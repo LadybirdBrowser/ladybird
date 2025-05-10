@@ -182,7 +182,7 @@ ErrorOr<String> Process::get_name()
     char buffer[BUFSIZ];
     int rc = get_process_name(buffer, BUFSIZ);
     if (rc != 0)
-        return Error::from_syscall("get_process_name"sv, -rc);
+        return Error::from_syscall("get_process_name"sv, rc);
     return String::from_utf8(StringView { buffer, strlen(buffer) });
 #elif defined(AK_LIBC_GLIBC) || (defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID))
     return String::from_utf8(StringView { program_invocation_name, strlen(program_invocation_name) });
@@ -200,13 +200,13 @@ ErrorOr<void> Process::set_name([[maybe_unused]] StringView name, [[maybe_unused
 #if defined(AK_OS_SERENITY)
     int rc = set_process_name(name.characters_without_null_termination(), name.length());
     if (rc != 0)
-        return Error::from_syscall("set_process_name"sv, -rc);
+        return Error::from_syscall("set_process_name"sv, rc);
     if (set_thread_name == SetThreadName::No)
         return {};
 
     rc = prctl(PR_SET_THREAD_NAME, gettid(), name.characters_without_null_termination(), name.length());
     if (rc != 0)
-        return Error::from_syscall("set_thread_name"sv, -rc);
+        return Error::from_syscall("set_thread_name"sv, rc);
     return {};
 #else
     // FIXME: Implement Process::set_name() for other platforms.
@@ -232,7 +232,7 @@ ErrorOr<bool> Process::is_being_debugged()
 #elif defined(AK_OS_GNU_HURD)
     process_t proc = getproc();
     if (!MACH_PORT_VALID(proc))
-        return Error::from_syscall("getproc"sv, -errno);
+        return Error::from_syscall("getproc"sv, errno);
 
     int flags = PI_FETCH_TASKINFO;
     // We're going to ask the proc server for the info about our process,
@@ -253,7 +253,7 @@ ErrorOr<bool> Process::is_being_debugged()
     mach_port_deallocate(mach_task_self(), proc);
     if (err) {
         __hurd_fail(static_cast<error_t>(err));
-        return Error::from_syscall("proc_getprocinfo"sv, -errno);
+        return Error::from_syscall("proc_getprocinfo"sv, errno);
     }
 
     // Now cast the returned buffer pointer back to struct procinfo, and
@@ -284,7 +284,7 @@ ErrorOr<bool> Process::is_being_debugged()
     mib[3] = getpid();
 
     if (sysctl(mib, sizeof(mib) / sizeof(*mib), &info, &size, NULL, 0) < 0)
-        return Error::from_syscall("sysctl"sv, -errno);
+        return Error::from_syscall("sysctl"sv, errno);
 
     // We're being debugged if the P_TRACED flag is set.
 #    if defined(AK_OS_MACOS)
@@ -346,7 +346,7 @@ ErrorOr<int> Process::wait_for_termination()
     int exit_code = -1;
     int status;
     if (waitpid(m_pid, &status, 0) == -1)
-        return Error::from_syscall("waitpid"sv, -errno);
+        return Error::from_syscall("waitpid"sv, errno);
 
     if (WIFEXITED(status)) {
         exit_code = WEXITSTATUS(status);

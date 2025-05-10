@@ -120,7 +120,7 @@ ErrorOr<NonnullOwnPtr<LocalSocket>> LocalServer::accept()
     int accepted_fd = ::accept(m_fd, (sockaddr*)&un, &un_size);
 #endif
     if (accepted_fd < 0) {
-        return Error::from_syscall("accept"sv, -errno);
+        return Error::from_syscall("accept"sv, errno);
     }
 
 #if defined(AK_OS_MACOS) || defined(AK_OS_IOS) || defined(AK_OS_HAIKU)

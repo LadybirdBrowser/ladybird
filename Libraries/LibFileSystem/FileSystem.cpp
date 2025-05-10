@@ -56,7 +56,7 @@ ErrorOr<ByteString> real_path(StringView path)
     ScopeGuard free_path = [real_path]() { free(real_path); };
 
     if (!real_path)
-        return Error::from_syscall("realpath"sv, -errno);
+        return Error::from_syscall("realpath"sv, errno);
 
     return ByteString { real_path, strlen(real_path) };
 }
