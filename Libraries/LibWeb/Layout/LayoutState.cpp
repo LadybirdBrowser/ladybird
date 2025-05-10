@@ -323,14 +323,17 @@ void LayoutState::commit(Box& root)
         auto& paintable = as<Painting::PaintableBox>(*node.first_paintable());
         CSSPixelPoint offset;
 
-        if (used_values.containing_line_box_fragment.has_value()) {
+        if (used_values.containing_line_box_fragment.has_value() && get(*node.containing_block()).line_boxes.size() > 0) {
             // Atomic inline case:
             // We know that `node` is an atomic inline because `containing_line_box_fragments` refers to the
             // line box fragment in the parent block container that contains it.
             auto const& containing_line_box_fragment = used_values.containing_line_box_fragment.value();
             auto const& containing_block = *node.containing_block();
             auto const& containing_block_used_values = get(containing_block);
-            auto const& fragment = containing_block_used_values.line_boxes[containing_line_box_fragment.line_box_index].fragments()[containing_line_box_fragment.fragment_index];
+
+            auto const& fragments = containing_block_used_values.line_boxes[containing_line_box_fragment.line_box_index].fragments();
+            // FIXME: Maybe protect or assert below against vector overflow.
+            auto const& fragment = fragments[containing_line_box_fragment.fragment_index];
 
             // The fragment has the final offset for the atomic inline, so we just need to copy it from there.
             offset = fragment.offset();
