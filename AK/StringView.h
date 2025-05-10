@@ -22,6 +22,7 @@ namespace AK {
 class StringView {
 public:
     ALWAYS_INLINE constexpr StringView() = default;
+
     ALWAYS_INLINE constexpr StringView(char const* characters, size_t length)
         : m_characters(characters)
         , m_length(length)
@@ -29,22 +30,18 @@ public:
         if (!is_constant_evaluated())
             VERIFY(!Checked<uintptr_t>::addition_would_overflow(reinterpret_cast<uintptr_t>(characters), length));
     }
+
     ALWAYS_INLINE StringView(unsigned char const* characters, size_t length)
         : m_characters(reinterpret_cast<char const*>(characters))
         , m_length(length)
     {
         VERIFY(!Checked<uintptr_t>::addition_would_overflow(reinterpret_cast<uintptr_t>(characters), length));
     }
+
     ALWAYS_INLINE StringView(ReadonlyBytes bytes)
         : m_characters(reinterpret_cast<char const*>(bytes.data()))
         , m_length(bytes.size())
     {
-    }
-
-    // Note: This is here for Jakt.
-    ALWAYS_INLINE static StringView from_string_literal(StringView string)
-    {
-        return string;
     }
 
     StringView(ByteBuffer const&);
