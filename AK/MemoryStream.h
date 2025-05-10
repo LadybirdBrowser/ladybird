@@ -50,7 +50,7 @@ public:
     {
         if constexpr (!IsConst<T>) {
             if (!m_writing_enabled)
-                return Error::from_string_view_or_print_error_and_return_errno("Tried to obtain a non-const reference from a read-only FixedMemoryStream"sv, EINVAL);
+                return Error::from_string_literal("Tried to obtain a non-const reference from a read-only FixedMemoryStream");
         }
 
         T* value = reinterpret_cast<T*>(m_bytes.offset_pointer(m_offset));
@@ -66,7 +66,7 @@ public:
     {
         if constexpr (!IsConst<T>) {
             if (!m_writing_enabled)
-                return Error::from_string_view_or_print_error_and_return_errno("Tried to obtain a non-const span from a read-only FixedMemoryStream"sv, EINVAL);
+                return Error::from_string_literal("Tried to obtain a non-const span from a read-only FixedMemoryStream");
         }
 
         Span<T> span { reinterpret_cast<T*>(m_bytes.offset_pointer(m_offset)), count };
