@@ -9,6 +9,7 @@
 #include <AK/Forward.h>
 #include <AK/GenericLexer.h>
 #include <AK/StringView.h>
+#include <LibRegex/Forward.h>
 
 namespace regex {
 
@@ -64,7 +65,7 @@ private:
     StringView m_value {};
 };
 
-class Lexer : public GenericLexer {
+class REGEX_API Lexer : public GenericLexer {
 public:
     Lexer();
     explicit Lexer(StringView source);

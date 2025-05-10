@@ -50,7 +50,7 @@ struct NamedCaptureGroup {
     size_t alternative_id;
 };
 
-class Parser {
+class REGEX_API Parser {
 public:
     struct Result {
         ByteCode bytecode;
@@ -137,7 +137,7 @@ protected:
     ParserState m_parser_state;
 };
 
-class AbstractPosixParser : public Parser {
+class REGEX_API AbstractPosixParser : public Parser {
 protected:
     explicit AbstractPosixParser(Lexer& lexer)
         : Parser(lexer)
@@ -152,7 +152,7 @@ protected:
     ALWAYS_INLINE bool parse_bracket_expression(Vector<CompareTypeAndValuePair>&, size_t&);
 };
 
-class PosixBasicParser final : public AbstractPosixParser {
+class REGEX_API PosixBasicParser final : public AbstractPosixParser {
 public:
     explicit PosixBasicParser(Lexer& lexer)
         : AbstractPosixParser(lexer)
@@ -181,7 +181,7 @@ private:
     size_t m_current_capture_group_depth { 0 };
 };
 
-class PosixExtendedParser final : public AbstractPosixParser {
+class REGEX_API PosixExtendedParser final : public AbstractPosixParser {
     constexpr static auto default_options = static_cast<PosixFlags>(AllFlags::SingleLine) | static_cast<PosixFlags>(AllFlags::Internal_ConsiderNewline);
 
 public:
@@ -208,7 +208,7 @@ private:
     ALWAYS_INLINE bool parse_repetition_symbol(ByteCode&, size_t&);
 };
 
-class ECMA262Parser final : public Parser {
+class REGEX_API ECMA262Parser final : public Parser {
     constexpr static ECMAScriptOptions default_options = static_cast<ECMAScriptFlags>(AllFlags::Internal_ConsiderNewline);
 
 public:
