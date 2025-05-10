@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<head>
+<!--
+   Confirms drawing a ul. Font size can be controlled so MarkerPaintable sizes should match reference.
+   FIXME: At some point, `::marker` should support `content`. https://drafts.csswg.org/css-content-3/#propdef-content
+-->
+<style>
+    .B li::marker { font-size: .5em; }
+</style>
+</head>
+<body>
+<ul class="A">
+<li>Three</li>
+<li>Four</li>
+</ul>
+<ul class="B">
+<li>One</li>
+<li>Two</li>
+</ul>
+</body>
