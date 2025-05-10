@@ -1,0 +1,41 @@
+#import <HTML/Canvas/CanvasCompositing.idl>
+#import <HTML/Canvas/OffscreenCanvasBase.idl>
+#import <HTML/CanvasRenderingContext2D.idl>
+#import <HTML/Canvas/CanvasDrawImage.idl>
+#import <HTML/Canvas/CanvasDrawPath.idl>
+#import <HTML/Canvas/CanvasFillStrokeStyles.idl>
+#import <HTML/Canvas/CanvasFilters.idl>
+#import <HTML/Canvas/CanvasImageData.idl>
+#import <HTML/Canvas/CanvasImageSmoothing.idl>
+#import <HTML/Canvas/CanvasPath.idl>
+#import <HTML/Canvas/CanvasPathDrawingStyles.idl>
+#import <HTML/Canvas/CanvasTextDrawingStyles.idl>
+#import <HTML/Canvas/CanvasRect.idl>
+#import <HTML/Canvas/CanvasShadowStyles.idl>
+#import <HTML/Canvas/CanvasState.idl>
+#import <HTML/Canvas/CanvasText.idl>
+#import <HTML/Canvas/CanvasTransform.idl>
+#import <HTML/Canvas/CanvasUserInterface.idl>
+
+// https://html.spec.whatwg.org/multipage/canvas.html#offscreencanvasrenderingcontext2d
+[Exposed=(Window,Worker)]
+interface OffscreenCanvasRenderingContext2D {
+    readonly attribute OffscreenCanvas canvas;
+};
+
+OffscreenCanvasRenderingContext2D includes CanvasSettings;
+OffscreenCanvasRenderingContext2D includes CanvasState;
+OffscreenCanvasRenderingContext2D includes CanvasTransform;
+OffscreenCanvasRenderingContext2D includes CanvasCompositing;
+OffscreenCanvasRenderingContext2D includes CanvasImageSmoothing;
+OffscreenCanvasRenderingContext2D includes CanvasFillStrokeStyles;
+OffscreenCanvasRenderingContext2D includes CanvasShadowStyles;
+OffscreenCanvasRenderingContext2D includes CanvasFilters;
+OffscreenCanvasRenderingContext2D includes CanvasRect;
+OffscreenCanvasRenderingContext2D includes CanvasDrawPath;
+OffscreenCanvasRenderingContext2D includes CanvasText;
+OffscreenCanvasRenderingContext2D includes CanvasDrawImage;
+OffscreenCanvasRenderingContext2D includes CanvasImageData;
+OffscreenCanvasRenderingContext2D includes CanvasPathDrawingStyles;
+OffscreenCanvasRenderingContext2D includes CanvasTextDrawingStyles;
+OffscreenCanvasRenderingContext2D includes CanvasPath;
