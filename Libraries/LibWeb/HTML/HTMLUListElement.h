@@ -21,6 +21,8 @@ public:
     // https://www.w3.org/TR/html-aria/#el-ul
     virtual Optional<ARIA::Role> default_role() const override { return ARIA::Role::list; }
 
+    virtual bool is_html_ulist_element() const override { return true; }
+
 private:
     HTMLUListElement(DOM::Document&, DOM::QualifiedName);
 
@@ -30,4 +32,9 @@ private:
     virtual void apply_presentational_hints(GC::Ref<CSS::CascadedProperties>) const override;
 };
 
+}
+
+namespace Web::DOM {
+template<>
+inline bool Node::fast_is<Web::HTML::HTMLUListElement>() const { return is_html_ulist_element(); }
 }
