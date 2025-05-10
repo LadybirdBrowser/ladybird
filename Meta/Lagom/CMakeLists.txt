@@ -205,7 +205,7 @@ install(
 )
 
 function(lagom_lib target_name fs_name)
-    cmake_parse_arguments(LAGOM_LIBRARY "" "LIBRARY_TYPE" "SOURCES;LIBS" ${ARGN})
+    cmake_parse_arguments(LAGOM_LIBRARY "EXPLICIT_SYMBOL_EXPORT" "LIBRARY_TYPE" "SOURCES;LIBS" ${ARGN})
     string(REPLACE "Lib" "" library ${target_name})
     if (NOT LAGOM_LIBRARY_LIBRARY_TYPE)
         set(LAGOM_LIBRARY_LIBRARY_TYPE "")
@@ -253,6 +253,19 @@ function(lagom_lib target_name fs_name)
         )
     endif()
     serenity_generated_sources(${target_name})
+
+    if (LAGOM_LIBRARY_EXPLICIT_SYMBOL_EXPORT)
+        # Temporary helper to allow libraries to opt-in to using X_API macros
+        # to export symbols required by external consumers. This allows the codebase
+        # to gradually slowly migrate instead of an all-or-nothing approach.
+        if (NOT WIN32)
+            target_compile_options(${target_name} PRIVATE -fvisibility=hidden)
+        endif()
+        include(GenerateExportHeader)
+        string(TOUPPER ${fs_name} fs_name_upper)
+        generate_export_header(${target_name} EXPORT_MACRO_NAME "${fs_name_upper}_API" EXPORT_FILE_NAME "Export.h")
+        target_sources(${target_name} PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/Export.h")
+    endif()
 endfunction()
 
 function(lagom_test source)
@@ -303,8 +316,12 @@ function(serenity_bin name)
 endfunction()
 
 function(serenity_lib name fs_name)
-    cmake_parse_arguments(PARSE_ARGV 2 SERENITY_LIB "" "TYPE" "")
-    lagom_lib(${name} ${fs_name} LIBRARY_TYPE ${SERENITY_LIB_TYPE} SOURCES ${SOURCES} ${GENERATED_SOURCES})
+    cmake_parse_arguments(PARSE_ARGV 2 SERENITY_LIB "EXPLICIT_SYMBOL_EXPORT" "TYPE" "")
+    set(EXPLICIT_SYMBOL_EXPORT "")
+    if (SERENITY_LIB_EXPLICIT_SYMBOL_EXPORT)
+        set(EXPLICIT_SYMBOL_EXPORT "EXPLICIT_SYMBOL_EXPORT")
+    endif()
+    lagom_lib(${name} ${fs_name} LIBRARY_TYPE ${SERENITY_LIB_TYPE} ${EXPLICIT_SYMBOL_EXPORT} SOURCES ${SOURCES} ${GENERATED_SOURCES})
 endfunction()
 
 macro(add_serenity_subdirectory path)
