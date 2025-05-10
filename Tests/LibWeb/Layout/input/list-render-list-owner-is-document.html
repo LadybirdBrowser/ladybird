@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<body>
+<ol id="ol-without-box" style="display:contents">
+    <!--
+        The list item owner will be the document; not "ol-without-box".
+        As a result, the list will be displayed as an ul.
+        FIXME: Ladybird paints MarkerPaintable... but without an actual marker. Firefox and Chrome show a minuscule bullet.
+    -->
+    <li>One</li>
+    <li>Two</li>
+</ol>
+</body>
