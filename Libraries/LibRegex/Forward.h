@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Types.h>
+#include <LibRegex/Export.h>
 
 namespace regex {
 struct CompareTypeAndValuePair;
