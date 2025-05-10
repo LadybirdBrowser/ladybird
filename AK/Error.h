@@ -36,9 +36,9 @@ public:
     static Error from_windows_error();
 #endif
 
-    static Error from_syscall(StringView syscall_name, int rc)
+    static Error from_syscall(StringView syscall_name, int code)
     {
-        return Error(syscall_name, rc);
+        return Error(syscall_name, code);
     }
     static Error from_string_view(StringView string_literal) { return Error(string_literal); }
 
@@ -113,9 +113,9 @@ private:
     {
     }
 
-    Error(StringView syscall_name, int rc)
+    Error(StringView syscall_name, int code)
         : m_string_literal(syscall_name)
-        , m_code(-rc)
+        , m_code(code)
         , m_kind(Kind::Syscall)
     {
     }
