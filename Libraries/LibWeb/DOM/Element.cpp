@@ -3298,10 +3298,10 @@ size_t Element::number_of_owned_list_items() const
 }
 
 // https://html.spec.whatwg.org/multipage/grouping-content.html#list-owner
-Element const* Element::list_owner() const
+Element* Element::list_owner() const
 {
     // Any element whose computed value of 'display' is 'list-item' has a list owner, which is determined as follows:
-    if (!computed_properties()->display().is_list_item())
+    if (!computed_properties() || !computed_properties()->display().is_list_item())
         return nullptr;
 
     // 1. If the element is not being rendered, return null; the element has no list owner.
@@ -3332,7 +3332,7 @@ Element const* Element::list_owner() const
         }
         return IterationDecision::Continue;
     });
-    return ancestor;
+    return const_cast<Element*>(ancestor.ptr());
 }
 
 // https://html.spec.whatwg.org/multipage/grouping-content.html#ordinal-value

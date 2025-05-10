@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+  <link rel="match" href="../expected/ol-change-start-attribute-ref.html" />
+  <ol id="list">
+    <li>Item a</li>
+    <li>Item b</li>
+  </ol>
+  <script>
+    // Two nested requestAnimationFrame() calls to force code execution _after_ initial paint
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        document.getElementById("list").start = 42;
+        document.documentElement.className = '';
+      });
+    });
+  </script>
+</html>
