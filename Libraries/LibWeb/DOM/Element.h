@@ -468,7 +468,7 @@ public:
     }
 
     size_t number_of_owned_list_items() const;
-    Element const* list_owner() const;
+    Element* list_owner() const;
     size_t ordinal_value() const;
 
     void set_pointer_capture(WebIDL::Long pointer_id);
