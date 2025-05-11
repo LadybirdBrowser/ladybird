@@ -31,6 +31,13 @@ void ShadowRoot::finalize()
     document().unregister_shadow_root({}, *this);
 }
 
+// https://fullscreen.spec.whatwg.org/#dom-document-fullscreenelement
+GC::Ptr<Element> ShadowRoot::fullscreen_element() const
+{
+    // FIXME: Should return a fullscreen element.
+    return nullptr;
+}
+
 void ShadowRoot::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(ShadowRoot);

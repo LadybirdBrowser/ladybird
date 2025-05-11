@@ -18,6 +18,8 @@
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/HTMLVideoElement.h>
+#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
+#include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/Layout/Label.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/DragAndDropEventHandler.h>
@@ -1181,6 +1183,15 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
 
     // https://html.spec.whatwg.org/multipage/interaction.html#close-requests
     if (key == UIEvents::KeyCode::Key_Escape) {
+        // 1. If document's fullscreen element is not null, then:
+        if (document->fullscreen()) {
+            Web::HTML::TemporaryExecutionContext context(document->realm(), Web::HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+            // 1. Fully exit fullscreen given document's node navigable's top-level traversable's active document.
+            m_navigable->top_level_traversable()->active_document()->exit_fullscreen_fully();
+            // 2. Return.
+            return EventResult::Handled;
+        }
+
         // 7. Let closedSomething be the result of processing close watchers on document's relevant global object.
         auto closed_something = document->window()->close_watcher_manager()->process_close_watchers();
 

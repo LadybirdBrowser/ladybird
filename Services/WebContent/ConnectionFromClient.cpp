@@ -33,6 +33,7 @@
 #include <LibWeb/Dump.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
+#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWeb/HTML/Storage.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
@@ -1305,4 +1306,11 @@ void ConnectionFromClient::system_time_zone_changed()
     Unicode::clear_system_time_zone_cache();
 }
 
+void ConnectionFromClient::exit_fullscreen(u64 page_id)
+{
+    if (auto page = this->page(page_id); page.has_value()) {
+        Web::HTML::TemporaryExecutionContext context(page->page().top_level_browsing_context().active_document()->realm(), Web::HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+        page->page().top_level_browsing_context().active_document()->exit_fullscreen_fully();
+    }
+}
 }
