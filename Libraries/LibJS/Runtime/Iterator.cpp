@@ -203,13 +203,24 @@ ThrowCompletionOr<Value> iterator_value(VM& vm, Object& iterator_result)
 }
 
 // 7.4.9 IteratorStep ( iteratorRecord ), https://tc39.es/ecma262/#sec-iteratorstep
-ThrowCompletionOr<GC::Ptr<Object>> iterator_step(VM& vm, IteratorRecord& iterator_record)
+ThrowCompletionOr<IterationResultOrDone> iterator_step(VM& vm, IteratorRecord& iterator_record)
 {
+    if (auto* builtin_iterator = iterator_record.iterator->as_builtin_iterator_if_next_is_not_redefined()) {
+        Value value;
+        bool done = false;
+        TRY(builtin_iterator->next(vm, done, value));
+        if (done) {
+            iterator_record.done = true;
+            return ThrowCompletionOr<IterationResultOrDone> { IterationDone {} };
+        }
+        return ThrowCompletionOr<IterationResultOrDone> { IterationResult { done, value } };
+    }
+
     // 1. Let result be ? IteratorNext(iteratorRecord).
     auto result = TRY(iterator_next(vm, iterator_record));
 
     // 2. Let done be Completion(IteratorComplete(result)).
-    auto done = iterator_complete(vm, result);
+    auto done = result->get(vm.names.done);
 
     // 3. If done is a throw completion, then
     if (done.is_throw_completion()) {
@@ -224,32 +235,32 @@ ThrowCompletionOr<GC::Ptr<Object>> iterator_step(VM& vm, IteratorRecord& iterato
     auto done_value = done.release_value();
 
     // 5. If done is true, then
-    if (done_value) {
+    if (done_value.to_boolean()) {
         // a. Set iteratorRecord.[[Done]] to true.
         iterator_record.done = true;
 
         // b. Return DONE.
-        return nullptr;
+        return ThrowCompletionOr<IterationResultOrDone> { IterationDone {} };
     }
 
     // 6. Return result.
-    return result;
+    return ThrowCompletionOr<IterationResultOrDone> { IterationResult { done_value, result->get(vm.names.value) } };
 }
 
 // 7.4.10 IteratorStepValue ( iteratorRecord ), https://tc39.es/ecma262/#sec-iteratorstepvalue
 ThrowCompletionOr<Optional<Value>> iterator_step_value(VM& vm, IteratorRecord& iterator_record)
 {
     // 1. Let result be ? IteratorStep(iteratorRecord).
-    auto result = TRY(iterator_step(vm, iterator_record));
+    IterationResultOrDone result = TRY(iterator_step(vm, iterator_record));
 
     // 2. If result is done, then
-    if (!result) {
+    if (result.has<IterationDone>()) {
         // a. Return DONE.
         return OptionalNone {};
     }
 
     // 3. Let value be Completion(IteratorValue(result)).
-    auto value = iterator_value(vm, *result);
+    auto& value = result.get<IterationResult>().value;
 
     // 4. If value is a throw completion, then
     if (value.is_throw_completion()) {
@@ -363,8 +374,10 @@ ThrowCompletionOr<GC::RootVector<Value>> iterator_to_list(VM& vm, IteratorRecord
             return values;
         }
 
+        auto value = next.release_value();
+
         // c. Append next to values.
-        values.append(next.release_value());
+        values.append(value);
     }
 }
 
