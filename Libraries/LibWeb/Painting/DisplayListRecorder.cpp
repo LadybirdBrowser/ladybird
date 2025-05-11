@@ -253,8 +253,6 @@ void DisplayListRecorder::draw_text(Gfx::IntRect const& rect, String raw_text, G
 
 void DisplayListRecorder::draw_text_run(Gfx::FloatPoint baseline_start, Gfx::GlyphRun const& glyph_run, Color color, Gfx::IntRect const& rect, double scale, Orientation orientation)
 {
-    if (rect.is_empty())
-        return;
     append(DrawGlyphRun {
         .glyph_run = glyph_run,
         .scale = scale,
