@@ -100,6 +100,7 @@
 #include <LibWeb/SVG/SVGMaskElement.h>
 #include <LibWeb/SVG/SVGMetadataElement.h>
 #include <LibWeb/SVG/SVGPathElement.h>
+#include <LibWeb/SVG/SVGPatternElement.h>
 #include <LibWeb/SVG/SVGPolygonElement.h>
 #include <LibWeb/SVG/SVGPolylineElement.h>
 #include <LibWeb/SVG/SVGRadialGradientElement.h>
@@ -451,6 +452,8 @@ static GC::Ref<SVG::SVGElement> create_svg_element(JS::Realm& realm, Document& d
     if (local_name == SVG::TagNames::svg)
         return realm.create<SVG::SVGSVGElement>(document, move(qualified_name));
     // FIXME: Support SVG's mixedCase tag names properly.
+    if (local_name == SVG::TagNames::pattern)
+        return realm.create<SVG::SVGPatternElement>(document, move(qualified_name));
     if (local_name.equals_ignoring_ascii_case(SVG::TagNames::clipPath))
         return realm.create<SVG::SVGClipPathElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::circle)

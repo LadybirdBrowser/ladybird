@@ -21,6 +21,7 @@
 #include <LibWeb/SVG/SVGGradientElement.h>
 #include <LibWeb/SVG/SVGGraphicsElement.h>
 #include <LibWeb/SVG/SVGMaskElement.h>
+#include <LibWeb/SVG/SVGPatternElement.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
 #include <LibWeb/SVG/SVGSymbolElement.h>
 
@@ -56,6 +57,8 @@ Optional<Painting::PaintStyle> SVGGraphicsElement::svg_paint_computed_value_to_g
         return {};
     if (auto gradient = try_resolve_url_to<SVG::SVGGradientElement const>(paint_value->as_url()))
         return gradient->to_gfx_paint_style(paint_context);
+    if (auto pattern = try_resolve_url_to<SVG::SVGPatternElement const>(paint_value->as_url()))
+        return pattern->to_gfx_paint_style(paint_context);
     return {};
 }
 

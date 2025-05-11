@@ -807,6 +807,7 @@ set(SOURCES
     SVG/SVGMaskElement.cpp
     SVG/SVGMetadataElement.cpp
     SVG/SVGPathElement.cpp
+    SVG/SVGPatternElement.cpp
     SVG/SVGPolygonElement.cpp
     SVG/SVGPolylineElement.cpp
     SVG/SVGRadialGradientElement.cpp

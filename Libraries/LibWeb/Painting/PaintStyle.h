@@ -17,6 +17,47 @@ struct ColorStop {
     Optional<float> transition_hint = {};
 };
 
+class SVGPatternPaintStyle final : public AtomicRefCounted<SVGPatternPaintStyle> {
+public:
+    enum class PatternUnits {
+        UserSpaceOnUse,
+        ObjectBoundingBox
+    };
+
+    enum class PatternContentUnits {
+        UserSpaceOnUse,
+        ObjectBoundingBox
+    };
+
+    static NonnullRefPtr<SVGPatternPaintStyle> create(Gfx::FloatRect pattern_box)
+    {
+        return adopt_ref(*new SVGPatternPaintStyle(pattern_box));
+    }
+
+    Gfx::FloatRect const& pattern_box() const { return m_pattern_box; }
+    void set_pattern_box(Gfx::FloatRect pattern_box) { m_pattern_box = pattern_box; }
+
+    Optional<Gfx::AffineTransform> const& pattern_transform() const { return m_pattern_transform; }
+    void set_pattern_transform(Gfx::AffineTransform transform) { m_pattern_transform = transform; }
+
+    PatternUnits pattern_units() const { return m_pattern_units; }
+    void set_pattern_units(PatternUnits units) { m_pattern_units = units; }
+
+    PatternContentUnits pattern_content_units() const { return m_pattern_content_units; }
+    void set_pattern_content_units(PatternContentUnits units) { m_pattern_content_units = units; }
+
+private:
+    SVGPatternPaintStyle(Gfx::FloatRect pattern_box)
+        : m_pattern_box(pattern_box)
+    {
+    }
+
+    Gfx::FloatRect m_pattern_box;
+    Optional<Gfx::AffineTransform> m_pattern_transform {};
+    PatternUnits m_pattern_units { PatternUnits::ObjectBoundingBox };
+    PatternContentUnits m_pattern_content_units { PatternContentUnits::UserSpaceOnUse };
+};
+
 class SVGGradientPaintStyle : public AtomicRefCounted<SVGGradientPaintStyle> {
 public:
     enum class SpreadMethod {
