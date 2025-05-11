@@ -220,7 +220,7 @@ bool Node::establishes_stacking_context() const
     // [CSS21] and a Containing Block for absolute and fixed position descendants, unless the
     // element it applies to is a document root element in the current browsing context.
     // Spec Note: This rule works in the same way as for the filter property.
-    if (!computed_values().backdrop_filter().is_empty() || !computed_values().filter().is_empty())
+    if (computed_values().backdrop_filter().has_value() || computed_values().filter().has_value())
         return true;
 
     // Element with any of the following properties with value other than none:
@@ -578,13 +578,16 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     computed_values.set_order(computed_style.order());
     computed_values.set_clip(computed_style.clip());
 
-    auto resolve_filter = [this](CSS::Filter const& computed_filter) -> Vector<Gfx::Filter> {
-        Vector<Gfx::Filter> resolved_filter;
+    auto resolve_filter = [this](CSS::Filter const& computed_filter) -> Optional<Gfx::Filter> {
+        Optional<Gfx::Filter> resolved_filter;
         for (auto const& filter : computed_filter.filters()) {
             filter.visit(
                 [&](CSS::FilterOperation::Blur const& blur) {
-                    resolved_filter.append(Gfx::BlurFilter {
-                        .radius = blur.resolved_radius(*this) });
+                    auto new_filter = Gfx::Filter::blur(blur.resolved_radius(*this));
+
+                    resolved_filter = resolved_filter.has_value()
+                        ? Gfx::Filter::compose(new_filter, *resolved_filter)
+                        : new_filter;
                 },
                 [&](CSS::FilterOperation::DropShadow const& drop_shadow) {
                     CSS::CalculationResolutionContext context {
@@ -595,19 +598,27 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
                     };
                     // The default value for omitted values is missing length values set to 0
                     // and the missing used color is taken from the color property.
-                    resolved_filter.append(Gfx::DropShadowFilter {
-                        .offset_x = to_px(drop_shadow.offset_x),
-                        .offset_y = to_px(drop_shadow.offset_y),
-                        .radius = drop_shadow.radius.has_value() ? to_px(*drop_shadow.radius) : 0.0f,
-                        .color = drop_shadow.color.has_value() ? *drop_shadow.color : this->computed_values().color() });
+                    auto new_filter = Gfx::Filter::drop_shadow(to_px(drop_shadow.offset_x),
+                        to_px(drop_shadow.offset_y),
+                        drop_shadow.radius.has_value() ? to_px(*drop_shadow.radius) : 0.0f, drop_shadow.color.has_value() ? *drop_shadow.color : this->computed_values().color());
+
+                    resolved_filter = resolved_filter.has_value()
+                        ? Gfx::Filter::compose(new_filter, *resolved_filter)
+                        : new_filter;
                 },
                 [&](CSS::FilterOperation::Color const& color_operation) {
-                    resolved_filter.append(Gfx::ColorFilter {
-                        .type = color_operation.operation,
-                        .amount = color_operation.resolved_amount() });
+                    auto new_filter = Gfx::Filter::color(color_operation.operation, color_operation.resolved_amount());
+
+                    resolved_filter = resolved_filter.has_value()
+                        ? Gfx::Filter::compose(new_filter, *resolved_filter)
+                        : new_filter;
                 },
                 [&](CSS::FilterOperation::HueRotate const& hue_rotate) {
-                    resolved_filter.append(Gfx::HueRotateFilter { .angle_degrees = hue_rotate.angle_degrees(*this) });
+                    auto new_filter = Gfx::Filter::hue_rotate(hue_rotate.angle_degrees(*this));
+
+                    resolved_filter = resolved_filter.has_value()
+                        ? Gfx::Filter::compose(new_filter, *resolved_filter)
+                        : new_filter;
                 });
         }
         return resolved_filter;

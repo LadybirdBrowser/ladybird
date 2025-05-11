@@ -73,8 +73,8 @@ void SVGSVGPaintable::paint_svg_box(PaintContext& context, PaintableBox const& s
         context.display_list_recorder().apply_opacity(computed_values.opacity());
     }
 
-    if (!filter.is_empty()) {
-        context.display_list_recorder().apply_filters(filter);
+    if (filter.has_value()) {
+        context.display_list_recorder().apply_filter(filter.value());
     }
 
     if (compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal) {
@@ -114,7 +114,7 @@ void SVGSVGPaintable::paint_svg_box(PaintContext& context, PaintableBox const& s
         context.display_list_recorder().restore();
     }
 
-    if (!filter.is_empty()) {
+    if (filter.has_value()) {
         context.display_list_recorder().restore();
     }
 

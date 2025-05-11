@@ -87,8 +87,8 @@ public:
         float shadow_offset_y { 0.0f };
         float shadow_blur { 0.0f };
         Gfx::Color shadow_color { Gfx::Color::Transparent };
-        Vector<Gfx::Filter> filters;
-        Optional<String> filters_string;
+        Optional<Gfx::Filter> filter;
+        Optional<String> filter_string;
         float line_width { 1 };
         Bindings::CanvasLineCap line_cap { Bindings::CanvasLineCap::Butt };
         Bindings::CanvasLineJoin line_join { Bindings::CanvasLineJoin::Miter };
