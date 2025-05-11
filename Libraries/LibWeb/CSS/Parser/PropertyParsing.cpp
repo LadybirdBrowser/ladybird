@@ -4545,7 +4545,7 @@ RefPtr<CSSStyleValue const> Parser::parse_filter_value_list_value(TokenStream<Co
 
     auto filter_token_to_operation = [&](auto filter) {
         VERIFY(to_underlying(filter) < to_underlying(FilterToken::Blur));
-        return static_cast<Gfx::ColorFilter::Type>(filter);
+        return static_cast<Gfx::ColorFilterType>(filter);
     };
 
     auto parse_filter_function_name = [&](auto name) -> Optional<FilterToken> {

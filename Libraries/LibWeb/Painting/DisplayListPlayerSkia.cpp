@@ -784,8 +784,8 @@ void DisplayListPlayerSkia::apply_backdrop_filter(ApplyBackdropFilter const& com
     canvas.clipRect(rect);
     ScopeGuard guard = [&] { canvas.restore(); };
 
-    for (auto const& filter : command.backdrop_filter) {
-        auto image_filter = to_skia_image_filter(filter);
+    if (command.backdrop_filter.has_value()) {
+        auto image_filter = to_skia_image_filter(command.backdrop_filter.value());
         canvas.saveLayer(SkCanvas::SaveLayerRec(nullptr, nullptr, image_filter.get(), 0));
         canvas.restore();
     }
@@ -1036,23 +1036,9 @@ void DisplayListPlayerSkia::apply_composite_and_blending_operator(ApplyComposite
     canvas.saveLayer(nullptr, &paint);
 }
 
-void DisplayListPlayerSkia::apply_filters(ApplyFilters const& command)
+void DisplayListPlayerSkia::apply_filters(ApplyFilter const& command)
 {
-    if (command.filter.is_empty()) {
-        return;
-    }
-    sk_sp<SkImageFilter> image_filter;
-    auto append_filter = [&image_filter](auto new_filter) {
-        if (image_filter)
-            image_filter = SkImageFilters::Compose(new_filter, image_filter);
-        else
-            image_filter = new_filter;
-    };
-
-    // Apply filters in order
-    for (auto filter : command.filter) {
-        append_filter(to_skia_image_filter(filter));
-    }
+    sk_sp<SkImageFilter> image_filter = to_skia_image_filter(command.filter);
 
     SkPaint paint;
     paint.setImageFilter(image_filter);

@@ -20,6 +20,7 @@
 #include <core/SkImageFilter.h>
 #include <core/SkPaint.h>
 #include <core/SkPath.h>
+#include <core/SkPathEffect.h>
 #include <core/SkSamplingOptions.h>
 
 namespace Gfx {

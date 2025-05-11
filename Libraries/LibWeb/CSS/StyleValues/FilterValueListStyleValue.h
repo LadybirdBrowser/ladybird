@@ -45,7 +45,7 @@ struct HueRotate {
 };
 
 struct Color {
-    Gfx::ColorFilter::Type operation;
+    Gfx::ColorFilterType operation;
     NumberPercentage amount { Number { Number::Type::Integer, 1.0 } };
     float resolved_amount() const;
     bool operator==(Color const&) const = default;
