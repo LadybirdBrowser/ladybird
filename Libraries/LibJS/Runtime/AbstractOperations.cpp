@@ -1132,8 +1132,17 @@ Object* create_mapped_arguments_object(VM& vm, FunctionObject& function, Nonnull
     // 16. Perform ! DefinePropertyOrThrow(obj, "length", PropertyDescriptor { [[Value]]: 𝔽(len), [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true }).
     object->put_direct(realm.intrinsics().mapped_arguments_object_length_offset(), Value(length));
 
+    // OPTIMIZATION: We take a different route here than what the spec suggests.
+    //               The spec would have us allocate a new object for the parameter map,
+    //               and then populate it with getters and setters for each mapped parameter.
+    //               That would be 1 GC allocation for the parameter map and 2 more for each
+    //               parameter's getter/setter pair.
+    //               Instead, we allocate the ArgumentsObject and let it implement the parameter map
+    //               and getter/setter behavior itself without extra GC allocations.
+
     // 17. Let mappedNames be a new empty List.
-    HashTable<FlyString> mapped_names;
+    HashTable<FlyString> seen_names;
+    Vector<FlyString> mapped_names;
 
     // 18. Set index to numberOfParameters - 1.
     // 19. Repeat, while index ≥ 0,
@@ -1143,29 +1152,25 @@ Object* create_mapped_arguments_object(VM& vm, FunctionObject& function, Nonnull
         auto const& name = formals->parameters()[index].binding.get<NonnullRefPtr<Identifier const>>()->string();
 
         // b. If name is not an element of mappedNames, then
-        if (mapped_names.contains(name))
+        if (seen_names.contains(name))
             continue;
 
         // i. Add name as an element of the list mappedNames.
-        mapped_names.set(name);
+        seen_names.set(name);
 
         // ii. If index < len, then
         if (index < length) {
             // 1. Let g be MakeArgGetter(name, env).
             // 2. Let p be MakeArgSetter(name, env).
             // 3. Perform ! map.[[DefineOwnProperty]](! ToString(𝔽(index)), PropertyDescriptor { [[Set]]: p, [[Get]]: g, [[Enumerable]]: false, [[Configurable]]: true }).
-            object->parameter_map().indexed_properties().put(
-                index,
-                Accessor::create(vm,
-                    NativeFunction::create(realm, FlyString {}, [&environment, name](VM& vm) -> ThrowCompletionOr<Value> {
-                        return MUST(environment.get_binding_value(vm, name, false));
-                    }),
-                    NativeFunction::create(realm, FlyString {}, [&environment, name](VM& vm) {
-                        MUST(environment.set_mutable_binding(vm, name, vm.argument(0), false));
-                        return js_undefined();
-                    })));
+            if (index >= static_cast<i32>(mapped_names.size()))
+                mapped_names.resize(index + 1);
+
+            mapped_names[index] = name;
         }
     }
+
+    object->set_mapped_names(move(mapped_names));
 
     // 20. Perform ! DefinePropertyOrThrow(obj, @@iterator, PropertyDescriptor { [[Value]]: %Array.prototype.values%, [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true }).
     auto array_prototype_values = realm.intrinsics().array_prototype_values_function();

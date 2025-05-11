@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2021-2025, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -22,24 +22,27 @@ void ArgumentsObject::initialize(Realm& realm)
 {
     Base::initialize(realm);
     set_has_parameter_map();
-    m_parameter_map = Object::create(realm, nullptr);
 }
 
 void ArgumentsObject::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_environment);
-    visitor.visit(m_parameter_map);
+}
+
+bool ArgumentsObject::parameter_map_has(PropertyKey const& key) const
+{
+    return key.is_number()
+        && key.as_number() < m_mapped_names.size()
+        && !m_mapped_names[key.as_number()].is_empty();
 }
 
 // 10.4.4.3 [[Get]] ( P, Receiver ), https://tc39.es/ecma262/#sec-arguments-exotic-objects-get-p-receiver
 ThrowCompletionOr<Value> ArgumentsObject::internal_get(PropertyKey const& property_key, Value receiver, CacheablePropertyMetadata* cacheable_metadata, PropertyLookupPhase phase) const
 {
     // 1. Let map be args.[[ParameterMap]].
-    auto& map = *m_parameter_map;
-
     // 2. Let isMapped be ! HasOwnProperty(map, P).
-    bool is_mapped = MUST(m_parameter_map->has_own_property(property_key));
+    bool is_mapped = parameter_map_has(property_key);
 
     // 3. If isMapped is false, then
     if (!is_mapped) {
@@ -47,10 +50,9 @@ ThrowCompletionOr<Value> ArgumentsObject::internal_get(PropertyKey const& proper
         return Object::internal_get(property_key, receiver, cacheable_metadata, phase);
     }
 
-    // FIXME: a. Assert: map contains a formal parameter mapping for P.
-
+    // a. Assert: map contains a formal parameter mapping for P.
     // b. Return ! Get(map, P).
-    return MUST(map.get(property_key));
+    return get_from_parameter_map(property_key);
 }
 
 // 10.4.4.4 [[Set]] ( P, V, Receiver ), https://tc39.es/ecma262/#sec-arguments-exotic-objects-set-p-v-receiver
@@ -65,15 +67,14 @@ ThrowCompletionOr<bool> ArgumentsObject::internal_set(PropertyKey const& propert
     } else {
         // a. Let map be args.[[ParameterMap]].
         // b. Let isMapped be ! HasOwnProperty(map, P).
-        is_mapped = MUST(parameter_map().has_own_property(property_key));
+        is_mapped = parameter_map_has(property_key);
     }
 
     // 3. If isMapped is true, then
     if (is_mapped) {
         // a. Assert: The following Set will succeed, since formal parameters mapped by arguments objects are always writable.
-
         // b. Perform ! Set(map, P, V, false).
-        MUST(m_parameter_map->set(property_key, value, Object::ShouldThrowExceptions::No));
+        set_in_parameter_map(property_key, value);
     }
 
     // 4. Return ? OrdinarySet(args, P, V, Receiver).
@@ -84,10 +85,8 @@ ThrowCompletionOr<bool> ArgumentsObject::internal_set(PropertyKey const& propert
 ThrowCompletionOr<bool> ArgumentsObject::internal_delete(PropertyKey const& property_key)
 {
     // 1. Let map be args.[[ParameterMap]].
-    auto& map = parameter_map();
-
     // 2. Let isMapped be ! HasOwnProperty(map, P).
-    bool is_mapped = MUST(map.has_own_property(property_key));
+    bool is_mapped = parameter_map_has(property_key);
 
     // 3. Let result be ? OrdinaryDelete(args, P).
     bool result = TRY(Object::internal_delete(property_key));
@@ -95,7 +94,7 @@ ThrowCompletionOr<bool> ArgumentsObject::internal_delete(PropertyKey const& prop
     // 4. If result is true and isMapped is true, then
     if (result && is_mapped) {
         // a. Perform ! map.[[Delete]](P).
-        MUST(map.internal_delete(property_key));
+        delete_from_parameter_map(property_key);
     }
 
     // 5. Return result.
@@ -114,12 +113,12 @@ ThrowCompletionOr<Optional<PropertyDescriptor>> ArgumentsObject::internal_get_ow
 
     // 3. Let map be args.[[ParameterMap]].
     // 4. Let isMapped be ! HasOwnProperty(map, P).
-    bool is_mapped = MUST(m_parameter_map->has_own_property(property_key));
+    bool is_mapped = parameter_map_has(property_key);
 
     // 5. If isMapped is true, then
     if (is_mapped) {
         // a. Set desc.[[Value]] to ! Get(map, P).
-        desc->value = MUST(m_parameter_map->get(property_key));
+        desc->value = get_from_parameter_map(property_key);
     }
 
     // 6. Return desc.
@@ -130,10 +129,8 @@ ThrowCompletionOr<Optional<PropertyDescriptor>> ArgumentsObject::internal_get_ow
 ThrowCompletionOr<bool> ArgumentsObject::internal_define_own_property(PropertyKey const& property_key, PropertyDescriptor const& descriptor, Optional<PropertyDescriptor>* precomputed_get_own_property)
 {
     // 1. Let map be args.[[ParameterMap]].
-    auto& map = parameter_map();
-
     // 2. Let isMapped be ! HasOwnProperty(map, P).
-    bool is_mapped = MUST(map.has_own_property(property_key));
+    bool is_mapped = parameter_map_has(property_key);
 
     // 3. Let newArgDesc be Desc.
     auto new_arg_desc = descriptor;
@@ -145,7 +142,7 @@ ThrowCompletionOr<bool> ArgumentsObject::internal_define_own_property(PropertyKe
             // i. Set newArgDesc to a copy of Desc.
             new_arg_desc = descriptor;
             // ii. Set newArgDesc.[[Value]] to ! Get(map, P).
-            new_arg_desc.value = MUST(map.get(property_key));
+            new_arg_desc.value = get_from_parameter_map(property_key);
         }
     }
 
@@ -161,25 +158,40 @@ ThrowCompletionOr<bool> ArgumentsObject::internal_define_own_property(PropertyKe
         // a. If IsAccessorDescriptor(Desc) is true, then
         if (descriptor.is_accessor_descriptor()) {
             // i. Perform ! map.[[Delete]](P).
-            MUST(map.internal_delete(property_key));
+            delete_from_parameter_map(property_key);
         } else {
             // i. If Desc has a [[Value]] field, then
             if (descriptor.value.has_value()) {
                 // 1. Assert: The following Set will succeed, since formal parameters mapped by arguments objects are always writable.
 
                 // 2. Perform ! Set(map, P, Desc.[[Value]], false).
-                MUST(map.set(property_key, descriptor.value.value(), Object::ShouldThrowExceptions::No));
+                set_in_parameter_map(property_key, descriptor.value.value());
             }
             // ii. If Desc has a [[Writable]] field and Desc.[[Writable]] is false, then
             if (descriptor.writable == false) {
                 // 1. Perform ! map.[[Delete]](P).
-                MUST(map.internal_delete(property_key));
+                delete_from_parameter_map(property_key);
             }
         }
     }
 
     // 8. Return true.
     return true;
+}
+
+void ArgumentsObject::delete_from_parameter_map(PropertyKey const& property_key)
+{
+    m_mapped_names[property_key.as_number()] = FlyString {};
+}
+
+Value ArgumentsObject::get_from_parameter_map(PropertyKey const& property_key) const
+{
+    return MUST(m_environment->get_binding_value(vm(), m_mapped_names[property_key.as_number()], false));
+}
+
+void ArgumentsObject::set_in_parameter_map(PropertyKey const& property_key, Value value)
+{
+    MUST(m_environment->set_mutable_binding(vm(), m_mapped_names[property_key.as_number()], value, false));
 }
 
 }
