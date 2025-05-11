@@ -329,31 +329,25 @@
         <div class="card">
             <div class="card-header">Search</div>
             <div class="card-body">
-                <div class="card-group inline-container">
-                    <label for="search-toggle">Enable Search</label>
-                    <input id="search-toggle" type="checkbox" switch />
-                </div>
-                <div class="card-group hidden">
-                    <label for="search-engine">Default Search Engine</label>
+                <div class="card-group">
                     <div class="inline-container">
-                        <select id="search-engine">
-                            <option value="">Please select a search engine</option>
-                            <hr />
-                        </select>
+                        <label for="search-engine">Default Search Engine</label>
                         <button id="search-settings" class="secondary-button">Settings...</button>
                     </div>
+                    <p class="description">Select the search engine to use in the address bar.</p>
+                    <select id="search-engine">
+                        <option value="">Disable search</option>
+                        <hr />
+                    </select>
                 </div>
 
                 <hr />
 
-                <div class="card-group inline-container">
-                    <label for="autocomplete-toggle">Enable Autocomplete</label>
-                    <input id="autocomplete-toggle" type="checkbox" switch />
-                </div>
-                <div class="card-group hidden">
-                    <label for="autocomplete-engine">Default Autocomplete Engine</label>
+                <div class="card-group">
+                    <label for="autocomplete-engine">Search Suggestions</label>
+                    <p class="description">Select the engine that will provide search suggestions.</p>
                     <select id="autocomplete-engine">
-                        <option value="">Please select an autocomplete engine</option>
+                        <option value="">Disable search suggestions</option>
                         <hr />
                     </select>
                 </div>
