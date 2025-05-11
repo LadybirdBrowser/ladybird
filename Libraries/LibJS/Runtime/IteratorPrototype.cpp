@@ -128,10 +128,10 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::drop)
             iterator.increment_counter();
 
             // ii. Let next be ? IteratorStep(iterated).
-            auto next = TRY(iterator_step(vm, iterated));
+            IterationResultOrDone next = TRY(iterator_step(vm, iterated));
 
             // iii. If next is DONE, return ReturnCompletion(undefined).
-            if (!next)
+            if (next.has<IterationDone>())
                 return iterator.result(js_undefined());
         }
 

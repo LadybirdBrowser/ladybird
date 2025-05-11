@@ -1766,10 +1766,10 @@ void IDL::ParameterizedType::generate_sequence_from_iterable(SourceGenerator& ge
     sequence_generator.append(R"~~~(
     for (;;) {
         auto next@recursion_depth@ = TRY(JS::iterator_step(vm, @iterable_cpp_name@_iterator@recursion_depth@));
-        if (!next@recursion_depth@)
+        if (!next@recursion_depth@.has<JS::IterationResult>())
             break;
 
-        auto next_item@recursion_depth@ = TRY(JS::iterator_value(vm, *next@recursion_depth@));
+        auto next_item@recursion_depth@ = TRY(next@recursion_depth@.get<JS::IterationResult>().value);
 )~~~");
 
     // FIXME: Sequences types should be TypeWithExtendedAttributes, which would allow us to get [LegacyNullToEmptyString] here.
