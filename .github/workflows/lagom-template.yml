@@ -143,8 +143,6 @@ jobs:
             -DINSTALL_LAGOM_TOOLS=ON \
             -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/Build/tools-install \
             -DPython3_EXECUTABLE=${{ env.pythonLocation }}/bin/python \
-            -DCMAKE_C_COMPILER=gcc-13 \
-            -DCMAKE_CXX_COMPILER=g++-13 \
             -Dpackage=LagomTools
 
           ninja -C ${{ github.workspace }}/Build/tools-build install
