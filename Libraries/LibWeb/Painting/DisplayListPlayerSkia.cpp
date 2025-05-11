@@ -622,16 +622,16 @@ static SkPaint paint_style_to_skia_paint(Painting::SVGGradientPaintStyle const& 
     auto tile_mode = to_skia_tile_mode(paint_style.spread_method());
 
     sk_sp<SkShader> shader;
-    if (is<SVGLinearGradientPaintStyle>(paint_style)) {
-        auto const& linear_gradient_paint_style = static_cast<SVGLinearGradientPaintStyle const&>(paint_style);
+    if (is<Painting::SVGLinearGradientPaintStyle>(paint_style)) {
+        auto const& linear_gradient_paint_style = static_cast<Painting::SVGLinearGradientPaintStyle const&>(paint_style);
 
         Array points {
             to_skia_point(linear_gradient_paint_style.start_point()),
             to_skia_point(linear_gradient_paint_style.end_point()),
         };
         shader = SkGradientShader::MakeLinear(points.data(), colors.data(), positions.data(), color_stops.size(), tile_mode, 0, &matrix);
-    } else if (is<SVGRadialGradientPaintStyle>(paint_style)) {
-        auto const& radial_gradient_paint_style = static_cast<SVGRadialGradientPaintStyle const&>(paint_style);
+    } else if (is<Painting::SVGRadialGradientPaintStyle>(paint_style)) {
+        auto const& radial_gradient_paint_style = static_cast<Painting::SVGRadialGradientPaintStyle const&>(paint_style);
 
         auto start_center = to_skia_point(radial_gradient_paint_style.start_center());
         auto end_center = to_skia_point(radial_gradient_paint_style.end_center());
@@ -651,7 +651,7 @@ void DisplayListPlayerSkia::fill_path_using_paint_style(FillPathUsingPaintStyle 
     auto path = to_skia_path(command.path);
     path.offset(command.aa_translation.x(), command.aa_translation.y());
     path.setFillType(to_skia_path_fill_type(command.winding_rule));
-    auto paint = paint_style_to_skia_paint(*command.paint_style, command.bounding_rect().to_type<float>());
+    auto paint = paint_style_to_skia_paint(*command.paint_style, command.path_bounding_rect.to_type<float>());
     paint.setAntiAlias(true);
     paint.setAlphaf(command.opacity);
     surface().canvas().drawPath(path, paint);
@@ -686,7 +686,7 @@ void DisplayListPlayerSkia::stroke_path_using_paint_style(StrokePathUsingPaintSt
 
     auto path = to_skia_path(command.path);
     path.offset(command.aa_translation.x(), command.aa_translation.y());
-    auto paint = paint_style_to_skia_paint(*command.paint_style, command.bounding_rect().to_type<float>());
+    auto paint = paint_style_to_skia_paint(*command.paint_style, command.path_bounding_rect.to_type<float>());
     paint.setAntiAlias(true);
     paint.setAlphaf(command.opacity);
     paint.setStyle(SkPaint::Style::kStroke_Style);
@@ -694,7 +694,10 @@ void DisplayListPlayerSkia::stroke_path_using_paint_style(StrokePathUsingPaintSt
     paint.setStrokeCap(to_skia_cap(command.cap_style));
     paint.setStrokeJoin(to_skia_join(command.join_style));
     paint.setStrokeMiter(command.miter_limit);
-    paint.setPathEffect(SkDashPathEffect::Make(command.dash_array.data(), command.dash_array.size(), command.dash_offset));
+
+    if (!command.dash_array.is_empty())
+        paint.setPathEffect(SkDashPathEffect::Make(command.dash_array.data(), command.dash_array.size(), command.dash_offset));
+
     surface().canvas().drawPath(path, paint);
 }
 
