@@ -308,7 +308,7 @@ struct DrawLine {
 struct ApplyBackdropFilter {
     Gfx::IntRect backdrop_region;
     BorderRadiiData border_radii_data;
-    Vector<Gfx::Filter> backdrop_filter;
+    Optional<Gfx::Filter> backdrop_filter;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return backdrop_region; }
 
@@ -422,8 +422,8 @@ struct ApplyCompositeAndBlendingOperator {
     Gfx::CompositingAndBlendingOperator compositing_and_blending_operator;
 };
 
-struct ApplyFilters {
-    Vector<Gfx::Filter> filter;
+struct ApplyFilter {
+    Gfx::Filter filter;
 };
 
 struct ApplyTransform {
@@ -483,7 +483,7 @@ using Command = Variant<
     PaintScrollBar,
     ApplyOpacity,
     ApplyCompositeAndBlendingOperator,
-    ApplyFilters,
+    ApplyFilter,
     ApplyTransform,
     ApplyMaskBitmap>;
 

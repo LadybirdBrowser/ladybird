@@ -572,14 +572,14 @@ void PaintableBox::paint_border(PaintContext& context) const
 void PaintableBox::paint_backdrop_filter(PaintContext& context) const
 {
     auto const& backdrop_filter = computed_values().backdrop_filter();
-    if (backdrop_filter.is_empty()) {
+    if (!backdrop_filter.has_value()) {
         return;
     }
 
     auto backdrop_region = context.rounded_device_rect(absolute_border_box_rect());
     auto border_radii_data = normalized_border_radii_data();
     ScopedCornerRadiusClip corner_clipper { context, backdrop_region, border_radii_data };
-    context.display_list_recorder().apply_backdrop_filter(backdrop_region.to_type<int>(), border_radii_data, backdrop_filter);
+    context.display_list_recorder().apply_backdrop_filter(backdrop_region.to_type<int>(), border_radii_data, backdrop_filter.value());
 }
 
 void PaintableBox::paint_background(PaintContext& context) const
