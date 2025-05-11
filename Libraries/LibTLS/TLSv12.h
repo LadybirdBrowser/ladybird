@@ -21,12 +21,12 @@ struct Options {
         return typ { __VA_ARGS__ };          \
     }                                        \
     typ name = default_##name();             \
-    Options& set_##name(typ new_value)&      \
+    Options& set_##name(typ new_value) &     \
     {                                        \
         name = move(new_value);              \
         return *this;                        \
     }                                        \
-    Options&& set_##name(typ new_value)&&    \
+    Options&& set_##name(typ new_value) &&   \
     {                                        \
         name = move(new_value);              \
         return move(*this);                  \
