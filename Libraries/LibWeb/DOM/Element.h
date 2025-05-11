@@ -499,6 +499,8 @@ protected:
 
     CustomElementState custom_element_state() const { return m_custom_element_state; }
 
+    void play_or_cancel_animations_after_display_property_change();
+
 private:
     FlyString make_html_uppercased_qualified_name() const;
 
