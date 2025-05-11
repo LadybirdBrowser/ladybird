@@ -108,9 +108,11 @@ Settings Settings::create(Badge<Application>)
             settings.m_search_engine = settings.find_search_engine_by_name(*search_engine_name);
     }
 
-    if (auto autocomplete_engine = settings_json.value().get_object(autocomplete_engine_key); autocomplete_engine.has_value()) {
-        if (auto autocomplete_engine_name = autocomplete_engine->get_string(autocomplete_engine_name_key); autocomplete_engine_name.has_value())
-            settings.m_autocomplete_engine = find_autocomplete_engine_by_name(*autocomplete_engine_name);
+    if (settings.m_search_engine.has_value()) {
+        if (auto autocomplete_engine = settings_json.value().get_object(autocomplete_engine_key); autocomplete_engine.has_value()) {
+            if (auto autocomplete_engine_name = autocomplete_engine->get_string(autocomplete_engine_name_key); autocomplete_engine_name.has_value())
+                settings.m_autocomplete_engine = find_autocomplete_engine_by_name(*autocomplete_engine_name);
+        }
     }
 
     auto load_site_setting = [&](SiteSetting& site_setting, StringView key) {

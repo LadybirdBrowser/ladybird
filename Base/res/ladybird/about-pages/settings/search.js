@@ -23,6 +23,8 @@ function loadEngineSettings(settings) {
     SEARCH_ENGINE = settings.searchEngine || {};
     AUTOCOMPLETE_ENGINE = settings.autocompleteEngine || {};
 
+    autocompleteEngine.disabled = !SEARCH_ENGINE.name;
+
     loadCustomSearchEngines();
     renderEngine(Engine.search, SEARCH_ENGINE);
     renderEngine(Engine.autocomplete, AUTOCOMPLETE_ENGINE);
