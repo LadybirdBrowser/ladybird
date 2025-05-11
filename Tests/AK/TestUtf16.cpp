@@ -178,15 +178,12 @@ TEST_CASE(iterate_utf16)
     EXPECT(iterator.length_in_code_units() == 2);
 
     EXPECT(++iterator == view.end());
-    EXPECT_CRASH("Dereferencing Utf16CodePointIterator which is at its end.", [&iterator] {
-        *iterator;
-        return Test::Crash::Failure::DidNotCrash;
-    });
 
-    EXPECT_CRASH("Incrementing Utf16CodePointIterator which is at its end.", [&iterator] {
-        ++iterator;
-        return Test::Crash::Failure::DidNotCrash;
-    });
+    // Dereferencing Utf16CodePointIterator which is at its end.
+    EXPECT_DEATH(*iterator);
+
+    // Incrementing Utf16CodePointIterator which is at its end.
+    EXPECT_DEATH(++iterator);
 }
 
 TEST_CASE(validate_invalid_utf16)

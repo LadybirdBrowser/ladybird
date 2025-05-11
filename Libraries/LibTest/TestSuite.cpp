@@ -12,10 +12,34 @@
 #include <LibTest/TestResult.h>
 #include <LibTest/TestSuite.h>
 #include <math.h>
-#include <stdlib.h>
-#include <sys/time.h>
+
+static jmp_buf g_assert_jmp_buf = {};
+static bool g_assert_jmp_buf_valid = false;
+
+#ifdef AK_OS_WINDOWS
+extern "C" __declspec(dllexport) void ak_assertion_handler(char const*)
+#else
+extern "C" void ak_assertion_handler(char const*);
+TEST_API void ak_assertion_handler(char const*)
+#endif
+{
+    if (g_assert_jmp_buf_valid) {
+        Test::set_assertion_jump_validity(false);
+        longjmp(g_assert_jmp_buf, 1); /* NOLINT(cert-err52-cpp, bugprone-setjmp-longjmp) Isolated to test infrastructure and allows us to not depend on spawning child processes for death tests */
+    }
+}
 
 namespace Test {
+
+jmp_buf& assertion_jump_buffer()
+{
+    return g_assert_jmp_buf;
+}
+
+void set_assertion_jump_validity(bool const validity)
+{
+    g_assert_jmp_buf_valid = validity;
+}
 
 TestSuite* TestSuite::s_global = nullptr;
 

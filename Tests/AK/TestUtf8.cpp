@@ -170,10 +170,9 @@ TEST_CASE(iterate_utf8)
 
     EXPECT(iterator.done());
     EXPECT(!iterator.peek(0).has_value());
-    EXPECT_CRASH("Dereferencing Utf8CodePointIterator which is already done.", [&iterator] {
-        *iterator;
-        return Test::Crash::Failure::DidNotCrash;
-    });
+
+    // Dereferencing Utf8CodePointIterator which is already done.
+    EXPECT_DEATH(*iterator);
 }
 
 TEST_CASE(decode_invalid_ut8)

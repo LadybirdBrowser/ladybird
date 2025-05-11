@@ -206,10 +206,8 @@ TEST_CASE(from_code_points)
     auto string = String::from_code_point(0x10ffff);
     EXPECT_EQ(string, "\xF4\x8F\xBF\xBF"sv);
 
-    EXPECT_CRASH("Creating a string from an invalid code point", [] {
-        String::from_code_point(0xffffffff);
-        return Test::Crash::Failure::DidNotCrash;
-    });
+    // Creating a string from an invalid code point
+    EXPECT_DEATH(String::from_code_point(0xffffffff));
 }
 
 TEST_CASE(substring)
@@ -1147,10 +1145,8 @@ TEST_CASE(repeated)
         EXPECT_EQ(string3, "𐌀𐌀𐌀𐌀𐌀𐌀𐌀𐌀𐌀𐌀"sv);
     }
 
-    EXPECT_CRASH("Creating a string from an invalid code point", [] {
-        (void)String::repeated(0xffffffff, 1);
-        return Test::Crash::Failure::DidNotCrash;
-    });
+    // Creating a string from an invalid code point
+    EXPECT_DEATH((void)String::repeated(0xffffffff, 1));
 }
 
 TEST_CASE(join)

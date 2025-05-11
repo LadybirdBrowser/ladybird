@@ -8,7 +8,6 @@
 
 TEST_CASE(raise)
 {
-    EXPECT_NO_CRASH("This should never crash", [] {
-        return Test::Crash::Failure::DidNotCrash;
-    });
+    // This should never crash
+    EXPECT_NO_DEATH([] { }());
 }
