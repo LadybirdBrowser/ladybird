@@ -4,7 +4,7 @@
 
 Qt6 development packages, nasm, additional build tools, and a C++23 capable compiler are required.
 
-We currently use gcc-13 and clang-19 in our CI pipeline. If these versions are not available on your system, see
+We currently use gcc-14 and clang-19 in our CI pipeline. If these versions are not available on your system, see
 [`Meta/find_compiler.sh`](../Meta/find_compiler.sh) for the minimum compatible version.
 
 CMake 3.25 or newer must be available in $PATH.
@@ -62,7 +62,7 @@ sudo apt update -y && sudo apt install clang-19 clangd-19 clang-tools-19 clang-f
 
 ```bash
 sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-sudo apt update && sudo apt install g++-13 libstdc++-13-dev
+sudo apt update && sudo apt install g++-14 libstdc++-14-dev
 ```
 
 #### Audio support:
@@ -94,7 +94,7 @@ sudo dnf install autoconf-archive automake ccache cmake curl liberation-sans-fon
 ### openSUSE:
 
 ```
-sudo zypper install autoconf-archive automake ccache cmake curl gcc13 gcc13-c++ liberation-fonts libglvnd-devel nasm ninja qt6-base-devel qt6-multimedia-devel qt6-tools-devel qt6-wayland-devel tar unzip zip
+sudo zypper install autoconf-archive automake ccache cmake curl gcc14 gcc14-c++ liberation-fonts libglvnd-devel nasm ninja qt6-base-devel qt6-multimedia-devel qt6-tools-devel qt6-wayland-devel tar unzip zip
 ```
 The build process requires at least python3.7; openSUSE Leap only features Python 3.6 as default, so it is recommendable to install package python311 and create a virtual environment (venv) in this case.
 
