@@ -51,10 +51,10 @@ jobs:
       - name: Install dependencies
         run: |
           wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
-          sudo add-apt-repository 'deb http://apt.llvm.org/noble/ llvm-toolchain-noble-19 main'
+          sudo add-apt-repository 'deb http://apt.llvm.org/noble/ llvm-toolchain-noble-20 main'
 
           sudo apt-get update -y
-          sudo apt-get install -y ninja-build unzip clang-19 clang++-19 jq wget curl zip tar autoconf autoconf-archive automake nasm pkg-config libgl1-mesa-dev rsync
+          sudo apt-get install -y ninja-build unzip clang-20 clang++-20 jq wget curl zip tar autoconf autoconf-archive automake nasm pkg-config libgl1-mesa-dev rsync
 
           test -e /opt/wabt-1.0.35 || (
             cd /tmp
@@ -96,11 +96,11 @@ jobs:
           export HOME=${{ github.workspace }}/home
           mkdir -p $HOME
           env PATH="/opt/wabt-1.0.35/bin:$PATH" \
-            CC=clang-19 \
-            CXX=clang++-19 \
+            CC=clang-20 \
+            CXX=clang++-20 \
             cmake --preset CI -B libjs-test262/Build \
-              -DCMAKE_C_COMPILER=clang-19 \
-              -DCMAKE_CXX_COMPILER=clang++-19 \
+              -DCMAKE_C_COMPILER=clang-20 \
+              -DCMAKE_CXX_COMPILER=clang++-20 \
               -DWASM_SPEC_TEST_SKIP_FORMATTING=ON \
               -DINCLUDE_WASM_SPEC_TESTS=ON \
               -DENABLE_GUI_TARGETS=OFF

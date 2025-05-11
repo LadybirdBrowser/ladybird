@@ -56,7 +56,7 @@ pick_host_compiler() {
         return
     fi
 
-    find_newest_compiler clang clang-17 clang-18 clang-19 /opt/homebrew/opt/llvm/bin/clang
+    find_newest_compiler clang clang-17 clang-18 clang-19 clang-20 /opt/homebrew/opt/llvm/bin/clang
     if is_supported_compiler "$HOST_COMPILER"; then
         export CC="${HOST_COMPILER}"
         export CXX="${HOST_COMPILER/clang/clang++}"

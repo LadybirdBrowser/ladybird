@@ -34,18 +34,19 @@ runs:
         sudo add-apt-repository ppa:ubuntu-toolchain-r/test
 
         wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
-        sudo add-apt-repository 'deb http://apt.llvm.org/noble/ llvm-toolchain-noble-19 main'
+        sudo add-apt-repository 'deb http://apt.llvm.org/noble/ llvm-toolchain-noble-20 main'
 
         sudo apt-get update -y
         sudo apt-get install -y autoconf autoconf-archive automake build-essential ccache cmake curl fonts-liberation2 \
             gcc-14 g++-14 libcurl4-openssl-dev libegl1-mesa-dev libgl1-mesa-dev libpulse-dev libssl-dev \
-            libstdc++-14-dev lld-19 nasm ninja-build qt6-base-dev qt6-tools-dev-tools tar unzip zip
+            libstdc++-14-dev lld-20 nasm ninja-build qt6-base-dev qt6-tools-dev-tools tar unzip zip
 
         if ${{ inputs.toolchain == 'Clang' }} ; then
-          sudo apt-get install -y clang-19 clang++-19 clang-tools-19
-          sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-19 100
-          sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-19 100
+          sudo apt-get install -y clang-20 clang++-20 clang-tools-20
+          sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-20 100
+          sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-20 100
         fi
+
         sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 100
         sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 100
 
@@ -112,7 +113,7 @@ runs:
       run: |
         set -e
         brew update
-        brew install autoconf autoconf-archive automake bash ccache coreutils llvm@19 nasm ninja pkg-config qt unzip wabt
+        brew install autoconf autoconf-archive automake bash ccache coreutils llvm@20 nasm ninja pkg-config qt unzip wabt
 
     - name: 'Set required environment variables'
       if: ${{ inputs.os == 'Linux' && inputs.arch == 'arm64' }}

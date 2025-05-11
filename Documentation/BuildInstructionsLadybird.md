@@ -4,7 +4,7 @@
 
 Qt6 development packages, nasm, additional build tools, and a C++23 capable compiler are required.
 
-We currently use gcc-14 and clang-19 in our CI pipeline. If these versions are not available on your system, see
+We currently use gcc-14 and clang-20 in our CI pipeline. If these versions are not available on your system, see
 [`Meta/find_compiler.sh`](../Meta/find_compiler.sh) for the minimum compatible version.
 
 CMake 3.25 or newer must be available in $PATH.
@@ -52,10 +52,10 @@ sudo wget -O /usr/share/keyrings/llvm-snapshot.gpg.key https://apt.llvm.org/llvm
 # Optional: Verify the GPG key manually
 
 # Use the key to authorize an entry for apt.llvm.org in apt sources list
-echo "deb [signed-by=/usr/share/keyrings/llvm-snapshot.gpg.key] https://apt.llvm.org/$(lsb_release -sc)/ llvm-toolchain-$(lsb_release -sc)-19 main" | sudo tee -a /etc/apt/sources.list.d/llvm.list
+echo "deb [signed-by=/usr/share/keyrings/llvm-snapshot.gpg.key] https://apt.llvm.org/$(lsb_release -sc)/ llvm-toolchain-$(lsb_release -sc)-20 main" | sudo tee -a /etc/apt/sources.list.d/llvm.list
 
 # Update apt package list and install clang and associated packages
-sudo apt update -y && sudo apt install clang-19 clangd-19 clang-tools-19 clang-format-19 clang-tidy-19 lld-19 -y
+sudo apt update -y && sudo apt install clang-20 clangd-20 clang-tools-20 clang-format-20 clang-tidy-20 lld-20 -y
 ```
 
 - Alternative: Install gcc from [Ubuntu Toolchain PPA](https://launchpad.net/~ubuntu-toolchain-r/+archive/ubuntu/test):
@@ -122,7 +122,7 @@ brew install autoconf autoconf-archive automake ccache cmake nasm ninja pkg-conf
 
 If you wish to use clang from homebrew instead:
 ```
-brew install llvm@19
+brew install llvm@20
 ```
 
 If you also plan to use the Qt UI on macOS:
