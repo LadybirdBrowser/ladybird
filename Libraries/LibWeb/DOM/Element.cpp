@@ -651,7 +651,13 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style()
     set_computed_properties(move(new_computed_properties));
 
     if (old_display_is_none != new_display_is_none) {
-        play_or_cancel_animations_after_display_property_change();
+        for_each_shadow_including_inclusive_descendant([&](auto& node) {
+            if (!node.is_element())
+                return TraversalDecision::Continue;
+            auto& element = static_cast<Element&>(node);
+            element.play_or_cancel_animations_after_display_property_change();
+            return TraversalDecision::Continue;
+        });
     }
 
     // Any document change that can cause this element's style to change, could also affect its pseudo-elements.
@@ -1275,6 +1281,8 @@ void Element::inserted()
         if (m_name.has_value())
             document().element_with_name_was_added({}, *this);
     }
+
+    play_or_cancel_animations_after_display_property_change();
 }
 
 void Element::removed_from(Node* old_parent, Node& old_root)
@@ -1287,6 +1295,8 @@ void Element::removed_from(Node* old_parent, Node& old_root)
         if (m_name.has_value())
             document().element_with_name_was_removed({}, *this);
     }
+
+    play_or_cancel_animations_after_display_property_change();
 }
 
 void Element::moved_from(GC::Ptr<Node> old_parent)
@@ -4012,6 +4022,37 @@ FlyString const& Element::html_uppercased_qualified_name() const
     if (!m_html_uppercased_qualified_name.has_value())
         m_html_uppercased_qualified_name = make_html_uppercased_qualified_name();
     return m_html_uppercased_qualified_name.value();
+}
+
+void Element::play_or_cancel_animations_after_display_property_change()
+{
+    // OPTIMIZATION: We don't care about animations in disconnected subtrees.
+    if (!is_connected())
+        return;
+
+    // https://www.w3.org/TR/css-animations-1/#animations
+    // Setting the display property to none will terminate any running animation applied to the element and its descendants.
+    // If an element has a display of none, updating display to a value other than none will start all animations applied to
+    // the element by the animation-name property, as well as all animations applied to descendants with display other than none.
+
+    auto has_display_none_inclusive_ancestor = this->has_inclusive_ancestor_with_display_none();
+
+    auto play_or_cancel_depending_on_display = [&](Animations::Animation& animation) {
+        if (has_display_none_inclusive_ancestor) {
+            animation.cancel();
+        } else {
+            HTML::TemporaryExecutionContext context(realm());
+            animation.play().release_value_but_fixme_should_propagate_errors();
+        }
+    };
+
+    if (auto animation = cached_animation_name_animation({}))
+        play_or_cancel_depending_on_display(*animation);
+    for (auto i = 0; i < to_underlying(CSS::PseudoElement::KnownPseudoElementCount); i++) {
+        auto pseudo_element = static_cast<CSS::PseudoElement>(i);
+        if (auto animation = cached_animation_name_animation(pseudo_element))
+            play_or_cancel_depending_on_display(*animation);
+    }
 }
 
 }
