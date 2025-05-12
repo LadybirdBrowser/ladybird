@@ -7,6 +7,7 @@
 #include <AK/Utf8View.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/StringIterator.h>
+#include <LibJS/Runtime/StringIteratorPrototype.h>
 
 namespace JS {
 
@@ -22,6 +23,8 @@ StringIterator::StringIterator(String string, Object& prototype)
     , m_string(move(string))
     , m_iterator(Utf8View(m_string).begin())
 {
+    auto& string_iterator_prototype = as<StringIteratorPrototype>(prototype);
+    m_next_method_was_redefined = string_iterator_prototype.next_method_was_redefined();
 }
 
 ThrowCompletionOr<void> StringIterator::next(VM& vm, bool& done, Value& value)

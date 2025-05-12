@@ -71,6 +71,9 @@ class BuiltinIterator {
 public:
     virtual ~BuiltinIterator() = default;
     virtual ThrowCompletionOr<void> next(VM&, bool& done, Value& value) = 0;
+
+protected:
+    bool m_next_method_was_redefined { false };
 };
 
 // 7.4.12 IfAbruptCloseIterator ( value, iteratorRecord ), https://tc39.es/ecma262/#sec-ifabruptcloseiterator

@@ -1769,7 +1769,7 @@ class PropertyNameIterator final
 public:
     virtual ~PropertyNameIterator() override = default;
 
-    BuiltinIterator* as_builtin_iterator() override { return this; }
+    BuiltinIterator* as_builtin_iterator_if_next_is_not_redefined() override { return this; }
     ThrowCompletionOr<void> next(VM&, bool& done, Value& value) override
     {
         while (true) {
@@ -3175,7 +3175,7 @@ ThrowCompletionOr<void> IteratorNextUnpack::execute_impl(Bytecode::Interpreter& 
 
     Value value;
     bool done = false;
-    if (auto* builtin_iterator = iterator_record.iterator->as_builtin_iterator()) {
+    if (auto* builtin_iterator = iterator_record.iterator->as_builtin_iterator_if_next_is_not_redefined()) {
         TRY(builtin_iterator->next(vm, done, value));
     } else {
         auto result = TRY(iterator_next(vm, iterator_record));

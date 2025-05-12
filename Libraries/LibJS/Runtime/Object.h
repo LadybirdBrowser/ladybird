@@ -212,7 +212,12 @@ public:
     virtual bool is_array_iterator() const { return false; }
     virtual bool is_raw_json_object() const { return false; }
 
-    virtual BuiltinIterator* as_builtin_iterator() { return nullptr; }
+    virtual BuiltinIterator* as_builtin_iterator_if_next_is_not_redefined() { return nullptr; }
+
+    virtual bool is_array_iterator_prototype() const { return false; }
+    virtual bool is_map_iterator_prototype() const { return false; }
+    virtual bool is_set_iterator_prototype() const { return false; }
+    virtual bool is_string_iterator_prototype() const { return false; }
 
     // B.3.7 The [[IsHTMLDDA]] Internal Slot, https://tc39.es/ecma262/#sec-IsHTMLDDA-internal-slot
     virtual bool is_htmldda() const { return false; }
