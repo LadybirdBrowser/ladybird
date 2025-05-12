@@ -3172,20 +3172,14 @@ ThrowCompletionOr<void> IteratorNextUnpack::execute_impl(Bytecode::Interpreter& 
 {
     auto& vm = interpreter.vm();
     auto& iterator_record = static_cast<IteratorRecord&>(interpreter.get(m_iterator_record).as_cell());
-
-    Value value;
-    bool done = false;
-    if (auto* builtin_iterator = iterator_record.iterator->as_builtin_iterator_if_next_is_not_redefined()) {
-        TRY(builtin_iterator->next(vm, done, value));
-    } else {
-        auto result = TRY(iterator_next(vm, iterator_record));
-        value = TRY(result->internal_get(vm.names.value, {}));
-        done = TRY(result->internal_get(vm.names.done, {})).to_boolean();
+    auto iteration_result_or_done = TRY(iterator_step(vm, iterator_record));
+    if (iteration_result_or_done.has<IterationDone>()) {
+        interpreter.set(dst_done(), Value(true));
+        return {};
     }
-
-    interpreter.set(dst_done(), Value(done));
-    interpreter.set(dst_value(), value);
-
+    auto& iteration_result = iteration_result_or_done.get<IterationResult>();
+    interpreter.set(dst_done(), TRY(iteration_result.done));
+    interpreter.set(dst_value(), TRY(iteration_result.value));
     return {};
 }
 
