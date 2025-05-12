@@ -69,10 +69,12 @@ ErrorOr<String> strip_and_collapse_whitespace(StringView string)
 }
 
 // https://infra.spec.whatwg.org/#code-unit-prefix
-bool is_code_unit_prefix(StringView potential_prefix, StringView input)
+bool is_code_unit_prefix(StringView potential_prefix_utf8, StringView input_utf8)
 {
-    auto potential_prefix_utf16 = MUST(utf8_to_utf16(potential_prefix));
-    auto input_utf16 = MUST(utf8_to_utf16(input));
+    auto potential_prefix_utf16_bytes = MUST(utf8_to_utf16(potential_prefix_utf8));
+    auto input_utf16_bytes = MUST(utf8_to_utf16(input_utf8));
+    Utf16View potential_prefix { potential_prefix_utf16_bytes };
+    Utf16View input { input_utf16_bytes };
 
     // 1. Let i be 0.
     size_t i = 0;
@@ -80,18 +82,18 @@ bool is_code_unit_prefix(StringView potential_prefix, StringView input)
     // 2. While true:
     while (true) {
         // 1. If i is greater than or equal to potentialPrefix’s length, then return true.
-        if (i >= potential_prefix.length())
+        if (i >= potential_prefix.length_in_code_units())
             return true;
 
         // 2. If i is greater than or equal to input’s length, then return false.
-        if (i >= input.length())
+        if (i >= input.length_in_code_units())
             return false;
 
         // 3. Let potentialPrefixCodeUnit be the ith code unit of potentialPrefix.
-        auto potential_prefix_code_unit = Utf16View(potential_prefix_utf16).code_unit_at(i);
+        auto potential_prefix_code_unit = potential_prefix.code_unit_at(i);
 
         // 4. Let inputCodeUnit be the ith code unit of input.
-        auto input_code_unit = Utf16View(input_utf16).code_unit_at(i);
+        auto input_code_unit = input.code_unit_at(i);
 
         // 5. Return false if potentialPrefixCodeUnit is not inputCodeUnit.
         if (potential_prefix_code_unit != input_code_unit)
