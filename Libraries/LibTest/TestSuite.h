@@ -15,10 +15,11 @@
 #include <LibTest/Randomized/RandomnessSource.h>
 #include <LibTest/TestCase.h>
 #include <LibTest/TestResult.h>
+#include <TestExport.h>
 
 namespace Test {
 
-class TestSuite {
+class TEST_API TestSuite {
 public:
     static TestSuite& the()
     {
