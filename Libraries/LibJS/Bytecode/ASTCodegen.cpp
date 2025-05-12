@@ -873,14 +873,6 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> LabelledStatement::gene
     return stmt_result;
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> IterationStatement::generate_labelled_evaluation(Bytecode::Generator&, Vector<FlyString> const&, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
-{
-    return Bytecode::CodeGenerationError {
-        this,
-        "Missing generate_labelled_evaluation()"sv,
-    };
-}
-
 Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> WhileStatement::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
