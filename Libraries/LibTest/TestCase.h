@@ -11,6 +11,7 @@
 #include <AK/Function.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefCounted.h>
+#include <LibTest/Export.h>
 #include <LibTest/Macros.h>
 #include <LibTest/Randomized/RandomnessSource.h>
 #include <LibTest/Randomized/Shrink.h>
@@ -29,7 +30,7 @@ inline void run_with_randomness_source(Randomized::RandomnessSource source, Test
     }
 }
 
-class TestCase : public RefCounted<TestCase> {
+class TEST_API TestCase : public RefCounted<TestCase> {
 public:
     TestCase(ByteString const& name, TestFunction&& fn, bool is_benchmark)
         : m_name(name)
@@ -107,9 +108,8 @@ private:
 };
 
 // Helper to hide implementation of TestSuite from users
-void add_test_case_to_suite(NonnullRefPtr<TestCase> const& test_case);
-void set_suite_setup_function(Function<void()> setup);
-
+TEST_API void add_test_case_to_suite(NonnullRefPtr<TestCase> const& test_case);
+TEST_API void set_suite_setup_function(Function<void()> setup);
 }
 
 #define TEST_SETUP                                   \

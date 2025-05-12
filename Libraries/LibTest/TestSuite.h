@@ -11,6 +11,7 @@
 #include <AK/Function.h>
 #include <AK/Time.h>
 #include <AK/Vector.h>
+#include <LibTest/Export.h>
 #include <LibTest/Macros.h>
 #include <LibTest/Randomized/RandomnessSource.h>
 #include <LibTest/TestCase.h>
@@ -18,7 +19,7 @@
 
 namespace Test {
 
-class TestSuite {
+class TEST_API TestSuite {
 public:
     static TestSuite& the()
     {

@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <LibTest/Export.h>
+
 namespace Test {
 
 // TestResult signals to the TestSuite how the TestCase execution went.
@@ -30,6 +32,6 @@ enum class TestResult {
 
 // Used eg. to signal we've ran out of prerecorded random bits.
 // Defined in TestSuite.cpp
-void set_current_test_result(TestResult);
+void TEST_API set_current_test_result(TestResult);
 
 } // namespace Test

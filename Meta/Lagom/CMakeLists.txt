@@ -178,6 +178,18 @@ if (WIN32)
     find_package(mman REQUIRED)
 endif()
 
+function(lagom_generate_export_header name fs_name)
+    # Temporary helper to allow libraries to opt-in to using X_API macros
+    # to export symbols required by external consumers. This allows the codebase
+    # to gradually slowly migrate instead of an all-or-nothing approach.
+    if (NOT WIN32)
+        target_compile_options(${name} PRIVATE -fvisibility=hidden)
+    endif()
+    include(GenerateExportHeader)
+    string(TOUPPER ${fs_name} fs_name_upper)
+    generate_export_header(${name} EXPORT_MACRO_NAME ${fs_name_upper}_API EXPORT_FILE_NAME "Export.h")
+endfunction()
+
 function(lagom_lib target_name fs_name)
     cmake_parse_arguments(LAGOM_LIBRARY "EXPLICIT_SYMBOL_EXPORT" "LIBRARY_TYPE" "SOURCES;LIBS" ${ARGN})
     string(REPLACE "Lib" "" library ${target_name})
@@ -225,18 +237,8 @@ function(lagom_lib target_name fs_name)
         )
     endif()
     serenity_generated_sources(${target_name})
-
     if (LAGOM_LIBRARY_EXPLICIT_SYMBOL_EXPORT)
-        # Temporary helper to allow libraries to opt-in to using X_API macros
-        # to export symbols required by external consumers. This allows the codebase
-        # to gradually slowly migrate instead of an all-or-nothing approach.
-        if (NOT WIN32)
-            target_compile_options(${target_name} PRIVATE -fvisibility=hidden)
-        endif()
-        include(GenerateExportHeader)
-        string(TOUPPER ${fs_name} fs_name_upper)
-        generate_export_header(${target_name} EXPORT_MACRO_NAME "${fs_name_upper}_API" EXPORT_FILE_NAME "Export.h")
-        target_sources(${target_name} PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/Export.h")
+        lagom_generate_export_header(${target_name} ${fs_name})
     endif()
 endfunction()
 

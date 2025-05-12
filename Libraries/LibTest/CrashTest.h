@@ -11,10 +11,11 @@
 #include <AK/ByteString.h>
 #include <AK/Function.h>
 #include <AK/Variant.h>
+#include <LibTest/Export.h>
 
 namespace Test {
 
-class Crash {
+class TEST_API Crash {
 public:
     enum class RunType {
         UsingChildProcess,

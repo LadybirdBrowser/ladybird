@@ -12,6 +12,7 @@
 #include <AK/Math.h>
 #include <AK/SourceLocation.h>
 #include <LibTest/CrashTest.h>
+#include <LibTest/Export.h>
 #include <LibTest/Randomized/RandomnessSource.h>
 #include <LibTest/TestResult.h>
 
@@ -19,16 +20,16 @@ namespace Test {
 
 // Declare helpers so that we can call them from VERIFY in included headers
 // the setter for TestResult is already declared in TestResult.h
-TestResult current_test_result();
+TEST_API TestResult current_test_result();
 
-Randomized::RandomnessSource& randomness_source();
-void set_randomness_source(Randomized::RandomnessSource);
+TEST_API Randomized::RandomnessSource& randomness_source();
+TEST_API void set_randomness_source(Randomized::RandomnessSource);
 
-bool is_reporting_enabled();
-void enable_reporting();
-void disable_reporting();
+TEST_API bool is_reporting_enabled();
+TEST_API void enable_reporting();
+TEST_API void disable_reporting();
 
-u64 randomized_runs();
+TEST_API u64 randomized_runs();
 
 template<typename T>
 void expect(T const& expression, StringView expression_string, SourceLocation location = SourceLocation::current())
