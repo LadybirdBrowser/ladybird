@@ -16,6 +16,7 @@
 #include <LibWeb/Bindings/URLSearchParamsPrototype.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/DOMURL/URLSearchParams.h>
+#include <LibWeb/Infra/Strings.h>
 
 namespace Web::DOMURL {
 
@@ -324,20 +325,9 @@ void URLSearchParams::set(String const& name, String const& value)
 // https://url.spec.whatwg.org/#dom-urlsearchparams-sort
 void URLSearchParams::sort()
 {
-    // 1. Sort all name-value pairs, if any, by their names. Sorting must be done by comparison of code units. The relative order between name-value pairs with equal names must be preserved.
+    // 1. Set this’s list to the result of sorting in ascending order this’s list, with a being less than b if a’s name is code unit less than b’s name.
     insertion_sort(m_list, [](auto& a, auto& b) {
-        // FIXME: There should be a way to do this without converting to utf16
-        auto a_utf16 = MUST(utf8_to_utf16(a.name)).data;
-        auto b_utf16 = MUST(utf8_to_utf16(b.name)).data;
-
-        auto common_length = min(a_utf16.size(), b_utf16.size());
-
-        for (size_t position = 0; position < common_length; ++position) {
-            if (a_utf16[position] != b_utf16[position])
-                return a_utf16[position] < b_utf16[position];
-        }
-
-        return a_utf16.size() < b_utf16.size();
+        return Infra::code_unit_less_than(a.name, b.name);
     });
 
     // 2. Update this.
