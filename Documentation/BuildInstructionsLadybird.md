@@ -52,7 +52,7 @@ sudo wget -O /usr/share/keyrings/llvm-snapshot.gpg.key https://apt.llvm.org/llvm
 echo "deb [signed-by=/usr/share/keyrings/llvm-snapshot.gpg.key] https://apt.llvm.org/$(lsb_release -sc)/ llvm-toolchain-$(lsb_release -sc)-19 main" | sudo tee -a /etc/apt/sources.list.d/llvm.list
 
 # Update apt package list and install clang and associated packages
-sudo apt update -y && sudo apt install clang-19 clangd-19 clang-format-19 clang-tidy-19 lld-19 -y
+sudo apt update -y && sudo apt install clang-19 clangd-19 clang-tools-19 clang-format-19 clang-tidy-19 lld-19 -y
 ```
 
 - Alternative: Install gcc-13 or newer from [Ubuntu Toolchain PPA](https://launchpad.net/~ubuntu-toolchain-r/+archive/ubuntu/test):
