@@ -1,8 +1,27 @@
 <!DOCTYPE html>
 <head>
-     <link rel="match" href="../expected/clip-checkbox-ref.html" />
-<style>
-</style>
+    <link rel="match" href="../expected/clip-checkbox-ref.html" />
+    <style>
+        .clip-container {
+            position: relative;
+            width: 50px;
+            height: 20px;
+            overflow: hidden;
+            border: 1px solid red;
+        }
+
+        .radio-wrap {
+            position: absolute;
+            left: -5px;
+            top: -5px;
+        }
+    </style>
 </head>
 <body>
+    <h1>Clip Test</h1>
+    <div class="clip-container">
+        <div class="radio-wrap">
+            <input type="radio" checked />
+        </div>
+    </div>
 </body>
