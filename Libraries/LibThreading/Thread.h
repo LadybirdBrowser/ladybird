@@ -55,7 +55,7 @@ public:
         return adopt_nonnull_ref_or_enomem(new (nothrow) Thread(move(action), thread_name));
     }
 
-    virtual ~Thread();
+    ~Thread();
 
     ErrorOr<void> set_priority(int priority);
     ErrorOr<int> get_priority() const;
