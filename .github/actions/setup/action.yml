@@ -40,7 +40,7 @@ runs:
             libstdc++-13-dev lld-19 nasm ninja-build qt6-base-dev qt6-tools-dev-tools tar unzip zip
 
         if ${{ inputs.toolchain == 'Clang' }} ; then
-          sudo apt-get install -y clang-19 clang++-19
+          sudo apt-get install -y clang-19 clang++-19 clang-tools-19
           sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-19 100
           sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-19 100
         fi
