@@ -18,7 +18,7 @@ config.substitutions.append(("%target_triple", config.target_triple))
 config.substitutions.append(("%PATH%", config.environment["PATH"]))
 
 plugin_includes = " ".join(f"-I{s}" for s in config.plugin_includes.split(";"))
-plugin_opts = " ".join(s.replace("-fplugin=", "-load ") for s in config.plugin_opts.split(";"))
+plugin_opts = " ".join(s for s in config.plugin_opts.split(";"))
 config.substitutions.append(("%plugin_opts%", f"{plugin_opts} {plugin_includes}"))
 
 tools = ["clang", "clang++"]

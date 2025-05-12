@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-// RUN: %clang++ -cc1 -verify %plugin_opts% %s 2>&1
+// RUN: %clang++ -Xclang -verify %plugin_opts% -c %s -o %t 2>&1
 
 #include <LibGC/ForeignCell.h>
 #include <LibJS/Runtime/PrototypeObject.h>
