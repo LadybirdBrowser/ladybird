@@ -1,27 +1,24 @@
 <!DOCTYPE html>
-<head>
-    <link rel="match" href="../expected/clip-checkbox-ref.html" />
-    <style>
-        .clip-container {
-            position: relative;
-            width: 50px;
-            height: 20px;
-            overflow: hidden;
-            border: 1px solid red;
-        }
-
-        .radio-wrap {
-            position: absolute;
-            left: -5px;
-            top: -5px;
-        }
-    </style>
-</head>
-<body>
-    <h1>Clip Test</h1>
-    <div class="clip-container">
-        <div class="radio-wrap">
-            <input type="radio" checked />
-        </div>
-    </div>
-</body>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Clip Checkbox Test</title>
+        <link rel="match" href="../expected/clip-checkbox-ref.html" />
+        <style>
+            .clipped {
+                position: absolute;
+                clip: rect(0px, 0px, 0px, 0px);
+                width: 100px;
+                height: 30px;
+                margin: 0;
+                padding: 0;
+                border: 2px solid red; /* Should not be visible if clipped */
+            }
+        </style>
+    </head>
+    <body>
+        <label for="checkbox" style="position: absolute; top: 50px">Checkbox:</label>
+        <input id="checkbox" type="checkbox" class="clipped" />
+    </body>
+</html>
