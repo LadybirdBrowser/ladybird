@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<head>
+     <link rel="match" href="../expected/ol-render-node-insert-last-reversed-ref.html" />
+</head>
+<html class="reftest-wait">
+<body>
+<ol reversed id="ol">
+    <li>Three</li>
+    <li>Two</li>
+</ol>
+<script>
+    // Two nested requestAnimationFrame() calls to force code execution _after_ initial paint
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const ol = document.getElementById("ol");
+
+        const one = document.createElement("li");
+        one.innerHTML = "One";
+
+        ol.insertBefore( one, null );
+
+        document.documentElement.classList.remove("reftest-wait");
+      });
+    });
+</script>
+</body>
+</html>
