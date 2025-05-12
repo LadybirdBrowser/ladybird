@@ -150,6 +150,8 @@ String isomorphic_decode(ReadonlyBytes input)
 // https://infra.spec.whatwg.org/#code-unit-less-than
 bool code_unit_less_than(StringView a, StringView b)
 {
+    // FIXME: There should be a way to do this without converting to utf16
+
     // 1. If b is a code unit prefix of a, then return false.
     if (is_code_unit_prefix(b, a))
         return false;
