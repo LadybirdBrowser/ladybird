@@ -272,7 +272,7 @@ static Completion iterator_close_impl(VM& vm, IteratorRecord const& iterator_rec
     auto iterator = iterator_record.iterator;
 
     // OPTIMIZATION: "return" method is not defined on any of iterators we treat as built-in.
-    if (iterator->as_builtin_iterator())
+    if (iterator->as_builtin_iterator_if_next_is_not_redefined())
         return completion;
 
     // 3. Let innerResult be Completion(GetMethod(iterator, "return")).

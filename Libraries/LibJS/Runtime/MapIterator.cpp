@@ -6,6 +6,7 @@
 
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/MapIterator.h>
+#include <LibJS/Runtime/MapIteratorPrototype.h>
 
 namespace JS {
 
@@ -22,6 +23,8 @@ MapIterator::MapIterator(Map& map, Object::PropertyKind iteration_kind, Object& 
     , m_iteration_kind(iteration_kind)
     , m_iterator(static_cast<Map const&>(map).begin())
 {
+    auto& map_iterator_prototype = as<MapIteratorPrototype>(prototype);
+    m_next_method_was_redefined = map_iterator_prototype.next_method_was_redefined();
 }
 
 void MapIterator::visit_edges(Cell::Visitor& visitor)

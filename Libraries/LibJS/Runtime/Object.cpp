@@ -10,15 +10,19 @@
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Accessor.h>
 #include <LibJS/Runtime/Array.h>
+#include <LibJS/Runtime/ArrayIteratorPrototype.h>
 #include <LibJS/Runtime/ClassFieldDefinition.h>
 #include <LibJS/Runtime/ECMAScriptFunctionObject.h>
 #include <LibJS/Runtime/Error.h>
 #include <LibJS/Runtime/GlobalObject.h>
+#include <LibJS/Runtime/MapIteratorPrototype.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/PropertyDescriptor.h>
 #include <LibJS/Runtime/ProxyObject.h>
+#include <LibJS/Runtime/SetIteratorPrototype.h>
 #include <LibJS/Runtime/Shape.h>
+#include <LibJS/Runtime/StringIteratorPrototype.h>
 #include <LibJS/Runtime/Value.h>
 
 namespace JS {
@@ -956,6 +960,18 @@ ThrowCompletionOr<bool> Object::internal_set(PropertyKey const& property_key, Va
 {
     VERIFY(!value.is_special_empty_value());
     VERIFY(!receiver.is_special_empty_value());
+
+    if (receiver.is_object() && property_key == vm().names.next) {
+        auto& receiver_object = receiver.as_object();
+        if (auto* array_iterator_prototype = as_if<ArrayIteratorPrototype>(receiver_object))
+            array_iterator_prototype->set_next_method_was_redefined();
+        else if (auto* map_iterator_prototype = as_if<MapIteratorPrototype>(receiver_object))
+            map_iterator_prototype->set_next_method_was_redefined();
+        else if (auto* set_iterator_prototype = as_if<SetIteratorPrototype>(receiver_object))
+            set_iterator_prototype->set_next_method_was_redefined();
+        else if (auto* string_iterator_prototype = as_if<StringIteratorPrototype>(receiver_object))
+            string_iterator_prototype->set_next_method_was_redefined();
+    }
 
     // 2. Let ownDesc be ? O.[[GetOwnProperty]](P).
     auto own_descriptor = TRY(internal_get_own_property(property_key));

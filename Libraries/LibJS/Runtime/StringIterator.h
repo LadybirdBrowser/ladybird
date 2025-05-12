@@ -23,7 +23,12 @@ public:
 
     virtual ~StringIterator() override = default;
 
-    BuiltinIterator* as_builtin_iterator() override { return this; }
+    BuiltinIterator* as_builtin_iterator_if_next_is_not_redefined() override
+    {
+        if (m_next_method_was_redefined)
+            return nullptr;
+        return this;
+    }
     ThrowCompletionOr<void> next(VM&, bool& done, Value& value) override;
 
 private:

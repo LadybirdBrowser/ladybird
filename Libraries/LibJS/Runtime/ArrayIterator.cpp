@@ -6,6 +6,7 @@
 
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/ArrayIterator.h>
+#include <LibJS/Runtime/ArrayIteratorPrototype.h>
 #include <LibJS/Runtime/TypedArray.h>
 
 namespace JS {
@@ -28,6 +29,8 @@ ArrayIterator::ArrayIterator(Value array, Object::PropertyKind iteration_kind, O
     , m_array(array)
     , m_iteration_kind(iteration_kind)
 {
+    auto& array_iterator_prototype = as<ArrayIteratorPrototype>(prototype);
+    m_next_method_was_redefined = array_iterator_prototype.next_method_was_redefined();
 }
 
 void ArrayIterator::visit_edges(Cell::Visitor& visitor)
