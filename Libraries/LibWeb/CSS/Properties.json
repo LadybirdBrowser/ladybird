@@ -1152,8 +1152,7 @@
     ]
   },
   "content-visibility": {
-    "animation-type": "none",
-    "__comment": "FIXME: Implement animation https://drafts.csswg.org/css-contain/#content-visibility-animation",
+    "animation-type": "custom",
     "inherited": false,
     "initial": "visible",
     "valid-types": [

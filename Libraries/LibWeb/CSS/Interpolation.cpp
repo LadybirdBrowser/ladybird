@@ -189,6 +189,28 @@ ValueComparingRefPtr<CSSStyleValue const> interpolate_property(DOM::Element& ele
             return delta >= 0.5f ? to : from;
         }
 
+        // https://drafts.csswg.org/css-contain/#content-visibility-animation
+        if (property_id == PropertyID::ContentVisibility) {
+            // In general, the content-visibility property’s animation type is discrete.
+            // However, similar to interpolation of visibility, during interpolation between hidden and any other content-visibility value,
+            // p values between 0 and 1 map to the non-hidden value.
+            if (from->equals(to))
+                return from;
+
+            auto from_is_hidden = from->to_keyword() == Keyword::Hidden;
+            auto to_is_hidden = to->to_keyword() == Keyword::Hidden || to->to_keyword() == Keyword::Auto;
+
+            if (from_is_hidden || to_is_hidden) {
+                auto non_hidden_value = from_is_hidden ? to : from;
+                if (delta <= 0)
+                    return from;
+                if (delta >= 1)
+                    return to;
+                return non_hidden_value;
+            }
+            return delta >= 0.5f ? to : from;
+        }
+
         if (property_id == PropertyID::Scale)
             return interpolate_scale(element, calculation_context, from, to, delta);
 
