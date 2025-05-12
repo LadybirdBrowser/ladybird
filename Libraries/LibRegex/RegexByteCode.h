@@ -143,19 +143,10 @@ struct CompareTypeAndValuePair {
 class OpCode;
 
 struct StringTable {
-    StringTable()
-        : m_serial(next_serial++)
-    {
-    }
+    StringTable();
+    ~StringTable();
     StringTable(StringTable const&) = default;
     StringTable(StringTable&&) = default;
-
-    ~StringTable()
-    {
-        if (m_serial == next_serial - 1 && m_table.is_empty())
-            --next_serial; // We didn't use this serial, put it back.
-    }
-
     StringTable& operator=(StringTable const&) = default;
     StringTable& operator=(StringTable&&) = default;
 
@@ -180,7 +171,6 @@ struct StringTable {
         return m_inverse_table.get(index).value();
     }
 
-    static u32 next_serial;
     u32 m_serial { 0 };
     HashMap<FlyString, ByteCodeValueType> m_table;
     HashMap<ByteCodeValueType, FlyString> m_inverse_table;
