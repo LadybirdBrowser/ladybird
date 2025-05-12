@@ -46,7 +46,7 @@ public:
     {
     }
 
-    virtual ~RootVector() = default;
+    ~RootVector() = default;
 
     RootVector(Heap& heap, ReadonlySpan<T> other)
         : RootVectorBase(heap)

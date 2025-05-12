@@ -45,7 +45,7 @@ public:
     {
     }
 
-    virtual ~RootHashMap() = default;
+    ~RootHashMap() = default;
 
     virtual void gather_roots(HashMap<Cell*, GC::HeapRoot>& roots) const override
     {
