@@ -41,7 +41,7 @@ else()
     list(APPEND SOURCES LexicalPath.cpp)
 endif()
 
-serenity_lib(AK ak)
+serenity_lib(AK ak ENABLE_WINDOWS)
 
 include(stacktrace)
 configure_file(Backtrace.h.in Backtrace.h @ONLY)

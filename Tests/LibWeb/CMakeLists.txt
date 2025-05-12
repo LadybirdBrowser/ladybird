@@ -16,7 +16,9 @@ foreach(source IN LISTS TEST_SOURCES)
     serenity_test("${source}" LibWeb LIBS LibWeb)
 endforeach()
 
-target_link_libraries(TestFetchURL PRIVATE LibURL)
+if(TARGET TestFetchURL)
+    target_link_libraries(TestFetchURL PRIVATE LibURL)
+endif()
 
 if (ENABLE_SWIFT)
     find_package(SwiftTesting REQUIRED)

@@ -3,5 +3,5 @@ if (NOT WIN32)
    list(APPEND SOURCES TempFile.cpp)
 endif()
 
-serenity_lib(LibFileSystem filesystem)
+serenity_lib(LibFileSystem filesystem ENABLE_WINDOWS)
 target_link_libraries(LibFileSystem PRIVATE LibCoreMinimal)

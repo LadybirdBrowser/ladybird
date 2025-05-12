@@ -518,6 +518,10 @@ struct Formatter<wchar_t> : StandardFormatter {
     ErrorOr<void> format(FormatBuilder& builder, wchar_t);
 };
 template<>
+struct Formatter<char32_t> : StandardFormatter {
+    ErrorOr<void> format(FormatBuilder& builder, char32_t);
+};
+template<>
 struct Formatter<bool> : StandardFormatter {
     ErrorOr<void> format(FormatBuilder&, bool);
 };
