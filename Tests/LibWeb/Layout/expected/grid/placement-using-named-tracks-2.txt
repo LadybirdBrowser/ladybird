@@ -1,5 +1,5 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (1,1) content-size 798x600 [BFC] children: not-inline
+  BlockContainer <html> at (1,1) content-size 798x95 [BFC] children: not-inline
     BlockContainer <body> at (10,10) content-size 780x77 children: not-inline
       Box <div.grid-container> at (11,11) content-size 778x75 [GFC] children: not-inline
         BlockContainer <div.grid-item.a> at (12,12) content-size 257.328125x73 [BFC] children: inline
@@ -19,8 +19,8 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
               "4"
           TextNode <#text>
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x602]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x602]
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x97]
     PaintableWithLines (BlockContainer<BODY>) [9,9 782x79]
       PaintableBox (Box<DIV>.grid-container) [10,10 780x77]
         PaintableWithLines (BlockContainer<DIV>.grid-item.a) [11,11 259.328125x75]
