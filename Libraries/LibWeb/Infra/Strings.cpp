@@ -71,8 +71,8 @@ ErrorOr<String> strip_and_collapse_whitespace(StringView string)
 // https://infra.spec.whatwg.org/#code-unit-prefix
 bool is_code_unit_prefix(StringView potential_prefix, StringView input)
 {
-    auto potential_prefix_utf16 = utf8_to_utf16(potential_prefix).release_value_but_fixme_should_propagate_errors();
-    auto input_utf16 = utf8_to_utf16(input).release_value_but_fixme_should_propagate_errors();
+    auto potential_prefix_utf16 = MUST(utf8_to_utf16(potential_prefix));
+    auto input_utf16 = MUST(utf8_to_utf16(input));
 
     // 1. Let i be 0.
     size_t i = 0;
