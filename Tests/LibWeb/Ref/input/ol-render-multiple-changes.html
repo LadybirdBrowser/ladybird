@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<head>
+     <link rel="match" href="../expected/ol-render-multiple-changes-ref.html" />
+</head>
+<html class="reftest-wait">
+<body>
+<ol id="ol1">
+    <li>1</li>
+    <li id="li1">x</li>
+<!--  Remove x  -->
+    <li>2</li>
+    <div id="div1">
+        <li>3</li>
+        <div id="div2">
+            <li>y</li>
+            <li>z</li>
+        </div>
+<!-- Remove div / y    -->
+        <li>4</li>
+    </div>
+    <div>
+        <ol id="ol2" reversed start=20>
+            <!-- insert start -->
+            <p id="p1">
+                <span>
+                    <li>18</li>
+                </span>
+            </p>
+            <li>17</li>
+            <!-- append -->
+            <!-- insert last -->
+        </ol>
+    </div>
+    <hr />
+    <ol >
+        <li value=30>30</li>
+        <div>
+            <li>31</li>
+        </div>
+        <div><div>
+            <li>32</li>
+            <li>33</li>
+            <li>34</li>
+        </div></div>
+            <ol id="ol3" start=40>
+                <li>40</li>
+                <div style="display:list-item">41</div>
+                <p id="p2" style="display:list-item">43</p>
+            </ol>
+            <div id="div5"><div><div> <!-- insert before p2 (move) -->
+                <span style="display:list-item">42</span>
+            </div></div></div>
+        <div><div><div id="div6">
+            <li>35</li>
+            <div>
+                <span id="span1" style="display:list-item">U</span>
+            </div>
+<!--  Remove child -->
+            <li>36</li>
+            <li>37</li>
+        </div></div></div>
+    </ol>
+    <li>5</li>
+    <li>6</li>
+</ol>
+<script>
+    // Two nested requestAnimationFrame() calls to force code execution _after_ initial paint
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        document.getElementById("li1").remove();
+        document.getElementById("div2").remove();
+
+        const ol2 = document.getElementById("ol2");
+        const p1 = document.getElementById("p1");
+        const div3 = document.createElement("div");
+        div3.innerHTML = "<div><li>20</li><li>19</li></div>";
+
+        ol2.insertBefore( div3, p1 );
+
+        const li16 = document.createElement("li");
+        li16.innerHTML = "16";
+        const li15 = document.createElement("li");
+        li15.innerHTML = "15";
+
+        ol2.appendChild( li16 );
+        ol2.insertBefore( li15, null );
+
+        const ol3 = document.getElementById("ol3");
+        const p2 = document.getElementById("p2");
+        const div5 = document.getElementById("div5");
+
+        ol3.insertBefore( div5, p2 );
+        document.getElementById("span1").remove();
+
+        document.documentElement.classList.remove("reftest-wait");
+      });
+    });
+</script>
+</body>
+</html>

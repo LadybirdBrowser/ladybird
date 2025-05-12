@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<head>
+     <link rel="match" href="../expected/ol-render-node-insert-no-child-group-ref.html" />
+</head>
+<html class="reftest-wait">
+<body>
+<ol id="ol1">
+</ol>
+<ol reversed id="ol2">
+</ol>
+<script>
+    // Two nested requestAnimationFrame() calls to force code execution _after_ initial paint
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const ol1 = document.getElementById("ol1");
+        const ol2 = document.getElementById("ol2");
+
+        const div1 = document.createElement("div");
+        div1.innerHTML = "<li>One</li><li>Two</li><li>Three</li>";
+
+        const div2 = document.createElement("div");
+        div2.innerHTML = "<li>Three</li><li>Two</li><li>One</li>";
+
+        ol1.insertBefore( div1, null );
+        ol2.insertBefore( div2, null );
+
+        document.documentElement.classList.remove("reftest-wait");
+      });
+    });
+</script>
+</body>
+</html>
