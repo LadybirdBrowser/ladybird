@@ -38,7 +38,9 @@
         "strategy": "external"
       },
       "cacheVariables": {
-        "ENABLE_QT": "OFF"
+        "ENABLE_QT": "OFF",
+        "ENABLE_GUI_TARGETS": "OFF",
+        "ENABLE_WEB_TARGETS": "OFF"
       },
       "vendor": {
         "microsoft.com/VisualStudioSettings/CMake/1.0": {
@@ -74,6 +76,28 @@
       "cacheVariables": {
         "CMAKE_C_COMPILER": "clang-cl",
         "CMAKE_CXX_COMPILER": "clang-cl"
+      }
+    },
+    {
+      "name": "windows_ci_ninja",
+      "displayName": "Default CI build with ClangCL and Ninja",
+      "description": "Windows CI build using Ninja generator (experimental)",
+      "inherits": [
+        "windows_ninja"
+      ],
+      "cacheVariables": {
+        "ENABLE_WINDOWS_CI": "ON"
+      }
+    },
+    {
+      "name": "windows_dev_ninja",
+      "displayName": "Default Dev build with ClangCL and Ninja",
+      "description": "Windows Dev build using Ninja generator (experimental)",
+      "inherits": [
+        "windows_ninja"
+      ],
+      "cacheVariables": {
+        "ENABLE_WINDOWS_DEV": "ON"
       }
     },
     {

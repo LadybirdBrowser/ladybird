@@ -84,6 +84,12 @@ if (ENABLE_FUZZERS OR CMAKE_CROSSCOMPILING)
     set(BUILD_LAGOM_TOOLS OFF)
 endif()
 
+if (NOT WIN32 OR ENABLE_WINDOWS_DEV)
+    set(BUILD_LAGOM_TARGETS ON)
+else()
+    set(BUILD_LAGOM_TARGETS OFF)
+endif()
+
 include(ca_certificates_data)
 include(lagom_compile_options)
 
@@ -301,38 +307,45 @@ function(lagom_utility name)
 endfunction()
 
 function(serenity_test test_src sub_dir)
-    cmake_parse_arguments(PARSE_ARGV 2 SERENITY_TEST "MAIN_ALREADY_DEFINED" "CUSTOM_MAIN;NAME" "LIBS")
-    # FIXME: Pass MAIN_ALREADY_DEFINED and CUSTOM_MAIN to support tests that use them.
-    lagom_test(${test_src} LIBS ${SERENITY_TEST_LIBS} WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} NAME ${SERENITY_TEST_NAME})
+    cmake_parse_arguments(PARSE_ARGV 2 SERENITY_TEST "MAIN_ALREADY_DEFINED;ENABLE_WINDOWS" "CUSTOM_MAIN;NAME" "LIBS")
+    if (BUILD_LAGOM_TARGETS OR (ENABLE_WINDOWS_CI AND SERENITY_TEST_ENABLE_WINDOWS))
+        # FIXME: Pass MAIN_ALREADY_DEFINED and CUSTOM_MAIN to support tests that use them.
+        lagom_test(${test_src} LIBS ${SERENITY_TEST_LIBS} WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} NAME ${SERENITY_TEST_NAME})
+    endif ()
 endfunction()
 
 function(serenity_bin name)
-    add_executable(${name} ${SOURCES} ${GENERATED_SOURCES})
-    add_executable(Lagom::${name} ALIAS ${name})
-    target_link_libraries(${name} PUBLIC GenericClangPlugin)
-    install(
-        TARGETS ${target_name}
-        EXPORT LagomTargets
-        RUNTIME #
-            COMPONENT Lagom_Runtime
-        LIBRARY #
-            COMPONENT Lagom_Runtime
-            NAMELINK_COMPONENT Lagom_Development
-        ARCHIVE #
-            COMPONENT Lagom_Development
-        INCLUDES #
-            DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-    )
-    serenity_generated_sources(${name})
+    cmake_parse_arguments(PARSE_ARGV 2 SERENITY_BIN "ENABLE_WINDOWS" "TYPE" "")
+    if (BUILD_LAGOM_TARGETS OR (ENABLE_WINDOWS_CI AND SERENITY_BIN_ENABLE_WINDOWS))
+        add_executable(${name} ${SOURCES} ${GENERATED_SOURCES})
+        add_executable(Lagom::${name} ALIAS ${name})
+        target_link_libraries(${name} PUBLIC GenericClangPlugin)
+        install(
+            TARGETS ${target_name}
+            EXPORT LagomTargets
+            RUNTIME #
+                COMPONENT Lagom_Runtime
+            LIBRARY #
+                COMPONENT Lagom_Runtime
+                NAMELINK_COMPONENT Lagom_Development
+            ARCHIVE #
+                COMPONENT Lagom_Development
+            INCLUDES #
+                DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+        )
+        serenity_generated_sources(${name})
+    endif ()
 endfunction()
 
 function(serenity_lib name fs_name)
-    cmake_parse_arguments(PARSE_ARGV 2 SERENITY_LIB "EXPLICIT_SYMBOL_EXPORT" "TYPE" "")
+    cmake_parse_arguments(PARSE_ARGV 2 SERENITY_LIB "EXPLICIT_SYMBOL_EXPORT;ENABLE_WINDOWS" "TYPE" "")
     set(EXPLICIT_SYMBOL_EXPORT "")
     if (SERENITY_LIB_EXPLICIT_SYMBOL_EXPORT)
         set(EXPLICIT_SYMBOL_EXPORT "EXPLICIT_SYMBOL_EXPORT")
     endif()
-    lagom_lib(${name} ${fs_name} LIBRARY_TYPE ${SERENITY_LIB_TYPE} ${EXPLICIT_SYMBOL_EXPORT} SOURCES ${SOURCES} ${GENERATED_SOURCES})
+    if (BUILD_LAGOM_TARGETS OR (ENABLE_WINDOWS_CI AND SERENITY_LIB_ENABLE_WINDOWS))
+        lagom_lib(${name} ${fs_name} LIBRARY_TYPE ${SERENITY_LIB_TYPE} ${EXPLICIT_SYMBOL_EXPORT} SOURCES ${SOURCES} ${GENERATED_SOURCES})
+    endif()
 endfunction()
 
 macro(add_serenity_subdirectory path)
@@ -400,7 +413,13 @@ if (LAGOM_TOOLS_ONLY)
 endif()
 
 # Lagom Libraries
-set(lagom_standard_libraries
+set(lagom_core_libraries
+    Regex
+    TextCodec
+    Unicode
+    URL
+)
+set(lagom_web_libraries
     Compress
     Crypto
     Diff
@@ -410,18 +429,19 @@ set(lagom_standard_libraries
     IPC
     JS
     Line
-    Regex
     Requests
     RIFF
     Syntax
-    TextCodec
     Threading
     TLS
-    Unicode
-    URL
     Wasm
     WebSocket
     XML
+)
+
+set(lagom_standard_libraries
+    ${lagom_core_libraries}
+    ${lagom_web_libraries}
 )
 
 if (ENABLE_GUI_TARGETS)
@@ -434,6 +454,10 @@ if (ENABLE_GUI_TARGETS)
         Web
     )
 endif()
+
+foreach(lib IN LISTS lagom_core_libraries)
+    add_serenity_subdirectory("Libraries/Lib${lib}")
+endforeach()
 
 target_link_libraries(LibCore PRIVATE LibURL Threads::Threads)
 if (${CMAKE_SYSTEM_NAME} MATCHES "NetBSD")
@@ -449,60 +473,63 @@ if (HAIKU)
     target_link_libraries(LibCore PRIVATE network)
 endif()
 
-compile_ipc(${SERENITY_PROJECT_ROOT}/Services/RequestServer/RequestClient.ipc Services/RequestServer/RequestClientEndpoint.h)
-compile_ipc(${SERENITY_PROJECT_ROOT}/Services/RequestServer/RequestServer.ipc Services/RequestServer/RequestServerEndpoint.h)
-compile_ipc(${SERENITY_PROJECT_ROOT}/Services/WebContent/WebContentServer.ipc Services/WebContent/WebContentServerEndpoint.h)
-compile_ipc(${SERENITY_PROJECT_ROOT}/Services/WebContent/WebContentClient.ipc Services/WebContent/WebContentClientEndpoint.h)
-compile_ipc(${SERENITY_PROJECT_ROOT}/Services/WebContent/WebDriverClient.ipc Services/WebContent/WebDriverClientEndpoint.h)
-compile_ipc(${SERENITY_PROJECT_ROOT}/Services/WebContent/WebDriverServer.ipc Services/WebContent/WebDriverServerEndpoint.h)
-compile_ipc(${SERENITY_PROJECT_ROOT}/Services/WebContent/WebUIClient.ipc Services/WebContent/WebUIClientEndpoint.h)
-compile_ipc(${SERENITY_PROJECT_ROOT}/Services/WebContent/WebUIServer.ipc Services/WebContent/WebUIServerEndpoint.h)
+# FIXME: Add support for Web targets on Windows
+if (ENABLE_WEB_TARGETS)
+    compile_ipc(${SERENITY_PROJECT_ROOT}/Services/RequestServer/RequestClient.ipc Services/RequestServer/RequestClientEndpoint.h)
+    compile_ipc(${SERENITY_PROJECT_ROOT}/Services/RequestServer/RequestServer.ipc Services/RequestServer/RequestServerEndpoint.h)
+    compile_ipc(${SERENITY_PROJECT_ROOT}/Services/WebContent/WebContentServer.ipc Services/WebContent/WebContentServerEndpoint.h)
+    compile_ipc(${SERENITY_PROJECT_ROOT}/Services/WebContent/WebContentClient.ipc Services/WebContent/WebContentClientEndpoint.h)
+    compile_ipc(${SERENITY_PROJECT_ROOT}/Services/WebContent/WebDriverClient.ipc Services/WebContent/WebDriverClientEndpoint.h)
+    compile_ipc(${SERENITY_PROJECT_ROOT}/Services/WebContent/WebDriverServer.ipc Services/WebContent/WebDriverServerEndpoint.h)
+    compile_ipc(${SERENITY_PROJECT_ROOT}/Services/WebContent/WebUIClient.ipc Services/WebContent/WebUIClientEndpoint.h)
+    compile_ipc(${SERENITY_PROJECT_ROOT}/Services/WebContent/WebUIServer.ipc Services/WebContent/WebUIServerEndpoint.h)
 
-foreach(lib IN LISTS lagom_standard_libraries)
-    add_serenity_subdirectory("Libraries/Lib${lib}")
-endforeach()
+    foreach(lib IN LISTS lagom_web_libraries)
+        add_serenity_subdirectory("Libraries/Lib${lib}")
+    endforeach()
 
-if (ENABLE_FUZZERS)
-    add_subdirectory(Fuzzers)
+    if (ENABLE_FUZZERS)
+        add_subdirectory(Fuzzers)
+    endif()
+
+    # No utilities or tests in these configs
+    if (ENABLE_FUZZERS OR ENABLE_COMPILER_EXPLORER_BUILD OR ANDROID OR IOS)
+        return()
+    endif()
+
+    # Lagom Utilities
+    lagom_utility(abench SOURCES ../../Utilities/abench.cpp LIBS LibMain LibFileSystem LibMedia)
+
+    lagom_utility(dns SOURCES ../../Utilities/dns.cpp LIBS LibDNS LibMain LibTLS LibCrypto)
+
+    if (ENABLE_GUI_TARGETS)
+        lagom_utility(animation SOURCES ../../Utilities/animation.cpp LIBS LibGfx LibMain)
+        lagom_utility(image SOURCES ../../Utilities/image.cpp LIBS LibGfx LibMain)
+    endif()
+
+    lagom_utility(js SOURCES ../../Utilities/js.cpp LIBS LibCrypto LibJS LibLine LibUnicode LibMain LibTextCodec LibGC Threads::Threads)
+    lagom_utility(test262-runner SOURCES ../../Tests/LibJS/test262-runner.cpp LIBS LibJS LibFileSystem LibGC)
+
+    if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        include(CheckCSourceCompiles)
+        # Check for musl's declaration of __assert_fail
+        check_c_source_compiles(
+            "
+            #include <assert.h>
+            __attribute__((__noreturn__)) void __assert_fail(char const* assertion, char const* file, int line, char const* function) {}
+            int main() {}
+            "
+            ASSERT_FAIL_HAS_INT
+        )
+    endif()
+
+    if (ASSERT_FAIL_HAS_INT OR EMSCRIPTEN)
+        target_compile_definitions(test262-runner PRIVATE ASSERT_FAIL_HAS_INT)
+    endif()
+
+    lagom_utility(wasm SOURCES ../../Utilities/wasm.cpp LIBS LibFileSystem LibWasm LibLine LibMain)
+    lagom_utility(xml SOURCES ../../Utilities/xml.cpp LIBS LibFileSystem LibMain LibXML LibURL)
 endif()
-
-# No utilities or tests in these configs
-if (ENABLE_FUZZERS OR ENABLE_COMPILER_EXPLORER_BUILD OR ANDROID OR IOS)
-    return()
-endif()
-
-# Lagom Utilities
-lagom_utility(abench SOURCES ../../Utilities/abench.cpp LIBS LibMain LibFileSystem LibMedia)
-
-lagom_utility(dns SOURCES ../../Utilities/dns.cpp LIBS LibDNS LibMain LibTLS LibCrypto)
-
-if (ENABLE_GUI_TARGETS)
-    lagom_utility(animation SOURCES ../../Utilities/animation.cpp LIBS LibGfx LibMain)
-    lagom_utility(image SOURCES ../../Utilities/image.cpp LIBS LibGfx LibMain)
-endif()
-
-lagom_utility(js SOURCES ../../Utilities/js.cpp LIBS LibCrypto LibJS LibLine LibUnicode LibMain LibTextCodec LibGC Threads::Threads)
-lagom_utility(test262-runner SOURCES ../../Tests/LibJS/test262-runner.cpp LIBS LibJS LibFileSystem LibGC)
-
-if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    include(CheckCSourceCompiles)
-    # Check for musl's declaration of __assert_fail
-    check_c_source_compiles(
-        "
-        #include <assert.h>
-        __attribute__((__noreturn__)) void __assert_fail(char const* assertion, char const* file, int line, char const* function) {}
-        int main() {}
-        "
-        ASSERT_FAIL_HAS_INT
-    )
-endif()
-
-if (ASSERT_FAIL_HAS_INT OR EMSCRIPTEN)
-    target_compile_definitions(test262-runner PRIVATE ASSERT_FAIL_HAS_INT)
-endif()
-
-lagom_utility(wasm SOURCES ../../Utilities/wasm.cpp LIBS LibFileSystem LibWasm LibLine LibMain)
-lagom_utility(xml SOURCES ../../Utilities/xml.cpp LIBS LibFileSystem LibMain LibXML LibURL)
 
 include(CTest)
 if (BUILD_TESTING)
@@ -557,8 +584,11 @@ if (BUILD_TESTING)
     endforeach()
 
     # LibTLS needs a special working directory to find cacert.pem
-    lagom_test(../../Tests/LibTLS/TestTLSHandshake.cpp LibTLS LIBS LibTLS LibCrypto)
-    lagom_test(../../Tests/LibTLS/TestTLSCertificateParser.cpp LibTLS LIBS LibTLS LibCrypto)
+    # FIXME: Add support for Web targets on Windows
+    if (ENABLE_WEB_TARGETS)
+        lagom_test(../../Tests/LibTLS/TestTLSHandshake.cpp LibTLS LIBS LibTLS LibCrypto)
+        lagom_test(../../Tests/LibTLS/TestTLSCertificateParser.cpp LibTLS LIBS LibTLS LibCrypto)
+    endif ()
 
     # LibCore
     lagom_test(../../Tests/LibCore/TestLibCoreArgsParser.cpp)
@@ -567,8 +597,6 @@ if (BUILD_TESTING)
         lagom_test(../../Tests/LibCore/TestLibCoreFileWatcher.cpp)
         lagom_test(../../Tests/LibCore/TestLibCorePromise.cpp LIBS LibThreading)
     endif()
-
-    lagom_test(../../Tests/LibCore/TestLibCoreDateTime.cpp LIBS LibUnicode)
 
     if (ENABLE_SWIFT)
         find_package(SwiftTesting REQUIRED)
@@ -587,58 +615,65 @@ if (BUILD_TESTING)
         add_test(NAME TestCoreSwift COMMAND TestCoreSwift)
     endif()
 
+    # FIXME: Add Support for these tests on Windows
+    if (BUILD_LAGOM_TARGETS)
+        lagom_test(../../Tests/LibCore/TestLibCoreDateTime.cpp LIBS LibUnicode)
 
-    # RegexLibC test POSIX <regex.h> and contains many Serenity extensions
-    # It is therefore not reasonable to run it on Lagom, and we only run the Regex test
-    lagom_test(../../Tests/LibRegex/Regex.cpp LIBS LibRegex WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/LibRegex)
+        # RegexLibC test POSIX <regex.h> and contains many Serenity extensions
+        # It is therefore not reasonable to run it on Lagom, and we only run the Regex test
+        lagom_test(../../Tests/LibRegex/Regex.cpp LIBS LibRegex WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/LibRegex)
 
-    # JavaScriptTestRunner + LibTest tests
-    # test-js
-    add_executable(test-js
-        ../../Tests/LibJS/test-js.cpp
-        ../../Libraries/LibTest/JavaScriptTestRunnerMain.cpp)
-    target_link_libraries(test-js AK LibCore LibFileSystem LibTest LibJS LibGC)
-    add_test(
-        NAME JS
-        COMMAND test-js --show-progress=false
-    )
-    set_tests_properties(JS PROPERTIES ENVIRONMENT LADYBIRD_SOURCE_DIR=${SERENITY_PROJECT_ROOT})
+        # JavaScriptTestRunner + LibTest tests
+        # test-js
+        add_executable(test-js
+            ../../Tests/LibJS/test-js.cpp
+            ../../Libraries/LibTest/JavaScriptTestRunnerMain.cpp)
+        target_link_libraries(test-js AK LibCore LibFileSystem LibTest LibJS LibGC)
+        add_test(
+            NAME JS
+            COMMAND test-js --show-progress=false
+        )
+        set_tests_properties(JS PROPERTIES ENVIRONMENT LADYBIRD_SOURCE_DIR=${SERENITY_PROJECT_ROOT})
 
-    # Extra tests from Tests/LibJS
-    lagom_test(../../Tests/LibJS/test-invalid-unicode-js.cpp LIBS LibJS)
-    lagom_test(../../Tests/LibJS/test-value-js.cpp LIBS LibJS)
+        # Extra tests from Tests/LibJS
+        lagom_test(../../Tests/LibJS/test-invalid-unicode-js.cpp LIBS LibJS)
+        lagom_test(../../Tests/LibJS/test-value-js.cpp LIBS LibJS)
 
-    # test-wasm
-    add_executable(test-wasm
-        ../../Tests/LibWasm/test-wasm.cpp
-        ../../Libraries/LibTest/JavaScriptTestRunnerMain.cpp)
-    target_link_libraries(test-wasm AK LibCore LibFileSystem LibTest LibWasm LibJS LibCrypto LibGC)
-    set(wasm_test_root "${SERENITY_PROJECT_ROOT}")
-    if (INCLUDE_WASM_SPEC_TESTS)
-       set(wasm_test_root "${CMAKE_CURRENT_BINARY_DIR}")
+        # test-wasm
+        add_executable(test-wasm
+            ../../Tests/LibWasm/test-wasm.cpp
+            ../../Libraries/LibTest/JavaScriptTestRunnerMain.cpp)
+        target_link_libraries(test-wasm AK LibCore LibFileSystem LibTest LibWasm LibJS LibCrypto LibGC)
+        set(wasm_test_root "${SERENITY_PROJECT_ROOT}")
+        if (INCLUDE_WASM_SPEC_TESTS)
+           set(wasm_test_root "${CMAKE_CURRENT_BINARY_DIR}")
+        endif()
+        add_test(
+            NAME Wasm
+            COMMAND test-wasm --show-progress=false "${wasm_test_root}/Libraries/LibWasm/Tests"
+        )
     endif()
-    add_test(
-        NAME Wasm
-        COMMAND test-wasm --show-progress=false "${wasm_test_root}/Libraries/LibWasm/Tests"
-    )
 endif()
 
-install(TARGETS js COMPONENT js)
+# FIXME: Add installer support for Windows
+if (BUILD_LAGOM_TARGETS)
+    install(TARGETS js COMPONENT js)
 
-set(CPACK_GENERATOR "TGZ")
-set(CPACK_STRIP_FILES TRUE)
-set(CPACK_ARCHIVE_COMPONENT_INSTALL ON)
-set(CPACK_COMPONENTS_ALL js)
-if (APPLE)
-    if("arm64" IN_LIST CMAKE_OSX_ARCHITECTURES AND "x86_64" IN_LIST CMAKE_OSX_ARCHITECTURES)
-        set(CPACK_SYSTEM_NAME "macOS-universal2")
+    set(CPACK_GENERATOR "TGZ")
+    set(CPACK_STRIP_FILES TRUE)
+    set(CPACK_ARCHIVE_COMPONENT_INSTALL ON)
+    set(CPACK_COMPONENTS_ALL js)
+    if (APPLE)
+        if("arm64" IN_LIST CMAKE_OSX_ARCHITECTURES AND "x86_64" IN_LIST CMAKE_OSX_ARCHITECTURES)
+            set(CPACK_SYSTEM_NAME "macOS-universal2")
+        else()
+            set(CPACK_SYSTEM_NAME "macOS-${CMAKE_SYSTEM_PROCESSOR}")
+        endif()
     else()
-        set(CPACK_SYSTEM_NAME "macOS-${CMAKE_SYSTEM_PROCESSOR}")
+        set(CPACK_SYSTEM_NAME "${CMAKE_SYSTEM_NAME}-${CMAKE_SYSTEM_PROCESSOR}")
     endif()
-else()
-    set(CPACK_SYSTEM_NAME "${CMAKE_SYSTEM_NAME}-${CMAKE_SYSTEM_PROCESSOR}")
-endif()
 
-set(CPACK_ARCHIVE_JS_FILE_NAME "ladybird-js-${CPACK_SYSTEM_NAME}")
-set(CPACK_PACKAGE_FILE_NAME "ladybird-js-${CPACK_SYSTEM_NAME}")
-include(CPack)
+    set(CPACK_ARCHIVE_JS_FILE_NAME "ladybird-js-${CPACK_SYSTEM_NAME}")
+    set(CPACK_PACKAGE_FILE_NAME "ladybird-js-${CPACK_SYSTEM_NAME}")
+    include(CPack)
+endif()
