@@ -169,6 +169,26 @@ ValueComparingRefPtr<CSSStyleValue const> interpolate_property(DOM::Element& ele
             return interpolate_value(element, calculation_context, from_value, to_value, delta);
         }
 
+        // https://drafts.csswg.org/web-animations-1/#animating-visibility
+        if (property_id == PropertyID::Visibility) {
+            // For the visibility property, visible is interpolated as a discrete step where values of p between 0 and 1 map to visible and other values of p map to the closer endpoint.
+            // If neither value is visible, then discrete animation is used.
+            if (from->equals(to))
+                return from;
+
+            auto from_is_visible = from->to_keyword() == Keyword::Visible;
+            auto to_is_visible = to->to_keyword() == Keyword::Visible;
+
+            if (from_is_visible || to_is_visible) {
+                if (delta <= 0)
+                    return from;
+                if (delta >= 1)
+                    return to;
+                return CSSKeywordValue::create(Keyword::Visible);
+            }
+            return delta >= 0.5f ? to : from;
+        }
+
         if (property_id == PropertyID::Scale)
             return interpolate_scale(element, calculation_context, from, to, delta);
 
