@@ -204,6 +204,11 @@ install(
     COMPONENT Lagom_Development
 )
 
+if (WIN32)
+    find_package(pthread REQUIRED)
+    find_package(mman REQUIRED)
+endif()
+
 function(lagom_lib target_name fs_name)
     cmake_parse_arguments(LAGOM_LIBRARY "EXPLICIT_SYMBOL_EXPORT" "LIBRARY_TYPE" "SOURCES;LIBS" ${ARGN})
     string(REPLACE "Lib" "" library ${target_name})
@@ -226,11 +231,9 @@ function(lagom_lib target_name fs_name)
     endif()
 
     if (WIN32)
-        find_package(pthread REQUIRED)
         target_include_directories(${target_name} PRIVATE ${PTHREAD_INCLUDE_DIR})
         target_link_libraries(${target_name} PRIVATE ${PTHREAD_LIBRARY})
 
-        find_package(mman REQUIRED)
         target_include_directories(${target_name} PRIVATE ${MMAN_INCLUDE_DIR})
         target_link_libraries(${target_name} PRIVATE ${MMAN_LIBRARY})
     endif()
