@@ -9,6 +9,7 @@ set(TEST_SOURCES
     TestMicrosyntax.cpp
     TestMimeSniff.cpp
     TestNumbers.cpp
+    TestStrings.cpp
 )
 
 foreach(source IN LISTS TEST_SOURCES)
