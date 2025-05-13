@@ -2,9 +2,9 @@ Harness status: OK
 
 Found 4 tests
 
-1 Pass
-3 Fail
-Fail	There should be 3 @page rules.
+3 Pass
+1 Fail
+Pass	There should be 3 @page rules.
 Pass	Rule #0
-Fail	Rule #1
+Pass	Rule #1
 Fail	Rule #2

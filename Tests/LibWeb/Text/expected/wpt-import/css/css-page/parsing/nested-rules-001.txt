@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	nested-rules-001
+1 Pass
+Pass	nested-rules-001
