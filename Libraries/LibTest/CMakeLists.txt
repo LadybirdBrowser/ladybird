@@ -1,16 +1,13 @@
-serenity_install_sources("Libraries/LibTest")
+add_library(LibTestMain OBJECT TestMain.cpp)
+target_link_libraries(LibTestMain PUBLIC GenericClangPlugin)
+
+add_library(JavaScriptTestRunnerMain OBJECT JavaScriptTestRunnerMain.cpp)
 
 set(SOURCES
     TestSuite.cpp
     CrashTest.cpp
 )
 
-serenity_lib(LibTest test)
-
-add_library(LibTestMain OBJECT TestMain.cpp)
-add_library(JavaScriptTestRunnerMain OBJECT JavaScriptTestRunnerMain.cpp)
-
-if (SERENITYOS)
-    add_dependencies(LibTestMain install_libc_headers)
-    add_dependencies(JavaScriptTestRunnerMain install_libc_headers)
-endif()
+add_library(LibTest ${SOURCES})
+target_link_libraries(LibTest PRIVATE AK LibCore LibFileSystem)
+set_target_properties(LibTest PROPERTIES OUTPUT_NAME lagom-test)

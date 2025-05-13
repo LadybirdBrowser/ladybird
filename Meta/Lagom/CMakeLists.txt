@@ -400,6 +400,7 @@ set(lagom_standard_libraries
     Requests
     RIFF
     Syntax
+    Test
     TextCodec
     Threading
     TLS
@@ -492,23 +493,6 @@ lagom_utility(xml SOURCES ../../Utilities/xml.cpp LIBS LibFileSystem LibMain Lib
 
 include(CTest)
 if (BUILD_TESTING)
-    # LibTest
-    file(GLOB LIBTEST_SOURCES CONFIGURE_DEPENDS "../../Libraries/LibTest/*.cpp")
-    list(FILTER LIBTEST_SOURCES EXCLUDE REGEX ".*Main.cpp$")
-    add_library(
-        LibTest
-        ${LIBTEST_SOURCES}
-    )
-    target_link_libraries(LibTest PRIVATE AK LibCore LibFileSystem)
-    set_target_properties(LibTest PROPERTIES OUTPUT_NAME lagom-test)
-    add_library(
-        LibTestMain
-        OBJECT
-        "${SERENITY_PROJECT_ROOT}/Libraries/LibTest/TestMain.cpp"
-    )
-    target_link_libraries(LibTest PUBLIC GenericClangPlugin)
-    target_link_libraries(LibTestMain PUBLIC GenericClangPlugin)
-
     # LibTest tests from Tests/
     set(TEST_DIRECTORIES
         AK
