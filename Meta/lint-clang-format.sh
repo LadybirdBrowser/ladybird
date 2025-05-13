@@ -2,7 +2,7 @@
 
 set -e
 
-CLANG_FORMAT_VERSION=19
+CLANG_FORMAT_VERSION=20
 
 script_path=$(cd -P -- "$(dirname -- "$0")" && pwd -P)
 cd "${script_path}/.." || exit 1
