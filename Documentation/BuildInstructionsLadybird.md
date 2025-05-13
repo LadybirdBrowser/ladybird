@@ -2,7 +2,10 @@
 
 ## Build Prerequisites
 
-Qt6 development packages, nasm, additional build tools, and a C++23 capable compiler like g++-13 or clang-17 are required.
+Qt6 development packages, nasm, additional build tools, and a C++23 capable compiler are required.
+
+We currently use gcc-13 and clang-19 in our CI pipeline. If these versions are not available on your system, see
+[`Meta/find_compiler.sh`](../Meta/find_compiler.sh) for the minimum compatible version.
 
 CMake 3.25 or newer must be available in $PATH.
 
@@ -40,7 +43,7 @@ sudo apt update -y && sudo apt install cmake -y
 
 #### C++23-capable compiler:
 
-- Recommendation: Install `clang-17` or newer from [LLVM's apt repository](https://apt.llvm.org/):
+- Recommendation: Install clang from [LLVM's apt repository](https://apt.llvm.org/):
 
 ```bash
 # Add LLVM GPG signing key
@@ -55,7 +58,7 @@ echo "deb [signed-by=/usr/share/keyrings/llvm-snapshot.gpg.key] https://apt.llvm
 sudo apt update -y && sudo apt install clang-19 clangd-19 clang-tools-19 clang-format-19 clang-tidy-19 lld-19 -y
 ```
 
-- Alternative: Install gcc-13 or newer from [Ubuntu Toolchain PPA](https://launchpad.net/~ubuntu-toolchain-r/+archive/ubuntu/test):
+- Alternative: Install gcc from [Ubuntu Toolchain PPA](https://launchpad.net/~ubuntu-toolchain-r/+archive/ubuntu/test):
 
 ```bash
 sudo add-apt-repository ppa:ubuntu-toolchain-r/test
@@ -160,7 +163,7 @@ choco install pkgconfiglite -y
 
 ### OpenIndiana:
 
-Note that OpenIndiana's latest GCC port (GCC 11) is too old to build Ladybird, so you need Clang, which is available in the repository.
+Note that OpenIndiana's latest GCC port is too old to build Ladybird, so you need Clang, which is available in the repository.
 
 ```
 pfexec pkg install clang-17 cmake libglvnd ninja qt6
@@ -276,9 +279,9 @@ CMake build directory.
 The install rules in UI/cmake/InstallRules.cmake define which binaries and libraries will be
 installed into the configured CMAKE_PREFIX_PATH or path passed to ``cmake --install``.
 
-Note that when using a custom build directory rather than Meta/ladybird.sh, the user may need to provide
-a suitable C++ compiler (g++ >= 13, clang >= 14, Apple Clang >= 14.3) via the CMAKE_CXX_COMPILER and
-CMAKE_C_COMPILER cmake options.
+Note that when using a custom build directory rather than Meta/ladybird.sh, the user may need to provide a suitable C++
+compiler (see [Build Prerequisites](BuildInstructionsLadybird.md#build-prerequisites)) via the CMAKE_C_COMPILER and
+CMAKE_CXX_COMPILER cmake options.
 
 ```
 cmake --preset default -B MyBuildDir

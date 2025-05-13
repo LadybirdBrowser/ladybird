@@ -9,7 +9,7 @@ Then select the `Debug` profile and uncheck the `Enable profile` checkbox.
 
 If the build complains that there is no `Default` Toolchain, go to the `Settings -> Build, Execution and Deployment -> Toolchains`
 tab and copy the currently defaulted host toolchain and rename it to `Default`. Make sure that the compiler chosen has a version of
-at least gcc-13 or clang-17.
+supported by the [build system](../BuildInstructionsLadybird.md#build-prerequisites).
 
 ## Excluding Build Artifacts
 

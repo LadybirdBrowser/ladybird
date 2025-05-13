@@ -11,9 +11,9 @@ version of CMake, you can download a binary release from the [CMake website](htt
 
 ### GCC is missing or is outdated
 
-Ensure your gcc version is >= 13 with `gcc --version`. Otherwise, install it. If your gcc binary is not
-called `gcc` you have to specify the names of your C and C++ compiler when you run cmake, e.g.
-`cmake ../.. -GNinja -DCMAKE_C_COMPILER=gcc-13 -DCMAKE_CXX_COMPILER=g++-13`.
+Ensure your gcc version is supported by the [build system](BuildInstructionsLadybird.md#build-prerequisites) with
+`gcc --version`. Otherwise, install it. If your gcc binary is not called `gcc` you have to specify the names of your
+C and C++ compiler when you run cmake, e.g. `cmake ../.. -GNinja -DCMAKE_C_COMPILER=gcc-13 -DCMAKE_CXX_COMPILER=g++-13`.
 
 ### Legacy renegotiation is disabled
 
