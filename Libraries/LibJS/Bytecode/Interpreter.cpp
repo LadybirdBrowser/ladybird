@@ -51,6 +51,7 @@ struct PropertyKeyAndEnumerableFlag {
 }
 
 namespace AK {
+
 template<>
 struct Traits<JS::PropertyKeyAndEnumerableFlag> : public DefaultTraits<JS::PropertyKeyAndEnumerableFlag> {
     static unsigned hash(JS::PropertyKeyAndEnumerableFlag const& entry)
@@ -63,6 +64,7 @@ struct Traits<JS::PropertyKeyAndEnumerableFlag> : public DefaultTraits<JS::Prope
         return Traits<JS::PropertyKey>::equals(a.key, b.key);
     }
 };
+
 }
 
 namespace JS::Bytecode {

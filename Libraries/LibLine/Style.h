@@ -194,4 +194,5 @@ private:
 
     bool m_is_empty { true };
 };
+
 }

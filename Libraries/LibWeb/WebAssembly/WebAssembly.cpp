@@ -1010,9 +1010,11 @@ DEFINE_WASM_NATIVE_ERROR_PROTOTYPE(RuntimeError, runtime_error, RuntimeErrorProt
     }
 
 namespace Web::Bindings {
+
 DEFINE_WASM_ERROR_PROTOTYPE_AND_CONSTRUCTOR_WEB_INTRINSIC(CompileError, compile_error, CompileErrorPrototype, CompileErrorConstructor)
 DEFINE_WASM_ERROR_PROTOTYPE_AND_CONSTRUCTOR_WEB_INTRINSIC(LinkError, link_error, LinkErrorPrototype, LinkErrorConstructor)
 DEFINE_WASM_ERROR_PROTOTYPE_AND_CONSTRUCTOR_WEB_INTRINSIC(RuntimeError, runtime_error, RuntimeErrorPrototype, RuntimeErrorConstructor)
+
 }
 
 #undef DEFINE_WASM_ERROR_PROTOTYPE_AND_CONSTRUCTOR_WEB_INTRINSIC

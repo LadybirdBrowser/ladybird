@@ -40,4 +40,5 @@ struct ColorFilter {
 };
 
 using Filter = Variant<BlurFilter, DropShadowFilter, HueRotateFilter, ColorFilter>;
+
 }

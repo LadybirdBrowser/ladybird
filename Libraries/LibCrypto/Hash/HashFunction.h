@@ -59,6 +59,7 @@ public:
 protected:
     virtual ~HashFunction() = default;
 };
+
 }
 
 template<size_t DigestS>

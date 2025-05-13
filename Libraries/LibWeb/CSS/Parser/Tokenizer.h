@@ -106,4 +106,5 @@ private:
     Token::Position m_position;
     Token::Position m_prev_position;
 };
+
 }

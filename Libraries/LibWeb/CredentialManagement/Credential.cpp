@@ -35,4 +35,5 @@ void Credential::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(Credential);
     Base::initialize(realm);
 }
+
 }

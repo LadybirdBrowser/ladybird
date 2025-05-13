@@ -300,6 +300,7 @@ private:
     Node* m_tail { nullptr };
     TSizeCalculationPolicy m_size_policy {};
 };
+
 }
 
 #if USING_AK_GLOBALLY

@@ -102,4 +102,5 @@ void MachPortServer::thread_loop()
         dbgln("Received message with id {}, ignoring", message.header.msgh_id);
     }
 }
+
 }

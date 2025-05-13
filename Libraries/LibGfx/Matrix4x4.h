@@ -86,6 +86,7 @@ Gfx::AffineTransform extract_2d_affine_transform(Matrix4x4<T> const& matrix)
 
 typedef Matrix4x4<float> FloatMatrix4x4;
 typedef Matrix4x4<double> DoubleMatrix4x4;
+
 }
 
 using Gfx::DoubleMatrix4x4;

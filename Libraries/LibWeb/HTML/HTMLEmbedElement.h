@@ -30,6 +30,8 @@ private:
 }
 
 namespace Web::DOM {
+
 template<>
 inline bool Node::fast_is<HTML::HTMLEmbedElement>() const { return is_html_embed_element(); }
+
 }

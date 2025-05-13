@@ -41,6 +41,8 @@ private:
 }
 
 namespace Web::DOM {
+
 template<>
 inline bool Node::fast_is<HTML::HTMLFrameSetElement>() const { return is_html_frameset_element(); }
+
 }

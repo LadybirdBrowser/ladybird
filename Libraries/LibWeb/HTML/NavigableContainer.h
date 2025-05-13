@@ -78,6 +78,8 @@ private:
 }
 
 namespace Web::DOM {
+
 template<>
 inline bool Node::fast_is<HTML::NavigableContainer>() const { return is_navigable_container(); }
+
 }

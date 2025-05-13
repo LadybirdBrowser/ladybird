@@ -18,7 +18,9 @@
 #    include <LibGC/ForeignCell.h>
 
 namespace Web {
+
 class SpeculativeHTMLParser;
+
 }
 #endif
 

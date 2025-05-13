@@ -1813,4 +1813,5 @@ void Optimizer::append_character_class(ByteCode& target, Vector<CompareTypeAndVa
 template void Regex<PosixBasicParser>::run_optimization_passes();
 template void Regex<PosixExtendedParser>::run_optimization_passes();
 template void Regex<ECMA262Parser>::run_optimization_passes();
+
 }

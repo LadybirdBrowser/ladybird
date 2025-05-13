@@ -81,6 +81,7 @@ static_assert(vector_length<i8x4> == 4);
 static_assert(vector_length<f32x4> == 4);
 
 namespace Detail {
+
 template<typename T>
 struct IndexVectorFor;
 
@@ -113,4 +114,5 @@ static_assert(IsSame<IndexVectorFor<u64x4>, u64x4>);
 static_assert(IsSame<IndexVectorFor<f32x4>, u32x4>);
 static_assert(IsSame<IndexVectorFor<f64x4>, u64x4>);
 #endif
+
 }

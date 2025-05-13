@@ -46,6 +46,7 @@ namespace AK {
  */
 
 namespace DistinctNumericFeature {
+
 enum Arithmetic { };
 enum CastToBool { };
 enum CastToUnderlying { };
@@ -53,6 +54,7 @@ enum Comparison { };
 enum Flags { };
 enum Increment { };
 enum Shift { };
+
 };
 
 template<typename T, typename X, typename... Opts>
@@ -304,6 +306,7 @@ struct Formatter<DistinctNumeric<T, X, Opts...>> : Formatter<T> {
         return Formatter<T>::format(builder, value.value());
     }
 };
+
 }
 
 #define AK_TYPEDEF_DISTINCT_NUMERIC_GENERAL(T, NAME, ...)                                       \

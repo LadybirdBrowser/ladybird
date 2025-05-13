@@ -13,6 +13,7 @@
 #include <AK/Utf16View.h>
 
 namespace AK {
+
 // Consume a number of characters
 StringView GenericLexer::consume(size_t count)
 {

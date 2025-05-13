@@ -42,4 +42,5 @@ private:
 
     GC::Ref<SessionHistoryEntry> m_session_history_entry;
 };
+
 }

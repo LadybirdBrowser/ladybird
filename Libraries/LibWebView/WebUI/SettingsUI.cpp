@@ -276,4 +276,5 @@ void SettingsUI::set_dns_settings(JsonValue const& dns_settings)
     Application::settings().set_dns_settings(Settings::parse_dns_settings(dns_settings));
     load_current_settings();
 }
+
 }

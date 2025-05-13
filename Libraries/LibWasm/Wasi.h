@@ -98,10 +98,12 @@ using FileSize = LittleEndian<u64>;
 using Timestamp = LittleEndian<u64>;
 
 namespace Detail {
+
 template<typename>
 struct __Pointer_tag;
 template<typename>
 struct __ConstPointer_tag;
+
 }
 
 // NOTE: Might need to be updated if WASI ever supports memory64.

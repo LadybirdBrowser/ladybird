@@ -27,7 +27,9 @@
 #include <LibJS/Runtime/ValueTraits.h>
 
 namespace JS {
+
 class FunctionExpression;
+
 }
 
 namespace JS::Bytecode::Op {

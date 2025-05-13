@@ -11,6 +11,7 @@
 #include <AK/Math.h>
 
 namespace Audio {
+
 using AK::Exponentials::exp;
 using AK::Exponentials::log;
 // Constants for logarithmic volume. See Sample::linear_to_log

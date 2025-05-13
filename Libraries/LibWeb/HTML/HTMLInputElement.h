@@ -395,6 +395,8 @@ private:
 }
 
 namespace Web::DOM {
+
 template<>
 inline bool Node::fast_is<HTML::HTMLInputElement>() const { return is_html_input_element(); }
+
 }

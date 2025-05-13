@@ -1051,4 +1051,5 @@ private:
     ValidationStatus m_validation_status { ValidationStatus::Unchecked };
     Optional<ByteString> m_validation_error;
 };
+
 }

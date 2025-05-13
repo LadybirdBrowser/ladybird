@@ -41,6 +41,8 @@ private:
 }
 
 namespace Web::DOM {
+
 template<>
 inline bool Node::fast_is<HTML::HTMLTableCellElement>() const { return is_html_table_cell_element(); }
+
 }

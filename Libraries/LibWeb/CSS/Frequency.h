@@ -10,6 +10,7 @@
 #include <LibWeb/Forward.h>
 
 namespace Web::CSS {
+
 class Frequency {
 public:
     enum class Type {

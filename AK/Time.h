@@ -83,6 +83,7 @@ constexpr int weeks_in_year(int year)
 }
 
 namespace Detail {
+
 // Integer division rounding towards negative infinity.
 // TODO: This feels like there should be an easier way to do this.
 template<int divisor>
@@ -100,6 +101,7 @@ constexpr i64 mod_zeros_in_range(i64 begin, i64 end)
 {
     return floor_div_by<positive_mod>(end - 1) - floor_div_by<positive_mod>(begin - 1);
 }
+
 }
 
 constexpr i64 years_to_days_since_epoch(int year)

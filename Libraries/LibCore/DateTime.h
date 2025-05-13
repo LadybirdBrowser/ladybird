@@ -94,6 +94,7 @@ private:
 }
 
 namespace AK {
+
 template<>
 struct Formatter<Core::DateTime> : StandardFormatter {
     ErrorOr<void> format(FormatBuilder& builder, Core::DateTime const& value)
@@ -104,6 +105,7 @@ struct Formatter<Core::DateTime> : StandardFormatter {
             value.hour(), value.minute(), value.second());
     }
 };
+
 }
 
 namespace IPC {

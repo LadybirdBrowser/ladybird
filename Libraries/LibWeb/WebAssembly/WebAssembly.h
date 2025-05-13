@@ -32,6 +32,7 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate(JS::VM&, Module const&
 WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate_streaming(JS::VM&, GC::Root<WebIDL::Promise> source, Optional<GC::Root<JS::Object>>& import_object);
 
 namespace Detail {
+
 struct CompiledWebAssemblyModule : public RefCounted<CompiledWebAssemblyModule> {
     explicit CompiledWebAssemblyModule(NonnullRefPtr<Wasm::Module> module)
         : module(move(module))
@@ -163,4 +164,5 @@ DECLARE_WASM_NATIVE_ERROR_PROTOTYPE(RuntimeError, runtime_error, RuntimeErrorPro
 #undef DECLARE_WASM_NATIVE_ERROR
 #undef DECLARE_WASM_NATIVE_ERROR_PROTOTYPE
 #undef DECLARE_WASM_NATIVE_ERROR_CONSTRUCTOR
+
 }

@@ -486,4 +486,5 @@ using Command = Variant<
     ApplyFilters,
     ApplyTransform,
     ApplyMaskBitmap>;
+
 }

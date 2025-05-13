@@ -1221,9 +1221,11 @@ FDFlags fd_flags_of(struct stat const&)
     FDFlags::Bits result {};
     return FDFlags { result };
 }
+
 }
 
 namespace AK {
+
 template<>
 struct Formatter<Wasm::Wasi::Errno> : AK::Formatter<FormatString> {
     ErrorOr<void> format(FormatBuilder& builder, Wasm::Wasi::Errno const& value)
@@ -1291,4 +1293,5 @@ struct Formatter<Wasm::Wasi::SockRecvResult> : AK::Formatter<FormatString> {
         return Formatter<FormatString>::format(builder, "size={}"sv, value.size);
     }
 };
+
 }

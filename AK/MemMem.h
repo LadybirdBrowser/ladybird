@@ -15,6 +15,7 @@
 namespace AK {
 
 namespace Detail {
+
 constexpr void const* bitap_bitwise(void const* haystack, size_t haystack_length, void const* needle, size_t needle_length)
 {
     VERIFY(needle_length < 32);
@@ -40,6 +41,7 @@ constexpr void const* bitap_bitwise(void const* haystack, size_t haystack_length
 
     return nullptr;
 }
+
 }
 
 template<typename HaystackIterT>

@@ -9,6 +9,7 @@
 #include <LibWeb/Painting/FieldSetPaintable.h>
 
 namespace Web::Painting {
+
 GC_DEFINE_ALLOCATOR(FieldSetPaintable);
 
 GC::Ref<FieldSetPaintable> FieldSetPaintable::create(Layout::FieldSetBox const& layout_box)

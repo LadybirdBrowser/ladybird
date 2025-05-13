@@ -23,6 +23,7 @@
 namespace Core {
 
 namespace {
+
 struct ThreadData;
 class TimeoutSet;
 
@@ -299,6 +300,7 @@ struct ThreadData {
 
     pid_t pid { 0 };
 };
+
 }
 
 EventLoopImplementationUnix::EventLoopImplementationUnix()

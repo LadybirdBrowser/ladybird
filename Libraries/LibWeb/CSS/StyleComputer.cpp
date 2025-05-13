@@ -105,10 +105,12 @@ struct FontFaceKey {
 namespace AK {
 
 namespace Detail {
+
 template<>
 inline constexpr bool IsHashCompatible<Web::CSS::FontFaceKey, Web::CSS::OwnFontFaceKey> = true;
 template<>
 inline constexpr bool IsHashCompatible<Web::CSS::OwnFontFaceKey, Web::CSS::FontFaceKey> = true;
+
 }
 
 template<>

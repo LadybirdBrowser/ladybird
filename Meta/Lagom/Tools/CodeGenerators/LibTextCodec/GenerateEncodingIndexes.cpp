@@ -16,6 +16,7 @@
 #include <LibMain/Main.h>
 
 namespace {
+
 struct LookupTable {
     u32 first_pointer;
     u32 max_code_point;
@@ -222,6 +223,7 @@ namespace TextCodec {
     TRY(file.write_until_depleted(generator.as_string_view().bytes()));
     return {};
 }
+
 } // end anonymous namespace
 
 ErrorOr<int> serenity_main(Main::Arguments arguments)

@@ -176,4 +176,5 @@ JS::Value HTMLCollection::named_item_value(FlyString const& name) const
         return JS::js_undefined();
     return element;
 }
+
 }

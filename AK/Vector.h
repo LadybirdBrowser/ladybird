@@ -39,6 +39,7 @@ struct CanBePlacedInsideVectorHelper<StorageType, false> {
     template<typename U>
     static constexpr bool value = requires(U&& u) { StorageType(forward<U>(u)); };
 };
+
 }
 
 template<typename T, size_t inline_capacity>

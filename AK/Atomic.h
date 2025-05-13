@@ -455,6 +455,7 @@ public:
         return __atomic_is_lock_free(sizeof(m_value), &m_value);
     }
 };
+
 }
 
 #if USING_AK_GLOBALLY

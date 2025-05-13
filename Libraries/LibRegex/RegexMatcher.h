@@ -294,6 +294,7 @@ bool has_match(Vector<RegexStringView> const& views, Regex<Parser>& pattern, Opt
 {
     return pattern.has_match(views, regex_options);
 }
+
 }
 
 using regex::has_match;

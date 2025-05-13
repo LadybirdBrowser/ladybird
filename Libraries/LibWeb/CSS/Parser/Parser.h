@@ -41,6 +41,7 @@ namespace Web::CSS::Parser {
 class PropertyDependencyNode;
 
 namespace CalcParsing {
+
 struct Operator {
     char delim;
 };
@@ -61,6 +62,7 @@ struct InvertNode {
 struct NegateNode {
     Node child;
 };
+
 }
 
 enum class ParsingMode {

@@ -71,6 +71,8 @@ void run_iframe_load_event_steps(HTML::HTMLIFrameElement&);
 }
 
 namespace Web::DOM {
+
 template<>
 inline bool Node::fast_is<HTML::HTMLIFrameElement>() const { return is_html_iframe_element(); }
+
 }

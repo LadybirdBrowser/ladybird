@@ -7,4 +7,5 @@
 #include <LibWeb/ServiceWorker/ServiceWorkerRecord.h>
 
 namespace Web::ServiceWorker {
+
 }

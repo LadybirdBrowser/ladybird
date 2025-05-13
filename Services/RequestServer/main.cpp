@@ -23,7 +23,9 @@
 #endif
 
 namespace RequestServer {
+
 extern ByteString g_default_certificate_path;
+
 }
 
 static ErrorOr<ByteString> find_certificates(StringView serenity_resource_root)

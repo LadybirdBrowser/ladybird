@@ -1052,12 +1052,15 @@ ErrorOr<void> print_value(JS::PrintContext& print_context, JS::Value value, Hash
     TRY(js_out(print_context, "\033[0m"));
     return {};
 }
+
 }
 
 namespace JS {
+
 ErrorOr<void> print(JS::Value value, PrintContext& print_context)
 {
     HashTable<JS::Object*> seen_objects;
     return print_value(print_context, value, seen_objects);
 }
+
 }

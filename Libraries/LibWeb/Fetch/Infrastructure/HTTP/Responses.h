@@ -349,4 +349,5 @@ private:
 
     GC::Ref<HeaderList> m_header_list;
 };
+
 }

@@ -52,4 +52,5 @@ private:
     Type m_type;
     double m_value { 0 };
 };
+
 }

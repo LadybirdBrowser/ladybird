@@ -1669,4 +1669,5 @@ void DebuggerBytecodeInterpreter::interpret_instruction(Configuration& configura
         }
     }
 }
+
 }

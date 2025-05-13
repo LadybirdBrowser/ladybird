@@ -37,6 +37,7 @@ private:
 }
 
 namespace AK {
+
 template<>
 class Optional<JS::Bytecode::StringTableIndex> : public OptionalBase<JS::Bytecode::StringTableIndex> {
     template<typename U>

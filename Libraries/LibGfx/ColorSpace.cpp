@@ -115,6 +115,7 @@ sk_sp<SkColorSpace>& ColorSpace::color_space()
 }
 
 namespace IPC {
+
 template<>
 ErrorOr<void> encode(Encoder& encoder, Gfx::ColorSpace const& color_space)
 {
@@ -141,4 +142,5 @@ ErrorOr<Gfx::ColorSpace> decode(Decoder& decoder)
     auto color_space = SkColorSpace::Deserialize(buffer.data(), buffer.size());
     return Gfx::ColorSpace { make<::Gfx::Details::ColorSpaceImpl>(move(color_space)) };
 }
+
 }

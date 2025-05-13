@@ -29,7 +29,9 @@ class ExifMetadata;
 // And it can be found at https://www.cipa.jp/e/std/std-sec.html
 
 namespace TIFF {
+
 class TIFFLoadingContext;
+
 }
 
 class TIFFImageDecoderPlugin : public ImageDecoderPlugin {

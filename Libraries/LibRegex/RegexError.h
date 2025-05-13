@@ -81,6 +81,7 @@ inline StringView get_error_string(Error error)
     }
     return "Undefined error."sv;
 }
+
 }
 
 using regex::get_error_string;

@@ -14,6 +14,7 @@
 namespace TextCodec {
 
 namespace {
+
 UTF8Encoder s_utf8_encoder;
 GB18030Encoder s_gb18030_encoder;
 GB18030Encoder s_gbk_encoder(GB18030Encoder::IsGBK::Yes);

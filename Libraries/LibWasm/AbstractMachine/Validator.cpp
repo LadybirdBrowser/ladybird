@@ -3752,4 +3752,5 @@ ByteString Validator::Errors::find_instruction_name(SourceLocation const& locati
 
     return instruction_name(OpCode { *opcode });
 }
+
 }

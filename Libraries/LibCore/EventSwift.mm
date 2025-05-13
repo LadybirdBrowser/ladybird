@@ -8,6 +8,7 @@
 #include <LibCore/EventSwift.h>
 
 namespace Core {
+
 void deferred_invoke_block(EventLoop& event_loop, void (^invokee)(void))
 {
     event_loop.deferred_invoke(invokee);

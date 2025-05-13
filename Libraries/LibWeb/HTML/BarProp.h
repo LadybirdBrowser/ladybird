@@ -27,4 +27,5 @@ public:
 private:
     virtual void initialize(JS::Realm&) override;
 };
+
 }

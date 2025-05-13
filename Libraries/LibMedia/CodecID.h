@@ -33,6 +33,7 @@ enum class CodecID : u32 {
 }
 
 namespace AK {
+
 template<>
 struct Formatter<Media::CodecID> : Formatter<StringView> {
     ErrorOr<void> format(FormatBuilder& builder, Media::CodecID value)
@@ -82,4 +83,5 @@ struct Formatter<Media::CodecID> : Formatter<StringView> {
         return builder.put_string(codec);
     }
 };
+
 }

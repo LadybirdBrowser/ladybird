@@ -35,6 +35,7 @@ template<FloatingPoint T>
 constexpr T L2_E = 1.442695040888963407359924681001892137L;
 
 namespace Details {
+
 template<size_t>
 constexpr size_t product_even();
 template<>
@@ -48,6 +49,7 @@ template<>
 constexpr size_t product_odd<1>() { return 1; }
 template<size_t value>
 constexpr size_t product_odd() { return value * product_odd<value - 2>(); }
+
 }
 
 template<FloatingPoint T>
@@ -103,6 +105,7 @@ constexpr T fabs(T x)
 }
 
 namespace Rounding {
+
 template<FloatingPoint T>
 constexpr T ceil(T num)
 {
@@ -385,6 +388,7 @@ using Rounding::round_to;
 using Rounding::trunc;
 
 namespace Division {
+
 template<FloatingPoint T>
 constexpr T fmod(T x, T y)
 {
@@ -462,6 +466,7 @@ constexpr T remainder(T x, T y)
         return __builtin_remainderf(x, y);
 #endif
 }
+
 }
 
 using Division::fmod;
@@ -1036,6 +1041,7 @@ constexpr I clamp_to(T value)
 
 #undef CONSTEXPR_STATE
 #undef AARCH64_INSTRUCTION
+
 }
 
 #if USING_AK_GLOBALLY

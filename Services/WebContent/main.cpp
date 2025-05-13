@@ -54,15 +54,21 @@ static ErrorOr<void> initialize_image_decoder(int image_decoder_socket);
 static ErrorOr<void> reinitialize_image_decoder(IPC::File const& image_decoder_socket);
 
 namespace JS {
+
 extern bool g_log_all_js_exceptions;
+
 }
 
 namespace Web::WebIDL {
+
 extern bool g_enable_idl_tracing;
+
 }
 
 namespace Web::Fetch::Fetching {
+
 extern bool g_http_cache_enabled;
+
 }
 
 ErrorOr<int> serenity_main(Main::Arguments arguments)

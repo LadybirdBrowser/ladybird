@@ -77,4 +77,5 @@ inline bool Object::fast_is<Error>() const { return is_error_object(); }
     DECLARE_NATIVE_ERROR(ClassName, snake_name, PrototypeName, ConstructorName)
 JS_ENUMERATE_NATIVE_ERRORS
 #undef __JS_ENUMERATE
+
 }

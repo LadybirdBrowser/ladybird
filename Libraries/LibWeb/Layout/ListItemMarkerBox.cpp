@@ -71,4 +71,5 @@ void ListItemMarkerBox::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_list_item_element);
 }
+
 }

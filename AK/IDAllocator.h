@@ -48,6 +48,7 @@ private:
     HashTable<int> m_allocated_ids;
     int m_minimum_value { 1 };
 };
+
 }
 
 #if USING_AK_GLOBALLY

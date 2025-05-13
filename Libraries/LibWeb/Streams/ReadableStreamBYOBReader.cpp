@@ -179,4 +179,5 @@ GC::Ref<WebIDL::Promise> ReadableStreamBYOBReader::read(GC::Root<WebIDL::ArrayBu
     // 11. Return promise.
     return promise_capability;
 }
+
 }

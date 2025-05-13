@@ -673,4 +673,5 @@ void LayoutState::UsedValues::set_indefinite_content_height()
 {
     m_has_definite_height = false;
 }
+
 }

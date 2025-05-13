@@ -335,6 +335,8 @@ private:
 }
 
 namespace Web::DOM {
+
 template<>
 inline bool Node::fast_is<HTML::HTMLMediaElement>() const { return is_html_media_element(); }
+
 }

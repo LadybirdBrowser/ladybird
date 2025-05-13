@@ -17,7 +17,9 @@
 #include <LibWeb/WebAssembly/WebAssembly.h>
 
 namespace Web::Bindings {
+
 enum class ImportExportKind : u8;
+
 }
 
 namespace Web::WebAssembly {

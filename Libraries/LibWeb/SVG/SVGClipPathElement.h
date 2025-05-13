@@ -49,4 +49,5 @@ private:
 
     Optional<ClipPathUnits> m_clip_path_units = {};
 };
+
 }

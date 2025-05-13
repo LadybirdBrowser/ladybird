@@ -50,6 +50,8 @@ private:
 }
 
 namespace Web::DOM {
+
 template<>
 inline bool Node::fast_is<HTML::HTMLBodyElement>() const { return is_html_body_element(); }
+
 }
