@@ -600,19 +600,75 @@ GC::Ptr<CSSFontFaceRule> Parser::convert_to_font_face_rule(AtRule const& rule)
     return CSSFontFaceRule::create(realm(), CSSFontFaceDescriptors::create(realm(), move(descriptors)));
 }
 
+static Optional<PageSelectorList> parse_page_selector_list(Vector<ComponentValue> const& component_values)
+{
+    // https://drafts.csswg.org/css-page-3/#syntax-page-selector
+    // <page-selector-list> = <page-selector>#
+    // <page-selector> = [ <ident-token>? <pseudo-page>* ]!
+    // <pseudo-page> = : [ left | right | first | blank ]
+
+    PageSelectorList selector_list;
+
+    TokenStream tokens { component_values };
+    tokens.discard_whitespace();
+
+    while (tokens.has_next_token()) {
+        // First optional ident
+        Optional<FlyString> maybe_ident;
+        if (tokens.next_token().is(Token::Type::Ident))
+            maybe_ident = tokens.consume_a_token().token().ident();
+
+        // Then an optional series of pseudo-classes
+        Vector<PagePseudoClass> pseudo_classes;
+        while (tokens.next_token().is(Token::Type::Colon)) {
+            tokens.discard_a_token(); // :
+            if (!tokens.next_token().is(Token::Type::Ident)) {
+                dbgln_if(CSS_PARSER_DEBUG, "Invalid @page selector: pseudo-class is not an ident: `{}`", tokens.next_token().to_debug_string());
+                return {};
+            }
+            auto pseudo_class_name = tokens.consume_a_token().token().ident();
+            if (auto pseudo_class = page_pseudo_class_from_string(pseudo_class_name); pseudo_class.has_value()) {
+                pseudo_classes.append(*pseudo_class);
+            } else {
+                dbgln_if(CSS_PARSER_DEBUG, "Invalid @page selector: unrecognized pseudo-class `:{}`", pseudo_class_name);
+                return {};
+            }
+        }
+
+        if (!maybe_ident.has_value() && pseudo_classes.is_empty()) {
+            // Nothing parsed
+            dbgln_if(CSS_PARSER_DEBUG, "Invalid @page selector: is empty");
+            return {};
+        }
+
+        selector_list.empend(move(maybe_ident), move(pseudo_classes));
+
+        tokens.discard_whitespace();
+
+        if (tokens.next_token().is(Token::Type::Comma)) {
+            tokens.discard_a_token(); // ,
+            tokens.discard_whitespace();
+            if (!tokens.has_next_token()) {
+                dbgln_if(CSS_PARSER_DEBUG, "Invalid @page selector: trailing comma");
+                return {};
+            }
+
+        } else if (tokens.has_next_token()) {
+            dbgln_if(CSS_PARSER_DEBUG, "Invalid @page selector: trailing token `{}`", tokens.next_token().to_debug_string());
+            return {};
+        }
+    }
+
+    return selector_list;
+}
+
 GC::Ptr<CSSPageRule> Parser::convert_to_page_rule(AtRule const& rule)
 {
     // https://drafts.csswg.org/css-page-3/#syntax-page-selector
     // @page = @page <page-selector-list>? { <declaration-rule-list> }
-    // <page-selector-list> = <page-selector>#
-    // <page-selector> = [ <ident-token>? <pseudo-page>* ]!
-    // <pseudo-page> = : [ left | right | first | blank ]
-    SelectorList page_selectors;
-    // FIXME: Parse page selectors
-    if (rule.prelude.find_first_index_if([](ComponentValue const& it) { return !it.is(Token::Type::Whitespace); }).has_value()) {
-        dbgln("@page prelude wasn't empty!");
+    auto page_selectors = parse_page_selector_list(rule.prelude);
+    if (!page_selectors.has_value())
         return nullptr;
-    }
 
     GC::RootVector<GC::Ref<CSSRule>> child_rules { realm().heap() };
     Vector<Descriptor> descriptors;
@@ -636,7 +692,7 @@ GC::Ptr<CSSPageRule> Parser::convert_to_page_rule(AtRule const& rule)
         });
 
     auto rule_list = CSSRuleList::create(realm(), child_rules);
-    return CSSPageRule::create(realm(), move(page_selectors), CSSPageDescriptors::create(realm(), move(descriptors)), rule_list);
+    return CSSPageRule::create(realm(), page_selectors.release_value(), CSSPageDescriptors::create(realm(), move(descriptors)), rule_list);
 }
 
 }
