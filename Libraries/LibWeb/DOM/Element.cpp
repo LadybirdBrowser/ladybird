@@ -1,12 +1,16 @@
 /*
  * Copyright (c) 2018-2024, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2022-2023, San Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2022-2023, Sam Atkins <atkinssj@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <AK/AnyOf.h>
+#include <AK/Assertions.h>
+#include <AK/Checked.h>
 #include <AK/Debug.h>
+#include <AK/IterationDecision.h>
+#include <AK/NumericLimits.h>
 #include <AK/StringBuilder.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibUnicode/CharacterTypes.h>
@@ -3184,23 +3188,22 @@ bool Element::skips_its_contents()
     return false;
 }
 
-size_t Element::number_of_owned_list_items() const
+i32 Element::number_of_owned_list_items() const
 {
-    auto number_of_owned_li_elements = 0;
-    for_each_child_of_type<DOM::Element>([&](auto& child) {
-        if (child.list_owner() == this) {
-            number_of_owned_li_elements++;
-        }
+    AK::Checked<i32> number_of_owned_li_elements = 0;
+    for_each_numbered_item_owned_by_list_owner([&number_of_owned_li_elements]([[maybe_unused]] Element* item) {
+        number_of_owned_li_elements++;
         return IterationDecision::Continue;
     });
-    return number_of_owned_li_elements;
+
+    return number_of_owned_li_elements.value();
 }
 
 // https://html.spec.whatwg.org/multipage/grouping-content.html#list-owner
 Element* Element::list_owner() const
 {
     // Any element whose computed value of 'display' is 'list-item' has a list owner, which is determined as follows:
-    if (!computed_properties() || !computed_properties()->display().is_list_item())
+    if (!m_is_contained_in_list_subtree && (!computed_properties() || !computed_properties()->display().is_list_item()))
         return nullptr;
 
     // 1. If the element is not being rendered, return null; the element has no list owner.
@@ -3216,8 +3219,8 @@ Element* Element::list_owner() const
 
     // 3. If the element has an ol, ul, or menu ancestor, set ancestor to the closest such ancestor element.
     for_each_ancestor([&ancestor](GC::Ref<Node> node) {
-        if (is<HTML::HTMLOListElement>(*node) || is<HTML::HTMLUListElement>(*node) || is<HTML::HTMLMenuElement>(*node)) {
-            ancestor = static_cast<Element const*>(node.ptr());
+        if (node->is_html_ol_ul_menu_element()) {
+            ancestor = static_cast<Element*>(node.ptr());
             return IterationDecision::Break;
         }
         return IterationDecision::Continue;
@@ -3226,7 +3229,7 @@ Element* Element::list_owner() const
     // 4. Return the closest inclusive ancestor of ancestor that produces a CSS box.
     ancestor->for_each_inclusive_ancestor([&ancestor](GC::Ref<Node> node) {
         if (is<Element>(*node) && node->paintable_box()) {
-            ancestor = static_cast<Element const*>(node.ptr());
+            ancestor = static_cast<Element*>(node.ptr());
             return IterationDecision::Break;
         }
         return IterationDecision::Continue;
@@ -3234,62 +3237,75 @@ Element* Element::list_owner() const
     return const_cast<Element*>(ancestor.ptr());
 }
 
-// https://html.spec.whatwg.org/multipage/grouping-content.html#ordinal-value
-size_t Element::ordinal_value() const
+void Element::maybe_invalidate_ordinals_for_list_owner(Optional<Element*> skip_node)
 {
-    // NOTE: The spec provides an algorithm to determine the ordinal value of each element owned by a given list owner.
-    //       However, we are only interested in the ordinal value of this element.
+    if (Element* owner = list_owner())
+        owner->for_each_numbered_item_owned_by_list_owner([&](Element* item) {
+            if (skip_node.has_value() && item == skip_node.value())
+                return IterationDecision::Continue;
 
-    // FIXME: 1. Let i be 1.
+            item->m_ordinal_value = {};
 
-    // 2. If owner is an ol element, let numbering be owner's starting value. Otherwise, let numbering be 1.
-    auto const* owner = list_owner();
-    if (!owner) {
+            // Invalidate just the first ordinal in the list of numbered items.
+            // NOTE: This works since this item is the first accessed (preorder) when rendering the list.
+            //       It will trigger a recalculation of all ordinals on the [first] call to ordinal_value().
+            return IterationDecision::Break;
+        });
+}
+
+// https://html.spec.whatwg.org/multipage/grouping-content.html#ordinal-value
+i32 Element::ordinal_value()
+{
+    if (m_ordinal_value.has_value())
+        return m_ordinal_value.value();
+
+    auto* owner = list_owner();
+    if (!owner)
         return 1;
-    }
 
-    auto numbering = 1;
+    // 1. Let i be 1. [Not necessary]
+    // 2. If owner is an ol element, let numbering be owner's starting value. Otherwise, let numbering be 1.
+    AK::Checked<i32> numbering = 1;
     auto reversed = false;
-    if (is<HTML::HTMLOListElement>(owner)) {
+
+    if (owner->is_html_olist_element()) {
         auto const* ol_element = static_cast<const HTML::HTMLOListElement*>(owner);
         numbering = ol_element->starting_value().value();
         reversed = ol_element->has_attribute(HTML::AttributeNames::reversed);
     }
 
-    // FIXME: 3. Loop : If i is greater than the number of list items that owner owns, then return; all of owner's owned list items have been assigned ordinal values.
-    // FIXME: 4. Let item be the ith of owner's owned list items, in tree order.
+    // 3. Loop : If i is greater than the number of list items that owner owns, then return; all of owner's owned list items have been assigned ordinal values.
+    // NOTE: We use `owner->for_each_numbered_item_in_list` to iterate through the owner's list of owned elements.
+    //       As a result, we don't need `i` as counter (spec) in the list of children, with no material consequences.
+    owner->for_each_numbered_item_owned_by_list_owner([&](Element* item) {
+        // 4. Let item be the ith of owner's owned list items, in tree order. [Not necessary]
+        // 5. If item is an li element that has a value attribute, then:
+        auto value_attribute = item->get_attribute(HTML::AttributeNames::value);
+        if (item->is_html_li_element() && value_attribute.has_value()) {
+            // 1. Let parsed be the result of parsing the value of the attribute as an integer.
+            auto parsed = HTML::parse_integer(value_attribute.value());
 
-    owner->for_each_child_of_type<DOM::Element>([&](auto& item) {
-        if (item.list_owner() == owner) {
-            // 5. If item is an li element that has a value attribute, then:
-            auto value_attribute = item.get_attribute(HTML::AttributeNames::value);
-            if (is<HTML::HTMLLIElement>(item) && value_attribute.has_value()) {
-                // 1. Let parsed be the result of parsing the value of the attribute as an integer.
-                auto parsed = HTML::parse_integer(value_attribute.value());
-
-                // 2. If parsed is not an error, then set numbering to parsed.
-                if (parsed.has_value())
-                    numbering = parsed.value();
-            }
-
-            // FIXME: 6. The ordinal value of item is numbering.
-            if (&item == this)
-                return IterationDecision::Break;
-
-            // 7. If owner is an ol element, and owner has a reversed attribute, decrement numbering by 1; otherwise, increment numbering by 1.
-            if (reversed) {
-                numbering--;
-            } else {
-                numbering++;
-            }
-
-            // FIXME: 8. Increment i by 1.
+            // 2. If parsed is not an error, then set numbering to parsed.
+            if (parsed.has_value())
+                numbering = parsed.value();
         }
+
+        // 6. The ordinal value of item is numbering.
+        item->m_ordinal_value = numbering.value();
+
+        // 7. If owner is an ol element, and owner has a reversed attribute, decrement numbering by 1; otherwise, increment numbering by 1.
+        if (reversed) {
+            numbering--;
+        } else {
+            numbering++;
+        }
+
+        // 8. Increment i by 1. [Not necessary]
+        // 9. Go to the step labeled loop.
         return IterationDecision::Continue;
     });
 
-    // FIXME: 9. Go to the step labeled loop.
-    return numbering;
+    return m_ordinal_value.value_or(1);
 }
 
 bool Element::id_reference_exists(String const& id_reference) const
