@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/IterationDecision.h>
 #include <AK/Optional.h>
 #include <LibWeb/ARIA/ARIAMixin.h>
 #include <LibWeb/ARIA/AttributeNames.h>
@@ -14,6 +15,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/ShadowRootPrototype.h>
 #include <LibWeb/CSS/CascadedProperties.h>
+#include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/CountersSet.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/StyleInvalidation.h>
@@ -464,9 +466,46 @@ public:
         return affected_by_direct_sibling_combinator() || affected_by_indirect_sibling_combinator() || affected_by_sibling_position_or_count_pseudo_class() || affected_by_nth_child_pseudo_class();
     }
 
-    size_t number_of_owned_list_items() const;
+    i32 number_of_owned_list_items() const;
     Element* list_owner() const;
-    size_t ordinal_value() const;
+    void maybe_invalidate_ordinals_for_list_owner(Optional<Element*> skip_node = {});
+    i32 ordinal_value();
+
+    template<typename Callback>
+    void for_each_numbered_item_owned_by_list_owner(Callback callback) const
+    {
+        const_cast<Element*>(this)->for_each_numbered_item_owned_by_list_owner(move(callback));
+    }
+
+    template<typename Callback>
+    void for_each_numbered_item_owned_by_list_owner(Callback callback)
+    {
+        for (auto* node = this->first_child(); node != nullptr; node = node->next_in_pre_order(this)) {
+            if (!is<Element>(*node))
+                continue;
+
+            static_cast<Element*>(node)->m_is_contained_in_list_subtree = true;
+
+            if (node->is_html_ol_ul_menu_element()) {
+                // Skip list nodes and their descendents. They have their own, unrelated ordinals.
+                while (node->last_child() != nullptr) // Find the last node (preorder) in the subtree headed by node. O(1).
+                    node = node->last_child();
+
+                continue;
+            }
+
+            if (!node->layout_node())
+                continue; // Skip nodes that do not participate in the layout.
+
+            auto* element = static_cast<Element*>(node);
+
+            if (!element->computed_properties()->display().is_list_item())
+                continue; // Skip nodes that are not list items.
+
+            if (callback(element) == IterationDecision::Break)
+                return;
+        }
+    }
 
     void set_pointer_capture(WebIDL::Long pointer_id);
     void release_pointer_capture(WebIDL::Long pointer_id);
@@ -593,6 +632,10 @@ private:
 
     // https://drafts.csswg.org/css-contain/#proximity-to-the-viewport
     ProximityToTheViewport m_proximity_to_the_viewport { ProximityToTheViewport::NotDetermined };
+
+    // https://html.spec.whatwg.org/multipage/grouping-content.html#ordinal-value
+    Optional<i32> m_ordinal_value;
+    bool m_is_contained_in_list_subtree { false };
 };
 
 template<>

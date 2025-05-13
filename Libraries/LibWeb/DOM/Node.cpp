@@ -816,6 +816,16 @@ void Node::insert_before(GC::Ref<Node> node, GC::Ptr<Node> child, bool suppress_
         set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeInsertBefore);
     }
 
+    // AD-HOC: invalidate the ordinal of the first list_item of the list_owner of the child node, if any.
+    if (child && child->is_element())
+        static_cast<Element*>(child.ptr())->maybe_invalidate_ordinals_for_list_owner();
+    else if (this->is_element() && !this->is_html_ol_ul_menu_element())
+        static_cast<Element*>(this)->maybe_invalidate_ordinals_for_list_owner();
+    // NOTE: If the child node is null and the parent node is an ol, ul or menu element then:
+    //       the new node will be the first in the list of a potential list owner and it will not have
+    //       an ordinal value (default from constructor).
+    // FIXME: This will not work if the child or the parent is not an element. Is insert_before even possible in this situation?
+
     document().bump_dom_tree_version();
 }
 
@@ -865,6 +875,11 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::append_child(GC::Ref<Node> node)
 {
     // To append a node to a parent, pre-insert node into parent before null.
     return pre_insert(node, nullptr);
+
+    // AD-HOC: invalidate the ordinal of the first list_item of the first child sibling of the appended node, if any.
+    // NOTE: This works since ordinal values are accessed (for layout and paint) in the preorder of list_item nodes !!
+    if (auto* first_child_element = this->first_child_of_type<Element>())
+        first_child_element->maybe_invalidate_ordinals_for_list_owner();
 }
 
 // https://dom.spec.whatwg.org/#live-range-pre-remove-steps
@@ -927,6 +942,12 @@ void Node::remove(bool suppress_observers)
 
     // 6. Let oldNextSibling be node’s next sibling.
     GC::Ptr<Node> old_next_sibling = next_sibling();
+
+    // AD-HOC: invalidate the ordinal of the first list_item of the list_owner of the removed node, if any.
+    if (is_element()) {
+        auto* this_element = static_cast<Element*>(this);
+        this_element->maybe_invalidate_ordinals_for_list_owner(this_element);
+    }
 
     if (is_connected()) {
         // Since the tree structure is about to change, we need to invalidate both style and layout.

@@ -36,6 +36,8 @@ void HTMLOListElement::attribute_changed(FlyString const& local_name, Optional<S
 
     if (local_name.is_one_of(HTML::AttributeNames::reversed, HTML::AttributeNames::start, HTML::AttributeNames::type)) {
         set_needs_layout_tree_update(true, DOM::SetNeedsLayoutTreeUpdateReason::HTMLOListElementOrdinalValues);
+        if (has_children())
+            first_child_of_type<Element>()->maybe_invalidate_ordinals_for_list_owner();
     }
 }
 
