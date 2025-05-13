@@ -1359,7 +1359,7 @@ WebIDL::ExceptionOr<GC::Ptr<Key>> store_a_record_into_an_object_store(JS::Realm&
 
     // 3. If a record already exists in store with its key equal to key, then remove the record from store using delete records from an object store.
     if (has_record) {
-        auto key_range = IDBKeyRange::create(realm, key, key, false, false);
+        auto key_range = IDBKeyRange::create(realm, key, key, IDBKeyRange::LowerOpen::No, IDBKeyRange::UpperOpen::No);
         delete_records_from_an_object_store(store, key_range);
     }
 
@@ -1438,7 +1438,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBKeyRange>> convert_a_value_to_a_key_range(JS::Rea
         if (null_disallowed)
             return WebIDL::DataError::create(realm, "Value is undefined or null"_string);
 
-        return IDBKeyRange::create(realm, {}, {}, false, false);
+        return IDBKeyRange::create(realm, {}, {}, IDBKeyRange::LowerOpen::No, IDBKeyRange::UpperOpen::No);
     }
 
     // 3. Let key be the result of converting a value to a key with value. Rethrow any exceptions.
@@ -1449,7 +1449,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBKeyRange>> convert_a_value_to_a_key_range(JS::Rea
         return WebIDL::DataError::create(realm, "Value is invalid"_string);
 
     // 5. Return a key range containing only key.
-    return IDBKeyRange::create(realm, key, key, false, false);
+    return IDBKeyRange::create(realm, key, key, IDBKeyRange::LowerOpen::No, IDBKeyRange::UpperOpen::No);
 }
 
 // https://w3c.github.io/IndexedDB/#count-the-records-in-a-range
