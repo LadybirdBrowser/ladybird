@@ -75,7 +75,7 @@ WebIDL::ExceptionOr<void> IDBObjectStore::set_name(String const& value)
     // FIXME: 4. If store has been deleted, throw an "InvalidStateError" DOMException.
 
     // 5. If transaction is not an upgrade transaction, throw an "InvalidStateError" DOMException.
-    if (transaction->mode() != Bindings::IDBTransactionMode::Versionchange)
+    if (!transaction->is_upgrade_transaction())
         return WebIDL::InvalidStateError::create(realm, "Attempted to set name outside of version change"_string);
 
     // 6. If transaction’s state is not active, throw a "TransactionInactiveError" DOMException.
@@ -154,7 +154,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBIndex>> IDBObjectStore::create_index(String const
     auto store = this->store();
 
     // 3. If transaction is not an upgrade transaction, throw an "InvalidStateError" DOMException.
-    if (transaction->mode() != Bindings::IDBTransactionMode::Versionchange)
+    if (!transaction->is_upgrade_transaction())
         return WebIDL::InvalidStateError::create(realm, "Transaction is not an upgrade transaction"_string);
 
     // FIXME: 4. If store has been deleted, throw an "InvalidStateError" DOMException.
@@ -228,7 +228,7 @@ WebIDL::ExceptionOr<void> IDBObjectStore::delete_index(String const& name)
     auto store = this->store();
 
     // 3. If transaction is not an upgrade transaction, throw an "InvalidStateError" DOMException.
-    if (transaction->mode() != Bindings::IDBTransactionMode::Versionchange)
+    if (!transaction->is_upgrade_transaction())
         return WebIDL::InvalidStateError::create(realm, "Transaction is not an upgrade transaction"_string);
 
     // FIXME: 4. If store has been deleted, throw an "InvalidStateError" DOMException.
