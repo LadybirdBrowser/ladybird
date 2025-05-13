@@ -7,6 +7,7 @@
 #include <LibWeb/CSS/CSSDescriptors.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Serialize.h>
+#include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/Infra/Strings.h>
 
 namespace Web::CSS {
@@ -95,12 +96,27 @@ WebIDL::ExceptionOr<void> CSSDescriptors::set_property(StringView property, Stri
     // 7. Let updated be false.
     auto updated = false;
 
-    // 8. If property is a shorthand property...
-    // NB: Descriptors can't be shorthands.
+    // 8. If property is a shorthand property, then for each longhand property longhand that property maps to, in canonical order, follow these substeps:
+    if (is_shorthand(m_at_rule_id, *descriptor_id)) {
+        for_each_expanded_longhand(m_at_rule_id, *descriptor_id, component_value_list, [this, &updated, priority](DescriptorID longhand_id, auto longhand_value) {
+            VERIFY(longhand_value);
+
+            // 1. Let longhand result be the result of set the CSS declaration longhand with the appropriate value(s)
+            //    from component value list, with the important flag set if priority is not the empty string, and unset
+            //    otherwise, and with the list of declarations being the declarations.
+            auto longhand_result = set_a_css_declaration(longhand_id, longhand_value.release_nonnull(), priority.is_empty() ? Important::No : Important::Yes);
+
+            // 2. If longhand result is true, let updated be true.
+            if (longhand_result)
+                updated = true;
+        });
+    }
     // 9. Otherwise, let updated be the result of set the CSS declaration property with value component value list,
     //    with the important flag set if priority is not the empty string, and unset otherwise, and with the list of
     //    declarations being the declarations.
-    updated = set_a_css_declaration(*descriptor_id, *component_value_list, !priority.is_empty() ? Important::Yes : Important::No);
+    else {
+        updated = set_a_css_declaration(*descriptor_id, *component_value_list, !priority.is_empty() ? Important::Yes : Important::No);
+    }
 
     // 10. If updated is true, update style attribute for the CSS declaration block.
     if (updated)
@@ -124,14 +140,21 @@ WebIDL::ExceptionOr<String> CSSDescriptors::remove_property(StringView property)
 
     // 4. Let removed be false.
     bool removed = false;
+    auto descriptor_id = descriptor_id_from_string(m_at_rule_id, property);
 
-    // 5. If property is a shorthand property...
-    // NB: Descriptors can't be shorthands.
+    // 5. If property is a shorthand property, for each longhand property longhand that property maps to:
+    if (descriptor_id.has_value() && is_shorthand(m_at_rule_id, *descriptor_id)) {
+        for_each_expanded_longhand(m_at_rule_id, *descriptor_id, nullptr, [this, &removed](DescriptorID longhand_id, auto const&) {
+            // 1. If longhand is not a property name of a CSS declaration in the declarations, continue.
+            // 2. Remove that CSS declaration and let removed be true.
+            if (m_descriptors.remove_first_matching([longhand_id](auto& entry) { return entry.descriptor_id == longhand_id; })) {
+                removed = true;
+            }
+        });
+    }
     // 6. Otherwise, if property is a case-sensitive match for a property name of a CSS declaration in the
     //    declarations, remove that CSS declaration and let removed be true.
-    // auto descriptor_id = descriptor_from_string()
-    auto descriptor_id = descriptor_id_from_string(m_at_rule_id, property);
-    if (descriptor_id.has_value()) {
+    else if (descriptor_id.has_value()) {
         removed = m_descriptors.remove_first_matching([descriptor_id](auto& entry) { return entry.descriptor_id == *descriptor_id; });
     }
 
@@ -254,6 +277,58 @@ RefPtr<CSSStyleValue const> CSSDescriptors::descriptor_or_initial_value(Descript
         return value.release_nonnull();
 
     return descriptor_initial_value(m_at_rule_id, descriptor_id);
+}
+
+bool is_shorthand(AtRuleID at_rule, DescriptorID descriptor)
+{
+    if (at_rule == AtRuleID::Page && descriptor == DescriptorID::Margin)
+        return true;
+
+    return false;
+}
+
+void for_each_expanded_longhand(AtRuleID at_rule, DescriptorID descriptor, RefPtr<CSSStyleValue const> value, Function<void(DescriptorID, RefPtr<CSSStyleValue const>)> callback)
+{
+    if (at_rule == AtRuleID::Page && descriptor == DescriptorID::Margin) {
+        if (!value) {
+            callback(DescriptorID::MarginTop, nullptr);
+            callback(DescriptorID::MarginRight, nullptr);
+            callback(DescriptorID::MarginBottom, nullptr);
+            callback(DescriptorID::MarginLeft, nullptr);
+            return;
+        }
+
+        if (value->is_value_list()) {
+            auto& values = value->as_value_list().values();
+            if (values.size() == 4) {
+                callback(DescriptorID::MarginTop, values[0]);
+                callback(DescriptorID::MarginRight, values[1]);
+                callback(DescriptorID::MarginBottom, values[2]);
+                callback(DescriptorID::MarginLeft, values[3]);
+            } else if (values.size() == 3) {
+                callback(DescriptorID::MarginTop, values[0]);
+                callback(DescriptorID::MarginRight, values[1]);
+                callback(DescriptorID::MarginBottom, values[2]);
+                callback(DescriptorID::MarginLeft, values[1]);
+            } else if (values.size() == 2) {
+                callback(DescriptorID::MarginTop, values[0]);
+                callback(DescriptorID::MarginRight, values[1]);
+                callback(DescriptorID::MarginBottom, values[0]);
+                callback(DescriptorID::MarginLeft, values[1]);
+            } else if (values.size() == 1) {
+                callback(DescriptorID::MarginTop, values[0]);
+                callback(DescriptorID::MarginRight, values[0]);
+                callback(DescriptorID::MarginBottom, values[0]);
+                callback(DescriptorID::MarginLeft, values[0]);
+            }
+
+        } else {
+            callback(DescriptorID::MarginTop, *value);
+            callback(DescriptorID::MarginRight, *value);
+            callback(DescriptorID::MarginBottom, *value);
+            callback(DescriptorID::MarginLeft, *value);
+        }
+    }
 }
 
 }
