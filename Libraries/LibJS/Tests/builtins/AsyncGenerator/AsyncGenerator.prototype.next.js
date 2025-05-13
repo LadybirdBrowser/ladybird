@@ -71,9 +71,9 @@ describe("correct behaviour", () => {
     });
 
     test("gets undefined in completed state", () => {
-        const ninethRunResult = runGenerator("bad8", false);
-        expect(ninethRunResult.value).toBeUndefined();
-        expect(ninethRunResult.done).toBeTrue();
+        const ninthRunResult = runGenerator("bad8", false);
+        expect(ninthRunResult.value).toBeUndefined();
+        expect(ninthRunResult.done).toBeTrue();
     });
 
     async function* implicitReturnFunction() {

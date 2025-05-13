@@ -382,7 +382,7 @@ UnsignedBigInteger::CompareResult SignedBigInteger::compare_to_double(double val
     // Now both bigint and value have the same sign, so let's compare our magnitudes.
     auto magnitudes_compare_result = m_unsigned_data.compare_to_double(fabs(value));
 
-    // If our mangnitudes are euqal, then we're equal.
+    // If our magnitudes are equal, then we're equal.
     if (magnitudes_compare_result == UnsignedBigInteger::CompareResult::DoubleEqualsBigInt)
         return UnsignedBigInteger::CompareResult::DoubleEqualsBigInt;
 
