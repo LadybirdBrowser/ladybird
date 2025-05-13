@@ -84,6 +84,8 @@ set(SOURCES
     CSS/CSSNamespaceRule.cpp
     CSS/CSSNestedDeclarations.cpp
     CSS/CSSNumericType.cpp
+    CSS/CSSPageRule.cpp
+    CSS/CSSPageDescriptors.cpp
     CSS/CSSPropertyRule.cpp
     CSS/CSSRule.cpp
     CSS/CSSRuleList.cpp

@@ -205,6 +205,8 @@ class CSSNamespaceRule;
 class CSSNestedDeclarations;
 class CSSOKLab;
 class CSSOKLCH;
+class CSSPageRule;
+class CSSPageDescriptors;
 class CSSPropertyRule;
 class CSSRGB;
 class CSSRule;
