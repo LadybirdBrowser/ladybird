@@ -10,6 +10,7 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefCounted.h>
 #include <AK/StringBuilder.h>
+#include <AK/kmalloc.h>
 
 namespace AK::Detail {
 
@@ -26,7 +27,7 @@ public:
         VERIFY(byte_count);
 
         auto capacity = allocation_size_for_string_data(byte_count);
-        void* slot = malloc(capacity);
+        void* slot = kmalloc(capacity);
         if (!slot)
             return Error::from_errno(ENOMEM);
 
@@ -52,7 +53,7 @@ public:
         VERIFY(byte_count > MAX_SHORT_STRING_BYTE_COUNT);
 
         auto capacity = sizeof(StringData) + sizeof(StringData::SubstringData);
-        void* slot = malloc(capacity);
+        void* slot = kmalloc(capacity);
         if (!slot)
             return Error::from_errno(ENOMEM);
 
@@ -66,7 +67,7 @@ public:
 
     void operator delete(void* ptr)
     {
-        free(ptr);
+        kfree(ptr);
     }
 
     ~StringData()

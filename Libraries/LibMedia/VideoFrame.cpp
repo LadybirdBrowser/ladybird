@@ -6,16 +6,10 @@
 
 #include <AK/FixedArray.h>
 #include <AK/NonnullOwnPtr.h>
+#include <AK/kmalloc.h>
 #include <LibMedia/Color/ColorConverter.h>
 
 #include "VideoFrame.h"
-
-#ifdef AK_OS_WINDOWS
-#    define aligned_alloc(alignment, size) _aligned_malloc(size, alignment)
-#    define aligned_free _aligned_free
-#else
-#    define aligned_free free
-#endif
 
 namespace Media {
 
@@ -30,7 +24,7 @@ ErrorOr<NonnullOwnPtr<SubsampledYUVFrame>> SubsampledYUVFrame::try_create(
     size_t alignment_size = max(bit_depth > 8 ? sizeof(u16) : sizeof(u8), sizeof(void*));
 
     auto alloc_buffer = [&](size_t size) -> ErrorOr<u8*> {
-        void* buffer = aligned_alloc(alignment_size, round_up_to_power_of_two(size, alignment_size));
+        void* buffer = kaligned_alloc(alignment_size, round_up_to_power_of_two(size, alignment_size));
         if (!buffer)
             return Error::from_errno(ENOMEM);
         return reinterpret_cast<u8*>(buffer);
@@ -70,9 +64,9 @@ ErrorOr<NonnullOwnPtr<SubsampledYUVFrame>> SubsampledYUVFrame::try_create_from_d
 
 SubsampledYUVFrame::~SubsampledYUVFrame()
 {
-    aligned_free(m_y_buffer);
-    aligned_free(m_u_buffer);
-    aligned_free(m_v_buffer);
+    kaligned_free(m_y_buffer);
+    kaligned_free(m_u_buffer);
+    kaligned_free(m_v_buffer);
 }
 
 template<u32 subsampling_horizontal, typename T>
