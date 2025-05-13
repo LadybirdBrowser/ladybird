@@ -49,6 +49,8 @@ public:
     WebIDL::ExceptionOr<void> continue_(JS::Value);
     WebIDL::ExceptionOr<void> continue_primary_key(JS::Value, JS::Value);
 
+    WebIDL::ExceptionOr<GC::Ref<IDBRequest>> update(JS::Value);
+
     [[nodiscard]] JS::Value value() { return m_value.value_or(JS::js_undefined()); }
     [[nodiscard]] GC::Ref<IDBKeyRange> range() { return m_range; }
     [[nodiscard]] GC::Ptr<Key> position() { return m_position; }
@@ -58,6 +60,7 @@ public:
     [[nodiscard]] GC::Ref<IDBTransaction> transaction();
     [[nodiscard]] CursorSource internal_source();
     [[nodiscard]] GC::Ref<Key> effective_key() const;
+    [[nodiscard]] GC::Ref<ObjectStore> effective_object_store() const;
 
     void set_request(GC::Ptr<IDBRequest> request) { m_request = request; }
     void set_position(GC::Ptr<Key> position) { m_position = position; }
