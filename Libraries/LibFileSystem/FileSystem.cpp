@@ -7,6 +7,7 @@
 
 #include <AK/LexicalPath.h>
 #include <AK/ScopeGuard.h>
+#include <AK/kmalloc.h>
 #include <LibCore/DirIterator.h>
 #include <LibCore/System.h>
 #include <LibFileSystem/FileSystem.h>
@@ -53,7 +54,7 @@ ErrorOr<ByteString> real_path(StringView path)
 
     ByteString dep_path = path;
     char* real_path = realpath(dep_path.characters(), nullptr);
-    ScopeGuard free_path = [real_path]() { free(real_path); };
+    ScopeGuard free_path = [real_path]() { kfree(real_path); };
 
     if (!real_path)
         return Error::from_syscall("realpath"sv, errno);

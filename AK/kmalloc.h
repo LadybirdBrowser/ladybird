@@ -14,11 +14,19 @@
 
 #define kcalloc calloc
 #define kmalloc malloc
+#define kfree free
 #define kmalloc_good_size malloc_good_size
+#if defined(AK_OS_WINDOWS)
+#    define kaligned_alloc(alignment, size) _aligned_malloc(size, alignment)
+#    define kaligned_free _aligned_free
+#else
+#    define kaligned_alloc(alignment, size) aligned_alloc(alignment, size)
+#    define kaligned_free free
+#endif
 
 inline void kfree_sized(void* ptr, size_t)
 {
-    free(ptr);
+    kfree(ptr);
 }
 
 #ifndef AK_OS_SERENITY
