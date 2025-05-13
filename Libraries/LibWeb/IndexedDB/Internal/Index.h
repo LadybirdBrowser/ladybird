@@ -42,6 +42,7 @@ public:
     [[nodiscard]] bool has_record_with_key(GC::Ref<Key> key);
     void clear_records();
     Optional<IndexRecord&> first_in_range(GC::Ref<IDBKeyRange> range);
+    GC::ConservativeVector<IndexRecord> first_n_in_range(GC::Ref<IDBKeyRange> range, Optional<WebIDL::UnsignedLong> count);
 
     HTML::SerializationRecord referenced_value(IndexRecord const& index_record) const;
 
