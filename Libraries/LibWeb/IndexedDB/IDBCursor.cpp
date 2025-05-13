@@ -381,4 +381,43 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBCursor::update(JS::Value value)
     return request;
 }
 
+// https://w3c.github.io/IndexedDB/#dom-idbcursor-update
+WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBCursor::delete_()
+{
+    auto& realm = this->realm();
+
+    // 1. Let transaction be this’s transaction.
+    auto transaction = this->transaction();
+
+    // 2. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
+    if (transaction->state() != IDBTransaction::TransactionState::Active)
+        return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while deleting cursor"_string);
+
+    // 3. If transaction is a read-only transaction, throw a "ReadOnlyError" DOMException.
+    if (transaction->is_readonly())
+        return WebIDL::ReadOnlyError::create(realm, "Transaction is read-only while deleting cursor"_string);
+
+    // FIXME: 4. If this’s source or effective object store has been deleted, throw an "InvalidStateError" DOMException.
+
+    // 5. If this’s got value flag is false, indicating that the cursor is being iterated or has iterated past its end, throw an "InvalidStateError" DOMException.
+    if (!m_got_value)
+        return WebIDL::InvalidStateError::create(realm, "Cursor is active or EOL while deleting"_string);
+
+    // 6. If this’s key only flag is true, throw an "InvalidStateError" DOMException.
+    if (m_key_only)
+        return WebIDL::InvalidStateError::create(realm, "Cursor is key-only while deleting"_string);
+
+    // 7. Let operation be an algorithm to run delete records from an object store with this’s effective object store and this’s effective key.
+    auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(realm.heap(), [this, &realm] -> WebIDL::ExceptionOr<JS::Value> {
+        auto effective_key = this->effective_key();
+        auto range = IDBKeyRange::create(realm, effective_key, effective_key, IDBKeyRange::LowerOpen::No, IDBKeyRange::UpperOpen::No);
+        return delete_records_from_an_object_store(*this->effective_object_store(), range);
+    });
+
+    // 8. Return the result (an IDBRequest) of running asynchronously execute a request with this and operation.
+    auto request = asynchronously_execute_a_request(realm, GC::Ref(*this), operation);
+    dbgln_if(IDB_DEBUG, "Executing request for cursor delete with uuid {}", request->uuid());
+    return request;
+}
+
 }
