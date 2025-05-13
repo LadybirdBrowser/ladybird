@@ -489,6 +489,7 @@ if (BUILD_TESTING)
         LibCore
         LibDNS
         LibGC
+        LibRegex
         LibTest
         LibTextCodec
         LibThreading
@@ -517,10 +518,6 @@ if (BUILD_TESTING)
     # LibTLS needs a special working directory to find cacert.pem
     lagom_test(../../Tests/LibTLS/TestTLSHandshake.cpp LibTLS LIBS LibTLS LibCrypto)
     lagom_test(../../Tests/LibTLS/TestTLSCertificateParser.cpp LibTLS LIBS LibTLS LibCrypto)
-    
-    # RegexLibC test POSIX <regex.h> and contains many Serenity extensions
-    # It is therefore not reasonable to run it on Lagom, and we only run the Regex test
-    lagom_test(../../Tests/LibRegex/Regex.cpp LIBS LibRegex WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/LibRegex)
 
     # JavaScriptTestRunner + LibTest tests
     # test-js
