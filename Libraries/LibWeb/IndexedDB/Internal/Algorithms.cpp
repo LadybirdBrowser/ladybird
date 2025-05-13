@@ -1991,4 +1991,32 @@ GC::Ref<JS::Array> retrieve_multiple_referenced_values_from_an_index(JS::Realm& 
     return list;
 }
 
+// https://w3c.github.io/IndexedDB/#retrieve-multiple-values-from-an-index
+GC::Ref<JS::Array> retrieve_multiple_values_from_an_index(JS::Realm& realm, GC::Ref<Index> index, GC::Ref<IDBKeyRange> range, Optional<WebIDL::UnsignedLong> count)
+{
+    // 1. If count is not given or is 0 (zero), let count be infinity.
+    if (count.has_value() && *count == 0)
+        count = OptionalNone();
+
+    // 2. Let records be a list containing the first count records in index’s list of records whose key is in range.
+    auto records = index->first_n_in_range(range, count);
+
+    // 3. Let list be an empty list.
+    auto list = MUST(JS::Array::create(realm, records.size()));
+
+    // 4. For each record of records:
+    for (u32 i = 0; i < records.size(); ++i) {
+        auto& record = records[i];
+
+        // 1. Let entry be the result of converting a key to a value with record’s value.
+        auto entry = convert_a_key_to_a_value(realm, record.value);
+
+        // 2. Append entry to list.
+        MUST(list->create_data_property_or_throw(i, entry));
+    }
+
+    // 7. Return list converted to a sequence<any>.
+    return list;
+}
+
 }

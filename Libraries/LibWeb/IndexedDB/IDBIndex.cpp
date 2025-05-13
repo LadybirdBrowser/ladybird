@@ -234,4 +234,35 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBIndex::get_all(Optional<JS::Value> q
     return result;
 }
 
+// https://w3c.github.io/IndexedDB/#dom-idbindex-getallkeys
+WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBIndex::get_all_keys(Optional<JS::Value> query, Optional<WebIDL::UnsignedLong> count)
+{
+    auto& realm = this->realm();
+
+    // 1. Let transaction be this’s transaction.
+    auto transaction = this->transaction();
+
+    // 2. Let index be this’s index.
+    auto index = this->index();
+
+    // FIXME: 3. If index or index’s object store has been deleted, throw an "InvalidStateError" DOMException.
+
+    // 4. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
+    if (transaction->state() != IDBTransaction::TransactionState::Active)
+        return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while getting all keys"_string);
+
+    // 5. Let range be the result of converting a value to a key range with query. Rethrow any exceptions.
+    auto range = TRY(convert_a_value_to_a_key_range(realm, query));
+
+    // 6. Let operation be an algorithm to run retrieve multiple values from an index with index, range, and count if given.
+    auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(realm.heap(), [&realm, index, range, count] -> WebIDL::ExceptionOr<JS::Value> {
+        return retrieve_multiple_values_from_an_index(realm, index, range, count);
+    });
+
+    // 7. Return the result (an IDBRequest) of running asynchronously execute a request with this and operation.
+    auto result = asynchronously_execute_a_request(realm, GC::Ref(*this), operation);
+    dbgln_if(IDB_DEBUG, "Executing request for get all keys with uuid {}", result->uuid());
+    return result;
+}
+
 }
