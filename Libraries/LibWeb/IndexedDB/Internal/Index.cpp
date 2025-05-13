@@ -97,4 +97,14 @@ GC::ConservativeVector<IndexRecord> Index::first_n_in_range(GC::Ref<IDBKeyRange>
     return records;
 }
 
+u64 Index::count_records_in_range(GC::Ref<IDBKeyRange> range)
+{
+    u64 count = 0;
+    for (auto const& record : m_records) {
+        if (range->is_in_range(record.key))
+            ++count;
+    }
+    return count;
+}
+
 }
