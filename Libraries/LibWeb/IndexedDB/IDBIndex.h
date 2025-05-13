@@ -32,6 +32,7 @@ public:
     [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<IDBRequest>> get(JS::Value);
     [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<IDBRequest>> get_key(JS::Value);
     [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<IDBRequest>> get_all(Optional<JS::Value>, Optional<WebIDL::UnsignedLong>);
+    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<IDBRequest>> get_all_keys(Optional<JS::Value>, Optional<WebIDL::UnsignedLong>);
     [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<IDBRequest>> open_cursor(JS::Value, Bindings::IDBCursorDirection = Bindings::IDBCursorDirection::Next);
 
     // The transaction of an index handle is the transaction of its associated object store handle.
