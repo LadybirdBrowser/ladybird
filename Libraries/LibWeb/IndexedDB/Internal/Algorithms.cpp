@@ -1318,7 +1318,10 @@ JS::Value delete_records_from_an_object_store(GC::Ref<ObjectStore> store, GC::Re
     // 1. Remove all records, if any, from store’s list of records with key in range.
     store->remove_records_in_range(range);
 
-    // FIXME: 2. For each index which references store, remove every record from index’s list of records whose value is in range, if any such records exist.
+    // 2. For each index which references store, remove every record from index’s list of records whose value is in range, if any such records exist.
+    for (auto const& [name, index] : store->index_set()) {
+        index->remove_records_with_value_in_range(range);
+    }
 
     // 3. Return undefined.
     return JS::js_undefined();

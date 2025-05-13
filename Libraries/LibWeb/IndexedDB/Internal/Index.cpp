@@ -122,4 +122,11 @@ void Index::store_a_record(IndexRecord const& record)
     });
 }
 
+void Index::remove_records_with_value_in_range(GC::Ref<IDBKeyRange> range)
+{
+    m_records.remove_all_matching([&](auto const& record) {
+        return range->is_in_range(record.value);
+    });
+}
+
 }
