@@ -9,7 +9,7 @@ interface IDBCursor {
     [SameObject] readonly attribute IDBRequest request;
     undefined advance([EnforceRange] unsigned long count);
     undefined continue(optional any key);
-    [FIXME] undefined continuePrimaryKey(any key, any primaryKey);
+    undefined continuePrimaryKey(any key, any primaryKey);
     [FIXME, NewObject] IDBRequest update(any value);
     [FIXME, NewObject] IDBRequest delete();
 };

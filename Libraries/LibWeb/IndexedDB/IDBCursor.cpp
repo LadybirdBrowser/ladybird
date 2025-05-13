@@ -215,4 +215,90 @@ WebIDL::ExceptionOr<void> IDBCursor::advance(WebIDL::UnsignedLong count)
     return {};
 }
 
+// https://w3c.github.io/IndexedDB/#dom-idbcursor-continueprimarykey
+WebIDL::ExceptionOr<void> IDBCursor::continue_primary_key(JS::Value key_param, JS::Value primary_key_param)
+{
+    auto& realm = this->realm();
+
+    // 1. Let transaction be this’s transaction.
+    auto transaction = this->transaction();
+
+    // 2. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
+    if (transaction->state() != IDBTransaction::TransactionState::Active)
+        return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while continuing cursor"_string);
+
+    // FIXME: 3. If this’s source or effective object store has been deleted, throw an "InvalidStateError" DOMException.
+
+    // 4. If this’s source is not an index throw an "InvalidAccessError" DOMException.
+    if (!m_source_handle.has<GC::Ref<IDBIndex>>())
+        return WebIDL::InvalidAccessError::create(realm, "Cursor source is not an index"_string);
+
+    // 5. If this’s direction is not "next" or "prev", throw an "InvalidAccessError" DOMException.
+    if (m_direction != Bindings::IDBCursorDirection::Next && m_direction != Bindings::IDBCursorDirection::Prev)
+        return WebIDL::InvalidAccessError::create(realm, "Cursor direction is not next or prev"_string);
+
+    // 6. If this’s got value flag is false, indicating that the cursor is being iterated or has iterated past its end, throw an "InvalidStateError" DOMException.
+    if (!m_got_value)
+        return WebIDL::InvalidStateError::create(realm, "Cursor is active or EOL while continuing"_string);
+
+    // 7. Let r be the result of converting a value to a key with key. Rethrow any exceptions.
+    auto r = TRY(convert_a_value_to_a_key(realm, key_param));
+
+    // 8. If r is invalid, throw a "DataError" DOMException.
+    if (r->is_invalid())
+        return WebIDL::DataError::create(realm, r->value_as_string());
+
+    // 9. Let key be r.
+    auto key = r;
+
+    // 10. Let r be the result of converting a value to a key with primaryKey. Rethrow any exceptions.
+    r = TRY(convert_a_value_to_a_key(realm, primary_key_param));
+
+    // 11. If r is invalid, throw a "DataError" DOMException.
+    if (r->is_invalid())
+        return WebIDL::DataError::create(realm, r->value_as_string());
+
+    // 12. Let primaryKey be r.
+    auto primary_key = r;
+
+    // 13. If key is less than this’s position and this’s direction is "next", throw a "DataError" DOMException.
+    if (Key::less_than(*key, *this->position()) && m_direction == Bindings::IDBCursorDirection::Next)
+        return WebIDL::DataError::create(realm, "Key is less than cursor's position"_string);
+
+    // 14. If key is greater than this’s position and this’s direction is "prev", throw a "DataError" DOMException.
+    if (Key::greater_than(*key, *this->position()) && m_direction == Bindings::IDBCursorDirection::Prev)
+        return WebIDL::DataError::create(realm, "Key is greater than cursor's position"_string);
+
+    // 15. If key is equal to this’s position and primaryKey is less than or equal to this’s object store position and this’s direction is "next", throw a "DataError" DOMException.
+    if (Key::equals(*key, *this->position()) && (Key::less_than(*primary_key, *this->object_store_position()) || Key::equals(*primary_key, *this->object_store_position())) && m_direction == Bindings::IDBCursorDirection::Next)
+        return WebIDL::DataError::create(realm, "Key is equal to cursor's position"_string);
+
+    // 16. If key is equal to this’s position and primaryKey is greater than or equal to this’s object store position and this’s direction is "prev", throw a "DataError" DOMException.
+    if (Key::equals(*key, *this->position()) && (Key::greater_than(*primary_key, *this->object_store_position()) || Key::equals(*primary_key, *this->object_store_position())) && m_direction == Bindings::IDBCursorDirection::Prev)
+        return WebIDL::DataError::create(realm, "Key is equal to cursor's position"_string);
+
+    // 17. Set this’s got value flag to false.
+    m_got_value = false;
+
+    // 18. Let request be this’s request.
+    auto request = this->request();
+
+    // 19. Set request’s processed flag to false.
+    request->set_processed(false);
+
+    // 20. Set request’s done flag to false.
+    request->set_done(false);
+
+    // 21. Let operation be an algorithm to run iterate a cursor with the current Realm record, this, key, and primaryKey.
+    auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(realm.heap(), [this, &realm, key, primary_key] -> WebIDL::ExceptionOr<JS::Value> {
+        return WebIDL::ExceptionOr<JS::Value>(iterate_a_cursor(realm, *this, key, primary_key));
+    });
+
+    // 22. Run asynchronously execute a request with this’s source handle, operation, and request.
+    asynchronously_execute_a_request(realm, source_handle(), operation, request);
+    dbgln_if(IDB_DEBUG, "Executing request for cursor continue with primary key with uuid {}", request->uuid());
+
+    return {};
+}
+
 }
